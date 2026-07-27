@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-27 — Opdrachtgever: langst-wachtende kandidaat (ghosting-risico) op de reactie-trechter /inzicht
+
+**Wat:** de reactie-trechter op `/inzicht` (opdrachtgever, PR #935) toonde "Wachten op een eerste blik" (aantal
+NEW-reacties) maar niet **hóe lang** de langst wachtende kandidaat al onbekeken staat. Een kandidaat die dagen
+onbekeken wacht is een ghosting-risico — de opdrachtgever verliest de kandidaat en de ZZP'er krijgt geen antwoord
+(benchmark Temper/Malt: kandidaten zien hoe snel een opdrachtgever reageert). Nu draagt die trechterregel de leeftijd
+van de langst wachtende NEW-reactie ("nog niet bekeken · langst X dagen") + **tone-escalatie** naar `danger` zodra de
+oudste ≥ `CANDIDATE_GHOSTING_RISK_DAYS` (5) dagen wacht.
+
+**Grens/architectuur:** pure `summarizeClientApplications(byStatus, { oldestNewAt, now })` (`client-application-funnel.ts`)
+kreeg `awaitingFirstLookOldestDays`/`awaitingFirstLookAtRisk` + de pure helper `ageInDays` (floor, nooit negatief,
+deterministisch met expliciete `now`). De leeftijd geldt alléén als er ook echt een wachtende NEW-reactie is (een
+verdwaald tijdstip geeft geen risicovlag). `getClientStats` (`client-stats.ts`) haalt de langst wachtende NEW-reactie op
+via **één extra gescoopte `application.aggregate` `_min: { createdAt }`** (`where: { status: "NEW", job: { companyId } }`)
+— `createdAt` is onveranderlijk, dus een betrouwbare leeftijdsbron; scoping op de eigen company. Read-only afleiding,
+**geen schemawijziging, geen nieuw mutatie/auth-oppervlak**. Het woord "AI" komt nergens voor.
+
+**Test:** +9 unit-tests (`client-application-funnel.test.ts`): leeftijd in hele dagen, risicovlag vanaf de drempel, geen
+leeftijd/risico zonder wachtende NEW-reactie (ook met verdwaald tijdstip), geen leeftijd zonder tijdstip, toekomstig
+tijdstip → 0 (nooit negatief); `ageInDays` floor/null/klem-gevallen. Gate: typecheck, lint, test, build, prettier groen.
+
+**Bestanden:** `src/lib/client-application-funnel.ts` (+ test), `src/lib/client-stats.ts`,
+`src/app/(protected)/inzicht/page.tsx`, `PROGRESS.md`.
+
 ## 2026-07-27 — Ontwerp-lab: +10 concepten (reeks 49, nrs 481–490) → 490 totaal op /ontwerp
 
 **Wat:** additief 10 nieuwe redesign-concepten toegevoegd aan `/ontwerp` (accumuleren, nooit vervangen — de

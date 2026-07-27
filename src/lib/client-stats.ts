@@ -37,6 +37,12 @@ export interface ClientStats {
   complianceRate: number;
   /** Reacties op de eigen opdrachten per status (ApplicationStatus → aantal), voor de reactie-trechter. */
   applicationsByStatus: Record<string, number>;
+  /**
+   * Aanmaakmoment van de langst wachtende, nog onbekeken (NEW) reactie op de eigen opdrachten; `null`
+   * als er geen NEW-reactie is. Voedt de "langst wachtende"-leeftijd in de reactie-trechter — een
+   * ghosting-risicosignaal. `createdAt` is onveranderlijk, dus een betrouwbare leeftijdsbron.
+   */
+  oldestUnreviewedApplicationAt: Date | null;
 }
 
 /**
@@ -50,42 +56,56 @@ export async function getClientStats(userId: string): Promise<ClientStats | null
   });
   if (!company) return null;
 
-  const [paid, open, publishedJobs, filledJobs, collabRows, alerts, activeCount, appRows] =
-    await Promise.all([
-      prisma.invoice.aggregate({
-        where: { counterpartyUserId: userId, status: "PAID" },
-        _sum: { totalCents: true },
-      }),
-      prisma.invoice.aggregate({
-        // Cascade-bewust: cascade-facturen blijven status='DRAFT' en gelden als openstaand op hun
-        // lifecycleStatus (SUBMITTED/APPROVED/OVERDUE); legacy-facturen op status SENT/OVERDUE.
-        where: { counterpartyUserId: userId, ...outstandingInvoiceWhere },
-        _sum: { totalCents: true },
-      }),
-      prisma.job.count({
-        where: { companyId: company.id, status: { in: ["PUBLISHED", "CLOSED"] } },
-      }),
-      prisma.job.count({
-        where: {
-          companyId: company.id,
-          status: { in: ["PUBLISHED", "CLOSED"] },
-          collaborations: { some: { status: { in: ["ACTIVE", "COMPLETED"] } } },
-        },
-      }),
-      prisma.collaboration.groupBy({
-        by: ["status"],
-        where: { companyId: company.id },
-        _count: { _all: true },
-      }),
-      clientCredentialAlerts(userId),
-      prisma.collaboration.count({ where: { companyId: company.id, status: "ACTIVE" } }),
-      // Reacties op de eigen opdrachten, per status — voor de kandidaat-/reactie-trechter op /inzicht.
-      prisma.application.groupBy({
-        by: ["status"],
-        where: { job: { companyId: company.id } },
-        _count: { _all: true },
-      }),
-    ]);
+  const [
+    paid,
+    open,
+    publishedJobs,
+    filledJobs,
+    collabRows,
+    alerts,
+    activeCount,
+    appRows,
+    oldestNew,
+  ] = await Promise.all([
+    prisma.invoice.aggregate({
+      where: { counterpartyUserId: userId, status: "PAID" },
+      _sum: { totalCents: true },
+    }),
+    prisma.invoice.aggregate({
+      // Cascade-bewust: cascade-facturen blijven status='DRAFT' en gelden als openstaand op hun
+      // lifecycleStatus (SUBMITTED/APPROVED/OVERDUE); legacy-facturen op status SENT/OVERDUE.
+      where: { counterpartyUserId: userId, ...outstandingInvoiceWhere },
+      _sum: { totalCents: true },
+    }),
+    prisma.job.count({
+      where: { companyId: company.id, status: { in: ["PUBLISHED", "CLOSED"] } },
+    }),
+    prisma.job.count({
+      where: {
+        companyId: company.id,
+        status: { in: ["PUBLISHED", "CLOSED"] },
+        collaborations: { some: { status: { in: ["ACTIVE", "COMPLETED"] } } },
+      },
+    }),
+    prisma.collaboration.groupBy({
+      by: ["status"],
+      where: { companyId: company.id },
+      _count: { _all: true },
+    }),
+    clientCredentialAlerts(userId),
+    prisma.collaboration.count({ where: { companyId: company.id, status: "ACTIVE" } }),
+    // Reacties op de eigen opdrachten, per status — voor de kandidaat-/reactie-trechter op /inzicht.
+    prisma.application.groupBy({
+      by: ["status"],
+      where: { job: { companyId: company.id } },
+      _count: { _all: true },
+    }),
+    // Langst wachtende, nog onbekeken reactie — voedt het ghosting-risicosignaal in de trechter.
+    prisma.application.aggregate({
+      where: { status: "NEW", job: { companyId: company.id } },
+      _min: { createdAt: true },
+    }),
+  ]);
 
   const collabByStatus = new Map(collabRows.map((r) => [r.status, r._count._all]));
   const appByStatus = new Map(appRows.map((r) => [r.status, r._count._all]));
@@ -103,5 +123,6 @@ export async function getClientStats(userId: string): Promise<ClientStats | null
     compliantPlacements,
     complianceRate: activeCount === 0 ? 100 : ratePercent(compliantPlacements, activeCount),
     applicationsByStatus: Object.fromEntries(appByStatus),
+    oldestUnreviewedApplicationAt: oldestNew._min.createdAt ?? null,
   };
 }

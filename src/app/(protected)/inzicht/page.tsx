@@ -462,7 +462,11 @@ async function ClientInzicht({ userId }: { userId: string }) {
           centerLabel="reacties"
           emptyText="Zodra er op je opdrachten wordt gereageerd, zie je hier de verdeling per status."
         />
-        <ClientFunnelWidget funnel={summarizeClientApplications(s.applicationsByStatus)} />
+        <ClientFunnelWidget
+          funnel={summarizeClientApplications(s.applicationsByStatus, {
+            oldestNewAt: s.oldestUnreviewedApplicationAt,
+          })}
+        />
       </div>
     </div>
   );
@@ -503,8 +507,17 @@ function ClientFunnelWidget({
             {
               label: "Wachten op een eerste blik",
               value: funnel.awaitingFirstLook,
-              sub: "nog niet bekeken",
-              tone: funnel.awaitingFirstLook > 0 ? "warning" : "default",
+              sub:
+                funnel.awaitingFirstLookOldestDays == null
+                  ? "nog niet bekeken"
+                  : funnel.awaitingFirstLookOldestDays === 0
+                    ? "nog niet bekeken · sinds vandaag"
+                    : `nog niet bekeken · langst ${plural(funnel.awaitingFirstLookOldestDays, "dag", "dagen")}`,
+              tone: funnel.awaitingFirstLookAtRisk
+                ? "danger"
+                : funnel.awaitingFirstLook > 0
+                  ? "warning"
+                  : "default",
               href: "/kandidaten",
             },
             { label: "Op shortlist", value: funnel.shortlisted },
