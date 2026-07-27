@@ -1447,6 +1447,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "480": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-480-speelkwartier").then((m) => m.Concept480),
   ),
+  "481": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-481-aerogel").then((m) => m.Concept481),
+  ),
+  "482": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-482-grondtoon").then((m) => m.Concept482),
+  ),
+  "483": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-483-noorderlicht").then((m) => m.Concept483),
+  ),
+  "484": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-484-linnenband").then((m) => m.Concept484),
+  ),
+  "485": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-485-kwartslicht").then((m) => m.Concept485),
+  ),
+  "486": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-486-schaduwtheater").then((m) => m.Concept486),
+  ),
+  "487": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-487-kompasroos").then((m) => m.Concept487),
+  ),
+  "488": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-488-zeewier").then((m) => m.Concept488),
+  ),
+  "489": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-489-koperdraad").then((m) => m.Concept489),
+  ),
+  "490": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-490-velijn").then((m) => m.Concept490),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al

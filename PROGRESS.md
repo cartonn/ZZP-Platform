@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-27 — Ontwerp-lab: +10 concepten (reeks 49, nrs 481–490) → 490 totaal op /ontwerp
+
+**Wat:** additief 10 nieuwe redesign-concepten toegevoegd aan `/ontwerp` (accumuleren, nooit vervangen — de
+bestaande 480 blijven ongemoeid). Reeks 49, nrs **481–490**: 481 Aerogel (frosted ultralicht/matglas), 482 Grondtoon
+(verfijnd neo-brutalisme), 483 Noorderlicht (premium-dark aurora), 484 Linnenband (warm boeklinnen), 485 Kwartslicht
+(kristallijn gefacetteerd), 486 Schaduwtheater (chiaroscuro spotlight), 487 Kompasroos (nautisch-cartografisch),
+488 Zeewier (biofiel onderwater-kalm), 489 Koperdraad (koper op houtskool), 490 Velijn (redactioneel velijn-luxe).
+Gebouwd door 4 parallelle workers op niet-overlappende bestanden; registry + route-koppeling zelf geïntegreerd.
+
+**Grens/architectuur:** alleen `src/components/ontwerp/concepts/concept-48*.tsx`/`concept-490-*.tsx` (10 nieuw) +
+append aan `registry.ts` (+10 ConceptMeta) en `[id]/concept-host.tsx` (+10 dynamic-imports) + `docs/DESIGN-LAB.md`.
+Geen bestaande pagina's/logica/auth/gedrag geraakt. Puur frontend/mock-data; elk concept: 6 kernschermen via
+screen-switcher, verklaarbare match-redenen, next-best-action, verificatiestatus (label + icoon), loading/empty/error,
+`tabular-nums`, focus-states, `aria-*`, responsive. Het woord "AI" komt nergens voor. UI in het Nederlands.
+
+**Bestanden:** `src/components/ontwerp/concepts/concept-481..490-*.tsx`, `registry.ts`,
+`src/app/ontwerp/[id]/concept-host.tsx`, `docs/DESIGN-LAB.md`, `PROGRESS.md`.
+
 ## 2026-07-27 — Opdrachtgever: "deze week te betalen"-urgentieregel op /verplichtingen
 
 **Wat:** `/verplichtingen` toonde de opdrachtgever "Ingepland" (álle toekomstige verplichtingen samen) maar geen
