@@ -333,7 +333,7 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
         "doorgifte buiten de EER alleen met verwerkersovereenkomst + passende waarborgen (SCC's)",
     ],
     retention:
-      "Notificatiehistorie max. 6 maanden; e-mailadressen bewaard zolang het account actief is",
+      "Notificatiehistorie max. 6 maanden (automatisch afgedwongen door de geplande retentie-sweep run-all → notification-retention, die notificaties ouder dan het venster hard wist); e-mailadressen bewaard zolang het account actief is",
     securityMeasures: [
       "Verwerkerovereenkomst met e-maildienstverlener",
       "Bij doorgifte buiten de EER: modelcontractbepalingen (SCC's) en waar mogelijk EU-regio",
@@ -659,6 +659,13 @@ export const RETENTION_SCHEDULE: readonly RetentionRule[] = [
       "Gekoppeld aan de samenwerking; niet langer dan noodzakelijk voor governance en geschillenbeslechting",
     rationale:
       "Gerechtvaardigd belang (betrouwbaarheidsgovernance en geschillenbeslechting). De vrije-tekstreden kan bijzondere gegevens (art. 9) bevatten en vereist daarom extra terughoudendheid en tijdige verwijdering/anonimisering",
+  },
+  {
+    key: "notificaties-meldingen",
+    category: "Notificatiehistorie (platformmeldingen)",
+    period: "Max. 6 maanden; daarna automatisch gewist",
+    rationale:
+      "Gerechtvaardigd belang (dienstverlening/attendering); na het venster vervalt de noodzaak. Een notificatie draagt PII in titel/inhoud (bv. naam van de tegenpartij, bedragen, statusupdates); het 6-maandenvenster (art. 5(1)(e)) wordt automatisch afgedwongen door een geplande retentie-sweep (run-all → notification-retention) die notificaties met createdAt vóór de afkapdatum hard wist, ongeacht lees-/digest-/push-status",
   },
 ] as const;
 

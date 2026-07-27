@@ -4,6 +4,53 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-27 (basis: `main` @ 8c7f471a)
+
+Audit: orchestrator (Opus 4.8) + 1 parallelle adversariële Opus-audit op de sinds de vorige ronde (`42650618`)
+verse niet-design-oppervlakken (#931–#936): `/api/metrics` + `observability/metrics.ts` (nieuwe
+subscription-expiry-backlog-gauge), `client-stats.ts` (`applicationsByStatus`), `client-application-funnel.ts`,
+`jobs/active-filters.ts` + `active-filter-chips.tsx` (URL/searchParam-manipulatie), `jobs/compliance-chip.ts`,
+en de +73/+52 regels op `inzicht/page.tsx` en `opdrachten/(index)/page.tsx`. Onderzocht op: object-/ownership-/
+tenant-autorisatie & IDOR, PII-over-fetch naar de client, k-anonimiteit (markttarief ≥10), XSS/injectie/open-redirect
+in de nieuwe UI, `/api/metrics`-auth (CRON_SECRET/Bearer, PII-vrije gauges), secret-/foutlek. **Oppervlak schoon** —
+geen nieuw KRITIEK/HOOG/MIDDEL/LAAG security- of privacy-gat. Geverifieerd: `/api/metrics` fail-closed
+(503 zonder secret, 401 op fout token via timing-safe `authorizeCron`, alleen `Authorization`-header — geen
+`?token=` in access-logs), de nieuwe gauge is een PII-vrije `count()`; `applicationsByStatus` is company-scoped
+(`company.id` uit `findUnique({userId})` → geen cross-tenant IDOR, alleen aggregaat-tellingen, geen kandidaat-PII);
+chip-labels met user-input worden als `{chip.label}` in JSX gerenderd (React-escape, geen XSS), URL's via
+`URLSearchParams`/`encodeURIComponent` (geen open-redirect/injectie), `sort` via `JOB_SORTS`-whitelist;
+`computeMarketBand` handhaaft `MARKET_RATE_MIN_SAMPLE = 10`. Geen mutatie-oppervlak geraakt (alles read-only
+view/observability). **Eén geparkeerde AVG-retentie-belofte technisch afgedwongen (HOOG → OPGELOST, rood→groen).**
+
+### OPGELOST — HOOG (AVG art. 5(1)(e) opslagbeperking): "Notificatiehistorie max. 6 maanden" was niet technisch afgedwongen
+
+- **Repro (was):** het verwerkingsregister (entry `notificaties-email`) belooft "Notificatiehistorie max. 6
+  maanden", maar er was **geen enkele geplande taak** die dat afdwong (geverifieerd via grep: geen
+  `NOTIFICATION_RETENTION`/`notification-retention` in `src/`). `run-all` wired alleen `audit-/webhook-event-/
+lead-/health-incident-/routing-cache-retention`. Gevolg: `Notification`-rijen — die **PII in `title`/`body`**
+  dragen (bv. "Nieuwe reactie van &lt;naam&gt; op &lt;opdracht&gt;", bedragen, statusupdates) — stapelden zich
+  **onbeperkt voorbij het beloofde 6-maandenvenster** op in de DB, in tegenspraak met het eigen gepubliceerde
+  opslagbeperkingsbeleid. Sub-deel van het bredere geparkeerde HOOG-retentie-item (ronde 2026-07-26); dit is het
+  laagst-risico, best-begrensde eerste increment (geen blob-cascade, geen bijzondere-categorie-document).
+- **Geschonden regel:** AVG art. 5(1)(e) (opslagbeperking — niet langer bewaren dan noodzakelijk).
+- **Fix (PR #—):** nieuwe geplande sweep `runNotificationRetentionTask` (`src/lib/notification-retention-task.ts`,
+  spiegelt `lead-retention-task.ts`: gebatchte id-select + `deleteMany`, BATCH_SIZE 500 / MAX_BATCHES 200,
+  SQLite+Postgres, idempotent) die notificaties met `createdAt < cutoff` hard verwijdert ongeacht lees-/digest-/
+  push-status (max-bewaartermijn voor de hele historie) en één PII-vrij auditrecord schrijft
+  (`NOTIFICATIONS_PRUNED`, metadata `{pruned, retentionDays, cutoff}`). Config `NOTIFICATION_RETENTION_DAYS`
+  (default 180 = 6 mnd, minimumvloer 30, expliciete `0` = uit) + pure `notificationRetentionCutoff`. Gewired in
+  `run-all` naast de andere `*-retention`-taken. Register-entry `notificaties-meldingen` toegevoegd aan
+  `RETENTION_SCHEDULE` + de `notificaties-email`-`retention`-tekst noemt nu de afdwingende sweep. +13 unit-tests
+  (rood→groen: zonder de taak bleven oude notificaties eeuwig staan; gelezen én ongelezen gewist; minimumvloer;
+  multi-batch; audit-alleen-bij-snoei; idempotentie; expliciete uit; pure-cutoff-grens).
+
+### Resterend geparkeerd uit het bredere HOOG-retentie-item (ronde 2026-07-26)
+
+De overige sub-modellen van "gedocumenteerde bewaartermijnen niet technisch afgedwongen" blijven staan als aparte,
+kleinere increments: (a) `Document`+blob van EXPIRED/REJECTED credentials (bijzondere categorie, art. 9 — vereist
+grace-venster + zorgvuldige hard-delete-logica), (b) `Message`-inhoud >12 mnd na samenwerkingseinde, (c) stale
+`Application` >4 wk. Elk als eigen getest increment; notification-retentie (deze ronde) was het laagst-risico deel.
+
 ## Ronde 2026-07-26b (basis: `main` @ 42650618)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
