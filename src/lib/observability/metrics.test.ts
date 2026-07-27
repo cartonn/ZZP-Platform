@@ -20,6 +20,7 @@ const HEALTHY: MetricsInput = {
   backupOk: true,
   backupStale: false,
   verificationQueue: 4,
+  verificationQueueOldestAgeSeconds: 1800,
   maintenanceMode: false,
   overdueExpiryCredentials: 0,
   overdueExpirySubscriptions: 0,
@@ -42,6 +43,7 @@ describe("buildMetrics", () => {
     expect(valueOf(HEALTHY, "zzp_backup_heartbeat_ok")).toBe(1);
     expect(valueOf(HEALTHY, "zzp_backup_heartbeat_stale")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_verification_queue")).toBe(4);
+    expect(valueOf(HEALTHY, "zzp_verification_queue_oldest_age_seconds")).toBe(1800);
     expect(valueOf(HEALTHY, "zzp_maintenance_mode")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_credentials_overdue_expiry")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_subscriptions_overdue_expiry")).toBe(0);
@@ -87,6 +89,30 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_backup_heartbeat_age_seconds")).toBe(AGE_NEVER);
   });
 
+  it("gebruikt de AGE_NEVER-sentinel voor de wachtrij-leeftijd wanneer de wachtrij leeg is", () => {
+    expect(
+      valueOf(
+        { ...HEALTHY, verificationQueueOldestAgeSeconds: null },
+        "zzp_verification_queue_oldest_age_seconds",
+      ),
+    ).toBe(AGE_NEVER);
+  });
+
+  it("klemt een negatieve/niet-hele wachtrij-leeftijd veilig", () => {
+    expect(
+      valueOf(
+        { ...HEALTHY, verificationQueueOldestAgeSeconds: -10 },
+        "zzp_verification_queue_oldest_age_seconds",
+      ),
+    ).toBe(0);
+    expect(
+      valueOf(
+        { ...HEALTHY, verificationQueueOldestAgeSeconds: 90.7 },
+        "zzp_verification_queue_oldest_age_seconds",
+      ),
+    ).toBe(90);
+  });
+
   it("mapt een ongezonde staat naar 0-vlaggen en stale=1", () => {
     const input: MetricsInput = {
       dbReachable: false,
@@ -97,6 +123,7 @@ describe("buildMetrics", () => {
       backupOk: null,
       backupStale: true,
       verificationQueue: 0,
+      verificationQueueOldestAgeSeconds: null,
       maintenanceMode: true,
       overdueExpiryCredentials: 12,
       overdueExpirySubscriptions: 8,
@@ -129,6 +156,7 @@ describe("buildMetrics", () => {
       "zzp_backup_heartbeat_ok",
       "zzp_backup_heartbeat_stale",
       "zzp_verification_queue",
+      "zzp_verification_queue_oldest_age_seconds",
       "zzp_maintenance_mode",
       "zzp_credentials_overdue_expiry",
       "zzp_subscriptions_overdue_expiry",

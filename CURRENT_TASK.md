@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — /api/metrics verificatie-wachtrij-leeftijd gauge (2026-07-27, PR #938)** —
+> `/api/metrics` had `zzp_verification_queue` (wachtrij**diepte**) maar niet de **leeftijd van de oudst wachtende verificatie**.
+> Een kleine-maar-vastgelopen wachtrij (overige inzendingen verwerkt, één blijft dagen hangen) is een SLA-breach op de
+> kern-differentiatie (certificaat-verificatie) die de kale telling mist. Nieuwe gauge `zzp_verification_queue_oldest_age_seconds`
+> (leeftijd in seconden; `-1` = lege wachtrij) → externe monitor kan alarmeren op "oudste wachtende verificatie > X uur". Route
+> haalt de oudste SUBMITTED-inzending met exact dezelfde ordering + `waitingSince`-semantiek als `/admin/verificaties` (één bron,
+> kan niet driften; steunt op `@@index([status, submittedAt])`). Read-only, geen schemawijziging, geen mutatie/auth-oppervlak,
+> geen PII, fail-safe. +3 tests (metrics.test.ts → 15). Gate: typecheck, lint, test (5157), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Kandidaten-/reactie-trechter op /inzicht (opdrachtgever) (2026-07-26, PR #935)** —
 > `/inzicht` toonde de opdrachtgever samenwerkingen-per-status, vervullingsgraad (time-to-fill) en compliance, maar **geen
 > kandidaat-/reactie-trechter** — terwijl de ZZP'er wél een "Status van je reacties"-donut heeft (spiegelbeeld ontbrak). Nu een

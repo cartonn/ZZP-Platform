@@ -980,3 +980,12 @@ server-side entitlement-guard behandelt zo'n verlopen periode al als Gratis (gee
 oplopende DB-backlog terwijl de cron-heartbeat "vers" is betekent dat de verval-/renewal-cyclus
 (notificaties, ledger) stilligt. Een klein, tijdelijk aantal (tot één cron-interval) is normaal; alarmeer
 op aanhoudende groei. Faalt veilig (nooit een 500), bevat geen PII. Resterend mensenwerk: **niets extra**.
+**Code-kant GEDAAN (2026-07-27) — verificatie-wachtrij-leeftijd gauge:** `zzp_verification_queue_oldest_age_seconds`
+(leeftijd in seconden van de langst wachtende SUBMITTED-verificatie-inzending; `-1` = lege wachtrij). De
+bestaande `zzp_verification_queue` telt alléén de wachtrijdiepte — een kleine-maar-vastgelopen wachtrij (de
+overige inzendingen werden verwerkt, één blijft dagen hangen) is een **SLA-breach op de kern-differentiatie**
+die de kale telling mist. De gauge gebruikt exact dezelfde `waitingSince`-semantiek (submittedAt leidend,
+updatedAt-fallback voor legacy-records) en ordering als de admin-wachtrij (`/admin/verificaties`) → kan niet
+driften t.o.v. wat de admin ziet, en steunt op de bestaande index `@@index([status, submittedAt])`. Alarmeer
+op "oudste wachtende verificatie > X uur". Faalt veilig (nooit een 500), bevat geen PII. Resterend mensenwerk:
+**niets extra**.

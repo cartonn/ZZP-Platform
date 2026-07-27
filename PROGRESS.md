@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-27 — Prod-rijpheid: /api/metrics verificatie-wachtrij-leeftijd gauge (SLA/stuck-queue-detector)
+
+**Wat:** `/api/metrics` exposeerde `zzp_verification_queue` (wachtrij**diepte**) maar niet de **leeftijd van
+de oudst wachtende verificatie**. Een kleine-maar-vastgelopen wachtrij (overige inzendingen verwerkt, één
+blijft dagen hangen) is een SLA-breach op de kern-differentiatie (certificaat-verificatie) die de kale
+telling mist. Nieuwe gauge `zzp_verification_queue_oldest_age_seconds` (leeftijd in seconden; `-1` = lege
+wachtrij) → een externe monitor kan alarmeren op "oudste wachtende verificatie > X uur".
+
+**Architectuur/grens:** de route haalt de oudste SUBMITTED-inzending op met exact dezelfde ordering
+(`submittedAt` asc, nulls last → `updatedAt` asc) en `waitingSince`-semantiek (`submittedAt` ?? `updatedAt`,
+legacy-fallback) als de admin-wachtrij (`/admin/verificaties`) — één bron van waarheid, kan niet driften;
+steunt op de bestaande index `@@index([status, submittedAt])`. Pure shaping in `buildMetrics` (AGE_NEVER-
+sentinel bij lege wachtrij, klemt negatief/niet-heel). Read-only, geen schemawijziging, geen mutatie/auth-
+oppervlak, geen PII. Zelfde fail-safe-collectie (nooit een 500) en Bearer-`CRON_SECRET`-guard als de rest.
+
+**Bestanden:** `src/lib/observability/metrics.ts` (+ `metrics.test.ts`, +3 tests → 15),
+`src/app/api/metrics/route.ts`, `MENSENWERK.md` §11, `PROGRESS.md`, `CURRENT_TASK.md`.
+Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-27 — Security/privacy: notificatiehistorie-retentie (AVG art. 5(1)(e) technisch afgedwongen)
 
 **Wat:** het verwerkingsregister belooft "Notificatiehistorie max. 6 maanden", maar er was geen taak die
