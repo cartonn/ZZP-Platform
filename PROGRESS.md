@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-27 — Actieve-filter-chips + "Wis alles" op de opdrachtenmarktplaats (ZZP'er/opdrachtgever)
+
+**Wat:** de opdrachtenmarktplaats (`/opdrachten`) heeft rijke filters (zoekterm, branche, vaardigheden,
+werkvorm, locatie, min/max-tarief, vereist certificaat, "Mijn vakgebied") maar toonde **nergens welke
+filters actief zijn** en bood **geen één-klik reset** — een klassieke dead-end wanneer filters 0 resultaten
+geven (de empty-state zei alleen "pas je filters aan"). Benchmark Linear/Vercel/Temper: **dismissible
+filter-pills** + "Wis alles". Nu een rij wisbare chips onder het filterpaneel — elke pill toont een filter
+("Branche: Zorg", "Min. € 45/uur", een vaardigheid, …) met een kruisje dat precies díe filter uit de URL
+haalt — plus een **"Wis alles"** dat alle filters weghaalt maar de gekozen **sortering behoudt**. De
+empty-state krijgt bovendien een **"Wis alle filters"**-actie zodra er filters actief zijn.
+
+**Grens/architectuur:** pure `describeActiveJobFilters(filters, {industries, skills})` +
+`hasActiveJobFilters` (`src/lib/jobs/active-filters.ts`) leiden de chips af uit het reeds-genormaliseerde
+`JobFilters`-object (bron: `normalizeJobFilters`) — `sort`/`page` tellen nooit als filter; een expliciete
+`industryId` overkoepelt de `mine`-quickfilter (identiek aan de where-clause, nooit beide chips); labels uit
+**dezelfde** industrie-/skill-lookups als het filterpaneel → geen drift. Client-component `ActiveFilterChips`
+manipuleert alleen de URL-searchParams (net als `JobFilters`), `next.delete("page")` bij elke wijziging.
+Read-only, **geen schemawijziging, geen nieuw mutatie/auth-oppervlak**. Het woord "AI" komt nergens voor.
+
+**Bestanden:** `src/lib/jobs/active-filters.ts` (+ test, 17 tests), `src/components/jobs/active-filter-chips.tsx`,
+`src/app/(protected)/opdrachten/(index)/page.tsx` (chips onder `JobFilters` + empty-state-actie), `PROGRESS.md`.
+Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-26 — Kandidaten-/reactie-trechter op /inzicht (opdrachtgever)
 
 **Wat:** de opdrachtgever zag op `/inzicht` samenwerkingen-per-status, vervullingsgraad (time-to-fill)

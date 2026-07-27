@@ -46,6 +46,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { JobFilters } from "@/components/jobs/job-filters";
+import { ActiveFilterChips } from "@/components/jobs/active-filter-chips";
+import { describeActiveJobFilters } from "@/lib/jobs/active-filters";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SaveJobButton } from "@/components/jobs/save-job-button";
 import { JobPipelineStrip } from "@/components/jobs/job-pipeline-strip";
@@ -619,6 +621,11 @@ async function BrowseJobs({
 
   // Bij match-sortering pagineren we de in het geheugen gerangschikte (begrensde) set; anders de
   // volledige databanktelling. `total` blijft de eerlijke "gevonden"-teller in de kop.
+  // Actieve-filter-chips: laat zien welke filters de resultaatset beperken (en laat ze los-wisbaar zijn),
+  // met een "Wis alles" om in één klik terug naar de volledige lijst te gaan. Labels uit dezelfde
+  // industrie-/skill-lookups als het filterpaneel — één bron van waarheid, geen drift.
+  const activeChips = describeActiveJobFilters(f, { industries, skills });
+
   const paginationTotal = effectiveMatchSort ? jobs.length : total;
   const totalPages = Math.max(1, Math.ceil(paginationTotal / JOBS_PER_PAGE));
   const mkPageHref = (page: number) => {
@@ -648,12 +655,19 @@ async function BrowseJobs({
         canSortByMatch={profile != null}
       />
 
+      <ActiveFilterChips chips={activeChips} />
+
       {visibleJobs.length === 0 ? (
         <Card>
           <EmptyState
             icon={SearchX}
             title={t("Geen opdrachten gevonden")}
             description={t("Pas je filters aan om meer resultaten te zien.")}
+            action={
+              activeChips.length > 0
+                ? { label: t("Wis alle filters"), href: "/opdrachten" }
+                : undefined
+            }
           />
         </Card>
       ) : (
