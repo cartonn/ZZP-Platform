@@ -61,6 +61,8 @@ import { competitionChip, summarizeJobCompetition } from "@/lib/job-competition"
 import { paymentTrustChip, type PaymentTrustChip } from "@/lib/payment-behavior";
 import { jobRateFitChip, type JobRateFitChip } from "@/lib/job-rate-fit";
 import { jobComplianceChip, type JobComplianceChip } from "@/lib/jobs/compliance-chip";
+import { jobFillUrgency, type JobFillUrgencyChip } from "@/lib/jobs/fill-urgency";
+import { JobFillUrgencyBadge } from "@/components/jobs/job-fill-urgency-badge";
 import { appliedJobChipFor, type AppliedJobChip } from "@/lib/job-applied-chip";
 import { getPaymentBehaviorForCompanies } from "@/lib/data/payment-behavior";
 import { responsivenessChip } from "@/lib/client-responsiveness";
@@ -173,6 +175,30 @@ async function ClientJobs({
     });
     vacancyByJob.set(job.id, summary);
     publishedSummaries.push(summary);
+  }
+
+  // Acuut-onbezet-signaal per opdracht: een gepubliceerde opdracht waarvan de startdatum nadert of al
+  // verstreken is, terwijl er nog niemand geplaatst is (geen niet-geannuleerde samenwerking). Distinct
+  // en urgenter dan het vacaturetempo (respons-momentum): een opdracht kan reacties krijgen en tóch
+  // morgen ongevuld starten. Eén begrensde groupBy over de eigen niet-geannuleerde samenwerkingen (geen
+  // N+1) bepaalt "vervuld"; `jobFillUrgency` beslist server-side of er iets te melden valt.
+  const filledGroups = await prisma.collaboration.groupBy({
+    by: ["jobId"],
+    where: { job: { company: { userId } }, status: { not: "CANCELLED" } },
+    _count: { _all: true },
+  });
+  const filledJobIds = new Set(filledGroups.map((g) => g.jobId));
+  const fillUrgencyByJob = new Map<string, JobFillUrgencyChip>();
+  for (const job of jobs) {
+    const chip = jobFillUrgency(
+      {
+        status: job.status as JobStatus,
+        startDate: job.startDate,
+        filled: filledJobIds.has(job.id),
+      },
+      now,
+    );
+    if (chip) fillUrgencyByJob.set(job.id, chip);
   }
   const portfolioHeadline = vacancyPortfolioHeadline(summarizeVacancyPortfolio(publishedSummaries));
 
@@ -299,6 +325,10 @@ async function ClientJobs({
                   <JobPipelineStrip
                     pipeline={summarizeJobPipeline(statusesByJob.get(job.id) ?? [])}
                   />
+
+                  {fillUrgencyByJob.has(job.id) && (
+                    <JobFillUrgencyBadge chip={fillUrgencyByJob.get(job.id)!} />
+                  )}
 
                   {vacancyByJob.has(job.id) && (
                     <VacancyPaceChip summary={vacancyByJob.get(job.id)!} />

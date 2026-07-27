@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — acuut-onbezet-signaal op de eigen opdrachtkaart (2026-07-27, PR #939)** —
+> "Mijn opdrachten" (CLIENT-grid) toonde per opdracht het vacaturetempo (respons-momentum) + tarief-diagnose, maar geen signaal
+> dat een **gepubliceerde opdracht waarvan de startdatum nadert/verstreken is nog niet vervuld** is — een distinct, urgenter
+> risico (een opdracht kan goed tempo hebben en tóch morgen ongevuld starten). Spiegelt de bemiddelaar-acute-onbezet-taak
+> (`franchise/acute-open-diensten.ts`) voor de directe opdrachtgever (benchmark Temper/Pidz "shift starts soon, still open"). Nu
+> een compacte **"Start … · nog niet vervuld"**-badge (acuut=warning bij start deze week/verstreken, gedempt tot 21d vooruit).
+> Pure `jobFillUrgency` (`src/lib/jobs/fill-urgency.ts`): gepubliceerd + niet-vervuld + startdatum-proximity; zwijgt bij
+> vervuld/concept/gesloten/zonder-startdatum. "Vervuld" = niet-geannuleerde samenwerking, via één begrensde `collaboration.groupBy`
+> (geen N+1). Read-only, geen schemawijziging, geen mutatie/auth-oppervlak. +8 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — /api/metrics verificatie-wachtrij-leeftijd gauge (2026-07-27, PR #938)** —
 > `/api/metrics` had `zzp_verification_queue` (wachtrij**diepte**) maar niet de **leeftijd van de oudst wachtende verificatie**.
 > Een kleine-maar-vastgelopen wachtrij (overige inzendingen verwerkt, één blijft dagen hangen) is een SLA-breach op de
