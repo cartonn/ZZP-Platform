@@ -20,6 +20,7 @@ function card(over: Partial<RosterZzper> = {}): RosterZzper {
     hasAlert: false,
     hourlyRate: 52,
     activeCollaborations: 0,
+    dormancyTier: "active",
     ...over,
   };
 }
@@ -39,6 +40,7 @@ describe("parseRosterFilter", () => {
       status: "AANDACHT",
       onlyAlerts: true,
       onlyIdle: false,
+      onlyDormant: false,
       sort: "rate-asc",
     });
   });
@@ -51,6 +53,7 @@ describe("parseRosterFilter", () => {
       status: null,
       onlyAlerts: false,
       onlyIdle: false,
+      onlyDormant: false,
       sort: "recent",
     });
   });
@@ -101,6 +104,18 @@ describe("matchesRosterFilter", () => {
     // niet beschikbaar → niet vrij
     expect(
       matchesRosterFilter(card({ availability: "UNAVAILABLE" }), { ...base, onlyIdle: true }),
+    ).toBe(false);
+  });
+
+  it("toont met onlyDormant alleen re-engagement-kandidaten (cooling of dormant)", () => {
+    expect(
+      matchesRosterFilter(card({ dormancyTier: "dormant" }), { ...base, onlyDormant: true }),
+    ).toBe(true);
+    expect(
+      matchesRosterFilter(card({ dormancyTier: "cooling" }), { ...base, onlyDormant: true }),
+    ).toBe(true);
+    expect(
+      matchesRosterFilter(card({ dormancyTier: "active" }), { ...base, onlyDormant: true }),
     ).toBe(false);
   });
 
@@ -155,6 +170,7 @@ describe("isRosterFilterActive", () => {
     expect(isRosterFilterActive(parseRosterFilter({ availability: "AVAILABLE" }))).toBe(true);
     expect(isRosterFilterActive(parseRosterFilter({ alerts: "1" }))).toBe(true);
     expect(isRosterFilterActive(parseRosterFilter({ idle: "1" }))).toBe(true);
+    expect(isRosterFilterActive(parseRosterFilter({ dormant: "1" }))).toBe(true);
     // sort alleen is geen "actief filter" (verandert de set niet)
     expect(isRosterFilterActive(parseRosterFilter({ sort: "name" }))).toBe(false);
   });
