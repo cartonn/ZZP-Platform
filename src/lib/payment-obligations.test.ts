@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildPaymentObligations,
   exportObligationsCsv,
+  summarizeDueThisWeek,
   type ObligationItem,
   type ObligationStage,
 } from "./payment-obligations";
@@ -279,5 +280,58 @@ describe("exportObligationsCsv", () => {
     const csv = exportObligationsCsv([], NOW);
     expect(csv).toBe(HEADER);
     expect(csv.split("\r\n")).toHaveLength(1);
+  });
+});
+
+describe("summarizeDueThisWeek", () => {
+  it("returns zero for an empty list", () => {
+    expect(summarizeDueThisWeek([], NOW)).toEqual({ grossCents: 0, count: 0 });
+  });
+
+  it("counts APPROVED items due within the next 7 days (today inclusive)", () => {
+    const result = summarizeDueThisWeek(
+      [
+        item({ invoiceId: "today", dueDate: new Date("2026-06-15T00:00:00.000Z") }),
+        item({ invoiceId: "in-6-days", dueDate: new Date("2026-06-21T00:00:00.000Z") }),
+      ],
+      NOW,
+    );
+    expect(result).toEqual({ grossCents: 24200, count: 2 });
+  });
+
+  it("excludes items whose due date is exactly 7 days out (window is half-open)", () => {
+    // startOfToday = 2026-06-15T00:00Z, window end = 2026-06-22T00:00Z (exclusive).
+    const result = summarizeDueThisWeek(
+      [item({ invoiceId: "day-7", dueDate: new Date("2026-06-22T00:00:00.000Z") })],
+      NOW,
+    );
+    expect(result).toEqual({ grossCents: 0, count: 0 });
+  });
+
+  it("excludes overdue items (they belong to their own tile, never double-counted)", () => {
+    const result = summarizeDueThisWeek(
+      [
+        item({ invoiceId: "past-due", dueDate: new Date("2026-06-10T00:00:00.000Z") }),
+        item({ invoiceId: "overdue-stage", stage: "OVERDUE", dueDate: null }),
+      ],
+      NOW,
+    );
+    expect(result).toEqual({ grossCents: 0, count: 0 });
+  });
+
+  it("excludes SUBMITTED items awaiting approval (no due date yet)", () => {
+    const result = summarizeDueThisWeek(
+      [item({ invoiceId: "submitted", stage: "SUBMITTED", dueDate: null })],
+      NOW,
+    );
+    expect(result).toEqual({ grossCents: 0, count: 0 });
+  });
+
+  it("excludes items due later than this week", () => {
+    const result = summarizeDueThisWeek(
+      [item({ invoiceId: "next-month", dueDate: new Date("2026-07-05T00:00:00.000Z") })],
+      NOW,
+    );
+    expect(result).toEqual({ grossCents: 0, count: 0 });
   });
 });

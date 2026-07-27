@@ -208,6 +208,44 @@ export function buildPaymentObligations(items: ObligationItem[], now: Date): Pay
   };
 }
 
+/** Aantal dagen dat het "deze week"-venster vooruitkijkt vanaf vandaag (00:00 UTC). */
+export const OBLIGATION_WEEK_AHEAD_DAYS = 7;
+
+export interface DueThisWeekObligations {
+  grossCents: number;
+  count: number;
+}
+
+/**
+ * Verplichtingen die binnen de eerstvolgende {@link OBLIGATION_WEEK_AHEAD_DAYS} dagen vervallen —
+ * het concrete cashflow-venster waarin de opdrachtgever nog op tijd kan betalen. Dit is een
+ * urgentere, actiegerichte slice dan `scheduledGrossCents` (alles vanaf vandaag) en distinct van
+ * `overdueGrossCents` (al te laat).
+ *
+ * In het venster valt een item met een vervaldag `d` waarvoor geldt: `startOfToday <= d < startOfToday
+ * + 7d` én het item is **niet** al te laat (`isOverdue` false). SUBMITTED-items (nog goed te keuren,
+ * geen vervaldag) tellen niet mee: die zijn nog geen ingeplande betaling. Zo kan een item nooit
+ * dubbel in "Te laat" én "Deze week" verschijnen.
+ */
+export function summarizeDueThisWeek(items: ObligationItem[], now: Date): DueThisWeekObligations {
+  const startOfToday = startOfDayUTC(now);
+  const windowEnd = new Date(
+    startOfToday.getTime() + OBLIGATION_WEEK_AHEAD_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  let grossCents = 0;
+  let count = 0;
+  for (const item of items) {
+    if (item.dueDate === null) continue;
+    if (isOverdue(item, startOfToday)) continue;
+    if (item.dueDate >= startOfToday && item.dueDate < windowEnd) {
+      grossCents += item.grossCents;
+      count += 1;
+    }
+  }
+  return { grossCents, count };
+}
+
 // --- CSV-export ------------------------------------------------------------
 
 const STAGE_CSV_LABELS: Record<ObligationStage, string> = {
