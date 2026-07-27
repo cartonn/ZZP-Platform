@@ -32,6 +32,9 @@ import { canWithdrawApplication } from "@/lib/applications";
 import { rejectionReasonFeedback } from "@/lib/rejection-reason";
 import { summarizeRejectionPattern } from "@/lib/rejection-pattern";
 import { RejectionPatternNote } from "@/components/applications/rejection-pattern-note";
+import { pickReengagementAnchor } from "@/lib/reengagement";
+import { relatedJobsForFreelancer } from "@/lib/recommendations";
+import { RelatedJobsSection } from "@/components/jobs/related-jobs-section";
 import {
   applicationJobAvailability,
   JOB_AVAILABILITY_MESSAGE,
@@ -181,6 +184,22 @@ export default async function ReactiesPage({
     .map((app) => app.job.company.id);
   const responsivenessByCompany = await getClientResponsivenessForCompanies(pendingCompanyIds);
 
+  // Re-engagement na afwijzing: verankerd aan de meest recente afwijzing (server-berekend uit de al
+  // opgehaalde reacties). Alleen dán halen we soortgelijke open opdrachten op via de bestaande
+  // matchmotor — één begrensde read (geen query wanneer er niets af te wijzen valt). Het blok
+  // verbergt zich vanzelf zonder passende suggesties (RelatedJobsSection rendert null bij een lege lijst).
+  const reengagementAnchor = pickReengagementAnchor(
+    typed.map((app) => ({
+      status: app.status,
+      hasCollaboration: app.collaboration != null,
+      jobId: app.job.id,
+      jobTitle: app.job.title,
+    })),
+  );
+  const reengagementJobs = reengagementAnchor
+    ? await relatedJobsForFreelancer(actor.id, reengagementAnchor.jobId, 3)
+    : [];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -191,6 +210,14 @@ export default async function ReactiesPage({
       <OutcomesSummary outcomes={outcomes} />
 
       <RejectionPatternNote pattern={rejectionPattern} t={t} />
+
+      {reengagementAnchor && (
+        <RelatedJobsSection
+          jobs={reengagementJobs}
+          title={t("Soortgelijke open opdrachten")}
+          description={`${t("Niet geselecteerd voor")} "${reengagementAnchor.jobTitle}"? ${t("Deze open opdrachten passen bij je.")}`}
+        />
+      )}
 
       {awaitingAttention > 0 && (
         <p className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning">

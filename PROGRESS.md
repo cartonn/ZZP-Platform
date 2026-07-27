@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-27 — ZZP'er: soortgelijke open opdrachten na een afwijzing op /reacties
+
+**Wat:** een afgewezen reactie (`REJECTED`) toonde de ZZP'er alleen een statische hint ("Deze keer niet
+geselecteerd. Reageer gerust op andere opdrachten.") + eventueel de afwijzingsreden — geen concrete
+volgende stap. De verklaarbare matchmotor (`relatedJobsForFreelancer`/`recommendedJobs`) draaide al op
+`/dashboard` en `/opdrachten/[id]`, maar was **ongebruikt op `/reacties`** — precies de pagina waar een
+afwijzing landt. Nu een contextueel **"Soortgelijke open opdrachten"**-blok, verankerd aan de meest recente
+afwijzing ("Niet geselecteerd voor '{opdracht}'? Deze open opdrachten passen bij je."), met tot 3 passende
+open opdrachten (matchscore + sterkste reden, deep-link naar de opdracht). Benchmark: Temper/Malt stellen na
+een afwijzing direct alternatieven voor i.p.v. de kandidaat te laten doodlopen.
+
+**Grens:** pure `pickReengagementAnchor` (`src/lib/reengagement.ts`) kiest server-side de ankerreactie uit de
+**al opgehaalde** reacties (meest recente `REJECTED` zonder samenwerking; `WITHDRAWN` = eigen intrekking →
+geen nudge; afwijzing-met-samenwerking is geen afwijzing meer). Alleen bij een anker halen we de suggesties
+op — **één begrensde read** via de bestaande matchfunctie (geen extra query wanneer er niets af te wijzen
+valt, geen N+1). `recommendedJobs` sluit reeds-gereageerde opdrachten (incl. de afwijzing zelf) al uit, dus
+het blok toont alleen nieuwe kansen. Het blok verbergt zich vanzelf zonder passende suggesties
+(`RelatedJobsSection` rendert `null` bij een lege lijst). Geen schemawijziging, geen nieuw mutatie/auth-
+oppervlak; read-only. Het woord "AI" komt nergens voor.
+
+**Hergebruik:** `RelatedJobsSection` (`src/components/jobs/related-jobs-section.tsx`) kreeg optionele
+`title`/`description`-props (standaardkoppen ongewijzigd → bestaande caller op `/opdrachten/[id]` intact),
+zodat hetzelfde lijstblok de re-engagement-context kan tonen zonder duplicatie.
+
+**Bestanden:** `src/lib/reengagement.ts` (+ test, +6), `src/components/jobs/related-jobs-section.tsx`
+(optionele koppen), `src/app/(protected)/reacties/page.tsx` (anker + gated fetch + blok), `PROGRESS.md`,
+`CURRENT_TASK.md`. Gate: typecheck, lint, **5188 tests**, build, prettier groen.
+
 ## 2026-07-27 — Bemiddelaar: stilgevallen-ZZP'er re-engagement signaal op het roster
 
 **Wat:** de klant-relatie had al `client-reengagement.ts` (stilgevallen klant → benader), maar de **ZZP-kant**

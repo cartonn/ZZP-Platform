@@ -9,18 +9,30 @@ import { getTranslator } from "@/lib/i18n/server";
  * opdrachten — onder een installatievacature horen geen frontend-suggesties als "soortgelijk".
  * Hergebruikt de server-berekende matchscore + sterkste reden uit `recommendedJobs`; de ZZP'er hoeft
  * niet zelf te zoeken. Verbergt zich zonder suggesties.
+ *
+ * `title`/`description` overschrijven de standaardkoppen zodat hetzelfde lijstblok in een andere
+ * context hergebruikt kan worden (bv. een re-engagement-nudge na een afwijzing op /reacties); beide
+ * zijn al vertaalde/samengestelde tekst (worden niet nogmaals door `t()` gehaald).
  */
-export async function RelatedJobsSection({ jobs }: { jobs: JobMatch[] }) {
+export async function RelatedJobsSection({
+  jobs,
+  title,
+  description,
+}: {
+  jobs: JobMatch[];
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+}) {
   if (jobs.length === 0) return null;
   const { t } = await getTranslator();
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="border-b border-border px-5 py-3">
         <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t("Ook passend bij jouw profiel")}
+          {title ?? t("Ook passend bij jouw profiel")}
         </h2>
         <p className="text-xs text-muted-foreground">
-          {t("Andere open opdrachten die aansluiten op jouw profiel.")}
+          {description ?? t("Andere open opdrachten die aansluiten op jouw profiel.")}
         </p>
       </div>
       <ul className="divide-y divide-border">
