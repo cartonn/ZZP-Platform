@@ -7,7 +7,7 @@
 
 **Wat:** de `/api/metrics`-gauges (dead-man's-switch, stille-faal-backlogs, verificatie-SLA) waren er, maar
 operators hadden géén concrete alarmregels — de gauge-help-teksten zeggen "alarmeer op aanhoudende groei"
-zonder drempel. Nieuw drop-in Prometheus-regelbestand `docs/observability/alerts.yml`: 11 alerts over 6 groepen
+zonder drempel. Nieuw drop-in Prometheus-regelbestand `docs/observability/alerts.yml`: 10 alerts over 5 groepen
 (beschikbaarheid, dead-man's-switch, stille-faal-backlogs met een ruime `for:` > één cron-interval,
 verificatie-SLA, onderhoud-inhibitie), elk met severity + summary/description + `for:`-duur, plus een
 voorbeeld-`scrape_config` met bearer-auth in de kop.
