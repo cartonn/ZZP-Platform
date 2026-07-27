@@ -38,6 +38,18 @@ export async function openDispute(
   if (!col) throw new CascadeError("Samenwerking niet gevonden.");
   // Niet-partij krijgt exact dezelfde "… niet gevonden."-melding als een onbekend id (anti-oracle).
   assertParty(actor, col.freelancer.userId, col.company.userId, "Samenwerking niet gevonden.");
+  // Server-side statusrem (CLAUDE.md regel 1: client mag tonen, nooit beslissen). De UI toont het
+  // dispuut-formulier alléén bij een ACTIVE samenwerking (`active && …` in page.tsx), maar tot nu toe
+  // borgde niets die regel server-side: een partij kon `openDisputeAction` rechtstreeks aanroepen op
+  // een PROPOSED/COMPLETED/CANCELLED samenwerking. Een dispuut betekent "bevries de lópende cascade" —
+  // dat is alleen zinvol op een ACTIVE inzet. Op PROPOSED zou het een landmijn zijn (dispuut → signContract
+  // op een bevroren deal; zie contract-dispute-freeze.test.ts, run 40); op COMPLETED blokkeerde het
+  // eenzijdig de correctie-/creditfactuur-route (`creditInvoice` checkt `assertNotDisputed`) op een reeds
+  // betaalde klus — een griefing-vector; op CANCELLED is er niets meer te bevriezen (no-op vlag). Alle drie
+  // hier hard geweigerd. De partij is al vastgesteld, dus de statusmelding lekt geen bestaan (geen oracle).
+  if (col.status !== "ACTIVE") {
+    throw new CascadeError("Een dispuut kan alleen op een actieve samenwerking worden geopend.");
+  }
   if (col.disputedAt) throw new CascadeError("Er is al een open dispuut.");
 
   const otherUserId =
