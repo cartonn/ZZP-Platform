@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-27 — Opdrachtgever: "deze week te betalen"-urgentieregel op /verplichtingen
+
+**Wat:** `/verplichtingen` toonde de opdrachtgever "Ingepland" (álle toekomstige verplichtingen samen) maar geen
+glanceable **deze-week**-slice — het concrete cashflow-venster waarin op tijd betalen de betaalreputatie beschermt.
+"Ingepland" (alles vanaf vandaag) beantwoordt niet de actiegerichte vraag "wat moet ik nú, deze week, betalen?".
+Nu een calm urgentieregel onder de samenvattingsstrip: **"€ X te betalen deze week (N facturen). Betaal op tijd om
+je betaalreputatie sterk te houden."** — alleen getoond wanneer er iets binnen 7 dagen vervalt.
+
+**Grens/architectuur:** pure `summarizeDueThisWeek(items, now)` (`src/lib/payment-obligations.ts`, half-open venster
+`[startOfToday, +7d)`) hergebruikt exact de `isOverdue`-semantiek → een item kan nooit dubbel in "Te laat" én "Deze
+week" vallen; SUBMITTED (nog goed te keuren, geen vervaldag) telt niet mee. Leunt op de al-geladen `ObligationItem[]`
+— **geen extra query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.** Read-only afleiding; het woord "AI"
+komt nergens voor. +6 tests (`payment-obligations.test.ts`): venstergrens (today inclusief, dag-7 exclusief),
+overdue/SUBMITTED/later uitgesloten, lege lijst. Gate: typecheck, lint, test, build, prettier groen.
+
+**Bestanden:** `src/lib/payment-obligations.ts` (+ test), `src/components/administratie/verplichtingen-panel.tsx`.
+
 ## 2026-07-27 — Prod/observability: kant-en-klare Prometheus alerting-rules + drift-gate (`/api/metrics`)
 
 **Wat:** de `/api/metrics`-gauges (dead-man's-switch, stille-faal-backlogs, verificatie-SLA) waren er, maar

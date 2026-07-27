@@ -1,9 +1,10 @@
-import { CircleAlert, Wallet } from "lucide-react";
+import { CalendarClock, CircleAlert, Wallet } from "lucide-react";
 import { type Actor } from "@/lib/authz";
 import { getObligationItemsForClient } from "@/lib/data/payment-obligations";
 import { formatEuro } from "@/lib/invoices";
 import {
   buildPaymentObligations,
+  summarizeDueThisWeek,
   type ObligationItem,
   type ObligationStage,
 } from "@/lib/payment-obligations";
@@ -69,6 +70,7 @@ export async function VerplichtingenPanel({
 
   const now = new Date();
   const obligations = buildPaymentObligations(obligationItems, now);
+  const dueThisWeek = summarizeDueThisWeek(obligationItems, now);
   const creditors = summarizeCreditors(obligationItems, now);
   const hasItems = obligationItems.length > 0;
 
@@ -130,6 +132,21 @@ export async function VerplichtingenPanel({
           </CardContent>
         </Card>
       </div>
+
+      {/* Deze week — het actiegerichte cashflow-venster: op tijd betalen beschermt je betaalreputatie. */}
+      {dueThisWeek.count > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          <CalendarClock className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+          <p className="text-foreground">
+            <span className="font-semibold tabular-nums">{formatEuro(dueThisWeek.grossCents)}</span>{" "}
+            te betalen deze week{" "}
+            <span className="text-muted-foreground">
+              ({dueThisWeek.count} {dueThisWeek.count === 1 ? "factuur" : "facturen"})
+            </span>
+            . Betaal op tijd om je betaalreputatie sterk te houden.
+          </p>
+        </div>
+      )}
 
       {/* Te betalen per leverancier — "aan wie moet ik betalen?" */}
       {shouldShowCreditorSummary(creditors) && <CreditorSummaryCard summary={creditors} />}
