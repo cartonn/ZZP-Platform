@@ -1,6 +1,15 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Users, MapPin, Euro, Calendar, CalendarClock, Search, Briefcase } from "lucide-react";
+import {
+  Users,
+  MapPin,
+  Euro,
+  Calendar,
+  CalendarClock,
+  Search,
+  Briefcase,
+  BellRing,
+} from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
@@ -21,6 +30,13 @@ import {
 } from "@/lib/franchise/credential-alerts";
 import { summarizeCredentialCompliance } from "@/lib/franchise/credential-compliance";
 import { CredentialComplianceStrip } from "@/components/franchise/credential-compliance-strip";
+import {
+  classifyRosterDormancy,
+  summarizeRosterDormancy,
+  type DormancyTier,
+  type RosterDormancy,
+} from "@/lib/franchise/roster-dormancy";
+import { RosterDormancyStrip } from "@/components/franchise/roster-dormancy-strip";
 import {
   parseRosterFilter,
   filterRoster,
@@ -97,6 +113,10 @@ interface RosterCard extends RosterZzper {
   /** Vrijkomdatum (laatste ACTIVE-samenwerking-einde) voor de vooruitblik; null als onbekend/niet
    *  ingezet of open einde. */
   freeDate: Date | null;
+  /** Re-engagement-tier (bench-inactiviteit); voedt het `?dormant=1`-filter + de kaart-chip. */
+  dormancyTier: DormancyTier;
+  /** Presentatie van het re-engagement-signaal (chip-label + toon); active → geen chip. */
+  dormancy: RosterDormancy;
 }
 
 export default async function FranchiseZzpersPage({
@@ -233,6 +253,13 @@ export default async function FranchiseZzpersPage({
             now,
           )
         : 0;
+    // Re-engagement: koelt deze bench-vakmens af (lang niet ingelogd én niet ingezet)? Zelfde
+    // `activeCollaborations`-telling als het capaciteitsoverzicht → een ingezette vakmens telt nooit
+    // als stilgevallen. Read-only afleiding op de al-geladen `lastLoginAt`.
+    const dormancy = classifyRosterDormancy(
+      { lastActiveAt: f.user.lastLoginAt, activeCollaborations: f._count.collaborations },
+      now,
+    );
     return {
       id: f.id,
       name: f.user.name ?? "—",
@@ -255,6 +282,8 @@ export default async function FranchiseZzpersPage({
       activeCollaborations: f._count.collaborations,
       placeableDiensten,
       freeDate: freeDateFromActiveCollaborations(f.collaborations.map((c) => c.endDate)),
+      dormancyTier: dormancy.tier,
+      dormancy,
     };
   });
 
@@ -266,6 +295,10 @@ export default async function FranchiseZzpersPage({
   );
   const forecastHeadlineText = rosterForecastHeadline(forecast);
   const compliance = summarizeCredentialCompliance(cards.map((c) => ({ window: c.alertWindow })));
+  // Re-engagement: welke bench-vakmensen koelen af (lang niet ingelogd, niet ingezet)? Over het hele
+  // roster geteld (niet het filter), zodat de strip het volledige beeld toont. Telt de reeds per kaart
+  // geclassificeerde tiers (één bron van waarheid met de kaart-chip, geen herberekening).
+  const dormancy = summarizeRosterDormancy(cards);
   // Kop over de hele roster (niet het filter): hoeveel vrije vakmensen zijn nu direct plaatsbaar.
   const placeableHeadlineText = placeableHeadline(
     cards.filter((c) => c.placeableDiensten > 0).length,
@@ -308,6 +341,10 @@ export default async function FranchiseZzpersPage({
           {/* Compliance-overzicht: "houd ik mijn pool compliant?" — verlopen/aflopende certificaten
               als aggregaat, klikbaar naar het alerts-filter. Rendert alleen bij een signaal. */}
           <CredentialComplianceStrip summary={compliance} />
+
+          {/* Re-engagement: "wie van mijn bench koelt af?" — vakmensen die lang niet inlogden en niet
+              zijn ingezet, klikbaar naar het `?dormant=1`-filter. Rendert alleen bij een signaal. */}
+          <RosterDormancyStrip summary={dormancy} />
 
           {/* Plaatsbaarheid: "wie van mijn bench kan ik nú op een open dienst zetten?" — telt de vrije
               vakmensen met minstens één passende open dienst. Rendert alleen bij een plaatsingskans. */}
@@ -415,6 +452,16 @@ export default async function FranchiseZzpersPage({
               />
               Alleen vrij inzetbaar
             </label>
+            <label className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                name="dormant"
+                value="1"
+                defaultChecked={filter.onlyDormant}
+                className="size-4 rounded border-input"
+              />
+              Alleen stilgevallen
+            </label>
             <Button type="submit">Filteren</Button>
             {filterActive && (
               <Button asChild variant="ghost">
@@ -510,6 +557,18 @@ export default async function FranchiseZzpersPage({
                       <Badge variant="muted" className="gap-1 self-start">
                         <CalendarClock className="size-3 shrink-0" aria-hidden />
                         {forecastChipLabel(f.freeDate, now)}
+                      </Badge>
+                    )}
+
+                    {/* Re-engagement: bench-vakmens die afkoelt (lang niet ingelogd, niet ingezet).
+                        Read-only signaal met concrete benader-stap; rendert alleen bij cooling/dormant. */}
+                    {f.dormancy.label && (
+                      <Badge
+                        variant={f.dormancy.tone === "warning" ? "warning" : "muted"}
+                        className="gap-1 self-start"
+                      >
+                        <BellRing className="size-3 shrink-0" aria-hidden />
+                        {f.dormancy.label}
                       </Badge>
                     )}
 

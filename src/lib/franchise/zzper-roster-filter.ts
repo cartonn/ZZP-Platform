@@ -9,6 +9,7 @@
 
 import { type EngageabilityStatus } from "@/lib/engageability";
 import { isIdleReady } from "@/lib/franchise/roster-capacity";
+import { type DormancyTier } from "@/lib/franchise/roster-dormancy";
 
 export const ROSTER_AVAILABILITY_VALUES = ["AVAILABLE", "LIMITED", "UNAVAILABLE"] as const;
 export type RosterAvailability = (typeof ROSTER_AVAILABILITY_VALUES)[number];
@@ -27,6 +28,8 @@ export interface RosterFilter {
   onlyAlerts: boolean;
   /** Alleen vrij-inzetbare ZZP'ers (inzetbaar + beschikbaar + geen lopende opdracht). */
   onlyIdle: boolean;
+  /** Alleen re-engagement-kandidaten (bench-vakmensen die afkoelen: cooling of dormant). */
+  onlyDormant: boolean;
   sort: RosterSortKey;
 }
 
@@ -43,6 +46,8 @@ export interface RosterZzper {
   hourlyRate: number | null;
   /** Aantal lopende (ACTIVE) samenwerkingen; > 0 = nu ingezet (voor het `idle`-filter). */
   activeCollaborations: number;
+  /** Afgeleide re-engagement-tier (server-berekend via `classifyRosterDormancy`) voor het `dormant`-filter. */
+  dormancyTier: DormancyTier;
 }
 
 function first(v: string | string[] | undefined): string {
@@ -56,6 +61,7 @@ export function parseRosterFilter(sp: Record<string, string | string[] | undefin
   const sortRaw = first(sp.sort).trim().toLowerCase();
   const alertsRaw = first(sp.alerts).trim().toLowerCase();
   const idleRaw = first(sp.idle).trim().toLowerCase();
+  const dormantRaw = first(sp.dormant).trim().toLowerCase();
 
   const availability = (ROSTER_AVAILABILITY_VALUES as readonly string[]).includes(availabilityRaw)
     ? (availabilityRaw as RosterAvailability)
@@ -73,6 +79,7 @@ export function parseRosterFilter(sp: Record<string, string | string[] | undefin
     status,
     onlyAlerts: alertsRaw === "1" || alertsRaw === "true",
     onlyIdle: idleRaw === "1" || idleRaw === "true",
+    onlyDormant: dormantRaw === "1" || dormantRaw === "true",
     sort,
   };
 }
@@ -83,6 +90,7 @@ export function matchesRosterFilter(z: RosterZzper, f: RosterFilter): boolean {
   if (f.status && z.engageabilityStatus !== f.status) return false;
   if (f.onlyAlerts && !z.hasAlert) return false;
   if (f.onlyIdle && !isIdleReady(z)) return false;
+  if (f.onlyDormant && z.dormancyTier === "active") return false;
   if (f.q) {
     const needle = f.q.toLowerCase();
     const haystack =
@@ -133,5 +141,12 @@ export function sortRoster<T extends RosterZzper>(items: T[], sort: RosterSortKe
 
 /** Of er een actieve filterdimensie is (voor de "wis filter"-affordance / lege-staat-tekst). */
 export function isRosterFilterActive(f: RosterFilter): boolean {
-  return f.q !== "" || f.availability !== null || f.status !== null || f.onlyAlerts || f.onlyIdle;
+  return (
+    f.q !== "" ||
+    f.availability !== null ||
+    f.status !== null ||
+    f.onlyAlerts ||
+    f.onlyIdle ||
+    f.onlyDormant
+  );
 }

@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-27 — Bemiddelaar: stilgevallen-ZZP'er re-engagement signaal op het roster
+
+**Wat:** de klant-relatie had al `client-reengagement.ts` (stilgevallen klant → benader), maar de **ZZP-kant**
+van de bemiddelaar-roster (`/franchise/zzpers`) had geen tegenhanger: een bench-vakmens die lang niet inlogt
+koelt af en drijft stil weg naar een concurrent — precies wie de bemiddelaar proactief moet benaderen
+(benchmark: staffing-platformen bewaken werker-engagement). Nu een re-engagement-signaal: een **chip per
+kaart** ("X dagen niet ingelogd"), een **aggregate strip** ("N vakmensen stilgevallen — benader ze",
+klikbaar → filter) en een **`?dormant=1`-filter**.
+
+**Grens:** pure `roster-dormancy.ts` (`classifyRosterDormancy` + `summarizeRosterDormancy` +
+`rosterDormancyHeadline`) leunt op de reeds-geladen `user.lastLoginAt` + de `activeCollaborations`-telling —
+**geen extra query, geen schemawijziging, geen mutatie/auth-oppervlak**. Alleen de **vrije bench** telt: een
+nu-ingezette vakmens (activeCollaborations > 0) is engaged via het werk en nooit een re-engagement-doel; een
+onbekende laatste-login (`null`) geeft bewust géén signaal (geen vals alarm op een net-toegevoegde vakmens).
+Tiers: `cooling` (≥30 dagen, muted) / `dormant` (≥60 dagen, warning; spiegelt `RECENCY_STALE_DAYS`). Bewust
+onderscheiden van de `recencyStale`-vlag in `computeEngageability` (die telt >60d als één van vele
+inzetbaarheids-aandachtspunten, óók voor een ingezette vakmens; dit signaal kijkt door de bench-re-engagement-
+bril + levert aggregate + filter + benader-stap). De strip telt de reeds per kaart geclassificeerde tiers
+(één bron van waarheid met de chips). Het woord "AI" komt nergens voor.
+
+**Bestanden:** `src/lib/franchise/roster-dormancy.ts` (+ test, +15), `src/components/franchise/roster-dormancy-strip.tsx`,
+`src/lib/franchise/zzper-roster-filter.ts` (+ `onlyDormant`/`dormancyTier`, test +2),
+`src/app/(protected)/franchise/zzpers/page.tsx` (strip + chip + filter-checkbox), `PROGRESS.md`. Gate:
+typecheck, lint, **5182 tests**, build, prettier groen.
+
 ## 2026-07-27 — Persona-sweep run 53: server-side statusrem op openDispute (DOEL 2, client-side-only gate)
 
 **Wat:** kritische-gebruiker-sweep over alle vier rollen op de verse prod-build (exit 0) + demo-seed. Drie
