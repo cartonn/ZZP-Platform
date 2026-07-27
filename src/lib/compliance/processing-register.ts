@@ -211,7 +211,7 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
       "ZZP'ers (opdrachten van opdrachtgevers)",
     ],
     retention:
-      "Tot 4 weken na afronding van de selectieprocedure, tenzij toestemming voor langere bewaring",
+      "Tot 4 weken na afronding van de selectieprocedure (automatisch afgedwongen door de geplande retentie-sweep run-all → application-retention, die afgewezen/ingetrokken reacties ouder dan het venster hard wist), tenzij toestemming voor langere bewaring",
     securityMeasures: ["Toegang op rol (RBAC)", "Versleutelde opslag", "Auditlogging"],
   },
 
@@ -635,7 +635,8 @@ export const RETENTION_SCHEDULE: readonly RetentionRule[] = [
     key: "reacties-sollicitaties",
     category: "Reacties & sollicitaties",
     period: "Tot 4 weken na afronding van de selectieprocedure, tenzij toestemming voor langer",
-    rationale: "AVG-richtlijn voor sollicitatiegegevens; daarna geen legitiem doel meer",
+    rationale:
+      "AVG-richtlijn voor sollicitatiegegevens; daarna geen legitiem doel meer. Een reactie draagt vrije-tekst-PII in motivatie/interne notitie; het 4-wekenvenster (art. 5(1)(e)) wordt automatisch afgedwongen door een geplande retentie-sweep (run-all → application-retention) die terminale, niet-geaccepteerde reacties (REJECTED/WITHDRAWN, zonder samenwerking) ouder dan het venster hard wist",
   },
   {
     key: "sessies-tokens",

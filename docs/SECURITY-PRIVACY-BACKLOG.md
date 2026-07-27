@@ -4,6 +4,59 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-27b (basis: `main` @ 756e6952)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken over
+de sinds `8c7f471a` verse commits (#937–#943): (1) object-/functie-niveau-autorisatie, IDOR/BOLA, TOCTOU,
+cross-tenant-isolatie & anti-oracle op de gewijzigde mutatie-oppervlakken (`certificaten/actions.ts`
+DUO/BIG-TOCTOU, `kandidaten/actions.ts` + `opdrachten/actions.ts` anti-oracle, `dispute-commands.ts`
+openDispute-statusrem, de cascade-command-laag, `authz.ts`/`tenancy.ts`/`middleware.ts`); (2) injectie/upload/
+SSRF/secrets/XSS/CSV-formule/foutlek/open-redirect/headers (statisch grep + lees over `src/**`, focus op de
+verse oppervlakken + verse brede sweep); (3) AVG betrokkenen-rechten (over-fetch naar client op de verse
+franchise-roster-/reacties-/opdrachten-views, audit-logging, `anonymizeUser` vs. schema-drift, k-anonimiteit,
+PII-in-logs, doorgifte-register art. 30, retentie). `npm audit --omit=dev` = **0 productie-kwetsbaarheden**
+(3 dev-only: brace-expansion/js-yaml/esbuild, niet verscheept). Next.js 15.5.21 zit boven de
+CVE-2025-29927-fix (middleware-bypass, gepatcht in 15.2.3).
+
+**Alle drie oppervlakken onafhankelijk schoon** — geen nieuw KRITIEK/HOOG/MIDDEL security- of privacy-gat
+door deze commits. Geverifieerd: de #943-TOCTOU-fix sluit de DUO/BIG-self-verificatie-race via een
+compound `updateMany({where:{id,status:fromStatus}})` bínnen de transactie (concurrent admin-REJECTED wordt
+niet overschreven); de twee anti-oracle-unificaties geven "niet gevonden" == "niet van jou" (CWE-203);
+`openDispute` weigert nu server-side elke niet-ACTIVE samenwerking (voorheen kon een directe actie-aanroep
+een PROPOSED/COMPLETED/CANCELLED-samenwerking bevriezen → griefing van `creditInvoice`'s `assertNotDisputed`);
+de nieuwe franchise-roster-dormancy-afleiding is puur/server-side, tenant-gescoopt (`tenantScopeWhere`), en
+stuurt alleen labels/aggregaat-tellingen naar de client (geen ruwe `lastLoginAt`/`email` als nieuwe
+over-fetch); `/api/metrics`' nieuwe `zzp_verification_queue_oldest_age_seconds` is een PII-vrije leeftijd
+achter de `authorizeCron`-Bearer-guard. **Eén geparkeerd AVG-retentie-sub-item technisch afgedwongen
+(HOOG → OPGELOST, rood→groen).**
+
+### OPGELOST — HOOG (AVG art. 5(1)(e) opslagbeperking): "Reactie-inhoud max. 4 weken na afronding selectieprocedure" was niet technisch afgedwongen
+
+- **Repro (was):** het verwerkingsregister (`opdrachten-reacties-matching`) belooft reactie-inhoud "tot 4
+  weken na afronding van de selectieprocedure", maar er was **geen enkele geplande taak** die dat afdwong
+  (grep: geen `application-retention` in `src/`; `run-all` wiret audit-/webhook-/lead-/health-/routing-cache-/
+  notification-retentie, niet Application). Gevolg: `Application`-rijen — met **vrije-tekst-PII in `motivation`**
+  (kan bijzondere-categorie-gegevens art. 9 bevatten, zie de eigen comment in `account-anonymization.ts`) en
+  de interne `note` — stapelden zich **onbeperkt voorbij het beloofde 4-wekenvenster** op, in tegenspraak met
+  het eigen gepubliceerde opslagbeperkingsbeleid. Sub-deel (c) van het bredere geparkeerde HOOG-retentie-item
+  (ronde 2026-07-26); notificatie-retentie (#937) was deel (a) van diezelfde lijn.
+- **Geschonden regel:** AVG art. 5(1)(e) (opslagbeperking — niet langer bewaren dan noodzakelijk).
+- **Fix (PR #—):** nieuwe geplande sweep `runApplicationRetentionTask` (`src/lib/application-retention-task.ts`,
+  spiegelt `notification-retention-task.ts`: gebatchte id-select + `deleteMany`, BATCH_SIZE 500 / MAX_BATCHES
+  200, SQLite+Postgres, idempotent) die **alleen terminale, niet-geaccepteerde** reacties hard verwijdert:
+  `status ∈ {REJECTED, WITHDRAWN}` én `updatedAt < cutoff` (updatedAt, niet createdAt — ankert "na afronding")
+  én **`collaboration: { is: null }`**. Die laatste guard is kritiek: `Collaboration.applicationId` cascadeert
+  `onDelete: Cascade` vanaf Application, dus een reactie mét samenwerking wissen zou de héle samenwerking
+  (facturen/prestaties) mee-casceren — de guard sluit dat categorisch uit, óók als de status-invariant ooit
+  verschuift. NEW/VIEWED/SHORTLIST (nog in procedure) en ACCEPTED (leidde tot werk) blijven staan. Schrijft
+  één PII-vrij auditrecord (`APPLICATIONS_PRUNED`, metadata `{pruned, retentionDays, cutoff}`). Config
+  `APPLICATION_RETENTION_DAYS` (default 28 = 4 wk, minimumvloer 7, expliciete `0` = uit) + pure
+  `applicationRetentionCutoff`. Gewired in `run-all`; register-entries (`opdrachten-reacties-matching`-retentie
+  - `RETENTION_SCHEDULE.reacties-sollicitaties`-rationale) noemen nu de afdwingende sweep. +17 unit-tests
+    (rood→groen: zonder de taak bleven oude reacties eeuwig staan; **cascade-guard: een REJECTED-mét-samenwerking
+    wordt nooit gewist**; NEW/VIEWED/SHORTLIST/ACCEPTED blijven; minimumvloer; multi-batch; audit-alleen-bij-snoei;
+    PII-vrije metadata; idempotentie; expliciete uit; pure-cutoff-grenzen).
+
 ## Ronde 2026-07-27 (basis: `main` @ 8c7f471a)
 
 Audit: orchestrator (Opus 4.8) + 1 parallelle adversariële Opus-audit op de sinds de vorige ronde (`42650618`)
@@ -48,8 +101,11 @@ lead-/health-incident-/routing-cache-retention`. Gevolg: `Notification`-rijen �
 
 De overige sub-modellen van "gedocumenteerde bewaartermijnen niet technisch afgedwongen" blijven staan als aparte,
 kleinere increments: (a) `Document`+blob van EXPIRED/REJECTED credentials (bijzondere categorie, art. 9 — vereist
-grace-venster + zorgvuldige hard-delete-logica), (b) `Message`-inhoud >12 mnd na samenwerkingseinde, (c) stale
-`Application` >4 wk. Elk als eigen getest increment; notification-retentie (deze ronde) was het laagst-risico deel.
+grace-venster + zorgvuldige hard-delete-logica), (b) `Message`-inhoud >12 mnd na samenwerkingseinde. ~~(c) stale
+`Application` >4 wk~~ → **OPGELOST in ronde 2026-07-27b** (`runApplicationRetentionTask`). Elk als eigen getest
+increment; notification-retentie (#937) was deel (a) van deze lijn, application-retentie (deze ronde) deel (c).
+Resterend aanbevolen volgende increment: (b) `Message`-retentie — vergt eerst het bounden van "samenwerkingseinde"
+per gesprek (Conversation↔Collaboration is niet 1:1), dus zorgvuldiger dan de Application-sweep.
 
 ## Ronde 2026-07-26b (basis: `main` @ 42650618)
 
