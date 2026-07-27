@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — soortgelijke open opdrachten na een afwijzing op /reacties (2026-07-27, PR #942)** —
+> een afgewezen reactie (`REJECTED`) toonde alleen een statische hint + eventueel de afwijzingsreden, geen concrete volgende
+> stap. De verklaarbare matchmotor (`relatedJobsForFreelancer`/`recommendedJobs`) draaide al op `/dashboard` + `/opdrachten/[id]`
+> maar was **ongebruikt op `/reacties`**. Nu een contextueel **"Soortgelijke open opdrachten"**-blok, verankerd aan de meest
+> recente afwijzing ("Niet geselecteerd voor '{opdracht}'? Deze open opdrachten passen bij je."), tot 3 passende open opdrachten
+> (matchscore + reden, deep-link). Benchmark Temper/Malt (alternatieven na afwijzing). Pure `pickReengagementAnchor`
+> (`src/lib/reengagement.ts`) kiest het anker uit de al-opgehaalde reacties (meest recente REJECTED zonder samenwerking; WITHDRAWN
+> = geen nudge); alleen dán één begrensde read via de bestaande matchfunctie (geen extra query zonder afwijzing, geen N+1). Blok
+> verbergt zich zonder suggesties. `RelatedJobsSection` kreeg optionele `title`/`description` (bestaande caller intact). Read-only,
+> geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +6 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — acuut-onbezet-signaal op de eigen opdrachtkaart (2026-07-27, PR #939)** —
 > "Mijn opdrachten" (CLIENT-grid) toonde per opdracht het vacaturetempo (respons-momentum) + tarief-diagnose, maar geen signaal
 > dat een **gepubliceerde opdracht waarvan de startdatum nadert/verstreken is nog niet vervuld** is — een distinct, urgenter
