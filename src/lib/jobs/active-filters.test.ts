@@ -85,13 +85,13 @@ describe("describeActiveJobFilters", () => {
 
   it("mapt de werkvorm-labels correct", () => {
     expect(
-      describeActiveJobFilters(makeFilters({ workMode: "REMOTE" }), emptyLookups)[0].label,
+      describeActiveJobFilters(makeFilters({ workMode: "REMOTE" }), emptyLookups)[0]?.label,
     ).toBe("Remote");
     expect(
-      describeActiveJobFilters(makeFilters({ workMode: "ONSITE" }), emptyLookups)[0].label,
+      describeActiveJobFilters(makeFilters({ workMode: "ONSITE" }), emptyLookups)[0]?.label,
     ).toBe("Op locatie");
     expect(
-      describeActiveJobFilters(makeFilters({ workMode: "HYBRID" }), emptyLookups)[0].label,
+      describeActiveJobFilters(makeFilters({ workMode: "HYBRID" }), emptyLookups)[0]?.label,
     ).toBe("Hybride");
   });
 
@@ -116,15 +116,15 @@ describe("describeActiveJobFilters", () => {
 
   it("mapt de certificaat-labels correct", () => {
     expect(
-      describeActiveJobFilters(makeFilters({ requiredCredential: "VOG" }), emptyLookups)[0].label,
+      describeActiveJobFilters(makeFilters({ requiredCredential: "VOG" }), emptyLookups)[0]?.label,
     ).toBe("Certificaat: VOG");
     expect(
       describeActiveJobFilters(makeFilters({ requiredCredential: "DIPLOMA" }), emptyLookups)[0]
-        .label,
+        ?.label,
     ).toBe("Certificaat: Diploma");
     expect(
       describeActiveJobFilters(makeFilters({ requiredCredential: "INSURANCE" }), emptyLookups)[0]
-        .label,
+        ?.label,
     ).toBe("Certificaat: Verzekering");
   });
 
