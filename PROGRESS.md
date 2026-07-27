@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-27 — Security/privacy: notificatiehistorie-retentie (AVG art. 5(1)(e) technisch afgedwongen)
+
+**Wat:** het verwerkingsregister belooft "Notificatiehistorie max. 6 maanden", maar er was geen taak die
+dat afdwong — `Notification`-rijen (met PII in `title`/`body`) stapelden zich onbeperkt op. Nieuwe geplande
+sweep `runNotificationRetentionTask` verwijdert notificaties met `createdAt` vóór de afkapdatum hard
+(ongeacht lees-status), gebatchte `deleteMany` (spiegel van `lead-retention-task`), idempotent, met één
+PII-vrij `NOTIFICATIONS_PRUNED`-auditrecord. Config `NOTIFICATION_RETENTION_DAYS` (default 180, vloer 30,
+`0` = uit). Gewired in `run-all`; register-entry + `RETENTION_SCHEDULE` bijgewerkt.
+
+**Audit deze ronde:** de sinds `42650618` verse niet-design-oppervlakken (#931–#936: `/api/metrics`-gauge,
+`client-stats.applicationsByStatus`, `client-application-funnel`, `active-filters`/-chips, `compliance-chip`,
+`inzicht`/`opdrachten`-pagina-deltas) onafhankelijk geauditeerd op authz/IDOR/over-fetch/k-anonimiteit/XSS/
+open-redirect/metrics-auth/secret-lek — **schoon**, geen nieuw gat.
+
+**Bestanden:** `src/lib/notification-retention.ts` (+ test), `src/lib/notification-retention-task.ts` (+ test),
+`src/lib/config.ts` (config-parser), `src/app/api/tasks/run-all/route.ts` (wiring),
+`src/lib/compliance/processing-register.ts` (register + schedule), `docs/SECURITY-PRIVACY-BACKLOG.md`, `PROGRESS.md`.
+Gate: typecheck, lint, test (+13), build, prettier groen.
+
 ## 2026-07-27 — Actieve-filter-chips + "Wis alles" op de opdrachtenmarktplaats (ZZP'er/opdrachtgever)
 
 **Wat:** de opdrachtenmarktplaats (`/opdrachten`) heeft rijke filters (zoekterm, branche, vaardigheden,

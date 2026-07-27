@@ -276,6 +276,30 @@ export function healthIncidentIpRetentionDays(): number {
   return parseHealthIncidentIpRetentionDays(process.env.HEALTH_INCIDENT_IP_RETENTION_DAYS);
 }
 
+// --- Notificatiehistorie-retentie (AVG art. 5(1)(e) opslagbeperking) --------
+// Het verwerkingsregister (entry "notificaties-email" / RETENTION_SCHEDULE "notificaties-meldingen")
+// belooft "Notificatiehistorie max. 6 maanden". Een Notification-rij draagt PII in title/body
+// (bv. "Nieuwe reactie van <naam> op <opdracht>", bedragen, statusupdates); die onbeperkt bewaren ís
+// de overtreding. Net als lead-/routing-cache-retentie is dít een AVG-verplichting, geen loutere
+// opslag-hygiëne — daarom staat de sweep standaard AAN op het beloofde venster wanneer de env leeg is.
+// Een operator kan tunen; een expliciete 0/negatieve waarde zet 'm uit. De minimumvloer voorkomt dat
+// een typefout nog-recente notificatiehistorie te agressief wist.
+export const NOTIFICATION_RETENTION_MIN_DAYS = 30;
+export const NOTIFICATION_RETENTION_DEFAULT_DAYS = 180; // 6 maanden — het in het register beloofde venster.
+export function parseNotificationRetentionDays(raw: string | undefined): number {
+  // Leeg/ongeconfigureerd → dwing het beloofde venster af (fail-safe naar wissen, niet naar bewaren).
+  if (raw === undefined || raw.trim() === "") return NOTIFICATION_RETENTION_DEFAULT_DAYS;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return NOTIFICATION_RETENTION_DEFAULT_DAYS;
+  if (n <= 0) return 0; // expliciete operator-override: retentie uit.
+  return Math.max(NOTIFICATION_RETENTION_MIN_DAYS, Math.floor(n));
+}
+
+/** Geconfigureerd notificatiehistorie-retentievenster in dagen; 0 = uitgeschakeld (expliciete override). */
+export function notificationRetentionDays(): number {
+  return parseNotificationRetentionDays(process.env.NOTIFICATION_RETENTION_DAYS);
+}
+
 // --- Cron-heartbeat venster (observability, dead-man's-switch) --------------
 // Maximale leeftijd (in uren) van de laatste geplande-taken-cron-run vóór 'ie als "stale" geldt op
 // /admin/systeemstatus. De cron draait standaard dagelijks (run-all-tasks.yml, 05:00 UTC); de
