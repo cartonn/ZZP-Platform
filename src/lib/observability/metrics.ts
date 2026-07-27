@@ -47,6 +47,15 @@ export interface MetricsInput {
   backupStale: boolean;
   /** Aantal openstaande (SUBMITTED) verificatie-inzendingen — wachtrijdiepte voor de admin-queue. */
   verificationQueue: number;
+  /**
+   * Leeftijd in seconden van de langst wachtende (SUBMITTED) verificatie-inzending, gemeten vanaf het
+   * moment dat 'ie de wachtrij in ging (`waitingSince` = `submittedAt` ?? `updatedAt`), of null als de
+   * wachtrij leeg is. Vult de blinde vlek van de kale `verificationQueue`-telling: een kleine wachtrij
+   * kan tóch een SLA-breach verbergen als de oudste inzending al dagen wacht (afgehandelde inzendingen
+   * werden verwerkt, één blijft hangen). Verificatie is de kern-differentiatie; een monitor kan hierop
+   * alarmeren ("oudste wachtende verificatie > X uur").
+   */
+  verificationQueueOldestAgeSeconds: number | null;
   /** Staat de app in onderhoudsmodus (MAINTENANCE_MODE)? Zodat een monitor niet paget om de 503's. */
   maintenanceMode: boolean;
   /**
@@ -138,6 +147,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal openstaande (SUBMITTED) verificatie-inzendingen in de admin-wachtrij.",
       type: "gauge",
       value: Math.max(0, Math.floor(input.verificationQueue)),
+    },
+    {
+      name: "zzp_verification_queue_oldest_age_seconds",
+      help: `Leeftijd in seconden van de langst wachtende (SUBMITTED) verificatie-inzending (${AGE_NEVER} = lege wachtrij). Vangt een SLA-breach die de kale wachtrijdiepte mist: alarmeer wanneer de oudste inzending te lang wacht.`,
+      type: "gauge",
+      value: age(input.verificationQueueOldestAgeSeconds),
     },
     {
       name: "zzp_maintenance_mode",

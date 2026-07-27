@@ -5,7 +5,8 @@
 // en het admin-UI-scherm.
 //
 // Gauges: zzp_up, zzp_db_reachable, zzp_cron_heartbeat_* / zzp_backup_heartbeat_* (dead-man's-switch),
-// zzp_verification_queue (wachtrijdiepte), zzp_maintenance_mode (onderhoudsmodus aan → 1) en
+// zzp_verification_queue (wachtrijdiepte), zzp_verification_queue_oldest_age_seconds (SLA-signaal: hoe
+// lang wacht de oudste inzending al), zzp_maintenance_mode (onderhoudsmodus aan → 1) en
 // zzp_credentials_overdue_expiry (VERIFIED-credentials wier vervaldatum voorbij is maar die de
 // expiry-cron nog niet omzette) en zzp_subscriptions_overdue_expiry (betaalde ACTIVE-abonnementen wier
 // periode voorbij is maar die de subscription-expiry-cron nog niet op CANCELLED zette) — twee
@@ -26,6 +27,7 @@ import { authorizeCron } from "@/lib/cron-auth";
 import { getCronFreshness } from "@/lib/observability/cron-heartbeat";
 import { getBackupFreshness } from "@/lib/observability/backup-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
+import { waitingSince } from "@/lib/verification-queue";
 import { reportError } from "@/lib/observability/report";
 import type { CronFreshness } from "@/lib/observability/cron-freshness";
 import {
@@ -55,11 +57,29 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   }
 
   let verificationQueue = 0;
+  let verificationQueueOldestAgeSeconds: number | null = null;
   let overdueExpiryCredentials = 0;
   let overdueExpirySubscriptions = 0;
   if (dbReachable) {
     try {
       verificationQueue = await prisma.credential.count({ where: { status: "SUBMITTED" } });
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
+    try {
+      // Oudst wachtende SUBMITTED-inzending: zelfde orderering/`waitingSince`-semantiek als de
+      // admin-wachtrij (submittedAt leidend, updatedAt-fallback voor legacy-records), zodat de gauge
+      // niet kan driften t.o.v. wat de admin op /admin/verificaties ziet. Steunt op de bestaande
+      // composite index @@index([status, submittedAt]). Lege wachtrij → null → AGE_NEVER-sentinel.
+      const oldest = await prisma.credential.findFirst({
+        where: { status: "SUBMITTED" },
+        orderBy: [{ submittedAt: { sort: "asc", nulls: "last" } }, { updatedAt: "asc" }],
+        select: { submittedAt: true, updatedAt: true },
+      });
+      if (oldest) {
+        const ms = now.getTime() - waitingSince(oldest).getTime();
+        verificationQueueOldestAgeSeconds = ms > 0 ? Math.floor(ms / 1000) : 0;
+      }
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
     }
@@ -105,6 +125,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     backupOk: backup.lastOk,
     backupStale: backup.status === "stale",
     verificationQueue,
+    verificationQueueOldestAgeSeconds,
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),
     overdueExpiryCredentials,
     overdueExpirySubscriptions,
