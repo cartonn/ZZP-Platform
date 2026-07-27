@@ -300,6 +300,32 @@ export function notificationRetentionDays(): number {
   return parseNotificationRetentionDays(process.env.NOTIFICATION_RETENTION_DAYS);
 }
 
+// --- Reactie-/sollicitatie-retentie (AVG art. 5(1)(e), opslagbeperking) ------
+// Het verwerkingsregister ("opdrachten-reacties-matching") belooft reactie-inhoud "tot 4 weken na
+// afronding van de selectieprocedure" te bewaren. Een Application-rij draagt vrije-tekst-PII in
+// `motivation` (kan bijzondere-categorie-gegevens bevatten, zie de eigen comment in
+// account-anonymization.ts) plus de interne `note`; die onbeperkt bewaren ís de overtreding. Net als
+// notificatie-/lead-retentie is dít een AVG-verplichting: de sweep staat standaard AAN op het beloofde
+// venster (28 dagen ≈ 4 weken) wanneer de env leeg is. Een operator kan tunen; een expliciete
+// 0/negatieve waarde zet 'm uit. De minimumvloer voorkomt dat een typefout nog-recente reacties te
+// agressief wist. Alleen terminale, niet-geaccepteerde reacties (REJECTED/WITHDRAWN, zonder
+// samenwerking) vallen onder de sweep — de selectieprocedure is voor die reacties aantoonbaar afgerond.
+export const APPLICATION_RETENTION_MIN_DAYS = 7;
+export const APPLICATION_RETENTION_DEFAULT_DAYS = 28; // 4 weken — het in het register beloofde venster.
+export function parseApplicationRetentionDays(raw: string | undefined): number {
+  // Leeg/ongeconfigureerd → dwing het beloofde venster af (fail-safe naar wissen, niet naar bewaren).
+  if (raw === undefined || raw.trim() === "") return APPLICATION_RETENTION_DEFAULT_DAYS;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return APPLICATION_RETENTION_DEFAULT_DAYS;
+  if (n <= 0) return 0; // expliciete operator-override: retentie uit.
+  return Math.max(APPLICATION_RETENTION_MIN_DAYS, Math.floor(n));
+}
+
+/** Geconfigureerd reactie-/sollicitatie-retentievenster in dagen; 0 = uitgeschakeld (expliciete override). */
+export function applicationRetentionDays(): number {
+  return parseApplicationRetentionDays(process.env.APPLICATION_RETENTION_DAYS);
+}
+
 // --- Cron-heartbeat venster (observability, dead-man's-switch) --------------
 // Maximale leeftijd (in uren) van de laatste geplande-taken-cron-run vóór 'ie als "stale" geldt op
 // /admin/systeemstatus. De cron draait standaard dagelijks (run-all-tasks.yml, 05:00 UTC); de

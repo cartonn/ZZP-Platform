@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-27 — Security/privacy-audit: Application-retentie technisch afgedwongen (HOOG, AVG art. 5(1)(e))
+
+**Wat:** volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits
+op niet-overlappende oppervlakken: (1) authz/IDOR/TOCTOU/cross-tenant/anti-oracle op de mutatie-oppervlakken,
+(2) injectie/upload/SSRF/secrets/XSS/CSV/foutlek/headers, (3) AVG betrokkenen-rechten/retentie/over-fetch/
+k-anonimiteit) over de sinds `8c7f471a` verse commits (#937–#943). Alle drie oppervlakken **onafhankelijk
+schoon** — geen nieuw KRITIEK/HOOG/MIDDEL-gat door die commits (recente TOCTOU-/anti-oracle-/openDispute-fixes
+geverifieerd correct; roster-dormancy tenant-gescoopt & PII-veilig; `/api/metrics` PII-vrij achter cron-guard).
+`npm audit --omit=dev` = 0 productie-kwetsbaarheden (3 dev-only). Next.js 15.5.21 > CVE-2025-29927-fix.
+
+**Gefixt (HOOG, AVG art. 5(1)(e) opslagbeperking):** het verwerkingsregister belooft reactie-inhoud "tot 4 weken
+na afronding van de selectieprocedure", maar geen enkele geplande taak dwong dat af — `Application`-rijen met
+vrije-tekst-PII in `motivation` (mogelijk art. 9) + interne `note` stapelden zich onbeperkt op. Nieuwe sweep
+`runApplicationRetentionTask` verwijdert **alleen terminale, niet-geaccepteerde** reacties (`REJECTED`/
+`WITHDRAWN`) met `updatedAt < cutoff` én **`collaboration: { is: null }`** (kritieke cascade-guard:
+`Collaboration.applicationId` cascadeert `onDelete: Cascade` vanaf Application, dus een reactie mét samenwerking
+wissen zou de héle samenwerking mee-casceren). Config `APPLICATION_RETENTION_DAYS` (default 28, vloer 7, `0`=uit),
+PII-vrij `APPLICATIONS_PRUNED`-auditrecord, gewired in `run-all`. Deel (c) van de bredere retentie-backlog
+(#937 was deel (a) notificaties); deel (b) `Message`-retentie blijft geparkeerd.
+
+**Bestanden:** `src/lib/application-retention.ts`, `src/lib/application-retention-task.ts` (+ 2 testbestanden,
++17 tests rood→groen incl. cascade-guard), `src/lib/config.ts`, `src/lib/compliance/processing-register.ts`,
+`src/app/api/tasks/run-all/route.ts`, `.env.example`, `docs/SECURITY-PRIVACY-BACKLOG.md`, `PROGRESS.md`.
+**Gate:** typecheck, lint, **5207 tests**, prettier groen (build lokaal geblokkeerd door font-CDN-netwerkbeleid;
+CI draait 'm).
+
 ## 2026-07-27 — Persona-sweep run 54: 4 bevindingen gefixt (1 HOOG TOCTOU-verificatie + 2 anti-oracle + 1 badge-divergentie)
 
 **Wat:** kritische-gebruiker-sweep over alle vier rollen (ZZP'er/CLIENT/FRANCHISER/ADMIN) op de verse
