@@ -1457,3 +1457,33 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   tab-bar); en **kleurrijk-speelse mensgerichte interfaces** — elk deterministisch, toegankelijk (WCAG focus-states,
   status label+icoon, motion-reduce) en onderscheidend van de bestaande 470.
 - **Totaal nu op `/ontwerp`: 480 concepten** (reeks 48: 471–480).
+
+## Reeks 49 — concepten 481–490 (27 juli 2026)
+
+- **481 Aerogel** — frosted ultralicht / gelaagd matglas (#f4f6fa + sky #8ab6ff): gestapelde `backdrop-blur`-panelen,
+  pastel-lichtlekken achter de content en haarfijne witte randen; diepte via gelaagd licht i.p.v. harde schaduw.
+- **482 Grondtoon** — verfijnd neo-brutalisme / papier & inkt (#ece7dd + oker #c2820a): ongebleekt havermout-papier,
+  2px echt-zwarte kaders, oversized tabulaire cijfers als beeldtaal en monospace kapitaal-labels op een hard raster.
+- **483 Noorderlicht** — premium-dark / aurora-gloed (#071118 + mint #34e0b0): ingetogen aurora-linten
+  (groen→cyaan→violet) achter data-panelen, één serif-displaymoment en tabulaire cijfers — luxe rust in het donker.
+- **484 Linnenband** — warm-menselijk / boeklinnen & stiksel (#e9e0d2 + leem #8a5a3c): geweven doek-textuur, kaarten
+  als in linnen gebonden dossiers met stiksel-randen en een humanistische serif — tactiel en vertrouwd.
+- **485 Kwartslicht** — kristallijn mineraal / gefacetteerd licht (#eef1f6 + dichroïsch #6d8cff): koele kwarts-grijzen,
+  `clip-path`-facetten die licht breken en één kleurverschuivend accent — koele precisie, als geslepen kristal.
+- **486 Schaduwtheater** — chiaroscuro / spotlight & podium (#0b0a09 + amber #f0b429): bijna-zwart podium met één warme
+  radiale lichtpoel die de actieve content uitlicht; focus via licht i.p.v. kleur — filmisch maar leesbaar.
+- **487 Kompasroos** — nautisch-cartografisch / navigatie-instrument (#efe6d2 + marine #1c3d5a): gegraveerde kompasroos-
+  en peillijnen, tabulaire cijfers als coördinaten, match als peiling-dial en de next-action als "volgende koers".
+- **488 Zeewier** — biofiel onderwater / kalm & organisch (#eaf3ef + teal #1f9e8a): kelp-groen/aqua-verlopen, golvende
+  organische scheidingslijnen en licht dat van boven filtert — laag-prikkelend en geruststellend, maar data-compleet.
+- **489 Koperdraad** — techno-ambacht / koper op houtskool (#17140f + koper #d08a4e): warme metallic accenten op
+  antraciet met fijne circuit-tracering die panelen verbindt; verificatie/matching als een verbonden circuit.
+- **490 Velijn** — redactioneel velijn / briefpapier-luxe (#f6f1e4 + inkt #6b4f2e): warm crème met translucente
+  papierlagen, klassieke serif als hoofdrolspeler, kolomraster en hairline-regels — het meest editoriale concept.
+- Onderzochte 2026-trends deze reeks: **frosted translucentie / glass-depth** met **licht-als-hiërarchie**;
+  **neo-brutalism refined** met oversized numerals; **dark-mode-first premium** met **aurora-gloed** en
+  **chiaroscuro/spotlight**-focus; **warm-humanist / tactiele materialen** (boeklinnen, velijn-papier); **kristallijne
+  gefacetteerde vlakken** met **dichroïsch** accent; **cartografische / wayfinding-esthetiek**; **biofiele / calm
+  low-stimulation** interfaces; en **techno-craft warm-metallic** circuit-lijnwerk — elk deterministisch, toegankelijk
+  (WCAG focus-states, status label+icoon) en onderscheidend van de bestaande 480.
+- **Totaal nu op `/ontwerp`: 490 concepten** (reeks 49: 481–490).

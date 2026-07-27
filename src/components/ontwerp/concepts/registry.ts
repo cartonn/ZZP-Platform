@@ -8029,6 +8029,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#211e2b",
     available: true,
   },
+  // ── Reeks 49 (run 27-7-2026) — nrs 481–490, toegevoegd bovenop de bestaande set. ──────────
+  {
+    id: "481",
+    name: "Aerogel",
+    direction: "Frosted ultralicht — gelaagd matglas",
+    rationale:
+      "Het lichtste concept denkbaar: bijna-wit canvas met gestapelde matglas-panelen, zachte pastel-lichtlekken die achter de content door schijnen en haarfijne witte randen. Diepte door gelaagd licht in plaats van harde schaduw — als bevroren licht, rustig en premium rond gevoelige documenten.",
+    trends: [
+      "Translucentie / frosted glass-depth",
+      "Licht-als-hiërarchie i.p.v. schaduw",
+      "Ultralichte, luchtige lagen",
+    ],
+    fonts: "Geist + Geist Mono",
+    accent: "#8ab6ff",
+    bg: "#f4f6fa",
+    fg: "#1e293b",
+    available: true,
+  },
+  {
+    id: "482",
+    name: "Grondtoon",
+    direction: "Verfijnd neo-brutalisme — papier & inkt",
+    rationale:
+      "Ongebleekt havermout-papier, dikke zwarte hairline-kaders en oversized tabulaire cijfers als beeldtaal, met monospace kapitaal-labels en één warme oker. Brutalist van karakter maar strak en glashelder in structuur — hoog contrast, alles op een hard raster.",
+    trends: [
+      "Neo-brutalism refined",
+      "Oversized numerals als beeldtaal",
+      "Hard grid + hairline-regels",
+    ],
+    fonts: "Space Grotesk + JetBrains Mono",
+    accent: "#c2820a",
+    bg: "#ece7dd",
+    fg: "#171717",
+    available: true,
+  },
+  {
+    id: "483",
+    name: "Noorderlicht",
+    direction: "Premium-dark — aurora-gloed",
+    rationale:
+      "Diep middernacht-teal met ingetogen aurora-linten (groen→cyaan→violet) die zacht achter de data-panelen gloeien, één serif-displaymoment voor de koppen en tabulaire cijfers. Luxe en rust in het donker — vertrouwen via diepte, nooit neon-schreeuwerig.",
+    trends: [
+      "Dark-mode-first premium",
+      "Aurora / gloed-als-accent",
+      "Serif-displaymoment + tabulaire cijfers",
+    ],
+    fonts: "Geist + Fraunces + Geist Mono",
+    accent: "#34e0b0",
+    bg: "#071118",
+    fg: "#dcece9",
+    available: true,
+  },
+  {
+    id: "484",
+    name: "Linnenband",
+    direction: "Warm-menselijk — boeklinnen & stiksel",
+    rationale:
+      "Zorg is mensenwerk: geweven doek-textuur, warme leem- en zandtinten en kaarten als in linnen gebonden dossiers met fijne stiksel-randen. Een humanistische serif geeft rust; tactiel en vertrouwd rond gevoelige documenten, zonder in te leveren op dichtheid.",
+    trends: [
+      "Warm-humanist / tactiele materialen",
+      "Textiel-/boeklinnen-textuur",
+      "Humanistische serif + zachte grotesk",
+    ],
+    fonts: "Newsreader + Libre Franklin",
+    accent: "#8a5a3c",
+    bg: "#e9e0d2",
+    fg: "#2b2418",
+    available: true,
+  },
+  {
+    id: "485",
+    name: "Kwartslicht",
+    direction: "Kristallijn mineraal — gefacetteerd licht",
+    rationale:
+      "Koele kwarts-grijzen en ijsblauw, gefacetteerde vlakken die licht breken en één dichroïsch accent dat van tint verschuift. Scherpe geometrie en glasheldere precisie — premium, koel en technisch-elegant, als geslepen kristal, met bewaakt contrast.",
+    trends: [
+      "Kristallijne / gefacetteerde vlakken",
+      "Dichroïsch kleurverschuivend accent",
+      "Koele precisie-esthetiek",
+    ],
+    fonts: "Geist + Geist Mono",
+    accent: "#6d8cff",
+    bg: "#eef1f6",
+    fg: "#1f2733",
+    available: true,
+  },
+  {
+    id: "486",
+    name: "Schaduwtheater",
+    direction: "Chiaroscuro — spotlight & podium",
+    rationale:
+      "Een bijna-zwart podium waarop één warme lichtpoel de actieve content uitlicht terwijl de rest in schaduw wegvalt. Filmische diepte en hoog contrast richten de blik op de volgende actie en de verificatie — dramatisch maar leesbaar, elegant nooit grimmig.",
+    trends: [
+      "Chiaroscuro / spotlight-hiërarchie",
+      "Filmische diepte in dark-mode",
+      "Focus via licht i.p.v. kleur",
+    ],
+    fonts: "Instrument Serif + Geist",
+    accent: "#f0b429",
+    bg: "#0b0a09",
+    fg: "#efe7d8",
+    available: true,
+  },
+  {
+    id: "487",
+    name: "Kompasroos",
+    direction: "Nautisch-cartografisch — navigatie-instrument",
+    rationale:
+      "Het platform als navigatie: warm zeekaart-perkament met diep marineblauw, gegraveerde kompasroos- en peillijnen en tabulaire cijfers als coördinaten. De volgende actie is je volgende koers — verfijnd en precies, zonder cliché.",
+    trends: [
+      "Cartografische / wayfinding-esthetiek",
+      "Gegraveerde instrument-lijnen",
+      "Coördinaat-cijfers + serif-koppen",
+    ],
+    fonts: "Fraunces + Libre Franklin + JetBrains Mono",
+    accent: "#1c3d5a",
+    bg: "#efe6d2",
+    fg: "#17263f",
+    available: true,
+  },
+  {
+    id: "488",
+    name: "Zeewier",
+    direction: "Biofiel onderwater — kalm & organisch",
+    rationale:
+      "Zachte kelp-groenen en diep aqua-verlopen, vloeiende organische scheidingslijnen en licht dat van boven filtert. Een laag-prikkelende, geruststellende diepzee-sfeer met veel lucht — kalm rond gevoelige documenten, maar volledig data-compleet.",
+    trends: [
+      "Biofiel / natuurlijke rust",
+      "Organische, vloeiende vormen",
+      "Calm / low-stimulation interface",
+    ],
+    fonts: "Sora + Plus Jakarta Sans",
+    accent: "#1f9e8a",
+    bg: "#eaf3ef",
+    fg: "#14312a",
+    available: true,
+  },
+  {
+    id: "489",
+    name: "Koperdraad",
+    direction: "Techno-ambacht — koper op houtskool",
+    rationale:
+      "Diep houtskool-antraciet met warme koper- en bronsaccenten en fijne circuit-tracering die de panelen verbindt. De verificatie- en matchinglaag als een verbonden circuit — warm-technisch en premium, met metallic gloed en genoeg contrast, nooit koud neon.",
+    trends: [
+      "Techno-craft / warm metallic dark",
+      "Circuit-/draad-tracering als lijnwerk",
+      "Monospace technische labels",
+    ],
+    fonts: "Geist + Geist Mono",
+    accent: "#d08a4e",
+    bg: "#17140f",
+    fg: "#ece3d6",
+    available: true,
+  },
+  {
+    id: "490",
+    name: "Velijn",
+    direction: "Redactioneel velijn — briefpapier-luxe",
+    rationale:
+      "Warm crème/ivoor met translucente papierlagen, een fijne klassieke serif als hoofdrolspeler en een ruim kolomraster als luxe briefpapier. Eén ingetogen inkt-accent en hairline-regels geven rust en vertrouwen — het meest editoriale concept, elegant bij hoge dichtheid.",
+    trends: [
+      "Editorial / velijn-print-luxe",
+      "Klassieke serif als hoofdrolspeler",
+      "Kolomraster + hairline-regels",
+    ],
+    fonts: "Fraunces + Newsreader + JetBrains Mono",
+    accent: "#6b4f2e",
+    bg: "#f6f1e4",
+    fg: "#23201a",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);
