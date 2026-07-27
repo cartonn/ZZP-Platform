@@ -1,5 +1,54 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-27 (run 53) · **main-commit basis:** `c46a8f0a`
+> **Uitkomst:** **1 bevinding GEVONDEN + GEFIXT** (DOEL 2, client-side-only gate op een echte mutatie:
+> `openDispute` mist een server-side statusrem). Verse prod-build (exit 0) + idempotente demo-seed
+> (`SEED_DEMO=true`, ephemere SQLite `qa.db`, `next start` op poort 3100) + live persona-smoke over alle
+> vier rollen (Playwright/Chromium 1194, **20/20 PASS**: login → /dashboard voor admin/zzp/client/franchise;
+> `/acties` laadt zonder crash; nul 5xx; DOEL 2 privilege-escalatie ZZP→`/admin/verificaties` en
+> CLIENT→`/franchise` → redirect `/dashboard`; junk/traversal/sqli-id → 200 soft-404, nooit 500;
+> fix-validatie: COMPLETED samenwerking toont geen dispuut-opener) + drie parallelle Opus-audits
+> (authz/IDOR/cross-tenant/document-privacy — **schoon**; malicieuze invoer/verboden statusovergangen/
+> financiële integriteit — 1 bevinding, nu gefixt; next-action-correctheid — geen HIGH, alleen LOW/
+> productbesluit-items hieronder geparkeerd).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 2, CLAUDE.md regel 1 — client-side-only gate op een echte mutatie):**
+> `openDispute` (`src/lib/cascade/dispute-commands.ts`) las alleen `col.disputedAt`, **niet** `col.status`.
+> De UI toont het dispuut-formulier alléén bij een ACTIVE samenwerking (`active && …` in
+> `samenwerkingen/[id]/page.tsx`), maar niets borgde die regel server-side: een partij kon `openDisputeAction`
+> **rechtstreeks** aanroepen op een PROPOSED/COMPLETED/CANCELLED samenwerking. Impact per status: **COMPLETED**
+> → zet `disputedAt` en blokkeert eenzijdig de correctie-/creditfactuur-route (`creditInvoice` checkt
+> `assertNotDisputed`) op een reeds betaalde klus — een griefing-vector; **PROPOSED** → landmijn (dispuut →
+> signContract op een bevroren deal; `contract-dispute-freeze.test.ts`, run 40, dekte alleen de downstream-
+> command af, nooit de bron — deze fix dicht de bron); **CANCELLED** → no-op vlag zonder cascade om te
+> bevriezen. Elke andere cascade-command borgt dit al via `assertCollaborationNotTerminal` /
+> `terminalCollaborationError`. **Geschonden regel:** CLAUDE.md regel 1 (server-side is de waarheid; client
+> mag tonen, nooit beslissen) + regel 3 (statusovergangen via expliciete rem). **Fix:** `openDispute` weigert
+> nu hard tenzij `status === "ACTIVE"` (een dispuut = "bevries de lópende cascade" → alleen zinvol op een
+> actieve inzet), ná de `assertParty`-check (dus geen oracle: alleen een partij ziet de statusmelding).
+> Rood→groen: `open-dispute-status-guard.test.ts` (+5: PROPOSED/COMPLETED/CANCELLED geweigerd zonder write,
+> ACTIVE schrijft door, al-lopend dispuut op ACTIVE nog steeds geweigerd). Full gate groen.
+>
+> **GEPARKEERD — LOW/productbesluit (next-action-audit run 53, niet-blokkerend):**
+>
+> 1. **LOW-MED (productbesluit "Besluit 1"):** een cascade-factuur die APPROVED→OVERDUE flipt geeft de
+>    bétalende partij (CLIENT) geen signaal op enig oppervlak — alleen de freelancer krijgt
+>    `paymentConfirmTask(overdue)`. Dit is het gedocumenteerde out-of-band-betaalmodel (client betaalt bij
+>    goedkeuring, heeft geen betaalknop; `canPay = !cascade`), dus by-design, maar OVERDUE kan "client betaalde,
+>    freelancer bevestigde niet" niet onderscheiden van "client betaalde nooit". Vergt een productbesluit (bv.
+>    zachte "bevestig dat je betaald hebt"-nudge naar de client bij cascade-overdue). Ref: `signals.ts:291-299`,
+>    `pending-tasks.ts:728`, `cascade/stage.ts:143-154`.
+> 2. **LOW (cosmetisch):** een tweede VERIFIED-certificaat van hetzelfde type (oud, bijna verlopen) naast een
+>    vernieuwd geldig exemplaar levert een overbodige `credentialFixTask("expiring")` die deep-linkt naar het
+>    reeds-vervangen certificaat; alleen bereikbaar als de ZZP'er een _nieuw_ certificaat aanmaakte i.p.v. het
+>    bestaande te bewerken. Ref: `pending-tasks.ts:352-361` vs `collaboration-credential-expiry.ts:71-79`.
+> 3. **LOW (onbereikbaar bij realistische volumes):** `unreadConversations`/admin-verificatie-`/acties`-lijst
+>    slicet op `MAX=50` terwijl de nav-badge een onbegrensde `count` is → boven 50 items onder-rapporteert de
+>    `/acties`-badge t.o.v. de nav-badge. Ref: `pending-tasks.ts:121-127,1006-1014` vs `signals.ts:335-354,721`.
+> 4. **LOW (immaterieel):** franchiser roster-expiry gebruikt `gte: now` op beide oppervlakken terwijl de
+>    freelancer-conventie `gt: now` is — alleen de exact-`now`-milliseconde-grens verschilt van de conventie
+>    (de twee franchiser-oppervlakken zijn onderling consistent). Ref: `pending-tasks.ts:796`, `signals.ts:609`.
+
 > **Datum:** 2026-07-26 (run 52) · **main-commit basis:** `929fb2b5`
 > **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (1 MED financiële integriteit: TOCTOU-race omzeilt de
 > run-51 anti-dubbelfacturatie-guard; 1 MED DOEL-1b cross-surface: FRANCHISER nav-badge ontbreekt op

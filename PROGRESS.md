@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-27 — Persona-sweep run 53: server-side statusrem op openDispute (DOEL 2, client-side-only gate)
+
+**Wat:** kritische-gebruiker-sweep over alle vier rollen op de verse prod-build (exit 0) + demo-seed. Drie
+parallelle Opus-audits: authz/IDOR/cross-tenant/document-privacy kwam **schoon**; de malicieuze-invoer-/
+statusovergang-/financiële-integriteit-audit vond **één** echt gat; de next-action-audit vond geen HIGH
+(alleen LOW/productbesluit-items, geparkeerd in de backlog). Live persona-smoke (Playwright/Chromium):
+**20/20 PASS** (4× login → /dashboard, `/acties` laadt, nul 5xx, privilege-escalatie ZZP→`/admin/*` en
+CLIENT→`/franchise` → redirect, junk/traversal/sqli-id → 200 soft-404 nooit 500, fix-validatie live).
+
+**Defect (GEFIXT, MED — CLAUDE.md regel 1):** `openDispute` (`src/lib/cascade/dispute-commands.ts`) borgde
+geen server-side statusrem — het las alleen `disputedAt`, niet `status`. De UI toont het dispuut-formulier
+alléén bij een ACTIVE samenwerking (`active && …`), maar een partij kon `openDisputeAction` rechtstreeks op
+een PROPOSED/COMPLETED/CANCELLED samenwerking aanroepen. Op COMPLETED bevroor dat eenzijdig de
+correctie-/creditfactuur-route op een reeds betaalde klus (griefing); op PROPOSED een landmijn tegen de
+freeze-invariant; op CANCELLED een no-op vlag. Alle andere cascade-commands borgen dit al via
+`assertCollaborationNotTerminal`. **Fix:** `openDispute` weigert nu hard tenzij `status === "ACTIVE"`, ná de
+`assertParty`-check (geen oracle). Een dispuut = "bevries de lópende cascade" → alleen zinvol op een actieve
+inzet. Read-only guard, geen schemawijziging, geen nieuw auth-oppervlak. Het woord "AI" komt nergens voor.
+
+**Bestanden:** `src/lib/cascade/dispute-commands.ts`, `src/lib/cascade/open-dispute-status-guard.test.ts`
+(+5 tests), `docs/PERSONA-SWEEP-BACKLOG.md` (run 53 + 4 geparkeerde LOW-items), `PROGRESS.md`. Gate:
+typecheck, lint, **5170 tests**, build, prettier groen.
+
 ## 2026-07-27 — Opdrachtgever: acuut-onbezet-signaal op de eigen opdrachtkaart (start nadert, nog niet vervuld)
 
 **Wat:** de opdrachtgever zag op "Mijn opdrachten" (`/opdrachten`, CLIENT-grid) per opdracht het
