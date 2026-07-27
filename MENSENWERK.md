@@ -961,6 +961,17 @@ taak-/heartbeat-routes (**fail-closed**: geen `CRON_SECRET` → 503, verkeerd to
 gecachet, en de uitvoer bevat **nooit** persoonsgegevens of secrets — alleen geaggregeerde gauges
 (`src/lib/observability/metrics.ts` (puur) + `src/app/api/metrics/route.ts`). Resterend mensenwerk:
 **niets extra** — richt desgewenst een scraper/monitor op het endpoint met de `CRON_SECRET` als Bearer.
+**Code-kant GEDAAN (2026-07-27) — kant-en-klare Prometheus alerting-rules:** de gauges waren er, maar
+een operator moest de alarmdrempels zelf verzinnen (de help-teksten zeggen "alarmeer op aanhoudende
+groei" zonder concrete regel). Er is nu een **drop-in regelbestand** `docs/observability/alerts.yml`
+dat elke alarmeerbare gauge vertaalt naar een alert met drempel + `for:`-duur (beschikbaarheid,
+dead-man's-switch, stille-faal-backlogs met een ruime `for:` > één cron-interval, verificatie-SLA,
+onderhoud-inhibitie), plus een voorbeeld-`scrape_config` met de bearer-auth in de kop. Een
+**drift-gate-test** (`src/lib/observability/alerts-rules.test.ts` + puur
+`src/lib/observability/alerts-rules.ts`) klinkt de gebruikte `zzp_*`-namen vast aan de gauges uit
+`buildMetrics`: een hernoemde/verwijderde gauge (dode alert) of een nieuwe gauge zonder alert breekt de
+CI-poort. Zie RUNBOOK §2a. Resterend mensenwerk: het bestand via `rule_files` in je Prometheus laden
+(of de drempels in je uptime-dienst spiegelen) en de `CRON_SECRET` als scrape-bearer zetten.
 **Code-kant GEDAAN (2026-07-26) — twee gauges erbij:** `zzp_maintenance_mode` (1 als
 `MAINTENANCE_MODE` aanstaat — zodat een monitor niet paget om de bewuste 503's tijdens onderhoud, en
 een per ongeluk aan-gelaten onderhoudsmodus extern zichtbaar is) en `zzp_credentials_overdue_expiry`

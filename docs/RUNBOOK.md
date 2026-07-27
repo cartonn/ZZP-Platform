@@ -46,6 +46,27 @@
   `scripts/start.mjs` een `SIGKILL` zodat de deploy nooit blijft hangen. Een tweede afsluitsignaal
   forceert direct. Niets in te stellen voor de pilot.
 
+### 2a. Metrics + alerting (`/api/metrics`)
+
+Naast de liveness-probe exposeert `GET /api/metrics` machine-leesbare gauges (Prometheus-tekst, of
+`?format=json`) voor een externe monitor — **zonder** admin-login. Beveiligd met dezelfde
+`Authorization: Bearer $CRON_SECRET` als de taak-/heartbeat-routes (fail-closed: geen `CRON_SECRET`
+→ 503, verkeerd token → 401), nooit gecachet, en de uitvoer bevat **geen** PII/secrets. Gauges o.a.:
+`zzp_db_reachable`, `zzp_cron_heartbeat_stale`/`_ok`, `zzp_backup_heartbeat_stale`/`_ok`,
+`zzp_verification_queue` + `_oldest_age_seconds`, `zzp_credentials_overdue_expiry`,
+`zzp_subscriptions_overdue_expiry`, `zzp_maintenance_mode`.
+
+- **Kant-en-klare alerting-rules:** [`docs/observability/alerts.yml`](observability/alerts.yml) is een
+  drop-in Prometheus-regelbestand dat die gauges vertaalt naar alerts met drempels + `for:`-duur
+  (beschikbaarheid, dead-man's-switch, stille-faal-backlogs, verificatie-SLA, onderhoud). De kop van
+  het bestand toont een voorbeeld-`scrape_config` met de bearer-auth. Laad het via `rule_files`.
+- **Onderhoud onderdrukt paging:** gebruik `zzp_maintenance_mode == 1` als `inhibit_rule`-bron om de
+  beschikbaarheidsalerts te dempen tijdens een geplande deploy; een per ongeluk aan-gelaten
+  onderhoudsmodus blijft zichtbaar via de aparte info-alert `ZzpMaintenanceModeOn`.
+- **Drift-gate:** een CI-test (`src/lib/observability/alerts-rules.test.ts`) klinkt de in `alerts.yml`
+  gebruikte `zzp_*`-namen vast aan de gauges uit `buildMetrics` — een hernoemde/verwijderde gauge
+  (dode alert) of een nieuwe gauge zonder alert breekt de poort.
+
 ## 3. Deploy
 
 **Normale flow (aanbevolen):** merge een PR naar `main` na een groene CI-poort. Railway bouwt en
