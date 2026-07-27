@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   summarizeClientApplications,
+  ageInDays,
   CLIENT_FUNNEL_MIN_DECIDED,
+  CANDIDATE_GHOSTING_RISK_DAYS,
 } from "@/lib/client-application-funnel";
 
 describe("summarizeClientApplications", () => {
@@ -51,6 +53,8 @@ describe("summarizeClientApplications", () => {
     expect(f).toEqual({
       total: 0,
       awaitingFirstLook: 0,
+      awaitingFirstLookOldestDays: null,
+      awaitingFirstLookAtRisk: false,
       shortlisted: 0,
       accepted: 0,
       acceptanceRate: null,
@@ -63,5 +67,58 @@ describe("summarizeClientApplications", () => {
     expect(f.total).toBe(11);
     expect(f.awaitingFirstLook).toBe(0);
     expect(f.acceptanceRate).toBe(50);
+  });
+
+  describe("langst-wachtende NEW-reactie (ghosting-risico)", () => {
+    const now = new Date("2026-07-27T12:00:00Z");
+
+    it("rekent de leeftijd van de langst wachtende NEW-reactie in hele dagen", () => {
+      const oldestNewAt = new Date("2026-07-24T09:00:00Z"); // ~3 dagen + 3 uur → floor = 3
+      const f = summarizeClientApplications({ NEW: 2 }, { oldestNewAt, now });
+      expect(f.awaitingFirstLookOldestDays).toBe(3);
+      expect(f.awaitingFirstLookAtRisk).toBe(false);
+    });
+
+    it("markeert een ghosting-risico vanaf de drempel", () => {
+      const oldestNewAt = new Date(now.getTime() - CANDIDATE_GHOSTING_RISK_DAYS * 86_400_000);
+      const f = summarizeClientApplications({ NEW: 1 }, { oldestNewAt, now });
+      expect(f.awaitingFirstLookOldestDays).toBe(CANDIDATE_GHOSTING_RISK_DAYS);
+      expect(f.awaitingFirstLookAtRisk).toBe(true);
+    });
+
+    it("geeft geen leeftijd/risico zonder wachtende NEW-reactie, ook al is er een tijdstip", () => {
+      const oldestNewAt = new Date("2026-01-01T00:00:00Z"); // verdwaald/oud tijdstip
+      const f = summarizeClientApplications({ NEW: 0, SHORTLIST: 3 }, { oldestNewAt, now });
+      expect(f.awaitingFirstLookOldestDays).toBeNull();
+      expect(f.awaitingFirstLookAtRisk).toBe(false);
+    });
+
+    it("geeft geen leeftijd wanneer er geen tijdstip bekend is", () => {
+      const f = summarizeClientApplications({ NEW: 4 }, { oldestNewAt: null, now });
+      expect(f.awaitingFirstLookOldestDays).toBeNull();
+      expect(f.awaitingFirstLookAtRisk).toBe(false);
+    });
+
+    it("klemt een toekomstig tijdstip naar 0 dagen (nooit negatief)", () => {
+      const oldestNewAt = new Date(now.getTime() + 5 * 86_400_000);
+      const f = summarizeClientApplications({ NEW: 1 }, { oldestNewAt, now });
+      expect(f.awaitingFirstLookOldestDays).toBe(0);
+      expect(f.awaitingFirstLookAtRisk).toBe(false);
+    });
+  });
+
+  describe("ageInDays", () => {
+    const now = new Date("2026-07-27T12:00:00Z");
+    it("geeft null voor een ontbrekend tijdstip", () => {
+      expect(ageInDays(null, now)).toBeNull();
+      expect(ageInDays(undefined, now)).toBeNull();
+    });
+    it("rondt naar beneden af op hele dagen", () => {
+      expect(ageInDays(new Date(now.getTime() - 86_400_000 - 1), now)).toBe(1);
+      expect(ageInDays(new Date(now.getTime() - 86_400_000 + 1), now)).toBe(0);
+    });
+    it("is nooit negatief bij een toekomstig tijdstip", () => {
+      expect(ageInDays(new Date(now.getTime() + 999_999), now)).toBe(0);
+    });
   });
 });
