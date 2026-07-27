@@ -625,6 +625,12 @@ async function BrowseJobs({
   // met een "Wis alles" om in één klik terug naar de volledige lijst te gaan. Labels uit dezelfde
   // industrie-/skill-lookups als het filterpaneel — één bron van waarheid, geen drift.
   const activeChips = describeActiveJobFilters(f, { industries, skills });
+  // "Wis alle filters" behoudt — net als de "Wis alles"-knop in ActiveFilterChips — een expliciet
+  // gekozen sortering; alleen de filters + paginering verdwijnen.
+  const explicitSort = first(searchParams.sort);
+  const clearFiltersHref = explicitSort
+    ? `/opdrachten?sort=${encodeURIComponent(explicitSort)}`
+    : "/opdrachten";
 
   const paginationTotal = effectiveMatchSort ? jobs.length : total;
   const totalPages = Math.max(1, Math.ceil(paginationTotal / JOBS_PER_PAGE));
@@ -665,7 +671,7 @@ async function BrowseJobs({
             description={t("Pas je filters aan om meer resultaten te zien.")}
             action={
               activeChips.length > 0
-                ? { label: t("Wis alle filters"), href: "/opdrachten" }
+                ? { label: t("Wis alle filters"), href: clearFiltersHref }
                 : undefined
             }
           />
