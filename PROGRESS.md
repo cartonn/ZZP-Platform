@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-27 — Prod/observability: kant-en-klare Prometheus alerting-rules + drift-gate (`/api/metrics`)
+
+**Wat:** de `/api/metrics`-gauges (dead-man's-switch, stille-faal-backlogs, verificatie-SLA) waren er, maar
+operators hadden géén concrete alarmregels — de gauge-help-teksten zeggen "alarmeer op aanhoudende groei"
+zonder drempel. Nieuw drop-in Prometheus-regelbestand `docs/observability/alerts.yml`: 11 alerts over 6 groepen
+(beschikbaarheid, dead-man's-switch, stille-faal-backlogs met een ruime `for:` > één cron-interval,
+verificatie-SLA, onderhoud-inhibitie), elk met severity + summary/description + `for:`-duur, plus een
+voorbeeld-`scrape_config` met bearer-auth in de kop.
+
+**Drift-gate:** puur `src/lib/observability/alerts-rules.ts` leidt de canonieke gauge-namen af uit `buildMetrics`
+(één bron van waarheid) + extraheert de gerefereerde `zzp_*`-namen; de test klinkt beide vast — (a) geen dode
+alert-referentie naar een hernoemde/verwijderde gauge, (b) elke geëxposeerde gauge is gedekt door een alert-expr
+óf staat expliciet in `INFO_ONLY_METRICS`. Een nieuwe gauge zonder alert of een hernoeming breekt zo de CI-poort.
+RUNBOOK §2a + MENSENWERK §11 bijgewerkt.
+
+**Bestanden:** `docs/observability/alerts.yml` (nieuw), `src/lib/observability/alerts-rules.ts` (+ test, +8 tests),
+`docs/RUNBOOK.md` (§2a), `MENSENWERK.md` (§11), `PROGRESS.md`. **Gate:** typecheck, lint, test, prettier groen
+(build lokaal geblokkeerd door font-CDN-netwerkbeleid; CI draait 'm). Resterend mensenwerk: `alerts.yml` via
+`rule_files` laden + `CRON_SECRET` als scrape-bearer.
+
 ## 2026-07-27 — Security/privacy-audit: Application-retentie technisch afgedwongen (HOOG, AVG art. 5(1)(e))
 
 **Wat:** volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits

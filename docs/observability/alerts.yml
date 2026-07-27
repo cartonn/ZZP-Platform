@@ -1,0 +1,141 @@
+# Prometheus alerting-rules voor het ZZP Platform — drop-in monitoring voor /api/metrics.
+#
+# Deze regels vertalen de gauges die /api/metrics exposeert (Prometheus-tekst, beveiligd met
+# `Authorization: Bearer $CRON_SECRET`) naar concrete alerts met drempels en `for:`-duur. Ze horen bij
+# src/lib/observability/metrics.ts; een drift-gate-test (src/lib/observability/alerts-rules.test.ts)
+# klinkt de hieronder gebruikte `zzp_*`-namen vast aan de daadwerkelijk geëxposeerde gauges, zodat een
+# hernoemde/verwijderde gauge (dode alert) of een nieuwe gauge zonder alert de CI-poort breekt.
+#
+# GEBRUIK (Prometheus): scrape /api/metrics met de CRON_SECRET als bearer, bv.
+#
+#   scrape_configs:
+#     - job_name: zzp-platform
+#       metrics_path: /api/metrics
+#       scheme: https
+#       authorization: { type: Bearer, credentials: "<CRON_SECRET>" }
+#       static_configs: [{ targets: ["jouwdomein.nl"] }]
+#
+#   rule_files: [ "alerts.yml" ]
+#
+# Laad dit bestand via `rule_files`. Een uptime-dienst met body-check kan dezelfde drempels handmatig
+# spiegelen. De gauges bevatten NOOIT persoonsgegevens — alleen geaggregeerde tellingen/leeftijden/vlaggen.
+#
+# ONDERHOUD (inhibitie): `zzp_maintenance_mode == 1` betekent bewust onderhoud (bezoekers krijgen 503).
+# Onderdruk dan de beschikbaarheidsalerts met een inhibit_rule op die gauge, zodat een geplande deploy
+# niet paget — en een per ongeluk aan-gelaten onderhoudsmodus juist wél zichtbaar blijft via
+# ZzpMaintenanceModeOn (waarschuwing).
+
+groups:
+  - name: zzp-platform-beschikbaarheid
+    rules:
+      - alert: ZzpDatabaseUnreachable
+        # Liveness: de metrics-handler kon geen `SELECT 1` doen. Directe klantimpact.
+        expr: zzp_db_reachable == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database onbereikbaar"
+          description: "De app kan de database niet bereiken (zzp_db_reachable=0). Zie RUNBOOK §6 (incident-respons)."
+
+  - name: zzp-platform-dead-mans-switch
+    rules:
+      - alert: ZzpCronStale
+        # De geplande-taken-cron draaide langer dan CRON_MAX_AGE_HOURS niet: expiry-detectie,
+        # abonnement-verval, retentie-snoei liggen dan stil. Server-side tegen het venster berekend.
+        expr: zzp_cron_heartbeat_stale == 1
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Geplande-taken-cron staat stil"
+          description: "De cron-heartbeat is buiten het venster (CRON_MAX_AGE_HOURS). Geplande runners draaien niet meer. Controleer de cron-workflow/secret. Zie MENSENWERK §10."
+      - alert: ZzpCronLastRunFailed
+        # De cron draaide wél, maar de laatste run had een taakfout. `zzp_up`-scrape bewijst dat de app
+        # leeft; deze gauge is 0 alleen na een echte run-fout (nooit-gedraaid telt ook als 0, vandaar `for`).
+        expr: zzp_cron_heartbeat_ok == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Laatste cron-run faalde"
+          description: "De laatste geplande-taken-run rapporteerde een taakfout (zzp_cron_heartbeat_ok=0). Bekijk de run-all-logs."
+      - alert: ZzpBackupStale
+        # De externe database-back-up meldde langer dan BACKUP_MAX_AGE_HOURS geen succes: het
+        # back-up-schema lijkt gestopt (opgezegde snapshot-policy, mislukte dump). Dataverlies-risico.
+        expr: zzp_backup_heartbeat_stale == 1
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database-back-up staat stil"
+          description: "De back-up-heartbeat is buiten het venster (BACKUP_MAX_AGE_HOURS) of meldde nog nooit succes. Controleer het back-up-schema. Zie RUNBOOK §5 / MENSENWERK §11.1b."
+      - alert: ZzpBackupLastFailed
+        expr: zzp_backup_heartbeat_ok == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Laatste database-back-up faalde"
+          description: "De laatste gemelde database-back-up slaagde niet (zzp_backup_heartbeat_ok=0). Controleer de dump-job."
+
+  - name: zzp-platform-stille-faal-backlogs
+    rules:
+      # Deze drie tellen werk dat een cron-run HAD moeten doen. De cron-heartbeat bewijst alleen DÁT de
+      # run afrondde, niet DÁT 'ie zijn werk deed. Een klein, tijdelijk aantal is normaal: een credential/
+      # abonnement dat kort ná de 05:00-run verloopt, blijft tot de volgende dagelijkse run "overdue".
+      # Daarom een ruime `for:` (> één cron-interval + speling) zodat alleen een AANHOUDENDE backlog paget.
+      - alert: ZzpCredentialExpiryBacklog
+        expr: zzp_credentials_overdue_expiry > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Credential-expiry-pijplijn verwerkt niets"
+          description: "Er staan al > één cron-interval VERIFIED-credentials met een verstreken vervaldatum die niet naar EXPIRED zijn gezet (zzp_credentials_overdue_expiry). De expiry-cron rondt af maar verwerkt niets."
+      - alert: ZzpSubscriptionExpiryBacklog
+        expr: zzp_subscriptions_overdue_expiry > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Abonnement-verval-pijplijn verwerkt niets"
+          description: "Er staan al > één cron-interval betaalde ACTIVE-abonnementen met een verstreken periode-einde die niet naar CANCELLED zijn gezet (zzp_subscriptions_overdue_expiry). De entitlement-guard dekt de toegang af, maar verval/renewal (notificaties, ledger) ligt stil."
+
+  - name: zzp-platform-verificatie-sla
+    rules:
+      # Verificatie is de kern-differentiatie. Twee complementaire signalen: te veel wachtenden (diepte)
+      # en te lang wachten (leeftijd). De leeftijd vangt een kleine-maar-vastgelopen wachtrij die de
+      # kale diepte mist. Sentinel -1 (lege wachtrij) valt vanzelf buiten `> ...`.
+      - alert: ZzpVerificationQueueDeep
+        expr: zzp_verification_queue > 50
+        for: 6h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Verificatie-wachtrij loopt op"
+          description: "De admin-verificatiewachtrij bevat aanhoudend > 50 openstaande inzendingen (zzp_verification_queue). Schaal de beoordelingscapaciteit op."
+      - alert: ZzpVerificationOldestTooOld
+        # 24 uur = 86400 s. Een inzending die langer dan een werkdag wacht is een SLA-breach op de
+        # kern-differentiatie, ook als de wachtrij verder kort is.
+        expr: zzp_verification_queue_oldest_age_seconds > 86400
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Oudste verificatie wacht te lang"
+          description: "De langst wachtende verificatie-inzending wacht > 24 uur (zzp_verification_queue_oldest_age_seconds). Handel de wachtrij op /admin/verificaties af."
+
+  - name: zzp-platform-onderhoud
+    rules:
+      - alert: ZzpMaintenanceModeOn
+        # Info/inhibitor: geen incident, maar maakt een per ongeluk aan-gelaten onderhoudsmodus zichtbaar.
+        # Gebruik deze gauge ook als inhibit_rule-bron om de beschikbaarheidsalerts te onderdrukken tijdens
+        # bewust onderhoud.
+        expr: zzp_maintenance_mode == 1
+        for: 2h
+        labels:
+          severity: info
+        annotations:
+          summary: "Onderhoudsmodus staat aan"
+          description: "MAINTENANCE_MODE staat al > 2 uur aan (zzp_maintenance_mode=1); bezoekers krijgen een 503. Bevestig dat dit bewust is en zet 'm daarna weer uit."
