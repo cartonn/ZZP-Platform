@@ -30,6 +30,7 @@ interface DienstRow {
 }
 
 let userTenant: string | null;
+let lastExpiringQuery: { orderBy?: unknown; take?: number } | null = null;
 let leadCount: number;
 let handoffCount: number;
 let expiringByTenant: Record<string, { freelancerProfileId: string }[]>;
@@ -52,7 +53,10 @@ vi.mock("@/lib/db", () => ({
     lead: { count: () => Promise.resolve(leadCount) },
     shiftHandoff: { count: () => Promise.resolve(handoffCount) },
     credential: {
-      findMany: (a: Where) => Promise.resolve(expiringByTenant[tenantOf(a.where)] ?? []),
+      findMany: (a: Where & { orderBy?: unknown; take?: number }) => {
+        lastExpiringQuery = a;
+        return Promise.resolve(expiringByTenant[tenantOf(a.where)] ?? []);
+      },
     },
     freelancerProfile: {
       findMany: (a: Where) => Promise.resolve(rosterByTenant[tenantOf(a.where)] ?? []),
@@ -156,6 +160,17 @@ describe("navBadges FRANCHISER — /franchise/zzpers (DOEL 1b)", () => {
     rosterByTenant["tenant-a"] = [engageableRow("fp-1"), engageableRow("fp-2")];
     const badges = await navBadges("FRANCHISER", "u-1");
     expect(badges["/franchise/zzpers"]).toBeUndefined();
+  });
+
+  it("de verloop-badge-query truncateert deterministisch (orderBy expiresAt asc, gelijk aan /acties)", async () => {
+    // Regressie (run 54): de badge- en /acties-query cappen beide op 50, maar de badge-query miste
+    // `orderBy`. Boven 50 verlopende certificaten binnen één tenant pakten de twee queries een andere
+    // 50-rij-subset → een ander distinct-profiel-aantal → de badge divergeerde van /acties. Beide
+    // moeten identiek ordenen zodat ze dezelfde 50 rijen truncaten.
+    rosterByTenant["tenant-a"] = [engageableRow("fp-1")];
+    await navBadges("FRANCHISER", "u-1");
+    expect(lastExpiringQuery?.orderBy).toEqual({ expiresAt: "asc" });
+    expect(lastExpiringQuery?.take).toBe(50);
   });
 });
 

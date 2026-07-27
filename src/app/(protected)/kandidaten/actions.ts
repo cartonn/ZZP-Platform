@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assertOwnership, type Actor, requireRole } from "@/lib/authz";
+import { type Actor, requireRole } from "@/lib/authz";
 import { audit, auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import {
@@ -26,8 +26,11 @@ async function loadOwnedApplication(actor: Actor, appId: string) {
       collaboration: { select: { id: true } },
     },
   });
-  if (!app) throw new Error("Reactie niet gevonden.");
-  assertOwnership(actor, app.job.company.userId);
+  // Geen ownership-leak: een onbekende én een niet-eigen reactie geven exact dezelfde melding
+  // (spiegelt withdrawApplication in reacties/actions.ts op ditzelfde Application-model).
+  // `assertOwnership` throwde voor een bestaand-maar-vreemd id een andere AuthorizationError dan de
+  // "niet gevonden"-Error, een throw-oracle waarmee een opdrachtgever Application-ids kon aftasten.
+  if (!app || app.job.company.userId !== actor.id) throw new Error("Reactie niet gevonden.");
   return app;
 }
 

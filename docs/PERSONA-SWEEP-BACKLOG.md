@@ -1,5 +1,73 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-27 (run 54) · **main-commit basis:** `d85fd436`
+> **Uitkomst:** **4 bevindingen GEVONDEN + GEFIXT** (1 HOOG financiële/verificatie-integriteit: TOCTOU op
+> credential-zelfverificatie; 2 MED/LOW security existence-oracle; 1 LOW-MED DOEL-1b cross-surface
+> badge-divergentie). Verse prod-build (exit 0) + idempotente demo-seed (`SEED_DEMO=true`, ephemere SQLite
+> `qa.db`, `next start` op poort 3100) + live persona-smoke over alle vier rollen (Playwright/Chromium,
+> **40/40 PASS**: login → /dashboard voor admin/zzp/client/franchise; `/acties` + `/dashboard` laden zonder
+> crash; nul 5xx; DOEL 2 privilege-escalatie ZZP/CLIENT/FRANCHISER → `/admin/*`+`/franchise` → redirect
+> `/dashboard`; junk/traversal/sqli-id → soft-404/404, nooit 500) + IDOR-fetch (ZZP/FRANCHISER → vreemd
+> document/dossier/factuur-PDF → 404/soft-404, geen data-lek; eigenaar-invoice-PDF 200, vreemde 404; soft-404
+> lekt geen tegenpartij-PII) + DOEL-1 echte actie (ADMIN "Goedkeuren" op `/admin/verificaties` → knoppen 6→5,
+> next-action verdwijnt) + drie parallelle Opus-audits (authz/IDOR/cross-tenant/document-privacy;
+> malicieuze invoer/verboden statusovergangen/financiële integriteit; next-action-correctheid).
+>
+> **GEVONDEN + GEFIXT — HOOG (DOEL 2, financiële/verificatie-integriteit — TOCTOU op credential-zelfverificatie):**
+> `applyExternalVerification` (`src/app/(protected)/certificaten/actions.ts`) — de gedeelde write van de DUO/BIG-
+> zelfverificatie — deed een **losse `credential.update({ where: { id } })`** ná de externe netwerkcall
+> (`getDiplomaVerifier()/getBigVerifier().verify(...)`, echte HTTP-latency in productie), met `assertTransition`
+> alleen tegen de **stale in-memory `fromStatus`** die vóór de call werd gelezen (`loadOwnedCredential`). Elke
+> zuster-statusmutatie (`verifyCredential`/`rejectCredential`, `sendInvoice`/`markInvoicePaid`, `setBillingStatusAction`)
+> gebruikt de compound-guarded `updateMany({ where: { id, status: from } })` + `count===0`-rem juist tegen deze race;
+> dit ene pad niet. **Repro:** FREELANCER start DUO/BIG-verificatie op een SUBMITTED-diploma/BIG-registratie; terwijl
+> de HTTP-call loopt wijst een ADMIN dezelfde credential af (`REJECTED`, guarded updateMany matcht nog SUBMITTED →
+> slaagt); de call resolvet `verified:true` en `applyExternalVerification` overschrijft de rij blind naar
+> `VERIFIED, rejectionReason:null` — een ongeldige **REJECTED→VERIFIED**-overgang die de admin-afwijzing van een
+> mogelijk-frauduleus certificaat stil ongedaan maakt, zónder opzet (ongelukkige timing volstaat). Raakt de
+> kern-differentiatie (geverifieerde VOG/diploma/BIG gate placement). **Geschonden regel:** CLAUDE.md regel 3
+> (statusovergangen via expliciete rem — hier tegen een stale snapshot i.p.v. de actuele rij) + regel 1 (server-side
+> waarheid, symmetrisch over álle paden incl. het concurrente). **Fix:** `applyExternalVerification` schrijft nu via
+> een interactieve `$transaction(async (tx) => …)` met compound-guarded `tx.credential.updateMany({ where: { id,
+status: fromStatus }, data: { status: "VERIFIED", … } })`; `count===0` → `StaleCredentialError` → hele transactie
+> rolt terug, géén VERIFIED/verificatie-record/audit, nette "Dit certificaat is inmiddels beoordeeld"-melding. Een
+> gelijktijdige admin-beslissing (of elke andere statuswijziging) wint nu. Rood→groen: `verify-toctou.test.ts` (+2:
+> race verloren `count:0` → geen write/record/audit; race gewonnen `count:1` → VERIFIED + record + audit). _(MENSENWERK:
+> vóór livegang met echte VOG/diploma/BIG-data — mens verifieert de guarded-updateMany-fix en checkt of een bestaand
+> productie-record ooit door deze race is geraakt: `AuditLog` `CREDENTIAL_REJECTED` gevolgd door een latere
+> `CREDENTIAL_VERIFIED` op dezelfde `entityId`.)_
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 2, CWE-203 existence-oracle — return-based):** `changeJobStatus`
+> (`src/app/(protected)/opdrachten/actions.ts`) gaf voor een onbekend `jobId` `{ error: "Opdracht niet gevonden." }`
+> maar voor een bestaand-maar-vreemd id `{ error: "Geen toegang tot deze resource." }` (`assertOwnership` →
+> `AuthorizationError`, **teruggegeven** i.p.v. gethrowd → niet door Next.js geredigeerd). Een CLIENT kon zo met een
+> gegokt id Job-ids platform-breed (incl. cross-tenant/CONCEPT) aftasten. Exact de klasse die dit **zelfde bestand** al
+> tweemaal dichtte (`saveJob`, `inviteSuggestedFreelancersToJob`, met expliciete CWE-203-comments); `changeJobStatus`
+> was de gemiste sibling. **Geschonden regel:** CLAUDE.md regel 2 (ownership-keten, ononderscheidbaar van "niet
+> gevonden"). **Fix:** `if (!job || !owns(actor, job.company.userId)) return { error: "Opdracht niet gevonden." };`
+> (`assertOwnership`-import + try/catch verwijderd). Rood→groen: +1 test in `opdrachten/actions.test.ts` (niet-gevonden
+> en niet-eigen geven identieke fout, muteren niets).
+>
+> **GEVONDEN + GEFIXT — LOW-MED (DOEL 2, CWE-203 existence-oracle — throw-based):** `loadOwnedApplication`
+> (`src/app/(protected)/kandidaten/actions.ts`, gebruikt door `changeApplicationStatus`/`saveApplicationNote`) throwde
+> `Error("Reactie niet gevonden.")` bij onbekend id maar een andere `AuthorizationError` (`assertOwnership`) bij een
+> bestaand-maar-vreemd id. Sibling `withdrawApplication` (`reacties/actions.ts`) op ditzelfde Application-model collapset
+> al naar één melding. **Fix:** `if (!app || app.job.company.userId !== actor.id) throw new Error("Reactie niet
+gevonden.");` (`assertOwnership`-import verwijderd). Rood→groen: `kandidaten/anti-oracle-party.test.ts` (+2:
+> niet-eigen reactie geeft identieke fout als niet-gevonden, muteert niets — voor beide callers).
+>
+> **GEVONDEN + GEFIXT — LOW-MED (DOEL 1b, cross-surface "signaal op één oppervlak" — badge-divergentie boven 50):**
+> de FRANCHISER `/franchise/zzpers`-nav-badge (`rosterAlerts`, `src/lib/signals.ts`) telt (bijna-)verlopende
+> certificaten via een `credential.findMany` die — anders dan de `/acties`-bron (`franchiseCredentialExpiryTask`,
+> `pending-tasks.ts`, `orderBy: { expiresAt: "asc" }`) — **géén `orderBy`** had. Beide cappen op 50
+> (`CASCADE_SCAN_LIMIT === MAX === 50`); bij >50 verlopende certificaten binnen één tenant pakten de twee queries een
+> andere 50-rij-subset → een ander distinct-profiel-aantal → de badge divergeerde van `/acties`+de dashboard-rail.
+> Distincte variant van het geparkeerde run-53-item 3 (dat is unbounded-count-vs-capped-list; dit is
+> beide-capped-maar-andere-orde). **Geschonden regel:** DOEL 1b (één bron van waarheid; badge/acties/detail gelijk).
+> **Fix:** `orderBy: { expiresAt: "asc" }` op de badge-query → beide truncaten identiek. Rood→groen: +1 test in
+> `signals.badge-gaps-run52.test.ts` (badge-query heeft `orderBy expiresAt asc` + `take 50`). Full gate: typecheck,
+> lint, **5194 tests**, build, prettier groen.
+
 > **Datum:** 2026-07-27 (run 53) · **main-commit basis:** `c46a8f0a`
 > **Uitkomst:** **1 bevinding GEVONDEN + GEFIXT** (DOEL 2, client-side-only gate op een echte mutatie:
 > `openDispute` mist een server-side statusrem). Verse prod-build (exit 0) + idempotente demo-seed

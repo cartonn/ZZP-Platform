@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-27 — Persona-sweep run 54: 4 bevindingen gefixt (1 HOOG TOCTOU-verificatie + 2 anti-oracle + 1 badge-divergentie)
+
+**Wat:** kritische-gebruiker-sweep over alle vier rollen (ZZP'er/CLIENT/FRANCHISER/ADMIN) op de verse
+prod-build + demo-seed. Live persona-smoke **40/40 PASS** (login → dashboard, `/acties`, privilege-escalatie
+→ redirect, junk-id → soft-404 nooit 500, nul 5xx), IDOR-fetch (vreemd document/dossier/factuur-PDF → 404/
+soft-404 zonder lek; eigenaar-PDF 200, vreemde 404), DOEL-1 echte actie (ADMIN goedkeuren → 6→5, verdwijnt).
+Drie parallelle Opus-audits → **4 gefixte bevindingen**:
+
+- **HOOG — TOCTOU credential-zelfverificatie** (`certificaten/actions.ts` `applyExternalVerification`): losse
+  `credential.update({ where: { id } })` ná de externe DUO/BIG-netwerkcall, met `assertTransition` alleen tegen
+  een stale snapshot → een gelijktijdige admin-afwijzing (REJECTED) kon stil worden overschreven naar VERIFIED.
+  Fix: compound-guarded interactieve `$transaction` + `updateMany({ where: { id, status: fromStatus } })` +
+  `count===0`-rollback (spiegelt `verifyCredential`/`rejectCredential`). +2 tests (`verify-toctou.test.ts`).
+- **MED — existence-oracle `changeJobStatus`** (`opdrachten/actions.ts`): return-based "niet gevonden" vs
+  "geen toegang" → geclapt naar één melding (spiegelt `saveJob`). +1 test.
+- **LOW-MED — existence-oracle `loadOwnedApplication`** (`kandidaten/actions.ts`): throw-based divergentie →
+  één melding (spiegelt `withdrawApplication`). +2 tests (`anti-oracle-party.test.ts`).
+- **LOW-MED — badge-divergentie** (`signals.ts` FRANCHISER `rosterAlerts`): verloop-query miste `orderBy` dat
+  de `/acties`-bron wél had → boven 50 rijen andere subset → badge ≠ /acties. Fix: `orderBy: { expiresAt:
+"asc" }`. +1 test (`signals.badge-gaps-run52.test.ts`).
+
+**Bestanden:** `certificaten/actions.ts`, `opdrachten/actions.ts`, `kandidaten/actions.ts`, `lib/signals.ts`
+(+ 4 testbestanden), `docs/PERSONA-SWEEP-BACKLOG.md`, `PROGRESS.md`. **Gate:** typecheck, lint, **5194 tests**,
+build, prettier groen.
+
 ## 2026-07-27 — ZZP'er: soortgelijke open opdrachten na een afwijzing op /reacties
 
 **Wat:** een afgewezen reactie (`REJECTED`) toonde de ZZP'er alleen een statische hint ("Deze keer niet
