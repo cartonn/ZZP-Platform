@@ -368,6 +368,12 @@ async function blockMockVerification(
   return { error: MOCK_VERIFICATION_BLOCKED_MESSAGE };
 }
 
+/** Sentinel: de credential is tussen de snapshot en de write van status veranderd (race verloren). */
+class StaleCredentialError extends Error {}
+
+const STALE_CREDENTIAL_MESSAGE =
+  "Dit certificaat is inmiddels beoordeeld. Ververs de pagina en probeer het opnieuw.";
+
 /** Gedeeld: zet een credential systeem-geverifieerd (bron DUO/BIG) via de transitiemap. */
 async function applyExternalVerification(opts: {
   actorId: string;
@@ -384,35 +390,48 @@ async function applyExternalVerification(opts: {
     throw e;
   }
   const meta = await requestMeta();
-  await prisma.$transaction([
-    prisma.credential.update({
-      where: { id: opts.credentialId },
-      data: { status: "VERIFIED", verifiedAt: new Date(), rejectionReason: null },
-    }),
-    prisma.credentialVerification.create({
-      data: {
-        credentialId: opts.credentialId,
-        verifierId: null,
-        source: opts.source,
-        decision: "VERIFIED",
-        reason: opts.reason,
-      },
-    }),
-    prisma.verificationRequest.updateMany({
-      where: { credentialId: opts.credentialId, status: "PENDING" },
-      data: { status: "RESOLVED", resolvedAt: new Date() },
-    }),
-    prisma.auditLog.create({
-      data: auditData({
-        actorId: opts.actorId,
-        action: "CREDENTIAL_VERIFIED",
-        entityType: "Credential",
-        entityId: opts.credentialId,
-        metadata: { source: opts.source },
-        ...meta,
-      }),
-    }),
-  ]);
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Status-guard BINNEN de transactie (spiegelt verifyCredential/rejectCredential): alleen
+      // verwerken als de credential nog exact in `fromStatus` staat. Zelf-verificatie leest de status
+      // (loadOwnedCredential) en doet dán een externe DUO/BIG-netwerkcall (latency) vóór deze write —
+      // een gelijktijdige admin-beslissing (bv. → REJECTED) tussen de snapshot en de write zou anders
+      // stil worden overschreven naar VERIFIED (ongeldige REJECTED→VERIFIED-overgang, tegen CLAUDE.md
+      // regel 3). Matcht 0 rijen → break, géén VERIFIED/verificatie-record/audit; de admin-beslissing
+      // wint. De losse `update({ where: { id } })` miste deze compound-guard als enige statuspad.
+      const res = await tx.credential.updateMany({
+        where: { id: opts.credentialId, status: opts.fromStatus },
+        data: { status: "VERIFIED", verifiedAt: new Date(), rejectionReason: null },
+      });
+      if (res.count === 0) throw new StaleCredentialError();
+      await tx.credentialVerification.create({
+        data: {
+          credentialId: opts.credentialId,
+          verifierId: null,
+          source: opts.source,
+          decision: "VERIFIED",
+          reason: opts.reason,
+        },
+      });
+      await tx.verificationRequest.updateMany({
+        where: { credentialId: opts.credentialId, status: "PENDING" },
+        data: { status: "RESOLVED", resolvedAt: new Date() },
+      });
+      await tx.auditLog.create({
+        data: auditData({
+          actorId: opts.actorId,
+          action: "CREDENTIAL_VERIFIED",
+          entityType: "Credential",
+          entityId: opts.credentialId,
+          metadata: { source: opts.source },
+          ...meta,
+        }),
+      });
+    });
+  } catch (e) {
+    if (e instanceof StaleCredentialError) return { error: STALE_CREDENTIAL_MESSAGE };
+    throw e;
+  }
   revalidatePath("/certificaten");
   return { ok: true };
 }

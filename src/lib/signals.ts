@@ -609,6 +609,11 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
             expiresAt: { gte: now, lte: soon },
           },
           select: { freelancerProfileId: true },
+          // Zelfde `orderBy` als de /acties-bron (`franchiseCredentialExpiryTask`, pending-tasks.ts):
+          // beide cappen op 50 (CASCADE_SCAN_LIMIT === MAX), dus zonder identieke ordering pakken de
+          // twee queries boven 50 verlopende certificaten binnen één tenant een ándere 50-rij-subset →
+          // een ander distinct-profiel-aantal → de /franchise/zzpers-badge divergeert van /acties.
+          orderBy: { expiresAt: "asc" },
           take: CASCADE_SCAN_LIMIT,
         }),
         // /franchise/zzpers — roster-inzetbaarheid: exact de bron/velden die `franchiseNotEngageableTask`

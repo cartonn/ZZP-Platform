@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { assertOwnership, AuthorizationError, owns, requireRole } from "@/lib/authz";
+import { AuthorizationError, owns, requireRole } from "@/lib/authz";
 import { audit, auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { canApply } from "@/lib/applications";
@@ -216,13 +216,12 @@ export async function changeJobStatus(
       tenant: { select: { openOverflow: true } },
     },
   });
-  if (!job) return { error: "Opdracht niet gevonden." };
-  try {
-    assertOwnership(actor, job.company.userId);
-  } catch (e) {
-    if (e instanceof AuthorizationError) return { error: e.message };
-    throw e;
-  }
+  // Onbekende én niet-eigen opdracht geven exact dezelfde fout-state (geen CWE-203 existence-oracle;
+  // spiegelt saveJob hierboven en inviteSuggestedFreelancersToJob hieronder). `assertOwnership` gaf
+  // voor een bestaand-maar-vreemd `jobId` de melding "Geen toegang tot deze resource." terwijl een
+  // onbekend id "Opdracht niet gevonden." gaf — een return-oracle (returnwaarden worden niet door
+  // Next.js geredigeerd) waarmee een opdrachtgever Job-ids platform-breed kon aftasten. Nu identiek.
+  if (!job || !owns(actor, job.company.userId)) return { error: "Opdracht niet gevonden." };
 
   const from = job.status as JobStatus;
   try {

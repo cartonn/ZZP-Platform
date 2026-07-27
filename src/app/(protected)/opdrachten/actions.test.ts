@@ -129,6 +129,24 @@ describe("changeJobStatus — publiceer-pad (hergebruikt door 'Opslaan & publice
     expect(result?.error).toMatch(/Ongeldige opdracht-statusovergang/);
     expect(store.updated).toHaveLength(0);
   });
+
+  it("geen existence-oracle (CWE-203): niet-gevonden en niet-eigen geven exact dezelfde fout", async () => {
+    // Regressie: voorheen gaf een onbekend id "Opdracht niet gevonden." maar een bestaand-maar-vreemd
+    // id de andere melding "Geen toegang tot deze resource." (assertOwnership → AuthorizationError,
+    // teruggegeven i.p.v. gethrowd → niet door Next.js geredigeerd). Een opdrachtgever kon zo Job-ids
+    // aftasten. Nu moeten beide paden identiek zijn en niets muteren.
+    store.job = null;
+    const notFound = await changeJobStatus("job-x", "CLOSED");
+
+    store.job = draftJob({ status: "PUBLISHED", publishedAt: new Date() });
+    vi.mocked(owns).mockReturnValueOnce(false);
+    const notOwned = await changeJobStatus("job-1", "CLOSED");
+    vi.mocked(owns).mockReturnValue(true); // herstel de default voor volgende tests
+
+    expect(notOwned?.error).toBe("Opdracht niet gevonden.");
+    expect(notOwned?.error).toBe(notFound?.error);
+    expect(store.updated).toHaveLength(0);
+  });
 });
 
 describe("changeJobStatus — sluiten informeert open reacties", () => {
