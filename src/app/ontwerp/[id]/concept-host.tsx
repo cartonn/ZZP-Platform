@@ -1477,6 +1477,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "490": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-490-velijn").then((m) => m.Concept490),
   ),
+  "491": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-491-ditherpunk").then((m) => m.Concept491),
+  ),
+  "492": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-492-draadmodel").then((m) => m.Concept492),
+  ),
+  "493": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-493-grofdruk").then((m) => m.Concept493),
+  ),
+  "494": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-494-filmkorrel").then((m) => m.Concept494),
+  ),
+  "495": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-495-ademtype").then((m) => m.Concept495),
+  ),
+  "496": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-496-perron").then((m) => m.Concept496),
+  ),
+  "497": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-497-keramiek").then((m) => m.Concept497),
+  ),
+  "498": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-498-zonnehof").then((m) => m.Concept498),
+  ),
+  "499": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-499-scanlijn").then((m) => m.Concept499),
+  ),
+  "500": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-500-zwevend").then((m) => m.Concept500),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
