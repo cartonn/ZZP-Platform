@@ -4,6 +4,47 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-28b (basis: `main` @ a10cba04)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken, plus
+eigen orchestrator-probes op de delta sinds de vorige ronde (`4017c336..a10cba04`, #951–#957: availability-
+vensters CRUD, verificatie-doorlooptijd-indicatie, collaboration-credential-expiry, `/api/metrics`-audit-
+retentie-gauge, `dispute-commands` TOCTOU/rol-grendel, publiek `profile-screen`). Oppervlakken:
+(1) **object-/functie-niveau-autorisatie, IDOR/BOLA, cross-tenant-isolatie, mass-assignment, TOCTOU** over ALLE
+51 `src/app/**/actions.ts` + `src/lib/actions/*` + alle ID-geparametriseerde `src/app/api/**`-route-handlers
+(documents/[id], media/[...key], facturen/prestaties/facturatie PDF, samenwerkingen/[id]/{dossier,dba-dossier,
+modelovereenkomst}, agenda, account/export, admin/export) + `authz.ts`/`tenancy.ts`/`route-guards.ts`/
+`middleware.ts` + de volledige `cascade/*-commands.ts`-laag; (2) **injectie/upload/SSRF/secrets/XSS/CSV-formule/
+ICS-injectie/foutlek/open-redirect/headers/webhook-signature** (statisch grep + lees) over `$queryRaw`-sites,
+`dangerouslySetInnerHTML`, alle CSV-/ICS-exportbouwers (`lib/csv.ts`, `lib/calendar/ics.ts`), server-side
+`fetch()`-sinks (billing/verify/rate-limit), `abonnement`/`media`-redirects en `billing/webhook`; (3) **AVG
+betrokkenen-rechten**: `anonymizeUser` veld-voor-veld tegen de ACTUELE `schema.prisma` (schema-drift), PII-over-
+fetch op kandidaten-/roster-/reacties-paden, document-toegang-audit, k-anonimiteit (markttarief ≥10,
+doorlooptijd ≥8), PII-in-logs, retentie-crons vs. verwerkingsregister, doorgifte derden.
+
+**Alle drie oppervlakken onafhankelijk schoon — geen nieuw KRITIEK/HOOG/MIDDEL/LAAG security- of privacy-gat.**
+Geverifieerd: de #957-`resolveDispute`- en #954-`openDispute`-fixes gebruiken compound-guarded `updateMany`
+bínnen `$transaction` (TOCTOU-dicht); de nieuwe availability-CRUD (`beschikbaarheid/actions.ts`) volgt de
+volle keten auth→rol→ownership(compound-guarded `updateMany`)→Zod→actie→audit; `verification-turnaround.ts`
+is een platform-breed niet-identificerend aggregaat achter k≥8; de `profile-screen`-`select` is
+data-geminimaliseerd (geen `note`/financiële velden op de deels-publieke `/zzp/[id]`-route); `/api/metrics`'
+nieuwe `zzp_audit_retention_backlog`-gauge is PII-vrij achter de `authorizeCron`-Bearer-guard. `$queryRaw` overal
+alleen parameterloze `SELECT 1`-tagged-templates (geen `$queryRawUnsafe`, geen concatenatie); CSV-cellen
+formule-geneutraliseerd (`= + @ \t \r` + niet-numerieke `-`); ICS-tekst ge-escaped; alle `fetch()`-sinks naar
+vaste/ENV-provider-URLs (geen SSRF); beide redirects naar server-vertrouwde waarden (provider-checkout-URL,
+presigned S3-URL); `billing/webhook` verifieert Stripe-HMAC + `ProcessedWebhookEvent`-replay-grendel, Mollie
+re-fetcht autoritatief. `anonymizeUser` dekt elk PII-dragend veld/model (incl. document-/credential-blob-cleanup,
+drie-kopie dispuut-/credit-reden); geen drift t.o.v. het huidige schema.
+
+De reeds bekende, voor een menselijke FG-/juridische beslissing geparkeerde items blijven staan en mag een agent
+NIET unilateraal "oplossen": `Job.title`/`Job.description`-anonimisering (LAAG, retentie-/grondslag-afweging),
+de k-drempel-inconsistentie voor reputatiesignalen (`client-reliability`/`client-responsiveness`/
+`collaboration-quality`, MIN_SAMPLE=3 vs. platformnorm k≥10 — HOOG, FG-afweging), document-/blob-retentie voor
+EXPIRED/REJECTED-credentials en `Message`-retentie >12mnd (geplande increments), en derde-partij-vrije-tekst-
+retentie (`NoShowReport.reason`/`Performance.rejectionReason`/`Lead(Contact)`). Zie MENSENWERK.md §5.
+
+`npm audit --omit=dev` = **0 productie-kwetsbaarheden**. Next.js 15.5.21 (boven CVE-2025-29927 middleware-bypass).
+
 ## Ronde 2026-07-28 (basis: `main` @ 4017c336)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken:
