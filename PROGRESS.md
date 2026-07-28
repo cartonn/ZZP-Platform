@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28 — Prod-rijpheid: /api/metrics gauge — cascade-facturen te-laat-maar-niet-omgezet (stille-faal-detector)
+
+**Wat:** `/api/metrics` had stille-faal-detector-gauges voor verlopen credentials (`zzp_credentials_overdue_expiry`)
+en verlopen abonnementen (`zzp_subscriptions_overdue_expiry`), maar niet voor de **betaal-verval-pijplijn**. De
+`payment-reminders`-cron (`payment-reminders-task.ts`) flipt cascade-facturen `APPROVED → OVERDUE` zodra `dueAt`
+verstrijkt (`planPaymentReminders.toMarkOverdue`) en start dan de aanmaningsladder. Valt die pijplijn stil terwijl de
+cron-heartbeat "vers" blijft, dan komt géén factuur meer op OVERDUE → geen aanmaningen, geen te-laat-signaal naar de
+opdrachtgever, en de ZZP'er wordt trager betaald — precies de blinde vlek die de kale heartbeat mist. Nieuwe gauge
+**`zzp_invoices_overdue_unflipped`** telt cascade-facturen met `lifecycleStatus === "APPROVED"` én `dueAt < nu` die
+de cron nog niet omzette. Een klein/tijdelijk aantal (tot één cron-interval) is normaal; aanhoudend/oplopend =
+vastgelopen pijplijn → extern alarmeerbaar (Prometheus-rule `ZzpInvoiceOverdueBacklog`, `for: 30h`).
+
+**Grens/scope:** de gauge-`count` spiegelt exact het flip-predicaat van `planPaymentReminders.toMarkOverdue`
+(`lifecycleStatus === "APPROVED" && dueAt < nu`, `daysUntil < 0`) → geen drift met de cron; facturen zonder `dueAt`
+(concept) vallen buiten. Read-only geaggregeerde telling, faalt veilig (0, nooit 500), geen PII, geen schemawijziging,
+geen mutatie/auth-oppervlak. **Bestanden:** `src/lib/observability/metrics.ts` (+ `MetricsInput.overdueUnflippedInvoices`
+
+- gauge), `src/app/api/metrics/route.ts` (fail-safe `invoice.count`), `docs/observability/alerts.yml` (alert-rule),
+  `docs/RUNBOOK.md`, `metrics.test.ts` (+3), `route.test.ts` (+2). Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-27 — Opdrachtgever: langst-wachtende kandidaat (ghosting-risico) op de reactie-trechter /inzicht
 
 **Wat:** de reactie-trechter op `/inzicht` (opdrachtgever, PR #935) toonde "Wachten op een eerste blik" (aantal

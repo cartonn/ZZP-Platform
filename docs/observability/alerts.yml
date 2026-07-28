@@ -101,6 +101,14 @@ groups:
         annotations:
           summary: "Abonnement-verval-pijplijn verwerkt niets"
           description: "Er staan al > één cron-interval betaalde ACTIVE-abonnementen met een verstreken periode-einde die niet naar CANCELLED zijn gezet (zzp_subscriptions_overdue_expiry). De entitlement-guard dekt de toegang af, maar verval/renewal (notificaties, ledger) ligt stil."
+      - alert: ZzpInvoiceOverdueBacklog
+        expr: zzp_invoices_overdue_unflipped > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Betaal-verval-pijplijn verwerkt niets"
+          description: "Er staan al > één cron-interval cascade-facturen met status APPROVED en een verstreken vervaldatum die niet naar OVERDUE zijn gezet (zzp_invoices_overdue_unflipped). De payment-reminders-cron rondt af maar markeert geen facturen te laat → geen aanmaningsladder, geen te-laat-signaal richting de opdrachtgever, en de ZZP'er wordt trager betaald."
 
   - name: zzp-platform-verificatie-sla
     rules:
