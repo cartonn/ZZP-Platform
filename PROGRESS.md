@@ -3,6 +3,17 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28b — Security-/privacy-auditronde (basis `main` @ a10cba04): geen nieuwe gaten
+
+**Wat:** Orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken +
+eigen delta-probes (`4017c336..a10cba04`). Dekking: (1) authz/IDOR/BOLA/cross-tenant/mass-assignment/TOCTOU over
+alle 51 `actions.ts` + `lib/actions/*` + alle ID-geparametriseerde `api/**`-routes + de `cascade/*`-laag +
+`authz/tenancy/route-guards/middleware`; (2) injectie/SSRF/secrets/XSS/CSV-formule/ICS/foutlek/open-redirect/
+headers/webhook-signature; (3) AVG betrokkenen-rechten (`anonymizeUser` vs. actueel schema, PII-over-fetch,
+document-audit, k-anonimiteit, PII-in-logs, retentie). **Uitkomst: geen nieuw KRITIEK/HOOG/MIDDEL/LAAG-gat.**
+`npm audit --omit=dev` = 0 productie-kwetsbaarheden. Bekende items blijven geparkeerd voor FG/juridisch (zie
+`docs/SECURITY-PRIVACY-BACKLOG.md` ronde 2026-07-28b + MENSENWERK.md §5). Docs-only PR (backlog + PROGRESS).
+
 ## 2026-07-28 — Persona-sweep run 56: verlopen-vereist-certificaat next-action (HIGH) + resolveDispute TOCTOU (MED)
 
 **Wat:** Kritische-gebruiker-sweep over alle vier rollen (live Playwright + drie parallelle Opus-code-audits).
