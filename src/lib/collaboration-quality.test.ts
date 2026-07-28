@@ -6,10 +6,42 @@ import {
   deliveryTone,
   computeDeliveryQuality,
   computeDeliveryQualityByProfile,
+  hasDisplayableDeliveryQuality,
   DELIVERY_MIN_SAMPLE,
   type ApprovedPerfRow,
+  type DeliveryQuality,
   type ProfilePerfRow,
 } from "./collaboration-quality";
+
+// ---------------------------------------------------------------------------
+// hasDisplayableDeliveryQuality
+// ---------------------------------------------------------------------------
+
+describe("hasDisplayableDeliveryQuality", () => {
+  const base: DeliveryQuality = {
+    completedCollaborations: 5,
+    approvedPerformances: 5,
+    firstTimeRightRate: 100,
+    correctedPerformances: 0,
+    avgApprovalDays: 1,
+    tone: "EXCELLENT",
+  };
+
+  it("is false for null/undefined (no freelancer profile / no signal)", () => {
+    expect(hasDisplayableDeliveryQuality(null)).toBe(false);
+    expect(hasDisplayableDeliveryQuality(undefined)).toBe(false);
+  });
+
+  it("is false when the sample is too small (INSUFFICIENT)", () => {
+    expect(hasDisplayableDeliveryQuality({ ...base, tone: "INSUFFICIENT" })).toBe(false);
+  });
+
+  it("is true for every non-insufficient tone", () => {
+    for (const tone of ["EXCELLENT", "RELIABLE", "DEVELOPING"] as const) {
+      expect(hasDisplayableDeliveryQuality({ ...base, tone })).toBe(true);
+    }
+  });
+});
 
 // ---------------------------------------------------------------------------
 // approvalDays

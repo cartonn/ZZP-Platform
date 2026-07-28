@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28 — ZZP'er: leverbetrouwbaarheid op het publieke ZZP-profiel (/zzp/[id])
+
+**Wat:** Het leverbetrouwbaarheid-signaal (`getDeliveryQuality` → `DeliveryQualityBlock`: first-time-right %,
+gecorrigeerde prestaties, gem. goedkeuringsdoorlooptijd, toon-badge) werd al aan de opdrachtgever getoond bij het
+beoordelen van een kandidaat (`/kandidaten`) en aan de ZZP'er op `/inzicht` + `/prestaties`, maar **niet** op het
+publieke, deelbare ZZP-profiel (`/zzp/[id]`) — juist de plek waar een bladerende/uitgenodigde opdrachtgever een eerste
+indruk vormt. Beoordelingen (een gelijkwaardig, tegenpartij-loos aggregaat) staan daar al wel; leverbetrouwbaarheid past
+in exact hetzelfde vertrouwens-slot. Nu een compact leverbetrouwbaarheid-blok boven de beoordelingen-kaart op de
+Profiel-tab van `ProfileScreen` (gedeeld door "Mijn profiel" én het publieke profiel). Benchmark Malt/Temper/Pidz
+(reputatie-/betrouwbaarheidssignaal op het publieke dossier). Sterker publiek dossier → meer/betere matches voor de
+ZZP'er; snellere vertrouwensbeoordeling voor de opdrachtgever.
+
+**Grens:** Read-only afleiding, geen schema-/mutatie-/auth-wijziging. Geaggregeerd over álle afgeronde samenwerkingen —
+geen tegenpartij-specifieke data (privacy). Self-gatend: `getDeliveryQuality` geeft `null` zonder freelancer-profiel; het
+signaal is `INSUFFICIENT` onder `DELIVERY_MIN_SAMPLE` → nieuwe pure predicate `hasDisplayableDeliveryQuality` guardt de
+omhullende kaart één niveau boven `DeliveryQualityBlock` (dat zichzelf al verbergt) zodat er geen lege kaart rendert. Eén
+extra begrensde read (`take: 1000` prestaties) in het al-bestaande parallelle fetch-blok — geen N+1. Het woord "AI" komt
+nergens voor.
+
+**Bestanden:** `src/lib/collaboration-quality.ts` (+ `hasDisplayableDeliveryQuality`), `src/lib/collaboration-quality.test.ts`
+(+3 tests → 27), `src/components/profile/profile-screen.tsx` (fetch + render), `PROGRESS.md`.
+
+**Checks:** typecheck ✅, lint ✅, test ✅ (498 files / 5244 passed), prettier ✅; build + CI-poort volgt.
+
 ## 2026-07-28 — prod: `/api/metrics` audit-retentie-backlog gauge (stille-faal-detectie, AVG art. 5(1)(e))
 
 **Wat:** Nieuwe stille-faal-detector-gauge `zzp_audit_retention_backlog` op `/api/metrics`: het aantal auditregels
