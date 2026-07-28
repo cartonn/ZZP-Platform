@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { auditActionLabel, hasAuditActionLabel } from "@/lib/audit-labels";
@@ -33,11 +33,14 @@ function walkSrc(): Array<{ rel: string; content: string }> {
   const results: Array<{ rel: string; content: string }> = [];
 
   function walk(dir: string, relBase: string) {
-    for (const entry of readdirSync(dir)) {
+    // withFileTypes: bepaal map-vs-bestand uit de Dirent zelf — geen aparte
+    // statSync op hetzelfde pad dat we daarna lezen (vermijdt de TOCTOU-race).
+    for (const dirent of readdirSync(dir, { withFileTypes: true })) {
+      const entry = dirent.name;
       if (entry === "node_modules" || entry.startsWith(".")) continue;
       const abs = join(dir, entry);
       const rel = relBase ? `${relBase}/${entry}` : entry;
-      if (statSync(abs).isDirectory()) {
+      if (dirent.isDirectory()) {
         walk(abs, rel);
       } else if (/\.(ts|tsx)$/.test(entry) && !/\.test\.(ts|tsx)$/.test(entry)) {
         results.push({ rel, content: readFileSync(abs, "utf8") });
