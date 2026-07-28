@@ -18,6 +18,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   PASSWORD_RESET_COMPLETED: "Wachtwoord hersteld",
   REGISTER_RATE_LIMITED: "Registratiepogingen begrensd",
   IDENTITY_VERIFIED: "Identiteit geverifieerd",
+  IDENTITY_VERIFY_BLOCKED: "Identiteitsverificatie geblokkeerd",
   ROLE_CHANGED: "Rol gewijzigd",
   STATUS_CHANGED: "Status gewijzigd",
   ACCOUNT_DATA_EXPORTED: "Accountgegevens geëxporteerd",
@@ -29,7 +30,10 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   PROFILE_UPDATED: "Profiel bijgewerkt",
   COMPANY_UPDATED: "Bedrijfsprofiel bijgewerkt",
   AVAILABILITY_ADDED: "Beschikbaarheid toegevoegd",
+  AVAILABILITY_UPDATED: "Beschikbaarheid bijgewerkt",
   AVAILABILITY_REMOVED: "Beschikbaarheid verwijderd",
+  WORK_EXPERIENCE_ADDED: "Werkervaring toegevoegd",
+  WORK_EXPERIENCE_REMOVED: "Werkervaring verwijderd",
 
   // Opdrachten & reacties
   JOB_CREATED: "Opdracht aangemaakt",
@@ -39,6 +43,9 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   JOB_ALERT_SENT: "Opdrachtmelding verstuurd",
   JOB_REOPENED_FOR_REPLACEMENT: "Dienst heropend voor herplaatsing",
   JOB_INVITED: "ZZP'er uitgenodigd voor opdracht",
+  JOB_ENGAGEMENT_ALERT_SENT: "Signaal weinig reacties verstuurd",
+  JOB_SAVED: "Opdracht bewaard",
+  JOB_UNSAVED: "Opdracht uit bewaard verwijderd",
   APPLICATION_CREATED: "Gereageerd op opdracht",
   APPLICATION_STATUS_CHANGED: "Reactiestatus gewijzigd",
   APPLICATION_NOTE_SAVED: "Notitie bij reactie opgeslagen",
@@ -48,6 +55,8 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   FAVORITE_NOTE_SAVED: "Notitie bij flexpool-favoriet opgeslagen",
   POOL_INVITED: "Flexpool geïnformeerd bij publicatie",
   JOB_CLOSED_NOTIFIED: "Open reacties geïnformeerd bij sluiten opdracht",
+  APPLICATIONS_PRUNED: "Reacties gesnoeid (retentie)",
+  CONVERSATION_STARTED: "Gesprek gestart",
 
   // Samenwerking & werkproces
   COLLABORATION_PROPOSED: "Samenwerking voorgesteld",
@@ -62,8 +71,22 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   PERFORMANCE_SUBMITTED: "Prestatie ingediend",
   PERFORMANCE_APPROVED: "Prestatie goedgekeurd",
   PERFORMANCE_REJECTED: "Prestatie afgekeurd",
+  PERFORMANCE_SUBMISSION_REMINDER: "Herinnering prestatie indienen",
+  PERFORMANCE_APPROVAL_REMINDER: "Herinnering prestatie goedkeuren",
+  PERFORMANCE_APPROVAL_ESCALATED: "Prestatie-goedkeuring geëscaleerd",
   DISPUTE_OPENED: "Dispuut geopend",
   DISPUTE_RESOLVED: "Dispuut opgelost",
+  DISPUTE_ESCALATED: "Dispuut geëscaleerd",
+  DISPUTE_REMINDER: "Herinnering open dispuut",
+  NO_SHOW_REPORTED: "No-show gemeld",
+  NO_SHOW_JUDGED: "No-show beoordeeld",
+  REVIEW_CREATED: "Beoordeling geplaatst",
+  REVIEW_REVEALED: "Beoordelingen onthuld",
+  SHIFT_HANDOFF_REQUESTED: "Dienstoverdracht aangevraagd",
+  SHIFT_HANDOFF_APPROVED: "Dienstoverdracht goedgekeurd",
+  SHIFT_HANDOFF_REJECTED: "Dienstoverdracht afgewezen",
+  SHIFT_HANDOFF_CANCELLED: "Dienstoverdracht geannuleerd",
+  SHIFT_HANDOFF_CANCEL_DENIED: "Annulering dienstoverdracht geweigerd",
   DBA_SIGNAL_RAISED: "DBA-signaal gemeld",
 
   // Facturen & betalingen
@@ -86,6 +109,8 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   MODEL_AGREEMENT_ACCESS_DENIED: "Modelovereenkomsttoegang geweigerd",
   PAYMENT_CONFIRMED: "Betaling bevestigd",
   PAYMENT_OVERDUE: "Betaling te laat",
+  OBLIGATIONS_EXPORTED: "Betaalverplichtingen geëxporteerd",
+  FORECAST_EXPORTED: "Cashflow-prognose geëxporteerd",
 
   // Certificaten & documenten
   CREDENTIAL_CREATED: "Certificaat aangemaakt",
@@ -93,6 +118,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   CREDENTIAL_SUBMITTED: "Certificaat ingediend",
   CREDENTIAL_VERIFIED: "Certificaat geverifieerd",
   CREDENTIAL_REJECTED: "Certificaat afgewezen",
+  CREDENTIAL_VERIFY_BLOCKED: "Certificaatverificatie geblokkeerd",
   CREDENTIAL_DELETED: "Certificaat verwijderd",
   CREDENTIAL_EXPIRED: "Certificaat verlopen",
   CREDENTIALS_EXPIRED: "Certificaten verlopen",
@@ -103,6 +129,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   DOCUMENT_ACCESSED: "Document ingezien",
   DOCUMENT_ACCESS_DENIED: "Documenttoegang geweigerd",
   DOCUMENT_DELETED: "Document verwijderd",
+  DOCUMENT_DELETE_DENIED: "Documentverwijdering geweigerd",
   DOSSIER_EXPORTED: "Dossier geëxporteerd",
   DOSSIER_ACCESS_DENIED: "Dossiertoegang geweigerd",
   DBA_DOSSIER_EXPORTED: "DBA-dossier geëxporteerd",
@@ -119,6 +146,22 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   LESSON_DELETED: "Les verwijderd",
   LESSON_COMPLETED: "Les afgerond",
 
+  // Administratie & uren (ZZP'er)
+  EXPENSE_CREATED: "Kostenpost toegevoegd",
+  EXPENSE_DELETED: "Kostenpost verwijderd",
+  INDIRECT_HOURS_LOGGED: "Indirecte uren geregistreerd",
+  INDIRECT_HOURS_DELETED: "Indirecte uren verwijderd",
+  HOURS_CRITERION_REMINDER_SENT: "Urencriterium-herinnering verstuurd",
+  DIENSTEN_EXPORTED: "Diensten geëxporteerd",
+  PRESTATIES_EXPORTED: "Prestaties geëxporteerd",
+
+  // Notificaties & meldingen
+  NOTIFICATION_PREFERENCES_UPDATED: "Notificatievoorkeuren bijgewerkt",
+  NOTIFICATION_DIGEST_SENT: "Notificatie-overzicht verstuurd",
+  NOTIFICATIONS_PRUNED: "Notificaties gesnoeid (retentie)",
+  PUSH_SUBSCRIBE: "Pushmeldingen aangezet",
+  PUSH_UNSUBSCRIBE: "Pushmeldingen uitgezet",
+
   // Ideeën & leads
   IDEA_CREATED: "Idee geplaatst",
   IDEA_COMMENTED: "Op idee gereageerd",
@@ -127,6 +170,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   LEAD_CREATED: "Lead aangemaakt",
   LEAD_CONTACT_ADDED: "Contactnotitie toegevoegd",
   LEAD_STATUS_SET: "Leadstatus gewijzigd",
+  LEAD_DELETED: "Lead verwijderd",
   LEADS_PRUNED: "Acquisitie-leads gesnoeid (retentie)",
   HEALTH_INCIDENT_IPS_REDACTED: "Incident-IP's geredigeerd (retentie)",
 
@@ -155,8 +199,10 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   // Abonnement & belasting
   SUBSCRIPTION_ACTIVATED: "Abonnement geactiveerd",
   SUBSCRIPTION_DOWNGRADED: "Abonnement verlaagd",
+  SUBSCRIPTION_EXPIRED: "Abonnement verlopen",
   SUBSCRIPTION_PAYMENT_FAILED: "Abonnementsbetaling mislukt",
   SUBSCRIPTION_PAST_DUE_REMINDER: "Herinnering openstaand abonnement",
+  SUBSCRIPTION_RENEWAL_REMINDER: "Herinnering abonnementsverlenging",
   TAX_FILING_REQUESTED: "Belastingaangifte aangevraagd",
   TAX_FILING_SUBMITTED: "Belastingaangifte ingediend",
   TAX_FILING_REVOKED: "Belastingaangifte ingetrokken",
@@ -173,7 +219,27 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   ADMINISTRATION_EXPORTED: "Boekhouding geëxporteerd",
   OPEN_ITEMS_EXPORTED: "Openstaande posten geëxporteerd",
   HEALTH_INCIDENT_OPENED: "Bewaking-incident geopend",
+  AUDIT_LOG_PRUNED: "Auditlog gesnoeid (retentie)",
+  ROUTING_CACHE_PRUNED: "Routing-cache gesnoeid (retentie)",
+  WEBHOOK_EVENT_LEDGER_PRUNED: "Webhook-gebeurtenislog gesnoeid (retentie)",
+
+  // Systeem-zelftests (admin /systeemstatus)
+  SELFTEST_SWEEP_RUN: "Zelftest-sweep uitgevoerd",
+  DB_SELFTEST_RUN: "Database-zelftest uitgevoerd",
+  STORAGE_SELFTEST_RUN: "Opslag-zelftest uitgevoerd",
+  MAIL_SELFTEST_RUN: "E-mail-zelftest uitgevoerd",
+  RATELIMIT_SELFTEST_RUN: "Rate-limit-zelftest uitgevoerd",
+  VERIFIER_SELFTEST_RUN: "Verificatie-zelftest uitgevoerd",
+  BILLING_SELFTEST_RUN: "Betaalprovider-zelftest uitgevoerd",
+  ERROR_MONITORING_SELFTEST_RUN: "Foutmonitoring-zelftest uitgevoerd",
+  UPLOAD_SCANNER_SELFTEST_RUN: "Upload-scanner-zelftest uitgevoerd",
 };
+
+/** Of een audit-actie een expliciet NL-label heeft (i.p.v. de geleesbare fallback).
+ *  Gebruikt door de drift-gate-test zodat een nieuw geëmitteerde actie zonder label faalt. */
+export function hasAuditActionLabel(action: string): boolean {
+  return Object.prototype.hasOwnProperty.call(AUDIT_ACTION_LABEL, action);
+}
 
 /** NL-label voor een audit-actie; valt terug op een geleesbare vorm voor onbekende acties. */
 export function auditActionLabel(action: string): string {

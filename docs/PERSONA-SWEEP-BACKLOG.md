@@ -60,9 +60,12 @@
 >   NaN/Infinity die door de `< 0`-check glippen) + niet-negatief, som `> 0` en `≤ MAX_PERFORMANCE_HOURS`; symmetrisch met de
 >   `hours`-grens, zelfde cap/meldingen. +6 tests (NaN/Infinity, negatief segment, som=0, som > MAX zónder `hours`, normale
 >   verdeling toegestaan, MILESTONE-pad ongemoeid). Gate: typecheck, lint, test, build, prettier groen.
-> - **Cosmetisch: `AVAILABILITY_UPDATED` mist een label in `src/lib/audit-labels.ts`** (alleen `AVAILABILITY_ADDED`/
->   `_REMOVED` staan er). De admin-audit-log toont dan de rauwe enum i.p.v. een Nederlands label. Geen authz-/audit-gat
->   (de write gebeurt wél). Prio LOW.
+> - ~~**Cosmetisch: `AVAILABILITY_UPDATED` mist een label in `src/lib/audit-labels.ts`**~~ **GEDAAN (2026-07-28f, PR #962)** —
+>   bleek breder dan één actie: **54** geëmitteerde audit-acties misten een NL-label (o.a. `SHIFT_HANDOFF_*`, `NO_SHOW_*`,
+>   `CREDENTIAL_VERIFY_BLOCKED`, `IDENTITY_VERIFY_BLOCKED`, `DOCUMENT_DELETE_DENIED`, `DISPUTE_ESCALATED`, retentie-snoei,
+>   systeem-zelftests). Admin- én bemiddelaar-audit-logboek + CSV-export toonden die als ruwe fallback. Alle 54 gelabeld +
+>   een **drift-gate** (`hasAuditActionLabel` + broncode-scan-test) die faalt zodra een nieuw geëmitteerde actie geen label
+>   heeft. Puur presentatie, geen schema/mutatie/auth-oppervlak. Gate groen.
 
 ---
 
