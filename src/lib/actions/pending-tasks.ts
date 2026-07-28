@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { type Availability } from "@/lib/enums";
 import { computeFreelancerCompleteness, computeCompanyCompleteness } from "@/lib/profile";
-import { mandatoryDocuments } from "@/lib/mandatory-documents";
+import { mandatoryDocuments, MANDATORY_CREDENTIAL_TYPES } from "@/lib/mandatory-documents";
 import { computeEngageability } from "@/lib/engageability";
 import { formatMissing } from "@/lib/next-actions";
 import { startOfUtcDay } from "@/lib/signals";
@@ -39,6 +39,7 @@ import {
   companyCompletenessTask,
   credentialFixTask,
   credentialCollabExpiryTask,
+  credentialCollabExpiredTask,
   mandatoryDocumentTask,
   adminVerifyCredentialTask,
   adminActivateUserTask,
@@ -82,6 +83,7 @@ import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
 import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
 import {
   collaborationCredentialExpiryConcerns,
+  collaborationExpiredRequiredCredentials,
   type CollabCredentialInput,
 } from "@/lib/collaboration-credential-expiry";
 import { summarizeStaleClientApplications } from "@/lib/stale-applications";
@@ -528,6 +530,47 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       }),
     );
   }
+  // Reeds VERLOPEN vereist certificaat van een lopende/voorgestelde samenwerking, zonder geldige
+  // vervanger: freelancer-spiegel van de opdrachtgever-alert (clientComplianceTask/complianceRipple).
+  // Zonder dit zag de opdrachtgever "certificaat verlopen — vraag om vernieuwing" terwijl de ZZP'er —
+  // de enige die kan handelen — niets in zijn actielijst had (asymmetrie, persona-sweep run 56).
+  // Verplichte typen (VOG/verzekering) krijgen hun eigen mandatoryDocumentTask (verlopen) los van een
+  // samenwerking → hier uitgesloten om dubbeling te voorkomen. Een afgewezen certificaat van hetzelfde
+  // type kreeg al de fix-taak (indienen) → dat type overslaan (consistent met de mandatory-suppressie).
+  const rejectedCredTypes = new Set(
+    allCreds.filter((c) => c.status === "REJECTED").map((c) => c.type),
+  );
+  const expiredRequired = collaborationExpiredRequiredCredentials({
+    collaborations: collabs.map((c) => ({
+      collaborationId: c.id,
+      companyName: c.company.name,
+      jobTitle: c.job.title,
+      requiredTypes: c.job.credentialRequirements
+        .map((r) => r.credentialType as CollabCredentialInput["type"])
+        .filter(
+          (t) =>
+            !(MANDATORY_CREDENTIAL_TYPES as readonly string[]).includes(t) &&
+            !rejectedCredTypes.has(t),
+        ),
+    })),
+    credentials: allCreds,
+    now,
+  });
+  for (const concern of expiredRequired) {
+    const [primary, ...rest] = concern.collaborations;
+    if (!primary) continue; // collaborations is altijd ≥ 1 (invariant), maar houdt de types nauw
+    tasks.push(
+      credentialCollabExpiredTask({
+        credId: concern.credentialId,
+        credentialTitle: concern.credentialTitle,
+        collabId: primary.collaborationId,
+        companyName: primary.companyName,
+        jobTitle: primary.jobTitle,
+        extraCollabCount: rest.length,
+      }),
+    );
+  }
+
   // Generieke "certificaat verloopt binnenkort"-taken voor de certificaten die géén lopende
   // samenwerking dekt (anders zou hetzelfde certificaat dubbel verschijnen).
   for (const ec of expiringCreds) {

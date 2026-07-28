@@ -130,3 +130,96 @@ export function collaborationCredentialExpiryConcerns(input: {
   );
   return concerns;
 }
+
+export interface ExpiredRequiredCredentialConcern {
+  /** Het meest recent verlopen certificaat van het type (de logische vernieuw-kandidaat). */
+  credentialId: string;
+  credentialTitle: string;
+  type: CredentialType;
+  /** De samenwerking(en) die dit certificaat vereisen, in stabiele invoervolgorde (≥ 1). */
+  collaborations: AffectedCollaboration[];
+}
+
+/**
+ * Tegenhanger van `collaborationCredentialExpiryConcerns`, maar voor een certificaat dat REEDS is
+ * verlopen (geen vooruitkijkende waarschuwing meer, maar een acuut gat): welke door een lopende/
+ * voorgestelde samenwerking VEREISTE certificaten van de ZZP'er zijn verlopen zónder een nu-geldige
+ * vervanger? Dit is de freelancer-spiegel van de opdrachtgever-alert `clientComplianceTask`
+ * (`computeCompliance` → "expired"): de ZZP'er is de enige die kan handelen (het bewijsstuk
+ * vernieuwen), dus zonder deze taak zag de opdrachtgever "certificaat verlopen — vraag om vernieuwing"
+ * terwijl de ZZP'ers eigen actielijst niets toonde (asymmetrie; persona-sweep run 56).
+ *
+ * Alleen voor niet-verplichte typen bedoeld: verplichte documenten (VOG/verzekering) krijgen hun eigen
+ * `mandatoryDocumentTask` (verlopen) los van een samenwerking — de aanroeper filtert die typen daarom
+ * vóóraf uit `requiredTypes`. Een type met een nu-geldig geverifieerd certificaat is géén zorg; een
+ * type zonder énig verlopen certificaat (volledig ontbrekend) valt buiten deze specifieke bevinding.
+ * Eén resultaat per certificaat (gegroepeerd over samenwerkingen); gesorteerd op titel voor determinisme.
+ */
+export function collaborationExpiredRequiredCredentials(input: {
+  collaborations: readonly CollabRequirementInput[];
+  credentials: readonly CollabCredentialInput[];
+  now: Date;
+}): ExpiredRequiredCredentialConcern[] {
+  const nowMs = input.now.getTime();
+
+  // Per type: bestaat er een NU-geldig geverifieerd certificaat? (VERIFIED, en geen vervaldatum of nog
+  // niet verlopen). En het meest recent verlopen certificaat per type (de vernieuw-kandidaat).
+  const hasValidByType = new Set<CredentialType>();
+  const latestExpiredByType = new Map<CredentialType, CollabCredentialInput>();
+  for (const c of input.credentials) {
+    const isValid =
+      c.status === "VERIFIED" && (c.expiresAt == null || c.expiresAt.getTime() > nowMs);
+    if (isValid) {
+      hasValidByType.add(c.type);
+      continue;
+    }
+    const isExpired =
+      c.status === "EXPIRED" ||
+      (c.status === "VERIFIED" && c.expiresAt != null && c.expiresAt.getTime() <= nowMs);
+    if (!isExpired) continue;
+    const cur = latestExpiredByType.get(c.type);
+    const curExp = cur?.expiresAt?.getTime() ?? -Infinity;
+    const cExp = c.expiresAt?.getTime() ?? -Infinity;
+    if (!cur || cExp > curExp) latestExpiredByType.set(c.type, c);
+  }
+
+  const byCredential = new Map<
+    string,
+    {
+      credential: CollabCredentialInput;
+      collaborations: AffectedCollaboration[];
+      seen: Set<string>;
+    }
+  >();
+  for (const collab of input.collaborations) {
+    for (const type of new Set(collab.requiredTypes)) {
+      if (hasValidByType.has(type)) continue; // nog een geldig certificaat → geen gat
+      const cred = latestExpiredByType.get(type);
+      if (!cred) continue; // geen verlopen certificaat van dit type (bv. volledig ontbrekend) → buiten scope
+      let entry = byCredential.get(cred.id);
+      if (!entry) {
+        entry = { credential: cred, collaborations: [], seen: new Set() };
+        byCredential.set(cred.id, entry);
+      }
+      if (entry.seen.has(collab.collaborationId)) continue;
+      entry.seen.add(collab.collaborationId);
+      entry.collaborations.push({
+        collaborationId: collab.collaborationId,
+        companyName: collab.companyName,
+        jobTitle: collab.jobTitle,
+      });
+    }
+  }
+
+  const concerns: ExpiredRequiredCredentialConcern[] = [];
+  for (const { credential, collaborations } of byCredential.values()) {
+    concerns.push({
+      credentialId: credential.id,
+      credentialTitle: credential.title,
+      type: credential.type,
+      collaborations,
+    });
+  }
+  concerns.sort((a, b) => a.credentialTitle.localeCompare(b.credentialTitle));
+  return concerns;
+}

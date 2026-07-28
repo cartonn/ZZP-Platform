@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28 — Persona-sweep run 56: verlopen-vereist-certificaat next-action (HIGH) + resolveDispute TOCTOU (MED)
+
+**Wat:** Kritische-gebruiker-sweep over alle vier rollen (live Playwright + drie parallelle Opus-code-audits).
+Live: 4/4 logins, alle rol-schermen zonder 5XX/pageerror, DOEL 1 echte actie (ADMIN-goedkeuring verif. 6→4),
+DOEL 1b /acties rol-correct, DOEL 2 volledig geweigerd (escalatie 307, IDOR eigen-200/andermans-404, junk→404
+nooit 500, onauth→login). Twee bevindingen gefixt:
+
+1. **HIGH (DOEL 1b) — next-action-asymmetrie op een reeds VERLOPEN vereist niet-verplicht certificaat.**
+   Een `EXPIRED` certificaat van een door een ACTIVE samenwerking vereist type (`CERTIFICATE`/`DIPLOMA`/
+   `LICENSE`/`OTHER`) viel door álle freelancer-emitters → ZZP'er zag géén actie, terwijl de opdrachtgever
+   wél `clientComplianceTask` ("certificaat verlopen") kreeg. Fix: nieuwe pure helper
+   `collaborationExpiredRequiredCredentials` + taak `credential-collab-expired` (prio 82), verplichte/afgewezen
+   typen uitgesloten (eigen taak). +5 helper-tests.
+2. **MED (DOEL 2) — TOCTOU op `resolveDispute`.** Stale-snapshot pre-check + onvoorwaardelijke `update({where:{id}})`
+   → twee gelijktijdige resolves schreven dubbele DISPUTE_RESOLVED-events/audit/notificaties. Fix: interactieve
+   compound-guarded `updateMany({where:{id,disputedAt:{not:null}}})`; verloren race rolt terug. +3 tests.
+
+**Bestanden:** `src/lib/collaboration-credential-expiry.ts` (+`.test.ts` +5), `src/lib/actions/tasks.ts`
+(taak `credential-collab-expired`), `src/lib/actions/pending-tasks.ts` (wiring), `src/lib/next-actions.ts`
+(prio `credentialExpiredForCollab: 82`), `src/lib/cascade/dispute-commands.ts` +
+`src/lib/cascade/resolve-dispute-toctou.test.ts` (nieuw). **Geparkeerd (LOW):** `assertPerformanceWithinLimits`
+begrenst `ortSegments` niet (latent, niet bereikbaar); `AVAILABILITY_UPDATED` mist audit-label. Zie
+`docs/PERSONA-SWEEP-BACKLOG.md` (run 56). **Gate:** typecheck ✓, lint ✓, test 5268/5268 ✓, build ✓, prettier ✓.
+
 ## 2026-07-28 — ZZP'er: verwachte doorlooptijd verificatie op /certificaten
 
 **Wat:** Een ZZP'er met een certificaat in beoordeling (`SUBMITTED`) zag alleen de statusbadge — geen
