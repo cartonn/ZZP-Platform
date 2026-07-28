@@ -27,6 +27,9 @@ import { linkExpiryToInzet } from "@/lib/freelancer-compliance";
 import { getActiveCollaborationRequirements } from "@/lib/data/freelancer-compliance";
 import { computeCredentialDemand } from "@/lib/credential-demand";
 import { getCredentialDemandRequirements } from "@/lib/data/freelancer-credential-demand";
+import { summarizeVerificationTurnaround } from "@/lib/verification-turnaround";
+import { getVerificationTurnaroundSamples } from "@/lib/data/verification-turnaround";
+import { daysWaiting, waitingSince, waitingLabel } from "@/lib/verification-queue";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { dossierShareToken, shareTokenSecret } from "@/lib/share-token";
 import { plural } from "@/lib/plural";
@@ -35,6 +38,7 @@ import { MandatoryDocuments } from "@/components/credentials/mandatory-documents
 import { ExpiryOverviewCard } from "@/components/credentials/expiry-overview-card";
 import { InzetImpactCard } from "@/components/credentials/inzet-impact-card";
 import { CredentialDemandCard } from "@/components/credentials/credential-demand-card";
+import { VerificationTurnaroundCard } from "@/components/credentials/verification-turnaround-card";
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -160,6 +164,21 @@ export default async function CertificatenPage() {
     })),
   );
 
+  // Doorlooptijd-geruststelling: alleen relevant wanneer er iets in beoordeling staat. Bereken
+  // hoe lang het langst-wachtende ingediende certificaat al wacht, en — vanaf een steekproef-
+  // drempel — de typische/p90-doorlooptijd uit historisch geverifieerde certificaten. De
+  // aggregaat-query draait alléén als er echt een SUBMITTED-certificaat is (geen kosten anders).
+  const now = Date.now();
+  const pending = credentials.filter((c) => (c.status as CredentialStatus) === "SUBMITTED");
+  const turnaround =
+    pending.length > 0
+      ? summarizeVerificationTurnaround(await getVerificationTurnaroundSamples())
+      : null;
+  const oldestWaitingDays = pending.reduce(
+    (max, c) => Math.max(max, daysWaiting(waitingSince(c), now)),
+    0,
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -231,6 +250,12 @@ export default async function CertificatenPage() {
 
       <CredentialDemandCard demand={credentialDemand} />
 
+      <VerificationTurnaroundCard
+        pendingCount={pending.length}
+        oldestWaitingDays={oldestWaitingDays}
+        turnaround={turnaround}
+      />
+
       {credentials.length === 0 ? (
         <Card>
           <EmptyState
@@ -274,6 +299,11 @@ export default async function CertificatenPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    {status === "SUBMITTED" && (
+                      <span>
+                        In beoordeling · {waitingLabel(daysWaiting(waitingSince(c), now))}
+                      </span>
+                    )}
                     {fmt(c.expiresAt) && (
                       <span
                         className={

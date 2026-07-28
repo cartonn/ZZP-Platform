@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28 — ZZP'er: verwachte doorlooptijd verificatie op /certificaten
+
+**Wat:** Een ZZP'er met een certificaat in beoordeling (`SUBMITTED`) zag alleen de statusbadge — geen
+indicatie hoe lang beoordeling doorgaans duurt of hoe lang het al wacht. Onzekerheid over de
+kern-differentiatie (certificaat-verificatie). Nu een geruststellend **"In beoordeling"**-blok op
+`/certificaten`: de **typische (mediane) + p90-doorlooptijd** ("beoordelingen duren doorgaans ~2 dagen, de
+meeste binnen 4 dagen"), afgeleid uit historisch geverifieerde certificaten, plus **"langst wachtend: X
+dagen"**. Elk ingediend certificaat toont bovendien inline "In beoordeling · X dagen wachtend". Benchmark:
+vertrouwens-UX (Stripe/verify-flows tonen "we beoordelen doorgaans binnen X").
+
+**Architectuur / grens:** pure `summarizeVerificationTurnaround(samples, minSample)`
+(`src/lib/verification-turnaround.ts`) berekent mediaan + p90 in hele dagen (ceil, min 1) uit
+`verifiedAt − submittedAt`; negeert legacy-records zonder tijdstippen en negatieve klok-anomalieën;
+retourneert `null` onder de steekproefdrempel (`VERIFICATION_TURNAROUND_MIN_SAMPLE = 8`, k-anonimiteit →
+geen doorlooptijd afleidbaar uit één beoordeling). **Aggregaat, nooit per-record** — alleen één mediaan/p90.
+Data-loader `getVerificationTurnaroundSamples` (`src/lib/data/verification-turnaround.ts`) doet één begrensde
+query (`take: 250`, alleen twee tijdstippen, geen PII/identiteit) en **draait alléén als er echt een
+SUBMITTED-certificaat is** (geen kosten anders). "X dagen wachtend" hergebruikt `waitingSince`/`daysWaiting`/
+`waitingLabel` uit `verification-queue.ts` (één bron, zelfde semantiek als de admin-wachtrij). Read-only, geen
+schemawijziging, geen nieuw mutatie/auth-oppervlak.
+
+**Bestanden:** `src/lib/verification-turnaround.ts` (+ `.test.ts`, +7 tests: drempel-null, mediaan/p90 in hele
+dagen, sub-dag → ~1, volgorde-onafhankelijk, negeert legacy/anomalie, p90 ≥ mediaan, custom drempel),
+`src/lib/data/verification-turnaround.ts` (nieuw), `src/components/credentials/verification-turnaround-card.tsx`
+(nieuw), `src/app/(protected)/certificaten/(index)/page.tsx` (wiring + inline wacht-label). **Gate:** typecheck,
+lint, test, build, prettier groen.
+
 ## 2026-07-28 — ZZP'er: beschikbaarheidsvenster bewerken (`updateAvailabilityWindow`)
 
 **Wat:** Een ZZP'er kon een beschikbaarheidsvenster (`AvailabilityWindow`) alleen **toevoegen** of
