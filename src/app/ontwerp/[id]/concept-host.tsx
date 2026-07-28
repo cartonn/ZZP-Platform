@@ -1507,6 +1507,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "500": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-500-zwevend").then((m) => m.Concept500),
   ),
+  "501": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-501-gewicht").then((m) => m.Concept501),
+  ),
+  "502": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-502-gietijzer").then((m) => m.Concept502),
+  ),
+  "503": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-503-ontwricht").then((m) => m.Concept503),
+  ),
+  "504": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-504-vezel").then((m) => m.Concept504),
+  ),
+  "505": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-505-vulpen").then((m) => m.Concept505),
+  ),
+  "506": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-506-vlecht").then((m) => m.Concept506),
+  ),
+  "507": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-507-luwte").then((m) => m.Concept507),
+  ),
+  "508": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-508-scheidslijn").then((m) => m.Concept508),
+  ),
+  "509": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-509-kasboek").then((m) => m.Concept509),
+  ),
+  "510": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-510-waarmerk").then((m) => m.Concept510),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al

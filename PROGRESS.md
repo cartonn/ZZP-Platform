@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28e — Ontwerp-lab reeks 51: +10 concepten (501–510), galerij nu 510
+
+**Wat:** Tien nieuwe, sterk onderscheidende redesign-concepten toegevoegd aan het interne ontwerp-lab (`/ontwerp`),
+additief bovenop de bestaande 500 — geen bestaand concept, registry-entry of route-koppeling overschreven.
+501 Gewicht (kinetische variable-font typografie), 502 Gietijzer (tactile brutalism + SVG-grain), 503 Ontwricht
+(deconstructed editorial grid), 504 Vezel (warm-menselijk tactiel), 505 Vulpen (premium-dark ledger-luxe),
+506 Vlecht (motion-gedreven living dashboard), 507 Luwte (radicale clarity-minimalism), 508 Scheidslijn
+(adaptive dual-theme), 509 Kasboek (fintech-terminal-lite), 510 Waarmerk (trust-first / verificatie-forward).
+
+**Bestanden:** `src/components/ontwerp/concepts/concept-50[1-9]-*.tsx` + `concept-510-waarmerk.tsx` (10 nieuw),
+append aan `registry.ts` (10 ConceptMeta) en `src/app/ontwerp/[id]/concept-host.tsx` (10 dynamic-koppelingen).
+Elk concept dekt de 6 kernschermen (dashboard, marktplaats, opdracht-detail, verificatie, acties, facturen) via
+eigen nav, leest uit `mock.ts`, met focus-states, status label+icoon, reduced-motion-guards; het woord "AI" komt
+nergens voor. `docs/DESIGN-LAB.md` bijgewerkt (reeks 51).
+
+**Checks:** typecheck ✓, lint ✓, test (5276) ✓, build ✓, prettier ✓. Gebouwd door 4 parallelle workers op
+niet-overlappende bestanden; orchestrator integreerde registry + host. **Volgende:** CI-poort verifiëren, auto-merge.
+
 ## 2026-07-28d — Robuustheid: ORT-segment bovengrens in `assertPerformanceWithinLimits` (server-side waarheid)
 
 **Wat:** Sluit het geparkeerde LOW/latent defense-in-depth-gat uit de persona-sweep (run 56). De harde uren/bedrag-

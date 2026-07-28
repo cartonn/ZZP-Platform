@@ -1518,3 +1518,32 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   command-menu; en **spatial/visionOS-diepte** (glasmorfisme 2026) — elk deterministisch, toegankelijk (WCAG focus-states,
   status label+icoon) en onderscheidend van de bestaande 490.
 - **Totaal nu op `/ontwerp`: 500 concepten** (reeks 50: 491–500).
+
+## Reeks 51 — concepten 501–510
+
+- **501 Gewicht** — kinetische variabele typografie (#ffffff + elektrisch #1b13ff): viewport-geschaalde displaykoppen,
+  per-teken gewicht/breedte-morph via `font-variation-settings` op interactie — hiërarchie door beweging, niet decoratie.
+- **502 Gietijzer** — tactiele brutalism (#e8e6e1 + gietijzer-oranje #ff4d17): 1px hairlines overal, scherpe geometrie,
+  mathematische film-grain via inline `feTurbulence`, harde offset-schaduw en monospace-labels — ruwe industriële materie.
+- **503 Ontwricht** — deconstructed editorial grid (#f4f1ea + print-rood #cf2b1c): gebroken asymmetrische kolommen,
+  oversized serif die uit het raster breekt, overlappende ghost-indexcijfers — persoonlijkheid boven perfectie, tóch leesbaar.
+- **504 Vezel** — warm-menselijk tactiel (#f3ece0 + terracotta #b4633a): papiergrain (SVG-ruis), organische blob-vormen en
+  handgetekende squiggle-accenten in warme aardetinten — vertrouwen via warmte rond gevoelige documenten.
+- **505 Vulpen** — premium-dark editorial luxe (#0e0d0b + goud #c8a24a): serif-displaykoppen, tabulaire ledger-cijfers,
+  dunne koperen hairlines en ruit-scheidingslijnen op crème-inkt — luxe die je voelt, hoog contrast.
+- **506 Vlecht** — levend, motion-gedreven dashboard (#0b1220 + teal #0ea5a5): stromende SVG connective threads tussen
+  gerelateerde datapunten, pulserende nodes en tickerende cijfers — data als stroom, met volledige reduced-motion-respect.
+- **507 Luwte** — radicale clarity-minimalism (#fbfbfa + blauw #2563eb): extreme witruimte, één-ding-tegelijk focusflow en
+  grote rustige serif-koppen; secundaire meta verschijnt pas bij hover/focus — elk scherm beantwoordt direct "wat nu?".
+- **508 Scheidslijn** — adaptive dual-theme (#f5f5f7 + violet #7c3aed): lokale token-set die het hele concept vloeiend
+  tussen licht en donker schakelt via een `role="switch"`-naadtoggle, plus een diagonaal naadpaneel — één ontwerp, twee stemmingen.
+- **509 Kasboek** — fintech-terminal-lite / Ramp-Mercury (#f7f7f8 + kobalt #5b52e0): hairline-grid, grote tabulaire ledger-
+  cijfers, terminal-zijbalk met code-nummering en een factuur-als-bon met dashed leaders en btw-uitsplitsing.
+- **510 Waarmerk** — trust-first, verificatie-forward (#f4f6f5 + zegelgroen #0f766e + brons): zegelmotief met guilloché-ringen,
+  centraal vertrouwensniveau, een levenscyclus-diagram en provenance-tijdlijn per certificaat — de verificatie-flow als pronkstuk.
+- Onderzochte 2026-trends deze reeks (WebSearch): **kinetische typografie / variable fonts als hoofdelement**,
+  **tactile brutalism** met mathematische CSS/SVG-grain, **broken/deconstructed editorial grids**, **tactiele textuur-comeback**
+  (papier/textiel, warmte), **luxe dark mode** met ledger-numerals, **motion-driven "living" UI** (connective/flow-visualisatie),
+  **clarity-led minimalism**, **adaptive dual-theme**, **fintech clarity** (Ramp/Mercury), en **trust-first / verification-forward
+  design** — elk deterministisch, toegankelijk (focus-states, status label+icoon) en onderscheidend van de bestaande 500.
+- **Totaal nu op `/ontwerp`: 510 concepten** (reeks 51: 501–510).
