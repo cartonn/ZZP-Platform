@@ -119,6 +119,91 @@ describe("assertPerformanceWithinLimits — ondergrens uurtarief (HOURS)", () =>
   });
 });
 
+// Server-side bovengrens (regel 1) voor de ORT-dimensie (zorg): zodra segmenten het factuursubtotaal
+// bepalen (performanceSubtotalCents → ortSubtotalCents) loopt de grens via de segment-som, niet via
+// `hours`. Zonder deze check zou een absurd/NaN segment-uur een int4-overflow/NaN op de Int-kolom
+// `totalCents` opleveren (500 i.p.v. een nette weigering) — onafhankelijk van het formulier.
+describe("assertPerformanceWithinLimits — bovengrens ORT-segmenten (HOURS)", () => {
+  it("weigert een niet-eindig segment-uur (NaN)", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({
+        type: "HOURS",
+        rateCents: 7500,
+        ortSegments: [{ category: "NORMAL", hours: NaN }],
+      }),
+    ).toThrow(CascadeError);
+    expect(() =>
+      assertPerformanceWithinLimits({
+        type: "HOURS",
+        rateCents: 7500,
+        ortSegments: [{ category: "NORMAL", hours: Infinity }],
+      }),
+    ).toThrow("Het aantal uren is ongeldig.");
+  });
+
+  it("weigert een negatief segment-uur", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({
+        type: "HOURS",
+        rateCents: 7500,
+        ortSegments: [
+          { category: "NORMAL", hours: 4 },
+          { category: "NIGHT", hours: -2 },
+        ],
+      }),
+    ).toThrow("Het aantal uren moet groter dan 0 zijn.");
+  });
+
+  it("weigert een segment-som van nul (alle segmenten 0)", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({
+        type: "HOURS",
+        rateCents: 7500,
+        ortSegments: [
+          { category: "NORMAL", hours: 0 },
+          { category: "NIGHT", hours: 0 },
+        ],
+      }),
+    ).toThrow("Het aantal uren moet groter dan 0 zijn.");
+  });
+
+  it("weigert een segment-som boven de bovengrens (ook als `hours` niet is meegegeven)", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({
+        type: "HOURS",
+        rateCents: 7500,
+        ortSegments: [
+          { category: "NORMAL", hours: MAX_PERFORMANCE_HOURS },
+          { category: "NIGHT", hours: 1 },
+        ],
+      }),
+    ).toThrow("onrealistisch hoog");
+  });
+
+  it("staat een normale segment-verdeling binnen de grens toe", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({
+        type: "HOURS",
+        rateCents: 7500,
+        ortSegments: [
+          { category: "NORMAL", hours: 6 },
+          { category: "SATURDAY", hours: 2.25 },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it("laat het MILESTONE-pad ongemoeid (segmenten niet van toepassing)", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({
+        type: "MILESTONE",
+        amountCents: 50_000,
+        ortSegments: [{ category: "NORMAL", hours: NaN }],
+      }),
+    ).not.toThrow();
+  });
+});
+
 // ─── submitPerformance — anti-dubbelfacturatie (overlap-guard) ──────────────
 // Server-side backstop (regel 1): het indienen van een urenstaat waarvan de periode overlapt met een
 // reeds in de cascade levende urenstaat (SUBMITTED/APPROVED) op dezelfde samenwerking wordt geweigerd —

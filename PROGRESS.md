@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28d — Robuustheid: ORT-segment bovengrens in `assertPerformanceWithinLimits` (server-side waarheid)
+
+**Wat:** Sluit het geparkeerde LOW/latent defense-in-depth-gat uit de persona-sweep (run 56). De harde uren/bedrag-
+bovengrens `assertPerformanceWithinLimits` (`src/lib/cascade/performance-commands.ts`) begrensde alleen `hours`,
+maar het factuursubtotaal van een HOURS-prestatie **met ORT-segmenten** loopt via de segment-som
+(`performanceSubtotalCents` → `ortSubtotalCents` → uren × basistarief + toeslag), niet via `hours`. De doc-comment
+claimde "dekt élk pad, onafhankelijk van het formulier", maar die garantie was vals voor de ORT-dimensie: een
+toekomstige caller die `ortSegments` levert zonder `hours` in lockstep te herberekenen kon een absurd/NaN subtotaal
+introduceren → int4-overflow/NaN op de `Int`-kolom `Invoice.totalCents` → 500 i.p.v. een nette weigering. Vandaag
+niet live bereikbaar (beide call-sites leiden `hours` af als segment-som en `validatePerformanceForm` begrenst die),
+maar de garantie is nu ook echt waargemaakt.
+
+**Fix:** wanneer `type === "HOURS"` en `ortSegments?.length`, valideer de segment-som direct — elk segment-uur
+eindig (`Number.isFinite`, vangt NaN/Infinity die door de `< 0`-check glippen) en niet-negatief, de som `> 0` en
+`≤ MAX_PERFORMANCE_HOURS`. Symmetrisch met de bestaande `hours`-grens, zelfde cap, zelfde CascadeError-meldingen.
+Parameter-type verbreed met `ortSegments?: OrtSegment[] | null` (type al geïmporteerd). Additief — geen gedrags-
+wijziging op bestaande paden, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+
+**Bestanden:** `src/lib/cascade/performance-commands.ts` (+ `.test.ts` — +6 tests: NaN/Infinity-segment, negatief
+segment, som=0, som > MAX zónder `hours`, normale verdeling toegestaan, MILESTONE-pad ongemoeid). Gate: typecheck,
+lint, **5276** unit-tests, build, prettier groen. PR #960.
+
 ## 2026-07-28c — Prod-rijpheid: `/api/metrics` reactie-retentie-backlog stille-faal-gauge (AVG art. 5(1)(e))
 
 **Wat:** Nieuwe silent-failure-detector-gauge `zzp_applications_retention_backlog` op `/api/metrics`: telt terminale

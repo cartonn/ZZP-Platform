@@ -51,14 +51,15 @@
 >
 > **GEPARKEERD (geen fix deze run) — LOW/latent, defense-in-depth:**
 >
-> - **`assertPerformanceWithinLimits` begrenst `hours`, niet de `ortSegments`** (`src/lib/cascade/performance-commands.ts`).
->   De doc-comment claimt "dekt élk pad, onafhankelijk van het formulier", maar de subtotaal-som loopt via `ortSegments`
->   (`handlers.ts performanceSubtotalCents`), niet `hours`. Vandaag NIET bereikbaar (beide call-sites leiden `hours` af als
->   som van de segmenten, en `validatePerformanceForm` begrenst die som), dus geen live exploit — maar de "onafhankelijk van
->   het formulier"-garantie is voor de ORT-dimensie vals: een toekomstige caller die `ortSegments` levert zonder `hours` in
->   lockstep te herberekenen herintroduceert de int4-overflow/absurd-factuur-klasse. Prio LOW. Fix-richting: in
->   `assertPerformanceWithinLimits` bij `ortSegments?.length` de segment-som direct valideren (niet-eindig/≤0/> MAX + individuele
->   `seg.hours < 0` weigeren) i.p.v. te leunen op de caller-`hours`.
+> - ~~**`assertPerformanceWithinLimits` begrenst `hours`, niet de `ortSegments`**~~ **GEDAAN (2026-07-28d, PR #960)** —
+>   (`src/lib/cascade/performance-commands.ts`). De doc-comment claimde "dekt élk pad, onafhankelijk van het formulier",
+>   maar de subtotaal-som loopt via `ortSegments` (`handlers.ts performanceSubtotalCents`), niet `hours`. Vandaag NIET
+>   bereikbaar (beide call-sites leiden `hours` af als segment-som, `validatePerformanceForm` begrenst die), dus geen live
+>   exploit — maar de "onafhankelijk van het formulier"-garantie was voor de ORT-dimensie vals. **Fix:** bij `type==="HOURS"`
+>   en `ortSegments?.length` valideert de guard nu de segment-som direct — elk segment-uur eindig (`Number.isFinite`, vangt
+>   NaN/Infinity die door de `< 0`-check glippen) + niet-negatief, som `> 0` en `≤ MAX_PERFORMANCE_HOURS`; symmetrisch met de
+>   `hours`-grens, zelfde cap/meldingen. +6 tests (NaN/Infinity, negatief segment, som=0, som > MAX zónder `hours`, normale
+>   verdeling toegestaan, MILESTONE-pad ongemoeid). Gate: typecheck, lint, test, build, prettier groen.
 > - **Cosmetisch: `AVAILABILITY_UPDATED` mist een label in `src/lib/audit-labels.ts`** (alleen `AVAILABILITY_ADDED`/
 >   `_REMOVED` staan er). De admin-audit-log toont dan de rauwe enum i.p.v. een Nederlands label. Geen authz-/audit-gat
 >   (de write gebeurt wél). Prio LOW.
