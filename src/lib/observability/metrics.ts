@@ -84,6 +84,18 @@ export interface MetricsInput {
    * te-laat-signaal richting de opdrachtgever, en de ZZP'er wordt trager betaald.
    */
   overdueUnflippedInvoices: number;
+  /**
+   * Aantal auditregels ouder dan het geconfigureerde `AUDIT_LOG_RETENTION_DAYS`-venster die de
+   * `audit-retention`-cron nog niet snoeide — werk dat die cron had moeten doen. Dezelfde
+   * stille-faal-detector-klasse als `overdueExpiryCredentials`/`overdueExpirySubscriptions`/
+   * `overdueUnflippedInvoices`, maar op de meest privacygevoelige retentie-garantie: auditregels dragen
+   * IP-adres + user-agent en zijn gedocumenteerd op 12 maanden (AVG art. 5 lid 1e dataminimalisatie).
+   * De cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn verwerkte;
+   * blijft dit getal oplopen terwijl de heartbeat "vers" is, dan bewaart de app persoonsgegevens over
+   * de wettelijke termijn heen zonder dat iets dat toont. Staat retentie UIT (venster leeg/0 = onbeperkt
+   * bewaren, de pilot-default), dan is er per definitie geen achterstand en is deze gauge `0`.
+   */
+  auditRetentionBacklog: number;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -187,6 +199,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal cascade-facturen met status APPROVED en een verstreken vervaldatum die de payment-reminders-cron nog niet op OVERDUE zette (een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen betaal-verval-pijplijn: geen aanmaningen, geen te-laat-signaal).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.overdueUnflippedInvoices)),
+    },
+    {
+      name: "zzp_audit_retention_backlog",
+      help: "Aantal auditregels (IP + user-agent) ouder dan het geconfigureerde AUDIT_LOG_RETENTION_DAYS-venster die de audit-retention-cron nog niet snoeide (0 als retentie uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → persoonsgegevens bewaard over de wettelijke termijn heen, AVG art. 5(1)(e)).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.auditRetentionBacklog)),
     },
   ];
 }
