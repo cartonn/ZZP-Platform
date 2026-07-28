@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28 — ZZP'er: beschikbaarheidsvenster bewerken (`updateAvailabilityWindow`)
+
+**Wat:** Een ZZP'er kon een beschikbaarheidsvenster (`AvailabilityWindow`) alleen **toevoegen** of
+**verwijderen** (`/beschikbaarheid`). Een typefout corrigeren, een vakantie verlengen of `uren/week`/notitie
+wijzigen vergde delete + opnieuw aanmaken — het record én zijn audit-spoor gingen verloren, en een lopend
+venster verdween kort uit beeld. Nu een **inline "Bewerken"** per periode: dezelfde form, voorgevuld, met
+"Opslaan"/"Annuleren". Benchmark: elke agenda-/beschikbaarheidstool (Temper/Pidz) laat een periode direct
+bijstellen i.p.v. verwijderen-en-opnieuw.
+
+**Architectuur / grens:** nieuwe server-action `updateAvailabilityWindow` (`beschikbaarheid/actions.ts`):
+auth → rol (`FREELANCER`) → eigen profiel → Zod (`availabilityWindowSchema`, dezelfde bron als toevoegen) →
+**compound-guarded write** `updateMany({ where: { id, freelancerProfileId }, data })` (een gegokt id van een
+ander profiel raakt niets; ownership kan niet met de update driften — geen TOCTOU) → `count===0` = "niet
+gevonden" → audit `AVAILABILITY_UPDATED` → revalidate. `AvailabilityForm` is nu herbruikbaar (optioneel
+`initial` → bewerkmodus, verborgen `windowId`, voorgevulde `DateInput`/`Select`/velden). Nieuwe client-component
+`AvailabilityRows` togglet per rij tussen weergave en inline-editor; de pagina levert vooraf-geformatteerde
+labels + ISO-datums aan. **Geen schemawijziging, geen nieuw auth-oppervlak** (bestaande rol/eigenaar-keten).
+
+**Bestanden:** `src/app/(protected)/beschikbaarheid/actions.ts` (+ `updateAvailabilityWindow`),
+`availability-form.tsx` (herbruikbaar add/edit), `availability-rows.tsx` (nieuw), `page.tsx` (wiring),
+`actions.test.ts` (nieuw, +5 tests: compound-where + audit + revalidate; count 0 → geen audit; ontbrekend
+windowId; einddatum < startdatum → veldfout; lege uren/notitie → null). **Gate:** typecheck, lint, test (5253),
+build, prettier groen.
+
+**Volgende stap (uit exploratie, niet gedaan):** CLIENT ziet `hoursPerWeek` nog niet op de kandidaten-triagelijst
+(alleen op het profiel); withdrawal-reden op reacties (symmetrisch met afwijzingsreden) ontbreekt.
+
 ## 2026-07-28 — persona-sweep run 55: TOCTOU op openDispute (HIGH) + FREELANCER cascade-badge orderBy (DOEL 1b)
 
 **Wat:** Kritische-gebruiker-sweep over alle vier rollen (ZZP'er/CLIENT/FRANCHISER/ADMIN) op de verse prod-build
