@@ -33,6 +33,8 @@ import { FavoriteButton } from "@/components/favorites/favorite-button";
 import { RatingStars } from "@/components/reviews/rating-stars";
 import { ReviewList } from "@/components/reviews/review-list";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
+import { DeliveryQualityBlock } from "@/components/freelancer/delivery-quality-block";
+import { getDeliveryQuality, hasDisplayableDeliveryQuality } from "@/lib/collaboration-quality";
 
 const AVAILABILITY: Record<
   Availability,
@@ -243,7 +245,12 @@ export async function ProfileScreen({
     direction: "CLIENT_ON_FREELANCER",
     status: "PUBLISHED",
   } as const;
-  const [reviewRows, reviewStats] = await Promise.all([
+  // Leverbetrouwbaarheid: geaggregeerd over álle afgeronde samenwerkingen (first-time-right %,
+  // doorlooptijd) — geen tegenpartij-specifieke data. Hoort op het publieke dossier naast de
+  // beoordelingen (zelfde vertrouwens-slot), zoals de opdrachtgever het al bij een kandidaat ziet.
+  // Self-gatend: `getDeliveryQuality` geeft null zonder freelancer-profiel, en het signaal is
+  // INSUFFICIENT bij te weinig steekproef → geen misleidende cijfers.
+  const [reviewRows, reviewStats, deliveryQuality] = await Promise.all([
     prisma.review.findMany({
       where: reviewWhere,
       select: {
@@ -261,6 +268,7 @@ export async function ProfileScreen({
       _avg: { rating: true },
       _count: { rating: true },
     }),
+    getDeliveryQuality(profile.userId),
   ]);
   const reviewAgg = {
     count: reviewStats._count.rating,
@@ -579,6 +587,14 @@ export async function ProfileScreen({
                       </li>
                     ))}
                   </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {hasDisplayableDeliveryQuality(deliveryQuality) && (
+              <Card>
+                <CardContent className="py-4">
+                  <DeliveryQualityBlock quality={deliveryQuality} />
                 </CardContent>
               </Card>
             )}

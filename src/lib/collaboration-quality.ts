@@ -85,6 +85,18 @@ export function computeDeliveryQuality(
   };
 }
 
+/**
+ * Mag dit leverbetrouwbaarheid-signaal getoond worden? Alleen bij een voldoende steekproef
+ * (tone ≠ INSUFFICIENT) en een bestaand signaal. Voorkomt dat een omhullende kaart leeg rendert
+ * op een profiel zonder genoeg goedgekeurde prestaties (`DeliveryQualityBlock` verbergt zichzelf
+ * al bij INSUFFICIENT — deze predicate stuurt de kaart-guard één niveau hoger). Puur, geen I/O.
+ */
+export function hasDisplayableDeliveryQuality(
+  quality: DeliveryQuality | null | undefined,
+): quality is DeliveryQuality {
+  return quality != null && quality.tone !== "INSUFFICIENT";
+}
+
 /** Goedgekeurde prestatie-rij met het profiel waartoe ze hoort (voor batch-aggregatie). */
 export interface ProfilePerfRow extends ApprovedPerfRow {
   freelancerId: string;
