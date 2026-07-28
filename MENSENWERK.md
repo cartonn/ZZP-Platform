@@ -1000,3 +1000,18 @@ updatedAt-fallback voor legacy-records) en ordering als de admin-wachtrij (`/adm
 driften t.o.v. wat de admin ziet, en steunt op de bestaande index `@@index([status, submittedAt])`. Alarmeer
 op "oudste wachtende verificatie > X uur". Faalt veilig (nooit een 500), bevat geen PII. Resterend mensenwerk:
 **niets extra**.
+**Code-kant GEDAAN (2026-07-28) — audit-retentie-backlog stille-faal-gauge:** `zzp_audit_retention_backlog`
+(aantal auditregels ouder dan het geconfigureerde `AUDIT_LOG_RETENTION_DAYS`-venster die de
+`audit-retention`-cron nog niet snoeide). Dit is dezelfde stille-faal-detector-klasse als de credential-/
+abonnement-/factuur-gauges, maar op de **meest privacygevoelige retentie-garantie**: auditregels dragen
+**IP-adres + user-agent** en zijn gedocumenteerd op 12 maanden (AVG art. 5 lid 1e). De cron-heartbeat bewijst
+alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn verwerkte — blijft dit getal oplopen terwijl de
+heartbeat "vers" is, dan bewaart de app persoonsgegevens over de wettelijke termijn heen zonder dat iets dat
+toont. De gauge gebruikt exact dezelfde bron van waarheid als de taak zelf
+(`auditRetentionCutoff(auditLogRetentionDays(), now)` → `auditLog.count({ createdAt: { lt: cutoff } })`) → kan
+niet driften. Staat retentie **UIT** (`AUDIT_LOG_RETENTION_DAYS` leeg/0 = onbeperkt bewaren, de pilot-default),
+dan is er per definitie geen achterstand → de gauge is `0` (geen misleidend signaal). Een drop-in
+Prometheus-alert (`ZzpAuditRetentionBacklog`, `> 0` met `for: 30h` > één cron-interval) staat in
+`docs/observability/alerts.yml` en is vastgeklonken aan de drift-gate. Faalt veilig (nooit een 500), bevat geen
+PII. Resterend mensenwerk: **niets extra** — de gauge is er standaard; hij wordt pas van-nul zodra je
+`AUDIT_LOG_RETENTION_DAYS` zet (§5a) en de snoei stilvalt.

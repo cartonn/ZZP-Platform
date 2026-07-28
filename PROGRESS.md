@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28 — prod: `/api/metrics` audit-retentie-backlog gauge (stille-faal-detectie, AVG art. 5(1)(e))
+
+**Wat:** Nieuwe stille-faal-detector-gauge `zzp_audit_retention_backlog` op `/api/metrics`: het aantal auditregels
+(IP + user-agent) ouder dan het geconfigureerde `AUDIT_LOG_RETENTION_DAYS`-venster die de `audit-retention`-cron nog
+niet snoeide. Dezelfde detector-klasse als `zzp_credentials_overdue_expiry` / `zzp_subscriptions_overdue_expiry` /
+`zzp_invoices_overdue_unflipped`, maar op de meest privacygevoelige retentie-garantie (AVG-dataminimalisatie): de
+cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie snoeide → een oplopende backlog terwijl de heartbeat
+"vers" is betekent PII bewaard over de wettelijke termijn heen zonder dat iets dat toont. Zelfde bron van waarheid als
+de taak (`auditRetentionCutoff(auditLogRetentionDays(), now)`) → geen drift. Retentie uit (pilot-default) → gauge 0.
+Drop-in Prometheus-alert `ZzpAuditRetentionBacklog` (`> 0`, `for: 30h`) in `alerts.yml`, vastgeklonken aan de
+drift-gate. Fail-safe (nooit 500), PII-vrij, achter de bestaande Bearer-`CRON_SECRET`-guard.
+
+**Bestanden:** `src/lib/observability/metrics.ts` (+ MetricsInput-veld + gauge), `src/app/api/metrics/route.ts`
+(count-wiring), `src/lib/observability/metrics.test.ts` (+3 tests + set/volgorde), `src/lib/observability/alerts-rules.ts`
+(SAMPLE_INPUT), `docs/observability/alerts.yml` (+alert), `MENSENWERK.md`, `PROGRESS.md`.
+
+**Checks:** typecheck groen; metrics- + alerts-rules-drift-gate-tests groen (27 passed); volledige gate volgt in CI.
+
 ## 2026-07-28 — Security-/privacy-audit: oppervlakken schoon + `resolveDispute` rol-grendel regressie-net
 
 **Wat:** Volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

@@ -11,7 +11,9 @@
 // expiry-cron nog niet omzette) en zzp_subscriptions_overdue_expiry (betaalde ACTIVE-abonnementen wier
 // periode voorbij is maar die de subscription-expiry-cron nog niet op CANCELLED zette) en
 // zzp_invoices_overdue_unflipped (cascade-facturen APPROVED met verstreken vervaldatum die de
-// payment-reminders-cron nog niet op OVERDUE zette) — stille-faal-detectors die de heartbeat niet vangt.
+// payment-reminders-cron nog niet op OVERDUE zette) en zzp_audit_retention_backlog (auditregels ouder
+// dan AUDIT_LOG_RETENTION_DAYS die de audit-retention-cron nog niet snoeide — AVG-dataminimalisatie) —
+// stille-faal-detectors die de heartbeat niet vangt.
 //
 // Beveiliging: dezelfde Bearer CRON_SECRET als de taak-/heartbeat-routes, fail-closed — geen
 // CRON_SECRET → 503, verkeerd token → 401. De uitvoer bevat NOOIT persoonsgegevens of secrets, alleen
@@ -29,6 +31,8 @@ import { getCronFreshness } from "@/lib/observability/cron-heartbeat";
 import { getBackupFreshness } from "@/lib/observability/backup-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { waitingSince } from "@/lib/verification-queue";
+import { auditLogRetentionDays } from "@/lib/config";
+import { auditRetentionCutoff } from "@/lib/audit-retention";
 import { reportError } from "@/lib/observability/report";
 import type { CronFreshness } from "@/lib/observability/cron-freshness";
 import {
@@ -62,6 +66,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let overdueExpiryCredentials = 0;
   let overdueExpirySubscriptions = 0;
   let overdueUnflippedInvoices = 0;
+  let auditRetentionBacklog = 0;
   if (dbReachable) {
     try {
       verificationQueue = await prisma.credential.count({ where: { status: "SUBMITTED" } });
@@ -121,6 +126,21 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
     }
+    try {
+      // Auditregels ouder dan het geconfigureerde AUDIT_LOG_RETENTION_DAYS-venster: werk dat de
+      // audit-retention-cron had moeten doen (snoeien vóór de cutoff). Zelfde bron van waarheid als de
+      // taak zelf (`auditRetentionCutoff(auditLogRetentionDays(), now)`) zodat de gauge de echte
+      // cron-backlog telt en niet kan driften. Staat retentie UIT (cutoff === null, de pilot-default),
+      // dan is er per definitie geen achterstand → 0, geen misleidend signaal.
+      const cutoff = auditRetentionCutoff(auditLogRetentionDays(), now);
+      if (cutoff) {
+        auditRetentionBacklog = await prisma.auditLog.count({
+          where: { createdAt: { lt: cutoff } },
+        });
+      }
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
@@ -143,6 +163,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     overdueExpiryCredentials,
     overdueExpirySubscriptions,
     overdueUnflippedInvoices,
+    auditRetentionBacklog,
   };
 }
 

@@ -109,6 +109,17 @@ groups:
         annotations:
           summary: "Betaal-verval-pijplijn verwerkt niets"
           description: "Er staan al > één cron-interval cascade-facturen met status APPROVED en een verstreken vervaldatum die niet naar OVERDUE zijn gezet (zzp_invoices_overdue_unflipped). De payment-reminders-cron rondt af maar markeert geen facturen te laat → geen aanmaningsladder, geen te-laat-signaal richting de opdrachtgever, en de ZZP'er wordt trager betaald."
+      - alert: ZzpAuditRetentionBacklog
+        # AVG-dataminimalisatie (art. 5 lid 1e): auditregels dragen IP + user-agent. Een oplopende
+        # backlog terwijl de heartbeat "vers" is betekent dat persoonsgegevens over de wettelijke termijn
+        # heen bewaard blijven. Alleen actief zodra AUDIT_LOG_RETENTION_DAYS gezet is (anders altijd 0).
+        expr: zzp_audit_retention_backlog > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Audit-retentie-snoei verwerkt niets (AVG-dataminimalisatie)"
+          description: "Er staan al > één cron-interval auditregels ouder dan het geconfigureerde AUDIT_LOG_RETENTION_DAYS-venster die niet zijn gesnoeid (zzp_audit_retention_backlog). De audit-retention-cron rondt af maar verwijdert niets → auditregels met IP + user-agent worden over de wettelijke bewaartermijn heen bewaard (AVG art. 5(1)(e)). Controleer de audit-retention-taak."
 
   - name: zzp-platform-verificatie-sla
     rules:
