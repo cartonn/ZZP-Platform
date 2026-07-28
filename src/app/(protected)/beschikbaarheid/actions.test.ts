@@ -17,7 +17,9 @@ const store = {
 };
 
 const profileFindUnique = vi.hoisted(() => vi.fn());
-const windowUpdateMany = vi.hoisted(() => vi.fn(async () => ({ count: 1 })));
+// Zonder inline-impl → args-type is `any[]` (net als de favorieten-test), zodat
+// `.mock.calls[0]?.[0]?.where` typecheckt; de default-return zetten we in beforeEach.
+const windowUpdateMany = vi.hoisted(() => vi.fn());
 const auditMock = vi.hoisted(() => vi.fn(async () => undefined));
 const revalidateMock = vi.hoisted(() => vi.fn());
 
