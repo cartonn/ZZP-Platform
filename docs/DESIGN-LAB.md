@@ -1487,3 +1487,34 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   low-stimulation** interfaces; en **techno-craft warm-metallic** circuit-lijnwerk — elk deterministisch, toegankelijk
   (WCAG focus-states, status label+icoon) en onderscheidend van de bestaande 480.
 - **Totaal nu op `/ontwerp`: 490 concepten** (reeks 49: 481–490).
+
+## Reeks 50 — concepten 491–500 (28 juli 2026)
+
+- **491 Ditherpunk** — 1-bit dither / halftone-systeem (#ece9df + vermiljoen #c8102e): bijna-zwarte inkt op papierwit,
+  radial-gradient dot-dither (dichtheid = status), harde hairlines en pixel-staaf-sparks — pixel-precisie als esthetiek.
+- **492 Draadmodel** — blueprint / technische bouwtekening (#0a1a2f + cyaan #38bdf8): draadlijnen op marineblauw,
+  millimeter-stippelraster, hoek-ticks + maatvoering-labels in mono en een SVG-boog als match-meter. Koel en exact.
+- **493 Grofdruk** — tactile brutalism, verfijnd (#f4f4f2 + acid-lime/oranje #ff4d00): harde randen, geen schaduw,
+  zware grotesk en één overprint-accentblok dat met misregistratie achter koppen schuift — rauw-maar-strak.
+- **494 Filmkorrel** — analoge filmkorrel / warme textuur (#e8ded0 + terracotta #a8503a): inline feTurbulence-grain,
+  espresso/sepia editorial, serif-koppen + mono-metadata als contactvel — tastbare, fotografische diepte zonder 3D.
+- **495 Ademtype** — kinetische typografie / type-as-UI (#faf9f6 + indigo #4338ca): enorme "ademende" neo-serif-koppen
+  (letter-spacing/gewicht-keyframe), mono-metadata en hairline-chrome — de tekst zelf draagt de hiërarchie.
+- **496 Perron** — transit / wayfinding-signage (#10316b + signaalgeel #ffce00): vette signage-sans, richtingpijlen en
+  een vertrekbord (split-flap) voor opdrachten met perron-nummers — iconisch, functioneel, hoog-contrast.
+- **497 Keramiek** — wabi-sabi keramiek / stille ambacht (#e7e0d3 + celadon #6f8a72): aardse glazuurtinten, licht-
+  onregelmatige radii per hoek en zachte glazuur-schaduwen — craft en kalmte, vertrouwen via zachtheid.
+- **498 Zonnehof** — solarpunk botanisch / hoopvol (#f3f4e7 + mosgroen #4a7c2f): mosgroen + goud, inline blad-svg,
+  groei-gradient voortgangsbalken en een stengel-ring als match — positieve, menselijke energie, strak gekaderd.
+- **499 Scanlijn** — CRT phosphor / verfijnde terminal (#0a0f0b + fosforgroen #4ade80): mono op antraciet, scanline-
+  overlay (reduced-motion-guard), Ctrl/Cmd+K command-menu en [OK]/[!]/[X]-statustags — de terminal, volwassen gemaakt.
+- **500 Zwevend** — spatial glas / gelaagde diepte (#dfe6f2 + indigo #6366f1) — **mijlpaal**: gefroste backdrop-blur-
+  panelen op een aurora-verloop met pointer-parallax (rAF, reduced-motion-guard), randhighlights en hover-lift, met
+  bewust leesbaar contrast op het glas.
+- Onderzochte 2026-trends deze reeks: **pixel/dither als modulair systeem** en **1-bit halftone**; **blueprint/wireframe-
+  esthetiek** met maatvoering; **tactile brutalism** (harde randen, overprint, geen schaduw); **textuur boven zware 3D**
+  (film grain via feTurbulence); **kinetische variabele-font typografie** / type-as-hero; **transit/wayfinding-signage**;
+  **wabi-sabi / calm interface**; **solarpunk botanisch-optimistisch**; **CRT/phosphor-terminal** met keyboard-first
+  command-menu; en **spatial/visionOS-diepte** (glasmorfisme 2026) — elk deterministisch, toegankelijk (WCAG focus-states,
+  status label+icoon) en onderscheidend van de bestaande 490.
+- **Totaal nu op `/ontwerp`: 500 concepten** (reeks 50: 491–500).

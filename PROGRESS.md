@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28 — Ontwerp-lab reeks 50: +10 concepten (491–500) → 500 totaal op /ontwerp
+
+**Wat:** Tien nieuwe, sterk onderscheidende redesign-concepten toegevoegd aan het interne ontwerp-lab (`/ontwerp`),
+additief bovenop de bestaande 490 — niets overschreven. Richtingen (2026-trends): **491 Ditherpunk** (1-bit dither/
+halftone), **492 Draadmodel** (blueprint/wireframe), **493 Grofdruk** (tactile brutalism), **494 Filmkorrel** (film-
+grain via feTurbulence), **495 Ademtype** (kinetische type-as-UI), **496 Perron** (transit/wayfinding-signage),
+**497 Keramiek** (wabi-sabi), **498 Zonnehof** (solarpunk botanisch), **499 Scanlijn** (CRT/phosphor-terminal met
+Cmd+K command-menu), **500 Zwevend** (spatial glas — mijlpaalconcept, pointer-parallax). Elk dekt de 6 kernschermen
+(dashboard, marktplaats, opdracht, verificatie, acties, facturen) met echte interactie (nav, zoek/sorteer/filter,
+expand-accordeon), volledige loading/empty/error-states, responsive en toegankelijk (focus-states, status label+icoon).
+Geen voorkomen van "AI"; UI Nederlands. Gebouwd door 4 parallelle workers op niet-overlappende bestanden; orchestrator
+integreerde registry + route-koppeling.
+
+**Bestanden:** `src/components/ontwerp/concepts/concept-491-ditherpunk.tsx` … `concept-500-zwevend.tsx` (10 nieuw),
+`src/components/ontwerp/concepts/registry.ts` (+10 entries, append), `src/app/ontwerp/[id]/concept-host.tsx` (+10
+dynamic imports, append), `docs/DESIGN-LAB.md` (reeks 50). **Gate:** typecheck, lint, prettier --check ., test (5233),
+build groen.
+
 ## 2026-07-28 — Prod-rijpheid: /api/metrics gauge — cascade-facturen te-laat-maar-niet-omgezet (stille-faal-detector)
 
 **Wat:** `/api/metrics` had stille-faal-detector-gauges voor verlopen credentials (`zzp_credentials_overdue_expiry`)
