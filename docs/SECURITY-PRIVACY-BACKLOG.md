@@ -4,6 +4,45 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-28 (basis: `main` @ 4017c336)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken:
+(1) object-/functie-niveau-autorisatie, IDOR/BOLA, cross-tenant-isolatie, mass-assignment & audit-dekking over
+alle `franchise/**`, `samenwerkingen/**` en `admin/**` server-actions + `authz.ts`/`tenancy.ts`/`middleware.ts`
+(inclusief de gedelegeerde `cascade/*-commands.ts`-ownership-helpers); (2) injectie/upload/SSRF/secrets/XSS/
+CSV-formule/foutlek/open-redirect/headers/webhook-signature over álle `src/app/api/**`-route-handlers +
+`storage.ts` + `middleware.ts`/`next.config` + CSV-/ICS-builders; (3) AVG betrokkenen-rechten (`anonymizeUser`
+vs. actuele schema, PII-over-fetch naar client op kandidaten-/roster-/reacties-paden, audit-logging,
+k-anonimiteit, PII-in-logs, doorgifte-register art. 30, retentie). Delta sinds vorige ronde (#944–#950) apart
+gelezen: `client-stats.ts`' nieuwe `oldestUnreviewedApplicationAt` is `job:{companyId}`-gescoopt en exposeert
+alleen een `Date` (geen kandidaat-PII); de `/api/metrics`-gauge `zzp_invoices_overdue_unflipped` is PII-vrij
+achter de cron-guard; `payment-obligations.summarizeDueThisWeek` is pure berekening; register-edits doc-only.
+`npm audit --omit=dev` = **0 productie-kwetsbaarheden**. Next.js 15.5.21 (boven CVE-2025-29927-middleware-bypass).
+
+**Alle drie oppervlakken onafhankelijk schoon — geen nieuw KRITIEK/HOOG/MIDDEL security- of privacy-gat.**
+De 5 AVG-bevindingen van audit (3) zijn allemaal **reeds bekend en geparkeerd voor een menselijke FG-/juridische
+beslissing** (MENSENWERK.md §5; zie de geparkeerde items verderop) — geen daarvan mag een agent unilateraal
+"oplossen" (item 1 = het wissen van door de tegenpartij geschreven, bewijskrachtige vrije tekst). Auth-/reset-
+oppervlak geverifieerd: reset-poisoning-beschermd (`publicOrigin`, niet de Host-header), enumeratie-beschermd,
+rate-limited, gehasht single-use-token met atomaire claim.
+
+### OPGELOST — LAAG (defense-in-depth, BFLA/OWASP A01 regressie-net): `resolveDispute` rol-grendel had geen negatieve test
+
+- **Repro (was):** de `samenwerkingen/[id]`-actie-wrappers roepen alleen `requireActor()` (auth) aan en delegeren
+  ownership/rol volledig aan de `cascade/*-commands.ts`-laag. `anti-oracle-party.test.ts` dekt de niet-partij-
+  weigering van álle partij-commando's (approve/reject/submit/update/credit/confirm/sign/openDispute) — behalve
+  `resolveDispute`, het ENIGE platform-privilege (ontdooit de bevroren cascade, buiten de mediatie om, alleen ADMIN).
+  Beide bestanden die `resolveDispute` noemen gebruikten hem enkel in een happy-path/noop-mock; geen enkele test
+  borgde de `actor.role !== "ADMIN"`-grendel. Een toekomstige refactor die die regel laat vallen zou elke partij
+  (of willekeurige gebruiker) zijn eigen dispuut laten opheffen en de geld-/statuscascade laten hervatten — een
+  functie-niveau-privilege-escalatie (CWE-269/CWE-863) die niets zou vangen.
+- **Geschonden regel:** CLAUDE.md architectuurregel 2 (auth→rol→ownership→…→audit op elke mutatie), OWASP A01
+  (Broken Access Control / BFLA).
+- **Fix (PR #—):** `src/lib/cascade/resolve-dispute-authz.test.ts` — 6 cases die borgen dat een CLIENT/FREELANCER
+  (partij) én een vreemde de platform-rolmelding krijgen, dat de grendel **vóór** elke DB-lees én -mutatie
+  kortsluit (geen existentie-oracle, geen effect), en dat een ADMIN de grendel wél passeert (rol-, niet partij-
+  gebaseerd). Bewezen rood→groen: met de grendel verwijderd falen 4/6, met de grendel 6/6 groen.
+
 ## Ronde 2026-07-27b (basis: `main` @ 756e6952)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken over

@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28 — Security-/privacy-audit: oppervlakken schoon + `resolveDispute` rol-grendel regressie-net
+
+**Wat:** Volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: (1) authz/IDOR/cross-tenant over alle franchise/samenwerkingen/admin-actions +
+cascade-commands, (2) injectie/upload/SSRF/secrets/headers/webhook over álle `src/app/api/**`, (3) AVG betrokkenen-
+rechten/anonymisering/k-anonimiteit/PII-logs/retentie). **Geen nieuw KRITIEK/HOOG/MIDDEL gat.** De delta sinds vorige
+ronde (#944–#950) apart geverifieerd schoon (nieuwe `oldestUnreviewedApplicationAt` is company-gescoopt + PII-vrij;
+metrics-gauge PII-vrij achter cron-guard; obligations pure berekening). `npm audit --omit=dev` = 0 productie-
+kwetsbaarheden. De 5 AVG-bevindingen zijn allemaal reeds bekend + geparkeerd voor menselijke FG-beslissing (niet
+unilateraal fixbaar). Eén concreet defense-in-depth-gat gedicht: `resolveDispute` (ADMIN-only platform-privilege dat
+de bevroren cascade ontdooit) had als enige cascade-commando geen negatieve rol-test.
+
+**Bestanden:** `src/lib/cascade/resolve-dispute-authz.test.ts` (nieuw, 6 cases, rood→groen bewezen),
+`docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-07-28 + OPGELOST-item), `PROGRESS.md`.
+
+**Checks:** typecheck + lint + test + build groen, prettier toegepast. Regressie-net geverifieerd: grendel verwijderd
+→ 4/6 rood; grendel aanwezig → 6/6 groen.
+
 ## 2026-07-28 — Ontwerp-lab reeks 50: +10 concepten (491–500) → 500 totaal op /ontwerp
 
 **Wat:** Tien nieuwe, sterk onderscheidende redesign-concepten toegevoegd aan het interne ontwerp-lab (`/ontwerp`),
