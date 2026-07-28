@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28f — Audit-logboek: 54 ontbrekende NL-labels + drift-gate (admin/bemiddelaar)
+
+**Wat:** Het admin- en bemiddelaar-audit-logboek (`audit-panel.tsx`, admin-gebruikersdossier, bemiddelaar
+`/franchise/zzpers/[id]`, CSV-audit-export) toonde **54 geëmitteerde audit-acties** als ruwe geleesbare
+fallback ("Shift handoff requested", "No show reported", "Credential verify blocked") i.p.v. nette
+Nederlandse tekst — omdat `AUDIT_ACTION_LABEL` in `src/lib/audit-labels.ts` achterliep op de code die die
+acties wegschrijft. Dit raakte belangrijke oversight-/compliance-events (identiteits-/certificaatverificatie
+geblokkeerd, documentverwijdering geweigerd, no-show, dispuut geëscaleerd, dienstoverdracht, retentie-snoei,
+systeem-zelftests). Nu alle 54 voorzien van een correct NL-label, gegroepeerd in de bestaande secties +
+twee nieuwe (Administratie & uren; Notificaties & meldingen; Systeem-zelftests).
+
+**Drift-gate:** nieuwe `hasAuditActionLabel(action)`-export + een test (`audit-labels.test.ts`) die de
+broncode scant op `action: "UPPER_SNAKE"`-literalen in audit-rakende (niet-test) bestanden en faalt zodra een
+nieuw geëmitteerde actie geen label heeft. Zo kan het logboek nooit meer stil terugvallen op ruwe enums.
+
+**Grens:** puur presentatie/labels — geen schemawijziging, geen mutatie/auth-oppervlak, geen nieuwe query,
+read-only. Het woord "AI" komt nergens voor. **Bestanden:** `src/lib/audit-labels.ts` (+54 labels + helper),
+`src/lib/audit-labels.test.ts` (+2 drift-gate-tests, 5 totaal), `PROGRESS.md`, `docs/PERSONA-SWEEP-BACKLOG.md`.
+Gate: typecheck ✅, lint ✅ (0), test ✅, build ✅, prettier ✅.
+
+---
+
 ## 2026-07-28e — Ontwerp-lab reeks 51: +10 concepten (501–510), galerij nu 510
 
 **Wat:** Tien nieuwe, sterk onderscheidende redesign-concepten toegevoegd aan het interne ontwerp-lab (`/ontwerp`),
