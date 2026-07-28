@@ -96,6 +96,19 @@ export interface MetricsInput {
    * bewaren, de pilot-default), dan is er per definitie geen achterstand en is deze gauge `0`.
    */
   auditRetentionBacklog: number;
+  /**
+   * Aantal terminale reacties (Application, status REJECTED/WITHDRAWN, zónder samenwerking) ouder dan het
+   * geconfigureerde `APPLICATION_RETENTION_DAYS`-venster die de `application-retention`-cron nog niet
+   * snoeide — werk dat die cron had moeten doen. Dezelfde stille-faal-detector-klasse als
+   * `auditRetentionBacklog`, en net zo privacygevoelig: een Application-rij draagt vrije-tekst-PII in
+   * `motivation`/`note`, en het verwerkingsregister belooft die "tot 4 weken na afronding van de
+   * selectieprocedure" (AVG art. 5 lid 1e opslagbeperking). De cron-heartbeat bewijst alleen dát de run
+   * afrondde, niet dát 'ie de snoei-pijplijn verwerkte; blijft dit getal oplopen terwijl de heartbeat
+   * "vers" is, dan bewaart de app reactie-PII over de beloofde termijn heen zonder dat iets dat toont.
+   * Staat retentie UIT (venster leeg/0 = onbeperkt bewaren, de pilot-default), dan is er per definitie
+   * geen achterstand en is deze gauge `0`.
+   */
+  applicationsRetentionBacklog: number;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -205,6 +218,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal auditregels (IP + user-agent) ouder dan het geconfigureerde AUDIT_LOG_RETENTION_DAYS-venster die de audit-retention-cron nog niet snoeide (0 als retentie uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → persoonsgegevens bewaard over de wettelijke termijn heen, AVG art. 5(1)(e)).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.auditRetentionBacklog)),
+    },
+    {
+      name: "zzp_applications_retention_backlog",
+      help: "Aantal terminale reacties (REJECTED/WITHDRAWN, vrije-tekst-PII in motivation/note) ouder dan het geconfigureerde APPLICATION_RETENTION_DAYS-venster die de application-retention-cron nog niet snoeide (0 als retentie uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → reactie-PII bewaard over de beloofde termijn heen, AVG art. 5(1)(e)).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.applicationsRetentionBacklog)),
     },
   ];
 }

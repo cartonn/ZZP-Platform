@@ -12,7 +12,9 @@
 // periode voorbij is maar die de subscription-expiry-cron nog niet op CANCELLED zette) en
 // zzp_invoices_overdue_unflipped (cascade-facturen APPROVED met verstreken vervaldatum die de
 // payment-reminders-cron nog niet op OVERDUE zette) en zzp_audit_retention_backlog (auditregels ouder
-// dan AUDIT_LOG_RETENTION_DAYS die de audit-retention-cron nog niet snoeide — AVG-dataminimalisatie) —
+// dan AUDIT_LOG_RETENTION_DAYS die de audit-retention-cron nog niet snoeide — AVG-dataminimalisatie) en
+// zzp_applications_retention_backlog (terminale reacties met vrije-tekst-PII ouder dan
+// APPLICATION_RETENTION_DAYS die de application-retention-cron nog niet snoeide — AVG-dataminimalisatie) —
 // stille-faal-detectors die de heartbeat niet vangt.
 //
 // Beveiliging: dezelfde Bearer CRON_SECRET als de taak-/heartbeat-routes, fail-closed — geen
@@ -31,8 +33,10 @@ import { getCronFreshness } from "@/lib/observability/cron-heartbeat";
 import { getBackupFreshness } from "@/lib/observability/backup-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { waitingSince } from "@/lib/verification-queue";
-import { auditLogRetentionDays } from "@/lib/config";
+import { auditLogRetentionDays, applicationRetentionDays } from "@/lib/config";
 import { auditRetentionCutoff } from "@/lib/audit-retention";
+import { applicationRetentionCutoff } from "@/lib/application-retention";
+import { prunableApplicationWhere } from "@/lib/application-retention-task";
 import { reportError } from "@/lib/observability/report";
 import type { CronFreshness } from "@/lib/observability/cron-freshness";
 import {
@@ -67,6 +71,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let overdueExpirySubscriptions = 0;
   let overdueUnflippedInvoices = 0;
   let auditRetentionBacklog = 0;
+  let applicationsRetentionBacklog = 0;
   if (dbReachable) {
     try {
       verificationQueue = await prisma.credential.count({ where: { status: "SUBMITTED" } });
@@ -141,6 +146,22 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
     }
+    try {
+      // Terminale reacties (REJECTED/WITHDRAWN, zónder samenwerking) ouder dan het geconfigureerde
+      // APPLICATION_RETENTION_DAYS-venster: werk dat de application-retention-cron had moeten doen. Hergebruikt
+      // exact `prunableApplicationWhere` (dezelfde bron van waarheid, incl. de cascade-veilige
+      // `collaboration: { is: null }`-guard) als de taak zelf, zodat de gauge de echte cron-backlog telt en
+      // niet kan driften. Een Application-rij draagt vrije-tekst-PII in motivation/note; staat retentie UIT
+      // (cutoff === null, de pilot-default), dan is er per definitie geen achterstand → 0.
+      const cutoff = applicationRetentionCutoff(applicationRetentionDays(), now);
+      if (cutoff) {
+        applicationsRetentionBacklog = await prisma.application.count({
+          where: prunableApplicationWhere(cutoff),
+        });
+      }
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
@@ -164,6 +185,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     overdueExpirySubscriptions,
     overdueUnflippedInvoices,
     auditRetentionBacklog,
+    applicationsRetentionBacklog,
   };
 }
 

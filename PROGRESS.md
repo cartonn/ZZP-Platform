@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28c — Prod-rijpheid: `/api/metrics` reactie-retentie-backlog stille-faal-gauge (AVG art. 5(1)(e))
+
+**Wat:** Nieuwe silent-failure-detector-gauge `zzp_applications_retention_backlog` op `/api/metrics`: telt terminale
+reacties (`Application`, REJECTED/WITHDRAWN, zónder samenwerking) ouder dan het geconfigureerde
+`APPLICATION_RETENTION_DAYS`-venster die de `application-retention`-cron nog niet snoeide. Vijfde gauge in de
+stille-faal-familie (na credentials/subscriptions/invoices/audit) en de tweede op een privacygevoelige
+retentie-garantie: een `Application`-rij draagt vrije-tekst-PII in `motivation`/`note`, beloofd op "≤4 weken na
+afronding selectieprocedure". De cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn
+verwerkte; een oplopende backlog terwijl de heartbeat "vers" is = reactie-PII bewaard over de beloofde termijn heen.
+Gauge hergebruikt **exact** `prunableApplicationWhere(applicationRetentionCutoff(applicationRetentionDays(), now))`
+(zelfde bron van waarheid als de taak, incl. cascade-veilige `collaboration: { is: null }`-guard) → geen drift.
+Retentie UIT (venster leeg/0) → cutoff null → gauge 0. Fail-safe (nooit 500), geen PII.
+
+**Bestanden:** `src/lib/observability/metrics.ts` (input-veld + gauge), `src/app/api/metrics/route.ts` (count via
+`prunableApplicationWhere`), `src/lib/observability/alerts-rules.ts` (SAMPLE_INPUT), `docs/observability/alerts.yml`
+(alert `ZzpApplicationsRetentionBacklog`, `> 0` `for: 30h`, vastgeklonken aan de drift-gate), `metrics.test.ts` (+3
+tests), MENSENWERK.md §11 / CURRENT_TASK.md. **Gate:** typecheck, lint, test (5270), build, prettier — groen.
+**Volgende stap:** PR #959 → poort groen → self-merge (auto).
+
 ## 2026-07-28b — Security-/privacy-auditronde (basis `main` @ a10cba04): geen nieuwe gaten
 
 **Wat:** Orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken +

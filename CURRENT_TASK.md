@@ -260,6 +260,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — `/api/metrics` reactie-retentie-backlog gauge (2026-07-28, PR #959)** —
+> vijfde stille-faal-detector-gauge op het machine-leesbare monitoring-endpoint: **`zzp_applications_retention_backlog`**
+> telt terminale reacties (`Application`, REJECTED/WITHDRAWN, zónder samenwerking) ouder dan het geconfigureerde
+> `APPLICATION_RETENTION_DAYS`-venster die de `application-retention`-cron nog niet snoeide. Tweede gauge op een
+> privacygevoelige retentie-garantie (na `zzp_audit_retention_backlog`): een `Application`-rij draagt vrije-tekst-PII in
+> `motivation`/`note`, beloofd op ≤4 weken (AVG art. 5(1)(e)). De cron-heartbeat bewijst alleen dát de run afrondde, niet
+> dát 'ie de snoei-pijplijn verwerkte → een oplopende backlog terwijl de heartbeat "vers" is = PII over de termijn heen
+> bewaard, extern alarmeerbaar. Gauge hergebruikt **exact** `prunableApplicationWhere(applicationRetentionCutoff(...))`
+> (zelfde bron als de taak, incl. cascade-veilige `collaboration: { is: null }`-guard) → geen drift; retentie UIT → 0;
+> read-only `count`, faalt veilig (0, nooit 500), geen schemawijziging, geen PII. Drop-in alert
+> `ZzpApplicationsRetentionBacklog` (`> 0`, `for: 30h`) in `docs/observability/alerts.yml`, vastgeklonken aan de
+> drift-gate. `metrics.ts` + `route.ts` + `alerts-rules.ts` + `alerts.yml` (+3 tests, →5270). Gate: typecheck, lint,
+> test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er — soortgelijke open opdrachten na een afwijzing op /reacties (2026-07-27, PR #942)** —
 > een afgewezen reactie (`REJECTED`) toonde alleen een statische hint + eventueel de afwijzingsreden, geen concrete volgende
 > stap. De verklaarbare matchmotor (`relatedJobsForFreelancer`/`recommendedJobs`) draaide al op `/dashboard` + `/opdrachten/[id]`

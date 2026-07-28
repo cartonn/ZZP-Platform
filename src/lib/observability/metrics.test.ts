@@ -26,6 +26,7 @@ const HEALTHY: MetricsInput = {
   overdueExpirySubscriptions: 0,
   overdueUnflippedInvoices: 0,
   auditRetentionBacklog: 0,
+  applicationsRetentionBacklog: 0,
 };
 
 function valueOf(input: MetricsInput, name: string): number {
@@ -117,6 +118,30 @@ describe("buildMetrics", () => {
     );
   });
 
+  it("mapt de reactie-retentie-backlog (terminale reacties ouder dan het venster) door als gauge", () => {
+    expect(
+      valueOf(
+        { ...HEALTHY, applicationsRetentionBacklog: 6 },
+        "zzp_applications_retention_backlog",
+      ),
+    ).toBe(6);
+  });
+
+  it("klemt een negatieve/gebroken reactie-retentie-backlog veilig op een niet-negatief geheel getal", () => {
+    expect(
+      valueOf(
+        { ...HEALTHY, applicationsRetentionBacklog: -3 },
+        "zzp_applications_retention_backlog",
+      ),
+    ).toBe(0);
+    expect(
+      valueOf(
+        { ...HEALTHY, applicationsRetentionBacklog: 4.9 },
+        "zzp_applications_retention_backlog",
+      ),
+    ).toBe(4);
+  });
+
   it("gebruikt de AGE_NEVER-sentinel wanneer een heartbeat nog nooit draaide", () => {
     const input = { ...HEALTHY, cronAgeSeconds: null, backupAgeSeconds: null };
     expect(valueOf(input, "zzp_cron_heartbeat_age_seconds")).toBe(AGE_NEVER);
@@ -163,6 +188,7 @@ describe("buildMetrics", () => {
       overdueExpirySubscriptions: 8,
       overdueUnflippedInvoices: 5,
       auditRetentionBacklog: 15,
+      applicationsRetentionBacklog: 7,
     };
     expect(valueOf(input, "zzp_db_reachable")).toBe(0);
     expect(valueOf(input, "zzp_maintenance_mode")).toBe(1);
@@ -170,6 +196,7 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_subscriptions_overdue_expiry")).toBe(8);
     expect(valueOf(input, "zzp_invoices_overdue_unflipped")).toBe(5);
     expect(valueOf(input, "zzp_audit_retention_backlog")).toBe(15);
+    expect(valueOf(input, "zzp_applications_retention_backlog")).toBe(7);
     expect(valueOf(input, "zzp_cron_heartbeat_ok")).toBe(0);
     expect(valueOf(input, "zzp_cron_heartbeat_stale")).toBe(1);
     expect(valueOf(input, "zzp_backup_heartbeat_ok")).toBe(0);
@@ -200,6 +227,7 @@ describe("buildMetrics", () => {
       "zzp_subscriptions_overdue_expiry",
       "zzp_invoices_overdue_unflipped",
       "zzp_audit_retention_backlog",
+      "zzp_applications_retention_backlog",
     ]);
   });
 });

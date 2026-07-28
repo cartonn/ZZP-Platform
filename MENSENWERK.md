@@ -1015,3 +1015,17 @@ Prometheus-alert (`ZzpAuditRetentionBacklog`, `> 0` met `for: 30h` > één cron-
 `docs/observability/alerts.yml` en is vastgeklonken aan de drift-gate. Faalt veilig (nooit een 500), bevat geen
 PII. Resterend mensenwerk: **niets extra** — de gauge is er standaard; hij wordt pas van-nul zodra je
 `AUDIT_LOG_RETENTION_DAYS` zet (§5a) en de snoei stilvalt.
+**Code-kant GEDAAN (2026-07-28) — reactie-retentie-backlog stille-faal-gauge:** `zzp_applications_retention_backlog`
+(aantal terminale reacties — `Application`, status REJECTED/WITHDRAWN, zónder samenwerking — ouder dan het
+geconfigureerde `APPLICATION_RETENTION_DAYS`-venster die de `application-retention`-cron nog niet snoeide). Dezelfde
+stille-faal-detector-klasse als de audit-retentie-gauge en net zo privacygevoelig: een `Application`-rij draagt
+**vrije-tekst-PII** in `motivation`/`note`, en het verwerkingsregister belooft die "tot 4 weken na afronding van de
+selectieprocedure" (AVG art. 5 lid 1e opslagbeperking). De cron-heartbeat bewijst alleen dát de run afrondde, niet dát
+'ie de snoei-pijplijn verwerkte — blijft dit getal oplopen terwijl de heartbeat "vers" is, dan bewaart de app
+reactie-PII over de beloofde termijn heen zonder dat iets dat toont. De gauge hergebruikt **exact** dezelfde bron van
+waarheid als de taak zelf (`prunableApplicationWhere(applicationRetentionCutoff(applicationRetentionDays(), now))`,
+inclusief de cascade-veilige `collaboration: { is: null }`-guard) → kan niet driften. Staat retentie **UIT**
+(`APPLICATION_RETENTION_DAYS` leeg/0 = onbeperkt bewaren), dan is er per definitie geen achterstand → de gauge is `0`.
+Een drop-in Prometheus-alert (`ZzpApplicationsRetentionBacklog`, `> 0` met `for: 30h` > één cron-interval) staat in
+`docs/observability/alerts.yml` en is vastgeklonken aan de drift-gate. Faalt veilig (nooit een 500), bevat geen PII.
+Resterend mensenwerk: **niets extra**.
