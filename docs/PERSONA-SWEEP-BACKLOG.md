@@ -1,5 +1,55 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-28 (run 55) · **main-commit basis:** `591bb031`
+> **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (1 HIGH DOEL-2 financiële/status-integriteit: TOCTOU op
+> `openDispute`; 1 LOW-MED DOEL-1b cross-surface badge-divergentie: FREELANCER cascade-badge zonder `orderBy`).
+> Verse prod-build (exit 0) + idempotente demo-seed (`SEED_DEMO=true`, ephemere SQLite `qa.db`, `next start` op 3100)
+>
+> - live Playwright/Chromium-smoke over alle vier rollen (**30/30 PASS**: login → /dashboard voor admin/zzp/client/
+>   franchise; /acties + /dashboard laden zonder crash; nul pageerror; DOEL 1 echte actie ADMIN "Goedkeuren" op
+>   /admin/verificaties → Goedkeuren-knoppen 6→5; DOEL 2 privilege-escalatie ZZP/CLIENT/FRANCHISER → /admin/\*+/franchise
+>   → redirect /dashboard; IDOR ZZP → vreemde factuur-PDF (Iris/Emma) → 404, eigen factuur-PDF → 200,
+>   junk/traversal-id → 404 nooit 500; robuustheid onzin-id op detailroutes → geen 500) + drie parallelle Opus-audits
+>   (authz/IDOR/cross-tenant/document-privacy — **schoon**, geen novel defect; malicieuze invoer/verboden
+>   statusovergangen/financiële integriteit — 1 HIGH, nu gefixt; next-action-correctheid — 1 LOW-MED, nu gefixt).
+>
+> **GEVONDEN + GEFIXT — HIGH (DOEL 2, TOCTOU op `openDispute`):** `openDispute`
+> (`src/lib/cascade/dispute-commands.ts`) borgde de "dispuut alleen op een ACTIVE samenwerking"-regel alleen tegen een
+> **stale in-memory snapshot** (`col.status`, gelezen vóór een awaited admin-`findMany`), en deed de write via de
+> array-vorm `prisma.$transaction([...])` met `collaboration.update({ where: { id } })` — **enkel op id, geen
+> compound-guard**. Elke zuster-command die collaboration-state raakt (`confirmPayment`/`cancel` via
+> `persistEventAndEffects`, `applyCollaborationStatusChange`) her-verifieert de status BINNEN de write via een
+> compound-guarded `updateMany({ where: { id, status } })`; dit ene pad niet. **Repro:** FREELANCER/CLIENT roept
+> `openDisputeAction(colId, reden)` aan op een ACTIVE samenwerking; server leest `status: "ACTIVE"`, passeert de rem,
+> en awaitет de admin-lookup. In dat venster commit een concurrente `confirmPaymentAction` (compound-guarded,
+> ACTIVE→COMPLETED) éérst; `openDispute`'s transactie schrijft daarna blind `disputedAt` op de nu-COMPLETED rij. **Gevolg:**
+> `creditInvoice` checkt `assertNotDisputed` (met `allowCompleted:true` juist zodat een betaalde klus nog gecorrigeerd
+> kan worden) → met `disputedAt` gezet is de correctie-/creditfactuur-route permanent geblokkeerd (griefing, bereikbaar
+> door twee partijen of één partij met twee tabs rond het moment van eindbetaling/annulering). Distinct van run 53 (fixte
+> alleen de sequentiële/naïeve bypass) en run 54 (zelfde TOCTOU-klasse, ander pad: `applyExternalVerification`).
+> **Geschonden regel:** CLAUDE.md regel 3 (statusovergangen via een atomair-afgedwongen rem, niet tegen een stale
+> snapshot) + regel 1 (server-side waarheid, symmetrisch over álle paden incl. het concurrente). **Fix:**
+> interactieve `$transaction(async (tx) => …)` met compound-guarded `tx.collaboration.updateMany({ where: { id,
+status: "ACTIVE", disputedAt: null }, data: { disputedAt, disputeReason } })`; `count===0` → her-lees in-tx om de juiste
+> melding te kiezen ("al een open dispuut" vs "alleen op een actieve samenwerking") → hele transactie rolt terug, géén
+> event/notificaties/audit. Een gelijktijdige eindbetaling/annulering wint nu. Rood→groen: `open-dispute-toctou.test.ts`
+> (+3: verloren race COMPLETED → geen write + guard-where = id+ACTIVE+disputedAt:null; verloren race door concurrent
+> dispuut → "al een open dispuut"; gewonnen race count:1 → event + tegenpartij- + admin-notificatie + audit). _(MENSENWERK:
+> vóór livegang — mens kan checken of een productie-record ooit door deze race is geraakt: een `Collaboration` met
+> `disputedAt != null` én `status` COMPLETED/CANCELLED.)_
+>
+> **GEVONDEN + GEFIXT — LOW-MED (DOEL 1b, cross-surface badge-divergentie boven 50):** de FREELANCER
+> `/samenwerkingen`-nav-badge (`cascadeWork`, `navBadges` in `src/lib/signals.ts`) telde lopende/voorgestelde
+> samenwerkingen via een `collaboration.findMany` **zonder `orderBy`**, terwijl de autoritaire /acties-bron voor exact
+> ditzelfde signaal (`freelancerTasks`, `pending-tasks.ts`) dezelfde scope met `orderBy: { updatedAt: "desc" }` + `take:
+MAX` (=50) leest. Beide cappen op 50 (`CASCADE_SCAN_LIMIT === MAX`); bij >50 lopende/voorgestelde samenwerkingen pakten
+> de twee (structureel verschillende) queries een andere 50-rij-subset → een ander cascade-taakaantal → de badge
+> divergeerde van /acties + de dashboard-rail. Exact de klasse die run 54 al voor de FRANCHISER credential-expiry-badge
+> dichtte, niet toegepast op deze sibling. **Geschonden regel:** DOEL 1b (één bron van waarheid; badge/acties/detail
+> gelijk). **Fix:** `orderBy: { updatedAt: "desc" }` op de badge-query → beide truncaten identiek, matcht
+> `pending-tasks.ts`. Rood→groen: `signals.freelancer-cascade-order.test.ts` (+1: cascade-collab-query heeft orderBy
+> updatedAt desc + take 50). Full gate: typecheck, lint, test, build, prettier groen.
+
 > **Datum:** 2026-07-27 (run 54) · **main-commit basis:** `d85fd436`
 > **Uitkomst:** **4 bevindingen GEVONDEN + GEFIXT** (1 HOOG financiële/verificatie-integriteit: TOCTOU op
 > credential-zelfverificatie; 2 MED/LOW security existence-oracle; 1 LOW-MED DOEL-1b cross-surface
