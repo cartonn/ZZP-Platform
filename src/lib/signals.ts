@@ -414,6 +414,13 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
             take: 5,
           },
         },
+        // Deterministische orde (run 55): de autoritaire /acties-bron voor ditzelfde signaal
+        // (`freelancerTasks` in pending-tasks.ts) cap't óók op 50 (`MAX === CASCADE_SCAN_LIMIT`) maar met
+        // `orderBy: { updatedAt: "desc" }`. Zonder een gelijke orde hier pakken de twee (structureel
+        // verschillende) queries bij >50 lopende/voorgestelde samenwerkingen een andere 50-rij-subset →
+        // de nav-badge divergeert van /acties + de dashboard-rail. Zelfde klasse als de run-54-fix voor
+        // de franchiser-badge (credential-expiry). Matcht pending-tasks.ts → kan niet driften.
+        orderBy: { updatedAt: "desc" },
         take: CASCADE_SCAN_LIMIT,
       }),
       // bewaarde opdrachten die nog open staan (PUBLISHED) — gelijk aan de "open"-partitie op /opgeslagen

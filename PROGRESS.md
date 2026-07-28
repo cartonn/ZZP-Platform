@@ -3,6 +3,49 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-28 — persona-sweep run 55: TOCTOU op openDispute (HIGH) + FREELANCER cascade-badge orderBy (DOEL 1b)
+
+**Wat:** Kritische-gebruiker-sweep over alle vier rollen (ZZP'er/CLIENT/FRANCHISER/ADMIN) op de verse prod-build
+(exit 0) + idempotente demo-seed (`SEED_DEMO=true`, ephemere SQLite `qa.db`, `next start` op 3100) + live
+Playwright/Chromium-smoke (**30/30 PASS**: login → /dashboard voor alle 4 rollen; /acties + /dashboard laden zonder
+crash; nul pageerror; DOEL 1 echte actie ADMIN "Goedkeuren" op /admin/verificaties → knoppen 6→5; DOEL 2
+privilege-escalatie ZZP/CLIENT/FRANCHISER → /admin/\*+/franchise → redirect /dashboard; IDOR vreemde factuur-PDF →
+404, eigen 200, junk/traversal-id → 404 nooit 500) + drie parallelle Opus-audits (authz/IDOR/cross-tenant — **schoon**;
+malicieuze invoer/verboden statusovergangen/financiële integriteit — **1 HIGH**; next-action-correctheid — **1 LOW-MED**).
+**2 bevindingen GEVONDEN + GEFIXT.**
+
+**GEVONDEN + GEFIXT — HIGH (DOEL 2, TOCTOU op `openDispute`):** `openDispute`
+(`src/lib/cascade/dispute-commands.ts`) borgde de "alleen op ACTIVE"-regel alleen tegen een **stale in-memory
+snapshot** (`col.status`, gelezen vóór een awaited admin-`findMany`), en schreef daarna via de array-vorm
+`prisma.$transaction([...])` met een `collaboration.update({ where: { id } })` — **enkel op id, geen compound-guard**.
+Elke zuster-command (`confirmPayment`/`cancel` via `persistEventAndEffects`, `applyCollaborationStatusChange`) gebruikt
+juist een compound-guarded `updateMany({ where: { id, status } })` tegen deze race; dit pad niet. **Repro:** partij roept
+`openDisputeAction` aan op een ACTIVE samenwerking; terwijl de admin-lookup loopt commit een concurrente
+`confirmPayment` ACTIVE→COMPLETED; de blinde update zet daarna alsnog `disputedAt` op de COMPLETED-rij → blokkeert de
+correctie-/creditfactuur-route (`creditInvoice` → `assertNotDisputed`) permanent (griefing-vector). Distinct van de
+run-53-fix (dekte alleen de sequentiële bypass) en de run-54 TOCTOU-fix (zelfde klasse, ander pad:
+`applyExternalVerification`). **Geschonden regel:** CLAUDE.md regel 3 (statusovergangen atomair afgedwongen, niet tegen
+een stale snapshot). **Fix:** interactieve `$transaction(async (tx) => …)` met compound-guarded
+`tx.collaboration.updateMany({ where: { id, status: "ACTIVE", disputedAt: null } })`; `count===0` → her-lees in-tx voor de
+juiste melding → hele transactie rolt terug (geen event/notificaties/audit). Rood→groen:
+`open-dispute-toctou.test.ts` (+3: verloren race COMPLETED → geen write + guard-where correct; verloren race door
+concurrent dispuut → "al een open dispuut"; gewonnen race count:1 → event + 2 notificaties + audit).
+
+**GEVONDEN + GEFIXT — LOW-MED (DOEL 1b, cross-surface badge-divergentie boven 50):** de FREELANCER
+`/samenwerkingen`-nav-badge (`cascadeWork`, `navBadges` in `src/lib/signals.ts`) telde lopende/voorgestelde
+samenwerkingen via een `collaboration.findMany` **zonder `orderBy`**, terwijl de autoritaire /acties-bron
+(`freelancerTasks`, `pending-tasks.ts`) dezelfde scope met `orderBy: { updatedAt: "desc" }` + `take: MAX` (=50) leest.
+Beide cappen op 50; bij >50 samenwerkingen pakten de twee queries een andere 50-rij-subset → de badge divergeerde van
+/acties + de dashboard-rail. Exact de klasse die run 54 al voor de FRANCHISER-badge dichtte. **Fix:**
+`orderBy: { updatedAt: "desc" }` op de badge-query → beide truncaten identiek. Rood→groen:
+`signals.freelancer-cascade-order.test.ts` (+1: badge-query heeft orderBy updatedAt desc + take 50).
+
+**Bestanden:** `src/lib/cascade/dispute-commands.ts`, `src/lib/cascade/open-dispute-toctou.test.ts` (nieuw),
+`src/lib/signals.ts`, `src/lib/signals.freelancer-cascade-order.test.ts` (nieuw), `docs/PERSONA-SWEEP-BACKLOG.md`,
+`PROGRESS.md`.
+
+**Checks:** typecheck ✅, lint ✅ (0 warnings), test ✅, build ✅ (exit 0), prettier ✅. CI-poort volgt.
+
 ## 2026-07-28 — ZZP'er: leverbetrouwbaarheid op het publieke ZZP-profiel (/zzp/[id])
 
 **Wat:** Het leverbetrouwbaarheid-signaal (`getDeliveryQuality` → `DeliveryQualityBlock`: first-time-right %,

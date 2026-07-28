@@ -58,24 +58,46 @@ export async function openDispute(
     where: { role: "ADMIN", status: "ACTIVE" },
     select: { id: true },
   });
+  const trimmedReason = reason.trim();
 
-  await prisma.$transaction([
-    prisma.collaboration.update({
-      where: { id: collaborationId },
-      data: { disputedAt: new Date(), disputeReason: reason.trim() },
-    }),
-    prisma.domainEvent.create({
+  // TOCTOU-grendel (run 55): de statusrem hierboven leest een STALE snapshot (`col.status`), en tussen
+  // die lees en de write hieronder ligt nog een netwerk-round-trip (de admin-`findMany`). In dat venster
+  // kan een concurrente, compound-guarded mutatie de samenwerking wegzetten: `confirmPayment`
+  // (ACTIVE→COMPLETED) of `cancelCollaboration` (ACTIVE→CANCELLED) committen dan éérst, waarna een blinde
+  // `collaboration.update({ where: { id } })` `disputedAt` alsnog op een niet-ACTIVE rij zou zetten. Op een
+  // COMPLETED rij blokkeert dat de correctie-/creditfactuur-route (`creditInvoice` → `assertNotDisputed`)
+  // permanent — exact de griefing-vector die de statusrem wilde dichten, maar dan via een race. Elke zuster
+  // (confirmPayment/cancel/signContract via `persistEventAndEffects`, en `applyCollaborationStatusChange`)
+  // gebruikt hiervoor een compound-guarded `updateMany({ where: { id, status } })`; dit pad deed dat niet.
+  // Fix: interactieve transactie met compound-guarded `updateMany` (id + status ACTIVE + disputedAt null).
+  // Matcht 0 → een concurrente overgang won → hele transactie rolt terug (geen event/notificaties/audit).
+  await prisma.$transaction(async (tx) => {
+    const claimed = await tx.collaboration.updateMany({
+      where: { id: collaborationId, status: "ACTIVE", disputedAt: null },
+      data: { disputedAt: new Date(), disputeReason: trimmedReason },
+    });
+    if (claimed.count === 0) {
+      // Her-lees binnen de transactie om de juiste melding te kiezen (al-lopend dispuut vs. niet meer
+      // actief). De partij is al vastgesteld, dus geen van beide meldingen lekt bestaan (geen oracle).
+      const fresh = await tx.collaboration.findUnique({
+        where: { id: collaborationId },
+        select: { status: true, disputedAt: true },
+      });
+      if (fresh?.disputedAt) throw new CascadeError("Er is al een open dispuut.");
+      throw new CascadeError("Een dispuut kan alleen op een actieve samenwerking worden geopend.");
+    }
+    await tx.domainEvent.create({
       data: {
         type: "DISPUTE_OPENED",
         actorRole: actor.role,
         actorId: actor.id,
         subjectType: "Collaboration",
         subjectId: collaborationId,
-        payload: JSON.stringify({ reason: reason.trim() }),
+        payload: JSON.stringify({ reason: trimmedReason }),
         correlationId: collaborationId,
       },
-    }),
-    prisma.notification.create({
+    });
+    await tx.notification.create({
       data: {
         userId: otherUserId,
         type: "DISPUTE_OPENED",
@@ -83,28 +105,28 @@ export async function openDispute(
         body: `Er is een dispuut geopend voor "${col.job.title}". De cascade is bevroren tot het is opgelost.`,
         link: `/samenwerkingen/${collaborationId}`,
       },
-    }),
-    ...admins.map((a) =>
-      prisma.notification.create({
+    });
+    for (const a of admins) {
+      await tx.notification.create({
         data: {
           userId: a.id,
           type: "DISPUTE_OPENED",
           title: DISPUTE_ADMIN_NOTIFICATION_TITLE,
-          body: `Dispuut bij "${col.job.title}": ${reason.trim()}`,
+          body: `Dispuut bij "${col.job.title}": ${trimmedReason}`,
           link: `/samenwerkingen/${collaborationId}`,
         },
-      }),
-    ),
-    prisma.auditLog.create({
+      });
+    }
+    await tx.auditLog.create({
       data: auditData({
         actorId: actor.id,
         action: "DISPUTE_OPENED",
         entityType: "Collaboration",
         entityId: collaborationId,
-        metadata: { reason: reason.trim() },
+        metadata: { reason: trimmedReason },
       }),
-    }),
-  ]);
+    });
+  });
 }
 
 /** Alleen het platform (admin) heft een dispuut op — daarna loopt de cascade weer. */
