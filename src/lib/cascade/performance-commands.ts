@@ -71,6 +71,7 @@ export function assertPerformanceWithinLimits(input: {
   hours?: number | null;
   amountCents?: number | null;
   rateCents?: number | null;
+  ortSegments?: OrtSegment[] | null;
 }): void {
   if (input.type === "HOURS") {
     // Defense-in-depth (dekt élk pad: formulier, CSV-import, admin): een niet-eindig getal (NaN uit
@@ -97,6 +98,34 @@ export function assertPerformanceWithinLimits(input: {
       throw new CascadeError(
         `Het aantal uren is onrealistisch hoog (maximaal ${MAX_PERFORMANCE_HOURS} uur per urenstaat).`,
       );
+    }
+    // ORT-dimensie (zorg): zodra segmenten het factuursubtotaal bepalen loopt de bovengrens NIET via
+    // `hours` maar via de som van de segment-uren (performanceSubtotalCents → ortSubtotalCents → uren ×
+    // basistarief + toeslag). De grens hierboven op `hours` is dan blind voor de werkelijke factuurbasis:
+    // een toekomstige caller die `ortSegments` levert zonder `hours` in lockstep te herberekenen zou een
+    // absurd/NaN subtotaal (int4-overflow op de Int-kolom `totalCents` → 500 i.p.v. weigering) kunnen
+    // introduceren. Valideer daarom de segment-som zelf — onafhankelijk van het formulier, symmetrisch met
+    // de `hours`-grens en met dezelfde `MAX_PERFORMANCE_HOURS`-cap. (`computeOrt` weigert `< 0` al, maar met
+    // een rauwe Error en NaN glipt door de `< 0`-check; hier weigeren we netjes vóór de write.)
+    if (input.ortSegments && input.ortSegments.length > 0) {
+      let segmentHoursSum = 0;
+      for (const seg of input.ortSegments) {
+        if (!Number.isFinite(seg.hours)) {
+          throw new CascadeError("Het aantal uren is ongeldig.");
+        }
+        if (seg.hours < 0) {
+          throw new CascadeError("Het aantal uren moet groter dan 0 zijn.");
+        }
+        segmentHoursSum += seg.hours;
+      }
+      if (segmentHoursSum <= 0) {
+        throw new CascadeError("Het aantal uren moet groter dan 0 zijn.");
+      }
+      if (segmentHoursSum > MAX_PERFORMANCE_HOURS) {
+        throw new CascadeError(
+          `Het aantal uren is onrealistisch hoog (maximaal ${MAX_PERFORMANCE_HOURS} uur per urenstaat).`,
+        );
+      }
     }
   } else {
     if (input.amountCents != null && !Number.isFinite(input.amountCents)) {
