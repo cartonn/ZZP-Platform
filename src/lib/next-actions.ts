@@ -54,6 +54,7 @@ export const P = {
   disputeOpen: 76, // open dispuut — werkproces bevroren (admin)
   contractSign: 72, // contract ter ondertekening — deblokkeert de samenwerking
   proposeCollaboration: 68, // geaccepteerde kandidaat wacht nog op een samenwerkingsvoorstel — rond de hire af
+  credentialExpiredForCollab: 82, // vereist certificaat van een lopende samenwerking is REEDS verlopen — blokkeert de inzet nu (freelancer-spiegel van complianceRipple); urgenter dan afgewezen of binnenkort-verlopend
   credentialExpiringForCollab: 75, // vereist certificaat van een lopende samenwerking verloopt binnenkort — urgenter dan een los verlopend certificaat
   credentialExpiring: 70, // certificaat verloopt binnenkort
   verificationQueue: 70, // wacht op verificatie (admin)

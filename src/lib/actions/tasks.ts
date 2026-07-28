@@ -70,6 +70,7 @@ export type PendingTask =
   | (TaskBase & { kind: "company-complete"; missing?: string[] })
   | (TaskBase & { kind: "credential-fix"; credId: string; cause: "rejected" | "expiring" })
   | (TaskBase & { kind: "credential-collab-expiry"; credId: string; collabId: string })
+  | (TaskBase & { kind: "credential-collab-expired"; credId: string; collabId: string })
   | (TaskBase & { kind: "mandatory-document"; docType: string; cause: "missing" | "expired" })
   | (TaskBase & { kind: "admin-verify-credential"; credId: string })
   | (TaskBase & { kind: "admin-activate-user"; userId: string })
@@ -411,6 +412,37 @@ export function credentialCollabExpiryTask(input: {
     subtitle: `${when} · vernieuw het voor je opdracht bij ${companyName} (${jobTitle})${extra}`,
     tone: "attention",
     priority: P.credentialExpiringForCollab,
+    resolver: "link",
+    href: `/certificaten/${input.credId}/bewerken`,
+    credId: input.credId,
+    collabId: input.collabId,
+  };
+}
+
+/**
+ * Acuut: een door een lopende/voorgestelde samenwerking VEREIST (niet-verplicht) certificaat is REEDS
+ * verlopen, zonder geldige vervanger. Freelancer-spiegel van de opdrachtgever-alert (compliance-ripple):
+ * de ZZP'er is de enige die het kan vernieuwen. Urgenter dan de vooruitkijkende "verloopt tijdens je
+ * opdracht"-taak (die is nog niet verlopen) — dus hoger geprioriteerd. Deep-link naar het vernieuw-
+ * formulier van het certificaat (dezelfde actie als credentialFixTask / credentialCollabExpiryTask).
+ */
+export function credentialCollabExpiredTask(input: {
+  credId: string;
+  credentialTitle: string;
+  collabId: string;
+  companyName: string;
+  jobTitle: string;
+  extraCollabCount: number;
+}): PendingTask {
+  const { companyName, jobTitle, extraCollabCount } = input;
+  const extra = extraCollabCount > 0 ? ` (+${extraCollabCount} andere)` : "";
+  return {
+    kind: "credential-collab-expired",
+    id: `credential-collab-expired:${input.credId}`,
+    title: `${input.credentialTitle} is verlopen tijdens je opdracht`,
+    subtitle: `Vernieuw het direct — je opdracht bij ${companyName} (${jobTitle})${extra} vereist dit certificaat`,
+    tone: "attention",
+    priority: P.credentialExpiredForCollab,
     resolver: "link",
     href: `/certificaten/${input.credId}/bewerken`,
     credId: input.credId,

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   collaborationCredentialExpiryConcerns,
+  collaborationExpiredRequiredCredentials,
   COLLAB_CREDENTIAL_EXPIRY_WINDOW_DAYS,
   type CollabCredentialInput,
   type CollabRequirementInput,
@@ -144,5 +145,121 @@ describe("collaborationCredentialExpiryConcerns", () => {
       now: NOW,
     });
     expect(result[0]!.daysUntilExpiry).toBe(0);
+  });
+});
+
+describe("collaborationExpiredRequiredCredentials", () => {
+  it("markeert een REEDS verlopen vereist certificaat zonder geldige vervanger", () => {
+    const result = collaborationExpiredRequiredCredentials({
+      collaborations: [collab({ requiredTypes: ["CERTIFICATE"] })],
+      credentials: [
+        cred({
+          id: "cred-cert",
+          title: "BHV",
+          type: "CERTIFICATE",
+          status: "EXPIRED",
+          expiresAt: inDays(-3),
+        }),
+      ],
+      now: NOW,
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.credentialId).toBe("cred-cert");
+    expect(result[0]!.type).toBe("CERTIFICATE");
+    expect(result[0]!.collaborations).toEqual([
+      {
+        collaborationId: "collab-1",
+        companyName: "Zorggroep Noord",
+        jobTitle: "Wijkverpleegkundige",
+      },
+    ]);
+  });
+
+  it("markeert ook een VERIFIED certificaat dat de vervaldatum voorbij is (nog niet door de cron omgezet)", () => {
+    const result = collaborationExpiredRequiredCredentials({
+      collaborations: [collab({ requiredTypes: ["CERTIFICATE"] })],
+      credentials: [
+        cred({
+          id: "cred-cert",
+          title: "BHV",
+          type: "CERTIFICATE",
+          status: "VERIFIED",
+          expiresAt: inDays(-1),
+        }),
+      ],
+      now: NOW,
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.credentialId).toBe("cred-cert");
+  });
+
+  it("géén zorg wanneer er nog een geldig geverifieerd certificaat van het type is", () => {
+    const result = collaborationExpiredRequiredCredentials({
+      collaborations: [collab({ requiredTypes: ["CERTIFICATE"] })],
+      credentials: [
+        cred({
+          id: "cred-old",
+          title: "BHV",
+          type: "CERTIFICATE",
+          status: "EXPIRED",
+          expiresAt: inDays(-30),
+        }),
+        cred({
+          id: "cred-new",
+          title: "BHV",
+          type: "CERTIFICATE",
+          status: "VERIFIED",
+          expiresAt: inDays(200),
+        }),
+      ],
+      now: NOW,
+    });
+    expect(result).toHaveLength(0);
+  });
+
+  it("negeert een verlopen certificaat dat door geen enkele samenwerking wordt vereist", () => {
+    const result = collaborationExpiredRequiredCredentials({
+      collaborations: [collab({ requiredTypes: ["DIPLOMA"] })],
+      credentials: [
+        cred({
+          id: "cred-cert",
+          title: "BHV",
+          type: "CERTIFICATE",
+          status: "EXPIRED",
+          expiresAt: inDays(-3),
+        }),
+      ],
+      now: NOW,
+    });
+    expect(result).toHaveLength(0);
+  });
+
+  it("kiest het meest recent verlopen exemplaar als vernieuw-kandidaat en dedupt samenwerkingen", () => {
+    const result = collaborationExpiredRequiredCredentials({
+      collaborations: [
+        collab({ collaborationId: "c1", requiredTypes: ["CERTIFICATE"] }),
+        collab({ collaborationId: "c2", companyName: "Andere BV", requiredTypes: ["CERTIFICATE"] }),
+      ],
+      credentials: [
+        cred({
+          id: "cred-old",
+          title: "BHV",
+          type: "CERTIFICATE",
+          status: "EXPIRED",
+          expiresAt: inDays(-30),
+        }),
+        cred({
+          id: "cred-recent",
+          title: "BHV",
+          type: "CERTIFICATE",
+          status: "EXPIRED",
+          expiresAt: inDays(-2),
+        }),
+      ],
+      now: NOW,
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.credentialId).toBe("cred-recent");
+    expect(result[0]!.collaborations.map((c) => c.collaborationId)).toEqual(["c1", "c2"]);
   });
 });

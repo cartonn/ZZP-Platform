@@ -140,12 +140,26 @@ export async function resolveDispute(actor: Actor, collaborationId: string): Pro
   if (!col) throw new CascadeError("Samenwerking niet gevonden.");
   if (!col.disputedAt) throw new CascadeError("Er is geen open dispuut.");
 
-  await prisma.$transaction([
-    prisma.collaboration.update({
-      where: { id: collaborationId },
+  // TOCTOU-grendel (run 56): de `!col.disputedAt`-rem hierboven leest een STALE snapshot; tussen die lees
+  // en de write hieronder ligt geen atomaire grendel. Twee admins (of één admin die het formulier dubbel
+  // verstuurt) die gelijktijdig `resolveDispute` aanroepen, passeren beiden de pre-check en deden vervolgens
+  // beiden een blinde `collaboration.update({ where: { id } })` — idempotent op het veld zelf, maar elk pad
+  // schreef zijn EIGEN `DISPUTE_RESOLVED` domein-event, audit-rij én twee "Dispuut opgelost"-notificaties.
+  // Gevolg: dubbele audit-/event-rijen voor één reëel dispuut (audit-integriteit, CLAUDE.md regel 5) en
+  // dubbele notificaties aan beide partijen. Elke zuster in de cascade (incl. `openDispute` hieronder)
+  // her-verifieert de status BINNEN de write via een compound-guarded `updateMany`; dit pad deed dat niet.
+  // Fix: interactieve transactie met compound-guarded `updateMany({ where: { id, disputedAt: { not: null } } })`.
+  // Matcht 0 → een concurrente resolve won → hele transactie rolt terug (geen tweede event/notificatie/audit).
+  await prisma.$transaction(async (tx) => {
+    const cleared = await tx.collaboration.updateMany({
+      where: { id: collaborationId, disputedAt: { not: null } },
       data: { disputedAt: null, disputeReason: null },
-    }),
-    prisma.domainEvent.create({
+    });
+    if (cleared.count === 0) {
+      // Een concurrente resolve heeft het dispuut al opgeheven; niets meer te doen (geen dubbele fanout).
+      throw new CascadeError("Er is geen open dispuut.");
+    }
+    await tx.domainEvent.create({
       data: {
         type: "DISPUTE_RESOLVED",
         actorRole: actor.role,
@@ -155,8 +169,8 @@ export async function resolveDispute(actor: Actor, collaborationId: string): Pro
         payload: "{}",
         correlationId: collaborationId,
       },
-    }),
-    prisma.notification.create({
+    });
+    await tx.notification.create({
       data: {
         userId: col.freelancer.userId,
         type: "DISPUTE_RESOLVED",
@@ -164,8 +178,8 @@ export async function resolveDispute(actor: Actor, collaborationId: string): Pro
         body: "Het dispuut is opgelost; je kunt de samenwerking hervatten.",
         link: `/samenwerkingen/${collaborationId}`,
       },
-    }),
-    prisma.notification.create({
+    });
+    await tx.notification.create({
       data: {
         userId: col.company.userId,
         type: "DISPUTE_RESOLVED",
@@ -173,14 +187,14 @@ export async function resolveDispute(actor: Actor, collaborationId: string): Pro
         body: "Het dispuut is opgelost; je kunt de samenwerking hervatten.",
         link: `/samenwerkingen/${collaborationId}`,
       },
-    }),
-    prisma.auditLog.create({
+    });
+    await tx.auditLog.create({
       data: auditData({
         actorId: actor.id,
         action: "DISPUTE_RESOLVED",
         entityType: "Collaboration",
         entityId: collaborationId,
       }),
-    }),
-  ]);
+    });
+  });
 }

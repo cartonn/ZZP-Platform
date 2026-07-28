@@ -1,5 +1,70 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-28 (run 56) · **main-commit basis:** `9fa656bb`
+> **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (1 HIGH DOEL-1b next-action-asymmetrie: verlopen vereist
+> niet-verplicht certificaat gaf de ZZP'er géén actie terwijl de opdrachtgever wél een "certificaat verlopen"-
+> alert kreeg; 1 MED DOEL-2 audit-integriteit: TOCTOU op `resolveDispute`). Verse prod-build (exit 0) + idempotente
+> demo-seed (`SEED_DEMO=true`, ephemere SQLite `qa.db`, `next start` op 3100).
+>
+> - Live Playwright/Chromium over alle vier rollen: login → /dashboard voor admin/zzp/client/franchise (4/4),
+>   alle rol-schermen laden zonder 5XX/pageerror. **DOEL 1** echte actie: ADMIN "Goedkeuren" op /admin/verificaties →
+>   knoppen 6→4 (status veranderde). **DOEL 1b** /acties per rol logisch en rol-correct (admin: certificaat-beoordelingen;
+>   zzp: ontbrekend document + BTW-aangifte + reactie + uitnodiging; client: reacties beoordelen + profiel; franchise:
+>   ZZP'er niet-inzetbaar + onbezette dienst). **DOEL 2** adversarieel (allemaal geweigerd, nul 5XX): privilege-escalatie
+>   zzp/client/franchise → 7×/admin/_ + 4×/franchise/_ → 307 /dashboard; IDOR factuur-PDF/dossier/dba-dossier/modelovereenkomst
+>   → eigen 200, andermans 404; junk/traversal/SQLi-id (6 varianten × 4 routes) → 404 nooit 500; onauth → 307 /login.
+>   Drie parallelle Opus-audits (authz/IDOR/cross-tenant/document-privacy — **schoon**; malicieuze invoer/verboden
+>   statusovergangen/financiële integriteit — 1 MED gefixt + 1 latent geparkeerd; next-action-correctheid — 1 HIGH gefixt).
+>
+> **GEVONDEN + GEFIXT — HIGH (DOEL 1b, next-action-asymmetrie op verlopen vereist certificaat):** de freelancer-
+> tak van de next-action-engine (`freelancerTasks` in `src/lib/actions/pending-tasks.ts`) emitte per certificaat
+> alleen bij `REJECTED` (fix-taak) en `VERIFIED`-maar-binnenkort-verlopend (verval-taak). Een certificaat dat REEDS
+> `EXPIRED` is (door `runExpiryTask`, voor élk `CredentialType`) viel door álle drie de freelancer-emitters: geen
+> `credential-fix`, geen `mandatory-document` (die dekt alleen VOG/verzekering), en `collaborationCredentialExpiryConcerns`
+> slaat al-verlopen certificaten expliciet over ("al verlopen → elders afgehandeld" — maar "elders" bestond alleen voor
+> verplichte typen). **Repro:** FREELANCER met een ACTIVE samenwerking waarvan de opdracht een `JobCredentialRequirement`
+> van type `CERTIFICATE`/`DIPLOMA`/`LICENSE`/`OTHER` heeft; hun enige geverifieerde certificaat van dat type verloopt →
+> cron zet `EXPIRED`. `/acties` en de dashboard-"Volgende acties" tonen de ZZP'er **niets**, terwijl `clientComplianceTask`
+> (prio 85) de opdrachtgever wél "Certificaat van X is verlopen — vraag om vernieuwing" toont. De ZZP'er is de énige die
+> kan handelen (bewijsstuk vernieuwen) maar zag geen actie — en het certificaat verdween juist op het urgente moment
+> (vlak daarvoor toonde het nog "verloopt over N dagen"). **Geschonden regel:** CLAUDE.md — server-side waarheid + de
+> next-action-belofte ("vraagt het de juiste eerstvolgende stap voor de juiste partij aan zet?"): een ontbrekende, niet-
+> verdwijnende/niet-escalerende next-action is een DEFECT. **Fix:** nieuwe pure helper `collaborationExpiredRequiredCredentials`
+> (samenwerking-gebonden, per type, alleen als er géén geldige vervanger is; kiest het meest recent verlopen exemplaar als
+> vernieuw-kandidaat) + nieuwe taak `credential-collab-expired` (prio `credentialExpiredForCollab: 82`, deep-link naar het
+> vernieuw-formulier). Aanroeper sluit verplichte typen (eigen mandatory-taak) én reeds-afgewezen typen (eigen fix-taak) uit
+> → geen dubbele/tegenstrijdige rij. Rood→groen: +5 helper-tests (verlopen zonder vervanger; VERIFIED-voorbij-vervaldatum;
+> géén zorg met geldige vervanger; niet-vereist type genegeerd; meest-recent-verlopen + dedup over samenwerkingen).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 2, TOCTOU op `resolveDispute`):** `resolveDispute` (`src/lib/cascade/dispute-commands.ts`)
+> las `col.disputedAt` één keer (stale snapshot) en deed daarna in een APARTE array-`$transaction` een onvoorwaardelijke
+> `collaboration.update({ where: { id } })` — géén compound-guard, ander dan zijn zuster `openDispute` (die run 55 juist
+> atomair maakte) en alle andere cascade-commando's. **Repro:** twee admins (of één admin die het formulier dubbel verstuurt)
+> roepen gelijktijdig `resolveDisputeAction(colId)` aan op een disputed samenwerking; beide passeren de pre-check en schrijven
+> beide hun EIGEN `DISPUTE_RESOLVED` domein-event, audit-rij én twee "Dispuut opgelost"-notificaties → dubbele audit-/event-
+> rijen voor één reëel dispuut + dubbele meldingen aan beide partijen. **Geschonden regel:** CLAUDE.md regel 5 (audit exact
+> één keer per reëel event) + regel 1 (server-side waarheid, symmetrisch over concurrente paden). **Fix:** interactieve
+> `$transaction(async (tx) => …)` met compound-guarded `updateMany({ where: { id, disputedAt: { not: null } }, data: {…} })`;
+> `count === 0` → concurrente resolve won → hele transactie rolt terug (geen tweede event/notificatie/audit). Rood→groen:
+> `resolve-dispute-toctou.test.ts` (+3: rolrem vóór alles; verloren race → geen tweede fanout + guard-where = id+disputedAt-not-null;
+> gewonnen race count:1 → één event + twee notificaties + één audit).
+>
+> **GEPARKEERD (geen fix deze run) — LOW/latent, defense-in-depth:**
+>
+> - **`assertPerformanceWithinLimits` begrenst `hours`, niet de `ortSegments`** (`src/lib/cascade/performance-commands.ts`).
+>   De doc-comment claimt "dekt élk pad, onafhankelijk van het formulier", maar de subtotaal-som loopt via `ortSegments`
+>   (`handlers.ts performanceSubtotalCents`), niet `hours`. Vandaag NIET bereikbaar (beide call-sites leiden `hours` af als
+>   som van de segmenten, en `validatePerformanceForm` begrenst die som), dus geen live exploit — maar de "onafhankelijk van
+>   het formulier"-garantie is voor de ORT-dimensie vals: een toekomstige caller die `ortSegments` levert zonder `hours` in
+>   lockstep te herberekenen herintroduceert de int4-overflow/absurd-factuur-klasse. Prio LOW. Fix-richting: in
+>   `assertPerformanceWithinLimits` bij `ortSegments?.length` de segment-som direct valideren (niet-eindig/≤0/> MAX + individuele
+>   `seg.hours < 0` weigeren) i.p.v. te leunen op de caller-`hours`.
+> - **Cosmetisch: `AVAILABILITY_UPDATED` mist een label in `src/lib/audit-labels.ts`** (alleen `AVAILABILITY_ADDED`/
+>   `_REMOVED` staan er). De admin-audit-log toont dan de rauwe enum i.p.v. een Nederlands label. Geen authz-/audit-gat
+>   (de write gebeurt wél). Prio LOW.
+
+---
+
 > **Datum:** 2026-07-28 (run 55) · **main-commit basis:** `591bb031`
 > **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (1 HIGH DOEL-2 financiële/status-integriteit: TOCTOU op
 > `openDispute`; 1 LOW-MED DOEL-1b cross-surface badge-divergentie: FREELANCER cascade-badge zonder `orderBy`).
