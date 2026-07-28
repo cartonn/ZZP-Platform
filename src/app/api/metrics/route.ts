@@ -9,8 +9,9 @@
 // lang wacht de oudste inzending al), zzp_maintenance_mode (onderhoudsmodus aan → 1) en
 // zzp_credentials_overdue_expiry (VERIFIED-credentials wier vervaldatum voorbij is maar die de
 // expiry-cron nog niet omzette) en zzp_subscriptions_overdue_expiry (betaalde ACTIVE-abonnementen wier
-// periode voorbij is maar die de subscription-expiry-cron nog niet op CANCELLED zette) — twee
-// stille-faal-detectors die de heartbeat niet vangt.
+// periode voorbij is maar die de subscription-expiry-cron nog niet op CANCELLED zette) en
+// zzp_invoices_overdue_unflipped (cascade-facturen APPROVED met verstreken vervaldatum die de
+// payment-reminders-cron nog niet op OVERDUE zette) — stille-faal-detectors die de heartbeat niet vangt.
 //
 // Beveiliging: dezelfde Bearer CRON_SECRET als de taak-/heartbeat-routes, fail-closed — geen
 // CRON_SECRET → 503, verkeerd token → 401. De uitvoer bevat NOOIT persoonsgegevens of secrets, alleen
@@ -60,6 +61,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let verificationQueueOldestAgeSeconds: number | null = null;
   let overdueExpiryCredentials = 0;
   let overdueExpirySubscriptions = 0;
+  let overdueUnflippedInvoices = 0;
   if (dbReachable) {
     try {
       verificationQueue = await prisma.credential.count({ where: { status: "SUBMITTED" } });
@@ -108,6 +110,17 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
     }
+    try {
+      // Cascade-facturen die APPROVED zijn met een verstreken vervaldatum: werk dat de payment-reminders-
+      // cron had moeten doen (APPROVED → OVERDUE). Spiegelt exact de flip-predicaat van
+      // `planPaymentReminders.toMarkOverdue` (lifecycleStatus === "APPROVED" && dueAt < nu) zodat de gauge
+      // de echte cron-backlog telt en niet kan driften. Facturen zonder dueAt (concept) vallen buiten.
+      overdueUnflippedInvoices = await prisma.invoice.count({
+        where: { lifecycleStatus: "APPROVED", dueAt: { lt: now } },
+      });
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
@@ -129,6 +142,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),
     overdueExpiryCredentials,
     overdueExpirySubscriptions,
+    overdueUnflippedInvoices,
   };
 }
 

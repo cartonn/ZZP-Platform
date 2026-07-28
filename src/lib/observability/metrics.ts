@@ -74,6 +74,16 @@ export interface MetricsInput {
    * maar een oplopende DB-backlog betekent dat de verval-/renewal-cyclus (notificaties, ledger) stilligt.
    */
   overdueExpirySubscriptions: number;
+  /**
+   * Aantal cascade-facturen met `lifecycleStatus === "APPROVED"` wier `dueAt` in het verleden ligt maar
+   * die de payment-reminders-cron nog niet op `OVERDUE` zette — werk dat die cron had moeten doen
+   * (`planPaymentReminders.toMarkOverdue` → `APPROVED → OVERDUE`). Dezelfde stille-faal-detector-klasse
+   * als `overdueExpiryCredentials`/`overdueExpirySubscriptions`: de cron-heartbeat bewijst alleen dát de
+   * run afrondde, niet dát 'ie de betaal-verval-pijplijn verwerkte. Een oplopende backlog terwijl de
+   * heartbeat "vers" is betekent dat facturen niet meer op OVERDUE komen → geen aanmaningsladder, geen
+   * te-laat-signaal richting de opdrachtgever, en de ZZP'er wordt trager betaald.
+   */
+  overdueUnflippedInvoices: number;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -171,6 +181,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal betaalde ACTIVE-abonnementen met een verstreken periode-einde die de subscription-expiry-cron nog niet op CANCELLED (→ Gratis) zette (een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen verval-/renewal-pijplijn).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.overdueExpirySubscriptions)),
+    },
+    {
+      name: "zzp_invoices_overdue_unflipped",
+      help: "Aantal cascade-facturen met status APPROVED en een verstreken vervaldatum die de payment-reminders-cron nog niet op OVERDUE zette (een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen betaal-verval-pijplijn: geen aanmaningen, geen te-laat-signaal).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.overdueUnflippedInvoices)),
     },
   ];
 }

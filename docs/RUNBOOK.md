@@ -54,7 +54,7 @@ Naast de liveness-probe exposeert `GET /api/metrics` machine-leesbare gauges (Pr
 → 503, verkeerd token → 401), nooit gecachet, en de uitvoer bevat **geen** PII/secrets. Gauges o.a.:
 `zzp_db_reachable`, `zzp_cron_heartbeat_stale`/`_ok`, `zzp_backup_heartbeat_stale`/`_ok`,
 `zzp_verification_queue` + `_oldest_age_seconds`, `zzp_credentials_overdue_expiry`,
-`zzp_subscriptions_overdue_expiry`, `zzp_maintenance_mode`.
+`zzp_subscriptions_overdue_expiry`, `zzp_invoices_overdue_unflipped`, `zzp_maintenance_mode`.
 
 - **Kant-en-klare alerting-rules:** [`docs/observability/alerts.yml`](observability/alerts.yml) is een
   drop-in Prometheus-regelbestand dat die gauges vertaalt naar alerts met drempels + `for:`-duur
