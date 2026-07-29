@@ -54,6 +54,7 @@ import {
   type ClientComplianceSnapshot,
 } from "@/lib/collaboration-alerts";
 import { computeFreelancerCompleteness } from "@/lib/profile";
+import { amsterdamHour, dayPartGreeting, dashboardGreeting } from "@/lib/greeting";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { type NextActionTone } from "@/lib/next-actions";
 import {
@@ -759,6 +760,9 @@ export default async function DashboardPage() {
   // verandert — mag een nog-geldige oude sessie niet het platformbrede admin-dashboard (kruis-tenant
   // gebruikers-/opdracht-tellingen + namen van andere partijen) laten tonen. OWASP A01 / CWE-613.
   const role = actor.role;
+  // Dagstart-signatuur (UITROLPLAN §2): dagdeel-groet met voornaam in de naambalk.
+  const greetingTitle = (fallback: string) =>
+    dashboardGreeting(t(dayPartGreeting(amsterdamHour(new Date()))), user.name, fallback);
   const [
     {
       stats,
@@ -913,7 +917,7 @@ export default async function DashboardPage() {
     return (
       <WorkspaceDashboard
         header={{
-          title: user.name ?? t("Werkruimte"),
+          title: greetingTitle(t("Werkruimte")),
           subtitle: identity?.subtitle ?? undefined,
         }}
         kpis={fKpis}
@@ -1014,7 +1018,7 @@ export default async function DashboardPage() {
     return (
       <WorkspaceDashboard
         header={{
-          title: user.name ?? t("Werkruimte"),
+          title: greetingTitle(t("Werkruimte")),
           subtitle: identity?.subtitle ?? undefined,
         }}
         kpis={clientKpis}
@@ -1048,7 +1052,7 @@ export default async function DashboardPage() {
     const fActions = tasksToActions(tasks);
     return (
       <WorkspaceDashboard
-        header={{ title: user.name ?? "Werkruimte", subtitle: "Bemiddeling" }}
+        header={{ title: greetingTitle(t("Werkruimte")), subtitle: "Bemiddeling" }}
         kpis={fKpis}
         list={{
           title: "ZZP'ers in je bemiddeling",
@@ -1104,7 +1108,7 @@ export default async function DashboardPage() {
   };
   return (
     <WorkspaceDashboard
-      header={{ title: user.name ?? "Beheer", subtitle: "Platformbeheer" }}
+      header={{ title: greetingTitle(t("Beheer")), subtitle: "Platformbeheer" }}
       kpis={aKpis}
       list={{
         title: "Wat loopt er nu",

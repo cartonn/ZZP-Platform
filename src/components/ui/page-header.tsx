@@ -12,15 +12,24 @@ export async function PageHeader({
   title,
   description,
   action,
+  eyebrow,
 }: {
   title: ReactNode;
   description?: ReactNode;
   action?: ReactNode;
+  /** Signatuur-regel boven de titel: het motief van het paginacluster (UITROLPLAN §2),
+      bv. "De werklijst" op /acties of "Het zegel" op /certificaten. Mono, kapitaal, merk-groen. */
+  eyebrow?: ReactNode;
 }) {
   const { t } = await getTranslator();
   const tr = (v: ReactNode): ReactNode => (typeof v === "string" ? t(v) : v);
   const heading = (
     <>
+      {eyebrow ? (
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
+          {tr(eyebrow)}
+        </p>
+      ) : null}
       <h1 className="break-words font-display text-2xl font-semibold tracking-tight">
         {tr(title)}
       </h1>

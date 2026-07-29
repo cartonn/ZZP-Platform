@@ -110,7 +110,7 @@ export async function WorkspaceDashboard({
   const { t } = await getTranslator();
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
-      {/* Vol-brede oranje naam-balk boven beide kolommen. */}
+      {/* Vol-brede merk-groene naam-balk (--hero) boven beide kolommen. */}
       <header className="bg-hero px-5 py-4 text-white md:px-6">
         <h1 className="font-display text-lg font-semibold tracking-tight">{header.title}</h1>
         {header.subtitle && <p className="text-sm font-medium text-white">{header.subtitle}</p>}

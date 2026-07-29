@@ -23,8 +23,9 @@
   --ring: 161 70% 28%;
   --primary: 161 70% 28%;
   --primary-foreground: 45 60% 98%;
-  /* Naam-hero: dezelfde merk-hue, lichter dan --primary. */
-  --hero: 160 42% 42%;
+  /* Naam-hero: dezelfde merk-hue, lichter dan --primary maar donker genoeg voor
+     AA-contrast met witte tekst in de naambalk (≥ 4.5:1). */
+  --hero: 161 55% 33%;
   --accent: 150 30% 91%;
   --accent-foreground: 161 55% 20%;
   --success: 155 55% 30%;

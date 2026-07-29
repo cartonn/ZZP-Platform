@@ -26,10 +26,11 @@ export default async function ActiesPage() {
       {/* De paginakop noemt de eigen telling ("X acties open") zodat dit scherm zijn getal uitlegt —
           los van de meldingen-bel (die de gelezen/ongelezen historie telt, een ander soort teller). */}
       <PageHeader
+        eyebrow="De werklijst"
         title="Acties"
         description={
           tasks.length > 0
-            ? `${plural(tasks.length, "actie open", "acties open")} — handel hier alles af wat op je wacht; afgehandelde acties verdwijnen vanzelf.`
+            ? `${plural(tasks.length, "actie open", "acties open")} — op volgorde van belang; bovenaan beginnen is altijd goed.`
             : "Alles is afgehandeld."
         }
       />
@@ -38,8 +39,8 @@ export default async function ActiesPage() {
         <Card>
           <EmptyState
             icon={Inbox}
-            title="Niets te doen"
-            description="Je hebt geen openstaande acties. Zodra er iets op je wacht, verschijnt het hier."
+            title="Helemaal bij"
+            description="Geen openstaande acties — mooi werk. Zodra er iets op je wacht, verschijnt het hier."
           />
         </Card>
       ) : (
