@@ -57,7 +57,7 @@ semantische token via Tailwind (`bg-primary`, `text-muted-foreground`, …).
 | `--border` / `--input`               | `40 34% 87%` / `40 28% 79%`   | randen / invoerranden               |
 | `--ring`                             | `161 70% 28%`                 | focus-ring (merkkleur)              |
 | `--primary` / `--primary-foreground` | `161 70% 28%` / `45 60% 98%`  | zegelgroen CTA / tekst erop (510)   |
-| `--hero`                             | `160 42% 42%`                 | naam-hero, lichter zegelgroen       |
+| `--hero`                             | `161 55% 33%`                 | naam-hero (AA met witte tekst)      |
 | `--accent` / `--accent-foreground`   | `150 30% 91%` / `161 55% 20%` | merk-tint-vlak / tekst              |
 | `--success`                          | `155 55% 30%`                 | geverifieerd/actief (zegel-familie) |
 | `--warning`                          | `16 55% 40%`                  | terracotta — vraagt aandacht (412)  |

@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — Definitief ontwerp: dagstart- + werklijst-signatuur (uitrol stap 2 van 10)
+
+**Wat:** stap 2 van het uitrolplan (`docs/ontwerpen/UITROLPLAN.md` §2): de eerste twee
+pagina-signaturen — dashboard = _de dagstart_, acties = _de werklijst_ — binnen de kern-taal
+van stap 1 (#977).
+
+- **Dagdeel-groet (`src/lib/greeting.ts`, nieuw + 4 tests):** pure functies
+  `amsterdamHour` (expliciet Europe/Amsterdam — prod draait UTC), `dayPartGreeting`
+  (ochtend/middag/avond; kleine uurtjes = avond), `firstName`, `dashboardGreeting`. De
+  naambalk op het dashboard groet nu ("Goedemorgen, Sanne") in alle vier de rollen; vertaling
+  via de bestaande t()-dictionary (3 nieuwe EN-entries).
+- **PageHeader-`eyebrow` (`src/components/ui/page-header.tsx`):** optionele signatuur-regel
+  boven de titel (mono, kapitaal, merk-groen) — de drager van het cluster-motief voor alle
+  volgende uitrol-stappen. Eerste gebruik: `/acties` ("De werklijst") met warmere subtitel en
+  compliment-empty-state ("Helemaal bij — mooi werk.").
+- **AA-fix naambalk:** `--hero` van `160 42% 42%` (contrast met witte tekst ≈ 3,5:1) naar
+  `161 55% 33%` (≥ 4,5:1); DESIGN.md-tokentabel mee.
+- **Gate:** typecheck, lint, test, build, prettier groen.
+- **Volgende stap (uitrol 3/10):** verificatie-cluster — zegel-signatuur op
+  `/certificaten`, `/documenten` en `/admin/verificaties`.
+
 ## 2026-07-29 — Definitief ontwerp: fundament-tokens (uitrol stap 1 van 10)
 
 **Wat:** de eigenaar koos definitief voor de combinatie van labconcepten **510 Waarmerk +

@@ -384,6 +384,15 @@ const EN: Record<string, string> = {
   "Niets te doen": "Nothing to do",
   "Geen inzicht beschikbaar": "No insights available",
 
+  // --- Dagstart-signatuur (dashboard) + werklijst-signatuur (acties) ---
+  Goedemorgen: "Good morning",
+  Goedemiddag: "Good afternoon",
+  Goedenavond: "Good evening",
+  "De werklijst": "The worklist",
+  "Helemaal bij": "All caught up",
+  "Geen openstaande acties — mooi werk. Zodra er iets op je wacht, verschijnt het hier.":
+    "No open actions — nice work. As soon as something needs you, it shows up here.",
+
   // --- Administratie-hub (kop + tabs) ---
   Administratiesecties: "Administration sections",
   openstaand: "outstanding",
