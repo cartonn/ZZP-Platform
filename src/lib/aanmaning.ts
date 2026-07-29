@@ -1,6 +1,8 @@
 // Aanmaning-sjabloon generator (§4 zijpad "Betaling te laat").
 // Pure: geen DB-toegang, volledig testbaar.
 
+import { formatIban } from "@/lib/fiscal";
+
 export interface AanmaningInput {
   freelancerName: string;
   companyName: string;
@@ -9,6 +11,8 @@ export interface AanmaningInput {
   issuedAt: Date | null;
   dueAt: Date | null;
   totalCents: number;
+  /** Genormaliseerd IBAN van de crediteur; leeg/afwezig → placeholder in de brief. */
+  iban?: string | null;
   now?: Date;
 }
 
@@ -23,6 +27,7 @@ export interface AanmaningData {
   newDeadlineFormatted: string;
   daysPastDue: number;
   letterDateFormatted: string;
+  ibanFormatted: string;
 }
 
 function fmtDate(d: Date | null): string {
@@ -52,6 +57,7 @@ export function buildAanmaningData(input: AanmaningInput): AanmaningData {
     newDeadlineFormatted: fmtDate(newDeadline),
     daysPastDue,
     letterDateFormatted: fmtDate(now),
+    ibanFormatted: input.iban ? formatIban(input.iban) : "[uw IBAN]",
   };
 }
 
@@ -83,7 +89,7 @@ Tot op heden ontvingen wij geen betaling van het verschuldigde bedrag.
 Wij verzoeken u vriendelijk doch dringend het openstaande bedrag van ${d.totalFormatted} \
 uiterlijk ${d.newDeadlineFormatted} over te maken op het volgende rekeningnummer:
 
-IBAN: [uw IBAN]
+IBAN: ${d.ibanFormatted}
 T.n.v.: ${d.freelancerName}
 Onder vermelding van: Factuur ${d.invoiceNumber}
 

@@ -102,9 +102,22 @@ describe("buildAanmaningLetter", () => {
     expect(letter).not.toContain("1 dagen");
   });
 
-  it("contains IBAN placeholder", () => {
+  it("contains IBAN placeholder when no iban is provided", () => {
     const d = buildAanmaningData(BASE);
     const letter = buildAanmaningLetter(d);
     expect(letter).toContain("[uw IBAN]");
+  });
+
+  it("prefills the formatted IBAN when provided", () => {
+    const d = buildAanmaningData({ ...BASE, iban: "NL91ABNA0417164300" });
+    const letter = buildAanmaningLetter(d);
+    expect(d.ibanFormatted).toBe("NL91 ABNA 0417 1643 00");
+    expect(letter).toContain("NL91 ABNA 0417 1643 00");
+    expect(letter).not.toContain("[uw IBAN]");
+  });
+
+  it("falls back to the placeholder for an empty iban string", () => {
+    const d = buildAanmaningData({ ...BASE, iban: "" });
+    expect(d.ibanFormatted).toBe("[uw IBAN]");
   });
 });

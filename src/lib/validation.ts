@@ -12,7 +12,14 @@ import {
   workModeSchema,
 } from "@/lib/enums";
 import { MODEL_AGREEMENT_TYPES } from "./model-agreement";
-import { isValidBtwId, isValidKvk, normalizeBtwId, normalizeKvk } from "@/lib/fiscal";
+import {
+  isValidBtwId,
+  isValidIban,
+  isValidKvk,
+  normalizeBtwId,
+  normalizeIban,
+  normalizeKvk,
+} from "@/lib/fiscal";
 import { MAX_INVOICE_CENTS } from "@/lib/invoices";
 
 /**
@@ -146,6 +153,21 @@ export const freelancerProfileSchema = z.object({
       }
     })
     .transform((v) => (v ? normalizeBtwId(v) : undefined)),
+  // Betaalrekening (SEPA-IBAN). Betaling verloopt rechtstreeks (off-platform), dus dit voedt de
+  // betaalinstructie op de factuur voor de opdrachtgever + de aanmaning-prefill. Mod-97-gevalideerd,
+  // lege string = geen rekening opgeslagen.
+  iban: z
+    .union([z.literal(""), z.string().trim()])
+    .optional()
+    .superRefine((v, ctx) => {
+      if (v && !isValidIban(v)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Ongeldig IBAN (controleer de landcode en het rekeningnummer).",
+        });
+      }
+    })
+    .transform((v) => (v ? normalizeIban(v) : undefined)),
   // Portfolio-/websitelink — publiek zichtbaar op het profiel. Spiegelt het bedrijfsprofiel
   // (companyProfileSchema.website): http(s) afgedwongen (httpUrl weigert javascript:/data: e.d.),
   // lege string = geen link.

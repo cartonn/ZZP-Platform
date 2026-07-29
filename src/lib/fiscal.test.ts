@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   formatBtwId,
+  formatIban,
   formatKvk,
   isValidBtwId,
+  isValidIban,
   isValidKvk,
   normalizeBtwId,
+  normalizeIban,
   normalizeKvk,
 } from "@/lib/fiscal";
 
@@ -119,5 +122,55 @@ describe("formatBtwId", () => {
   it("returns the normalized (uppercased, stripped) value", () => {
     expect(formatBtwId("nl 123456789 b01")).toBe("NL123456789B01");
     expect(formatBtwId("NL123456789B01")).toBe("NL123456789B01");
+  });
+});
+
+describe("normalizeIban", () => {
+  it("strips spaces and uppercases", () => {
+    expect(normalizeIban("nl91 abna 0417 1643 00")).toBe("NL91ABNA0417164300");
+  });
+});
+
+describe("isValidIban", () => {
+  it("accepts a valid NL IBAN (spaced input)", () => {
+    expect(isValidIban("NL91 ABNA 0417 1643 00")).toBe(true);
+  });
+
+  it("accepts a valid NL IBAN (lowercase, no spaces)", () => {
+    expect(isValidIban("nl91abna0417164300")).toBe(true);
+  });
+
+  it("accepts a valid non-NL SEPA IBAN (BE)", () => {
+    expect(isValidIban("BE68 5390 0754 7034")).toBe(true);
+  });
+
+  it("rejects a wrong check digit (mod-97 fails)", () => {
+    expect(isValidIban("NL92ABNA0417164300")).toBe(false);
+  });
+
+  it("rejects a wrong length for the country", () => {
+    expect(isValidIban("NL91ABNA041716430")).toBe(false);
+  });
+
+  it("rejects an unknown country code", () => {
+    expect(isValidIban("XX91ABNA0417164300")).toBe(false);
+  });
+
+  it("rejects non-alphanumeric content", () => {
+    expect(isValidIban("NL91-ABNA-0417-1643-00")).toBe(false);
+  });
+
+  it("rejects an empty string", () => {
+    expect(isValidIban("")).toBe(false);
+  });
+});
+
+describe("formatIban", () => {
+  it("groups into blocks of four", () => {
+    expect(formatIban("NL91ABNA0417164300")).toBe("NL91 ABNA 0417 1643 00");
+  });
+
+  it("normalizes before grouping", () => {
+    expect(formatIban("nl91abna0417164300")).toBe("NL91 ABNA 0417 1643 00");
   });
 });

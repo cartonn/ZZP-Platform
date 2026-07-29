@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — Betaalgegevens (IBAN) op ZZP-profiel → betaalinstructie op de factuur
+
+**Wat:** betaling verloopt rechtstreeks (off-platform), maar er was nergens een gestructureerd IBAN —
+de aanmaning-brief had zelfs een `[uw IBAN]`-placeholder, en de opdrachtgever die een factuur moet
+betalen kreeg géén concrete betaalinstructie. Nu een `iban`-veld op het ZZP-profiel (mod-97-gevalideerd)
+dat een **Betaalgegevens**-blok op het factuurdetail voedt: IBAN, tenaamstelling, betaalkenmerk
+(`Factuur <nr>`) en bedrag, elk met een kopieerknop, plus de vervaldatum. Zichtbaar voor beide partijen
+zolang de factuur nog openstaat (cascade: SUBMITTED/APPROVED/OVERDUE; legacy: SENT/OVERDUE), met
+payer-gerichte tekst voor de opdrachtgever. De aanmaning-brief wordt met hetzelfde IBAN voorgevuld
+(placeholder alleen nog als er geen IBAN is). Maakt correct + op tijd betalen makkelijker → de ZZP'er
+wordt sneller en met minder fouten betaald.
+
+**Architectuur/grens:** pure validators `normalizeIban`/`isValidIban`/`formatIban` in `src/lib/fiscal.ts`
+(ISO 13616 landcode-lengte + ISO 7064 mod-97, overflow-veilig iteratief). `iban` toegevoegd aan
+`freelancerProfileSchema` (Zod superRefine, lege string = geen rekening) + wiring in de profiel-actie/-form.
+Additief nullable schemaveld (`prisma db push`-veilig). Factuurdetail: read-only afleiding op de
+al-geladen factuur; geen nieuw mutatie-/auth-oppervlak. Kopieerknop is een klein client-component;
+klembord-falen stil opgevangen. Demo-seed: Sanne + Youssef krijgen een geldig IBAN.
+
+**Bestanden:** `src/lib/fiscal.ts` (+test), `src/lib/validation.ts`, `src/lib/aanmaning.ts` (+test),
+`src/components/invoices/payment-details-card.tsx` (nieuw), `src/app/(protected)/facturen/[id]/page.tsx`,
+`src/app/(protected)/profiel/{actions,profile-form}.tsx`, `src/app/(protected)/profiel/bewerken/page.tsx`,
+`prisma/schema.prisma`, `prisma/seed.ts`, `PROGRESS.md`. +14 tests. Gate: typecheck, lint, test (5331),
+build, prettier groen.
+
 ## 2026-07-29 — ontwerp-lab reeks 52: +10 concepten (511–520)
 
 **Wat:** de galerij op `/ontwerp` groeit van 510 → **520** concepten. Additief: 10 nieuwe, visueel onderscheidende

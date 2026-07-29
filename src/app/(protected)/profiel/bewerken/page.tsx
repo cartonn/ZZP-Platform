@@ -188,6 +188,7 @@ export default async function ProfielPage() {
           languages: languages.join(", "),
           kvkNumber: profile.kvkNumber ?? "",
           btwNumber: profile.btwNumber ?? "",
+          iban: profile.iban ?? "",
           website: profile.website ?? "",
           visibility: profile.visibility,
           defaultMotivation: profile.defaultMotivation ?? "",
