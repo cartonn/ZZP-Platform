@@ -274,6 +274,15 @@ describe("freelancerProfileAnonymizationData", () => {
     // die de anonimisering op het publieke profiel (rood→groen).
     expect(data.website).toBeNull();
   });
+
+  it("wist de SEPA-betaalrekening (iban, AVG art. 17)", () => {
+    // Het IBAN is een direct identificerend financieel persoonsgegeven (bankrekeningnummer van een
+    // natuurlijke persoon) dat #970 aan het profiel toevoegde. Zonder dit veld in de
+    // anonimiseringsdata overleeft de betaalrekening een verwijderverzoek — een onvolledige
+    // art.17-verwijdering (rood→groen: verwijder `iban: null` uit freelancerProfileAnonymizationData
+    // en deze assertie faalt).
+    expect(data.iban).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

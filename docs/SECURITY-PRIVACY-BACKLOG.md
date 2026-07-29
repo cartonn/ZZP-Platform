@@ -4,6 +4,52 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-29 (basis: `main` @ 08708e99)
+
+Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-audits, gericht op de delta sinds de
+vorige ronde (`a10cba04..08708e99`, #958–#971): nieuw `iban`-veld (SEPA-betaalrekening) + `website`-veld
+op `FreelancerProfile`, cascade-overdue betaal-signaal, KOR-projectie, aangifte-TOCTOU/rollback,
+performance-ORT-bovengrens, retentie-backlog-gauges. Oppervlakken: (1) object-/functie-niveau-autorisatie,
+IDOR/BOLA, TOCTOU, mass-assignment over de gewijzigde mutatie-oppervlakken (`ontzorgd/aangifte/actions.ts`,
+`cascade/performance-commands.ts`, `signals.ts`, `pending-tasks.ts`, `aanmaning.ts` IBAN-flow); (2) AVG
+betrokkenen-rechten op de nieuwe PII-velden (`iban`/`website`): anonimisering (art. 17), over-fetch naar
+client, cross-party/cross-tenant-lek, XSS via `website`-link, secrets/PII in logs/metrics, seed-data.
+
+**2 bevindingen gevonden + gefixt (1 HOOG, 1 MIDDEL); mutatie-oppervlak verder schoon.**
+
+### OPGELOST — HOOG (AVG art. 17 onvolledige verwijdering): `iban` overleefde account-anonimisering
+
+- **Repro (was):** #970 voegde een `iban`-kolom (SEPA-bankrekeningnummer — direct identificerend financieel
+  persoonsgegeven van een natuurlijke persoon) toe aan `FreelancerProfile`, maar werkte
+  `freelancerProfileAnonymizationData()` in `src/lib/account-anonymization.ts` NIET bij. Die functie wist wél
+  `hourlyRate`/`btwNumber`/`website`/`monthlyIncomeGoalCents`/`defaultMotivation`, maar niet `iban`. Gevolg: na
+  een door de gebruiker aangevraagde verwijdering (admin `anonymizeUser`, die dit object wholesale in
+  `freelancerProfile.updateMany({data})` spreidt) bleef de betaalrekening onbeperkt op de rij staan — een
+  onvolledige art.17-verwijdering. De bestaande anonimiseringstestsuite dekte alle andere velden expliciet af,
+  maar had geen `iban`-assertie, dus geen enkele test ving het gat.
+- **Geschonden regel:** AVG art. 17 (recht op vergetelheid), CLAUDE.md privacy-lat (volledige anonimisering
+  incl. documenten/PII); OWASP niet direct (privacy-, geen access-control-gat).
+- **Fix (deze PR):** `iban: null` toegevoegd aan zowel het return-type als het object van
+  `freelancerProfileAnonymizationData()` + comment die het als art.17-financieel-PII motiveert.
+  `account-anonymization.test.ts`: nieuwe assertie `expect(data.iban).toBeNull()` (rood→groen: zonder het veld
+  is `data.iban === undefined` en faalt `toBeNull()`). Data-export (art. 15/20) was al dekkend: de export-builder
+  gebruikt `include` op `freelancerProfile`, dus `iban` zit automatisch in de eigen-gegevens-export.
+
+### OPGELOST — MIDDEL (AVG art. 5/32, PII in git): mogelijk echte Rabobank-IBAN in seed-data
+
+- **Repro (was):** `prisma/seed.ts` gaf de demo-ZZP'er "Youssef Bakker" `iban: "NL39RABO0300065264"` — een
+  mod-97-geldig, plausibel-echt Rabobank-rekeningnummer, statisch niet te onderscheiden van een echt account.
+  Zo'n waarde permanent in de git-historie is een onnodig art.5/32-risico (in tegenstelling tot de sibling
+  `NL91ABNA0417164300`, het universele Wikipedia-voorbeeld-IBAN, dat ondubbelzinnig veilig is).
+- **Geschonden regel:** CLAUDE.md regel "geen PII/secret in git"; AVG art. 5 (minimalisatie) / art. 32 (beveiliging).
+- **Fix (deze PR):** vervangen door `NL44RABO0123456789` — mod-97-geldig én ondubbelzinnig synthetisch
+  (sequentiële cijfers `0123456789`, een breed-gedocumenteerd Rabobank-voorbeeld-IBAN). Menselijke bevestiging
+  gevraagd (MENSENWERK): `prisma db seed` mag nooit tegen een productie-/gedeelde DB draaien (Dockerfile seedt
+  niet automatisch bij boot — operationeel bevestigen).
+
+`npm audit --omit=dev` = **0 productie-kwetsbaarheden** (ongewijzigd t.o.v. vorige ronde). Next.js 15.5.21
+(boven CVE-2025-29927 middleware-bypass).
+
 ## Ronde 2026-07-28b (basis: `main` @ a10cba04)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken, plus

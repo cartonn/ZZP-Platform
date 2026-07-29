@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — Security/privacy-audit: `iban` overleefde account-anonimisering (HOOG, AVG art. 17) + seed-IBAN (MIDDEL)
+
+**Wat:** security-/privacy-audit gericht op de delta sinds de vorige ronde (`a10cba04..08708e99`, #958–#971;
+nieuw `iban`- + `website`-veld op `FreelancerProfile`, cascade-overdue betaalsignaal, KOR-projectie,
+aangifte-TOCTOU). Orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-audits (mutatie-oppervlak +
+AVG/PII). **2 gaten gevonden + gefixt:**
+
+- **HOOG (AVG art. 17):** #970 voegde een `iban`-kolom (SEPA-bankrekening — direct identificerend financieel
+  PII) toe aan `FreelancerProfile`, maar `freelancerProfileAnonymizationData()` wiste het niet. Na een
+  verwijderverzoek bleef de betaalrekening onbeperkt staan → onvolledige art.17-verwijdering. Fix: `iban: null`
+  toegevoegd aan `src/lib/account-anonymization.ts` + rood→groen-test (`account-anonymization.test.ts`).
+  Data-export (art. 15/20) was al dekkend (`include` op freelancerProfile).
+- **MIDDEL (AVG art. 5/32, PII in git):** `prisma/seed.ts` had een mod-97-geldig, plausibel-echt Rabobank-IBAN
+  (`NL39RABO0300065264`). Vervangen door het ondubbelzinnig synthetische `NL44RABO0123456789`.
+
+Mutatie-oppervlak (aangifte-TOCTOU/rollback, performance-ORT-grens, cascade-signaal, aanmaning-IBAN-flow)
+en de overige nieuwe PII-paden (drawer-data, publiek profile-screen, payment-details-card, metrics-gauges)
+**onafhankelijk schoon**. `npm audit --omit=dev` = 0 productie-kwetsbaarheden. Gate: typecheck, lint,
+test (5339), build, prettier groen. Zie `docs/SECURITY-PRIVACY-BACKLOG.md` (Ronde 2026-07-29).
+
 ## 2026-07-29 — Persona-sweep run 58: dode "Contract ondertekenen"-next-action bij geblokkeerde plaatsing (HIGH)
 
 **Wat:** kritische-gebruiker-sweep over alle vier rollen op de verse prod-build + idempotente demo-seed

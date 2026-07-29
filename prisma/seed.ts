@@ -276,7 +276,7 @@ async function main() {
       skills: ["nodejs", "typescript", "aws"],
       identityVerified: true,
       completeness: 100,
-      iban: "NL39RABO0300065264",
+      iban: "NL44RABO0123456789",
       website: "https://youssefbakker.dev",
       creds: [
         {
