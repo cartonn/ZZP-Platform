@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — KOR-grens tempo-projectie (ZZP'er, /ontzorgd)
+
+**Wat:** de KOR-grens (€20.000-omzetgrens, kleineondernemersregeling) surface-de op `/ontzorgd` alleen als een
+statische ">80%"-actie (`KOR_THRESHOLD`) zonder gevoel voor tempo/timing. Nieuw: een pure **tempo-projectie**
+(`korThresholdProjection`, `src/lib/tax/kor-projection.ts`) die de omzet-tot-nu naar het jaartempo extrapoleert en
+bepaalt of/rond welke maand de ZZP'er de grens kruist (`over` / `projected_over` + maand / `approaching` / `under`).
+Waarde: een ZZP'er die de KOR toepast is BTW-vrijgesteld tot €20.000; zodra hij eroverheen gaat vervalt de vrijstelling
+en moet vanaf dat moment BTW worden berekend. Een **vroegtijdig, gedateerd** signaal ("op je huidige tempo overschrijd
+je de KOR-grens rond september — reken vanaf dan op BTW") laat hem dit inplannen i.p.v. het achteraf te merken.
+Benchmark: elke ZZP-boekhouder (Moneybird/Tellow) waarschuwt hiervoor.
+
+**Grens/veiligheid:** pure afleiding op de reeds-getelde jaaromzet — geen query, geen schemawijziging, geen nieuw
+mutatie/auth-oppervlak. Ruis-drempel (`KOR_PROJECTION_MIN_DAY = 21`): vóór dag 21 geen tempo-projectie (te ruizig),
+terugval op de statische band. `korProjection` toegevoegd aan `OntzorgOverview`; nieuwe actie `KOR_PROJECTED_OVER`
+vuurt **alleen** wanneer nog onder 80% maar het tempo de grens dit jaar kruist (geen dubbel KOR-signaal naast de
+bestaande `KOR_THRESHOLD`, die nu de projectie-maand als hint meekrijgt). Surface via de bestaande generieke
+actie-render in `ontzorgd-panel.tsx` (geen UI-wijziging nodig). Indicatief (`TAX_DISCLAIMER`).
+
+**Bestanden:** `src/lib/tax/kor-projection.ts` (+ test, 8 tests), `src/lib/tax/ontzorg-overview.ts` (+ 3 tests).
+**Checks:** typecheck, lint, test, build, prettier groen.
+
+**Volgende stap:** vrij te kiezen uit de backlog.
+
+---
+
 ## 2026-07-29 — /api/metrics: notificatie-/lead-retentie-backlog gauges (stille-faal-detectie, AVG art. 5(1)(e))
 
 **Wat:** twee nieuwe stille-faal-detector-gauges op `/api/metrics` — `zzp_notifications_retention_backlog` (aantal

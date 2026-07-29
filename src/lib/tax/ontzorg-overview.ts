@@ -16,6 +16,7 @@ import {
   type ReservationAdvice,
 } from "@/lib/tax/reservation";
 import { hoursCriterion, type HoursCriterion } from "@/lib/tax/hours-criterion";
+import { korThresholdProjection, type KorProjection } from "@/lib/tax/kor-projection";
 import { VAT_DEADLINES_2026, KOR_THRESHOLD_CENTS } from "@/lib/tax/config";
 import { formatEuro } from "@/lib/invoices";
 
@@ -48,6 +49,7 @@ export interface OntzorgOverview {
   hours: HoursCriterion;
   incomeTax: IncomeTaxEstimate;
   korApproaching: boolean; //        nadert de €20.000-grens (>80%)
+  korProjection: KorProjection; //   tempo-projectie richting de KOR-grens (rond welke maand kruis je 'm)
   actions: OntzorgAction[]; //       volgende beste acties, gesorteerd op urgentie
 }
 
@@ -85,12 +87,18 @@ export function buildOntzorgOverview(input: OntzorgInput): OntzorgOverview {
     summary.revenueCents >= Math.round(KOR_THRESHOLD_CENTS * 0.8) &&
     summary.revenueCents < KOR_THRESHOLD_CENTS;
 
+  const korProjection = korThresholdProjection({
+    revenueCents: summary.revenueCents,
+    now: input.now,
+  });
+
   const actions = buildActions({
     vatBalanceCents: vat.balanceCents,
     vatDeadline,
     reservation,
     hours,
     korApproaching,
+    korProjection,
     now: input.now,
   });
 
@@ -107,6 +115,7 @@ export function buildOntzorgOverview(input: OntzorgInput): OntzorgOverview {
     hours,
     incomeTax,
     korApproaching,
+    korProjection,
     actions,
   };
 }
@@ -117,6 +126,7 @@ function buildActions(args: {
   reservation: ReservationAdvice;
   hours: HoursCriterion;
   korApproaching: boolean;
+  korProjection: KorProjection;
   now: Date;
 }): OntzorgAction[] {
   const actions: OntzorgAction[] = [];
@@ -154,10 +164,19 @@ function buildActions(args: {
     });
   }
 
+  const crossMonth = args.korProjection.projectedCrossMonthLabel;
   if (args.korApproaching) {
+    const monthHint = crossMonth ? ` (op je tempo rond ${crossMonth} eroverheen)` : "";
     actions.push({
       code: "KOR_THRESHOLD",
-      label: "Je nadert de KOR-grens van €20.000 — let op de BTW-gevolgen",
+      label: `Je nadert de KOR-grens van €20.000${monthHint} — let op de BTW-gevolgen`,
+      urgency: "soon",
+    });
+  } else if (args.korProjection.status === "projected_over" && crossMonth) {
+    // Vroegtijdig signaal: nog onder 80%, maar op het huidige tempo kruis je de grens dit jaar.
+    actions.push({
+      code: "KOR_PROJECTED_OVER",
+      label: `Op je huidige tempo overschrijd je de KOR-grens van €20.000 rond ${crossMonth} — reken vanaf dan op BTW`,
       urgency: "soon",
     });
   }

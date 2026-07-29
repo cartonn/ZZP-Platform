@@ -62,6 +62,29 @@ describe("buildOntzorgOverview", () => {
     const o = buildOntzorgOverview({ entries, directHours: 0, indirectHours: 0, now });
     expect(o.korApproaching).toBe(true);
     expect(o.actions.find((a) => a.code === "KOR_THRESHOLD")).toBeDefined();
+    // De tempo-projectie is meegenomen in de overview.
+    expect(o.korProjection.status).toBe("projected_over");
+  });
+
+  it("vroegtijdig KOR-tempo-signaal: nog onder 80% maar tempo kruist de grens dit jaar", () => {
+    // €12.000 op 15 mei (dag ~135) → jaarbasis ≈ €32.000 → projectie kruist de grens, maar 60% < 80%.
+    const entries: LedgerEntry[] = [entry("OMZET", 0, 1200000, "2026-04-01T10:00:00Z")];
+    const o = buildOntzorgOverview({ entries, directHours: 0, indirectHours: 0, now });
+    expect(o.korApproaching).toBe(false);
+    expect(o.korProjection.status).toBe("projected_over");
+    const projected = o.actions.find((a) => a.code === "KOR_PROJECTED_OVER");
+    expect(projected).toBeDefined();
+    expect(projected?.label).toContain("KOR-grens");
+    // Geen dubbel KOR-signaal: de statische >80%-actie vuurt hier niet.
+    expect(o.actions.find((a) => a.code === "KOR_THRESHOLD")).toBeUndefined();
+  });
+
+  it("geen KOR-signaal bij een laag tempo ruim onder de grens", () => {
+    const entries: LedgerEntry[] = [entry("OMZET", 0, 300000, "2026-04-01T10:00:00Z")];
+    const o = buildOntzorgOverview({ entries, directHours: 0, indirectHours: 0, now });
+    expect(o.korProjection.status).toBe("under");
+    expect(o.actions.find((a) => a.code === "KOR_PROJECTED_OVER")).toBeUndefined();
+    expect(o.actions.find((a) => a.code === "KOR_THRESHOLD")).toBeUndefined();
   });
 
   it("acties zijn gesorteerd op urgentie (now vóór soon vóór info)", () => {
