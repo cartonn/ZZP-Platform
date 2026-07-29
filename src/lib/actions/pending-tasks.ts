@@ -40,6 +40,7 @@ import {
   credentialFixTask,
   credentialCollabExpiryTask,
   credentialCollabExpiredTask,
+  credentialCollabMissingTask,
   mandatoryDocumentTask,
   adminVerifyCredentialTask,
   adminActivateUserTask,
@@ -84,6 +85,7 @@ import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collabo
 import {
   collaborationCredentialExpiryConcerns,
   collaborationExpiredRequiredCredentials,
+  collaborationMissingRequiredCredentials,
   type CollabCredentialInput,
 } from "@/lib/collaboration-credential-expiry";
 import { summarizeStaleClientApplications } from "@/lib/stale-applications";
@@ -563,6 +565,44 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       credentialCollabExpiredTask({
         credId: concern.credentialId,
         credentialTitle: concern.credentialTitle,
+        collabId: primary.collaborationId,
+        companyName: primary.companyName,
+        jobTitle: primary.jobTitle,
+        extraCollabCount: rest.length,
+      }),
+    );
+  }
+  // Volledig ONTBREKEND vereist certificaat van een lopende/voorgestelde samenwerking (geen bruikbaar
+  // exemplaar — nooit aangeleverd of alleen een concept): freelancer-spiegel van de opdrachtgever-alert
+  // (clientComplianceTask/computeCompliance → "missing"). Zonder dit zag de opdrachtgever "mist een
+  // vereist certificaat — vraag om aan te leveren" terwijl de ZZP'er — de enige die kan aanleveren —
+  // niets in zijn actielijst had (asymmetrie, persona-sweep run 57). Dezelfde uitsluitingen als de
+  // EXPIRED-tak: verplichte typen (eigen mandatoryDocumentTask) én reeds-afgewezen typen (eigen
+  // credentialFixTask). De pure functie sluit typen met een geldig/in-beoordeling/verlopen exemplaar
+  // al uit → geen overlap met de expiry-/expired-taken hierboven.
+  const missingRequired = collaborationMissingRequiredCredentials({
+    collaborations: collabs.map((c) => ({
+      collaborationId: c.id,
+      companyName: c.company.name,
+      jobTitle: c.job.title,
+      requiredTypes: c.job.credentialRequirements
+        .map((r) => r.credentialType as CollabCredentialInput["type"])
+        .filter(
+          (t) =>
+            !(MANDATORY_CREDENTIAL_TYPES as readonly string[]).includes(t) &&
+            !rejectedCredTypes.has(t),
+        ),
+    })),
+    credentials: allCreds,
+    now,
+  });
+  for (const concern of missingRequired) {
+    const [primary, ...rest] = concern.collaborations;
+    if (!primary) continue; // collaborations is altijd ≥ 1 (invariant), maar houdt de types nauw
+    tasks.push(
+      credentialCollabMissingTask({
+        type: concern.type,
+        draftCredentialId: concern.draftCredentialId,
         collabId: primary.collaborationId,
         companyName: primary.companyName,
         jobTitle: primary.jobTitle,

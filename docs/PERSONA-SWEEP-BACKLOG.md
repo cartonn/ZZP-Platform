@@ -1,5 +1,68 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-29 (run 57) · **main-commit basis:** `ef6608c6`
+> **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (1 HIGH DOEL-1b next-action-asymmetrie: een volledig
+> ONTBREKEND vereist niet-verplicht certificaat gaf de ZZP'er géén actie terwijl de opdrachtgever wél een
+> "mist een vereist certificaat"-alert kreeg — de missing/DRAFT-spiegel van de EXPIRED-fix uit run 56;
+> 1 MED/HIGH DOEL-2 audit-/status-integriteit: TOCTOU / dubbel-indienen op `approveAndSubmit` (aangifte)).
+> Verse prod-build (exit 0) + idempotente demo-seed (`SEED_DEMO=true`, ephemere SQLite `qa.db`, `next start`
+> op 3100). Live Playwright/Chromium over alle vier rollen.
+>
+> - **DOEL 1** echte actie: ADMIN "Goedkeuren" op `/admin/verificaties` → knoppen 6→5 (status veranderde),
+>   `/acties` afgehandelde actie verdween. **DOEL 1b** `/acties` per rol logisch en rol-correct (zzp: verplicht
+>   document ontbreekt + 4 open; client: 1 nieuwe reactie + bedrijfsprofiel 90%; franchise: ZZP'er niet inzetbaar
+>   - onbezette dienst; admin: 15 certificaat-/ticket-beoordelingen). **DOEL 2** adversarieel (allemaal geweigerd,
+>     nul 5XX): privilege-escalatie zzp/client/franchise → 11×/admin/_ + 4×/franchise/_ → 307 /dashboard; IDOR
+>     privé-document (youssef VOG) → 404; cross-party/cross-tenant samenwerking/factuur → soft-404 "Niet gevonden"
+>     (bevestigd via body-render: nul gelekte partijnamen, tekstlengte identiek aan de junk-id-control); junk/
+>     traversal/SQLi/XSS-id (6 varianten) → soft-404, nooit 500; onauth → 307 /login. Screen-load-sweep over 34
+>     rol-schermen: 0 error-boundaries, 0 5XX. Twee parallelle Opus-audits (next-action-correctheid → 1 HIGH gevonden;
+>     mutatie-authz/TOCTOU → 1 MED/HIGH gevonden). Malicieuze-invoer-validatie (negatief/NaN/absurd/datum, per-segment
+>     ORT-grens) geïnspecteerd — robuust.
+>
+> **GEVONDEN + GEFIXT — HIGH (DOEL 1b, ontbrekend vereist certificaat — next-action-asymmetrie):** voor een
+> `ACTIVE`/`PROPOSED` samenwerking waarvan de opdracht een `required` `JobCredentialRequirement` van een
+> NIET-verplicht type (`LICENSE`/`DIPLOMA`/`CERTIFICATE`/`OTHER`) heeft, en de ZZP'er heeft géén bruikbaar
+> exemplaar van dat type (geen rij, of alléén een `DRAFT`), kreeg **alleen de opdrachtgever** een actie
+> (`clientComplianceTask`, prio `complianceRipple` 85, "mist een vereist certificaat — vraag de ZZP'er om aan te
+> leveren"), terwijl de **ZZP'er** — de énige die het bewijsstuk kan aanleveren — **niets** in `/acties`, de
+> dashboard-rail of de zijbalk-badge zag. `computeCompliance` bucket zo'n type als `missing`; `clientHasComplianceAction`
+> vuurt op `missing`, maar de freelancer-tak (`freelancerTasks`) had géén emitter voor `missing`: `mandatoryDocumentTask`
+> dekt alleen VOG/verzekering, `credentialFixTask("rejected")` vereist een REJECTED-rij, en `collaborationExpiredRequiredCredentials`
+> slaat een volledig ontbrekend type expliciet over (`if (!cred) continue`). Dit is precies de missing/DRAFT-variant
+> van de EXPIRED-asymmetrie die run 56 dichtte. **Geschonden regel:** CLAUDE.md regel 1 (server-side waarheid, één bron —
+> dezelfde vereist-cert-gap gaf een live client-actie én een lege freelancer-lijst) + de next-action-belofte
+> ("de juiste eerstvolgende stap voor de juiste partij aan zet"). **Fix:** nieuwe pure helper
+> `collaborationMissingRequiredCredentials` (`src/lib/collaboration-credential-expiry.ts`) — per vereist niet-verplicht
+> type zonder geldig/in-beoordeling/verlopen exemplaar één zorg, met optioneel de meest recente `DRAFT`-id als
+> aanlever-kandidaat; nieuwe taak `credential-collab-missing` (prio `credentialMissingForCollab: 81`, net onder
+> REEDS-verlopen 82, boven afgewezen 80; deep-link `/certificaten/{draftId}/bewerken` of `/certificaten/nieuw?type=<T>`).
+> Aanroeper sluit verplichte én reeds-afgewezen typen uit → geen dubbele/tegenstrijdige rij. Rood→groen: +6 helper-tests
+>
+> - 5 surface-tests (`pending-tasks-missing-collab-credential.test.ts`: ontbrekend → aanlever-taak; DRAFT → deep-link
+>   naar concept; geldig/SUBMITTED → geen taak; afgewezen → alleen fix-taak).
+>
+> **GEVONDEN + GEFIXT — MED/HIGH (DOEL 2, TOCTOU / dubbel-indienen op `approveAndSubmit`):** `approveAndSubmit`
+> (`src/app/(protected)/ontzorgd/aangifte/actions.ts`) las de status één keer (stale snapshot), asserteerde de
+> overgang op die lezing, riep dan **`partner.submit()`** aan (een EXTERN, onomkeerbaar effect — in productie de
+> echte SBR/Digipoort-aangifte bij de Belastingdienst) en schreef pas dáárna blind terug via `update({ where: { id } })`
+> — géén compound-guard, anders dan alle andere cascade-commando's (`resolveDispute`/`openDispute`/invoice/performance
+> gebruiken al de guarded `updateMany`). **Repro:** twee gelijktijdige aanroepen (dubbelklik "Definitief indienen",
+> herhaalde/replayed server-action-POST) op één `CONCEPT_KLAAR`-verzoek passeren beide de assert en roepen **beide**
+> `partner.submit()` aan → dubbele aangifte bij de Belastingdienst + twee `TAX_FILING_SUBMITTED`-auditregels (met
+> verschillende `submissionRef`) voor één verzoek, terwijl de kolom stil alleen de laatste ref houdt. **Geschonden
+> regel:** CLAUDE.md regel 5 (audit exact één keer per reëel event) + regel 1 (server-side waarheid, symmetrisch over
+> concurrente paden). **Fix:** claim de overgang ATOMISCH vóór het externe effect met compound-guarded
+> `updateMany({ where: { id, status: "CONCEPT_KLAAR" }, data: { status: "INGEDIEND", clientApprovedAt } })`; `count === 0`
+> → concurrente indiening won → gooit, roept de partner NIET aan, schrijft geen tweede audit. Faalt `partner.submit()`
+> ná de claim → compensatie zet terug naar `CONCEPT_KLAAR` (retry blijft mogelijk). `revokeFiling` kreeg dezelfde
+> compound-guard (voorkomt dubbele `TAX_FILING_REVOKED`-audit). **Escalatie (MENSENWERK.md §5):** vóór een live
+> `TAX_PARTNER_DRIVER` (echte SBR/Digipoort) moet dit dichtgetimmerd blijven — het pad leidt tot een echte
+> aangifte. Rood→groen: +5 tests (`approve-submit-toctou.test.ts`: gewonnen → één submit + één audit; verloren →
+> geen submit/audit; submit-faal → compensatie; revoke gewonnen/verloren).
+
+---
+
 > **Datum:** 2026-07-28 (run 56) · **main-commit basis:** `9fa656bb`
 > **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (1 HIGH DOEL-1b next-action-asymmetrie: verlopen vereist
 > niet-verplicht certificaat gaf de ZZP'er géén actie terwijl de opdrachtgever wél een "certificaat verlopen"-

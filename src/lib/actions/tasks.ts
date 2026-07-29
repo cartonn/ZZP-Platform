@@ -71,6 +71,7 @@ export type PendingTask =
   | (TaskBase & { kind: "credential-fix"; credId: string; cause: "rejected" | "expiring" })
   | (TaskBase & { kind: "credential-collab-expiry"; credId: string; collabId: string })
   | (TaskBase & { kind: "credential-collab-expired"; credId: string; collabId: string })
+  | (TaskBase & { kind: "credential-collab-missing"; collabId: string })
   | (TaskBase & { kind: "mandatory-document"; docType: string; cause: "missing" | "expired" })
   | (TaskBase & { kind: "admin-verify-credential"; credId: string })
   | (TaskBase & { kind: "admin-activate-user"; userId: string })
@@ -446,6 +447,41 @@ export function credentialCollabExpiredTask(input: {
     resolver: "link",
     href: `/certificaten/${input.credId}/bewerken`,
     credId: input.credId,
+    collabId: input.collabId,
+  };
+}
+
+/**
+ * Acuut: een door een lopende/voorgestelde samenwerking VEREIST (niet-verplicht) certificaattype
+ * ONTBREEKT volledig — de ZZP'er heeft er geen bruikbaar bewijsstuk van (nooit aangeleverd, of alleen
+ * een concept). Freelancer-spiegel van de opdrachtgever-alert (compliance-ripple "missing"): de ZZP'er
+ * is de enige die het kan aanleveren, terwijl de opdrachtgever al "mist een vereist certificaat — vraag
+ * om aan te leveren" ziet. Deep-link: een bestaand concept bewerken/indienen, of het aanmaak-formulier
+ * met vooringevuld type. Iets minder urgent dan een REEDS-verlopen exemplaar (dat leunde al op een
+ * eerder aangeleverd bewijsstuk), dus net eronder geprioriteerd.
+ */
+export function credentialCollabMissingTask(input: {
+  type: CredentialType;
+  draftCredentialId: string | null;
+  collabId: string;
+  companyName: string;
+  jobTitle: string;
+  extraCollabCount: number;
+}): PendingTask {
+  const { type, draftCredentialId, companyName, jobTitle, extraCollabCount } = input;
+  const label = CREDENTIAL_TYPE_LABEL[type];
+  const extra = extraCollabCount > 0 ? ` (+${extraCollabCount} andere)` : "";
+  return {
+    kind: "credential-collab-missing",
+    id: `credential-collab-missing:${type}`,
+    title: `Vereist certificaat ontbreekt: ${label}`,
+    subtitle: `Lever het aan — je opdracht bij ${companyName} (${jobTitle})${extra} vereist dit certificaat`,
+    tone: "attention",
+    priority: P.credentialMissingForCollab,
+    resolver: "link",
+    href: draftCredentialId
+      ? `/certificaten/${draftCredentialId}/bewerken`
+      : `/certificaten/nieuw?type=${type}`,
     collabId: input.collabId,
   };
 }

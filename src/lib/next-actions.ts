@@ -55,6 +55,7 @@ export const P = {
   contractSign: 72, // contract ter ondertekening — deblokkeert de samenwerking
   proposeCollaboration: 68, // geaccepteerde kandidaat wacht nog op een samenwerkingsvoorstel — rond de hire af
   credentialExpiredForCollab: 82, // vereist certificaat van een lopende samenwerking is REEDS verlopen — blokkeert de inzet nu (freelancer-spiegel van complianceRipple); urgenter dan afgewezen of binnenkort-verlopend
+  credentialMissingForCollab: 81, // vereist (niet-verplicht) certificaat van een lopende samenwerking ONTBREEKT volledig (nooit aangeleverd/alleen concept) — acuut compliance-gat, freelancer-spiegel van complianceRipple "missing"; net onder REEDS-verlopen (dat leunde al op een bestaand exemplaar), boven afgewezen
   credentialExpiringForCollab: 75, // vereist certificaat van een lopende samenwerking verloopt binnenkort — urgenter dan een los verlopend certificaat
   credentialExpiring: 70, // certificaat verloopt binnenkort
   verificationQueue: 70, // wacht op verificatie (admin)

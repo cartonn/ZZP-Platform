@@ -223,3 +223,95 @@ export function collaborationExpiredRequiredCredentials(input: {
   concerns.sort((a, b) => a.credentialTitle.localeCompare(b.credentialTitle));
   return concerns;
 }
+
+export interface MissingRequiredCredentialConcern {
+  type: CredentialType;
+  /**
+   * Id van een bestaand DRAFT-certificaat van dit type (de logische aanlever-kandidaat: de ZZP'er
+   * begon eraan maar diende het nooit in), of `null` als er van dit type niets bestaat. Bepaalt de
+   * deep-link: bewerk het concept vs. een nieuw formulier met vooringevuld type.
+   */
+  draftCredentialId: string | null;
+  /** De samenwerking(en) die dit type vereisen, in stabiele invoervolgorde (≥ 1). */
+  collaborations: AffectedCollaboration[];
+}
+
+/**
+ * Tegenhanger van `collaborationExpiredRequiredCredentials`, maar voor een vereist (niet-verplicht)
+ * certificaattype dat volledig ONTBREEKT — de ZZP'er heeft er geen enkel bruikbaar bewijsstuk van
+ * (geen rij, of alleen een DRAFT die nooit is ingediend). Dit is de freelancer-spiegel van de
+ * opdrachtgever-alert `clientComplianceTask` voor `computeCompliance` → "missing": de opdrachtgever
+ * ziet "mist een vereist certificaat — vraag de ZZP'er om aan te leveren", maar de ZZP'er — de enige
+ * die het bewijsstuk kan aanleveren — zag in zijn eigen actielijst NIETS (asymmetrie; persona-sweep
+ * run 57). De EXPIRED-tak (er bestaat een verlopen exemplaar om te vernieuwen) hoort bij
+ * `collaborationExpiredRequiredCredentials`; deze functie dekt uitsluitend het "geen bruikbaar
+ * exemplaar"-gat.
+ *
+ * Uitgesloten (de aanroeper filtert de types vóóraf, symmetrisch met de EXPIRED-tak):
+ * - VERPLICHTE typen (VOG/verzekering) → eigen `mandatoryDocumentTask("missing")`.
+ * - AFGEWEZEN typen → eigen `credentialFixTask("rejected")` (opnieuw indienen).
+ * Verder overslaan we hier per type wanneer er een nu-geldig geverifieerd, een IN-BEOORDELING
+ * (SUBMITTED) of een VERLOPEN exemplaar bestaat: geldig = geen gat; SUBMITTED = de ZZP'er heeft al
+ * aangeleverd (admin verifieert, net als de client géén taak krijgt); verlopen = de EXPIRED-tak.
+ * Eén resultaat per type; gesorteerd op type voor determinisme.
+ */
+export function collaborationMissingRequiredCredentials(input: {
+  collaborations: readonly CollabRequirementInput[];
+  credentials: readonly CollabCredentialInput[];
+  now: Date;
+}): MissingRequiredCredentialConcern[] {
+  const nowMs = input.now.getTime();
+
+  // Per type: bestaat er een exemplaar dat het "missing"-gat opheft of elders wordt afgehandeld?
+  // (geldig-geverifieerd, in beoordeling, of verlopen). Zo ja → dit type is géén "missing"-zorg.
+  const coveredByType = new Set<CredentialType>();
+  // Per type: het meest recente DRAFT-exemplaar (aanlever-kandidaat voor de deep-link).
+  const latestDraftByType = new Map<CredentialType, CollabCredentialInput>();
+  for (const c of input.credentials) {
+    const isValid =
+      c.status === "VERIFIED" && (c.expiresAt == null || c.expiresAt.getTime() > nowMs);
+    const isExpired =
+      c.status === "EXPIRED" ||
+      (c.status === "VERIFIED" && c.expiresAt != null && c.expiresAt.getTime() <= nowMs);
+    if (isValid || c.status === "SUBMITTED" || isExpired) {
+      coveredByType.add(c.type);
+      continue;
+    }
+    if (c.status === "DRAFT" && !latestDraftByType.has(c.type)) {
+      latestDraftByType.set(c.type, c);
+    }
+  }
+
+  const byType = new Map<
+    CredentialType,
+    { collaborations: AffectedCollaboration[]; seen: Set<string> }
+  >();
+  for (const collab of input.collaborations) {
+    for (const type of new Set(collab.requiredTypes)) {
+      if (coveredByType.has(type)) continue; // een bruikbaar/elders-afgehandeld exemplaar → geen missing-gat
+      let entry = byType.get(type);
+      if (!entry) {
+        entry = { collaborations: [], seen: new Set() };
+        byType.set(type, entry);
+      }
+      if (entry.seen.has(collab.collaborationId)) continue;
+      entry.seen.add(collab.collaborationId);
+      entry.collaborations.push({
+        collaborationId: collab.collaborationId,
+        companyName: collab.companyName,
+        jobTitle: collab.jobTitle,
+      });
+    }
+  }
+
+  const concerns: MissingRequiredCredentialConcern[] = [];
+  for (const [type, { collaborations }] of byType) {
+    concerns.push({
+      type,
+      draftCredentialId: latestDraftByType.get(type)?.id ?? null,
+      collaborations,
+    });
+  }
+  concerns.sort((a, b) => a.type.localeCompare(b.type));
+  return concerns;
+}
