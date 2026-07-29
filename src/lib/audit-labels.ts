@@ -231,6 +231,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   RATELIMIT_SELFTEST_RUN: "Rate-limit-zelftest uitgevoerd",
   VERIFIER_SELFTEST_RUN: "Verificatie-zelftest uitgevoerd",
   BILLING_SELFTEST_RUN: "Betaalprovider-zelftest uitgevoerd",
+  ROUTING_SELFTEST_RUN: "Routing-zelftest uitgevoerd",
   ERROR_MONITORING_SELFTEST_RUN: "Foutmonitoring-zelftest uitgevoerd",
   UPLOAD_SCANNER_SELFTEST_RUN: "Upload-scanner-zelftest uitgevoerd",
 };

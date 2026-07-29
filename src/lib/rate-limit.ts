@@ -607,6 +607,19 @@ export const dbSelfTestRateLimiter = new RateLimiter(
 );
 
 /**
+ * Maximaal ROUTING_SELFTEST_RATE_LIMIT (default 6) routing-zelftests per beheerder per 5 minuten. De
+ * admin-actie (/admin/systeemstatus) doet één READ-ONLY geocode-round-trip tegen de geconfigureerde
+ * routing-provider (Geoapify) — geen cache-write, geen route-berekening. De rem houdt een per ongeluk
+ * herhaalde klik of een script binnen de perken (parity met de andere zelftests).
+ */
+export const routingSelfTestRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("ROUTING_SELFTEST_RATE_LIMIT", 6),
+  5 * 60_000,
+  "routingselftest:",
+);
+
+/**
  * Maximaal SELFTEST_SWEEP_RATE_LIMIT (default 3) go-live-sweeps per beheerder per 5 minuten. Eén sweep
  * draait álle actieve zelftests tegelijk (opslag, database, rate-limit, verificatie, betaalprovider,
  * upload-scanner, error-monitoring) — dus strakker dan de losse zelftests, zodat een herhaalde klik
