@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — Ontwerp-lab: +10 concepten (reeks 53, nrs 521–530)
+
+**Wat:** additieve uitbreiding van het interne ontwerp-lab (`/ontwerp`) met 10 nieuwe, onderscheidende
+high-fidelity redesign-concepten — bovenop de bestaande 520, niets overschreven. Elk concept dekt de
+kernschermen (dashboard, marktplaats, opdracht-detail, verificatie, acties, facturen) met gedeelde
+Nederlandse mock-content (`mock.ts`), volledig client-side, geen backend/gedragswijziging aan de live-app.
+
+- **Nieuwe richtingen:** 521 Cinemascope (cinematisch widescreen), 522 Legosteen (modulair stud-blok),
+  523 Zonnestelsel (orbitaal/radiaal dashboard), 524 Waterlinie (polder-cartografie), 525 Wissellicht
+  (sein-/spoorsysteem), 526 Aanplakbord (prikbord-collage), 527 Zeezicht (kust-minimalisme), 528 Fresnel
+  (vuurtoren-optiek), 529 Draaiorgel (ornament warm-dark), 530 Passerpunt (teken-instrument-precisie).
+- **Bestanden:** `src/components/ontwerp/concepts/concept-521..530-*.tsx` (nieuw), +10 entries in
+  `registry.ts` (append), +10 koppelingen in `src/app/ontwerp/[id]/concept-host.tsx` (append). Bestaande
+  entries/koppelingen ongemoeid. `docs/DESIGN-LAB.md` bijgewerkt (reeks 53).
+- **Totaal nu op `/ontwerp`: 530 concepten.**
+
 ## 2026-07-29 — Robuustheid: zelfstandige rateCents-bovengrens in assertPerformanceWithinLimits
 
 **Wat:** sluit het geparkeerde LOW/latent run-58-item (persona-sweep). `assertPerformanceWithinLimits`

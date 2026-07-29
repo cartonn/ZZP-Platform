@@ -1577,3 +1577,32 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   en **playful/expressive color met celebratory micro-interactions** — elk deterministisch, toegankelijk (focus-states,
   status label+icoon, prefers-reduced-motion) en onderscheidend van de bestaande 510.
 - **Totaal nu op `/ontwerp`: 520 concepten** (reeks 52: 511–520).
+
+## Reeks 53 — 521–530 (2026-07-29)
+
+- **521 Cinemascope** — cinematisch widescreen (#0d0f10 + amber #e6a15c): bioscoop-donker met letterbox-framing,
+  title-card display-typografie en een teal↔amber color-grade; elk scherm als 'scene' — filmisch, premium en rustig.
+- **522 Legosteen** — modulair stud-blok bouwsysteem (#f4f2ec + lego-rood #d81e2c): chunky primaire blokken die in een
+  grid klikken, tactiele nop-details en dikke zwarte hairlines — Bauhaus-primair en speels-ordelijk, strak B2B.
+- **523 Zonnestelsel** — orbitaal/radiaal dashboard (#0a0e1a + zon-geel #f5c451): entiteiten als planeten op concentrische
+  banen, radiale KPI-meters i.p.v. balken en het actieve item centraal — een écht ander layout-paradigma dan een grid.
+- **524 Waterlinie** — Nederlandse polder-cartografie (#f3f1e9 + water-blauw #1f6f8b): gelaagde kaartvlakken, contour-/
+  inundatielijnen, annotaties met leaderlijnen en een meetschaal — data gelezen als een topografische kaart.
+- **525 Wissellicht** — sein-/spoorsysteem (#101512 + sein-groen #2fbf71): statussen als semaforen (groen/amber/rood, altijd
+  label + icoon, nooit kleur-alleen), controlekamer-esthetiek en tabulaire cijfers — operationeel overzicht in één oogopslag.
+- **526 Aanplakbord** — prikbord-collage (#e8dcc4 + tape-oranje #c2410c): indexkaarten met lichte rotatie, punaises en
+  washi-tape op warm kraft — tactiel en menselijk, maar strak geordend en leesbaar.
+- **527 Zeezicht** — luchtig kust-minimalisme (#f6f9fb + zee-blauw #3b8fb3): zacht horizon-verloop, brede rustige secties met
+  horizontale banding en veel lucht — laag-prikkelend en premium-licht, geruststellend rond gevoelige documenten.
+- **528 Fresnel** — vuurtoren-optiek (#08161a + aqua-bundel #4fd1c5): concentrische Fresnel-lensringen, lichtbundel-gradiënten
+  uit actieve elementen en optische glas-diepte op teal-zwart — verificatie die letterlijk oplicht.
+- **529 Draaiorgel** — draaiorgel-ornament (#211611 + brass #d4a24a): strakke gouden sierlijsten, symmetrische compositie en een
+  vleugje feestelijk ambacht op warm donker — rijk maar gedisciplineerd en leesbaar, B2B-premium.
+- **530 Passerpunt** — teken-instrument-precisie (#eef0ec + teken-navy #2b4c7e): passer-arcs, dunne constructie-/hulplijnen,
+  maatvoering met pijltjes en cirkelsegmenten op papier — een tekentafel-esthetiek, alles exact uitgemeten.
+- Onderzochte richtingen deze reeks: **cinematic dark / letterbox & color-grade**, **modulaire blok-systemen (Bauhaus-primair)**,
+  **radiale/orbitale layout met ronde meters**, **cartografische data-lagen (contour/hoogtelijnen)**, **operationele
+  controlekamer-UI met semafoor-states**, **tactiele analoog-collage**, **calm/low-stimulation kust-minimalisme**, **optische
+  glas-diepte & luminante bundels**, **ornamentele warm-dark ambacht** en **technische tekenkunst/drafting-precisie** — elk
+  deterministisch, toegankelijk (focus-states, status label+icoon) en onderscheidend van de bestaande 520.
+- **Totaal nu op `/ontwerp`: 530 concepten** (reeks 53: 521–530).

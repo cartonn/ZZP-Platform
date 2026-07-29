@@ -1567,6 +1567,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "520": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-520-confetti").then((m) => m.Concept520),
   ),
+  "521": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-521-cinemascope").then((m) => m.Concept521),
+  ),
+  "522": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-522-legosteen").then((m) => m.Concept522),
+  ),
+  "523": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-523-zonnestelsel").then((m) => m.Concept523),
+  ),
+  "524": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-524-waterlinie").then((m) => m.Concept524),
+  ),
+  "525": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-525-wissellicht").then((m) => m.Concept525),
+  ),
+  "526": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-526-aanplakbord").then((m) => m.Concept526),
+  ),
+  "527": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-527-zeezicht").then((m) => m.Concept527),
+  ),
+  "528": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-528-fresnel").then((m) => m.Concept528),
+  ),
+  "529": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-529-draaiorgel").then((m) => m.Concept529),
+  ),
+  "530": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-530-passerpunt").then((m) => m.Concept530),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
