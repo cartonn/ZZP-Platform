@@ -33,6 +33,7 @@ export interface ProfileFormInitial {
   languages: string;
   kvkNumber: string;
   btwNumber: string;
+  iban: string;
   website: string;
   visibility: string;
   defaultMotivation: string;
@@ -184,6 +185,20 @@ export function ProfileForm({
             name="btwNumber"
             defaultValue={initial.btwNumber}
             placeholder="NL123456789B01"
+          />
+        </Field>
+        <Field
+          label="IBAN"
+          htmlFor="iban"
+          error={fe.iban}
+          hint="Voor de betaalinstructie op je factuur; betaling verloopt rechtstreeks aan jou."
+        >
+          <Input
+            id="iban"
+            name="iban"
+            defaultValue={initial.iban}
+            placeholder="NL91 ABNA 0417 1643 00"
+            autoComplete="off"
           />
         </Field>
         <Field

@@ -224,6 +224,7 @@ async function main() {
     incomeGoalCents?: number;
     defaultMotivation?: string;
     website?: string;
+    iban?: string;
   };
   const freelancers: Freelancer[] = [
     {
@@ -240,6 +241,7 @@ async function main() {
       skills: ["verpleegkunde"],
       identityVerified: true,
       completeness: 100,
+      iban: "NL91ABNA0417164300",
       incomeGoalCents: 600000, // demo: € 6.000 maanddoel
       defaultMotivation:
         "Als BIG-geregistreerd verpleegkundige met tien jaar ervaring in de somatische en wijkverpleging ben ik flexibel inzetbaar en snel inwerkbaar. Ik werk zelfstandig en zorgvuldig, en pas graag mijn inzet aan op wat uw team nodig heeft.",
@@ -274,6 +276,7 @@ async function main() {
       skills: ["nodejs", "typescript", "aws"],
       identityVerified: true,
       completeness: 100,
+      iban: "NL39RABO0300065264",
       website: "https://youssefbakker.dev",
       creds: [
         {
@@ -460,6 +463,7 @@ async function main() {
     const motivationFields =
       f.defaultMotivation !== undefined ? { defaultMotivation: f.defaultMotivation } : {};
     const websiteFields = f.website !== undefined ? { website: f.website } : {};
+    const ibanFields = f.iban !== undefined ? { iban: f.iban } : {};
     const user = await prisma.user.upsert({
       where: { email: f.email },
       update: idFields,
@@ -486,6 +490,7 @@ async function main() {
             ...goalFields,
             ...motivationFields,
             ...websiteFields,
+            ...ibanFields,
           },
         },
       },

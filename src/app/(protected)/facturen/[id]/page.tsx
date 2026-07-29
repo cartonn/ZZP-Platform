@@ -11,6 +11,8 @@ import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
 import { currentDunningStage } from "@/lib/payment-reminders";
 import { buildAanmaningData } from "@/lib/aanmaning";
 import { AanmaningSection } from "@/components/invoices/aanmaning-section";
+import { PaymentDetailsCard } from "@/components/invoices/payment-details-card";
+import { formatIban } from "@/lib/fiscal";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -91,6 +93,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
               userId: true,
               kvkNumber: true,
               btwNumber: true,
+              iban: true,
               user: { select: { name: true } },
             },
           },
@@ -162,6 +165,16 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
         issuerKvk: invoice.collaboration.freelancer.kvkNumber,
       })
     : null;
+
+  // Betaalinstructie: betaling verloopt rechtstreeks (off-platform). Toon de gestructureerde
+  // betaalgegevens van de crediteur zolang de factuur nog openstaat, zodat de opdrachtgever correct
+  // + op tijd kan betalen. Beide partijen zien hetzelfde blok. Vereist een IBAN op het ZZP-profiel.
+  const issuerIban = invoice.collaboration.freelancer.iban;
+  const invoiceNumber = cascade ? (invoice.partyInvoiceNumber ?? invoice.number) : invoice.number;
+  const paymentPending = cascade
+    ? ["SUBMITTED", "APPROVED", "OVERDUE"].includes(invoice.lifecycleStatus ?? "")
+    : status === "SENT" || status === "OVERDUE";
+  const showPaymentDetails = !!issuerIban && paymentPending;
 
   // De ZZP'er (crediteur) kan voor een te late, onbetaalde factuur een aanmaning opstellen.
   const overdueForReminder =
@@ -320,6 +333,17 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
         </CardContent>
       </Card>
 
+      {showPaymentDetails && issuerIban && (
+        <PaymentDetailsCard
+          ibanFormatted={formatIban(issuerIban)}
+          accountName={invoice.collaboration.freelancer.user.name ?? ""}
+          paymentReference={`Factuur ${invoiceNumber}`}
+          amountFormatted={formatEuro(invoice.totalCents)}
+          dueDateFormatted={invoice.dueAt ? fmt(invoice.dueAt) : null}
+          isPayer={isClient}
+        />
+      )}
+
       {compliance && <InvoiceComplianceCard compliance={compliance} />}
 
       {awaitingPayment && reminder && (
@@ -354,6 +378,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
             issuedAt: invoice.issuedAt ?? invoice.createdAt,
             dueAt: invoice.dueAt,
             totalCents: invoice.totalCents,
+            iban: issuerIban,
           })}
         />
       )}
