@@ -268,6 +268,12 @@ describe("freelancerProfileAnonymizationData", () => {
   it("wist het zelfgekozen financiële maanddoel (monthlyIncomeGoalCents, AVG art. 17)", () => {
     expect(data.monthlyIncomeGoalCents).toBeNull();
   });
+
+  it("wist de publieke portfolio-/websitelink (website, AVG art. 17)", () => {
+    // Een zelf-getypte portfolio-URL kan de betrokkene identificeren; zonder dit veld overleeft
+    // die de anonimisering op het publieke profiel (rood→groen).
+    expect(data.website).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

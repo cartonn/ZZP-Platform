@@ -352,6 +352,7 @@ model FreelancerProfile {
   languages        String? //                      JSON-string array, bv. ["nl","en"]
   kvkNumber        String?
   btwNumber        String?
+  website          String? //                      portfolio-/websitelink (publiek zichtbaar); http(s) afgedwongen in Zod
   visibility       String   @default("PUBLIC") //   Visibility: PUBLIC | PRIVATE
   completeness     Int      @default(0) //           0-100, server-berekend
   monthlyIncomeGoalCents Int? //                     zelfgekozen maanddoel (omzet/maand) in centen; null = geen doel

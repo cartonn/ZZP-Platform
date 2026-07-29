@@ -146,6 +146,13 @@ export const freelancerProfileSchema = z.object({
       }
     })
     .transform((v) => (v ? normalizeBtwId(v) : undefined)),
+  // Portfolio-/websitelink — publiek zichtbaar op het profiel. Spiegelt het bedrijfsprofiel
+  // (companyProfileSchema.website): http(s) afgedwongen (httpUrl weigert javascript:/data: e.d.),
+  // lege string = geen link.
+  website: z
+    .union([httpUrl("Ongeldige URL."), z.literal("")])
+    .optional()
+    .transform((v) => (v ? v : undefined)),
   visibility: visibilitySchema,
   defaultMotivation: optionalText(2000),
   skillIds: z.array(z.string().cuid()).max(50).default([]),

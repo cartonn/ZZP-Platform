@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — Portfolio-/websitelink op het ZZP-profiel (vertrouwen: opdrachtgever/bemiddelaar)
+
+**Wat:** `Company` had een editbaar `website`-veld dat als klikbare link op het bedrijfsprofiel toont;
+`FreelancerProfile` had er géén. Een opdrachtgever/bemiddelaar die een ZZP'er beoordeelt kon nergens een
+portfolio/website vinden — een reële asymmetrie (pijnlijk in IT/creatief). Nu een nullable `website`-veld op
+`FreelancerProfile`, editbaar op `/profiel/bewerken` en getoond als klikbare, veilige link in het "Stamgegevens"-
+blok van het (deels publieke) profielscherm — exact het bestaande, veilige Company-websitepatroon gespiegeld.
+
+**Grens/veiligheid:** `httpUrl`-Zod-validatie dwingt http(s) af (weigert `javascript:`/`data:`-stored-XSS-vectoren,
+OWASP A03); render met `rel="noopener noreferrer"` + `target="_blank"`. Additieve nullable kolom (`prisma db push`,
+geen datamigratie). **AVG:** de portfolio-URL is persoonsgegeven → meegenomen in de data-export (`account-export.ts`
+gebruikt `include`, dus automatisch, recht op inzage art. 15) én genulld in de anonimisering
+(`freelancerProfileAnonymizationData`, recht op vergetelheid art. 17). Raakt de profiel-compleetheid **niet**
+(geen wijziging aan bestaande scores/tests). Geen nieuw mutatie/auth-oppervlak buiten het bestaande
+`updateFreelancerProfile`. Het woord "AI" komt nergens voor.
+
+**Tests:** +3 validatietests (lege URL → undefined; geldige http(s) geaccepteerd; niet-http(s)-schema geweigerd)
++1 anonimisatie-test (`website: null` na erasure). Demo-seed: Youssef (developer) krijgt `https://youssefbakker.dev`
+zodat de link zichtbaar is in de demo.
+
+**Bestanden:** `prisma/schema.prisma`, `src/lib/validation.ts` (+test), `src/lib/account-anonymization.ts` (+test),
+`src/app/(protected)/profiel/actions.ts`, `.../profiel/profile-form.tsx`, `.../profiel/bewerken/page.tsx`,
+`src/lib/actions/drawer-data.ts`, `src/components/profile/profile-screen.tsx`, `prisma/seed.ts`, `PROGRESS.md`.
+Gate: typecheck ✅, lint ✅ (0), test ✅ (5281), build ✅, prettier ✅.
+
+---
+
 ## 2026-07-28f — Audit-logboek: 54 ontbrekende NL-labels + drift-gate (admin/bemiddelaar)
 
 **Wat:** Het admin- en bemiddelaar-audit-logboek (`audit-panel.tsx`, admin-gebruikersdossier, bemiddelaar
