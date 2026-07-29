@@ -168,6 +168,7 @@ export function freelancerProfileAnonymizationData(): {
   languages: null;
   kvkNumber: null;
   btwNumber: null;
+  website: null;
   hourlyRate: null;
   monthlyIncomeGoalCents: null;
   defaultMotivation: null;
@@ -180,6 +181,7 @@ export function freelancerProfileAnonymizationData(): {
     languages: null,
     kvkNumber: null,
     btwNumber: null,
+    website: null,
     hourlyRate: null,
     monthlyIncomeGoalCents: null,
     defaultMotivation: null,

@@ -33,6 +33,7 @@ export interface ProfileFormInitial {
   languages: string;
   kvkNumber: string;
   btwNumber: string;
+  website: string;
   visibility: string;
   defaultMotivation: string;
   skillIds: string[];
@@ -183,6 +184,21 @@ export function ProfileForm({
             name="btwNumber"
             defaultValue={initial.btwNumber}
             placeholder="NL123456789B01"
+          />
+        </Field>
+        <Field
+          label="Website of portfolio"
+          htmlFor="website"
+          error={fe.website}
+          hint="Publiek zichtbaar op je profiel, bijv. https://jouwportfolio.nl"
+        >
+          <Input
+            id="website"
+            name="website"
+            type="url"
+            inputMode="url"
+            defaultValue={initial.website}
+            placeholder="https://jouwportfolio.nl"
           />
         </Field>
       </div>

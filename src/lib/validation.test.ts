@@ -126,6 +126,42 @@ describe("freelancerProfileSchema", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("behandelt een lege website als undefined en accepteert een geldige http(s)-URL", () => {
+    const leeg = freelancerProfileSchema.safeParse({
+      availability: "AVAILABLE",
+      workMode: "HYBRID",
+      visibility: "PUBLIC",
+      website: "",
+    });
+    expect(leeg.success).toBe(true);
+    if (leeg.success) expect(leeg.data.website).toBeUndefined();
+
+    for (const website of ["https://portfolio.nl", "http://portfolio.nl/werk?id=1"]) {
+      const r = freelancerProfileSchema.safeParse({
+        availability: "AVAILABLE",
+        workMode: "HYBRID",
+        visibility: "PUBLIC",
+        website,
+      });
+      expect(r.success).toBe(true);
+      if (r.success) expect(r.data.website).toBe(website);
+    }
+  });
+
+  it("weigert een niet-http(s)-schema in de website (stored-XSS-vector, OWASP A03)", () => {
+    // eslint-disable-next-line no-script-url
+    for (const website of ["javascript:alert(1)", "data:text/html,<script>", "geen-url"]) {
+      expect(
+        freelancerProfileSchema.safeParse({
+          availability: "AVAILABLE",
+          workMode: "HYBRID",
+          visibility: "PUBLIC",
+          website,
+        }).success,
+      ).toBe(false);
+    }
+  });
 });
 
 describe("companyProfileSchema", () => {

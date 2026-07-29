@@ -223,6 +223,7 @@ async function main() {
     creds: Cred[];
     incomeGoalCents?: number;
     defaultMotivation?: string;
+    website?: string;
   };
   const freelancers: Freelancer[] = [
     {
@@ -273,6 +274,7 @@ async function main() {
       skills: ["nodejs", "typescript", "aws"],
       identityVerified: true,
       completeness: 100,
+      website: "https://youssefbakker.dev",
       creds: [
         {
           type: "VOG",
@@ -457,6 +459,7 @@ async function main() {
       f.incomeGoalCents !== undefined ? { monthlyIncomeGoalCents: f.incomeGoalCents } : {};
     const motivationFields =
       f.defaultMotivation !== undefined ? { defaultMotivation: f.defaultMotivation } : {};
+    const websiteFields = f.website !== undefined ? { website: f.website } : {};
     const user = await prisma.user.upsert({
       where: { email: f.email },
       update: idFields,
@@ -482,6 +485,7 @@ async function main() {
             completeness: f.completeness,
             ...goalFields,
             ...motivationFields,
+            ...websiteFields,
           },
         },
       },

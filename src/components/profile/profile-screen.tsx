@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, Calendar, CalendarOff, MapPin } from "lucide-react";
+import { AlertTriangle, Calendar, CalendarOff, Globe, MapPin } from "lucide-react";
 import { currentActor } from "@/lib/authz";
 import { getTranslator } from "@/lib/i18n/server";
 import { prisma } from "@/lib/db";
@@ -153,6 +153,7 @@ export async function ProfileScreen({
       maxTravelMinutes: true,
       languages: true,
       kvkNumber: true,
+      website: true,
       visibility: true,
       createdAt: true,
       tenantId: true,
@@ -545,6 +546,22 @@ export async function ProfileScreen({
                     <Stat label={t("Uurtarief")} value={`€ ${profile.hourlyRate}`} />
                   )}
                   {profile.kvkNumber && <Stat label={t("KvK-nummer")} value={profile.kvkNumber} />}
+                  {profile.website && (
+                    <Stat
+                      label={t("Website")}
+                      value={
+                        <a
+                          href={profile.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="focus-ring inline-flex items-center gap-1 rounded hover:underline"
+                        >
+                          <Globe className="size-3.5 text-muted-foreground" aria-hidden />
+                          {profile.website.replace(/^https?:\/\//, "")}
+                        </a>
+                      }
+                    />
+                  )}
                   {languages.length > 0 && <Stat label={t("Talen")} value={languages.join(", ")} />}
                   <Stat label={t("Op het platform sinds")} value={memberSince} />
                 </dl>
