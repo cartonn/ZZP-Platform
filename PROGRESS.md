@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — persona-sweep run 57: ontbrekend-vereist-certificaat next-action (HIGH) + approveAndSubmit TOCTOU (MED/HIGH)
+
+**Wat:** kritische-gebruiker-sweep over alle vier rollen (verse prod-build + idempotente demo-seed, live Playwright/
+Chromium). **2 bevindingen gevonden + gefixt.**
+
+1. **HIGH (DOEL 1b, next-action-asymmetrie):** een door een lopende samenwerking VEREIST niet-verplicht certificaat
+   dat de ZZP'er volledig MIST (geen rij, of alleen een `DRAFT`) gaf de ZZP'er géén actie, terwijl de opdrachtgever
+   wél "mist een vereist certificaat — vraag om aan te leveren" kreeg. De missing/DRAFT-spiegel van de EXPIRED-fix uit
+   run 56. Fix: pure `collaborationMissingRequiredCredentials` + taak `credential-collab-missing` (prio 81), met
+   deep-link naar het concept of het aanmaak-formulier; verplichte/afgewezen typen uitgesloten (geen dubbele rij).
+
+2. **MED/HIGH (DOEL 2, TOCTOU):** `approveAndSubmit` (aangifte) riep `partner.submit()` (extern, onomkeerbaar —
+   in prod de echte SBR/Digipoort-aangifte) aan vóór een blinde, niet-guarded write. Twee gelijktijdige aanroepen
+   dienden beide écht in → dubbele aangifte + dubbele `TAX_FILING_SUBMITTED`-audit. Fix: compound-guarded
+   `updateMany`-claim vóór het externe effect (winnaar-only) + compensatie bij submit-faal; `revokeFiling` idem.
+
+**Bestanden:** `src/lib/collaboration-credential-expiry.ts` (+ test, +6), `src/lib/actions/tasks.ts`,
+`src/lib/actions/pending-tasks.ts`, `src/lib/next-actions.ts`, `src/lib/actions/pending-tasks-missing-collab-credential.test.ts`
+(+5), `src/app/(protected)/ontzorgd/aangifte/actions.ts`, `src/app/(protected)/ontzorgd/aangifte/approve-submit-toctou.test.ts`
+(+5), `docs/PERSONA-SWEEP-BACKLOG.md`, `PROGRESS.md`.
+**Checks:** typecheck, lint, test (**5312 passed, 506 files**), build (exit 0), prettier --check . groen.
+
+**Volgende stap:** vrij te kiezen uit de backlog.
+
+---
+
 ## 2026-07-29 — KOR-grens tempo-projectie (ZZP'er, /ontzorgd)
 
 **Wat:** de KOR-grens (€20.000-omzetgrens, kleineondernemersregeling) surface-de op `/ontzorgd` alleen als een

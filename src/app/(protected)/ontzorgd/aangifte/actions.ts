@@ -171,20 +171,49 @@ export async function approveAndSubmit(requestId: string): Promise<void> {
   if (!req || req.userId !== actor.id) throw new Error("Verzoek niet gevonden.");
 
   assertTaxFilingTransition(req.status as TaxFilingStatus, "INGEDIEND");
-  const partner = getTaxFilingPartner();
-  const sub = await partner.submit({
-    taxYear: req.taxYear,
-    kind: req.kind as TaxFilingKind,
-    quarter: req.quarter,
-    estimateCents: req.conceptAmountCents ?? 0,
-    payload: {},
+
+  // TOCTOU-grendel (persona-sweep run 57): `partner.submit()` is een EXTERN, onomkeerbaar effect
+  // (in productie de echte SBR/Digipoort-aangifte bij de Belastingdienst). De vorige volgorde las de
+  // status één keer (stale snapshot), riep dan `partner.submit()` aan en schreef pas dáárna blind
+  // terug — twee gelijktijdige aanroepen (dubbelklik, herhaalde POST, replay van dezelfde server-
+  // action-request) passeerden beide `assertTaxFilingTransition` en dienden beide écht in → dubbele
+  // aangifte + twee `TAX_FILING_SUBMITTED`-auditregels voor één verzoek. Claim daarom de overgang
+  // ATOMISCH vóór het externe effect: alleen de winnaar (CONCEPT_KLAAR → INGEDIEND, compound-guard)
+  // roept de partner aan. Symmetrisch met resolveDispute/openDispute/invoice/performance-commands.
+  const claim = await prisma.taxFilingRequest.updateMany({
+    where: { id: requestId, status: "CONCEPT_KLAAR" },
+    data: { status: "INGEDIEND", clientApprovedAt: new Date() },
   });
+  if (claim.count === 0) {
+    // Een gelijktijdige indiening won de race (status is niet meer CONCEPT_KLAAR) → niet nog eens
+    // indienen. Geen tweede extern effect, geen tweede audit.
+    throw new Error("Dit verzoek is al ingediend of niet meer in te dienen.");
+  }
+
+  const partner = getTaxFilingPartner();
+  let sub: Awaited<ReturnType<typeof partner.submit>>;
+  try {
+    sub = await partner.submit({
+      taxYear: req.taxYear,
+      kind: req.kind as TaxFilingKind,
+      quarter: req.quarter,
+      estimateCents: req.conceptAmountCents ?? 0,
+      payload: {},
+    });
+  } catch (err) {
+    // Compensatie: het externe indienen faalde nadat we de overgang claimden. Zet terug naar
+    // CONCEPT_KLAAR zodat de klant opnieuw kan indienen (INGEDIEND kent geen terugweg in de map;
+    // dit is een expliciete rollback van de zojuist-geclaimde, nog niet voltooide indiening).
+    await prisma.taxFilingRequest.updateMany({
+      where: { id: requestId, status: "INGEDIEND", submissionRef: null },
+      data: { status: "CONCEPT_KLAAR", clientApprovedAt: null },
+    });
+    throw err;
+  }
 
   await prisma.taxFilingRequest.update({
     where: { id: requestId },
     data: {
-      status: "INGEDIEND",
-      clientApprovedAt: new Date(),
       submittedAt: new Date(),
       submissionRef: sub.submissionRef,
     },
@@ -206,10 +235,19 @@ export async function revokeFiling(requestId: string): Promise<void> {
   if (!req || req.userId !== actor.id) throw new Error("Verzoek niet gevonden.");
 
   assertTaxFilingTransition(req.status as TaxFilingStatus, "INGETROKKEN");
-  await prisma.taxFilingRequest.update({
-    where: { id: requestId },
+  // Compound-guarded claim: alleen een verzoek dat nog in een intrekbare status staat wordt
+  // ingetrokken. Zonder deze grendel schreef een dubbele aanroep twee `TAX_FILING_REVOKED`-audits
+  // voor één intrekking (TOCTOU, symmetrisch met approveAndSubmit hierboven).
+  const revoked = await prisma.taxFilingRequest.updateMany({
+    where: {
+      id: requestId,
+      status: { in: ["AKKOORD", "IN_BEHANDELING", "VRAGEN", "CONCEPT_KLAAR"] },
+    },
     data: { status: "INGETROKKEN", revokedAt: new Date() },
   });
+  if (revoked.count === 0) {
+    throw new Error("Dit verzoek kan niet meer worden ingetrokken.");
+  }
   await audit({
     actorId: actor.id,
     action: "TAX_FILING_REVOKED",

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   collaborationCredentialExpiryConcerns,
   collaborationExpiredRequiredCredentials,
+  collaborationMissingRequiredCredentials,
   COLLAB_CREDENTIAL_EXPIRY_WINDOW_DAYS,
   type CollabCredentialInput,
   type CollabRequirementInput,
@@ -260,6 +261,90 @@ describe("collaborationExpiredRequiredCredentials", () => {
     });
     expect(result).toHaveLength(1);
     expect(result[0]!.credentialId).toBe("cred-recent");
+    expect(result[0]!.collaborations.map((c) => c.collaborationId)).toEqual(["c1", "c2"]);
+  });
+});
+
+describe("collaborationMissingRequiredCredentials", () => {
+  it("volledig ontbrekend vereist type → één zorg zonder concept-id", () => {
+    const result = collaborationMissingRequiredCredentials({
+      collaborations: [collab({ requiredTypes: ["LICENSE"] })],
+      credentials: [], // geen enkel certificaat
+      now: NOW,
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.type).toBe("LICENSE");
+    expect(result[0]!.draftCredentialId).toBeNull();
+    expect(result[0]!.collaborations.map((c) => c.collaborationId)).toEqual(["collab-1"]);
+  });
+
+  it("alleen een DRAFT van het type → zorg mét concept-id (aanlever-kandidaat)", () => {
+    const result = collaborationMissingRequiredCredentials({
+      collaborations: [collab({ requiredTypes: ["LICENSE"] })],
+      credentials: [
+        cred({ id: "draft-1", title: "BIG", type: "LICENSE", status: "DRAFT", expiresAt: null }),
+      ],
+      now: NOW,
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.draftCredentialId).toBe("draft-1");
+  });
+
+  it("geldig geverifieerd exemplaar → geen zorg", () => {
+    const result = collaborationMissingRequiredCredentials({
+      collaborations: [collab({ requiredTypes: ["LICENSE"] })],
+      credentials: [
+        cred({
+          id: "ok",
+          title: "BIG",
+          type: "LICENSE",
+          status: "VERIFIED",
+          expiresAt: inDays(90),
+        }),
+      ],
+      now: NOW,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it("in beoordeling (SUBMITTED) → geen zorg (ZZP'er heeft al aangeleverd; admin verifieert)", () => {
+    const result = collaborationMissingRequiredCredentials({
+      collaborations: [collab({ requiredTypes: ["LICENSE"] })],
+      credentials: [
+        cred({ id: "sub", title: "BIG", type: "LICENSE", status: "SUBMITTED", expiresAt: null }),
+      ],
+      now: NOW,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it("verlopen exemplaar → geen missing-zorg (dat is de EXPIRED-tak)", () => {
+    const result = collaborationMissingRequiredCredentials({
+      collaborations: [collab({ requiredTypes: ["LICENSE"] })],
+      credentials: [
+        cred({
+          id: "exp",
+          title: "BIG",
+          type: "LICENSE",
+          status: "EXPIRED",
+          expiresAt: inDays(-5),
+        }),
+      ],
+      now: NOW,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it("dedupliceert één ontbrekend type over meerdere samenwerkingen", () => {
+    const result = collaborationMissingRequiredCredentials({
+      collaborations: [
+        collab({ collaborationId: "c1", requiredTypes: ["LICENSE"] }),
+        collab({ collaborationId: "c2", requiredTypes: ["LICENSE"] }),
+      ],
+      credentials: [],
+      now: NOW,
+    });
+    expect(result).toHaveLength(1);
     expect(result[0]!.collaborations.map((c) => c.collaborationId)).toEqual(["c1", "c2"]);
   });
 });
