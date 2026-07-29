@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — cascade-overdue betaal-signaal voor de opdrachtgever (run-53 "Besluit 1"-gat)
+
+**Wat:** een cascade-factuur die APPROVED→OVERDUE flipt gaf de **betalende partij (opdrachtgever)** géén signaal op
+enig oppervlak — alleen de ZZP'er kreeg `paymentConfirmTask(overdue)`. De opdrachtgever betaalt in de cascade
+out-of-band (geen "Markeer als betaald"-knop, `canPay = !cascade`) en de generieke overdue-roll-up sluit cascade
+bewust uit; wordt zo'n factuur OVERDUE, dan zag hij **niets** — terwijl OVERDUE "betaald maar nog niet bevestigd"
+niet kan onderscheiden van "nooit betaald". Sluit het geparkeerde run-53 "Besluit 1"-gat.
+
+**Fix:** nieuwe read-only next-action `clientCascadeOverduePaymentTask` (opdrachtgever-spiegel van de ZZP'er-
+`paymentConfirmTask(overdue)`), band `P.clientCascadeOverduePayment = 57` (post-due, boven de pre-due nudge 56,
+onder de generieke roll-up 60). Deep-link naar het samenwerkingsdetail (`resolver:"link"`) — géén nieuwe betaal-
+mutatie, het out-of-band-model blijft ongewijzigd. Verschijnt op **/acties + dashboard-rail + nav-badge**: de
+badge-telling (`countClientCascadeWork`) kreeg `overduePaymentNudges` erbij zodat de /samenwerkingen-badge niet
+stiller is dan /acties ("signaal op één oppervlak"-anti-patroon). Query: index-backed
+`invoice.count/findMany` op `counterpartyUserId + lifecycleStatus:"OVERDUE"`, bevroren (dispuut) deals uitgesloten,
+zelfde scope voor badge én item-taak → geen drift. Verdwijnt zodra de ZZP'er de betaling registreert (→ PAID).
+
+**Bestanden:** `src/lib/next-actions.ts`, `src/lib/actions/tasks.ts`, `src/lib/actions/pending-tasks.ts`,
+`src/lib/signals.ts`, `src/lib/signals.test.ts` (+1), `src/lib/actions/pending-tasks-client-overdue-payment.test.ts`
+(nieuw, +5), `src/lib/actions/pending-tasks-client-compliance.test.ts` + `pending-tasks-renewal.test.ts` (invoice-mock),
+`docs/PERSONA-SWEEP-BACKLOG.md`, `PROGRESS.md`.
+**Checks:** typecheck, lint, test (**5318 passed, 507 files**), build (exit 0), prettier groen.
+
+**Volgende stap:** vrij te kiezen uit de backlog.
+
+---
+
 ## 2026-07-29 — persona-sweep run 57: ontbrekend-vereist-certificaat next-action (HIGH) + approveAndSubmit TOCTOU (MED/HIGH)
 
 **Wat:** kritische-gebruiker-sweep over alle vier rollen (verse prod-build + idempotente demo-seed, live Playwright/

@@ -227,6 +227,7 @@ describe("countClientCascadeWork", () => {
         submittedPerformances: 0,
         submittedInvoices: 0,
         complianceActions: 0,
+        overduePaymentNudges: 0,
       }),
     ).toBe(1);
   });
@@ -238,6 +239,7 @@ describe("countClientCascadeWork", () => {
         submittedPerformances: 3,
         submittedInvoices: 1,
         complianceActions: 2,
+        overduePaymentNudges: 0,
       }),
     ).toBe(8);
   });
@@ -251,6 +253,7 @@ describe("countClientCascadeWork", () => {
         submittedPerformances: 0,
         submittedInvoices: 0,
         complianceActions: 1,
+        overduePaymentNudges: 0,
       }),
     ).toBe(1);
   });
@@ -262,8 +265,24 @@ describe("countClientCascadeWork", () => {
         submittedPerformances: 0,
         submittedInvoices: 0,
         complianceActions: 0,
+        overduePaymentNudges: 0,
       }),
     ).toBe(0);
+  });
+
+  it("telt een cascade-factuur over de vervaldatum (betaal-nudge) mee — mag niet uit de badge vallen", () => {
+    // Regressie/nieuw: de opdrachtgever ziet op /acties + de dashboard-rail de
+    // clientCascadeOverduePaymentTask (cascade-factuur OVERDUE, betaal 'm / laat bevestigen), dus moet
+    // de /samenwerkingen-badge die actie ook tellen — anders is de badge stiller dan /acties.
+    expect(
+      countClientCascadeWork({
+        proposedCollaborations: 0,
+        submittedPerformances: 0,
+        submittedInvoices: 0,
+        complianceActions: 0,
+        overduePaymentNudges: 2,
+      }),
+    ).toBe(2);
   });
 });
 

@@ -40,6 +40,7 @@ vi.mock("@/lib/db", () => ({
         return [];
       }),
     },
+    invoice: { findMany: vi.fn(async () => []) },
     conversationParticipant: { findMany: vi.fn(async () => []) },
     message: { groupBy: vi.fn(async () => []) },
     conversation: { findMany: vi.fn(async () => []) },
