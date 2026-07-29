@@ -1,0 +1,1094 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Het definitieve ontwerp — 510 + 412 + 324</title>
+    <style>
+      :root {
+        --paper: #faf5ec;
+        --panel: #fffdf8;
+        --ink: #26221b;
+        --muted: #7d7466;
+        --hair: #e8e0d0;
+        --seal: #15795a;
+        --seal-soft: #e7f0e9;
+        --warm: #b9603f;
+        --warm-soft: #f6e3da;
+        --brass: #a8894f;
+        --dark: #1d2420;
+      }
+      html {
+        background: var(--paper);
+      }
+      body {
+        font:
+          16px/1.6 -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+        color: var(--ink);
+        margin: 0;
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 48px 24px 96px;
+      }
+      .eyebrow {
+        font:
+          600 12px/1 ui-monospace,
+          "SF Mono",
+          Menlo,
+          monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--seal);
+        margin: 0 0 14px;
+      }
+      h1 {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(30px, 4.5vw, 44px);
+        line-height: 1.12;
+        font-weight: 500;
+        margin: 0 0 12px;
+        text-wrap: balance;
+      }
+      h2 {
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 25px;
+        margin: 64px 0 8px;
+      }
+      .lede,
+      .sub {
+        color: var(--muted);
+        max-width: 47em;
+        margin: 0 0 8px;
+      }
+      .sub {
+        margin-bottom: 22px;
+      }
+
+      .bronnen {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin: 30px 0 0;
+      }
+      .bron {
+        border: 1px solid var(--hair);
+        border-top: 4px solid var(--seal);
+        background: var(--panel);
+        border-radius: 10px;
+        padding: 16px 18px;
+      }
+      .bron:nth-child(2) {
+        border-top-color: var(--warm);
+      }
+      .bron:nth-child(3) {
+        border-top-color: var(--ink);
+      }
+      .bron b {
+        font:
+          700 15px/1 ui-monospace,
+          Menlo,
+          monospace;
+      }
+      .bron h3 {
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 18px;
+        margin: 6px 0 6px;
+      }
+      .bron p {
+        margin: 0;
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+
+      .stalen {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+      }
+      .staal {
+        border: 1px solid var(--hair);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--panel);
+      }
+      .staal .kleur {
+        height: 64px;
+      }
+      .staal .info {
+        padding: 9px 12px;
+      }
+      .staal .naam {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .staal .hex {
+        font:
+          500 11.5px/1.5 ui-monospace,
+          Menlo,
+          monospace;
+        color: var(--muted);
+      }
+
+      .typo {
+        border: 1px solid var(--hair);
+        border-radius: 10px;
+        background: var(--panel);
+        padding: 22px 24px;
+        display: grid;
+        gap: 14px;
+      }
+      .typo .t-display {
+        font-family: Georgia, serif;
+        font-size: 30px;
+        line-height: 1.15;
+      }
+      .typo .t-body {
+        max-width: 40em;
+      }
+      .typo .t-mono {
+        font:
+          600 20px/1 ui-monospace,
+          Menlo,
+          monospace;
+        font-variant-numeric: tabular-nums;
+      }
+      .typo .rol {
+        font:
+          600 10.5px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      /* ===== Dashboard-mockup ===== */
+      .app {
+        border: 1px solid var(--hair);
+        border-radius: 14px;
+        overflow: hidden;
+        background: var(--paper);
+        box-shadow: 0 24px 60px -36px rgba(38, 34, 27, 0.35);
+        display: grid;
+        grid-template-columns: 216px 1fr;
+        font-size: 13.5px;
+      }
+      .side {
+        background: var(--panel);
+        border-right: 1px solid var(--hair);
+        padding: 18px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-height: 640px;
+      }
+      .side .merk {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 4px 8px 16px;
+      }
+      .side .merk b {
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 16px;
+      }
+      .side .merk small {
+        display: block;
+        font:
+          500 9px/1.4 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 7.5px 10px;
+        border-radius: 8px;
+        color: var(--ink);
+      }
+      .nav-item svg {
+        flex: none;
+      }
+      .nav-item.actief {
+        background: var(--seal-soft);
+        color: var(--seal);
+        font-weight: 600;
+      }
+      .nav-item.dim {
+        color: var(--muted);
+      }
+      .side .onder {
+        margin-top: auto;
+        border-top: 1px solid var(--hair);
+        padding-top: 12px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        background: var(--seal);
+        color: #fffdf8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .main {
+        padding: 24px 28px 28px;
+      }
+      .kop {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      .kop h4 {
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 26px;
+        margin: 2px 0 4px;
+      }
+      .kop .warm-sub {
+        color: var(--muted);
+        font-size: 13.5px;
+        max-width: 34em;
+      }
+      .zegel-badge {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        border: 1px solid var(--hair);
+        background: var(--panel);
+        border-radius: 999px;
+        padding: 7px 14px 7px 9px;
+        white-space: nowrap;
+      }
+      .zegel-badge .txt b {
+        display: block;
+        font-size: 12.5px;
+        color: var(--seal);
+      }
+      .zegel-badge .txt small {
+        font-size: 10.5px;
+        color: var(--muted);
+      }
+      .cijfers {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+      .cijfer {
+        border: 1px solid var(--hair);
+        background: var(--panel);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+      .cijfer .lbl {
+        font-size: 11.5px;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+      }
+      .cijfer .lbl em {
+        font-style: normal;
+        color: var(--seal);
+        font-weight: 600;
+      }
+      .cijfer .lbl em.af {
+        color: var(--warm);
+      }
+      .cijfer .val {
+        font:
+          600 21px/1.3 ui-monospace,
+          Menlo,
+          monospace;
+        font-variant-numeric: tabular-nums;
+      }
+      .kolommen {
+        display: grid;
+        grid-template-columns: 1.55fr 1fr;
+        gap: 14px;
+      }
+      .paneel {
+        border: 1px solid var(--hair);
+        background: var(--panel);
+        border-radius: 12px;
+        padding: 16px 18px;
+      }
+      .paneel-kop {
+        font:
+          600 10.5px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .paneel-kop a {
+        color: var(--seal);
+        text-decoration: none;
+        letter-spacing: 0.06em;
+      }
+      .actie {
+        display: flex;
+        gap: 12px;
+        padding: 11px 2px;
+        border-top: 1px solid var(--hair);
+        align-items: flex-start;
+      }
+      .actie:first-of-type {
+        border-top: 0;
+      }
+      .actie .stip {
+        margin-top: 5px;
+        width: 8px;
+        height: 8px;
+        border-radius: 99px;
+        background: var(--warm);
+        flex: none;
+      }
+      .actie.info .stip {
+        background: var(--seal);
+      }
+      .actie b {
+        font-size: 13.5px;
+        font-weight: 600;
+      }
+      .actie .oms {
+        color: var(--muted);
+        font-size: 12.5px;
+        margin-top: 1px;
+      }
+      .actie .label {
+        margin-left: auto;
+        flex: none;
+        font:
+          700 9.5px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.1em;
+        border-radius: 5px;
+        padding: 4px 7px;
+      }
+      .label.urgent {
+        color: var(--warm);
+        background: var(--warm-soft);
+      }
+      .label.info {
+        color: var(--seal);
+        background: var(--seal-soft);
+      }
+      .knop {
+        display: inline-block;
+        text-decoration: none;
+        margin-top: 12px;
+        background: var(--seal);
+        color: #fffdf8;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .knop.stil {
+        background: transparent;
+        color: var(--ink);
+        border: 1px solid var(--hair);
+        margin-left: 8px;
+      }
+      .ring-blok {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+      }
+      .ring-tekst b {
+        display: block;
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 17px;
+      }
+      .ring-tekst small {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .cert {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 2px;
+        border-top: 1px solid var(--hair);
+        font-size: 13px;
+      }
+      .cert small {
+        color: var(--muted);
+        display: block;
+        font-size: 11.5px;
+      }
+      .cert .st {
+        margin-left: auto;
+        font:
+          700 9.5px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.08em;
+      }
+      .st.ok {
+        color: var(--seal);
+      }
+      .st.let {
+        color: var(--warm);
+      }
+      .match {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid var(--hair);
+        border-radius: 10px;
+        padding: 11px 13px;
+        margin-top: 10px;
+        background: var(--paper);
+      }
+      .match .mm {
+        flex: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 99px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font:
+          700 12px/1 ui-monospace,
+          Menlo,
+          monospace;
+        color: var(--seal);
+        background:
+          radial-gradient(closest-side, var(--panel) 74%, transparent 75% 100%),
+          conic-gradient(var(--seal) 94%, var(--hair) 0);
+      }
+      .match b {
+        font-size: 13.5px;
+      }
+      .match small {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .match .eur {
+        margin-left: auto;
+        font:
+          600 14px/1.4 ui-monospace,
+          Menlo,
+          monospace;
+        text-align: right;
+      }
+      .match .eur small {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+      }
+
+      .signaturen {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      .sig {
+        border: 1px solid var(--hair);
+        background: var(--panel);
+        border-radius: 12px;
+        padding: 16px 18px;
+      }
+      .sig h3 {
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 17px;
+        margin: 10px 0 6px;
+      }
+      .sig p {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .note {
+        border: 1px solid var(--hair);
+        border-left: 4px solid var(--seal);
+        background: var(--panel);
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-top: 44px;
+        font-size: 14.5px;
+      }
+      @media (max-width: 860px) {
+        .bronnen,
+        .signaturen {
+          grid-template-columns: 1fr;
+        }
+        .app {
+          grid-template-columns: 1fr;
+        }
+        .side {
+          min-height: 0;
+          flex-direction: row;
+          flex-wrap: wrap;
+        }
+        .side .onder {
+          display: none;
+        }
+        .cijfers {
+          grid-template-columns: 1fr 1fr;
+        }
+        .kolommen {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <p class="eyebrow">ZZP Platform · definitief ontwerp · 29 juli 2026</p>
+      <h1>Het definitieve ontwerp: vertrouwen, warmte en een wakkere actielijst</h1>
+      <p class="lede">
+        De gekozen combinatie <strong>510 + 412 + 324</strong>, samengesmolten tot één identiteit.
+        Geen collage van drie stijlen, maar één taal waarin elk van de drie zijn sterkste kwaliteit
+        levert.
+      </p>
+
+      <div class="bronnen">
+        <div class="bron">
+          <b>510</b>
+          <h3>Waarmerk — het verhaal</h3>
+          <p>
+            Vertrouwen als held: het zegelgroen, de vertrouwensring, waarmerk-motieven en de
+            provenance-gedachte. Dit bepaalt wát we laten zien.
+          </p>
+        </div>
+        <div class="bron">
+          <b>412</b>
+          <h3>Salon — de huid</h3>
+          <p>
+            Warm ivoorpapier, terracotta als menselijk accent, gastvrije microcopy en zachte,
+            genereuze kaarten. Dit bepaalt hoe het vóélt.
+          </p>
+        </div>
+        <div class="bron">
+          <b>324</b>
+          <h3>Zephyr — het skelet</h3>
+          <p>
+            Sidebar-navigatie, hoge informatiedichtheid, hairline-discipline en de "wat vraagt nu je
+            aandacht"-lijst met urgentielabels. Dit bepaalt hoe het wérkt.
+          </p>
+        </div>
+      </div>
+
+      <h2>De kern-tokens</h2>
+      <p class="sub">
+        Eén kleurbron voor de hele uitrol. Zegelgroen is het gezag (vertrouwen, acties), terracotta
+        de warmte (aandacht, mens), messing het ceremoniële detail (zegels).
+      </p>
+      <div class="stalen">
+        <div class="staal">
+          <div class="kleur" style="background: #faf5ec"></div>
+          <div class="info">
+            <div class="naam">Papier</div>
+            <div class="hex">#faf5ec</div>
+          </div>
+        </div>
+        <div class="staal">
+          <div class="kleur" style="background: #fffdf8"></div>
+          <div class="info">
+            <div class="naam">Paneel</div>
+            <div class="hex">#fffdf8</div>
+          </div>
+        </div>
+        <div class="staal">
+          <div class="kleur" style="background: #26221b"></div>
+          <div class="info">
+            <div class="naam">Inkt</div>
+            <div class="hex">#26221b</div>
+          </div>
+        </div>
+        <div class="staal">
+          <div class="kleur" style="background: #15795a"></div>
+          <div class="info">
+            <div class="naam">Zegelgroen</div>
+            <div class="hex">#15795a</div>
+          </div>
+        </div>
+        <div class="staal">
+          <div class="kleur" style="background: #b9603f"></div>
+          <div class="info">
+            <div class="naam">Terracotta</div>
+            <div class="hex">#b9603f</div>
+          </div>
+        </div>
+        <div class="staal">
+          <div class="kleur" style="background: #a8894f"></div>
+          <div class="info">
+            <div class="naam">Messing</div>
+            <div class="hex">#a8894f</div>
+          </div>
+        </div>
+        <div class="staal">
+          <div class="kleur" style="background: #e8e0d0"></div>
+          <div class="info">
+            <div class="naam">Hairline</div>
+            <div class="hex">#e8e0d0</div>
+          </div>
+        </div>
+      </div>
+
+      <h2>De typografie</h2>
+      <div class="typo">
+        <div>
+          <span class="rol">Display — serif, voor koppen en namen</span>
+          <div class="t-display">Goedemorgen, Sanne. Je dossier staat er warm bij.</div>
+        </div>
+        <div>
+          <span class="rol">Tekst — humanistische sans, voor alles wat leest</span>
+          <div class="t-body">
+            Eén certificaat vraagt binnenkort om vernieuwing. Regel het op tijd, dan blijft je
+            dossier voor elke opdrachtgever verifieerbaar.
+          </div>
+        </div>
+        <div>
+          <span class="rol">Mono — tabulaire cijfers, voor alles wat telt</span>
+          <div class="t-mono">€ 8.240 &nbsp;·&nbsp; 92% &nbsp;·&nbsp; FAC-2026-118</div>
+        </div>
+      </div>
+
+      <h2>Zo ziet het eruit — het dashboard</h2>
+      <p class="sub">
+        Het skelet van 324 (sidebar, dichtheid, actielijst), de huid van 412 (warm papier,
+        terracotta, gastvrije toon), het verhaal van 510 (zegel, vertrouwensring, verificatie
+        voorop).
+      </p>
+
+      <div class="app" role="img" aria-label="Mockup van het definitieve dashboard">
+        <aside class="side">
+          <div class="merk">
+            <svg width="30" height="30" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <circle r="34" stroke="#15795a" stroke-width="4" stroke-dasharray="5 4.4" />
+                <circle r="24" stroke="#15795a" stroke-width="3.5" />
+                <polyline
+                  points="-11,2 -4,10 13,-9"
+                  stroke="#15795a"
+                  stroke-width="6"
+                  stroke-linejoin="round"
+                />
+              </g>
+            </svg>
+            <div><b>ZZP Platform</b><small>WERKRUIMTE</small></div>
+          </div>
+          <div class="nav-item actief">
+            <svg width="14" height="14" viewBox="0 0 14 14">
+              <rect x="1" y="1" width="5" height="5" rx="1.2" fill="currentColor" />
+              <rect x="8" y="1" width="5" height="5" rx="1.2" fill="currentColor" opacity=".45" />
+              <rect x="1" y="8" width="5" height="5" rx="1.2" fill="currentColor" opacity=".45" />
+              <rect x="8" y="8" width="5" height="5" rx="1.2" fill="currentColor" /></svg
+            >Dashboard
+          </div>
+          <div class="nav-item dim">
+            <svg width="14" height="14" viewBox="0 0 14 14">
+              <circle cx="6" cy="6" r="4.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+              <line
+                x1="9.5"
+                y1="9.5"
+                x2="13"
+                y2="13"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              /></svg
+            >Marktplaats
+          </div>
+          <div class="nav-item dim">
+            <svg width="14" height="14" viewBox="0 0 14 14">
+              <rect
+                x="1.5"
+                y="3"
+                width="11"
+                height="9"
+                rx="1.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+              />
+              <path
+                d="M5 3V2a2 2 0 0 1 4 0v1"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+              /></svg
+            >Opdracht
+          </div>
+          <div class="nav-item dim">
+            <svg width="14" height="14" viewBox="0 0 14 14">
+              <path
+                d="M7 1l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V3z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linejoin="round"
+              />
+              <polyline
+                points="4.6,7 6.4,8.8 9.6,5.2"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              /></svg
+            >Verificatie
+          </div>
+          <div class="nav-item dim">
+            <svg width="14" height="14" viewBox="0 0 14 14">
+              <polyline
+                points="2,7.5 5,7.5 6.5,4 8.5,10.5 10,7.5 12.5,7.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              /></svg
+            >Acties
+          </div>
+          <div class="nav-item dim">
+            <svg width="14" height="14" viewBox="0 0 14 14">
+              <rect
+                x="2"
+                y="1.5"
+                width="10"
+                height="11"
+                rx="1.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+              />
+              <line
+                x1="4.5"
+                y1="4.5"
+                x2="9.5"
+                y2="4.5"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+              />
+              <line
+                x1="4.5"
+                y1="7"
+                x2="9.5"
+                y2="7"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+              />
+              <line
+                x1="4.5"
+                y1="9.5"
+                x2="7.5"
+                y2="9.5"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+              /></svg
+            >Facturen
+          </div>
+          <div class="onder">
+            <div class="avatar">SdV</div>
+            <div style="font-size: 12px">
+              <b>Sanne de Vries</b><br /><span style="color: var(--muted); font-size: 11px"
+                >Wijkverpleegkundige · Utrecht</span
+              >
+            </div>
+          </div>
+        </aside>
+
+        <div class="main">
+          <div class="kop">
+            <div>
+              <h4>Goedemorgen, Sanne.</h4>
+              <div class="warm-sub">
+                Fijn dat je er bent. Je dossier staat er goed bij — er is vandaag precies één ding
+                dat je aandacht vraagt, de rest hebben we voor je klaargezet.
+              </div>
+            </div>
+            <div class="zegel-badge">
+              <svg width="30" height="30" viewBox="-40 -40 80 80">
+                <g fill="none" stroke-linecap="round">
+                  <circle r="33" stroke="#15795a" stroke-width="4.5" stroke-dasharray="5 4.4" />
+                  <polyline
+                    points="-12,2 -4,11 14,-10"
+                    stroke="#15795a"
+                    stroke-width="7"
+                    stroke-linejoin="round"
+                  />
+                </g>
+              </svg>
+              <div class="txt"><b>Hoog vertrouwen</b><small>2 van 4 gewaarmerkt</small></div>
+            </div>
+          </div>
+
+          <div class="cijfers">
+            <div class="cijfer">
+              <div class="lbl">Match-percentage <em>▲ +4</em></div>
+              <div class="val">92%</div>
+            </div>
+            <div class="cijfer">
+              <div class="lbl">Open reacties <em>▲ +2</em></div>
+              <div class="val">7</div>
+            </div>
+            <div class="cijfer">
+              <div class="lbl">Omzet (mnd) <em>▲ +12%</em></div>
+              <div class="val">€ 8.240</div>
+            </div>
+            <div class="cijfer">
+              <div class="lbl">Te factureren <em class="af">▼ 2 open</em></div>
+              <div class="val">€ 1.350</div>
+            </div>
+          </div>
+
+          <div class="kolommen">
+            <div class="paneel">
+              <div class="paneel-kop">
+                <span>Wat vraagt nu je aandacht</span><a href="#">Alle acties →</a>
+              </div>
+              <div class="actie">
+                <span class="stip"></span>
+                <div>
+                  <b>VOG verloopt over 23 dagen</b>
+                  <div class="oms">
+                    Vraag een nieuwe Verklaring Omtrent Gedrag aan om verifieerbaar te blijven.
+                  </div>
+                </div>
+                <span class="label urgent">URGENT</span>
+              </div>
+              <div class="actie info">
+                <span class="stip"></span>
+                <div>
+                  <b>3 nieuwe matches boven 85%</b>
+                  <div class="oms">
+                    Reageer vandaag — gemiddelde reactietijd van opdrachtgevers is 6 uur.
+                  </div>
+                </div>
+                <span class="label info">NIEUW</span>
+              </div>
+              <div class="actie info">
+                <span class="stip"></span>
+                <div>
+                  <b>Factuur FAC-2026-118 openstaand</b>
+                  <div class="oms">Verstuurd 9 dagen geleden aan Thuiszorg De Linde · € 1.350.</div>
+                </div>
+                <span class="label info">HERINNER</span>
+              </div>
+              <a class="knop" href="#">VOG vernieuwen →</a
+              ><a class="knop stil" href="#">Naar de marktplaats</a>
+
+              <div class="paneel-kop" style="margin-top: 22px">
+                <span>Beste match voor jou</span><a href="#">Marktplaats →</a>
+              </div>
+              <div class="match">
+                <div class="mm">94</div>
+                <div>
+                  <b>Wijkverpleegkundige — avonddienst</b>
+                  <small>Thuiszorg De Linde · Utrecht · 24 u/week · per 1 aug</small>
+                </div>
+                <div class="eur">€ 62<br /><small>PER UUR</small></div>
+              </div>
+            </div>
+
+            <div class="paneel">
+              <div class="paneel-kop"><span>Vertrouwensniveau</span><a href="#">Register →</a></div>
+              <div class="ring-blok">
+                <svg width="72" height="72" viewBox="-40 -40 80 80">
+                  <circle r="31" fill="none" stroke="#e8e0d0" stroke-width="7" />
+                  <circle
+                    r="31"
+                    fill="none"
+                    stroke="#15795a"
+                    stroke-width="7"
+                    stroke-linecap="round"
+                    stroke-dasharray="97.4 97.4"
+                    transform="rotate(-90)"
+                  />
+                  <text
+                    y="7"
+                    text-anchor="middle"
+                    font-family="ui-monospace, Menlo, monospace"
+                    font-weight="700"
+                    font-size="19"
+                    fill="#26221b"
+                  >
+                    50%
+                  </text>
+                </svg>
+                <div class="ring-tekst">
+                  <b>Hoog vertrouwen</b>
+                  <small
+                    >2 van 4 certificaten voorzien van een waarmerk. Opdrachtgevers zien dit
+                    direct.</small
+                  >
+                </div>
+              </div>
+              <div style="margin-top: 12px">
+                <div class="cert">
+                  <svg width="15" height="15" viewBox="0 0 14 14">
+                    <circle cx="7" cy="7" r="6" fill="#e7f0e9" />
+                    <polyline
+                      points="4.2,7 6.2,9 9.8,5.2"
+                      fill="none"
+                      stroke="#15795a"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  <div>BIG-registratie<small>Gewaarmerkt · geldig t/m 2028</small></div>
+                  <span class="st ok">GEWAARMERKT</span>
+                </div>
+                <div class="cert">
+                  <svg width="15" height="15" viewBox="0 0 14 14">
+                    <circle cx="7" cy="7" r="6" fill="#e7f0e9" />
+                    <polyline
+                      points="4.2,7 6.2,9 9.8,5.2"
+                      fill="none"
+                      stroke="#15795a"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  <div>Diploma Verpleegkunde<small>Gewaarmerkt · 14 mei</small></div>
+                  <span class="st ok">GEWAARMERKT</span>
+                </div>
+                <div class="cert">
+                  <svg width="15" height="15" viewBox="0 0 14 14">
+                    <circle cx="7" cy="7" r="6" fill="#f6e3da" />
+                    <line
+                      x1="7"
+                      y1="3.6"
+                      x2="7"
+                      y2="7.6"
+                      stroke="#b9603f"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                    <circle cx="7" cy="10.2" r="1" fill="#b9603f" />
+                  </svg>
+                  <div>VOG (zorg)<small>Verloopt over 23 dagen</small></div>
+                  <span class="st let">VERLOOPT</span>
+                </div>
+                <div class="cert">
+                  <svg width="15" height="15" viewBox="0 0 14 14">
+                    <circle cx="7" cy="7" r="6" fill="#efece4" />
+                    <circle cx="7" cy="7" r="2.6" fill="none" stroke="#7d7466" stroke-width="1.6" />
+                    <line
+                      x1="7"
+                      y1="5.2"
+                      x2="7"
+                      y2="7"
+                      stroke="#7d7466"
+                      stroke-width="1.4"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                  <div>Reanimatie / BLS<small>In beoordeling · ingediend 21 juli</small></div>
+                  <span class="st" style="color: var(--muted)">BEOORDELING</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2>Elke pagina zijn eigen gezicht</h2>
+      <p class="sub">
+        Dezelfde taal, maar per cluster een eigen signatuur — zoals afgesproken: het hoofdontwerp
+        loopt door, nooit 1-op-1. Drie voorbeelden:
+      </p>
+      <div class="signaturen">
+        <div class="sig">
+          <svg width="44" height="44" viewBox="-40 -40 80 80">
+            <g fill="none" stroke-linecap="round">
+              <circle r="30" stroke="#15795a" stroke-width="3.5" stroke-dasharray="4.5 4" />
+              <circle r="21" stroke="#15795a" stroke-width="3" />
+              <polyline
+                points="-10,2 -3,9 12,-8"
+                stroke="#15795a"
+                stroke-width="5.5"
+                stroke-linejoin="round"
+              />
+            </g>
+          </svg>
+          <h3>Verificatie · het zegel</h3>
+          <p>
+            Zegelrand-motieven en een provenance-tijdlijn van elke beslissing. De vertrouwensring is
+            hier de held; messing-details voor het ceremoniële.
+          </p>
+        </div>
+        <div class="sig">
+          <svg width="44" height="44" viewBox="-40 -40 80 80">
+            <g fill="none" stroke-linecap="round" stroke-width="4">
+              <polyline points="-28,18 -14,2 -2,12 12,-10 28,-20" stroke="#15795a" />
+              <circle cx="28" cy="-20" r="4.5" fill="#b9603f" stroke="none" />
+              <line x1="-28" y1="26" x2="28" y2="26" stroke="#e8e0d0" />
+            </g>
+          </svg>
+          <h3>Inzicht · het observatorium</h3>
+          <p>
+            Data als landschap: één groot, rustig verloop per sectie en het kerninzicht in woorden —
+            "je omzet groeit 12%" — vóór de grafiek.
+          </p>
+        </div>
+        <div class="sig">
+          <svg width="44" height="44" viewBox="-40 -40 80 80">
+            <g stroke-linecap="round">
+              <line x1="-26" y1="-18" x2="10" y2="-18" stroke="#26221b" stroke-width="4" />
+              <line x1="18" y1="-18" x2="26" y2="-18" stroke="#15795a" stroke-width="4" />
+              <line x1="-26" y1="-4" x2="2" y2="-4" stroke="#26221b" stroke-width="4" />
+              <line x1="12" y1="-4" x2="26" y2="-4" stroke="#15795a" stroke-width="4" />
+              <line x1="-26" y1="10" x2="14" y2="10" stroke="#26221b" stroke-width="4" />
+              <line x1="22" y1="10" x2="26" y2="10" stroke="#15795a" stroke-width="4" />
+              <line x1="-26" y1="24" x2="26" y2="24" stroke="#e8e0d0" stroke-width="3" />
+            </g>
+          </svg>
+          <h3>Facturen · het grootboek</h3>
+          <p>
+            Tabulaire cijfers, hairline-regels en saldo-discipline. Betrouwbaarheid ademt uit elke
+            rij; terracotta alleen voor wat te laat is.
+          </p>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>Volgende stap:</strong> dit ontwerp wordt volgens het uitrolplan
+        (docs/ontwerpen/UITROLPLAN.md) in tien kleine, CI-groene stappen door de hele app gelegd —
+        fundament (tokens + typografie) eerst, daarna dashboard en acties, dan het
+        verificatie-cluster, en zo verder tot en met admin. Elke pagina houdt deze taal en krijgt
+        zijn eigen signatuur.
+      </div>
+    </div>
+  </body>
+</html>
