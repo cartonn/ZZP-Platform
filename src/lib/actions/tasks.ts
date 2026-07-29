@@ -81,6 +81,7 @@ export type PendingTask =
   | (TaskBase & { kind: "admin-suspend-no-show"; userId: string })
   | (TaskBase & { kind: "admin-support-ticket"; ticketId: string })
   | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" })
+  | (TaskBase & { kind: "client-overdue-payment"; invId: string; collabId: string })
   | (TaskBase & { kind: "payment-due-soon" })
   | (TaskBase & { kind: "vat-deadline"; year: number; quarter: number })
   | (TaskBase & { kind: "client-compliance"; collabId: string })
@@ -672,6 +673,38 @@ export function overdueInvoiceTask(
     resolver: "link",
     href: "/facturen",
     role,
+  };
+}
+
+/**
+ * Opdrachtgever-signaal voor een cascade-factuur die OVER de vervaldatum staat (lifecycleStatus=OVERDUE).
+ * Spiegelt `paymentConfirmTask(overdue)` van de ZZP'er: in de cascade betaalt de opdrachtgever rechtstreeks
+ * (out-of-band) en heeft hij géén "Markeer als betaald"-knop (`canPay = !cascade`), terwijl de ZZP'er de
+ * betaling registreert. Wordt een cascade-factuur OVERDUE, dan zag de opdrachtgever tot nu toe **niets** —
+ * terwijl OVERDUE "betaald maar nog niet bevestigd" niet kan onderscheiden van "nooit betaald" (het
+ * geparkeerde run-53 "Besluit 1"-gat). Deze read-only next-action wijst de opdrachtgever naar de samenwerking
+ * zodat hij kan betalen (als dat nog niet gebeurd is) óf de ZZP'er kan vragen de betaling te bevestigen. De
+ * taak verdwijnt zodra de ZZP'er de betaling registreert (→ PAID, geen OVERDUE meer): geen dode/blijvende knop.
+ * Deep-link (`resolver:"link"`) naar het samenwerkingsdetail; géén nieuwe betaal-mutatie (het out-of-band-model
+ * blijft ongewijzigd).
+ */
+export function clientCascadeOverduePaymentTask(
+  invId: string,
+  collabId: string,
+  jobTitle: string,
+  freelancerName: string,
+): PendingTask {
+  return {
+    kind: "client-overdue-payment",
+    id: `client-overdue-payment:${invId}`,
+    title: `Betaling aan ${freelancerName} staat open`,
+    subtitle: `${jobTitle} · over de vervaldatum — betaal 'm of laat de betaling bevestigen`,
+    tone: "attention",
+    priority: P.clientCascadeOverduePayment,
+    resolver: "link",
+    href: collabHref(collabId),
+    invId,
+    collabId,
   };
 }
 

@@ -65,6 +65,7 @@ import {
   franchiseGuidedSetupTasks,
   shiftHandoffTask,
   clientComplianceTask,
+  clientCascadeOverduePaymentTask,
   reviewLeaveTask,
   collaborationRenewalTask,
   respondInvitationTask,
@@ -703,6 +704,7 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     staleCandidates,
     acceptedCandidates,
     complianceAlerts,
+    cascadeOverduePayments,
   ] = await Promise.all([
     prisma.company.findUnique({
       where: { userId },
@@ -750,6 +752,30 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     // mist/verlopen/binnenkort-verlopend heeft. Hergebruikt de geteste, eigenaar-gescoopte loader
     // (company → ACTIVE-collabs met vereiste certificaten + ZZP-certificaten, take-begrensd).
     clientCredentialAlerts(userId),
+    // Cascade-facturen die OVER de vervaldatum staan waarvan deze opdrachtgever de betalende partij is
+    // (counterpartyUserId). In de cascade betaalt de opdrachtgever rechtstreeks; wordt de factuur OVERDUE
+    // dan zag hij tot nu toe niets (de generieke overdue-roll-up sluit cascade uit, want geen betaalknop).
+    // Bevroren (dispuut) samenwerkingen uitgesloten — symmetrisch met de andere cascade-tellingen.
+    // Index-backed via @@index([counterpartyUserId, lifecycleStatus]).
+    // unbounded-allow: eigenaar-scoped (counterpartyUserId) + take-limiet
+    prisma.invoice.findMany({
+      where: {
+        counterpartyUserId: userId,
+        lifecycleStatus: "OVERDUE",
+        collaboration: { disputedAt: null },
+      },
+      select: {
+        id: true,
+        collaboration: {
+          select: {
+            id: true,
+            job: { select: { title: true } },
+            freelancer: { select: { user: { select: { name: true } } } },
+          },
+        },
+      },
+      take: MAX,
+    }),
   ]);
 
   // Compliance-taken bovenaan: het zwaarst-wegende opdrachtgever-signaal (lopend werk met een
@@ -809,6 +835,21 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
 
   for (const u of unread) tasks.push(messageReplyTask(u.id, u.withWhom, u.subject));
   if (overdue > 0) tasks.push(overdueInvoiceTask(overdue, "CLIENT"));
+  // Cascade-facturen over de vervaldatum: de opdrachtgever betaalt out-of-band (geen betaalknop), maar
+  // moet weten dát er een openstaande betaling is — betaal 'm of laat de ZZP'er de betaling bevestigen.
+  // Verdwijnt zodra de ZZP'er de betaling registreert (→ PAID). Deep-link naar het samenwerkingsdetail.
+  for (const inv of cascadeOverduePayments) {
+    const col = inv.collaboration;
+    if (!col) continue;
+    tasks.push(
+      clientCascadeOverduePaymentTask(
+        inv.id,
+        col.id,
+        col.job.title,
+        col.freelancer.user.name ?? "de ZZP'er",
+      ),
+    );
+  }
   // Pre-due: facturen die binnenkort vervallen (nog niet te laat) — betaal op tijd. Vensters van
   // overdue (< now) en due-soon (>= now) raken elkaar niet, dus geen dubbele next-action.
   if (dueSoon > 0) tasks.push(paymentDueSoonTask(dueSoon));

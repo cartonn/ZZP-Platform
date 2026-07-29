@@ -197,12 +197,20 @@ export function countClientCascadeWork(input: {
   submittedPerformances: number;
   submittedInvoices: number;
   complianceActions: number;
+  overduePaymentNudges: number;
 }): number {
   return (
     input.proposedCollaborations +
     input.submittedPerformances +
     input.submittedInvoices +
-    input.complianceActions
+    input.complianceActions +
+    // Cascade-facturen over de vervaldatum waarvan de opdrachtgever de betalende partij is: hij ziet op
+    // /acties + de dashboard-rail de `clientCascadeOverduePaymentTask` (betaal 'm / laat bevestigen), dus
+    // moet de /samenwerkingen-badge die actie ook tellen — anders is de badge stiller dan /acties (het
+    // "signaal op één oppervlak"-anti-patroon). Eén nudge per OVERDUE-cascadefactuur, gelijk aan de
+    // item-engine (die per factuur één taak emit). De generieke overdue-roll-up sluit deze cascade-
+    // facturen bewust uit voor de opdrachtgever (geen betaalknop), dus geen dubbeltelling.
+    input.overduePaymentNudges
   );
 }
 
@@ -479,6 +487,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       cascadeProposed,
       cascadePerf,
       cascadeInv,
+      cascadeOverduePayments,
       complianceAlerts,
       staleCandidates,
       acceptedCandidates,
@@ -509,6 +518,16 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         where: {
           counterpartyUserId: userId,
           lifecycleStatus: "SUBMITTED",
+          collaboration: { disputedAt: null },
+        },
+      }),
+      // cascade: facturen over de vervaldatum waar de opdrachtgever de betalende partij is — voedt de
+      // `clientCascadeOverduePaymentTask` op /acties + de dashboard-rail. Zelfde scope als die item-taak
+      // (pending-tasks.ts) zodat de badge nooit driften kan; idem bevroren deals uitsluiten.
+      prisma.invoice.count({
+        where: {
+          counterpartyUserId: userId,
+          lifecycleStatus: "OVERDUE",
           collaboration: { disputedAt: null },
         },
       }),
@@ -549,6 +568,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       submittedPerformances: cascadePerf,
       submittedInvoices: cascadeInv,
       complianceActions,
+      overduePaymentNudges: cascadeOverduePayments,
     });
     // /kandidaten-badge = alle acties op dat oppervlak (item-engine-pariteit). De drie predicaten
     // zijn niet-overlappend (statussen NEW / VIEWED+SHORTLIST / ACCEPTED), dus een simpele som is

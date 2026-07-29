@@ -281,13 +281,15 @@ gevonden.");` (`assertOwnership`-import verwijderd). Rood→groen: `kandidaten/a
 >
 > **GEPARKEERD — LOW/productbesluit (next-action-audit run 53, niet-blokkerend):**
 >
-> 1. **LOW-MED (productbesluit "Besluit 1"):** een cascade-factuur die APPROVED→OVERDUE flipt geeft de
->    bétalende partij (CLIENT) geen signaal op enig oppervlak — alleen de freelancer krijgt
->    `paymentConfirmTask(overdue)`. Dit is het gedocumenteerde out-of-band-betaalmodel (client betaalt bij
->    goedkeuring, heeft geen betaalknop; `canPay = !cascade`), dus by-design, maar OVERDUE kan "client betaalde,
->    freelancer bevestigde niet" niet onderscheiden van "client betaalde nooit". Vergt een productbesluit (bv.
->    zachte "bevestig dat je betaald hebt"-nudge naar de client bij cascade-overdue). Ref: `signals.ts:291-299`,
->    `pending-tasks.ts:728`, `cascade/stage.ts:143-154`.
+> 1. ~~**LOW-MED (productbesluit "Besluit 1"):**~~ **GEDAAN (2026-07-29, PR #967)** — een cascade-factuur die
+>    APPROVED→OVERDUE flipt gaf de bétalende partij (CLIENT) geen signaal op enig oppervlak — alleen de freelancer
+>    kreeg `paymentConfirmTask(overdue)`. Opgelost met een read-only, informatieve next-action
+>    `clientCascadeOverduePaymentTask` (opdrachtgever-spiegel; band `P.clientCascadeOverduePayment = 57`, post-due,
+>    boven de pre-due nudge en onder de generieke roll-up) op /acties + dashboard-rail + nav-badge. Deep-link naar het
+>    samenwerkingsdetail — géén nieuwe betaal-mutatie (out-of-band-model onveranderd): "betaal 'm of laat de betaling
+>    bevestigen". Verdwijnt zodra de ZZP'er de betaling registreert (→ PAID). `countClientCascadeWork` kreeg
+>    `overduePaymentNudges` (badge niet stiller dan /acties). +6 tests (5 surface + 1 badge). Ref: `signals.ts`,
+>    `tasks.ts`, `pending-tasks.ts`, `next-actions.ts`.
 > 2. **LOW (cosmetisch):** een tweede VERIFIED-certificaat van hetzelfde type (oud, bijna verlopen) naast een
 >    vernieuwd geldig exemplaar levert een overbodige `credentialFixTask("expiring")` die deep-linkt naar het
 >    reeds-vervangen certificaat; alleen bereikbaar als de ZZP'er een _nieuw_ certificaat aanmaakte i.p.v. het

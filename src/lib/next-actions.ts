@@ -62,6 +62,7 @@ export const P = {
   supportOpen: 66, // openstaande supporttickets — onbeantwoord/nieuw (admin)
   vatDeadlineOverdue: 74, // BTW-aangifte over de uiterste indieningsdatum (fiscale boete-risico)
   overdueInvoice: 60, // factuur over de vervaldatum
+  clientCascadeOverduePayment: 57, // cascade-factuur van de opdrachtgever staat OVER de vervaldatum — betaal 'm of laat de ZZP'er de betaling bevestigen (opdrachtgever-spiegel van paymentConfirmTask(overdue); post-due, dus boven de pre-due nudge)
   paymentDueSoon: 56, // factuur vervalt binnenkort — betaal op tijd (opdrachtgever, pre-due; onder de al-verstreken roll-up)
   vatDeadlineDueSoon: 58, // BTW-aangifte-deadline nadert (binnen 14 dagen)
   pendingUsers: 60, // gebruikers met PENDING-status (admin)
