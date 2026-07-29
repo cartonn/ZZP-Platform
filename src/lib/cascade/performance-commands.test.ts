@@ -1,6 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { CascadeError } from "@/lib/cascade/commands-shared";
-import { MAX_PERFORMANCE_HOURS, MAX_MILESTONE_CENTS } from "@/lib/validation";
+import {
+  MAX_PERFORMANCE_HOURS,
+  MAX_MILESTONE_CENTS,
+  MAX_PERFORMANCE_RATE_CENTS,
+} from "@/lib/validation";
 import { assertPerformanceWithinLimits } from "@/lib/cascade/performance-commands";
 
 // Server-side ondergrens (regel 1): assertPerformanceWithinLimits is de bron van waarheid voor élk
@@ -116,6 +120,56 @@ describe("assertPerformanceWithinLimits — ondergrens uurtarief (HOURS)", () =>
     expect(() =>
       assertPerformanceWithinLimits({ type: "MILESTONE", amountCents: 50_000, rateCents: 0 }),
     ).not.toThrow();
+  });
+});
+
+// Server-side bovengrens (regel 1) op het uurtarief: de factuurbasis is `uren × rateCents`, dus de
+// uren-cap alleen borgt het afgeleide `totalCents` (int4) niet. Zonder een eigen tariefplafond kan een
+// absurd hoog tarief (toekomstig admin-/importpad) het bij goedkeuring laten overlopen → 500. Deze
+// grens maakt de guard zelfstandig i.p.v. afhankelijk van de €2.000/u-cap van collaborationProposalSchema.
+describe("assertPerformanceWithinLimits — bovengrens uurtarief (HOURS)", () => {
+  it("weigert een uurtarief boven het plafond", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({
+        type: "HOURS",
+        hours: 8,
+        rateCents: MAX_PERFORMANCE_RATE_CENTS + 1,
+      }),
+    ).toThrow(CascadeError);
+    expect(() =>
+      assertPerformanceWithinLimits({
+        type: "HOURS",
+        hours: 8,
+        rateCents: MAX_PERFORMANCE_RATE_CENTS + 1,
+      }),
+    ).toThrow("Het uurtarief is onrealistisch hoog (maximaal € 2.000 per uur).");
+  });
+
+  it("staat het plafond zelf toe (grensgeval, inclusief)", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({
+        type: "HOURS",
+        hours: 8,
+        rateCents: MAX_PERFORMANCE_RATE_CENTS,
+      }),
+    ).not.toThrow();
+  });
+
+  it("weigert een niet-eindig uurtarief (NaN/Infinity uit corrupte invoer)", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({ type: "HOURS", hours: 8, rateCents: NaN }),
+    ).toThrow("Het uurtarief is ongeldig.");
+    expect(() =>
+      assertPerformanceWithinLimits({ type: "HOURS", hours: 8, rateCents: Infinity }),
+    ).toThrow("Het uurtarief is ongeldig.");
+  });
+
+  it("borgt dat uren-cap × tarief-cap ruim onder int4 blijft (geen totalCents-overflow)", () => {
+    // De grens bestaat om `totalCents` (int4 ≈ 2,147 mld cent) veilig te houden: het subtotaal bij de
+    // uiterste toegestane combinatie moet er ruim onder blijven, óók met kop voor ORT-toeslag + BTW.
+    const maxSubtotalCents = MAX_PERFORMANCE_HOURS * MAX_PERFORMANCE_RATE_CENTS;
+    expect(maxSubtotalCents).toBe(200_000_000); // €2 mln
+    expect(maxSubtotalCents).toBeLessThan(2_147_483_647);
   });
 });
 

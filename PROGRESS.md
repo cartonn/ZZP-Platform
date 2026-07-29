@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — Robuustheid: zelfstandige rateCents-bovengrens in assertPerformanceWithinLimits
+
+**Wat:** sluit het geparkeerde LOW/latent run-58-item (persona-sweep). `assertPerformanceWithinLimits`
+(`src/lib/cascade/performance-commands.ts`) — de server-side bron van waarheid voor élk pad naar
+create/updatePerformance (handmatige urenstaat + CSV-diensten-import + toekomstig admin/import) — had een
+**ondergrens** op `rateCents` (`<= 0` → weiger) maar géén **bovengrens**. De factuurbasis bij een
+HOURS-prestatie is `uren × rateCents`; de bestaande `MAX_PERFORMANCE_HOURS`-cap (1.000 u) alleen borgt het
+afgeleide `totalCents` (int4 ≈ €21,4 mln) dus niet. Vandaag veilig omdat de énige schrijver van
+`Collaboration.rate` (`collaborationProposalSchema`) op €2.000/u capt, maar de server-guard leunde daarmee op
+een **upstream-invariant** i.p.v. zelfstandig te zijn — een toekomstig admin-/importpad met een hoger tarief
+zou die impliciete invariant eroderen en bij goedkeuring een int4-overflow (`totalCents`) → 500 i.p.v. een
+nette weigering geven.
+
+- **Nieuw:** `MAX_PERFORMANCE_RATE_CENTS = 200_000` (€2.000/u) in `src/lib/validation.ts` — gelijk aan de
+  €2.000/u-cap van `collaborationProposalSchema`, symmetrisch met `MAX_PERFORMANCE_HOURS`/`MAX_MILESTONE_CENTS`.
+  1.000 u × €2.000/u = €2 mln subtotaal, met ORT-toeslag + 21% BTW ruim onder int4.
+- **Guard:** de HOURS-tak weigert nu (a) een niet-eindig tarief (NaN/Infinity uit corrupte invoer →
+  "Het uurtarief is ongeldig.") en (b) een tarief boven het plafond ("Het uurtarief is onrealistisch hoog
+  (maximaal € 2.000 per uur)."). Ondergrens (`<= 0`) en het null-concept-pad ongewijzigd.
+- **Grens/scope:** pure functie, geen schemawijziging, geen nieuw mutatie/auth-oppervlak, geen gedragswijziging
+  op geldige invoer. +6 tests (`performance-commands.test.ts` → 40): boven plafond weigeren, plafond zelf
+  toegestaan (inclusief grensgeval), NaN/Infinity weigeren, en een int4-headroom-invariant (uren-cap ×
+  tarief-cap < int4). Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-29 — Prod-rijpheid: routing-provider (Geoapify) connectiviteitszelftest + go-live-sweep
 
 **Wat:** de Geoapify reistijd-routing-provider (`ROUTING_PROVIDER=geoapify` + `GEOAPIFY_API_KEY`) was de

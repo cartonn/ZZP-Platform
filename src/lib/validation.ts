@@ -389,6 +389,15 @@ export interface PerformanceFormData {
  */
 export const MAX_PERFORMANCE_HOURS = 1000;
 export const MAX_MILESTONE_CENTS = 100_000_000; // €1.000.000
+/**
+ * Bovengrens op het uurtarief van een urenstaat, in centen. Symmetrisch met de uren-/bedrag-grenzen:
+ * de factuurbasis bij een HOURS-prestatie is `uren × rateCents`, dus zonder een eigen tariefplafond
+ * kan een absurd hoog tarief (bv. een toekomstig admin-/importpad) het afgeleide `totalCents` (int4)
+ * overschrijden ondanks de uren-cap. Gelijk aan de €2.000/u-plafond van `collaborationProposalSchema`
+ * (200.000 cent) zodat de server-guard zelfstandig is i.p.v. afhankelijk van die upstream-invariant.
+ * 1.000 uur × €2.000/u = €2 mln subtotaal — met ORT-toeslag + 21% BTW ruim onder int4 (≈ €21,4 mln).
+ */
+export const MAX_PERFORMANCE_RATE_CENTS = 200_000; // €2.000/u
 
 /** Pure validatie van performance-invoer. Geeft een foutmelding terug, of null bij geldig. */
 export function validatePerformanceForm(data: PerformanceFormData): string | null {
