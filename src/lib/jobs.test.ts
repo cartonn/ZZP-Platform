@@ -98,4 +98,12 @@ describe("normalizeJobFilters", () => {
     // Bij een herhaalde param telt de eerste waarde.
     expect(normalizeJobFilters({ mine: ["1", "0"] }).mine).toBe(true);
   });
+
+  it("parseert de 'verberg waar ik op reageerde'-quickfilter alleen bij exact '1'", () => {
+    expect(normalizeJobFilters({}).hideApplied).toBe(false);
+    expect(normalizeJobFilters({ hideApplied: "1" }).hideApplied).toBe(true);
+    expect(normalizeJobFilters({ hideApplied: "0" }).hideApplied).toBe(false);
+    expect(normalizeJobFilters({ hideApplied: "true" }).hideApplied).toBe(false);
+    expect(normalizeJobFilters({ hideApplied: ["1", "0"] }).hideApplied).toBe(true);
+  });
 });

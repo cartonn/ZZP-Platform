@@ -13,6 +13,7 @@ function makeFilters(overrides: Partial<JobFilters> = {}): JobFilters {
     skillIds: [],
     industryId: undefined,
     mine: false,
+    hideApplied: false,
     location: undefined,
     workMode: undefined,
     rateMin: undefined,
@@ -53,6 +54,21 @@ describe("describeActiveJobFilters", () => {
   it("toont 'Mijn vakgebied' als mine true is zonder industryId", () => {
     const chips = describeActiveJobFilters(makeFilters({ mine: true }), emptyLookups);
     expect(chips).toEqual([{ id: "mine", label: "Mijn vakgebied", param: "mine" }]);
+  });
+
+  it("toont de 'Zonder mijn reacties'-chip als hideApplied true is", () => {
+    const chips = describeActiveJobFilters(makeFilters({ hideApplied: true }), emptyLookups);
+    expect(chips).toEqual([
+      { id: "hideApplied", label: "Zonder mijn reacties", param: "hideApplied" },
+    ]);
+  });
+
+  it("combineert de mine- en hideApplied-chips onafhankelijk", () => {
+    const chips = describeActiveJobFilters(
+      makeFilters({ mine: true, hideApplied: true }),
+      emptyLookups,
+    );
+    expect(chips.map((c) => c.id)).toEqual(["mine", "hideApplied"]);
   });
 
   it("onderdrukt de mine-chip als een industryId gezet is (industryId wint)", () => {
