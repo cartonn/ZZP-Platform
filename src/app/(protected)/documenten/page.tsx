@@ -18,6 +18,7 @@ export default async function DocumentenPage({
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="Het zegel · jouw kluis"
         title="Documenten"
         description="Je geüploade documenten. Alleen jij (en beheer) kunt ze openen."
       />

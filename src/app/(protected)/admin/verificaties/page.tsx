@@ -89,6 +89,7 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="Het zegel · de wachtrij"
         title="Verificaties"
         description={
           <>

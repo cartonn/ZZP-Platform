@@ -389,6 +389,9 @@ const EN: Record<string, string> = {
   Goedemiddag: "Good afternoon",
   Goedenavond: "Good evening",
   "De werklijst": "The worklist",
+  "Het zegel · jouw register": "The seal · your register",
+  "Het zegel · jouw kluis": "The seal · your vault",
+  "Het zegel · de wachtrij": "The seal · the queue",
   "Helemaal bij": "All caught up",
   "Geen openstaande acties — mooi werk. Zodra er iets op je wacht, verschijnt het hier.":
     "No open actions — nice work. As soon as something needs you, it shows up here.",
