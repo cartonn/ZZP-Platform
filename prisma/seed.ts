@@ -224,6 +224,7 @@ async function main() {
     incomeGoalCents?: number;
     defaultMotivation?: string;
     website?: string;
+    iban?: string;
   };
   const freelancers: Freelancer[] = [
     {
