@@ -1,0 +1,1970 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Handslag — tien logo-richtingen</title>
+    <style>
+      :root {
+        --paper: #fafaf7;
+        --panel: #ffffff;
+        --ink: #1c1e1b;
+        --muted: #6d716a;
+        --hair: #e3e4dc;
+        --seal: #0f766e;
+        --seal-soft: #e7f1ef;
+        --warm: #b4633a;
+        --dark: #16211f;
+      }
+      html {
+        background: var(--paper);
+      }
+      body {
+        font:
+          16px/1.6 -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+        color: var(--ink);
+        margin: 0;
+      }
+      .wrap {
+        max-width: 1020px;
+        margin: 0 auto;
+        padding: 48px 24px 96px;
+      }
+      .eyebrow {
+        font:
+          600 12px/1 ui-monospace,
+          "SF Mono",
+          Menlo,
+          monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--seal);
+        margin: 0 0 14px;
+      }
+      h1 {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(30px, 4.5vw, 42px);
+        line-height: 1.12;
+        font-weight: 500;
+        margin: 0 0 12px;
+        text-wrap: balance;
+      }
+      .lede {
+        color: var(--muted);
+        max-width: 46em;
+        margin: 0 0 40px;
+      }
+      .name-card {
+        border: 1px solid var(--hair);
+        border-radius: 12px;
+        background: var(--panel);
+        margin: 26px 0;
+        overflow: hidden;
+      }
+      .n-head {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px 22px;
+        border-bottom: 1px solid var(--hair);
+      }
+      .n-rank {
+        font:
+          700 18px/1 ui-monospace,
+          Menlo,
+          monospace;
+        color: var(--seal);
+        background: var(--seal-soft);
+        border-radius: 8px;
+        padding: 9px 11px;
+      }
+      .n-head h2 {
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 24px;
+        margin: 0;
+      }
+      .n-domain {
+        margin-left: auto;
+        font:
+          600 13px/1 ui-monospace,
+          Menlo,
+          monospace;
+        color: var(--seal);
+        background: var(--seal-soft);
+        border-radius: 999px;
+        padding: 7px 13px;
+        white-space: nowrap;
+      }
+      .n-body {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 0;
+      }
+      .logos {
+        display: grid;
+        grid-template-rows: 1fr 1fr;
+        border-right: 1px solid var(--hair);
+      }
+      .logo-chip {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 26px 18px;
+      }
+      .logo-chip.light {
+        background: var(--paper);
+        border-bottom: 1px solid var(--hair);
+      }
+      .logo-chip.dark {
+        background: var(--dark);
+      }
+      .n-text {
+        padding: 20px 24px 24px;
+      }
+      .n-text p {
+        margin: 0 0 12px;
+        max-width: 52em;
+      }
+      .n-text dl {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin: 16px 0 0;
+      }
+      .n-text dt {
+        font:
+          600 11px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .n-text dd {
+        margin: 0;
+        font-size: 14.5px;
+      }
+      h3.section {
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 24px;
+        margin: 64px 0 8px;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0 0 20px;
+        max-width: 48em;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 14.5px;
+        background: var(--panel);
+        border: 1px solid var(--hair);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--hair);
+      }
+      th {
+        font:
+          600 11px/1.4 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      td.mono {
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 13.5px;
+      }
+      .vrij {
+        color: var(--seal);
+        font-weight: 600;
+      }
+      .bezet {
+        color: var(--warm);
+        font-weight: 600;
+      }
+      .note {
+        border: 1px solid var(--hair);
+        border-left: 4px solid var(--warm);
+        background: var(--panel);
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-top: 40px;
+        font-size: 14.5px;
+        color: var(--muted);
+      }
+      @media (max-width: 720px) {
+        .n-body {
+          grid-template-columns: 1fr;
+        }
+        .logos {
+          grid-template-rows: none;
+          grid-template-columns: 1fr 1fr;
+          border-right: 0;
+          border-bottom: 1px solid var(--hair);
+        }
+        .logo-chip.light {
+          border-bottom: 0;
+          border-right: 1px solid var(--hair);
+        }
+        .n-domain {
+          display: none;
+        }
+      }
+      .proof {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .proof-label {
+        font:
+          500 10px/1 ui-monospace,
+          Menlo,
+          monospace;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+      }
+      .n-text dl {
+        grid-template-columns: 1fr;
+      }
+      @media (max-width: 720px) {
+        .proof {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <p class="eyebrow">Handslag · beeldmerk-verkenning · 29 juli 2026</p>
+      <h1>Tien richtingen voor het Handslag-merkteken</h1>
+      <p class="lede">
+        Tien échte concepten, geen tien variaties: elk teken vertelt de handslag op een eigen manier
+        — als schakel, als vervlechting, als één pennenstreek, als bezegeld akkoord. Elk concept in
+        licht en donker, met een kleinproef op 40, 28 en 18 pixels (een merkteken dat daar sneuvelt,
+        sneuvelt overal). Gerangschikt op merkkracht; onderaan mijn advies.
+      </p>
+
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">1</span>
+          <h2>De Schakel</h2>
+          <span class="proof"
+            ><svg width="40" height="40" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <circle cx="-9" cy="0" r="14" stroke="#1c1e1b" stroke-width="5" />
+                <circle cx="9" cy="0" r="14" stroke="#0f766e" stroke-width="5" />
+                <path d="M 2.5 -8 A 14 14 0 0 1 -3.1 -12.7" stroke="#fafaf7" stroke-width="9" />
+                <path d="M 3.5 -7.2 A 14 14 0 0 1 -3.9 -12.9" stroke="#1c1e1b" stroke-width="5" />
+                <path d="M -2.5 8 A 14 14 0 0 1 3.1 12.7" stroke="#fafaf7" stroke-width="9" />
+                <path d="M -3.5 7.2 A 14 14 0 0 1 3.9 12.9" stroke="#0f766e" stroke-width="5" />
+              </g></svg
+            ><svg width="28" height="28" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <circle cx="-9" cy="0" r="14" stroke="#1c1e1b" stroke-width="5" />
+                <circle cx="9" cy="0" r="14" stroke="#0f766e" stroke-width="5" />
+                <path d="M 2.5 -8 A 14 14 0 0 1 -3.1 -12.7" stroke="#fafaf7" stroke-width="9" />
+                <path d="M 3.5 -7.2 A 14 14 0 0 1 -3.9 -12.9" stroke="#1c1e1b" stroke-width="5" />
+                <path d="M -2.5 8 A 14 14 0 0 1 3.1 12.7" stroke="#fafaf7" stroke-width="9" />
+                <path d="M -3.5 7.2 A 14 14 0 0 1 3.9 12.9" stroke="#0f766e" stroke-width="5" />
+              </g></svg
+            ><svg width="18" height="18" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <circle cx="-9" cy="0" r="14" stroke="#1c1e1b" stroke-width="5" />
+                <circle cx="9" cy="0" r="14" stroke="#0f766e" stroke-width="5" />
+                <path d="M 2.5 -8 A 14 14 0 0 1 -3.1 -12.7" stroke="#fafaf7" stroke-width="9" />
+                <path d="M 3.5 -7.2 A 14 14 0 0 1 -3.9 -12.9" stroke="#1c1e1b" stroke-width="5" />
+                <path d="M -2.5 8 A 14 14 0 0 1 3.1 12.7" stroke="#fafaf7" stroke-width="9" />
+                <path d="M -3.5 7.2 A 14 14 0 0 1 3.9 12.9" stroke="#0f766e" stroke-width="5" />
+              </g></svg
+            ><span class="proof-label">40 · 28 · 18&nbsp;px</span></span
+          >
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none" stroke-linecap="round">
+                    <circle cx="-9" cy="0" r="14" stroke="#1c1e1b" stroke-width="5" />
+                    <circle cx="9" cy="0" r="14" stroke="#0f766e" stroke-width="5" />
+                    <path d="M 2.5 -8 A 14 14 0 0 1 -3.1 -12.7" stroke="#fafaf7" stroke-width="9" />
+                    <path
+                      d="M 3.5 -7.2 A 14 14 0 0 1 -3.9 -12.9"
+                      stroke="#1c1e1b"
+                      stroke-width="5"
+                    />
+                    <path d="M -2.5 8 A 14 14 0 0 1 3.1 12.7" stroke="#fafaf7" stroke-width="9" />
+                    <path d="M -3.5 7.2 A 14 14 0 0 1 3.9 12.9" stroke="#0f766e" stroke-width="5" />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#1c1e1b"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  AFGESPROKEN IS AFGESPROKEN
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none" stroke-linecap="round">
+                    <circle cx="-9" cy="0" r="14" stroke="#f2f4f0" stroke-width="5" />
+                    <circle cx="9" cy="0" r="14" stroke="#5fbdb2" stroke-width="5" />
+                    <path d="M 2.5 -8 A 14 14 0 0 1 -3.1 -12.7" stroke="#16211f" stroke-width="9" />
+                    <path
+                      d="M 3.5 -7.2 A 14 14 0 0 1 -3.9 -12.9"
+                      stroke="#f2f4f0"
+                      stroke-width="5"
+                    />
+                    <path d="M -2.5 8 A 14 14 0 0 1 3.1 12.7" stroke="#16211f" stroke-width="9" />
+                    <path d="M -3.5 7.2 A 14 14 0 0 1 3.9 12.9" stroke="#5fbdb2" stroke-width="5" />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#f2f4f0"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  AFGESPROKEN IS AFGESPROKEN
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              Twee ringen, ineengehaakt en geweven: de ene gaat óver waar de andere ónder gaat —
+              precies zoals een afspraak twee kanten bindt. De schakel is ook letterlijk een
+              schakel: het platform tussen ZZP'er en opdrachtgever.
+            </p>
+            <dl>
+              <div>
+                <dt>Waarom dit slim is</dt>
+                <dd>
+                  Het over-onder-weefsel maakt de verbinding echt — dit is geen decoratie maar een
+                  knoop die je niet lostrekt.
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">2</span>
+          <h2>De Vervlechting</h2>
+          <span class="proof"
+            ><svg width="40" height="40" viewBox="-40 -40 80 80">
+              <g>
+                <line
+                  x1="-18"
+                  y1="-19"
+                  x2="-18"
+                  y2="7"
+                  stroke="#1c1e1b"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="-6"
+                  y1="-19"
+                  x2="-6"
+                  y2="7"
+                  stroke="#1c1e1b"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="6"
+                  y1="-19"
+                  x2="6"
+                  y2="7"
+                  stroke="#1c1e1b"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="-12"
+                  y1="19"
+                  x2="-12"
+                  y2="-7"
+                  stroke="#0f766e"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="0"
+                  y1="19"
+                  x2="0"
+                  y2="-7"
+                  stroke="#0f766e"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="12"
+                  y1="19"
+                  x2="12"
+                  y2="-7"
+                  stroke="#0f766e"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+              </g></svg
+            ><svg width="28" height="28" viewBox="-40 -40 80 80">
+              <g>
+                <line
+                  x1="-18"
+                  y1="-19"
+                  x2="-18"
+                  y2="7"
+                  stroke="#1c1e1b"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="-6"
+                  y1="-19"
+                  x2="-6"
+                  y2="7"
+                  stroke="#1c1e1b"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="6"
+                  y1="-19"
+                  x2="6"
+                  y2="7"
+                  stroke="#1c1e1b"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="-12"
+                  y1="19"
+                  x2="-12"
+                  y2="-7"
+                  stroke="#0f766e"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="0"
+                  y1="19"
+                  x2="0"
+                  y2="-7"
+                  stroke="#0f766e"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="12"
+                  y1="19"
+                  x2="12"
+                  y2="-7"
+                  stroke="#0f766e"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+              </g></svg
+            ><svg width="18" height="18" viewBox="-40 -40 80 80">
+              <g>
+                <line
+                  x1="-18"
+                  y1="-19"
+                  x2="-18"
+                  y2="7"
+                  stroke="#1c1e1b"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="-6"
+                  y1="-19"
+                  x2="-6"
+                  y2="7"
+                  stroke="#1c1e1b"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="6"
+                  y1="-19"
+                  x2="6"
+                  y2="7"
+                  stroke="#1c1e1b"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="-12"
+                  y1="19"
+                  x2="-12"
+                  y2="-7"
+                  stroke="#0f766e"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="0"
+                  y1="19"
+                  x2="0"
+                  y2="-7"
+                  stroke="#0f766e"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+                <line
+                  x1="12"
+                  y1="19"
+                  x2="12"
+                  y2="-7"
+                  stroke="#0f766e"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                />
+              </g></svg
+            ><span class="proof-label">40 · 28 · 18&nbsp;px</span></span
+          >
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g>
+                    <line
+                      x1="-18"
+                      y1="-19"
+                      x2="-18"
+                      y2="7"
+                      stroke="#1c1e1b"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="-6"
+                      y1="-19"
+                      x2="-6"
+                      y2="7"
+                      stroke="#1c1e1b"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="6"
+                      y1="-19"
+                      x2="6"
+                      y2="7"
+                      stroke="#1c1e1b"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="-12"
+                      y1="19"
+                      x2="-12"
+                      y2="-7"
+                      stroke="#0f766e"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="0"
+                      y1="19"
+                      x2="0"
+                      y2="-7"
+                      stroke="#0f766e"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="12"
+                      y1="19"
+                      x2="12"
+                      y2="-7"
+                      stroke="#0f766e"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                    />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#1c1e1b"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  WERK DAT IN ELKAAR GRIJPT
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g>
+                    <line
+                      x1="-18"
+                      y1="-19"
+                      x2="-18"
+                      y2="7"
+                      stroke="#f2f4f0"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="-6"
+                      y1="-19"
+                      x2="-6"
+                      y2="7"
+                      stroke="#f2f4f0"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="6"
+                      y1="-19"
+                      x2="6"
+                      y2="7"
+                      stroke="#f2f4f0"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="-12"
+                      y1="19"
+                      x2="-12"
+                      y2="-7"
+                      stroke="#5fbdb2"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="0"
+                      y1="19"
+                      x2="0"
+                      y2="-7"
+                      stroke="#5fbdb2"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1="12"
+                      y1="19"
+                      x2="12"
+                      y2="-7"
+                      stroke="#5fbdb2"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                    />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#f2f4f0"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  WERK DAT IN ELKAAR GRIJPT
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              Zes vingers die in elkaar grijpen als een rits: drie van boven (inkt, de
+              opdrachtgever), drie van onder (groen, de ZZP'er). Alleen samen vormen ze één geheel —
+              het beeld van een handdruk van heel dichtbij.
+            </p>
+            <dl>
+              <div>
+                <dt>Waarom dit slim is</dt>
+                <dd>
+                  Extreem reduceerbaar: zelfs op 18 pixels blijft het mespatroon leesbaar. En het
+                  raster past naadloos op UI-elementen (laders, scheidingslijnen).
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">3</span>
+          <h2>Het H-monogram</h2>
+          <span class="proof"
+            ><svg width="40" height="40" viewBox="-40 -40 80 80">
+              <g>
+                <rect x="-19" y="-19" width="7" height="38" rx="3.5" fill="#1c1e1b" />
+                <rect x="12" y="-19" width="7" height="38" rx="3.5" fill="#1c1e1b" />
+                <rect x="-15" y="-6.5" width="19" height="7" rx="3.5" fill="#0f766e" />
+                <rect x="-4" y="-0.5" width="19" height="7" rx="3.5" fill="#b4633a" />
+              </g></svg
+            ><svg width="28" height="28" viewBox="-40 -40 80 80">
+              <g>
+                <rect x="-19" y="-19" width="7" height="38" rx="3.5" fill="#1c1e1b" />
+                <rect x="12" y="-19" width="7" height="38" rx="3.5" fill="#1c1e1b" />
+                <rect x="-15" y="-6.5" width="19" height="7" rx="3.5" fill="#0f766e" />
+                <rect x="-4" y="-0.5" width="19" height="7" rx="3.5" fill="#b4633a" />
+              </g></svg
+            ><svg width="18" height="18" viewBox="-40 -40 80 80">
+              <g>
+                <rect x="-19" y="-19" width="7" height="38" rx="3.5" fill="#1c1e1b" />
+                <rect x="12" y="-19" width="7" height="38" rx="3.5" fill="#1c1e1b" />
+                <rect x="-15" y="-6.5" width="19" height="7" rx="3.5" fill="#0f766e" />
+                <rect x="-4" y="-0.5" width="19" height="7" rx="3.5" fill="#b4633a" />
+              </g></svg
+            ><span class="proof-label">40 · 28 · 18&nbsp;px</span></span
+          >
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g>
+                    <rect x="-19" y="-19" width="7" height="38" rx="3.5" fill="#1c1e1b" />
+                    <rect x="12" y="-19" width="7" height="38" rx="3.5" fill="#1c1e1b" />
+                    <rect x="-15" y="-6.5" width="19" height="7" rx="3.5" fill="#0f766e" />
+                    <rect x="-4" y="-0.5" width="19" height="7" rx="3.5" fill="#b4633a" />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#1c1e1b"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  HANDSLAG
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g>
+                    <rect x="-19" y="-19" width="7" height="38" rx="3.5" fill="#f2f4f0" />
+                    <rect x="12" y="-19" width="7" height="38" rx="3.5" fill="#f2f4f0" />
+                    <rect x="-15" y="-6.5" width="19" height="7" rx="3.5" fill="#5fbdb2" />
+                    <rect x="-4" y="-0.5" width="19" height="7" rx="3.5" fill="#d08a63" />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#f2f4f0"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  HANDSLAG
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              Een H waarvan de dwarsbalk geen balk is, maar twee handen die elkaar voorbij reiken en
+              vastpakken — groen en terracotta, de twee partijen. De letter draagt het verhaal.
+            </p>
+            <dl>
+              <div>
+                <dt>Waarom dit slim is</dt>
+                <dd>
+                  Monogram én verhaal in één: de H werkt als favicon en app-icoon, en wie goed kijkt
+                  ziet de handdruk in de dwarsbalk.
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">4</span>
+          <h2>De Knoop</h2>
+          <span class="proof"
+            ><svg width="40" height="40" viewBox="-40 -40 80 80">
+              <g fill="none">
+                <rect
+                  x="-24"
+                  y="-11"
+                  width="30"
+                  height="22"
+                  rx="8"
+                  stroke="#1c1e1b"
+                  stroke-width="5"
+                  transform="rotate(-24)"
+                />
+                <rect
+                  x="-6"
+                  y="-11"
+                  width="30"
+                  height="22"
+                  rx="8"
+                  stroke="#0f766e"
+                  stroke-width="5"
+                  transform="rotate(-24)"
+                />
+              </g></svg
+            ><svg width="28" height="28" viewBox="-40 -40 80 80">
+              <g fill="none">
+                <rect
+                  x="-24"
+                  y="-11"
+                  width="30"
+                  height="22"
+                  rx="8"
+                  stroke="#1c1e1b"
+                  stroke-width="5"
+                  transform="rotate(-24)"
+                />
+                <rect
+                  x="-6"
+                  y="-11"
+                  width="30"
+                  height="22"
+                  rx="8"
+                  stroke="#0f766e"
+                  stroke-width="5"
+                  transform="rotate(-24)"
+                />
+              </g></svg
+            ><svg width="18" height="18" viewBox="-40 -40 80 80">
+              <g fill="none">
+                <rect
+                  x="-24"
+                  y="-11"
+                  width="30"
+                  height="22"
+                  rx="8"
+                  stroke="#1c1e1b"
+                  stroke-width="5"
+                  transform="rotate(-24)"
+                />
+                <rect
+                  x="-6"
+                  y="-11"
+                  width="30"
+                  height="22"
+                  rx="8"
+                  stroke="#0f766e"
+                  stroke-width="5"
+                  transform="rotate(-24)"
+                />
+              </g></svg
+            ><span class="proof-label">40 · 28 · 18&nbsp;px</span></span
+          >
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none">
+                    <rect
+                      x="-24"
+                      y="-11"
+                      width="30"
+                      height="22"
+                      rx="8"
+                      stroke="#1c1e1b"
+                      stroke-width="5"
+                      transform="rotate(-24)"
+                    />
+                    <rect
+                      x="-6"
+                      y="-11"
+                      width="30"
+                      height="22"
+                      rx="8"
+                      stroke="#0f766e"
+                      stroke-width="5"
+                      transform="rotate(-24)"
+                    />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#1c1e1b"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  EEN AFSPRAAK IS EEN KNOOP
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none">
+                    <rect
+                      x="-24"
+                      y="-11"
+                      width="30"
+                      height="22"
+                      rx="8"
+                      stroke="#f2f4f0"
+                      stroke-width="5"
+                      transform="rotate(-24)"
+                    />
+                    <rect
+                      x="-6"
+                      y="-11"
+                      width="30"
+                      height="22"
+                      rx="8"
+                      stroke="#5fbdb2"
+                      stroke-width="5"
+                      transform="rotate(-24)"
+                    />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#f2f4f0"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  EEN AFSPRAAK IS EEN KNOOP
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              Twee lussen die elkaar vasthouden als een platte knoop — de knoop die zeelieden
+              gebruiken omdat hij nooit slipt maar altijd te ontknopen is. Precies wat een goede
+              overeenkomst is: bindend én eerlijk.
+            </p>
+            <dl>
+              <div>
+                <dt>Waarom dit slim is</dt>
+                <dd>
+                  De schuine as geeft beweging (de 'slag'), en de knoop-metafoor werkt door in taal:
+                  'de knoop doorhakken', 'vastleggen'.
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">5</span>
+          <h2>Eén Lijn</h2>
+          <span class="proof"
+            ><svg width="40" height="40" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path
+                  d="M -28 2 C -22 2 -21 -9 -15 -9 C -9 -9 -9 9 -3 9 C 1 9 3 4 5 1 L 10 12 L 26 -12"
+                  stroke="#0f766e"
+                  stroke-width="5.5"
+                />
+                <circle cx="-28" cy="2" r="3" fill="#b4633a" />
+              </g></svg
+            ><svg width="28" height="28" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path
+                  d="M -28 2 C -22 2 -21 -9 -15 -9 C -9 -9 -9 9 -3 9 C 1 9 3 4 5 1 L 10 12 L 26 -12"
+                  stroke="#0f766e"
+                  stroke-width="5.5"
+                />
+                <circle cx="-28" cy="2" r="3" fill="#b4633a" />
+              </g></svg
+            ><svg width="18" height="18" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path
+                  d="M -28 2 C -22 2 -21 -9 -15 -9 C -9 -9 -9 9 -3 9 C 1 9 3 4 5 1 L 10 12 L 26 -12"
+                  stroke="#0f766e"
+                  stroke-width="5.5"
+                />
+                <circle cx="-28" cy="2" r="3" fill="#b4633a" />
+              </g></svg
+            ><span class="proof-label">40 · 28 · 18&nbsp;px</span></span
+          >
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                      d="M -28 2 C -22 2 -21 -9 -15 -9 C -9 -9 -9 9 -3 9 C 1 9 3 4 5 1 L 10 12 L 26 -12"
+                      stroke="#0f766e"
+                      stroke-width="5.5"
+                    />
+                    <circle cx="-28" cy="2" r="3" fill="#b4633a" />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#1c1e1b"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  VAN SCHUDDEN TOT AKKOORD
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                      d="M -28 2 C -22 2 -21 -9 -15 -9 C -9 -9 -9 9 -3 9 C 1 9 3 4 5 1 L 10 12 L 26 -12"
+                      stroke="#5fbdb2"
+                      stroke-width="5.5"
+                    />
+                    <circle cx="-28" cy="2" r="3" fill="#d08a63" />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#f2f4f0"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  VAN SCHUDDEN TOT AKKOORD
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              Eén doorgetrokken lijn die de beweging van een handdruk maakt — op, neer, op — en
+              eindigt in een vinkje. Het hele proces van het platform in één pennenstreek:
+              kennismaken, schudden, akkoord.
+            </p>
+            <dl>
+              <div>
+                <dt>Waarom dit slim is</dt>
+                <dd>
+                  Het teken is ook een animatie-script: de lijn kan zichzelf tekenen bij het laden,
+                  en het vinkje is hetzelfde vinkje als bij elke geverifieerde status in de UI.
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">6</span>
+          <h2>De Samenkomst</h2>
+          <span class="proof"
+            ><svg width="40" height="40" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="-26,-13 -8,0 -26,13" stroke="#1c1e1b" stroke-width="6.5" />
+                <polyline points="26,-13 8,0 26,13" stroke="#0f766e" stroke-width="6.5" />
+                <rect x="-4" y="-4" width="8" height="8" transform="rotate(45)" fill="#b4633a" />
+              </g></svg
+            ><svg width="28" height="28" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="-26,-13 -8,0 -26,13" stroke="#1c1e1b" stroke-width="6.5" />
+                <polyline points="26,-13 8,0 26,13" stroke="#0f766e" stroke-width="6.5" />
+                <rect x="-4" y="-4" width="8" height="8" transform="rotate(45)" fill="#b4633a" />
+              </g></svg
+            ><svg width="18" height="18" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="-26,-13 -8,0 -26,13" stroke="#1c1e1b" stroke-width="6.5" />
+                <polyline points="26,-13 8,0 26,13" stroke="#0f766e" stroke-width="6.5" />
+                <rect x="-4" y="-4" width="8" height="8" transform="rotate(45)" fill="#b4633a" />
+              </g></svg
+            ><span class="proof-label">40 · 28 · 18&nbsp;px</span></span
+          >
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="-26,-13 -8,0 -26,13" stroke="#1c1e1b" stroke-width="6.5" />
+                    <polyline points="26,-13 8,0 26,13" stroke="#0f766e" stroke-width="6.5" />
+                    <rect
+                      x="-4"
+                      y="-4"
+                      width="8"
+                      height="8"
+                      transform="rotate(45)"
+                      fill="#b4633a"
+                    />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#1c1e1b"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  TWEE KANTEN, EEN AKKOORD
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="-26,-13 -8,0 -26,13" stroke="#f2f4f0" stroke-width="6.5" />
+                    <polyline points="26,-13 8,0 26,13" stroke="#5fbdb2" stroke-width="6.5" />
+                    <rect
+                      x="-4"
+                      y="-4"
+                      width="8"
+                      height="8"
+                      transform="rotate(45)"
+                      fill="#d08a63"
+                    />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#f2f4f0"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  TWEE KANTEN, EEN AKKOORD
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              Twee pijlpunten die naar elkaar wijzen — vraag en aanbod — met op het raakpunt een
+              vonk in terracotta: het moment waarop de afspraak ontstaat. De handslag als moment,
+              niet als object.
+            </p>
+            <dl>
+              <div>
+                <dt>Waarom dit slim is</dt>
+                <dd>
+                  De vonk is los te gebruiken als notificatie-badge en accent; de chevrons zijn al
+                  de taal van 'volgende stap' in elke interface.
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">7</span>
+          <h2>De Omhelzing</h2>
+          <span class="proof"
+            ><svg width="40" height="40" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <path d="M 1.5 -10.4 A 12 12 0 1 0 1.5 10.4" stroke="#1c1e1b" stroke-width="8" />
+                <path d="M -1.5 10.4 A 12 12 0 1 0 -1.5 -10.4" stroke="#0f766e" stroke-width="8" />
+              </g></svg
+            ><svg width="28" height="28" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <path d="M 1.5 -10.4 A 12 12 0 1 0 1.5 10.4" stroke="#1c1e1b" stroke-width="8" />
+                <path d="M -1.5 10.4 A 12 12 0 1 0 -1.5 -10.4" stroke="#0f766e" stroke-width="8" />
+              </g></svg
+            ><svg width="18" height="18" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <path d="M 1.5 -10.4 A 12 12 0 1 0 1.5 10.4" stroke="#1c1e1b" stroke-width="8" />
+                <path d="M -1.5 10.4 A 12 12 0 1 0 -1.5 -10.4" stroke="#0f766e" stroke-width="8" />
+              </g></svg
+            ><span class="proof-label">40 · 28 · 18&nbsp;px</span></span
+          >
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none" stroke-linecap="round">
+                    <path
+                      d="M 1.5 -10.4 A 12 12 0 1 0 1.5 10.4"
+                      stroke="#1c1e1b"
+                      stroke-width="8"
+                    />
+                    <path
+                      d="M -1.5 10.4 A 12 12 0 1 0 -1.5 -10.4"
+                      stroke="#0f766e"
+                      stroke-width="8"
+                    />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#1c1e1b"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  MET DE HAND GEGEVEN
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none" stroke-linecap="round">
+                    <path
+                      d="M 1.5 -10.4 A 12 12 0 1 0 1.5 10.4"
+                      stroke="#f2f4f0"
+                      stroke-width="8"
+                    />
+                    <path
+                      d="M -1.5 10.4 A 12 12 0 1 0 -1.5 -10.4"
+                      stroke="#5fbdb2"
+                      stroke-width="8"
+                    />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#f2f4f0"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  MET DE HAND GEGEVEN
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              Een handdruk van bovenaf gezien: twee open vormen die om elkaar heen vouwen, elk van
+              één kant. Samen vormen ze bijna een cirkel — bijna, want een afspraak blijft
+              mensenwerk.
+            </p>
+            <dl>
+              <div>
+                <dt>Waarom dit slim is</dt>
+                <dd>
+                  De opening in de vorm is het idee: het merk claimt geen perfectie maar
+                  wederkerigheid. Rond, warm en volstrekt eigen.
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">8</span>
+          <h2>Het Bezegeld Akkoord</h2>
+          <span class="proof"
+            ><svg width="40" height="40" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <circle r="26" stroke="#0f766e" stroke-width="2.5" stroke-dasharray="3.4 3.1" />
+                <circle cx="-5.5" cy="0" r="8.5" stroke="#1c1e1b" stroke-width="4" />
+                <circle cx="5.5" cy="0" r="8.5" stroke="#0f766e" stroke-width="4" />
+              </g></svg
+            ><svg width="28" height="28" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <circle r="26" stroke="#0f766e" stroke-width="2.5" stroke-dasharray="3.4 3.1" />
+                <circle cx="-5.5" cy="0" r="8.5" stroke="#1c1e1b" stroke-width="4" />
+                <circle cx="5.5" cy="0" r="8.5" stroke="#0f766e" stroke-width="4" />
+              </g></svg
+            ><svg width="18" height="18" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <circle r="26" stroke="#0f766e" stroke-width="2.5" stroke-dasharray="3.4 3.1" />
+                <circle cx="-5.5" cy="0" r="8.5" stroke="#1c1e1b" stroke-width="4" />
+                <circle cx="5.5" cy="0" r="8.5" stroke="#0f766e" stroke-width="4" />
+              </g></svg
+            ><span class="proof-label">40 · 28 · 18&nbsp;px</span></span
+          >
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none" stroke-linecap="round">
+                    <circle r="26" stroke="#0f766e" stroke-width="2.5" stroke-dasharray="3.4 3.1" />
+                    <circle cx="-5.5" cy="0" r="8.5" stroke="#1c1e1b" stroke-width="4" />
+                    <circle cx="5.5" cy="0" r="8.5" stroke="#0f766e" stroke-width="4" />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#1c1e1b"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  DE HANDSLAG, BEZEGELD
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none" stroke-linecap="round">
+                    <circle r="26" stroke="#5fbdb2" stroke-width="2.5" stroke-dasharray="3.4 3.1" />
+                    <circle cx="-5.5" cy="0" r="8.5" stroke="#f2f4f0" stroke-width="4" />
+                    <circle cx="5.5" cy="0" r="8.5" stroke="#5fbdb2" stroke-width="4" />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#f2f4f0"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  DE HANDSLAG, BEZEGELD
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              De twee ringen van de handslag, gevat in een geperforeerde zegelrand — de brug tussen
+              de naam (Handslag) en het product (verificatie, het waarmerk). De handdruk wordt hier
+              letterlijk bezegeld.
+            </p>
+            <dl>
+              <div>
+                <dt>Waarom dit slim is</dt>
+                <dd>
+                  Eén teken verenigt beide merkverhalen: menselijke afspraak binnen, officiële
+                  verificatie buiten. Perfect voor het vertrouwensdossier en de zegel-badge in de
+                  UI.
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">9</span>
+          <h2>Het Teken van Samen</h2>
+          <span class="proof"
+            ><svg width="40" height="40" viewBox="-40 -40 80 80">
+              <g>
+                <text
+                  x="-2"
+                  y="15"
+                  text-anchor="middle"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-style="italic"
+                  font-size="52"
+                  fill="#0f766e"
+                >
+                  &amp;
+                </text>
+                <circle cx="17" cy="12" r="3.2" fill="#b4633a" />
+              </g></svg
+            ><svg width="28" height="28" viewBox="-40 -40 80 80">
+              <g>
+                <text
+                  x="-2"
+                  y="15"
+                  text-anchor="middle"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-style="italic"
+                  font-size="52"
+                  fill="#0f766e"
+                >
+                  &amp;
+                </text>
+                <circle cx="17" cy="12" r="3.2" fill="#b4633a" />
+              </g></svg
+            ><svg width="18" height="18" viewBox="-40 -40 80 80">
+              <g>
+                <text
+                  x="-2"
+                  y="15"
+                  text-anchor="middle"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-style="italic"
+                  font-size="52"
+                  fill="#0f766e"
+                >
+                  &amp;
+                </text>
+                <circle cx="17" cy="12" r="3.2" fill="#b4633a" />
+              </g></svg
+            ><span class="proof-label">40 · 28 · 18&nbsp;px</span></span
+          >
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g>
+                    <text
+                      x="-2"
+                      y="15"
+                      text-anchor="middle"
+                      font-family="Georgia, 'Times New Roman', serif"
+                      font-style="italic"
+                      font-size="52"
+                      fill="#0f766e"
+                    >
+                      &amp;
+                    </text>
+                    <circle cx="17" cy="12" r="3.2" fill="#b4633a" />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#1c1e1b"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  ZZP & OPDRACHT
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g>
+                    <text
+                      x="-2"
+                      y="15"
+                      text-anchor="middle"
+                      font-family="Georgia, 'Times New Roman', serif"
+                      font-style="italic"
+                      font-size="52"
+                      fill="#5fbdb2"
+                    >
+                      &amp;
+                    </text>
+                    <circle cx="17" cy="12" r="3.2" fill="#d08a63" />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#f2f4f0"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  ZZP & OPDRACHT
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              De ampersand — het oudste teken voor 'samen' dat er bestaat — als merkteken, met een
+              terracotta punt als handtekening. Handslag is het bedrijf dat het &-teken tussen twee
+              partijen is.
+            </p>
+            <dl>
+              <div>
+                <dt>Waarom dit slim is</dt>
+                <dd>
+                  Gedurfd minimalistisch: één glyph, oneindig toepasbaar ('jij & wij', 'zorg &
+                  zekerheid'). De copywriting schrijft zichzelf.
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">10</span>
+          <h2>De Golfslag</h2>
+          <span class="proof"
+            ><svg width="40" height="40" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <path d="M -26 0 Q -13 -17 0 0 T 26 0" stroke="#1c1e1b" stroke-width="5" />
+                <path d="M -26 0 Q -13 17 0 0 T 26 0" stroke="#0f766e" stroke-width="5" />
+                <path
+                  d="M -3.5 -3.2 Q -1.8 -0.9 0 0"
+                  stroke="#fafaf7"
+                  stroke-width="9"
+                  fill="none"
+                />
+                <path
+                  d="M -4.5 -4.5 Q -2 -1.5 0.5 0.7"
+                  stroke="#1c1e1b"
+                  stroke-width="5"
+                  fill="none"
+                />
+              </g></svg
+            ><svg width="28" height="28" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <path d="M -26 0 Q -13 -17 0 0 T 26 0" stroke="#1c1e1b" stroke-width="5" />
+                <path d="M -26 0 Q -13 17 0 0 T 26 0" stroke="#0f766e" stroke-width="5" />
+                <path
+                  d="M -3.5 -3.2 Q -1.8 -0.9 0 0"
+                  stroke="#fafaf7"
+                  stroke-width="9"
+                  fill="none"
+                />
+                <path
+                  d="M -4.5 -4.5 Q -2 -1.5 0.5 0.7"
+                  stroke="#1c1e1b"
+                  stroke-width="5"
+                  fill="none"
+                />
+              </g></svg
+            ><svg width="18" height="18" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <path d="M -26 0 Q -13 -17 0 0 T 26 0" stroke="#1c1e1b" stroke-width="5" />
+                <path d="M -26 0 Q -13 17 0 0 T 26 0" stroke="#0f766e" stroke-width="5" />
+                <path
+                  d="M -3.5 -3.2 Q -1.8 -0.9 0 0"
+                  stroke="#fafaf7"
+                  stroke-width="9"
+                  fill="none"
+                />
+                <path
+                  d="M -4.5 -4.5 Q -2 -1.5 0.5 0.7"
+                  stroke="#1c1e1b"
+                  stroke-width="5"
+                  fill="none"
+                />
+              </g></svg
+            ><span class="proof-label">40 · 28 · 18&nbsp;px</span></span
+          >
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none" stroke-linecap="round">
+                    <path d="M -26 0 Q -13 -17 0 0 T 26 0" stroke="#1c1e1b" stroke-width="5" />
+                    <path d="M -26 0 Q -13 17 0 0 T 26 0" stroke="#0f766e" stroke-width="5" />
+                    <path
+                      d="M -3.5 -3.2 Q -1.8 -0.9 0 0"
+                      stroke="#fafaf7"
+                      stroke-width="9"
+                      fill="none"
+                    />
+                    <path
+                      d="M -4.5 -4.5 Q -2 -1.5 0.5 0.7"
+                      stroke="#1c1e1b"
+                      stroke-width="5"
+                      fill="none"
+                    />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#1c1e1b"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  PAST PRECIES
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="300"
+                height="76"
+                viewBox="0 0 300 76"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(38,38) scale(0.82)">
+                  <g fill="none" stroke-linecap="round">
+                    <path d="M -26 0 Q -13 -17 0 0 T 26 0" stroke="#f2f4f0" stroke-width="5" />
+                    <path d="M -26 0 Q -13 17 0 0 T 26 0" stroke="#5fbdb2" stroke-width="5" />
+                    <path
+                      d="M -3.5 -3.2 Q -1.8 -0.9 0 0"
+                      stroke="#16211f"
+                      stroke-width="9"
+                      fill="none"
+                    />
+                    <path
+                      d="M -4.5 -4.5 Q -2 -1.5 0.5 0.7"
+                      stroke="#f2f4f0"
+                      stroke-width="5"
+                      fill="none"
+                    />
+                  </g>
+                </g>
+                <text
+                  x="82"
+                  y="34"
+                  font-family="Georgia, 'Times New Roman', serif"
+                  font-size="23"
+                  fill="#f2f4f0"
+                >
+                  Handslag
+                </text>
+                <text
+                  x="82"
+                  y="54"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="9.5"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  PAST PRECIES
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              Twee golven in tegenfase die elkaar kruisen en om elkaar heen vlechten — golfslag zit
+              in de naam, en de vervlochten baan is de samenwerking: twee partijen, één ritme.
+            </p>
+            <dl>
+              <div>
+                <dt>Waarom dit slim is</dt>
+                <dd>
+                  Subtielste van de tien: een abstract patroon dat ook als achtergrondtextuur en
+                  grafiektaal (sparklines!) door de hele UI kan lopen.
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+      <div class="note">
+        <strong>Advies:</strong> nummer 1 (De Schakel) als hoofdmerk — het weefsel maakt de belofte
+        fysiek en het teken blijft overal leesbaar. Nummer 8 (Het Bezegeld Akkoord) als tweede laag
+        voor alles rond verificatie: hetzelfde teken, bezegeld. Zo heeft het merk één gezicht en één
+        ceremonieel gezicht — zoals een handtekening en een gewaarmerkte handtekening. Durf je meer?
+        Dan is nummer 5 (Eén Lijn) de eigenzinnigste keuze van de tien.
+      </div>
+    </div>
+  </body>
+</html>
