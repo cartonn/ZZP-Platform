@@ -160,7 +160,8 @@ export function userAnonymizationData(
  *  `defaultMotivation` is de zelf-getypte quick-apply-standaardtekst (≤2000 tekens, vrije tekst met
  *  mogelijk naam/telefoon/adres — spiegelbeeld van `Application.motivation` die al wordt geredact);
  *  `monthlyIncomeGoalCents` is een zelfgekozen financieel doel — beide horen bij art. 17 mee te
- *  worden gewist, net als `hourlyRate`. */
+ *  worden gewist, net als `hourlyRate`. `iban` is de SEPA-betaalrekening: een direct identificerend
+ *  financieel persoonsgegeven (bankrekeningnummer van een natuurlijke persoon), dus óók art. 17. */
 export function freelancerProfileAnonymizationData(): {
   headline: null;
   bio: null;
@@ -168,6 +169,7 @@ export function freelancerProfileAnonymizationData(): {
   languages: null;
   kvkNumber: null;
   btwNumber: null;
+  iban: null;
   website: null;
   hourlyRate: null;
   monthlyIncomeGoalCents: null;
@@ -181,6 +183,7 @@ export function freelancerProfileAnonymizationData(): {
     languages: null,
     kvkNumber: null,
     btwNumber: null,
+    iban: null,
     website: null,
     hourlyRate: null,
     monthlyIncomeGoalCents: null,
