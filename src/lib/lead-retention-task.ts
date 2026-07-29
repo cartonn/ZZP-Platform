@@ -10,10 +10,20 @@ import { auditData } from "@/lib/audit";
 import { leadRetentionDays } from "@/lib/config";
 import { leadRetentionCutoff, isLeadRetentionEligible } from "@/lib/lead-retention";
 import { LEAD_STATUSES, type LeadStatus } from "@/lib/enums";
+import type { Prisma } from "@prisma/client";
 
 // De beslíste (terminale) statussen die voor retentie in aanmerking komen — afgeleid uit dezelfde
 // bron van waarheid (isLeadRetentionEligible) zodat een nieuwe status niet stil buiten de sweep valt.
 const ELIGIBLE_STATUSES: LeadStatus[] = LEAD_STATUSES.filter(isLeadRetentionEligible);
+
+/**
+ * De set leads die onder de retentie-sweep valt (beslíst — KLANT/NO_DEAL — én sinds `cutoff` niet meer
+ * aangeraakt). Geëxporteerd zodat de eligibiliteits-invariant op één plek staat en de stille-faal-gauge
+ * op /api/metrics exact dezelfde bron van waarheid hergebruikt (kan niet driften t.o.v. de taak).
+ */
+export function prunableLeadWhere(cutoff: Date): Prisma.LeadWhereInput {
+  return { status: { in: ELIGIBLE_STATUSES }, updatedAt: { lt: cutoff } };
+}
 
 export interface LeadRetentionResult {
   enabled: boolean;
@@ -47,7 +57,7 @@ export async function runLeadRetentionTask(opts: {
   let pruned = 0;
   for (let batch = 0; batch < MAX_BATCHES; batch++) {
     const stale = await prisma.lead.findMany({
-      where: { status: { in: ELIGIBLE_STATUSES }, updatedAt: { lt: cutoff } },
+      where: prunableLeadWhere(cutoff),
       select: { id: true },
       take: BATCH_SIZE,
     });

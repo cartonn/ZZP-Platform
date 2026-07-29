@@ -27,6 +27,8 @@ const HEALTHY: MetricsInput = {
   overdueUnflippedInvoices: 0,
   auditRetentionBacklog: 0,
   applicationsRetentionBacklog: 0,
+  notificationsRetentionBacklog: 0,
+  leadsRetentionBacklog: 0,
 };
 
 function valueOf(input: MetricsInput, name: string): number {
@@ -142,6 +144,45 @@ describe("buildMetrics", () => {
     ).toBe(4);
   });
 
+  it("mapt de notificatie-retentie-backlog (notificaties ouder dan het venster) door als gauge", () => {
+    expect(
+      valueOf(
+        { ...HEALTHY, notificationsRetentionBacklog: 8 },
+        "zzp_notifications_retention_backlog",
+      ),
+    ).toBe(8);
+  });
+
+  it("klemt een negatieve/gebroken notificatie-retentie-backlog veilig op een niet-negatief geheel getal", () => {
+    expect(
+      valueOf(
+        { ...HEALTHY, notificationsRetentionBacklog: -2 },
+        "zzp_notifications_retention_backlog",
+      ),
+    ).toBe(0);
+    expect(
+      valueOf(
+        { ...HEALTHY, notificationsRetentionBacklog: 3.7 },
+        "zzp_notifications_retention_backlog",
+      ),
+    ).toBe(3);
+  });
+
+  it("mapt de lead-retentie-backlog (beslíste leads ouder dan het venster) door als gauge", () => {
+    expect(valueOf({ ...HEALTHY, leadsRetentionBacklog: 5 }, "zzp_leads_retention_backlog")).toBe(
+      5,
+    );
+  });
+
+  it("klemt een negatieve/gebroken lead-retentie-backlog veilig op een niet-negatief geheel getal", () => {
+    expect(valueOf({ ...HEALTHY, leadsRetentionBacklog: -4 }, "zzp_leads_retention_backlog")).toBe(
+      0,
+    );
+    expect(valueOf({ ...HEALTHY, leadsRetentionBacklog: 6.2 }, "zzp_leads_retention_backlog")).toBe(
+      6,
+    );
+  });
+
   it("gebruikt de AGE_NEVER-sentinel wanneer een heartbeat nog nooit draaide", () => {
     const input = { ...HEALTHY, cronAgeSeconds: null, backupAgeSeconds: null };
     expect(valueOf(input, "zzp_cron_heartbeat_age_seconds")).toBe(AGE_NEVER);
@@ -189,6 +230,8 @@ describe("buildMetrics", () => {
       overdueUnflippedInvoices: 5,
       auditRetentionBacklog: 15,
       applicationsRetentionBacklog: 7,
+      notificationsRetentionBacklog: 11,
+      leadsRetentionBacklog: 4,
     };
     expect(valueOf(input, "zzp_db_reachable")).toBe(0);
     expect(valueOf(input, "zzp_maintenance_mode")).toBe(1);
@@ -197,6 +240,8 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_invoices_overdue_unflipped")).toBe(5);
     expect(valueOf(input, "zzp_audit_retention_backlog")).toBe(15);
     expect(valueOf(input, "zzp_applications_retention_backlog")).toBe(7);
+    expect(valueOf(input, "zzp_notifications_retention_backlog")).toBe(11);
+    expect(valueOf(input, "zzp_leads_retention_backlog")).toBe(4);
     expect(valueOf(input, "zzp_cron_heartbeat_ok")).toBe(0);
     expect(valueOf(input, "zzp_cron_heartbeat_stale")).toBe(1);
     expect(valueOf(input, "zzp_backup_heartbeat_ok")).toBe(0);
@@ -228,6 +273,8 @@ describe("buildMetrics", () => {
       "zzp_invoices_overdue_unflipped",
       "zzp_audit_retention_backlog",
       "zzp_applications_retention_backlog",
+      "zzp_notifications_retention_backlog",
+      "zzp_leads_retention_backlog",
     ]);
   });
 });

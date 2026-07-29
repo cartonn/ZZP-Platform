@@ -56,6 +56,8 @@ const SAMPLE_INPUT: MetricsInput = {
   overdueUnflippedInvoices: 0,
   auditRetentionBacklog: 0,
   applicationsRetentionBacklog: 0,
+  notificationsRetentionBacklog: 0,
+  leadsRetentionBacklog: 0,
 };
 
 /** De canonieke set gauge-namen die /api/metrics daadwerkelijk exposeert (uit `buildMetrics`). */

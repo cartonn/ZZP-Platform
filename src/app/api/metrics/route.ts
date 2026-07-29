@@ -14,7 +14,10 @@
 // payment-reminders-cron nog niet op OVERDUE zette) en zzp_audit_retention_backlog (auditregels ouder
 // dan AUDIT_LOG_RETENTION_DAYS die de audit-retention-cron nog niet snoeide — AVG-dataminimalisatie) en
 // zzp_applications_retention_backlog (terminale reacties met vrije-tekst-PII ouder dan
-// APPLICATION_RETENTION_DAYS die de application-retention-cron nog niet snoeide — AVG-dataminimalisatie) —
+// APPLICATION_RETENTION_DAYS die de application-retention-cron nog niet snoeide — AVG-dataminimalisatie) en
+// zzp_notifications_retention_backlog (notificaties met title/body-PII ouder dan NOTIFICATION_RETENTION_DAYS
+// die de notification-retention-cron nog niet snoeide) en zzp_leads_retention_backlog (beslíste leads met
+// contact-PII ouder dan LEAD_RETENTION_DAYS die de lead-retention-cron nog niet snoeide — AVG-dataminimalisatie) —
 // stille-faal-detectors die de heartbeat niet vangt.
 //
 // Beveiliging: dezelfde Bearer CRON_SECRET als de taak-/heartbeat-routes, fail-closed — geen
@@ -33,10 +36,18 @@ import { getCronFreshness } from "@/lib/observability/cron-heartbeat";
 import { getBackupFreshness } from "@/lib/observability/backup-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { waitingSince } from "@/lib/verification-queue";
-import { auditLogRetentionDays, applicationRetentionDays } from "@/lib/config";
+import {
+  auditLogRetentionDays,
+  applicationRetentionDays,
+  notificationRetentionDays,
+  leadRetentionDays,
+} from "@/lib/config";
 import { auditRetentionCutoff } from "@/lib/audit-retention";
 import { applicationRetentionCutoff } from "@/lib/application-retention";
 import { prunableApplicationWhere } from "@/lib/application-retention-task";
+import { notificationRetentionCutoff } from "@/lib/notification-retention";
+import { leadRetentionCutoff } from "@/lib/lead-retention";
+import { prunableLeadWhere } from "@/lib/lead-retention-task";
 import { reportError } from "@/lib/observability/report";
 import type { CronFreshness } from "@/lib/observability/cron-freshness";
 import {
@@ -72,6 +83,8 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let overdueUnflippedInvoices = 0;
   let auditRetentionBacklog = 0;
   let applicationsRetentionBacklog = 0;
+  let notificationsRetentionBacklog = 0;
+  let leadsRetentionBacklog = 0;
   if (dbReachable) {
     try {
       verificationQueue = await prisma.credential.count({ where: { status: "SUBMITTED" } });
@@ -162,6 +175,37 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
     }
+    try {
+      // Notificaties ouder dan het geconfigureerde NOTIFICATION_RETENTION_DAYS-venster: werk dat de
+      // notification-retention-cron had moeten doen (wissen op `createdAt < cutoff`, ongeacht status).
+      // Zelfde bron van waarheid als de taak zelf (`notificationRetentionCutoff(notificationRetentionDays(),
+      // now)` + dezelfde where-vorm) zodat de gauge de echte cron-backlog telt en niet kan driften. Een
+      // Notification-rij draagt PII in title/body; staat retentie UIT (cutoff === null, de pilot-default),
+      // dan is er per definitie geen achterstand → 0.
+      const cutoff = notificationRetentionCutoff(notificationRetentionDays(), now);
+      if (cutoff) {
+        notificationsRetentionBacklog = await prisma.notification.count({
+          where: { createdAt: { lt: cutoff } },
+        });
+      }
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
+    try {
+      // Beslíste leads (KLANT/NO_DEAL) ouder dan het geconfigureerde LEAD_RETENTION_DAYS-venster: werk dat de
+      // lead-retention-cron had moeten doen. Hergebruikt exact `prunableLeadWhere` (dezelfde bron van waarheid,
+      // incl. de eligibiliteits-invariant) als de taak zelf, zodat de gauge de echte cron-backlog telt en niet
+      // kan driften. Een Lead draagt contact-PII (cascade-gekoppeld LeadContact-logboek); staat retentie UIT
+      // (cutoff === null, de pilot-default), dan is er per definitie geen achterstand → 0.
+      const cutoff = leadRetentionCutoff(leadRetentionDays(), now);
+      if (cutoff) {
+        leadsRetentionBacklog = await prisma.lead.count({
+          where: prunableLeadWhere(cutoff),
+        });
+      }
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
@@ -186,6 +230,8 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     overdueUnflippedInvoices,
     auditRetentionBacklog,
     applicationsRetentionBacklog,
+    notificationsRetentionBacklog,
+    leadsRetentionBacklog,
   };
 }
 

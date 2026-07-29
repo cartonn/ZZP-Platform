@@ -135,6 +135,32 @@ groups:
           summary: "Reactie-retentie-snoei verwerkt niets (AVG-dataminimalisatie)"
           description: "Er staan al > één cron-interval terminale reacties (REJECTED/WITHDRAWN) ouder dan het geconfigureerde APPLICATION_RETENTION_DAYS-venster die niet zijn gesnoeid (zzp_applications_retention_backlog). De application-retention-cron rondt af maar verwijdert niets → reacties met vrije-tekst-PII (motivation/note) worden over de beloofde bewaartermijn heen bewaard (AVG art. 5(1)(e)). Controleer de application-retention-taak."
 
+      - alert: ZzpNotificationsRetentionBacklog
+        # AVG-dataminimalisatie (art. 5 lid 1e): notificaties dragen PII in title/body (namen, bedragen,
+        # statusupdates); het verwerkingsregister belooft "Notificatiehistorie max. 6 maanden". Een oplopende
+        # backlog terwijl de heartbeat "vers" is betekent dat notificatie-PII over de beloofde termijn heen
+        # bewaard blijft. Alleen actief zodra NOTIFICATION_RETENTION_DAYS gezet is (anders altijd 0).
+        expr: zzp_notifications_retention_backlog > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Notificatie-retentie-snoei verwerkt niets (AVG-dataminimalisatie)"
+          description: "Er staan al > één cron-interval notificaties ouder dan het geconfigureerde NOTIFICATION_RETENTION_DAYS-venster die niet zijn gesnoeid (zzp_notifications_retention_backlog). De notification-retention-cron rondt af maar verwijdert niets → notificaties met PII in title/body worden over de beloofde bewaartermijn heen bewaard (AVG art. 5(1)(e)). Controleer de notification-retention-taak."
+
+      - alert: ZzpLeadsRetentionBacklog
+        # AVG-dataminimalisatie (art. 5 lid 1e): beslíste leads dragen contact-PII (cascade-gekoppeld
+        # LeadContact-logboek); het verwerkingsregister belooft "tot de lead klant wordt of afvalt + 12
+        # maanden". Een oplopende backlog terwijl de heartbeat "vers" is betekent dat lead-PII over de beloofde
+        # termijn heen bewaard blijft. Alleen actief zodra LEAD_RETENTION_DAYS gezet is (anders altijd 0).
+        expr: zzp_leads_retention_backlog > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Lead-retentie-snoei verwerkt niets (AVG-dataminimalisatie)"
+          description: "Er staan al > één cron-interval beslíste leads (KLANT/NO_DEAL) ouder dan het geconfigureerde LEAD_RETENTION_DAYS-venster die niet zijn gesnoeid (zzp_leads_retention_backlog). De lead-retention-cron rondt af maar verwijdert niets → leads met contact-PII (naam/e-mail/telefoon + contactlogboek) worden over de beloofde bewaartermijn heen bewaard (AVG art. 5(1)(e)). Controleer de lead-retention-taak."
+
   - name: zzp-platform-verificatie-sla
     rules:
       # Verificatie is de kern-differentiatie. Twee complementaire signalen: te veel wachtenden (diepte)
