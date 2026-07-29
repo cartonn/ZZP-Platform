@@ -3,6 +3,17 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — Definitief ontwerp: zegel-signatuur op het verificatie-cluster (uitrol stap 3 van 10)
+
+**Wat:** stap 3 van het uitrolplan: het cluster "Verificatie & vertrouwen" krijgt zijn
+motief — _het zegel_ — via de eyebrow-signatuurregel uit stap 2 (#978), met per pagina een
+eigen smaak binnen het motief: `/certificaten` "Het zegel · jouw register", `/documenten`
+"Het zegel · jouw kluis", `/admin/verificaties` "Het zegel · de wachtrij" (+3 EN-entries).
+Bewerk-/formulierpagina's blijven bewust zonder motief (UITROLPLAN §2).
+
+- **Gate:** typecheck, lint, test, build, prettier groen; visueel geverifieerd.
+- **Volgende stap (uitrol 4/10):** marktplaats (de etalage) + opdracht-detail (het dossier).
+
 ## 2026-07-29 — Definitief ontwerp: dagstart- + werklijst-signatuur (uitrol stap 2 van 10)
 
 **Wat:** stap 2 van het uitrolplan (`docs/ontwerpen/UITROLPLAN.md` §2): de eerste twee
