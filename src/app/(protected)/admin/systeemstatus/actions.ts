@@ -13,6 +13,7 @@ import {
   errorMonitoringSelfTestRateLimiter,
   mailSelfTestRateLimiter,
   rateLimitSelfTestRateLimiter,
+  routingSelfTestRateLimiter,
   selfTestSweepRateLimiter,
   storageSelfTestRateLimiter,
   uploadScannerSelfTestRateLimiter,
@@ -62,6 +63,12 @@ import {
   SELFTEST_PREFIX,
   type StorageSelfTestReport,
 } from "@/lib/services/storage-selftest";
+import { checkRoutingConnectivity, configuredRoutingProvider } from "@/lib/services/routing";
+import {
+  runRoutingSelfTest,
+  type RoutingDriverMode,
+  type RoutingSelfTestReport,
+} from "@/lib/services/routing-selftest";
 import { getUploadScanner, uploadScanFailOpen } from "@/lib/services/upload-scanner";
 import {
   eicarProbeBuffer,
@@ -358,6 +365,50 @@ export async function runBillingSelfTestAction(): Promise<BillingSelfTestState> 
   return { ok: true, report };
 }
 
+export type RoutingSelfTestState =
+  | { ok: true; report: RoutingSelfTestReport }
+  | { ok: false; error: string };
+
+/**
+ * Draait een connectiviteitszelftest tegen de geconfigureerde routing-provider (admin-only). Volgt de
+ * mutatieketen (auth → rol → rate-limit → actie → audit). Staat routing op de offline schatter
+ * (ROUTING_PROVIDER=offline), dan is er niets externs om te testen en meldt de zelftest dat eerlijk
+ * (geen vals groen). Op Geoapify doet hij een READ-ONLY geocode-round-trip die bereikbaarheid +
+ * geldige sleutel bevestigt ZONDER de cache te muteren of een route te berekenen (MENSENWERK §1c-
+ * achtig patroon voor de reistijd-koppeling). De uitvoer bevat nooit secrets — alleen de uitkomst en
+ * de driver-modus.
+ */
+export async function runRoutingSelfTestAction(): Promise<RoutingSelfTestState> {
+  const actor = await requireRole("ADMIN");
+
+  if (!(await routingSelfTestRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
+  }
+
+  const provider = configuredRoutingProvider();
+  const active = provider === "geoapify";
+  const driverMode: RoutingDriverMode = provider;
+
+  const report = await runRoutingSelfTest({
+    active,
+    driverMode,
+    run: active ? () => checkRoutingConnectivity() : undefined,
+  });
+
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "ROUTING_SELFTEST_RUN",
+    entityType: "Routing",
+    entityId: driverMode,
+    metadata: { ok: report.ok, active: report.active },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { ok: true, report };
+}
+
 export type UploadScannerSelfTestState =
   | { ok: true; report: UploadScannerSelfTestReport }
   | { ok: false; error: string };
@@ -642,6 +693,31 @@ export async function runSelfTestSweepAction(): Promise<SelfTestSweepState> {
           status: !result.active ? "skipped" : result.ok ? "pass" : "fail",
           mode: driverMode,
           detail: result.detail ?? (result.ok ? "Bereikbaar." : "Koppeling faalt."),
+        };
+      },
+    },
+    {
+      key: "routing",
+      label: "Routing-provider",
+      run: async (): Promise<SweepRunResult> => {
+        const provider = configuredRoutingProvider();
+        const active = provider === "geoapify";
+        const driverMode: RoutingDriverMode = provider;
+        const result = await runRoutingSelfTest({
+          active,
+          driverMode,
+          run: active ? () => checkRoutingConnectivity() : undefined,
+        });
+        return {
+          status: !result.active ? "skipped" : result.ok ? "pass" : "fail",
+          mode: driverMode,
+          detail:
+            result.detail ??
+            (!result.active
+              ? "Offline schatting — niets getest."
+              : result.ok
+                ? "Bereikbaar."
+                : "Koppeling faalt."),
         };
       },
     },

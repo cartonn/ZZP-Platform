@@ -5,6 +5,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { estimateTravelMinutes } from "@/lib/services/travel-distance";
+import { fetchWithTimeout, resolveHttpTimeoutMs } from "@/lib/services/fetch-timeout";
 
 export type RoutingProvider = "offline" | "geoapify";
 export type RoutingMode = "drive";
@@ -358,6 +359,95 @@ export interface RoutingDiagnostics {
   geocodeCacheCount: number;
   routeCacheCount: number;
   lastRouteAt: Date | null;
+}
+
+/**
+ * Fout bij de routing-connectiviteitscontrole. Draagt een BEWUST veilig bericht (provider + reden of
+ * HTTP-status) — NOOIT de aanroep-URL, die de API-sleutel in de query-string bevat. Aparte klasse
+ * zodat de zelftest dit veilige bericht mag tonen (en elke andere, onverwachte fout terugvalt op
+ * alleen de error-naam). Zelfde patroon als `BillingConnectivityError`.
+ */
+export class RoutingConnectivityError extends Error {
+  readonly status: number | null;
+  constructor(message: string, status: number | null = null) {
+    super(message);
+    this.name = "RoutingConnectivityError";
+    this.status = status;
+  }
+}
+
+export interface RoutingConnectivityOptions {
+  provider?: RoutingProvider;
+  apiKey?: string;
+  fetchImpl?: typeof fetch;
+  /** Synthetische probe-plaats (NL); default een bekende plaatsnaam. */
+  probePlace?: string;
+  timeoutMs?: number;
+}
+
+/** Synthetische, onschuldige NL-plaats voor de connectiviteitscontrole. */
+export const ROUTING_PROBE_PLACE = "Amsterdam";
+
+/**
+ * READ-ONLY connectiviteitscontrole tegen de geconfigureerde routing-provider: één geocode-round-trip
+ * met een synthetische NL-plaats, met een harde time-out. Bevestigt bereikbaarheid + geldige sleutel
+ * + contract-vorm ZONDER de cache te muteren en zonder een route te berekenen. Werpt een
+ * `RoutingConnectivityError` met een veilig bericht (provider + reden/HTTP-status, nooit de URL of de
+ * sleutel) bij een fout; resolvet stil bij succes.
+ *
+ * Bedoeld voor de admin-zelftest (/admin/systeemstatus) en de go-live-sweep: zonder deze controle zou
+ * een verkeerd geplakte `GEOAPIFY_API_KEY` pas bij runtime opvallen als een stille terugval op de
+ * offline reistijd-schatter (geen vals GO in de sweep).
+ */
+export async function checkRoutingConnectivity(
+  opts: RoutingConnectivityOptions = {},
+): Promise<void> {
+  const provider = opts.provider ?? configuredRoutingProvider();
+  if (provider !== "geoapify") {
+    throw new RoutingConnectivityError("Geen externe routing-provider actief.");
+  }
+
+  const apiKey = opts.apiKey ?? configuredApiKey(provider);
+  if (!apiKey) {
+    throw new RoutingConnectivityError("Geen API-sleutel geconfigureerd voor de routing-provider.");
+  }
+
+  const query = (opts.probePlace ?? ROUTING_PROBE_PLACE).trim();
+  const timeoutMs = opts.timeoutMs ?? resolveHttpTimeoutMs(process.env.ROUTING_HTTP_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(
+      geoapifyGeocodeUrl(query, apiKey),
+      {},
+      { fetchImpl: opts.fetchImpl, timeoutMs, label: "Routing" },
+    );
+  } catch {
+    // Netwerk-/DNS-/timeout-fout: NOOIT het rauwe bericht doorgeven — de URL met de sleutel zou erin
+    // kunnen zitten. Alleen een veilige, generieke reden.
+    throw new RoutingConnectivityError("Routing-provider onbereikbaar (netwerkfout of time-out).");
+  }
+
+  if (!res.ok) {
+    throw new RoutingConnectivityError(
+      `Routing-provider antwoordde met HTTP ${res.status}.`,
+      res.status,
+    );
+  }
+
+  let json: unknown;
+  try {
+    json = await res.json();
+  } catch {
+    throw new RoutingConnectivityError("Onleesbaar antwoord van de routing-provider.");
+  }
+
+  const point = parseGeoapifyGeocodeResponse(json);
+  if (!point) {
+    throw new RoutingConnectivityError(
+      "Onverwacht antwoord van de routing-provider (geen geldige geocode).",
+    );
+  }
 }
 
 /**

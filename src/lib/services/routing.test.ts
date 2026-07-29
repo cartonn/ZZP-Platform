@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  checkRoutingConnectivity,
   estimateTravelMinutesWithRouting,
   geocodeCacheKey,
   geoapifyGeocodeUrl,
@@ -7,6 +8,7 @@ import {
   normalizeRoutingPlace,
   parseGeoapifyGeocodeResponse,
   parseGeoapifyRoutingResponse,
+  RoutingConnectivityError,
   routeCacheKey,
   type GeoPoint,
   type RoutingCache,
@@ -144,6 +146,72 @@ describe("estimateTravelMinutesWithRouting", () => {
         apiKey: "",
       }),
     ).resolves.toBeGreaterThan(70);
+  });
+});
+
+describe("checkRoutingConnectivity", () => {
+  const validGeocode = {
+    features: [{ properties: { lat: 52.3676, lon: 4.9041, formatted: "Amsterdam" } }],
+  };
+
+  it("resolvet stil bij een geldig geocode-antwoord (één read-only round-trip)", async () => {
+    let calledUrl = "";
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      calledUrl = String(url);
+      return jsonResponse(validGeocode);
+    }) as unknown as typeof fetch;
+    await expect(
+      checkRoutingConnectivity({ provider: "geoapify", apiKey: "test-key", fetchImpl }),
+    ).resolves.toBeUndefined();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    // Alleen het geocode-endpoint — nooit /routing (geen route berekend).
+    expect(calledUrl).toContain("/geocode/");
+  });
+
+  it("werpt een RoutingConnectivityError met status bij een niet-ok HTTP-antwoord", async () => {
+    const fetchImpl = vi.fn(
+      async () => new Response("nope", { status: 401 }),
+    ) as unknown as typeof fetch;
+    await expect(
+      checkRoutingConnectivity({ provider: "geoapify", apiKey: "bad-key", fetchImpl }),
+    ).rejects.toMatchObject({ name: "RoutingConnectivityError", status: 401 });
+  });
+
+  it("werpt zonder de sleutel te lekken bij een netwerkfout", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("connect ECONNREFUSED https://api.geoapify.com?apiKey=geheim");
+    }) as unknown as typeof fetch;
+    let caught: unknown;
+    await checkRoutingConnectivity({ provider: "geoapify", apiKey: "test-key", fetchImpl }).catch(
+      (e) => {
+        caught = e;
+      },
+    );
+    expect(caught).toBeInstanceOf(RoutingConnectivityError);
+    expect((caught as Error).message).not.toContain("geheim");
+  });
+
+  it("werpt wanneer er geen externe provider actief is (offline)", async () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    await expect(
+      checkRoutingConnectivity({ provider: "offline", fetchImpl }),
+    ).rejects.toBeInstanceOf(RoutingConnectivityError);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("werpt wanneer de API-sleutel ontbreekt", async () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    await expect(
+      checkRoutingConnectivity({ provider: "geoapify", apiKey: "", fetchImpl }),
+    ).rejects.toBeInstanceOf(RoutingConnectivityError);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("werpt wanneer het antwoord geen geldige geocode bevat", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ features: [] })) as unknown as typeof fetch;
+    await expect(
+      checkRoutingConnectivity({ provider: "geoapify", apiKey: "test-key", fetchImpl }),
+    ).rejects.toBeInstanceOf(RoutingConnectivityError);
   });
 });
 

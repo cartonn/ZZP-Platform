@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — routing-provider (Geoapify) connectiviteitszelftest + go-live-sweep (2026-07-29, PR #973)** —
+> de Geoapify reistijd-routing was de **enige** keyed externe HTTP-integratie zónder connectiviteitszelftest én afwezig in de
+> go-live-sweep; omdat routing zonder geldige sleutel **stil terugvalt** op de offline haversine-schatter kon de GO/NO-GO-sweep "GO"
+> melden terwijl `GEOAPIFY_API_KEY` ongeldig was. Nieuw: `checkRoutingConnectivity` (READ-ONLY geocode-round-trip met harde time-out,
+> muteert cache niet, `RoutingConnectivityError` met veilig bericht — nooit de sleutel/URL), pure kern `runRoutingSelfTest` +
+> `safeRoutingDetail`, server-actie `runRoutingSelfTestAction` (rol → `routingSelfTestRateLimiter` 6/5min → audit `ROUTING_SELFTEST_RUN`),
+> sweep-entry `key:"routing"`, UI-kaart op `/admin/systeemstatus`, audit-NL-label. +18 tests, suite 5354. Zelfde patroon als de andere 8
+> zelftests. MENSENWERK §4d nieuw. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — `/api/metrics` reactie-retentie-backlog gauge (2026-07-28, PR #959)** —
 > vijfde stille-faal-detector-gauge op het machine-leesbare monitoring-endpoint: **`zzp_applications_retention_backlog`**
 > telt terminale reacties (`Application`, REJECTED/WITHDRAWN, zónder samenwerking) ouder dan het geconfigureerde

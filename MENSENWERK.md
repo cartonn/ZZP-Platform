@@ -582,6 +582,35 @@ beveiligde sleutels. Een agent kan dat contact en die afspraken niet namens jou 
    **Opleveren:** endpoint + sleutels → secrets `IDENTITY_API_BASE`, `IDENTITY_API_KEY` en zet
    `IDENTITY_VERIFIER=idin`.
 
+### 4d. Reistijd-routing (Geoapify)
+
+**Wat:** het platform berekent reistijd tussen ZZP'er en opdracht. Standaard draait dit **offline**
+(een deterministische plaatsnaam/haversine-schatting) — geen account nodig. Voor **echte, gerouteerde**
+reistijden kun je de Geoapify-koppeling aanzetten.
+**Stappen (niet-technisch):**
+
+1. Maak een account bij **Geoapify** en genereer een **API-sleutel**. Kies waar mogelijk EU-verwerking
+   (AVG-afweging, zie §5a).
+2. Zet `GEOAPIFY_API_KEY` in de Railway-secrets en `ROUTING_PROVIDER=geoapify`.
+   **Opleveren:** de sleutel → secret. Zonder sleutel blijft de app op de offline schatting draaien.
+
+**Code-kant GEDAAN (2026-07-29) — connectiviteitszelftest + go-live-sweep:** zodra je de sleutel hebt
+geplakt en `ROUTING_PROVIDER=geoapify` staat, kun je op `/admin/systeemstatus` (admin-only) de
+**Routing-zelftest** draaien — zelfde patroon als de Opslag-/E-mail-/Rate-limit-/Verificatie-/
+Betaalprovider-/Upload-scanner-/Error-monitoring-/Database-zelftest. Die doet een **read-only**
+geocode-round-trip (met een harde time-out) tegen Geoapify en bevestigt dat de koppeling **bereikbaar**
+is en de **sleutel geldig** — **zonder** de cache te muteren of een route te berekenen. Belangrijk: omdat
+routing zonder geldige sleutel **stil terugvalt** op de offline schatter, zou een verkeerd geplakte
+`GEOAPIFY_API_KEY` anders pas bij runtime opvallen (een reistijd die er net naast zit). De routing draait
+nu ook mee in de één-klik **go-live GO/NO-GO-sweep** (§11) — voorheen was routing als enige keyed externe
+integratie uitgesloten, waardoor de sweep "GO" kon melden terwijl de routing-sleutel ongeldig was. Staat
+routing nog op `offline`, dan meldt het scherm eerlijk "niets getest" (geen vals groen). De uitvoer bevat
+nooit de sleutel of de aanroep-URL (alleen stap-uitkomst + driver-modus), loopt door de authz-keten
+(rol → rate-limit → audit) en laat niets achter (`src/lib/services/routing-selftest.ts` +
+`checkRoutingConnectivity` in `src/lib/services/routing.ts`, actie in `.../systeemstatus/actions.ts`).
+Resterend mensenwerk: **niets extra** — de knop is er zodra `ROUTING_PROVIDER=geoapify` staat. Optioneel:
+`ROUTING_HTTP_TIMEOUT_MS` (ms, geklemd 1000–60000) om de time-out bij te stellen.
+
 ---
 
 ## §5. Juridisch & privacy (AVG / Wet DBA / Wkkgz / security)

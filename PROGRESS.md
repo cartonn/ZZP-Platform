@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — Prod-rijpheid: routing-provider (Geoapify) connectiviteitszelftest + go-live-sweep
+
+**Wat:** de Geoapify reistijd-routing-provider (`ROUTING_PROVIDER=geoapify` + `GEOAPIFY_API_KEY`) was de
+**enige** keyed externe HTTP-integratie zónder connectiviteitszelftest én **afwezig in de go-live-sweep**
+(`selftest-sweep.ts`). Opslag/e-mail/rate-limit/verificatie/betaalprovider/upload-scanner/error-monitoring/
+database hadden er al één. Omdat routing zonder geldige sleutel **stil terugvalt** op de offline
+haversine-schatter (`travel-distance.ts`), viel een verkeerd geplakte `GEOAPIFY_API_KEY` pas bij runtime op —
+en kon de GO/NO-GO-sweep "GO" melden terwijl de routing-sleutel ongeldig was. Dit sluit dat laatste
+zelftest-gat, exact volgens het bestaande patroon.
+
+- **`checkRoutingConnectivity()`** (`src/lib/services/routing.ts`) — READ-ONLY geocode-round-trip met een
+  synthetische NL-plaats + harde time-out (`fetchWithTimeout`, `ROUTING_HTTP_TIMEOUT_MS`), muteert de cache
+  niet en berekent geen route. Werpt een nieuwe **`RoutingConnectivityError`** met een veilig bericht
+  (provider + reden/HTTP-status) — nooit de aanroep-URL (die de sleutel in de query-string draagt).
+- **Pure kern `runRoutingSelfTest`** (`src/lib/services/routing-selftest.ts`, spec→rapport, injecteerbaar) +
+  `safeRoutingDetail`. Offline → eerlijk "niets getest" (geen vals groen).
+- **Server-actie `runRoutingSelfTestAction`** + sweep-entry `key: "routing"` (`.../systeemstatus/actions.ts`),
+  authz-keten (rol → `routingSelfTestRateLimiter` 6/5min → audit `ROUTING_SELFTEST_RUN`, nooit secrets).
+- **UI** `RoutingSelfTest`-kaart op `/admin/systeemstatus` + audit-NL-label (drift-gate groen).
+- **Tests:** +9 op `checkRoutingConnectivity` (routing.test.ts: succes/één round-trip, HTTP-fout met status,
+  netwerkfout zonder sleutellek, offline/geen-key/onleesbaar antwoord) +9 op de pure kern
+  (routing-selftest.test.ts). Suite **5354 passed (509 files)**.
+- **Gate:** typecheck ✅ · lint ✅ · test 5354 ✅ · build (draaide) · prettier ✅. Docs: MENSENWERK §4d nieuw.
+
 ## 2026-07-29 — Security/privacy-audit: `iban` overleefde account-anonimisering (HOOG, AVG art. 17) + seed-IBAN (MIDDEL)
 
 **Wat:** security-/privacy-audit gericht op de delta sinds de vorige ronde (`a10cba04..08708e99`, #958–#971;
