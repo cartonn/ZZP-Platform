@@ -1537,6 +1537,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "510": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-510-waarmerk").then((m) => m.Concept510),
   ),
+  "511": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-511-spatiaal").then((m) => m.Concept511),
+  ),
+  "512": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-512-grafeen").then((m) => m.Concept512),
+  ),
+  "513": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-513-commandobrug").then((m) => m.Concept513),
+  ),
+  "514": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-514-huiskamer").then((m) => m.Concept514),
+  ),
+  "515": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-515-draaitabel").then((m) => m.Concept515),
+  ),
+  "516": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-516-metronoom").then((m) => m.Concept516),
+  ),
+  "517": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-517-condens").then((m) => m.Concept517),
+  ),
+  "518": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-518-stellage").then((m) => m.Concept518),
+  ),
+  "519": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-519-nachtlamp").then((m) => m.Concept519),
+  ),
+  "520": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-520-confetti").then((m) => m.Concept520),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
