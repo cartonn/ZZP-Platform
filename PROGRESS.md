@@ -3,6 +3,43 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — Persona-sweep run 58: dode "Contract ondertekenen"-next-action bij geblokkeerde plaatsing (HIGH)
+
+**Wat:** kritische-gebruiker-sweep over alle vier rollen op de verse prod-build + idempotente demo-seed
+(ephemere SQLite `qa.db`, `next start` op 3100, Playwright/Chromium). **DOEL 1** live actie: ADMIN
+"Goedkeuren" op `/admin/verificaties` → knoppen 6→5 (server-waarheid veranderde). **DOEL 1b** `/acties`
+per rol logisch (franchise: 2 correcte acties). **DOEL 2** adversarieel — álles geweigerd, nul 5XX:
+privilege-escalatie zzp/client/franchise → redirect naar /dashboard; IDOR privé-document (Youssef VOG) →
+404; cross-party/cross-tenant factuur + samenwerkingsdossier → **soft-404** (200-status maar nul gelekte
+partijdata, bevestigd tegen een owner-control + junk-control); junk/traversal/SQLi/XSS-id → soft-404,
+nooit 500; onauth → login. Drie parallelle Opus-audits: authz/IDOR/cross-tenant **schoon**, financiële/
+status-integriteit **schoon** (één DiD-noot: `rateCents`-bovengrens leunt op de €2000-bron), next-action-
+correctheid → **1 HIGH gevonden + gefixt**.
+
+**GEVONDEN + GEFIXT — HIGH (DOEL 1b, dode next-action):** de item-engine (`freelancerTasks` +
+`clientTasks` in `pending-tasks.ts`) emitte `contractSignTask` (resolver `oneClick`, band
+`P.contractSign` 72) **onvoorwaardelijk** op elke `PROPOSED` samenwerking. Maar `signContract`
+(`contract-commands.ts`) weigert (gooit) zolang de plaatsing door een certificaat-gat is geblokkeerd
+(vereist certificaat ontbreekt/verlopen → `complianceBlocksPlacement`). Gevolg: een **dode "Onderteken"-
+knop** op `/acties`, de dashboard-rail én de zijbalk-badge die de server nooit accepteert (de
+samenwerking blijft PROPOSED, de taak verdwijnt niet) — terwijl het samenwerkingsdetail
+(`samenwerkingen/[id]/page.tsx`) de teken-knop in exact deze staat al verbergt (server-truth-divergentie).
+Bij de **opdrachtgever** bovendien getoond aan de verkeerde partij (alleen de ZZP'er kan het bewijsstuk
+aanleveren) — en zonder compensatie, want `clientCredentialAlerts` scoopt alleen `ACTIVE`, niet
+`PROPOSED`. **Geschonden regel:** CLAUDE.md regel 1 (server-side waarheid; client mag tonen, nooit
+beslissen — de actielijst beweerde een actie die de server autoritatief weigert) + "geen dode knoppen".
+**Fix:** nieuwe pure helper `collaborationPlacementBlocked(requiredTypes, credentials, now)`
+(`src/lib/collaborations.ts`) spiegelt exact de command-guard (`computeCompliance` +
+`complianceBlocksPlacement`) → kan niet driften. Beide emitters onderdrukken `contractSignTask` zodra de
+plaatsing geblokkeerd is; de ZZP'er houdt zijn échte volgende stap (`credential-collab-missing/expired`).
+Client-collab-query kreeg `credentialRequirements` + `freelancer.credentials` voor de gate. Rood→groen:
++7 tests (`pending-tasks-contract-sign-compliance.test.ts`: missing/expired → geen taak; geldig/in-
+beoordeling → wél; opdrachtgever verkeerde-partij-onderdrukking + compliant + geen-harde-eis).
+
+**Bestanden:** `src/lib/collaborations.ts`, `src/lib/actions/pending-tasks.ts`,
+`src/lib/actions/pending-tasks-contract-sign-compliance.test.ts`, `PROGRESS.md`,
+`docs/PERSONA-SWEEP-BACKLOG.md`. Gate: typecheck, lint, test (5338), build, prettier groen.
+
 ## 2026-07-29 — Betaalgegevens (IBAN) op ZZP-profiel → betaalinstructie op de factuur
 
 **Wat:** betaling verloopt rechtstreeks (off-platform), maar er was nergens een gestructureerd IBAN —

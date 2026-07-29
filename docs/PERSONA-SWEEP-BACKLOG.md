@@ -1,5 +1,61 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-29 (run 58) · **main-commit basis:** `222d4b90`
+> **Uitkomst:** **1 bevinding GEVONDEN + GEFIXT** (HIGH DOEL-1b: een dode "Contract ondertekenen"-
+> next-action op elke PROPOSED samenwerking waarvan de plaatsing door een certificaat-gat is
+> geblokkeerd — voor zowel ZZP'er als opdrachtgever). Verse prod-build (exit 0) + idempotente demo-seed
+> (`SEED_DEMO=true`, ephemere SQLite `qa.db`, `next start` op 3100). Live Playwright/Chromium over alle
+> vier rollen.
+>
+> - **DOEL 1** echte actie: ADMIN "Goedkeuren" op `/admin/verificaties` → knoppen 6→5 (server-waarheid
+>   veranderde). **DOEL 1b** `/acties` per rol logisch en rol-correct (franchise: "Sofia niet inzetbaar" +
+>   "1 dienst dreigt onbezet"). **DOEL 2** adversarieel (allemaal geweigerd, nul 5XX): privilege-escalatie
+>   zzp/client/franchise → 307/redirect /dashboard; IDOR privé-document (Youssef VOG) → 404; cross-party/
+>   cross-tenant factuurdetail + samenwerkingsdossier → **soft-404** (200-status, nul gelekte partijdata —
+>   bevestigd via body-render tegen een owner-control (Sanne ziet wél haar eigen factuur/samenwerking) én
+>   een junk-id-control (identieke lengte, nul velden)); junk/traversal/SQLi/XSS-id (6 varianten × 3 routes)
+>   → soft-404, nooit 500; onauth → login. Drie parallelle Opus-audits: authz/IDOR/cross-tenant **schoon**
+>   (franchise-tenant-scoping, privé-routes, admin-oppervlak geverifieerd), financiële/status-integriteit
+>   **schoon** (cascade-completion-guards, VAT/credit-math, idempotentie via dedupeKey/compound-updateMany;
+>   één DiD-noot geparkeerd), next-action-correctheid → **1 HIGH gevonden**.
+>
+> **GEVONDEN + GEFIXT — HIGH (DOEL 1b, dode "Onderteken"-next-action bij geblokkeerde plaatsing):** de
+> item-engine (`freelancerTasks` regel ~473 + `clientTasks` regel ~827 in `src/lib/actions/pending-tasks.ts`)
+> pushte `contractSignTask` (resolver `oneClick`, band `P.contractSign` 72) **onvoorwaardelijk** op elke
+> `PROPOSED` samenwerking. Maar `signContract` (`src/lib/cascade/contract-commands.ts:59-76`) **gooit**
+> zolang de plaatsing door een certificaat-gat is geblokkeerd (een vereist certificaat ontbreekt of is
+> verlopen → `computeCompliance` = NON_COMPLIANT → `complianceBlocksPlacement`). **Repro:** een `PROPOSED`
+> samenwerking waarvan de opdracht een `JobCredentialRequirement` (`required`) heeft en de ZZP'er mist dat
+> type of het is verlopen. `/acties`, de dashboard-"Volgende acties" én de zijbalk-badge tonen zowel de
+> ZZP'er áls de opdrachtgever een `oneClick` "Contract ondertekenen"; klikken → `signContract` weigert →
+> de samenwerking blijft PROPOSED → de taak verdwijnt nooit. Het samenwerkingsdetail
+> (`samenwerkingen/[id]/page.tsx:611-637`) verbergt die knop in exact dezelfde staat al (ZZP'er ziet
+> "Naar mijn certificaten", opdrachtgever géén knop) → de actie-surfaces spreken het detail (en de server)
+> tegen. Bij de opdrachtgever is het bovendien de **verkeerde partij aan zet** (alleen de ZZP'er levert het
+> bewijsstuk aan) zónder compensatie: `clientCredentialAlerts` scoopt alleen `ACTIVE`, niet `PROPOSED`, dus
+> de opdrachtgever kreeg géén compliance-nudge — alleen de dode teken-knop. **Geschonden regel:** CLAUDE.md
+> regel 1 (server-side is de waarheid; client mag tonen, nooit beslissen) + Designfilosofie/AUTO-MODE §5
+> "geen dode knoppen" + de next-action-belofte (juiste stap, juiste partij aan zet). **Fix:** nieuwe pure
+> helper `collaborationPlacementBlocked(requiredTypes, credentials, now)` (`src/lib/collaborations.ts`)
+> spiegelt exact de command-guard (`computeCompliance` + `complianceBlocksPlacement`, dezelfde functies →
+> geen drift). Beide emitters onderdrukken `contractSignTask` zodra de plaatsing geblokkeerd is; de ZZP'er
+> houdt zijn échte volgende stap (`credential-collab-missing`/`credential-collab-expired`, die dezelfde
+> `collabs` gebruiken en dus óók PROPOSED dekken). De opdrachtgever-collab-query kreeg
+> `credentialRequirements` + `freelancer.credentials` voor de gate. Rood→groen: +7 tests
+> (`pending-tasks-contract-sign-compliance.test.ts`: freelancer missing/expired → geen taak, wél de
+> aanlever-taak; geldig/in-beoordeling → wél; opdrachtgever verkeerde-partij-onderdrukking, compliant → wél,
+> geen-harde-eis → wél).
+>
+> **GEPARKEERD (geen fix deze run) — LOW/latent, defense-in-depth:**
+>
+> - **`assertPerformanceWithinLimits` heeft geen expliciete `rateCents`-bovengrens** (`performance-commands.ts`).
+>   Vandaag veilig: de enige schrijver van `Collaboration.rate` is `collaborationProposalSchema` (cap €2000/u),
+>   dus de int4-headroom houdt. Een toekomstig admin-/import-pad dat een hoger tarief zet zou die impliciete
+>   invariant eroderen. Voeg een symmetrische `rateCents`-bovengrens toe zodat de server-guard zelfstandig is
+>   i.p.v. afhankelijk van een upstream-invariant. Prioriteit LOW (niet reachable).
+
+---
+
 > **Datum:** 2026-07-29 (run 57) · **main-commit basis:** `ef6608c6`
 > **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (1 HIGH DOEL-1b next-action-asymmetrie: een volledig
 > ONTBREKEND vereist niet-verplicht certificaat gaf de ZZP'er géén actie terwijl de opdrachtgever wél een
