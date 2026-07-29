@@ -48,11 +48,11 @@
 >
 > **GEPARKEERD (geen fix deze run) — LOW/latent, defense-in-depth:**
 >
-> - **`assertPerformanceWithinLimits` heeft geen expliciete `rateCents`-bovengrens** (`performance-commands.ts`).
->   Vandaag veilig: de enige schrijver van `Collaboration.rate` is `collaborationProposalSchema` (cap €2000/u),
->   dus de int4-headroom houdt. Een toekomstig admin-/import-pad dat een hoger tarief zet zou die impliciete
->   invariant eroderen. Voeg een symmetrische `rateCents`-bovengrens toe zodat de server-guard zelfstandig is
->   i.p.v. afhankelijk van een upstream-invariant. Prioriteit LOW (niet reachable).
+> - ~~**`assertPerformanceWithinLimits` heeft geen expliciete `rateCents`-bovengrens** (`performance-commands.ts`).~~
+>   **GEFIXT (2026-07-29, PR #974):** `MAX_PERFORMANCE_RATE_CENTS = 200_000` (€2.000/u, gelijk aan de
+>   `collaborationProposalSchema`-cap) toegevoegd in `validation.ts`; de HOURS-tak weigert nu een niet-eindig
+>   tarief én een tarief boven het plafond. De server-guard is zelfstandig i.p.v. afhankelijk van de upstream-
+>   invariant. +6 tests.
 
 ---
 

@@ -15,7 +15,11 @@ import {
 } from "@/lib/cascade/handlers";
 import { type OrtSegment, resolveOrtRates } from "@/lib/ort";
 import { DEFAULT_VAT_REGIME } from "@/lib/config";
-import { MAX_PERFORMANCE_HOURS, MAX_MILESTONE_CENTS } from "@/lib/validation";
+import {
+  MAX_PERFORMANCE_HOURS,
+  MAX_MILESTONE_CENTS,
+  MAX_PERFORMANCE_RATE_CENTS,
+} from "@/lib/validation";
 import {
   CascadeError,
   OVERLAPPING_PERFORMANCE_MESSAGE,
@@ -85,8 +89,18 @@ export function assertPerformanceWithinLimits(input: {
     // uren opleveren. Server-side waarheid (regel 1) — onafhankelijk van de Zod-formuliercheck, zodat
     // ook de CSV-import en toekomstige ingangen gedekt zijn. `!= null` bewaart het concept-pad (nog
     // geen tarief); een reeds-null tarief wordt vóór indienen al door validatePerformanceForm geweigerd.
+    if (input.rateCents != null && !Number.isFinite(input.rateCents)) {
+      throw new CascadeError("Het uurtarief is ongeldig.");
+    }
     if (input.rateCents != null && input.rateCents <= 0) {
       throw new CascadeError("Het uurtarief moet groter dan 0 zijn.");
+    }
+    // Bovengrens op het uurtarief: de factuurbasis is `uren × rateCents`, dus de `hours`-cap alleen
+    // borgt het afgeleide `totalCents` (int4) niet — een absurd hoog tarief (bv. een toekomstig admin-/
+    // importpad) zou het bij goedkeuring laten overlopen → 500 i.p.v. een nette weigering. Server-side
+    // waarheid (regel 1), zelfstandig i.p.v. afhankelijk van de €2.000/u-cap van collaborationProposalSchema.
+    if (input.rateCents != null && input.rateCents > MAX_PERFORMANCE_RATE_CENTS) {
+      throw new CascadeError("Het uurtarief is onrealistisch hoog (maximaal € 2.000 per uur).");
     }
     // Ondergrens: een negatief/nul aantal uren zou via performanceSubtotalCents een negatieve
     // factuur opleveren. Server-side waarheid (regel 1) — niet afhankelijk van de Zod-formuliercheck.
