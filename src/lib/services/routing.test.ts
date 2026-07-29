@@ -155,15 +155,17 @@ describe("checkRoutingConnectivity", () => {
   };
 
   it("resolvet stil bij een geldig geocode-antwoord (één read-only round-trip)", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse(validGeocode)) as unknown as typeof fetch;
+    let calledUrl = "";
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      calledUrl = String(url);
+      return jsonResponse(validGeocode);
+    }) as unknown as typeof fetch;
     await expect(
       checkRoutingConnectivity({ provider: "geoapify", apiKey: "test-key", fetchImpl }),
     ).resolves.toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     // Alleen het geocode-endpoint — nooit /routing (geen route berekend).
-    expect(String((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0])).toContain(
-      "/geocode/",
-    );
+    expect(calledUrl).toContain("/geocode/");
   });
 
   it("werpt een RoutingConnectivityError met status bij een niet-ok HTTP-antwoord", async () => {
