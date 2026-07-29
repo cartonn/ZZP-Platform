@@ -83,6 +83,7 @@ import {
 import { reviewBlindDays } from "@/lib/config";
 import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
 import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
+import { collaborationPlacementBlocked } from "@/lib/collaborations";
 import {
   collaborationCredentialExpiryConcerns,
   collaborationExpiredRequiredCredentials,
@@ -471,7 +472,18 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   let surfacedOverdue = 0;
   for (const c of collabs) {
     if (c.status === "PROPOSED") {
-      tasks.push(contractSignTask(c.id, c.job.title, c.company.name));
+      // Inzetbaarheid-gate (server-waarheid, contract-commands.ts): tekenen wordt geweigerd zolang
+      // een vereist certificaat ontbreekt/verlopen is. De "Onderteken"-taak zou dan een dode knop
+      // zijn (signContract gooit, de samenwerking blijft PROPOSED, de taak verdwijnt nooit) en spreekt
+      // het samenwerkingsdetail tegen, dat de teken-knop in deze staat al verbergt. De ZZP'er krijgt
+      // in plaats daarvan de vernieuw-/aanlever-taak (collaborationExpired/MissingRequiredCredentials
+      // hieronder — dezelfde `collabs`, dus óók voor PROPOSED). Persona-sweep run 58.
+      const requiredTypes = c.job.credentialRequirements.map(
+        (r) => r.credentialType as CredentialType,
+      );
+      if (!collaborationPlacementBlocked(requiredTypes, allCreds, now)) {
+        tasks.push(contractSignTask(c.id, c.job.title, c.company.name));
+      }
       continue;
     }
     // ACTIVE ⟹ contract getekend. De meest recente prestatie bepaalt wie aan zet is, exact zoals de
@@ -810,8 +822,18 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     select: {
       id: true,
       status: true,
-      job: { select: { title: true } },
-      freelancer: { select: { user: { select: { name: true } } } },
+      job: {
+        select: {
+          title: true,
+          credentialRequirements: { where: { required: true }, select: { credentialType: true } },
+        },
+      },
+      freelancer: {
+        select: {
+          user: { select: { name: true } },
+          credentials: { select: { type: true, status: true, expiresAt: true } },
+        },
+      },
       performances: { where: { status: "SUBMITTED" }, select: { id: true }, take: 5 },
       invoices: {
         where: { lifecycleStatus: "SUBMITTED", counterpartyUserId: userId },
@@ -825,7 +847,22 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   for (const c of collabs) {
     const name = c.freelancer.user.name ?? "ZZP'er";
     if (c.status === "PROPOSED") {
-      tasks.push(contractSignTask(c.id, c.job.title, name));
+      // Onderdruk de "Onderteken"-taak zolang de plaatsing door een certificaat-gat geblokkeerd is:
+      // signContract weigert dan (server-waarheid), dus de knop kan nooit slagen én de opdrachtgever
+      // is niet de partij die het gat kan dichten (alleen de ZZP'er levert het bewijsstuk aan). Zonder
+      // deze gate zag de opdrachtgever op /acties/dashboard/badge een dode teken-knop, terwijl het
+      // samenwerkingsdetail hem in deze staat al geen knop toont. Persona-sweep run 58.
+      const requiredTypes = c.job.credentialRequirements.map(
+        (r) => r.credentialType as CredentialType,
+      );
+      const creds: FreelancerCredential[] = c.freelancer.credentials.map((cr) => ({
+        type: cr.type as CredentialType,
+        status: cr.status as FreelancerCredential["status"],
+        expiresAt: cr.expiresAt,
+      }));
+      if (!collaborationPlacementBlocked(requiredTypes, creds)) {
+        tasks.push(contractSignTask(c.id, c.job.title, name));
+      }
       continue;
     }
     for (const p of c.performances)
