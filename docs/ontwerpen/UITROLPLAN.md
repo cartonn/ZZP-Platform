@@ -1,8 +1,9 @@
 # Uitrolplan definitief ontwerp — één taal, elke pagina zijn eigen gezicht
 
-> Status: **voorbereid, wacht op de definitieve keuze van de eigenaar**
-> (zie `docs/ontwerpen/ontwerpkeuze.html` — finalisten 510 · 324 · 412 · 504 · 172,
-> advies: combinatie 510 + 412 + 324).
+> Status: **keuze definitief (29-7-2026): combinatie 510 + 412 + 324** — bevestigd door
+> de eigenaar ("vertrouwen, een warme uitstraling en een duidelijke actielijst").
+> De samengesmolten identiteit staat in `docs/ontwerpen/definitief.html`
+> (tokens, typografie, dashboard-mockup, signatuur-voorbeelden). Uitrol start met PR 1.
 >
 > Principe van de eigenaar (29-7-2026): _"elke pagina zijn eigen ontwerp waarvan de
 > hoofdontwerp doorloopt, maar niet 1-op-1. De Inzicht-pagina heeft dezelfde kleuren
