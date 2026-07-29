@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — ZZP'er: "verberg opdrachten waarop ik al reageerde"-filter op /opdrachten
+
+**Wat:** de opdrachtenlijst (`/opdrachten`) toont de ZZP'er al een "Gereageerd"-chip per opdracht
+(spiegelt Temper/Malt/LinkedIn "Applied"), maar er was geen manier om die opdrachten te **verbergen** —
+op een drukke marktplaats moet je dan langs elke opdracht scrollen waarop je al reageerde. Nu een
+quickfilter **"Verberg waar ik op reageerde"** (benchmark Indeed/LinkedIn "hide applied jobs"): één klik
+en de lijst toont alleen nog nieuwe kansen.
+
+- **Server-side waarheid:** de filter is een `where`-clausule (`NOT { applications: { some: {
+freelancerId, status: { not: "WITHDRAWN" } } } }`) die vóór `count` én paginering draait — telling én
+  pagina's kloppen, niet post-fetch. Een **ingetrokken** (WITHDRAWN) reactie telt niet mee: de opdracht is
+  dan weer een echte, herbruikbare kans. Alleen zichtbaar voor een ingelogde ZZP'er mét profiel.
+- **Bestanden:** `src/lib/jobs.ts` (`JobFilters.hideApplied` + parse in `normalizeJobFilters`, exact-"1"),
+  `src/app/(protected)/opdrachten/(index)/page.tsx` (where-injectie na profiel-load + `canHideApplied`-prop),
+  `src/components/jobs/job-filters.tsx` (toggle-chip naast "Mijn vakgebied", `aria-pressed`),
+  `src/lib/jobs/active-filters.ts` (dismissible "Zonder mijn reacties"-pill). Read-only, geen
+  schemawijziging, geen nieuw mutatie/auth-oppervlak.
+- **Tests:** +6 (`jobs.test.ts` normalisatie exact-"1"/herhaalde param; `active-filters.test.ts` chip +
+  onafhankelijke combinatie met mine). Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-29 — Ontwerp-lab: +10 concepten (reeks 53, nrs 521–530)
 
 **Wat:** additieve uitbreiding van het interne ontwerp-lab (`/ontwerp`) met 10 nieuwe, onderscheidende

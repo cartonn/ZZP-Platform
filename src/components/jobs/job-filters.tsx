@@ -21,6 +21,7 @@ export function JobFilters({
   skills,
   myIndustryCount = 0,
   canSortByMatch = false,
+  canHideApplied = false,
 }: {
   industries: { id: string; name: string }[];
   skills: { id: string; name: string }[];
@@ -28,6 +29,8 @@ export function JobFilters({
   myIndustryCount?: number;
   /** Toont "Beste match eerst" als sorteeroptie (alleen zinvol voor een ZZP'er mét profiel). */
   canSortByMatch?: boolean;
+  /** Toont de "Verberg opdrachten waarop ik al reageerde"-quickfilter (ZZP'er mét profiel). */
+  canHideApplied?: boolean;
 }) {
   const translate = useT();
   const router = useRouter();
@@ -79,6 +82,13 @@ export function JobFilters({
       }
     });
 
+  const hideAppliedActive = params.get("hideApplied") === "1";
+  const toggleHideApplied = () =>
+    push((p) => {
+      if (hideAppliedActive) p.delete("hideApplied");
+      else p.set("hideApplied", "1");
+    });
+
   const selectedSkills = new Set(params.getAll("skillIds"));
   const toggleSkill = (id: string) =>
     push((p) => {
@@ -91,21 +101,38 @@ export function JobFilters({
 
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-      {myIndustryCount > 0 && (
+      {(myIndustryCount > 0 || canHideApplied) && (
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleMine}
-            aria-pressed={mineActive}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors",
-              mineActive
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border hover:bg-muted",
-            )}
-          >
-            {translate("Mijn vakgebied")}
-          </button>
+          {myIndustryCount > 0 && (
+            <button
+              type="button"
+              onClick={toggleMine}
+              aria-pressed={mineActive}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+                mineActive
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:bg-muted",
+              )}
+            >
+              {translate("Mijn vakgebied")}
+            </button>
+          )}
+          {canHideApplied && (
+            <button
+              type="button"
+              onClick={toggleHideApplied}
+              aria-pressed={hideAppliedActive}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+                hideAppliedActive
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:bg-muted",
+              )}
+            >
+              {translate("Verberg waar ik op reageerde")}
+            </button>
+          )}
           {mineActive && (
             <span className="text-xs text-muted-foreground">
               {translate("Alleen opdrachten in jouw branche(s).")}

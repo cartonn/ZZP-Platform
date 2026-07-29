@@ -424,6 +424,17 @@ async function BrowseJobs({
     where.industryId = { in: myIndustryIds };
   }
 
+  // "Verberg opdrachten waarop ik al reageerde" (alleen ZZP'er): sluit opdrachten uit waarop deze
+  // ZZP'er al een niet-ingetrokken reactie heeft. Server-side where-clause vóór count én paginering,
+  // zodat de telling én de pagina's kloppen (niet post-fetch). Een ingetrokken (WITHDRAWN) reactie
+  // telt niet mee — de opdracht is dan weer een echte, herbruikbare kans. `and`-push muteert de array
+  // waar `where.AND` naar verwijst; gebeurt vóór de queries, dus effect is gegarandeerd.
+  if (profile && f.hideApplied) {
+    and.push({
+      NOT: { applications: { some: { freelancerId: profile.id, status: { not: "WITHDRAWN" } } } },
+    });
+  }
+
   const [total, jobs, industries, skills, savedRows, invitations] = await Promise.all([
     prisma.job.count({ where }),
     prisma.job.findMany({
@@ -689,6 +700,7 @@ async function BrowseJobs({
         skills={skills}
         myIndustryCount={myIndustryIds.length}
         canSortByMatch={profile != null}
+        canHideApplied={profile != null}
       />
 
       <ActiveFilterChips chips={activeChips} />

@@ -59,6 +59,8 @@ export interface JobFilters {
   industryId?: string;
   /** ZZP-quickfilter: beperk tot de eigen profielbranches. Een expliciete `industryId` wint. */
   mine: boolean;
+  /** ZZP-quickfilter: verberg opdrachten waarop de ZZP'er al (niet-ingetrokken) heeft gereageerd. */
+  hideApplied: boolean;
   location?: string;
   workMode?: WorkMode;
   rateMin?: number;
@@ -119,6 +121,7 @@ export function normalizeJobFilters(params: RawParams): JobFilters {
     ],
     industryId,
     mine: first(params.mine) === "1",
+    hideApplied: first(params.hideApplied) === "1",
     location,
     workMode,
     rateMin,
