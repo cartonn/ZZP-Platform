@@ -8,8 +8,8 @@ import { HydrationFlag } from "@/components/system/hydration-flag";
 import { PwaRegister } from "@/components/system/pwa-register";
 import { InstallPrompt } from "@/components/system/install-prompt";
 
-// Editorial Warm-typografie (richting #19): Figtree voor UI, Fraunces (serif) voor koppen,
-// JetBrains Mono voor cijfers. Via next/font zelfgehost — geen runtime-request.
+// Typografie van het definitieve palet (DESIGN.md §3): Figtree voor UI, Fraunces (serif)
+// voor koppen, JetBrains Mono voor cijfers. Via next/font zelfgehost — geen runtime-request.
 const fontSans = Figtree({
   subsets: ["latin"],
   variable: "--font-sans",

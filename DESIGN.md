@@ -12,16 +12,25 @@ werk beide bij.
 
 ---
 
-## 1. Visual theme — "Vakwerk"
+## 1. Visual theme — "Definitief" (510 + 412 + 324)
 
-Refined minimalism met een eigen identiteit (zie `docs/ontwerpen/VAKWERK.md` +
-`docs/ontwerpen/vakwerk.html`): **pastelblauw papier** als canvas, **witte vellen** (kaarten),
-**klein-blauw** als merkkleur en **zegelgroen** voor geverifieerd. Drie regels dragen de taal:
-het zegel draagt het merk (verificatie = het product), cijfers zijn typografie (alles in mono),
-en eerlijkheid is premium (matchredenen tonen óók de minpunten). Hoge informatiedichtheid zonder
-rommel. **Dashboard-first**: elke pagina beantwoordt direct _wat is de status, wat moet ik nu doen,
-kan ik dit vertrouwen?_ Geen marketinghomepage als hoofdscherm, geen decoratieve gradients, geen
-kaart-in-kaart, geen templategevoel. Scanbare rijen boven sparse kaarten voor collecties.
+De eigenaar koos op 29-7-2026 definitief voor de synthese van drie labconcepten (zie
+`docs/ontwerpen/definitief.html`, klikbaar prototype in `docs/ontwerpen/prototype.html` en het
+uitrolplan in `docs/ontwerpen/UITROLPLAN.md`): **510 Waarmerk** levert het verhaal (vertrouwen als
+held: zegelgroen als gezagskleur, vertrouwensring, waarmerk-motieven), **412 Salon** de huid
+(warm ivoorpapier, terracotta als menselijk accent, gastvrije microcopy) en **324 Zephyr** het
+skelet (hoge dichtheid, hairline-discipline, de "wat vraagt nu je aandacht"-lijst). Drie regels
+dragen de taal: het zegel draagt het merk (verificatie = het product), cijfers zijn typografie
+(alles in mono), en eerlijkheid is premium (matchredenen tonen óók de minpunten). Hoge
+informatiedichtheid zonder rommel. **Dashboard-first**: elke pagina beantwoordt direct _wat is de
+status, wat moet ik nu doen, kan ik dit vertrouwen?_ Geen marketinghomepage als hoofdscherm, geen
+decoratieve gradients, geen kaart-in-kaart, geen templategevoel. Scanbare rijen boven sparse
+kaarten voor collecties.
+
+**Kern-taal + pagina-signatuur.** De tokens/typografie/primitives hieronder lopen overal door;
+daarbovenop krijgt elk paginacluster één eigen motief + held-element (verificatie = het zegel,
+facturen = het grootboek, inzicht = het observatorium, …) — nooit 1-op-1 hetzelfde scherm.
+De volledige cluster-mapping staat in `docs/ontwerpen/UITROLPLAN.md` §2.
 
 **Dark mode** is een gebruikerskeuze (ThemeToggle), geen geforceerde dark-first. Light is standaard.
 Tailwind `darkMode: "class"`, donkere tokenwaarden in `.dark { … }`, no-flash-script in
@@ -36,29 +45,31 @@ Alle kleuren zijn **HSL-triples in CSS-variabelen** (`hsl(var(--token))`), zodat
 namen in licht én donker draait. **Nooit hardcoded hex in componenten** — gebruik de
 semantische token via Tailwind (`bg-primary`, `text-muted-foreground`, …).
 
-### Semantische tokens (standaard-palette "Vakwerk", light)
+### Semantische tokens (palet "Definitief", light)
 
-| Token                                | HSL                           | Rol                              |
-| ------------------------------------ | ----------------------------- | -------------------------------- |
-| `--background`                       | `216 42% 97%`                 | pastelblauw papier (canvas)      |
-| `--foreground`                       | `228 20% 11%`                 | inkt (hoofdtekst)                |
-| `--muted`                            | `217 32% 93%`                 | subtiel vlak / hover             |
-| `--muted-foreground`                 | `226 12% 40%`                 | subtekst (AA-veilig)             |
-| `--card`                             | `0 0% 100%`                   | wit vel (kaartvlak)              |
-| `--border` / `--input`               | `218 24% 89%` / `218 24% 86%` | randen / invoerranden            |
-| `--ring`                             | `227 82% 55%`                 | focus-ring (merkkleur)           |
-| `--primary` / `--primary-foreground` | `227 82% 55%` / `0 0% 100%`   | royaalblauw CTA / tekst erop     |
-| `--accent` / `--accent-foreground`   | `226 96% 95%` / `227 66% 42%` | merk-tint-vlak / tekst           |
-| `--success`                          | `155 75% 27%`                 | zegelgroen — geverifieerd/actief |
-| `--warning`                          | `36 90% 36%`                  | let op / verloopt                |
-| `--danger`                           | `0 64% 44%`                   | fout / destructief               |
-| `--radius`                           | `0.75rem`                     | basis-afronding                  |
+| Token                                | HSL                           | Rol                                 |
+| ------------------------------------ | ----------------------------- | ----------------------------------- |
+| `--background`                       | `39 55% 95%`                  | warm ivoorpapier (canvas, 412)      |
+| `--foreground`                       | `34 17% 13%`                  | warme inkt (hoofdtekst)             |
+| `--muted`                            | `40 40% 91%`                  | subtiel vlak / hover                |
+| `--muted-foreground`                 | `34 10% 40%`                  | subtekst (AA-veilig)                |
+| `--card`                             | `45 78% 99%`                  | warm-wit vel (kaartvlak)            |
+| `--border` / `--input`               | `40 34% 87%` / `40 28% 79%`   | randen / invoerranden               |
+| `--ring`                             | `161 70% 28%`                 | focus-ring (merkkleur)              |
+| `--primary` / `--primary-foreground` | `161 70% 28%` / `45 60% 98%`  | zegelgroen CTA / tekst erop (510)   |
+| `--hero`                             | `160 42% 42%`                 | naam-hero, lichter zegelgroen       |
+| `--accent` / `--accent-foreground`   | `150 30% 91%` / `161 55% 20%` | merk-tint-vlak / tekst              |
+| `--success`                          | `155 55% 30%`                 | geverifieerd/actief (zegel-familie) |
+| `--warning`                          | `16 55% 40%`                  | terracotta — vraagt aandacht (412)  |
+| `--danger`                           | `4 68% 44%`                   | fout / destructief                  |
+| `--radius`                           | `0.625rem`                    | basis-afronding                     |
 
 ### Eén palet, twee modi
 
-Er is **één identiteit** (Vakwerk) in licht en donker; het vroegere keuzepaletten-systeem
+Er is **één identiteit** in licht en donker; het vroegere keuzepaletten-systeem
 (bloei / elektrisch-blauw + PaletteSwitcher) is bewust verwijderd — een merk wissel je niet
-per gebruiker (ADR 0007). Donker is een gebruikerskeuze via de ThemeToggle.
+per gebruiker (ADR 0007). Donker is een gebruikerskeuze via de ThemeToggle; de donkere
+waarden staan in `.dark { … }` in `globals.css` (groen-getint donker canvas, lichter zegelgroen).
 
 Contrast is **WCAG AA**-geverifieerd (fg/bg, kaart, subtekst, knop, accent, rand).
 
@@ -73,10 +84,10 @@ Contrast is **WCAG AA**-geverifieerd (fg/bg, kaart, subtekst, knop, accent, rand
 
 ## 3. Typografie
 
-Drie lettertypen via `next/font` (zelfgehost, zie `layout.tsx`): **Inter** (`--font-sans`, UI),
-**Schibsted Grotesk** (`--font-display`, koppen) en **JetBrains Mono** (`--font-mono`, cijfers).
-Antialiased, `optimizeLegibility`. Cijfers zijn typografie: tarieven, scores, uren en bedragen
-altijd in mono — dat is de Vakwerk-precisie.
+Drie lettertypen via `next/font` (zelfgehost, zie `layout.tsx`): **Figtree** (`--font-sans`, UI),
+**Fraunces** (`--font-display`, serif — koppen en namen) en **JetBrains Mono** (`--font-mono`,
+cijfers). Antialiased, `optimizeLegibility`. Cijfers zijn typografie: tarieven, scores, uren en
+bedragen altijd in mono — dat is de precisie van het grootboek.
 
 | Rol                   | Klassen                                                                    |
 | --------------------- | -------------------------------------------------------------------------- |
@@ -117,7 +128,7 @@ Bouw nieuwe UI met deze primitives. Voeg geen ad-hoc varianten per pagina toe �
   Actie-zware item-beheer (bv. certificaten met inline forms) mag wél `Card` per item.
 - **EmptyState** / **Skeleton** — gebruik de gedeelde componenten voor lege/laad-staten.
 
-### Vakwerk-signatuurcomponenten
+### Signatuurcomponenten
 
 - **Seal** (`seal.tsx`) — hét vertrouwensteken: cirkel met dubbele ring + vinkje. Tonen:
   `verified` (zegelgroen), `brand`, `expiring` (amber, uitroepteken). Eén consistent zegel,

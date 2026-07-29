@@ -3,29 +3,32 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
-   Palet — "Editorial Warm" (ontwerprichting #19): crème/ivoor papier als canvas,
-   terracotta als merkkleur, warme neutralen. Fonts komen uit next/font (layout.tsx):
-   --font-sans (Figtree), --font-display (Fraunces, serif), --font-mono (JetBrains Mono).
+   Palet — "Definitief" (eigenaarskeuze 29-7-2026: labconcepten 510 + 412 + 324,
+   zie docs/ontwerpen/definitief.html + UITROLPLAN.md): warm ivoorpapier als canvas
+   (412 Salon), zegelgroen als gezags-/merkkleur voor vertrouwen en acties
+   (510 Waarmerk), terracotta in de aandachtsrol (--warning) voor wat menselijke
+   aandacht vraagt. Fonts komen uit next/font (layout.tsx): --font-sans (Figtree),
+   --font-display (Fraunces, serif), --font-mono (JetBrains Mono).
    Contrast WCAG AA geverifieerd (fg/bg, kaart, subtekst, knop, accent, status).
 --------------------------------------------------------------------------- */
 :root {
-  --background: 40 38% 97%;
-  --foreground: 30 12% 12%;
-  --muted: 40 30% 93%;
-  --muted-foreground: 32 9% 38%;
-  --card: 42 50% 99%;
-  --card-foreground: 30 12% 12%;
-  --border: 38 22% 87%;
-  --input: 38 20% 80%;
-  --ring: 16 72% 48%;
-  --primary: 16 72% 48%;
-  --primary-foreground: 40 50% 98%;
+  --background: 39 55% 95%;
+  --foreground: 34 17% 13%;
+  --muted: 40 40% 91%;
+  --muted-foreground: 34 10% 40%;
+  --card: 45 78% 99%;
+  --card-foreground: 34 17% 13%;
+  --border: 40 34% 87%;
+  --input: 40 28% 79%;
+  --ring: 161 70% 28%;
+  --primary: 161 70% 28%;
+  --primary-foreground: 45 60% 98%;
   /* Naam-hero: dezelfde merk-hue, lichter dan --primary. */
-  --hero: 18 78% 68%;
-  --accent: 26 60% 92%;
-  --accent-foreground: 18 60% 28%;
-  --success: 152 48% 30%;
-  --warning: 33 78% 36%;
+  --hero: 160 42% 42%;
+  --accent: 150 30% 91%;
+  --accent-foreground: 161 55% 20%;
+  --success: 155 55% 30%;
+  --warning: 16 55% 40%;
   --danger: 4 68% 44%;
   --radius: 0.625rem;
 }
@@ -33,22 +36,22 @@
 /* Donker thema — gebruikerskeuze (toggle), niet geforceerd. Zelfde semantische tokens met
    donkere waarden; status-tinten iets lichter zodat ze leesbaar blijven op donker. */
 .dark {
-  --background: 28 14% 10%;
-  --foreground: 40 30% 92%;
-  --muted: 28 12% 16%;
-  --muted-foreground: 36 14% 66%;
-  --card: 28 13% 13%;
-  --card-foreground: 40 30% 92%;
-  --border: 28 11% 22%;
-  --input: 28 12% 28%;
-  --ring: 18 78% 58%;
-  --primary: 18 78% 58%;
-  --primary-foreground: 28 30% 10%;
-  --hero: 20 76% 74%;
-  --accent: 20 30% 22%;
-  --accent-foreground: 26 70% 84%;
-  --success: 150 50% 64%;
-  --warning: 38 82% 64%;
+  --background: 160 11% 10%;
+  --foreground: 40 26% 91%;
+  --muted: 158 9% 16%;
+  --muted-foreground: 145 8% 67%;
+  --card: 159 10% 13%;
+  --border: 158 9% 22%;
+  --card-foreground: 40 26% 91%;
+  --input: 158 9% 28%;
+  --ring: 161 42% 56%;
+  --primary: 161 42% 56%;
+  --primary-foreground: 160 30% 8%;
+  --hero: 160 38% 68%;
+  --accent: 159 15% 21%;
+  --accent-foreground: 150 35% 80%;
+  --success: 152 45% 62%;
+  --warning: 18 70% 68%;
   --danger: 6 78% 68%;
 }
 
@@ -79,18 +82,18 @@ body {
     @apply outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring;
   }
 
-  /* Gelaagde elevatie (Pastel Elevated #8): fijne contactschaduw + wijdere, lage-opacity
-     blauw-getinte ambient. Tilt kaarten van het canvas zonder "zware" schaduw — premium,
-     niet vlak. In donker dragen border + card-contrast de diepte (schaduw is daar subtiel). */
+  /* Gelaagde elevatie: fijne contactschaduw + wijdere, lage-opacity warm-inkt-getinte
+     ambient (past bij het ivoorpapier). Tilt kaarten van het canvas zonder "zware" schaduw —
+     premium, niet vlak. In donker dragen border + card-contrast de diepte. */
   .shadow-card {
     box-shadow:
-      0 1px 2px hsl(226 40% 18% / 0.06),
-      0 8px 24px -12px hsl(226 50% 28% / 0.14);
+      0 1px 2px hsl(34 30% 18% / 0.06),
+      0 8px 24px -12px hsl(34 35% 24% / 0.14);
   }
   .shadow-card-hover {
     box-shadow:
-      0 2px 4px hsl(226 40% 18% / 0.08),
-      0 16px 36px -14px hsl(226 50% 28% / 0.22);
+      0 2px 4px hsl(34 30% 18% / 0.08),
+      0 16px 36px -14px hsl(34 35% 24% / 0.22);
   }
 
   /* Klikbare lijstrij/card: rustige hover met lichte elevatie + zichtbare focus. */
