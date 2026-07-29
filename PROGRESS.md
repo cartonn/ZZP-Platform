@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — ontwerp-lab reeks 52: +10 concepten (511–520)
+
+**Wat:** de galerij op `/ontwerp` groeit van 510 → **520** concepten. Additief: 10 nieuwe, visueel onderscheidende
+redesign-richtingen toegevoegd zonder een bestaand concept te raken. Reeks 52: **511 Spatiaal** (spatial-depth /
+visionOS-laagglas), **512 Grafeen** (atomair minimalisme, hairline-chrome), **513 Commandobrug** (keyboard-first
+⌘K-command-palette-OS, werkende overlay), **514 Huiskamer** (warm-menselijk tactiel), **515 Draaitabel** (data-dense
+spreadsheet/pivot-terminal), **516 Metronoom** (motion/ritme-gedreven, reduced-motion-safe), **517 Condens**
+(frosted-glass translucency 2.0), **518 Stellage** (refined-brutalist blootgelegd raster), **519 Nachtlamp** (warm
+premium-dark lamplicht) en **520 Confetti** (kleurrijk-speels, celebratory micro-interacties).
+
+**Bestanden:** `src/components/ontwerp/concepts/concept-511-spatiaal.tsx` t/m `concept-520-confetti.tsx` (10 nieuw),
+`src/components/ontwerp/concepts/registry.ts` (+10 ConceptMeta, append), `src/app/ontwerp/[id]/concept-host.tsx`
+(+10 dynamic-imports, append), `docs/DESIGN-LAB.md` (reeks 52 gedocumenteerd), `PROGRESS.md`. Alleen `/ontwerp`-namespace
+geraakt; live-app-gedrag ongewijzigd. Elk concept: `"use client"`, mock-data, zes kernschermen met tab-nav,
+loading/empty/error-states, responsive, toegankelijk (focus-visible, aria, status label+icoon), geen "AI"-tekst.
+
 ## 2026-07-29 — cascade-overdue betaal-signaal voor de opdrachtgever (run-53 "Besluit 1"-gat)
 
 **Wat:** een cascade-factuur die APPROVED→OVERDUE flipt gaf de **betalende partij (opdrachtgever)** géén signaal op

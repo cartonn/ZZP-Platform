@@ -1547,3 +1547,33 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   **clarity-led minimalism**, **adaptive dual-theme**, **fintech clarity** (Ramp/Mercury), en **trust-first / verification-forward
   design** — elk deterministisch, toegankelijk (focus-states, status label+icoon) en onderscheidend van de bestaande 500.
 - **Totaal nu op `/ontwerp`: 510 concepten** (reeks 51: 501–510).
+
+## Reeks 52 — concepten 511–520 (2026-07-29)
+
+- **511 Spatiaal** — spatial-depth / visionOS-laagglas (#0c1424 + koel #6ea8ff): gelaagde frosted-glass panelen op drie
+  diepte-niveaus waar diepte = prioriteit, radial-glows, rim-light randen en backdrop-blur — wat actie vraagt komt naar voren.
+- **512 Grafeen** — atomair minimalisme (#ffffff + kobalt micro-accent): 1px-hairlines i.p.v. kaders, monochroom canvas,
+  tabular-nums en klein-caps overlines; het accent verschijnt alleen bij de urgente actie/selectie — clarity-led tot op het bot.
+- **513 Commandobrug** — keyboard-first / command-palette-OS (#0e0f13 + signaal #f04d3a): werkende ⌘K-overlay met live-filter
+  over schermen/acties/opdrachten, pijltjes+Enter-navigatie en overal kbd-sneltoetshints — Raycast/Linear-gevoel.
+- **514 Huiskamer** — warm-menselijk & tactiel (#f6efe4 + terracotta #b8552f): warme papier-/linnentinten, serif-koppen, ronde
+  vormen en gastvrije microcopy — vertrouwen via warmte in plaats van koele techniek.
+- **515 Draaitabel** — data-dense spreadsheet/pivot-terminal (#f7f8f7 + groen #2f6f4f): sorteerbare kolomkoppen, zebra-rijen,
+  inline SVG-sparklines, tabular-nums en een lijst/per-plaats pivot-schakelaar — voor de bemiddelaar die veel tegelijk overziet.
+- **516 Metronoom** — motion/ritme-gedreven (#fbfbfc + magenta #e0348b): pulserende status-dots, slide-in-rijen, groeiende
+  voortgangsbalken en shimmer-skeletons via CSS-keyframes — beweging als hiërarchie, met volledige reduced-motion-respect.
+- **517 Condens** — frosted-glass translucency 2.0 (#eef4f7 + koel #3aa8c9): backdrop-blur chirurgisch op focus-elementen
+  (actieve kaart, detail, topbar) boven een zachte gradient met damp-vlekken — diepte zonder rommel.
+- **518 Stellage** — refined-brutalist / blootgelegd raster (#f4f4f2 + veiligheids-oranje #ff5c00): zichtbaar 44px-grid met
+  kruis-markers op paneelhoeken, mono blueprint-codes, nul-radius en een getrapte match-staafmeter — Swiss-grid met blootgelegde constructie.
+- **519 Nachtlamp** — warm premium-dark / lamplicht (#161210 + amber #f0a35e): warme espresso-achtergrond met perzik-radialen,
+  gloeiende panelen en een pulserende lamp; warme goud-tinten voor positief, koeler perzik/blauw voor waarschuwing — cosy avond-modus.
+- **520 Confetti** — kleurrijk-speels (#fbf7ff + violet #7c3aed): licht multi-color palet met een accent per status, ronde vormen
+  en een subtiele confetti-spark-viering bij geverifieerde certificaten en betaalde facturen — vrolijk maar professioneel.
+- Onderzochte 2026-trends deze reeks (WebSearch): **spatial computing / visionOS-depth**, **glassmorphism 2.0 (selectief &
+  chirurgisch)**, **clarity-led minimalism** & **atomic/hairline chrome**, **command-menu / keyboard-first (⌘K)**,
+  **warm-human / cosy interfaces**, **data-density ("death of white space") met pivot-UI**, **functional motion design**
+  (skeleton/progress, pulserende feedback), **refined brutalism / exposed Swiss-grid**, **warm dark mode met ambient glow**
+  en **playful/expressive color met celebratory micro-interactions** — elk deterministisch, toegankelijk (focus-states,
+  status label+icoon, prefers-reduced-motion) en onderscheidend van de bestaande 510.
+- **Totaal nu op `/ontwerp`: 520 concepten** (reeks 52: 511–520).
