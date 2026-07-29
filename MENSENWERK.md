@@ -1029,3 +1029,20 @@ inclusief de cascade-veilige `collaboration: { is: null }`-guard) → kan niet d
 Een drop-in Prometheus-alert (`ZzpApplicationsRetentionBacklog`, `> 0` met `for: 30h` > één cron-interval) staat in
 `docs/observability/alerts.yml` en is vastgeklonken aan de drift-gate. Faalt veilig (nooit een 500), bevat geen PII.
 Resterend mensenwerk: **niets extra**.
+**Code-kant GEDAAN (2026-07-29) — notificatie-/lead-retentie-backlog stille-faal-gauges:**
+`zzp_notifications_retention_backlog` (aantal `Notification`-rijen — PII in title/body: namen, bedragen,
+statusupdates — ouder dan het `NOTIFICATION_RETENTION_DAYS`-venster die de `notification-retention`-cron nog niet
+snoeide) en `zzp_leads_retention_backlog` (aantal beslíste acquisitie-leads — KLANT/NO_DEAL, met contact-PII in het
+cascade-gekoppelde `LeadContact`-logboek — ouder dan het `LEAD_RETENTION_DAYS`-venster die de `lead-retention`-cron
+nog niet snoeide). Hiermee zijn nu **alle** PII-dragende "verwijder-ouder-dan-venster"-retentie-prunes gedekt door
+een stille-faal-detector (naast audit-/reactie-retentie). Dezelfde klasse als de audit-retentie-gauge: de
+cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn verwerkte — blijft dit getal
+oplopen terwijl de heartbeat "vers" is, dan bewaart de app persoonsgegevens over de beloofde/wettelijke termijn heen
+zonder dat iets dat toont (AVG art. 5 lid 1e: notificatiehistorie max. 6 maanden; leads tot klant/afvalt + 12
+maanden). Beide gauges hergebruiken **exact** dezelfde bron van waarheid als de taken zelf (`notificationRetentionCutoff`
+
+- dezelfde where; `prunableLeadWhere` — geëxporteerd uit `lead-retention-task.ts`) → kunnen niet driften. Staat
+  retentie **UIT** (venster leeg/0 = onbeperkt bewaren, de pilot-default), dan is er per definitie geen achterstand →
+  de gauge is `0`. Drop-in Prometheus-alerts (`ZzpNotificationsRetentionBacklog`/`ZzpLeadsRetentionBacklog`, `> 0` met
+  `for: 30h`) staan in `docs/observability/alerts.yml` en zijn vastgeklonken aan de drift-gate. Falen veilig (nooit een
+  500), bevatten geen PII. Resterend mensenwerk: **niets extra**.

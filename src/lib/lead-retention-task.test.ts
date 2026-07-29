@@ -54,7 +54,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { runLeadRetentionTask } from "@/lib/lead-retention-task";
+import { runLeadRetentionTask, prunableLeadWhere } from "@/lib/lead-retention-task";
 
 const NOW = new Date("2026-07-23T12:00:00.000Z");
 const DAY = 24 * 60 * 60 * 1000;
@@ -78,6 +78,19 @@ beforeEach(() => {
 
 afterEach(() => {
   delete process.env.LEAD_RETENTION_DAYS;
+});
+
+describe("prunableLeadWhere", () => {
+  it("dekt precies de beslíste statussen (KLANT/NO_DEAL) én ouder-dan-cutoff, en niets anders", () => {
+    const cutoff = new Date(NOW.getTime() - 365 * DAY);
+    const where = prunableLeadWhere(cutoff);
+    expect(where.updatedAt).toEqual({ lt: cutoff });
+    // Actieve prospects (KOUD/WARM) horen NOOIT in de sweep — spiegelt isLeadRetentionEligible.
+    const statuses = (where.status as { in: string[] }).in;
+    expect(new Set(statuses)).toEqual(new Set(["KLANT", "NO_DEAL"]));
+    expect(statuses).not.toContain("KOUD");
+    expect(statuses).not.toContain("WARM");
+  });
 });
 
 describe("runLeadRetentionTask", () => {

@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-29 — /api/metrics: notificatie-/lead-retentie-backlog gauges (stille-faal-detectie, AVG art. 5(1)(e))
+
+**Wat:** twee nieuwe stille-faal-detector-gauges op `/api/metrics` — `zzp_notifications_retention_backlog` (aantal
+`Notification`-rijen met PII in title/body ouder dan `NOTIFICATION_RETENTION_DAYS` die de `notification-retention`-cron
+nog niet snoeide) en `zzp_leads_retention_backlog` (aantal beslíste leads — KLANT/NO_DEAL, contact-PII in het
+cascade-gekoppelde `LeadContact`-logboek — ouder dan `LEAD_RETENTION_DAYS` die de `lead-retention`-cron nog niet
+snoeide). Sluit de laatste twee PII-dragende "verwijder-ouder-dan-venster"-retentie-prunes aan op dezelfde
+monitoring-laag als audit-/reactie-retentie; nu is élke zulke prune door een stille-faal-gauge gedekt.
+
+**Grens/veiligheid:** de cron-heartbeat bewijst alleen dát een run afrondde, niet dát 'ie de snoei-pijplijn verwerkte —
+deze gauges vangen die blinde vlek. Beide hergebruiken **exact** de bron van waarheid van de taken zelf
+(`notificationRetentionCutoff` + dezelfde where; nieuw geëxporteerde `prunableLeadWhere`) → kunnen niet driften.
+Retentie UIT (venster leeg/0, pilot-default) → gauge `0`. Fail-safe (nooit een 500, elke DB-lezing eigen try/catch),
+geen PII in de uitvoer, achter dezelfde Bearer-`CRON_SECRET` (fail-closed). Drift-gate (`alerts-rules.test.ts`) klinkt
+de twee gauges vast aan drop-in Prometheus-alerts (`ZzpNotificationsRetentionBacklog`/`ZzpLeadsRetentionBacklog`,
+`> 0` `for: 30h`) in `docs/observability/alerts.yml`. Het woord "AI" komt nergens voor.
+
+**Tests:** +8 (metrics: map + clamp per nieuwe gauge, volledige-set-volgorde, ongezonde-staat; lead-task:
+`prunableLeadWhere` dekt precies KLANT/NO_DEAL + ouder-dan-cutoff, nooit KOUD/WARM). Drift-gate groen.
+
+**Bestanden:** `src/lib/observability/metrics.ts` (+test), `src/app/api/metrics/route.ts`,
+`src/lib/observability/alerts-rules.ts`, `docs/observability/alerts.yml`, `src/lib/lead-retention-task.ts` (+test),
+`MENSENWERK.md`, `PROGRESS.md`. Gate: typecheck ✅, lint ✅ (0), targeted test ✅ (42), full test + build lopen.
+
 ## 2026-07-29 — Portfolio-/websitelink op het ZZP-profiel (vertrouwen: opdrachtgever/bemiddelaar)
 
 **Wat:** `Company` had een editbaar `website`-veld dat als klikbare link op het bedrijfsprofiel toont;

@@ -109,6 +109,30 @@ export interface MetricsInput {
    * geen achterstand en is deze gauge `0`.
    */
   applicationsRetentionBacklog: number;
+  /**
+   * Aantal notificaties (Notification) ouder dan het geconfigureerde `NOTIFICATION_RETENTION_DAYS`-venster
+   * die de `notification-retention`-cron nog niet snoeide — werk dat die cron had moeten doen. Dezelfde
+   * stille-faal-detector-klasse als `auditRetentionBacklog`/`applicationsRetentionBacklog`, en net zo
+   * privacygevoelig: een Notification-rij draagt PII in title/body (namen, bedragen, statusupdates), en het
+   * verwerkingsregister belooft "Notificatiehistorie max. 6 maanden" (AVG art. 5 lid 1e opslagbeperking).
+   * De cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn verwerkte; blijft
+   * dit getal oplopen terwijl de heartbeat "vers" is, dan bewaart de app notificatie-PII over de beloofde
+   * termijn heen zonder dat iets dat toont. Staat retentie UIT (venster leeg/0 = onbeperkt bewaren, de
+   * pilot-default), dan is er per definitie geen achterstand en is deze gauge `0`.
+   */
+  notificationsRetentionBacklog: number;
+  /**
+   * Aantal beslíste acquisitie-leads (Lead, status KLANT/NO_DEAL, zónder actieve pijplijn) ouder dan het
+   * geconfigureerde `LEAD_RETENTION_DAYS`-venster die de `lead-retention`-cron nog niet snoeide — werk dat
+   * die cron had moeten doen. Dezelfde stille-faal-detector-klasse en net zo privacygevoelig: een Lead
+   * (met cascade-gekoppeld `LeadContact`-logboek) draagt contact-PII, en het verwerkingsregister belooft
+   * "tot de lead klant wordt of afvalt + 12 maanden" (AVG art. 5 lid 1e opslagbeperking). De cron-heartbeat
+   * bewijst alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn verwerkte; blijft dit getal oplopen
+   * terwijl de heartbeat "vers" is, dan bewaart de app lead-PII over de beloofde termijn heen zonder dat
+   * iets dat toont. Staat retentie UIT (venster leeg/0 = onbeperkt bewaren, de pilot-default), dan is er
+   * per definitie geen achterstand en is deze gauge `0`.
+   */
+  leadsRetentionBacklog: number;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -224,6 +248,18 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal terminale reacties (REJECTED/WITHDRAWN, vrije-tekst-PII in motivation/note) ouder dan het geconfigureerde APPLICATION_RETENTION_DAYS-venster die de application-retention-cron nog niet snoeide (0 als retentie uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → reactie-PII bewaard over de beloofde termijn heen, AVG art. 5(1)(e)).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.applicationsRetentionBacklog)),
+    },
+    {
+      name: "zzp_notifications_retention_backlog",
+      help: "Aantal notificaties (PII in title/body) ouder dan het geconfigureerde NOTIFICATION_RETENTION_DAYS-venster die de notification-retention-cron nog niet snoeide (0 als retentie uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → notificatie-PII bewaard over de beloofde termijn heen, AVG art. 5(1)(e)).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.notificationsRetentionBacklog)),
+    },
+    {
+      name: "zzp_leads_retention_backlog",
+      help: "Aantal beslíste acquisitie-leads (KLANT/NO_DEAL, met contact-PII in het cascade-gekoppelde logboek) ouder dan het geconfigureerde LEAD_RETENTION_DAYS-venster die de lead-retention-cron nog niet snoeide (0 als retentie uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → lead-PII bewaard over de beloofde termijn heen, AVG art. 5(1)(e)).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.leadsRetentionBacklog)),
     },
   ];
 }
