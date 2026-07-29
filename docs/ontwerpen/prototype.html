@@ -1,0 +1,1479 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prototype — het definitieve ontwerp, klikbaar</title>
+    <style>
+      :root {
+        --paper: #faf5ec;
+        --panel: #fffdf8;
+        --ink: #26221b;
+        --muted: #7d7466;
+        --hair: #e8e0d0;
+        --seal: #15795a;
+        --seal-soft: #e7f0e9;
+        --warm: #b9603f;
+        --warm-soft: #f6e3da;
+        --brass: #a8894f;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        background: #efe8db;
+      }
+      body {
+        font:
+          14px/1.55 -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+        color: var(--ink);
+        margin: 0;
+      }
+      .balk {
+        text-align: center;
+        font:
+          600 11px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+        padding: 12px;
+      }
+      .app {
+        max-width: 1180px;
+        margin: 0 auto 48px;
+        border: 1px solid var(--hair);
+        border-radius: 14px;
+        overflow: hidden;
+        background: var(--paper);
+        box-shadow: 0 30px 70px -40px rgba(38, 34, 27, 0.4);
+        display: grid;
+        grid-template-columns: 218px 1fr;
+        min-height: 780px;
+      }
+      /* ===== Sidebar ===== */
+      .side {
+        background: var(--panel);
+        border-right: 1px solid var(--hair);
+        padding: 18px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .merk {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 4px 8px 16px;
+      }
+      .merk b {
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 16px;
+      }
+      .merk small {
+        display: block;
+        font:
+          500 9px/1.4 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        color: var(--muted);
+        cursor: pointer;
+        border: 0;
+        background: none;
+        font: inherit;
+        text-align: left;
+        width: 100%;
+      }
+      .nav-item:hover {
+        background: #f4eee2;
+        color: var(--ink);
+      }
+      .nav-item.actief {
+        background: var(--seal-soft);
+        color: var(--seal);
+        font-weight: 600;
+      }
+      .nav-item:focus-visible {
+        outline: 2px solid var(--seal);
+        outline-offset: 1px;
+      }
+      .side .onder {
+        margin-top: auto;
+        border-top: 1px solid var(--hair);
+        padding-top: 12px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        background: var(--seal);
+        color: #fffdf8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        flex: none;
+      }
+      /* ===== Main ===== */
+      .main {
+        padding: 24px 28px 30px;
+        min-width: 0;
+      }
+      .scherm {
+        display: none;
+      }
+      .scherm.actief {
+        display: block;
+        animation: verschijn 0.18s ease-out;
+      }
+      @keyframes verschijn {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .scherm.actief {
+          animation: none;
+        }
+      }
+      .eyebrow {
+        font:
+          600 10.5px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: var(--seal);
+        margin: 0 0 6px;
+      }
+      h1.kop {
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 26px;
+        margin: 0 0 4px;
+      }
+      .warm-sub {
+        color: var(--muted);
+        font-size: 13.5px;
+        max-width: 40em;
+        margin: 0 0 18px;
+      }
+      .kopregel {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+      }
+      .zegel-badge {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        border: 1px solid var(--hair);
+        background: var(--panel);
+        border-radius: 999px;
+        padding: 7px 14px 7px 9px;
+        white-space: nowrap;
+        flex: none;
+      }
+      .zegel-badge .txt b {
+        display: block;
+        font-size: 12.5px;
+        color: var(--seal);
+      }
+      .zegel-badge .txt small {
+        font-size: 10.5px;
+        color: var(--muted);
+      }
+      .paneel {
+        border: 1px solid var(--hair);
+        background: var(--panel);
+        border-radius: 12px;
+        padding: 16px 18px;
+      }
+      .paneel-kop {
+        font:
+          600 10.5px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .paneel-kop .ln {
+        color: var(--seal);
+        cursor: pointer;
+      }
+      .knop {
+        display: inline-block;
+        background: var(--seal);
+        color: #fffdf8;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        border: 0;
+        cursor: pointer;
+      }
+      .knop.stil {
+        background: transparent;
+        color: var(--ink);
+        border: 1px solid var(--hair);
+      }
+      .label {
+        font:
+          700 9.5px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.1em;
+        border-radius: 5px;
+        padding: 4px 7px;
+        white-space: nowrap;
+      }
+      .label.urgent {
+        color: var(--warm);
+        background: var(--warm-soft);
+      }
+      .label.info {
+        color: var(--seal);
+        background: var(--seal-soft);
+      }
+      .label.stil {
+        color: var(--muted);
+        background: #f0eadd;
+      }
+      .mono {
+        font-family: ui-monospace, Menlo, monospace;
+        font-variant-numeric: tabular-nums;
+      }
+      /* Dashboard */
+      .cijfers {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .cijfer {
+        border: 1px solid var(--hair);
+        background: var(--panel);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+      .cijfer .lbl {
+        font-size: 11.5px;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .cijfer .lbl em {
+        font-style: normal;
+        color: var(--seal);
+        font-weight: 600;
+      }
+      .cijfer .lbl em.af {
+        color: var(--warm);
+      }
+      .cijfer .val {
+        font:
+          600 20px/1.4 ui-monospace,
+          Menlo,
+          monospace;
+        font-variant-numeric: tabular-nums;
+      }
+      .kolommen {
+        display: grid;
+        grid-template-columns: 1.55fr 1fr;
+        gap: 14px;
+        align-items: start;
+      }
+      .actie {
+        display: flex;
+        gap: 12px;
+        padding: 11px 2px;
+        border-top: 1px solid var(--hair);
+        align-items: flex-start;
+      }
+      .actie:first-of-type {
+        border-top: 0;
+      }
+      .actie .stip {
+        margin-top: 5px;
+        width: 8px;
+        height: 8px;
+        border-radius: 99px;
+        background: var(--warm);
+        flex: none;
+      }
+      .actie.info .stip {
+        background: var(--seal);
+      }
+      .actie.stil .stip {
+        background: #cfc6b4;
+      }
+      .actie b {
+        font-size: 13.5px;
+      }
+      .actie .oms {
+        color: var(--muted);
+        font-size: 12.5px;
+        margin-top: 1px;
+      }
+      .actie .label {
+        margin-left: auto;
+        flex: none;
+      }
+      .match {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid var(--hair);
+        border-radius: 10px;
+        padding: 11px 13px;
+        margin-top: 10px;
+        background: var(--paper);
+        cursor: pointer;
+      }
+      .match:hover {
+        border-color: var(--seal);
+      }
+      .mm {
+        flex: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 99px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font:
+          700 12px/1 ui-monospace,
+          Menlo,
+          monospace;
+        color: var(--seal);
+      }
+      .match b {
+        font-size: 13.5px;
+      }
+      .match small {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .match .eur {
+        margin-left: auto;
+        font:
+          600 14px/1.4 ui-monospace,
+          Menlo,
+          monospace;
+        text-align: right;
+        flex: none;
+      }
+      .match .eur small {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+      }
+      .cert {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 2px;
+        border-top: 1px solid var(--hair);
+        font-size: 13px;
+      }
+      .cert small {
+        color: var(--muted);
+        display: block;
+        font-size: 11.5px;
+      }
+      .cert .st {
+        margin-left: auto;
+        font:
+          700 9.5px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.08em;
+        flex: none;
+      }
+      .st.ok {
+        color: var(--seal);
+      }
+      .st.let {
+        color: var(--warm);
+      }
+      .st.dim {
+        color: var(--muted);
+      }
+      .ring-blok {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+      }
+      .ring-tekst b {
+        display: block;
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 17px;
+      }
+      .ring-tekst small {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      /* Marktplaats */
+      .filters {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+      }
+      .chip {
+        border: 1px solid var(--hair);
+        background: var(--panel);
+        border-radius: 999px;
+        padding: 6px 13px;
+        font-size: 12.5px;
+        color: var(--ink);
+      }
+      .chip.aan {
+        border-color: var(--seal);
+        color: var(--seal);
+        background: var(--seal-soft);
+        font-weight: 600;
+      }
+      .redenen {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 6px;
+      }
+      .reden {
+        font-size: 11px;
+        color: var(--seal);
+        background: var(--seal-soft);
+        border-radius: 5px;
+        padding: 3px 7px;
+      }
+      .reden.warm {
+        color: var(--warm);
+        background: var(--warm-soft);
+      }
+      /* Opdracht */
+      .turn {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        border: 1px solid var(--hair);
+        border-left: 4px solid var(--seal);
+        background: var(--panel);
+        border-radius: 10px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+      }
+      .turn b {
+        font-size: 13.5px;
+      }
+      .turn small {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .feiten {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .feit {
+        border: 1px solid var(--hair);
+        background: var(--panel);
+        border-radius: 10px;
+        padding: 10px 13px;
+      }
+      .feit small {
+        display: block;
+        color: var(--muted);
+        font-size: 10.5px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-family: ui-monospace, Menlo, monospace;
+      }
+      .feit b {
+        font-size: 14px;
+      }
+      .cascade {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        margin: 6px 0 2px;
+      }
+      .stap {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .stap .bol {
+        width: 22px;
+        height: 22px;
+        border-radius: 99px;
+        border: 2px solid var(--hair);
+        background: var(--panel);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        color: var(--muted);
+        flex: none;
+      }
+      .stap.klaar .bol {
+        background: var(--seal);
+        border-color: var(--seal);
+        color: #fffdf8;
+      }
+      .stap.nu {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .stap.nu .bol {
+        border-color: var(--seal);
+        color: var(--seal);
+      }
+      .lijn {
+        flex: 1;
+        height: 2px;
+        background: var(--hair);
+        margin: 0 8px;
+        min-width: 18px;
+      }
+      .lijn.klaar {
+        background: var(--seal);
+      }
+      /* Verificatie */
+      .tijdlijn {
+        border-left: 2px solid var(--hair);
+        margin-left: 9px;
+        padding-left: 18px;
+        display: grid;
+        gap: 12px;
+      }
+      .moment {
+        position: relative;
+        font-size: 12.5px;
+      }
+      .moment::before {
+        content: "";
+        position: absolute;
+        left: -24.5px;
+        top: 4px;
+        width: 9px;
+        height: 9px;
+        border-radius: 99px;
+        background: var(--seal);
+      }
+      .moment.dim::before {
+        background: #cfc6b4;
+      }
+      .moment b {
+        display: block;
+      }
+      .moment small {
+        color: var(--muted);
+      }
+      /* Facturen */
+      table.grootboek {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        background: var(--panel);
+      }
+      .grootboek th {
+        text-align: left;
+        font:
+          600 10px/1.4 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--hair);
+      }
+      .grootboek td {
+        padding: 10px;
+        border-bottom: 1px solid var(--hair);
+      }
+      .grootboek td.r,
+      .grootboek th.r {
+        text-align: right;
+      }
+      .grootboek tr:hover td {
+        background: #faf5ea;
+      }
+      /* Inzicht */
+      .inzicht-groot {
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 21px;
+        margin: 0 0 2px;
+      }
+      .mini-inzichten {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-top: 14px;
+      }
+      /* Berichten */
+      .gesprekken {
+        display: grid;
+        grid-template-columns: 0.9fr 1.6fr;
+        gap: 14px;
+        align-items: start;
+      }
+      .gesprek-item {
+        display: flex;
+        gap: 10px;
+        padding: 10px 8px;
+        border-radius: 9px;
+        cursor: pointer;
+        align-items: center;
+      }
+      .gesprek-item.actief {
+        background: var(--seal-soft);
+      }
+      .gesprek-item small {
+        display: block;
+        color: var(--muted);
+        font-size: 11.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 190px;
+      }
+      .bubbel {
+        max-width: 75%;
+        border-radius: 12px;
+        padding: 9px 13px;
+        font-size: 13px;
+        margin-bottom: 8px;
+        background: #f1ebdd;
+      }
+      .bubbel.eigen {
+        margin-left: auto;
+        background: var(--seal-soft);
+      }
+      .bubbel small {
+        display: block;
+        color: var(--muted);
+        font-size: 10.5px;
+        margin-top: 2px;
+      }
+      .leeg {
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
+        padding: 18px 0 6px;
+      }
+      @media (max-width: 900px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+        .side {
+          flex-direction: row;
+          flex-wrap: wrap;
+        }
+        .side .onder {
+          display: none;
+        }
+        .cijfers,
+        .feiten {
+          grid-template-columns: 1fr 1fr;
+        }
+        .kolommen,
+        .gesprekken,
+        .mini-inzichten {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="balk">
+      PROTOTYPE · DEFINITIEF ONTWERP (510 + 412 + 324) · KLIK LINKS DOOR DE SCHERMEN
+    </div>
+    <div class="app">
+      <aside class="side">
+        <div class="merk">
+          <svg width="30" height="30" viewBox="-40 -40 80 80">
+            <g fill="none" stroke-linecap="round">
+              <circle r="34" stroke="#15795a" stroke-width="4" stroke-dasharray="5 4.4" />
+              <circle r="24" stroke="#15795a" stroke-width="3.5" />
+              <polyline
+                points="-11,2 -4,10 13,-9"
+                stroke="#15795a"
+                stroke-width="6"
+                stroke-linejoin="round"
+              />
+            </g>
+          </svg>
+          <div><b>ZZP Platform</b><small>WERKRUIMTE</small></div>
+        </div>
+        <button class="nav-item actief" data-doel="dashboard">Dashboard</button>
+        <button class="nav-item" data-doel="marktplaats">Marktplaats</button>
+        <button class="nav-item" data-doel="opdracht">Opdracht</button>
+        <button class="nav-item" data-doel="verificatie">Verificatie</button>
+        <button class="nav-item" data-doel="acties">Acties</button>
+        <button class="nav-item" data-doel="facturen">Facturen</button>
+        <button class="nav-item" data-doel="inzicht">Inzicht</button>
+        <button class="nav-item" data-doel="berichten">Berichten</button>
+        <div class="onder">
+          <div class="avatar">SdV</div>
+          <div style="font-size: 12px">
+            <b>Sanne de Vries</b><br />
+            <span style="color: var(--muted); font-size: 11px">Wijkverpleegkundige · Utrecht</span>
+          </div>
+        </div>
+      </aside>
+
+      <div class="main">
+        <!-- ===== DASHBOARD ===== -->
+        <section class="scherm actief" id="dashboard">
+          <div class="kopregel">
+            <div>
+              <p class="eyebrow">Vandaag · Utrecht</p>
+              <h1 class="kop">Goedemorgen, Sanne.</h1>
+              <p class="warm-sub">
+                Fijn dat je er bent. Je dossier staat er goed bij — er is vandaag precies één ding
+                dat je aandacht vraagt, de rest hebben we voor je klaargezet.
+              </p>
+            </div>
+            <div class="zegel-badge">
+              <svg width="30" height="30" viewBox="-40 -40 80 80">
+                <g fill="none" stroke-linecap="round">
+                  <circle r="33" stroke="#15795a" stroke-width="4.5" stroke-dasharray="5 4.4" />
+                  <polyline
+                    points="-12,2 -4,11 14,-10"
+                    stroke="#15795a"
+                    stroke-width="7"
+                    stroke-linejoin="round"
+                  />
+                </g>
+              </svg>
+              <div class="txt"><b>Hoog vertrouwen</b><small>2 van 4 gewaarmerkt</small></div>
+            </div>
+          </div>
+          <div class="cijfers">
+            <div class="cijfer">
+              <div class="lbl">Match-percentage <em>▲ +4</em></div>
+              <div class="val">92%</div>
+            </div>
+            <div class="cijfer">
+              <div class="lbl">Open reacties <em>▲ +2</em></div>
+              <div class="val">7</div>
+            </div>
+            <div class="cijfer">
+              <div class="lbl">Omzet (mnd) <em>▲ +12%</em></div>
+              <div class="val">€ 8.240</div>
+            </div>
+            <div class="cijfer">
+              <div class="lbl">Te factureren <em class="af">▼ 2 open</em></div>
+              <div class="val">€ 1.350</div>
+            </div>
+          </div>
+          <div class="kolommen">
+            <div class="paneel">
+              <div class="paneel-kop">
+                <span>Wat vraagt nu je aandacht</span
+                ><span class="ln" data-ga="acties">Alle acties →</span>
+              </div>
+              <div class="actie">
+                <span class="stip"></span>
+                <div>
+                  <b>VOG verloopt over 23 dagen</b>
+                  <div class="oms">
+                    Vraag een nieuwe Verklaring Omtrent Gedrag aan om verifieerbaar te blijven.
+                  </div>
+                </div>
+                <span class="label urgent">URGENT</span>
+              </div>
+              <div class="actie info">
+                <span class="stip"></span>
+                <div>
+                  <b>3 nieuwe matches boven 85%</b>
+                  <div class="oms">
+                    Reageer vandaag — gemiddelde reactietijd van opdrachtgevers is 6 uur.
+                  </div>
+                </div>
+                <span class="label info">NIEUW</span>
+              </div>
+              <div class="actie info">
+                <span class="stip"></span>
+                <div>
+                  <b>Factuur FAC-2026-118 openstaand</b>
+                  <div class="oms">Verstuurd 9 dagen geleden aan Thuiszorg De Linde · € 1.350.</div>
+                </div>
+                <span class="label info">HERINNER</span>
+              </div>
+              <div style="margin-top: 12px">
+                <button class="knop" data-ga="verificatie">VOG vernieuwen →</button>
+                <button class="knop stil" data-ga="marktplaats">Naar de marktplaats</button>
+              </div>
+              <div class="paneel-kop" style="margin-top: 22px">
+                <span>Beste match voor jou</span
+                ><span class="ln" data-ga="marktplaats">Marktplaats →</span>
+              </div>
+              <div class="match" data-ga="opdracht">
+                <div
+                  class="mm"
+                  style="
+                    background:
+                      radial-gradient(closest-side, var(--panel) 74%, transparent 75% 100%),
+                      conic-gradient(var(--seal) 94%, var(--hair) 0);
+                  "
+                >
+                  94
+                </div>
+                <div>
+                  <b>Wijkverpleegkundige — avonddienst</b
+                  ><small>Thuiszorg De Linde · Utrecht · 24 u/week · per 1 aug</small>
+                </div>
+                <div class="eur">€ 62<br /><small>PER UUR</small></div>
+              </div>
+            </div>
+            <div class="paneel">
+              <div class="paneel-kop">
+                <span>Vertrouwensniveau</span
+                ><span class="ln" data-ga="verificatie">Register →</span>
+              </div>
+              <div class="ring-blok">
+                <svg width="72" height="72" viewBox="-40 -40 80 80">
+                  <circle r="31" fill="none" stroke="#e8e0d0" stroke-width="7" />
+                  <circle
+                    r="31"
+                    fill="none"
+                    stroke="#15795a"
+                    stroke-width="7"
+                    stroke-linecap="round"
+                    stroke-dasharray="97.4 97.4"
+                    transform="rotate(-90)"
+                  />
+                  <text
+                    y="7"
+                    text-anchor="middle"
+                    font-family="ui-monospace, Menlo, monospace"
+                    font-weight="700"
+                    font-size="19"
+                    fill="#26221b"
+                  >
+                    50%
+                  </text>
+                </svg>
+                <div class="ring-tekst">
+                  <b>Hoog vertrouwen</b
+                  ><small
+                    >2 van 4 certificaten voorzien van een waarmerk. Opdrachtgevers zien dit
+                    direct.</small
+                  >
+                </div>
+              </div>
+              <div style="margin-top: 10px">
+                <div class="cert">
+                  <div>BIG-registratie<small>Gewaarmerkt · geldig t/m 2028</small></div>
+                  <span class="st ok">GEWAARMERKT</span>
+                </div>
+                <div class="cert">
+                  <div>Diploma Verpleegkunde (hbo-v)<small>Gewaarmerkt · 14 mei</small></div>
+                  <span class="st ok">GEWAARMERKT</span>
+                </div>
+                <div class="cert">
+                  <div>VOG (zorg)<small>Verloopt over 23 dagen</small></div>
+                  <span class="st let">VERLOOPT</span>
+                </div>
+                <div class="cert">
+                  <div>Reanimatie / BLS<small>In beoordeling · 21 juli</small></div>
+                  <span class="st dim">BEOORDELING</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== MARKTPLAATS ===== -->
+        <section class="scherm" id="marktplaats">
+          <p class="eyebrow">De etalage</p>
+          <h1 class="kop">Opdrachten die bij je passen</h1>
+          <p class="warm-sub">Gesorteerd op match — en we vertellen je altijd wáárom iets past.</p>
+          <div class="filters">
+            <span class="chip aan">Regio Utrecht · 25 km</span>
+            <span class="chip aan">Avond</span>
+            <span class="chip aan">≥ € 55 / uur</span>
+            <span class="chip">Weekend</span>
+            <span class="chip">GGZ</span>
+            <span class="chip">+ Filter</span>
+          </div>
+          <div class="paneel">
+            <div class="paneel-kop">
+              <span>3 nieuwe matches · 12 open opdrachten</span><span>Verklaarbaar gesorteerd</span>
+            </div>
+            <div class="match" data-ga="opdracht">
+              <div
+                class="mm"
+                style="
+                  background:
+                    radial-gradient(closest-side, var(--panel) 74%, transparent 75% 100%),
+                    conic-gradient(var(--seal) 94%, var(--hair) 0);
+                "
+              >
+                94
+              </div>
+              <div>
+                <b>Wijkverpleegkundige — avonddienst</b
+                ><small>Thuiszorg De Linde · Utrecht · 24 u/week · per 1 aug</small>
+                <div class="redenen">
+                  <span class="reden">BIG vereist — gewaarmerkt ✓</span
+                  ><span class="reden">Avond past bij je beschikbaarheid</span
+                  ><span class="reden">9 km van huis</span>
+                </div>
+              </div>
+              <div class="eur">€ 62<br /><small>PER UUR</small></div>
+            </div>
+            <div class="match">
+              <div
+                class="mm"
+                style="
+                  background:
+                    radial-gradient(closest-side, var(--panel) 74%, transparent 75% 100%),
+                    conic-gradient(var(--seal) 88%, var(--hair) 0);
+                "
+              >
+                88
+              </div>
+              <div>
+                <b>Verzorgende IG — somatiek</b
+                ><small>Zorggroep Almere · Almere · 32 u/week · per 15 aug</small>
+                <div class="redenen">
+                  <span class="reden">Diploma gewaarmerkt ✓</span
+                  ><span class="reden warm">34 km — verder dan je voorkeur</span>
+                </div>
+              </div>
+              <div class="eur">€ 48<br /><small>PER UUR</small></div>
+            </div>
+            <div class="match">
+              <div
+                class="mm"
+                style="
+                  background:
+                    radial-gradient(closest-side, var(--panel) 74%, transparent 75% 100%),
+                    conic-gradient(var(--seal) 81%, var(--hair) 0);
+                "
+              >
+                81
+              </div>
+              <div>
+                <b>Begeleider GGZ — ambulant</b
+                ><small>Kwintes · Zeist · 16 u/week · flexibel</small>
+                <div class="redenen">
+                  <span class="reden">Tarief boven je ondergrens</span
+                  ><span class="reden warm">Vraagt SKJ — niet in je dossier</span>
+                </div>
+              </div>
+              <div class="eur">€ 55<br /><small>PER UUR</small></div>
+            </div>
+            <div class="leeg">
+              Dat zijn de beste drie.
+              <span style="color: var(--seal); font-weight: 600">Toon alle 12 →</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== OPDRACHT ===== -->
+        <section class="scherm" id="opdracht">
+          <p class="eyebrow">Het dossier · OPD-2026-241</p>
+          <h1 class="kop">Wijkverpleegkundige — avonddienst</h1>
+          <p class="warm-sub">Thuiszorg De Linde · Utrecht · geplaatst 3 dagen geleden</p>
+          <div class="turn">
+            <svg width="26" height="26" viewBox="-40 -40 80 80">
+              <g fill="none" stroke-linecap="round">
+                <circle r="30" stroke="#15795a" stroke-width="5" />
+                <polyline points="0,-16 0,2 12,10" stroke="#15795a" stroke-width="6" />
+              </g>
+            </svg>
+            <div>
+              <b>De opdrachtgever is aan zet.</b
+              ><small
+                >Je reactie is gisteren gelezen — gemiddelde antwoordtijd van De Linde is 6 uur. We
+                seinen je zodra er nieuws is.</small
+              >
+            </div>
+            <span class="label info" style="margin-left: auto">WACHT OP HEN</span>
+          </div>
+          <div class="feiten">
+            <div class="feit"><small>Tarief</small><b class="mono">€ 62 / uur</b></div>
+            <div class="feit"><small>Inzet</small><b>24 u / week</b></div>
+            <div class="feit"><small>Start</small><b>1 augustus</b></div>
+            <div class="feit">
+              <small>Match</small><b class="mono" style="color: var(--seal)">94%</b>
+            </div>
+          </div>
+          <div class="kolommen">
+            <div class="paneel">
+              <div class="paneel-kop"><span>Waar staat deze samenwerking</span></div>
+              <div class="cascade">
+                <div class="stap klaar"><span class="bol">✓</span>Reactie</div>
+                <div class="lijn klaar"></div>
+                <div class="stap nu"><span class="bol">2</span>Gesprek</div>
+                <div class="lijn"></div>
+                <div class="stap"><span class="bol">3</span>Akkoord</div>
+                <div class="lijn"></div>
+                <div class="stap"><span class="bol">4</span>Uren</div>
+                <div class="lijn"></div>
+                <div class="stap"><span class="bol">5</span>Factuur</div>
+              </div>
+              <p class="warm-sub" style="margin: 12px 0 0">
+                Na akkoord regelen wij de modelovereenkomst, urenregistratie en facturatie — jij
+                hoeft alleen te werken zoals jij dat wilt.
+              </p>
+              <div style="margin-top: 12px">
+                <button class="knop" data-ga="berichten">Bericht sturen →</button>
+                <button class="knop stil">Opdracht opslaan</button>
+              </div>
+            </div>
+            <div class="paneel">
+              <div class="paneel-kop"><span>Vereist voor deze opdracht</span></div>
+              <div class="cert">
+                <div>BIG-registratie<small>Vereist · jij: gewaarmerkt</small></div>
+                <span class="st ok">✓ IN ORDE</span>
+              </div>
+              <div class="cert">
+                <div>VOG (zorg)<small>Vereist · verloopt over 23 dagen</small></div>
+                <span class="st let">VERNIEUW OP TIJD</span>
+              </div>
+              <div class="cert">
+                <div>Rijbewijs B<small>Gewenst · eigen vervoer</small></div>
+                <span class="st ok">✓ IN ORDE</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== VERIFICATIE ===== -->
+        <section class="scherm" id="verificatie">
+          <div class="kopregel">
+            <div>
+              <p class="eyebrow">Het zegel · jouw register</p>
+              <h1 class="kop">Verificatie &amp; vertrouwen</h1>
+              <p class="warm-sub">
+                Elk document dat wij waarmerken is door een mens beoordeeld en navolgbaar
+                vastgelegd. Dit is wat opdrachtgevers zien.
+              </p>
+            </div>
+            <div class="zegel-badge">
+              <svg width="30" height="30" viewBox="-40 -40 80 80">
+                <g fill="none" stroke-linecap="round">
+                  <circle r="33" stroke="#15795a" stroke-width="4.5" stroke-dasharray="5 4.4" />
+                  <polyline
+                    points="-12,2 -4,11 14,-10"
+                    stroke="#15795a"
+                    stroke-width="7"
+                    stroke-linejoin="round"
+                  />
+                </g>
+              </svg>
+              <div class="txt"><b>Hoog vertrouwen</b><small>2 van 4 gewaarmerkt</small></div>
+            </div>
+          </div>
+          <div class="kolommen">
+            <div class="paneel">
+              <div class="paneel-kop">
+                <span>Jouw certificaten</span><span class="ln">+ Document toevoegen</span>
+              </div>
+              <div class="cert">
+                <div>BIG-registratie<small>Gewaarmerkt op 2 maart · geldig t/m 2028</small></div>
+                <span class="st ok">GEWAARMERKT</span>
+              </div>
+              <div class="cert">
+                <div>Diploma Verpleegkunde (hbo-v)<small>Gewaarmerkt op 14 mei</small></div>
+                <span class="st ok">GEWAARMERKT</span>
+              </div>
+              <div class="cert">
+                <div>
+                  VOG (zorg)<small>Verloopt over 23 dagen — vraag op tijd een nieuwe aan</small>
+                </div>
+                <span class="st let">VERLOOPT</span>
+              </div>
+              <div class="cert">
+                <div>
+                  Reanimatie / BLS<small
+                    >In beoordeling sinds 21 juli · verwacht binnen 2 werkdagen</small
+                  >
+                </div>
+                <span class="st dim">BEOORDELING</span>
+              </div>
+              <div style="margin-top: 12px">
+                <button class="knop">VOG vernieuwen →</button>
+                <button class="knop stil">Deelbaar dossier maken</button>
+              </div>
+            </div>
+            <div class="paneel">
+              <div class="paneel-kop"><span>Herkomst · VOG (zorg)</span></div>
+              <div class="tijdlijn">
+                <div class="moment">
+                  <b>Gewaarmerkt</b
+                  ><small>3 aug 2025 · beoordeeld door verificatieteam · zegel VER-2025-0834</small>
+                </div>
+                <div class="moment">
+                  <b>Document beoordeeld</b
+                  ><small>2 aug 2025 · echtheidskenmerken gecontroleerd</small>
+                </div>
+                <div class="moment">
+                  <b>Ingediend door jou</b><small>1 aug 2025 · origineel, 2 pagina's</small>
+                </div>
+                <div class="moment dim">
+                  <b>Verloopt</b><small>21 aug 2026 · vernieuwing kan vanaf vandaag</small>
+                </div>
+              </div>
+              <p class="warm-sub" style="margin: 14px 0 0">
+                Elke beslissing is vastgelegd: wie, wanneer, waarom. Dat is het waarmerk — geen
+                vinkje, maar een verhaal dat klopt.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== ACTIES ===== -->
+        <section class="scherm" id="acties">
+          <p class="eyebrow">De werklijst</p>
+          <h1 class="kop">Wat vraagt nu je aandacht</h1>
+          <p class="warm-sub">Op volgorde van belang. Bovenaan beginnen is altijd goed.</p>
+          <div class="paneel">
+            <div class="actie">
+              <span class="stip"></span>
+              <div>
+                <b>VOG verloopt over 23 dagen</b>
+                <div class="oms">
+                  Zonder geldige VOG pauzeren zorg-opdrachtgevers je dossier. Aanvragen duurt
+                  gemiddeld 2 weken.
+                </div>
+              </div>
+              <span class="label urgent">URGENT</span>
+            </div>
+            <div class="actie info">
+              <span class="stip"></span>
+              <div>
+                <b>3 nieuwe matches boven 85%</b>
+                <div class="oms">
+                  Wijkverpleegkundige (94%), Verzorgende IG (88%), Begeleider GGZ (81%).
+                </div>
+              </div>
+              <span class="label info">NIEUW</span>
+            </div>
+            <div class="actie info">
+              <span class="stip"></span>
+              <div>
+                <b>Factuur FAC-2026-118 staat 9 dagen open</b>
+                <div class="oms">
+                  Thuiszorg De Linde · € 1.350 · één klik om een vriendelijke herinnering te sturen.
+                </div>
+              </div>
+              <span class="label info">HERINNER</span>
+            </div>
+            <div class="actie stil">
+              <span class="stip"></span>
+              <div>
+                <b>Beschikbaarheid augustus invullen</b>
+                <div class="oms">Hoe actueler je agenda, hoe beter de matches.</div>
+              </div>
+              <span class="label stil">PLAN</span>
+            </div>
+            <div class="actie stil">
+              <span class="stip"></span>
+              <div>
+                <b>Uurtarief-check</b>
+                <div class="oms">
+                  Vergelijkbare profielen in Utrecht vragen € 58–65. Jij zit goed met € 62.
+                </div>
+              </div>
+              <span class="label stil">WEETJE</span>
+            </div>
+            <div class="leeg">Daarna ben je helemaal bij. Mooi werk, Sanne. 🌱</div>
+          </div>
+        </section>
+
+        <!-- ===== FACTUREN ===== -->
+        <section class="scherm" id="facturen">
+          <p class="eyebrow">Het grootboek</p>
+          <h1 class="kop">Facturen</h1>
+          <p class="warm-sub">
+            Sluitend en op de cent — elke rij is herleidbaar tot uren en afspraken.
+          </p>
+          <div class="cijfers" style="grid-template-columns: repeat(3, 1fr)">
+            <div class="cijfer">
+              <div class="lbl">Openstaand</div>
+              <div class="val" style="color: var(--warm)">€ 1.350</div>
+            </div>
+            <div class="cijfer">
+              <div class="lbl">Betaald deze maand</div>
+              <div class="val" style="color: var(--seal)">€ 6.890</div>
+            </div>
+            <div class="cijfer">
+              <div class="lbl">Gemiddelde betaaltermijn</div>
+              <div class="val">11 dgn</div>
+            </div>
+          </div>
+          <div class="paneel" style="padding: 6px 10px">
+            <table class="grootboek">
+              <thead>
+                <tr>
+                  <th>Nummer</th>
+                  <th>Opdrachtgever</th>
+                  <th>Verstuurd</th>
+                  <th class="r">Bedrag</th>
+                  <th class="r">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">FAC-2026-118</td>
+                  <td>Thuiszorg De Linde</td>
+                  <td>20 juli</td>
+                  <td class="r mono">€ 1.350,00</td>
+                  <td class="r"><span class="label urgent">OPENSTAAND</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">FAC-2026-117</td>
+                  <td>Zorggroep Almere</td>
+                  <td>14 juli</td>
+                  <td class="r mono">€ 2.480,00</td>
+                  <td class="r"><span class="label info">BETAALD</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">FAC-2026-116</td>
+                  <td>Thuiszorg De Linde</td>
+                  <td>7 juli</td>
+                  <td class="r mono">€ 2.170,00</td>
+                  <td class="r"><span class="label info">BETAALD</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">FAC-2026-115</td>
+                  <td>Kwintes</td>
+                  <td>30 juni</td>
+                  <td class="r mono">€ 2.240,00</td>
+                  <td class="r"><span class="label info">BETAALD</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">FAC-2026-119</td>
+                  <td>Zorggroep Almere</td>
+                  <td>—</td>
+                  <td class="r mono">€ 1.860,00</td>
+                  <td class="r"><span class="label stil">CONCEPT</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top: 12px">
+            <button class="knop">Herinnering sturen →</button>
+            <button class="knop stil">Nieuwe factuur</button>
+          </div>
+        </section>
+
+        <!-- ===== INZICHT ===== -->
+        <section class="scherm" id="inzicht">
+          <p class="eyebrow">Het observatorium</p>
+          <h1 class="kop">Inzicht</h1>
+          <p class="warm-sub">
+            Eén inzicht per keer, in gewone woorden — de grafiek bewijst het alleen maar.
+          </p>
+          <div class="paneel">
+            <p class="inzicht-groot">
+              Je omzet groeit: 12% boven vorige maand, 31% boven dit moment vorig jaar.
+            </p>
+            <p class="warm-sub" style="margin-bottom: 10px">
+              Vooral de avonddiensten bij De Linde dragen bij. Je gemiddelde uurtarief steeg van €
+              58 naar € 62.
+            </p>
+            <svg
+              viewBox="0 0 720 180"
+              style="width: 100%; height: auto"
+              role="img"
+              aria-label="Omzet per maand, stijgende lijn"
+            >
+              <line x1="0" y1="150" x2="720" y2="150" stroke="#e8e0d0" stroke-width="1.5" />
+              <line x1="0" y1="100" x2="720" y2="100" stroke="#f0eadd" stroke-width="1" />
+              <line x1="0" y1="50" x2="720" y2="50" stroke="#f0eadd" stroke-width="1" />
+              <path
+                d="M 0 132 C 60 128, 90 120, 150 118 C 210 116, 240 104, 300 100 C 360 96, 390 88, 450 78 C 510 68, 540 66, 600 52 C 640 43, 680 38, 718 30 L 718 150 L 0 150 Z"
+                fill="#15795a"
+                opacity="0.12"
+              />
+              <path
+                d="M 0 132 C 60 128, 90 120, 150 118 C 210 116, 240 104, 300 100 C 360 96, 390 88, 450 78 C 510 68, 540 66, 600 52 C 640 43, 680 38, 718 30"
+                fill="none"
+                stroke="#15795a"
+                stroke-width="3"
+                stroke-linecap="round"
+              />
+              <circle cx="718" cy="30" r="5" fill="#15795a" />
+              <text
+                x="700"
+                y="18"
+                text-anchor="end"
+                font-family="ui-monospace, Menlo, monospace"
+                font-weight="700"
+                font-size="13"
+                fill="#26221b"
+              >
+                € 8.240
+              </text>
+              <text
+                x="4"
+                y="166"
+                font-family="ui-monospace, Menlo, monospace"
+                font-size="10"
+                fill="#7d7466"
+              >
+                AUG '25
+              </text>
+              <text
+                x="716"
+                y="166"
+                text-anchor="end"
+                font-family="ui-monospace, Menlo, monospace"
+                font-size="10"
+                fill="#7d7466"
+              >
+                JULI '26
+              </text>
+            </svg>
+          </div>
+          <div class="mini-inzichten">
+            <div class="paneel">
+              <div class="paneel-kop"><span>Reactiesnelheid</span></div>
+              <b>Je reageert gemiddeld binnen 3 uur.</b>
+              <p class="warm-sub" style="margin: 4px 0 0">
+                Sneller dan 80% — opdrachtgevers merken dat.
+              </p>
+            </div>
+            <div class="paneel">
+              <div class="paneel-kop"><span>Betaalgedrag</span></div>
+              <b>Je opdrachtgevers betalen in 11 dagen.</b>
+              <p class="warm-sub" style="margin: 4px 0 0">
+                Ruim binnen de termijn. De Linde is de snelste.
+              </p>
+            </div>
+            <div class="paneel">
+              <div class="paneel-kop"><span>Vooruitblik</span></div>
+              <b>Augustus zit al voor 70% vol.</b>
+              <p class="warm-sub" style="margin: 4px 0 0">Nog ruimte voor ± 2 diensten per week.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== BERICHTEN ===== -->
+        <section class="scherm" id="berichten">
+          <p class="eyebrow">Het gesprek</p>
+          <h1 class="kop">Berichten</h1>
+          <p class="warm-sub">
+            Alles rondom een opdracht op één plek — afspraken uit de chat kun je vastleggen met één
+            klik.
+          </p>
+          <div class="gesprekken">
+            <div class="paneel" style="padding: 10px">
+              <div class="gesprek-item actief">
+                <div class="avatar" style="background: var(--warm)">TL</div>
+                <div>
+                  <b style="font-size: 13px">Thuiszorg De Linde</b
+                  ><small>Top, we plannen je graag in voor de avond…</small>
+                </div>
+              </div>
+              <div class="gesprek-item">
+                <div class="avatar" style="background: var(--brass)">ZA</div>
+                <div>
+                  <b style="font-size: 13px">Zorggroep Almere</b
+                  ><small>Kun je je VIG-diploma nog even toevoegen?</small>
+                </div>
+              </div>
+              <div class="gesprek-item">
+                <div class="avatar" style="background: #7d7466">KW</div>
+                <div>
+                  <b style="font-size: 13px">Kwintes — Team GGZ</b
+                  ><small>Bedankt voor je reactie, we nemen contact…</small>
+                </div>
+              </div>
+            </div>
+            <div class="paneel">
+              <div class="paneel-kop">
+                <span>Thuiszorg De Linde · over OPD-2026-241</span
+                ><span class="ln" data-ga="opdracht">Naar de opdracht →</span>
+              </div>
+              <div class="bubbel">
+                Hoi Sanne, fijn dat je gereageerd hebt! Zou dinsdag 15:00 passen voor een korte
+                kennismaking?<small>Gisteren 16:42 · Marije, planner</small>
+              </div>
+              <div class="bubbel eigen">
+                Dinsdag 15:00 past goed. Tot dan!<small>Gisteren 17:05 · gelezen ✓✓</small>
+              </div>
+              <div class="bubbel">
+                Top, we plannen je graag in voor de avonddiensten vanaf 1 augustus. Ik zet de
+                afspraak vast in het dossier.<small>Vandaag 09:24</small>
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 14px">
+                <span class="chip" style="flex: 1; color: var(--muted)">Schrijf een bericht…</span>
+                <button class="knop">Versturen</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var knoppen = document.querySelectorAll(".nav-item");
+        var schermen = document.querySelectorAll(".scherm");
+        function toon(id) {
+          schermen.forEach(function (s) {
+            s.classList.toggle("actief", s.id === id);
+          });
+          knoppen.forEach(function (k) {
+            k.classList.toggle("actief", k.dataset.doel === id);
+          });
+        }
+        knoppen.forEach(function (k) {
+          k.addEventListener("click", function () {
+            toon(k.dataset.doel);
+          });
+        });
+        document.querySelectorAll("[data-ga]").forEach(function (el) {
+          el.addEventListener("click", function () {
+            toon(el.dataset.ga);
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

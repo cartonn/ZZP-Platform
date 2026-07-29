@@ -5,23 +5,25 @@
 
 ## 2026-07-29 — Definitief ontwerp: fundament-tokens (uitrol stap 1 van 10)
 
-**Wat:** de eigenaar koos definitief voor de combinatie van labconcepten \*\*510 Waarmerk + 412 Salon
+**Wat:** de eigenaar koos definitief voor de combinatie van labconcepten **510 Waarmerk +
+412 Salon + 324 Zephyr** (vertrouwen, warme uitstraling, duidelijke actielijst). Stap 1 van het
+uitrolplan (`docs/ontwerpen/UITROLPLAN.md`): de kern-tokens van die synthese in de app.
 
-- 324 Zephyr\*\* (vertrouwen, warme uitstraling, duidelijke actielijst). Stap 1 van het uitrolplan
-  (`docs/ontwerpen/UITROLPLAN.md`): de kern-tokens van die synthese in de app.
-
-* **Tokens (`src/app/globals.css`):** `--primary`/`--ring` van terracotta naar **zegelgroen**
+- **Tokens (`src/app/globals.css`):** `--primary`/`--ring` van terracotta naar **zegelgroen**
   `161 70% 28%` (510 — vertrouwen als gezagskleur), canvas naar warm ivoorpapier `39 55% 95%` met
   warm-witte kaarten (412), **terracotta verhuist naar de aandachtsrol** (`--warning: 16 55% 40%`),
   `--success` in de zegel-familie, donker thema groen-getint; kaartschaduwen van blauw- naar
   warm-inkt-getint. Typografie (Figtree/Fraunces/JetBrains Mono) stond al goed.
-* **Docs:** `DESIGN.md` §1–3 herschreven naar het definitieve thema incl. het
+- **PWA-chrome mee (agent-review-blocker):** `manifest.ts` `theme_color` → `#15795a`,
+  `background_color` en de viewport-`themeColor` (licht/donker) in `layout.tsx` gelijkgetrokken
+  met het nieuwe canvas/donkere thema.
+- **Docs:** `DESIGN.md` §1–3 herschreven naar het definitieve thema incl. het
   kern-taal + pagina-signatuur-principe; commentaarkoppen in `tailwind.config.ts`/`layout.tsx` mee.
-* **Referentie:** `docs/ontwerpen/definitief.html` (tokens/typografie/mockup) en
-  `docs/ontwerpen/prototype.html` (klikbaar, 8 schermen) op de sessiebranch.
-* **Gate:** typecheck, lint, test (5361), build, prettier groen; visueel geverifieerd in de
+- **Referentie in de repo:** `docs/ontwerpen/definitief.html` (tokens/typografie/mockup),
+  `docs/ontwerpen/prototype.html` (klikbaar, 8 schermen) en `docs/ontwerpen/UITROLPLAN.md`.
+- **Gate:** typecheck, lint, test (5361), build, prettier groen; visueel geverifieerd in de
   draaiende app (dashboard + certificaten, ZZP-rol).
-* **Volgende stap (uitrol 2/10):** dashboard + acties — signatuur-koppen en de
+- **Volgende stap (uitrol 2/10):** dashboard + acties — signatuur-koppen en de
   "wat vraagt nu je aandacht"-hiërarchie uit het prototype.
 
 ## 2026-07-29 — ZZP'er: "verberg opdrachten waarop ik al reageerde"-filter op /opdrachten
