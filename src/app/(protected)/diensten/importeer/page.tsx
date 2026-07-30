@@ -6,7 +6,7 @@ import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { ImportForm } from "./import-form";
 
-export const metadata: Metadata = { title: "Diensten importeren · ZZP Platform" };
+export const metadata: Metadata = { title: "Diensten importeren · Handslag" };
 
 export default async function ImporteerPage() {
   const actor = await requireActor();

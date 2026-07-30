@@ -3,7 +3,7 @@ import { requireActor } from "@/lib/authz";
 import { PageHeader } from "@/components/ui/page-header";
 import { FacturenPanel } from "@/components/administratie/facturen-panel";
 
-export const metadata: Metadata = { title: "Facturen · ZZP Platform" };
+export const metadata: Metadata = { title: "Facturen · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 

@@ -4,7 +4,7 @@ import { Sparkles } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { OntzorgdPanel } from "@/components/administratie/ontzorgd-panel";
 
-export const metadata: Metadata = { title: "Ontzorgd · ZZP Platform" };
+export const metadata: Metadata = { title: "Ontzorgd · Handslag" };
 
 export default async function OntzorgdPage() {
   const actor = await requireActor();

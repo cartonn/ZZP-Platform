@@ -76,7 +76,7 @@ export function buildPreflightReport(
   const { verdict, exitCode } = decideVerdict(status, options);
   const lines: string[] = [];
 
-  lines.push("ZZP Platform — go-live preflight");
+  lines.push("Handslag — go-live preflight");
   lines.push(
     `Omgeving: ${status.production ? "productie (NODE_ENV=production)" : "niet-productie"}${
       options.strict ? " · strict" : ""
@@ -115,12 +115,6 @@ export function buildPreflightReport(
  * validateEnv-boodschap noemt paden/regels, geen waarden.
  */
 export function invalidReport(message: string): PreflightReport {
-  const lines = [
-    "ZZP Platform — go-live preflight",
-    "",
-    verdictHeadline("invalid", true),
-    "",
-    message,
-  ];
+  const lines = ["Handslag — go-live preflight", "", verdictHeadline("invalid", true), "", message];
   return { verdict: "invalid", exitCode: 2, lines };
 }

@@ -15,7 +15,7 @@ import { AvailabilityStatusToggle } from "@/components/beschikbaarheid/availabil
 import { AvailabilityForm } from "./availability-form";
 import { AvailabilityRows } from "./availability-rows";
 
-export const metadata: Metadata = { title: "Beschikbaarheid · ZZP Platform" };
+export const metadata: Metadata = { title: "Beschikbaarheid · Handslag" };
 
 const fmt = (d: Date) => formatDateShortNl(d);
 const toIso = (d: Date) => d.toISOString().slice(0, 10);

@@ -41,7 +41,7 @@ export async function buildPlatformBillingPdf(data: BillingInvoiceDetail): Promi
   draw("Van", M, y, { size: 8, f: bold, color: PDF_MUTED });
   draw("Aan", colR, y, { size: 8, f: bold, color: PDF_MUTED });
   y -= 14;
-  draw("ZZP Platform", M, y, { f: bold });
+  draw("Handslag", M, y, { f: bold });
   draw(data.payerName, colR, y, { f: bold });
   y -= 24;
   draw(`Factuurdatum: ${data.issuedAtYmd || "—"}`, M, y, { size: 9, color: PDF_MUTED });

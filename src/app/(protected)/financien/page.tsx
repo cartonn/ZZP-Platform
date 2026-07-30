@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireActor } from "@/lib/authz";
 import { AdministratieHubScreen } from "@/components/administratie/administratie-hub-screen";
 
-export const metadata: Metadata = { title: "Administratie · ZZP Platform" };
+export const metadata: Metadata = { title: "Administratie · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";

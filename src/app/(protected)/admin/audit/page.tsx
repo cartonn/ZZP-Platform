@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { AuditPanel, countAuditEntries } from "@/components/admin/audit-panel";
 
-export const metadata: Metadata = { title: "Audit log · ZZP Platform" };
+export const metadata: Metadata = { title: "Audit log · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 

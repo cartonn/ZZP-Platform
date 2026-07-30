@@ -2,7 +2,7 @@ import { type Metadata } from "next";
 import { requireActor } from "@/lib/authz";
 import { OpenstaandPanel } from "@/components/administratie/openstaand-panel";
 
-export const metadata: Metadata = { title: "Openstaande posten · ZZP Platform" };
+export const metadata: Metadata = { title: "Openstaande posten · Handslag" };
 
 export default async function OpenstaandPage() {
   const actor = await requireActor();

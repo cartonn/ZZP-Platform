@@ -17,7 +17,7 @@ import { adminCloseJob } from "./actions";
 import { adminJobRowAction } from "./row-action";
 import { plural } from "@/lib/plural";
 
-export const metadata: Metadata = { title: "Opdrachten (beheer) · ZZP Platform" };
+export const metadata: Metadata = { title: "Opdrachten (beheer) · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";

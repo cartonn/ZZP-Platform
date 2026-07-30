@@ -4,7 +4,7 @@ import { getDbaThresholds } from "@/lib/platform-config";
 import { PageHeader } from "@/components/ui/page-header";
 import { ConfigForm } from "./config-form";
 
-export const metadata: Metadata = { title: "Configuratie · ZZP Platform" };
+export const metadata: Metadata = { title: "Configuratie · Handslag" };
 
 export default async function ConfiguratiePage() {
   await requireRole("ADMIN");

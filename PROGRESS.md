@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — Merk: Handslag + De Schakel (eigenaarskeuze)
+
+**Wat:** de eigenaar koos definitief de naam **Handslag** en logo-concept **#1 De Schakel**
+(twee ineengehaakte, gewoven ringen — de digitale handdruk), met de expliciete wens: het merk
+in ándere kleuren dan het interface-groen, passend bij het sitepalet → **inkt** (volgt
+`--foreground`, dus licht/donker-proof) + **terracotta `#b9603f`** (de warmte-kleur).
+
+- **`src/components/ui/brand-mark.tsx` (nieuw):** `BrandMark` (SVG Schakel, weving via
+  over-arc) + `BRAND_NAME`/`BRAND_TERRACOTTA`; woordmerk overal in de display-serif.
+- **Chrome:** zijbalk (`franchise/brand.tsx` — white-label-tenants houden hun eigen
+  initiaal+kleur), mobiele nav, login/register/wachtwoord-flows, publiek profiel
+  (`/zzp/[id]`) en het publieke vertrouwensdossier dragen het nieuwe merk.
+- **Iconen:** `src/app/icon.svg` (favicon) en de gegenereerde PWA-iconen
+  (`/pwa/icon/*` via ImageResponse) tonen de Schakel op ivoorpapier; manifest
+  `name`/`short_name` → Handslag (PWA-`theme_color` blijft interface-zegelgroen).
+- **Teksten:** alle ~110 paginatitels "· Handslag", trust-strip, install-prompt,
+  e-mails (reset/welkom/herinnering/cascade, `PLATFORM_NAME`-fallback), agenda-ICS,
+  platform-facturatie-PDF, admin-badges, preflight; e2e- en unit-tests mee.
+- **Gate:** typecheck, lint, test (5397), build, prettier groen; visueel geverifieerd
+  (login + zijbalk).
+- **Restpunt (mensenwerk):** registreer **handslag.nl** (± €10/jaar, was vrij op 29-7) en
+  BOIP-merkdepot; repo-/docs-naam (CLAUDE.md "ZZP Platform") is een aparte, bewuste keuze.
+
 ## 2026-07-30 — Opdrachtgever: annuleringsbetrouwbaarheid-spiegel op /samenwerkingen
 
 **Wat:** de opdrachtgever zag zijn eigen **betaalreputatie** (/verplichtingen) en **reactiereputatie**

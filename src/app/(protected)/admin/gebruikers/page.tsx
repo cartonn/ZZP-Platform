@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/ui/page-header";
 import { GebruikersPanel } from "@/components/admin/gebruikersbeheer/gebruikers-panel";
 
-export const metadata: Metadata = { title: "Gebruikers · ZZP Platform" };
+export const metadata: Metadata = { title: "Gebruikers · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 

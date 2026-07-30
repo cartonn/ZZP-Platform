@@ -2,7 +2,7 @@ import { type Metadata } from "next";
 import { requireRole } from "@/lib/authz";
 import { AvgPanel } from "@/components/admin/avg-panel";
 
-export const metadata: Metadata = { title: "Verwerkingsregister · ZZP Platform" };
+export const metadata: Metadata = { title: "Verwerkingsregister · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";

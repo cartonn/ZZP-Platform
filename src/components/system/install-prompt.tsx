@@ -111,7 +111,7 @@ export function InstallPrompt() {
           <Download className="size-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-card-foreground">Installeer ZZP Platform</p>
+          <p className="text-sm font-medium text-card-foreground">Installeer Handslag</p>
           {platform === "prompt" ? (
             <>
               <p className="mt-0.5 text-sm text-muted-foreground">

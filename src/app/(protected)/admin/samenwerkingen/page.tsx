@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/ui/page-header";
 import { SamenwerkingenPanel } from "@/components/admin/samenwerkingen-panel";
 
-export const metadata: Metadata = { title: "Samenwerkingen overzicht · ZZP Platform" };
+export const metadata: Metadata = { title: "Samenwerkingen overzicht · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 

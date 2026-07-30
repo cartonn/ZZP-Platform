@@ -1,3 +1,4 @@
+import { BrandMark } from "@/components/ui/brand-mark";
 import { type Metadata } from "next";
 import Link from "next/link";
 import { Check, ShieldCheck } from "lucide-react";
@@ -17,10 +18,10 @@ import { type CredentialType } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { TrustBadge } from "@/components/trust/trust-badge";
 
-export const metadata: Metadata = { title: "Vertrouwensdossier · ZZP Platform" };
+export const metadata: Metadata = { title: "Vertrouwensdossier · Handslag" };
 
 const SOURCE_LABEL: Record<string, string> = {
-  ADMIN: "ZZP Platform",
+  ADMIN: "Handslag",
   DUO: "DUO",
   BIG: "BIG-register",
 };
@@ -78,7 +79,7 @@ export default async function TrustDossierPage({
   // token + PUBLIC-zichtbaarheid gelden hier dezelfde server-side-waarheidspoorten als op de
   // sibling-viewer `/zzp/[id]` (profile-screen.tsx) en de agenda-feed-fix (#630):
   //   1. Account-liveness (CLAUDE.md regel 1): een geschorst of geanonimiseerd account mag zijn
-  //      vertrouwensdossier — naam + VERIFIED-certificaten + "Servergeverifieerd door ZZP Platform" —
+  //      vertrouwensdossier — naam + VERIFIED-certificaten + "Servergeverifieerd door Handslag" —
   //      niet blijven serveren op een niet-verlopende publieke bearer-URL. Schorsing/anonimisering
   //      raakt `visibility` niet, dus zonder deze poort overleeft het deterministische token de
   //      statuswijziging (AVG art. 17; OWASP A01 — stale server-side status vertrouwen).
@@ -99,10 +100,8 @@ export default async function TrustDossierPage({
         <header className="border-b border-border bg-background">
           <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-                Z
-              </div>
-              <span className="text-sm font-semibold">ZZP Platform</span>
+              <BrandMark size={28} />
+              <span className="font-display text-sm font-semibold">Handslag</span>
             </Link>
           </div>
         </header>
@@ -157,10 +156,8 @@ export default async function TrustDossierPage({
       <header className="border-b border-border bg-background">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-              Z
-            </div>
-            <span className="text-sm font-semibold">ZZP Platform</span>
+            <BrandMark size={28} />
+            <span className="font-display text-sm font-semibold">Handslag</span>
           </Link>
           <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground">
             Inloggen
@@ -215,8 +212,8 @@ export default async function TrustDossierPage({
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Feitelijke ervaring, geteld op ZZP Platform uit afgeronde samenwerkingen en
-              goedgekeurde uren.
+              Feitelijke ervaring, geteld op Handslag uit afgeronde samenwerkingen en goedgekeurde
+              uren.
             </p>
           </section>
         )}
@@ -265,10 +262,8 @@ export default async function TrustDossierPage({
         <div className="flex items-start gap-2 rounded-lg border border-border bg-card p-4 shadow-sm">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
           <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">
-              Servergeverifieerd door ZZP Platform
-            </span>{" "}
-            — gecontroleerd op {today}. De certificaten en het vertrouwensniveau zijn door ZZP
+            <span className="font-medium text-foreground">Servergeverifieerd door Handslag</span> —
+            gecontroleerd op {today}. De certificaten en het vertrouwensniveau zijn door ZZP
             Platform handmatig geverifieerd. De bestanden zelf zijn niet openbaar beschikbaar.
           </p>
         </div>
@@ -276,7 +271,7 @@ export default async function TrustDossierPage({
         <p className="text-center text-xs text-muted-foreground">
           Dit dossier is gedeeld door de ZZP&apos;er. Kijk voor meer informatie op{" "}
           <Link href="/login" className="underline hover:text-foreground">
-            ZZP Platform
+            Handslag
           </Link>
           .
         </p>

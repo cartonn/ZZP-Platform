@@ -3,7 +3,7 @@ import { requireActor } from "@/lib/authz";
 import { PageHeader } from "@/components/ui/page-header";
 import { BoekhoudingPanel } from "@/components/administratie/boekhouding-panel";
 
-export const metadata: Metadata = { title: "Boekhouding · ZZP Platform" };
+export const metadata: Metadata = { title: "Boekhouding · Handslag" };
 
 export default async function AdministratiePage() {
   const actor = await requireActor();

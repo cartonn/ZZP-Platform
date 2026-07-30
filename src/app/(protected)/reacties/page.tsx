@@ -50,7 +50,7 @@ import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/relative-time";
 import { withdrawApplication } from "./actions";
 
-export const metadata: Metadata = { title: "Mijn reacties · ZZP Platform" };
+export const metadata: Metadata = { title: "Mijn reacties · Handslag" };
 
 // Korte uitleg per status: wat betekent het en wat kun je verwachten.
 const STATUS_HINT: Record<ApplicationStatus, string> = {

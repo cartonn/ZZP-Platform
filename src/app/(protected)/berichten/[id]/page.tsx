@@ -12,7 +12,7 @@ import { MessageComposer } from "./message-composer";
 import { MarkRead } from "./mark-read";
 import { formatDateTimeNl } from "@/lib/format-date";
 
-export const metadata: Metadata = { title: "Gesprek · ZZP Platform" };
+export const metadata: Metadata = { title: "Gesprek · Handslag" };
 
 export default async function GesprekPage({ params }: { params: Promise<{ id: string }> }) {
   const actor = await requireActor();

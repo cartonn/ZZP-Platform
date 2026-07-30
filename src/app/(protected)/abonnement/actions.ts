@@ -42,7 +42,7 @@ export async function changeSubscription(planKey: string): Promise<void> {
       userId: actor.id,
       planKey: key,
       amountCents: plan.priceCents,
-      description: `ZZP Platform abonnement: ${plan.name}`,
+      description: `Handslag-abonnement: ${plan.name}`,
       returnUrl: `${origin}/abonnement`,
       webhookUrl: `${origin}/api/billing/webhook`,
     });

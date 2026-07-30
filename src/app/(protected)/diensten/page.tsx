@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { SubmitHoursMenu, type ActiveCollaborationOption } from "./submit-hours-menu";
 
-export const metadata: Metadata = { title: "Urenstaten · ZZP Platform" };
+export const metadata: Metadata = { title: "Urenstaten · Handslag" };
 
 const STATUS_MAP: Record<
   string,

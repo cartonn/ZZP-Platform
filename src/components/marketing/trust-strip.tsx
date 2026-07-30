@@ -44,7 +44,7 @@ export async function TrustStrip({ stats }: { stats: PublicTrustStats }) {
 
   return (
     <section
-      aria-label={t("Waarom ZZP Platform")}
+      aria-label={t("Waarom Handslag")}
       className="mt-4 space-y-3 rounded-lg border border-border bg-card/60 p-4"
     >
       <ul className="space-y-3">

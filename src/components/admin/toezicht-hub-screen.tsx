@@ -65,7 +65,7 @@ export function ToezichtHubScreen({
                 <h1 className="break-words font-display text-2xl font-semibold tracking-tight sm:text-3xl">
                   Platform-overzicht
                 </h1>
-                <Badge variant="accent">ZZP Platform</Badge>
+                <Badge variant="accent">Handslag</Badge>
                 {stats.disputes.open > 0 && (
                   <Badge variant="danger">
                     {plural(stats.disputes.open, "open dispuut", "open disputen")}

@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/ui/page-header";
 import { FacturatiePanel } from "@/components/admin/financien/facturatie-panel";
 
-export const metadata: Metadata = { title: "Facturatie · ZZP Platform" };
+export const metadata: Metadata = { title: "Facturatie · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 

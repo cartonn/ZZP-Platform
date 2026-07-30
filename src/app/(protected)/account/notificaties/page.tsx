@@ -4,7 +4,7 @@ import { loadEmailPreferences } from "@/lib/notification-preferences-data";
 import { PreferencesForm } from "./preferences-form";
 import { PushToggle } from "./push-toggle";
 
-export const metadata: Metadata = { title: "Notificaties · ZZP Platform" };
+export const metadata: Metadata = { title: "Notificaties · Handslag" };
 
 export default async function NotificatiesPage() {
   const actor = await requireActor();

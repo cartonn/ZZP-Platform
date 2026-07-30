@@ -22,7 +22,7 @@ export function buildResetEmail(opts: {
   const text = [
     `Hallo ${name},`,
     "",
-    "Je hebt een verzoek gedaan om je wachtwoord te herstellen voor ZZP Platform.",
+    "Je hebt een verzoek gedaan om je wachtwoord te herstellen voor Handslag.",
     "",
     "Klik op de onderstaande link om een nieuw wachtwoord in te stellen.",
     "De link is 1 uur geldig en eenmalig te gebruiken.",
@@ -31,11 +31,11 @@ export function buildResetEmail(opts: {
     "",
     "Heb jij dit niet aangevraagd? Dan kun je dit bericht negeren. Je wachtwoord blijft ongewijzigd.",
     "",
-    "ZZP Platform",
+    "Handslag",
   ].join("\n");
 
   const html = `<p>Hallo ${htmlEscape(name)},</p>
-<p>Je hebt een verzoek gedaan om je wachtwoord te herstellen voor ZZP Platform.</p>
+<p>Je hebt een verzoek gedaan om je wachtwoord te herstellen voor Handslag.</p>
 <p>
   <a href="${htmlEscape(resetUrl)}" style="display:inline-block;padding:10px 20px;background:#171717;color:#fff;text-decoration:none;border-radius:6px;font-size:14px;">
     Wachtwoord herstellen
@@ -43,7 +43,7 @@ export function buildResetEmail(opts: {
 </p>
 <p style="color:#6b7280;font-size:13px;">De link is 1 uur geldig en eenmalig te gebruiken.</p>
 <p style="color:#6b7280;font-size:13px;">Heb jij dit niet aangevraagd? Dan kun je dit bericht negeren. Je wachtwoord blijft ongewijzigd.</p>
-<p style="color:#6b7280;font-size:13px;">ZZP Platform</p>`;
+<p style="color:#6b7280;font-size:13px;">Handslag</p>`;
 
-  return { to: email, subject: "Wachtwoord herstellen · ZZP Platform", text, html };
+  return { to: email, subject: "Wachtwoord herstellen · Handslag", text, html };
 }

@@ -6,8 +6,8 @@ import { type MetadataRoute } from "next";
 // van de geïnstalleerde PWA in de merkkleur. Houd synchroon met globals.css en layout.tsx viewport.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "ZZP Platform",
-    short_name: "ZZP",
+    name: "Handslag",
+    short_name: "Handslag",
     description: "Opdrachten, geverifieerde certificaten en veilig documentbeheer voor ZZP'ers.",
     lang: "nl",
     dir: "ltr",

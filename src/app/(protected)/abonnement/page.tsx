@@ -12,7 +12,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import { changeSubscription } from "./actions";
 
-export const metadata: Metadata = { title: "Abonnement · ZZP Platform" };
+export const metadata: Metadata = { title: "Abonnement · Handslag" };
 
 const ORDER: Record<string, number> = { FREE: 0, PRO: 1, BUSINESS: 2 };
 

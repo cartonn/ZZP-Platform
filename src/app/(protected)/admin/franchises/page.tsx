@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/ui/page-header";
 import { BemiddelaarsPanel } from "@/components/admin/gebruikersbeheer/bemiddelaars-panel";
 
-export const metadata: Metadata = { title: "Bemiddelingen · ZZP Platform" };
+export const metadata: Metadata = { title: "Bemiddelingen · Handslag" };
 
 export default async function FranchisesPage() {
   await requireRole("ADMIN");

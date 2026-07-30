@@ -96,7 +96,7 @@ import { RelatedJobsSection } from "@/components/jobs/related-jobs-section";
 import { getTranslator } from "@/lib/i18n/server";
 import { SaveJobButton } from "@/components/jobs/save-job-button";
 
-export const metadata: Metadata = { title: "Opdracht · ZZP Platform" };
+export const metadata: Metadata = { title: "Opdracht · Handslag" };
 
 const WORK_MODE: Record<WorkMode, string> = {
   REMOTE: "Remote",

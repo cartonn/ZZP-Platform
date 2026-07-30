@@ -69,8 +69,8 @@ export async function GET(request: NextRequest) {
   const ics = buildIcsCalendar(
     [...collaborationScheduleEvents(mapped), ...administrativeDeadlineEvents(deadlines)],
     {
-      prodId: "-//ZZP Platform//Rooster//NL",
-      calendarName: "ZZP Platform — Rooster",
+      prodId: "-//Handslag//Rooster//NL",
+      calendarName: "Handslag — Rooster",
     },
   );
 

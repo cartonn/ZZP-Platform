@@ -35,7 +35,7 @@ import {
 import { credentialTypeDemand, demandLevel } from "@/lib/verification-impact";
 import { getOpenJobCredentialRequirements } from "@/lib/data/verification-impact";
 
-export const metadata: Metadata = { title: "Verificaties · ZZP Platform" };
+export const metadata: Metadata = { title: "Verificaties · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 

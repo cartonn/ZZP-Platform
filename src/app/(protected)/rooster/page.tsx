@@ -36,7 +36,7 @@ import { hasExportableSchedule } from "@/lib/calendar/exportable";
 import { agendaFeedPath } from "@/lib/calendar/feed-token";
 import { ClaimShift } from "./claim-shift";
 
-export const metadata: Metadata = { title: "Rooster · ZZP Platform" };
+export const metadata: Metadata = { title: "Rooster · Handslag" };
 
 const WORK_MODE_LABEL: Record<WorkMode, string> = {
   REMOTE: "Remote",

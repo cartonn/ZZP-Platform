@@ -11,7 +11,7 @@ import { SUPPORT_STATUS_LABEL, statusVariant } from "@/lib/support/labels";
 import { type SupportTicketStatus, type SupportAuthorKind } from "@/lib/enums";
 import { replyToTicket, markResolved } from "../actions";
 
-export const metadata: Metadata = { title: "Vraag · ZZP Platform" };
+export const metadata: Metadata = { title: "Vraag · Handslag" };
 
 const AUTHOR_LABEL: Record<SupportAuthorKind, string> = {
   USER: "Jij",

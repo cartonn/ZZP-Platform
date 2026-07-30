@@ -70,7 +70,7 @@ import { TriageList, type TriageItem } from "./triage-list";
 import { AcceptedSection } from "./accepted-section";
 import { partitionTriage } from "@/lib/kandidaten-triage";
 
-export const metadata: Metadata = { title: "Kandidaten · ZZP Platform" };
+export const metadata: Metadata = { title: "Kandidaten · Handslag" };
 
 const ACTION_LABEL: Record<ApplicationStatus, string> = {
   NEW: "Terug naar nieuw",

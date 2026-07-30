@@ -5,7 +5,7 @@ import { getAllPublicFreelancers } from "@/lib/freelancer-search";
 import { PageHeader } from "@/components/ui/page-header";
 import { FreelancerBrowse } from "./freelancer-browse";
 
-export const metadata: Metadata = { title: "ZZP'ers · ZZP Platform" };
+export const metadata: Metadata = { title: "ZZP'ers · Handslag" };
 
 export default async function FreelancersPage() {
   const actor = await requireActor();

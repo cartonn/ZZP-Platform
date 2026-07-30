@@ -5,7 +5,7 @@
 import { type MailMessage } from "@/lib/services/mail-sender";
 import { plural } from "@/lib/plural";
 
-const PLATFORM = process.env.PLATFORM_NAME ?? "ZZP Platform";
+const PLATFORM = process.env.PLATFORM_NAME ?? "Handslag";
 
 function esc(s: string): string {
   return s

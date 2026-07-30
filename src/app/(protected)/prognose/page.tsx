@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { PrognosePanel } from "@/components/administratie/prognose-panel";
 import { IncomeGoalCard } from "@/components/administratie/income-goal-card";
 
-export const metadata: Metadata = { title: "Inkomstenprognose · ZZP Platform" };
+export const metadata: Metadata = { title: "Inkomstenprognose · Handslag" };
 
 export default async function PrognosePage() {
   const actor = await requireActor();

@@ -22,7 +22,7 @@ import { ProfileForm } from "../profile-form";
 import { WorkExperienceEditor } from "@/components/profile/work-experience-editor";
 import { parseLanguages } from "@/lib/parse-languages";
 
-export const metadata: Metadata = { title: "Profiel bewerken · ZZP Platform" };
+export const metadata: Metadata = { title: "Profiel bewerken · Handslag" };
 
 export default async function ProfielPage() {
   const actor = await requireRole("FREELANCER");

@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/ui/page-header";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 
-export const metadata: Metadata = { title: "Documenten · ZZP Platform" };
+export const metadata: Metadata = { title: "Documenten · Handslag" };
 
 export default async function DocumentenPage({
   searchParams,

@@ -14,7 +14,7 @@ describe("buildWelcomeEmail", () => {
   });
 
   it("onderwerp noemt de platformnaam", () => {
-    expect(buildWelcomeEmail(base).subject).toContain("ZZP Platform");
+    expect(buildWelcomeEmail(base).subject).toContain("Handslag");
     expect(buildWelcomeEmail({ ...base, platformName: "Zorgburo Noord" }).subject).toContain(
       "Zorgburo Noord",
     );

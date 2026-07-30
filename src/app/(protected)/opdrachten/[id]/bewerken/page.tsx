@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
 import { getJobRateBands } from "@/lib/data/job-rate-bands";
 import { JobForm } from "../../job-form";
 
-export const metadata: Metadata = { title: "Opdracht bewerken · ZZP Platform" };
+export const metadata: Metadata = { title: "Opdracht bewerken · Handslag" };
 
 export default async function OpdrachtBewerkenPage({
   params,

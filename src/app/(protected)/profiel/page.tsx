@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProfileScreen } from "@/components/profile/profile-screen";
 
-export const metadata: Metadata = { title: "Mijn profiel · ZZP Platform" };
+export const metadata: Metadata = { title: "Mijn profiel · Handslag" };
 
 /**
  * "Mijn profiel" toont direct het publieke profiel — exact wat een opdrachtgever ziet

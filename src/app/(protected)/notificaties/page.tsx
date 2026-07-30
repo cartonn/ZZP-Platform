@@ -39,7 +39,7 @@ import { formatDateShortNl } from "@/lib/format-date";
 import { relativeTime } from "@/lib/relative-time";
 import { getTranslator, type Translator } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Notificaties · ZZP Platform" };
+export const metadata: Metadata = { title: "Notificaties · Handslag" };
 
 const CATEGORY_ICON: Record<NotificationCategory, typeof Bell> = {
   workflow: Workflow,

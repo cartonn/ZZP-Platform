@@ -11,7 +11,7 @@ test("pwa: manifest, theme-color en iconen zijn aanwezig", async ({ page, reques
   const manifestRes = await request.get("/manifest.webmanifest");
   expect(manifestRes.ok()).toBeTruthy();
   const manifest = await manifestRes.json();
-  expect(manifest.name).toBe("ZZP Platform");
+  expect(manifest.name).toBe("Handslag");
   expect(manifest.display).toBe("standalone");
   expect(manifest.start_url).toBe("/");
   expect(Array.isArray(manifest.icons) && manifest.icons.length).toBeGreaterThanOrEqual(2);

@@ -4,7 +4,7 @@
 
 import { type MailMessage } from "@/lib/services/mail-sender";
 
-const PLATFORM = process.env.PLATFORM_NAME ?? "ZZP Platform";
+const PLATFORM = process.env.PLATFORM_NAME ?? "Handslag";
 
 function fmtEuro(cents: number): string {
   const sign = cents < 0 ? "-" : "";

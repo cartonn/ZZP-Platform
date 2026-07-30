@@ -37,7 +37,7 @@ import { StatusControl } from "./status-control";
 import { CategoryControl } from "./category-control";
 import { IdeaComments } from "./idea-comments";
 
-export const metadata: Metadata = { title: "Ideeën · ZZP Platform" };
+export const metadata: Metadata = { title: "Ideeën · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";

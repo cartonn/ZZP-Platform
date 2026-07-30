@@ -16,7 +16,7 @@ import { type PlanKey, type TaxFilingStatus, type TaxFilingKind } from "@/lib/en
 import { StartFilingForm } from "./start-form";
 import { approveAndSubmit, revokeFiling } from "./actions";
 
-export const metadata: Metadata = { title: "Aangifte · ZZP Platform" };
+export const metadata: Metadata = { title: "Aangifte · Handslag" };
 
 const KIND_LABEL: Record<TaxFilingKind, string> = { IB: "Inkomstenbelasting", BTW: "BTW" };
 

@@ -39,7 +39,7 @@ import { Progress } from "@/components/ui/progress";
 import { changeCollaborationStatus, signContractFromList } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
 
-export const metadata: Metadata = { title: "Samenwerkingen · ZZP Platform" };
+export const metadata: Metadata = { title: "Samenwerkingen · Handslag" };
 
 const STATUS: Record<
   CollaborationStatus,

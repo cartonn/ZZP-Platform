@@ -12,7 +12,7 @@ import { SUPPORT_STATUS_LABEL, SUPPORT_CATEGORY_LABEL, statusVariant } from "@/l
 import { type SupportTicketStatus, type SupportCategory } from "@/lib/enums";
 import { formatDateShortNl } from "@/lib/format-date";
 
-export const metadata: Metadata = { title: "Support · ZZP Platform" };
+export const metadata: Metadata = { title: "Support · Handslag" };
 
 export default async function SupportPage() {
   const actor = await requireActor();

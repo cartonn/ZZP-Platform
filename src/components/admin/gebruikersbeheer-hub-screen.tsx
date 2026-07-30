@@ -63,7 +63,7 @@ export async function GebruikersbeheerHubScreen({
                 <h1 className="break-words font-display text-2xl font-semibold tracking-tight sm:text-3xl">
                   Gebruikers
                 </h1>
-                <Badge variant="accent">ZZP Platform</Badge>
+                <Badge variant="accent">Handslag</Badge>
               </div>
               <p className="mt-1 text-sm text-muted-foreground sm:text-base">{subtitle}</p>
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">

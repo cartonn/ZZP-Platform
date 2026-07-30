@@ -33,7 +33,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 
-export const metadata: Metadata = { title: "Uren goedkeuren · ZZP Platform" };
+export const metadata: Metadata = { title: "Uren goedkeuren · Handslag" };
 
 const STATUS_MAP: Record<
   string,
