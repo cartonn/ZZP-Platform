@@ -475,7 +475,7 @@ export async function ProfileScreen({
             {viewer?.id === profile.userId ? (
               <Link
                 href="/profiel/bewerken"
-                className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/70 px-3 py-1.5 text-sm text-muted-foreground hover:bg-white/10"
+                className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted/60"
               >
                 {t("Bewerk jouw profiel")}
               </Link>

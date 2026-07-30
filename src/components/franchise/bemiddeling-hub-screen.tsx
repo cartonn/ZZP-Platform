@@ -142,7 +142,7 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
             {/* Eigen bemiddeling: direct door naar het bewerken van de white-label branding. */}
             <Link
               href="/franchise/instellingen/bewerken"
-              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/70 px-3 py-1.5 text-sm text-muted-foreground hover:bg-white/10"
+              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted/60"
             >
               Bewerk bemiddeling
             </Link>
