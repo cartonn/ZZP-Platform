@@ -15,6 +15,7 @@ import { type CredentialAlert } from "@/lib/collaboration-alerts";
 import { type CollaborationRenewalPhase } from "@/lib/collaboration-renewal";
 import { type VatDeadlineSummary } from "@/lib/administration/vat-deadline";
 import { type StaleApplicationsSummary } from "@/lib/stale-applications";
+import { type FirstLookOverdueSummary } from "@/lib/client-first-look";
 import { INVITATION_AGING_DAYS, invitationAgeLabel } from "@/lib/received-invitations";
 import {
   acuteFillabilityHeadline,
@@ -90,6 +91,7 @@ export type PendingTask =
   | (TaskBase & { kind: "respond-invitation"; jobId: string })
   | (TaskBase & { kind: "applications-review" })
   | (TaskBase & { kind: "propose-collaboration"; applicationId: string })
+  | (TaskBase & { kind: "first-look-overdue" })
   | (TaskBase & { kind: "stale-applications" })
   | (TaskBase & { kind: "availability-refresh" })
   | (TaskBase & { kind: "draft-jobs" })
@@ -766,6 +768,28 @@ export function proposeCollaborationTask(
     resolver: "link",
     href: `/kandidaten?open=${applicationId}`,
     applicationId,
+  };
+}
+
+/**
+ * De opdrachtgever liet één of meer NEW-reacties al voorbij de ghosting-risicodrempel wachten op een
+ * EERSTE blik (nog nooit bekeken). Urgenter dan de leeftijdloze "nieuwe reacties"-telling
+ * (`applicationsReviewTask`, P.applications) én dan een reeds-bekeken kandidaat die op een beslissing
+ * wacht (`staleApplicationsTask`, P.staleApplications): een reactie die nooit werd geopend is de
+ * hardste responsiviteitsfaal. De enumerator trekt deze onbekeken-oude reacties af van de generieke
+ * "nieuwe reacties"-telling, zodat dezelfde kandidaat nooit in beide taken opduikt. Deep-link naar de
+ * kandidatenpagina waar de eerste blik valt.
+ */
+export function firstLookOverdueTask(summary: FirstLookOverdueSummary): PendingTask {
+  return {
+    kind: "first-look-overdue",
+    id: "first-look-overdue",
+    title: `${plural(summary.count, "kandidaat wacht", "kandidaten wachten")} op een eerste reactie`,
+    subtitle: `Al ${plural(summary.oldestDays, "dag", "dagen")} niet bekeken — reageer voor ze afhaken`,
+    tone: "attention",
+    priority: P.firstLookOverdue,
+    resolver: "link",
+    href: "/kandidaten",
   };
 }
 
