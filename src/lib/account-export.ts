@@ -102,6 +102,11 @@ export async function buildAccountExport(
         status: true,
         createdAt: true,
         deletionRequestedAt: true,
+        // AVG art. 15/20 — de door de bron (iDIN/eIDAS) bevestigde juridische naam + het
+        // verificatiemoment zijn eigen persoonsgegevens van de betrokkene (gebruikt voor
+        // vertrouwensscoring); ze horen dus in de eigen-data-inzage. Eerder ontbraken ze.
+        identityVerifiedAt: true,
+        verifiedLegalName: true,
       },
     }),
     db.freelancerProfile.findUnique({
