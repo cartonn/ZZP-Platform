@@ -89,6 +89,7 @@ export const P = {
   franchiserServiceAcute: 78, // open dienst dreigt onbezet (start deze week/verstreken/geen datum) — vullen kan niet wachten
   franchiserCredentialExpiring: 70, // roster-certificaat van een tenant-ZZP'er verloopt binnenkort
   franchiserServiceStale: 65, // gepubliceerde dienst staat lang open zonder plaatsing
+  franchiserServiceStaleRollup: 64, // rollup van de resterende lang-open diensten — strikt onder de per-dienst-taak zodat de specifieke, oudste diensten voorop blijven (niet meer afhankelijk van de push-volgorde bij een gelijke prioriteit)
   franchiserLeadFollowup: 50, // lead met verstreken geplande opvolgdatum
 } as const;
 

@@ -1,5 +1,45 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-30 (run 59) · **main-commit basis:** `4db36002`
+> **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (beide DOEL 1b — next-action-correctheid). Drie
+> parallelle Opus-audits: authz/IDOR/cross-tenant/document-privacy **schoon** (anti-oracle-404's,
+> `tenantScopeWhere`/`ownsViaTenant`, `canAccessDocument` owner/ADMIN-only, detail-IDOR → `notFound()`,
+> geen client-side gating; niets exploiteerbaars gevonden), next-action-correctheid → **2 gevonden**.
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 1b, valse verloop-nudge op een superseded certificaat):** de generieke
+> expiry-loop in `freelancerTasks` (`src/lib/actions/pending-tasks.ts` ~r358) emitteerde
+> `credentialFixTask(id, title, "expiring")` voor **elk** VERIFIED-cert dat binnen 30 dagen verloopt,
+> puur op credential-id — zonder per-type supersede-check. **Repro:** ZZP'er met twee VERIFIED-certs van
+> hetzelfde type (bv. LICENSE: oud verloopt over 10 dagen, nieuw over 400 — vroeg vernieuwd). Het oudere,
+> eerder-vervallende exemplaar kreeg een "Certificaat verloopt binnenkort"-taak op `/acties` én de
+> dashboard-"Volgende acties", terwijl de compliance per type al op het laatst-vervallende exemplaar leunt
+> (`collaborationCredentialExpiryConcerns`) → een valse nudge die nooit nuttig verdwijnt (het nieuwe cert
+> dekt het type al). **Geschonden regel:** CLAUDE.md regel 1 (server-side waarheid; client mag tonen, nooit
+> beslissen) + "geen dode knoppen" + de next-action-belofte. **Fix:** pure
+> `supersededVerifiedCredentialIds(creds, now)` (`src/lib/credentials.ts`) markeert een VERIFIED-cert als
+> superseded zodra er een ánder nu-geldig VERIFIED-cert van hetzelfde type bestaat dat later óf onbeperkt
+> geldig is; de loop onderdrukt die ids. De collab-gebonden expiry-tak leunde al op het laatst-vervallende
+> exemplaar per type — deze fix trekt de generieke tak gelijk (geen drift). +7 tests (4 pure-helper, 3
+> integratie via `freelancerTasks`: superseded → geen taak, solo → wél taak, onbeperkt-geldige vervanger).
+>
+> **GEVONDEN + GEFIXT — LOW (DOEL 1b, franchise-rollup-prioriteit hing van push-volgorde af):**
+> `franchiseStaleDienstTask` en `franchiseStaleDienstRollupTask` (`src/lib/actions/tasks.ts`) deelden
+> `P.franchiserServiceStale` (65), terwijl de doc-comment "lagere prioriteit dan de per-dienst-taak"
+> belooft; de volgorde klopte alleen bij toeval (stabiele sort + push-volgorde). **Fix:** nieuwe band
+> `P.franchiserServiceStaleRollup` (64, strikt onder de per-dienst-taak, boven `franchiserLeadFollowup` 50)
+> → "specifieke oudste diensten voorop" is nu robuust, niet insertie-afhankelijk. +1 prioriteit-assertie-test.
+>
+> **GEPARKEERD (geen fix deze run) — speculatief, niet-bevestigd bereikbaar:**
+>
+> - **`credentialExpiredForCollab`/franchiser-roster-aggregaat kan een superseded verlopend cert meetellen.**
+>   De franchiser-dashboard-query (`franchiserTasks`, ~r958) telt tenant-ZZP'ers met een VERIFIED-expiring
+>   cert zonder per-type supersede-check. Semantiek verschilt (roster-planning i.p.v. self-nudge) en het is
+>   een DB-query — losstaand van deze fix; LOW, defense-in-depth. Repro nog niet bevestigd (geen fixture met
+>   dubbel-type VERIFIED-certs per tenant-ZZP'er). Bij een volgende run: verifiëren + evt. dezelfde helper
+>   toepassen op de aggregatie.
+>
+> ---
+
 > **Datum:** 2026-07-29 (run 58) · **main-commit basis:** `222d4b90`
 > **Uitkomst:** **1 bevinding GEVONDEN + GEFIXT** (HIGH DOEL-1b: een dode "Contract ondertekenen"-
 > next-action op elke PROPOSED samenwerking waarvan de plaatsing door een certificaat-gat is

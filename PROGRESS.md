@@ -3,6 +3,40 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — persona-sweep: superseded-certificaat geen valse verloop-nudge + franchise-rollup-prioriteit
+
+**Wat (persona-sweep run 59, DOEL 1b — next-action-correctheid):** twee next-action-defecten gevonden
+via drie parallelle Opus-audits (authz/IDOR-oppervlak **schoon** — anti-oracle-404's, tenant-scoping,
+document-privacy geverifieerd) en gefixt:
+
+1. **Valse "certificaat verloopt binnenkort"-nudge op een superseded exemplaar (gefixt).** De generieke
+   expiry-loop in `freelancerTasks` (`src/lib/actions/pending-tasks.ts`) keyde puur op credential-id en
+   emitteerde `credentialFixTask(..., "expiring")` voor **elk** VERIFIED-cert dat binnen 30 dagen verloopt
+   — óók als de ZZP'er al een nieuwer, nu-geldig cert van hetzelfde type heeft (vroeg vernieuwd). De
+   compliance leunt per type op het laatst-vervallende exemplaar (zie `collaborationCredentialExpiryConcerns`),
+   dus het verval van het oudere exemplaar is irrelevant → de nudge is een valse melding die nooit nuttig
+   verdwijnt. **Repro:** ZZP'er met twee VERIFIED LICENSE-certs (oud verloopt over 10 dagen, nieuw over 400)
+   → oud cert kreeg een dode "vernieuwen"-taak op `/acties` en de dashboard-"Volgende acties". **Geschonden
+   regel:** CLAUDE.md regel 1 (server-side waarheid) + "geen dode knoppen" + next-action-belofte. **Fix:**
+   pure `supersededVerifiedCredentialIds(creds, now)` (`src/lib/credentials.ts`) — spiegelt de per-type
+   laatst-vervallende-logica; de generieke loop onderdrukt superseded certs. De collab-gebonden expiry-tak
+   deed dit al; deze trekt de generieke tak gelijk.
+
+2. **Franchise stale-dienst-rollup prioriteit hing van de push-volgorde af (gefixt).** `franchiseStaleDienstTask`
+   en `franchiseStaleDienstRollupTask` (`src/lib/actions/tasks.ts`) deelden `P.franchiserServiceStale` (65),
+   terwijl de doc-comment "lagere prioriteit dan de per-dienst-taak" belooft — de volgorde klopte alleen bij
+   toeval via de stabiele sort + push-volgorde. Nieuwe band `P.franchiserServiceStaleRollup` (64, strikt onder
+   de per-dienst-taak, boven `franchiserLeadFollowup` 50) maakt de "specifieke oudste diensten voorop"-garantie
+   robuust.
+
+**Rood→groen:** +8 tests (`credentials.test.ts` +4 pure-helper; `pending-tasks-superseded-expiring-credential.test.ts`
++3 integratie via `freelancerTasks`; `tasks.test.ts` +1 prioriteit-assertie).
+**Bestanden:** `src/lib/credentials.ts` (+ test), `src/lib/actions/pending-tasks.ts`, `src/lib/actions/tasks.ts`
+(+ test), `src/lib/next-actions.ts`, nieuw testbestand, `PROGRESS.md`, `docs/PERSONA-SWEEP-BACKLOG.md`.
+**Gate:** typecheck, lint, test (5391 groen), build, prettier groen.
+
+---
+
 ## 2026-07-30 — ZZP'er: kosten-per-categorie-overzicht op /uitgaven
 
 **Wat:** het uitgaven-paneel toonde de ZZP'er kosten dit jaar, aftrekbare btw en aantal posten,

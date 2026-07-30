@@ -10,6 +10,7 @@ import {
   isExpired,
   isExpiringSoon,
   statusForDecision,
+  supersededVerifiedCredentialIds,
   TransitionError,
 } from "@/lib/credentials";
 
@@ -132,6 +133,60 @@ describe("activeVerifiedCount", () => {
   it("is 0 zonder geldige geverifieerde certificaten", () => {
     expect(activeVerifiedCount([], nu)).toBe(0);
     expect(activeVerifiedCount([{ status: "SUBMITTED" }, { status: "EXPIRED" }], nu)).toBe(0);
+  });
+});
+
+describe("supersededVerifiedCredentialIds", () => {
+  const now = new Date("2026-07-30T00:00:00Z");
+  const soon = new Date("2026-08-09T00:00:00Z"); // +10 dagen
+  const later = new Date("2027-09-01T00:00:00Z"); // ruim later
+  const past = new Date("2026-07-01T00:00:00Z"); // al verlopen
+
+  it("markeert het ouder-vervallende exemplaar als superseded bij twee geldige VERIFIED-certs van hetzelfde type", () => {
+    const set = supersededVerifiedCredentialIds(
+      [
+        { id: "oud", type: "LICENSE", status: "VERIFIED", expiresAt: soon },
+        { id: "nieuw", type: "LICENSE", status: "VERIFIED", expiresAt: later },
+      ],
+      now,
+    );
+    expect(set.has("oud")).toBe(true); // de nieuwe dekt de compliance → verval van 'oud' irrelevant
+    expect(set.has("nieuw")).toBe(false); // het laatst-vervallende draagt de nudge
+  });
+
+  it("laat een onbeperkt-geldig (geen vervaldatum) exemplaar een ouder verlopend exemplaar superseden", () => {
+    const set = supersededVerifiedCredentialIds(
+      [
+        { id: "oud", type: "BIG", status: "VERIFIED", expiresAt: soon },
+        { id: "eeuwig", type: "BIG", status: "VERIFIED", expiresAt: null },
+      ],
+      now,
+    );
+    expect(set.has("oud")).toBe(true);
+    expect(set.has("eeuwig")).toBe(false);
+  });
+
+  it("supersedet niet met een al-verlopen of niet-VERIFIED exemplaar (dat dekt de compliance niet)", () => {
+    const set = supersededVerifiedCredentialIds(
+      [
+        { id: "geldig", type: "LICENSE", status: "VERIFIED", expiresAt: soon },
+        { id: "verlopen", type: "LICENSE", status: "VERIFIED", expiresAt: past },
+        { id: "concept", type: "LICENSE", status: "DRAFT", expiresAt: later },
+      ],
+      now,
+    );
+    expect(set.size).toBe(0); // niets dekt 'geldig' → het blijft het dragende exemplaar
+  });
+
+  it("houdt certificaten van verschillende typen los van elkaar", () => {
+    const set = supersededVerifiedCredentialIds(
+      [
+        { id: "lic", type: "LICENSE", status: "VERIFIED", expiresAt: soon },
+        { id: "big", type: "BIG", status: "VERIFIED", expiresAt: later },
+      ],
+      now,
+    );
+    expect(set.size).toBe(0); // verschillende typen → geen onderlinge dekking
   });
 });
 
