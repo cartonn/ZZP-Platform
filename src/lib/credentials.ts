@@ -195,6 +195,55 @@ export function supersededVerifiedCredentialIds(
   return superseded;
 }
 
+export interface RosterCredentialInput extends SupersedeInput {
+  freelancerProfileId: string;
+  freelancerName: string;
+}
+
+export interface RosterExpiryEntry {
+  profileId: string;
+  name: string;
+  count: number;
+}
+
+/**
+ * Aggregeer per tenant-ZZP'er hoeveel VERIFIED-certificaten binnenkort verlopen — in het venster
+ * `(now, soon]` — met uitsluiting van superseded exemplaren. Een ouder cert waarvan een nieuwer,
+ * nu-geldig cert van hetzelfde type de compliance al draagt, hoeft de bemiddelaar niet als
+ * "verloopt binnenkort" te zien: dat is een valse nudge die nooit nuttig verdwijnt (het type is al
+ * gedekt). Spiegelt de ZZP-zijdige logica in `freelancerTasks`, zodat beide surfaces niet
+ * tegenspreken. De superseded-check gebeurt binnen het eigen dossier van elke ZZP'er. Alleen
+ * ZZP'ers met minstens één relevant (bijna-)verlopend cert komen terug. Puur/deterministisch;
+ * de volgorde volgt de eerste-verschijning per profiel in `credentials`.
+ */
+export function rosterExpiringByProfile(
+  credentials: readonly RosterCredentialInput[],
+  now: Date,
+  soon: Date,
+): RosterExpiryEntry[] {
+  const nowMs = now.getTime();
+  const soonMs = soon.getTime();
+  const byProfile = new Map<string, { name: string; creds: RosterCredentialInput[] }>();
+  for (const c of credentials) {
+    const entry = byProfile.get(c.freelancerProfileId);
+    if (entry) entry.creds.push(c);
+    else byProfile.set(c.freelancerProfileId, { name: c.freelancerName, creds: [c] });
+  }
+
+  const result: RosterExpiryEntry[] = [];
+  for (const [profileId, { name, creds }] of byProfile) {
+    const supersededIds = supersededVerifiedCredentialIds(creds, now);
+    let count = 0;
+    for (const c of creds) {
+      if (c.status !== "VERIFIED" || c.expiresAt == null) continue;
+      const exp = c.expiresAt.getTime();
+      if (exp > nowMs && exp <= soonMs && !supersededIds.has(c.id)) count += 1;
+    }
+    if (count > 0) result.push({ profileId, name, count });
+  }
+  return result;
+}
+
 /**
  * Geeft de nieuwe status als een credential door expiry moet wijzigen, anders `null`.
  * Gebruikt door de expiry-job (Sessie 5) om VERIFIED -> EXPIRED te markeren.

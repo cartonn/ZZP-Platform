@@ -38,10 +38,14 @@
 > _(Beide items waren door de financiële-integriteit-audit van run 59 als bevestigd-onbereikbaar
 > geparkeerd — deze run geborgd zodat de laatste twee theoretische 500-randen op de geld-kern dicht zijn.)_
 >
-> **GEPARKEERD (ongewijzigd, niet-bevestigd bereikbaar):** de run-59-noot
-> (`franchiserTasks` roster-expiry-aggregaat telt mogelijk een superseded verlopend cert mee, ~r958) —
-> next-action-correctheid (DOEL 1b), geen authz/lek; nog geen fixture met dubbel-type VERIFIED-certs per
-> tenant-ZZP'er om bereikbaarheid te bevestigen. Ook: een franchiser-undercount-rand als één tenant >50
+> **GEFIXT (2026-07-30d, PR #999):** de run-59-noot
+> (`franchiserTasks` roster-expiry-aggregaat telde een superseded verlopend cert mee, ~r958) — bevestigd
+> bereikbaar met een fixture (tenant-ZZP'er met twee VERIFIED-certs van hetzelfde type: oud verloopt
+> binnenkort, nieuw dekt het type ruim). Nu onderdrukt via de pure `rosterExpiringByProfile`
+> (`src/lib/credentials.ts`), die de bestaande `supersededVerifiedCredentialIds` per ZZP'er toepast —
+> gelijk getrokken met de ZZP-zijde (`freelancerTasks`, run 59). +9 tests (6 pure-helper + 3 integratie).
+>
+> **GEPARKEERD (ongewijzigd, niet-bevestigd bereikbaar):** een franchiser-undercount-rand als één tenant >50
 > gepubliceerde open diensten heeft (`acuteDienstIds` afgeleid van de `take:50`-slice) — undercount, geen
 > dubbeltelling; geen fixture bevestigd.
 >

@@ -13,7 +13,11 @@ import { computeEngageability } from "@/lib/engageability";
 import { formatMissing } from "@/lib/next-actions";
 import { startOfUtcDay } from "@/lib/signals";
 import { type FreelancerCredential } from "@/lib/matching";
-import { CREDENTIAL_TYPE_LABEL, supersededVerifiedCredentialIds } from "@/lib/credentials";
+import {
+  CREDENTIAL_TYPE_LABEL,
+  rosterExpiringByProfile,
+  supersededVerifiedCredentialIds,
+} from "@/lib/credentials";
 import { type CredentialType } from "@/lib/enums";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { overdueInvoiceBreakdown, overdueInvoiceCount, paymentDueSoonCount } from "@/lib/signals";
@@ -942,7 +946,7 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
   const staleThreshold = new Date(now.getTime() - STALE_DIENST_DAYS * 86_400_000);
 
   const [
-    expiringCreds,
+    verifiedRosterCreds,
     dueLeads,
     openDiensten,
     roster,
@@ -953,19 +957,25 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     companiesWithoutDiensten,
     openHandoffs,
   ] = await Promise.all([
-    // Geverifieerde, nog-geldige certificaten van tenant-ZZP'ers die binnenkort verlopen — zelfde
-    // venster als de roster-compliance-zegel op het bemiddelaar-dashboard (gte now, lte soon).
+    // Álle geverifieerde certificaten van tenant-ZZP'ers (niet enkel de bijna-vervallende), zodat we
+    // per ZZP'er de superseded exemplaren kunnen bepalen: een ouder cert waarvan een nieuwer,
+    // nu-geldig cert van hetzelfde type de compliance al draagt, mag geen "verloopt binnenkort"-taak
+    // geven (valse nudge — spiegelt de ZZP-zijde in `freelancerTasks`). Nulls-first + expiresAt asc
+    // houdt zowel de dekkende (onbeperkt/langst-geldige) als de eerst-vervallende exemplaren binnen
+    // de MAX-slice. `rosterExpiringByProfile` filtert vervolgens op het (now, soon]-venster.
     prisma.credential.findMany({
       where: {
         freelancerProfile: { tenantId },
         status: "VERIFIED",
-        expiresAt: { gte: now, lte: soon },
       },
       select: {
+        id: true,
+        type: true,
+        expiresAt: true,
         freelancerProfileId: true,
         freelancerProfile: { select: { user: { select: { name: true } } } },
       },
-      orderBy: { expiresAt: "asc" },
+      orderBy: { expiresAt: { sort: "asc", nulls: "first" } },
       take: MAX,
     }),
     // Leads met een verstreken geplande opvolgdatum (alleen lopende acquisitie: KOUD/WARM).
@@ -1062,17 +1072,22 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
   );
 
   // Aggregeer per ZZP'er: één taak per professional met het aantal (bijna-)verlopende certificaten.
-  const expiringByProfile = new Map<string, { name: string; count: number }>();
-  for (const c of expiringCreds) {
-    const entry = expiringByProfile.get(c.freelancerProfileId) ?? {
-      name: c.freelancerProfile.user.name ?? "ZZP'er",
-      count: 0,
-    };
-    entry.count += 1;
-    expiringByProfile.set(c.freelancerProfileId, entry);
-  }
-  for (const [profileId, e] of expiringByProfile)
-    tasks.push(franchiseCredentialExpiryTask(profileId, e.name, e.count));
+  // Superseded exemplaren (een nieuwer, nu-geldig cert van hetzelfde type dekt de compliance al)
+  // tellen niet mee — anders een valse verloop-nudge die nooit nuttig verdwijnt.
+  const rosterExpiry = rosterExpiringByProfile(
+    verifiedRosterCreds.map((c) => ({
+      id: c.id,
+      type: c.type,
+      status: "VERIFIED" as const,
+      expiresAt: c.expiresAt,
+      freelancerProfileId: c.freelancerProfileId,
+      freelancerName: c.freelancerProfile.user.name ?? "ZZP'er",
+    })),
+    now,
+    soon,
+  );
+  for (const e of rosterExpiry)
+    tasks.push(franchiseCredentialExpiryTask(e.profileId, e.name, e.count));
 
   if (dueLeads > 0) tasks.push(franchiseLeadFollowupTask(dueLeads));
 
