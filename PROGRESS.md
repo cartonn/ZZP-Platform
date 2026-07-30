@@ -3,6 +3,20 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — Definitief ontwerp: grootboek-signatuur + werklijst-restwerk (uitrol stap 5 van 10)
+
+**Wat:** stap 5 van het uitrolplan: het geld-cluster krijgt het motief _het grootboek_ —
+`/facturen` "facturen", `/administratie` "boekhouding", `/ontzorgd` "ontzorgd",
+`/ontzorgd/uren` "urencriterium", `/ontzorgd/aangifte` "aangifte", `/abonnement` "abonnement" —
+en het restwerk van het werklijst-cluster uit stap 2: `/openstaand`, `/verplichtingen` en
+`/notificaties` krijgen "De werklijst · …" (+10 EN-entries; `/financien` is een redirect, geen kop).
+
+- **Meegenomen:** de losse koppen op `/ontzorgd`, `/ontzorgd/uren` en `/openstaand` hadden nog
+  geen display-typografie — h1 nu `font-display text-2xl`, consistent met de canonieke PageHeader.
+- **Gate:** typecheck, lint, test, build, prettier groen; visueel geverifieerd.
+- **Volgende stap (uitrol 6/10):** inzicht-cluster — observatorium-signatuur op
+  `/inzicht`, `/prestaties`, `/prognose`.
+
 ## 2026-07-30 — Definitief ontwerp: etalage- + dossier-signatuur (uitrol stap 4 van 10)
 
 **Wat:** stap 4 van het uitrolplan: het marktplaats-cluster krijgt het motief _de etalage_ en

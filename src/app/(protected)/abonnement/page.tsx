@@ -31,6 +31,7 @@ export default async function AbonnementPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="Het grootboek · abonnement"
         title="Abonnement"
         description={
           role === "CLIENT"

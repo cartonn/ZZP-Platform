@@ -14,9 +14,12 @@ export default async function OntzorgdPage() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
+          Het grootboek · ontzorgd
+        </p>
         <div className="flex items-center gap-2">
           <Sparkles className="size-5 text-primary" aria-hidden />
-          <h1 className="text-xl font-semibold tracking-tight">Ontzorgd</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">Ontzorgd</h1>
         </div>
         <p className="text-sm text-muted-foreground">
           Jouw administratie en belasting in één beeld. Wij rekenen voor, jij hoeft alleen te

@@ -215,6 +215,7 @@ export default async function NotificatiesPage({
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="De werklijst · meldingen"
         title="Notificaties"
         description="Updates over je certificaten, reacties en berichten."
         action={

@@ -74,9 +74,12 @@ export default async function IndirectUrenPage() {
 
       {/* Kop */}
       <header className="space-y-1">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
+          Het grootboek · urencriterium
+        </p>
         <div className="flex items-center gap-2">
           <Clock className="size-5 text-primary" aria-hidden />
-          <h1 className="text-xl font-semibold tracking-tight">Indirecte uren</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">Indirecte uren</h1>
         </div>
         <p className="text-sm text-muted-foreground">
           Uren besteed aan acquisitie, administratie, scholing en reistijd tellen mee voor het
