@@ -120,6 +120,19 @@ describe("buildAccountExport", () => {
     expect((sm?.args.where as Record<string, unknown>).authorId).toBe(ACTOR);
   });
 
+  it("neemt de eigen, door de bron bevestigde identiteit mee (AVG art. 15/20)", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const userCall = calls.find((c) => c.table === "user");
+    expect(userCall).toBeDefined();
+    const select = userCall?.args.select as Record<string, unknown>;
+    // De iDIN/eIDAS-bevestigde juridische naam en het verificatiemoment zijn eigen
+    // persoonsgegevens; ze moeten in de eigen-data-inzage zitten (ontbraken eerder).
+    expect(select.verifiedLegalName).toBe(true);
+    expect(select.identityVerifiedAt).toBe(true);
+  });
+
   it("lekt de identiteit van de beoordeelde tegenpartij niet (geen subjectId in de select)", async () => {
     const { db, calls } = fakeDb();
     await buildAccountExport(db, ACTOR);

@@ -13,6 +13,27 @@ wrappers zonder eigen kop (gedeelde componenten) — buiten scope van dit increm
 - **Gate:** typecheck, lint, test, build, prettier groen.
 - **Volgende stap (uitrol 10/10):** de controlekamer (admin-cluster) + academie/support-restwerk.
 
+## 2026-07-30 — Security-/privacy-auditronde (basis `main` @ a5a038d2)
+
+**Wat:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende
+oppervlakken (API-route-handlers/IDOR/cron-auth/SSRF; cross-tenant + CSV-injectie; AVG art. 17/15/20 +
+PII-in-logs), gericht op de delta sinds de vorige ronde (`08708e99..a5a038d2`, #972–#985, grotendeels
+ontwerp + de nieuwe routing-provider/beschikbaarheidstoggle).
+
+- **Gefixt (MIDDEL, AVG art. 15/20):** de data-export (`buildAccountExport`) nam de eigen, door iDIN/eIDAS
+  bevestigde juridische identiteit (`verifiedLegalName`/`identityVerifiedAt`) niet mee. Nu toegevoegd aan
+  de `user`-select + rood→groen-test in `account-export.test.ts` (geverifieerd via `git stash`).
+- **Geparkeerd (HOOG, AVG art. 17):** vrije tekst van derden óver de betrokkene (`Review.comment` subject-
+  kant, `NoShowReport.reason`, `ShiftHandoff.decisionNote`/`reason`) overleeft `anonymizeUser` — een
+  juridische bewaartermijn-afweging, voorbehouden aan een mens/FG (MENSENWERK §5). Herbevestigd, ongewijzigd.
+- **Schoon geverifieerd:** nieuwe `setAvailabilityStatus`-mutatie (volledige keten), routing-fetch (geen
+  SSRF, host vastgezet, sleutel lekt nooit, default UIT), alle ID-routes (fetch-dan-check, 404-oracle-vrij),
+  cron-auth (fail-closed + timingSafeEqual), cross-tenant-isolatie, CSV-formule-guard, PII-redactie in logs.
+  `npm audit --omit=dev` = 0 productie-kwetsbaarheden.
+- **Bestanden:** `src/lib/account-export.ts`, `src/lib/account-export.test.ts`,
+  `docs/SECURITY-PRIVACY-BACKLOG.md`, `PROGRESS.md`.
+- **Gate:** typecheck, lint, test (unit), build, prettier groen.
+
 ## 2026-07-30 — Definitief ontwerp: paspoort- en voordeur-signatuur (uitrol stap 8 van 10)
 
 **Wat:** stap 8 van het uitrolplan: het identiteit-cluster krijgt het motief _het paspoort_ —

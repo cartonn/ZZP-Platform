@@ -4,6 +4,82 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-30 (basis: `main` @ a5a038d2)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.
+Delta sinds de vorige ronde (`08708e99..a5a038d2`, #972–#985) was grotendeels design/ontwerp-signatuur
+(concepts 521–530, token-uitrol 1–10) plus enkele functionele wijzigingen: nieuwe routing-provider
+(Geoapify) server-side fetch + connectiviteitszelftest (`routing.ts`, `routing-selftest.ts`), snelle
+beschikbaarheidsstatus-toggle (nieuwe ZZP-mutatie `setAvailabilityStatus`), `rateCents`-bovengrens in
+`assertPerformanceWithinLimits`, en de routing-zelftest-rate-limiter. Oppervlakken gedekt:
+(1) alle `src/app/api/**/route.ts`-handlers (IDOR/BOLA, path-traversal, cron-auth, publieke sessieloze
+routes, SSRF, foutlek); (2) cross-tenant/franchiser-isolatie + CSV-/formule-injectie over alle
+export-paden; (3) AVG betrokkenen-rechten (art. 17 anonimisering-volledigheid, art. 15/20 export-
+volledigheid, PII/secrets in logs). OWASP Top 10 (A01 broken access control, A03 injection, A08 integrity,
+A10 SSRF) + AVG art. 5/15/17/20/32 als leidraad.
+
+**1 bevinding gevonden + gefixt (MIDDEL, AVG art. 15/20); 1 bekende HOOG (art. 17) blijft geparkeerd
+voor een menselijke/FG-beslissing; overige oppervlakken schoon.**
+
+Nieuwe/gewijzigde mutatie- en fetch-oppervlakken geverifieerd schoon:
+
+- **`setAvailabilityStatus` (nieuwe ZZP-mutatie)** — volgt de volledige keten auth → `requireRole("FREELANCER")`
+  → Zod (`availabilityStatusSchema`, weigert UNKNOWN/onbekend) → **compound-guarded** owner-scoped write
+  (`updateMany where {id, userId}`) → `audit(AVAILABILITY_STATUS_CHANGED)`. Geen IDOR/TOCTOU/mass-assignment.
+- **Routing-provider (Geoapify) server-side fetch** — géén SSRF: de host is hard vastgezet (`new URL(...)`
+  - `searchParams.set`, correct ge-escaped), geen user-gestuurde host/URL. Default UIT (`offline`). Enige
+    naar de provider verzonden PII is `profile.location`/`job.location` (plaatsnaam, geen volledig adres) —
+    geminimaliseerd. De API-sleutel lekt nooit: `RoutingConnectivityError` draagt bewust een veilig bericht
+    (provider + reden/HTTP-status, nooit de URL met de sleutel); `routingDiagnostics` geeft alleen een
+    boolean `keyConfigured`. Zelftest is READ-ONLY (geen cache-write, geen route-berekening).
+- **API-route-handlers** — alle ID-geparametriseerde routes (`documents/[id]`, `samenwerkingen/[id]/*`,
+  `facturen|prestaties|admin/facturatie/[id]/pdf`) fetchen-dan-checken ownership/rol, geven 404 i.p.v. 403
+  (geen bestaans-oracle, CWE-203) en auditen zowel geweigerde als geslaagde toegang. `media/[...key]`:
+  dubbele laag (DB-lookup op `logoKey` + `baseDir`-containment) tegen path-traversal. Alle `tasks/*` +
+  `backups/heartbeat` fail-closed zonder `CRON_SECRET`, `timingSafeEqual` op een Bearer-header (geen
+  query-param). `push/subscribe` heeft een anti-SSRF host-allowlist.
+- **Cross-tenant/franchiser** — elke FRANCHISER-bereikbare query gaat via `ownsViaTenant`/`tenantScopeWhere`/
+  `assertSameTenant` vóór mutatie/teruggave; zelfs secundaire lek-vectoren (job-titel via double-booking-hint)
+  zijn onderdrukt. Geen cross-tenant-lek gevonden.
+- **CSV-/formule-injectie** — elk export-pad routeert user-tekst door `escapeCsvField`/`toCsv` (CWE-1236,
+  prefixt `=+@-\t\r`); geen hand-rolled `join(",")` op ongeëscapete cellen. `npm audit --omit=dev` = **0
+  productie-kwetsbaarheden**. Next.js 15.5.21 (boven CVE-2025-29927 middleware-bypass).
+- **PII/secrets in logs** — `logger.ts` redact recursief PII-keys + maskeert e-mailadressen; call-sites schoon.
+
+### OPGELOST — MIDDEL (AVG art. 15/20 onvolledige inzage): eigen bevestigde identiteit ontbrak in de data-export
+
+- **Repro (was):** `buildAccountExport()` (`src/lib/account-export.ts`) selecteerde op `User` alleen
+  `{id, email, name, role, status, createdAt, deletionRequestedAt}` en liet `User.verifiedLegalName` (de door
+  iDIN/eIDAS **bevestigde juridische naam** van de betrokkene) én `User.identityVerifiedAt` (het
+  verificatiemoment) weg. Dat zijn onmiskenbaar eigen persoonsgegevens van de betrokkene — ze worden actief
+  verzameld en gebruikt voor vertrouwensscoring (`signals.ts`, `suggestions.ts`, `admin-user-detail.ts`) —
+  en horen dus in de art.15/20-inzage/portabiliteits-export. Ze ontbraken, dus een gebruiker die zijn eigen
+  data opvroeg kreeg zijn bevestigde juridische identiteit niet mee.
+- **Geschonden regel:** AVG art. 15 (recht op inzage) / art. 20 (dataportabiliteit); CLAUDE.md privacy-lat
+  (betrokkenen-rechten volledig). Geen access-control-gat (OWASP niet direct).
+- **Fix (deze PR):** `identityVerifiedAt: true, verifiedLegalName: true` toegevoegd aan de `user`-select in
+  `buildAccountExport` (+ comment die het als art.15/20-eigen-PII motiveert). Nieuwe test in
+  `account-export.test.ts`: asserteert dat de `user`-select beide velden bevat (rood→groen — zonder de fix
+  is `select.verifiedLegalName === undefined` en faalt `toBe(true)`; geverifieerd via `git stash`). Anonimisering
+  (art. 17) van deze velden was al gedekt: `verifiedLegalName`/`identityVerifiedAt` worden in `anonymizeUser`
+  gewist (naam-overschrijving + identiteitsreset).
+
+### GEPARKEERD — HOOG (AVG art. 17): vrije tekst van derden ÓVER de betrokkene overleeft `anonymizeUser` (herbevestigd, ongewijzigd)
+
+- **Repro:** `anonymizeUser` (`src/app/(protected)/admin/gebruikers/actions.ts`) wist grondig alle vrije tekst
+  die de betrokkene zélf schreef (~20 redactie-ops), maar raakt bewust niet de vrije tekst die een **tegenpartij
+  óver** de betrokkene schreef: `Review.comment` waar `subjectId === userId` (ontvangen beoordelingen; alleen
+  `authorId === userId` wordt genulld), `NoShowReport.reason` (reden van de melder over de gemelde ZZP'er), en
+  `ShiftHandoff.decisionNote`/`reason` van de tegenpartij. Zo'n comment kan de echte naam + gedrags-/gezondheids-
+  adjacente detail bevatten en blijft na een verwijderverzoek onbeperkt zichtbaar voor een ADMIN.
+- **Geschonden regel:** AVG art. 17 (recht op vergetelheid). **Waarom geparkeerd i.p.v. gefixt:** de keuze
+  tussen (a) ook de "over-mij"-kant redacteren en (b) bewaren als rechtmatig bewijs bij een lopend arbeids-/
+  betaalgeschil is een **juridische grondslag-afweging** — precies het type beslissing dat het AUTO-MODE-
+  contract en MENSENWERK.md §5 aan een mens/FG voorbehouden. Een agent mag deze bewaartermijn niet eenzijdig
+  vaststellen. **Aanbevolen:** menselijke/FG-beslissing vastleggen (tijd-/geschil-gescopete uitzondering
+  i.p.v. onvoorwaardelijke bewaring) vóór echte VOG-/diploma-houders live gaan. Blijft bovenaan de backlog
+  tot die beslissing er is.
+
 ## Ronde 2026-07-29 (basis: `main` @ 08708e99)
 
 Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-audits, gericht op de delta sinds de
