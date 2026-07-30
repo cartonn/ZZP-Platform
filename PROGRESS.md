@@ -3,6 +3,16 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — Definitief ontwerp: cockpit-signatuur op het franchise-cluster (uitrol stap 9 van 10)
+
+**Wat:** stap 9 van het uitrolplan: de bemiddelaarscockpit — `/franchise/diensten`,
+`/facturatie`, `/leads`, `/opdrachtgevers`, `/samenwerkingen` en `/zzpers` krijgen
+"De cockpit · …" (+6 EN-entries). `/franchise/instellingen` en `/shift-overnames` zijn dunne
+wrappers zonder eigen kop (gedeelde componenten) — buiten scope van dit increment.
+
+- **Gate:** typecheck, lint, test, build, prettier groen.
+- **Volgende stap (uitrol 10/10):** de controlekamer (admin-cluster) + academie/support-restwerk.
+
 ## 2026-07-30 — Definitief ontwerp: paspoort- en voordeur-signatuur (uitrol stap 8 van 10)
 
 **Wat:** stap 8 van het uitrolplan: het identiteit-cluster krijgt het motief _het paspoort_ —

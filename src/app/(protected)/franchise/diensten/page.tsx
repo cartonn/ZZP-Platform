@@ -104,6 +104,7 @@ export default async function FranchiseDienstenPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="De cockpit · diensten"
         title="Diensten"
         description="Een overzicht van alle diensten die je hebt uitgezet. Nieuwe diensten zet je uit bij een opdrachtgever."
         action={
