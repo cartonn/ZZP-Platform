@@ -5,10 +5,50 @@ import { AuthorizationError, requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { availabilityWindowSchema } from "@/lib/validation";
+import { availabilityStatusSchema } from "@/lib/availability-status";
 
 export type AvailabilityState =
   | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
   | undefined;
+
+export type AvailabilityStatusResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Snelle statuswijziging: zet de persistente `availability`-status op het ZZP-profiel in één klik
+ * (Beschikbaar / Beperkt / Niet beschikbaar), zonder het volledige profielformulier. Volgt de
+ * volledige mutatieketen: auth → rol → ownership → Zod → eigenaar-scoped write → audit.
+ */
+export async function setAvailabilityStatus(status: string): Promise<AvailabilityStatusResult> {
+  let actor;
+  try {
+    actor = await requireRole("FREELANCER");
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { ok: false, error: e.message };
+    throw e;
+  }
+
+  const parsed = availabilityStatusSchema.safeParse(status);
+  if (!parsed.success) return { ok: false, error: "Ongeldige status." };
+
+  // Eigenaar-scoped write in één statement (op userId): geen los ownership-lees dat kan driften.
+  const { count } = await prisma.freelancerProfile.updateMany({
+    where: { userId: actor.id },
+    data: { availability: parsed.data },
+  });
+  if (count === 0) return { ok: false, error: "Maak eerst je profiel aan." };
+
+  await audit({
+    actorId: actor.id,
+    action: "AVAILABILITY_STATUS_CHANGED",
+    entityType: "FreelancerProfile",
+    entityId: actor.id,
+    metadata: { status: parsed.data },
+  });
+  revalidatePath("/beschikbaarheid");
+  revalidatePath("/dashboard");
+  revalidatePath("/profiel");
+  return { ok: true };
+}
 
 async function requireProfile(actorId: string) {
   const profile = await prisma.freelancerProfile.findUnique({

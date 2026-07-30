@@ -18,6 +18,29 @@ een eigen smaak: `/opdrachten` "voor jou" (ZZP) / "jouw aanbod" (opdrachtgever),
 - **Volgende stap (uitrol 5/10):** geld-cluster — grootboek-signatuur op
   `/facturen`, `/financien`, `/administratie`, `/ontzorgd`, `/abonnement`.
 
+## 2026-07-30 — ZZP'er: snelle beschikbaarheidsstatus-toggle op /beschikbaarheid
+
+**Wat:** de persistente `availability`-status van de ZZP'er (Beschikbaar / Beperkt beschikbaar /
+Niet beschikbaar) was tot nu toe alléén te wijzigen via het volledige profielformulier — hoge
+frictie voor iets wat je vaak wilt aanpassen. Nu een **één-klik statustoggle** bovaan
+`/beschikbaarheid` (benchmark Temper/Uber "aan/uit voor werk"): drie knoppen, optimistische
+update met terugrol bij een fout, glanceable. Los van de bestaande beschikbaarheids-periodes
+(`AvailabilityWindow`) — dit is de proactieve "sta ik open voor werk"-status die matching en het
+publieke profiel voeden.
+
+- **Pure kern** `src/lib/availability-status.ts` (+ 6 tests): `SELECTABLE_AVAILABILITIES`
+  (drie statussen, géén UNKNOWN als keuze), `availabilityStatusSchema` (Zod, weigert
+  UNKNOWN/onzin), `AVAILABILITY_STATUS_OPTIONS` (label/hint/tone — sluit aan op
+  `AvailabilityBadge`, kan niet driften), `isSelectableAvailability`, `availabilityStatusLabel`,
+  `selectedAvailability`.
+- **Server-action** `setAvailabilityStatus` (`beschikbaarheid/actions.ts`): volledige keten
+  auth → rol FREELANCER → Zod → **eigenaar-scoped `updateMany({ where: { userId } })`** (geen
+  TOCTOU) → audit `AVAILABILITY_STATUS_CHANGED` → revalidate /beschikbaarheid + /dashboard +
+  /profiel. +4 tests (rol-poort, ongeldige status, count 0, happy-path).
+- **UI** `AvailabilityStatusToggle` (client, radiogroup, focus-ring, aria-live hint) +
+  wiring in `beschikbaarheid/page.tsx` (Card bovenaan). Audit-NL-label toegevoegd (drift-gate groen).
+- **Gate:** typecheck, lint, test (**5375 passed, 512 files**), build, prettier groen.
+
 ## 2026-07-29 — Definitief ontwerp: zegel-signatuur op het verificatie-cluster (uitrol stap 3 van 10)
 
 **Wat:** stap 3 van het uitrolplan: het cluster "Verificatie & vertrouwen" krijgt zijn
