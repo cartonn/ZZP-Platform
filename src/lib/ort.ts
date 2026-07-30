@@ -17,6 +17,12 @@ import {
 /** Een gewerkte categorie; "NORMAL" = geen toeslag. */
 export type OrtSegmentCategory = OrtCategory | "NORMAL";
 
+/** Alle geldige segmentcategorieën (toeslag-categorieën + "NORMAL"). Bron: ORT_CATEGORIES. */
+const VALID_SEGMENT_CATEGORIES: ReadonlySet<string> = new Set<string>([
+  ...ORT_CATEGORIES,
+  "NORMAL",
+]);
+
 export interface OrtSegment {
   category: OrtSegmentCategory;
   hours: number; //  mag kwartieren zijn (7,25)
@@ -57,6 +63,14 @@ export function computeOrt(
 
   for (const seg of segments) {
     if (seg.hours < 0) throw new Error("Uren mogen niet negatief zijn.");
+    if (!Number.isFinite(seg.hours)) throw new Error(`Ongeldig aantal uren: ${seg.hours}`);
+    // Categorie-guard: een onbekende categorie zou `rates[cat]` = undefined geven en zo een
+    // stille NaN in het toeslagbedrag → NaN-subtotaal → NaN de BTW/administratie in laten lekken.
+    // Elke bestaande caller levert een categorie uit de vaste enum; deze guard borgt dat de pure
+    // motor nooit stilzwijgend geld corrumpeert als ooit een nieuwe caller een rauwe categorie doorlaat.
+    if (!VALID_SEGMENT_CATEGORIES.has(seg.category)) {
+      throw new Error(`Onbekende ORT-categorie: ${seg.category}`);
+    }
     const base = Math.round(seg.hours * hourlyRateCents);
     const surchargeBps = seg.category === "NORMAL" ? 0 : rates[seg.category];
     const surcharge = Math.round((base * surchargeBps) / 10000);

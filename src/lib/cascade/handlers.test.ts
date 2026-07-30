@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { StateTransitionError } from "@/lib/state-machine";
 import { CollaborationTransitionError } from "@/lib/collaborations";
+import { CascadeError } from "@/lib/cascade/commands-shared";
 import {
   planContractSigned,
   planPerformanceSubmitted,
@@ -143,6 +144,29 @@ describe("performanceSubtotalCents", () => {
         ortSegments: [{ category: "NIGHT", hours: 4 }],
       }),
     ).toThrow();
+  });
+
+  it("werpt een gecureerde CascadeError (niet een rauwe Error) bij ontbrekende velden", () => {
+    // Zo passeert de melding `throwSafeActionError` i.p.v. genericificeerd te worden tot een 500.
+    const missingRate = () =>
+      performanceSubtotalCents({
+        id: "p",
+        status: "SUBMITTED",
+        type: "HOURS",
+        rateCents: null,
+        collaborationId: "c",
+      });
+    expect(missingRate).toThrow(CascadeError);
+    expect(missingRate).toThrow(/uurtarief/);
+
+    expect(() =>
+      performanceSubtotalCents({
+        id: "p",
+        status: "SUBMITTED",
+        type: "MILESTONE",
+        collaborationId: "c",
+      }),
+    ).toThrow(CascadeError);
   });
 
   it("lege ortSegments array valt terug op uren × tarief (geen ORT-pad)", () => {

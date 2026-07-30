@@ -76,8 +76,13 @@ describe("dedupeKey-stabiliteit: planners geven dezelfde sleutel voor hetzelfde 
 // De dedupeKey-check in persistEventAndEffects (commands.ts) vraagt prisma.domainEvent.findUnique.
 // Bij een bestaand event wordt de transactie overgeslagen — dit simuleren we hier.
 
-const mockTransaction = vi.fn();
-const domainEventStore = new Map<string, { id: string; dedupeKey: string }>();
+// vi.hoisted: de mock-factory hieronder (en die van transitieve imports als `@/lib/db` via
+// handlers → commands-shared) kan vóór de gewone module-body draaien; declareer de state daarom
+// gehoist, zodat `mockTransaction`/`domainEventStore` altijd geïnitialiseerd zijn als de factory sluit.
+const { mockTransaction, domainEventStore } = vi.hoisted(() => ({
+  mockTransaction: vi.fn(),
+  domainEventStore: new Map<string, { id: string; dedupeKey: string }>(),
+}));
 
 vi.mock("@/lib/db", () => ({
   prisma: {

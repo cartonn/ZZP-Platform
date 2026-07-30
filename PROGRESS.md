@@ -26,6 +26,42 @@ in ándere kleuren dan het interface-groen, passend bij het sitepalet → **inkt
 - **Restpunt (mensenwerk):** registreer **handslag.nl** (± €10/jaar, was vrij op 29-7) en
   BOIP-merkdepot; repo-/docs-naam (CLAUDE.md "ZZP Platform") is een aparte, bewuste keuze.
 
+---
+
+## 2026-07-30 — Persona-sweep: defense-in-depth 500-randen op de financiële cascade-motor
+
+**Wat:** persona-sweep run 60. Drie parallelle Opus-audits (authz/IDOR/cross-tenant + document-privacy;
+financiële/status-integriteit; next-action-correctheid) én een live Playwright-sweep over alle vier de
+rollen kwamen **schoon** op bereikbare defecten — consistent met de gehardheid van runs 40–59. De live
+sweep bevestigde: alle rollen renderen dashboard + /acties zonder error-boundary; privilege-escalatie
+(FREELANCER/CLIENT → /admin/_, /franchise/_) → redirect /dashboard; junk/IDOR-id's over 3 detailroutes →
+nul 500's (anti-oracle soft-404); document-IDOR → 404. **Eén concrete hardening gedaan** op twee
+pure-motor-paden op de geld-cascade (defense-in-depth, niet bereikbaar via huidige callers): fix 1 sluit een
+échte stille NaN-corruptie (→ potentieel 500 verderop in de BTW-berekening) af; fix 2 is een consistentie-
+verbetering (`CascadeError`) na de review-nuance. Een stille NaN in geld is een corruptierisico dat niet mag
+kunnen.
+
+- **Fix 1 — `computeOrt` categorie-guard (`src/lib/ort.ts`):** een segment met een categorie buiten de
+  vaste enum gaf `rates[cat] = undefined` → `Math.round(NaN)` → **NaN-subtotaal** dat stilzwijgend de
+  BTW-/administratieberekening in lekte (bevestigd rood: `computeOrt([{category:"BOGUS",hours:8}],3000)`
+  gaf `subtotalCents: NaN` zonder te werpen). Nu weigert de motor een onbekende categorie hard
+  (`Onbekende ORT-categorie: …`) + een niet-eindige-uren-guard (NaN/Infinity). Elke bestaande schrijver
+  levert al een enum-categorie; dit borgt de pure motor tegen een toekomstige rauwe caller.
+- **Fix 2 — `performanceSubtotalCents` rauwe Error → `CascadeError` (`src/lib/cascade/handlers.ts`):**
+  de vier ontbrekende-veld-guards (`rateCents`/`hours`/`amountCents` null) wierpen een rauwe `Error`. Nu
+  `CascadeError` — consistent met de rest van de cascade-module en netjes doorgestuurd door de enige
+  `instanceof CascadeError`-catch (`samenwerkingen/actions.ts:440`). _(Nuance na de onafhankelijke review:
+  een rauwe `Error` mét NL-tekst passeert `throwSafeActionError` op zichzelf óók veilig — `isInternalError`
+  markeert alleen Prisma/system-fouten als intern — dus dit is een consistentie-/leesbaarheidsverbetering,
+  geen echte 500-fix. De 500-borging van deze run zit in fix 1, de NaN-guard.)_
+- **Bestanden:** `src/lib/ort.ts`, `src/lib/ort.test.ts` (+2 tests: onbekende categorie geen stille NaN,
+  niet-eindige uren), `src/lib/cascade/handlers.ts`, `src/lib/cascade/handlers.test.ts` (+1 test:
+  CascadeError-type bij ontbrekende velden). Read-only op data, geen schemawijziging, geen nieuw
+  mutatie/auth-oppervlak, gedragsbehoudend voor alle geldige invoer. Gate: typecheck, lint, test, build,
+  prettier groen.
+
+---
+
 ## 2026-07-30 — Opdrachtgever: annuleringsbetrouwbaarheid-spiegel op /samenwerkingen
 
 **Wat:** de opdrachtgever zag zijn eigen **betaalreputatie** (/verplichtingen) en **reactiereputatie**
