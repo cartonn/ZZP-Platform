@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — eerste-reactie-SLA next-action (onbekeken kandidaat wacht op eerste blik) (2026-07-30, PR #1001)** —
+> de opdrachtgever kreeg voor NEW-reacties alleen een leeftijdloze telling ("X nieuwe reacties", `applicationsReviewTask`); een kandidaat
+> die al dagen onbekeken ligt viel niet op. De aging-logica bestond al als BI op `/inzicht` (`awaitingFirstLookAtRisk`,
+> `CANDIDATE_GHOSTING_RISK_DAYS = 5`) maar was nooit in het `/acties`-taakmodel gepromoveerd — exact het "signaal op één surface, afwezig
+> op /acties + badge + rail"-patroon. Nu een eigen, urgentere **"kandidaat wacht op een eerste reactie"**-taak zodra een NEW-reactie de
+> ghosting-drempel bereikt zonder eerste blik. Helpt de opdrachtgever (sneller reageren) + de geghostte ZZP'er (krijgt antwoord); benchmark
+> Temper/Malt. Pure `summarizeFirstLookOverdue` (`src/lib/client-first-look.ts`) hergebruikt exact `ageInDays` + de drempel uit
+> `client-application-funnel.ts` → één bron, geen drift met de trechter. `P.firstLookOverdue = 53` (boven `staleApplications` 52 en
+> `applications` 50 — een nooit-geopende reactie is de hardste responsiviteitsfaal). Enumerator trekt de onbekeken-oude reacties af van de
+> generieke "nieuwe reacties"-telling (residu-aftrek → geen dubbeltelling). Resolver `"link"` → `/kandidaten` (geen UI-wiring). Read-only,
+> geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +10 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — complete monitoring drop-in bundle (scrape + Alertmanager-inhibitie) (2026-07-30, PR #998)** —
 > `docs/observability/` had alléén `alerts.yml`; de scrape-config + de onderhouds-`inhibit_rule` bestonden enkel als proza in de
 > kop/RUNBOOK. Zonder inhibit_rule paget een geplande deploy on-call voor DB-onbereikbaar/cron-stil/back-up-stil (alert-fatigue).

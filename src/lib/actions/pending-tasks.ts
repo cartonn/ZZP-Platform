@@ -57,6 +57,7 @@ import {
   paymentDueSoonTask,
   applicationsReviewTask,
   proposeCollaborationTask,
+  firstLookOverdueTask,
   staleApplicationsTask,
   availabilityRefreshTask,
   draftJobsTask,
@@ -95,6 +96,8 @@ import {
   type CollabCredentialInput,
 } from "@/lib/collaboration-credential-expiry";
 import { summarizeStaleClientApplications } from "@/lib/stale-applications";
+import { summarizeFirstLookOverdue } from "@/lib/client-first-look";
+import { CANDIDATE_GHOSTING_RISK_DAYS } from "@/lib/client-application-funnel";
 import { pendingCollaborationProposals } from "@/lib/accepted-proposal";
 import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 import { getRosterFillSignalsForTenant } from "@/lib/franchise/dienst-fill-signal";
@@ -714,6 +717,15 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   // de pure `summarizeStaleClientApplications` past daarna de exacte per-fase-regel toe (VIEWED ≥ 14 /
   // SHORTLIST ≥ 21). NEW valt hier bewust buiten — dat dekt `applicationsReviewTask` al.
   const staleWindow = new Date(Date.now() - WAIT_ATTENTION_DAYS.VIEWED * 86_400_000);
+  // Onbekeken NEW-reacties die de ghosting-risicodrempel bereikten (nog geen eerste blik). DB-side
+  // voorgefilterd op exact dezelfde grens (`CANDIDATE_GHOSTING_RISK_DAYS`) die de trechter op /inzicht
+  // gebruikt; de pure `summarizeFirstLookOverdue` past daarna de floor-regel toe (één bron, geen drift).
+  const firstLookWindow = new Date(Date.now() - CANDIDATE_GHOSTING_RISK_DAYS * 86_400_000);
+  const firstLookWhere = {
+    job: { company: { userId } },
+    status: "NEW" as const,
+    createdAt: { lte: firstLookWindow },
+  };
 
   const [
     company,
@@ -721,6 +733,8 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     dueSoon,
     unread,
     newApplications,
+    agingNewCount,
+    agingNewApplications,
     draftJobs,
     staleCandidates,
     acceptedCandidates,
@@ -741,6 +755,17 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     paymentDueSoonCount(userId),
     unreadConversations(userId),
     prisma.application.count({ where: { job: { company: { userId } }, status: "NEW" } }),
+    // Exacte telling van de onbekeken-oude reacties (ongebonden) — de bron voor de residu-aftrek en de
+    // getoonde count, zodat een client met >MAX oude reacties er nooit een deel als "vers" ziet weglekken.
+    prisma.application.count({ where: firstLookWhere }),
+    // Alleen voor de leeftijd van de oudst-wachtende reactie: oplopend gesorteerd, dus de oudste rij zit
+    // altijd in de eerste MAX. unbounded-allow: eigenaar-scoped (job.company.userId) + take-limiet.
+    prisma.application.findMany({
+      where: firstLookWhere,
+      select: { createdAt: true },
+      orderBy: { createdAt: "asc" },
+      take: MAX,
+    }),
     prisma.job.count({ where: { company: { userId }, status: "DRAFT" } }),
     // unbounded-allow: eigenaar-scoped (job.company.userId) + take-limiet
     prisma.application.findMany({
@@ -899,7 +924,18 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   // Pre-due: facturen die binnenkort vervallen (nog niet te laat) — betaal op tijd. Vensters van
   // overdue (< now) en due-soon (>= now) raken elkaar niet, dus geen dubbele next-action.
   if (dueSoon > 0) tasks.push(paymentDueSoonTask(dueSoon));
-  if (newApplications > 0) tasks.push(applicationsReviewTask(newApplications));
+  // Onbekeken NEW-reacties voorbij de ghosting-drempel krijgen een eigen, urgentere eerste-reactie-taak;
+  // trek ze af van de generieke "nieuwe reacties"-telling zodat dezelfde kandidaat niet in beide taken
+  // verschijnt (residu-aftrek, symmetrisch met de overdue-factuur-roll-up). Verse NEW-reacties (< drempel)
+  // blijven de leeftijdloze "nieuwe reacties"-nudge voeden. De getoonde count + de aftrek leunen op de
+  // EXACTE `agingNewCount` (niet de MAX-gecapte findMany); die findMany levert enkel de oudste-leeftijd.
+  const oldestFirstLook = summarizeFirstLookOverdue(agingNewApplications);
+  if (agingNewCount > 0 && oldestFirstLook)
+    tasks.push(
+      firstLookOverdueTask({ count: agingNewCount, oldestDays: oldestFirstLook.oldestDays }),
+    );
+  const freshApplications = Math.max(0, newApplications - agingNewCount);
+  if (freshApplications > 0) tasks.push(applicationsReviewTask(freshApplications));
   // Geaccepteerd-maar-nog-niet-voorgesteld: rond de hire af met een samenwerkingsvoorstel.
   for (const p of pendingCollaborationProposals(
     acceptedCandidates.map((a) => ({

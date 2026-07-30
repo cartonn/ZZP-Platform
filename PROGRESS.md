@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30e — Opdrachtgever: eerste-reactie-SLA next-action (onbekeken kandidaat wacht op eerste blik)
+
+**Wat:** de opdrachtgever kreeg voor NEW-reacties alleen een leeftijdloze telling ("X nieuwe reacties",
+`applicationsReviewTask`); een kandidaat die al 8 dagen onbekeken ligt viel niet op. De aging-logica bestond
+al als BI op `/inzicht` (`awaitingFirstLookAtRisk`, `CANDIDATE_GHOSTING_RISK_DAYS = 5`) maar was nooit in het
+`/acties`-taakmodel gepromoveerd. Nu een eigen, urgentere **"kandidaat wacht op een eerste reactie"**-taak
+zodra een NEW-reactie de ghosting-drempel bereikt zonder eerste blik. Helpt de opdrachtgever (sneller
+reageren) én de geghostte ZZP'er (krijgt antwoord). Benchmark Temper/Malt (responsiviteit). DOEL 1b.
+
+- **Pure helper `summarizeFirstLookOverdue(inputs, now)`** (`src/lib/client-first-look.ts`): telt de NEW-
+  reacties voorbij `CANDIDATE_GHOSTING_RISK_DAYS` (hergebruikt exact `ageInDays` + de drempel uit
+  `client-application-funnel.ts` → één bron, geen drift met de /inzicht-trechter) en rapporteert de oudste.
+  `null` onder de drempel; toekomstige `createdAt` → 0 dagen, nooit negatief. +6 tests.
+- **Taakbouwer `firstLookOverdueTask`** (`src/lib/actions/tasks.ts`) + union-lid `first-look-overdue` +
+  prioriteitsband `P.firstLookOverdue = 53` (`src/lib/next-actions.ts`): boven `staleApplications` (52,
+  reeds-bekeken kandidaat wacht op beslissing) en `applications` (50) — een nooit-geopende reactie is de
+  hardste responsiviteitsfaal. Resolver `"link"` → `/kandidaten` (geen UI-wiring; valt door de default-tak).
+- **Enumerator `clientTasks`** (`src/lib/actions/pending-tasks.ts`): één extra begrensde query (NEW +
+  `createdAt <= now − drempel`, `take: MAX`); de onbekeken-oude reacties worden **afgetrokken** van de
+  generieke "nieuwe reacties"-telling zodat dezelfde kandidaat nooit in beide taken opduikt (residu-aftrek,
+  symmetrisch met de overdue-factuur-roll-up). +4 integratietests via `pendingTasks`.
+- **Read-only**, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+- **Gate:** typecheck ✓ · lint ✓ · test (volledige suite) ✓ · prettier ✓ · build ✓.
+
 ## 2026-07-30d — Next-action-correctheid: geen valse verloop-nudge voor bemiddelaar op superseded cert
 
 **Wat:** de franchiser-zijde van de certificaat-verloop-taak (`franchiserTasks`, `src/lib/actions/

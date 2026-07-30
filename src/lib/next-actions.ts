@@ -69,6 +69,7 @@ export const P = {
   credentialExpiryBatch: 58, // verlopen/verlopende certificaten — draai de expiry-check (admin)
   messagesAwaiting: 55, // berichten van de andere partij wachten op antwoord
   respondInvitation: 54, // directe uitnodiging van een opdrachtgever wacht op reactie (ZZP'er) — hoogst-intente inbound lead, net onder een lopend gesprek
+  firstLookOverdue: 53, // NEW-reactie wacht al ≥ ghosting-drempel op een EERSTE blik — nooit bekeken weegt zwaarder dan een reeds-bekeken kandidaat die op een beslissing wacht
   staleApplications: 52, // kandidaten (VIEWED/SHORTLIST) wachten al langer dan gebruikelijk op een beslissing
   applications: 50, // nieuwe reacties
   collaborationRenewal: 46, // lopende samenwerking nadert/passeert haar einddatum — plan tijdig een vervolg (beide partijen)
