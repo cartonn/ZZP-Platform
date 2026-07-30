@@ -418,6 +418,11 @@ const EN: Record<string, string> = {
   "Het weefsel · gewerkte uren": "The weave · hours worked",
   "Het samenspel": "The interplay",
   "Het gesprek": "The conversation",
+  "Het paspoort": "The passport",
+  "Het paspoort · bedrijf": "The passport · company",
+  "Het paspoort · account": "The passport · account",
+  "Het paspoort · wachtwoord": "The passport · password",
+  "Het paspoort · voorkeuren": "The passport · preferences",
   "Helemaal bij": "All caught up",
   "Geen openstaande acties — mooi werk. Zodra er iets op je wacht, verschijnt het hier.":
     "No open actions — nice work. As soon as something needs you, it shows up here.",

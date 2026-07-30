@@ -122,6 +122,9 @@ export async function CompanyProfileScreen({
       {/* Bedrijfskop — Warmte-ontwerp: logo/avatar, naam + badges, subtitel, kerncijfers. */}
       <Card className="border-hero bg-hero text-white">
         <CardContent className="space-y-4 p-6 sm:p-8">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-white/90">
+            Het paspoort · bedrijf
+          </p>
           <div className="flex flex-wrap items-start gap-5">
             <div
               aria-hidden
