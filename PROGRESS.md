@@ -3,6 +3,17 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — Definitief ontwerp: observatorium-signatuur op het inzicht-cluster (uitrol stap 6 van 10)
+
+**Wat:** stap 6 van het uitrolplan: het inzicht-cluster krijgt het motief _het observatorium_ —
+`/inzicht` "Het observatorium", `/prestaties` "· prestaties" (beide koppen, incl. de losse
+opdrachtgever-kop die nog geen display-typografie had), `/prognose` "· vooruitblik"
+(+3 EN-entries).
+
+- **Gate:** typecheck, lint, test, build, prettier groen.
+- **Volgende stap (uitrol 7/10):** tijd-cluster (het weefsel: rooster, beschikbaarheid,
+  diensten) + samenwerkingen (het samenspel).
+
 ## 2026-07-30 — Definitief ontwerp: grootboek-signatuur + werklijst-restwerk (uitrol stap 5 van 10)
 
 **Wat:** stap 5 van het uitrolplan: het geld-cluster krijgt het motief _het grootboek_ —

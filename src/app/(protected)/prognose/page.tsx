@@ -44,6 +44,7 @@ export default async function PrognosePage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="Het observatorium · vooruitblik"
         title="Inkomstenprognose"
         description="Verwachte inkomsten op een tijdlijn — inclusief concepten die je nog moet factureren."
         action={

@@ -410,6 +410,9 @@ const EN: Record<string, string> = {
   "De werklijst · verplichtingen": "The worklist · obligations",
   "De werklijst · meldingen": "The worklist · notifications",
   "De werklijst · openstaand": "The worklist · outstanding",
+  "Het observatorium": "The observatory",
+  "Het observatorium · prestaties": "The observatory · deliverables",
+  "Het observatorium · vooruitblik": "The observatory · outlook",
   "Helemaal bij": "All caught up",
   "Geen openstaande acties — mooi werk. Zodra er iets op je wacht, verschijnt het hier.":
     "No open actions — nice work. As soon as something needs you, it shows up here.",
