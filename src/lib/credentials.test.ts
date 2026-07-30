@@ -9,6 +9,7 @@ import {
   expiryTransition,
   isExpired,
   isExpiringSoon,
+  rosterExpiringByProfile,
   statusForDecision,
   supersededVerifiedCredentialIds,
   TransitionError,
@@ -187,6 +188,174 @@ describe("supersededVerifiedCredentialIds", () => {
       now,
     );
     expect(set.size).toBe(0); // verschillende typen → geen onderlinge dekking
+  });
+});
+
+describe("rosterExpiringByProfile", () => {
+  const now = new Date("2026-07-30T00:00:00Z");
+  const soon = new Date("2026-08-29T00:00:00Z"); // +30 dagen (verloopvenster)
+  const inWindow = new Date("2026-08-09T00:00:00Z"); // +10 dagen — binnen het venster
+  const inWindowLater = new Date("2026-08-20T00:00:00Z"); // +21 dagen — binnen het venster
+  const farFuture = new Date("2027-09-01T00:00:00Z"); // ruim buiten het venster
+  const past = new Date("2026-07-01T00:00:00Z"); // al verlopen
+
+  it("telt een bijna-vervallend VERIFIED-cert als één taak voor de ZZP'er", () => {
+    const result = rosterExpiringByProfile(
+      [
+        {
+          id: "c1",
+          type: "LICENSE",
+          status: "VERIFIED",
+          expiresAt: inWindow,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+      ],
+      now,
+      soon,
+    );
+    expect(result).toEqual([{ profileId: "p1", name: "Sanne", count: 1 }]);
+  });
+
+  it("telt een superseded exemplaar NIET mee (nieuwer cert van hetzelfde type dekt de compliance al)", () => {
+    const result = rosterExpiringByProfile(
+      [
+        {
+          id: "oud",
+          type: "LICENSE",
+          status: "VERIFIED",
+          expiresAt: inWindow, // verloopt binnenkort
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+        {
+          id: "nieuw",
+          type: "LICENSE",
+          status: "VERIFIED",
+          expiresAt: farFuture, // vroeg vernieuwd, ruim geldig → dekt het type
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+      ],
+      now,
+      soon,
+    );
+    expect(result).toEqual([]); // geen valse verloop-nudge
+  });
+
+  it("telt een onbeperkt-geldige vervanger als dekking (superseded → geen taak)", () => {
+    const result = rosterExpiringByProfile(
+      [
+        {
+          id: "oud",
+          type: "BIG",
+          status: "VERIFIED",
+          expiresAt: inWindow,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+        {
+          id: "eeuwig",
+          type: "BIG",
+          status: "VERIFIED",
+          expiresAt: null,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+      ],
+      now,
+      soon,
+    );
+    expect(result).toEqual([]);
+  });
+
+  it("aggregeert meerdere niet-gedekte typen tot één taak met de juiste telling per ZZP'er", () => {
+    const result = rosterExpiringByProfile(
+      [
+        {
+          id: "lic",
+          type: "LICENSE",
+          status: "VERIFIED",
+          expiresAt: inWindow,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+        {
+          id: "big",
+          type: "BIG",
+          status: "VERIFIED",
+          expiresAt: inWindowLater,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+      ],
+      now,
+      soon,
+    );
+    expect(result).toEqual([{ profileId: "p1", name: "Sanne", count: 2 }]);
+  });
+
+  it("scheidt de tellingen per ZZP'er", () => {
+    const result = rosterExpiringByProfile(
+      [
+        {
+          id: "a",
+          type: "LICENSE",
+          status: "VERIFIED",
+          expiresAt: inWindow,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+        {
+          id: "b",
+          type: "VOG",
+          status: "VERIFIED",
+          expiresAt: inWindow,
+          freelancerProfileId: "p2",
+          freelancerName: "Jeroen",
+        },
+      ],
+      now,
+      soon,
+    );
+    expect(result).toEqual([
+      { profileId: "p1", name: "Sanne", count: 1 },
+      { profileId: "p2", name: "Jeroen", count: 1 },
+    ]);
+  });
+
+  it("negeert certificaten buiten het venster, al-verlopen exemplaren en zonder vervaldatum", () => {
+    const result = rosterExpiringByProfile(
+      [
+        {
+          id: "ver-weg",
+          type: "LICENSE",
+          status: "VERIFIED",
+          expiresAt: farFuture, // buiten het venster
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+        {
+          id: "verlopen",
+          type: "VOG",
+          status: "VERIFIED",
+          expiresAt: past, // al verlopen — niet "verloopt binnenkort"
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+        {
+          id: "onbeperkt",
+          type: "BIG",
+          status: "VERIFIED",
+          expiresAt: null, // verloopt nooit
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+      ],
+      now,
+      soon,
+    );
+    expect(result).toEqual([]);
   });
 });
 

@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30d — Next-action-correctheid: geen valse verloop-nudge voor bemiddelaar op superseded cert
+
+**Wat:** de franchiser-zijde van de certificaat-verloop-taak (`franchiserTasks`, `src/lib/actions/
+pending-tasks.ts`) paste de superseded-check nog niet toe die de ZZP-zijde (`freelancerTasks`) in run 59
+kreeg (het geparkeerde run-60-item). Een tenant-ZZP'er met twee VERIFIED-certs van hetzelfde type (oud
+verloopt binnenkort, nieuw langer/onbeperkt geldig — vroeg vernieuwd) gaf de bemiddelaar een valse
+"certificaat verloopt binnenkort"-taak op `/acties` + zijbalk-badge, terwijl de compliance per type al op
+het laatst-vervallende exemplaar leunt. Beide surfaces spreken nu niet meer tegen (DOEL 1b).
+
+- **Pure helper `rosterExpiringByProfile(creds, now, soon)`** (`src/lib/credentials.ts`): groepeert per
+  ZZP'er, past `supersededVerifiedCredentialIds` binnen het eigen dossier toe en telt alleen niet-gedekte
+  certificaten in het (now, soon]-venster. Puur/deterministisch.
+- **`pending-tasks.ts`:** de expiry-query haalt nu álle VERIFIED tenant-certificaten op (niet enkel de
+  bijna-vervallende), nulls-first + expiresAt asc → de dekkende én eerst-vervallende exemplaren blijven
+  binnen de MAX-slice; aggregatie via de helper.
+- **Tests:** +6 pure-helper-tests (`credentials.test.ts`: solo → taak, superseded → geen taak, onbeperkte
+  vervanger → geen taak, per-type-aggregatie, per-ZZP'er-scheiding, buiten-venster/verlopen/onbeperkt
+  genegeerd) + 3 integratietests via `pendingTasks` (`pending-tasks-franchiser.test.ts`: solo → taak,
+  superseded → geen taak, gemengd → juiste telling).
+- **Gate:** typecheck ✓ · lint ✓ · test (48 in de twee raakvlakbestanden; volledige suite draait) ·
+  prettier ✓ · build (draait). PR #999.
+
 ## 2026-07-30c — Prod-rijpheid: complete monitoring drop-in bundle (scrape + Alertmanager-inhibitie)
 
 **Wat:** de `docs/observability/`-bundle bevatte alléén `alerts.yml` (Prometheus-regels); de

@@ -22,6 +22,14 @@ const state = vi.hoisted(() => ({
   // Fixture-leads (KOUD/WARM) met een geplande opvolgdatum; de lead.count-mock past het echte
   // `where.nextFollowUp`-filter erop toe zodat de dagniveau-grens getest kan worden.
   leads: [] as { nextFollowUp: Date }[],
+  // Geverifieerde tenant-certificaten voor de roster-verloop-aggregaattaak (superseded-check).
+  creds: [] as {
+    id: string;
+    type: string;
+    expiresAt: Date | null;
+    freelancerProfileId: string;
+    freelancerProfile: { user: { name: string | null } };
+  }[],
   // Geleide-opzet-tellingen — default een volledig opgezette franchise, zodat de opzet-taken
   // standaard NIET verschijnen en de operationele-taak-tests geïsoleerd blijven.
   counts: { companies: 1, freelancers: 1, publishedDiensten: 1, companiesWithoutDiensten: 0 },
@@ -30,7 +38,7 @@ const state = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn(async () => ({ tenantId: "tenant-1" })) },
-    credential: { findMany: vi.fn(async () => []) },
+    credential: { findMany: vi.fn(async () => state.creds) },
     // Past het echte nextFollowUp-filter toe op de fixture-leads. De productiecode gebruikt de
     // dagniveau-grens `lt: startOfUtcDay(now)` (gelijk aan de nav-badge en de leadpagina); de mock
     // ondersteunt ook `lte` zodat een teruggedraaide fix meteen rood wordt.
@@ -106,6 +114,7 @@ beforeEach(() => {
   state.stale = [];
   state.open = [];
   state.leads = [];
+  state.creds = [];
   state.counts = {
     companies: 1,
     freelancers: 1,
@@ -313,5 +322,52 @@ describe("bemiddelaar next-actions — geleide opzet telt op /acties + badge", (
     };
     const tasks = await pendingTasks(ACTOR);
     expect(tasks.some((t) => t.kind === "franchise-guided-setup")).toBe(false);
+  });
+});
+
+describe("bemiddelaar next-actions — roster-verloop onderdrukt superseded certificaat", () => {
+  const soon = new Date(now.getTime() + 10 * 86_400_000); // binnen het 30-dagen-venster
+  const far = new Date(now.getTime() + 400 * 86_400_000); // ruim buiten het venster
+  const cred = (
+    id: string,
+    type: string,
+    expiresAt: Date | null,
+    profileId = "prof-1",
+    name = "Sanne",
+  ) => ({
+    id,
+    type,
+    expiresAt,
+    freelancerProfileId: profileId,
+    freelancerProfile: { user: { name } },
+  });
+
+  it("emitteert de verloop-taak voor een solo bijna-vervallend certificaat", async () => {
+    state.creds = [cred("c1", "LICENSE", soon)];
+    const tasks = await pendingTasks(ACTOR);
+    const expiry = tasks.filter((t) => t.kind === "franchise-credential-expiry");
+    expect(expiry).toHaveLength(1);
+    expect(expiry[0]?.id).toBe("franchise-credential-expiry:prof-1");
+    expect(expiry[0]?.title).toContain("Sanne");
+  });
+
+  it("onderdrukt de taak als een nieuwer, langer-geldig cert van hetzelfde type de compliance dekt", async () => {
+    // Oud verloopt binnenkort, nieuw dekt het type ruim → geen valse verloop-nudge.
+    state.creds = [cred("oud", "LICENSE", soon), cred("nieuw", "LICENSE", far)];
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.kind === "franchise-credential-expiry")).toBe(false);
+  });
+
+  it("telt per ZZP'er alleen de niet-gedekte bijna-vervallende certificaten", async () => {
+    // p1: LICENSE gedekt (superseded) + losse VOG die telt → count 1.
+    state.creds = [
+      cred("p1-oud", "LICENSE", soon, "prof-1", "Sanne"),
+      cred("p1-nieuw", "LICENSE", far, "prof-1", "Sanne"),
+      cred("p1-vog", "VOG", soon, "prof-1", "Sanne"),
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    const expiry = tasks.filter((t) => t.kind === "franchise-credential-expiry");
+    expect(expiry).toHaveLength(1);
+    expect(expiry[0]?.title).toContain("1 certificaat verloopt");
   });
 });
