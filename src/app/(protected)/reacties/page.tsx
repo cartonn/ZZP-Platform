@@ -203,6 +203,7 @@ export default async function ReactiesPage({
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="Het dossier · jouw reacties"
         title={t("Mijn reacties")}
         description={t("Je reacties op opdrachten en hun status.")}
       />

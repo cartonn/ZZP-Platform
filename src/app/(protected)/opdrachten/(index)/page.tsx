@@ -242,6 +242,7 @@ async function ClientJobs({
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="De etalage · jouw aanbod"
         title="Mijn opdrachten"
         description="Beheer je opdrachten en publiceer ze voor ZZP'ers."
         action={
@@ -687,10 +688,11 @@ async function BrowseJobs({
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">{t("Opdrachten")}</h1>
-        <p className="text-sm text-muted-foreground">{t("Vind opdrachten die bij je passen.")}</p>
-      </header>
+      <PageHeader
+        eyebrow="De etalage · voor jou"
+        title="Opdrachten"
+        description="Vind opdrachten die bij je passen."
+      />
 
       {/* Uitnodigingen bovenaan: een opdrachtgever koos jóu specifiek — de sterkste lead eerst. */}
       <ReceivedInvitationsBand invitations={invitations} />

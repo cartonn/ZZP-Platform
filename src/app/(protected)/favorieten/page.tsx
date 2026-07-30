@@ -20,7 +20,11 @@ export default async function FlexpoolPage() {
   if (!company) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Flexpool" description="Je poule van bewezen ZZP'ers." />
+        <PageHeader
+          eyebrow="De etalage · flexpool"
+          title="Flexpool"
+          description="Je poule van bewezen ZZP'ers."
+        />
         <Card>
           <CardContent className="p-6 sm:p-8">
             <EmptyState
