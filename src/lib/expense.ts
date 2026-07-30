@@ -184,3 +184,26 @@ export function summarizeExpenses(
     byCategory,
   };
 }
+
+/** Nettobedrag per categorie met het aandeel van het netto kostentotaal, aflopend gesorteerd. */
+export interface ExpenseCategoryShare {
+  category: ExpenseCategory;
+  netCents: number;
+  /** Aandeel van het netto kostentotaal, 0–100, afgerond op hele procenten. */
+  sharePct: number;
+}
+
+/**
+ * Leidt uit een samenvatting het kosten-per-categorie-overzicht af (aandeel% t.o.v. het netto
+ * kostentotaal). Pure afleiding op `summarizeExpenses` — één bron van waarheid, geen eigen telling.
+ * Lege lijst zonder netto kosten (deling door nul → geen misleidend aandeel).
+ */
+export function expenseCategoryShares(summary: ExpenseSummary): ExpenseCategoryShare[] {
+  const total = summary.netCents;
+  if (total <= 0) return [];
+  return summary.byCategory.map((c) => ({
+    category: c.category,
+    netCents: c.netCents,
+    sharePct: Math.round((c.netCents / total) * 100),
+  }));
+}
