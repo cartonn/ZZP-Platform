@@ -344,6 +344,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       </div>
 
       <header className="space-y-1">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
+          Het samenspel
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="break-words font-display text-2xl font-semibold tracking-tight">
             {col.job.title}

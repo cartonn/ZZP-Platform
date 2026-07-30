@@ -3,6 +3,17 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — Definitief ontwerp: weefsel-, samenspel- en gesprek-signatuur (uitrol stap 7 van 10)
+
+**Wat:** stap 7 van het uitrolplan: het tijd-cluster krijgt het motief _het weefsel_
+(`/rooster` "jouw week", `/beschikbaarheid` "beschikbaar", `/diensten` "gewerkte uren" — die
+losse kop kreeg meteen display-typografie), samenwerkingen _het samenspel_ (index + detailkop
+boven de opdrachttitel) en berichten _het gesprek_ (+5 EN-entries).
+
+- **Gate:** typecheck, lint, test, build, prettier groen.
+- **Volgende stap (uitrol 8/10):** identiteit (het paspoort: profiel, bedrijf, account,
+  publiek profiel) + de voordeur (login/register/wachtwoord).
+
 ## 2026-07-30 — Definitief ontwerp: observatorium-signatuur op het inzicht-cluster (uitrol stap 6 van 10)
 
 **Wat:** stap 6 van het uitrolplan: het inzicht-cluster krijgt het motief _het observatorium_ —
