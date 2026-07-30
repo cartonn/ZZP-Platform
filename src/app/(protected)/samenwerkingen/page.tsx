@@ -195,6 +195,7 @@ export default async function SamenwerkingenPage({
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="Het samenspel"
         title="Samenwerkingen"
         description="Voorgestelde en lopende samenwerkingen."
         action={

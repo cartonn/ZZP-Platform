@@ -66,6 +66,7 @@ export default async function BeschikbaarheidPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="Het weefsel · beschikbaar"
         title="Beschikbaarheid"
         description={
           <>
