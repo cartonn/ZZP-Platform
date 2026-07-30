@@ -17,7 +17,9 @@
 // APPLICATION_RETENTION_DAYS die de application-retention-cron nog niet snoeide — AVG-dataminimalisatie) en
 // zzp_notifications_retention_backlog (notificaties met title/body-PII ouder dan NOTIFICATION_RETENTION_DAYS
 // die de notification-retention-cron nog niet snoeide) en zzp_leads_retention_backlog (beslíste leads met
-// contact-PII ouder dan LEAD_RETENTION_DAYS die de lead-retention-cron nog niet snoeide — AVG-dataminimalisatie) —
+// contact-PII ouder dan LEAD_RETENTION_DAYS die de lead-retention-cron nog niet snoeide — AVG-dataminimalisatie) en
+// zzp_health_incidents_ip_retention_backlog (beveiligingsincidenten ouder dan HEALTH_INCIDENT_IP_RETENTION_DAYS wier
+// bron-IP de health-incident-retention-cron nog niet redigeerde — AVG-minimalisatie/opslagbeperking) —
 // stille-faal-detectors die de heartbeat niet vangt.
 //
 // Beveiliging: dezelfde Bearer CRON_SECRET als de taak-/heartbeat-routes, fail-closed — geen
@@ -41,6 +43,7 @@ import {
   applicationRetentionDays,
   notificationRetentionDays,
   leadRetentionDays,
+  healthIncidentIpRetentionDays,
 } from "@/lib/config";
 import { auditRetentionCutoff } from "@/lib/audit-retention";
 import { applicationRetentionCutoff } from "@/lib/application-retention";
@@ -48,6 +51,8 @@ import { prunableApplicationWhere } from "@/lib/application-retention-task";
 import { notificationRetentionCutoff } from "@/lib/notification-retention";
 import { leadRetentionCutoff } from "@/lib/lead-retention";
 import { prunableLeadWhere } from "@/lib/lead-retention-task";
+import { healthIncidentIpRetentionCutoff } from "@/lib/health-incident-retention";
+import { prunableHealthIncidentIpWhere } from "@/lib/health-incident-retention-task";
 import { reportError } from "@/lib/observability/report";
 import type { CronFreshness } from "@/lib/observability/cron-freshness";
 import {
@@ -85,6 +90,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let applicationsRetentionBacklog = 0;
   let notificationsRetentionBacklog = 0;
   let leadsRetentionBacklog = 0;
+  let healthIncidentsIpRetentionBacklog = 0;
   if (dbReachable) {
     try {
       verificationQueue = await prisma.credential.count({ where: { status: "SUBMITTED" } });
@@ -206,6 +212,22 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
     }
+    try {
+      // Beveiligingsincidenten (HealthIncident) ouder dan het HEALTH_INCIDENT_IP_RETENTION_DAYS-venster
+      // wier bron-IP nog niet geredigeerd is: werk dat de health-incident-retention-cron had moeten doen.
+      // Hergebruikt exact `prunableHealthIncidentIpWhere` (dezelfde bron van waarheid, incl. de sentinel-
+      // sluitingen) als de taak zelf, zodat de gauge de echte cron-backlog telt en niet kan driften. Anders
+      // dan de andere retentie-crons staat deze standaard AAN (venster leeg → default 90 dagen); alleen als
+      // 'ie expliciet op 0/uit gezet is (cutoff === null) is er per definitie geen achterstand → 0.
+      const cutoff = healthIncidentIpRetentionCutoff(healthIncidentIpRetentionDays(), now);
+      if (cutoff) {
+        healthIncidentsIpRetentionBacklog = await prisma.healthIncident.count({
+          where: prunableHealthIncidentIpWhere(cutoff),
+        });
+      }
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
@@ -232,6 +254,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     applicationsRetentionBacklog,
     notificationsRetentionBacklog,
     leadsRetentionBacklog,
+    healthIncidentsIpRetentionBacklog,
   };
 }
 

@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — /api/metrics incident-IP-redactie retentie-backlog gauge (2026-07-30, PR volgt)** —
+> vijfde retentie-backlog dead-man's-switch: **`zzp_health_incidents_ip_retention_backlog`** telt beveiligingsincidenten
+> (`HealthIncident`) ouder dan `HEALTH_INCIDENT_IP_RETENTION_DAYS` wier bron-IP de `health-incident-retention`-cron nog niet
+> redigeerde. Sloot het laatste PII-minimalisatie-gat in de metrics-detectorlaag (audit/reacties/notificaties/leads hadden al
+> een backlog-gauge; incident-IP-redactie als enige niet) — en déze cron staat **standaard AAN** (default 90d; onbeperkte
+> IP-retentie is hier de overtreding, AVG art. 5(1)(c)/(e)). Kandidaat-`where` geëxtraheerd naar gedeelde
+> `prunableHealthIncidentIpWhere(cutoff)` → één bron van waarheid met de taak, geen drift. Read-only `count`, faalt veilig,
+> geen schemawijziging, geen PII. Drop-in alert `ZzpHealthIncidentsIpRetentionBacklog` (`>0`, `for:30h`) in `alerts.yml`,
+> vastgeklonken aan de drift-gate. `metrics.ts`+`route.ts`+`alerts-rules.ts`+`alerts.yml`+`health-incident-retention-task.ts`
+> (+5 tests). Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — routing-provider (Geoapify) connectiviteitszelftest + go-live-sweep (2026-07-29, PR #973)** —
 > de Geoapify reistijd-routing was de **enige** keyed externe HTTP-integratie zónder connectiviteitszelftest én afwezig in de
 > go-live-sweep; omdat routing zonder geldige sleutel **stil terugvalt** op de offline haversine-schatter kon de GO/NO-GO-sweep "GO"

@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — Prod-rijpheid: /api/metrics — incident-IP-redactie retentie-backlog gauge (stille-faal-detector, AVG art. 5(1)(c)/(e))
+
+**Wat:** vijfde retentie-backlog dead-man's-switch op het machine-leesbare monitoring-endpoint:
+**`zzp_health_incidents_ip_retention_backlog`** telt beveiligingsincidenten (`HealthIncident`, uit de
+anomaliedetector) ouder dan het `HEALTH_INCIDENT_IP_RETENTION_DAYS`-venster wier bron-IP de
+`health-incident-retention`-cron nog niet redigeerde. Sluit het laatste PII-minimalisatie-gat in de
+metrics-detectorlaag: audit/reacties/notificaties/leads hadden al een backlog-gauge, incident-IP-redactie
+(als enige) niet — terwijl een incident-IP een persoonsgegeven is en déze cron **standaard AAN** staat
+(default 90 dagen; onbeperkte IP-retentie is hier juist de overtreding, AVG art. 5(1)(c)/(e)). De
+cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de redactie-pijplijn verwerkte → een
+oplopende backlog terwijl de heartbeat "vers" is = incident-IP's over de termijn heen bewaard, extern
+alarmeerbaar.
+
+**Grens/architectuur:** de kandidaat-`where` is geëxtraheerd naar een gedeelde
+`prunableHealthIncidentIpWhere(cutoff)` (`health-incident-retention-task.ts`) die **exact** dezelfde
+sentinel-sluitingen gebruikt als de taak zelf (IP-marker + niet-onbekend + niet-reeds-geredigeerd) →
+één bron van waarheid, gauge kan niet driften. Read-only `count`, faalt veilig (0, nooit 500), geen
+schemawijziging, geen PII in de uitvoer. Drop-in Prometheus-alert `ZzpHealthIncidentsIpRetentionBacklog`
+(`> 0`, `for: 30h`) in `docs/observability/alerts.yml`, vastgeklonken aan de drift-gate
+(`alerts-rules.ts` SAMPLE_INPUT). **Bestanden:** `metrics.ts` + `route.ts` + `alerts-rules.ts` +
+`alerts.yml` + `health-incident-retention-task.ts` (+5 tests). Gate: typecheck, lint, test, build,
+prettier groen.
+
 ## 2026-07-30 — Definitief ontwerp: controlekamer + leerboek/loket — UITROLPLAN AFGEROND (stap 10 van 10)
 
 **Wat:** slotstap van het uitrolplan: 14 admin-pagina's krijgen "De controlekamer · …"

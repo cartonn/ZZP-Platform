@@ -161,6 +161,20 @@ groups:
           summary: "Lead-retentie-snoei verwerkt niets (AVG-dataminimalisatie)"
           description: "Er staan al > één cron-interval beslíste leads (KLANT/NO_DEAL) ouder dan het geconfigureerde LEAD_RETENTION_DAYS-venster die niet zijn gesnoeid (zzp_leads_retention_backlog). De lead-retention-cron rondt af maar verwijdert niets → leads met contact-PII (naam/e-mail/telefoon + contactlogboek) worden over de beloofde bewaartermijn heen bewaard (AVG art. 5(1)(e)). Controleer de lead-retention-taak."
 
+      - alert: ZzpHealthIncidentsIpRetentionBacklog
+        # AVG-minimalisatie + opslagbeperking (art. 5 lid 1c/1e): een beveiligingsincident (HealthIncident)
+        # legt bij een inlog-burst/reset-flood het bron-IP (een persoonsgegeven) vast in evidence én summary.
+        # Anders dan de andere retentie-crons staat deze standaard AAN (venster leeg → default 90 dagen), want
+        # onbeperkte IP-retentie is hier de overtreding. Een oplopende backlog terwijl de heartbeat "vers" is
+        # betekent dat incident-IP's over de bewaartermijn heen bewaard blijven zonder dat iets dat toont.
+        expr: zzp_health_incidents_ip_retention_backlog > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Incident-IP-redactie verwerkt niets (AVG-minimalisatie)"
+          description: "Er staan al > één cron-interval beveiligingsincidenten ouder dan het geconfigureerde HEALTH_INCIDENT_IP_RETENTION_DAYS-venster wier bron-IP niet is geredigeerd (zzp_health_incidents_ip_retention_backlog). De health-incident-retention-cron rondt af maar redigeert niets → incident-IP's (persoonsgegeven, in evidence + summary + dedupeKey) worden over de bewaartermijn heen bewaard (AVG art. 5(1)(c)/(e)). Controleer de health-incident-retention-taak."
+
   - name: zzp-platform-verificatie-sla
     rules:
       # Verificatie is de kern-differentiatie. Twee complementaire signalen: te veel wachtenden (diepte)

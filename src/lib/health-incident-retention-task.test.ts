@@ -128,7 +128,11 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { runHealthIncidentRetentionTask } from "@/lib/health-incident-retention-task";
+import {
+  runHealthIncidentRetentionTask,
+  prunableHealthIncidentIpWhere,
+} from "@/lib/health-incident-retention-task";
+import { IP_EVIDENCE_MARKER, UNKNOWN_IP } from "@/lib/health-incident-retention";
 
 const NOW = new Date("2026-07-23T12:00:00.000Z");
 const DAY = 24 * 60 * 60 * 1000;
@@ -292,5 +296,22 @@ describe("runHealthIncidentRetentionTask", () => {
     expect(store.incidents.every((r) => JSON.parse(r.evidence!).ip === AUDIT_PII_REDACTED)).toBe(
       true,
     );
+  });
+});
+
+// De gedeelde `where`-vorm is de bron van waarheid voor zowel de redactie-taak als de
+// /api/metrics-backlog-gauge; drift zou de detector uit de pas laten lopen met het werk dat de taak
+// doet. Deze test verankert de vorm (cutoff + IP-marker + de twee redactie-/onbekend-sluitingen).
+describe("prunableHealthIncidentIpWhere", () => {
+  const cutoff = new Date("2026-04-24T12:00:00.000Z");
+
+  it("selecteert alleen te-oude, IP-dragende, nog-niet-geredigeerde incidenten", () => {
+    const where = prunableHealthIncidentIpWhere(cutoff);
+    expect(where.createdAt).toEqual({ lt: cutoff });
+    expect(where.AND).toEqual([
+      { evidence: { contains: IP_EVIDENCE_MARKER } },
+      { NOT: { evidence: { contains: `${IP_EVIDENCE_MARKER}${UNKNOWN_IP}"` } } },
+      { NOT: { evidence: { contains: AUDIT_PII_REDACTED } } },
+    ]);
   });
 });
