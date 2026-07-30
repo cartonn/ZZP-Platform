@@ -23,7 +23,8 @@ const config: Config = {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
         },
-        // Naam-hero (dashboard + profiel-/bedrijfs-/bemiddeling-kop): de merkkleur, 2 tinten lichter.
+        // Hero-accent (lichter zegelgroen). Sinds de prototype-gelijktrekking zijn er geen
+        // gekleurde kopvlakken meer; het token blijft beschikbaar voor accentgebruik.
         hero: {
           DEFAULT: "hsl(var(--hero))",
           foreground: "hsl(var(--primary-foreground))",

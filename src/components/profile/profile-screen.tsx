@@ -384,16 +384,16 @@ export async function ProfileScreen({
 
   return (
     <div className="space-y-6">
-      {/* Profielkop — het paspoort (UITROLPLAN §2): merk-groene hero met avatar, naam + status. */}
-      <Card className="border-hero bg-hero text-white">
+      {/* Profielkop — het paspoort (UITROLPLAN §2), prototype-stijl: kaart op het papier, geen kleurvlak. */}
+      <Card>
         <CardContent className="space-y-4 p-6 sm:p-8">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-white/90">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
             {t("Het paspoort")}
           </p>
           <div className="flex flex-wrap items-start gap-5">
             <div
               aria-hidden
-              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-white font-display text-xl font-semibold text-primary sm:size-20 sm:text-2xl"
+              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary font-display text-xl font-semibold text-primary-foreground sm:size-20 sm:text-2xl"
             >
               {initials(profile.user.name)}
             </div>
@@ -402,23 +402,21 @@ export async function ProfileScreen({
                 <h1 className="break-words font-display text-2xl font-semibold tracking-tight sm:text-3xl">
                   {profile.user.name}
                 </h1>
-                <Badge variant={availability.variant} className="border-transparent bg-white">
-                  {t(availability.label)}
-                </Badge>
+                <Badge variant={availability.variant}>{t(availability.label)}</Badge>
                 {awaySummary && (
-                  <span className="inline-flex items-center gap-1 rounded-full border-transparent bg-white px-2.5 py-0.5 text-xs font-medium text-warning">
+                  <span className="inline-flex items-center gap-1 rounded-full border-transparent bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning">
                     <CalendarOff className="size-3.5" aria-hidden />
                     {awaySummary}
                   </span>
                 )}
-                <TrustBadge level={trust.level} className="border-transparent bg-white" />
+                <TrustBadge level={trust.level} />
                 {/* Blokkerende inzetbaarheidsstatus — alleen voor de eigenaar, met doorklik naar de
                     ontbrekende stap. Voorkomt dat "Beschikbaar" + "Profiel compleet" een niet-inzetbaar
                     profiel maskeren; de blokkade wordt altijd benoemd. */}
                 {isOwner && employability?.blocker && (
                   <Link
                     href={employability.href}
-                    className="focus-ring inline-flex items-center gap-1 rounded-full border-transparent bg-white px-2.5 py-0.5 text-xs font-medium text-warning hover:bg-white/90"
+                    className="focus-ring inline-flex items-center gap-1 rounded-full border-transparent bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning hover:bg-warning/15"
                   >
                     <AlertTriangle className="size-3.5" aria-hidden />
                     {t(employability.labelWithBlocker)}
@@ -433,7 +431,7 @@ export async function ProfileScreen({
                   />
                 )}
               </div>
-              <p className="mt-1 text-sm font-medium text-white sm:text-base">
+              <p className="mt-1 text-sm text-muted-foreground sm:text-base">
                 {[
                   profile.headline,
                   profile.location,
@@ -448,18 +446,18 @@ export async function ProfileScreen({
                     <span className="font-mono text-lg font-semibold tracking-tight">
                       € {profile.hourlyRate}
                     </span>
-                    <span className="text-sm font-medium text-white">/uur</span>
+                    <span className="text-sm text-muted-foreground">/uur</span>
                   </span>
                 )}
                 {hoursPerWeek != null && (
-                  <span className="text-sm font-medium text-white">{hoursPerWeek} u/wk</span>
+                  <span className="text-sm text-muted-foreground">{hoursPerWeek} u/wk</span>
                 )}
                 {completed > 0 && (
-                  <span className="text-sm font-medium text-white">
+                  <span className="text-sm text-muted-foreground">
                     {plural(completed, t("afgeronde samenwerking"), t("afgeronde samenwerkingen"))}
                   </span>
                 )}
-                <span className="text-sm font-medium text-white">
+                <span className="text-sm text-muted-foreground">
                   {t(WORK_MODE[profile.workMode as WorkMode])}
                 </span>
               </div>
@@ -470,7 +468,6 @@ export async function ProfileScreen({
                     status: "VERIFIED",
                     expiresAt: c.expiresAt,
                   }))}
-                  chipClassName="border-transparent bg-white"
                 />
               </div>
             </div>
@@ -478,7 +475,7 @@ export async function ProfileScreen({
             {viewer?.id === profile.userId ? (
               <Link
                 href="/profiel/bewerken"
-                className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/70 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/10"
+                className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted/60"
               >
                 {t("Bewerk jouw profiel")}
               </Link>

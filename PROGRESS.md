@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — Definitief ontwerp: prototype exact — groene kopvlakken vervangen (uitrol, nazorg)
+
+**Wat:** expliciete eigenaarskeuze ("vergeet mijn groene blokken, voer het exact uit zoals het
+gekozen ontwerp"): de vier gekleurde hero-vlakken vervangen door de prototype-behandeling
+(`docs/ontwerpen/prototype.html`) — kop óp het papier: eyebrow (mono, merk-groen) + serif-titel,
+accenten via tokens i.p.v. wit-op-groen.
+
+- **Dashboard (`workspace-dashboard.tsx`):** de vol-brede `bg-hero`-naambalk is nu een kopregel
+  op het papier met eyebrow "Vandaag", serif-groet en gedempte subtitel (hairline eronder).
+- **Profiel-, bedrijfs- en bemiddelingskop** (`profile-screen.tsx`, gedeeld met publiek
+  `/zzp/[id]`; `company-profile-screen.tsx`; `bemiddeling-hub-screen.tsx`): van groene Card naar
+  standaard kaart — avatar zegelgroen, badges in hun eigen varianten, subtekst muted,
+  bewerk-knop met gewone rand; bemiddelingskop kreeg de ontbrekende "De cockpit"-eyebrow.
+- `--hero`-token blijft bestaan (accentgebruik), maar er zijn geen gekleurde kopvlakken meer.
+- **Gate:** typecheck, lint, test, build, prettier groen; visueel geverifieerd (dashboard + profiel).
+
 ## 2026-07-30 — persona-sweep: superseded-certificaat geen valse verloop-nudge + franchise-rollup-prioriteit
 
 **Wat (persona-sweep run 59, DOEL 1b — next-action-correctheid):** twee next-action-defecten gevonden

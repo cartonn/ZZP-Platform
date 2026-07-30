@@ -446,6 +446,7 @@ const EN: Record<string, string> = {
   "Het leerboek": "The textbook",
   "Het loket": "The service desk",
   "Het loket · ideeën": "The service desk · ideas",
+  "De cockpit": "The cockpit",
   "Helemaal bij": "All caught up",
   "Geen openstaande acties — mooi werk. Zodra er iets op je wacht, verschijnt het hier.":
     "No open actions — nice work. As soon as something needs you, it shows up here.",
