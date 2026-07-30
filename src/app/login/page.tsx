@@ -43,7 +43,7 @@ export default async function LoginPage({
         </div>
 
         <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <h1 className="text-lg font-semibold tracking-tight">{t("Inloggen")}</h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight">{t("Inloggen")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {t("Vind en beheer zorgopdrachten — geverifieerd, Wet-DBA-proof en zonder papierwerk.")}
           </p>

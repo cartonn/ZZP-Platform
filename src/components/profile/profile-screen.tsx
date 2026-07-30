@@ -384,9 +384,12 @@ export async function ProfileScreen({
 
   return (
     <div className="space-y-6">
-      {/* Profielkop — Warmte-ontwerp: oranje hero met avatar, naam + status, subtitel, kerncijfers. */}
+      {/* Profielkop — het paspoort (UITROLPLAN §2): merk-groene hero met avatar, naam + status. */}
       <Card className="border-hero bg-hero text-white">
         <CardContent className="space-y-4 p-6 sm:p-8">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-white/90">
+            {t("Het paspoort")}
+          </p>
           <div className="flex flex-wrap items-start gap-5">
             <div
               aria-hidden

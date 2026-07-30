@@ -13,7 +13,12 @@ export default async function NotificatiesPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-xl font-semibold tracking-tight">Notificatie-voorkeuren</h1>
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
+          Het paspoort · voorkeuren
+        </p>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">
+          Notificatie-voorkeuren
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           In-app meldingen blijven altijd staan. Hier bepaal je welke herinnerings-e-mails je
           ontvangt.

@@ -3,6 +3,18 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — Definitief ontwerp: paspoort- en voordeur-signatuur (uitrol stap 8 van 10)
+
+**Wat:** stap 8 van het uitrolplan: het identiteit-cluster krijgt het motief _het paspoort_ —
+in de profiel-hero (gedeeld door `/profiel` en het publieke `/zzp/[id]`), de bedrijfsprofiel-hero
+("· bedrijf"), `/account` ("· account"), `/account/wachtwoord` ("· wachtwoord") en
+`/account/notificaties` ("· voorkeuren", losse kop kreeg display-typografie). De voordeur
+(login/register/wachtwoord-vergeten) blijft bewust kaal — één kaart, het beeldmerk, nul
+afleiding — maar de kaarttitels dragen nu de display-serif (+5 EN-entries).
+
+- **Gate:** typecheck, lint, test, build, prettier groen.
+- **Volgende stap (uitrol 9/10):** de bemiddelaarscockpit (franchise-cluster).
+
 ## 2026-07-30 — Definitief ontwerp: weefsel-, samenspel- en gesprek-signatuur (uitrol stap 7 van 10)
 
 **Wat:** stap 7 van het uitrolplan: het tijd-cluster krijgt het motief _het weefsel_
