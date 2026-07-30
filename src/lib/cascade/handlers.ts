@@ -137,9 +137,12 @@ export interface PerformanceApprovedCtx {
 
 /** Berekent het factuursubtotaal uit de goedgekeurde prestatie. */
 export function performanceSubtotalCents(p: PerformanceApprovedCtx["performance"]): number {
-  // Gecureerde domeinfouten (CascadeError) i.p.v. rauwe Error: die passeren `throwSafeActionError`
-  // met hun Nederlandse melding i.p.v. genericificeerd te worden tot een onverwachte 500. Elke
-  // caller weigert deze staten al vóór approve (validatie/CSV-import), dus dit is defense-in-depth.
+  // Gecureerde domeinfouten (CascadeError) i.p.v. rauwe Error: consistent met de rest van de
+  // cascade-module en netjes doorgestuurd door de enige `instanceof CascadeError`-catch
+  // (samenwerkingen/actions.ts). (Een rauwe Error mét Nederlandse tekst passeert `throwSafeActionError`
+  // op zichzelf óók veilig — `isInternalError` markeert alleen Prisma/system-fouten; dit is dus een
+  // consistentie-/leesbaarheidsverbetering, geen 500-fix.) Elke caller weigert deze staten al vóór
+  // approve (validatie/CSV-import), dus dit is defense-in-depth.
   if (p.type === "HOURS") {
     if (p.rateCents == null) throw new CascadeError("Urenstaat mist een uurtarief.");
     // ORT (zorg): zijn er tijdscategorie-segmenten, dan basis + toeslagen; anders uren × tarief.

@@ -35,10 +35,11 @@ financiële/status-integriteit; next-action-correctheid) én een live Playwright
 rollen kwamen **schoon** op bereikbare defecten — consistent met de gehardheid van runs 40–59. De live
 sweep bevestigde: alle rollen renderen dashboard + /acties zonder error-boundary; privilege-escalatie
 (FREELANCER/CLIENT → /admin/_, /franchise/_) → redirect /dashboard; junk/IDOR-id's over 3 detailroutes →
-nul 500's (anti-oracle soft-404); document-IDOR → 404. **Eén concrete hardening gedaan** — twee
-pure-motor-paden op de geld-cascade die een **rauwe Error (→ HTTP 500)** wierpen i.p.v. netjes te weigeren,
-tegen de "nooit 500"-invariant (DOEL 2). Niet bereikbaar via huidige callers (defense-in-depth), maar een
-stille NaN in geld is een corruptierisico dat niet mag kunnen.
+nul 500's (anti-oracle soft-404); document-IDOR → 404. **Eén concrete hardening gedaan** op twee
+pure-motor-paden op de geld-cascade (defense-in-depth, niet bereikbaar via huidige callers): fix 1 sluit een
+échte stille NaN-corruptie (→ potentieel 500 verderop in de BTW-berekening) af; fix 2 is een consistentie-
+verbetering (`CascadeError`) na de review-nuance. Een stille NaN in geld is een corruptierisico dat niet mag
+kunnen.
 
 - **Fix 1 — `computeOrt` categorie-guard (`src/lib/ort.ts`):** een segment met een categorie buiten de
   vaste enum gaf `rates[cat] = undefined` → `Math.round(NaN)` → **NaN-subtotaal** dat stilzwijgend de
@@ -47,9 +48,12 @@ stille NaN in geld is een corruptierisico dat niet mag kunnen.
   (`Onbekende ORT-categorie: …`) + een niet-eindige-uren-guard (NaN/Infinity). Elke bestaande schrijver
   levert al een enum-categorie; dit borgt de pure motor tegen een toekomstige rauwe caller.
 - **Fix 2 — `performanceSubtotalCents` rauwe Error → `CascadeError` (`src/lib/cascade/handlers.ts`):**
-  de vier ontbrekende-veld-guards (`rateCents`/`hours`/`amountCents` null) wierpen een rauwe `Error`, die
-  door `throwSafeActionError` tot een generieke 500 wordt gemaakt i.p.v. als gecureerde NL-melding te
-  passeren. Nu `CascadeError` → veilige, leesbare weigering op het approve-pad.
+  de vier ontbrekende-veld-guards (`rateCents`/`hours`/`amountCents` null) wierpen een rauwe `Error`. Nu
+  `CascadeError` — consistent met de rest van de cascade-module en netjes doorgestuurd door de enige
+  `instanceof CascadeError`-catch (`samenwerkingen/actions.ts:440`). _(Nuance na de onafhankelijke review:
+  een rauwe `Error` mét NL-tekst passeert `throwSafeActionError` op zichzelf óók veilig — `isInternalError`
+  markeert alleen Prisma/system-fouten als intern — dus dit is een consistentie-/leesbaarheidsverbetering,
+  geen echte 500-fix. De 500-borging van deze run zit in fix 1, de NaN-guard.)_
 - **Bestanden:** `src/lib/ort.ts`, `src/lib/ort.test.ts` (+2 tests: onbekende categorie geen stille NaN,
   niet-eindige uren), `src/lib/cascade/handlers.ts`, `src/lib/cascade/handlers.test.ts` (+1 test:
   CascadeError-type bij ontbrekende velden). Read-only op data, geen schemawijziging, geen nieuw

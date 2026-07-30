@@ -27,9 +27,13 @@
 >    i.p.v. stille corruptie. Niet bereikbaar via huidige callers (alle schrijvers leveren enum-categorie);
 >    borgt de pure motor. +2 tests.
 > 2. **`performanceSubtotalCents` wierp een rauwe `Error` bij ontbrekende velden** (`src/lib/cascade/handlers.ts`).
->    Een rauwe `Error` wordt door `throwSafeActionError` tot een generieke 500 gemaakt i.p.v. als gecureerde
->    NL-melding te passeren. **Fix:** `CascadeError` op de vier guards (rate/hours/amount null). Niet
->    bereikbaar (validatie/CSV-import weigeren deze staten vóór approve); +1 test.
+>    **Fix:** `CascadeError` op de vier guards (rate/hours/amount null) — consistent met de rest van de
+>    cascade-module en netjes doorgestuurd door de enige `instanceof CascadeError`-catch
+>    (`samenwerkingen/actions.ts:440`). _(Nuance na de review: een rauwe `Error` mét NL-tekst passeert
+>    `throwSafeActionError` op zichzelf óók veilig — `isInternalError` markeert alleen Prisma/system-fouten
+>    als intern — dus dit is een consistentie-/leesbaarheidsverbetering, geen echte 500-fix. De 500-borging
+>    van deze run zit in fix 1, de NaN-guard.)_ Niet bereikbaar (validatie/CSV-import weigeren deze staten
+>    vóór approve); +1 test.
 >
 > _(Beide items waren door de financiële-integriteit-audit van run 59 als bevestigd-onbereikbaar
 > geparkeerd — deze run geborgd zodat de laatste twee theoretische 500-randen op de geld-kern dicht zijn.)_
