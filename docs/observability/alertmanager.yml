@@ -1,0 +1,64 @@
+# Alertmanager-config voor het ZZP Platform — routing + inhibitie voor de alerts uit alerts.yml.
+#
+# Hoort bij prometheus.yml (scrape) en alerts.yml (regels). Deze config doet twee dingen:
+#   1. ROUTING (skelet): groepeert alerts en stuurt op severity naar een receiver. Vul de
+#      receiver-webhooks/e-mail in met je eigen kanaal (Slack/Teams/PagerDuty/e-mail); de placeholders
+#      hieronder zijn bewust leeg zodat er geen dood/nep-endpoint in git staat.
+#   2. INHIBITIE: de belofte uit RUNBOOK §2a wordt hier waargemaakt. Zodra `ZzpMaintenanceModeOn`
+#      vuurt (MAINTENANCE_MODE=true → bezoekers krijgen een bewuste 503), onderdrukt Alertmanager
+#      ÁLLE operationele alerts — anders paget een geplande deploy on-call voor DB-onbereikbaar,
+#      cron-stil en back-up-stil. De onderhoudsalert zelf blijft zichtbaar (aparte info-alert), zodat
+#      een per ongeluk aan-gelaten onderhoudsmodus opvalt.
+#
+# Een drift-gate-test (src/lib/observability/monitoring-bundle.test.ts) klinkt de hieronder gebruikte
+# `Zzp*`-alertnamen vast aan de alerts die alerts.yml daadwerkelijk definieert, en eist dat de
+# onderhouds-inhibitie ELKE operationele alert dekt (op de onderhoudsalert zelf na). Een nieuwe alert
+# in alerts.yml die hier niet wordt toegevoegd breekt de CI-poort — zodat 'ie niet stil door de
+# onderhouds-demping heen paget.
+
+route:
+  receiver: default
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    # Kritieke alerts sneller herhalen en (indien gewenst) naar een piket-kanaal.
+    - matchers:
+        - severity = "critical"
+      receiver: critical
+      repeat_interval: 1h
+    # Info-alerts (o.a. de onderhoudsmodus) rustiger; geen piket.
+    - matchers:
+        - severity = "info"
+      receiver: default
+      repeat_interval: 12h
+
+receivers:
+  # Vul één (of beide) receivers met je eigen kanaal. Leeg = Alertmanager houdt de alert vast maar
+  # verstuurt niets; zet hier je webhook/e-mail/PagerDuty-config in vóór go-live.
+  - name: default
+  - name: critical
+
+inhibit_rules:
+  # 1. Bewust onderhoud dempt ALLE operationele alerts. Bron: de info-alert ZzpMaintenanceModeOn
+  #    (zzp_maintenance_mode == 1). Targets: elke beschikbaarheids-, dead-man's-switch-, backlog- en
+  #    verificatie-SLA-alert — d.w.z. elke alert uit alerts.yml BEHALVE de onderhoudsalert zelf.
+  #    Voeg een nieuwe alert hier toe zodra 'ie in alerts.yml komt (de drift-gate dwingt dit af).
+  - source_matchers:
+      - alertname = "ZzpMaintenanceModeOn"
+    target_matchers:
+      - alertname =~ "ZzpDatabaseUnreachable|ZzpCronStale|ZzpCronLastRunFailed|ZzpBackupStale|ZzpBackupLastFailed|ZzpCredentialExpiryBacklog|ZzpSubscriptionExpiryBacklog|ZzpInvoiceOverdueBacklog|ZzpAuditRetentionBacklog|ZzpApplicationsRetentionBacklog|ZzpNotificationsRetentionBacklog|ZzpLeadsRetentionBacklog|ZzpHealthIncidentsIpRetentionBacklog|ZzpVerificationQueueDeep|ZzpVerificationOldestTooOld"
+
+  # 2. Wortel-oorzaak-demping: staat de cron volledig stil (critical), dan is "laatste run faalde"
+  #    (warning) dezelfde storing — onderdruk de ruis.
+  - source_matchers:
+      - alertname = "ZzpCronStale"
+    target_matchers:
+      - alertname = "ZzpCronLastRunFailed"
+
+  # 3. Idem voor de back-up: stil back-up-schema (critical) dempt "laatste back-up faalde" (warning).
+  - source_matchers:
+      - alertname = "ZzpBackupStale"
+    target_matchers:
+      - alertname = "ZzpBackupLastFailed"

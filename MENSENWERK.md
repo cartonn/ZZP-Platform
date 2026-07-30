@@ -1001,6 +1001,22 @@ onderhoud-inhibitie), plus een voorbeeld-`scrape_config` met de bearer-auth in d
 `buildMetrics`: een hernoemde/verwijderde gauge (dode alert) of een nieuwe gauge zonder alert breekt de
 CI-poort. Zie RUNBOOK §2a. Resterend mensenwerk: het bestand via `rule_files` in je Prometheus laden
 (of de drempels in je uptime-dienst spiegelen) en de `CRON_SECRET` als scrape-bearer zetten.
+**Code-kant GEDAAN (2026-07-30) — complete monitoring drop-in bundle (scrape + inhibitie):** de rules
+waren er, maar de scrape-config en de onderhouds-`inhibit_rule` bestonden alléén als prozavoorbeeld in
+de kop van `alerts.yml`/RUNBOOK — een operator moest ze uit comments overtypen, en zonder de
+inhibit_rule **paget een geplande deploy on-call** voor DB-onbereikbaar/cron-stil/back-up-stil. De
+bundle is nu compleet met twee echte drop-in bestanden naast `alerts.yml`:
+`docs/observability/prometheus.yml` (scrape-config → `/api/metrics` met bearer-`credentials_file`,
+laadt `alerts.yml` via `rule_files`, koppelt Alertmanager) en `docs/observability/alertmanager.yml`
+(routing-skelet op severity + `inhibit_rules`: `ZzpMaintenanceModeOn` dempt **elke** operationele alert
+tijdens bewust onderhoud, plus wortel-oorzaak-demping cron-stil→cron-run-faalde en back-up-stil→
+back-up-faalde). Een tweede **drift-gate** (`src/lib/observability/monitoring-bundle.test.ts` + puur
+`monitoring-bundle.ts`) klinkt de drie bestanden vast: de scrape-config moet naar `/api/metrics` wijzen
+en `alerts.yml` laden, elke door `alertmanager.yml` gerefereerde alertnaam moet écht bestaan, en de
+onderhouds-inhibitie moet elke operationele alert dekken — een nieuwe alert die niet aan de inhibitie
+wordt toegevoegd breekt de CI-poort (zodat 'ie niet stil doorheen paget). Zie RUNBOOK §2a. Resterend
+mensenwerk: de host in `prometheus.yml` invullen, het `CRON_SECRET` in een `credentials_file` op de
+Prometheus-host zetten, en een receiver (Slack/PagerDuty/e-mail) in `alertmanager.yml` invullen.
 **Code-kant GEDAAN (2026-07-26) — twee gauges erbij:** `zzp_maintenance_mode` (1 als
 `MAINTENANCE_MODE` aanstaat — zodat een monitor niet paget om de bewuste 503's tijdens onderhoud, en
 een per ongeluk aan-gelaten onderhoudsmodus extern zichtbaar is) en `zzp_credentials_overdue_expiry`

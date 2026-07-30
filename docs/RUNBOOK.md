@@ -56,16 +56,27 @@ Naast de liveness-probe exposeert `GET /api/metrics` machine-leesbare gauges (Pr
 `zzp_verification_queue` + `_oldest_age_seconds`, `zzp_credentials_overdue_expiry`,
 `zzp_subscriptions_overdue_expiry`, `zzp_invoices_overdue_unflipped`, `zzp_maintenance_mode`.
 
-- **Kant-en-klare alerting-rules:** [`docs/observability/alerts.yml`](observability/alerts.yml) is een
-  drop-in Prometheus-regelbestand dat die gauges vertaalt naar alerts met drempels + `for:`-duur
-  (beschikbaarheid, dead-man's-switch, stille-faal-backlogs, verificatie-SLA, onderhoud). De kop van
-  het bestand toont een voorbeeld-`scrape_config` met de bearer-auth. Laad het via `rule_files`.
-- **Onderhoud onderdrukt paging:** gebruik `zzp_maintenance_mode == 1` als `inhibit_rule`-bron om de
-  beschikbaarheidsalerts te dempen tijdens een geplande deploy; een per ongeluk aan-gelaten
-  onderhoudsmodus blijft zichtbaar via de aparte info-alert `ZzpMaintenanceModeOn`.
-- **Drift-gate:** een CI-test (`src/lib/observability/alerts-rules.test.ts`) klinkt de in `alerts.yml`
-  gebruikte `zzp_*`-namen vast aan de gauges uit `buildMetrics` — een hernoemde/verwijderde gauge
-  (dode alert) of een nieuwe gauge zonder alert breekt de poort.
+- **Complete drop-in bundle:** de map [`docs/observability/`](observability/) bevat drie samenhangende
+  bestanden die een operator ongewijzigd kan inladen:
+  - [`alerts.yml`](observability/alerts.yml) — Prometheus-regels die de gauges vertalen naar alerts met
+    drempels + `for:`-duur (beschikbaarheid, dead-man's-switch, stille-faal-backlogs, verificatie-SLA,
+    onderhoud).
+  - [`prometheus.yml`](observability/prometheus.yml) — scrape-config die `/api/metrics` met bearer-auth
+    (`credentials_file`, secret buiten git) scraped en `alerts.yml` via `rule_files` laadt.
+  - [`alertmanager.yml`](observability/alertmanager.yml) — routing-skelet (severity → receiver) +
+    `inhibit_rules`.
+- **Onderhoud onderdrukt paging:** de belofte wordt nu waargemaakt in `alertmanager.yml`. Zodra
+  `ZzpMaintenanceModeOn` (`zzp_maintenance_mode == 1`) vuurt, dempt Alertmanager **elke** operationele
+  alert — geen valse paging tijdens een geplande deploy. De onderhoudsalert zelf blijft zichtbaar, zodat
+  een per ongeluk aan-gelaten onderhoudsmodus opvalt. Twee extra wortel-oorzaak-inhibities dempen
+  `ZzpCronLastRunFailed` onder `ZzpCronStale` en `ZzpBackupLastFailed` onder `ZzpBackupStale`.
+- **Drift-gates:** twee CI-tests houden de bundle eerlijk. `alerts-rules.test.ts` klinkt de in
+  `alerts.yml` gebruikte `zzp_*`-namen vast aan de gauges uit `buildMetrics` (dode/ontbrekende gauge
+  breekt de poort). `monitoring-bundle.test.ts` klinkt de drie bestanden aan elkaar vast: de scrape-config
+  moet naar `/api/metrics` wijzen en `alerts.yml` laden, elke door `alertmanager.yml` gerefereerde alert
+  moet écht bestaan, en de onderhouds-inhibitie moet **elke** operationele alert dekken — een nieuwe alert
+  in `alerts.yml` die niet aan de inhibitie wordt toegevoegd breekt de poort (zodat 'ie niet stil door de
+  onderhouds-demping heen paget).
 
 ## 3. Deploy
 
