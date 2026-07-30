@@ -946,7 +946,7 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
   const staleThreshold = new Date(now.getTime() - STALE_DIENST_DAYS * 86_400_000);
 
   const [
-    verifiedRosterCreds,
+    expiringRosterCreds,
     dueLeads,
     openDiensten,
     roster,
@@ -957,25 +957,23 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     companiesWithoutDiensten,
     openHandoffs,
   ] = await Promise.all([
-    // Álle geverifieerde certificaten van tenant-ZZP'ers (niet enkel de bijna-vervallende), zodat we
-    // per ZZP'er de superseded exemplaren kunnen bepalen: een ouder cert waarvan een nieuwer,
-    // nu-geldig cert van hetzelfde type de compliance al draagt, mag geen "verloopt binnenkort"-taak
-    // geven (valse nudge — spiegelt de ZZP-zijde in `freelancerTasks`). Nulls-first + expiresAt asc
-    // houdt zowel de dekkende (onbeperkt/langst-geldige) als de eerst-vervallende exemplaren binnen
-    // de MAX-slice. `rosterExpiringByProfile` filtert vervolgens op het (now, soon]-venster.
+    // De in-venster (now, soon] verlopende VERIFIED-certs van tenant-ZZP'ers — de kandidaat-nudges.
+    // Alleen op dit venster filteren (niet álle certs) is bewust: onbeperkt-geldige certs
+    // (`expiresAt = null`, in de zorg gangbaar bij BIG-registraties) vallen buiten `gte/lte` en
+    // consumeren dus géén MAX-slot. Zo kan een grote roster met veel onbeperkt-geldige certs geen
+    // echte verloop-taak verdringen. De superseded-check (dekkend cert van hetzelfde type) gebeurt
+    // hierna op een aparte, op de kandidaat-profielen gescopete query.
     prisma.credential.findMany({
       where: {
         freelancerProfile: { tenantId },
         status: "VERIFIED",
+        expiresAt: { gte: now, lte: soon },
       },
       select: {
-        id: true,
-        type: true,
-        expiresAt: true,
         freelancerProfileId: true,
         freelancerProfile: { select: { user: { select: { name: true } } } },
       },
-      orderBy: { expiresAt: { sort: "asc", nulls: "first" } },
+      orderBy: { expiresAt: "asc" },
       take: MAX,
     }),
     // Leads met een verstreken geplande opvolgdatum (alleen lopende acquisitie: KOUD/WARM).
@@ -1073,21 +1071,37 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
 
   // Aggregeer per ZZP'er: één taak per professional met het aantal (bijna-)verlopende certificaten.
   // Superseded exemplaren (een nieuwer, nu-geldig cert van hetzelfde type dekt de compliance al)
-  // tellen niet mee — anders een valse verloop-nudge die nooit nuttig verdwijnt.
-  const rosterExpiry = rosterExpiringByProfile(
-    verifiedRosterCreds.map((c) => ({
-      id: c.id,
-      type: c.type,
-      status: "VERIFIED" as const,
-      expiresAt: c.expiresAt,
-      freelancerProfileId: c.freelancerProfileId,
-      freelancerName: c.freelancerProfile.user.name ?? "ZZP'er",
-    })),
-    now,
-    soon,
-  );
-  for (const e of rosterExpiry)
-    tasks.push(franchiseCredentialExpiryTask(e.profileId, e.name, e.count));
+  // tellen niet mee — anders een valse verloop-nudge die nooit nuttig verdwijnt. Voor de
+  // superseded-check hebben we per kandidaat-ZZP'er álle VERIFIED-certs nodig (ook de langer-geldige
+  // en onbeperkte dekkers), maar alléén voor de profielen die een in-venster verlopend cert hebben —
+  // gescoped op die ids, zodat onbeperkt-geldige certs van ándere roster-leden de query niet vullen.
+  const candidateNames = new Map<string, string>();
+  for (const c of expiringRosterCreds)
+    candidateNames.set(c.freelancerProfileId, c.freelancerProfile.user.name ?? "ZZP'er");
+
+  if (candidateNames.size > 0) {
+    const coverCreds = await prisma.credential.findMany({
+      where: {
+        status: "VERIFIED",
+        freelancerProfileId: { in: [...candidateNames.keys()] },
+      },
+      select: { id: true, type: true, expiresAt: true, freelancerProfileId: true },
+    });
+    const rosterExpiry = rosterExpiringByProfile(
+      coverCreds.map((c) => ({
+        id: c.id,
+        type: c.type,
+        status: "VERIFIED" as const,
+        expiresAt: c.expiresAt,
+        freelancerProfileId: c.freelancerProfileId,
+        freelancerName: candidateNames.get(c.freelancerProfileId) ?? "ZZP'er",
+      })),
+      now,
+      soon,
+    );
+    for (const e of rosterExpiry)
+      tasks.push(franchiseCredentialExpiryTask(e.profileId, e.name, e.count));
+  }
 
   if (dueLeads > 0) tasks.push(franchiseLeadFollowupTask(dueLeads));
 
