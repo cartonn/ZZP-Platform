@@ -22,6 +22,7 @@ import { computeVat, hourlySubtotalCents } from "@/lib/administration/vat";
 import { ortSubtotalCents, type OrtSegment } from "@/lib/ort";
 import { PLATFORM_FEE, type VatRegime, type OrtCategory } from "@/lib/config";
 import { type CascadeEffects, emptyEffects } from "@/lib/cascade/types";
+import { CascadeError } from "@/lib/cascade/commands-shared";
 import { collaborationCompletableGuard } from "@/lib/cascade/completion";
 import { boundReason } from "@/lib/text-bounds";
 
@@ -136,16 +137,19 @@ export interface PerformanceApprovedCtx {
 
 /** Berekent het factuursubtotaal uit de goedgekeurde prestatie. */
 export function performanceSubtotalCents(p: PerformanceApprovedCtx["performance"]): number {
+  // Gecureerde domeinfouten (CascadeError) i.p.v. rauwe Error: die passeren `throwSafeActionError`
+  // met hun Nederlandse melding i.p.v. genericificeerd te worden tot een onverwachte 500. Elke
+  // caller weigert deze staten al vóór approve (validatie/CSV-import), dus dit is defense-in-depth.
   if (p.type === "HOURS") {
-    if (p.rateCents == null) throw new Error("Urenstaat mist een uurtarief.");
+    if (p.rateCents == null) throw new CascadeError("Urenstaat mist een uurtarief.");
     // ORT (zorg): zijn er tijdscategorie-segmenten, dan basis + toeslagen; anders uren × tarief.
     if (p.ortSegments && p.ortSegments.length > 0) {
       return ortSubtotalCents(p.ortSegments, p.rateCents, p.ortRates ?? undefined);
     }
-    if (p.hours == null) throw new Error("Urenstaat mist uren.");
+    if (p.hours == null) throw new CascadeError("Urenstaat mist uren.");
     return hourlySubtotalCents(p.hours, p.rateCents);
   }
-  if (p.amountCents == null) throw new Error("Oplevering mist een milestonebedrag.");
+  if (p.amountCents == null) throw new CascadeError("Oplevering mist een milestonebedrag.");
   return p.amountCents;
 }
 

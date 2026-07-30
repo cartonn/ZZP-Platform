@@ -66,6 +66,26 @@ describe("computeOrt", () => {
     expect(() => computeOrt([{ category: "NORMAL", hours: -1 }], RATE)).toThrow();
     expect(() => computeOrt([], -1)).toThrow();
   });
+
+  it("weigert een onbekende categorie i.p.v. een stille NaN in het subtotaal", () => {
+    // Regressie: een categorie buiten de vaste enum gaf `rates[cat] = undefined` → `Math.round(NaN)`
+    // → NaN-subtotaal dat stilzwijgend de BTW/administratie in lekte. De motor moet nu hard weigeren.
+    const bogus = [{ category: "BOGUS" as unknown as OrtSegment["category"], hours: 8 }];
+    expect(() => computeOrt(bogus, RATE)).toThrow(/Onbekende ORT-categorie/);
+    // en zeker geen NaN-resultaat produceren
+    let result: number | null = null;
+    try {
+      result = computeOrt(bogus, RATE).subtotalCents;
+    } catch {
+      result = null;
+    }
+    expect(result).toBeNull();
+  });
+
+  it("weigert niet-eindige uren (NaN/Infinity)", () => {
+    expect(() => computeOrt([{ category: "NIGHT", hours: NaN }], RATE)).toThrow();
+    expect(() => computeOrt([{ category: "NIGHT", hours: Infinity }], RATE)).toThrow();
+  });
 });
 
 describe("ortSubtotalCents", () => {

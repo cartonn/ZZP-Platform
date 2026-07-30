@@ -1,5 +1,48 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-30 (run 60) · **main-commit basis:** `adc7cd3f`
+> **Uitkomst:** **0 bereikbare defecten · 2 defense-in-depth-hardeningen GEFIXT** (500-randen op de
+> financiële cascade-motor). Drie parallelle Opus-audits (authz/IDOR/cross-tenant + document-privacy;
+> financiële/status-integriteit; next-action-correctheid) + live Playwright/Chromium-sweep over alle vier
+> rollen → **schoon** op bereikbare defecten, consistent met runs 40–59.
+>
+> - **DOEL 1/1b (live):** alle vier rollen (zzp@/opdrachtgever@/franchise@/admin@) loggen in en renderen
+>   dashboard + /acties zonder error-boundary (200, geen 5XX). **DOEL 2 (live):** privilege-escalatie
+>   FREELANCER→`/admin/verificaties|disputen|statistieken` + `/franchise/diensten` en CLIENT→`/admin/*`,
+>   `/franchise/diensten` → **redirect /dashboard** (geen toegang); junk/IDOR-id's (crafted CUID, SQLi,
+>   path-traversal, XSS-string, nul-UUID) over `/samenwerkingen|/facturen|/opdrachten/[id]` → **nul 500's**
+>   (anti-oracle soft-404); `/api/documents/{junk}` → **404**.
+> - **Drie audits schoon:** authz-keten (`currentActor` live-rol, `tenantScopeWhere`/`ownsViaTenant`,
+>   `canAccessDocument` owner/ADMIN, soft-404 op alle privé-routes, `requireRole` per admin/franchise-page),
+>   financiële/status-integriteit (state-machines, VAT/ORT integer-cent + int4-headroom, dedupeKey +
+>   compound-guarded `updateMany`, completion-guards in-tx), next-action-correctheid (elke emitter
+>   kruis-gecheckt tegen zijn command-guard: juiste staat/partij, verdwijnt na afhandelen, geen dode knop).
+>
+> **GEFIXT — defense-in-depth (DOEL 2, "nooit 500" op de geld-cascade):**
+>
+> 1. **`computeOrt` gaf een stille NaN-subtotaal bij een onbekende categorie** (`src/lib/ort.ts`). Een
+>    segment met een categorie buiten `ORT_CATEGORIES` gaf `rates[cat]=undefined` → `Math.round(NaN)` →
+>    NaN-subtotaal dat ongemerkt de BTW/administratie in stroomde (bevestigd rood via een losse repro).
+>    **Fix:** categorie-guard (`VALID_SEGMENT_CATEGORIES`) + niet-eindige-uren-guard → harde weigering
+>    i.p.v. stille corruptie. Niet bereikbaar via huidige callers (alle schrijvers leveren enum-categorie);
+>    borgt de pure motor. +2 tests.
+> 2. **`performanceSubtotalCents` wierp een rauwe `Error` bij ontbrekende velden** (`src/lib/cascade/handlers.ts`).
+>    Een rauwe `Error` wordt door `throwSafeActionError` tot een generieke 500 gemaakt i.p.v. als gecureerde
+>    NL-melding te passeren. **Fix:** `CascadeError` op de vier guards (rate/hours/amount null). Niet
+>    bereikbaar (validatie/CSV-import weigeren deze staten vóór approve); +1 test.
+>
+> _(Beide items waren door de financiële-integriteit-audit van run 59 als bevestigd-onbereikbaar
+> geparkeerd — deze run geborgd zodat de laatste twee theoretische 500-randen op de geld-kern dicht zijn.)_
+>
+> **GEPARKEERD (ongewijzigd, niet-bevestigd bereikbaar):** de run-59-noot
+> (`franchiserTasks` roster-expiry-aggregaat telt mogelijk een superseded verlopend cert mee, ~r958) —
+> next-action-correctheid (DOEL 1b), geen authz/lek; nog geen fixture met dubbel-type VERIFIED-certs per
+> tenant-ZZP'er om bereikbaarheid te bevestigen. Ook: een franchiser-undercount-rand als één tenant >50
+> gepubliceerde open diensten heeft (`acuteDienstIds` afgeleid van de `take:50`-slice) — undercount, geen
+> dubbeltelling; geen fixture bevestigd.
+>
+> ---
+
 > **Datum:** 2026-07-30 (run 59) · **main-commit basis:** `4db36002`
 > **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (beide DOEL 1b — next-action-correctheid). Drie
 > parallelle Opus-audits: authz/IDOR/cross-tenant/document-privacy **schoon** (anti-oracle-404's,
