@@ -16,6 +16,7 @@ export default async function AdminDbaPage({ searchParams }: { searchParams: Sea
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="De controlekamer · dba-monitor"
         title="DBA-monitor"
         description="Signalering van mogelijke schijnzelfstandigheid over actieve samenwerkingen. Dit is geen juridisch oordeel — het platform signaleert en informeert alleen."
       />

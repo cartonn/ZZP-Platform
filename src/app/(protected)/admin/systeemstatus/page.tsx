@@ -50,6 +50,7 @@ export default async function SysteemstatusPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="De controlekamer · systeemstatus"
         title="Systeemstatus"
         description="Productie-configuratie en integraties op één scherm. Controleer na een deploy of alles correct bekabeld is vóór livegang."
       />

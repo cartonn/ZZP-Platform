@@ -49,6 +49,7 @@ export default async function AdminOpdrachtenPage({
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="De controlekamer · opdrachten"
         title="Opdrachten (beheer)"
         description="Alle opdrachten op het platform. Sluit ongepaste opdrachten."
       />

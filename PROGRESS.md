@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — Definitief ontwerp: controlekamer + leerboek/loket — UITROLPLAN AFGEROND (stap 10 van 10)
+
+**Wat:** slotstap van het uitrolplan: 14 admin-pagina's krijgen "De controlekamer · …"
+(administratie, audit, bewaking, configuratie, dba-monitor, disputen, facturatie, franchises,
+gebruikers, no-shows, opdrachten, samenwerkingen, support, systeemstatus — `/admin/verificaties`
+had zijn zegel al sinds stap 3), `/academie` "Het leerboek" en `/support` + `/ideeen`
+"Het loket(· ideeën)" (+17 EN-entries).
+
+- **Restpunten (klein, voor een routine-run):** admin-pagina's zonder eigen PageHeader
+  (avg, financien, gebruikersbeheer, import, shift-overnames, statistieken, toezicht — dunne
+  wrappers/gedeelde componenten) en de franchise-wrappers instellingen/shift-overnames.
+- **Daarmee is het 10-stappenplan uit `docs/ontwerpen/UITROLPLAN.md` afgerond:** kern-taal
+  (tokens/typografie, #977) + per cluster een eigen signatuur (dagstart, werklijst, zegel,
+  etalage, dossier, grootboek, observatorium, weefsel, samenspel, gesprek, paspoort, voordeur,
+  cockpit, controlekamer, leerboek, loket) — het definitieve ontwerp (510+412+324) draagt de
+  hele app.
+- **Gate:** typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-30 — Definitief ontwerp: cockpit-signatuur op het franchise-cluster (uitrol stap 9 van 10)
 
 **Wat:** stap 9 van het uitrolplan: de bemiddelaarscockpit — `/franchise/diensten`,
