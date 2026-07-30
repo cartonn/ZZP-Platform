@@ -22,7 +22,7 @@ import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Disputen · ZZP Platform" };
+export const metadata: Metadata = { title: "Disputen · Handslag" };
 
 function fmt(d: Date | null) {
   return d ? formatDateShortNl(d) : "—";

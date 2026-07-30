@@ -26,7 +26,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { CredentialStatusBadge } from "@/components/credentials/credential-status-badge";
 import { setUserStatus } from "@/app/(protected)/admin/gebruikers/actions";
 
-export const metadata: Metadata = { title: "Gebruikersdossier · ZZP Platform" };
+export const metadata: Metadata = { title: "Gebruikersdossier · Handslag" };
 
 const STATUS: Record<UserStatus, { label: string; variant: "success" | "danger" | "warning" }> = {
   ACTIVE: { label: "Actief", variant: "success" },

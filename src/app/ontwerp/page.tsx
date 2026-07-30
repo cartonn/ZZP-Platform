@@ -14,7 +14,7 @@ export default function OntwerpIndexPage() {
       <div className="mx-auto max-w-[1180px] px-6 py-14">
         <header className="max-w-2xl">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-400">
-            ZZP Platform · design lab
+            Handslag · design lab
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
             {CONCEPTS.length} richtingen voor de herontwerp

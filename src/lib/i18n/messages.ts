@@ -148,7 +148,7 @@ const EN: Record<string, string> = {
   "In beoordeling": "In review",
 
   // --- Login: vertrouwens-strip (marketing) ---
-  "Waarom ZZP Platform": "Why ZZP Platform",
+  "Waarom Handslag": "Why Handslag",
   "Certificaten één keer uploaden, overal geldig": "Upload credentials once, valid everywhere",
   "VOG, diploma's en BIG-registratie worden handmatig gecontroleerd — daarna staan ze klaar bij elke opdracht.":
     "Police certificates, diplomas and professional registrations are checked manually — then ready for every assignment.",

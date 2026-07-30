@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/ui/page-header";
 import { DbaPanel } from "@/components/admin/dba-panel";
 
-export const metadata: Metadata = { title: "DBA-monitor · ZZP Platform" };
+export const metadata: Metadata = { title: "DBA-monitor · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";

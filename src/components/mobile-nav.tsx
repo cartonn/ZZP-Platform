@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandMark } from "@/components/ui/brand-mark";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
@@ -55,10 +56,8 @@ export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBad
           <div className="absolute inset-y-0 left-0 flex w-64 max-w-[80%] flex-col bg-background shadow-xl">
             <div className="flex h-14 items-center justify-between border-b border-border px-4">
               <div className="flex items-center gap-2">
-                <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-                  Z
-                </div>
-                <span className="text-sm font-semibold">ZZP Platform</span>
+                <BrandMark size={28} />
+                <span className="font-display text-sm font-semibold">Handslag</span>
               </div>
               <button
                 type="button"

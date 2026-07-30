@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
 import { pluralWord } from "@/lib/plural";
 
-export const metadata: Metadata = { title: "Academie · ZZP Platform" };
+export const metadata: Metadata = { title: "Academie · Handslag" };
 
 export default async function AcademiePage() {
   const actor = await requireActor();

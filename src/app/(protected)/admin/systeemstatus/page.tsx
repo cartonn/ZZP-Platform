@@ -22,7 +22,7 @@ import { RoutingSelfTest } from "@/components/admin/routing-selftest";
 import { UploadScannerSelfTest } from "@/components/admin/upload-scanner-selftest";
 import { ErrorMonitoringSelfTest } from "@/components/admin/error-monitoring-selftest";
 
-export const metadata: Metadata = { title: "Systeemstatus · ZZP Platform" };
+export const metadata: Metadata = { title: "Systeemstatus · Handslag" };
 
 // Nooit cachen: de posture moet de actuele deploy-configuratie en live databank-staat weerspiegelen.
 export const dynamic = "force-dynamic";

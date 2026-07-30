@@ -49,7 +49,7 @@ import {
 } from "@/lib/tax/hours-criterion-summary";
 import { Badge } from "@/components/ui/badge";
 
-export const metadata: Metadata = { title: "Inzicht · ZZP Platform" };
+export const metadata: Metadata = { title: "Inzicht · Handslag" };
 
 export default async function InzichtPage() {
   const actor = await requireActor();

@@ -6,7 +6,7 @@ import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { CredentialForm } from "../../credential-form";
 
-export const metadata: Metadata = { title: "Certificaat bewerken · ZZP Platform" };
+export const metadata: Metadata = { title: "Certificaat bewerken · Handslag" };
 
 export default async function CredentialBewerkenPage({
   params,

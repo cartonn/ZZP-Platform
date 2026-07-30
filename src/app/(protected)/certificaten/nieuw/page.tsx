@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/authz";
 import { CREDENTIAL_TYPES, type CredentialType } from "@/lib/enums";
 import { CredentialForm } from "../credential-form";
 
-export const metadata: Metadata = { title: "Document toevoegen · ZZP Platform" };
+export const metadata: Metadata = { title: "Document toevoegen · Handslag" };
 
 export default async function NieuweCredentialPage({
   searchParams,

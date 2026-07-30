@@ -26,7 +26,7 @@ function escapeHtml(s: string): string {
 
 /** Bouwt de welkomstmail (onderwerp + platte tekst + HTML) voor één geïmporteerd account. */
 export function buildWelcomeEmail(input: WelcomeEmailInput): MailMessage {
-  const platform = input.platformName ?? "ZZP Platform";
+  const platform = input.platformName ?? "Handslag";
   const subject = `Welkom bij ${platform} — je account staat klaar`;
 
   const text = [

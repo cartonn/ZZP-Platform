@@ -16,7 +16,7 @@ import {
 import { IndirectHoursForm } from "./indirect-hours-form";
 import { deleteIndirectHours } from "./actions";
 
-export const metadata: Metadata = { title: "Indirecte uren · ZZP Platform" };
+export const metadata: Metadata = { title: "Indirecte uren · Handslag" };
 
 export default async function IndirectUrenPage() {
   const actor = await requireActor();

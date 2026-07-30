@@ -21,7 +21,7 @@ import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import { getTranslator, type Translator } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Opgeslagen · ZZP Platform" };
+export const metadata: Metadata = { title: "Opgeslagen · Handslag" };
 
 /** Korte, urgente aftel-label voor een bewaarde opdracht waarvan de start nadert. */
 function startSoonLabel(daysUntilStart: number | null, t: Translator): string {

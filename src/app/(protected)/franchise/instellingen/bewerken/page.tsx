@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { BrandingForm } from "../branding-form";
 
-export const metadata: Metadata = { title: "Bemiddeling bewerken · ZZP Platform" };
+export const metadata: Metadata = { title: "Bemiddeling bewerken · Handslag" };
 
 /**
  * Bewerk-formulier voor de white-label branding van de eigen bemiddeling (naam, accentkleur,

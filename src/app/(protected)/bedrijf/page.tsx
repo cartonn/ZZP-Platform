@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CompanyProfileScreen } from "@/components/company/company-profile-screen";
 
-export const metadata: Metadata = { title: "Bedrijfsprofiel · ZZP Platform" };
+export const metadata: Metadata = { title: "Bedrijfsprofiel · Handslag" };
 
 /**
  * Bedrijfsprofiel-hub: de opdrachtgever ziet zijn eigen bedrijfsprofiel (kopkaart + tabs:

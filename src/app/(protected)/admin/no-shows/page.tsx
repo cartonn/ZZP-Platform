@@ -14,7 +14,7 @@ import { formatDateShortNl } from "@/lib/format-date";
 import { setUserStatus } from "@/app/(protected)/admin/gebruikers/actions";
 import { judgeNoShowReport } from "./actions";
 
-export const metadata: Metadata = { title: "No-shows · ZZP Platform" };
+export const metadata: Metadata = { title: "No-shows · Handslag" };
 
 const VERDICT_BADGE: Record<
   NoShowVerdict,

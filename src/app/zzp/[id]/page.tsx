@@ -1,9 +1,10 @@
+import { BrandMark } from "@/components/ui/brand-mark";
 import { type Metadata } from "next";
 import Link from "next/link";
 import { currentActor } from "@/lib/authz";
 import { ProfileScreen } from "@/components/profile/profile-screen";
 
-export const metadata: Metadata = { title: "ZZP-profiel · ZZP Platform" };
+export const metadata: Metadata = { title: "ZZP-profiel · Handslag" };
 
 /**
  * Standalone publieke profielpagina (deelbaar, ook zonder login zichtbaar bij PUBLIC).
@@ -25,10 +26,8 @@ export default async function PublicProfilePage({
       <header className="border-b border-border bg-background">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-              Z
-            </div>
-            <span className="text-sm font-semibold">ZZP Platform</span>
+            <BrandMark size={28} />
+            <span className="font-display text-sm font-semibold">Handslag</span>
           </Link>
           {!viewer && (
             <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground">

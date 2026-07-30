@@ -65,14 +65,14 @@ function safeDetail(error: unknown): string {
  */
 export function buildMailSelfTestMessage(recipient: string, token: string): MailMessage {
   const trimmed = recipient.trim();
-  const subject = `ZZP Platform — e-mailzelftest (${token})`;
+  const subject = `Handslag — e-mailzelftest (${token})`;
   const text =
-    "Dit is een automatische testmail van het ZZP Platform.\n\n" +
+    "Dit is een automatische testmail van Handslag.\n\n" +
     "Als je deze mail ontvangt, is het e-mailkanaal correct geconfigureerd en levert de " +
     "provider berichten af. Je hoeft niets te doen — je kunt deze mail verwijderen.\n\n" +
     `Referentie: ${token}\n`;
   const html =
-    `<p>Dit is een automatische testmail van het <strong>ZZP Platform</strong>.</p>` +
+    `<p>Dit is een automatische testmail van <strong>Handslag</strong>.</p>` +
     `<p>Als je deze mail ontvangt, is het e-mailkanaal correct geconfigureerd en levert de ` +
     `provider berichten af. Je hoeft niets te doen — je kunt deze mail verwijderen.</p>` +
     `<p style="color:#6b7280;font-size:12px">Referentie: ${token}</p>`;

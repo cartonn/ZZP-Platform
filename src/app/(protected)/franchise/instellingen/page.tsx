@@ -2,7 +2,7 @@ import { type Metadata } from "next";
 import { requireRole } from "@/lib/authz";
 import { BemiddelingHubScreen } from "@/components/franchise/bemiddeling-hub-screen";
 
-export const metadata: Metadata = { title: "Mijn bemiddeling · ZZP Platform" };
+export const metadata: Metadata = { title: "Mijn bemiddeling · Handslag" };
 
 /**
  * Bemiddeling-hub: de FRANCHISER ziet zijn eigen bureau (kopkaart + tabs: bemiddeling, facturatie)

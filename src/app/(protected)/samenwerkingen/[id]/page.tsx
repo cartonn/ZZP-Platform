@@ -71,7 +71,7 @@ import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 
-export const metadata: Metadata = { title: "Samenwerking · ZZP Platform" };
+export const metadata: Metadata = { title: "Samenwerking · Handslag" };
 
 const PERF_STATUS: Record<
   PerformanceState,

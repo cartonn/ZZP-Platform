@@ -7,7 +7,7 @@ import { getJobRateBands } from "@/lib/data/job-rate-bands";
 import { buildJobDuplicateInitial } from "@/lib/job-duplicate";
 import { JobForm, type JobFormInitial } from "../job-form";
 
-export const metadata: Metadata = { title: "Nieuwe opdracht · ZZP Platform" };
+export const metadata: Metadata = { title: "Nieuwe opdracht · Handslag" };
 
 const BLANK_INITIAL: JobFormInitial = {
   title: "",

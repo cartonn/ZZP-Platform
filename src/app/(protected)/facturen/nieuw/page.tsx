@@ -7,7 +7,7 @@ import { invoiceableCollaborationsWhere } from "@/lib/invoices";
 import { buildInvoiceDuplicateInitial } from "@/lib/invoice-duplicate";
 import { InvoiceForm } from "../invoice-form";
 
-export const metadata: Metadata = { title: "Nieuwe factuur · ZZP Platform" };
+export const metadata: Metadata = { title: "Nieuwe factuur · Handslag" };
 
 export default async function NieuweFactuurPage({
   searchParams,

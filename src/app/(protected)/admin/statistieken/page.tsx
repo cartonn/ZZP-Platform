@@ -7,7 +7,7 @@ import { StatsPanel } from "@/components/admin/stats-panel";
 import { RevenueTrendCard } from "@/components/insight/revenue-trend-card";
 import { BiSection } from "@/components/insight/bi";
 
-export const metadata: Metadata = { title: "Platform statistieken · ZZP Platform" };
+export const metadata: Metadata = { title: "Platform statistieken · Handslag" };
 
 export default async function StatistiekenPage() {
   await requireRole("ADMIN");

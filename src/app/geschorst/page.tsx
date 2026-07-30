@@ -3,7 +3,7 @@ import { ShieldAlert } from "lucide-react";
 import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 
-export const metadata: Metadata = { title: "Account geschorst · ZZP Platform" };
+export const metadata: Metadata = { title: "Account geschorst · Handslag" };
 
 // Bestemming voor een geschorst account met een nog geldige sessie (zie middleware). Voorkomt de
 // doodlopende foutpagina-lus: een duidelijke uitleg + uitlogknop. Geen requireActor hier (currentActor

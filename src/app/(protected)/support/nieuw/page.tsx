@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { NewTicketForm } from "./new-ticket-form";
 
-export const metadata: Metadata = { title: "Nieuwe vraag · ZZP Platform" };
+export const metadata: Metadata = { title: "Nieuwe vraag · Handslag" };
 
 export default async function NewTicketPage() {
   await requireActor();

@@ -19,7 +19,7 @@ import { adminReply, adminResolve } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
 import { TicketList, type TicketRow } from "./ticket-list";
 
-export const metadata: Metadata = { title: "Helpdesk · ZZP Platform" };
+export const metadata: Metadata = { title: "Helpdesk · Handslag" };
 
 const AUTHOR_LABEL: Record<SupportAuthorKind, string> = {
   USER: "Gebruiker",

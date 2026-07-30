@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { VerplichtingenPanel } from "@/components/administratie/verplichtingen-panel";
 import { PaymentReputationCard } from "@/components/administratie/payment-reputation-card";
 
-export const metadata: Metadata = { title: "Betaalverplichtingen · ZZP Platform" };
+export const metadata: Metadata = { title: "Betaalverplichtingen · Handslag" };
 
 export default async function VerplichtingenPage() {
   const actor = await requireActor();

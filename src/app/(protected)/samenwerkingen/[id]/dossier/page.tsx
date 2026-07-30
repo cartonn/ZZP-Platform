@@ -13,7 +13,7 @@ import { plural } from "@/lib/plural";
 import { inzetvormSignaal } from "@/lib/inzetvorm-signaal";
 import { type DbaRisk } from "@/lib/dba";
 
-export const metadata: Metadata = { title: "Compliance-dossier · ZZP Platform" };
+export const metadata: Metadata = { title: "Compliance-dossier · Handslag" };
 
 function parseReasons(json: string | null): string[] {
   if (!json) return [];

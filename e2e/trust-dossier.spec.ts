@@ -41,7 +41,7 @@ test("vertrouwensdossier: deelblok zichtbaar op /certificaten voor ZZP'er met pu
   await expect(page.getByText("Geverifieerd").first()).toBeVisible();
 
   // Verificatieverklaring aanwezig
-  await expect(page.getByText("Servergeverifieerd door ZZP Platform")).toBeVisible();
+  await expect(page.getByText("Servergeverifieerd door Handslag")).toBeVisible();
 
   await shot(page, "trust-dossier-public-page");
 });

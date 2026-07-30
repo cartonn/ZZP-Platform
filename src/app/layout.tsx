@@ -27,10 +27,10 @@ const fontMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ZZP Platform",
+  title: "Handslag",
   description: "Opdrachten, geverifieerde certificaten en veilig documentbeheer voor ZZP'ers.",
-  applicationName: "ZZP Platform",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "ZZP Platform" },
+  applicationName: "Handslag",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Handslag" },
   icons: { apple: "/pwa/icon/apple.png" },
 };
 

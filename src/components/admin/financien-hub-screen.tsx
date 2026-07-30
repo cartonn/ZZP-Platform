@@ -68,7 +68,7 @@ export async function FinancienHubScreen({
                 <h1 className="break-words font-display text-2xl font-semibold tracking-tight sm:text-3xl">
                   Financiën
                 </h1>
-                <Badge variant="accent">ZZP Platform</Badge>
+                <Badge variant="accent">Handslag</Badge>
                 {openCents > 0 && (
                   <Badge variant="warning">{formatEuro(openCents)} facturatie open</Badge>
                 )}

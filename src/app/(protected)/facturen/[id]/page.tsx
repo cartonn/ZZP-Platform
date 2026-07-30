@@ -27,7 +27,7 @@ import { PrintButton } from "@/components/ui/print-button";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 
-export const metadata: Metadata = { title: "Factuur · ZZP Platform" };
+export const metadata: Metadata = { title: "Factuur · Handslag" };
 
 const CASCADE_LABEL: Record<
   InvoiceLifecycleState,

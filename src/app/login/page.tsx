@@ -1,3 +1,4 @@
+import { BrandMark } from "@/components/ui/brand-mark";
 import { type Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -9,7 +10,7 @@ import { LanguageToggle } from "@/components/i18n/language-toggle";
 import { getTranslator } from "@/lib/i18n/server";
 import { LoginForm } from "./login-form";
 
-export const metadata: Metadata = { title: "Inloggen · ZZP Platform" };
+export const metadata: Metadata = { title: "Inloggen · Handslag" };
 
 export default async function LoginPage({
   searchParams,
@@ -27,10 +28,8 @@ export default async function LoginPage({
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-            Z
-          </div>
-          <span className="text-base font-semibold">ZZP Platform</span>
+          <BrandMark size={32} />
+          <span className="font-display text-base font-semibold">Handslag</span>
           <div className="ml-auto flex items-center gap-2">
             <LanguageToggle current={locale} label={t("Taal")} />
             <ThemeToggle

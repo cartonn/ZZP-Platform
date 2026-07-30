@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { FlexpoolPanel } from "@/components/favorites/flexpool-panel";
 
-export const metadata: Metadata = { title: "Flexpool · ZZP Platform" };
+export const metadata: Metadata = { title: "Flexpool · Handslag" };
 
 export default async function FlexpoolPage() {
   const actor = await requireRole("CLIENT");

@@ -2,7 +2,7 @@
 // deelpagina (/vertrouwen/[profileId]/[token]). Het deel-token is een deterministische, per-profiel
 // onveranderlijke HMAC — een geldig token blijft dus geldig ná schorsing of anonimisering, en de
 // schorsing/anonimisering raakt `FreelancerProfile.visibility` niet. Zonder de poorten bleef deze
-// pagina naam + VERIFIED-certificaten + de "Servergeverifieerd door ZZP Platform"-zegel serveren voor:
+// pagina naam + VERIFIED-certificaten + de "Servergeverifieerd door Handslag"-zegel serveren voor:
 //   - een geschorst/geanonimiseerd account (AVG art. 17; OWASP A01 — stale server-side status), en
 //   - een tenant-gebonden roster-ZZP'er (franchise, `createZzper` = PUBLIC + tenantId), die elders
 //     per tenant is afgeschermd (`tenantEntityVisibleTo`) → cross-tenant-lek op een publieke bearer-URL.

@@ -1,18 +1,17 @@
+import { BrandMark } from "@/components/ui/brand-mark";
 import { type Metadata } from "next";
 import Link from "next/link";
 import { ForgotPasswordForm } from "./forgot-password-form";
 
-export const metadata: Metadata = { title: "Wachtwoord vergeten · ZZP Platform" };
+export const metadata: Metadata = { title: "Wachtwoord vergeten · Handslag" };
 
 export default function ForgotPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-            Z
-          </div>
-          <span className="text-base font-semibold">ZZP Platform</span>
+          <BrandMark size={32} />
+          <span className="font-display text-base font-semibold">Handslag</span>
         </div>
 
         <div className="rounded-lg border border-border bg-card p-6 shadow-sm">

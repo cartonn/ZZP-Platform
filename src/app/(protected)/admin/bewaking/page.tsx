@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/ui/page-header";
 import { BewakingPanel, countOpenIncidents } from "@/components/admin/bewaking-panel";
 
-export const metadata: Metadata = { title: "Platform-bewaking · ZZP Platform" };
+export const metadata: Metadata = { title: "Platform-bewaking · Handslag" };
 
 export default async function BewakingPage() {
   await requireRole("ADMIN");

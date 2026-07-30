@@ -43,7 +43,7 @@ import { RatingStars } from "@/components/reviews/rating-stars";
 import { CandidateHistoryBadge } from "@/components/freelancer/candidate-history-badge";
 import { ChooseCandidateButton } from "./choose-candidate-button";
 
-export const metadata: Metadata = { title: "Kandidaten vergelijken · ZZP Platform" };
+export const metadata: Metadata = { title: "Kandidaten vergelijken · Handslag" };
 
 const TRUST_LABEL = { BASIS: "Basis", DEELS: "Deels", VOLLEDIG: "Volledig" } as const;
 

@@ -2,7 +2,7 @@ import { type Metadata } from "next";
 import { requireRole } from "@/lib/authz";
 import { FinancienHubScreen } from "@/components/admin/financien-hub-screen";
 
-export const metadata: Metadata = { title: "Financiën · ZZP Platform" };
+export const metadata: Metadata = { title: "Financiën · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";

@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/authz";
 import { getPlatformStats } from "@/lib/admin-stats";
 import { ToezichtHubScreen } from "@/components/admin/toezicht-hub-screen";
 
-export const metadata: Metadata = { title: "Toezicht · ZZP Platform" };
+export const metadata: Metadata = { title: "Toezicht · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";

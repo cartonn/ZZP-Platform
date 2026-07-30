@@ -57,7 +57,7 @@ import { DuoVerifyForm } from "../duo-verify-form";
 import { BigVerifyForm } from "../big-verify-form";
 import { formatDateShortNl } from "@/lib/format-date";
 
-export const metadata: Metadata = { title: "Certificaten · ZZP Platform" };
+export const metadata: Metadata = { title: "Certificaten · Handslag" };
 
 function fmt(d: Date | null) {
   return d ? formatDateShortNl(d) : null;

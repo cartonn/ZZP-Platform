@@ -13,7 +13,7 @@ import { cancelDeletionRequest, requestAccountDeletion } from "./actions";
 import { IdentityForm } from "./identity-form";
 import { formatDateShortNl } from "@/lib/format-date";
 
-export const metadata: Metadata = { title: "Account & privacy · ZZP Platform" };
+export const metadata: Metadata = { title: "Account & privacy · Handslag" };
 
 export default async function AccountPage() {
   const actor = await requireActor();

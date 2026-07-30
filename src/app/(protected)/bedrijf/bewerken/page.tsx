@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
 import { CompanyForm } from "../company-form";
 
-export const metadata: Metadata = { title: "Bedrijfsprofiel bewerken · ZZP Platform" };
+export const metadata: Metadata = { title: "Bedrijfsprofiel bewerken · Handslag" };
 
 export default async function BedrijfBewerkenPage() {
   const actor = await requireRole("CLIENT");

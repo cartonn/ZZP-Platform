@@ -186,7 +186,7 @@ export async function probeErrorMonitoring(token: string): Promise<ErrorMonitori
   };
 
   sentry.init(buildSentryInitOptions());
-  sentry.captureMessage(`ZZP Platform — error-monitoring zelftest (${token})`, "info");
+  sentry.captureMessage(`Handslag — error-monitoring zelftest (${token})`, "info");
   const flushed = await sentry.flush(ERROR_MONITORING_SELFTEST_FLUSH_TIMEOUT_MS).catch(() => false);
 
   return {

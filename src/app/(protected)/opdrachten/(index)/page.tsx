@@ -92,7 +92,7 @@ import {
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
-export const metadata: Metadata = { title: "Opdrachten · ZZP Platform" };
+export const metadata: Metadata = { title: "Opdrachten · Handslag" };
 
 const WORK_MODE: Record<WorkMode, string> = {
   REMOTE: "Remote",

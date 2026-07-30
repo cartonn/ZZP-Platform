@@ -27,7 +27,7 @@ import {
   type FilterableConversation,
 } from "@/lib/conversation-filter";
 
-export const metadata: Metadata = { title: "Berichten · ZZP Platform" };
+export const metadata: Metadata = { title: "Berichten · Handslag" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 

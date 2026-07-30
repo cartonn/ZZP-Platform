@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ActionList } from "@/components/actions/action-list";
 import { plural } from "@/lib/plural";
 
-export const metadata: Metadata = { title: "Acties · ZZP Platform" };
+export const metadata: Metadata = { title: "Acties · Handslag" };
 
 // Het Actiecentrum: één plek waar alles wat op je wacht inline af te handelen is. De server is de
 // waarheid (pendingTasks enumereert de concrete openstaande items); na elke actie revalideert die

@@ -73,7 +73,7 @@ import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { type FreelancerCredential } from "@/lib/matching";
 import { parseLanguages } from "@/lib/parse-languages";
 
-export const metadata: Metadata = { title: "Dashboard · ZZP Platform" };
+export const metadata: Metadata = { title: "Dashboard · Handslag" };
 
 interface Stat {
   label: string;
