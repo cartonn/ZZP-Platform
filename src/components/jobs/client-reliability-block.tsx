@@ -1,6 +1,6 @@
 import { CalendarX2 } from "lucide-react";
 import { BehaviorToneBadge } from "@/components/jobs/signal-chips";
-import { type ClientReliability } from "@/lib/client-reliability";
+import { type ClientReliability, reliabilityDisplayMode } from "@/lib/client-reliability";
 import { getTranslator } from "@/lib/i18n/server";
 
 interface Props {
@@ -13,8 +13,10 @@ interface Props {
  * statistieken — geen individuele samenwerkingsdata.
  */
 export async function ClientReliabilityBlock({ reliability }: Props) {
-  const { sampleSize, cancellations, lastMinute, cancelRate, tone } = reliability;
+  const { sampleSize, lastMinute, cancelRate, tone } = reliability;
   const { t } = await getTranslator();
+  // Privacy-poort (k-anonimiteit/AVG art. 5(1)(c)) via de pure helper — nooit direct op ruwe getallen.
+  const mode = reliabilityDisplayMode(reliability);
 
   return (
     <section
@@ -27,11 +29,11 @@ export async function ClientReliabilityBlock({ reliability }: Props) {
         <BehaviorToneBadge tone={tone} />
       </div>
 
-      {tone === "unknown" ? (
+      {mode === "insufficient" ? (
         <p className="text-sm text-muted-foreground">
           {t("Nog te weinig afgewikkelde samenwerkingen om iets te zeggen.")}
         </p>
-      ) : cancellations === 0 ? (
+      ) : mode === "clean" ? (
         <p className="text-sm text-muted-foreground">
           {t("Geen enkele afspraak geannuleerd over")} {sampleSize}{" "}
           {t(sampleSize === 1 ? "samenwerking" : "samenwerkingen")}.

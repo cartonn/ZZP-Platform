@@ -4,6 +4,64 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-30b (basis: `main` @ bdb502bf)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op de delta sinds de vorige
+ronde (`a5a038d2..bdb502bf`, #986–#995). Die delta was grotendeels design/merk-signatuur (uitrol 9–10/10,
+`brand: Handslag + De Schakel`) plus drie functionele increments met nieuw data-/PII-oppervlak:
+(1) **annuleringsbetrouwbaarheid-spiegel** voor de opdrachtgever (#994) — nieuwe reputatie-aggregatie
+`client-reliability.ts`/`data/client-reliability.ts` getoond aan een ZZP'er op de opdracht-detailpagina én
+als zelf-spiegel op `/samenwerkingen`; (2) **BTW-aangifte rubrieken­overzicht** (#993) + **kosten-per-categorie
+op /uitgaven** (#990) — nieuwe financiële aggregaties (`administration/vat-declaration.ts`, `expense.ts`);
+(3) **superseded-certificaat verloop-nudge-onderdrukking** (#991, `credentials.ts`). Oppervlakken gedekt:
+object-/functie-niveau-autorisatie (IDOR/BOLA), cross-party/cross-tenant PII-lek, k-anonimiteit op
+aggregaties, CSV-/formule-injectie op export-paden, credential-status-bypass, over-fetch, PII/secrets in
+logs, foutlek. OWASP Top 10 (A01/A03/A08) + AVG art. 5(1)(c)/15/17/20 als leidraad. Stack gepatcht:
+Next.js 15.5.21 (boven CVE-2025-29927), next-auth 5.0.0-beta.32, Prisma 6.19.3; `npm audit --omit=dev` = **0**.
+
+**Alle drie functionele oppervlakken onafhankelijk schoon — geen nieuw KRITIEK/HOOG/MIDDEL security- of
+privacy-gat. Eén LAAG defense-in-depth-hardening (privacy-render-poort) gevonden én OPGELOST (rood→groen).**
+
+Geverifieerd schoon:
+
+- **Annuleringsbetrouwbaarheid (#994)** — aggregate-only (`sampleSize/cancellations/lastMinute/cancelRate/tone`),
+  geen individuele samenwerking/ZZP'er-identiteit lekt (`data/client-reliability.ts` selecteert enkel
+  `status/cancelledAt/cancelledById/cancellationChargeable`, `MAX_COLLABORATIONS=50`, single-`companyId`-scope,
+  `cancelledById` alleen intern voor de `byClient`-boolean). Authz: getoond **alleen aan een niet-eigenaar
+  FREELANCER** (`showClientSignals = !isOwner && actor.role === "FREELANCER"`); owner/ADMIN/CLIENT/**FRANCHISER**
+  krijgen `null`. De zelf-spiegel op `/samenwerkingen` is rol-gepoort (`CLIENT` → `getOwnReliabilityForClient(actor.id)`,
+  self-scoped by construction). Sub-steekproef (`sampleSize < 3` ⇔ `tone === "unknown"`) toonde al enkel een
+  neutrale "te weinig data"-tekst — geen ruw getal — pariteit met de audited-clean siblings payment-behavior/
+  responsiveness (identieke `MIN_SAMPLE_SIZE = 3` + `tone === "unknown"`-poort).
+- **BTW-aangifte + kosten-per-categorie (#993/#990)** — geen client-gestuurde identifier: alle aggregaties over
+  `where: { ownerUserId | userId: actor.id }` (session-afgeleid, nooit uit query/params); `buildVatDeclaration`/
+  `expenseCategoryShares` zijn **puur** over reeds-owner-scoped rijen. Geen IDOR. Geen nieuw export-pad; de bestaande
+  BTW-CSV exporteert enkel numerieke `vatYear`-data (geen categorienaam/omschrijving → geen formule-injectie).
+  React auto-escapet de gerenderde `description`. Bedragen server-side berekend (`sanitize()`, divide-by-zero-guard).
+- **Superseded-certificaat (#991)** — `supersededVerifiedCredentialIds()` is een **pure classifier** over DB-rijen,
+  géén status-mutator: raakt `CREDENTIAL_TRANSITIONS`/`assertTransition` niet en wordt uitsluitend gelezen om één
+  verloop-**herinnering** te onderdrukken (`pending-tasks.ts`), nooit door `computeCompliance`/`matchScore`/trust-level.
+  Een EXPIRED/superseded credential blijft overal waar het telt als verlopen — geen status-bypass. Onderdrukkingsregel
+  conservatief (strikt `>` op expiry; de langstlevende geldige cert houdt altijd zijn eigen nudge) → hooguit over-notify,
+  nooit under-notify.
+
+### OPGELOST — LAAG (defense-in-depth, AVG art. 5(1)(c) k-anonimiteit): privacy-render-poort van de annuleringsbetrouwbaarheid had geen regressietest
+
+- **Repro (was):** de opdrachtgever-facing UI (`client-reliability-block.tsx`) toont onder de steekproefgrens
+  (`sampleSize < 3`) bewust GEEN ruw getal — anders lekt een ZZP'er één individuele annulering van een opdrachtgever
+  onder k=3 (AVG art. 5(1)(c) dataminimalisatie). De correctheid daarvan hing volledig aan een geneste ternary die
+  op `tone === "unknown"` sleutelde; er was **geen test** die dat borgde. Een refactor die de poort naar een ruw
+  veld (bv. `cancelRate != null`) zou verleggen, of het `sampleSize`-getal uit de juiste branch zou halen, had de
+  sub-k=3-lek stil kunnen herintroduceren met alle unit-tests nog groen. Geen live lek, wel een ongeborgde privacy-poort.
+- **Geschonden regel:** AVG art. 5(1)(c) (dataminimalisatie/k-anonimiteit) — defense-in-depth; CLAUDE.md privacy-lat
+  (geanonimiseerde weergaven waar het hoort). Geen access-control-gat (OWASP niet direct).
+- **Fix (deze PR):** render-poort geëxtraheerd naar een pure `reliabilityDisplayMode(reliability)` in
+  `client-reliability.ts` (`"insufficient" | "clean" | "stats"`) die uitsluitend op `tone` sleutelt; de component
+  consumeert nu die mode i.p.v. ruwe velden. Vier nieuwe tests in `client-reliability.test.ts` — de sleuteltest geeft
+  een bewust inconsistent sub-steekproefobject (`tone: "unknown"` mét `cancellations: 1, lastMinute: 1`) en asserteert
+  `reliabilityDisplayMode` → `"insufficient"` (rood→groen: een poort die op ruwe getallen sleutelt zou hier `"stats"`
+  teruggeven en de individuele annulering lekken). `npm run typecheck`/`lint`/`test` (5406) /`build`/`prettier` groen.
+
 ## Ronde 2026-07-30 (basis: `main` @ a5a038d2)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.

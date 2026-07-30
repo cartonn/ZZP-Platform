@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { computeClientReliability, type CancellationRow } from "./client-reliability";
+import {
+  computeClientReliability,
+  reliabilityDisplayMode,
+  type CancellationRow,
+  type ClientReliability,
+} from "./client-reliability";
 
 const WHEN = new Date("2026-06-10T12:00:00Z");
 
@@ -150,5 +155,42 @@ describe("computeClientReliability", () => {
   it("muteert de invoer niet", () => {
     const rows = Object.freeze([completed(), clientCancel(true)]) as CancellationRow[];
     expect(() => computeClientReliability(rows)).not.toThrow();
+  });
+});
+
+// Privacy-poort (k-anonimiteit / AVG art. 5(1)(c)): de opdrachtgever-facing UI leunt uitsluitend op
+// reliabilityDisplayMode. Onder de steekproefgrens mag GEEN ruw getal getoond worden — ook niet als
+// de (theoretisch) doorgegeven ClientReliability al annuleringen bevat. Rood→groen: een render-branch
+// die op ruwe velden i.p.v. deze mode sleutelt zou een sub-k=3 annulering op individueel niveau lekken.
+describe("reliabilityDisplayMode (privacy-render-poort)", () => {
+  it("onderdrukt alle getallen onder de steekproefgrens (tone unknown)", () => {
+    const belowThreshold = computeClientReliability([completed(), clientCancel(true)]);
+    expect(belowThreshold.tone).toBe("unknown");
+    expect(reliabilityDisplayMode(belowThreshold)).toBe("insufficient");
+  });
+
+  it("blijft insufficient zelfs als ruwe annuleringen zijn meegegeven (poort sleutelt op tone, niet op ruwe velden)", () => {
+    // Bewust inconsistente vorm: sub-steekproef (tone unknown) mét cancellations/lastMinute. De poort
+    // mag hier NIET "stats" teruggeven — anders lekt één individuele annulering onder k=3.
+    const leaky: ClientReliability = {
+      sampleSize: 2,
+      cancellations: 1,
+      lastMinute: 1,
+      cancelRate: null,
+      tone: "unknown",
+    };
+    expect(reliabilityDisplayMode(leaky)).toBe("insufficient");
+  });
+
+  it("toont alleen de steekproef ('clean') bij genoeg data en nul annuleringen", () => {
+    const noCancels = computeClientReliability([completed(), completed(), completed()]);
+    expect(noCancels.tone).toBe("good");
+    expect(reliabilityDisplayMode(noCancels)).toBe("clean");
+  });
+
+  it("toont statistieken bij genoeg data mét annuleringen", () => {
+    const withCancels = computeClientReliability([completed(), completed(), clientCancel(true)]);
+    expect(withCancels.cancelRate).not.toBeNull();
+    expect(reliabilityDisplayMode(withCancels)).toBe("stats");
   });
 });

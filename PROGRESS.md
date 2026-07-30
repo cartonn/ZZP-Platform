@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30b — Security/privacy-audit delta #986–#995: privacy-render-poort geborgd
+
+**Wat:** security-/privacy-auditronde over de delta sinds de vorige ronde (`a5a038d2..bdb502bf`).
+Orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op de drie functionele increments
+met nieuw data-/PII-oppervlak (annuleringsbetrouwbaarheid-spiegel #994, BTW-aangifte #993 +
+kosten-per-categorie #990, superseded-certificaat-nudge #991). **Alle drie oppervlakken onafhankelijk
+schoon** (geen IDOR/cross-tenant-lek/injectie/credential-status-bypass; aggregaties aggregate-only,
+authz-gepoort, financiën server-side). Stack gepatcht, `npm audit --omit=dev` = 0.
+
+- **Gevonden + OPGELOST (LAAG, AVG art. 5(1)(c) k-anonimiteit, defense-in-depth):** de opdrachtgever-facing
+  annuleringsbetrouwbaarheid-render onderdrukt onder de steekproefgrens (`sampleSize < 3`) alle ruwe getallen,
+  maar die privacy-poort had geen regressietest. Render-beslissing geëxtraheerd naar een pure
+  `reliabilityDisplayMode()` in `src/lib/client-reliability.ts` (sleutelt uitsluitend op `tone`); component
+  (`src/components/jobs/client-reliability-block.tsx`) consumeert die mode. 4 nieuwe tests in
+  `src/lib/client-reliability.test.ts` (sleuteltest: sub-steekproefobject mét ruwe annuleringen → `"insufficient"`,
+  rood→groen).
+- **Bestanden:** `src/lib/client-reliability.ts`, `src/components/jobs/client-reliability-block.tsx`,
+  `src/lib/client-reliability.test.ts`, `docs/SECURITY-PRIVACY-BACKLOG.md`.
+- **Gate:** typecheck ✓ · lint ✓ · test 5406 ✓ · build ✓ · prettier ✓.
+
 ## 2026-07-30 — Merk: Handslag + De Schakel (eigenaarskeuze)
 
 **Wat:** de eigenaar koos definitief de naam **Handslag** en logo-concept **#1 De Schakel**
