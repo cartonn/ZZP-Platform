@@ -30,18 +30,24 @@ export async function setAvailabilityStatus(status: string): Promise<Availabilit
   const parsed = availabilityStatusSchema.safeParse(status);
   if (!parsed.success) return { ok: false, error: "Ongeldige status." };
 
-  // Eigenaar-scoped write in één statement (op userId): geen los ownership-lees dat kan driften.
-  const { count } = await prisma.freelancerProfile.updateMany({
+  const profile = await prisma.freelancerProfile.findUnique({
     where: { userId: actor.id },
+    select: { id: true },
+  });
+  if (!profile) return { ok: false, error: "Maak eerst je profiel aan." };
+
+  // Compound-guarded write (id + userId in dezelfde statement): geen cross-profiel-write en de
+  // ownership-check kan niet met de update driften (geen TOCTOU), consistent met updateAvailabilityWindow.
+  await prisma.freelancerProfile.updateMany({
+    where: { id: profile.id, userId: actor.id },
     data: { availability: parsed.data },
   });
-  if (count === 0) return { ok: false, error: "Maak eerst je profiel aan." };
 
   await audit({
     actorId: actor.id,
     action: "AVAILABILITY_STATUS_CHANGED",
     entityType: "FreelancerProfile",
-    entityId: actor.id,
+    entityId: profile.id,
     metadata: { status: parsed.data },
   });
   revalidatePath("/beschikbaarheid");

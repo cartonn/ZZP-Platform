@@ -15,6 +15,7 @@ const store = {
   },
 };
 
+const profileFindUnique = vi.hoisted(() => vi.fn());
 const profileUpdateMany = vi.hoisted(() => vi.fn());
 const auditMock = vi.hoisted(() => vi.fn(async () => undefined));
 const revalidateMock = vi.hoisted(() => vi.fn());
@@ -26,28 +27,37 @@ vi.mock("@/lib/authz", () => ({
 }));
 vi.mock("@/lib/audit", () => ({ audit: auditMock }));
 vi.mock("@/lib/db", () => ({
-  prisma: { freelancerProfile: { updateMany: profileUpdateMany } },
+  prisma: { freelancerProfile: { findUnique: profileFindUnique, updateMany: profileUpdateMany } },
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
   store.actor = { id: "zzp-1", role: "FREELANCER", status: "ACTIVE" };
+  profileFindUnique.mockResolvedValue({ id: "prof-1" });
   profileUpdateMany.mockResolvedValue({ count: 1 });
 });
 
 describe("setAvailabilityStatus — eigenaar-poort + compound-guarded write", () => {
-  it("scoopt de update op het eigen profiel (userId) en schrijft de status + audit", async () => {
+  it("scoopt de update compound op id + eigen userId en schrijft de status + audit (echte profiel-id)", async () => {
     const res = await setAvailabilityStatus("LIMITED");
     expect(res).toEqual({ ok: true });
     const call = profileUpdateMany.mock.calls[0]![0] as {
       where: Record<string, unknown>;
       data: Record<string, unknown>;
     };
+    expect(call.where.id).toBe("prof-1");
     expect(call.where.userId).toBe("zzp-1");
     expect(call.data.availability).toBe("LIMITED");
     expect(auditMock).toHaveBeenCalledOnce();
-    const auditArg = (auditMock.mock.calls[0] as unknown[])[0] as { action: string };
+    const auditArg = (auditMock.mock.calls[0] as unknown[])[0] as {
+      action: string;
+      entityType: string;
+      entityId: string;
+    };
     expect(auditArg.action).toBe("AVAILABILITY_STATUS_CHANGED");
+    // Audit verwijst naar de echte FreelancerProfile-id (niet de userId) — consistent met het bestand.
+    expect(auditArg.entityType).toBe("FreelancerProfile");
+    expect(auditArg.entityId).toBe("prof-1");
     expect(revalidateMock).toHaveBeenCalledWith("/beschikbaarheid");
     expect(revalidateMock).toHaveBeenCalledWith("/dashboard");
   });
@@ -62,10 +72,11 @@ describe("setAvailabilityStatus — eigenaar-poort + compound-guarded write", ()
     expect(revalidateMock).not.toHaveBeenCalled();
   });
 
-  it("count 0 (geen profiel) → nette fout, GEEN audit/revalidate", async () => {
-    profileUpdateMany.mockResolvedValueOnce({ count: 0 });
+  it("geen profiel → nette fout, GEEN write/audit/revalidate", async () => {
+    profileFindUnique.mockResolvedValueOnce(null);
     const res = await setAvailabilityStatus("AVAILABLE");
     expect(res).toEqual({ ok: false, error: "Maak eerst je profiel aan." });
+    expect(profileUpdateMany).not.toHaveBeenCalled();
     expect(auditMock).not.toHaveBeenCalled();
     expect(revalidateMock).not.toHaveBeenCalled();
   });
