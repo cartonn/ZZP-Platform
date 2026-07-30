@@ -3,6 +3,21 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — Definitief ontwerp: etalage- + dossier-signatuur (uitrol stap 4 van 10)
+
+**Wat:** stap 4 van het uitrolplan: het marktplaats-cluster krijgt het motief _de etalage_ en
+het opdracht-detail-cluster _het dossier_, via de eyebrow-signatuurregel (#978), per pagina met
+een eigen smaak: `/opdrachten` "voor jou" (ZZP) / "jouw aanbod" (opdrachtgever), `/freelancers`
+"vakmensen", `/kandidaten(/vergelijk)` "kandidaten"/"vergelijken", `/favorieten` "flexpool",
+`/opgeslagen` "bewaard"; `/opdrachten/[id]` "Het dossier" (boven de opdrachttitel) en
+`/reacties` "Het dossier · jouw reacties" (+10 EN-entries).
+
+- **Meegenomen:** de ZZP-marktplaatskop was nog een losse `<header><h1>` zonder
+  display-typografie — nu de canonieke `PageHeader` (zelfde vertaalgedrag, wel de signatuur).
+- **Gate:** typecheck, lint, test, build, prettier groen; visueel geverifieerd.
+- **Volgende stap (uitrol 5/10):** geld-cluster — grootboek-signatuur op
+  `/facturen`, `/financien`, `/administratie`, `/ontzorgd`, `/abonnement`.
+
 ## 2026-07-29 — Definitief ontwerp: zegel-signatuur op het verificatie-cluster (uitrol stap 3 van 10)
 
 **Wat:** stap 3 van het uitrolplan: het cluster "Verificatie & vertrouwen" krijgt zijn

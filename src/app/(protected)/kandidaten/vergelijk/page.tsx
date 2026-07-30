@@ -188,6 +188,7 @@ export default async function VergelijkKandidatenPage({
           <ArrowLeft className="size-4" aria-hidden /> {t("Terug naar kandidaten")}
         </Link>
         <PageHeader
+          eyebrow="De etalage · vergelijken"
           title={t("Kandidaten vergelijken")}
           description={`${t("Reacties op")} "${job.title}" ${t("naast elkaar, met de uitspringer per onderdeel.")}`}
         />

@@ -42,7 +42,11 @@ export default async function OpgeslagenPage() {
   if (!profile) {
     return (
       <div className="space-y-6">
-        <PageHeader title={t("Opgeslagen")} description={t("Opdrachten die je hebt bewaard.")} />
+        <PageHeader
+          eyebrow="De etalage · bewaard"
+          title={t("Opgeslagen")}
+          description={t("Opdrachten die je hebt bewaard.")}
+        />
         <Card>
           <EmptyState
             icon={Bookmark}

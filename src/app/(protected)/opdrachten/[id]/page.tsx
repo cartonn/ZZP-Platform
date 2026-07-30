@@ -444,6 +444,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
+                {t("Het dossier")}
+              </p>
               <div className="flex items-center gap-2">
                 <h1 className="break-words font-display text-2xl font-semibold tracking-tight">
                   {job.title}
