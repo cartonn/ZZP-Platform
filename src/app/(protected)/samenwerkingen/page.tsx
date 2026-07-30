@@ -26,6 +26,8 @@ import {
   parseCollaborationStatusFilter,
   summarizeCollaborationStatusGroups,
 } from "@/lib/collaboration-status-filter";
+import { getOwnReliabilityForClient } from "@/lib/data/client-reliability";
+import { ReliabilityReputationCard } from "@/components/administratie/reliability-reputation-card";
 import { CancelCollaborationForm } from "@/components/collaborations/cancel-form";
 import { CredentialReminderButton } from "@/components/collaborations/credential-reminder-button";
 import { Badge } from "@/components/ui/badge";
@@ -192,6 +194,12 @@ export default async function SamenwerkingenPage({
   // knop): status ACTIVE met een startdatum én vastgelegde weekdagen.
   const canExportAgenda = hasExportableSchedule(collaborations);
 
+  // Betrouwbaarheidsreputatie-spiegel voor de opdrachtgever: dezelfde annulerings-cijfers die ZZP'ers
+  // over hem zien op de opdracht-detailpagina, terug naar hemzelf als zelfverbeter-nudge. Sluit aan bij
+  // de betaal- (/verplichtingen) en reactiereputatie-spiegel (/kandidaten). Alleen voor de opdrachtgever.
+  const ownReliability =
+    actor.role === "CLIENT" ? await getOwnReliabilityForClient(actor.id) : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -202,6 +210,8 @@ export default async function SamenwerkingenPage({
           canExportAgenda ? <AgendaSubscribe feedPath={agendaFeedPath(actor.id)} /> : undefined
         }
       />
+
+      {ownReliability && <ReliabilityReputationCard reliability={ownReliability} />}
 
       {groupCounts.all === 0 ? (
         <Card>

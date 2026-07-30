@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — annuleringsbetrouwbaarheid-spiegel op /samenwerkingen (2026-07-30, PR #994)** —
+> de opdrachtgever zag zijn eigen betaalreputatie (/verplichtingen) + reactiereputatie (/kandidaten) — spiegels van wat ZZP'ers
+> over hem zien — maar **niet** de derde: zijn annuleringsbetrouwbaarheid (`ClientReliabilityBlock`, die de ZZP'er wél op de
+> opdracht-detailpagina ziet). Nu een **"Jouw betrouwbaarheid in afspraken"**-kaart bovenaan /samenwerkingen (alleen CLIENT),
+> gevoed door dezelfde loader/cijfers → geen drift. Pure `summarizeReliabilityReputation`
+> (`src/lib/client-reliability-reputation.ts`, +5 tests) vertaalt het geaggregeerde `ClientReliability` naar kop + tip zonder te
+> herclassificeren (tone identiek aan invoer); spiegelt `client-payment-reputation.ts`/`client-responsiveness-reputation.ts`
+> één-op-één. Data via `getOwnReliabilityForClient(userId)` (symmetrisch met `getOwnPaymentBehaviorForClient`) → hergebruikt exact
+> `getClientReliabilityForCompany`. Onder de min-steekproef (3) geen cijfers maar een eerlijke "nog X toezeggingen nodig"-regel.
+> Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. `RELIABILITY_MIN_SAMPLE_SIZE` geëxporteerd. Gate:
+> typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — /api/metrics incident-IP-redactie retentie-backlog gauge (2026-07-30, PR volgt)** —
 > vijfde retentie-backlog dead-man's-switch: **`zzp_health_incidents_ip_retention_backlog`** telt beveiligingsincidenten
 > (`HealthIncident`) ouder dan `HEALTH_INCIDENT_IP_RETENTION_DAYS` wier bron-IP de `health-incident-retention`-cron nog niet

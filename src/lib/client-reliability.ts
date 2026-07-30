@@ -40,6 +40,9 @@ export interface ClientReliability {
 const WARNING_MIN_CANCEL_RATE = 25; // > 25% van de toezeggingen geannuleerd = let op
 const MIN_SAMPLE_SIZE = 3;
 
+/** Minimum-steekproef voordat een annuleringspercentage betrouwbaar is (gedeeld met de reputatie-kaart). */
+export const RELIABILITY_MIN_SAMPLE_SIZE = MIN_SAMPLE_SIZE;
+
 /**
  * Berekent het annuleringsbetrouwbaarheid-signaal voor een opdrachtgever uit zijn afgewikkelde
  * samenwerkingen. Puur en deterministisch; geschikt voor unit-tests zonder DB.
