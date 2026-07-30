@@ -423,6 +423,12 @@ const EN: Record<string, string> = {
   "Het paspoort · account": "The passport · account",
   "Het paspoort · wachtwoord": "The passport · password",
   "Het paspoort · voorkeuren": "The passport · preferences",
+  "De cockpit · diensten": "The cockpit · shifts",
+  "De cockpit · facturatie": "The cockpit · billing",
+  "De cockpit · leads": "The cockpit · leads",
+  "De cockpit · opdrachtgevers": "The cockpit · clients",
+  "De cockpit · samenwerkingen": "The cockpit · collaborations",
+  "De cockpit · jouw ZZP'ers": "The cockpit · your freelancers",
   "Helemaal bij": "All caught up",
   "Geen openstaande acties — mooi werk. Zodra er iets op je wacht, verschijnt het hier.":
     "No open actions — nice work. As soon as something needs you, it shows up here.",

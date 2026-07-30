@@ -95,6 +95,7 @@ export default async function FranchiseSamenwerkingenPage({
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="De cockpit · samenwerkingen"
         title="Samenwerkingen"
         description="Toezicht op de samenwerkingen die uit je diensten zijn voortgekomen."
       />
