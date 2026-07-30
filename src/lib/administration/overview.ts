@@ -62,15 +62,23 @@ export function openPayablesCents(entries: readonly LedgerEntry[], party: Ledger
   return norm(-netDebit(entries, party, "CREDITEUREN"));
 }
 
-/** Gerealiseerde omzet van een partij in een jaar: netto credit op OMZET. */
+/**
+ * Gerealiseerde omzet van een partij: netto credit op OMZET. Zonder `quarter` over het hele jaar;
+ * met `quarter` uitsluitend dat kalenderkwartaal (voor de BTW-aangifte-grondslag per kwartaal).
+ */
 export function revenueCents(
   entries: readonly LedgerEntry[],
   party: LedgerParty,
   year: number,
+  quarter?: Quarter,
 ): number {
   return norm(
     -netDebit(
-      entries.filter((e) => e.occurredAt.getFullYear() === year),
+      entries.filter(
+        (e) =>
+          e.occurredAt.getFullYear() === year &&
+          (quarter === undefined || quarterOf(e.occurredAt) === quarter),
+      ),
       party,
       "OMZET",
     ),

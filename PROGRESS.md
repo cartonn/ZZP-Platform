@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — ZZP'er: kant-en-klaar BTW-aangifte rubriekenoverzicht op /administratie
+
+**Wat:** het boekhoudpaneel toonde de BTW per kwartaal (af te dragen / voorbelasting / saldo), maar
+niet de **Belastingdienst-rubrieken** die je in het BTW-portaal overtikt. Nu een "BTW-aangifte
+{kwartaal}"-kaart voor het in te dienen kwartaal met precies die rubrieken — benchmark
+Moneybird/e-Boekhouden/Tellow (elk boekhoudpakket toont dit). Alleen voor de ZZP'er (FREELANCER); de
+opdrachtgever heeft hier geen eigen aangifte.
+
+- **Rubrieken (NL, hoog tarief 21%):** 1a (grondslag = omzet excl. BTW + omzetbelasting), 5a
+  (verschuldigde omzetbelasting), 5b (voorbelasting), 5g (saldo → te betalen/terug te ontvangen).
+- **Grens/scope:** pure `buildVatDeclaration` (`src/lib/administration/vat-declaration.ts`) mapt het
+  grootboek van één kwartaal naar de rubrieken; hergebruikt exact `vatReturn` + `revenueCents`
+  (quarter-scoped, optionele `quarter`-param toegevoegd — additief, backward compatible) → één bron
+  van waarheid met de bestaande "BTW per kwartaal"-tabel, kan niet driften. Read-only, geen
+  schemawijziging, geen nieuw mutatie/auth-oppervlak. Deadline uit `summarizeVatDeadline`;
+  `TAX_DISCLAIMER` + noot "afgeleid uit je platform-facturen".
+- **Bestanden:** `src/lib/administration/vat-declaration.ts` (+ test, +6), `overview.ts`
+  (`revenueCents` optionele quarter), `src/components/administratie/vat-declaration-card.tsx`,
+  `boekhouding-panel.tsx` (wiring), PROGRESS.md.
+- **Gate:** typecheck, lint, test, build, prettier groen. PR #993.
+
 ## 2026-07-30 — Definitief ontwerp: prototype exact — groene kopvlakken vervangen (uitrol, nazorg)
 
 **Wat:** expliciete eigenaarskeuze ("vergeet mijn groene blokken, voer het exact uit zoals het
