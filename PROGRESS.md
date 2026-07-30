@@ -15,15 +15,15 @@ het laatst-vervallende exemplaar leunt. Beide surfaces spreken nu niet meer tege
 - **Pure helper `rosterExpiringByProfile(creds, now, soon)`** (`src/lib/credentials.ts`): groepeert per
   ZZP'er, past `supersededVerifiedCredentialIds` binnen het eigen dossier toe en telt alleen niet-gedekte
   certificaten in het (now, soon]-venster. Puur/deterministisch.
-- **`pending-tasks.ts`:** de expiry-query haalt nu álle VERIFIED tenant-certificaten op (niet enkel de
-  bijna-vervallende), nulls-first + expiresAt asc → de dekkende én eerst-vervallende exemplaren blijven
-  binnen de MAX-slice; aggregatie via de helper.
-- **Tests:** +6 pure-helper-tests (`credentials.test.ts`: solo → taak, superseded → geen taak, onbeperkte
-  vervanger → geen taak, per-type-aggregatie, per-ZZP'er-scheiding, buiten-venster/verlopen/onbeperkt
-  genegeerd) + 3 integratietests via `pendingTasks` (`pending-tasks-franchiser.test.ts`: solo → taak,
-  superseded → geen taak, gemengd → juiste telling).
-- **Gate:** typecheck ✓ · lint ✓ · test (48 in de twee raakvlakbestanden; volledige suite draait) ·
-  prettier ✓ · build (draait). PR #999.
+- **`pending-tasks.ts` (basis, PR #999 gemerged):** de expiry-aggregatie onderdrukt superseded certificaten
+  via de nieuwe helper; +6 pure-helper-tests + 3 integratietests via `pendingTasks`. Gate groen, gemerged.
+- **`pending-tasks.ts` (hardening-follow-up, PR #1000):** de agent-review op #999 (verdict PASS) wees op een
+  should-fix — de eerste opzet haalde álle VERIFIED-certs `nulls-first` op met `take: MAX`, waardoor een
+  tenant met ≥MAX onbeperkt-geldige certs (`expiresAt = null`, bv. BIG-registraties) een echte verloop-taak
+  uit de slice kon duwen. Nu twee gescopete queries: (1) de in-venster (now, soon] verlopende certs als
+  kandidaat-nudges (nulls vallen buiten `gte/lte` → consumeren geen slot) en (2) álle VERIFIED-certs van
+  enkel de kandidaat-profielen voor de superseded-check. +1 regressietest (80 null-certs + 1 echte taak).
+- **Gate (beide PR's):** typecheck ✓ · lint ✓ · test (volledige suite 5428→5429 ✓) · prettier ✓ · build ✓.
 
 ## 2026-07-30c — Prod-rijpheid: complete monitoring drop-in bundle (scrape + Alertmanager-inhibitie)
 

@@ -38,7 +38,32 @@ const state = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn(async () => ({ tenantId: "tenant-1" })) },
-    credential: { findMany: vi.fn(async () => state.creds) },
+    // Twee aanroepen: (1) de kandidaat-query (window-filter `expiresAt in (now, soon]`, nulls vallen
+    // erbuiten) en (2) de dekkings-query (alle VERIFIED-certs van de kandidaat-profielen, `in`-filter).
+    // De mock past beide echte filters toe zodat een teruggedraaide fix meteen rood wordt.
+    credential: {
+      findMany: vi.fn(
+        async (args: {
+          where?: {
+            expiresAt?: { gte: Date; lte: Date };
+            freelancerProfileId?: { in: string[] };
+          };
+        }) => {
+          const w = args?.where ?? {};
+          if (w.expiresAt) {
+            const { gte, lte } = w.expiresAt;
+            return state.creds.filter(
+              (c) => c.expiresAt != null && c.expiresAt >= gte && c.expiresAt <= lte,
+            );
+          }
+          if (w.freelancerProfileId?.in) {
+            const ids = new Set(w.freelancerProfileId.in);
+            return state.creds.filter((c) => ids.has(c.freelancerProfileId));
+          }
+          return state.creds;
+        },
+      ),
+    },
     // Past het echte nextFollowUp-filter toe op de fixture-leads. De productiecode gebruikt de
     // dagniveau-grens `lt: startOfUtcDay(now)` (gelijk aan de nav-badge en de leadpagina); de mock
     // ondersteunt ook `lte` zodat een teruggedraaide fix meteen rood wordt.
@@ -369,5 +394,20 @@ describe("bemiddelaar next-actions — roster-verloop onderdrukt superseded cert
     const expiry = tasks.filter((t) => t.kind === "franchise-credential-expiry");
     expect(expiry).toHaveLength(1);
     expect(expiry[0]?.title).toContain("1 certificaat verloopt");
+  });
+
+  it("verbergt een echte verloop-taak niet achter een grote berg onbeperkt-geldige certs (MAX-slice)", async () => {
+    // Regressie op de MAX-slice-should-fix: een tenant met ver boven MAX onbeperkt-geldige certs
+    // (`expiresAt = null`, bv. BIG-registraties) op ándere roster-leden + één echt in-venster
+    // verlopend cert. De kandidaat-query filtert op (now, soon], dus de nulls consumeren geen slot
+    // en de verloop-taak blijft zichtbaar.
+    const bulk = Array.from({ length: 80 }, (_v, i) =>
+      cred(`null-${i}`, "BIG", null, `prof-null-${i}`, "Ander"),
+    );
+    state.creds = [...bulk, cred("echt", "LICENSE", soon, "prof-1", "Sanne")];
+    const tasks = await pendingTasks(ACTOR);
+    const expiry = tasks.filter((t) => t.kind === "franchise-credential-expiry");
+    expect(expiry).toHaveLength(1);
+    expect(expiry[0]?.id).toBe("franchise-credential-expiry:prof-1");
   });
 });
