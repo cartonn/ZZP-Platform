@@ -128,6 +128,7 @@ export default async function AdminSupportPage({
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="De controlekamer · support"
         title="Helpdesk"
         description={<>Tickets die door de {ASSISTANT_NAME} naar een medewerker zijn doorgezet.</>}
       />

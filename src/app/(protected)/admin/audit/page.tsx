@@ -27,6 +27,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="De controlekamer · audit"
         title="Audit log"
         description={`${total} gebeurtenis(sen). Alleen-lezen.`}
         action={

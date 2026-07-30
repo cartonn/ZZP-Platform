@@ -26,6 +26,7 @@ export default async function SupportPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="Het loket"
         title="Support"
         description="Stel je vraag — vaak heb je direct antwoord, anders pakt de helpdesk het op."
         action={

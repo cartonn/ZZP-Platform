@@ -86,6 +86,7 @@ export default async function AdminDisputenPage({
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="De controlekamer · disputen"
         title="Disputen"
         description="Samenwerkingen met een open dispuut. De samenwerking is bevroren tot het platform bemiddelt en het dispuut oplost."
       />
