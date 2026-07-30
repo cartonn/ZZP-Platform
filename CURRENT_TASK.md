@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — complete monitoring drop-in bundle (scrape + Alertmanager-inhibitie) (2026-07-30, PR #998)** —
+> `docs/observability/` had alléén `alerts.yml`; de scrape-config + de onderhouds-`inhibit_rule` bestonden enkel als proza in de
+> kop/RUNBOOK. Zonder inhibit_rule paget een geplande deploy on-call voor DB-onbereikbaar/cron-stil/back-up-stil (alert-fatigue).
+> Nu compleet: **`prometheus.yml`** (scrape → `/api/metrics`, bearer via `credentials_file`, `rule_files: [alerts.yml]`,
+> Alertmanager-koppeling) + **`alertmanager.yml`** (routing op severity + `inhibit_rules`: `ZzpMaintenanceModeOn` dempt elke
+> operationele alert; cron-stil→cron-run-faalde; back-up-stil→back-up-faalde). Tweede drift-gate `monitoring-bundle.ts` (puur) +
+> `monitoring-bundle.test.ts` (10 tests) klinkt de drie bestanden vast: scrape wijst naar `/api/metrics` + laadt `alerts.yml`,
+> elke gerefereerde alert bestaat écht, en de onderhouds-inhibitie dekt **elke** operationele alert (nieuwe alert zonder target →
+> poort breekt). Geen runtime/schema/auth-wijziging. Docs: RUNBOOK §2a + MENSENWERK §0b. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — annuleringsbetrouwbaarheid-spiegel op /samenwerkingen (2026-07-30, PR #994)** —
 > de opdrachtgever zag zijn eigen betaalreputatie (/verplichtingen) + reactiereputatie (/kandidaten) — spiegels van wat ZZP'ers
 > over hem zien — maar **niet** de derde: zijn annuleringsbetrouwbaarheid (`ClientReliabilityBlock`, die de ZZP'er wél op de

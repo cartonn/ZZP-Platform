@@ -1,0 +1,49 @@
+# Prometheus scrape-config voor het ZZP Platform — drop-in monitoring van /api/metrics.
+#
+# Dit bestand hoort bij alerts.yml (de alerting-rules) en alertmanager.yml (routing + inhibitie). Samen
+# vormen ze de complete monitoring-bundle: één scraper leest de machine-leesbare gauges van
+# /api/metrics (Prometheus-tekst, beveiligd met `Authorization: Bearer $CRON_SECRET`), de rules zetten
+# ze om naar alerts, en Alertmanager routeert/onderdrukt die.
+#
+# GEBRUIK:
+#   1. Zet het CRON_SECRET (dezelfde waarde als de Railway-secret) in een leesbestand op de
+#      Prometheus-host, bv. /etc/prometheus/zzp_cron_secret (chmod 600 — NOOIT de secret in dit
+#      YAML-bestand plakken; het bestand mag in git, de secret niet).
+#   2. Vervang `zzp-platform.example.nl` door je productie-host.
+#   3. Laad dit bestand als Prometheus-hoofdconfig; het verwijst via `rule_files` naar alerts.yml en
+#      via `alerting` naar alertmanager.yml.
+#
+# De gauges bevatten NOOIT persoonsgegevens — alleen geaggregeerde tellingen/leeftijden/vlaggen.
+# Een drift-gate-test (src/lib/observability/monitoring-bundle.test.ts) klinkt dit bestand vast aan
+# alerts.yml en aan het echte metrics-pad, zodat een verkeerd pad of een niet-geladen regelbestand
+# de CI-poort breekt i.p.v. stil de monitoring dood te leggen.
+
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+  external_labels:
+    service: zzp-platform
+
+# De alerting-rules die de gauges naar alerts vertalen. Relatief pad t.o.v. deze config.
+rule_files:
+  - alerts.yml
+
+# Alertmanager-koppeling (routing + inhibitie). Draai Alertmanager met alertmanager.yml uit deze map.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+scrape_configs:
+  - job_name: zzp-platform
+    metrics_path: /api/metrics
+    scheme: https
+    # Bearer-auth met dezelfde CRON_SECRET als de taak-/heartbeat-routes (fail-closed op het endpoint).
+    # credentials_file houdt de secret buiten dit (in git bewaarde) bestand.
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/zzp_cron_secret
+    static_configs:
+      - targets:
+          - zzp-platform.example.nl

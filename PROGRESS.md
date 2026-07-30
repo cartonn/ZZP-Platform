@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30c — Prod-rijpheid: complete monitoring drop-in bundle (scrape + Alertmanager-inhibitie)
+
+**Wat:** de `docs/observability/`-bundle bevatte alléén `alerts.yml` (Prometheus-regels); de
+scrape-config en de onderhouds-`inhibit_rule` bestonden enkel als prozavoorbeeld in de kop/RUNBOOK.
+Zonder de inhibit_rule paget een geplande deploy on-call voor DB-onbereikbaar/cron-stil/back-up-stil.
+Nu twee echte drop-in bestanden erbij + een tweede drift-gate die de bundle als geheel eerlijk houdt.
+
+- **`docs/observability/prometheus.yml`** — scrape-config: `metrics_path: /api/metrics`, scheme https,
+  bearer-auth via `credentials_file` (secret buiten git), `rule_files: [alerts.yml]`, Alertmanager-koppeling.
+- **`docs/observability/alertmanager.yml`** — routing-skelet (severity → receiver) + `inhibit_rules`:
+  (1) `ZzpMaintenanceModeOn` dempt **elke** operationele alert (15 targets = alle alerts op de
+  onderhoudsalert zelf na); (2) `ZzpCronStale` dempt `ZzpCronLastRunFailed`; (3) `ZzpBackupStale` dempt
+  `ZzpBackupLastFailed` (wortel-oorzaak-ruisdemping).
+- **Drift-gate:** `src/lib/observability/monitoring-bundle.ts` (puur: `definedAlertNames`/
+  `referencedAlertNames`/`extractMetricsPath`/`loadsRuleFile`) + `monitoring-bundle.test.ts` (10 tests):
+  scrape-config wijst naar `/api/metrics` + laadt `alerts.yml`; elke door `alertmanager.yml`
+  gerefereerde `Zzp*`-alert bestaat écht; de onderhouds-inhibitie dekt **elke** operationele alert
+  (nieuwe alert zonder inhibitie-target breekt de poort); geen kale `credentials:` in de scrape-config.
+- **Docs:** RUNBOOK §2a herschreven (bundle + twee drift-gates), MENSENWERK §0b-monitoringblok bijgewerkt.
+- **Gate:** typecheck, lint, test, build, prettier groen. Geen runtime-/schema-/auth-wijziging (alleen
+  config-bestanden + een pure lib + test). PR #998.
+
 ## 2026-07-30b — Security/privacy-audit delta #986–#995: privacy-render-poort geborgd
 
 **Wat:** security-/privacy-auditronde over de delta sinds de vorige ronde (`a5a038d2..bdb502bf`).
