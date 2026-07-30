@@ -1134,7 +1134,7 @@ export function franchiseStaleDienstRollupTask(count: number): PendingTask {
     title: `Nog ${plural(count, "dienst staat", "diensten staan")} lang open zonder plaatsing`,
     subtitle: "Bekijk de volledige lijst — draag ZZP'ers voor of werf",
     tone: "attention",
-    priority: P.franchiserServiceStale,
+    priority: P.franchiserServiceStaleRollup,
     resolver: "link",
     href: "/franchise/diensten",
   };

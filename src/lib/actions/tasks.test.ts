@@ -23,6 +23,8 @@ import {
   draftJobsTask,
   franchiseCredentialExpiryTask,
   franchiseAcuteDienstTask,
+  franchiseStaleDienstTask,
+  franchiseStaleDienstRollupTask,
   franchiseLeadFollowupTask,
   clientComplianceTask,
   reviewLeaveTask,
@@ -730,5 +732,17 @@ describe("overdueInvoiceTask", () => {
     const t = overdueInvoiceTask(3, "CLIENT");
     expect(t.id).toBe("overdue-invoice:CLIENT");
     expect(t.subtitle).toBe("Markeer als betaald");
+  });
+});
+
+describe("franchise stale-dienst rollup vs. per-dienst prioriteit", () => {
+  it("de rollup staat strikt onder de per-dienst-taak (specifieke, oudste diensten voorop — niet afhankelijk van de push-volgorde)", () => {
+    const perDienst = franchiseStaleDienstTask("job-1", "Wijkverpleging", 12);
+    const rollup = franchiseStaleDienstRollupTask(4);
+    expect(rollup.priority).toBeLessThan(perDienst.priority);
+    // rankTasks sorteert op prioriteit aflopend → de per-dienst-taak komt vóór de rollup, ongeacht
+    // de invoervolgorde (hier bewust omgekeerd ingevoerd).
+    const ranked = rankTasks([rollup, perDienst]);
+    expect(ranked.map((t) => t.id)).toEqual([perDienst.id, rollup.id]);
   });
 });

@@ -13,7 +13,7 @@ import { computeEngageability } from "@/lib/engageability";
 import { formatMissing } from "@/lib/next-actions";
 import { startOfUtcDay } from "@/lib/signals";
 import { type FreelancerCredential } from "@/lib/matching";
-import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
+import { CREDENTIAL_TYPE_LABEL, supersededVerifiedCredentialIds } from "@/lib/credentials";
 import { type CredentialType } from "@/lib/enums";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { overdueInvoiceBreakdown, overdueInvoiceCount, paymentDueSoonCount } from "@/lib/signals";
@@ -355,13 +355,18 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       status: c.status as CollabCredentialInput["status"],
       expiresAt: c.expiresAt,
     }));
+    // Een ouder VERIFIED-certificaat waarvan een nieuwer, nu-geldig exemplaar van hetzelfde type de
+    // compliance al draagt, is superseded: het verval ervan is niet meer relevant, dus géén
+    // "verloopt binnenkort"-nudge (dat zou een valse melding zijn die nooit nuttig verdwijnt).
+    const supersededIds = supersededVerifiedCredentialIds(allCreds, now);
     for (const c of creds) {
       if (c.status === "REJECTED") tasks.push(credentialFixTask(c.id, c.title, "rejected"));
       else if (
         c.status === "VERIFIED" &&
         c.expiresAt !== null &&
         c.expiresAt > now &&
-        c.expiresAt <= soon
+        c.expiresAt <= soon &&
+        !supersededIds.has(c.id)
       )
         // Uitgesteld: kan een samenwerking-gebonden verval-taak worden (dedup verderop).
         expiringCreds.push({ id: c.id, title: c.title });

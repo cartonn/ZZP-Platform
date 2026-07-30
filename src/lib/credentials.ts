@@ -145,6 +145,56 @@ export function isExpiringSoon(
   return days !== null && days <= withinDays;
 }
 
+export interface SupersedeInput {
+  id: string;
+  type: string;
+  status: CredentialStatus;
+  expiresAt?: Date | null;
+}
+
+/**
+ * Welke VERIFIED-certificaten worden door een nieuwer, nu-geldig geverifieerd certificaat van
+ * HETZELFDE type overbodig gemaakt? Een "superseded" exemplaar is een certificaat waarvan het
+ * verval niet meer relevant is: er bestaat al een geldige vervanger die minstens even lang (of
+ * onbeperkt) meegaat. De compliance leunt per type op het laatst-vervallende geldige exemplaar
+ * (zie `collaborationCredentialExpiryConcerns`), dus een ouder, eerder-vervallend exemplaar hoeft
+ * de ZZP'er niet meer te vernieuwen — een "verloopt binnenkort"-nudge daarop is een valse melding.
+ *
+ * Regel: certificaat C (VERIFIED, nu geldig, mét vervaldatum) is superseded zodra er een ánder
+ * VERIFIED-certificaat D van hetzelfde type bestaat dat nú geldig is (niet verlopen) én
+ * - geen vervaldatum heeft (verloopt nooit), of
+ * - later verloopt dan C.
+ * Retourneert de set met de ids van de superseded exemplaren. Puur/deterministisch.
+ */
+export function supersededVerifiedCredentialIds(
+  credentials: readonly SupersedeInput[],
+  now: Date = new Date(),
+): Set<string> {
+  const nowMs = now.getTime();
+  const validVerifiedByType = new Map<string, SupersedeInput[]>();
+  for (const c of credentials) {
+    if (c.status !== "VERIFIED") continue;
+    if (c.expiresAt != null && c.expiresAt.getTime() <= nowMs) continue; // al verlopen → dekt niets
+    const list = validVerifiedByType.get(c.type);
+    if (list) list.push(c);
+    else validVerifiedByType.set(c.type, [c]);
+  }
+
+  const superseded = new Set<string>();
+  for (const list of validVerifiedByType.values()) {
+    if (list.length < 2) continue;
+    for (const c of list) {
+      if (c.expiresAt == null) continue; // verloopt nooit → nooit superseded
+      const cExp = c.expiresAt.getTime();
+      const covered = list.some(
+        (d) => d.id !== c.id && (d.expiresAt == null || d.expiresAt.getTime() > cExp),
+      );
+      if (covered) superseded.add(c.id);
+    }
+  }
+  return superseded;
+}
+
 /**
  * Geeft de nieuwe status als een credential door expiry moet wijzigen, anders `null`.
  * Gebruikt door de expiry-job (Sessie 5) om VERIFIED -> EXPIRED te markeren.
