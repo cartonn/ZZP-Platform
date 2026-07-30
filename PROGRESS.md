@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — Opdrachtgever: annuleringsbetrouwbaarheid-spiegel op /samenwerkingen
+
+**Wat:** de opdrachtgever zag zijn eigen **betaalreputatie** (/verplichtingen) en **reactiereputatie**
+(/kandidaten) — de spiegels van wat ZZP'ers over hem zien — maar **niet** de derde: zijn
+**annuleringsbetrouwbaarheid** (`ClientReliabilityBlock`, die de ZZP'er wél op de opdracht-detailpagina
+ziet). Die derde spiegel ontbrak. Nu een **"Jouw betrouwbaarheid in afspraken"**-kaart bovenaan
+/samenwerkingen (alleen opdrachtgever), gevoed door dezelfde loader/cijfers → geen drift. Zelfverbeter-
+nudge: minder (last-minute) annuleren = aantrekkelijker voor vakmensen (benchmark Deel/Malt buyer-
+transparantie).
+
+- **Grens/scope:** pure `summarizeReliabilityReputation` (`src/lib/client-reliability-reputation.ts`)
+  vertaalt het reeds-geaggregeerde `ClientReliability` (tone good/neutral/warning/unknown) naar kop +
+  tip; **herclassificeert niet** (tone identiek aan invoer). Spiegelt `client-payment-reputation.ts` /
+  `client-responsiveness-reputation.ts` één-op-één. Data via `getOwnReliabilityForClient(userId)`
+  (nieuw, symmetrisch met `getOwnPaymentBehaviorForClient`) → hergebruikt exact
+  `getClientReliabilityForCompany` (dezelfde cijfers die de ZZP'er ziet). Read-only, geen
+  schemawijziging, geen nieuw mutatie/auth-oppervlak. Onder de min-steekproef (3) geen cijfers maar een
+  eerlijke "nog X toezeggingen nodig"-regel (`insufficientSampleNotice`). Het woord "AI" komt nergens voor.
+- **Bestanden:** `src/lib/client-reliability-reputation.ts` (+ test, +5), `src/lib/client-reliability.ts`
+  (`RELIABILITY_MIN_SAMPLE_SIZE` geëxporteerd), `src/lib/data/client-reliability.ts`
+  (`getOwnReliabilityForClient`), `src/components/administratie/reliability-reputation-card.tsx`,
+  `src/app/(protected)/samenwerkingen/page.tsx` (wiring), PROGRESS.md.
+- **Gate:** typecheck, lint, test, build, prettier groen. PR #994.
+
 ## 2026-07-30 — ZZP'er: kant-en-klaar BTW-aangifte rubriekenoverzicht op /administratie
 
 **Wat:** het boekhoudpaneel toonde de BTW per kwartaal (af te dragen / voorbelasting / saldo), maar
