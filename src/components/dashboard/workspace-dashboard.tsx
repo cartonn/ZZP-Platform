@@ -110,10 +110,13 @@ export async function WorkspaceDashboard({
   const { t } = await getTranslator();
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
-      {/* Vol-brede merk-groene naam-balk (--hero) boven beide kolommen. */}
-      <header className="bg-hero px-5 py-4 text-white md:px-6">
-        <h1 className="font-display text-lg font-semibold tracking-tight">{header.title}</h1>
-        {header.subtitle && <p className="text-sm font-medium text-white">{header.subtitle}</p>}
+      {/* Kopregel op het papier (prototype-stijl): eyebrow + serif-groet — geen kleurvlak. */}
+      <header className="border-b border-border px-5 py-5 md:px-6">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
+          {t("Vandaag")}
+        </p>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">{header.title}</h1>
+        {header.subtitle && <p className="text-sm text-muted-foreground">{header.subtitle}</p>}
       </header>
       {/* Twee kolommen onder de balk: hoofdkolom + contextrail (elk eigen scroll). */}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
