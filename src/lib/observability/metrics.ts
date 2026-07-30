@@ -133,6 +133,18 @@ export interface MetricsInput {
    * per definitie geen achterstand en is deze gauge `0`.
    */
   leadsRetentionBacklog: number;
+  /**
+   * Aantal beveiligingsincidenten (HealthIncident, uit de anomaliedetector) ouder dan het geconfigureerde
+   * `HEALTH_INCIDENT_IP_RETENTION_DAYS`-venster wier bron-IP de `health-incident-retention`-cron nog niet
+   * redigeerde — werk dat die cron had moeten doen. Dezelfde stille-faal-detector-klasse als de andere
+   * retentie-backlogs, en net zo privacygevoelig: een incident legt bij een inlog-burst/reset-flood het
+   * bron-IP (een persoonsgegeven) vast in `evidence` én `summary`. Anders dan de andere retentie-crons
+   * staat déze standaard AAN (venster leeg → default 90 dagen), want onbeperkte IP-retentie is hier de
+   * overtreding (AVG art. 5(1)(c)/(e) minimalisatie + opslagbeperking). De cron-heartbeat bewijst alleen
+   * dát de run afrondde, niet dát 'ie de redactie-pijplijn verwerkte; blijft dit getal oplopen terwijl de
+   * heartbeat "vers" is, dan bewaart de app incident-IP's over de termijn heen zonder dat iets dat toont.
+   */
+  healthIncidentsIpRetentionBacklog: number;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -260,6 +272,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal beslíste acquisitie-leads (KLANT/NO_DEAL, met contact-PII in het cascade-gekoppelde logboek) ouder dan het geconfigureerde LEAD_RETENTION_DAYS-venster die de lead-retention-cron nog niet snoeide (0 als retentie uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → lead-PII bewaard over de beloofde termijn heen, AVG art. 5(1)(e)).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.leadsRetentionBacklog)),
+    },
+    {
+      name: "zzp_health_incidents_ip_retention_backlog",
+      help: "Aantal beveiligingsincidenten (HealthIncident) ouder dan het geconfigureerde HEALTH_INCIDENT_IP_RETENTION_DAYS-venster wier bron-IP de health-incident-retention-cron nog niet redigeerde (deze retentie staat standaard AAN — default 90 dagen; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen redactie-pijplijn → incident-IP's (persoonsgegeven) bewaard over de bewaartermijn heen, AVG art. 5(1)(c)/(e)).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.healthIncidentsIpRetentionBacklog)),
     },
   ];
 }

@@ -7,6 +7,7 @@
 // IP-retentie is hier de overtreding. Idempotent: een geredigeerde rij valt buiten de kandidaatquery
 // (bevat de sentinel), dus een tweede run met dezelfde klok redact niets meer.
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { AUDIT_PII_REDACTED } from "@/lib/account-anonymization";
@@ -17,6 +18,24 @@ import {
   IP_EVIDENCE_MARKER,
   UNKNOWN_IP,
 } from "@/lib/health-incident-retention";
+
+/**
+ * De `where`-vorm die één redigeerbaar (IP-dragend) beveiligingsincident ouder dan `cutoff` selecteert:
+ * te oud, mét een string-waardig `ip`-veld in de evidence, nog niet geredigeerd, en geen "onbekend"-
+ * sentinel (dat is geen PII). Bron van waarheid, gedeeld door de retentie-taak (die deze rijen redact)
+ * én de /api/metrics-backlog-gauge (die ze telt) zodat de detector niet kan driften t.o.v. het werk dat
+ * de taak doet.
+ */
+export function prunableHealthIncidentIpWhere(cutoff: Date): Prisma.HealthIncidentWhereInput {
+  return {
+    createdAt: { lt: cutoff },
+    AND: [
+      { evidence: { contains: IP_EVIDENCE_MARKER } },
+      { NOT: { evidence: { contains: `${IP_EVIDENCE_MARKER}${UNKNOWN_IP}"` } } },
+      { NOT: { evidence: { contains: AUDIT_PII_REDACTED } } },
+    ],
+  };
+}
 
 export interface HealthIncidentRetentionResult {
   enabled: boolean;
@@ -49,17 +68,10 @@ export async function runHealthIncidentRetentionTask(opts: {
   let redacted = 0;
   for (let batch = 0; batch < MAX_BATCHES; batch++) {
     // Kandidaten: te oud, mét een string-waardig `ip`-veld, nog niet geredigeerd, en geen "onbekend"-
-    // sentinel (dat is geen PII). De laatste twee sluitingen garanderen dat elke opgehaalde rij ook
-    // écht redigeerbaar is → gestage voortgang zonder cursor.
+    // sentinel (dat is geen PII). De sluitingen (gedeeld via `prunableHealthIncidentIpWhere`)
+    // garanderen dat elke opgehaalde rij ook écht redigeerbaar is → gestage voortgang zonder cursor.
     const stale = await prisma.healthIncident.findMany({
-      where: {
-        createdAt: { lt: cutoff },
-        AND: [
-          { evidence: { contains: IP_EVIDENCE_MARKER } },
-          { NOT: { evidence: { contains: `${IP_EVIDENCE_MARKER}${UNKNOWN_IP}"` } } },
-          { NOT: { evidence: { contains: AUDIT_PII_REDACTED } } },
-        ],
-      },
+      where: prunableHealthIncidentIpWhere(cutoff),
       select: { id: true, evidence: true, summary: true, dedupeKey: true },
       take: BATCH_SIZE,
     });
