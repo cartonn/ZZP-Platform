@@ -3,6 +3,7 @@ import {
   expenseSchema,
   planExpensePostings,
   summarizeExpenses,
+  expenseCategoryShares,
   parseEurosToCents,
   EXPENSE_CATEGORIES,
   EXPENSE_CATEGORY_LABEL,
@@ -181,5 +182,51 @@ describe("summarizeExpenses", () => {
   it("lege lijst → nul-samenvatting", () => {
     const s = summarizeExpenses([], { year: 2026 });
     expect(s).toMatchObject({ count: 0, netCents: 0, vatCents: 0, totalCents: 0, byCategory: [] });
+  });
+});
+
+describe("expenseCategoryShares", () => {
+  it("berekent het aandeel per categorie t.o.v. het netto kostentotaal", () => {
+    const s = summarizeExpenses(
+      [
+        { category: "REISKOSTEN", netCents: 7500, vatCents: 0, occurredAt: new Date("2026-05-01") },
+        { category: "SOFTWARE", netCents: 2500, vatCents: 0, occurredAt: new Date("2026-05-02") },
+      ],
+      { year: 2026 },
+    );
+    const shares = expenseCategoryShares(s);
+    expect(shares).toEqual([
+      { category: "REISKOSTEN", netCents: 7500, sharePct: 75 },
+      { category: "SOFTWARE", netCents: 2500, sharePct: 25 },
+    ]);
+  });
+
+  it("houdt de aflopende sortering van byCategory aan", () => {
+    const s = summarizeExpenses(
+      [
+        { category: "SOFTWARE", netCents: 1000, vatCents: 0, occurredAt: new Date("2026-05-01") },
+        { category: "MATERIAAL", netCents: 4000, vatCents: 0, occurredAt: new Date("2026-05-02") },
+      ],
+      { year: 2026 },
+    );
+    const shares = expenseCategoryShares(s);
+    expect(shares.map((c) => c.category)).toEqual(["MATERIAAL", "SOFTWARE"]);
+  });
+
+  it("rondt het aandeel af op hele procenten", () => {
+    const s = summarizeExpenses(
+      [
+        { category: "REISKOSTEN", netCents: 100, vatCents: 0, occurredAt: new Date("2026-05-01") },
+        { category: "SOFTWARE", netCents: 200, vatCents: 0, occurredAt: new Date("2026-05-02") },
+      ],
+      { year: 2026 },
+    );
+    // 100/300 = 33,33% → 33; 200/300 = 66,67% → 67.
+    expect(expenseCategoryShares(s).map((c) => c.sharePct)).toEqual([67, 33]);
+  });
+
+  it("zonder netto kosten → lege lijst (geen deling door nul)", () => {
+    const s = summarizeExpenses([], { year: 2026 });
+    expect(expenseCategoryShares(s)).toEqual([]);
   });
 });

@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-30 — ZZP'er: kosten-per-categorie-overzicht op /uitgaven
+
+**Wat:** het uitgaven-paneel toonde de ZZP'er kosten dit jaar, aftrekbare btw en aantal posten,
+plus de vlakke lijst — maar niet **waar het geld heen gaat**. `summarizeExpenses` berekende
+`byCategory` (netto kosten per categorie, aflopend) al, maar die afleiding werd nergens gerenderd.
+Benchmark Moneybird/Tellow: elke ZZP-boekhouding toont "kosten per categorie" zodat de ondernemer
+in één oogopslag zijn kostenstructuur ziet (en weet waar te besparen / of een categorie klopt).
+
+Nu een compacte **"Kosten per categorie"**-sectie (aandeelbalken met `€ · %`), tussen de
+kerncijfers en het toevoeg-formulier, alleen getoond als er kosten zijn.
+
+**Grens/architectuur:** pure `expenseCategoryShares(summary)` (`src/lib/expense.ts`) leidt het
+aandeel% t.o.v. het netto kostentotaal af uit de reeds-berekende `ExpenseSummary` — één bron van
+waarheid, kan niet driften; lege lijst zonder netto kosten (geen deling door nul). Wiring in
+`uitgaven-panel.tsx` leunt op de al-geladen `summarizeExpenses`-uitkomst — **geen extra query, geen
+schemawijziging, geen nieuw mutatie/auth-oppervlak**. Read-only, scoping blijft op `userId`.
+`role="progressbar"` + aria-labels op de balken. Het woord "AI" komt nergens voor.
+**Bestanden:** `src/lib/expense.ts` (+ test, +4), `src/components/administratie/uitgaven-panel.tsx`,
+`PROGRESS.md`. Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-30 — Prod-rijpheid: /api/metrics — incident-IP-redactie retentie-backlog gauge (stille-faal-detector, AVG art. 5(1)(c)/(e))
 
 **Wat:** vijfde retentie-backlog dead-man's-switch op het machine-leesbare monitoring-endpoint:

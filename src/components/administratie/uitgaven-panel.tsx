@@ -2,7 +2,12 @@ import { Layers, Receipt, ReceiptText } from "lucide-react";
 import { type Actor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
-import { EXPENSE_CATEGORY_LABEL, summarizeExpenses, type ExpenseCategory } from "@/lib/expense";
+import {
+  EXPENSE_CATEGORY_LABEL,
+  expenseCategoryShares,
+  summarizeExpenses,
+  type ExpenseCategory,
+} from "@/lib/expense";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { UitgavenForm, DeleteExpenseButton } from "@/components/administratie/uitgaven-form";
@@ -32,6 +37,7 @@ export async function UitgavenPanel({ actor }: { actor: Actor }) {
   });
 
   const summary = summarizeExpenses(expenses, { year: new Date().getUTCFullYear() });
+  const categoryShares = expenseCategoryShares(summary);
 
   return (
     <div className="space-y-6">
@@ -72,6 +78,43 @@ export async function UitgavenPanel({ actor }: { actor: Actor }) {
           </CardContent>
         </Card>
       </section>
+
+      {/* Kosten per categorie — waar gaat je geld heen? */}
+      {categoryShares.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold">Kosten per categorie</h2>
+          <Card>
+            <CardContent className="space-y-3 py-4">
+              {categoryShares.map((c) => (
+                <div key={c.category} className="space-y-1">
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <span>{categoryLabel(c.category)}</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {formatEuro(c.netCents)} · {c.sharePct}%
+                    </span>
+                  </div>
+                  <div
+                    className="h-2 w-full overflow-hidden rounded-full bg-muted"
+                    role="progressbar"
+                    aria-valuenow={c.sharePct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`${categoryLabel(c.category)}: ${c.sharePct}% van je kosten`}
+                  >
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: `${Math.min(100, c.sharePct)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground">
+                Aandeel van je netto kosten dit jaar, per categorie.
+              </p>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {/* Nieuwe uitgave */}
       <section className="space-y-3">
