@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatDateShortNl } from "@/lib/format-date";
+import { selectedAvailability } from "@/lib/availability-status";
+import { AvailabilityStatusToggle } from "@/components/beschikbaarheid/availability-status-toggle";
 import { AvailabilityForm } from "./availability-form";
 import { AvailabilityRows } from "./availability-rows";
 
@@ -22,7 +24,7 @@ export default async function BeschikbaarheidPage() {
   const actor = await requireRole("FREELANCER");
   const profile = await prisma.freelancerProfile.findUnique({
     where: { userId: actor.id },
-    select: { id: true },
+    select: { id: true, availability: true },
   });
   const [rows, collabRows] = await Promise.all([
     profile
@@ -72,6 +74,19 @@ export default async function BeschikbaarheidPage() {
           </>
         }
       />
+
+      {profile && (
+        <Card className="space-y-3">
+          <div>
+            <h2 className="text-sm font-medium text-foreground">Je status voor opdrachtgevers</h2>
+            <p className="text-xs text-muted-foreground">
+              Zet in één klik of je open staat voor nieuwe opdrachten. Dit is los van je periodes
+              hieronder.
+            </p>
+          </div>
+          <AvailabilityStatusToggle current={selectedAvailability(profile.availability)} />
+        </Card>
+      )}
 
       {conflicts.length > 0 && (
         <section className="rounded-lg border border-danger/30 bg-danger/5 p-4">

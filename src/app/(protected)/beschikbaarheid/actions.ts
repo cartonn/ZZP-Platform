@@ -5,10 +5,56 @@ import { AuthorizationError, requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { availabilityWindowSchema } from "@/lib/validation";
+import { availabilityStatusSchema } from "@/lib/availability-status";
 
 export type AvailabilityState =
   | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
   | undefined;
+
+export type AvailabilityStatusResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Snelle statuswijziging: zet de persistente `availability`-status op het ZZP-profiel in één klik
+ * (Beschikbaar / Beperkt / Niet beschikbaar), zonder het volledige profielformulier. Volgt de
+ * volledige mutatieketen: auth → rol → ownership → Zod → eigenaar-scoped write → audit.
+ */
+export async function setAvailabilityStatus(status: string): Promise<AvailabilityStatusResult> {
+  let actor;
+  try {
+    actor = await requireRole("FREELANCER");
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { ok: false, error: e.message };
+    throw e;
+  }
+
+  const parsed = availabilityStatusSchema.safeParse(status);
+  if (!parsed.success) return { ok: false, error: "Ongeldige status." };
+
+  const profile = await prisma.freelancerProfile.findUnique({
+    where: { userId: actor.id },
+    select: { id: true },
+  });
+  if (!profile) return { ok: false, error: "Maak eerst je profiel aan." };
+
+  // Compound-guarded write (id + userId in dezelfde statement): geen cross-profiel-write en de
+  // ownership-check kan niet met de update driften (geen TOCTOU), consistent met updateAvailabilityWindow.
+  await prisma.freelancerProfile.updateMany({
+    where: { id: profile.id, userId: actor.id },
+    data: { availability: parsed.data },
+  });
+
+  await audit({
+    actorId: actor.id,
+    action: "AVAILABILITY_STATUS_CHANGED",
+    entityType: "FreelancerProfile",
+    entityId: profile.id,
+    metadata: { status: parsed.data },
+  });
+  revalidatePath("/beschikbaarheid");
+  revalidatePath("/dashboard");
+  revalidatePath("/profiel");
+  return { ok: true };
+}
 
 async function requireProfile(actorId: string) {
   const profile = await prisma.freelancerProfile.findUnique({

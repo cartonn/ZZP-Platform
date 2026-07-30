@@ -32,6 +32,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   AVAILABILITY_ADDED: "Beschikbaarheid toegevoegd",
   AVAILABILITY_UPDATED: "Beschikbaarheid bijgewerkt",
   AVAILABILITY_REMOVED: "Beschikbaarheid verwijderd",
+  AVAILABILITY_STATUS_CHANGED: "Beschikbaarheidsstatus gewijzigd",
   WORK_EXPERIENCE_ADDED: "Werkervaring toegevoegd",
   WORK_EXPERIENCE_REMOVED: "Werkervaring verwijderd",
 
