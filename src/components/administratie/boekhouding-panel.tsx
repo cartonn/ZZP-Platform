@@ -13,8 +13,10 @@ import {
   type LedgerEntry,
 } from "@/lib/administration/overview";
 import { summarizeVatDeadline } from "@/lib/administration/vat-deadline";
+import { buildVatDeclaration } from "@/lib/administration/vat-declaration";
 import { Card, CardContent } from "@/components/ui/card";
 import { VatDeadlineCard } from "@/components/administratie/vat-deadline-card";
+import { VatDeclarationCard } from "@/components/administratie/vat-declaration-card";
 import { EmptyState } from "@/components/ui/empty-state";
 
 const QUARTER_LABEL = ["1e kwartaal", "2e kwartaal", "3e kwartaal", "4e kwartaal"];
@@ -85,6 +87,11 @@ export async function BoekhoudingPanel({ actor }: { actor: Actor }) {
   const vatTotal = quarters.reduce((s, q) => s + q.balanceCents, 0);
   const annual = annualSummary(entries, party, year);
   const vatDeadline = summarizeVatDeadline(entries, party, now);
+  // Kant-en-klare aangifterubrieken voor het in te dienen kwartaal (alleen de ZZP'er dient BTW-
+  // aangifte in; de opdrachtgever heeft hier geen eigen aangifte).
+  const vatDeclaration = isFreelancer
+    ? buildVatDeclaration(entries, party, vatDeadline.year, vatDeadline.quarter)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -116,6 +123,10 @@ export async function BoekhoudingPanel({ actor }: { actor: Actor }) {
       ) : (
         <>
           <VatDeadlineCard summary={vatDeadline} />
+
+          {vatDeclaration && (
+            <VatDeclarationCard declaration={vatDeclaration} deadline={vatDeadline.deadline} />
+          )}
 
           <div className="grid gap-3 sm:grid-cols-3">
             <Card>
