@@ -75,6 +75,31 @@ export function computeClientReliability(rows: CancellationRow[]): ClientReliabi
   return { sampleSize, cancellations, lastMinute, cancelRate, tone };
 }
 
+/**
+ * Wat de opdrachtgever-facing UI mag tonen, afgeleid uit één bron van waarheid:
+ *
+ * - `"insufficient"` — onder de steekproefgrens (`tone === "unknown"`, d.w.z. `sampleSize < 3`):
+ *   toon GEEN enkel ruw getal (geen `cancellations`/`lastMinute`/`sampleSize`), alleen een neutrale
+ *   "te weinig data"-tekst. Dit is de k-anonimiteit-/dataminimalisatie-poort (AVG art. 5(1)(c)): een
+ *   ZZP'er mag het annuleringsgedrag van een opdrachtgever niet op individueel niveau afleiden.
+ * - `"clean"` — genoeg data én nooit geannuleerd: toon alleen de (geaggregeerde) steekproefomvang.
+ * - `"stats"` — genoeg data mét annuleringen: toon het percentage + evt. last-minute + steekproef.
+ *
+ * De render-poort mag ALLEEN op deze functie leunen (nooit direct op ruwe velden), zodat een
+ * refactor de privacy-poort niet stil kan loskoppelen van de sub-steekproefstaat. Bewust puur en
+ * los unit-getest — de render-branch is daarmee deterministisch geborgd (rood→groen).
+ */
+export type ReliabilityDisplayMode = "insufficient" | "clean" | "stats";
+
+export function reliabilityDisplayMode(reliability: ClientReliability): ReliabilityDisplayMode {
+  // Sleutel op `tone === "unknown"` — exact equivalent aan `sampleSize < MIN_SAMPLE_SIZE` (zie
+  // computeClientReliability): boven de grens levert determineTone nooit "unknown". Nooit op ruwe
+  // getallen sleutelen: een sub-steekproefobject met cancellations > 0 hoort óók onderdrukt te worden.
+  if (reliability.tone === "unknown") return "insufficient";
+  if (reliability.cancellations === 0) return "clean";
+  return "stats";
+}
+
 function determineTone(
   cancellations: number,
   lastMinute: number,
