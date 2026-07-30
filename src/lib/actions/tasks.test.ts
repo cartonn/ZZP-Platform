@@ -743,7 +743,6 @@ describe("franchise stale-dienst rollup vs. per-dienst prioriteit", () => {
     // rankTasks sorteert op prioriteit aflopend → de per-dienst-taak komt vóór de rollup, ongeacht
     // de invoervolgorde (hier bewust omgekeerd ingevoerd).
     const ranked = rankTasks([rollup, perDienst]);
-    expect(ranked[0].id).toBe(perDienst.id);
-    expect(ranked[1].id).toBe(rollup.id);
+    expect(ranked.map((t) => t.id)).toEqual([perDienst.id, rollup.id]);
   });
 });
