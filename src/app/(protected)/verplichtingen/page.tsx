@@ -26,6 +26,7 @@ export default async function VerplichtingenPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="De werklijst · verplichtingen"
         title="Betaalverplichtingen"
         description="Wat je nog moet betalen, op een tijdlijn — inclusief facturen die je nog moet goedkeuren."
         action={

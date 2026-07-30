@@ -11,8 +11,11 @@ export default async function OpenstaandPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Openstaande posten</h1>
+      <header className="space-y-1">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
+          De werklijst · openstaand
+        </p>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">Openstaande posten</h1>
         {!isAdmin && (
           <p className="text-sm text-muted-foreground">
             {isFreelancer

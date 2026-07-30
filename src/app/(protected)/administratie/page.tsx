@@ -11,6 +11,7 @@ export default async function AdministratiePage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="Het grootboek · boekhouding"
         title="Boekhouding"
         description="Automatisch afgeleid uit goedgekeurde prestaties en facturen. Betaling verloopt rechtstreeks; het platform houdt alleen de status bij."
       />
