@@ -94,12 +94,11 @@ export async function anonymizeUser(userId: string): Promise<void> {
   const check = canAnonymizeUser(actor, { ...user, ownsTenant: user.ownedTenant !== null });
   if (!check.ok) throw new Error(check.reason);
 
-  // Storage-sleutels vóór de transactie ophalen voor best-effort opruimen ná het wegschrijven.
-  // unbounded-allow: account-verwijdering-actie, niet een lijst-view
-  const documents = await prisma.document.findMany({
-    where: { ownerId: userId },
-    select: { storageKey: true },
-  });
+  // Aantal documenten vóór de transactie — enkel voor de audit-metadata (intentiegetal). De
+  // wérkelijke verwijdering (rij + blob) gebeurt PAS ná de transactie, race-vrij: op dat punt is het
+  // account al SUSPENDED/geanonimiseerd (userAnonymizationData) en kan de betrokkene niets meer
+  // uploaden, dus de dan-gelezen storagesleutels dekken exact de te wissen rijen. Zie onder (CWE-367).
+  const documentCount = await prisma.document.count({ where: { ownerId: userId } });
 
   // Ook het bedrijfslogo staat als losse blob in de opslag (Company.logoKey, geüpload via
   // bedrijf/actions.ts — géén Document-rij, dus een tweede, onafhankelijk storage.put-callsite). De
@@ -260,7 +259,9 @@ export async function anonymizeUser(userId: string): Promise<void> {
     }),
     prisma.company.updateMany({ where: { userId }, data: companyAnonymizationData() }),
     prisma.credential.deleteMany({ where: { freelancerProfile: { userId } } }),
-    prisma.document.deleteMany({ where: { ownerId: userId } }),
+    // NB: de document-rijen worden bewust NIET hier verwijderd, maar race-vrij ná de transactie
+    // (zie onder, CWE-367/art. 17). Credential → Document is `onDelete: SetNull`, dus het verwijderen
+    // van de credentials hierboven blijft correct terwijl de documenten nog even bestaan.
     // AVG: verzonden berichten blijven als gespreksgeschiedenis bestaan, maar de vrije tekst kan
     // PII bevatten (naam/adres/telefoon) → redacten zodat de betrokkene niet meer herleidbaar is.
     prisma.message.updateMany({
@@ -491,13 +492,30 @@ export async function anonymizeUser(userId: string): Promise<void> {
         action: "ACCOUNT_ANONYMIZED",
         entityType: "User",
         entityId: userId,
-        metadata: { documentsDeleted: documents.length },
+        metadata: { documentsDeleted: documentCount },
         ...meta,
       }),
     }),
   ]);
 
-  // Bestanden in de opslag opruimen — best-effort, faalt de transactie niet. Naast de gevoelige
+  // Documenten (rij + blob) PAS ná de anonimiseringstransactie verwijderen. Op dit punt is het account
+  // SUSPENDED, de passwordHash gewist en anonymizedAt gezet (userAnonymizationData) → currentActor()
+  // geeft null en de betrokkene kan geen nieuw document meer uploaden. Daardoor is dit read-then-delete
+  // race-vrij: de storagesleutels die we hier lezen dekken exact de rijen die we verwijderen — geen
+  // weesblob. Vóór deze wijziging werd de sleutellijst vóór de transactie gesnapshot terwijl de
+  // rij-verwijdering pas meerdere DB-rondes later in de transactie liep; een upload in dat venster kreeg
+  // zijn rij door de deleteMany verwijderd terwijl zijn blob buiten de snapshot viel → een onvindbare
+  // weesblob met een (mogelijk art. 9-)VOG/diploma overleefde de "verwijdering" (TOCTOU, CWE-367, art. 17).
+  // unbounded-allow: AVG-verwijdering: alle document-storagesleutels van één betrokkene; geen take (een cap zou stilletjes een blob laten staan)
+  const documents = await prisma.document.findMany({
+    where: { ownerId: userId },
+    select: { storageKey: true },
+  });
+  if (documents.length > 0) {
+    await prisma.document.deleteMany({ where: { ownerId: userId } });
+  }
+
+  // Bestanden in de opslag opruimen — best-effort, faalt de anonimisering niet. Naast de gevoelige
   // documenten óók het losse bedrijfslogo (Company.logoKey): dat heeft geen Document-rij en zou
   // anders als weesblob achterblijven (AVG art. 17, zie de fetch hierboven).
   const storageKeysToDelete = [

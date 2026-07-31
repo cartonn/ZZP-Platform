@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-31 — Security/privacy-audit: race-vrije document-erasure (art. 17) + geauditeerde register-export
+
+**Wat:** security-/privacy-auditronde (basis `main` @ 5cae5d33), orchestrator (Opus 4.8) + 3 parallelle
+adversariële Opus-audits op niet-overlappende hoog-risico oppervlakken. Geen nieuw KRITIEK/HOOG-toegangs- of
+injectiegat gevonden; twee bevindingen OPGELOST (rood→groen), één eerder geëscaleerde HOOG blijft mensenwerk.
+
+- **MIDDEL — TOCTOU/weesblob bij anonimisering (CWE-367, AVG art. 17):** `anonymizeUser` snapshotte de
+  document-storagesleutels vóór de `$transaction` terwijl de rij-verwijdering pas rondes later ín de transactie
+  liep — een upload in dat venster liet zijn blob (mogelijk art. 9-VOG/diploma) als onvindbare wees achter. Fix:
+  document-rij + blob-verwijdering verhuisd naar ná de (nu geanonimiseerde → upload-onmogelijke) transactie →
+  race-vrij read-then-delete. FK-veilig (`Credential → Document` = `SetNull`). `src/app/(protected)/admin/gebruikers/actions.ts`
+  - regressietest (invocation-order-bewijs) in `anonymize-erasure.test.ts`.
+- **LAAG — verwerkingsregister-export ongeaudit + inconsistente auth-foutafhandeling (CLAUDE.md regel 5):**
+  `/admin/avg/export` schreef geen auditregel en ving `AuthorizationError` niet af. Fix: `AVG_REGISTER_EXPORTED`-
+  audit + NL-label (drift-gate) + `try/catch`-poort gelijkgetrokken. `src/app/(protected)/admin/avg/export/route.ts`
+  (+ `route.test.ts`, `src/lib/audit-labels.ts`).
+- **Herbevestigd mensenwerk (HOOG):** `NoShowReport.reason`/`Performance.rejectionReason`/`Invoice.rejectionReason`
+  overleven `anonymizeUser` bewust (derde-partij-tekst, mogelijk retentiegrond) — FG/mens-beslissing per MENSENWERK §5.
+- **Geverifieerd schoon:** BOLA/IDOR + path-traversal + token-timing op alle dynamische route-handlers;
+  cross-tenant franchise-isolatie (volledige action-/loaderset); AVG-anonimisering-volledigheid, exports, k-anonimiteit,
+  audit-dekking; injectie/SSRF/CSP/HSTS/webhook/open-redirect/CSV-formule-injectie. Zie `docs/SECURITY-PRIVACY-BACKLOG.md`.
+- **Gate:** typecheck · lint · test (5453) · build · prettier groen.
+
 ## 2026-07-31 — Opdrachtgever: branche-gedreven certificaat-aanbeveling op het opdrachtformulier
 
 **Wat:** een opdrachtgever die een opdracht plaatst weet niet altijd wélke bewijsstukken in zijn branche
