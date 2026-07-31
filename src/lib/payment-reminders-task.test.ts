@@ -6,6 +6,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // --- In-memory store --------------------------------------------------------
 const store = {
   invoices: [] as Array<Record<string, unknown>>,
+  // Optionele findMany-snapshot die afwijkt van de live `invoices` — modelleert een TOCTOU-venster
+  // (het plan leest de snapshot, de guarded write toetst de live rij). Null = live = snapshot.
+  snapshot: null as Array<Record<string, unknown>> | null,
   invoiceUpdates: [] as Array<{ id: string; data: Record<string, unknown> }>,
   domainEvents: [] as Array<Record<string, unknown>>,
   notifications: [] as Array<Record<string, unknown>>,
@@ -17,13 +20,26 @@ const store = {
 vi.mock("@/lib/db", () => ({
   prisma: {
     invoice: {
-      findMany: vi.fn(async () => store.invoices),
-      update: vi.fn(async (args: { where: { id: string }; data: Record<string, unknown> }) => {
-        const inv = store.invoices.find((i) => i.id === args.where.id);
-        if (inv) Object.assign(inv, args.data);
-        store.invoiceUpdates.push({ id: args.where.id, data: args.data });
-        return inv ?? {};
-      }),
+      findMany: vi.fn(async () => store.snapshot ?? store.invoices),
+      // Faithful mock: updateMany honoreert de compound-guard (where.lifecycleStatus), zodat een
+      // intussen betaalde (PAID) factuur NIET terug naar OVERDUE geflipt wordt.
+      updateMany: vi.fn(
+        async (args: {
+          where: { id: string; lifecycleStatus?: string };
+          data: Record<string, unknown>;
+        }) => {
+          const inv = store.invoices.find(
+            (i) =>
+              i.id === args.where.id &&
+              (args.where.lifecycleStatus === undefined ||
+                i.lifecycleStatus === args.where.lifecycleStatus),
+          );
+          if (!inv) return { count: 0 };
+          Object.assign(inv, args.data);
+          store.invoiceUpdates.push({ id: args.where.id, data: args.data });
+          return { count: 1 };
+        },
+      ),
     },
     notificationPreference: {
       findMany: vi.fn(async () => []), // geen rijen = standaard aan (opt-out-model)
@@ -96,6 +112,7 @@ function makeInvoice(
 describe("runPaymentReminderTask", () => {
   beforeEach(async () => {
     store.invoices = [];
+    store.snapshot = null;
     store.invoiceUpdates = [];
     store.domainEvents = [];
     store.notifications = [];
@@ -151,6 +168,47 @@ describe("runPaymentReminderTask", () => {
     // geen nieuwe events boven de al bestaande
     const added = store.domainEvents.length - before;
     expect(added).toBe(0);
+  });
+
+  it("OVERDUE-markering is compound-guarded (where.lifecycleStatus = APPROVED)", async () => {
+    store.invoices = [makeInvoice("inv-guard", "APPROVED", 1)];
+    store.users = [
+      { id: "freelancer-1", email: "f@test.nl", name: "ZZP" },
+      { id: "client-1", email: "c@test.nl", name: "OG" },
+    ];
+
+    const { runPaymentReminderTask } = await import("@/lib/payment-reminders-task");
+    await runPaymentReminderTask({ actorId: null, now: NOW });
+
+    const { prisma } = (await import("@/lib/db")) as unknown as {
+      prisma: { invoice: { updateMany: ReturnType<typeof vi.fn> } };
+    };
+    expect(prisma.invoice.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "inv-guard", lifecycleStatus: "APPROVED" }),
+        data: expect.objectContaining({ lifecycleStatus: "OVERDUE", status: "OVERDUE" }),
+      }),
+    );
+  });
+
+  it("TOCTOU — in het venster betaalde (PAID) factuur wordt NIET terug naar OVERDUE geschreven", async () => {
+    // Snapshot zag een APPROVED factuur over de vervaldag → plan schedulet OVERDUE-markering; maar de
+    // live rij is intussen via de cascade op PAID gezet (opdrachtgever bevestigde de betaling). De
+    // compound-guard (lifecycleStatus = APPROVED) matcht niet meer → geen PAID → OVERDUE-overschrijving
+    // (verboden overgang) en geen valse aanmaning over een al-betaalde factuur.
+    store.snapshot = [makeInvoice("inv-paid", "APPROVED", 1)];
+    store.invoices = [makeInvoice("inv-paid", "PAID", 1)];
+    store.users = [
+      { id: "freelancer-1", email: "f@test.nl", name: "ZZP" },
+      { id: "client-1", email: "c@test.nl", name: "OG" },
+    ];
+
+    const { runPaymentReminderTask } = await import("@/lib/payment-reminders-task");
+    const result = await runPaymentReminderTask({ actorId: null, now: NOW });
+
+    expect(result.markedOverdue).toBe(0);
+    expect(store.invoiceUpdates).toHaveLength(0);
+    expect(store.invoices[0]?.lifecycleStatus).toBe("PAID");
   });
 
   it("lege freelancer-set → reminded = 0", async () => {

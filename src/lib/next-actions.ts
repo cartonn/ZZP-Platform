@@ -62,9 +62,9 @@ export const P = {
   supportOpen: 66, // openstaande supporttickets — onbeantwoord/nieuw (admin)
   vatDeadlineOverdue: 74, // BTW-aangifte over de uiterste indieningsdatum (fiscale boete-risico)
   overdueInvoice: 60, // factuur over de vervaldatum
-  clientCascadeOverduePayment: 57, // cascade-factuur van de opdrachtgever staat OVER de vervaldatum — betaal 'm of laat de ZZP'er de betaling bevestigen (opdrachtgever-spiegel van paymentConfirmTask(overdue); post-due, dus boven de pre-due nudge)
+  clientCascadeOverduePayment: 59, // cascade-factuur van de opdrachtgever staat OVER de vervaldatum — betaal 'm of laat de ZZP'er de betaling bevestigen (opdrachtgever-spiegel van paymentConfirmTask(overdue)). Post-due = een reeds-verstreken, echte betaalverplichting; moet daarom BOVEN elke pre-due nudge staan, incl. de naderende (nog-niet-verstreken) BTW-deadline (vatDeadlineDueSoon 58). Blijft onder overdueInvoice (60).
   paymentDueSoon: 56, // factuur vervalt binnenkort — betaal op tijd (opdrachtgever, pre-due; onder de al-verstreken roll-up)
-  vatDeadlineDueSoon: 58, // BTW-aangifte-deadline nadert (binnen 14 dagen)
+  vatDeadlineDueSoon: 58, // BTW-aangifte-deadline nadert (binnen 14 dagen) — pre-due signaal (nog geen boeterisico; dat is vatDeadlineOverdue 74), dus onder een reeds-verstreken cascade-betaling
   pendingUsers: 60, // gebruikers met PENDING-status (admin)
   credentialExpiryBatch: 58, // verlopen/verlopende certificaten — draai de expiry-check (admin)
   messagesAwaiting: 55, // berichten van de andere partij wachten op antwoord

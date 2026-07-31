@@ -58,14 +58,21 @@ export async function runPaymentReminderTask(opts: {
   const plan = planPaymentReminders(candidates, now);
 
   // Markeer verstreken facturen als OVERDUE (gevalideerd tegen de state machine).
+  // De ids komen uit een findMany-snapshot van vóór deze schrijf-stap; bevestigt de opdrachtgever
+  // in dat venster de betaling via de reguliere cascade (APPROVED → PAID, compound-guarded in
+  // apply.ts), dan mag deze cron die rij niet blind terug naar OVERDUE schrijven — PAID → OVERDUE
+  // staat niet in de lifecycle-map (CLAUDE.md regel 3) en zou een al-betaalde factuur weer als "te
+  // laat" tonen + een valse aanmaning triggeren. De statische `assert` toetst alleen de literal-kaart;
+  // de compound `updateMany({ where: { id, lifecycleStatus: "APPROVED" } })` toetst de live rij en
+  // flipt alleen zolang die nú nog APPROVED is (count 0 → niets schrijven, ook al-OVERDUE overslaan).
   let markedOverdue = 0;
   for (const id of plan.toMarkOverdue) {
     invoiceLifecycleMachine.assert("APPROVED", "OVERDUE");
-    await prisma.invoice.update({
-      where: { id },
+    const { count } = await prisma.invoice.updateMany({
+      where: { id, lifecycleStatus: "APPROVED" },
       data: { lifecycleStatus: "OVERDUE", status: "OVERDUE" },
     });
-    markedOverdue += 1;
+    if (count > 0) markedOverdue += 1;
   }
 
   // Filter al-gevuurde herinneringen en escalaties weg (idempotent via DomainEvent dedupeKey).

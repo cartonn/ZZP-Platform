@@ -50,6 +50,14 @@ export interface RenewalReminderItem {
 export interface SubscriptionExpiryItem {
   subscriptionId: string;
   userId: string;
+  /**
+   * De periode-einddatum uit de snapshot. De runner gebruikt deze als compound-guard op de
+   * verval-write (`updateMany({ where: { id, status: "ACTIVE", currentPeriodEnd } })`): schuift een
+   * echte betaling (Mollie-webhook) `currentPeriodEnd` in het race-venster naar de toekomst — de rij
+   * blijft dan ACTIVE — dan matcht deze guard niet meer en wordt de zojuist verlengde klant niet
+   * alsnog naar CANCELLED gedowngraded. Zie subscription-expiry-task.ts.
+   */
+  currentPeriodEnd: Date;
   dedupeKey: string;
 }
 
@@ -92,6 +100,7 @@ export function planSubscriptionExpiry(
       expiries.push({
         subscriptionId: c.id,
         userId: c.userId,
+        currentPeriodEnd: c.currentPeriodEnd,
         dedupeKey: `sub-expiry:${c.id}:${period}`,
       });
       continue;

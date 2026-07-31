@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-31 — Persona-sweep run 62: 3 bereikbare defecten gevonden + gefixt
+
+**Wat:** kritische-gebruiker-sweep (4 rollen) + 3 parallelle Opus-audits. Authz/IDOR/cross-tenant +
+document-privacy schoon; live Playwright/Chromium-sweep 36 checks/0 fails (DOEL 1 dashboards + /acties
+renderen; DOEL 2 privilege-escalatie → 307 redirect, junk/IDOR/SQLi-id's → soft-404/404, nooit 500).
+Drie gevonden defecten (allemaal gefixt):
+
+1. **TOCTOU abonnement-verval-cron** (`src/lib/subscription-expiry-task.ts`, `subscription-lifecycle.ts`):
+   ongeguarde `subscription.update` kon een in-het-venster verlengd (Mollie-webhook) abonnement alsnog
+   naar CANCELLED overschrijven. → interactieve tx + compound-guarded `updateMany` op
+   `status:"ACTIVE"` + `currentPeriodEnd:<snapshot>`, count-gate. `SubscriptionExpiryItem` draagt nu
+   `currentPeriodEnd`. Zelfde klasse als #1006/#1007.
+2. **TOCTOU PAID→OVERDUE betaalherinner-cron** (`src/lib/payment-reminders-task.ts`): ongeguarde
+   `invoice.update` kon een in-het-venster betaalde (PAID) factuur terug naar OVERDUE schrijven
+   (verboden lifecycle-overgang). → compound-guarded `updateMany` op `lifecycleStatus:"APPROVED"`,
+   count-gate.
+3. **Prioriteit-inversie /acties opdrachtgever** (`src/lib/next-actions.ts`):
+   `clientCascadeOverduePayment` (57) stond onder `vatDeadlineDueSoon` (58) — een reeds-verstreken
+   cascade-betaling rangschikte onder een naderende BTW-deadline. → 57 → 59 (< overdueInvoice 60,
+   > vatDeadlineDueSoon 58).
+
+**Bestanden:** `subscription-expiry-task.ts` (+test), `subscription-lifecycle.ts`,
+`payment-reminders-task.ts` (+test), `next-actions.ts`,
+`actions/pending-tasks-client-overdue-payment.test.ts`. **Tests:** +5 (5495 → 5500). Gate: typecheck,
+lint, test (5500), build, prettier groen. Details: `docs/PERSONA-SWEEP-BACKLOG.md` (run 62).
+
 ## 2026-07-31 — Bemiddelaar: onbeschikbaarheid-signaal bij roster-voordracht (PR #1009)
 
 **Wat:** de bemiddelaar-voordracht (`/franchise/diensten/[id]`) toont al een dubbele-boeking-signaal
