@@ -9,11 +9,13 @@ import {
   Search,
   Briefcase,
   BellRing,
+  CalendarX,
 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
-import { type Availability, type CredentialType } from "@/lib/enums";
+import { summarizeAway } from "@/lib/availability";
+import { type Availability, type AvailabilityWindowType, type CredentialType } from "@/lib/enums";
 import {
   type FreelancerCredential,
   type JobMatchSource,
@@ -117,6 +119,11 @@ interface RosterCard extends RosterZzper {
   dormancyTier: DormancyTier;
   /** Presentatie van het re-engagement-signaal (chip-label + toon); active → geen chip. */
   dormancy: RosterDormancy;
+  /** Dekt nu een self-set UNAVAILABLE-venster (vakantie/verlof) → niet vrij inzetbaar ondanks de
+   *  grove beschikbaarheidsstatus. Voedt `isIdleReady` + het capaciteitsoverzicht + de kaart-chip. */
+  unavailableNow: boolean;
+  /** "Afwezig t/m X"-chiplabel wanneer `unavailableNow`; anders `null`. */
+  awayLabel: string | null;
 }
 
 export default async function FranchiseZzpersPage({
@@ -224,10 +231,19 @@ export default async function FranchiseZzpersPage({
     // Alleen vrij-inzetbare ZZP'ers scoren tegen de open diensten: wie werkt of nog niet inzetbaar is,
     // hoeft niet geplaatst te worden. Zelfde `isIdleReady`-definitie als het capaciteitsoverzicht →
     // de chip verschijnt precies bij de bench die de tegel telt.
+    // Self-set afwezigheidsvenster (vakantie/verlof) dat nu dekt: de ZZP'er is tijdgebonden
+    // onbeschikbaar, ook al staat de grove availability-status op beschikbaar. Sluit hem uit van de
+    // vrije capaciteit (spiegel van de voordracht-waarschuwing #1005/#1009).
+    const awayLabel = summarizeAway(
+      f.availabilityWindows as { startDate: Date; endDate: Date; type: AvailabilityWindowType }[],
+      now,
+    );
+    const unavailableNow = awayLabel != null;
     const idleReady = isIdleReady({
       engageabilityStatus: eng.status,
       availability: f.availability as Availability,
       activeCollaborations: f._count.collaborations,
+      unavailableNow,
     });
     const placeableDiensten =
       idleReady && dienstSources.length > 0
@@ -284,6 +300,8 @@ export default async function FranchiseZzpersPage({
       freeDate: freeDateFromActiveCollaborations(f.collaborations.map((c) => c.endDate)),
       dormancyTier: dormancy.tier,
       dormancy,
+      unavailableNow,
+      awayLabel,
     };
   });
 
@@ -536,6 +554,16 @@ export default async function FranchiseZzpersPage({
                         </span>
                       )}
                     </div>
+
+                    {/* Afwezigheid: self-set UNAVAILABLE-venster (vakantie/verlof) dekt nu. Sluit de
+                        vakmens uit van de vrije capaciteit — voordragen nú is een verspilde ronde.
+                        Read-only signaal; toont tot wanneer, zodat de bemiddelaar eromheen plant. */}
+                    {f.awayLabel && (
+                      <Badge variant="warning" className="gap-1 self-start">
+                        <CalendarX className="size-3 shrink-0" aria-hidden />
+                        {f.awayLabel}
+                      </Badge>
+                    )}
 
                     {/* Plaatsbaarheid: hoeveel open diensten passen bij deze vrije vakmens. Klikt door
                         naar het profiel waar de suggestie-kaart de diensten toont mét voordracht-actie

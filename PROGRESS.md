@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-31 — Bemiddelaar: roster-capaciteit respecteert self-set UNAVAILABLE-venster (PR #1013)
+
+**Wat:** op `/franchise/zzpers` classificeerde het capaciteitsoverzicht (`isIdleReady` /
+`summarizeRosterCapacity`) een ZZP'er als **"nu vrij inzetbaar"** op basis van alléén de grove
+`FreelancerProfile.availability`-enum. Een ZZP'er die zichzelf via een `AvailabilityWindow`
+(`UNAVAILABLE`) voor déze periode had geblokkeerd (vakantie/verlof) — terwijl zijn grove status nog op
+AVAILABLE stond — telde tóch mee in de "nu vrij inzetbaar"-tegel, het `?idle=1`-filter én de idle-chip.
+De bemiddelaar zou hem vandaag willen voordragen → verspilde ronde (de ZZP'er moet de uitnodiging alsnog
+afwijzen). De vensters wérden al geladen en aan `countPlaceableDiensten` (matching) gevoerd, maar niet aan
+het capaciteitssignaal. Directe spiegel van de voordracht-waarschuwing (#1005/#1009), nu op het roster-
+overzicht. Server bepaalt de waarheid (hergebruikt de bestaande pure `awayUntil`/`summarizeAway`).
+
+- **Fix:** `RosterCapacityInput.unavailableNow?: boolean` (optioneel → gedragsbehoudend); `isIdleReady`
+  sluit een lopend afwezigheidsvenster uit; `summarizeRosterCapacity` plaatst zo'n vakmens in de
+  `unavailable`-bucket (bewust nu niet inzetbaar). `RosterZzper.unavailableNow?` doorgetrokken zodat het
+  `?idle=1`-filter (`matchesRosterFilter → isIdleReady`) nooit uit de pas loopt met de tegel. De pagina
+  leest per kaart `summarizeAway(availabilityWindows)` (één call, boolean = label≠null) en toont een
+  warning-chip **"Afwezig t/m {datum}"** (`CalendarX`) — read-only, geen dood signaal.
+
+**Bestanden:** `src/lib/franchise/roster-capacity.ts` (+input +logica), `src/lib/franchise/zzper-roster-filter.ts`
+(+veld op `RosterZzper`), `src/app/(protected)/franchise/zzpers/page.tsx` (per-kaart afwezigheid + chip),
+`roster-capacity.test.ts` (+4), `zzper-roster-filter.test.ts` (+1). **Tests:** +5 (5504 → 5509). Gate:
+typecheck, lint, test (5509), build, prettier — groen. Geen schemawijziging, geen nieuw mutatie-/auth-oppervlak.
+
 ## 2026-07-31 — Security-/privacy-audit: fail-closed `Tenant.status`-enforcement (dead schema gedicht)
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 4 parallelle adversariële Opus-audits op

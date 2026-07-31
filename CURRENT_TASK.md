@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Bemiddelaar — roster-capaciteit respecteert self-set UNAVAILABLE-venster (2026-07-31, PR #1013)** —
+> op `/franchise/zzpers` classificeerde het capaciteitsoverzicht (`isIdleReady`/`summarizeRosterCapacity`) een ZZP'er als
+> "nu vrij inzetbaar" op alléén de grove `FreelancerProfile.availability`-enum. Een ZZP'er die zichzelf via een
+> `AvailabilityWindow` (`UNAVAILABLE`) voor deze periode had geblokkeerd (vakantie/verlof) — terwijl zijn grove status nog
+> op AVAILABLE stond — telde tóch mee in de "nu vrij inzetbaar"-tegel, het `?idle=1`-filter én de idle-chip → de bemiddelaar
+> zou hem vandaag voordragen (verspilde ronde). De vensters werden al geladen + aan `countPlaceableDiensten` (matching) gevoerd,
+> maar niet aan het capaciteitssignaal. Directe spiegel van de voordracht-waarschuwing (#1005/#1009), nu op het roster-overzicht.
+> `RosterCapacityInput.unavailableNow?` (optioneel → gedragsbehoudend); `isIdleReady` sluit een lopend afwezigheidsvenster uit;
+> `summarizeRosterCapacity` → `unavailable`-bucket; `RosterZzper.unavailableNow?` doorgetrokken zodat het `?idle=1`-filter nooit
+> uit de pas loopt met de tegel. Pagina leest per kaart `summarizeAway(availabilityWindows)` (hergebruikt bestaande pure
+> `awayUntil`/`summarizeAway`) → warning-chip "Afwezig t/m {datum}" (`CalendarX`). Server-side waarheid, geen schemawijziging,
+> geen nieuw mutatie/auth-oppervlak, read-only signaal. +5 tests. Gate: typecheck, lint, test (5509), build, prettier groen.
+
 > Gedaan (niet opnieuw): **Bemiddelaar — onbeschikbaarheid-signaal bij roster-voordracht (2026-07-31, PR #1009)** —
 > de bemiddelaar-voordracht (`/franchise/diensten/[id]`) toonde al een dubbele-boeking-signaal (overlap met een
 > andere ACTIEVE samenwerking, `roster-double-booking.ts`), maar géén signaal wanneer de ZZP'er zichzelf via een

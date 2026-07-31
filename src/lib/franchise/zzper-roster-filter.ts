@@ -46,6 +46,9 @@ export interface RosterZzper {
   hourlyRate: number | null;
   /** Aantal lopende (ACTIVE) samenwerkingen; > 0 = nu ingezet (voor het `idle`-filter). */
   activeCollaborations: number;
+  /** Dekt nu een self-set UNAVAILABLE-venster (vakantie/verlof)? Sluit de ZZP'er uit van het
+   *  `idle`-filter, gelijk aan het capaciteitsoverzicht (`isIdleReady`). Optioneel → gedragsbehoudend. */
+  unavailableNow?: boolean;
   /** Afgeleide re-engagement-tier (server-berekend via `classifyRosterDormancy`) voor het `dormant`-filter. */
   dormancyTier: DormancyTier;
 }
