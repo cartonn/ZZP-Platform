@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Bemiddelaar — onbeschikbaarheid-signaal bij roster-voordracht (2026-07-31, PR #1009)** —
+> de bemiddelaar-voordracht (`/franchise/diensten/[id]`) toonde al een dubbele-boeking-signaal (overlap met een
+> andere ACTIEVE samenwerking, `roster-double-booking.ts`), maar géén signaal wanneer de ZZP'er zichzelf via een
+> `AvailabilityWindow` (`UNAVAILABLE`) op de dienstdatum onbeschikbaar had gemaakt. Voordragen op zo'n datum = een
+> uitnodiging + notificatie die de ZZP'er alsnog moet afwijzen (verspilde ronde). Directe spiegel van de
+> opdrachtgever-zijde (`proposal-availability.ts`, #1005), nu voor de bemiddelaar. Pure `detectUnavailability`
+> (`src/lib/franchise/roster-unavailability.ts`): alleen UNAVAILABLE-vensters die de dienstdag inclusief omsluiten,
+> dag-granulaire yyyy-mm-dd(UTC)-vergelijking (tijdzone-veilig), corrupte/omgekeerde ranges genegeerd, vroegst-
+> startende gekozen; `dienstStart==null` → geen conflict. Gewired in `buildRosterCandidates` náást `doubleBooking`
+> (vensters al geladen — geen extra query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak);
+> `RosterCandidate.unavailability`; waarschuwingschip (`CalendarX`) in `voordragen.tsx`. Server-side blijft de
+> waarheid (advies-signaal). +12 tests. Gate: typecheck, lint, test, build, prettier groen.
+
 > Gedaan (niet opnieuw): **Opdrachtgever — waarschuw bij een voorstel op een onbeschikbare kandidaat-periode (2026-07-31)** —
 > een ZZP'er kan zich via `AvailabilityWindow` (`UNAVAILABLE`) voor een periode onbeschikbaar maken; de opdrachtgever zag op
 > `/kandidaten` alleen of de **opdracht-startdatum** in zo'n venster viel (`assessJobStartAvailability`), maar het voorstel-

@@ -2,13 +2,42 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { UserPlus, Check, Minus, CalendarClock } from "lucide-react";
+import { UserPlus, Check, Minus, CalendarClock, CalendarX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EngageabilityBadge } from "@/components/engageability-badge";
 import { proposeFreelancer, type ProposeState } from "../actions";
 import { type RosterCandidate } from "@/lib/franchise/dienst-voordracht";
 import { PROXIMITY_VARIANT, proximityLabel } from "@/lib/candidate-proximity";
+
+const NL_MONTHS = [
+  "jan",
+  "feb",
+  "mrt",
+  "apr",
+  "mei",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "okt",
+  "nov",
+  "dec",
+];
+
+/**
+ * Formatteert een yyyy-mm-dd naar een kort NL-label ("15 aug") door de stringdelen te lezen — geen
+ * `Date`-constructie, dus tijdzone-veilig en identiek aan de server-berekende dag. Valt terug op de
+ * ruwe ISO bij een onverwacht formaat.
+ */
+function formatDayISO(iso: string | null): string | null {
+  if (!iso) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  const month = NL_MONTHS[Number(m[2]) - 1];
+  if (!month) return iso;
+  return `${Number(m[3])} ${month}`;
+}
 
 function SubmitButton({ disabled, blocker }: { disabled: boolean; blocker: string | null }) {
   const { pending } = useFormStatus();
@@ -86,6 +115,24 @@ function CandidateRow({ jobId, candidate }: { jobId: string; candidate: RosterCa
               {candidate.doubleBooking.firstTitle
                 ? `Al ingezet — overlap met “${candidate.doubleBooking.firstTitle}”`
                 : "Al ingezet op een overlappende dienst"}
+            </span>
+          </p>
+        )}
+        {/* Onbeschikbaarheid-signaal: de ZZP'er heeft zichzelf op de dienstdatum onbeschikbaar gemaakt
+            (AvailabilityWindow UNAVAILABLE). Geen harde blokkade (de bemiddelaar kan alsnog vragen),
+            wel een expliciete waarschuwing vóór een vermoedelijk kansloze voordracht. */}
+        {candidate.unavailability.conflict && (
+          <p className="mt-1 inline-flex items-center gap-1 text-xs text-warning">
+            <CalendarX className="size-3 shrink-0" aria-hidden />
+            <span className="truncate">
+              {(() => {
+                const start = formatDayISO(candidate.unavailability.windowStartISO);
+                const end = formatDayISO(candidate.unavailability.windowEndISO);
+                const period = start && end && start !== end ? `${start} – ${end}` : start;
+                return period
+                  ? `Onbeschikbaar gemaakt (${period})`
+                  : "Onbeschikbaar gemaakt op deze datum";
+              })()}
             </span>
           </p>
         )}

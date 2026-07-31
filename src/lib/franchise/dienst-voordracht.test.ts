@@ -209,6 +209,50 @@ describe("buildRosterCandidates", () => {
     expect(by["f-vrij"]!.doubleBooking.count).toBe(0);
   });
 
+  it("markeert onbeschikbaarheid wanneer de ZZP'er zichzelf op de dienst-startdatum blokkeerde", () => {
+    const dienst = {
+      jobId: "dienst-1",
+      startDate: new Date("2026-08-10T00:00:00Z"),
+      viewerTenantId: "tenant-1",
+    };
+    const geblokkeerd = freelancer({
+      id: "f-onbeschikbaar",
+      availabilityWindows: [
+        {
+          startDate: new Date("2026-08-05T00:00:00Z"),
+          endDate: new Date("2026-08-15T00:00:00Z"),
+          type: "UNAVAILABLE",
+        },
+      ],
+    });
+    const beschikbaar = freelancer({
+      id: "f-beschikbaar",
+      user: { name: "Vrij Persoon", identityVerifiedAt: NOW, lastLoginAt: RECENT },
+      availabilityWindows: [
+        {
+          startDate: new Date("2026-08-05T00:00:00Z"),
+          endDate: new Date("2026-08-15T00:00:00Z"),
+          type: "AVAILABLE",
+        },
+      ],
+    });
+
+    const result = buildRosterCandidates(
+      job,
+      [geblokkeerd, beschikbaar],
+      new Set(),
+      new Set(),
+      dienst,
+      NOW,
+    );
+    const by = Object.fromEntries(result.map((r) => [r.freelancerId, r]));
+
+    expect(by["f-onbeschikbaar"]!.unavailability.conflict).toBe(true);
+    expect(by["f-onbeschikbaar"]!.unavailability.windowStartISO).toBe("2026-08-05");
+    expect(by["f-onbeschikbaar"]!.unavailability.windowEndISO).toBe("2026-08-15");
+    expect(by["f-beschikbaar"]!.unavailability.conflict).toBe(false);
+  });
+
   it("berekent het reistijd-signaal naar de dienst-locatie (zelfde plaats ⇒ dichtbij)", () => {
     const c = freelancer({ id: "f-lokaal", location: "Utrecht" });
     const candidate = buildRosterCandidates(job, [c], new Set(), new Set(), DIENST, NOW)[0]!;

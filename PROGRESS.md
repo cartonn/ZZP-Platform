@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-31 — Bemiddelaar: onbeschikbaarheid-signaal bij roster-voordracht (PR #1009)
+
+**Wat:** de bemiddelaar-voordracht (`/franchise/diensten/[id]`) toont al een dubbele-boeking-signaal
+(overlap met een andere ACTIEVE samenwerking), maar géén signaal wanneer de ZZP'er zichzelf via een
+`AvailabilityWindow` (type `UNAVAILABLE`) op de dienstdatum onbeschikbaar heeft gemaakt
+(vakantie/verlof/ander werk). Draagt de bemiddelaar dan tóch voor, dan volgt een uitnodiging +
+notificatie die de ZZP'er alsnog moet afwijzen — een verspilde ronde. Dit is de directe spiegel van
+de opdrachtgever-zijde (`proposal-availability.ts`, #1005), nu voor de bemiddelaar. Nu een tweede,
+onafhankelijke waarschuwingschip ("Onbeschikbaar gemaakt (5 aug – 15 aug)") op de kandidaatregel.
+Server-side blijft de waarheid — beschikbaarheid is advies, geen harde poort; de ZZP'er beslist zelf.
+
+- Pure `detectUnavailability` (`src/lib/franchise/roster-unavailability.ts`): alleen `UNAVAILABLE`-
+  vensters die de dienstdag inclusief omsluiten, dag-granulaire (yyyy-mm-dd UTC) vergelijking →
+  tijdzone-veilig; corrupte/omgekeerde ranges genegeerd; kiest bij meerdere het vroegst-startende.
+  `dienstStart == null` → geen conflict. +11 unit-tests.
+- Gewired in `buildRosterCandidates` (`dienst-voordracht.ts`) náást `doubleBooking` — de
+  `availabilityWindows` waren al geladen (geen extra query, geen schemawijziging, geen nieuw
+  mutatie/auth-oppervlak). `RosterCandidate.unavailability`. +1 wiring-test.
+- Waarschuwingschip in `voordragen.tsx` (`CalendarX`, tijdzone-veilig NL-datumlabel uit de ISO-delen).
+
+**Gate:** typecheck, lint, test, build, prettier — groen (lokaal geverifieerd).
+
 ## 2026-07-31 — Robuustheid: TOCTOU-guard op PAST_DUE→CANCELLED abonnement-downgrade (PR #1007)
 
 **Wat:** de laatste ongeguarde status-TOCTOU op de abonnementsladder gesloten (run-61-parkeerpunt).

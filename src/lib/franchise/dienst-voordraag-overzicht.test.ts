@@ -22,6 +22,7 @@ function candidate(overrides: Partial<RosterCandidate> = {}): RosterCandidate {
     proposed: false,
     hasApplied: false,
     doubleBooking: { count: 0, firstTitle: null },
+    unavailability: { conflict: false, windowStartISO: null, windowEndISO: null },
     proximity: null,
     ...overrides,
   };
