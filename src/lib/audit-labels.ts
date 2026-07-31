@@ -224,6 +224,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   AUDIT_LOG_PRUNED: "Auditlog gesnoeid (retentie)",
   ROUTING_CACHE_PRUNED: "Routing-cache gesnoeid (retentie)",
   WEBHOOK_EVENT_LEDGER_PRUNED: "Webhook-gebeurtenislog gesnoeid (retentie)",
+  MESSAGES_PRUNED: "Berichten gesnoeid (retentie)",
 
   // Systeem-zelftests (admin /systeemstatus)
   SELFTEST_SWEEP_RUN: "Zelftest-sweep uitgevoerd",

@@ -44,6 +44,7 @@ import {
   notificationRetentionDays,
   leadRetentionDays,
   healthIncidentIpRetentionDays,
+  messageRetentionDays,
 } from "@/lib/config";
 import { auditRetentionCutoff } from "@/lib/audit-retention";
 import { applicationRetentionCutoff } from "@/lib/application-retention";
@@ -53,6 +54,8 @@ import { leadRetentionCutoff } from "@/lib/lead-retention";
 import { prunableLeadWhere } from "@/lib/lead-retention-task";
 import { healthIncidentIpRetentionCutoff } from "@/lib/health-incident-retention";
 import { prunableHealthIncidentIpWhere } from "@/lib/health-incident-retention-task";
+import { messageRetentionCutoff } from "@/lib/message-retention";
+import { prunableMessageWhere } from "@/lib/message-retention-task";
 import { reportError } from "@/lib/observability/report";
 import type { CronFreshness } from "@/lib/observability/cron-freshness";
 import {
@@ -91,6 +94,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let notificationsRetentionBacklog = 0;
   let leadsRetentionBacklog = 0;
   let healthIncidentsIpRetentionBacklog = 0;
+  let messagesRetentionBacklog = 0;
   if (dbReachable) {
     try {
       verificationQueue = await prisma.credential.count({ where: { status: "SUBMITTED" } });
@@ -228,6 +232,21 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
     }
+    try {
+      // Berichten (Message, chatinhoud in body) ouder dan het MESSAGE_RETENTION_DAYS-venster die de
+      // message-retention-cron nog niet snoeide: werk dat die cron had moeten doen. Hergebruikt exact
+      // `prunableMessageWhere` (dezelfde bron van waarheid, incl. de lopende-samenwerking-guard) als de
+      // taak zelf, zodat de gauge de echte cron-backlog telt en niet kan driften. Staat retentie uit
+      // (cutoff === null — de pilot-default), dan is er per definitie geen achterstand → 0.
+      const cutoff = messageRetentionCutoff(messageRetentionDays(), now);
+      if (cutoff) {
+        messagesRetentionBacklog = await prisma.message.count({
+          where: prunableMessageWhere(cutoff),
+        });
+      }
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
@@ -255,6 +274,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     notificationsRetentionBacklog,
     leadsRetentionBacklog,
     healthIncidentsIpRetentionBacklog,
+    messagesRetentionBacklog,
   };
 }
 

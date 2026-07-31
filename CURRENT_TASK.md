@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — message/conversation-retentie-sweep (AVG art. 5(1)(e)) (2026-07-31)** —
+> het verwerkingsregister beloofde al een bewaartermijn voor chatberichten (`Message.body`, vrije-tekst-PII), maar
+> niets dwong die af — het laatste PII-dragende "verwijder-ouder-dan-venster"-gat na audit-/reactie-/notificatie-/
+> lead-/health-incident-retentie. Nieuwe geplande taak `message-retention` (`src/lib/message-retention.ts` +
+> `src/lib/message-retention-task.ts`, meedraaiend in `/api/tasks/run-all`) snoeit berichten ouder dan
+> `MESSAGE_RETENTION_DAYS` gebatcht/idempotent, met één auditrecord per snoei-actie (geen PII — aantal + cutoff +
+> venster). Standaard **UIT** (leeg/0 = onbeperkt, net als `AUDIT_LOG_RETENTION_DAYS`) — wissen is onomkeerbaar en
+> berichten hebben waarde voor geschillenbeslechting. Guard: nooit berichten van een gesprek dat aan een lopende
+> samenwerking (PROPOSED/ACTIVE) hangt. Nieuwe gauge `zzp_messages_retention_backlog` + drop-in alert. Register-
+> belofte nu afgedwongen. Gate: tests groen.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — branche-gedreven certificaat-aanbeveling op het opdrachtformulier (2026-07-31, PR #1002)** —
 > een opdrachtgever die een opdracht plaatst weet niet altijd wélke bewijsstukken in zijn branche gebruikelijk/wettelijk vereist zijn (een
 > zorginstelling vergeet makkelijk VOG/BIG, een aannemer het VCA-certificaat). Concurrenten in de zorg (Pidz/Zorgwerk) vullen die compliance-

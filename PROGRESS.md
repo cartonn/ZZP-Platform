@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-31 — Prod-rijpheid: message/conversation-retentie-sweep (AVG art. 5(1)(e))
+
+**Wat:** het verwerkingsregister belooft al een bewaartermijn voor chatberichten
+(`Message.body`, vrije-tekst-PII), maar niets dwong die af — het laatste PII-dragende
+"verwijder-ouder-dan-venster"-gat na audit-/reactie-/notificatie-/lead-/health-incident-
+retentie. Nieuwe geplande taak **`message-retention`** (`src/lib/message-retention.ts` +
+`src/lib/message-retention-task.ts`, meedraaiend in `/api/tasks/run-all`) snoeit berichten
+ouder dan `MESSAGE_RETENTION_DAYS` gebatcht/idempotent, met één auditrecord per snoei-actie.
+Standaard **UIT** (leeg/0 = onbeperkt, pilot-default) — wissen is onomkeerbaar en berichten
+hebben waarde voor geschillenbeslechting. Nooit berichten van een gesprek dat aan een
+**lopende samenwerking** (PROPOSED/ACTIVE) hangt. Nieuwe gauge `zzp_messages_retention_backlog`
+plus bijbehorende drop-in alert.
+
+- `src/lib/message-retention.ts`, `src/lib/message-retention-task.ts`.
+- **Gate:** tests groen.
+
 ## 2026-07-31 — Security/privacy-audit: race-vrije document-erasure (art. 17) + geauditeerde register-export
 
 **Wat:** security-/privacy-auditronde (basis `main` @ 5cae5d33), orchestrator (Opus 4.8) + 3 parallelle

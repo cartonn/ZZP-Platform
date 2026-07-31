@@ -59,6 +59,7 @@ const SAMPLE_INPUT: MetricsInput = {
   notificationsRetentionBacklog: 0,
   leadsRetentionBacklog: 0,
   healthIncidentsIpRetentionBacklog: 0,
+  messagesRetentionBacklog: 0,
 };
 
 /** De canonieke set gauge-namen die /api/metrics daadwerkelijk exposeert (uit `buildMetrics`). */

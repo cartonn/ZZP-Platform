@@ -175,6 +175,20 @@ groups:
           summary: "Incident-IP-redactie verwerkt niets (AVG-minimalisatie)"
           description: "Er staan al > één cron-interval beveiligingsincidenten ouder dan het geconfigureerde HEALTH_INCIDENT_IP_RETENTION_DAYS-venster wier bron-IP niet is geredigeerd (zzp_health_incidents_ip_retention_backlog). De health-incident-retention-cron rondt af maar redigeert niets → incident-IP's (persoonsgegeven, in evidence + summary + dedupeKey) worden over de bewaartermijn heen bewaard (AVG art. 5(1)(c)/(e)). Controleer de health-incident-retention-taak."
 
+      - alert: ZzpMessagesRetentionBacklog
+        # AVG-dataminimalisatie (art. 5 lid 1e): berichten dragen de daadwerkelijke chatinhoud tussen
+        # ZZP'er en opdrachtgever (Message.body) — het meest PII-dragende vrije-tekstveld; het
+        # verwerkingsregister belooft "duur van de samenwerking + max. 12 maanden na beëindiging". Een
+        # oplopende backlog terwijl de heartbeat "vers" is betekent dat berichtinhoud over de beloofde
+        # termijn heen bewaard blijft. Alleen actief zodra MESSAGE_RETENTION_DAYS gezet is (anders altijd 0).
+        expr: zzp_messages_retention_backlog > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Berichten-retentie-snoei verwerkt niets (AVG-dataminimalisatie)"
+          description: "Er staan al > één cron-interval berichten ouder dan het geconfigureerde MESSAGE_RETENTION_DAYS-venster (niet gekoppeld aan een lopende samenwerking) die niet zijn gesnoeid (zzp_messages_retention_backlog). De message-retention-cron rondt af maar verwijdert niets → berichtinhoud (Message.body) wordt over de beloofde bewaartermijn heen bewaard (AVG art. 5(1)(e)). Controleer de message-retention-taak."
+
   - name: zzp-platform-verificatie-sla
     rules:
       # Verificatie is de kern-differentiatie. Twee complementaire signalen: te veel wachtenden (diepte)
