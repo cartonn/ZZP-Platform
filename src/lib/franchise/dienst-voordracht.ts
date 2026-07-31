@@ -23,6 +23,10 @@ import {
   type DoubleBookingSignal,
   detectDoubleBooking,
 } from "@/lib/franchise/roster-double-booking";
+import {
+  type UnavailabilitySignal,
+  detectUnavailability,
+} from "@/lib/franchise/roster-unavailability";
 import { type CandidateProximity, classifyCandidateProximity } from "@/lib/candidate-proximity";
 
 /** Het voordracht-auditrecord is de gezaghebbende markering (zoals POOL_INVITED bij publicatie). */
@@ -52,6 +56,13 @@ export interface RosterCandidate {
    * looptijd de startdatum van deze dienst overlapt? `count > 0` ⇒ risico op een dubbele plaatsing.
    */
   doubleBooking: DoubleBookingSignal;
+  /**
+   * Onbeschikbaarheid-signaal: heeft de ZZP'er zichzelf via een `AvailabilityWindow` (UNAVAILABLE) op
+   * de dienstdatum onbeschikbaar gemaakt? `conflict === true` ⇒ een voordracht wordt vrijwel zeker
+   * afgewezen (verlof/ander werk). Onafhankelijk van `doubleBooking` (dat kijkt naar actieve
+   * samenwerkingen, dit naar zelf-opgegeven vensters). Spiegelt de opdrachtgever-zijde.
+   */
+  unavailability: UnavailabilitySignal;
   /**
    * Reistijd-/nabijheidsignaal naar de dienst-locatie (spiegel van het opdrachtgever-signaal op
    * /kandidaten). `null` bij een volledig remote dienst of een onbekende plaats aan één van beide
@@ -167,6 +178,12 @@ export function buildRosterCandidates(
           dienstJobId: dienst.jobId,
           viewerTenantId: dienst.viewerTenantId,
           placements: f.activeCollaborations,
+        }),
+        // Zelf-opgegeven onbeschikbaarheid op de dienstdatum (vensters zijn al geladen — geen extra
+        // query). Onafhankelijke, tweede reden waarom een voordracht een verspilde ronde wordt.
+        unavailability: detectUnavailability({
+          dienstStart: dienst.startDate,
+          windows: f.availabilityWindows,
         }),
         // Reistijd naar de dienst-locatie: hergebruikt exact de opdrachtgever-zijde (job.workMode +
         // job.location + kandidaat-location zijn al geladen — geen extra query). REMOTE of onbekende
