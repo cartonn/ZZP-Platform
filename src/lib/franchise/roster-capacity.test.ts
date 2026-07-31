@@ -33,6 +33,17 @@ describe("isIdleReady", () => {
   it("is niet vrij inzetbaar als niet beschikbaar", () => {
     expect(isIdleReady(zzper({ availability: "UNAVAILABLE" }))).toBe(false);
   });
+
+  it("is niet vrij inzetbaar met een lopend afwezigheidsvenster (vakantie), ondanks grof beschikbaar", () => {
+    expect(isIdleReady(zzper({ unavailableNow: true }))).toBe(false);
+    // ...ook bij LIMITED: het venster domineert de grove status.
+    expect(isIdleReady(zzper({ availability: "LIMITED", unavailableNow: true }))).toBe(false);
+  });
+
+  it("blijft vrij inzetbaar als er geen afwezigheidsvenster nu dekt (false/afwezig veld)", () => {
+    expect(isIdleReady(zzper({ unavailableNow: false }))).toBe(true);
+    expect(isIdleReady(zzper())).toBe(true); // veld weggelaten → gedragsbehoudend
+  });
 });
 
 describe("summarizeRosterCapacity", () => {
@@ -64,6 +75,27 @@ describe("summarizeRosterCapacity", () => {
       unavailable: 1,
     });
     expect(s.idleReady + s.placed + s.needsAttention + s.unavailable).toBe(s.total);
+  });
+
+  it("plaatst een vakmens met een lopend afwezigheidsvenster in de unavailable-bucket, niet idleReady", () => {
+    const s = summarizeRosterCapacity([
+      zzper(), // idleReady
+      zzper({ unavailableNow: true }), // grof beschikbaar, maar nu op vakantie → unavailable
+    ]);
+    expect(s).toEqual({
+      total: 2,
+      idleReady: 1,
+      placed: 0,
+      needsAttention: 0,
+      unavailable: 1,
+    });
+    expect(s.idleReady + s.placed + s.needsAttention + s.unavailable).toBe(s.total);
+  });
+
+  it("laat 'nu ingezet' winnen van een afwezigheidsvenster (een ingezette telt nooit als vrije capaciteit)", () => {
+    const s = summarizeRosterCapacity([zzper({ activeCollaborations: 1, unavailableNow: true })]);
+    expect(s.placed).toBe(1);
+    expect(s.unavailable).toBe(0);
   });
 
   it("laat 'nu ingezet' winnen van een aandachtspunt (werkt telt niet als vrije capaciteit)", () => {

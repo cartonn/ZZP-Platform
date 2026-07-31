@@ -18,6 +18,16 @@ export interface RosterCapacityInput {
   availability: string;
   /** Aantal lopende (ACTIVE) samenwerkingen; > 0 = nu ingezet. */
   activeCollaborations: number;
+  /**
+   * Heeft de ZZP'er zich via een beschikbaarheidsvenster (`AvailabilityWindow` = UNAVAILABLE) NU
+   * expliciet onbeschikbaar gemaakt (vakantie/verlof)? Dit is een tijdgebonden zelf-blokkade die de
+   * grove `availability`-status (op het profiel) niet meebeweegt — iemand kan "Beschikbaar" staan én
+   * deze week op vakantie zijn. Zo'n vakmens telt niet als vrij inzetbaar: hem nú voordragen is een
+   * verspilde ronde (de ZZP'er moet de uitnodiging alsnog afwijzen). Optioneel/`false` = geen
+   * afwezigheidsvenster dekt nu (gedragsbehoudend voor bestaande aanroepers). Server bepaalt de
+   * waarheid via `awayUntil` (`src/lib/availability.ts`); deze helper leest alleen af.
+   */
+  unavailableNow?: boolean;
 }
 
 export interface RosterCapacitySummary {
@@ -41,7 +51,10 @@ export function isIdleReady(z: RosterCapacityInput): boolean {
   return (
     z.activeCollaborations === 0 &&
     z.engageabilityStatus === "ACTIEF" &&
-    AVAILABLE_FOR_WORK.has(z.availability)
+    AVAILABLE_FOR_WORK.has(z.availability) &&
+    // Een lopend UNAVAILABLE-venster (vakantie/verlof) dekt nu → geen vrije capaciteit, ook al staat
+    // de grove availability-status op beschikbaar. Voorkomt een verspilde voordracht.
+    !z.unavailableNow
   );
 }
 
@@ -66,9 +79,11 @@ export function summarizeRosterCapacity(
       summary.placed += 1;
     } else if (z.engageabilityStatus !== "ACTIEF") {
       summary.needsAttention += 1;
-    } else if (AVAILABLE_FOR_WORK.has(z.availability)) {
+    } else if (AVAILABLE_FOR_WORK.has(z.availability) && !z.unavailableNow) {
       summary.idleReady += 1;
     } else {
+      // Grof niet-beschikbaar (UNAVAILABLE/UNKNOWN) óf een lopend afwezigheidsvenster (vakantie): in
+      // beide gevallen bewust nu niet inzetbaar → pijplijn, geen vrije capaciteit.
       summary.unavailable += 1;
     }
   }

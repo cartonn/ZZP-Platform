@@ -105,6 +105,10 @@ describe("matchesRosterFilter", () => {
     expect(
       matchesRosterFilter(card({ availability: "UNAVAILABLE" }), { ...base, onlyIdle: true }),
     ).toBe(false);
+    // grof beschikbaar maar nu op vakantie (self-set UNAVAILABLE-venster) → niet vrij
+    expect(matchesRosterFilter(card({ unavailableNow: true }), { ...base, onlyIdle: true })).toBe(
+      false,
+    );
   });
 
   it("toont met onlyDormant alleen re-engagement-kandidaten (cooling of dormant)", () => {
