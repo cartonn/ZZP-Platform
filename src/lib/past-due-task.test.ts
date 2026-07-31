@@ -12,41 +12,55 @@ const store = {
   auditLogs: [] as Array<Record<string, unknown>>,
 };
 
-vi.mock("@/lib/db", () => ({
-  prisma: {
-    subscription: {
-      findMany: vi.fn(async () => store.subscriptions),
-      update: vi.fn(async (args: { where: { id: string }; data: Record<string, unknown> }) => {
-        const sub = store.subscriptions.find((s) => s.id === args.where.id);
-        if (sub) Object.assign(sub, args.data);
+// Faithful mock: subscription.updateMany honoreert de compound status-guard
+// (where.status), zodat een intussen naar ACTIVE herstelde rij NIET geflipt wordt.
+const prismaMock = {
+  subscription: {
+    findMany: vi.fn(async () => store.subscriptions),
+    updateMany: vi.fn(
+      async (args: { where: { id: string; status?: string }; data: Record<string, unknown> }) => {
+        const sub = store.subscriptions.find(
+          (s) =>
+            s.id === args.where.id &&
+            (args.where.status === undefined || s.status === args.where.status),
+        );
+        if (!sub) return { count: 0 };
+        Object.assign(sub, args.data);
         store.subscriptionUpdates.push({ id: args.where.id, data: args.data });
-        return sub ?? {};
-      }),
-    },
-    domainEvent: {
-      findMany: vi.fn(async (args: { where: { dedupeKey: { in: string[] } } }) =>
-        store.domainEvents.filter((e) => args.where.dedupeKey.in.includes(e.dedupeKey as string)),
-      ),
-      create: vi.fn(async (args: { data: Record<string, unknown> }) => {
-        store.domainEvents.push(args.data);
-        return args.data;
-      }),
-    },
-    notification: {
-      create: vi.fn(async (args: { data: Record<string, unknown> }) => {
-        store.notifications.push(args.data);
-        return args.data;
-      }),
-    },
-    auditLog: {
-      create: vi.fn(async (args: { data: Record<string, unknown> }) => {
-        store.auditLogs.push(args.data);
-        return args.data;
-      }),
-    },
-    $transaction: vi.fn(async (ops: Array<Promise<unknown>>) => Promise.all(ops)),
+        return { count: 1 };
+      },
+    ),
   },
-}));
+  domainEvent: {
+    findMany: vi.fn(async (args: { where: { dedupeKey: { in: string[] } } }) =>
+      store.domainEvents.filter((e) => args.where.dedupeKey.in.includes(e.dedupeKey as string)),
+    ),
+    create: vi.fn(async (args: { data: Record<string, unknown> }) => {
+      store.domainEvents.push(args.data);
+      return args.data;
+    }),
+  },
+  notification: {
+    create: vi.fn(async (args: { data: Record<string, unknown> }) => {
+      store.notifications.push(args.data);
+      return args.data;
+    }),
+  },
+  auditLog: {
+    create: vi.fn(async (args: { data: Record<string, unknown> }) => {
+      store.auditLogs.push(args.data);
+      return args.data;
+    }),
+  },
+  // Ondersteun beide vormen: de array-vorm (herinneringen) én de interactieve
+  // callback-vorm (downgrade). Bij de callback krijgt de body dezelfde mock als `tx`.
+  $transaction: vi.fn(
+    async (arg: Array<Promise<unknown>> | ((tx: typeof prismaMock) => Promise<unknown>)) =>
+      typeof arg === "function" ? arg(prismaMock) : Promise.all(arg),
+  ),
+};
+
+vi.mock("@/lib/db", () => ({ prisma: prismaMock }));
 
 const NOW = new Date("2026-06-09T12:00:00.000Z");
 
@@ -119,6 +133,39 @@ describe("runSubscriptionPastDueTask", () => {
     const notif = store.notifications.find((n) => n.type === "SUBSCRIPTION_DOWNGRADED");
     expect(notif).toBeDefined();
     expect(store.domainEvents[0]?.type).toBe("SUBSCRIPTION_DOWNGRADED");
+  });
+
+  it("TOCTOU — intussen naar ACTIVE hersteld abonnement wordt NIET gedowngraded", async () => {
+    // Snapshot zag PAST_DUE (>7 dagen) → plan schedulet een downgrade; maar de live rij is
+    // intussen ACTIVE (betaling hersteld via de webkook). De compound-guarded updateMany mag
+    // die rij niet flippen: geen downgrade, geen notificatie, geen valse "teruggezet"-melding.
+    const sub = makePastDueSub("sub-recovered", 8);
+    sub.status = "ACTIVE";
+    store.subscriptions = [sub];
+
+    const { runSubscriptionPastDueTask } = await import("@/lib/past-due-task");
+    const result = await runSubscriptionPastDueTask({ actorId: null, now: NOW });
+
+    expect(result.downgraded).toBe(0);
+    expect(store.subscriptionUpdates).toHaveLength(0);
+    expect(store.subscriptions[0]?.status).toBe("ACTIVE");
+    expect(store.notifications.find((n) => n.type === "SUBSCRIPTION_DOWNGRADED")).toBeUndefined();
+    expect(store.domainEvents.find((e) => e.type === "SUBSCRIPTION_DOWNGRADED")).toBeUndefined();
+    expect(store.auditLogs).toHaveLength(0);
+  });
+
+  it("downgrade schrijft de status compound-guarded (where.status = PAST_DUE)", async () => {
+    store.subscriptions = [makePastDueSub("sub-guard", 8)];
+
+    const { runSubscriptionPastDueTask } = await import("@/lib/past-due-task");
+    await runSubscriptionPastDueTask({ actorId: null, now: NOW });
+
+    expect(prismaMock.subscription.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "sub-guard", status: "PAST_DUE" }),
+        data: expect.objectContaining({ status: "CANCELLED" }),
+      }),
+    );
   });
 
   it("idempotentie — al-gevuurd DomainEvent wordt overgeslagen bij tweede run", async () => {

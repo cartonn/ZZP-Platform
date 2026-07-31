@@ -38,10 +38,16 @@
 > meetellen → dubbele "verlopen"-melding/audit. Geen regressie (oude code was slechter, geen datacorruptie);
 > `updateMany().count` geeft de echte flip-telling maar mist de ids voor notificaties. Prioriteit: LOW.
 >
-> **GEPARKEERD (deze run, LOW — niet-compliance, geparkeerd voor scope):** `past-due-task.ts:102-105`
-> schrijft `PAST_DUE → CANCELLED` met een ongeguarde single-row `subscription.update` (zelfde TOCTOU-klasse
-> als fix 1, maar abonnementsstatus, niet compliance-kritiek en per-rij i.p.v. multi-rij). Zelfde fix
-> (compound-guarded `updateMany` + count-gate) aanbevolen; geen fixture bevestigd. Prioriteit: LOW.
+> **GEFIXT (2026-07-31, PR #1007):** `past-due-task.ts` — de `PAST_DUE → CANCELLED`-downgrade
+> schreef met een ongeguarde single-row `subscription.update`. De kandidaten komen uit een
+> `findMany`-snapshot van vóór de transactie; herstelt de gebruiker in dat venster zijn betaling
+> (webhook: `PAST_DUE → ACTIVE`, een geldige overgang), dan overschreef de blinde cron die rij alsnog
+> naar `CANCELLED` → een net-betalende klant stil naar Gratis gedowngraded + een valse "teruggezet naar
+> Gratis"-notificatie. **Fix:** interactieve transactie + compound-guarded
+> `updateMany({ where: { id, status: "PAST_DUE" } })` met count-gate (0 → niets schrijven), zelfde
+> patroon als de verloop-cron (#1006); hardt ook twee gelijktijdige runs (dedupeKey-collisie). +2
+> regressietests (reactivatie-in-venster → geen downgrade; compound-guard geverifieerd), faithful mock
+> (`updateMany` honoreert `where.status`, interactieve `$transaction`).
 >
 > ---
 
