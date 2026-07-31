@@ -160,6 +160,9 @@ export const DateInput = forwardRef<
       setDisplay(disp);
       setIso(nativeIso);
       setError(null);
+      // Ook de picker-keuze doorgeven aan een luisterende parent, net als het tikken in het
+      // tekstveld — anders mist een `onChange`-consument de waarde bij gebruik van de kalender.
+      onChange?.(e);
     }
 
     function openPicker() {

@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — waarschuw bij een voorstel op een onbeschikbare kandidaat-periode (2026-07-31)** —
+> een ZZP'er kan zich via `AvailabilityWindow` (`UNAVAILABLE`) voor een periode onbeschikbaar maken; de opdrachtgever zag op
+> `/kandidaten` alleen of de **opdracht-startdatum** in zo'n venster viel (`assessJobStartAvailability`), maar het voorstel-
+> formulier (`ProposeCollaboration`) liet vrij een eigen start/eind kiezen zónder toets → een voorstel over een onbeschikbare
+> periode heen wordt afgewezen (verspilde ronde voor beide partijen). Nu een **live, niet-blokkerende** waarschuwing zodra de
+> gekozen voorstel-periode een UNAVAILABLE-venster van de kandidaat overlapt. Server-side blijft de waarheid (beschikbaarheid =
+> advies; de ZZP'er beslist bij accepteren). Pure `proposalDateConflicts`/`isIsoDate` (`src/lib/proposal-availability.ts`):
+> inclusieve periode-overlap via lexicografische yyyy-mm-dd-vergelijking (tijdzone-veilig), leeg einde = één dag op de start,
+> omgekeerde range valt veilig terug op de start. `propose-collaboration.tsx` leest de getypte/gekozen datums mee (beide
+> formaten); `date-input.tsx` geeft nu ook de kalender-picker-keuze door via `onChange` (geen bestaande consument gebruikte dat);
+> `kandidaten/page.tsx` levert de reeds-geladen UNAVAILABLE-vensters aan (geen extra query, geen schemawijziging, geen nieuw
+> mutatie/auth-oppervlak). +13 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — message/conversation-retentie-sweep (AVG art. 5(1)(e)) (2026-07-31)** —
 > het verwerkingsregister beloofde al een bewaartermijn voor chatberichten (`Message.body`, vrije-tekst-PII), maar
 > niets dwong die af — het laatste PII-dragende "verwijder-ouder-dan-venster"-gat na audit-/reactie-/notificatie-/

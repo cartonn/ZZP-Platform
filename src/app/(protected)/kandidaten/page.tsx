@@ -106,6 +106,8 @@ export default async function KandidatenPage({
     endDate: t("Einddatum"),
     sending: t("Versturen…"),
     send: t("Voorstel versturen"),
+    conflictHeading: t("Let op — de kandidaat heeft zich onbeschikbaar gemaakt in deze periode:"),
+    conflictRange: t("t/m"),
   };
   const bulkLabels = {
     viewed: t("Bekeken"),
@@ -788,7 +790,18 @@ export default async function KandidatenPage({
                       )}
                     </div>
                     {status === "ACCEPTED" && !app.collaboration && (
-                      <ProposeCollaboration applicationId={app.id} labels={proposeLabels} />
+                      <ProposeCollaboration
+                        applicationId={app.id}
+                        labels={proposeLabels}
+                        unavailableWindows={app.freelancer.availabilityWindows
+                          .filter((w) => w.type === "UNAVAILABLE" && w.endDate >= now)
+                          .map((w) => ({
+                            startISO: w.startDate.toISOString().slice(0, 10),
+                            endISO: w.endDate.toISOString().slice(0, 10),
+                            startLabel: formatDateShortNl(w.startDate),
+                            endLabel: formatDateShortNl(w.endDate),
+                          }))}
+                      />
                     )}
                   </>
                 );
