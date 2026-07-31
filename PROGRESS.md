@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-31 — Opdrachtgever: branche-gedreven certificaat-aanbeveling op het opdrachtformulier
+
+**Wat:** een opdrachtgever die een opdracht plaatst weet niet altijd wélke bewijsstukken in zijn branche
+gebruikelijk of wettelijk vereist zijn — een zorginstelling vergeet makkelijk de VOG of BIG-registratie, een
+aannemer het VCA-certificaat. Concurrenten in de zorg (Pidz/Zorgwerk) vullen die compliance-eisen voor de klant
+in. Nu tonen we op het nieuwe-opdracht-/dupliceer-formulier een rustige, read-only hint zodra de branche gekozen
+is: **"Vaak vereist in {branche}: …"** met korte onderbouwing. De opdrachtgever vinkt zelf de chips aan — dit is
+guidance, geen automatische eis (server-side waarheid blijft de expliciete selectie). Ontzorging, DOEL 1.
+
+- **Pure mapper `recommendedCredentialsForIndustry(name)`** (`src/lib/jobs/credential-recommendations.ts`):
+  trefwoord-gebaseerd, case-insensitief, substring-match (raakt "Zorg & Welzijn", "Bouw & Techniek"). Zorg →
+  VOG/DIPLOMA/LICENSE (BIG), Bouw/techniek → VOG/CERTIFICATE/INSURANCE (VCA), Transport/logistiek →
+  LICENSE/INSURANCE/VOG, ICT → VOG. Degradeert veilig naar `null` bij een lege/onbekende branche (geen hint).
+  Eerste passende regel wint. +8 tests.
+- **UI-wiring** (`src/app/(protected)/opdrachten/job-form.tsx`): reactieve hint onder "Vereiste certificaten",
+  afgeleid uit de bestaande `industryId`-state + `industries`-prop. Geen controlled-component-refactor, geen
+  extra query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+- **Gate:** typecheck · lint · test · build · prettier groen.
+
 ## 2026-07-30e — Opdrachtgever: eerste-reactie-SLA next-action (onbekeken kandidaat wacht op eerste blik)
 
 **Wat:** de opdrachtgever kreeg voor NEW-reacties alleen een leeftijdloze telling ("X nieuwe reacties",
