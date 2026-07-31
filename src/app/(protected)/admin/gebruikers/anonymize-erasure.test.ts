@@ -60,7 +60,11 @@ vi.mock("@/lib/db", () => ({
       deleteMany: op("credential.deleteMany"),
     },
     document: {
-      deleteMany: op("document.deleteMany"),
+      // NB: document.deleteMany + document.findMany worden nu PAS ná de $transaction aangeroepen
+      // (race-vrije verwijdering, CWE-367). document.count levert enkel het audit-intentiegetal
+      // vóór de transactie.
+      count: vi.fn(async () => 0),
+      deleteMany: vi.fn(async () => ({})),
       findMany: vi.fn(async () => []),
     },
     message: { updateMany: op("message.updateMany") },
@@ -499,6 +503,36 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     // Geen bedrijf (of geen logo) → de opslag-opruiming mag niet met een lege/undefined key worden
     // aangeroepen (documents is in deze mock ook leeg, dus storage.delete hoort helemaal niet te vuren).
     expect(storageMock.del).not.toHaveBeenCalled();
+  });
+
+  it("leest de document-storagesleutels PAS ná de anonimiseringstransactie — race-vrij (TOCTOU, CWE-367, AVG art. 17)", async () => {
+    await anonymizeUser("user-42");
+    // De blob-opruiming moet de storagesleutels lezen NADAT het account is geanonimiseerd (SUSPENDED,
+    // passwordHash gewist → currentActor() geeft null, dus geen upload meer mogelijk). Pas dan dekt de
+    // sleutellijst exact de te wissen rijen en kan er geen weesblob ontstaan. Bewijs: de document.findMany
+    // die de sleutels ophaalt valt ná de $transaction. Vóór de fix werd die lijst vóór de transactie
+    // gesnapshot (findMany-volgorde < $transaction-volgorde) — dan faalt deze assert (rood→groen).
+    const findManyOrder = (
+      prisma.document.findMany as unknown as { mock: { invocationCallOrder: number[] } }
+    ).mock.invocationCallOrder.at(-1)!;
+    const txOrder = (
+      prisma.$transaction as unknown as { mock: { invocationCallOrder: number[] } }
+    ).mock.invocationCallOrder.at(-1)!;
+    expect(findManyOrder).toBeGreaterThan(txOrder);
+  });
+
+  it("wist de blob van een document dat tijdens het anonimiseringsvenster opdook (geen weesblob, art. 17)", async () => {
+    // Simuleer een document dat pas ná de start van de anonimisering in de DB staat. Omdat de sleutels
+    // nu PAS ná de transactie worden gelezen, ziet de opruiming dit document en wordt zowel de rij als de
+    // blob gewist — geen achtergebleven (mogelijk art. 9-)VOG/diploma.
+    (
+      prisma.document.findMany as unknown as {
+        mockResolvedValueOnce: (v: unknown) => void;
+      }
+    ).mockResolvedValueOnce([{ storageKey: "2026/vog-tijdens-venster.pdf" }]);
+    await anonymizeUser("user-42");
+    expect(storageMock.del).toHaveBeenCalledWith("2026/vog-tijdens-venster.pdf");
+    expect(prisma.document.deleteMany).toHaveBeenCalledWith({ where: { ownerId: "user-42" } });
   });
 
   it("verwijdert push-abonnementen (PushSubscription — toestel-identifier)", async () => {

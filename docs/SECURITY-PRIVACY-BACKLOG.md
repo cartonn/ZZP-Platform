@@ -4,6 +4,64 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-31 (basis: `main` @ 5cae5d33)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende hoog-risico
+oppervlakken (naast de delta sinds de vorige ronde, `bdb502bf..5cae5d33`, #996–#1002 — grotendeels pure,
+geteste logica: `credential-recommendations.ts`, `client-first-look.ts`, cascade-handlers, observability-
+bundle — geen nieuw route-/mutatie-oppervlak). Gedekt: (1) BOLA/IDOR + path-traversal + token-timing +
+foutlek op álle dynamische route-handlers die gevoelige resources serveren (media/documents/facturen/
+prestaties/dossier/dba-dossier/modelovereenkomst/agenda-feed/avg-export/account-export); (2) cross-tenant
+isolatie over de volledige franchise-server-action- en loader-set (+ `tenancy.ts`); (3) AVG-anonimisering/
+erasure-volledigheid, exports (art. 15/20), dataminimalisatie/over-fetch, audit-dekking, k-anonimiteit.
+Orchestrator-scans los: injectie (`$queryRaw` enkel `SELECT 1`, geen `dangerouslySetInnerHTML` behalve het
+nonce'd theme-script), SSRF, CRON_SECRET-guards, CSP/HSTS/security-headers, PII-in-logs (mail-noop
+prod-geredigeerd, M-3), betaal-webhook (rate-limit + body-cap + handtekening + idempotent + audit),
+open-redirect (login hardcodeert `/dashboard`), CSV-formule-injectie (`csv.ts` `escapeCsvField`, CWE-1236).
+OWASP A01/A03/A05/A07/A08 + AVG art. 5(1)(c)/(f)/9/15/17/20 als leidraad.
+
+**Resultaat: geen nieuw KRITIEK/HOOG-toegangs- of injectiegat. Twee bevindingen deze ronde OPGELOST
+(rood→groen); één eerder geëscaleerde HOOG blijft mensenwerk (bevestigd nog aanwezig).**
+
+### OPGELOST — MIDDEL (TOCTOU, CWE-367, AVG art. 17): weesblob bij anonimisering-race op `anonymizeUser`
+
+- **Repro (was):** `anonymizeUser` (`admin/gebruikers/actions.ts`) sneed de lijst met document-storagesleutels
+  vóór de `$transaction` af (`prisma.document.findMany`), terwijl `document.deleteMany` pas een aantal DB-rondes
+  later ín die transactie liep (na `requestMeta`, dispute-/audit-/credential-/invoice-lookups). Uploadt de nog-
+  ACTIVE betrokkene een document (bv. VOG/diploma) in dat venster, dan verwijdert de `deleteMany` de rij (matcht
+  `ownerId`), maar de storage-blob zat niet in de vóór-snapshot → een onvindbare weesblob met (mogelijk art. 9-)
+  gevoelige documentinhoud overleeft de "verwijdering", zonder DB-verwijzing om 'm nog terug te vinden.
+- **Geschonden regel:** AVG art. 17 (recht op verwijdering — onvolledige erasure) + CLAUDE.md regel 4/5
+  (documenten privé via storage-abstractie; verwijderen wat telt). OWASP niet direct (geen toegangsgat); CWE-367.
+- **Fix (deze PR):** de document-rij + blob-verwijdering verhuisd naar ná de transactie. Op dat punt is het account
+  al `SUSPENDED`/`anonymizedAt` (`userAnonymizationData`) → `currentActor()` geeft `null` en de betrokkene kan niets
+  meer uploaden; het read-then-delete is daardoor race-vrij (de dan-gelezen sleutels dekken exact de te wissen
+  rijen). FK-veilig: `Credential → Document` is `onDelete: SetNull` en de eigen credentials worden ín de transactie
+  verwijderd. Audit-`documentsDeleted` gevoed door een pre-transactie `document.count` (intentiegetal). Regressietest
+  (`anonymize-erasure.test.ts`) bewijst rood→groen: de sleutel-`findMany` valt nu ná de `$transaction`
+  (invocation-order) i.p.v. ervoor.
+
+### OPGELOST — LAAG (CLAUDE.md regel 5 / verantwoordingsplicht): verwerkingsregister-export ongeaudit + inconsistente auth-foutafhandeling
+
+- **Repro (was):** `/admin/avg/export` (verwerkingsregister + bewaartermijnen als CSV) schreef — anders dan élke
+  andere export-route — géén auditregel bij de export, en riep `requireActor()` aan zonder de `try/catch`-
+  `AuthorizationError`-afhandeling die de siblings wél hebben (een niet-ingelogde aanroep zou als propagerende 500
+  eindigen i.p.v. een nette JSON-401). Geen personen-data (statisch organisatie-register), dus LAAG.
+- **Geschonden regel:** CLAUDE.md regel 5 (audit alles wat telt) + consistente foutafhandeling. Geen toegangsgat
+  (ADMIN-gepoort + middleware).
+- **Fix (deze PR):** `AVG_REGISTER_EXPORTED`-auditregel toegevoegd (+ NL-label in `audit-labels.ts` voor de
+  drift-gate) en de `try/catch`-`AuthorizationError`-poort gelijkgetrokken met de andere export-routes. Nieuwe
+  route-test dekt ADMIN-export+audit, 403 voor niet-ADMIN, en de nette 401.
+
+### BLIJFT MENSENWERK — HOOG (AVG art. 17/9): `NoShowReport.reason` / `Performance.rejectionReason` / `Invoice.rejectionReason` overleven `anonymizeUser`
+
+- **Status:** herbevestigd nog aanwezig deze ronde. Deze door een dérde partij over de betrokkene geschreven
+  vrije-tekstvelden (mogelijk art. 9-gezondheidsdata bij een no-show) worden bewust niet door de anonimisering
+  geraakt — er kan een bewaargrond zijn bij een arbeids-/facturatiegeschil. Reeds meermaals geëscaleerd (zie de
+  eerdere `NoShowReport.reason`-entries hieronder). **Per MENSENWERK.md §5 is dit een FG/mens-beslissing
+  (redacteren-bij-anonimisering vs. gedocumenteerde retentiegrond) vóór er echte VOG/no-show-data live gaat — geen
+  agent-fix.** Niet in deze PR opgelost; blijft geparkeerd.
+
 ## Ronde 2026-07-30b (basis: `main` @ bdb502bf)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op de delta sinds de vorige
