@@ -52,17 +52,20 @@ vi.mock("@/lib/data/vat-deadline", () => ({
 }));
 
 import { pendingTasks } from "@/lib/actions/pending-tasks";
+import { P } from "@/lib/next-actions";
+import { UNBILLED_AGING_DAYS } from "@/lib/unbilled-invoices";
 
 const ACTOR = { id: "user-zzp", role: "FREELANCER", status: "ACTIVE" } as const;
 
-function collab(id: string, invoices: { id: string; lifecycleStatus: string }[]) {
+function collab(id: string, invoices: { id: string; lifecycleStatus: string; createdAt?: Date }[]) {
   return {
     id,
     status: "ACTIVE",
     job: { title: "Verpleegkundige", credentialRequirements: [] },
     company: { name: "Zorgcentrum" },
     performances: [{ id: "perf-1", status: "APPROVED" }],
-    invoices,
+    // De enumerator leest `createdAt` voor de leeftijd van een concept-factuur; default = nu (vers).
+    invoices: invoices.map((i) => ({ createdAt: new Date(), ...i })),
   };
 }
 
@@ -100,6 +103,32 @@ describe("freelancerTasks — betaal-/overdue-tak", () => {
     // Geen dubbele weergave: de generieke "factuur over de vervaldatum"-rij mag niet óók verschijnen
     // voor een factuur die al een eigen betaal-taak heeft (residu = 1 - 1 = 0).
     expect(tasks.some((t) => t.kind === "overdue-invoice")).toBe(false);
+  });
+
+  it("een verse concept-factuur krijgt de vlakke indien-taak zonder leeftijdslabel", async () => {
+    state.collabs = [
+      collab("c-fresh", [{ id: "inv-fresh", lifecycleStatus: "DRAFT", createdAt: new Date() }]),
+    ];
+
+    const tasks = await pendingTasks(ACTOR);
+    const submit = tasks.find((t) => t.id === "invoice-submit:inv-fresh");
+    expect(submit).toBeDefined();
+    expect(submit?.priority).toBe(P.messagesAwaiting);
+    expect(submit?.subtitle).toBe("Verpleegkundige");
+  });
+
+  it("een verouderde concept-factuur escaleert op /acties (leeftijd ≥ drempel)", async () => {
+    const old = new Date(Date.now() - (UNBILLED_AGING_DAYS + 5) * 24 * 60 * 60 * 1000);
+    state.collabs = [
+      collab("c-old", [{ id: "inv-old", lifecycleStatus: "DRAFT", createdAt: old }]),
+    ];
+
+    const tasks = await pendingTasks(ACTOR);
+    const submit = tasks.find((t) => t.id === "invoice-submit:inv-old");
+    expect(submit).toBeDefined();
+    expect(submit?.priority).toBe(P.conceptInvoiceAging);
+    expect(submit?.priority).toBeGreaterThan(P.messagesAwaiting);
+    expect(submit?.subtitle).toContain("dagen klaar");
   });
 
   it("houdt de toon 'info' voor een APPROVED-factuur (nog niet verlopen)", async () => {

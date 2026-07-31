@@ -17,6 +17,7 @@ import { type VatDeadlineSummary } from "@/lib/administration/vat-deadline";
 import { type StaleApplicationsSummary } from "@/lib/stale-applications";
 import { type FirstLookOverdueSummary } from "@/lib/client-first-look";
 import { INVITATION_AGING_DAYS, invitationAgeLabel } from "@/lib/received-invitations";
+import { UNBILLED_AGING_DAYS } from "@/lib/unbilled-invoices";
 import {
   acuteFillabilityHeadline,
   type AcuteFillabilitySummary,
@@ -232,16 +233,31 @@ export function invoiceSubmitTask(
   collabId: string,
   jobTitle: string,
   rejected: boolean,
+  /**
+   * Hele dagen dat een niet-ingediende concept-factuur al klaarstaat (alleen zinvol voor de
+   * concept-tak, niet voor een afgekeurde factuur). Zodra dit ≥ UNBILLED_AGING_DAYS komt, escaleert
+   * de taak — exact zoals de dashboard-tegel "Nog te factureren" naar warning draait bij dezelfde
+   * drempel. Zo blijft /acties (+ badge + rail) niet stil op de vlakke prioriteit hangen terwijl het
+   * dashboard al alarmeert. `undefined` = geen leeftijdsbesef (gedragsbehoudend).
+   */
+  agingDays?: number,
 ): PendingTask {
+  const aging = !rejected && agingDays !== undefined && agingDays >= UNBILLED_AGING_DAYS;
   return {
     kind: "invoice-submit",
     id: `invoice-submit:${invId}`,
     title: rejected
       ? "Afgekeurde factuur corrigeren en opnieuw indienen"
       : "Concept-factuur indienen",
-    subtitle: jobTitle,
+    subtitle: aging ? `${jobTitle} · al ${plural(agingDays, "dag", "dagen")} klaar` : jobTitle,
     tone: "attention",
-    priority: rejected ? P.credentialExpiring - 8 : P.messagesAwaiting, // 62 of 55
+    // Afgekeurd (62) > verouderde concept (59) > verse concept (55). De verouderde concept staat
+    // net onder een reeds-verstreken factuur (overdueInvoice 60): het is eigen, nog-niet-verzonden geld.
+    priority: rejected
+      ? P.credentialExpiring - 8
+      : aging
+        ? P.conceptInvoiceAging
+        : P.messagesAwaiting,
     resolver: "oneClick",
     href: collabHref(collabId),
     invId,

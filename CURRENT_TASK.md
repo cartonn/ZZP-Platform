@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — verouderde concept-factuur escaleert op /acties (2026-07-31, PR #1014)** —
+> de dashboard-tegel "Nog te factureren" draaide al naar warning zodra de oudste niet-ingediende concept-factuur ≥
+> `UNBILLED_AGING_DAYS` (7) bleef liggen, maar op `/acties` (+ badge + rail) stond diezelfde concept op een **vlakke**
+> prioriteit zonder leeftijdsbesef — een 20 dagen oude concept zag er identiek uit als een van vandaag (signaal op één
+> oppervlak, afwezig in het next-action-model). De ZZP'er zit dan op zijn eigen, nog-niet-verzonden geld voorbij het
+> herinner-/escalatievenster. Nu escaleert de indien-taak mee: `invoiceSubmitTask` kreeg een optionele `agingDays?`; bij
+> `≥ UNBILLED_AGING_DAYS` klimt de prioriteit van `P.messagesAwaiting` (55) naar de nieuwe band `P.conceptInvoiceAging`
+> (59, onder overdue 60 / rejected 62, boven de pre-due nudges) en het subtitel-label wordt "{opdracht} · al X dagen klaar".
+> `freelancerTasks` leest nu `createdAt` op de collab-facturen en geeft `daysSince(inv.createdAt, now)` mee. Drempel +
+> `daysSince` hergebruikt → geen drift met dashboard/reminder-cron. `undefined` = gedragsbehoudend. Read-only signaal, geen
+> schemawijziging, geen nieuw mutatie-/auth-oppervlak. +5 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Bemiddelaar — roster-capaciteit respecteert self-set UNAVAILABLE-venster (2026-07-31, PR #1013)** —
 > op `/franchise/zzpers` classificeerde het capaciteitsoverzicht (`isIdleReady`/`summarizeRosterCapacity`) een ZZP'er als
 > "nu vrij inzetbaar" op alléén de grove `FreelancerProfile.availability`-enum. Een ZZP'er die zichzelf via een

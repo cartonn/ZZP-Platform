@@ -79,6 +79,7 @@ import {
 } from "@/lib/actions/tasks";
 import { getReceivedInvitations } from "@/lib/data/received-invitations";
 import { invitationAgeDays } from "@/lib/received-invitations";
+import { daysSince } from "@/lib/concept-invoice-reminders";
 import { reviewPromptForCollaboration } from "@/lib/collaboration-review-prompt";
 import {
   summarizeCollaborationRenewal,
@@ -472,7 +473,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       },
       invoices: {
         where: { lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED", "OVERDUE"] } },
-        select: { id: true, lifecycleStatus: true },
+        select: { id: true, lifecycleStatus: true, createdAt: true },
         take: 5,
       },
     },
@@ -518,9 +519,12 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         tasks.push(paymentConfirmTask(inv.id, c.id, c.job.title, true));
         surfacedOverdue += 1;
       } else {
-        tasks.push(
-          invoiceSubmitTask(inv.id, c.id, c.job.title, inv.lifecycleStatus === "REJECTED"),
-        );
+        // Verse concept vs. verouderde concept: de leeftijd (hele dagen sinds `createdAt`) laat de
+        // taak escaleren zodra 'ie ≥ UNBILLED_AGING_DAYS blijft liggen — zelfde drempel als de
+        // dashboard-tegel "Nog te factureren". Bij een afgekeurde factuur telt leeftijd niet.
+        const rejected = inv.lifecycleStatus === "REJECTED";
+        const agingDays = rejected ? undefined : daysSince(inv.createdAt, now);
+        tasks.push(invoiceSubmitTask(inv.id, c.id, c.job.title, rejected, agingDays));
       }
     }
   }
