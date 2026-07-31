@@ -1024,10 +1024,20 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
         nextFollowUp: { not: null, lt: startOfUtcDay(now) },
       },
     }),
-    // Gepubliceerde tenant-diensten + hun vulgraad (actieve samenwerking = gevuld) + startdatum, voor de
-    // acute-onbezet-taak. Zelfde bron/definitie als de "Wat dreigt onbezet"-kaart op /franchise/diensten.
+    // Open (gepubliceerde, ONGEVULDE) tenant-diensten + startdatum, voor de acute-onbezet-taak. Zelfde
+    // bron/definitie als de "Wat dreigt onbezet"-kaart op /franchise/diensten. De `collaborations:none`-
+    // scope is essentieel: zonder die filter tellen óók gevulde diensten mee in de `take: MAX`-slice, en
+    // omdat null-start diensten door `nulls:"first"` vooraan sorteren kan een tenant met ≥MAX gevulde,
+    // start-loze diensten een écht acute (ongevulde) dienst uit de slice duwen → die verschijnt dan niet
+    // op /acties, de rail of de badge (undercount). De zuster-query `staleDiensten` hieronder scopet al
+    // net zo; nu gelijkgetrokken zodat de volledige MAX-ruimte voor echt-open diensten is. `_count` blijft
+    // als defense-in-depth (self-correct als een race intussen een ACTIVE-samenwerking toevoegt).
     prisma.job.findMany({
-      where: { tenantId, status: "PUBLISHED" },
+      where: {
+        tenantId,
+        status: "PUBLISHED",
+        collaborations: { none: { status: "ACTIVE" } },
+      },
       select: {
         id: true,
         startDate: true,

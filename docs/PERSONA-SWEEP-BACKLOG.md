@@ -1,5 +1,38 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-31 (run 61) · **main-commit basis:** `f90b143e`
+> **Uitkomst:** **2 bereikbare defecten GEVONDEN + GEFIXT.** Drie parallelle Opus-audits (authz/IDOR/
+> cross-tenant + document-privacy; financiële/status-integriteit; next-action-correctheid).
+>
+> 1. **GEFIXT — MED (DOEL 2, verboden statusovergang via een TOCTOU-race):** de credential-verloop-cron
+>    (`src/lib/expiry-task.ts`) schreef `EXPIRED` met een **ongeguarde** `updateMany({ where: { id: { in } } })`.
+>    De kandidaten komen uit een `findMany`-snapshot van vóór de transactie; dient de ZZP'er in dat venster
+>    een nieuw bewijsstuk in (`VERIFIED → SUBMITTED`, `certificaten/actions.ts`), dan overschreef de blinde
+>    cron die rij alsnog naar `EXPIRED` — een overgang die **niet in `CREDENTIAL_TRANSITIONS`** staat
+>    (SUBMITTED→EXPIRED) en die de zojuist ingediende herbeoordeling stil terugdraaide + een valse
+>    "verlopen"-notificatie stuurde. Schending CLAUDE.md regel 3 ("geen losse status-updates") + de
+>    invariant "alleen een VERIFIED-credential kan verlopen". **Fix:** interactieve transactie +
+>    compound-guarded `updateMany({ where: { id: { in }, status: "VERIFIED" } })` (zelfde TOCTOU-patroon als
+>    de rest van de cascade), read-back van de daadwerkelijk geflipte rijen zodat notificaties/audit exact
+>    de echt-verlopen certificaten dekken; de herinnerings-write is nu ook VERIFIED-guarded. +1 regressietest
+>    (rood→groen) + faithful mock (honort de status-guard, interactieve `$transaction`).
+> 2. **GEFIXT — MED (DOEL 1b, franchiser acute-onbezet undercount — bevestigd bereikbaar):** de open-diensten-
+>    query in `franchiserTasks` (`src/lib/actions/pending-tasks.ts`) haalde **óók gevulde** diensten op en
+>    sorteerde `startDate` nulls-first vóór de `take: 50`-slice. Een tenant met ≥50 gevulde, start-loze
+>    diensten (open-eind zorgplaatsingen) vulde de hele slice → één écht acute, **ongevulde** dienst viel
+>    eruit en verscheen ≥7 dagen niet op `/acties`, de rail of de badge. Dit is precies de run-60
+>    "GEPARKEERD"-rand, nu met een reproducerende fixture bevestigd. **Fix:** query gescoped op
+>    `collaborations: { none: { status: "ACTIVE" } }` (gelijkgetrokken met de zuster-`staleDiensten`-query),
+>    zodat de volledige `MAX`-ruimte voor echt-open diensten is. +1 regressietest (faithful job.findMany-mock
+>    met filter/orderBy/take, rood→groen).
+>
+> **GEPARKEERD (deze run, LOW — niet-compliance, geparkeerd voor scope):** `past-due-task.ts:102-105`
+> schrijft `PAST_DUE → CANCELLED` met een ongeguarde single-row `subscription.update` (zelfde TOCTOU-klasse
+> als fix 1, maar abonnementsstatus, niet compliance-kritiek en per-rij i.p.v. multi-rij). Zelfde fix
+> (compound-guarded `updateMany` + count-gate) aanbevolen; geen fixture bevestigd. Prioriteit: LOW.
+>
+> ---
+
 > **Datum:** 2026-07-30 (run 60) · **main-commit basis:** `adc7cd3f`
 > **Uitkomst:** **0 bereikbare defecten · 2 defense-in-depth-hardeningen GEFIXT** (500-randen op de
 > financiële cascade-motor). Drie parallelle Opus-audits (authz/IDOR/cross-tenant + document-privacy;
