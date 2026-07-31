@@ -3,6 +3,20 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-31 — Robuustheid: TOCTOU-guard op PAST_DUE→CANCELLED abonnement-downgrade (PR #1007)
+
+**Wat:** de laatste ongeguarde status-TOCTOU op de abonnementsladder gesloten (run-61-parkeerpunt).
+`src/lib/past-due-task.ts` schreef de `PAST_DUE → CANCELLED`-downgrade met een blinde single-row
+`subscription.update` op een pre-transactie-`findMany`-snapshot. Herstelt de gebruiker in dat venster
+zijn betaling (webhook: `PAST_DUE → ACTIVE`, geldige overgang), dan overschreef de cron die rij alsnog
+naar `CANCELLED` → een net-betalende klant stil naar Gratis gedowngraded + een valse "teruggezet naar
+Gratis"-notificatie. **Fix:** interactieve `$transaction` + compound-guarded
+`updateMany({ where: { id, status: "PAST_DUE" } })` met count-gate (0 → niets schrijven), exact het
+patroon van de verloop-cron (#1006); hardt ook twee gelijktijdige runs (dedupeKey-collisie voorkomen).
+`src/lib/past-due-task.test.ts`: +2 regressietests (reactivatie-in-venster → geen downgrade/notificatie;
+compound-guard geverifieerd), faithful mock (`updateMany` honoreert `where.status`, interactieve
+`$transaction`-vorm). Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-31 — Persona-sweep run 61: 2 bereikbare defecten gevonden + gefixt
 
 **Wat:** drie parallelle Opus-audits (authz/IDOR/cross-tenant; financiële/status-integriteit;

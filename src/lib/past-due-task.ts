@@ -12,6 +12,11 @@ export interface PastDueResult {
   downgraded: number;
 }
 
+// De downgrade-write draait in een interactieve $transaction zodat de status-write
+// compound-guarded kan zijn. Elke transactie behandelt één abonnement (geen batch),
+// dus de default-timeout ruimt makkelijk; `maxWait` begrenst het wachten op een slot.
+const PAST_DUE_TX_OPTIONS = { timeout: 30_000, maxWait: 10_000 } as const;
+
 export async function runSubscriptionPastDueTask(opts: {
   actorId?: string | null;
   now?: Date;
@@ -86,8 +91,25 @@ export async function runSubscriptionPastDueTask(opts: {
   for (const d of freshDowngrades) {
     // Defensief: PAST_DUE → CANCELLED moet een geldige overgang zijn (CLAUDE.md regel 3).
     if (!SUBSCRIPTION_TRANSITIONS.PAST_DUE.includes("CANCELLED" as SubscriptionStatus)) continue;
-    await prisma.$transaction([
-      prisma.domainEvent.create({
+
+    // Interactieve transactie (niet de array-vorm) zodat de status-write compound-guarded
+    // kan zijn. De kandidaten komen uit een findMany-snapshot van vóór de transactie; herstelt
+    // de gebruiker in dat venster zijn betaling (de webhook zet PAST_DUE → ACTIVE, een geldige
+    // overgang), dan mag deze cron die rij niet blind terug naar CANCELLED schrijven — dat zou
+    // een net-betalende klant stil naar Gratis downgraden én een valse "teruggezet naar Gratis"-
+    // notificatie sturen. De compound `updateMany({ where: { id, status: "PAST_DUE" } })` flipt
+    // alleen als de rij nú (in de transactie) nog PAST_DUE is; anders count 0 → niets schrijven.
+    // Dit hardt ook twee gelijktijdige runs: run B's updateMany vindt de rij al CANCELLED (count 0)
+    // en slaat de DomainEvent-create over, wat de dedupeKey-collisie voorkomt.
+    const flipped = await prisma.$transaction(async (tx) => {
+      const { count } = await tx.subscription.updateMany({
+        where: { id: d.subscriptionId, status: "PAST_DUE" },
+        // Status CANCELLED → de user valt terug op Gratis (getActivePlanKey behandelt niet-ACTIVE als FREE).
+        data: { status: "CANCELLED", pastDueAt: null },
+      });
+      if (count === 0) return false;
+
+      await tx.domainEvent.create({
         data: {
           type: "SUBSCRIPTION_DOWNGRADED",
           actorRole: "SYSTEM",
@@ -97,13 +119,8 @@ export async function runSubscriptionPastDueTask(opts: {
           correlationId: null,
           dedupeKey: d.dedupeKey,
         },
-      }),
-      // Status CANCELLED → de user valt terug op Gratis (getActivePlanKey behandelt niet-ACTIVE als FREE).
-      prisma.subscription.update({
-        where: { id: d.subscriptionId },
-        data: { status: "CANCELLED", pastDueAt: null },
-      }),
-      prisma.notification.create({
+      });
+      await tx.notification.create({
         data: {
           userId: d.userId,
           type: "SUBSCRIPTION_DOWNGRADED",
@@ -111,8 +128,8 @@ export async function runSubscriptionPastDueTask(opts: {
           body: "Na een mislukte betaling staat je account weer op Gratis. Je kunt op elk moment opnieuw een abonnement kiezen.",
           link: "/abonnement",
         },
-      }),
-      prisma.auditLog.create({
+      });
+      await tx.auditLog.create({
         data: auditData({
           actorId: opts.actorId ?? null,
           action: "SUBSCRIPTION_DOWNGRADED",
@@ -120,9 +137,11 @@ export async function runSubscriptionPastDueTask(opts: {
           entityId: d.subscriptionId,
           metadata: { from: "PAST_DUE", to: "CANCELLED", reason: "payment_failed" },
         }),
-      }),
-    ]);
-    downgraded += 1;
+      });
+      return true;
+    }, PAST_DUE_TX_OPTIONS);
+
+    if (flipped) downgraded += 1;
   }
 
   return { reminded: freshReminders.length, downgraded };
