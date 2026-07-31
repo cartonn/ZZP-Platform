@@ -326,6 +326,29 @@ export function applicationRetentionDays(): number {
   return parseApplicationRetentionDays(process.env.APPLICATION_RETENTION_DAYS);
 }
 
+// --- Berichten-/gespreks-retentie (AVG art. 5(1)(e), opslagbeperking) --------
+// Het verwerkingsregister ("berichten-communicatie") belooft berichten "duur van de samenwerking +
+// redelijke termijn (max. 12 maanden na beëindiging)" te bewaren. Een Message-rij draagt vrije-tekst-PII
+// in `body` (de daadwerkelijke chatinhoud tussen ZZP'er en opdrachtgever); die onbeperkt bewaren ís de
+// overtreding. Anders dan reactie-/notificatie-retentie staat deze sweep standaard UIT: berichten hebben
+// aantoonbare waarde voor geschillenbeslechting (de eigen rationale in het register) en wissen is
+// ONOMKEERBAAR — dezelfde afweging als AUDIT_LOG_RETENTION_DAYS. De taak (message-retention-task.ts)
+// snoeit pas berichten ouder dan het venster zodra de eigenaar (na juridisch akkoord) een venster zet, en
+// nooit berichten van een lopende samenwerking (PROPOSED/ACTIVE). 0/leeg = uit (huidig gedrag). De
+// minimumvloer beschermt tegen een typefout ("3" i.p.v. "365") die vrijwel de hele historie zou wissen.
+export const MESSAGE_RETENTION_MIN_DAYS = 30;
+export function parseMessageRetentionDays(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === "") return 0;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.max(MESSAGE_RETENTION_MIN_DAYS, Math.floor(n));
+}
+
+/** Geconfigureerd berichten-retentievenster in dagen; 0 = uitgeschakeld (onbeperkt bewaren). */
+export function messageRetentionDays(): number {
+  return parseMessageRetentionDays(process.env.MESSAGE_RETENTION_DAYS);
+}
+
 // --- Cron-heartbeat venster (observability, dead-man's-switch) --------------
 // Maximale leeftijd (in uren) van de laatste geplande-taken-cron-run vóór 'ie als "stale" geldt op
 // /admin/systeemstatus. De cron draait standaard dagelijks (run-all-tasks.yml, 05:00 UTC); de

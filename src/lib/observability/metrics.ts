@@ -145,6 +145,19 @@ export interface MetricsInput {
    * heartbeat "vers" is, dan bewaart de app incident-IP's over de termijn heen zonder dat iets dat toont.
    */
   healthIncidentsIpRetentionBacklog: number;
+  /**
+   * Aantal berichten (Message) ouder dan het geconfigureerde `MESSAGE_RETENTION_DAYS`-venster die de
+   * `message-retention`-cron nog niet snoeide — werk dat die cron had moeten doen (mits het gesprek niet
+   * aan een lopende samenwerking hangt). Dezelfde stille-faal-detector-klasse als de andere retentie-
+   * backlogs, en het meest PII-dragende vrije-tekstveld op het platform: een Message-rij draagt de
+   * daadwerkelijke chatinhoud (`body`) tussen ZZP'er en opdrachtgever, en het verwerkingsregister belooft
+   * "duur van de samenwerking + max. 12 maanden na beëindiging" (AVG art. 5 lid 1e opslagbeperking). De
+   * cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn verwerkte; blijft dit
+   * getal oplopen terwijl de heartbeat "vers" is, dan bewaart de app berichtinhoud over de beloofde termijn
+   * heen zonder dat iets dat toont. Staat retentie UIT (venster leeg/0 = onbeperkt bewaren, de pilot-
+   * default), dan is er per definitie geen achterstand en is deze gauge `0`.
+   */
+  messagesRetentionBacklog: number;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -278,6 +291,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal beveiligingsincidenten (HealthIncident) ouder dan het geconfigureerde HEALTH_INCIDENT_IP_RETENTION_DAYS-venster wier bron-IP de health-incident-retention-cron nog niet redigeerde (deze retentie staat standaard AAN — default 90 dagen; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen redactie-pijplijn → incident-IP's (persoonsgegeven) bewaard over de bewaartermijn heen, AVG art. 5(1)(c)/(e)).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.healthIncidentsIpRetentionBacklog)),
+    },
+    {
+      name: "zzp_messages_retention_backlog",
+      help: "Aantal berichten (Message, chatinhoud in body) ouder dan het geconfigureerde MESSAGE_RETENTION_DAYS-venster (en niet gekoppeld aan een lopende samenwerking) die de message-retention-cron nog niet snoeide (0 als retentie uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → berichtinhoud bewaard over de beloofde termijn heen, AVG art. 5(1)(e)).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.messagesRetentionBacklog)),
     },
   ];
 }

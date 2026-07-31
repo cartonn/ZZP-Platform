@@ -226,7 +226,8 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
     dataCategories: ["Berichtinhoud", "Afzender en ontvanger", "Tijdstempel"],
     sensitive: false,
     recipients: ["Betrokken ZZP'er en opdrachtgever"],
-    retention: "Duur van de samenwerking + redelijke termijn (max. 12 maanden na beëindiging)",
+    retention:
+      "Duur van de samenwerking + redelijke termijn (max. 12 maanden na beëindiging; automatisch afgedwongen door de geplande retentie-sweep run-all → message-retention, die berichten ouder dan het venster hard wist, mits het gesprek niet aan een lopende samenwerking (PROPOSED/ACTIVE) hangt)",
     securityMeasures: [
       "Toegang beperkt tot gespreksdeelnemers",
       "Versleutelde opslag",
@@ -629,7 +630,7 @@ export const RETENTION_SCHEDULE: readonly RetentionRule[] = [
     category: "Berichten tussen partijen",
     period: "Duur van de samenwerking + redelijke termijn (max. 12 maanden na beëindiging)",
     rationale:
-      "Noodzakelijk voor de uitvoering van de overeenkomst en mogelijke geschillenbeslechting",
+      "Noodzakelijk voor de uitvoering van de overeenkomst en mogelijke geschillenbeslechting; het bewaarvenster (art. 5(1)(e)) wordt automatisch afgedwongen door een geplande retentie-sweep (run-all → message-retention) die berichten ouder dan het venster hard wist, mits het gesprek niet aan een lopende samenwerking (PROPOSED/ACTIVE) hangt",
   },
   {
     key: "reacties-sollicitaties",

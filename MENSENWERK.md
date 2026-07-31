@@ -654,6 +654,22 @@ Resterend mensenwerk: **niets extra** — de knop is er zodra `ROUTING_PROVIDER=
    `AUDIT_LOG_RETENTION_DAYS` zetten (bv. `365` voor de gedocumenteerde 12 maanden). Zolang het leeg blijft
    verandert er niets.
 
+   **Code-kant GEDAAN (2026-07-31) — berichten-retentie afdwingbaar:** het verwerkingsregister
+   (`RETENTION_SCHEDULE`) beloofde al een bewaartermijn voor **chatberichten** (`Message.body`,
+   vrije-tekst en dus mogelijk persoonsgegevens), maar niets dwong die termijn af — berichten bleven
+   onbeperkt staan. Er is nu een geplande taak **`message-retention`** (in `/api/tasks/run-all`, pure
+   kern `src/lib/message-retention.ts` + `src/lib/message-retention-task.ts`) die berichten ouder dan
+   het geconfigureerde venster gebatcht en idempotent snoeit, met één verantwoordings-auditrecord per
+   snoei-actie (geen PII in het auditrecord zelf — alleen aantal + cutoff + venster). **Wissen is
+   onomkeerbaar en berichten hebben waarde voor geschillenbeslechting, dus staat dit net als de
+   auditlog-retentie standaard UIT** (`MESSAGE_RETENTION_DAYS` leeg/0 = onbeperkt bewaren, de
+   pilot-default). Een te lage waarde wordt veilig geklemd naar **minstens 30 dagen**
+   (typefout-bescherming). Berichten van een gesprek dat aan een **lopende samenwerking** hangt
+   (PROPOSED/ACTIVE) worden nooit gesnoeid, ook niet buiten het venster — die kunnen nog nodig zijn
+   zolang de samenwerking loopt. Resterend mensenwerk: **de bewaartermijn laten vaststellen door een
+   privacyjurist** (dit blijft jouw juridische keuze) en daarna `MESSAGE_RETENTION_DAYS` zetten (bv.
+   `365`). Zolang het leeg blijft verandert er niets.
+
 ### 5b. Wet DBA (schijnzelfstandigheid)
 
 **Stappen:**
@@ -766,6 +782,7 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 | `ALLOW_INDEXING=true`                                                        | Zoekmachine-indexering aanzetten (default uit)         | — (§0b)              | Optioneel bij go-live (pilot blijft privé)       |
 | `SECURITY_CONTACT`                                                           | Meldpunt in /.well-known/security.txt (RFC 9116)       | — (§0b)              | Optioneel (aanbevolen vóór pentest)              |
 | `AUDIT_LOG_RETENTION_DAYS`                                                   | Bewaartermijn auditlog in dagen (default: onbeperkt)   | — (§5a)              | Optioneel (aanbevolen prod; bv. 365)             |
+| `MESSAGE_RETENTION_DAYS`                                                     | Bewaartermijn berichten in dagen (default: onbeperkt)  | — (§5a)              | Optioneel (aanbevolen prod; bv. 365)             |
 | `WEBHOOK_EVENT_RETENTION_DAYS`                                               | Snoeivenster webhook-ledger in dagen (default: onbep.) | — (§3)               | Optioneel (bij recurring billing; bv. 90)        |
 | `BACKUP_MAX_AGE_HOURS`                                                       | Venster back-up-heartbeat in uren (default 48)         | —                    | Optioneel (aanbevolen prod)                      |
 
