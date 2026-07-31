@@ -84,6 +84,10 @@ describe("clientTasks — cascade-overdue betaal-nudge", () => {
     // Boven de pre-due nudge, onder de generieke al-verstreken roll-up.
     expect(P.clientCascadeOverduePayment).toBeGreaterThan(P.paymentDueSoon);
     expect(P.clientCascadeOverduePayment).toBeLessThan(P.overdueInvoice);
+    // Een reeds-verstreken cascade-betaling (post-due) moet BOVEN elke pre-due nudge staan, incl. de
+    // naderende (nog-niet-verstreken) BTW-deadline — anders rangschikt /acties een soft heads-up
+    // boven een echte, openstaande betaalverplichting van dezelfde opdrachtgever.
+    expect(P.clientCascadeOverduePayment).toBeGreaterThan(P.vatDeadlineDueSoon);
   });
 
   it("meerdere overdue cascade-facturen → één nudge per factuur", async () => {

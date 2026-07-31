@@ -17,6 +17,11 @@ export interface SubscriptionExpiryResult {
   expired: number;
 }
 
+// De verval-write draait in een interactieve $transaction zodat de status-write compound-guarded
+// kan zijn. Elke transactie behandelt één abonnement (geen batch), dus de default-timeout ruimt
+// makkelijk; `maxWait` begrenst het wachten op een slot. Spiegelt runSubscriptionPastDueTask.
+const EXPIRY_TX_OPTIONS = { timeout: 30_000, maxWait: 10_000 } as const;
+
 export async function runSubscriptionExpiryTask(opts: {
   actorId?: string | null;
   now?: Date;
@@ -90,8 +95,26 @@ export async function runSubscriptionExpiryTask(opts: {
   for (const e of freshExpiries) {
     // Defensief: ACTIVE → CANCELLED moet een geldige overgang zijn (CLAUDE.md regel 3).
     if (!SUBSCRIPTION_TRANSITIONS.ACTIVE.includes("CANCELLED" as SubscriptionStatus)) continue;
-    await prisma.$transaction([
-      prisma.domainEvent.create({
+
+    // Interactieve transactie (niet de array-vorm) zodat de status-write compound-guarded kan zijn.
+    // De kandidaten komen uit een findMany-snapshot van vóór de transactie; schuift een echte
+    // betaling (Mollie-webhook) `currentPeriodEnd` in dat venster naar de toekomst — de rij blijft
+    // ACTIVE maar met een verse periode — dan mag deze cron die rij niet blind naar CANCELLED +
+    // currentPeriodEnd:null schrijven; dat zou een net-verlengde klant stil naar Gratis downgraden én
+    // een valse "verlopen"-notificatie sturen. De compound
+    // `updateMany({ where: { id, status: "ACTIVE", currentPeriodEnd: <snapshot> } })` flipt alleen als
+    // de rij nú (in de transactie) nog exact dezelfde ACTIVE-periode heeft; anders count 0 → niets
+    // schrijven. Dit hardt ook twee gelijktijdige runs: run B's updateMany vindt de rij al
+    // niet-ACTIVE/verlengd (count 0) en slaat de DomainEvent-create over → geen dedupeKey-collisie.
+    const flipped = await prisma.$transaction(async (tx) => {
+      const { count } = await tx.subscription.updateMany({
+        where: { id: e.subscriptionId, status: "ACTIVE", currentPeriodEnd: e.currentPeriodEnd },
+        // Status CANCELLED → de user valt terug op Gratis (getActivePlanKey behandelt niet-ACTIVE als FREE).
+        data: { status: "CANCELLED", currentPeriodEnd: null },
+      });
+      if (count === 0) return false;
+
+      await tx.domainEvent.create({
         data: {
           type: "SUBSCRIPTION_EXPIRED",
           actorRole: "SYSTEM",
@@ -101,13 +124,8 @@ export async function runSubscriptionExpiryTask(opts: {
           correlationId: null,
           dedupeKey: e.dedupeKey,
         },
-      }),
-      // Status CANCELLED → de user valt terug op Gratis (getActivePlanKey behandelt niet-ACTIVE als FREE).
-      prisma.subscription.update({
-        where: { id: e.subscriptionId },
-        data: { status: "CANCELLED", currentPeriodEnd: null },
-      }),
-      prisma.notification.create({
+      });
+      await tx.notification.create({
         data: {
           userId: e.userId,
           type: "SUBSCRIPTION_EXPIRED",
@@ -115,8 +133,8 @@ export async function runSubscriptionExpiryTask(opts: {
           body: "Je betaalde periode is verlopen en je account staat weer op Gratis. Kies op elk moment opnieuw een abonnement om je plan te heractiveren.",
           link: "/abonnement",
         },
-      }),
-      prisma.auditLog.create({
+      });
+      await tx.auditLog.create({
         data: auditData({
           actorId: opts.actorId ?? null,
           action: "SUBSCRIPTION_EXPIRED",
@@ -124,9 +142,11 @@ export async function runSubscriptionExpiryTask(opts: {
           entityId: e.subscriptionId,
           metadata: { from: "ACTIVE", to: "CANCELLED", reason: "period_ended" },
         }),
-      }),
-    ]);
-    expired += 1;
+      });
+      return true;
+    }, EXPIRY_TX_OPTIONS);
+
+    if (flipped) expired += 1;
   }
 
   return { reminded: freshReminders.length, expired };

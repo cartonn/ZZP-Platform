@@ -1,5 +1,50 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-31 (run 62) · **main-commit basis:** `8906af07`
+> **Uitkomst:** **3 bereikbare defecten GEVONDEN + GEFIXT.** Drie parallelle Opus-audits (authz/IDOR/
+> cross-tenant + document-privacy → **schoon**; financiële/status-integriteit → **2 gevonden**;
+> next-action-correctheid → **1 gevonden**) + live Playwright/Chromium-sweep over alle vier rollen
+> (36 checks, 0 fails: DOEL 1 dashboards + /acties renderen; DOEL 2 privilege-escalatie → 307 redirect
+> naar /dashboard; junk/IDOR/SQLi-id's → soft-404/404, nooit 500).
+>
+> 1. **GEFIXT — MED (DOEL 2, verboden statusovergang via TOCTOU op de abonnement-verval-cron):** de
+>    verval-cron (`src/lib/subscription-expiry-task.ts`) schreef `CANCELLED` + `currentPeriodEnd:null`
+>    met een **ongeguarde** array-vorm `subscription.update({ where: { id } })`. De kandidaten komen uit
+>    een `findMany`-snapshot van vóór de transactie; verlengt de gebruiker in dat venster zijn abonnement
+>    (Mollie-webhook schuift `currentPeriodEnd` vooruit — de rij blijft ACTIVE), dan overschreef de blinde
+>    cron die rij alsnog naar CANCELLED → een net-betalende klant stil naar Gratis gedowngraded + een
+>    valse "verlopen"-notificatie. Exact dezelfde TOCTOU-klasse als de verloop-cron (#1006) en
+>    PAST_DUE→CANCELLED (#1007), hier nog niet gefixt. **Fix:** interactieve transactie + compound-guarded
+>    `updateMany({ where: { id, status: "ACTIVE", currentPeriodEnd: <snapshot> } })` (guard óók op
+>    `currentPeriodEnd` omdat een renewal de status ACTIVE laat maar de periode opschuift), count-gate
+>    (0 → geen event/notify/audit), `EXPIRY_TX_OPTIONS`. `SubscriptionExpiryItem` draagt nu
+>    `currentPeriodEnd`. +2 regressietests (TOCTOU-venster + compound-guard), faithful mock (updateMany
+>    honoreert de guard, snapshot≠live).
+> 2. **GEFIXT — MED (DOEL 2, verboden overgang PAID→OVERDUE via TOCTOU op de betaalherinner-cron):**
+>    `runPaymentReminderTask` (`src/lib/payment-reminders-task.ts`) markeerde verstreken facturen OVERDUE
+>    met een **ongeguarde** `invoice.update({ where: { id } })`; de `assert("APPROVED","OVERDUE")` toetst
+>    alleen de statische lifecycle-kaart, niet de live rij. Bevestigt de opdrachtgever in het race-venster
+>    de betaling via de reguliere cascade (APPROVED→PAID, compound-guarded in `apply.ts`), dan overschreef
+>    de cron die rij alsnog PAID→OVERDUE — een overgang die **niet in de lifecycle-map** staat (CLAUDE.md
+>    regel 3) — waardoor een al-betaalde factuur weer als "te laat" toonde en een valse aanmaning kon
+>    triggeren. **Fix:** compound-guarded `updateMany({ where: { id, lifecycleStatus: "APPROVED" } })`,
+>    count-gate. +2 regressietests (TOCTOU PAID-rij niet geflipt + compound-guard), faithful mock.
+> 3. **GEFIXT — MED (DOEL 1b, prioriteit-inversie op /acties bij de opdrachtgever):** in
+>    `src/lib/next-actions.ts` stond `clientCascadeOverduePayment: 57` **onder** `vatDeadlineDueSoon: 58`,
+>    terwijl de code-commentaar expliciet "post-due, dus boven de pre-due nudge" belooft. Gevolg: een
+>    **reeds-verstreken** cascade-betaalverplichting (echte, openstaande schuld) rangschikte op /acties,
+>    de rail en de badge **onder** een louter naderende (nog-niet-verstreken, geen boeterisico)
+>    BTW-aangifte-deadline van dezelfde opdrachtgever — verkeerde volgorde. **Fix:**
+>    `clientCascadeOverduePayment` → 59 (blijft onder `overdueInvoice` 60, nu boven `vatDeadlineDueSoon`
+>    58). +1 regressie-assertie (`> P.vatDeadlineDueSoon`) naast de bestaande band-asserties.
+>
+> **GEPARKEERD (deze run, LOW):** de betaalherinner-cron bepaalt `reminders`/`escalations` nog uit de
+> stale snapshot; een factuur die in het race-venster PAID wordt, wordt niet meer OVERDUE gemarkeerd
+> (fix 2) maar zou in dezelfde tick nog een reeds-geplande herinnering/aanmaning kunnen sturen. Smal
+> venster, alleen bij AUTO_REMINDERS-entitlement; secundair aan de statusfout. Prioriteit: LOW.
+>
+> ---
+
 > **Datum:** 2026-07-31 (run 61) · **main-commit basis:** `f90b143e`
 > **Uitkomst:** **2 bereikbare defecten GEVONDEN + GEFIXT.** Drie parallelle Opus-audits (authz/IDOR/
 > cross-tenant + document-privacy; financiële/status-integriteit; next-action-correctheid).
