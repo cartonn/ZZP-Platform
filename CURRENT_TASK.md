@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — branche-gedreven certificaat-aanbeveling op het opdrachtformulier (2026-07-31, PR #1002)** —
+> een opdrachtgever die een opdracht plaatst weet niet altijd wélke bewijsstukken in zijn branche gebruikelijk/wettelijk vereist zijn (een
+> zorginstelling vergeet makkelijk VOG/BIG, een aannemer het VCA-certificaat). Concurrenten in de zorg (Pidz/Zorgwerk) vullen die compliance-
+> eisen vóór de klant in. Nu toont het nieuwe-opdracht-/dupliceer-formulier een rustige, read-only hint zodra de branche gekozen is:
+> **"Vaak vereist in {branche}: …"** met korte onderbouwing. De opdrachtgever vinkt zelf de chips aan — guidance, geen automatische eis
+> (server-side waarheid blijft de expliciete selectie). Pure `recommendedCredentialsForIndustry(name)`
+> (`src/lib/jobs/credential-recommendations.ts`): trefwoord-gebaseerd, case-insensitief, substring-match (raakt "Zorg & Welzijn"); Zorg →
+> VOG/DIPLOMA/LICENSE, Bouw/techniek → VOG/CERTIFICATE/INSURANCE, Transport/logistiek → LICENSE/INSURANCE/VOG, ICT → VOG; degradeert veilig
+> naar `null` bij lege/onbekende branche (geen hint). UI-hint onder "Vereiste certificaten" afgeleid uit de bestaande `industryId`-state +
+> `industries`-prop — geen controlled-component-refactor, geen extra query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +8 tests.
+> Gate: typecheck, lint, test (5448), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — eerste-reactie-SLA next-action (onbekeken kandidaat wacht op eerste blik) (2026-07-30, PR #1001)** —
 > de opdrachtgever kreeg voor NEW-reacties alleen een leeftijdloze telling ("X nieuwe reacties", `applicationsReviewTask`); een kandidaat
 > die al dagen onbekeken ligt viel niet op. De aging-logica bestond al als BI op `/inzicht` (`awaitingFirstLookAtRisk`,

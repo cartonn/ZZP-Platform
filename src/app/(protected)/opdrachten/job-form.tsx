@@ -22,6 +22,7 @@ import { JobQualityMeter } from "@/components/jobs/job-quality-meter";
 import { assessJobQuality, type JobQuality } from "@/lib/job-quality";
 import { type MarketBand } from "@/lib/market-rate";
 import { type CredentialType } from "@/lib/enums";
+import { recommendedCredentialsForIndustry } from "@/lib/jobs/credential-recommendations";
 import { cn } from "@/lib/utils";
 import { saveJob, type JobFormState } from "./actions";
 
@@ -142,6 +143,12 @@ export function JobForm({
   const [requiredSkillIds, setRequiredSkillIds] = useState<string[]>(initial.requiredSkillIds);
 
   const skillOptions: SkillOption[] = skills.map((s) => ({ value: s.id, label: s.name }));
+
+  // Branche-gedreven certificaat-hint: zodra de opdrachtgever een branche kiest, tonen we welke
+  // bewijsstukken daar doorgaans vereist zijn (zorg → VOG/diploma/BIG, bouw → VCA/verzekering, …).
+  // Read-only guidance; de opdrachtgever vinkt zelf de chips aan (server-side waarheid = de selectie).
+  const selectedIndustryName = industries.find((i) => i.id === industryId)?.name ?? null;
+  const credentialHint = recommendedCredentialsForIndustry(selectedIndustryName);
 
   // Live kwaliteitsmeter: herbereken de pure `assessJobQuality` uit de actuele formulierstaat
   // (via FormData zodat óók de skill-chips en losse velden meetellen), zodat de opdrachtgever
@@ -369,6 +376,15 @@ export function JobForm({
         options={Object.entries(CREDENTIAL_LABELS).map(([value, label]) => ({ value, label }))}
         selected={initial.requiredCredentialTypes}
       />
+      {credentialHint && selectedIndustryName && (
+        <p className="-mt-1 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">
+            Vaak vereist in {selectedIndustryName}:
+          </span>{" "}
+          {credentialHint.types.map((t) => CREDENTIAL_LABELS[t]).join(", ")}.{" "}
+          {credentialHint.reason}
+        </p>
+      )}
       <ChipGroup
         legend="Gewenste certificaten"
         name="optionalCredentialTypes"
