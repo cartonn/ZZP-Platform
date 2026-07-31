@@ -91,11 +91,29 @@ vi.mock("@/lib/db", () => ({
       count: vi.fn(async () => state.counts.freelancers),
     },
     // job.findMany wordt twee keer aangeroepen: open-diensten (voor de acute-taak) en de stale-lijst.
-    // De stale-query is te herkennen aan het collaborations-none-filter; open-diensten (default leeg)
-    // voeden de acute-aggregaattaak. job.count telt de gepubliceerde diensten voor de geleide opzet.
+    // BEIDE queries dragen nu een `collaborations: { none: { status: "ACTIVE" } }`-filter, dus de
+    // stale-query onderscheiden we aan zijn `createdAt`-drempel (uniek). De open-query mock is faithful:
+    // hij past de collaborations-none-filter (de fix), de acuut-eerst orderBy (startDate nulls-first) én
+    // de `take: MAX`-slice toe — zodat een revert van de fix (filter weg → gevulde diensten verdringen een
+    // acute dienst uit de slice) meteen rood wordt. job.count telt de gepubliceerde diensten.
     job: {
-      findMany: vi.fn(async (args: { where?: { collaborations?: unknown } }) =>
-        args?.where?.collaborations ? state.stale : state.open,
+      findMany: vi.fn(
+        async (args: {
+          where?: { collaborations?: { none?: unknown }; createdAt?: unknown };
+          take?: number;
+        }) => {
+          if (args?.where?.createdAt) return state.stale;
+          let rows = state.open;
+          if (args?.where?.collaborations?.none) {
+            rows = rows.filter((r) => (r._count?.collaborations ?? 0) === 0);
+          }
+          rows = [...rows].sort((a, b) => {
+            const av = a.startDate ? a.startDate.getTime() : -Infinity;
+            const bv = b.startDate ? b.startDate.getTime() : -Infinity;
+            return av - bv;
+          });
+          return typeof args?.take === "number" ? rows.slice(0, args.take) : rows;
+        },
       ),
       count: vi.fn(async () => state.counts.publishedDiensten),
     },
@@ -252,6 +270,26 @@ describe("bemiddelaar next-actions — acute + stale dienst telt niet dubbel", (
     // Acute-aggregaat telt 'm mee (één dreigt onbezet), maar geen aparte stale-rij → geen dubbeltelling.
     expect(tasks.some((t) => t.kind === "franchise-open-dienst-acute")).toBe(true);
     expect(tasks.some((t) => t.kind === "franchise-stale-service")).toBe(false);
+  });
+
+  it("verbergt een acute ongevulde dienst niet achter ≥MAX gevulde start-loze diensten (MAX-slice-undercount)", async () => {
+    // Persona-sweep-regressie (voorheen geparkeerd, nu bevestigd bereikbaar): de open-diensten-query
+    // haalde óók GEVULDE diensten op. Een tenant met ≥MAX gevulde, start-loze diensten (open-eind zorg-
+    // plaatsingen) vulde — door `nulls: "first"` — de hele `take: MAX`-slice, waardoor één écht acute,
+    // ONGEVULDE dienst (start morgen) buiten de slice viel en nooit als acute next-action verscheen.
+    // De fix scopet de query op `collaborations: { none: { status: "ACTIVE" } }`.
+    const filledNullStart = Array.from({ length: 50 }, (_v, i) => ({
+      id: `gevuld-${i}`,
+      startDate: null,
+      _count: { collaborations: 1 }, // actieve samenwerking → gevuld
+    }));
+    state.open = [
+      ...filledNullStart,
+      { id: "acuut-ongevuld", startDate: now, _count: { collaborations: 0 } },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    // De acute-aggregaattaak moet de ongevulde dienst meenemen (niet verdrongen door de gevulde berg).
+    expect(tasks.some((t) => t.kind === "franchise-open-dienst-acute")).toBe(true);
   });
 
   it("behoudt de stale-taak voor een lang-open dienst die (nog) niet acuut is (start later)", async () => {

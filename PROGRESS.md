@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-31 — Persona-sweep run 61: 2 bereikbare defecten gevonden + gefixt
+
+**Wat:** drie parallelle Opus-audits (authz/IDOR/cross-tenant; financiële/status-integriteit;
+next-action-correctheid) vonden twee bereikbare defecten; beide gefixt met rood→groen-tests.
+
+1. **TOCTOU op de credential-verloop-cron (DOEL 2, verboden statusovergang).** `src/lib/expiry-task.ts`
+   schreef `EXPIRED` met een ongeguarde `updateMany` op een pre-transactie-snapshot. Dient de ZZP'er in
+   dat venster opnieuw in (`VERIFIED→SUBMITTED`), dan forceerde de blinde cron een illegale
+   `SUBMITTED→EXPIRED` (niet in `CREDENTIAL_TRANSITIONS`) + een valse "verlopen"-notificatie. Fix:
+   interactieve transactie + compound-guarded `updateMany({ where: { id, status: "VERIFIED" } })` +
+   read-back zodat notificaties/audit exact de echt-verlopen rijen dekken; herinnerings-write ook
+   VERIFIED-guarded. `src/lib/expiry-task.test.ts`: +1 TOCTOU-regressietest + faithful mock (status-guard,
+   interactieve `$transaction`).
+2. **Franchiser acute-onbezet undercount (DOEL 1b).** `src/lib/actions/pending-tasks.ts` open-diensten-
+   query haalde óók gevulde diensten op → ≥50 gevulde start-loze diensten verdrongen een écht acute
+   ongevulde dienst uit de `take: 50`-slice (≥7 dagen onzichtbaar op /acties/rail/badge). Bevestigt de
+   run-60-parkeerrand. Fix: query gescoped op `collaborations: { none: { status: "ACTIVE" } }` (gelijk aan
+   de zuster-stale-query). `pending-tasks-franchiser.test.ts`: +1 regressietest (faithful job.findMany-mock
+   met filter/orderBy/take).
+
+**Geparkeerd (LOW):** `past-due-task.ts:102-105` heeft dezelfde ongeguarde-write-klasse voor
+`PAST_DUE→CANCELLED` (abonnementsstatus, niet compliance-kritiek) — zie backlog.
+
+**Gate:** typecheck, lint, test (523 files / 5482 tests), build, prettier — groen.
+
 ## 2026-07-31 — Opdrachtgever: waarschuw bij voorstel op een onbeschikbare kandidaat-periode
 
 **Wat:** een ZZP'er kan zich via `AvailabilityWindow` (type `UNAVAILABLE`) voor een periode
