@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-31 — Opdrachtgever: waarschuw bij voorstel op een onbeschikbare kandidaat-periode
+
+**Wat:** een ZZP'er kan zich via `AvailabilityWindow` (type `UNAVAILABLE`) voor een periode
+onbeschikbaar maken; de opdrachtgever zag op `/kandidaten` alleen of de **startdatum van de
+opdracht** in zo'n venster viel (`assessJobStartAvailability`), maar het **voorstel-formulier**
+(`ProposeCollaboration`) liet de opdrachtgever vrij een eigen start/eind kiezen zónder toets — een
+voorstel over een onbeschikbare periode heen leidt tot een afwijzing, een verspilde ronde voor
+beide partijen. Nu een **live, niet-blokkerende** waarschuwing zodra de gekozen voorstel-periode
+overlapt met een UNAVAILABLE-venster van de kandidaat ("Let op — de kandidaat heeft zich
+onbeschikbaar gemaakt in deze periode: …"). Server-side blijft de waarheid — beschikbaarheid is
+advies; de ZZP'er beslist bij accepteren. Geen nieuw mutatie/auth-oppervlak, geen schemawijziging,
+geen extra query (de vensters werden al geladen voor het startdatum-signaal).
+
+- Pure `proposalDateConflicts`/`isIsoDate` (`src/lib/proposal-availability.ts`): inclusieve
+  periode-overlap via lexicografische yyyy-mm-dd-vergelijking (tijdzone-veilig), leeg einde =
+  één dag op de startdatum, omgekeerde range valt veilig terug op de startdatum. +13 tests.
+- `propose-collaboration.tsx`: leest de getypte/gekozen datums mee (`onChange` → ISO, beide
+  formaten) en toont het conflictsignaal; `date-input.tsx` geeft nu ook de kalender-picker-keuze
+  door via `onChange` (geen bestaande consument gebruikte dat) zodat de waarschuwing werkt
+  ongeacht invulmethode; `kandidaten/page.tsx` levert de UNAVAILABLE-vensters (server-berekend).
+- **Gate:** typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-31 — Prod-rijpheid: message/conversation-retentie-sweep (AVG art. 5(1)(e))
 
 **Wat:** het verwerkingsregister belooft al een bewaartermijn voor chatberichten
