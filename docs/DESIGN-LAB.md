@@ -1606,3 +1606,33 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   glas-diepte & luminante bundels**, **ornamentele warm-dark ambacht** en **technische tekenkunst/drafting-precisie** — elk
   deterministisch, toegankelijk (focus-states, status label+icoon) en onderscheidend van de bestaande 520.
 - **Totaal nu op `/ontwerp`: 530 concepten** (reeks 53: 521–530).
+
+## Reeks 54 — 531–540 (2026-07-31)
+
+- **531 Expressief** — Material Expressive (#f5f3ff + violet #7c3aed): morphende grote hoekvormen, springerige micro-interacties
+  en bold tonale kleurrollen die dezelfde kleurfamilie als oppervlak-taal inzetten — speels-premium, tactiel en toch rustig.
+- **532 Kopregel** — type-als-interface (#fafaf9 + oranje #ea580c): oversized variabele-gewicht koppen dragen de navigatie,
+  groeien voor prioriteit en krimpen bij hoge dichtheid — redactioneel-technisch, de tekst zelf navigeert.
+- **533 Viltstift** — tactiele rebellie (#f7f2e9 + marker-roze #db2777): viltstift-textuur, licht wobbly outlines en
+  marker-highlights op warm papier — zichtbaar handwerk dat menselijk warm blijft maar professioneel leesbaar.
+- **534 Onzichtbaar** — invisible logic / command-first (#ffffff + blauw #2563eb): minimale chrome, prominent Cmd-K command-menu,
+  progressive disclosure en keyboard-first — alleen wat telt en wat actie vraagt is zichtbaar.
+- **535 Kozijn** — refined tactile brutalism (#f4f4f2 + rood #dc2626): strakke 1px hairline-kaders, een zichtbaar raster als
+  voorgrond, tabulaire mono-cijfers en engineered precisie — wireframe-logica, verfijnd niet ruw.
+- **536 Verdieping** — ruimtelijke diepte (#eef2f7 + sky #0ea5e9): gelaagde z-vlakken met schaduw-hiërarchie en lichte parallax —
+  voorgrond is actie, achtergrond is context; diepte die begrip dient, geen wow-effect.
+- **537 Theelicht** — warm mensgericht (#fbf5ec + amber #d97706): warme neutralen, diffuse gloed en ronde vormen met een
+  menselijke toon — vertrouwen via warmte, geruststellend rond gevoelige documenten.
+- **538 Mijlpaal** — gamified voortgang (#f0f6f3 + smaragd #059669): voortgangsringen, mijlpalen en streaks gekoppeld aan echte
+  data (verificatie-compleetheid, profiel-sterkte, reactie-ritme) — motiverend maar zakelijk, elke stap telt.
+- **539 Obsidiaan** — premium OLED true-black (#050608 + cyaan #22d3ee): glas-panelen met haarfijne lichte randen en één
+  lichtgevend accent dat de aandacht stuurt — ingetogen, luxe en hoog-contrast, donker dat toch glashelder leest.
+- **540 Duimzone** — mobiel-first thumb-zone (#f4f4fb + indigo #6366f1): mobiele shell met onder-navigatie binnen duimbereik,
+  kaartstapel-gevoel en bottom-sheets voor detail — grote raakvlakken, één-hand-bediening, mobiel als hoofdvorm.
+- Onderzochte 2026-trends deze reeks (WebSearch): **Material Expressive / dynamische motion & tonale kleurrollen**,
+  **type-as-interface met variabele fonts**, **tactiele rebellie / visible human touch (marker-textuur)**, **invisible logic
+  & command-first (⌘K)**, **refined tactile brutalism / exposed grid**, **spatial UI met gelaagde diepte voor comprehensie**,
+  **human-centric warmte & emotioneel design**, **gamification met betekenis**, **premium OLED true-black dark mode** en
+  **mobile-first thumb-zone ergonomie** — elk deterministisch, toegankelijk (focus-states, status label+icoon) en
+  onderscheidend van de bestaande 530.
+- **Totaal nu op `/ontwerp`: 540 concepten** (reeks 54: 531–540).

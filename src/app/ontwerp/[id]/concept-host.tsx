@@ -1597,6 +1597,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "530": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-530-passerpunt").then((m) => m.Concept530),
   ),
+  "531": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-531-expressief").then((m) => m.Concept531),
+  ),
+  "532": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-532-kopregel").then((m) => m.Concept532),
+  ),
+  "533": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-533-viltstift").then((m) => m.Concept533),
+  ),
+  "534": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-534-onzichtbaar").then((m) => m.Concept534),
+  ),
+  "535": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-535-kozijn").then((m) => m.Concept535),
+  ),
+  "536": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-536-verdieping").then((m) => m.Concept536),
+  ),
+  "537": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-537-theelicht").then((m) => m.Concept537),
+  ),
+  "538": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-538-mijlpaal").then((m) => m.Concept538),
+  ),
+  "539": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-539-obsidiaan").then((m) => m.Concept539),
+  ),
+  "540": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-540-duimzone").then((m) => m.Concept540),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al

@@ -617,6 +617,23 @@ freelancerId, status: { not: "WITHDRAWN" } } } }`) die vóór `count` én pagine
 - **Tests:** +6 (`jobs.test.ts` normalisatie exact-"1"/herhaalde param; `active-filters.test.ts` chip +
   onafhankelijke combinatie met mine). Gate: typecheck, lint, test, build, prettier groen.
 
+## 2026-07-31 — Ontwerp-lab: +10 concepten (reeks 54, nrs 531–540)
+
+**Wat:** additieve uitbreiding van het interne ontwerp-lab (`/ontwerp`) met 10 nieuwe, onderscheidende
+high-fidelity redesign-concepten — bovenop de bestaande 530, niets overschreven. Elk concept dekt de
+kernschermen (dashboard, marktplaats, opdracht-detail, verificatie, acties, facturen) met gedeelde
+Nederlandse mock-content (`mock.ts`), volledig client-side, geen backend/gedragswijziging aan de live-app.
+
+- **Nieuwe richtingen:** 531 Expressief (Material Expressive / tonale kleurrollen), 532 Kopregel
+  (type-als-interface), 533 Viltstift (tactiele rebellie / marker-textuur), 534 Onzichtbaar (invisible
+  logic / command-first ⌘K), 535 Kozijn (refined tactile brutalism / hairline-raster), 536 Verdieping
+  (ruimtelijke diepte / gelaagde z-vlakken), 537 Theelicht (warm mensgericht), 538 Mijlpaal (gamified
+  voortgang met betekenis), 539 Obsidiaan (premium OLED true-black), 540 Duimzone (mobiel-first thumb-zone).
+- **Bestanden:** `src/components/ontwerp/concepts/concept-531..540-*.tsx` (nieuw), +10 entries in
+  `registry.ts` (append), +10 koppelingen in `src/app/ontwerp/[id]/concept-host.tsx` (append). Bestaande
+  entries/koppelingen ongemoeid. `docs/DESIGN-LAB.md` bijgewerkt (reeks 54).
+- **Totaal nu op `/ontwerp`: 540 concepten.**
+
 ## 2026-07-29 — Ontwerp-lab: +10 concepten (reeks 53, nrs 521–530)
 
 **Wat:** additieve uitbreiding van het interne ontwerp-lab (`/ontwerp`) met 10 nieuwe, onderscheidende
