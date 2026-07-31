@@ -14,6 +14,13 @@ export interface ExpiryRunResult {
   reminded: number;
 }
 
+// Interactieve-transactie-opties. De array-vorm had geen wall-clock-limiet; Prisma's
+// interactieve default is 5000ms. Bij een piek richting de `take: 2000`-cap (juist de
+// spike waarvoor die cap bestaat) kunnen de sequentiële round-trips die 5s overschrijden
+// → de héle batch rolt terug en de run maakt geen voortgang. Een ruime timeout herstelt
+// de pariteit met de oude vorm; `maxWait` begrenst het wachten op een transactieslot.
+const EXPIRY_TX_OPTIONS = { timeout: 120_000, maxWait: 10_000 } as const;
+
 /**
  * Voert de verloop- en herinneringsrun uit als één atomaire transactie.
  *
@@ -125,44 +132,61 @@ export async function runExpiryTask(opts: {
       }
     }
 
+    let reminded = 0;
+
     if (plan.toRemind.length > 0) {
+      // Symmetrisch met het verloop-pad: herinner alleen credentials die nú (in de
+      // transactie) nog VERIFIED zijn. Zonder deze her-lezing stuurde het pad een
+      // "verloopt binnenkort"-melding ook naar een credential dat intussen opnieuw is
+      // ingediend (SUBMITTED) — misleidend, want dat certificaat is niet meer geldig en
+      // verloopt niet. De compound-guarded marker-write onderdrukte alleen de dedup-
+      // markering, niet de melding zelf. Nu dekt de melding exact de nog-geldige set.
       const remindIds = plan.toRemind.map((r) => r.id);
+      const stillVerified = await tx.credential.findMany({
+        where: { id: { in: remindIds }, status: "VERIFIED" },
+        select: { id: true },
+      });
+      const verifiedIds = new Set(stillVerified.map((c) => c.id));
+      const remindItems = plan.toRemind.filter((r) => verifiedIds.has(r.id));
+      reminded = remindItems.length;
 
-      // Per herinnering: notificatie + dedup-markering.
-      for (const item of plan.toRemind) {
-        await tx.notification.create({
-          data: {
-            userId: item.userId,
-            type: "CREDENTIAL_EXPIRING",
-            title: "Certificaat verloopt binnenkort",
-            body: `Je certificaat "${item.title}" verloopt over ${plural(item.daysLeft, "dag", "dagen")}. Vernieuw het op tijd om geverifieerd te blijven.`,
-            link: credentialEditPath(item.id),
-          },
-        });
+      if (reminded > 0) {
+        // Per herinnering: notificatie + dedup-markering.
+        for (const item of remindItems) {
+          await tx.notification.create({
+            data: {
+              userId: item.userId,
+              type: "CREDENTIAL_EXPIRING",
+              title: "Certificaat verloopt binnenkort",
+              body: `Je certificaat "${item.title}" verloopt over ${plural(item.daysLeft, "dag", "dagen")}. Vernieuw het op tijd om geverifieerd te blijven.`,
+              link: credentialEditPath(item.id),
+            },
+          });
 
-        // Sla de vervaldatum op als dedup-anker zodat we niet dubbel herinneren.
-        // Compound-guarded op VERIFIED: herinner nooit een credential dat intussen
-        // is opnieuw ingediend/afgekeurd (consistent met de verloop-guard hierboven).
-        await tx.credential.updateMany({
-          where: { id: item.id, status: "VERIFIED" },
-          data: { expiryReminderFor: item.expiresAt },
+          // Sla de vervaldatum op als dedup-anker zodat we niet dubbel herinneren.
+          // Compound-guarded op VERIFIED: veilig ook als de status net na de her-lezing
+          // nog wisselt (consistent met de verloop-guard hierboven).
+          await tx.credential.updateMany({
+            where: { id: item.id, status: "VERIFIED" },
+            data: { expiryReminderFor: item.expiresAt },
+          });
+        }
+
+        // Eén auditregel voor de volledige herinneringsbatch (alleen de echt-herinnerde).
+        await tx.auditLog.create({
+          data: auditData({
+            actorId: opts.actorId,
+            action: "CREDENTIALS_EXPIRING_REMINDED",
+            entityType: "Credential",
+            entityId: "batch",
+            metadata: { count: reminded, ids: remindItems.map((i) => i.id) },
+          }),
         });
       }
-
-      // Eén auditregel voor de volledige herinneringsbatch.
-      await tx.auditLog.create({
-        data: auditData({
-          actorId: opts.actorId,
-          action: "CREDENTIALS_EXPIRING_REMINDED",
-          entityType: "Credential",
-          entityId: "batch",
-          metadata: { count: plan.toRemind.length, ids: remindIds },
-        }),
-      });
     }
 
-    return { expired, reminded: plan.toRemind.length };
-  });
+    return { expired, reminded };
+  }, EXPIRY_TX_OPTIONS);
 
   return result;
 }

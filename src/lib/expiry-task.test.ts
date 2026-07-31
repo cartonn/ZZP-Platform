@@ -222,4 +222,48 @@ describe("runExpiryTask", () => {
     // Geen illegale SUBMITTED → EXPIRED overgang: de rij blijft SUBMITTED.
     expect(store.credentials[0]?.status).toBe("SUBMITTED");
   });
+
+  it("TOCTOU-race (herinnering) — opnieuw ingediend na de snapshot → geen valse 'verloopt binnenkort'", async () => {
+    // Symmetrisch met de verloop-race: de snapshot zag een bijna-vervallend VERIFIED-
+    // credential; tegen transactie-tijd is het opnieuw ingediend (SUBMITTED). Er mag dan
+    // geen "verloopt binnenkort"-melding meer uitgaan — dat certificaat is niet meer
+    // geldig en verloopt niet. De symmetrische her-lezing (status: VERIFIED) filtert hem.
+    const soonAt = new Date("2026-06-29T00:00:00.000Z"); // binnen het 30-dagen-venster
+    store.credentials = [
+      {
+        id: "cred-remind-race",
+        status: "SUBMITTED", // transactie-tijd: al opnieuw ingediend
+        expiresAt: soonAt,
+        expiryReminderFor: null,
+        title: "Certificaat cred-remind-race",
+        freelancerProfile: { userId: "user-1" },
+      },
+    ];
+
+    const db = await import("@/lib/db");
+    // Snapshot-findMany zag hem nog als VERIFIED (de race: herindiening ná de snapshot).
+    (
+      db.prisma.credential.findMany as unknown as {
+        mockImplementationOnce: (fn: () => Promise<unknown>) => void;
+      }
+    ).mockImplementationOnce(async () => [
+      {
+        id: "cred-remind-race",
+        status: "VERIFIED",
+        expiresAt: soonAt,
+        expiryReminderFor: null,
+        title: "Certificaat cred-remind-race",
+        freelancerProfile: { userId: "user-1" },
+      },
+    ]);
+
+    const { runExpiryTask } = await import("@/lib/expiry-task");
+    const result = await runExpiryTask({ actorId: null, now: NOW });
+
+    expect(result.reminded).toBe(0);
+    expect(store.notifications).toHaveLength(0);
+    expect(store.auditLogs).toHaveLength(0);
+    // Geen dedup-markering geschreven op een niet-VERIFIED credential.
+    expect(store.credentialUpdates).toHaveLength(0);
+  });
 });
