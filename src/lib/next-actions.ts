@@ -64,6 +64,7 @@ export const P = {
   overdueInvoice: 60, // factuur over de vervaldatum
   clientCascadeOverduePayment: 59, // cascade-factuur van de opdrachtgever staat OVER de vervaldatum — betaal 'm of laat de ZZP'er de betaling bevestigen (opdrachtgever-spiegel van paymentConfirmTask(overdue)). Post-due = een reeds-verstreken, echte betaalverplichting; moet daarom BOVEN elke pre-due nudge staan, incl. de naderende (nog-niet-verstreken) BTW-deadline (vatDeadlineDueSoon 58). Blijft onder overdueInvoice (60).
   paymentDueSoon: 56, // factuur vervalt binnenkort — betaal op tijd (opdrachtgever, pre-due; onder de al-verstreken roll-up)
+  conceptInvoiceAging: 59, // eigen concept-factuur blijft ≥ UNBILLED_AGING_DAYS (7) liggen — de ZZP'er zit op zijn eigen, nog-niet-verzonden geld voorbij het herinner-/escalatievenster. Boven een verse concept (messagesAwaiting 55) en de pre-due nudges (paymentDueSoon 56 / vatDeadlineDueSoon 58), maar onder een reeds-verstreken factuur (overdueInvoice 60) en een afgekeurde factuur (62 = credentialExpiring-8). Deelt de waarde met de rol-geïsoleerde clientCascadeOverduePayment (59); ze worden nooit samen gerangschikt.
   vatDeadlineDueSoon: 58, // BTW-aangifte-deadline nadert (binnen 14 dagen) — pre-due signaal (nog geen boeterisico; dat is vatDeadlineOverdue 74), dus onder een reeds-verstreken cascade-betaling
   pendingUsers: 60, // gebruikers met PENDING-status (admin)
   credentialExpiryBatch: 58, // verlopen/verlopende certificaten — draai de expiry-check (admin)

@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-31 — ZZP'er: verouderde concept-factuur escaleert op /acties (PR #1014)
+
+**Wat:** de dashboard-tegel "Nog te factureren" draaide al naar **warning** zodra de oudste niet-ingediende
+concept-factuur ≥ `UNBILLED_AGING_DAYS` (7) bleef liggen (`summarizeUnbilledInvoices.aging`), maar op
+`/acties` (+ de badge + de dashboard-rail) stond diezelfde concept-factuur op een **vlakke** prioriteit
+zonder leeftijdsbesef — een 20 dagen oude concept zag er identiek uit als een van vandaag. Klassiek "signaal
+op één oppervlak, afwezig in het next-action-model". De ZZP'er zit dan op zijn eigen, nog-niet-verzonden geld
+voorbij het herinner-/escalatievenster (de reminder-cron nudget al op dag 3 en 7). Nu escaleert de indien-taak
+mee met het dashboard: hogere prioriteit + "al X dagen klaar".
+
+- **Fix:** `invoiceSubmitTask` kreeg een optionele `agingDays?`-parameter (alleen zinvol voor de concept-tak).
+  Zodra `agingDays ≥ UNBILLED_AGING_DAYS`: prioriteit `P.messagesAwaiting` (55) → nieuwe band
+  `P.conceptInvoiceAging` (59, net onder een reeds-verstreken factuur 60 en een afgekeurde factuur 62, boven de
+  pre-due nudges) en het subtitel-label wordt `"{opdracht} · al X dagen klaar"`. `undefined` = gedragsbehoudend.
+  `freelancerTasks` leest nu `createdAt` op de collab-facturen en geeft `daysSince(inv.createdAt, now)` mee.
+  Drempel + `daysSince` hergebruikt (`unbilled-invoices.ts` / `concept-invoice-reminders.ts`) → geen drift.
+
+**Bestanden:** `src/lib/next-actions.ts` (+band `conceptInvoiceAging`), `src/lib/actions/tasks.ts`
+(`invoiceSubmitTask` + import `UNBILLED_AGING_DAYS`), `src/lib/actions/pending-tasks.ts` (select `createdAt` +
+`daysSince`-import + threading), `tasks.test.ts` (+3), `pending-tasks.test.ts` (+2). Read-only signaal, geen
+schemawijziging, geen nieuw mutatie-/auth-oppervlak. Gate: typecheck, lint, test, build, prettier — groen.
+
 ## 2026-07-31 — Bemiddelaar: roster-capaciteit respecteert self-set UNAVAILABLE-venster (PR #1013)
 
 **Wat:** op `/franchise/zzpers` classificeerde het capaciteitsoverzicht (`isIdleReady` /

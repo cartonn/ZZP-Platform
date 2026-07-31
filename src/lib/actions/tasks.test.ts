@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { P } from "@/lib/next-actions";
+import { UNBILLED_AGING_DAYS } from "@/lib/unbilled-invoices";
 import {
   rankTasks,
   selectDashboardTasks,
@@ -188,6 +189,34 @@ describe("task builders", () => {
     expect(rejected.priority).toBeGreaterThan(draft.priority);
     expect(draft.title).toContain("Concept-factuur indienen");
     expect(rejected.title).toContain("opnieuw indienen");
+  });
+
+  it("invoice-submit: een verse concept blijft op de vlakke prioriteit (geen escalatie)", () => {
+    const fresh = invoiceSubmitTask("i1", "c1", "Job", false, UNBILLED_AGING_DAYS - 1);
+    expect(fresh.priority).toBe(P.messagesAwaiting);
+    expect(fresh.subtitle).toBe("Job");
+    // Zonder leeftijd (undefined) is het gedrag identiek — gedragsbehoudend.
+    const noAge = invoiceSubmitTask("i1", "c1", "Job", false);
+    expect(noAge.priority).toBe(P.messagesAwaiting);
+    expect(noAge.subtitle).toBe("Job");
+  });
+
+  it("invoice-submit: een verouderde concept (≥ drempel) escaleert en noemt de leeftijd", () => {
+    const aged = invoiceSubmitTask("i1", "c1", "Job", false, UNBILLED_AGING_DAYS);
+    expect(aged.priority).toBe(P.conceptInvoiceAging);
+    expect(aged.priority).toBeGreaterThan(P.messagesAwaiting);
+    // Escaleert wél boven de pre-due nudges, maar blijft onder een reeds-verstreken factuur.
+    expect(aged.priority).toBeLessThan(P.overdueInvoice);
+    expect(aged.subtitle).toContain("Job");
+    expect(aged.subtitle).toContain(`${UNBILLED_AGING_DAYS} dagen klaar`);
+    expect(aged.tone).toBe("attention");
+  });
+
+  it("invoice-submit: leeftijd telt niet voor een afgekeurde factuur (blijft de rejected-band)", () => {
+    const rejectedOld = invoiceSubmitTask("i1", "c1", "Job", true, 999);
+    const rejectedNew = invoiceSubmitTask("i2", "c1", "Job", true);
+    expect(rejectedOld.priority).toBe(rejectedNew.priority);
+    expect(rejectedOld.subtitle).toBe("Job");
   });
 
   it("profiel-compleetheid noemt de ontbrekende velden (max 3)", () => {
