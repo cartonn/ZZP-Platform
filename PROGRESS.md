@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-31 — Security-/privacy-audit: fail-closed `Tenant.status`-enforcement (dead schema gedicht)
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 4 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: resource-serving routes / franchise-tenant-isolatie / niet-franchise
+mutatieketen / AVG-privacy). Alle vier oppervlakken **schoon** — geen nieuw KRITIEK/HOOG toegangs-,
+injectie- of privacy-gat. Losse orchestrator-scans (npm audit prod=0, raw SQL, XSS, CSP, SSRF, webhook,
+wachtwoord-reset, secrets/env) ook schoon. Eén latente bevinding gevonden + gefixt:
+
+- **`Tenant.status` was dead schema** (`ACTIVE | SUSPENDED`, schema-comment impliceert admin-suspend, maar
+  0 reads/0 writes in de hele repo). Alleen `User.status` werd afgedwongen — een geschorste franchise bleef
+  volledig operationeel (franchiser + roster-ZZP'ers + opdrachtgevers via `tenantId`). Latent OWASP A01.
+- **Fix:** fail-closed enforcement in `currentActor()` (`src/lib/authz.ts`) via nieuwe pure predikaat
+  `tenantAccessBlocked` + `Tenant.status` live meegelezen in `loadFreshUser`. Spiegelt de bestaande
+  `User.status`-poort. **Zero-live-impact** (geen tenant staat op SUSPENDED); activeert pas als een
+  suspend-actie wordt gebouwd. Geen suspend-UI (buiten scope).
+
+**Bestanden:** `src/lib/authz.ts` (+predikaat +wiring +tenant-select), `src/lib/authz.test.ts` (+5 tests),
+`docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-07-31b). **Tests:** +5 (5500 → 5505). Gate: typecheck, lint,
+test (5505), build, prettier — groen.
+
 ## 2026-07-31 — Persona-sweep run 62: 3 bereikbare defecten gevonden + gefixt
 
 **Wat:** kritische-gebruiker-sweep (4 rollen) + 3 parallelle Opus-audits. Authz/IDOR/cross-tenant +

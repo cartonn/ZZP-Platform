@@ -90,9 +90,34 @@ const loadFreshUser = cache(async (userId: string) => {
       anonymizedAt: true,
       tenantId: true,
       passwordChangedAt: true,
+      // Tenant-status live meelezen zodat een geschorste franchise (Tenant.status !== "ACTIVE") de
+      // toegang van ál haar leden fail-closed intrekt — zie tenantAccessBlocked / currentActor.
+      tenant: { select: { status: true } },
     },
   });
 });
+
+/**
+ * Fail-closed tenant-poort: een lid van een GESCHORSTE tenant (`Tenant.status !== "ACTIVE"`) verliest
+ * live alle toegang, exact zoals een geschorst `User`-account. Suspendeert de platform-admin een
+ * franchise (bv. bij wanbetaling/fraude), dan moet díe ene switch de héle tenant bevriezen — de
+ * franchiser én elke roster-ZZP'er/opdrachtgever die via `tenantId` aan de tenant hangt — en niet
+ * alleen een UI-signaal geven. `currentActor()` behandelt een geblokkeerde tenant als uitgelogd,
+ * naast de status/anonimisering/wachtwoord-poorten. OWASP A01 (Broken Access Control — ontbrekende
+ * autorisatie-afdwinging op een bestaand statusveld).
+ *
+ * Een gebruiker zónder tenant (`tenantId == null`, directe platformgebruiker) wordt hier nooit door
+ * geblokkeerd. Is er wél een tenant maar is de status onbekend (`null`/`undefined`), dan blokkeren we
+ * fail-closed: de `Tenant`-rij bestaat altijd zolang `tenantId` gezet is (FK), dus dat pad duidt op een
+ * niet-geladen relatie en de veilige keuze is weigeren, niet doorlaten.
+ */
+export function tenantAccessBlocked(
+  tenantId: string | null | undefined,
+  tenantStatus: string | null | undefined,
+): boolean {
+  if (!tenantId) return false;
+  return tenantStatus !== "ACTIVE";
+}
 
 /**
  * True als de sessie is aangemaakt vóór de laatste wachtwoordwijziging van dit account. De JWT is
@@ -138,6 +163,10 @@ export async function currentActor(): Promise<Actor | null> {
   // Sessie van vóór de laatste wachtwoordwijziging → uitgelogd. Zo maakt een reset/wijziging op één
   // apparaat élke bestaande (stateless) JWT op andere apparaten live ongeldig i.p.v. pas bij expiry.
   if (sessionPredatesPasswordChange(user.passwordChangedAt, fresh.passwordChangedAt)) return null;
+
+  // Lid van een geschorste tenant → uitgelogd (fail-closed). Eén franchise-suspend bevriest de hele
+  // tenant, net als een geschorst account. Zie tenantAccessBlocked.
+  if (tenantAccessBlocked(fresh.tenantId, fresh.tenant?.status)) return null;
 
   return {
     id: user.id,

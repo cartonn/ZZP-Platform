@@ -8,6 +8,7 @@ import {
   isAdmin,
   owns,
   sessionPredatesPasswordChange,
+  tenantAccessBlocked,
   type Actor,
 } from "@/lib/authz";
 
@@ -127,5 +128,37 @@ describe("sessionPredatesPasswordChange (sessie-invalidatie bij wachtwoordwijzig
   it("faalt open wanneer de DB-waarde ontbreekt", () => {
     expect(sessionPredatesPasswordChange(login, null)).toBe(false);
     expect(sessionPredatesPasswordChange(login, undefined)).toBe(false);
+  });
+});
+
+describe("tenantAccessBlocked (fail-closed tenant-suspend, OWASP A01)", () => {
+  it("blokkeert een lid van een GESCHORSTE tenant", () => {
+    // Kern van de fix: Tenant.status bestond in het schema (ACTIVE | SUSPENDED) maar werd nergens
+    // afgedwongen. Zet een admin de franchise op SUSPENDED, dan moet elk tenant-lid live de toegang
+    // verliezen. Zonder deze poort bleef een geschorste franchise gewoon draaien (dead schema).
+    expect(tenantAccessBlocked("tenant_1", "SUSPENDED")).toBe(true);
+  });
+
+  it("laat een lid van een ACTIEVE tenant door", () => {
+    expect(tenantAccessBlocked("tenant_1", "ACTIVE")).toBe(false);
+  });
+
+  it("raakt een platformgebruiker zónder tenant nooit", () => {
+    expect(tenantAccessBlocked(null, null)).toBe(false);
+    expect(tenantAccessBlocked(undefined, undefined)).toBe(false);
+    // Zelfs met een (irrelevante) statuswaarde: geen tenantId → nooit geblokkeerd hierdoor.
+    expect(tenantAccessBlocked(null, "SUSPENDED")).toBe(false);
+  });
+
+  it("blokkeert fail-closed bij een tenant met onbekende status (niet-geladen relatie)", () => {
+    // tenantId gezet maar status null/undefined → de veilige keuze is weigeren, niet doorlaten.
+    expect(tenantAccessBlocked("tenant_1", null)).toBe(true);
+    expect(tenantAccessBlocked("tenant_1", undefined)).toBe(true);
+  });
+
+  it("blokkeert elke niet-ACTIVE statuswaarde (geen allowlist-omzeiling)", () => {
+    expect(tenantAccessBlocked("tenant_1", "active")).toBe(true); // hoofdlettergevoelig: alleen exact "ACTIVE"
+    expect(tenantAccessBlocked("tenant_1", "PENDING")).toBe(true);
+    expect(tenantAccessBlocked("tenant_1", "")).toBe(true);
   });
 });

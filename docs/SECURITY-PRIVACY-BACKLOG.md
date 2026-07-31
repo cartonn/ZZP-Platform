@@ -4,6 +4,49 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-31b (basis: `main` @ d89f405d)
+
+Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-audits op niet-overlappende hoog-risico
+oppervlakken. Gedekt: (1) BOLA/IDOR + path-traversal + token-timing + foutlek op álle dynamische
+resource-serving route-handlers (documents/media/facturen/prestaties/admin-facturatie/dossier/dba-dossier/
+modelovereenkomst/agenda-feed); (2) cross-tenant isolatie over de volledige franchise-server-action- en
+loader-set (`tenancy.ts` + 43 `src/lib/franchise/*`-bestanden + 6 `"use server"`-acties + roster-dossier
+PII-loader); (3) de volledige NIET-franchise server-action-mutatieketen (auth→rol→ownership→Zod→actie→audit)
+over credentials/verificatie/profiel/opdrachten/reacties/berichten/facturen/samenwerkingen/account/admin/
+abonnement; (4) AVG-anonimisering/erasure-volledigheid, exports (art. 15/20), dataminimalisatie/over-fetch,
+k-anonimiteit, PII-in-logs, de nieuwe berichten-retentie-sweep. Orchestrator-scans los: `npm audit --omit=dev`
+= **0**; geen `$queryRaw` met user-input (enkel `SELECT 1`-healthpings); enige `dangerouslySetInnerHTML` =
+het nonce'd theme-script; CSP strikt (nonce + `strict-dynamic` in prod); geen SSRF (geen server-side fetch met
+user-URL); betaal-webhook (rate-limit + body-cap + handtekening + idempotent + audit); wachtwoord-reset-token
+(256-bit, sha256-at-rest, 1u-TTL, atomair eenmalig gebruik, `passwordChangedAt`-bump invalidatie); geen secrets
+in code/git; `.env` niet getrackt, `/storage` gitignore'd. OWASP A01/A03/A05/A07 + AVG art. 5/15/17/20 als leidraad.
+
+**Resultaat: geen nieuw KRITIEK/HOOG toegangs-, injectie- of privacy-gat. Eén latente autorisatie-
+completeness-bevinding (dead schema `Tenant.status`) OPGELOST (fail-closed, zero-live-impact, rood→groen).**
+
+### OPGELOST — LAAG→MIDDEL (OWASP A01, CLAUDE.md tenant-isolatie): `Tenant.status` was dead schema — een geschorste franchise werd nergens afgedwongen
+
+- **Repro (was):** `Tenant.status` (`ACTIVE | SUSPENDED`, `prisma/schema.prisma:93`) bestond in het schema —
+  met een comment die impliceert dat de platform-admin een franchise kan schorsen — maar werd **nergens gelezen**
+  (`grep -rn` over de hele repo: 0 reads, 0 writes weg van de default). Alleen `User.status`/`anonymizedAt` werden
+  in `currentActor()` afgedwongen, nooit `Tenant.status`. Zou een admin (na het bouwen van een suspend-actie) een
+  franchise op `SUSPENDED` zetten wegens wanbetaling/fraude/AVG-incident, dan bleven de franchiser én élke
+  roster-ZZP'er/opdrachtgever die via `tenantId` aan de tenant hangt **gewoon volledig operationeel** — de
+  suspend-switch was inert. Niet live exploiteerbaar (geen code zette `SUSPENDED`), maar een latent A01-gat: een
+  toekomstige suspend-PR zonder eigen enforcement zou stil een omzeilbare schorsing opleveren.
+- **Geschonden regel:** OWASP A01 (Broken Access Control — ontbrekende afdwinging op een bestaand statusveld);
+  CLAUDE.md tenant-isolatie / server-side waarheid (regel 1). CWE-noot: latente authorization-completeness.
+- **Fix (deze PR):** fail-closed enforcement in de authorisatie-laag, spiegelt exact de bestaande
+  `User.status`-poort. `currentActor()` (`src/lib/authz.ts`) leest nu `Tenant.status` live mee
+  (`loadFreshUser` → `tenant: { select: { status } }`) en behandelt een lid van een niet-ACTIVE tenant als
+  uitgelogd (`null`) via de nieuwe pure predikaat `tenantAccessBlocked(tenantId, tenantStatus)`. **Zero-live-impact:**
+  geen enkele tenant staat op `SUSPENDED`, dus geen huidige gebruiker wordt geraakt; de poort activeert pas de dag
+  dat een suspend-actie wordt gebouwd+gebruikt, en dan is fail-closed precies het gewenste gedrag. Geen suspend-UI
+  gebouwd (dat is een feature, buiten scope) — alleen het bestaande veld wordt voortaan gehonoreerd. `tenantId == null`
+  (directe platformgebruiker) → nooit geblokkeerd; `tenantId` gezet + status onbekend → fail-closed weigeren.
+  +5 unit-tests (`authz.test.ts`, rood→groen): geschorste tenant blokkeert, ACTIVE laat door, geen-tenant ongemoeid,
+  onbekende status fail-closed, elke niet-ACTIVE waarde (hoofdlettergevoelig) blokkeert.
+
 ## Ronde 2026-07-31 (basis: `main` @ 5cae5d33)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende hoog-risico
