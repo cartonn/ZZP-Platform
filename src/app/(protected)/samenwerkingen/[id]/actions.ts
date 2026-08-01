@@ -406,14 +406,27 @@ export async function setAgreementTypeAction(
   if (!col || (actor.role !== "ADMIN" && actor.id !== col.company.userId)) {
     throw new Error("Samenwerking niet gevonden.");
   }
+  // Snelle UX-fout op de al-geziene staat (voorkomt een nutteloze write in het gangbare geval).
   if (col.agreementFreelancerSignedAt || col.agreementClientSignedAt) {
     throw new Error("De overeenkomst is al ondertekend; de vorm kan niet meer worden gewijzigd.");
   }
 
-  await prisma.collaboration.update({
-    where: { id: collaborationId },
+  // Compound-guarded write (TOCTOU): de pre-lees hierboven is niet-transactioneel — tussen die lees en
+  // deze write kan een parallelle signModelAgreementAction een van beide partijen laten tekenen. Een
+  // blinde update({ where: { id } }) zou het overeenkomsttype dan alsnog wijzigen op een rij waar al
+  // getekend is → de handtekening hangt stil aan een ánder type dan getoond/getekend (Wet-DBA dossier-
+  // corruptie). De count-gate op beide-nog-null maakt de invariant hard, net als elders in de cascade.
+  const { count } = await prisma.collaboration.updateMany({
+    where: {
+      id: collaborationId,
+      agreementFreelancerSignedAt: null,
+      agreementClientSignedAt: null,
+    },
     data: { agreementType: raw as ModelAgreementType },
   });
+  if (count === 0) {
+    throw new Error("De overeenkomst is al ondertekend; de vorm kan niet meer worden gewijzigd.");
+  }
   await audit({
     actorId: actor.id,
     action: "MODEL_AGREEMENT_TYPE_SET",
