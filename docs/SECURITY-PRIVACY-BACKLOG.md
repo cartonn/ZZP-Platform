@@ -4,6 +4,60 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-01 (basis: `main` @ 705b40f1)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende hoog-risico
+oppervlakken (naast de delta sinds de vorige ronde, `d89f405d..705b40f1`, #1011–#1015 — routine-escalatie/
+roster-capaciteitslogica + de fail-closed `Tenant.status`-poort; puur/getest, geen nieuw route- of
+mutatie-oppervlak). Gedekt: (1) de volledige NIET-franchise server-action- en route-handler-mutatieketen
+(auth→rol→ownership→Zod→actie→audit) over credentials/verificatie/profiel/opdrachten/reacties/berichten/
+facturen/**tweezijdige beoordelingen (double-blind reveal)**/samenwerkingen/no-show/shift-handoff/account/
+admin (12 admin-actiebestanden) + de cron-taakroutes; (2) cross-tenant isolatie over `tenancy.ts` + de
+volledige `src/lib/franchise/**`-set + alle `src/app/(protected)/franchise/**`-loaders/-acties, met nadruk op
+de nieuwste modules (`roster-capacity.ts`, `roster-unavailability.ts`, `roster-double-booking.ts`,
+`dienst-fill-signal.ts`, `roster-dossier.ts`); (3) AVG-anonimisering/erasure-volledigheid, exports (art. 15/20),
+dataminimalisatie/over-fetch, k-anonimiteit, PII-in-logs, injectie (`$queryRaw`/XSS/CSV-formule/SSRF/open-
+redirect), secrets, security-headers/CSP, retentie-sweeps. Orchestrator-scans los: `npm audit --omit=dev` = **0**
+(3 advisories zijn dev-only, o.a. js-yaml — niet in de productie-bundle); double-blind review-reveal volledig
+server-afgeleid (richting/subject/reveal nooit uit client-input, PENDING_REVEAL nooit vóór reveal geëxporteerd);
+cron-routes Bearer + `timingSafeEqual` + 503-zonder-secret. OWASP A01/A03/A05/A07 + AVG art. 5/15/17/20 als leidraad.
+
+**Resultaat: geen nieuw KRITIEK/HOOG toegangs-, injectie- of cross-tenant-gat. Eén erasure-completeness-
+asymmetrie OPGELOST (rood→groen); één LAAG audit-trail-consistentie geparkeerd.**
+
+### OPGELOST — MIDDEL (AVG art. 17, CLAUDE.md regel 4/5): `Expense.description` overleefde de anonimisering terwijl de data-export 'm als PII prijsgeeft
+
+- **Repro (was):** `anonymizeUser` (`src/app/(protected)/admin/gebruikers/actions.ts`) redact élk vergelijkbaar
+  zelf-getypt vrije-tekstveld op een fiscaal-bewaarde rij (`Performance.description`, `IndirectHoursEntry.note`,
+  `AvailabilityWindow.note`, credit-`Invoice.rejectionReason`) — maar liet **`Expense.description`** ongemoeid.
+  Dat veld is zelf-getypte vrije tekst die de ZZP'er bij een aftrekbare uitgave schreef (kan opdrachtgever/
+  locatie/persoon benoemen). De AVG-data-export (`src/lib/account-export.ts:330-343`) exporteert het veld
+  **expliciet als eigen PII onder art. 15/20** ("Omschrijving is eigen vrije tekst"). Na een art. 17-verzoek bleef
+  die vrije-tekst-PII dus leesbaar in de DB — een echte, live asymmetrie tussen de inzage- en de wis-route.
+- **Geschonden regel:** AVG art. 17 (onvolledige erasure) + CLAUDE.md regel 4/5 (verwijderen wat telt; de
+  platform-eigen policy — vrije tekst op een fiscaal-bewaarde rij → redacten, rij behouden — werd hier niet
+  consequent toegepast). Geen OWASP-toegangsgat; privacy-completeness.
+- **Fix (deze PR):** `prisma.expense.updateMany({ where: { userId }, data: { description: "[Verwijderd op
+verzoek van de gebruiker]" } })` toegevoegd aan de anonimiseringstransactie, náást de `Performance`-redactie.
+  De Expense-rij zelf blijft staan (fiscale bewaargrond: bedrag/btw/datum/categorie), alleen de non-nullable
+  vrije tekst wordt geneutraliseerd — exact het spiegelbeeld van de inzage-export. +1 unit-test
+  (`anonymize-erasure.test.ts`, rood→groen: zonder de `updateMany` is `find("expense.updateMany")` undefined).
+  Dit vervangt de eerdere "FG-oordeel, redact-vs-retain"-parkering (PROGRESS.md): de retain-grond geldt voor de
+  rij, niet voor de zelf-geschreven vrije tekst, en het platform maakt die keuze al voor `Performance.description`.
+
+### GEPARKEERD — LAAG (CLAUDE.md regel 5, "Audit alles wat telt"): `deleteWorkExperience` schrijft geen `*_DENIED`-auditregel op een cross-owner-poging
+
+- **Repro:** `src/app/(protected)/profiel/actions.ts:218-222` — `deleteWorkExperience` dwingt ownership correct af
+  (`existing.freelancerProfileId !== profile.id` → geen verwijdering, geen bestaans-orakel), maar retourneert op de
+  geweigerde cross-owner-poging stil `{ ok: true }` **zonder auditregel**. Elke zusterguard (`deleteDocument`,
+  `cancelShiftHandoff`, `deleteExpense`, support `loadOwnedTicket`) schrijft in dat geval wél een `*_DENIED`/
+  `*_ACCESS_DENIED`-regel. **Niet exploiteerbaar** (geen lek, geen mutatie, respons identiek aan "al weg"), maar
+  inconsistent met de vastgelegde audit-trail-policy.
+- **Geschonden regel:** CLAUDE.md regel 5 (audit alles wat telt — hier: ontbrekende trail op een geweigerde
+  toegang). CWE-778 (Insufficient Logging).
+- **Aanbevolen fix:** schrijf een `WORK_EXPERIENCE_DELETE_DENIED`-auditregel (actorId, entityId = het gegokte id)
+  in de `existing == null || vreemd profiel`-tak, spiegel van `deleteDocument`. +1 unit-test.
+
 ## Ronde 2026-07-31b (basis: `main` @ d89f405d)
 
 Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-audits op niet-overlappende hoog-risico

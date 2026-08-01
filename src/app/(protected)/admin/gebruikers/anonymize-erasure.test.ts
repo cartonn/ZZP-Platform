@@ -93,6 +93,7 @@ vi.mock("@/lib/db", () => ({
     workExperience: { deleteMany: op("workExperience.deleteMany") },
     indirectHoursEntry: { updateMany: op("indirectHoursEntry.updateMany") },
     performance: { updateMany: op("performance.updateMany") },
+    expense: { updateMany: op("expense.updateMany") },
     idea: { updateMany: op("idea.updateMany") },
     collaboration: { updateMany: op("collaboration.updateMany") },
     favoriteFreelancer: { updateMany: op("favoriteFreelancer.updateMany") },
@@ -313,6 +314,19 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     const data = o.args.data as { description: string; milestoneTitle: string | null };
     expect(data.description).toMatch(/verwijderd/i);
     expect(data.milestoneTitle).toBeNull();
+  });
+
+  it("redact de zelf-getypte omschrijving van eigen zakelijke uitgaven (Expense.description, AVG art. 17)", async () => {
+    await anonymizeUser("user-42");
+    // `Expense.description` is vrije tekst die de ZZP'er bij een aftrekbare uitgave schreef en die een
+    // opdrachtgever/locatie/persoon kan benoemen. De AVG-data-export (`account-export.ts`) exporteert dit
+    // veld als eigen PII (art. 15/20); de erasure moet het spiegelbeeldig wissen. De Expense-rij blijft als
+    // fiscale bewaargrond staan (net als Performance), dus non-nullable `description` → redactiestring.
+    // Zonder deze updateMany overleeft de zelf-geschreven PII art. 17 (rood→groen). Gescopet op userId.
+    const o = find("expense.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ userId: "user-42" });
+    expect((o.args.data as { description: string }).description).toMatch(/verwijderd/i);
   });
 
   it("redact titel + omschrijving van eigen ideeën (Idea)", async () => {

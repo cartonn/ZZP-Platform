@@ -370,6 +370,17 @@ export async function anonymizeUser(userId: string): Promise<void> {
         milestoneTitle: null,
       },
     }),
+    // Zakelijke uitgaven (kostenregistratie): `Expense.description` is zelf-getypte vrije tekst die de
+    // ZZP'er bij een aftrekbare uitgave schreef — kan een opdrachtgever/locatie/persoon benoemen. De
+    // AVG-data-export (`account-export.ts`) erkent dit veld expliciet als eigen PII onder art. 15/20;
+    // de erasure moet het dan óók wissen (spiegel van die inzage). De Expense-rij zelf blijft staan als
+    // fiscale bewaargrond (bedrag/btw/datum/categorie — net als Invoice/IndirectHoursEntry/Performance),
+    // dus non-nullable `description` → neutrale redactiestring, niet de rij verwijderen. Gescopet op de
+    // eigen uitgaven (userId == de betrokkene). Spiegelt Performance.description / Application.motivation.
+    prisma.expense.updateMany({
+      where: { userId },
+      data: { description: "[Verwijderd op verzoek van de gebruiker]" },
+    }),
     // Eigen ideeën: titel + omschrijving zijn door de betrokkene geschreven vrije tekst (PII-risico);
     // het idee blijft als geanonimiseerd record op het bord staan.
     prisma.idea.updateMany({
