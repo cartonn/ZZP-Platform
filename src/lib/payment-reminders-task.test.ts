@@ -20,7 +20,14 @@ const store = {
 vi.mock("@/lib/db", () => ({
   prisma: {
     invoice: {
-      findMany: vi.fn(async () => store.snapshot ?? store.invoices),
+      // De kandidaat-query (where op lifecycleStatus/dueAt) leest de snapshot (TOCTOU-venster); de
+      // live-herlezing vóór het signaleren (where op id.in) leest de ECHTE rijen, zodat een intussen
+      // betaalde/bevroren factuur uit de signalering valt.
+      findMany: vi.fn(async (args?: { where?: { id?: { in: string[] } } }) => {
+        const ids = args?.where?.id?.in;
+        if (ids) return store.invoices.filter((i) => ids.includes(i.id as string));
+        return store.snapshot ?? store.invoices;
+      }),
       // Faithful mock: updateMany honoreert de compound-guard (where.lifecycleStatus), zodat een
       // intussen betaalde (PAID) factuur NIET terug naar OVERDUE geflipt wordt.
       updateMany: vi.fn(
@@ -209,6 +216,45 @@ describe("runPaymentReminderTask", () => {
     expect(result.markedOverdue).toBe(0);
     expect(store.invoiceUpdates).toHaveLength(0);
     expect(store.invoices[0]?.lifecycleStatus).toBe("PAID");
+  });
+
+  it("TOCTOU-signalering — factuur in het venster PAID → geen herinnering/aanmaning ondanks stale plan", async () => {
+    // De snapshot ziet de factuur nog fors te laat (aanmaningswaardig); de live rij is intussen via de
+    // cascade op PAID gezet. Het plan (reminders + escalatie) komt uit de snapshot, maar de live-
+    // herlezing vóór het signaleren moet de betaalde factuur eruit filteren: geen valse "betaal je
+    // factuur"-melding aan de opdrachtgever, geen aanmaning-escalatie naar de admin.
+    store.snapshot = [makeInvoice("inv-race", "OVERDUE", 40)];
+    store.invoices = [makeInvoice("inv-race", "PAID", 40)];
+    store.users = [
+      { id: "freelancer-1", email: "f@test.nl", name: "ZZP" },
+      { id: "client-1", email: "c@test.nl", name: "OG" },
+      { id: "admin-1", email: "a@test.nl", name: "Admin", role: "ADMIN", status: "ACTIVE" },
+    ];
+    store.subscriptions = [{ userId: "freelancer-1", status: "ACTIVE", plan: { key: "PRO" } }];
+
+    const { runPaymentReminderTask } = await import("@/lib/payment-reminders-task");
+    const result = await runPaymentReminderTask({ actorId: null, now: NOW });
+
+    expect(result.reminded).toBe(0);
+    expect(result.escalated).toBe(0);
+    expect(store.notifications).toHaveLength(0);
+  });
+
+  it("TOCTOU-signalering — factuur blijft in het venster OVERDUE → herinnering vuurt normaal", async () => {
+    // Controle dat de live-herlezing niet te veel wegfiltert: snapshot en live wijken af (los object),
+    // maar de status blijft OVERDUE → de herinnering moet gewoon verstuurd worden.
+    store.snapshot = [makeInvoice("inv-live", "OVERDUE", 5)];
+    store.invoices = [makeInvoice("inv-live", "OVERDUE", 5)];
+    store.users = [
+      { id: "freelancer-1", email: "f@test.nl", name: "ZZP" },
+      { id: "client-1", email: "c@test.nl", name: "OG" },
+    ];
+    store.subscriptions = [{ userId: "freelancer-1", status: "ACTIVE", plan: { key: "PRO" } }];
+
+    const { runPaymentReminderTask } = await import("@/lib/payment-reminders-task");
+    const result = await runPaymentReminderTask({ actorId: null, now: NOW });
+
+    expect(result.reminded).toBeGreaterThanOrEqual(1);
   });
 
   it("lege freelancer-set → reminded = 0", async () => {

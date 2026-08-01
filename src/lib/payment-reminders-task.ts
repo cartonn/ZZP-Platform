@@ -104,8 +104,33 @@ export async function runPaymentReminderTask(opts: {
     (e) => !seen.has(e.dedupeKey) && entitledInvoiceIds.has(e.invoiceId),
   );
 
+  // TOCTOU-guard op het signaleren (spiegelbeeld van de guarded OVERDUE-markering hierboven): `plan`
+  // — en dus `fresh`/`freshEscalations` — is afgeleid van de findMany-snapshot van vóór deze schrijf-
+  // stap. Bevestigt de opdrachtgever in dat venster de betaling (APPROVED/OVERDUE → PAID via de
+  // cascade), of wordt de deal bevroren/gecrediteerd/geannuleerd, dan mag deze cron géén herinnering/
+  // aanmaning meer sturen voor die factuur — anders krijgt een net-betaalde factuur alsnog een valse
+  // "betaal je factuur"/aanmaning-melding. Herlees daarom de live lifecycleStatus en houd alleen de
+  // facturen die nú nog betaalbaar zijn (APPROVED = pre-due reminder, OVERDUE = te-laat-signaal).
+  const signalInvoiceIds = [
+    ...new Set([...fresh.map((r) => r.invoiceId), ...freshEscalations.map((e) => e.invoiceId)]),
+  ];
+  const liveStatuses =
+    signalInvoiceIds.length > 0
+      ? await prisma.invoice.findMany({
+          where: { id: { in: signalInvoiceIds } },
+          select: { id: true, lifecycleStatus: true },
+        })
+      : [];
+  const payableIds = new Set(
+    liveStatuses
+      .filter((i) => i.lifecycleStatus === "APPROVED" || i.lifecycleStatus === "OVERDUE")
+      .map((i) => i.id),
+  );
+  const remindable = fresh.filter((r) => payableIds.has(r.invoiceId));
+  const escalatable = freshEscalations.filter((e) => payableIds.has(e.invoiceId));
+
   // Batch-query voor e-mailadressen van alle betrokken gebruikers.
-  const allUserIds = [...new Set(fresh.map((r) => r.userId))];
+  const allUserIds = [...new Set(remindable.map((r) => r.userId))];
   const paymentUsers =
     allUserIds.length > 0
       ? await prisma.user.findMany({
@@ -118,7 +143,7 @@ export async function runPaymentReminderTask(opts: {
   const loginUrl = process.env.NEXTAUTH_URL ?? "https://app.zzp-platform.nl";
   const mail = getMailSender();
 
-  for (const r of fresh) {
+  for (const r of remindable) {
     await prisma.$transaction([
       prisma.domainEvent.create({
         data: {
@@ -192,12 +217,12 @@ export async function runPaymentReminderTask(opts: {
 
   // Escalaties naar admins: één DomainEvent + notificaties per admin + auditlog per escalatie.
   let escalated = 0;
-  if (freshEscalations.length > 0) {
+  if (escalatable.length > 0) {
     const admins = await prisma.user.findMany({
       where: { role: "ADMIN", status: "ACTIVE" },
       select: { id: true },
     });
-    for (const e of freshEscalations) {
+    for (const e of escalatable) {
       const domainEvent = prisma.domainEvent.create({
         data: {
           type: "PAYMENT_OVERDUE",
@@ -239,5 +264,5 @@ export async function runPaymentReminderTask(opts: {
     }
   }
 
-  return { markedOverdue, reminded: fresh.length, escalated };
+  return { markedOverdue, reminded: remindable.length, escalated };
 }
