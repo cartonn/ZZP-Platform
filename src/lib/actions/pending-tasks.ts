@@ -100,6 +100,7 @@ import { summarizeStaleClientApplications } from "@/lib/stale-applications";
 import { summarizeFirstLookOverdue } from "@/lib/client-first-look";
 import { CANDIDATE_GHOSTING_RISK_DAYS } from "@/lib/client-application-funnel";
 import { pendingCollaborationProposals } from "@/lib/accepted-proposal";
+import { collaborationBlocksProposal } from "@/lib/collaboration-reproposal";
 import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 import { getRosterFillSignalsForTenant } from "@/lib/franchise/dienst-fill-signal";
 import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
@@ -791,7 +792,19 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
       where: { job: { company: { userId } }, status: "ACCEPTED" },
       select: {
         id: true,
-        collaboration: { select: { id: true } },
+        // Reproposability-velden: onderscheid een blokkerende collaboration van een geannuleerd,
+        // nog-nooit-ondertekend voorstel dat opnieuw verstuurd mag worden (collaboration-reproposal.ts).
+        collaboration: {
+          select: {
+            status: true,
+            contractStatus: true,
+            agreementClientSignedAt: true,
+            agreementFreelancerSignedAt: true,
+            completedAt: true,
+            cancelledAt: true,
+            _count: { select: { invoices: true, performances: true } },
+          },
+        },
         job: { select: { title: true } },
         freelancer: { select: { user: { select: { name: true } } } },
         // `acceptedAt` = de klok voor "wacht op een samenwerkingsvoorstel". Legacy-rijen (geaccepteerd
@@ -947,18 +960,42 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   if (freshApplications > 0) tasks.push(applicationsReviewTask(freshApplications));
   // Geaccepteerd-maar-nog-niet-voorgesteld: rond de hire af met een samenwerkingsvoorstel.
   for (const p of pendingCollaborationProposals(
-    acceptedCandidates.map((a) => ({
-      applicationId: a.id,
-      freelancerName: a.freelancer.user.name ?? "ZZP'er",
-      jobTitle: a.job.title,
-      hasCollaboration: a.collaboration != null,
-      // Fallback op updatedAt voor legacy-rijen zonder acceptedAt — nooit een null-klok.
-      acceptedAt: a.acceptedAt ?? a.updatedAt,
-    })),
+    acceptedCandidates.map((a) => {
+      const state = a.collaboration
+        ? {
+            status: a.collaboration.status,
+            contractStatus: a.collaboration.contractStatus,
+            agreementClientSignedAt: a.collaboration.agreementClientSignedAt,
+            agreementFreelancerSignedAt: a.collaboration.agreementFreelancerSignedAt,
+            completedAt: a.collaboration.completedAt,
+            invoicesCount: a.collaboration._count?.invoices ?? 0,
+            performancesCount: a.collaboration._count?.performances ?? 0,
+          }
+        : null;
+      return {
+        applicationId: a.id,
+        freelancerName: a.freelancer.user.name ?? "ZZP'er",
+        jobTitle: a.job.title,
+        // Een geannuleerd, nooit-ondertekend voorstel blokkeert niet → de propose-taak resurfacet.
+        hasCollaboration: collaborationBlocksProposal(state),
+        // Er ís een collaboration maar die blokkeert niet → een herbruikbaar geannuleerd voorstel.
+        reproposal: state != null && !collaborationBlocksProposal(state),
+        // Voor een re-voorstel loopt de leeftijd-klok vanaf het annuleringsmoment.
+        reproposalSince: a.collaboration?.cancelledAt ?? null,
+        // Fallback op updatedAt voor legacy-rijen zonder acceptedAt — nooit een null-klok.
+        acceptedAt: a.acceptedAt ?? a.updatedAt,
+      };
+    }),
     new Date(),
   ))
     tasks.push(
-      proposeCollaborationTask(p.applicationId, p.jobTitle, p.freelancerName, p.agingDays),
+      proposeCollaborationTask(
+        p.applicationId,
+        p.jobTitle,
+        p.freelancerName,
+        p.agingDays,
+        p.reproposal,
+      ),
     );
   const staleApplications = summarizeStaleClientApplications(
     staleCandidates.map((a) => ({

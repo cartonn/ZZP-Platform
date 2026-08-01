@@ -27,6 +27,7 @@ describe("pendingCollaborationProposals", () => {
         jobTitle: "Wijkverpleegkundige",
         agingDays: 1,
         stalled: false,
+        reproposal: false,
       },
     ]);
   });
@@ -68,6 +69,42 @@ describe("pendingCollaborationProposals", () => {
   it("klemt een acceptedAt in de toekomst op 0 dagen (nooit negatief, nooit stalled)", () => {
     const out = pendingCollaborationProposals([row({ acceptedAt: daysAgo(-5) })], NOW);
     expect(out[0]).toMatchObject({ agingDays: 0, stalled: false });
+  });
+
+  it("re-voorstel: telt de leeftijd vanaf de annulering, niet de (oude) acceptatie", () => {
+    // Oude acceptatie (ver boven de drempel), maar recent geannuleerd → jonge klok, niet stalled.
+    const out = pendingCollaborationProposals(
+      [
+        row({
+          acceptedAt: daysAgo(30),
+          reproposal: true,
+          reproposalSince: daysAgo(1),
+        }),
+      ],
+      NOW,
+    );
+    expect(out[0]).toMatchObject({ agingDays: 1, stalled: false, reproposal: true });
+  });
+
+  it("re-voorstel zonder reproposalSince valt terug op acceptedAt", () => {
+    const out = pendingCollaborationProposals(
+      [row({ acceptedAt: daysAgo(4), reproposal: true, reproposalSince: null })],
+      NOW,
+    );
+    expect(out[0]).toMatchObject({ agingDays: 4, stalled: true, reproposal: true });
+  });
+
+  it("normale rij gebruikt acceptedAt en draagt reproposal:false uit", () => {
+    const out = pendingCollaborationProposals([row({ acceptedAt: daysAgo(2) })], NOW);
+    expect(out[0]).toMatchObject({ agingDays: 2, reproposal: false });
+  });
+
+  it("een blokkerende collaboration (hasCollaboration:true) blijft eruit gefilterd, ook als re-voorstel-velden gezet zijn", () => {
+    const out = pendingCollaborationProposals(
+      [row({ hasCollaboration: true, reproposal: true, reproposalSince: daysAgo(1) })],
+      NOW,
+    );
+    expect(out).toEqual([]);
   });
 
   it("lege invoer → lege lijst", () => {

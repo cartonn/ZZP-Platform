@@ -19,6 +19,7 @@ import {
   credentialTypeSchema,
 } from "@/lib/enums";
 import { collaborationProposalSchema, collaborationCancellationSchema } from "@/lib/validation";
+import { REPROPOSABLE_CANCELLED_WHERE } from "@/lib/collaboration-reproposal";
 import { toSafeActionError } from "@/lib/safe-action-error";
 import { assessCollaborationCredentials } from "@/lib/collaboration-alerts";
 import { type FreelancerCredential } from "@/lib/matching";
@@ -61,12 +62,16 @@ export async function proposeCollaboration(
     return { error: "Reactie niet gevonden." };
   if (application.status !== "ACCEPTED") return { error: "Accepteer de reactie eerst." };
 
+  // Bestaat er al een collaboration op deze @unique-reactie? We hoeven hier alleen te weten ÓF er een
+  // is (de compound-guarded reset hieronder doet het echte werk, TOCTOU-dicht). De status halen we
+  // enkel op voor de leesbaarheid van de branch.
   const existing = await prisma.collaboration.findUnique({
     where: { applicationId },
-    select: { id: true },
+    select: { id: true, status: true },
   });
-  if (existing) return { error: "Er bestaat al een samenwerking voor deze reactie." };
 
+  // Parse het formulier vóór de branch, zodat veldfouten in beide paden (nieuw voorstel én
+  // her-voorstel) meteen aan de opdrachtgever verschijnen i.p.v. na de bestaan-check.
   const parsed = collaborationProposalSchema.safeParse({
     rate: formData.get("rate") ?? "",
     startDate: formData.get("startDate") ?? "",
@@ -80,25 +85,55 @@ export async function proposeCollaboration(
   }
   const data = parsed.data;
 
-  let collaboration;
-  try {
-    collaboration = await prisma.collaboration.create({
+  let collaboration: { id: string };
+  let reproposed = false;
+
+  if (existing) {
+    // Her-voorstel: een eerder voorstel dat de opdrachtgever vóór ondertekening annuleerde, mag
+    // opnieuw worden voorgesteld op DEZELFDE @unique-rij. We resetten die rij met een compound-guarded
+    // updateMany die naast `applicationId` óók REPROPOSABLE_CANCELLED_WHERE eist (nooit-ondertekend →
+    // nooit-actief, geen facturen/prestaties). Dat maakt het TOCTOU-dicht: raakt een parallelle
+    // ondertekening/factuur de rij tussen de findUnique en deze write, dan matcht de guard 0 rijen en
+    // weigeren we — nooit een levende/afgeronde samenwerking overschrijven. Spiegelt de #1006/#1019-
+    // patronen elders in de codebase (voorwaardelijke write op de verwachte staat).
+    const reset = await prisma.collaboration.updateMany({
+      where: { applicationId, ...REPROPOSABLE_CANCELLED_WHERE },
       data: {
-        jobId: application.job.id,
-        applicationId,
-        freelancerId: application.freelancer.id,
-        companyId: application.job.companyId,
         status: "PROPOSED",
+        contractStatus: "DRAFT",
         rate: data.rate ?? null,
         startDate: data.startDate ?? null,
         endDate: data.endDate ?? null,
+        agreementType: null,
+        cancelledAt: null,
+        cancelledById: null,
+        cancellationReason: null,
+        cancellationChargeable: false,
       },
     });
-  } catch (e) {
-    // Gelijktijdig voorstel op dezelfde reactie → applicationId @unique. Nette melding i.p.v. 500.
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")
-      return { error: "Er bestaat al een samenwerking voor deze reactie." };
-    throw e;
+    if (reset.count !== 1) return { error: "Er bestaat al een samenwerking voor deze reactie." };
+    reproposed = true;
+    collaboration = { id: existing.id };
+  } else {
+    try {
+      collaboration = await prisma.collaboration.create({
+        data: {
+          jobId: application.job.id,
+          applicationId,
+          freelancerId: application.freelancer.id,
+          companyId: application.job.companyId,
+          status: "PROPOSED",
+          rate: data.rate ?? null,
+          startDate: data.startDate ?? null,
+          endDate: data.endDate ?? null,
+        },
+      });
+    } catch (e) {
+      // Gelijktijdig voorstel op dezelfde reactie → applicationId @unique. Nette melding i.p.v. 500.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")
+        return { error: "Er bestaat al een samenwerking voor deze reactie." };
+      throw e;
+    }
   }
 
   await prisma.$transaction([
@@ -114,7 +149,7 @@ export async function proposeCollaboration(
     prisma.auditLog.create({
       data: auditData({
         actorId: actor.id,
-        action: "COLLABORATION_PROPOSED",
+        action: reproposed ? "COLLABORATION_REPROPOSED" : "COLLABORATION_PROPOSED",
         entityType: "Collaboration",
         entityId: collaboration.id,
       }),

@@ -780,15 +780,27 @@ export function proposeCollaborationTask(
    * hangt dan in limbo. `undefined` = geen leeftijdsbesef (gedragsbehoudend).
    */
   agingDays?: number,
+  /**
+   * True = een re-voorstel: het vorige voorstel werd geannuleerd (nog vóór ondertekening) en mag
+   * opnieuw. Past de copy aan zodat de opdrachtgever begrijpt dat het om een nieuw voorstel gaat.
+   * Falsy = byte-identiek aan het oorspronkelijke gedrag.
+   */
+  reproposal?: boolean,
 ): PendingTask {
   const stalled = agingDays !== undefined && agingDays >= PROPOSAL_STALL_DAYS;
   return {
     kind: "propose-collaboration",
     id: `propose-collaboration:${applicationId}`,
-    title: `Stuur ${freelancerName} een samenwerkingsvoorstel`,
-    subtitle: stalled
-      ? `${jobTitle} · al ${plural(agingDays, "dag", "dagen")} geaccepteerd — rond de hire af`
-      : `Je accepteerde de reactie op ${jobTitle} — rond de samenwerking af`,
+    title: reproposal
+      ? `Stuur ${freelancerName} een nieuw samenwerkingsvoorstel`
+      : `Stuur ${freelancerName} een samenwerkingsvoorstel`,
+    subtitle: reproposal
+      ? stalled
+        ? `${jobTitle} · vorige voorstel geannuleerd, al ${plural(agingDays, "dag", "dagen")} — rond de hire af`
+        : `Je vorige voorstel voor ${jobTitle} is geannuleerd — stuur een nieuw voorstel`
+      : stalled
+        ? `${jobTitle} · al ${plural(agingDays, "dag", "dagen")} geaccepteerd — rond de hire af`
+        : `Je accepteerde de reactie op ${jobTitle} — rond de samenwerking af`,
     tone: "attention",
     priority: stalled ? P.proposeCollaborationStalled : P.proposeCollaboration,
     resolver: "link",

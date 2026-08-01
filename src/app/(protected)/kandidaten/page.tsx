@@ -71,6 +71,7 @@ import { ProposeCollaboration } from "./propose-collaboration";
 import { TriageList, type TriageItem } from "./triage-list";
 import { AcceptedSection } from "./accepted-section";
 import { partitionTriage } from "@/lib/kandidaten-triage";
+import { isReproposableCancelledProposal } from "@/lib/collaboration-reproposal";
 
 export const metadata: Metadata = { title: "Kandidaten · Handslag" };
 
@@ -110,6 +111,9 @@ export default async function KandidatenPage({
     send: t("Voorstel versturen"),
     conflictHeading: t("Let op — de kandidaat heeft zich onbeschikbaar gemaakt in deze periode:"),
     conflictRange: t("t/m"),
+    reproposalNote: t(
+      "Je vorige voorstel is geannuleerd. Stuur een nieuw voorstel om de samenwerking alsnog te starten.",
+    ),
   };
   const bulkLabels = {
     viewed: t("Bekeken"),
@@ -165,7 +169,20 @@ export default async function KandidatenPage({
           credentials: { select: { type: true, status: true, expiresAt: true } },
         },
       },
-      collaboration: { select: { id: true } },
+      collaboration: {
+        // Naast de id ook de velden waaruit blijkt of een bestaande collaboration een herbruikbaar,
+        // geannuleerd voorstel is (nooit getekend/actief, geen artefacten). Dan mag de opdrachtgever
+        // opnieuw voorstellen en tonen we het formulier i.p.v. een dode "bekijk samenwerking"-knop.
+        select: {
+          id: true,
+          status: true,
+          contractStatus: true,
+          agreementClientSignedAt: true,
+          agreementFreelancerSignedAt: true,
+          completedAt: true,
+          _count: { select: { invoices: true, performances: true } },
+        },
+      },
     },
   });
 
@@ -421,6 +438,23 @@ export default async function KandidatenPage({
               // kandidaten gaan naar een aparte, ingeklapte sectie onderaan (de samenwerking loopt al).
               const rendered = visible.map((app) => {
                 const status = app.status as ApplicationStatus;
+                // Is de (eventuele) bestaande collaboration een herbruikbaar, geannuleerd voorstel?
+                // Zo ja, dan is de reactie ná annulering opnieuw voorstelbaar: toon het formulier weer
+                // en behandel de reactie als "vraagt nog actie" (niet als afgehandelde samenwerking).
+                const reproposable =
+                  app.collaboration != null &&
+                  isReproposableCancelledProposal({
+                    status: app.collaboration.status,
+                    contractStatus: app.collaboration.contractStatus,
+                    agreementClientSignedAt: app.collaboration.agreementClientSignedAt,
+                    agreementFreelancerSignedAt: app.collaboration.agreementFreelancerSignedAt,
+                    completedAt: app.collaboration.completedAt,
+                    invoicesCount: app.collaboration._count.invoices,
+                    performancesCount: app.collaboration._count.performances,
+                  });
+                // "Blokkeert een levende/afgeronde samenwerking een nieuw voorstel?" — false bij geen
+                // collaboration én bij een herbruikbaar geannuleerd voorstel. Voedt de triage + de knoppen.
+                const collabBlocks = app.collaboration != null && !reproposable;
                 // Live compliance: actuele certificaatstatus, niet de bevroren snapshot van het
                 // reactiemoment (een VOG kan intussen verlopen zijn). Eén keer berekend (zie
                 // complianceByApp) en hier hergebruikt, zodat band en rij hetzelfde oordeel tonen. De
@@ -453,7 +487,7 @@ export default async function KandidatenPage({
                     status: app.status,
                     matchScore: app.matchScore,
                     createdAt: app.createdAt,
-                    hasCollaboration: !!app.collaboration,
+                    hasCollaboration: collabBlocks,
                     complianceBlocked: compliance?.status === "NON_COMPLIANT",
                   },
                   now,
@@ -793,7 +827,7 @@ export default async function KandidatenPage({
                           {t("Bericht sturen")}
                         </Button>
                       </form>
-                      {app.collaboration && (
+                      {app.collaboration && !reproposable && (
                         <Button asChild variant="secondary" size="sm">
                           <Link href={`/samenwerkingen/${app.collaboration.id}`}>
                             {t("Bekijk samenwerking")}
@@ -801,9 +835,10 @@ export default async function KandidatenPage({
                         </Button>
                       )}
                     </div>
-                    {status === "ACCEPTED" && !app.collaboration && (
+                    {status === "ACCEPTED" && !collabBlocks && (
                       <ProposeCollaboration
                         applicationId={app.id}
+                        reproposal={reproposable}
                         labels={proposeLabels}
                         unavailableWindows={app.freelancer.availabilityWindows
                           .filter((w) => w.type === "UNAVAILABLE" && w.endDate >= now)
@@ -820,7 +855,7 @@ export default async function KandidatenPage({
                 return {
                   app,
                   status,
-                  hasCollaboration: !!app.collaboration,
+                  hasCollaboration: collabBlocks,
                   lead,
                   header,
                   body,

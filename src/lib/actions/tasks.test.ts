@@ -372,6 +372,53 @@ describe("task builders", () => {
     );
   });
 
+  it("voorstel-nudge (re-voorstel): copy benoemt de annulering, id/href/priority ongewijzigd", () => {
+    const base = proposeCollaborationTask("app-7", "Wijkverpleegkundige", "Sanne de Vries", 1);
+    const fresh = proposeCollaborationTask(
+      "app-7",
+      "Wijkverpleegkundige",
+      "Sanne de Vries",
+      1,
+      true,
+    );
+    // Niet-stalled re-voorstel: nieuwe titel + subtitel over de annulering.
+    expect(fresh.title).toBe("Stuur Sanne de Vries een nieuw samenwerkingsvoorstel");
+    expect(fresh.subtitle).toBe(
+      "Je vorige voorstel voor Wijkverpleegkundige is geannuleerd — stuur een nieuw voorstel",
+    );
+    // Identiteit + routing + prioriteit blijven gelijk aan de niet-re-voorstel-variant.
+    expect(fresh.id).toBe(base.id);
+    expect(fresh.href).toBe(base.href);
+    expect(fresh.priority).toBe(base.priority);
+    expect(fresh.priority).toBe(P.proposeCollaboration);
+    expect(fresh.kind).toBe(base.kind);
+    expect(fresh.tone).toBe(base.tone);
+  });
+
+  it("voorstel-nudge (re-voorstel, stalled): leeftijd-subtitel over de annulering, stalled-band behouden", () => {
+    const baseStalled = proposeCollaborationTask(
+      "app-7",
+      "Wijkverpleegkundige",
+      "Sanne de Vries",
+      6,
+    );
+    const stalled = proposeCollaborationTask(
+      "app-7",
+      "Wijkverpleegkundige",
+      "Sanne de Vries",
+      6,
+      true,
+    );
+    expect(stalled.title).toBe("Stuur Sanne de Vries een nieuw samenwerkingsvoorstel");
+    expect(stalled.subtitle).toBe(
+      "Wijkverpleegkundige · vorige voorstel geannuleerd, al 6 dagen — rond de hire af",
+    );
+    expect(stalled.priority).toBe(P.proposeCollaborationStalled);
+    expect(stalled.priority).toBe(baseStalled.priority);
+    expect(stalled.id).toBe(baseStalled.id);
+    expect(stalled.href).toBe(baseStalled.href);
+  });
+
   it("beoordelings-nudge: rustige link-taak naar de samenwerking, benoemt tegenpartij en venster", () => {
     const task = reviewLeaveTask("collab-9", "Nachtdienst verpleegkundige", "Zorggroep Noord", 10);
     expect(task).toMatchObject({

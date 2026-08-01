@@ -3,6 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-01 — Opdrachtgever/ZZP'er: re-voorstel na een geannuleerd samenwerkingsvoorstel (flow-gat gedicht)
+
+**Wat:** het geparkeerde LAAG flow-gat (persona-sweep run 34) gedicht. CLIENT accepteert een reactie
+(ACCEPTED) → stuurt een voorstel (PROPOSED-collaboration) → annuleert dat vóór ondertekening → de
+geaccepteerde kandidaat hing in limbo: `proposeCollaboration` blokkeerde een nieuw voorstel hard
+(`applicationId @unique`), de next-action-motor onderdrukte de propose-taak (er ís een collaboration) en
+de contract-taak sloot CANCELLED uit → niemand werd genudged, de opdrachtgever kon niet opnieuw voorstellen
+en de UI toonde een dode "bekijk samenwerking"-knop naar een geannuleerde rij. Zowel de opdrachtgever (kan
+de hire alsnog afronden) als de ZZP'er (niet meer vergeten) worden hierdoor geholpen.
+
+**Hoe:** nieuwe gedeelde bron van waarheid `src/lib/collaboration-reproposal.ts` —
+`REPROPOSABLE_CANCELLED_WHERE` (Prisma where) + pure spiegel `isReproposableCancelledProposal` +
+`collaborationBlocksProposal`. Een CANCELLED-collaboration is **herbruikbaar** als ze nooit is getekend/
+actief werd (`contractStatus != SIGNED`, beide agreement-handtekeningen null, `completedAt` null) én geen
+financieel artefact draagt (0 facturen, 0 prestaties). `signContract` is het enige pad PROPOSED→ACTIVE en
+zet daarbij `contractStatus: SIGNED` → betrouwbaar "nooit actief"-signaal. `proposeCollaboration` reset in
+dat geval **dezelfde** @unique-rij terug naar PROPOSED via een **compound-guarded `updateMany`**
+(TOCTOU-dicht — een parallelle ondertekening/factuur laat de guard 0 rijen raken → nette weigering)
+i.p.v. hard te weigeren; audit `COLLABORATION_REPROPOSED`. De next-action-enumerator (`pending-tasks.ts`),
+de badge-teller (`signals.ts`) en de kandidaten-triage (`kandidaten-triage.ts` via `page.tsx`) delen
+`collaborationBlocksProposal` → geen drift: de propose-taak (leeftijd geankerd op `cancelledAt` i.p.v.
+`acceptedAt`) duikt weer op en het voorstelformulier verschijnt opnieuw op `/kandidaten`. Geen
+schemawijziging.
+
+**Bestanden:** `src/lib/collaboration-reproposal.ts` (nieuw), `src/app/(protected)/samenwerkingen/actions.ts`
+(`proposeCollaboration`), `src/lib/audit-labels.ts` (`COLLABORATION_REPROPOSED`), `src/lib/accepted-proposal.ts`,
+`src/lib/actions/pending-tasks.ts`, `src/lib/signals.ts`, `src/lib/actions/tasks.ts`
+(`proposeCollaborationTask` re-voorstel-copy), `src/app/(protected)/kandidaten/page.tsx` +
+`propose-collaboration.tsx`. **Tests:** unit voor de pure module + mutatie-branch (re-proposal reset,
+TOCTOU count 0, verse create) + enumerator/task-copy. Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-08-01 — Prod-rijpheid: webhook-event-ledger retentie-backlog gauge (`/api/metrics`, availability)
 
 **Wat:** het laatste "verwijder-ouder-dan-venster"-retentie-gat in de stille-faal-detectorlaag van

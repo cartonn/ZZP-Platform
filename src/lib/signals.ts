@@ -6,6 +6,7 @@
 import { Prisma } from "@prisma/client";
 
 import { pendingCollaborationProposals } from "@/lib/accepted-proposal";
+import { collaborationBlocksProposal } from "@/lib/collaboration-reproposal";
 import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
 import { prisma } from "@/lib/db";
@@ -556,7 +557,18 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         // gebruikt alleen het aantal (niet de aging), maar de helper vereist een niet-null klok.
         select: {
           id: true,
-          collaboration: { select: { id: true } },
+          // Reproposability-velden: een geannuleerd, nooit-ondertekend voorstel blokkeert geen nieuw
+          // voorstel (collaboration-reproposal.ts) → de badge telt het als openstaande actie.
+          collaboration: {
+            select: {
+              status: true,
+              contractStatus: true,
+              agreementClientSignedAt: true,
+              agreementFreelancerSignedAt: true,
+              completedAt: true,
+              _count: { select: { invoices: true, performances: true } },
+            },
+          },
           acceptedAt: true,
           updatedAt: true,
         },
@@ -593,7 +605,19 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         applicationId: a.id,
         freelancerName: "",
         jobTitle: "",
-        hasCollaboration: a.collaboration != null,
+        hasCollaboration: collaborationBlocksProposal(
+          a.collaboration
+            ? {
+                status: a.collaboration.status,
+                contractStatus: a.collaboration.contractStatus,
+                agreementClientSignedAt: a.collaboration.agreementClientSignedAt,
+                agreementFreelancerSignedAt: a.collaboration.agreementFreelancerSignedAt,
+                completedAt: a.collaboration.completedAt,
+                invoicesCount: a.collaboration._count?.invoices ?? 0,
+                performancesCount: a.collaboration._count?.performances ?? 0,
+              }
+            : null,
+        ),
         acceptedAt: a.acceptedAt ?? a.updatedAt,
       })),
     ).length;
