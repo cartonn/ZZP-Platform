@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-01 — Security/Privacy-audit: `Expense.description`-erasure (AVG art. 17) OPGELOST
+
+**Wat:** adversariële security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits op niet-
+overlappende oppervlakken: (1) niet-franchise server-actions/route-handlers incl. de nieuwe double-blind
+beoordelingen; (2) cross-tenant isolatie over de volledige `franchise/**`-set; (3) AVG/injectie/secrets/headers).
+**Geen nieuw KRITIEK/HOOG toegangs-, injectie- of cross-tenant-gat.** Eén erasure-completeness-asymmetrie gedicht:
+`anonymizeUser` (`admin/gebruikers/actions.ts`) liet **`Expense.description`** ongemoeid terwijl de AVG-data-export
+(`account-export.ts:330-343`) datzelfde veld expliciet als eigen PII onder art. 15/20 prijsgeeft — een live
+asymmetrie tussen de inzage- en de wis-route (art. 17 onvolledig). Fix: `expense.updateMany` redact de non-nullable
+vrije tekst naar de neutrale string, de rij blijft als fiscale bewaargrond staan — exact het patroon dat de code al
+voor `Performance.description` toepast. Dit **vervangt** de eerdere "FG-oordeel, redact-vs-retain"-parkering: de
+retain-grond geldt voor de rij (bedrag/btw/datum), niet voor de zelf-geschreven vrije tekst.
+
+**Bestanden:** `src/app/(protected)/admin/gebruikers/actions.ts` (+1 `expense.updateMany` in de transactie),
+`src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts` (+1 test, rood→groen), `docs/SECURITY-PRIVACY-BACKLOG.md`.
+**Geparkeerd (LAAG):** `deleteWorkExperience` (`profiel/actions.ts`) schrijft geen `*_DENIED`-auditregel op een
+geweigerde cross-owner-poging (niet exploiteerbaar, audit-trail-consistentie; CWE-778) — repro in de backlog.
+**Tests:** anonymize-erasure 38 passed (was 37). Volledige gate + CI-poort: zie PR.
+
 ## 2026-08-01 — Opdrachtgever: geaccepteerde kandidaat wacht te lang op voorstel escaleert op /acties (PR #1015)
 
 **Wat:** de `proposeCollaboration`-taak (een ACCEPTED-reactie waar de opdrachtgever nog geen
