@@ -283,12 +283,14 @@ const {
   applyMock,
   performanceFindUnique,
   performanceFindFirst,
+  performanceUpdateMany,
   txPerformanceFindUnique,
   txPerformanceFindFirst,
 } = vi.hoisted(() => ({
   applyMock: vi.fn().mockResolvedValue({}),
   performanceFindUnique: vi.fn(),
   performanceFindFirst: vi.fn(),
+  performanceUpdateMany: vi.fn(),
   txPerformanceFindUnique: vi.fn(),
   txPerformanceFindFirst: vi.fn(),
 }));
@@ -296,7 +298,11 @@ const {
 vi.mock("@/lib/cascade/apply", () => ({ applyCascadeEffects: applyMock }));
 vi.mock("@/lib/db", () => ({
   prisma: {
-    performance: { findUnique: performanceFindUnique, findFirst: performanceFindFirst },
+    performance: {
+      findUnique: performanceFindUnique,
+      findFirst: performanceFindFirst,
+      updateMany: performanceUpdateMany,
+    },
     // assertNotDisputed + assertCollaborationNotTerminal + loadCollabMeta lezen de samenwerking; één
     // niet-bevroren, actieve mock voedt alle drie (loadCollabMeta valt op de nested-select in try/catch).
     collaboration: {
@@ -572,5 +578,58 @@ describe("submitPerformance — anti-dubbelfacturatie (overlap-guard)", () => {
     // guardPerf.type !== "HOURS" → de findFirst wordt nooit bereikt.
     expect(txPerformanceFindFirst).not.toHaveBeenCalled();
     expect(applyMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+// updatePerformance corrigeert de invoervelden van een concept/afgekeurde prestatie vóór (her)indiening.
+// De statuscheck leunt op de pre-transactionele lees (loadPerformance); tussen die lees en de write kan
+// een parallelle submitPerformance de rij al naar SUBMITTED hebben geflipt. Zonder statusguard zou de
+// veld-write dan stil op de SUBMITTED-rij landen (uren/tarief overschreven, geen event/audit/notificatie).
+// Daarom is de write compound-guarded (updateMany where { id, status: geziene-status } + count-gate).
+describe("updatePerformance — TOCTOU-statusguard op de veld-write", () => {
+  beforeEach(() => {
+    applyMock.mockClear();
+    performanceUpdateMany.mockReset().mockResolvedValue({ count: 1 });
+    performanceFindUnique
+      .mockReset()
+      .mockImplementation(async () => makeSubject({ status: "REJECTED" }));
+  });
+
+  const input = {
+    type: "HOURS" as const,
+    hours: 40,
+    rateCents: 5000,
+    periodStart: new Date("2026-07-01T09:00:00.000Z"),
+    periodEnd: new Date("2026-07-01T17:00:00.000Z"),
+    description: "",
+  };
+
+  it("(a) guardt de write op de exact geziene status (∈ {DRAFT, REJECTED})", async () => {
+    const { updatePerformance } = await import("@/lib/cascade/performance-commands");
+    await expect(updatePerformance(FREELANCER, "perf-subject", input)).resolves.toBeUndefined();
+
+    expect(performanceUpdateMany).toHaveBeenCalledTimes(1);
+    const call = performanceUpdateMany.mock.calls[0] as [{ where: Record<string, unknown> }];
+    expect(call[0].where).toEqual({ id: "perf-subject", status: "REJECTED" });
+  });
+
+  it("(b) TOCTOU: rij flipte in het race-venster naar SUBMITTED (count 0) → weiger, geen stille overschrijving", async () => {
+    // Pre-check zag REJECTED; tegen de tijd van de write is de rij al SUBMITTED (parallelle submit) →
+    // de compound-where matcht niets → count 0.
+    performanceUpdateMany.mockResolvedValue({ count: 0 });
+
+    const { updatePerformance } = await import("@/lib/cascade/performance-commands");
+    await expect(updatePerformance(FREELANCER, "perf-subject", input)).rejects.toThrow(
+      CascadeError,
+    );
+    await expect(updatePerformance(FREELANCER, "perf-subject", input)).rejects.toThrow(
+      "intussen door een andere actie gewijzigd",
+    );
+  });
+
+  it("(c) happy path: count 1 → de correctie landt zonder fout", async () => {
+    const { updatePerformance } = await import("@/lib/cascade/performance-commands");
+    await expect(updatePerformance(FREELANCER, "perf-subject", input)).resolves.toBeUndefined();
+    expect(performanceUpdateMany).toHaveBeenCalledTimes(1);
   });
 });

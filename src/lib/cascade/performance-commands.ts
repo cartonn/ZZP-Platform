@@ -233,11 +233,17 @@ export async function updatePerformance(
   await assertNotDisputed(perf.collaborationId);
   // Terminale-status-rem (symmetrisch met de forward-siblings, #825): een concept/afgekeurde prestatie
   // op een geannuleerde of afgeronde deal mag niet meer worden bijgewerkt — anders leeft er een
-  // aanpasbaar weespad naar (her)indiening op een dode samenwerking. Geen event/effect hier, dus enkel
-  // de pre-transactionele lees; de daaropvolgende submitPerformance draagt de volledige TOCTOU-grendel.
+  // aanpasbaar weespad naar (her)indiening op een dode samenwerking.
   await assertCollaborationNotTerminal(perf.collaborationId);
-  await prisma.performance.update({
-    where: { id: performanceId },
+  // Compound-guarded write (TOCTOU): de statuscheck hierboven leunt op de pre-transactionele lees
+  // (loadPerformance) — tussen die lees en deze write kan een parallelle actie de prestatie al hebben
+  // ingediend (REJECTED/DRAFT → SUBMITTED via submitPerformance). Zonder statusguard zou déze
+  // veld-write dan alsnog op een SUBMITTED-rij landen (uren/tarief/bedrag stil overschreven, zónder
+  // event, audit of her-notificatie — de opdrachtgever keurt vervolgens een bedrag goed dat hij nooit
+  // zag). We guarden daarom op de exact geziene status (∈ {DRAFT, REJECTED}); flipte de rij in het
+  // race-venster, dan count 0 → weiger. Zelfde patroon als de status-writes in apply.ts.
+  const { count } = await prisma.performance.updateMany({
+    where: { id: performanceId, status: perf.status },
     data: {
       type: input.type,
       hours: input.type === "HOURS" ? (input.hours ?? null) : null,
@@ -254,6 +260,11 @@ export async function updatePerformance(
       description: input.description ?? "",
     },
   });
+  if (count !== 1) {
+    throw new CascadeError(
+      "De prestatie is intussen door een andere actie gewijzigd. Ververs de pagina en probeer het opnieuw.",
+    );
+  }
 }
 
 /**
