@@ -794,6 +794,11 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
         collaboration: { select: { id: true } },
         job: { select: { title: true } },
         freelancer: { select: { user: { select: { name: true } } } },
+        // `acceptedAt` = de klok voor "wacht op een samenwerkingsvoorstel". Legacy-rijen (geaccepteerd
+        // vóór dit veld bestond) hebben `null` → val terug op `updatedAt` (voor een ACCEPTED-reactie
+        // zonder collaboration is de acceptatie doorgaans de laatste mutatie, dus een goede benadering).
+        acceptedAt: true,
+        updatedAt: true,
       },
       orderBy: { updatedAt: "asc" },
       take: MAX,
@@ -947,9 +952,14 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
       freelancerName: a.freelancer.user.name ?? "ZZP'er",
       jobTitle: a.job.title,
       hasCollaboration: a.collaboration != null,
+      // Fallback op updatedAt voor legacy-rijen zonder acceptedAt — nooit een null-klok.
+      acceptedAt: a.acceptedAt ?? a.updatedAt,
     })),
+    new Date(),
   ))
-    tasks.push(proposeCollaborationTask(p.applicationId, p.jobTitle, p.freelancerName));
+    tasks.push(
+      proposeCollaborationTask(p.applicationId, p.jobTitle, p.freelancerName, p.agingDays),
+    );
   const staleApplications = summarizeStaleClientApplications(
     staleCandidates.map((a) => ({
       status: a.status,

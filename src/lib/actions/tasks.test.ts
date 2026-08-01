@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { P } from "@/lib/next-actions";
 import { UNBILLED_AGING_DAYS } from "@/lib/unbilled-invoices";
+import { PROPOSAL_STALL_DAYS } from "@/lib/accepted-proposal";
 import {
   rankTasks,
   selectDashboardTasks,
@@ -349,6 +350,26 @@ describe("task builders", () => {
       staleApplicationsTask({ count: 1, oldestDays: 5 }).priority,
     );
     expect(task.priority).toBeLessThan(P.contractSign);
+  });
+
+  it("voorstel-nudge: verse acceptatie (< drempel) blijft op de vlakke ná-accept-band", () => {
+    const task = proposeCollaborationTask("app-7", "Wijkverpleegkundige", "Sanne de Vries", 1);
+    expect(task.priority).toBe(P.proposeCollaboration);
+    expect(task.subtitle).toBe(
+      "Je accepteerde de reactie op Wijkverpleegkundige — rond de samenwerking af",
+    );
+  });
+
+  it("voorstel-nudge: verouderde acceptatie (≥ drempel) escaleert naar de stalled-band + leeftijd-subtitel", () => {
+    const task = proposeCollaborationTask("app-7", "Wijkverpleegkundige", "Sanne de Vries", 6);
+    expect(task.priority).toBe(P.proposeCollaborationStalled);
+    expect(task.priority).toBeGreaterThan(P.proposeCollaboration);
+    expect(task.priority).toBeLessThan(P.contractSign);
+    expect(task.subtitle).toBe("Wijkverpleegkundige · al 6 dagen geaccepteerd — rond de hire af");
+    // Enkelvoud op één dag boven de drempel-bewoording (defensief, al is 1 < drempel).
+    expect(proposeCollaborationTask("a", "Opdracht", "X", PROPOSAL_STALL_DAYS).subtitle).toContain(
+      `al ${PROPOSAL_STALL_DAYS} dagen geaccepteerd`,
+    );
   });
 
   it("beoordelings-nudge: rustige link-taak naar de samenwerking, benoemt tegenpartij en venster", () => {

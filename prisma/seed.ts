@@ -800,6 +800,7 @@ async function main() {
     score: number;
     compliance: string;
     reason?: string; // gestructureerde afwijzingscode (alleen bij REJECTED)
+    acceptedAt?: Date; // moment van acceptatie (alleen bij ACCEPTED) — demonstreert het wacht-op-voorstel-signaal
   };
   const apps: App[] = [
     {
@@ -827,6 +828,9 @@ async function main() {
       job: "job-2",
       fk: "youssef",
       status: "ACCEPTED",
+      // Geaccepteerd, maar nog geen samenwerkingsvoorstel: ligt al 6 dagen (> PROPOSAL_STALL_DAYS) →
+      // toont de geëscaleerde "wacht op voorstel"-taak op /acties bij de opdrachtgever.
+      acceptedAt: daysFromNow(-6),
       motivation: "Ervaren met schaalbare Node.js-API's en AWS.",
       rate: 90,
       score: 90,
@@ -899,6 +903,7 @@ async function main() {
         matchScore: a.score,
         complianceSnapshot: a.compliance,
         rejectionReason: a.reason ?? null,
+        acceptedAt: a.acceptedAt ?? null,
       },
     });
   }

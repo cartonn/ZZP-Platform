@@ -54,6 +54,7 @@ export const P = {
   disputeOpen: 76, // open dispuut — werkproces bevroren (admin)
   contractSign: 72, // contract ter ondertekening — deblokkeert de samenwerking
   proposeCollaboration: 68, // geaccepteerde kandidaat wacht nog op een samenwerkingsvoorstel — rond de hire af
+  proposeCollaborationStalled: 69, // idem, maar de acceptatie ligt al ≥ PROPOSAL_STALL_DAYS zonder voorstel — de geaccepteerde ZZP'er hangt in limbo; net boven de verse "rond de hire af" (68) zodat de langst-wachtende hire binnen het cluster voorop komt, onder contractSign (72)
   credentialExpiredForCollab: 82, // vereist certificaat van een lopende samenwerking is REEDS verlopen — blokkeert de inzet nu (freelancer-spiegel van complianceRipple); urgenter dan afgewezen of binnenkort-verlopend
   credentialMissingForCollab: 81, // vereist (niet-verplicht) certificaat van een lopende samenwerking ONTBREEKT volledig (nooit aangeleverd/alleen concept) — acuut compliance-gat, freelancer-spiegel van complianceRipple "missing"; net onder REEDS-verlopen (dat leunde al op een bestaand exemplaar), boven afgewezen
   credentialExpiringForCollab: 75, // vereist certificaat van een lopende samenwerking verloopt binnenkort — urgenter dan een los verlopend certificaat
