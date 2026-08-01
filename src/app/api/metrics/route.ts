@@ -19,8 +19,10 @@
 // die de notification-retention-cron nog niet snoeide) en zzp_leads_retention_backlog (beslíste leads met
 // contact-PII ouder dan LEAD_RETENTION_DAYS die de lead-retention-cron nog niet snoeide — AVG-dataminimalisatie) en
 // zzp_health_incidents_ip_retention_backlog (beveiligingsincidenten ouder dan HEALTH_INCIDENT_IP_RETENTION_DAYS wier
-// bron-IP de health-incident-retention-cron nog niet redigeerde — AVG-minimalisatie/opslagbeperking) —
-// stille-faal-detectors die de heartbeat niet vangt.
+// bron-IP de health-incident-retention-cron nog niet redigeerde — AVG-minimalisatie/opslagbeperking) en
+// zzp_webhook_events_retention_backlog (webhook-ledgerrijen ouder dan WEBHOOK_EVENT_RETENTION_DAYS die de
+// webhook-event-retention-cron nog niet snoeide — GEEN PII: opslag-hygiëne/availability, de ledger groeit
+// anders onbeperkt door) — stille-faal-detectors die de heartbeat niet vangt.
 //
 // Beveiliging: dezelfde Bearer CRON_SECRET als de taak-/heartbeat-routes, fail-closed — geen
 // CRON_SECRET → 503, verkeerd token → 401. De uitvoer bevat NOOIT persoonsgegevens of secrets, alleen
@@ -45,6 +47,7 @@ import {
   leadRetentionDays,
   healthIncidentIpRetentionDays,
   messageRetentionDays,
+  webhookEventRetentionDays,
 } from "@/lib/config";
 import { auditRetentionCutoff } from "@/lib/audit-retention";
 import { applicationRetentionCutoff } from "@/lib/application-retention";
@@ -56,6 +59,8 @@ import { healthIncidentIpRetentionCutoff } from "@/lib/health-incident-retention
 import { prunableHealthIncidentIpWhere } from "@/lib/health-incident-retention-task";
 import { messageRetentionCutoff } from "@/lib/message-retention";
 import { prunableMessageWhere } from "@/lib/message-retention-task";
+import { webhookEventRetentionCutoff } from "@/lib/webhook-event-retention";
+import { prunableWebhookEventWhere } from "@/lib/webhook-event-retention-task";
 import { reportError } from "@/lib/observability/report";
 import type { CronFreshness } from "@/lib/observability/cron-freshness";
 import {
@@ -95,6 +100,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let leadsRetentionBacklog = 0;
   let healthIncidentsIpRetentionBacklog = 0;
   let messagesRetentionBacklog = 0;
+  let webhookEventsRetentionBacklog = 0;
   if (dbReachable) {
     try {
       verificationQueue = await prisma.credential.count({ where: { status: "SUBMITTED" } });
@@ -247,6 +253,23 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
     }
+    try {
+      // Webhook-ledgerrijen (ProcessedWebhookEvent) ouder dan het WEBHOOK_EVENT_RETENTION_DAYS-venster die
+      // de webhook-event-retention-cron nog niet snoeide: werk dat die cron had moeten doen. Hergebruikt
+      // exact `prunableWebhookEventWhere` (dezelfde bron van waarheid als de taak zelf) zodat de gauge de
+      // echte cron-backlog telt en niet kan driften. Anders dan de andere retentie-backlogs is dit GEEN
+      // AVG-kwestie (de ledger draagt geen PII — alleen een opaque providerreferentie + status) maar
+      // opslag-hygiëne: staat retentie uit (cutoff === null — de pilot-default), dan is er per definitie
+      // geen achterstand → 0.
+      const cutoff = webhookEventRetentionCutoff(webhookEventRetentionDays(), now);
+      if (cutoff) {
+        webhookEventsRetentionBacklog = await prisma.processedWebhookEvent.count({
+          where: prunableWebhookEventWhere(cutoff),
+        });
+      }
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
@@ -275,6 +298,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     leadsRetentionBacklog,
     healthIncidentsIpRetentionBacklog,
     messagesRetentionBacklog,
+    webhookEventsRetentionBacklog,
   };
 }
 

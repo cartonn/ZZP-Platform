@@ -21,6 +21,15 @@ export interface WebhookEventRetentionResult {
   cutoff: string | null;
 }
 
+/**
+ * De `where`-conditie voor snoeibare webhook-ledgerrijen: rijen ouder dan de cutoff. Eén bron van
+ * waarheid, gedeeld door de taak (die ze verwijdert) én de stille-faal-backlog-gauge op /api/metrics
+ * (die ze telt), zodat de gauge niet kan driften t.o.v. wat de cron daadwerkelijk snoeit.
+ */
+export function prunableWebhookEventWhere(cutoff: Date) {
+  return { createdAt: { lt: cutoff } };
+}
+
 // Verwijder in begrensde batches i.p.v. één grote deleteMany: houdt de transactie/lock kort op een
 // mogelijk grote productietabel en voorkomt geheugendruk. Prisma's deleteMany kent geen limit, dus we
 // selecteren id's per batch en verwijderen die set (werkt op SQLite én PostgreSQL).
@@ -44,7 +53,7 @@ export async function runWebhookEventRetentionTask(opts: {
   let pruned = 0;
   for (let batch = 0; batch < MAX_BATCHES; batch++) {
     const stale = await prisma.processedWebhookEvent.findMany({
-      where: { createdAt: { lt: cutoff } },
+      where: prunableWebhookEventWhere(cutoff),
       select: { id: true },
       take: BATCH_SIZE,
     });

@@ -48,7 +48,10 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { runWebhookEventRetentionTask } from "@/lib/webhook-event-retention-task";
+import {
+  runWebhookEventRetentionTask,
+  prunableWebhookEventWhere,
+} from "@/lib/webhook-event-retention-task";
 
 const NOW = new Date("2026-07-18T12:00:00.000Z");
 
@@ -136,5 +139,14 @@ describe("runWebhookEventRetentionTask", () => {
     expect(res.retentionDays).toBe(30);
     expect(res.pruned).toBe(2);
     expect(store.ledger.filter((r) => r.id.startsWith("recent"))).toHaveLength(2);
+  });
+});
+
+describe("prunableWebhookEventWhere", () => {
+  it("bouwt de gedeelde snoei-where (rijen ouder dan de cutoff) — één bron van waarheid met de gauge", () => {
+    const cutoff = new Date("2026-01-01T00:00:00.000Z");
+    // Exact de vorm die zowel de taak (findMany) als de /api/metrics-backlog-gauge (count) gebruiken;
+    // ze mogen niet uit elkaar lopen, anders telt de gauge iets anders dan de cron snoeit.
+    expect(prunableWebhookEventWhere(cutoff)).toEqual({ createdAt: { lt: cutoff } });
   });
 });
