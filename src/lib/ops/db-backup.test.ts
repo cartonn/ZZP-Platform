@@ -5,11 +5,14 @@ import {
   buildBackupFilename,
   buildPgDumpArgs,
   buildPgRestoreArgs,
+  buildPgRestoreListArgs,
   isBackupFilename,
   isPostgresUrl,
+  isValidArchiveListing,
   parseKeepCount,
   redactDatabaseUrl,
   selectBackupsToPrune,
+  shouldVerifyBackup,
   UnsafeRestoreTargetError,
   UnsupportedDatabaseError,
 } from "@/lib/ops/db-backup";
@@ -148,6 +151,64 @@ describe("buildPgRestoreArgs", () => {
       "postgres://host/db",
       "in.dump",
     ]);
+  });
+});
+
+describe("buildPgRestoreListArgs", () => {
+  it("leest alleen de inhoudsopgave, zonder --dbname of schrijfactie", () => {
+    expect(buildPgRestoreListArgs("out.dump")).toEqual(["--list", "out.dump"]);
+  });
+});
+
+describe("isValidArchiveListing", () => {
+  it("herkent een geldige TOC met minstens één entry-regel", () => {
+    const listing = [
+      ";",
+      "; Archive created at 2026-07-10 15:02:48 UTC",
+      ";     dbname: app",
+      ";",
+      "215; 1259 16385 TABLE public User owner",
+      "216; 1259 16390 TABLE public Job owner",
+    ].join("\n");
+    expect(isValidArchiveListing(listing)).toBe(true);
+  });
+
+  it("wijst een leeg/whitespace/alleen-commentaar (afgekapt) archief af", () => {
+    expect(isValidArchiveListing("")).toBe(false);
+    expect(isValidArchiveListing(undefined)).toBe(false);
+    expect(isValidArchiveListing(null)).toBe(false);
+    expect(isValidArchiveListing("   \n  \n")).toBe(false);
+    expect(isValidArchiveListing("; alleen een commentaarkop\n;\n")).toBe(false);
+    expect(isValidArchiveListing("   ; ingesprongen commentaar telt ook niet")).toBe(false);
+  });
+});
+
+describe("shouldVerifyBackup", () => {
+  it("verifieert standaard (een onbeproefde back-up is geen back-up)", () => {
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: undefined })).toBe(true);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "" })).toBe(true);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "  " })).toBe(true);
+  });
+
+  it("zet uit via de --no-verify-vlag", () => {
+    expect(shouldVerifyBackup({ noVerifyFlag: true, skipVerifyEnv: undefined })).toBe(false);
+  });
+
+  it("zet uit via een expliciet bevestigende BACKUP_SKIP_VERIFY-waarde", () => {
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "1" })).toBe(false);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "true" })).toBe(false);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "yes" })).toBe(false);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "on" })).toBe(false);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "TRUE" })).toBe(false);
+  });
+
+  it("blijft aan bij een uit-achtige of dubbelzinnige waarde (geen footgun)", () => {
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "false" })).toBe(true);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "0" })).toBe(true);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "FALSE" })).toBe(true);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "no" })).toBe(true);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "off" })).toBe(true);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "onzin" })).toBe(true);
   });
 });
 
