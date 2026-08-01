@@ -459,6 +459,17 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
    veilig geklemd naar **minstens 30 dagen** zodat het venster boven het provider-retry-/resend-venster
    blijft (anders zou de replay-bescherming heropenen). Resterend mensenwerk: **niets** — optioneel
    `WEBHOOK_EVENT_RETENTION_DAYS` (bv. `90`) zetten zodra recurring billing het volume opvoert.
+   **Code-kant GEDAAN (2026-08-01) — stille-faal-backlog-gauge:** `/api/metrics` heeft nu
+   `zzp_webhook_events_retention_backlog` (aantal `ProcessedWebhookEvent`-rijen ouder dan het
+   geconfigureerde venster die de `webhook-event-retention`-cron nog niet snoeide). Anders dan de andere
+   retentie-backlog-gauges is dit **geen AVG-kwestie** (de ledger draagt geen PII — alleen een opaque
+   providerreferentie + status) maar **opslag-hygiëne/availability**: de ledger groeit monotoon met elk
+   betaal-webhook, en de cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn
+   verwerkte — blijft dit getal oplopen terwijl de heartbeat "vers" is, dan groeit de tabel/index onbeperkt
+   door ondanks het gezette venster. Gauge hergebruikt exact `prunableWebhookEventWhere` (dezelfde bron van
+   waarheid als de taak) → geen drift; retentie UIT (de pilot-default) → gauge `0`. Drop-in alert
+   `ZzpWebhookEventsRetentionBacklog` in `docs/observability/alerts.yml`, vastgeklonken aan de drift-gate.
+   Resterend mensenwerk: **niets extra**.
 
    **Code-kant GEDAAN (2026-07-16) — betaalprovider-connectiviteitszelftest:** zodra je de
    API-sleutels hierboven hebt geplakt, kun je op `/admin/systeemstatus` (admin-only) de nieuwe

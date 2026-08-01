@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — webhook-event-ledger retentie-backlog gauge (`/api/metrics`, availability) (2026-08-01, PR #1024)** —
+> laatste "verwijder-ouder-dan-venster"-retentie-gat in de stille-faal-detectorlaag gesloten. Nieuwe gauge
+> `zzp_webhook_events_retention_backlog` telt `ProcessedWebhookEvent`-rijen ouder dan `WEBHOOK_EVENT_RETENTION_DAYS`
+> die de `webhook-event-retention`-cron nog niet snoeide. Anders dan de 6 bestaande backlog-gauges **niet
+> AVG-gedreven maar availability-gedreven**: de ledger draagt geen PII (opaque providerreferentie + status) maar
+> groeit monotoon met elk betaal-webhook — stalt de cron stil terwijl een venster gezet is, dan bloeit tabel/index
+> onbeperkt op (schijf-/querylast). Nieuwe geëxporteerde `prunableWebhookEventWhere(cutoff)` als enige bron van
+> waarheid, gedeeld door taak (delete) + gauge (count) → geen drift; retentie UIT (pilot-default) → 0. Read-only
+> count, faalt veilig, geen schema/PII. Drop-in alert `ZzpWebhookEventsRetentionBacklog` (`>0`, `for:30h`) +
+> onderhouds-inhibitie, vastgeklonken aan beide drift-gates. +6 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — geaccepteerde kandidaat wacht te lang op samenwerkingsvoorstel escaleert op /acties (2026-08-01, PR #1015)** —
 > de `proposeCollaboration`-taak (een ACCEPTED-reactie zonder samenwerkingsvoorstel) stond op een **vlakke** prioriteit
 > (`P.proposeCollaboration` = 68) zonder leeftijdsbesef. Een geaccepteerde ZZP'er die dagen op het beloofde voorstel wacht

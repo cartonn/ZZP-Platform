@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-01 — Prod-rijpheid: webhook-event-ledger retentie-backlog gauge (`/api/metrics`, availability)
+
+**Wat:** het laatste "verwijder-ouder-dan-venster"-retentie-gat in de stille-faal-detectorlaag van
+`/api/metrics` gesloten. De 6 bestaande backlog-gauges (audit/reacties/notificaties/leads/health-incident-IP/
+berichten) zijn PII-gedreven; de webhook-event-ledger (`ProcessedWebhookEvent`) had er nog geen. Nieuwe gauge
+**`zzp_webhook_events_retention_backlog`** telt ledgerrijen ouder dan `WEBHOOK_EVENT_RETENTION_DAYS` die de
+`webhook-event-retention`-cron nog niet snoeide. Anders dan de andere is deze **niet AVG- maar
+availability-gedreven**: de ledger draagt geen PII (opaque providerreferentie + status), maar groeit monotoon
+met elk betaal-webhook — stalt de cron stil terwijl een venster gezet is, dan bloeit tabel/index onbeperkt op
+(schijf-/querylast) zonder dat iets dat toont. De cron-heartbeat bewijst alleen dát de run afrondde, niet dát
+'ie de snoei-pijplijn verwerkte.
+
+**Hoe (geen drift):** nieuwe geëxporteerde `prunableWebhookEventWhere(cutoff)` in
+`webhook-event-retention-task.ts` is nu de **enige bron van waarheid**, gedeeld door de taak (findMany/delete)
+én de gauge (count) — kan niet uit elkaar lopen. Retentie UIT (de pilot-default) → cutoff `null` → gauge `0`.
+Read-only `count`, faalt veilig (nooit een 500), geen schemawijziging, geen PII. Drop-in alert
+**`ZzpWebhookEventsRetentionBacklog`** (`> 0`, `for: 30h`) in `docs/observability/alerts.yml`, toegevoegd aan de
+onderhouds-inhibitie in `alertmanager.yml` — beide vastgeklonken aan de twee drift-gates
+(`alerts-rules.test.ts` + `monitoring-bundle.test.ts`).
+
+**Bestanden:** `src/lib/observability/metrics.ts` (input-veld + gauge), `src/app/api/metrics/route.ts`
+(collectie), `src/lib/webhook-event-retention-task.ts` (helper), `src/lib/observability/alerts-rules.ts`
+(SAMPLE_INPUT), `docs/observability/alerts.yml` + `alertmanager.yml`. **Tests:** +6 (metrics map/clamp/volgorde/
+ongezond + `prunableWebhookEventWhere`). Gate: typecheck, lint, test (5548→5554), build, prettier (hele repo) groen.
+
 ## 2026-08-01 — Security/privacy-audit ronde 2026-08-01b: audit-trail-completeness op `deleteWorkExperience` (CWE-778)
 
 **Wat:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende hoog-risico

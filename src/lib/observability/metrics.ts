@@ -158,6 +158,20 @@ export interface MetricsInput {
    * default), dan is er per definitie geen achterstand en is deze gauge `0`.
    */
   messagesRetentionBacklog: number;
+  /**
+   * Aantal webhook-ledgerrijen (ProcessedWebhookEvent) ouder dan het geconfigureerde
+   * `WEBHOOK_EVENT_RETENTION_DAYS`-venster die de `webhook-event-retention`-cron nog niet snoeide — werk
+   * dat die cron had moeten doen. Dezelfde stille-faal-detector-klasse als de andere retentie-backlogs,
+   * maar — anders dan die — NIET privacygedreven: de ledgerrijen dragen geen persoonsgegevens (alleen een
+   * opaque providerreferentie + status). Dit is opslag-hygiëne/availability: de ledger groeit monotoon met
+   * elk betaal-webhook-event, en zodra recurring billing het volume opvoert zet een operator een
+   * snoeivenster. De cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn
+   * verwerkte; blijft dit getal oplopen terwijl de heartbeat "vers" is, dan groeit de tabel/index onbeperkt
+   * door (schijf-/querylast) ondanks het gezette venster, zonder dat iets dat toont. Staat retentie UIT
+   * (venster leeg/0 = onbeperkt bewaren, de pilot-default), dan is er per definitie geen achterstand en is
+   * deze gauge `0`.
+   */
+  webhookEventsRetentionBacklog: number;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -297,6 +311,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal berichten (Message, chatinhoud in body) ouder dan het geconfigureerde MESSAGE_RETENTION_DAYS-venster (en niet gekoppeld aan een lopende samenwerking) die de message-retention-cron nog niet snoeide (0 als retentie uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → berichtinhoud bewaard over de beloofde termijn heen, AVG art. 5(1)(e)).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.messagesRetentionBacklog)),
+    },
+    {
+      name: "zzp_webhook_events_retention_backlog",
+      help: "Aantal webhook-ledgerrijen (ProcessedWebhookEvent, geen PII — opaque providerreferentie + status) ouder dan het geconfigureerde WEBHOOK_EVENT_RETENTION_DAYS-venster die de webhook-event-retention-cron nog niet snoeide (0 als retentie uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → de ledger groeit onbeperkt door ondanks het gezette venster: schijf-/querylast, geen AVG-kwestie).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.webhookEventsRetentionBacklog)),
     },
   ];
 }

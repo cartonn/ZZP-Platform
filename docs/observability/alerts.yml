@@ -189,6 +189,20 @@ groups:
           summary: "Berichten-retentie-snoei verwerkt niets (AVG-dataminimalisatie)"
           description: "Er staan al > één cron-interval berichten ouder dan het geconfigureerde MESSAGE_RETENTION_DAYS-venster (niet gekoppeld aan een lopende samenwerking) die niet zijn gesnoeid (zzp_messages_retention_backlog). De message-retention-cron rondt af maar verwijdert niets → berichtinhoud (Message.body) wordt over de beloofde bewaartermijn heen bewaard (AVG art. 5(1)(e)). Controleer de message-retention-taak."
 
+      - alert: ZzpWebhookEventsRetentionBacklog
+        # GEEN AVG-kwestie (de webhook-ledgerrijen dragen geen PII — alleen een opaque providerreferentie +
+        # status) maar opslag-hygiëne/availability: de ProcessedWebhookEvent-ledger groeit monotoon met elk
+        # betaal-webhook-event. Een oplopende backlog terwijl de heartbeat "vers" is betekent dat de ledger
+        # onbeperkt doorgroeit ondanks het gezette venster (schijf-/querylast). Alleen actief zodra
+        # WEBHOOK_EVENT_RETENTION_DAYS gezet is (anders altijd 0).
+        expr: zzp_webhook_events_retention_backlog > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Webhook-event-ledger-snoei verwerkt niets (opslag-hygiëne)"
+          description: "Er staan al > één cron-interval webhook-ledgerrijen (ProcessedWebhookEvent) ouder dan het geconfigureerde WEBHOOK_EVENT_RETENTION_DAYS-venster die niet zijn gesnoeid (zzp_webhook_events_retention_backlog). De webhook-event-retention-cron rondt af maar verwijdert niets → de idempotentie-ledger groeit onbeperkt door ondanks het gezette venster (schijf-/index-/querylast; geen PII). Controleer de webhook-event-retention-taak."
+
   - name: zzp-platform-verificatie-sla
     rules:
       # Verificatie is de kern-differentiatie. Twee complementaire signalen: te veel wachtenden (diepte)
