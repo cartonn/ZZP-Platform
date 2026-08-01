@@ -273,12 +273,15 @@ WINDOW_DAYS = 30`) rangschikt op `/acties`/badge/rail **boven** een **reeds-vers
 >
 > **GEPARKEERD (geen fix deze run) — speculatief, niet-bevestigd bereikbaar:**
 >
-> - **`credentialExpiredForCollab`/franchiser-roster-aggregaat kan een superseded verlopend cert meetellen.**
->   De franchiser-dashboard-query (`franchiserTasks`, ~r958) telt tenant-ZZP'ers met een VERIFIED-expiring
->   cert zonder per-type supersede-check. Semantiek verschilt (roster-planning i.p.v. self-nudge) en het is
->   een DB-query — losstaand van deze fix; LOW, defense-in-depth. Repro nog niet bevestigd (geen fixture met
->   dubbel-type VERIFIED-certs per tenant-ZZP'er). Bij een volgende run: verifiëren + evt. dezelfde helper
->   toepassen op de aggregatie.
+> - ~~**`credentialExpiredForCollab`/franchiser-roster-aggregaat kan een superseded verlopend cert meetellen.**~~
+>   **GEDAAN (2026-08-01, PR #1026):** de /acties-bron (`franchiserTasks` → `rosterExpiringByProfile`) sloot
+>   superseded exemplaren al uit, maar de `/franchise/zzpers`-**nav-badge** (`signals.ts`, `expiringProfiles`)
+>   telde nog via een rauwe `expiresAt: { gte, lte }`-query zónder supersede-check → de badge over-rapporteerde
+>   t.o.v. /acties (een ZZP'er die vernieuwde door een nieuw cert van hetzelfde type aan te maken telde alsnog
+>   mee). **Fix:** de badge draait nu exact dezelfde twee-staps, supersede-aware `rosterExpiringByProfile`-
+>   aggregatie (kandidaat-scope → volledig VERIFIED-dossier per kandidaat → uitsluiting superseded) → badge =
+>   /acties, één bron van waarheid, kan niet meer driften. +2 regressietests (superseded telt niet; gemengd
+>   echt+superseded → count 1). Gate: typecheck, lint, test (5568), build, prettier groen.
 >
 > ---
 
