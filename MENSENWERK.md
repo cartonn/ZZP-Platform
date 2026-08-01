@@ -915,6 +915,12 @@ kern `src/lib/ops/db-backup.ts`): custom-format dump met retentie-snoei, weigert
 `DATABASE_URL`, redigeert het wachtwoord in logs, en weigert blind over de bron-/productie-database te
 herstellen (kies een leeg doel of geef bewust `--force`). Dumps landen in `backups/` (in `.gitignore`).
 De **automatische** dagelijkse back-ups blijven verantwoordelijkheid van de databasedienst.
+**Code-kant GEDAAN (2026-08-01) — integriteitsverificatie vóór retentie-snoei:** `npm run db:backup`
+leest ná de dump de inhoudsopgave met `pg_restore --list` (zonder te herstellen) en snoeit de retentie
+**pas** als het archief geldig/volledig blijkt. Een corrupte/afgekapte dump (bv. schijf vol halverwege)
+wordt verwijderd en de bestaande back-ups blijven ongemoeid — zodat een mislukte run nooit stil je goede
+back-ups wegsnoeit ("een onbeproefde back-up is geen back-up"). Uit te zetten met `--no-verify` /
+`BACKUP_SKIP_VERIFY=1` als `pg_restore` niet op het systeem staat. Resterend mensenwerk: **niets extra**.
 
 **Code-kant GEDAAN (11-7-2026) — onderhoudsmodus (operationele noodrem):** je kunt het platform nu
 tijdens een geplande migratie, een database-herstel (RUNBOOK §5) of een incident (§6) tijdelijk

@@ -143,10 +143,18 @@ niet-PostgreSQL-`DATABASE_URL`, logt nooit het wachtwoord en snoeit oude dumps.
 npm run db:backup                       # dump naar ./backups (of $BACKUP_DIR), behoud $BACKUP_RETENTION (14)
 npm run db:backup -- --dir /pad --keep 7
 npm run db:backup -- --dry-run          # toon wat er zou gebeuren, schrijf niets
+npm run db:backup -- --no-verify        # sla de integriteitscheck over (of BACKUP_SKIP_VERIFY=1)
 ```
 
 Onder water: `pg_dump "$DATABASE_URL" --no-owner --no-privileges --format=custom --file=backups/zzp-backup-<UTC>.dump`.
 De map `backups/` staat in `.gitignore` (dumps kunnen productiedata bevatten — nooit committen).
+
+**Integriteitsverificatie (standaard AAN):** ná de dump leest de helper de inhoudsopgave met
+`pg_restore --list <bestand>` (zonder iets te herstellen) en snoeit de retentie **pas** als het
+archief geldig/volledig blijkt. Een corrupte/afgekapte dump (bv. schijf vol halverwege) wordt
+verwijderd en de bestaande back-ups blijven **ongemoeid** — zo kan een mislukte run nooit stil je
+goede back-ups wegsnoeien ("een onbeproefde back-up is geen back-up"). Zet de check uit met
+`--no-verify` of `BACKUP_SKIP_VERIFY=1` als `pg_restore` niet op het systeem staat.
 
 **Herstel (op een lege/nieuwe database — nooit blind over productie heen):** de helper weigert
 standaard over `DATABASE_URL` (de bron) te herstellen; kies een leeg doel of geef bewust `--force`.

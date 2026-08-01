@@ -111,6 +111,43 @@ export function buildPgDumpArgs(params: { url: string; file: string }): string[]
 }
 
 /**
+ * pg_restore --list-argumenten: leest alléén de inhoudsopgave (TOC) van een custom-format archief,
+ * zónder iets te herstellen (geen `--dbname`, geen schrijfactie). Wordt gebruikt als
+ * integriteitscheck: een geldig, niet-afgekapt archief levert een leesbare TOC op.
+ */
+export function buildPgRestoreListArgs(file: string): string[] {
+  return ["--list", file];
+}
+
+/**
+ * Beoordeelt of de uitvoer van `pg_restore --list` een geldig, niet-leeg custom-format archief
+ * beschrijft. De TOC begint met commentaarregels (`;`) gevolgd door minstens één echte
+ * TOC-entry-regel (bv. `215; 1259 16385 TABLE public "User" owner`). Een afgekapte/corrupte of lege
+ * dump levert géén enkele niet-commentaar-regel op → ongeldig. Puur, zodat de gevaarlijke
+ * "is deze back-up bruikbaar?"-beslissing deterministisch te testen is.
+ */
+export function isValidArchiveListing(output: string | undefined | null): boolean {
+  if (!output) return false;
+  return output.split("\n").some((line) => line.trim() !== "" && !line.trimStart().startsWith(";"));
+}
+
+/**
+ * Bepaalt of de zojuist geschreven back-up geverifieerd moet worden vóór de retentie-snoei.
+ * Standaard AAN (een onbeproefde back-up is geen back-up). Bewust uitzetten kan via de CLI-vlag
+ * `--no-verify` of `BACKUP_SKIP_VERIFY` (elke niet-lege, niet-"false"/"0"-waarde telt als aan) —
+ * bv. wanneer `pg_restore` niet op het systeem staat.
+ */
+export function shouldVerifyBackup(params: {
+  noVerifyFlag: boolean;
+  skipVerifyEnv: string | undefined | null;
+}): boolean {
+  if (params.noVerifyFlag) return false;
+  const raw = params.skipVerifyEnv?.trim().toLowerCase();
+  if (raw && raw !== "false" && raw !== "0") return false;
+  return true;
+}
+
+/**
  * pg_restore-argumenten: schoon herstel (`--clean --if-exists`) in de doel-database. `--dbname`
  * met de URL wijst pg_restore rechtstreeks naar de database (geen losse host/port-vlaggen nodig).
  */

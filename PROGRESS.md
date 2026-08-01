@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-01 — Prod-rijpheid: back-up-integriteitsverificatie vóór retentie-snoei (PR #1017)
+
+**Wat:** `npm run db:backup` (`scripts/backup-db.ts`) snoeide oude back-ups **onvoorwaardelijk** ná de dump,
+zonder te verifiëren dat de nieuwe dump een geldig, niet-afgekapt archief is. Bij een corrupte dump (schijf vol
+halverwege, e.d.) werd de kapotte back-up bewaard terwijl goede back-ups werden weggesnoeid — "een onbeproefde
+back-up is geen back-up" (RUNBOOK §5). Nu leest de helper ná de dump de inhoudsopgave met `pg_restore --list`
+(zonder te herstellen) en snoeit **pas** bij een geldig archief; faalt de check, dan wordt de kapotte dump
+verwijderd en blijft de retentie ongemoeid. Opt-out via `--no-verify` / `BACKUP_SKIP_VERIFY=1` (bv. wanneer
+`pg_restore` niet op het systeem staat). Ontbreekt `pg_restore`, dan faalt de run luid (dump behouden, niets
+gesnoeid) i.p.v. stil door te snoeien.
+
+**Bestanden:** `src/lib/ops/db-backup.ts` (+`buildPgRestoreListArgs`, `isValidArchiveListing`,
+`shouldVerifyBackup`), `scripts/backup-db.ts` (verify-stap vóór prune), `src/lib/ops/db-backup.test.ts`
+(+16 tests → 31), `docs/RUNBOOK.md` §5, `MENSENWERK.md` §11.
+**Tests:** db-backup 31 passed. Pure kern getest; script doet enkel de child-process-uitvoering. Server-side
+waarheid ongewijzigd, geen nieuw auth-/mutatie-oppervlak, geen secrets in logs. Volledige gate + CI-poort: zie PR.
+
 ## 2026-08-01 — Security/Privacy-audit: `Expense.description`-erasure (AVG art. 17) OPGELOST
 
 **Wat:** adversariële security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits op niet-
