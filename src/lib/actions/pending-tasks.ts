@@ -1258,6 +1258,13 @@ async function adminTasks(): Promise<PendingTask[]> {
     supportTickets,
     openHandoffs,
   ] = await Promise.all([
+    // Deterministische `orderBy` (oudst eerst) is verplicht náást `take: MAX`: zonder expliciete
+    // ordering garandeert Prisma geen rijvolgorde, dus wélke MAX-van-N rijen terugkomen is arbitrair
+    // en kan per request verschuiven. De nav-badges (signals.ts) tellen deze wachtrijen exact/onbegrensd
+    // en claimen gelijkheid met /acties; zonder deze ordering valt zodra een wachtrij >MAX groeit een
+    // concrete, actie-behoevende rij willekeurig weg — een "ontbrekende taak" die de badge tegenspreekt.
+    // Zelfde bug-klasse als de run-61-fix (franchiser acute-onbezet undercount); consistent met de
+    // zuster-queries (noShowReports/supportTickets/openHandoffs) verderop in deze Promise.all.
     prisma.credential.findMany({
       where: { status: "SUBMITTED" },
       select: {
@@ -1265,21 +1272,25 @@ async function adminTasks(): Promise<PendingTask[]> {
         title: true,
         freelancerProfile: { select: { user: { select: { name: true } } } },
       },
+      orderBy: { createdAt: "asc" },
       take: MAX,
     }),
     prisma.user.findMany({
       where: { status: "PENDING" },
       select: { id: true, name: true },
+      orderBy: { createdAt: "asc" },
       take: MAX,
     }),
     prisma.collaboration.findMany({
       where: { disputedAt: { not: null } },
       select: { id: true, job: { select: { title: true } } },
+      orderBy: { createdAt: "asc" },
       take: MAX,
     }),
     prisma.user.findMany({
       where: { deletionRequestedAt: { not: null }, anonymizedAt: null, role: { not: "ADMIN" } },
       select: { id: true, name: true },
+      orderBy: { createdAt: "asc" },
       take: MAX,
     }),
     // No-show-meldingen die op een oordeel wachten (gegrond/ongegrond).

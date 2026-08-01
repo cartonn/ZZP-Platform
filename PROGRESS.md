@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-01 — Persona-sweep run 64: TOCTOU-guard op modelovereenkomst-vorm (Wet-DBA) + deterministische admin-wachtrij-ordering
+
+**Wat:** kritische-gebruiker-sweep over alle vier rollen (DOEL 1/1b/2). Drie parallelle Opus-audits
+(authz/IDOR/cross-tenant + document-privacy → schoon; financiële/status-integriteit → 1; next-action →
+
+1. - live Playwright-sweep (28 checks, 0 fails). Twee bereikbare defecten gefixt:
+
+1) **HIGH (status-/legale integriteit):** `setAgreementTypeAction`
+   (`src/app/(protected)/samenwerkingen/[id]/actions.ts`) schreef het Wet-DBA `agreementType` met een
+   ongeguarde `update({where:{id}})` ná een niet-transactionele pre-lees van de teken-timestamps. In het
+   TOCTOU-venster kon een parallelle `signModelAgreementAction` tekenen → de handtekening hing stil aan
+   een ánder overeenkomsttype dan getekend (dossier-corruptie; `dba-audit.ts` leunt op type + timestamps
+   samen). Fix: compound-guarded `updateMany({where:{id, ...beide-timestamps-null}})` + count-gate. +3
+   tests (`agreement-type-toctou.test.ts`).
+2) **MED (next-action-consistentie):** vier begrensde admin-wachtrijen in `adminTasks()`
+   (`src/lib/actions/pending-tasks.ts`) draaiden `take: 50` zonder `orderBy` → niet-deterministische
+   undercount op /acties zodra een wachtrij >50 groeit, terwijl de nav-badges exact/onbegrensd tellen.
+   Fix: `orderBy: { createdAt: "asc" }` op alle vier. +1 test (`pending-tasks-admin-ordering.test.ts`).
+
+**Gate:** typecheck ✓, lint ✓, test ✓ (527 files / 5542), build ✓, prettier ✓. Backlog bijgewerkt.
+
 ## 2026-08-01 — Vertrouwen: platform-ervaring (afgeronde klussen) als kandidaat-signaal (opdrachtgever, PR #1021)
 
 **Wat:** de platform-brede staat van dienst (`trackRecordHighlights` — afgeronde klussen) toonde al op

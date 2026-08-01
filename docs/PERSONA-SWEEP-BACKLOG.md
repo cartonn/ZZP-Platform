@@ -1,5 +1,48 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-01 (run 64) · **main-commit basis:** `748dc88a`
+> **Uitkomst:** **2 bereikbare defecten GEVONDEN + GEFIXT** (status-/legale integriteit HIGH +
+> next-action-consistentie MED). Drie parallelle Opus-audits (authz/IDOR/cross-tenant + document-
+> privacy → **schoon, niets nieuws**; financiële/status-integriteit → **1 gevonden**;
+> next-action-correctheid → **1 gevonden**) + live Playwright/Chromium-sweep over alle vier rollen
+> (28 checks, 0 fails: DOEL 1 dashboards + /acties renderen; DOEL 2 privilege-escalatie → redirect
+> naar /dashboard; junk/IDOR/SQLi/path-traversal-id's → soft-404/404, nooit 500; unauth → /login).
+>
+> 1. **GEFIXT — HIGH (DOEL 2, verboden veld-overschrijving via TOCTOU op de modelovereenkomst-vorm,
+>    Wet-DBA integriteit):** `setAgreementTypeAction` (`src/app/(protected)/samenwerkingen/[id]/actions.ts`)
+>    schreef `agreementType` (het type Wet-DBA modelovereenkomst) met een **ongeguarde**
+>    `prisma.collaboration.update({ where: { id } })`, ná een niet-transactionele pre-lees van de teken-
+>    timestamps (`agreementFreelancerSignedAt`/`agreementClientSignedAt`). De pre-lees is exact de
+>    invariant die de actie belooft te bewaken ("vorm mag alleen wijzigen zolang niemand tekende"). In
+>    het TOCTOU-venster kan een parallelle `signModelAgreementAction` (dubbele tab / gelijktijdige
+>    partij) een handtekening zetten tussen de lees en de write; de blinde write landde dan alsnog op de
+>    al-getekende rij → de handtekening hing **stil aan een ánder overeenkomsttype** dan getoond/
+>    getekend. `src/lib/dba-audit.ts` leidt de misclassificatie-/compliance-risico's af uit
+>    `agreementType` + de teken-timestamps sámen → dossier-corruptie op een legaal-significante rij.
+>    Schending CLAUDE.md regel 2/3 (compound-guarded write; server-side waarheid). Exact de TOCTOU-klasse
+>    die de rest van de cascade + de cron-taken al hadden (#1006/#1007/#1014/#1018/#1019) — de laatste
+>    ongeguarde sibling. **Fix:** compound-guarded `updateMany({ where: { id,
+agreementFreelancerSignedAt: null, agreementClientSignedAt: null } })` + count-gate (0 →
+>    geweigerd, geen stille overschrijving); de pre-lees blijft als snelle UX-fout + ownership/anti-
+>    oracle-guard. +3 regressietests (guard-where op beide-null; TOCTOU count 0 → weiger; vroege
+>    weigering zonder write bij al-getekend). Gate: typecheck, lint, test, build, prettier groen.
+> 2. **GEFIXT — MED (DOEL 1b, niet-deterministische undercount op /acties — admin-wachtrijen):** vier
+>    begrensde admin-queries in `adminTasks()` (`src/lib/actions/pending-tasks.ts`: SUBMITTED-
+>    verificaties, PENDING-gebruikers, open disputen, AVG-verwijderverzoeken) draaiden met `take: MAX`
+>    (50) **zonder `orderBy`**. Prisma garandeert zonder expliciete ordering geen rijvolgorde → wélke
+>    50-van-N rijen /acties (+ dashboard-rail + `pendingTaskCount`-badge) toont is arbitrair en kan per
+>    request verschuiven. De nav-badges (`signals.ts`) tellen deze wachtrijen **exact/onbegrensd** en
+>    claimen expliciet gelijkheid met /acties ("symmetrisch … zodat badge en /acties gelijk tellen").
+>    Zodra één wachtrij > 50 groeit (aannemelijk voor de SUBMITTED-verificatiewachtrij, de kern-
+>    differentiatie) valt een concrete, actie-behoevende rij willekeurig weg → een "ontbrekende taak"
+>    die de badge tegenspreekt; welke ontbreekt is niet-deterministisch. Exact de bug-klasse van de
+>    run-61-fix (franchiser acute-onbezet undercount) en inconsistent met de zuster-queries in dezelfde
+>    `Promise.all` (`noShowReports`/`supportTickets`/`openHandoffs` hébben al `orderBy`). **Fix:**
+>    `orderBy: { createdAt: "asc" }` op elk van de vier queries (oudst eerst, deterministisch). +1
+>    regressietest (elke begrensde admin-query wordt met een `orderBy` aangeroepen). Gate groen.
+>
+> ---
+
 > **Datum:** 2026-08-01 (run 63) · **main-commit basis:** `2c7ba1e6`
 > **Uitkomst:** **1 bereikbaar defect GEVONDEN + GEFIXT** (financiële/status-integriteit) + **2 geparkeerd**.
 > Drie parallelle Opus-audits (authz/IDOR/cross-tenant + document-privacy → **schoon**; financiële/status-
