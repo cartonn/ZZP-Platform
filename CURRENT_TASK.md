@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Bemiddelaar — `/franchise/zzpers`-badge sluit superseded verlopend cert uit (badge = /acties) (2026-08-01, PR #1026)** —
+> de franchiser-nav-badge voor `/franchise/zzpers` telde (bijna-)verlopende geverifieerde certificaten van tenant-ZZP'ers via een
+> **rauwe** `expiresAt: { gte: now, lte: soon }`-query zonder supersede-uitsluiting, terwijl de /acties-bron (`franchiserTasks` →
+> `rosterExpiringByProfile`) superseded exemplaren wél uitsluit (het laatste supersede-gat, run-55 GEPARKEERD). Een ZZP'er die zijn
+> certificaat vernieuwde door een **nieuw** cert van hetzelfde type aan te maken (i.p.v. het bestaande te bewerken) telde zo alsnog mee
+> in de badge → de badge over-rapporteerde t.o.v. /acties (valse "verloopt binnenkort"-telling die de bemiddelaar liet najagen). Exact de
+> "badge luider dan /acties"-driftklasse die de codebase herhaaldelijk dicht. **Fix:** de badge draait nu dezelfde twee-staps, supersede-
+> aware aggregatie als /acties — kandidaat-scope (in-venster verlopend, gecapt/geordend zoals /acties) → volledig VERIFIED-dossier per
+> kandidaat (`freelancerProfileId in [...]`) → `rosterExpiringByProfile(...).length`. Eén bron van waarheid, kan niet meer driften.
+> Server-side waarheid, read-only telling, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +2 regressietests (superseded telt
+> niet mee → geen badge; gemengd echt+superseded → count 1). Gate: typecheck, lint, test (5568), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — webhook-event-ledger retentie-backlog gauge (`/api/metrics`, availability) (2026-08-01, PR #1024)** —
 > laatste "verwijder-ouder-dan-venster"-retentie-gat in de stille-faal-detectorlaag gesloten. Nieuwe gauge
 > `zzp_webhook_events_retention_backlog` telt `ProcessedWebhookEvent`-rijen ouder dan `WEBHOOK_EVENT_RETENTION_DAYS`

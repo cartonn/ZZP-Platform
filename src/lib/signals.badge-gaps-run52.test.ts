@@ -34,6 +34,10 @@ let lastExpiringQuery: { orderBy?: unknown; take?: number } | null = null;
 let leadCount: number;
 let handoffCount: number;
 let expiringByTenant: Record<string, { freelancerProfileId: string }[]>;
+// Supersede-cover: het VOLLEDIGE VERIFIED-dossier per kandidaat-profiel (tweede credential.findMany).
+// Ontbreekt een profiel hier, dan synthetiseert de mock één in-venster verlopend VERIFIED-cert
+// (= "1 verlopend, niet superseded"), zodat de kandidaat-only fixtures blijven tellen zoals /acties.
+let coverCredsByProfile: Record<string, { id: string; type: string; expiresAt: Date | null }[]>;
 let rosterByTenant: Record<string, RosterRow[]>;
 let openDienstenByTenant: Record<string, DienstRow[]>;
 let staleDienstenByTenant: Record<string, { id: string }[]>;
@@ -54,8 +58,38 @@ vi.mock("@/lib/db", () => ({
     shiftHandoff: { count: () => Promise.resolve(handoffCount) },
     credential: {
       findMany: (a: Where & { orderBy?: unknown; take?: number }) => {
+        const where = a.where ?? {};
+        // Tweede query (supersede-cover): gescoped op `freelancerProfileId: { in: [...] }`.
+        const scoped = where.freelancerProfileId as { in?: string[] } | undefined;
+        if (scoped && typeof scoped === "object" && Array.isArray(scoped.in)) {
+          const soon = new Date(Date.now() + 1000 * 60 * 60 * 24 * 10); // binnen 30-dagen-venster
+          const rows: {
+            id: string;
+            type: string;
+            status: string;
+            expiresAt: Date | null;
+            freelancerProfileId: string;
+          }[] = [];
+          for (const pid of scoped.in) {
+            const provided = coverCredsByProfile[pid];
+            if (provided) {
+              for (const c of provided)
+                rows.push({ ...c, status: "VERIFIED", freelancerProfileId: pid });
+            } else {
+              rows.push({
+                id: `${pid}-c1`,
+                type: "CERTIFICATE",
+                status: "VERIFIED",
+                expiresAt: soon,
+                freelancerProfileId: pid,
+              });
+            }
+          }
+          return Promise.resolve(rows);
+        }
+        // Eerste query (kandidaten): gescoped op `freelancerProfile.tenantId`.
         lastExpiringQuery = a;
-        return Promise.resolve(expiringByTenant[tenantOf(a.where)] ?? []);
+        return Promise.resolve(expiringByTenant[tenantOf(where)] ?? []);
       },
     },
     freelancerProfile: {
@@ -114,6 +148,7 @@ beforeEach(() => {
   leadCount = 0;
   handoffCount = 0;
   expiringByTenant = {};
+  coverCredsByProfile = {};
   rosterByTenant = {};
   openDienstenByTenant = {};
   staleDienstenByTenant = {};
@@ -171,6 +206,39 @@ describe("navBadges FRANCHISER — /franchise/zzpers (DOEL 1b)", () => {
     await navBadges("FRANCHISER", "u-1");
     expect(lastExpiringQuery?.orderBy).toEqual({ expiresAt: "asc" });
     expect(lastExpiringQuery?.take).toBe(50);
+  });
+
+  it("een superseded verlopend cert telt NIET mee (badge = /acties, geen valse telling)", async () => {
+    // fp-2 heeft een binnenkort-verlopend VERIFIED-cert (kandidaat), maar óók een nieuwer, langer-geldig
+    // VERIFIED-cert van HETZELFDE type: het verlopende exemplaar is superseded. `rosterExpiringByProfile`
+    // sluit het uit → géén verloop-telling. Zonder de supersede-check zou de badge hier 1 tonen terwijl
+    // /acties 0 emit — exact de drift die deze fix dicht.
+    const soon = new Date(Date.now() + 1000 * 60 * 60 * 24 * 10);
+    const later = new Date(Date.now() + 1000 * 60 * 60 * 24 * 400);
+    expiringByTenant["tenant-a"] = [{ freelancerProfileId: "fp-2" }];
+    coverCredsByProfile["fp-2"] = [
+      { id: "old", type: "CERTIFICATE", expiresAt: soon }, // verlopend
+      { id: "new", type: "CERTIFICATE", expiresAt: later }, // dekker → oude is superseded
+    ];
+    const badges = await navBadges("FRANCHISER", "u-1");
+    expect(badges["/franchise/zzpers"]).toBeUndefined();
+  });
+
+  it("gemengd: één echt verlopend profiel + één superseded profiel → count 1", async () => {
+    // fp-2: echt verlopend (default cover = 1 niet-superseded). fp-3: superseded (dekker aanwezig).
+    const soon = new Date(Date.now() + 1000 * 60 * 60 * 24 * 10);
+    const later = new Date(Date.now() + 1000 * 60 * 60 * 24 * 400);
+    expiringByTenant["tenant-a"] = [
+      { freelancerProfileId: "fp-2" },
+      { freelancerProfileId: "fp-3" },
+    ];
+    coverCredsByProfile["fp-3"] = [
+      { id: "old", type: "CERTIFICATE", expiresAt: soon },
+      { id: "new", type: "CERTIFICATE", expiresAt: later },
+    ];
+    const badges = await navBadges("FRANCHISER", "u-1");
+    // Alleen fp-2 telt (fp-3 is superseded); geen niet-inzetbare roster-ZZP'ers → 1.
+    expect(badges["/franchise/zzpers"]).toEqual({ count: 1, tone: "attention" });
   });
 });
 

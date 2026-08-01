@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-01 — Bemiddelaar: `/franchise/zzpers`-badge sluit superseded verlopend cert uit (badge = /acties)
+
+**Wat:** het laatste supersede-gat (persona-sweep run 55, GEPARKEERD) gedicht. De /acties-bron
+(`franchiserTasks` → `rosterExpiringByProfile`) sloot een superseded verlopend certificaat (een ouder
+VERIFIED-cert waarvan een nieuwer, nu-geldig cert van hetzelfde type de compliance al draagt) al uit, maar
+de `/franchise/zzpers`-nav-badge (`signals.ts`, `expiringProfiles`) telde nog via een rauwe
+`expiresAt: { gte: now, lte: soon }`-query zónder supersede-check → de badge over-rapporteerde t.o.v.
+/acties: een ZZP'er die vernieuwde door een nieuw cert aan te maken (i.p.v. te bewerken) telde alsnog mee.
+De bemiddelaar zag zo een valse "verloopt binnenkort"-telling die nooit nuttig verdween.
+
+**Fix:** de badge draait nu dezelfde twee-staps, supersede-aware aggregatie als /acties — kandidaat-scope
+(in-venster verlopende VERIFIED-certs, gecapt/geordend zoals /acties) → volledig VERIFIED-dossier per
+kandidaat-profiel (`freelancerProfileId in [...]`) → `rosterExpiringByProfile(...).length`. Eén bron van
+waarheid; badge = /acties, kan niet meer driften. Server-side waarheid, read-only telling, geen
+schemawijziging, geen nieuw mutatie/auth-oppervlak.
+
+**Bestanden:** `src/lib/signals.ts` (import `rosterExpiringByProfile`, supersede-aware `expiringProfiles`),
+`src/lib/signals.badge-gaps-run52.test.ts` (+2 regressietests + cover-query-mock). Backlog-item afgevinkt.
+
+**Tests:** `npm run test` → 530 files, 5568 passed. **Gate:** typecheck, lint, test, build, `prettier --check .` groen.
+
+**Volgende stap:** volgende persona-sweep/backlog-item.
+
+---
+
 ## 2026-08-01 — Opdrachtgever/ZZP'er: re-voorstel na een geannuleerd samenwerkingsvoorstel (flow-gat gedicht)
 
 **Wat:** het geparkeerde LAAG flow-gat (persona-sweep run 34) gedicht. CLIENT accepteert een reactie

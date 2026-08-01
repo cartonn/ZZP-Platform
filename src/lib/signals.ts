@@ -11,6 +11,7 @@ import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
 import { prisma } from "@/lib/db";
 import { type Availability, type UserRole } from "@/lib/enums";
+import { rosterExpiringByProfile } from "@/lib/credentials";
 import { computeEngageability } from "@/lib/engageability";
 import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
 import { MANDATORY_CREDENTIAL_TYPES, mandatoryDocumentAlertCount } from "@/lib/mandatory-documents";
@@ -657,10 +658,12 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         prisma.shiftHandoff.count({
           where: { status: "OPEN", collaboration: { job: { tenantId } } },
         }),
-        // /franchise/zzpers — (bijna-)verlopende geverifieerde certificaten van tenant-ZZP'ers: exact het
-        // predicaat van `franchiseCredentialExpiryTask` (pending-tasks.ts, gte now / lte soon). Aggregatie
-        // is per profiel (één taak per ZZP'er), dus alleen `freelancerProfileId` is nodig om de distinct
-        // profielen te tellen.
+        // /franchise/zzpers — kandidaat-profielen met een (bijna-)verlopend geverifieerd certificaat van
+        // tenant-ZZP'ers (venster gte now / lte soon), exact de eerste-stap-scope van de /acties-bron
+        // (`expiringRosterCreds` in pending-tasks.ts). Dit is nog NIET het eindaantal: superseded exemplaren
+        // worden hieronder uitgesloten via `rosterExpiringByProfile` (zelfde helper als /acties), zodat de
+        // badge niet over-rapporteert t.o.v. /acties. Alleen `freelancerProfileId` nodig om de kandidaten
+        // te bepalen.
         prisma.credential.findMany({
           where: {
             freelancerProfile: { tenantId },
@@ -723,7 +726,32 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     // roster-ZZP'ers, exact de som van de losse item-taken. Géén dedup op profiel: één ZZP'er kan zowel
     // een verloop-taak (VERIFIED, verloopt binnenkort) ÁLS een niet-inzetbaar-taak (verplicht document
     // ontbreekt/verlopen) tonen — precies zoals `franchiserTasks` beide pusht.
-    const expiringProfiles = new Set(expiringCreds.map((c) => c.freelancerProfileId)).size;
+    //
+    // Superseded exemplaren (een nieuwer, nu-geldig cert van hetzelfde type dekt de compliance al) tellen
+    // NIET mee: anders divergeert de badge van /acties, dat via `rosterExpiringByProfile` superseded al
+    // uitsluit. Voor de supersede-check hebben we per kandidaat-profiel het VOLLEDIGE VERIFIED-dossier
+    // nodig (ook de langer-geldige/onbeperkte dekkers), gescoped op de kandidaat-ids — exact dezelfde
+    // twee-staps-aanpak als `franchiserTasks` (pending-tasks.ts). Naam is voor de telling irrelevant.
+    const candidateProfileIds = [...new Set(expiringCreds.map((c) => c.freelancerProfileId))];
+    let expiringProfiles = 0;
+    if (candidateProfileIds.length > 0) {
+      const coverCreds = await prisma.credential.findMany({
+        where: { status: "VERIFIED", freelancerProfileId: { in: candidateProfileIds } },
+        select: { id: true, type: true, expiresAt: true, freelancerProfileId: true },
+      });
+      expiringProfiles = rosterExpiringByProfile(
+        coverCreds.map((c) => ({
+          id: c.id,
+          type: c.type,
+          status: "VERIFIED" as const,
+          expiresAt: c.expiresAt,
+          freelancerProfileId: c.freelancerProfileId,
+          freelancerName: "",
+        })),
+        now,
+        soon,
+      ).length;
+    }
     let notEngageable = 0;
     for (const f of roster) {
       const eng = computeEngageability(
