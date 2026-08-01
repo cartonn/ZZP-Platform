@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-01 — Vertrouwen: platform-ervaring (afgeronde klussen) als kandidaat-signaal (opdrachtgever, PR #1021)
+
+**Wat:** de platform-brede staat van dienst (`trackRecordHighlights` — afgeronde klussen) toonde al op
+`/freelancers` (browse) en het publieke vertrouwensdossier, maar **niet op `/kandidaten`** — de plek waar de
+opdrachtgever écht over reagerende kandidaten beslist. De kaart toont wél `sharedHistory` (afgerond mét déze
+opdrachtgever); een kandidaat die nieuw is voor déze opdrachtgever kreeg dan géén ervaringssignaal, ook al had
+die ZZP'er elders veel klussen afgerond. Klassiek "signaal bestaat op één surface, ontbreekt op de beslis-
+surface". Nu een compacte, calm **"X afgeronde klussen"**-chip op de kandidaatkaart, **alleen** getoond wanneer
+er geen gedeelde historie met déze opdrachtgever is (geen stapeling met het sterkere rehire-signaal; de
+gedeelde-historie-chip omvat die klussen al). Benchmark Temper/Malt ("X opdrachten voltooid" bij een onbekende
+kandidaat). Verlaagt het risico van het inhuren van een vreemde en versnelt de beslissing.
+
+**Bestanden:** `src/lib/candidate-experience.ts` (pure gate + label, drempel ≥1 · verbergt bij gedeelde historie
+· defensief bij niet-eindig/negatief), `src/lib/data/candidate-track-records.ts` (gebatchte
+`getCompletedCollaborationCounts` — één `groupBy`, geen N+1), `src/components/freelancer/candidate-experience-badge.tsx`,
+`src/app/(protected)/kandidaten/page.tsx` (fetch in de bestaande `Promise.all` + chip naast `CandidateHistoryBadge`),
+`src/lib/candidate-experience.test.ts` (+6 tests). Read-only, geen schemawijziging, geen nieuw mutatie/auth-
+oppervlak, server-side waarheid. **Tests:** 5544 passed. Gate: typecheck/lint/test/build/prettier — zie PR.
+
 ## 2026-08-01 — Helderheid: next-action prioriteit-correctie certificaat-verval ↔ verstreken BTW (ZZP'er)
 
 **Wat:** sloot het geparkeerde MED-item uit persona-sweep run 63. In `src/lib/next-actions.ts` stond
