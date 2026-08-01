@@ -37,6 +37,9 @@ WINDOW_DAYS = 30`) rangschikt op `/acties`/badge/rail **boven** een **reeds-vers
 >   assertie `P.vatDeadlineOverdue > P.credentialExpiringForCollab` in `tasks.test.ts`. **Reden geparkeerd:**
 >   oordeelsafhankelijke herordening tussen twee domeinen (compliance↔fiscaal); losgehouden van de harde
 >   integriteitsfix om die PR schoon-groen te houden. Prioriteit: MED.
+>   **→ GEDAAN (2026-08-01):** `credentialExpiringForCollab` 75 → 73; +1 regressietest
+>   (`P.credentialExpiringForCollab < P.vatDeadlineOverdue` én `> P.contractSign`). Post-due>pre-due
+>   consistent met de code-conventie (clientCascadeOverduePayment 59 > vatDeadlineDueSoon 58).
 > - **LOW (DOEL 1, functioneel — geen security):** `approveSubmittedPerformancesAction`
 >   (`src/app/(protected)/prestaties/actions.ts`) scopet de query op `collaboration.company.userId === actor.id`;
 >   een ADMIN-aanroeper vindt 0 rijen → de bulk-goedkeuring is een stille no-op voor admins. Faalt gesloten

@@ -746,6 +746,13 @@ describe("credentialCollabExpiryTask", () => {
     expect(t.priority).toBeLessThan(P.credentialRejected);
   });
 
+  it("rangschikt onder een reeds-verstreken BTW-aangifte (post-due > pre-due)", () => {
+    // Een pre-due certificaat-vervalnudge (nog geldig) mag niet boven een reeds-
+    // verstreken, boete-dragende BTW-aangifte staan. Boven contractSign blijft behouden.
+    expect(P.credentialExpiringForCollab).toBeLessThan(P.vatDeadlineOverdue);
+    expect(P.credentialExpiringForCollab).toBeGreaterThan(P.contractSign);
+  });
+
   it("gebruikt vandaag/morgen bij 0 en 1 dag", () => {
     expect(credentialCollabExpiryTask({ ...base, daysUntilExpiry: 0 }).subtitle).toContain(
       "Verloopt vandaag",
