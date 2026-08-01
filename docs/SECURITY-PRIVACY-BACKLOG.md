@@ -4,6 +4,49 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-01b (basis: `main` @ a825bd86)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende hoog-risico
+oppervlakken, plus de delta sinds de vorige ronde (`705b40f1..a825bd86`, #1016–#1022 — grotendeels pure,
+geteste logica: `candidate-experience.ts`/`candidate-track-records.ts` (kandidaat-ervaringssignaal), TOCTOU-
+guards op prestatie-correctie/betaalherinnering/modelovereenkomst-vorm, deterministische admin-wachtrij-
+ordering, back-up-integriteitsverificatie — geen nieuw route- of mutatie-oppervlak). Gedekt: (1) cross-tenant
+isolatie over `tenancy.ts` + de volledige `src/lib/franchise/**`-set + alle `src/app/(protected)/franchise/**`-
+loaders/-acties (elke `findUnique`/`update`/`delete`/`groupBy` gescoopt op `tenantId` via `ownsViaTenant`/
+`tenantScopeWhere`; `currentActor()` leest rol/tenant/status vers uit de DB, niet uit de JWT; geschorste tenant
+fail-closed); (2) PII-over-fetch/dataminimalisatie (AVG art. 5(1)(c)) over kandidaten/freelancers/zzp-profiel/
+publieke vertrouwens-share-link/opdrachten/reacties/berichten + alle `src/lib/data/*`-loaders — elke `select`
+regel-voor-regel vergeleken met de gerenderde UI; geen veld dat als ongebruikte prop een `"use client"`-grens
+bereikt, geen privé-veld van partij A in de view van partij B, k-anonimiteit (`MARKET_RATE_MIN_SAMPLE=10`)
+correct toegepast; (3) injectie/output-encoding/SSRF/open-redirect/headers/foutlek — enige
+`dangerouslySetInnerHTML` = het nonce'd theme-script, alle CSV-exports via `escapeCsvField` (CWE-1236),
+`$queryRaw` enkel `SELECT 1`, geocoding/routing host hardcoded (place-string enkel query-param, geen SSRF),
+push-endpoints via host-allowlist, redirects server-geconstrueerd, CSP nonce + `strict-dynamic` + `frame-
+ancestors 'none'`, HSTS/COOP/CORP gezet, foutgrenzen tonen enkel `error.digest`. OWASP A01/A03/A05/A07/A10 +
+AVG art. 5/15/17 als leidraad.
+
+**Resultaat: geen nieuw KRITIEK/HOOG/MIDDEL toegangs-, injectie-, cross-tenant- of PII-gat. De sinds
+2026-08-01 geparkeerde LAAG audit-trail-consistentie (`deleteWorkExperience` schreef geen `*_DENIED` op een
+cross-owner-poging) is deze ronde OPGELOST (rood→groen).**
+
+### OPGELOST — LAAG (CLAUDE.md regel 5 "Audit alles wat telt", CWE-778): `deleteWorkExperience` schrijft nu een `WORK_EXPERIENCE_DELETE_DENIED`-auditregel op een geweigerde cross-owner-poging
+
+- **Repro (was):** `src/app/(protected)/profiel/actions.ts` — `deleteWorkExperience` dwong ownership correct af
+  (`existing.freelancerProfileId !== profile.id` → geen verwijdering, geen bestaans-orakel), maar retourneerde op
+  de geweigerde cross-owner-poging (of een onbekend id) stil `{ ok: true }` **zonder auditregel**. De zusterguard
+  `deleteDocument` schrijft in exact dat geval wél een `DOCUMENT_DELETE_DENIED`-regel (zodat IDOR-enumeratie op
+  document-id's zichtbaar wordt in de trail). Niet exploiteerbaar (geen lek, geen mutatie, respons identiek aan
+  "al weg"), maar inconsistent met de vastgelegde audit-trail-policy — een IDOR-enumeratiepoging op werkervaring-
+  id's bleef onzichtbaar.
+- **Geschonden regel:** CLAUDE.md regel 5 (audit alles wat telt — ontbrekende trail op een geweigerde toegang);
+  CWE-778 (Insufficient Logging). Geen OWASP-toegangsgat.
+- **Fix (deze PR):** in de `!existing || vreemd profiel`-tak wordt nu een `audit({ action:
+"WORK_EXPERIENCE_DELETE_DENIED", entityType: "WorkExperience", entityId: id })`-regel geschreven vóór de stille
+  `{ ok: true }` — exacte spiegel van `deleteDocument`. Het gegokte id komt in de trail. Nieuwe audit-label
+  `WORK_EXPERIENCE_DELETE_DENIED` ("Verwijdering werkervaring geweigerd") in `src/lib/audit-labels.ts`. +3 unit-
+  tests (`work-experience-delete-denied.test.ts`, rood→groen: zonder de audit-op-weigering faalt de assertie op
+  vreemd-profiel én onbekend-id; de eigen-verwijdering-happy-path schrijft géén DENIED).
+
 ## Ronde 2026-08-01 (basis: `main` @ 705b40f1)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende hoog-risico

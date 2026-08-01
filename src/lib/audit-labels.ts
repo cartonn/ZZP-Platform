@@ -35,6 +35,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   AVAILABILITY_STATUS_CHANGED: "Beschikbaarheidsstatus gewijzigd",
   WORK_EXPERIENCE_ADDED: "Werkervaring toegevoegd",
   WORK_EXPERIENCE_REMOVED: "Werkervaring verwijderd",
+  WORK_EXPERIENCE_DELETE_DENIED: "Verwijdering werkervaring geweigerd",
 
   // Opdrachten & reacties
   JOB_CREATED: "Opdracht aangemaakt",
