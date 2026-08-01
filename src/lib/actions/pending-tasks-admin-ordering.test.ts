@@ -45,7 +45,7 @@ describe("adminTasks — deterministische ordering op de begrensde admin-wachtri
     await pendingTasks({ id: "admin-ordering-test", role: "ADMIN", status: "ACTIVE" } as never);
 
     // SUBMITTED-verificatiewachtrij.
-    const credArgs = credentialFindMany.mock.calls[0][0];
+    const credArgs = credentialFindMany.mock.calls[0]![0];
     expect(credArgs.orderBy).toBeDefined();
 
     // Twee user.findMany-aanroepen: PENDING-activatie en AVG-verwijderverzoeken — beide begrensd,
@@ -61,7 +61,7 @@ describe("adminTasks — deterministische ordering op de begrensde admin-wachtri
     expect(deletionCall?.[0].orderBy).toBeDefined();
 
     // Open-dispuutwachtrij.
-    const disputeArgs = collaborationFindMany.mock.calls[0][0];
+    const disputeArgs = collaborationFindMany.mock.calls[0]![0];
     expect(disputeArgs.orderBy).toBeDefined();
   });
 });

@@ -50,7 +50,7 @@ describe("setAgreementTypeAction — compound-guarded tegen TOCTOU-tekenrace", (
     await setAgreementTypeAction("col-1", form("VRIJE_VERVANGING"));
 
     expect(updateMany).toHaveBeenCalledTimes(1);
-    const arg = updateMany.mock.calls[0][0];
+    const arg = updateMany.mock.calls[0]![0] as { where: unknown; data: unknown };
     expect(arg.where).toMatchObject({
       id: "col-1",
       agreementFreelancerSignedAt: null,
