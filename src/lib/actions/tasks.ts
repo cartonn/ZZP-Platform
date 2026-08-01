@@ -18,6 +18,7 @@ import { type StaleApplicationsSummary } from "@/lib/stale-applications";
 import { type FirstLookOverdueSummary } from "@/lib/client-first-look";
 import { INVITATION_AGING_DAYS, invitationAgeLabel } from "@/lib/received-invitations";
 import { UNBILLED_AGING_DAYS } from "@/lib/unbilled-invoices";
+import { PROPOSAL_STALL_DAYS } from "@/lib/accepted-proposal";
 import {
   acuteFillabilityHeadline,
   type AcuteFillabilitySummary,
@@ -773,14 +774,23 @@ export function proposeCollaborationTask(
   applicationId: string,
   jobTitle: string,
   freelancerName: string,
+  /**
+   * Hele dagen dat de kandidaat al geaccepteerd is zónder samenwerkingsvoorstel. Zodra dit ≥
+   * PROPOSAL_STALL_DAYS komt, escaleert de taak (prioriteit + subtitel) — de geaccepteerde ZZP'er
+   * hangt dan in limbo. `undefined` = geen leeftijdsbesef (gedragsbehoudend).
+   */
+  agingDays?: number,
 ): PendingTask {
+  const stalled = agingDays !== undefined && agingDays >= PROPOSAL_STALL_DAYS;
   return {
     kind: "propose-collaboration",
     id: `propose-collaboration:${applicationId}`,
     title: `Stuur ${freelancerName} een samenwerkingsvoorstel`,
-    subtitle: `Je accepteerde de reactie op ${jobTitle} — rond de samenwerking af`,
+    subtitle: stalled
+      ? `${jobTitle} · al ${plural(agingDays, "dag", "dagen")} geaccepteerd — rond de hire af`
+      : `Je accepteerde de reactie op ${jobTitle} — rond de samenwerking af`,
     tone: "attention",
-    priority: P.proposeCollaboration,
+    priority: stalled ? P.proposeCollaborationStalled : P.proposeCollaboration,
     resolver: "link",
     href: `/kandidaten?open=${applicationId}`,
     applicationId,

@@ -15,7 +15,14 @@ type Where = { where?: Record<string, unknown> };
 // basis van de where.status-clausule (exact de predicaten uit pending-tasks.ts).
 let newApplicationsValue = 0;
 let staleRows: { status: string; createdAt: Date; collaboration: { id: string } | null }[] = [];
-let acceptedRows: { id: string; collaboration: { id: string } | null }[] = [];
+// acceptedAt/updatedAt voeden de leeftijd-klok in `pendingCollaborationProposals` (de badge telt alleen
+// het aantal, maar de helper vereist een niet-null klok — updatedAt is de legacy-fallback).
+let acceptedRows: {
+  id: string;
+  collaboration: { id: string } | null;
+  acceptedAt: Date | null;
+  updatedAt: Date;
+}[] = [];
 
 const applicationCount = vi.fn((): Promise<number> => Promise.resolve(newApplicationsValue));
 const applicationFindMany = vi.fn((a: Where): Promise<unknown[]> => {
@@ -81,7 +88,7 @@ describe("navBadges CLIENT — /kandidaten-badge telt alle kandidaat-acties (DOE
   });
 
   it("0 NEW maar 1 geaccepteerde reactie zonder voorstel → badge = 1 (attention)", async () => {
-    acceptedRows = [{ id: "app-1", collaboration: null }];
+    acceptedRows = [{ id: "app-1", collaboration: null, acceptedAt: longAgo, updatedAt: longAgo }];
     const badges = await navBadges("CLIENT", "u-1");
     expect(badges["/kandidaten"]).toEqual({ count: 1, tone: "attention" });
   });
@@ -98,14 +105,16 @@ describe("navBadges CLIENT — /kandidaten-badge telt alle kandidaat-acties (DOE
       { status: "VIEWED", createdAt: longAgo, collaboration: null },
       { status: "SHORTLIST", createdAt: longAgo, collaboration: null },
     ];
-    acceptedRows = [{ id: "app-9", collaboration: null }];
+    acceptedRows = [{ id: "app-9", collaboration: null, acceptedAt: longAgo, updatedAt: longAgo }];
     const badges = await navBadges("CLIENT", "u-1");
     // 2 NEW + 2 stale + 1 voorstel = 5.
     expect(badges["/kandidaten"]).toEqual({ count: 5, tone: "attention" });
   });
 
   it("geaccepteerde reactie mét samenwerking telt niet (voorstel is al verstuurd)", async () => {
-    acceptedRows = [{ id: "app-2", collaboration: { id: "collab-1" } }];
+    acceptedRows = [
+      { id: "app-2", collaboration: { id: "collab-1" }, acceptedAt: longAgo, updatedAt: longAgo },
+    ];
     const badges = await navBadges("CLIENT", "u-1");
     // Reeds-voorgesteld → geen openstaande actie → geen badge.
     expect(badges["/kandidaten"]).toBeUndefined();

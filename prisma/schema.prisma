@@ -562,6 +562,7 @@ model Application {
   complianceSnapshot String? //                         JSON-string, server-berekend
   note               String? //                         interne notitie opdrachtgever
   rejectionReason    String? //                         gestructureerde afwijzingscode (RejectionReasonCode), zichtbaar voor de ZZP'er
+  acceptedAt         DateTime? //                        moment van → ACCEPTED; klok voor "wacht op samenwerkingsvoorstel". Legacy-rijen: null → fallback op updatedAt
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

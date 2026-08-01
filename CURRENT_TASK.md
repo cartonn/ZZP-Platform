@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — geaccepteerde kandidaat wacht te lang op samenwerkingsvoorstel escaleert op /acties (2026-08-01, PR #1015)** —
+> de `proposeCollaboration`-taak (een ACCEPTED-reactie zonder samenwerkingsvoorstel) stond op een **vlakke** prioriteit
+> (`P.proposeCollaboration` = 68) zonder leeftijdsbesef. Een geaccepteerde ZZP'er die dagen op het beloofde voorstel wacht
+> staat in het ergste limbo (zei "ja", er volgt niets) — exact het "signaal zonder aging in het next-action-model"-patroon
+> van #1001 (firstLookOverdue) en #1014 (conceptInvoiceAging), nu voor de derde beslis-fase (accept → voorstel). Nieuw veld
+> `Application.acceptedAt DateTime?` (additief-nullable, veilige `db push`), gezet op → ACCEPTED in `kandidaten/actions.ts`
+> (enige plek; bulk-triage sluit ACCEPTED uit); legacy-rijen (null) → fallback op `updatedAt`. Pure `pendingCollaborationProposals`
+> kreeg `now` + `agingDays` (geklemd ≥ 0) + `stalled`; `proposeCollaborationTask` een optionele `agingDays?` → bij
+> `≥ PROPOSAL_STALL_DAYS` (3) prioriteit 68 → nieuwe band `P.proposeCollaborationStalled` (69, onder contractSign 72) + subtitel
+> "al X dagen geaccepteerd — rond de hire af". `undefined` = gedragsbehoudend. Server-side waarheid, één read-only signaal,
+> geen nieuw auth-oppervlak. +5 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er — verouderde concept-factuur escaleert op /acties (2026-07-31, PR #1014)** —
 > de dashboard-tegel "Nog te factureren" draaide al naar warning zodra de oudste niet-ingediende concept-factuur ≥
 > `UNBILLED_AGING_DAYS` (7) bleef liggen, maar op `/acties` (+ badge + rail) stond diezelfde concept op een **vlakke**

@@ -95,7 +95,16 @@ export async function changeApplicationStatus(
   await prisma.$transaction([
     prisma.application.update({
       where: { id: appId },
-      data: { status: targetStatus, rejectionReason },
+      // `acceptedAt` is de klok voor "geaccepteerd, wacht nog op een samenwerkingsvoorstel": zet 'm
+      // op het acceptatiemoment (niet op `updatedAt`, dat óók door een latere notitie-edit schuift).
+      // Een acceptatie kan alleen via déze enkelvoudige actie gebeuren (bulk-triage sluit ACCEPTED uit),
+      // dus dit is de enige plek. Een teruggedraaide acceptatie (ACCEPTED→SHORTLIST) laat het veld staan;
+      // de wacht-taak leest alleen status="ACCEPTED", en een her-acceptatie overschrijft het opnieuw.
+      data: {
+        status: targetStatus,
+        rejectionReason,
+        ...(targetStatus === "ACCEPTED" ? { acceptedAt: new Date() } : {}),
+      },
     }),
     prisma.auditLog.create({
       data: auditData({

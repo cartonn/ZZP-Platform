@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-01 — Opdrachtgever: geaccepteerde kandidaat wacht te lang op voorstel escaleert op /acties (PR #1015)
+
+**Wat:** de `proposeCollaboration`-taak (een ACCEPTED-reactie waar de opdrachtgever nog geen
+samenwerkingsvoorstel op stuurde) stond op een **vlakke** prioriteit (`P.proposeCollaboration` = 68) zonder
+leeftijdsbesef. Een geaccepteerde ZZP'er die dagen op het beloofde voorstel wacht staat in het ergste limbo —
+hij zei "ja" tegen de hire en er volgt niets. Klassiek "signaal zonder aging in het next-action-model", exact
+het patroon van #1001 (firstLookOverdue) en #1014 (conceptInvoiceAging), nu voor de derde beslis-fase (accept →
+voorstel). Benchmark Temper/Malt: een hire binnen uren/een dag afronden. Nu escaleert de taak zodra de
+acceptatie ≥ `PROPOSAL_STALL_DAYS` (3) oud is.
+
+- **Fix:** nieuw veld `Application.acceptedAt DateTime?` (additief-nullable → veilige `db push`), gezet op het
+  → ACCEPTED-moment in `kandidaten/actions.ts` (de enige plek: bulk-triage sluit ACCEPTED uit). Legacy-rijen
+  (null) vallen terug op `updatedAt` in de enumerator. Pure `pendingCollaborationProposals` (accepted-proposal.ts)
+  kreeg een `now`-param + berekent `agingDays` (geklemd ≥ 0, via `daysSince`) en `stalled`. `proposeCollaborationTask`
+  kreeg optionele `agingDays?`: bij `≥ PROPOSAL_STALL_DAYS` → prioriteit `P.proposeCollaboration` (68) naar nieuwe
+  band `P.proposeCollaborationStalled` (69, net boven de verse hire, onder contractSign 72) + subtitel
+  "{opdracht} · al X dagen geaccepteerd — rond de hire af". `undefined` = gedragsbehoudend.
+
+**Bestanden:** `prisma/schema.prisma` (+`acceptedAt`), `prisma/seed.ts` (demo: app-3 6 dagen geaccepteerd),
+`src/app/(protected)/kandidaten/actions.ts` (zet acceptedAt), `src/lib/accepted-proposal.ts` (aging + threshold),
+`src/lib/next-actions.ts` (+band), `src/lib/actions/tasks.ts` + `pending-tasks.ts` (threading),
+`accepted-proposal.test.ts` (+3), `tasks.test.ts` (+2). Server-side waarheid, één nieuw read-only signaal, geen
+nieuw auth-oppervlak. Gate: typecheck, lint, test, build, prettier — groen.
+
 ## 2026-07-31 — ZZP'er: verouderde concept-factuur escaleert op /acties (PR #1014)
 
 **Wat:** de dashboard-tegel "Nog te factureren" draaide al naar **warning** zodra de oudste niet-ingediende

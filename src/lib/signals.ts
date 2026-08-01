@@ -552,7 +552,14 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       // pending-tasks.ts (`proposeCollaborationTask`). Reeds-voorgestelde (met collaboration) vallen af.
       prisma.application.findMany({
         where: { job: { companyId: company.id }, status: "ACCEPTED" },
-        select: { id: true, collaboration: { select: { id: true } } },
+        // acceptedAt/updatedAt voeden de leeftijd-klok in `pendingCollaborationProposals`; de badge
+        // gebruikt alleen het aantal (niet de aging), maar de helper vereist een niet-null klok.
+        select: {
+          id: true,
+          collaboration: { select: { id: true } },
+          acceptedAt: true,
+          updatedAt: true,
+        },
         take: CASCADE_SCAN_LIMIT,
       }),
     ]);
@@ -587,6 +594,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         freelancerName: "",
         jobTitle: "",
         hasCollaboration: a.collaboration != null,
+        acceptedAt: a.acceptedAt ?? a.updatedAt,
       })),
     ).length;
     return buildBadges({
