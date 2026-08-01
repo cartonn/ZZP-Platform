@@ -57,7 +57,7 @@ export const P = {
   proposeCollaborationStalled: 69, // idem, maar de acceptatie ligt al ≥ PROPOSAL_STALL_DAYS zonder voorstel — de geaccepteerde ZZP'er hangt in limbo; net boven de verse "rond de hire af" (68) zodat de langst-wachtende hire binnen het cluster voorop komt, onder contractSign (72)
   credentialExpiredForCollab: 82, // vereist certificaat van een lopende samenwerking is REEDS verlopen — blokkeert de inzet nu (freelancer-spiegel van complianceRipple); urgenter dan afgewezen of binnenkort-verlopend
   credentialMissingForCollab: 81, // vereist (niet-verplicht) certificaat van een lopende samenwerking ONTBREEKT volledig (nooit aangeleverd/alleen concept) — acuut compliance-gat, freelancer-spiegel van complianceRipple "missing"; net onder REEDS-verlopen (dat leunde al op een bestaand exemplaar), boven afgewezen
-  credentialExpiringForCollab: 75, // vereist certificaat van een lopende samenwerking verloopt binnenkort — urgenter dan een los verlopend certificaat
+  credentialExpiringForCollab: 73, // vereist certificaat van een lopende samenwerking verloopt binnenkort (nog geldig, pre-due; COLLAB_CREDENTIAL_EXPIRY_WINDOW_DAYS) — urgenter dan een los verlopend certificaat (credentialExpiring 70) en boven contractSign (72), maar ONDER een reeds-verstreken BTW-aangifte (vatDeadlineOverdue 74): post-due, boete-dragende schuld weegt zwaarder dan een naderende (nog-niet-verstreken) certificaat-verval. Zelfde post-due>pre-due-principe als clientCascadeOverduePayment (59) > vatDeadlineDueSoon (58)
   credentialExpiring: 70, // certificaat verloopt binnenkort
   verificationQueue: 70, // wacht op verificatie (admin)
   supportOpen: 66, // openstaande supporttickets — onbeantwoord/nieuw (admin)

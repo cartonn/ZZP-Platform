@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-01 — Helderheid: next-action prioriteit-correctie certificaat-verval ↔ verstreken BTW (ZZP'er)
+
+**Wat:** sloot het geparkeerde MED-item uit persona-sweep run 63. In `src/lib/next-actions.ts` stond
+`credentialExpiringForCollab: 75` **boven** `vatDeadlineOverdue: 74`. Gevolg op `/acties`, de badge en de
+rail (ZZP'er): een **pre-due** nudge (vereist certificaat van een lopende samenwerking verloopt bínnenkort,
+nog geldig; `COLLAB_CREDENTIAL_EXPIRY_WINDOW_DAYS = 30`) rangschikte boven een **reeds-verstreken**,
+boete-dragende BTW-aangifte (na de uiterste indieningsdatum). Verkeerde volgorde: een naderende waarschuwing
+overschaduwde een echte, materialiserende fiscale schuld. Zelfde klasse als de run-62-fix
+(`clientCascadeOverduePayment` post-due boven pre-due `vatDeadlineDueSoon`), nu voor het paar
+credential-expiry ↔ BTW. **Fix:** `credentialExpiringForCollab` → **73** (onder `vatDeadlineOverdue` 74,
+boven `contractSign` 72 en `credentialExpiring` 70; de relatieve orde t.o.v. contractSign en de generieke
+verval-taak blijft behouden). Post-due weegt zwaarder dan pre-due — consistent met de code-conventie.
+
+**Bestanden:** `src/lib/next-actions.ts` (constante + toelichtende comment), `src/lib/actions/tasks.test.ts`
+(+1 regressietest: `P.credentialExpiringForCollab < P.vatDeadlineOverdue` én `> P.contractSign`). Geen
+schemawijziging, geen nieuw mutatie/auth-oppervlak, read-only next-action-rangschikking (server-side waarheid).
+**Tests:** tasks.test.ts 61 passed. Gate: typecheck/lint/test/build/prettier — zie PR.
+
 ## 2026-08-01 — Robuustheid: TOCTOU-guard op de betaalherinner-signalering (PR #1018)
 
 **Wat:** sloot het geparkeerde LOW-item uit persona-sweep run 62. `runPaymentReminderTask`
