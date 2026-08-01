@@ -1,5 +1,50 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-01 (run 63) · **main-commit basis:** `2c7ba1e6`
+> **Uitkomst:** **1 bereikbaar defect GEVONDEN + GEFIXT** (financiële/status-integriteit) + **2 geparkeerd**.
+> Drie parallelle Opus-audits (authz/IDOR/cross-tenant + document-privacy → **schoon**; financiële/status-
+> integriteit → **1 gevonden**; next-action-correctheid → **1 gevonden**) + live smoke-sweep (unauth →
+> alle protected routes 307 redirect naar /login; junk/IDOR-id's → geen 500).
+>
+> 1. **GEFIXT — HIGH (DOEL 2, verboden statusoverschrijving via TOCTOU op de prestatie-correctie):**
+>    `updatePerformance` (`src/lib/cascade/performance-commands.ts`) was de énige schrijf-sibling in dat
+>    bestand die de financiële velden (`hours`/`rateCents`/`amountCents`/`ortSegments`/`shifts`) wegschreef
+>    met een **ongeguarde** `prisma.performance.update({ where: { id } })`. De statuscheck (`∈ {DRAFT,
+REJECTED}`) leunt op de pre-transactionele `loadPerformance`-lees; tussen die lees en de write kan een
+>    parallelle `submitPerformance` de rij al naar SUBMITTED hebben geflipt (dubbelklik/twee tabs op
+>    `editAndResubmitPerformanceAction` — geen server-side dubbel-submit-rem). De blinde veld-write landde
+>    dan **stil op de SUBMITTED-rij**: uren/tarief overschreven zónder nieuw `PERFORMANCE_SUBMITTED`-event,
+>    zónder audit en zónder her-notificatie — waarna de opdrachtgever bij `approvePerformance` een bedrag
+>    goedkeurt (concept-factuur) dat hij nooit zag. Schending CLAUDE.md regel 2/3 (compound-guarded write;
+>    server-side waarheid). Exact het TOCTOU-patroon dat de rest van de cascade + de cron-taken al hadden
+>    (#1006/#1007/#1014/#1018). **Fix:** compound-guarded `updateMany({ where: { id, status: perf.status } })`
+>    - count-gate (0 → `CascadeError`, geen stille overschrijving). +3 regressietests (guard-where op de
+>      geziene status; TOCTOU count 0 → weiger; happy path count 1). Gate: typecheck, lint, test, build,
+>      prettier groen.
+>
+> **GEPARKEERD (deze run):**
+>
+> - **MED (DOEL 1b, next-action prioriteit-inversie, FREELANCER):** in `src/lib/next-actions.ts` staat
+>   `credentialExpiringForCollab: 75` **boven** `vatDeadlineOverdue: 74`. Een **pre-due** nudge (vereist
+>   certificaat van een lopende samenwerking verloopt bínnenkort, nog geldig; `COLLAB_CREDENTIAL_EXPIRY_
+WINDOW_DAYS = 30`) rangschikt op `/acties`/badge/rail **boven** een **reeds-verstreken**, boete-dragende
+>   BTW-aangifte (`vatDeadlineOverdue`, na de uiterste indieningsdatum met saldo). Dezelfde klasse als de
+>   run-62-fix (`clientCascadeOverduePayment` post-due boven pre-due `vatDeadlineDueSoon`), nu voor het paar
+>   credential-expiry↔BTW. Repro: FREELANCER met een ACTIVE samenwerking waarvan een vereist certificaat
+>   over ~10 dagen verloopt (nog geldig) + een onbetaalde/onaangegeven verstreken BTW-kwartaal → de "verloopt
+>   binnenkort"-taak staat boven "BTW te laat, boeterisico". **Fix (voorstel):** `credentialExpiringForCollab`
+>   → 73 (onder `vatDeadlineOverdue` 74, boven `contractSign` 72 en `credentialExpiring` 70), + regressie-
+>   assertie `P.vatDeadlineOverdue > P.credentialExpiringForCollab` in `tasks.test.ts`. **Reden geparkeerd:**
+>   oordeelsafhankelijke herordening tussen twee domeinen (compliance↔fiscaal); losgehouden van de harde
+>   integriteitsfix om die PR schoon-groen te houden. Prioriteit: MED.
+> - **LOW (DOEL 1, functioneel — geen security):** `approveSubmittedPerformancesAction`
+>   (`src/app/(protected)/prestaties/actions.ts`) scopet de query op `collaboration.company.userId === actor.id`;
+>   een ADMIN-aanroeper vindt 0 rijen → de bulk-goedkeuring is een stille no-op voor admins. Faalt gesloten
+>   (geen ongeautoriseerde toegang), dus geen beveiligingsdefect. Overweeg: admin-pad expliciet toestaan óf
+>   de knop voor admins verbergen. Prioriteit: LOW.
+>
+> ---
+
 > **Datum:** 2026-07-31 (run 62) · **main-commit basis:** `8906af07`
 > **Uitkomst:** **3 bereikbare defecten GEVONDEN + GEFIXT.** Drie parallelle Opus-audits (authz/IDOR/
 > cross-tenant + document-privacy → **schoon**; financiële/status-integriteit → **2 gevonden**;
