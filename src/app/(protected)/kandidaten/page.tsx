@@ -59,6 +59,8 @@ import { CandidateHistoryBadge } from "@/components/freelancer/candidate-history
 import { RatingStars } from "@/components/reviews/rating-stars";
 import { getDeliveryQualityForProfiles } from "@/lib/data/freelancer-delivery-quality";
 import { getSharedHistoryForCandidates } from "@/lib/data/candidate-history";
+import { getCompletedCollaborationCounts } from "@/lib/data/candidate-track-records";
+import { CandidateExperienceBadge } from "@/components/freelancer/candidate-experience-badge";
 import { getReviewRatingsForCandidates } from "@/lib/data/candidate-reviews";
 import { changeApplicationStatus } from "./actions";
 import { ApplicationNoteForm } from "./application-note-form";
@@ -173,13 +175,17 @@ export default async function KandidatenPage({
   // Reputatie-rating: gemiddelde opdrachtgever-beoordeling per ZZP'er (op user-id, want een Review
   // hangt aan de gebruiker, niet aan het profiel). Alleen PUBLISHED CLIENT_ON_FREELANCER.
   const freelancerUserIds = applications.map((a) => a.freelancer.user.id);
-  const [deliveryByProfile, historyByProfile, ratingByUser] = await Promise.all([
-    getDeliveryQualityForProfiles(profileIds),
-    // "Eerder samengewerkt": afgeronde samenwerkingen tussen déze opdrachtgever en de kandidaat —
-    // een sterk vertrouwenssignaal bij de beslissing. Per opdrachtgever gescoopt, geen N+1.
-    getSharedHistoryForCandidates(actor.id, profileIds),
-    getReviewRatingsForCandidates(freelancerUserIds),
-  ]);
+  const [deliveryByProfile, historyByProfile, ratingByUser, experienceByProfile] =
+    await Promise.all([
+      getDeliveryQualityForProfiles(profileIds),
+      // "Eerder samengewerkt": afgeronde samenwerkingen tussen déze opdrachtgever en de kandidaat —
+      // een sterk vertrouwenssignaal bij de beslissing. Per opdrachtgever gescoopt, geen N+1.
+      getSharedHistoryForCandidates(actor.id, profileIds),
+      getReviewRatingsForCandidates(freelancerUserIds),
+      // Platform-brede staat van dienst: afgeronde klussen over álle opdrachtgevers heen. Vult het
+      // ervaringssignaal voor een kandidaat die nieuw is voor déze opdrachtgever (geen gedeelde historie).
+      getCompletedCollaborationCounts(profileIds),
+    ]);
 
   // Werkstroom-volgorde: NEW → VIEWED → SHORTLIST → REJECTED → ACCEPTED (actie-vragend eerst,
   // afgehandeld onderaan). Stabiel, dus binnen één status blijft de match-volgorde (hoogste eerst) staan.
@@ -488,6 +494,12 @@ export default async function KandidatenPage({
                             )}
                             <CandidateHistoryBadge
                               history={historyByProfile.get(app.freelancer.id)}
+                            />
+                            <CandidateExperienceBadge
+                              completedCollaborations={experienceByProfile.get(app.freelancer.id)}
+                              hasSharedHistory={
+                                (historyByProfile.get(app.freelancer.id)?.count ?? 0) >= 1
+                              }
                             />
                             {(() => {
                               // Reputatie: gemiddelde opdrachtgever-beoordeling. Alleen tonen bij ≥1
