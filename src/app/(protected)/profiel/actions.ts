@@ -217,7 +217,16 @@ export async function deleteWorkExperience(
 
   const existing = await prisma.workExperience.findUnique({ where: { id } });
   if (!existing || existing.freelancerProfileId !== profile.id) {
-    // Bestaat niet of hoort bij een ander profiel → geen bestaans-orakel, gewoon klaar.
+    // Bestaat niet of hoort bij een ander profiel → geen bestaans-orakel, respons identiek aan
+    // "al weg". Maar de geweigerde cross-owner-poging mag niet stil verdwijnen (CLAUDE.md regel 5,
+    // CWE-778): audit de weigering, spiegel van deleteDocument (DOCUMENT_DELETE_DENIED). Het gegokte
+    // id komt in de trail zodat IDOR-enumeratie op werkervaring-id's zichtbaar wordt.
+    await audit({
+      actorId: actor.id,
+      action: "WORK_EXPERIENCE_DELETE_DENIED",
+      entityType: "WorkExperience",
+      entityId: id,
+    });
     return { ok: true };
   }
 

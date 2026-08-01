@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-01 — Security/privacy-audit ronde 2026-08-01b: audit-trail-completeness op `deleteWorkExperience` (CWE-778)
+
+**Wat:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende hoog-risico
+oppervlakken (cross-tenant/franchise-isolatie · PII-over-fetch/dataminimalisatie · injectie/SSRF/redirect/
+headers/foutlek), plus de delta `705b40f1..a825bd86` (#1016–#1022). **Alle drie de audits schoon** — geen nieuw
+KRITIEK/HOOG/MIDDEL toegangs-, injectie-, cross-tenant- of PII-gat. Het nieuwe kandidaat-ervaringssignaal
+(`candidate-track-records.ts`) is correct gescoopt op de eigen applicant-profielen van de opdrachtgever en toont
+enkel een telling (geen PII-lek).
+
+**Gefixt (rood→groen):** de op 2026-08-01 geparkeerde LAAG audit-trail-consistentie —
+`deleteWorkExperience` (`src/app/(protected)/profiel/actions.ts`) schreef op een geweigerde cross-owner-poging
+(of onbekend id) stil `{ ok: true }` **zonder auditregel**, terwijl de zusterguard `deleteDocument` in exact dat
+geval wél een `DOCUMENT_DELETE_DENIED` schrijft (IDOR-enumeratie zichtbaar in de trail). Fix: `audit({ action:
+"WORK_EXPERIENCE_DELETE_DENIED", entityType: "WorkExperience", entityId: id })` in de weiger-tak + nieuw
+audit-label. CLAUDE.md regel 5 / CWE-778. +3 tests (`work-experience-delete-denied.test.ts`).
+
+**Gate:** typecheck ✓, lint ✓, test ✓, build ✓, prettier ✓. Backlog: ronde 2026-08-01b, parked LAAG → OPGELOST.
+
 ## 2026-08-01 — Persona-sweep run 64: TOCTOU-guard op modelovereenkomst-vorm (Wet-DBA) + deterministische admin-wachtrij-ordering
 
 **Wat:** kritische-gebruiker-sweep over alle vier rollen (DOEL 1/1b/2). Drie parallelle Opus-audits
