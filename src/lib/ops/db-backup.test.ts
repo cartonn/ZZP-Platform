@@ -194,16 +194,21 @@ describe("shouldVerifyBackup", () => {
     expect(shouldVerifyBackup({ noVerifyFlag: true, skipVerifyEnv: undefined })).toBe(false);
   });
 
-  it("zet uit via een aan-achtige BACKUP_SKIP_VERIFY-waarde", () => {
+  it("zet uit via een expliciet bevestigende BACKUP_SKIP_VERIFY-waarde", () => {
     expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "1" })).toBe(false);
     expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "true" })).toBe(false);
     expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "yes" })).toBe(false);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "on" })).toBe(false);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "TRUE" })).toBe(false);
   });
 
-  it("blijft aan bij een uit-achtige BACKUP_SKIP_VERIFY-waarde", () => {
+  it("blijft aan bij een uit-achtige of dubbelzinnige waarde (geen footgun)", () => {
     expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "false" })).toBe(true);
     expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "0" })).toBe(true);
     expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "FALSE" })).toBe(true);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "no" })).toBe(true);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "off" })).toBe(true);
+    expect(shouldVerifyBackup({ noVerifyFlag: false, skipVerifyEnv: "onzin" })).toBe(true);
   });
 });
 

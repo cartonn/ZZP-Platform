@@ -131,11 +131,16 @@ export function isValidArchiveListing(output: string | undefined | null): boolea
   return output.split("\n").some((line) => line.trim() !== "" && !line.trimStart().startsWith(";"));
 }
 
+/** Bevestigende waarden die een boolean-achtige env-var "aan" zetten. */
+const AFFIRMATIVE_ENV_VALUES = new Set(["1", "true", "yes", "on"]);
+
 /**
  * Bepaalt of de zojuist geschreven back-up geverifieerd moet worden vóór de retentie-snoei.
  * Standaard AAN (een onbeproefde back-up is geen back-up). Bewust uitzetten kan via de CLI-vlag
- * `--no-verify` of `BACKUP_SKIP_VERIFY` (elke niet-lege, niet-"false"/"0"-waarde telt als aan) —
- * bv. wanneer `pg_restore` niet op het systeem staat.
+ * `--no-verify` of `BACKUP_SKIP_VERIFY` — alléén een **expliciet bevestigende** waarde
+ * (`1`/`true`/`yes`/`on`, hoofdletterongevoelig) telt als skip. Elke andere waarde (leeg, `no`,
+ * `off`, `false`, `0`, onzin) laat de verificatie veilig AAN staan: voor een SKIP-veiligheidstoggle
+ * hoort alleen een uitdrukkelijk "ja" 'm uit te zetten, nooit een dubbelzinnige waarde.
  */
 export function shouldVerifyBackup(params: {
   noVerifyFlag: boolean;
@@ -143,7 +148,7 @@ export function shouldVerifyBackup(params: {
 }): boolean {
   if (params.noVerifyFlag) return false;
   const raw = params.skipVerifyEnv?.trim().toLowerCase();
-  if (raw && raw !== "false" && raw !== "0") return false;
+  if (raw && AFFIRMATIVE_ENV_VALUES.has(raw)) return false;
   return true;
 }
 
