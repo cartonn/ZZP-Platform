@@ -42,6 +42,10 @@
 > stale snapshot; een factuur die in het race-venster PAID wordt, wordt niet meer OVERDUE gemarkeerd
 > (fix 2) maar zou in dezelfde tick nog een reeds-geplande herinnering/aanmaning kunnen sturen. Smal
 > venster, alleen bij AUTO_REMINDERS-entitlement; secundair aan de statusfout. Prioriteit: LOW.
+> **→ GEFIXT (2026-08-01, PR #1018):** vóór het signaleren herleest `runPaymentReminderTask` nu de live
+> `lifecycleStatus` (`invoice.findMany where id in signalInvoiceIds`) en laat alleen betaalbare facturen
+> (APPROVED/OVERDUE) door — een in het venster PAID/bevroren/gecrediteerde factuur krijgt geen valse
+> herinnering/aanmaning/escalatie meer. Spiegelbeeld van de guarded OVERDUE-markering. +2 regressietests.
 >
 > ---
 

@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-01 — Robuustheid: TOCTOU-guard op de betaalherinner-signalering (PR #1018)
+
+**Wat:** sloot het geparkeerde LOW-item uit persona-sweep run 62. `runPaymentReminderTask`
+(`src/lib/payment-reminders-task.ts`) leidt `reminders`/`escalations` af uit de `findMany`-snapshot van
+vóór de OVERDUE-markering. Alleen het OVERDUE-**markeren** was compound-guarded (`updateMany where
+lifecycleStatus:"APPROVED"`); het **versturen** van de herinneringen/aanmaningen niet. Bevestigt de
+opdrachtgever in het race-venster de betaling (APPROVED/OVERDUE → PAID via de cascade), of wordt de deal
+bevroren/gecrediteerd/geannuleerd, dan kreeg die net-betaalde factuur alsnog een valse "betaal je
+factuur"/aanmaning-melding + admin-escalatie. **Fix:** vóór het signaleren de live `lifecycleStatus`
+herlezen (`invoice.findMany({ where: { id: { in: signalInvoiceIds } } })`) en alleen betaalbare facturen
+(APPROVED = pre-due reminder, OVERDUE = te-laat-signaal) doorlaten — spiegelbeeld van de guarded
+OVERDUE-markering. In het niet-race-geval (live == snapshot) gedragsbehoudend.
+
+**Bestanden:** `src/lib/payment-reminders-task.ts` (live-herlezing + `remindable`/`escalatable`-filter),
+`src/lib/payment-reminders-task.test.ts` (mock leest live rijen bij `where.id.in`; +2 tests: PAID in venster
+→ geen reminder/escalatie/notificatie; blijft-OVERDUE → reminder vuurt normaal). Eén extra begrensde read
+(alleen bij een vers signaal), geen schemawijziging, geen nieuw mutatie/auth-oppervlak, server-side waarheid.
+**Tests:** payment-reminders-task 8 passed; volledige suite 5528 passed. Typecheck/lint/build groen. CI-poort: zie PR.
+
 ## 2026-08-01 — Prod-rijpheid: back-up-integriteitsverificatie vóór retentie-snoei (PR #1017)
 
 **Wat:** `npm run db:backup` (`scripts/backup-db.ts`) snoeide oude back-ups **onvoorwaardelijk** ná de dump,
