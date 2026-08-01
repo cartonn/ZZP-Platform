@@ -4,7 +4,13 @@
 // collaboration en wacht de ZZP'er ("Geaccepteerd! Wacht op een samenwerkingsvoorstel"). Deze helper
 // is de enige bron van waarheid voor "welke geaccepteerde reacties wachten nog op een voorstel?" —
 // los testbaar, zonder DB. De enumerator (pending-tasks.ts) levert de ACCEPTED-reacties met
-// `hasCollaboration` aan; hier valt elke reactie af die al een collaboration heeft.
+// `hasCollaboration` aan; hier valt elke reactie af die al een (blokkerende) collaboration heeft.
+//
+// Her-voorstel-geval (collaboration-reproposal.ts): een reactie kan ACCEPTED blijven met een
+// GEANNULEERD, nog-nooit-ondertekend voorstel eraan. `collaborationBlocksProposal` telt dat NIET als
+// blokkerende collaboration (`hasCollaboration: false`), zodat de propose-taak resurfacet. Voor zo'n
+// re-voorstel loopt de leeftijd-klok vanaf het annuleringsmoment (`reproposalSince`) — niet vanaf de
+// oorspronkelijke acceptatie — anders zou een oude acceptatie de taak meteen als stalled tonen.
 //
 // Naast het filter berekent de helper de leeftijd van de acceptatie (`agingDays`): een geaccepteerde
 // ZZP'er die dagen op het beloofde voorstel wacht staat in het ergste limbo (hij zei "ja" tegen de hire
@@ -25,23 +31,35 @@ export type AcceptedProposalRow = {
   applicationId: string;
   freelancerName: string;
   jobTitle: string;
-  /** Is er al een collaboration op deze reactie? Zo ja → het voorstel is al verstuurd. */
+  /**
+   * Blokkeert een bestaande collaboration nog een voorstel? Zo ja → het voorstel is al verstuurd
+   * (of de samenwerking leeft/is afgerond). Zo nee → er mag (opnieuw) voorgesteld worden.
+   */
   hasCollaboration: boolean;
   /**
    * Moment van acceptatie (→ ACCEPTED). Legacy-rijen zonder `Application.acceptedAt` leveren hier de
    * `updatedAt`-fallback aan (door de enumerator opgelost), zodat de leeftijd nooit `null` is.
    */
   acceptedAt: Date;
+  /** Betreft dit een re-voorstel: een geannuleerd, nooit-ondertekend voorstel dat opnieuw mag? */
+  reproposal?: boolean;
+  /** Annuleringsmoment — de leeftijd-klok voor re-voorstellen (fallback op `acceptedAt` indien afwezig/null). */
+  reproposalSince?: Date | null;
 };
 
 export type AcceptedProposal = {
   applicationId: string;
   freelancerName: string;
   jobTitle: string;
-  /** Hele dagen sinds de acceptatie (geklemd op ≥ 0). */
+  /**
+   * Hele dagen sinds de leeftijd-klok (geklemd op ≥ 0). Voor een re-voorstel is dat het
+   * annuleringsmoment (`reproposalSince`), anders de acceptatie (`acceptedAt`).
+   */
   agingDays: number;
   /** True zodra `agingDays >= PROPOSAL_STALL_DAYS` — dan escaleert de next-action. */
   stalled: boolean;
+  /** Betreft dit een re-voorstel (geannuleerd voorstel dat opnieuw verstuurd mag worden)? */
+  reproposal: boolean;
 };
 
 /**
@@ -56,15 +74,19 @@ export function pendingCollaborationProposals(
 ): AcceptedProposal[] {
   return rows
     .filter((r) => !r.hasCollaboration)
-    .map(({ applicationId, freelancerName, jobTitle, acceptedAt }) => {
-      // Klem negatief: een (afwijkende) acceptedAt in de toekomst mag nooit een negatieve leeftijd geven.
-      const agingDays = Math.max(0, daysSince(acceptedAt, now));
+    .map((r) => {
+      const { applicationId, freelancerName, jobTitle } = r;
+      // Voor een re-voorstel loopt de klok vanaf de annulering; anders vanaf de acceptatie.
+      const clock = r.reproposal && r.reproposalSince ? r.reproposalSince : r.acceptedAt;
+      // Klem negatief: een (afwijkende) klok in de toekomst mag nooit een negatieve leeftijd geven.
+      const agingDays = Math.max(0, daysSince(clock, now));
       return {
         applicationId,
         freelancerName,
         jobTitle,
         agingDays,
         stalled: agingDays >= PROPOSAL_STALL_DAYS,
+        reproposal: r.reproposal === true,
       };
     });
 }

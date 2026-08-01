@@ -1603,6 +1603,15 @@ rejectedTypes.has(doc.type)) continue;`. Rood→groen: `pending-tasks-rejected-m
 > reactie nudged niemand. `proposeCollaboration` blokkeert her-voorstellen hard (`applicationId
 @unique`), dus er ís geen next-action die de motor kán tonen — het is een flow-gat (moet annuleren
 > de reactie heropenen?), geen onjuiste next-action. **LAAG.**
+> **→ GEDAAN (2026-08-01, PR #1025):** re-voorstel ontgrendeld. Nieuwe gedeelde bron van waarheid
+> `src/lib/collaboration-reproposal.ts` (`REPROPOSABLE_CANCELLED_WHERE` + `isReproposableCancelledProposal`/
+> `collaborationBlocksProposal`): een CANCELLED-collaboration die nooit is getekend/actief werd
+> (`contractStatus != SIGNED`, geen handtekeningen, geen `completedAt`, geen facturen/prestaties) is een
+> herbruikbaar voorstel. `proposeCollaboration` reset dan **dezelfde** @unique-rij via een
+> compound-guarded `updateMany` (TOCTOU-dicht) i.p.v. hard te weigeren (audit `COLLABORATION_REPROPOSED`).
+> De next-action-enumerator + badge + kandidaten-triage delen `collaborationBlocksProposal`, zodat de
+> propose-taak (leeftijd geankerd op `cancelledAt`) weer opduikt en de UI het voorstelformulier toont
+> i.p.v. een dode "bekijk samenwerking"-knop. Geen schemawijziging.
 
 ---
 

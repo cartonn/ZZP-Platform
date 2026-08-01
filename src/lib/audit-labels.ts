@@ -62,6 +62,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
 
   // Samenwerking & werkproces
   COLLABORATION_PROPOSED: "Samenwerking voorgesteld",
+  COLLABORATION_REPROPOSED: "Samenwerking opnieuw voorgesteld",
   COLLABORATION_STATUS_CHANGED: "Samenwerkingsstatus gewijzigd",
   COLLABORATION_REPLACEMENT_OPENED: "Herplaatsing geopend na uitval",
   CREDENTIAL_REMINDER_SENT: "Certificaatherinnering verstuurd",

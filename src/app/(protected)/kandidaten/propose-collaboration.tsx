@@ -24,6 +24,8 @@ export type ProposeCollaborationLabels = {
   conflictHeading: string;
   /** Verbindend woord tussen de twee datums in een periode-label ("t/m"). */
   conflictRange: string;
+  /** Toelichting bij een hervoorstel (het vorige voorstel is geannuleerd). */
+  reproposalNote: string;
 };
 
 /**
@@ -40,10 +42,13 @@ function readIso(value: string): string {
 export function ProposeCollaboration({
   applicationId,
   labels,
+  reproposal = false,
   unavailableWindows = [],
 }: {
   applicationId: string;
   labels: ProposeCollaborationLabels;
+  /** True wanneer een eerder voorstel is geannuleerd en de opdrachtgever opnieuw voorstelt. */
+  reproposal?: boolean;
   /** Toekomstige UNAVAILABLE-vensters van de kandidaat, server-side voorberekend. */
   unavailableWindows?: UnavailableWindow[];
 }) {
@@ -64,6 +69,7 @@ export function ProposeCollaboration({
   return (
     <form action={formAction} className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
       <p className="text-xs font-medium">{labels.title}</p>
+      {reproposal && <p className="text-xs text-muted-foreground">{labels.reproposalNote}</p>}
       <div className="grid gap-2 sm:grid-cols-3">
         <Input
           name="rate"
