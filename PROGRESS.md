@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-02b — security/privacy-audit: reactie-plan-limiet TOCTOU + Idea.declineReason erasure (2×MIDDEL)
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken) over de delta `999e46a7..de0a2f39`. Twee MIDDEL-gaten gedicht (rood→groen):
+
+1. **MIDDEL (OWASP A04)** — `createApplicationForJob` (`src/lib/applications-create.ts`) telde reacties met een
+   losse `count` en creëerde daarna buiten een transactie → twee gelijktijdige reacties van een FREE-ZZP'er
+   omzeilden de plan-limiet (monetisatie-bypass). Fix: pre-check als fast-fail + atomische her-telling in een
+   `Serializable` transactie mét de insert + retry-on-P2034 (spiegelt `changeJobStatus`/#1032-33). +2 tests.
+2. **MIDDEL (AVG art. 15/17)** — `Idea.declineReason` zat in de AVG-export maar `anonymizeUser` redigeerde 'm
+   nooit (twee kopieën: de rij + `IDEA_STATUS_SET`-auditmetadata). Fix: `declineReason`→null + auditmetadata-scrub
+   binnen de erasure-transactie (spiegelt het `disputeReason`-patroon). +test.
+
+**Bestanden:** `src/lib/applications-create.ts` (+ `.test.ts`), `src/app/(protected)/admin/gebruikers/actions.ts`
+(+ `anonymize-erasure.test.ts`), `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-02b).
+**Geen KRITIEK/HOOG** toegangs-, injectie-, cross-tenant- of documentgat gevonden; `npm audit --omit=dev` = 0.
+Geparkeerd (LAAG): same-day dedup-race in no-show/credential-reminder.
+
 ## 2026-08-02 — persona-sweep run 68: losse-factuur status/dispuut/regelplafond-gates (HIGH+2×MED) + badge-drift (2×MED)
 
 **Wat:** kritische-gebruiker-sweep over 4 rollen. Live-sweep (curl+Playwright-DB) schoon: RBAC-redirects,

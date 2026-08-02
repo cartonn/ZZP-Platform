@@ -108,7 +108,12 @@ vi.mock("@/lib/db", () => ({
       ]),
       updateMany: op("noShowReport.updateMany"),
     },
-    idea: { updateMany: op("idea.updateMany") },
+    idea: {
+      // Eén idee van de betrokkene met een door een beheerder getypte afwijsreden (declineReason).
+      // De id's worden vóór de transactie verzameld om de IDEA_STATUS_SET-auditregels te redacten.
+      findMany: vi.fn(async () => [{ id: "idea-1" }]),
+      updateMany: op("idea.updateMany"),
+    },
     collaboration: { updateMany: op("collaboration.updateMany") },
     favoriteFreelancer: { updateMany: op("favoriteFreelancer.updateMany") },
     domainEvent: {
@@ -125,68 +130,89 @@ vi.mock("@/lib/db", () => ({
       create: op("auditLog.create"),
       update: op("auditLog.update"),
       updateMany: op("auditLog.updateMany"),
-      findMany: vi.fn(async () => [
-        // Eigen actie van de betrokkene: IP/user-agent zijn PII en moeten mee gewist.
-        {
-          id: "audit-own",
-          actorId: "user-42",
-          entityType: "User",
-          entityId: "user-42",
-          metadata: JSON.stringify({ from: "ACTIVE", to: "SUSPENDED" }),
-          ipAddress: "203.0.113.5",
-          userAgent: "Mozilla/5.0",
-        },
-        // Mislukte login vóór het account bestond als entity: alleen via het e-mailadres in de
-        // metadata te matchen (actorId null, entityId "unknown").
-        {
-          id: "audit-login-failed",
-          actorId: null,
-          entityType: "User",
-          entityId: "unknown",
-          metadata: JSON.stringify({ email: "jan@bedrijf.nl" }),
-          ipAddress: "198.51.100.7",
-          userAgent: null,
-        },
-        // Bulk-import: rol blijft, e-mailadres eruit.
-        {
-          id: "audit-import",
-          actorId: "admin-9",
-          entityType: "User",
-          entityId: "user-42",
-          metadata: JSON.stringify({ role: "FREELANCER", email: "jan@bedrijf.nl" }),
-          ipAddress: null,
-          userAgent: null,
-        },
-        // Franchise-toevoeging: de bemiddelaar (andere actor) voegde deze ZZP'er toe; het event
-        // bewaart het e-mailadres als `entityId` én de volledige naam in de metadata. Beide zijn PII
-        // van de betrokkene en moeten mee, ook al is actorId niet de betrokkene en entityType geen
-        // "User". Wordt geselecteerd via de `entityId: originalEmail`-tak van de OR.
-        {
-          id: "audit-franchise-add",
-          actorId: "franchiser-3",
-          entityType: "FreelancerProfile",
-          entityId: "jan@bedrijf.nl",
-          metadata: JSON.stringify({
-            tenantId: "t-1",
-            name: "Jan de Vries",
-            skills: 2,
-            availability: "FULL_TIME",
-          }),
-          ipAddress: null,
-          userAgent: null,
-        },
-        // Auditregel van een ándere gebruiker die dit adres slechts als substring bevat — mag NIET
-        // geraakt worden (exact-match + geen eigen actor/entity).
-        {
-          id: "audit-other",
-          actorId: "user-99",
-          entityType: "User",
-          entityId: "user-99",
-          metadata: JSON.stringify({ email: "boaz-jan@bedrijf.nl" }),
-          ipAddress: "192.0.2.9",
-          userAgent: "curl/8",
-        },
-      ]),
+      findMany: vi.fn(async (args?: { where?: { action?: string } }) => {
+        // De IDEA_STATUS_SET-scrub leest de status-auditregels van de eigen ideeën apart op: één
+        // afwijs-regel (`{ from, to, reason }`) waarvan alleen de vrije-tekstreden mag verdwijnen,
+        // plus één niet-afwijs-regel (`{ from, to }`) die ongemoeid moet blijven (geen loze reason).
+        if (args?.where?.action === "IDEA_STATUS_SET") {
+          return [
+            {
+              id: "idea-audit-decline",
+              metadata: JSON.stringify({
+                from: "UNDER_REVIEW",
+                to: "DECLINED",
+                reason: "Bevat de persoonsnaam Jan de Vries",
+              }),
+            },
+            {
+              id: "idea-audit-planned",
+              metadata: JSON.stringify({ from: "OPEN", to: "PLANNED" }),
+            },
+          ];
+        }
+        return [
+          // Eigen actie van de betrokkene: IP/user-agent zijn PII en moeten mee gewist.
+          {
+            id: "audit-own",
+            actorId: "user-42",
+            entityType: "User",
+            entityId: "user-42",
+            metadata: JSON.stringify({ from: "ACTIVE", to: "SUSPENDED" }),
+            ipAddress: "203.0.113.5",
+            userAgent: "Mozilla/5.0",
+          },
+          // Mislukte login vóór het account bestond als entity: alleen via het e-mailadres in de
+          // metadata te matchen (actorId null, entityId "unknown").
+          {
+            id: "audit-login-failed",
+            actorId: null,
+            entityType: "User",
+            entityId: "unknown",
+            metadata: JSON.stringify({ email: "jan@bedrijf.nl" }),
+            ipAddress: "198.51.100.7",
+            userAgent: null,
+          },
+          // Bulk-import: rol blijft, e-mailadres eruit.
+          {
+            id: "audit-import",
+            actorId: "admin-9",
+            entityType: "User",
+            entityId: "user-42",
+            metadata: JSON.stringify({ role: "FREELANCER", email: "jan@bedrijf.nl" }),
+            ipAddress: null,
+            userAgent: null,
+          },
+          // Franchise-toevoeging: de bemiddelaar (andere actor) voegde deze ZZP'er toe; het event
+          // bewaart het e-mailadres als `entityId` én de volledige naam in de metadata. Beide zijn PII
+          // van de betrokkene en moeten mee, ook al is actorId niet de betrokkene en entityType geen
+          // "User". Wordt geselecteerd via de `entityId: originalEmail`-tak van de OR.
+          {
+            id: "audit-franchise-add",
+            actorId: "franchiser-3",
+            entityType: "FreelancerProfile",
+            entityId: "jan@bedrijf.nl",
+            metadata: JSON.stringify({
+              tenantId: "t-1",
+              name: "Jan de Vries",
+              skills: 2,
+              availability: "FULL_TIME",
+            }),
+            ipAddress: null,
+            userAgent: null,
+          },
+          // Auditregel van een ándere gebruiker die dit adres slechts als substring bevat — mag NIET
+          // geraakt worden (exact-match + geen eigen actor/entity).
+          {
+            id: "audit-other",
+            actorId: "user-99",
+            entityType: "User",
+            entityId: "user-99",
+            metadata: JSON.stringify({ email: "boaz-jan@bedrijf.nl" }),
+            ipAddress: "192.0.2.9",
+            userAgent: "curl/8",
+          },
+        ];
+      }),
     },
     $transaction: vi.fn(async (ops: Array<{ model: string; args: unknown }>) => {
       tx.ops = ops;
@@ -352,6 +378,34 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     const data = o.args.data as { title: string; description: string };
     expect(data.title).toMatch(/verwijderd/i);
     expect(data.description).toMatch(/verwijderd/i);
+  });
+
+  it("wist de afwijsreden op eigen ideeën (Idea.declineReason) én redact 'm uit de IDEA_STATUS_SET-auditmetadata (AVG art. 15/17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // De AVG-inzage (`account-export.ts`) toont `Idea.declineReason` — de vrije tekst die een
+    // beheerder bij het afwijzen typte — aan de betrokkene als deel van zijn eigen idee (art. 15).
+    // De erasure moet die reden dan spiegelbeeldig kunnen wissen (art. 17). Vóór de fix redact de
+    // idea.updateMany alleen title/description en overleeft declineReason (rood→groen).
+    const idea = find("idea.updateMany") as { args: { data: { declineReason?: unknown } } };
+    expect(idea).toBeDefined();
+    expect(idea.args.data.declineReason).toBeNull();
+
+    // Tweede kopie: de reden staat verbatim in de `{ from, to, reason }`-metadata van het
+    // IDEA_STATUS_SET-auditrecord (actorId = beheerder, entityType "Idea" → nooit door de generieke
+    // email/naam-scrub geraakt). Alleen de `reason`-sleutel wordt geredact; de statusovergang
+    // (from/to, geen PII) blijft als verantwoordingsspoor staan. De niet-afwijs-regel (zonder reason)
+    // mag ongemoeid blijven — daarvoor mag géén auditLog.update worden geschreven.
+    const updates = findAll("auditLog.update") as Array<{
+      args: { where: { id: string }; data: { metadata?: string } };
+    }>;
+    const declineOp = updates.find((u) => u.args.where.id === "idea-audit-decline");
+    expect(declineOp).toBeDefined();
+    const meta = JSON.parse(declineOp!.args.data.metadata as string);
+    expect(meta.reason).toBe("[verwijderd]");
+    expect(meta.from).toBe("UNDER_REVIEW");
+    expect(meta.to).toBe("DECLINED");
+    // De reden-loze statusovergang wordt niet aangeraakt (geen loze reason-sleutel toegevoegd).
+    expect(updates.some((u) => u.args.where.id === "idea-audit-planned")).toBe(false);
   });
 
   it("wist de zelf-geschreven annuleerreden (Collaboration.cancellationReason)", async () => {

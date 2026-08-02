@@ -4,6 +4,65 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-02b (basis: `main` @ de0a2f39)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken, plus de
+delta sinds de vorige ronde (`999e46a7..de0a2f39`, #1028–#1035 — no-show-erasure, retentie-gauges, publishJob
+TOCTOU/plan-limiet, document-substitutie-TOCTOU, losse-factuur status/dispuut/regelplafond-gates, badge-drift).
+Gedekt: (1) de geld-/opdracht-mutatieketen (`opdrachten`/`samenwerkingen`/`facturen`/`applications-create`/
+`shift-handoff`/`no-show`/`pending-tasks` — auth→rol→ownership→Zod→actie→audit, IDOR, mass-assignment, TOCTOU op
+publish/factureer/status); (2) document-/verificatie-oppervlak (`storage.ts`, `certificaten`, alle document-/PDF-/
+dossier-routes, verificatiequeue, `CREDENTIAL_TRANSITIONS`); (3) erasure-vs-export-volledigheid (AVG art. 15/17/20 —
+élk PII-veld uit `account-export.ts` één-op-één tegen `anonymizeUser`), cross-tenant isolatie (`tenancy.ts` +
+`franchise/**`), injectie/XSS/CSV/SSRF/open-redirect/headers/foutlek en alle niet-document `/api`-routes
+(cron-Bearer + `timingSafeEqual`, webhook re-fetch, push-endpoint-allowlist). `npm audit --omit=dev` = **0** (2 dev-only
+DoS-advisories in de eslint/js-yaml-toolchain, niet-runtime).
+
+**Resultaat: twee MIDDEL-gaten OPGELOST (rood→groen). (1) reactie-plan-limiet TOCTOU (monetisatie-bypass, OWASP A04);
+(2) `Idea.declineReason` export/erasure-asymmetrie (AVG art. 15/17). Geen nieuw KRITIEK/HOOG toegangs-, injectie- of
+cross-tenant-gat gevonden; document-/verificatie-oppervlak schoon. Eén LAAG dedup-race geparkeerd.**
+
+### OPGELOST — MIDDEL (OWASP A04 Insecure Design, CLAUDE.md regel 1/2): reactie-plan-limiet was TOCTOU-baar (monetisatie-bypass)
+
+- **Repro (was):** `createApplicationForJob` (`src/lib/applications-create.ts`) telde de bestaande reacties met een
+  losse `prisma.application.count(...)` en deed daarna — buiten een transactie — de `create`. Twee gelijktijdige
+  reacties van dezelfde FREE-ZZP'er (op verschillende opdrachten, parallel afgevuurd) lazen beide dezelfde `count`,
+  passeerden beide `canApply`, en creëerden beide → de plan-limiet werd met N overschreden (N = aantal parallelle
+  requests, client-stuurbaar). Puur monetisatie-/plan-integriteit (geen PII-lek), vandaar MIDDEL. Exact dezelfde
+  race-klasse die #1032/#1033 al dichtte voor `changeJobStatus` (job-publish) — asymmetrie.
+- **Geschonden regel:** CLAUDE.md regel 1 (server-side waarheid) / regel 2 (atomaire mutatieketen); OWASP A04.
+- **Fix (deze PR):** pre-transactionele lees blijft als fast-fail (bespaart de dure matchscore-berekening); de
+  echte grendel is nu een her-telling BÍNNEN een `Serializable` transactie mét de insert + retry-on-P2034
+  (`APPLICATION_TX_OPTIONS`/`APPLICATION_MAX_ATTEMPTS`) — spiegelt `JOB_PUBLISH_TX_OPTIONS`/`changeJobStatus`. Op
+  Postgres SSI conflicteert telling+insert met een gelijktijdige tweede reactie → P2034 → her-telling ziet de
+  gecommitte reactie en weigert. +2 unit-tests (rood→groen): een reactie die de pre-check passeert maar in het
+  venster het maximum bereikt, wordt in de transactie geweigerd (geen create/audit/notificatie).
+
+### OPGELOST — MIDDEL (AVG art. 15/17, CLAUDE.md regel 4): `Idea.declineReason` zat in de AVG-export maar overleefde de erasure
+
+- **Repro (was):** `account-export.ts` geeft `Idea.declineReason` prijs als eigen inzage-data (art. 15/20), maar
+  `anonymizeUser` (`admin/gebruikers/actions.ts`) redigeerde alleen `title`/`description` van het eigen idee, niet
+  `declineReason`. Na een art. 17-verzoek bleef de door de admin geschreven weigerreden leesbaar in de DB; een tweede
+  kopie stond in de `IDEA_STATUS_SET`-auditmetadata (`{ reason }`), die de generieke `scrubAuditMetadataPii` (exacte
+  e-mail/naam-match) niet raakt. Export-vs-erasure-asymmetrie — zelfde klasse als de eerder gedichte
+  `Expense.description`/`NoShowReport.reason`-gaten.
+- **Geschonden regel:** AVG art. 15/17 (onvolledige erasure) + CLAUDE.md regel 4; interne inconsistentie met het
+  bestaande `disputeReason`-drie-kopie-erasurepatroon.
+- **Fix (deze PR):** `Idea.declineReason` → null op de eigen ideeën binnen de erasure-transactie + de
+  `IDEA_STATUS_SET`-auditmetadata-reason geredigeerd voor die ideeën (spiegelt de `disputeReason`-auditscrub). +test
+  (rood→groen).
+
+### GEPARKEERD — LAAG (correctheid/hygiëne, geen toegangsgat): same-day dedup in no-show / credential-reminder niet race-guarded
+
+- **Repro:** `reportNoShow` (`samenwerkingen/no-show-actions.ts:74-89`) en `sendCredentialReminder`
+  (`samenwerkingen/actions.ts:556-597`) doen een `findFirst`/`findMany`-idempotentiecheck en daarna een losse
+  `create`, buiten een transactie. Een racende dubbel-submit binnen hetzelfde venster kan twee `NoShowReport`-rijen /
+  twee `CREDENTIAL_REMINDER_SENT`-notificaties voor dezelfde dag opleveren vóór de eerste write zichtbaar is. Geen
+  autorisatie-/PII-gat; rate-limiters begrenzen de blast-radius.
+- **Geschonden regel:** CLAUDE.md regel 5 (idempotentie/atomiciteit). Geen toegangsgat.
+- **Aanbevolen fix:** read+write in één `prisma.$transaction` met een unique-constraint of compound-guard, zoals
+  `shift-handoff-actions.ts:94-108` al doet.
+
 ## Ronde 2026-08-02 (basis: `main` @ 999e46a7)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken, plus de

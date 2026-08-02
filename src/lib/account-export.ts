@@ -244,7 +244,9 @@ export async function buildAccountExport(
       select: { workedOn: true, hours: true, category: true, note: true, createdAt: true },
     }),
     // Eigen ideeën (vrije tekst van de actor). declineReason is door het platform geschreven maar gaat
-    // rechtstreeks over het eigen idee van de actor — hoort bij de inzage.
+    // rechtstreeks over het eigen idee van de actor — hoort bij de inzage (art. 15). NB: omdat dit veld
+    // aan de betrokkene wordt getoond, moet de erasure (`admin/gebruikers/actions.ts` → anonymizeUser)
+    // het spiegelbeeldig wissen (art. 17): zowel Idea.declineReason als de IDEA_STATUS_SET-auditmetadata.
     db.idea.findMany({
       where: { authorId: actorId },
       select: {
