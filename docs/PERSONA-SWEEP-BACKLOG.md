@@ -1,5 +1,48 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-02 (run 66) · **main-commit basis:** `947426a1`
+> **Uitkomst:** **2 bereikbare defecten GEVONDEN + GEFIXT** (document-integriteit HIGH, TOCTOU +
+> next-action cross-surface drift MED). Drie parallelle Opus-audits (authz/IDOR/cross-tenant +
+> document-privacy → **schoon, niets nieuws**; financiële/status-integriteit → **1 HIGH gevonden**;
+> next-action-correctheid → **1 MED gevonden**).
+>
+> 1. **GEFIXT — HIGH (DOEL 2, document-substitutie via ontbrekende status-guard op de trust-kritische
+>    verificatieflow):** `persistCredential` (`src/app/(protected)/certificaten/actions.ts`) deed in de
+>    `hasFile`-hertindien-tak een **ongeguarde** `tx.credential.update({ where: { id } })` ná een niet-
+>    transactionele statuslees (`loadOwnedCredential`) en ná een **trage** `putBlob` (AV-scan + storage-
+>    put, echte netwerk-I/O van meerdere seconden). Repro: een `SUBMITTED`-credential met document `D0`;
+>    de ZZP'er uploadt een vervangend bestand (resubmit=false, dus géén status-check in die tak) terwijl
+>    `putBlob` loopt. Een gelijktijdige admin keurt `D0` goed (`verifyCredential`, compound-guard op
+>    `status:SUBMITTED` matcht nog) → `VERIFIED`, `verifiedAt`, `credentialVerification` naar `D0`. De
+>    ZZP'er-transactie commit dan de blinde write: `documentId` wordt stil overschreven naar het nieuwe,
+>    **ongeziene** bestand op de nu-`VERIFIED` rij, en `deleteDocumentById` verwijdert `D0` — het bewijs
+>    dat de admin daadwerkelijk beoordeelde — onherstelbaar. Eindstaat: een VERIFIED-credential (kern-
+>    differentiatie: geverifieerde VOG/diploma) wijst naar een document dat niemand keurde; het gekeurde
+>    is weg. Schending CLAUDE.md regel 2/3 (compound-guarded write; server-side waarheid; expliciete
+>    transitiemap). Exact de TOCTOU-klasse die de rest van dit bestand al had (run-54 `applyExternalVerification`)
+>    — de drie resterende ongeguarde siblings. **Fix:** compound-guarded `updateMany({ where: { id, status } })`
+>    - count-gate (0 → `StaleCredentialError` → rollback, geen doc-swap, geen `verificationRequest`,
+>      `deleteDocumentById` draait niet → beoordeeld document blijft), hergebruikt het bestaande
+>      `STALE_CREDENTIAL_MESSAGE`. Dezelfde guard op de twee siblings in dit bestand (de no-file `reverify`-tak
+>      - `requestVerification`). +2 regressietests (`persist-toctou.test.ts`: verloren race → geen swap/geen
+>        delete; gewonnen race → swap + oud doc opgeruimd). Gate: typecheck, lint, test, build, prettier groen.
+> 2. **GEFIXT — MED (DOEL 1b, niet-deterministische undercount + badge-drift op de FREELANCER-cert-
+>    dossierquery):** de certificaatdossierquery in `freelancerTasks` (`src/lib/actions/pending-tasks.ts`)
+>    draaide met `take: MAX` (50) **zonder `orderBy`**, terwijl deze query de hoogste-prioriteit next-actions
+>    voedt (afgewezen/verlopend/ontbrekend-verplicht cert + de compliance-gebonden certtaken van een lopende
+>    samenwerking) én de superseded-detectie. De /certificaten-nav-badge (`signals.ts`) telt ditzelfde
+>    dossier **onbegrensd** (exacte `count` + volledig VERIFIED-dossier + verplichte-doc-rijen) en claimt
+>    gelijkheid met /acties. Zonder `orderBy` was de MAX-slice niet-deterministisch, én zodra het dossier
+>    > 50 rijen telt viel een concreet, actie-behoevend cert willekeurig buiten de slice → het verscheen wél
+>    > in de badge maar niet als next-action (inclusief de compliance-blokkerende collab-certtaken). Exact de
+>    > drift-klasse van #1022 (admin-wachtrijen). **Fix:** de query is nu **onbegrensd** (geen `take`) — spiegelt
+>    > de onbegrensde badge/pagina drift-proof (owner-scoped, inherent begrensd tot het persoonlijke
+>    > certificaatdossier); dit maakt bovendien de superseded-detectie correcter (had álle VERIFIED-exemplaren
+>    > van een type nodig). +1 regressietest (`pending-tasks-freelancer-credential-unbounded.test.ts`:
+>    > dossierquery zonder `take`). Gate groen.
+>
+> ---
+
 > **Datum:** 2026-08-02 (run 65) · **main-commit basis:** `055fd02e`
 > **Uitkomst:** **1 bereikbaar defect GEVONDEN + GEFIXT** (status-integriteit HIGH, cross-actor TOCTOU) +
 > **1 geparkeerd** (bevestigd bereikbaar, volgende increment). Twee parallelle Opus-audits (TOCTOU/status-

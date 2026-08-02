@@ -352,10 +352,22 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     // Eén query voor álle certificaten: de fix-taken (afgewezen/verloopt) én de verplichte-
     // documentenstatus (VOG/verzekering) worden in-memory afgeleid — zelfde bron als de
     // inzetbaarheidskaart op het dashboard, zodat beide oppervlakken nooit tegenspreken.
+    //
+    // ONBEGRENSD (geen take): de /certificaten-nav-badge (signals.ts) telt ditzelfde dossier
+    // onbegrensd (count REJECTED + het volledige VERIFIED-dossier + de verplichte-doc-rijen) en
+    // claimt gelijkheid met /acties. Een `take: MAX` zou (a) zonder orderBy niet-deterministisch
+    // zijn (Prisma garandeert geen rijvolgorde → welke MAX-van-N rijen /acties toont wisselt per
+    // request) en (b) de badge tegenspreken zodra het dossier > MAX rijen telt: een afgewezen/
+    // verlopend/ontbrekend-verplicht cert of een compliance-blokkerend cert van een lopende
+    // samenwerking dat buiten de slice valt, verschijnt dan wél in de badge maar niet als next-action.
+    // Bovendien heeft de superseded-detectie (`supersededVerifiedCredentialIds`) álle nu-geldige
+    // VERIFIED-exemplaren van een type nodig — een cap zou het superseding-exemplaar kunnen missen.
+    // Zelfde drift-klasse als #1022 (admin-wachtrijen), hier drift-proof gesloten door de badge te
+    // spiegelen i.p.v. te cappen. unbounded-allow: eigenaar-scoped, inherent begrensd tot het
+    // persoonlijke certificaatdossier.
     const creds = await prisma.credential.findMany({
       where: { freelancerProfileId: profile.id },
       select: { id: true, title: true, type: true, status: true, expiresAt: true },
-      take: MAX,
     });
     allCreds = creds.map((c) => ({
       id: c.id,

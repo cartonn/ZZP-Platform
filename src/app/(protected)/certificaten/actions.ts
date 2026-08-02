@@ -88,6 +88,12 @@ async function deleteDocumentById(actorId: string, documentId: string | null) {
   });
 }
 
+/** Sentinel: de credential is tussen de snapshot en de write van status veranderd (race verloren). */
+class StaleCredentialError extends Error {}
+
+const STALE_CREDENTIAL_MESSAGE =
+  "Dit certificaat is inmiddels beoordeeld. Ververs de pagina en probeer het opnieuw.";
+
 /**
  * Kern van het opslaan/(her)indienen van een credential — gedeeld door de standalone
  * /certificaten-pagina (saveCredential, met redirect) en het Actiecentrum (saveCredentialInline,
@@ -146,8 +152,17 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
         const previousDocumentId = credential.documentId;
         await prisma.$transaction(async (tx) => {
           const doc = await tx.document.create({ data: docData });
-          await tx.credential.update({
-            where: { id: credentialId },
+          // Compound-guard BINNEN de transactie (spiegelt applyExternalVerification): de status-snapshot
+          // (loadOwnedCredential) is gelezen vóór de trage putBlob (AV-scan + storage-put, netwerk-I/O).
+          // Een gelijktijdige admin-beslissing (verifyCredential/rejectCredential, zelf compound-guarded op
+          // status:SUBMITTED) kan de rij in dat venster naar VERIFIED/REJECTED flippen. Zonder guard zou de
+          // blinde write het documentId stil vervangen op de nu-beoordeelde rij (het bewijsstuk dat de admin
+          // zag → een ongezien bestand op een VERIFIED-credential) én zou het oude, beoordeelde document
+          // hieronder onherstelbaar worden verwijderd. Matcht 0 rijen → StaleCredentialError → rollback
+          // (geen doc-swap, geen verificationRequest); deleteDocumentById draait dan niet, dus het
+          // beoordeelde document blijft staan.
+          const res = await tx.credential.updateMany({
+            where: { id: credentialId, status },
             data: {
               ...fields,
               documentId: doc.id,
@@ -156,6 +171,7 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
                 : {}),
             },
           });
+          if (res.count === 0) throw new StaleCredentialError();
           if (resubmit) await tx.verificationRequest.create({ data: { credentialId } });
         });
         await deleteDocumentById(actor.id, previousDocumentId);
@@ -177,8 +193,12 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
         if (reverify) {
           assertTransition(status, "SUBMITTED");
           await prisma.$transaction(async (tx) => {
-            await tx.credential.update({
-              where: { id: credentialId },
+            // Compound-guard op de gesnapshotte status: `reverify` is beslist op een pre-transactionele
+            // lees (VERIFIED/EXPIRED + gewijzigde feiten). Flipt een gelijktijdige actie de rij in het
+            // venster, dan matcht de guard 0 rijen → StaleCredentialError → rollback (geen SUBMITTED-write,
+            // geen verificationRequest). Zelfde patroon als applyExternalVerification.
+            const res = await tx.credential.updateMany({
+              where: { id: credentialId, status },
               data: {
                 ...fields,
                 status: "SUBMITTED",
@@ -186,6 +206,7 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
                 submittedAt: new Date(),
               },
             });
+            if (res.count === 0) throw new StaleCredentialError();
             await tx.verificationRequest.create({ data: { credentialId } });
           });
         } else {
@@ -220,6 +241,7 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
   } catch (e) {
     if (e instanceof UploadValidationError) return { fieldErrors: { document: e.message } };
     if (e instanceof TransitionError) return { error: e.message };
+    if (e instanceof StaleCredentialError) return { error: STALE_CREDENTIAL_MESSAGE };
     throw e;
   }
 
@@ -269,13 +291,23 @@ export async function requestVerification(credentialId: string): Promise<void> {
     throw e;
   }
 
-  await prisma.$transaction([
-    prisma.credential.update({
-      where: { id: credentialId },
-      data: { status: "SUBMITTED", rejectionReason: null, submittedAt: new Date() },
-    }),
-    prisma.verificationRequest.create({ data: { credentialId } }),
-  ]);
+  // Compound-guard op de gesnapshotte status (spiegelt applyExternalVerification): tussen de
+  // loadOwnedCredential-lees en deze write kan een gelijktijdige actie (dubbelklik/tweede tab, of een
+  // admin-beslissing) de rij uit `status` halen. Matcht 0 rijen → StaleCredentialError → nette fout,
+  // géén dubbele verificationRequest, géén audit op een niet-uitgevoerde overgang.
+  try {
+    await prisma.$transaction(async (tx) => {
+      const res = await tx.credential.updateMany({
+        where: { id: credentialId, status },
+        data: { status: "SUBMITTED", rejectionReason: null, submittedAt: new Date() },
+      });
+      if (res.count === 0) throw new StaleCredentialError();
+      await tx.verificationRequest.create({ data: { credentialId } });
+    });
+  } catch (e) {
+    if (e instanceof StaleCredentialError) throw new Error(STALE_CREDENTIAL_MESSAGE);
+    throw e;
+  }
   await audit({
     actorId: actor.id,
     action: "CREDENTIAL_SUBMITTED",
@@ -367,12 +399,6 @@ async function blockMockVerification(
   });
   return { error: MOCK_VERIFICATION_BLOCKED_MESSAGE };
 }
-
-/** Sentinel: de credential is tussen de snapshot en de write van status veranderd (race verloren). */
-class StaleCredentialError extends Error {}
-
-const STALE_CREDENTIAL_MESSAGE =
-  "Dit certificaat is inmiddels beoordeeld. Ververs de pagina en probeer het opnieuw.";
 
 /** Gedeeld: zet een credential systeem-geverifieerd (bron DUO/BIG) via de transitiemap. */
 async function applyExternalVerification(opts: {
