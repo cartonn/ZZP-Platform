@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-02 — Opdrachtgever: publishJob plan-limiet ook op Postgres waterdicht (Serializable + retry)
+
+**Wat:** follow-up op de vorige PR (#1032). De adversariële review merkte terecht op dat de atomische
+plan-limiet daar alleen op **SQLite** (DB-brede write-lock) waterdicht was: op **PostgreSQL** (productie)
+onder de default READ COMMITTED locken twee gelijktijdige publishes van **verschillende** drafts andere
+rijen, blokkeren elkaar niet, en zien elkaars nog-niet-gecommitte publicatie niet → beide glippen onder de
+FREE-limiet door. **Fix:** de publish-transactie draait nu op `isolationLevel: Serializable` (Postgres SSI
+detecteert het read-write-conflict tussen de plan-telling en een gelijktijdige publish → één transactie
+faalt met P2034) + een retry-lus (`JOB_PUBLISH_MAX_ATTEMPTS = 4`, spiegelt `facturen/actions.ts`) die de
+her-telling laat draaien tegen de nu-gecommitte staat. SQLite ondersteunt alléén Serializable → gedrags-
+neutraal daar. De moderatie-resurrectie-guard (`updateMany` + count-gate) was al DB-agnostisch dicht. De
+overclaimende comment is gecorrigeerd; nit toegevoegd bij de `id: { not: jobId }`-telling.
+
+**Bestanden:** `src/app/(protected)/opdrachten/actions.ts` (Serializable tx-opties + P2034-retry-lus +
+accurate comment), `src/app/(protected)/opdrachten/publish-toctou.test.ts` (+2 tests: P2034 → retry →
+publiceert; aanhoudend P2034 → na 4 pogingen doorgegooid, geen stille publicatie).
+
+**Gate:** typecheck ✓ (koud, verse `.tsbuildinfo`), lint ✓, test ✓, build ✓, prettier ✓.
+
 ## 2026-08-02 — Opdrachtgever: publishJob TOCTOU-guard + atomische plan-limiet (HIGH, monetisatie/moderatie-integriteit)
 
 **Wat:** `changeJobStatus` (`src/app/(protected)/opdrachten/actions.ts`) — de publiceer-/heropen-tak —
