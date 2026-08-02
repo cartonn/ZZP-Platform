@@ -1125,3 +1125,20 @@ maanden). Beide gauges hergebruiken **exact** dezelfde bron van waarheid als de 
   de gauge is `0`. Drop-in Prometheus-alerts (`ZzpNotificationsRetentionBacklog`/`ZzpLeadsRetentionBacklog`, `> 0` met
   `for: 30h`) staan in `docs/observability/alerts.yml` en zijn vastgeklonken aan de drift-gate. Falen veilig (nooit een
   500), bevatten geen PII. Resterend mensenwerk: **niets extra**.
+  **Code-kant GEDAAN (2026-08-02) — routing-cache-retentie-backlog stille-faal-gauge:**
+  `zzp_routing_cache_retention_backlog` (aantal `GeocodeCache`- + `TravelRouteCache`-rijen wier eigen TTL
+  — `expiresAt` — is verstreken die de `routing-cache-retention`-cron nog niet fysiek verwijderde). Hiermee is
+  het **laatste** PII-dragende retentie-prune gedekt door een stille-faal-detector: beide routing-cachetabellen
+  bewaren **platte-tekst locatiegegevens** (`query`/`fromQuery`/`toQuery` — herleidbare adres-/plaatsindicaties van
+  ZZP'ers en opdrachten die naar Geoapify zijn gestuurd of daaruit zijn afgeleid). De leeslaag negeert verlopen
+  rijen alleen **lazy** (`routing.ts`) — fysiek blijven ze staan, dus deze cron is de enige die de opslagbeperking
+  (AVG art. 5(1)(e)) afdwingt. **Anders dan de andere retentie-backlogs is deze retentie ALTIJD actief**: de TTL zit
+  per rij ingebakken (geen instelvenster), dus de gauge is nooit `0`-per-definitie en de cutoff is simpelweg `now`.
+  De gauge hergebruikt **exact** dezelfde bron van waarheid als de taak zelf
+  (`prunableRoutingCacheWhere(now)` — geëxporteerd uit `routing-cache-retention-task.ts`, gedeeld door de delete én
+  de count over beide tabellen) → kan niet driften. De cron-heartbeat bewijst alleen dát de run afrondde, niet dát
+  'ie de snoei-pijplijn verwerkte — blijft dit getal oplopen terwijl de heartbeat "vers" is, dan bewaart de app
+  locatie-PII over de eigen TTL heen zonder dat iets dat toont. Drop-in Prometheus-alert
+  (`ZzpRoutingCacheRetentionBacklog`, `> 0` met `for: 30h` > één cron-interval) in `docs/observability/alerts.yml`,
+  vastgeklonken aan beide drift-gates (`alerts-rules.ts` + de onderhouds-inhibitie in `alertmanager.yml`). Faalt
+  veilig (nooit een 500), bevat geen PII. Resterend mensenwerk: **niets extra**.

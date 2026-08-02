@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — routing-cache retentie-backlog gauge (`/api/metrics`, AVG art. 5(1)(e)) (2026-08-02, PR volgt)** —
+> laatste PII-dragende "verwijder-ouder-dan-venster"-retentie-prune zonder stille-faal-detector gedicht (na audit/reacties/
+> notificaties/leads/health-incident-IP/messages/webhook-events). Nieuwe gauge `zzp_routing_cache_retention_backlog` telt
+> `GeocodeCache`- + `TravelRouteCache`-rijen wier eigen TTL (`expiresAt`) is verstreken die de `routing-cache-retention`-cron nog
+> niet fysiek verwijderde. Beide tabellen dragen **platte-tekst locatie-PII** (`query`/`fromQuery`/`toQuery`, adres-/plaatsindicaties);
+> de leeslaag negeert verlopen rijen alleen lazy → deze cron dwingt als enige de opslagbeperking af. **Anders dan de 7 bestaande
+> backlog-gauges is deze retentie ALTIJD actief** (TTL per rij ingebakken, geen instelvenster → nooit `0`-per-definitie; cutoff = `now`).
+> Nieuwe geëxporteerde `prunableRoutingCacheWhere(cutoff)` als enige bron van waarheid, gedeeld door taak (delete) + gauge (count) over
+> beide tabellen → geen drift. Read-only count, faalt veilig (0, nooit 500), geen schema/PII. Drop-in alert `ZzpRoutingCacheRetentionBacklog`
+> (`>0`, `for:30h`) + onderhouds-inhibitie, vastgeklonken aan beide drift-gates. +4 tests, 5578 unit-tests. Gate: typecheck, lint, test,
+> build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Bemiddelaar — `/franchise/zzpers`-badge sluit superseded verlopend cert uit (badge = /acties) (2026-08-01, PR #1026)** —
 > de franchiser-nav-badge voor `/franchise/zzpers` telde (bijna-)verlopende geverifieerde certificaten van tenant-ZZP'ers via een
 > **rauwe** `expiresAt: { gte: now, lte: soon }`-query zonder supersede-uitsluiting, terwijl de /acties-bron (`franchiserTasks` →

@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-02 — Prod-rijpheid: routing-cache retentie-backlog gauge (`/api/metrics`, laatste PII-retentie dead-man's-switch)
+
+**Wat:** het laatste PII-dragende "verwijder-ouder-dan-venster"-retentie-prune zonder stille-faal-detector gedicht.
+Nieuwe gauge `zzp_routing_cache_retention_backlog` telt `GeocodeCache`- + `TravelRouteCache`-rijen wier eigen TTL
+(`expiresAt`) is verstreken die de `routing-cache-retention`-cron nog niet fysiek verwijderde. Beide tabellen
+bewaren **platte-tekst locatie-PII** (`query`/`fromQuery`/`toQuery` — herleidbare adres-/plaatsindicaties van
+ZZP'ers en opdrachten, naar Geoapify gestuurd of daaruit afgeleid); de leeslaag negeert verlopen rijen alleen
+**lazy** (`routing.ts`), dus deze cron is de enige die de opslagbeperking (AVG art. 5(1)(e)) fysiek afdwingt. De
+cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn verwerkte — stalt de snoei stil
+terwijl de heartbeat "vers" is, dan blijft locatie-PII over de eigen TTL heen staan zonder dat iets dat toont.
+**Anders dan de 7 bestaande backlog-gauges is deze retentie ALTIJD actief** (de TTL zit per rij ingebakken — geen
+instelvenster, dus nooit `0`-per-definitie; cutoff = `now`).
+
+**Fix:** nieuwe geëxporteerde `prunableRoutingCacheWhere(cutoff)` als enige bron van waarheid, gedeeld door de taak
+(delete, beide tabellen) én de gauge (count, beide tabellen) → kan niet driften. Read-only `count`, faalt veilig
+(0, nooit 500, elke bron in eigen try/catch), geen schemawijziging, geen PII in de uitvoer. Drop-in alert
+`ZzpRoutingCacheRetentionBacklog` (`> 0`, `for: 30h`) in `docs/observability/alerts.yml`, vastgeklonken aan beide
+drift-gates (`alerts-rules.ts` SAMPLE_INPUT + de onderhouds-inhibitie in `alertmanager.yml`).
+**Bestanden:** `routing-cache-retention-task.ts` (+builder, 2× hergebruik), `observability/metrics.ts` (+veld +gauge),
+`api/metrics/route.ts` (+count beide tabellen), `observability/alerts-rules.ts`, `docs/observability/alerts.yml`
+
+- `alertmanager.yml`, MENSENWERK.md. **Tests:** +4 (metrics door/klem-map, where-builder-vastklink), 5578 unit-tests
+  groen. **Checks:** typecheck + lint + test + build + prettier groen.
+
 ## 2026-08-02 — Privacy/AVG art. 17: `NoShowReport.reason` overleefde de erasure van de MÉLDER (+ kopie op ZZP'er-feed)
 
 **Wat (HOOG, AVG art. 17):** een security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële

@@ -203,6 +203,21 @@ groups:
           summary: "Webhook-event-ledger-snoei verwerkt niets (opslag-hygiëne)"
           description: "Er staan al > één cron-interval webhook-ledgerrijen (ProcessedWebhookEvent) ouder dan het geconfigureerde WEBHOOK_EVENT_RETENTION_DAYS-venster die niet zijn gesnoeid (zzp_webhook_events_retention_backlog). De webhook-event-retention-cron rondt af maar verwijdert niets → de idempotentie-ledger groeit onbeperkt door ondanks het gezette venster (schijf-/index-/querylast; geen PII). Controleer de webhook-event-retention-taak."
 
+      - alert: ZzpRoutingCacheRetentionBacklog
+        # AVG-dataminimalisatie (art. 5 lid 1e): de routing-cachetabellen (GeocodeCache + TravelRouteCache)
+        # bewaren platte-tekst locatiegegevens (query/fromQuery/toQuery — herleidbare adres-/plaatsindicaties
+        # van ZZP'ers en opdrachten). De leeslaag negeert verlopen rijen alleen lazy; alleen deze cron
+        # verwijdert ze fysiek. Een oplopende backlog terwijl de heartbeat "vers" is betekent dat locatie-PII
+        # over de eigen TTL heen bewaard blijft. Anders dan de config-gevensterde retenties is deze ALTIJD
+        # actief (de TTL zit per rij ingebakken — geen instelvenster, dus nooit 0-per-definitie).
+        expr: zzp_routing_cache_retention_backlog > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Routing-cache-retentie-snoei verwerkt niets (AVG-dataminimalisatie)"
+          description: "Er staan al > één cron-interval routing-cacherijen (GeocodeCache + TravelRouteCache) wier eigen TTL is verstreken die niet fysiek zijn verwijderd (zzp_routing_cache_retention_backlog). De routing-cache-retention-cron rondt af maar verwijdert niets → platte-tekst locatie-PII (query/fromQuery/toQuery) wordt over de eigen bewaartermijn heen bewaard (AVG art. 5(1)(e)). Controleer de routing-cache-retention-taak."
+
   - name: zzp-platform-verificatie-sla
     rules:
       # Verificatie is de kern-differentiatie. Twee complementaire signalen: te veel wachtenden (diepte)
