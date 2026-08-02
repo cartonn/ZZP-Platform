@@ -219,6 +219,49 @@ export async function anonymizeUser(userId: string): Promise<void> {
     })
   ).map((c) => c.id);
 
+  // AVG art. 17: de door de betrokkene ingediende ideeën blijven als geanonimiseerd record op het
+  // bord staan, maar naast titel/omschrijving draagt óók `Idea.declineReason` — de vrije tekst die
+  // een beheerder bij het afwijzen typte — herleidbare informatie. De AVG-data-export
+  // (`account-export.ts`) toont dit veld expliciet aan de betrokkene als deel van zijn inzage
+  // (art. 15), dus moet de erasure het spiegelbeeldig kunnen wissen (art. 17). Die reden staat in
+  // twee kopieën: op de Idea-rij (in de idea.updateMany hieronder → `declineReason: null`) én
+  // verbatim in de metadata (`{ ..., reason }`) van het `IDEA_STATUS_SET`-auditrecord. De generieke
+  // email/naam-scrub raakt vrije tekst niet en dat auditrecord heeft `actorId` = beheerder +
+  // `entityType` = "Idea" (nooit de eigen actor/entity van de betrokkene), dus overleeft de reden
+  // art. 17. Verzamel daarom de eigen idee-id's, lees hun IDEA_STATUS_SET-auditregels en redact
+  // alleen de `reason`-sleutel — `from`/`to` (de statusovergang, geen PII) blijven als
+  // verantwoordingsspoor staan (spiegelt de per-rij scrub-mechaniek van `auditScrubOps` hierboven).
+  // unbounded-allow: AVG art. 17: alle eigen idee-id's van één betrokkene om hun status-auditregels te redacten; een take zou stilletjes PII laten staan
+  const ownIdeaIds = (
+    await prisma.idea.findMany({ where: { authorId: userId }, select: { id: true } })
+  ).map((i) => i.id);
+  const ideaStatusAuditScrubOps = ownIdeaIds.length
+    ? // unbounded-allow: AVG art. 17: alle IDEA_STATUS_SET-auditregels van de eigen ideeën; een take zou stilletjes PII laten staan
+      (
+        await prisma.auditLog.findMany({
+          where: { action: "IDEA_STATUS_SET", entityType: "Idea", entityId: { in: ownIdeaIds } },
+          select: { id: true, metadata: true },
+        })
+      ).flatMap((row) => {
+        if (!row.metadata) return [];
+        let parsed: Record<string, unknown>;
+        try {
+          parsed = JSON.parse(row.metadata) as Record<string, unknown>;
+        } catch {
+          return [];
+        }
+        // Alleen de afwijs-regels dragen een vrije-tekstreden; niet-afwijs-overgangen ({ from, to })
+        // blijven ongemoeid zodat we geen loze `reason`-sleutel toevoegen of from/to weggooien.
+        if (!("reason" in parsed)) return [];
+        return [
+          prisma.auditLog.update({
+            where: { id: row.id },
+            data: { metadata: JSON.stringify({ ...parsed, reason: AUDIT_PII_REDACTED }) },
+          }),
+        ];
+      })
+    : [];
+
   // AVG art. 17: de door de ZZP'er ZÉLF getypte creditreden. Wanneer de betrokkene een eigen factuur
   // crediteert (`creditInvoice`, cascade → `planInvoiceCreditedEvent`) schrijft de handler die vrije
   // tekst in DRIE kopieën: `Invoice.rejectionReason` (lifecycleStatus "CREDITED"), de
@@ -410,12 +453,17 @@ export async function anonymizeUser(userId: string): Promise<void> {
       data: { description: "[Verwijderd op verzoek van de gebruiker]" },
     }),
     // Eigen ideeën: titel + omschrijving zijn door de betrokkene geschreven vrije tekst (PII-risico);
-    // het idee blijft als geanonimiseerd record op het bord staan.
+    // het idee blijft als geanonimiseerd record op het bord staan. `declineReason` (de vrije tekst
+    // die een beheerder bij het afwijzen schreef) wordt door de AVG-inzage aan de betrokkene getoond
+    // (`account-export.ts`) en moet daarom óók erasbaar zijn — mee wissen (art. 17). De tweede kopie
+    // in de IDEA_STATUS_SET-auditmetadata wordt via `ideaStatusAuditScrubOps` hierboven geredact.
+    ...ideaStatusAuditScrubOps,
     prisma.idea.updateMany({
       where: { authorId: userId },
       data: {
         title: "[Verwijderd op verzoek van de gebruiker]",
         description: "[Verwijderd op verzoek van de gebruiker]",
+        declineReason: null,
       },
     }),
     // Annuleerreden die de betrokkene zélf schreef (cancelledById == userId). Alleen de eigen tekst —

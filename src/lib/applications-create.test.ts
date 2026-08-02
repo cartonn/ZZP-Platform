@@ -10,25 +10,39 @@ const store = {
   job: null as Record<string, unknown> | null,
   existing: null as Record<string, unknown> | null,
   applicationCount: 0,
+  /** Als gezet: opeenvolgende `application.count`-aanroepen geven deze waarden terug (queue). Zo kan
+   *  een test de pre-check-lees en de in-transactie her-telling apart sturen (TOCTOU-simulatie). */
+  countQueue: null as number[] | null,
   subscription: null as Record<string, unknown> | null,
   freePlan: { maxApplications: 5 } as Record<string, unknown> | null,
   created: [] as Array<Record<string, unknown>>,
+  updated: [] as Array<Record<string, unknown>>,
   notifications: [] as Array<Record<string, unknown>>,
 };
 
 let rateLimitAllowed = true;
 const auditMock = vi.hoisted(() => vi.fn(async () => {}));
 
-vi.mock("@/lib/db", () => ({
-  prisma: {
+vi.mock("@/lib/db", () => {
+  const applicationCount = vi.fn(async () =>
+    store.countQueue && store.countQueue.length
+      ? store.countQueue.shift()!
+      : store.applicationCount,
+  );
+  const prisma = {
     freelancerProfile: { findUnique: vi.fn(async () => store.profile) },
     job: { findUnique: vi.fn(async () => store.job) },
     application: {
       findUnique: vi.fn(async () => store.existing),
-      count: vi.fn(async () => store.applicationCount),
+      count: applicationCount,
       create: vi.fn(async (args: { data: Record<string, unknown> }) => {
         const row = { id: `app-${store.created.length + 1}`, ...args.data };
         store.created.push(row);
+        return row;
+      }),
+      update: vi.fn(async (args: { data: Record<string, unknown> }) => {
+        const row = { id: "app-existing", ...args.data };
+        store.updated.push(row);
         return row;
       }),
     },
@@ -40,8 +54,13 @@ vi.mock("@/lib/db", () => ({
         return args.data;
       }),
     },
-  },
-}));
+    // Interactieve transactie: geef dezelfde gemockte client als `tx` mee zodat de in-transactie
+    // her-telling + create door dezelfde spies loopt. Array-vorm ($transaction([...])) ondersteunt
+    // de andere actions in deze suite niet, maar hier niet nodig.
+    $transaction: vi.fn(async (cb: (tx: unknown) => Promise<unknown>) => cb(prisma)),
+  };
+  return { prisma };
+});
 
 vi.mock("@/lib/rate-limit", () => ({
   applicationRateLimiter: { check: () => ({ allowed: rateLimitAllowed }) },
@@ -104,9 +123,11 @@ beforeEach(() => {
   store.job = publishedJob();
   store.existing = null;
   store.applicationCount = 0;
+  store.countQueue = null;
   store.subscription = null;
   store.freePlan = { maxApplications: 5 };
   store.created = [];
+  store.updated = [];
   store.notifications = [];
   rateLimitAllowed = true;
   auditMock.mockClear();
@@ -170,6 +191,28 @@ describe("createApplicationForJob", () => {
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.error).toContain("maximum aantal reacties");
     expect(store.created).toHaveLength(0);
+  });
+
+  it("handhaaft de plan-limiet atomair: een reactie die de pre-check passeert maar in het venster het maximum bereikt, wordt BÍNNEN de transactie geweigerd (geen create)", async () => {
+    // TOCTOU-simulatie: de pre-transactionele lees ziet 4 (onder FREE-max 5 → fast-fail passeert),
+    // maar tegen de tijd dat de create-transactie de telling her-leest is er een gelijktijdige reactie
+    // gecommit → 5 (limiet bereikt). Zonder de in-transactie her-telling zou de reactie tóch worden
+    // aangemaakt (plan-/monetisatie-bypass). Met de grendel: geweigerd, niets geschreven.
+    store.countQueue = [4, 5];
+    const res = await createApplicationForJob(ACTOR, "job-1", VALID);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toContain("maximum aantal reacties");
+    expect(store.created).toHaveLength(0);
+    expect(auditMock).not.toHaveBeenCalled();
+    expect(store.notifications).toHaveLength(0);
+  });
+
+  it("maakt de reactie wél aan als de her-telling in de transactie nog onder de limiet blijft", async () => {
+    // Pre-check 3, in-transactie her-telling 4, FREE-max 5 → beide onder de limiet → create slaagt.
+    store.countQueue = [3, 4];
+    const res = await createApplicationForJob(ACTOR, "job-1", VALID);
+    expect(res).toEqual({ ok: true, applicationId: "app-1" });
+    expect(store.created).toHaveLength(1);
   });
 
   it("geeft een veldfout terug bij een te korte motivatie", async () => {
