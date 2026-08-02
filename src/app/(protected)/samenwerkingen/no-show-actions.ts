@@ -9,10 +9,9 @@ import { revalidatePath } from "next/cache";
 import { requireActor } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { NO_SHOW_LIMIT, noShowOccurredOnDayRange } from "@/lib/no-show";
+import { noShowOccurredOnDayRange, noShowReportedNotificationBody } from "@/lib/no-show";
 import { noShowReportRateLimiter } from "@/lib/rate-limit";
 import { noShowReportSchema } from "@/lib/validation";
-import { formatDateShortNl } from "@/lib/format-date";
 
 export type NoShowReportState = { error?: string; ok?: boolean } | undefined;
 
@@ -96,11 +95,11 @@ export async function reportNoShow(
         userId: collaboration.freelancer.userId,
         type: "NO_SHOW_REPORTED",
         title: "No-show geregistreerd",
-        body:
-          `Voor "${collaboration.job.title}" is een no-show geregistreerd ` +
-          `(${formatDateShortNl(parsed.data.occurredOn)}). Reden: ${parsed.data.reason} — ` +
-          `een beheerder beoordeelt of de reden gegrond is. Bij ${NO_SHOW_LIMIT} ongegronde ` +
-          `no-shows volgt uitschrijving van het platform.`,
+        body: noShowReportedNotificationBody({
+          jobTitle: collaboration.job.title,
+          occurredOn: parsed.data.occurredOn,
+          reason: parsed.data.reason,
+        }),
         link: `/samenwerkingen/${collaborationId}`,
       },
     }),

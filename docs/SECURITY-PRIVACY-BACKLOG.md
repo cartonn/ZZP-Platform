@@ -4,6 +4,64 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-02 (basis: `main` @ 999e46a7)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken, plus de
+delta sinds de vorige ronde (`a825bd86..999e46a7`, #1024–#1027 — herbruikbaar-geannuleerd-voorstel-flow, franchise
+badge-signaal, webhook-retentie-gauge; grotendeels pure/geteste logica). Gedekt: (1) de delta-mutatieketen
+(`kandidaten`/`samenwerkingen`/`reacties`/`collaboration-reproposal`/`accepted-proposal`/`pending-tasks` — auth→rol→
+ownership→Zod→actie→audit, IDOR, mass-assignment, TOCTOU op de re-voorstel-reset); (2) het observability-/metrics-
+endpoint (`/api/metrics`, `/api/health`) + cross-tenant isolatie (`tenancy.ts` + `franchise/**`); (3) export-vs-erasure
+volledigheid (AVG art. 15/17/20) — élk PII-/vrije-tekstveld uit `account-export.ts` één-op-één vergeleken met
+`anonymizeUser`. `npm audit --omit=dev` = **0**.
+
+**Resultaat: één nieuw HOOG erasure-gat OPGELOST (rood→groen). Geen nieuw KRITIEK/HOOG toegangs-, injectie- of
+cross-tenant-gat; het metrics-endpoint is fail-closed (Bearer + `timingSafeEqual`, geen PII/labels). Twee LAAG
+audit-/architectuur-consistentiepunten geparkeerd.**
+
+### OPGELOST — HOOG (AVG art. 17, CLAUDE.md regel 4/5): `NoShowReport.reason` overleefde de erasure van de MÉLDER én lekte verbatim naar de feed van de gemelde ZZP'er
+
+- **Repro (was):** `NoShowReport.reason` is vrije tekst die de melder (opdrachtgever/franchiser) zelf typt
+  (`reportNoShow`, `samenwerkingen/no-show-actions.ts`). De AVG-data-export (`account-export.ts:390`, `reportedById ==
+actorId`) geeft 'm expliciet prijs als de **eigen PII van de melder** onder art. 15/20. Maar `anonymizeUser`
+  (`admin/gebruikers/actions.ts`) bevatte géén `noShowReport.updateMany` → na een art. 17-verzoek van de melder bleef
+  de vrije tekst leesbaar in de DB. Tweede kopie: `reportNoShow` zet dezelfde reden verbatim in de body van de
+  `NO_SHOW_REPORTED`-notificatie op de feed van de gemélde ZZP'er (`Reden: <reden>`) — die notificatie-redactie in
+  `anonymizeUser` was gescoopt op `userId == de betrokkene` en raakte een notificatie in _andermans_ inbox nooit. De
+  reden bleef dus permanent zichtbaar bij een derde. De oude `bewust niet hier`-comment klopte alleen voor de erasure
+  van de gemélde ZZP'er (reden door een ánder geschreven), niet voor de melder-auteur.
+- **Geschonden regel:** AVG art. 17 (onvolledige erasure) + CLAUDE.md regel 4/5; interne inconsistentie met het
+  reeds bestaande DISPUTE_OPENED/INVOICE_CREDITED drie-kopie-patroon. Zelfde klasse als de eerder gedichte
+  `Expense.description`-asymmetrie (#1016), maar met derde-partij-lek.
+- **Fix (deze PR):** (1) redact `NoShowReport.reason` op de eigen meldingen; (2) reconstrueer de exacte
+  notificatiebody via de nieuwe gedeelde pure functie `noShowReportedNotificationBody` (`src/lib/no-show.ts`, gebruikt
+  door zówel `reportNoShow` als `anonymizeUser` → geen drift) en redact precies díe notificatie op de ZZP'er-feed.
+  Comments in `actions.ts` gecorrigeerd. +2 unit-tests (rood→groen). **Mens (MENSENWERK.md §5):** reden kan art. 9
+  (gezondheid) bevatten — bevestig bewaargrond/retentie.
+
+### GEPARKEERD — LAAG (CLAUDE.md regel 3, OWASP A04): re-voorstel-reset omzeilt de canonieke overgangsmap
+
+- **Repro:** `proposeCollaboration` (`samenwerkingen/actions.ts:91-116`, `existing`-tak) reset een `CANCELLED`
+  samenwerking terug naar `PROPOSED` via een compound-guarded `updateMany` op `REPROPOSABLE_CANCELLED_WHERE` —
+  maar roept `assertCollaborationTransition` niet aan; in de canonieke map (`collaborations.ts`) is `CANCELLED: []`
+  terminaal. **Niet exploiteerbaar** (de where-guard is strikter: nooit-getekend, geen facturen/prestaties, TOCTOU-
+  dicht), maar de overgangsautoriteit staat nu op twee losse plekken → risico op stille drift bij een toekomstige
+  edit.
+- **Geschonden regel:** CLAUDE.md regel 3 ("statusovergangen via expliciete map"). Geen toegangsgat.
+- **Aanbevolen fix:** centraliseer de uitzondering als een expliciete voorwaardelijke overgang in `collaborations.ts`
+  (`assertCollaborationReproposalTransition`) die `proposeCollaboration` aanroept, óf een kruisverwijzing-comment +
+  een unit-test die borgt dat `CANCELLED→PROPOSED` bewust afwezig blijft in `COLLABORATION_TRANSITIONS`.
+
+### GEPARKEERD — LAAG (CLAUDE.md regel 5, atomiciteit): `saveApplicationNote` schrijft de audit niet-atomair met de mutatie
+
+- **Repro:** `saveApplicationNote` (`kandidaten/actions.ts:157-163`) doet `prisma.application.update(...)` en de
+  daaropvolgende `audit(...)` als twee losse statements, niet in één `$transaction` zoals de rest van de mutaties in
+  dit bestand. Faalt de audit-write ná de geslaagde update (transiënte DB-fout), dan is de notitiewijziging stil
+  ongeaudit. **Laag** (een vrije-tekstnotitie is geen verificatie-/status-/document-toegang-event), maar wijkt af van
+  het atomiciteitspatroon elders.
+- **Geschonden regel:** CLAUDE.md regel 5 (audit alles wat telt — atomair). Geen toegangsgat.
+- **Aanbevolen fix:** `await prisma.$transaction([prisma.application.update(...), prisma.auditLog.create({ data: auditData(...) })])`.
+
 ## Ronde 2026-08-01b (basis: `main` @ a825bd86)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende hoog-risico
