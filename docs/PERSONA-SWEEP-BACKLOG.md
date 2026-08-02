@@ -1,5 +1,39 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-02 (run 65) · **main-commit basis:** `055fd02e`
+> **Uitkomst:** **1 bereikbaar defect GEVONDEN + GEFIXT** (status-integriteit HIGH, cross-actor TOCTOU) +
+> **1 geparkeerd** (bevestigd bereikbaar, volgende increment). Twee parallelle Opus-audits (TOCTOU/status-
+> integriteit → 1 gevonden; next-action cross-surface drift → 1 gevonden).
+>
+> 1. **GEFIXT — HIGH (DOEL 2, verboden `Application.status`-overgang via cross-actor TOCTOU):** de drie
+>    `Application.status`-schrijvers — `changeApplicationStatus` + `bulkChangeApplicationStatus`
+>    (`src/app/(protected)/kandidaten/actions.ts`, opdrachtgever) en `withdrawApplication`
+>    (`src/app/(protected)/reacties/actions.ts`, ZZP'er) — deden een **ongeguarde**
+>    `prisma.application.update({ where: { id } })` ná een niet-transactionele pre-lees + overgangscheck op
+>    de stale `from`. Anders dan de eerdere TOCTOU-fixes (dubbelklik/twee tabs van één actor) racen hier
+>    **twee verschillende actoren**: de opdrachtgever wijzigt de status terwijl de ZZP'er zijn reactie
+>    parallel intrekt (`WITHDRAWN`, terminaal in `APPLICATION_TRANSITIONS`). In het venster landde de blinde
+>    write dan alsnog op de al-ingetrokken/-besliste rij → een verboden overgang (WITHDRAWN→REJECTED,
+>    ACCEPTED→WITHDRAWN — niet in de map, CLAUDE.md regel 3) + een valse notificatie ("afgewezen" naar een
+>    ZZP'er die al introk, of "ingetrokken" met een verweesde samenwerking bij een net-geaccepteerde reactie).
+>    De `app.collaboration`-guard is zelf uit de stale lees afgeleid en sluit dit venster niet. **Fix:**
+>    compound-guarded `updateMany({ where: { id, status: from } })` in een interactieve transactie met
+>    count-gate (0 → geen audit/notificatie); single-acties gooien "inmiddels gewijzigd", de bulk telt de
+>    geracete rij als overgeslagen (`updated = eligible − raced`) + `{ timeout, maxWait }` op de lus-transactie.
+>    +6 regressietests (`application-status-toctou.test.ts`). Gate: typecheck, lint, test (5573), build, prettier groen.
+>
+> **GEPARKEERD (deze run, bevestigd bereikbaar — twin van #1026 op een ander surface):** de FREELANCER
+> `/certificaten`-nav-badge (`src/lib/signals.ts` ~r385, de `expiring`-`prisma.credential.count`) telt
+> superseded verlopende VERIFIED-certs mee die `/acties` + de dashboard-rail (`pending-tasks.ts`,
+> `supersededVerifiedCredentialIds`) al **uitsluiten**. Repro: ZZP'er vernieuwt door een nieuw cert van
+> hetzelfde type aan te maken (oud verloopt < 30d, nieuw > 30d) → `/acties` toont 0 credential-taken, de badge
+> toont "1 attention" die nooit klaart. Exact de drift-klasse die #1026 op de **franchiser**-roster-badge
+> dichtte, hier nog open op de ZZP-eigen certificatenbadge. **Fix (voorstel):** spiegel de supersede-aware
+> aggregatie in `navBadges("FREELANCER")` (`findMany` VERIFIED-certs → `supersededVerifiedCredentialIds` →
+> filter). ~20-40 regels + 2 regressietests. Prioriteit: MED (valse, niet-klarende badge).
+>
+> ---
+
 > **Datum:** 2026-08-01 (run 64) · **main-commit basis:** `748dc88a`
 > **Uitkomst:** **2 bereikbare defecten GEVONDEN + GEFIXT** (status-/legale integriteit HIGH +
 > next-action-consistentie MED). Drie parallelle Opus-audits (authz/IDOR/cross-tenant + document-

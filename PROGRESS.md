@@ -3,6 +3,41 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-02 — Status-integriteit: compound-guard `Application.status`-writes tegen cross-actor TOCTOU
+
+**Wat:** de drie `Application.status`-schrijvers deden een blinde `prisma.application.update({ where: { id } })`
+ná een niet-transactionele pre-lees + overgangscheck op de stale `from`. Twee **verschillende** actoren racen
+elkaar: de opdrachtgever wijzigt de status (`changeApplicationStatus` / `bulkChangeApplicationStatus` in
+`kandidaten/actions.ts` → VIEWED/SHORTLIST/REJECTED/ACCEPTED) terwijl de ZZP'er zijn reactie intrekt
+(`withdrawApplication` in `reacties/actions.ts` → WITHDRAWN, terminaal in `APPLICATION_TRANSITIONS`). In het
+TOCTOU-venster landde de blinde write dan alsnog op de al-getransitioneerde rij → een **verboden overgang**
+(bv. WITHDRAWN→REJECTED, ACCEPTED→WITHDRAWN, niet in de map) + een **valse notificatie** ("afgewezen" naar een
+ZZP'er die al introk, of "ingetrokken" naar een opdrachtgever die net accepteerde — met een verweesde
+samenwerking). Schending CLAUDE.md regel 2/3 (compound-guarded write; server-side waarheid). De laatste
+ongeguarde status-familie buiten de al-geguarde cascade + cron-taken.
+
+**Fix:** alle drie de writes zijn nu een compound-guarded `updateMany({ where: { id, status: from } })` in een
+interactieve transactie met count-gate: telt de guard 0 (rij wisselde in het venster) → geen audit/notificatie.
+`changeApplicationStatus`/`withdrawApplication` gooien dan een "inmiddels gewijzigd"-fout; `bulkChangeApplicationStatus`
+telt de geracete rij als overgeslagen i.p.v. bijgewerkt (`updated = eligible − raced`). De bulk-lus kreeg een
+expliciete `{ timeout: 120_000, maxWait: 10_000 }` zodat een ruime selectie de Prisma-default (5s) niet raakt.
+Zelfde patroon als de overige TOCTOU-fixes (#1006/#1007/#1018/#1019/#1022). Read-only pre-lees blijft als snelle
+UX-fout + ownership/anti-oracle-guard.
+
+**Bestanden:** `src/app/(protected)/kandidaten/actions.ts` (changeApplicationStatus + bulkChangeApplicationStatus),
+`src/app/(protected)/reacties/actions.ts` (withdrawApplication),
+`src/app/(protected)/kandidaten/application-status-toctou.test.ts` (nieuw, +6 regressietests).
+
+**Tests:** `npm run test` → 531 files, 5573 passed. **Gate:** typecheck, lint, test, build, `prettier --check .` groen.
+
+**Volgende stap:** volgende persona-sweep/backlog-item. **Geparkeerd (bevestigd bereikbaar, volgende run):**
+FREELANCER `/certificaten`-nav-badge (`signals.ts` ~r385, `expiring`-count) telt superseded verlopende certs mee
+die `/acties` + dashboard-rail (`pending-tasks.ts` `supersededVerifiedCredentialIds`) al uitsluiten → twin van
+#1026 maar op de ZZP-eigen certificatenbadge i.p.v. de franchiser-roster-badge. Fix: spiegel de supersede-aware
+aggregatie in `navBadges("FREELANCER")`.
+
+---
+
 ## 2026-08-01 — Bemiddelaar: `/franchise/zzpers`-badge sluit superseded verlopend cert uit (badge = /acties)
 
 **Wat:** het laatste supersede-gat (persona-sweep run 55, GEPARKEERD) gedicht. De /acties-bron

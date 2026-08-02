@@ -41,9 +41,20 @@ export async function withdrawApplication(appId: string): Promise<void> {
     throw new Error("Deze reactie kan niet (meer) worden ingetrokken.");
   }
 
-  await prisma.$transaction([
-    prisma.application.update({ where: { id: appId }, data: { status: "WITHDRAWN" } }),
-    prisma.auditLog.create({
+  // Compound-guarded write (CLAUDE.md regel 2/3 — server-side waarheid, geen losse status-update). De
+  // pre-lees en de canWithdraw-check leunen op een stale snapshot; in het TOCTOU-venster kan de
+  // opdrachtgever de reactie parallel afwijzen/accepteren (kandidaten/actions.ts). Zonder guard landt de
+  // blinde `update({ where: { id } })` dan alsnog op de al-getransitioneerde rij → een verboden overgang
+  // (bv. REJECTED→WITHDRAWN, niet in APPLICATION_TRANSITIONS) + een valse "ingetrokken"-notificatie. De
+  // `updateMany` op de exact geziene status telt 0 zodra de rij in het venster wisselde → we schrijven
+  // niets en melden de wijziging.
+  const applied = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.application.updateMany({
+      where: { id: appId, status: from },
+      data: { status: "WITHDRAWN" },
+    });
+    if (count === 0) return false;
+    await tx.auditLog.create({
       data: auditData({
         actorId: actor.id,
         action: "APPLICATION_WITHDRAWN",
@@ -51,8 +62,8 @@ export async function withdrawApplication(appId: string): Promise<void> {
         entityId: appId,
         metadata: { from },
       }),
-    }),
-    prisma.notification.create({
+    });
+    await tx.notification.create({
       data: {
         userId: app.job.company.userId,
         type: "APPLICATION_WITHDRAWN",
@@ -60,8 +71,13 @@ export async function withdrawApplication(appId: string): Promise<void> {
         body: `Een kandidaat heeft zijn reactie op "${app.job.title}" ingetrokken.`,
         link: "/kandidaten",
       },
-    }),
-  ]);
+    });
+    return true;
+  });
+
+  if (!applied) {
+    throw new Error("Deze reactie is inmiddels gewijzigd en kan niet meer worden ingetrokken.");
+  }
 
   revalidatePath("/reacties");
   revalidatePath("/kandidaten");
