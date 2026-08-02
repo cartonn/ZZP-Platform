@@ -14,7 +14,11 @@ const invoiceState = vi.hoisted(() => ({
     status: string;
     number: string;
     dueAt: Date | null;
-    collaboration: { freelancer: { userId: string }; company: { userId: string } };
+    collaboration: {
+      freelancer: { userId: string };
+      company: { userId: string };
+      disputedAt: Date | null;
+    };
   },
   // count die de guarded updateMany teruggeeft: 1 = geclaimd, 0 = race verloren / al gewijzigd.
   updateCount: 1,
@@ -23,9 +27,16 @@ const invoiceState = vi.hoisted(() => ({
 // Aparte state voor de createInvoice-tests (losse factuur): eigenaarschap + de tellingen die de
 // dubbele-facturatie-gate leest, plus de aan te maken factuur.
 const createState = vi.hoisted(() => ({
-  collaboration: { freelancer: { userId: "user-1" }, company: { userId: "user-2" } } as null | {
+  collaboration: {
+    freelancer: { userId: "user-1" },
+    company: { userId: "user-2" },
+    status: "ACTIVE",
+    disputedAt: null as Date | null,
+  } as null | {
     freelancer: { userId: string };
     company: { userId: string };
+    status: string;
+    disputedAt: Date | null;
   },
   // Pre-transactionele gate-tellingen (fast-fail).
   performanceCount: 0,
@@ -34,6 +45,13 @@ const createState = vi.hoisted(() => ({
   // een test kan ze op >0 zetten om een race te simuleren die pas ná de fast-fail ontstaat.
   txPerformanceCount: 0,
   txInvoiceCascadeCount: 0,
+  // In-transactie herlezing van de samenwerkingsstatus (factureerbaarheids-grendel). Standaard gelijk
+  // aan de pre-check; een test kan dit op een terminale/gedisputeerde staat zetten om een race te
+  // simuleren die pas ná de fast-fail ontstaat.
+  txCollaboration: { status: "ACTIVE", disputedAt: null as Date | null } as null | {
+    status: string;
+    disputedAt: Date | null;
+  },
 }));
 
 const { FakeAuthError } = vi.hoisted(() => ({ FakeAuthError: class extends Error {} }));
@@ -58,6 +76,8 @@ const tx = vi.hoisted(() => ({
   // In-transactie herverificatie van de dubbele-facturatie-gate (usesCascadeFlow op de tx-client).
   performanceCount: vi.fn(async () => createState.txPerformanceCount),
   invoiceCascadeCount: vi.fn(async () => createState.txInvoiceCascadeCount),
+  // In-transactie herlezing van de samenwerkingsstatus (factureerbaarheids-grendel).
+  collaborationFindUnique: vi.fn(async () => createState.txCollaboration),
 }));
 
 const db = vi.hoisted(() => ({
@@ -78,6 +98,7 @@ vi.mock("@/lib/db", () => ({
           create: db.invoiceCreate,
         },
         performance: { count: tx.performanceCount },
+        collaboration: { findUnique: tx.collaborationFindUnique },
         notification: { create: tx.notificationCreate },
         auditLog: { create: tx.auditCreate },
       }),
@@ -108,16 +129,23 @@ beforeEach(() => {
     status: "SENT",
     number: "2026-0001",
     dueAt: new Date("2026-08-01T00:00:00Z"),
-    collaboration: { freelancer: { userId: "user-1" }, company: { userId: "user-1" } },
+    collaboration: {
+      freelancer: { userId: "user-1" },
+      company: { userId: "user-1" },
+      disputedAt: null,
+    },
   };
   createState.collaboration = {
     freelancer: { userId: "user-1" },
     company: { userId: "user-2" },
+    status: "ACTIVE",
+    disputedAt: null,
   };
   createState.performanceCount = 0;
   createState.invoiceCount = 0;
   createState.txPerformanceCount = 0;
   createState.txInvoiceCascadeCount = 0;
+  createState.txCollaboration = { status: "ACTIVE", disputedAt: null };
 });
 
 // Bouwt de FormData zoals het factuurformulier die post (parallelle regelvelden).
@@ -240,5 +268,100 @@ describe("cancelInvoice — compound-guard", () => {
     invoiceState.updateCount = 0;
     await cancelInvoice("inv-1");
     expect(tx.auditCreate).not.toHaveBeenCalled();
+  });
+});
+
+// Server-side factureerbaarheids-gate (persona-sweep DOEL 2, HIGH): een LOSSE factuur mag alleen op een
+// lopende/afgeronde, niet-gedisputeerde samenwerking. De keuzelijst filtert hier al op, maar dat is
+// slechts "tonen" — de action rechtstreeks aanroepen met een PROPOSED/CANCELLED/gedisputeerde
+// collaborationId mocht vóór de fix tóch een factuur aanmaken (client toont, server beslist).
+describe("createInvoice — factureerbaarheids-gate (status + dispuut, server-side waarheid)", () => {
+  const NOT_BILLABLE =
+    "Voor deze samenwerking kun je nu geen losse factuur opstellen: die moet lopend of afgerond zijn en zonder open dispuut.";
+
+  it("weigert een factuur op een PROPOSED (ongetekend contract) samenwerking", async () => {
+    createState.collaboration!.status = "PROPOSED";
+    const fd = invoiceFormData([{ description: "Advies", quantity: "2", unit: "95" }]);
+    const res = await createInvoice("collab-1", undefined, fd);
+    expect(res).toEqual({ error: NOT_BILLABLE });
+    expect(db.invoiceCreate).not.toHaveBeenCalled();
+  });
+
+  it("weigert een factuur op een CANCELLED samenwerking", async () => {
+    createState.collaboration!.status = "CANCELLED";
+    const fd = invoiceFormData([{ description: "Advies", quantity: "2", unit: "95" }]);
+    const res = await createInvoice("collab-1", undefined, fd);
+    expect(res).toEqual({ error: NOT_BILLABLE });
+    expect(db.invoiceCreate).not.toHaveBeenCalled();
+  });
+
+  it("weigert een factuur op een gedisputeerde (bevroren) ACTIVE-samenwerking", async () => {
+    createState.collaboration!.disputedAt = new Date("2026-07-01T00:00:00Z");
+    const fd = invoiceFormData([{ description: "Advies", quantity: "2", unit: "95" }]);
+    const res = await createInvoice("collab-1", undefined, fd);
+    expect(res).toEqual({ error: NOT_BILLABLE });
+    expect(db.invoiceCreate).not.toHaveBeenCalled();
+  });
+
+  it("staat een factuur op een ACTIVE, niet-gedisputeerde samenwerking wél toe", async () => {
+    const fd = invoiceFormData([{ description: "Advies", quantity: "2", unit: "95" }]);
+    const res = await createInvoice("collab-1", undefined, fd);
+    expect(res).toBeUndefined();
+    expect(db.invoiceCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("TOCTOU: rolt terug wanneer de samenwerking in het venster gedisputeerd raakt (in-tx hercheck)", async () => {
+    // Pre-check ziet nog ACTIVE/niet-gedisputeerd; in-tx herlezing ziet een intussen geopend dispuut.
+    createState.txCollaboration = {
+      status: "ACTIVE",
+      disputedAt: new Date("2026-07-02T00:00:00Z"),
+    };
+    const fd = invoiceFormData([{ description: "Advies", quantity: "2", unit: "95" }]);
+    const res = await createInvoice("collab-1", undefined, fd);
+    expect(res).toEqual({ error: NOT_BILLABLE });
+    expect(db.invoiceCreate).not.toHaveBeenCalled();
+  });
+
+  it("TOCTOU: rolt terug wanneer de samenwerking in het venster wordt geannuleerd (in-tx hercheck)", async () => {
+    createState.txCollaboration = { status: "CANCELLED", disputedAt: null };
+    const fd = invoiceFormData([{ description: "Advies", quantity: "2", unit: "95" }]);
+    const res = await createInvoice("collab-1", undefined, fd);
+    expect(res).toEqual({ error: NOT_BILLABLE });
+    expect(db.invoiceCreate).not.toHaveBeenCalled();
+  });
+});
+
+// Regelplafond (persona-sweep DOEL 2, MED): `formData.getAll` is onbegrensd; een absurd aantal regels
+// mag geen ongecontroleerde validatielus + geneste multi-row insert veroorzaken. Vroege, schone afwijzing.
+describe("createInvoice — regelplafond (MAX_INVOICE_LINES)", () => {
+  it("weigert een POST met meer dan 200 factuurregels zonder een factuur aan te maken", async () => {
+    const lines = Array.from({ length: 201 }, (_, i) => ({
+      description: `Regel ${i}`,
+      quantity: "1",
+      unit: "10",
+    }));
+    const res = await createInvoice("collab-1", undefined, invoiceFormData(lines));
+    expect(res).toEqual({ error: "Een factuur mag maximaal 200 regels bevatten." });
+    expect(db.invoiceCreate).not.toHaveBeenCalled();
+  });
+});
+
+// Dispuut-bevriezing op de geldstroom-acties (persona-sweep DOEL 2, MED): elke andere geld-mutatie in
+// de cascade-laag blokkeert al op `disputedAt` (assertNotDisputed); de legacy factuuracties deden dat niet.
+describe("sendInvoice/markInvoicePaid — bevroren bij een open dispuut", () => {
+  const FROZEN = "De samenwerking is bevroren wegens een open dispuut. Los het dispuut eerst op.";
+
+  it("sendInvoice weigert wanneer de samenwerking gedisputeerd is", async () => {
+    invoiceState.found!.status = "DRAFT";
+    invoiceState.found!.collaboration.disputedAt = new Date("2026-07-01T00:00:00Z");
+    await expect(sendInvoice("inv-1")).rejects.toThrow(FROZEN);
+    expect(tx.invoiceUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("markInvoicePaid weigert wanneer de samenwerking gedisputeerd is", async () => {
+    roleState.role = "CLIENT";
+    invoiceState.found!.collaboration.disputedAt = new Date("2026-07-01T00:00:00Z");
+    await expect(markInvoicePaid("inv-1")).rejects.toThrow(FROZEN);
+    expect(tx.invoiceUpdateMany).not.toHaveBeenCalled();
   });
 });

@@ -98,8 +98,10 @@ vi.mock("@/lib/db", () => ({
     job: {
       findMany: (a: Where) => {
         const tenant = tenantOf(a.where);
-        // Twee job.findMany-aanroepen: stale bevat `collaborations: { none: ... }`, open niet.
-        const isStale = a.where != null && "collaborations" in a.where;
+        // Twee job.findMany-aanroepen: beide scopen nu op `collaborations: { none: { status: ACTIVE } }`
+        // (open-query gelijkgetrokken in run 67); alleen de stale-query heeft daarnaast een
+        // `createdAt`-drempel. Onderscheid daarop.
+        const isStale = a.where != null && "createdAt" in a.where;
         return Promise.resolve(
           isStale ? (staleDienstenByTenant[tenant] ?? []) : (openDienstenByTenant[tenant] ?? []),
         );
