@@ -33,6 +33,9 @@ const state = vi.hoisted(() => ({
   // Geleide-opzet-tellingen — default een volledig opgezette franchise, zodat de opzet-taken
   // standaard NIET verschijnen en de operationele-taak-tests geïsoleerd blijven.
   counts: { companies: 1, freelancers: 1, publishedDiensten: 1, companiesWithoutDiensten: 0 },
+  // Vastgelegde args van de roster-`freelancerProfile.findMany` — voor de deterministische-
+  // truncatie-invariant (orderBy identiek aan de nav-badge, zodat badge en /acties niet driften).
+  rosterQuery: null as { orderBy?: unknown; take?: number } | null,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -87,7 +90,10 @@ vi.mock("@/lib/db", () => ({
       ),
     },
     freelancerProfile: {
-      findMany: vi.fn(async () => state.roster),
+      findMany: vi.fn(async (args: { orderBy?: unknown; take?: number }) => {
+        state.rosterQuery = { orderBy: args?.orderBy, take: args?.take };
+        return state.roster;
+      }),
       count: vi.fn(async () => state.counts.freelancers),
     },
     // job.findMany wordt twee keer aangeroepen: open-diensten (voor de acute-taak) en de stale-lijst.
@@ -158,12 +164,26 @@ beforeEach(() => {
   state.open = [];
   state.leads = [];
   state.creds = [];
+  state.rosterQuery = null;
   state.counts = {
     companies: 1,
     freelancers: 1,
     publishedDiensten: 1,
     companiesWithoutDiensten: 0,
   };
+});
+
+describe("bemiddelaar next-actions — roster-query truncateert deterministisch (DOEL 1b)", () => {
+  it("de roster-freelancerProfile-query heeft orderBy { id: asc } + take 50 (gelijk aan de nav-badge)", async () => {
+    state.roster = [engaged];
+    await pendingTasks(ACTOR);
+    // De roster-query (`freelancerProfile.findMany({ where: { tenantId } })`) voedt de niet-inzetbaar-
+    // taak. Op de nav-badge (signals.ts) draait exact dezelfde query met dezelfde `take: 50`. Zonder
+    // een identieke `orderBy` pakken de twee onafhankelijke queries bij >50 roster-leden een ánder
+    // subset → de badge divergeert van /acties. Deze assert is rood zodra de `orderBy` verdwijnt.
+    expect(state.rosterQuery?.orderBy).toEqual({ id: "asc" });
+    expect(state.rosterQuery?.take).toBe(50);
+  });
 });
 
 describe("bemiddelaar next-actions — niet-inzetbare ZZP'er telt op /acties + badge", () => {
