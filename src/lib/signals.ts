@@ -10,8 +10,8 @@ import { collaborationBlocksProposal } from "@/lib/collaboration-reproposal";
 import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
 import { prisma } from "@/lib/db";
-import { type Availability, type UserRole } from "@/lib/enums";
-import { rosterExpiringByProfile } from "@/lib/credentials";
+import { type Availability, type CredentialStatus, type UserRole } from "@/lib/enums";
+import { rosterExpiringByProfile, supersededVerifiedCredentialIds } from "@/lib/credentials";
 import { computeEngageability } from "@/lib/engageability";
 import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
 import { MANDATORY_CREDENTIAL_TYPES, mandatoryDocumentAlertCount } from "@/lib/mandatory-documents";
@@ -374,7 +374,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
     const [
       rejected,
-      expiring,
+      verifiedCreds,
       mandatoryCreds,
       unreadMessages,
       overdueInvoices,
@@ -382,12 +382,12 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       savedJobs,
     ] = await Promise.all([
       prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
-      prisma.credential.count({
-        where: {
-          freelancerProfileId: profile.id,
-          status: "VERIFIED",
-          expiresAt: { gt: now, lte: soon },
-        },
+      // Het volledige VERIFIED-dossier (niet enkel de in-venster verlopende rijen): superseded-
+      // detectie heeft alle nu-geldige VERIFIED-certs van hetzelfde type nodig om te bepalen of het
+      // verval van een exemplaar er nog toe doet. Zie de in-memory telling van `expiring` hieronder.
+      prisma.credential.findMany({
+        where: { freelancerProfileId: profile.id, status: "VERIFIED" },
+        select: { id: true, type: true, status: true, expiresAt: true },
       }),
       // Verplichte-document-rijen (VOG/verzekering) om ontbrekend/verlopen te classificeren. Zonder
       // deze telling was de /certificaten-badge stil terwijl /acties + de dashboard-rail wél een
@@ -438,6 +438,29 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         where: { freelancerProfileId: profile.id, job: { status: "PUBLISHED" } },
       }),
     ]);
+    // Superseded-aware verval-telling voor de /certificaten-badge. `/acties` + de dashboard-rail
+    // (pending-tasks.ts `freelancerTasks` → `supersededVerifiedCredentialIds`) sluiten een ouder,
+    // bijna-verlopend VERIFIED-cert uit zodra een nieuwer, nu-geldig exemplaar van hetzelfde type de
+    // compliance al draagt (de ZZP'er hoeft het niet te vernieuwen). Zonder dezelfde uitsluiting hier
+    // telde de badge zo'n superseded cert wél als "verloopt binnenkort" → een valse, nooit-klarende
+    // badge die /acties tegenspreekt. Zelfde drift-klasse als de franchiser-roster-badge (#1026),
+    // hier op de ZZP-eigen certificatenbadge. Eén bron van waarheid: dezelfde pure helper.
+    const supersededExpiringIds = supersededVerifiedCredentialIds(
+      verifiedCreds.map((c) => ({
+        id: c.id,
+        type: c.type,
+        status: c.status as CredentialStatus,
+        expiresAt: c.expiresAt,
+      })),
+      now,
+    );
+    const expiring = verifiedCreds.filter(
+      (c) =>
+        c.expiresAt !== null &&
+        c.expiresAt > now &&
+        c.expiresAt <= soon &&
+        !supersededExpiringIds.has(c.id),
+    ).length;
     const cascadeWork = countFreelancerCascadeWork(
       cascadeCollabs.map((c) => ({
         status: c.status as FreelancerCascadeCollab["status"],

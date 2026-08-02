@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-02 — ZZP'er: /certificaten-nav-badge sluit superseded verval-cert uit (badge = /acties)
+
+**Wat:** de FREELANCER `/certificaten`-nav-badge (`src/lib/signals.ts`, `navBadges("FREELANCER")`) telde
+bijna-verlopende VERIFIED-certificaten via een **rauwe** `prisma.credential.count`
+(`status: "VERIFIED", expiresAt: { gt: now, lte: soon }`) **zonder supersede-uitsluiting**, terwijl de
+autoritaire /acties-bron (`freelancerTasks` in `pending-tasks.ts` → `supersededVerifiedCredentialIds`) een
+ouder, bijna-verlopend cert juist **uitsluit** zodra een nieuwer, nu-geldig cert van hetzelfde type de
+compliance al draagt. Repro: de ZZP'er vernieuwt door een **nieuw** cert aan te maken (oud verloopt < 30d,
+nieuw > 30d) → /acties toont 0 credential-taken, maar de badge toonde "1 attention" die nooit klaart. Exact
+de "badge luider dan /acties"-driftklasse die #1026 op de **franchiser**-roster-badge dichtte, hier nog open
+op de ZZP-eigen certificatenbadge (persona-sweep run 65, geparkeerd → nu gedicht).
+
+**Fix:** de badge draait nu dezelfde supersede-aware telling als /acties — `findMany` van het volledige
+VERIFIED-dossier → `supersededVerifiedCredentialIds` → in-memory telling van de in-venster verlopende,
+niet-superseded exemplaren. Eén bron van waarheid (dezelfde pure helper), kan niet meer driften. Server-side
+waarheid, read-only telling, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+
+**Bestanden:** `src/lib/signals.ts` (import `supersededVerifiedCredentialIds` + `CredentialStatus`; count →
+findMany + in-memory telling), `src/lib/signals.badge-gaps-run65.test.ts` (+2 regressietests: superseded
+telt niet mee → geen badge; gemengd echt+superseded → count 1).
+
+**Gate:** typecheck ✓, lint ✓, test ✓ (5580), build ✓, prettier ✓.
+
+**Volgende stap:** PR + CI-poort (6 checks) → auto-merge na groen.
+
 ## 2026-08-02 — Prod-rijpheid: routing-cache retentie-backlog gauge (`/api/metrics`, laatste PII-retentie dead-man's-switch)
 
 **Wat:** het laatste PII-dragende "verwijder-ouder-dan-venster"-retentie-prune zonder stille-faal-detector gedicht.
