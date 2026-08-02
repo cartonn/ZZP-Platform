@@ -27,6 +27,24 @@ import { inviteRateLimiter } from "@/lib/rate-limit";
 
 export type JobFormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
+// Interne sentinels voor de compound-guarded publish-transactie (zie `publishJob`). Ze rollen de
+// transactie terug en worden buiten de transactie vertaald naar een nette `JobStatusState`-fout.
+class StaleJobStatusError extends Error {
+  constructor() {
+    super("stale-job-status");
+    this.name = "StaleJobStatusError";
+  }
+}
+class PlanLimitReachedError extends Error {
+  constructor(readonly maxJobs: number) {
+    super("plan-limit-reached");
+    this.name = "PlanLimitReachedError";
+  }
+}
+// Ruime time-out/wachttijd zodat gelijktijdige publishes op één SQLite-db serialiseren (write-lock)
+// i.p.v. te falen op contentie; spiegelt `EXPIRY_TX_OPTIONS` in de cron-taken.
+const JOB_PUBLISH_TX_OPTIONS = { timeout: 30_000, maxWait: 10_000 } as const;
+
 function parseJobForm(formData: FormData) {
   return jobSchema.safeParse({
     title: formData.get("title"),
@@ -235,33 +253,61 @@ export async function changeJobStatus(
     return { error: "Een opdracht heeft een titel en omschrijving nodig om te publiceren." };
   }
 
-  // Plan-gating (server-side, CLAUDE.md regel 1): het aantal ACTIEVE (gepubliceerde) opdrachten is
-  // begrensd door het plan (FREE = 1, betaald = onbeperkt). Spiegelt de reactie-limiet (maxApplications);
-  // zonder dit kon een gratis opdrachtgever onbeperkt publiceren en de betaalde upgrade omzeilen.
+  // Plan-limiet (server-side, CLAUDE.md regel 1): het aantal ACTIEVE (gepubliceerde) opdrachten is
+  // begrensd door het plan (FREE = 1, betaald = onbeperkt). Het planmaximum wordt read-only bepaald,
+  // maar de TELLING draait atomair mét de write (zie de transactie hieronder) — anders publiceren twee
+  // gelijktijdige verzoeken van een FREE-opdrachtgever beide op activeCount=0 en omzeilen ze de upgrade.
+  let maxJobs = -1; // -1 = onbeperkt (canApply-conventie)
   if (targetStatus === "PUBLISHED") {
-    const [activeCount, subscription, freePlan] = await Promise.all([
-      prisma.job.count({
-        where: { company: { userId: actor.id }, status: "PUBLISHED", id: { not: jobId } },
-      }),
+    const [subscription, freePlan] = await Promise.all([
       prisma.subscription.findUnique({ where: { userId: actor.id }, include: { plan: true } }),
       prisma.plan.findUnique({ where: { key: "FREE" } }),
     ]);
     const activePlanMax = subscription?.status === "ACTIVE" ? subscription.plan.maxJobs : undefined;
-    const maxJobs = activePlanMax ?? freePlan?.maxJobs ?? 1;
-    if (!canApply(maxJobs, activeCount)) {
-      return {
-        error: `Je hebt het maximum aantal actieve opdrachten (${maxJobs}) van je plan bereikt. Upgrade je abonnement voor meer.`,
-      };
-    }
+    maxJobs = activePlanMax ?? freePlan?.maxJobs ?? 1;
   }
 
-  await prisma.job.update({
-    where: { id: jobId },
-    data: {
-      status: targetStatus,
-      publishedAt: targetStatus === "PUBLISHED" && !job.publishedAt ? new Date() : job.publishedAt,
-    },
-  });
+  // Compound-guarded statusovergang + atomische plan-limiet (CLAUDE.md regel 2/3). De vroegere blinde
+  // `update({ where: { id } })` ná een niet-transactionele statuslees liet twee races toe:
+  //  (1) een concurrente moderatie-CLOSED (`adminCloseJob`) werd door een heropen-write overschreven
+  //      (resurrectie van een gesloten opdracht terug naar PUBLISHED), en
+  //  (2) twee gelijktijdige publish-verzoeken telden beide onder de plan-limiet en publiceerden allebei.
+  // `updateMany({ where: { id, status: from } })` schrijft alleen als de rij nog op de geziene status
+  // staat (count 0 = race verloren → rollback). De plan-telling draait ná die write in dezelfde
+  // transactie: de write-lock serialiseert gelijktijdige publishes, zodat de tweede de nu-gepubliceerde
+  // eerste opdracht meetelt en op de limiet stuit.
+  try {
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.job.updateMany({
+        where: { id: jobId, status: from },
+        data: {
+          status: targetStatus,
+          publishedAt:
+            targetStatus === "PUBLISHED" && !job.publishedAt ? new Date() : job.publishedAt,
+        },
+      });
+      if (updated.count === 0) throw new StaleJobStatusError();
+      if (targetStatus === "PUBLISHED") {
+        const activeCount = await tx.job.count({
+          where: { company: { userId: actor.id }, status: "PUBLISHED", id: { not: jobId } },
+        });
+        if (!canApply(maxJobs, activeCount)) throw new PlanLimitReachedError(maxJobs);
+      }
+    }, JOB_PUBLISH_TX_OPTIONS);
+  } catch (e) {
+    if (e instanceof StaleJobStatusError) {
+      return {
+        error:
+          "De status van deze opdracht is net gewijzigd. Ververs de pagina en probeer opnieuw.",
+      };
+    }
+    if (e instanceof PlanLimitReachedError) {
+      return {
+        error: `Je hebt het maximum aantal actieve opdrachten (${e.maxJobs}) van je plan bereikt. Upgrade je abonnement voor meer.`,
+      };
+    }
+    throw e;
+  }
 
   await audit({
     actorId: actor.id,

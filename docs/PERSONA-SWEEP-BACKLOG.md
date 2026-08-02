@@ -1,5 +1,44 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-02 (run 67) · **main-commit basis:** `192cb0b7`
+> **Uitkomst:** **1 bereikbaar defect GEVONDEN + GEFIXT** (HIGH — monetisatie-/moderatie-integriteit
+> onder concurrency op `changeJobStatus`). Twee parallelle Opus-audits: TOCTOU/status-integriteit →
+> **1 HIGH gevonden**; next-action-/badge-asymmetrie → **3 kandidaten geïdentificeerd, geparkeerd**.
+>
+> 1. **GEFIXT — HIGH (DOEL 2, plan-limiet-bypass + moderatie-resurrectie via ongeguarde publiceer-write):**
+>    `changeJobStatus` (`src/app/(protected)/opdrachten/actions.ts`) las `job.status` niet-transactioneel,
+>    telde de plan-limiet (`canApply`) in een **aparte** read, en schreef de nieuwe status daarna met een
+>    **ongeguarde** `job.update({ where: { id } })`. **(1) Plan-limiet-bypass:** twee gelijktijdige publish-
+>    verzoeken van een FREE-opdrachtgever (`maxJobs=1`) lezen beide `activeCount=0`, passeren beide
+>    `canApply(1,0)` → 2 actieve opdrachten op een 1-plan (CLAUDE.md regel 1: server-side feature-limiet
+>    omzeild; elke geauthenticeerde CLIENT kan dit, directe monetisatie-impact). **(2) Moderatie-resurrectie:**
+>    `adminCloseJob` zet CLOSED terwijl de eigenaar heropent (owner passeerde `assertJobTransition` op de stale
+>    DRAFT/CLOSED-waarde) → de blinde owner-write landt als laatste en overschrijft de moderatie-CLOSED terug
+>    naar PUBLISHED. **Fix:** interactieve transactie met compound-guarded `updateMany({ where: { id, status:
+from } })` + count-gate (0 → `StaleJobStatusError` → rollback, geen resurrectie) én de plan-telling
+>    **binnen** de transactie ná de write (write-lock serialiseert gelijktijdige publishes → de tweede telt de
+>    eerste mee → `canApply` faalt → `PlanLimitReachedError` → rollback). `canApply` blijft de enige bron van
+>    waarheid; onbeperkte plannen (`maxJobs=-1`) slaan de telling over maar houden de guard. +4 regressietests
+>    (`publish-toctou.test.ts`). Gate: typecheck, lint, test (5587), build, prettier groen.
+>
+> **GEPARKEERD (deze run — next-action/badge-asymmetrie-scan, geen security):**
+>
+> - **MED (DOEL 1b, CLIENT+FREELANCER):** `collaborationRenewalTask` (ACTIVE-samenwerking op/voorbij
+>   `endDate`) staat op /acties + de dashboard-rail (attention bij post-due) maar ontbreekt in de
+>   `/samenwerkingen`-nav-badge (`countFreelancer/ClientCascadeWork` in `signals.ts` kijken niet naar
+>   `endDate`). Zelfde badge-quieter-dan-/acties-klasse als de eerder gefixte `clientComplianceTask`.
+>   **Fix (voorstel):** `endingOrOverdueRenewals`-telling in `cascadeWork` per rol (hergebruik
+>   `RENEWAL_WINDOW_DAYS`/`RENEWAL_OVERDUE_GRACE_DAYS`).
+> - **MED (DOEL 1b, FREELANCER):** het urencriterium-signaal ("onhaalbaar / dit jaar niet meer",
+>   `getHoursCriterionSummary`) leeft alleen op `/inzicht`; geen /acties-tegenhanger. Hoge financiële inzet
+>   (zelfstandigenaftrek) maar zachtere/seizoensgebonden actie.
+> - **LOW (DOEL 1b, FRANCHISER):** de dashboard-seal "Verloopt binnenkort" (`dashboard/page.tsx` rauwe
+>   `credential.count`) is **niet** superseded-aware, terwijl /acties + de `/franchise/zzpers`-badge
+>   (`rosterExpiringByProfile`) superseded certs wél uitsluiten → seal luider dan /acties. Zelfde klasse als
+>   #1026/#1030, hier nog op de seal. **Fix:** vervang de rauwe telling door `rosterExpiringByProfile`.
+>
+> ---
+
 > **Datum:** 2026-08-02 (run 66) · **main-commit basis:** `947426a1`
 > **Uitkomst:** **2 bereikbare defecten GEVONDEN + GEFIXT** (document-integriteit HIGH, TOCTOU +
 > next-action cross-surface drift MED). Drie parallelle Opus-audits (authz/IDOR/cross-tenant +

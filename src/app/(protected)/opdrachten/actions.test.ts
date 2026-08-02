@@ -22,6 +22,8 @@ const store = {
   notifications: [] as Array<Record<string, unknown>>,
   bulkNotifications: [] as Array<Record<string, unknown>>,
   openApplications: [] as Array<Record<string, unknown>>,
+  // Aantal REEDS gepubliceerde opdrachten dat de in-transactie plan-telling ziet (excl. deze).
+  activePublished: 0,
 };
 
 const auditMock = vi.hoisted(() => vi.fn(async () => {}));
@@ -49,16 +51,26 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/lib/audit", () => ({ audit: auditMock }));
 vi.mock("@/lib/rate-limit", () => ({ inviteRateLimiter: { check: inviteCheckMock } }));
-vi.mock("@/lib/db", () => ({
-  prisma: {
+vi.mock("@/lib/db", () => {
+  const prisma = {
     job: {
       findUnique: vi.fn(async () => store.job),
-      count: vi.fn(async () => 0),
-      update: vi.fn(async (args: { data: Record<string, unknown> }) => {
-        store.updated.push(args.data);
-        return { id: "job-1", ...args.data };
-      }),
+      count: vi.fn(async () => store.activePublished),
+      // Compound-guarded statuswrite (spiegelt de echte Prisma-semantiek): schrijft alleen als de
+      // meegegeven `where.status` nog matcht met de huidige rij-status; anders 0 rijen geraakt.
+      updateMany: vi.fn(
+        async (args: { where: { status?: string }; data: Record<string, unknown> }) => {
+          if (args.where.status !== undefined && store.job?.status !== args.where.status) {
+            return { count: 0 };
+          }
+          store.updated.push(args.data);
+          return { count: 1 };
+        },
+      ),
     },
+    // Interactieve transactie: de tx deelt dezelfde delegates als de top-level prisma, zodat de
+    // compound-guarded updateMany + de in-transactie plan-telling daadwerkelijk worden uitgeoefend.
+    $transaction: vi.fn((cb: (tx: unknown) => Promise<unknown>) => cb(prisma)),
     subscription: { findUnique: vi.fn(async () => null) },
     plan: { findUnique: vi.fn(async () => ({ maxJobs: 1 })) },
     company: { findUnique: vi.fn(async () => ({ id: "co-1", name: "Testbedrijf" })) },
@@ -88,8 +100,9 @@ vi.mock("@/lib/db", () => ({
         return { id: "notif-1", ...args.data };
       }),
     },
-  },
-}));
+  };
+  return { prisma };
+});
 
 import { changeJobStatus, inviteFreelancerToJob } from "./actions";
 import { owns } from "@/lib/authz";
