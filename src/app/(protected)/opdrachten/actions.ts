@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { AuthorizationError, owns, requireRole } from "@/lib/authz";
@@ -41,9 +42,22 @@ class PlanLimitReachedError extends Error {
     this.name = "PlanLimitReachedError";
   }
 }
-// Ruime time-out/wachttijd zodat gelijktijdige publishes op één SQLite-db serialiseren (write-lock)
-// i.p.v. te falen op contentie; spiegelt `EXPIRY_TX_OPTIONS` in de cron-taken.
-const JOB_PUBLISH_TX_OPTIONS = { timeout: 30_000, maxWait: 10_000 } as const;
+// Serializable isolatie maakt de plan-limiet ook op PostgreSQL (productie) waterdicht: onder de
+// default READ COMMITTED locken twee gelijktijdige publishes van VERSCHILLENDE drafts andere rijen,
+// blokkeren elkaar niet, en zien elkaars nog-niet-gecommitte publicatie niet → beide zouden onder de
+// FREE-limiet door glippen. Onder Serializable (Postgres SSI) vormt de plan-telling ná de write een
+// read-write-conflict → één transactie faalt met een serialisatie-fout (P2034) en wordt her-geprobeerd;
+// de her-telling ziet dan de nu-gecommitte opdracht en handhaaft de limiet. SQLite ondersteunt alléén
+// Serializable (DB-brede write-lock) — dus dit is daar gedrags-neutraal. Ruime time-out/wachttijd
+// tegen contentie; spiegelt `EXPIRY_TX_OPTIONS` in de cron-taken.
+const JOB_PUBLISH_TX_OPTIONS = {
+  isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+  timeout: 30_000,
+  maxWait: 10_000,
+} as const;
+// Aantal her-pogingen bij een serialisatie-conflict (P2034) voordat we opgeven; spiegelt de retry-lus
+// op factuurnummer-botsingen in `facturen/actions.ts`.
+const JOB_PUBLISH_MAX_ATTEMPTS = 4;
 
 function parseJobForm(formData: FormData) {
   return jobSchema.safeParse({
@@ -273,40 +287,56 @@ export async function changeJobStatus(
   //      (resurrectie van een gesloten opdracht terug naar PUBLISHED), en
   //  (2) twee gelijktijdige publish-verzoeken telden beide onder de plan-limiet en publiceerden allebei.
   // `updateMany({ where: { id, status: from } })` schrijft alleen als de rij nog op de geziene status
-  // staat (count 0 = race verloren → rollback). De plan-telling draait ná die write in dezelfde
-  // transactie: de write-lock serialiseert gelijktijdige publishes, zodat de tweede de nu-gepubliceerde
-  // eerste opdracht meetelt en op de limiet stuit.
-  try {
-    await prisma.$transaction(async (tx) => {
-      const updated = await tx.job.updateMany({
-        where: { id: jobId, status: from },
-        data: {
-          status: targetStatus,
-          publishedAt:
-            targetStatus === "PUBLISHED" && !job.publishedAt ? new Date() : job.publishedAt,
-        },
-      });
-      if (updated.count === 0) throw new StaleJobStatusError();
-      if (targetStatus === "PUBLISHED") {
-        const activeCount = await tx.job.count({
-          where: { company: { userId: actor.id }, status: "PUBLISHED", id: { not: jobId } },
+  // staat (count 0 = race verloren → rollback) — dat dicht (1) op elke DB. De plan-telling draait ná die
+  // write in dezelfde Serializable transactie; op Postgres SSI conflicteert die read-write-combinatie met
+  // een gelijktijdige publish → één transactie faalt met P2034 en wordt hieronder her-geprobeerd (de
+  // her-telling ziet dan de gecommitte opdracht → limiet gehandhaafd). Zo valt ook (2) dicht, niet alleen
+  // op SQLite maar ook in productie.
+  for (let attempt = 0; attempt < JOB_PUBLISH_MAX_ATTEMPTS; attempt++) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const updated = await tx.job.updateMany({
+          where: { id: jobId, status: from },
+          data: {
+            status: targetStatus,
+            publishedAt:
+              targetStatus === "PUBLISHED" && !job.publishedAt ? new Date() : job.publishedAt,
+          },
         });
-        if (!canApply(maxJobs, activeCount)) throw new PlanLimitReachedError(maxJobs);
+        if (updated.count === 0) throw new StaleJobStatusError();
+        if (targetStatus === "PUBLISHED") {
+          // `id: { not: jobId }` telt de ANDERE gepubliceerde opdrachten; deze zojuist-gepubliceerde job
+          // is de +1, dus `canApply(maxJobs, activeCount)` valt precies gelijk met "totaal ≤ maxJobs".
+          const activeCount = await tx.job.count({
+            where: { company: { userId: actor.id }, status: "PUBLISHED", id: { not: jobId } },
+          });
+          if (!canApply(maxJobs, activeCount)) throw new PlanLimitReachedError(maxJobs);
+        }
+      }, JOB_PUBLISH_TX_OPTIONS);
+      break; // geslaagd
+    } catch (e) {
+      if (e instanceof StaleJobStatusError) {
+        return {
+          error:
+            "De status van deze opdracht is net gewijzigd. Ververs de pagina en probeer opnieuw.",
+        };
       }
-    }, JOB_PUBLISH_TX_OPTIONS);
-  } catch (e) {
-    if (e instanceof StaleJobStatusError) {
-      return {
-        error:
-          "De status van deze opdracht is net gewijzigd. Ververs de pagina en probeer opnieuw.",
-      };
+      if (e instanceof PlanLimitReachedError) {
+        return {
+          error: `Je hebt het maximum aantal actieve opdrachten (${e.maxJobs}) van je plan bereikt. Upgrade je abonnement voor meer.`,
+        };
+      }
+      // Serialisatie-conflict (Postgres SSI): een gelijktijdige publish raakte dezelfde plan-telling.
+      // Her-probeer; de nieuwe telling ziet de gecommitte opdracht en handhaaft de limiet correct.
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2034" &&
+        attempt < JOB_PUBLISH_MAX_ATTEMPTS - 1
+      ) {
+        continue;
+      }
+      throw e;
     }
-    if (e instanceof PlanLimitReachedError) {
-      return {
-        error: `Je hebt het maximum aantal actieve opdrachten (${e.maxJobs}) van je plan bereikt. Upgrade je abonnement voor meer.`,
-      };
-    }
-    throw e;
   }
 
   await audit({

@@ -16,6 +16,7 @@
 // Deze test drijft de callback ván $transaction zelf, zodat de guards daadwerkelijk worden uitgeoefend.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Prisma } from "@prisma/client";
 
 // De rij zoals de PRE-check hem ziet (nog DRAFT). De transactie-uitkomst wordt los gemodelleerd om de
 // race te simuleren.
@@ -36,11 +37,23 @@ let updatedCount = 1;
 let activePublished = 0;
 // Planmaximum (FREE = 1).
 let freeMaxJobs = 1;
+// Aantal keren dat de transactie een serialisatie-conflict (P2034) gooit vóór ze slaagt (retry-lus).
+let serializationFailsRemaining = 0;
 
 const jobUpdateMany = vi.fn(async (_args: { where?: unknown; data?: unknown }) => ({
   count: updatedCount,
 }));
 const jobCount = vi.fn(async (_args: { where?: unknown }) => activePublished);
+const txFn = vi.fn(async (cb: (tx: unknown) => Promise<unknown>) => {
+  if (serializationFailsRemaining > 0) {
+    serializationFailsRemaining -= 1;
+    throw new Prisma.PrismaClientKnownRequestError("write conflict", {
+      code: "P2034",
+      clientVersion: "test",
+    });
+  }
+  return cb({ job: { updateMany: jobUpdateMany, count: jobCount } });
+});
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -51,9 +64,7 @@ vi.mock("@/lib/db", () => ({
     plan: { findUnique: vi.fn(async () => ({ key: "FREE", maxJobs: freeMaxJobs })) },
     // Flexpool bij eerste publicatie: geen bedrijf → korte sluiting, geen uitnodigingen.
     company: { findUnique: vi.fn(async () => null) },
-    $transaction: vi.fn(async (cb: (tx: unknown) => Promise<unknown>) =>
-      cb({ job: { updateMany: jobUpdateMany, count: jobCount } }),
-    ),
+    $transaction: (cb: (tx: unknown) => Promise<unknown>) => txFn(cb),
   },
 }));
 
@@ -79,8 +90,10 @@ beforeEach(() => {
   updatedCount = 1;
   activePublished = 0;
   freeMaxJobs = 1;
+  serializationFailsRemaining = 0;
   jobUpdateMany.mockClear();
   jobCount.mockClear();
+  txFn.mockClear();
   auditFn.mockClear();
 });
 
@@ -142,5 +155,28 @@ describe("changeJobStatus — TOCTOU compound-guard + atomische plan-limiet", ()
     expect(jobUpdateMany).toHaveBeenCalledTimes(1);
     // canApply(-1, …) = onbeperkt → geen weigering ondanks 999 actieve opdrachten.
     expect(auditFn).toHaveBeenCalled();
+  });
+
+  it("serialisatie-conflict (Postgres SSI, P2034): her-probeert de transactie en publiceert alsnog", async () => {
+    // De eerste transactiepoging faalt met een write-conflict (een gelijktijdige publish raakte dezelfde
+    // plan-telling onder Serializable); de retry-lus draait 'm opnieuw en slaagt dan.
+    serializationFailsRemaining = 1;
+    updatedCount = 1;
+    activePublished = 0;
+    freeMaxJobs = 1;
+    const { changeJobStatus } = await import("./actions");
+    await expect(changeJobStatus("job-1", "PUBLISHED")).rejects.toThrow(/NEXT_REDIRECT/);
+    // Twee transactie-aanroepen: de gefaalde poging + de geslaagde retry.
+    expect(txFn).toHaveBeenCalledTimes(2);
+    expect(auditFn).toHaveBeenCalledWith(expect.objectContaining({ action: "JOB_STATUS_CHANGED" }));
+  });
+
+  it("aanhoudend serialisatie-conflict: geeft na de max pogingen de fout door (geen stille publicatie)", async () => {
+    serializationFailsRemaining = 99; // faalt elke poging
+    const { changeJobStatus } = await import("./actions");
+    await expect(changeJobStatus("job-1", "PUBLISHED")).rejects.toMatchObject({ code: "P2034" });
+    // Precies JOB_PUBLISH_MAX_ATTEMPTS (4) pogingen, daarna doorgegooid.
+    expect(txFn).toHaveBeenCalledTimes(4);
+    expect(auditFn).not.toHaveBeenCalled();
   });
 });
