@@ -22,15 +22,17 @@
 >    geracete rij als overgeslagen (`updated = eligible − raced`) + `{ timeout, maxWait }` op de lus-transactie.
 >    +6 regressietests (`application-status-toctou.test.ts`). Gate: typecheck, lint, test (5573), build, prettier groen.
 >
-> **GEPARKEERD (deze run, bevestigd bereikbaar — twin van #1026 op een ander surface):** de FREELANCER
-> `/certificaten`-nav-badge (`src/lib/signals.ts` ~r385, de `expiring`-`prisma.credential.count`) telt
+> **→ GEDAAN (2026-08-02, PR volgt):** de FREELANCER `/certificaten`-nav-badge
+> (`src/lib/signals.ts`, `navBadges("FREELANCER")`, de `expiring`-`prisma.credential.count`) telde
 > superseded verlopende VERIFIED-certs mee die `/acties` + de dashboard-rail (`pending-tasks.ts`,
 > `supersededVerifiedCredentialIds`) al **uitsluiten**. Repro: ZZP'er vernieuwt door een nieuw cert van
 > hetzelfde type aan te maken (oud verloopt < 30d, nieuw > 30d) → `/acties` toont 0 credential-taken, de badge
-> toont "1 attention" die nooit klaart. Exact de drift-klasse die #1026 op de **franchiser**-roster-badge
-> dichtte, hier nog open op de ZZP-eigen certificatenbadge. **Fix (voorstel):** spiegel de supersede-aware
-> aggregatie in `navBadges("FREELANCER")` (`findMany` VERIFIED-certs → `supersededVerifiedCredentialIds` →
-> filter). ~20-40 regels + 2 regressietests. Prioriteit: MED (valse, niet-klarende badge).
+> toonde "1 attention" die nooit klaart. Exact de drift-klasse die #1026 op de **franchiser**-roster-badge
+> dichtte, hier op de ZZP-eigen certificatenbadge. **Fix:** de badge spiegelt nu de supersede-aware
+> aggregatie van /acties — `findMany` van het volledige VERIFIED-dossier → `supersededVerifiedCredentialIds`
+> → in-memory telling van de in-venster verlopende, niet-superseded exemplaren. Eén bron van waarheid, kan
+> niet meer driften. +2 regressietests (`signals.badge-gaps-run65.test.ts`). Gate: typecheck, lint, test
+> (5580), build, prettier groen.
 >
 > ---
 
