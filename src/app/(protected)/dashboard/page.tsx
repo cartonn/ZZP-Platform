@@ -26,6 +26,7 @@ import { noShowStandingNotice } from "@/lib/no-show";
 import { getClientStats, fillRateHint } from "@/lib/client-stats";
 import { getClientRevenueTrend, getFreelancerRevenueTrend } from "@/lib/revenue-trend";
 import { getUnbilledInvoiceSummary } from "@/lib/data/unbilled-invoices";
+import { summarizeRosterExpiringSoon } from "@/lib/data/roster-expiry";
 import { formatDeltaPct, earningsDeltaTone } from "@/lib/revenue-delta";
 import { getTranslator } from "@/lib/i18n/server";
 import { avatarAccent } from "@/lib/avatar-accent";
@@ -547,7 +548,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       activeCollabs,
       openLeads,
       verifiedFreelancers,
-      expiringSoon,
+      expirySummary,
     ] = tenantId
       ? await Promise.all([
           prisma.company.count({ where: { tenantId } }),
@@ -560,15 +561,14 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           prisma.freelancerProfile.count({
             where: { tenantId, user: { identityVerifiedAt: { not: null } } },
           }),
-          prisma.credential.count({
-            where: {
-              freelancerProfile: { tenantId },
-              status: "VERIFIED",
-              expiresAt: { gte: now, lte: soon },
-            },
-          }),
-        ])
-      : [0, 0, 0, 0, 0, 0, 0];
+          // (Bijna-)verlopende VERIFIED-certificaten MÉT supersede-uitsluiting — zelfde bron als
+          // de /franchise/zzpers-badge (#1026) en /acties (`franchiserTasks`). Een rauwe
+          // `credential.count` telde superseded exemplaren (een nieuwer, nu-geldig cert dekt het
+          // type al) mee → het zegel over-rapporteerde t.o.v. die oppervlakken.
+          summarizeRosterExpiringSoon(tenantId, now, soon),
+        ] as const)
+      : ([0, 0, 0, 0, 0, 0, { profiles: 0, certs: 0 }] as const);
+    const expiringSoon = expirySummary.certs;
     // Roster-selectie voor de #19-lijst (meest recent bewogen bovenaan, begrensd tot de zone).
     const rosterRaw = tenantId
       ? await prisma.freelancerProfile.findMany({

@@ -94,10 +94,13 @@ from } })` + count-gate (0 → `StaleJobStatusError` → rollback, geen resurrec
 > - **MED (DOEL 1b, FREELANCER):** het urencriterium-signaal ("onhaalbaar / dit jaar niet meer",
 >   `getHoursCriterionSummary`) leeft alleen op `/inzicht`; geen /acties-tegenhanger. Hoge financiële inzet
 >   (zelfstandigenaftrek) maar zachtere/seizoensgebonden actie.
-> - **LOW (DOEL 1b, FRANCHISER):** de dashboard-seal "Verloopt binnenkort" (`dashboard/page.tsx` rauwe
+> - ~~**LOW (DOEL 1b, FRANCHISER):** de dashboard-seal "Verloopt binnenkort" (`dashboard/page.tsx` rauwe
 >   `credential.count`) is **niet** superseded-aware, terwijl /acties + de `/franchise/zzpers`-badge
->   (`rosterExpiringByProfile`) superseded certs wél uitsluiten → seal luider dan /acties. Zelfde klasse als
->   #1026/#1030, hier nog op de seal. **Fix:** vervang de rauwe telling door `rosterExpiringByProfile`.
+>   (`rosterExpiringByProfile`) superseded certs wél uitsluiten → seal luider dan /acties.~~ **GEFIXT
+>   (2026-08-02, PR #1038):** nieuwe gedeelde helper `summarizeRosterExpiringSoon`
+>   (`src/lib/data/roster-expiry.ts`) draait dezelfde twee-staps, supersede-aware aggregatie als /acties +
+>   de badge; de zegel leest nu `.certs` i.p.v. de rauwe telling. +5 tests. Zelfde klasse als #1026/#1030,
+>   nu ook op de seal gedicht.
 >
 > ---
 

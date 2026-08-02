@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-02d — bemiddelaar: franchiser-dashboard-zegel "Verloopt binnenkort" superseded-aware
+
+**Wat:** de franchiser-dashboard-zegel "Roster-compliance → Verloopt binnenkort" telde (bijna-)verlopende
+VERIFIED-certificaten via een **rauwe** `credential.count` (`expiresAt gte now / lte soon`) zonder
+supersede-uitsluiting, terwijl /acties (`franchiserTasks`) én de `/franchise/zzpers`-nav-badge (#1026)
+superseded exemplaren wél uitsluiten via `rosterExpiringByProfile`. Een ZZP'er die een certificaat
+vernieuwde met een **nieuw** cert van hetzelfde type (i.p.v. het bestaande te bewerken) liet het oude,
+bijna-verlopende exemplaar meetellen in de zegel → de zegel over-rapporteerde t.o.v. /acties (valse
+"verloopt binnenkort", die de bemiddelaar liet najagen). Exact de "zegel/badge luider dan /acties"-
+driftklasse die de codebase herhaaldelijk dicht (#1026/#1030). **Fix:** nieuwe gedeelde data-helper
+`summarizeRosterExpiringSoon` draait dezelfde twee-staps, supersede-aware aggregatie als /acties +
+de badge (kandidaat-scope in-venster VERIFIED, gecapt/geordend zoals /acties → volledig VERIFIED-dossier
+per kandidaat → `rosterExpiringByProfile`). Server-side waarheid, read-only telling, geen schemawijziging,
+geen nieuw mutatie/auth-oppervlak.
+
+**Bestanden:** `src/lib/data/roster-expiry.ts` (nieuw, `summarizeRosterExpiringSoon` +
+`ROSTER_EXPIRY_SCAN_LIMIT`), `src/app/(protected)/dashboard/page.tsx` (rauwe count → helper),
+`src/lib/data/roster-expiry.test.ts` (nieuw, +5 tests: leeg/geen tweede query, echte telling,
+superseded uitgesloten, meerdere certs per profiel gesommeerd, query-vorm-asserts).
+
+**Gate:** typecheck ✓, lint ✓, test (5624) ✓, build ✓, prettier ✓. Volgende: PR #1038 → CI-poort.
+
 ## 2026-08-02c — prod/availability: per-taak-deadline op de run-all-cron (hangende taak stalt de pijplijn niet)
 
 **Wat:** `runScheduledTasks` draaide de ~28 geplande cron-taken sequentieel met een kale `await fn()`
