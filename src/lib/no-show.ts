@@ -5,8 +5,35 @@
 // (User.status → SUSPENDED), nooit automatisch.
 
 import { plural } from "@/lib/plural";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const NO_SHOW_LIMIT = 3;
+
+/** Redactiestring voor een gewiste, zelf-getypte no-show-reden (AVG art. 17). Niet-nullable veld. */
+export const NO_SHOW_REASON_REDACTED = "[Verwijderd op verzoek van de gebruiker]";
+
+/**
+ * De exacte body van de `NO_SHOW_REPORTED`-notificatie die de ZZP'er ontvangt bij een geregistreerde
+ * no-show (mét de door de melder opgegeven reden). ÉÉN bron van waarheid: zowel de melding-schrijver
+ * (`reportNoShow`) als de AVG-erasure (`anonymizeUser` reconstrueert deze body deterministisch om
+ * precies díe notificatie te redacten wanneer de MÉLDER wordt verwijderd) roepen deze functie aan.
+ * Zonder één gedeelde bron zouden schrijver en erasure kunnen driften — dan matcht de erasure een
+ * andere body dan er staat en overleeft de reden art. 17. Puur en los testbaar (locked-body-test).
+ */
+export function noShowReportedNotificationBody(input: {
+  jobTitle: string;
+  occurredOn: Date;
+  reason: string;
+  limit?: number;
+}): string {
+  const limit = input.limit ?? NO_SHOW_LIMIT;
+  return (
+    `Voor "${input.jobTitle}" is een no-show geregistreerd ` +
+    `(${formatDateShortNl(input.occurredOn)}). Reden: ${input.reason} — ` +
+    `een beheerder beoordeelt of de reden gegrond is. Bij ${limit} ongegronde ` +
+    `no-shows volgt uitschrijving van het platform.`
+  );
+}
 
 export interface NoShowStanding {
   /** Aantal ongegronde no-shows. */

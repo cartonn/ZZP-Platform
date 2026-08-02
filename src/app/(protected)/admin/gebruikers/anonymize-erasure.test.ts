@@ -94,6 +94,20 @@ vi.mock("@/lib/db", () => ({
     indirectHoursEntry: { updateMany: op("indirectHoursEntry.updateMany") },
     performance: { updateMany: op("performance.updateMany") },
     expense: { updateMany: op("expense.updateMany") },
+    noShowReport: {
+      // Eén no-show die de betrokkene als MÉLDER (opdrachtgever/franchiser) zelf indiende: de reden is
+      // zelf-geschreven vrije tekst (de AVG-export erkent 'm als eigen PII, art. 15/20) en moet mee
+      // gewist — plus de verbatim kopie in de body van de NO_SHOW_REPORTED-notificatie op de ZZP'er-feed.
+      findMany: vi.fn(async () => [
+        {
+          id: "nsr-1",
+          reason: "Niet op komen dagen zonder bericht",
+          occurredOn: new Date("2026-05-07"),
+          collaboration: { freelancer: { userId: "zzp-88" }, job: { title: "Nachtdienst ZZP" } },
+        },
+      ]),
+      updateMany: op("noShowReport.updateMany"),
+    },
     idea: { updateMany: op("idea.updateMany") },
     collaboration: { updateMany: op("collaboration.updateMany") },
     favoriteFreelancer: { updateMany: op("favoriteFreelancer.updateMany") },
@@ -183,6 +197,7 @@ vi.mock("@/lib/db", () => ({
 
 import { anonymizeUser } from "./actions";
 import { prisma } from "@/lib/db";
+import { noShowReportedNotificationBody } from "@/lib/no-show";
 
 const find = (model: string) => tx.ops.find((o) => o.model === model);
 const findAll = (model: string) => tx.ops.filter((o) => o.model === model);
@@ -679,6 +694,43 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
       userId: "client-77",
       type: "INVOICE_CREDITED",
       body: "Factuur 2026-014 is gecrediteerd door de ZZP'er. Reden: Verkeerd uurtarief gefactureerd, correctie.",
+    });
+    expect(o!.args.data.body).toMatch(/verwijderd/i);
+  });
+
+  it("redact de zelf-getypte no-show-reden op de eigen meldingen (NoShowReport.reason, AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // De MÉLDER (opdrachtgever/franchiser) typte de reden zélf; de AVG-data-export (`account-export.ts`,
+    // `reportedById == actor`) erkent 'm als eigen PII onder art. 15/20. `anonymizeUser` raakte de
+    // NoShowReport nergens aan — zonder deze updateMany overleeft de zelf-geschreven reden art. 17
+    // (rood→groen). De rij blijft als geschil-/verantwoordingshistorie staan (niet-nullable `reason` →
+    // redactiestring). Gescopet op de eigen meldingen (reportedById == de betrokkene).
+    const o = find("noShowReport.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ id: { in: ["nsr-1"] } });
+    expect((o.args.data as { reason: string }).reason).toMatch(/verwijderd/i);
+  });
+
+  it("redact de no-show-reden óók uit de NO_SHOW_REPORTED-notificatie op de feed van de gemelde ZZP'er (AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // Tweede kopie: `reportNoShow` zet de reden verbatim in de body van de notificatie die de gemelde
+    // ZZP'er ontvangt. Die body wordt deterministisch gereconstrueerd via de gedeelde
+    // `noShowReportedNotificationBody` en op de feed van de ZZP'er geredact — nooit de no-show van een
+    // ándere melder. Zonder deze updateMany blijft de zelf-geschreven reden op andermans feed staan
+    // (rood→groen). Meerdere notification.updateMany's; pak de NO_SHOW_REPORTED-variant.
+    const ops = findAll("notification.updateMany") as Array<{
+      args: { where: { userId?: string; type?: string; body?: string }; data: { body?: string } };
+    }>;
+    const o = ops.find((x) => x.args.where.type === "NO_SHOW_REPORTED");
+    expect(o).toBeDefined();
+    expect(o!.args.where).toEqual({
+      userId: "zzp-88",
+      type: "NO_SHOW_REPORTED",
+      body: noShowReportedNotificationBody({
+        jobTitle: "Nachtdienst ZZP",
+        occurredOn: new Date("2026-05-07"),
+        reason: "Niet op komen dagen zonder bericht",
+      }),
     });
     expect(o!.args.data.body).toMatch(/verwijderd/i);
   });

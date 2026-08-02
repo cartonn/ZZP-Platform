@@ -19,6 +19,7 @@ import { prisma } from "@/lib/db";
 import { userStatusSchema } from "@/lib/enums";
 import { DISPUTE_ADMIN_NOTIFICATION_TITLE } from "@/lib/cascade/dispute-commands";
 import { collaborationsWithActiveDisputeOpenedBy } from "@/lib/dispute-ownership";
+import { NO_SHOW_REASON_REDACTED, noShowReportedNotificationBody } from "@/lib/no-show";
 
 export async function setUserStatus(userId: string, target: string): Promise<void> {
   const actor = await requireRole("ADMIN");
@@ -240,6 +241,32 @@ export async function anonymizeUser(userId: string): Promise<void> {
   });
   const ownCreditedInvoiceIds = ownCreditedInvoices.map((i) => i.id);
 
+  // AVG art. 17: de door de MÉLDER (opdrachtgever/franchiser) ZÉLF getypte no-show-reden. `reportNoShow`
+  // schrijft die vrije tekst in TWEE kopieën: (1) `NoShowReport.reason` en (2) verbatim in de body van de
+  // `NO_SHOW_REPORTED`-notificatie op de feed van de gemelde ZZP'er (`Reden: <reden>`). De AVG-data-export
+  // (`account-export.ts`, `reportedById == actor`) erkent dit veld expliciet als de EIGEN PII van de melder
+  // onder art. 15/20 — dus moet de erasure het spiegelbeeldig wissen wanneer de melder wordt verwijderd. De
+  // overschrijving van User/profiel raakt geen van beide kopieën. (De AFWEZIGHEID van deze redactie bij de
+  // erasure van de gemélde ZZP'er blijft correct: dan is de reden door een ándere partij over de ZZP'er
+  // geschreven — enkel bij de MÉLDER is het eigen PII. Spiegelt de dispuut-/credit-drie-kopie-behandeling.)
+  // De notificatie heeft een deep-link naar de samenwerking, maar meerdere no-show-notificaties kunnen naar
+  // dezelfde samenwerking wijzen (per dag één) → scope op de exacte, deterministisch reconstrueerbare body
+  // (opdrachttitel + datum + reden via de gedeelde `noShowReportedNotificationBody`), zodat we nooit de
+  // no-show-notificatie van een ándere melder op diezelfde feed raken.
+  // unbounded-allow: AVG art. 17: alle eigen no-show-meldingen met reden van één betrokkene; een take zou stilletjes PII laten staan
+  const ownNoShowReports = await prisma.noShowReport.findMany({
+    where: { reportedById: userId, reason: { not: NO_SHOW_REASON_REDACTED } },
+    select: {
+      id: true,
+      reason: true,
+      occurredOn: true,
+      collaboration: {
+        select: { freelancer: { select: { userId: true } }, job: { select: { title: true } } },
+      },
+    },
+  });
+  const ownNoShowReportIds = ownNoShowReports.map((r) => r.id);
+
   const now = new Date();
   const meta = await requestMeta();
   await prisma.$transaction([
@@ -287,8 +314,9 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // die PII kunnen bevatten worden onomkeerbaar overschreven. Een `user.update` triggert geen
     // cascade op deze kindrijen, dus ze moeten expliciet mee in de transactie — anders blijft
     // herleidbare PII (naam/adres/telefoon) achter in motivatiebrieven, support-, idee- en
-    // beoordelingsteksten. (NoShowReport.reason is door een ándere partij geschreven over de ZZP'er
-    // en heeft mogelijk een bewaargrond bij een arbeidsgeschil — bewust niet hier; zie backlog.)
+    // beoordelingsteksten. (NoShowReport.reason wordt bij de erasure van de MÉLDER wél gewist — die
+    // schreef de reden zelf; zie de `ownNoShowReports`-behandeling hieronder. Bij de erasure van de
+    // gemélde ZZP'er blijft de reden juist staan: dan is het door een ándere partij geschreven.)
     prisma.application.updateMany({
       where: { freelancer: { userId } },
       // Naast de motivatiebrief draagt ook het vrije-tekst-`availability`-veld (≤200 tekens, bv.
@@ -362,7 +390,7 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // expliciet redacten. Spiegelt Application.motivation/AvailabilityWindow.note/ShiftHandoff.reason.
     // description is niet-nullable (@default("")) → neutrale redactiestring; milestoneTitle is nullable
     // → null. rejectionReason is door de OPDRACHTGEVER geschreven over de ZZP'er en heeft mogelijk een
-    // bewaargrond bij een facturatie-/urengeschil — bewust niet hier (zie backlog, zoals NoShowReport).
+    // bewaargrond bij een facturatie-/urengeschil — bewust niet hier (zie backlog).
     prisma.performance.updateMany({
       where: { collaboration: { freelancer: { userId } } },
       data: {
@@ -493,6 +521,37 @@ export async function anonymizeUser(userId: string): Promise<void> {
             userId: i.counterpartyUserId as string,
             type: "INVOICE_CREDITED",
             body: `Factuur ${i.partyInvoiceNumber ?? "concept"} is gecrediteerd door de ZZP'er. Reden: ${i.rejectionReason}.`,
+          },
+          data: { body: "[Verwijderd op verzoek van de gebruiker]" },
+        }),
+      ),
+    // AVG art. 17 (zie de `ownNoShowReports`-toelichting hierboven): de zelf-getypte no-show-reden in
+    // haar twee kopieën. (1) De reden op de eigen NoShowReport-rijen redacten; de rij zelf blijft als
+    // geschil-/verantwoordingshistorie (verdict/verdictNote/datum), maar de niet-nullable `reason` →
+    // neutrale redactiestring. Gescopet op de eigen meldingen (reportedById == de betrokkene).
+    ...(ownNoShowReportIds.length
+      ? [
+          prisma.noShowReport.updateMany({
+            where: { id: { in: ownNoShowReportIds } },
+            data: { reason: NO_SHOW_REASON_REDACTED },
+          }),
+        ]
+      : []),
+    // (2) De gemelde ZZP'er ontving een `NO_SHOW_REPORTED`-notificatie met de reden verbatim in de body.
+    // Reconstrueer de exacte body per melding via de gedeelde `noShowReportedNotificationBody` en redact
+    // precies díe notificatie op de feed van de ZZP'er — nooit de no-show van een ándere melder.
+    ...ownNoShowReports
+      .filter((r) => r.collaboration?.freelancer?.userId)
+      .map((r) =>
+        prisma.notification.updateMany({
+          where: {
+            userId: r.collaboration!.freelancer.userId,
+            type: "NO_SHOW_REPORTED",
+            body: noShowReportedNotificationBody({
+              jobTitle: r.collaboration!.job.title,
+              occurredOn: r.occurredOn,
+              reason: r.reason,
+            }),
           },
           data: { body: "[Verwijderd op verzoek van de gebruiker]" },
         }),

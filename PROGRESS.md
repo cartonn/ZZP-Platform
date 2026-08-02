@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-02 — Privacy/AVG art. 17: `NoShowReport.reason` overleefde de erasure van de MÉLDER (+ kopie op ZZP'er-feed)
+
+**Wat (HOOG, AVG art. 17):** een security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële
+Opus-audits: delta-mutaties #1024–#1027, metrics-endpoint + cross-tenant, export-vs-erasure) vond één nieuwe
+erasure-asymmetrie van dezelfde klasse als de eerder gedichte `Expense.description` — maar erger, want de PII lekte
+óók naar een derde. `NoShowReport.reason` is vrije tekst die de **melder** (opdrachtgever/franchiser) zelf schrijft;
+de AVG-data-export (`account-export.ts`, `reportedById == actor`) geeft 'm expliciet prijs als de eigen PII van de
+melder (art. 15/20). Maar `anonymizeUser` redactte het veld **nergens** — én `reportNoShow` zet dezelfde reden
+verbatim in de body van de `NO_SHOW_REPORTED`-notificatie op de feed van de gemelde ZZP'er. Na een art. 17-verzoek
+van de melder bleef die vrije tekst dus leesbaar in de DB én permanent in de inbox van een andere gebruiker. De
+oude `bewust niet hier`-comment klopte alleen voor de erasure van de gemélde ZZP'er (dan is de reden door een ander
+geschreven), niet voor de erasure van de melder-auteur.
+
+**Fix:** spiegelt het bestaande drie-kopie-patroon (DISPUTE_OPENED / INVOICE_CREDITED). (1) `NoShowReport.reason`
+op de eigen meldingen (`reportedById == betrokkene`) → redactiestring (rij blijft als geschilhistorie). (2) De
+`NO_SHOW_REPORTED`-notificatie op de ZZP'er-feed wordt geredact door de exacte body deterministisch te
+reconstrueren. Om drift tussen schrijver en erasure onmogelijk te maken is de notificatiebody nu één gedeelde pure
+functie `noShowReportedNotificationBody` in `src/lib/no-show.ts`, gebruikt door zowel `reportNoShow` als
+`anonymizeUser`. Vóór de transactie worden de eigen meldingen gelezen (met opdrachttitel/datum/ZZP'er-userId).
+**Bestanden:** `src/lib/no-show.ts` (+builder +`NO_SHOW_REASON_REDACTED`), `samenwerkingen/no-show-actions.ts`
+(gebruikt de builder), `admin/gebruikers/actions.ts` (read + 2 redactie-ops, comments gecorrigeerd),
+`anonymize-erasure.test.ts` (+2 rood→groen tests). **Checks:** typecheck + lint + 5575 unit-tests + prettier groen.
+Metrics-endpoint (fail-closed Bearer, geen PII/labels) en cross-tenant-isolatie: geen nieuw gat.
+
+> **Mens (MENSENWERK.md §5):** een no-show-reden kan een bijzonder persoonsgegeven (gezondheid, art. 9) bevatten —
+> de redactie-op-erasure is hoe dan ook de veilige kant, maar bevestig de bewaargrond/retentie van dit veld.
+
 ## 2026-08-02 — Status-integriteit: compound-guard `Application.status`-writes tegen cross-actor TOCTOU
 
 **Wat:** de drie `Application.status`-schrijvers deden een blinde `prisma.application.update({ where: { id } })`
