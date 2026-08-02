@@ -78,6 +78,31 @@ export function summarizeCollaborationRenewal(
   return { phase: "on_track", daysRemaining, attention: false };
 }
 
+/**
+ * Aantal ACTIVE, niet-bevroren samenwerkingen waarvan het vervolgsignaal aandacht vraagt
+ * (`ending_soon` of `overdue`). Exact dezelfde bron als de `collaborationRenewalTask` op /acties +
+ * de dashboard-rail (`renewalTasks` in pending-tasks.ts roept dezelfde `summarizeCollaborationRenewal`
+ * aan) — zodat de `/samenwerkingen`-nav-badge (`cascadeWork`) die actie meetelt en niet stiller is dan
+ * /acties. De caller pre-filtert al op `status:ACTIVE`, `disputedAt:null` en het endDate-venster; de
+ * pure functie bepaalt hier de definitieve `attention`-grens (de query-vloer staat één dag losser dan de
+ * `lapsed`-demping, dus een enkele doorgelaten rij kan alsnog `lapsed` zijn → telt niet mee). Puur en
+ * los testbaar.
+ */
+export function countAttentionRenewals(
+  collabs: readonly { endDate: Date | null }[],
+  now: Date,
+): number {
+  let count = 0;
+  for (const c of collabs) {
+    if (
+      summarizeCollaborationRenewal({ status: "ACTIVE", endDate: c.endDate, disputed: false, now })
+        .attention
+    )
+      count += 1;
+  }
+  return count;
+}
+
 /** Compacte, rustige kop per fase/rol — de nudge zelf blijft advies, geen blokkade. */
 export function renewalHeadline(
   phase: CollaborationRenewalPhase,

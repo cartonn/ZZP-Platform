@@ -14,7 +14,8 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-let lastCollabQuery: { orderBy?: unknown; take?: number } | null = null;
+type CollabQuery = { orderBy?: unknown; take?: number };
+let collabQueries: CollabQuery[] = [];
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -26,8 +27,8 @@ vi.mock("@/lib/db", () => ({
     conversationParticipant: { findMany: vi.fn(async () => []) },
     invoice: { count: vi.fn(async () => 0) },
     collaboration: {
-      findMany: vi.fn(async (a: { orderBy?: unknown; take?: number }) => {
-        lastCollabQuery = a;
+      findMany: vi.fn(async (a: CollabQuery) => {
+        collabQueries.push(a);
         return [];
       }),
     },
@@ -39,13 +40,19 @@ vi.mock("@/lib/db", () => ({
 import { navBadges } from "./signals";
 
 beforeEach(() => {
-  lastCollabQuery = null;
+  collabQueries = [];
 });
 
 describe("navBadges FREELANCER — cascade-badge truncateert deterministisch (DOEL 1b)", () => {
   it("de cascade-collab-query heeft orderBy updatedAt desc + take 50 (gelijk aan /acties)", async () => {
     await navBadges("FREELANCER", "u-1");
-    expect(lastCollabQuery?.orderBy).toEqual({ updatedAt: "desc" });
-    expect(lastCollabQuery?.take).toBe(50);
+    // De FREELANCER-badge draait twee collab-queries (cascade-werk + vervolgsignaal); de cascade-query
+    // is die met orderBy updatedAt desc — de renewal-query ordent op endDate. Assert op de cascade-query
+    // specifiek zodat de deterministische-truncatie-invariant blijft gelden.
+    const cascade = collabQueries.find(
+      (q) => JSON.stringify(q.orderBy) === JSON.stringify({ updatedAt: "desc" }),
+    );
+    expect(cascade).toBeDefined();
+    expect(cascade?.take).toBe(50);
   });
 });

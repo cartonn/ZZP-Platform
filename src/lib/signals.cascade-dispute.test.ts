@@ -27,7 +27,11 @@ vi.mock("@/lib/db", () => ({
     message: { groupBy: vi.fn(() => Promise.resolve([])) },
     performance: { count: (a: CountArgs) => performanceCount(a) },
     invoice: { count: (a: CountArgs) => invoiceCount(a) },
-    collaboration: { count: (a: CountArgs) => collaborationCount(a) },
+    collaboration: {
+      count: (a: CountArgs) => collaborationCount(a),
+      // Vervolgsignaal-badge-query (renewalAttentionBadgeCount) — niet het onderwerp van deze test.
+      findMany: vi.fn(() => Promise.resolve([])),
+    },
   },
 }));
 

@@ -9,6 +9,11 @@ import { pendingCollaborationProposals } from "@/lib/accepted-proposal";
 import { collaborationBlocksProposal } from "@/lib/collaboration-reproposal";
 import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
+import {
+  countAttentionRenewals,
+  RENEWAL_OVERDUE_GRACE_DAYS,
+  RENEWAL_WINDOW_DAYS,
+} from "@/lib/collaboration-renewal";
 import { prisma } from "@/lib/db";
 import { type Availability, type CredentialStatus, type UserRole } from "@/lib/enums";
 import { rosterExpiringByProfile, supersededVerifiedCredentialIds } from "@/lib/credentials";
@@ -118,6 +123,35 @@ const STALE_DIENST_SHOWN = 3;
 
 /** Harde bovengrens per lijst — gelijk aan de `MAX` in pending-tasks.ts (voorkomt zware queries). */
 const CASCADE_SCAN_LIMIT = 50;
+
+/**
+ * Aantal vervolg-acties ("plan een vervolg") voor de `/samenwerkingen`-badge, exact gelijk aan de
+ * `collaborationRenewalTask`-emissie op /acties + de dashboard-rail (`renewalTasks` in pending-tasks.ts).
+ * Zonder deze telling was `cascadeWork` stiller dan /acties op een aflopende samenwerking — het "signaal
+ * op één oppervlak"-anti-patroon (zie #1026/#1030). De query spiegelt `renewalTasks` één-op-één: dezelfde
+ * partij-scope, `status:ACTIVE`, `disputedAt:null`, hetzelfde endDate-venster (`[overdueFloor, windowEnd]`,
+ * de vloer één dag losser dan de `lapsed`-demping) en dezelfde cap/ordering; de pure `countAttentionRenewals`
+ * past daarna de definitieve `attention`-grens toe → kan niet driften van /acties.
+ */
+async function renewalAttentionBadgeCount(
+  partyWhere: Prisma.CollaborationWhereInput,
+  now: Date,
+): Promise<number> {
+  const windowEnd = new Date(now.getTime() + RENEWAL_WINDOW_DAYS * 86_400_000);
+  const overdueFloor = new Date(now.getTime() - (RENEWAL_OVERDUE_GRACE_DAYS + 1) * 86_400_000);
+  const collabs = await prisma.collaboration.findMany({
+    where: {
+      ...partyWhere,
+      status: "ACTIVE",
+      disputedAt: null,
+      endDate: { gte: overdueFloor, lte: windowEnd },
+    },
+    select: { endDate: true },
+    orderBy: { endDate: "asc" },
+    take: CASCADE_SCAN_LIMIT,
+  });
+  return countAttentionRenewals(collabs, now);
+}
 
 /**
  * /franchise/diensten-badge = exact het aantal losse diensten-taken dat het actiecentrum (`/acties`,
@@ -380,6 +414,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       overdueInvoices,
       cascadeCollabs,
       savedJobs,
+      renewalWork,
     ] = await Promise.all([
       prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
       // Het volledige VERIFIED-dossier (niet enkel de in-venster verlopende rijen): superseded-
@@ -437,6 +472,9 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       prisma.savedJob.count({
         where: { freelancerProfileId: profile.id, job: { status: "PUBLISHED" } },
       }),
+      // vervolgsignaal ("plan een vervolg"): exact de collaborationRenewalTask-emissie op /acties + de
+      // dashboard-rail, zodat de /samenwerkingen-badge die actie meetelt (niet stiller dan /acties).
+      renewalAttentionBadgeCount({ freelancer: { userId } }, now),
     ]);
     // Superseded-aware verval-telling voor de /certificaten-badge. `/acties` + de dashboard-rail
     // (pending-tasks.ts `freelancerTasks` → `supersededVerifiedCredentialIds`) sluiten een ouder,
@@ -461,16 +499,18 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         c.expiresAt <= soon &&
         !supersededExpiringIds.has(c.id),
     ).length;
-    const cascadeWork = countFreelancerCascadeWork(
-      cascadeCollabs.map((c) => ({
-        status: c.status as FreelancerCascadeCollab["status"],
-        latestPerformanceStatus:
-          (c.performances[0]?.status as FreelancerCascadeCollab["latestPerformanceStatus"]) ?? null,
-        openInvoiceStatuses: c.invoices.map(
-          (i) => i.lifecycleStatus as "DRAFT" | "REJECTED" | "APPROVED" | "OVERDUE",
-        ),
-      })),
-    );
+    const cascadeWork =
+      countFreelancerCascadeWork(
+        cascadeCollabs.map((c) => ({
+          status: c.status as FreelancerCascadeCollab["status"],
+          latestPerformanceStatus:
+            (c.performances[0]?.status as FreelancerCascadeCollab["latestPerformanceStatus"]) ??
+            null,
+          openInvoiceStatuses: c.invoices.map(
+            (i) => i.lifecycleStatus as "DRAFT" | "REJECTED" | "APPROVED" | "OVERDUE",
+          ),
+        })),
+      ) + renewalWork;
     // Ontbrekende/verlopen verplichte documenten tellen óók mee in de /certificaten-badge, zodat de
     // badge niet stiller is dan /acties + de dashboard-rail (die de mandatoryDocumentTask tonen). De
     // pure helper dedupt tegen REJECTED-types (die al in `rejected` zitten) → geen dubbeltelling.
@@ -503,7 +543,8 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     // DB-side voorgefilterd op de kortste stale-drempel (VIEWED = 14 dagen); de pure
     // `summarizeStaleClientApplications` past daarna de exacte per-fase-regel toe (VIEWED ≥ 14 /
     // SHORTLIST ≥ 21). NEW valt hier bewust buiten — dat dekt de `newApplications`-telling al.
-    const staleWindow = new Date(Date.now() - WAIT_ATTENTION_DAYS.VIEWED * 86_400_000);
+    const now = new Date();
+    const staleWindow = new Date(now.getTime() - WAIT_ATTENTION_DAYS.VIEWED * 86_400_000);
     const [
       newApplications,
       draftJobs,
@@ -516,6 +557,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       complianceAlerts,
       staleCandidates,
       acceptedCandidates,
+      renewalWork,
     ] = await Promise.all([
       prisma.application.count({ where: { job: { companyId: company.id }, status: "NEW" } }),
       prisma.job.count({ where: { companyId: company.id, status: "DRAFT" } }),
@@ -598,6 +640,10 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         },
         take: CASCADE_SCAN_LIMIT,
       }),
+      // vervolgsignaal ("plan een vervolg"): exact de collaborationRenewalTask-emissie op /acties + de
+      // dashboard-rail (symmetrisch met de FREELANCER-tak), zodat de /samenwerkingen-badge die actie
+      // meetelt en niet stiller is dan /acties op een aflopende samenwerking.
+      renewalAttentionBadgeCount({ company: { userId } }, now),
     ]);
     // Eén actie per samenwerking (niet per ontbrekend certificaat-type): exact gelijk aan de
     // één-taak-per-samenwerking-emissie in de item-engine. De `clientHasComplianceAction`-gate sluit
@@ -606,13 +652,14 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     const complianceActions = complianceAlerts.filter((a) =>
       clientHasComplianceAction(a.alert),
     ).length;
-    const cascadeWork = countClientCascadeWork({
-      proposedCollaborations: cascadeProposed,
-      submittedPerformances: cascadePerf,
-      submittedInvoices: cascadeInv,
-      complianceActions,
-      overduePaymentNudges: cascadeOverduePayments,
-    });
+    const cascadeWork =
+      countClientCascadeWork({
+        proposedCollaborations: cascadeProposed,
+        submittedPerformances: cascadePerf,
+        submittedInvoices: cascadeInv,
+        complianceActions,
+        overduePaymentNudges: cascadeOverduePayments,
+      }) + renewalWork;
     // /kandidaten-badge = alle acties op dat oppervlak (item-engine-pariteit). De drie predicaten
     // zijn niet-overlappend (statussen NEW / VIEWED+SHORTLIST / ACCEPTED), dus een simpele som is
     // geen dubbeltelling — gelijk aan de losse taken op /acties.
