@@ -3,6 +3,40 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-02 — Opdrachtgever: publishJob TOCTOU-guard + atomische plan-limiet (HIGH, monetisatie/moderatie-integriteit)
+
+**Wat:** `changeJobStatus` (`src/app/(protected)/opdrachten/actions.ts`) — de publiceer-/heropen-tak —
+las `job.status` niet-transactioneel, telde de plan-limiet (`canApply`) in een **aparte** read en schreef
+de nieuwe status daarna met een **ongeguarde** `job.update({ where: { id } })`. Twee bereikbare races
+(bevestigd door een parallelle TOCTOU-audit): **(1) plan-limiet-bypass** — twee gelijktijdige publish-
+verzoeken van een FREE-opdrachtgever (`maxJobs=1`) lezen beide `activeCount=0`, passeren beide
+`canApply(1,0)` en publiceren allebei → 2 actieve opdrachten op een 1-plan (betaalde upgrade omzeild,
+CLAUDE.md regel 1); **(2) moderatie-resurrectie** — een concurrente `adminCloseJob` (CLOSED) wordt door de
+blinde heropen-write overschreven terug naar PUBLISHED (moderatiebeslissing stil ongedaan gemaakt).
+
+**Fix:** de statusovergang draait nu in een **interactieve transactie** met een compound-guarded
+`updateMany({ where: { id, status: from } })` + count-gate (count 0 → `StaleJobStatusError` → rollback,
+geen resurrectie) én de plan-telling **binnen** dezelfde transactie ná de guarded write (de write-lock
+serialiseert gelijktijdige publishes → de tweede telt de eerste nu-gepubliceerde opdracht mee → stuit op
+`canApply` → `PlanLimitReachedError` → rollback). `canApply` blijft de enige bron van waarheid voor de
+limiet; onbeperkte plannen (`maxJobs = -1`) slaan de telling over maar houden de compound-guard. Nette
+`JobStatusState`-fout buiten de transactie (geen onafgevangen 500). Server-side waarheid, geen
+schemawijziging, geen nieuw mutatie/auth-oppervlak.
+
+**Bestanden:** `src/app/(protected)/opdrachten/actions.ts` (sentinels + tx-opties + geguarde transactie),
+`src/app/(protected)/opdrachten/publish-toctou.test.ts` (+4 tests: verloren race → geen swap/geen audit;
+plan-bypass → in-tx telling weigert de tweede; gewonnen race binnen limiet → publiceert; onbeperkt plan →
+guard blijft), `src/app/(protected)/opdrachten/actions.test.ts` (mock: `$transaction` + compound-guarded
+`updateMany`/`count` i.p.v. blinde `update`).
+
+**Gate:** typecheck ✓, lint ✓, test ✓ (5587), build ✓, prettier ✓.
+
+**Volgende stap (backlog, uit de next-action-asymmetrie-scan van deze run — niet in deze PR):**
+(1) CLIENT+FREELANCER — `collaborationRenewalTask` staat op /acties + rail maar ontbreekt in de
+`/samenwerkingen`-nav-badge (`cascadeWork`); (2) FREELANCER — urencriterium-onhaalbaar (`/inzicht`) heeft
+geen /acties-tegenhanger; (3) FRANCHISER — dashboard-seal "Verloopt binnenkort" is niet superseded-aware
+(luider dan /acties + roster-badge; zelfde klasse als #1026/#1030).
+
 ## 2026-08-02 — Persona-sweep run 66: document-substitutie-TOCTOU (HIGH) + FREELANCER-cert-dossierquery drift-proof onbegrensd (MED)
 
 **Wat (2 bevindingen gefixt):**
