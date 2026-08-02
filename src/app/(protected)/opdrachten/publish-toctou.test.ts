@@ -94,7 +94,7 @@ describe("changeJobStatus — TOCTOU compound-guard + atomische plan-limiet", ()
     expect(result).toEqual({ error: expect.stringMatching(/net gewijzigd/i) });
     // De guard-where moet id + de geziene status zijn (kan niet driften naar id-only).
     expect(jobUpdateMany).toHaveBeenCalledTimes(1);
-    const where = jobUpdateMany.mock.calls[0][0].where as { id: string; status: string };
+    const where = jobUpdateMany.mock.calls[0]?.[0]?.where as { id: string; status: string };
     expect(where).toEqual({ id: "job-1", status: "DRAFT" });
     // Geen redirect/audit bij een verloren race.
     expect(auditFn).not.toHaveBeenCalled();
@@ -113,7 +113,7 @@ describe("changeJobStatus — TOCTOU compound-guard + atomische plan-limiet", ()
     // De telling draaide BINNEN de transactie, ná de guarded write (atomair).
     expect(jobUpdateMany).toHaveBeenCalledTimes(1);
     expect(jobCount).toHaveBeenCalledTimes(1);
-    const countWhere = jobCount.mock.calls[0][0].where as Record<string, unknown>;
+    const countWhere = jobCount.mock.calls[0]?.[0]?.where as Record<string, unknown>;
     expect(countWhere).toMatchObject({ status: "PUBLISHED", id: { not: "job-1" } });
     // De transactie rolt terug: geen audit van een geslaagde publicatie.
     expect(auditFn).not.toHaveBeenCalled();
