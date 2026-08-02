@@ -92,9 +92,16 @@ export async function changeApplicationStatus(
             }
           : null;
 
-  await prisma.$transaction([
-    prisma.application.update({
-      where: { id: appId },
+  // Compound-guarded write (CLAUDE.md regel 2/3 — server-side waarheid, geen losse status-update). De
+  // pre-lees + assertApplicationTransition leunen op een stale snapshot; in het TOCTOU-venster kan de
+  // ZZP'er zijn reactie parallel intrekken (reacties/actions.ts → WITHDRAWN, terminaal). Zonder guard
+  // landt de blinde `update({ where: { id } })` dan alsnog op de al-ingetrokken rij → een verboden
+  // overgang (WITHDRAWN→REJECTED/…, niet in APPLICATION_TRANSITIONS) + een valse afwijzings-/acceptatie-
+  // notificatie naar een ZZP'er die al introk. De `updateMany` op de exact geziene status telt 0 zodra de
+  // rij in het venster wisselde → we schrijven niets, emitten geen audit/notify en melden de wijziging.
+  const applied = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.application.updateMany({
+      where: { id: appId, status: from },
       // `acceptedAt` is de klok voor "geaccepteerd, wacht nog op een samenwerkingsvoorstel": zet 'm
       // op het acceptatiemoment (niet op `updatedAt`, dat óók door een latere notitie-edit schuift).
       // Een acceptatie kan alleen via déze enkelvoudige actie gebeuren (bulk-triage sluit ACCEPTED uit),
@@ -105,8 +112,9 @@ export async function changeApplicationStatus(
         rejectionReason,
         ...(targetStatus === "ACCEPTED" ? { acceptedAt: new Date() } : {}),
       },
-    }),
-    prisma.auditLog.create({
+    });
+    if (count === 0) return false;
+    await tx.auditLog.create({
       data: auditData({
         actorId: actor.id,
         action: "APPLICATION_STATUS_CHANGED",
@@ -114,21 +122,24 @@ export async function changeApplicationStatus(
         entityId: appId,
         metadata: { from, to: targetStatus, ...(rejectionReason ? { rejectionReason } : {}) },
       }),
-    }),
-    ...(notify
-      ? [
-          prisma.notification.create({
-            data: {
-              userId: app.freelancer.userId,
-              type: `APPLICATION_${targetStatus}`,
-              title: notify.title,
-              body: notify.body,
-              link: "/reacties",
-            },
-          }),
-        ]
-      : []),
-  ]);
+    });
+    if (notify) {
+      await tx.notification.create({
+        data: {
+          userId: app.freelancer.userId,
+          type: `APPLICATION_${targetStatus}`,
+          title: notify.title,
+          body: notify.body,
+          link: "/reacties",
+        },
+      });
+    }
+    return true;
+  });
+
+  if (!applied) {
+    throw new Error("Deze reactie is inmiddels gewijzigd; ververs de pagina en probeer opnieuw.");
+  }
   revalidatePath("/kandidaten");
 }
 
@@ -215,45 +226,60 @@ export async function bulkChangeApplicationStatus(
     return { error: "Geen van de geselecteerde reacties kon worden bijgewerkt." };
   }
 
+  // Compound-guarded per-item write (CLAUDE.md regel 2/3 — server-side waarheid). De `plan.eligible`
+  // is berekend uit de stale `findMany`-snapshot; in het TOCTOU-venster kan de ZZP'er een geselecteerde
+  // reactie parallel intrekken (reacties/actions.ts → WITHDRAWN, terminaal). Zonder guard landt de blinde
+  // `update({ where: { id } })` dan alsnog op de al-ingetrokken rij → een verboden overgang
+  // (WITHDRAWN→REJECTED/…) + een valse "afgewezen"-notificatie. Elke schrijf is een `updateMany` op de
+  // exact geziene status; telt die 0 (rij wisselde in het venster) → geen audit/notify, en de rij telt
+  // als overgeslagen i.p.v. bijgewerkt.
+  let raced = 0;
   if (plan.eligible.length > 0) {
-    // Build the transaction ops for every eligible application.
-    const ops = plan.eligible.flatMap((id) => {
-      const app = transitionable.find((a) => a.id === id)!;
-      const from = app.status as ApplicationStatus;
-      return [
-        prisma.application.update({ where: { id }, data: { status: target } }),
-        prisma.auditLog.create({
-          data: auditData({
-            actorId: actor.id,
-            action: "APPLICATION_STATUS_CHANGED",
-            entityType: "Application",
-            entityId: id,
-            metadata: { from, to: target },
-          }),
-        }),
-        ...(target === "REJECTED"
-          ? [
-              prisma.notification.create({
-                data: {
-                  userId: app.freelancer.userId,
-                  type: "APPLICATION_REJECTED",
-                  title: "Je reactie is afgewezen",
-                  body: `Voor "${app.job.title}".`,
-                  link: "/reacties",
-                },
-              }),
-            ]
-          : []),
-      ];
-    });
-
-    await prisma.$transaction(ops);
+    await prisma.$transaction(
+      async (tx) => {
+        for (const id of plan.eligible) {
+          const app = transitionable.find((a) => a.id === id)!;
+          const from = app.status as ApplicationStatus;
+          const { count } = await tx.application.updateMany({
+            where: { id, status: from },
+            data: { status: target },
+          });
+          if (count === 0) {
+            raced++;
+            continue;
+          }
+          await tx.auditLog.create({
+            data: auditData({
+              actorId: actor.id,
+              action: "APPLICATION_STATUS_CHANGED",
+              entityType: "Application",
+              entityId: id,
+              metadata: { from, to: target },
+            }),
+          });
+          if (target === "REJECTED") {
+            await tx.notification.create({
+              data: {
+                userId: app.freelancer.userId,
+                type: "APPLICATION_REJECTED",
+                title: "Je reactie is afgewezen",
+                body: `Voor "${app.job.title}".`,
+                link: "/reacties",
+              },
+            });
+          }
+        }
+      },
+      // De lus doet per eligible-id één round-trip; een ruime selectie mag de Prisma-default (5s) niet
+      // raken en de héle batch terugrollen (les van de verloop-cron-hardening).
+      { timeout: 120_000, maxWait: 10_000 },
+    );
   }
 
   revalidatePath("/kandidaten");
 
-  const updated = plan.eligible.length;
-  const skipped = plan.skipped.length + coupledSkipped;
+  const updated = plan.eligible.length - raced;
+  const skipped = plan.skipped.length + coupledSkipped + raced;
 
   if (updated === 0 && skipped === 0 && loaded.length === 0) {
     return { error: "Geen van de geselecteerde reacties kon worden bijgewerkt." };
