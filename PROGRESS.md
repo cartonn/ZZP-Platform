@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-02 — Persona-sweep run 66: document-substitutie-TOCTOU (HIGH) + FREELANCER-cert-dossierquery drift-proof onbegrensd (MED)
+
+**Wat (2 bevindingen gefixt):**
+
+1. **HIGH — document-substitutie via ontbrekende status-guard (verificatieflow).** `persistCredential`
+   (`src/app/(protected)/certificaten/actions.ts`) deed in de `hasFile`-hertindien-tak een ongeguarde
+   `tx.credential.update({ where: { id } })` ná een statuslees en een trage `putBlob` (AV-scan + storage-put).
+   Een gelijktijdige admin-goedkeuring in dat venster liet de blinde write het `documentId` stil vervangen op
+   de nu-`VERIFIED` rij (naar een ongezien bestand) én verwijderde het door de admin beoordeelde document.
+   **Fix:** compound-guarded `updateMany({ where: { id, status } })` + count-gate (0 → `StaleCredentialError`
+   → rollback, geen doc-swap, `deleteDocumentById` draait niet), plus dezelfde guard op de twee siblings in
+   dit bestand (no-file `reverify`-tak + `requestVerification`). +2 tests (`persist-toctou.test.ts`).
+
+2. **MED — FREELANCER-cert-dossierquery niet-deterministisch + badge-drift.** De dossierquery in
+   `freelancerTasks` (`src/lib/actions/pending-tasks.ts`) draaide met `take: MAX` zonder `orderBy`, terwijl de
+   /certificaten-badge (`signals.ts`) hetzelfde dossier onbegrensd telt → een cert buiten de MAX-slice
+   verscheen wél in de badge maar niet als next-action (drift-klasse #1022). **Fix:** query nu onbegrensd
+   (geen `take`) — spiegelt de badge drift-proof (owner-scoped, inherent begrensd) + correctere
+   superseded-detectie. +1 test (`pending-tasks-freelancer-credential-unbounded.test.ts`).
+
+**Audits:** authz/IDOR/cross-tenant + document-privacy → schoon. Gate: typecheck, lint, test, build, prettier groen.
+
+---
+
 ## 2026-08-02 — ZZP'er: /certificaten-nav-badge sluit superseded verval-cert uit (badge = /acties)
 
 **Wat:** de FREELANCER `/certificaten`-nav-badge (`src/lib/signals.ts`, `navBadges("FREELANCER")`) telde
