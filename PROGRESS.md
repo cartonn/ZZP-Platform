@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-02 — CLIENT+FREELANCER: vervolgsignaal (renewal) telt mee in de /samenwerkingen-nav-badge
+
+**Wat:** persona-sweep run 67 parkeerde een cross-surface next-action-drift (DOEL 1b): de
+`collaborationRenewalTask` ("plan een vervolg" — een ACTIVE, niet-bevroren samenwerking op/voorbij
+`endDate`) verscheen wél op /acties + de dashboard-rail (`renewalTasks` in `pending-tasks.ts`) maar
+**niet** in de `/samenwerkingen`-nav-badge (`cascadeWork`) — die keek niet naar `endDate`. Badge stiller
+dan /acties: het "signaal op één oppervlak"-anti-patroon (zie #1026/#1030). **Fix:** nieuwe pure
+`countAttentionRenewals` (`collaboration-renewal.ts`) telt de rijen waarvan `summarizeCollaborationRenewal`
+`attention` geeft (`ending_soon`/`overdue`, `lapsed`/`on_track` niet). In `signals.ts` een gedeelde
+`renewalAttentionBadgeCount(partyWhere, now)` die `renewalTasks` één-op-één spiegelt (partij-scope,
+`status:ACTIVE`, `disputedAt:null`, hetzelfde endDate-venster `[overdueFloor, windowEnd]`, `orderBy
+endDate:asc`, `take 50`) → opgeteld bij `cascadeWork` voor beide rollen. Dezelfde
+`summarizeCollaborationRenewal`-bron als /acties → kan niet driften. Server-side waarheid, read-only
+telling, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+
+**Bestanden:** `src/lib/collaboration-renewal.ts` (+`countAttentionRenewals`), `src/lib/signals.ts`
+(import + `renewalAttentionBadgeCount` + wiring in FREELANCER- en CLIENT-tak), tests:
+`collaboration-renewal.test.ts` (+3), `signals.badge-renewal-work.test.ts` (nieuw, +2 badge-integratie),
+`signals.freelancer-cascade-order.test.ts` + `signals.cascade-dispute.test.ts` (mocks bijgewerkt voor de
+tweede collab-query). Gate: typecheck, lint, test (5594), build, prettier groen. PR #1034.
+
+**Volgende stap:** resterende persona-sweep-run-67-parkeeritems (urencriterium-/acties-tegenhanger MED;
+franchiser dashboard-seal superseded-aware LOW).
+
 ## 2026-08-02 — Opdrachtgever: publishJob plan-limiet ook op Postgres waterdicht (Serializable + retry)
 
 **Wat:** follow-up op de vorige PR (#1032). De adversariële review merkte terecht op dat de atomische

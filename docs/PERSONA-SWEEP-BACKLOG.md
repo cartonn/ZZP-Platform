@@ -23,12 +23,14 @@ from } })` + count-gate (0 → `StaleJobStatusError` → rollback, geen resurrec
 >
 > **GEPARKEERD (deze run — next-action/badge-asymmetrie-scan, geen security):**
 >
-> - **MED (DOEL 1b, CLIENT+FREELANCER):** `collaborationRenewalTask` (ACTIVE-samenwerking op/voorbij
+> - ~~**MED (DOEL 1b, CLIENT+FREELANCER):** `collaborationRenewalTask` (ACTIVE-samenwerking op/voorbij
 >   `endDate`) staat op /acties + de dashboard-rail (attention bij post-due) maar ontbreekt in de
->   `/samenwerkingen`-nav-badge (`countFreelancer/ClientCascadeWork` in `signals.ts` kijken niet naar
->   `endDate`). Zelfde badge-quieter-dan-/acties-klasse als de eerder gefixte `clientComplianceTask`.
->   **Fix (voorstel):** `endingOrOverdueRenewals`-telling in `cascadeWork` per rol (hergebruik
->   `RENEWAL_WINDOW_DAYS`/`RENEWAL_OVERDUE_GRACE_DAYS`).
+>   `/samenwerkingen`-nav-badge.~~ **GEFIXT (2026-08-02, PR #1034):** nieuwe pure `countAttentionRenewals`
+>   (`collaboration-renewal.ts`) + `renewalAttentionBadgeCount`-query in `signals.ts` (spiegelt `renewalTasks`
+>   één-op-één: partij-scope, `status:ACTIVE`, `disputedAt:null`, hetzelfde endDate-venster, cap/ordering) →
+>   telt mee in `cascadeWork` voor beide rollen. Dezelfde `summarizeCollaborationRenewal`-bron als /acties →
+>   kan niet driften. +7 tests (pure grens + badge-integratie). Gate: typecheck, lint, test (5594), build,
+>   prettier groen.
 > - **MED (DOEL 1b, FREELANCER):** het urencriterium-signaal ("onhaalbaar / dit jaar niet meer",
 >   `getHoursCriterionSummary`) leeft alleen op `/inzicht`; geen /acties-tegenhanger. Hoge financiële inzet
 >   (zelfstandigenaftrek) maar zachtere/seizoensgebonden actie.

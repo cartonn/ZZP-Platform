@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  countAttentionRenewals,
   RENEWAL_WINDOW_DAYS,
   RENEWAL_OVERDUE_GRACE_DAYS,
   renewalHeadline,
@@ -128,6 +129,33 @@ describe("summarizeCollaborationRenewal", () => {
     });
     expect(r.daysRemaining).toBe(0);
     expect(r.phase).toBe("ending_soon");
+  });
+});
+
+describe("countAttentionRenewals", () => {
+  it("telt niets bij een lege lijst", () => {
+    expect(countAttentionRenewals([], NOW)).toBe(0);
+  });
+
+  it("telt ending_soon en overdue (attention), maar niet on_track/lapsed/geen-datum", () => {
+    const rows = [
+      { endDate: endInDays(10) }, // ending_soon → telt
+      { endDate: endInDays(-3) }, // overdue binnen grace → telt
+      { endDate: endInDays(RENEWAL_WINDOW_DAYS + 5) }, // on_track → telt niet
+      { endDate: endInDays(-(RENEWAL_OVERDUE_GRACE_DAYS + 2)) }, // voorbij grace → lapsed → telt niet
+      { endDate: null }, // geen datum → telt niet
+    ];
+    expect(countAttentionRenewals(rows, NOW)).toBe(2);
+  });
+
+  it("gebruikt exact dezelfde attention-grens als summarizeCollaborationRenewal", () => {
+    const rows = [{ endDate: endInDays(0) }, { endDate: endInDays(RENEWAL_WINDOW_DAYS) }];
+    const expected = rows.filter(
+      (r) =>
+        summarizeCollaborationRenewal({ status: "ACTIVE", endDate: r.endDate, now: NOW }).attention,
+    ).length;
+    expect(countAttentionRenewals(rows, NOW)).toBe(expected);
+    expect(expected).toBe(2);
   });
 });
 
