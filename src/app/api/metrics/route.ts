@@ -22,7 +22,10 @@
 // bron-IP de health-incident-retention-cron nog niet redigeerde — AVG-minimalisatie/opslagbeperking) en
 // zzp_webhook_events_retention_backlog (webhook-ledgerrijen ouder dan WEBHOOK_EVENT_RETENTION_DAYS die de
 // webhook-event-retention-cron nog niet snoeide — GEEN PII: opslag-hygiëne/availability, de ledger groeit
-// anders onbeperkt door) — stille-faal-detectors die de heartbeat niet vangt.
+// anders onbeperkt door) en zzp_routing_cache_retention_backlog (routing-cacherijen — GeocodeCache +
+// TravelRouteCache, platte-tekst locatie-PII — wier eigen TTL is verstreken die de routing-cache-retention-cron
+// nog niet fysiek verwijderde; altijd actief, geen instelvenster — AVG-dataminimalisatie) — stille-faal-detectors
+// die de heartbeat niet vangt.
 //
 // Beveiliging: dezelfde Bearer CRON_SECRET als de taak-/heartbeat-routes, fail-closed — geen
 // CRON_SECRET → 503, verkeerd token → 401. De uitvoer bevat NOOIT persoonsgegevens of secrets, alleen
@@ -61,6 +64,7 @@ import { messageRetentionCutoff } from "@/lib/message-retention";
 import { prunableMessageWhere } from "@/lib/message-retention-task";
 import { webhookEventRetentionCutoff } from "@/lib/webhook-event-retention";
 import { prunableWebhookEventWhere } from "@/lib/webhook-event-retention-task";
+import { prunableRoutingCacheWhere } from "@/lib/routing-cache-retention-task";
 import { reportError } from "@/lib/observability/report";
 import type { CronFreshness } from "@/lib/observability/cron-freshness";
 import {
@@ -101,6 +105,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let healthIncidentsIpRetentionBacklog = 0;
   let messagesRetentionBacklog = 0;
   let webhookEventsRetentionBacklog = 0;
+  let routingCacheRetentionBacklog = 0;
   if (dbReachable) {
     try {
       verificationQueue = await prisma.credential.count({ where: { status: "SUBMITTED" } });
@@ -270,6 +275,23 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
     }
+    try {
+      // Routing-cacherijen (GeocodeCache + TravelRouteCache, platte-tekst locatie-PII) wier eigen TTL
+      // (expiresAt) is verstreken die de routing-cache-retention-cron nog niet fysiek verwijderde: werk
+      // dat die cron had moeten doen. Hergebruikt exact `prunableRoutingCacheWhere` (dezelfde bron van
+      // waarheid als de taak zelf) zodat de gauge de echte cron-backlog telt en niet kan driften. Anders
+      // dan de config-gevensterde retenties is er hier GEEN instelvenster: de TTL zit per rij ingebakken,
+      // dus de cutoff is simpelweg `now` en de gauge is nooit `0`-per-definitie. Beide tabellen delen het
+      // `expiresAt`-veld → één where-vorm dekt beide.
+      const where = prunableRoutingCacheWhere(now);
+      const [geocode, route] = await Promise.all([
+        prisma.geocodeCache.count({ where }),
+        prisma.travelRouteCache.count({ where }),
+      ]);
+      routingCacheRetentionBacklog = geocode + route;
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
@@ -299,6 +321,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     healthIncidentsIpRetentionBacklog,
     messagesRetentionBacklog,
     webhookEventsRetentionBacklog,
+    routingCacheRetentionBacklog,
   };
 }
 

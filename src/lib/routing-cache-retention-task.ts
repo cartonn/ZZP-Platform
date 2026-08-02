@@ -16,6 +16,18 @@ export interface RoutingCacheRetentionResult {
   routePruned: number;
 }
 
+/**
+ * De canonieke where-vorm voor "snoeibare" routing-cacherijen: alles waarvan de eigen TTL (`expiresAt`)
+ * vóór de cutoff ligt. Eén bron van waarheid, gedeeld door de snoeitaak (delete) én de
+ * `/api/metrics`-backlog-gauge (count) — zowel `GeocodeCache` als `TravelRouteCache` dragen hetzelfde
+ * `expiresAt`-veld, dus dezelfde vorm dekt beide tabellen. Zo kan de gauge niet driften t.o.v. de taak.
+ * Anders dan de config-gevensterde retenties (audit/reacties/...) is er hier GEEN instelvenster: de TTL
+ * zit per rij ingebakken, dus retentie is altijd "aan" en de cutoff is simpelweg `now`.
+ */
+export function prunableRoutingCacheWhere(cutoff: Date): { expiresAt: { lt: Date } } {
+  return { expiresAt: { lt: cutoff } };
+}
+
 // Verwijder in begrensde batches i.p.v. één grote deleteMany: houdt de transactie/lock kort en
 // voorkomt geheugendruk op een mogelijk grote cachetabel.
 const BATCH_SIZE = 500;
@@ -27,7 +39,7 @@ async function pruneGeocode(cutoff: Date): Promise<number> {
   let pruned = 0;
   for (let batch = 0; batch < MAX_BATCHES; batch++) {
     const stale = await prisma.geocodeCache.findMany({
-      where: { expiresAt: { lt: cutoff } },
+      where: prunableRoutingCacheWhere(cutoff),
       select: { id: true },
       take: BATCH_SIZE,
     });
@@ -47,7 +59,7 @@ async function pruneRoute(cutoff: Date): Promise<number> {
   let pruned = 0;
   for (let batch = 0; batch < MAX_BATCHES; batch++) {
     const stale = await prisma.travelRouteCache.findMany({
-      where: { expiresAt: { lt: cutoff } },
+      where: prunableRoutingCacheWhere(cutoff),
       select: { id: true },
       take: BATCH_SIZE,
     });

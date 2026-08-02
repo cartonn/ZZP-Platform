@@ -61,6 +61,7 @@ const SAMPLE_INPUT: MetricsInput = {
   healthIncidentsIpRetentionBacklog: 0,
   messagesRetentionBacklog: 0,
   webhookEventsRetentionBacklog: 0,
+  routingCacheRetentionBacklog: 0,
 };
 
 /** De canonieke set gauge-namen die /api/metrics daadwerkelijk exposeert (uit `buildMetrics`). */

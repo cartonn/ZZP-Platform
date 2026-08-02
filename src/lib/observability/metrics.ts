@@ -172,6 +172,20 @@ export interface MetricsInput {
    * deze gauge `0`.
    */
   webhookEventsRetentionBacklog: number;
+  /**
+   * Aantal routing-cacherijen (GeocodeCache + TravelRouteCache) wier eigen TTL (`expiresAt`) is verstreken
+   * maar die de `routing-cache-retention`-cron nog niet fysiek verwijderde — werk dat die cron had moeten
+   * doen. Dezelfde stille-faal-detector-klasse als de andere retentie-backlogs, en net zo privacygevoelig:
+   * beide tabellen bewaren PLATTE-TEKST locatiegegevens (`query`/`fromQuery`/`toQuery` — herleidbare adres-/
+   * plaatsindicaties van ZZP'ers en opdrachten die naar Geoapify zijn gestuurd of daaruit zijn afgeleid). De
+   * leeslaag negeert verlopen rijen alleen LAZY (routing.ts) — fysiek blijven ze staan, dus deze cron is de
+   * enige die de opslagbeperking (AVG art. 5(1)(e)) afdwingt. Anders dan de config-gevensterde retenties is
+   * er hier GEEN instelvenster: de TTL zit per rij ingebakken, dus retentie is altijd "aan" (de gauge is niet
+   * `0`-per-definitie). De cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn
+   * verwerkte; blijft dit getal oplopen terwijl de heartbeat "vers" is, dan bewaart de app locatie-PII over de
+   * eigen TTL heen zonder dat iets dat toont.
+   */
+  routingCacheRetentionBacklog: number;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -317,6 +331,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal webhook-ledgerrijen (ProcessedWebhookEvent, geen PII — opaque providerreferentie + status) ouder dan het geconfigureerde WEBHOOK_EVENT_RETENTION_DAYS-venster die de webhook-event-retention-cron nog niet snoeide (0 als retentie uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → de ledger groeit onbeperkt door ondanks het gezette venster: schijf-/querylast, geen AVG-kwestie).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.webhookEventsRetentionBacklog)),
+    },
+    {
+      name: "zzp_routing_cache_retention_backlog",
+      help: "Aantal routing-cacherijen (GeocodeCache + TravelRouteCache, platte-tekst locatie-PII in query/fromQuery/toQuery) wier eigen TTL (expiresAt) is verstreken die de routing-cache-retention-cron nog niet fysiek verwijderde (deze retentie staat altijd AAN — de TTL zit per rij ingebakken, geen instelvenster; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → locatie-PII bewaard over de eigen TTL heen, AVG art. 5(1)(e)).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.routingCacheRetentionBacklog)),
     },
   ];
 }

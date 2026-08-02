@@ -32,6 +32,7 @@ const HEALTHY: MetricsInput = {
   healthIncidentsIpRetentionBacklog: 0,
   messagesRetentionBacklog: 0,
   webhookEventsRetentionBacklog: 0,
+  routingCacheRetentionBacklog: 0,
 };
 
 function valueOf(input: MetricsInput, name: string): number {
@@ -249,6 +250,30 @@ describe("buildMetrics", () => {
     ).toBe(2);
   });
 
+  it("mapt de routing-cache-retentie-backlog (verlopen rijen over beide tabellen) door als gauge", () => {
+    expect(
+      valueOf(
+        { ...HEALTHY, routingCacheRetentionBacklog: 33 },
+        "zzp_routing_cache_retention_backlog",
+      ),
+    ).toBe(33);
+  });
+
+  it("klemt een negatieve/gebroken routing-cache-retentie-backlog veilig op een niet-negatief geheel getal", () => {
+    expect(
+      valueOf(
+        { ...HEALTHY, routingCacheRetentionBacklog: -8 },
+        "zzp_routing_cache_retention_backlog",
+      ),
+    ).toBe(0);
+    expect(
+      valueOf(
+        { ...HEALTHY, routingCacheRetentionBacklog: 4.9 },
+        "zzp_routing_cache_retention_backlog",
+      ),
+    ).toBe(4);
+  });
+
   it("gebruikt de AGE_NEVER-sentinel wanneer een heartbeat nog nooit draaide", () => {
     const input = { ...HEALTHY, cronAgeSeconds: null, backupAgeSeconds: null };
     expect(valueOf(input, "zzp_cron_heartbeat_age_seconds")).toBe(AGE_NEVER);
@@ -301,6 +326,7 @@ describe("buildMetrics", () => {
       healthIncidentsIpRetentionBacklog: 9,
       messagesRetentionBacklog: 3,
       webhookEventsRetentionBacklog: 6,
+      routingCacheRetentionBacklog: 14,
     };
     expect(valueOf(input, "zzp_db_reachable")).toBe(0);
     expect(valueOf(input, "zzp_maintenance_mode")).toBe(1);
@@ -314,6 +340,7 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_health_incidents_ip_retention_backlog")).toBe(9);
     expect(valueOf(input, "zzp_messages_retention_backlog")).toBe(3);
     expect(valueOf(input, "zzp_webhook_events_retention_backlog")).toBe(6);
+    expect(valueOf(input, "zzp_routing_cache_retention_backlog")).toBe(14);
     expect(valueOf(input, "zzp_cron_heartbeat_ok")).toBe(0);
     expect(valueOf(input, "zzp_cron_heartbeat_stale")).toBe(1);
     expect(valueOf(input, "zzp_backup_heartbeat_ok")).toBe(0);
@@ -350,6 +377,7 @@ describe("buildMetrics", () => {
       "zzp_health_incidents_ip_retention_backlog",
       "zzp_messages_retention_backlog",
       "zzp_webhook_events_retention_backlog",
+      "zzp_routing_cache_retention_backlog",
     ]);
   });
 });

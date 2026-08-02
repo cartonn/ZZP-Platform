@@ -73,7 +73,10 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { runRoutingCacheRetentionTask } from "@/lib/routing-cache-retention-task";
+import {
+  runRoutingCacheRetentionTask,
+  prunableRoutingCacheWhere,
+} from "@/lib/routing-cache-retention-task";
 
 const NOW = new Date("2026-07-26T12:00:00.000Z");
 const DAY = 24 * 60 * 60 * 1000;
@@ -176,5 +179,12 @@ describe("runRoutingCacheRetentionTask", () => {
     const second = await runRoutingCacheRetentionTask({ now: NOW });
     expect(second.geocodePruned).toBe(0);
     expect(second.routePruned).toBe(0);
+  });
+
+  // De gedeelde where-vorm is de enige bron van waarheid voor "snoeibaar", gebruikt door zowel de taak
+  // (delete) als de /api/metrics-backlog-gauge (count). Klinkt de vorm vast zodat gauge en taak nooit driften.
+  it("prunableRoutingCacheWhere selecteert exact rijen wier TTL vóór de cutoff ligt", () => {
+    const cutoff = NOW;
+    expect(prunableRoutingCacheWhere(cutoff)).toEqual({ expiresAt: { lt: cutoff } });
   });
 });
