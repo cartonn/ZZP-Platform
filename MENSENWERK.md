@@ -796,6 +796,7 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 | `MESSAGE_RETENTION_DAYS`                                                     | Bewaartermijn berichten in dagen (default: onbeperkt)  | — (§5a)              | Optioneel (aanbevolen prod; bv. 365)             |
 | `WEBHOOK_EVENT_RETENTION_DAYS`                                               | Snoeivenster webhook-ledger in dagen (default: onbep.) | — (§3)               | Optioneel (bij recurring billing; bv. 90)        |
 | `BACKUP_MAX_AGE_HOURS`                                                       | Venster back-up-heartbeat in uren (default 48)         | —                    | Optioneel (aanbevolen prod)                      |
+| `TASK_TIMEOUT_MS`                                                            | Per-taak-deadline run-all-cron (default 120000; 0=uit) | — (§10)              | Optioneel (default aan)                          |
 
 > Zolang een verificatie-schakelaar **niet** op de echte waarde staat, draait de bijbehorende
 > demo-verifier veilig door (handig voor de pilot).
@@ -896,6 +897,22 @@ is `CRON_MAX_AGE_HOURS` (default **36 uur** — één gemiste dagelijkse run + s
 De heartbeat faalt nooit naar buiten (mag de cron-respons niet omverhalen). Resterend mensenwerk:
 **niets extra** — de kaart vult zichzelf zodra de cron één keer draait; hang desgewenst een
 uptime-monitor op de cron-workflow zelf voor externe alarmering.
+
+**Code-kant GEDAAN (2026-08-02) — per-taak-deadline op de run-all-cron:** `/api/tasks/run-all` draait
+de ~28 geplande taken achter elkaar met `await`. Zonder deadline zou **één** hangende taak
+(lock-contentie, een trage/hangende externe call, een pathologische query) **alle** volgende taken
+blokkeren én — omdat de heartbeat ná de lus wordt geschreven — de dead-man's-switch pas na het venster
+laten afgaan; de hele dagelijkse pijplijn (verloopdetectie, AVG-retentie-snoei, reminders) valt dan
+stil terwijl niets dat direct toont. Elke taak heeft nu een **harde per-taak-deadline**
+(`resolveTaskTimeoutMs` + `withTaskTimeout` in `src/lib/scheduled-tasks.ts`, `Promise.race`): een
+verlopen taak faalt als elke andere taakfout (statische boodschap naar buiten, het echte
+`TaskTimeoutError`-detail alleen server-side via de error-reporter), de **overige taken draaien door**
+en de heartbeat registreert `ok=false` zodat `zzp_cron_heartbeat_ok` afgaat. Default **120000 ms
+(2 min)** — royaal boven de (sub)seconde-looptijd van de DB-taken — geklemd 1000–600000, bijstelbaar
+via `TASK_TIMEOUT_MS`; `TASK_TIMEOUT_MS=0`/`off` schakelt de deadline bewust uit (onbeperkt, oud
+gedrag). NB: JavaScript kent geen echte cancellation — een getimede-out taak loopt op de achtergrond
+door tot hij afrondt of het proces recyclet; het doel is dat de pijplijn + heartbeat doorlopen, niet
+dat de onderliggende operatie gestopt wordt. Resterend mensenwerk: **niets extra** — staat standaard aan.
 
 ---
 
