@@ -45,12 +45,12 @@
 >
 > **GEPARKEERD (deze run — lager geprioriteerd, met repro):**
 >
-> - **NIT (DOEL 1b, FRANCHISER):** de roster-query (`freelancerProfile.findMany({ where:{tenantId}, take:50 })`)
+> - ~~**NIT (DOEL 1b, FRANCHISER):** de roster-query (`freelancerProfile.findMany({ where:{tenantId}, take:50 })`)
 >   heeft op **beide** oppervlakken (`signals.ts` roster-badge + `pending-tasks.ts` `franchiseNotEngageableTask`/
->   `franchiseCredentialExpiryTask`) **geen `orderBy`**. Symmetrisch, dus geen asymmetrie-bug, maar twee
->   los-uitgevoerde onbegrensde queries met dezelfde `take` geven bij >50 roster-leden niet-gegarandeerd
->   hetzelfde subset → badge en /acties kunnen in theorie op schaal driften. **Fix:** deterministische
->   `orderBy: { id: "asc" }` (of `createdAt`) op beide.
+>   `franchiseCredentialExpiryTask`) **geen `orderBy`**.~~ **GEFIXT (2026-08-02e, PR #1039):** deterministische
+>   `orderBy: { id: "asc" }` op beide roster-queries → identieke truncatie, de /franchise/zzpers-badge kan niet
+>   meer driften van /acties bij >50 roster-leden. +2 tests (`signals.roster-order.test.ts` nieuw;
+>   `pending-tasks-franchiser.test.ts` uitgebreid met de orderBy-invariant).
 > - **LOW (DOEL 2, robuustheid):** `createInvoice` heeft (anders dan de PDF-/export-routes met
 >   `documentPdfRateLimiter`/`exportRateLimiter`) **geen rate-limiter**. Het regelplafond hierboven dekt de
 >   ergste variant af; een per-actor rate-limiter op de mutatie is defense-in-depth.

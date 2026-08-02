@@ -3,6 +3,21 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-02e — bemiddelaar: roster-badge deterministische orderBy (badge=/acties parity)
+
+**Wat:** de roster-`freelancerProfile.findMany({ where: { tenantId }, take: 50 })` draaide op **twee**
+oppervlakken — de `/franchise/zzpers`-nav-badge (`navBadges` → `rosterAlerts`, `signals.ts`) én de
+autoritaire `/acties`-bron (`pendingTasks` → `franchiserTasks`, `pending-tasks.ts`) — **zonder `orderBy`**.
+Beide cappen op 50 (`CASCADE_SCAN_LIMIT === MAX === 50`). Bij >50 roster-leden per tenant pakken de twee
+onafhankelijke queries niet-gegarandeerd hetzelfde 50-rij-subset → een andere `notEngageable`-telling →
+de badge kan driften van /acties. Geparkeerde NIT uit persona-sweep run 68; exact dezelfde drift-klasse
+als de al-gefixte freelancer-cascade-badge (`signals.freelancer-cascade-order.test.ts`) en de franchiser
+credential-expiry-badge. **Fix:** deterministische `orderBy: { id: "asc" }` op beide roster-queries →
+beide truncaten identiek. Server-side waarheid, read-only, geen schemawijziging, geen nieuw
+mutatie/auth-oppervlak. **Bestanden:** `src/lib/signals.ts`, `src/lib/actions/pending-tasks.ts`, +2 tests
+(`src/lib/signals.roster-order.test.ts` nieuw; `pending-tasks-franchiser.test.ts` uitgebreid). Gate:
+typecheck, lint, test, build, prettier groen.
+
 ## 2026-08-02d — bemiddelaar: franchiser-dashboard-zegel "Verloopt binnenkort" superseded-aware
 
 **Wat:** de franchiser-dashboard-zegel "Roster-compliance → Verloopt binnenkort" telde (bijna-)verlopende

@@ -1126,6 +1126,11 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
         user: { select: { name: true, identityVerifiedAt: true, lastLoginAt: true } },
         credentials: { select: { type: true, status: true, expiresAt: true } },
       },
+      // Deterministische ordering, identiek aan de nav-badge-bron (signals.ts): beide cappen op 50
+      // (MAX === CASCADE_SCAN_LIMIT). Zonder identieke `orderBy` pakken de twee onafhankelijke
+      // roster-queries bij >50 roster-leden een ánder 50-rij-subset → de niet-inzetbaar-telling op
+      // /acties kan driften van de zijbalk-badge. Zie signals.roster-order.test.ts.
+      orderBy: { id: "asc" },
       take: MAX,
     }),
     // Ongedekte diensten die te lang open staan (gepubliceerd, geen actieve samenwerking, ouder dan de

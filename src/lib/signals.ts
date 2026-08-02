@@ -769,6 +769,13 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
             user: { select: { identityVerifiedAt: true, lastLoginAt: true } },
             credentials: { select: { type: true, status: true, expiresAt: true } },
           },
+          // Deterministische ordering, identiek aan de /acties-bron (`franchiseNotEngageableTask`,
+          // pending-tasks.ts): beide cappen op 50 (CASCADE_SCAN_LIMIT === MAX). Zonder identieke
+          // `orderBy` pakken de twee onafhankelijke roster-queries bij >50 roster-leden binnen één
+          // tenant een ánder 50-rij-subset → een andere `notEngageable`-telling → de
+          // /franchise/zzpers-badge divergeert van /acties. Zelfde drift-klasse als de al-gefixte
+          // verloop-cert-query hierboven (`orderBy: expiresAt`).
+          orderBy: { id: "asc" },
           take: CASCADE_SCAN_LIMIT,
         }),
         // /franchise/diensten — gepubliceerde, ONGEVULDE tenant-diensten + startdatum, voor het
