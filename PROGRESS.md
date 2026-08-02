@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-02c — prod/availability: per-taak-deadline op de run-all-cron (hangende taak stalt de pijplijn niet)
+
+**Wat:** `runScheduledTasks` draaide de ~28 geplande cron-taken sequentieel met een kale `await fn()`
+zonder deadline. Eén hangende taak (lock-contentie, trage/hangende externe call, pathologische query)
+blokkeerde **alle** volgende taken; omdat de heartbeat ná de lus wordt geschreven, viel de hele
+dagelijkse pijplijn (verloopdetectie, AVG-retentie, reminders) stil en ging de dead-man's-switch pas
+na het venster af. Nu heeft elke taak een harde per-taak-deadline (`Promise.race`): een verlopen taak
+faalt als elke andere taakfout (statische boodschap naar buiten, `TaskTimeoutError` alleen server-side
+via de reporter), de overige taken draaien door en de heartbeat registreert `ok=false`.
+
+**Details:** default 120000 ms (2 min, royaal boven de (sub)seconde DB-taken), geklemd 1000–600000 via
+`TASK_TIMEOUT_MS`; `0`/`off` schakelt de deadline bewust uit (oud gedrag). Bewuste keuze: geen echte
+JS-cancellation — de pijplijn + heartbeat lopen door, de onderliggende operatie niet gestopt.
+
+**Bestanden:** `src/lib/scheduled-tasks.ts` (+ `TaskTimeoutError`/`withTaskTimeout`/`resolveTaskTimeoutMs`,
++9 tests in `scheduled-tasks.test.ts`, totaal 14 groen), `src/app/api/tasks/run-all/route.ts` (wiring),
+`.env.example`, `MENSENWERK.md` (§7+§10). Volgende stap: PR #1037 → CI-poort groen → self-merge.
+
 ## 2026-08-02b — security/privacy-audit: reactie-plan-limiet TOCTOU + Idea.declineReason erasure (2×MIDDEL)
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

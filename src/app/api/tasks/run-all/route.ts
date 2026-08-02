@@ -32,7 +32,7 @@ import { runRoutingCacheRetentionTask } from "@/lib/routing-cache-retention-task
 import { runNotificationRetentionTask } from "@/lib/notification-retention-task";
 import { runApplicationRetentionTask } from "@/lib/application-retention-task";
 import { runMessageRetentionTask } from "@/lib/message-retention-task";
-import { runScheduledTasks, type ScheduledTask } from "@/lib/scheduled-tasks";
+import { runScheduledTasks, resolveTaskTimeoutMs, type ScheduledTask } from "@/lib/scheduled-tasks";
 import { reportBackgroundFailure } from "@/lib/observability/report";
 import { recordCronHeartbeat, RUN_ALL_HEARTBEAT } from "@/lib/observability/cron-heartbeat";
 
@@ -108,9 +108,16 @@ export async function POST(request: Request): Promise<Response> {
   // Ruwe foutdetails alleen server-side; de respons krijgt een statische boodschap. Een falende
   // taak escaleert naar de error-reporter (lokaal gestructureerd + Sentry indien geconfigureerd),
   // zodat een fout op de onbewaakte cron niet stil in de logs verdwijnt.
-  const { ok, results, errors } = await runScheduledTasks(tasks, (name, e) => {
-    void reportBackgroundFailure("cron:run-all", e, { task: name });
-  });
+  // Per-taak-deadline: één hangende taak (lock-contentie, trage externe call) mag de overige taken
+  // + de heartbeat niet blokkeren. Default aan (royale plafond); TASK_TIMEOUT_MS=0 zet 'm uit.
+  const timeoutMs = resolveTaskTimeoutMs(process.env.TASK_TIMEOUT_MS);
+  const { ok, results, errors } = await runScheduledTasks(
+    tasks,
+    (name, e) => {
+      void reportBackgroundFailure("cron:run-all", e, { task: name });
+    },
+    { timeoutMs },
+  );
 
   // Heartbeat: registreer dat de cron draaide (dead-man's-switch op /admin/systeemstatus). Slikt
   // eigen fouten — mag de cron-respons nooit omverhalen.
