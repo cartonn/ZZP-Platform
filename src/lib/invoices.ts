@@ -18,9 +18,35 @@ export function invoiceableCollaborationsWhere(
   return {
     freelancer: { userId: freelancerUserId },
     status: { in: ["ACTIVE", "COMPLETED"] },
+    // Een open dispuut bevriest de samenwerking (§4 zijpad): geen losse factuur zolang het loopt —
+    // spiegelt `collaborationBillableForLegacyInvoice`, zodat de keuzelijst en de server-side
+    // createInvoice-gate exact dezelfde regel hanteren en niet uiteenlopen (client toont, server beslist).
+    disputedAt: null,
     performances: { none: {} },
     invoices: { none: { lifecycleStatus: { not: null } } },
   };
+}
+
+/** Melding wanneer een samenwerking niet (meer) in aanmerking komt voor een LOSSE factuur — één bron,
+ *  gedeeld door de pre-transactionele lees én de in-transactie-herverificatie in `createInvoice`. */
+export const LEGACY_INVOICE_NOT_BILLABLE_MESSAGE =
+  "Voor deze samenwerking kun je nu geen losse factuur opstellen: die moet lopend of afgerond zijn en zonder open dispuut.";
+
+/** Melding wanneer een geldstroom-actie op een bevroren (gedisputeerde) samenwerking wordt geweigerd. */
+export const DISPUTE_FROZEN_INVOICE_MESSAGE =
+  "De samenwerking is bevroren wegens een open dispuut. Los het dispuut eerst op.";
+
+/**
+ * Server-side waarheid voor "mag deze samenwerking een LOSSE factuur dragen": alleen een lopende of
+ * afgeronde, niet-gedisputeerde samenwerking. Spiegelt de status/dispuut-delen van
+ * {@link invoiceableCollaborationsWhere} (de cascade-/prestatie-delen worden apart geteld via
+ * `usesCascadeFlow`). Gedeeld door de pre-check én de in-transactie-grendel zodat de regel niet drift.
+ */
+export function collaborationBillableForLegacyInvoice(input: {
+  status: string;
+  disputedAt: Date | null;
+}): boolean {
+  return (input.status === "ACTIVE" || input.status === "COMPLETED") && input.disputedAt === null;
 }
 
 export class InvoiceTransitionError extends Error {

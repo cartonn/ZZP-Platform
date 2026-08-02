@@ -8,11 +8,14 @@ import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import {
   assertInvoiceTransition,
+  collaborationBillableForLegacyInvoice,
+  DISPUTE_FROZEN_INVOICE_MESSAGE,
   eurosToCents,
   formatInvoiceNumber,
   InvoiceTransitionError,
   invoiceCentsWithinInt4,
   invoiceTotalCents,
+  LEGACY_INVOICE_NOT_BILLABLE_MESSAGE,
 } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
@@ -31,10 +34,20 @@ interface ParsedLine {
   amountCents: number;
 }
 
+// Defense-in-depth-plafond op het aantal factuurregels per POST. `formData.getAll` is onbegrensd:
+// een geauthenticeerde ZZP'er kan (binnen de 12 MB body-limiet) tienduizenden regeltripels sturen,
+// die elk Zod-gevalideerd worden en daarna in één transactie als geneste `create` worden ingevoegd —
+// een grote synchrone lus + zeer grote multi-row insert per request. Een echte factuur heeft nooit
+// zoveel regels. Spiegelt de bestaande `MAX_SHIFTS_PER_PERFORMANCE`/`MAX_IMPORT_SIZE`-caps (CWE-400).
+const MAX_INVOICE_LINES = 200;
+
 function parseLines(formData: FormData): { lines: ParsedLine[]; error?: string } {
   const descriptions = formData.getAll("lineDescription").map(String);
   const quantities = formData.getAll("lineQuantity").map(String);
   const units = formData.getAll("lineUnit").map(String);
+
+  if (descriptions.length > MAX_INVOICE_LINES)
+    return { lines: [], error: `Een factuur mag maximaal ${MAX_INVOICE_LINES} regels bevatten.` };
 
   const lines: ParsedLine[] = [];
   for (let i = 0; i < descriptions.length; i++) {
@@ -82,6 +95,10 @@ const CASCADE_FLOW_MESSAGE =
 /** Sentinel: binnen de create-transactie is alsnog een cascade-flow gedetecteerd (TOCTOU verloren). */
 class CascadeFlowRaceError extends Error {}
 
+/** Sentinel: binnen de create-transactie bleek de samenwerking niet (meer) factureerbaar — bv. in het
+ *  venster geannuleerd of in dispuut geraakt (TOCTOU verloren). */
+class NotBillableRaceError extends Error {}
+
 /**
  * True als deze samenwerking (al) via de uren-/prestatie-cascade factureert — dan mag er geen losse
  * factuur bij. `client` is de prisma-client óf een transactie-client, zodat exact dezelfde telling
@@ -120,6 +137,16 @@ export async function createInvoice(
 
   const collaboration = await loadOwnedCollaboration(actor.id, collaborationId);
   if (!collaboration) return { error: "Samenwerking niet gevonden." };
+
+  // Factureerbaarheids-gate (server-side waarheid, CLAUDE.md regel 1/2): een LOSSE factuur mag alleen
+  // op een lopende of afgeronde, niet-gedisputeerde samenwerking. De keuzelijst op /facturen/nieuw
+  // filtert hier al op (invoiceableCollaborationsWhere), maar dat is slechts "tonen"; zonder deze
+  // server-side check kan een ZZP'er de action rechtstreeks met een PROPOSED (ongetekend contract) of
+  // CANCELLED collaborationId aanroepen en tóch factureren (→ sturen → betaald). Zelfde bron als de
+  // keuzelijst (`collaborationBillableForLegacyInvoice`), zodat de regel niet drift.
+  if (!collaborationBillableForLegacyInvoice(collaboration)) {
+    return { error: LEGACY_INVOICE_NOT_BILLABLE_MESSAGE };
+  }
 
   // Dubbele-facturatie-gate (server-side waarheid): als deze samenwerking de uren-/prestatie-cascade
   // gebruikt (een prestatie of een cascade-factuur), mag er geen losse factuur bij — die loopt daar.
@@ -164,6 +191,17 @@ export async function createInvoice(
           // `usesCascadeFlow`) → geen drift; bij overlap rolt de transactie terug. Spiegelt de in-transactie
           // overlap-guard van de cascade-laag (commands-shared.ts).
           if (await usesCascadeFlow(tx, collaborationId)) throw new CascadeFlowRaceError();
+          // TOCTOU-grendel (factureerbaarheid): her-verifieer BÍNNEN de transactie dat de samenwerking
+          // nog lopend/afgerond én niet-gedisputeerd is. In het venster tussen de pre-check en deze write
+          // kan de opdrachtgever de samenwerking annuleren of een dispuut openen; zonder deze hercheck
+          // zou een losse factuur alsnog op een inmiddels-dode/bevroren deal landen. Zelfde bron
+          // (`collaborationBillableForLegacyInvoice`) → geen drift; bij mismatch rolt de transactie terug.
+          const fresh = await tx.collaboration.findUnique({
+            where: { id: collaborationId },
+            select: { status: true, disputedAt: true },
+          });
+          if (!fresh || !collaborationBillableForLegacyInvoice(fresh))
+            throw new NotBillableRaceError();
           return tx.invoice.create({
             data: {
               collaborationId,
@@ -187,6 +225,9 @@ export async function createInvoice(
     // De in-transactie-grendel sloeg aan: een cascade-flow is intussen ontstaan. Geef exact dezelfde
     // gebruikersmelding als de pre-transactionele gate (geen 500, geen id-lek).
     if (e instanceof CascadeFlowRaceError) return { error: CASCADE_FLOW_MESSAGE };
+    // De factureerbaarheids-grendel sloeg aan (intussen geannuleerd/gedisputeerd): zelfde melding als
+    // de pre-check, geen 500, geen id-lek.
+    if (e instanceof NotBillableRaceError) return { error: LEGACY_INVOICE_NOT_BILLABLE_MESSAGE };
     throw e;
   }
   if (!invoice) return { error: "Kon geen factuurnummer toewijzen. Probeer het opnieuw." };
@@ -225,6 +266,10 @@ export async function sendInvoice(invoiceId: string): Promise<void> {
   const invoice = await loadInvoiceParty(invoiceId);
   if (!invoice || invoice.collaboration?.freelancer.userId !== actor.id)
     throw new Error("Factuur niet gevonden.");
+
+  // Dispuut-bevriezing (§4 zijpad): geen geldstroom-actie zolang de samenwerking gedisputeerd is —
+  // spiegelt `assertNotDisputed` in de cascade-laag, die elke andere geld-mutatie al blokkeert.
+  if (invoice.collaboration?.disputedAt) throw new Error(DISPUTE_FROZEN_INVOICE_MESSAGE);
 
   const from = invoice.status as InvoiceStatus;
   try {
@@ -273,6 +318,10 @@ export async function markInvoicePaid(invoiceId: string): Promise<void> {
   const invoice = await loadInvoiceParty(invoiceId);
   if (!invoice || invoice.collaboration?.company.userId !== actor.id)
     throw new Error("Factuur niet gevonden.");
+
+  // Dispuut-bevriezing (§4 zijpad): geen geldstroom-actie zolang de samenwerking gedisputeerd is —
+  // spiegelt `assertNotDisputed` in de cascade-laag.
+  if (invoice.collaboration?.disputedAt) throw new Error(DISPUTE_FROZEN_INVOICE_MESSAGE);
 
   const from = invoice.status as InvoiceStatus;
   // Een verlopen factuur staat in de DB nog als SENT; PAID is vanuit beide geldig.

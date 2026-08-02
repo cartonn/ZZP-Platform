@@ -1,5 +1,65 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-02 (run 68) · **main-commit basis:** `d29520ca`
+> **Uitkomst:** **5 bereikbare defecten GEVONDEN + GEFIXT** in 2 niet-overlappende bestanden (1 HIGH,
+> 4 MED). Live-sweep (4 rollen, curl+DB): RBAC-redirects, IDOR (document/factuur-PDF/dossier),
+> path-traversal, cron-/webhook-auth, ~70 pagina's zonder 500 — **schoon**. Vier parallelle Opus-audits:
+> franchiser-tenant-isolatie → **schoon**; VAT/hours/CSV/expenses-input → **schoon op één na**;
+> cascade-TOCTOU/status → **1 HIGH + 1 MED**; next-action/badge-drift → **1 (bijna-)HIGH + 2 MED**.
+>
+> 1. **GEFIXT — HIGH (DOEL 2, server-side-waarheid-drift op de losse-factuurflow):** `createInvoice`
+>    (`src/app/(protected)/facturen/actions.ts`) controleerde `auth → rol → ownership → cascade-gate → Zod`
+>    maar **nooit `Collaboration.status`**. De factureerbaarheidsregel (`invoiceableCollaborationsWhere`:
+>    `status ∈ {ACTIVE, COMPLETED}`) leefde alléén in de keuzelijst-query van `/facturen/nieuw` — puur
+>    "tonen". Een ZZP'er kon de action rechtstreeks met een **PROPOSED** (ongetekend contract) of
+>    **CANCELLED** `collaborationId` aanroepen en tóch een factuur maken → sturen → laten betalen (CLAUDE.md
+>    regel 1/2). **Fix:** nieuwe pure `collaborationBillableForLegacyInvoice` (spiegelt de status/dispuut-
+>    delen van `invoiceableCollaborationsWhere`) als pre-check **én** als in-transactie-grendel (TOCTOU:
+>    her-leest status+`disputedAt` binnen de create-transactie → geannuleerd/gedisputeerd in het venster →
+>    `NotBillableRaceError` → rollback, geen id-lek). Zelfde bron voor keuzelijst en gate → geen drift.
+> 2. **GEFIXT — MED (DOEL 2, dispuut-bevriezing lek op de legacy-factuuracties):** `createInvoice`/
+>    `sendInvoice`/`markInvoicePaid` lazen `disputedAt` niet, terwijl elke andere geldstroom-mutatie in de
+>    cascade-laag al via `assertNotDisputed` bevriest. Op een ACTIVE-maar-gedisputeerde samenwerking kon dus
+>    tóch een losse factuur worden gemaakt/verzonden/betaald. **Fix:** `disputedAt: null` toegevoegd aan
+>    `invoiceableCollaborationsWhere` + `collaborationBillableForLegacyInvoice` (dekt `createInvoice`) en een
+>    expliciete `DISPUTE_FROZEN_INVOICE_MESSAGE`-rem op `sendInvoice`/`markInvoicePaid`.
+> 3. **GEFIXT — MED (DOEL 2, robuustheid/DoS op `createInvoice`):** `parseLines` had **geen plafond** op
+>    het aantal factuurregels (`formData.getAll` onbegrensd) — een geauthenticeerde ZZP'er kon binnen de
+>    12 MB body-limiet tienduizenden regeltripels sturen → ongecontroleerde validatielus + zeer grote geneste
+>    multi-row insert in één transactie (CWE-400). **Fix:** `MAX_INVOICE_LINES = 200`, vroege schone afwijzing
+>    (spiegelt de bestaande `MAX_SHIFTS_PER_PERFORMANCE`/`MAX_IMPORT_SIZE`-caps).
+> 4. **GEFIXT — MED (DOEL 1b, FRANCHISER badge-undercount t.o.v. /acties):** de `openDienstAlerts`-badge-query
+>    (`src/lib/signals.ts`) miste de `collaborations: { none: { status: "ACTIVE" } }`-filter die haar /acties-
+>    tegenhanger (`pending-tasks.ts` `franchiseAcuteDienstTask`) wél heeft; de zuster-`staleDiensten`-query
+>    had hem al. Bij een tenant met ≥50 PUBLISHED diensten konden gevulde/start-loze diensten (die door
+>    `nulls:"first"` vooraan sorteren) een écht acute dienst uit de `take:50`-slice duwen → badge stiller dan
+>    /acties. **Fix:** filter toegevoegd; de open-query is nu identiek gescoopt aan pending-tasks.ts.
+> 5. **GEFIXT — MED (DOEL 1b, CLIENT niet-deterministische slice):** de `staleCandidates`- (VIEWED/SHORTLIST)
+>    en `acceptedCandidates`- (ACCEPTED) badge-queries in `signals.ts` misten de `orderBy` die hun /acties-
+>    tegenhangers (`staleApplicationsTask` `createdAt:asc`, `proposeCollaborationTask` `updatedAt:asc`) wél
+>    hebben. Boven 50 rijen kon de `take`-slice een ander subset (en dus een andere telling) pakken dan
+>    /acties. **Fix:** identieke `orderBy` toegevoegd aan beide. +2 regressietestbestanden
+>    (`facturen/actions.test.ts` uitgebreid: status/dispuut/regelplafond-gates + TOCTOU; nieuw
+>    `signals.badge-gaps-run67.test.ts`: query-vorm-asserts). Gate: typecheck, lint, test (5606), build,
+>    prettier groen.
+>
+> **GEPARKEERD (deze run — lager geprioriteerd, met repro):**
+>
+> - **NIT (DOEL 1b, FRANCHISER):** de roster-query (`freelancerProfile.findMany({ where:{tenantId}, take:50 })`)
+>   heeft op **beide** oppervlakken (`signals.ts` roster-badge + `pending-tasks.ts` `franchiseNotEngageableTask`/
+>   `franchiseCredentialExpiryTask`) **geen `orderBy`**. Symmetrisch, dus geen asymmetrie-bug, maar twee
+>   los-uitgevoerde onbegrensde queries met dezelfde `take` geven bij >50 roster-leden niet-gegarandeerd
+>   hetzelfde subset → badge en /acties kunnen in theorie op schaal driften. **Fix:** deterministische
+>   `orderBy: { id: "asc" }` (of `createdAt`) op beide.
+> - **LOW (DOEL 2, robuustheid):** `createInvoice` heeft (anders dan de PDF-/export-routes met
+>   `documentPdfRateLimiter`/`exportRateLimiter`) **geen rate-limiter**. Het regelplafond hierboven dekt de
+>   ergste variant af; een per-actor rate-limiter op de mutatie is defense-in-depth.
+> - **LOW (robuustheid):** detail-not-found-routes (`/samenwerkingen/<onzin>`, `/opdrachten/<onzin>`,
+>   `/facturen/<onzin>`) renderen de 404-UI met **HTTP 200** i.p.v. 404 (via een custom not-found-component
+>   i.p.v. `notFound()`). Geen security-impact (geen data-lek), wel een SEO/correctheids-nit.
+>
+> ---
+
 > **Datum:** 2026-08-02 (run 67) · **main-commit basis:** `192cb0b7`
 > **Uitkomst:** **1 bereikbaar defect GEVONDEN + GEFIXT** (HIGH — monetisatie-/moderatie-integriteit
 > onder concurrency op `changeJobStatus`). Twee parallelle Opus-audits: TOCTOU/status-integriteit →

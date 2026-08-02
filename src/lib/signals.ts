@@ -613,6 +613,10 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
           createdAt: { lte: staleWindow },
         },
         select: { status: true, createdAt: true, collaboration: { select: { id: true } } },
+        // Deterministische slice, gelijk aan pending-tasks.ts (`staleApplicationsTask`): zonder orderBy
+        // is welke CASCADE_SCAN_LIMIT-rijen Prisma teruggeeft niet-deterministisch, zodat de badge en
+        // /acties bij >limit stale reacties een ander subset (en dus een andere telling) kunnen kiezen.
+        orderBy: { createdAt: "asc" },
         take: CASCADE_SCAN_LIMIT,
       }),
       // geaccepteerde reacties die nog een samenwerkingsvoorstel missen — exact het predicaat uit
@@ -638,6 +642,11 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
           acceptedAt: true,
           updatedAt: true,
         },
+        // Deterministische slice, gelijk aan pending-tasks.ts (`proposeCollaborationTask`,
+        // `orderBy:{updatedAt:"asc"}`): zonder orderBy kan de badge bij >limit geaccepteerde reacties een
+        // ander subset kiezen dan /acties, en omdat `pendingCollaborationProposals` per rij de
+        // collaboration-staat (reproposal) meeweegt, kan de resulterende telling driften.
+        orderBy: { updatedAt: "asc" },
         take: CASCADE_SCAN_LIMIT,
       }),
       // vervolgsignaal ("plan een vervolg"): exact de collaborationRenewalTask-emissie op /acties + de
@@ -762,12 +771,22 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
           },
           take: CASCADE_SCAN_LIMIT,
         }),
-        // /franchise/diensten — gepubliceerde tenant-diensten + vulgraad (actieve samenwerking = gevuld) +
-        // startdatum, voor het acute-onbezet-aggregaat (`franchiseAcuteDienstTask`). Zelfde definitie én
-        // deterministische, acuut-eerst geordende slice als pending-tasks.ts (null-start + vroegst-startend
-        // voorop), zodat een acute dienst niet buiten de slice valt.
+        // /franchise/diensten — gepubliceerde, ONGEVULDE tenant-diensten + startdatum, voor het
+        // acute-onbezet-aggregaat (`franchiseAcuteDienstTask`). Zelfde definitie én deterministische,
+        // acuut-eerst geordende slice als pending-tasks.ts (null-start + vroegst-startend voorop),
+        // zodat een acute dienst niet buiten de slice valt. De `collaborations:none`-scope is
+        // essentieel en spiegelt pending-tasks.ts: zonder die filter tellen óók gevulde diensten mee in
+        // de `take`-slice, en omdat null-start diensten door `nulls:"first"` vooraan sorteren kan een
+        // tenant met ≥CASCADE_SCAN_LIMIT gevulde, start-loze diensten een écht acute (ongevulde) dienst
+        // uit de slice duwen → de badge undercount t.o.v. /acties + de rail. De zuster-query
+        // `staleDiensten` hieronder scopet al net zo; `_count` blijft als defense-in-depth (self-correct
+        // als een race intussen een ACTIVE-samenwerking toevoegt).
         prisma.job.findMany({
-          where: { tenantId, status: "PUBLISHED" },
+          where: {
+            tenantId,
+            status: "PUBLISHED",
+            collaborations: { none: { status: "ACTIVE" } },
+          },
           select: {
             id: true,
             startDate: true,

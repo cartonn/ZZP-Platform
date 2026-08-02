@@ -3,6 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-02 — persona-sweep run 68: losse-factuur status/dispuut/regelplafond-gates (HIGH+2×MED) + badge-drift (2×MED)
+
+**Wat:** kritische-gebruiker-sweep over 4 rollen. Live-sweep (curl+Playwright-DB) schoon: RBAC-redirects,
+IDOR (document/factuur-PDF/dossier), path-traversal, cron-/webhook-auth, ~70 pagina's zonder 500. Vier
+parallelle Opus-audits leverden 5 bereikbare defecten in 2 niet-overlappende bestanden:
+
+1. **HIGH** — `createInvoice` (`facturen/actions.ts`) checkte `Collaboration.status` **nooit** server-side
+   (regel leefde alleen in de keuzelijst-query) → een ZZP'er kon de action rechtstreeks met een PROPOSED
+   (ongetekend contract) of CANCELLED collaboration aanroepen en tóch factureren→sturen→betalen (CLAUDE.md
+   regel 1/2). Fix: pure `collaborationBillableForLegacyInvoice` als pre-check **én** in-transactie-grendel
+   (TOCTOU: her-leest status+`disputedAt` in de create-tx → geannuleerd/gedisputeerd in het venster → rollback).
+2. **MED** — dispuut-bevriezing lek: `createInvoice`/`sendInvoice`/`markInvoicePaid` lazen `disputedAt` niet
+   (elke andere geld-mutatie doet dat via `assertNotDisputed`). Fix: `disputedAt:null` in de billable-regel +
+   expliciete rem op send/markPaid.
+3. **MED** — geen regelplafond in `parseLines` (`formData.getAll` onbegrensd, CWE-400). Fix:
+   `MAX_INVOICE_LINES = 200`, vroege schone afwijzing.
+4. **MED** — FRANCHISER `openDienstAlerts`-badge (`signals.ts`) miste de `collaborations:{none:{status:ACTIVE}}`-
+   filter die /acties (`franchiseAcuteDienstTask`) wél heeft → acute dienst kon uit de take-50-slice vallen
+   (undercount). Fix: filter gelijkgetrokken.
+5. **MED** — CLIENT `staleCandidates`/`acceptedCandidates`-badge-queries misten de `orderBy` van hun /acties-
+   tegenhangers → niet-deterministische slice >50 rijen. Fix: identieke `orderBy` toegevoegd.
+
+**Bestanden:** `src/lib/invoices.ts` (+`collaborationBillableForLegacyInvoice`, messages, `disputedAt:null` in
+`invoiceableCollaborationsWhere`), `src/app/(protected)/facturen/actions.ts` (status/dispuut/regelplafond-gates
+
+- TOCTOU-grendel), `src/lib/signals.ts` (3 query-vorm-fixes). Tests: `facturen/actions.test.ts` (uitgebreid),
+  `signals.badge-gaps-run67.test.ts` (nieuw, query-vorm-asserts), `signals.badge-gaps-run52.test.ts` (mock-
+  discriminator bijgewerkt). Gate: typecheck, lint, test (5606), build, prettier groen. Geparkeerd in
+  `docs/PERSONA-SWEEP-BACKLOG.md`: roster-orderBy-NIT, createInvoice-rate-limiter (LOW), 200-vs-404-not-found (LOW).
+
 ## 2026-08-02 — CLIENT+FREELANCER: vervolgsignaal (renewal) telt mee in de /samenwerkingen-nav-badge
 
 **Wat:** persona-sweep run 67 parkeerde een cross-surface next-action-drift (DOEL 1b): de
