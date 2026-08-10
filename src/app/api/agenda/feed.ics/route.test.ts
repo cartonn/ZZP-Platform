@@ -31,7 +31,12 @@ vi.mock("@/lib/calendar/user-schedule", () => ({
   loadUserScheduleCollaborations: vi.fn(async () => []),
 }));
 vi.mock("@/lib/calendar/user-deadlines", () => ({
-  loadUserAdministrativeDeadlines: vi.fn(async () => ({ credentials: [], invoices: [], vat: [] })),
+  loadUserAdministrativeDeadlines: vi.fn(async () => ({
+    credentials: [],
+    invoices: [],
+    vat: [],
+    incomeTax: null,
+  })),
 }));
 vi.mock("@/lib/calendar/schedule", () => ({ collaborationScheduleEvents: vi.fn(() => []) }));
 vi.mock("@/lib/calendar/ics", () => ({ buildIcsCalendar: vi.fn(() => "BEGIN:VCALENDAR") }));

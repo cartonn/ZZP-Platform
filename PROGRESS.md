@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-10 — ZZP'er: IB-aangiftedeadline in de persoonlijke agenda-feed
+
+**Wat:** De agenda-export (`/api/agenda` eenmalige download + webcal-abonnement `/api/agenda/feed.ics`)
+exporteerde al certificaat-verloop, factuur-vervaldatum en BTW-aangifte, maar **niet** de jaarlijkse
+aangifte inkomstenbelasting — een deadline (NL-standaard: uiterlijk 1 mei van het jaar ná het
+belastingjaar) die een ZZP'er niet mag missen. Nu verschijnt die als los gehele-dag-event in beide
+feeds, zodat een ZZP'er hem éénmalig in zijn eigen agenda-app (Google/Apple/Outlook) ziet en ruim
+vooraf kan plannen — benchmark Deel/Temper (administratie-ontzorging). Bewust **forward-looking**: er
+is geen "ingediend"-vlag in het systeem (de aangifte gebeurt buiten het platform via DigiD/een fiscaal
+dienstverlener), dus we agenderen altijd de eerstvolgende, nog niet verstreken deadline (het venster
+flipt precies op 2 mei naar het lopende belastingjaar) i.p.v. een mogelijk-al-ingediende verstreken
+datum te tonen. Gegate op werkelijke activiteit: alléén als er in dat belastingjaar omzet is geboekt
+(`revenueCents > 0`) — spiegelt de niet-nul-saldo-gate op de BTW-deadline, voorkomt ruis bij een
+net-gestarte/slapende onderneming. Privacy: het event draagt geen bedragen (parity met de rest van de
+feed). Server-side waarheid, read-only, geen schemawijziging, geen nieuw mutatie-/auth-oppervlak.
+
+**Bestanden:** nieuw `src/lib/administration/income-tax-deadline.ts` (pure: `incomeTaxFilingDeadline`,
+`nextIncomeTaxYear`, `summarizeIncomeTaxDeadline`, `taxYearRange`) + test; nieuw
+`src/lib/data/income-tax-deadline.ts` (`getIncomeTaxDeadlineForActor`, owner-/jaar-gescoopt,
+omzet-gate, alleen FREELANCER) + test; `src/lib/calendar/deadlines.ts` (`IncomeTaxDeadline`-type +
+`incomeTax`-veld op `AdministrativeDeadlines` + event-mapping) + test; `src/lib/calendar/user-deadlines.ts`
+(wiring in de `Promise.all`); mock-updates in `user-deadlines.test.ts` + beide agenda-feed-tests. Beide
+agenda-routes delen de builders → de deadline verschijnt automatisch in eenmalige download én webcal-feed.
+Gate: typecheck, lint, test (5674), build, prettier groen.
+
 ## 2026-08-10 — Ontwerp-lab: +10 concepten (reeks 55, nrs 541–550) → totaal 550 op `/ontwerp`
 
 **Wat:** Additief 10 nieuwe, onderscheidende redesign-concepten toegevoegd aan het design-lab (galerij

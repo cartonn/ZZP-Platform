@@ -40,7 +40,12 @@ vi.mock("@/lib/db", () => ({
 // De administratieve-deadline-loader wordt gemockt: deze test bewaakt uitsluitend de liveness-poort
 // (dat het rooster wél/niet wordt geladen). De deadline-inhoud is elders getest.
 vi.mock("@/lib/calendar/user-deadlines", () => ({
-  loadUserAdministrativeDeadlines: vi.fn(async () => ({ credentials: [], invoices: [], vat: [] })),
+  loadUserAdministrativeDeadlines: vi.fn(async () => ({
+    credentials: [],
+    invoices: [],
+    vat: [],
+    incomeTax: null,
+  })),
 }));
 
 import { GET } from "./feed.ics/route";

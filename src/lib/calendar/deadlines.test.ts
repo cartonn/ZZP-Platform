@@ -4,7 +4,12 @@ import {
   type AdministrativeDeadlines,
 } from "@/lib/calendar/deadlines";
 
-const empty: AdministrativeDeadlines = { credentials: [], invoices: [], vat: [] };
+const empty: AdministrativeDeadlines = {
+  credentials: [],
+  invoices: [],
+  vat: [],
+  incomeTax: null,
+};
 
 describe("administrativeDeadlineEvents", () => {
   it("geeft geen events bij lege invoer", () => {
@@ -54,17 +59,40 @@ describe("administrativeDeadlineEvents", () => {
     expect(event!.start).toBe(deadline);
   });
 
-  it("bewaart de categorievolgorde: certificaten, dan facturen, dan BTW", () => {
+  it("mapt een IB-aangifte-deadline naar een gehele-dag-event met stabiele UID — zonder bedrag", () => {
+    const deadline = new Date("2027-05-01T00:00:00Z");
+    const [event] = administrativeDeadlineEvents({
+      ...empty,
+      incomeTax: { taxYear: 2026, deadline },
+    });
+    expect(event!.uid).toBe("income-tax-2026@zzp-platform");
+    expect(event!.summary).toBe("Aangifte inkomstenbelasting 2026");
+    expect(event!.allDay).toBe(true);
+    expect(event!.start).toBe(deadline);
+    expect(event!.recurrenceDays).toBeUndefined();
+    // Privacy: geen euro-bedrag in de publieke feed.
+    expect(event!.summary).not.toContain("€");
+    expect(event!.description).not.toContain("€");
+  });
+
+  it("laat de IB-deadline weg als incomeTax null is", () => {
+    expect(administrativeDeadlineEvents({ ...empty, incomeTax: null })).toEqual([]);
+  });
+
+  it("bewaart de categorievolgorde: certificaten, facturen, BTW, dan IB", () => {
     const d = new Date("2026-06-01T00:00:00Z");
+    const ibDeadline = new Date("2027-05-01T00:00:00Z");
     const events = administrativeDeadlineEvents({
       credentials: [{ id: "c1", title: "Diploma", expiresAt: d }],
       invoices: [{ id: "i1", number: "F-1", dueAt: d, payable: true }],
       vat: [{ year: 2026, quarter: 2, deadline: d }],
+      incomeTax: { taxYear: 2026, deadline: ibDeadline },
     });
     expect(events.map((e) => e.uid)).toEqual([
       "cred-expiry-c1@zzp-platform",
       "invoice-due-i1@zzp-platform",
       "vat-return-2026-Q2@zzp-platform",
+      "income-tax-2026@zzp-platform",
     ]);
   });
 });

@@ -10,6 +10,7 @@
 import { prisma } from "@/lib/db";
 import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
 import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
+import { getIncomeTaxDeadlineForActor } from "@/lib/data/income-tax-deadline";
 import { type UserRole } from "@/lib/enums";
 import { type AdministrativeDeadlines } from "@/lib/calendar/deadlines";
 
@@ -20,19 +21,23 @@ import { type AdministrativeDeadlines } from "@/lib/calendar/deadlines";
  * - Facturen: openstaand (canonieke where) waarin de gebruiker uitschrijver (ZZP'er) óf tegenpartij
  *   (opdrachtgever) is, met een gezette `dueAt`.
  * - BTW: gedelegeerd aan de bestaande deadline-engine (leeg voor rollen zonder eigen grootboek).
+ * - Inkomstenbelasting: de eerstvolgende IB-aangifte-deadline (1 mei ná het belastingjaar), alleen
+ *   voor een ZZP'er met omzet in dat jaar; anders `null`.
  *
  * BTW-reikwijdte (bewust smaller dan certificaten/facturen): `getVatDeadlinesForActor` levert alleen
  * kwartalen die nú actie verdienen — deadline binnen ~14 dagen óf verstreken, én een niet-nul saldo.
  * Voor een agenda is dat precies het bruikbare venster: een nihil-kwartaal hoeft geen herinnering en
  * een deadline drie maanden vooruit is nog geen actie. Certificaten/facturen tonen wél de volle
- * horizon omdat hun verloop-/vervaldatum op zichzelf al de te agenderen datum ís.
+ * horizon omdat hun verloop-/vervaldatum op zichzelf al de te agenderen datum ís. De IB-deadline is
+ * bewust forward-looking (er is geen "ingediend"-vlag): we agenderen altijd de eerstvolgende, nog niet
+ * verstreken deadline zodat een agenda-app hem ruim vooraf toont.
  */
 export async function loadUserAdministrativeDeadlines(
   userId: string,
   role: UserRole,
   now: Date = new Date(),
 ): Promise<AdministrativeDeadlines> {
-  const [credentialRows, invoiceRows, vatSummaries] = await Promise.all([
+  const [credentialRows, invoiceRows, vatSummaries, incomeTax] = await Promise.all([
     role === "FREELANCER"
       ? prisma.credential.findMany({
           where: {
@@ -56,6 +61,7 @@ export async function loadUserAdministrativeDeadlines(
       select: { id: true, number: true, dueAt: true, counterpartyUserId: true },
     }),
     getVatDeadlinesForActor(userId, role, now),
+    getIncomeTaxDeadlineForActor(userId, role, now),
   ]);
 
   return {
@@ -78,5 +84,6 @@ export async function loadUserAdministrativeDeadlines(
           ],
     ),
     vat: vatSummaries.map((v) => ({ year: v.year, quarter: v.quarter, deadline: v.deadline })),
+    incomeTax: incomeTax ? { taxYear: incomeTax.taxYear, deadline: incomeTax.deadline } : null,
   };
 }

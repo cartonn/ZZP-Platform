@@ -260,6 +260,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — IB-aangiftedeadline in de persoonlijke agenda-feed (2026-08-10, PR #1045)** —
+> de agenda-export (`/api/agenda` + webcal `/api/agenda/feed.ics`) exporteerde al certificaat-verloop, factuur-vervaldatum en
+> BTW-aangifte, maar niet de jaarlijkse aangifte inkomstenbelasting (NL-standaard: uiterlijk 1 mei ná het belastingjaar) — een
+> deadline die een ZZP'er niet mag missen. Nu een los gehele-dag-event in beide feeds (éénmaal abonneren → altijd in de eigen
+> agenda-app). Bewust **forward-looking**: geen "ingediend"-vlag in het systeem (aangifte gebeurt buiten het platform via
+> DigiD/fiscaal dienstverlener), dus altijd de eerstvolgende nog niet verstreken deadline (venster flipt op 2 mei naar het lopende
+> belastingjaar) i.p.v. een mogelijk-al-ingediende verstreken datum. Gegate op werkelijke activiteit (`revenueCents > 0` in dat jaar,
+> spiegelt de BTW-saldo-gate → geen ruis bij een slapende onderneming). Privacy: geen bedragen in het event. Nieuw pure
+> `income-tax-deadline.ts` (`incomeTaxFilingDeadline`/`nextIncomeTaxYear`/`summarizeIncomeTaxDeadline`/`taxYearRange`) +
+> data-loader `data/income-tax-deadline.ts` (owner-/jaar-gescoopt, alleen FREELANCER); gewired in `calendar/deadlines.ts` +
+> `calendar/user-deadlines.ts`. Server-side waarheid, read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +alle
+> tests (income-tax-deadline pure + data + deadlines + user-deadlines + agenda-feed-mocks). Gate: typecheck, lint, test (5674),
+> build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — faalattributie op de cron-heartbeat (wélke taak faalde) (2026-08-10, PR #1042)** —
 > de cron-heartbeat (dead-man's-switch) registreerde alléén ÓF de laatste `/api/tasks/run-all` een taakfout had (`lastOk`);
 > wélke van de ~28 taken faalde stond alleen in de server-logs (de systeemstatus-kaart zei letterlijk "controleer de

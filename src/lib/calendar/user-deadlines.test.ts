@@ -19,6 +19,7 @@ const invoiceFindManyMock = vi.hoisted(() =>
   vi.fn<(args: FindArgs) => Promise<unknown[]>>(async () => []),
 );
 const getVatDeadlinesMock = vi.hoisted(() => vi.fn(async () => [] as unknown[]));
+const getIncomeTaxDeadlineMock = vi.hoisted(() => vi.fn(async () => null as unknown));
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -27,6 +28,9 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 vi.mock("@/lib/data/vat-deadline", () => ({ getVatDeadlinesForActor: getVatDeadlinesMock }));
+vi.mock("@/lib/data/income-tax-deadline", () => ({
+  getIncomeTaxDeadlineForActor: getIncomeTaxDeadlineMock,
+}));
 
 import { loadUserAdministrativeDeadlines } from "@/lib/calendar/user-deadlines";
 
@@ -40,6 +44,8 @@ beforeEach(() => {
   invoiceFindManyMock.mockResolvedValue([]);
   getVatDeadlinesMock.mockReset();
   getVatDeadlinesMock.mockResolvedValue([]);
+  getIncomeTaxDeadlineMock.mockReset();
+  getIncomeTaxDeadlineMock.mockResolvedValue(null);
 });
 
 describe("loadUserAdministrativeDeadlines", () => {
@@ -117,5 +123,26 @@ describe("loadUserAdministrativeDeadlines", () => {
     expect(result.vat).toEqual([
       { year: 2026, quarter: 2, deadline: new Date("2026-07-31T00:00:00Z") },
     ]);
+  });
+
+  it("delegeert de IB-deadline aan de engine en mapt belastingjaar/deadline door", async () => {
+    getIncomeTaxDeadlineMock.mockResolvedValue({
+      taxYear: 2026,
+      deadline: new Date("2027-05-01T00:00:00Z"),
+      daysUntil: 284,
+      status: "upcoming",
+    });
+    const result = await loadUserAdministrativeDeadlines(USER, "FREELANCER", NOW);
+    expect(getIncomeTaxDeadlineMock).toHaveBeenCalledWith(USER, "FREELANCER", NOW);
+    expect(result.incomeTax).toEqual({
+      taxYear: 2026,
+      deadline: new Date("2027-05-01T00:00:00Z"),
+    });
+  });
+
+  it("incomeTax is null wanneer de engine niets teruggeeft (geen omzet / niet-ZZP)", async () => {
+    getIncomeTaxDeadlineMock.mockResolvedValue(null);
+    const result = await loadUserAdministrativeDeadlines(USER, "CLIENT", NOW);
+    expect(result.incomeTax).toBeNull();
   });
 });
