@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-10 — Robuustheid: per-actor rate-limiter op de losse-factuur `createInvoice`
+
+**Wat:** `createInvoice` (`facturen/actions.ts`) was de énige geldstroom-mutatie zonder per-actor
+rate-limiter, terwijl alle zusteroppervlakken (document-pdf/export/upload/invite/message/application/
+no-show) er wél een hebben. Het regelplafond (`MAX_INVOICE_LINES = 200`) begrenst de kosten binnen
+één verzoek, maar een geauthenticeerde ZZP'er kon de zware create-mutatie (factuurnummer-telling +
+interactieve transactie met TOCTOU-hercheck + multi-row insert + retry-lus) in een scripted loop
+herhalen → CPU-/DB-belasting (CWE-400). Nieuw `invoiceCreateRateLimiter` (default 30/uur, env
+`INVOICE_CREATE_RATE_LIMIT`, namespace `invoicecreate:`), gecheckt op `actor.id` **vóór** de zware
+DB-reads/-writes en vóór `loadOwnedCollaboration` (dus geen ownership-lek bij overschrijding). Bij de
+rem een schone `{ error }`-melding, geen 500, geen factuur. Geparkeerd LOW-item met repro uit
+persona-sweep run 68. Server-side waarheid, geen schemawijziging, geen nieuw auth-/mutatie-oppervlak.
+
+**Bestanden:** `src/lib/rate-limit.ts` (nieuwe limiter), `src/lib/rate-limit.test.ts` (+1 test:
+30 toegestaan/31e geweigerd/nieuw venster), `src/app/(protected)/facturen/actions.ts` (import + check),
+`src/app/(protected)/facturen/actions.test.ts` (mock rate-limit + 3 tests: rem-melding, geen
+ownership-lek, happy path). Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-08-10 — Security/privacy: aangifte-entitlement-bypass gedicht (currentPeriodEnd genegeerd)
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

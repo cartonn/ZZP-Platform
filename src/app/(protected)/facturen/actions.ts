@@ -21,6 +21,7 @@ import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { invoiceLineSchema } from "@/lib/validation";
 import { canSendPaymentReminder } from "@/lib/manual-payment-reminder";
+import { invoiceCreateRateLimiter } from "@/lib/rate-limit";
 import { plural } from "@/lib/plural";
 
 export type InvoiceState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
@@ -133,6 +134,17 @@ export async function createInvoice(
   } catch (e) {
     if (e instanceof AuthorizationError) return { error: e.message };
     throw e;
+  }
+
+  // Spam-/DoS-rem (security-review, defense-in-depth): begrens het aantal losse-factuur-aanmaakacties
+  // per ZZP'er per uur vóór de zware DB-reads/-writes (nummer-telling + transactie + multi-row insert +
+  // retry-lus). Het regelplafond (`MAX_INVOICE_LINES`) begrenst de kosten binnen één verzoek; deze rem
+  // begrenst het aantal verzoeken zodat een scripted loop de server niet CPU-/DB-matig kan belasten
+  // (CWE-400). De factureerbaarheids-/ownership-poort blijft de bron van toegang.
+  if (!(await invoiceCreateRateLimiter.check(actor.id)).allowed) {
+    return {
+      error: "Je hebt het maximum aantal facturen per uur bereikt. Probeer het later opnieuw.",
+    };
   }
 
   const collaboration = await loadOwnedCollaboration(actor.id, collaborationId);

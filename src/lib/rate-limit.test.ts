@@ -3,6 +3,7 @@ import {
   applicationRateLimiter,
   createRateLimitStore,
   exportRateLimiter,
+  invoiceCreateRateLimiter,
   MemoryRateLimitStore,
   messageRateLimiter,
   noShowReportRateLimiter,
@@ -390,5 +391,14 @@ describe("mutatie-limiters (berichten/reacties/uploads/export)", () => {
     }
     expect((await noShowReportRateLimiter.check(key, BASE_NOW + 10)).allowed).toBe(false);
     expect((await noShowReportRateLimiter.check(key, BASE_NOW + 60 * 60_000)).allowed).toBe(true);
+  });
+
+  it("invoiceCreateRateLimiter: 30 facturen toegestaan, 31e geweigerd, nieuw venster na een uur", async () => {
+    const key = `invcreate-test-${BASE_NOW}`;
+    for (let i = 0; i < 30; i++) {
+      expect((await invoiceCreateRateLimiter.check(key, BASE_NOW + i)).allowed).toBe(true);
+    }
+    expect((await invoiceCreateRateLimiter.check(key, BASE_NOW + 30)).allowed).toBe(false);
+    expect((await invoiceCreateRateLimiter.check(key, BASE_NOW + 60 * 60_000)).allowed).toBe(true);
   });
 });

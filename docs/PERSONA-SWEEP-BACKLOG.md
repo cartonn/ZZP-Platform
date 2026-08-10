@@ -51,9 +51,12 @@
 >   `orderBy: { id: "asc" }` op beide roster-queries → identieke truncatie, de /franchise/zzpers-badge kan niet
 >   meer driften van /acties bij >50 roster-leden. +2 tests (`signals.roster-order.test.ts` nieuw;
 >   `pending-tasks-franchiser.test.ts` uitgebreid met de orderBy-invariant).
-> - **LOW (DOEL 2, robuustheid):** `createInvoice` heeft (anders dan de PDF-/export-routes met
+> - ~~**LOW (DOEL 2, robuustheid):** `createInvoice` heeft (anders dan de PDF-/export-routes met
 >   `documentPdfRateLimiter`/`exportRateLimiter`) **geen rate-limiter**. Het regelplafond hierboven dekt de
->   ergste variant af; een per-actor rate-limiter op de mutatie is defense-in-depth.
+>   ergste variant af; een per-actor rate-limiter op de mutatie is defense-in-depth.~~ **GEFIXT
+>   (2026-08-10, PR #1043):** nieuw `invoiceCreateRateLimiter` (default 30/uur, `INVOICE_CREATE_RATE_LIMIT`),
+>   gecheckt op `actor.id` vóór de zware DB-reads/-writes én vóór `loadOwnedCollaboration` (geen
+>   ownership-lek). +4 tests (limiter-config + rem-melding/geen-lek/happy-path in `facturen/actions.test.ts`).
 > - **LOW (robuustheid):** detail-not-found-routes (`/samenwerkingen/<onzin>`, `/opdrachten/<onzin>`,
 >   `/facturen/<onzin>`) renderen de 404-UI met **HTTP 200** i.p.v. 404 (via een custom not-found-component
 >   i.p.v. `notFound()`). Geen security-impact (geen data-lek), wel een SEO/correctheids-nit.
