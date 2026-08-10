@@ -29,6 +29,13 @@ export interface CronFreshness {
   ageHours: number | null;
   /** Het geconfigureerde maximale venster in uren. */
   maxAgeHours: number;
+  /**
+   * Namen van de taken die tijdens de laatste run faalden (leeg wanneer de run slaagde of nog nooit
+   * draaide). Statische code-identifiers, géén persoonsgegevens — ze vertellen de operator wélke
+   * runner faalde. De back-up-heartbeat (die deze evaluator hergebruikt) levert hier altijd een lege
+   * lijst: het back-up-schema kent geen deeltaken.
+   */
+  failedTasks: string[];
 }
 
 const MS_PER_HOUR = 60 * 60 * 1000;
@@ -42,9 +49,21 @@ export function evaluateCronFreshness(
   lastOk: boolean | null,
   now: Date,
   maxAgeHours: number,
+  failedTasks: readonly string[] = [],
 ): CronFreshness {
+  // Alleen bij een gefaalde run zijn de namen betekenisvol; bij een geslaagde/nooit-gedraaide run
+  // negeren we ze zodat de status-tekst niet per ongeluk stale namen toont.
+  const failed = lastOk === false ? [...failedTasks] : [];
+
   if (!lastRunAt) {
-    return { status: "never", lastRunAt: null, lastOk: null, ageHours: null, maxAgeHours };
+    return {
+      status: "never",
+      lastRunAt: null,
+      lastOk: null,
+      ageHours: null,
+      maxAgeHours,
+      failedTasks: [],
+    };
   }
 
   const rawMs = now.getTime() - lastRunAt.getTime();
@@ -60,7 +79,7 @@ export function evaluateCronFreshness(
     status = "fresh";
   }
 
-  return { status, lastRunAt, lastOk, ageHours, maxAgeHours };
+  return { status, lastRunAt, lastOk, ageHours, maxAgeHours, failedTasks: failed };
 }
 
 /** Mensvriendelijke leeftijd ("3 uur", "1 uur", "< 1 uur") — puur voor de detailtekst. */
@@ -113,6 +132,11 @@ export function cronFreshnessStatusItem(freshness: CronFreshness): StatusItem {
   }
 
   if (status === "warning") {
+    const { failedTasks } = freshness;
+    const attribution =
+      failedTasks.length > 0
+        ? `Gefaalde ${failedTasks.length === 1 ? "taak" : "taken"}: ${failedTasks.join(", ")}. `
+        : "";
     return {
       key: "cron-heartbeat",
       label: "Geplande-taken-cron (laatste run)",
@@ -120,7 +144,8 @@ export function cronFreshnessStatusItem(freshness: CronFreshness): StatusItem {
       level: "attention",
       detail:
         `De cron draaide ${age} geleden, maar ten minste één taak faalde tijdens die run. ` +
-        "Controleer de server-logs (of Sentry, indien geconfigureerd) op de gefaalde runner.",
+        attribution +
+        "Controleer de server-logs (of Sentry, indien geconfigureerd) op het foutdetail.",
     };
   }
 

@@ -6,13 +6,17 @@ import { prisma } from "@/lib/db";
 import { cronMaxAgeHours } from "@/lib/config";
 import { reportError } from "@/lib/observability/report";
 import { evaluateCronFreshness, type CronFreshness } from "@/lib/observability/cron-freshness";
+import { serializeFailedTasks, parseFailedTasks } from "@/lib/observability/cron-failed-tasks";
 
 /** Canonieke naam van de gecombineerde geplande-taken-cron. */
 export const RUN_ALL_HEARTBEAT = "run-all";
 
 /**
  * Registreert dat de cron zojuist heeft gedraaid. `ok` is false zodra ten minste één taak faalde,
- * zodat de systeemstatus een "draaide-maar-met-fouten"-run kan onderscheiden.
+ * zodat de systeemstatus een "draaide-maar-met-fouten"-run kan onderscheiden. `failedTasks` bevat de
+ * namen van de gefaalde taken (statische identifiers, géén PII) zodat /admin/systeemstatus wélke
+ * runner faalde kan tonen zonder dat de operator de server-logs hoeft te grepen. Bij een geslaagde
+ * run worden eerdere gefaalde-taak-namen gewist (kolom → null).
  *
  * Faalt NOOIT naar buiten: de heartbeat is observability, geen kernpad — een DB-storing hier mag
  * de cron-respons niet omverhalen. Een schrijffout wordt gestructureerd gerapporteerd en geslikt.
@@ -20,13 +24,16 @@ export const RUN_ALL_HEARTBEAT = "run-all";
 export async function recordCronHeartbeat(
   name: string,
   ok: boolean,
+  failedTasks: readonly string[] = [],
   now: Date = new Date(),
 ): Promise<void> {
+  // Alleen bij een gefaalde run namen bewaren; een geslaagde run wist ze (null) — geen stale attributie.
+  const lastFailedTasks = ok ? null : serializeFailedTasks(failedTasks);
   try {
     await prisma.cronHeartbeat.upsert({
       where: { name },
-      create: { name, lastRunAt: now, lastOk: ok },
-      update: { lastRunAt: now, lastOk: ok },
+      create: { name, lastRunAt: now, lastOk: ok, lastFailedTasks },
+      update: { lastRunAt: now, lastOk: ok, lastFailedTasks },
     });
   } catch (error) {
     await reportError(error, { source: "cron-heartbeat", requestPath: `/cron/${name}` });
@@ -45,7 +52,13 @@ export async function getCronFreshness(
   const maxAgeHours = cronMaxAgeHours();
   try {
     const row = await prisma.cronHeartbeat.findUnique({ where: { name } });
-    return evaluateCronFreshness(row?.lastRunAt ?? null, row?.lastOk ?? null, now, maxAgeHours);
+    return evaluateCronFreshness(
+      row?.lastRunAt ?? null,
+      row?.lastOk ?? null,
+      now,
+      maxAgeHours,
+      parseFailedTasks(row?.lastFailedTasks),
+    );
   } catch (error) {
     await reportError(error, { source: "cron-heartbeat", requestPath: `/cron/${name}` });
     return evaluateCronFreshness(null, null, now, maxAgeHours);

@@ -23,6 +23,28 @@ defense-in-depth: expliciete `FREELANCER`-rolcheck toegevoegd aan `approveAndSub
 `src/app/(protected)/ontzorgd/aangifte/entitlement-expiry.test.ts` (nieuw, +2 tests rood→groen),
 `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-10). Gate: typecheck, lint, test, build, prettier groen.
 
+## 2026-08-10 — Prod-rijpheid: faalattributie op de cron-heartbeat (wélke taak faalde)
+
+**Wat:** de cron-heartbeat (dead-man's-switch) registreerde alléén ÓF de laatste `/api/tasks/run-all`
+een taakfout had (`lastOk`); wélke van de ~28 geplande taken faalde stond alleen in de server-logs — de
+operator moest grepen (de systeemstatus-kaart zei letterlijk "controleer de server-logs op de gefaalde
+runner"). Sinds de per-taak-deadline (#1037) kunnen taken bovendien onafhankelijk time-outen, wat dat
+gat scherper maakt. Nu bewaart de heartbeat de **namen van de gefaalde taken**
+(`CronHeartbeat.lastFailedTasks`, gewist bij een geslaagde run) en toont `/admin/systeemstatus` ze
+direct: _"Gefaalde taken: expiry, message-retention."_ De namen zijn statische code-identifiers (géén
+PII), defensief gesaneerd tot veilige slugs (alleen `[a-zA-Z0-9_-]`) vóór opslag/weergave — geen
+log-/UI-injectie mogelijk. Additief-nullable schemaveld (veilige `db push`); server-side waarheid;
+heartbeat faalt nooit naar buiten; geen nieuw auth-/mutatie-oppervlak.
+
+**Bestanden:** `prisma/schema.prisma` (`CronHeartbeat.lastFailedTasks String?`),
+`src/lib/observability/cron-failed-tasks.ts` (nieuw — pure serialize/parse/normalize + saneer),
+`src/lib/observability/cron-failed-tasks.test.ts` (nieuw, +11 tests),
+`src/lib/observability/cron-freshness.ts` (`failedTasks` op `CronFreshness` + evaluator + warning-detail),
+`src/lib/observability/cron-freshness.test.ts` (+8 tests), `src/lib/observability/cron-heartbeat.ts`
+(`recordCronHeartbeat` neemt namen; `getCronFreshness` leest ze), `src/app/api/tasks/run-all/route.ts`
+(geeft `Object.keys(errors)` mee). MENSENWERK §10 + CURRENT_TASK bijgewerkt. Gate: typecheck, lint, test,
+build, prettier groen.
+
 ## 2026-08-10 — ZZP'er: urencriterium-voortgang op de indirecte-uren-registratiepagina
 
 **Wat:** de indirecte-uren-registratiepagina (`/ontzorgd/uren`) — de plek waar de ZZP'er uren boekt
