@@ -1636,3 +1636,35 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   **mobile-first thumb-zone ergonomie** — elk deterministisch, toegankelijk (focus-states, status label+icoon) en
   onderscheidend van de bestaande 530.
 - **Totaal nu op `/ontwerp`: 540 concepten** (reeks 54: 531–540).
+
+## Reeks 55 — 541–550 (2026-08-10)
+
+- **541 Vlies** — spatial glass / liquid glass (#0e1524 + sky #5eb8ff): gelaagde frosted-glass panelen met echte diepte-hiërarchie
+  (backdrop-blur, rim-light aan de randen, oplopende slagschaduw) op een luminueuze aurora-mesh — diepte stuurt de aandacht,
+  tekst blijft glashelder; premium en kalm.
+- **542 Spilpunt** — command-palette-first / keyboard-cockpit (#0d0d12 + violet #8b5cf6): een werkend ⌘K-commandopalet als
+  primaire navigatie, kbd-hints overal, cijfertoetsen 1–6 springen direct naar schermen — type wat je wilt en het gebeurt,
+  de snelheid van Linear/Raycast voor zorg-ZZP.
+- **543 Kwartier** — timeline-spine / temporal OS (#f7f8fb + blauw #0284c7): het platform rond een tijd-ruggengraat — opdrachten,
+  diensten, verloopdata en facturen chronologisch op één rail; het ritme van de week zichtbaar, tijd als eerste dimensie.
+- **544 Postvak** — inbox / thread-as-OS (#graphite + azuur #6366f1): één verenigd triage-postvak (lijst+detail) dat matches,
+  verificatie, berichten en facturen samenvoegt tot te verwerken items; markeer-als-gelezen, archiveer, sneltoetsen (J/K/E/R) —
+  snel doorwerken zonder iets te missen.
+- **545 Terrein** — map-first / geospatiaal (#f4f7f4 + groen #059669): matching begint bij 'waar' — opdrachten geordend naar
+  regio en afstand met een puur-SVG regioplattegrond, reistijd en nabijheidssortering; intent-driven layout.
+- **546 Stilte** — calm-tech / zen focus (#f4f5f2 + salie #6b8a7a): low-stimulation ontwerp met veel lucht, gedempt palet en
+  telkens één volgende-beste-actie centraal — het systeem toont alleen wat nu telt; vertrouwen via kalmte.
+- **547 Vouwlijn** — progressive disclosure / outline-OS (#fbfbfc + indigo #4338ca): alles is een inklapbare outline; complexiteit
+  onthult zich pas op verzoek (aria-expanded accordions, alles-uitklappen-toggle) — hoge dichtheid zonder rommel.
+- **548 Schifting** — swipe-triage / kaartstapel (#fef6f4 + koraal #f43f5e): mobiel-native snel beslissen — een kaartstapel die je
+  één voor één beoordeelt (bewaren/overslaan/reageren) met teller, lege-staat en reset; grote raakvlakken, ergonomisch.
+- **549 Toonzaal** — premium showroom / gallery (#14110d + goud #b08d57): het platform als luxe etalage met ruime CSS-beeldvlakken,
+  galerij-grid en verzorgde presentatie op productniveau — hoog-end en vertrouwenwekkend (Fraunces serif).
+- **550 Weefsel** — data-fabric / relatie-graaf (#0d1620 + teal #22d3aa): matching als een web van verbindingen — een interactieve
+  SVG-graaf verbindt profiel ↔ opdrachten ↔ vereiste bewijzen; hover licht op wat samenhangt, verklaarbare matching in één oogopslag.
+- Onderzochte 2026-trends deze reeks (WebSearch): **spatial / liquid glass (visionOS-2026)**, **command-palette-first & keyboard-first
+  (⌘K)**, **timeline-based / temporele UI**, **inbox / thread-as-OS triage**, **map-first & intent-driven layout**, **calm technology /
+  low-stimulation**, **progressive disclosure**, **swipe / kaartstapel-triage (mobiel-native)**, **premium showroom / gallery-presentatie**
+  en **data-fabric / verklaarbare relatie-grafen** — elk deterministisch, toegankelijk (focus-states, status label+icoon) en
+  onderscheidend van de bestaande 540.
+- **Totaal nu op `/ontwerp`: 550 concepten** (reeks 55: 541–550).

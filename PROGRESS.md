@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-10 — Ontwerp-lab: +10 concepten (reeks 55, nrs 541–550) → totaal 550 op `/ontwerp`
+
+**Wat:** Additief 10 nieuwe, onderscheidende redesign-concepten toegevoegd aan het design-lab (galerij
+groeit 540 → 550; geen bestaand concept/registry-entry/route-koppeling aangeraakt). Elk concept dekt de
+6 kernschermen (dashboard, marktplaats, opdracht-detail, verificatie, acties, facturen) met werkende
+navigatie, loading/empty/error-states, status altijd label+icoon, volledig responsive en toegankelijk
+(semantische landmarks, aria-current/aria-expanded, focus-visible, `prefers-reduced-motion`). Geen "AI"
+in UI/comments/code. Onderzocht via WebSearch (2026-trends). Richtingen: **541 Vlies** (spatial/liquid
+glass), **542 Spilpunt** (command-palette-first/keyboard-cockpit), **543 Kwartier** (timeline-spine),
+**544 Postvak** (inbox-as-OS triage), **545 Terrein** (map-first/geospatiaal), **546 Stilte** (calm-tech
+zen-focus), **547 Vouwlijn** (progressive disclosure/outline), **548 Schifting** (swipe-triage kaartstapel),
+**549 Toonzaal** (premium showroom/gallery), **550 Weefsel** (data-fabric/relatie-graaf).
+
+**Bestanden:** 10 nieuwe `src/components/ontwerp/concepts/concept-54{1..7},54{8}/55{0}-*.tsx`; append aan
+`src/components/ontwerp/concepts/registry.ts` (10 ConceptMeta) en `src/app/ontwerp/[id]/concept-host.tsx`
+(10 dynamic-imports); `docs/DESIGN-LAB.md` (reeks 55). Gebouwd door 4 parallelle workers op niet-overlappende
+bestanden; orchestrator integreerde registry + route. Gate: typecheck, lint, test (5655), build, prettier groen.
+
 ## 2026-08-10 — Robuustheid: per-actor rate-limiter op de losse-factuur `createInvoice`
 
 **Wat:** `createInvoice` (`facturen/actions.ts`) was de énige geldstroom-mutatie zonder per-actor
