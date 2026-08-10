@@ -9,7 +9,6 @@ import {
   PieChart,
   Target,
   Building2,
-  Timer,
   Users,
 } from "lucide-react";
 import { prisma } from "@/lib/db";
@@ -43,11 +42,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { GaugeRing, DonutChart, BiWidget, BiStatList, RevenueHero } from "@/components/insight/bi";
 import {
   getHoursCriterionSummary,
-  hoursProgressPercent,
   type HoursCriterionSummary,
-  type HoursPaceFeasibility,
 } from "@/lib/tax/hours-criterion-summary";
-import { Badge } from "@/components/ui/badge";
+import { UrencriteriumProgress } from "@/components/tax/urencriterium-progress";
 
 export const metadata: Metadata = { title: "Inzicht · Handslag" };
 
@@ -123,30 +120,12 @@ function StatusDonutWidget({
 }
 
 /**
- * Urencriterium-kaart (1.225 uur → zelfstandigenaftrek): voortgangsbalk + één uitlegzin.
- * De stand komt server-side uit `getHoursCriterionSummary` (hergebruikt de bestaande telling).
+ * Urencriterium-kaart (1.225 uur → zelfstandigenaftrek): voortgangsbalk + één uitlegzin, met een
+ * deep-link naar de indirecte-uren-registratie. De stand komt server-side uit
+ * `getHoursCriterionSummary` (hergebruikt de bestaande telling); de voortgang zelf rendert de gedeelde
+ * `UrencriteriumProgress` (ook gebruikt op /ontzorgd/uren) zodat beide oppervlakken niet driften.
  */
-/**
- * Haalbaarheids-pill: alleen bij achterstand (niet gehaald én prognose haalt de grens niet). Vertaalt
- * het benodigde weektempo naar een glanceable oordeel. `gehaald`/`op-koers` tonen geen pill — die
- * standen spreken al positief uit de uitlegzin.
- */
-const FEASIBILITY_PILL: Partial<
-  Record<HoursPaceFeasibility, { label: string; variant: "accent" | "warning" | "danger" }>
-> = {
-  haalbaar: { label: "Nog haalbaar", variant: "accent" },
-  ambitieus: { label: "Ambitieus tempo", variant: "warning" },
-  onhaalbaar: { label: "Dit jaar niet meer", variant: "danger" },
-};
-
 function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
-  const pct = hoursProgressPercent(summary);
-  const tone = summary.met
-    ? "bg-success"
-    : summary.projectedMet
-      ? "bg-primary"
-      : "bg-muted-foreground";
-  const pill = summary.noActivity ? undefined : FEASIBILITY_PILL[summary.feasibility];
   return (
     <BiWidget
       title="Urencriterium"
@@ -160,45 +139,7 @@ function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
         </Link>
       }
     >
-      <div className="space-y-3">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Timer className="size-4 shrink-0" aria-hidden />
-            <span>
-              <span className="font-mono font-semibold tabular-nums text-foreground">
-                {summary.totalHours.toLocaleString("nl-NL")}
-              </span>{" "}
-              van {summary.targetHours.toLocaleString("nl-NL")} uur geboekt in {summary.year}
-            </span>
-          </p>
-          <span className="flex shrink-0 items-center gap-2">
-            {pill && (
-              <Badge variant={pill.variant} className="whitespace-nowrap">
-                {pill.label}
-              </Badge>
-            )}
-            <span className="font-mono text-sm tabular-nums text-muted-foreground">{pct}%</span>
-          </span>
-        </div>
-        <div
-          className="h-2 w-full overflow-hidden rounded-full bg-muted"
-          role="progressbar"
-          aria-valuenow={pct}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`Urencriterium ${summary.year}`}
-        >
-          <div
-            className={`h-full rounded-full ${tone}`}
-            style={{ width: `${Math.max(pct > 0 ? 2 : 0, pct)}%` }}
-          />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {summary.noActivity
-            ? "Je hebt dit jaar nog geen uren geboekt. Directe uren tellen mee zodra ze goedgekeurd zijn; registreer daarnaast je indirecte uren voor de aftrek."
-            : summary.hint}
-        </p>
-      </div>
+      <UrencriteriumProgress summary={summary} />
     </BiWidget>
   );
 }

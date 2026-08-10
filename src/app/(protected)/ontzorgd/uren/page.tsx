@@ -13,6 +13,8 @@ import {
   groupIndirectHoursByCategory,
   type IndirectHourCategory,
 } from "@/lib/tax/indirect-hours";
+import { getHoursCriterionSummary } from "@/lib/tax/hours-criterion-summary";
+import { UrencriteriumProgress } from "@/components/tax/urencriterium-progress";
 import { IndirectHoursForm } from "./indirect-hours-form";
 import { deleteIndirectHours } from "./actions";
 
@@ -43,18 +45,22 @@ export default async function IndirectUrenPage() {
   const now = new Date();
   const year = now.getUTCFullYear();
 
-  // Haal dit jaar de regels op (gebonden met take=200 — vangrail voor unbounded-queries).
-  const entries = await prisma.indirectHoursEntry.findMany({
-    where: {
-      userId: actor.id,
-      workedOn: {
-        gte: new Date(Date.UTC(year, 0, 1)),
-        lte: new Date(Date.UTC(year, 11, 31, 23, 59, 59)),
+  // Voortgang richting het 1.225-uur criterium (directe + indirecte uren, server-side geteld) en de
+  // dit jaar geregistreerde indirecte regels (gebonden met take=200 — vangrail voor unbounded-queries).
+  const [criterion, entries] = await Promise.all([
+    getHoursCriterionSummary(actor.id, now),
+    prisma.indirectHoursEntry.findMany({
+      where: {
+        userId: actor.id,
+        workedOn: {
+          gte: new Date(Date.UTC(year, 0, 1)),
+          lte: new Date(Date.UTC(year, 11, 31, 23, 59, 59)),
+        },
       },
-    },
-    orderBy: { workedOn: "desc" },
-    take: 200,
-  });
+      orderBy: { workedOn: "desc" },
+      take: 200,
+    }),
+  ]);
 
   const totalHours = sumIndirectHours(entries);
   const grouped = groupIndirectHoursByCategory(
@@ -86,6 +92,23 @@ export default async function IndirectUrenPage() {
           1.225-uur urencriterium (zelfstandigenaftrek). Registreer ze hier.
         </p>
       </header>
+
+      {/* Voortgang richting het urencriterium (directe + indirecte uren samen). Toont op de
+          registratiepagina zelf hoe dicht de aftrek in zicht is — geen omweg via /inzicht. */}
+      {criterion && (
+        <Card>
+          <CardContent className="py-4">
+            <div className="mb-3 space-y-0.5">
+              <h2 className="text-sm font-semibold">Voortgang urencriterium</h2>
+              <p className="text-xs text-muted-foreground">
+                Directe (goedgekeurde) uren plus de indirecte uren hieronder tellen samen mee voor
+                de zelfstandigenaftrek.
+              </p>
+            </div>
+            <UrencriteriumProgress summary={criterion} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Totaal en subtotalen per categorie */}
       {totalHours > 0 && (

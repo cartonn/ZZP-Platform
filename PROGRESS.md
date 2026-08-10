@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-10 — ZZP'er: urencriterium-voortgang op de indirecte-uren-registratiepagina
+
+**Wat:** de indirecte-uren-registratiepagina (`/ontzorgd/uren`) — de plek waar de ZZP'er uren boekt
+juist om de zelfstandigenaftrek veilig te stellen — toonde alleen een rauw indirect-urentotaal, maar
+**niet** de voortgang richting het 1.225-uur criterium (directe + indirecte samen). Die stand leefde
+alleen op `/inzicht` → de ZZP'er moest wegnavigeren om te zien hoe dicht de aftrek in zicht was.
+Noord-ster "toon wat telt": nu staat de voortgang (geboekt-vs-1.225, voortgangsbalk, haalbaarheids-pill,
+uitlegzin) bovenaan de registratiepagina zelf. De inline `UrencriteriumCard`-content van `/inzicht` is
+geëxtraheerd naar een gedeelde, wrapper-agnostische component zodat beide oppervlakken exact dezelfde
+stand tonen (geen drift). Server-side waarheid via de bestaande `getHoursCriterionSummary`
+(IB_VOORBEREIDING-gated); read-only, geen mutatie, geen nieuw auth-oppervlak, geen schemawijziging.
+
+**Bestanden:** `src/lib/tax/urencriterium-progress.ts` (nieuw — pure `hoursProgressTone`/
+`hoursFeasibilityPill` + `FEASIBILITY_PILL`), `src/lib/tax/urencriterium-progress.test.ts` (nieuw, +7
+tests), `src/components/tax/urencriterium-progress.tsx` (nieuw — gedeelde `UrencriteriumProgress`),
+`src/app/(protected)/inzicht/page.tsx` (inline card → gedeelde component, dode imports opgeruimd),
+`src/app/(protected)/ontzorgd/uren/page.tsx` (voortgangskaart + `getHoursCriterionSummary`-fetch).
+Meegenomen blocker: `nanoid`-override → `^3.3.17` (GHSA-2v37-7h3g-55p8, high; nieuw gepubliceerd
+advisory dat de `audit`-poort op elke PR rood zette). Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-08-02e — bemiddelaar: roster-badge deterministische orderBy (badge=/acties parity)
 
 **Wat:** de roster-`freelancerProfile.findMany({ where: { tenantId }, take: 50 })` draaide op **twee**
