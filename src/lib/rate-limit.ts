@@ -442,6 +442,24 @@ export const inviteRateLimiter = new RateLimiter(
 );
 
 /**
+ * Maximaal INVOICE_CREATE_RATE_LIMIT (default 30) losse-factuur-aanmaakacties per ZZP'er per uur. De
+ * `createInvoice`-mutatie is de zwaarste geldstroom-actie op dit oppervlak: per verzoek een
+ * factuurnummer-telling, een interactieve transactie met TOCTOU-hercheck én een multi-row insert
+ * (tot `MAX_INVOICE_LINES` regels), plus een retry-lus bij nummerbotsing. Het regelplafond begrenst
+ * de kosten binnen één verzoek; deze rem begrenst het aantal verzoeken, zodat een scripted loop de
+ * server niet CPU-/DB-matig kan belasten (CWE-400, defense-in-depth). Ruim boven normaal gebruik —
+ * niemand maakt legitiem 30 losse facturen per uur — maar stopt een geautomatiseerde flood. Parity
+ * met de andere geldstroom-/mutatie-remmen (export/document-pdf/invite). De factureerbaarheids-/
+ * ownership-poort blijft de bron van toegang.
+ */
+export const invoiceCreateRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("INVOICE_CREATE_RATE_LIMIT", 30),
+  60 * 60_000,
+  "invoicecreate:",
+);
+
+/**
  * Maximaal NO_SHOW_REPORT_RATE_LIMIT (default 10) no-show-registraties per melder (opdrachtgever/
  * bemiddelaar) per uur. Een no-show-melding is een moderatie-gevoelige mutatie: ze schrijft een
  * permanente `NoShowReport`, stuurt de ZZP'er een notificatie met vrije-tekst-reden en voedt de

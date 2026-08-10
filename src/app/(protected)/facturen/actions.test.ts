@@ -67,6 +67,19 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("@/lib/audit", () => ({ auditData: vi.fn((d: unknown) => d) }));
 
+// Rate-limiter op createInvoice: standaard toestaan zodat de bestaande tests niet op de teller
+// aflopen; een test zet `allowed` op false om de rem te verifiëren.
+const rateLimitState = vi.hoisted(() => ({ allowed: true }));
+vi.mock("@/lib/rate-limit", () => ({
+  invoiceCreateRateLimiter: {
+    check: vi.fn(async () => ({
+      allowed: rateLimitState.allowed,
+      remaining: 0,
+      retryAfterMs: rateLimitState.allowed ? 0 : 60_000,
+    })),
+  },
+}));
+
 const tx = vi.hoisted(() => ({
   invoiceUpdateMany: vi.fn(async (_args: { where: Record<string, unknown> }) => ({
     count: invoiceState.updateCount,
@@ -123,6 +136,7 @@ import { sendInvoice, markInvoicePaid, cancelInvoice, createInvoice } from "./ac
 beforeEach(() => {
   vi.clearAllMocks();
   roleState.role = "FREELANCER";
+  rateLimitState.allowed = true;
   invoiceState.updateCount = 1;
   invoiceState.found = {
     id: "inv-1",
@@ -343,6 +357,42 @@ describe("createInvoice — regelplafond (MAX_INVOICE_LINES)", () => {
     const res = await createInvoice("collab-1", undefined, invoiceFormData(lines));
     expect(res).toEqual({ error: "Een factuur mag maximaal 200 regels bevatten." });
     expect(db.invoiceCreate).not.toHaveBeenCalled();
+  });
+});
+
+// Per-actor rate-limiter op createInvoice (persona-sweep DOEL 2, robuustheid/defense-in-depth): de
+// zwaarste geldstroom-mutatie was de enige zonder rem. Bij overschrijding een schone afwijzing vóór
+// enige DB-read/-write — geen 500, geen factuur, geen ownership-lek.
+describe("createInvoice — per-actor rate-limiter", () => {
+  const goodLines = [{ description: "Werk", quantity: "1", unit: "100" }];
+
+  it("weigert schoon zodra de per-uur-limiet is bereikt, zonder een factuur aan te maken", async () => {
+    rateLimitState.allowed = false;
+    const res = await createInvoice("collab-1", undefined, invoiceFormData(goodLines));
+    expect(res).toEqual({
+      error: "Je hebt het maximum aantal facturen per uur bereikt. Probeer het later opnieuw.",
+    });
+    expect(db.invoiceCreate).not.toHaveBeenCalled();
+  });
+
+  it("de rem grijpt vóór de eigenaarschaps-/DB-reads (geen ownership-lek)", async () => {
+    rateLimitState.allowed = false;
+    // Zelfs met een onbekende/vreemde samenwerking blijft de melding de generieke rem-melding —
+    // de limiter grijpt vóór loadOwnedCollaboration, dus er lekt niets over het bestaan.
+    createState.collaboration = null;
+    const res = await createInvoice("collab-x", undefined, invoiceFormData(goodLines));
+    expect(res).toEqual({
+      error: "Je hebt het maximum aantal facturen per uur bereikt. Probeer het later opnieuw.",
+    });
+    expect(db.invoiceCreate).not.toHaveBeenCalled();
+  });
+
+  it("laat een normale factuur door wanneer de limiet niet is bereikt", async () => {
+    rateLimitState.allowed = true;
+    const res = await createInvoice("collab-1", undefined, invoiceFormData(goodLines));
+    // createInvoice eindigt in redirect() (gemockt) → geen error-object terug.
+    expect(res).toBeUndefined();
+    expect(db.invoiceCreate).toHaveBeenCalledTimes(1);
   });
 });
 
