@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-10 — Security/privacy: aangifte-entitlement-bypass gedicht (currentPeriodEnd genegeerd)
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+cross-tenant, document-/API- en fiscaal/entitlement/PII-oppervlak). Eén **HOOG** bevinding OPGELOST:
+`/ontzorgd/aangifte` (`startFiling` + de pagina-loader) bepaalde het abonnementsplan met een lokale
+`sub?.status === "ACTIVE"`-check die `currentPeriodEnd` negeerde — precies het patroon dat
+`entitlement-guard.ts` had moeten consolideren. Een `Subscription` blijft `ACTIVE` tot de dagelijkse
+verval-taak hem opruimt; in dat venster kon een ZZP'er met een verlopen betaalde periode nog een échte
+aangifte starten (`TaxFilingRequest` + externe tax-partner `prepareConcept()` → fiscale PII naar de
+verwerker) zonder geldig entitlement. Paywall-bypass (OWASP A01) + AVG-grondslagprobleem. Fix: beide
+plekken gebruiken nu de canonieke `userHasEntitlement`/`isSubscriptionActive`. Meegenomen **LAAG**
+defense-in-depth: expliciete `FREELANCER`-rolcheck toegevoegd aan `approveAndSubmit`/`revokeFiling`
+(pariteit met de gemandateerde keten). Cross-tenant- en document-/API-oppervlak schoon; `npm audit
+--omit=dev` = 0.
+
+**Bestanden:** `src/app/(protected)/ontzorgd/aangifte/actions.ts` (canonieke entitlement + rolchecks,
+`planKeyFor` verwijderd), `src/app/(protected)/ontzorgd/aangifte/page.tsx` (canonieke entitlement),
+`src/app/(protected)/ontzorgd/aangifte/entitlement-expiry.test.ts` (nieuw, +2 tests rood→groen),
+`docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-10). Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-08-10 — ZZP'er: urencriterium-voortgang op de indirecte-uren-registratiepagina
 
 **Wat:** de indirecte-uren-registratiepagina (`/ontzorgd/uren`) — de plek waar de ZZP'er uren boekt

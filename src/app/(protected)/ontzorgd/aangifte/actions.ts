@@ -5,7 +5,7 @@ import { z } from "zod";
 import { AuthorizationError, requireActor } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { hasEntitlement } from "@/lib/entitlements";
+import { userHasEntitlement } from "@/lib/entitlement-guard";
 import { type LedgerEntry } from "@/lib/administration/overview";
 import { type LedgerParty } from "@/lib/administration/ledger";
 import { buildOntzorgOverview } from "@/lib/tax/ontzorg-overview";
@@ -15,7 +15,6 @@ import { DPA_VERSION, PARTNER_NAME } from "@/lib/tax-filing/config";
 import {
   taxFilingKindSchema,
   mandateKindSchema,
-  type PlanKey,
   type TaxFilingKind,
   type TaxFilingStatus,
 } from "@/lib/enums";
@@ -32,14 +31,6 @@ const startSchema = z.object({
   consentShare: z.literal("on"),
   consentMandate: z.literal("on"),
 });
-
-async function planKeyFor(userId: string): Promise<PlanKey> {
-  const sub = await prisma.subscription.findUnique({
-    where: { userId },
-    include: { plan: true },
-  });
-  return sub?.status === "ACTIVE" ? (sub.plan.key as PlanKey) : "FREE";
-}
 
 /** Bouwt het (geschatte) aangiftebedrag uit de eigen administratie. */
 async function buildDossier(
@@ -104,9 +95,13 @@ export async function startFiling(_prev: FilingState, formData: FormData): Promi
   }
   if (actor.role !== "FREELANCER") return { error: "Alleen voor ZZP'ers." };
 
-  // Server-side entitlement (CLAUDE.md regel 1): alleen Volledig Ontzorgd ontsluit dit.
-  const planKey = await planKeyFor(actor.id);
-  if (!hasEntitlement(planKey, "VOLLEDIG_ONTZORGD")) {
+  // Server-side entitlement (CLAUDE.md regel 1): alleen Volledig Ontzorgd ontsluit dit. Via de
+  // canonieke `userHasEntitlement`/`isSubscriptionActive` — die telt een `status === "ACTIVE"`-rij
+  // met een VERLOPEN betaalde periode (`currentPeriodEnd <= nu`) al als FREE, óók vóór de dagelijkse
+  // verval-taak de rij naar CANCELLED veegt. De vorige lokale `planKeyFor` keek enkel naar
+  // `status === "ACTIVE"` en ontsloot zo in dat venster een échte aangifte (extern partner-effect +
+  // PII naar de verwerker) voor een niet-meer-gerechtigde ZZP'er. OWASP A01 / AVG-grondslag.
+  if (!(await userHasEntitlement(actor.id, "VOLLEDIG_ONTZORGD"))) {
     return { error: "Aangifte-service hoort bij Volledig Ontzorgd. Upgrade je abonnement." };
   }
 
@@ -167,6 +162,10 @@ export async function startFiling(_prev: FilingState, formData: FormData): Promi
 /** Review-then-submit: de klant geeft definitief akkoord; de partner dient daarna in. */
 export async function approveAndSubmit(requestId: string): Promise<void> {
   const actor = await requireActor();
+  // Volledige keten (CLAUDE.md regel 2): auth → rol → ownership → actie → audit. Aangifte is puur
+  // ZZP'er-werk; de expliciete rolcheck spiegelt startFiling/deleteIndirectHours en houdt de keten
+  // heel mocht een TaxFilingRequest ooit langs een ander pad aan een niet-FREELANCER hangen.
+  if (actor.role !== "FREELANCER") throw new AuthorizationError("Alleen voor ZZP'ers.");
   const req = await prisma.taxFilingRequest.findUnique({ where: { id: requestId } });
   if (!req || req.userId !== actor.id) throw new Error("Verzoek niet gevonden.");
 
@@ -231,6 +230,7 @@ export async function approveAndSubmit(requestId: string): Promise<void> {
 /** Machtiging intrekken (intrekbaar, AVG). Mag alleen vóór indiening. */
 export async function revokeFiling(requestId: string): Promise<void> {
   const actor = await requireActor();
+  if (actor.role !== "FREELANCER") throw new AuthorizationError("Alleen voor ZZP'ers.");
   const req = await prisma.taxFilingRequest.findUnique({ where: { id: requestId } });
   if (!req || req.userId !== actor.id) throw new Error("Verzoek niet gevonden.");
 

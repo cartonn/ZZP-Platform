@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { CircleAlert, FileText, Lock } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { hasEntitlement } from "@/lib/entitlements";
+import { userHasEntitlement } from "@/lib/entitlement-guard";
 import { formatEuro } from "@/lib/invoices";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { FILING_STATUS_LABEL, filingStatusVariant } from "@/lib/tax-filing/labels";
 import { FILING_DISCLAIMER, LOGIUS_REVOKE_URL, PARTNER_NAME } from "@/lib/tax-filing/config";
-import { type PlanKey, type TaxFilingStatus, type TaxFilingKind } from "@/lib/enums";
+import { type TaxFilingStatus, type TaxFilingKind } from "@/lib/enums";
 import { StartFilingForm } from "./start-form";
 import { approveAndSubmit, revokeFiling } from "./actions";
 
@@ -24,16 +24,17 @@ export default async function AangiftePage() {
   const actor = await requireActor();
   if (actor.role !== "FREELANCER") redirect("/administratie");
 
-  const [sub, requests] = await Promise.all([
-    prisma.subscription.findUnique({ where: { userId: actor.id }, include: { plan: true } }),
+  const [entitled, requests] = await Promise.all([
+    // Canonieke entitlement-poort (isSubscriptionActive): een verlopen betaalde periode telt als FREE,
+    // óók vóór de dagelijkse verval-taak draait — zodat de UI het aangiftescherm niet toont voor een
+    // niet-meer-gerechtigde ZZP'er. Spiegelt de server-side check in startFiling (één bron van waarheid).
+    userHasEntitlement(actor.id, "VOLLEDIG_ONTZORGD"),
     // unbounded-allow: eigenaar-scoped aggregatie voor aangifte-pagina
     prisma.taxFilingRequest.findMany({
       where: { userId: actor.id },
       orderBy: { createdAt: "desc" },
     }),
   ]);
-  const planKey = sub?.status === "ACTIVE" ? (sub.plan.key as PlanKey) : "FREE";
-  const entitled = hasEntitlement(planKey, "VOLLEDIG_ONTZORGD");
 
   return (
     <div className="space-y-6">

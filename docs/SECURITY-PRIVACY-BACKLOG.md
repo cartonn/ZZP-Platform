@@ -4,6 +4,54 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-10 (basis: `main` @ 5ec16e60)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken, plus de
+delta sinds de vorige ronde (`de0a2f39..5ec16e60`, #1036–#1040 — reactie-plan-limiet-TOCTOU/`Idea.declineReason`-erasure,
+run-all per-taak-timeout, franchiser dashboard-seal, roster-badge orderBy, urencriterium-voortgang). Gedekt:
+(1) **cross-tenant isolatie** — `tenancy.ts`, alle `franchise/**`-actions + pages, `kandidaten/**`, `admin/franchises/**`,
+`pending-tasks.ts` (`franchiserTasks`), `signals.ts` (FRANCHISER-branch), `data/roster-expiry.ts` (IDOR over tenants,
+ontbrekende tenant-filters, mass-assignment van `tenantId`); (2) **document-/API-oppervlak** — alle `/api/**`-routes
+(documents/media/pdf/dossier/facturen/backups/health/metrics/tasks/push/csp-report/client-error/readiness),
+`documenten/**` + `certificaten/**`, `storage.ts`-consumers, upload-validatie (magic-byte-sniff + malware-scan),
+cron/metrics-auth (`timingSafeEqual`), CSV-formule-injectie, foutlek; (3) **fiscaal/entitlement/PII-oppervlak** —
+`ontzorgd/**` (uren + aangifte), `lib/tax/**`, `entitlement-guard.ts`, `inzicht`/`prognose`/`prestaties`,
+`account-export.ts`-vs-erasure-symmetrie, k-anonimiteit. Onafhankelijk statisch geprobed: injectie (`$queryRaw` alleen
+getagde `SELECT 1`), XSS (`dangerouslySetInnerHTML` alleen het genonced theme-script), SSRF/open-redirect (geen
+user-gestuurde server-fetch/redirect), PII in logs, `berichten`/`facturen`/`import`/`search`-mutatieketens.
+`npm audit --omit=dev` = **0**.
+
+**Resultaat: één HOOG entitlement/paywall-bypass OPGELOST (rood→groen) + één LAAG defense-in-depth-gat gedicht in
+dezelfde file. Cross-tenant- en document-/API-oppervlak schoon (geen nieuw KRITIEK/HOOG toegangs-, IDOR-, injectie-
+of PII-lek). Eén LAAG dedup-race uit de vorige ronde blijft geparkeerd.**
+
+### OPGELOST — HOOG (OWASP A01 Broken Access Control + AVG-grondslag, CLAUDE.md regel 1): aangifte-entitlement negeerde `currentPeriodEnd` (paywall-bypass + PII naar verwerker)
+
+- **Repro (was):** `startFiling` (`ontzorgd/aangifte/actions.ts`) en de `AangiftePage`-loader bepaalden het plan met een
+  lokale `sub?.status === "ACTIVE" ? sub.plan.key : "FREE"` — precies het patroon dat `entitlement-guard.ts` had moeten
+  consolideren — en negeerden `currentPeriodEnd`. Een `Subscription` blijft `ACTIVE` in de DB tot de dagelijkse
+  `subscription-expiry-task` (via `/api/tasks/run-all`) hem naar CANCELLED veegt. In dat venster (betaalde periode al
+  verlopen, sweep nog niet gedraaid) weigerde `/ontzorgd/uren` correct (canonieke `userHasEntitlement` → FREE), maar
+  `/ontzorgd/aangifte` toonde nog de "Volledig Ontzorgd"-UI **en** `startFiling()` slaagde nog: het maakte een echte
+  `TaxFilingRequest`, draaide `buildDossier` en riep de EXTERNE tax-partner (`prepareConcept()`) aan — dus fiscale PII
+  ging de grens over naar de verwerker — voor een ZZP'er wiens entitlement feitelijk verlopen was. Monetisatie-bypass
+  én AVG-grondslagprobleem.
+- **Geschonden regel:** CLAUDE.md regel 1 (server-side waarheid / één bron van entitlement); OWASP A01:2021; AVG
+  (grondslag/dataminimalisatie — PII naar een verwerker zonder geldige grondslag).
+- **Fix (deze PR):** `startFiling` en de pagina gebruiken nu de canonieke `userHasEntitlement(actor.id,
+"VOLLEDIG_ONTZORGD")` uit `entitlement-guard.ts` (→ `isSubscriptionActive`, telt een ACTIVE-rij met verlopen periode
+  als FREE). Lokale `planKeyFor` verwijderd. +2 unit-tests (rood→groen): een ACTIVE-maar-verlopen sub wordt geweigerd
+  zonder partner-effect/upsert/audit; een geldige (toekomstige) periode gaat wél door.
+
+### OPGELOST — LAAG (defense-in-depth, CLAUDE.md regel 2): `approveAndSubmit`/`revokeFiling` misten de expliciete rolcheck
+
+- **Repro (was):** beide functies deden `requireActor()` → ownership → actie → audit, maar zonder de expliciete
+  rolcheck die `startFiling`/`deleteIndirectHours` wél doen. Niet direct exploiteerbaar (`TaxFilingRequest.userId`
+  wordt alleen door het rol-/entitlement-gated `startFiling` gezet), maar het brak de gemandateerde keten en zou een
+  gat worden als rollen ooit muteerbaar worden of een rij langs een ander pad ontstaat.
+- **Fix (deze PR):** `if (actor.role !== "FREELANCER") throw new AuthorizationError(...)` toegevoegd aan beide functies
+  (pariteit met `deleteIndirectHours`).
+
 ## Ronde 2026-08-02b (basis: `main` @ de0a2f39)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken, plus de
