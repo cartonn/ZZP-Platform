@@ -898,6 +898,16 @@ De heartbeat faalt nooit naar buiten (mag de cron-respons niet omverhalen). Rest
 **niets extra** — de kaart vult zichzelf zodra de cron één keer draait; hang desgewenst een
 uptime-monitor op de cron-workflow zelf voor externe alarmering.
 
+**Code-kant GEDAAN (2026-08-10) — faalattributie op de cron-heartbeat:** de heartbeat registreerde tot
+nu toe alléén ÓF de laatste run een taakfout had (`lastOk`); wélke van de ~28 taken faalde stond alleen
+in de server-logs — de operator moest grepen (de systeemstatus-kaart zei letterlijk "controleer de
+server-logs op de gefaalde runner"). Sinds de per-taak-deadline hieronder kunnen taken bovendien
+onafhankelijk time-outen, wat dat gat scherper maakt. Nu bewaart de heartbeat de **namen van de gefaalde
+taken** (`CronHeartbeat.lastFailedTasks`, gewist bij een geslaagde run) en toont `/admin/systeemstatus`
+ze direct: _"Gefaalde taken: expiry, message-retention."_ De namen zijn statische code-identifiers
+(géén persoonsgegevens), defensief gesaneerd tot veilige slugs vóór opslag/weergave
+(`src/lib/observability/cron-failed-tasks.ts`). Resterend mensenwerk: **niets extra**.
+
 **Code-kant GEDAAN (2026-08-02) — per-taak-deadline op de run-all-cron:** `/api/tasks/run-all` draait
 de ~28 geplande taken achter elkaar met `await`. Zonder deadline zou **één** hangende taak
 (lock-contentie, een trage/hangende externe call, een pathologische query) **alle** volgende taken

@@ -340,27 +340,27 @@ model VerificationToken {
 // ---------------------------------------------------------------------------
 
 model FreelancerProfile {
-  id               String   @id @default(cuid())
-  userId           String   @unique
-  headline         String?
-  bio              String?
-  hourlyRate       Int? //   euro per uur
-  availability     String   @default("UNKNOWN") // Availability: AVAILABLE | LIMITED | UNAVAILABLE | UNKNOWN
-  location         String?
-  workMode         String   @default("HYBRID") //  WorkMode: REMOTE | ONSITE | HYBRID
-  maxTravelMinutes Int? //                      Max. reistijd naar een opdracht (minuten); null = geen limiet/onbekend.
-  languages        String? //                      JSON-string array, bv. ["nl","en"]
-  kvkNumber        String?
-  btwNumber        String?
-  iban             String? //                      betaalrekening (SEPA-IBAN); mod-97-gevalideerd in Zod, betaalinstructie op de factuur
-  website          String? //                      portfolio-/websitelink (publiek zichtbaar); http(s) afgedwongen in Zod
-  visibility       String   @default("PUBLIC") //   Visibility: PUBLIC | PRIVATE
-  completeness     Int      @default(0) //           0-100, server-berekend
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  headline               String?
+  bio                    String?
+  hourlyRate             Int? //   euro per uur
+  availability           String   @default("UNKNOWN") // Availability: AVAILABLE | LIMITED | UNAVAILABLE | UNKNOWN
+  location               String?
+  workMode               String   @default("HYBRID") //  WorkMode: REMOTE | ONSITE | HYBRID
+  maxTravelMinutes       Int? //                      Max. reistijd naar een opdracht (minuten); null = geen limiet/onbekend.
+  languages              String? //                      JSON-string array, bv. ["nl","en"]
+  kvkNumber              String?
+  btwNumber              String?
+  iban                   String? //                      betaalrekening (SEPA-IBAN); mod-97-gevalideerd in Zod, betaalinstructie op de factuur
+  website                String? //                      portfolio-/websitelink (publiek zichtbaar); http(s) afgedwongen in Zod
+  visibility             String   @default("PUBLIC") //   Visibility: PUBLIC | PRIVATE
+  completeness           Int      @default(0) //           0-100, server-berekend
   monthlyIncomeGoalCents Int? //                     zelfgekozen maanddoel (omzet/maand) in centen; null = geen doel
-  defaultMotivation String? //                        opgeslagen standaardtekst die het reageerveld voorinvult (quick-apply)
-  tenantId         String? //                        gedenormaliseerd uit User.tenantId voor tenant-scoping (roster)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  defaultMotivation      String? //                        opgeslagen standaardtekst die het reageerveld voorinvult (quick-apply)
+  tenantId               String? //                        gedenormaliseerd uit User.tenantId voor tenant-scoping (roster)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   tenant              Tenant?              @relation(fields: [tenantId], references: [id], onDelete: SetNull)
@@ -550,10 +550,10 @@ model JobCredentialRequirement {
 // ---------------------------------------------------------------------------
 
 model Application {
-  id                 String   @id @default(cuid())
+  id                 String    @id @default(cuid())
   jobId              String
   freelancerId       String //  FreelancerProfile.id
-  status             String   @default("NEW") // ApplicationStatus: NEW | VIEWED | SHORTLIST | REJECTED | ACCEPTED
+  status             String    @default("NEW") // ApplicationStatus: NEW | VIEWED | SHORTLIST | REJECTED | ACCEPTED
   motivation         String
   proposedRate       Int?
   availability       String?
@@ -563,8 +563,8 @@ model Application {
   note               String? //                         interne notitie opdrachtgever
   rejectionReason    String? //                         gestructureerde afwijzingscode (RejectionReasonCode), zichtbaar voor de ZZP'er
   acceptedAt         DateTime? //                        moment van → ACCEPTED; klok voor "wacht op samenwerkingsvoorstel". Legacy-rijen: null → fallback op updatedAt
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   job           Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
   freelancer    FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
@@ -1429,12 +1429,18 @@ model LessonCompletion {
 // Cron-heartbeat / dead-man's-switch: één singleton-rij per cron (name = PK). Wordt bij elke
 // afronding van /api/tasks/run-all bijgewerkt zodat /admin/systeemstatus kan tonen of de geplande
 // taken nog draaien (zie src/lib/observability/cron-heartbeat.ts + cron-freshness.ts). Bevat geen
-// persoonsgegevens — alleen het tijdstip en of de run zonder taakfouten verliep.
+// persoonsgegevens — alleen het tijdstip, of de run zonder taakfouten verliep, en (bij een fout) de
+// namen van de gefaalde taken. Die namen zijn statische code-identifiers (bv. "expiry",
+// "message-retention"), géén persoonsgegevens — ze vertellen de operator wélke runner faalde zonder
+// de server-logs te hoeven grepen.
 model CronHeartbeat {
-  name      String   @id // bv. "run-all"
-  lastRunAt DateTime
-  lastOk    Boolean
-  updatedAt DateTime @updatedAt
+  name            String   @id // bv. "run-all"
+  lastRunAt       DateTime
+  lastOk          Boolean
+  // Komma-gescheiden namen van de taken die tijdens de laatste run faalden (leeg/null = geen).
+  // Alleen gevuld wanneer lastOk = false; bij een geslaagde run gewist. Nooit PII (taak-identifiers).
+  lastFailedTasks String?
+  updatedAt       DateTime @updatedAt
 }
 
 // Back-up-heartbeat / dead-man's-switch: één singleton-rij per back-up-schema (name = PK). De

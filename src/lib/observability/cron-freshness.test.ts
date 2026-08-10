@@ -51,6 +51,28 @@ describe("evaluateCronFreshness", () => {
     expect(f.status).toBe("fresh");
     expect(f.ageHours).toBe(0);
   });
+
+  it("bewaart de gefaalde-taak-namen bij een warning-run", () => {
+    const f = evaluateCronFreshness(hoursAgo(2), false, NOW, 36, ["expiry", "message-retention"]);
+    expect(f.status).toBe("warning");
+    expect(f.failedTasks).toEqual(["expiry", "message-retention"]);
+  });
+
+  it("negeert gefaalde-taak-namen bij een geslaagde run (geen stale attributie)", () => {
+    const f = evaluateCronFreshness(hoursAgo(2), true, NOW, 36, ["expiry"]);
+    expect(f.status).toBe("fresh");
+    expect(f.failedTasks).toEqual([]);
+  });
+
+  it("geeft altijd een lege failedTasks-lijst bij 'never'", () => {
+    const f = evaluateCronFreshness(null, null, NOW, 36, ["expiry"]);
+    expect(f.failedTasks).toEqual([]);
+  });
+
+  it("defaultet naar een lege failedTasks-lijst (back-up-hergebruik)", () => {
+    const f = evaluateCronFreshness(hoursAgo(3), true, NOW, 36);
+    expect(f.failedTasks).toEqual([]);
+  });
 });
 
 describe("cronFreshnessStatusItem", () => {
@@ -76,6 +98,30 @@ describe("cronFreshnessStatusItem", () => {
     const item = cronFreshnessStatusItem(evaluateCronFreshness(hoursAgo(2), false, NOW, 36));
     expect(item.level).toBe("attention");
     expect(item.detail).toContain("faalde");
+  });
+
+  it("'warning' noemt de gefaalde taak-namen in het detail", () => {
+    const item = cronFreshnessStatusItem(
+      evaluateCronFreshness(hoursAgo(2), false, NOW, 36, ["message-retention", "expiry"]),
+    );
+    // Genormaliseerd/gesorteerd door de evaluator? Nee — evaluateCronFreshness bewaart de volgorde
+    // zoals aangeleverd; de normalisatie/sortering gebeurt in de opslaglaag (cron-failed-tasks).
+    expect(item.detail).toContain("message-retention");
+    expect(item.detail).toContain("expiry");
+    expect(item.detail).toContain("Gefaalde taken:");
+  });
+
+  it("'warning' met één taak gebruikt enkelvoud", () => {
+    const item = cronFreshnessStatusItem(
+      evaluateCronFreshness(hoursAgo(2), false, NOW, 36, ["expiry"]),
+    );
+    expect(item.detail).toContain("Gefaalde taak: expiry.");
+  });
+
+  it("'warning' zonder namen (legacy-rij) valt terug op de generieke tekst", () => {
+    const item = cronFreshnessStatusItem(evaluateCronFreshness(hoursAgo(2), false, NOW, 36, []));
+    expect(item.detail).toContain("faalde");
+    expect(item.detail).not.toContain("Gefaalde taak");
   });
 
   it("'stale' → aandacht en noemt het venster", () => {

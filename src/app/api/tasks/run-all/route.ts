@@ -119,9 +119,10 @@ export async function POST(request: Request): Promise<Response> {
     { timeoutMs },
   );
 
-  // Heartbeat: registreer dat de cron draaide (dead-man's-switch op /admin/systeemstatus). Slikt
-  // eigen fouten — mag de cron-respons nooit omverhalen.
-  await recordCronHeartbeat(RUN_ALL_HEARTBEAT, ok);
+  // Heartbeat: registreer dat de cron draaide (dead-man's-switch op /admin/systeemstatus). Geef de
+  // namen van de gefaalde taken mee zodat de systeemstatus wélke runner faalde toont (i.p.v. "grep de
+  // logs"). Slikt eigen fouten — mag de cron-respons nooit omverhalen.
+  await recordCronHeartbeat(RUN_ALL_HEARTBEAT, ok, Object.keys(errors));
 
   const hasErrors = Object.keys(errors).length > 0;
   return NextResponse.json({ ok, results, ...(hasErrors ? { errors } : {}) });

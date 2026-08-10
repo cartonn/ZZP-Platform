@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — faalattributie op de cron-heartbeat (wélke taak faalde) (2026-08-10, PR #1042)** —
+> de cron-heartbeat (dead-man's-switch) registreerde alléén ÓF de laatste `/api/tasks/run-all` een taakfout had (`lastOk`);
+> wélke van de ~28 taken faalde stond alleen in de server-logs (de systeemstatus-kaart zei letterlijk "controleer de
+> server-logs op de gefaalde runner"). Sinds de per-taak-deadline (#1037) time-outen taken bovendien onafhankelijk, wat het
+> gat scherper maakt. Nu bewaart de heartbeat de namen van de gefaalde taken (`CronHeartbeat.lastFailedTasks`, gewist bij een
+> geslaagde run) en toont `/admin/systeemstatus` ze direct ("Gefaalde taken: expiry, message-retention"). Namen = statische
+> code-identifiers (géén PII), defensief gesaneerd tot `[a-zA-Z0-9_-]`-slugs vóór opslag/weergave (geen log-/UI-injectie).
+> Additief-nullable veld (veilige `db push`), server-side waarheid, heartbeat faalt nooit naar buiten, geen nieuw
+> auth-/mutatie-oppervlak. Nieuwe pure `cron-failed-tasks.ts` (serialize/parse/normalize). +19 tests. Gate: typecheck, lint,
+> test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — routing-cache retentie-backlog gauge (`/api/metrics`, AVG art. 5(1)(e)) (2026-08-02, PR volgt)** —
 > laatste PII-dragende "verwijder-ouder-dan-venster"-retentie-prune zonder stille-faal-detector gedicht (na audit/reacties/
 > notificaties/leads/health-incident-IP/messages/webhook-events). Nieuwe gauge `zzp_routing_cache_retention_backlog` telt
