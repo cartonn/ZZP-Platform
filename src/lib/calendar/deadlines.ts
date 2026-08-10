@@ -38,11 +38,20 @@ export interface VatDeadline {
   deadline: Date;
 }
 
+/** De uiterste aangiftedatum inkomstenbelasting over één belastingjaar. */
+export interface IncomeTaxDeadline {
+  /** Het belastingjaar waarover aangifte gedaan wordt (bv. 2026 → deadline 1 mei 2027). */
+  taxYear: number;
+  deadline: Date;
+}
+
 /** De volledige set administratieve deadlines van één gebruiker. */
 export interface AdministrativeDeadlines {
   credentials: CredentialDeadline[];
   invoices: InvoiceDeadline[];
   vat: VatDeadline[];
+  /** Eerstvolgende IB-aangifte-deadline (alleen ZZP'er met omzet), of `null`. */
+  incomeTax: IncomeTaxDeadline | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -51,8 +60,9 @@ export interface AdministrativeDeadlines {
 
 /**
  * Zet administratieve deadlines om naar losse gehele-dag-IcsEvents (geen herhaling). Bewaart de
- * invoervolgorde binnen elke categorie; certificaten, dan facturen, dan BTW. De UID's zijn stabiel
- * en uniek binnen de per-gebruiker-feed, zodat agenda-apps events bijwerken i.p.v. dupliceren.
+ * invoervolgorde binnen elke categorie; certificaten, dan facturen, dan BTW, dan de IB-aangifte. De
+ * UID's zijn stabiel en uniek binnen de per-gebruiker-feed, zodat agenda-apps events bijwerken i.p.v.
+ * dupliceren.
  */
 export function administrativeDeadlineEvents(input: AdministrativeDeadlines): IcsEvent[] {
   const events: IcsEvent[] = [];
@@ -86,6 +96,16 @@ export function administrativeDeadlineEvents(input: AdministrativeDeadlines): Ic
       start: v.deadline,
       allDay: true,
       description: "Uiterste datum voor de BTW-aangifte en -betaling.",
+    });
+  }
+
+  if (input.incomeTax) {
+    events.push({
+      uid: `income-tax-${input.incomeTax.taxYear}@zzp-platform`,
+      summary: `Aangifte inkomstenbelasting ${input.incomeTax.taxYear}`,
+      start: input.incomeTax.deadline,
+      allDay: true,
+      description: "Uiterste datum voor de aangifte inkomstenbelasting over dit belastingjaar.",
     });
   }
 
