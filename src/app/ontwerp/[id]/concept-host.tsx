@@ -1627,6 +1627,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "540": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-540-duimzone").then((m) => m.Concept540),
   ),
+  "541": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-541-vlies").then((m) => m.Concept541),
+  ),
+  "542": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-542-spilpunt").then((m) => m.Concept542),
+  ),
+  "543": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-543-kwartier").then((m) => m.Concept543),
+  ),
+  "544": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-544-postvak").then((m) => m.Concept544),
+  ),
+  "545": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-545-terrein").then((m) => m.Concept545),
+  ),
+  "546": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-546-stilte").then((m) => m.Concept546),
+  ),
+  "547": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-547-vouwlijn").then((m) => m.Concept547),
+  ),
+  "548": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-548-schifting").then((m) => m.Concept548),
+  ),
+  "549": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-549-toonzaal").then((m) => m.Concept549),
+  ),
+  "550": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-550-weefsel").then((m) => m.Concept550),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
