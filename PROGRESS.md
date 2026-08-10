@@ -22,6 +22,7 @@ defense-in-depth: expliciete `FREELANCER`-rolcheck toegevoegd aan `approveAndSub
 `planKeyFor` verwijderd), `src/app/(protected)/ontzorgd/aangifte/page.tsx` (canonieke entitlement),
 `src/app/(protected)/ontzorgd/aangifte/entitlement-expiry.test.ts` (nieuw, +2 tests rood→groen),
 `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-10). Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-08-10 — Prod-rijpheid: faalattributie op de cron-heartbeat (wélke taak faalde)
 
 **Wat:** de cron-heartbeat (dead-man's-switch) registreerde alléén ÓF de laatste `/api/tasks/run-all`
