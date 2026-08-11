@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-11 — ZZP'er: IB-aangiftedeadline als next-action op /acties (PR #1058)
+
+**Wat:** de aangifte-inkomstenbelasting-deadline (uiterlijk 1 mei van het jaar ná het belastingjaar) —
+dé grootste jaarlijkse administratie-deadline van de ZZP'er — zat al in de agenda-feed (#1045) en het
+ontzorg-overzicht, maar ontbrak op `/acties` (+ badge + dashboard-rail), terwijl de kwartaal-BTW-deadline
+er wél een `vat-deadline`-taak had. Nu surfacet de item-engine ook de IB-deadline als forward-looking
+next-action zodra hij nadert.
+
+- **`src/lib/administration/income-tax-deadline.ts`**: nieuwe pure gate `incomeTaxDeadlineNeedsAction`
+  (nudge alléén bij `status === "due-soon"`, binnen `INCOME_TAX_DEADLINE_SOON_DAYS` = 30 — buiten dat
+  venster zou het jaarrond ruis zijn). Spiegelt `vatDeadlineNeedsAction`.
+- **`src/lib/actions/tasks.ts`**: nieuw taak-kind `income-tax-deadline` + pure builder
+  `incomeTaxDeadlineTask` (titel "Aangifte inkomstenbelasting {jaar}", subtitel met aftelling +
+  "je jaaroverzicht staat klaar", `resolver: "link"` → `/ontzorgd/aangifte`). Forward-looking: nooit
+  "te laat" (geen "ingediend"-vlag; aangifte gebeurt buiten het platform via DigiD).
+- **`src/lib/next-actions.ts`**: prioriteit `incomeTaxDeadlineDueSoon: 57` — onder de kwartaal-BTW
+  (`vatDeadlineDueSoon` 58: nabijere cadans + concreet af te dragen saldo), boven één naderende
+  factuurbetaling (`paymentDueSoon` 56: een jaarlijkse fiscale aangifteplicht weegt zwaarder).
+- **`src/lib/actions/pending-tasks.ts`** (`freelancerTasks`): na de BTW-loop leest het de reeds bestaande,
+  omzet-gegate loader `getIncomeTaxDeadlineForActor` (alleen FREELANCER, jaar-/owner-gescoopt) en pusht de
+  taak achter de pure gate.
+
+**Eigenschappen:** server-side waarheid, read-only signaal, geen schemawijziging, geen nieuw
+mutatie/auth-oppervlak, geen extra query buiten de bestaande loader. Hergebruikt de pure/loader-modules
+van #1045. **Tests:** `income-tax-deadline.test.ts` (+2 gate), `tasks.test.ts` (+3 builder/prioriteit).
+**Gate:** typecheck, lint, test, build, prettier groen. **Volgende stap:** CI-poort → self-merge.
+
 ## 2026-08-11 — Security: anti-oracle (CWE-203) op `createPerformance` — laatste existence-oracle in de party-guarded cascade dicht (PR #1056)
 
 **Wat:** persona-sweep run 70 parkeerde een LOW existence-oracle: `createPerformance`

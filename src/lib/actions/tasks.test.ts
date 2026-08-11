@@ -32,12 +32,14 @@ import {
   reviewLeaveTask,
   respondInvitationTask,
   vatDeadlineTask,
+  incomeTaxDeadlineTask,
   paymentDueSoonTask,
   overdueInvoiceTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
 import { type CredentialAlert } from "@/lib/collaboration-alerts";
 import { summarizeVatDeadline } from "@/lib/administration/vat-deadline";
+import { summarizeIncomeTaxDeadline } from "@/lib/administration/income-tax-deadline";
 
 describe("rankTasks", () => {
   it("sorteert op prioriteit aflopend, stabiel bij gelijke prioriteit", () => {
@@ -661,6 +663,38 @@ describe("vatDeadlineTask", () => {
     );
     const t = vatDeadlineTask(summary);
     expect(t.subtitle).toContain("terug te vorderen");
+  });
+});
+
+describe("incomeTaxDeadlineTask", () => {
+  it("naderende deadline: link naar het aangifte-scherm, aftelling, forward-looking prioriteit", () => {
+    // 15 apr 2027 → 16 dagen tot 1 mei 2027 (due-soon), belastingjaar 2026.
+    const summary = summarizeIncomeTaxDeadline(new Date("2027-04-15T00:00:00Z"));
+    const t = incomeTaxDeadlineTask(summary);
+    expect(t).toMatchObject({
+      kind: "income-tax-deadline",
+      id: "income-tax-deadline:2026",
+      resolver: "link",
+      href: "/ontzorgd/aangifte",
+      tone: "attention",
+      priority: P.incomeTaxDeadlineDueSoon,
+      taxYear: 2026,
+    });
+    expect(t.title).toBe("Aangifte inkomstenbelasting 2026");
+    expect(t.subtitle).toMatch(/nog \d+ dagen/);
+    expect(t.subtitle).toContain("jaaroverzicht staat klaar");
+  });
+
+  it("op de deadline-dag toont 'uiterlijk vandaag' (nooit 'te laat' — forward-looking)", () => {
+    const summary = summarizeIncomeTaxDeadline(new Date("2027-05-01T09:00:00Z"));
+    const t = incomeTaxDeadlineTask(summary);
+    expect(t.subtitle).toContain("uiterlijk vandaag");
+    expect(t.subtitle).not.toContain("te laat");
+  });
+
+  it("staat onder de BTW-deadline maar boven een naderende factuurbetaling", () => {
+    expect(P.incomeTaxDeadlineDueSoon).toBeLessThan(P.vatDeadlineDueSoon);
+    expect(P.incomeTaxDeadlineDueSoon).toBeGreaterThan(P.paymentDueSoon);
   });
 });
 

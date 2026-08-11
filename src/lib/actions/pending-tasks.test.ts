@@ -47,6 +47,9 @@ vi.mock("@/lib/signals", () => ({
 }));
 
 // BTW-deadline-tak buiten deze test houden: isoleert de samenwerkings-/factuurtak.
+vi.mock("@/lib/data/income-tax-deadline", () => ({
+  getIncomeTaxDeadlineForActor: vi.fn(async () => null),
+}));
 vi.mock("@/lib/data/vat-deadline", () => ({
   getVatDeadlinesForActor: vi.fn(async () => []),
 }));

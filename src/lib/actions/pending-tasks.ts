@@ -76,6 +76,7 @@ import {
   collaborationRenewalTask,
   respondInvitationTask,
   vatDeadlineTask,
+  incomeTaxDeadlineTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
 import { getReceivedInvitations } from "@/lib/data/received-invitations";
@@ -89,6 +90,8 @@ import {
 } from "@/lib/collaboration-renewal";
 import { reviewBlindDays } from "@/lib/config";
 import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
+import { getIncomeTaxDeadlineForActor } from "@/lib/data/income-tax-deadline";
+import { incomeTaxDeadlineNeedsAction } from "@/lib/administration/income-tax-deadline";
 import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
 import { collaborationPlacementBlocked } from "@/lib/collaborations";
 import {
@@ -690,6 +693,15 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // terug zodat een overgeslagen kwartaal niet stil verdwijnt bij de rollover (één taak per kwartaal).
   for (const vatDeadline of await getVatDeadlinesForActor(userId, "FREELANCER", now)) {
     tasks.push(vatDeadlineTask(vatDeadline));
+  }
+
+  // Aangifte-inkomstenbelasting-deadline: de jaarlijkse aangifte (uiterlijk 1 mei) is dé grote
+  // administratie-deadline. Alleen surfacen wanneer hij nadert (binnen INCOME_TAX_DEADLINE_SOON_DAYS)
+  // én er in dat belastingjaar omzet is geboekt — buiten dat venster leeft het signaal in de agenda-feed
+  // en het ontzorg-overzicht. Forward-looking (nooit "te laat"): geen "ingediend"-vlag in het systeem.
+  const incomeTaxDeadline = await getIncomeTaxDeadlineForActor(userId, "FREELANCER", now);
+  if (incomeTaxDeadline && incomeTaxDeadlineNeedsAction(incomeTaxDeadline)) {
+    tasks.push(incomeTaxDeadlineTask(incomeTaxDeadline));
   }
 
   // Afgeronde samenwerkingen die nog beoordeeld kunnen worden (blind venster open) — reputatie-nudge.
