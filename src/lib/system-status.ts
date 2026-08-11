@@ -269,6 +269,18 @@ export function collectSystemStatus(env: Env): SystemStatus {
             ? "SECURITY_CONTACT gezet — /.well-known/security.txt (RFC 9116) wijst naar een eigen meldpunt."
             : "security.txt valt terug op mailto:security@<host>. Zet SECURITY_CONTACT naar een bewaakte mailbox vóór de pentest.",
         },
+        {
+          key: "password-breach",
+          label: "Gelekt-wachtwoord-controle",
+          mode: env.PASSWORD_BREACH_CHECK,
+          // Aanbevolen extra (NIST 800-63B), geen misconfiguratie: "noop" is een geldige, veilige
+          // eindtoestand → fallback (nooit "aandacht", ook niet in productie).
+          level: env.PASSWORD_BREACH_CHECK === "hibp" ? "ok" : "fallback",
+          detail:
+            env.PASSWORD_BREACH_CHECK === "hibp"
+              ? "Nieuwe wachtwoorden worden k-anoniem tegen Have I Been Pwned gecontroleerd (sleutelloos, fail-open)."
+              : "Geen gelekt-wachtwoord-controle. Zet PASSWORD_BREACH_CHECK=hibp om nieuwe wachtwoorden tegen bekende datalekken (NIST 800-63B) te controleren.",
+        },
       ],
     },
     {

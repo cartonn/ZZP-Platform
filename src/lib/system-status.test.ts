@@ -59,6 +59,7 @@ describe("collectSystemStatus — volledig bekabelde productie", () => {
     SECURITY_CONTACT: "security@example.nl",
     DATABASE_CONNECTION_LIMIT: "10",
     AUDIT_LOG_RETENTION_DAYS: "365",
+    PASSWORD_BREACH_CHECK: "hibp",
   });
 
   it("markeert álles als ok en geeft geen aandacht-items", () => {
@@ -135,6 +136,7 @@ describe("collectSystemStatus — zoekmachine-indexering", () => {
       SECURITY_CONTACT: "security@example.nl",
       DATABASE_CONNECTION_LIMIT: "10",
       AUDIT_LOG_RETENTION_DAYS: "365",
+      PASSWORD_BREACH_CHECK: "hibp",
     });
     const status = collectSystemStatus(wired);
     expect(status.counts.attention).toBe(0);
@@ -208,6 +210,19 @@ describe("collectSystemStatus — beveiligingscontact (security.txt)", () => {
     const item = itemByKey(makeEnv(), "security-contact");
     expect(item.mode).toBe("afgeleid");
     expect(item.level).toBe("fallback");
+  });
+});
+
+describe("collectSystemStatus — gelekt-wachtwoord-controle", () => {
+  it("standaard (noop) = fallback met mode noop", () => {
+    const item = itemByKey(makeEnv({ PASSWORD_BREACH_CHECK: "noop" }), "password-breach");
+    expect(item.mode).toBe("noop");
+    expect(item.level).toBe("fallback");
+  });
+  it("hibp = ok", () => {
+    const item = itemByKey(makeEnv({ PASSWORD_BREACH_CHECK: "hibp" }), "password-breach");
+    expect(item.mode).toBe("hibp");
+    expect(item.level).toBe("ok");
   });
 });
 

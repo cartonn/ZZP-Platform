@@ -99,6 +99,12 @@ const schema = z
     CLAMAV_HOST: z.string().optional(),
     CLAMAV_PORT: z.string().optional(),
 
+    // Gelekt-wachtwoord-controle (NIST 800-63B / OWASP): noop (default, geen controle, huidig gedrag)
+    // of "hibp" — Have I Been Pwned "Pwned Passwords" k-anonieme range-API (sleutelloos, gratis). Geen
+    // extra secret nodig; fail-open bij een storing. Zie src/lib/services/password-breach.ts.
+    PASSWORD_BREACH_CHECK: z.enum(["noop", "hibp"]).default("noop"),
+    PASSWORD_BREACH_HTTP_TIMEOUT_MS: z.string().optional(),
+
     // Foutmonitoring: optionele externe error-reporting (Sentry). Zonder DSN worden
     // server-fouten alleen gestructureerd gelogd. LOG_LEVEL stelt de logdrempel in.
     SENTRY_DSN: z.string().optional(),
