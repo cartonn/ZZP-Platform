@@ -57,12 +57,14 @@
 >   **product-beslissing** die money-kritische cascadecode raakt en een eigen gefocuste PR + seed/tests-
 >   sweep verdient. **Aanbevolen fix:** ofwel periode verplicht voor HOURS (+ seed/tests bijwerken), ofwel
 >   een periode-loze exact-duplicaat-dedup op dezelfde samenwerking.
-> - **LOW (DOEL 2, CWE-203 existence-oracle):** `createPerformance` (`performance-commands.ts:171-174`)
->   geeft "Samenwerking niet gevonden." (onbestaand id) vs "Alleen de ZZP'er kan een prestatie
+> - **GEFIXT — LOW (DOEL 2, CWE-203 existence-oracle):** `createPerformance` (`performance-commands.ts`)
+>   gaf "Samenwerking niet gevonden." (onbestaand id) vs "Alleen de ZZP'er kan een prestatie
 >   vastleggen." (bestaat, geen partij) — twee onderscheidbare meldingen die naar de client lekken (via
 >   `logAndSubmitPerformanceAction`, MILESTONE-pad). De 5 siblings (`submit/approve/reject/update/
-editAndResubmit`) zijn hier al op geünificeerd (#903); `createPerformance` is de enige die achterbleef.
->   Fix: unificeer naar één "niet gevonden."-melding voor niet-partij.
+editAndResubmit`) waren hier al op geünificeerd (#903); `createPerformance` was de enige die achterbleef.
+>   **Fix (PR #1056):** een niet-partij (noch ZZP'er, noch opdrachtgever, noch admin) krijgt nu exact
+>   dezelfde "Samenwerking niet gevonden."-melding als een onbekend id; alleen de opdrachtgever (partij,
+>   verkeerde kant) houdt de behulpzame rolmelding. +2 regressietests in `anti-oracle-party.test.ts`.
 > - **LOW (DOEL 1b, freelancer — sub-symptoom van #2):** in exact de geblokkeerde-PROPOSED-staat krijgt
 >   de ZZP'er op `/acties` de `credentialCollabMissing`/`-Expired`-taak (niet-verplicht vereist type),
 >   maar geen enkele nav-badge telt die (`credentialAlerts` = `rejected + expiring(VERIFIED) +

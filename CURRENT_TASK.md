@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Security — anti-oracle (CWE-203) op `createPerformance` (2026-08-11, PR #1056)** —
+> laatste existence-oracle in de party-guarded cascade-commando's gedicht (persona-sweep run 70, GEPARKEERD LOW).
+> `createPerformance` (`src/lib/cascade/performance-commands.ts`) gaf een niet-partij die een geldig
+> `collaborationId` raadde de behulpzame rolmelding "Alleen de ZZP'er kan een prestatie vastleggen." (bevestigt
+> dat de samenwerking bestaat), terwijl een onbekend id "Samenwerking niet gevonden." teruggaf — een productie-
+> observeerbaar verschil op het MILESTONE-pad (`logAndSubmitPerformanceAction` toont de melding als returnwaarde).
+> De 5 siblings (`update/submit/approve/reject/editAndResubmit`) waren al op #903 geünificeerd; dit was de enige
+> die achterbleef. **Fix:** een actor die noch de ZZP'er, noch de opdrachtgever, noch admin is, krijgt nu exact
+> dezelfde "Samenwerking niet gevonden."-melding als een onbekend id (`col.company.userId` was al meegeladen — geen
+> extra query); alleen de opdrachtgever (partij, verkeerde kant) houdt de behulpzame rolmelding. Server-side
+> waarheid, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +2 regressietests in
+> `anti-oracle-party.test.ts` (17 → 19). Gate: typecheck, lint, test (5769), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — mail-aflever-heartbeat / dead-man's-switch voor het e-mailkanaal
 > (2026-08-11, PR volgt)** — e-mail is een productiekernkanaal (§2: certificaat goedgekeurd, wachtwoordherstel,
 > herinneringen), maar had — anders dan opslag/database/cron/back-up — géén doorlopend afleversignaal. Een
