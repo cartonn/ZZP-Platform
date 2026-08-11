@@ -7,6 +7,10 @@ import { signOut } from "@/auth";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import {
+  getPasswordBreachChecker,
+  BREACHED_PASSWORD_MESSAGE,
+} from "@/lib/services/password-breach";
 
 export interface ChangePasswordState {
   error?: string;
@@ -57,6 +61,11 @@ export async function changePassword(
   if (!user) return { error: "Account niet gevonden." };
   if (!(await bcrypt.compare(parsed.data.currentPassword, user.passwordHash))) {
     return { fieldErrors: { currentPassword: "Huidig wachtwoord klopt niet." } };
+  }
+
+  // Gelekt-wachtwoord-controle (NIST 800-63B); inert tenzij PASSWORD_BREACH_CHECK=hibp, fail-open.
+  if ((await getPasswordBreachChecker().check(parsed.data.newPassword)).breached) {
+    return { fieldErrors: { newPassword: BREACHED_PASSWORD_MESSAGE } };
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);

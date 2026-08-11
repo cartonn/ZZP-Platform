@@ -8,6 +8,10 @@ import { prisma } from "@/lib/db";
 import { requestMeta } from "@/lib/request-meta";
 import { registerRateLimiter } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
+import {
+  getPasswordBreachChecker,
+  BREACHED_PASSWORD_MESSAGE,
+} from "@/lib/services/password-breach";
 
 export type RegisterState =
   | { error?: string; success?: string; fieldErrors?: Record<string, string> }
@@ -51,6 +55,12 @@ export async function register(_prev: RegisterState, formData: FormData): Promis
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     return { fieldErrors: { email: "Er bestaat al een account met dit e-mailadres." } };
+  }
+
+  // Gelekt-wachtwoord-controle (NIST 800-63B). Inert tenzij PASSWORD_BREACH_CHECK=hibp; fail-open bij
+  // een storing (check.skipped) zodat registratie nooit door een externe blip wordt geblokkeerd.
+  if ((await getPasswordBreachChecker().check(password)).breached) {
+    return { fieldErrors: { password: BREACHED_PASSWORD_MESSAGE } };
   }
 
   const passwordHash = await bcrypt.hash(password, 10);

@@ -711,6 +711,19 @@ VOG-eisen) en leg dat vast.
      **Opleveren:** rapport + akkoord om live te gaan ("GO"), of een lijst met te fixen punten (die de
      agent dan oppakt).
 
+**Code-kant GEDAAN (2026-08-11) — gelekt-wachtwoord-controle (NIST 800-63B / OWASP):** nieuwe
+wachtwoorden kunnen worden gecontroleerd tegen bekende datalekken — de standaardmitigatie tegen
+credential stuffing met hergebruikte, gelekte wachtwoorden (NIST 800-63B §5.1.1.2, OWASP ASVS 2.1.7).
+Pluggbaar achter `PASSWORD_BREACH_CHECK` (`src/lib/services/password-breach.ts`), **standaard uit**
+(`noop`, huidig gedrag — de pilot verandert niet). Zet `PASSWORD_BREACH_CHECK=hibp` en de adapter
+controleert elk gekozen wachtwoord tegen de **Have I Been Pwned "Pwned Passwords"** k-anonieme
+range-API: **sleutelloos en gratis** (geen account, **geen secret**) en privacy-veilig — alleen de
+eerste 5 tekens van de SHA-1-hash verlaten de server, nooit het wachtwoord of de volledige hash (AVG
+dataminimalisatie). **Fail-open**: bij een storing/time-out wordt het wachtwoord toegelaten, zodat een
+HIBP-blip registratie/wachtwoordwijziging nooit blokkeert. Gewired in registratie, wachtwoordherstel en
+wachtwoord-wijzigen; zichtbaar op `/admin/systeemstatus`. Resterend mensenwerk: **niets extra** — zet
+`PASSWORD_BREACH_CHECK=hibp` in de Railway-secrets om het aan te zetten (geen sleutel nodig).
+
 **Code-kant GEDAAN (2026-07-22) — cross-origin-isolatie + Permissions-Policy-hardening:** naast de al
 sterke statische headers (HSTS+preload, `X-Frame-Options: DENY`, nosniff, `Referrer-Policy`) en de
 per-request CSP-nonce staan nu ook **`Cross-Origin-Opener-Policy: same-origin`** (severt de opener-relatie
@@ -790,6 +803,7 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 | `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`               | Gedeelde rate-limits over instances                    | Upstash (§0b H-2)    | Bij horizontale schaling                         |
 | `DATABASE_CONNECTION_LIMIT` (+ `DATABASE_POOL_TIMEOUT`/`DATABASE_PGBOUNCER`) | Begrenst de Prisma-pool per instance                   | — (§0b, §1b)         | Bij horizontale schaling                         |
 | `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`                        | Malware-scan van uploads                               | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
+| `PASSWORD_BREACH_CHECK=hibp`                                                 | Gelekt-wachtwoord-controle (HIBP, sleutelloos)         | — (§5d)              | Optioneel (aanbevolen prod; geen secret nodig)   |
 | `ALLOW_INDEXING=true`                                                        | Zoekmachine-indexering aanzetten (default uit)         | — (§0b)              | Optioneel bij go-live (pilot blijft privé)       |
 | `SECURITY_CONTACT`                                                           | Meldpunt in /.well-known/security.txt (RFC 9116)       | — (§0b)              | Optioneel (aanbevolen vóór pentest)              |
 | `AUDIT_LOG_RETENTION_DAYS`                                                   | Bewaartermijn auditlog in dagen (default: onbeperkt)   | — (§5a)              | Optioneel (aanbevolen prod; bv. 365)             |

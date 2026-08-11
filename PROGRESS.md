@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-11 — prod: gelekt-wachtwoord-controle (NIST 800-63B / OWASP), inert achter een vlag
+
+**Wat:** Nieuwe productie-securityvoorziening: nieuwe wachtwoorden kunnen tegen bekende datalekken
+worden gecontroleerd (NIST 800-63B §5.1.1.2 / OWASP ASVS 2.1.7) — dé mitigatie tegen credential
+stuffing met hergebruikte gelekte wachtwoorden, relevant voor een platform met gevoelige documenten.
+Volgt exact het bestaande seam-patroon (opslag/mail/scanner): een pluggbare `PasswordBreachChecker`
+achter `PASSWORD_BREACH_CHECK`, **standaard `noop`** (huidig gedrag, pilot ongewijzigd). Zet je
+`PASSWORD_BREACH_CHECK=hibp`, dan gebruikt de adapter de **Have I Been Pwned "Pwned Passwords"
+k-anonieme range-API** — **sleutelloos/gratis** (geen account, geen secret) en privacy-veilig: alleen
+de eerste 5 tekens van de SHA-1-hash verlaten de server (`Add-Padding: true`), nooit het wachtwoord of
+de volledige hash. **Fail-open** (harde time-out via `fetch-timeout`, elke storing → `skipped`) zodat
+een HIBP-blip registratie/wachtwoordwijziging nooit blokkeert. Gewired in de drie self-service
+wachtwoord-flows (registratie, wachtwoordherstel via token, wachtwoord wijzigen) ná Zod, met een nette
+NL-fieldError op het wachtwoordveld. Zichtbaar op `/admin/systeemstatus` (posture-rij, `ok` bij hibp,
+anders `fallback`). Geen dode knoppen, server-side waarheid, geen secret in code/log.
+
+**Bestanden:** `src/lib/services/password-breach.ts` (+ `.test.ts`, 13 tests: k-anonimiteit/sha1/
+suffix-match/fail-open/noop); `src/lib/env.ts` (`PASSWORD_BREACH_CHECK` enum + timeout); `.env.example`;
+`src/app/register/actions.ts` (+ `breach-guard.test.ts`, 3 wiring-tests);
+`src/app/wachtwoord-herstellen/[token]/actions.ts`; `src/app/(protected)/account/wachtwoord/actions.ts`;
+`src/lib/system-status.ts` (+ test). **Resterend mensenwerk:** niets extra — zet
+`PASSWORD_BREACH_CHECK=hibp` in de secrets om aan te zetten (geen sleutel nodig). Gate: typecheck, lint,
+test, build, prettier.
+
 ## 2026-08-11 — security/privacy: `Idea.title`-lek in notificatietitels overleefde erasure (AVG art. 17)
 
 **Wat:** Security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

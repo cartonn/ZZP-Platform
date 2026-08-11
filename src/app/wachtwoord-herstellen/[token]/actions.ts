@@ -6,6 +6,10 @@ import { prisma } from "@/lib/db";
 import { validateResetToken, consumeResetToken } from "@/lib/password-reset";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import {
+  getPasswordBreachChecker,
+  BREACHED_PASSWORD_MESSAGE,
+} from "@/lib/services/password-breach";
 
 export interface ResetPasswordState {
   success?: boolean;
@@ -42,6 +46,12 @@ export async function resetPassword(
   }
 
   const { token: raw, newPassword } = parsed.data;
+
+  // Gelekt-wachtwoord-controle (NIST 800-63B) vóór we het herstel-token verbruiken; inert tenzij
+  // PASSWORD_BREACH_CHECK=hibp, fail-open bij een storing.
+  if ((await getPasswordBreachChecker().check(newPassword)).breached) {
+    return { fieldErrors: { newPassword: BREACHED_PASSWORD_MESSAGE } };
+  }
 
   const record = await validateResetToken(raw);
   if (!record) {
