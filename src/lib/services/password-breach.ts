@@ -60,8 +60,15 @@ export class NoopPasswordBreachChecker implements PasswordBreachChecker {
   }
 }
 
-/** SHA-1 van een string als hoofdletter-hex (HIBP-conventie). Alleen server-side gebruikt. */
+/**
+ * SHA-1 van een string als hoofdletter-hex. LET OP: SHA-1 is hier VERPLICHT door het HIBP "Pwned
+ * Passwords"-protocol — de k-anonimiteit werkt per definitie over SHA-1-prefixen. Dit is GEEN
+ * wachtwoord-opslag: opslag gaat altijd via **bcrypt** (register/reset/wijzig). Deze hash verlaat de
+ * server ook nooit heel — alleen de eerste 5 tekens (de range-prefix) gaan naar HIBP. Daarom is de
+ * CodeQL-waarschuwing "insufficient password hash" hier een false positive en onderdrukt.
+ */
 export function sha1Hex(input: string): string {
+  // codeql[js/insufficient-password-hash] — SHA-1 is protocol-vereist (HIBP k-anonimiteit), niet voor opslag (bcrypt).
   return createHash("sha1").update(input, "utf8").digest("hex").toUpperCase();
 }
 
