@@ -33,8 +33,10 @@ test("AVG-verwijderverzoek vraagt aandacht bij de beheerder", async ({ page, bro
   await expect(admin.getByText("AVG-verwijderverzoek beoordelen").first()).toBeVisible();
 
   await admin.goto("/admin/gebruikers");
+  // De linktekst is enkel-/meervoud via plural(): "1 AVG-verwijderverzoek — beoordeel" of
+  // "N AVG-verwijderverzoeken — beoordeel" (niet langer het oude "(en)").
   await expect(
-    admin.getByRole("link", { name: /AVG-verwijderverzoek\(en\) — beoordeel/ }),
+    admin.getByRole("link", { name: /AVG-verwijderverzoek(en)? — beoordeel/ }),
   ).toBeVisible();
 
   // Filter op verwijderverzoeken: de gebruiker staat erbij met een rood label.

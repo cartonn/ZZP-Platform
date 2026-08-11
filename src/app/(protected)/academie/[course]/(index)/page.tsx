@@ -24,7 +24,7 @@ import { Progress } from "@/components/ui/progress";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { plural } from "@/lib/plural";
-import { setCourseStatus, deleteLesson } from "../actions";
+import { setCourseStatus, deleteLesson } from "../../actions";
 
 export const metadata: Metadata = { title: "Cursus · Academie" };
 

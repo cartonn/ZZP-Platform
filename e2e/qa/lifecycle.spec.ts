@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Browser } from "playwright-core";
+import { clickUntil, clickUntilGone } from "../_robust";
 import { shot, uniq } from "./helpers";
 
 // ---------------------------------------------------------------------------
@@ -27,13 +28,10 @@ test.describe("QA: Complete lifecycle cascade", () => {
     page,
     browser,
   }) => {
-    // QUARANTAINE (15-6-2026): deze E2E hangt structureel op de "samenwerking voorstellen"-stap —
-    // de server-action werpt geen fout (server-log schoon) en de flow komt niet verder, óók serieel
-    // (--workers=1), dus geen parallellisme/SQLite-contentie. Vergt interactieve trace-debugging.
-    // De cascade-kernlogica is al gedekt door groene integratietests (src/lib/cascade/apply.test.ts,
-    // handlers.test.ts). Tot de oorzaak gevonden is wordt deze test overgeslagen zodat de QA-loop
-    // betrouwbaar groen blijft. Tracking: CURRENT_TASK.md (QA-backlog).
-    test.fixme();
+    // Ex-quarantaine (15-6 → 10-8-2026): de "samenwerking voorstellen"-hang was de bekende
+    // #329-klasse — de server-action-response kan in productie blijven hangen terwijl de mutatie
+    // slaagde. De kale .click()'s op de voorstel- en tekenstap zijn vervangen door clickUntil
+    // (_robust.ts), dat bij een hangende response herlaadt en de werkelijke status toont.
     test.slow(); // multi-context, volledige cascade
 
     const title = `QA Lifecycle ${uniq()}`;
@@ -93,12 +91,27 @@ test.describe("QA: Complete lifecycle cascade", () => {
     // =====================================================================
     await page.goto("/kandidaten");
     await page.getByRole("button", { name: "Toon details" }).click();
-    await page.getByRole("button", { name: "Accepteren" }).click();
-    // Accepteren houdt de kandidaat (nog zonder samenwerking) in de actieve lijst; de rij klapt dicht.
-    await page.getByRole("button", { name: "Toon details" }).click();
+    // Robuust tegen de #329-response-hang: klik Accepteren tot de knop weg is (status toegepast).
+    await clickUntilGone(
+      page.getByRole("button", { name: "Accepteren" }),
+      page.getByRole("button", { name: "Accepteren" }),
+    );
+    // De rij kan open blijven staan; alleen uitklappen als het voorstelformulier er nog niet is.
+    if (
+      !(await page
+        .getByText("Samenwerking voorstellen")
+        .isVisible()
+        .catch(() => false))
+    ) {
+      await page.getByRole("button", { name: "Toon details" }).click();
+    }
     await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
     await page.locator('input[name="rate"]').fill("75");
-    await page.getByRole("button", { name: "Voorstel versturen" }).click();
+    // Robuust tegen de #329-response-hang: herhaal/refresh tot de "Geaccepteerd"-sectie er is.
+    await clickUntil(
+      page.getByRole("button", { name: "Voorstel versturen" }),
+      page.getByRole("button", { name: /Geaccepteerd/ }),
+    );
     // Met een samenwerking verhuist de kandidaat naar de ingeklapte sectie "Geaccepteerd".
     await page.getByRole("button", { name: /Geaccepteerd/ }).click();
     await expect(page.getByRole("link", { name: "Bekijk samenwerking" })).toBeVisible({
@@ -115,8 +128,10 @@ test.describe("QA: Complete lifecycle cascade", () => {
     // =====================================================================
     // STAP 4 — CLIENT tekent contract (Event A: contract actief)
     // =====================================================================
-    await page.getByRole("button", { name: "Contract ondertekenen" }).click();
-    await expect(page.getByText("Actief")).toBeVisible({ timeout: 15000 });
+    await clickUntil(
+      page.getByRole("button", { name: "Contract ondertekenen" }),
+      page.getByText("Actief").first(),
+    );
     await shot(page, "lifecycle-07-contract-signed");
 
     // =====================================================================
@@ -129,14 +144,14 @@ test.describe("QA: Complete lifecycle cascade", () => {
     await fp.fill('input[name="hours"]', "40");
     await fp.fill('input[name="description"]', "Week 1 — lifecycle QA");
     await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
-    await expect(fp.getByText("Ter goedkeuring")).toBeVisible({ timeout: 15000 });
+    await expect(fp.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
     await shot(fp, "lifecycle-08-performance-submitted");
 
     // =====================================================================
     // STAP 6 — CLIENT keurt uren goed (Event B2 → concept-factuur)
     // =====================================================================
     await page.reload();
-    await expect(page.getByText("Ter goedkeuring")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
 
     const perfSection = page.locator("section").filter({ hasText: "Uren & opleveringen" });
     await perfSection.getByRole("button", { name: "Goedkeuren" }).first().click();
@@ -170,8 +185,11 @@ test.describe("QA: Complete lifecycle cascade", () => {
     // =====================================================================
     // STAP 9 — CLIENT registreert betaling (Event E)
     // =====================================================================
-    await invSectionClient.getByRole("button", { name: "Betaling registreren" }).first().click();
-    await expect(page.getByText("Betaald").first()).toBeVisible({ timeout: 15000 });
+    // De knop heet aan de opdrachtgever-kant "Markeer als betaald"; robuust tegen #329.
+    await clickUntil(
+      invSectionClient.getByRole("button", { name: "Markeer als betaald" }).first(),
+      page.getByText("Betaald").first(),
+    );
     await shot(page, "lifecycle-13-payment-registered");
 
     // =====================================================================

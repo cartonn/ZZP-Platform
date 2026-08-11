@@ -46,5 +46,7 @@ test("Audit: login-events worden gelogd (admin ziet USER_LOGIN)", async ({ page 
   // getByLabel("Actie") botst met de zijbalk-badge ("… vraagt actie"); richt op het invoerveld.
   await page.getByRole("textbox", { name: "Actie" }).fill("USER_LOGIN");
   await page.getByRole("button", { name: "Filteren" }).click();
-  await expect(page.getByText("USER_LOGIN").first()).toBeVisible();
+  // De lijst toont het NL-label van de machine-actie (audit-labels.ts: USER_LOGIN → "Ingelogd");
+  // het filter zelf matcht server-side op de machine-string.
+  await expect(page.getByText("Ingelogd").first()).toBeVisible();
 });

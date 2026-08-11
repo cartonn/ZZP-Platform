@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { acceptAndProposeCollaboration } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -55,15 +56,7 @@ test("inzetbaarheid-gate: ontbrekend vereist certificaat blokkeert de plaatsing"
   await page.goto("/kandidaten");
   await expect(page.getByText("Comp Freelancer").first()).toBeVisible();
   await page.getByRole("button", { name: "Toon details" }).click();
-  await page.getByRole("button", { name: "Accepteren" }).click();
-  // Accepteren houdt de kandidaat (nog zonder samenwerking) in de actieve lijst; de rij klapt dicht.
-  await page.getByRole("button", { name: "Toon details" }).click();
-  await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
-  await page.locator('input[name="rate"]').fill("90");
-  await page.getByRole("button", { name: "Voorstel versturen" }).click();
-  // Met een samenwerking verhuist de kandidaat naar de ingeklapte sectie "Geaccepteerd"; open die.
-  await page.getByRole("button", { name: /Geaccepteerd/ }).click();
-  await expect(page.getByRole("link", { name: "Bekijk samenwerking" })).toBeVisible();
+  await acceptAndProposeCollaboration(page, "90");
 
   // ZZP'er: de samenwerking kan NIET starten zolang de VOG ontbreekt — ondertekenen is geblokkeerd
   // (reageren en voorstellen mocht wél; de harde grens zit bij de plaatsing, ADR-0006 C-hybride).

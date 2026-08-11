@@ -71,7 +71,7 @@ test("freelancer registreert, vult profiel en publiceert het", async ({ page, br
   const anonPage = await anon.newPage();
   await anonPage.goto(href!);
   await expect(anonPage.getByRole("heading", { name: "Test Freelancer" })).toBeVisible();
-  await expect(anonPage.getByText("Senior Frontend Developer")).toBeVisible();
+  await expect(anonPage.getByText("Senior Frontend Developer").first()).toBeVisible();
   await shot(anonPage, "08-public-profile");
 
   // PRIVATE: zichtbaarheid server-side afgedwongen -> anoniem krijgt 404.

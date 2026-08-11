@@ -4,12 +4,25 @@
 // openstaat, en de dag-idempotentie (geen spam).
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Prisma } from "@prisma/client";
 
 const collaborationFindUnique = vi.hoisted(() => vi.fn());
 const auditLogFindMany = vi.hoisted(() => vi.fn(async () => [] as { metadata: string | null }[]));
-const runTransaction = vi.hoisted(() => vi.fn(async () => {}));
 const notificationCreate = vi.hoisted(() => vi.fn(() => ({ __op: "notify" })));
 const auditLogCreate = vi.hoisted(() => vi.fn(() => ({ __op: "audit" })));
+// Interactieve transactie: voer de callback uit met een tx-client die dezelfde mocks deelt,
+// zodat de dag-idempotentiecheck + writes bínnen de transactie getest worden.
+const runTransaction = vi.hoisted(() =>
+  vi.fn(async (arg: unknown, _opts?: unknown) => {
+    if (typeof arg === "function") {
+      return (arg as (tx: unknown) => Promise<unknown>)({
+        auditLog: { findMany: auditLogFindMany, create: auditLogCreate },
+        notification: { create: notificationCreate },
+      });
+    }
+    return arg;
+  }),
+);
 
 let currentActor: { id: string; role: string; status: string } = {
   id: "client-1",
@@ -112,6 +125,36 @@ describe("sendCredentialReminder", () => {
       }),
     );
     expect(runTransaction).toHaveBeenCalledTimes(1);
+    // Race-guard: de transactie draait onder Serializable-isolatie (Postgres SSI).
+    expect(runTransaction.mock.calls[0]?.[1]).toMatchObject({
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
+  });
+
+  it("P2034-serialisatieconflict → retry; verliezer ziet de gecommitte herinnering en verstuurt niet dubbel", async () => {
+    collaborationFindUnique.mockResolvedValue(collabWithMissingVog());
+    runTransaction.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("serialization conflict", {
+        code: "P2034",
+        clientVersion: "test",
+      }),
+    );
+    // Na het conflict ziet de retry de auditregel van de racende winnaar.
+    auditLogFindMany.mockResolvedValue([{ metadata: JSON.stringify({ type: "VOG" }) }]);
+    const result = await sendCredentialReminder("col-1", "VOG", undefined, new FormData());
+    expect(result?.message).toMatch(/al herinnerd/i);
+    expect(runTransaction).toHaveBeenCalledTimes(2);
+    expect(notificationCreate).not.toHaveBeenCalled();
+    expect(auditLogCreate).not.toHaveBeenCalled();
+  });
+
+  it("een niet-P2034-fout wordt niet her-geprobeerd maar gepropageerd", async () => {
+    collaborationFindUnique.mockResolvedValue(collabWithMissingVog());
+    runTransaction.mockRejectedValueOnce(new Error("db down"));
+    await expect(sendCredentialReminder("col-1", "VOG", undefined, new FormData())).rejects.toThrow(
+      "db down",
+    );
+    expect(runTransaction).toHaveBeenCalledTimes(1);
   });
 
   it("slaat stil over als er vandaag al voor dit type is herinnerd (idempotentie)", async () => {
@@ -119,6 +162,9 @@ describe("sendCredentialReminder", () => {
     auditLogFindMany.mockResolvedValue([{ metadata: JSON.stringify({ type: "VOG" }) }]);
     const result = await sendCredentialReminder("col-1", "VOG", undefined, new FormData());
     expect(result?.message).toMatch(/al herinnerd/i);
-    expect(runTransaction).not.toHaveBeenCalled();
+    // De check draait bínnen de transactie (race-guard), maar er wordt niets geschreven.
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(notificationCreate).not.toHaveBeenCalled();
+    expect(auditLogCreate).not.toHaveBeenCalled();
   });
 });

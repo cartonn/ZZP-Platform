@@ -22,10 +22,12 @@ test("beschikbaarheid: periode toevoegen, zien en verwijderen", async ({ page })
   await page.getByRole("button", { name: "Toevoegen" }).click();
 
   await expect(page.getByText("Toegevoegd.")).toBeVisible();
-  await expect(page.getByText("2026-09-01 — 2026-12-01")).toBeVisible();
-  await expect(page.getByText("Beschikbaar vanaf 2026-09-01")).toBeVisible();
+  // De rij toont NL-datums (formatDateShortNl): "1 sep 2026 — 1 dec 2026" + badge "Beschikbaar".
+  await expect(page.getByText("1 sep 2026 — 1 dec 2026")).toBeVisible();
+  // De status-badge (span); "Beschikbaar" komt ook voor als radio-optie en select-option.
+  await expect(page.locator("span").filter({ hasText: /^Beschikbaar$/ })).toBeVisible();
   await shot(page, "37-beschikbaarheid");
 
   await page.getByRole("button", { name: "Periode verwijderen" }).click();
-  await expect(page.getByText("2026-09-01 — 2026-12-01")).toHaveCount(0);
+  await expect(page.getByText("1 sep 2026 — 1 dec 2026")).toHaveCount(0);
 });

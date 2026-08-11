@@ -487,6 +487,14 @@ const credentialReminderSchema = z.object({
 
 export type ReminderState = { error?: string; message?: string } | undefined;
 
+// Zie de toelichting bij de retry-lus in sendCredentialReminder; spiegelt APPLICATION_TX_OPTIONS.
+const CREDENTIAL_REMINDER_TX_OPTIONS = {
+  isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+  timeout: 30_000,
+  maxWait: 10_000,
+} as const;
+const CREDENTIAL_REMINDER_MAX_ATTEMPTS = 4;
+
 /**
  * Certificaatherinnering (rode draad 5): de opdrachtgever stuurt de ZZP'er bij een lopende
  * samenwerking een gerichte notificatie om een ontbrekend/vereist certificaat aan te leveren.
@@ -553,48 +561,70 @@ export async function sendCredentialReminder(
 
   // Idempotentie: geen spam. Eén herinnering per samenwerking+type per kalenderdag. We lezen de
   // audit-regels van vandaag voor deze samenwerking en filteren op het type in de metadata.
+  // Check + writes in één SERIALIZABLE transactie met begrensde P2034-retry: onder de Postgres-
+  // default READ COMMITTED zouden twee gelijktijdige submits beide "nog niet herinnerd" lezen en
+  // beide schrijven; onder Serializable (SSI) conflicteert check+insert → één faalt met P2034,
+  // de retry ziet de gecommitte auditregel en weigert correct. Spiegelt APPLICATION_TX_OPTIONS
+  // (applications-create.ts). SQLite kent alléén Serializable → daar gedrags-neutraal.
   const dayStart = reminderDayStart(new Date());
-  const todayReminders = await prisma.auditLog.findMany({
-    where: {
-      action: "CREDENTIAL_REMINDER_SENT",
-      entityType: "Collaboration",
-      entityId: collaboration.id,
-      createdAt: { gte: dayStart },
-    },
-    select: { metadata: true },
-    take: 50,
-  });
-  const alreadyReminded = todayReminders.some((r) => {
-    if (!r.metadata) return false;
-    try {
-      return (JSON.parse(r.metadata) as { type?: string }).type === reminderType;
-    } catch {
-      return false;
-    }
-  });
-  if (alreadyReminded) return { message: "Je hebt vandaag al herinnerd." };
-
   const { title, body } = credentialReminderMessage(collaboration.company.name, reminderType);
-  await prisma.$transaction([
-    prisma.notification.create({
-      data: {
-        userId: collaboration.freelancer.userId,
-        type: "CREDENTIAL_REMINDER",
-        title,
-        body,
-        link: credentialReminderLink(reminderType),
-      },
-    }),
-    prisma.auditLog.create({
-      data: auditData({
-        actorId: actor.id,
-        action: "CREDENTIAL_REMINDER_SENT",
-        entityType: "Collaboration",
-        entityId: collaboration.id,
-        metadata: { type: reminderType },
-      }),
-    }),
-  ]);
+  let sent = false;
+  for (let attempt = 0; attempt < CREDENTIAL_REMINDER_MAX_ATTEMPTS; attempt++) {
+    try {
+      sent = await prisma.$transaction(async (tx) => {
+        const todayReminders = await tx.auditLog.findMany({
+          where: {
+            action: "CREDENTIAL_REMINDER_SENT",
+            entityType: "Collaboration",
+            entityId: collaboration.id,
+            createdAt: { gte: dayStart },
+          },
+          select: { metadata: true },
+          take: 50,
+        });
+        const alreadyReminded = todayReminders.some((r) => {
+          if (!r.metadata) return false;
+          try {
+            return (JSON.parse(r.metadata) as { type?: string }).type === reminderType;
+          } catch {
+            return false;
+          }
+        });
+        if (alreadyReminded) return false;
+
+        await tx.notification.create({
+          data: {
+            userId: collaboration.freelancer.userId,
+            type: "CREDENTIAL_REMINDER",
+            title,
+            body,
+            link: credentialReminderLink(reminderType),
+          },
+        });
+        await tx.auditLog.create({
+          data: auditData({
+            actorId: actor.id,
+            action: "CREDENTIAL_REMINDER_SENT",
+            entityType: "Collaboration",
+            entityId: collaboration.id,
+            metadata: { type: reminderType },
+          }),
+        });
+        return true;
+      }, CREDENTIAL_REMINDER_TX_OPTIONS);
+      break;
+    } catch (e) {
+      // Serialisatie-conflict: een gelijktijdige herinnering raakte hetzelfde dagvenster; her-probeer.
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2034" &&
+        attempt < CREDENTIAL_REMINDER_MAX_ATTEMPTS - 1
+      )
+        continue;
+      throw e;
+    }
+  }
+  if (!sent) return { message: "Je hebt vandaag al herinnerd." };
 
   revalidatePath("/samenwerkingen");
   return { message: "Herinnering verstuurd." };

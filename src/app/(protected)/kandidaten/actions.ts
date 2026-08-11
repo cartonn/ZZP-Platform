@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { type Actor, requireRole } from "@/lib/authz";
-import { audit, auditData } from "@/lib/audit";
+import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import {
   assertApplicationTransition,
@@ -161,13 +161,19 @@ export async function saveApplicationNote(
   await loadOwnedApplication(actor, appId);
 
   const note = boundReason(formData.get("note"));
-  await prisma.application.update({ where: { id: appId }, data: { note: note || null } });
-  await audit({
-    actorId: actor.id,
-    action: "APPLICATION_NOTE_SAVED",
-    entityType: "Application",
-    entityId: appId,
-  });
+  // Mutatie + audit atomair (CLAUDE.md regel 5): een transiënte fout op de audit-write mag geen
+  // stil-ongeauditeerde notitiewijziging achterlaten — zelfde patroon als de rest van dit bestand.
+  await prisma.$transaction([
+    prisma.application.update({ where: { id: appId }, data: { note: note || null } }),
+    prisma.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: "APPLICATION_NOTE_SAVED",
+        entityType: "Application",
+        entityId: appId,
+      }),
+    }),
+  ]);
   revalidatePath("/kandidaten");
   return { success: "Notitie opgeslagen." };
 }

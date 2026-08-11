@@ -50,7 +50,8 @@ test("ZZP'er ziet vóór reageren z'n aansluiting en welke eis ontbreekt", async
   await fp.goto(detailUrl);
   const fit = fp.locator("section", { hasText: "Jouw aansluiting" });
   await expect(fit.getByRole("heading", { name: "Jouw aansluiting" })).toBeVisible();
-  await expect(fit.getByText(/Match \d+%/)).toBeVisible();
+  // De matchscore staat als ScoreRing (aria-label "Match: NN%", percentage in de ring).
+  await expect(fit.locator('[aria-label^="Match:"]').first()).toBeVisible();
   await expect(fit.getByText("VOG")).toBeVisible();
   await expect(fit.getByText("ontbreekt")).toBeVisible();
   await expect(fit.getByRole("link", { name: "Toevoegen" })).toBeVisible();

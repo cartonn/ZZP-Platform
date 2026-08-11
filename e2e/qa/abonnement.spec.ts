@@ -31,8 +31,11 @@ test.describe("QA: Abonnementstiers", () => {
   test("opdrachtgever ziet rolspecifieke tiers (Zakelijk / Inhuurdesk)", async ({ page }) => {
     await login(page, "opdrachtgever@zzp-platform.local");
     await page.goto("/abonnement");
-    await expect(page.getByText("Zakelijk", { exact: true })).toBeVisible();
-    await expect(page.getByText("Inhuurdesk", { exact: true })).toBeVisible();
+    // Scope naar de hoofdinhoud: "Zakelijk" staat ook als sectiekop in de zijbalk-nav.
+    await expect(page.locator("#hoofdinhoud").getByText("Zakelijk", { exact: true })).toBeVisible();
+    await expect(
+      page.locator("#hoofdinhoud").getByText("Inhuurdesk", { exact: true }),
+    ).toBeVisible();
     await shot(page, "abonnement-client");
   });
 });

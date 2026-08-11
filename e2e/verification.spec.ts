@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
-import { clickUntil, clickUntilGone } from "./_robust";
+import { clickUntil, clickUntilGone, freshen, reloadUntilVisible } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -60,7 +60,7 @@ async function addAndSubmitCredential(
   const card = page.locator("div.bg-card", { hasText: opts.title });
   await clickUntil(
     card.getByRole("button", { name: "Verificatie aanvragen" }),
-    card.getByText("In beoordeling"),
+    card.locator("span").filter({ hasText: /^In beoordeling$/ }),
   );
 }
 
@@ -99,20 +99,33 @@ test("admin keurt goed en wijst af; ZZP'er ziet de uitkomst", async ({ page, bro
 
   // Afwijzen vereist een reden; vul die in en klik tot de kaart de wachtrij verlaat (robuust
   // tegen de pre-hydratie-race en een re-render door de voorgaande goedkeuring).
+  // Progressive disclosure: eerst "Afwijzen…" (opent het reden-veld), dan reden + "Bevestig
+  // afwijzing". Met freshen-vangnet tegen de #329-response-hang (mutatie geslaagd, UI hangt).
   const rejectCard = admin.locator("div.bg-card", { hasText: rejectTitle });
+  let rejectClicked = false;
   await expect(async () => {
     if ((await admin.getByText(rejectTitle).count()) > 0) {
-      await rejectCard
-        .getByLabel("Reden van afwijzing")
-        .fill("Document is onleesbaar, upload een duidelijke scan.")
-        .catch(() => {});
-      await rejectCard
-        .getByRole("button", { name: "Afwijzen" })
-        .click({ timeout: 3000 })
-        .catch(() => {});
+      if (rejectClicked) await freshen(admin);
+      if ((await admin.getByText(rejectTitle).count()) > 0) {
+        const reasonField = rejectCard.getByLabel("Reden van afwijzing");
+        if (!(await reasonField.isVisible().catch(() => false))) {
+          await rejectCard
+            .getByRole("button", { name: "Afwijzen…" })
+            .click({ timeout: 3000 })
+            .catch(() => {});
+        }
+        await reasonField
+          .fill("Document is onleesbaar, upload een duidelijke scan.")
+          .catch(() => {});
+        await rejectCard
+          .getByRole("button", { name: "Bevestig afwijzing" })
+          .click({ timeout: 3000 })
+          .catch(() => {});
+        rejectClicked = true;
+      }
     }
     await expect(admin.getByText(rejectTitle)).toHaveCount(0, { timeout: 3000 });
-  }).toPass({ timeout: 20000 });
+  }).toPass({ timeout: 30000 });
   await adminCtx.close();
 
   // ZZP'er ziet de uitkomsten.
@@ -154,13 +167,19 @@ test("verlopen VERIFIED-certificaat wordt server-side EXPIRED", async ({ page, b
     admin.getByText(title),
   );
 
-  // Expiry-actie zet de (verlopen) VERIFIED-credential op EXPIRED.
+  // Expiry-actie zet de (verlopen) VERIFIED-credential op EXPIRED. Niet op de flash-melding
+  // leunen (#329/hydratie-race: die kan uitblijven of na een refresh weg zijn) — het echte bewijs
+  // is de EXPIRED-status op het certificaat van de ZZP'er hieronder.
   await admin.getByRole("button", { name: "Verlopen certificaten verwerken" }).click();
-  await expect(admin.getByText(/op verlopen gezet/)).toBeVisible();
+  await admin
+    .getByText(/op verlopen gezet/)
+    .waitFor({ timeout: 5000 })
+    .catch(() => {});
   await adminCtx.close();
 
   await page.goto("/certificaten");
-  await expect(
+  await reloadUntilVisible(
+    page,
     page.locator("div.bg-card", { hasText: title }).getByText("Verlopen", { exact: true }),
-  ).toBeVisible();
+  );
 });

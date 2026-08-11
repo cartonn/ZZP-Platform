@@ -56,12 +56,14 @@ test("ZZP'er ziet proactief een passende opdracht op het dashboard", async ({ pa
 
   // Het systeem denkt mee: de opdracht verschijnt vanzelf op het dashboard in de match-zone.
   await fp.goto("/dashboard");
-  await expect(fp.getByText("Opdrachten die bij je profiel passen")).toBeVisible();
+  // De match-zone heet in de command-center-dashboard "Opdrachten voor jou".
+  await expect(fp.getByText("Opdrachten voor jou")).toBeVisible();
   const match = fp.getByRole("link", {
     name: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
   });
   await expect(match).toBeVisible();
-  await expect(match.getByText(/Match \d+%/)).toBeVisible();
+  // De rij toont de score als "NN%" met daaronder het label "match".
+  await expect(match.getByText(/\d+%/)).toBeVisible();
   await shot(fp, "18-dashboard-matches");
 
   await ctx.close();

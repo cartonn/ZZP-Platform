@@ -48,7 +48,7 @@ test("admin importeert ZZP'er + opdrachtgever via CSV en ziet controle-overzicht
   // Controle-overzicht: twee aanmaken, één fout (samenvattingschips als badges).
   await expect(page.getByText("3 rijen")).toBeVisible();
   await expect(page.locator("span", { hasText: /^2 aanmaken$/ })).toBeVisible();
-  await expect(page.locator("span", { hasText: /^1 fout\(en\)$/ })).toBeVisible();
+  await expect(page.locator("span", { hasText: /^1 fout$/ })).toBeVisible();
   await expect(page.getByText(freelancerEmail)).toBeVisible();
   await shot(page, "20-import-preview");
 
@@ -109,6 +109,7 @@ test("import weigert een niet-CSV-bestand", async ({ page }) => {
     mimeType: "text/plain",
     buffer: Buffer.from("dit is geen csv", "utf-8"),
   });
-  await page.getByRole("button", { name: /Controleer bestand/ }).click();
-  await expect(page.getByText(/Alleen .csv-bestanden/)).toBeVisible();
+  // De wizard weigert een niet-CSV al client-side: de controleknop blijft uitgeschakeld
+  // (de server-side extensie-/MIME-poort in actions.ts blijft de harde grens).
+  await expect(page.getByRole("button", { name: /Controleer bestand/ })).toBeDisabled();
 });

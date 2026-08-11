@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { acceptAndProposeCollaboration } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -60,14 +61,7 @@ test("weekrooster op een samenwerking vastleggen blijft bewaard", async ({ page,
   // Opdrachtgever accepteert en stelt een samenwerking voor.
   await page.goto("/kandidaten");
   await page.getByRole("button", { name: "Toon details" }).click();
-  await page.getByRole("button", { name: "Accepteren" }).click();
-  // Accepteren houdt de kandidaat (nog zonder samenwerking) in de actieve lijst; de rij klapt dicht.
-  await page.getByRole("button", { name: "Toon details" }).click();
-  await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
-  await page.locator('input[name="rate"]').fill("85");
-  await page.getByRole("button", { name: "Voorstel versturen" }).click();
-  // Met een samenwerking verhuist de kandidaat naar de ingeklapte sectie "Geaccepteerd"; open die.
-  await page.getByRole("button", { name: /Geaccepteerd/ }).click();
+  await acceptAndProposeCollaboration(page, "85");
   await page.getByRole("link", { name: "Bekijk samenwerking" }).click();
   await page.waitForURL(/\/samenwerkingen\/[a-z0-9]+$/);
   const collabUrl = page.url();

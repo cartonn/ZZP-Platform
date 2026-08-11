@@ -50,6 +50,12 @@ export const COLLABORATION_TRANSITIONS: Record<
   PROPOSED: ["ACTIVE", "CANCELLED"],
   ACTIVE: ["COMPLETED", "CANCELLED"],
   COMPLETED: [],
+  // CANCELLED is hier bewust terminaal. De ENIGE uitzondering is de her-voorstel-reset in
+  // `proposeCollaboration`: een nooit-getekend, artefactloos geannuleerd voorstel mag terug naar
+  // PROPOSED — maar uitsluitend via de compound-guarded `updateMany` op
+  // `REPROPOSABLE_CANCELLED_WHERE` (src/lib/collaboration-reproposal.ts, de enige bron van waarheid
+  // voor die voorwaarden). Voeg CANCELLED→PROPOSED dus NIET aan deze map toe: dat zou de overgang
+  // ook openzetten voor paden zónder die guard. Vangrail-test: collaborations.test.ts.
   CANCELLED: [],
 };
 

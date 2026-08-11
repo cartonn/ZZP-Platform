@@ -36,7 +36,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Progress } from "@/components/ui/progress";
-import { changeCollaborationStatus, signContractFromList } from "./actions";
+import { changeCollaborationStatus, signContractFromList } from "../actions";
 import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Samenwerkingen · Handslag" };

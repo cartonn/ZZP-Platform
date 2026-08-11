@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
-import { LeadComposer } from "./lead-composer";
+import { LeadComposer } from "../lead-composer";
 
 export const metadata: Metadata = { title: "Leads · Bemiddeling" };
 

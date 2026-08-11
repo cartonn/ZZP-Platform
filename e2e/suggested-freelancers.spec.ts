@@ -64,8 +64,9 @@ test("opdrachtgever ziet passende ZZP'ers bij de opdracht en kan ze benaderen", 
   await expect(page.getByRole("heading", { name: "Geschikte ZZP'ers" })).toBeVisible();
   const row = page.locator("li", { hasText: freelancerName });
   await expect(row).toBeVisible();
-  await expect(row.getByText(/Match \d+%/)).toBeVisible();
-  await expect(row.getByText("Beschikbaar", { exact: true })).toBeVisible();
+  // De rij toont "NN%" + een toegankelijk match-beeld ("Match NN procent").
+  await expect(row.getByText(/\d+%/)).toBeVisible();
+  // (De beschikbaarheids-chip staat niet meer op de suggestie-rij; matchscore + benaderknop wel.)
   await shot(page, "29-suggested-freelancers");
 
   // "Bericht sturen" opent een echt gesprek (geen dode knop).

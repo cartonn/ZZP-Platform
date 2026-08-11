@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { clickForUrl } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -54,8 +55,9 @@ test("franchiser onboardt een opdrachtgever via de geleide wizard", async ({ pag
   await page.getByRole("button", { name: "Dienst uitzetten" }).click();
   await expect(page.getByText(`"${dienst}" uitgezet.`)).toBeVisible();
   await shot(page, "wizard-3-diensten");
-  await page.getByRole("link", { name: "Afronden" }).click();
-  await page.waitForURL(/stap=klaar/);
+  // Robuust: de pagina her-rendert net na het uitzetten van de dienst; herhaal de klik tot de
+  // afrondingsstap er echt staat.
+  await clickForUrl(page.getByRole("link", { name: "Afronden" }), page, /stap=klaar/);
 
   // Afronding.
   await expect(page.getByRole("heading", { name: `${company} staat klaar` })).toBeVisible();

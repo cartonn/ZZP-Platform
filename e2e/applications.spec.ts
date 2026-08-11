@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { clickUntilGone } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -92,10 +93,18 @@ test("ZZP'er reageert en opdrachtgever beheert de kandidaat", async ({ page, bro
   await expect(page.getByText("Voldoet niet")).toBeVisible(); // geen VOG -> non-compliant (in de compacte kop)
   // Compacte triage: de kandidaat is eerst een rij; klap hem uit om de acties te tonen.
   await page.getByRole("button", { name: "Toon details" }).click();
-  await page.getByRole("button", { name: "Shortlist" }).click();
-  // Na de statuswijziging herlaadt de pagina en klapt de rij weer dicht; de statusbadge staat in de kop.
-  await expect(page.getByText("Shortlist")).toBeVisible();
-  await page.getByRole("button", { name: "Toon details" }).click();
+  // Na de statuswijziging herlaadt de pagina en klapt de rij dicht (de actieknop verdwijnt).
+  // Robuust tegen de #329-response-hang; "Shortlist" als tekst is ambigu (filter-pill/option).
+  await clickUntilGone(
+    page.getByRole("button", { name: "Shortlist" }),
+    page.getByRole("button", { name: "Shortlist" }),
+  );
+  // De rij kan na de statuswijziging open blijven staan (dan is er geen "Toon details" meer);
+  // alleen uitklappen als hij dicht is.
+  const noteField = page.locator('textarea[name="note"]');
+  if (!(await noteField.isVisible().catch(() => false))) {
+    await page.getByRole("button", { name: "Toon details" }).click();
+  }
   await page.fill('textarea[name="note"]', "Sterke kandidaat, uitnodigen voor gesprek.");
   await page.getByRole("button", { name: "Notitie opslaan" }).click();
   await expect(page.locator('textarea[name="note"]')).toHaveValue(

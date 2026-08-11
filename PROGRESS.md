@@ -367,6 +367,55 @@ heartbeat faalt nooit naar buiten; geen nieuw auth-/mutatie-oppervlak.
 (`recordCronHeartbeat` neemt namen; `getCronFreshness` leest ze), `src/app/api/tasks/run-all/route.ts`
 (geeft `Object.keys(errors)` mee). MENSENWERK §10 + CURRENT_TASK bijgewerkt. Gate: typecheck, lint, test,
 build, prettier groen.
+## Livegang-gereedheidssessie 2026-08-10 (lokaal, basis: `main` @ 5ec16e60 / PR #1040)
+
+**Volledige lokale gate + e2e-restauratie + security-fixes. Alles groen; niets gepusht (expliciete
+sessie-opdracht: alleen lokaal).** Werkboom bevat de wijzigingen, klaar voor branch+PR.
+
+**Gate-bewijs:** typecheck ✓ · lint ✓ · **5641 unit-tests** ✓ · build ✓ · prettier ✓ · check:env ✓
+· validate:ci ✓ · scan:secrets ✓ · `npm audit --omit=dev` = **0**. **E2e: volledige suite (±145
+tests, root + qa) groen** tegen een productie-server (`npm run start`, verse e2e.db, CI-env), incl.
+de sinds 15-6 **gequarantaineerde lifecycle-cascade (nu end-to-end groen: opdracht → sollicitatie →
+samenwerking → contract → uren → factuur → betaling → audit)**. **Postgres-smoke migratiescript**
+(`migrate-legacy-invoices.mjs`, backlog-punt 2) gedraaid op Postgres 16: dry-run → live (2 rijen) →
+idempotente rerun ✓.
+
+**Security/correctheid gefixt (code):**
+
+1. **HTTP-404-regressie op detail-routes (HOOG, CWE-203-hygiëne):** sinds de Next 15.5-upgrade
+   opende een `loading.tsx`-boundary boven élk `notFound()`-detail een Suspense-stream → HTTP 200
+   (soft-404) i.p.v. 404 op o.a. `/opdrachten/[id]`, `/facturen/[id]`, `/berichten/[id]`,
+   `/samenwerkingen/[id]`, `/support/[id]`, `/academie/[course]`, `/franchise/{zzpers,leads,
+opdrachtgevers}/[id]`, `/admin/gebruikersbeheer/[id]` (toegang bleef correct; alleen de status
+   loog). Herstel van de a0013c72-beslissing: lijst-`loading.tsx` naar `(index)`-routegroepen
+   (skeleton behouden), detail-boundaries verwijderd. Geverifieerd met ingelogde curl-probes: alle
+   detail-routes weer echt 404.
+2. **Same-day-dedup races (LAAG, uit SECURITY-PRIVACY-BACKLOG):** `reportNoShow` en
+   `sendCredentialReminder` nu Serializable + begrensde P2034-retry (spiegel
+   `applications-create.ts`); no-show create+notificatie+audit atomair in één transactie. +8 tests.
+3. **`saveApplicationNote` audit atomair** + **CANCELLED→PROPOSED-vangrail** (comment + test op de
+   canonieke overgangsmap). Backlog-items in situ bijgewerkt.
+4. **`scripts/validate-workflows.mjs`** gemoderniseerd (checkte een dode routine-branch; valideert
+   nu de main-flow van auto-build.yml).
+
+**E2e-suite gerestaureerd (23 specbestanden bijgewerkt):** de niet-CI-gepoorte specs (alles behalve
+smoke+cascade in `ci.yml` en `e2e/qa/` in de post-merge-loop) waren over 378 commits verrot. Klassen:
+(a) DateInput tekst-eerst #660 — `name` op hidden ISO-veld, fills via label/dd-mm-jjjj; (b) issue
+#329 response-hang — kale `.click()`s vervangen door `clickUntil`/`clickUntilGone`/`freshen`
+(+ nieuwe gedeelde helper `acceptAndProposeCollaboration` in `_robust.ts`); (c) verrotte teksten
+(auditlog toont NL-labels, "Volgende acties", "Markeer als betaald", plural()-vormen, "Match NN%"→
+ScoreRing); (d) anti-oracle 403→404-verwachtingen (documenten/dossier-API — de 404 is correct);
+(e) strict-mode-ambiguïteiten en LIST_PAGE_SIZE-paginering. Lokale e2e-env gedocumenteerd in
+CONTRIBUTING.md (rate-limits, SEED_DEMO, verse db).
+
+**Nieuw:** `README.md` (root — quick start, poort, documentindex). **Omgevingsbeperkingen sessie:**
+msedge-install vergt sudo (bundled Chromium gebruikt, zoals CI); geen langlopende gedetacheerde
+processen (suite in chunks gedraaid).
+
+**Resterend extern (mensenwerk, MENSENWERK.md):** secrets (SHARE_TOKEN_SECRET, CRON_SECRET,
+RUN_ALL_TASK_URL, Upstash, Sentry, S3, SMTP, Stripe/Mollie), accounts/KYC, DUO/BIG/iDIN-onboarding,
+domein, juridisch/AVG-review (§5, blokkeert livegang met echte gevoelige documenten) en de
+FG-geparkeerde backlog-items (derden-PII bij anonimisering, kvkNumber-publicatie, retentiebeleid).
 
 ## 2026-08-10 — ZZP'er: urencriterium-voortgang op de indirecte-uren-registratiepagina
 

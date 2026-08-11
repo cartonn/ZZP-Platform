@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
-import { clickUntil } from "./_robust";
+import { clickUntil, clickUntilGone } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -51,12 +51,27 @@ test("factuur opstellen, versturen en als betaald markeren", async ({ page, brow
   // Accepteren + samenwerking voorstellen.
   await page.goto("/kandidaten");
   await page.getByRole("button", { name: "Toon details" }).click();
-  await page.getByRole("button", { name: "Accepteren" }).click();
-  // Accepteren houdt de kandidaat (nog zonder samenwerking) in de actieve lijst; de rij klapt dicht.
-  await page.getByRole("button", { name: "Toon details" }).click();
+  // Robuust tegen de #329-response-hang: klik Accepteren tot de knop weg is (status toegepast).
+  await clickUntilGone(
+    page.getByRole("button", { name: "Accepteren" }),
+    page.getByRole("button", { name: "Accepteren" }),
+  );
+  // De rij kan open blijven staan; alleen uitklappen als het voorstelformulier nog niet zichtbaar is.
+  if (
+    !(await page
+      .getByText("Samenwerking voorstellen")
+      .isVisible()
+      .catch(() => false))
+  ) {
+    await page.getByRole("button", { name: "Toon details" }).click();
+  }
   await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
   await page.locator('input[name="rate"]').fill("90");
-  await page.getByRole("button", { name: "Voorstel versturen" }).click();
+  // Robuust: herhaal/refresh tot de "Geaccepteerd"-sectie er is (zie lifecycle.spec).
+  await clickUntil(
+    page.getByRole("button", { name: "Voorstel versturen" }),
+    page.getByRole("button", { name: /Geaccepteerd/ }),
+  );
   // Met een samenwerking verhuist de kandidaat naar de ingeklapte sectie "Geaccepteerd"; open die.
   await page.getByRole("button", { name: /Geaccepteerd/ }).click();
   await expect(page.getByRole("link", { name: "Bekijk samenwerking" })).toBeVisible();
