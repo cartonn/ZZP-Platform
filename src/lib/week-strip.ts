@@ -92,3 +92,19 @@ export function buildWeekStrip(week: WeekOverview, now: Date = new Date()): Week
 
   return { days, hasAny: days.some((d) => d.entries.length > 0) };
 }
+
+/**
+ * Belasting per kalenderdag uit de strip: sleutel `YYYY-MM-DD` (UTC), waarde = aantal diensten die
+ * dag. Voor de dashboard-weekstrip-overlay (`buildCurrentWeek`), die de echte dag-belasting op de
+ * altijd-getoonde huidige week legt. Een lege/afwezige strip → lege map (elke dag valt terug op 0).
+ * Gedeeld door de ZZP'er- en opdrachtgever-tak zodat beide exact dezelfde sleutel-vorm gebruiken.
+ */
+export function weekStripLoadByDate(strip: WeekStrip | null): Map<string, number> {
+  const map = new Map<string, number>();
+  if (!strip?.hasAny) return map;
+  for (const d of strip.days) {
+    const key = `${d.date.getUTCFullYear()}-${String(d.date.getUTCMonth() + 1).padStart(2, "0")}-${String(d.date.getUTCDate()).padStart(2, "0")}`;
+    map.set(key, d.entries.length);
+  }
+  return map;
+}

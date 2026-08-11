@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — dashboard-weekstrip toont echte dienst-belasting (2026-08-11, PR #1049)** —
+> de "Deze week"-strip op het opdrachtgever-dashboard was decoratief: `buildCurrentWeek(...)` kreeg `undefined` als dag-belasting → elke
+> dagbalk 0, altijd een lege week, en de telling toonde `activeCount` (totaal actieve samenwerkingen) i.p.v. de diensten die déze week lopen —
+> een misleidend getal boven een lege strip. De ZZP'er-tak bouwt die strip al echt op (`weekOverview` + `buildWeekStrip` uit `weekdays`/
+> `startDate`/`endDate`, met per-dag-belasting); de opdrachtgever — die vaak meerdere ZZP'ers tegelijk inzet — kreeg dit niet, terwijl het
+> dashboard zijn primaire dagelijkse blik is. Nu bouwt de client-tak een echte `weekOverview` (label per dienst = de ZZP'er op locatie),
+> gegate op `runningZonePlan(...).showWeek` (2–6 lopend, exact als de ZZP'er — een afgekapte set zou de telling laten liegen); de render
+> overlayt de echte per-dag-belasting en toont het aantal diensten déze week (buiten het venster: lege strip + "0 diensten" i.p.v. het oude
+> misleidende totaal). Nieuwe pure `weekStripLoadByDate` in `week-strip.ts` (dedupliceert de inline-loop uit de ZZP'er-tak) + 2 tests; client
+> select uitgebreid met `startDate`/`endDate`/`rate`/`weekdays` + `freelancer.id`. Server-side waarheid, read-only, geen schemawijziging, geen
+> nieuw mutatie/auth-oppervlak. Gate: typecheck, lint, test (5706), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er — verwachte betaaldatum (op betaalgedrag) op /openstaand (2026-08-11, PR #1046)** —
 > de openstaande-postenpagina (`/openstaand`) — de "wie is mij geld schuldig"-hoofdpagina van de ZZP'er — toonde de betaal-timing per
 > post op de **contractuele vervaldatum** ("verwacht rond {dueAt}") en telde de "Binnenkomend deze week"-tegel op diezelfde vervaldag.

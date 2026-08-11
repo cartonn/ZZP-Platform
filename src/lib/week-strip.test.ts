@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildWeekStrip } from "./week-strip";
+import { buildWeekStrip, weekStripLoadByDate } from "./week-strip";
 import { type WeekCollaborationEntry, type WeekOverview } from "./week-overview";
 
 // ISO-week maandag 2026-06-08 (ma) t/m zondag 2026-06-14 (zo), alles in UTC.
@@ -98,5 +98,30 @@ describe("buildWeekStrip", () => {
       WEEK_START,
     );
     expect(strip.days[0]!.entries.map((e) => e.collaborationId)).toEqual(["a", "b"]);
+  });
+});
+
+describe("weekStripLoadByDate", () => {
+  it("returns an empty map for a null or empty strip", () => {
+    expect(weekStripLoadByDate(null).size).toBe(0);
+    expect(weekStripLoadByDate(buildWeekStrip(overview([]), WEEK_START)).size).toBe(0);
+  });
+
+  it("keys each active day as YYYY-MM-DD (UTC) with the number of diensten that day", () => {
+    const strip = buildWeekStrip(
+      overview([
+        entry({ collaborationId: "a", clientId: "x", weekdays: ["MON", "WED"] }),
+        entry({ collaborationId: "b", clientId: "y", weekdays: ["MON"] }),
+      ]),
+      WEEK_START,
+    );
+    const load = weekStripLoadByDate(strip);
+    // Maandag 2026-06-08: twee diensten; woensdag 2026-06-10: één; overige dagen 0 (elke dag krijgt
+    // een sleutel zodat de overlay geen dag mist — inactieve dagen staan expliciet op 0).
+    expect(load.get("2026-06-08")).toBe(2);
+    expect(load.get("2026-06-10")).toBe(1);
+    expect(load.get("2026-06-09")).toBe(0);
+    expect(load.size).toBe(7);
+    expect([...load.values()].reduce((a, b) => a + b, 0)).toBe(3);
   });
 });
