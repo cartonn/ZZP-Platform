@@ -56,6 +56,9 @@ vi.mock("@/lib/signals", () => ({
     new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())),
 }));
 
+vi.mock("@/lib/data/income-tax-deadline", () => ({
+  getIncomeTaxDeadlineForActor: vi.fn(async () => null),
+}));
 vi.mock("@/lib/data/vat-deadline", () => ({
   getVatDeadlinesForActor: vi.fn(async () => []),
 }));

@@ -65,6 +65,9 @@ vi.mock("@/lib/signals", () => ({
   paymentDueSoonCount: vi.fn(async () => 0),
 }));
 
+vi.mock("@/lib/data/income-tax-deadline", () => ({
+  getIncomeTaxDeadlineForActor: vi.fn(async () => null),
+}));
 vi.mock("@/lib/data/vat-deadline", () => ({
   getVatDeadlinesForActor: vi.fn(async () => []),
 }));

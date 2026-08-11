@@ -31,6 +31,9 @@ vi.mock("@/lib/signals", () => ({
   overdueInvoiceBreakdown: vi.fn(async () => ({ legacy: 0, cascade: 0 })),
   paymentDueSoonCount: vi.fn(async () => 0),
 }));
+vi.mock("@/lib/data/income-tax-deadline", () => ({
+  getIncomeTaxDeadlineForActor: vi.fn(async () => null),
+}));
 vi.mock("@/lib/data/vat-deadline", () => ({ getVatDeadlinesForActor: vi.fn(async () => []) }));
 vi.mock("@/lib/collaboration-alerts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/collaboration-alerts")>();

@@ -14,6 +14,7 @@ import { type CredentialType } from "@/lib/enums";
 import { type CredentialAlert } from "@/lib/collaboration-alerts";
 import { type CollaborationRenewalPhase } from "@/lib/collaboration-renewal";
 import { type VatDeadlineSummary } from "@/lib/administration/vat-deadline";
+import { type IncomeTaxDeadlineSummary } from "@/lib/administration/income-tax-deadline";
 import { type StaleApplicationsSummary } from "@/lib/stale-applications";
 import { type FirstLookOverdueSummary } from "@/lib/client-first-look";
 import { INVITATION_AGING_DAYS, invitationAgeLabel } from "@/lib/received-invitations";
@@ -87,6 +88,7 @@ export type PendingTask =
   | (TaskBase & { kind: "client-overdue-payment"; invId: string; collabId: string })
   | (TaskBase & { kind: "payment-due-soon" })
   | (TaskBase & { kind: "vat-deadline"; year: number; quarter: number })
+  | (TaskBase & { kind: "income-tax-deadline"; taxYear: number })
   | (TaskBase & { kind: "client-compliance"; collabId: string })
   | (TaskBase & { kind: "review-leave"; collabId: string })
   | (TaskBase & { kind: "collaboration-renewal"; collabId: string; role: "FREELANCER" | "CLIENT" })
@@ -1096,6 +1098,39 @@ export function vatDeadlineTask(summary: VatDeadlineSummary): PendingTask {
     href: "/administratie",
     year: summary.year,
     quarter: summary.quarter,
+  };
+}
+
+const INCOME_TAX_DEADLINE_DATE = new Intl.DateTimeFormat("nl-NL", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+/**
+ * Aangifte-inkomstenbelasting-deadline als taak: de aangifte over het net-afgesloten belastingjaar moet
+ * uiterlijk 1 mei worden ingediend. Verschijnt alléén wanneer die deadline nadert (binnen
+ * `INCOME_TAX_DEADLINE_SOON_DAYS`; zie `incomeTaxDeadlineNeedsAction`) — jaarrond zou het ruis zijn.
+ * Bewust forward-looking (nooit "te laat"): het systeem kent geen "ingediend"-vlag (aangifte gebeurt
+ * buiten het platform via DigiD/fiscaal dienstverlener). Deep-link naar het aangifte-scherm, waar de
+ * IB-schatting en het startpunt staan. Geen fiscaal advies.
+ */
+export function incomeTaxDeadlineTask(summary: IncomeTaxDeadlineSummary): PendingTask {
+  const timing =
+    summary.daysUntil <= 0
+      ? `uiterlijk vandaag (${INCOME_TAX_DEADLINE_DATE.format(summary.deadline)})`
+      : `voor ${INCOME_TAX_DEADLINE_DATE.format(summary.deadline)} · nog ${plural(summary.daysUntil, "dag", "dagen")}`;
+  return {
+    kind: "income-tax-deadline",
+    id: `income-tax-deadline:${summary.taxYear}`,
+    title: `Aangifte inkomstenbelasting ${summary.taxYear}`,
+    subtitle: `${timing} · je jaaroverzicht staat klaar`,
+    tone: "attention",
+    priority: P.incomeTaxDeadlineDueSoon,
+    resolver: "link", // aangifte doe je bij de Belastingdienst; hier de cijfers + het startpunt
+    href: "/ontzorgd/aangifte",
+    taxYear: summary.taxYear,
   };
 }
 

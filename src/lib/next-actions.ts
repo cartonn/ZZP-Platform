@@ -67,6 +67,7 @@ export const P = {
   paymentDueSoon: 56, // factuur vervalt binnenkort — betaal op tijd (opdrachtgever, pre-due; onder de al-verstreken roll-up)
   conceptInvoiceAging: 59, // eigen concept-factuur blijft ≥ UNBILLED_AGING_DAYS (7) liggen — de ZZP'er zit op zijn eigen, nog-niet-verzonden geld voorbij het herinner-/escalatievenster. Boven een verse concept (messagesAwaiting 55) en de pre-due nudges (paymentDueSoon 56 / vatDeadlineDueSoon 58), maar onder een reeds-verstreken factuur (overdueInvoice 60) en een afgekeurde factuur (62 = credentialExpiring-8). Deelt de waarde met de rol-geïsoleerde clientCascadeOverduePayment (59); ze worden nooit samen gerangschikt.
   vatDeadlineDueSoon: 58, // BTW-aangifte-deadline nadert (binnen 14 dagen) — pre-due signaal (nog geen boeterisico; dat is vatDeadlineOverdue 74), dus onder een reeds-verstreken cascade-betaling
+  incomeTaxDeadlineDueSoon: 57, // jaarlijkse aangifte-inkomstenbelasting-deadline nadert (binnen INCOME_TAX_DEADLINE_SOON_DAYS 30) — pre-due signaal (forward-looking; nooit "te laat"). Onder de kwartaal-BTW-deadline (vatDeadlineDueSoon 58: nabijere cadans, concreet af te dragen saldo), boven een enkele naderende factuurbetaling (paymentDueSoon 56: een jaarlijkse fiscale aangifteplicht weegt zwaarder dan één binnenkomende betaling)
   pendingUsers: 60, // gebruikers met PENDING-status (admin)
   credentialExpiryBatch: 58, // verlopen/verlopende certificaten — draai de expiry-check (admin)
   messagesAwaiting: 55, // berichten van de andere partij wachten op antwoord

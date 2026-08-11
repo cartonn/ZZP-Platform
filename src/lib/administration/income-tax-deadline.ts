@@ -74,6 +74,17 @@ export function summarizeIncomeTaxDeadline(now: Date): IncomeTaxDeadlineSummary 
 }
 
 /**
+ * Verdient de IB-deadline een next-action-nudge? Alléén wanneer hij binnen het "binnenkort"-venster
+ * (`INCOME_TAX_DEADLINE_SOON_DAYS`) valt. Buiten dat venster leeft het signaal alleen in de agenda-feed
+ * en het ontzorg-overzicht — een jaarrond IB-nudge op /acties zou puur ruis zijn. Anders dan bij de BTW
+ * is er geen "verstreken"-status (forward-looking; zie `summarizeIncomeTaxDeadline`), dus dit is de enige
+ * gate. Puur — spiegelt `vatDeadlineNeedsAction`.
+ */
+export function incomeTaxDeadlineNeedsAction(summary: IncomeTaxDeadlineSummary): boolean {
+  return summary.status === "due-soon";
+}
+
+/**
  * Kalendergrens (lokale tijd) van een belastingjaar, zodat een query op `occurredAt` tot precies dat
  * jaar beperkt kan worden. `end` is exclusief (1 januari van het volgende jaar). Bewust lokale tijd —
  * spiegelt de filtering in `annualSummary`/`revenueCents` (`getFullYear`), zodat een op dit venster
