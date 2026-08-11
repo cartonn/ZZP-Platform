@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-11 — ZZP'er: wettelijke handelsrente + incassokosten (WIK-staffel) op de aanmaning
+
+**Wat:** De aanmaning (betalingsherinnering) op een te late factuur (`/facturen/[id]`) toonde alleen de
+kale hoofdsom — terwijl een ZZP'er bij een verlopen **B2B**-factuur wettelijk óók de **wettelijke
+handelsrente** (art. 6:119a BW) en de **buitengerechtelijke incassokosten** (WIK-staffel, Besluit BIK)
+mag claimen. Boekhoudtools als Moneybird/e-Boekhouden rekenen dit standaard voor; ons platform liet dit
+geld op tafel liggen. Nu berekent de aanmaning beide bedragen en toont ze zowel in een compacte
+"Wat u wettelijk mag claimen"-kaart als in een verzuim-alinea in de brieftekst.
+
+- **Nieuw pure module** `src/lib/collection-costs.ts` (+ 15 tests): `calculateCollectionCostsCents`
+  (WIK-staffel 15/10/5/1/0,5% per schijf, min € 40, max € 6.775), `calculateStatutoryInterestCents`
+  (enkelvoudige handelsrente dagen/365, loopt pas ná de vervaldag), `summarizeOverdueCharges` (combineert
+  rente + kosten + totaal). Bewust indicatief — de handelsrente (`WETTELIJKE_HANDELSRENTE_BPS`, richtwaarde)
+  wijzigt per halfjaar; de UI/brief labelt dit expliciet en vraagt de actuele rente te controleren.
+- **`src/lib/aanmaning.ts`** (+ 4 tests): `AanmaningData` uitgebreid met `hasCharges`/`interestFormatted`/
+  `collectionCostsFormatted`/`totalWithChargesFormatted`/`interestRatePctFormatted`; de brief krijgt een
+  verzuim-alinea alleen bij een verlopen factuur. `interestRateBps` optioneel invoerbaar (default = wettelijk).
+- **`aanmaning-section.tsx`**: read-only claim-breakdown-kaart (rente / incassokosten / totaal) met
+  indicatie-disclaimer, alleen zichtbaar als er iets te claimen valt.
+
+**Eigenschappen:** puur/deterministisch, server-side berekend, geen geldstroom (het platform int niet —
+Besluit 1), geen schemawijziging, geen nieuw mutatie-/auth-oppervlak, robuust bij ontbrekende vervaldag /
+ongeldige hoofdsom (→ € 0). Gate: typecheck, lint, test (5726), build, prettier groen.
+
 ## 2026-08-11 — persona-sweep: `cancelInvoice` dispuut-bevriezing (HIGH) + bulk-triage id-plafond (CWE-400)
 
 **Wat:** Kritische-gebruiker-sweep over de 4 rollen met 4 parallelle Opus-audits (authz/IDOR/tenant →
