@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Bemiddelaar — vervolgsignaal bij een aflopende plaatsing op /acties (2026-08-11, PR #1052)** —
+> de opdrachtgever (`clientTasks`) én de ZZP'er (`freelancerTasks`) kregen allebei al een `collaboration-renewal` next-action zodra een
+> lopende samenwerking haar einddatum nadert/passeert (`renewalTasks`, op /acties + badge + rail). De bemiddelaar — die de plaatsing
+> brokerde en er de fee op verdient — kreeg niets: `franchiserTasks` riep `renewalTasks` nooit aan en er was geen franchise-renewal-taak.
+> Een aflopende plaatsing is juist zijn hoogste-leverage-moment (verlengen, opdrachtgever behouden, geen onverwacht bezettingsgat). Nu emit
+> de item-engine het vervolgsignaal ook voor de FRANCHISER: tenant-gescoopte `collaboration.findMany` (via `job.tenantId`, `status ACTIVE`,
+> `disputedAt null`, `endDate` binnen het venster) → hergebruikt de al-geteste pure `summarizeCollaborationRenewal` → nieuwe pure builder
+> `franchiseCollaborationRenewalTask` (kind `franchise-collaboration-renewal`, toont beide partijen, deep-link
+> `/franchise/samenwerkingen?status=ACTIVE` — er is geen bemiddelaar-detailpagina per inzet). Prioriteit `franchiserCollaborationRenewal: 62`
+> (onder de open-dienst-taken, boven een koude lead). Dezelfde pure fase-classificatie als de twee partij-taken → geen drift over de drie
+> oppervlakken. Server-side waarheid, read-only signaal, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +10 tests. Gate: typecheck,
+> lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — dashboard-weekstrip toont echte dienst-belasting (2026-08-11, PR #1049)** —
 > de "Deze week"-strip op het opdrachtgever-dashboard was decoratief: `buildCurrentWeek(...)` kreeg `undefined` als dag-belasting → elke
 > dagbalk 0, altijd een lege week, en de telling toonde `activeCount` (totaal actieve samenwerkingen) i.p.v. de diensten die déze week lopen —

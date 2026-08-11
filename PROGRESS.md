@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-11 — Bemiddelaar: vervolgsignaal bij een aflopende plaatsing op /acties
+
+**Wat:** De opdrachtgever én de ZZP'er kregen allebei al een `collaboration-renewal` next-action zodra
+een lopende samenwerking haar einddatum nadert of passeert (`renewalTasks` in `pending-tasks.ts` → op
+/acties, de zijbalk-badge en de dashboard-rail). De **bemiddelaar** — de partij die de plaatsing brokerde
+en er de fee op verdient — kreeg niets: `franchiserTasks` riep `renewalTasks` nooit aan. Een aflopende
+plaatsing is juist zijn hoogste-leverage-moment (verlengen, opdrachtgever behouden, geen onverwacht
+bezettingsgat). Nu emit de item-engine het vervolgsignaal ook voor de FRANCHISER.
+
+- **`src/lib/actions/pending-tasks.ts`** (`franchiserTasks`): tenant-gescoopte `collaboration.findMany`
+  (via `job.tenantId`, `status ACTIVE`, `disputedAt null`, `endDate` binnen het venster) → hergebruikt de
+  al-geteste pure `summarizeCollaborationRenewal` → `franchiseCollaborationRenewalTask`.
+- **`src/lib/actions/tasks.ts`**: nieuwe pure builder `franchiseCollaborationRenewalTask` (kind
+  `franchise-collaboration-renewal`, toont beide partijen, deep-link `/franchise/samenwerkingen?status=ACTIVE`
+  — er is geen bemiddelaar-detailpagina per inzet).
+- **`src/lib/next-actions.ts`**: prioriteit `franchiserCollaborationRenewal: 62` (onder de open-dienst-taken,
+  boven een koude lead — een lopende relatie verlengen is warmer dan nieuwe acquisitie).
+- **Tests:** `franchise-collaboration-renewal-task.test.ts` (pure builder, 4) + uitgebreide
+  `pending-tasks-franchiser.test.ts` (enumeratie: tenant-scope/venster/attentie/lapsed/naam-fallback, 6).
+
+**Eigenschappen:** deterministisch, server-side waarheid, read-only signaal, geen schemawijziging, geen
+nieuw mutatie-/auth-oppervlak; dezelfde pure fase-classificatie als de twee partij-taken (geen drift over
+de drie oppervlakken). Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-08-11 — ZZP'er: wettelijke handelsrente + incassokosten (WIK-staffel) op de aanmaning
 
 **Wat:** De aanmaning (betalingsherinnering) op een te late factuur (`/facturen/[id]`) toonde alleen de
