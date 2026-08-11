@@ -63,6 +63,26 @@ export function ideaStatusRequiresReason(to: IdeaStatus): boolean {
   return to === "DECLINED";
 }
 
+/**
+ * Titel van de notificatie die de indiener + stemmers ontvangen bij een idee-statuswijziging. Bevat
+ * de door de indiener geschreven idee-titel (vrije tekst) — een PII-risico dat het platform op de
+ * `Idea`-rij zelf ook al bij erasure redact. Deze notificatiekopie belandt óók op de feed van ándere
+ * gebruikers (stemmers), dus bij een AVG-verwijdering (art. 17) van de indiener moet die kopie mee
+ * geredact worden. Eén bron van waarheid zodat de erasure-scrub (`anonymizeUser`) het exacte
+ * string-patroon deterministisch kan reconstrueren, zonder drift (spiegelt `noShowReportedNotificationBody`).
+ */
+export function ideaStatusNotificationTitle(ideaTitle: string): string {
+  return `Idee bijgewerkt: ${ideaTitle}`;
+}
+
+/**
+ * Titel van de notificatie die de indiener ontvangt bij een nieuwe reactie op zijn idee. Bevat
+ * dezelfde vrije-tekst-idee-titel; identieke erasure-overweging als {@link ideaStatusNotificationTitle}.
+ */
+export function ideaCommentNotificationTitle(ideaTitle: string): string {
+  return `Nieuwe reactie op je idee: ${ideaTitle}`;
+}
+
 export interface RankableIdea {
   id: string;
   voteCount: number;

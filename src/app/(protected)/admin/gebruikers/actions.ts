@@ -20,6 +20,7 @@ import { userStatusSchema } from "@/lib/enums";
 import { DISPUTE_ADMIN_NOTIFICATION_TITLE } from "@/lib/cascade/dispute-commands";
 import { collaborationsWithActiveDisputeOpenedBy } from "@/lib/dispute-ownership";
 import { NO_SHOW_REASON_REDACTED, noShowReportedNotificationBody } from "@/lib/no-show";
+import { ideaCommentNotificationTitle, ideaStatusNotificationTitle } from "@/lib/ideas";
 
 export async function setUserStatus(userId: string, target: string): Promise<void> {
   const actor = await requireRole("ADMIN");
@@ -231,10 +232,37 @@ export async function anonymizeUser(userId: string): Promise<void> {
   // art. 17. Verzamel daarom de eigen idee-id's, lees hun IDEA_STATUS_SET-auditregels en redact
   // alleen de `reason`-sleutel — `from`/`to` (de statusovergang, geen PII) blijven als
   // verantwoordingsspoor staan (spiegelt de per-rij scrub-mechaniek van `auditScrubOps` hierboven).
-  // unbounded-allow: AVG art. 17: alle eigen idee-id's van één betrokkene om hun status-auditregels te redacten; een take zou stilletjes PII laten staan
-  const ownIdeaIds = (
-    await prisma.idea.findMany({ where: { authorId: userId }, select: { id: true } })
-  ).map((i) => i.id);
+  // unbounded-allow: AVG art. 17: alle eigen ideeën van één betrokkene om hun status-auditregels én
+  // hun (naar ándermans feed gekopieerde) notificatietitels te redacten; een take zou stilletjes PII laten staan
+  const ownIdeas = await prisma.idea.findMany({
+    where: { authorId: userId },
+    select: { id: true, title: true },
+  });
+  const ownIdeaIds = ownIdeas.map((i) => i.id);
+  // AVG art. 17: de idee-titel (door de betrokkene geschreven vrije tekst) is verbatim in de TITEL van
+  // de IDEA_STATUS-/IDEA_COMMENT-notificaties gekopieerd — óók naar de feeds van ándere gebruikers
+  // (stemmers/reageerders, `userId != de betrokkene`). De brede `notification.updateMany({ where:
+  // { userId } })` hieronder raakt alleen de EIGEN feed van de betrokkene én enkel de body; deze
+  // titel-kopie op ándermans feed werd nergens geraakt, overleefde art. 17 en werd bovendien via
+  // `account-export.ts` (dat `Notification.title` prijsgeeft) aan die andere gebruiker getoond. Redact
+  // de exact reconstrueerde titels (gedeelde helpers → geen drift met de bron in `ideeen/actions.ts`).
+  // Gescopet op de twee idee-notificatietypes + de exacte titel-strings; een toevallige titel-collisie
+  // met het idee van een ánder wist méér PII, nooit minder (veilige kant, spiegelt de dispuut-/credit-scrub).
+  const ideaNotificationTitles = ownIdeas.flatMap((i) => [
+    ideaStatusNotificationTitle(i.title),
+    ideaCommentNotificationTitle(i.title),
+  ]);
+  const ideaTitleNotificationScrubOps = ideaNotificationTitles.length
+    ? [
+        prisma.notification.updateMany({
+          where: {
+            type: { in: ["IDEA_STATUS", "IDEA_COMMENT"] },
+            title: { in: ideaNotificationTitles },
+          },
+          data: { title: "[Verwijderd op verzoek van de gebruiker]" },
+        }),
+      ]
+    : [];
   const ideaStatusAuditScrubOps = ownIdeaIds.length
     ? // unbounded-allow: AVG art. 17: alle IDEA_STATUS_SET-auditregels van de eigen ideeën; een take zou stilletjes PII laten staan
       (
@@ -458,6 +486,9 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // (`account-export.ts`) en moet daarom óók erasbaar zijn — mee wissen (art. 17). De tweede kopie
     // in de IDEA_STATUS_SET-auditmetadata wordt via `ideaStatusAuditScrubOps` hierboven geredact.
     ...ideaStatusAuditScrubOps,
+    // De idee-titel is óók naar de notificatietitels op ándermans feed gekopieerd (stemmers/reageerders);
+    // die kopie wist de brede notification-scrub niet. Zie de opbouw van `ideaTitleNotificationScrubOps`.
+    ...ideaTitleNotificationScrubOps,
     prisma.idea.updateMany({
       where: { authorId: userId },
       data: {

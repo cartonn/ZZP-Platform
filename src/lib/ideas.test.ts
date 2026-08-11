@@ -4,6 +4,8 @@ import {
   sortIdeas,
   parseIdeaSort,
   ideaStatusRequiresReason,
+  ideaStatusNotificationTitle,
+  ideaCommentNotificationTitle,
   isIdeaAudience,
   isIdeaTheme,
   IDEA_STATUS_LABEL,
@@ -128,6 +130,17 @@ describe("ideaStatusRequiresReason", () => {
     expect(ideaStatusRequiresReason("DONE")).toBe(false);
     expect(ideaStatusRequiresReason("PLANNED")).toBe(false);
     expect(ideaStatusRequiresReason("OPEN")).toBe(false);
+  });
+});
+
+describe("idee-notificatietitels (gedeelde bron voor fanout + AVG-erasure-scrub)", () => {
+  it("bouwt de statuswijziging-titel deterministisch uit de idee-titel", () => {
+    expect(ideaStatusNotificationTitle("Betere planning")).toBe("Idee bijgewerkt: Betere planning");
+  });
+  it("bouwt de reactie-titel deterministisch uit de idee-titel", () => {
+    expect(ideaCommentNotificationTitle("Betere planning")).toBe(
+      "Nieuwe reactie op je idee: Betere planning",
+    );
   });
 });
 

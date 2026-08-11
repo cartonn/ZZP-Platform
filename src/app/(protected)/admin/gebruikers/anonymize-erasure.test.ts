@@ -110,8 +110,12 @@ vi.mock("@/lib/db", () => ({
     },
     idea: {
       // Eén idee van de betrokkene met een door een beheerder getypte afwijsreden (declineReason).
-      // De id's worden vóór de transactie verzameld om de IDEA_STATUS_SET-auditregels te redacten.
-      findMany: vi.fn(async () => [{ id: "idea-1" }]),
+      // De id's + titels worden vóór de transactie verzameld om zowel de IDEA_STATUS_SET-auditregels
+      // als de (naar ándermans feed gekopieerde) notificatietitels te redacten. De titel bevat de
+      // persoonsnaam van de betrokkene → PII die art. 17 moet wissen, óók in de notificatiekopie.
+      findMany: vi.fn(async () => [
+        { id: "idea-1", title: "Idee van Jan de Vries voor betere planning" },
+      ]),
       updateMany: op("idea.updateMany"),
     },
     collaboration: { updateMany: op("collaboration.updateMany") },
@@ -224,6 +228,7 @@ vi.mock("@/lib/db", () => ({
 import { anonymizeUser } from "./actions";
 import { prisma } from "@/lib/db";
 import { noShowReportedNotificationBody } from "@/lib/no-show";
+import { ideaCommentNotificationTitle, ideaStatusNotificationTitle } from "@/lib/ideas";
 
 const find = (model: string) => tx.ops.find((o) => o.model === model);
 const findAll = (model: string) => tx.ops.filter((o) => o.model === model);
@@ -408,6 +413,33 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(updates.some((u) => u.args.where.id === "idea-audit-planned")).toBe(false);
   });
 
+  it("redact de idee-titel óók uit de IDEA_STATUS-/IDEA_COMMENT-notificatietitels op ándermans feed (AVG art. 17, MIDDEL)", async () => {
+    await anonymizeUser("user-42");
+    // De idee-titel (vrije tekst van de betrokkene, bevat hier zijn persoonsnaam) is verbatim in de
+    // TITEL van de fanout-notificaties gekopieerd — óók naar stemmers/reageerders (`userId != de
+    // betrokkene`). De brede notification.updateMany({ where: { userId } }) raakt alleen de EIGEN feed
+    // én enkel de body; deze titel-kopie op ándermans feed overleefde art. 17 en werd via
+    // account-export.ts (dat Notification.title prijsgeeft) aan die andere gebruiker getoond. Vóór de
+    // fix bestaat er geen op de idee-titels gescopete notification.updateMany → deze assert faalt (rood→groen).
+    const ideaTitle = "Idee van Jan de Vries voor betere planning";
+    const ops = findAll("notification.updateMany") as Array<{
+      args: {
+        where: { type?: unknown; title?: { in?: string[] } };
+        data: { title?: unknown };
+      };
+    }>;
+    const titleOp = ops.find(
+      (o) =>
+        Array.isArray(o.args.where.title?.in) &&
+        o.args.where.title.in.includes(ideaStatusNotificationTitle(ideaTitle)),
+    );
+    expect(titleOp).toBeDefined();
+    // Beide notificatietypes die de titel dragen worden gescopet en geredact.
+    expect(titleOp!.args.where.type).toEqual({ in: ["IDEA_STATUS", "IDEA_COMMENT"] });
+    expect(titleOp!.args.where.title!.in).toContain(ideaCommentNotificationTitle(ideaTitle));
+    expect(titleOp!.args.data.title).toMatch(/verwijderd/i);
+  });
+
   it("wist de zelf-geschreven annuleerreden (Collaboration.cancellationReason)", async () => {
     await anonymizeUser("user-42");
     const o = find("collaboration.updateMany") as { args: { where: unknown; data: unknown } };
@@ -521,9 +553,9 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     // admin zichtbaar — deze assert faalt dan (rood→groen). Er zijn twee notification.updateMany's
     // (deze admin-fanout + de eigen-feed-redactie hieronder); pak de admin-variant op zijn where-vorm.
     const ops = findAll("notification.updateMany") as Array<{
-      args: { where: { title?: string }; data: { body?: string } };
+      args: { where: { type?: unknown; title?: string }; data: { body?: string } };
     }>;
-    const o = ops.find((x) => x.args.where.title !== undefined);
+    const o = ops.find((x) => x.args.where.type === "DISPUTE_OPENED");
     expect(o).toBeDefined();
     // Alleen de reden-dragende admin-variant, gescopet op de deep-links van de eigen disputen (col-7).
     expect(o!.args.where).toEqual({

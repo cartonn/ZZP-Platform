@@ -4,6 +4,60 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-11 (basis: `main` @ 3879adba)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(API-route-handlers/IDOR; server-action-mutatieketens; privacy/AVG), plus de delta sinds de vorige ronde
+(`5ec16e60..3879adba`, #1041–#1046 — aangifte-entitlement-`currentPeriodEnd`-fix, cron-heartbeat-faalattributie,
+losse-factuur-`createInvoice`-rate-limiter, IB-aangifte-agenda-event, betaal-forecast op `/openstaand`). Gedekt:
+(1) **API-oppervlak** — alle `/api/**`-routes, in het bijzonder de dynamische `[id]`/`[...key]`-routes
+(documents/media/facturen-pdf/prestaties-pdf/admin-facturatie-pdf/dossier/dba-dossier/modelovereenkomst/
+account-export/administratie-export/agenda/billing-webhook): elke dynamische route doet auth → rate-limit →
+ownership → data → audit, met 404-masking (CWE-203) op geweigerde toegang; path-traversal-guard in
+`LocalStorageDriver.resolve`; cron-Bearer via `authorizeCron` + `timingSafeEqual`; webhook-handtekening +
+idempotentie-ledger + body-cap. (2) **Server actions** — alle 47 `actions.ts`: auth→rol→ownership/tenant→Zod→
+actie→audit consequent; geen mass-assignment (hand-gebouwde Zod-schema's, geen `parse(formData)`-passthrough);
+statusovergangen via de expliciete `assert*Transition`-maps; TOCTOU-geldpaden via `updateMany({ where:{id,status:from} })`
+in `$transaction`; cross-tenant via `ownsViaTenant`/`assertSameTenant`. (3) **Privacy/AVG** — export↔erasure-symmetrie,
+k-anonimiteit (`MARKET_RATE_MIN_SAMPLE = 10`, regressietest bewaakt de vloer), PII-in-logs (mail/storage-loggers
+onderdrukken PII in productie), retentietaken, webcal-token-liveness. `npm audit --omit=dev` = **0**; enige
+`dangerouslySetInnerHTML` = het nonce-gepoorte theme-script; geen `$queryRawUnsafe`/`eval`.
+
+**Resultaat: één MIDDEL privacy-gat OPGELOST (rood→groen) — `Idea.title`-lek in notificatietitels op ándermans feed
+overleefde de erasure. API- en server-action-oppervlak schoon (geen nieuw KRITIEK/HOOG toegangs-, IDOR-, injectie-,
+cross-tenant- of PII-lek). Eén bekende, geparkeerde `Review.comment`-erasure-afweging blijft bij de mens (FG).**
+
+### OPGELOST — MIDDEL (AVG art. 17, CLAUDE.md regel 2/5): `Idea.title` bleef leesbaar in de notificatietitels op ándermans feed na erasure van de indiener
+
+- **Repro (was):** `setIdeaStatus` (`ideeen/actions.ts:157`) en `addComment` (`:196`) interpoleerden de door de
+  indiener geschreven `Idea.title` (vrije tekst, PII-risico) verbatim in de **titel** van de IDEA_STATUS-/
+  IDEA_COMMENT-notificaties — die óók naar de feeds van ándere gebruikers (stemmers/reageerders,
+  `Notification.userId != de indiener`) gaan. Bij een AVG-verwijdering (`anonymizeUser`) redigeerde de erasure
+  wél `Idea.title` op de `Idea`-rij, maar de brede `notification.updateMany({ where: { userId } })` raakt alleen
+  de EIGEN feed van de betrokkene én enkel de **body**. De titel-kopie op ándermans feed werd nergens geraakt,
+  overleefde art. 17 en werd bovendien via `account-export.ts` (dat `Notification.title` prijsgeeft) aan die andere
+  gebruiker als onderdeel van diens eigen inzage-export getoond — permanent, ook na de verwijdering. Exact de
+  "duplicate-copy erasure gap"-klasse die de codebase al herhaaldelijk dichtte (dispuutreden 3-kopie,
+  no-show-reden 2-kopie, creditreden 3-kopie), hier over het hoofd gezien.
+- **Geschonden regel:** AVG art. 17 (onvolledige erasure) + CLAUDE.md regel 2/5; interne inconsistentie met de
+  bestaande drie-kopie-erasurepatronen in dezelfde file.
+- **Fix (deze PR):** gedeelde titel-builders `ideaStatusNotificationTitle`/`ideaCommentNotificationTitle` in
+  `src/lib/ideas.ts` (één bron, geen drift met de bron in `ideeen/actions.ts`, spiegelt `noShowReportedNotificationBody`);
+  `anonymizeUser` verzamelt de eigen idee-titels vóór de transactie en redact de exact-gereconstrueerde
+  notificatietitels binnen dezelfde transactie (gescopet op `type in (IDEA_STATUS, IDEA_COMMENT)` + de exacte
+  titel-strings; over-redactie bij een toevallige titel-collisie wist méér PII, nooit minder). +1 erasure-regressietest
+  (rood→groen) + 2 unit-tests op de builders.
+
+### GEPARKEERD — bij de mens (FG/juridisch, geen agent-beslissing): `Review.comment` op de SUBJECT-zijde overleeft de erasure van de beoordeelde
+
+- **Repro:** `anonymizeUser` (`admin/gebruikers/actions.ts`) redact `Review.comment` alleen voor `where: { authorId: userId }`,
+  niet voor `where: { subjectId: userId }`. Een beoordeling _over_ de verwijderde persoon (door een ander geschreven)
+  blijft leesbaar. Reeds als bewust openstaand item gedocumenteerd (zie onder, ronde met de reputatie-/vertrouwen-afweging):
+  bewaren voor de integriteit van het reputatiesysteem vs. wissen omdat het gegevens "betreffende" de betrokkene zijn.
+- **Waarom geparkeerd:** dit is een retentie-vs-erasure-afweging met een wettelijke grondslag-dimensie (gerechtvaardigd
+  belang reputatiesysteem vs. art. 17) — precies het soort besluit dat MENSENWERK.md §5 expliciet bij de mens (FG) legt
+  en dat een agent niet unilateraal mag oplossen. Aanbeveling: laat de FG de keuze maken + documenteren.
+
 ## Ronde 2026-08-10 (basis: `main` @ 5ec16e60)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken, plus de
