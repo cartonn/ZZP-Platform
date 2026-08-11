@@ -398,7 +398,7 @@ describe("createInvoice — per-actor rate-limiter", () => {
 
 // Dispuut-bevriezing op de geldstroom-acties (persona-sweep DOEL 2, MED): elke andere geld-mutatie in
 // de cascade-laag blokkeert al op `disputedAt` (assertNotDisputed); de legacy factuuracties deden dat niet.
-describe("sendInvoice/markInvoicePaid — bevroren bij een open dispuut", () => {
+describe("sendInvoice/markInvoicePaid/cancelInvoice — bevroren bij een open dispuut", () => {
   const FROZEN = "De samenwerking is bevroren wegens een open dispuut. Los het dispuut eerst op.";
 
   it("sendInvoice weigert wanneer de samenwerking gedisputeerd is", async () => {
@@ -412,6 +412,16 @@ describe("sendInvoice/markInvoicePaid — bevroren bij een open dispuut", () => 
     roleState.role = "CLIENT";
     invoiceState.found!.collaboration.disputedAt = new Date("2026-07-01T00:00:00Z");
     await expect(markInvoicePaid("inv-1")).rejects.toThrow(FROZEN);
+    expect(tx.invoiceUpdateMany).not.toHaveBeenCalled();
+  });
+
+  // Persona-sweep DOEL 2 (integriteit): cancelInvoice miste — anders dan zijn twee siblings — de
+  // dispuut-rem. Een partij kon zo een verzonden factuur die ónder een open dispuut valt eenzijdig
+  // annuleren (de gedisputeerde geldregel wissen vóór de admin het dispuut beslecht).
+  it("cancelInvoice weigert wanneer de samenwerking gedisputeerd is (geen eenzijdige annulering)", async () => {
+    invoiceState.found!.status = "SENT";
+    invoiceState.found!.collaboration.disputedAt = new Date("2026-07-01T00:00:00Z");
+    await expect(cancelInvoice("inv-1")).rejects.toThrow(FROZEN);
     expect(tx.invoiceUpdateMany).not.toHaveBeenCalled();
   });
 });

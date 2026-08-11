@@ -17,6 +17,13 @@ import {
 } from "@/lib/rejection-reason";
 import { boundReason } from "@/lib/text-bounds";
 
+// Plafond op één bulk-triage-batch (CWE-400). Spiegelt de bestaande caps elders in de codebase
+// (`MAX_INVOICE_LINES = 200` in facturen, `MAX_IMPORT_SIZE` in diensten/importeer): `formData.getAll`
+// is onbegrensd, dus een geauthenticeerde CLIENT kan binnen de 12 MB body-limiet tienduizenden ids
+// sturen → onbegrensde `id in (...)`-query + een sequentiële per-id-transactie waarvan de timeout
+// bewust op 120s staat. Klem het aantal vóór de zware DB-reads/-writes.
+const MAX_BULK_TRIAGE_IDS = 200;
+
 async function loadOwnedApplication(actor: Actor, appId: string) {
   const app = await prisma.application.findUnique({
     where: { id: appId },
@@ -189,6 +196,9 @@ export async function bulkChangeApplicationStatus(
   const ids = [...new Set(formData.getAll("appId").map(String).filter(Boolean))];
   if (ids.length === 0) {
     return { error: "Selecteer minstens één reactie." };
+  }
+  if (ids.length > MAX_BULK_TRIAGE_IDS) {
+    return { error: `Je kunt maximaal ${MAX_BULK_TRIAGE_IDS} reacties tegelijk bijwerken.` };
   }
 
   // Load only applications owned by this actor's company — non-owned ids simply won't load.

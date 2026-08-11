@@ -144,6 +144,19 @@ describe("bulkChangeApplicationStatus — per-item compound-guard", () => {
     expect(notifCreate).toHaveBeenCalledTimes(1);
     expect(res?.ok).toMatch(/1 reactie\(s\) bijgewerkt, 1 overgeslagen/);
   });
+
+  // Persona-sweep DOEL 2 (robuustheid, CWE-400): `formData.getAll("appId")` is onbegrensd. Zonder cap
+  // kon een CLIENT tienduizenden ids posten → onbegrensde `id in (...)`-query + een sequentiële per-id-
+  // transactie met een 120s-timeout (connection-pool-uitputting). Spiegelt MAX_INVOICE_LINES et al.:
+  // schone, vroege afwijzing vóór enige DB-read.
+  it("weigert schoon zodra de batch het plafond (200) overschrijdt, zonder DB-read", async () => {
+    const ids = Array.from({ length: 201 }, (_, i) => `app-${i}`);
+    const res = await bulkChangeApplicationStatus(undefined, form(ids, "REJECTED"));
+
+    expect(res?.error).toMatch(/maximaal 200 reacties tegelijk/i);
+    expect(findMany).not.toHaveBeenCalled();
+    expect(updateMany).not.toHaveBeenCalled();
+  });
 });
 
 describe("withdrawApplication — compound-guarded tegen cross-actor TOCTOU", () => {
