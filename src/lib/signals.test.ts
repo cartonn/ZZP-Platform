@@ -152,6 +152,26 @@ describe("countFreelancerCascadeWork", () => {
     expect(countFreelancerCascadeWork([collab({ status: "PROPOSED" })])).toBe(1);
   });
 
+  it("telt een PROPOSED met plaatsings-blokkade NIET mee (badge↔lijst-pariteit)", () => {
+    // /acties (pending-tasks.ts, run 58) onderdrukt de contract-onderteken-taak zolang een vereist
+    // certificaat ontbreekt/verlopen is → de badge mag die fantoom-actie ook niet tellen.
+    expect(
+      countFreelancerCascadeWork([collab({ status: "PROPOSED", placementBlocked: true })]),
+    ).toBe(0);
+    // Geen blokkade → gedraagt zich als voorheen (+1).
+    expect(
+      countFreelancerCascadeWork([collab({ status: "PROPOSED", placementBlocked: false })]),
+    ).toBe(1);
+  });
+
+  it("negeert placementBlocked op een ACTIVE samenwerking (alleen PROPOSED-relevant)", () => {
+    expect(
+      countFreelancerCascadeWork([
+        collab({ status: "ACTIVE", latestPerformanceStatus: "DRAFT", placementBlocked: true }),
+      ]),
+    ).toBe(1);
+  });
+
   it("telt de indien-fase mee: ACTIVE zonder prestatie is de ZZP'er aan zet", () => {
     expect(countFreelancerCascadeWork([collab({ latestPerformanceStatus: null })])).toBe(1);
   });

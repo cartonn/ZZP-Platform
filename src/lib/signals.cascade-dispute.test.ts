@@ -12,6 +12,7 @@ type CountArgs = { where: Record<string, unknown> };
 const performanceCount = vi.fn((_a: CountArgs): Promise<number> => Promise.resolve(0));
 const invoiceCount = vi.fn((_a: CountArgs): Promise<number> => Promise.resolve(0));
 const collaborationCount = vi.fn((_a: CountArgs): Promise<number> => Promise.resolve(0));
+const collaborationFindMany = vi.fn((_a: CountArgs): Promise<unknown[]> => Promise.resolve([]));
 const applicationCount = vi.fn((): Promise<number> => Promise.resolve(0));
 const jobCount = vi.fn((): Promise<number> => Promise.resolve(0));
 
@@ -29,8 +30,10 @@ vi.mock("@/lib/db", () => ({
     invoice: { count: (a: CountArgs) => invoiceCount(a) },
     collaboration: {
       count: (a: CountArgs) => collaborationCount(a),
-      // Vervolgsignaal-badge-query (renewalAttentionBadgeCount) — niet het onderwerp van deze test.
-      findMany: vi.fn(() => Promise.resolve([])),
+      // De PROPOSED-ondertekentelling (countClientSignableProposals) + het vervolgsignaal
+      // (renewalAttentionBadgeCount) draaien allebei via findMany; we asserten hieronder de
+      // dispuut-scoping van de PROPOSED-query.
+      findMany: (a: CountArgs) => collaborationFindMany(a),
     },
   },
 }));
@@ -49,11 +52,14 @@ describe("navBadges CLIENT — bevroren (dispuut) cascadewerk uitgesloten", () =
     performanceCount.mockClear();
     invoiceCount.mockClear();
     collaborationCount.mockClear();
+    collaborationFindMany.mockClear();
   });
 
   it("contract-ondertekentelling (PROPOSED) scopt op een niet-bevroren samenwerking", async () => {
     await navBadges("CLIENT", "cl-1");
-    const proposedCall = collaborationCount.mock.calls.find(
+    // De PROPOSED-ondertekentelling draait sinds de plaatsings-gate-fix via findMany
+    // (countClientSignableProposals), niet meer via count; de dispuut-scoping moet blijven.
+    const proposedCall = collaborationFindMany.mock.calls.find(
       (c) => (c[0].where as { status?: string }).status === "PROPOSED",
     );
     expect(proposedCall).toBeTruthy();
