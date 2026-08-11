@@ -15,7 +15,7 @@
 //
 // PUUR & INJECTEERBAAR: de HIBP-adapter neemt een `fetchImpl` zodat tests zonder netwerk draaien.
 
-import { createHash } from "crypto";
+import { webcrypto } from "crypto";
 
 import {
   fetchWithTimeout,
@@ -61,15 +61,19 @@ export class NoopPasswordBreachChecker implements PasswordBreachChecker {
 }
 
 /**
- * SHA-1 van een string als hoofdletter-hex. LET OP: SHA-1 is hier VERPLICHT door het HIBP "Pwned
- * Passwords"-protocol — de k-anonimiteit werkt per definitie over SHA-1-prefixen. Dit is GEEN
- * wachtwoord-opslag: opslag gaat altijd via **bcrypt** (register/reset/wijzig). Deze hash verlaat de
- * server ook nooit heel — alleen de eerste 5 tekens (de range-prefix) gaan naar HIBP. Daarom is de
- * CodeQL-waarschuwing "insufficient password hash" hier een false positive en onderdrukt.
+ * SHA-1 van een string als hoofdletter-hex, via de Web Crypto `subtle.digest`-primitief. LET OP:
+ * SHA-1 is hier VERPLICHT door het HIBP "Pwned Passwords"-protocol — de k-anonimiteit werkt per
+ * definitie over SHA-1-prefixen. Dit is GEEN wachtwoord-opslag: opslag gaat altijd via **bcrypt**
+ * (register/reset/wijzig). Deze hash verlaat de server ook nooit heel — alleen de eerste 5 tekens
+ * (de range-prefix) gaan k-anoniem naar HIBP.
  */
-export function sha1Hex(input: string): string {
-  // codeql[js/insufficient-password-hash] — SHA-1 is protocol-vereist (HIBP k-anonimiteit), niet voor opslag (bcrypt).
-  return createHash("sha1").update(input, "utf8").digest("hex").toUpperCase();
+export async function sha1Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const digest = await webcrypto.subtle.digest("SHA-1", data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
 }
 
 export interface HibpCheckerOptions {
@@ -103,7 +107,7 @@ export class HibpPasswordBreachChecker implements PasswordBreachChecker {
 
   async check(password: string): Promise<PasswordBreachResult> {
     if (!password) return SKIPPED;
-    const hash = sha1Hex(password);
+    const hash = await sha1Hex(password);
     const prefix = hash.slice(0, 5);
     const suffix = hash.slice(5);
     try {

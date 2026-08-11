@@ -22,15 +22,17 @@ function fakeFetch(body: string, init: { ok?: boolean; status?: number } = {}) {
   return { impl, calls };
 }
 
+// SHA-1("password") = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8 (het klassieke HIBP-voorbeeld).
+const PASSWORD_HASH = "5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8";
+
 describe("sha1Hex", () => {
-  it("hasht naar hoofdletter-hex (bekende vector)", () => {
-    // SHA-1("password") = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8 (het klassieke HIBP-voorbeeld).
-    expect(sha1Hex("password")).toBe("5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8");
+  it("hasht naar hoofdletter-hex (bekende vector)", async () => {
+    expect(await sha1Hex("password")).toBe(PASSWORD_HASH);
   });
 });
 
 describe("matchSuffixCount", () => {
-  const suffix = sha1Hex("password").slice(5); // "1E4C9B93F3F0682250B6CF8331B7EE68FD8"
+  const suffix = PASSWORD_HASH.slice(5); // "1E4C9B93F3F0682250B6CF8331B7EE68FD8"
 
   it("vindt de count voor het matchende suffix (case-insensitief)", () => {
     const body = `0018A45C4D1DEF81644B54AB7F969B88D65:1\r\n${suffix}:9999999\r\nXXXX:3`;
@@ -61,7 +63,7 @@ describe("NoopPasswordBreachChecker", () => {
 
 describe("HibpPasswordBreachChecker", () => {
   it("stuurt alleen de 5-teken-prefix (k-anonimiteit), nooit het wachtwoord of de volledige hash", async () => {
-    const hash = sha1Hex("password");
+    const hash = PASSWORD_HASH;
     const suffix = hash.slice(5);
     const { impl, calls } = fakeFetch(`${suffix}:42`);
     const checker = new HibpPasswordBreachChecker({ fetchImpl: impl, baseUrl: "https://x/range" });
