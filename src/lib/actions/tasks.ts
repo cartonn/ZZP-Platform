@@ -103,6 +103,7 @@ export type PendingTask =
   | (TaskBase & { kind: "franchise-not-engageable"; profileId: string })
   | (TaskBase & { kind: "franchise-stale-service"; jobId: string })
   | (TaskBase & { kind: "franchise-stale-service-rollup" })
+  | (TaskBase & { kind: "franchise-collaboration-renewal"; collabId: string })
   | (TaskBase & { kind: "franchise-guided-setup"; step: string })
   | (TaskBase & {
       kind: "shift-handoff-decide";
@@ -1199,6 +1200,44 @@ export function franchiseStaleDienstRollupTask(count: number): PendingTask {
     priority: P.franchiserServiceStaleRollup,
     resolver: "link",
     href: "/franchise/diensten",
+  };
+}
+
+/**
+ * Een lopende plaatsing (ACTIVE samenwerking uit een tenant-dienst) nadert of passeert haar
+ * einddatum. De opdrachtgever én de ZZP'er krijgen dit vervolgsignaal al (`collaborationRenewalTask`);
+ * de bemiddelaar — die de plaatsing brokerde en er de fee op verdient — kreeg niets, terwijl een
+ * aflopende plaatsing juist zijn hoogste-leverage-moment is (verlengen, opdrachtgever behouden, geen
+ * onverwacht bezettingsgat). Anders dan de partij-taak toont de bemiddelaar beide kanten
+ * (ZZP'er + opdrachtgever) en deep-linkt hij naar het franchise-toezichtoverzicht (er is geen
+ * bemiddelaar-detailpagina per samenwerking). Advies, geen blokkade: `info`, `attention` zodra de
+ * einddatum verstreken is. Dezelfde pure fase-classificatie (`summarizeCollaborationRenewal`) als de
+ * twee partij-taken, zodat de drie oppervlakken niet driften.
+ */
+export function franchiseCollaborationRenewalTask(
+  collabId: string,
+  freelancerName: string,
+  companyName: string,
+  jobTitle: string,
+  phase: CollaborationRenewalPhase,
+  daysRemaining: number | null,
+): PendingTask {
+  const overdue = phase === "overdue";
+  let window: string;
+  if (overdue) window = "einddatum verstreken";
+  else if (daysRemaining === 0) window = "loopt vandaag af";
+  else if (daysRemaining === 1) window = "loopt morgen af";
+  else window = `loopt over ${plural(daysRemaining ?? 0, "dag", "dagen")} af`;
+  return {
+    kind: "franchise-collaboration-renewal",
+    id: `franchise-collaboration-renewal:${collabId}`,
+    title: `Plan een vervolg: ${freelancerName} bij ${companyName}`,
+    subtitle: `${jobTitle} · ${window}`,
+    tone: overdue ? "attention" : "info",
+    priority: P.franchiserCollaborationRenewal,
+    resolver: "link", // deep-link naar het franchise-samenwerkingoverzicht (geen detailpagina per inzet)
+    href: "/franchise/samenwerkingen?status=ACTIVE",
+    collabId,
   };
 }
 

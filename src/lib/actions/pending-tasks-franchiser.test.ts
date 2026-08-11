@@ -36,6 +36,15 @@ const state = vi.hoisted(() => ({
   // Vastgelegde args van de roster-`freelancerProfile.findMany` — voor de deterministische-
   // truncatie-invariant (orderBy identiek aan de nav-badge, zodat badge en /acties niet driften).
   rosterQuery: null as { orderBy?: unknown; take?: number } | null,
+  // Aflopende plaatsingen (ACTIVE, tenant-scope) voor het bemiddelaar-vervolgsignaal.
+  endingCollabs: [] as {
+    id: string;
+    endDate: Date | null;
+    job: { title: string };
+    company: { name: string | null };
+    freelancer: { user: { name: string | null } };
+  }[],
+  lastRenewalWhere: undefined as unknown,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -126,6 +135,14 @@ vi.mock("@/lib/db", () => ({
     // Open dienst-overnames (aparte tak) — hier leeg, zodat deze tests op de andere tenant-taken
     // gefocust blijven. De dedicated regressietest staat in pending-tasks.shift-handoff.test.ts.
     shiftHandoff: { findMany: vi.fn(async () => []) },
+    // Aflopende plaatsingen (vervolgsignaal). Legt de where-args vast zodat de tenant-scope +
+    // vensterbegrenzing getest kan worden; serveert de fixture-rijen.
+    collaboration: {
+      findMany: vi.fn(async (args: { where?: unknown }) => {
+        state.lastRenewalWhere = args?.where;
+        return state.endingCollabs;
+      }),
+    },
   },
 }));
 
@@ -135,6 +152,7 @@ vi.mock("@/lib/franchise/dienst-fill-signal", () => ({
 }));
 
 import { pendingTasks } from "@/lib/actions/pending-tasks";
+import { RENEWAL_WINDOW_DAYS, RENEWAL_OVERDUE_GRACE_DAYS } from "@/lib/collaboration-renewal";
 
 const ACTOR = { id: "user-franchiser", role: "FRANCHISER", status: "ACTIVE" } as const;
 
@@ -165,6 +183,8 @@ beforeEach(() => {
   state.leads = [];
   state.creds = [];
   state.rosterQuery = null;
+  state.endingCollabs = [];
+  state.lastRenewalWhere = undefined;
   state.counts = {
     companies: 1,
     freelancers: 1,
@@ -467,5 +487,88 @@ describe("bemiddelaar next-actions — roster-verloop onderdrukt superseded cert
     const expiry = tasks.filter((t) => t.kind === "franchise-credential-expiry");
     expect(expiry).toHaveLength(1);
     expect(expiry[0]?.id).toBe("franchise-credential-expiry:prof-1");
+  });
+});
+
+// Cross-surface-asymmetrie gedicht (DOEL 1b): de opdrachtgever én de ZZP'er kregen al een vervolg-
+// signaal bij een aflopende samenwerking (`renewalTasks`); de bemiddelaar — die de plaatsing brokerde
+// en er de fee op verdient — kreeg niets. Deze test borgt dat de item-engine het vervolgsignaal nu ook
+// voor de FRANCHISER emitteert, met tenant-scope (via job.tenantId), vensterbegrenzing, id/toon/deep-link,
+// en dat een rij zonder attentie (open einde / ruim vóór het venster / voorbij de grace) geen taak geeft.
+describe("bemiddelaar next-actions — vervolgsignaal aflopende plaatsing (franchise-collaboration-renewal)", () => {
+  const DAY = 86_400_000;
+  const collab = (
+    id: string,
+    endDate: Date | null,
+    freelancerName = "Sanne",
+    companyName = "ZorgGroep Midden",
+    jobTitle = "Wijkverpleging",
+  ) => ({
+    id,
+    endDate,
+    job: { title: jobTitle },
+    company: { name: companyName },
+    freelancer: { user: { name: freelancerName } },
+  });
+
+  it("query gescoopt op tenant (job.tenantId), ACTIVE, niet-bevroren, einddatum binnen het venster", async () => {
+    await pendingTasks(ACTOR);
+    const where = state.lastRenewalWhere as Record<string, unknown>;
+    expect(where.job).toEqual({ tenantId: "tenant-1" });
+    expect(where.status).toBe("ACTIVE");
+    expect(where.disputedAt).toBeNull();
+    expect(where.endDate).toHaveProperty("lte");
+    expect(where.endDate).toHaveProperty("gte");
+  });
+
+  it("naderende einddatum → één info-taak met beide partijen in de titel en deep-link naar het overzicht", async () => {
+    state.endingCollabs = [collab("collab-1", new Date(Date.now() + 4 * DAY))];
+    const tasks = await pendingTasks(ACTOR);
+    const t = tasks.find((x) => x.kind === "franchise-collaboration-renewal");
+    expect(t).toBeDefined();
+    expect(t?.id).toBe("franchise-collaboration-renewal:collab-1");
+    expect(t?.href).toBe("/franchise/samenwerkingen?status=ACTIVE");
+    expect(t?.tone).toBe("info");
+    expect(t?.title).toContain("Sanne");
+    expect(t?.title).toContain("ZorgGroep Midden");
+  });
+
+  it("verstreken einddatum (binnen grace) → attention", async () => {
+    state.endingCollabs = [collab("collab-2", new Date(Date.now() - 2 * DAY))];
+    const tasks = await pendingTasks(ACTOR);
+    const t = tasks.find((x) => x.kind === "franchise-collaboration-renewal");
+    expect(t?.tone).toBe("attention");
+  });
+
+  it("voorbij het grace-venster verstreken → gedempt (lapsed), geen taak", async () => {
+    state.endingCollabs = [
+      collab("collab-lapsed", new Date(Date.now() - (RENEWAL_OVERDUE_GRACE_DAYS + 5) * DAY)),
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.kind === "franchise-collaboration-renewal")).toBe(false);
+  });
+
+  it("open einde (endDate null) of ruim vóór het venster → geen attentie, geen taak", async () => {
+    state.endingCollabs = [
+      collab("collab-open", null),
+      collab("collab-far", new Date(Date.now() + (RENEWAL_WINDOW_DAYS + 10) * DAY)),
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.kind === "franchise-collaboration-renewal")).toBe(false);
+  });
+
+  it("valt terug op nette labels wanneer namen ontbreken", async () => {
+    state.endingCollabs = [
+      {
+        id: "collab-nameless",
+        endDate: new Date(Date.now() + 3 * DAY),
+        job: { title: "Nachtdienst" },
+        company: { name: null },
+        freelancer: { user: { name: null } },
+      },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    const t = tasks.find((x) => x.kind === "franchise-collaboration-renewal");
+    expect(t?.title).toBe("Plan een vervolg: de ZZP'er bij de opdrachtgever");
   });
 });

@@ -67,6 +67,7 @@ import {
   franchiseNotEngageableTask,
   franchiseStaleDienstTask,
   franchiseStaleDienstRollupTask,
+  franchiseCollaborationRenewalTask,
   franchiseGuidedSetupTasks,
   shiftHandoffTask,
   clientComplianceTask,
@@ -1055,6 +1056,7 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     publishedDiensten,
     companiesWithoutDiensten,
     openHandoffs,
+    endingCollabs,
   ] = await Promise.all([
     // De in-venster (now, soon] verlopende VERIFIED-certs van tenant-ZZP'ers — de kandidaat-nudges.
     // Alleen op dit venster filteren (niet álle certs) is bewust: onbeperkt-geldige certs
@@ -1167,6 +1169,31 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
         },
       },
       orderBy: { createdAt: "asc" },
+      take: MAX,
+    }),
+    // Aflopende plaatsingen binnen de tenant — het vervolgsignaal voor de bemiddelaar. Tenant-scope
+    // via `job.tenantId` (spiegelt het franchise-samenwerkingoverzicht + shift-handoff-scope). Zelfde
+    // vensterbegrenzing als de partij-taak (`renewalTasks`): binnen het venster vóór het einde óf tot
+    // één dag voorbij de grace ná het einde (rijen daarbuiten zijn `lapsed` → geen aandacht, niet
+    // ophalen). De pure `summarizeCollaborationRenewal` bepaalt hierna de definitieve attentie-grens.
+    prisma.collaboration.findMany({
+      where: {
+        job: { tenantId },
+        status: "ACTIVE",
+        disputedAt: null,
+        endDate: {
+          gte: new Date(now.getTime() - (RENEWAL_OVERDUE_GRACE_DAYS + 1) * 86_400_000),
+          lte: new Date(now.getTime() + RENEWAL_WINDOW_DAYS * 86_400_000),
+        },
+      },
+      select: {
+        id: true,
+        endDate: true,
+        job: { select: { title: true } },
+        company: { select: { name: true } },
+        freelancer: { select: { user: { select: { name: true } } } },
+      },
+      orderBy: { endDate: "asc" },
       take: MAX,
     }),
   ]);
@@ -1296,6 +1323,30 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
         h.collaboration.freelancer.user.name ?? "ZZP'er",
       ),
     );
+
+  // Aflopende plaatsingen — het vervolgsignaal voor de bemiddelaar. De query is al op het venster
+  // begrensd; de pure `summarizeCollaborationRenewal` bepaalt de definitieve attentie-grens (een enkele
+  // doorgelaten rij één dag over de grace kan alsnog `lapsed` zijn → dan geen taak). Zelfde pure bron
+  // als de opdrachtgever/ZZP'er-taak, dus de drie oppervlakken driften niet.
+  for (const c of endingCollabs) {
+    const renewal = summarizeCollaborationRenewal({
+      status: "ACTIVE",
+      endDate: c.endDate,
+      disputed: false,
+      now,
+    });
+    if (!renewal.attention) continue;
+    tasks.push(
+      franchiseCollaborationRenewalTask(
+        c.id,
+        c.freelancer.user.name ?? "de ZZP'er",
+        c.company.name ?? "de opdrachtgever",
+        c.job.title,
+        renewal.phase,
+        renewal.daysRemaining,
+      ),
+    );
+  }
 
   return tasks;
 }

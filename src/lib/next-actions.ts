@@ -93,6 +93,7 @@ export const P = {
   franchiserCredentialExpiring: 70, // roster-certificaat van een tenant-ZZP'er verloopt binnenkort
   franchiserServiceStale: 65, // gepubliceerde dienst staat lang open zonder plaatsing
   franchiserServiceStaleRollup: 64, // rollup van de resterende lang-open diensten — strikt onder de per-dienst-taak zodat de specifieke, oudste diensten voorop blijven (niet meer afhankelijk van de push-volgorde bij een gelijke prioriteit)
+  franchiserCollaborationRenewal: 62, // lopende plaatsing nadert/passeert haar einddatum — de bemiddelaar plant tijdig een vervolg (revenue-behoud). Onder de open-dienst-taken (die laten een opdrachtgever NU zonder bezetting), boven een koude lead: een lopende relatie verlengen is warmer dan nieuwe acquisitie
   franchiserLeadFollowup: 50, // lead met verstreken geplande opvolgdatum
 } as const;
 
