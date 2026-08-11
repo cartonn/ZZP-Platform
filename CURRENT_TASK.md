@@ -260,6 +260,25 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — mail-aflever-heartbeat / dead-man's-switch voor het e-mailkanaal
+> (2026-08-11, PR volgt)** — e-mail is een productiekernkanaal (§2: certificaat goedgekeurd, wachtwoordherstel,
+> herinneringen), maar had — anders dan opslag/database/cron/back-up — géén doorlopend afleversignaal. Een
+> systematisch afwijzende provider (verlopen sleutel, gede-verifieerd domein, geschorst account, harde
+> rate-limit) laat élke mail stil mislukken; de verzendcode vangt de fout PII-veilig af (`logMailFailure`) en
+> gaat door, dus niemand merkt het tot een gebruiker klaagt. Nu registreert elke verzending via een echte
+> driver (smtp/resend/postmark/ses) de uitkomst in een singleton `MailDeliveryHeartbeat`, via een nieuwe
+> `RecordingMailSender`-decorator rond `getMailSender()` (de `noop`-driver registreert bewust niets). Anders
+> dan cron/back-up is dit **geen** staleness-op-leeftijd (e-mail is event-gedreven) maar het oordeel op de
+> **laatste** verzending: `never`/`ok`/`failing` + `consecutiveFailures`. Zichtbaar op `/admin/systeemstatus`
+> (nieuwe kaart "E-mailaflevering") en machine-leesbaar op `/api/metrics` (`zzp_mail_delivery_ok`,
+> `zzp_mail_consecutive_failures`, `zzp_mail_last_failure_age_seconds`). Drop-in Prometheus-alert
+> `ZzpMailDeliveryFailing` (`zzp_mail_delivery_ok == 0 and zzp_mail_consecutive_failures >= 3`, `for: 15m`) in
+> `docs/observability/alerts.yml`, toegevoegd aan de onderhouds-inhibitie in `alertmanager.yml`, vastgeklonken
+> aan de drift-gates. Herstel wordt automatisch gewist zodra een verzending slaagt (of via de E-mail-zelftest).
+> Bevat nooit PII/secrets — alleen tijdstippen, teller, driver-modus. Registratie is fail-open (een DB-storing
+> in de heartbeat mag een geslaagde verzending niet laten falen, noch een echte verzendfout maskeren). Gate:
+> typecheck, lint, test, build, prettier + drift-gates groen.
+>
 > Gedaan (niet opnieuw): **Bemiddelaar — vervolgsignaal bij een aflopende plaatsing op /acties (2026-08-11, PR #1052)** —
 > de opdrachtgever (`clientTasks`) én de ZZP'er (`freelancerTasks`) kregen allebei al een `collaboration-renewal` next-action zodra een
 > lopende samenwerking haar einddatum nadert/passeert (`renewalTasks`, op /acties + badge + rail). De bemiddelaar — die de plaatsing

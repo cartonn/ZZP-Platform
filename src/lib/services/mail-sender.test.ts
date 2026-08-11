@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import {
   getMailSender,
   isMailDeliveryConfigured,
@@ -7,9 +7,21 @@ import {
   ResendMailSender,
   PostmarkMailSender,
   SesMailSender,
+  RecordingMailSender,
   type MailMessage,
 } from "./mail-sender";
 import { HttpTimeoutError } from "./fetch-timeout";
+import {
+  recordMailDeliverySuccess,
+  recordMailDeliveryFailure,
+} from "@/lib/observability/mail-delivery-heartbeat";
+
+// De aflever-heartbeat (dead-man's-switch) schrijft naar de DB; in unit-tests mocken we 'm zodat de
+// verzendtests niet op prisma leunen en we de registratie-oproepen kunnen asserten.
+vi.mock("@/lib/observability/mail-delivery-heartbeat", () => ({
+  recordMailDeliverySuccess: vi.fn(async () => {}),
+  recordMailDeliveryFailure: vi.fn(async () => {}),
+}));
 
 const SMTP_VARS = [
   "EMAIL_SMTP_HOST",
@@ -302,7 +314,9 @@ describe("getMailSender", () => {
 
   it("geeft een PostmarkMailSender terug als EMAIL_DRIVER=postmark", () => {
     process.env.EMAIL_DRIVER = "postmark";
-    expect(getMailSender()).toBeInstanceOf(PostmarkMailSender);
+    const sender = getMailSender();
+    expect(sender).toBeInstanceOf(RecordingMailSender);
+    expect((sender as RecordingMailSender).inner).toBeInstanceOf(PostmarkMailSender);
   });
 
   it("PostmarkMailSender.send() gooit een fout als POSTMARK_SERVER_TOKEN/EMAIL_FROM ontbreken", async () => {
@@ -436,7 +450,9 @@ describe("getMailSender", () => {
 
   it("geeft een SesMailSender terug als EMAIL_DRIVER=ses", () => {
     process.env.EMAIL_DRIVER = "ses";
-    expect(getMailSender()).toBeInstanceOf(SesMailSender);
+    const sender = getMailSender();
+    expect(sender).toBeInstanceOf(RecordingMailSender);
+    expect((sender as RecordingMailSender).inner).toBeInstanceOf(SesMailSender);
   });
 
   it("SesMailSender.send() gooit een fout als SES_REGION/EMAIL_FROM ontbreken", async () => {
@@ -610,5 +626,60 @@ describe("getMailSender", () => {
       spy.mockRestore();
       _resetMailSender();
     }
+  });
+});
+
+describe("RecordingMailSender — aflever-heartbeat (dead-man's-switch)", () => {
+  beforeEach(() => {
+    // Wis de call-historie van de gemockte heartbeat-registratie tussen deze tests (vi.mock-fabriek-
+    // mocks worden niet door restoreAllMocks gereset), zodat not.toHaveBeenCalled() betrouwbaar is.
+    vi.mocked(recordMailDeliverySuccess).mockClear();
+    vi.mocked(recordMailDeliveryFailure).mockClear();
+  });
+
+  it("registreert een geslaagde verzending via een echte driver met de driver-modus", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 200 }));
+    process.env.EMAIL_DRIVER = "resend";
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    await getMailSender().send(msg);
+
+    expect(recordMailDeliverySuccess).toHaveBeenCalledWith("resend");
+    expect(recordMailDeliveryFailure).not.toHaveBeenCalled();
+  });
+
+  it("registreert een mislukte verzending én gooit de originele fout door", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("invalid api key", { status: 401 }),
+    );
+    process.env.EMAIL_DRIVER = "resend";
+    process.env.RESEND_API_KEY = "re_bad";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    await expect(getMailSender().send(msg)).rejects.toThrow("status 401");
+
+    expect(recordMailDeliveryFailure).toHaveBeenCalledWith("resend");
+    expect(recordMailDeliverySuccess).not.toHaveBeenCalled();
+  });
+
+  it("registreert niets voor de noop-driver (er wordt niets afgeleverd)", async () => {
+    delete process.env.EMAIL_DRIVER;
+    await getMailSender().send(msg);
+
+    expect(recordMailDeliverySuccess).not.toHaveBeenCalled();
+    expect(recordMailDeliveryFailure).not.toHaveBeenCalled();
+  });
+
+  it("checkConnectivity gaat ongewijzigd door (read-only, geen aflevering → geen registratie)", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 200 }));
+    process.env.EMAIL_DRIVER = "resend";
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    await getMailSender().checkConnectivity();
+
+    expect(recordMailDeliverySuccess).not.toHaveBeenCalled();
+    expect(recordMailDeliveryFailure).not.toHaveBeenCalled();
   });
 });

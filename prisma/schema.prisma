@@ -1456,6 +1456,28 @@ model BackupHeartbeat {
   updatedAt DateTime @updatedAt
 }
 
+// Mail-aflever-heartbeat / dead-man's-switch voor het e-mailkanaal (één singleton-rij, channel = PK).
+// Anders dan de cron-/back-up-heartbeat is e-mail NIET schema-gedreven maar event-gedreven: er wordt
+// alleen verzonden wanneer er iets te melden valt. Daarom slaan we niet op "hoe lang geleden de
+// laatste verzending was" (dat zou tijdens een rustige periode vals alarm geven) maar de UITKOMST van
+// de laatste échte verzending: is het kanaal momenteel aan het afwijzen? Elke verzending via een echte
+// driver (smtp/resend/postmark/ses) registreert hier haar uitkomst; de noop-driver (geen kanaal) doet
+// dat bewust niet. Een systematisch afwijzend kanaal (verlopen sleutel, gede-verifieerd domein,
+// account geschorst) laat élke notificatie/reset/herinnering stil mislukken — de verzendcode vangt de
+// fout PII-veilig af en gaat door, dus zonder deze detector merkt niemand het tot een gebruiker klaagt.
+// Bevat geen persoonsgegevens — alleen tijdstippen, of de laatste verzending slaagde, het aantal
+// opeenvolgende mislukkingen en de driver-modus (config, geen PII — nooit adres/onderwerp/foutinhoud).
+model MailDeliveryHeartbeat {
+  channel             String   @id // bv. "outbound"
+  lastAttemptAt       DateTime
+  lastOk              Boolean
+  lastSuccessAt       DateTime?
+  lastFailureAt       DateTime?
+  consecutiveFailures Int      @default(0)
+  driver              String // EMAIL_DRIVER-modus bij de laatste poging: "smtp" | "resend" | "postmark" | "ses"
+  updatedAt           DateTime @updatedAt
+}
+
 // Idempotentie-grendel voor de betaal-webhook (/api/billing/webhook). Elke verwerkte
 // provider-ping wordt hier exact één keer vastgelegd op (provider, eventKey), waarbij
 // eventKey = "<paymentRef>:<status>". Een herspeeld of dubbel-afgeleverd event schendt de

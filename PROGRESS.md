@@ -20,6 +20,37 @@ verder oppervlak schoon (geen nieuw KRITIEK/HOOG). Zie `docs/SECURITY-PRIVACY-BA
   `documents/[id]/route.test.ts`, `pdf-routes-audit.test.ts` (+3), `dossier-routes-audit.test.ts` (+2).
 - **Gate:** typecheck + lint + `npm run test` (552 files, 5753 tests) + build groen; `prettier --write .` schoon.
 
+## 2026-08-11 — Mail-aflever-heartbeat / dead-man's-switch voor het e-mailkanaal
+
+**Wat:** e-mail is een productiekernkanaal (§2: certificaat goedgekeurd, wachtwoordherstel,
+herinneringen), maar had — anders dan opslag/database/cron/back-up — geen doorlopend
+afleversignaal. Een systematisch afwijzende provider (verlopen sleutel, gede-verifieerd domein,
+geschorst account, harde rate-limit) laat élke mail stil mislukken; de verzendcode vangt de fout
+PII-veilig af (`logMailFailure`) en gaat door, dus niemand merkt het tot een gebruiker klaagt.
+
+- **`src/lib/services/mail-sender.ts`**: elke verzending via een echte driver (smtp/resend/
+  postmark/ses) registreert nu de uitkomst in een singleton `MailDeliveryHeartbeat`, via een
+  nieuwe `RecordingMailSender`-decorator rond `getMailSender()` (de `noop`-driver registreert
+  bewust niets). Oordeel op de **laatste** verzending — geen staleness-op-leeftijd — via
+  `never`/`ok`/`failing` + `consecutiveFailures`.
+  (`src/lib/observability/mail-delivery-heartbeat.ts` + `mail-delivery-freshness.ts`).
+- **`src/components/admin/mail-delivery-heartbeat-card.tsx`**: nieuwe kaart "E-mailaflevering" op
+  `/admin/systeemstatus` (admin-only).
+- **`src/app/api/metrics/route.ts` + `src/lib/observability/metrics.ts`**: nieuwe gauges
+  `zzp_mail_delivery_ok`, `zzp_mail_consecutive_failures`, `zzp_mail_last_failure_age_seconds`.
+- **`prisma/schema.prisma`**: nieuw model `MailDeliveryHeartbeat` (singleton).
+- **`docs/observability/alerts.yml`**: drop-in Prometheus-alert `ZzpMailDeliveryFailing`
+  (`zzp_mail_delivery_ok == 0 and zzp_mail_consecutive_failures >= 3`, `for: 15m`, warning),
+  toegevoegd aan de onderhouds-inhibitie in `alertmanager.yml`, vastgeklonken aan de drift-gates.
+
+**Eigenschappen:** bevat nooit PII (adres/onderwerp/foutinhoud) of secrets — alleen tijdstippen, de
+teller en de driver-modus. Registratie is fail-open (een DB-storing in de heartbeat mag een
+geslaagde verzending niet laten falen, noch een echte verzendfout maskeren). Herstel wordt
+automatisch gewist zodra een verzending slaagt (of via de E-mail-zelftest op
+`/admin/systeemstatus`). Resterend mensenwerk: **niets extra** — zie `MENSENWERK.md` §2.
+
+**Gate:** typecheck, lint, test, build, prettier + drift-gates groen.
+
 ## 2026-08-11 — Persona-sweep run 70: support-body-cap (CWE-400) + badge↔lijst-pariteit plaatsings-gate
 
 **Wat:** Kritische-gebruiker-sweep over 4 rollen (DOEL 1/1b/2) via 4 parallelle Opus-audits. Twee

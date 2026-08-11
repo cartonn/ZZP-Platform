@@ -7,10 +7,12 @@ import { evaluateReadiness } from "@/lib/observability/readiness";
 import { collectSystemStatus } from "@/lib/system-status";
 import { getCronFreshness } from "@/lib/observability/cron-heartbeat";
 import { getBackupFreshness } from "@/lib/observability/backup-heartbeat";
+import { getMailDeliveryFreshness } from "@/lib/observability/mail-delivery-heartbeat";
 import { PageHeader } from "@/components/ui/page-header";
 import { SystemStatusPanel } from "@/components/admin/system-status-panel";
 import { CronHeartbeatCard } from "@/components/admin/cron-heartbeat-card";
 import { BackupHeartbeatCard } from "@/components/admin/backup-heartbeat-card";
+import { MailDeliveryHeartbeatCard } from "@/components/admin/mail-delivery-heartbeat-card";
 import { SelfTestSweep } from "@/components/admin/selftest-sweep";
 import { DbSelfTest } from "@/components/admin/db-selftest";
 import { StorageSelfTest } from "@/components/admin/storage-selftest";
@@ -46,6 +48,7 @@ export default async function SysteemstatusPage() {
   });
   const cronFreshness = await getCronFreshness();
   const backupFreshness = await getBackupFreshness();
+  const mailDeliveryFreshness = await getMailDeliveryFreshness();
 
   return (
     <div className="space-y-6">
@@ -57,6 +60,7 @@ export default async function SysteemstatusPage() {
       <SystemStatusPanel status={status} dbReachable={readiness.ready} />
       <CronHeartbeatCard freshness={cronFreshness} />
       <BackupHeartbeatCard freshness={backupFreshness} />
+      <MailDeliveryHeartbeatCard freshness={mailDeliveryFreshness} />
       <SelfTestSweep />
       <DbSelfTest provider={detectDbProvider(process.env.DATABASE_URL)} />
       <StorageSelfTest driverMode={env.STORAGE_DRIVER} />

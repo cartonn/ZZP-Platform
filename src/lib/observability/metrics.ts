@@ -186,6 +186,23 @@ export interface MetricsInput {
    * eigen TTL heen zonder dat iets dat toont.
    */
   routingCacheRetentionBacklog: number;
+  /**
+   * Levert het e-mailkanaal momenteel af? true = de laatste échte verzending slaagde (of er is nog
+   * nooit iets verzonden — neutraal gezond), false = de laatste verzending mislukte (het kanaal wijst
+   * af). Anders dan de cron-/back-up-heartbeat is dit GEEN staleness-op-leeftijd: e-mail is
+   * event-gedreven, dus een rustige periode is normaal. Het alarm zit op OPEENVOLGENDE mislukkingen
+   * (mailDeliveryConsecutiveFailures), niet op een oude laatste-verzending.
+   */
+  mailDeliveryOk: boolean;
+  /**
+   * Aantal opeenvolgende mislukte e-mailverzendingen sinds de laatste geslaagde (0 als het kanaal ok is
+   * of nog nooit iets verstuurde). Een systematisch afwijzend kanaal (verlopen sleutel, gede-verifieerd
+   * domein, geschorst account, harde rate-limit) laat élke notificatie/reset/herinnering stil mislukken;
+   * een monitor paget op een aanhoudende teller, niet op één transiënte bounce.
+   */
+  mailDeliveryConsecutiveFailures: number;
+  /** Leeftijd van de laatste mislukte e-mailverzending in seconden, of null als er nooit één was. */
+  mailDeliveryLastFailureAgeSeconds: number | null;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -337,6 +354,24 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal routing-cacherijen (GeocodeCache + TravelRouteCache, platte-tekst locatie-PII in query/fromQuery/toQuery) wier eigen TTL (expiresAt) is verstreken die de routing-cache-retention-cron nog niet fysiek verwijderde (deze retentie staat altijd AAN — de TTL zit per rij ingebakken, geen instelvenster; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → locatie-PII bewaard over de eigen TTL heen, AVG art. 5(1)(e)).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.routingCacheRetentionBacklog)),
+    },
+    {
+      name: "zzp_mail_delivery_ok",
+      help: "1 als de laatste échte e-mailverzending slaagde (of er nog nooit iets verstuurd is — neutraal gezond), 0 als de laatste verzending mislukte (kanaal wijst af). E-mail is een productie-kernkanaal (notificaties, wachtwoordherstel, herinneringen); een afwijzend kanaal laat die stil mislukken.",
+      type: "gauge",
+      value: flag(input.mailDeliveryOk),
+    },
+    {
+      name: "zzp_mail_consecutive_failures",
+      help: "Aantal opeenvolgende mislukte e-mailverzendingen sinds de laatste geslaagde (0 = kanaal ok of nog niets verstuurd). Alarmeer op een AANHOUDENDE teller (systematisch afwijzende provider: verlopen sleutel, gede-verifieerd domein, geschorst account, rate-limit), niet op één transiënte bounce.",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.mailDeliveryConsecutiveFailures)),
+    },
+    {
+      name: "zzp_mail_last_failure_age_seconds",
+      help: `Leeftijd van de laatste mislukte e-mailverzending in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_mail_consecutive_failures / zzp_mail_delivery_ok.`,
+      type: "gauge",
+      value: age(input.mailDeliveryLastFailureAgeSeconds),
     },
   ];
 }

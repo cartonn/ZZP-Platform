@@ -408,6 +408,35 @@ goedgekeurd", wachtwoord/uitnodiging) heb je een mailprovider nodig.
    Beide bestaan naast elkaar: de sweep gebruikt de bulk-veilige read-only variant; de losse "Testmail
    versturen"-knop bevestigt de daadwerkelijke aflevering. Resterend mensenwerk: **niets extra**.
 
+   **Code-kant GEDAAN (2026-08-11) — mail-aflever-heartbeat (dead-man's-switch):** de connectiviteitscheck
+   en de deliverability-zelftest hierboven bewijzen bereikbaarheid **vóór go-live**, op een moment dat een
+   mens ervoor kiest te klikken. Ze zeggen niets over de duizenden échte verzendingen daarna: e-mail is een
+   productiekernkanaal (§2 hierboven: certificaat goedgekeurd, wachtwoordherstel, herinneringen), maar had —
+   anders dan opslag/database/cron/back-up — geen doorlopend afleversignaal. Een systematisch afwijzende
+   provider (verlopen sleutel, gede-verifieerd domein, geschorst account, harde rate-limit) laat élke mail
+   stil mislukken; de verzendcode vangt de fout PII-veilig af (`logMailFailure`) en gaat door, dus niemand
+   merkt het tot een gebruiker klaagt. Nu registreert elke verzending via een echte driver (smtp/resend/
+   postmark/ses) de uitkomst in een singleton `MailDeliveryHeartbeat`, via een `RecordingMailSender`-
+   decorator rond `getMailSender()` (de `noop`-driver registreert bewust niets — er wordt niets afgeleverd).
+   Anders dan de cron-/back-up-heartbeats is dit **geen** staleness-op-leeftijd (e-mail is event-gedreven;
+   een rustige periode is normaal) maar het oordeel op de **laatste** verzending: `never` (nog niets
+   verstuurd — neutraal gezond), `ok` (laatste verzending slaagde), `failing` (laatste verzending mislukte)
+   met een teller `consecutiveFailures`. Zichtbaar op `/admin/systeemstatus` (nieuwe kaart
+   "E-mailaflevering", admin-only) en machine-leesbaar op `/api/metrics` via de gauges
+   `zzp_mail_delivery_ok` (1 = laatste verzending slaagde of nog niets verstuurd; 0 = afwijzend),
+   `zzp_mail_consecutive_failures` en `zzp_mail_last_failure_age_seconds`. Een drop-in Prometheus-alert
+   `ZzpMailDeliveryFailing` (`zzp_mail_delivery_ok == 0 and zzp_mail_consecutive_failures >= 3`, `for: 15m`,
+   warning) staat in `docs/observability/alerts.yml`, is toegevoegd aan de onderhouds-inhibitie in
+   `alertmanager.yml` en is vastgeklonken aan de drift-gates. Herstel wordt automatisch gewist zodra een
+   verzending slaagt (of via de E-mail-zelftest hierboven). Bevat nooit PII (adres/onderwerp/foutinhoud) of
+   secrets — alleen tijdstippen, de teller en de driver-modus. Registratie is fail-open (een DB-storing in
+   de heartbeat mag een geslaagde verzending niet laten falen, noch een echte verzendfout maskeren). Kort:
+   de bestaande checks bewijzen bereikbaarheid op een bewust moment; deze heartbeat bewaakt **continu** of
+   het kanaal in productie blijft afleveren, en surfacet een stil afwijzend kanaal zonder dat een mens hoeft
+   te klikken. Resterend mensenwerk: **niets extra** — de kaart/gauge vullen zichzelf zodra `EMAIL_DRIVER`
+   op een echt kanaal staat en de eerste mail uitgaat. Optioneel: richt een monitor op
+   `ZzpMailDeliveryFailing`.
+
 ---
 
 ## §3. Betalingen / abonnementen

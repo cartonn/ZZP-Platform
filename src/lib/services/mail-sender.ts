@@ -16,6 +16,10 @@
 
 import { signAwsV4 } from "@/lib/services/aws-sigv4";
 import { fetchWithTimeout, resolveHttpTimeoutMs } from "@/lib/services/fetch-timeout";
+import {
+  recordMailDeliverySuccess,
+  recordMailDeliveryFailure,
+} from "@/lib/observability/mail-delivery-heartbeat";
 
 export interface MailMessage {
   /** Ontvanger, bv. "jan@voorbeeld.nl" of "Jan Jansen <jan@voorbeeld.nl>". */
@@ -480,16 +484,52 @@ export function isMailDeliveryConfigured(): boolean {
   return driver === "smtp" || driver === "resend" || driver === "postmark" || driver === "ses";
 }
 
+/**
+ * Decorator die de UITKOMST van elke échte verzending registreert in de mail-aflever-heartbeat
+ * (dead-man's-switch, src/lib/observability/mail-delivery-heartbeat.ts) zonder het verzendgedrag te
+ * veranderen: bij succes markeert 'ie het kanaal als afleverend, bij een fout telt 'ie de
+ * opeenvolgende-mislukkingen-teller op en gooit de originele fout door (zodat de oproeper 'm nog steeds
+ * PII-veilig kan loggen). De registratie is fail-open — een DB-storing in de heartbeat mag een
+ * geslaagde verzending niet alsnog laten falen, noch een echte verzendfout maskeren. Wordt uitsluitend
+ * om een echte driver gewikkeld; de noop-driver levert niets af en registreert dus niets.
+ *
+ * `checkConnectivity()` gaat ongewijzigd door: dat is een read-only controle, geen aflevering.
+ */
+export class RecordingMailSender implements MailSender {
+  constructor(
+    readonly inner: MailSender,
+    private readonly driver: string,
+  ) {}
+
+  async send(message: MailMessage): Promise<void> {
+    try {
+      await this.inner.send(message);
+    } catch (error) {
+      await recordMailDeliveryFailure(this.driver);
+      throw error;
+    }
+    await recordMailDeliverySuccess(this.driver);
+  }
+
+  checkConnectivity(): Promise<void> {
+    return this.inner.checkConnectivity();
+  }
+}
+
 let cached: MailSender | null = null;
 
 /** Geeft de geconfigureerde MailSender-instantie terug (singleton). */
 export function getMailSender(): MailSender {
   if (cached) return cached;
   const driver = process.env.EMAIL_DRIVER ?? "noop";
-  if (driver === "smtp") cached = new SmtpMailSender();
-  else if (driver === "resend") cached = new ResendMailSender();
-  else if (driver === "postmark") cached = new PostmarkMailSender();
-  else if (driver === "ses") cached = new SesMailSender();
+  // Echte drivers worden in de aflever-heartbeat gewikkeld (uitkomst-registratie); de noop-driver
+  // levert niets af en blijft kaal, zodat de heartbeat geen "geslaagde" verzending registreert die er
+  // in werkelijkheid niet was.
+  if (driver === "smtp") cached = new RecordingMailSender(new SmtpMailSender(), driver);
+  else if (driver === "resend") cached = new RecordingMailSender(new ResendMailSender(), driver);
+  else if (driver === "postmark")
+    cached = new RecordingMailSender(new PostmarkMailSender(), driver);
+  else if (driver === "ses") cached = new RecordingMailSender(new SesMailSender(), driver);
   else cached = new NoopMailSender();
   return cached;
 }
