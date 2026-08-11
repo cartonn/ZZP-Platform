@@ -64,7 +64,7 @@ import {
   type CascadeStage,
 } from "@/lib/cascade/stage";
 import { weekOverview, type WeekOverview } from "@/lib/week-overview";
-import { buildWeekStrip } from "@/lib/week-strip";
+import { buildWeekStrip, weekStripLoadByDate } from "@/lib/week-strip";
 import { RUNNING_ZONE_LIMIT, runningZonePlan } from "@/lib/running-zone";
 import { parseWeekdays } from "@/lib/weekdays";
 import { computeEngageability, type EngageabilityResult } from "@/lib/engageability";
@@ -451,8 +451,12 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           status: true,
           contractStatus: true,
           disputedAt: true,
+          startDate: true,
+          endDate: true,
+          rate: true,
+          weekdays: true,
           job: { select: { title: true } },
-          freelancer: { select: { user: { select: { name: true } } } },
+          freelancer: { select: { id: true, user: { select: { name: true } } } },
           performances: {
             orderBy: { createdAt: "desc" },
             take: 1,
@@ -490,7 +494,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     ]);
     // Compliance-waarschuwingen per lopende samenwerking (ZZP'er mist/verlopen vereist certificaat),
     // zodat de opdrachtgever dit ook op het dashboard ziet — niet alleen op /samenwerkingen.
-    const credentialAlerts = clientCredentialAlertsFromRows(credentialAlertRows, new Date());
+    const now = new Date();
+    const credentialAlerts = clientCredentialAlertsFromRows(credentialAlertRows, now);
     const complianceByCollab = new Map(
       credentialAlerts.map((a) => [a.collaborationId, shortCredentialAlert(a.alert)]),
     );
@@ -515,6 +520,26 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         ),
       }),
     }));
+    // Weekoverzicht vanuit de opdrachtgever: dezelfde strip als de ZZP'er, maar het label per dienst
+    // is de ZZP'er die op locatie is ("wie werkt er deze week bij mij, waar zitten de gaten?"). Alleen
+    // bij 2–6 lopende samenwerkingen én volledige data (zone.showWeek); boven de zone-grens zou de
+    // "Deze week"-telling liegen (dezelfde regel als de ZZP'er-tak).
+    const zone = runningZonePlan(runningTotal);
+    const week = zone.showWeek
+      ? weekOverview(
+          runningRows.map((c) => ({
+            collaborationId: c.id,
+            clientId: c.freelancer.id,
+            clientName: c.freelancer.user.name ?? "ZZP'er",
+            jobTitle: c.job.title,
+            startDate: c.startDate,
+            endDate: c.endDate,
+            rate: c.rate,
+            weekdays: parseWeekdays(c.weekdays),
+          })),
+          now,
+        )
+      : null;
     return {
       stats: [
         { label: "Gepubliceerde opdrachten", value: openJobs, href: "/opdrachten" },
@@ -522,8 +547,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         { label: "Actieve samenwerkingen", value: activeCollabs, href: "/samenwerkingen" },
       ],
       running,
-      runningOverflow: runningZonePlan(runningTotal).overflow,
-      week: null,
+      runningOverflow: zone.overflow,
+      week,
       isNewAccount: openJobs === 0 && drafts === 0 && activeCollabs === 0,
       complianceSnapshot,
       suggestedFreelancers,
@@ -874,14 +899,7 @@ export default async function DashboardPage() {
       };
     });
     // Week-strip: altijd de huidige week (#19); echte dienst-belasting waar bekend.
-    const loadByDate = new Map<string, number>();
-    if (weekStrip?.hasAny) {
-      for (const d of weekStrip.days) {
-        const dt = d.date;
-        const key = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
-        loadByDate.set(key, d.entries.length);
-      }
-    }
+    const loadByDate = weekStripLoadByDate(weekStrip);
     const weekCount = week
       ? `${week.entries.length} ${t(week.entries.length === 1 ? "dienst" : "diensten")}`
       : `0 ${t("diensten")}`;
@@ -1008,13 +1026,14 @@ export default async function DashboardPage() {
           reportHref: "/samenwerkingen",
         }
       : undefined;
-    const activeCount = cs?.activeCollaborations ?? 0;
-    const wk = buildCurrentWeek(
-      new Date(),
-      `${activeCount} ${t(activeCount === 1 ? "dienst" : "diensten")}`,
-      undefined,
-      t,
-    );
+    // Week-strip met echte per-dag-belasting (zelfde overlay als de ZZP'er): het aantal ZZP'ers dat
+    // die dag bij deze opdrachtgever werkt. Buiten zone.showWeek is `week` null → lege strip + "0
+    // diensten" (een afgekapte of te-kleine set zou de telling laten liegen).
+    const loadByDate = weekStripLoadByDate(weekStrip);
+    const weekCount = week
+      ? `${week.entries.length} ${t(week.entries.length === 1 ? "dienst" : "diensten")}`
+      : `0 ${t("diensten")}`;
+    const wk = buildCurrentWeek(new Date(), weekCount, loadByDate, t);
     return (
       <WorkspaceDashboard
         header={{

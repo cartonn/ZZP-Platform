@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-11 — opdrachtgever: dashboard-weekstrip toont echte dienst-belasting (i.p.v. lege strip + misleidende telling)
+
+**Wat:** De "Deze week"-strip op het **opdrachtgever**-dashboard was decoratief: `buildCurrentWeek(...)`
+kreeg `undefined` als dag-belasting → elke dagbalk stond op 0, altijd een lege week. De telling toonde
+bovendien `activeCount` (het **totaal** actieve samenwerkingen), niet de diensten die **deze week** lopen
+— een misleidend getal boven een lege strip. De ZZP'er-tak bouwt die strip al echt op (`weekOverview` +
+`buildWeekStrip` uit `weekdays`/`startDate`/`endDate`, met per-dag-belasting), maar de opdrachtgever —
+die vaak meerdere ZZP'ers tegelijk inzet — kreeg dit niet, terwijl het dashboard zijn primaire dagelijkse
+blik is (benchmark: staffing-agency-weekbezetting à la Temper/Zorgwerk). Nu bouwt de client-tak van
+`dashboardData` een echte `weekOverview` (label per dienst = de ZZP'er die op locatie is → "wie werkt er
+deze week bij mij, waar zitten de gaten?"), gegate op `runningZonePlan(...).showWeek` (2–6 lopend, exact
+als de ZZP'er — een afgekapte set zou de telling laten liegen). De render overlayt de echte per-dag-
+belasting en toont het aantal diensten déze week; buiten het venster valt hij netjes terug op een lege
+strip + "0 diensten" i.p.v. het oude misleidende totaal.
+
+**Bestanden:** `src/lib/week-strip.ts` (+ nieuwe pure `weekStripLoadByDate(strip)` — sleutel `YYYY-MM-DD`
+UTC → aantal diensten per dag; dedupliceert de inline-loop die de ZZP'er-tak al had), `src/lib/
+week-strip.test.ts` (+2 tests), `src/app/(protected)/dashboard/page.tsx` (client-tak: select uitgebreid
+met `startDate`/`endDate`/`rate`/`weekdays` + `freelancer.id`; `week` echt gebouwd i.p.v. `null`; render
+overlayt de belasting; ZZP'er-tak hergebruikt nu dezelfde helper). Geen schemawijziging, server-side
+waarheid, read-only, geen nieuw mutatie/auth-oppervlak.
+
+**Gate:** typecheck, lint, test (5706), build, prettier groen. **Volgende stap:** PR #1049 → poort → auto-merge.
+
 ## 2026-08-11 — prod: gelekt-wachtwoord-controle (NIST 800-63B / OWASP), inert achter een vlag
 
 **Wat:** Nieuwe productie-securityvoorziening: nieuwe wachtwoorden kunnen tegen bekende datalekken
