@@ -2,6 +2,7 @@
 // Pure: geen DB-toegang, volledig testbaar.
 
 import { formatIban } from "@/lib/fiscal";
+import { summarizeOverdueCharges } from "@/lib/collection-costs";
 
 export interface AanmaningInput {
   freelancerName: string;
@@ -13,6 +14,8 @@ export interface AanmaningInput {
   totalCents: number;
   /** Genormaliseerd IBAN van de crediteur; leeg/afwezig → placeholder in de brief. */
   iban?: string | null;
+  /** Jaarrente (basispunten) voor de indicatieve handelsrente; standaard de wettelijke richtwaarde. */
+  interestRateBps?: number;
   now?: Date;
 }
 
@@ -28,6 +31,16 @@ export interface AanmaningData {
   daysPastDue: number;
   letterDateFormatted: string;
   ibanFormatted: string;
+  /** True zodra er wettelijke rente/incassokosten te claimen zijn (factuur is verlopen). */
+  hasCharges: boolean;
+  /** Opgebouwde wettelijke handelsrente (geformatteerd). */
+  interestFormatted: string;
+  /** Buitengerechtelijke incassokosten volgens de WIK-staffel (geformatteerd). */
+  collectionCostsFormatted: string;
+  /** Hoofdsom + rente + incassokosten (geformatteerd). */
+  totalWithChargesFormatted: string;
+  /** Indicatieve jaarrente als percentage-tekst (bv. "8"). */
+  interestRatePctFormatted: string;
 }
 
 function fmtDate(d: Date | null): string {
@@ -46,6 +59,13 @@ export function buildAanmaningData(input: AanmaningInput): AanmaningData {
     : 0;
   const newDeadline = new Date(now.getTime() + 14 * 86_400_000);
 
+  const charges = summarizeOverdueCharges({
+    principalCents: input.totalCents,
+    dueAt: input.dueAt,
+    now,
+    annualRateBps: input.interestRateBps,
+  });
+
   return {
     freelancerName: input.freelancerName,
     companyName: input.companyName,
@@ -58,10 +78,27 @@ export function buildAanmaningData(input: AanmaningInput): AanmaningData {
     daysPastDue,
     letterDateFormatted: fmtDate(now),
     ibanFormatted: input.iban ? formatIban(input.iban) : "[uw IBAN]",
+    hasCharges: charges.hasCharges,
+    interestFormatted: fmtEuro(charges.interestCents),
+    collectionCostsFormatted: fmtEuro(charges.collectionCostsCents),
+    totalWithChargesFormatted: fmtEuro(charges.totalWithChargesCents),
+    interestRatePctFormatted: (charges.interestRateBps / 100)
+      .toLocaleString("nl-NL", { maximumFractionDigits: 2 })
+      .replace(/,00$/, ""),
   };
 }
 
 export function buildAanmaningLetter(d: AanmaningData): string {
+  // Verzuim-alinea (alleen bij een verlopen factuur): de wettelijke handelsrente (art. 6:119a BW)
+  // en de buitengerechtelijke incassokosten (WIK) die een crediteur bij een B2B-transactie mag
+  // claimen. Bewust indicatief — de rente wijzigt per halfjaar; de ZZP'er controleert het bedrag.
+  const chargesParagraph = d.hasCharges
+    ? `\n\nBij uitblijvende betaling zijn wij op grond van de wet gerechtigd de wettelijke handelsrente \
+(indicatief ${d.interestRatePctFormatted}% per jaar — controleer de actuele rente) en de \
+buitengerechtelijke incassokosten in rekening te brengen. Ter indicatie bedraagt de tot heden \
+opgebouwde rente ${d.interestFormatted} en de incassokosten ${d.collectionCostsFormatted}, waarmee \
+het totaal verschuldigde oploopt tot ${d.totalWithChargesFormatted}.`
+    : "";
   return `${d.freelancerName}
 [Straatnaam + huisnummer]
 [Postcode + Stad]
@@ -91,7 +128,7 @@ uiterlijk ${d.newDeadlineFormatted} over te maken op het volgende rekeningnummer
 
 IBAN: ${d.ibanFormatted}
 T.n.v.: ${d.freelancerName}
-Onder vermelding van: Factuur ${d.invoiceNumber}
+Onder vermelding van: Factuur ${d.invoiceNumber}${chargesParagraph}
 
 Betaling verloopt rechtstreeks tussen ons. Indien u al betaling heeft verricht, beschouw dan \
 deze aanmaning als niet verzonden.

@@ -49,6 +49,39 @@ export function AanmaningSection({ data }: { data: AanmaningData }) {
               Betaling verloopt rechtstreeks; het platform verstuurt geen brieven.
             </p>
 
+            {data.hasCharges && (
+              <div className="rounded-md border border-border bg-muted/40 p-3 text-xs">
+                <p className="font-medium text-foreground">Wat u wettelijk mag claimen</p>
+                <dl className="mt-2 space-y-1 text-muted-foreground">
+                  <div className="flex items-center justify-between gap-2">
+                    <dt>
+                      Wettelijke handelsrente{" "}
+                      <span className="text-muted-foreground/70">
+                        (indicatief {data.interestRatePctFormatted}%/jaar)
+                      </span>
+                    </dt>
+                    <dd className="tabular-nums text-foreground">{data.interestFormatted}</dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <dt>Incassokosten (WIK-staffel)</dt>
+                    <dd className="tabular-nums text-foreground">
+                      {data.collectionCostsFormatted}
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-t border-border pt-1 font-medium">
+                    <dt className="text-foreground">Totaal verschuldigd</dt>
+                    <dd className="tabular-nums text-foreground">
+                      {data.totalWithChargesFormatted}
+                    </dd>
+                  </div>
+                </dl>
+                <p className="mt-2 text-muted-foreground/80">
+                  Indicatie. De handelsrente wijzigt per halfjaar — controleer de actuele rente vóór
+                  u deze bedragen definitief in rekening brengt.
+                </p>
+              </div>
+            )}
+
             <pre className="overflow-x-auto whitespace-pre-wrap rounded-md border border-border bg-muted/40 p-4 text-sm leading-relaxed text-foreground">
               {letter}
             </pre>

@@ -121,3 +121,36 @@ describe("buildAanmaningLetter", () => {
     expect(d.ibanFormatted).toBe("[uw IBAN]");
   });
 });
+
+describe("aanmaning — wettelijke rente + incassokosten", () => {
+  it("berekent en toont rente + incassokosten voor een verlopen factuur", () => {
+    // € 3.500 hoofdsom, 16 dagen te laat
+    const d = buildAanmaningData(BASE);
+    expect(d.hasCharges).toBe(true);
+    // 15% × 2.500 (375) + 10% × 1.000 (100) = € 475
+    expect(d.collectionCostsFormatted).toContain("475");
+    expect(d.interestFormatted).not.toBe("");
+    expect(d.totalWithChargesFormatted).not.toBe(d.totalFormatted);
+    expect(d.interestRatePctFormatted).toBe("8");
+  });
+
+  it("neemt de verzuim-alinea op in de brief bij een verlopen factuur", () => {
+    const d = buildAanmaningData(BASE);
+    const letter = buildAanmaningLetter(d);
+    expect(letter).toContain("wettelijke handelsrente");
+    expect(letter).toContain("incassokosten");
+    expect(letter).toContain("totaal verschuldigde");
+  });
+
+  it("laat rente/incassokosten weg wanneer de factuur nog niet verlopen is", () => {
+    const d = buildAanmaningData({ ...BASE, now: new Date("2026-04-10") });
+    expect(d.hasCharges).toBe(false);
+    const letter = buildAanmaningLetter(d);
+    expect(letter).not.toContain("wettelijke handelsrente");
+  });
+
+  it("respecteert een afwijkend rentepercentage", () => {
+    const d = buildAanmaningData({ ...BASE, interestRateBps: 1200 });
+    expect(d.interestRatePctFormatted).toBe("12");
+  });
+});
