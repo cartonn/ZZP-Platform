@@ -169,6 +169,17 @@ export async function createPerformance(
     include: { freelancer: { select: { userId: true } }, company: { select: { userId: true } } },
   });
   if (!col) throw new CascadeError("Samenwerking niet gevonden.");
+  // Anti-oracle (CWE-203): een actor die géén partij is bij deze samenwerking krijgt exact dezelfde
+  // "Samenwerking niet gevonden."-melding als een onbekend id; alleen de opdrachtgever (partij,
+  // verkeerde kant) houdt de behulpzame rolmelding. Symmetrisch met de siblings update/submit/
+  // approve/reject-Performance (#903) — createPerformance was de laatste die het bestaan lekte.
+  if (
+    actor.role !== "ADMIN" &&
+    actor.id !== col.freelancer.userId &&
+    actor.id !== col.company.userId
+  ) {
+    throw new CascadeError("Samenwerking niet gevonden.");
+  }
   if (actor.role !== "ADMIN" && actor.id !== col.freelancer.userId) {
     throw new CascadeError("Alleen de ZZP'er kan een prestatie vastleggen.");
   }

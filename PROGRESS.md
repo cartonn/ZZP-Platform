@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-11 — Security: anti-oracle (CWE-203) op `createPerformance` — laatste existence-oracle in de party-guarded cascade dicht (PR #1056)
+
+**Wat:** persona-sweep run 70 parkeerde een LOW existence-oracle: `createPerformance`
+(`src/lib/cascade/performance-commands.ts`) gaf een niet-partij die een geldig `collaborationId` raadde de
+behulpzame rolmelding "Alleen de ZZP'er kan een prestatie vastleggen." (bevestigt bestaan) i.p.v. de
+"Samenwerking niet gevonden."-melding van een onbekend id — productie-observeerbaar op het MILESTONE-pad
+(`logAndSubmitPerformanceAction` toont de melding als returnwaarde). De 5 siblings waren al op #903
+geünificeerd; dit was de enige die achterbleef.
+
+- **Fix:** een actor die noch de ZZP'er, noch de opdrachtgever (`col.company.userId` — al meegeladen, geen
+  extra query), noch admin is, krijgt nu exact dezelfde "Samenwerking niet gevonden."-melding als een onbekend
+  id; alleen de opdrachtgever (partij, verkeerde kant) houdt de behulpzame rolmelding. Symmetrisch met
+  `update/submit/approve/reject-Performance`.
+- **Bestanden:** `src/lib/cascade/performance-commands.ts` (+anti-oracle-guard),
+  `src/lib/cascade/anti-oracle-party.test.ts` (+2 tests → 19).
+- **Server-side waarheid, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.**
+- **Gate:** typecheck, lint, test (5769), build, prettier groen. **Volgende stap:** CI-poort → self-merge.
+
 ## 2026-08-11 — Security/privacy-audit: timing-zijkanaal ondermijnt 404-maskering op gevoelige resource-routes (LAAG, rood→groen)
 
 **Wat:** Security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

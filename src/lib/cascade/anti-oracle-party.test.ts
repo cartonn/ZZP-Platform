@@ -120,6 +120,20 @@ describe("cascade anti-oracle — niet-partij ononderscheidbaar van niet-gevonde
 
   // --- void-cascade commando's (throw → in prod geredigeerd; hier defense-in-depth-consistentie) ---
 
+  it("createPerformance: vreemde actor krijgt 'Samenwerking niet gevonden.', niet de rolmelding", async () => {
+    const { createPerformance } = await import("@/lib/cascade/performance-commands");
+    expect(
+      await msg(createPerformance(STRANGER, { ...HOURS_INPUT, collaborationId: "col-1" })),
+    ).toBe("Samenwerking niet gevonden.");
+  });
+
+  it("createPerformance: opdrachtgever (partij, verkeerde kant) houdt de rolmelding", async () => {
+    const { createPerformance } = await import("@/lib/cascade/performance-commands");
+    expect(await msg(createPerformance(CLIENT, { ...HOURS_INPUT, collaborationId: "col-1" }))).toBe(
+      "Alleen de ZZP'er kan een prestatie vastleggen.",
+    );
+  });
+
   it("submitPerformance: vreemde actor krijgt 'Prestatie niet gevonden.'", async () => {
     const { submitPerformance } = await import("@/lib/cascade/performance-commands");
     expect(await msg(submitPerformance(STRANGER, "perf-1"))).toBe("Prestatie niet gevonden.");
