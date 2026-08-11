@@ -7,6 +7,7 @@ import { AuthorizationError, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import { auditDeniedAccess } from "@/lib/security/access-audit";
 import { buildDbaAuditData } from "@/lib/dba-audit";
 import { buildDbaAuditPdf } from "@/lib/dba-audit-pdf";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
@@ -80,7 +81,19 @@ export async function GET(
     },
   });
 
-  if (!col) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+  if (!col) {
+    // Niet-gevonden doet hetzelfde werk (audit-write) als de geweigerde-tak, zodat de responstijd de
+    // twee niet onderscheidt (timing-zijkanaal, CWE-208) en de 404-maskering echt dicht is.
+    await auditDeniedAccess({
+      actorId: actor.id,
+      action: "DBA_DOSSIER_ACCESS_DENIED",
+      entityType: "Collaboration",
+      entityId: id,
+      outcome: "not-found",
+      metadata: { viewerRole: actor.role },
+    });
+    return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+  }
 
   // Toegang: de betrokken ZZP'er, de opdrachtgever, of admin.
   const allowed =
@@ -89,14 +102,13 @@ export async function GET(
     // Geweigerde inzage van het DBA-dossier (cross-party PII: namen, KvK/BTW, certificaatstatus)
     // vastleggen — beveiligingsrelevant, parity met /api/documents/[id] en de dossier-route
     // (CLAUDE.md regel 5). Maakt IDOR-enumeratie op collaboration-id's zichtbaar in het auditspoor.
-    const meta = await requestMeta();
-    await audit({
+    await auditDeniedAccess({
       actorId: actor.id,
       action: "DBA_DOSSIER_ACCESS_DENIED",
       entityType: "Collaboration",
       entityId: id,
+      outcome: "forbidden",
       metadata: { viewerRole: actor.role },
-      ...meta,
     });
     // Ononderscheidbaar van een onbekend id (CWE-203): een 403 op een vreemde-maar-geldige
     // samenwerking verraadt het bestaan ervan. De DENIED-audit hierboven blijft.

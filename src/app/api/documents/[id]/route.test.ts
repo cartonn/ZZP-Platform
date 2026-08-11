@@ -103,12 +103,22 @@ describe("/api/documents/[id]: rate-limit-rem tegen enumeratie/resource-uitputti
 });
 
 describe("/api/documents/[id]: geen existence-oracle (CWE-203)", () => {
-  it("onbekend id → 404 'Niet gevonden.'", async () => {
+  it("onbekend id → 404 'Niet gevonden.' + DENIED-audit (outcome not-found, timing-pariteit CWE-208)", async () => {
+    // Timing-pariteit: de niet-gevonden-tak moet dezelfde audit-write doen als de geweigerde-tak
+    // hieronder — anders is een onbekend id meetbaar sneller (geen DB-write) en heropent dat
+    // timing-verschil het existence-oracle (CWE-203) dat de identieke 404 juist dicht.
     store.document = null;
     const res = await GET(req, ctx("onbekend"));
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "Niet gevonden." });
     expect(storageGet).not.toHaveBeenCalled();
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "DOCUMENT_ACCESS_DENIED",
+        entityId: "onbekend",
+        metadata: expect.objectContaining({ outcome: "not-found" }),
+      }),
+    );
   });
 
   it("geldig id van een ander → identiek 404 'Niet gevonden.' (niet 403), maar wél DENIED-audit", async () => {

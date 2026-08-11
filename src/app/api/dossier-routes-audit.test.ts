@@ -172,4 +172,36 @@ describe("dossier-routes: auditplicht bij export én geweigerde inzage", () => {
       }),
     );
   });
+
+  // Timing-pariteit (CWE-208): een onbekend id moet dezelfde audit-write doen als een geweigerd id,
+  // anders is de niet-gevonden-tak meetbaar sneller en heropent dat het existence-oracle (CWE-203).
+  it("compliance-dossier: onbekend id → 404 + DOSSIER_ACCESS_DENIED (outcome not-found)", async () => {
+    store.collaboration = null;
+    const res = await dossier(req, ctx("nope"));
+    expect(res.status).toBe(404);
+    expect(auditMock).toHaveBeenCalledTimes(1);
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "DOSSIER_ACCESS_DENIED",
+        entityType: "Collaboration",
+        entityId: "nope",
+        metadata: expect.objectContaining({ outcome: "not-found" }),
+      }),
+    );
+  });
+
+  it("DBA-dossier: onbekend id → 404 + DBA_DOSSIER_ACCESS_DENIED (outcome not-found)", async () => {
+    store.collaboration = null;
+    const res = await dbaDossier(req, ctx("nope"));
+    expect(res.status).toBe(404);
+    expect(auditMock).toHaveBeenCalledTimes(1);
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "DBA_DOSSIER_ACCESS_DENIED",
+        entityType: "Collaboration",
+        entityId: "nope",
+        metadata: expect.objectContaining({ outcome: "not-found" }),
+      }),
+    );
+  });
 });

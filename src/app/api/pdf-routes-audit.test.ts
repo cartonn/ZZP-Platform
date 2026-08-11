@@ -213,3 +213,55 @@ describe("PDF-routes auditen documenttoegang (AVG, CLAUDE.md regel 5)", () => {
     );
   });
 });
+
+// Timing-pariteit (CWE-208): een ONBEKEND id moet exact hetzelfde werk doen als een geweigerd id —
+// dezelfde audit-write vóór de identieke 404 — anders is de niet-gevonden-tak meetbaar sneller
+// (geen DB-write) en heropent dat timing-verschil het existence-oracle (CWE-203) dat de 404-maskering
+// juist dicht. `outcome: "not-found"` onderscheidt de recon-probe intern in het auditspoor.
+describe("PDF-routes: onbekend id ononderscheidbaar van geweigerd (timing-pariteit, CWE-208)", () => {
+  it("factuur-PDF: onbekend id → 404 + INVOICE_PDF_ACCESS_DENIED (outcome not-found)", async () => {
+    store.invoice = null;
+    const res = await invoicePdf(req, ctx("does-not-exist"));
+    expect(res.status).toBe(404);
+    expect(auditMock).toHaveBeenCalledTimes(1);
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "INVOICE_PDF_ACCESS_DENIED",
+        entityType: "Invoice",
+        entityId: "does-not-exist",
+        actorId: "user-1",
+        metadata: expect.objectContaining({ outcome: "not-found" }),
+      }),
+    );
+  });
+
+  it("urenstaat-PDF: onbekend id → 404 + PERFORMANCE_PDF_ACCESS_DENIED (outcome not-found)", async () => {
+    store.performance = null;
+    const res = await performancePdf(req, ctx("does-not-exist"));
+    expect(res.status).toBe(404);
+    expect(auditMock).toHaveBeenCalledTimes(1);
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "PERFORMANCE_PDF_ACCESS_DENIED",
+        entityType: "Performance",
+        entityId: "does-not-exist",
+        metadata: expect.objectContaining({ outcome: "not-found" }),
+      }),
+    );
+  });
+
+  it("modelovereenkomst-PDF: onbekend id → 404 + MODEL_AGREEMENT_ACCESS_DENIED (outcome not-found)", async () => {
+    store.collaboration = null;
+    const res = await modelAgreementPdf(req, ctx("does-not-exist"));
+    expect(res.status).toBe(404);
+    expect(auditMock).toHaveBeenCalledTimes(1);
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "MODEL_AGREEMENT_ACCESS_DENIED",
+        entityType: "Collaboration",
+        entityId: "does-not-exist",
+        metadata: expect.objectContaining({ outcome: "not-found" }),
+      }),
+    );
+  });
+});

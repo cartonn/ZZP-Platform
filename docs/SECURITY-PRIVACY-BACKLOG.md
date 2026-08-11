@@ -4,6 +4,51 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-11b (basis: `main` @ 560caa69)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(API-route-handlers/IDOR; server-action-mutatieketens; privacy/AVG), plus de delta sinds de vorige ronde
+(`3879adba..560caa69`, #1047–#1053 — `Idea.title`-erasure-lek, gelekt-wachtwoord-controle (HIBP, achter vlag),
+opdrachtgever-weekstrip, cancelInvoice-dispuutbevriezing, WIK-incassokosten, bemiddelaar-verlengsignaal,
+support-body-cap). Gedekt: (1) **API-oppervlak** — alle `/api/**`-routes, de dynamische `[id]`/`[...key]`-routes,
+push-endpoint-SSRF-allowlist (exacte/subdomein-hostmatch, https-only — geen substring-bypass), CSV-formule-injectie
+(`toCsv`/`escapeCsvField` neutraliseert `= + @ - \t \r`), cron-Bearer + `timingSafeEqual`, webhook-handtekening +
+idempotentie + body-cap. (2) **Server actions** — alle 49 `actions.ts`: auth→rol→ownership/tenant→Zod→actie→audit
+consequent; geen mass-assignment; statusovergangen via expliciete `assert*Transition`; TOCTOU-geldpaden via
+`updateMany({ where:{id,status:from} })`; cross-tenant via `ownsViaTenant`/`assertSameTenant`. (3) **Privacy/AVG** —
+export↔erasure-symmetrie (incl. de `Idea.title`-notificatietitel-kopie uit #1047), k-anonimiteit
+(`MARKET_RATE_MIN_SAMPLE = 10`), PII-in-logs onderdrukt in productie, HIBP-controle bevestigd k-anoniem (alleen
+5-teken SHA-1-prefix verlaat de server, fail-open). `npm audit --omit=dev` = **0**; enige `dangerouslySetInnerHTML`
+= het nonce-gepoorte theme-script; geen `$queryRawUnsafe`/`eval`; geen server-side fetch met user-gestuurde URL.
+
+**Resultaat: één LAAG timing-zijkanaal OPGELOST (rood→groen) — de niet-gevonden-tak van de gevoelige
+resource-op-id-routes deed géén audit-write terwijl de geweigerde-tak dat wél deed, wat het bewust gesloten
+existence-oracle (CWE-203) via de responstijd heropende. API-, server-action- en privacy-oppervlak verder schoon
+(geen nieuw KRITIEK/HOOG toegangs-, IDOR-, injectie-, cross-tenant- of PII-lek).**
+
+### OPGELOST — LAAG (CWE-208 / residual CWE-203, OWASP A01/A04, CLAUDE.md regel 5): timing-zijkanaal ondermijnt de 404-maskering op de gevoelige resource-op-id-routes
+
+- **Repro (was):** `/api/documents/[id]`, `/api/facturen/[id]/pdf`, `/api/prestaties/[id]/pdf` en de drie
+  `/api/samenwerkingen/[id]/{dossier,dba-dossier,modelovereenkomst}`-routes geven bewust een IDENTIEKE 404 voor
+  zowel "id bestaat niet" als "id bestaat maar je bent geen partij" (existence-oracle-maskering, CWE-203 — een 403
+  op een vreemd-maar-geldig id zou het bestaan van een gevoelig document VOG/diploma/BIG/factuur verraden). Maar de
+  **verboden**-tak deed vóór de 404 een audit-write (`requestMeta()` + `await audit(...)`), terwijl de
+  **niet-gevonden**-tak direct terugkeerde zónder DB-write. Dat verschil in werk is meetbaar aan de responstijd
+  (onbekend < verboden): een timing-zijkanaal (CWE-208) dat exact het oracle heropent dat de 404-maskering dicht.
+  Praktische exploiteerbaarheid laag (id's zijn hoge-entropie cuids, niet-enumereerbaar; netwerk-jitter maskeert het
+  signaal), vandaar LAAG — maar het is een reëel gat tegenover een expliciet, uitgebreid becommentarieerd
+  beveiligingsdoel op de gevoeligste routes.
+- **Geschonden regel:** CWE-208 (Observable Timing Discrepancy) / residual CWE-203; OWASP A01 (Broken Access
+  Control) + A04 (Insecure Design); CLAUDE.md regel 5 (auditplicht) — de niet-gevonden-tak auditte bovendien niets,
+  dus recon op niet-bestaande id's was onzichtbaar in het spoor.
+- **Fix (deze PR):** gedeelde helper `auditDeniedAccess` (`src/lib/security/access-audit.ts`) — één afsluitpunt voor
+  béíde uitkomsten dat identiek werk doet (`requestMeta` + één audit-write) vóór de identieke 404. Alle 6 routes
+  roepen 'm nu aan op zowel de niet-gevonden- (`outcome: "not-found"`) als de verboden-tak (`outcome: "forbidden"`);
+  de responstijd onderscheidt de twee niet meer en een recon-probe op een niet-bestaand id staat nu óók in het
+  auditspoor. Tests (rood→groen): `documents/[id]/route.test.ts` (versterkt: niet-gevonden vereist nu de DENIED-audit),
+  `pdf-routes-audit.test.ts` (+3 niet-gevonden), `dossier-routes-audit.test.ts` (+2 niet-gevonden), nieuwe
+  `security/access-audit.test.ts` (+2 helper-unit). De 6 bestaande verboden-tak-tests blijven groen (pariteit).
+
 ## Ronde 2026-08-11 (basis: `main` @ 3879adba)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

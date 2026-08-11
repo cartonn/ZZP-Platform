@@ -5,6 +5,7 @@
 import { AuthorizationError, requireActor } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import { auditDeniedAccess } from "@/lib/security/access-audit";
 import { prisma } from "@/lib/db";
 import { buildComplianceDossier, type DossierInput } from "@/lib/compliance/dossier";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
@@ -64,7 +65,19 @@ export async function GET(
       },
     },
   });
-  if (!col) return new Response("Niet gevonden.", { status: 404 });
+  if (!col) {
+    // Niet-gevonden doet hetzelfde werk (audit-write) als de geweigerde-tak, zodat de responstijd de
+    // twee niet onderscheidt (timing-zijkanaal, CWE-208) en de 404-maskering echt dicht is.
+    await auditDeniedAccess({
+      actorId: actor.id,
+      action: "DOSSIER_ACCESS_DENIED",
+      entityType: "Collaboration",
+      entityId: id,
+      outcome: "not-found",
+      metadata: { viewerRole: actor.role },
+    });
+    return new Response("Niet gevonden.", { status: 404 });
+  }
   if (
     col.company.userId !== actor.id &&
     col.freelancer.userId !== actor.id &&
@@ -74,14 +87,13 @@ export async function GET(
     // te openen is beveiligingsrelevant — leg de geweigerde inzage vast naast de geslaagde export
     // hieronder (CLAUDE.md regel 5, parity met /api/documents/[id]). Zo is IDOR-enumeratie op
     // collaboration-id's zichtbaar in het auditspoor i.p.v. onzichtbaar.
-    const meta = await requestMeta();
-    await audit({
+    await auditDeniedAccess({
       actorId: actor.id,
       action: "DOSSIER_ACCESS_DENIED",
       entityType: "Collaboration",
       entityId: id,
+      outcome: "forbidden",
       metadata: { viewerRole: actor.role },
-      ...meta,
     });
     // Ononderscheidbaar van een onbekend id (CWE-203): een 403 op een vreemde-maar-geldige
     // samenwerking verraadt het bestaan ervan. De DENIED-audit hierboven blijft.
