@@ -33,6 +33,9 @@ const HEALTHY: MetricsInput = {
   messagesRetentionBacklog: 0,
   webhookEventsRetentionBacklog: 0,
   routingCacheRetentionBacklog: 0,
+  mailDeliveryOk: true,
+  mailDeliveryConsecutiveFailures: 0,
+  mailDeliveryLastFailureAgeSeconds: null,
 };
 
 function valueOf(input: MetricsInput, name: string): number {
@@ -327,8 +330,14 @@ describe("buildMetrics", () => {
       messagesRetentionBacklog: 3,
       webhookEventsRetentionBacklog: 6,
       routingCacheRetentionBacklog: 14,
+      mailDeliveryOk: false,
+      mailDeliveryConsecutiveFailures: 4,
+      mailDeliveryLastFailureAgeSeconds: 300,
     };
     expect(valueOf(input, "zzp_db_reachable")).toBe(0);
+    expect(valueOf(input, "zzp_mail_delivery_ok")).toBe(0);
+    expect(valueOf(input, "zzp_mail_consecutive_failures")).toBe(4);
+    expect(valueOf(input, "zzp_mail_last_failure_age_seconds")).toBe(300);
     expect(valueOf(input, "zzp_maintenance_mode")).toBe(1);
     expect(valueOf(input, "zzp_credentials_overdue_expiry")).toBe(12);
     expect(valueOf(input, "zzp_subscriptions_overdue_expiry")).toBe(8);
@@ -378,6 +387,9 @@ describe("buildMetrics", () => {
       "zzp_messages_retention_backlog",
       "zzp_webhook_events_retention_backlog",
       "zzp_routing_cache_retention_backlog",
+      "zzp_mail_delivery_ok",
+      "zzp_mail_consecutive_failures",
+      "zzp_mail_last_failure_age_seconds",
     ]);
   });
 });

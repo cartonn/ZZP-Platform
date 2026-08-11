@@ -25,7 +25,10 @@
 // anders onbeperkt door) en zzp_routing_cache_retention_backlog (routing-cacherijen — GeocodeCache +
 // TravelRouteCache, platte-tekst locatie-PII — wier eigen TTL is verstreken die de routing-cache-retention-cron
 // nog niet fysiek verwijderde; altijd actief, geen instelvenster — AVG-dataminimalisatie) — stille-faal-detectors
-// die de heartbeat niet vangt.
+// die de heartbeat niet vangt — en zzp_mail_delivery_ok / zzp_mail_consecutive_failures /
+// zzp_mail_last_failure_age_seconds (mail-aflever-heartbeat: levert het e-mailkanaal nog af, of wijst een
+// systematisch afwijzende provider élke notificatie/reset/herinnering stil af — event-gedreven, geen
+// staleness-op-leeftijd).
 //
 // Beveiliging: dezelfde Bearer CRON_SECRET als de taak-/heartbeat-routes, fail-closed — geen
 // CRON_SECRET → 503, verkeerd token → 401. De uitvoer bevat NOOIT persoonsgegevens of secrets, alleen
@@ -41,6 +44,7 @@ import { prisma } from "@/lib/db";
 import { authorizeCron } from "@/lib/cron-auth";
 import { getCronFreshness } from "@/lib/observability/cron-heartbeat";
 import { getBackupFreshness } from "@/lib/observability/backup-heartbeat";
+import { getMailDeliveryFreshness } from "@/lib/observability/mail-delivery-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { waitingSince } from "@/lib/verification-queue";
 import {
@@ -295,9 +299,10 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
-  const [cron, backup] = await Promise.all([
+  const [cron, backup, mail] = await Promise.all([
     getCronFreshness(undefined, now),
     getBackupFreshness(now),
+    getMailDeliveryFreshness(now),
   ]);
 
   return {
@@ -308,6 +313,9 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     backupAgeSeconds: ageSeconds(backup, now),
     backupOk: backup.lastOk,
     backupStale: backup.status === "stale",
+    mailDeliveryOk: mail.status !== "failing",
+    mailDeliveryConsecutiveFailures: mail.consecutiveFailures,
+    mailDeliveryLastFailureAgeSeconds: mail.failureAgeSeconds,
     verificationQueue,
     verificationQueueOldestAgeSeconds,
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),

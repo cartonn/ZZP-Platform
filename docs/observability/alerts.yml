@@ -78,6 +78,21 @@ groups:
         annotations:
           summary: "Laatste database-back-up faalde"
           description: "De laatste gemelde database-back-up slaagde niet (zzp_backup_heartbeat_ok=0). Controleer de dump-job."
+      - alert: ZzpMailDeliveryFailing
+        # Het e-mailkanaal (EMAIL_DRIVER=smtp/resend/postmark/ses) wijst systematisch af: de laatste
+        # verzending mislukte (zzp_mail_delivery_ok=0) én er zijn ≥3 opeenvolgende mislukkingen. E-mail is
+        # event-gedreven (geen staleness-op-leeftijd), dus de conditie zit op de teller, niet op ouderdom.
+        # Oorzaak meestal een verlopen provider-sleutel, gede-verifieerd domein, geschorst account of harde
+        # rate-limit — élke notificatie/wachtwoordherstel/herinnering mislukt dan stil. De ≥3-drempel +
+        # `for:` negeren één transiënte bounce. Herstel wordt automatisch gewist zodra een verzending slaagt
+        # (of draai de E-mail-zelftest op /admin/systeemstatus). Zie MENSENWERK §2.
+        expr: zzp_mail_delivery_ok == 0 and zzp_mail_consecutive_failures >= 3
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "E-mailkanaal wijst af"
+          description: "Het e-mailkanaal levert niet meer af (zzp_mail_delivery_ok=0, ≥3 opeenvolgende mislukkingen). Notificaties, wachtwoordherstel en herinneringen komen niet aan. Controleer de provider-sleutel/domeinverificatie en het server-logboek (of Sentry). Zie MENSENWERK §2."
 
   - name: zzp-platform-stille-faal-backlogs
     rules:
