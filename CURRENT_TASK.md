@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — verwachte betaaldatum (op betaalgedrag) op /openstaand (2026-08-11, PR #1046)** —
+> de openstaande-postenpagina (`/openstaand`) — de "wie is mij geld schuldig"-hoofdpagina van de ZZP'er — toonde de betaal-timing per
+> post op de **contractuele vervaldatum** ("verwacht rond {dueAt}") en telde de "Binnenkomend deze week"-tegel op diezelfde vervaldag.
+> De betaalgedrag-forecast (`forecastInvoicePayout`) die de #1 cashflow-vraag "wanneer krijg ik mijn geld?" beantwoordt bestond al en
+> draaide op `/facturen` + `/prognose`, maar niet op deze aging-view. Nu leidt `/openstaand` per opdrachtgever de realistische
+> betaaldatum af uit de eigen betaalhistorie (privacy — nooit data van andere ZZP'ers): een structureel trage opdrachtgever verschuift
+> naar "verwacht betaald rond {datum} · doorgaans X dagen na de vervaldag", en zijn geld valt niet langer te vroeg in "Binnenkomend
+> deze week". **Conservatief:** alleen een betrouwbare forecast die **later** valt dan de vervaldag corrigeert — nooit optimistischer dan
+> de contractuele datum (spiegelt `data/income-forecast.ts`). Overdue/aging blijft op de contractuele vervaldag. Server-side waarheid,
+> alleen FREELANCER, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Nieuw pure `payout-forecast.ts`
+> (`buildPayoutForecastMap`/`effectivePayoutDate`) + 9 tests; `openstaand-panel.tsx` laadt de eigen PAID-facturen en maakt weektegel +
+> per-rij-regel forecast-bewust. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er — IB-aangiftedeadline in de persoonlijke agenda-feed (2026-08-10, PR #1045)** —
 > de agenda-export (`/api/agenda` + webcal `/api/agenda/feed.ics`) exporteerde al certificaat-verloop, factuur-vervaldatum en
 > BTW-aangifte, maar niet de jaarlijkse aangifte inkomstenbelasting (NL-standaard: uiterlijk 1 mei ná het belastingjaar) — een
