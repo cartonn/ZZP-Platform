@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-11 — ZZP'er: verwachte betaaldatum (op betaalgedrag) op /openstaand
+
+**Wat:** De openstaande-postenpagina (`/openstaand`) — de "wie is mij geld schuldig"-hoofdpagina van
+de ZZP'er — toonde de betaal-timing per post op de **contractuele vervaldatum** ("verwacht rond
+{dueAt}") en telde de "Binnenkomend deze week"-tegel op diezelfde vervaldag. De betaalgedrag-forecast
+(`forecastInvoicePayout`) die de #1 cashflow-vraag "wanneer krijg ik mijn geld?" beantwoordt bestond
+al en draaide op `/facturen` + `/prognose`, maar niet op deze aging-view. Nu leidt `/openstaand` per
+opdrachtgever de realistische betaaldatum af uit de eigen betaalhistorie (privacy — nooit data van
+andere ZZP'ers): een structureel trage opdrachtgever verschuift van "verwacht rond {vervaldag}" naar
+"verwacht betaald rond {datum} · doorgaans X dagen na de vervaldag", en zijn geld valt niet langer te
+vroeg in "Binnenkomend deze week". **Conservatief:** alleen een betrouwbare (`confident`) forecast die
+**later** valt dan de vervaldag corrigeert — de view wordt nooit optimistischer dan de contractuele
+datum (spiegelt `data/income-forecast.ts`). Overdue/aging blijft op de contractuele vervaldag (een
+factuur is te laat op de juridische deadline, ongeacht gedrag). Server-side waarheid (read-only
+signaal), alleen FREELANCER, geen schemawijziging, geen nieuw mutatie-/auth-oppervlak.
+
+**Bestanden:** nieuw `src/lib/administration/payout-forecast.ts` (pure: `buildPayoutForecastMap` groept
+betaalde facturen per opdrachtgever → `computePaymentBehavior` → `forecastInvoicePayout`, houdt enkel
+betrouwbaar+later-dan-vervaldag; `effectivePayoutDate` = één bron voor rij-regel én weektegel) + test
+(9 tests). `src/components/administratie/openstaand-panel.tsx` (`fetchOpenInvoices` laadt óók de eigen
+PAID-facturen voor de ZZP'er en bouwt de forecast-map; weektegel + per-rij-regel forecast-bewust).
+Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-08-10 — ZZP'er: IB-aangiftedeadline in de persoonlijke agenda-feed
 
 **Wat:** De agenda-export (`/api/agenda` eenmalige download + webcal-abonnement `/api/agenda/feed.ics`)

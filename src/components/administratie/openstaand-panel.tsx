@@ -11,6 +11,8 @@ import {
   AGING_BUCKETS,
   type AgingBucketKey,
 } from "@/lib/administration/aging";
+import { buildPayoutForecastMap, effectivePayoutDate } from "@/lib/administration/payout-forecast";
+import { type PayoutForecast } from "@/lib/invoice-payment-forecast";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -21,53 +23,98 @@ function bucketVariant(key: AgingBucketKey): "muted" | "warning" | "danger" {
   return "muted";
 }
 
-async function fetchOpenInvoices(actorId: string, isFreelancer: boolean): Promise<OpenInvoice[]> {
+interface OpenInvoicesResult {
+  open: OpenInvoice[];
+  /** Verwachte-betaaldatum per factuur-id (alleen ZZP'er). Leeg voor opdrachtgever. */
+  forecasts: Map<string, PayoutForecast>;
+}
+
+async function fetchOpenInvoices(
+  actorId: string,
+  isFreelancer: boolean,
+): Promise<OpenInvoicesResult> {
   const where = isFreelancer
     ? { collaboration: { freelancer: { userId: actorId } } }
     : { collaboration: { company: { userId: actorId } } };
 
-  const invoices = await prisma.invoice.findMany({
-    where,
-    include: {
-      collaboration: {
-        select: {
-          job: { select: { title: true } },
-          company: { select: { id: true, name: true } },
-          freelancer: { select: { id: true, user: { select: { name: true } } } },
+  // Voor de ZZP'er ook de eigen betaalde facturen laden: daaruit leiden we het betaalgedrag per
+  // opdrachtgever af en projecteren we de realistische betaaldatum (privacy — enkel eigen historie).
+  const [invoices, paidRows] = await Promise.all([
+    prisma.invoice.findMany({
+      where,
+      include: {
+        collaboration: {
+          select: {
+            job: { select: { title: true } },
+            company: { select: { id: true, name: true } },
+            freelancer: { select: { id: true, user: { select: { name: true } } } },
+          },
         },
       },
-    },
+    }),
+    isFreelancer
+      ? prisma.invoice.findMany({
+          where: { collaboration: { freelancer: { userId: actorId } }, status: "PAID" },
+          orderBy: { updatedAt: "desc" },
+          take: 300,
+          select: {
+            issuedAt: true,
+            dueAt: true,
+            updatedAt: true,
+            collaboration: { select: { company: { select: { id: true } } } },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const outstanding = invoices.filter((inv) => {
+    const isCascade = inv.lifecycleStatus != null;
+    if (isCascade) {
+      return ["SUBMITTED", "APPROVED", "OVERDUE"].includes(inv.lifecycleStatus as string);
+    }
+    return ["SENT", "OVERDUE"].includes(inv.status as string);
   });
 
-  return invoices
-    .filter((inv) => {
-      const isCascade = inv.lifecycleStatus != null;
-      if (isCascade) {
-        return ["SUBMITTED", "APPROVED", "OVERDUE"].includes(inv.lifecycleStatus as string);
-      }
-      return ["SENT", "OVERDUE"].includes(inv.status as string);
-    })
-    .map((inv) => {
-      const isCascade = inv.lifecycleStatus != null;
-      const number = isCascade ? (inv.partyInvoiceNumber ?? inv.number) : inv.number;
-      const counterpartyName = isFreelancer
-        ? (inv.collaboration?.company.name ?? "—")
-        : (inv.collaboration?.freelancer.user.name ?? "—");
-      const counterpartyId = isFreelancer
-        ? (inv.collaboration?.company.id ?? null)
-        : (inv.collaboration?.freelancer.id ?? null);
-      return {
-        id: inv.id,
-        number,
-        counterpartyName,
-        counterpartyId,
-        jobTitle: inv.collaboration?.job.title ?? null,
-        dueAt: inv.dueAt,
-        amountCents: inv.totalCents,
-        collaborationId: inv.collaborationId,
-        isCascade,
-      };
-    });
+  const open = outstanding.map((inv) => {
+    const isCascade = inv.lifecycleStatus != null;
+    const number = isCascade ? (inv.partyInvoiceNumber ?? inv.number) : inv.number;
+    const counterpartyName = isFreelancer
+      ? (inv.collaboration?.company.name ?? "—")
+      : (inv.collaboration?.freelancer.user.name ?? "—");
+    const counterpartyId = isFreelancer
+      ? (inv.collaboration?.company.id ?? null)
+      : (inv.collaboration?.freelancer.id ?? null);
+    return {
+      id: inv.id,
+      number,
+      counterpartyName,
+      counterpartyId,
+      jobTitle: inv.collaboration?.job.title ?? null,
+      dueAt: inv.dueAt,
+      amountCents: inv.totalCents,
+      collaborationId: inv.collaborationId,
+      isCascade,
+    };
+  });
+
+  const forecasts = isFreelancer
+    ? buildPayoutForecastMap(
+        outstanding.map((inv) => ({
+          id: inv.id,
+          companyId: inv.collaboration?.company.id ?? null,
+          issuedAt: inv.issuedAt,
+          dueAt: inv.dueAt,
+        })),
+        paidRows.map((row) => ({
+          companyId: row.collaboration?.company.id ?? null,
+          issuedAt: row.issuedAt,
+          dueAt: row.dueAt,
+          paidAt: row.updatedAt,
+        })),
+      )
+    : new Map<string, PayoutForecast>();
+
+  return { open, forecasts };
 }
 
 /**
@@ -90,16 +137,20 @@ export async function OpenstaandPanel({ actor }: { actor: Actor }) {
     );
   }
 
-  const openInvoices = await fetchOpenInvoices(actor.id, isFreelancer);
+  const { open: openInvoices, forecasts } = await fetchOpenInvoices(actor.id, isFreelancer);
   const now = new Date();
   const report = buildAgingReport(openInvoices, now);
 
-  // Vooruitblik: nog niet vervallen facturen met een vervaldatum binnen 7 dagen. Toont de verwachte
-  // betaal-timing die al in het systeem zit (betaaltermijn) — géén garantie/incasso (geld blijft PENDING).
+  // Vooruitblik: nog niet vervallen facturen die binnen 7 dagen binnenkomen. Voor de ZZP'er telt de
+  // realistische verwachte-betaaldatum (betaalgedrag van de opdrachtgever) i.p.v. enkel de
+  // contractuele vervaldag — geld van een structureel trage opdrachtgever valt zo niet te vroeg in
+  // "deze week". Géén garantie/incasso (geld blijft PENDING).
   const weekAhead = new Date(now.getTime() + 7 * 86_400_000);
-  const upcoming = report.rows.filter(
-    (r) => r.daysOverdue === 0 && r.dueAt != null && r.dueAt <= weekAhead,
-  );
+  const upcoming = report.rows.filter((r) => {
+    if (r.daysOverdue > 0) return false;
+    const eff = effectivePayoutDate(r.id, r.dueAt, forecasts);
+    return eff != null && eff <= weekAhead;
+  });
   const upcomingCents = upcoming.reduce((sum, r) => sum + r.amountCents, 0);
 
   return (
@@ -147,8 +198,12 @@ export async function OpenstaandPanel({ actor }: { actor: Actor }) {
                 <p className="text-lg font-semibold tabular-nums">{formatEuro(upcomingCents)}</p>
                 <p className="text-xs text-muted-foreground">
                   {upcoming.length > 0
-                    ? `${plural(upcoming.length, "post", "posten")} met vervaldatum binnen 7 dagen`
-                    : "geen vervaldatum binnen 7 dagen"}
+                    ? isFreelancer
+                      ? `${plural(upcoming.length, "post", "posten")} verwacht binnen 7 dagen`
+                      : `${plural(upcoming.length, "post", "posten")} met vervaldatum binnen 7 dagen`
+                    : isFreelancer
+                      ? "niets verwacht binnen 7 dagen"
+                      : "geen vervaldatum binnen 7 dagen"}
                 </p>
               </CardContent>
             </Card>
@@ -252,17 +307,33 @@ export async function OpenstaandPanel({ actor }: { actor: Actor }) {
                     <Badge variant={bucketVariant(row.bucket)}>
                       {AGING_BUCKETS.find((b) => b.key === row.bucket)?.label}
                     </Badge>
-                    {row.daysOverdue > 0 ? (
-                      <span className="text-xs text-danger">
-                        {plural(row.daysOverdue, "dag", "dagen")} te laat
-                      </span>
-                    ) : (
-                      row.dueAt && (
-                        <span className="text-xs text-muted-foreground">
-                          verwacht rond {formatDateShortNl(row.dueAt)}
-                        </span>
-                      )
-                    )}
+                    {(() => {
+                      if (row.daysOverdue > 0) {
+                        return (
+                          <span className="text-xs text-danger">
+                            {plural(row.daysOverdue, "dag", "dagen")} te laat
+                          </span>
+                        );
+                      }
+                      const forecast = forecasts.get(row.id);
+                      if (forecast) {
+                        return (
+                          <span className="text-xs text-muted-foreground">
+                            verwacht betaald rond {formatDateShortNl(forecast.expectedAt)}
+                            {forecast.daysAfterDue != null && forecast.daysAfterDue > 0
+                              ? ` · doorgaans ${plural(forecast.daysAfterDue, "dag", "dagen")} na de vervaldag`
+                              : " · op basis van eerdere betalingen"}
+                          </span>
+                        );
+                      }
+                      return (
+                        row.dueAt && (
+                          <span className="text-xs text-muted-foreground">
+                            verwacht rond {formatDateShortNl(row.dueAt)}
+                          </span>
+                        )
+                      );
+                    })()}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
                     {row.counterpartyName}
