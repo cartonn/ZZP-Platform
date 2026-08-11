@@ -1,5 +1,52 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-11 (run 69) · **main-commit basis:** `5d5e2dc5`
+> **Uitkomst:** **2 bereikbare defecten GEVONDEN + GEFIXT** in 2 niet-overlappende bestanden (1 HIGH,
+> 1 MED). Vier parallelle Opus-audits: authz/IDOR/cross-tenant → **schoon** (volledige trace van
+> franchise-mutaties, samenwerking/cascade-commands, document/PDF/dossier-routes, RBAC-middleware);
+> cascade/status-TOCTOU → **1 HIGH**; next-action/badge-drift → **2 geparkeerd (>50-drift)**;
+> malicieuze input/robuustheid → **1 MED** (rest schoon: VAT/hours/CSV/upload/expense-caps al hard).
+>
+> 1. **GEFIXT — HIGH (DOEL 2, dispuut-bevriezing lek op `cancelInvoice`):** `cancelInvoice`
+>    (`src/app/(protected)/facturen/actions.ts`) miste — anders dan zijn siblings `sendInvoice`
+>    (regel 284) en `markInvoicePaid` (regel 336) — de `disputedAt`-rem. **Repro:** FREELANCER maakt
+>    - verzendt een losse factuur op een ACTIVE-samenwerking (status SENT) → CLIENT/FREELANCER opent
+>      een dispuut op de samenwerking (`collaboration.disputedAt` gezet) → FREELANCER roept
+>      `cancelInvoice(id)` direct aan. `assertInvoiceTransition("SENT","CANCELLED")` is geldig en er is
+>      geen dispuut-check → de factuur wordt **eenzijdig geannuleerd mid-dispuut**, de gedisputeerde
+>      geldregel gewist vóór de admin beslecht. **Verwacht:** geweigerd met `DISPUTE_FROZEN_INVOICE_MESSAGE`.
+>      Geschonden regel: cascade-brede `assertNotDisputed`-bevriezing / CLAUDE.md regel 1-2. **Fix:**
+>      dispuut-check direct na ownership + regressietest.
+> 2. **GEFIXT — MED (DOEL 2, robuustheid/DoS, CWE-400 — onbegrensde bulk-triage-batch):**
+>    `bulkChangeApplicationStatus` (`src/app/(protected)/kandidaten/actions.ts`) had geen plafond op
+>    `formData.getAll("appId")`. **Repro:** geauthenticeerde CLIENT POST met tienduizenden `appId`-velden
+>    (bounded door de 12 MB body-limiet) → onbegrensde `id in (...)`-`findMany` + een sequentiële per-id-
+>    transactie waarvan de timeout bewust op 120s staat → één request houdt tot 2 min een DB-transactie/
+>    -connectie open; een handvol parallelle requests put de pool uit. **Verwacht:** schone afwijzing zoals
+>    `MAX_INVOICE_LINES`/`MAX_IMPORT_SIZE`. **Fix:** `MAX_BULK_TRIAGE_IDS = 200` + vroege afwijzing vóór DB.
+>
+> **GEPARKEERD (deze run — lager geprioriteerd, met repro):**
+>
+> - **MED (DOEL 1b, FREELANCER+CLIENT, badge-drift >50):** de `/berichten`-nav-badge leest een **exacte**
+>   unread-telling (`unreadConversationCount`, `signals.ts:379-398`, geen `take`) terwijl `/acties`
+>   (`unreadConversations`, `pending-tasks.ts:121-167`) na `.slice(0, 50)` één `messageReplyTask` per
+>   gesprek toont **zonder residu-rollup** — en de basis-`conversationParticipant.findMany` heeft **geen
+>   `orderBy`**. Repro: 55 ongelezen gesprekken → badge `55`, /acties toont 50; welke 5 wegvallen is
+>   niet-deterministisch. Fix: cap droppen (owner-scoped, precedent = cert-dossier) óf residu-rollup +
+>   deterministische `orderBy`.
+> - **MED (DOEL 1b, ADMIN + FRANCHISER, badge-drift >50):** de 7 ADMIN-wachtrij-badges (`signals.ts:909-934`,
+>   kale `count()`) en de FRANCHISER `openHandoffs`-badge (`signals.ts:737`) zijn **exact**, terwijl
+>   `adminTasks`/`franchiserTasks` (`pending-tasks.ts`) elke wachtrij op `take:50` cappen **zonder
+>   `+N meer`-rollup**. Repro: 62 SUBMITTED credentials → `/admin/verificaties`-badge `62`, /acties toont 50.
+>   Rest van de #1022-klasse (die alleen de slice-`orderBy` deterministisch maakte, niet badge=list).
+>   Fix: cap droppen op deze platform-brede wachtrijen óf residu-rollup per categorie.
+> - **LOW (DOEL 2, consistentie):** `updatePerformance` (`src/lib/cascade/performance-commands.ts:210-268`)
+>   her-verifieert de dispuut/terminaal-pre-checks **niet** binnen de `updateMany`-transactie (alleen
+>   `status: perf.status` gegrendeld). Vandaag onschadelijk (bewerkt alleen DRAFT/REJECTED-veldwaarden;
+>   `submitPerformance` her-grendelt vers), maar het wijkt af van de TOCTOU-doctrine van de rest van de module.
+>
+> ---
+
 > **Datum:** 2026-08-02 (run 68) · **main-commit basis:** `d29520ca`
 > **Uitkomst:** **5 bereikbare defecten GEVONDEN + GEFIXT** in 2 niet-overlappende bestanden (1 HIGH,
 > 4 MED). Live-sweep (4 rollen, curl+DB): RBAC-redirects, IDOR (document/factuur-PDF/dossier),

@@ -461,6 +461,12 @@ export async function cancelInvoice(invoiceId: string): Promise<void> {
   if (!invoice || invoice.collaboration?.freelancer.userId !== actor.id)
     throw new Error("Factuur niet gevonden.");
 
+  // Dispuut-bevriezing (§4 zijpad): geen geldstroom-/statusactie zolang de samenwerking gedisputeerd
+  // is — spiegelt `sendInvoice`/`markInvoicePaid` en `assertNotDisputed` in de cascade-laag. Zonder
+  // deze rem kon één partij een verzonden/openstaande factuur die ónder het dispuut valt eenzijdig
+  // annuleren (de gedisputeerde geldregel wissen vóór de admin het dispuut beslecht).
+  if (invoice.collaboration?.disputedAt) throw new Error(DISPUTE_FROZEN_INVOICE_MESSAGE);
+
   const from = invoice.status as InvoiceStatus;
   try {
     assertInvoiceTransition(from, "CANCELLED");

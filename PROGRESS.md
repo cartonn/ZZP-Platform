@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-11 — persona-sweep: `cancelInvoice` dispuut-bevriezing (HIGH) + bulk-triage id-plafond (CWE-400)
+
+**Wat:** Kritische-gebruiker-sweep over de 4 rollen met 4 parallelle Opus-audits (authz/IDOR/tenant →
+schoon; cascade/status → 1 HIGH; next-action/badge-drift → 2 geparkeerd; malicieuze input → 1 MED).
+Twee bereikbare defecten in niet-overlappende bestanden gefixt:
+
+1. **HIGH (DOEL 2, integriteit — dispuut-bevriezing lek op `cancelInvoice`):** `cancelInvoice`
+   (`src/app/(protected)/facturen/actions.ts`) miste — anders dan zijn twee siblings `sendInvoice`
+   (regel 284) en `markInvoicePaid` (regel 336) in hetzelfde bestand — de `disputedAt`-rem. Een
+   partij kon zo een **verzonden/openstaande** factuur die ónder een open dispuut valt **eenzijdig
+   annuleren** (de gedisputeerde geldregel wissen vóór de admin het dispuut beslecht) — griefing-/
+   integriteitsvector, in strijd met de cascade-brede `assertNotDisputed`-doctrine. Enkelvoudig, geen
+   race nodig. **Fix:** dezelfde `if (invoice.collaboration?.disputedAt) throw DISPUTE_FROZEN_INVOICE_MESSAGE`
+   direct na de ownership-check. +1 test (dispuut-bevriezing-block uitgebreid, `actions.test.ts`).
+2. **MED (DOEL 2, robuustheid/DoS, CWE-400 — onbegrensde bulk-triage-batch):** `bulkChangeApplicationStatus`
+   (`src/app/(protected)/kandidaten/actions.ts`) had — anders dan `MAX_INVOICE_LINES`/`MAX_IMPORT_SIZE`
+   elders — **geen plafond** op `formData.getAll("appId")`. Een CLIENT kon binnen de 12 MB body-limiet
+   tienduizenden ids posten → onbegrensde `id in (...)`-query + een **sequentiële** per-id-transactie
+   met een bewust op **120s** gezette timeout → connection-pool-uitputting. **Fix:** `MAX_BULK_TRIAGE_IDS = 200`
+   - vroege schone afwijzing vóór enige DB-read. +1 test (`application-status-toctou.test.ts`).
+
+**Geparkeerd (met repro in `docs/PERSONA-SWEEP-BACKLOG.md`):** unread-berichten-badge drift >50 (FREELANCER+
+CLIENT), admin/franchise-wachtrij-badge vs /acties-cap >50, `updatePerformance` dispuut/terminaal niet
+in-tx her-geverifieerd (vandaag onschadelijk). Geen i18n, geen scope-creep.
+
+**Gate:** typecheck, lint, test, build, prettier groen. **Volgende stap:** PR → poort → auto-merge.
+
 ## 2026-08-11 — opdrachtgever: dashboard-weekstrip toont echte dienst-belasting (i.p.v. lege strip + misleidende telling)
 
 **Wat:** De "Deze week"-strip op het **opdrachtgever**-dashboard was decoratief: `buildCurrentWeek(...)`
