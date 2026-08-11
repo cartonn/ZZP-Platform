@@ -15,7 +15,11 @@ export type TicketState = { error?: string; fieldErrors?: Record<string, string>
 
 const ticketSchema = z.object({
   subject: z.string().trim().min(4, "Geef een kort onderwerp.").max(140),
-  body: z.string().trim().min(10, "Beschrijf je vraag in iets meer detail."),
+  // Bovengrens gelijk aan `messageSchema` (5000): elk vrije-tekstveld in de repo is begrensd
+  // (subject 140, bericht 5000, bio 2000). Zonder `.max()` accepteert `.min(10)` een body tot de
+  // 12 MB server-action-limiet die ongefilterd naar de TEXT-kolom + de triage-scan stroomt
+  // (CWE-400, DOEL 2 robuustheid). `subject` had de cap al; `body` was het enige gat.
+  body: z.string().trim().min(10, "Beschrijf je vraag in iets meer detail.").max(5000),
 });
 
 /**
@@ -130,7 +134,10 @@ export async function createTicket(_prev: TicketState, formData: FormData): Prom
   redirect(`/support/${ticket.id}`);
 }
 
-const replySchema = z.object({ body: z.string().trim().min(1, "Schrijf een bericht.") });
+// Zelfde 5000-cap als het eerste ticketbericht en `messageSchema` — een reactie is een bericht.
+const replySchema = z.object({
+  body: z.string().trim().min(1, "Schrijf een bericht.").max(5000),
+});
 
 export async function replyToTicket(ticketId: string, formData: FormData): Promise<void> {
   const actor = await requireActor();
