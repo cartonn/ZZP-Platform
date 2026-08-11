@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-11 — security/privacy: `Idea.title`-lek in notificatietitels overleefde erasure (AVG art. 17)
+
+**Wat:** Security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+API-routes/IDOR, server-action-mutatieketens en privacy/AVG). Eén MIDDEL privacy-gat gevonden en gedicht:
+de door de indiener geschreven `Idea.title` (vrije-tekst-PII) werd verbatim in de **titel** van de
+IDEA_STATUS-/IDEA_COMMENT-notificaties gekopieerd — óók naar de feeds van ándere gebruikers
+(stemmers/reageerders). Bij een AVG-verwijdering (`anonymizeUser`) redigeerde de erasure wél `Idea.title`
+op de `Idea`-rij en de **body** van de eigen notificaties, maar de titel-kopie op ándermans feed werd
+nergens geraakt; die bleef leesbaar én werd via `account-export.ts` (dat `Notification.title` prijsgeeft)
+aan die andere gebruiker in diens eigen inzage-export getoond — permanent na de verwijdering. Zelfde
+"duplicate-copy erasure gap"-klasse die de codebase al dichtte voor dispuut-/no-show-/creditredenen.
+Fix: gedeelde titel-builders (`ideaStatusNotificationTitle`/`ideaCommentNotificationTitle`) als één bron;
+`anonymizeUser` redact de exact-gereconstrueerde notificatietitels binnen de erasure-transactie. API- en
+server-action-oppervlak schoon (geen nieuw KRITIEK/HOOG toegangs-, IDOR-, injectie-, cross-tenant- of
+PII-lek); `npm audit --omit=dev` = 0. De `Review.comment`-subject-erasure-afweging blijft bij de FG.
+
+**Bestanden:** `src/lib/ideas.ts` (+2 helpers) + `src/lib/ideas.test.ts` (+2 tests);
+`src/app/(protected)/ideeen/actions.ts` (bron gebruikt de helpers);
+`src/app/(protected)/admin/gebruikers/actions.ts` (erasure-scrub van de notificatietitels);
+`src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts` (+1 regressietest, rood→groen);
+`docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-11). Gate: typecheck, lint, test, build, prettier.
+
 ## 2026-08-11 — ZZP'er: verwachte betaaldatum (op betaalgedrag) op /openstaand
 
 **Wat:** De openstaande-postenpagina (`/openstaand`) — de "wie is mij geld schuldig"-hoofdpagina van

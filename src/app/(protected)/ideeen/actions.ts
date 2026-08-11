@@ -12,7 +12,13 @@ import {
   ideaThemeSchema,
   type IdeaStatus,
 } from "@/lib/enums";
-import { canIdeaTransition, ideaStatusRequiresReason, IDEA_STATUS_LABEL } from "@/lib/ideas";
+import {
+  canIdeaTransition,
+  ideaCommentNotificationTitle,
+  ideaStatusNotificationTitle,
+  ideaStatusRequiresReason,
+  IDEA_STATUS_LABEL,
+} from "@/lib/ideas";
 
 export type IdeaFormState =
   | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
@@ -154,7 +160,7 @@ export async function setIdeaStatus(ideaId: string, formData: FormData): Promise
       data: [...recipients].map((userId) => ({
         userId,
         type: "IDEA_STATUS",
-        title: `Idee bijgewerkt: ${idea.title}`,
+        title: ideaStatusNotificationTitle(idea.title),
         body,
         link: "/ideeen",
       })),
@@ -193,7 +199,7 @@ export async function addComment(ideaId: string, formData: FormData): Promise<vo
       data: {
         userId: idea.authorId,
         type: "IDEA_COMMENT",
-        title: `Nieuwe reactie op je idee: ${idea.title}`,
+        title: ideaCommentNotificationTitle(idea.title),
         body: "Iemand heeft op je idee gereageerd.",
         link: "/ideeen",
       },
