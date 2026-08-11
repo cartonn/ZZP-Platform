@@ -50,18 +50,24 @@ test.describe("QA: Support / Helpdesk", () => {
     await shot(page, "support-escalated");
   });
 
-  test("admin ziet geëscaleerde tickets in de helpdesk-wachtrij", async ({ page }) => {
+  test("admin ziet geëscaleerde tickets in de helpdesk-wachtrij", async ({ page, browser }) => {
     // Maak eerst een geëscaleerd ticket als ZZP'er.
     await login(page, "zzp@zzp-platform.local");
     await newTicket(page, "AVG verwijderverzoek", "Verwijder mijn persoonsgegevens (AVG).");
 
-    // Admin opent de wachtrij.
-    const ctx = page.context();
-    await ctx.clearCookies();
-    await login(page, "admin@zzp-platform.local");
-    await page.goto("/admin/support");
-    await expect(page.getByRole("heading", { name: "Helpdesk" })).toBeVisible();
-    await expect(page.getByText("AVG verwijderverzoek").first()).toBeVisible();
-    await shot(page, "support-admin-queue");
+    // Open de admin-wachtrij in een verse context. De ticket-submit hierboven kan door #329 een
+    // response laten hangen; dezelfde pagina na clearCookies hergebruiken maakt de login dan
+    // afhankelijk van die oude navigatie.
+    const adminContext = await browser.newContext();
+    const adminPage = await adminContext.newPage();
+    try {
+      await login(adminPage, "admin@zzp-platform.local");
+      await adminPage.goto("/admin/support");
+      await expect(adminPage.getByRole("heading", { name: "Helpdesk" })).toBeVisible();
+      await expect(adminPage.getByText("AVG verwijderverzoek").first()).toBeVisible();
+      await shot(adminPage, "support-admin-queue");
+    } finally {
+      await adminContext.close();
+    }
   });
 });
