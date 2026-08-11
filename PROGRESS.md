@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-11 — Security/privacy-audit: timing-zijkanaal ondermijnt 404-maskering op gevoelige resource-routes (LAAG, rood→groen)
+
+**Wat:** Security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+API-routes/IDOR, server-action-mutatieketens, privacy/AVG). Eén LAAG timing-zijkanaal gevonden + gefixt;
+verder oppervlak schoon (geen nieuw KRITIEK/HOOG). Zie `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-11b).
+
+- **CWE-208 / residual CWE-203 — timing-oracle op de 404-maskering:** de 6 gevoelige resource-op-id-routes
+  (`/api/documents/[id]`, factuur-/prestatie-PDF, compliance-/DBA-dossier, modelovereenkomst) geven bewust een
+  identieke 404 voor "bestaat niet" én "verboden" (existence-oracle-maskering). Maar de verboden-tak deed een
+  audit-write vóór de 404 terwijl de niet-gevonden-tak direct terugkeerde → meetbaar tijdsverschil dat het oracle
+  heropent. Fix: gedeelde helper `auditDeniedAccess` (`src/lib/security/access-audit.ts`); béíde takken doen nu
+  identiek werk (`requestMeta` + één audit) met `outcome: forbidden|not-found`. Recon op niet-bestaande id's staat
+  nu óók in het auditspoor.
+- **Bestanden:** nieuw `src/lib/security/access-audit.ts` (+ `.test.ts`); 6 routes aangepast; tests versterkt in
+  `documents/[id]/route.test.ts`, `pdf-routes-audit.test.ts` (+3), `dossier-routes-audit.test.ts` (+2).
+- **Gate:** typecheck + lint + `npm run test` (552 files, 5753 tests) + build groen; `prettier --write .` schoon.
+
 ## 2026-08-11 — Persona-sweep run 70: support-body-cap (CWE-400) + badge↔lijst-pariteit plaatsings-gate
 
 **Wat:** Kritische-gebruiker-sweep over 4 rollen (DOEL 1/1b/2) via 4 parallelle Opus-audits. Twee

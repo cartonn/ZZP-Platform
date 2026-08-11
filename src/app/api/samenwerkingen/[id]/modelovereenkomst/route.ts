@@ -6,6 +6,7 @@ import { buildModelAgreementContent, resolveAgreementType } from "@/lib/contract
 import { buildModelAgreementPdf, type ModelAgreementSignatory } from "@/lib/contract-pdf";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import { auditDeniedAccess } from "@/lib/security/access-audit";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
 import { privateFileHeaders } from "@/lib/security/resource-headers";
@@ -61,21 +62,32 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       },
     },
   });
-  if (!col) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+  if (!col) {
+    // Niet-gevonden doet hetzelfde werk (audit-write) als de geweigerde-tak, zodat de responstijd de
+    // twee niet onderscheidt (timing-zijkanaal, CWE-208) en de 404-maskering echt dicht is.
+    await auditDeniedAccess({
+      actorId: actor.id,
+      action: "MODEL_AGREEMENT_ACCESS_DENIED",
+      entityType: "Collaboration",
+      entityId: id,
+      outcome: "not-found",
+      metadata: { viewerRole: actor.role },
+    });
+    return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+  }
 
   const allowed =
     actor.role === "ADMIN" || actor.id === col.company.userId || actor.id === col.freelancer.userId;
   if (!allowed) {
     // Geweigerde inzage ook vastleggen — parity met de dba-dossier/dossier-routes (CLAUDE.md
     // regel 5). Maakt IDOR-enumeratie op collaboration-id's zichtbaar in het auditspoor.
-    const meta = await requestMeta();
-    await audit({
+    await auditDeniedAccess({
       actorId: actor.id,
       action: "MODEL_AGREEMENT_ACCESS_DENIED",
       entityType: "Collaboration",
       entityId: id,
+      outcome: "forbidden",
       metadata: { viewerRole: actor.role },
-      ...meta,
     });
     // Ononderscheidbaar van een onbekend id (CWE-203): een 403 op een vreemde-maar-geldige
     // samenwerking verraadt het bestaan ervan. De DENIED-audit hierboven blijft.

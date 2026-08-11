@@ -6,6 +6,7 @@ import { getStorage } from "@/lib/services/storage";
 import { sandboxedDocumentHeaders } from "@/lib/security/resource-headers";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import { auditDeniedAccess } from "@/lib/security/access-audit";
 import { documentDownloadRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
@@ -31,20 +32,32 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     where: { id },
     select: { ownerId: true, storageKey: true, mimeType: true, filename: true },
   });
-  if (!doc) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+  if (!doc) {
+    // Niet-gevonden krijgt hetzelfde werk (audit-write) als de geweigerde-tak hieronder, zodat de
+    // responstijd de twee niet onderscheidt (timing-zijkanaal, CWE-208) en de 404-maskering echt
+    // dicht is. `outcome: "not-found"` maakt een recon-probe op een niet-bestaand id intern zichtbaar.
+    await auditDeniedAccess({
+      actorId: actor.id,
+      action: "DOCUMENT_ACCESS_DENIED",
+      entityType: "Document",
+      entityId: id,
+      outcome: "not-found",
+      metadata: { viewerRole: actor.role },
+    });
+    return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+  }
 
   if (!canAccessDocument(actor, doc.ownerId)) {
     // Een poging om andermans gevoelige document (VOG, diploma) te openen is een
     // beveiligingsrelevante gebeurtenis — leg 'm vast naast de geslaagde toegang hieronder
     // (CLAUDE.md regel 5: document-toegang auditen, ook de geweigerde).
-    const meta = await requestMeta();
-    await audit({
+    await auditDeniedAccess({
       actorId: actor.id,
       action: "DOCUMENT_ACCESS_DENIED",
       entityType: "Document",
       entityId: id,
+      outcome: "forbidden",
       metadata: { viewerRole: actor.role, ownerId: doc.ownerId },
-      ...meta,
     });
     // Geef exact dezelfde respons als een onbekend id (CWE-203, existence-oracle): een 403 op een
     // geldig-maar-vreemd id verraadt dat er een gevoelig document (VOG/diploma/BIG) bestaat. Parity
