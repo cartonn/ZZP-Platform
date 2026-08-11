@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-11 — Persona-sweep run 70: support-body-cap (CWE-400) + badge↔lijst-pariteit plaatsings-gate
+
+**Wat:** Kritische-gebruiker-sweep over 4 rollen (DOEL 1/1b/2) via 4 parallelle Opus-audits. Twee
+bereikbare MED-defecten gevonden + gefixt in niet-overlappende bestanden; 4 geparkeerd met repro
+(`docs/PERSONA-SWEEP-BACKLOG.md`, run 70).
+
+- **CWE-400 — onbegrensde support-body:** `ticketSchema.body` + `replySchema.body`
+  (`src/app/(protected)/support/actions.ts`) en de helpdeskreactie
+  (`src/app/(protected)/admin/support/actions.ts`) hadden `.min()` maar geen `.max()`, terwijl `subject`
+  (140) en elk ander vrije-tekstveld (bericht 5000) wél begrensd zijn → tot 12 MB tekst ongefilterd naar
+  de TEXT-kolom + triage-scan. Cap alle drie op `.max(5000)` (= `messageSchema`). Tests:
+  `support/support-body-cap.test.ts` (nieuw, 4), `admin/support/admin-reply.test.ts` (+1).
+- **Badge↔lijst-pariteit — fantoom contract-onderteken-actie (beide rollen):** de `/samenwerkingen`-badge
+  telde een contract-onderteken-actie op élke PROPOSED samenwerking, terwijl `/acties` die taak
+  onderdrukt zodra de plaatsing door een certificaat-gat is geblokkeerd (`collaborationPlacementBlocked`,
+  run 58). Bereikbaar met één samenwerking (geen >50-drift). `src/lib/signals.ts`: beide badge-tellers
+  spiegelen nu dezelfde pure gate (freelancer `countFreelancerCascadeWork` krijgt `placementBlocked` uit
+  `job.credentialRequirements` + het volledige certificaatdossier; client `cascadeProposed` → nieuwe
+  `countClientSignableProposals`, gecapt op `CASCADE_SCAN_LIMIT`). Tests: `signals.test.ts` (+2),
+  `signals.badge-gaps-run70.test.ts` (nieuw, 3), `signals.cascade-dispute.test.ts` (bijgewerkt).
+
+**Gate:** typecheck, lint, test (5746), build, prettier groen.
+
+**Geparkeerd (repro in backlog run 70):** dubbele-facturatie-backstop omzeilbaar met periode-loze
+HOURS-urenstaat (MED — product-beslissing: periode verplicht?); `createPerformance` existence-oracle
+(LOW, CWE-203); `/certificaten`-badge ondertelt de credential-collab-taak (LOW, sub-symptoom); CSV-import
+dag-rounding botst legitieme diensten op dezelfde dag (LOW); franchise `skillIds` uncapped (NIT).
+
 ## 2026-08-11 — Bemiddelaar: vervolgsignaal bij een aflopende plaatsing op /acties
 
 **Wat:** De opdrachtgever én de ZZP'er kregen allebei al een `collaboration-renewal` next-action zodra

@@ -15,7 +15,13 @@ import {
   RENEWAL_WINDOW_DAYS,
 } from "@/lib/collaboration-renewal";
 import { prisma } from "@/lib/db";
-import { type Availability, type CredentialStatus, type UserRole } from "@/lib/enums";
+import {
+  type Availability,
+  type CredentialStatus,
+  type CredentialType,
+  type UserRole,
+} from "@/lib/enums";
+import { collaborationPlacementBlocked } from "@/lib/collaborations";
 import { rosterExpiringByProfile, supersededVerifiedCredentialIds } from "@/lib/credentials";
 import { computeEngageability } from "@/lib/engageability";
 import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
@@ -179,6 +185,14 @@ export interface FreelancerCascadeCollab {
   status: "PROPOSED" | "ACTIVE";
   latestPerformanceStatus: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | null;
   openInvoiceStatuses: readonly ("DRAFT" | "REJECTED" | "APPROVED" | "OVERDUE")[];
+  /**
+   * Alleen PROPOSED: is de plaatsing geblokkeerd door een certificaat-gat (NON_COMPLIANT)? Dan
+   * onderdrukt `/acties` (pending-tasks.ts) de contract-onderteken-taak — signContract weigert
+   * server-side, de teken-knop is op het detail al verborgen. De badge moet die taak dan óók niet
+   * tellen, anders toont `/samenwerkingen` een fantoom-actie zonder tegenhanger op /acties
+   * (badge↔lijst-pariteit). `undefined`/`false` = niet geblokkeerd (gedragsbehoudend).
+   */
+  placementBlocked?: boolean;
 }
 
 /**
@@ -198,7 +212,10 @@ export function countFreelancerCascadeWork(collabs: readonly FreelancerCascadeCo
   let count = 0;
   for (const c of collabs) {
     if (c.status === "PROPOSED") {
-      count += 1; // contract ondertekenen
+      // Contract ondertekenen — maar niet wanneer de plaatsing door een certificaat-gat is
+      // geblokkeerd: /acties onderdrukt die taak dan (zie pending-tasks.ts, run 58), dus telt de
+      // badge 'm ook niet mee (badge↔lijst-pariteit). Geen gat → gedraagt zich als voorheen.
+      if (!c.placementBlocked) count += 1;
       continue;
     }
     // ACTIVE ⟹ contract getekend; de meest recente prestatie bepaalt de fase.
@@ -397,6 +414,44 @@ export async function unreadConversationCount(userId: string): Promise<number> {
   return countUnreadConversations(participants, latestForeign);
 }
 
+/**
+ * Aantal PROPOSED samenwerkingen van deze opdrachtgever waar het contract nog ondertekend kan worden.
+ * Sluit — net als /acties (pending-tasks.ts `contractSignTask`) — de door een certificaat-gat
+ * geblokkeerde plaatsingen uit: signContract weigert die server-side, dus de "Onderteken"-taak
+ * verschijnt daar niet en de badge moet 'm ook niet tellen (badge↔lijst-pariteit). Gecapt op
+ * CASCADE_SCAN_LIMIT, gelijk aan de list-slice, zodat beide op dezelfde rijen redeneren.
+ */
+async function countClientSignableProposals(userId: string, now: Date): Promise<number> {
+  const proposed = await prisma.collaboration.findMany({
+    where: { company: { userId }, status: "PROPOSED", disputedAt: null },
+    select: {
+      job: {
+        select: {
+          credentialRequirements: { where: { required: true }, select: { credentialType: true } },
+        },
+      },
+      freelancer: {
+        select: { credentials: { select: { type: true, status: true, expiresAt: true } } },
+      },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: CASCADE_SCAN_LIMIT,
+  });
+  let count = 0;
+  for (const c of proposed) {
+    const requiredTypes = c.job.credentialRequirements.map(
+      (r) => r.credentialType as CredentialType,
+    );
+    const creds: FreelancerCredential[] = c.freelancer.credentials.map((cr) => ({
+      type: cr.type as CredentialType,
+      status: cr.status as FreelancerCredential["status"],
+      expiresAt: cr.expiresAt,
+    }));
+    if (!collaborationPlacementBlocked(requiredTypes, creds, now)) count += 1;
+  }
+  return count;
+}
+
 export async function navBadges(role: UserRole, userId: string): Promise<NavBadges> {
   if (role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({
@@ -415,6 +470,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       cascadeCollabs,
       savedJobs,
       renewalWork,
+      placementCreds,
     ] = await Promise.all([
       prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
       // Het volledige VERIFIED-dossier (niet enkel de in-venster verlopende rijen): superseded-
@@ -448,6 +504,16 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         },
         select: {
           status: true,
+          // Vereiste certificaat-types van de opdracht: nodig om — net als /acties — de contract-
+          // onderteken-taak te onderdrukken zodra de plaatsing door een certificaat-gat is geblokkeerd.
+          job: {
+            select: {
+              credentialRequirements: {
+                where: { required: true },
+                select: { credentialType: true },
+              },
+            },
+          },
           performances: {
             select: { status: true },
             orderBy: { createdAt: "desc" },
@@ -475,7 +541,19 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       // vervolgsignaal ("plan een vervolg"): exact de collaborationRenewalTask-emissie op /acties + de
       // dashboard-rail, zodat de /samenwerkingen-badge die actie meetelt (niet stiller dan /acties).
       renewalAttentionBadgeCount({ freelancer: { userId } }, now),
+      // Volledige certificaatset (alle statussen) om per PROPOSED-samenwerking de plaatsings-blokkade
+      // te bepalen — zelfde bron als `allCreds` in pending-tasks.ts, zodat de badge-onderdrukking niet
+      // van de list-onderdrukking kan driften.
+      prisma.credential.findMany({
+        where: { freelancerProfileId: profile.id },
+        select: { type: true, status: true, expiresAt: true },
+      }),
     ]);
+    const placementCredList: FreelancerCredential[] = placementCreds.map((c) => ({
+      type: c.type as CredentialType,
+      status: c.status as FreelancerCredential["status"],
+      expiresAt: c.expiresAt,
+    }));
     // Superseded-aware verval-telling voor de /certificaten-badge. `/acties` + de dashboard-rail
     // (pending-tasks.ts `freelancerTasks` → `supersededVerifiedCredentialIds`) sluiten een ouder,
     // bijna-verlopend VERIFIED-cert uit zodra een nieuwer, nu-geldig exemplaar van hetzelfde type de
@@ -509,6 +587,14 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
           openInvoiceStatuses: c.invoices.map(
             (i) => i.lifecycleStatus as "DRAFT" | "REJECTED" | "APPROVED" | "OVERDUE",
           ),
+          // Alleen relevant voor PROPOSED; de pure telling negeert het veld op ACTIVE.
+          placementBlocked:
+            c.status === "PROPOSED" &&
+            collaborationPlacementBlocked(
+              c.job.credentialRequirements.map((r) => r.credentialType as CredentialType),
+              placementCredList,
+              now,
+            ),
         })),
       ) + renewalWork;
     // Ontbrekende/verlopen verplichte documenten tellen óók mee in de /certificaten-badge, zodat de
@@ -564,12 +650,12 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       unreadConversationCount(userId),
       overdueInvoiceCount("CLIENT", userId),
       // cascade: contract ondertekenen — elke PROPOSED (niet-bevroren) samenwerking van deze
-      // opdrachtgever. Symmetrisch met de FREELANCER-tak (PROPOSED → +1) en met /acties
-      // (pending-tasks.ts `contractSignTask`); zonder deze telling sprak de /samenwerkingen-badge
-      // /acties + de cascade-fase tegen op een deal die nog op ondertekening wacht.
-      prisma.collaboration.count({
-        where: { company: { userId }, status: "PROPOSED", disputedAt: null },
-      }),
+      // opdrachtgever wáár het contract nog ondertekend kan worden. Symmetrisch met de FREELANCER-tak
+      // (PROPOSED → +1, behalve bij een plaatsings-blokkade) en met /acties (pending-tasks.ts
+      // `contractSignTask`, run 58): een door een certificaat-gat geblokkeerde plaatsing kan niet
+      // getekend worden, dus /acties onderdrukt de taak en de badge telt 'm niet — anders sprak de
+      // /samenwerkingen-badge /acties + het samenwerkingsdetail tegen (fantoom-actie).
+      countClientSignableProposals(userId, now),
       // cascade: prestaties goedkeuren (telt ook mee in pendingPerformances voor /prestaties-badge).
       // Bevroren (dispuut) samenwerkingen uitsluiten — symmetrisch met de FREELANCER-tak
       // (disputedAt: null hierboven) en met /acties (pending-tasks.ts): approvePerformance weigert

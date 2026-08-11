@@ -1,5 +1,86 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-11 (run 70) · **main-commit basis:** `b171426c`
+> **Uitkomst:** **2 bereikbare defecten GEVONDEN + GEFIXT** in niet-overlappende bestanden (2 MED),
+> plus 4 geparkeerd met repro. Vier parallelle Opus-audits: franchise-tenant-isolatie/IDOR → **schoon**
+> (volledige trace van elke id-nemende franchise-mutatie/-read tegen `tenantId`/`ownsViaTenant`/
+> `tenantScopeWhere`); cascade-TOCTOU/statusovergangen → **1 MED + 2 LOW** (dispuut-freeze + terminale
+> grendels overal aanwezig; geen ontbrekende freeze); malicieuze input → **1 MED + 1 LOW** (profiel/
+> bericht/beschikbaarheid/reviews/upload/uren/CSV/PDF al hard); next-action-/badge-logica → **1 MED**
+> (echte badge↔lijst-tegenstelling met één samenwerking, niet de geparkeerde >50-drift).
+>
+> 1. **GEFIXT — MED (DOEL 2, robuustheid/DoS, CWE-400 — onbegrensde support-body):** de support-body's
+>    (nieuw ticket `ticketSchema.body`, gebruikersreactie `replySchema.body` in
+>    `src/app/(protected)/support/actions.ts`, én de helpdeskreactie in
+>    `src/app/(protected)/admin/support/actions.ts`) waren begrensd op `.min()` maar **niet op `.max()`**,
+>    terwijl `subject` (140) en elk ander vrije-tekstveld in de repo (bericht 5000, bio 2000, idee 4000)
+>    wél een bovengrens hebben. **Repro:** elke geauthenticeerde gebruiker POST `createTicket`/
+>    `replyToTicket`/`adminReply` met een body van ~11 MB (bounded door de 12 MB server-action-limiet) →
+>    slaagt `.min()`, stroomt ongefilterd naar de TEXT-kolom (`SupportTicket`/`SupportMessage.body`) én
+>    de triage-keyword-scan; herhaalbaar (geen dedup) → goedkope opslag-/CPU-abuse. **Verwacht:** schone
+>    Zod-afwijzing zoals `messageSchema`. **Fix:** `.max(5000)` op alle drie de body's + regressietests
+>    (`support/support-body-cap.test.ts` nieuw, `admin/support/admin-reply.test.ts` uitgebreid).
+> 2. **GEFIXT — MED (DOEL 1b, badge↔lijst-pariteit, beide rollen — fantoom contract-onderteken-actie):**
+>    de `/samenwerkingen`-nav-badge telde voor **elke** PROPOSED samenwerking een contract-onderteken-
+>    actie (`countFreelancerCascadeWork` `signals.ts` PROPOSED → +1; client `cascadeProposed` =
+>    `collaboration.count(PROPOSED)`), terwijl `/acties` (`pending-tasks.ts`, run 58) die taak juist
+>    **onderdrukt** zodra de plaatsing door een certificaat-gat is geblokkeerd
+>    (`collaborationPlacementBlocked` → NON_COMPLIANT; `signContract` weigert dan server-side, het
+>    samenwerkingsdetail verbergt de teken-knop al). **Repro:** één PROPOSED, niet-gedisputeerde
+>    samenwerking met een `required` `JobCredentialRequirement` van een niet-verplicht type dat de ZZP'er
+>    mist/verlopen heeft → `/samenwerkingen`-badge toont `+1`, maar `/acties` + het detail tonen **geen**
+>    onderteken-actie (de badge wijst naar het verkeerde scherm en klaart pas als het certificaat wordt
+>    hersteld of het voorstel wordt geannuleerd). Bereikbaar met één samenwerking — **niet** de
+>    geparkeerde >50-teldrift. **Fix:** beide badge-tellers spiegelen nu dezelfde pure
+>    `collaborationPlacementBlocked`-gate (freelancer: cascade-query haalt `job.credentialRequirements` +
+>    het volledige certificaatdossier op → `placementBlocked` per collab; client: `cascadeProposed` →
+>    nieuwe `countClientSignableProposals` die de geblokkeerde plaatsingen uitsluit, gecapt op
+>    `CASCADE_SCAN_LIMIT` gelijk aan de list-slice). Eén bron van waarheid → kan niet driften. +6 tests
+>    (`signals.test.ts` PROPOSED-placementBlocked, `signals.badge-gaps-run70.test.ts` query-vorm beide
+>    rollen; `signals.cascade-dispute.test.ts` bijgewerkt naar de findMany-teller met behoud van de
+>    `disputedAt:null`-invariant).
+>
+> **GEPARKEERD (deze run — lager geprioriteerd / product-beslissing nodig, met repro):**
+>
+> - **MED (DOEL 2, cascade, dubbele-facturatie-backstop omzeilbaar met periode-loze HOURS-urenstaat):**
+>   de dubbel-factuur-rem (`assertNoOverlappingHoursPerformance`, `performance-commands.ts:280-305`, +
+>   de in-tx-tweeling `commands-shared.ts:164-182`) slaat bewust over zodra `periodStart`/`periodEnd`
+>   `null` is ("zonder periode is overlap niet te bepalen"). Maar `validatePerformanceForm`
+>   (`validation.ts:404-432`) **vereist geen periode** voor HOURS (de form-datumvelden zijn niet
+>   `required`). **Repro:** een ZZP'er dient tweemaal een HOURS-urenstaat in met identieke uren en géén
+>   periode → beide slaan de overlap-rem over (pre-check én in-tx) → elk draait zijn eigen
+>   goedkeur→factuur→betaling-cascade → tweemaal betaald voor hetzelfde werk. **Backstopped by default:**
+>   de opdrachtgever keurt elke prestatie handmatig (ziet/weigert de dubbel); volledig geautomatiseerd
+>   pas met `PERFORMANCE_GRACE_DAYS > 0` (default UIT, opt-in). **Waarom geparkeerd:** de "geen periode →
+>   niet blokkeren"-grens is een **gedocumenteerde ontwerpkeuze**, en periode-loos uren loggen is een
+>   legitieme UI-flow (de datumvelden zijn optioneel) — een periode verplicht stellen is een
+>   **product-beslissing** die money-kritische cascadecode raakt en een eigen gefocuste PR + seed/tests-
+>   sweep verdient. **Aanbevolen fix:** ofwel periode verplicht voor HOURS (+ seed/tests bijwerken), ofwel
+>   een periode-loze exact-duplicaat-dedup op dezelfde samenwerking.
+> - **LOW (DOEL 2, CWE-203 existence-oracle):** `createPerformance` (`performance-commands.ts:171-174`)
+>   geeft "Samenwerking niet gevonden." (onbestaand id) vs "Alleen de ZZP'er kan een prestatie
+>   vastleggen." (bestaat, geen partij) — twee onderscheidbare meldingen die naar de client lekken (via
+>   `logAndSubmitPerformanceAction`, MILESTONE-pad). De 5 siblings (`submit/approve/reject/update/
+editAndResubmit`) zijn hier al op geünificeerd (#903); `createPerformance` is de enige die achterbleef.
+>   Fix: unificeer naar één "niet gevonden."-melding voor niet-partij.
+> - **LOW (DOEL 1b, freelancer — sub-symptoom van #2):** in exact de geblokkeerde-PROPOSED-staat krijgt
+>   de ZZP'er op `/acties` de `credentialCollabMissing`/`-Expired`-taak (niet-verplicht vereist type),
+>   maar geen enkele nav-badge telt die (`credentialAlerts` = `rejected + expiring(VERIFIED) +
+mandatoryAlerts` dekt een niet-verplicht ontbrekend/verlopen vereist cert niet). Na fix #2 toont
+>   `/samenwerkingen` correct 0; de `/certificaten`-badge ondertelt de échte actie nog. Fix: tel de
+>   credential-collab-taak in de `/certificaten`-badge.
+> - **LOW (DOEL 1, CSV-import — te-strakke overlap-collisie):** `importDienstenAction`
+>   (`diensten/importeer/actions.ts:106-109`) rondt elke dienst naar de hele dag → twee legitieme
+>   diensten op dezelfde kalenderdag (dag- + nachtblok, gangbaar in de zorg) krijgen identieke periodes
+>   en botsen op de overlap-rem (`OVERLAPPING_PERFORMANCE_MESSAGE`) → de tweede wordt geweigerd. Fix:
+>   fijnere periode-granulariteit bij CSV-import, of overlap alleen bij écht overlappende tijdvensters.
+> - **NIT (DOEL 2, franchise skillIds uncapped):** `franchise/zzpers/actions.ts:74`
+>   `formData.getAll("skillIds")` heeft geen lengte-cap (contrast: `freelancerProfileSchema.skillIds`
+>   `.max(50)`); alleen bestaande skills persisteren dus geen slechte staat, enkel querylast op een
+>   semi-vertrouwde rol. Al geannoteerd `// unbounded-allow`. Cap voor consistentie.
+>
+> ---
+
 > **Datum:** 2026-08-11 (run 69) · **main-commit basis:** `5d5e2dc5`
 > **Uitkomst:** **2 bereikbare defecten GEVONDEN + GEFIXT** in 2 niet-overlappende bestanden (1 HIGH,
 > 1 MED). Vier parallelle Opus-audits: authz/IDOR/cross-tenant → **schoon** (volledige trace van

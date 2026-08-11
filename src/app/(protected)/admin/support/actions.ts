@@ -8,7 +8,9 @@ import { prisma } from "@/lib/db";
 import { assertSupportTransition, canSupportTransition } from "@/lib/support/state";
 import { type SupportTicketStatus } from "@/lib/enums";
 
-const replySchema = z.object({ body: z.string().trim().min(1) });
+// Zelfde 5000-cap als de gebruikerszijde (`support/actions.ts`) en `messageSchema`: een
+// helpdeskreactie is een bericht en mag de TEXT-kolom niet ongebreideld vullen (CWE-400).
+const replySchema = z.object({ body: z.string().trim().min(1).max(5000) });
 
 /** Helpdesk-medewerker reageert op een ticket (auth → rol → actie → audit). */
 export async function adminReply(ticketId: string, formData: FormData): Promise<void> {

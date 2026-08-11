@@ -134,4 +134,20 @@ describe("adminReply — atomaire writes + volledige audit (A09)", () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(audit).not.toHaveBeenCalled();
   });
+
+  // CWE-400: de body was begrensd op `.min(1)` maar niet op `.max()`, terwijl de gebruikerszijde
+  // en `messageSchema` op 5000 cappen. Een body boven de cap moet vóór de DB worden geweigerd.
+  it("(d) body van 5001 tekens: safeParse faalt → geen transactie, geen audit", async () => {
+    ticketState.current = {
+      id: "t-4",
+      userId: "user-9",
+      assignedToId: null,
+      status: "ESCALATED",
+    };
+
+    await adminReply("t-4", form("a".repeat(5001)));
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(audit).not.toHaveBeenCalled();
+  });
 });
