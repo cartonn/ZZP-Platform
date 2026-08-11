@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { type SidebarState } from "@/lib/sidebar";
+import { SIDEBAR_STATE_EVENT, type SidebarState } from "@/lib/sidebar";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,11 +25,22 @@ export function SidebarRail({
   initialState?: SidebarState;
   children: React.ReactNode;
 }) {
-  const pinned = initialState === "expanded";
+  const [preference, setPreference] = useState<SidebarState>(initialState);
+  const pinned = preference === "expanded";
   // Bij de ingeklapte voorkeur klapt de rail alleen tijdelijk uit bij hover/focus (`hovering`).
   const [hovering, setHovering] = useState(false);
   const ref = useRef<HTMLElement>(null);
   const pathname = usePathname();
+
+  useEffect(() => setPreference(initialState), [initialState]);
+  useEffect(() => {
+    const onState = (event: Event) => {
+      const next = (event as CustomEvent<SidebarState>).detail;
+      if (next === "expanded" || next === "collapsed") setPreference(next);
+    };
+    window.addEventListener(SIDEBAR_STATE_EVENT, onState);
+    return () => window.removeEventListener(SIDEBAR_STATE_EVENT, onState);
+  }, []);
 
   const expanded = pinned || hovering;
 

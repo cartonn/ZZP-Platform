@@ -58,7 +58,8 @@ test("franchiser onboardt een ZZP'er met skill en beschikbaarheid, met roster-de
   await expect(page.getByText("Beschikbaar", { exact: true })).toBeVisible();
   await expect(page.getByText("Skills", { exact: true })).toBeVisible();
   // Certificaten leven op de "Bestanden"-tab van het dossier; voor een verse ZZP'er is die leeg.
-  await page.getByRole("link", { name: "Bestanden" }).click();
+  const bestandenLink = page.getByRole("link", { name: "Bestanden" });
+  await Promise.all([page.waitForURL(/[?&]tab=bestanden/), bestandenLink.click()]);
   await expect(page.getByText("Nog geen bestanden")).toBeVisible();
   await shot(page, "franchise-zzper-detail");
 });

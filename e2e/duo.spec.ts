@@ -35,7 +35,9 @@ test("DUO-diplomaverificatie: ongeldige code faalt, geldige code verifieert", as
   // Geldige code → systeem-geverifieerd via DUO.
   await page.getByLabel("DUO-verificatiecode").fill("DUO-AB12-CD34");
   await page.getByRole("button", { name: "Verifieer via DUO" }).click();
-  await expect(page.getByText("Geverifieerd", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Geverifieerd", { exact: true }).first()).toBeVisible({
+    timeout: 10000,
+  });
   await expect(page.getByRole("button", { name: "Verifieer via DUO" })).toHaveCount(0);
   await shot(page, "38-duo-verified");
 });

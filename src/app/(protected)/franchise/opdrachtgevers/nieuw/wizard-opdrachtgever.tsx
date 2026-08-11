@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import Link from "next/link";
 import { ArrowRight, Check, Copy } from "lucide-react";
 import { createOpdrachtgever, type OpdrachtgeverState } from "../actions";
 import { Field } from "@/components/ui/field";
@@ -64,9 +63,9 @@ export function WizardOpdrachtgever({ prefill }: { prefill?: OpdrachtgeverPrefil
           </div>
         </div>
         <Button asChild>
-          <Link href={`/franchise/opdrachtgevers/nieuw?stap=afdelingen&company=${state.companyId}`}>
+          <a href={`/franchise/opdrachtgevers/nieuw?stap=afdelingen&company=${state.companyId}`}>
             Volgende: afdelingen <ArrowRight className="size-4" aria-hidden />
-          </Link>
+          </a>
         </Button>
       </div>
     );

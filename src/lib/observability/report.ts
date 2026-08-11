@@ -1,8 +1,7 @@
 // Error-reporting-grens (zelfde service-patroon als StorageDriver/MailSender): een interface +
 // een veilige standaard-implementatie (console → gestructureerde logger) + een optionele externe
-// implementatie (Sentry) die alleen wordt gekozen als SENTRY_DSN gezet is. Het Sentry-pakket is
-// NIET geïnstalleerd; het wordt lazy en via een variabele module-specifier geladen zodat de
-// bundler het niet statisch probeert te resolven. Faalt de import → graceful fallback op console.
+// implementatie (Sentry) die alleen wordt gekozen als SENTRY_DSN gezet is. Het Sentry-pakket wordt
+// lazy geladen, zodat een ontbrekende of defecte runtime nooit een request kan laten falen.
 // Reporting mag een request NOOIT laten falen: alles wordt geslikt, niets wordt naar buiten gegooid.
 
 import { logger } from "@/lib/observability/logger";
@@ -70,10 +69,34 @@ let sentryInitDone = false;
 let sentryUnavailable = false;
 let sentryWarned = false;
 
+type SentrySdk = {
+  init: (options: ReturnType<typeof buildSentryInitOptions>) => void;
+  captureException: (
+    error: unknown,
+    hint?: { extra?: Record<string, unknown>; tags?: Record<string, string> },
+  ) => void;
+  captureMessage: (message: string, level?: string) => void;
+  flush: (timeout?: number) => Promise<boolean>;
+};
+
+type SentryLoader = () => Promise<SentrySdk | null>;
+
+const defaultSentryLoader: SentryLoader = async () => {
+  const moduleId = "@sentry/nextjs";
+  return (await import(/* webpackIgnore: true */ moduleId).catch(() => null)) as SentrySdk | null;
+};
+
+let loadSentry: SentryLoader = defaultSentryLoader;
+
+/** Injecteerbare loader uitsluitend voor tests; voorkomt echte netwerkrequests naar Sentry. */
+export function __setSentryLoaderForTests(loader?: SentryLoader): void {
+  loadSentry = loader ?? defaultSentryLoader;
+  __resetReporterForTests();
+}
+
 /**
- * Externe reporter via @sentry/nextjs. Het pakket is niet geïnstalleerd; daarom lazy import via een
- * VARIABELE specifier (de bundler resolvet het dan niet statisch). Mislukt de import → éénmalig een
- * waarschuwing en daarna stille fallback op de console-capture. Nooit throwen.
+ * Externe reporter via @sentry/nextjs. Mislukt de lazy import → éénmalig een waarschuwing en
+ * daarna stille fallback op de console-capture. Nooit throwen.
  */
 class SentryErrorReporter implements ErrorReporter {
   readonly name = "sentry";
@@ -85,10 +108,9 @@ class SentryErrorReporter implements ErrorReporter {
       return;
     }
 
-    const moduleId = "@sentry/nextjs";
-    const Sentry = await import(/* webpackIgnore: true */ moduleId).catch(() => null);
+    const sentry = await loadSentry();
 
-    if (!Sentry) {
+    if (!sentry) {
       sentryUnavailable = true;
       if (!sentryWarned) {
         sentryWarned = true;
@@ -100,14 +122,6 @@ class SentryErrorReporter implements ErrorReporter {
       await this.fallback.capture(error, context);
       return;
     }
-
-    const sentry = Sentry as {
-      init: (options: ReturnType<typeof buildSentryInitOptions>) => void;
-      captureException: (
-        error: unknown,
-        hint?: { extra?: Record<string, unknown>; tags?: Record<string, string> },
-      ) => void;
-    };
 
     if (!sentryInitDone) {
       sentryInitDone = true;
@@ -167,10 +181,9 @@ export interface ErrorMonitoringProbeResult {
  * de aanroeper ze als veilige `detail` (error-NAAM) kan tonen.
  */
 export async function probeErrorMonitoring(token: string): Promise<ErrorMonitoringProbeResult> {
-  const moduleId = "@sentry/nextjs";
-  const Sentry = await import(/* webpackIgnore: true */ moduleId).catch(() => null);
+  const sentry = await loadSentry();
 
-  if (!Sentry) {
+  if (!sentry) {
     return {
       packageInstalled: false,
       delivered: false,
@@ -178,12 +191,6 @@ export async function probeErrorMonitoring(token: string): Promise<ErrorMonitori
         "Pakket @sentry/nextjs is niet geïnstalleerd — SENTRY_DSN is gezet maar fouten worden alleen gestructureerd gelogd (geen externe monitoring). Installeer het pakket (npm i @sentry/nextjs) en deploy opnieuw.",
     };
   }
-
-  const sentry = Sentry as {
-    init: (options: ReturnType<typeof buildSentryInitOptions>) => void;
-    captureMessage: (message: string, level?: string) => void;
-    flush: (timeout?: number) => Promise<boolean>;
-  };
 
   sentry.init(buildSentryInitOptions());
   sentry.captureMessage(`Handslag — error-monitoring zelftest (${token})`, "info");

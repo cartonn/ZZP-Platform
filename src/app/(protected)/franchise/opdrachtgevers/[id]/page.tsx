@@ -23,10 +23,13 @@ export const metadata: Metadata = { title: "Opdrachtgever · Bemiddeling" };
 
 export default async function OpdrachtgeverDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ dienst?: string }>;
 }) {
   const { id } = await params;
+  const { dienst } = await searchParams;
   const actor = await requireRole("FRANCHISER");
   const [company, skills, orphanJobs] = await Promise.all([
     prisma.company.findFirst({
@@ -115,6 +118,15 @@ export default async function OpdrachtgeverDetailPage({
           company.location ? ` · ${company.location}` : ""
         }`}
       />
+
+      {dienst && (
+        <p
+          role="status"
+          className="rounded-md border border-success/30 bg-success/5 px-3 py-2 text-sm text-success"
+        >
+          &quot;{dienst}&quot; uitgezet.
+        </p>
+      )}
 
       {onboardingIncomplete && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-accent/40 px-4 py-3 text-sm">

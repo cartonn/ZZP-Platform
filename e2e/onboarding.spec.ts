@@ -50,7 +50,7 @@ test("freelancer registreert, vult profiel en publiceert het", async ({ page, br
   await page.fill("#location", "Amsterdam");
   await page.selectOption("#availability", "AVAILABLE");
   await page.fill("#languages", "nl, en");
-  await page.getByText("TypeScript", { exact: true }).click();
+  await page.locator("#vaardigheden").getByText("TypeScript", { exact: true }).click();
   await page.getByRole("radio", { name: /Openbaar/ }).check();
   await page.getByRole("button", { name: "Profiel opslaan" }).click();
 

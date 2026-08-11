@@ -4,6 +4,8 @@
 
 /** Cookienaam voor de zijbalk-voorkeur. */
 export const SIDEBAR_COOKIE = "sidebar";
+export const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+export const SIDEBAR_STATE_EVENT = "handslag:sidebar-state";
 
 /** Voorkeurwaarden: uitgeklapt (labels zichtbaar) of ingeklapt (icoon-rail). */
 export type SidebarState = "expanded" | "collapsed";

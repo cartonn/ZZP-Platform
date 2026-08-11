@@ -66,8 +66,8 @@ test("ideeënbox: indienen, upvote togglen en (admin) status zetten", async ({ p
   // Per idee staan nu meerdere selects (status/doelgroep/thema) — kies de status-select op naam.
   await adminCard.getByRole("combobox", { name: /^Status van idee/ }).selectOption("PLANNED");
   await adminCard.getByRole("button", { name: "Opslaan" }).first().click();
-  // De statusbadge (vóór de select in de DOM) toont nu "Gepland".
-  await expect(adminCard.getByText("Gepland").first()).toBeVisible();
+  // De zichtbare statusbadge (een span; niet de gelijknamige option) toont nu "Gepland".
+  await expect(adminCard.locator("span", { hasText: "Gepland" }).first()).toBeVisible();
   await shot(apage, "ideeen-admin-status");
 
   await actx.close();

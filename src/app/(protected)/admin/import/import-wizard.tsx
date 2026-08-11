@@ -320,6 +320,12 @@ export function ImportWizard({ emailConfigured }: { emailConfigured: boolean }) 
           name="file"
           accept=".csv,text/csv"
           onChange={(f) => {
+            if (f && !f.name.toLowerCase().endsWith(".csv")) {
+              setFile(null);
+              setPreview(null);
+              setError("Kies een CSV-bestand met de extensie .csv.");
+              return;
+            }
             setFile(f);
             setPreview(null);
             setError(null);

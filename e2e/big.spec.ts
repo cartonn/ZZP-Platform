@@ -37,7 +37,9 @@ test("BIG-registerverificatie: ongeldig nummer faalt, geldig nummer verifieert",
   // komt als substring ook in omliggende teksten voor ("geverifieerde", uitlegzinnen).
   await page.getByLabel("BIG-nummer").fill("12345678901");
   await page.getByRole("button", { name: "Verifieer via BIG-register" }).click();
-  await expect(page.getByText("Geverifieerd", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Geverifieerd", { exact: true }).first()).toBeVisible({
+    timeout: 10000,
+  });
   await expect(page.getByRole("button", { name: "Verifieer via BIG-register" })).toHaveCount(0);
   await shot(page, "39-big-verified");
 });

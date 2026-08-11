@@ -150,6 +150,7 @@ of PII-lek). Eén LAAG dedup-race uit de vorige ronde blijft geparkeerd.**
   gat worden als rollen ooit muteerbaar worden of een rij langs een ander pad ontstaat.
 - **Fix (deze PR):** `if (actor.role !== "FREELANCER") throw new AuthorizationError(...)` toegevoegd aan beide functies
   (pariteit met `deleteIndirectHours`).
+
 ## Ronde 2026-08-10 (lokale livegang-gereedheidssessie, basis: `main` @ 5ec16e60)
 
 Volledige lokale gate gedraaid (typecheck, lint, 5636 unit-tests, build, prettier, check:env,

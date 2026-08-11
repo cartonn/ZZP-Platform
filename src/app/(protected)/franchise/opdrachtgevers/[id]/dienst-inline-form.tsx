@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState } from "react";
 import { Plus } from "lucide-react";
 import { publishDienst, type DienstInlineState } from "../actions";
 import { Field } from "@/components/ui/field";
@@ -32,13 +32,6 @@ export function DienstInlineForm({
   );
   const fieldErrors = state && "fieldErrors" in state ? (state.fieldErrors ?? {}) : {};
   const error = state && "error" in state ? state.error : undefined;
-  const success = state && "ok" in state && state.ok ? `"${state.title}" uitgezet.` : undefined;
-  const formRef = useRef<HTMLFormElement>(null);
-
-  useEffect(() => {
-    if (state && "ok" in state && state.ok) formRef.current?.reset();
-  }, [state]);
-
   const id = (field: string) => `${field}-${departmentId}`;
 
   return (
@@ -47,7 +40,6 @@ export function DienstInlineForm({
         <Plus className="size-3.5" aria-hidden /> Dienst uitzetten
       </summary>
       <form
-        ref={formRef}
         action={action}
         className="mt-3 space-y-3 rounded-md border border-border bg-muted/30 p-3"
       >
@@ -139,7 +131,7 @@ export function DienstInlineForm({
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? "Uitzetten…" : "Uitzetten"}
           </Button>
-          <FormStatus success={success} error={error} />
+          <FormStatus error={error} />
         </div>
       </form>
     </details>

@@ -130,10 +130,7 @@ test.describe("paginatie: documenten", () => {
       expect(page.url()).toContain("cursor=");
       await expect(page.getByRole("heading", { name: "Documenten" })).toBeVisible();
 
-      // Op de laatste pagina is "Meer laden" weg
-      const meerLadenNaPagina2 = page.getByRole("link", { name: "Meer laden" });
-      // Als dit de laatste pagina is: knop moet weg zijn
-      // (niet asserteren omdat we niet weten hoeveel pagina's er zijn)
+      // Het aantal pagina's hangt van de seed af; de geslaagde cursor-navigatie is hier de poort.
     } else {
       expect(count).toBe(0);
     }

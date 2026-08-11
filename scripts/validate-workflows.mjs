@@ -94,6 +94,48 @@ try {
   errors.push(`auto-build.yml ontbreekt of is onleesbaar — ${e.message}`);
 }
 
+// 3. De PR-poort moet de VOLLEDIGE Playwright-suite hard afdwingen. De vier geïsoleerde shards
+// mogen geen continue-on-error gebruiken; de stabiele aggregatiejob `e2e` houdt de bestaande
+// branch-protection-checknaam intact en wordt alleen groen als alle shards groen zijn.
+try {
+  const { raw, doc } = loadWorkflow("ci.yml");
+  const shardJob = doc?.jobs?.["e2e-shard"];
+  const gateJob = doc?.jobs?.e2e;
+
+  if (!shardJob) {
+    errors.push("ci.yml: e2e-shard-job ontbreekt");
+  } else {
+    ok("volledige e2e-shard-job aanwezig");
+    if (shardJob["continue-on-error"] === true || /continue-on-error:\s*true/.test(raw)) {
+      errors.push(
+        "ci.yml: e2e mag niet continue-on-error zijn — dit zou de merge-poort verzachten",
+      );
+    } else {
+      ok("e2e is een harde poort (geen continue-on-error)");
+    }
+    if (!/npx playwright test\s+--project=ci\b/.test(raw)) {
+      errors.push(
+        "ci.yml: draait niet de volledige Playwright-suite (--project=ci zonder specfilter)",
+      );
+    } else {
+      ok("volledige Playwright-suite draait zonder specfilter");
+    }
+    if (!/--shard=\$\{\{\s*matrix\.shard\s*\}\}\/4/.test(raw)) {
+      errors.push("ci.yml: volledige e2e-suite is niet over vier geïsoleerde shards verdeeld");
+    } else {
+      ok("e2e-suite is over vier shards verdeeld");
+    }
+  }
+
+  if (!gateJob || gateJob.needs !== "e2e-shard") {
+    errors.push("ci.yml: stabiele aggregatiejob 'e2e' moet afhangen van e2e-shard");
+  } else {
+    ok("verplichte checknaam e2e aggregeert alle shards");
+  }
+} catch (e) {
+  errors.push(`ci.yml ontbreekt of is onleesbaar — ${e.message}`);
+}
+
 if (errors.length > 0) {
   console.error("\n✗ Workflow-validatie mislukt:");
   for (const e of errors) console.error(`  - ${e}`);

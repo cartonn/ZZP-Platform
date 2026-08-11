@@ -367,6 +367,7 @@ heartbeat faalt nooit naar buiten; geen nieuw auth-/mutatie-oppervlak.
 (`recordCronHeartbeat` neemt namen; `getCronFreshness` leest ze), `src/app/api/tasks/run-all/route.ts`
 (geeft `Object.keys(errors)` mee). MENSENWERK §10 + CURRENT_TASK bijgewerkt. Gate: typecheck, lint, test,
 build, prettier groen.
+
 ## Livegang-gereedheidssessie 2026-08-10 (lokaal, basis: `main` @ 5ec16e60 / PR #1040)
 
 **Volledige lokale gate + e2e-restauratie + security-fixes. Alles groen; niets gepusht (expliciete
@@ -13287,3 +13288,25 @@ Additief: alleen nieuwe bestanden onder `src/components/ontwerp/concepts/` + toe
 `registry.ts`, `concept-host.tsx` en `docs/DESIGN-LAB.md`. Geen bestaande concepten/logica/auth geraakt.
 Elk concept: 6 kernschermen, mock-data, volledige interactie, responsive, WCAG focus-states, status
 label+icoon, motion-reduce. Zie `docs/DESIGN-LAB.md` (reeks 47) voor de volledige lijst.
+
+## Sessie — live-readiness en harde releasepoorten — 2026-08-11
+
+- Branch op de actuele `origin/main` gerebased met behoud van de bestaande working-tree-wijzigingen.
+- GitHub E2E is niet langer adviserend: de volledige suite draait in vier geïsoleerde shards; de
+  stabiele verplichte check `e2e` wordt alleen groen als alle shards slagen. CI markeert deze
+  productiebuild expliciet als `DEPLOYMENT_STAGE=demo`, zodat de strikte echte-productiepreflight
+  niet door testdrivers wordt omzeild of onbedoeld de fixture-run blokkeert.
+- Railway gebruikt `/api/readiness` als healthcheck. De boot wacht vóór background seeding op echte
+  readiness en draait automatisch een strikte preflight, behalve voor een expliciete demo-stage.
+- `@sentry/nextjs` is geïnstalleerd; observability-reporting is injecteerbaar en getest. Externe
+  rapportage blijft bewust inert totdat een productie-DSN is gezet.
+- De zichtbare gevolgen van de openstaande Next.js Server Action-responsehang (#329) zijn afgevangen
+  op de aangetroffen kritieke mutatiepaden met een korte reload-watchdog; E2E controleert daarna de
+  server-side waarheid in plaats van een eindeloos open response-object.
+- Lokale poorten groen: typecheck, lint, format, workflowvalidatie, build, 5.736 unit-tests en de
+  volledige productie-E2E-suite (143 direct groen, 1 retry daarna groen, 1 bewust overgeslagen;
+  exitcode 0). De enige retry is vervolgens ook van een watchdog voorzien en gericht herhaald.
+- De huidige Railway-omgeving blijft terecht een demo/NO-GO voor echte persoonsgegevens totdat
+  persistente documentopslag, echte e-mail, externe monitoring, gedeelde rate-limits,
+  malware-scanning en echte register-/identiteitskoppelingen zijn geconfigureerd en de dataregio,
+  demo-accounts en wettelijke bewaarkeuzes formeel zijn afgehandeld.

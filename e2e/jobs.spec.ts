@@ -26,6 +26,20 @@ async function registerFreelancer(page: Page, email: string) {
   await page.waitForURL("**/dashboard");
 }
 
+async function waitForRedirectingServerAction(page: Page, expectedPath: string) {
+  const response = await page.waitForResponse(
+    (candidate) =>
+      candidate.request().method() === "POST" &&
+      typeof candidate.request().headers()["next-action"] === "string",
+    { timeout: 15000 },
+  );
+  // Next stuurt de redirect in de Server Action-headers. Zodra de router de navigatie
+  // overneemt, breekt de browser de oorspronkelijke RSC-stream bewust af (ERR_ABORTED).
+  // Wachten op response.finished() zou daardoor juist een gezonde redirect afkeuren.
+  expect(response.status()).toBe(303);
+  expect(response.headers()["x-action-redirect"]).toContain(`${expectedPath};`);
+}
+
 test("opdrachtgever maakt, publiceert en ZZP'er vindt de opdracht", async ({ page, browser }) => {
   const title = `E2E Opdracht ${uniq()}`;
   await registerClient(page, `jobclient-${uniq()}@test.local`);
@@ -56,8 +70,12 @@ test("opdrachtgever maakt, publiceert en ZZP'er vindt de opdracht", async ({ pag
   const detailUrl = page.url();
   await expect(page.getByText("Concept")).toBeVisible();
 
-  // Publiceren via statusactie.
+  // Publiceren via statusactie. De redirect-header én de zichtbare nieuwe status vormen samen
+  // de regressiepoort voor issue #329 (DB-write slaagde, maar de UI bleef pending).
+  const detailPath = new URL(detailUrl).pathname;
+  const publishResponse = waitForRedirectingServerAction(page, detailPath);
   await page.getByRole("button", { name: "Publiceren" }).click();
+  await publishResponse;
   await expect(page.getByText("Gepubliceerd")).toBeVisible();
   await shot(page, "11-job-detail-client");
 
@@ -89,7 +107,9 @@ test("opdrachtgever maakt, publiceert en ZZP'er vindt de opdracht", async ({ pag
 
   // Niet-gepubliceerde opdracht is niet zichtbaar voor anderen: depubliceer en check 404.
   await page.goto(detailUrl);
+  const unpublishResponse = waitForRedirectingServerAction(page, detailPath);
   await page.getByRole("button", { name: "Terug naar concept" }).click();
+  await unpublishResponse;
   // Status is nu concept zodra de "Publiceren"-actie weer verschijnt (eenduidig).
   await expect(page.getByRole("button", { name: "Publiceren" })).toBeVisible();
   // Onder parallelle SQLite-load kan de read kort na de write nog 200 geven; poll tot 404.

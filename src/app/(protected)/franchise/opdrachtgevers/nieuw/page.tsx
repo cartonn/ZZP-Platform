@@ -179,9 +179,9 @@ function StepAfdelingen({ state }: { state: OnboardingState }) {
           </span>
           {canNext ? (
             <Button asChild>
-              <Link href={wizardHref("diensten", state.companyId)}>
+              <a href={wizardHref("diensten", state.companyId)}>
                 Volgende: diensten <ArrowRight className="size-4" aria-hidden />
-              </Link>
+              </a>
             </Button>
           ) : (
             <Button disabled>
@@ -246,12 +246,12 @@ async function StepDiensten({
 
         <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
           {jobs.length === 0 && (
-            <Link
+            <a
               href={wizardHref("klaar", state.companyId)}
               className="focus-ring text-sm text-muted-foreground hover:text-foreground"
             >
               Overslaan
-            </Link>
+            </a>
           )}
           <Button asChild>
             <Link href={wizardHref("klaar", state.companyId)}>
@@ -282,10 +282,12 @@ function StepKlaar({ state }: { state: OnboardingState }) {
         </div>
         <div className="flex flex-wrap justify-center gap-3 pt-2">
           <Button asChild>
-            <Link href={`/franchise/opdrachtgevers/${state.companyId}`}>Naar opdrachtgever</Link>
+            <a href={`/franchise/opdrachtgevers/${state.companyId}`}>Naar opdrachtgever</a>
           </Button>
           <Button asChild variant="secondary">
-            <Link href="/franchise/opdrachtgevers/nieuw">Nog een opdrachtgever</Link>
+            {/* Volledige navigatie kapt een eventueel nog openstaande Server Action-stream af (#329). */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a href="/franchise/opdrachtgevers/nieuw">Nog een opdrachtgever</a>
           </Button>
         </div>
       </CardContent>

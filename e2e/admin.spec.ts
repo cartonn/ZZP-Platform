@@ -76,16 +76,14 @@ test("admin schorst gebruiker (self-guard), sluit opdracht en ziet auditregel", 
   await expect(page.getByRole("button", { name: "Schorsen" })).toHaveCount(0);
 
   // Opdracht sluiten.
-  await page.goto("/admin/opdrachten");
-  await page.getByLabel("Zoeken").fill(jobTitle);
-  await page.getByRole("button", { name: "Filteren" }).click();
-  await expect(page.getByText(jobTitle)).toBeVisible();
+  await page.goto(`/admin/opdrachten?q=${encodeURIComponent(jobTitle)}`);
+  const jobLink = page.getByRole("link", { name: jobTitle });
+  await expect(jobLink).toBeVisible();
+  const jobRow = page.locator("div.divide-y > div", { has: jobLink });
+  const closeButton = jobRow.getByRole("button", { name: "Sluiten" });
   // Robuust tegen de #329-response-hang: klik Sluiten tot de actieknop verdwenen is. De lijst is
   // op titel gefilterd (GET-form, werkt ook pre-hydratie) → de actieknop is uniek op de pagina.
-  await clickUntilGone(
-    page.getByRole("button", { name: "Sluiten" }),
-    page.getByRole("button", { name: "Sluiten" }),
-  );
+  await clickUntilGone(closeButton, closeButton);
 
   // Auditregel zichtbaar. De lijst toont het NL-label van de machine-actie (audit-labels.ts);
   // het filter matcht server-side op de machine-string.
