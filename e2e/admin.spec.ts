@@ -77,13 +77,21 @@ test("admin schorst gebruiker (self-guard), sluit opdracht en ziet auditregel", 
 
   // Opdracht sluiten.
   await page.goto(`/admin/opdrachten?q=${encodeURIComponent(jobTitle)}`);
-  const jobLink = page.getByRole("link", { name: jobTitle });
+  const jobLink = page.getByRole("link", { name: jobTitle, exact: true });
   await expect(jobLink).toBeVisible();
   const jobRow = page.locator("div.divide-y > div", { has: jobLink });
-  const closeButton = jobRow.getByRole("button", { name: "Sluiten" });
+  await expect(jobRow).toHaveCount(1);
+  const closeTrigger = jobRow.getByRole("button", { name: "Sluiten", exact: true });
+  await closeTrigger.click();
+  const closeDialog = jobRow.getByRole("alertdialog", { name: "Opdracht sluiten?" });
+  await expect(closeDialog).toBeVisible();
   // Robuust tegen de #329-response-hang: klik Sluiten tot de actieknop verdwenen is. De lijst is
-  // op titel gefilterd (GET-form, werkt ook pre-hydratie) → de actieknop is uniek op de pagina.
-  await clickUntilGone(closeButton, closeButton);
+  // op titel gefilterd (GET-form, werkt ook pre-hydratie). De dialooglocator onderscheidt de
+  // bevestigingsknop expliciet van zowel de rij-trigger als de overlay-sluitknop.
+  await clickUntilGone(
+    closeDialog.getByRole("button", { name: "Sluiten", exact: true }),
+    closeTrigger,
+  );
 
   // Auditregel zichtbaar. De lijst toont het NL-label van de machine-actie (audit-labels.ts);
   // het filter matcht server-side op de machine-string.
