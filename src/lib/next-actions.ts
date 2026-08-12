@@ -76,6 +76,7 @@ export const P = {
   staleApplications: 52, // kandidaten (VIEWED/SHORTLIST) wachten al langer dan gebruikelijk op een beslissing
   applications: 50, // nieuwe reacties
   collaborationRenewal: 46, // lopende samenwerking nadert/passeert haar einddatum — plan tijdig een vervolg (beide partijen)
+  jobNeedsAttention: 44, // gepubliceerde opdracht loopt koud (geen/weinig kandidaten) — stuur bij (tarief/eisen/omschrijving). Een ongevulde behoefte is actueler dan een passieve concept-opdracht (drafts 20) of een cosmetische compleetheid-nudge (completeness 30), maar staat ONDER het inkomende-kandidaten-cluster (applications 50 / firstLookOverdue 53 / staleApplications 52 — daar wachten concrete mensen) en onder een lopende relatie (collaborationRenewal 46); boven de findability-nudge (availabilityStale 40)
   availabilityStale: 40, // gedeelde beschikbaarheidsagenda verlopen — findability-nudge (ZZP'er)
   reviewPromptClosing: 48, // beoordelingsvenster sluit bijna (≤3 dagen) — daarna nooit meer te doen (anti-vergeldingsslot), dus urgenter dan cosmetische nudges
   completeness: 30, // profiel/bedrijf onvolledig (cosmetisch)

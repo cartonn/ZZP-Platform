@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-12 — opdrachtgever: koud-lopende opdracht als next-action op /acties (+ /opdrachten-badge)
+
+**Wat:** het vacaturetempo-signaal (`summarizeVacancyPerformance.attention` — een gepubliceerde opdracht die
+koud loopt: geen of te weinig kandidaten voor de tijd dat hij open staat) stond al op de opdracht-lijst/-detail
+(`job-vacancy-performance-card`) en als achtergrondnotificatie (`job-engagement.ts` cron), maar ontbrak in het
+next-action-model. Een ongevulde opdracht die geen kandidaten trekt is juist het hoogste-leverage-moment voor de
+opdrachtgever om bij te sturen (tarief/eisen/omschrijving). Nu emit de item-engine het als concrete next-action
+op `/acties` + de dashboard-rail, en de `/opdrachten`-nav-badge telt het mee — het "signaal op één oppervlak"-
+anti-patroon dat de codebase herhaaldelijk dicht.
+
+- **Bron van waarheid:** nieuwe gedeelde `getClientColdJobs(userId, now)` (`src/lib/data/client-cold-jobs.ts`)
+  — gepubliceerde, ongevulde opdrachten → pre-filter DB-side op de niet-ingetrokken-reactie-telling
+  (`VACANCY_COLD_MAX_APPLICATIONS`, want beide attentie-takken vereisen < 3 reacties) → per kandidaat de echte
+  reactie-tijdstempels in één query (geen N+1) → de pure `summarizeVacancyPerformance` beslist `attention`.
+  Dezelfde helper voedt /acties én de badge → geen drift.
+- **Bestanden:** `src/lib/data/client-cold-jobs.ts` (nieuw), `src/lib/actions/tasks.ts`
+  (`jobNeedsAttentionTask` + kind `job-needs-attention`), `src/lib/next-actions.ts` (`P.jobNeedsAttention: 44`
+  — boven concept/completeness, onder het inkomende-kandidaten-cluster + collaborationRenewal),
+  `src/lib/actions/pending-tasks.ts` (clientTasks wiring), `src/lib/signals.ts` (CLIENT `/opdrachten`-badge
+  combineert concept-opdrachten (info) + koud-signaal (attention, dynamische toon zoals de
+  /admin/gebruikersbeheer-badge)).
+- **Tests:** helper (prisma-mock: koud/vers/genoeg-reacties/pre-filter), builder (shape/band), integratie
+  (/acties-emissie + band), badge-pariteit (info→attention combinatie). +4 mocks in bestaande client-task-/
+  signals-tests (getClientColdJobs neutraliseren, zoals de overige data-helpers). Server-side waarheid,
+  read-only signaal, geen schema-/mutatie-/auth-oppervlak.
+- **Gate:** typecheck, lint, test (5840), build, prettier groen.
+
 ## 2026-08-12 — prod-rijpheid: performance-grace stille-faal-gauge (`zzp_performances_overdue_grace`)
 
 **Wat:** stille-faal-detector voor de laatste uitbetaal-kritische statustransitie-cron zonder gauge —

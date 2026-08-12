@@ -73,6 +73,10 @@ vi.mock("@/lib/collaboration-alerts", async (importOriginal) => {
   return { ...actual, clientCredentialAlerts: () => Promise.resolve([]) };
 });
 
+// navBadges(CLIENT) roept nu getClientColdJobs aan (prisma.job.findMany); neutraliseren zodat de
+// bestaande badge-assertions geïsoleerd blijven van het nieuwe koud-signaal.
+vi.mock("@/lib/data/client-cold-jobs", () => ({ getClientColdJobs: vi.fn(async () => []) }));
+
 import { navBadges } from "./signals";
 
 // Ver genoeg in het verleden dat de stale-drempel (VIEWED ≥ 14 / SHORTLIST ≥ 21 dagen) haalt.

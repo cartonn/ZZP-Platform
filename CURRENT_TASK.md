@@ -262,6 +262,22 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — koud-lopende opdracht als next-action op /acties (+ /opdrachten-badge) (2026-08-12, PR #1070)** —
+> het vacaturetempo-signaal (`summarizeVacancyPerformance.attention` — een gepubliceerde opdracht die koud loopt: geen/weinig kandidaten voor
+> de tijd dat hij open staat) stond al op de opdracht-lijst/-detail én als achtergrondnotificatie (`job-engagement.ts`), maar ontbrak in het
+> next-action-model. Een ongevulde opdracht die geen kandidaten trekt is juist het hoogste-leverage-bijstuur-moment (tarief/eisen/omschrijving).
+> Nu emit `clientTasks` het als `jobNeedsAttentionTask` (kind `job-needs-attention`, deep-link naar het opdracht-detail waar de tarief-diagnose
+>
+> - bijstuur-knoppen staan) op /acties + de dashboard-rail, en de `/opdrachten`-nav-badge telt het mee (het "signaal op één oppervlak"-anti-
+>   patroon). Eén bron van waarheid: nieuwe gedeelde `getClientColdJobs` (`src/lib/data/client-cold-jobs.ts`) — pre-filter DB-side op de
+>   niet-ingetrokken-reactie-telling (`VACANCY_COLD_MAX_APPLICATIONS`, want beide attentie-takken vereisen < 3 reacties), dan per kandidaat de
+>   echte reactie-tijdstempels in één query (geen N+1), en de pure `summarizeVacancyPerformance` beslist `attention`; dezelfde helper voedt /acties
+>   én de badge → geen drift. Prioriteit `P.jobNeedsAttention: 44` (boven concept-opdracht/completeness, onder het inkomende-kandidaten-cluster +
+>   collaborationRenewal). De `/opdrachten`-badge combineert concept-opdrachten (info) met het koud-signaal (attention, dynamische toon zoals de
+>   /admin/gebruikersbeheer-badge). Server-side waarheid, read-only signaal, geen schema-/mutatie-/auth-oppervlak. +tests (helper/builder/
+>   integratie/badge-pariteit) + 7 bestaande client-task-/signals-tests neutraliseren de nieuwe helper. Gate: typecheck, lint, test (5840), build,
+>   prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — performance-grace stille-faal-gauge (`zzp_performances_overdue_grace`) (2026-08-12, PR #1069)** —
 > stille-faal-detector voor de laatste uitbetaal-kritische statustransitie-cron zonder gauge: `performance-grace` (SUBMITTED-prestatie →
 > automatisch APPROVED na het grace-venster `PERFORMANCE_GRACE_DAYS`, wat de factuur-cascade start). De cron-heartbeat bewijst alleen DÁT

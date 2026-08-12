@@ -34,6 +34,7 @@ import { type FreelancerCredential } from "@/lib/matching";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
 import { paymentDueSoonWhere } from "@/lib/payment-due-soon";
 import { summarizeStaleClientApplications } from "@/lib/stale-applications";
+import { getClientColdJobs } from "@/lib/data/client-cold-jobs";
 import { SUPPORT_OPEN_STATUSES } from "@/lib/support/labels";
 
 export type BadgeTone = "attention" | "info";
@@ -680,6 +681,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       staleCandidates,
       acceptedCandidates,
       renewalWork,
+      coldJobs,
     ] = await Promise.all([
       prisma.application.count({ where: { job: { companyId: company.id }, status: "NEW" } }),
       prisma.job.count({ where: { companyId: company.id, status: "DRAFT" } }),
@@ -775,6 +777,10 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       // dashboard-rail (symmetrisch met de FREELANCER-tak), zodat de /samenwerkingen-badge die actie
       // meetelt en niet stiller is dan /acties op een aflopende samenwerking.
       renewalAttentionBadgeCount({ company: { userId } }, now),
+      // koud-lopende gepubliceerde opdrachten (geen/weinig kandidaten) — exact de jobNeedsAttentionTask-
+      // emissie op /acties + de dashboard-rail. Gedeelde `getClientColdJobs` (zelfde koud-drempels,
+      // scan-cap en ordering) → de /opdrachten-badge kan niet driften van /acties.
+      getClientColdJobs(userId, now),
     ]);
     // Eén actie per samenwerking (niet per ontbrekend certificaat-type): exact gelijk aan de
     // één-taak-per-samenwerking-emissie in de item-engine. De `clientHasComplianceAction`-gate sluit
@@ -823,7 +829,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         acceptedAt: a.acceptedAt ?? a.updatedAt,
       })),
     ).length;
-    return buildBadges({
+    const badges = buildBadges({
       newApplications: newApplications + staleActions + proposalActions,
       draftJobs,
       unreadMessages,
@@ -831,6 +837,16 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       cascadeWork,
       pendingPerformances: cascadePerf,
     });
+    // /opdrachten combineert concept-opdrachten (info) met koud-lopende gepubliceerde opdrachten die om
+    // bijsturen vragen (attention) — exact de `jobNeedsAttentionTask`-emissie op /acties + de rail via
+    // dezelfde gedeelde `getClientColdJobs` (geen drift). Zodra er een koude opdracht is wint de
+    // attention-toon (spiegelt de dynamisch-getoonde /admin/gebruikersbeheer-badge); verdwijnt vanzelf
+    // zodra beide 0 zijn. Zonder deze telling had /opdrachten een /acties-taak zonder badge — het
+    // "signaal op één oppervlak"-anti-patroon.
+    if (coldJobs.length > 0) {
+      badges["/opdrachten"] = { count: draftJobs + coldJobs.length, tone: "attention" };
+    }
+    return badges;
   }
 
   if (role === "FRANCHISER") {

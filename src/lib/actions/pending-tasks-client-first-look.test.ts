@@ -57,6 +57,10 @@ vi.mock("@/lib/collaboration-alerts", async (importOriginal) => {
   return { ...actual, clientCredentialAlerts: vi.fn(async () => []) };
 });
 
+// clientTasks roept nu getClientColdJobs aan (prisma.job.findMany); neutraliseren zoals de overige
+// externe data-helpers, zodat deze tak geïsoleerd blijft.
+vi.mock("@/lib/data/client-cold-jobs", () => ({ getClientColdJobs: vi.fn(async () => []) }));
+
 import { pendingTasks } from "@/lib/actions/pending-tasks";
 
 const ACTOR = { id: "user-client", role: "CLIENT", status: "ACTIVE" } as const;

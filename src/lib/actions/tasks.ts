@@ -99,6 +99,7 @@ export type PendingTask =
   | (TaskBase & { kind: "stale-applications" })
   | (TaskBase & { kind: "availability-refresh" })
   | (TaskBase & { kind: "draft-jobs" })
+  | (TaskBase & { kind: "job-needs-attention"; jobId: string })
   | (TaskBase & { kind: "franchise-credential-expiry"; profileId: string })
   | (TaskBase & { kind: "franchise-open-dienst-acute" })
   | (TaskBase & { kind: "franchise-lead-followup" })
@@ -1033,6 +1034,32 @@ export function draftJobsTask(count: number): PendingTask {
     priority: P.drafts,
     resolver: "link",
     href: "/opdrachten",
+  };
+}
+
+/**
+ * Een gepubliceerde opdracht die koud loopt — geen of te weinig kandidaten voor de tijd dat hij open
+ * staat (`summarizeVacancyPerformance.attention`). Tot nu toe zag de opdrachtgever dat alleen op de
+ * opdracht-lijst/-detail en als achtergrondnotificatie; hier wordt het een concrete next-action zodat
+ * het naast de rest van "wat moet ik nu doen" komt. `headline` is de pace-kop uit het gedeelde
+ * vacaturetempo-signaal ("Weinig respons" / "Traag tempo"); deep-link naar het opdracht-detail waar de
+ * tarief-/eisen-diagnose én de bijstuur-knoppen staan.
+ */
+export function jobNeedsAttentionTask(
+  jobId: string,
+  jobTitle: string,
+  headline: string,
+): PendingTask {
+  return {
+    kind: "job-needs-attention",
+    id: `job-needs-attention:${jobId}`,
+    title: jobTitle,
+    subtitle: `${headline} — stel het tarief, de eisen of de zichtbaarheid bij`,
+    tone: "attention",
+    priority: P.jobNeedsAttention,
+    resolver: "link", // bijsturen is meerstaps (tarief/eisen/omschrijving) → naar het opdracht-detail
+    href: `/opdrachten/${jobId}`,
+    jobId,
   };
 }
 
