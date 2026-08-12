@@ -75,6 +75,10 @@ vi.mock("@/lib/collaboration-alerts", async (importOriginal) => {
   return { ...actual, clientCredentialAlerts: () => clientCredentialAlertsMock() };
 });
 
+// navBadges(CLIENT) roept nu getClientColdJobs aan (prisma.job.findMany); neutraliseren zodat de
+// bestaande badge-assertions geïsoleerd blijven van het nieuwe koud-signaal.
+vi.mock("@/lib/data/client-cold-jobs", () => ({ getClientColdJobs: vi.fn(async () => []) }));
+
 import { navBadges } from "./signals";
 
 describe("navBadges ADMIN — Gebruikers-nav-badge (DOEL 1b)", () => {

@@ -61,6 +61,7 @@ import {
   staleApplicationsTask,
   availabilityRefreshTask,
   draftJobsTask,
+  jobNeedsAttentionTask,
   franchiseCredentialExpiryTask,
   franchiseAcuteDienstTask,
   franchiseLeadFollowupTask,
@@ -90,6 +91,7 @@ import {
 } from "@/lib/collaboration-renewal";
 import { reviewBlindDays } from "@/lib/config";
 import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
+import { getClientColdJobs } from "@/lib/data/client-cold-jobs";
 import { getIncomeTaxDeadlineForActor } from "@/lib/data/income-tax-deadline";
 import { incomeTaxDeadlineNeedsAction } from "@/lib/administration/income-tax-deadline";
 import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
@@ -1005,6 +1007,13 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   );
   if (staleApplications) tasks.push(staleApplicationsTask(staleApplications));
   if (draftJobs > 0) tasks.push(draftJobsTask(draftJobs));
+
+  // Koud-lopende gepubliceerde opdrachten (geen/weinig kandidaten) — het vacaturetempo-signaal dat tot
+  // nu toe alleen op de opdracht-lijst/-detail + als achtergrondnotificatie stond, nu ook als
+  // next-action. Gedeelde `getClientColdJobs` → identiek aan de /opdrachten-nav-badge (geen drift).
+  for (const cold of await getClientColdJobs(userId, new Date())) {
+    tasks.push(jobNeedsAttentionTask(cold.jobId, cold.title, cold.headline));
+  }
 
   // BTW-aangifte-deadline (zie freelancerTasks) — ook de opdrachtgever heeft een eigen grootboek.
   for (const vatDeadline of await getVatDeadlinesForActor(userId, "CLIENT")) {
