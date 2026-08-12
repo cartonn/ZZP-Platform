@@ -25,6 +25,7 @@ const HEALTHY: MetricsInput = {
   overdueExpiryCredentials: 0,
   overdueExpirySubscriptions: 0,
   overdueUnflippedInvoices: 0,
+  overdueReviewReveals: 0,
   auditRetentionBacklog: 0,
   applicationsRetentionBacklog: 0,
   notificationsRetentionBacklog: 0,
@@ -60,6 +61,7 @@ describe("buildMetrics", () => {
     expect(valueOf(HEALTHY, "zzp_credentials_overdue_expiry")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_subscriptions_overdue_expiry")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_invoices_overdue_unflipped")).toBe(0);
+    expect(valueOf(HEALTHY, "zzp_reviews_overdue_reveal")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_audit_retention_backlog")).toBe(0);
   });
 
@@ -110,6 +112,17 @@ describe("buildMetrics", () => {
     expect(
       valueOf({ ...HEALTHY, overdueUnflippedInvoices: 4.8 }, "zzp_invoices_overdue_unflipped"),
     ).toBe(4);
+  });
+
+  it("mapt de reveal-backlog (PENDING_REVEAL maar venster verstreken) door als gauge", () => {
+    expect(valueOf({ ...HEALTHY, overdueReviewReveals: 9 }, "zzp_reviews_overdue_reveal")).toBe(9);
+  });
+
+  it("klemt een negatieve/gebroken reveal-backlog veilig op een niet-negatief geheel getal", () => {
+    expect(valueOf({ ...HEALTHY, overdueReviewReveals: -5 }, "zzp_reviews_overdue_reveal")).toBe(0);
+    expect(valueOf({ ...HEALTHY, overdueReviewReveals: 3.6 }, "zzp_reviews_overdue_reveal")).toBe(
+      3,
+    );
   });
 
   it("mapt de audit-retentie-backlog (auditregels ouder dan het venster) door als gauge", () => {
@@ -322,6 +335,7 @@ describe("buildMetrics", () => {
       overdueExpiryCredentials: 12,
       overdueExpirySubscriptions: 8,
       overdueUnflippedInvoices: 5,
+      overdueReviewReveals: 10,
       auditRetentionBacklog: 15,
       applicationsRetentionBacklog: 7,
       notificationsRetentionBacklog: 11,
@@ -342,6 +356,7 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_credentials_overdue_expiry")).toBe(12);
     expect(valueOf(input, "zzp_subscriptions_overdue_expiry")).toBe(8);
     expect(valueOf(input, "zzp_invoices_overdue_unflipped")).toBe(5);
+    expect(valueOf(input, "zzp_reviews_overdue_reveal")).toBe(10);
     expect(valueOf(input, "zzp_audit_retention_backlog")).toBe(15);
     expect(valueOf(input, "zzp_applications_retention_backlog")).toBe(7);
     expect(valueOf(input, "zzp_notifications_retention_backlog")).toBe(11);
@@ -379,6 +394,7 @@ describe("buildMetrics", () => {
       "zzp_credentials_overdue_expiry",
       "zzp_subscriptions_overdue_expiry",
       "zzp_invoices_overdue_unflipped",
+      "zzp_reviews_overdue_reveal",
       "zzp_audit_retention_backlog",
       "zzp_applications_retention_backlog",
       "zzp_notifications_retention_backlog",

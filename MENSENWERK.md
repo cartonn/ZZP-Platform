@@ -1212,3 +1212,19 @@ maanden). Beide gauges hergebruiken **exact** dezelfde bron van waarheid als de 
   (`ZzpRoutingCacheRetentionBacklog`, `> 0` met `for: 30h` > één cron-interval) in `docs/observability/alerts.yml`,
   vastgeklonken aan beide drift-gates (`alerts-rules.ts` + de onderhouds-inhibitie in `alertmanager.yml`). Faalt
   veilig (nooit een 500), bevat geen PII. Resterend mensenwerk: **niets extra**.
+  **Code-kant GEDAAN (2026-08-12) — beoordelings-reveal stille-faal-gauge:** `zzp_reviews_overdue_reveal`
+  (aantal beoordelingen wier double-blind reveal-venster is verstreken — `Review` met status `PENDING_REVEAL`
+  en `revealDeadline` in het verleden — die de `reviews-reveal`-cron nog niet publiceerde). Dezelfde
+  stille-faal-detector-klasse als `zzp_credentials_overdue_expiry`/`zzp_subscriptions_overdue_expiry`/
+  `zzp_invoices_overdue_unflipped`, maar op de **vertrouwens-differentiatie** (het beoordelingssysteem): de
+  reviews-reveal-cron publiceert een afgeronde beoordeling zodra haar venster sluit (`PENDING_REVEAL → PUBLISHED`,
+  óók eenzijdig). De cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de reveal-pijplijn verwerkte —
+  blijft dit getal oplopen terwijl de heartbeat "vers" is, dan blijven afgeronde beoordelingen ná venstersluiting
+  verborgen (de beoordeelde ziet zijn ontvangen beoordeling niet, de auteur weet niet dat de zijne zichtbaar had
+  moeten worden — een SLA-breach op de kern-differentiatie). De gauge hergebruikt **exact** dezelfde bron van
+  waarheid als de taak zelf (`overdueReviewRevealWhere(now)` — geëxporteerd uit `reviews-reveal-task.ts`, gedeeld
+  door de `findMany` die publiceert én de `count` die telt) → kan niet driften. Een klein, tijdelijk aantal (tot
+  één cron-interval tussen venstersluiting en de 05:00-run) is normaal. Drop-in Prometheus-alert
+  (`ZzpReviewsOverdueReveal`, `> 0` met `for: 30h` > één cron-interval) in `docs/observability/alerts.yml`,
+  vastgeklonken aan beide drift-gates (`alerts-rules.ts` + de onderhouds-inhibitie in `alertmanager.yml`). Faalt
+  veilig (nooit een 500), bevat geen PII. Resterend mensenwerk: **niets extra**.

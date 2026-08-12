@@ -22,6 +22,10 @@ import {
   type UserRole,
 } from "@/lib/enums";
 import { collaborationPlacementBlocked } from "@/lib/collaborations";
+import {
+  collaborationRequiredCredentialGaps,
+  type CollabCredentialInput,
+} from "@/lib/collaboration-credential-expiry";
 import { rosterExpiringByProfile, supersededVerifiedCredentialIds } from "@/lib/credentials";
 import { computeEngageability } from "@/lib/engageability";
 import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
@@ -59,6 +63,7 @@ interface SignalCounts {
   openHandoffs?: number; // FRANCHISER: open shift-overname-aanvragen binnen de tenant
   rosterAlerts?: number; // FRANCHISER: niet-inzetbare roster-ZZP'ers + (bijna-)verlopende certificaten
   openDienstAlerts?: number; // FRANCHISER: acute + te-lang-open (stale) tenant-diensten
+  franchiseRenewals?: number; // FRANCHISER: aflopende plaatsingen die om een vervolg vragen (spiegelt /acties)
   openSupportTickets?: number; // ADMIN: helpdesk-tickets die de helpdesk moet oppakken
   openNoShows?: number; // ADMIN: no-show-meldingen die op een oordeel wachten
   openAdminHandoffs?: number; // ADMIN: open shift-overname-aanvragen platform-breed
@@ -81,6 +86,7 @@ const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
   openHandoffs: "/franchise/shift-overnames",
   rosterAlerts: "/franchise/zzpers",
   openDienstAlerts: "/franchise/diensten",
+  franchiseRenewals: "/franchise/samenwerkingen",
   openSupportTickets: "/admin/support",
   openNoShows: "/admin/no-shows",
   openAdminHandoffs: "/admin/shift-overnames",
@@ -104,6 +110,8 @@ const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
   // Niet-inzetbaar roster (plaatsing-blokkerend) en acute/te-lang-open diensten vragen actie.
   rosterAlerts: "attention",
   openDienstAlerts: "attention",
+  // Een aflopende plaatsing vraagt actie van de bemiddelaar (vervolg plannen).
+  franchiseRenewals: "attention",
   // Admin-wachtrijen die actie vragen (helpdesk, no-shows, dienst-overnames).
   openSupportTickets: "attention",
   openNoShows: "attention",
@@ -542,11 +550,13 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       // dashboard-rail, zodat de /samenwerkingen-badge die actie meetelt (niet stiller dan /acties).
       renewalAttentionBadgeCount({ freelancer: { userId } }, now),
       // Volledige certificaatset (alle statussen) om per PROPOSED-samenwerking de plaatsings-blokkade
-      // te bepalen — zelfde bron als `allCreds` in pending-tasks.ts, zodat de badge-onderdrukking niet
-      // van de list-onderdrukking kan driften.
+      // te bepalen én de collab-vereist-certificaat-gaten (verlopen/ontbrekend) te tellen — zelfde bron
+      // als `allCreds` in pending-tasks.ts, zodat de badge-onderdrukking/-telling niet van de list-
+      // onderdrukking/-telling kan driften. `id`/`title` nodig voor de gaten-helper (groepering per
+      // certificaat).
       prisma.credential.findMany({
         where: { freelancerProfileId: profile.id },
-        select: { type: true, status: true, expiresAt: true },
+        select: { id: true, title: true, type: true, status: true, expiresAt: true },
       }),
     ]);
     const placementCredList: FreelancerCredential[] = placementCreds.map((c) => ({
@@ -610,8 +620,34 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       ),
       now,
     );
+    // Door een lopende/voorgestelde samenwerking VEREIST (niet-verplicht) certificaat dat de ZZP'er
+    // mist of dat verlopen is: /acties (pending-tasks.ts) toont hiervoor een credentialCollabMissing/
+    // -Expired-taak, maar `rejected + expiring(VERIFIED) + mandatoryAlerts` dekt zo'n gat niet → de
+    // badge was stiller dan /acties (persona-sweep run 70, GEPARKEERD LOW). Zelfde gedeelde helper +
+    // dezelfde certificaatset/mandatory-uitsluiting als /acties → kan niet driften. De expiry-tak
+    // (nog-geldig-maar-verlopend VERIFIED) valt al onder `expiring` hierboven, dus alleen de
+    // verlopen/ontbrekende gaten tellen hier extra mee.
+    const collabCredList: CollabCredentialInput[] = placementCreds.map((c) => ({
+      id: c.id,
+      title: c.title,
+      type: c.type as CredentialType,
+      status: c.status as CredentialStatus,
+      expiresAt: c.expiresAt,
+    }));
+    const collabCredGaps = collaborationRequiredCredentialGaps({
+      collaborations: cascadeCollabs.map((c, i) => ({
+        collaborationId: String(i),
+        companyName: "",
+        jobTitle: "",
+        requiredTypes: c.job.credentialRequirements.map((r) => r.credentialType as CredentialType),
+      })),
+      credentials: collabCredList,
+      mandatoryTypes: MANDATORY_CREDENTIAL_TYPES,
+      now,
+    });
+    const collabCredentialAlerts = collabCredGaps.expired.length + collabCredGaps.missing.length;
     return buildBadges({
-      credentialAlerts: rejected + expiring + mandatoryAlerts,
+      credentialAlerts: rejected + expiring + mandatoryAlerts + collabCredentialAlerts,
       unreadMessages,
       overdueInvoices,
       cascadeWork,
@@ -809,100 +845,115 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     const now = new Date();
     const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
     const staleThreshold = new Date(now.getTime() - STALE_DIENST_DAYS * 86_400_000);
-    const [overdueLeads, openHandoffs, expiringCreds, roster, openDiensten, staleDiensten] =
-      await Promise.all([
-        // Actieve leads (KOUD/WARM — KLANT/NO_DEAL zijn afgerond) met een opvolgdatum vóór vandaag.
-        prisma.lead.count({
-          where: {
-            tenantId,
-            status: { in: ["KOUD", "WARM"] },
-            nextFollowUp: { lt: startOfUtcDay(now) },
-          },
-        }),
-        // Open shift-overname-aanvragen binnen de eigen tenant (via de opdracht van de samenwerking).
-        prisma.shiftHandoff.count({
-          where: { status: "OPEN", collaboration: { job: { tenantId } } },
-        }),
-        // /franchise/zzpers — kandidaat-profielen met een (bijna-)verlopend geverifieerd certificaat van
-        // tenant-ZZP'ers (venster gte now / lte soon), exact de eerste-stap-scope van de /acties-bron
-        // (`expiringRosterCreds` in pending-tasks.ts). Dit is nog NIET het eindaantal: superseded exemplaren
-        // worden hieronder uitgesloten via `rosterExpiringByProfile` (zelfde helper als /acties), zodat de
-        // badge niet over-rapporteert t.o.v. /acties. Alleen `freelancerProfileId` nodig om de kandidaten
-        // te bepalen.
-        prisma.credential.findMany({
-          where: {
-            freelancerProfile: { tenantId },
-            status: "VERIFIED",
-            expiresAt: { gte: now, lte: soon },
-          },
-          select: { freelancerProfileId: true },
-          // Zelfde `orderBy` als de /acties-bron (`franchiseCredentialExpiryTask`, pending-tasks.ts):
-          // beide cappen op 50 (CASCADE_SCAN_LIMIT === MAX), dus zonder identieke ordering pakken de
-          // twee queries boven 50 verlopende certificaten binnen één tenant een ándere 50-rij-subset →
-          // een ander distinct-profiel-aantal → de /franchise/zzpers-badge divergeert van /acties.
-          orderBy: { expiresAt: "asc" },
-          take: CASCADE_SCAN_LIMIT,
-        }),
-        // /franchise/zzpers — roster-inzetbaarheid: exact de bron/velden die `franchiseNotEngageableTask`
-        // (pending-tasks.ts) via `computeEngageability` gebruikt om een plaatsing-blokkerende (INACTIEF)
-        // ZZP'er te herkennen. Zelfde helper als /franchise/zzpers, zodat de oppervlakken niet driften.
-        prisma.freelancerProfile.findMany({
-          where: { tenantId },
-          select: {
-            id: true,
-            completeness: true,
-            availability: true,
-            user: { select: { identityVerifiedAt: true, lastLoginAt: true } },
-            credentials: { select: { type: true, status: true, expiresAt: true } },
-          },
-          // Deterministische ordering, identiek aan de /acties-bron (`franchiseNotEngageableTask`,
-          // pending-tasks.ts): beide cappen op 50 (CASCADE_SCAN_LIMIT === MAX). Zonder identieke
-          // `orderBy` pakken de twee onafhankelijke roster-queries bij >50 roster-leden binnen één
-          // tenant een ánder 50-rij-subset → een andere `notEngageable`-telling → de
-          // /franchise/zzpers-badge divergeert van /acties. Zelfde drift-klasse als de al-gefixte
-          // verloop-cert-query hierboven (`orderBy: expiresAt`).
-          orderBy: { id: "asc" },
-          take: CASCADE_SCAN_LIMIT,
-        }),
-        // /franchise/diensten — gepubliceerde, ONGEVULDE tenant-diensten + startdatum, voor het
-        // acute-onbezet-aggregaat (`franchiseAcuteDienstTask`). Zelfde definitie én deterministische,
-        // acuut-eerst geordende slice als pending-tasks.ts (null-start + vroegst-startend voorop),
-        // zodat een acute dienst niet buiten de slice valt. De `collaborations:none`-scope is
-        // essentieel en spiegelt pending-tasks.ts: zonder die filter tellen óók gevulde diensten mee in
-        // de `take`-slice, en omdat null-start diensten door `nulls:"first"` vooraan sorteren kan een
-        // tenant met ≥CASCADE_SCAN_LIMIT gevulde, start-loze diensten een écht acute (ongevulde) dienst
-        // uit de slice duwen → de badge undercount t.o.v. /acties + de rail. De zuster-query
-        // `staleDiensten` hieronder scopet al net zo; `_count` blijft als defense-in-depth (self-correct
-        // als een race intussen een ACTIVE-samenwerking toevoegt).
-        prisma.job.findMany({
-          where: {
-            tenantId,
-            status: "PUBLISHED",
-            collaborations: { none: { status: "ACTIVE" } },
-          },
-          select: {
-            id: true,
-            startDate: true,
-            _count: { select: { collaborations: { where: { status: "ACTIVE" } } } },
-          },
-          orderBy: [{ startDate: { sort: "asc", nulls: "first" } }, { createdAt: "asc" }],
-          take: CASCADE_SCAN_LIMIT,
-        }),
-        // /franchise/diensten — ongedekte, gepubliceerde diensten die te lang open staan (stale): exact het
-        // predicaat van `franchiseStaleDienstTask`/rollup (geen actieve samenwerking, ouder dan de drempel).
-        // Alleen `id` is nodig om de acute overlap eruit te filteren en de rijen te tellen.
-        prisma.job.findMany({
-          where: {
-            tenantId,
-            status: "PUBLISHED",
-            collaborations: { none: { status: "ACTIVE" } },
-            createdAt: { lte: staleThreshold },
-          },
-          orderBy: { createdAt: "asc" },
-          select: { id: true },
-          take: CASCADE_SCAN_LIMIT,
-        }),
-      ]);
+    const [
+      overdueLeads,
+      openHandoffs,
+      expiringCreds,
+      roster,
+      openDiensten,
+      staleDiensten,
+      franchiseRenewals,
+    ] = await Promise.all([
+      // Actieve leads (KOUD/WARM — KLANT/NO_DEAL zijn afgerond) met een opvolgdatum vóór vandaag.
+      prisma.lead.count({
+        where: {
+          tenantId,
+          status: { in: ["KOUD", "WARM"] },
+          nextFollowUp: { lt: startOfUtcDay(now) },
+        },
+      }),
+      // Open shift-overname-aanvragen binnen de eigen tenant (via de opdracht van de samenwerking).
+      prisma.shiftHandoff.count({
+        where: { status: "OPEN", collaboration: { job: { tenantId } } },
+      }),
+      // /franchise/zzpers — kandidaat-profielen met een (bijna-)verlopend geverifieerd certificaat van
+      // tenant-ZZP'ers (venster gte now / lte soon), exact de eerste-stap-scope van de /acties-bron
+      // (`expiringRosterCreds` in pending-tasks.ts). Dit is nog NIET het eindaantal: superseded exemplaren
+      // worden hieronder uitgesloten via `rosterExpiringByProfile` (zelfde helper als /acties), zodat de
+      // badge niet over-rapporteert t.o.v. /acties. Alleen `freelancerProfileId` nodig om de kandidaten
+      // te bepalen.
+      prisma.credential.findMany({
+        where: {
+          freelancerProfile: { tenantId },
+          status: "VERIFIED",
+          expiresAt: { gte: now, lte: soon },
+        },
+        select: { freelancerProfileId: true },
+        // Zelfde `orderBy` als de /acties-bron (`franchiseCredentialExpiryTask`, pending-tasks.ts):
+        // beide cappen op 50 (CASCADE_SCAN_LIMIT === MAX), dus zonder identieke ordering pakken de
+        // twee queries boven 50 verlopende certificaten binnen één tenant een ándere 50-rij-subset →
+        // een ander distinct-profiel-aantal → de /franchise/zzpers-badge divergeert van /acties.
+        orderBy: { expiresAt: "asc" },
+        take: CASCADE_SCAN_LIMIT,
+      }),
+      // /franchise/zzpers — roster-inzetbaarheid: exact de bron/velden die `franchiseNotEngageableTask`
+      // (pending-tasks.ts) via `computeEngageability` gebruikt om een plaatsing-blokkerende (INACTIEF)
+      // ZZP'er te herkennen. Zelfde helper als /franchise/zzpers, zodat de oppervlakken niet driften.
+      prisma.freelancerProfile.findMany({
+        where: { tenantId },
+        select: {
+          id: true,
+          completeness: true,
+          availability: true,
+          user: { select: { identityVerifiedAt: true, lastLoginAt: true } },
+          credentials: { select: { type: true, status: true, expiresAt: true } },
+        },
+        // Deterministische ordering, identiek aan de /acties-bron (`franchiseNotEngageableTask`,
+        // pending-tasks.ts): beide cappen op 50 (CASCADE_SCAN_LIMIT === MAX). Zonder identieke
+        // `orderBy` pakken de twee onafhankelijke roster-queries bij >50 roster-leden binnen één
+        // tenant een ánder 50-rij-subset → een andere `notEngageable`-telling → de
+        // /franchise/zzpers-badge divergeert van /acties. Zelfde drift-klasse als de al-gefixte
+        // verloop-cert-query hierboven (`orderBy: expiresAt`).
+        orderBy: { id: "asc" },
+        take: CASCADE_SCAN_LIMIT,
+      }),
+      // /franchise/diensten — gepubliceerde, ONGEVULDE tenant-diensten + startdatum, voor het
+      // acute-onbezet-aggregaat (`franchiseAcuteDienstTask`). Zelfde definitie én deterministische,
+      // acuut-eerst geordende slice als pending-tasks.ts (null-start + vroegst-startend voorop),
+      // zodat een acute dienst niet buiten de slice valt. De `collaborations:none`-scope is
+      // essentieel en spiegelt pending-tasks.ts: zonder die filter tellen óók gevulde diensten mee in
+      // de `take`-slice, en omdat null-start diensten door `nulls:"first"` vooraan sorteren kan een
+      // tenant met ≥CASCADE_SCAN_LIMIT gevulde, start-loze diensten een écht acute (ongevulde) dienst
+      // uit de slice duwen → de badge undercount t.o.v. /acties + de rail. De zuster-query
+      // `staleDiensten` hieronder scopet al net zo; `_count` blijft als defense-in-depth (self-correct
+      // als een race intussen een ACTIVE-samenwerking toevoegt).
+      prisma.job.findMany({
+        where: {
+          tenantId,
+          status: "PUBLISHED",
+          collaborations: { none: { status: "ACTIVE" } },
+        },
+        select: {
+          id: true,
+          startDate: true,
+          _count: { select: { collaborations: { where: { status: "ACTIVE" } } } },
+        },
+        orderBy: [{ startDate: { sort: "asc", nulls: "first" } }, { createdAt: "asc" }],
+        take: CASCADE_SCAN_LIMIT,
+      }),
+      // /franchise/diensten — ongedekte, gepubliceerde diensten die te lang open staan (stale): exact het
+      // predicaat van `franchiseStaleDienstTask`/rollup (geen actieve samenwerking, ouder dan de drempel).
+      // Alleen `id` is nodig om de acute overlap eruit te filteren en de rijen te tellen.
+      prisma.job.findMany({
+        where: {
+          tenantId,
+          status: "PUBLISHED",
+          collaborations: { none: { status: "ACTIVE" } },
+          createdAt: { lte: staleThreshold },
+        },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+        take: CASCADE_SCAN_LIMIT,
+      }),
+      // /franchise/samenwerkingen — aflopende plaatsingen binnen de tenant die om een vervolg vragen.
+      // Exact dezelfde bron als de /acties-taak (`franchiseCollaborationRenewalTask`, pending-tasks.ts):
+      // tenant-scope via `job.tenantId`, `status:ACTIVE`, `disputedAt:null`, hetzelfde endDate-venster,
+      // cap en ordering (via de gedeelde `renewalAttentionBadgeCount`-helper), en dezelfde pure
+      // `countAttentionRenewals`-attentiegrens → de badge kan niet driften van /acties. Zonder deze
+      // telling was `/franchise/samenwerkingen` het enige franchiser-navitem met een /acties-taak maar
+      // zonder badge (het "signaal op één oppervlak"-anti-patroon; spiegelt de partij-fix #1034).
+      renewalAttentionBadgeCount({ job: { tenantId } }, now),
+    ]);
 
     // /franchise/zzpers-badge = distinct profielen met (bijna-)verlopende certificaten + niet-inzetbare
     // roster-ZZP'ers, exact de som van de losse item-taken. Géén dedup op profiel: één ZZP'er kan zowel
@@ -979,7 +1030,13 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       staleTaskCount,
     });
 
-    return buildBadges({ overdueLeads, openHandoffs, rosterAlerts, openDienstAlerts });
+    return buildBadges({
+      overdueLeads,
+      openHandoffs,
+      rosterAlerts,
+      openDienstAlerts,
+      franchiseRenewals,
+    });
   }
 
   const [

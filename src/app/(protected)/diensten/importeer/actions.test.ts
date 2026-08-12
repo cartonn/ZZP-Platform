@@ -17,6 +17,12 @@ const colState = vi.hoisted(() => ({
   } | null,
 }));
 
+// Vangt de invoer van elke createPerformance-aanroep op zodat we de afgeleide periode kunnen
+// controleren; submitPerformance is een no-op. `perfCalls` wordt per test geleegd.
+const perfCalls = vi.hoisted(
+  () => [] as Array<{ periodStart: Date | null; periodEnd: Date | null; hours: number }>,
+);
+
 vi.mock("@/lib/authz", () => ({
   requireActor: vi.fn(async () => ({ id: "user-1", role: roleState.role, status: "ACTIVE" })),
 }));
@@ -27,6 +33,17 @@ vi.mock("@/lib/db", () => ({
       findUnique: vi.fn(async () => colState.found),
     },
   },
+}));
+vi.mock("@/lib/cascade/commands", () => ({
+  createPerformance: vi.fn(async (_actor: unknown, input: (typeof perfCalls)[number]) => {
+    perfCalls.push({
+      periodStart: input.periodStart,
+      periodEnd: input.periodEnd,
+      hours: input.hours,
+    });
+    return `perf-${perfCalls.length}`;
+  }),
+  submitPerformance: vi.fn(async () => {}),
 }));
 
 import { importDienstenAction } from "./actions";
@@ -43,6 +60,7 @@ describe("importDienstenAction — anti-oracle ownership", () => {
   beforeEach(() => {
     roleState.role = "FREELANCER";
     colState.found = null;
+    perfCalls.length = 0;
   });
 
   it("onbekend id → 'Samenwerking niet gevonden.'", async () => {
@@ -66,6 +84,50 @@ describe("importDienstenAction — anti-oracle ownership", () => {
     expect(res.errors).toContain("Samenwerking niet gevonden.");
     expect(res.errors).not.toContain("Je hebt geen toegang tot deze samenwerking.");
     expect(res.imported).toBe(0);
+  });
+
+  it("gebruikt de exacte diensttijden als periode (niet de hele kalenderdag)", async () => {
+    colState.found = {
+      status: "ACTIVE",
+      rate: 80,
+      ortProfile: null,
+      ortCustomRates: null,
+      freelancer: { userId: "user-1" },
+      company: { userId: "client-9" },
+    };
+    const res = await importDienstenAction(
+      null,
+      form({ collaborationId: "col-x", csv: "2024-03-04T08:00;2024-03-04T16:00\n" }),
+    );
+    expect(res.imported).toBe(1);
+    expect(perfCalls).toHaveLength(1);
+    // Periode = exact 08:00–16:00, niet 00:00:00–23:59:59 van de kalenderdag.
+    expect(perfCalls[0]!.periodStart).toEqual(new Date("2024-03-04T08:00"));
+    expect(perfCalls[0]!.periodEnd).toEqual(new Date("2024-03-04T16:00"));
+  });
+
+  it("dag- én nachtdienst op dezelfde datum krijgen niet-overlappende periodes (zorg-scenario)", async () => {
+    colState.found = {
+      status: "ACTIVE",
+      rate: 80,
+      ortProfile: null,
+      ortCustomRates: null,
+      freelancer: { userId: "user-1" },
+      company: { userId: "client-9" },
+    };
+    // Dagdienst 08:00–16:00 + nachtdienst 23:00 → 07:00 de dag erna, beide op/vanaf 2024-03-04.
+    const res = await importDienstenAction(
+      null,
+      form({
+        collaborationId: "col-x",
+        csv: "2024-03-04T08:00;2024-03-04T16:00\n2024-03-04T23:00;2024-03-05T07:00\n",
+      }),
+    );
+    expect(res.imported).toBe(2);
+    expect(perfCalls).toHaveLength(2);
+    const [dag, nacht] = perfCalls;
+    // De twee periodes overlappen niet (dag.eind ≤ nacht.begin) → de dubbel-factuur-rem laat beide door.
+    expect(dag!.periodEnd!.getTime()).toBeLessThanOrEqual(nacht!.periodStart!.getTime());
   });
 
   it("niet-FREELANCER wordt geweigerd", async () => {

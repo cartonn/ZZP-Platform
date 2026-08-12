@@ -3,6 +3,183 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-12 — routine: winst-per-maand trend op /inzicht (ZZP'er)
+
+**Wat (ZZP'er, administratie-ontzorging):** het `/inzicht`-observatorium toonde wél **omzet** per maand
+(RevenueHero) en de YTD-**winst** leeft op `/ontzorgd`, maar nergens zag de ZZP'er **winst (omzet − kosten)
+per maand als trend** — de "wat hou ik écht over?"-vraag. Nieuw: een compacte "Winst per maand"-kaart op
+`/inzicht` (freelancer), gevoed uit hetzelfde grootboek (`OMZET`/`KOSTEN`-rekeningen via
+`administration/overview`) als de bestaande YTD-winst → **geen drift**. Geen schemawijziging, read-only.
+
+- **`src/lib/profit-trend.ts`** (nieuw): pure `buildProfitTrend(entries, party, now, months=6)` — bucket het
+  grootboek per kalendermaand (herbruikt `monthlyRevenue` uit `revenue.ts` voor identieke sleutels/labels/
+  ankerlogica), berekent per maand omzet (netto credit OMZET), kosten (netto debet KOSTEN) en winst (kan
+  negatief zijn — een verliesmaand is eerlijk) + totalen over het venster. Thin `getFreelancerProfitTrend`
+  leest de eigen `administrationEntry`-rijen (venster-gescoopt op `occurredAt`, `ownerUserId`).
+- **`src/app/(protected)/inzicht/page.tsx`**: `WinstPerMaandCard` (BiWidget + BarSeries) direct onder
+  RevenueHero; kop toont totale winst (success/warning-toon), secundair omzet + kosten; balken per maand.
+  Lege staat als er nog niets geboekt is.
+
+**Tests:** `src/lib/profit-trend.test.ts` (nieuw) — leeg venster, enkele omzetmaand, omzet+kosten (incl.
+verliesmaand negatief), spreiding over maanden/volgorde, partij- + rekening-filtering, netto-berekening
+(credit−debet), buiten-venster-uitsluiting. Gate: typecheck, lint, test, build, prettier groen. CI-poort via PR #1064.
+
+**Volgende stap:** volgende persona-sweep-gat of concurrent-gedreven UX/data-increment.
+
+## 2026-08-12 — persona-sweep run 71: FRANCHISER /franchise/samenwerkingen-badge telt vervolgsignaal (badge = /acties)
+
+**Wat (DOEL 1b, bemiddelaar — badge↔/acties-pariteit):** een aflopende plaatsing binnen de tenant emit op
+`/acties` (pending-tasks.ts `franchiseCollaborationRenewalTask`, sinds #1052) een "plan een vervolg"-taak die
+naar `/franchise/samenwerkingen` linkt, maar de FRANCHISER-nav-badges (`navBadges`, `signals.ts`) telden alléén
+leads / shift-overnames / roster / diensten. Daarmee was `/franchise/samenwerkingen` het énige franchiser-navitem
+met een /acties-taak zónder badge — precies het "signaal op één oppervlak"-anti-patroon dat de codebase herhaaldelijk
+dicht (de partij-zijde (ZZP'er/opdrachtgever) kreeg deze zelfde pariteit al in #1034 via `renewalAttentionBadgeCount`
+gevouwen in `cascadeWork`). Reachable met één samenwerking; niet de geparkeerde >50-teldrift.
+
+- **`src/lib/signals.ts`**: nieuwe `SignalCounts`-sleutel `franchiseRenewals` → `SIGNAL_HREF`
+  `/franchise/samenwerkingen`, `SIGNAL_TONE` `attention`. De FRANCHISER-tak van `navBadges` roept nu de
+  **bestaande gedeelde** `renewalAttentionBadgeCount({ job: { tenantId } }, now)` aan — exact dezelfde bron als de
+  /acties-taak (tenant-scope via `job.tenantId`, `status:ACTIVE`, `disputedAt:null`, hetzelfde endDate-venster,
+  cap/ordering, en dezelfde pure `countAttentionRenewals`-attentiegrens) → badge kan niet driften van /acties.
+  Read-only telling, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+
+**Tests:** +2 `buildBadges`-mappingtests (`signals.test.ts`) + nieuw `signals.badge-gaps-run71.test.ts` (3 e2e via
+`navBadges`: badge verschijnt bij aflopende plaatsing, verdwijnt zonder, en de vervolg-query is tenant-gescoopt op
+`job.tenantId`/ACTIVE/`disputedAt:null` — geen cross-tenant lek). Twee bestaande FRANCHISER-`navBadges`-mocks
+(`signals.roster-order`, `signals.badge-gaps-run52`) kregen de ontbrekende `collaboration.findMany`-stub. Gate:
+typecheck, lint, test (556 files / 5796), build, prettier groen. CI-poort via PR.
+
+**Sweep-uitkomst:** 3 parallelle adversariële Opus-audits — recente money-math (WIK-staffel/handelsrente/incasso #1051,
+credit/BTW, ORT) **schoon** (exhaustieve brute-force cent-check); newest authz/IDOR/cross-tenant/AVG (shift-handoff,
+reviews-reveal, franchise-mutaties, account-export/erasure) **schoon**; next-action/badge-pariteit → dit ene gat.
+
+**Volgende stap:** volgende persona-sweep-gat of concurrent-gedreven UX/data-increment.
+
+## 2026-08-12 — routine: CSV-diensten-import gebruikt exacte diensttijden i.p.v. hele kalenderdag (PR #1062)
+
+**Wat (ZZP'er, zorg):** de CSV-diensten-import (`/diensten/importeer`) rondde elke geïmporteerde dienst af naar
+de hele kalenderdag (`periodStart` → `00:00:00`, `periodEnd` → `23:59:59.999`). Twee legitieme diensten op
+dezelfde datum — bv. een dag- én een nachtdienst, gangbaar in VVT/GGZ — kregen dan identieke, elkaar
+overlappende periodes en botsten op de dubbel-factuur-rem (`assertNoOverlappingHoursPerformance`) → de tweede
+werd geweigerd. Hetzelfde gold voor een nachtdienst gevolgd door een dienst de dag erna. Een reële import-blokkade
+voor precies de zorg-ZZP'er waarvoor de import bedoeld is (geparkeerde persona-sweep-LOW, run 70).
+
+- **`src/app/(protected)/diensten/importeer/actions.ts`**: gebruikt nu de **exacte** diensttijden uit de parser
+  (`parseCsvShifts` levert al precieze datetimes) als `periodStart`/`periodEnd` i.p.v. de hele kalenderdag. Twee
+  niet-overlappende diensten overlappen dan niet meer; een écht duplicaat (identiek tijdvenster) blijft geweigerd.
+
+**Tests:** +2 in `actions.test.ts` (exacte periode 08:00–16:00; dag- + nachtdienst op dezelfde datum → beide
+geïmporteerd, niet-overlappende periodes). Gate: typecheck/lint/test/build/prettier groen; CI-poort via PR #1062.
+
+**Volgende stap:** volgende persona-sweep-gat of concurrent-gedreven UX/data-increment.
+
+## 2026-08-12 — prod: reviews-reveal stille-faal-gauge (`zzp_reviews_overdue_reveal`, PR #1061)
+
+**Wat:** operationele-monitoring-gauge die de blinde vlek van de cron-heartbeat dicht voor de
+`reviews-reveal`-cron. De heartbeat bewijst alleen DÁT de dagelijkse run afrondde, niet DÁT hij de
+reveal-pijplijn verwerkte. Een systematisch falende reveal laat afgeronde double-blind beoordelingen ná hun
+`revealDeadline` verborgen — een SLA-breach op de vertrouwens-differentiatie (het beoordelingssysteem): de
+beoordeelde ziet zijn ontvangen beoordeling niet, de auteur weet niet dat de zijne zichtbaar had moeten worden.
+Zelfde stille-faal-detector-patroon als `zzp_credentials_overdue_expiry`/`zzp_subscriptions_overdue_expiry`/
+`zzp_invoices_overdue_unflipped`.
+
+- **`src/lib/reviews-reveal-task.ts`**: nieuwe geëxporteerde `overdueReviewRevealWhere(now)` — één bron van
+  waarheid, gedeeld door de `findMany` die publiceert én de gauge-`count` die telt (geen drift).
+- **`src/lib/observability/metrics.ts`** + **`src/app/api/metrics/route.ts`**: gauge `zzp_reviews_overdue_reveal`
+  (PENDING_REVEAL + revealDeadline < nu), veilig geklemd, faalt nooit naar buiten (geen 500, geen PII).
+- **`docs/observability/alerts.yml`**: drop-in alert `ZzpReviewsOverdueReveal` (`> 0`, `for: 30h`).
+- **`docs/observability/alertmanager.yml`**: toegevoegd aan de onderhouds-inhibitie (dempt tijdens bewust onderhoud).
+- **Drift-gates:** `alerts-rules.ts` SAMPLE_INPUT + de bestaande `alerts-rules.test.ts`/`monitoring-bundle.test.ts`
+  klinken de nieuwe gauge/alert vast (nieuwe gauge zonder alert of dode alert breekt de CI-poort).
+
+**Tests:** +2 in `metrics.test.ts` (map + klem), +2 in metrics `route.test.ts` (telt door + faalt veilig),
++2 in nieuwe `reviews-reveal-task.test.ts` (where-vorm). Gate: relevante vitest groen; typecheck/lint/build/prettier
+via CI-poort. MENSENWERK.md §11 bijgewerkt (code-kant GEDAAN, geen resterend mensenwerk).
+
+**Volgende stap:** volgende hoogste-hefboom productie-rijpheid-stap; overige stille-faal-gauges zijn nu gedekt.
+
+## 2026-08-12 — security/privacy: shift-overname-afwijsreden overleefde AVG-erasure van de beslisser (art. 17, HOOG)
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+AVG-erasure, cross-tenant/franchiser, API/upload/injectie). Eén HOOG AVG-gat gevonden en gedicht; de andere
+twee oppervlakken schoon. De door de BESLISSER (FRANCHISER/ADMIN) zelf getypte `ShiftHandoff.decisionNote`
+(afwijsreden) wordt verbatim in de body van de `SHIFT_HANDOFF_REJECTED`-notificatie gekopieerd — die op de feed
+van de **AANVRAGER** landt (ándere userId). `anonymizeUser` nulde wél de bron-`decisionNote`, maar de
+eigen-feed-notificatie-wipe raakt alleen wat de betrokkene zélf ontving → de kopie op de aanvragersfeed overleefde
+art. 17 (en werd via `account-export.ts` in diens inzage-export getoond). Exact de "duplicate-copy erasure gap"-klasse.
+
+- **`src/lib/shift-handoff.ts`**: nieuwe gedeelde body-builder `shiftHandoffRejectedNotificationBody({jobTitle,note})`
+  (één bron voor schrijver + erasure, geen drift; spiegelt `noShowReportedNotificationBody`).
+- **`src/app/(protected)/admin/shift-overnames/actions.ts`**: `rejectShiftHandoff` bouwt de body nu via de helper.
+- **`src/app/(protected)/admin/gebruikers/actions.ts`**: `anonymizeUser` verzamelt `ownDecidedRejectedHandoffs`
+  vóór de transactie en redact binnen de transactie de exact-gereconstrueerde `SHIFT_HANDOFF_REJECTED`-body op de
+  feed van elke aanvrager (gescopet op de deterministische body → nooit andermans afwijzing). Onterechte comment
+  (die `SHIFT_HANDOFF_REJECTED` als "gedekt door de eigen-feed-wipe" lijstte) gecorrigeerd.
+
+**Tests:** +1 in `anonymize-erasure.test.ts` (kopie op aanvragersfeed geredact, rood→groen) + 1 locked-body-unit in
+`shift-handoff.test.ts`. Gate: typecheck, lint, test (5783), build, prettier — groen. Backlog bijgewerkt (OPGELOST +
+restrisico: bestaande FRANCHISER-accounts vergen mogelijk een eenmalige backfill-redactie — flag bij de FG).
+
+**Volgende stap:** resterende parkeer-items backlog; volgende auditronde delta vanaf de nieuwe main-commit.
+
+## 2026-08-12 — ZZP'er: /certificaten-badge telt collab-vereist ontbrekend/verlopen cert (badge = /acties, PR #1059)
+
+**Wat:** persona-sweep run 70 GEPARKEERD LOW (sub-symptoom van #1053). Na de plaatsings-gate-fix toont
+`/samenwerkingen` correct 0, maar de `/certificaten`-nav-badge **ondertelde** nog de échte actie: een door
+een lopende/voorgestelde samenwerking VEREIST (niet-verplicht) certificaat dat de ZZP'er mist of dat
+verlopen is, geeft op `/acties` (pending-tasks.ts) een `credentialCollabMissing`/`-Expired`-taak, maar
+`credentialAlerts` = `rejected + expiring(VERIFIED) + mandatoryAlerts` dekt zo'n gat niet → badge stiller
+dan /acties. Klassieke badge↔lijst-drift.
+
+- **`src/lib/collaboration-credential-expiry.ts`**: nieuwe gedeelde pure helper
+  `collaborationRequiredCredentialGaps({collaborations, credentials, mandatoryTypes, now})` die de twee
+  bestaande gaten-functies (VERLOPEN + ONTBREKEND) bundelt achter één uitsluitingsfilter (verplichte typen →
+  eigen mandatoryDocumentTask; afgewezen typen → eigen credentialFixTask; `rejectedTypes` afgeleid uit de
+  certificaatset zelf). Retourneert `{expired, missing}`.
+- **`src/lib/actions/pending-tasks.ts`**: de twee inline-blokken (rejected-filter + twee losse aanroepen)
+  vervangen door één `collaborationRequiredCredentialGaps`-aanroep; de twee taak-loops ongewijzigd →
+  gedragsbehoudend (bewezen door de bestaande run-56/57-regressietests).
+- **`src/lib/signals.ts`**: `placementCreds`-select uitgebreid met `id`/`title` (nodig voor de helper);
+  `credentialAlerts` telt nu ook `collabCredGaps.expired.length + collabCredGaps.missing.length`. Zelfde
+  certificaatset + mandatory-uitsluiting als /acties → één bron van waarheid, kan niet driften. De
+  expiry-tak (nog-geldig-maar-verlopend VERIFIED) valt al onder `expiring`, dus alleen de verlopen/
+  ontbrekende gaten tellen extra mee (geen dubbeltelling).
+
+**Tests:** +4 in `collaboration-credential-expiry.test.ts` (helper: bundelt verlopen+ontbrekend, filtert
+verplichte/afgewezen typen, negeert geldig cert) + nieuw `signals.badge-gaps-run70b.test.ts` (+3: badge telt
+ontbrekend/verlopen collab-cert, geen badge bij geldig cert). Gate: typecheck, lint, test (5781), build,
+prettier — groen.
+
+**Volgende stap:** run-70 resterende parkeer-items (dubbele-facturatie periode-loze HOURS = product-
+beslissing; CSV-import dag+nacht-overlap; franchise skillIds-cap).
+
+## 2026-08-11 — ZZP'er: IB-aangiftedeadline als next-action op /acties (PR #1058)
+
+**Wat:** de aangifte-inkomstenbelasting-deadline (uiterlijk 1 mei van het jaar ná het belastingjaar) —
+dé grootste jaarlijkse administratie-deadline van de ZZP'er — zat al in de agenda-feed (#1045) en het
+ontzorg-overzicht, maar ontbrak op `/acties` (+ badge + dashboard-rail), terwijl de kwartaal-BTW-deadline
+er wél een `vat-deadline`-taak had. Nu surfacet de item-engine ook de IB-deadline als forward-looking
+next-action zodra hij nadert.
+
+- **`src/lib/administration/income-tax-deadline.ts`**: nieuwe pure gate `incomeTaxDeadlineNeedsAction`
+  (nudge alléén bij `status === "due-soon"`, binnen `INCOME_TAX_DEADLINE_SOON_DAYS` = 30 — buiten dat
+  venster zou het jaarrond ruis zijn). Spiegelt `vatDeadlineNeedsAction`.
+- **`src/lib/actions/tasks.ts`**: nieuw taak-kind `income-tax-deadline` + pure builder
+  `incomeTaxDeadlineTask` (titel "Aangifte inkomstenbelasting {jaar}", subtitel met aftelling +
+  "je jaaroverzicht staat klaar", `resolver: "link"` → `/ontzorgd/aangifte`). Forward-looking: nooit
+  "te laat" (geen "ingediend"-vlag; aangifte gebeurt buiten het platform via DigiD).
+- **`src/lib/next-actions.ts`**: prioriteit `incomeTaxDeadlineDueSoon: 57` — onder de kwartaal-BTW
+  (`vatDeadlineDueSoon` 58: nabijere cadans + concreet af te dragen saldo), boven één naderende
+  factuurbetaling (`paymentDueSoon` 56: een jaarlijkse fiscale aangifteplicht weegt zwaarder).
+- **`src/lib/actions/pending-tasks.ts`** (`freelancerTasks`): na de BTW-loop leest het de reeds bestaande,
+  omzet-gegate loader `getIncomeTaxDeadlineForActor` (alleen FREELANCER, jaar-/owner-gescoopt) en pusht de
+  taak achter de pure gate.
+
+**Eigenschappen:** server-side waarheid, read-only signaal, geen schemawijziging, geen nieuw
+mutatie/auth-oppervlak, geen extra query buiten de bestaande loader. Hergebruikt de pure/loader-modules
+van #1045. **Tests:** `income-tax-deadline.test.ts` (+2 gate), `tasks.test.ts` (+3 builder/prioriteit).
+**Gate:** typecheck, lint, test, build, prettier groen. **Volgende stap:** CI-poort → self-merge.
+
 ## 2026-08-11 — Security: anti-oracle (CWE-203) op `createPerformance` — laatste existence-oracle in de party-guarded cascade dicht (PR #1056)
 
 **Wat:** persona-sweep run 70 parkeerde een LOW existence-oracle: `createPerformance`

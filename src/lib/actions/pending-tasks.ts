@@ -76,6 +76,7 @@ import {
   collaborationRenewalTask,
   respondInvitationTask,
   vatDeadlineTask,
+  incomeTaxDeadlineTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
 import { getReceivedInvitations } from "@/lib/data/received-invitations";
@@ -89,12 +90,13 @@ import {
 } from "@/lib/collaboration-renewal";
 import { reviewBlindDays } from "@/lib/config";
 import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
+import { getIncomeTaxDeadlineForActor } from "@/lib/data/income-tax-deadline";
+import { incomeTaxDeadlineNeedsAction } from "@/lib/administration/income-tax-deadline";
 import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
 import { collaborationPlacementBlocked } from "@/lib/collaborations";
 import {
   collaborationCredentialExpiryConcerns,
-  collaborationExpiredRequiredCredentials,
-  collaborationMissingRequiredCredentials,
+  collaborationRequiredCredentialGaps,
   type CollabCredentialInput,
 } from "@/lib/collaboration-credential-expiry";
 import { summarizeStaleClientApplications } from "@/lib/stale-applications";
@@ -575,32 +577,27 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       }),
     );
   }
-  // Reeds VERLOPEN vereist certificaat van een lopende/voorgestelde samenwerking, zonder geldige
-  // vervanger: freelancer-spiegel van de opdrachtgever-alert (clientComplianceTask/complianceRipple).
-  // Zonder dit zag de opdrachtgever "certificaat verlopen — vraag om vernieuwing" terwijl de ZZP'er —
-  // de enige die kan handelen — niets in zijn actielijst had (asymmetrie, persona-sweep run 56).
-  // Verplichte typen (VOG/verzekering) krijgen hun eigen mandatoryDocumentTask (verlopen) los van een
-  // samenwerking → hier uitgesloten om dubbeling te voorkomen. Een afgewezen certificaat van hetzelfde
-  // type kreeg al de fix-taak (indienen) → dat type overslaan (consistent met de mandatory-suppressie).
-  const rejectedCredTypes = new Set(
-    allCreds.filter((c) => c.status === "REJECTED").map((c) => c.type),
-  );
-  const expiredRequired = collaborationExpiredRequiredCredentials({
-    collaborations: collabs.map((c) => ({
-      collaborationId: c.id,
-      companyName: c.company.name,
-      jobTitle: c.job.title,
-      requiredTypes: c.job.credentialRequirements
-        .map((r) => r.credentialType as CollabCredentialInput["type"])
-        .filter(
-          (t) =>
-            !(MANDATORY_CREDENTIAL_TYPES as readonly string[]).includes(t) &&
-            !rejectedCredTypes.has(t),
+  // Reeds VERLOPEN én volledig ONTBREKEND vereist certificaat van een lopende/voorgestelde
+  // samenwerking: freelancer-spiegel van de opdrachtgever-alert (clientComplianceTask/complianceRipple).
+  // Zonder dit zag de opdrachtgever "certificaat verlopen/ontbreekt — vraag om vernieuwing/aanleveren"
+  // terwijl de ZZP'er — de enige die kan handelen — niets in zijn actielijst had (asymmetrie, persona-
+  // sweep run 56/57). De gedeelde helper past de uitsluitingsfilter toe (verplichte typen → eigen
+  // mandatoryDocumentTask; afgewezen typen → eigen credentialFixTask) én is dezelfde bron die de
+  // /certificaten-nav-badge (signals.ts) telt → badge kan niet driften van /acties (run 70).
+  const { expired: expiredRequired, missing: missingRequired } =
+    collaborationRequiredCredentialGaps({
+      collaborations: collabs.map((c) => ({
+        collaborationId: c.id,
+        companyName: c.company.name,
+        jobTitle: c.job.title,
+        requiredTypes: c.job.credentialRequirements.map(
+          (r) => r.credentialType as CollabCredentialInput["type"],
         ),
-    })),
-    credentials: allCreds,
-    now,
-  });
+      })),
+      credentials: allCreds,
+      mandatoryTypes: MANDATORY_CREDENTIAL_TYPES,
+      now,
+    });
   for (const concern of expiredRequired) {
     const [primary, ...rest] = concern.collaborations;
     if (!primary) continue; // collaborations is altijd ≥ 1 (invariant), maar houdt de types nauw
@@ -615,30 +612,10 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       }),
     );
   }
-  // Volledig ONTBREKEND vereist certificaat van een lopende/voorgestelde samenwerking (geen bruikbaar
-  // exemplaar — nooit aangeleverd of alleen een concept): freelancer-spiegel van de opdrachtgever-alert
-  // (clientComplianceTask/computeCompliance → "missing"). Zonder dit zag de opdrachtgever "mist een
-  // vereist certificaat — vraag om aan te leveren" terwijl de ZZP'er — de enige die kan aanleveren —
-  // niets in zijn actielijst had (asymmetrie, persona-sweep run 57). Dezelfde uitsluitingen als de
-  // EXPIRED-tak: verplichte typen (eigen mandatoryDocumentTask) én reeds-afgewezen typen (eigen
-  // credentialFixTask). De pure functie sluit typen met een geldig/in-beoordeling/verlopen exemplaar
-  // al uit → geen overlap met de expiry-/expired-taken hierboven.
-  const missingRequired = collaborationMissingRequiredCredentials({
-    collaborations: collabs.map((c) => ({
-      collaborationId: c.id,
-      companyName: c.company.name,
-      jobTitle: c.job.title,
-      requiredTypes: c.job.credentialRequirements
-        .map((r) => r.credentialType as CollabCredentialInput["type"])
-        .filter(
-          (t) =>
-            !(MANDATORY_CREDENTIAL_TYPES as readonly string[]).includes(t) &&
-            !rejectedCredTypes.has(t),
-        ),
-    })),
-    credentials: allCreds,
-    now,
-  });
+  // Het volledig ONTBREKEND-gat (geen bruikbaar exemplaar — nooit aangeleverd of alleen een concept)
+  // komt uit dezelfde `collaborationRequiredCredentialGaps`-aanroep hierboven (`missingRequired`). De
+  // pure functie sluit typen met een geldig/in-beoordeling/verlopen exemplaar al uit → geen overlap
+  // met de expiry-/expired-taken.
   for (const concern of missingRequired) {
     const [primary, ...rest] = concern.collaborations;
     if (!primary) continue; // collaborations is altijd ≥ 1 (invariant), maar houdt de types nauw
@@ -690,6 +667,15 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // terug zodat een overgeslagen kwartaal niet stil verdwijnt bij de rollover (één taak per kwartaal).
   for (const vatDeadline of await getVatDeadlinesForActor(userId, "FREELANCER", now)) {
     tasks.push(vatDeadlineTask(vatDeadline));
+  }
+
+  // Aangifte-inkomstenbelasting-deadline: de jaarlijkse aangifte (uiterlijk 1 mei) is dé grote
+  // administratie-deadline. Alleen surfacen wanneer hij nadert (binnen INCOME_TAX_DEADLINE_SOON_DAYS)
+  // én er in dat belastingjaar omzet is geboekt — buiten dat venster leeft het signaal in de agenda-feed
+  // en het ontzorg-overzicht. Forward-looking (nooit "te laat"): geen "ingediend"-vlag in het systeem.
+  const incomeTaxDeadline = await getIncomeTaxDeadlineForActor(userId, "FREELANCER", now);
+  if (incomeTaxDeadline && incomeTaxDeadlineNeedsAction(incomeTaxDeadline)) {
+    tasks.push(incomeTaxDeadlineTask(incomeTaxDeadline));
   }
 
   // Afgeronde samenwerkingen die nog beoordeeld kunnen worden (blind venster open) — reputatie-nudge.

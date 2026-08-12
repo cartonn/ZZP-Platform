@@ -262,6 +262,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — IB-aangiftedeadline als next-action op /acties (2026-08-11, PR #1058)** —
+> de aangifte-inkomstenbelasting-deadline (uiterlijk 1 mei ná het belastingjaar) — dé grootste jaarlijkse administratie-deadline —
+> zat al in de agenda-feed (#1045) en het ontzorg-overzicht, maar ontbrak op `/acties` (+ badge + rail), terwijl de kwartaal-BTW-deadline
+> er wél een `vat-deadline`-taak had. Nu emit de item-engine (`freelancerTasks`) de IB-deadline óók als forward-looking next-action zodra
+> hij nadert. Nieuwe pure gate `incomeTaxDeadlineNeedsAction` (nudge alléén bij `status==="due-soon"`, binnen `INCOME_TAX_DEADLINE_SOON_DAYS`
+> = 30 — buiten dat venster jaarrond ruis; spiegelt `vatDeadlineNeedsAction`); nieuw taak-kind `income-tax-deadline` + pure builder
+> `incomeTaxDeadlineTask` (subtitel met aftelling + "je jaaroverzicht staat klaar", `resolver:"link"` → `/ontzorgd/aangifte`, nooit "te laat" —
+> forward-looking, geen "ingediend"-vlag). Prioriteit `incomeTaxDeadlineDueSoon: 57` (onder kwartaal-BTW `vatDeadlineDueSoon` 58, boven één
+> naderende factuurbetaling `paymentDueSoon` 56). Hergebruikt de reeds-omzet-gegate loader `getIncomeTaxDeadlineForActor` (#1045; alleen
+> FREELANCER, jaar-/owner-gescoopt) — geen extra query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak, server-side waarheid,
+> read-only. +5 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Security — anti-oracle (CWE-203) op `createPerformance` (2026-08-11, PR #1056)** —
 > laatste existence-oracle in de party-guarded cascade-commando's gedicht (persona-sweep run 70, GEPARKEERD LOW).
 > `createPerformance` (`src/lib/cascade/performance-commands.ts`) gaf een niet-partij die een geldig

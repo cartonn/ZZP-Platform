@@ -102,11 +102,15 @@ export async function importDienstenAction(
       const ortSegments = segmentShifts([shift], { rates, holidays });
       const totalHours = ortSegments.reduce((s, x) => s + x.hours, 0);
 
-      // Gebruik de dienstperiode als de periodStart/End.
+      // Gebruik de EXACTE diensttijden als periode — niet de hele kalenderdag. Afronden naar de
+      // dag gaf twee legitieme diensten op dezelfde datum (bv. een dag- én een nachtdienst, gangbaar
+      // in de zorg) identieke, elkaar overlappende periodes, waardoor de tweede botste op de dubbel-
+      // factuur-rem (`assertNoOverlappingHoursPerformance`) en werd geweigerd. Dat gold óók voor een
+      // nachtdienst gevolgd door een dienst de dag erna. Met de werkelijke start/eind overlappen twee
+      // niet-overlappende diensten niet meer, terwijl een écht duplicaat (identiek tijdvenster) wél
+      // geweigerd blijft. De parser levert al precieze datetimes (`parseCsvShifts`).
       const periodStart = new Date(parsed.start);
-      periodStart.setHours(0, 0, 0, 0);
       const periodEnd = new Date(parsed.end);
-      periodEnd.setHours(23, 59, 59, 999);
 
       const perfId = await createPerformance(actor, {
         collaborationId,

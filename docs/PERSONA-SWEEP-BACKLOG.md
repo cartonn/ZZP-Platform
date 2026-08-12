@@ -1,5 +1,30 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-12 (run 71) · **main-commit basis:** `c3f04410`
+> **Uitkomst:** **1 bereikbaar DOEL 1b-defect GEVONDEN + GEFIXT** (MED, badge↔/acties-pariteit). Drie parallelle
+> adversariële Opus-audits: recente money-math (WIK-staffel handelsrente/incassokosten #1051, credit/BTW, ORT) →
+> **schoon** (exhaustieve brute-force cent-vergelijking tegen exacte rationale rekenkunde, nul mismatches; de
+> aanmaning-bedragen zijn bovendien display-only, raken geen money-flow); newest authz/IDOR/cross-tenant/AVG
+> (shift-handoff, reviews-reveal double-blind, franchise-roster/diensten-mutaties, account-export/erasure) →
+> **schoon** (volledige auth→rol→ownership/tenant→Zod→transitie→audit-keten + CWE-203 anti-oracle overal aanwezig);
+> next-action/badge-pariteit → **dit ene gat**.
+>
+> 1. **GEFIXT — MED (DOEL 1b, bemiddelaar — /franchise/samenwerkingen-badge miste het vervolgsignaal):** een
+>    aflopende plaatsing binnen de tenant emit op `/acties` (`franchiseCollaborationRenewalTask`, pending-tasks.ts,
+>    sinds #1052) een "plan een vervolg"-taak die naar `/franchise/samenwerkingen` linkt, maar `navBadges`
+>    (`signals.ts`) telde voor de FRANCHISER alléén leads/shift-overnames/roster/diensten. `/franchise/samenwerkingen`
+>    was het enige franchiser-navitem met een /acties-taak zónder badge — het "signaal op één oppervlak"-anti-patroon
+>    (de partij-zijde kreeg die pariteit al in #1034). **Repro:** FRANCHISER met één ACTIEVE, niet-gedisputeerde
+>    samenwerking op een tenant-opdracht (`job.tenantId = franchiser.tenantId`) met `endDate` binnen het
+>    renewal-venster → `/acties` toont de taak + telt mee in de /acties-badge + rail, maar `/franchise/samenwerkingen`
+>    toont **geen** badge (0). **Fix:** nieuwe `SignalCounts`-sleutel `franchiseRenewals` (`SIGNAL_HREF`
+>    `/franchise/samenwerkingen`, tone `attention`); de FRANCHISER-tak roept de **bestaande gedeelde**
+>    `renewalAttentionBadgeCount({ job: { tenantId } }, now)` aan — exact dezelfde bron/venster/cap/attentiegrens als
+>    /acties → kan niet driften. +2 `buildBadges`-tests + nieuw `signals.badge-gaps-run71.test.ts` (3 e2e via
+>    `navBadges`, incl. tenant-scope-assertie).
+>
+> ---
+
 > **Datum:** 2026-08-11 (run 70) · **main-commit basis:** `b171426c`
 > **Uitkomst:** **2 bereikbare defecten GEVONDEN + GEFIXT** in niet-overlappende bestanden (2 MED),
 > plus 4 geparkeerd met repro. Vier parallelle Opus-audits: franchise-tenant-isolatie/IDOR → **schoon**
@@ -65,17 +90,24 @@ editAndResubmit`) waren hier al op geünificeerd (#903); `createPerformance` was
 >   **Fix (PR #1056):** een niet-partij (noch ZZP'er, noch opdrachtgever, noch admin) krijgt nu exact
 >   dezelfde "Samenwerking niet gevonden."-melding als een onbekend id; alleen de opdrachtgever (partij,
 >   verkeerde kant) houdt de behulpzame rolmelding. +2 regressietests in `anti-oracle-party.test.ts`.
-> - **LOW (DOEL 1b, freelancer — sub-symptoom van #2):** in exact de geblokkeerde-PROPOSED-staat krijgt
->   de ZZP'er op `/acties` de `credentialCollabMissing`/`-Expired`-taak (niet-verplicht vereist type),
->   maar geen enkele nav-badge telt die (`credentialAlerts` = `rejected + expiring(VERIFIED) +
-mandatoryAlerts` dekt een niet-verplicht ontbrekend/verlopen vereist cert niet). Na fix #2 toont
->   `/samenwerkingen` correct 0; de `/certificaten`-badge ondertelt de échte actie nog. Fix: tel de
->   credential-collab-taak in de `/certificaten`-badge.
-> - **LOW (DOEL 1, CSV-import — te-strakke overlap-collisie):** `importDienstenAction`
->   (`diensten/importeer/actions.ts:106-109`) rondt elke dienst naar de hele dag → twee legitieme
->   diensten op dezelfde kalenderdag (dag- + nachtblok, gangbaar in de zorg) krijgen identieke periodes
->   en botsen op de overlap-rem (`OVERLAPPING_PERFORMANCE_MESSAGE`) → de tweede wordt geweigerd. Fix:
->   fijnere periode-granulariteit bij CSV-import, of overlap alleen bij écht overlappende tijdvensters.
+> - **GEFIXT — LOW (DOEL 1b, freelancer — sub-symptoom van #2):** in exact de geblokkeerde-PROPOSED-staat
+>   kreeg de ZZP'er op `/acties` de `credentialCollabMissing`/`-Expired`-taak (niet-verplicht vereist type),
+>   maar geen enkele nav-badge telde die (`credentialAlerts` = `rejected + expiring(VERIFIED) +
+mandatoryAlerts` dekt een niet-verplicht ontbrekend/verlopen vereist cert niet). Na fix #2 toonde
+>   `/samenwerkingen` correct 0; de `/certificaten`-badge ondertelde de échte actie nog. **Fix (PR #1059):**
+>   nieuwe gedeelde pure `collaborationRequiredCredentialGaps` (bundelt de VERLOPEN + ONTBREKEND collab-
+>   gaten achter één mandatory/rejected-uitsluitingsfilter); pending-tasks.ts (/acties) én signals.ts
+>   (de `/certificaten`-badge) delen die helper op dezelfde certificaatset → de badge telt het gat nu mee
+>   en kan niet driften. De expiry-tak zat al in de badge-`expiring`, dus alleen verlopen/ontbrekend telt
+>   extra. +7 tests.
+> - **GEFIXT — LOW (DOEL 1, CSV-import — te-strakke overlap-collisie):** `importDienstenAction`
+>   (`diensten/importeer/actions.ts`) rondde elke dienst naar de hele dag → twee legitieme
+>   diensten op dezelfde kalenderdag (dag- + nachtblok, gangbaar in de zorg) kregen identieke periodes
+>   en botsten op de overlap-rem (`OVERLAPPING_PERFORMANCE_MESSAGE`) → de tweede werd geweigerd (idem
+>   een nachtdienst gevolgd door een dienst de dag erna). **Fix (PR #1062):** de import gebruikt nu de
+>   **exacte** diensttijden uit de parser als periode i.p.v. `00:00:00`–`23:59:59` van de kalenderdag;
+>   twee niet-overlappende diensten overlappen dan niet meer, terwijl een écht duplicaat (identiek
+>   tijdvenster) wél geweigerd blijft. +2 tests (exacte periode; dag+nachtdienst-scenario).
 > - **NIT (DOEL 2, franchise skillIds uncapped):** `franchise/zzpers/actions.ts:74`
 >   `formData.getAll("skillIds")` heeft geen lengte-cap (contrast: `freelancerProfileSchema.skillIds`
 >   `.max(50)`); alleen bestaande skills persisteren dus geen slechte staat, enkel querylast op een

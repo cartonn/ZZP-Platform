@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   INCOME_TAX_DEADLINE_SOON_DAYS,
   incomeTaxFilingDeadline,
+  incomeTaxDeadlineNeedsAction,
   nextIncomeTaxYear,
   summarizeIncomeTaxDeadline,
   taxYearRange,
@@ -67,6 +68,20 @@ describe("summarizeIncomeTaxDeadline", () => {
     expect(s.taxYear).toBe(2026);
     expect(s.daysUntil).toBe(0);
     expect(s.status).toBe("due-soon");
+  });
+});
+
+describe("incomeTaxDeadlineNeedsAction", () => {
+  it("nudget wanneer de deadline binnen het venster valt (due-soon)", () => {
+    const s = summarizeIncomeTaxDeadline(new Date("2027-04-15T00:00:00Z"));
+    expect(s.status).toBe("due-soon");
+    expect(incomeTaxDeadlineNeedsAction(s)).toBe(true);
+  });
+
+  it("nudget niet ruim vóór de deadline (upcoming)", () => {
+    const s = summarizeIncomeTaxDeadline(new Date("2027-01-15T00:00:00Z"));
+    expect(s.status).toBe("upcoming");
+    expect(incomeTaxDeadlineNeedsAction(s)).toBe(false);
   });
 });
 
