@@ -1,5 +1,59 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-12 (run 72) · **main-commit basis:** `e4297a46`
+> **Uitkomst:** **1 bereikbaar DOEL 2-robuustheidsdefect GEVONDEN + GEFIXT** (MED, 5 route-handlers →
+> rauwe 500 i.p.v. nette 401/403), plus 2 LOW geparkeerd met repro. Live persona-sweep (alle 4 rollen,
+> Playwright/Chromium): **schoon** — privilege-escalatie naar `/admin/*` en `/franchise/*` wordt door de
+> middleware correct naar `/dashboard` geredirect (geen 200-op-admin; de eerste ruwe status-200 bleek een
+> redirect, geverifieerd op finalUrl+heading, géén escalatie); onzin-id's (SQLi-string, path-traversal,
+> `%00`, XSS-string, groot getal) op samenwerkingen/facturen/opdrachten/dossier/PDF/documenten-routes →
+> geen enkele 500; sequentiële-id IDOR op `/api/facturen/[id]/pdf`, `/api/documents/[id]`,
+> `/api/samenwerkingen/[id]/dossier` als ZZP'er/opdrachtgever → geen enkele 200 (correct geweigerd);
+> `/acties` per rol coherent met de echte status. Drie parallelle adversariële Opus-code-audits:
+> document-/bestandsprivacy + share-tokens → **schoon** (volledige auth→rol→ownership→audit-keten +
+> CWE-203-anti-oracle + path-traversal-guard + HMAC-timing-safe overal aanwezig); cascade/statusovergangen
+>
+> - money-math → **schoon** (elke forward-transitie compound-guarded in-tx, dispuut-freeze her-gecheckt
+>   in-tx, dubbel-factuur structureel onmogelijk via `@unique(performanceId)`, BTW/ORT/credit cent-exact);
+>   nieuwste routes (metrics/agenda/systeemstatus/openstaand/prognose/inzicht/diensten-CSV/prestaties) →
+>   **dit ene defect** + ICS/CSV-injectie & feed-token-auth schoon.
+>
+> 1. **GEFIXT — MED (DOEL 2, robuustheid, "verboden/onzin → nette status, nooit 500"):** vijf CSV-/template-
+>    download-route-handlers riepen `requireActor()`/`requireRole()` **ongevangen** aan:
+>    `src/app/(protected)/diensten/export/route.ts:10`, `.../prognose/export/route.ts:10`,
+>    `.../prestaties/export/route.ts:9`, `.../verplichtingen/export/route.ts:10`,
+>    `.../admin/import/template/route.ts:6`. De 16 andere export/PDF/dossier-routes (o.a. `/api/agenda`,
+>    `/api/administratie/openstaand`, alle `[id]/pdf`) vangen `AuthorizationError` al af tot
+>    `new Response(e.message, { status: e.status })`. **Repro:** gebruiker logt in (JWT `maxAge` 8u,
+>    `status`-claim gezet bij sign-in en daarna niet meer ververst); admin schorst het account of de
+>    AVG-anonimiseringstaak anonimiseert het → de middleware laat door op de **stale** `ACTIVE`-JWT-claim,
+>    maar `requireActor()` leest vers uit de DB, ziet `status !== ACTIVE`/`anonymizedAt` en werpt 401/403 →
+>    zonder try/catch borrelt die ongevangen op → Next.js serveert een **rauwe 500** i.p.v. de nette
+>    401/403. Fail-closed (geen data-lek), maar inconsistent met het eigen patroon en vervuilt monitoring.
+>    **Fix:** dezelfde inline `try/catch(AuthorizationError)`-guard als de sibling-routes in alle 5 files.
+>    +5 regressietests (`src/app/(protected)/export-auth-error.test.ts`: elke route geeft 401/403, geen throw).
+>
+> **GEPARKEERD (deze run — LOW, met repro):**
+>
+> - **LOW (DOEL 2, cascade-robuustheid, geen data-corruptie):** `allocateInvoiceNumber`
+>   (`src/lib/administration/persist.ts:52-69`, via `commands-shared.ts:202-207` in `persistInTransaction`)
+>   leest `InvoiceSequence.lastSeq = N` met `findUnique` (geen `FOR UPDATE`) en schrijft
+>   `upsert({ data: { lastSeq: N+1 } })` — een **overwrite**, geen `{ increment: 1 }`. **Repro:** één ZZP'er
+>   dient twee DRAFT-cascadefacturen vrijwel gelijktijdig in (dubbelklik/twee tabs); beide transacties lezen
+>   `N`, berekenen `N+1`, botsen op `@@unique([issuerKey, partyInvoiceNumber])` → de tweede transactie rolt
+>   **volledig** terug (incl. de sequence-upsert), dus geen dubbel factuurnummer en geen corrupte teller.
+>   **Effect:** de tweede indiening faalt met een generieke interne fout (P2002 via `throwSafeActionError`)
+>   i.p.v. een vriendelijke "probeer opnieuw"; een retry slaagt met het juiste nummer. **Waarom geparkeerd:**
+>   raakt de administratie-domeinmotor (audit-backlog: "niet aankomen behalve voor tests") en verdient een
+>   eigen gefocuste PR. **Aanbevolen fix:** atomair `update({ data: { lastSeq: { increment: 1 } } })` of
+>   `SELECT … FOR UPDATE` zodat gelijktijdige indieningen netjes serialiseren.
+> - **LOW (DOEL 2, consistentie — server actions):** `src/app/(protected)/diensten/importeer/actions.ts:25`
+>   en `src/app/(protected)/prestaties/actions.ts:26` roepen `requireActor()` óók ongevangen aan; als server
+>   actions is de faalmodus een generieke client-error-boundary i.p.v. een rauwe HTTP-500, dus lagere
+>   prioriteit. Zelfde guard voor consistentie wanneer je toch in die bestanden zit.
+>
+> ---
+
 > **Datum:** 2026-08-12 (run 71) · **main-commit basis:** `c3f04410`
 > **Uitkomst:** **1 bereikbaar DOEL 1b-defect GEVONDEN + GEFIXT** (MED, badge↔/acties-pariteit). Drie parallelle
 > adversariële Opus-audits: recente money-math (WIK-staffel handelsrente/incassokosten #1051, credit/BTW, ORT) →
