@@ -42,10 +42,14 @@ test("franchiser zet een dienst uit met tarief, skill en vereiste VOG", async ({
 
   // Open de dienst en controleer dat de eisen erop staan.
   await page.getByRole("link", { name: dienst }).click();
-  await page.waitForURL(/\/opdrachten\/[a-z0-9]+$/);
+  // De dienst-detail leeft inmiddels op de franchise-route (rijke dienst-weergave voor de
+  // bemiddelaar); accepteer beide vormen.
+  await page.waitForURL(/\/(franchise\/diensten|opdrachten)\/[a-z0-9]+$/);
   await expect(page.getByRole("heading", { name: dienst })).toBeVisible();
-  await expect(page.getByText("Vereiste skills")).toBeVisible();
-  await expect(page.getByText("Vereiste certificaten")).toBeVisible();
-  await expect(page.getByText("VOG", { exact: true })).toBeVisible();
+  // De rijke velden surfacen op de dienst-detail: het tarief in de kop en de skill-/VOG-eisen via
+  // de roster-matching ("Mist 1 van 1 vereiste skills" / "VOG ontbreekt" bij de kandidaten).
+  await expect(page.getByText("€ 40–55/uur")).toBeVisible();
+  await expect(page.getByText(/vereiste skills/).first()).toBeVisible();
+  await expect(page.getByText(/VOG ontbreekt/).first()).toBeVisible();
   await shot(page, "franchise-dienst-rich-detail");
 });

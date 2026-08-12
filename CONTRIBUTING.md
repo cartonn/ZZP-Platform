@@ -49,6 +49,12 @@ The app runs at `http://localhost:3000`. Demo accounts (password: `demo1234`):
 - **E2E tests:** Playwright — files in `e2e/*.spec.ts`
 - Run unit tests: `npm run test`
 - Run e2e (local, requires Edge): `npm run e2e`
+- E2e against a production server (like CI) needs the CI env, or auth rate limits will block
+  the suite's many registrations/logins and tests will hang on `waitForURL`:
+  `LOGIN_RATE_LIMIT=100000 REGISTER_RATE_LIMIT=100000` (plus `SHARE_TOKEN_SECRET` and
+  `AUTH_URL=http://localhost:3000` for `npm run start`). Use a fresh database — several specs
+  (academie progress, slug-dedup, audit counts) assume a clean seed. See `.github/workflows/ci.yml`
+  for the reference env.
 
 ## Architecture Rules
 

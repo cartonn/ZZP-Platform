@@ -25,7 +25,10 @@ const loggerError = vi.hoisted(() => vi.fn());
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@prisma/client", () => ({
-  Prisma: { PrismaClientKnownRequestError: class extends Error {} },
+  Prisma: {
+    PrismaClientKnownRequestError: class extends Error {},
+    TransactionIsolationLevel: { Serializable: "Serializable" },
+  },
 }));
 vi.mock("@/lib/authz", () => ({
   requireActor: vi.fn(async () => store.actor),

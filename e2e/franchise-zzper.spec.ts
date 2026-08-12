@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { reloadUntilVisible } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -24,6 +25,8 @@ test("franchiser onboardt een ZZP'er met skill en beschikbaarheid, met roster-de
   await page.goto("/franchise/zzpers");
 
   const naam = `Roster ZZP ${uniq()}`;
+  // Het toevoeg-formulier staat ingeklapt zodra er al ZZP'ers in de roster staan; klap het open.
+  await page.getByText("Nieuwe ZZP'er toevoegen").click();
   await page.fill("#name", naam);
   await page.fill("#email", `roster-${uniq()}@test.local`);
   await page.fill("#headline", "Verzorgende IG");
@@ -34,20 +37,29 @@ test("franchiser onboardt een ZZP'er met skill en beschikbaarheid, met roster-de
   await page.locator('label:has(input[name="skillIds"])').first().click();
 
   await page.getByRole("button", { name: "ZZP'er toevoegen" }).click();
-  await expect(page.getByText(`${naam} toegevoegd aan je roster.`)).toBeVisible();
+  // Bewijs de mutatie via de roster zelf (#329-robuust: de action-response kan hangen terwijl de
+  // write slaagde — de flash-melding is na een reload weg). Filter op naam: door paginering
+  // (LIST_PAGE_SIZE) kan de nieuwe rij anders buiten de eerste pagina vallen.
+  await page.waitForTimeout(500);
+  await page.goto(`/franchise/zzpers?q=${encodeURIComponent(naam)}`);
+  await reloadUntilVisible(page, page.getByText(naam).first());
   await shot(page, "franchise-zzper-toegevoegd");
-
-  // De nieuwe ZZP'er staat in de roster met "Beschikbaar"; open de detailpagina.
-  const row = page.getByRole("link", { name: new RegExp(naam) });
-  await expect(row).toBeVisible();
-  await expect(row.getByText("Beschikbaar")).toBeVisible();
-  await row.click();
+  await expect(
+    page
+      .locator("span")
+      .filter({ hasText: /^Beschikbaar$/ })
+      .first(),
+  ).toBeVisible();
+  await page.locator('a[href^="/franchise/zzpers/"]').first().click();
   await page.waitForURL(/\/franchise\/zzpers\/[a-z0-9]+$/);
 
   // Roster-detail toont beschikbaarheid, minstens één skill en de certificaten-lege-staat.
   await expect(page.getByRole("heading", { name: naam })).toBeVisible();
   await expect(page.getByText("Beschikbaar", { exact: true })).toBeVisible();
   await expect(page.getByText("Skills", { exact: true })).toBeVisible();
-  await expect(page.getByText("Nog geen certificaten")).toBeVisible();
+  // Certificaten leven op de "Bestanden"-tab van het dossier; voor een verse ZZP'er is die leeg.
+  const bestandenLink = page.getByRole("link", { name: "Bestanden" });
+  await Promise.all([page.waitForURL(/[?&]tab=bestanden/), bestandenLink.click()]);
+  await expect(page.getByText("Nog geen bestanden")).toBeVisible();
   await shot(page, "franchise-zzper-detail");
 });

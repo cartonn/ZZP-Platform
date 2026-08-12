@@ -50,7 +50,9 @@ test.describe("QA: Compliance-dossier", () => {
     await page.getByRole("button", { name: "Account aanmaken" }).click();
     await page.waitForURL("**/dashboard");
 
+    // Anti-oracle (CWE-203): een vreemde-maar-geldige id is ononderscheidbaar van een onbekende
+    // → 404 (geen 403, dat zou het bestaan verraden).
     const res = await page.request.get("/api/samenwerkingen/collab-1/dossier");
-    expect(res.status()).toBe(403);
+    expect(res.status()).toBe(404);
   });
 });

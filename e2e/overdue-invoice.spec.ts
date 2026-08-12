@@ -1,11 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { acceptAndProposeCollaboration, clickUntil } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
   page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: true });
 const uniq = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+// DateInput is tekst-eerst (#660): het zichtbare veld verwacht dd-mm-jjjj.
+const yesterdayNl = yesterday.split("-").reverse().join("-");
 
 test("verlopen factuur vraagt aandacht op dashboard en zijbalk", async ({ page, browser }) => {
   test.slow();
@@ -48,15 +51,7 @@ test("verlopen factuur vraagt aandacht op dashboard en zijbalk", async ({ page, 
   // Opdrachtgever accepteert en stelt samenwerking voor.
   await page.goto("/kandidaten");
   await page.getByRole("button", { name: "Toon details" }).click();
-  await page.getByRole("button", { name: "Accepteren" }).click();
-  // Accepteren houdt de kandidaat (nog zonder samenwerking) in de actieve lijst; de rij klapt dicht.
-  await page.getByRole("button", { name: "Toon details" }).click();
-  await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
-  await page.locator('input[name="rate"]').fill("90");
-  await page.getByRole("button", { name: "Voorstel versturen" }).click();
-  // Met een samenwerking verhuist de kandidaat naar de ingeklapte sectie "Geaccepteerd"; open die.
-  await page.getByRole("button", { name: /Geaccepteerd/ }).click();
-  await expect(page.getByRole("link", { name: "Bekijk samenwerking" })).toBeVisible();
+  await acceptAndProposeCollaboration(page, "90");
 
   // ZZP'er activeert samenwerking en stuurt een factuur met een vervaldatum in het verleden.
   await fp.goto("/samenwerkingen");
@@ -70,11 +65,15 @@ test("verlopen factuur vraagt aandacht op dashboard en zijbalk", async ({ page, 
   await fp.fill('input[name="lineDescription"]', "Ontwikkeling sprint 1");
   await fp.fill('input[name="lineQuantity"]', "10");
   await fp.fill('input[name="lineUnit"]', "90");
-  await fp.fill("#dueAt", yesterday);
+  await fp.fill("#dueAt", yesterdayNl);
   await fp.getByRole("button", { name: "Factuur opstellen (concept)" }).click();
   await fp.waitForURL(/\/facturen\/[a-z0-9]+$/);
-  await fp.getByRole("button", { name: "Versturen" }).click();
-  await expect(fp.getByText("Verlopen").first()).toBeVisible();
+  // Robuust tegen de #329-response-hang: klik Versturen tot de afgeleide status er staat
+  // (SENT over de vervaldatum → badge "Verlopen").
+  await clickUntil(
+    fp.getByRole("button", { name: "Versturen" }),
+    fp.getByText(/Te laat|Verlopen/).first(),
+  );
 
   // Het systeem trekt het verband: op het dashboard én de zijbalk.
   await fp.goto("/dashboard");

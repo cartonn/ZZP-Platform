@@ -30,4 +30,15 @@ describe("samenwerking-statusovergangen", () => {
       CollaborationTransitionError,
     );
   });
+
+  it("houdt CANCELLED→PROPOSED bewust buiten de canonieke map (her-voorstel loopt uitsluitend via de REPROPOSABLE_CANCELLED_WHERE-guard)", () => {
+    // Vangrail tegen stille drift: de her-voorstel-reset in `proposeCollaboration` is een bewuste,
+    // guard-gebonden uitzondering (src/lib/collaboration-reproposal.ts) — géén generieke overgang.
+    // Wie deze overgang aan de map wil toevoegen, zet hem daarmee óók open voor paden zonder die
+    // guard; dat mag alleen na een expliciete beslissing (zie de comment bij COLLABORATION_TRANSITIONS).
+    expect(canTransitionCollaboration("CANCELLED", "PROPOSED")).toBe(false);
+    expect(() => assertCollaborationTransition("CANCELLED", "PROPOSED")).toThrow(
+      CollaborationTransitionError,
+    );
+  });
 });

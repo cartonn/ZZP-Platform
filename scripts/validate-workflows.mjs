@@ -1,7 +1,8 @@
-// Valideert de GitHub Actions-workflows: vooral dat de autonome bouwronde (auto-build) op de
-// JUISTE branch draait. Dit voorkomt het stille defect waardoor 24/7-bouwen niet werkte
-// (de workflow wees naar de oude branch). Draaibaar via `node scripts/validate-workflows.mjs`
-// of `npm run validate:ci`. Exit-code != 0 bij een probleem.
+// Valideert de GitHub Actions-workflows: vooral dat de autonome bouwronde (auto-build) de
+// main-flow volgt (checkout main → verse feature branch → PR naar main). Dit voorkomt het
+// stille defect waardoor 24/7-bouwen niet werkte (de workflow wees naar een dode
+// sessie-branch). Draaibaar via `node scripts/validate-workflows.mjs` of `npm run validate:ci`.
+// Exit-code != 0 bij een probleem.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -11,7 +12,8 @@ import yaml from "js-yaml";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const wfDir = join(root, ".github", "workflows");
 
-const ACTIVE_BRANCH = "claude/modest-babbage-08jYa";
+// Dode sessie-/verzamelbranches uit eerdere flows: mogen nergens meer voorkomen.
+const DEAD_BRANCHES = ["dazzling-carson", "modest-babbage"];
 
 const errors = [];
 const ok = (msg) => console.log(`  ✓ ${msg}`);
@@ -32,13 +34,13 @@ for (const f of files) {
   }
 }
 
-// 2. auto-build.yml moet bestaan en de actieve branch bouwen.
+// 2. auto-build.yml moet bestaan en de main-flow volgen.
 try {
   const { raw, doc } = loadWorkflow("auto-build.yml");
   const on = doc?.on ?? doc?.true; // 'on' kan door YAML als boolean true worden geparsed
   if (!on) errors.push("auto-build.yml: geen 'on'-triggers gevonden");
 
-  // workflow_dispatch + schedule + push-trigger aanwezig.
+  // workflow_dispatch + schedule aanwezig.
   if (on && !("workflow_dispatch" in on))
     errors.push("auto-build.yml: workflow_dispatch ontbreekt");
   else ok("workflow_dispatch aanwezig");
@@ -55,21 +57,27 @@ try {
     ok("geen push-trigger (voorkomt action-crash)");
   }
 
-  // De build moet de ACTIEVE branch checkouten en daarnaartoe pushen.
-  if (!raw.includes(ACTIVE_BRANCH)) {
-    errors.push(`auto-build.yml: verwijst niet naar de actieve branch ${ACTIVE_BRANCH}`);
+  // Main-flow: checkout vanaf main, en de PR gaat terug naar main.
+  if (!/ref:\s*main\b/.test(raw)) {
+    errors.push("auto-build.yml: checkt niet 'main' uit als bron (ref: main ontbreekt)");
   } else {
-    ok(`bouwt de actieve branch ${ACTIVE_BRANCH}`);
+    ok("checkout vanaf main");
+  }
+  if (!raw.includes("--base main")) {
+    errors.push("auto-build.yml: opent geen PR naar main (--base main ontbreekt)");
+  } else {
+    ok("PR-doel is main (--base main)");
   }
 
-  // Mag NIET meer naar de oude/standaard branch wijzen voor de bouwronde.
-  if (raw.includes("dazzling-carson")) {
-    errors.push("auto-build.yml: verwijst nog naar de oude branch 'dazzling-carson'");
-  } else {
-    ok("geen verwijzing meer naar de oude branch");
+  // Mag NIET meer naar een dode sessie-branch wijzen.
+  for (const dead of DEAD_BRANCHES) {
+    if (raw.includes(dead)) {
+      errors.push(`auto-build.yml: verwijst nog naar de dode branch '${dead}'`);
+    }
   }
+  ok("geen verwijzing naar dode sessie-branches");
 
-  // De Anthropic-actie + API-key moeten erin zitten.
+  // De Anthropic-actie + token moeten erin zitten.
   if (!raw.includes("anthropic"))
     errors.push("auto-build.yml: geen Anthropic-actie/sleutel gevonden");
   else ok("Anthropic-bouwstap aanwezig");
@@ -86,9 +94,51 @@ try {
   errors.push(`auto-build.yml ontbreekt of is onleesbaar — ${e.message}`);
 }
 
+// 3. De PR-poort moet de VOLLEDIGE Playwright-suite hard afdwingen. De vier geïsoleerde shards
+// mogen geen continue-on-error gebruiken; de stabiele aggregatiejob `e2e` houdt de bestaande
+// branch-protection-checknaam intact en wordt alleen groen als alle shards groen zijn.
+try {
+  const { raw, doc } = loadWorkflow("ci.yml");
+  const shardJob = doc?.jobs?.["e2e-shard"];
+  const gateJob = doc?.jobs?.e2e;
+
+  if (!shardJob) {
+    errors.push("ci.yml: e2e-shard-job ontbreekt");
+  } else {
+    ok("volledige e2e-shard-job aanwezig");
+    if (shardJob["continue-on-error"] === true || /continue-on-error:\s*true/.test(raw)) {
+      errors.push(
+        "ci.yml: e2e mag niet continue-on-error zijn — dit zou de merge-poort verzachten",
+      );
+    } else {
+      ok("e2e is een harde poort (geen continue-on-error)");
+    }
+    if (!/npx playwright test\s+--project=ci\b/.test(raw)) {
+      errors.push(
+        "ci.yml: draait niet de volledige Playwright-suite (--project=ci zonder specfilter)",
+      );
+    } else {
+      ok("volledige Playwright-suite draait zonder specfilter");
+    }
+    if (!/--shard=\$\{\{\s*matrix\.shard\s*\}\}\/4/.test(raw)) {
+      errors.push("ci.yml: volledige e2e-suite is niet over vier geïsoleerde shards verdeeld");
+    } else {
+      ok("e2e-suite is over vier shards verdeeld");
+    }
+  }
+
+  if (!gateJob || gateJob.needs !== "e2e-shard") {
+    errors.push("ci.yml: stabiele aggregatiejob 'e2e' moet afhangen van e2e-shard");
+  } else {
+    ok("verplichte checknaam e2e aggregeert alle shards");
+  }
+} catch (e) {
+  errors.push(`ci.yml ontbreekt of is onleesbaar — ${e.message}`);
+}
+
 if (errors.length > 0) {
   console.error("\n✗ Workflow-validatie mislukt:");
   for (const e of errors) console.error(`  - ${e}`);
   process.exit(1);
 }
-console.log("\n✓ Workflows gevalideerd: auto-build draait op de juiste branch.");
+console.log("\n✓ Workflows gevalideerd: auto-build volgt de main-flow.");

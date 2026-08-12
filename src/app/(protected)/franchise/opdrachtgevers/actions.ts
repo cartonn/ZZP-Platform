@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireRole, AuthorizationError } from "@/lib/authz";
 import { ownsViaTenant, hasTenant } from "@/lib/tenancy";
@@ -249,5 +250,5 @@ export async function publishDienst(
 
   revalidatePath(`/franchise/opdrachtgevers/${res.companyId}`);
   revalidatePath("/franchise/diensten");
-  return { ok: true, title: res.title };
+  redirect(`/franchise/opdrachtgevers/${res.companyId}?dienst=${encodeURIComponent(res.title)}`);
 }

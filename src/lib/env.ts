@@ -57,6 +57,10 @@ const schema = z
     UPSTASH_REDIS_REST_URL: z.string().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    // Expliciete releasefase. Veilig default = production: scripts/start.mjs draait dan in
+    // NODE_ENV=production de strict preflight en weigert een onvolledig bekabelde deploy.
+    // Alleen een bewust als demo gemarkeerde omgeving mag met aandachtspunten doorstarten.
+    DEPLOYMENT_STAGE: z.enum(["demo", "production"]).default("production"),
     // Beveiligt POST /api/tasks/* (verloopdetectie, herinneringen, cascade-runners). Optioneel;
     // zonder waarde zijn de taak-endpoints uitgeschakeld (503).
     CRON_SECRET: z.string().optional(),
@@ -253,6 +257,11 @@ export type Env = z.infer<typeof schema>;
 export function envWarnings(env: Env): string[] {
   if (env.NODE_ENV !== "production") return [];
   const warnings: string[] = [];
+  if (env.DEPLOYMENT_STAGE === "demo") {
+    warnings.push(
+      "DEPLOYMENT_STAGE=demo — de automatische boot-preflight is adviserend. Gebruik deze omgeving uitsluitend voor fictieve testdata; zet DEPLOYMENT_STAGE=production vóór echte livegang.",
+    );
+  }
   if (isMaintenanceEnabled(env.MAINTENANCE_MODE)) {
     warnings.push(
       "MAINTENANCE_MODE staat AAN — het platform toont bezoekers een 503-onderhoudspagina (alleen de gezondheids-probes blijven bereikbaar). Zet MAINTENANCE_MODE uit zodra het onderhoud klaar is.",

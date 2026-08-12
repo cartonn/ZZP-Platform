@@ -144,8 +144,10 @@ test("actiecentrum: ingediende prestatie beoordelen + goedkeuren via drawer", as
   // die dubbele prestaties zou aanmaken).
   await hydrated(fp);
   await fp.fill('input[name="hours"]', "8");
-  await fp.fill('input[name="periodStart"]', "2026-01-06");
-  await fp.fill('input[name="periodEnd"]', "2026-01-06");
+  // DateInput is tekst-eerst (#660): de `name` zit op een hidden ISO-veld; vul het zichtbare
+  // dd-mm-jjjj-tekstveld via het label — de component parst en synct het hidden veld.
+  await fp.getByLabel("Periode van (bij uurtarief)").fill("06-01-2026");
+  await fp.getByLabel("Periode t/m (bij uurtarief)").fill("06-01-2026");
   await fp.fill('input[name="description"]', "Week 1");
   await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
   await expect(fp.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
@@ -168,10 +170,11 @@ test("actiecentrum: ingediende prestatie beoordelen + goedkeuren via drawer", as
   expect((await pdfResp.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
 
   // Pas na inzien goedkeuren → drawer sluit, taak verdwijnt (auto-advance).
-  await drawer.getByRole("button", { name: "Goedkeuren" }).click();
-  await expect(page.locator("li", { hasText: "Keur de ingediende uren" })).toHaveCount(0, {
-    timeout: 15000,
-  });
+  // Robuust tegen de #329-response-hang: klik tot de taak echt uit de lijst is (met refresh).
+  await clickUntilGone(
+    drawer.getByRole("button", { name: "Goedkeuren" }),
+    page.locator("li", { hasText: "Keur de ingediende uren" }),
+  );
   await shot(page, "acties-na-goedkeuren");
 
   await fctx.close();
@@ -193,12 +196,13 @@ test("actiecentrum: identiteit inline verifiëren via de drawer", async ({ page 
   const drawer = page.getByRole("dialog");
   await expect(drawer).toBeVisible();
   await drawer.getByLabel("Juridische naam").fill(legalName);
-  await drawer.getByRole("button", { name: "Verifieer identiteit (iDIN)" }).click();
-
-  // Auto-advance: na succes sluit de drawer en verdwijnt de taak uit de lijst.
-  await expect(page.locator("li", { hasText: "Verifieer je identiteit" })).toHaveCount(0, {
-    timeout: 15000,
-  });
+  // Auto-advance: na succes sluit de drawer en verdwijnt de taak uit de lijst. Robuust tegen de
+  // #329-response-hang (knop blijft op "Verifiëren…" hangen terwijl de mutatie server-side
+  // slaagde): clickUntilGone herlaadt tussen pogingen en toont de werkelijke status.
+  await clickUntilGone(
+    drawer.getByRole("button", { name: "Verifieer identiteit (iDIN)" }),
+    page.locator("li", { hasText: "Verifieer je identiteit" }),
+  );
   await shot(page, "acties-drawer-identiteit");
 });
 
@@ -237,8 +241,10 @@ test("actiecentrum: factuur beoordelen — PDF openen + goedkeuren", async ({ pa
   await expect(fp.getByText("Actief")).toBeVisible({ timeout: 15000 });
   await hydrated(fp);
   await fp.fill('input[name="hours"]', "8");
-  await fp.fill('input[name="periodStart"]', "2026-01-06");
-  await fp.fill('input[name="periodEnd"]', "2026-01-06");
+  // DateInput is tekst-eerst (#660): de `name` zit op een hidden ISO-veld; vul het zichtbare
+  // dd-mm-jjjj-tekstveld via het label — de component parst en synct het hidden veld.
+  await fp.getByLabel("Periode van (bij uurtarief)").fill("06-01-2026");
+  await fp.getByLabel("Periode t/m (bij uurtarief)").fill("06-01-2026");
   await fp.fill('input[name="description"]', "Week 1");
   await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
   await expect(fp.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
@@ -251,10 +257,11 @@ test("actiecentrum: factuur beoordelen — PDF openen + goedkeuren", async ({ pa
   await perfTask.getByRole("button", { name: "Beoordelen" }).click();
   const perfDrawer = page.getByRole("dialog");
   await expect(perfDrawer).toBeVisible();
-  await perfDrawer.getByRole("button", { name: "Goedkeuren" }).click();
-  await expect(page.locator("li", { hasText: "Keur de ingediende uren" })).toHaveCount(0, {
-    timeout: 15000,
-  });
+  // Robuust tegen de #329-response-hang: klik tot de taak echt uit de lijst is (met refresh).
+  await clickUntilGone(
+    perfDrawer.getByRole("button", { name: "Goedkeuren" }),
+    page.locator("li", { hasText: "Keur de ingediende uren" }),
+  );
 
   // Freelancer dient de factuur in (wacht eerst tot de concept-factuur zichtbaar is, zoals cascade.spec).
   await fp.reload();
@@ -286,11 +293,11 @@ test("actiecentrum: factuur beoordelen — PDF openen + goedkeuren", async ({ pa
   const body = await resp.body();
   expect(body.subarray(0, 5).toString("latin1")).toBe("%PDF-");
 
-  // Pas na inzien goedkeuren → de taak verdwijnt (auto-advance).
-  await drawer.getByRole("button", { name: "Goedkeuren" }).click();
-  await expect(page.locator("li", { hasText: "Keur de ingediende factuur" })).toHaveCount(0, {
-    timeout: 15000,
-  });
+  // Pas na inzien goedkeuren → de taak verdwijnt (auto-advance). Robuust tegen #329.
+  await clickUntilGone(
+    drawer.getByRole("button", { name: "Goedkeuren" }),
+    page.locator("li", { hasText: "Keur de ingediende factuur" }),
+  );
   await shot(page, "acties-factuur-pdf");
 
   await fctx.close();

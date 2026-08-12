@@ -112,9 +112,11 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 
 1. [x] Dark-first-beslissing verwerkt (toggle + DESIGN.md + DECISIONS.md).
 2. [x] Migratiescript getest (`scripts/migrate-legacy-invoices.mjs --dry-run` + live run +
-       idempotentiecheck). Werkt op SQLite; testen op een Postgres-kopie = aanbevolen vóór prod.
-3. [ ] **e2e in een interactieve sessie mét browser** (cascade-flow A→E, migrated invoices in
-       werkproces, PDF-afdruk). Kan niet in CI/routine.
+       idempotentiecheck). Werkt op SQLite; **Postgres-smoke GEDAAN (10-8-2026):** op Postgres 16
+       (Docker) dry-run → live (2 synthetische legacy-rijen gemigreerd) → idempotente rerun ✓.
+3. [x] **e2e in een interactieve sessie mét browser — GEDAAN (10-8-2026):** volledige suite (±145
+       tests incl. cascade-flow A→E, factuur-PDF-serving en de ex-gequarantaineerde
+       lifecycle-cascade) groen tegen een productie-server met bundled Chromium. Zie PROGRESS.md.
 4. [x] Overhaul naar **`main`** gemerged; Railway deployt `main` (default branch). Geen aparte
        deploy-branch meer.
 5. [ ] **Juridisch/AVG-review** (MENSENWERK) vóór livegang met echte gevoelige documenten.
@@ -238,18 +240,18 @@ Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct 
       OVERDUE-items zónder `dueAt` op die nu door de `take: 200` + `nulls: last` kunnen wegvallen.
       **GEDAAN** (15-6, begrensd vangnet + dedup op id).
 
-### QA-loop — gequarantainede test (15-6-2026)
+### QA-loop — gequarantainede test (15-6-2026 → OPGELOST 10-8-2026)
 
 De QA-loop (`qa.yml`, post-merge op main) is gehard: **`--workers=1` per shard** (parallelle
 workers tegen één SQLite-db gaven write-lock-contentie + kruisbesmetting → flaky CI-rood, o.a. de
-franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quarantaine:**
+franchise-robuustheidstest die lokaal serieel wél slaagt).
 
-- [ ] **`e2e/qa/lifecycle.spec.ts` (volledige cascade) — `test.fixme`.** Hangt structureel op de
-      "samenwerking voorstellen"-stap; server-action werpt geen fout (server-log schoon), komt niet
-      verder, óók serieel — dus geen parallellisme/SQLite-contentie. Vergt interactieve
-      trace-debugging (network/console uit de Playwright-trace, headed reproductie). Kernlogica is al
-      gedekt door groene integratietests (`src/lib/cascade/apply.test.ts`, `handlers.test.ts`).
-      Haal de `test.fixme()` weg zodra de voorstel-hang gefixt is.
+- [x] **`e2e/qa/lifecycle.spec.ts` (volledige cascade) — UIT quarantaine (10-8-2026).** De
+      "samenwerking voorstellen"-hang was de bekende #329-klasse (action-response hangt in
+      productie terwijl de mutatie slaagde). `test.fixme()` weg; de voorstel-, teken- en
+      betaalstappen gebruiken nu de `_robust.ts`-helpers (`clickUntil`/`clickUntilGone`) en de
+      verrotte stappen (Toon details-flow, "Markeer als betaald") zijn bijgewerkt. De volledige
+      cascade (opdracht → … → betaling → audit) draait end-to-end groen (sessie 10-8).
 - [ ] **2 resterende flaky tests** (slagen op retry, dus loop blijft groen — geen blocker):
       `critical-personas.spec.ts:111` (franchise onbestaand-id → 404; soms 200 op eerste poging) en
       `support.spec.ts:53` (admin-helpdesk; login-timing). De-flaken wanneer er tijd is (robuustere
@@ -1769,10 +1771,10 @@ avgDaysToPay` (basis `history`/`confident`), anders terugval op de vervaldatum. 
    iCal-export (#338), dispuut-triage (#339), inkomstenprognose (`feat/inkomstenprognose`).
    Tweezijdige beoordelingen — **GEDAAN (#384, 15-6)**: double-blind reveal (simultane onthulling),
    niet langer geparkeerd. Niets meer open uit deze bergings-backlog.
-1. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
-   routines, doe in een interactieve sessie mét browser-channel.
-2. Postgres-smoke van het migratiescript (optioneel, aanbevolen vóór cutover) — draai
-   `migrate-legacy-invoices.mjs` op een Postgres-kopie van de demo-DB.
+1. ~~Playwright e2e voor de cascade-flow~~ **GEDAAN (10-8-2026, lokale sessie):** volledige suite
+   groen incl. cascade-flow; lifecycle-quarantaine opgeheven. Zie PROGRESS.md-top.
+2. ~~Postgres-smoke van het migratiescript~~ **GEDAAN (10-8-2026):** dry-run + live + idempotente
+   rerun op Postgres 16 geslaagd.
 3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
    sessie mét browser.
 

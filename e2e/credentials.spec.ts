@@ -53,7 +53,7 @@ test("credential uploaden, verificatie aanvragen en privé-download afdwingen", 
   // Verificatie aanvragen: DRAFT -> SUBMITTED. Robuust klikken (pre-hydratie-race).
   await clickUntil(
     page.getByRole("button", { name: "Verificatie aanvragen" }),
-    page.getByText("In beoordeling"),
+    page.getByText("In beoordeling").first(),
   );
   await expect(page.getByRole("button", { name: "Verificatie aanvragen" })).toHaveCount(0);
   await shot(page, "18-certificaten-submitted");
@@ -65,12 +65,13 @@ test("credential uploaden, verificatie aanvragen en privé-download afdwingen", 
   expect(ownerResp.status()).toBe(200);
   expect(ownerResp.headers()["content-type"]).toContain("application/pdf");
 
-  // Een andere ingelogde gebruiker mag het document NIET openen (403).
+  // Een andere ingelogde gebruiker mag het document NIET openen. De route antwoordt met 404
+  // (identiek aan een onbekend id) — anti-oracle (CWE-203): een 403 zou het bestaan verraden.
   const ctx = await browser.newContext();
   const other = await ctx.newPage();
   await registerFreelancer(other, `other-${uniq()}@test.local`);
   const otherResp = await ctx.request.get(href!);
-  expect(otherResp.status()).toBe(403);
+  expect(otherResp.status()).toBe(404);
   await ctx.close();
 });
 
@@ -87,7 +88,7 @@ test("document uploaden en privé downloaden", async ({ page }) => {
   await page.getByRole("button", { name: "Uploaden" }).click();
 
   await expect(page.getByText("Geüpload.")).toBeVisible();
-  await expect(page.getByText("contract.pdf")).toBeVisible();
+  await expect(page.getByText("contract.pdf").first()).toBeVisible();
   await shot(page, "19-documenten");
 
   const href = await page.getByRole("link", { name: "Openen" }).getAttribute("href");

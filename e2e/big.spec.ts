@@ -33,10 +33,13 @@ test("BIG-registerverificatie: ongeldig nummer faalt, geldig nummer verifieert",
   await page.getByRole("button", { name: "Verifieer via BIG-register" }).click();
   await expect(page.getByText(/Ongeldig BIG-nummer/)).toBeVisible();
 
-  // Geldig BIG-nummer (11 cijfers) → systeem-geverifieerd via BIG.
+  // Geldig BIG-nummer (11 cijfers) → systeem-geverifieerd via BIG. Exact matchen: "Geverifieerd"
+  // komt als substring ook in omliggende teksten voor ("geverifieerde", uitlegzinnen).
   await page.getByLabel("BIG-nummer").fill("12345678901");
   await page.getByRole("button", { name: "Verifieer via BIG-register" }).click();
-  await expect(page.getByText("Geverifieerd")).toBeVisible();
+  await expect(page.getByText("Geverifieerd", { exact: true }).first()).toBeVisible({
+    timeout: 10000,
+  });
   await expect(page.getByRole("button", { name: "Verifieer via BIG-register" })).toHaveCount(0);
   await shot(page, "39-big-verified");
 });

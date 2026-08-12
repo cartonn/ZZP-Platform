@@ -1,5 +1,4 @@
 import { type Metadata } from "next";
-import Link from "next/link";
 import { Lightbulb, Search } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -184,12 +183,14 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
           Toepassen
         </Button>
         {hasFilter && (
-          <Link
+          /* Volledige navigatie kapt eventueel nog openstaande stem-/indien-actionstreams af (#329). */
+          /* eslint-disable-next-line @next/next/no-html-link-for-pages */
+          <a
             href="/ideeen"
             className="focus-ring text-sm text-muted-foreground hover:text-foreground"
           >
             Wissen
-          </Link>
+          </a>
         )}
       </form>
 

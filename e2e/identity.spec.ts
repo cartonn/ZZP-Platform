@@ -34,5 +34,5 @@ test("identiteitsverificatie + vertrouwensniveau op publiek profiel", async ({ p
   const href = await link.getAttribute("href");
   await page.goto(href!);
   await expect(page.getByRole("heading", { name: "Trust Freelancer" })).toBeVisible();
-  await expect(page.getByText("Deels geverifieerd")).toBeVisible();
+  await expect(page.getByText("Deels geverifieerd").first()).toBeVisible();
 });

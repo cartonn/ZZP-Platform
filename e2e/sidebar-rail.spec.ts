@@ -20,6 +20,10 @@ test("zijbalk-rail klapt in na navigatie, hover en muis-weg", async ({ page }) =
   const aside = page.locator("aside").first();
   const roosterLink = aside.locator('a[href="/rooster"]');
 
+  // De rail staat tegenwoordig standaard vastgepind open (gebruikersvoorkeur); kies eerst de
+  // ingeklapte voorkeur — het hover-gedrag hieronder geldt alleen in die stand.
+  await page.getByRole("button", { name: "Zijbalk inklappen" }).click();
+
   // Muis weg van de rail → ingeklapt in rust (icoon-rail, ~4rem).
   await page.mouse.move(900, 450);
   await expect.poll(() => railWidth(page)).toBeLessThan(100);

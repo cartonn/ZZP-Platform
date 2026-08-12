@@ -185,6 +185,16 @@ export function collectSystemStatus(env: Env): SystemStatus {
       title: "Beveiliging & observability",
       items: [
         {
+          key: "deployment-stage",
+          label: "Deploymentfase",
+          mode: env.DEPLOYMENT_STAGE,
+          level: production && env.DEPLOYMENT_STAGE === "demo" ? "attention" : "ok",
+          detail:
+            env.DEPLOYMENT_STAGE === "demo"
+              ? "Expliciete demo-omgeving: de boot-preflight rapporteert aandachtspunten maar blokkeert niet. Alleen fictieve data gebruiken."
+              : "Productiefase: een onvolledige strict preflight blokkeert de boot vóór database- of serverstart.",
+        },
+        {
           key: "demo-data",
           label: "Demo-dataset (SEED_DEMO)",
           mode: env.SEED_DEMO === "true" ? "aan" : "uit",

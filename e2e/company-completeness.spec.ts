@@ -18,7 +18,7 @@ test("bedrijfsprofiel toont compleetheid en concrete aanvulpunten", async ({ pag
   // Vers bedrijf: alleen naam ingevuld -> 0% met alle punten open.
   await page.goto("/bedrijf");
   await expect(page.getByText("Profiel-compleetheid")).toBeVisible();
-  await expect(page.getByText("0%")).toBeVisible();
+  await expect(page.getByText("0%", { exact: true })).toBeVisible();
   await expect(page.getByText(/Nog aan te vullen:.*Omschrijving/)).toBeVisible();
 
   // Dashboard meldt het ook (als afhandelbare taak in de actiezone sinds de command-center-overhaul).
@@ -36,7 +36,7 @@ test("bedrijfsprofiel toont compleetheid en concrete aanvulpunten", async ({ pag
   await expect(page.getByText("Opgeslagen.")).toBeVisible({ timeout: 15000 });
 
   await page.goto("/bedrijf");
-  await expect(page.getByText("90%")).toBeVisible();
+  await expect(page.getByText("90%", { exact: true })).toBeVisible();
   await expect(page.getByText(/Nog aan te vullen:.*Logo/)).toBeVisible();
   await shot(page, "41-bedrijf-completeness");
 });

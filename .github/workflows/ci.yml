@@ -23,16 +23,17 @@ jobs:
       - run: npm run check
       - run: npx prettier --check .
 
-  e2e:
+  e2e-shard:
+    name: e2e-shard (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    # Een normale e2e-run duurt ~6 min, maar op een trage runner (npm ci + playwright
-    # install --with-deps + next build) kan hij tegen de oude 15-min-limiet aanlopen. Een
-    # getimede job krijgt de conclusie "cancelled" — en omdat `e2e` een VERPLICHTE
-    # statuscheck is (harde merge-poort) blokkeert dat de PR permanent, ook al slaagde de
-    # test op een parallelle push/pull_request-run. Ruimere marge voorkomt dat een
-    # incidentele trage runner de merge-poort (en daarmee o.a. security-fixes) laat vastlopen.
+    # De volledige suite is te groot voor één betrouwbare SQLite-run. Vier geïsoleerde shards
+    # houden de doorlooptijd begrensd; binnen elke shard blijft workers=1 write-locks en
+    # kruisbesmetting tussen muterende tests voorkomen.
     timeout-minutes: 25
-    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     env:
       DATABASE_URL: "file:./ci.db"
       AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
@@ -42,6 +43,10 @@ jobs:
       SHARE_TOKEN_SECRET: "ci-dummy-share-token-secret-minstens-16"
       AUTH_URL: "http://localhost:3000"
       CI: "true"
+      # De productiebuild draait hier uitsluitend tegen fictieve fixtures. Zonder deze expliciete
+      # markering behandelt scripts/start.mjs de job terecht als echte productie en blokkeert de
+      # strikte preflight de lokale storage/noop-mail testdrivers.
+      DEPLOYMENT_STAGE: "demo"
       SEED_DEMO: "true"
       # De héle e2e-suite draait vanaf één IP met dezelfde seed-accounts; de strenge
       # productie-defaults (5) zouden de login/registratie onterecht blokkeren.
@@ -59,15 +64,28 @@ jobs:
       - run: npx prisma generate && npx prisma db push --skip-generate && npx prisma db seed
       - run: npx playwright install chromium --with-deps
       - run: npm run build
-      # Smoke + de kritieke geld-loop. De prod-action-hang (issue #329) is afgedekt met de
-      # watchdog in JobStatusButton; de wortel (route-specifieke response-stream-hang) blijft
-      # open in het issue.
-      - run: npx playwright test e2e/smoke.spec.ts e2e/cascade.spec.ts --project=ci --workers=1
+      # Alle root- en QA-specs. Persona-sweeps blijven via playwright.config.ts bewust apart.
+      - name: Volledige e2e-suite (shard ${{ matrix.shard }}/4)
+        run: npx playwright test --project=ci --reporter=list --shard=${{ matrix.shard }}/4 --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-report
+          name: e2e-report-${{ matrix.shard }}
           path: |
             e2e/screenshots/
+            e2e/qa/screenshots/
             playwright-report/
           retention-days: 7
+
+  # Houd de bestaande verplichte checknaam `e2e` stabiel. Deze aggregatie wordt alleen groen als
+  # alle vier shards groen zijn; branch protection hoeft daardoor niet te worden omgebouwd.
+  e2e:
+    name: e2e
+    if: always()
+    needs: e2e-shard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bevestig dat alle e2e-shards groen zijn
+        env:
+          SHARD_RESULT: ${{ needs.e2e-shard.result }}
+        run: test "$SHARD_RESULT" = "success"

@@ -50,7 +50,7 @@ test("freelancer registreert, vult profiel en publiceert het", async ({ page, br
   await page.fill("#location", "Amsterdam");
   await page.selectOption("#availability", "AVAILABLE");
   await page.fill("#languages", "nl, en");
-  await page.getByText("TypeScript", { exact: true }).click();
+  await page.locator("#vaardigheden").getByText("TypeScript", { exact: true }).click();
   await page.getByRole("radio", { name: /Openbaar/ }).check();
   await page.getByRole("button", { name: "Profiel opslaan" }).click();
 
@@ -71,7 +71,7 @@ test("freelancer registreert, vult profiel en publiceert het", async ({ page, br
   const anonPage = await anon.newPage();
   await anonPage.goto(href!);
   await expect(anonPage.getByRole("heading", { name: "Test Freelancer" })).toBeVisible();
-  await expect(anonPage.getByText("Senior Frontend Developer")).toBeVisible();
+  await expect(anonPage.getByText("Senior Frontend Developer").first()).toBeVisible();
   await shot(anonPage, "08-public-profile");
 
   // PRIVATE: zichtbaarheid server-side afgedwongen -> anoniem krijgt 404.

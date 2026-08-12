@@ -16,7 +16,7 @@
      destructieve schemawijziging laat de boot zichtbaar falen i.p.v. productiedata te wissen.
   3. Next.js-server starten op de door Railway aangereikte `PORT`.
   4. Referentie- (en met `SEED_DEMO=true` ook demo-)data **asynchroon** seeden, pas nadat
-     `/api/health` lokaal 200 geeft — healthchecks wachten dus nooit op een seed.
+     `/api/readiness` lokaal 200 geeft — healthchecks wachten dus nooit op een seed.
 - **Database:** PostgreSQL in productie (managed, EU-regio), SQLite lokaal. Provider-switch is
   automatisch op basis van `DATABASE_URL`. Bij horizontale schaling (meerdere instances): zet
   `DATABASE_CONNECTION_LIMIT` (optioneel `DATABASE_POOL_TIMEOUT`/`DATABASE_PGBOUNCER=true`) om de
@@ -83,7 +83,14 @@ Naast de liveness-probe exposeert `GET /api/metrics` machine-leesbare gauges (Pr
 **Normale flow (aanbevolen):** merge een PR naar `main` na een groene CI-poort. Railway bouwt en
 deployt automatisch. Geen handmatige stap.
 
-**Vooraf (optioneel) — go-live preflight:** draai `npm run preflight` (of tegen de deploy-config
+**Automatische bootpoort:** `scripts/start.mjs` draait in `NODE_ENV=production` vóór elke schema-
+of serverstart de go-live-preflight. `DEPLOYMENT_STAGE=production` (ook de veilige default als de
+variabele ontbreekt) gebruikt `--strict`: elk productie-aandachtspunt stopt de nieuwe deployment,
+zodat Railway de laatst bekende gezonde versie blijft serveren. Alleen een testomgeving met
+uitsluitend fictieve data mag expliciet `DEPLOYMENT_STAGE=demo` gebruiken; daar blijft dezelfde
+preflight adviserend en wordt de demo-stage zichtbaar als aandachtspunt gerapporteerd.
+
+**Vooraf (handmatig aanvullend) — go-live preflight:** draai `npm run preflight` (of tegen de deploy-config
 `railway run npm run preflight`) om de configuratie-posture buiten de app te controleren zonder een
 draaiende server + admin-login. Het rapport toont per onderdeel (opslag, database, e-mail, betalingen,
 verificatie-adapters, upload-scan, rate-limit-store, error-monitoring, taak-cron, deel-token-sleutel,

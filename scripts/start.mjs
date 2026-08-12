@@ -3,7 +3,7 @@
 //  2. zet het schema op de database (db push — additief; GEEN --accept-data-loss, zodat een
 //     destructieve schemawijziging de boot veilig laat falen i.p.v. productiedata te droppen);
 //  3. start de Next.js-server op de door Railway aangereikte PORT;
-//  4. seed referentie- en eventueel demo-data asynchroon nadat /api/health echt gezond is,
+//  4. seed referentie- en eventueel demo-data asynchroon nadat /api/readiness echt gezond is,
 //     zodat Railway-healthchecks nooit wachten op een seed.
 import { execSync, spawn } from "node:child_process";
 import http from "node:http";
@@ -12,6 +12,15 @@ const run = (cmd, env = process.env) => execSync(cmd, { env, stdio: "inherit" })
 
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = "file:./dev.db";
+}
+
+// Automatische releasepoort vóór ELKE productiestart. Veilig default = strict/productie;
+// uitsluitend een expliciet gemarkeerde demo-omgeving mag met fallbacks doorstarten. De preflight
+// toont nooit secretwaarden en draait vóór schemawijzigingen of het openen van de HTTP-poort.
+if (process.env.NODE_ENV === "production") {
+  run(
+    process.env.DEPLOYMENT_STAGE === "demo" ? "npm run preflight" : "npm run preflight -- --strict",
+  );
 }
 
 run("node scripts/use-db-provider.mjs");
@@ -23,8 +32,8 @@ const seedDemo = process.env.SEED_DEMO === "true";
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function waitForLocalHealth(port, attempts = 90) {
-  const url = `http://127.0.0.1:${port}/api/health`;
+async function waitForLocalReadiness(port, attempts = 90) {
+  const url = `http://127.0.0.1:${port}/api/readiness`;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const ok = await new Promise((resolve) => {
       const req = http.get(url, (res) => {
@@ -44,9 +53,9 @@ async function waitForLocalHealth(port, attempts = 90) {
 }
 
 const startBackgroundSeed = async () => {
-  const healthy = await waitForLocalHealth(port);
-  if (!healthy) {
-    console.error("[start] seed overgeslagen: lokale /api/health werd niet tijdig gezond");
+  const ready = await waitForLocalReadiness(port);
+  if (!ready) {
+    console.error("[start] seed overgeslagen: lokale /api/readiness werd niet tijdig gezond");
     return;
   }
   console.log(

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { clickUntil } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -26,8 +27,9 @@ test("academie-authoring: beheerder maakt een cursus, voegt een les toe en publi
   await page.fill("#summary", "Korte introductie over privacy en gegevensbescherming.");
   await page.getByRole("button", { name: "Cursus aanmaken" }).click();
 
-  // Beland op het cursusdetail (concept).
-  await page.waitForURL("**/academie/veilig-werken-met-gegevens");
+  // Beland op het cursusdetail (concept). De slug krijgt een -N-suffix wanneer een eerdere run
+  // (of een retry binnen deze run) dezelfde titel al aanmaakte — accepteer beide vormen.
+  await page.waitForURL(/\/academie\/veilig-werken-met-gegevens(-\d+)?$/);
   await expect(page.getByRole("heading", { name: "Veilig werken met gegevens" })).toBeVisible();
   await shot(page, "authoring-cursus");
 
@@ -42,10 +44,13 @@ test("academie-authoring: beheerder maakt een cursus, voegt een les toe en publi
   await page.getByRole("button", { name: "Les toevoegen" }).click();
 
   // Terug op het cursusdetail; de les staat in de lijst.
-  await page.waitForURL("**/academie/veilig-werken-met-gegevens");
+  await page.waitForURL(/\/academie\/veilig-werken-met-gegevens(-\d+)?$/);
   await expect(page.getByText("Wat is persoonsgegevens?")).toBeVisible();
 
-  // Publiceren.
-  await page.getByRole("button", { name: "Publiceren" }).click();
-  await expect(page.getByText("Gepubliceerd")).toBeVisible();
+  // Publiceren. Server-action-knop → hydratie-race; herhaal de klik tot het effect er is
+  // (zelfde patroon als acties.spec, zie _robust.ts / issue #329).
+  await clickUntil(
+    page.getByRole("button", { name: "Publiceren" }),
+    page.getByText("Gepubliceerd"),
+  );
 });

@@ -199,6 +199,33 @@ of PII-lek). Eén LAAG dedup-race uit de vorige ronde blijft geparkeerd.**
 - **Fix (deze PR):** `if (actor.role !== "FREELANCER") throw new AuthorizationError(...)` toegevoegd aan beide functies
   (pariteit met `deleteIndirectHours`).
 
+## Ronde 2026-08-10 (lokale livegang-gereedheidssessie, basis: `main` @ 5ec16e60)
+
+Volledige lokale gate gedraaid (typecheck, lint, 5636 unit-tests, build, prettier, check:env,
+scan-secrets, `npm audit --omit=dev` = **0**) en de drie technisch-geparkeerde LAAG-items uit de
+ronden 2026-08-02/02b opgelost volgens hun eigen aanbevolen fix (zie de secties hieronder, in situ
+bijgewerkt):
+
+1. **Same-day dedup race no-show/credential-reminder (LAAG → OPGELOST):** `reportNoShow` en
+   `sendCredentialReminder` draaien hun idempotentie-check + write(s) nu in één interactieve
+   `prisma.$transaction` onder **`TransactionIsolationLevel.Serializable` met begrensde
+   P2034-retry** (spiegel van `applications-create.ts`/`opdrachten/actions.ts`) — onder de
+   Postgres-default READ COMMITTED zou een gewone interactieve transactie de race niet sluiten.
+   Bij `reportNoShow` vallen create + notificatie + audit bovendien in dezelfde atomaire
+   transactie (geen ongeaudite report bij een fout ná de create). +5 no-show-tests (dedup,
+   atomair, P2034-retry beide uitkomsten, non-P2034-propagatie), +3 reminder-tests (Serializable-
+   assertie, P2034-retry zonder dubbele send, non-P2034-propagatie).
+2. **Re-voorstel-reset vs. canonieke overgangsmap (LAAG → OPGELOST, optie B):** kruisverwijzing-
+   comment op `COLLABORATION_TRANSITIONS.CANCELLED` (collaborations.ts) + vangrail-test die borgt
+   dat `CANCELLED→PROPOSED` bewust afwezig blijft (her-voorstel loopt uitsluitend via de
+   `REPROPOSABLE_CANCELLED_WHERE`-guard).
+3. **`saveApplicationNote` niet-atomaire audit (LAAG → OPGELOST):** update + auditregel in één
+   `prisma.$transaction` (CLAUDE.md regel 5).
+
+De KRITIEK/HOOG/LAAG-items die op een FG-/juridische beslissing geparkeerd staan (derden-PII bij
+anonimisering, `kvkNumber` publiek profiel, retentie-beleidskeuzes) zijn bewust NIET aangeraakt —
+MENSENWERK.md §5.
+
 ## Ronde 2026-08-02b (basis: `main` @ de0a2f39)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken, plus de
@@ -247,7 +274,7 @@ cross-tenant-gat gevonden; document-/verificatie-oppervlak schoon. Eén LAAG ded
   `IDEA_STATUS_SET`-auditmetadata-reason geredigeerd voor die ideeën (spiegelt de `disputeReason`-auditscrub). +test
   (rood→groen).
 
-### GEPARKEERD — LAAG (correctheid/hygiëne, geen toegangsgat): same-day dedup in no-show / credential-reminder niet race-guarded
+### OPGELOST (10-8-2026, lokale sessie) — LAAG (correctheid/hygiëne, geen toegangsgat): same-day dedup in no-show / credential-reminder niet race-guarded
 
 - **Repro:** `reportNoShow` (`samenwerkingen/no-show-actions.ts:74-89`) en `sendCredentialReminder`
   (`samenwerkingen/actions.ts:556-597`) doen een `findFirst`/`findMany`-idempotentiecheck en daarna een losse
@@ -257,6 +284,11 @@ cross-tenant-gat gevonden; document-/verificatie-oppervlak schoon. Eén LAAG ded
 - **Geschonden regel:** CLAUDE.md regel 5 (idempotentie/atomiciteit). Geen toegangsgat.
 - **Aanbevolen fix:** read+write in één `prisma.$transaction` met een unique-constraint of compound-guard, zoals
   `shift-handoff-actions.ts:94-108` al doet.
+- **Fix (10-8-2026):** beide actions serialiseren check + write(s) in één interactieve
+  `prisma.$transaction` onder `Serializable`-isolatie met begrensde P2034-retry (spiegel van
+  `applications-create.ts` — een gewone interactieve transactie sluit de race onder Postgres
+  READ COMMITTED níet). `reportNoShow` neemt ook notificatie + audit in dezelfde atomaire
+  transactie mee. Tests: `no-show-oracle.test.ts` (+5) en `credential-reminder.test.ts` (+3).
 
 ## Ronde 2026-08-02 (basis: `main` @ 999e46a7)
 
@@ -293,7 +325,7 @@ actorId`) geeft 'm expliciet prijs als de **eigen PII van de melder** onder art.
   Comments in `actions.ts` gecorrigeerd. +2 unit-tests (rood→groen). **Mens (MENSENWERK.md §5):** reden kan art. 9
   (gezondheid) bevatten — bevestig bewaargrond/retentie.
 
-### GEPARKEERD — LAAG (CLAUDE.md regel 3, OWASP A04): re-voorstel-reset omzeilt de canonieke overgangsmap
+### OPGELOST (10-8-2026, lokale sessie) — LAAG (CLAUDE.md regel 3, OWASP A04): re-voorstel-reset omzeilt de canonieke overgangsmap
 
 - **Repro:** `proposeCollaboration` (`samenwerkingen/actions.ts:91-116`, `existing`-tak) reset een `CANCELLED`
   samenwerking terug naar `PROPOSED` via een compound-guarded `updateMany` op `REPROPOSABLE_CANCELLED_WHERE` —
@@ -305,8 +337,11 @@ actorId`) geeft 'm expliciet prijs als de **eigen PII van de melder** onder art.
 - **Aanbevolen fix:** centraliseer de uitzondering als een expliciete voorwaardelijke overgang in `collaborations.ts`
   (`assertCollaborationReproposalTransition`) die `proposeCollaboration` aanroept, óf een kruisverwijzing-comment +
   een unit-test die borgt dat `CANCELLED→PROPOSED` bewust afwezig blijft in `COLLABORATION_TRANSITIONS`.
+- **Fix (10-8-2026, optie B):** kruisverwijzing-comment op de `CANCELLED: []`-entry in
+  `collaborations.ts` (verwijst naar `REPROPOSABLE_CANCELLED_WHERE` als enige uitzonderingspad) +
+  vangrail-test in `collaborations.test.ts` dat `CANCELLED→PROPOSED` afwezig blijft in de map.
 
-### GEPARKEERD — LAAG (CLAUDE.md regel 5, atomiciteit): `saveApplicationNote` schrijft de audit niet-atomair met de mutatie
+### OPGELOST (10-8-2026, lokale sessie) — LAAG (CLAUDE.md regel 5, atomiciteit): `saveApplicationNote` schrijft de audit niet-atomair met de mutatie
 
 - **Repro:** `saveApplicationNote` (`kandidaten/actions.ts:157-163`) doet `prisma.application.update(...)` en de
   daaropvolgende `audit(...)` als twee losse statements, niet in één `$transaction` zoals de rest van de mutaties in
@@ -315,6 +350,7 @@ actorId`) geeft 'm expliciet prijs als de **eigen PII van de melder** onder art.
   het atomiciteitspatroon elders.
 - **Geschonden regel:** CLAUDE.md regel 5 (audit alles wat telt — atomair). Geen toegangsgat.
 - **Aanbevolen fix:** `await prisma.$transaction([prisma.application.update(...), prisma.auditLog.create({ data: auditData(...) })])`.
+- **Fix (10-8-2026):** exact zo uitgevoerd in `kandidaten/actions.ts` (update + audit atomair).
 
 ## Ronde 2026-08-01b (basis: `main` @ a825bd86)
 

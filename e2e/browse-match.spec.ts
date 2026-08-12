@@ -57,11 +57,12 @@ test("ZZP'er ziet z'n persoonlijke match per opdracht in de lijst", async ({ pag
   await fp.goto("/opdrachten");
   await fp.getByLabel("Zoeken").fill(title);
   await fp.waitForURL(/[?&]q=/);
-  const card = fp.getByRole("link", {
+  const jobLink = fp.getByRole("link", {
     name: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
   });
-  await expect(card).toBeVisible();
-  await expect(card.getByText(/Match \d+%/)).toBeVisible();
+  await expect(jobLink).toBeVisible();
+  const jobRow = fp.locator("div.card-interactive", { has: jobLink });
+  await expect(jobRow.getByText(/Match \d+%/)).toBeVisible();
   await shot(fp, "30-browse-match");
 
   await fctx.close();

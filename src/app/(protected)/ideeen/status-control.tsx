@@ -5,7 +5,7 @@ import { IDEA_TRANSITIONS, type IdeaStatus } from "@/lib/enums";
 import { IDEA_STATUS_LABEL, ideaStatusRequiresReason } from "@/lib/ideas";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { setIdeaStatus } from "./actions";
 
 /**
@@ -45,9 +45,9 @@ export function StatusControl({
             </option>
           ))}
         </Select>
-        <Button type="submit" size="xs" variant="secondary">
+        <PendingSubmitButton size="xs" variant="secondary" watchdogMs={3000}>
           Opslaan
-        </Button>
+        </PendingSubmitButton>
       </div>
       {needsReason && (
         <Textarea

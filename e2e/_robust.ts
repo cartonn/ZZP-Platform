@@ -65,6 +65,38 @@ export async function clickForUrl(
   }).toPass({ timeout });
 }
 
+/**
+ * Op /kandidaten (rij al uitgeklapt): accepteer de kandidaat en verstuur een samenwerkingsvoorstel.
+ * Robuust tegen de #329-response-hang en tegen het open-blijven van de rij na de statuswijziging.
+ * Eindigt met de "Geaccepteerd"-sectie geopend en de "Bekijk samenwerking"-link zichtbaar.
+ */
+export async function acceptAndProposeCollaboration(page: Page, rate: string) {
+  await clickUntilGone(
+    page.getByRole("button", { name: "Accepteren" }),
+    page.getByRole("button", { name: "Accepteren" }),
+  );
+  // De rij kan open blijven staan; alleen uitklappen als het voorstelformulier er nog niet is.
+  if (
+    !(await page
+      .getByText("Samenwerking voorstellen")
+      .isVisible()
+      .catch(() => false))
+  ) {
+    await page.getByRole("button", { name: "Toon details" }).click();
+  }
+  await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
+  await page.locator('input[name="rate"]').fill(rate);
+  await clickUntil(
+    page.getByRole("button", { name: "Voorstel versturen" }),
+    page.getByRole("button", { name: /Geaccepteerd/ }),
+  );
+  // Met een samenwerking verhuist de kandidaat naar de ingeklapte sectie "Geaccepteerd"; open die.
+  await page.getByRole("button", { name: /Geaccepteerd/ }).click();
+  await expect(page.getByRole("link", { name: "Bekijk samenwerking" })).toBeVisible({
+    timeout: 15000,
+  });
+}
+
 /** Wacht tot `locator` zichtbaar is, met een page-reload tussen pogingen: na een server-actie
  *  kan de UI-update uitblijven terwijl de mutatie slaagde (issue #329) — de verse GET is de
  *  waarheid. Voor asserties direct na een actie of na een goto op een tweede context. */

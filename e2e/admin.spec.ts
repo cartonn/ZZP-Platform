@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { clickUntil, clickUntilGone } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -61,9 +62,12 @@ test("admin schorst gebruiker (self-guard), sluit opdracht en ziet auditregel", 
   await page.getByLabel("Zoeken").fill(targetName);
   await page.getByRole("button", { name: "Filteren" }).click();
   await expect(page.getByText(targetName)).toBeVisible();
-  await page.getByRole("button", { name: "Schorsen" }).click(); // uniek na filteren op naam
-  // Geschorst zodra de actieknop omklapt naar "Activeren" (badge "Geschorst" botst met de filter-optie).
-  await expect(page.getByRole("button", { name: "Activeren" })).toBeVisible();
+  // Robuust (hydratie-race/#329): klik Schorsen tot de knop omklapt naar Activeren. De lijst is
+  // op naam gefilterd (GET-form, werkt ook pre-hydratie) → de actieknop is uniek op de pagina.
+  await clickUntil(
+    page.getByRole("button", { name: "Schorsen" }),
+    page.getByRole("button", { name: "Activeren" }),
+  );
   await shot(page, "28-admin-gebruikers");
 
   // Self-guard: admin's eigen rij heeft geen actieknop.
@@ -72,17 +76,28 @@ test("admin schorst gebruiker (self-guard), sluit opdracht en ziet auditregel", 
   await expect(page.getByRole("button", { name: "Schorsen" })).toHaveCount(0);
 
   // Opdracht sluiten.
-  await page.goto("/admin/opdrachten");
-  await page.getByLabel("Zoeken").fill(jobTitle);
-  await page.getByRole("button", { name: "Filteren" }).click();
-  await expect(page.getByText(jobTitle)).toBeVisible();
-  await page.getByRole("button", { name: "Sluiten" }).click(); // uniek na filteren op titel
-  await expect(page.getByRole("button", { name: "Sluiten" })).toHaveCount(0); // gesloten -> actie weg
+  await page.goto(`/admin/opdrachten?q=${encodeURIComponent(jobTitle)}`);
+  const jobLink = page.getByRole("link", { name: jobTitle, exact: true });
+  await expect(jobLink).toBeVisible();
+  const jobRow = page.locator("div.divide-y > div", { has: jobLink });
+  await expect(jobRow).toHaveCount(1);
+  const closeTrigger = jobRow.getByRole("button", { name: "Sluiten", exact: true });
+  await closeTrigger.click();
+  const closeDialog = jobRow.getByRole("alertdialog", { name: "Opdracht sluiten?" });
+  await expect(closeDialog).toBeVisible();
+  // Robuust tegen de #329-response-hang: klik Sluiten tot de actieknop verdwenen is. De lijst is
+  // op titel gefilterd (GET-form, werkt ook pre-hydratie). De dialooglocator onderscheidt de
+  // bevestigingsknop expliciet van zowel de rij-trigger als de overlay-sluitknop.
+  await clickUntilGone(
+    closeDialog.getByRole("button", { name: "Sluiten", exact: true }),
+    closeTrigger,
+  );
 
-  // Auditregel zichtbaar.
+  // Auditregel zichtbaar. De lijst toont het NL-label van de machine-actie (audit-labels.ts);
+  // het filter matcht server-side op de machine-string.
   await page.goto("/admin/audit");
   await page.locator('input[name="action"]').fill("USER_STATUS_CHANGED");
   await page.getByRole("button", { name: "Filteren" }).click();
-  await expect(page.getByText("USER_STATUS_CHANGED").first()).toBeVisible();
+  await expect(page.getByText("Accountstatus gewijzigd").first()).toBeVisible();
   await shot(page, "29-admin-audit");
 });

@@ -14,6 +14,7 @@ vi.mock("@/lib/observability/logger", () => ({
 import { logger } from "@/lib/observability/logger";
 import {
   __resetReporterForTests,
+  __setSentryLoaderForTests,
   getErrorReporter,
   probeErrorMonitoring,
   reportBackgroundFailure,
@@ -22,14 +23,27 @@ import {
 
 const errorSpy = logger.error as unknown as ReturnType<typeof vi.fn>;
 const warnSpy = logger.warn as unknown as ReturnType<typeof vi.fn>;
+const sentryInit = vi.fn();
+const sentryCaptureException = vi.fn();
+const sentryCaptureMessage = vi.fn();
+const sentryFlush = vi.fn(async () => true);
 
 const ORIGINAL_DSN = process.env.SENTRY_DSN;
 
 beforeEach(() => {
-  __resetReporterForTests();
+  __setSentryLoaderForTests(async () => ({
+    init: sentryInit,
+    captureException: sentryCaptureException,
+    captureMessage: sentryCaptureMessage,
+    flush: sentryFlush,
+  }));
   delete process.env.SENTRY_DSN;
   errorSpy.mockClear();
   warnSpy.mockClear();
+  sentryInit.mockClear();
+  sentryCaptureException.mockClear();
+  sentryCaptureMessage.mockClear();
+  sentryFlush.mockClear();
 });
 
 afterEach(() => {
@@ -38,7 +52,7 @@ afterEach(() => {
   } else {
     process.env.SENTRY_DSN = ORIGINAL_DSN;
   }
-  __resetReporterForTests();
+  __setSentryLoaderForTests();
 });
 
 describe("getErrorReporter", () => {
@@ -91,7 +105,7 @@ describe("reportError (console-tak)", () => {
   });
 });
 
-describe("reportError (sentry-tak, pakket niet geïnstalleerd)", () => {
+describe("reportError (sentry-tak)", () => {
   beforeEach(() => {
     process.env.SENTRY_DSN = "https://example@o0.ingest.sentry.io/0";
     __resetReporterForTests();
@@ -99,20 +113,29 @@ describe("reportError (sentry-tak, pakket niet geïnstalleerd)", () => {
     warnSpy.mockClear();
   });
 
-  it("valt graceful terug op de console en waarschuwt éénmalig", async () => {
-    // @sentry/nextjs bestaat niet → de import faalt vanzelf.
+  it("initialiseert één keer en stuurt fouten met een request-id-tag naar Sentry", async () => {
     await reportError(new Error("boom"), { source: "onRequestError" });
-    await reportError(new Error("boom2"), { source: "onRequestError" });
+    await reportError(new Error("boom2"), { source: "onRequestError", requestId: "trace-42" });
 
-    // Beide calls vielen terug op de console-capture.
-    expect(errorSpy).toHaveBeenCalledTimes(2);
-    // De waarschuwing wordt maar één keer gelogd.
-    const sentryWarnings = warnSpy.mock.calls.filter((c) => c[0] === "sentry-unavailable");
-    expect(sentryWarnings).toHaveLength(1);
+    expect(sentryInit).toHaveBeenCalledTimes(1);
+    expect(sentryCaptureException).toHaveBeenCalledTimes(2);
+    expect(sentryCaptureException).toHaveBeenLastCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ tags: { request_id: "trace-42" } }),
+    );
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 
   it("werpt nooit in de sentry-tak", async () => {
     await expect(reportError("kapot")).resolves.toBeUndefined();
+  });
+
+  it("valt bij een onbeschikbare SDK terug op console en waarschuwt éénmalig", async () => {
+    __setSentryLoaderForTests(async () => null);
+    await reportError(new Error("boom"));
+    await reportError(new Error("boom2"));
+    expect(errorSpy).toHaveBeenCalledTimes(2);
+    expect(warnSpy.mock.calls.filter((c) => c[0] === "sentry-unavailable")).toHaveLength(1);
   });
 });
 
@@ -150,23 +173,31 @@ describe("reportBackgroundFailure", () => {
 
     await reportBackgroundFailure("cron:run-all", new Error("boom"), { task: "monitor" });
 
-    // Eén lokale background-failure-regel + de Sentry-tak valt (pakket niet geïnstalleerd) terug op
-    // de console-capture → in totaal twee logregels, en éénmalig de sentry-onbeschikbaar-waarschuwing.
+    // Eén lokale regel + één externe capture; geen dubbele console-fallback.
     const backgroundLines = errorSpy.mock.calls.filter((c) => c[0] === "background-failure");
     const fallbackLines = errorSpy.mock.calls.filter((c) => c[0] === "unhandled-error");
     expect(backgroundLines).toHaveLength(1);
-    expect(fallbackLines).toHaveLength(1);
-    const sentryWarnings = warnSpy.mock.calls.filter((c) => c[0] === "sentry-unavailable");
-    expect(sentryWarnings).toHaveLength(1);
+    expect(fallbackLines).toHaveLength(0);
+    expect(sentryCaptureException).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls.filter((c) => c[0] === "sentry-unavailable")).toHaveLength(0);
   });
 });
 
-describe("probeErrorMonitoring (pakket niet geïnstalleerd)", () => {
-  it("rapporteert packageInstalled:false met een uitleg — @sentry/nextjs ontbreekt in de repo", async () => {
+describe("probeErrorMonitoring", () => {
+  it("rapporteert de geïnstalleerde SDK en een geslaagde flush zonder token-echo", async () => {
+    const result = await probeErrorMonitoring("abc123");
+    expect(result.packageInstalled).toBe(true);
+    expect(result.delivered).toBe(true);
+    expect(sentryCaptureMessage).toHaveBeenCalledTimes(1);
+    expect(sentryFlush).toHaveBeenCalledTimes(1);
+    expect(result.detail).not.toContain("abc123"); // geen token/secret-echo in het detail
+  });
+
+  it("meldt een ontbrekende SDK expliciet", async () => {
+    __setSentryLoaderForTests(async () => null);
     const result = await probeErrorMonitoring("abc123");
     expect(result.packageInstalled).toBe(false);
     expect(result.delivered).toBe(false);
     expect(result.detail).toContain("@sentry/nextjs");
-    expect(result.detail).not.toContain("abc123"); // geen token/secret-echo in het detail
   });
 });

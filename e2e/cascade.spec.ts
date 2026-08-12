@@ -246,10 +246,8 @@ test("cascade A→E happy path (milestone)", async ({ page, browser }) => {
 });
 
 test("cascade afkeuren prestatie en opnieuw indienen (uren)", async ({ page, browser }) => {
-  // Issue #329: het afkeuren-met-reden-pad blijft in prod-modus hangen op de action-response;
-  // de reload-vangnetten redden dit specifieke formulier (vrije-tekst + native POST) niet binnen
-  // het testbudget. Draait lokaal (dev-modus) gewoon mee; weer aanzetten zodra #329 is gefixt.
-  test.skip(!!process.env.CI, "issue #329: prod action-response-hang op afkeuren-met-reden");
+  // Was sinds issue #329 in CI overgeslagen. De redirect/watchdog-hardening en robuuste
+  // statusverificatie maken dit pad nu onderdeel van de harde productie-E2E-poort.
   test.slow();
 
   const { collaborationUrl, fp, fctx } = await setupCollaboration(page, browser as Browser);
@@ -266,8 +264,10 @@ test("cascade afkeuren prestatie en opnieuw indienen (uren)", async ({ page, bro
 
   // Type blijft HOURS (standaard); vul uren + periode in
   await fp.fill('input[name="hours"]', "8");
-  await fp.fill('input[name="periodStart"]', "2026-01-06");
-  await fp.fill('input[name="periodEnd"]', "2026-01-06");
+  // DateInput is tekst-eerst (#660): de `name` zit op een hidden ISO-veld; vul het zichtbare
+  // dd-mm-jjjj-tekstveld via het label — de component parst en synct het hidden veld.
+  await fp.getByLabel("Periode van (bij uurtarief)").fill("06-01-2026");
+  await fp.getByLabel("Periode t/m (bij uurtarief)").fill("06-01-2026");
   await fp.fill('input[name="description"]', "Week 1");
   await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
   await expect(fp.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
@@ -321,8 +321,12 @@ test("cascade afkeuren prestatie en opnieuw indienen (uren)", async ({ page, bro
 
   // --- Freelancer dient opnieuw in ---
   await fp.fill('input[name="hours"]', "8");
-  await fp.fill('input[name="periodStart"]', "2026-01-06");
-  await fp.fill('input[name="periodEnd"]', "2026-01-06");
+  // DateInput is tekst-eerst (#660): de `name` zit op een hidden ISO-veld; vul het zichtbare
+  // dd-mm-jjjj-tekstveld via het label — de component parst en synct het hidden veld.
+  // .first(): naast het verse formulier staat hier ook de "Corrigeer en dien opnieuw"-groep
+  // met dezelfde labels; we vullen (zoals voorheen) het eerste formulier.
+  await fp.getByLabel("Periode van (bij uurtarief)").first().fill("06-01-2026");
+  await fp.getByLabel("Periode t/m (bij uurtarief)").first().fill("06-01-2026");
   await fp.fill('input[name="description"]', "Week 1 (gecorrigeerd)");
   await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
   await expect(fp.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
