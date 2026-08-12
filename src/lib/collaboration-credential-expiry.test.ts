@@ -3,6 +3,7 @@ import {
   collaborationCredentialExpiryConcerns,
   collaborationExpiredRequiredCredentials,
   collaborationMissingRequiredCredentials,
+  collaborationRequiredCredentialGaps,
   COLLAB_CREDENTIAL_EXPIRY_WINDOW_DAYS,
   type CollabCredentialInput,
   type CollabRequirementInput,
@@ -346,5 +347,81 @@ describe("collaborationMissingRequiredCredentials", () => {
     });
     expect(result).toHaveLength(1);
     expect(result[0]!.collaborations.map((c) => c.collaborationId)).toEqual(["c1", "c2"]);
+  });
+});
+
+describe("collaborationRequiredCredentialGaps", () => {
+  const requirement = (over: Partial<CollabRequirementInput> = {}): CollabRequirementInput =>
+    collab({ requiredTypes: ["BIG"], ...over });
+
+  it("bundelt verlopen én ontbrekende vereiste certificaten", () => {
+    const gaps = collaborationRequiredCredentialGaps({
+      collaborations: [
+        requirement({ collaborationId: "c-exp", requiredTypes: ["BIG"] }),
+        requirement({ collaborationId: "c-mis", requiredTypes: ["CERTIFICATE"] }),
+      ],
+      credentials: [
+        cred({
+          id: "big-old",
+          title: "BIG",
+          type: "BIG",
+          status: "EXPIRED",
+          expiresAt: inDays(-5),
+        }),
+      ],
+      mandatoryTypes: ["VOG", "INSURANCE"],
+      now: NOW,
+    });
+    expect(gaps.expired.map((c) => c.type)).toEqual(["BIG"]);
+    expect(gaps.missing.map((c) => c.type)).toEqual(["CERTIFICATE"]);
+  });
+
+  it("filtert verplichte typen uit (die krijgen een eigen mandatoryDocumentTask)", () => {
+    const gaps = collaborationRequiredCredentialGaps({
+      collaborations: [requirement({ requiredTypes: ["VOG"] })],
+      credentials: [], // VOG volledig ontbrekend
+      mandatoryTypes: ["VOG", "INSURANCE"],
+      now: NOW,
+    });
+    expect(gaps.expired).toHaveLength(0);
+    expect(gaps.missing).toHaveLength(0);
+  });
+
+  it("filtert reeds-afgewezen typen uit (die krijgen een eigen credentialFixTask)", () => {
+    const gaps = collaborationRequiredCredentialGaps({
+      collaborations: [requirement({ requiredTypes: ["CERTIFICATE"] })],
+      credentials: [
+        cred({
+          id: "c-rej",
+          title: "BHV",
+          type: "CERTIFICATE",
+          status: "REJECTED",
+          expiresAt: null,
+        }),
+      ],
+      mandatoryTypes: ["VOG", "INSURANCE"],
+      now: NOW,
+    });
+    expect(gaps.missing).toHaveLength(0);
+    expect(gaps.expired).toHaveLength(0);
+  });
+
+  it("telt een nu-geldig vereist certificaat niet als gat", () => {
+    const gaps = collaborationRequiredCredentialGaps({
+      collaborations: [requirement({ requiredTypes: ["BIG"] })],
+      credentials: [
+        cred({
+          id: "big-ok",
+          title: "BIG",
+          type: "BIG",
+          status: "VERIFIED",
+          expiresAt: inDays(200),
+        }),
+      ],
+      mandatoryTypes: ["VOG", "INSURANCE"],
+      now: NOW,
+    });
+    expect(gaps.expired).toHaveLength(0);
+    expect(gaps.missing).toHaveLength(0);
   });
 });

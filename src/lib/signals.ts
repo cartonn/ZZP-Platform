@@ -22,6 +22,10 @@ import {
   type UserRole,
 } from "@/lib/enums";
 import { collaborationPlacementBlocked } from "@/lib/collaborations";
+import {
+  collaborationRequiredCredentialGaps,
+  type CollabCredentialInput,
+} from "@/lib/collaboration-credential-expiry";
 import { rosterExpiringByProfile, supersededVerifiedCredentialIds } from "@/lib/credentials";
 import { computeEngageability } from "@/lib/engageability";
 import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
@@ -542,11 +546,13 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       // dashboard-rail, zodat de /samenwerkingen-badge die actie meetelt (niet stiller dan /acties).
       renewalAttentionBadgeCount({ freelancer: { userId } }, now),
       // Volledige certificaatset (alle statussen) om per PROPOSED-samenwerking de plaatsings-blokkade
-      // te bepalen — zelfde bron als `allCreds` in pending-tasks.ts, zodat de badge-onderdrukking niet
-      // van de list-onderdrukking kan driften.
+      // te bepalen én de collab-vereist-certificaat-gaten (verlopen/ontbrekend) te tellen — zelfde bron
+      // als `allCreds` in pending-tasks.ts, zodat de badge-onderdrukking/-telling niet van de list-
+      // onderdrukking/-telling kan driften. `id`/`title` nodig voor de gaten-helper (groepering per
+      // certificaat).
       prisma.credential.findMany({
         where: { freelancerProfileId: profile.id },
-        select: { type: true, status: true, expiresAt: true },
+        select: { id: true, title: true, type: true, status: true, expiresAt: true },
       }),
     ]);
     const placementCredList: FreelancerCredential[] = placementCreds.map((c) => ({
@@ -610,8 +616,34 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       ),
       now,
     );
+    // Door een lopende/voorgestelde samenwerking VEREIST (niet-verplicht) certificaat dat de ZZP'er
+    // mist of dat verlopen is: /acties (pending-tasks.ts) toont hiervoor een credentialCollabMissing/
+    // -Expired-taak, maar `rejected + expiring(VERIFIED) + mandatoryAlerts` dekt zo'n gat niet → de
+    // badge was stiller dan /acties (persona-sweep run 70, GEPARKEERD LOW). Zelfde gedeelde helper +
+    // dezelfde certificaatset/mandatory-uitsluiting als /acties → kan niet driften. De expiry-tak
+    // (nog-geldig-maar-verlopend VERIFIED) valt al onder `expiring` hierboven, dus alleen de
+    // verlopen/ontbrekende gaten tellen hier extra mee.
+    const collabCredList: CollabCredentialInput[] = placementCreds.map((c) => ({
+      id: c.id,
+      title: c.title,
+      type: c.type as CredentialType,
+      status: c.status as CredentialStatus,
+      expiresAt: c.expiresAt,
+    }));
+    const collabCredGaps = collaborationRequiredCredentialGaps({
+      collaborations: cascadeCollabs.map((c, i) => ({
+        collaborationId: String(i),
+        companyName: "",
+        jobTitle: "",
+        requiredTypes: c.job.credentialRequirements.map((r) => r.credentialType as CredentialType),
+      })),
+      credentials: collabCredList,
+      mandatoryTypes: MANDATORY_CREDENTIAL_TYPES,
+      now,
+    });
+    const collabCredentialAlerts = collabCredGaps.expired.length + collabCredGaps.missing.length;
     return buildBadges({
-      credentialAlerts: rejected + expiring + mandatoryAlerts,
+      credentialAlerts: rejected + expiring + mandatoryAlerts + collabCredentialAlerts,
       unreadMessages,
       overdueInvoices,
       cascadeWork,

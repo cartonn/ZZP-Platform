@@ -3,6 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-12 — ZZP'er: /certificaten-badge telt collab-vereist ontbrekend/verlopen cert (badge = /acties, PR #1059)
+
+**Wat:** persona-sweep run 70 GEPARKEERD LOW (sub-symptoom van #1053). Na de plaatsings-gate-fix toont
+`/samenwerkingen` correct 0, maar de `/certificaten`-nav-badge **ondertelde** nog de échte actie: een door
+een lopende/voorgestelde samenwerking VEREIST (niet-verplicht) certificaat dat de ZZP'er mist of dat
+verlopen is, geeft op `/acties` (pending-tasks.ts) een `credentialCollabMissing`/`-Expired`-taak, maar
+`credentialAlerts` = `rejected + expiring(VERIFIED) + mandatoryAlerts` dekt zo'n gat niet → badge stiller
+dan /acties. Klassieke badge↔lijst-drift.
+
+- **`src/lib/collaboration-credential-expiry.ts`**: nieuwe gedeelde pure helper
+  `collaborationRequiredCredentialGaps({collaborations, credentials, mandatoryTypes, now})` die de twee
+  bestaande gaten-functies (VERLOPEN + ONTBREKEND) bundelt achter één uitsluitingsfilter (verplichte typen →
+  eigen mandatoryDocumentTask; afgewezen typen → eigen credentialFixTask; `rejectedTypes` afgeleid uit de
+  certificaatset zelf). Retourneert `{expired, missing}`.
+- **`src/lib/actions/pending-tasks.ts`**: de twee inline-blokken (rejected-filter + twee losse aanroepen)
+  vervangen door één `collaborationRequiredCredentialGaps`-aanroep; de twee taak-loops ongewijzigd →
+  gedragsbehoudend (bewezen door de bestaande run-56/57-regressietests).
+- **`src/lib/signals.ts`**: `placementCreds`-select uitgebreid met `id`/`title` (nodig voor de helper);
+  `credentialAlerts` telt nu ook `collabCredGaps.expired.length + collabCredGaps.missing.length`. Zelfde
+  certificaatset + mandatory-uitsluiting als /acties → één bron van waarheid, kan niet driften. De
+  expiry-tak (nog-geldig-maar-verlopend VERIFIED) valt al onder `expiring`, dus alleen de verlopen/
+  ontbrekende gaten tellen extra mee (geen dubbeltelling).
+
+**Tests:** +4 in `collaboration-credential-expiry.test.ts` (helper: bundelt verlopen+ontbrekend, filtert
+verplichte/afgewezen typen, negeert geldig cert) + nieuw `signals.badge-gaps-run70b.test.ts` (+3: badge telt
+ontbrekend/verlopen collab-cert, geen badge bij geldig cert). Gate: typecheck, lint, test (5781), build,
+prettier — groen.
+
+**Volgende stap:** run-70 resterende parkeer-items (dubbele-facturatie periode-loze HOURS = product-
+beslissing; CSV-import dag+nacht-overlap; franchise skillIds-cap).
+
 ## 2026-08-11 — ZZP'er: IB-aangiftedeadline als next-action op /acties (PR #1058)
 
 **Wat:** de aangifte-inkomstenbelasting-deadline (uiterlijk 1 mei van het jaar ná het belastingjaar) —
