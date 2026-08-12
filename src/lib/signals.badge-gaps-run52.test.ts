@@ -107,6 +107,7 @@ vi.mock("@/lib/db", () => ({
         );
       },
     },
+    collaboration: { findMany: () => Promise.resolve([]) },
   },
 }));
 

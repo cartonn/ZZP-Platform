@@ -30,6 +30,7 @@ vi.mock("@/lib/db", () => ({
       }),
     },
     job: { findMany: vi.fn(async () => []) },
+    collaboration: { findMany: vi.fn(async () => []) },
   },
 }));
 

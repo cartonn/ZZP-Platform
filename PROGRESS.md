@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-12 — persona-sweep run 71: FRANCHISER /franchise/samenwerkingen-badge telt vervolgsignaal (badge = /acties)
+
+**Wat (DOEL 1b, bemiddelaar — badge↔/acties-pariteit):** een aflopende plaatsing binnen de tenant emit op
+`/acties` (pending-tasks.ts `franchiseCollaborationRenewalTask`, sinds #1052) een "plan een vervolg"-taak die
+naar `/franchise/samenwerkingen` linkt, maar de FRANCHISER-nav-badges (`navBadges`, `signals.ts`) telden alléén
+leads / shift-overnames / roster / diensten. Daarmee was `/franchise/samenwerkingen` het énige franchiser-navitem
+met een /acties-taak zónder badge — precies het "signaal op één oppervlak"-anti-patroon dat de codebase herhaaldelijk
+dicht (de partij-zijde (ZZP'er/opdrachtgever) kreeg deze zelfde pariteit al in #1034 via `renewalAttentionBadgeCount`
+gevouwen in `cascadeWork`). Reachable met één samenwerking; niet de geparkeerde >50-teldrift.
+
+- **`src/lib/signals.ts`**: nieuwe `SignalCounts`-sleutel `franchiseRenewals` → `SIGNAL_HREF`
+  `/franchise/samenwerkingen`, `SIGNAL_TONE` `attention`. De FRANCHISER-tak van `navBadges` roept nu de
+  **bestaande gedeelde** `renewalAttentionBadgeCount({ job: { tenantId } }, now)` aan — exact dezelfde bron als de
+  /acties-taak (tenant-scope via `job.tenantId`, `status:ACTIVE`, `disputedAt:null`, hetzelfde endDate-venster,
+  cap/ordering, en dezelfde pure `countAttentionRenewals`-attentiegrens) → badge kan niet driften van /acties.
+  Read-only telling, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+
+**Tests:** +2 `buildBadges`-mappingtests (`signals.test.ts`) + nieuw `signals.badge-gaps-run71.test.ts` (3 e2e via
+`navBadges`: badge verschijnt bij aflopende plaatsing, verdwijnt zonder, en de vervolg-query is tenant-gescoopt op
+`job.tenantId`/ACTIVE/`disputedAt:null` — geen cross-tenant lek). Twee bestaande FRANCHISER-`navBadges`-mocks
+(`signals.roster-order`, `signals.badge-gaps-run52`) kregen de ontbrekende `collaboration.findMany`-stub. Gate:
+typecheck, lint, test (556 files / 5796), build, prettier groen. CI-poort via PR.
+
+**Sweep-uitkomst:** 3 parallelle adversariële Opus-audits — recente money-math (WIK-staffel/handelsrente/incasso #1051,
+credit/BTW, ORT) **schoon** (exhaustieve brute-force cent-check); newest authz/IDOR/cross-tenant/AVG (shift-handoff,
+reviews-reveal, franchise-mutaties, account-export/erasure) **schoon**; next-action/badge-pariteit → dit ene gat.
+
+**Volgende stap:** volgende persona-sweep-gat of concurrent-gedreven UX/data-increment.
+
 ## 2026-08-12 — routine: CSV-diensten-import gebruikt exacte diensttijden i.p.v. hele kalenderdag (PR #1062)
 
 **Wat (ZZP'er, zorg):** de CSV-diensten-import (`/diensten/importeer`) rondde elke geïmporteerde dienst af naar
