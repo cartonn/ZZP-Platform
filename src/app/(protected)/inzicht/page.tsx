@@ -19,6 +19,7 @@ import { getFreelancerStats } from "@/lib/freelancer-stats";
 import { getFreelancerMembership } from "@/lib/freelancer-membership";
 import { getDeliveryQuality, DELIVERY_TONE_LABEL } from "@/lib/collaboration-quality";
 import { getClientStats } from "@/lib/client-stats";
+import { getClientSpendBreakdown } from "@/lib/client-spend-breakdown";
 import { getClientTimeToFill, getTenantTimeToFill } from "@/lib/time-to-fill";
 import { getTenantStats, getTenantCompanyBreakdown } from "@/lib/tenant-stats";
 import {
@@ -388,10 +389,11 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
 }
 
 async function ClientInzicht({ userId }: { userId: string }) {
-  const [s, trend, timeToFill] = await Promise.all([
+  const [s, trend, timeToFill, spend] = await Promise.all([
     getClientStats(userId),
     getClientRevenueTrend(userId),
     getClientTimeToFill(userId),
+    getClientSpendBreakdown(userId),
   ]);
   if (!s) {
     return (
@@ -486,6 +488,47 @@ async function ClientInzicht({ userId }: { userId: string }) {
           })}
         />
       </div>
+
+      <BiWidget title="Per ZZP'er">
+        {spend.rows.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="Nog geen uitgaven"
+            description="Zodra facturen betaald zijn, zie je hier je uitgaven per ZZP'er."
+          />
+        ) : (
+          <div className="space-y-3">
+            {spend.concentrationPct != null &&
+              spend.rows.length >= 2 &&
+              spend.concentrationPct >= 50 && (
+                <p className="text-xs text-muted-foreground">
+                  Eén ZZP&apos;er is goed voor {spend.concentrationPct}% van je uitgaven.
+                </p>
+              )}
+            {spend.rows.map((r) => (
+              <div key={r.freelancerId} className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="min-w-0 truncate text-sm font-medium">{r.name}</p>
+                  <span className="shrink-0 font-mono text-sm font-medium tabular-nums">
+                    {formatEuro(r.paidCents)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: `${Math.max(r.sharePct > 0 ? 3 : 0, r.sharePct)}%` }}
+                    />
+                  </div>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {r.sharePct}% · {plural(r.placements, "samenwerking", "samenwerkingen")}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </BiWidget>
     </div>
   );
 }

@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-12 — opdrachtgever: uitgaven per ZZP'er op /inzicht ("Per ZZP'er"-uitsplitsing)
+
+**Wat:** de opdrachtgever zag op `/inzicht` alleen een aggregaat `Uitgaven` (`spentCents`) — hoevéél, maar
+niet _aan wie_. Nieuw: een "Per ZZP'er"-uitsplitsing (betaalde uitgaven + aandeel + aantal samenwerkingen
+per ZZP'er, aflopend gesorteerd), plus een zacht afhankelijkheidssignaal ("Eén ZZP'er is goed voor X% van je
+uitgaven" bij ≥50% concentratie en ≥2 ZZP'ers). Spiegelbeeld van de franchiser-uitsplitsing "Per
+opdrachtgever" (`tenant-stats.ts`) en de ZZP-opdrachtgever-spreiding — die spiegel ontbrak aan de
+opdrachtgever-kant. Maakt uitgaven-concentratie/spreiding in één oogopslag zichtbaar.
+
+- **Bron van waarheid:** nieuwe `getClientSpendBreakdown(userId)` (`src/lib/client-spend-breakdown.ts`) —
+  betaalde facturen (`counterpartyUserId: userId, status: "PAID"`, exact dezelfde where als `spentCents`, dus
+  het totaal spoort altijd) → per factuur de ZZP'er via `collaboration.freelancer.user.name`. Pure aggregator
+  `buildClientSpendBreakdown` (som per ZZP'er, distinct-samenwerkingen, sharePct, concentratie) apart getest.
+  Facturen zonder bekende ZZP'er (samenwerking verwijderd) worden genegeerd; naam-fallback "Onbekende ZZP'er".
+- **Bestanden:** `src/lib/client-spend-breakdown.ts` (nieuw), `src/lib/client-spend-breakdown.test.ts` (nieuw,
+  6 tests), `src/app/(protected)/inzicht/page.tsx` (ClientInzicht: extra fetch + full-width `BiWidget` "Per
+  ZZP'er", hergebruikt de bestaande bar-row-markup van de franchiser-uitsplitsing, met loading/empty-state).
+- **Tests:** aggregatie (som + distinct-samenwerkingen), sortering + sharePct + concentratie, negeren van
+  onbekende ZZP'er, naam-fallback, null-totalCents. Read-only signaal, server-side waarheid, geen
+  schema-/mutatie-/auth-oppervlak.
+- **Gate:** typecheck, lint, test, build, prettier groen (lokaal).
+
 ## 2026-08-12 — opdrachtgever: koud-lopende opdracht als next-action op /acties (+ /opdrachten-badge)
 
 **Wat:** het vacaturetempo-signaal (`summarizeVacancyPerformance.attention` — een gepubliceerde opdracht die
