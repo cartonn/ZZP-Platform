@@ -54,6 +54,9 @@ jobs:
       REGISTER_RATE_LIMIT: "100000"
       # Kleine paginagrootte zodat "Meer laden" testbaar is met de seed-data.
       LIST_PAGE_SIZE: "5"
+      # next/font downloadt Google-fonts tijdens de build. Gebruik in CI een deterministische
+      # ingebouwde mock; productie laat deze variabele weg en bundelt de echte fontbestanden.
+      NEXT_FONT_GOOGLE_MOCKED_RESPONSES: ${{ github.workspace }}/scripts/next-font-google-mock.cjs
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
