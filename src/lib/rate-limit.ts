@@ -9,6 +9,7 @@
 
 import { logger } from "@/lib/observability/logger";
 import { fetchWithTimeout, resolveHttpTimeoutMs } from "@/lib/services/fetch-timeout";
+import { createClient, type RedisClientType } from "redis";
 
 /** Resultaat van een enkelvoudige rate-limit-check. */
 export interface RateLimitResult {
@@ -224,12 +225,77 @@ export class UpstashRateLimitStore implements RateLimitStore {
   }
 }
 
+/** Private Railway Redis-variant. Eén Lua-script maakt INCR + eerste TTL atomair. */
+export class RedisRateLimitStore implements RateLimitStore {
+  private readonly client: RedisClientType;
+  private connecting?: Promise<unknown>;
+
+  constructor(url: string) {
+    this.client = createClient({ url });
+    this.client.on("error", (err) =>
+      logger.error("rate-limit: Redis-clientfout", {
+        scope: "rate-limit",
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  }
+
+  private async ready(): Promise<RedisClientType> {
+    if (!this.client.isOpen) this.connecting ??= this.client.connect();
+    await this.connecting;
+    return this.client;
+  }
+
+  private redisKey(key: string): string {
+    return `rl:${key}`;
+  }
+
+  async consume(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
+    try {
+      const result = (await (
+        await this.ready()
+      ).eval(
+        "local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('PEXPIRE',KEYS[1],ARGV[1]) end; return {n,redis.call('PTTL',KEYS[1])}",
+        { keys: [this.redisKey(key)], arguments: [String(windowMs)] },
+      )) as [number, number];
+      const used = Number(result[0]);
+      const ttlMs = Number(result[1]);
+      const allowed = used <= limit;
+      return {
+        allowed,
+        remaining: Math.max(0, limit - used),
+        retryAfterMs: allowed ? 0 : ttlMs > 0 ? ttlMs : windowMs,
+      };
+    } catch (err) {
+      logger.error("rate-limit: Redis consume mislukt — fail-open", {
+        scope: "rate-limit",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return { allowed: true, remaining: limit, retryAfterMs: 0 };
+    }
+  }
+
+  async reset(key: string): Promise<void> {
+    try {
+      await (await this.ready()).del(this.redisKey(key));
+    } catch (err) {
+      logger.error("rate-limit: Redis reset mislukt", {
+        scope: "rate-limit",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+}
+
 /**
  * Bouwt de geconfigureerde store: Upstash bij RATE_LIMIT_STORE=upstash (met REST-URL + token),
  * anders de veilige in-memory default. De env-validatie (src/lib/env.ts) eist de Upstash-secrets
  * af zodra de driver op "upstash" staat; deze fallback is defensief.
  */
 export function createRateLimitStore(): RateLimitStore {
+  if (process.env.RATE_LIMIT_STORE === "redis" && process.env.REDIS_URL) {
+    return new RedisRateLimitStore(process.env.REDIS_URL);
+  }
   if (process.env.RATE_LIMIT_STORE === "upstash") {
     const url = process.env.UPSTASH_REDIS_REST_URL;
     const token = process.env.UPSTASH_REDIS_REST_TOKEN;

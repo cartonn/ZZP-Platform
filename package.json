@@ -20,6 +20,7 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:backup": "tsx scripts/backup-db.ts",
+    "db:backup:remote": "tsx scripts/backup-db-remote.ts",
     "db:restore": "tsx scripts/restore-db.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -51,6 +52,7 @@
     "pdf-lib": "^1.17.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "redis": "^5.12.1",
     "tailwind-merge": "^2.6.0",
     "web-push": "^3.6.7",
     "zod": "^3.24.1"

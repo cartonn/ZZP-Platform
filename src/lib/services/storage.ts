@@ -2,7 +2,7 @@
 // NOOIT in git of op een publiek pad. Lokaal: .gitignore'de map. Productie: S3
 // (implementatie in Sessie 10). Upload wordt altijd gevalideerd (type + grootte).
 
-import { randomUUID } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -111,6 +111,49 @@ export function generateStorageKey(filename: string): string {
 export interface StoredObject {
   key: string;
   size: number;
+}
+
+// Railway Buckets zijn S3-compatible maar ondersteunen geen SSE-headers. In dat geval versleutelt
+// de applicatie elk object vóór upload met AES-256-GCM. De magic/version-prefix maakt het formaat
+// expliciet en voorkomt dat oude plaintext per ongeluk als ciphertext wordt behandeld.
+const CLIENT_ENCRYPTION_MAGIC = Buffer.from("ZZPENC01", "ascii");
+const CLIENT_ENCRYPTION_IV_BYTES = 12;
+const CLIENT_ENCRYPTION_TAG_BYTES = 16;
+
+function clientEncryptionKey(): Buffer | null {
+  const raw = process.env.STORAGE_CLIENT_ENCRYPTION_KEY?.trim();
+  if (!raw) return null;
+  const key = Buffer.from(raw, "base64");
+  if (key.byteLength !== 32) {
+    throw new Error(
+      "STORAGE_CLIENT_ENCRYPTION_KEY moet een base64-gecodeerde sleutel van 32 bytes zijn.",
+    );
+  }
+  return key;
+}
+
+export function encryptStoredObject(data: Buffer, key: Buffer): Buffer {
+  const iv = randomBytes(CLIENT_ENCRYPTION_IV_BYTES);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
+  return Buffer.concat([CLIENT_ENCRYPTION_MAGIC, iv, cipher.getAuthTag(), encrypted]);
+}
+
+export function decryptStoredObject(data: Buffer, key: Buffer): Buffer {
+  const minimum =
+    CLIENT_ENCRYPTION_MAGIC.length + CLIENT_ENCRYPTION_IV_BYTES + CLIENT_ENCRYPTION_TAG_BYTES;
+  if (
+    data.byteLength < minimum ||
+    !data.subarray(0, CLIENT_ENCRYPTION_MAGIC.length).equals(CLIENT_ENCRYPTION_MAGIC)
+  ) {
+    throw new Error("Opgeslagen object mist een geldige ZZP-encryptieheader.");
+  }
+  const ivStart = CLIENT_ENCRYPTION_MAGIC.length;
+  const tagStart = ivStart + CLIENT_ENCRYPTION_IV_BYTES;
+  const bodyStart = tagStart + CLIENT_ENCRYPTION_TAG_BYTES;
+  const decipher = createDecipheriv("aes-256-gcm", key, data.subarray(ivStart, tagStart));
+  decipher.setAuthTag(data.subarray(tagStart, bodyStart));
+  return Buffer.concat([decipher.update(data.subarray(bodyStart)), decipher.final()]);
 }
 
 /** Opties voor een kortlevende, ondertekende download-URL. */
@@ -301,12 +344,14 @@ class S3StorageDriver implements StorageDriver {
 
   async put(key: string, data: Buffer, mimeType: string): Promise<StoredObject> {
     const { client, bucket, lib } = await this.svc();
+    const encryptionKey = clientEncryptionKey();
+    const body = encryptionKey ? encryptStoredObject(data, encryptionKey) : data;
     await client.send(
       new lib.PutObjectCommand({
         Bucket: bucket,
         Key: key,
-        Body: data,
-        ContentType: mimeType,
+        Body: body,
+        ContentType: encryptionKey ? "application/octet-stream" : mimeType,
         // Encryptie-at-rest expliciet afdwingen (niet leunen op de bucket-default).
         ...resolveSseParams(),
       }),
@@ -319,7 +364,9 @@ class S3StorageDriver implements StorageDriver {
     const res = await client.send(new lib.GetObjectCommand({ Bucket: bucket, Key: key }));
     const body = res.Body as { transformToByteArray(): Promise<Uint8Array> } | undefined;
     if (!body) throw new Error("Leeg S3-antwoord.");
-    return Buffer.from(await body.transformToByteArray());
+    const stored = Buffer.from(await body.transformToByteArray());
+    const encryptionKey = clientEncryptionKey();
+    return encryptionKey ? decryptStoredObject(stored, encryptionKey) : stored;
   }
 
   async delete(key: string): Promise<void> {
@@ -348,6 +395,9 @@ class S3StorageDriver implements StorageDriver {
   }
 
   async getSignedDownloadUrl(key: string, opts?: SignedUrlOptions): Promise<string | null> {
+    // Ciphertext mag nooit rechtstreeks naar de browser. De media-route haalt het object op,
+    // ontsleutelt server-side en behoudt daarmee ook de bestaande authz- en auditcontrole.
+    if (clientEncryptionKey()) return null;
     const { client, bucket, lib } = await this.svc();
     // Lazy import zoals @aws-sdk/client-s3: houdt de bundel licht als S3 niet wordt gebruikt.
     const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");

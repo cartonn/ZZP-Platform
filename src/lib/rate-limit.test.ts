@@ -8,6 +8,7 @@ import {
   messageRateLimiter,
   noShowReportRateLimiter,
   RateLimiter,
+  RedisRateLimitStore,
   resetRateLimiter,
   uploadRateLimiter,
   UpstashRateLimitStore,
@@ -312,12 +313,14 @@ describe("createRateLimitStore (factory)", () => {
     store: process.env.RATE_LIMIT_STORE,
     url: process.env.UPSTASH_REDIS_REST_URL,
     token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    redisUrl: process.env.REDIS_URL,
   };
 
   afterEach(() => {
     process.env.RATE_LIMIT_STORE = saved.store;
     process.env.UPSTASH_REDIS_REST_URL = saved.url;
     process.env.UPSTASH_REDIS_REST_TOKEN = saved.token;
+    process.env.REDIS_URL = saved.redisUrl;
   });
 
   it("geeft een MemoryRateLimitStore zonder env-config", () => {
@@ -337,6 +340,12 @@ describe("createRateLimitStore (factory)", () => {
     delete process.env.UPSTASH_REDIS_REST_URL;
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
     expect(createRateLimitStore()).toBeInstanceOf(MemoryRateLimitStore);
+  });
+
+  it("geeft een RedisRateLimitStore bij de private Redis-config", () => {
+    process.env.RATE_LIMIT_STORE = "redis";
+    process.env.REDIS_URL = "redis://default:secret@redis.internal:6379";
+    expect(createRateLimitStore()).toBeInstanceOf(RedisRateLimitStore);
   });
 });
 

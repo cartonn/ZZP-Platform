@@ -96,11 +96,16 @@ export function collectSystemStatus(env: Env): SystemStatus {
         {
           key: "storage-encryption",
           label: "Encryptie-at-rest (S3)",
-          mode: env.STORAGE_DRIVER === "s3" ? (env.STORAGE_S3_SSE ?? "AES256") : "n.v.t.",
+          mode:
+            env.STORAGE_DRIVER === "s3"
+              ? env.STORAGE_CLIENT_ENCRYPTION_KEY
+                ? "AES-256-GCM (client-side)"
+                : (env.STORAGE_S3_SSE ?? "AES256")
+              : "n.v.t.",
           level:
             env.STORAGE_DRIVER !== "s3"
               ? "fallback"
-              : env.STORAGE_S3_SSE === "none"
+              : env.STORAGE_S3_SSE === "none" && !env.STORAGE_CLIENT_ENCRYPTION_KEY
                 ? production
                   ? "attention"
                   : "fallback"
@@ -108,9 +113,11 @@ export function collectSystemStatus(env: Env): SystemStatus {
           detail:
             env.STORAGE_DRIVER !== "s3"
               ? "Alleen van toepassing bij S3-opslag."
-              : env.STORAGE_S3_SSE === "none"
-                ? "Geen expliciete SSE-header — leunt op de bucket-default. Zet STORAGE_S3_SSE=AES256 (of aws:kms)."
-                : "Server-side-encryptie expliciet gezet bij elke upload.",
+              : env.STORAGE_CLIENT_ENCRYPTION_KEY
+                ? "Applicatielaag AES-256-GCM; de bucket bevat uitsluitend ciphertext en downloads worden server-side ontsleuteld."
+                : env.STORAGE_S3_SSE === "none"
+                  ? "Geen expliciete SSE-header — leunt op de bucket-default. Zet STORAGE_S3_SSE=AES256 (of aws:kms)."
+                  : "Server-side-encryptie expliciet gezet bij elke upload.",
         },
       ],
     },
@@ -300,11 +307,11 @@ export function collectSystemStatus(env: Env): SystemStatus {
           key: "rate-limit-store",
           label: "Rate-limit-store",
           mode: env.RATE_LIMIT_STORE,
-          level: env.RATE_LIMIT_STORE === "upstash" ? "ok" : "fallback",
+          level: env.RATE_LIMIT_STORE !== "memory" ? "ok" : "fallback",
           detail:
-            env.RATE_LIMIT_STORE === "upstash"
-              ? "Gedeeld via Upstash Redis — limieten gelden over alle instances."
-              : "Per-proces in-memory. Zet RATE_LIMIT_STORE=upstash vóór horizontale schaling.",
+            env.RATE_LIMIT_STORE !== "memory"
+              ? "Gedeeld via Redis — limieten gelden over alle instances."
+              : "Per-proces in-memory. Zet RATE_LIMIT_STORE=redis of upstash vóór horizontale schaling.",
         },
         dbPoolItem(env, dbKind, production),
       ],

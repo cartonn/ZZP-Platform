@@ -45,6 +45,9 @@ const schema = z
     // of none (bewust uit, voor S3-compatibele opslag zonder SSE-header). Zie resolveSseParams().
     STORAGE_S3_SSE: z.enum(["AES256", "aws:kms", "none"]).optional(),
     STORAGE_S3_SSE_KMS_KEY_ID: z.string().optional(),
+    // Optionele applicatielaag AES-256-GCM voor S3-compatible providers zonder SSE (Railway
+    // Buckets). Exact 32 bytes, base64-gecodeerd; downloads worden dan server-side ontsleuteld.
+    STORAGE_CLIENT_ENCRYPTION_KEY: z.string().optional(),
 
     // Echte reistijd-routing: offline fallback (default) of Geoapify met API-key.
     ROUTING_PROVIDER: z.enum(["offline", "geoapify"]).default("offline"),
@@ -53,7 +56,8 @@ const schema = z
     SEMANTIC_MATCHER: z.enum(["local", "pgvector"]).default("local"),
     // Rate-limit-store: in-memory per proces (default) of gedeeld via Upstash Redis REST
     // (horizontale schaling, MENSENWERK §0b H-2). Bij "upstash" zijn URL + token verplicht.
-    RATE_LIMIT_STORE: z.enum(["memory", "upstash"]).default("memory"),
+    RATE_LIMIT_STORE: z.enum(["memory", "upstash", "redis"]).default("memory"),
+    REDIS_URL: z.string().optional(),
     UPSTASH_REDIS_REST_URL: z.string().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -185,6 +189,13 @@ const schema = z
       require(!!v.STORAGE_S3_REGION, "STORAGE_S3_REGION", "Verplicht bij STORAGE_DRIVER=s3.");
       require(!!v.AWS_ACCESS_KEY_ID, "AWS_ACCESS_KEY_ID", "Verplicht bij STORAGE_DRIVER=s3.");
       require(!!v.AWS_SECRET_ACCESS_KEY, "AWS_SECRET_ACCESS_KEY", "Verplicht bij STORAGE_DRIVER=s3.");
+      if (v.STORAGE_S3_SSE === "none") {
+        const decoded = v.STORAGE_CLIENT_ENCRYPTION_KEY
+          ? Buffer.from(v.STORAGE_CLIENT_ENCRYPTION_KEY, "base64")
+          : null;
+        require(decoded?.byteLength ===
+          32, "STORAGE_CLIENT_ENCRYPTION_KEY", "Verplicht bij STORAGE_S3_SSE=none: base64-gecodeerde sleutel van exact 32 bytes.");
+      }
     }
     if (v.ROUTING_PROVIDER === "geoapify") {
       require(!!v.GEOAPIFY_API_KEY, "GEOAPIFY_API_KEY", "Verplicht bij ROUTING_PROVIDER=geoapify.");
@@ -228,6 +239,9 @@ const schema = z
     if (v.RATE_LIMIT_STORE === "upstash") {
       require(!!v.UPSTASH_REDIS_REST_URL, "UPSTASH_REDIS_REST_URL", "Verplicht bij RATE_LIMIT_STORE=upstash.");
       require(!!v.UPSTASH_REDIS_REST_TOKEN, "UPSTASH_REDIS_REST_TOKEN", "Verplicht bij RATE_LIMIT_STORE=upstash.");
+    }
+    if (v.RATE_LIMIT_STORE === "redis") {
+      require(!!v.REDIS_URL, "REDIS_URL", "Verplicht bij RATE_LIMIT_STORE=redis.");
     }
     if (v.DIPLOMA_VERIFIER === "duo") {
       require(!!v.DUO_API_BASE, "DUO_API_BASE", "Verplicht bij DIPLOMA_VERIFIER=duo.");
@@ -282,7 +296,11 @@ export function envWarnings(env: Env): string[] {
       "STORAGE_DRIVER=local — geüploade documenten gaan naar de lokale schijf (vluchtig bij redeploy). Zet STORAGE_DRIVER=s3 voor productie.",
     );
   }
-  if (env.STORAGE_DRIVER === "s3" && env.STORAGE_S3_SSE === "none") {
+  if (
+    env.STORAGE_DRIVER === "s3" &&
+    env.STORAGE_S3_SSE === "none" &&
+    !env.STORAGE_CLIENT_ENCRYPTION_KEY
+  ) {
     warnings.push(
       "STORAGE_S3_SSE=none — uploads worden zonder expliciete server-side-encryptie-header opgeslagen; gevoelige documenten leunen dan enkel op de bucket-default-encryptie. Zet STORAGE_S3_SSE=AES256 (of aws:kms) tenzij je opslag de header niet accepteert.",
     );

@@ -34,6 +34,7 @@ const INTEGRATION_VARS = [
   "IDENTITY_API_KEY",
   "UPSTASH_REDIS_REST_URL",
   "UPSTASH_REDIS_REST_TOKEN",
+  "REDIS_URL",
   "CLAMAV_HOST",
   "CLAMAV_PORT",
   "SHARE_TOKEN_SECRET",
@@ -219,6 +220,14 @@ describe("validateEnv", () => {
     process.env.RATE_LIMIT_STORE = "upstash";
     process.env.UPSTASH_REDIS_REST_URL = "https://example.upstash.io";
     process.env.UPSTASH_REDIS_REST_TOKEN = "token";
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it("vereist REDIS_URL bij RATE_LIMIT_STORE=redis", () => {
+    baseValid();
+    process.env.RATE_LIMIT_STORE = "redis";
+    expect(() => validateEnv()).toThrow(/REDIS_URL/);
+    process.env.REDIS_URL = "redis://default:secret@redis.internal:6379";
     expect(() => validateEnv()).not.toThrow();
   });
 

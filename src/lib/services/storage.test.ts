@@ -5,6 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   assertContentMatchesMime,
   buildContentDisposition,
+  decryptStoredObject,
+  encryptStoredObject,
   generateStorageKey,
   getStorage,
   MAX_UPLOAD_BYTES,
@@ -214,5 +216,22 @@ describe("resolveSseParams (S3 encryption-at-rest)", () => {
     expect(resolveExpectedSse()).toBe("aws:kms");
     process.env.STORAGE_S3_SSE = "none";
     expect(resolveExpectedSse()).toBe("none");
+  });
+});
+
+describe("client-side objectencryptie", () => {
+  it("rondtript met AES-256-GCM en bewaart geen plaintext", () => {
+    const key = Buffer.alloc(32, 7);
+    const plaintext = Buffer.from("gevoelig VOG-document");
+    const ciphertext = encryptStoredObject(plaintext, key);
+    expect(ciphertext.includes(plaintext)).toBe(false);
+    expect(decryptStoredObject(ciphertext, key)).toEqual(plaintext);
+  });
+
+  it("weigert manipulatie fail-closed", () => {
+    const key = Buffer.alloc(32, 9);
+    const ciphertext = encryptStoredObject(Buffer.from("diploma"), key);
+    ciphertext[ciphertext.length - 1] = ciphertext[ciphertext.length - 1]! ^ 1;
+    expect(() => decryptStoredObject(ciphertext, key)).toThrow();
   });
 });
