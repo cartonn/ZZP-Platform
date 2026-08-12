@@ -4,6 +4,55 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-12b (basis: `main` @ ac921eb6) — geen nieuwe gaten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+plus onafhankelijke orchestrator-probes over de héle repo (niet alleen de delta). Basis-delta sinds de vorige
+ronde: `fdcc8394..ac921eb6` (#1060–#1067 — shift-overname-afwijsreden-erasure-fix (#1060, al OPGELOST vorige
+ronde), reviews-reveal stille-faal-gauge, CSV-diensten-import exacte diensttijden, /franchise-badge-telling,
+winst-per-maand-trend op /inzicht, live-readiness-releasepoorten, download-routes vangen `AuthorizationError`
+netjes af). **Resultaat: geen nieuw KRITIEK/HOOG/MIDDEL toegangs-, IDOR-, cross-tenant-, injectie-, upload-,
+SSRF-, secret- of PII-/AVG-gat. Niets te fixen; backlog-datum bijgewerkt.**
+
+**Gedekt (OWASP Top 10 / ASVS + AVG-beginselen), met bewijs:**
+
+- **A01 Broken Access Control / IDOR — schoon.** Delta-mutaties (`samenwerkingen/actions.ts sendCredentialReminder`,
+  `no-show-actions.ts reportNoShow`, `kandidaten/actions.ts saveApplicationNote`) zijn concurrency-hardening
+  (Serializable-transactie + begrensde `P2034`-retry rond dedup-check+create+audit) — de keten
+  auth→rol→ownership/tenant→Zod→actie→audit blijft intact; de anti-oracle "niet gevonden"-maskering (CWE-203) is
+  ongewijzigd. Documentdownload (`/api/documents/[id]`), factuur-/prestatie-PDF en samenwerking-dossierroutes:
+  ownership + audit op zowel de geslaagde als de geweigerde/niet-gevonden tak (timing-oracle CWE-208 dicht).
+- **A01 cross-tenant (FRANCHISER, multi-tenant) — schoon.** Nieuwe `franchiseRenewals`-nav-badge (`signals.ts`)
+  leidt `tenantId` server-side af uit een verse `user.findUnique` op de eigen sessie-id; geeft enkel een
+  aggregate-integer terug (geen rij-PII). Geen mass-assignment van `tenantId`; elke detail-lezing her-scopet.
+- **A03 Injectie — schoon.** Geen `$queryRawUnsafe`/string-geconcateneerd SQL (enkel getagde `SELECT 1`-health­pings);
+  enige `dangerouslySetInnerHTML` = het nonce-gepoorte theme-script (`layout.tsx`). Alle CSV-exports
+  (`exportForecastCsv`, `exportObligationsCsv` → gedeelde `toCsv`) neutraliseren formule-injectie via
+  `escapeCsvField` (`= + @ - \t \r`, CWE-1236) op élke cel incl. tegenpartij-naam/opdrachttitel/factuurnummer.
+- **A02/A04 Upload & storage — schoon.** `validateUpload` (type+grootte, 10 MB) + `assertContentMatchesMime`
+  (magic-byte-sniff tegen vervalste Content-Type) + `generateStorageKey` (random UUID, nooit de bestandsnaam als
+  pad) + `LocalStorageDriver.resolve` path-traversal-guard + S3 SSE-at-rest expliciet afgedwongen.
+- **A05 Beveiligingsconfig / headers — schoon.** Productie-CSP met per-request nonce + `strict-dynamic`
+  (`buildCsp`); `object-src 'none'`, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'`;
+  privé-documentheaders sandboxed (`sandboxedDocumentHeaders`, COOP/CORP same-origin).
+- **A07 Auth/sessie — schoon.** Login: timing-equalizer-bcrypt tegen e-mail-enumeratie (CWE-208), per-IP+e-mail
+  rate-limit, onderhoudspoort vóór élke DB-call. Wachtwoord-reset: sha256-gehasht token, 1u-TTL, atomair
+  eenmalig gebruik (`consumeResetToken updateMany({usedAt:null})`), host-header-poisoning getest
+  (`reset-poisoning.test.ts`). `currentActor()` leest rol/status/tenant/wachtwoord-stempel vers uit de DB →
+  live intrekking bij schorsing/anonimisering/tenant-suspend/wachtwoordwijziging.
+- **AVG art. 17 erasure ↔ art. 15/20 export-symmetrie — schoon.** De "duplicate-copy erasure gap"-klasse blijft
+  gedekt: `SHIFT_HANDOFF_REJECTED` (deze delta, gedeelde `shiftHandoffRejectedNotificationBody`),
+  `NO_SHOW_REPORTED`, `INVOICE_CREDITED`, `DISPUTE_OPENED`, `IDEA_STATUS/COMMENT` — elke vrije-tekst-kopie op de
+  feed van een ándere gebruiker wordt in `anonymizeUser` exact-gereconstrueerd en geredact; audit-metadata-PII
+  (e-mail/naam/reden) via `scrubAuditMetadataPii` (exact-match, geen substring-collateral). Nieuwe delta-code
+  introduceert geen nieuw vrije-tekst-/PII-veld of notificatietype.
+- **AVG dataminimalisatie & k-anonimiteit — schoon.** `/api/metrics` geeft enkel geaggregeerde gauges (geen
+  naam/e-mail/IP/vrije tekst), fail-closed achter `CRON_SECRET`-Bearer (`timingSafeEqual`). `profit-trend.ts`
+  (nieuw) is strikt eigen-gebruiker-gescopet (`ownerUserId: actor.id`), geen cross-user-aggregatie; de
+  markttarief-benchmark (`MARKET_RATE_MIN_SAMPLE ≥ 10`) is in deze delta onaangeraakt.
+- **Dependencies.** `npm audit --omit=dev` = **0** (de 3 resterende `npm audit`-meldingen — js-yaml e.a. — zitten
+  uitsluitend in devDependencies en worden niet meegeleverd naar productie).
+
 ## Ronde 2026-08-12 (basis: `main` @ fdcc8394)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

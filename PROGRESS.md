@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-12 — security/privacy-audit (ronde b): geen nieuwe gaten (basis `main` @ ac921eb6)
+
+**Wat:** volledige security-/privacy-auditronde als orchestrator (Opus 4.8) + 3 parallelle adversariële
+Opus-audits op niet-overlappende oppervlakken (delta-authz/IDOR/cross-tenant; CSV-/data-exports + injectie;
+AVG-erasure↔export-symmetrie), plus onafhankelijke orchestrator-probes over de héle repo. Delta afgedekt:
+`fdcc8394..ac921eb6` (#1060–#1067). **Uitkomst: geen nieuw KRITIEK/HOOG/MIDDEL toegangs-, IDOR-, cross-tenant-,
+injectie-, upload-, SSRF-, secret- of PII-/AVG-gat gevonden — niets te fixen.**
+
+- **Onafhankelijk geverifieerd (bewijs in `docs/SECURITY-PRIVACY-BACKLOG.md` ronde 2026-08-12b):** OWASP A01
+  (IDOR/cross-tenant — delta-mutaties zijn concurrency-hardening, keten intact; documentroute anti-oracle CWE-203/208
+  dicht), A03 (geen raw-SQL-injectie; alle CSV via `escapeCsvField` CWE-1236; enige `dangerouslySetInnerHTML` =
+  nonce-theme-script), A02/A04 (upload magic-byte-sniff + path-traversal-guard + SSE), A05 (nonce-CSP + sandboxed
+  documentheaders), A07 (timing-equalizer-login, atomair single-use reset-token, live-intrekking via `currentActor`),
+  AVG art. 17↔15/20 (duplicate-copy erasure-symmetrie incl. `SHIFT_HANDOFF_REJECTED`), dataminimalisatie/k-anonimiteit
+  (`/api/metrics` PII-vrij fail-closed, `profit-trend` eigen-gebruiker-gescopet). `npm audit --omit=dev` = **0**.
+- **Wijziging:** docs-only — backlog-ronde + deze PROGRESS-notitie. Geen codewijziging nodig (geen gat).
+- **Gate:** typecheck, lint, prettier, test, build via de CI-poort (PR volgt).
+
 ## 2026-08-12 — persona-sweep (run 72): download-routes vangen AuthorizationError af (geen rauwe 500)
 
 **Wat (DOEL 2, robuustheid, alle rollen):** vijf CSV-/template-download-route-handlers riepen
