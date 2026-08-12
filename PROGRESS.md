@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-12 — security/privacy: shift-overname-afwijsreden overleefde AVG-erasure van de beslisser (art. 17, HOOG)
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+AVG-erasure, cross-tenant/franchiser, API/upload/injectie). Eén HOOG AVG-gat gevonden en gedicht; de andere
+twee oppervlakken schoon. De door de BESLISSER (FRANCHISER/ADMIN) zelf getypte `ShiftHandoff.decisionNote`
+(afwijsreden) wordt verbatim in de body van de `SHIFT_HANDOFF_REJECTED`-notificatie gekopieerd — die op de feed
+van de **AANVRAGER** landt (ándere userId). `anonymizeUser` nulde wél de bron-`decisionNote`, maar de
+eigen-feed-notificatie-wipe raakt alleen wat de betrokkene zélf ontving → de kopie op de aanvragersfeed overleefde
+art. 17 (en werd via `account-export.ts` in diens inzage-export getoond). Exact de "duplicate-copy erasure gap"-klasse.
+
+- **`src/lib/shift-handoff.ts`**: nieuwe gedeelde body-builder `shiftHandoffRejectedNotificationBody({jobTitle,note})`
+  (één bron voor schrijver + erasure, geen drift; spiegelt `noShowReportedNotificationBody`).
+- **`src/app/(protected)/admin/shift-overnames/actions.ts`**: `rejectShiftHandoff` bouwt de body nu via de helper.
+- **`src/app/(protected)/admin/gebruikers/actions.ts`**: `anonymizeUser` verzamelt `ownDecidedRejectedHandoffs`
+  vóór de transactie en redact binnen de transactie de exact-gereconstrueerde `SHIFT_HANDOFF_REJECTED`-body op de
+  feed van elke aanvrager (gescopet op de deterministische body → nooit andermans afwijzing). Onterechte comment
+  (die `SHIFT_HANDOFF_REJECTED` als "gedekt door de eigen-feed-wipe" lijstte) gecorrigeerd.
+
+**Tests:** +1 in `anonymize-erasure.test.ts` (kopie op aanvragersfeed geredact, rood→groen) + 1 locked-body-unit in
+`shift-handoff.test.ts`. Gate: typecheck, lint, test (5783), build, prettier — groen. Backlog bijgewerkt (OPGELOST +
+restrisico: bestaande FRANCHISER-accounts vergen mogelijk een eenmalige backfill-redactie — flag bij de FG).
+
+**Volgende stap:** resterende parkeer-items backlog; volgende auditronde delta vanaf de nieuwe main-commit.
+
 ## 2026-08-12 — ZZP'er: /certificaten-badge telt collab-vereist ontbrekend/verlopen cert (badge = /acties, PR #1059)
 
 **Wat:** persona-sweep run 70 GEPARKEERD LOW (sub-symptoom van #1053). Na de plaatsings-gate-fix toont

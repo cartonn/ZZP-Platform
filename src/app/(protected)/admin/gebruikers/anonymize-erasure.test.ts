@@ -87,7 +87,20 @@ vi.mock("@/lib/db", () => ({
     supportTicket: { updateMany: op("supportTicket.updateMany") },
     ideaComment: { updateMany: op("ideaComment.updateMany") },
     review: { updateMany: op("review.updateMany") },
-    shiftHandoff: { updateMany: op("shiftHandoff.updateMany") },
+    shiftHandoff: {
+      updateMany: op("shiftHandoff.updateMany"),
+      // Eén afgewezen shift-overname die de betrokkene als BESLISSER (FRANCHISER/ADMIN) zelf beoordeelde:
+      // de `decisionNote` is zelf-geschreven vrije tekst die verbatim in de body van de
+      // SHIFT_HANDOFF_REJECTED-notificatie op de feed van de AANVRAGER (requester-99) staat en dus mee
+      // geredact moet worden bij verwijdering van de beslisser.
+      findMany: vi.fn(async () => [
+        {
+          requestedByUserId: "requester-99",
+          decisionNote: "Kandidaat niet geschikt voor deze nachtinzet",
+          collaboration: { job: { title: "Nachtdienst ZZP" } },
+        },
+      ]),
+    },
     leadContact: { updateMany: op("leadContact.updateMany") },
     availabilityWindow: { updateMany: op("availabilityWindow.updateMany") },
     workExperience: { deleteMany: op("workExperience.deleteMany") },
@@ -228,6 +241,7 @@ vi.mock("@/lib/db", () => ({
 import { anonymizeUser } from "./actions";
 import { prisma } from "@/lib/db";
 import { noShowReportedNotificationBody } from "@/lib/no-show";
+import { shiftHandoffRejectedNotificationBody } from "@/lib/shift-handoff";
 import { ideaCommentNotificationTitle, ideaStatusNotificationTitle } from "@/lib/ideas";
 
 const find = (model: string) => tx.ops.find((o) => o.model === model);
@@ -816,6 +830,31 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
         jobTitle: "Nachtdienst ZZP",
         occurredOn: new Date("2026-05-07"),
         reason: "Niet op komen dagen zonder bericht",
+      }),
+    });
+    expect(o!.args.data.body).toMatch(/verwijderd/i);
+  });
+
+  it("redact de shift-overname-afwijsreden óók uit de SHIFT_HANDOFF_REJECTED-notificatie op de AANVRAGERSfeed (decisionNote, AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // Tweede kopie: `rejectShiftHandoff` zet de door de BESLISSER getypte reden verbatim in de body van
+    // de notificatie die de AANVRAGER (requester-99) ontvangt — een ándere gebruiker dan de beslisser.
+    // De generieke eigen-feed-wipe (userId == de betrokkene) raakt die dus NIET wanneer de betrokkene de
+    // beslisser is. De body wordt deterministisch gereconstrueerd via de gedeelde
+    // `shiftHandoffRejectedNotificationBody` en op de aanvragersfeed geredact — nooit de afwijzing van
+    // een ándere beslisser. Zonder deze updateMany overleeft de zelf-geschreven reden art. 17 op
+    // andermans feed (en in diens inzage-export) (rood→groen).
+    const ops = findAll("notification.updateMany") as Array<{
+      args: { where: { userId?: string; type?: string; body?: string }; data: { body?: string } };
+    }>;
+    const o = ops.find((x) => x.args.where.type === "SHIFT_HANDOFF_REJECTED");
+    expect(o).toBeDefined();
+    expect(o!.args.where).toEqual({
+      userId: "requester-99",
+      type: "SHIFT_HANDOFF_REJECTED",
+      body: shiftHandoffRejectedNotificationBody({
+        jobTitle: "Nachtdienst ZZP",
+        note: "Kandidaat niet geschikt voor deze nachtinzet",
       }),
     });
     expect(o!.args.data.body).toMatch(/verwijderd/i);

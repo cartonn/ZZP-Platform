@@ -21,6 +21,7 @@ import { DISPUTE_ADMIN_NOTIFICATION_TITLE } from "@/lib/cascade/dispute-commands
 import { collaborationsWithActiveDisputeOpenedBy } from "@/lib/dispute-ownership";
 import { NO_SHOW_REASON_REDACTED, noShowReportedNotificationBody } from "@/lib/no-show";
 import { ideaCommentNotificationTitle, ideaStatusNotificationTitle } from "@/lib/ideas";
+import { shiftHandoffRejectedNotificationBody } from "@/lib/shift-handoff";
 
 export async function setUserStatus(userId: string, target: string): Promise<void> {
   const actor = await requireRole("ADMIN");
@@ -338,6 +339,26 @@ export async function anonymizeUser(userId: string): Promise<void> {
   });
   const ownNoShowReportIds = ownNoShowReports.map((r) => r.id);
 
+  // AVG art. 17: de door de BESLISSER (FRANCHISER/ADMIN) zélf getypte afwijsreden bij een shift-overname.
+  // `rejectShiftHandoff` schrijft die vrije tekst in TWEE kopieën: (1) `ShiftHandoff.decisionNote` en
+  // (2) verbatim in de body van de `SHIFT_HANDOFF_REJECTED`-notificatie — die op de feed van de
+  // AANVRAGER (`requestedByUserId`) landt, een ÁNDERE gebruiker dan de beslisser. De generieke
+  // eigen-feed-wipe (`notification.updateMany({ where: { userId } })`) raakt alleen de notificaties die
+  // de betrokkene zélf ontving en dekt deze kopie dus NIET wanneer de betrokkene de beslisser is. Zonder
+  // deze reconstruct-en-redact overleeft de zelf-geschreven reden art. 17 op andermans feed (en in diens
+  // eigen inzage-export, die `Notification.body` prijsgeeft). Spiegelt de no-show-/credit-drie-kopie-
+  // behandeling: scope op de exacte, deterministisch reconstrueerbare body zodat we nooit de afwijzing
+  // van een ándere beslisser op diezelfde feed raken.
+  // unbounded-allow: AVG art. 17: alle eigen afgewezen-handoff-beslissingen met reden van één betrokkene; een take zou stilletjes PII laten staan
+  const ownDecidedRejectedHandoffs = await prisma.shiftHandoff.findMany({
+    where: { decidedByUserId: userId, status: "REJECTED", decisionNote: { not: null } },
+    select: {
+      requestedByUserId: true,
+      decisionNote: true,
+      collaboration: { select: { job: { select: { title: true } } } },
+    },
+  });
+
   const now = new Date();
   const meta = await requestMeta();
   await prisma.$transaction([
@@ -366,17 +387,19 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { senderId: userId },
       data: { body: "[Bericht verwijderd op verzoek van de gebruiker]" },
     }),
-    // AVG art. 17: de notificaties die de betrokkene zélf ontving dragen vrije tekst met PII in hun
+    // AVG art. 17: de notificaties die de betrokkene zélf ONTVING dragen vrije tekst met PII in hun
     // body — afwijs-/annulerings-/no-show-/creditredenen en de zelf-getypte certificaattitel (o.a.
     // NO_SHOW_REPORTED — mogelijk een gezondheidsgegeven, art. 9 —, PERFORMANCE_REJECTED,
-    // INVOICE_REJECTED, INVOICE_CREDITED, COLLABORATION_STATUS, CREDENTIAL_REJECTED,
-    // SHIFT_HANDOFF_REJECTED). Deze kopie leeft alleen op de `Notification`-rij (userId == de
-    // betrokkene) en werd tot nu toe nergens geraakt: de `user.update` triggert geen cascade en de
-    // enige bestaande notification-redactie hieronder is de DISPUTE_OPENED-admin-fanout in ándermans
-    // feed. Na anonimisering is het account SUSPENDED met lege passwordHash en kan het zijn feed nooit
-    // meer inzien, dus de body heeft geen operationeel doel meer → onomkeerbaar redacten voor álle
-    // eigen notificaties. Robuust: een toekomstig reden-dragend type valt hier automatisch onder. De
-    // titel blijft staan (generiek, geen PII).
+    // INVOICE_REJECTED, INVOICE_CREDITED, COLLABORATION_STATUS, CREDENTIAL_REJECTED). Deze kopieën leven
+    // op de eigen `Notification`-rij (userId == de betrokkene) en werden tot nu toe nergens geraakt: de
+    // `user.update` triggert geen cascade en de enige andere notification-redactie is de
+    // DISPUTE_OPENED-admin-fanout in ándermans feed. Na anonimisering is het account SUSPENDED met lege
+    // passwordHash en kan het zijn feed nooit meer inzien, dus de body heeft geen operationeel doel meer
+    // → onomkeerbaar redacten voor álle eigen notificaties. Robuust: een toekomstig reden-dragend type
+    // dat de betrokkene ONTVANGT valt hier automatisch onder. De titel blijft staan (generiek, geen PII).
+    // (NB — SHIFT_HANDOFF_REJECTED valt hier NIET onder: die notificatie landt op de feed van de
+    // AANVRAGER, terwijl de vrije tekst door de BESLISSER is geschreven. Die kopie wordt daarom apart,
+    // per gereconstrueerde body, geredact via `ownDecidedRejectedHandoffs` onderaan de transactie.)
     prisma.notification.updateMany({
       where: { userId },
       data: { body: "[Verwijderd op verzoek van de gebruiker]" },
@@ -635,6 +658,25 @@ export async function anonymizeUser(userId: string): Promise<void> {
           data: { body: "[Verwijderd op verzoek van de gebruiker]" },
         }),
       ),
+    // Tweede kopie van de shift-overname-afwijsreden (zie de `ownDecidedRejectedHandoffs`-toelichting
+    // hierboven): de AANVRAGER ontving een `SHIFT_HANDOFF_REJECTED`-notificatie met de door de beslisser
+    // getypte reden verbatim in de body. Reconstrueer die body deterministisch via de gedeelde
+    // `shiftHandoffRejectedNotificationBody` en redact precies díe notificatie op de aanvragersfeed —
+    // nooit de afwijzing van een ándere beslisser. (De `decisionNote`-bronredactie hierboven, gescopet op
+    // `decidedByUserId`, dekt kopie 1.)
+    ...ownDecidedRejectedHandoffs.map((h) =>
+      prisma.notification.updateMany({
+        where: {
+          userId: h.requestedByUserId,
+          type: "SHIFT_HANDOFF_REJECTED",
+          body: shiftHandoffRejectedNotificationBody({
+            jobTitle: h.collaboration.job.title,
+            note: h.decisionNote as string,
+          }),
+        },
+        data: { body: "[Verwijderd op verzoek van de gebruiker]" },
+      }),
+    ),
     prisma.auditLog.create({
       data: auditData({
         actorId: actor.id,
