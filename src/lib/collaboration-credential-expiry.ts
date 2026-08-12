@@ -315,3 +315,46 @@ export function collaborationMissingRequiredCredentials(input: {
   concerns.sort((a, b) => a.type.localeCompare(b.type));
   return concerns;
 }
+
+/**
+ * Bundelt de twee collab-gebonden certificaat-gaten (REEDS VERLOPEN + volledig ONTBREKEND) achter één
+ * gedeelde uitsluitingsfilter, zodat elke aanroeper ze identiek berekent:
+ * - VERPLICHTE typen (VOG/verzekering) → eigen `mandatoryDocumentTask` los van een samenwerking;
+ * - reeds AFGEWEZEN typen → eigen `credentialFixTask` (opnieuw indienen).
+ * Beide worden vóóraf uit elke `requiredTypes` gefilterd (`rejectedTypes` afgeleid uit de
+ * certificaatset zelf → geen aparte query nodig).
+ *
+ * `/acties` (`pending-tasks.ts`) vertaalt de teruggegeven arrays naar `credentialCollabExpired`/
+ * `credentialCollabMissing`-taken; de `/certificaten`-nav-badge (`signals.ts`) telt alleen hun lengte.
+ * Door dezelfde helper te delen kan de badge niet stiller (of luider) worden dan /acties — precies de
+ * badge↔lijst-drift die de codebase herhaaldelijk dicht (persona-sweep run 70, GEPARKEERD LOW).
+ *
+ * Puur/deterministisch, geen I/O; `now` injecteerbaar.
+ */
+export function collaborationRequiredCredentialGaps(input: {
+  collaborations: readonly CollabRequirementInput[];
+  credentials: readonly CollabCredentialInput[];
+  mandatoryTypes: readonly CredentialType[];
+  now: Date;
+}): { expired: ExpiredRequiredCredentialConcern[]; missing: MissingRequiredCredentialConcern[] } {
+  const mandatory = new Set(input.mandatoryTypes);
+  const rejectedTypes = new Set(
+    input.credentials.filter((c) => c.status === "REJECTED").map((c) => c.type),
+  );
+  const filtered = input.collaborations.map((c) => ({
+    ...c,
+    requiredTypes: c.requiredTypes.filter((t) => !mandatory.has(t) && !rejectedTypes.has(t)),
+  }));
+  return {
+    expired: collaborationExpiredRequiredCredentials({
+      collaborations: filtered,
+      credentials: input.credentials,
+      now: input.now,
+    }),
+    missing: collaborationMissingRequiredCredentials({
+      collaborations: filtered,
+      credentials: input.credentials,
+      now: input.now,
+    }),
+  };
+}

@@ -65,12 +65,16 @@ editAndResubmit`) waren hier al op geünificeerd (#903); `createPerformance` was
 >   **Fix (PR #1056):** een niet-partij (noch ZZP'er, noch opdrachtgever, noch admin) krijgt nu exact
 >   dezelfde "Samenwerking niet gevonden."-melding als een onbekend id; alleen de opdrachtgever (partij,
 >   verkeerde kant) houdt de behulpzame rolmelding. +2 regressietests in `anti-oracle-party.test.ts`.
-> - **LOW (DOEL 1b, freelancer — sub-symptoom van #2):** in exact de geblokkeerde-PROPOSED-staat krijgt
->   de ZZP'er op `/acties` de `credentialCollabMissing`/`-Expired`-taak (niet-verplicht vereist type),
->   maar geen enkele nav-badge telt die (`credentialAlerts` = `rejected + expiring(VERIFIED) +
-mandatoryAlerts` dekt een niet-verplicht ontbrekend/verlopen vereist cert niet). Na fix #2 toont
->   `/samenwerkingen` correct 0; de `/certificaten`-badge ondertelt de échte actie nog. Fix: tel de
->   credential-collab-taak in de `/certificaten`-badge.
+> - **GEFIXT — LOW (DOEL 1b, freelancer — sub-symptoom van #2):** in exact de geblokkeerde-PROPOSED-staat
+>   kreeg de ZZP'er op `/acties` de `credentialCollabMissing`/`-Expired`-taak (niet-verplicht vereist type),
+>   maar geen enkele nav-badge telde die (`credentialAlerts` = `rejected + expiring(VERIFIED) +
+mandatoryAlerts` dekt een niet-verplicht ontbrekend/verlopen vereist cert niet). Na fix #2 toonde
+>   `/samenwerkingen` correct 0; de `/certificaten`-badge ondertelde de échte actie nog. **Fix (PR #1059):**
+>   nieuwe gedeelde pure `collaborationRequiredCredentialGaps` (bundelt de VERLOPEN + ONTBREKEND collab-
+>   gaten achter één mandatory/rejected-uitsluitingsfilter); pending-tasks.ts (/acties) én signals.ts
+>   (de `/certificaten`-badge) delen die helper op dezelfde certificaatset → de badge telt het gat nu mee
+>   en kan niet driften. De expiry-tak zat al in de badge-`expiring`, dus alleen verlopen/ontbrekend telt
+>   extra. +7 tests.
 > - **LOW (DOEL 1, CSV-import — te-strakke overlap-collisie):** `importDienstenAction`
 >   (`diensten/importeer/actions.ts:106-109`) rondt elke dienst naar de hele dag → twee legitieme
 >   diensten op dezelfde kalenderdag (dag- + nachtblok, gangbaar in de zorg) krijgen identieke periodes
