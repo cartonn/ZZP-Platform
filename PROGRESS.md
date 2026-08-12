@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-12 — routine: CSV-diensten-import gebruikt exacte diensttijden i.p.v. hele kalenderdag (PR #1062)
+
+**Wat (ZZP'er, zorg):** de CSV-diensten-import (`/diensten/importeer`) rondde elke geïmporteerde dienst af naar
+de hele kalenderdag (`periodStart` → `00:00:00`, `periodEnd` → `23:59:59.999`). Twee legitieme diensten op
+dezelfde datum — bv. een dag- én een nachtdienst, gangbaar in VVT/GGZ — kregen dan identieke, elkaar
+overlappende periodes en botsten op de dubbel-factuur-rem (`assertNoOverlappingHoursPerformance`) → de tweede
+werd geweigerd. Hetzelfde gold voor een nachtdienst gevolgd door een dienst de dag erna. Een reële import-blokkade
+voor precies de zorg-ZZP'er waarvoor de import bedoeld is (geparkeerde persona-sweep-LOW, run 70).
+
+- **`src/app/(protected)/diensten/importeer/actions.ts`**: gebruikt nu de **exacte** diensttijden uit de parser
+  (`parseCsvShifts` levert al precieze datetimes) als `periodStart`/`periodEnd` i.p.v. de hele kalenderdag. Twee
+  niet-overlappende diensten overlappen dan niet meer; een écht duplicaat (identiek tijdvenster) blijft geweigerd.
+
+**Tests:** +2 in `actions.test.ts` (exacte periode 08:00–16:00; dag- + nachtdienst op dezelfde datum → beide
+geïmporteerd, niet-overlappende periodes). Gate: typecheck/lint/test/build/prettier groen; CI-poort via PR #1062.
+
+**Volgende stap:** volgende persona-sweep-gat of concurrent-gedreven UX/data-increment.
+
 ## 2026-08-12 — prod: reviews-reveal stille-faal-gauge (`zzp_reviews_overdue_reveal`, PR #1061)
 
 **Wat:** operationele-monitoring-gauge die de blinde vlek van de cron-heartbeat dicht voor de
