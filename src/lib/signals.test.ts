@@ -134,6 +134,31 @@ describe("buildBadges", () => {
     expect(badges["/franchise/leads"]).toEqual({ count: 1, tone: "attention" });
     expect(badges["/franchise/shift-overnames"]).toEqual({ count: 4, tone: "attention" });
   });
+
+  it("mapt aflopende plaatsingen (franchiser) naar /franchise/samenwerkingen met attention-toon", () => {
+    // Badge↔/acties-pariteit: het navitem /franchise/samenwerkingen krijgt nu de vervolg-badge die
+    // /acties (`franchiseCollaborationRenewalTask`) al toont — geen "signaal op één oppervlak" meer.
+    expect(buildBadges({ franchiseRenewals: 2 })).toEqual({
+      "/franchise/samenwerkingen": { count: 2, tone: "attention" },
+    });
+    // Geen aflopende plaatsing → geen badge (spiegelt "geen taak op /acties").
+    expect(buildBadges({ franchiseRenewals: 0 })).toEqual({});
+  });
+
+  it("toont de vervolg-badge los van de andere franchiser-signalen op hun eigen hrefs", () => {
+    const badges = buildBadges({
+      overdueLeads: 1,
+      openHandoffs: 4,
+      rosterAlerts: 3,
+      openDienstAlerts: 2,
+      franchiseRenewals: 5,
+    });
+    expect(badges["/franchise/leads"]).toEqual({ count: 1, tone: "attention" });
+    expect(badges["/franchise/shift-overnames"]).toEqual({ count: 4, tone: "attention" });
+    expect(badges["/franchise/zzpers"]).toEqual({ count: 3, tone: "attention" });
+    expect(badges["/franchise/diensten"]).toEqual({ count: 2, tone: "attention" });
+    expect(badges["/franchise/samenwerkingen"]).toEqual({ count: 5, tone: "attention" });
+  });
 });
 
 describe("countFreelancerCascadeWork", () => {

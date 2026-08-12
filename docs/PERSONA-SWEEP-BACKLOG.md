@@ -1,5 +1,30 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-12 (run 71) · **main-commit basis:** `c3f04410`
+> **Uitkomst:** **1 bereikbaar DOEL 1b-defect GEVONDEN + GEFIXT** (MED, badge↔/acties-pariteit). Drie parallelle
+> adversariële Opus-audits: recente money-math (WIK-staffel handelsrente/incassokosten #1051, credit/BTW, ORT) →
+> **schoon** (exhaustieve brute-force cent-vergelijking tegen exacte rationale rekenkunde, nul mismatches; de
+> aanmaning-bedragen zijn bovendien display-only, raken geen money-flow); newest authz/IDOR/cross-tenant/AVG
+> (shift-handoff, reviews-reveal double-blind, franchise-roster/diensten-mutaties, account-export/erasure) →
+> **schoon** (volledige auth→rol→ownership/tenant→Zod→transitie→audit-keten + CWE-203 anti-oracle overal aanwezig);
+> next-action/badge-pariteit → **dit ene gat**.
+>
+> 1. **GEFIXT — MED (DOEL 1b, bemiddelaar — /franchise/samenwerkingen-badge miste het vervolgsignaal):** een
+>    aflopende plaatsing binnen de tenant emit op `/acties` (`franchiseCollaborationRenewalTask`, pending-tasks.ts,
+>    sinds #1052) een "plan een vervolg"-taak die naar `/franchise/samenwerkingen` linkt, maar `navBadges`
+>    (`signals.ts`) telde voor de FRANCHISER alléén leads/shift-overnames/roster/diensten. `/franchise/samenwerkingen`
+>    was het enige franchiser-navitem met een /acties-taak zónder badge — het "signaal op één oppervlak"-anti-patroon
+>    (de partij-zijde kreeg die pariteit al in #1034). **Repro:** FRANCHISER met één ACTIEVE, niet-gedisputeerde
+>    samenwerking op een tenant-opdracht (`job.tenantId = franchiser.tenantId`) met `endDate` binnen het
+>    renewal-venster → `/acties` toont de taak + telt mee in de /acties-badge + rail, maar `/franchise/samenwerkingen`
+>    toont **geen** badge (0). **Fix:** nieuwe `SignalCounts`-sleutel `franchiseRenewals` (`SIGNAL_HREF`
+>    `/franchise/samenwerkingen`, tone `attention`); de FRANCHISER-tak roept de **bestaande gedeelde**
+>    `renewalAttentionBadgeCount({ job: { tenantId } }, now)` aan — exact dezelfde bron/venster/cap/attentiegrens als
+>    /acties → kan niet driften. +2 `buildBadges`-tests + nieuw `signals.badge-gaps-run71.test.ts` (3 e2e via
+>    `navBadges`, incl. tenant-scope-assertie).
+>
+> ---
+
 > **Datum:** 2026-08-11 (run 70) · **main-commit basis:** `b171426c`
 > **Uitkomst:** **2 bereikbare defecten GEVONDEN + GEFIXT** in niet-overlappende bestanden (2 MED),
 > plus 4 geparkeerd met repro. Vier parallelle Opus-audits: franchise-tenant-isolatie/IDOR → **schoon**
