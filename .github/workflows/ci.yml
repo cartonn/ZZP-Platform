@@ -10,9 +10,16 @@ on:
 env:
   NEXT_FONT_GOOGLE_MOCKED_RESPONSES: ${{ github.workspace }}/scripts/next-font-google-mock.cjs
 
+# Een push naar een PR-branch triggert zowel push als pull_request. Houd per commit één actuele run
+# over en voorkom dat een defecte runner urenlang capaciteit en de releasepoort vasthoudt.
+concurrency:
+  group: ci-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       DATABASE_URL: "file:./ci.db"
       AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
