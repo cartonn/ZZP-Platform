@@ -1393,6 +1393,29 @@ adversariële Opus-code-audits (document-privacy, cascade/money-math, nieuwste r
 
 Gate: typecheck, lint, prettier groen; test + build via de CI-poort (PR volgt).
 
+---
+
+## 2026-08-12 — routine: btw-tariefkeuze op de uitgave-invoer (ZZP'er)
+
+**Wat (ZZP'er, administratie-ontzorging):** het uitgave-formulier (`/financien` → boekhouding, ook
+`/uitgaven`) liet de ZZP'er zowel **bedrag excl. btw** als het **btw-bedrag** los intypen — dus bij elke bon
+zelf 21% of 9% uitrekenen. Elke boekhoudtool (Moneybird/e-Boekhouden/Jortt) laat je een tarief kiezen en rekent
+de btw automatisch. Nu: een **btw-tarief-keuze (21% / 9% / 0% / Handmatig)**; het btw-bedrag volgt automatisch uit
+het nettobedrag. "Handmatig" (of zelf het btw-veld aanpassen) laat een gemengde/buitenlandse bon vrij invullen.
+De server (`createExpense`) blijft de bron van waarheid en her-valideert netto én btw los — de UI vult alleen voor,
+beslist niets. Geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+
+- **`src/lib/expense.ts`**: nieuwe pure `EXPENSE_VAT_RATES` (21%/9%/0% in basispunten, sluit aan op
+  `VAT_RATE_BPS`), `vatCentsForRate(netCents, bps)` (deterministisch `Math.round`, spiegelt `administration/vat.ts`;
+  niet-positief/ongeldig → 0) en `centsToEuroInput(cents)` (centen → NL-komma-euro-invoer; 0/ongeldig → leeg veld).
+- **`src/components/administratie/uitgaven-form.tsx`**: netto/btw/tarief gecontroleerd; netto- of tariefwijziging
+  herberekent het btw-veld; een handmatige btw-aanpassing schakelt naar "Handmatig" zodat de invoer niet wordt
+  overschreven; reset na een geslaagde boeking. Layout naar 3 kolommen (netto · tarief · btw).
+
+**Tests:** `src/lib/expense.test.ts` +10 (`vatCentsForRate`: 21%/9%/0%, afronding € 33,33 → € 7,00, niet-positief
+netto/tarief → 0, elk standaardtarief ≥ 0; `centsToEuroInput`: NL-komma, 0/negatief/NaN → ""). Gate: typecheck,
+lint, test, build, prettier groen. CI-poort via PR #1066.
+
 ## 2026-08-12 — routine: winst-per-maand trend op /inzicht (ZZP'er)
 
 **Wat (ZZP'er, administratie-ontzorging):** het `/inzicht`-observatorium toonde wél **omzet** per maand

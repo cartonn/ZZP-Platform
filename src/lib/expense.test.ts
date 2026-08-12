@@ -9,6 +9,9 @@ import {
   EXPENSE_CATEGORY_LABEL,
   EXPENSE_MAX_CENTS,
   EXPENSE_DESCRIPTION_MAX,
+  EXPENSE_VAT_RATES,
+  vatCentsForRate,
+  centsToEuroInput,
 } from "./expense";
 
 describe("EXPENSE_CATEGORY_LABEL", () => {
@@ -228,5 +231,47 @@ describe("expenseCategoryShares", () => {
   it("zonder netto kosten → lege lijst (geen deling door nul)", () => {
     const s = summarizeExpenses([], { year: 2026 });
     expect(expenseCategoryShares(s)).toEqual([]);
+  });
+});
+
+describe("vatCentsForRate", () => {
+  it("21% van € 100,00 → € 21,00", () => {
+    expect(vatCentsForRate(10000, 2100)).toBe(2100);
+  });
+  it("9% van € 100,00 → € 9,00", () => {
+    expect(vatCentsForRate(10000, 900)).toBe(900);
+  });
+  it("0%-tarief → geen btw", () => {
+    expect(vatCentsForRate(10000, 0)).toBe(0);
+  });
+  it("rondt deterministisch af (21% van € 33,33 → € 7,00)", () => {
+    // 3333 * 2100 / 10000 = 699,93 → 700
+    expect(vatCentsForRate(3333, 2100)).toBe(700);
+  });
+  it("niet-positief of ongeldig netto → 0", () => {
+    expect(vatCentsForRate(0, 2100)).toBe(0);
+    expect(vatCentsForRate(-500, 2100)).toBe(0);
+    expect(vatCentsForRate(Number.NaN, 2100)).toBe(0);
+  });
+  it("negatief of ongeldig tarief → 0", () => {
+    expect(vatCentsForRate(10000, -1)).toBe(0);
+    expect(vatCentsForRate(10000, Number.NaN)).toBe(0);
+  });
+  it("elk standaardtarief levert een niet-negatief btw-bedrag", () => {
+    for (const r of EXPENSE_VAT_RATES) {
+      expect(vatCentsForRate(12345, r.bps)).toBeGreaterThanOrEqual(0);
+    }
+  });
+});
+
+describe("centsToEuroInput", () => {
+  it("formatteert centen met NL-komma", () => {
+    expect(centsToEuroInput(2100)).toBe("21,00");
+    expect(centsToEuroInput(700)).toBe("7,00");
+  });
+  it("nul of ongeldig → leeg veld (geen valse nul)", () => {
+    expect(centsToEuroInput(0)).toBe("");
+    expect(centsToEuroInput(-100)).toBe("");
+    expect(centsToEuroInput(Number.NaN)).toBe("");
   });
 });
