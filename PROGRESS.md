@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-12 — persona-sweep (run 72): download-routes vangen AuthorizationError af (geen rauwe 500)
+
+**Wat (DOEL 2, robuustheid, alle rollen):** vijf CSV-/template-download-route-handlers riepen
+`requireActor()`/`requireRole()` **ongevangen** aan, terwijl de 16 andere export/PDF/dossier-routes
+`AuthorizationError` al netjes afvangen tot `new Response(e.message, { status: e.status })`. Een mid-sessie
+geschorst of geanonimiseerd account houdt een geldige JWT (de middleware laat door op de stale `ACTIVE`-claim);
+`requireActor()` leest vers uit de DB en werpt 401/403 → zonder try/catch serveert Next.js een **rauwe 500**
+i.p.v. de nette status. Fail-closed (geen data-lek), maar inconsistent met het eigen patroon en het schendt de
+sweep-regel "verboden/onzin → nette status, nooit een 500". Live persona-sweep (4 rollen, Playwright) + drie
+adversariële Opus-code-audits (document-privacy, cascade/money-math, nieuwste routes) verder **schoon**.
+
+- **Fix (5 files):** dezelfde inline `try/catch(AuthorizationError)`-guard als de sibling-routes in
+  `src/app/(protected)/{diensten,prognose,prestaties,verplichtingen}/export/route.ts` +
+  `src/app/(protected)/admin/import/template/route.ts`.
+- **Tests:** `src/app/(protected)/export-auth-error.test.ts` (nieuw) — elke route geeft 401/403 als een
+  response i.p.v. te throwen (5 tests). `export-audit.test.ts` (bestaand, happy-path) blijft groen.
+- **Geparkeerd (LOW, repro in docs/PERSONA-SWEEP-BACKLOG.md):** niet-atomaire `InvoiceSequence`-teller
+  (P2002-rollback + generieke fout bij gelijktijdige dubbel-indiening, geen data-corruptie); 2 server actions
+  met dezelfde ongevangen `requireActor()` (faalmodus = client-error-boundary, lagere prioriteit).
+
+Gate: typecheck, lint, prettier groen; test + build via de CI-poort (PR volgt).
+
 ## 2026-08-12 — routine: winst-per-maand trend op /inzicht (ZZP'er)
 
 **Wat (ZZP'er, administratie-ontzorging):** het `/inzicht`-observatorium toonde wél **omzet** per maand
