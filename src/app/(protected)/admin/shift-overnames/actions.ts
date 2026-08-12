@@ -14,7 +14,7 @@ import { toSafeActionError } from "@/lib/safe-action-error";
 import { ownsViaTenant } from "@/lib/tenancy";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { assertHandoffTransition } from "@/lib/shift-handoff";
+import { assertHandoffTransition, shiftHandoffRejectedNotificationBody } from "@/lib/shift-handoff";
 import { type ShiftHandoffStatus } from "@/lib/enums";
 import { shiftHandoffRejectSchema } from "@/lib/validation";
 
@@ -147,9 +147,10 @@ export async function rejectShiftHandoff(
         userId: handoff.requestedByUserId,
         type: "SHIFT_HANDOFF_REJECTED",
         title: "Overname afgewezen",
-        body:
-          `De overname van "${handoff.collaboration.job.title}" is afgewezen. ` +
-          `Reden: ${parsed.data.note}`,
+        body: shiftHandoffRejectedNotificationBody({
+          jobTitle: handoff.collaboration.job.title,
+          note: parsed.data.note,
+        }),
         link: `/samenwerkingen/${handoff.collaboration.id}`,
       },
     }),

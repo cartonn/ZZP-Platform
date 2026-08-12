@@ -6,6 +6,7 @@ import {
   assertHandoffTransition,
   canRequestHandoff,
   canTransitionHandoff,
+  shiftHandoffRejectedNotificationBody,
 } from "@/lib/shift-handoff";
 
 describe("SHIFT_HANDOFF_TRANSITIONS", () => {
@@ -93,5 +94,16 @@ describe("canRequestHandoff", () => {
         false,
       );
     }
+  });
+});
+
+// Locked-body-test: schrijver (rejectShiftHandoff) én AVG-erasure (anonymizeUser) reconstrueren deze
+// exacte body om de afwijsreden op de aanvragersfeed te redacten. Wijzigt de body → dan matcht de
+// erasure niet meer en overleeft de reden art. 17. Deze test vangt zo'n drift.
+describe("shiftHandoffRejectedNotificationBody", () => {
+  it("produceert de exacte, gelockte body (opdrachttitel + reden)", () => {
+    expect(
+      shiftHandoffRejectedNotificationBody({ jobTitle: "Nachtdienst ZZP", note: "Niet geschikt" }),
+    ).toBe('De overname van "Nachtdienst ZZP" is afgewezen. Reden: Niet geschikt');
   });
 });

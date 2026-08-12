@@ -45,6 +45,23 @@ export function assertHandoffTransition(from: ShiftHandoffStatus, to: ShiftHando
   }
 }
 
+/**
+ * Body van de `SHIFT_HANDOFF_REJECTED`-notificatie die de AANVRAGER (ZZP'er) ontvangt wanneer een
+ * beslisser (FRANCHISER/ADMIN) een overname afwijst. De door de beslisser zelf getypte `decisionNote`
+ * (vrije tekst → PII van de beslisser) wordt hier verbatim in de body gekopieerd op ándermans feed.
+ *
+ * Eén gedeelde bron zodat de schrijver (`rejectShiftHandoff`) en de AVG-erasure (`anonymizeUser`, die
+ * bij verwijdering van de beslisser exact díe body op de aanvragersfeed moet redacten) nooit driften —
+ * anders matcht de erasure een andere body dan er staat en overleeft de reden art. 17. Spiegelt
+ * `noShowReportedNotificationBody`/`ideaStatusNotificationTitle`. Puur en los testbaar (locked-body-test).
+ */
+export function shiftHandoffRejectedNotificationBody(input: {
+  jobTitle: string;
+  note: string;
+}): string {
+  return `De overname van "${input.jobTitle}" is afgewezen. ` + `Reden: ${input.note}`;
+}
+
 export interface CanRequestHandoffInput {
   /** Status van de samenwerking. Alleen op een ACTIEVE inzet kan een overname worden aangevraagd. */
   collaborationStatus: string;

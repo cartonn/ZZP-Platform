@@ -4,6 +4,54 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-12 (basis: `main` @ fdcc8394)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(AVG-erasure/export-symmetrie; cross-tenant/franchiser-isolatie; API-route-handlers/upload/injectie/SSRF),
+plus de delta sinds de vorige ronde (`560caa69..fdcc8394`, #1054–#1059 — timing-zijkanaal-fix op de
+404-maskering, mail-aflever-heartbeat/`RecordingMailSender`, anti-oracle op `createPerformance`, IB-deadline-
+next-action, /certificaten-badge-drift). Gedekt: (1) **AVG/erasure** — `anonymizeUser` vs. álle 70 modellen met
+vrije-tekst-/PII-velden, export↔erasure-symmetrie, de "duplicate-copy erasure gap"-klasse (notificatie-body-
+kopieën op ándermans feed). (2) **cross-tenant** — `tenancy.ts`, alle `franchise/**`/`kandidaten/**`/
+`admin/franchises/**`-actions+pages, `signals.ts`/`pending-tasks.ts` FRANCHISER-takken, `roster-dossier.ts`
+(cross-tenant overloop-werk), mass-assignment van `tenantId` — schoon (server-side afgeleide tenantId, elke
+detail-lezing her-scopet). (3) **API/upload/injectie** — alle `/api/**`, storage-traversal + magic-byte-sniff,
+CSV-formule-injectie (`escapeCsvField`), push-SSRF-allowlist, open-redirect, foutlek, secrets — schoon. Nieuwe
+delta-code (mail-heartbeat: geen PII opgeslagen, fail-open observability; anti-oracle createPerformance correct).
+`npm audit --omit=dev` = **0**.
+
+**Resultaat: één HOOG AVG-gat OPGELOST (rood→groen) — de door de BESLISSER (FRANCHISER/ADMIN) zelf getypte
+shift-overname-afwijsreden (`ShiftHandoff.decisionNote`) overleefde de erasure van de beslisser als verbatim kopie
+in de `SHIFT_HANDOFF_REJECTED`-notificatie op de feed van de AANVRAGER. Cross-tenant- en API-/injectie-oppervlak
+schoon (geen nieuw KRITIEK/HOOG toegangs-, IDOR-, injectie-, SSRF- of overig PII-lek).**
+
+### OPGELOST — HOOG (AVG art. 17, CLAUDE.md regel 2/5): `ShiftHandoff.decisionNote` bleef leesbaar in de SHIFT_HANDOFF_REJECTED-notificatie op de aanvragersfeed na erasure van de beslisser
+
+- **Repro (was):** `rejectShiftHandoff` (`admin/shift-overnames/actions.ts:150`) interpoleert de door de BESLISSER
+  (FRANCHISER/ADMIN) zelf getypte `decisionNote` (vrije tekst → PII van de beslisser) verbatim in de **body** van de
+  `SHIFT_HANDOFF_REJECTED`-notificatie — die op de feed van de **AANVRAGER** (`requestedByUserId`) landt, een ándere
+  gebruiker dan de beslisser (`decidedByUserId`). Bij een AVG-verwijdering van de beslisser (`anonymizeUser`) nulde de
+  erasure wél de bron `ShiftHandoff.decisionNote` (`updateMany({ where:{ decidedByUserId } })`), maar de generieke
+  eigen-feed-wipe `notification.updateMany({ where:{ userId } })` raakt alleen de notificaties die de betrokkene zélf
+  ontving — nooit de kopie op de aanvragersfeed. Die overleefde art. 17 en werd bovendien via `account-export.ts`
+  (dat `Notification.body` prijsgeeft) aan de aanvrager in diens eigen inzage-export permanent getoond. Exact de
+  "duplicate-copy erasure gap"-klasse die de codebase al herhaaldelijk dichtte (dispuutreden-3-kopie,
+  no-show-reden-2-kopie, creditreden-3-kopie, `Idea.title`-notificatietitel). FRANCHISER is een normale, erasbare rol
+  (`canAnonymizeUser` blokkeert alleen ADMIN + self), dus reëel exploiteerbaar; de code-comment lijstte
+  `SHIFT_HANDOFF_REJECTED` juist onterecht als "gedekt door de eigen-feed-wipe".
+- **Geschonden regel:** AVG art. 17 (onvolledige erasure) + CLAUDE.md regel 2/5; OWASP A01 (privacy-datalek). Interne
+  inconsistentie met de bestaande no-show-/credit-reconstruct-en-redact-patronen in dezelfde file.
+- **Fix (deze PR):** gedeelde body-builder `shiftHandoffRejectedNotificationBody({jobTitle, note})` in
+  `src/lib/shift-handoff.ts` (één bron, geen drift tussen schrijver en erasure, spiegelt
+  `noShowReportedNotificationBody`); `rejectShiftHandoff` gebruikt 'm nu. `anonymizeUser` verzamelt vóór de transactie
+  `ownDecidedRejectedHandoffs` (`decidedByUserId=userId, status=REJECTED, decisionNote≠null`) en redact binnen de
+  transactie de exact-gereconstrueerde `SHIFT_HANDOFF_REJECTED`-body op de feed van elke aanvrager (gescopet op de
+  deterministische body, dus nooit de afwijzing van een ándere beslisser). De onterechte comment is gecorrigeerd.
+  Tests (rood→groen): +1 in `anonymize-erasure.test.ts` (notificatie-kopie op aanvragersfeed geredact) + 1
+  locked-body-unit in `shift-handoff.test.ts`.
+- **Restrisico (mens/FG):** bestaande FRANCHISER-accounts kunnen al afgewezen handoffs hebben wier notificatiekopie
+  een eenmalige backfill-redactie vereist naast de code-fix. Flag bij een FRANCHISER-erasureverzoek in productie.
+
 ## Ronde 2026-08-11b (basis: `main` @ 560caa69)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
