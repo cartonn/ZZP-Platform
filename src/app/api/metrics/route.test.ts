@@ -9,12 +9,14 @@ const queryRawMock = vi.hoisted(() => vi.fn(async () => [{ "1": 1 }]));
 const countMock = vi.hoisted(() => vi.fn(async () => 4));
 const subscriptionCountMock = vi.hoisted(() => vi.fn(async () => 0));
 const invoiceCountMock = vi.hoisted(() => vi.fn(async () => 0));
+const reviewCountMock = vi.hoisted(() => vi.fn(async () => 0));
 vi.mock("@/lib/db", () => ({
   prisma: {
     $queryRaw: queryRawMock,
     credential: { count: countMock },
     subscription: { count: subscriptionCountMock },
     invoice: { count: invoiceCountMock },
+    review: { count: reviewCountMock },
   },
 }));
 
@@ -60,6 +62,8 @@ describe("GET /api/metrics", () => {
     subscriptionCountMock.mockResolvedValue(0);
     invoiceCountMock.mockClear();
     invoiceCountMock.mockResolvedValue(0);
+    reviewCountMock.mockClear();
+    reviewCountMock.mockResolvedValue(0);
     cronMock.mockClear();
     backupMock.mockClear();
     process.env.CRON_SECRET = SECRET;
@@ -114,6 +118,23 @@ describe("GET /api/metrics", () => {
     const body = await res.text();
     expect(body).toContain("zzp_invoices_overdue_unflipped 7");
     expect(invoiceCountMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("telt de reveal-backlog (PENDING_REVEAL met verstreken revealDeadline) door", async () => {
+    reviewCountMock.mockResolvedValueOnce(6);
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    const body = await res.text();
+    expect(body).toContain("zzp_reviews_overdue_reveal 6");
+    expect(reviewCountMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("laat een falende reveal-backlog-telling de respons niet omverhalen (geen 500)", async () => {
+    reviewCountMock.mockRejectedValueOnce(new Error("review count kapot"));
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain("zzp_verification_queue 4");
+    expect(body).toContain("zzp_reviews_overdue_reveal 0");
   });
 
   it("laat een falende betaal-verval-telling de respons niet omverhalen (geen 500)", async () => {

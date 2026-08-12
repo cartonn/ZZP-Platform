@@ -4,6 +4,7 @@
 // updateMany zorgt dat een al-onthulde beoordeling niet dubbel publiceert of dubbel notificeert.
 // Draait mee in /api/tasks/run-all (de host configureert één cron). Pure beslisregel: isRevealDue.
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { logger } from "@/lib/observability/logger";
@@ -16,6 +17,17 @@ export interface RevealTaskResult {
   revealed: number;
 }
 
+/**
+ * De `where`-conditie voor beoordelingen wier reveal-venster verstreken is maar die nog niet
+ * gepubliceerd zijn (`PENDING_REVEAL` + `revealDeadline` ≤ nu) — precies het werk dat
+ * `runReviewsRevealTask` oppakt. Eén bron van waarheid, gedeeld door de taak (die ze publiceert) én de
+ * stille-faal-backlog-gauge op /api/metrics (`zzp_reviews_overdue_reveal`, die ze telt), zodat de gauge
+ * niet kan driften t.o.v. wat de cron daadwerkelijk onthult.
+ */
+export function overdueReviewRevealWhere(now: Date): Prisma.ReviewWhereInput {
+  return { status: "PENDING_REVEAL", revealDeadline: { lte: now } };
+}
+
 export async function runReviewsRevealTask(opts: {
   actorId?: string | null;
   now?: Date;
@@ -23,7 +35,7 @@ export async function runReviewsRevealTask(opts: {
   const now = opts.now ?? new Date();
 
   const due = await prisma.review.findMany({
-    where: { status: "PENDING_REVEAL", revealDeadline: { lte: now } },
+    where: overdueReviewRevealWhere(now),
     select: { id: true, subjectId: true, authorId: true, rating: true, collaborationId: true },
   });
 

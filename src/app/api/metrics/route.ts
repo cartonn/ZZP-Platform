@@ -11,7 +11,9 @@
 // expiry-cron nog niet omzette) en zzp_subscriptions_overdue_expiry (betaalde ACTIVE-abonnementen wier
 // periode voorbij is maar die de subscription-expiry-cron nog niet op CANCELLED zette) en
 // zzp_invoices_overdue_unflipped (cascade-facturen APPROVED met verstreken vervaldatum die de
-// payment-reminders-cron nog niet op OVERDUE zette) en zzp_audit_retention_backlog (auditregels ouder
+// payment-reminders-cron nog niet op OVERDUE zette) en zzp_reviews_overdue_reveal (beoordelingen met een
+// verstreken double-blind reveal-venster die de reviews-reveal-cron nog niet publiceerde) en
+// zzp_audit_retention_backlog (auditregels ouder
 // dan AUDIT_LOG_RETENTION_DAYS die de audit-retention-cron nog niet snoeide — AVG-dataminimalisatie) en
 // zzp_applications_retention_backlog (terminale reacties met vrije-tekst-PII ouder dan
 // APPLICATION_RETENTION_DAYS die de application-retention-cron nog niet snoeide — AVG-dataminimalisatie) en
@@ -69,6 +71,7 @@ import { prunableMessageWhere } from "@/lib/message-retention-task";
 import { webhookEventRetentionCutoff } from "@/lib/webhook-event-retention";
 import { prunableWebhookEventWhere } from "@/lib/webhook-event-retention-task";
 import { prunableRoutingCacheWhere } from "@/lib/routing-cache-retention-task";
+import { overdueReviewRevealWhere } from "@/lib/reviews-reveal-task";
 import { reportError } from "@/lib/observability/report";
 import type { CronFreshness } from "@/lib/observability/cron-freshness";
 import {
@@ -102,6 +105,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let overdueExpiryCredentials = 0;
   let overdueExpirySubscriptions = 0;
   let overdueUnflippedInvoices = 0;
+  let overdueReviewReveals = 0;
   let auditRetentionBacklog = 0;
   let applicationsRetentionBacklog = 0;
   let notificationsRetentionBacklog = 0;
@@ -166,6 +170,16 @@ async function collectInput(now: Date): Promise<MetricsInput> {
       overdueUnflippedInvoices = await prisma.invoice.count({
         where: { lifecycleStatus: "APPROVED", dueAt: { lt: now } },
       });
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
+    try {
+      // Beoordelingen wier double-blind reveal-venster verstreken is (PENDING_REVEAL + revealDeadline < nu):
+      // werk dat de reviews-reveal-cron had moeten doen (PENDING_REVEAL → PUBLISHED). Hergebruikt exact
+      // `overdueReviewRevealWhere(now)` (dezelfde bron van waarheid als de taak zelf) zodat de gauge de echte
+      // cron-backlog telt en niet kan driften. Een kleine, tijdelijke achterstand (tot één cron-interval) is
+      // normaal; aanhoudend/oplopend betekent dat afgeronde beoordelingen ná venstersluiting verborgen blijven.
+      overdueReviewReveals = await prisma.review.count({ where: overdueReviewRevealWhere(now) });
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
     }
@@ -322,6 +336,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     overdueExpiryCredentials,
     overdueExpirySubscriptions,
     overdueUnflippedInvoices,
+    overdueReviewReveals,
     auditRetentionBacklog,
     applicationsRetentionBacklog,
     notificationsRetentionBacklog,

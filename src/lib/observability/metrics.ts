@@ -85,6 +85,18 @@ export interface MetricsInput {
    */
   overdueUnflippedInvoices: number;
   /**
+   * Aantal beoordelingen (`Review`) wier double-blind reveal-venster verstreken is (`PENDING_REVEAL`
+   * met `revealDeadline` in het verleden) maar die de `reviews-reveal`-cron nog niet publiceerde — werk
+   * dat die cron had moeten doen (`PENDING_REVEAL → PUBLISHED`). Dezelfde stille-faal-detector-klasse als
+   * `overdueExpiryCredentials`/`overdueExpirySubscriptions`/`overdueUnflippedInvoices`: de cron-heartbeat
+   * bewijst alleen dát de run afrondde, niet dát 'ie de reveal-pijplijn verwerkte. Blijft dit getal
+   * oplopen terwijl de heartbeat "vers" is, dan blijven afgeronde beoordelingen ná hun venstersluiting
+   * verborgen — een SLA-breach op de vertrouwens-differentiatie (het beoordelingssysteem): de beoordeelde
+   * ziet zijn ontvangen beoordeling niet, de auteur weet niet dat de zijne zichtbaar had moeten worden.
+   * Een klein, tijdelijk aantal (tot één cron-interval tussen venstersluiting en de 05:00-run) is normaal.
+   */
+  overdueReviewReveals: number;
+  /**
    * Aantal auditregels ouder dan het geconfigureerde `AUDIT_LOG_RETENTION_DAYS`-venster die de
    * `audit-retention`-cron nog niet snoeide — werk dat die cron had moeten doen. Dezelfde
    * stille-faal-detector-klasse als `overdueExpiryCredentials`/`overdueExpirySubscriptions`/
@@ -306,6 +318,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal cascade-facturen met status APPROVED en een verstreken vervaldatum die de payment-reminders-cron nog niet op OVERDUE zette (een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen betaal-verval-pijplijn: geen aanmaningen, geen te-laat-signaal).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.overdueUnflippedInvoices)),
+    },
+    {
+      name: "zzp_reviews_overdue_reveal",
+      help: "Aantal beoordelingen met een verstreken double-blind reveal-venster (PENDING_REVEAL, revealDeadline in het verleden) die de reviews-reveal-cron nog niet publiceerde (een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen reveal-pijplijn: afgeronde beoordelingen blijven na venstersluiting verborgen — SLA-breach op het beoordelingssysteem).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.overdueReviewReveals)),
     },
     {
       name: "zzp_audit_retention_backlog",

@@ -124,6 +124,23 @@ groups:
         annotations:
           summary: "Betaal-verval-pijplijn verwerkt niets"
           description: "Er staan al > één cron-interval cascade-facturen met status APPROVED en een verstreken vervaldatum die niet naar OVERDUE zijn gezet (zzp_invoices_overdue_unflipped). De payment-reminders-cron rondt af maar markeert geen facturen te laat → geen aanmaningsladder, geen te-laat-signaal richting de opdrachtgever, en de ZZP'er wordt trager betaald."
+      - alert: ZzpReviewsOverdueReveal
+        # Vertrouwens-differentiatie (het beoordelingssysteem): de reviews-reveal-cron publiceert
+        # double-blind beoordelingen zodra hun venster sluit (revealDeadline ≤ nu). De cron-heartbeat
+        # bewijst alleen DÁT de run afrondde, niet DÁT 'ie de reveal-pijplijn verwerkte. Een oplopende
+        # backlog terwijl de heartbeat "vers" is betekent dat afgeronde beoordelingen ná venstersluiting
+        # verborgen blijven — de beoordeelde ziet zijn ontvangen beoordeling niet, de auteur weet niet dat
+        # de zijne zichtbaar had moeten worden. Een klein, tijdelijk aantal is normaal (een venster dat
+        # kort ná de 05:00-run sluit blijft tot de volgende dagelijkse run "overdue"); daarom een ruime
+        # `for:` (> één cron-interval + speling) zodat alleen een AANHOUDENDE backlog paget.
+        expr: zzp_reviews_overdue_reveal > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Beoordelings-reveal-pijplijn verwerkt niets"
+          description: "Er staan al > één cron-interval beoordelingen met een verstreken double-blind reveal-venster (PENDING_REVEAL, revealDeadline in het verleden) die niet zijn gepubliceerd (zzp_reviews_overdue_reveal). De reviews-reveal-cron rondt af maar onthult geen beoordelingen → afgeronde beoordelingen blijven na venstersluiting verborgen (SLA-breach op het beoordelingssysteem). Controleer de reviews-reveal-taak."
+
       - alert: ZzpAuditRetentionBacklog
         # AVG-dataminimalisatie (art. 5 lid 1e): auditregels dragen IP + user-agent. Een oplopende
         # backlog terwijl de heartbeat "vers" is betekent dat persoonsgegevens over de wettelijke termijn
