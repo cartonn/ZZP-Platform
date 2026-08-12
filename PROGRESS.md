@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-12 — prod: reviews-reveal stille-faal-gauge (`zzp_reviews_overdue_reveal`, PR #1061)
+
+**Wat:** operationele-monitoring-gauge die de blinde vlek van de cron-heartbeat dicht voor de
+`reviews-reveal`-cron. De heartbeat bewijst alleen DÁT de dagelijkse run afrondde, niet DÁT hij de
+reveal-pijplijn verwerkte. Een systematisch falende reveal laat afgeronde double-blind beoordelingen ná hun
+`revealDeadline` verborgen — een SLA-breach op de vertrouwens-differentiatie (het beoordelingssysteem): de
+beoordeelde ziet zijn ontvangen beoordeling niet, de auteur weet niet dat de zijne zichtbaar had moeten worden.
+Zelfde stille-faal-detector-patroon als `zzp_credentials_overdue_expiry`/`zzp_subscriptions_overdue_expiry`/
+`zzp_invoices_overdue_unflipped`.
+
+- **`src/lib/reviews-reveal-task.ts`**: nieuwe geëxporteerde `overdueReviewRevealWhere(now)` — één bron van
+  waarheid, gedeeld door de `findMany` die publiceert én de gauge-`count` die telt (geen drift).
+- **`src/lib/observability/metrics.ts`** + **`src/app/api/metrics/route.ts`**: gauge `zzp_reviews_overdue_reveal`
+  (PENDING_REVEAL + revealDeadline < nu), veilig geklemd, faalt nooit naar buiten (geen 500, geen PII).
+- **`docs/observability/alerts.yml`**: drop-in alert `ZzpReviewsOverdueReveal` (`> 0`, `for: 30h`).
+- **`docs/observability/alertmanager.yml`**: toegevoegd aan de onderhouds-inhibitie (dempt tijdens bewust onderhoud).
+- **Drift-gates:** `alerts-rules.ts` SAMPLE_INPUT + de bestaande `alerts-rules.test.ts`/`monitoring-bundle.test.ts`
+  klinken de nieuwe gauge/alert vast (nieuwe gauge zonder alert of dode alert breekt de CI-poort).
+
+**Tests:** +2 in `metrics.test.ts` (map + klem), +2 in metrics `route.test.ts` (telt door + faalt veilig),
++2 in nieuwe `reviews-reveal-task.test.ts` (where-vorm). Gate: relevante vitest groen; typecheck/lint/build/prettier
+via CI-poort. MENSENWERK.md §11 bijgewerkt (code-kant GEDAAN, geen resterend mensenwerk).
+
+**Volgende stap:** volgende hoogste-hefboom productie-rijpheid-stap; overige stille-faal-gauges zijn nu gedekt.
+
 ## 2026-08-12 — security/privacy: shift-overname-afwijsreden overleefde AVG-erasure van de beslisser (art. 17, HOOG)
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
