@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-12 — routine: winst-per-maand trend op /inzicht (ZZP'er)
+
+**Wat (ZZP'er, administratie-ontzorging):** het `/inzicht`-observatorium toonde wél **omzet** per maand
+(RevenueHero) en de YTD-**winst** leeft op `/ontzorgd`, maar nergens zag de ZZP'er **winst (omzet − kosten)
+per maand als trend** — de "wat hou ik écht over?"-vraag. Nieuw: een compacte "Winst per maand"-kaart op
+`/inzicht` (freelancer), gevoed uit hetzelfde grootboek (`OMZET`/`KOSTEN`-rekeningen via
+`administration/overview`) als de bestaande YTD-winst → **geen drift**. Geen schemawijziging, read-only.
+
+- **`src/lib/profit-trend.ts`** (nieuw): pure `buildProfitTrend(entries, party, now, months=6)` — bucket het
+  grootboek per kalendermaand (herbruikt `monthlyRevenue` uit `revenue.ts` voor identieke sleutels/labels/
+  ankerlogica), berekent per maand omzet (netto credit OMZET), kosten (netto debet KOSTEN) en winst (kan
+  negatief zijn — een verliesmaand is eerlijk) + totalen over het venster. Thin `getFreelancerProfitTrend`
+  leest de eigen `administrationEntry`-rijen (venster-gescoopt op `occurredAt`, `ownerUserId`).
+- **`src/app/(protected)/inzicht/page.tsx`**: `WinstPerMaandCard` (BiWidget + BarSeries) direct onder
+  RevenueHero; kop toont totale winst (success/warning-toon), secundair omzet + kosten; balken per maand.
+  Lege staat als er nog niets geboekt is.
+
+**Tests:** `src/lib/profit-trend.test.ts` (nieuw) — leeg venster, enkele omzetmaand, omzet+kosten (incl.
+verliesmaand negatief), spreiding over maanden/volgorde, partij- + rekening-filtering, netto-berekening
+(credit−debet), buiten-venster-uitsluiting. Gate: typecheck, lint, test, build, prettier groen. CI-poort via PR #1064.
+
+**Volgende stap:** volgende persona-sweep-gat of concurrent-gedreven UX/data-increment.
+
 ## 2026-08-12 — persona-sweep run 71: FRANCHISER /franchise/samenwerkingen-badge telt vervolgsignaal (badge = /acties)
 
 **Wat (DOEL 1b, bemiddelaar — badge↔/acties-pariteit):** een aflopende plaatsing binnen de tenant emit op

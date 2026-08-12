@@ -39,7 +39,15 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { GaugeRing, DonutChart, BiWidget, BiStatList, RevenueHero } from "@/components/insight/bi";
+import {
+  GaugeRing,
+  DonutChart,
+  BiWidget,
+  BiStatList,
+  BarSeries,
+  RevenueHero,
+} from "@/components/insight/bi";
+import { getFreelancerProfitTrend, type ProfitTrend } from "@/lib/profit-trend";
 import {
   getHoursCriterionSummary,
   type HoursCriterionSummary,
@@ -125,6 +133,72 @@ function StatusDonutWidget({
  * `getHoursCriterionSummary` (hergebruikt de bestaande telling); de voortgang zelf rendert de gedeelde
  * `UrencriteriumProgress` (ook gebruikt op /ontzorgd/uren) zodat beide oppervlakken niet driften.
  */
+function WinstPerMaandCard({ trend }: { trend: ProfitTrend }) {
+  if (!trend.hasData) {
+    return (
+      <BiWidget title="Winst per maand">
+        <EmptyState
+          icon={Coins}
+          title="Nog geen winstcijfers"
+          description="Zodra je facturen en uitgaven geboekt zijn, zie je hier je winst — omzet min kosten — per maand."
+        />
+      </BiWidget>
+    );
+  }
+  const profitTone = trend.totalProfitCents >= 0 ? "success" : "warning";
+  return (
+    <BiWidget
+      title="Winst per maand"
+      action={
+        <Link
+          href="/ontzorgd"
+          className="focus-ring inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:underline"
+        >
+          Naar ontzorgd
+          <ArrowRight className="size-3.5" aria-hidden />
+        </Link>
+      }
+    >
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Winst · laatste {trend.months} maanden
+            </p>
+            <p className="mt-1 font-mono text-3xl font-semibold tabular-nums tracking-tight">
+              {formatEuro(trend.totalProfitCents)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              omzet − kosten per maand · indicatief
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-x-8 gap-y-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Omzet</p>
+              <p className="mt-0.5 font-mono text-lg font-semibold tabular-nums">
+                {formatEuro(trend.totalRevenueCents)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Kosten</p>
+              <p className="mt-0.5 font-mono text-lg font-semibold tabular-nums">
+                {formatEuro(trend.totalCostCents)}
+              </p>
+            </div>
+          </div>
+        </div>
+        <BarSeries
+          data={trend.series.map((m) => ({ key: m.key, label: m.label, value: m.profitCents }))}
+          formatValue={formatEuro}
+          height={132}
+          tone={profitTone}
+          label="Winst per maand"
+        />
+      </div>
+    </BiWidget>
+  );
+}
+
 function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
   return (
     <BiWidget
@@ -145,12 +219,13 @@ function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
 }
 
 async function FreelancerInzicht({ userId }: { userId: string }) {
-  const [s, membership, trend, quality, hoursCriterion] = await Promise.all([
+  const [s, membership, trend, quality, hoursCriterion, profitTrend] = await Promise.all([
     getFreelancerStats(userId),
     getFreelancerMembership(userId),
     getFreelancerRevenueTrend(userId),
     getDeliveryQuality(userId),
     getHoursCriterionSummary(userId),
+    getFreelancerProfitTrend(userId),
   ]);
   if (!s) {
     return (
@@ -179,6 +254,8 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
           { label: "Reacties", value: `${s.applicationsTotal}` },
         ]}
       />
+
+      <WinstPerMaandCard trend={profitTrend} />
 
       {hoursCriterion && <UrencriteriumCard summary={hoursCriterion} />}
 
