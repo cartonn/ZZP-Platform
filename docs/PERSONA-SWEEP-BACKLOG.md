@@ -75,11 +75,14 @@ mandatoryAlerts` dekt een niet-verplicht ontbrekend/verlopen vereist cert niet).
 >   (de `/certificaten`-badge) delen die helper op dezelfde certificaatset → de badge telt het gat nu mee
 >   en kan niet driften. De expiry-tak zat al in de badge-`expiring`, dus alleen verlopen/ontbrekend telt
 >   extra. +7 tests.
-> - **LOW (DOEL 1, CSV-import — te-strakke overlap-collisie):** `importDienstenAction`
->   (`diensten/importeer/actions.ts:106-109`) rondt elke dienst naar de hele dag → twee legitieme
->   diensten op dezelfde kalenderdag (dag- + nachtblok, gangbaar in de zorg) krijgen identieke periodes
->   en botsen op de overlap-rem (`OVERLAPPING_PERFORMANCE_MESSAGE`) → de tweede wordt geweigerd. Fix:
->   fijnere periode-granulariteit bij CSV-import, of overlap alleen bij écht overlappende tijdvensters.
+> - **GEFIXT — LOW (DOEL 1, CSV-import — te-strakke overlap-collisie):** `importDienstenAction`
+>   (`diensten/importeer/actions.ts`) rondde elke dienst naar de hele dag → twee legitieme
+>   diensten op dezelfde kalenderdag (dag- + nachtblok, gangbaar in de zorg) kregen identieke periodes
+>   en botsten op de overlap-rem (`OVERLAPPING_PERFORMANCE_MESSAGE`) → de tweede werd geweigerd (idem
+>   een nachtdienst gevolgd door een dienst de dag erna). **Fix (PR #1062):** de import gebruikt nu de
+>   **exacte** diensttijden uit de parser als periode i.p.v. `00:00:00`–`23:59:59` van de kalenderdag;
+>   twee niet-overlappende diensten overlappen dan niet meer, terwijl een écht duplicaat (identiek
+>   tijdvenster) wél geweigerd blijft. +2 tests (exacte periode; dag+nachtdienst-scenario).
 > - **NIT (DOEL 2, franchise skillIds uncapped):** `franchise/zzpers/actions.ts:74`
 >   `formData.getAll("skillIds")` heeft geen lengte-cap (contrast: `freelancerProfileSchema.skillIds`
 >   `.max(50)`); alleen bestaande skills persisteren dus geen slechte staat, enkel querylast op een
