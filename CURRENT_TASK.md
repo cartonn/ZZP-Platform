@@ -262,6 +262,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — performance-grace stille-faal-gauge (`zzp_performances_overdue_grace`) (2026-08-12, PR #1069)** —
+> stille-faal-detector voor de laatste uitbetaal-kritische statustransitie-cron zonder gauge: `performance-grace` (SUBMITTED-prestatie →
+> automatisch APPROVED na het grace-venster `PERFORMANCE_GRACE_DAYS`, wat de factuur-cascade start). De cron-heartbeat bewijst alleen DÁT
+> `/api/tasks/run-all` afrondde, niet DÁT 'ie de grace-pijplijn verwerkte; bij een systematisch falende grace-taak blijven ingediende prestaties
+> ná hun deadline in SUBMITTED hangen → geen factuur, ZZP'er niet uitbetaald, zonder dat iets dat toont. Zelfde patroon als
+> `zzp_credentials_overdue_expiry`/`zzp_subscriptions_overdue_expiry`/`zzp_invoices_overdue_unflipped`/`zzp_reviews_overdue_reveal`. Nieuwe
+> geëxporteerde `overduePerformanceGraceWhere(cutoff)` als één bron van waarheid (gedeeld door de taak-findMany die auto-goedkeurt én de
+> gauge-telling → geen drift); gate op `performanceGraceDays() > 0` → staat het venster uit (pilot-default) dan gauge `0` (geen misleidend
+> signaal, geen onnodige DB-read). Drop-in alert `ZzpPerformancesOverdueGrace` (`> 0`, `for: 30h`) + onderhouds-inhibitie, vastgeklonken aan
+> de drift-gate. Read-only count, faalt veilig (0, nooit 500, geen PII), geen schema-/mutatie-/auth-oppervlak. +tests. Gate: typecheck, lint,
+> test (5825), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er — IB-aangiftedeadline als next-action op /acties (2026-08-11, PR #1058)** —
 > de aangifte-inkomstenbelasting-deadline (uiterlijk 1 mei ná het belastingjaar) — dé grootste jaarlijkse administratie-deadline —
 > zat al in de agenda-feed (#1045) en het ontzorg-overzicht, maar ontbrak op `/acties` (+ badge + rail), terwijl de kwartaal-BTW-deadline

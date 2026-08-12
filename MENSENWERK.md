@@ -1228,3 +1228,18 @@ maanden). Beide gauges hergebruiken **exact** dezelfde bron van waarheid als de 
   (`ZzpReviewsOverdueReveal`, `> 0` met `for: 30h` > één cron-interval) in `docs/observability/alerts.yml`,
   vastgeklonken aan beide drift-gates (`alerts-rules.ts` + de onderhouds-inhibitie in `alertmanager.yml`). Faalt
   veilig (nooit een 500), bevat geen PII. Resterend mensenwerk: **niets extra**.
+
+  **Code-kant GEDAAN (2026-08-12) — prestatie-grace stille-faal-gauge:** `zzp_performances_overdue_grace`
+  (aantal ingediende prestaties — `Performance` met status `SUBMITTED` — wier grace-venster
+  (`PERFORMANCE_GRACE_DAYS`) is verstreken op een niet-geannuleerde/niet-betwiste samenwerking, die de
+  `performance-grace`-cron nog niet automatisch goedkeurde). Dezelfde stille-faal-detector-klasse als
+  `zzp_reviews_overdue_reveal`, maar op de **uitbetaal-pijplijn**: auto-goedkeuring (`SUBMITTED → APPROVED`) is
+  de trigger die de factuur-cascade start. De cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de
+  grace-pijplijn verwerkte — blijft dit getal oplopen terwijl de heartbeat "vers" is, dan blijven prestaties ná
+  hun grace-deadline in SUBMITTED hangen → er wordt geen factuur aangemaakt en de ZZP'er wordt niet uitbetaald. De
+  gauge hergebruikt **exact** dezelfde bron van waarheid als de taak zelf (`overduePerformanceGraceWhere(cutoff)` —
+  geëxporteerd uit `performance-grace-task.ts`, gedeeld door de `findMany` die auto-goedkeurt én de `count` die
+  telt) → kan niet driften. Staat het grace-venster **uit** (`PERFORMANCE_GRACE_DAYS` leeg/0 = geen
+  auto-goedkeuring, de pilot-default), dan is de gauge per definitie `0`. Drop-in Prometheus-alert
+  (`ZzpPerformancesOverdueGrace`, `> 0` met `for: 30h`) in `docs/observability/alerts.yml`, vastgeklonken aan
+  beide drift-gates. Faalt veilig (nooit een 500), bevat geen PII. Resterend mensenwerk: **niets extra**.

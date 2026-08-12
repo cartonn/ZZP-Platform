@@ -1,6 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { parseGraceDays } from "./config";
-import { graceCutoff, isGraceEligible, type GraceCandidate } from "./performance-grace-task";
+import {
+  graceCutoff,
+  isGraceEligible,
+  overduePerformanceGraceWhere,
+  type GraceCandidate,
+} from "./performance-grace-task";
 
 // --- Runner-tests voor runPerformanceGraceTask ------------------------------
 
@@ -21,6 +26,19 @@ vi.mock("@/lib/cascade/commands", () => ({
 }));
 
 const NOW = new Date("2026-06-09T12:00:00.000Z");
+
+describe("overduePerformanceGraceWhere", () => {
+  it("beschrijft precies de auto-goedkeur-kandidaten (SUBMITTED, over cutoff, niet geannuleerd/betwist)", () => {
+    const cutoff = graceCutoff(NOW, 3);
+    // Zelfde vorm als de findMany-where in runPerformanceGraceTask én de metrics-gauge-telling:
+    // één bron van waarheid, zodat de stille-faal-gauge niet kan driften t.o.v. de cron.
+    expect(overduePerformanceGraceWhere(cutoff)).toEqual({
+      status: "SUBMITTED",
+      submittedAt: { not: null, lte: cutoff },
+      collaboration: { status: { not: "CANCELLED" }, disputedAt: null },
+    });
+  });
+});
 
 describe("parseGraceDays", () => {
   it("is uit (0) bij leeg, ontbrekend of ongeldig", () => {
