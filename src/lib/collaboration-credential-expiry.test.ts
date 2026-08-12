@@ -283,7 +283,13 @@ describe("collaborationMissingRequiredCredentials", () => {
     const result = collaborationMissingRequiredCredentials({
       collaborations: [collab({ requiredTypes: ["LICENSE"] })],
       credentials: [
-        cred({ id: "draft-1", title: "BIG", type: "LICENSE", status: "DRAFT", expiresAt: null }),
+        cred({
+          id: "draft-1",
+          title: "BIG-registratie",
+          type: "LICENSE",
+          status: "DRAFT",
+          expiresAt: null,
+        }),
       ],
       now: NOW,
     });
@@ -297,7 +303,7 @@ describe("collaborationMissingRequiredCredentials", () => {
       credentials: [
         cred({
           id: "ok",
-          title: "BIG",
+          title: "BIG-registratie",
           type: "LICENSE",
           status: "VERIFIED",
           expiresAt: inDays(90),
@@ -312,7 +318,13 @@ describe("collaborationMissingRequiredCredentials", () => {
     const result = collaborationMissingRequiredCredentials({
       collaborations: [collab({ requiredTypes: ["LICENSE"] })],
       credentials: [
-        cred({ id: "sub", title: "BIG", type: "LICENSE", status: "SUBMITTED", expiresAt: null }),
+        cred({
+          id: "sub",
+          title: "BIG-registratie",
+          type: "LICENSE",
+          status: "SUBMITTED",
+          expiresAt: null,
+        }),
       ],
       now: NOW,
     });
@@ -325,7 +337,7 @@ describe("collaborationMissingRequiredCredentials", () => {
       credentials: [
         cred({
           id: "exp",
-          title: "BIG",
+          title: "BIG-registratie",
           type: "LICENSE",
           status: "EXPIRED",
           expiresAt: inDays(-5),
@@ -352,19 +364,19 @@ describe("collaborationMissingRequiredCredentials", () => {
 
 describe("collaborationRequiredCredentialGaps", () => {
   const requirement = (over: Partial<CollabRequirementInput> = {}): CollabRequirementInput =>
-    collab({ requiredTypes: ["BIG"], ...over });
+    collab({ requiredTypes: ["LICENSE"], ...over });
 
   it("bundelt verlopen én ontbrekende vereiste certificaten", () => {
     const gaps = collaborationRequiredCredentialGaps({
       collaborations: [
-        requirement({ collaborationId: "c-exp", requiredTypes: ["BIG"] }),
+        requirement({ collaborationId: "c-exp", requiredTypes: ["LICENSE"] }),
         requirement({ collaborationId: "c-mis", requiredTypes: ["CERTIFICATE"] }),
       ],
       credentials: [
         cred({
           id: "big-old",
-          title: "BIG",
-          type: "BIG",
+          title: "BIG-registratie",
+          type: "LICENSE",
           status: "EXPIRED",
           expiresAt: inDays(-5),
         }),
@@ -372,7 +384,7 @@ describe("collaborationRequiredCredentialGaps", () => {
       mandatoryTypes: ["VOG", "INSURANCE"],
       now: NOW,
     });
-    expect(gaps.expired.map((c) => c.type)).toEqual(["BIG"]);
+    expect(gaps.expired.map((c) => c.type)).toEqual(["LICENSE"]);
     expect(gaps.missing.map((c) => c.type)).toEqual(["CERTIFICATE"]);
   });
 
@@ -408,12 +420,12 @@ describe("collaborationRequiredCredentialGaps", () => {
 
   it("telt een nu-geldig vereist certificaat niet als gat", () => {
     const gaps = collaborationRequiredCredentialGaps({
-      collaborations: [requirement({ requiredTypes: ["BIG"] })],
+      collaborations: [requirement({ requiredTypes: ["LICENSE"] })],
       credentials: [
         cred({
           id: "big-ok",
-          title: "BIG",
-          type: "BIG",
+          title: "BIG-registratie",
+          type: "LICENSE",
           status: "VERIFIED",
           expiresAt: inDays(200),
         }),

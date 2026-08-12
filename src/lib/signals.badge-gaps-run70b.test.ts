@@ -104,12 +104,12 @@ describe("FREELANCER /certificaten-badge — collab-vereist gat telt mee (run 70
   });
 
   it("telt een VERLOPEN vereist (niet-verplicht) certificaat", async () => {
-    state.collab = proposedRequiring("BIG");
+    state.collab = proposedRequiring("LICENSE");
     state.fullCreds = [
       {
         id: "big-old",
         title: "BIG-registratie",
-        type: "BIG",
+        type: "LICENSE",
         status: "EXPIRED",
         expiresAt: new Date("2026-01-01T00:00:00.000Z"),
       },
@@ -119,12 +119,12 @@ describe("FREELANCER /certificaten-badge — collab-vereist gat telt mee (run 70
   });
 
   it("geen badge wanneer het vereiste certificaat nu-geldig geverifieerd is", async () => {
-    state.collab = proposedRequiring("BIG");
+    state.collab = proposedRequiring("LICENSE");
     state.fullCreds = [
       {
         id: "big-ok",
         title: "BIG-registratie",
-        type: "BIG",
+        type: "LICENSE",
         status: "VERIFIED",
         expiresAt: new Date("2027-01-01T00:00:00.000Z"),
       },
