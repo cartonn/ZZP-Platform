@@ -10,6 +10,7 @@ const countMock = vi.hoisted(() => vi.fn(async () => 4));
 const subscriptionCountMock = vi.hoisted(() => vi.fn(async () => 0));
 const invoiceCountMock = vi.hoisted(() => vi.fn(async () => 0));
 const reviewCountMock = vi.hoisted(() => vi.fn(async () => 0));
+const performanceCountMock = vi.hoisted(() => vi.fn(async () => 0));
 vi.mock("@/lib/db", () => ({
   prisma: {
     $queryRaw: queryRawMock,
@@ -17,6 +18,7 @@ vi.mock("@/lib/db", () => ({
     subscription: { count: subscriptionCountMock },
     invoice: { count: invoiceCountMock },
     review: { count: reviewCountMock },
+    performance: { count: performanceCountMock },
   },
 }));
 
@@ -64,10 +66,13 @@ describe("GET /api/metrics", () => {
     invoiceCountMock.mockResolvedValue(0);
     reviewCountMock.mockClear();
     reviewCountMock.mockResolvedValue(0);
+    performanceCountMock.mockClear();
+    performanceCountMock.mockResolvedValue(0);
     cronMock.mockClear();
     backupMock.mockClear();
     process.env.CRON_SECRET = SECRET;
     delete process.env.MAINTENANCE_MODE;
+    delete process.env.PERFORMANCE_GRACE_DAYS;
   });
 
   it("geeft 503 zonder CRON_SECRET", async () => {
@@ -126,6 +131,34 @@ describe("GET /api/metrics", () => {
     const body = await res.text();
     expect(body).toContain("zzp_reviews_overdue_reveal 6");
     expect(reviewCountMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("telt de grace-backlog (SUBMITTED prestaties over hun grace-venster) door als het venster aanstaat", async () => {
+    process.env.PERFORMANCE_GRACE_DAYS = "3";
+    performanceCountMock.mockResolvedValueOnce(5);
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    const body = await res.text();
+    expect(body).toContain("zzp_performances_overdue_grace 5");
+    expect(performanceCountMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("telt de grace-backlog niet als het grace-venster uit staat (pilot-default) → gauge 0", async () => {
+    // Geen PERFORMANCE_GRACE_DAYS → geen auto-goedkeuring → geen achterstand per definitie; de
+    // count-query mag niet eens draaien (geen misleidend signaal, geen onnodige DB-read).
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    const body = await res.text();
+    expect(body).toContain("zzp_performances_overdue_grace 0");
+    expect(performanceCountMock).not.toHaveBeenCalled();
+  });
+
+  it("laat een falende grace-backlog-telling de respons niet omverhalen (geen 500)", async () => {
+    process.env.PERFORMANCE_GRACE_DAYS = "3";
+    performanceCountMock.mockRejectedValueOnce(new Error("performance count kapot"));
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain("zzp_verification_queue 4");
+    expect(body).toContain("zzp_performances_overdue_grace 0");
   });
 
   it("laat een falende reveal-backlog-telling de respons niet omverhalen (geen 500)", async () => {

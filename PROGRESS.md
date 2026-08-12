@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-12 — prod-rijpheid: performance-grace stille-faal-gauge (`zzp_performances_overdue_grace`)
+
+**Wat:** stille-faal-detector voor de laatste uitbetaal-kritische statustransitie-cron zonder gauge —
+`performance-grace` (SUBMITTED-prestatie → automatisch APPROVED na het grace-venster, wat de factuur-cascade
+start). De cron-heartbeat bewijst alleen DÁT `/api/tasks/run-all` afrondde, niet DÁT 'ie de grace-pijplijn
+verwerkte. Bij een systematisch falende grace-taak blijven ingediende prestaties ná hun grace-deadline in
+SUBMITTED hangen → er wordt geen factuur aangemaakt en de ZZP'er wordt niet uitbetaald, zonder dat iets dat
+toont. Zelfde patroon als `zzp_credentials_overdue_expiry` / `zzp_subscriptions_overdue_expiry` /
+`zzp_invoices_overdue_unflipped` / `zzp_reviews_overdue_reveal`.
+
+- **Bron van waarheid:** nieuwe geëxporteerde `overduePerformanceGraceWhere(cutoff)` in
+  `performance-grace-task.ts` — gedeeld door de taak (findMany die auto-goedkeurt) én de gauge-telling → geen
+  drift. Gate op `performanceGraceDays() > 0`: staat het grace-venster uit (`PERFORMANCE_GRACE_DAYS` leeg/0, de
+  pilot-default), dan is de gauge per definitie `0` (geen misleidend signaal, geen onnodige DB-read).
+- **Bestanden:** `src/lib/performance-grace-task.ts` (+where-export), `src/lib/observability/metrics.ts`
+  (gauge + `MetricsInput.overduePerformanceGrace`), `src/app/api/metrics/route.ts` (venster-gegate count,
+  faalt veilig → 0, nooit 500, geen PII), `docs/observability/alerts.yml` (drop-in alert
+  `ZzpPerformancesOverdueGrace`, `> 0`, `for: 30h`), `docs/observability/alertmanager.yml` (onderhouds-
+  inhibitie), `src/lib/observability/alerts-rules.ts` (`SAMPLE_INPUT`, vastgeklonken aan de drift-gate).
+- **Tests:** +metrics (map/klem/volledige-set), +route (venster-aan telt door, venster-uit → 0 zonder query,
+  falende telling → 0 + 200), +task (where-vorm = één bron van waarheid). Geen schema-/mutatie-/auth-oppervlak.
+- **Gate:** typecheck, lint, test (5825), build, prettier groen.
+
 ## 2026-08-12 — security/privacy-audit (ronde b): geen nieuwe gaten (basis `main` @ ac921eb6)
 
 **Wat:** volledige security-/privacy-auditronde als orchestrator (Opus 4.8) + 3 parallelle adversariële

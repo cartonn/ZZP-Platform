@@ -3,6 +3,7 @@
 // autoApprovePerformance (zelfde factuur-cascade + dedupeKey als handmatig). Idempotent. Staat
 // standaard UIT (PERFORMANCE_GRACE_DAYS leeg/0 → geen auto-goedkeuring), want het is financieel beleid.
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { performanceGraceDays } from "@/lib/config";
 import { autoApprovePerformance } from "@/lib/cascade/commands";
@@ -26,6 +27,22 @@ export interface GraceCandidate {
 /** Begin van het venster: prestaties ingediend vóór dit moment zijn over hun grace-tijd heen. */
 export function graceCutoff(now: Date, days: number): Date {
   return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+}
+
+/**
+ * De `where`-conditie voor ingediende prestaties die over hun grace-tijd heen zijn en automatisch
+ * goedgekeurd hadden moeten worden (`SUBMITTED` + `submittedAt` ≤ cutoff, op een niet-geannuleerde en
+ * niet-betwiste samenwerking) — precies het werk dat `runPerformanceGraceTask` oppakt. Eén bron van
+ * waarheid, gedeeld door de taak (die ze auto-goedkeurt) én de stille-faal-backlog-gauge op
+ * /api/metrics (`zzp_performances_overdue_grace`, die ze telt), zodat de gauge niet kan driften t.o.v.
+ * wat de cron daadwerkelijk verwerkt.
+ */
+export function overduePerformanceGraceWhere(cutoff: Date): Prisma.PerformanceWhereInput {
+  return {
+    status: "SUBMITTED",
+    submittedAt: { not: null, lte: cutoff },
+    collaboration: { status: { not: "CANCELLED" }, disputedAt: null },
+  };
 }
 
 /**
@@ -54,11 +71,7 @@ export async function runPerformanceGraceTask(opts: {
   const cutoff = graceCutoff(now, days);
 
   const rows = await prisma.performance.findMany({
-    where: {
-      status: "SUBMITTED",
-      submittedAt: { not: null, lte: cutoff },
-      collaboration: { status: { not: "CANCELLED" }, disputedAt: null },
-    },
+    where: overduePerformanceGraceWhere(cutoff),
     select: {
       id: true,
       status: true,

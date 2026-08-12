@@ -97,6 +97,19 @@ export interface MetricsInput {
    */
   overdueReviewReveals: number;
   /**
+   * Aantal ingediende prestaties (`SUBMITTED`) wier grace-venster (`PERFORMANCE_GRACE_DAYS`) verstreken
+   * is — op een niet-geannuleerde en niet-betwiste samenwerking — die de `performance-grace`-cron nog
+   * niet automatisch goedkeurde (SUBMITTED → APPROVED). Dezelfde stille-faal-detector-klasse als
+   * `overdueExpiryCredentials`/`overdueExpirySubscriptions`/`overdueUnflippedInvoices`/`overdueReviewReveals`:
+   * de cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de grace-pijplijn verwerkte. Auto-
+   * goedkeuring is de trigger die de factuur-cascade start; blijft dit getal oplopen terwijl de heartbeat
+   * "vers" is, dan blijven prestaties na hun grace-deadline in SUBMITTED hangen → er wordt geen factuur
+   * aangemaakt en de ZZP'er wordt niet uitbetaald, zonder dat iets dat toont. Staat het grace-venster UIT
+   * (`PERFORMANCE_GRACE_DAYS` leeg/0 = geen auto-goedkeuring, de pilot-default), dan is er per definitie
+   * geen achterstand en is deze gauge `0`.
+   */
+  overduePerformanceGrace: number;
+  /**
    * Aantal auditregels ouder dan het geconfigureerde `AUDIT_LOG_RETENTION_DAYS`-venster die de
    * `audit-retention`-cron nog niet snoeide — werk dat die cron had moeten doen. Dezelfde
    * stille-faal-detector-klasse als `overdueExpiryCredentials`/`overdueExpirySubscriptions`/
@@ -324,6 +337,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal beoordelingen met een verstreken double-blind reveal-venster (PENDING_REVEAL, revealDeadline in het verleden) die de reviews-reveal-cron nog niet publiceerde (een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen reveal-pijplijn: afgeronde beoordelingen blijven na venstersluiting verborgen — SLA-breach op het beoordelingssysteem).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.overdueReviewReveals)),
+    },
+    {
+      name: "zzp_performances_overdue_grace",
+      help: "Aantal ingediende prestaties (SUBMITTED) wier grace-venster (PERFORMANCE_GRACE_DAYS) verstreken is — op een niet-geannuleerde/niet-betwiste samenwerking — die de performance-grace-cron nog niet automatisch goedkeurde (0 als het grace-venster uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen grace-pijplijn: prestaties blijven na hun deadline in SUBMITTED hangen → geen factuur, de ZZP'er wordt niet uitbetaald).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.overduePerformanceGrace)),
     },
     {
       name: "zzp_audit_retention_backlog",

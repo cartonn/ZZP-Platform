@@ -140,6 +140,23 @@ groups:
         annotations:
           summary: "Beoordelings-reveal-pijplijn verwerkt niets"
           description: "Er staan al > één cron-interval beoordelingen met een verstreken double-blind reveal-venster (PENDING_REVEAL, revealDeadline in het verleden) die niet zijn gepubliceerd (zzp_reviews_overdue_reveal). De reviews-reveal-cron rondt af maar onthult geen beoordelingen → afgeronde beoordelingen blijven na venstersluiting verborgen (SLA-breach op het beoordelingssysteem). Controleer de reviews-reveal-taak."
+      - alert: ZzpPerformancesOverdueGrace
+        # Uitbetaal-kritische statustransitie: de performance-grace-cron keurt een ingediende prestatie
+        # (SUBMITTED) na het grace-venster (PERFORMANCE_GRACE_DAYS) automatisch goed, wat de factuur-cascade
+        # start. De cron-heartbeat bewijst alleen DÁT de run afrondde, niet DÁT 'ie de grace-pijplijn
+        # verwerkte. Een oplopende backlog terwijl de heartbeat "vers" is betekent dat prestaties na hun
+        # grace-deadline in SUBMITTED blijven hangen → er wordt geen factuur aangemaakt en de ZZP'er wordt
+        # niet uitbetaald. Een klein, tijdelijk aantal is normaal (een prestatie die net de deadline passeert
+        # blijft tot de volgende dagelijkse run "overdue"); daarom een ruime `for:` (> één cron-interval +
+        # speling) zodat alleen een AANHOUDENDE backlog paget. Staat het grace-venster uit
+        # (PERFORMANCE_GRACE_DAYS leeg/0), dan is de gauge per definitie 0 en vuurt deze alert nooit.
+        expr: zzp_performances_overdue_grace > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prestatie-grace-pijplijn verwerkt niets"
+          description: "Er staan al > één cron-interval ingediende prestaties (SUBMITTED) wier grace-venster verstreken is die niet automatisch zijn goedgekeurd (zzp_performances_overdue_grace). De performance-grace-cron rondt af maar keurt geen prestaties goed → er wordt geen factuur aangemaakt en de ZZP'er wordt niet uitbetaald. Controleer de performance-grace-taak."
 
       - alert: ZzpAuditRetentionBacklog
         # AVG-dataminimalisatie (art. 5 lid 1e): auditregels dragen IP + user-agent. Een oplopende

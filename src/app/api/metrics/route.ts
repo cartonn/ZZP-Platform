@@ -13,6 +13,8 @@
 // zzp_invoices_overdue_unflipped (cascade-facturen APPROVED met verstreken vervaldatum die de
 // payment-reminders-cron nog niet op OVERDUE zette) en zzp_reviews_overdue_reveal (beoordelingen met een
 // verstreken double-blind reveal-venster die de reviews-reveal-cron nog niet publiceerde) en
+// zzp_performances_overdue_grace (ingediende prestaties wier grace-venster verstreken is die de
+// performance-grace-cron nog niet automatisch goedkeurde — geen factuur, ZZP'er niet uitbetaald) en
 // zzp_audit_retention_backlog (auditregels ouder
 // dan AUDIT_LOG_RETENTION_DAYS die de audit-retention-cron nog niet snoeide — AVG-dataminimalisatie) en
 // zzp_applications_retention_backlog (terminale reacties met vrije-tekst-PII ouder dan
@@ -72,6 +74,8 @@ import { webhookEventRetentionCutoff } from "@/lib/webhook-event-retention";
 import { prunableWebhookEventWhere } from "@/lib/webhook-event-retention-task";
 import { prunableRoutingCacheWhere } from "@/lib/routing-cache-retention-task";
 import { overdueReviewRevealWhere } from "@/lib/reviews-reveal-task";
+import { performanceGraceDays } from "@/lib/config";
+import { graceCutoff, overduePerformanceGraceWhere } from "@/lib/performance-grace-task";
 import { reportError } from "@/lib/observability/report";
 import type { CronFreshness } from "@/lib/observability/cron-freshness";
 import {
@@ -106,6 +110,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let overdueExpirySubscriptions = 0;
   let overdueUnflippedInvoices = 0;
   let overdueReviewReveals = 0;
+  let overduePerformanceGrace = 0;
   let auditRetentionBacklog = 0;
   let applicationsRetentionBacklog = 0;
   let notificationsRetentionBacklog = 0;
@@ -180,6 +185,22 @@ async function collectInput(now: Date): Promise<MetricsInput> {
       // cron-backlog telt en niet kan driften. Een kleine, tijdelijke achterstand (tot één cron-interval) is
       // normaal; aanhoudend/oplopend betekent dat afgeronde beoordelingen ná venstersluiting verborgen blijven.
       overdueReviewReveals = await prisma.review.count({ where: overdueReviewRevealWhere(now) });
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
+    try {
+      // Ingediende prestaties (SUBMITTED) wier grace-venster verstreken is: werk dat de performance-grace-
+      // cron had moeten doen (auto-goedkeuring SUBMITTED → APPROVED, wat de factuur-cascade start).
+      // Hergebruikt exact `overduePerformanceGraceWhere(graceCutoff(now, days))` (dezelfde bron van waarheid
+      // als de taak zelf, incl. de niet-geannuleerd/niet-betwist-guard) zodat de gauge de echte cron-backlog
+      // telt en niet kan driften. Staat het grace-venster UIT (days <= 0, de pilot-default), dan is er per
+      // definitie geen auto-goedkeuring en dus geen achterstand → 0, geen misleidend signaal.
+      const days = performanceGraceDays();
+      if (days > 0) {
+        overduePerformanceGrace = await prisma.performance.count({
+          where: overduePerformanceGraceWhere(graceCutoff(now, days)),
+        });
+      }
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
     }
@@ -337,6 +358,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     overdueExpirySubscriptions,
     overdueUnflippedInvoices,
     overdueReviewReveals,
+    overduePerformanceGrace,
     auditRetentionBacklog,
     applicationsRetentionBacklog,
     notificationsRetentionBacklog,
