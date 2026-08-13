@@ -262,6 +262,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — verwachte betaaldatum in de openstaande-posten CSV (debiteurenlijst) (2026-08-13, PR #1075)** —
+> de `/openstaand`-pagina toont de ZZP'er per post de realistische verwachte-betaaldatum (uit het betaalgedrag van de opdrachtgever), maar de
+> CSV-export (`/api/administratie/openstaand`) gaf enkel de contractuele vervaldatum — screen↔export-drift op de cashflow-info die een
+> boekhouder/cashflow-tool wil. Nu draagt de ZZP'er-CSV een extra kolom `verwachte_betaaldatum` (ná `vervaldatum`), dezelfde effectieve
+> verwachte-binnendatum die het scherm toont; opdrachtgever/ADMIN houden de kale 7-koloms-vorm. Hergebruikt de bestaande pure motor
+> `buildPayoutForecastMap`/`effectivePayoutDate` (kan niet driften met het scherm); `agingCsv(report, expectedPaymentDates?)` optioneel →
+> zónder map byte-identiek aan voorheen. Read-only, geen schema-/domeinmotor-/mutatie-/auth-wijziging. +4 tests. Gate: typecheck, lint, test,
+> build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — koud-lopende opdracht als next-action op /acties (+ /opdrachten-badge) (2026-08-12, PR #1070)** —
 > het vacaturetempo-signaal (`summarizeVacancyPerformance.attention` — een gepubliceerde opdracht die koud loopt: geen/weinig kandidaten voor
 > de tijd dat hij open staat) stond al op de opdracht-lijst/-detail én als achtergrondnotificatie (`job-engagement.ts`), maar ontbrak in het

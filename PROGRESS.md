@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-13 — ZZP'er: verwachte betaaldatum in de openstaande-posten CSV (debiteurenlijst)
+
+**Wat:** de `/openstaand`-pagina toont de ZZP'er per openstaande factuur de realistische
+verwachte-betaaldatum (afgeleid uit het gemeten betaalgedrag van de opdrachtgever), maar de CSV-export
+(`/api/administratie/openstaand`) omvatte die kolom niet — screen↔export-drift op precies de
+cashflow-informatie die een boekhouder/cashflow-tool nodig heeft. De geëxporteerde debiteurenlijst gaf enkel
+de contractuele vervaldatum. Nu draagt de ZZP'er-CSV een extra kolom `verwachte_betaaldatum` (ná
+`vervaldatum`) met dezelfde effectieve verwachte-binnendatum die het scherm toont; de opdrachtgever/ADMIN
+houdt de kale kolommen (hun "verwacht" ís de vervaldatum — geen forecast-model).
+
+- **Bron van waarheid:** hergebruikt de bestaande pure motor `buildPayoutForecastMap`/`effectivePayoutDate`
+  (`src/lib/administration/payout-forecast.ts`) die de `/openstaand`-pagina al voedt — kan dus niet
+  uiteenlopen met het scherm. `agingCsv(report, expectedPaymentDates?)` kreeg een optionele map: zónder de
+  map byte-identiek aan voorheen (7 kolommen; opdrachtgever + legacy/tests ongewijzigd), mét de map de
+  extra kolom. De route laadt voor de ZZP'er ook de eigen PAID-facturen (privacy — enkel eigen historie),
+  spiegelt de fetch van `openstaand-panel.tsx`.
+- **Bestanden:** `src/lib/administration/aging.ts` (`agingCsv` optionele kolom),
+  `src/app/api/administratie/openstaand/route.ts` (forecast-fetch + effectieve datum per post),
+  `src/lib/administration/aging.test.ts` (+4 tests).
+- **Tests:** backward-compat (geen map → 7 kolommen, `undefined` ≡ weglaten), kolomvolgorde
+  (`verwachte_betaaldatum` ná `vervaldatum`), gemapte datum + leeg veld bij ontbrekend/null. Read-only,
+  geen schema-/domeinmotor-wijziging, geen nieuw mutatie-/auth-oppervlak. Gate: typecheck, lint, test,
+  build, prettier groen.
+
 ## 2026-08-13 — prod: scrape-niveau deadman (ZzpTargetDown / ZzpMetricsAbsent)
 
 **Wat:** de monitoring-bundle (`docs/observability/*`) had geen target-/scrape-niveau deadman — élke

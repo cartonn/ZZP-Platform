@@ -5,59 +5,107 @@ import { AuthorizationError, requireActor } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { buildAgingReport, agingCsv, type OpenInvoice } from "@/lib/administration/aging";
+import { buildPayoutForecastMap, effectivePayoutDate } from "@/lib/administration/payout-forecast";
+import { type PayoutForecast } from "@/lib/invoice-payment-forecast";
 import { exportRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
 export const dynamic = "force-dynamic";
 
-async function fetchOpenInvoices(actorId: string, isFreelancer: boolean): Promise<OpenInvoice[]> {
+interface OpenInvoicesResult {
+  open: OpenInvoice[];
+  /** Verwachte-betaaldatum-forecast per factuur-id (alleen ZZP'er). Leeg voor de opdrachtgever. */
+  forecasts: Map<string, PayoutForecast>;
+}
+
+async function fetchOpenInvoices(
+  actorId: string,
+  isFreelancer: boolean,
+): Promise<OpenInvoicesResult> {
   const where = isFreelancer
     ? { collaboration: { freelancer: { userId: actorId } } }
     : { collaboration: { company: { userId: actorId } } };
 
-  // unbounded-allow: API-route; eigenaar-scoped aggregatie
-  const invoices = await prisma.invoice.findMany({
-    where,
-    include: {
-      collaboration: {
-        select: {
-          job: { select: { title: true } },
-          company: { select: { id: true, name: true } },
-          freelancer: { select: { id: true, user: { select: { name: true } } } },
+  // Voor de ZZP'er ook de eigen betaalde facturen laden: daaruit leiden we het betaalgedrag per
+  // opdrachtgever af en projecteren we de realistische betaaldatum (privacy — enkel eigen historie).
+  // Spiegelt de `/openstaand`-pagina (openstaand-panel.tsx), zodat de CSV niet uiteenloopt met het scherm.
+  const [invoices, paidRows] = await Promise.all([
+    // unbounded-allow: API-route; eigenaar-scoped aggregatie
+    prisma.invoice.findMany({
+      where,
+      include: {
+        collaboration: {
+          select: {
+            job: { select: { title: true } },
+            company: { select: { id: true, name: true } },
+            freelancer: { select: { id: true, user: { select: { name: true } } } },
+          },
         },
       },
-    },
+    }),
+    isFreelancer
+      ? prisma.invoice.findMany({
+          where: { collaboration: { freelancer: { userId: actorId } }, status: "PAID" },
+          orderBy: { updatedAt: "desc" },
+          take: 300,
+          select: {
+            issuedAt: true,
+            dueAt: true,
+            updatedAt: true,
+            collaboration: { select: { company: { select: { id: true } } } },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const outstanding = invoices.filter((inv) => {
+    const isCascade = inv.lifecycleStatus != null;
+    if (isCascade) {
+      return ["SUBMITTED", "APPROVED", "OVERDUE"].includes(inv.lifecycleStatus as string);
+    }
+    return ["SENT", "OVERDUE"].includes(inv.status as string);
   });
 
-  return invoices
-    .filter((inv) => {
-      const isCascade = inv.lifecycleStatus != null;
-      if (isCascade) {
-        return ["SUBMITTED", "APPROVED", "OVERDUE"].includes(inv.lifecycleStatus as string);
-      }
-      return ["SENT", "OVERDUE"].includes(inv.status as string);
-    })
-    .map((inv) => {
-      const isCascade = inv.lifecycleStatus != null;
-      const number = isCascade ? (inv.partyInvoiceNumber ?? inv.number) : inv.number;
-      const counterpartyName = isFreelancer
-        ? (inv.collaboration?.company.name ?? "—")
-        : (inv.collaboration?.freelancer.user.name ?? "—");
-      const counterpartyId = isFreelancer
-        ? (inv.collaboration?.company.id ?? null)
-        : (inv.collaboration?.freelancer.id ?? null);
-      return {
-        id: inv.id,
-        number,
-        counterpartyName,
-        counterpartyId,
-        jobTitle: inv.collaboration?.job.title ?? null,
-        dueAt: inv.dueAt,
-        amountCents: inv.totalCents,
-        collaborationId: inv.collaborationId,
-        isCascade,
-      };
-    });
+  const open = outstanding.map((inv) => {
+    const isCascade = inv.lifecycleStatus != null;
+    const number = isCascade ? (inv.partyInvoiceNumber ?? inv.number) : inv.number;
+    const counterpartyName = isFreelancer
+      ? (inv.collaboration?.company.name ?? "—")
+      : (inv.collaboration?.freelancer.user.name ?? "—");
+    const counterpartyId = isFreelancer
+      ? (inv.collaboration?.company.id ?? null)
+      : (inv.collaboration?.freelancer.id ?? null);
+    return {
+      id: inv.id,
+      number,
+      counterpartyName,
+      counterpartyId,
+      jobTitle: inv.collaboration?.job.title ?? null,
+      dueAt: inv.dueAt,
+      amountCents: inv.totalCents,
+      collaborationId: inv.collaborationId,
+      isCascade,
+    };
+  });
+
+  const forecasts = isFreelancer
+    ? buildPayoutForecastMap(
+        outstanding.map((inv) => ({
+          id: inv.id,
+          companyId: inv.collaboration?.company.id ?? null,
+          issuedAt: inv.issuedAt,
+          dueAt: inv.dueAt,
+        })),
+        paidRows.map((row) => ({
+          companyId: row.collaboration?.company.id ?? null,
+          issuedAt: row.issuedAt,
+          dueAt: row.dueAt,
+          paidAt: row.updatedAt,
+        })),
+      )
+    : new Map<string, PayoutForecast>();
+
+  return { open, forecasts };
 }
 
 export async function GET(): Promise<Response> {
@@ -73,11 +121,19 @@ export async function GET(): Promise<Response> {
   if (limited) return limited;
 
   const isFreelancer = actor.role === "FREELANCER";
-  const openInvoices =
-    actor.role === "ADMIN" ? [] : await fetchOpenInvoices(actor.id, isFreelancer);
+  const { open: openInvoices, forecasts } =
+    actor.role === "ADMIN"
+      ? { open: [], forecasts: new Map<string, PayoutForecast>() }
+      : await fetchOpenInvoices(actor.id, isFreelancer);
 
   const report = buildAgingReport(openInvoices, new Date());
-  const csv = agingCsv(report);
+  // Alleen de ZZP'er (debiteurenlijst) krijgt de verwachte-betaaldatum-kolom: de effectieve
+  // verwachte-binnendatum per post (betaalgedrag-forecast indien betrouwbaar, anders de vervaldatum),
+  // exact zoals de `/openstaand`-pagina die toont. De opdrachtgever/ADMIN houdt de kale kolommen.
+  const expectedPaymentDates = isFreelancer
+    ? new Map(report.rows.map((r) => [r.id, effectivePayoutDate(r.id, r.dueAt, forecasts)]))
+    : undefined;
+  const csv = agingCsv(report, expectedPaymentDates);
 
   await prisma.auditLog.create({
     data: auditData({
