@@ -162,4 +162,16 @@ describe("hoursCriterionNeedsAction", () => {
     expect(s.feasibility).toBe("onhaalbaar");
     expect(hoursCriterionNeedsAction(s, now)).toBe(false);
   });
+
+  it("nudget NIET wanneer de prognose onder de 60%-trajectdrempel ligt, ook al is het benodigde weektempo haalbaar", () => {
+    // 1 juli, ~300 uur → benodigd tempo ≤40 u/week (ambitieus), maar de lineaire prognose (~600 uur)
+    // haalt geen 60% van 1.225 → de ZZP'er streeft dit jaar duidelijk niet naar de aftrek; net als de
+    // proactieve herinnering onderdrukken we de nudge (zou louter ontmoedigen).
+    const now = new Date("2026-07-01T12:00:00Z");
+    const s = buildSummary(300, 0, now);
+    expect(s.projectedMet).toBe(false);
+    expect(s.feasibility).not.toBe("onhaalbaar");
+    expect(s.projectedTotal).toBeLessThan(0.6 * 1225);
+    expect(hoursCriterionNeedsAction(s, now)).toBe(false);
+  });
 });
