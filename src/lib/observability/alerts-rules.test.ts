@@ -29,6 +29,15 @@ interface RulesDoc {
 const doc = parse(rulesText) as RulesDoc;
 const allRules: Rule[] = doc.groups.flatMap((g) => g.rules);
 
+/**
+ * Alerts die bewust op Prometheus' eigen `up`-scrape-metric evalueren i.p.v. op een door ons
+ * geëxposeerde zzp_-gauge. Reden: bij een mislukte scrape is er geen enkele gauge, dus een
+ * gauge-gebaseerde alert kan een totale storing per definitie niet vangen — daarvoor bestaat juist
+ * de target-niveau deadman. Deze mogen (en moeten) daarom de "verwijst naar een zzp_-gauge"-gate
+ * overslaan.
+ */
+const TARGET_LEVEL_ALERTS: ReadonlySet<string> = new Set(["ZzpTargetDown"]);
+
 /** `zzp_*`-namen die uitsluitend in `expr`-velden voorkomen (de daadwerkelijke alarmcondities). */
 function exprReferencedNames(): Set<string> {
   const names = new Set<string>();
@@ -99,6 +108,13 @@ describe("alerts.yml — drift-gate tegen buildMetrics", () => {
     const known = knownMetricNames();
     for (const rule of allRules) {
       const names = [...(rule.expr?.match(/zzp_[a-z0-9_]+/g) ?? [])];
+      if (TARGET_LEVEL_ALERTS.has(rule.alert ?? "")) {
+        // Target-/scrape-niveau alert: evalueert bewust op Prometheus' eigen `up`-metric (scrape-status),
+        // niet op een door ons geëxposeerde zzp_-gauge — juist zodat een mislukte scrape (waarbij er geen
+        // enkele gauge is) alsnog vuurt. Dwing daarom `up` af i.p.v. een zzp_-referentie.
+        expect(rule.expr, `${rule.alert} zonder up-referentie`).toMatch(/\bup\b/);
+        continue;
+      }
       expect(names.length, `alert ${rule.alert} verwijst naar geen enkele gauge`).toBeGreaterThan(
         0,
       );
@@ -106,5 +122,28 @@ describe("alerts.yml — drift-gate tegen buildMetrics", () => {
         expect(known.has(name), `alert ${rule.alert} → onbekende gauge ${name}`).toBe(true);
       }
     }
+  });
+});
+
+describe("alerts.yml — scrape-/target-niveau deadman", () => {
+  // Zonder deze twee alerts vuurt bij een totale storing (endpoint down, 503, geroteerde CRON_SECRET,
+  // netwerk/TLS) GEEN van de zzp_*-alerts — die evalueren over de gescrapete gauges, en bij een mislukte
+  // scrape is er geen data. Deze deadman dekt exact die blinde vlek.
+  const byName = (name: string) => allRules.find((r) => r.alert === name);
+
+  it("definieert ZzpTargetDown op de scrape-status (up == 0), critical", () => {
+    const rule = byName("ZzpTargetDown");
+    expect(rule, "ZzpTargetDown ontbreekt — scrape-deadman weg").toBeTruthy();
+    expect(rule?.expr).toMatch(/up\{job="zzp-platform"\}\s*==\s*0/);
+    expect(rule?.labels?.severity).toBe("critical");
+    expect(rule?.for).toBeTruthy();
+  });
+
+  it("definieert ZzpMetricsAbsent op de afwezigheid van de gauges (absent(zzp_up)), critical", () => {
+    const rule = byName("ZzpMetricsAbsent");
+    expect(rule, "ZzpMetricsAbsent ontbreekt — payload-deadman weg").toBeTruthy();
+    expect(rule?.expr).toMatch(/absent\(\s*zzp_up\s*\)/);
+    expect(rule?.labels?.severity).toBe("critical");
+    expect(rule?.for).toBeTruthy();
   });
 });

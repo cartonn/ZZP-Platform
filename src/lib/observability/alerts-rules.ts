@@ -20,8 +20,10 @@ import { buildMetrics, type MetricsInput } from "./metrics";
 /**
  * Gauges waarop je bewust NIET met een aparte alert-expressie paget — ze dragen context, geen
  * page-conditie op zich:
- * - `zzp_up`: is altijd 1 in een geslaagde scrape; afwezigheid vang je met een `up == 0`/absent-alert
- *   op de scrape zelf (targetniveau), niet op deze waarde.
+ * - `zzp_up`: is altijd 1 in een geslaagde scrape; de alarmeerbare conditie is de *afwezigheid*, niet
+ *   de waarde. Die wordt gedekt door de target-niveau deadman in alerts.yml: `ZzpTargetDown`
+ *   (`up == 0`, scrape faalt) en `ZzpMetricsAbsent` (`absent(zzp_up)`, gauges ontbreken). zzp_up staat
+ *   dus in INFO_ONLY (geen waarde-drempel-alert), maar wordt wél door `absent(zzp_up)` gerefereerd.
  * - `zzp_*_heartbeat_age_seconds`: rauwe leeftijd; de alarmeerbare conditie zit in de bijbehorende
  *   `_stale`-gauge (server-side tegen het venster berekend), niet in de kale leeftijd.
  *
