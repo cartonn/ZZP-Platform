@@ -49,6 +49,70 @@ export function classifyClientHealth(input: ClientActivityInput, now: Date): Cli
   return wholeDaysBetween(reference, now) >= CLIENT_IDLE_DAYS ? "attention" : "quiet";
 }
 
+/**
+ * Hoeveel hele dagen een klant al rustig is: sinds de laatste activiteit, of — als er nooit iets
+ * liep — sinds de aanmelddatum. Zelfde referentiekeuze als `classifyClientHealth`, zodat de leeftijd
+ * in de re-engagement-taak nooit tegenspreekt of een klant überhaupt `attention` is.
+ */
+export function clientIdleDays(input: ClientActivityInput, now: Date): number {
+  return wholeDaysBetween(input.lastActivityAt ?? input.createdAt, now);
+}
+
+/** Prisma `job.groupBy({ by: ["companyId"], _count: { _all }, _max: { createdAt } })`-vorm. */
+export interface PublishedJobActivity {
+  companyId: string;
+  _count: { _all: number };
+  _max: { createdAt: Date | null };
+}
+
+/** Prisma `collaboration.groupBy({ by: ["companyId"], _max: { updatedAt } })`-vorm. */
+export interface CollaborationActivity {
+  companyId: string;
+  _max: { updatedAt: Date | null };
+}
+
+/** Minimale klant-rij voor de gezondheidsafleiding (uit de al tenant-gescopet opgehaalde bedrijven). */
+export interface ClientCompanyActivityRow {
+  id: string;
+  createdAt: Date;
+  activeCollaborationCount: number;
+}
+
+/**
+ * Bouwt per klant de `ClientActivityInput` uit de al opgehaalde bedrijf-rijen + de twee gegroepeerde
+ * activiteitsaggregaten (open opdrachten, laatste samenwerking). Eén bron van waarheid voor de
+ * klantenlijst-pagina, de next-action-engine (`/acties`) én de nav-badge: de "laatst-actief"-afleiding
+ * (recentste van open-opdracht vs. laatste samenwerking) leeft hier, niet ge-inlined per oppervlak —
+ * anders driften de drie surfaces. Pure functie, los testbaar; geen I/O.
+ */
+export function buildClientActivityInputs(
+  companies: readonly ClientCompanyActivityRow[],
+  publishedJobs: readonly PublishedJobActivity[],
+  collabActivity: readonly CollaborationActivity[],
+): Map<string, ClientActivityInput> {
+  const publishedByCompany = new Map(publishedJobs.map((g) => [g.companyId, g]));
+  const lastCollabByCompany = new Map(collabActivity.map((g) => [g.companyId, g._max.updatedAt]));
+  const out = new Map<string, ClientActivityInput>();
+  for (const c of companies) {
+    const pub = publishedByCompany.get(c.id);
+    const lastJobAt = pub?._max.createdAt ?? null;
+    const lastCollabAt = lastCollabByCompany.get(c.id) ?? null;
+    const lastActivityAt =
+      lastJobAt && lastCollabAt
+        ? lastJobAt > lastCollabAt
+          ? lastJobAt
+          : lastCollabAt
+        : (lastJobAt ?? lastCollabAt);
+    out.set(c.id, {
+      createdAt: c.createdAt,
+      publishedJobCount: pub?._count._all ?? 0,
+      activeCollaborationCount: c.activeCollaborationCount,
+      lastActivityAt,
+    });
+  }
+  return out;
+}
+
 export interface ClientHealthSummary {
   total: number;
   /** Plaatst nu werk. */

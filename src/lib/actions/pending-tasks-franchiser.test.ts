@@ -45,6 +45,19 @@ const state = vi.hoisted(() => ({
     freelancer: { user: { name: string | null } };
   }[],
   lastRenewalWhere: undefined as unknown,
+  // Relatiegezondheid-fixtures voor de re-engagement-taak (stilgevallen opdrachtgever).
+  reengageCompanies: [] as {
+    id: string;
+    name: string;
+    createdAt: Date;
+    _count: { collaborations: number };
+  }[],
+  reengagePublishedJobs: [] as {
+    companyId: string;
+    _count: { _all: number };
+    _max: { createdAt: Date | null };
+  }[],
+  reengageCollabActivity: [] as { companyId: string; _max: { updatedAt: Date | null } }[],
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -97,6 +110,8 @@ vi.mock("@/lib/db", () => ({
       count: vi.fn(async (args: { where?: { jobs?: unknown } }) =>
         args?.where?.jobs ? state.counts.companiesWithoutDiensten : state.counts.companies,
       ),
+      // Tenant-opdrachtgevers voor het relatiegezondheid-signaal (re-engagement).
+      findMany: vi.fn(async () => state.reengageCompanies),
     },
     freelancerProfile: {
       findMany: vi.fn(async (args: { orderBy?: unknown; take?: number }) => {
@@ -131,6 +146,8 @@ vi.mock("@/lib/db", () => ({
         },
       ),
       count: vi.fn(async () => state.counts.publishedDiensten),
+      // Gegroepeerde open-opdracht-activiteit per opdrachtgever (re-engagement-bron).
+      groupBy: vi.fn(async () => state.reengagePublishedJobs),
     },
     // Open dienst-overnames (aparte tak) — hier leeg, zodat deze tests op de andere tenant-taken
     // gefocust blijven. De dedicated regressietest staat in pending-tasks.shift-handoff.test.ts.
@@ -142,6 +159,8 @@ vi.mock("@/lib/db", () => ({
         state.lastRenewalWhere = args?.where;
         return state.endingCollabs;
       }),
+      // Gegroepeerde samenwerking-activiteit per opdrachtgever (re-engagement-bron).
+      groupBy: vi.fn(async () => state.reengageCollabActivity),
     },
   },
 }));
@@ -185,6 +204,9 @@ beforeEach(() => {
   state.rosterQuery = null;
   state.endingCollabs = [];
   state.lastRenewalWhere = undefined;
+  state.reengageCompanies = [];
+  state.reengagePublishedJobs = [];
+  state.reengageCollabActivity = [];
   state.counts = {
     companies: 1,
     freelancers: 1,
@@ -570,5 +592,50 @@ describe("bemiddelaar next-actions — vervolgsignaal aflopende plaatsing (franc
     const tasks = await pendingTasks(ACTOR);
     const t = tasks.find((x) => x.kind === "franchise-collaboration-renewal");
     expect(t?.title).toBe("Plan een vervolg: de ZZP'er bij de opdrachtgever");
+  });
+});
+
+describe("bemiddelaar next-actions — stilgevallen opdrachtgever (franchise-client-reengagement)", () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const longAgo = new Date(Date.now() - 60 * DAY_MS);
+
+  it("emitteert een re-engagement-taak voor een stilgevallen opdrachtgever met de juiste deep-link", async () => {
+    state.reengageCompanies = [
+      { id: "co-stil", name: "Stille Zorg BV", createdAt: longAgo, _count: { collaborations: 0 } },
+    ];
+    // Geen open opdracht + laatste samenwerking ver in het verleden → attention (stilgevallen).
+    state.reengageCollabActivity = [{ companyId: "co-stil", _max: { updatedAt: longAgo } }];
+    const tasks = await pendingTasks(ACTOR);
+    const t = tasks.find((x) => x.kind === "franchise-client-reengagement");
+    expect(t).toBeDefined();
+    expect(t?.id).toBe("franchise-client-reengagement:co-stil");
+    expect(t?.href).toBe("/franchise/opdrachtgevers/co-stil");
+    expect(t?.tone).toBe("attention");
+    expect(t?.title).toContain("Stille Zorg BV");
+  });
+
+  it("emitteert géén taak voor een actieve opdrachtgever (lopende plaatsing of open dienst)", async () => {
+    state.reengageCompanies = [
+      { id: "co-actief", name: "Actief BV", createdAt: longAgo, _count: { collaborations: 1 } },
+      { id: "co-open", name: "Werft BV", createdAt: longAgo, _count: { collaborations: 0 } },
+    ];
+    state.reengagePublishedJobs = [
+      { companyId: "co-open", _count: { _all: 2 }, _max: { createdAt: new Date() } },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.kind === "franchise-client-reengagement")).toBe(false);
+  });
+
+  it("emitteert géén taak voor een recent aangemelde, nog-rustige opdrachtgever", async () => {
+    state.reengageCompanies = [
+      {
+        id: "co-nieuw",
+        name: "Nieuw BV",
+        createdAt: new Date(Date.now() - 3 * DAY_MS),
+        _count: { collaborations: 0 },
+      },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.kind === "franchise-client-reengagement")).toBe(false);
   });
 });

@@ -29,6 +29,7 @@ import {
 import { rosterExpiringByProfile, supersededVerifiedCredentialIds } from "@/lib/credentials";
 import { computeEngageability } from "@/lib/engageability";
 import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
+import { buildClientActivityInputs, summarizeClientHealth } from "@/lib/franchise/client-health";
 import { MANDATORY_CREDENTIAL_TYPES, mandatoryDocumentAlertCount } from "@/lib/mandatory-documents";
 import { type FreelancerCredential } from "@/lib/matching";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
@@ -65,6 +66,7 @@ interface SignalCounts {
   rosterAlerts?: number; // FRANCHISER: niet-inzetbare roster-ZZP'ers + (bijna-)verlopende certificaten
   openDienstAlerts?: number; // FRANCHISER: acute + te-lang-open (stale) tenant-diensten
   franchiseRenewals?: number; // FRANCHISER: aflopende plaatsingen die om een vervolg vragen (spiegelt /acties)
+  attentionClients?: number; // FRANCHISER: stilgevallen opdrachtgevers die om re-engagement vragen (spiegelt /acties)
   openSupportTickets?: number; // ADMIN: helpdesk-tickets die de helpdesk moet oppakken
   openNoShows?: number; // ADMIN: no-show-meldingen die op een oordeel wachten
   openAdminHandoffs?: number; // ADMIN: open shift-overname-aanvragen platform-breed
@@ -88,6 +90,7 @@ const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
   rosterAlerts: "/franchise/zzpers",
   openDienstAlerts: "/franchise/diensten",
   franchiseRenewals: "/franchise/samenwerkingen",
+  attentionClients: "/franchise/opdrachtgevers",
   openSupportTickets: "/admin/support",
   openNoShows: "/admin/no-shows",
   openAdminHandoffs: "/admin/shift-overnames",
@@ -113,6 +116,8 @@ const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
   openDienstAlerts: "attention",
   // Een aflopende plaatsing vraagt actie van de bemiddelaar (vervolg plannen).
   franchiseRenewals: "attention",
+  // Een stilgevallen opdrachtgever vraagt actie (re-engagement voor een vervolgopdracht).
+  attentionClients: "attention",
   // Admin-wachtrijen die actie vragen (helpdesk, no-shows, dienst-overnames).
   openSupportTickets: "attention",
   openNoShows: "attention",
@@ -869,6 +874,9 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       openDiensten,
       staleDiensten,
       franchiseRenewals,
+      attentionClientRows,
+      attentionPublishedJobs,
+      attentionCollabActivity,
     ] = await Promise.all([
       // Actieve leads (KOUD/WARM — KLANT/NO_DEAL zijn afgerond) met een opvolgdatum vóór vandaag.
       prisma.lead.count({
@@ -969,7 +977,52 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       // telling was `/franchise/samenwerkingen` het enige franchiser-navitem met een /acties-taak maar
       // zonder badge (het "signaal op één oppervlak"-anti-patroon; spiegelt de partij-fix #1034).
       renewalAttentionBadgeCount({ job: { tenantId } }, now),
+      // /franchise/opdrachtgevers — relatiegezondheid-bron voor de re-engagement-badge: alle
+      // tenant-opdrachtgevers + hun actieve samenwerkingen. Exact de scope/definitie van de
+      // klantenlijst-pagina én de /acties-taak (`franchiseClientReengagementTask`, pending-tasks.ts):
+      // `tenantScopeWhere` = `{ tenantId }`, ongelimiteerd (per tenant een beheerbaar aantal bedrijven).
+      // De twee groupBy-aggregaten hieronder leveren de open-opdracht-telling + het laatste-activiteit-
+      // moment. Zonder deze telling was `/franchise/opdrachtgevers` het enige bemiddeling-navitem met een
+      // pagina-signaal maar zonder badge (het "signaal op één oppervlak"-anti-patroon).
+      prisma.company.findMany({
+        where: { tenantId },
+        select: {
+          id: true,
+          createdAt: true,
+          _count: { select: { collaborations: { where: { status: "ACTIVE" } } } },
+        },
+      }),
+      prisma.job.groupBy({
+        by: ["companyId"],
+        where: { company: { tenantId }, status: "PUBLISHED" },
+        _count: { _all: true },
+        _max: { createdAt: true },
+      }),
+      prisma.collaboration.groupBy({
+        by: ["companyId"],
+        where: { company: { tenantId } },
+        _max: { updatedAt: true },
+      }),
     ]);
+
+    // /franchise/opdrachtgevers-badge = aantal `attention`-klanten (stilgevallen: geen open dienst/
+    // lopende plaatsing, ≥ CLIENT_IDLE_DAYS rustig), exact het aantal `franchiseClientReengagementTask`-
+    // taken op /acties. Zelfde pure afleiding + classificatie (`buildClientActivityInputs` →
+    // `summarizeClientHealth`) als de klantenlijst-pagina en pending-tasks.ts → kan niet driften.
+    const attentionClients = summarizeClientHealth(
+      [
+        ...buildClientActivityInputs(
+          attentionClientRows.map((c) => ({
+            id: c.id,
+            createdAt: c.createdAt,
+            activeCollaborationCount: c._count.collaborations,
+          })),
+          attentionPublishedJobs,
+          attentionCollabActivity,
+        ).values(),
+      ],
+      now,
+    ).attention;
 
     // /franchise/zzpers-badge = distinct profielen met (bijna-)verlopende certificaten + niet-inzetbare
     // roster-ZZP'ers, exact de som van de losse item-taken. Géén dedup op profiel: één ZZP'er kan zowel
@@ -1052,6 +1105,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       rosterAlerts,
       openDienstAlerts,
       franchiseRenewals,
+      attentionClients,
     });
   }
 
