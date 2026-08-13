@@ -4,6 +4,68 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-13 (basis: `main` @ 8e3e9f38) — geen nieuwe gaten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(1: alle server actions + `/api`-route-handlers → auth→rol→ownership→Zod→actie→audit + IDOR + mass-assignment;
+2: cross-tenant/franchiser-isolatie + AVG erasure/export-symmetrie + dataminimalisatie + k-anonimiteit + retentie;
+3: injectie (SQL/XSS/CSV/SSRF) + upload/storage + secrets + headers/CSP + foutafhandeling + CSRF), plus
+onafhankelijke orchestrator-probes over de héle repo. Delta sinds de vorige ronde: `ac921eb6..8e3e9f38`
+(#1068–#1072 — performance-grace stille-faal-gauge, koud-lopende opdracht als next-action/nav-badge,
+uitgaven-per-ZZP'er-uitsplitsing op /inzicht, opdrachtlijst-sortering-op-aandacht). **Resultaat: geen nieuw
+KRITIEK/HOOG/MIDDEL toegangs-, IDOR-, cross-tenant-, injectie-, upload-, SSRF-, secret- of PII-/AVG-gat. Niets
+te fixen; backlog-datum bijgewerkt.** Het enige openstaande HOOG-item (`NoShowReport.reason`/`Review.comment`
+[subjectId]/`ShiftHandoff`-vrije-tekst van dérden óver de betrokkene overleeft `anonymizeUser`) blijft
+**MENSENWERK** — een FG/juridische bewaargrond-afweging (art. 17 vergetelheid vs. bewijs bij een lopend
+arbeids-/betaalgeschil), geen agent-fix (MENSENWERK.md §5). Herbevestigd nog aanwezig, ongewijzigd.
+
+**Gedekt (OWASP Top 10 / ASVS + AVG-beginselen), met bewijs:**
+
+- **A01 Broken Access Control / IDOR — schoon.** Alle 51 `actions.ts` + 37 `/api`-route-handlers volgen de keten
+  auth (`requireActor`/`requireRole`) → rol → ownership/tenant (`owns`/`assertOwnership`/`ownsViaTenant`/
+  `canAccessDocument`) → Zod (`safeParse`) → statusovergang-map (`assertTransition`, compound
+  `updateMany({where:{id,status:from}})` TOCTOU-guard) → audit. Nonexistent-id en cross-owner/cross-tenant-id
+  geven een identieke "niet gevonden"-respons met gelijke audit-kost (anti-oracle CWE-203/208), o.a.
+  `/api/documents/[id]`, `/api/samenwerkingen/[id]/dossier`, `admin/shift-overnames/actions.ts`.
+- **A01 mass-assignment — schoon.** Registratie-Zod beperkt `role` tot `["FREELANCER","CLIENT"]`
+  (`validation.ts`); CSV-import her-valideert de rol server-side (`assertImportRole`). Geen Zod-schema dat
+  `tenantId`/`role`/`status`/`ownerId`/`verifiedAt` rechtstreeks vanuit client-input in een privileged write laat.
+- **A01 cross-tenant (FRANCHISER, multi-tenant) — schoon.** `tenantId` wordt uitsluitend server-side afgeleid via
+  `currentActor()` → `user.findUnique` op de sessie-id (nooit uit formData/searchParams); `tenant-stats.ts`,
+  `signals.ts`, `roster-dossier.ts` en elke `franchise/**/actions.ts`-mutatie her-scopet op tenant met
+  anti-oracle-regressietests. Delta (`getClientColdJobs`, `getClientSpendBreakdown`, franchise-renewal-badge)
+  is strikt eigen-gebruiker/eigen-company-gescopet (`company:{userId}`, `counterpartyUserId:userId`).
+- **A03 Injectie — schoon.** Geen `$queryRawUnsafe`/`$executeRawUnsafe`; enkel getagde `SELECT 1`-healthpings.
+  Enige `dangerouslySetInnerHTML` = het nonce-gepoorte theme-script (`layout.tsx`). Alle CSV-exports funnelen via
+  `escapeCsvField`/`toCsv` (formule-injectie-guard `= + @ - \t \r`, CWE-1236, + RFC 4180-quoting).
+- **A02/A04 Upload & storage — schoon.** `validateUpload` (MIME-allowlist + 10 MB) + `assertContentMatchesMime`
+  (magic-byte-sniff tegen vervalste Content-Type) + `generateStorageKey` (random UUID, nooit bestandsnaam als pad)
+  - `LocalStorageDriver.resolve` path-traversal-guard + S3 SSE-at-rest afgedwongen. Documentserving sandboxed
+    (`sandboxedDocumentHeaders`: `CSP: sandbox; default-src 'none'`, `nosniff`, `CORP same-origin`, `no-store`).
+- **A05 Beveiligingsconfig / headers — schoon.** Productie-CSP met per-request nonce + `strict-dynamic`,
+  `object-src 'none'`, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'` + violation-reporting;
+  `next.config.mjs` zet COOP/CORP same-origin, `X-Content-Type-Options`, strak `Permissions-Policy`.
+- **A07 Auth/sessie — schoon.** `/admin` triple-gated (middleware-edge + elke page + elke action), niet
+  client-side. Cron-/metrics-/webhook-endpoints fail-closed achter `timingSafeEqual`-Bearer/HMAC.
+- **A10 SSRF — schoon.** Geen server-side `fetch` met user-gestuurde URL; de enige uitgaande integratie
+  (`http-verify.ts`, iDIN) neemt zijn base-URL uitsluitend uit `process.env.IDENTITY_API_BASE`.
+- **Open redirect — schoon.** Enige niet-relatieve `redirect()` (`abonnement/actions.ts`) komt uit de
+  server-side provider-response `startCheckout`, niet uit client-input; `/api/media/[...key]` redirect naar een
+  presigned URL na key-validatie (moet een bekende `Company.logoKey` zijn).
+- **Foutafhandeling — schoon.** `error.tsx`/`global-error.tsx` tonen enkel een generieke NL-tekst + opaque
+  `digest`, nooit `message`/`stack`. `mail-sender` logt in productie geen ontvanger/onderwerp.
+- **AVG art. 17 erasure ↔ art. 15/20 export-symmetrie — schoon.** `anonymizeUser` scrubt ~20 tabellen/
+  notificatie-bodies/domein-event-payloads/audit-metadata (incl. duplicaat-kopieën op feeds van ándere
+  gebruikers), verwijdert credentials/documenten/logo race-free ná de transactie (CWE-367), en blokkeert
+  anonimisering zolang de actor nog een live Tenant bezit. Elk vrije-tekstveld in `buildAccountExport` heeft een
+  matchende redactie-tak (veld-voor-veld geverifieerd). Uitzondering: het geparkeerde HOOG-MENSENWERK-item.
+- **AVG dataminimalisatie & k-anonimiteit — schoon.** Franchise-selects zijn smal (geen BSN in het schema);
+  `MARKET_RATE_MIN_SAMPLE ≥ 10` server-side afgedwongen + regressietest. `/api/metrics` geeft enkel
+  geaggregeerde gauges (incl. de nieuwe `zzp_performances_overdue_grace`), geen rij-PII, fail-closed achter
+  `CRON_SECRET`.
+- **Dependencies.** `npm audit --omit=dev` = **0**; de 3 resterende meldingen (js-yaml e.a.) zitten uitsluitend
+  in devDependencies en worden niet meegeleverd naar productie.
+
 ## Ronde 2026-08-12b (basis: `main` @ ac921eb6) — geen nieuwe gaten
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
