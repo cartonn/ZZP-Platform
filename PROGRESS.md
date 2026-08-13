@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-13 — security/privacy: auditronde (basis `main` @ 8e3e9f38) — geen nieuwe gaten
+
+**Wat:** volledige security-/privacy-auditronde als orchestrator (Opus 4.8) + 3 parallelle adversariële
+Opus-audits op niet-overlappende oppervlakken — (1) alle 51 server actions + 37 `/api`-route-handlers
+(auth→rol→ownership→Zod→actie→audit, IDOR, mass-assignment), (2) cross-tenant/franchiser-isolatie + AVG
+erasure/export-symmetrie + dataminimalisatie + k-anonimiteit + retentie, (3) injectie (SQL/XSS/CSV/SSRF) +
+upload/storage + secrets + headers/CSP + foutafhandeling + CSRF — plus onafhankelijke orchestrator-probes
+over de héle repo (raw SQL, `dangerouslySetInnerHTML`, redirects, `npm audit --omit=dev`).
+
+- **Resultaat:** geen nieuw KRITIEK/HOOG/MIDDEL toegangs-, IDOR-, cross-tenant-, injectie-, upload-, SSRF-,
+  secret- of PII-/AVG-gat. `npm audit --omit=dev` = 0 (3 resterende meldingen zijn devDependencies). Delta
+  #1068–#1072 (`getClientColdJobs`/`getClientSpendBreakdown`/franchise-renewal-badge/`zzp_performances_overdue_grace`)
+  is strikt eigen-gebruiker/eigen-company-gescopet — schoon.
+- **Openstaand (ongewijzigd, MENSENWERK):** vrije tekst van dérden óver de betrokkene
+  (`NoShowReport.reason`/`Review.comment`[subjectId]/`ShiftHandoff`) overleeft `anonymizeUser` — FG/juridische
+  bewaargrond-afweging (AVG art. 17 vs. geschil-bewijs), geen agent-fix (MENSENWERK.md §5).
+- **Bijgewerkt:** `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-13, OWASP/AVG-dekking met bewijs).
+
 ## 2026-08-13 — opdrachtgever: "Mijn opdrachten"-lijst sorteert op aandacht
 
 **Wat:** de opdrachtenlijst van de opdrachtgever (`/opdrachten`, CLIENT-tak) stond op `updatedAt desc`.
