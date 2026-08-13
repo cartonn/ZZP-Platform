@@ -262,6 +262,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — betaalgedrag van je opdrachtgevers op /inzicht (2026-08-13, PR volgt)** —
+> de cascade-motor meet het betaalgedrag per opdrachtgever al (`computePaymentBehavior`) en gebruikt het stil (verwachte-betaaldatum op
+> `/openstaand` #1046, triage-chip op de opdrachtenlijst), maar de directe cashflow-vraag "wélke opdrachtgever betaalt traag, en hoeveel dagen
+> doet hij erover?" stond nergens als één overzicht. Nu een kaart "Betaalgedrag van je opdrachtgevers" op `/inzicht` (FREELANCER): per
+> opdrachtgever de gemeten betaaltijd, het op-tijd-percentage en een toon-chip (op tijd / redelijk / vaak laat), meest zorgwekkende betaler
+> eerst + telling van structureel-trage opdrachtgevers. Nieuwe pure `buildFreelancerPaymentBehaviourBreakdown` + loader
+> (`src/lib/freelancer-payment-behaviour.ts`): groepeert de eigen betaalde facturen (scoping `collaboration.freelancer.userId`, PAID — dezelfde
+> bron als `earnedCents`), draait de bestaande `computePaymentBehavior` per groep, alleen betrouwbare signalen (≥ `PAYMENT_MIN_SAMPLE_SIZE`),
+> sortering warning→neutral→good. Privacy: alleen eigen facturen, geen individueel bedrag getoond — enkel het geaggregeerde signaal. Read-only,
+> geen schema-/mutatie-/auth-wijziging. +5 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er — verwachte betaaldatum in de openstaande-posten CSV (debiteurenlijst) (2026-08-13, PR #1075)** —
 > de `/openstaand`-pagina toont de ZZP'er per post de realistische verwachte-betaaldatum (uit het betaalgedrag van de opdrachtgever), maar de
 > CSV-export (`/api/administratie/openstaand`) gaf enkel de contractuele vervaldatum — screen↔export-drift op de cashflow-info die een

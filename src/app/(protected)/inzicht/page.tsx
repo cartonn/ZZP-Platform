@@ -54,6 +54,12 @@ import {
   type HoursCriterionSummary,
 } from "@/lib/tax/hours-criterion-summary";
 import { UrencriteriumProgress } from "@/components/tax/urencriterium-progress";
+import {
+  getFreelancerPaymentBehaviourBreakdown,
+  type FreelancerPaymentBehaviourBreakdown,
+} from "@/lib/freelancer-payment-behaviour";
+import { type PaymentTone } from "@/lib/payment-behavior";
+import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = { title: "Inzicht · Handslag" };
 
@@ -220,14 +226,16 @@ function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
 }
 
 async function FreelancerInzicht({ userId }: { userId: string }) {
-  const [s, membership, trend, quality, hoursCriterion, profitTrend] = await Promise.all([
-    getFreelancerStats(userId),
-    getFreelancerMembership(userId),
-    getFreelancerRevenueTrend(userId),
-    getDeliveryQuality(userId),
-    getHoursCriterionSummary(userId),
-    getFreelancerProfitTrend(userId),
-  ]);
+  const [s, membership, trend, quality, hoursCriterion, profitTrend, paymentBehaviour] =
+    await Promise.all([
+      getFreelancerStats(userId),
+      getFreelancerMembership(userId),
+      getFreelancerRevenueTrend(userId),
+      getDeliveryQuality(userId),
+      getHoursCriterionSummary(userId),
+      getFreelancerProfitTrend(userId),
+      getFreelancerPaymentBehaviourBreakdown(userId),
+    ]);
   if (!s) {
     return (
       <Card>
@@ -384,7 +392,70 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
           </BiWidget>
         )}
       </div>
+
+      <FreelancerPaymentBehaviourCard breakdown={paymentBehaviour} />
     </div>
+  );
+}
+
+/** Toon-taal voor het betaalgedrag per opdrachtgever (kaart op /inzicht). */
+const PAYMENT_TONE_CHIP: Record<
+  PaymentTone,
+  { label: string; variant: "success" | "warning" | "default" | "muted" }
+> = {
+  good: { label: "Betaalt op tijd", variant: "success" },
+  neutral: { label: "Redelijk op tijd", variant: "default" },
+  warning: { label: "Betaalt vaak laat", variant: "warning" },
+  unknown: { label: "Nog geen signaal", variant: "muted" },
+};
+
+function FreelancerPaymentBehaviourCard({
+  breakdown,
+}: {
+  breakdown: FreelancerPaymentBehaviourBreakdown;
+}) {
+  return (
+    <BiWidget title="Betaalgedrag van je opdrachtgevers">
+      {breakdown.rows.length === 0 ? (
+        <EmptyState
+          icon={Building2}
+          title="Nog geen betaalsignaal"
+          description="Zodra opdrachtgevers een paar facturen hebben betaald, zie je hier wie snel of traag betaalt."
+        />
+      ) : (
+        <div className="space-y-3">
+          {breakdown.slowPayers > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {breakdown.slowPayers === 1
+                ? "Eén opdrachtgever betaalt structureel laat — houd die facturen scherp in de gaten."
+                : `${breakdown.slowPayers} opdrachtgevers betalen structureel laat — houd die facturen scherp in de gaten.`}
+            </p>
+          )}
+          {breakdown.rows.map((r) => {
+            const chip = PAYMENT_TONE_CHIP[r.behavior.tone];
+            const parts: string[] = [];
+            if (r.behavior.avgDaysToPay != null) {
+              parts.push(`gem. ${plural(r.behavior.avgDaysToPay, "dag", "dagen")} tot betaling`);
+            }
+            if (r.behavior.onTimePct != null) {
+              parts.push(`${r.behavior.onTimePct}% op tijd`);
+            }
+            parts.push(plural(r.behavior.sampleSize, "betaling", "betalingen"));
+            return (
+              <div key={r.companyId} className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="min-w-0 truncate text-sm font-medium">{r.name}</p>
+                  <Badge variant={chip.variant} className="shrink-0">
+                    {chip.label}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">{parts.join(" · ")}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </BiWidget>
   );
 }
 

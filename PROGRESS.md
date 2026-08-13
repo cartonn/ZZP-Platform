@@ -3,6 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-13 — ZZP'er: betaalgedrag van je opdrachtgevers op /inzicht
+
+**Wat:** De cascade-motor meet het betaalgedrag per opdrachtgever al (`computePaymentBehavior`) en
+gebruikt het stil — per openstaande factuur op `/openstaand` (verwachte-betaaldatum, #1046) en als
+triage-chip op de opdrachtenlijst — maar de directe cashflow-vraag van de ZZP'er "wélke opdrachtgever
+betaalt traag, en hoeveel dagen doet hij erover?" stond nergens als één overzicht. Nu een kaart
+"Betaalgedrag van je opdrachtgevers" op `/inzicht` (FREELANCER): per opdrachtgever de gemeten
+betaaltijd, het op-tijd-percentage en een toon-chip (op tijd / redelijk / vaak laat), met de meest
+zorgwekkende betaler eerst en een telling van structureel-trage opdrachtgevers. Zo weet de ZZP'er bij
+wie hij scherper moet nafactureren of andere betaalafspraken maken.
+
+**Verandering:**
+
+- Nieuwe pure aggregator + data-loader `src/lib/freelancer-payment-behaviour.ts`:
+  `buildFreelancerPaymentBehaviourBreakdown(invoices)` groepeert de eigen betaalde facturen per
+  opdrachtgever, draait de bestaande `computePaymentBehavior` per groep, laat alleen betrouwbare
+  signalen toe (≥ `PAYMENT_MIN_SAMPLE_SIZE` betalingen), sorteert warning→neutral→good (dan op
+  betaaltijd aflopend) en telt `slowPayers`. Loader scoopt op `collaboration.freelancer.userId`,
+  status PAID (dezelfde bron als `earnedCents`), begrensd op DB-niveau (`take: 500`).
+- Kaart in `src/app/(protected)/inzicht/page.tsx` (`FreelancerPaymentBehaviourCard`) met lege staat,
+  toon-chips (`Badge`) en een muted sub-regel; toegevoegd aan de `Promise.all` van `FreelancerInzicht`.
+
+**Privacy/architectuur:** alleen de eigen betaalde facturen (nooit data van andere ZZP'ers), geen
+individueel factuurbedrag getoond — enkel het geaggregeerde signaal. Server-side waarheid, read-only,
+geen schema-/mutatie-/auth-oppervlak.
+
+**Bestanden:** `src/lib/freelancer-payment-behaviour.ts` (+ `.test.ts`, +5 tests: leeg, te-weinig-
+historie overgeslagen, aggregatie+signaal, sortering+slowPayers, onbekende opdrachtgever genegeerd),
+`src/app/(protected)/inzicht/page.tsx`, `PROGRESS.md`, `CURRENT_TASK.md`. Gate: typecheck, lint, test,
+build, prettier — lokaal groen.
+
 ## 2026-08-13 — prod: retry + env-time-out hardening op de externe verificatie-HTTP (DUO/BIG/iDIN)
 
 **Wat:** De gedeelde verificatie-HTTP-helper (`src/lib/services/http-verify.ts`, gebruikt door de echte
