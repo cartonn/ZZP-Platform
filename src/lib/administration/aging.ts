@@ -158,24 +158,43 @@ export function buildAgingReport(invoices: readonly OpenInvoice[], now: Date): A
   return { rows, buckets, relations, totalOpenCents, overdueCents, overdueCount };
 }
 
-/** CSV-export van de openstaande posten. Kop: nummer;tegenpartij;opdracht;vervaldatum;dagen_te_laat;bucket;bedrag */
-export function agingCsv(report: AgingReport): string {
+/**
+ * CSV-export van de openstaande posten.
+ *
+ * Zonder `expectedPaymentDates`: kop `nummer;tegenpartij;opdracht;vervaldatum;dagen_te_laat;bucket;bedrag`
+ * (crediteuren-/opdrachtgever-view en legacy-aanroepers — byte-identiek aan voorheen).
+ *
+ * Mét `expectedPaymentDates` (ZZP'er-debiteurenlijst): een extra kolom `verwachte_betaaldatum` ná
+ * `vervaldatum`, zodat de geëxporteerde debiteurenlijst dezelfde realistische verwachte-betaaldatum
+ * draagt die de `/openstaand`-pagina toont (afgeleid uit het betaalgedrag van de opdrachtgever). Zo
+ * loopt de export niet uiteen met het scherm en krijgt een boekhouder/cashflow-tool dezelfde
+ * cashflow-informatie. De map geeft per factuur-id de effectieve verwachte-binnendatum
+ * (`effectivePayoutDate`); een ontbrekende/`null`-waarde levert een leeg veld.
+ */
+export function agingCsv(
+  report: AgingReport,
+  expectedPaymentDates?: ReadonlyMap<string, Date | null>,
+): string {
+  const withExpected = expectedPaymentDates !== undefined;
   const header = [
     "nummer",
     "tegenpartij",
     "opdracht",
     "vervaldatum",
+    ...(withExpected ? ["verwachte_betaaldatum"] : []),
     "dagen_te_laat",
     "bucket",
     "bedrag",
   ];
   const body = report.rows.map((r) => {
     const bucketLabel = AGING_BUCKETS.find((b) => b.key === r.bucket)!.label;
+    const expected = withExpected ? (expectedPaymentDates.get(r.id) ?? null) : null;
     return [
       r.number,
       r.counterpartyName,
       r.jobTitle ?? "",
       r.dueAt ? r.dueAt.toISOString().slice(0, 10) : "",
+      ...(withExpected ? [expected ? expected.toISOString().slice(0, 10) : ""] : []),
       r.daysOverdue,
       bucketLabel,
       centsToEuroPlain(r.amountCents),

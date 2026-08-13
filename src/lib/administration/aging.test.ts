@@ -284,6 +284,68 @@ describe("agingCsv", () => {
     expect(dataLines[0]!.split(";")[0]).toBe(report.rows[0]!.number);
     expect(dataLines[1]!.split(";")[0]).toBe(report.rows[1]!.number);
   });
+
+  // verwachte_betaaldatum-kolom (ZZP'er-debiteurenlijst) --------------------------------------
+
+  it("zonder expectedPaymentDates: geen verwachte_betaaldatum-kolom (backward compatible)", () => {
+    const report = buildAgingReport(
+      [makeInvoice({ id: "F-1", amountCents: 100_00, dueAt: daysAgo(5) })],
+      NOW,
+    );
+    // Zowel weglaten als undefined moeten byte-identiek de 7-koloms-vorm geven.
+    expect(agingCsv(report).split("\r\n")[0]).toBe(
+      "nummer;tegenpartij;opdracht;vervaldatum;dagen_te_laat;bucket;bedrag",
+    );
+    expect(agingCsv(report, undefined)).toBe(agingCsv(report));
+  });
+
+  it("mét expectedPaymentDates: kolom verwachte_betaaldatum staat ná vervaldatum", () => {
+    const report = buildAgingReport([], NOW);
+    const csv = agingCsv(report, new Map());
+    expect(csv).toBe(
+      "nummer;tegenpartij;opdracht;vervaldatum;verwachte_betaaldatum;dagen_te_laat;bucket;bedrag",
+    );
+  });
+
+  it("mét expectedPaymentDates: toont de gemapte datum, en leeg veld bij ontbrekend/null", () => {
+    const withForecast = makeInvoice({
+      id: "F-fc",
+      number: "F-fc",
+      amountCents: 100_00,
+      dueAt: daysAgo(2),
+    });
+    const missing = makeInvoice({
+      id: "F-miss",
+      number: "F-miss",
+      amountCents: 100_00,
+      dueAt: daysAgo(1),
+    });
+    const nullDate = makeInvoice({
+      id: "F-null",
+      number: "F-null",
+      amountCents: 100_00,
+      dueAt: daysAgo(3),
+    });
+    const report = buildAgingReport([withForecast, missing, nullDate], NOW);
+    const expected = new Map<string, Date | null>([
+      ["F-fc", new Date("2026-06-15T00:00:00.000Z")],
+      ["F-null", null],
+      // F-miss bewust niet in de map → leeg veld
+    ]);
+    const csv = agingCsv(report, expected);
+    const byNumber = new Map(
+      csv
+        .split("\r\n")
+        .slice(1)
+        .map((line) => {
+          const cols = line.split(";");
+          return [cols[0]!, cols[4]!]; // nummer → verwachte_betaaldatum (kolom-index 4)
+        }),
+    );
+    expect(byNumber.get("F-fc")).toBe("2026-06-15");
+    expect(byNumber.get("F-miss")).toBe("");
+    expect(byNumber.get("F-null")).toBe("");
+  });
 });
 
 // ---------------------------------------------------------------------------
