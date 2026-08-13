@@ -14,6 +14,8 @@ const state = {
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    // fiscale-deadline-bron (BTW/IB) die navBadges nu leest; geen deadlines in deze test (run 73).
+    administrationEntry: { findMany: () => Promise.resolve([]) },
     company: { findUnique: vi.fn(async () => ({ id: "c-1" })) },
     application: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
     job: { count: vi.fn(async () => state.draftJobs) },

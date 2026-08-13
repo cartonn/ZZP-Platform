@@ -19,6 +19,8 @@ let collabQueries: CollabQuery[] = [];
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    // fiscale-deadline-bron (BTW/IB) die navBadges nu leest; geen deadlines in deze test (run 73).
+    administrationEntry: { findMany: () => Promise.resolve([]) },
     freelancerProfile: { findUnique: vi.fn(async () => ({ id: "fp-1" })) },
     credential: {
       count: vi.fn(async () => 0),

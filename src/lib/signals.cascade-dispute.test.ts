@@ -18,6 +18,8 @@ const jobCount = vi.fn((): Promise<number> => Promise.resolve(0));
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    // fiscale-deadline-bron (BTW/IB) die navBadges nu leest; geen deadlines in deze test (run 73).
+    administrationEntry: { findMany: () => Promise.resolve([]) },
     company: {
       findUnique: vi.fn(() => Promise.resolve({ id: "co-1" })),
     },

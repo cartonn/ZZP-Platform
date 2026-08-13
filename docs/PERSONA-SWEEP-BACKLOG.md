@@ -1,5 +1,43 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-13 (run 73) · **main-commit basis:** `5ca5e4b3`
+> **Uitkomst:** **1 bereikbaar DOEL 1b-defect GEVONDEN + GEFIXT** (MED, fiscale-deadline-taken op /acties
+> zonder nav-badge → badge↔/acties-drift) plus **1 latente correctheids-inconsistentie GEFIXT** (TZ-mix in
+> de BTW-deadline-dagberekening). Live persona-sweep (alle 4 rollen, Playwright/Chromium): **schoon** —
+> alle rollen loggen in, dashboard + /acties laden 200, **geen enkele 500**; ZZP'er-privilege-escalatie naar
+> `/admin/*`, `/franchise/*` en het opdrachtgever-only `/kandidaten` wordt door de middleware naar
+> `/dashboard` geredirect (geen admin-data); IDOR op `/api/facturen/[id]/pdf`, `/api/documents/[id]`,
+> `/api/samenwerkingen/[id]/dossier` als ZZP'er → **404 (anti-oracle, geen 500)**. Drie parallelle
+> adversariële Opus-audits: nieuwste BI-/export-routes (openstaand-CSV #1075, uitgaven-per-ZZP'er #1071,
+> winst-trend #1064, aandacht-sort #1072) → **schoon** (auth→rol→ownership→audit-keten intact, CSV via
+> canonieke `escapeCsvField`, cent-exact, geen unbounded query); cascade/money/statusovergangen → **schoon**
+> (elke forward-transitie compound-guarded in-tx, dispuut-freeze her-gecheckt, dubbel-factuur structureel
+> onmogelijk, BTW/ORT/credit cent-exact); next-action/badge-pariteit → **dit ene gat** + de TZ-nit.
+>
+> 1. **GEFIXT — MED (DOEL 1b, ZZP'er + opdrachtgever — fiscale-deadline-taak op /acties zonder nav-badge):**
+>    `vatDeadlineTask` (BTW-aangifte) en `incomeTaxDeadlineTask` (inkomstenbelasting) worden op `/acties` +
+>    de dashboard-rail geëmit (`pending-tasks.ts:670-681` freelancer, `:1019-1020` client) met een hoge,
+>    **attention**-toon-prioriteit (`P.vatDeadlineOverdue`/`…DueSoon`/`incomeTaxDeadlineDueSoon`, bóven
+>    `overdueInvoice`), maar `signals.ts` (`SignalCounts`/`navBadges`) had **geen** sleutel die ze telde —
+>    de Administratie-hub (`/financien`) was het enige nav-item met een /acties-taak zónder badge (het
+>    "signaal op één oppervlak"-anti-patroon dat de codebase voor elke andere attention-taak al sloot,
+>    #1026/#1030/#1034/#1059/run 70/71). **Repro:** ZZP'er met een verstreken BTW-saldo of naderende
+>    IB-deadline → `/acties` toont de taak (attention, hoog), maar de zijbalk "Administratie" toont **geen**
+>    badge. **Fix:** nieuwe `SignalCounts`-sleutel `fiscalDeadlines` (`SIGNAL_HREF` `/financien`, tone
+>    `attention`); de FREELANCER-tak telt BTW-vensters + de IB-deadline, de CLIENT-tak alleen BTW — via de
+>    **exact dezelfde** bron als pending-tasks (`getVatDeadlinesForActor`/`getIncomeTaxDeadlineForActor` +
+>    `incomeTaxDeadlineNeedsAction`) → kan niet driften. Omdat `fiscalDeadlines` en `overdueInvoices` beide
+>    op `/financien` hangen, is `buildBadges` gehard om gelijk-href tellingen **op te tellen** i.p.v. de
+>    laatste key te laten winnen (voorheen een stille overschrijf-bug). +8 tests
+>    (`signals.badge-gaps-run73.test.ts`: buildBadges-sommatie + navBadges-pariteit beide rollen).
+> 2. **GEFIXT — LOW (DOEL 2, latente TZ-off-by-one):** `wholeDaysUntil` (`administration/vat-deadline.ts`)
+>    mengde lokale-tijd-componenten voor `now` met UTC voor de deadline; bij een niet-UTC procestijdzone
+>    sloeg `status` (overdue/due-soon) rond middernacht een kalenderdag te vroeg/laat om en sprak dan de
+>    UTC-geformatteerde getoonde datum tegen. Nu beide zijden op UTC — consistent met de zustermodule
+>    `income-tax-deadline.ts`. Bestaande BTW-deadline-tests (UTC) blijven groen (no-op in UTC).
+>
+> ---
+
 > **Datum:** 2026-08-12 (run 72) · **main-commit basis:** `e4297a46`
 > **Uitkomst:** **1 bereikbaar DOEL 2-robuustheidsdefect GEVONDEN + GEFIXT** (MED, 5 route-handlers →
 > rauwe 500 i.p.v. nette 401/403), plus 2 LOW geparkeerd met repro. Live persona-sweep (alle 4 rollen,

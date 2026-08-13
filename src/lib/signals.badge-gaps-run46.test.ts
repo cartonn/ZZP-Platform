@@ -35,6 +35,8 @@ const clientCredentialAlertsMock = vi.fn(
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    // fiscale-deadline-bron (BTW/IB) die navBadges nu leest; geen deadlines in deze test (run 73).
+    administrationEntry: { findMany: () => Promise.resolve([]) },
     // FREELANCER-tak wordt hier niet getest, maar de mock moet compleet zijn.
     freelancerProfile: {
       findUnique: vi.fn(() => Promise.resolve({ id: "fp-1" })),

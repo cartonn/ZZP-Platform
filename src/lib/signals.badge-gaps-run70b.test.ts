@@ -48,6 +48,8 @@ const credentialFindMany = vi.fn((a: Args) => {
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    // fiscale-deadline-bron (BTW/IB) die navBadges nu leest; geen deadlines in deze test (run 73).
+    administrationEntry: { findMany: () => Promise.resolve([]) },
     user: { findUnique: vi.fn(() => Promise.resolve({ tenantId: "t-1" })) },
     company: { findUnique: vi.fn(() => Promise.resolve({ id: "co-1" })) },
     freelancerProfile: {
