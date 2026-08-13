@@ -86,7 +86,8 @@ export function hoursCriterionHint(criterion: HoursCriterion): string {
  * altijd (passief); een next-action mag alléén verschijnen wanneer bijsturen zin heeft en realistisch is
  * — anders is het ruis of ontmoedigend. Pure functie, deterministisch (los testbaar, `now` geïnjecteerd).
  *
- * Gates (spiegelen de proactieve herinnering `hours-criterion-reminder.ts` één-op-één):
+ * Gates (delen de checkpoint-/activiteit-/koers-/trajectdrempel-logica van de proactieve herinnering
+ * `hours-criterion-reminder.ts`, met één bewust strengere uitsluiting: `onhaalbaar` — zie de laatste gate):
  *  - alleen in het seizoen H2/Q4 (`hoursCriterionCheckpoint`): jan–jun is de jaarprognose te ruisgevoelig;
  *  - er moet activiteit zijn (`!noActivity`): zonder één geboekt uur is een nudge ruis;
  *  - niet al gehaald en niet op koers (`!met && !projectedMet`): dan is er niets te doen;
