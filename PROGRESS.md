@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-13 — opdrachtgever: "Mijn opdrachten"-lijst sorteert op aandacht
+
+**Wat:** de opdrachtenlijst van de opdrachtgever (`/opdrachten`, CLIENT-tak) stond op `updatedAt desc`.
+Elke kaart berekent al zijn aandacht-signalen (acuut onbezet `jobFillUrgency`, nieuwe kandidaten te
+beoordelen `JobPipeline.needsAttention`, koud lopend `summarizeVacancyPerformance.attention`), maar die
+opdrachten dreven niet naar boven — bij een portfolio moest de opdrachtgever elke kaart afscannen om te zien
+wat actie vraagt. Nu drijven de opdrachten die actie vragen naar boven (Linear/Vercel-patroon: toon eerst
+wat telt en wat actie vraagt); rustige/concept/gesloten opdrachten behouden hun `updatedAt desc`-volgorde.
+
+- **Bron van waarheid:** nieuwe pure `src/lib/jobs/attention-order.ts` — `clientJobAttentionRank` scoort per
+  opdracht uit de reeds server-side berekende signalen (acuut = harde bovenste tier boven élke combinatie van
+  de rest: 100 > 40+20+10; nieuwe kandidaten > naderende start > koud lopend; optelbaar bij stapelende
+  signalen) en `sortJobsByAttention` doet een **stabiele** sort (gelijke rang → binnenkomende `updatedAt
+desc`-volgorde blijft intact, muteert de invoer niet). Geen nieuwe query/schema/auth/mutatie — hergebruikt
+  bestaande signalen.
+- **Bestanden:** `src/lib/jobs/attention-order.ts` (nieuw), `src/lib/jobs/attention-order.test.ts` (nieuw,
+  8 tests), `src/app/(protected)/opdrachten/(index)/page.tsx` (ClientJobs: `pipelineByJob` één keer
+  samengevat — geen dubbele berekening tussen rangschikking en render —, `ordered` = aandacht-sort van
+  `filtered`, render itereert `ordered`).
+- **Tests:** rang-ordening (acuut-tier, nieuwe-kandidaten > soon > koud, optelbaarheid), stabiele sort (drijft
+  actie-kaarten naar boven met behoud van rustige volgorde), geen-signaal = ongewijzigd, geen mutatie.
+- **Gate:** typecheck, lint, test, build, prettier groen (lokaal).
+
 ## 2026-08-12 — opdrachtgever: uitgaven per ZZP'er op /inzicht ("Per ZZP'er"-uitsplitsing)
 
 **Wat:** de opdrachtgever zag op `/inzicht` alleen een aggregaat `Uitgaven` (`spentCents`) — hoevéél, maar

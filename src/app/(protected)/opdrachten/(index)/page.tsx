@@ -56,12 +56,13 @@ import { getReceivedInvitations } from "@/lib/data/received-invitations";
 import { type ReceivedInvitation } from "@/lib/received-invitations";
 import { withParams } from "@/components/admin/base-path";
 import { plural } from "@/lib/plural";
-import { summarizeJobPipeline } from "@/lib/job-pipeline";
+import { summarizeJobPipeline, type JobPipeline } from "@/lib/job-pipeline";
 import { competitionChip, summarizeJobCompetition } from "@/lib/job-competition";
 import { paymentTrustChip, type PaymentTrustChip } from "@/lib/payment-behavior";
 import { jobRateFitChip, type JobRateFitChip } from "@/lib/job-rate-fit";
 import { jobComplianceChip, type JobComplianceChip } from "@/lib/jobs/compliance-chip";
 import { jobFillUrgency, type JobFillUrgencyChip } from "@/lib/jobs/fill-urgency";
+import { clientJobAttentionRank, sortJobsByAttention } from "@/lib/jobs/attention-order";
 import { JobFillUrgencyBadge } from "@/components/jobs/job-fill-urgency-badge";
 import { appliedJobChipFor, type AppliedJobChip } from "@/lib/job-applied-chip";
 import { getPaymentBehaviorForCompanies } from "@/lib/data/payment-behavior";
@@ -145,6 +146,11 @@ async function ClientJobs({
     const list = statusesByJob.get(g.jobId) ?? [];
     for (let i = 0; i < g._count._all; i += 1) list.push(g.status as ApplicationStatus);
     statusesByJob.set(g.jobId, list);
+  }
+  // Eén keer samenvatten per opdracht (geen dubbele berekening tussen rangschikking en render).
+  const pipelineByJob = new Map<string, JobPipeline>();
+  for (const job of jobs) {
+    pipelineByJob.set(job.id, summarizeJobPipeline(statusesByJob.get(job.id) ?? []));
   }
 
   // Vacaturetempo per gepubliceerde opdracht: dezelfde server-side maat als de opdracht-detailpagina
@@ -239,6 +245,16 @@ async function ClientJobs({
   const groupCounts = summarizeJobStatusGroups(jobs);
   const filtered = filterJobsByStatus(jobs, activeFilter);
 
+  // Aandacht-sortering: opdrachten die nú actie vragen (acuut onbezet, nieuwe kandidaten, koud lopend)
+  // drijven naar boven; rustige/concept/gesloten opdrachten behouden hun `updatedAt desc`-volgorde.
+  const ordered = sortJobsByAttention(filtered, (job) =>
+    clientJobAttentionRank({
+      fillTone: fillUrgencyByJob.get(job.id)?.tone ?? null,
+      newApplications: pipelineByJob.get(job.id)?.needsAttention ?? false,
+      vacancyAttention: vacancyByJob.get(job.id)?.attention === true,
+    }),
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -305,7 +321,7 @@ async function ClientJobs({
             </Card>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((job) => (
+              {ordered.map((job) => (
                 <Card key={job.id} className="flex flex-col gap-3 p-4">
                   {/* Kop: icoon + titel + status — zelfde kaartopbouw als de ZZP'er-kaarten */}
                   <div className="flex items-start gap-3">
@@ -324,7 +340,7 @@ async function ClientJobs({
                   </div>
 
                   <JobPipelineStrip
-                    pipeline={summarizeJobPipeline(statusesByJob.get(job.id) ?? [])}
+                    pipeline={pipelineByJob.get(job.id) ?? summarizeJobPipeline([])}
                   />
 
                   {fillUrgencyByJob.has(job.id) && (
