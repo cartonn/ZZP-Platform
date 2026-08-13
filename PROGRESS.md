@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-13 — persona-sweep run 74: GEEN gat gevonden (alle 4 rollen, DOEL 1/1b/2)
+
+**Wat:** Kritische-gebruiker-sweep over ZZP'er, opdrachtgever, bemiddelaar en admin op een echte prod-build
+(`npm run build` + `next start`) met verse SEED_DEMO-DB. **Geen bereikbaar defect/gat gevonden.** Dekking:
+
+- **Live Playwright/Chromium (30 checks, 0 fail):** IDOR bij andermans document/factuur-PDF/samenwerking-
+  dossier (ZZP'er + opdrachtgever) → elke keer 404 met positieve controle (eigen document/factuur → 200);
+  cross-tenant (bemiddelaar "Noord" bij default-tenant-data) → 404; privilege-escalatie naar `/admin/*` en
+  `/franchise/*` → redirect naar `/dashboard`; onzin-id's (path-traversal, `%00`, SQLi-string, XSS, absurd
+  getal) → 404, nul 500.
+- **Echte actie (DOEL 1) + verdwijnen (DOEL 1b):** admin keurt verificatie goed → wachtrij 6→5, item weg,
+  server-side bevestigd (`Credential.SUBMITTED` 6→5, `CREDENTIAL_VERIFIED`-audit). Afwijzen zonder reden →
+  geblokkeerd (reden verplicht), geen crash. IDOR-poging → `DOCUMENT_ACCESS_DENIED`-audit (keten compleet).
+- **Next-action-coherentie:** `/acties` + nav-badges kloppen per rol (juiste partij aan zet, juiste volgorde).
+- **Twee parallelle adversariële Opus-code-audits → schoon:** bemiddelaar-tenant-isolatie (`/franchise/**`)
+  en cascade/statusovergangen + money-integriteit (`src/lib/cascade/**`, `lifecycles.ts`).
+
+**Bestanden:** `docs/PERSONA-SWEEP-BACKLOG.md` (run 74-kop + 1 geparkeerd PLAUSIBLE item), `PROGRESS.md`.
+1 geparkeerd item voor mensbeoordeling: pending no-show-verdict blokkeert samenwerking-afronding niet
+(waarschijnlijk bewust — no-show voedt platform-brede stand, niet de geldstroom; product-keuze, geen bug).
+
+**Volgende stap:** volgende persona-sweep-gat of concurrent-gedreven UX/data-increment.
+
 ## 2026-08-13 — Ontwerp-lab: +10 concepten (reeks 56, nrs 551–560) → totaal 560 op `/ontwerp`
 
 **Wat:** Additief 10 nieuwe redesign-concepten toegevoegd (galerij 550 → 560; geen bestaand concept,
