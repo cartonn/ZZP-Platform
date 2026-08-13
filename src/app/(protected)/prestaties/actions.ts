@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireActor } from "@/lib/authz";
+import { AuthorizationError, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { approvePerformance } from "@/lib/cascade/commands";
 import { toSafeActionError } from "@/lib/safe-action-error";
@@ -23,7 +23,20 @@ export interface BulkApproveResult {
 export async function approveSubmittedPerformancesAction(
   collaborationId: string,
 ): Promise<BulkApproveResult> {
-  const actor = await requireActor();
+  let actor;
+  try {
+    actor = await requireActor();
+  } catch (e) {
+    // Een mid-sessie geschorst/geanonimiseerd account houdt een geldige JWT (de middleware laat door
+    // op de stale "ACTIVE"-claim), maar requireActor() leest vers uit de DB en werpt een
+    // AuthorizationError (401/403). Zonder deze guard borrelt die ongevangen op naar de client-error-
+    // boundary (volledige crash-pagina) i.p.v. een nette inline-melding — parity met de op #1067
+    // gehardde download-routes en de sibling-cascadecommando's.
+    if (e instanceof AuthorizationError) {
+      return { approved: 0, failed: 0, error: e.message };
+    }
+    throw e;
+  }
   if (actor.role !== "CLIENT" && actor.role !== "ADMIN") {
     return { approved: 0, failed: 0, error: "Alleen de opdrachtgever kan urenstaten goedkeuren." };
   }

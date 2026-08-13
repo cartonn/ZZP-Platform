@@ -47,10 +47,13 @@
 >   raakt de administratie-domeinmotor (audit-backlog: "niet aankomen behalve voor tests") en verdient een
 >   eigen gefocuste PR. **Aanbevolen fix:** atomair `update({ data: { lastSeq: { increment: 1 } } })` of
 >   `SELECT … FOR UPDATE` zodat gelijktijdige indieningen netjes serialiseren.
-> - **LOW (DOEL 2, consistentie — server actions):** `src/app/(protected)/diensten/importeer/actions.ts:25`
+> - ~~**LOW (DOEL 2, consistentie — server actions):** `src/app/(protected)/diensten/importeer/actions.ts:25`
 >   en `src/app/(protected)/prestaties/actions.ts:26` roepen `requireActor()` óók ongevangen aan; als server
 >   actions is de faalmodus een generieke client-error-boundary i.p.v. een rauwe HTTP-500, dus lagere
->   prioriteit. Zelfde guard voor consistentie wanneer je toch in die bestanden zit.
+>   prioriteit.~~ **→ GEDAAN (2026-08-13, PR #1077):** beide actions vangen de `AuthorizationError` nu af
+>   en geven een net resultaat met de gecureerde melding terug (`{ imported/skipped/errors }` resp.
+>   `{ approved/failed/error }`) i.p.v. een ongevangen throw naar de client-error-boundary. Parity met de op
+>   #1067 gehardde download-routes. +2 regressietests (`server-action-auth-error.test.ts`).
 >
 > ---
 

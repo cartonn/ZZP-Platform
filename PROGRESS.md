@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-13 — Robuustheid: server-actions vangen AuthorizationError af (geen crash-boundary bij stale sessie)
+
+**Wat:** de laatste twee geparkeerde `requireActor()`-ongevangen-gaten in de server-action-laag gedicht
+(persona-sweep run 72, GEPARKEERD LOW). `importDienstenAction` (`diensten/importeer/actions.ts`) en
+`approveSubmittedPerformancesAction` (`prestaties/actions.ts`) riepen `requireActor()` bovenaan aan
+zónder try/catch. Een mid-sessie geschorst of geanonimiseerd account houdt een geldige JWT (de
+middleware laat door op de stale `ACTIVE`-claim), maar `requireActor()` leest vers uit de DB en werpt
+een `AuthorizationError` (401/403). Bij een server-action is de faalmodus geen HTTP-500 maar een
+ongevangen throw die de **client-error-boundary** (volledige crash-pagina) triggert i.p.v. een nette
+inline-melding in het formulier. Nu vangen beide actions de `AuthorizationError` af en geven een net
+resultaat terug met de gecureerde melding (`{ imported/skipped/errors }` resp. `{ approved/failed/error }`) —
+parity met de op #1067 gehardde download-routes (`export-auth-error.test.ts`) en de sibling-cascade-
+commando's. Fail-closed (geen data-lek), server-side waarheid, geen schema-/mutatie-/auth-oppervlak.
+
+**Bestanden:** `src/app/(protected)/diensten/importeer/actions.ts`,
+`src/app/(protected)/prestaties/actions.ts`, `src/app/(protected)/server-action-auth-error.test.ts` (nieuw).
+**Tests:** +2 regressietests (elke action geeft een net resultaat i.p.v. te throwen bij een 401/403).
+**Gate:** typecheck, lint, test, build, prettier groen.
+
+---
+
 ## 2026-08-13 — ZZP'er: verwachte betaaldatum in de openstaande-posten CSV (debiteurenlijst)
 
 **Wat:** de `/openstaand`-pagina toont de ZZP'er per openstaande factuur de realistische

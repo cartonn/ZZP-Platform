@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireActor } from "@/lib/authz";
+import { AuthorizationError, requireActor } from "@/lib/authz";
 import { parseCsvShifts } from "@/lib/diensten";
 import { createPerformance, submitPerformance } from "@/lib/cascade/commands";
 import { toSafeActionError } from "@/lib/safe-action-error";
@@ -22,7 +22,20 @@ export async function importDienstenAction(
   _prev: ImportResult | null,
   formData: FormData,
 ): Promise<ImportResult> {
-  const actor = await requireActor();
+  let actor;
+  try {
+    actor = await requireActor();
+  } catch (e) {
+    // Een mid-sessie geschorst/geanonimiseerd account houdt een geldige JWT (de middleware laat door
+    // op de stale "ACTIVE"-claim), maar requireActor() leest vers uit de DB en werpt een
+    // AuthorizationError (401/403). Zonder deze guard borrelt die ongevangen op naar de client-error-
+    // boundary (volledige crash-pagina) i.p.v. een nette inline-melding in het importformulier —
+    // parity met de op #1067 gehardde download-routes en de sibling-cascadecommando's.
+    if (e instanceof AuthorizationError) {
+      return { imported: 0, skipped: 0, errors: [e.message] };
+    }
+    throw e;
+  }
   if (actor.role !== "FREELANCER") {
     return { imported: 0, skipped: 0, errors: ["Alleen ZZP'ers kunnen diensten importeren."] };
   }
