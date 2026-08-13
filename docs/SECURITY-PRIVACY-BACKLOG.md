@@ -4,6 +4,68 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-13b (basis: `main` @ 0cec5281) — geen nieuwe gaten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(1: alle server actions + `/api`-route-handlers → auth→rol→ownership→Zod→actie→audit + IDOR + mass-assignment;
+2: privacy/AVG — anonymizeUser↔buildAccountExport-symmetrie veld-voor-veld, k-anonimiteit, PII-in-logs,
+dataminimalisatie, retentie; 3: injectie (SQL/XSS/CSV/ICS/SSRF) + upload/storage + secrets + headers/CSP +
+foutafhandeling + open redirect), plus onafhankelijke orchestrator-probes + een schone build (`npm run build`
+groen) en runtime-omgeving-opzet. Delta sinds de vorige ronde: `8e3e9f38..0cec5281` (#1073 de vorige auditdoc
+zelf, #1074 scrape-niveau deadman-alerts, #1075 verwachte-betaaldatum-kolom in de openstaande-posten-CSV
+(ZZP'er), #1077 server-actions vangen `AuthorizationError` netjes af, #1078/#1080 ontwerpconcepten +
+persona-sweep-docs — UI/docs, geen server-oppervlak). **Resultaat: geen nieuw KRITIEK/HOOG/MIDDEL toegangs-,
+IDOR-, cross-tenant-, injectie-, upload-, SSRF-, secret- of PII-/AVG-gat. Niets te fixen; backlog-datum
+bijgewerkt.** Het enige openstaande HOOG-item (`Review.comment`[subjectId] / `NoShowReport.reason` /
+`ShiftHandoff`-vrije-tekst van dérden óver de betrokkene overleeft `anonymizeUser`) blijft **MENSENWERK** — een
+FG/juridische bewaargrond-afweging (art. 17 vergetelheid vs. bewijs bij een lopend arbeids-/betaalgeschil), geen
+agent-fix (MENSENWERK.md §5). Herbevestigd aanwezig, ongewijzigd; geen wórsere variant of nieuw veld gevonden.
+
+**Gedekt (OWASP Top 10 / ASVS + AVG-beginselen), met bewijs:**
+
+- **A01 Broken Access Control / IDOR — schoon.** De keten auth (`requireActor`/`requireRole`,
+  `src/lib/authz.ts:181-192`) → rol → ownership/tenant (`owns`/`assertOwnership`/`ownsViaTenant`/
+  `canAccessDocument`) → Zod (`safeParse`) → statusovergang-map (`assertTransition`, compound
+  `updateMany({where:{id,status:from}})` TOCTOU-guard) → audit blijft intact over alle 51 `actions.ts` + 48
+  `/api`-route-handlers. Nonexistent-id en cross-owner/cross-tenant-id geven een identieke "niet gevonden"-
+  respons met gelijke audit-kost (anti-oracle CWE-203/208), o.a. `/api/documents/[id]`,
+  `/api/samenwerkingen/[id]/dossier`. Denied-mutaties worden zélf ge-audit (`DOCUMENT_DELETE_DENIED`,
+  `WORK_EXPERIENCE_DELETE_DENIED`, `DOSSIER_ACCESS_DENIED`). Delta-fixes #1077 (server-actions vangen
+  `AuthorizationError` af) zijn hardening (nette inline-fout i.p.v. crash-boundary bij een mid-sessie
+  geschorst/geanonimiseerd account) — de rol/ownership-checks vólgen de catch en zijn ongewijzigd.
+- **A01 mass-assignment — schoon.** Geen Zod-schema/Prisma-write dat `tenantId`/`role`/`status`/`ownerId`/
+  `verifiedAt` rechtstreeks vanuit client-input zet; `tenantId` uitsluitend server-side uit `currentActor()`.
+- **A03 Injectie — schoon.** Geen `$queryRawUnsafe`/`$executeRawUnsafe` (enkel getagde `SELECT 1`-healthpings);
+  enige `dangerouslySetInnerHTML` = het nonce-gepoorte theme-script (`layout.tsx`). Alle CSV-exports funnelen via
+  `escapeCsvField`/`toCsv` (formule-injectie-guard `= + @ - \t \r`, CWE-1236, RFC 4180-quoting) — de nieuwe
+  CSV-kolom `verwachte_betaaldatum` (#1075, `aging.ts agingCsv`) is een `toISOString().slice(0,10)`-datum en gaat
+  net als elke cel door `toCsv` (geverifieerd). ICS-export escapet `SUMMARY/DESCRIPTION/LOCATION` (`ics.ts`),
+  `UID` is altijd server-gegenereerd.
+- **A02/A04 Upload & storage — schoon.** `validateUpload` (MIME-allowlist + 10 MB) + `assertContentMatchesMime`
+  (magic-byte-sniff) + `assertUploadClean` (ClamAV) + `generateStorageKey` (random UUID) +
+  `LocalStorageDriver.resolve` path-traversal-guard + S3 SSE-at-rest. Documentserving sandboxed.
+- **A05 Headers/CSP — schoon.** Productie-CSP met per-request nonce + `strict-dynamic`, `object-src 'none'`,
+  `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'`; `next.config.mjs` COOP/CORP/HSTS/
+  Permissions-Policy/`X-Robots-Tag noindex`.
+- **A07 Auth/sessie — schoon.** `currentActor()` leest rol/status/tenant/wachtwoord-stempel vers uit de DB →
+  live intrekking bij schorsing/anonimisering/tenant-suspend/wachtwoordwijziging. `/admin` triple-gated
+  (middleware-edge + elke page + elke action). Login timing-equalizer-bcrypt (CWE-208) + rate-limit.
+- **A09 Logging — schoon.** `logger` redact op key-substring (password/secret/token/iban/bsn/phone) én
+  e-mail-value-patroon, ook op de message zelf; de enige rauwe e-mail-`console.log` (`NoopMailSender`) is
+  non-productie-gepoort.
+- **A10 SSRF / open redirect — schoon.** Geen server-side `fetch` met user-gestuurde host (`http-verify.ts`/
+  `routing.ts` nemen enkel een env-geconfigureerde base-URL); geen niet-relatieve `redirect()` uit client-input.
+- **Foutafhandeling — schoon.** `error.tsx`/`global-error.tsx` tonen enkel generieke NL-tekst + opaque `digest`.
+- **AVG art. 17 erasure ↔ art. 15/20 export-symmetrie — schoon.** Elk vrije-tekstveld in `buildAccountExport`
+  heeft een matchende redactie-tak in `anonymizeUser` (veld-voor-veld geverifieerd, incl. duplicaat-kopieën op
+  feeds/notificaties/domein-events/audit-metadata van ándere gebruikers). `TaxFilingRequest.partnerName` =
+  bedrijfsnaam (belastingkantoor/gemachtigde), geen natuurlijk-persoon-PII — geen gat. Enige uitzondering: het
+  geparkeerde HOOG-MENSENWERK-item.
+- **AVG dataminimalisatie & k-anonimiteit — schoon.** `MARKET_RATE_MIN_SAMPLE ≥ 10` server-side afgedwongen
+  (`job-rate-bands.ts`, `server-only`); `/api/metrics` enkel geaggregeerde gauges, fail-closed achter
+  `CRON_SECRET`. Retentie-sweeps (`run-all`) daadwerkelijk bedraad + gauge-gemonitord.
+- **Dependencies.** `npm audit --omit=dev` = **0** (resterende meldingen enkel in devDependencies).
+
 ## Ronde 2026-08-13 (basis: `main` @ 8e3e9f38) — geen nieuwe gaten
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
