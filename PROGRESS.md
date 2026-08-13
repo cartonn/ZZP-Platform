@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-13 — prod: scrape-niveau deadman (ZzpTargetDown / ZzpMetricsAbsent)
+
+**Wat:** de monitoring-bundle (`docs/observability/*`) had geen target-/scrape-niveau deadman — élke
+`zzp_*`-alert evalueert over de gescrapete gauges, dus bij een totale storing (endpoint down, 503,
+geroteerde `CRON_SECRET`, netwerk/TLS) produceert `/api/metrics` niets en vuurt **geen enkele** alert. De
+`up == 0`/absent-alert was in `alerts-rules.ts` beloofd maar bestond niet.
+
+- **Fix:** `ZzpTargetDown` (`up{job="zzp-platform"} == 0`) + `ZzpMetricsAbsent` (`absent(zzp_up)`),
+  beide `critical`/`for: 5m` (deploy-blip-tolerant), toegevoegd aan de onderhouds-inhibitie in
+  `alertmanager.yml`. Comment in `alerts-rules.ts` en RUNBOOK §2a bijgewerkt (belofte nu waargemaakt).
+- **Bestanden:** `docs/observability/alerts.yml`, `docs/observability/alertmanager.yml`,
+  `src/lib/observability/alerts-rules.ts` (comment), `src/lib/observability/alerts-rules.test.ts`
+  (`TARGET_LEVEL_ALERTS`-allowlist + expliciete deadman-asserts), `docs/RUNBOOK.md`, `MENSENWERK.md`.
+- **Tests:** `alerts-rules.test.ts` + `monitoring-bundle.test.ts` groen (20 tests) — de inhibitie-drift-gate
+  dwong het toevoegen aan de onderhouds-demping af.
+
 ## 2026-08-13 — security/privacy: auditronde (basis `main` @ 8e3e9f38) — geen nieuwe gaten
 
 **Wat:** volledige security-/privacy-auditronde als orchestrator (Opus 4.8) + 3 parallelle adversariële

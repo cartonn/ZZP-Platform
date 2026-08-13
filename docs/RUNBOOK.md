@@ -65,6 +65,11 @@ Naast de liveness-probe exposeert `GET /api/metrics` machine-leesbare gauges (Pr
     (`credentials_file`, secret buiten git) scraped en `alerts.yml` via `rule_files` laadt.
   - [`alertmanager.yml`](observability/alertmanager.yml) — routing-skelet (severity → receiver) +
     `inhibit_rules`.
+- **Scrape-deadman (totale storing):** alle waarde-alerts evalueren over de gescrapete gauges. Valt de
+  scrape zélf weg (app down, endpoint 503, geroteerde `CRON_SECRET`, netwerk/TLS), dan is er geen data en
+  vuurt geen van die alerts. `ZzpTargetDown` (`up == 0`, scrape faalt) en `ZzpMetricsAbsent`
+  (`absent(zzp_up)`, gauges ontbreken) dekken juist die blinde vlek — beide `critical`, met `for: 5m` om
+  een normale deploy-blip te overbruggen. Zonder hen is de hele bundle stil blind bij de ergste storing.
 - **Onderhoud onderdrukt paging:** de belofte wordt nu waargemaakt in `alertmanager.yml`. Zodra
   `ZzpMaintenanceModeOn` (`zzp_maintenance_mode == 1`) vuurt, dempt Alertmanager **elke** operationele
   alert — geen valse paging tijdens een geplande deploy. De onderhoudsalert zelf blijft zichtbaar, zodat

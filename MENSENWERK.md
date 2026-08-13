@@ -1067,6 +1067,20 @@ geklemd 1–720). Singleton-model `BackupHeartbeat` (géén persoonsgegevens —
 laatste back-up slaagde); de heartbeat-schrijf/-lees faalt nooit naar buiten. Inert zonder config.
 Resterend mensenwerk: **de back-up-job zelf laten pingen** — zie punt 1b hieronder.
 
+**Code-kant GEDAAN (2026-08-13) — scrape-niveau deadman (totale-storing-alarm):** de monitoring-bundle
+(`docs/observability/*`) vertaalt de `/api/metrics`-gauges naar Prometheus-alerts, maar **elke** van die
+alerts evalueert over de gescrapete gauges — valt de app volledig uit (endpoint down, 503, geroteerde
+`CRON_SECRET`, netwerk/TLS-storing), dan produceert het endpoint niets en vuurt **geen enkele** alert
+(precies de stille-faal-blinde-vlek die de hele metrics-inspanning wil dichten; de `up == 0`/absent-alert
+was in code beloofd maar bestond niet). Nu dekken **`ZzpTargetDown`** (`up{job="zzp-platform"} == 0` —
+de scrape zelf faalt) en **`ZzpMetricsAbsent`** (`absent(zzp_up)` — het target is bereikbaar maar levert
+geen gauges, bv. een 200 met lege body na een handler-regressie) exact die totale-storing-conditie. Beide
+`critical`, met `for: 5m` om een normale deploy-blip te overbruggen, en meegenomen in de onderhouds-
+inhibitie zodat een geplande deploy niet paget. Vastgeklonken aan de drift-gates (`alerts-rules.test.ts`
+kent `ZzpTargetDown` als bewuste target-niveau-alert; `monitoring-bundle.test.ts` dwong het toevoegen aan
+de inhibitie af). Zie RUNBOOK §2a. Resterend mensenwerk: **niets extra** — de alerts staan in de drop-in
+bundle; hang er je eigen ontvanger (Slack/PagerDuty/e-mail) aan zoals de andere alerts.
+
 **Resterend mensenwerk (eenmalig):**
 
 1. Zet **automatische dagelijkse database-back-ups** aan bij je databasedienst (EU-regio; §1b) en

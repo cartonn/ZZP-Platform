@@ -20,6 +20,11 @@
 # Laad dit bestand via `rule_files`. Een uptime-dienst met body-check kan dezelfde drempels handmatig
 # spiegelen. De gauges bevatten NOOIT persoonsgegevens — alleen geaggregeerde tellingen/leeftijden/vlaggen.
 #
+# SCRAPE-DEADMAN: alle waarde-alerts hieronder evalueren over de gescrapete gauges. Valt de scrape zelf
+# weg (app down, endpoint 503, geroteerde CRON_SECRET, netwerk/TLS), dan is er geen data en vuurt geen
+# van die alerts. `ZzpTargetDown` (up == 0) en `ZzpMetricsAbsent` (absent(zzp_up)) dekken juist die
+# totale-storing-blinde-vlek — zonder hen is de hele bundle stil blind bij de ergste storing.
+#
 # ONDERHOUD (inhibitie): `zzp_maintenance_mode == 1` betekent bewust onderhoud (bezoekers krijgen 503).
 # Onderdruk dan de beschikbaarheidsalerts met een inhibit_rule op die gauge, zodat een geplande deploy
 # niet paget — en een per ongeluk aan-gelaten onderhoudsmodus juist wél zichtbaar blijft via
@@ -28,6 +33,32 @@
 groups:
   - name: zzp-platform-beschikbaarheid
     rules:
+      - alert: ZzpTargetDown
+        # Scrape-/target-niveau deadman: Prometheus kon /api/metrics niet scrapen (app down, endpoint
+        # 503, geroteerde/verkeerde CRON_SECRET, TLS-/netwerkfout). ZONDER deze alert vuurt bij een
+        # totale storing GEEN van de zzp_*-alerts — die evalueren over de gescrapete gauges, en bij een
+        # mislukte scrape is er geen data; de hele bundle wordt dan stil blind, precies de faalmodus die
+        # het metrics-werk juist wil dichten. `up` is Prometheus' eigen scrape-metric (1=ok, 0=faal),
+        # geen zzp_-gauge — vandaar dat de drift-gate-test ZzpTargetDown als target-niveau-alert kent.
+        expr: up{job="zzp-platform"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Metrics-endpoint onbereikbaar (scrape faalt)"
+          description: "Prometheus kan /api/metrics niet scrapen (up=0): de app is onbereikbaar, geeft een fout, of de CRON_SECRET klopt niet. Geen enkele operationele alert kan nu vuren. `for: 5m` overbrugt een normale deploy-blip. Zie RUNBOOK §6 (incident-respons)."
+      - alert: ZzpMetricsAbsent
+        # Complement op ZzpTargetDown: de scrape lukt (of het target bestaat) maar de zzp_up-reeks
+        # ontbreekt volledig — de metrics-handler produceert geen gauges (regressie) of levert een 200
+        # met lege/verkeerde body. up==0 mist dit (endpoint kan 200 geven terwijl de payload leeg is);
+        # `absent(zzp_up)` = 1 zodra de reeks niet bestaat. zzp_up is een echte gauge (INFO_ONLY).
+        expr: absent(zzp_up)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Metrics-gauges afwezig"
+          description: "De zzp_up-gauge ontbreekt volledig in Prometheus: de metrics-handler levert geen gauges (regressie) of het target is langdurig down. Alle waarde-gebaseerde alerts zijn dan blind. Zie RUNBOOK §6."
       - alert: ZzpDatabaseUnreachable
         # Liveness: de metrics-handler kon geen `SELECT 1` doen. Directe klantimpact.
         expr: zzp_db_reachable == 0
