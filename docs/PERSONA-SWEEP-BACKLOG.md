@@ -1,5 +1,51 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-13 (run 74) · **main-commit basis:** `68c9a84b`
+> **Uitkomst:** **GEEN bereikbaar gat gevonden** — alle vier rollen (ZZP'er, opdrachtgever, bemiddelaar,
+> admin) getest op DOEL 1 (werkt + echte acties), DOEL 1b (next-action-engine) en DOEL 2 (adversarieel).
+> Dekking deze run:
+>
+> - **Live persona-sweep (Playwright/Chromium, echte prod-build + seed, alle 4 rollen — 30 checks, 0 fail):**
+>   - **IDOR/cross-partij:** ZZP'er + opdrachtgever bij andermans privé-document / factuur-PDF / samenwerking-
+>     dossier via een echt (gegokt) id → **elke keer 404** (correct geweigerd, geen 200, geen lek). Positieve
+>     controle: eigen document / eigen factuur-PDF → 200 (dus de 404's zijn echte weigeringen, geen dode route).
+>   - **Cross-tenant:** bemiddelaar (tenant "Noord") bij een samenwerking-dossier / factuur-PDF / document van
+>     de default-tenant → **elke keer 404**.
+>   - **Privilege-escalatie:** ZZP'er/opdrachtgever/bemiddelaar naar `/admin/*`; ZZP'er/bemiddelaar naar
+>     `/franchise/*` → middleware redirect naar `/dashboard` (geverifieerd op `finalUrl`, geen 200-op-admin).
+>   - **Robuustheid:** onzin-id's op `/api/documents/[id]` (`../../etc/passwd`, `%00`, `'OR'1'='1`,
+>     `<script>`, absurd groot getal) → **elke keer 404, nul 500**.
+>   - **Echte actie-uitvoering (DOEL 1) + next-action-verdwijnen (DOEL 1b):** admin keurt een verificatie
+>     goed → wachtrij 6 → 5, item verdwijnt, **server-side waarheid bevestigd** (`Credential.SUBMITTED` 6→5,
+>     `CREDENTIAL_VERIFIED`-audit geschreven). Afwijzen zónder reden → formulier blijft open (reden verplicht,
+>     server-side afgedwongen), geen crash. IDOR-poging liet bovendien een `DOCUMENT_ACCESS_DENIED`-audit
+>     achter → de volledige keten auth→rol→ownership→actie→audit werkt end-to-end.
+>   - **Next-action-coherentie:** `/acties` + nav-badges kloppen per rol (ZZP'er badge 4 = 4 acties;
+>     opdrachtgever 2 = 2; bemiddelaar 2 = 2 met ZZP'ers-/Diensten-badges die de twee taken spiegelen;
+>     admin Verificaties-badge 6 = 6 in wachtrij). Juiste partij "aan zet", juiste volgorde.
+> - **Twee parallelle adversariële Opus-code-audits → schoon:**
+>   - **Bemiddelaar-surfaces + tenant-isolatie** (`/franchise/**` + `src/lib/franchise/*`, `tenancy.ts`,
+>     `shift-handoff.ts`): elke mutatie/read `requireRole` + `ownsViaTenant`/`tenantScopeWhere`; unknown-id en
+>     cross-tenant-id geven identieke respons (CWE-203 anti-oracle); Zod-grenzen op alle input; audit overal.
+>     Geen `route.ts` onder `/franchise` (geen ongeguarde API-parallel).
+>   - **Cascade/statusovergangen + money-integriteit** (`src/lib/cascade/**`, `lifecycles.ts`,
+>     `state-machine.ts`, administratie-persist, samenwerking-/no-show-actions): elke forward-transitie via
+>     expliciete state-machine, compound-guard **in-transactie** (TOCTOU dicht), afronden/annuleren geblokkeerd
+>     bij open factuur / `SUBMITTED`-prestatie, dubbel-factuur onmogelijk (`Invoice.performanceId @unique`),
+>     contract-sign het enige pad naar `ACTIVE`, geld cent-exact met harde onder-/bovengrenzen.
+>
+> **GEPARKEERD (deze run — 1 item, PLAUSIBLE, mensenwerk):**
+>
+> - **ESCALATIE NAAR MENS (product-semantiek, geen code-bug — MENSENWERK §5):** `completionBlockReason`/
+>   `cancellationBlockReason` (`src/lib/cascade/completion.ts:83-120`) blokkeren afronden/annuleren van een
+>   samenwerking op open facturen en `SUBMITTED`-prestaties, maar **niet** op een `NoShowReport` met
+>   `verdict: "PENDING"`. **Repro:** een samenwerking met een openstaand (nog niet door admin beoordeeld)
+>   no-show-rapport kan toch worden afgerond/geannuleerd. **Waarom géén auto-fix:** dit is waarschijnlijk
+>   bewust — no-show-adjudicatie voedt de platform-brede betrouwbaarheidsstand (`noShowStanding`,
+>   `NO_SHOW_LIMIT`), niet de geldstroom van één specifieke samenwerking, en no-show-rapporten zijn expliciet
+>   toegestaan op reeds-`CANCELLED` samenwerkingen. Of dit een gat is of gewenst gedrag is een
+>   product-/security-keuze voor een mens, niet voor een agent. Prioriteit: LOW.
+
 > **Datum:** 2026-08-12 (run 72) · **main-commit basis:** `e4297a46`
 > **Uitkomst:** **1 bereikbaar DOEL 2-robuustheidsdefect GEVONDEN + GEFIXT** (MED, 5 route-handlers →
 > rauwe 500 i.p.v. nette 401/403), plus 2 LOW geparkeerd met repro. Live persona-sweep (alle 4 rollen,
