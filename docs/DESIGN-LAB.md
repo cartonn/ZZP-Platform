@@ -1668,3 +1668,60 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   en **data-fabric / verklaarbare relatie-grafen** — elk deterministisch, toegankelijk (focus-states, status label+icoon) en
   onderscheidend van de bestaande 540.
 - **Totaal nu op `/ontwerp`: 550 concepten** (reeks 55: 541–550).
+
+## Reeks 56 — 551–560 (2026-08-13)
+
+Deze reeks haalt de inspiratie bewust búiten de software-wereld: kunsthistorische bewegingen, institutionele
+documentvormen, werkplaats- en notatiesystemen. Geen enkele richting leunt op een bestaand SaaS-patroon.
+
+- **551 Constructivisme** — Russisch constructivisme, diagonale beeldas (#efe9df + rood #e3121a): Rodchenko/Lissitzky
+  toegepast op software — schuine banen van 15–30° verdelen het scherm in harde vlakken die elk één boodschap dragen;
+  match-percentages worden monumentale cijferblokken. Leesbare tekst blijft horizontaal, alleen decoratieve labels staan
+  schuin (`aria-hidden`). Anton + Libre Franklin. 8 schermen incl. admin-bureau.
+- **552 Pleitnota** — juridisch processtuk, adversariële twee-kolomsopmaak (#faf8f3 + bordeaux #8b1e2d): de match wordt een
+  betoog — links de stelling, rechts het weerwoord, doorlopend genummerd (1.1, 3.2 …) met marginalia die naar bewijsstukken
+  verwijzen; verificatie is de bewijsbundel met genummerde bewijsstukken B-1…B-n en zegelstatus. Cormorant Garamond +
+  IBM Plex Mono. 9 schermen (zaakoverzicht, rol, pleitnota, bewijsbundel, termijnen, declaraties, dossierstukken,
+  persoonsdossier, griffie).
+- **553 Gereedschapsbord** — shadow board / visueel management 5S (#2b3138 + signaalgeel #f5c518): elk vereist bewijsstuk
+  heeft een geschilderde omtrek — geverifieerd = het gereedschap hangt er, ontbrekend of verlopen = een lege gestippelde
+  silhouet die precies vertelt wat mist. Hazard-band alleen bij echte urgentie. Space Grotesk + Spline Sans Mono.
+  9 schermen incl. bemiddelaar-overzicht.
+- **554 Opstelling** — tactiekbord, positie in plaats van tabelrij (#0f3d2e + oranje #ff6b35): een samenwerking is een
+  formatie — mensen staan als posities op een SVG-veld, verbindingslijnen tonen wie met wie werkt, openstaande diensten
+  staan als wissels op de bank; verificatie wordt "speelgerechtigd" op een keuringskaart, matching een spelersvergelijking
+  met attribuutbalken. Toetsenbord-bedienbaar veld, formatietoggle 4-3-3 / 3-5-2. Bricolage Grotesque + Spline Sans Mono.
+- **555 Shaker** — Shaker-ambacht, de peg rail als ordenende vorm (#f3efe6 + Shaker-blauw #3c5a72): geen enkel ornament,
+  geen schaduwen — alles hangt aan zijn haak en kan er weer af, navigatie is een lat. "Beauty rests on utility": alles
+  heeft precies één functie en die is af. Newsreader + Inter. 8 schermen incl. naamplaat (profiel).
+- **556 Weens** — Wiener Werkstätte / Secession, het gitter als structuur (#fbfbf9 + bladgoud #c9a227): een obsessief
+  zwart-wit vierkantsraster draagt alles — schaakbordstroken, gitterwerk en gevlochten kaderhoeken zijn tegelijk ornament
+  én meetlat (match, dossier-compleetheid); goud markeert uitsluitend wat geverifieerd is. Status nooit kleur-afhankelijk:
+  gevuld/gearceerd/leeg/gekruist vierkant + icoon + label. Space Grotesk (wijde kapitalen) + Libre Franklin.
+- **557 Bijsluiter** — farmaceutische bijsluiter, maximale informatiedichtheid (#fdfdfb + signaalrood #d0021b): het
+  dichtstbedrukte document dat mensen thuis hebben, als besturingssysteem — genummerde hoofdsecties, zware zwarte
+  kaderwaarschuwingen en micro-typografie die tóch rustig leest doordat de hiërarchie ijzersterk is. De platformlogica is
+  letterlijk vertaald: verificatie = "2. Samenstelling en werking", next-actions = "3. Wat moet u nu doen", facturen =
+  "4. Dosering en tijdschema". Rood uitsluitend voor waarschuwingen. IBM Plex Mono + Libre Franklin. 9 schermen.
+- **558 Schrijn** — reliekschrijn, bewaargeving van kostbaarheden (#14100f + goud #c8a24a): gevoelige documenten als
+  kostbaarheden in een verlichte nis met verguld hairline-lijstwerk, deterministische SVG-lakzegels als statusdragers en
+  per bewijsstuk de herkomst plus een uitklapbaar toegangslog ("wie heeft dit ingezien"). Vertrouwen uit eerbied en
+  zorgvuldige bewaring, zonder in te leveren op leesbaarheid (alle tekstkleuren ruim boven AA). Cormorant Garamond + Inter.
+- **559 Schaakbord** — schaaknotatie als beurtwissel-OS (#f0ece2 + smaragd #1f7a5c): elke gebeurtenis is een genummerde zet
+  met evaluatiesymbool (`!`, `!?`, `?!`, `?`), met het 8×8 bord ernaast en de klok erboven — achteraf is altijd zichtbaar wie
+  wanneer aan zet was en welke zet sterk of twijfelachtig was; het match-percentage wordt een evaluatiecijfer met balk.
+  Bord met roving-tabindex en pijltjes/Home/End-navigatie, `aria-label` per veld. Newsreader + IBM Plex Mono.
+- **560 Anatomie** — anatomische plaat met verwijslijnen (#f7f3ea + karmijn #a3352e): elk match-argument is een genummerd
+  label dat via een echte SVG-leader-line naar het exacte profielonderdeel wijst; hover én focus werken in beide richtingen,
+  waardoor de matchverklaring letterlijk aanwijsbaar wordt in plaats van een lijstje opsommingstekens. Deterministische
+  coördinaten in een vaste viewBox; onder `lg` degradeert de plaat naar genummerde merktekens plus een genummerde lijst.
+  Cormorant Garamond + Inter.
+- Inspiratiebronnen deze reeks (buiten productdesign, via WebSearch): **Russisch constructivisme** (Rodchenko, El Lissitzky —
+  theartstory.org, creativepro.com), **Nederlandse pleitnota-/procesreglementen** (armarium.nl, Universiteit Maastricht),
+  **5S visueel management / shadow boards** (tulip.co, peakvm.co.uk), **tactiekborden en scoutingrapporten**
+  (lineup-builder.co.uk, buildlineup.com), **Shaker peg rail en Shaker-ontwerpethiek** (Remodelista "Object Lessons"),
+  **Wiener Werkstätte** (Hoffmanns Gitterwerk, Mosers Series B — theartstory.org, Klimt-Datenbank), **EMA/EU-richtlijn
+  leesbaarheid bijsluiter + QRD-sjabloon**, **middeleeuwse reliekschrijnen** (Monymusk-schrijn NMS, Reliquary Shrine de Touyl,
+  British Museum), **FIDE-scoresheets en algebraïsche schaaknotatie**, en **19e-eeuwse anatomische/botanische platen**
+  (_La Médecine Pittoresque_, Duitse schoolplaten met marge-bijschriften).
+- **Totaal nu op `/ontwerp`: 560 concepten** (reeks 56: 551–560).
