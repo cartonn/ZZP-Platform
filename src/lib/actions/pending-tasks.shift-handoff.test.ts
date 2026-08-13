@@ -42,6 +42,7 @@ vi.mock("@/lib/db", () => ({
     // → geen geleide-opzet-taken, zodat de test geïsoleerd blijft.
     company: {
       count: vi.fn(async (args: { where?: { jobs?: unknown } }) => (args?.where?.jobs ? 0 : 1)),
+      findMany: vi.fn(async () => []),
     },
     freelancerProfile: {
       findMany: vi.fn(async () => []),
@@ -50,9 +51,10 @@ vi.mock("@/lib/db", () => ({
     job: {
       findMany: vi.fn(async () => []),
       count: vi.fn(async () => 1),
+      groupBy: vi.fn(async () => []),
     },
     // Admin-tak: disputen (collaboration), no-shows, supporttickets — allemaal leeg.
-    collaboration: { findMany: vi.fn(async () => []) },
+    collaboration: { findMany: vi.fn(async () => []), groupBy: vi.fn(async () => []) },
     noShowReport: { findMany: vi.fn(async () => []), groupBy: vi.fn(async () => []) },
     supportTicket: { findMany: vi.fn(async () => []) },
     shiftHandoff: {

@@ -54,6 +54,7 @@ function tenantOf(where: Record<string, unknown> | undefined): string {
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: () => Promise.resolve({ tenantId: userTenant }) },
+    company: { findMany: () => Promise.resolve([]) },
     lead: { count: () => Promise.resolve(leadCount) },
     shiftHandoff: { count: () => Promise.resolve(handoffCount) },
     credential: {
@@ -106,8 +107,12 @@ vi.mock("@/lib/db", () => ({
           isStale ? (staleDienstenByTenant[tenant] ?? []) : (openDienstenByTenant[tenant] ?? []),
         );
       },
+      groupBy: () => Promise.resolve([]),
     },
-    collaboration: { findMany: () => Promise.resolve([]) },
+    collaboration: {
+      findMany: () => Promise.resolve([]),
+      groupBy: () => Promise.resolve([]),
+    },
   },
 }));
 
