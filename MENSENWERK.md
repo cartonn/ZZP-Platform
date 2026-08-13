@@ -169,6 +169,19 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   Resterend mensenwerk: **niets** — optioneel bij te stellen via `BILLING_HTTP_TIMEOUT_MS`,
   `EMAIL_HTTP_TIMEOUT_MS`, `RATE_LIMIT_HTTP_TIMEOUT_MS` (ms, geklemd op 1000–60000).
 
+- **Retry + env-time-out op de externe verificatie-koppelingen (DUO/BIG/iDIN)** (laag, code-kant GEDAAN
+  2026-08-13): de gedeelde verificatie-HTTP-helper (`src/lib/services/http-verify.ts`, gebruikt door de
+  echte DUO-/BIG-/iDIN-adapters) was als **enige** uitgaande integratie zonder env-configureerbare
+  time-out én zonder retry op een transiënte storing — terwijl billing/e-mail/rate-limit dat via
+  `fetch-timeout.ts` al hadden. Een enkele 5xx/429/netwerk-blip tegen een officieel register liet de
+  diploma-/zorg-/identiteitscontrole van een gebruiker dan onnodig falen. De helper deelt nu de
+  gehardende `fetchWithTimeout` (env `VERIFY_HTTP_TIMEOUT_MS`, geklemd 1000–60000, default 8000) en doet
+  een **begrensde retry-met-exponentiële-backoff** bij transiënte fouten (netwerkfout, time-out, 5xx, 429) — instelbaar via `VERIFY_HTTP_RETRIES` (geklemd 0–5, default 2). Een verificatie is een
+  **read-only lookup** (geen zij-effect bij het endpoint), dus retry is idempotent-veilig; een 4xx
+  (verkeerde auth/verzoek), een niet-JSON-antwoord of een contract-mismatch faalt **meteen** zonder
+  herhaling. Inert zolang een demo-verifier draait (raakt alleen de echte adapters). Resterend
+  mensenwerk: **niets** — optioneel bij te stellen via `VERIFY_HTTP_TIMEOUT_MS`/`VERIFY_HTTP_RETRIES`.
+
 - **Zoekmachine-indexering afgeschermd** (laag, code-kant GEDAAN 9-7-2026): dit platform is
   login-gated en verwerkt gevoelige documenten — een besloten pilot hoort niet in Google. Indexering
   staat nu **standaard uit**: `/robots.txt` (`src/app/robots.ts`) disallowt alles en elke response
@@ -827,6 +840,7 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 | `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`                        | Echte DUO-controle                                     | DUO (§4a)            | Voor echte diplomacontrole                       |
 | `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`                    | Echte BIG-controle                                     | CIBG (§4b)           | Voor echte zorgcontrole                          |
 | `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY`            | Echte identiteitscontrole                              | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                   |
+| `VERIFY_HTTP_TIMEOUT_MS` / `VERIFY_HTTP_RETRIES`                             | Time-out/retry externe verificatie (DUO/BIG/iDIN)      | — (§0b)              | Optioneel (default 8000 ms / 2 retries)          |
 | `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                                      | Externe error-monitoring (anders alleen logs)          | Sentry (§0b)         | Optioneel (aanbevolen prod)                      |
 | `LOG_LEVEL`                                                                  | Logdrempel (debug/info/warn/error)                     | —                    | Optioneel (default info)                         |
 | `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`               | Gedeelde rate-limits over instances                    | Upstash (§0b H-2)    | Bij horizontale schaling                         |

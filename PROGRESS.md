@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-13 — prod: retry + env-time-out hardening op de externe verificatie-HTTP (DUO/BIG/iDIN)
+
+**Wat:** De gedeelde verificatie-HTTP-helper (`src/lib/services/http-verify.ts`, gebruikt door de echte
+DUO-/BIG-/iDIN-adapters) was als **enige** uitgaande integratie zonder env-configureerbare time-out én
+zonder retry op transiënte fouten — billing/e-mail/rate-limit hadden dat via `fetch-timeout.ts` al. Een
+enkele 5xx/429/netwerk-blip tegen een officieel register liet de verificatie van een gebruiker onnodig
+falen. Omdat een verificatie een **read-only lookup** is (geen zij-effect bij het endpoint), is een
+begrensde retry idempotent-veilig.
+
+**Verandering:**
+
+- De helper deelt nu de gehardende `fetchWithTimeout` (env `VERIFY_HTTP_TIMEOUT_MS`, geklemd 1000–60000,
+  default 8000 — behoudt het historische gedrag) i.p.v. een eigen hardcoded AbortController.
+- **Begrensde retry-met-exponentiële-backoff** bij transiënte fouten (netwerkfout, time-out, 5xx, 429);
+  `VERIFY_HTTP_RETRIES` (geklemd 0–5, default 2). Backoff 250 ms × 2^poging, begrensd op 4000 ms.
+- **Geen** retry bij niet-transiënte fouten: 4xx (verkeerde auth/verzoek), niet-JSON, contract-mismatch →
+  faalt meteen. `VerifierRequestError` draagt nu een `transient`-vlag (backward-compatible; foutklasse
+  ongewijzigd, callers negeren het veld).
+- Inert zolang een demo-verifier (`mock`) draait — raakt alleen de echte adapters (off by default).
+
+**Bestanden:** `src/lib/services/http-verify.ts` (+ `.test.ts`, +11 tests: retry-then-success op 5xx/429/
+netwerk, retry-uitputting, geen-retry op 4xx/contract, clamp/backoff-puur), `.env.example`, `MENSENWERK.md`
+(§0b + §7-tabel), `PROGRESS.md`. Geen schema-/mutatie-/auth-oppervlak. Gate: typecheck, lint, test, build,
+prettier — lokaal groen.
+
+**Volgende stap:** volgende prod-rijpheid-item uit MENSENWERK.md / CURRENT_TASK.md.
+
 ## 2026-08-13 — persona-sweep run 74: GEEN gat gevonden (alle 4 rollen, DOEL 1/1b/2)
 
 **Wat:** Kritische-gebruiker-sweep over ZZP'er, opdrachtgever, bemiddelaar en admin op een echte prod-build
