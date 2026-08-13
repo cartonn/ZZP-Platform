@@ -1151,6 +1151,39 @@ prettier — lokaal groen.
 
 **Volgende stap:** volgende persona-sweep-gat of concurrent-gedreven UX/data-increment.
 
+---
+
+## 2026-08-13 — ZZP'er: urencriterium als next-action op `/acties`
+
+**Wat:** Het urencriterium-signaal (1.225 uur → zelfstandigenaftrek, `getHoursCriterionSummary`) leefde
+alleen passief op `/inzicht`; er was geen `/acties`-tegenhanger (persona-sweep run 72, GEPARKEERD MED —
+"signaal op één oppervlak, afwezig in het next-action-model"). Nu emit `freelancerTasks` de stand als
+next-action zodra bijsturen zin heeft én realistisch is — dus op `/acties`, de dashboard-rail en de
+`/acties`-badge. Hoge financiële inzet (de aftrek), maar bewust een **zachte, seizoensgebonden** nudge:
+geen jaarrond-ruis, geen ontmoedigende "je haalt het niet meer"-melding.
+
+**Gate (`hoursCriterionNeedsAction`, puur):** alleen in het seizoen **H2/Q4** (hergebruikt
+`hoursCriterionCheckpoint` uit de proactieve herinnering → jan–jun is de jaarprognose te ruisgevoelig),
+mét activiteit (`!noActivity`), niet-gehaald én niet-op-koers (`!met && !projectedMet`), en nog
+realistisch bij te sturen (`feasibility` = `haalbaar`/`ambitieus`; `onhaalbaar` → geen taak, want dat
+ontmoedigt zonder handelingsperspectief). `getHoursCriterionSummary` geeft `null` zonder de
+IB_VOORBEREIDING-entitlement → de taak verschijnt alleen voor wie het instrument heeft.
+
+**Taak:** kind `hours-criterion`, prioriteit `P.hoursCriterionDueSoon: 51` — onder de concrete fiscale
+deadlines (incomeTaxDeadlineDueSoon 57 / vatDeadlineDueSoon 58) en het tijdgevoelige inbound-cluster
+(messagesAwaiting 55 … staleApplications 52), boven een generieke nieuwe reactie (applications 50):
+een staande, hoog-renderende fiscale doelstelling, maar niet week-op-week urgent. Resolver `link` →
+deep-link `/ontzorgd/uren` (waar je je indirecte uren registreert — de concrete handeling). Server-side
+waarheid, read-only signaal, geen schema-/mutatie-/auth-oppervlak, geen nieuwe query-kosten (hergebruikt
+de bestaande `getHoursCriterionSummary`).
+
+**Bestanden:** `src/lib/tax/hours-criterion-summary.ts` (+`hoursCriterionNeedsAction`),
+`src/lib/actions/tasks.ts` (+`hoursCriterionTask` + union-variant), `src/lib/next-actions.ts`
+(+`P.hoursCriterionDueSoon`), `src/lib/actions/pending-tasks.ts` (wiring in `freelancerTasks`).
+Tests: +7 gate-tests (`hours-criterion-summary.test.ts`), +2 builder/priority-tests (`tasks.test.ts`),
+7 freelancer-`pending-tasks`-testmocks aangevuld (isoleren de nieuwe tak, zoals income-tax/vat).
+Gate: typecheck, lint, test (5870), prettier, build groen.
+
 ## 2026-08-13 — Ontwerp-lab: +10 concepten (reeks 56, nrs 551–560) → totaal 560 op `/ontwerp`
 
 **Wat:** Additief 10 nieuwe redesign-concepten toegevoegd (galerij 550 → 560; geen bestaand concept,

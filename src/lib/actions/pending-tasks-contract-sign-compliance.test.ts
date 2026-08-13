@@ -96,6 +96,10 @@ vi.mock("@/lib/data/income-tax-deadline", () => ({
   getIncomeTaxDeadlineForActor: vi.fn(async () => null),
 }));
 vi.mock("@/lib/data/vat-deadline", () => ({ getVatDeadlinesForActor: vi.fn(async () => []) }));
+vi.mock("@/lib/tax/hours-criterion-summary", () => ({
+  getHoursCriterionSummary: vi.fn(async () => null),
+  hoursCriterionNeedsAction: vi.fn(() => false),
+}));
 // Isoleer de contract-sign-tak: de compliance-ripple (opdrachtgever) staat uit zodat we puur de
 // contract-sign-emissie meten (die tak is elders al getest).
 vi.mock("@/lib/collaboration-alerts", async (importOriginal) => {

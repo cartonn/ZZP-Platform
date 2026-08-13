@@ -2,11 +2,29 @@ import { describe, expect, it } from "vitest";
 import { hoursCriterion } from "@/lib/tax/hours-criterion";
 import {
   hoursCriterionHint,
+  hoursCriterionNeedsAction,
   hoursPaceFeasibility,
   hoursProgressPercent,
+  type HoursCriterionSummary,
 } from "@/lib/tax/hours-criterion-summary";
 
 const NOW = new Date("2026-07-01T12:00:00Z");
+
+/** Bouwt een `HoursCriterionSummary` zoals `getHoursCriterionSummary` dat doet (zonder DB). */
+function buildSummary(
+  directHours: number,
+  indirectHours: number,
+  now: Date,
+): HoursCriterionSummary {
+  const criterion = hoursCriterion({ directHours, indirectHours, now });
+  return {
+    ...criterion,
+    year: now.getUTCFullYear(),
+    noActivity: directHours + indirectHours === 0,
+    feasibility: hoursPaceFeasibility(criterion),
+    hint: hoursCriterionHint(criterion),
+  };
+}
 
 describe("hoursProgressPercent", () => {
   it("zet basispunten om naar een afgerond percentage", () => {
@@ -97,5 +115,51 @@ describe("hoursPaceFeasibility", () => {
     expect(behind.hoursPerWeekNeeded).toBeGreaterThan(25);
     expect(behind.hoursPerWeekNeeded).toBeLessThanOrEqual(40);
     expect(hoursPaceFeasibility(behind)).toBe("ambitieus");
+  });
+});
+
+describe("hoursCriterionNeedsAction", () => {
+  it("nudget in het seizoen (H2) bij een achterstand met een rustig tempo (haalbaar)", () => {
+    const s = buildSummary(600, 0, new Date("2026-07-02T12:00:00Z"));
+    expect(s.feasibility).toBe("haalbaar");
+    expect(hoursCriterionNeedsAction(s, new Date("2026-07-02T12:00:00Z"))).toBe(true);
+  });
+
+  it("nudget in Q4 bij een fors maar nog haalbaar tempo (ambitieus)", () => {
+    const now = new Date("2026-10-08T12:00:00Z");
+    const s = buildSummary(800, 0, now);
+    expect(s.feasibility).toBe("ambitieus");
+    expect(hoursCriterionNeedsAction(s, now)).toBe(true);
+  });
+
+  it("nudget NIET buiten het seizoen (jan–jun), ook al is er achterstand", () => {
+    const now = new Date("2026-03-15T12:00:00Z");
+    const s = buildSummary(200, 0, now);
+    expect(hoursCriterionNeedsAction(s, now)).toBe(false);
+  });
+
+  it("nudget NIET zonder activiteit (geen enkel geboekt uur)", () => {
+    const s = buildSummary(0, 0, NOW);
+    expect(s.noActivity).toBe(true);
+    expect(hoursCriterionNeedsAction(s, NOW)).toBe(false);
+  });
+
+  it("nudget NIET wanneer het criterium al gehaald is", () => {
+    const s = buildSummary(1225, 0, NOW);
+    expect(s.met).toBe(true);
+    expect(hoursCriterionNeedsAction(s, NOW)).toBe(false);
+  });
+
+  it("nudget NIET wanneer de ZZP'er op koers ligt (prognose haalt de grens)", () => {
+    const s = buildSummary(700, 0, NOW);
+    expect(s.projectedMet).toBe(true);
+    expect(hoursCriterionNeedsAction(s, NOW)).toBe(false);
+  });
+
+  it("nudget NIET wanneer het dit jaar realistisch niet meer haalbaar is (onhaalbaar) — ontmoedigt zonder handelingsperspectief", () => {
+    const now = new Date("2026-12-28T12:00:00Z");
+    const s = buildSummary(200, 0, now);
+    expect(s.feasibility).toBe("onhaalbaar");
+    expect(hoursCriterionNeedsAction(s, now)).toBe(false);
   });
 });

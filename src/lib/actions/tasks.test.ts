@@ -33,6 +33,7 @@ import {
   respondInvitationTask,
   vatDeadlineTask,
   incomeTaxDeadlineTask,
+  hoursCriterionTask,
   paymentDueSoonTask,
   overdueInvoiceTask,
   type PendingTask,
@@ -40,6 +41,12 @@ import {
 import { type CredentialAlert } from "@/lib/collaboration-alerts";
 import { summarizeVatDeadline } from "@/lib/administration/vat-deadline";
 import { summarizeIncomeTaxDeadline } from "@/lib/administration/income-tax-deadline";
+import { hoursCriterion } from "@/lib/tax/hours-criterion";
+import {
+  hoursCriterionHint,
+  hoursPaceFeasibility,
+  type HoursCriterionSummary,
+} from "@/lib/tax/hours-criterion-summary";
 
 describe("rankTasks", () => {
   it("sorteert op prioriteit aflopend, stabiel bij gelijke prioriteit", () => {
@@ -695,6 +702,47 @@ describe("incomeTaxDeadlineTask", () => {
   it("staat onder de BTW-deadline maar boven een naderende factuurbetaling", () => {
     expect(P.incomeTaxDeadlineDueSoon).toBeLessThan(P.vatDeadlineDueSoon);
     expect(P.incomeTaxDeadlineDueSoon).toBeGreaterThan(P.paymentDueSoon);
+  });
+});
+
+describe("hoursCriterionTask", () => {
+  function buildSummary(
+    directHours: number,
+    indirectHours: number,
+    now: Date,
+  ): HoursCriterionSummary {
+    const criterion = hoursCriterion({ directHours, indirectHours, now });
+    return {
+      ...criterion,
+      year: now.getUTCFullYear(),
+      noActivity: directHours + indirectHours === 0,
+      feasibility: hoursPaceFeasibility(criterion),
+      hint: hoursCriterionHint(criterion),
+    };
+  }
+
+  it("achterstand bijstuurbaar: link naar de uren-registratie, resterende uren + weektempo, forward-looking prioriteit", () => {
+    const now = new Date("2026-07-02T12:00:00Z");
+    const summary = buildSummary(600, 0, now);
+    const t = hoursCriterionTask(summary);
+    expect(t).toMatchObject({
+      kind: "hours-criterion",
+      id: "hours-criterion:2026",
+      resolver: "link",
+      href: "/ontzorgd/uren",
+      tone: "attention",
+      priority: P.hoursCriterionDueSoon,
+      year: 2026,
+    });
+    expect(t.title).toBe(`Urencriterium 2026: nog ${summary.remainingHours} uur`);
+    expect(t.subtitle).toContain(`${summary.hoursPerWeekNeeded} uur/week`);
+    expect(t.subtitle).toContain("indirecte uren");
+  });
+
+  it("staat onder de concrete fiscale deadlines maar boven een generieke nieuwe reactie", () => {
+    expect(P.hoursCriterionDueSoon).toBeLessThan(P.incomeTaxDeadlineDueSoon);
+    expect(P.hoursCriterionDueSoon).toBeLessThan(P.vatDeadlineDueSoon);
+    expect(P.hoursCriterionDueSoon).toBeGreaterThan(P.applications);
   });
 });
 

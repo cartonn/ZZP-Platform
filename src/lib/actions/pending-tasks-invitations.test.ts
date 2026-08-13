@@ -65,6 +65,10 @@ vi.mock("@/lib/data/income-tax-deadline", () => ({
 vi.mock("@/lib/data/vat-deadline", () => ({
   getVatDeadlinesForActor: vi.fn(async () => []),
 }));
+vi.mock("@/lib/tax/hours-criterion-summary", () => ({
+  getHoursCriterionSummary: vi.fn(async () => null),
+  hoursCriterionNeedsAction: vi.fn(() => false),
+}));
 
 vi.mock("@/lib/data/received-invitations", () => ({
   getReceivedInvitations: vi.fn(async () => state.invitations),

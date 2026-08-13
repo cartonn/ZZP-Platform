@@ -674,9 +674,14 @@ from } })` + count-gate (0 → `StaleJobStatusError` → rollback, geen resurrec
 >   telt mee in `cascadeWork` voor beide rollen. Dezelfde `summarizeCollaborationRenewal`-bron als /acties →
 >   kan niet driften. +7 tests (pure grens + badge-integratie). Gate: typecheck, lint, test (5594), build,
 >   prettier groen.
-> - **MED (DOEL 1b, FREELANCER):** het urencriterium-signaal ("onhaalbaar / dit jaar niet meer",
+> - ~~**MED (DOEL 1b, FREELANCER):** het urencriterium-signaal ("onhaalbaar / dit jaar niet meer",
 >   `getHoursCriterionSummary`) leeft alleen op `/inzicht`; geen /acties-tegenhanger. Hoge financiële inzet
->   (zelfstandigenaftrek) maar zachtere/seizoensgebonden actie.
+>   (zelfstandigenaftrek) maar zachtere/seizoensgebonden actie.~~ **→ GEDAAN (2026-08-13, PR #1079):**
+>   `freelancerTasks` emit het nu als next-action (`hours-criterion`, `P.hoursCriterionDueSoon: 51`) op
+>   /acties + de dashboard-rail + de /acties-badge, via een pure gate `hoursCriterionNeedsAction`
+>   (seizoen H2/Q4 · activiteit · niet-op-koers · nog haalbaar — `onhaalbaar` geeft bewust géén taak).
+>   Deep-link `/ontzorgd/uren` (de indirecte-uren-registratie). Read-only, geen schema-/mutatie-/auth-
+>   oppervlak, geen extra query (hergebruikt `getHoursCriterionSummary`). +9 tests. Gate groen.
 > - ~~**LOW (DOEL 1b, FRANCHISER):** de dashboard-seal "Verloopt binnenkort" (`dashboard/page.tsx` rauwe
 >   `credential.count`) is **niet** superseded-aware, terwijl /acties + de `/franchise/zzpers`-badge
 >   (`rosterExpiringByProfile`) superseded certs wél uitsluiten → seal luider dan /acties.~~ **GEFIXT

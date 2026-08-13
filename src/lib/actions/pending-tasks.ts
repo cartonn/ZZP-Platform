@@ -78,6 +78,7 @@ import {
   respondInvitationTask,
   vatDeadlineTask,
   incomeTaxDeadlineTask,
+  hoursCriterionTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
 import { getReceivedInvitations } from "@/lib/data/received-invitations";
@@ -94,6 +95,10 @@ import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
 import { getClientColdJobs } from "@/lib/data/client-cold-jobs";
 import { getIncomeTaxDeadlineForActor } from "@/lib/data/income-tax-deadline";
 import { incomeTaxDeadlineNeedsAction } from "@/lib/administration/income-tax-deadline";
+import {
+  getHoursCriterionSummary,
+  hoursCriterionNeedsAction,
+} from "@/lib/tax/hours-criterion-summary";
 import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
 import { collaborationPlacementBlocked } from "@/lib/collaborations";
 import {
@@ -790,6 +795,15 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   const incomeTaxDeadline = await getIncomeTaxDeadlineForActor(userId, "FREELANCER", now);
   if (incomeTaxDeadline && incomeTaxDeadlineNeedsAction(incomeTaxDeadline)) {
     tasks.push(incomeTaxDeadlineTask(incomeTaxDeadline));
+  }
+
+  // Urencriterium (1.225 uur → zelfstandigenaftrek): het passieve standssignaal staat al op /inzicht,
+  // maar ontbrak als next-action. Alleen surfacen wanneer bijsturen zin heeft én realistisch is (seizoen
+  // H2/Q4, activiteit, niet-op-koers, nog haalbaar — zie hoursCriterionNeedsAction). getHoursCriterionSummary
+  // geeft null zonder de IB_VOORBEREIDING-entitlement, dus de taak verschijnt alleen voor wie het instrument heeft.
+  const hoursCriterion = await getHoursCriterionSummary(userId, now);
+  if (hoursCriterion && hoursCriterionNeedsAction(hoursCriterion, now)) {
+    tasks.push(hoursCriterionTask(hoursCriterion));
   }
 
   // Afgeronde samenwerkingen die nog beoordeeld kunnen worden (blind venster open) — reputatie-nudge.

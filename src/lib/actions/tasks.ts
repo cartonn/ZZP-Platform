@@ -15,6 +15,7 @@ import { type CredentialAlert } from "@/lib/collaboration-alerts";
 import { type CollaborationRenewalPhase } from "@/lib/collaboration-renewal";
 import { type VatDeadlineSummary } from "@/lib/administration/vat-deadline";
 import { type IncomeTaxDeadlineSummary } from "@/lib/administration/income-tax-deadline";
+import { type HoursCriterionSummary } from "@/lib/tax/hours-criterion-summary";
 import { type StaleApplicationsSummary } from "@/lib/stale-applications";
 import { type FirstLookOverdueSummary } from "@/lib/client-first-look";
 import { INVITATION_AGING_DAYS, invitationAgeLabel } from "@/lib/received-invitations";
@@ -89,6 +90,7 @@ export type PendingTask =
   | (TaskBase & { kind: "payment-due-soon" })
   | (TaskBase & { kind: "vat-deadline"; year: number; quarter: number })
   | (TaskBase & { kind: "income-tax-deadline"; taxYear: number })
+  | (TaskBase & { kind: "hours-criterion"; year: number })
   | (TaskBase & { kind: "client-compliance"; collabId: string })
   | (TaskBase & { kind: "review-leave"; collabId: string })
   | (TaskBase & { kind: "collaboration-renewal"; collabId: string; role: "FREELANCER" | "CLIENT" })
@@ -1158,6 +1160,27 @@ export function incomeTaxDeadlineTask(summary: IncomeTaxDeadlineSummary): Pendin
     resolver: "link", // aangifte doe je bij de Belastingdienst; hier de cijfers + het startpunt
     href: "/ontzorgd/aangifte",
     taxYear: summary.taxYear,
+  };
+}
+
+/**
+ * Urencriterium-taak: het criterium (1.225 uur → zelfstandigenaftrek) dreigt dit jaar niet gehaald te
+ * worden, maar is nog realistisch bij te sturen. Verschijnt alléén wanneer bijsturen zin heeft — in het
+ * seizoen H2/Q4, met activiteit, niet-op-koers en haalbaar (`hoursCriterionNeedsAction`). Anders dan de
+ * BTW/IB-aangifte is dit geen filing-deadline maar een gedragsnudge: boek meer uren of registreer je
+ * indirecte uren. Deep-link naar `/ontzorgd/uren`, waar je die indirecte uren vastlegt. Geen fiscaal advies.
+ */
+export function hoursCriterionTask(summary: HoursCriterionSummary): PendingTask {
+  return {
+    kind: "hours-criterion",
+    id: `hours-criterion:${summary.year}`,
+    title: `Urencriterium ${summary.year}: nog ${summary.remainingHours} uur`,
+    subtitle: `≈ ${summary.hoursPerWeekNeeded} uur/week tot het jaareinde voor de zelfstandigenaftrek — registreer ook je indirecte uren`,
+    tone: "attention",
+    priority: P.hoursCriterionDueSoon,
+    resolver: "link", // de zelfstandigenaftrek loopt via de aangifte; hier registreer je de (indirecte) uren
+    href: "/ontzorgd/uren",
+    year: summary.year,
   };
 }
 
