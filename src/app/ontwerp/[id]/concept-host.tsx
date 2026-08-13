@@ -1657,6 +1657,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "550": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-550-weefsel").then((m) => m.Concept550),
   ),
+  "551": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-551-constructivisme").then((m) => m.Concept551),
+  ),
+  "552": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-552-pleitnota").then((m) => m.Concept552),
+  ),
+  "553": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-553-gereedschapsbord").then((m) => m.Concept553),
+  ),
+  "554": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-554-opstelling").then((m) => m.Concept554),
+  ),
+  "555": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-555-shaker").then((m) => m.Concept555),
+  ),
+  "556": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-556-weens").then((m) => m.Concept556),
+  ),
+  "557": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-557-bijsluiter").then((m) => m.Concept557),
+  ),
+  "558": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-558-schrijn").then((m) => m.Concept558),
+  ),
+  "559": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-559-schaakbord").then((m) => m.Concept559),
+  ),
+  "560": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-560-anatomie").then((m) => m.Concept560),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al

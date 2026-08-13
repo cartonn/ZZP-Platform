@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-13 — Ontwerp-lab: +10 concepten (reeks 56, nrs 551–560) → totaal 560 op `/ontwerp`
+
+**Wat:** Additief 10 nieuwe redesign-concepten toegevoegd (galerij 550 → 560; geen bestaand concept,
+registry-entry of route-koppeling aangeraakt — de diff op `registry.ts` en `concept-host.tsx` is puur
+append, 0 verwijderde regels). Deze reeks haalt de inspiratie bewust búiten productdesign: kunsthistorische
+bewegingen, institutionele documentvormen, werkplaats- en notatiesystemen. Richtingen: **551 Constructivisme**
+(Rodchenko/Lissitzky, diagonale beeldas), **552 Pleitnota** (juridisch processtuk, adversariële twee-koloms),
+**553 Gereedschapsbord** (shadow board 5S — ontbrekend bewijsstuk = lege omtrek), **554 Opstelling**
+(tactiekbord, positie i.p.v. tabelrij), **555 Shaker** (peg rail, ornamentloze utiliteit), **556 Weens**
+(Wiener Werkstätte gitter + bladgoud), **557 Bijsluiter** (farmaceutische bijsluiter, maximale
+informatiedichtheid), **558 Schrijn** (reliekschrijn, bewaargeving + toegangslog), **559 Schaakbord**
+(schaaknotatie als beurtwissel-OS), **560 Anatomie** (anatomische plaat met verwijslijnen naar marge-labels).
+Elk concept dekt 8–9 schermen (de 6 kernschermen plus minimaal twee van documenten/berichten/profiel/
+admin-queue/franchiser), met werkende scherm-switcher, extra interacties (filters, sorteertoggles,
+uitklappers, selectie), en bereikbare loading/empty/error-states. Status altijd label+icoon, semantische
+landmarks, `role="tab"`/`tabpanel`, `aria-expanded`, focus-visible, responsive 360–1600px, deterministisch
+(geen `Math.random`/`Date`). Geen "AI" in UI/comments/code.
+
+**Bestanden:** 10 nieuwe `src/components/ontwerp/concepts/concept-55{1..9},560-*.tsx` (~19,6k regels);
+append aan `src/components/ontwerp/concepts/registry.ts` (10 ConceptMeta) en
+`src/app/ontwerp/[id]/concept-host.tsx` (10 dynamic-imports); `docs/DESIGN-LAB.md` (reeks 56 + bronnen).
+Gebouwd door 4 parallelle workers op niet-overlappende bestanden; orchestrator integreerde registry + route.
+Gate: typecheck, lint, test (5861), prettier, build groen.
+
+**Opmerking:** `/ontwerp` staat inmiddels achter login (e2e `ontwerp.spec.ts` borgt de redirect naar
+`/login` voor niet-ingelogde bezoekers) — een eerdere security-beslissing. Deze reeks laat dat ongemoeid;
+de layout-comment in `src/app/ontwerp/layout.tsx` spreekt dat nog tegen en is een losse opruimtaak.
+
 ## 2026-08-13 — Robuustheid: server-actions vangen AuthorizationError af (geen crash-boundary bij stale sessie)
 
 **Wat:** de laatste twee geparkeerde `requireActor()`-ongevangen-gaten in de server-action-laag gedicht
