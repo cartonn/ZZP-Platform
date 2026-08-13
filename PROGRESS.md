@@ -1561,6 +1561,28 @@ commando's. Fail-closed (geen data-lek), server-side waarheid, geen schema-/muta
 
 ---
 
+## 2026-08-13 — persona-sweep run 73: fiscale-deadline-badge (badge↔/acties-pariteit) + TZ-fix
+
+**Wat:** kritische-gebruiker-sweep over alle 4 rollen (live Playwright + 3 parallelle adversariële
+Opus-code-audits). Gevonden + gefixt: de fiscale-deadline-taken (BTW-aangifte, inkomstenbelasting) staan
+op `/acties` + de dashboard-rail met hoge attention-prioriteit, maar de Administratie-hub-badge
+(`/financien`) telde ze niet — het "signaal op één oppervlak"-anti-patroon dat de codebase voor elke
+andere attention-taak al sloot. Nu een nieuwe `SignalCounts`-sleutel `fiscalDeadlines` die BTW (beide
+rollen) + IB (alleen ZZP'er) meetelt via exact dezelfde bron als `pending-tasks.ts` → badge == /acties.
+Tweede fix: `buildBadges` telt nu gelijk-href tellingen op i.p.v. de laatste key te laten winnen (stille
+overschrijf-bug, nodig omdat `fiscalDeadlines` en `overdueInvoices` beide op `/financien` hangen). Derde
+fix: `wholeDaysUntil` in de BTW-deadline-module gebruikt nu consistent UTC (was lokaal/UTC-mix → latente
+off-by-one bij niet-UTC procestijdzone).
+
+- **Bestanden:** `src/lib/signals.ts` (nieuwe key + `buildBadges`-sommatie + `fiscalDeadlineBadgeCount`),
+  `src/lib/administration/vat-deadline.ts` (TZ-fix), `src/lib/signals.badge-gaps-run73.test.ts` (nieuw, 8
+  tests), + 11 bestaande navBadges-test-mocks aangevuld met `administrationEntry` (nieuwe DB-afhankelijkheid
+  van de badge-motor).
+- **Checks:** typecheck ✓, lint ✓, `npm run test` 565 files / 5867 tests ✓, build ✓, prettier ✓. Live
+  (alle 4 rollen): login + dashboard + /acties 200, geen 500; ZZP'er-escalatie/IDOR correct geweigerd.
+- **Backlog:** `docs/PERSONA-SWEEP-BACKLOG.md` bijgewerkt (run 73 bovenaan). Eerdere geparkeerde LOW-items
+  (non-atomic invoice-sequence, periode-loze HOURS-dubbelfactuur) blijven staan met repro.
+
 ## 2026-08-13 — ZZP'er: verwachte betaaldatum in de openstaande-posten CSV (debiteurenlijst)
 
 **Wat:** de `/openstaand`-pagina toont de ZZP'er per openstaande factuur de realistische

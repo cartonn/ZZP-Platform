@@ -34,6 +34,8 @@ const applicationFindMany = vi.fn((a: Where): Promise<unknown[]> => {
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    // fiscale-deadline-bron (BTW/IB) die navBadges nu leest; geen deadlines in deze test (run 73).
+    administrationEntry: { findMany: () => Promise.resolve([]) },
     freelancerProfile: {
       findUnique: vi.fn(() => Promise.resolve({ id: "fp-1" })),
       count: vi.fn(() => Promise.resolve(0)),

@@ -67,9 +67,17 @@ export function vatFilingDeadline(year: number, quarter: Quarter): Date {
   return new Date(Date.UTC(year, monthAfterQuarter + 1, 0));
 }
 
-/** Hele kalenderdagen van `now` tot `deadline` (beide genormaliseerd naar de kalenderdag). */
+/**
+ * Hele kalenderdagen van `now` tot `deadline` (beide genormaliseerd naar de UTC-kalenderdag).
+ *
+ * Beide zijden worden op UTC-componenten genormaliseerd — de deadline is UTC-middernacht
+ * (`vatFilingDeadline`) en de getoonde datum wordt UTC geformatteerd (`VAT_DEADLINE_DATE`), dus `now`
+ * moet óók UTC gebruiken. Anders (bij een niet-UTC procestijdzone) verschilde `now` een kalenderdag
+ * rond middernacht, wat `status` een dag te vroeg/laat liet omslaan en de "N dagen te laat"-tekst met
+ * de getoonde UTC-datum liet tegenspreken. Consistent met de zustermodule `income-tax-deadline.ts`.
+ */
 function wholeDaysUntil(now: Date, deadline: Date): number {
-  const nowDay = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const nowDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const deadlineDay = Date.UTC(
     deadline.getUTCFullYear(),
     deadline.getUTCMonth(),

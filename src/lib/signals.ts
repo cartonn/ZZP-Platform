@@ -38,6 +38,9 @@ import { NO_SHOW_LIMIT } from "@/lib/no-show";
 import { paymentDueSoonWhere } from "@/lib/payment-due-soon";
 import { summarizeStaleClientApplications } from "@/lib/stale-applications";
 import { getClientColdJobs } from "@/lib/data/client-cold-jobs";
+import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
+import { getIncomeTaxDeadlineForActor } from "@/lib/data/income-tax-deadline";
+import { incomeTaxDeadlineNeedsAction } from "@/lib/administration/income-tax-deadline";
 import { SUPPORT_OPEN_STATUSES } from "@/lib/support/labels";
 
 export type BadgeTone = "attention" | "info";
@@ -59,6 +62,7 @@ interface SignalCounts {
   pendingVerifications?: number; // ADMIN: wacht op verificatie
   unreadMessages?: number; // FREELANCER + CLIENT: gesprekken met ongelezen berichten
   overdueInvoices?: number; // FREELANCER + CLIENT: facturen over de vervaldatum
+  fiscalDeadlines?: number; // FREELANCER + CLIENT: naderende/verstreken fiscale deadlines (BTW-aangifte + IB), spiegelt /acties
   cascadeWork?: number; // FREELANCER + CLIENT: cascade-acties "aan zet" in werkproces
   openDisputes?: number; // ADMIN: open disputen die bemiddeling vragen
   pendingPerformances?: number; // CLIENT: ingediende prestaties wachten op goedkeuring
@@ -81,8 +85,10 @@ const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
   pendingVerifications: "/admin/verificaties",
   unreadMessages: "/berichten",
   // Facturen zijn samengevoegd in de Administratie-hub (/financien); de overdue-badge hangt
-  // daarom aan het hub-item in de zijbalk.
+  // daarom aan het hub-item in de zijbalk. De fiscale-deadline-badge (BTW/IB) deelt datzelfde
+  // hub-item — `buildBadges` telt gelijk-href tellingen op, dus ze overschrijven elkaar niet.
   overdueInvoices: "/financien",
+  fiscalDeadlines: "/financien",
   cascadeWork: "/samenwerkingen",
   openDisputes: "/admin/disputen",
   pendingPerformances: "/prestaties",
@@ -105,6 +111,8 @@ const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
   pendingVerifications: "attention",
   unreadMessages: "info",
   overdueInvoices: "attention",
+  // Een naderende/verstreken BTW- of IB-aangiftedeadline vraagt actie (agenderen/betalen).
+  fiscalDeadlines: "attention",
   cascadeWork: "attention",
   openDisputes: "attention",
   pendingPerformances: "attention",
@@ -241,12 +249,26 @@ export function countClientCascadeWork(input: {
   );
 }
 
-/** Pure mapping van ruwe tellingen → badges (filtert 0 weg). Testbaar zonder DB. */
+/**
+ * Pure mapping van ruwe tellingen → badges (filtert 0 weg). Testbaar zonder DB.
+ *
+ * Meerdere tellingen kunnen op hetzelfde nav-href hangen (bv. `overdueInvoices` én `fiscalDeadlines`
+ * op de Administratie-hub `/financien`). Die worden **opgeteld** in plaats van elkaar te overschrijven
+ * — anders viel één van de twee signalen stil en sprak de badge /acties tegen. De toon is de sterkste
+ * van de bijdragen (attention wint van info): zodra één telling actie vraagt, vraagt de badge actie.
+ */
 export function buildBadges(counts: SignalCounts): NavBadges {
   const out: NavBadges = {};
   for (const key of Object.keys(counts) as (keyof SignalCounts)[]) {
     const count = counts[key] ?? 0;
-    if (count > 0) out[SIGNAL_HREF[key]] = { count, tone: SIGNAL_TONE[key] };
+    if (count <= 0) continue;
+    const href = SIGNAL_HREF[key];
+    const tone = SIGNAL_TONE[key];
+    const existing = out[href];
+    out[href] = {
+      count: (existing?.count ?? 0) + count,
+      tone: existing?.tone === "attention" || tone === "attention" ? "attention" : "info",
+    };
   }
   return out;
 }
@@ -426,6 +448,25 @@ async function countClientSignableProposals(userId: string, now: Date): Promise<
   return count;
 }
 
+/**
+ * Aantal fiscale-deadline-taken dat /acties + de dashboard-rail nú tonen voor deze rol — exact
+ * dezelfde bron als `pending-tasks.ts` (`getVatDeadlinesForActor` levert al één summary per te-
+ * agenderen BTW-venster, `getIncomeTaxDeadlineForActor` + `incomeTaxDeadlineNeedsAction` de IB-
+ * deadline). Zo telt de Administratie-hub-badge (`/financien`) die taken mee en spreekt de zijbalk
+ * /acties niet tegen (het "signaal op één oppervlak"-anti-patroon). Alleen de ZZP'er heeft een IB-
+ * deadline; de opdrachtgever telt enkel BTW.
+ */
+async function fiscalDeadlineBadgeCount(
+  role: UserRole,
+  userId: string,
+  now: Date,
+): Promise<number> {
+  const vatCount = (await getVatDeadlinesForActor(userId, role, now)).length;
+  if (role !== "FREELANCER") return vatCount;
+  const incomeTax = await getIncomeTaxDeadlineForActor(userId, role, now);
+  return vatCount + (incomeTax && incomeTaxDeadlineNeedsAction(incomeTax) ? 1 : 0);
+}
+
 export async function navBadges(role: UserRole, userId: string): Promise<NavBadges> {
   if (role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({
@@ -446,6 +487,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       renewalWork,
       placementCreds,
       cascadeWorkCount,
+      fiscalDeadlines,
     ] = await Promise.all([
       prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
       // Het volledige VERIFIED-dossier (niet enkel de in-venster verlopende rijen): superseded-
@@ -509,6 +551,9 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       // queries als de /acties-emitters (pending-tasks.ts `freelancerTasks`) → badge↔/acties-pariteit,
       // geen `updatedAt`-venster dat een ouder-getekende samenwerking met openstaand werk laat vallen.
       getFreelancerCascadeWorkCount(userId, now),
+      // Fiscale deadlines (BTW-aangifte + IB) die /acties + de dashboard-rail nú tonen — zelfde bron,
+      // zodat de Administratie-hub-badge (/financien) niet stiller is dan /acties.
+      fiscalDeadlineBadgeCount("FREELANCER", userId, now),
     ]);
     // Superseded-aware verval-telling voor de /certificaten-badge. `/acties` + de dashboard-rail
     // (pending-tasks.ts `freelancerTasks` → `supersededVerifiedCredentialIds`) sluiten een ouder,
@@ -593,6 +638,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         rejected + expiring + mandatoryAlerts + collabCredentialAlerts + standaloneExpiredAlerts,
       unreadMessages,
       overdueInvoices,
+      fiscalDeadlines,
       cascadeWork,
       savedJobs,
     });
@@ -624,6 +670,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       acceptedCandidates,
       renewalWork,
       coldJobs,
+      fiscalDeadlines,
     ] = await Promise.all([
       prisma.application.count({ where: { job: { companyId: company.id }, status: "NEW" } }),
       prisma.job.count({ where: { companyId: company.id, status: "DRAFT" } }),
@@ -723,6 +770,10 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       // emissie op /acties + de dashboard-rail. Gedeelde `getClientColdJobs` (zelfde koud-drempels,
       // scan-cap en ordering) → de /opdrachten-badge kan niet driften van /acties.
       getClientColdJobs(userId, now),
+      // Fiscale deadlines (alleen BTW voor de opdrachtgever) die /acties + de dashboard-rail nú tonen —
+      // zelfde bron als pending-tasks.ts, zodat de Administratie-hub-badge (/financien) niet stiller is
+      // dan /acties.
+      fiscalDeadlineBadgeCount("CLIENT", userId, now),
     ]);
     // Eén actie per samenwerking (niet per ontbrekend certificaat-type): exact gelijk aan de
     // één-taak-per-samenwerking-emissie in de item-engine. De `clientHasComplianceAction`-gate sluit
@@ -776,6 +827,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       draftJobs,
       unreadMessages,
       overdueInvoices,
+      fiscalDeadlines,
       cascadeWork,
       pendingPerformances: cascadePerf,
     });
