@@ -66,6 +66,19 @@ agent-fix (MENSENWERK.md §5). Herbevestigd aanwezig, ongewijzigd; geen wórsere
   `CRON_SECRET`. Retentie-sweeps (`run-all`) daadwerkelijk bedraad + gauge-gemonitord.
 - **Dependencies.** `npm audit --omit=dev` = **0** (resterende meldingen enkel in devDependencies).
 
+**Waargenomen (geparkeerd, geen toegangs-/PII-gat) — build-tijd Google-Fonts-fetch:**
+
+- **LAAG — beschikbaarheid/supply-chain (OWASP A08 — softwareketen-integriteit/availability).** `src/app/ontwerp/
+layout.tsx` laadt `Cormorant Garamond` via `next/font/google`, wat `next build` een live fetch naar
+  `fonts.gstatic.com` laat doen. Bij een Google-Fonts-uitval/rate-limit faalt de `check`-poort (`npm run build`)
+  hard — waargenomen op deze ronde: `NextFontError: Failed to fetch 'Cormorant Garamond' from Google Fonts`
+  (retry 3/3) blokkeerde één CI-run; her-trigger loste het op. Geen datalek en geen runtime-privacy-issue
+  (`next/font` self-host de font bij build, dus de eindgebruiker verbindt nóóit met Google — dat deel is juist
+  goed). Puur een **merge-availability-/leverketen-risico**: elke PR hangt af van een externe host tijdens de
+  build. **Aanbevolen fix (devops/mens, buiten deze docs-only PR):** de font self-hosten via `next/font/local`
+  (woff2 in de repo) of de `ontwerp`-designlab-route uit de productie-build sluiten — dan is de build
+  deterministisch en hermetisch. Dit is een reliability-/ketenpunt, geen agent-security-fix binnen scope.
+
 ## Ronde 2026-08-13 (basis: `main` @ 8e3e9f38) — geen nieuwe gaten
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
