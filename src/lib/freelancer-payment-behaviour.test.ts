@@ -40,7 +40,7 @@ describe("buildFreelancerPaymentBehaviourBreakdown", () => {
   it("aggregates per client and derives the payment signal", () => {
     const b = buildFreelancerPaymentBehaviourBreakdown(invoices("c1", "Acme", 4, 8));
     expect(b.rows).toHaveLength(1);
-    const row = b.rows[0];
+    const row = b.rows[0]!;
     expect(row.companyId).toBe("c1");
     expect(row.name).toBe("Acme");
     expect(row.behavior.sampleSize).toBe(4);
@@ -59,8 +59,8 @@ describe("buildFreelancerPaymentBehaviourBreakdown", () => {
     ]);
     expect(b.rows.map((r) => r.companyId)).toEqual(["slower", "slow", "good"]);
     expect(b.slowPayers).toBe(2);
-    expect(b.rows[0].behavior.tone).toBe("warning");
-    expect(b.rows[2].behavior.tone).toBe("good");
+    expect(b.rows[0]!.behavior.tone).toBe("warning");
+    expect(b.rows[2]!.behavior.tone).toBe("good");
   });
 
   it("ignores invoices without a known client", () => {
@@ -69,6 +69,6 @@ describe("buildFreelancerPaymentBehaviourBreakdown", () => {
       { companyId: null, companyName: null, issuedAt: new Date(), dueAt: null, paidAt: new Date() },
     ]);
     expect(b.rows).toHaveLength(1);
-    expect(b.rows[0].companyId).toBe("c1");
+    expect(b.rows[0]!.companyId).toBe("c1");
   });
 });
