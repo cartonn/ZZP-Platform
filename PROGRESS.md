@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-14 — routine: fee-per-maand trend voor de bemiddelaar op /inzicht (PR #1089)
+
+**Wat:** UX/data-inzicht voor de FRANCHISER (bemiddelaar). De "Jouw fee"-kaart op `/inzicht` toonde alleen
+een **all-time totaal**-fee; er was geen fee-over-tijd — terwijl dat de kern-P&L van de bemiddelaar is
+("groei ik? welke maand verdiende het meest?"). Nu een "Fee per maand"-trendkaart (spiegel van de ZZP'er
+"Winst per maand"), berekend uit de reeds geladen omzettrend × fee-percentage. Benchmark: Deel/Malt tonen
+de bemiddelaar/agency hun verdiensten over tijd; wij doen dat verklaarbaar (fee = % van doorgezet volume).
+
+**Verandering:**
+
+- `src/lib/tenant-fee-trend.ts` (nieuw, puur): `buildTenantFeeTrend(trend, feePercent)` → `TenantFeeTrend`
+  (`series` fee/volume per maand, `totalFeeCents`, `totalVolumeCents`, `months`, `hasData`, `deltaPct`).
+  Hergebruikt `computeTenantFee` (per maand afgerond → maand-som = getoonde balken) en de `RevenueTrend`.
+  Geen extra query, geen schema-wijziging, display-only, server-side.
+- `src/app/(protected)/inzicht/page.tsx`: `FeePerMaandCard` + render in `FranchiserInzicht` (alleen als de
+  fee is ingesteld; anders prompt de bestaande "Jouw fee"-empty-state om 'm in te stellen). Delta-badge
+  (laatste maand vs. voorlaatste) alleen als er ≥2 maanden fee zijn.
+- Tests: `src/lib/tenant-fee-trend.test.ts` (+9: per-maand-afronding, delta, feePercent 0, lege reeks).
+
+**Gate:** typecheck, lint, test (5900), build, prettier groen.
+
+**Volgende stap:** merge na groene poort; geen resterend mensenwerk.
+
 ## 2026-08-14 — prod: VAPID web-push env-validatie + half-activatie-guard + systeemstatus-posture (PR #1088)
 
 **Wat:** Productie-rijpheid, config/observability. `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`
