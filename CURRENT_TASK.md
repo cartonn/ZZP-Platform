@@ -46,6 +46,12 @@
 - **Vóór échte productie (mensenwerk, zie MENSENWERK.md):** juridisch/AVG-review (blokkeert livegang
   met echte gevoelige documenten), betalingen (Stripe/Mollie), echte verificatie-API's (DUO/BIG/iDIN
   — nu demo), e-mail, S3-documentopslag, eigen domein. Code is hierop voorbereid.
+  - **Update 14-8-2026:** het juridische documentenpakket stáát als concept v1.0 (op basis van
+    concurrentie-onderzoek PIDZ/Bendy/Zorgwerk/Malt/Temper/Deel + AP/ACM/EUR-Lex-kader):
+    `/voorwaarden`, `/privacy`, `/cookies` (publiek), plus docs/legal/ (verwerkersovereenkomst,
+    datalekprocedure, **REVIEW-DOOR-JURIST.md** = overdrachtsdossier met 9 open toetspunten en de
+    juridische productbacklog). De externe jurist-review zelf blijft mensenwerk; entiteitsgegevens
+    (KVK/adres) zijn placeholders tot de inschrijving definitief is.
 
 ---
 

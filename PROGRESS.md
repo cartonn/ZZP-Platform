@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-14 — juridisch fundament: AV + privacy- + cookieverklaring (concept, ter jurist-review)
+
+**Wat:** Concurrentie-onderzoek (3 parallelle agents: PIDZ/Bendy/Zorgwerk, Malt/Temper/Deel, en het
+verplichte NL/EU-kader via AP/ACM/Justis/EUR-Lex) → daarop een volledig juridisch documentenpakket
+geschreven, gemarkeerd als **concept v1.0 in afwachting van externe juridische toetsing**:
+
+- **Publieke pagina's** (inlogvrij, want terhandstelling vóór registratie): `/voorwaarden` (AV met
+  P2B-elementen die geen enkele concurrent heeft: schorsingsgronden + motivering, 30d beëindiging,
+  15d AV-wijziging, ranking-parameters, gratis klachtenroute; DBA-artikel zonder de fouten van de
+  concurrentie), `/privacy` (art. 13 AVG; bewaartabel live gerenderd uit `RETENTION_SCHEDULE` — geen
+  drift mogelijk), `/cookies` (alleen functionele cookies → geen banner nodig, art. 11.7a lid 3 Tw).
+- **Interne concepten:** docs/legal/VERWERKERSOVEREENKOMST-CONCEPT.md (art. 28), DATALEKPROCEDURE.md
+  (art. 33/34), en **REVIEW-DOOR-JURIST.md** — het overdrachtsdossier: concurrentie-synthese, 9 open
+  toetspunten (Waadi, DBA-vrijwaring, VOG-bewaring, renseignering, entiteitsgegevens…) en een
+  productbacklog met juridische lading (VOG-metadata-modus, AV-PDF + akkoord-logging, DSA-meldknop,
+  inactieve-accounts-opschoning, DBA-urenteller).
+- **Verwijzingen:** registratie kreeg de akkoord-zin met links; login kreeg een juridische footer;
+  route-guards + tests uitgebreid; i18n-keys aangevuld.
+
+**Bestanden:** src/app/{voorwaarden,privacy,cookies}/page.tsx, src/components/legal/legal-page.tsx,
+src/lib/route-guards.ts(+test), src/app/register/register-form.tsx, src/app/login/page.tsx,
+src/lib/i18n/messages.ts, docs/legal/\*.
+
+**Volgende stap:** eigenaar plant externe jurist-review (REVIEW-DOOR-JURIST.md is het startpunt);
+entiteitsgegevens invullen zodra KVK-inschrijving definitief; DPIA vóór livegang (mensenwerk).
+
 ## 2026-08-14 — persona-sweep: race-veilige factuurnummering + dispuut-veilige auto-afronding
 
 **Wat:** Kritische-gebruiker-sweep (run 75, alle 4 rollen). Live Playwright-sweep was deze run niet
