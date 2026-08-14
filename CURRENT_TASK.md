@@ -268,6 +268,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — HIBP gelekt-wachtwoord-controle live zelftest + go-live-sweep (2026-08-14, PR #1094)** —
+> de gelekt-wachtwoord-controle (`password-breach.ts`, HIBP, `PASSWORD_BREACH_CHECK=hibp`) was de enige **fail-open** externe integratie
+> zónder live-zelftest/sweep-entry/metric. Een stille HIBP-storing (netwerk/time-out/non-200/gewijzigd contract) laat élk nieuw wachtwoord
+> ongecontroleerd door (`skipped`) zonder dat iets dat toont — dezelfde stille faalmodus die de rate-limit-/upload-scanner-zelftests afvangen.
+> Nieuwe pure/injecteerbare `src/lib/services/password-breach-selftest.ts` (spiegel van de upload-scanner-EICAR-zelftest): haalt één
+> bekend-gelekt test-wachtwoord door de controle en bewijst bereikbaarheid (`skipped`→fout) én detectie (`breached:false`→fout, `true`→OK).
+> Gewired als `runPasswordBreachSelfTestAction` (auth→rol→rate-limit→audit, geen secrets/PII) + 10e go-live-sweep-runner + UI-kaart op
+> `/admin/systeemstatus`. Read-only, k-anoniem, controle blijft fail-open in de flow; geen schema-/mutatie-/auth-oppervlak. +9 tests. Gate:
+> typecheck, lint, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er — kosten-per-maand trend op /uitgaven (2026-08-14, PR #1092)** —
 > de administratie-hub-tab Uitgaven toonde kosten dit jaar, aftrekbare btw en kosten per categorie, maar geen tijdsdimensie —
 > je zag niet wánneer je kosten piekten. De winst-per-maand-trend op /inzicht toont winst-bars + één kostentotaal, maar geen
