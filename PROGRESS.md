@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-14 — Berichten: "Gezien"-leesbevestiging voor de afzender
+
+**Wat (kalmer voor ZZP'er én opdrachtgever):** de afzender van een bericht zag nooit óf de
+gesprekspartner het gelezen had — alleen de kijker kreeg een ongelezen-teller (`unreadCount`). Nu
+toont het gesprek (`/berichten/[id]`) onder het laatst-gelezen eigen (uitgaande) bericht een subtiele
+**"Gezien"**-markering (dubbele vink), afgeleid uit de al server-onderhouden
+`ConversationParticipant.lastReadAt` van de andere partij (gezet bij het openen van het gesprek via
+`markConversationRead`). Neemt de "is mijn bericht wel aangekomen?"-onzekerheid weg — het spiegelbeeld
+van de ongelezen-teller (benchmark: elke moderne messaging-UX).
+
+**Grens/architectuur:** server-side waarheid — `lastReadAt` wordt uitsluitend server-side gezet; de
+markering is puur afgeleid, geen client-beslissing. Geen extra query (de deelnemer met zijn
+`lastReadAt` was al geladen), geen schemawijziging, geen nieuw mutatie-/auth-oppervlak. Nieuwe pure,
+volgordonafhankelijke helper `lastReadOutgoingMessageId` (neemt het nieuwste gelezen uitgaande
+bericht, zodat een nog-ongelezen nieuwer bericht de markering niet verspringt). +6 tests (11 totaal in
+`messaging.test.ts`). Gate: typecheck, lint, test groen; build via CI. **Bestanden:**
+`src/lib/messaging.ts` (+ `messaging.test.ts`), `src/app/(protected)/berichten/[id]/page.tsx`.
+
 ## 2026-08-14 — ZZP'er: betaalherinnering direct in de debiteurenlijst (/openstaand)
 
 **Wat (opdrachtgever chase't sneller):** de handmatige betaalherinnering (crediteur → opdrachtgever)
