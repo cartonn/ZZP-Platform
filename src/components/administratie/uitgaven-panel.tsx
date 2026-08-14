@@ -1,4 +1,4 @@
-import { Layers, Receipt, ReceiptText } from "lucide-react";
+import { Layers, Receipt, ReceiptText, TrendingUp } from "lucide-react";
 import { type Actor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
@@ -8,9 +8,14 @@ import {
   summarizeExpenses,
   type ExpenseCategory,
 } from "@/lib/expense";
+import { expenseTrend } from "@/lib/expense-trend";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { BarSeries } from "@/components/insight/bi";
 import { UitgavenForm, DeleteExpenseButton } from "@/components/administratie/uitgaven-form";
+
+/** Hoeveel maanden de kosten-per-maand-strip toont. */
+const EXPENSE_TREND_MONTHS = 6;
 
 /** Datum als NL `dd-mm-jjjj` (UTC — de uitgaven zijn op UTC-middernacht geboekt, geen tijdzone-drift). */
 function formatDateNl(date: Date): string {
@@ -30,13 +35,25 @@ function categoryLabel(category: string): string {
  * geen eigen paginakop (de administratie-hub levert die). Alleen FREELANCER (de hub gate't de rol).
  */
 export async function UitgavenPanel({ actor }: { actor: Actor }) {
+  const now = new Date();
   const expenses = await prisma.expense.findMany({
     where: { userId: actor.id },
     orderBy: { occurredAt: "desc" },
     take: 200,
   });
 
-  const summary = summarizeExpenses(expenses, { year: new Date().getUTCFullYear() });
+  // De kosten-per-maand-strip mag niet afhangen van de 200-rij-lijstcap: laad de uitgaven in het
+  // trendvenster apart (owner-gescoopt, alleen de velden die de trend nodig heeft).
+  const trendFloor = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (EXPENSE_TREND_MONTHS - 1), 1),
+  );
+  const trendExpenses = await prisma.expense.findMany({
+    where: { userId: actor.id, occurredAt: { gte: trendFloor } },
+    select: { occurredAt: true, netCents: true },
+  });
+  const trend = expenseTrend(trendExpenses, now, EXPENSE_TREND_MONTHS);
+
+  const summary = summarizeExpenses(expenses, { year: now.getUTCFullYear() });
   const categoryShares = expenseCategoryShares(summary);
 
   return (
@@ -78,6 +95,33 @@ export async function UitgavenPanel({ actor }: { actor: Actor }) {
           </CardContent>
         </Card>
       </section>
+
+      {/* Kosten per maand — wanneer piekten je kosten? */}
+      {trend.hasData && (
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-sm font-semibold">Kosten per maand</h2>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <TrendingUp className="size-3.5" aria-hidden />
+              Laatste {EXPENSE_TREND_MONTHS} maanden · {formatEuro(trend.totalCents)}
+            </span>
+          </div>
+          <Card>
+            <CardContent className="py-4">
+              <BarSeries
+                data={trend.series.map((m) => ({ key: m.key, label: m.label, value: m.cents }))}
+                formatValue={formatEuro}
+                height={120}
+                tone="accent"
+                label="Netto kosten per maand"
+              />
+              <p className="mt-3 text-xs text-muted-foreground">
+                Netto kosten (exclusief btw) per kalendermaand.
+              </p>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {/* Kosten per categorie — waar gaat je geld heen? */}
       {categoryShares.length > 0 && (

@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-14 — ZZP'er: kosten-per-maand trend op /uitgaven
+
+**Wat:** de administratie-hub-tab **Uitgaven** (`/uitgaven`) toonde kosten dit jaar, aftrekbare btw en
+kosten per categorie, maar geen **tijdsdimensie** — je zag niet wánneer je kosten piekten. De
+winst-per-maand-trend op `/inzicht` toont winst-bars (omzet − kosten) plus één kostentotaal, maar
+géén kosten-bars per maand, en zeker niet op de pagina die juist over kosten gaat. Nu een
+self-contained **"Kosten per maand"**-staafstrip (laatste 6 maanden, netto kosten excl. btw) tussen de
+kerncijfers en de categorie-verdeling.
+
+**Grens/architectuur:** nieuwe pure `src/lib/expense-trend.ts` (`buildExpenseTrend`/`toExpenseRows`/
+`expenseTrend` + `ExpenseTrend`/`ExpenseMonth`) **hergebruikt exact** de maand-bucketing
+(`monthlyRevenue`) en delta (`monthDeltaPct`) uit `revenue.ts` → dezelfde tijdzone
+(Europe/Amsterdam), maandgrenzen en afronding als de omzet-/winsttrends, dus geen drift. De strip laadt
+zijn eigen venster-gescoopte uitgaven (`occurredAt >= trendFloor`, alleen `occurredAt`+`netCents`) zodat
+hij niet afhangt van de 200-rij-lijstcap. Render via de bestaande `BarSeries`. `hasData` false → geen
+strip (rustige lege staat). Read-only, alleen FREELANCER (hub gate't de rol), geen schemawijziging, geen
+nieuw mutatie/auth-oppervlak. +8 tests (`expense-trend.test.ts`). Gate: typecheck, lint, test (5915),
+build, prettier groen. **Bestanden:** `src/lib/expense-trend.ts` (+ test),
+`src/components/administratie/uitgaven-panel.tsx`.
+
 ## 2026-08-14 — juridisch fundament: AV + privacy- + cookieverklaring (concept, ter jurist-review)
 
 **Wat:** Concurrentie-onderzoek (3 parallelle agents: PIDZ/Bendy/Zorgwerk, Malt/Temper/Deel, en het
