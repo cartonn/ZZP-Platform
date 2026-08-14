@@ -60,13 +60,19 @@ import { UNBILLED_AGING_DAYS } from "@/lib/unbilled-invoices";
 
 const ACTOR = { id: "user-zzp", role: "FREELANCER", status: "ACTIVE" } as const;
 
-function collab(id: string, invoices: { id: string; lifecycleStatus: string; createdAt?: Date }[]) {
+function collab(
+  id: string,
+  invoices: { id: string; lifecycleStatus: string; createdAt?: Date }[],
+  // Prestaties nieuwste-eerst (spiegelt de `orderBy: { createdAt: "desc" }` van de enumerator).
+  // Default = één APPROVED-prestatie zodat de prestatie-tak stil blijft en de test de factuurtak isoleert.
+  performances: { id: string; status: string }[] = [{ id: "perf-1", status: "APPROVED" }],
+) {
   return {
     id,
     status: "ACTIVE",
     job: { title: "Verpleegkundige", credentialRequirements: [] },
     company: { name: "Zorgcentrum" },
-    performances: [{ id: "perf-1", status: "APPROVED" }],
+    performances,
     // De enumerator leest `createdAt` voor de leeftijd van een concept-factuur; default = nu (vers).
     invoices: invoices.map((i) => ({ createdAt: new Date(), ...i })),
   };
@@ -187,6 +193,80 @@ describe("freelancerTasks — betaal-/overdue-tak", () => {
     expect(rows.find((t) => t.id === "overdue-invoice:FREELANCER:cascade")?.subtitle).toBe(
       "Markeer de betaling zodra je bent betaald",
     );
+  });
+});
+
+describe("freelancerTasks — prestatie-tak (afgekeurde prestatie zichtbaar, óók vorige cyclus)", () => {
+  it("toont een herindien-taak voor de nieuwste afgekeurde prestatie", async () => {
+    state.collabs = [collab("c-rej", [], [{ id: "perf-rej", status: "REJECTED" }])];
+
+    const tasks = await pendingTasks(ACTOR);
+    const resubmit = tasks.find((t) => t.id === "performance-resubmit:perf-rej");
+    expect(resubmit).toBeDefined();
+    expect(resubmit?.kind).toBe("performance-resubmit");
+    expect(resubmit?.tone).toBe("attention");
+  });
+
+  it("toont de herindien-taak voor een AFGEKEURDE vorige-cyclus-prestatie die door een nieuwere is weggedrukt", async () => {
+    // Multi-cyclus op één ACTIVE-samenwerking: cyclus-1-uren afgekeurd (perf-1, REJECTED), daarna
+    // cyclus-2-uren ingediend + goedgekeurd (perf-2, APPROVED, nieuwer → performances[0]). De oude
+    // enumerator keek alleen naar performances[0] (APPROVED) → géén taak, terwijl het geld voor de
+    // afgekeurde cyclus-1-uren muurvast zit. Nu moet de herindien-taak voor perf-1 tóch verschijnen.
+    state.collabs = [
+      collab(
+        "c-multi",
+        [],
+        [
+          { id: "perf-2", status: "APPROVED" },
+          { id: "perf-1", status: "REJECTED" },
+        ],
+      ),
+    ];
+
+    const tasks = await pendingTasks(ACTOR);
+    const resubmit = tasks.find((t) => t.id === "performance-resubmit:perf-1");
+    expect(resubmit).toBeDefined();
+    expect(resubmit?.kind).toBe("performance-resubmit");
+    // De goedgekeurde nieuwere prestatie levert géén prestatie-taak op (geen dubbele/valse rij).
+    expect(tasks.some((t) => t.id === "performance-resubmit:perf-2")).toBe(false);
+    expect(tasks.some((t) => t.kind === "performance-submit")).toBe(false);
+  });
+
+  it("emit één herindien-taak per afgekeurde prestatie (dedupe-veilig op prestatie-id)", async () => {
+    state.collabs = [
+      collab(
+        "c-two-rej",
+        [],
+        [
+          { id: "perf-b", status: "REJECTED" },
+          { id: "perf-a", status: "REJECTED" },
+        ],
+      ),
+    ];
+
+    const tasks = await pendingTasks(ACTOR);
+    const resubmits = tasks.filter((t) => t.kind === "performance-resubmit");
+    expect(resubmits).toHaveLength(2);
+    expect(new Set(resubmits.map((t) => t.id))).toEqual(
+      new Set(["performance-resubmit:perf-a", "performance-resubmit:perf-b"]),
+    );
+  });
+
+  it("een DRAFT-prestatie naast een afgekeurde vorige cyclus geeft zowel de indien- als de herindien-taak", async () => {
+    state.collabs = [
+      collab(
+        "c-draft-plus-rej",
+        [],
+        [
+          { id: "perf-draft", status: "DRAFT" },
+          { id: "perf-old-rej", status: "REJECTED" },
+        ],
+      ),
+    ];
+
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.id === "performance-submit:c-draft-plus-rej")).toBe(true);
+    expect(tasks.some((t) => t.id === "performance-resubmit:perf-old-rej")).toBe(true);
   });
 });
 
