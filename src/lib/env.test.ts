@@ -39,6 +39,9 @@ const INTEGRATION_VARS = [
   "SHARE_TOKEN_SECRET",
   "AUTH_URL",
   "NEXTAUTH_URL",
+  "VAPID_PUBLIC_KEY",
+  "VAPID_PRIVATE_KEY",
+  "VAPID_SUBJECT",
 ];
 
 /** Zet een env-var (omzeilt de readonly-typing van bv. NODE_ENV). */
@@ -85,6 +88,48 @@ describe("validateEnv", () => {
 
     process.env.AWS_ACCESS_KEY_ID = "AKIA";
     process.env.AWS_SECRET_ACCESS_KEY = "secret";
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it("accepteert web-push met beide VAPID-sleutels", () => {
+    baseValid();
+    process.env.VAPID_PUBLIC_KEY = "BPublicKey";
+    process.env.VAPID_PRIVATE_KEY = "privateKey";
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it("accepteert web-push volledig uit (geen VAPID-sleutels)", () => {
+    baseValid();
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it("weigert een halve VAPID-configuratie (alleen publieke sleutel)", () => {
+    baseValid();
+    process.env.VAPID_PUBLIC_KEY = "BPublicKey";
+    delete process.env.VAPID_PRIVATE_KEY;
+    expect(() => validateEnv()).toThrow(/VAPID_PRIVATE_KEY/);
+  });
+
+  it("weigert een halve VAPID-configuratie (alleen private sleutel)", () => {
+    baseValid();
+    process.env.VAPID_PRIVATE_KEY = "privateKey";
+    delete process.env.VAPID_PUBLIC_KEY;
+    expect(() => validateEnv()).toThrow(/VAPID_PUBLIC_KEY/);
+  });
+
+  it("weigert een ongeldig VAPID_SUBJECT (geen mailto:/https:)", () => {
+    baseValid();
+    process.env.VAPID_PUBLIC_KEY = "BPublicKey";
+    process.env.VAPID_PRIVATE_KEY = "privateKey";
+    process.env.VAPID_SUBJECT = "support@zzp-platform.nl";
+    expect(() => validateEnv()).toThrow(/VAPID_SUBJECT/);
+  });
+
+  it("accepteert een geldig mailto: VAPID_SUBJECT", () => {
+    baseValid();
+    process.env.VAPID_PUBLIC_KEY = "BPublicKey";
+    process.env.VAPID_PRIVATE_KEY = "privateKey";
+    process.env.VAPID_SUBJECT = "mailto:support@zzp-platform.nl";
     expect(() => validateEnv()).not.toThrow();
   });
 

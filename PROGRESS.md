@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-14 — prod: VAPID web-push env-validatie + half-activatie-guard + systeemstatus-posture (PR #1088)
+
+**Wat:** Productie-rijpheid, config/observability. `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`
+(web-push, `src/lib/push/web-push.ts`) stonden wél in `.env.example` maar **ontbraken volledig** in de
+env-validatie (`src/lib/env.ts`) én in de systeemstatus/preflight-posture (`src/lib/system-status.ts`) —
+het enige gebruikersgerichte meldkanaal zonder go-live-zichtbaarheid. Een half-geconfigureerde sleutel
+(één van twee gezet) schakelde push **stil UIT** zonder boot-fout.
+
+**Verandering:**
+
+- `src/lib/push/config.ts` (nieuw, puur): `resolveWebPushConfigState` (configured/partial/off),
+  `isWebPushConfigured`, `isValidVapidSubject` (RFC 8292). Gedeelde bron van waarheid → geen drift.
+- `src/lib/env.ts`: VAPID-vars in het Zod-schema; superRefine-halve-activatie-guard (partial → boot-fout,
+  eis beide of geen); `VAPID_SUBJECT`-formaatvalidatie.
+- `src/lib/push/web-push.ts`: `ensureConfigured`/`isWebPushConfigured` gebruiken nu de gedeelde resolver.
+- `src/lib/system-status.ts`: posture-item "Push-notificaties" in "Communicatie & betalingen" (ok als
+  bekabeld, anders fallback — optionele extra, nooit "aandacht") → zichtbaar op `/admin/systeemstatus`
+  - `npm run preflight`.
+- Tests: `push/config.test.ts` (+16), `env.test.ts` (+6 half-activatie/subject), `system-status.test.ts`
+  (+2 posture) — alle groen.
+- Docs: MENSENWERK §7-tabel + boot-validatienoot; deze PROGRESS + CURRENT_TASK.
+
+**Resterend mensenwerk:** optioneel — genereer een VAPID-paar (`npx web-push generate-vapid-keys`) en zet
+`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` (+ evt. `VAPID_SUBJECT`) in de Railway-secrets om PWA-push aan te
+zetten. Zonder blijft push uit; in-app meldingen werken hoe dan ook.
+
 ## 2026-08-14 — security/privacy: stored XSS in bulk-import + PII-redactie-gat in logger gedicht (2× HOOG)
 
 **Wat:** Security-/privacy-auditronde (basis `main` @ d5ea18dd, orchestrator Opus 4.8 + 3 parallelle

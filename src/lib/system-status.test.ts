@@ -41,6 +41,24 @@ describe("databaseKind", () => {
   });
 });
 
+describe("collectSystemStatus — web-push-posture", () => {
+  it("toont push als bekabeld (ok) wanneer beide VAPID-sleutels gezet zijn", () => {
+    const item = itemByKey(
+      makeEnv({ VAPID_PUBLIC_KEY: "pub", VAPID_PRIVATE_KEY: "priv" }),
+      "web-push",
+    );
+    expect(item.level).toBe("ok");
+    expect(item.mode).toBe("aan");
+  });
+
+  it("toont push als uit (fallback, nooit aandacht) zonder sleutels — ook in productie", () => {
+    const item = itemByKey(makeEnv({ NODE_ENV: "production" }), "web-push");
+    expect(item.level).toBe("fallback");
+    expect(item.mode).toBe("uit");
+    expect(item.detail).toMatch(/VAPID_PUBLIC_KEY/);
+  });
+});
+
 describe("collectSystemStatus — volledig bekabelde productie", () => {
   const env = makeEnv({
     STORAGE_DRIVER: "s3",
@@ -60,6 +78,8 @@ describe("collectSystemStatus — volledig bekabelde productie", () => {
     DATABASE_CONNECTION_LIMIT: "10",
     AUDIT_LOG_RETENTION_DAYS: "365",
     PASSWORD_BREACH_CHECK: "hibp",
+    VAPID_PUBLIC_KEY: "pub",
+    VAPID_PRIVATE_KEY: "priv",
   });
 
   it("markeert álles als ok en geeft geen aandacht-items", () => {
@@ -137,6 +157,8 @@ describe("collectSystemStatus — zoekmachine-indexering", () => {
       DATABASE_CONNECTION_LIMIT: "10",
       AUDIT_LOG_RETENTION_DAYS: "365",
       PASSWORD_BREACH_CHECK: "hibp",
+      VAPID_PUBLIC_KEY: "pub",
+      VAPID_PRIVATE_KEY: "priv",
     });
     const status = collectSystemStatus(wired);
     expect(status.counts.attention).toBe(0);

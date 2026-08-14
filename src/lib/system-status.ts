@@ -11,6 +11,7 @@ import { isIndexingAllowed } from "@/lib/indexing";
 import { parseAuditRetentionDays } from "@/lib/config";
 import { isMaintenanceEnabled, maintenanceAllowsAdmin } from "@/lib/maintenance";
 import { isSecurityContactConfigured } from "@/lib/security-txt";
+import { resolveWebPushConfigState } from "@/lib/push/config";
 
 /** ok = productie-klaar; fallback = veilige, bewuste tussenstand; attention = actie vóór livegang. */
 export type StatusLevel = "ok" | "fallback" | "attention";
@@ -67,6 +68,7 @@ export function collectSystemStatus(env: Env): SystemStatus {
 
   const dbKind = databaseKind(env.DATABASE_URL);
   const auditRetentionDays = parseAuditRetentionDays(env.AUDIT_LOG_RETENTION_DAYS);
+  const webPushState = resolveWebPushConfigState(env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY);
   const groups: StatusGroup[] = [
     {
       title: "Opslag & data",
@@ -142,6 +144,19 @@ export function collectSystemStatus(env: Env): SystemStatus {
             env.BILLING_PROVIDER === "noop"
               ? "Demo-abonnementsflow (geen incasso). Zet BILLING_PROVIDER=mollie of stripe voor echte betalingen."
               : `Actieve provider: ${env.BILLING_PROVIDER}. Er wordt geïncasseerd zodra de sleutels gezet zijn.`,
+        },
+        {
+          key: "web-push",
+          label: "Push-notificaties",
+          // "partial" kan een geslaagde boot niet bereiken (env-validatie blokkeert 'm); defensief
+          // tonen we 'm dan als "uit". Push is een optionele extra (net als de gelekt-wachtwoord-
+          // controle), dus een uit-stand is fallback — nooit "aandacht", ook niet in productie.
+          mode: webPushState === "configured" ? "aan" : "uit",
+          level: webPushState === "configured" ? "ok" : "fallback",
+          detail:
+            webPushState === "configured"
+              ? "VAPID-sleutels gezet — PWA-pushmeldingen worden afgeleverd (in-app meldingen blijven ook werken)."
+              : "Geen pushmeldingen (in-app meldingen blijven werken). Zet VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY (genereer met `npx web-push generate-vapid-keys`) om PWA-push aan te zetten.",
         },
       ],
     },

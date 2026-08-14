@@ -16,6 +16,7 @@
 import { z } from "zod";
 
 import { isMaintenanceEnabled } from "@/lib/maintenance";
+import { isValidVapidSubject, resolveWebPushConfigState } from "@/lib/push/config";
 
 const schema = z
   .object({
@@ -108,6 +109,14 @@ const schema = z
     // extra secret nodig; fail-open bij een storing. Zie src/lib/services/password-breach.ts.
     PASSWORD_BREACH_CHECK: z.enum(["noop", "hibp"]).default("noop"),
     PASSWORD_BREACH_HTTP_TIMEOUT_MS: z.string().optional(),
+
+    // Web-push (PWA-pushmeldingen, src/lib/push/web-push.ts). Beide VAPID-sleutels sámen zetten push
+    // AAN; precies één van de twee is een halve activering (push staat dan STIL uit) → boot-fout in de
+    // superRefine hieronder. Zonder beide staat push uit (pilot-default; in-app meldingen blijven
+    // werken). VAPID_SUBJECT is een mailto:-/https:-contact (RFC 8292) en valt terug op een default.
+    VAPID_PUBLIC_KEY: z.string().optional(),
+    VAPID_PRIVATE_KEY: z.string().optional(),
+    VAPID_SUBJECT: z.string().optional(),
 
     // Foutmonitoring: optionele externe error-reporting (Sentry). Zonder DSN worden
     // server-fouten alleen gestructureerd gelogd. LOG_LEVEL stelt de logdrempel in.
@@ -241,6 +250,17 @@ const schema = z
       require(!!v.IDENTITY_API_BASE, "IDENTITY_API_BASE", "Verplicht bij IDENTITY_VERIFIER=idin.");
       require(!!v.IDENTITY_API_KEY, "IDENTITY_API_KEY", "Verplicht bij IDENTITY_VERIFIER=idin.");
     }
+
+    // Web-push: één VAPID-sleutel zonder de ander is een halve activering — de runtime behandelt dat
+    // als UIT, dus push staat stil uit terwijl de operator vermoedelijk denkt dat 'ie aan staat. Eis
+    // beide of geen (zelfde principe als de integraties hierboven: geen halve activering).
+    if (resolveWebPushConfigState(v.VAPID_PUBLIC_KEY, v.VAPID_PRIVATE_KEY) === "partial") {
+      require(!!v.VAPID_PUBLIC_KEY, "VAPID_PUBLIC_KEY", "Verplicht samen met VAPID_PRIVATE_KEY (anders staat web-push stil uit).");
+      require(!!v.VAPID_PRIVATE_KEY, "VAPID_PRIVATE_KEY", "Verplicht samen met VAPID_PUBLIC_KEY (anders staat web-push stil uit).");
+    }
+    require(isValidVapidSubject(
+      v.VAPID_SUBJECT,
+    ), "VAPID_SUBJECT", "Moet een mailto:- of https:-contact zijn (RFC 8292), bv. mailto:support@jouwdomein.nl.");
 
     // Productie-aanbevelingen (sterke AUTH_SECRET, SHARE_TOKEN_SECRET, AUTH_URL) zijn bewust GEEN
     // harde boot-eisen: ze hebben een veilige fallback (SHARE_TOKEN_SECRET valt terug op AUTH_SECRET,

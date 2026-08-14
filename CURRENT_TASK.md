@@ -262,6 +262,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — VAPID web-push env-validatie + half-activatie-guard + systeemstatus-posture (2026-08-14, PR #1088)** —
+> `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` (web-push) stonden wél in `.env.example` maar ontbraken volledig in de env-validatie
+> (`src/lib/env.ts`) én in de systeemstatus/preflight-posture (`src/lib/system-status.ts`) — het enige gebruikersgerichte meldkanaal zonder
+> go-live-zichtbaarheid, en een half-geconfigureerde sleutel (één van twee gezet) schakelde push stil UIT zonder boot-fout. Nieuwe pure
+> `src/lib/push/config.ts` (`resolveWebPushConfigState` configured/partial/off + `isValidVapidSubject` RFC 8292) als gedeelde bron van waarheid
+> voor env-validatie, de runtime (`web-push.ts`) én de posture → geen drift. env.ts: VAPID in het schema + superRefine-guard (partial → boot-fout,
+> eis beide of geen) + subject-formaatvalidatie. system-status: posture-item "Push-notificaties" (ok als bekabeld, anders fallback — optionele
+> extra, nooit "aandacht"). +24 tests (config/env/system-status). Geen schema-/mutatie-/auth-oppervlak; geen gedragswijziging als push al bekabeld
+> is. Resterend mensenwerk: optioneel `npx web-push generate-vapid-keys` + de sleutels in de secrets. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er — verwachte betaaldatum in de openstaande-posten CSV (debiteurenlijst) (2026-08-13, PR #1075)** —
 > de `/openstaand`-pagina toont de ZZP'er per post de realistische verwachte-betaaldatum (uit het betaalgedrag van de opdrachtgever), maar de
 > CSV-export (`/api/administratie/openstaand`) gaf enkel de contractuele vervaldatum — screen↔export-drift op de cashflow-info die een
