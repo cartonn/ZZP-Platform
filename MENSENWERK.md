@@ -765,6 +765,24 @@ dataminimalisatie). **Fail-open**: bij een storing/time-out wordt het wachtwoord
 HIBP-blip registratie/wachtwoordwijziging nooit blokkeert. Gewired in registratie, wachtwoordherstel en
 wachtwoord-wijzigen; zichtbaar op `/admin/systeemstatus`. Resterend mensenwerk: **niets extra** — zet
 `PASSWORD_BREACH_CHECK=hibp` in de Railway-secrets om het aan te zetten (geen sleutel nodig).
+**Code-kant GEDAAN (2026-08-14) — connectiviteitszelftest:** omdat de controle bewust **fail-open** is
+(een HIBP-storing mag registratie/wachtwoordwijziging niet platleggen), zou een stille storing
+(netwerk, time-out, non-200, gewijzigd antwoord-contract) **elk** nieuw wachtwoord ongecontroleerd
+doorlaten zónder dat iets dat toont — precies de stille faalmodus die de rate-limit-store- en
+upload-scanner-zelftests ook afvangen. Dit was de enige fail-open externe integratie zónder live
+round-trip-probe. Op `/admin/systeemstatus` (admin-only) kun je nu de **Gelekt-wachtwoord-zelftest**
+draaien: die haalt één **bekend-gelekt test-wachtwoord** (het HIBP-equivalent van de EICAR-probe) door
+de geconfigureerde controle en bevestigt dat de koppeling **bereikbaar** is én het lek **daadwerkelijk
+detecteert** (een `skipped`-uitkomst = fail-open teruggevallen → fout; `breached:false` op een notoir
+gelekt wachtwoord = gewijzigd/kapot contract → fout; geen vals groen). Het test-wachtwoord is een
+publiek patroon (geen gebruikersgegeven) en verlaat de server nooit heel (alleen een k-anonieme SHA-1-
+prefix). Draait mee in de één-klik **go-live GO/NO-GO-sweep** (§11) als 10e integratie. Staat de
+controle op `noop`, dan meldt het scherm eerlijk "geen controle actief — er is niets getest". De
+uitvoer bevat nooit secrets/PII (alleen stap-uitkomst + driver-modus), loopt door de authz-keten (rol →
+rate-limit → audit) en heeft geen op te ruimen bijwerking
+(`src/lib/services/password-breach-selftest.ts`, actie in `.../systeemstatus/actions.ts`, zelfde patroon
+als de Opslag-/E-mail-/Rate-limit-/Verificatie-/Betaal-/Upload-scanner-/Error-monitoring-zelftest).
+Resterend mensenwerk: **niets extra** — de knop is er zodra `PASSWORD_BREACH_CHECK=hibp` staat.
 
 **Code-kant GEDAAN (2026-07-22) — cross-origin-isolatie + Permissions-Policy-hardening:** naast de al
 sterke statische headers (HSTS+preload, `X-Frame-Options: DENY`, nosniff, `Referrer-Policy`) en de

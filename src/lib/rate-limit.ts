@@ -638,6 +638,19 @@ export const routingSelfTestRateLimiter = new RateLimiter(
 );
 
 /**
+ * Maximaal PASSWORD_BREACH_SELFTEST_RATE_LIMIT (default 6) gelekt-wachtwoord-zelftests per beheerder
+ * per 5 minuten. De admin-actie (/admin/systeemstatus) haalt één bekend-gelekt test-wachtwoord door de
+ * geconfigureerde HIBP-controle (k-anoniem, read-only). De rem houdt een per ongeluk herhaalde klik of
+ * een script binnen de perken (parity met de andere zelftests).
+ */
+export const passwordBreachSelfTestRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("PASSWORD_BREACH_SELFTEST_RATE_LIMIT", 6),
+  5 * 60_000,
+  "passwordbreachselftest:",
+);
+
+/**
  * Maximaal SELFTEST_SWEEP_RATE_LIMIT (default 3) go-live-sweeps per beheerder per 5 minuten. Eén sweep
  * draait álle actieve zelftests tegelijk (opslag, database, rate-limit, verificatie, betaalprovider,
  * upload-scanner, error-monitoring) — dus strakker dan de losse zelftests, zodat een herhaalde klik

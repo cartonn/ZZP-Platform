@@ -26,6 +26,28 @@ afkoelperiode leunt op één gebatchte `INVOICE_REMINDER_SENT`-auditquery over d
 (+ test), `src/components/invoices/inline-payment-reminder-button.tsx`,
 `src/components/administratie/openstaand-panel.tsx`.
 
+## 2026-08-14 — prod: HIBP gelekt-wachtwoord-controle — live zelftest + go-live-sweep
+
+**Wat (prod-rijpheid — fail-open hardening-gat):** de gelekt-wachtwoord-controle
+(`src/lib/services/password-breach.ts`, HIBP "Pwned Passwords", `PASSWORD_BREACH_CHECK=hibp`) was de
+**enige fail-open externe integratie zónder live-zelftest, sweep-entry of metric**. Valt HIBP stil weg
+(netwerk/time-out/non-200/gewijzigd contract), dan laat de controle élk nieuw wachtwoord door
+(`skipped: true`) zónder dat iets dat toont — precies de stille faalmodus die de rate-limit-store- en
+upload-scanner-zelftests al afvangen ("nodig omdat de store fail-open is"). **Gebouwd** (spiegel van de
+upload-scanner-EICAR-zelftest): pure/injecteerbare `src/lib/services/password-breach-selftest.ts`
+(`runPasswordBreachSelfTest` + `BREACH_PROBE_PASSWORD` + `safePasswordBreachDetail`) die één
+bekend-gelekt test-wachtwoord door de controle haalt en zowel bereikbaarheid (`skipped` → fout) als
+detectie (`breached:false` op een notoir gelekt wachtwoord → fout; `breached:true` → OK) bewijst.
+Gewired als `runPasswordBreachSelfTestAction` (auth → rol → rate-limit → audit; geen secrets/PII in de
+uitvoer) + 10e runner in de go-live-sweep + UI-kaart `PasswordBreachSelfTest` op `/admin/systeemstatus`.
+Nieuwe `passwordBreachSelfTestRateLimiter` (default 6/5min). Read-only, k-anoniem (alleen SHA-1-prefix
+verlaat de server), geen schema-/mutatie-/auth-oppervlak, controle blijft fail-open in de flow.
+**Bestanden:** `src/lib/services/password-breach-selftest.ts` (+ `.test.ts`, 9 tests),
+`src/components/admin/password-breach-selftest.tsx`,
+`src/app/(protected)/admin/systeemstatus/actions.ts` + `page.tsx`, `src/lib/rate-limit.ts`,
+MENSENWERK.md §5d. **Gate:** typecheck, lint, prettier groen; nieuwe unit-tests groen; build (zie PR).
+**Volgende:** optioneel een config-posture-gauge (`zzp_password_breach_configured`) als aparte kleine PR.
+
 ## 2026-08-14 — persona-sweep run 76: afgekeurde vorige-cyclus-prestatie zichtbaar in het actiecentrum
 
 **Wat (DOEL 1b — next-action-defect, GEFIXT):** de ZZP'er-tak van de actie-enumerator

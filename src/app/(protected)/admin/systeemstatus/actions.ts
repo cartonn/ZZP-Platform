@@ -12,6 +12,7 @@ import {
   dbSelfTestRateLimiter,
   errorMonitoringSelfTestRateLimiter,
   mailSelfTestRateLimiter,
+  passwordBreachSelfTestRateLimiter,
   rateLimitSelfTestRateLimiter,
   routingSelfTestRateLimiter,
   selfTestSweepRateLimiter,
@@ -76,6 +77,13 @@ import {
   type UploadScannerDriverMode,
   type UploadScannerSelfTestReport,
 } from "@/lib/services/upload-scanner-selftest";
+import { getPasswordBreachChecker } from "@/lib/services/password-breach";
+import {
+  BREACH_PROBE_PASSWORD,
+  runPasswordBreachSelfTest,
+  type PasswordBreachDriverMode,
+  type PasswordBreachSelfTestReport,
+} from "@/lib/services/password-breach-selftest";
 
 export type StorageSelfTestState =
   | { ok: true; report: StorageSelfTestReport }
@@ -452,6 +460,60 @@ export async function runUploadScannerSelfTestAction(): Promise<UploadScannerSel
   return { ok: true, report };
 }
 
+export type PasswordBreachSelfTestState =
+  | { ok: true; report: PasswordBreachSelfTestReport }
+  | { ok: false; error: string };
+
+/**
+ * Bouwt de probe-spec voor de gelekt-wachtwoord-controle uit de omgeving. Gedeeld door de losse
+ * zelftest én de go-live-sweep, zodat de actief-detectie (`PASSWORD_BREACH_CHECK=hibp`) en het
+ * bekend-gelekte probe-wachtwoord op één plek staan. Staat de controle op de demo (`noop`), dan
+ * krijgt de spec geen `run` — die wordt eerlijk als "niets getest" gerapporteerd.
+ */
+function buildPasswordBreachProbeSpec() {
+  const active = process.env.PASSWORD_BREACH_CHECK === "hibp";
+  const driverMode: PasswordBreachDriverMode = active ? "hibp" : "noop";
+  return {
+    active,
+    driverMode,
+    run: active ? () => getPasswordBreachChecker().check(BREACH_PROBE_PASSWORD) : undefined,
+  };
+}
+
+/**
+ * Draait een connectiviteitszelftest tegen de geconfigureerde gelekt-wachtwoord-controle (admin-only).
+ * Volgt de mutatieketen (auth → rol → rate-limit → actie → audit). Staat de controle op de demo
+ * (PASSWORD_BREACH_CHECK ontbreekt/noop), dan is er niets externs om te testen en meldt de zelftest
+ * dat eerlijk (geen vals groen). Op HIBP haalt hij één bekend-gelekt test-wachtwoord (k-anoniem, alleen
+ * een SHA-1-prefix verlaat de server) door de controle en bevestigt zo dat de koppeling bereikbaar is
+ * ÉN daadwerkelijk detecteert — nodig omdat de controle fail-open is (MENSENWERK §5d): een stille
+ * HIBP-storing laat anders elk wachtwoord door zonder dat iets dat toont. De uitvoer bevat nooit
+ * secrets of PII — alleen de uitkomst en de driver-modus.
+ */
+export async function runPasswordBreachSelfTestAction(): Promise<PasswordBreachSelfTestState> {
+  const actor = await requireRole("ADMIN");
+
+  if (!(await passwordBreachSelfTestRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
+  }
+
+  const spec = buildPasswordBreachProbeSpec();
+  const report = await runPasswordBreachSelfTest(spec);
+
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "PASSWORD_BREACH_SELFTEST_RUN",
+    entityType: "PasswordBreach",
+    entityId: spec.driverMode,
+    metadata: { ok: report.ok, active: report.active },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { ok: true, report };
+}
+
 export type ErrorMonitoringSelfTestState =
   | { ok: true; report: ErrorMonitoringSelfTestReport }
   | { ok: false; error: string };
@@ -559,7 +621,8 @@ export type SelfTestSweepState = { ok: true; report: SweepReport } | { ok: false
 
 /**
  * Go-live-sweep: draait álle actieve, bijwerkingsveilige connectiviteitszelftests (opslag, database,
- * rate-limit, verificatie, betaalprovider, upload-scanner, error-monitoring, e-mail) in één klik en
+ * rate-limit, verificatie, betaalprovider, routing, upload-scanner, gelekt-wachtwoord-controle,
+ * error-monitoring, e-mail) in één klik en
  * geeft een geconsolideerd GO/NO-GO terug (admin-only). Volgt de mutatieketen (auth → rol →
  * rate-limit → actie → audit). Elke deelzelftest hergebruikt zijn eigen pure kern; een integratie die
  * op een veilige fallback/demo draait wordt eerlijk als "overgeslagen" gerapporteerd (geen vals groen).
@@ -737,6 +800,25 @@ export async function runSelfTestSweepAction(): Promise<SelfTestSweepState> {
           status: !result.active ? "skipped" : result.ok ? "pass" : "fail",
           mode: driverMode,
           detail: result.detail ?? (result.ok ? "Bereikbaar en detecteert." : "Scanner faalt."),
+        };
+      },
+    },
+    {
+      key: "password-breach",
+      label: "Gelekt-wachtwoord-controle",
+      run: async (): Promise<SweepRunResult> => {
+        const spec = buildPasswordBreachProbeSpec();
+        const result = await runPasswordBreachSelfTest(spec);
+        return {
+          status: !result.active ? "skipped" : result.ok ? "pass" : "fail",
+          mode: spec.driverMode,
+          detail:
+            result.detail ??
+            (!result.active
+              ? "Geen controle actief — niets getest."
+              : result.ok
+                ? "Bereikbaar en detecteert."
+                : "Controle faalt."),
         };
       },
     },

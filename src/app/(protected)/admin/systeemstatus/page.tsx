@@ -22,6 +22,7 @@ import { VerifierSelfTest } from "@/components/admin/verifier-selftest";
 import { BillingSelfTest } from "@/components/admin/billing-selftest";
 import { RoutingSelfTest } from "@/components/admin/routing-selftest";
 import { UploadScannerSelfTest } from "@/components/admin/upload-scanner-selftest";
+import { PasswordBreachSelfTest } from "@/components/admin/password-breach-selftest";
 import { ErrorMonitoringSelfTest } from "@/components/admin/error-monitoring-selftest";
 
 export const metadata: Metadata = { title: "Systeemstatus · Handslag" };
@@ -70,6 +71,7 @@ export default async function SysteemstatusPage() {
       <BillingSelfTest providerMode={env.BILLING_PROVIDER} />
       <RoutingSelfTest providerMode={env.ROUTING_PROVIDER} />
       <UploadScannerSelfTest driverMode={env.UPLOAD_SCANNER} />
+      <PasswordBreachSelfTest configured={env.PASSWORD_BREACH_CHECK === "hibp"} />
       <ErrorMonitoringSelfTest configured={Boolean(env.SENTRY_DSN)} />
     </div>
   );
