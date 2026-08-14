@@ -3,6 +3,44 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-14 — persona-sweep: race-veilige factuurnummering + dispuut-veilige auto-afronding
+
+**Wat:** Kritische-gebruiker-sweep (run 75, alle 4 rollen). Live Playwright-sweep was deze run niet
+mogelijk (de netwerk-policy 404't de Google-Fonts-woff2-assets, dus `next/font` faalt bij de prod-build;
+CI heeft die toegang wél). Pivot naar de tweede, bewezen arm: 4 parallelle adversariële Opus-code-audits
+(API-authz-keten, cascade/geld/statusovergangen, tenant-isolatie + next-action-engine, input-validatie/
+injectie). Drie audits schoon; de cascade-audit vond één concrete, bereikbare robuustheidsbug + één
+lager-vertrouwen hardening — beide gefixt.
+
+**Bevindingen + fixes:**
+
+- **(HOOG, gefixt) Race in factuurnummer-toewijzing** — `allocateInvoiceNumber`
+  (`src/lib/administration/persist.ts`) deed een `findUnique`→`upsert` met een in JS voor-berekend
+  volgnummer. Onder Postgres READ COMMITTED lazen twee (bijna-)gelijktijdige `submitInvoice`-aanroepen van
+  dezelfde ZZP'er (twee tabs / dubbelklik / twee actieve samenwerkingen) dezelfde `lastSeq`, berekenden
+  hetzelfde nummer en botsten dan op de Invoice-uniekheid `[issuerKey, partyInvoiceNumber]`. De P2002 werd
+  níét vertaald (alleen `dedupeKey`-botsingen zijn dat) → de tweede submit faalde met een rauwe interne
+  fout i.p.v. netjes door te lopen. **Fix:** atomaire toewijzing via één upsert met
+  `update: { lastSeq: { increment: 1 } }` (`SET lastSeq = lastSeq + 1` onder de rij-lock) → gelijktijdige
+  submits krijgen elk een uniek nummer, geen botsing. SQLite (lokaal/CI) serialiseert writes en kon de race
+  nooit reproduceren; daarom bestond er geen `persist.test.ts` — nu toegevoegd (+6 tests, mock modelleert de
+  upsert-increment-semantiek + het "geen read-then-write"-contract).
+- **(LAAG, gefixt) Dispuut-venster in auto-afronding** — `collaborationCompletableGuard`
+  (`src/lib/cascade/completion.ts`) toetste `disputedAt` niet mee. De dispuut-guard in
+  `persistEventAndEffects` leest `disputedAt` één keer als eerste statement, maar de auto-afronding-write
+  komt enkele statements later; een dispuut dat in dat venster opende kon wegvallen en de samenwerking op
+  COMPLETED laten springen ondanks bevriezing. **Fix:** `disputedAt: null` aan de guard-where → bij een
+  net-geopend dispuut matcht de rij niet meer (count 0), de afronding valt weg (`optional`), samenwerking
+  blijft ACTIVE en bevroren; betaling blijft staan. +1 regressietest.
+
+**Bestanden:** `src/lib/administration/persist.ts` (+ nieuw `persist.test.ts`),
+`src/lib/cascade/completion.ts` (+ test).
+
+**Gate:** typecheck, lint, test (5906, +6), prettier groen. Build lokaal geblokkeerd op font-fetch
+(omgeving, niet de code) — CI draait 'm.
+
+**Volgende stap:** merge na groene CI-poort; geen resterend mensenwerk.
+
 ## 2026-08-14 — routine: fee-per-maand trend voor de bemiddelaar op /inzicht (PR #1089)
 
 **Wat:** UX/data-inzicht voor de FRANCHISER (bemiddelaar). De "Jouw fee"-kaart op `/inzicht` toonde alleen

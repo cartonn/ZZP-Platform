@@ -48,22 +48,26 @@ export function toEntryData(postings: readonly Posting[], refs: PostingRefs) {
  * Kent het volgende factuurnummer toe in de reeks van één partij, jaargebonden en gatenvrij.
  * Draait in een interactieve transactie zodat ophogen en toekennen atomair zijn (geen
  * dubbele nummers onder gelijktijdigheid). Geef de `tx`-client uit `prisma.$transaction(async (tx) => ...)`.
+ *
+ * Atomaire toewijzing via één upsert: op conflict `SET lastSeq = lastSeq + 1`. De increment leest de
+ * rij-waarde ONDER de rij-lock, dus twee (bijna-)gelijktijdige transacties — bv. dezelfde ZZP'er die
+ * twee facturen tegelijk indient (twee tabs / dubbelklik / twee samenwerkingen) — krijgen elk een uniek
+ * volgnummer. De vorige read-then-write (`findUnique` → `update: { lastSeq: seq }` met een in JS
+ * voor-berekende waarde) was NIET race-veilig onder Postgres READ COMMITTED: beide transacties lazen
+ * dezelfde `lastSeq`, berekenden hetzelfde volgnummer en botsten dan op de Invoice-uniekheid
+ * `[issuerKey, partyInvoiceNumber]` — de tweede submit faalde met een rauwe P2002 i.p.v. netjes door te
+ * lopen. De rij-lock op de increment serialiseert nu de toewijzing (SQLite serialiseert writes sowieso).
  */
 export async function allocateInvoiceNumber(
   tx: Prisma.TransactionClient,
   issuerKey: IssuerKey,
   year: number,
 ): Promise<{ seq: number; number: string }> {
-  const existing = await tx.invoiceSequence.findUnique({
+  const row = await tx.invoiceSequence.upsert({
     where: { issuerKey_year: { issuerKey, year } },
-  });
-  const seq = nextSequence(existing?.lastSeq);
-
-  await tx.invoiceSequence.upsert({
-    where: { issuerKey_year: { issuerKey, year } },
-    create: { issuerKey, year, lastSeq: seq },
-    update: { lastSeq: seq },
+    create: { issuerKey, year, lastSeq: nextSequence(undefined) },
+    update: { lastSeq: { increment: 1 } },
   });
 
-  return { seq, number: formatPartyInvoiceNumber(year, seq) };
+  return { seq: row.lastSeq, number: formatPartyInvoiceNumber(year, row.lastSeq) };
 }

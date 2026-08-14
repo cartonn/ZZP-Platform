@@ -1,5 +1,34 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-14 (run 75) · **main-commit basis:** `858d0fa7`
+> **Uitkomst:** **2 bereikbare defecten gevonden én gefixt** (geen geparkeerde items deze run).
+> Live Playwright-sweep niet mogelijk (netwerk-policy 404't de Google-Fonts-woff2-assets → `next/font`
+> faalt bij de prod-build; CI heeft die toegang wél). Pivot naar 4 parallelle adversariële Opus-code-audits.
+>
+> - **OPGELOST — race in factuurnummer-toewijzing (HOOG):** `allocateInvoiceNumber`
+>   (`src/lib/administration/persist.ts`) deed read-then-write met een voor-berekend volgnummer; onder
+>   Postgres READ COMMITTED botsten twee gelijktijdige `submitInvoice`-aanroepen van dezelfde ZZP'er op de
+>   Invoice-uniekheid `[issuerKey, partyInvoiceNumber]` → rauwe, onvertaalde P2002 i.p.v. nette doorloop.
+>   **Repro:** ZZP'er met 2 actieve samenwerkingen (elk een DRAFT-cascadefactuur) dient beide (bijna)
+>   gelijktijdig in (twee tabs / dubbelklik). **Fix:** atomaire upsert-increment
+>   (`update: { lastSeq: { increment: 1 } }`) onder de rij-lock → elk uniek nummer, geen botsing.
+>   Regressie: `persist.test.ts` (nieuw, +6). SQLite serialiseert writes → kon de race lokaal nooit tonen
+>   (daarom onopgemerkt tot nu).
+> - **OPGELOST — dispuut-venster in auto-afronding (LAAG):** `collaborationCompletableGuard`
+>   (`src/lib/cascade/completion.ts`) toetste `disputedAt` niet in de write; een dispuut geopend in het
+>   sub-transactie-venster kon een samenwerking op COMPLETED laten springen ondanks bevriezing. **Fix:**
+>   `disputedAt: null` aan de guard-where (afronding is `optional` → valt weg bij een net-geopend dispuut,
+>   betaling blijft staan). +1 regressietest.
+>
+> Drie van de vier audits (API-authz-keten, tenant-isolatie + next-action-engine, input-validatie/injectie)
+> vonden **0 bereikbare gaten** — auth→rol→ownership→Zod→actie→audit-keten, CWE-203-anti-oracle, cron-secret-
+> gating, CSV/iCal-escaping, upload-magic-byte-checks, numeric-clamps en de next-action-role-dispatch/
+> stale-task-guards allemaal geverifieerd dicht.
+>
+> ---
+>
+> **Vorige run:**
+>
 > **Datum:** 2026-08-13 (run 74) · **main-commit basis:** `68c9a84b`
 > **Uitkomst:** **GEEN bereikbaar gat gevonden** — alle vier rollen (ZZP'er, opdrachtgever, bemiddelaar,
 > admin) getest op DOEL 1 (werkt + echte acties), DOEL 1b (next-action-engine) en DOEL 2 (adversarieel).

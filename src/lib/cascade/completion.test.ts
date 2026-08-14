@@ -246,4 +246,13 @@ describe("collaborationCompletableGuard — write-time eligibility guard (Event 
     expect(SETTLED_INVOICE_LIFECYCLE).toEqual(["PAID", "PROCESSED", "CREDITED"]);
     expect(SETTLED_INVOICE_LEGACY_STATUS).toEqual(["PAID", "CANCELLED"]);
   });
+
+  it("weigert auto-afronding zodra er een open dispuut is (disputedAt-hertoets in de write)", () => {
+    // Regressie: de dispuut-guard in persistEventAndEffects leest disputedAt één keer als eerste
+    // statement, maar de auto-afronding-write komt later in dezelfde transactie. Zonder deze
+    // disputedAt: null-eis kon een net-geopend dispuut in dat venster wegvallen en sprong de
+    // samenwerking op COMPLETED ondanks de bevriezing. De guard moet dat in dezelfde write her-toetsen.
+    const guard = collaborationCompletableGuard("inv-huidig");
+    expect(guard.disputedAt).toBeNull();
+  });
 });
