@@ -15,6 +15,7 @@ import { prisma } from "@/lib/db";
 import { requireActor, type Actor } from "@/lib/authz";
 import { type UserRole } from "@/lib/enums";
 import { computeTenantFee } from "@/lib/tenant-fee";
+import { buildTenantFeeTrend, type TenantFeeTrend } from "@/lib/tenant-fee-trend";
 import { getFreelancerStats } from "@/lib/freelancer-stats";
 import { getFreelancerMembership } from "@/lib/freelancer-membership";
 import { getDeliveryQuality, DELIVERY_TONE_LABEL } from "@/lib/collaboration-quality";
@@ -194,6 +195,66 @@ function WinstPerMaandCard({ trend }: { trend: ProfitTrend }) {
           height={132}
           tone={profitTone}
           label="Winst per maand"
+        />
+      </div>
+    </BiWidget>
+  );
+}
+
+/**
+ * Fee-per-maand trend voor de bemiddelaar: spiegel van de ZZP'er "Winst per maand". Toont de fee die
+ * de bemiddelaar over het doorgezette volume verdient, per maand — zijn kern-P&L over tijd. De cijfers
+ * komen uit `buildTenantFeeTrend` (puur: omzettrend × fee-percentage), server-side berekend.
+ */
+function FeePerMaandCard({ trend }: { trend: TenantFeeTrend }) {
+  if (!trend.hasData) {
+    return (
+      <BiWidget title="Fee per maand">
+        <EmptyState
+          icon={Coins}
+          title="Nog geen fee-cijfers"
+          description="Zodra er volume via je bemiddeling loopt, zie je hier je fee per maand."
+        />
+      </BiWidget>
+    );
+  }
+  return (
+    <BiWidget title="Fee per maand">
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Fee · laatste {trend.months} maanden
+            </p>
+            <p className="mt-1 font-mono text-3xl font-semibold tabular-nums tracking-tight">
+              {formatEuro(trend.totalFeeCents)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              over {formatEuro(trend.totalVolumeCents)} doorgezet volume · indicatief
+            </p>
+          </div>
+          {trend.deltaPct !== null && (
+            <div>
+              <p className="text-xs text-muted-foreground">Laatste maand</p>
+              <p
+                className={`mt-0.5 font-mono text-lg font-semibold tabular-nums ${
+                  trend.deltaPct >= 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-amber-600 dark:text-amber-400"
+                }`}
+              >
+                {trend.deltaPct >= 0 ? "+" : ""}
+                {formatPercent(trend.deltaPct)}
+              </p>
+            </div>
+          )}
+        </div>
+        <BarSeries
+          data={trend.series.map((m) => ({ key: m.key, label: m.label, value: m.feeCents }))}
+          formatValue={formatEuro}
+          height={132}
+          tone="success"
+          label="Fee per maand"
         />
       </div>
     </BiWidget>
@@ -631,6 +692,7 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
   const feePercent = tenant?.feePercent ?? 0;
   const feeSet = feePercent > 0;
   const feeCents = computeTenantFee(s.revenuePaidCents, feePercent);
+  const feeTrend = buildTenantFeeTrend(trend, feePercent);
   return (
     <div className="space-y-4">
       <RevenueHero
@@ -677,6 +739,8 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
           />
         )}
       </BiWidget>
+
+      {feeSet && <FeePerMaandCard trend={feeTrend} />}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <StatusDonutWidget

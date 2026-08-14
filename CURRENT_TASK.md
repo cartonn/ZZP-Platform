@@ -262,6 +262,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Bemiddelaar — fee-per-maand trend op /inzicht (2026-08-14, PR #1089)** —
+> de FRANCHISER-`/inzicht` toonde in "Jouw fee" alleen een all-time totaal, geen fee-over-tijd — terwijl dat zijn kern-P&L is.
+> Nu een "Fee per maand"-trendkaart (spiegel van de ZZP'er "Winst per maand"), berekend uit de reeds geladen omzettrend
+> (`getTenantRevenueTrend`) × het ingestelde fee-percentage via de bestaande `computeTenantFee`. Nieuwe pure
+> `src/lib/tenant-fee-trend.ts` (`buildTenantFeeTrend` → fee/volume per maand + totalen + delta laatste maand vs.
+> voorlaatste, elke maand afzonderlijk afgerond zodat het maand-totaal de som van de getoonde balken is);
+> `FeePerMaandCard` op de franchiser-tak (alleen als de fee is ingesteld; delta-badge alleen bij ≥2 maanden fee).
+> Geen extra query, geen schema-/mutatie-/auth-oppervlak, display-only, server-side waarheid. +9 tests. Gate: typecheck,
+> lint, test (5900), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — VAPID web-push env-validatie + half-activatie-guard + systeemstatus-posture (2026-08-14, PR #1088)** —
 > `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` (web-push) stonden wél in `.env.example` maar ontbraken volledig in de env-validatie
 > (`src/lib/env.ts`) én in de systeemstatus/preflight-posture (`src/lib/system-status.ts`) — het enige gebruikersgerichte meldkanaal zonder
