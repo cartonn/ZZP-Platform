@@ -1,10 +1,10 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Clock, MessageSquare } from "lucide-react";
+import { ArrowLeft, CheckCheck, Clock, MessageSquare } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { isParticipant } from "@/lib/messaging";
+import { isParticipant, lastReadOutgoingMessageId } from "@/lib/messaging";
 import { summarizeReplyLatency } from "@/lib/message-reply-latency";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -48,6 +48,21 @@ export default async function GesprekPage({ params }: { params: Promise<{ id: st
     ? summarizeReplyLatency(
         conversation.messages.map((m) => ({ senderId: m.senderId, createdAt: m.createdAt })),
         other.user.id,
+      )
+    : null;
+
+  // Leesbevestiging: onder welk eigen bericht toont "Gezien"? Afgeleid uit de al-geladen,
+  // server-onderhouden `lastReadAt` van de gesprekspartner (geen extra query, geen schemawijziging).
+  // Neemt "is mijn bericht aangekomen?"-onzekerheid weg — spiegelbeeld van de ongelezen-teller.
+  const readReceiptMessageId = other
+    ? lastReadOutgoingMessageId(
+        conversation.messages.map((m) => ({
+          id: m.id,
+          senderId: m.senderId,
+          createdAt: m.createdAt,
+        })),
+        other.lastReadAt,
+        actor.id,
       )
     : null;
 
@@ -96,30 +111,39 @@ export default async function GesprekPage({ params }: { params: Promise<{ id: st
         ) : (
           conversation.messages.map((m) => {
             const mine = m.sender.id === actor.id;
+            const showReceipt = mine && m.id === readReceiptMessageId;
             return (
-              <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
-                <div
-                  className={cn(
-                    "max-w-[80%] rounded-lg px-3 py-2 text-sm",
-                    mine
-                      ? "bg-primary text-primary-foreground dark:bg-accent dark:text-accent-foreground"
-                      : "border border-border bg-card",
-                  )}
-                >
-                  <p className="whitespace-pre-line break-words [overflow-wrap:anywhere]">
-                    {m.body}
-                  </p>
-                  <p
+              <div key={m.id} className="space-y-1">
+                <div className={cn("flex", mine ? "justify-end" : "justify-start")}>
+                  <div
                     className={cn(
-                      "mt-1 text-[10px]",
+                      "max-w-[80%] rounded-lg px-3 py-2 text-sm",
                       mine
-                        ? "text-primary-foreground/70 dark:text-accent-foreground/70"
-                        : "text-muted-foreground",
+                        ? "bg-primary text-primary-foreground dark:bg-accent dark:text-accent-foreground"
+                        : "border border-border bg-card",
                     )}
                   >
-                    {formatDateTimeNl(m.createdAt)}
-                  </p>
+                    <p className="whitespace-pre-line break-words [overflow-wrap:anywhere]">
+                      {m.body}
+                    </p>
+                    <p
+                      className={cn(
+                        "mt-1 text-[10px]",
+                        mine
+                          ? "text-primary-foreground/70 dark:text-accent-foreground/70"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {formatDateTimeNl(m.createdAt)}
+                    </p>
+                  </div>
                 </div>
+                {showReceipt && (
+                  <p className="flex items-center justify-end gap-1 pr-1 text-[10px] text-muted-foreground">
+                    <CheckCheck className="size-3 shrink-0" aria-hidden />
+                    Gezien
+                  </p>
+                )}
               </div>
             );
           })
