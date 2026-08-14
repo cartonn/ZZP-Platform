@@ -8,6 +8,7 @@
 
 import { z } from "zod";
 import { escapeCsvField, parseCsvRecords, detectDelimiter } from "@/lib/csv";
+import { httpUrl } from "@/lib/validation";
 
 // Her-export zodat bestaande importers (de admin-import-actie + tests) dit pad blijven gebruiken.
 export { parseCsvRecords, detectDelimiter };
@@ -139,6 +140,28 @@ function parseSkills(raw: string): string[] {
   return out;
 }
 
+/**
+ * Valideert een website-kolom: alleen het http(s)-schema mag door (`httpUrl`, dezelfde bron van
+ * waarheid als het handmatige bedrijfsprofiel-formulier). Een `javascript:`/`data:`-URI zou anders
+ * ongefilterd in `Company.website` belanden en wordt elders als rauwe `href` gerenderd (opdracht-
+ * detail + bedrijfsprofiel) → stored XSS (OWASP A03 / CWE-79). Bij een ongeldige waarde: waarschuwen
+ * en de waarde droppen (net als een onleesbaar uurtarief) — een kapotte website blokkeert de
+ * onboarding van het bedrijf niet.
+ */
+function parseWebsite(raw: string, issues: ImportIssue[]): string | null {
+  if (!raw) return null;
+  const parsed = httpUrl().safeParse(raw);
+  if (!parsed.success) {
+    issues.push({
+      level: "warning",
+      field: "website",
+      message: `Website "${raw}" is geen geldige http(s)-URL — overgeslagen.`,
+    });
+    return null;
+  }
+  return parsed.data;
+}
+
 function parseHourlyRate(raw: string, issues: ImportIssue[]): number | null {
   if (!raw) return null;
   const normalized = raw.replace(/[€\s]/g, "").replace(",", ".");
@@ -255,7 +278,7 @@ export function buildImportPreview(text: string): ImportPreview {
       location: get(rec, "location") || null,
       kvkNumber: get(rec, "kvkNumber") || null,
       btwNumber: get(rec, "btwNumber") || null,
-      website: get(rec, "website") || null,
+      website: parseWebsite(get(rec, "website"), issues),
       skills,
       issues,
       importable,

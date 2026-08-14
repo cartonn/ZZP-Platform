@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-14 — security: stored XSS gedicht in admin CSV-bulk-import (`website`-veld)
+
+**Wat:** Security-/privacy-auditronde (basis `main` @ d5ea18dd). Eén HOOG-bevinding gevonden én gefixt:
+de admin-bulk-import (`/admin/import`) schreef het CSV-`website`-veld ongevalideerd naar `Company.website`,
+langs de canonieke `httpUrl()`-guard heen. Die waarde wordt elders als rauwe `href` gerenderd
+(bedrijfsprofiel + elke opdracht van dat bedrijf) → stored XSS (OWASP A03 / CWE-79): een `javascript:`-URL
+in een geïmporteerde rij voert aanvaller-JS uit in de sessie van elke ZZP'er/opdrachtgever die de link opent.
+
+**Verandering:**
+
+- `src/lib/onboarding/import.ts`: nieuwe `parseWebsite()` valideert de website-kolom met `httpUrl()`
+  (weigert `javascript:`/`data:`); ongeldig → waarschuwing + gedropt (rij blijft importeerbaar).
+- `src/app/(protected)/admin/import/actions.ts`: `safeWebsite()` her-valideert vlak vóór de write
+  (defense-in-depth, spiegelt `assertImportRole`).
+- `src/lib/onboarding/import.test.ts`: +3 tests (rood→groen) — `javascript:`/`data:` gedropt, `https://` behouden.
+- Sweep bevestigt dat de andere `website`-sinks (`profile`/`company` edit-formulieren) al via `httpUrl()` lopen;
+  de bulk-import was de énige bypass. Backlog bijgewerkt (`docs/SECURITY-PRIVACY-BACKLOG.md`, ronde 2026-08-14).
+
+**Getest:** `npm run typecheck`/`lint`/`test`/`build` groen; import-unit-tests 19/19.
+
 ## 2026-08-13 — prod: retry + env-time-out hardening op de externe verificatie-HTTP (DUO/BIG/iDIN)
 
 **Wat:** De gedeelde verificatie-HTTP-helper (`src/lib/services/http-verify.ts`, gebruikt door de echte

