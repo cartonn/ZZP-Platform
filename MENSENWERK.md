@@ -847,6 +847,7 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 | `DATABASE_CONNECTION_LIMIT` (+ `DATABASE_POOL_TIMEOUT`/`DATABASE_PGBOUNCER`) | Begrenst de Prisma-pool per instance                   | — (§0b, §1b)         | Bij horizontale schaling                         |
 | `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`                        | Malware-scan van uploads                               | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
 | `PASSWORD_BREACH_CHECK=hibp`                                                 | Gelekt-wachtwoord-controle (HIBP, sleutelloos)         | — (§5d)              | Optioneel (aanbevolen prod; geen secret nodig)   |
+| `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (+ `VAPID_SUBJECT`)                 | PWA-pushmeldingen (in-app meldingen blijven werken)    | Zelf genereren (§2)  | Optioneel (`npx web-push generate-vapid-keys`)   |
 | `ALLOW_INDEXING=true`                                                        | Zoekmachine-indexering aanzetten (default uit)         | — (§0b)              | Optioneel bij go-live (pilot blijft privé)       |
 | `SECURITY_CONTACT`                                                           | Meldpunt in /.well-known/security.txt (RFC 9116)       | — (§0b)              | Optioneel (aanbevolen vóór pentest)              |
 | `AUDIT_LOG_RETENTION_DAYS`                                                   | Bewaartermijn auditlog in dagen (default: onbeperkt)   | — (§5a)              | Optioneel (aanbevolen prod; bv. 365)             |
@@ -862,7 +863,14 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 > coherent. Schakel je een integratie in (`STORAGE_DRIVER=s3`, `EMAIL_DRIVER=smtp`,
 > `BILLING_PROVIDER=mollie`, `DIPLOMA_VERIFIER=duo`, `BIG_VERIFIER=bigregister`,
 > `IDENTITY_VERIFIER=idin`) maar mist een bijbehorende sleutel/endpoint, dan **faalt de boot meteen
-> en duidelijk** (geen halve activering). In productie geeft de boot bovendien een **waarschuwing**
+> en duidelijk** (geen halve activering). **Code-kant GEDAAN (2026-08-14) — web-push meegenomen:**
+> de VAPID-sleutels (`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`, PWA-pushmeldingen) worden
+> nu óók gevalideerd: precies één van de twee sleutels gezet = een halve activering (push staat dan
+> **stil uit** terwijl je vermoedelijk denkt dat 'ie aan staat) → **boot-fout** (eis beide of geen);
+> een `VAPID_SUBJECT` dat geen `mailto:`/`https:`-contact is (RFC 8292) wordt geweigerd. De
+> configuratie-posture is nu zichtbaar op `/admin/systeemstatus` én in `npm run preflight` ("Push-
+> notificaties": _aan_ als bekabeld, anders _uit_ — een veilige, optionele eindtoestand). In productie
+> geeft de boot bovendien een **waarschuwing**
 > bij een veilige-maar-tijdelijke fallback (lokale opslag, geen mailkanaal, ontbrekende
 > `CRON_SECRET`, SQLite i.p.v. PostgreSQL) zonder te crashen — de pilot blijft draaien.
 

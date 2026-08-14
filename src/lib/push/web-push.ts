@@ -4,6 +4,10 @@
 
 import webpush from "web-push";
 import { isExpiredSubscriptionStatus } from "@/lib/push/payload";
+import {
+  isWebPushConfigured as resolveIsWebPushConfigured,
+  resolveWebPushConfigState,
+} from "@/lib/push/config";
 
 let configured = false;
 
@@ -11,16 +15,17 @@ function ensureConfigured(): boolean {
   if (configured) return true;
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
-  if (!pub || !priv) return false;
-  const subject = process.env.VAPID_SUBJECT ?? "mailto:support@zzp-platform.nl";
-  webpush.setVapidDetails(subject, pub, priv);
+  // Vereist beide sleutels (een halve config = stil uit; de env-validatie blokkeert dat al bij boot).
+  if (resolveWebPushConfigState(pub, priv) !== "configured") return false;
+  const subject = process.env.VAPID_SUBJECT?.trim() || "mailto:support@zzp-platform.nl";
+  webpush.setVapidDetails(subject, pub!, priv!);
   configured = true;
   return true;
 }
 
 /** True zodra de VAPID-sleutels geconfigureerd zijn; anders slaat de delivery-taak over. */
 export function isWebPushConfigured(): boolean {
-  return Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+  return resolveIsWebPushConfigured(process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
 }
 
 /** De publieke VAPID-sleutel voor de browser-subscribe (veilig om te delen). */
