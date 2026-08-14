@@ -4,17 +4,16 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
-## Ronde 2026-08-14 (basis: `main` @ d5ea18dd) — 1× HOOG opgelost (stored XSS in bulk-import)
+## Ronde 2026-08-14 (basis: `main` @ d5ea18dd) — 2× HOOG opgelost (stored XSS in bulk-import + PII-redactie-gat in logger)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
-(1: alle server actions + `/api`-route-handlers → auth→rol→ownership→Zod→actie→audit + IDOR + cross-tenant
-
-- mass-assignment; 2: privacy/AVG — erasure↔export-symmetrie, dataminimalisatie, k-anonimiteit, PII-in-logs,
-  retentie; 3: injectie (SQL/XSS/CSV/ICS/SSRF) + upload/storage + secrets + headers/CSP + foutafhandeling +
-  open redirect + `npm audit`), plus onafhankelijke orchestrator-probes (deel-token/`/vertrouwen`,
-  password-reset, `/api/metrics`-autorisatie, public-route-allowlist) en een schone build (`npm run build`
-  groen). Delta sinds de vorige ronde: `0cec5281..d5ea18dd` (#1081 DUO/BIG/iDIN HTTP-retry/-timeout hardening
-  — geverifieerd schoon: env-only base-URLs (geen SSRF), geen PII in foutmeldingen; #1082 de vorige auditdoc).
+(1: alle server actions + `/api`-route-handlers → auth→rol→ownership→Zod→actie→audit + IDOR + cross-tenant +
+mass-assignment; 2: privacy/AVG — erasure↔export-symmetrie, dataminimalisatie, k-anonimiteit, PII-in-logs,
+retentie; 3: injectie (SQL/XSS/CSV/ICS/SSRF) + upload/storage + secrets + headers/CSP + foutafhandeling +
+open redirect + `npm audit`), plus onafhankelijke orchestrator-probes (deel-token/`/vertrouwen`,
+password-reset, `/api/metrics`-autorisatie, public-route-allowlist) en een schone build (`npm run build`
+groen). Delta sinds de vorige ronde: `0cec5281..d5ea18dd` (#1081 DUO/BIG/iDIN HTTP-retry/-timeout hardening
+— geverifieerd schoon: env-only base-URLs (geen SSRF), geen PII in foutmeldingen; #1082 de vorige auditdoc).
 
 ### OPGELOST — Stored XSS via ongevalideerd `website`-veld in admin CSV-bulk-import (HOOG · OWASP A03 / CWE-79)
 
@@ -48,6 +47,36 @@ link opent (sessie-/tokendiefstal op een platform met VOG/diploma/ID-documenten)
 **Sweep:** de andere twee `href={…website}`-sinks (`profile.website`, `job.company.website`) worden
 uitsluitend gevoed door `freelancerProfileSchema`/`companyProfileSchema` (beide `httpUrl()`,
 `src/lib/validation.ts:174,189`) — de bulk-import was de énige bypass; de klasse is nu volledig gedicht.
+
+### OPGELOST — PII-redactie in logger/Sentry mist compound naamvelden (HOOG sluimerend · AVG art. 5(1)(f))
+
+**Geschonden regel:** Architectuurregel 9 (logging lekt geen PII) / AVG art. 5(1)(f) (integriteit &
+vertrouwelijkheid). `docs`-aanname op meerdere plekken (`safe-action-error.ts`, `report.ts`,
+`sentry-options.ts`) dat `logger`/`reportError` "PII zelf redacteert" — die aanname klopte niet voor de
+compound naamvelden.
+
+**Repro (vóór de fix, uitgevoerd tegen de echte module):** `isSensitiveKey()`
+(`src/lib/observability/logger.ts`) toetst naam-sleutels alléén op EXACTE gelijkheid tegen een vaste set
+(bewust geen substring, om `filename`/`username` te sparen). Die set miste echter de camelCase naamvelden
+die dit platform daadwerkelijk gebruikt in de identiteits-/diploma-/BIG-verificatie:
+`redact({ verifiedName, verifiedLegalName, accountName, providedName, holderName, organizationName })` liet
+al die velden ongeredacteerd door — alleen de letterlijke sleutel `name` werd `[redacted]`. Omdat
+`sentry-options.ts` dezelfde `redact()` hergebruikt in `beforeSend`, zou een toekomstig debug-logstatement in
+de gevoeligste flow (bv. `logger.warn("idin-mismatch", { accountName, providedName })`) de volledige
+juridische naam naar de hosting-logs én naar Sentry (externe, mogelijk buiten-EER verwerker) sturen. **Géén
+actief call-pad vandaag** (de catch-blocks loggen alleen `describeError`), dus HOOG-sluimerend i.p.v. KRITIEK
+— een gat in het vangnet, niet een actieve lek.
+
+**Fix (dit PR):**
+
+- `REDACT_KEY_EXACT` uitgebreid met `verifiedname`, `verifiedlegalname`, `accountname`, `providedname`,
+  `holdername`, `organizationname` (raakt via de exacte match géén niet-PII als `filename`/`skillName`).
+- **Structurele poort tegen herhaling:** nieuwe test `logger.pii-name-coverage.test.ts` leest
+  `prisma/schema.prisma`, extraheert elk veld op `Name`/`Naam` en dwingt af dat het óf geredacteerd wordt óf
+  expliciet op `KNOWN_NON_PII_NAME_FIELDS` (`filename`, `partnername`) staat — een toekomstig naamveld breekt
+  zo de CI-poort i.p.v. stil door te lekken.
+- Tests (rood→groen): `logger.test.ts` — de zes verificatie-naamvelden redacten; `filename`/`skillName`/
+  `eventName` blijven intact.
 
 ## Ronde 2026-08-13b (basis: `main` @ 0cec5281) — geen nieuwe gaten
 
