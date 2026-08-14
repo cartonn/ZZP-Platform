@@ -45,6 +45,7 @@ function fakeDb(rows: Record<string, unknown> = {}) {
     noShowReport: { findMany: make("noShowReport", "findMany") },
     leadContact: { findMany: make("leadContact", "findMany") },
     domainEvent: { findMany: make("domainEvent", "findMany") },
+    conversationParticipant: { findMany: make("conversationParticipant", "findMany") },
   };
   return { db: db as unknown as PrismaClient, calls };
 }
@@ -81,6 +82,7 @@ describe("buildAccountExport", () => {
       "noShowReports",
       "leadContacts",
       "openDisputeReasons",
+      "readReceipts",
     ] as const) {
       expect(payload).toHaveProperty(key);
     }
@@ -110,6 +112,18 @@ describe("buildAccountExport", () => {
     expect(received?.args.where).toMatchObject({
       conversation: { participants: { some: { userId: ACTOR } } },
     });
+  });
+
+  it("neemt de eigen leesbevestigingen mee, gescopet op de actor (AVG art. 15/20)", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const cp = calls.find((c) => c.table === "conversationParticipant");
+    expect(cp).toBeDefined();
+    // Uitsluitend de eigen deelname-rijen — nooit de leesstaat van een tegenpartij.
+    expect((cp?.args.where as Record<string, unknown>).userId).toBe(ACTOR);
+    // Alleen conversationId + het leestijdstip; geen bredere PII van de tegenpartij.
+    expect(cp?.args.select).toEqual({ conversationId: true, lastReadAt: true });
   });
 
   it("neemt alleen door de actor geschreven ondersteuningsberichten mee (geen admin-antwoorden)", async () => {

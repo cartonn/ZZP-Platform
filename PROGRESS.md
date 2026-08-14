@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-14 — Security/privacy-audit: erasure/export-gat op de nieuwe leesbevestiging gedicht (MIDDEL)
+
+**Wat:** security-/privacy-auditronde (basis `main` @ `35ad4811`; orchestrator Opus 4.8 + 3 parallelle
+adversariële Opus-audits op niet-overlappende oppervlakken). Eén genuïne bevinding gefixt: de nieuwe
+leesbevestiging (#1096) introduceerde `ConversationParticipant.lastReadAt`, maar dat veld werd niet
+gescrubd door `anonymizeUser` (AVG art. 17 — het bevroren leestijdstip overleefde een
+vergetelheidsverzoek en bleef als "Gezien" toewijsbaar aan de verwijderde persoon) én ontbrak in
+`buildAccountExport` (art. 15/20, asymmetrisch met `Notification.readAt`). **Fix:** erasure zet
+`lastReadAt: null` binnen dezelfde `$transaction`; export bevat nu een `readReceipts`-sectie (gescopet
+op `userId`). Rood→groen tests in `anonymize-erasure.test.ts` en `account-export.test.ts`. Alle overige
+nieuwe oppervlakken (leesbevestiging-schrijfpad, `sendPaymentReminder`, VAPID/push, cross-tenant
+franchise-isolatie, injectie-sweep, publieke juridische pagina's, logger-PII, `npm audit`) schoon —
+zie `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-14b) voor de OWASP/AVG-dekking + bewijs.
+**Bestanden:** `src/lib/account-export.ts` (+ test), `src/app/(protected)/admin/gebruikers/actions.ts`
+(+ `anonymize-erasure.test.ts`), `docs/SECURITY-PRIVACY-BACKLOG.md`. Gate: typecheck, lint, test
+(572 files / 5943 tests), build, prettier lokaal groen.
+
 ## 2026-08-14 — Berichten: "Gezien"-leesbevestiging voor de afzender
 
 **Wat (kalmer voor ZZP'er én opdrachtgever):** de afzender van een bericht zag nooit óf de
