@@ -268,6 +268,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — kosten-per-maand trend op /uitgaven (2026-08-14, PR #1092)** —
+> de administratie-hub-tab Uitgaven toonde kosten dit jaar, aftrekbare btw en kosten per categorie, maar geen tijdsdimensie —
+> je zag niet wánneer je kosten piekten. De winst-per-maand-trend op /inzicht toont winst-bars + één kostentotaal, maar geen
+> kosten-bars per maand, en niet op de pagina die juist over kosten gaat. Nu een self-contained "Kosten per maand"-staafstrip
+> (laatste 6 maanden, netto excl. btw) tussen de kerncijfers en de categorie-verdeling. Nieuwe pure `src/lib/expense-trend.ts`
+> (`buildExpenseTrend`/`toExpenseRows`/`expenseTrend`) hergebruikt exact de maand-bucketing (`monthlyRevenue`) + delta
+> (`monthDeltaPct`) uit `revenue.ts` → geen drift met de omzet-/winsttrends (zelfde TZ Europe/Amsterdam, maandgrenzen,
+> afronding). Laadt zijn eigen venster-gescoopte uitgaven (niet afhankelijk van de 200-rij-lijstcap); render via de bestaande
+> `BarSeries`. Read-only, alleen FREELANCER, geen schema-/mutatie-/auth-oppervlak. +8 tests. Gate: typecheck, lint, test (5915),
+> build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Bemiddelaar — fee-per-maand trend op /inzicht (2026-08-14, PR #1089)** —
 > de FRANCHISER-`/inzicht` toonde in "Jouw fee" alleen een all-time totaal, geen fee-over-tijd — terwijl dat zijn kern-P&L is.
 > Nu een "Fee per maand"-trendkaart (spiegel van de ZZP'er "Winst per maand"), berekend uit de reeds geladen omzettrend
