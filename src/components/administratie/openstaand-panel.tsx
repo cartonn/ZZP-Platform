@@ -12,7 +12,11 @@ import {
   type AgingBucketKey,
 } from "@/lib/administration/aging";
 import { buildPayoutForecastMap, effectivePayoutDate } from "@/lib/administration/payout-forecast";
+import { buildReminderEligibilityMap } from "@/lib/administration/openstaand-reminders";
+import { type ManualReminderEligibility } from "@/lib/manual-payment-reminder";
+import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { type PayoutForecast } from "@/lib/invoice-payment-forecast";
+import { InlinePaymentReminderButton } from "@/components/invoices/inline-payment-reminder-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -27,6 +31,8 @@ interface OpenInvoicesResult {
   open: OpenInvoice[];
   /** Verwachte-betaaldatum per factuur-id (alleen ZZP'er). Leeg voor opdrachtgever. */
   forecasts: Map<string, PayoutForecast>;
+  /** Handmatige-herinnering-eligibility per factuur-id (alleen ZZP'er/crediteur). Leeg voor opdrachtgever. */
+  reminderEligibility: Map<string, ManualReminderEligibility>;
 }
 
 async function fetchOpenInvoices(
@@ -114,7 +120,36 @@ async function fetchOpenInvoices(
       )
     : new Map<string, PayoutForecast>();
 
-  return { open, forecasts };
+  // Handmatige-herinnering-eligibility per openstaande post (alleen ZZP'er/crediteur): de nudge staat
+  // zo direct in de debiteurenlijst i.p.v. alleen op het factuurdetail. De afkoelperiode leunt op de
+  // laatste herinnering uit het auditlogboek — dezelfde bron van waarheid als het detail. De echte
+  // gate (rol + ownership + cooldown) blijft in `sendPaymentReminder`; dit bepaalt of de knop mag.
+  let reminderEligibility = new Map<string, ManualReminderEligibility>();
+  if (isFreelancer && outstanding.length > 0) {
+    const ids = outstanding.map((inv) => inv.id);
+    const reminderLogs = await prisma.auditLog.findMany({
+      where: { action: "INVOICE_REMINDER_SENT", entityType: "Invoice", entityId: { in: ids } },
+      orderBy: { createdAt: "desc" },
+      select: { entityId: true, createdAt: true },
+    });
+    const lastReminderAtById = new Map<string, Date>();
+    for (const log of reminderLogs) {
+      if (log.entityId && !lastReminderAtById.has(log.entityId))
+        lastReminderAtById.set(log.entityId, log.createdAt);
+    }
+    reminderEligibility = buildReminderEligibilityMap(
+      outstanding.map((inv) => ({
+        id: inv.id,
+        status: inv.status,
+        lifecycleStatus: inv.lifecycleStatus as InvoiceLifecycleState | null,
+        issuedAt: inv.issuedAt,
+        dueAt: inv.dueAt,
+      })),
+      lastReminderAtById,
+    );
+  }
+
+  return { open, forecasts, reminderEligibility };
 }
 
 /**
@@ -137,7 +172,11 @@ export async function OpenstaandPanel({ actor }: { actor: Actor }) {
     );
   }
 
-  const { open: openInvoices, forecasts } = await fetchOpenInvoices(actor.id, isFreelancer);
+  const {
+    open: openInvoices,
+    forecasts,
+    reminderEligibility,
+  } = await fetchOpenInvoices(actor.id, isFreelancer);
   const now = new Date();
   const report = buildAgingReport(openInvoices, now);
 
@@ -295,13 +334,23 @@ export async function OpenstaandPanel({ actor }: { actor: Actor }) {
               row.isCascade && row.collaborationId
                 ? `/samenwerkingen/${row.collaborationId}`
                 : `/facturen/${row.id}`;
+            const canRemind = reminderEligibility.get(row.id)?.eligible === true;
             return (
-              <Link
+              <div
                 key={row.id}
-                href={href}
-                className="card-interactive flex items-center justify-between gap-4 px-4 py-3"
+                className="card-interactive relative flex items-center justify-between gap-4 px-4 py-3"
               >
-                <div className="min-w-0 flex-1">
+                {/* Stretched-link overlay: de hele rij navigeert naar het detail, terwijl de
+                    herinner-knop (pointer-events-auto) een eigen actie behoudt — geen genest
+                    interactief element in een anchor. */}
+                <Link
+                  href={href}
+                  aria-label={`Bekijk factuur ${row.number} · ${row.counterpartyName}`}
+                  className="focus-ring absolute inset-0 rounded-lg"
+                >
+                  <span className="sr-only">Bekijk factuur</span>
+                </Link>
+                <div className="pointer-events-none min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium tabular-nums">{row.number}</p>
                     <Badge variant={bucketVariant(row.bucket)}>
@@ -340,10 +389,17 @@ export async function OpenstaandPanel({ actor }: { actor: Actor }) {
                     {row.jobTitle ? ` · ${row.jobTitle}` : ""}
                   </p>
                 </div>
-                <span className="shrink-0 text-sm font-semibold tabular-nums">
-                  {formatEuro(row.amountCents)}
-                </span>
-              </Link>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="pointer-events-none text-sm font-semibold tabular-nums">
+                    {formatEuro(row.amountCents)}
+                  </span>
+                  {canRemind && (
+                    <span className="pointer-events-auto relative">
+                      <InlinePaymentReminderButton invoiceId={row.id} />
+                    </span>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>

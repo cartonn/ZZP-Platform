@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-14 — ZZP'er: betaalherinnering direct in de debiteurenlijst (/openstaand)
+
+**Wat (opdrachtgever chase't sneller):** de handmatige betaalherinnering (crediteur → opdrachtgever)
+bestond al, maar alleen op het factuur**detail** (`/facturen/[id]`). De ZZP'er beoordeelt zijn
+debiteuren echter op `/openstaand` (de openstaande-postenlijst, op ouderdom gerangschikt) — dé plek
+waar je besluit "deze ga ik nudgen". Daar moest je tot nu toe per post doorklikken naar het detail.
+Nu staat een compacte **"Herinner"**-knop inline op elke openstaande post die er klaar voor is, zodat
+de ZZP'er de hele debiteurenlijst in één blik kan afwerken (benchmark: debiteurenlijsten van
+Moneybird/Stripe hebben de herinnering inline).
+
+**Grens/architectuur:** server-side waarheid — de eligibility (rol → ownership → nog-op-betaling-
+wachtend → afkoelperiode) wordt per rij server-side bepaald via de bestaande pure
+`canSendPaymentReminder`; de knop rendert alleen als 'ie mag. De echte gate blijft in de al-geharde
+server-action `sendPaymentReminder` (auth → rol FREELANCER → ownership → server-herbevestiging +
+cooldown uit het auditlogboek → notify + audit). Geen geldstroom, geen schemawijziging, geen nieuw
+mutatie-/auth-oppervlak. De rij gebruikt een stretched-link-overlay zodat de hele rij navigeert
+terwijl de herinner-knop een eigen actie houdt (geen genest interactief element in een anchor). De
+afkoelperiode leunt op één gebatchte `INVOICE_REMINDER_SENT`-auditquery over de openstaande set
+(geen N+1). Alleen ZZP'er; opdrachtgever ziet niets nieuws. +7 tests. Gate: typecheck, lint, test
+(5926), prettier groen; build via CI. **Bestanden:** `src/lib/administration/openstaand-reminders.ts`
+(+ test), `src/components/invoices/inline-payment-reminder-button.tsx`,
+`src/components/administratie/openstaand-panel.tsx`.
+
 ## 2026-08-14 — persona-sweep run 76: afgekeurde vorige-cyclus-prestatie zichtbaar in het actiecentrum
 
 **Wat (DOEL 1b — next-action-defect, GEFIXT):** de ZZP'er-tak van de actie-enumerator
