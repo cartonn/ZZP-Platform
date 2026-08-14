@@ -74,6 +74,18 @@ export default async function LoginPage({
         </div>
 
         <TrustStrip stats={trustStats} />
+
+        <p className="mt-4 flex justify-center gap-4 text-xs text-muted-foreground">
+          <Link href="/voorwaarden" className="underline-offset-4 hover:underline">
+            {t("Voorwaarden")}
+          </Link>
+          <Link href="/privacy" className="underline-offset-4 hover:underline">
+            {t("Privacy")}
+          </Link>
+          <Link href="/cookies" className="underline-offset-4 hover:underline">
+            {t("Cookies")}
+          </Link>
+        </p>
       </div>
     </div>
   );

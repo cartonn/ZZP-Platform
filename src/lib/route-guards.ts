@@ -15,6 +15,11 @@ export function isPublicPath(pathname: string): boolean {
     pathname === "/login" ||
     pathname === "/register" ||
     pathname === "/wachtwoord-vergeten" ||
+    // Juridische pagina's: wettelijk verplicht vóór registratie raadpleegbaar (terhandstelling
+    // algemene voorwaarden, AVG-informatieplicht) — dus inlogvrij.
+    pathname === "/voorwaarden" ||
+    pathname === "/privacy" ||
+    pathname === "/cookies" ||
     pathname.startsWith("/wachtwoord-herstellen/") ||
     pathname === "/api/health" ||
     pathname === "/api/readiness" ||

@@ -23,6 +23,14 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/api/csp-report")).toBe(true);
   });
 
+  it("staat de juridische pagina's inlogvrij toe (terhandstelling vóór registratie vereist)", () => {
+    expect(isPublicPath("/voorwaarden")).toBe(true);
+    expect(isPublicPath("/privacy")).toBe(true);
+    expect(isPublicPath("/cookies")).toBe(true);
+    // Alleen de exacte routes; subpaden blijven achter de inlogmuur.
+    expect(isPublicPath("/privacy/intern")).toBe(false);
+  });
+
   it("staat de client-fout-ontvanger inlogvrij toe (error-boundary POST't zonder sessie, óók bij root-layout-crash)", () => {
     expect(isPublicPath("/api/client-error")).toBe(true);
   });

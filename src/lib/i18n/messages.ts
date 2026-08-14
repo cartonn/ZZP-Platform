@@ -91,6 +91,9 @@ const EN: Record<string, string> = {
   "Wachtwoord vergeten?": "Forgot your password?",
   "Nog geen account?": "No account yet?",
   Registreren: "Sign up",
+  Voorwaarden: "Terms",
+  Privacy: "Privacy",
+  Cookies: "Cookies",
 
   // --- Werkruimte (#19 dashboard) — gedeelde chrome ---
   "Alles tonen": "View all",

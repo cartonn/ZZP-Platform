@@ -119,6 +119,18 @@ export function RegisterForm() {
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending ? "Bezig…" : "Account aanmaken"}
       </Button>
+
+      <p className="text-center text-xs text-muted-foreground">
+        Door een account aan te maken ga je akkoord met de{" "}
+        <Link href="/voorwaarden" className="underline underline-offset-2 hover:text-foreground">
+          algemene voorwaarden
+        </Link>{" "}
+        en bevestig je de{" "}
+        <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+          privacyverklaring
+        </Link>{" "}
+        te hebben gelezen.
+      </p>
     </form>
   );
 }
