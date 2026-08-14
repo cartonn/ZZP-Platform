@@ -143,6 +143,7 @@ vi.mock("@/lib/db", () => ({
       updateMany: op("domainEvent.updateMany"),
     },
     pushSubscription: { deleteMany: op("pushSubscription.deleteMany") },
+    conversationParticipant: { updateMany: op("conversationParticipant.updateMany") },
     auditLog: {
       create: op("auditLog.create"),
       update: op("auditLog.update"),
@@ -310,6 +311,18 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ authorId: "user-42" });
     expect((o.args.data as { comment: string | null }).comment).toBeNull();
+  });
+
+  it("wist de eigen leesbevestigingen (ConversationParticipant.lastReadAt → null)", async () => {
+    await anonymizeUser("user-42");
+    const o = find("conversationParticipant.updateMany") as {
+      args: { where: unknown; data: unknown };
+    };
+    expect(o).toBeDefined();
+    // Gescopet op de eigen deelname-rijen — nooit de leesstaat van een tegenpartij.
+    expect(o.args.where).toEqual({ userId: "user-42" });
+    // Het tijdstip verdwijnt zodat de "Gezien"-markering van de tegenpartij niet toewijsbaar blijft.
+    expect((o.args.data as { lastReadAt: Date | null }).lastReadAt).toBeNull();
   });
 
   it("redact eigen shift-overname-redenen (ShiftHandoff.reason)", async () => {

@@ -43,6 +43,7 @@ export interface AccountExportPayload {
   noShowReports: unknown;
   leadContacts: unknown;
   openDisputeReasons: unknown;
+  readReceipts: unknown;
 }
 
 const EXPORT_NOTICE =
@@ -91,6 +92,7 @@ export async function buildAccountExport(
     noShowReports,
     leadContacts,
     openDisputeReasons,
+    readReceipts,
   ] = await Promise.all([
     db.user.findUnique({
       where: { id: actorId },
@@ -412,6 +414,14 @@ export async function buildAccountExport(
       where: { id: { in: ownDisputeCollabIds }, disputeReason: { not: null } },
       select: { disputeReason: true, disputedAt: true, createdAt: true },
     }),
+    // AVG art. 15/20 — de eigen leesbevestigingen (`ConversationParticipant.lastReadAt`): tot wanneer
+    // de betrokkene elk gesprek las. Dit is gedrags-/activiteitsmetadata óver de betrokkene (symmetrisch
+    // met `Notification.readAt` hierboven, dat óók in de export zit); scope strikt op de eigen
+    // deelname-rijen (`userId`). conversationId is een onveranderlijke id die de actor in-app al ziet.
+    db.conversationParticipant.findMany({
+      where: { userId: actorId },
+      select: { conversationId: true, lastReadAt: true },
+    }),
   ]);
 
   return {
@@ -446,5 +456,6 @@ export async function buildAccountExport(
     noShowReports,
     leadContacts,
     openDisputeReasons,
+    readReceipts,
   };
 }

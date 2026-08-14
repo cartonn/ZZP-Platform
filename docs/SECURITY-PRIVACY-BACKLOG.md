@@ -4,6 +4,85 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-14b (basis: `main` @ 35ad4811) — 1× MIDDEL opgelost (erasure/export-gat op de nieuwe leesbevestiging)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(1: alle nieuwe mutatie-oppervlakken sinds `d5ea18dd` — leesbevestiging (`markConversationRead`),
+betaalherinnering (`sendPaymentReminder`), VAPID/push-config → auth→rol→ownership→Zod→actie→audit + IDOR +
+secret-lek; 2: privacy/AVG — erasure↔export-symmetrie voor het nieuwe `lastReadAt`-veld, dataminimalisatie/
+k-anonimiteit op de nieuwe trend-aggregaties (`expense-trend`, `tenant-fee-trend`), publieke juridische
+pagina's, logger-PII-redactie; 3: cross-tenant-isolatie (alle `franchise/**`-routes/-actions), injectie-sweep
+repo-breed (SQL/XSS/href/CSV/ICS/SSRF) + cascade-`completion.ts`), plus orchestrator-probes (`npm audit`,
+runtime-build) en een schone build (`npm run build` groen, exit 0). Delta sinds de vorige ronde:
+`d5ea18dd..35ad4811` (#1086 stored-XSS-fix, #1087 logger-PII, #1088 VAPID-env-guard, #1090 race-veilige
+factuurnummering, #1091 juridische conceptpagina's, #1092/#1094/#1095 ZZP-BI/HIBP/betaalherinnering, #1093/#1096
+persona-sweep + leesbevestiging).
+
+### OPGELOST — Nieuw `ConversationParticipant.lastReadAt` overleeft erasure én ontbreekt in de data-export (MIDDEL · AVG art. 17 vergetelheid + art. 15/20 inzage/portabiliteit)
+
+**Geschonden regel:** Architectuurregel 5 (audit/AVG-symmetrie) + AVG art. 17 (recht op vergetelheid) en
+art. 15/20 (inzage/dataportabiliteit). De leesbevestiging-feature (#1096, "Gezien") introduceerde
+`lastReadAt` op `ConversationParticipant` (`prisma/schema.prisma:598`), maar dat veld werd níét meegenomen in
+de twee AVG-poorten die élk ander PII-adjacent veld wél afdekken.
+
+**Repro (vóór de fix):** ZZP'er A en opdrachtgever B chatten. A leest B's laatste bericht op tijdstip `T`.
+Admin anonimiseert A (art. 17-verzoek). `anonymizeUser` (`admin/gebruikers/actions.ts`) bevatte géén enkele
+`conversationParticipant`-operatie (`grep` → 0 hits) → A's `lastReadAt` blijft op `T` staan. B heropent het
+gesprek: de "Gezien"-markering (afgeleid uit `other.lastReadAt`, `berichten/[id]/page.tsx`) blijft voor altijd
+onder B's bericht staan met A's bevroren leestijdstip — residuele gedragsmetadata over het verwijderde
+individu die een vergetelheidsverzoek overleeft. Spiegelbeeldig ontbrak het veld ook in `buildAccountExport`
+(`account-export.ts`), terwijl het vergelijkbare `Notification.readAt` er wél in zit → A kon zijn eigen
+leesactiviteit niet inzien/exporteren (art. 15/20).
+
+**Fix (dit PR):**
+
+- **Erasure:** `anonymizeUser` zet nu binnen dezelfde `$transaction` `lastReadAt: null` voor alle
+  `ConversationParticipant`-rijen van de betrokkene (`where: { userId }`) — de rij/gesprekshistorie blijft
+  intact (berichten van de tegenpartij ongemoeid), alleen het toewijsbare tijdstip verdwijnt. Analoog aan de
+  bestaande `pushSubscription.deleteMany` (toestel-/gedragsmetadata).
+- **Export:** `buildAccountExport` bevat nu een `readReceipts`-sectie (`conversationParticipant.findMany`,
+  gescopet op `userId: actorId`, select `conversationId`+`lastReadAt`) — symmetrisch met `Notification.readAt`.
+- **Tests (rood→groen):** `anonymize-erasure.test.ts` — de erasure roept `conversationParticipant.updateMany`
+  met `{ userId }` → `lastReadAt: null` aan (zonder fix: `find(...)` = undefined → rood). `account-export.test.ts`
+  — `readReceipts` is present en gescopet op de actor (zonder fix: property afwezig → rood).
+
+**Sweep:** de schrijf-/leespaden van de feature zelf zijn schoon — `markConversationRead` schrijft via de
+composite-PK-gescopete `updateMany({ where: { conversationId, userId: actor.id } })` (geen IDOR), en de
+"Gezien"-markering exposeert alleen een boolean onder een bericht-id, nooit het rauwe tijdstip naar de client.
+
+### GEEN NIEUWE GATEN in de overige oppervlakken (bewijs, met OWASP/AVG-dekking)
+
+- **Nieuwe mutaties schoon (A01/A08).** `sendPaymentReminder` (`facturen/actions.ts:385`) volgt
+  auth→`requireRole("FREELANCER")`→ownership (`invoice.collaboration.freelancer.userId === actor.id`,
+  default-deny voor losse facturen)→afkoelperiode uit het **auditlogboek** (niet client)→notificatie+
+  `INVOICE_REMINDER_SENT`-audit in één transactie. `openstaand-reminders.ts` is een pure UI-hint; de gate zit
+  server-side. VAPID (`env.ts`/`web-push.ts`): half-activatie = harde bootfout (regel 8), `VAPID_PRIVATE_KEY`
+  verlaat de server nooit; alleen de publieke sleutel gaat auth-gated naar de client (RFC 8292).
+- **Cross-tenant isolatie schoon (A01).** Elke `franchise/**`-query scoopt via `tenantScopeWhere(actor)`/
+  `ownsViaTenant`/`assertSameTenant` op `actor.tenantId` (server-side uit `currentActor()`); onbekend-id en
+  cross-tenant-id geven identieke "niet gevonden" (anti-oracle CWE-203). Franchisers krijgen geen
+  document-download (`canAccessDocument` = owner/ADMIN), alleen credential-metadata.
+- **Injectie schoon (A03).** Geen `$queryRawUnsafe`/`$executeRawUnsafe`; enige `dangerouslySetInnerHTML` = het
+  nonce-gepoorte theme-script; alle `website`-hrefs via `httpUrl()` (bulk-import-bypass reeds gedicht in #1086);
+  CSV via `escapeCsvField`/`toCsv` (formule-injectie-guard); ICS-escaping compleet; geen SSRF (externe fetch
+  bouwt URL uit env-`baseUrl`, nooit uit request-input).
+- **Publieke juridische pagina's schoon.** `/voorwaarden`, `/privacy`, `/cookies`: statische NL-tekst, geen
+  `dangerouslySetInnerHTML`, geen secrets/PII/interne hostnames; route-guard exact-match (`/privacy/intern`
+  blijft gepoort, getest).
+- **Logger-PII schoon.** De zes nieuwe camelCase naamvelden worden geredacteerd; de structurele test parseert
+  `schema.prisma` en breekt CI bij een nieuw ongeredacteerd `*Name`-veld.
+- **`npm audit` — CI-poort groen.** `--omit=dev` (productie) = **0 kwetsbaarheden**. De volledige audit (incl.
+  dev) toont 3 dev-only items (`brace-expansion`/`esbuild`/`js-yaml`, transitief via eslint/esbuild-devserver)
+  — informatief, blokkeert de poort niet, geen productiepad. **LAAG/informatief**, geparkeerd hieronder.
+
+### GEPARKEERD — dev-only `npm audit`-bevindingen (LAAG · informatief, geen productiepad)
+
+`npm audit` (volledig, incl. dev): `brace-expansion` (HOOG, via `@typescript-eslint`), `esbuild` (LAAG,
+dev-server arbitrary file read op Windows), `js-yaml` (HOOG, quadratische CPU-DoS). Alle drie **dev-tooling
+transitief**, niet in de productie-bundle → de CI-`audit`-poort (`npm audit --audit-level=high --omit=dev`)
+is groen (0). `npm audit fix` zou de lockfile churnen; niet urgent, geen datalek-/boeterisico. Volgen bij een
+volgende dependency-bump.
+
 ## Ronde 2026-08-14 (basis: `main` @ d5ea18dd) — 2× HOOG opgelost (stored XSS in bulk-import + PII-redactie-gat in logger)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

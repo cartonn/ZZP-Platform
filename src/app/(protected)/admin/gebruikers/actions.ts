@@ -589,6 +589,16 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // Push-abonnementen: het endpoint is een persistente toestel-/browser-identifier (en userAgent
     // aanvullende PII). Een `user.update` triggert geen cascade-delete → expliciet verwijderen.
     prisma.pushSubscription.deleteMany({ where: { userId } }),
+    // AVG art. 17 — leesbevestigingen (`ConversationParticipant.lastReadAt`). Dit is gedragsmetadata
+    // óver de betrokkene: de tegenpartij ziet aan de "Gezien"-markering (afgeleid uit dit veld) wanneer
+    // de betrokkene voor het laatst las. Zonder wissen overleeft die frozen leesstaat de erasure en
+    // blijft toewijsbaar aan het verwijderde individu. De ConversationParticipant-rij zelf blijft staan
+    // (de gesprekshistorie/berichten van de tegenpartij blijven intact), maar het tijdstip → null, net
+    // zoals push-abonnementen als toestel-/gedragsmetadata worden gewist. Gescopet op `userId`.
+    prisma.conversationParticipant.updateMany({
+      where: { userId },
+      data: { lastReadAt: null },
+    }),
     // AVG art. 17 (zie de `ownCreditedInvoices`-toelichting hierboven): de zelf-geschreven creditreden
     // in zijn drie kopieën. (1) De reden op de eigen credit-facturen wissen.
     ...(ownCreditedInvoiceIds.length
