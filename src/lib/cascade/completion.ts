@@ -56,9 +56,18 @@ export function hasOpenCollaborationWork(snapshot: OpenWorkSnapshot): boolean {
  * de rij matcht dan niet meer (count 0) en de afronding valt weg (`optional`), zónder de betaling
  * zelf terug te draaien. Één bron van waarheid met `isInvoiceSettled` (dezelfde afgewikkeld-sets).
  * Plain object (geen Prisma-import) — puur en unit-testbaar.
+ *
+ * `disputedAt: null` sluit bovendien het venster waarin een gelijktijdig geopend dispuut binnen de
+ * betaal-transactie zou wegvallen: de dispuut-guard in `persistEventAndEffects` leest `disputedAt`
+ * één keer als eerste statement, maar de auto-afronding-write komt enkele statements later. Werd er in
+ * dat venster een dispuut geopend, dan mag de samenwerking niet op COMPLETED springen (een afgeronde
+ * samenwerking met een open `disputedAt` is een inconsistente staat). Deze `disputedAt: null`-eis her-
+ * toetst dat in dezelfde write: bij een net-geopend dispuut matcht de rij niet meer (count 0), de
+ * afronding valt weg (`optional`) en de samenwerking blijft ACTIVE en bevroren — betaling blijft staan.
  */
 export function collaborationCompletableGuard(currentInvoiceId: string): Record<string, unknown> {
   return {
+    disputedAt: null,
     performances: { none: { status: "SUBMITTED" } },
     invoices: {
       none: {
