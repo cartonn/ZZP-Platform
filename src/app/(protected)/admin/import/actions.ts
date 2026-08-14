@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { assertImportRole } from "@/lib/import-role";
+import { httpUrl } from "@/lib/validation";
 import { requestMeta } from "@/lib/request-meta";
 import {
   buildImportPreview,
@@ -23,6 +24,13 @@ import { describeError } from "@/lib/observability/report";
 
 const MAX_CSV_BYTES = 2 * 1024 * 1024; // 2 MB
 const MAX_ROWS = 500; // bovengrens per import (bewaakt looptijd van het hashen)
+
+/** Laat alleen een geldige http(s)-website door naar de write; alles anders → `undefined` (A03/CWE-79). */
+function safeWebsite(value: string | null): string | undefined {
+  if (!value) return undefined;
+  const parsed = httpUrl().safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
 
 /** True als er een echt mailkanaal is geconfigureerd (welkomstmails kunnen dan verzonden worden). */
 export async function isEmailConfigured(): Promise<boolean> {
@@ -250,7 +258,11 @@ export async function commitImport(formData: FormData): Promise<ImportCommitResu
             company: {
               create: {
                 name: row.companyName!,
-                website: row.website ?? undefined,
+                // Defense-in-depth (A03/CWE-79): `buildImportPreview` filtert non-http(s) websites al
+                // (parse-laag, de gedeelde bron van waarheid), maar we her-valideren vlak vóór de write
+                // zodat een `javascript:`/`data:`-URI nooit als rauwe `href` in `Company.website` belandt,
+                // ook als dit pad ooit rechtstreeks een niet-geparste rij zou krijgen.
+                website: safeWebsite(row.website),
                 location: row.location ?? undefined,
               },
             },

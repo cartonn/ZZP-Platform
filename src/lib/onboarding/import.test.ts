@@ -132,6 +132,39 @@ describe("buildImportPreview", () => {
     expect(buildImportPreview(csv).rows[0]!.rowNumber).toBe(2);
   });
 
+  // Stored XSS (OWASP A03 / CWE-79): een niet-http(s)-website mag nooit ongefilterd in
+  // `Company.website` belanden — die waarde wordt elders als rauwe `href` gerenderd.
+  const webHeader = "naam;email;rol;bedrijfsnaam;website";
+
+  it("weigert een javascript:-website (droppt de waarde, waarschuwing, rij blijft importeerbaar)", () => {
+    const csv = [
+      webHeader,
+      "Zorgburo;info@zorgburo.nl;Opdrachtgever;Zorgburo Noord;javascript:alert(document.cookie)",
+    ].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.website).toBeNull();
+    expect(row.issues.some((i) => i.level === "warning" && i.field === "website")).toBe(true);
+    expect(row.importable).toBe(true); // een kapotte website blokkeert de onboarding niet
+  });
+
+  it("weigert een data:-website", () => {
+    const csv = [
+      webHeader,
+      "Zorgburo;info@zorgburo.nl;Opdrachtgever;Zorgburo Noord;data:text/html,<script>1</script>",
+    ].join("\r\n");
+    expect(buildImportPreview(csv).rows[0]!.website).toBeNull();
+  });
+
+  it("behoudt een geldige https-website", () => {
+    const csv = [
+      webHeader,
+      "Zorgburo;info@zorgburo.nl;Opdrachtgever;Zorgburo Noord;https://zorgburo.nl",
+    ].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.website).toBe("https://zorgburo.nl");
+    expect(row.issues.some((i) => i.field === "website")).toBe(false);
+  });
+
   it("leeg bestand → lege preview", () => {
     expect(buildImportPreview("").summary.total).toBe(0);
     expect(buildImportPreview(header).summary.total).toBe(0);
