@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-14 — routine: atomaire factuurnummer-toewijzing (geen dubbel-nummer-botsing bij gelijktijdige indiening)
+
+**Wat:** Het GEPARKEERDE LOW-item uit persona-sweep run 72 gefixt. `allocateInvoiceNumber`
+(`src/lib/administration/persist.ts`) kende het volgende doorlopende factuurnummer per uitschrijvende
+partij toe via een **lees-dan-overschrijf**: `findUnique` → `nextSequence(lastSeq)` →
+`upsert({ update: { lastSeq: <berekend nummer> } })`. Onder gelijktijdigheid (ZZP'er dient twee
+DRAFT-cascadefacturen vrijwel tegelijk in — dubbelklik/twee tabs) lazen beide transacties dezelfde
+`lastSeq`, berekenden hetzelfde `+1` en botsten op `@@unique([issuerKey, partyInvoiceNumber])`. De
+tweede transactie rolde volledig terug met een generieke interne fout (P2002) i.p.v. gewoon het
+volgende nummer te krijgen — verwarrend voor de ZZP'er waar een simpele retry nodig was.
+
+**Verandering:**
+
+- De toewijzing gebeurt nu met een **atomaire `{ increment: 1 }`** binnen dezelfde upsert. `increment`
+  neemt een rijlock, zodat twee vrijwel gelijktijdige indieningen serialiseren en elk een eigen,
+  gatenvrij nummer krijgen.
+- `seq` komt uit de teruggegeven rij van de upsert; de aparte `findUnique`-voorlees verdween → geen
+  TOCTOU-venster meer.
+- Return-shape (`{ seq, number }`) + create-startwaarde (`nextSequence(undefined)` = 1) ongewijzigd —
+  de enige caller (`commands-shared.ts`) gebruikt alleen `number`, geen gedragswijziging op het happy
+  path. Werkt identiek op SQLite (lokaal/CI) en Postgres (prod).
+
+**Bestanden:** `src/lib/administration/persist.ts` (~15 regels), nieuwe `persist.test.ts` (+5 tests:
+eerste-nummer, gatenvrij ophogen, per-partij/per-jaar isolatie, atomaire-operator-regressie,
+serialisatie tot distincte nummers), `docs/PERSONA-SWEEP-BACKLOG.md` (item GEDAAN), `PROGRESS.md`.
+Geen schema-/mutatie-/auth-oppervlak. Gate: typecheck, lint, test, build, prettier — lokaal groen.
+
+**Volgende stap:** volgende persona-sweep-gat of concurrent-gedreven UX/data-increment.
+
 ## 2026-08-13 — prod: retry + env-time-out hardening op de externe verificatie-HTTP (DUO/BIG/iDIN)
 
 **Wat:** De gedeelde verificatie-HTTP-helper (`src/lib/services/http-verify.ts`, gebruikt door de echte

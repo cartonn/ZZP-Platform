@@ -81,18 +81,17 @@
 >
 > **GEPARKEERD (deze run — LOW, met repro):**
 >
-> - **LOW (DOEL 2, cascade-robuustheid, geen data-corruptie):** `allocateInvoiceNumber`
+> - ~~**LOW (DOEL 2, cascade-robuustheid, geen data-corruptie):** `allocateInvoiceNumber`
 >   (`src/lib/administration/persist.ts:52-69`, via `commands-shared.ts:202-207` in `persistInTransaction`)
 >   leest `InvoiceSequence.lastSeq = N` met `findUnique` (geen `FOR UPDATE`) en schrijft
->   `upsert({ data: { lastSeq: N+1 } })` — een **overwrite**, geen `{ increment: 1 }`. **Repro:** één ZZP'er
->   dient twee DRAFT-cascadefacturen vrijwel gelijktijdig in (dubbelklik/twee tabs); beide transacties lezen
->   `N`, berekenen `N+1`, botsen op `@@unique([issuerKey, partyInvoiceNumber])` → de tweede transactie rolt
->   **volledig** terug (incl. de sequence-upsert), dus geen dubbel factuurnummer en geen corrupte teller.
->   **Effect:** de tweede indiening faalt met een generieke interne fout (P2002 via `throwSafeActionError`)
->   i.p.v. een vriendelijke "probeer opnieuw"; een retry slaagt met het juiste nummer. **Waarom geparkeerd:**
->   raakt de administratie-domeinmotor (audit-backlog: "niet aankomen behalve voor tests") en verdient een
->   eigen gefocuste PR. **Aanbevolen fix:** atomair `update({ data: { lastSeq: { increment: 1 } } })` of
->   `SELECT … FOR UPDATE` zodat gelijktijdige indieningen netjes serialiseren.
+>   `upsert({ data: { lastSeq: N+1 } })` — een **overwrite**, geen `{ increment: 1 }`.~~ **→ GEDAAN
+>   (2026-08-14, PR #1085):** de toewijzing gebeurt nu met een atomaire `{ increment: 1 }` binnen de
+>   upsert (rijlock → serialisatie); de aparte `findUnique`-voorlees verdween (geen TOCTOU-venster meer),
+>   `seq` komt uit de teruggegeven rij. Twee vrijwel gelijktijdige DRAFT-cascadefactuur-indieningen
+>   krijgen nu elk een eigen, gatenvrij nummer i.p.v. dat de tweede terugrolt op de unique-botsing.
+>   Return-shape en create-startwaarde ongewijzigd (enige caller gebruikt alleen `number`). Werkt
+>   identiek op SQLite en Postgres. +5 tests (`persist.test.ts`: eerste-nummer, gatenvrij ophogen,
+>   per-partij/per-jaar isolatie, atomaire-operator-regressie, serialisatie tot distincte nummers).
 > - ~~**LOW (DOEL 2, consistentie — server actions):** `src/app/(protected)/diensten/importeer/actions.ts:25`
 >   en `src/app/(protected)/prestaties/actions.ts:26` roepen `requireActor()` óók ongevangen aan; als server
 >   actions is de faalmodus een generieke client-error-boundary i.p.v. een rauwe HTTP-500, dus lagere
