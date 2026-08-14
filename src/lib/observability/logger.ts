@@ -46,6 +46,10 @@ const REDACT_KEY_SUBSTRINGS = [
 // ("name" zou anders ook filename/username/hostname/eventName redacten). Deze worden
 // case-insensitive op EXACTE gelijkheid getoetst, zodat alleen de PII-dragende sleutel
 // zelf ("name", "naam", "adres", …) wordt geredacteerd en debug-sleutels intact blijven.
+// LET OP: compound naamsleutels moeten hier EXPLICIET staan (exacte match, geen substring). Voeg elke
+// nieuwe PII-naamkolom/-veld toe; de test `logger.pii-name-coverage.test.ts` dwingt af dat elk
+// Prisma-schemaveld op `Name`/`Naam` óf hier staat óf bewust als niet-PII is uitgezonderd, zodat een
+// toekomstig naamveld de CI breekt i.p.v. stil door de logger/Sentry-scrub te lekken (AVG art. 5(1)(f)).
 const REDACT_KEY_EXACT = new Set([
   "name",
   "naam",
@@ -56,6 +60,15 @@ const REDACT_KEY_EXACT = new Set([
   "displayname",
   "contactname",
   "contactnaam",
+  // Compound PII-naamvelden die dit platform daadwerkelijk gebruikt in de identiteits-/diploma-/
+  // BIG-verificatieflows (result- en inputvelden + DB-kolommen). Exacte match: raakt geen
+  // niet-PII-sleutels als filename/skillName.
+  "verifiedname",
+  "verifiedlegalname",
+  "accountname",
+  "providedname",
+  "holdername",
+  "organizationname",
   "adres",
   "address",
   "woonadres",

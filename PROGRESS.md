@@ -3,25 +3,38 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## 2026-08-14 — security: stored XSS gedicht in admin CSV-bulk-import (`website`-veld)
+## 2026-08-14 — security/privacy: stored XSS in bulk-import + PII-redactie-gat in logger gedicht (2× HOOG)
 
-**Wat:** Security-/privacy-auditronde (basis `main` @ d5ea18dd). Eén HOOG-bevinding gevonden én gefixt:
-de admin-bulk-import (`/admin/import`) schreef het CSV-`website`-veld ongevalideerd naar `Company.website`,
-langs de canonieke `httpUrl()`-guard heen. Die waarde wordt elders als rauwe `href` gerenderd
-(bedrijfsprofiel + elke opdracht van dat bedrijf) → stored XSS (OWASP A03 / CWE-79): een `javascript:`-URL
-in een geïmporteerde rij voert aanvaller-JS uit in de sessie van elke ZZP'er/opdrachtgever die de link opent.
+**Wat:** Security-/privacy-auditronde (basis `main` @ d5ea18dd, orchestrator Opus 4.8 + 3 parallelle
+adversariële audits). Twee HOOG-bevindingen gevonden én gefixt.
 
-**Verandering:**
+**1 — Stored XSS in admin CSV-bulk-import (`website`-veld · A03/CWE-79):** de admin-bulk-import
+(`/admin/import`) schreef het CSV-`website`-veld ongevalideerd naar `Company.website`, langs de canonieke
+`httpUrl()`-guard heen. Die waarde wordt elders als rauwe `href` gerenderd (bedrijfsprofiel + elke opdracht
+van dat bedrijf) → een `javascript:`-URL in een geïmporteerde rij voert aanvaller-JS uit in de sessie van
+elke ZZP'er/opdrachtgever die de link opent.
 
 - `src/lib/onboarding/import.ts`: nieuwe `parseWebsite()` valideert de website-kolom met `httpUrl()`
   (weigert `javascript:`/`data:`); ongeldig → waarschuwing + gedropt (rij blijft importeerbaar).
 - `src/app/(protected)/admin/import/actions.ts`: `safeWebsite()` her-valideert vlak vóór de write
   (defense-in-depth, spiegelt `assertImportRole`).
-- `src/lib/onboarding/import.test.ts`: +3 tests (rood→groen) — `javascript:`/`data:` gedropt, `https://` behouden.
-- Sweep bevestigt dat de andere `website`-sinks (`profile`/`company` edit-formulieren) al via `httpUrl()` lopen;
-  de bulk-import was de énige bypass. Backlog bijgewerkt (`docs/SECURITY-PRIVACY-BACKLOG.md`, ronde 2026-08-14).
+- `src/lib/onboarding/import.test.ts`: +3 tests (rood→groen). Sweep: de andere `website`-sinks
+  (`profile`/`company` edit-formulieren) lopen al via `httpUrl()` — bulk-import was de énige bypass.
 
-**Getest:** `npm run typecheck`/`lint`/`test`/`build` groen; import-unit-tests 19/19.
+**2 — PII-redactie in logger/Sentry mist compound naamvelden (HOOG sluimerend · AVG art. 5(1)(f)):**
+`isSensitiveKey()` (`src/lib/observability/logger.ts`) toetste naam-sleutels alléén op exacte match en miste
+`verifiedName`/`verifiedLegalName`/`accountName`/`providedName`/`holderName`/`organizationName` — echte
+PII-velden uit de identiteits-/diploma-/BIG-verificatie. `sentry-options.ts` hergebruikt dezelfde `redact()`,
+dus een toekomstig debug-logstatement in die flow zou volledige juridische namen naar logs én Sentry lekken.
+
+- `logger.ts`: de zes compound naamsleutels toegevoegd aan `REDACT_KEY_EXACT`.
+- `logger.pii-name-coverage.test.ts` (nieuw): leest het Prisma-schema en dwingt af dat élk `*Name`/`*Naam`-veld
+  óf geredacteerd wordt óf expliciet als niet-PII is uitgezonderd → toekomstig naamveld breekt de CI-poort.
+- `logger.test.ts`: +2 tests (rood→groen).
+
+**Getest:** `npm run typecheck`/`lint`/`prettier --check`/`test` (5872+)/`build` groen.
+Overige oppervlakken (IDOR/cross-tenant, injectie/upload/headers/SSRF, token-gated public routes,
+password-reset, `/api/metrics`, `npm audit --omit=dev`) getraceerd schoon; details in de backlog.
 
 ## 2026-08-13 — prod: retry + env-time-out hardening op de externe verificatie-HTTP (DUO/BIG/iDIN)
 

@@ -58,6 +58,32 @@ describe("redact — naam-/adres-/telefoon-sleutels (PII)", () => {
     expect(out.contactName).toBe(REDACTED);
   });
 
+  it("redacteert de compound PII-naamvelden uit de verificatieflows (verifiedName/holderName/…)", () => {
+    // Deze sleutels dragen de volledige juridische naam van een betrokkene (iDIN/DUO/BIG). Vóór de
+    // fix miste de exacte-sleutellijst ze en lekten ze ongeredacteerd naar logs én Sentry.
+    const out = redact({
+      verifiedName: "Jan de Vries",
+      verifiedLegalName: "Jan de Vries",
+      accountName: "Jan de Vries",
+      providedName: "Jan de Vries",
+      holderName: "Jan de Vries",
+      organizationName: "Zorg BV",
+    });
+    expect(out.verifiedName).toBe(REDACTED);
+    expect(out.verifiedLegalName).toBe(REDACTED);
+    expect(out.accountName).toBe(REDACTED);
+    expect(out.providedName).toBe(REDACTED);
+    expect(out.holderName).toBe(REDACTED);
+    expect(out.organizationName).toBe(REDACTED);
+  });
+
+  it("laat niet-PII naamsleutels (filename/skillName/eventName) intact", () => {
+    const out = redact({ filename: "2026/vog.pdf", skillName: "IC", eventName: "job.created" });
+    expect(out.filename).toBe("2026/vog.pdf");
+    expect(out.skillName).toBe("IC");
+    expect(out.eventName).toBe("job.created");
+  });
+
   it("redacteert telefoon-/phone-sleutels via substring", () => {
     const out = redact({ telefoonnummer: "0612345678", contactPhone: "0201234567" });
     expect(out.telefoonnummer).toBe(REDACTED);
