@@ -492,6 +492,11 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       invoices: {
         where: { lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED", "OVERDUE"] } },
         select: { id: true, lifecycleStatus: true, createdAt: true },
+        // Expliciete ordering vóór de take-limiet: zonder `orderBy` garandeert Prisma geen rijvolgorde,
+        // dus wélke MAX-van-N facturen terugkomen zou arbitrair zijn en een taak kon tussen requests
+        // flappen (verschijnen/verdwijnen zonder afhandeling) zodra een samenwerking >5 openstaande
+        // cascade-facturen heeft. Oudste-eerst: de langst-openstaande factuur-taak komt bovenaan.
+        orderBy: { createdAt: "asc" },
         take: 5,
       },
     },
@@ -524,8 +529,20 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     const latestPerf = c.performances[0];
     if (!latestPerf || latestPerf.status === "DRAFT") {
       tasks.push(performanceSubmitTask(c.id, c.job.title));
-    } else if (latestPerf.status === "REJECTED") {
-      tasks.push(performanceResubmitTask(latestPerf.id, c.id, c.job.title));
+    }
+    // Elke AFGEKEURDE prestatie vraagt om correctie + herindiening — óók een prestatie van een vorige
+    // cyclus die door een nieuwere (APPROVED/SUBMITTED/DRAFT) prestatie uit `performances[0]` is
+    // weggedrukt. `createPerformance` gate't alleen op ACTIVE + geen dispuut, dus op één samenwerking
+    // kunnen meerdere cycli naast elkaar bestaan; keek de enumerator (zoals voorheen) enkel naar de
+    // nieuwste prestatie, dan zag de ZZP'er de vastgelopen, afgekeurde uren nergens in het actiecentrum
+    // (alleen nog op het samenwerkingsdetail) terwijl het geld muurvast zit — alleen een APPROVED-
+    // prestatie wordt ooit een factuur. Symmetrisch met de factuur-lus hieronder, die al over álle
+    // openstaande facturen itereert. `performanceResubmitTask` sleutelt per prestatie-id, dus meerdere
+    // afgekeurde prestaties zijn dedupe-veilig. Persona-sweep run 76.
+    for (const p of c.performances) {
+      if (p.status === "REJECTED") {
+        tasks.push(performanceResubmitTask(p.id, c.id, c.job.title));
+      }
     }
     for (const inv of c.invoices) {
       // APPROVED én OVERDUE dragen dezelfde ZZP-actie (betaling markeren), exact zoals cascade/stage.ts:

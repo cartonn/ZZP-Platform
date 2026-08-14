@@ -1,5 +1,41 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-14 (run 76) · **main-commit basis:** `33e4bdec`
+> **Uitkomst:** **1 bereikbaar DOEL 1b-defect gevonden én gefixt** (+ 1 meegenomen should-fix; geen
+> geparkeerde items deze run). 4 parallelle adversariële Opus-code-audits op niet-overlappende
+> oppervlakken; de live Playwright-sweep bleef ongedaan (prod-build compileert lokaal wél groen deze
+> run, maar de doorklik-sweep is niet uitgevoerd — de code-audits dekten DOEL 1/1b/2 op codeniveau af).
+>
+> - **OPGELOST — afgekeurde vorige-cyclus-prestatie onzichtbaar in het actiecentrum (DOEL 1b, MED):**
+>   `freelancerTasks` (`src/lib/actions/pending-tasks.ts`) las voor de prestatie-fase enkel
+>   `c.performances[0]` (de nieuwste). Op één ACTIVE-samenwerking kunnen meerdere cycli naast elkaar
+>   bestaan (`createPerformance` gate't alleen op ACTIVE + geen dispuut). **Repro:** cyclus-1-prestatie
+>   REJECTED → daarna cyclus-2-uren ingediend + APPROVED (nieuwer → `performances[0]`). De herindien-taak
+>   voor de afgekeurde cyclus-1-uren verdween volledig uit `/acties`, de dashboard-rail én de badge,
+>   terwijl het geld muurvast zit (alleen een APPROVED-prestatie wordt ooit een factuur). Alleen het
+>   samenwerkingsdetail toonde de correctie-knop nog. **Geschonden regel:** next-action moet de juiste
+>   eerstvolgende stap voor de partij "aan zet" tonen en niet stil wegvallen. **Fix:** itereer over álle
+>   prestaties, emit `performanceResubmitTask` per REJECTED-rij (perf-id-gesleuteld → dedupe-veilig),
+>   symmetrisch met de factuur-lus die al over álle openstaande facturen liep. Contrast: de factuur-kant
+>   van exact dit multi-cyclus-probleem was al expliciet gefixt (`priorCycleFreelancerPhase` in
+>   `stage.ts` + de all-invoices-lus); de prestatie-kant had geen equivalent. +4 regressietests.
+> - **OPGELOST — non-deterministische factuur-slice (should-fix, LAAG):** de `c.invoices`-query in
+>   dezelfde enumerator had `take: 5` zónder `orderBy` → wélke 5 openstaande cascade-facturen terugkwamen
+>   was arbitrair; bij >5 openstaande facturen op één samenwerking kon een factuur-taak tussen requests
+>   flappen (verschijnen/verdwijnen zonder afhandeling). **Fix:** `orderBy: { createdAt: "asc" }`
+>   (oudste-eerst), conform de expliciet-ordering-conventie elders in dit bestand.
+>
+> Drie van de vier audits (franchise-tenant-isolatie, cascade/geld-integriteit + verboden
+> statusovergangen, nieuwere feature-acties + input/CSV-injectie) vonden **0 bereikbare gaten** —
+> auth→rol→ownership→Zod→actie→audit-keten, CWE-203-anti-oracle, tenant-scope-in-de-write,
+> numeric-clamps (uren ≤1000, rate ≤€2000, milestone ≤€1M), CSV-formule-guard (=,+,-,@ geneutraliseerd),
+> atomaire compound-guards (`updateMany({where:{id,status:from,disputedAt:null,…}})`) en de invoice-
+> numbering-race allemaal geverifieerd dicht.
+>
+> ---
+>
+> **Vorige run:**
+>
 > **Datum:** 2026-08-14 (run 75) · **main-commit basis:** `858d0fa7`
 > **Uitkomst:** **2 bereikbare defecten gevonden én gefixt** (geen geparkeerde items deze run).
 > Live Playwright-sweep niet mogelijk (netwerk-policy 404't de Google-Fonts-woff2-assets → `next/font`

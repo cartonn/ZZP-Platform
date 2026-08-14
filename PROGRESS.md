@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-14 — persona-sweep run 76: afgekeurde vorige-cyclus-prestatie zichtbaar in het actiecentrum
+
+**Wat (DOEL 1b — next-action-defect, GEFIXT):** de ZZP'er-tak van de actie-enumerator
+(`freelancerTasks` in `src/lib/actions/pending-tasks.ts`) keek voor de prestatie-fase alleen naar de
+**nieuwste** prestatie (`c.performances[0]`). Op één ACTIVE-samenwerking kunnen echter meerdere cycli
+naast elkaar bestaan (`createPerformance` gate't alleen op ACTIVE + geen dispuut). Werd een cyclus-1-
+prestatie **afgekeurd** (REJECTED) en diende de ZZP'er daarna nieuwe cyclus-2-uren in die goedgekeurd
+werden (APPROVED → `performances[0]`), dan verdween de herindien-taak voor de afgekeurde cyclus-1-uren
+volledig uit `/acties`, de dashboard-rail én de badge — terwijl het geld voor die uren muurvast zit
+(alleen een APPROVED-prestatie wordt ooit een factuur). Alleen het samenwerkingsdetail toonde de
+correctie-knop nog. **Fix:** itereer over álle prestaties en emit een `performanceResubmitTask` per
+REJECTED-rij (perf-id-gesleuteld → dedupe-veilig), symmetrisch met de factuur-lus die al over álle
+openstaande facturen liep. **Meegenomen (should-fix):** de `c.invoices`-slice had `take: 5` zónder
+`orderBy` → wélke 5 facturen terugkwamen was arbitrair en een taak kon tussen requests flappen; nu
+`orderBy: { createdAt: "asc" }` (oudste-eerst, deterministisch).
+
+**Grens/architectuur:** pure enumerator-logica, geen nieuw mutatie-/auth-oppervlak, geen schemawijziging.
++4 regressietests (`src/lib/actions/pending-tasks.test.ts`): nieuwste-REJECTED, gemaskeerde vorige-
+cyclus-REJECTED, meerdere-REJECTED-dedupe, DRAFT-naast-oudere-REJECTED. Gate: typecheck, lint, test,
+build, prettier groen. **Bestanden:** `src/lib/actions/pending-tasks.ts`, `src/lib/actions/pending-tasks.test.ts`.
+
+**Sweep-dekking deze run:** 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(franchise-tenant-isolatie; cascade/geld-integriteit + verboden statusovergangen; nieuwere feature-acties
+plus input/CSV-injectie): **alle drie schoon** (auth→rol→ownership→Zod→actie→audit-keten,
+CWE-203-anti-oracle, numeric-clamps, CSV-formule-guard, atomaire compound-guards geverifieerd dicht).
+De next-action-engine-audit vond dit ene bereikbare DOEL 1b-defect → gefixt.
+
 ## 2026-08-14 — ZZP'er: kosten-per-maand trend op /uitgaven
 
 **Wat:** de administratie-hub-tab **Uitgaven** (`/uitgaven`) toonde kosten dit jaar, aftrekbare btw en
