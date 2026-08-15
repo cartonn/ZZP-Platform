@@ -3,7 +3,7 @@ import { Building2, Palette } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { getTenantStats } from "@/lib/tenant-stats";
-import { getTenantBillingOverview } from "@/lib/franchise/billing";
+import { getTenantBillingOverview, getTenantFeeLines } from "@/lib/franchise/billing";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +47,7 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
  * andere tenant. Bewerken (white-label branding) op /franchise/instellingen/bewerken.
  */
 export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Actor; tab?: string }) {
-  const [tenant, stats, billing] = await Promise.all([
+  const [tenant, stats, billing, feeLines] = await Promise.all([
     prisma.tenant.findUnique({
       where: { ownerUserId: actor.id },
       select: {
@@ -59,6 +59,7 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
     }),
     getTenantStats(actor),
     getTenantBillingOverview(actor, new Date()),
+    getTenantFeeLines(actor),
   ]);
 
   if (!tenant) {
@@ -262,7 +263,7 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
 
       {tab === "facturatie" &&
         (billing ? (
-          <BillingPanel overview={billing} />
+          <BillingPanel overview={billing} feeLines={feeLines} />
         ) : (
           <Card>
             <CardContent className="p-0">
