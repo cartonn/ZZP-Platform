@@ -24,6 +24,8 @@ vi.mock("@/lib/db", () => ({
     credential: { findMany: vi.fn(async () => state.creds) },
     availabilityWindow: { findMany: vi.fn(async () => []) },
     performance: { findMany: vi.fn(async () => []) },
+    // Ongewindowde betaal-/factuur-query (openInvoices) — leeg voor deze certificaat-gescope test.
+    invoice: { findMany: vi.fn(async () => []) },
     // Geen samenwerkingen → de generieke expiry-loop (niet de collab-gebonden tak) is de code onder test.
     collaboration: { findMany: vi.fn(async () => []) },
     conversationParticipant: { findMany: vi.fn(async () => []) },

@@ -49,6 +49,30 @@ vi.mock("@/lib/db", () => ({
           ),
       ),
     },
+    // Aparte, ONgewindowde query voor de betaal-/concept-factuur-taken (openInvoices) — losgekoppeld van
+    // de collabs-vensterrelatie zodat een factuur op een ouder-getekende (uit het updatedAt-venster
+    // gevallen) samenwerking nooit stil uit het actiecentrum valt. Afgeleid uit state.collabs: alle
+    // openstaande facturen (DRAFT/REJECTED/APPROVED/OVERDUE) op ACTIVE-samenwerkingen, oudste-eerst.
+    invoice: {
+      findMany: vi.fn(async () =>
+        (state.collabs as ReturnType<typeof collab>[])
+          .filter((c) => c.status === "ACTIVE")
+          .flatMap((c) =>
+            c.invoices
+              .filter((i) =>
+                ["DRAFT", "REJECTED", "APPROVED", "OVERDUE"].includes(i.lifecycleStatus),
+              )
+              .map((i) => ({
+                id: i.id,
+                lifecycleStatus: i.lifecycleStatus,
+                createdAt: i.createdAt,
+                collaborationId: c.id,
+                collaboration: { job: { title: c.job.title } },
+              })),
+          )
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+      ),
+    },
     conversationParticipant: { findMany: vi.fn(async () => []) },
     message: { groupBy: vi.fn(async () => []) },
     conversation: { findMany: vi.fn(async () => []) },

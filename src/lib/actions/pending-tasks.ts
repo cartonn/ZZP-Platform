@@ -489,16 +489,6 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         orderBy: { createdAt: "desc" },
         take: 5,
       },
-      invoices: {
-        where: { lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED", "OVERDUE"] } },
-        select: { id: true, lifecycleStatus: true, createdAt: true },
-        // Expliciete ordering vóór de take-limiet: zonder `orderBy` garandeert Prisma geen rijvolgorde,
-        // dus wélke MAX-van-N facturen terugkomen zou arbitrair zijn en een taak kon tussen requests
-        // flappen (verschijnen/verdwijnen zonder afhandeling) zodra een samenwerking >5 openstaande
-        // cascade-facturen heeft. Oudste-eerst: de langst-openstaande factuur-taak komt bovenaan.
-        orderBy: { createdAt: "asc" },
-        take: 5,
-      },
     },
     orderBy: { updatedAt: "desc" },
     take: MAX,
@@ -531,24 +521,9 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       tasks.push(performanceSubmitTask(c.id, c.job.title));
     }
     // Afgekeurde prestaties worden hieronder apart (ongewindowd) opgehaald — zie `rejectedPerfs`.
-    for (const inv of c.invoices) {
-      // APPROVED én OVERDUE dragen dezelfde ZZP-actie (betaling markeren), exact zoals cascade/stage.ts:
-      // een OVERDUE-factuur die uit de oude [DRAFT,REJECTED,APPROVED]-filter viel verdween eerder stil
-      // uit /acties (de betaal-taak sprak de "attention"-fase van het samenwerkingsscherm tegen).
-      if (inv.lifecycleStatus === "APPROVED") {
-        tasks.push(paymentConfirmTask(inv.id, c.id, c.job.title));
-      } else if (inv.lifecycleStatus === "OVERDUE") {
-        tasks.push(paymentConfirmTask(inv.id, c.id, c.job.title, true));
-        surfacedOverdue += 1;
-      } else {
-        // Verse concept vs. verouderde concept: de leeftijd (hele dagen sinds `createdAt`) laat de
-        // taak escaleren zodra 'ie ≥ UNBILLED_AGING_DAYS blijft liggen — zelfde drempel als de
-        // dashboard-tegel "Nog te factureren". Bij een afgekeurde factuur telt leeftijd niet.
-        const rejected = inv.lifecycleStatus === "REJECTED";
-        const agingDays = rejected ? undefined : daysSince(inv.createdAt, now);
-        tasks.push(invoiceSubmitTask(inv.id, c.id, c.job.title, rejected, agingDays));
-      }
-    }
+    // De factuur-afgeleide taken (betaling markeren / concept indienen) komen eveneens uit een aparte,
+    // ongewindowde query — zie `openInvoices` verderop — omdat `Collaboration.updatedAt` de factuur-
+    // activiteit niet volgt (outer-window-blindheid, zie de doc-comment daar).
   }
 
   // Elke AFGEKEURDE prestatie vraagt om correctie + herindiening — óók een prestatie van een vorige
@@ -577,6 +552,55 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   });
   for (const p of rejectedPerfs) {
     tasks.push(performanceResubmitTask(p.id, p.collaborationId, p.collaboration.job.title));
+  }
+
+  // Betaal-/concept-factuur-taken van lopende samenwerkingen — bewust LOSGEKOPPELD van de `collabs`-
+  // relatie hierboven, net als `rejectedPerfs`. Die `collabs`-query ordent `updatedAt desc, take: MAX`,
+  // maar `Collaboration.updatedAt` is een @updatedAt-kolom die ALLEEN bij een directe mutatie op de
+  // samenwerkingsrij wordt bijgewerkt (contract tekenen, dispuut openen/sluiten, annuleren, auto-
+  // afronding). Het indienen/goedkeuren van een factuur (of prestatie) raakt de samenwerkingsrij nooit,
+  // dus voor een ACTIVE-samenwerking staat `updatedAt` effectief bevroren op het teken-moment: outer-
+  // window-blindheid. Bij >MAX gelijktijdige samenwerkingen ordent het venster dan puur op "hoe recent
+  // is het contract getekend" — blind voor welke samenwerking openstaand geldwerk heeft. Een ouder-
+  // getekende samenwerking die net een APPROVED/OVERDUE-factuur kreeg valt buiten `take: MAX` en —
+  // anders dan de inner-window-bugs (run 76/77) — heelt dit NIET vanzelf (de factuur afhandelen bumpt
+  // `updatedAt` niet), zodat het geld muurvast blijft. Een status-gefilterde, ongewindowde query scopet
+  // direct op de samenwerkings-eigenaar en heelt self-healing. `paymentConfirm/invoiceSubmitTask`
+  // sleutelen per factuur-id → dedupe-veilig. Persona-sweep run 78 (outer-window-blindheid).
+  const openInvoices = await prisma.invoice.findMany({
+    where: {
+      lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED", "OVERDUE"] },
+      collaboration: { freelancer: { userId }, status: "ACTIVE", disputedAt: null },
+    },
+    select: {
+      id: true,
+      lifecycleStatus: true,
+      createdAt: true,
+      collaborationId: true,
+      collaboration: { select: { job: { select: { title: true } } } },
+    },
+    orderBy: { createdAt: "asc" },
+    take: MAX,
+  });
+  for (const inv of openInvoices) {
+    // De collaboration-relatie is optioneel op Invoice (legacy-facturen zonder samenwerking); de
+    // where-scope garandeert 'm hier, maar de guard houdt de types nauw en slaat een verweesde rij over.
+    if (!inv.collaboration || !inv.collaborationId) continue;
+    const jobTitle = inv.collaboration.job.title;
+    // APPROVED én OVERDUE dragen dezelfde ZZP-actie (betaling markeren), exact zoals cascade/stage.ts.
+    if (inv.lifecycleStatus === "APPROVED") {
+      tasks.push(paymentConfirmTask(inv.id, inv.collaborationId, jobTitle));
+    } else if (inv.lifecycleStatus === "OVERDUE") {
+      tasks.push(paymentConfirmTask(inv.id, inv.collaborationId, jobTitle, true));
+      surfacedOverdue += 1;
+    } else {
+      // Verse concept vs. verouderde concept: de leeftijd (hele dagen sinds `createdAt`) laat de
+      // taak escaleren zodra 'ie ≥ UNBILLED_AGING_DAYS blijft liggen — zelfde drempel als de
+      // dashboard-tegel "Nog te factureren". Bij een afgekeurde factuur telt leeftijd niet.
+      const rejected = inv.lifecycleStatus === "REJECTED";
+      const agingDays = rejected ? undefined : daysSince(inv.createdAt, now);
+      tasks.push(invoiceSubmitTask(inv.id, inv.collaborationId, jobTitle, rejected, agingDays));
+    }
   }
 
   // Vereist certificaat van een lopende/voorgestelde samenwerking dat binnenkort verloopt: één
@@ -923,30 +947,17 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
           credentials: { select: { type: true, status: true, expiresAt: true } },
         },
       },
-      // Expliciete ordering vóór de take-limiet: zonder `orderBy` garandeert Prisma geen rijvolgorde,
-      // dus wélke MAX-van-5 te-keuren prestaties/facturen terugkwamen was arbitrair en een keur-taak
-      // kon tussen requests flappen (verschijnen/verdwijnen zonder afhandeling) zodra één samenwerking
-      // >5 gelijktijdig SUBMITTED-rijen heeft. Oudste-eerst: het venster schuift self-healing mee zodra
-      // de opdrachtgever de oudste keurt. Conform de conventie elders in dit bestand. Persona-sweep run 77.
-      performances: {
-        where: { status: "SUBMITTED" },
-        select: { id: true },
-        orderBy: { createdAt: "asc" },
-        take: 5,
-      },
-      invoices: {
-        where: { lifecycleStatus: "SUBMITTED", counterpartyUserId: userId },
-        select: { id: true },
-        orderBy: { createdAt: "asc" },
-        take: 5,
-      },
+      // De te-keuren prestaties/facturen (SUBMITTED) worden apart, ONGEWINDOWD opgehaald — zie
+      // `approvePerformances`/`approveInvoices` verderop. `Collaboration.updatedAt` volgt die activiteit
+      // niet (outer-window-blindheid, zie de doc-comment daar), dus ze mogen niet uit de gecapte
+      // samenwerkingsvenster-relatie komen.
     },
     orderBy: { updatedAt: "desc" },
     take: MAX,
   });
   for (const c of collabs) {
-    const name = c.freelancer.user.name ?? "ZZP'er";
     if (c.status === "PROPOSED") {
+      const name = c.freelancer.user.name ?? "ZZP'er";
       // Onderdruk de "Onderteken"-taak zolang de plaatsing door een certificaat-gat geblokkeerd is:
       // signContract weigert dan (server-waarheid), dus de knop kan nooit slagen én de opdrachtgever
       // is niet de partij die het gat kan dichten (alleen de ZZP'er levert het bewijsstuk aan). Zonder
@@ -965,9 +976,62 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
       }
       continue;
     }
-    for (const p of c.performances)
-      tasks.push(performanceApproveTask(p.id, c.id, c.job.title, name));
-    for (const inv of c.invoices) tasks.push(invoiceApproveTask(inv.id, c.id, c.job.title));
+  }
+
+  // Te-keuren prestaties/facturen van lopende samenwerkingen — bewust LOSGEKOPPELD van de `collabs`-
+  // relatie hierboven. Die query ordent `updatedAt desc, take: MAX`, maar `Collaboration.updatedAt` is
+  // een @updatedAt-kolom die ALLEEN bij een directe mutatie op de samenwerkingsrij wordt bijgewerkt
+  // (contract tekenen, dispuut openen/sluiten, annuleren, auto-afronding). Het indienen van een prestatie
+  // of factuur raakt de samenwerkingsrij nooit, dus voor een ACTIVE-samenwerking staat `updatedAt`
+  // effectief bevroren op het teken-moment: outer-window-blindheid. Bij >MAX gelijktijdige samenwerkingen
+  // ordent het venster puur op "hoe recent is het contract getekend" — blind voor welke samenwerking een
+  // te-keuren indiening heeft. Een ouder-getekende samenwerking die net een SUBMITTED-prestatie/-factuur
+  // kreeg valt buiten `take: MAX` en — anders dan de inner-window-bugs (run 77) — heelt dit NIET vanzelf
+  // (het keuren bumpt `updatedAt` niet), zodat de goedkeuring muurvast blijft. Status-gefilterde,
+  // ongewindowde queries scopen direct op de samenwerkings-eigenaar en helen self-healing.
+  // `performanceApprove/invoiceApproveTask` sleutelen per id → dedupe-veilig. Persona-sweep run 78.
+  const approvePerformances = await prisma.performance.findMany({
+    where: {
+      status: "SUBMITTED",
+      collaboration: { company: { userId }, status: "ACTIVE", disputedAt: null },
+    },
+    select: {
+      id: true,
+      collaborationId: true,
+      collaboration: {
+        select: {
+          job: { select: { title: true } },
+          freelancer: { select: { user: { select: { name: true } } } },
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+    take: MAX,
+  });
+  for (const p of approvePerformances) {
+    const name = p.collaboration.freelancer.user.name ?? "ZZP'er";
+    tasks.push(performanceApproveTask(p.id, p.collaborationId, p.collaboration.job.title, name));
+  }
+
+  const approveInvoices = await prisma.invoice.findMany({
+    where: {
+      lifecycleStatus: "SUBMITTED",
+      counterpartyUserId: userId,
+      collaboration: { company: { userId }, status: "ACTIVE", disputedAt: null },
+    },
+    select: {
+      id: true,
+      collaborationId: true,
+      collaboration: { select: { job: { select: { title: true } } } },
+    },
+    orderBy: { createdAt: "asc" },
+    take: MAX,
+  });
+  for (const inv of approveInvoices) {
+    // De collaboration-relatie is optioneel op Invoice; de where-scope garandeert 'm, de guard houdt de
+    // types nauw en slaat een eventuele verweesde rij over.
+    if (!inv.collaboration || !inv.collaborationId) continue;
+    tasks.push(invoiceApproveTask(inv.id, inv.collaborationId, inv.collaboration.job.title));
   }
 
   for (const u of unread) tasks.push(messageReplyTask(u.id, u.withWhom, u.subject));

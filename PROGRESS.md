@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-15 — Persona-sweep run 78: TOCTOU-afrondrace + outer-window-blindheid gedicht
+
+**Wat (2 bereikbare defecten, gevonden via 4 parallelle adversariële Opus-audits, gefixt door 2
+builders op niet-overlappende bestanden):**
+
+1. **Geld-integriteit (HOOG-MED) — TOCTOU-race bij handmatig afronden/annuleren.**
+   `applyCollaborationStatusChange` (`src/app/(protected)/samenwerkingen/actions.ts`) her-las binnen de
+   `$transaction` de facturen/prestaties maar schreef de status weg met een aparte `updateMany` waarvan
+   de `where` enkel id+status bewaakte; zonder `isolationLevel` (READ COMMITTED) kon een gelijktijdige
+   `submitPerformance` in het gat een SUBMITTED-prestatie committen → afronden/annuleren met verweesd,
+   onbetaalbaar werk. **Fix:** nieuwe pure `collaborationTerminableGuard()` (`src/lib/cascade/completion.ts`)
+   in de `updateMany.where` gevlochten (alleen COMPLETED/CANCELLED) → check+write atomair; race → count 0
+   → rollback.
+2. **Next-action-engine (MED, DOEL 1b) — outer-window-blindheid.** `freelancerTasks`/`clientTasks`
+   (`src/lib/actions/pending-tasks.ts`) leidden geld-/keur-taken af uit de subrelaties van een
+   `collabs`-query op `orderBy: updatedAt desc, take: 50`. `Collaboration.updatedAt` volgt factuur-/
+   prestatie-activiteit niet, dus bij >50 gelijktijdige samenwerkingen viel een ouder-getekende
+   samenwerking met stuck geld/keurwerk permanent (niet-self-healing) uit /acties, de rail én de badge.
+   **Fix:** de betaal-/concept-taken (ZZP'er) en keur-taken (opdrachtgever) uit dedicated,
+   status-gefilterde, ongewindowde queries gescoopt op de samenwerkings-eigenaar (spiegelt run-77
+   `rejectedPerfs`); fase-taken blijven op het venster.
+
+**Bestanden:** `src/lib/cascade/completion.ts` (+`.test.ts`), `src/app/(protected)/samenwerkingen/actions.ts`,
+`src/lib/actions/pending-tasks.ts` (+ nieuwe `pending-tasks-outer-window.test.ts`, mock-updates in de
+sibling `pending-tasks-*.test.ts`). **Checks:** typecheck, lint, test, build, prettier groen.
+De twee audits op authz/IDOR/tenant-isolatie en malicieuze input/CSV/XSS vonden 0 bereikbare gaten.
+
 ## 2026-08-15 — Bemiddelaar: vervolgsignaal-/aandachtsstrip op /franchise/samenwerkingen
 
 **Wat (het ontbrekende cockpit-signaal):** elke andere franchise-cockpitlijst heeft al een

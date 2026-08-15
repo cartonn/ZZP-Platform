@@ -5,6 +5,7 @@ import {
   completionBlockReason,
   cancellationBlockReason,
   collaborationCompletableGuard,
+  collaborationTerminableGuard,
   SETTLED_INVOICE_LIFECYCLE,
   SETTLED_INVOICE_LEGACY_STATUS,
   type InvoiceStateSnapshot,
@@ -254,5 +255,50 @@ describe("collaborationCompletableGuard — write-time eligibility guard (Event 
     // samenwerking op COMPLETED ondanks de bevriezing. De guard moet dat in dezelfde write her-toetsen.
     const guard = collaborationCompletableGuard("inv-huidig");
     expect(guard.disputedAt).toBeNull();
+  });
+});
+
+// ─── collaborationTerminableGuard ─────────────────────────────────────────────
+
+describe("collaborationTerminableGuard — write-time TOCTOU-guard voor het handmatige terminale pad", () => {
+  it("levert exact de verwachte relationele vorm (disputedAt null, geen SUBMITTED-prestatie, geen open factuur)", () => {
+    expect(collaborationTerminableGuard()).toEqual({
+      disputedAt: null,
+      performances: { none: { status: "SUBMITTED" } },
+      invoices: {
+        none: {
+          OR: [
+            { lifecycleStatus: { notIn: [...SETTLED_INVOICE_LIFECYCLE] } },
+            { lifecycleStatus: null, status: { notIn: [...SETTLED_INVOICE_LEGACY_STATUS] } },
+          ],
+        },
+      },
+    });
+  });
+
+  it("weigert terminale transitie zolang er een SUBMITTED-prestatie is (relationele none)", () => {
+    expect(collaborationTerminableGuard().performances).toEqual({ none: { status: "SUBMITTED" } });
+  });
+
+  it("her-toetst de dispuut-vries in dezelfde write (disputedAt: null)", () => {
+    expect(collaborationTerminableGuard().disputedAt).toBeNull();
+  });
+
+  it("bevat GEEN factuur-id-uitsluiting: in het handmatige pad tellen ÁLLE facturen mee", () => {
+    const guard = collaborationTerminableGuard() as {
+      invoices: { none: Record<string, unknown> };
+    };
+    expect(guard.invoices.none).not.toHaveProperty("id");
+    expect(Object.keys(guard.invoices.none)).toEqual(["OR"]);
+  });
+
+  it("gebruikt dezelfde afgewikkeld-sets als isInvoiceSettled (één bron van waarheid)", () => {
+    const guard = collaborationTerminableGuard() as {
+      invoices: { none: { OR: unknown[] } };
+    };
+    expect(guard.invoices.none.OR).toEqual([
+      { lifecycleStatus: { notIn: [...SETTLED_INVOICE_LIFECYCLE] } },
+      { lifecycleStatus: null, status: { notIn: [...SETTLED_INVOICE_LEGACY_STATUS] } },
+    ]);
   });
 });
