@@ -50,7 +50,8 @@ test("franchiser onboardt een ZZP'er met skill en beschikbaarheid, met roster-de
       .filter({ hasText: /^Beschikbaar$/ })
       .first(),
   ).toBeVisible();
-  await page.locator('a[href^="/franchise/zzpers/"]').first().click();
+  // Sluit de CSV-export-link (/franchise/zzpers/export) uit — die downloadt en navigeert niet.
+  await page.locator('a[href^="/franchise/zzpers/"]:not([href*="/zzpers/export"])').first().click();
   await page.waitForURL(/\/franchise\/zzpers\/[a-z0-9]+$/);
 
   // Roster-detail toont beschikbaarheid, minstens één skill en de certificaten-lege-staat.
