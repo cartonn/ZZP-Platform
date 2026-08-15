@@ -1219,6 +1219,18 @@ betaalprovider, upload-scanner, error-monitoring, **e-mail**) in één keer draa
 veilige fallback/demo draaien worden eerlijk als **overgeslagen** getoond (geen vals groen). De uitvoer
 bevat nooit secrets (alleen pass/fail/overgeslagen + driver-modus), loopt door de authz-keten (rol →
 rate-limit → audit) en heeft geen bijwerkingen die opgeruimd moeten worden.
+**Code-kant GEDAAN (2026-08-15) — per-runner time-out op de sweep (hangende integratie ≠ oneindig wachten):**
+de sweep draaide alle zelftests parallel via `Promise.all` **zonder wall-clock-bound**. De meeste helpers
+hebben een eigen HTTP-time-out, maar niet allemaal — de database-round-trip (`prisma.$queryRaw SELECT 1`)
+heeft géén query-time-out. Een verkeerd geconfigureerde/hangende Postgres (TCP geaccepteerd, nooit
+antwoord), of een S3-/clamd-endpoint dat de verbinding accepteert maar stil blijft, zou de héle admin-sweep
+— en dus het go-live GO/NO-GO-oordeel — **oneindig** laten blokkeren, precies op het moment dat een beheerder
+de productie-gereedheid checkt. Nu heeft elke runner een deadline (default 15 s,
+`DEFAULT_SWEEP_RUNNER_TIMEOUT_MS`): een zelftest die niet op tijd settelt wordt een `fail` met detail
+`Time-out` (→ **NO-GO**, de juiste go-live-posture — een check die niet afrondt is géén GO) i.p.v. de request
+te blokkeren. De verlaten runner-promise krijgt een no-op-`catch` (geen unhandled rejection) en de timer wordt
+altijd opgeruimd. Puur/injecteerbaar en getest (`src/lib/services/selftest-sweep.ts`). Resterend mensenwerk:
+**niets**.
 **Code-kant GEDAAN (2026-07-23) — mail draait mee in de sweep via een read-only connectiviteitscheck:**
 de `MailSender`-abstractie heeft nu een `checkConnectivity()` (Resend: authenticated `GET /domains`;
 SMTP: `transporter.verify()` — connect + EHLO + AUTH, **géén mail verzonden**), zodat het e-mailkanaal

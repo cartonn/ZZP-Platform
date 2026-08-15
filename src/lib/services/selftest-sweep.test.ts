@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  DEFAULT_SWEEP_RUNNER_TIMEOUT_MS,
   runSelfTestSweep,
   safeSweepDetail,
   summarizeSweep,
@@ -110,5 +111,92 @@ describe("runSelfTestSweep", () => {
     ];
     const report = await runSelfTestSweep(runners);
     expect(report.entries[0]).toMatchObject({ status: "fail", detail: "TypeError" });
+  });
+});
+
+describe("runSelfTestSweep — per-runner time-out", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("een hangende runner wordt een fail met detail 'Time-out' (→ NO-GO) i.p.v. oneindig te blokkeren", async () => {
+    vi.useFakeTimers();
+    const runners: SweepRunner[] = [
+      { key: "ok", label: "OK", run: async () => ({ status: "pass", mode: "s3" }) },
+      // Settelt nooit — simuleert een hangende Postgres-round-trip.
+      { key: "hang", label: "Hang", run: () => new Promise<never>(() => {}) },
+    ];
+    const promise = runSelfTestSweep(runners, { timeoutMs: 1000 });
+    await vi.advanceTimersByTimeAsync(1000);
+    const report = await promise;
+
+    expect(report.verdict).toBe("no-go");
+    const hang = report.entries.find((e) => e.key === "hang");
+    expect(hang).toMatchObject({ status: "fail", mode: "onbekend", detail: "Time-out" });
+    // De niet-hangende runner draaide gewoon door.
+    expect(report.entries.find((e) => e.key === "ok")?.status).toBe("pass");
+  });
+
+  it("een runner die vóór de deadline settelt wordt normaal verwerkt (geen valse time-out)", async () => {
+    vi.useFakeTimers();
+    const runners: SweepRunner[] = [
+      {
+        key: "slow",
+        label: "Slow",
+        run: () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ status: "pass", mode: "postgresql" }), 500),
+          ),
+      },
+    ];
+    const promise = runSelfTestSweep(runners, { timeoutMs: 1000 });
+    await vi.advanceTimersByTimeAsync(500);
+    const report = await promise;
+
+    expect(report.verdict).toBe("go");
+    expect(report.entries[0]).toMatchObject({ status: "pass", mode: "postgresql" });
+  });
+
+  it("timeoutMs <= 0 schakelt de bovengrens uit (runner mag onbeperkt duren)", async () => {
+    const runners: SweepRunner[] = [
+      { key: "ok", label: "OK", run: async () => ({ status: "pass", mode: "s3" }) },
+    ];
+    const report = await runSelfTestSweep(runners, { timeoutMs: 0 });
+    expect(report.verdict).toBe("go");
+    expect(report.entries[0]).toMatchObject({ status: "pass" });
+  });
+
+  it("een fout die ná de time-out afkomt levert geen unhandled rejection op", async () => {
+    vi.useFakeTimers();
+    let rejectLater: (err: unknown) => void = () => {};
+    const runners: SweepRunner[] = [
+      {
+        key: "late-reject",
+        label: "Late reject",
+        run: () =>
+          new Promise((_resolve, reject) => {
+            rejectLater = reject;
+          }),
+      },
+    ];
+    const promise = runSelfTestSweep(runners, { timeoutMs: 1000 });
+    await vi.advanceTimersByTimeAsync(1000);
+    const report = await promise;
+    expect(report.entries[0]).toMatchObject({ status: "fail", detail: "Time-out" });
+
+    // De verlaten runner faalt nu alsnog; dat mag geen unhandled rejection worden.
+    rejectLater(new Error("te laat"));
+    await Promise.resolve();
+  });
+
+  it("gebruikt standaard DEFAULT_SWEEP_RUNNER_TIMEOUT_MS wanneer geen timeoutMs is opgegeven", async () => {
+    vi.useFakeTimers();
+    const runners: SweepRunner[] = [
+      { key: "hang", label: "Hang", run: () => new Promise<never>(() => {}) },
+    ];
+    const promise = runSelfTestSweep(runners);
+    await vi.advanceTimersByTimeAsync(DEFAULT_SWEEP_RUNNER_TIMEOUT_MS);
+    const report = await promise;
+    expect(report.entries[0]).toMatchObject({ status: "fail", detail: "Time-out" });
   });
 });
