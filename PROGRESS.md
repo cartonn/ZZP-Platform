@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-15 — Bemiddelaar: vervolgsignaal-/aandachtsstrip op /franchise/samenwerkingen
+
+**Wat (het ontbrekende cockpit-signaal):** elke andere franchise-cockpitlijst heeft al een
+overzichts-/aandachtsstrip — leads (`LeadPipelineStrip`), opdrachtgevers (`ClientHealthStrip`),
+zzpers (`RosterCapacityStrip`/`CredentialComplianceStrip`/…). `/franchise/samenwerkingen` was de
+uitzondering: enkel status-filter + zoeken, geen enkel at-risk-signaal. Het vervolgsignaal
+(aflopende/verlopen ACTIVE-inzet) bestond wél als bemiddelaar-next-action op /acties + dashboard-rail
+(`franchiseCollaborationRenewalTask`), maar nooit op de lijst zelf — het "signaal op één oppervlak"-gat.
+Nu een aandachtsstrip (Loopt binnenkort af · Voorbij einddatum · Actief) + verklarende kop, een per-rij
+vervolg-badge op ACTIVE-inzet ("Loopt af over N dagen" / "N dagen over tijd"), einddatum in de meta-regel,
+en **aandacht-eerst-sortering** (verlopen boven aflopend, meest urgent eerst; rest houdt bijgewerkt-desc).
+
+**Grens/architectuur:** nieuwe pure `src/lib/franchise/collaboration-oversight.ts`
+(`summarizeFranchiseCollaborations`/`franchiseCollabAttention`/`franchiseCollabHeadline`/`renewalRowBadge`)
+hergebruikt exact `summarizeCollaborationRenewal` (dezelfde fase-/venster-/grace-/dispuut-logica als de
+next-action) → geen drift tussen strip, badge en /acties. Geen query-wijziging (de `include`-findMany gaf
+`endDate`/`disputedAt` al terug); read-only, alleen FRANCHISER, tenant-gescoopt, geen schema-/mutatie-/
+auth-oppervlak. Server-side waarheid, presentatie afgeleid.
+
+**Bestanden:** `src/lib/franchise/collaboration-oversight.ts` (+ `.test.ts`, 12 tests),
+`src/components/franchise/collaboration-oversight-strip.tsx`,
+`src/app/(protected)/franchise/samenwerkingen/page.tsx`. **Checks:** typecheck, lint, test (12), build,
+prettier groen.
+
 ## 2026-08-15 — ZZP'er: gewerkte uren per maand op /inzicht
 
 **Wat (operationele tegenhanger van de geldtrends):** /inzicht toonde de ZZP'er al omzet-, winst- en

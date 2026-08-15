@@ -11,6 +11,11 @@ import {
   parseCollaborationFilter,
   type FilterableCollaboration,
 } from "@/lib/collaboration-filter";
+import { summarizeCollaborationRenewal } from "@/lib/collaboration-renewal";
+import {
+  renewalRowBadge,
+  summarizeFranchiseCollaborations,
+} from "@/lib/franchise/collaboration-oversight";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { CollaborationOversightStrip } from "@/components/franchise/collaboration-oversight-strip";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 
@@ -42,6 +48,8 @@ type Row = FilterableCollaboration & {
   departmentName: string | null;
   companyUserId: string;
   updatedAt: Date;
+  endDate: Date | null;
+  disputedAt: Date | null;
   cancellationReason: string | null;
   cancelledAt: Date | null;
   cancelledById: string | null;
@@ -79,6 +87,8 @@ export default async function FranchiseSamenwerkingenPage({
     departmentName: c.job.department?.name ?? null,
     companyUserId: c.company.userId,
     updatedAt: c.updatedAt,
+    endDate: c.endDate,
+    disputedAt: c.disputedAt,
     cancellationReason: c.cancellationReason,
     cancelledAt: c.cancelledAt,
     cancelledById: c.cancelledById,
@@ -89,8 +99,33 @@ export default async function FranchiseSamenwerkingenPage({
   // voor het franchise-toezicht. De tellingen lopen over de volledige (ongefilterde) set.
   const filter = parseCollaborationFilter(sp);
   const counts = countByStatus(rows);
-  const visible = filterCollaborations(rows, filter);
   const filterActive = isCollaborationFilterActive(filter);
+
+  // Vervolgsignaal-overzicht over de volledige set (spiegelt de andere franchise-cockpits) + het
+  // per-rij vervolgsignaal, uit dezelfde pure bron als de bemiddelaar-next-action → geen drift.
+  const now = new Date();
+  const oversight = summarizeFranchiseCollaborations(rows, now);
+  const visible = filterCollaborations(rows, filter)
+    .map((row) => ({
+      row,
+      renewal: summarizeCollaborationRenewal({
+        status: row.status,
+        endDate: row.endDate,
+        disputed: row.disputedAt !== null,
+        now,
+      }),
+    }))
+    // Aandacht bovenaan: eerst voorbij de einddatum, dan het aflopende venster (meest urgent eerst);
+    // de rest houdt de bijgewerkt-desc-volgorde (stabiele sort).
+    .sort((a, b) => {
+      const rank = (phase: string) => (phase === "overdue" ? 0 : phase === "ending_soon" ? 1 : 2);
+      const byRank = rank(a.renewal.phase) - rank(b.renewal.phase);
+      if (byRank !== 0) return byRank;
+      if (a.renewal.attention && b.renewal.attention) {
+        return (a.renewal.daysRemaining ?? 0) - (b.renewal.daysRemaining ?? 0);
+      }
+      return 0;
+    });
 
   return (
     <div className="space-y-6">
@@ -111,6 +146,8 @@ export default async function FranchiseSamenwerkingenPage({
         </Card>
       ) : (
         <>
+          <CollaborationOversightStrip summary={oversight} />
+
           <form
             method="get"
             className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_auto_auto]"
@@ -147,8 +184,9 @@ export default async function FranchiseSamenwerkingenPage({
             </Card>
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-              {visible.map((c) => {
+              {visible.map(({ row: c, renewal }) => {
                 const status = STATUS[c.status as CollaborationStatus] ?? STATUS.PROPOSED;
+                const renewalBadge = renewalRowBadge(renewal.phase, renewal.daysRemaining);
                 return (
                   <div key={c.id} className="space-y-2 p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -160,8 +198,16 @@ export default async function FranchiseSamenwerkingenPage({
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
-                        <Badge variant={status.variant}>{status.label}</Badge>
-                        <span>bijgewerkt {formatDateShortNl(c.updatedAt)}</span>
+                        <div className="flex items-center gap-1.5">
+                          {renewalBadge && (
+                            <Badge variant={renewalBadge.tone}>{renewalBadge.label}</Badge>
+                          )}
+                          <Badge variant={status.variant}>{status.label}</Badge>
+                        </div>
+                        <span>
+                          {c.endDate ? `einddatum ${formatDateShortNl(c.endDate)} · ` : ""}
+                          bijgewerkt {formatDateShortNl(c.updatedAt)}
+                        </span>
                       </div>
                     </div>
                     {/* Annuleringsregistratie voor het franchise-toezicht: wie, wanneer, waarom —
