@@ -7,7 +7,10 @@
 //     zodat Railway-healthchecks nooit wachten op een seed.
 import { execSync, spawn } from "node:child_process";
 import http from "node:http";
+import { createRequire } from "node:module";
 import { resolveDrainMs, resolveForceKillMs } from "./shutdown-config.mjs";
+
+const require = createRequire(import.meta.url);
 
 const run = (cmd, env = process.env) => execSync(cmd, { env, stdio: "inherit" });
 
@@ -81,7 +84,16 @@ const startBackgroundSeed = async () => {
 
 const port = process.env.PORT ?? "3000";
 console.log(`[start] Next.js start op poort ${port}`);
-const server = spawn("npx", ["next", "start", "-p", port], {
+// Next DIRECT spawnen (node op de resolved next-bin), NIET via `npx`. Reden: `start.mjs` moet de
+// directe parent van het Next-proces zijn zodat afsluitsignalen rechtstreeks aankomen. De npm/npx-
+// wrapper heeft géén SIGUSR2-handler en wordt door de default-dispositie beëindigd i.p.v. het signaal
+// door te sturen — empirisch geverifieerd (node 22 / npm 10.9): `wrapper.kill("SIGUSR2")` sluit de
+// wrapper met signal=SIGUSR2 en het kind ontvangt niets. Direct spawnen levert SIGUSR2 (drain-fase)
+// én SIGTERM (close-fase) betrouwbaar bij het Next-proces af, waar de instrumentatie de handlers
+// registreert. `next start` draait de server in-proces (next-start.js → startServer(), geen worker-
+// fork), dus dit proces ís het proces met de readiness-/drain-handlers.
+const nextBin = require.resolve("next/dist/bin/next");
+const server = spawn(process.execPath, [nextBin, "start", "-p", port], {
   stdio: "inherit",
 });
 
@@ -166,12 +178,11 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
       // deze instance uit de rotatie haalt vóór we de socket sluiten. Next behandelt SIGUSR2 niet
       // als afsluitsignaal → de server blijft tijdens het venster gewoon requests bedienen.
       //
-      // Signaal-levering: `server` is de `npx`-wrapper, niet direct het Next-proces. npx draait het
-      // kind via `foreground-child`, dat de vólledige signaalset (alles behalve SIGKILL/SIGPROF) naar
-      // de child proxyt — inclusief SIGUSR2, exact hetzelfde pad waarlangs de bestaande SIGTERM-
-      // graceful-shutdown al loopt. Omdat de instrumentatie een SIGUSR2-listener registreert
-      // (`registerDrainSignal`), wordt Node's default (SIGUSR2 = terminate) onderdrukt en bereikt het
-      // signaal `beginDraining()` i.p.v. het proces te doden.
+      // Signaal-levering: `server` is het Next-proces zélf (we spawnen node direct op de next-bin,
+      // niet via npx — zie hierboven). SIGUSR2 komt dus rechtstreeks bij het proces waar de
+      // instrumentatie de listener registreert (`registerDrainSignal`); die listener onderdrukt óók
+      // Node's default (SIGUSR2 = terminate), zodat het signaal `beginDraining()` bereikt i.p.v. het
+      // proces te doden.
       console.log(
         `[start] ${signal} ontvangen — ${drainMs}ms draineren (readiness → 503) vóór afsluiten`,
       );

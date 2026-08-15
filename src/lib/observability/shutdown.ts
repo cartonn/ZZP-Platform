@@ -8,32 +8,57 @@
 //   - de liveness-probe (`/api/health`) blijft bewust 200, zodat de host-healthcheck de container
 //     niet als "dood" beoordeelt en vroegtijdig herstart tijdens de nette afsluiting.
 //
-// Puur en testbaar: de klok wordt geïnjecteerd, geen Next/HTTP-afhankelijkheden. De state is een
-// bewuste module-singleton (één per proces) — precies de levensduur van een server-instance.
+// Puur en testbaar: de klok wordt geïnjecteerd, geen Next/HTTP-afhankelijkheden.
+//
+// State-opslag — PROCES-globaal via globalThis, NIET module-scoped. Reden: Next bundelt
+// `instrumentation.ts` (waar het afsluitsignaal de drain-vlag zet) en de route-handlers (waar
+// `/api/readiness` de vlag leest) in APARTE module-grafen. Een gewone `let` op module-niveau wordt
+// dan PER graaf geïnstantieerd → de instrumentatie zet zijn eigen kopie op draining terwijl de
+// readiness-route een andere kopie leest die false blijft (de drain flipt readiness dan nooit —
+// end-to-end geverifieerd). Een `Symbol.for`-anker op globalThis is één instantie per PROCES en
+// wordt door beide grafen gedeeld, precies de levensduur van een server-instance.
 
-let draining = false;
-let drainingSince: Date | null = null;
-let signalsRegistered = false;
-let drainSignalRegistered = false;
+interface ShutdownState {
+  draining: boolean;
+  drainingSince: Date | null;
+  signalsRegistered: boolean;
+  drainSignalRegistered: boolean;
+}
+
+const STATE_KEY = Symbol.for("zzp.observability.shutdownState");
+
+function state(): ShutdownState {
+  const store = globalThis as typeof globalThis & { [STATE_KEY]?: ShutdownState };
+  if (!store[STATE_KEY]) {
+    store[STATE_KEY] = {
+      draining: false,
+      drainingSince: null,
+      signalsRegistered: false,
+      drainSignalRegistered: false,
+    };
+  }
+  return store[STATE_KEY];
+}
 
 /**
  * Markeer de server als afsluitend. Idempotent: alleen de eerste aanroep zet het starttijdstip,
  * zodat een tweede signaal de drain-klok niet reset.
  */
 export function beginDraining(now: Date = new Date()): void {
-  if (draining) return;
-  draining = true;
-  drainingSince = now;
+  const s = state();
+  if (s.draining) return;
+  s.draining = true;
+  s.drainingSince = now;
 }
 
 /** Sluit de server af (readiness → 503)? */
 export function isDraining(): boolean {
-  return draining;
+  return state().draining;
 }
 
 /** Sinds wanneer de server afsluit, of null als hij nog gewoon draait. */
 export function drainingSinceAt(): Date | null {
-  return drainingSince;
+  return state().drainingSince;
 }
 
 /**
@@ -52,8 +77,9 @@ export function registerShutdownSignals(
     process.on(signal, handler);
   },
 ): boolean {
-  if (signalsRegistered) return false;
-  signalsRegistered = true;
+  const s = state();
+  if (s.signalsRegistered) return false;
+  s.signalsRegistered = true;
   for (const signal of ["SIGTERM", "SIGINT"] as const) {
     on(signal, () => beginDraining());
   }
@@ -77,16 +103,18 @@ export function registerDrainSignal(
     process.on(signal, handler);
   },
 ): boolean {
-  if (drainSignalRegistered) return false;
-  drainSignalRegistered = true;
+  const s = state();
+  if (s.drainSignalRegistered) return false;
+  s.drainSignalRegistered = true;
   on("SIGUSR2", () => beginDraining());
   return true;
 }
 
-/** Alleen voor tests: reset de module-state naar "draait normaal". */
+/** Alleen voor tests: reset de proces-globale state naar "draait normaal". */
 export function resetShutdownStateForTest(): void {
-  draining = false;
-  drainingSince = null;
-  signalsRegistered = false;
-  drainSignalRegistered = false;
+  const s = state();
+  s.draining = false;
+  s.drainingSince = null;
+  s.signalsRegistered = false;
+  s.drainSignalRegistered = false;
 }
