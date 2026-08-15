@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-15 — ZZP'er: omzet per opdrachtgever (client-concentratie) op /inzicht (PR #1108)
+
+**Wat:** de ZZP'er zag op `/inzicht` nog niet welk deel van zijn omzet van welke opdrachtgever komt —
+terwijl de opdrachtgever ("Per ZZP'er") én de bemiddelaar ("Per opdrachtgever") al zo'n spreidings-/
+concentratiesignaal hebben. Te veel omzet bij één klant is een bedrijfsrisico (afhankelijkheid) dat een
+ZZP'er zou moeten zien. Nu een BI-kaart "Omzet per opdrachtgever" (staafjes per klant, aandeel + aantal
+samenwerkingen), met een expliciete waarschuwing zodra één opdrachtgever ≥50% van de omzet is.
+
+**Bestanden:** nieuwe pure `src/lib/freelancer-revenue-breakdown.ts`
+(`buildFreelancerRevenueBreakdown` + `getFreelancerRevenueBreakdown`) — de exacte inverse van
+`client-spend-breakdown.ts` (groepeert de eigen betaalde facturen `issuerUserId` per
+`collaboration.company`, niet per freelancer). Totaal spoort exact met `earnedCents` uit
+`freelancer-stats.ts` (zelfde bron: status PAID) → geen drift. Gewired in
+`src/app/(protected)/inzicht/page.tsx` (`FreelancerInzicht`, kaart tussen gewerkte-uren en
+urencriterium). Read-only, alleen eigen facturen (privacy — nooit data van andere ZZP'ers), geen
+schema-/mutatie-/auth-oppervlak. +7 tests. Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-08-15 — Prod: pre-shutdown drain-venster (zero-downtime redeploy) (PR #1106)
 
 **Wat:** de readiness-draining bij SIGTERM had geen effect-venster — `scripts/start.mjs` stuurde de
