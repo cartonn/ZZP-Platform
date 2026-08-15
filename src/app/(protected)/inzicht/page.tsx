@@ -22,6 +22,7 @@ import { getFreelancerMembership } from "@/lib/freelancer-membership";
 import { getDeliveryQuality, DELIVERY_TONE_LABEL } from "@/lib/collaboration-quality";
 import { getClientStats } from "@/lib/client-stats";
 import { getClientSpendBreakdown } from "@/lib/client-spend-breakdown";
+import { getFreelancerRevenueBreakdown } from "@/lib/freelancer-revenue-breakdown";
 import { getClientTimeToFill, getTenantTimeToFill } from "@/lib/time-to-fill";
 import { getTenantStats, getTenantCompanyBreakdown } from "@/lib/tenant-stats";
 import {
@@ -338,6 +339,61 @@ function FeePerMaandCard({ trend }: { trend: TenantFeeTrend }) {
   );
 }
 
+/**
+ * Omzet per opdrachtgever voor de ZZP'er: de inverse van de opdrachtgever-kaart "Per ZZP'er". Toont
+ * welk deel van de betaalde omzet van welke klant komt — een afhankelijkheidssignaal (te veel omzet bij
+ * één opdrachtgever is een bedrijfsrisico). De cijfers komen uit `getFreelancerRevenueBreakdown`
+ * (dezelfde bron als `earnedCents` → geen drift), server-side berekend. Alleen eigen facturen.
+ */
+function OmzetPerOpdrachtgeverWidget({
+  breakdown,
+}: {
+  breakdown: Awaited<ReturnType<typeof getFreelancerRevenueBreakdown>>;
+}) {
+  return (
+    <BiWidget title="Omzet per opdrachtgever">
+      {breakdown.rows.length === 0 ? (
+        <EmptyState
+          icon={Building2}
+          title="Nog geen omzet"
+          description="Zodra facturen betaald zijn, zie je hier van welke opdrachtgevers je omzet komt."
+        />
+      ) : (
+        <div className="space-y-3">
+          {breakdown.concentrationPct != null &&
+            breakdown.rows.length >= 2 &&
+            breakdown.concentrationPct >= 50 && (
+              <p className="text-xs text-muted-foreground">
+                Eén opdrachtgever is goed voor {breakdown.concentrationPct}% van je omzet.
+              </p>
+            )}
+          {breakdown.rows.map((r) => (
+            <div key={r.companyId} className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="min-w-0 truncate text-sm font-medium">{r.name}</p>
+                <span className="shrink-0 font-mono text-sm font-medium tabular-nums">
+                  {formatEuro(r.paidCents)}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${Math.max(r.sharePct > 0 ? 3 : 0, r.sharePct)}%` }}
+                  />
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {r.sharePct}% · {plural(r.placements, "samenwerking", "samenwerkingen")}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </BiWidget>
+  );
+}
+
 function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
   return (
     <BiWidget
@@ -358,7 +414,7 @@ function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
 }
 
 async function FreelancerInzicht({ userId }: { userId: string }) {
-  const [s, membership, trend, quality, hoursCriterion, profitTrend, workedHours] =
+  const [s, membership, trend, quality, hoursCriterion, profitTrend, workedHours, revenueByClient] =
     await Promise.all([
       getFreelancerStats(userId),
       getFreelancerMembership(userId),
@@ -367,6 +423,7 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
       getHoursCriterionSummary(userId),
       getFreelancerProfitTrend(userId),
       getFreelancerWorkedHoursTrend(userId),
+      getFreelancerRevenueBreakdown(userId),
     ]);
   if (!s) {
     return (
@@ -399,6 +456,8 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
       <WinstPerMaandCard trend={profitTrend} />
 
       <GewerkteUrenPerMaandCard trend={workedHours} />
+
+      <OmzetPerOpdrachtgeverWidget breakdown={revenueByClient} />
 
       {hoursCriterion && <UrencriteriumCard summary={hoursCriterion} />}
 
