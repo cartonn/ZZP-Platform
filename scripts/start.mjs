@@ -133,9 +133,11 @@ server.on("exit", (code, signal) => {
 });
 
 // Fase 2: stuur de echte SIGTERM/SIGINT zodat Next de HTTP-server netjes sluit, met een
-// force-kill-vangnet als een hangende in-flight request de afsluiting blokkeert.
+// force-kill-vangnet als een hangende in-flight request de afsluiting blokkeert. Neutraal log:
+// readiness is in de drain-fase al op 503 gezet (of flipt bij deze SIGTERM in de no-drain-flow),
+// dus deze regel meldt alleen het sluiten van de socket — niet "readiness → draining".
 const closeNext = (signal) => {
-  console.log(`[start] Next.js netjes afsluiten (readiness → draining)`);
+  console.log(`[start] Next.js HTTP-server sluiten — lopende requests afronden`);
   server.kill(signal);
   forceKillTimer = setTimeout(() => {
     console.error(
@@ -163,6 +165,13 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
       // Fase 1 (drain): readiness → 503 zónder de HTTP-server te sluiten, zodat de load balancer
       // deze instance uit de rotatie haalt vóór we de socket sluiten. Next behandelt SIGUSR2 niet
       // als afsluitsignaal → de server blijft tijdens het venster gewoon requests bedienen.
+      //
+      // Signaal-levering: `server` is de `npx`-wrapper, niet direct het Next-proces. npx draait het
+      // kind via `foreground-child`, dat de vólledige signaalset (alles behalve SIGKILL/SIGPROF) naar
+      // de child proxyt — inclusief SIGUSR2, exact hetzelfde pad waarlangs de bestaande SIGTERM-
+      // graceful-shutdown al loopt. Omdat de instrumentatie een SIGUSR2-listener registreert
+      // (`registerDrainSignal`), wordt Node's default (SIGUSR2 = terminate) onderdrukt en bereikt het
+      // signaal `beginDraining()` i.p.v. het proces te doden.
       console.log(
         `[start] ${signal} ontvangen — ${drainMs}ms draineren (readiness → 503) vóór afsluiten`,
       );
