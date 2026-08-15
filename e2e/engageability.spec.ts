@@ -36,8 +36,9 @@ test("inzetbaarheid: roster toont de status en het dossier verklaart waarom", as
   await shot(page, "engageability-roster");
 
   // Open de niet-inzetbare ZZP'er; het dossier verklaart de blokkade (verplicht document).
-  // Klik de dossier-link van de rij (de naam-tekst zelf is niet altijd het klikdoel).
-  await page.locator('a[href^="/franchise/zzpers/"]').first().click();
+  // Klik de dossier-link van de rij (de naam-tekst zelf is niet altijd het klikdoel). Sluit de
+  // CSV-export-link (/franchise/zzpers/export) uit — die downloadt en navigeert niet.
+  await page.locator('a[href^="/franchise/zzpers/"]:not([href*="/zzpers/export"])').first().click();
   await page.waitForURL("**/franchise/zzpers/**");
   await expect(page.getByRole("heading", { name: "Inzetbaarheid" })).toBeVisible();
   await expect(page.getByText(/ontbreekt/).first()).toBeVisible();

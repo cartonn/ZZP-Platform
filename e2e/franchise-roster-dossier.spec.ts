@@ -25,7 +25,8 @@ test("franchise-roster-dossier: ZZP'er-detail toont tabs en wisselt van onderdee
   // Filter op naam en klik de dossier-link van de (enige) rij — de naam-tekst zelf is geen
   // klikdoel en de anchor bevat de naam niet.
   await page.goto("/franchise/zzpers?q=Lars");
-  await page.locator('a[href^="/franchise/zzpers/"]').first().click();
+  // Sluit de CSV-export-link (/franchise/zzpers/export) uit — die downloadt en navigeert niet.
+  await page.locator('a[href^="/franchise/zzpers/"]:not([href*="/zzpers/export"])').first().click();
   await page.waitForURL("**/franchise/zzpers/**");
 
   // Het dossier toont de tab-navigatie; Profiel is standaard actief.
