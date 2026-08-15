@@ -109,6 +109,13 @@ export async function buildAccountExport(
         // vertrouwensscoring); ze horen dus in de eigen-data-inzage. Eerder ontbraken ze.
         identityVerifiedAt: true,
         verifiedLegalName: true,
+        // AVG art. 15/20 — de eigen login-recency (`lastLoginAt`/`previousLoginAt`): wanneer de
+        // betrokkene voor het laatst (en dáárvoor) inlogde. De server bewaart en verwerkt dit óver
+        // de betrokkene (inzetbaarheids-/roster-dormancy-signalen, "terwijl je weg was"-venster), dus
+        // het is eigen persoonsgegeven dat onder de inzage/portabiliteit valt — symmetrisch met de
+        // erasure die deze velden nu wist (zie `userAnonymizationData`). Eerder ontbraken ze.
+        lastLoginAt: true,
+        previousLoginAt: true,
       },
     }),
     db.freelancerProfile.findUnique({
