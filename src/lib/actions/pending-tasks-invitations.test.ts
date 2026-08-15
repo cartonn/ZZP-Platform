@@ -20,6 +20,7 @@ vi.mock("@/lib/db", () => ({
     credential: { findMany: vi.fn(async () => []) },
     availabilityWindow: { findMany: vi.fn(async () => []) },
     collaboration: { findMany: vi.fn(async () => []) },
+    performance: { findMany: vi.fn(async () => []) },
     conversationParticipant: { findMany: vi.fn(async () => []) },
     message: { groupBy: vi.fn(async () => []) },
     conversation: { findMany: vi.fn(async () => []) },

@@ -19,9 +19,34 @@ vi.mock("@/lib/db", () => ({
     user: { findUnique: vi.fn(async () => ({ identityVerifiedAt: new Date() })) },
     // De review-nudge-query (status COMPLETED) is een aparte findMany met eigen state; de
     // lopende (ACTIVE/PROPOSED) tak leest state.collabs. Zo isoleert elke test wat hij toetst.
+    // De lopende tak haalt de prestatie-relatie `desc, take: 5` op (alleen de fase, via performances[0]);
+    // we spiegelen dat venster hier met een slice(0, 5) zodat een test met >5 prestaties de échte
+    // Prisma-windowing voelt (de mock gaf voorheen ongewindowd álle rijen terug).
     collaboration: {
-      findMany: vi.fn(async (args?: { where?: { status?: unknown } }) =>
-        args?.where?.status === "COMPLETED" ? state.completedCollabs : state.collabs,
+      findMany: vi.fn(async (args?: { where?: { status?: unknown } }) => {
+        if (args?.where?.status === "COMPLETED") return state.completedCollabs;
+        return (state.collabs as ReturnType<typeof collab>[]).map((c) => ({
+          ...c,
+          performances: c.performances.slice(0, 5),
+        }));
+      }),
+    },
+    // Aparte, ONgewindowde query voor afgekeurde prestaties (herindien-taken) — losgekoppeld van de
+    // `take: 5`-vensterrelatie hierboven zodat een afgekeurde vorige-cyclus-prestatie nooit uit het
+    // actiecentrum valt. Afgeleid uit state.collabs: alle REJECTED-prestaties op ACTIVE-samenwerkingen.
+    performance: {
+      findMany: vi.fn(async () =>
+        (state.collabs as ReturnType<typeof collab>[])
+          .filter((c) => c.status === "ACTIVE")
+          .flatMap((c) =>
+            c.performances
+              .filter((p) => p.status === "REJECTED")
+              .map((p) => ({
+                id: p.id,
+                collaborationId: c.id,
+                collaboration: { job: { title: c.job.title } },
+              })),
+          ),
       ),
     },
     conversationParticipant: { findMany: vi.fn(async () => []) },
@@ -267,6 +292,36 @@ describe("freelancerTasks — prestatie-tak (afgekeurde prestatie zichtbaar, ó�
     const tasks = await pendingTasks(ACTOR);
     expect(tasks.some((t) => t.id === "performance-submit:c-draft-plus-rej")).toBe(true);
     expect(tasks.some((t) => t.id === "performance-resubmit:perf-old-rej")).toBe(true);
+  });
+
+  it("toont de herindien-taak voor een afgekeurde prestatie die ACHTER >5 nieuwere prestaties wegviel (venster-blindheid)", async () => {
+    // Multi-cyclus met veel cycli: cyclus-1-uren afgekeurd (perf-old-rej), daarna 6 nieuwere cycli
+    // (perf-n6..perf-n1, allemaal APPROVED). De prestatie-relatie wordt `desc, take: 5` opgehaald, dus
+    // de afgekeurde cyclus-1-prestatie valt volledig uit dat venster van 5 nieuwste rijen — de fase
+    // (performances[0]) blijft correct APPROVED, maar de herindien-taak mocht daardoor niet stil
+    // verdwijnen terwijl het geld voor die afgekeurde uren muurvast zit. De ongewindowde, status-
+    // gefilterde query moet 'm tóch opleveren. Persona-sweep run 77 (venster-blindheid, sibling van 76).
+    state.collabs = [
+      collab(
+        "c-window",
+        [],
+        [
+          { id: "perf-n6", status: "APPROVED" },
+          { id: "perf-n5", status: "APPROVED" },
+          { id: "perf-n4", status: "APPROVED" },
+          { id: "perf-n3", status: "APPROVED" },
+          { id: "perf-n2", status: "APPROVED" },
+          { id: "perf-n1", status: "APPROVED" },
+          { id: "perf-old-rej", status: "REJECTED" },
+        ],
+      ),
+    ];
+
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.id === "performance-resubmit:perf-old-rej")).toBe(true);
+    // Geen valse taak voor de goedgekeurde nieuwere cycli, en geen indien-taak (fase = APPROVED).
+    expect(tasks.filter((t) => t.kind === "performance-resubmit")).toHaveLength(1);
+    expect(tasks.some((t) => t.kind === "performance-submit")).toBe(false);
   });
 });
 

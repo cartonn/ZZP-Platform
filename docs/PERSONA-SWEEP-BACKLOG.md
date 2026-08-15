@@ -1,5 +1,41 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-15 (run 77) · **main-commit basis:** `22cef90b`
+> **Uitkomst:** **2 bereikbare DOEL 1b-defecten gevonden én gefixt** (beide next-action-engine,
+> beide vensterbepaalde onzichtbaarheid; geen geparkeerde items deze run). 4 parallelle adversariële
+> Opus-code-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie, cascade/geld-integriteit
+>
+> - verboden statusovergangen, next-action-engine-correctheid, malicieuze input/CSV/XSS). Drie van de
+>   vier audits vonden **0 bereikbare gaten**; de next-action-audit leverde de twee fixes hieronder.
+>
+> * **OPGELOST — afgekeurde prestatie viel uit het actiecentrum achter >5 nieuwere prestaties
+>   (DOEL 1b, MED):** de herindien-lus in `freelancerTasks` (`src/lib/actions/pending-tasks.ts`) las de
+>   REJECTED-prestaties uit de `collabs`-relatie, die op `orderBy: createdAt desc, take: 5` staat (nodig
+>   om via `performances[0]` de fase te bepalen). Run 76 haalde de _positionele_ blindheid weg
+>   (`performances[0]`-only), maar niet de _venster_-blindheid: zodra ≥5 nieuwere prestaties op één
+>   ACTIVE-samenwerking bestaan, valt een afgekeurde prestatie uit een oude cyclus volledig uit het venster
+>   van 5 nieuwste rijen → de herindien-taak verdween stil uit `/acties`, de badge én de dashboard-rail,
+>   terwijl het geld muurvast zit (alleen een APPROVED-prestatie wordt ooit een factuur). **Repro:** perf-1
+>   REJECTED (nooit hersteld) → daarna 5+ nieuwere cycli (perf-2..perf-6, willekeurige status; `createPerformance`
+>   gate't alleen op ACTIVE + geen dispuut, MILESTONE heeft geen overlap-guard). **Fix:** REJECTED-prestaties
+>   apart, status-gefilterd én ongewindowd ophalen (`prisma.performance.findMany`), losgekoppeld van de
+>   venster-relatie — self-healing, spiegelt de factuur-lus die al eerst op status filtert vóór de take.
+>   +1 regressietest (afgekeurde prestatie achter 6 nieuwere blijft zichtbaar).
+> * **OPGELOST — non-deterministische keur-slice aan opdrachtgever-kant (DOEL 1b, LAAG):** de
+>   `clientTasks`-collabs-query las `performances`/`invoices` (beide SUBMITTED) met `take: 5` **zónder
+>   `orderBy`** — als enige plek in het bestand waar die conventie ontbrak. Bij >5 gelijktijdig SUBMITTED-rijen
+>   op één samenwerking was wélke 5 keur-taken verschenen arbitrair per request; een taak kon tussen
+>   page-loads flappen (verschijnen/verdwijnen zonder afhandeling). **Fix:** `orderBy: { createdAt: "asc" }`
+>   op beide (oudste-eerst → venster schuift self-healing mee), conform de conventie elders in het bestand.
+>
+> **Geparkeerd (nit, niet gefixt):** `drawer-resolver.tsx:32` — de identiteits-verificatie-drawer toont het
+> generieke `"Afronden"`-label i.p.v. iets specifiekers ("Verifieer je identiteit"). Puur cosmetisch, geen
+> correctheids-/beveiligingsdefect. Prioriteit LAAG.
+>
+> ---
+>
+> **Vorige run:**
+>
 > **Datum:** 2026-08-14 (run 76) · **main-commit basis:** `33e4bdec`
 > **Uitkomst:** **1 bereikbaar DOEL 1b-defect gevonden én gefixt** (+ 1 meegenomen should-fix; geen
 > geparkeerde items deze run). 4 parallelle adversariële Opus-code-audits op niet-overlappende

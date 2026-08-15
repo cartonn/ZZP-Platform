@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-15 — Persona-sweep run 77: afgekeurde prestatie & keur-slice deterministisch in het actiecentrum
+
+**Wat (twee next-action-engine-defecten, DOEL 1b):** vier parallelle adversariële Opus-code-audits op
+niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie, cascade/geld-integriteit + verboden
+statusovergangen, next-action-correctheid, malicieuze input/CSV/XSS). Drie audits vonden **0 bereikbare
+gaten**; de next-action-audit leverde twee vensterbepaalde onzichtbaarheids-defecten op, beide gefixt.
+
+1. **ZZP'er-kant** (`src/lib/actions/pending-tasks.ts`): de herindien-taak voor een AFGEKEURDE prestatie
+   las uit de `collabs`-relatie die op `desc, take: 5` staat (nodig voor de fase via `performances[0]`).
+   Zodra ≥5 nieuwere prestaties op één ACTIVE-samenwerking bestaan, viel een oude REJECTED-prestatie uit
+   dat venster → de taak verdween stil uit `/acties`, badge én dashboard-rail terwijl het geld muurvast
+   zit. Run 76 fixte de _positionele_ blindheid; dit is de _venster_-sibling. **Fix:** REJECTED-prestaties
+   apart, status-gefilterd én ongewindowd ophalen (self-healing, spiegelt de factuur-lus). +1 regressietest.
+2. **Opdrachtgever-kant** (zelfde bestand): `clientTasks` las `performances`/`invoices` (SUBMITTED) met
+   `take: 5` zónder `orderBy` — flapte tussen requests bij >5 gelijktijdige rijen. **Fix:**
+   `orderBy: { createdAt: "asc" }` op beide, conform de conventie elders in het bestand.
+
+**Bestanden:** `src/lib/actions/pending-tasks.ts` (+ regressietest in `pending-tasks.test.ts`;
+`performance.findMany`-stub toegevoegd aan 5 sibling-mocks). **Checks:** typecheck/lint/test/build/prettier
+groen. Backlog + PROGRESS bijgewerkt. Geparkeerd (nit, LAAG): `drawer-resolver.tsx:32` generiek
+"Afronden"-label op de identiteits-drawer.
+
 ## 2026-08-15 — Bemiddelaar: fee-breakdown per samenwerking + CSV-export op /franchise/facturatie
 
 **Wat (bemiddelaar ziet én exporteert zijn fee-grootboek):** `/franchise/facturatie` toonde alleen
