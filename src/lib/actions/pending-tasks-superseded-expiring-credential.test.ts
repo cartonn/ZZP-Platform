@@ -23,6 +23,7 @@ vi.mock("@/lib/db", () => ({
     user: { findUnique: vi.fn(async () => ({ identityVerifiedAt: new Date() })) },
     credential: { findMany: vi.fn(async () => state.creds) },
     availabilityWindow: { findMany: vi.fn(async () => []) },
+    performance: { findMany: vi.fn(async () => []) },
     // Geen samenwerkingen → de generieke expiry-loop (niet de collab-gebonden tak) is de code onder test.
     collaboration: { findMany: vi.fn(async () => []) },
     conversationParticipant: { findMany: vi.fn(async () => []) },

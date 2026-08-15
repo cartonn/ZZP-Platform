@@ -23,6 +23,7 @@ vi.mock("@/lib/db", () => ({
     user: { findUnique: vi.fn(async () => ({ identityVerifiedAt: new Date() })) },
     credential: { findMany: vi.fn(async () => state.creds) },
     availabilityWindow: { findMany: vi.fn(async () => []) },
+    performance: { findMany: vi.fn(async () => []) },
     collaboration: {
       findMany: vi.fn(async (args?: { where?: { status?: { in?: string[] } } }) => {
         // freelancerTasks doet meerdere collaboration.findMany-calls; alleen de PROPOSED/ACTIVE-

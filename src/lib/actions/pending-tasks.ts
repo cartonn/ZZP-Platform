@@ -530,20 +530,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     if (!latestPerf || latestPerf.status === "DRAFT") {
       tasks.push(performanceSubmitTask(c.id, c.job.title));
     }
-    // Elke AFGEKEURDE prestatie vraagt om correctie + herindiening — óók een prestatie van een vorige
-    // cyclus die door een nieuwere (APPROVED/SUBMITTED/DRAFT) prestatie uit `performances[0]` is
-    // weggedrukt. `createPerformance` gate't alleen op ACTIVE + geen dispuut, dus op één samenwerking
-    // kunnen meerdere cycli naast elkaar bestaan; keek de enumerator (zoals voorheen) enkel naar de
-    // nieuwste prestatie, dan zag de ZZP'er de vastgelopen, afgekeurde uren nergens in het actiecentrum
-    // (alleen nog op het samenwerkingsdetail) terwijl het geld muurvast zit — alleen een APPROVED-
-    // prestatie wordt ooit een factuur. Symmetrisch met de factuur-lus hieronder, die al over álle
-    // openstaande facturen itereert. `performanceResubmitTask` sleutelt per prestatie-id, dus meerdere
-    // afgekeurde prestaties zijn dedupe-veilig. Persona-sweep run 76.
-    for (const p of c.performances) {
-      if (p.status === "REJECTED") {
-        tasks.push(performanceResubmitTask(p.id, c.id, c.job.title));
-      }
-    }
+    // Afgekeurde prestaties worden hieronder apart (ongewindowd) opgehaald — zie `rejectedPerfs`.
     for (const inv of c.invoices) {
       // APPROVED én OVERDUE dragen dezelfde ZZP-actie (betaling markeren), exact zoals cascade/stage.ts:
       // een OVERDUE-factuur die uit de oude [DRAFT,REJECTED,APPROVED]-filter viel verdween eerder stil
@@ -562,6 +549,34 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         tasks.push(invoiceSubmitTask(inv.id, c.id, c.job.title, rejected, agingDays));
       }
     }
+  }
+
+  // Elke AFGEKEURDE prestatie vraagt om correctie + herindiening — óók een prestatie van een vorige
+  // cyclus. `createPerformance` gate't alleen op ACTIVE + geen dispuut, dus op één samenwerking kunnen
+  // meerdere cycli naast elkaar bestaan en het geld zit muurvast tot de afgekeurde uren opnieuw worden
+  // ingediend (alleen een APPROVED-prestatie wordt ooit een factuur). Deze query staat bewust LOS van
+  // de `collabs`-relatie hierboven: die haalt de prestaties `desc, take: 5` op (nodig om via
+  // performances[0] de fase te bepalen), waardoor een afgekeurde prestatie uit een oude cyclus uit dat
+  // venster viel zodra ≥5 nieuwere prestaties bestonden — en dan stil uit /acties, de badge én de
+  // dashboard-rail verdween (alleen nog zichtbaar op het samenwerkingsdetail). Een status-gefilterde,
+  // ongewindowde query is self-healing: een rij verlaat de lijst pas als 'ie niet langer REJECTED is.
+  // Spiegelt de factuur-lus, die óók eerst op status filtert vóór de take-limiet. `performanceResubmit-
+  // Task` sleutelt per prestatie-id → dedupe-veilig. Persona-sweep run 76 (positioneel) + 77 (venster).
+  const rejectedPerfs = await prisma.performance.findMany({
+    where: {
+      status: "REJECTED",
+      collaboration: { freelancer: { userId }, status: "ACTIVE", disputedAt: null },
+    },
+    select: {
+      id: true,
+      collaborationId: true,
+      collaboration: { select: { job: { select: { title: true } } } },
+    },
+    orderBy: { createdAt: "asc" },
+    take: MAX,
+  });
+  for (const p of rejectedPerfs) {
+    tasks.push(performanceResubmitTask(p.id, p.collaborationId, p.collaboration.job.title));
   }
 
   // Vereist certificaat van een lopende/voorgestelde samenwerking dat binnenkort verloopt: één
@@ -908,10 +923,21 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
           credentials: { select: { type: true, status: true, expiresAt: true } },
         },
       },
-      performances: { where: { status: "SUBMITTED" }, select: { id: true }, take: 5 },
+      // Expliciete ordering vóór de take-limiet: zonder `orderBy` garandeert Prisma geen rijvolgorde,
+      // dus wélke MAX-van-5 te-keuren prestaties/facturen terugkwamen was arbitrair en een keur-taak
+      // kon tussen requests flappen (verschijnen/verdwijnen zonder afhandeling) zodra één samenwerking
+      // >5 gelijktijdig SUBMITTED-rijen heeft. Oudste-eerst: het venster schuift self-healing mee zodra
+      // de opdrachtgever de oudste keurt. Conform de conventie elders in dit bestand. Persona-sweep run 77.
+      performances: {
+        where: { status: "SUBMITTED" },
+        select: { id: true },
+        orderBy: { createdAt: "asc" },
+        take: 5,
+      },
       invoices: {
         where: { lifecycleStatus: "SUBMITTED", counterpartyUserId: userId },
         select: { id: true },
+        orderBy: { createdAt: "asc" },
         take: 5,
       },
     },

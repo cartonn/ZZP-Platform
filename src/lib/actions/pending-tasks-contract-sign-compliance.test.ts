@@ -26,6 +26,7 @@ vi.mock("@/lib/db", () => ({
     user: { findUnique: vi.fn(async () => ({ identityVerifiedAt: new Date() })) },
     credential: { findMany: vi.fn(async () => state.creds) },
     availabilityWindow: { findMany: vi.fn(async () => []) },
+    performance: { findMany: vi.fn(async () => []) },
     company: { findUnique: vi.fn(async () => null) },
     collaboration: {
       findMany: vi.fn(
