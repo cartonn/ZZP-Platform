@@ -1,5 +1,51 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-15 (run 78) · **main-commit basis:** `f90828b0`
+> **Uitkomst:** **2 bereikbare defecten gevonden én gefixt** (1× cascade/geld-integriteit HOOG-MED,
+> 1× next-action-engine MED; geen geparkeerde correctheids-/beveiligingsitems deze run). 4 parallelle
+> adversariële Opus-code-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie,
+> cascade/geld-integriteit + verboden statusovergangen, next-action-engine-correctheid, malicieuze
+> input/CSV/XSS). Twee audits (authz/IDOR/tenant, malicieuze input) vonden **0 bereikbare gaten**; de
+> cascade- en next-action-audits leverden elk één fix.
+>
+> - **OPGELOST — TOCTOU-race in het handmatige afronden/annuleren van een samenwerking (HOOG-MED,
+>   geld-integriteit):** `applyCollaborationStatusChange` (`src/app/(protected)/samenwerkingen/actions.ts`)
+>   her-leest binnen de `$transaction` de facturen + `performance.count({SUBMITTED})` en berekent de
+>   blok-reden, maar schrijft de status daarna weg met een APARTE `updateMany({ where: { id, status: from } })`
+>   waarvan de `where` enkel id + status bewaakt — niet de geld-/prestatievoorwaarden. De transactie zette
+>   **geen `isolationLevel`** (Postgres-default READ COMMITTED), dus een gelijktijdige `submitPerformance`
+>   (die `Collaboration.status` nooit aanraakt) kon in het gat tussen de her-lees en de write een
+>   SUBMITTED-prestatie committen → de samenwerking rondde af/annuleerde mét een onbeoordeelde prestatie
+>   (of een vers ingediende openstaande factuur) die daarna nooit meer goedgekeurd/gefactureerd/betaald kon
+>   worden (geld muurvast). **Geschonden regel:** "afronden met open geld/onbeoordeelde prestatie moet
+>   onmogelijk zijn" + atomaire compound-guard. **Fix:** nieuwe pure `collaborationTerminableGuard()` in
+>   `src/lib/cascade/completion.ts` (spiegelt `collaborationCompletableGuard`, zonder de current-invoice-
+>   uitsluiting — álle facturen tellen mee) in de `updateMany.where` gevlochten, alleen voor
+>   COMPLETED/CANCELLED → check en write zijn één atomair SQL-statement; glipt er werk/geld binnen dan
+>   matcht de rij niet meer (count 0) → de bestaande `count !== 1`-rem rolt de hele transactie terug. +1
+>   unit-test (guard-vorm, geen id-uitsluiting).
+> - **OPGELOST — outer-window-blindheid in de next-action-engine (MED, DOEL 1b):** `freelancerTasks` én
+>   `clientTasks` (`src/lib/actions/pending-tasks.ts`) leidden de geld-/keur-taken af uit de
+>   `performances`/`invoices`-subrelaties van een `collabs`-query met `orderBy: { updatedAt: "desc" },
+take: 50`. `Collaboration.updatedAt` is een `@updatedAt`-kolom die ALLEEN bij een directe mutatie op
+>   de samenwerkingsrij wordt bijgewerkt (contract tekenen, dispuut, annuleren, auto-afronding) — het
+>   indienen/goedkeuren van een prestatie of factuur raakt de rij nooit. Bij >50 gelijktijdige
+>   PROPOSED/ACTIVE-samenwerkingen ordent het venster puur op "hoe recent is het contract getekend",
+>   blind voor welke samenwerking openstaand geld-/keurwerk heeft; een ouder-getekende samenwerking met
+>   een verse APPROVED/OVERDUE-factuur of SUBMITTED-prestatie viel uit `take: 50` en verdween — anders dan
+>   de inner-window-bugs van run 76/77 — **permanent en niet-self-healing** uit /acties, de dashboard-rail
+>   én de badge (het afhandelen bumpt `updatedAt` niet). **Fix:** de betaal-/concept-taken (ZZP'er) en de
+>   keur-taken (opdrachtgever) uit dedicated, status-gefilterde, ONGEWINDOWDE queries gescoopt direct op de
+>   samenwerkings-eigenaar (`collaboration.freelancer.userId` / `collaboration.company.userId`) — spiegelt
+>   exact het run-77 `rejectedPerfs`-patroon; self-healing. De fase-taken die het collab-niveau echt nodig
+>   hebben (`contractSignTask`, `performanceSubmitTask`, certificaat/compliance) blijven op het venster.
+>   +1 regressietest (taak achter een buiten-venster geduwde samenwerking blijft zichtbaar). Realistisch
+>   bij institutionele opdrachtgevers/franchise-zware ZZP'ers met veel gelijktijdige inzet.
+>
+> ---
+>
+> **Vorige run:**
+>
 > **Datum:** 2026-08-15 (run 77) · **main-commit basis:** `22cef90b`
 > **Uitkomst:** **2 bereikbare DOEL 1b-defecten gevonden én gefixt** (beide next-action-engine,
 > beide vensterbepaalde onzichtbaarheid; geen geparkeerde items deze run). 4 parallelle adversariële

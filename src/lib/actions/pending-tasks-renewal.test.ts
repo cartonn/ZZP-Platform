@@ -41,6 +41,8 @@ vi.mock("@/lib/db", () => ({
       }),
     },
     invoice: { findMany: vi.fn(async () => []) },
+    // Ongewindowde keur-/betaal-queries (approvePerformances/rejectedPerfs) — leeg voor deze test.
+    performance: { findMany: vi.fn(async () => []) },
     conversationParticipant: { findMany: vi.fn(async () => []) },
     message: { groupBy: vi.fn(async () => []) },
     conversation: { findMany: vi.fn(async () => []) },

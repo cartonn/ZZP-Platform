@@ -27,7 +27,16 @@ vi.mock("@/lib/db", () => ({
     application: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
     job: { count: vi.fn(async () => 0) },
     collaboration: { findMany: vi.fn(async () => []) },
-    invoice: { findMany: vi.fn(async () => state.overdueInvoices) },
+    // Ongewindowde keur-query (approvePerformances) — leeg voor deze test.
+    performance: { findMany: vi.fn(async () => []) },
+    // Twee invoice.findMany-paden in clientTasks: de cascade-overdue-nudge (lifecycleStatus=OVERDUE) en de
+    // nieuwe ongewindowde keur-query (approveInvoices, lifecycleStatus=SUBMITTED). Serveer de testrijen
+    // alleen op het OVERDUE-pad; de SUBMITTED-keur-query blijft leeg.
+    invoice: {
+      findMany: vi.fn(async (args?: { where?: { lifecycleStatus?: unknown } }) =>
+        args?.where?.lifecycleStatus === "OVERDUE" ? state.overdueInvoices : [],
+      ),
+    },
     conversationParticipant: { findMany: vi.fn(async () => []) },
     message: { groupBy: vi.fn(async () => []) },
     conversation: { findMany: vi.fn(async () => []) },

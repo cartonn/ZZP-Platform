@@ -84,6 +84,45 @@ export function collaborationCompletableGuard(currentInvoiceId: string): Record<
 }
 
 /**
+ * Relationele eligibility-guard (Prisma-where-vorm) voor het HANDMATIGE terminale pad: het door een
+ * partij zelf afronden (COMPLETED) of annuleren (CANCELLED) van een samenwerking via
+ * `applyCollaborationStatusChange`. Spiegelt `collaborationCompletableGuard`, maar ZONDER de
+ * `id: { not: currentInvoiceId }`-uitsluiting: in het handmatige pad is er géén zojuist-betaalde
+ * "huidige factuur" die op dat moment al op PAID staat — ÁLLE facturen van de samenwerking tellen mee.
+ *
+ * Waarom nodig (TOCTOU-dichting): `applyCollaborationStatusChange` her-leest binnen de transactie de
+ * facturen + `performance.count({ SUBMITTED })` en berekent de blok-reden, maar schrijft de status
+ * daarna weg met een APARTE `updateMany({ where: { id, status: from } })`. Die `where` bewaakt enkel
+ * id + status, niet de geld-/prestatievoorwaarden. De transactie draait op READ COMMITTED (geen
+ * isolationLevel gezet), dus een gelijktijdige `submitPerformance` — die `Collaboration.status` nooit
+ * aanraakt — kan in het gat tussen de her-lees en de write een SUBMITTED-prestatie committen; de write
+ * matcht dan nog steeds en de samenwerking rondt af/annuleert met een onbeoordeelde prestatie (of een
+ * vers ingediende openstaande factuur) die daarna nooit meer goedgekeurd/gefactureerd/betaald kan
+ * worden (geld staat vast). Door deze guard in dezelfde `updateMany.where` te vlechten wordt de check
+ * en de write ÉÉN atomair SQL-statement: glipt er in het venster werk/geld binnen, dan matcht de rij
+ * niet meer (count 0), gooit de bestaande `count !== 1`-rem en rolt de hele transactie terug — niets
+ * raakt verweesd. Één bron van waarheid met `isInvoiceSettled` (dezelfde afgewikkeld-sets).
+ * `disputedAt: null` sluit bovendien het venster waarin een gelijktijdig geopend dispuut zou wegvallen.
+ * Plain object (geen Prisma-import) — puur en unit-testbaar.
+ */
+export function collaborationTerminableGuard(): Record<string, unknown> {
+  return {
+    disputedAt: null,
+    performances: { none: { status: "SUBMITTED" } },
+    invoices: {
+      none: {
+        OR: [
+          // Cascade-factuur (lifecycleStatus gezet) die nog niet is afgewikkeld.
+          { lifecycleStatus: { notIn: [...SETTLED_INVOICE_LIFECYCLE] } },
+          // Legacy-factuur (geen lifecycleStatus) die nog niet betaald/geannuleerd is.
+          { lifecycleStatus: null, status: { notIn: [...SETTLED_INVOICE_LEGACY_STATUS] } },
+        ],
+      },
+    },
+  };
+}
+
+/**
  * NL-reden waarom een samenwerking nog niet afgerond mag worden, of `null` als het mag.
  * Tegenhanger van `hasOpenCollaborationWork` voor het handmatige afrondpad én de knopweergave:
  * geld weegt het zwaarst (een niet-afgewikkelde factuur blokkeert vóór een onbeoordeelde

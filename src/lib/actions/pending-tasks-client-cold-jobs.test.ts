@@ -17,6 +17,8 @@ vi.mock("@/lib/db", () => ({
     application: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
     job: { count: vi.fn(async () => 0) },
     collaboration: { findMany: vi.fn(async () => []) },
+    // Ongewindowde keur-query (approvePerformances) — leeg voor deze test.
+    performance: { findMany: vi.fn(async () => []) },
     invoice: { findMany: vi.fn(async () => []) },
     conversationParticipant: { findMany: vi.fn(async () => []) },
     message: { groupBy: vi.fn(async () => []) },

@@ -8,7 +8,11 @@ import { prisma } from "@/lib/db";
 import { assertCollaborationTransition, CollaborationTransitionError } from "@/lib/collaborations";
 import { assertJobTransition } from "@/lib/jobs";
 import { planReplacement } from "@/lib/replacement";
-import { cancellationBlockReason, completionBlockReason } from "@/lib/cascade/completion";
+import {
+  cancellationBlockReason,
+  collaborationTerminableGuard,
+  completionBlockReason,
+} from "@/lib/cascade/completion";
 import { signContract, CascadeError } from "@/lib/cascade/commands";
 import { assessCancellation } from "@/lib/cancellation";
 import {
@@ -368,9 +372,20 @@ async function applyCollaborationStatusChange(
 
     // Voorwaardelijke statuswrite: alleen als de samenwerking nog in de verwachte `from`-status staat.
     // Botst een parallelle transitie (count !== 1) → gooi, zodat de hele transactie terugrolt i.p.v.
-    // een tegenstrijdige status of een verweesde factuur/prestatie achter te laten.
+    // een tegenstrijdige status of een verweesde factuur/prestatie achter te laten. Voor de terminale
+    // overgangen (COMPLETED/CANCELLED) vlechten we `collaborationTerminableGuard()` in de `where`: die
+    // dwingt de geld-/prestatievoorwaarden BINNEN dezelfde atomaire updateMany af (READ COMMITTED-race-
+    // dichting), zodat een prestatie/factuur die ná de her-lees hierboven binnenglipt de rij niet meer
+    // matcht (count 0) → de `count !== 1`-rem gooit en niets raakt verweesd. Alleen op deze twee
+    // targets — andere transities kennen geen terminale money-invariant.
     const { count } = await tx.collaboration.updateMany({
-      where: { id: collaborationId, status: from },
+      where: {
+        id: collaborationId,
+        status: from,
+        ...(targetStatus === "COMPLETED" || targetStatus === "CANCELLED"
+          ? collaborationTerminableGuard()
+          : {}),
+      },
       // Stempel het afrondingsmoment bij de handmatige afronding — net als de cascade-applier dat doet
       // bij de betalings-cascade (één semantiek, twee paden). Ankert het blinde beoordelingsvenster.
       data: {

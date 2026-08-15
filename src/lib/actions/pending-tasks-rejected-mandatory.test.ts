@@ -25,6 +25,8 @@ vi.mock("@/lib/db", () => ({
     availabilityWindow: { findMany: vi.fn(async () => []) },
     collaboration: { findMany: vi.fn(async () => []) },
     performance: { findMany: vi.fn(async () => []) },
+    // Ongewindowde betaal-/factuur-query (openInvoices) — leeg voor deze certificaat-gescope test.
+    invoice: { findMany: vi.fn(async () => []) },
     conversationParticipant: { findMany: vi.fn(async () => []) },
     message: { groupBy: vi.fn(async () => []) },
     conversation: { findMany: vi.fn(async () => []) },
