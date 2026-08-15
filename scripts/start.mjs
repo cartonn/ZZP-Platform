@@ -7,6 +7,10 @@
 //     zodat Railway-healthchecks nooit wachten op een seed.
 import { execSync, spawn } from "node:child_process";
 import http from "node:http";
+import { createRequire } from "node:module";
+import { resolveDrainMs, resolveForceKillMs } from "./shutdown-config.mjs";
+
+const require = createRequire(import.meta.url);
 
 const run = (cmd, env = process.env) => execSync(cmd, { env, stdio: "inherit" });
 
@@ -80,28 +84,45 @@ const startBackgroundSeed = async () => {
 
 const port = process.env.PORT ?? "3000";
 console.log(`[start] Next.js start op poort ${port}`);
-const server = spawn("npx", ["next", "start", "-p", port], {
+// Next DIRECT spawnen (node op de resolved next-bin), NIET via `npx`. Reden: `start.mjs` moet de
+// directe parent van het Next-proces zijn zodat afsluitsignalen rechtstreeks aankomen. De npm/npx-
+// wrapper heeft géén SIGUSR2-handler en wordt door de default-dispositie beëindigd i.p.v. het signaal
+// door te sturen — empirisch geverifieerd (node 22 / npm 10.9): `wrapper.kill("SIGUSR2")` sluit de
+// wrapper met signal=SIGUSR2 en het kind ontvangt niets. Direct spawnen levert SIGUSR2 (drain-fase)
+// én SIGTERM (close-fase) betrouwbaar bij het Next-proces af, waar de instrumentatie de handlers
+// registreert. `next start` draait de server in-proces (next-start.js → startServer(), geen worker-
+// fork), dus dit proces ís het proces met de readiness-/drain-handlers.
+const nextBin = require.resolve("next/dist/bin/next");
+const server = spawn(process.execPath, [nextBin, "start", "-p", port], {
   stdio: "inherit",
 });
 
-// Graceful shutdown met vangnet: een afsluitsignaal (Railway-redeploy / operator) wordt doorgegeven
-// aan Next zodat die de HTTP-server netjes sluit (lopende requests afronden, nieuwe weigeren) — en
-// de instrumentatie zet de readiness-probe op 503. Als Next binnen het venster niet afsluit (een
-// hangende in-flight request), forceren we een SIGKILL zodat de deploy nooit blijft hangen.
-// Een tweede signaal (operator drukt nogmaals) forceert direct.
-const clampMs = (raw, def, min, max) => {
-  const n = Number.parseInt(raw ?? "", 10);
-  if (!Number.isFinite(n)) return def;
-  return Math.min(Math.max(n, min), max);
-};
-const forceKillMs = clampMs(process.env.SHUTDOWN_FORCE_KILL_MS, 25000, 1000, 120000);
+// Graceful shutdown met drain-venster + vangnet. Een afsluitsignaal (Railway-redeploy / operator)
+// verloopt in twee fasen zodat een rolling redeploy geen verkeer verliest:
+//   Fase 1 (drain): stuur SIGUSR2 → de instrumentatie zet readiness op 503 (draining) terwijl Next
+//     de HTTP-server OPEN houdt en gewoon requests blijft bedienen. Zo krijgt de load balancer de
+//     tijd om deze instance uit de rotatie te halen vóór de socket sluit (geen connection-reset op
+//     nieuw verkeer dat nog even doorgestuurd wordt). Duur: SHUTDOWN_DRAIN_MS.
+//   Fase 2 (close): stuur de echte SIGTERM/SIGINT → Next sluit de HTTP-server netjes (lopende
+//     requests afronden, nieuwe weigeren). Sluit Next niet binnen SHUTDOWN_FORCE_KILL_MS, dan volgt
+//     een SIGKILL zodat de deploy nooit blijft hangen.
+// Een tweede signaal (operator drukt nogmaals) slaat het drain-venster over en forceert direct.
+const forceKillMs = resolveForceKillMs(process.env);
+const drainMs = resolveDrainMs(process.env);
 
 let forceKillTimer = null;
+let drainTimer = null;
 let shuttingDown = false;
 const clearForceKill = () => {
   if (forceKillTimer) {
     clearTimeout(forceKillTimer);
     forceKillTimer = null;
+  }
+};
+const clearDrainTimer = () => {
+  if (drainTimer) {
+    clearTimeout(drainTimer);
+    drainTimer = null;
   }
 };
 
@@ -114,6 +135,7 @@ server.on("error", (error) => {
 });
 server.on("exit", (code, signal) => {
   clearForceKill();
+  clearDrainTimer();
   if (signal) {
     console.log(`[start] Next.js gestopt door signaal ${signal}`);
     process.exit(0);
@@ -122,25 +144,59 @@ server.on("exit", (code, signal) => {
   process.exit(code ?? 1);
 });
 
+// Fase 2: stuur de echte SIGTERM/SIGINT zodat Next de HTTP-server netjes sluit, met een
+// force-kill-vangnet als een hangende in-flight request de afsluiting blokkeert. Neutraal log:
+// readiness is in de drain-fase al op 503 gezet (of flipt bij deze SIGTERM in de no-drain-flow),
+// dus deze regel meldt alleen het sluiten van de socket — niet "readiness → draining".
+const closeNext = (signal) => {
+  console.log(`[start] Next.js HTTP-server sluiten — lopende requests afronden`);
+  server.kill(signal);
+  forceKillTimer = setTimeout(() => {
+    console.error(
+      `[start] Next.js sloot niet af binnen ${forceKillMs}ms — geforceerd stoppen (SIGKILL)`,
+    );
+    server.kill("SIGKILL");
+  }, forceKillMs);
+  // De timer mag de event-loop niet levend houden als het proces verder klaar is.
+  if (typeof forceKillTimer.unref === "function") forceKillTimer.unref();
+};
+
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     if (shuttingDown) {
-      // Tweede signaal: niet langer wachten, direct forceren.
+      // Tweede signaal: niet langer draineren/wachten, direct forceren.
       console.log("[start] tweede afsluitsignaal — Next.js wordt geforceerd gestopt (SIGKILL)");
+      clearDrainTimer();
       clearForceKill();
       server.kill("SIGKILL");
       return;
     }
     shuttingDown = true;
-    console.log(`[start] ${signal} ontvangen — Next.js netjes afsluiten (readiness → draining)`);
-    server.kill(signal);
-    forceKillTimer = setTimeout(() => {
-      console.error(
-        `[start] Next.js sloot niet af binnen ${forceKillMs}ms — geforceerd stoppen (SIGKILL)`,
+
+    if (drainMs > 0) {
+      // Fase 1 (drain): readiness → 503 zónder de HTTP-server te sluiten, zodat de load balancer
+      // deze instance uit de rotatie haalt vóór we de socket sluiten. Next behandelt SIGUSR2 niet
+      // als afsluitsignaal → de server blijft tijdens het venster gewoon requests bedienen.
+      //
+      // Signaal-levering: `server` is het Next-proces zélf (we spawnen node direct op de next-bin,
+      // niet via npx — zie hierboven). SIGUSR2 komt dus rechtstreeks bij het proces waar de
+      // instrumentatie de listener registreert (`registerDrainSignal`); die listener onderdrukt óók
+      // Node's default (SIGUSR2 = terminate), zodat het signaal `beginDraining()` bereikt i.p.v. het
+      // proces te doden.
+      console.log(
+        `[start] ${signal} ontvangen — ${drainMs}ms draineren (readiness → 503) vóór afsluiten`,
       );
-      server.kill("SIGKILL");
-    }, forceKillMs);
-    // De timer mag de event-loop niet levend houden als het proces verder klaar is.
-    if (typeof forceKillTimer.unref === "function") forceKillTimer.unref();
+      server.kill("SIGUSR2");
+      drainTimer = setTimeout(() => {
+        drainTimer = null;
+        closeNext(signal);
+      }, drainMs);
+      if (typeof drainTimer.unref === "function") drainTimer.unref();
+      return;
+    }
+
+    // Geen drain-venster (lokaal/tests): meteen netjes sluiten.
+    console.log(`[start] ${signal} ontvangen — Next.js netjes afsluiten (readiness → draining)`);
+    closeNext(signal);
   });
 }

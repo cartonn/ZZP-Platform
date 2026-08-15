@@ -3,6 +3,40 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-15 — Prod: pre-shutdown drain-venster (zero-downtime redeploy) (PR #1106)
+
+**Wat:** de readiness-draining bij SIGTERM had geen effect-venster — `scripts/start.mjs` stuurde de
+SIGTERM **direct** door aan Next, dat de HTTP-server meteen sloot vóór de load balancer de `503` op
+`/api/readiness` zag → nieuw verkeer tijdens een Railway-redeploy kreeg connection-reset
+(rolling-deploy-5xx). Nu **twee fasen**: fase 1 flipt readiness → 503 via een intern SIGUSR2-signaal
+**zónder de HTTP-server te sluiten** (server blijft requests bedienen), wacht `SHUTDOWN_DRAIN_MS`
+(default 5000 ms prod, 0 daarbuiten, geklemd [0,60000]) zodat de load balancer de instance uit de
+rotatie haalt; fase 2 stuurt pas dán de echte SIGTERM voor de nette HTTP-close (force-kill-vangnet
+ongewijzigd).
+
+**Twee correcties na adversariële agent-review (end-to-end geverifieerd tegen een echte `next start`):**
+
+1. **Direct spawnen i.p.v. npx.** `server.kill("SIGUSR2")` naar de `npx`-wrapper bereikte het
+   Next-proces nooit: de npm/npx-wrapper heeft geen SIGUSR2-handler en wordt door de
+   default-dispositie beëindigd i.p.v. het signaal door te sturen (empirisch: `wrapper exit
+signal=SIGUSR2`, kind kreeg niets). `start.mjs` spawnt Next nu direct (`spawn(process.execPath,
+[require.resolve("next/dist/bin/next"), "start", "-p", port])`) → directe parent, SIGUSR2 én
+   SIGTERM komen rechtstreeks aan. `next start` draait in-proces (geen worker-fork).
+2. **Drain-vlag proces-globaal op globalThis.** Next bundelt `instrumentation.ts` en de route-handlers
+   in aparte module-grafen; de module-`let draining` werd per graaf geïnstantieerd → readiness flipte
+   nooit (gold óók voor de bestaande SIGTERM-draining, die stil kapot was). Nu een `Symbol.for`-anker
+   op globalThis (één per proces). Geverifieerd: SIGUSR2 → `/api/readiness` gaat van `200/false` naar
+   `503/true`, proces blijft draaien.
+
+**Bestanden:** `scripts/shutdown-config.mjs` (+test); `src/lib/observability/shutdown.ts`
+(`registerDrainSignal` + globalThis-state) + tests; `src/instrumentation.ts` (wiring);
+`scripts/start.mjs` (direct spawn + twee-fase afsluiting); `scripts/start-shutdown.test.ts` (nieuw —
+echte spawn+SIGUSR2-integratietest + regressie-guard tegen npx); `vitest.config.ts`; docs
+(RUNBOOK §2, MENSENWERK §7 + done-marker).
+
+**Gate:** typecheck ✓ · lint ✓ · `npm run test` volledig groen · build ✓ · prettier ✓ · **end-to-end
+gevalideerd** (echte `next start` + SIGUSR2 → readiness 503). CI-poort verifiëren op de PR.
+
 ## 2026-08-15 — Security-/privacy-audit: login-recency-metadata erasure/export-gat gedicht (MIDDEL · AVG art. 17 + 15/20)
 
 **Wat (1 bereikbare AVG-bevinding, gevonden via 4 parallelle adversariële Opus-audits op

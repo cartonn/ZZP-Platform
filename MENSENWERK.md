@@ -230,6 +230,30 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   `src/lib/observability/shutdown.ts`, gewired in `src/instrumentation.ts` + `src/app/api/readiness/route.ts`).
   Resterend mensenwerk: **niets voor de pilot** — werkt out-of-the-box; optioneel `SHUTDOWN_FORCE_KILL_MS`
   bijstellen. Zie RUNBOOK §2.
+  **Code-kant GEDAAN (2026-08-15) — pre-shutdown drain-venster (zero-downtime redeploy):** de
+  readiness-flip hierboven had tot nu toe **geen effect-venster**: `scripts/start.mjs` stuurde de
+  SIGTERM **direct** door aan Next, dat de HTTP-server dan meteen sluit — de load balancer had de `503`
+  op `/api/readiness` nog niet gezien, dus nieuw verkeer tijdens een Railway-redeploy kreeg
+  connection-reset (klassieke rolling-deploy-5xx). De afsluiting verloopt nu in **twee fasen**: fase 1
+  flipt readiness → `503` **zónder de HTTP-server te sluiten** (via een intern SIGUSR2-signaal;
+  `registerDrainSignal` in `src/lib/observability/shutdown.ts`), wacht `SHUTDOWN_DRAIN_MS` zodat de load
+  balancer deze instance uit de rotatie haalt, en pas dán volgt in fase 2 de echte SIGTERM die Next
+  netjes laat sluiten. Tijdens het drain-venster blijft de server gewoon requests bedienen (geen
+  reset). Default **5000 ms in productie**, `0` daarbuiten (geen vertraging lokaal/in tests); geklemd
+  [0, 60000] en ruim onder de host-kill-grace. Puur/getest (`scripts/shutdown-config.mjs`
+  `resolveDrainMs`). Resterend mensenwerk: **niets** — werkt out-of-the-box; optioneel
+  `SHUTDOWN_DRAIN_MS` bijstellen. Zie RUNBOOK §2.
+  **Twee correcties na adversariële review (end-to-end geverifieerd tegen een echte `next start`):**
+  (1) `scripts/start.mjs` spawnt Next nu **direct** (`node` op de resolved next-bin) i.p.v. via `npx` —
+  de npm/npx-wrapper heeft geen SIGUSR2-handler en wordt door de default-dispositie beëindigd i.p.v.
+  het signaal door te sturen, dus het drain-signaal bereikte het Next-proces nooit. Direct spawnen
+  maakt `start.mjs` de directe parent, zodat SIGUSR2 (drain) én SIGTERM (close) rechtstreeks aankomen.
+  (2) De drain-vlag (`src/lib/observability/shutdown.ts`) staat nu **proces-globaal op globalThis**
+  i.p.v. module-scoped: Next bundelt `instrumentation.ts` en de route-handlers in aparte module-grafen,
+  dus een module-`let` werd per graaf geïnstantieerd → het afsluitsignaal zette de ene kopie terwijl
+  `/api/readiness` een andere las (readiness flipte nooit — dit gold óók voor de al bestaande
+  SIGTERM-draining, die stil kapot was). Beide gefixt en geverifieerd: `SIGUSR2 → /api/readiness` gaat
+  nu van `200/draining:false` naar `503/draining:true` terwijl het proces blijft draaien.
 
 ## §1. Hosting, database, opslag, domein, geheimen
 
@@ -873,6 +897,7 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 | `WEBHOOK_EVENT_RETENTION_DAYS`                                               | Snoeivenster webhook-ledger in dagen (default: onbep.) | — (§3)               | Optioneel (bij recurring billing; bv. 90)        |
 | `BACKUP_MAX_AGE_HOURS`                                                       | Venster back-up-heartbeat in uren (default 48)         | —                    | Optioneel (aanbevolen prod)                      |
 | `TASK_TIMEOUT_MS`                                                            | Per-taak-deadline run-all-cron (default 120000; 0=uit) | — (§10)              | Optioneel (default aan)                          |
+| `SHUTDOWN_DRAIN_MS` (+ `SHUTDOWN_FORCE_KILL_MS`)                             | Drain-venster/force-kill bij redeploy (zero-downtime)  | — (§0b)              | Optioneel (default 5000/25000 ms in prod)        |
 
 > Zolang een verificatie-schakelaar **niet** op de echte waarde staat, draait de bijbehorende
 > demo-verifier veilig door (handig voor de pilot).
