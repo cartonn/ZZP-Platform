@@ -37,6 +37,30 @@ echte spawn+SIGUSR2-integratietest + regressie-guard tegen npx); `vitest.config.
 **Gate:** typecheck ✓ · lint ✓ · `npm run test` volledig groen · build ✓ · prettier ✓ · **end-to-end
 gevalideerd** (echte `next start` + SIGUSR2 → readiness 503). CI-poort verifiëren op de PR.
 
+## 2026-08-15 — Bemiddelaar: roster CSV-export op /franchise/zzpers (PR #1107)
+
+**Wat:** de bemiddelaar kon zijn ZZP'er-roster nog nergens als CSV exporteren (opdrachtgever/ZZP'er
+hebben al openstaand/diensten/prestaties/prognose-exports; de bemiddelaar alléén fees op
+`/franchise/facturatie`). Nieuwe "Exporteer CSV"-knop naast de resultatenteller op `/franchise/zzpers`
+
+- co-located route `franchise/zzpers/export/route.ts`. De download bevat **exact de op het scherm
+  getoonde selectie**: de route parseert dezelfde `searchParams`, laadt dezelfde tenant-gescopete pool,
+  leidt dezelfde velden af (inzetbaarheid via `computeEngageability`, certificaat-waarschuwing via
+  `summarizeExpiryAlert`, afwezigheid via `awayUntil`, vrijkomdatum via `freeDateFromActiveCollaborations`,
+  re-engagement via `classifyRosterDormancy`) en hergebruikt **exact** `parseRosterFilter`/`filterRoster`/
+  `sortRoster` → geen drift met de pagina. Kolommen: naam, functie, e-mail, locatie, werkmodus, uurtarief,
+  beschikbaarheid, inzetbaarheid, actieve inzet, vrij op, afwezig t/m, certificaten, certificaat-
+  waarschuwing, profiel-compleetheid, re-engagement. Helpt de bemiddelaar de pool in een spreadsheet
+  bewerken, met een opdrachtgever delen of capaciteit plannen (benchmark: staffing-platformen met
+  exporteerbaar roster).
+
+* **Server-side waarheid**, read-only, alleen FRANCHISER, tenant-gescopet (eigen pool). Formule-injectie
+  (CWE-1236) afgevangen door de bestaande `toCsv`/`escapeCsvField`. Export van PII vastgelegd in de audit
+  (`ROSTER_EXPORTED`, art. 5(2)) — parity met de andere export-routes. Geen schema-/mutatie-/auth-oppervlak.
+* **Bestanden:** `src/lib/franchise/roster-export.ts` (pure CSV-bouwer, leaf-module) + `.test.ts` (6 tests),
+  `src/app/(protected)/franchise/zzpers/export/route.ts`, `src/app/(protected)/franchise/zzpers/page.tsx`
+  (knop + export-href). Gate: typecheck, lint, test, prettier groen; build draait in CI.
+
 ## 2026-08-15 — Security-/privacy-audit: login-recency-metadata erasure/export-gat gedicht (MIDDEL · AVG art. 17 + 15/20)
 
 **Wat (1 bereikbare AVG-bevinding, gevonden via 4 parallelle adversariële Opus-audits op

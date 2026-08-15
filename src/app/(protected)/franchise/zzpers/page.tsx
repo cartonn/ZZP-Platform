@@ -10,6 +10,7 @@ import {
   Briefcase,
   BellRing,
   CalendarX,
+  Download,
 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -324,6 +325,19 @@ export default async function FranchiseZzpersPage({
   const visible = sortRoster(filterRoster(cards, filter), filter.sort);
   const filterActive = isRosterFilterActive(filter);
 
+  // Export-link naar de co-located CSV-route; geeft het actieve filter/sortering mee zodat de
+  // download exact de op het scherm getoonde selectie bevat (server-side dezelfde helpers).
+  const exportParams = new URLSearchParams();
+  if (filter.q) exportParams.set("q", filter.q);
+  if (filter.availability) exportParams.set("availability", filter.availability);
+  if (filter.status) exportParams.set("status", filter.status);
+  if (filter.onlyAlerts) exportParams.set("alerts", "1");
+  if (filter.onlyIdle) exportParams.set("idle", "1");
+  if (filter.onlyDormant) exportParams.set("dormant", "1");
+  if (filter.sort !== "recent") exportParams.set("sort", filter.sort);
+  const exportQuery = exportParams.toString();
+  const exportHref = `/franchise/zzpers/export${exportQuery ? `?${exportQuery}` : ""}`;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -489,11 +503,23 @@ export default async function FranchiseZzpersPage({
             )}
           </form>
 
-          <p className="text-xs text-muted-foreground">
-            {visible.length === cards.length
-              ? plural(cards.length, "ZZP'er", "ZZP'ers")
-              : `${visible.length} van ${plural(cards.length, "ZZP'er", "ZZP'ers")}`}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              {visible.length === cards.length
+                ? plural(cards.length, "ZZP'er", "ZZP'ers")
+                : `${visible.length} van ${plural(cards.length, "ZZP'er", "ZZP'ers")}`}
+            </p>
+            {/* Exporteer de getoonde selectie als CSV — pool bewerken in een spreadsheet, delen met
+                een opdrachtgever of capaciteit plannen. Alleen wanneer er iets te exporteren valt. */}
+            {visible.length > 0 && (
+              <Button asChild variant="secondary" size="sm">
+                <a href={exportHref}>
+                  <Download className="size-4" aria-hidden />
+                  Exporteer CSV
+                </a>
+              </Button>
+            )}
+          </div>
 
           {visible.length === 0 ? (
             <Card>
