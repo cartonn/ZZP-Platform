@@ -4,6 +4,76 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-15 (basis: `main` @ e11b7cf9) — 1× MIDDEL opgelost (erasure/export-gat op de login-recency-metadata)
+
+Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(1: **alle 49 HTTP-route-handlers** — `src/app/**/route.ts` + `/api/**`: auth→rol→ownership→Zod→actie→audit,
+IDOR op id-parameters, document-/PDF-/CSV-/ICS-/export-routes, path-traversal, SSRF, open redirect, foutlek;
+2: **cross-tenant-isolatie** — alle `franchise/**`-pagina's/-actions/-routes + `lib/franchise/**`,
+`lib/tenant-billing/**`, `tenancy.ts` (~90 query-sites getraceerd op `tenantId`-scoping + anti-oracle CWE-203);
+3: **privacy/AVG** — erasure↔export-symmetrie over ~45 PII-velden uit `schema.prisma`, dataminimalisatie,
+k-anonimiteit (markttarief ≥10), PII-in-logs, retentie; 4: **high-risk mutatie-server-actions** — admin-,
+credential-/document-, samenwerking-/dispuut-/prestatie-/factuur-cascade, messaging/reviews: mass-assignment,
+IDOR, statusovergangen via expliciete map, verplichte reden server-side, audit). Plus orchestrator-probes:
+`npm audit --omit=dev` = **0 kwetsbaarheden**; Next.js 15.5.21 (voorbij CVE-2025-29927 middleware-bypass);
+enige `dangerouslySetInnerHTML` = het nonce-gepoorte theme-script; geen `$queryRawUnsafe`; routing-SSRF veilig
+(vaste host `api.geoapify.com`, user-input alleen als query-param); noop-mail logt geen adres in productie (M-3).
+Delta sinds de vorige ronde: `35ad4811..e11b7cf9` (#1097 lastReadAt-erasure/export, #1098 franchise-fee-CSV-export,
+#1101/#1104 pending-tasks/cascade-TOCTOU, #1102 worked-hours-trend, #1103 franchise-samenwerkingen-strip).
+
+### OPGELOST — `User.lastLoginAt`/`previousLoginAt` overleeft erasure én ontbreekt in de data-export (MIDDEL · AVG art. 17 vergetelheid + art. 15/20 inzage/portabiliteit)
+
+**Geschonden regel:** Architectuurregel 5 (audit/AVG-symmetrie) + AVG art. 17 (recht op vergetelheid) en
+art. 15/20 (inzage/dataportabiliteit). Exact het patroon dat #1097 voor `ConversationParticipant.lastReadAt`
+dichtte, maar dan voor de login-recency-gedragsmetadata op `User` (`prisma/schema.prisma:37-38`).
+
+**Repro (vóór de fix):** `User.lastLoginAt` (laatste geslaagde login) en `previousLoginAt` (de login dáárvoor)
+zijn toewijsbare gedragsmetadata óver de betrokkene. De server verwerkt ze actief in signalen die óók aan
+**derden** worden getoond: de bemiddelaar ziet op `/franchise/zzpers` een roster-dormancy-/inzetbaarheids-tier
+die uit `lastLoginAt` wordt afgeleid (`franchise/zzpers/page.tsx:144` selecteert `user.lastLoginAt`, geen
+`status`-filter → een geanonimiseerde ZZP'er blijft met bevroren login-recency in het roster), en `signals.ts:1016`
+(`lastActiveAt: f.user.lastLoginAt`) voedt hetzelfde. Tóch:
+
+- **Erasure (art. 17):** `userAnonymizationData` (`account-anonymization.ts`) raakte deze twee velden niet
+  (`grep` → 0 hits) → na een verwijderverzoek bleef de login-recency van het verwijderde individu staan en bleef
+  een derde-partij-zichtbaar dormancy-signaal ervan afhangen — residuele gedragsmetadata die de vergetelheid overleeft.
+- **Export (art. 15/20):** `buildAccountExport` (`account-export.ts`) selecteerde ze niet → een actieve gebruiker
+  kon zijn eigen login-recency (die het platform over hem bewaart/verwerkt) niet inzien/exporteren.
+
+**Fix (dit PR):**
+
+- **Erasure:** `userAnonymizationData` zet nu `lastLoginAt: null` + `previousLoginAt: null` (toegepast binnen de
+  bestaande anonimiseringstransactie via `prisma.user.update({ data: userAnonymizationData(...) })`). De
+  wachtwoordloze account kan sowieso niet meer inloggen, dus er gaat niets nuttigs verloren. Analoog aan de
+  `lastReadAt: null`-erasure van #1097.
+- **Export:** `buildAccountExport` selecteert nu `lastLoginAt` + `previousLoginAt` in de `user.findUnique` —
+  symmetrisch met de erasure en met `Notification.readAt`/`lastReadAt` die er al in zaten.
+- **Tests (rood→groen):** `account-anonymization.test.ts` — `userAnonymizationData` zet beide op `null` (zonder
+  fix: property afwezig → `undefined` → rood). `account-export.test.ts` — de `user`-select bevat beide
+  (zonder fix: `undefined` → rood). Geverifieerd rood→groen door alleen de bronwijziging te reverten.
+
+### GEEN NIEUWE GATEN in de overige oppervlakken (bewijs, met OWASP/AVG-dekking)
+
+- **Route-handlers schoon (A01/A03).** 49/49 `route.ts` gecontroleerd: elke document-/PDF-/dossier-route poort via
+  `canAccessDocument` (owner/ADMIN), anti-oracle 404 voor onbekend-id én verboden-id, serveert enkel via de
+  storage-abstractie (geen publiek pad, traversal-safe), audit op toegang én weigering; cron-routes via
+  `authorizeCron` (`timingSafeEqual`, fail-closed 503); `/api/agenda/feed.ics` HMAC-token + liveness-check;
+  `/api/push/subscribe` endpoint-allowlist (anti-SSRF) + bind op `actor.id`; webhook signature-verified + idempotent.
+- **Cross-tenant isolatie schoon (A01).** ~90 query-sites in `franchise/**`/`lib/franchise/**`/`lib/tenant-billing/**`
+  scopen via `tenantScopeWhere`/`ownsViaTenant`/`assertSameTenant` op `actor.tenantId`; onbekend-id en cross-tenant-id
+  vallen samen tot identiek "niet gevonden" (CWE-203). Franchisers krijgen enkel credential-/bestandsmetadata, nooit
+  raw document-download. Fee-CSV-export `FRANCHISER`-only, tenant-gescopet, ge-audit, formule-injectie-guard.
+- **Mutatie-server-actions schoon (A01/A08).** ~27 high-risk `actions.ts` + 4 cascade-command-modules: volledige
+  auth→rol→ownership→Zod→actie→audit-keten, geen mass-assignment (`data: { ...clientInput }` nergens), statusovergangen
+  via `assert*Transition`-maps, TOCTOU-dichting via compound-guarded `updateMany({ where: { id, status: from } })`,
+  verplichte afwijs-/dispuutreden server-side afgedwongen, dispuut-resolutie ADMIN-only.
+- **Privacy/AVG overig schoon.** ~45 PII-velden erasure↔export-symmetrisch (o.a. `lastReadAt`, credential-/dispuut-/
+  no-show-/shift-handoff-vrije tekst, review-comments, factuur-afwijsreden via `Notification.body`); k-anonimiteit
+  `MARKET_RATE_MIN_SAMPLE = 10` (met regressietest); geen nieuwe ongeredacteerde PII in logs; sinds #1097 zijn er 0
+  nieuwe `schema.prisma`-PII-velden bijgekomen.
+- **`npm audit` — CI-poort groen.** `--omit=dev` (productie) = **0 kwetsbaarheden**. Dev-only items (`brace-expansion`/
+  `esbuild`/`js-yaml`, transitief via eslint/esbuild) blokkeren de `audit`-poort niet. **LAAG/informatief.**
+
 ## Ronde 2026-08-14b (basis: `main` @ 35ad4811) — 1× MIDDEL opgelost (erasure/export-gat op de nieuwe leesbevestiging)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

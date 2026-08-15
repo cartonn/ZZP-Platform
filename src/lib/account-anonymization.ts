@@ -125,7 +125,14 @@ export function canAnonymizeUser(
 }
 
 /** PII-velden die op de User-rij worden overschreven. `passwordHash` wordt leeggemaakt
- *  zodat inloggen onmogelijk wordt (bcrypt-vergelijking faalt altijd). */
+ *  zodat inloggen onmogelijk wordt (bcrypt-vergelijking faalt altijd). `lastLoginAt`/
+ *  `previousLoginAt` zijn login-recency-gedragsmetadata óver de betrokkene (wanneer die persoon
+ *  voor het laatst inlogde): de server voedt er inzetbaarheids-/roster-dormancy-signalen mee die
+ *  óók aan derden (de bemiddelaar op `/franchise/zzpers`) worden getoond. Blijven ze na
+ *  anonimisering staan, dan overleeft toewijsbare gedragsmetadata over het verwijderde individu een
+ *  art. 17-verzoek (spiegelbeeld van `ConversationParticipant.lastReadAt`, #1097). Ze op `null`
+ *  zetten hoort dus bij de erasure; de nu-wachtwoordloze account kan sowieso niet opnieuw inloggen,
+ *  dus er wordt niets nuttigs weggegooid. */
 export function userAnonymizationData(
   userId: string,
   now: Date,
@@ -140,6 +147,8 @@ export function userAnonymizationData(
   verifiedLegalName: null;
   mustChangePassword: false;
   emailVerified: null;
+  lastLoginAt: null;
+  previousLoginAt: null;
 } {
   return {
     name: ANONYMIZED_NAME,
@@ -152,6 +161,8 @@ export function userAnonymizationData(
     verifiedLegalName: null,
     mustChangePassword: false,
     emailVerified: null,
+    lastLoginAt: null,
+    previousLoginAt: null,
   };
 }
 

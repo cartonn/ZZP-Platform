@@ -236,6 +236,14 @@ describe("userAnonymizationData", () => {
   it("wist verifiedLegalName", () => {
     expect(data.verifiedLegalName).toBeNull();
   });
+
+  it("wist de login-recency-gedragsmetadata (lastLoginAt/previousLoginAt) — art. 17", () => {
+    // Login-recency is toewijsbare gedragsmetadata óver de betrokkene die inzetbaarheids-/
+    // roster-dormancy-signalen aan derden voedt; blijft die staan na anonimisering, dan overleeft
+    // ze een vergetelheidsverzoek (spiegel van lastReadAt, #1097).
+    expect(data.lastLoginAt).toBeNull();
+    expect(data.previousLoginAt).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

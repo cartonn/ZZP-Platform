@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-15 — Security-/privacy-audit: login-recency-metadata erasure/export-gat gedicht (MIDDEL · AVG art. 17 + 15/20)
+
+**Wat (1 bereikbare AVG-bevinding, gevonden via 4 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken; gefixt door de orchestrator):**
+
+- **`User.lastLoginAt`/`previousLoginAt` overleefde erasure én ontbrak in de data-export.** Deze
+  login-recency-gedragsmetadata óver de betrokkene voedt roster-dormancy-/inzetbaarheids-signalen die óók
+  aan de bemiddelaar (`/franchise/zzpers`) worden getoond (`franchise/zzpers/page.tsx:144`, `signals.ts:1016`),
+  maar `userAnonymizationData` raakte de velden niet (art. 17: residuele gedragsmetadata overleeft de
+  vergetelheid) en `buildAccountExport` selecteerde ze niet (art. 15/20: eigen data niet inzichtelijk). Exact
+  het patroon van #1097 (`lastReadAt`). **Fix:** `userAnonymizationData` zet nu beide op `null` (binnen de
+  bestaande anonimiseringstransactie); `buildAccountExport` selecteert ze nu — symmetrisch. Bestanden:
+  `src/lib/account-anonymization.ts`, `src/lib/account-export.ts` + tests
+  `src/lib/account-anonymization.test.ts`, `src/lib/account-export.test.ts` (rood→groen geverifieerd).
+
+**De overige oppervlakken schoon (bewijs in `docs/SECURITY-PRIVACY-BACKLOG.md`, ronde 2026-08-15):** 49/49
+route-handlers (IDOR/authz/document-privacy), ~90 cross-tenant-query-sites, ~27 high-risk mutatie-actions
+(mass-assignment/statusovergangen/audit), ~45 PII-velden erasure↔export-symmetrisch, `npm audit --omit=dev` = 0.
+
 ## 2026-08-15 — Persona-sweep run 78: TOCTOU-afrondrace + outer-window-blindheid gedicht
 
 **Wat (2 bereikbare defecten, gevonden via 4 parallelle adversariële Opus-audits, gefixt door 2

@@ -145,6 +145,11 @@ describe("buildAccountExport", () => {
     // persoonsgegevens; ze moeten in de eigen-data-inzage zitten (ontbraken eerder).
     expect(select.verifiedLegalName).toBe(true);
     expect(select.identityVerifiedAt).toBe(true);
+    // De eigen login-recency (`lastLoginAt`/`previousLoginAt`) is eigen persoonsgegeven dat de
+    // server óver de betrokkene bewaart/verwerkt (inzetbaarheids-/dormancy-signalen); het hoort in
+    // de inzage/portabiliteit en is symmetrisch met de erasure die het wist. Ontbrak eerder.
+    expect(select.lastLoginAt).toBe(true);
+    expect(select.previousLoginAt).toBe(true);
   });
 
   it("lekt de identiteit van de beoordeelde tegenpartij niet (geen subjectId in de select)", async () => {
