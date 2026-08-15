@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-15 — ZZP'er: gewerkte uren per maand op /inzicht
+
+**Wat (operationele tegenhanger van de geldtrends):** /inzicht toonde de ZZP'er al omzet-, winst- en
+(op /uitgaven) kostentrends per maand, maar niet hoevéél er per maand gewerkt is — het operationele
+signaal om drukke/rustige maanden te zien en capaciteit te plannen. De data bestond (goedgekeurde
+uren-prestaties), maar werd nergens per maand getoond; het urencriterium telt alleen een cumulatief
+jaartotaal. Nu een "Gewerkte uren per maand"-staafstrip (laatste 6 maanden) tussen de winst- en de
+urencriterium-kaart, met maand-op-maand-delta.
+
+**Grens/architectuur:** nieuwe pure `src/lib/worked-hours-trend.ts` (`buildWorkedHoursTrend` +
+fetcher `getFreelancerWorkedHoursTrend`) hergebruikt exact de maand-bucketing (`monthlyRevenue`) en
+delta (`monthDeltaPct`) uit `revenue.ts` → geen drift met de omzet-/winsttrends (zelfde TZ
+Europe/Amsterdam, maandgrenzen, ankerlogica). Kwartier-precisie exact bewaard via integer-honderdsten
+door de som-bucketing. Telt dezelfde bron als de directe uren van het urencriterium (APPROVED +
+HOURS), maandbucket op de werkperiode (`periodEnd`, terugval `periodStart`/`approvedAt`).
+Owner-gescoopt via de samenwerking; read-only, alleen FREELANCER, geen schema-/mutatie-/auth-oppervlak.
+
+**Bestanden:** `src/lib/worked-hours-trend.ts` (+ `.test.ts`, 6 tests), `src/app/(protected)/inzicht/page.tsx`
+(`GewerkteUrenPerMaandCard` + fetch + `formatUren`). **Checks:** typecheck, lint, test (6), build,
+prettier groen.
+
 ## 2026-08-15 — Persona-sweep run 77: afgekeurde prestatie & keur-slice deterministisch in het actiecentrum
 
 **Wat (twee next-action-engine-defecten, DOEL 1b):** vier parallelle adversariële Opus-code-audits op

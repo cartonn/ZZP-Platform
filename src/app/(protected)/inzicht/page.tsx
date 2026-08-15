@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import {
   ArrowRight,
   BarChart3,
+  Clock,
   Coins,
   Gauge,
   PieChart,
@@ -30,6 +31,7 @@ import {
   type RevenueTrend,
 } from "@/lib/revenue-trend";
 import { formatEuro } from "@/lib/invoices";
+import { cn } from "@/lib/utils";
 import { plural } from "@/lib/plural";
 import { summarizeClientApplications } from "@/lib/client-application-funnel";
 import {
@@ -50,6 +52,7 @@ import {
   RevenueHero,
 } from "@/components/insight/bi";
 import { getFreelancerProfitTrend, type ProfitTrend } from "@/lib/profit-trend";
+import { getFreelancerWorkedHoursTrend, type WorkedHoursTrend } from "@/lib/worked-hours-trend";
 import {
   getHoursCriterionSummary,
   type HoursCriterionSummary,
@@ -99,6 +102,11 @@ function rateTone(pct: number, good = 80, ok = 50): "success" | "warning" | "def
 /** Percentage in nl-NL, max één decimaal (bv. "12,5%"). */
 function formatPercent(pct: number): string {
   return `${pct.toLocaleString("nl-NL", { maximumFractionDigits: 1 })}%`;
+}
+
+function formatUren(hours: number): string {
+  const rounded = Math.round(hours * 10) / 10;
+  return `${rounded.toLocaleString("nl-NL", { maximumFractionDigits: 1 })} u`;
 }
 
 function bars(trend: RevenueTrend) {
@@ -202,6 +210,75 @@ function WinstPerMaandCard({ trend }: { trend: ProfitTrend }) {
 }
 
 /**
+ * Gewerkte-uren-per-maand kaart: de operationele tegenhanger van "Winst per maand". Toont hoevéél de
+ * ZZP'er per maand heeft gewerkt (goedgekeurde uren-prestaties), zodat drukke/rustige maanden zichtbaar
+ * worden. De cijfers komen uit `buildWorkedHoursTrend` (zelfde maand-bucketing als de geldtrends),
+ * server-side berekend. Alleen uren — geen bedragen.
+ */
+function GewerkteUrenPerMaandCard({ trend }: { trend: WorkedHoursTrend }) {
+  if (!trend.hasData) {
+    return (
+      <BiWidget title="Gewerkte uren per maand">
+        <EmptyState
+          icon={Clock}
+          title="Nog geen gewerkte uren"
+          description="Zodra je uren zijn goedgekeurd, zie je hier hoeveel je per maand hebt gewerkt."
+        />
+      </BiWidget>
+    );
+  }
+  return (
+    <BiWidget
+      title="Gewerkte uren per maand"
+      action={
+        <Link
+          href="/diensten"
+          className="focus-ring inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:underline"
+        >
+          Naar diensten
+          <ArrowRight className="size-3.5" aria-hidden />
+        </Link>
+      }
+    >
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Gewerkt · laatste {trend.months} maanden
+            </p>
+            <p className="mt-1 font-mono text-3xl font-semibold tabular-nums tracking-tight">
+              {formatUren(trend.totalHours)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">goedgekeurde uren per maand</p>
+          </div>
+          {trend.deltaPct !== null && (
+            <div>
+              <p className="text-xs text-muted-foreground">Deze maand vs. vorige</p>
+              <p
+                className={cn(
+                  "mt-0.5 font-mono text-lg font-semibold tabular-nums",
+                  trend.deltaPct >= 0 ? "text-success" : "text-warning",
+                )}
+              >
+                {trend.deltaPct >= 0 ? "+" : ""}
+                {formatPercent(trend.deltaPct)}
+              </p>
+            </div>
+          )}
+        </div>
+        <BarSeries
+          data={trend.series.map((m) => ({ key: m.key, label: m.label, value: m.hours }))}
+          formatValue={formatUren}
+          height={132}
+          tone="accent"
+          label="Gewerkte uren per maand"
+        />
+      </div>
+    </BiWidget>
+  );
+}
+
+/**
  * Fee-per-maand trend voor de bemiddelaar: spiegel van de ZZP'er "Winst per maand". Toont de fee die
  * de bemiddelaar over het doorgezette volume verdient, per maand — zijn kern-P&L over tijd. De cijfers
  * komen uit `buildTenantFeeTrend` (puur: omzettrend × fee-percentage), server-side berekend.
@@ -281,14 +358,16 @@ function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
 }
 
 async function FreelancerInzicht({ userId }: { userId: string }) {
-  const [s, membership, trend, quality, hoursCriterion, profitTrend] = await Promise.all([
-    getFreelancerStats(userId),
-    getFreelancerMembership(userId),
-    getFreelancerRevenueTrend(userId),
-    getDeliveryQuality(userId),
-    getHoursCriterionSummary(userId),
-    getFreelancerProfitTrend(userId),
-  ]);
+  const [s, membership, trend, quality, hoursCriterion, profitTrend, workedHours] =
+    await Promise.all([
+      getFreelancerStats(userId),
+      getFreelancerMembership(userId),
+      getFreelancerRevenueTrend(userId),
+      getDeliveryQuality(userId),
+      getHoursCriterionSummary(userId),
+      getFreelancerProfitTrend(userId),
+      getFreelancerWorkedHoursTrend(userId),
+    ]);
   if (!s) {
     return (
       <Card>
@@ -318,6 +397,8 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
       />
 
       <WinstPerMaandCard trend={profitTrend} />
+
+      <GewerkteUrenPerMaandCard trend={workedHours} />
 
       {hoursCriterion && <UrencriteriumCard summary={hoursCriterion} />}
 
