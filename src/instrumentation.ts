@@ -9,8 +9,13 @@ export async function register() {
     // Graceful shutdown: flip de readiness-probe naar "draining" zodra een afsluitsignaal binnenkomt,
     // zodat de load balancer geen nieuw verkeer meer naar deze afsluitende instance stuurt. Verandert
     // de bestaande afsluiting niet — zet alleen de readiness-vlag.
-    const { registerShutdownSignals } = await import("@/lib/observability/shutdown");
+    const { registerShutdownSignals, registerDrainSignal } =
+      await import("@/lib/observability/shutdown");
     registerShutdownSignals();
+    // Drain-only signaal (SIGUSR2): de orchestrator (scripts/start.mjs) flipt hiermee readiness →
+    // 503 zónder de HTTP-server te sluiten, wacht een drain-venster zodat de load balancer deze
+    // instance uit de rotatie haalt, en stuurt pas dán de echte SIGTERM. Zero-downtime redeploy.
+    registerDrainSignal();
   }
 }
 

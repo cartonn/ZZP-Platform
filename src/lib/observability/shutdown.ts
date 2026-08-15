@@ -14,6 +14,7 @@
 let draining = false;
 let drainingSince: Date | null = null;
 let signalsRegistered = false;
+let drainSignalRegistered = false;
 
 /**
  * Markeer de server als afsluitend. Idempotent: alleen de eerste aanroep zet het starttijdstip,
@@ -59,9 +60,33 @@ export function registerShutdownSignals(
   return true;
 }
 
+/**
+ * Registreer éénmalig de "drain-only" signaal-handler (SIGUSR2) die de server op "draining" zet
+ * ZONDER de HTTP-server te sluiten. De orchestrator (`scripts/start.mjs`) stuurt dit signaal als
+ * eerste fase van een nette afsluiting: readiness flipt naar 503, de load balancer haalt deze
+ * instance uit de rotatie, en pas ná het drain-venster volgt de echte SIGTERM die Next de
+ * HTTP-server laat sluiten. Next behandelt SIGUSR2 niet als afsluitsignaal, dus de server blijft
+ * tijdens het drain-venster gewoon requests bedienen (geen connection-reset op nieuw verkeer dat
+ * de load balancer nog even doorstuurt).
+ *
+ * Idempotent en injecteerbaar, net als `registerShutdownSignals`. Belangrijk: het registreren van
+ * een eigen SIGUSR2-listener onderdrukt Node's default (die SIGUSR2 anders als terminate afhandelt).
+ */
+export function registerDrainSignal(
+  on: (signal: NodeJS.Signals, handler: () => void) => void = (signal, handler) => {
+    process.on(signal, handler);
+  },
+): boolean {
+  if (drainSignalRegistered) return false;
+  drainSignalRegistered = true;
+  on("SIGUSR2", () => beginDraining());
+  return true;
+}
+
 /** Alleen voor tests: reset de module-state naar "draait normaal". */
 export function resetShutdownStateForTest(): void {
   draining = false;
   drainingSince = null;
   signalsRegistered = false;
+  drainSignalRegistered = false;
 }

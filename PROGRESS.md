@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-15 — Prod: pre-shutdown drain-venster (zero-downtime redeploy) (PR #1106)
+
+**Wat:** de readiness-draining bij SIGTERM had geen effect-venster — `scripts/start.mjs` stuurde de
+SIGTERM **direct** door aan Next, dat de HTTP-server meteen sloot vóór de load balancer de `503` op
+`/api/readiness` zag → nieuw verkeer tijdens een Railway-redeploy kreeg connection-reset
+(rolling-deploy-5xx). Nu **twee fasen**: fase 1 flipt readiness → 503 via een intern SIGUSR2-signaal
+**zónder de HTTP-server te sluiten** (server blijft requests bedienen), wacht `SHUTDOWN_DRAIN_MS`
+(default 5000 ms prod, 0 daarbuiten, geklemd [0,60000]) zodat de load balancer de instance uit de
+rotatie haalt; fase 2 stuurt pas dán de echte SIGTERM voor de nette HTTP-close (force-kill-vangnet
+ongewijzigd).
+
+**Bestanden:** `scripts/shutdown-config.mjs` (nieuw, pure `resolveDrainMs`/`resolveForceKillMs`/
+`clampMs`) + `scripts/shutdown-config.test.ts`; `src/lib/observability/shutdown.ts`
+(`registerDrainSignal` — SIGUSR2 → beginDraining, idempotent/injecteerbaar) + tests;
+`src/instrumentation.ts` (wiring); `scripts/start.mjs` (twee-fase afsluiting); `vitest.config.ts`
+(`scripts/**/*.test.ts` in include); docs (RUNBOOK §2, MENSENWERK §7 + done-marker).
+
+**Gate:** typecheck ✓ · lint ✓ · 18 nieuwe tests groen (`npm run test` volledig groen geverifieerd) ·
+build ✓ · prettier ✓. CI-poort verifiëren op de PR.
+
 ## 2026-08-15 — Security-/privacy-audit: login-recency-metadata erasure/export-gat gedicht (MIDDEL · AVG art. 17 + 15/20)
 
 **Wat (1 bereikbare AVG-bevinding, gevonden via 4 parallelle adversariële Opus-audits op

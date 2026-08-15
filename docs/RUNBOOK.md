@@ -38,13 +38,23 @@
   Reageert hij met `503`, dan is de DB onbereikbaar → zie §6 (incident).
 - Een DB-storing op `/api/health` wordt gerapporteerd via de observability-reporter (Sentry-ready
   zodra `SENTRY_DSN` gezet is; anders gestructureerd gelogd).
-- **Graceful shutdown / drainen:** zodra de server een afsluitsignaal (SIGTERM/SIGINT — een
-  Railway-redeploy of een operator die stopt) ontvangt, zet `/api/readiness` op `503` met veld
-  `"draining": true`, terwijl `/api/health` bewust `200` blijft. Zo stopt de load balancer met nieuw
-  verkeer naar de afsluitende instance, terwijl Next de lopende requests netjes afrondt. Sluit Next
-  niet binnen `SHUTDOWN_FORCE_KILL_MS` af (default 25000 ms; geklemd [1000, 120000]), dan forceert
-  `scripts/start.mjs` een `SIGKILL` zodat de deploy nooit blijft hangen. Een tweede afsluitsignaal
-  forceert direct. Niets in te stellen voor de pilot.
+- **Graceful shutdown / drainen (twee fasen, zero-downtime redeploy):** zodra de server een
+  afsluitsignaal (SIGTERM/SIGINT — een Railway-redeploy of een operator die stopt) ontvangt, verloopt
+  de afsluiting in twee fasen zodat een rolling redeploy geen verkeer verliest:
+  1. **Drain-fase:** `/api/readiness` gaat op `503` met veld `"draining": true` (via een intern
+     SIGUSR2-signaal), terwijl `/api/health` bewust `200` blijft **en de HTTP-server open blijft en
+     gewoon requests bedient**. Zo krijgt de load balancer de tijd om deze instance uit de rotatie te
+     halen vóór de socket sluit — nieuw verkeer dat hij nog even doorstuurt krijgt géén
+     connection-reset. Duur: `SHUTDOWN_DRAIN_MS` (default **5000 ms in productie**, `0` daarbuiten;
+     geklemd [0, 60000]).
+  2. **Close-fase:** ná het drain-venster laat `scripts/start.mjs` Next de HTTP-server netjes sluiten
+     (lopende requests afronden, nieuwe weigeren). Sluit Next niet binnen `SHUTDOWN_FORCE_KILL_MS`
+     (default 25000 ms; geklemd [1000, 120000]), dan volgt een `SIGKILL` zodat de deploy nooit blijft
+     hangen.
+
+  Een tweede afsluitsignaal slaat het drain-venster over en forceert direct. Niets in te stellen voor
+  de pilot; verhoog `SHUTDOWN_DRAIN_MS` alleen als je load balancer trager dan ~5 s uit de rotatie
+  haalt (houd het ruim onder de host-kill-grace zodat de container nooit mid-drain een SIGKILL krijgt).
 
 ### 2a. Metrics + alerting (`/api/metrics`)
 
