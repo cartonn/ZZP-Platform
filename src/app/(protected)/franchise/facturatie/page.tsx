@@ -1,7 +1,7 @@
 import { type Metadata } from "next";
 import { ReceiptText } from "lucide-react";
 import { requireRole } from "@/lib/authz";
-import { getTenantBillingOverview } from "@/lib/franchise/billing";
+import { getTenantBillingOverview, getTenantFeeLines } from "@/lib/franchise/billing";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,10 @@ const STATUS_VARIANT: Record<TenantSubscriptionStatus, "success" | "warning" | "
 
 export default async function FranchiseFacturatiePage() {
   const actor = await requireRole("FRANCHISER");
-  const overview = await getTenantBillingOverview(actor, new Date());
+  const [overview, feeLines] = await Promise.all([
+    getTenantBillingOverview(actor, new Date()),
+    getTenantFeeLines(actor),
+  ]);
 
   if (!overview) {
     return (
@@ -51,7 +54,7 @@ export default async function FranchiseFacturatiePage() {
           </Badge>
         }
       />
-      <BillingPanel overview={overview} />
+      <BillingPanel overview={overview} feeLines={feeLines} />
     </div>
   );
 }

@@ -1,7 +1,13 @@
-import { Info } from "lucide-react";
+import { Download, Info } from "lucide-react";
 import { type TenantBillingOverview } from "@/lib/tenant-billing/tenant-billing-overview";
+import {
+  type TenantFeeLine,
+  sortTenantFeeLines,
+  tenantFeeStatusLabel,
+} from "@/lib/tenant-billing/tenant-fee-lines";
 import { type TenantSubscriptionStatus } from "@/lib/enums";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { formatEuro } from "@/lib/invoices";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
@@ -30,7 +36,14 @@ function Row({ label, value }: { label: string; value: string }) {
  * op de losse /franchise/facturatie-route én als tab in de bemiddeling-hub. Pure presentatie: de
  * aanroeper levert het al tenant-gescopete overzicht; hier wordt niets opnieuw opgehaald.
  */
-export function BillingPanel({ overview }: { overview: TenantBillingOverview }) {
+export function BillingPanel({
+  overview,
+  feeLines,
+}: {
+  overview: TenantBillingOverview;
+  feeLines: TenantFeeLine[];
+}) {
+  const lines = sortTenantFeeLines(feeLines);
   return (
     <div className="space-y-6">
       {/* De automatische incasso is nog niet gekoppeld (mensenwerk): het overzicht en de
@@ -77,6 +90,62 @@ export function BillingPanel({ overview }: { overview: TenantBillingOverview }) 
             <Row label="Totaal nu verschuldigd" value={formatEuro(overview.totalDueCents)} />
           </div>
           <p className="mt-3 text-xs text-muted-foreground">Bedragen exclusief btw.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold tracking-tight">Fees per samenwerking</h2>
+            {lines.length > 0 && (
+              <Button asChild size="sm" variant="secondary">
+                <a href="/franchise/facturatie/export">
+                  <Download className="mr-1.5 size-4" aria-hidden />
+                  Exporteren
+                </a>
+              </Button>
+            )}
+          </div>
+          {lines.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Er zijn nog geen transactie-fees geregistreerd. Zodra een samenwerking gevuld is,
+              verschijnt de bijbehorende fee hier.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                    <th className="py-2 pr-3 font-medium">Opdracht</th>
+                    <th className="py-2 pr-3 font-medium">Opdrachtgever</th>
+                    <th className="py-2 pr-3 font-medium">ZZP&apos;er</th>
+                    <th className="py-2 pr-3 font-medium">Vastgelegd</th>
+                    <th className="py-2 pr-3 text-right font-medium">Fee</th>
+                    <th className="py-2 text-right font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {lines.map((l) => (
+                    <tr key={l.collaborationId}>
+                      <td className="py-2 pr-3">{l.jobTitle}</td>
+                      <td className="py-2 pr-3 text-muted-foreground">{l.clientName}</td>
+                      <td className="py-2 pr-3 text-muted-foreground">{l.freelancerName ?? "—"}</td>
+                      <td className="py-2 pr-3 tabular-nums text-muted-foreground">
+                        {formatDateShortNl(l.recordedAt)}
+                      </td>
+                      <td className="py-2 pr-3 text-right font-medium tabular-nums">
+                        {formatEuro(l.feeCents)}
+                      </td>
+                      <td className="py-2 text-right text-xs text-muted-foreground">
+                        {tenantFeeStatusLabel(l.status)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="mt-3 text-xs text-muted-foreground">Bedragen exclusief btw.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

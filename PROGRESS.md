@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-15 — Bemiddelaar: fee-breakdown per samenwerking + CSV-export op /franchise/facturatie
+
+**Wat (bemiddelaar ziet én exporteert zijn fee-grootboek):** `/franchise/facturatie` toonde alleen
+drie totalen (openstaand/gefactureerd/totaal verschuldigd) uit `buildTenantBillingOverview` — de
+per-fee-rijen achter die sommen werden bewust weggegooid. De bemiddelaar kon niet zien wélke
+samenwerking / opdrachtgever / ZZP'er elke transactie-fee (`CollaborationFee`, ADR-0006 E) genereerde
+en kon het fee-grootboek niet exporteren voor de eigen boekhouding — een echt scherm↔export-gat (er
+bestond nog géén fee-export voor de bemiddeling, terwijl prestaties/verplichtingen/diensten/prognose
+die wél hebben). Nu een "Fees per samenwerking"-kaart met een tabel (opdracht, opdrachtgever, ZZP'er,
+vastlegdatum, fee, status) nieuwste-eerst + een CSV-export. De admin had al een per-fee-detail
+(`getPlatformBillingInvoiceDetail`); de bemiddelaar kreeg nu zijn eigen equivalent.
+
+**Grens/architectuur:** server-side waarheid, read-only, tenant-gescopet (`where: { tenantId }` — een
+bemiddelaar ziet alleen zijn eigen fees). Nieuwe pure `src/lib/tenant-billing/tenant-fee-lines.ts`
+(`TenantFeeLine`, `sortTenantFeeLines` met deterministische tie-break, `exportTenantFeesCsv` via de
+gedeelde CSV-kern → formule-injectie-guard CWE-1236, `tenantFeeStatusLabel`); data-access
+`getTenantFeeLines(actor)` in `franchise/billing.ts` (één query, geen N+1). Export-route
+`/franchise/facturatie/export` spiegelt de bestaande export-routes exact (requireActor →
+`AuthorizationError`-guard → rol FRANCHISER → `enforceRateLimit(exportRateLimiter)` → audit
+`TENANT_FEES_EXPORTED` (AVG art. 5(2)) → `text/csv`). Beide `BillingPanel`-call-sites gewired (losse
+route + bemiddeling-hub-tab). Geen schemawijziging, geen nieuw mutatie-/auth-oppervlak. Lege-staat op
+de kaart. +9 tests. Gate: typecheck, lint, test, prettier lokaal groen; build via CI.
+**Bestanden:** `src/lib/tenant-billing/tenant-fee-lines.ts` (+ test),
+`src/lib/franchise/billing.ts`, `src/app/(protected)/franchise/facturatie/{page.tsx,export/route.ts}`,
+`src/components/franchise/{billing-panel.tsx,bemiddeling-hub-screen.tsx}`.
+
 ## 2026-08-14 — Security/privacy-audit: erasure/export-gat op de nieuwe leesbevestiging gedicht (MIDDEL)
 
 **Wat:** security-/privacy-auditronde (basis `main` @ `35ad4811`; orchestrator Opus 4.8 + 3 parallelle

@@ -14,6 +14,7 @@ import {
   buildTenantBillingOverview,
   type TenantBillingOverview,
 } from "@/lib/tenant-billing/tenant-billing-overview";
+import { type TenantFeeLine } from "@/lib/tenant-billing/tenant-fee-lines";
 
 /**
  * Het facturatie-overzicht voor de franchise van de actor. Geeft `null` als de actor geen franchise
@@ -51,4 +52,42 @@ export async function getTenantBillingOverview(
     })),
     now,
   );
+}
+
+/**
+ * De transactie-fees van de franchise als losse regels (nieuwste-eerst), verrijkt met de partijen
+ * achter elke samenwerking. Tenant-gescopet: een franchiser ziet alleen zijn eigen fees. Geeft een
+ * lege lijst als de actor geen franchise heeft. Read-only.
+ */
+export async function getTenantFeeLines(actor: Actor): Promise<TenantFeeLine[]> {
+  if (!hasTenant(actor)) return [];
+  const rows = await prisma.collaborationFee.findMany({
+    where: { tenantId: actor.tenantId },
+    orderBy: { recordedAt: "desc" },
+    select: {
+      collaborationId: true,
+      feeCents: true,
+      vatCents: true,
+      status: true,
+      recordedAt: true,
+      collaboration: {
+        select: {
+          job: { select: { title: true } },
+          company: { select: { name: true } },
+          freelancer: { select: { user: { select: { name: true } } } },
+        },
+      },
+    },
+  });
+
+  return rows.map((r) => ({
+    collaborationId: r.collaborationId,
+    jobTitle: r.collaboration.job.title,
+    clientName: r.collaboration.company.name,
+    freelancerName: r.collaboration.freelancer.user.name,
+    feeCents: r.feeCents,
+    vatCents: r.vatCents,
+    status: r.status as CollaborationFeeStatus,
+    recordedAt: r.recordedAt,
+  }));
 }

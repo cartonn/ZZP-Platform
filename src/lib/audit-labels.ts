@@ -114,6 +114,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   PAYMENT_OVERDUE: "Betaling te laat",
   OBLIGATIONS_EXPORTED: "Betaalverplichtingen geëxporteerd",
   FORECAST_EXPORTED: "Cashflow-prognose geëxporteerd",
+  TENANT_FEES_EXPORTED: "Bemiddelingsfees geëxporteerd",
 
   // Certificaten & documenten
   CREDENTIAL_CREATED: "Certificaat aangemaakt",
