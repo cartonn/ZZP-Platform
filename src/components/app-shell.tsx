@@ -205,7 +205,7 @@ export async function AppShell({
           )}
         </main>
       </div>
-      <CommandPalette />
+      <CommandPalette navItems={navItems} />
     </div>
   );
 }

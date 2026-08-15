@@ -3,6 +3,7 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+
 ## 2026-08-18 — Persona-sweep run 81: outer-window-blindheid op de teken-/indien-taak (DOEL 1b)
 
 **Wat:** de "Contract ondertekenen"-taak (PROPOSED — ZZP'er én opdrachtgever) en de "Uren indienen"-taak
@@ -801,6 +802,28 @@ gaten**; de next-action-audit leverde twee vensterbepaalde onzichtbaarheids-defe
 `performance.findMany`-stub toegevoegd aan 5 sibling-mocks). **Checks:** typecheck/lint/test/build/prettier
 groen. Backlog + PROGRESS bijgewerkt. Geparkeerd (nit, LAAG): `drawer-resolver.tsx:32` generiek
 "Afronden"-label op de identiteits-drawer.
+---
+## 2026-08-15 — Alle rollen: paginanavigatie in de snelzoeker (⌘K) — "Ga naar …"
+
+**Wat (elke rol springt met het toetsenbord direct naar een pagina):** de globale snelzoeker (⌘K)
+zocht alleen entiteiten (opdrachten/facturen/…) via de server-actie. Wie de pagina "Facturen" of
+"Inzicht" wilde openen moest de sidebar gebruiken; typen leverde niets tot er een entiteit matchte.
+Nu toont de snelzoeker bovenaan een "Ga naar"-groep met rol-gescopte navigatiecommando's die de term
+matchen (Linear-benchmark: ⌘K is óók een navigator, niet alleen een zoeker). De commando's komen uit
+de bestaande `navForRole`-nav die de sidebar al voedt, dus ze zijn per rol identiek gescopet en tonen
+nooit een pagina waar de rol geen toegang toe heeft.
+
+**Grens/architectuur:** server-side waarheid — de kandidaten zijn de rol-gescopte nav-items die de
+server (AppShell) al doorgeeft; de client kiest nooit zelf welke pagina's zichtbaar zijn. Nieuwe pure
+`src/lib/nav-commands.ts` (`buildNavCommands`): filtert op `enabled` (nooit een dode/placeholder-link),
+scoort label + sectiekop met de bestaande `scoreField` (label weegt zwaarder dan sectie), rankt
+deterministisch (score → bronvolgorde → NL-alfabet) en begrenst. Nav-commando's worden lokaal berekend
+(geen extra server-call); entiteit-zoeken blijft ongewijzigd (≥2 tekens, gedebounced). Toetsenbord- +
+muisnavigatie lopen over de gecombineerde lijst (nav-commando's eerst, dan entiteiten). Geen
+schema-/mutatie-/auth-oppervlak, geen i18n-werk (de labels komen al vertaald uit AppShell). +10 tests.
+Gate: typecheck, lint, test, prettier lokaal groen; build/e2e via CI.
+**Bestanden:** `src/lib/nav-commands.ts` (+ test), `src/components/search/command-palette.tsx`,
+`src/components/app-shell.tsx`.
 
 ## 2026-08-15 — Bemiddelaar: fee-breakdown per samenwerking + CSV-export op /franchise/facturatie
 
