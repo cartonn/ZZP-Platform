@@ -40,11 +40,11 @@ describe("buildNavCommands", () => {
       { label: "Zakelijk nieuws", href: "/nieuws", section: "Overig", enabled: true },
       { label: "Facturen", href: "/facturen", section: "Zakelijk", enabled: true },
     ];
-    const out = buildNavCommands(items, "zakelijk");
+    const [first, second] = buildNavCommands(items, "zakelijk");
     // /nieuws matcht het label ("Zakelijk …" → begint met de term, score 3),
     // /facturen alleen de sectie (score 1) → label wint.
-    expect(out[0].href).toBe("/nieuws");
-    expect(out[0].score).toBeGreaterThan(out[1].score);
+    expect(first?.href).toBe("/nieuws");
+    expect(first?.score ?? 0).toBeGreaterThan(second?.score ?? 0);
   });
 
   it("rankt exacte match boven begint-met boven bevat", () => {
