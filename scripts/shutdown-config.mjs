@@ -24,6 +24,9 @@ export function clampMs(raw, def, min, max) {
  * Default: 5000 ms in productie (waar een rolling redeploy speelt), 0 daarbuiten (geen vertraging
  * bij lokaal stoppen of in tests). Instelbaar via `SHUTDOWN_DRAIN_MS`, geklemd op [0, 60000] — ruim
  * onder de kill-grace van gangbare hosts zodat de container nooit mid-drain een SIGKILL krijgt.
+ *
+ * @param {Record<string, string | undefined>} [env]
+ * @returns {number}
  */
 export function resolveDrainMs(env = process.env) {
   const def = env.NODE_ENV === "production" ? 5000 : 0;
@@ -34,6 +37,9 @@ export function resolveDrainMs(env = process.env) {
  * Het force-kill-vangnet (ms): sluit Next niet binnen dit venster ná de echte SIGTERM (een hangende
  * in-flight request), dan volgt een SIGKILL zodat de deploy nooit blijft hangen. Instelbaar via
  * `SHUTDOWN_FORCE_KILL_MS`, geklemd op [1000, 120000], default 25000.
+ *
+ * @param {Record<string, string | undefined>} [env]
+ * @returns {number}
  */
 export function resolveForceKillMs(env = process.env) {
   return clampMs(env.SHUTDOWN_FORCE_KILL_MS, 25000, 1000, 120000);
