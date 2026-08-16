@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-16 — prod: harde time-out op de DB-probes van /api/health + /api/readiness
+
+**Wat:** de liveness- (`/api/health`) en readiness- (`/api/readiness`) probes deden een DB-round-trip
+(`SELECT 1` + kerntabel-count) **zónder harde time-out**. Een _fout_ (DB onbereikbaar) werd al netjes
+afgevangen, maar een DB die de TCP-verbinding openhoudt en simpelweg **niet meer antwoordt**
+(connection-pool-uitputting, lock-contentie, netwerk-partitie met open socket) liet de `await`
+oneindig hangen → de probe gaf nooit antwoord. Voor de orchestrator (Railway/load balancer) is een
+hangende probe dubbelzinnig ("traag" vs "vastgelopen"). Dit was de enige dependency-call in de hot path
+zonder deadline, terwijl álle uitgaande HTTP (`fetchWithTimeout`) en cron-taken (`withTaskTimeout`) die
+discipline al hadden.
+
+**Fix:** pure, injecteerbare helper `withProbeTimeout` + `resolveProbeTimeoutMs`
+(`src/lib/observability/probe-timeout.ts`, `Promise.race` + gegarandeerde timer-cleanup, spiegelt
+`withTaskTimeout`). Gewired om beide DB-probes in `src/app/api/readiness/route.ts` (dbPing + schemaProbe)
+en `src/app/api/health/route.ts` (DB-ping). Deadline via `HEALTH_PROBE_TIMEOUT_MS` (default 3000 ms,
+geklemd 250–30000; `0` schakelt bewust uit). Een verlopen probe telt als **gefaald** (degraded / not
+ready, `503`) — nooit vals groen. `evaluateReadiness`/`buildHealthPayload` blijven puur/ongewijzigd (de
+route wrapt de probes). 15 nieuwe unit-tests (`probe-timeout.test.ts`, fake timers voor de deadline;
+readiness/health-tests ongewijzigd groen).
+
+**Bestanden:** `src/lib/observability/probe-timeout.ts` (+ test), `src/app/api/{health,readiness}/route.ts`,
+`.env.example` (`HEALTH_PROBE_TIMEOUT_MS`), `docs/RUNBOOK.md` (§monitoring). **Mensenwerk:** geen —
+werkt out-of-the-box; optioneel `HEALTH_PROBE_TIMEOUT_MS` bijstellen.
+
 ## 2026-08-16 — Security-/privacy-audit: erasure-gat op `Notification.readAt` gedicht (AVG art. 17)
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
