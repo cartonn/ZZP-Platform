@@ -28,6 +28,9 @@ const findUniqueMock = vi.hoisted(() => vi.fn());
 // defaults houden deze poort-test gefocust op de liveness/tenant-poort (0 hoogtepunten → geen sectie).
 const collabCountMock = vi.hoisted(() => vi.fn(async () => 0));
 const collabFindManyMock = vi.hoisted(() => vi.fn(async () => []));
+// Gepubliceerde reputatie (getFreelancerReputation) draait alleen op het gedeelde pad; geen
+// beoordelingen → geen reputatie-sectie, houdt deze poort-test gefocust op liveness/tenant.
+const reviewFindManyMock = vi.hoisted(() => vi.fn(async () => []));
 
 vi.mock("@/lib/share-token", () => ({
   shareTokenSecret: () => SECRET,
@@ -38,6 +41,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     freelancerProfile: { findUnique: findUniqueMock },
     collaboration: { count: collabCountMock, findMany: collabFindManyMock },
+    review: { findMany: reviewFindManyMock },
   },
 }));
 vi.mock("@/lib/audit", () => ({ audit: auditMock }));
@@ -53,6 +57,7 @@ import TrustDossierPage from "./[profileId]/[token]/page";
 function activeProfile(overrides: Record<string, unknown> = {}) {
   return {
     id: "profile-1",
+    userId: "user-1",
     visibility: "PUBLIC",
     tenantId: null,
     headline: "Verpleegkundige",
