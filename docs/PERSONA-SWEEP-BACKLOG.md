@@ -56,13 +56,17 @@ asc`-geordende query (alleen certificaat-dragende samenwerkingen vullen het vens
 >
 > **Geparkeerd (met repro, niet gefixt deze run):**
 >
-> - **`revenue-trend.ts` leunt op de legacy `status`-kolom (MED, functionele correctheid — zelfde wortel als
->   de KPI-fix):** de omzet-trend-queries filteren op `status: { not: "CANCELLED" }` en tellen omzet uit de
->   legacy `status`-kolom; door de legacy/lifecycle-drift kan een lopende cascade-factuur onder- of
->   verkeerd-gerapporteerd worden op de omzet-dashboards (freelancer/client/tenant/platform). **Aanpak:** een
->   gedeelde `isInvoiceCancelledForReporting`/`settled`-helper (analoog aan `isInvoiceSettled` in
->   `cascade/completion.ts`) zodat toekomstige stats/report-code de drift niet herintroduceert. Aparte,
->   grotere increment (raakt 4 dashboards) — daarom geparkeerd, niet in deze run meegenomen.
+> - ~~**`revenue-trend.ts` leunt op de legacy `status`-kolom (MED, functionele correctheid — zelfde wortel als
+>   de KPI-fix):**~~ **OPGELOST (2026-08-16, PR #1119):** de omzet-trend-queries filterden op
+>   `status: { not: "CANCELLED" }` (legacy-kolom); een gecrediteerde/teruggedraaide cascade-factuur
+>   (lifecycleStatus `CREDITED`, legacy `status` blijft `DRAFT`) glipte door de filter en werd op alle vier
+>   de omzet-dashboards (freelancer/client/tenant/platform) tóch als omzet meegeteld. **Fix:** gedeelde
+>   reporting-helper `src/lib/administration/revenue-recognition.ts` (`isInvoiceRevenueCounted` +
+>   `revenueCountedInvoiceWhere`, gespiegeld op `outstandingInvoiceWhere`/`isInvoiceSettled`): cascade telt
+>   mee tenzij `CREDITED`, legacy tenzij `CANCELLED`; alle vier de fetchers in `revenue-trend.ts` gebruiken
+>   nu `...revenueCountedInvoiceWhere`. +9 tests.
+>   _Resterend (apart, niet in deze fix):_ `freelancer-stats.ts`/`client-stats.ts` tellen "betaalde omzet"
+>   op `status: "PAID"` (legacy-only, mist cascade-PAID) — andere metriek, andere wortel; volgende increment.
 > - **Authz-audit-residu (LAAG, dekking):** de authz/IDOR/tenant-audit was representatief, niet 100%
 >   bestandsdekkend; de action-bestanden `abonnement`, `academie`, `beschikbaarheid`, `ideeen`, `ontzorgd/*`,
 >   `prognose`, `rooster`, `uitgaven`, `search` zijn niet individueel geopend (elk gesampled bestandstype toonde
