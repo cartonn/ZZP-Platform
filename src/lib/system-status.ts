@@ -321,6 +321,22 @@ export function collectSystemStatus(env: Env): SystemStatus {
               ? "Gedeeld via Upstash Redis — limieten gelden over alle instances."
               : "Per-proces in-memory. Zet RATE_LIMIT_STORE=upstash vóór horizontale schaling.",
         },
+        {
+          key: "semantic-matcher",
+          label: "Semantische matching",
+          mode: env.SEMANTIC_MATCHER,
+          // "local" is een geldige, productie-geschikte default (deterministische in-memory matcher) →
+          // ok, geen "aandacht" bij elke deploy. "pgvector" is momenteel geselecteerd-maar-niet-
+          // operationeel: matching valt graceful terug op lokaal, wat een operator wil zien (hij denkt
+          // mogelijk dat pgvector actief is). In productie is dat "aandacht" (voltooi de provisioning of
+          // zet 'm terug op local); daarbuiten louter informatief. Bevestig met de zelftest.
+          level:
+            env.SEMANTIC_MATCHER === "pgvector" ? (production ? "attention" : "fallback") : "ok",
+          detail:
+            env.SEMANTIC_MATCHER === "pgvector"
+              ? "pgvector geselecteerd maar nog niet operationeel (DB-provisioning = mensenwerk) — matching draait op de lokale fallback. Voltooi de provisioning of zet SEMANTIC_MATCHER=local. Bevestig met de semantische-matching-zelftest."
+              : "Lokale in-memory matcher — deterministisch en productie-geschikt. Zet SEMANTIC_MATCHER=pgvector pas nadat de pgvector-provisioning bevestigd is.",
+        },
         dbPoolItem(env, dbKind, production),
       ],
     },

@@ -15,6 +15,7 @@ import {
   passwordBreachSelfTestRateLimiter,
   rateLimitSelfTestRateLimiter,
   routingSelfTestRateLimiter,
+  semanticMatcherSelfTestRateLimiter,
   selfTestSweepRateLimiter,
   storageSelfTestRateLimiter,
   uploadScannerSelfTestRateLimiter,
@@ -84,6 +85,15 @@ import {
   type PasswordBreachDriverMode,
   type PasswordBreachSelfTestReport,
 } from "@/lib/services/password-breach-selftest";
+import {
+  configuredSemanticMatcher,
+  PgVectorSemanticMatcher,
+} from "@/lib/services/semantic-matcher";
+import {
+  runSemanticMatcherSelfTest,
+  type SemanticMatcherDriverMode,
+  type SemanticMatcherSelfTestReport,
+} from "@/lib/services/semantic-matcher-selftest";
 
 export type StorageSelfTestState =
   | { ok: true; report: StorageSelfTestReport }
@@ -514,6 +524,61 @@ export async function runPasswordBreachSelfTestAction(): Promise<PasswordBreachS
   return { ok: true, report };
 }
 
+export type SemanticMatcherSelfTestState =
+  | { ok: true; report: SemanticMatcherSelfTestReport }
+  | { ok: false; error: string };
+
+/**
+ * Bouwt de probe-spec voor de semantische-matching-driver uit de omgeving. Gedeeld door de losse
+ * zelftest én de go-live-sweep zodat de actief-detectie (`SEMANTIC_MATCHER=pgvector`) en de read-only
+ * operationele probe op één plek staan. Draait matching op de lokale matcher (`local`), dan krijgt de
+ * spec geen `run` — die wordt eerlijk als "niets getest" gerapporteerd (de lokale matcher werkt altijd).
+ */
+function buildSemanticMatcherProbeSpec() {
+  const configured = configuredSemanticMatcher();
+  const active = configured === "pgvector";
+  const driverMode: SemanticMatcherDriverMode = configured;
+  return {
+    active,
+    driverMode,
+    run: active ? () => new PgVectorSemanticMatcher().probe() : undefined,
+  };
+}
+
+/**
+ * Draait een operationele zelftest tegen de geconfigureerde semantische-matching-driver (admin-only).
+ * Volgt de mutatieketen (auth → rol → rate-limit → actie → audit). Draait matching op de lokale matcher
+ * (SEMANTIC_MATCHER ontbreekt/local), dan is er niets externs om te testen en meldt de zelftest dat
+ * eerlijk (geen vals groen — de lokale matcher werkt altijd). Is pgvector geselecteerd, dan doet hij een
+ * READ-ONLY operationele probe: is de driver écht operationeel (extensie/embedding-kolom/index) en levert
+ * een round-trip een plausibele gelijkenis-uitkomst? Zolang de provisioning ontbreekt valt matching
+ * graceful terug op lokaal — de zelftest surfacet die stand i.p.v. een stille nul-degradatie. De uitvoer
+ * bevat nooit secrets of PII — alleen de uitkomst en de driver-modus.
+ */
+export async function runSemanticMatcherSelfTestAction(): Promise<SemanticMatcherSelfTestState> {
+  const actor = await requireRole("ADMIN");
+
+  if (!(await semanticMatcherSelfTestRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
+  }
+
+  const spec = buildSemanticMatcherProbeSpec();
+  const report = await runSemanticMatcherSelfTest(spec);
+
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "SEMANTIC_MATCHER_SELFTEST_RUN",
+    entityType: "SemanticMatcher",
+    entityId: spec.driverMode,
+    metadata: { ok: report.ok, active: report.active },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { ok: true, report };
+}
+
 export type ErrorMonitoringSelfTestState =
   | { ok: true; report: ErrorMonitoringSelfTestReport }
   | { ok: false; error: string };
@@ -622,7 +687,7 @@ export type SelfTestSweepState = { ok: true; report: SweepReport } | { ok: false
 /**
  * Go-live-sweep: draait álle actieve, bijwerkingsveilige connectiviteitszelftests (opslag, database,
  * rate-limit, verificatie, betaalprovider, routing, upload-scanner, gelekt-wachtwoord-controle,
- * error-monitoring, e-mail) in één klik en
+ * semantische matching, error-monitoring, e-mail) in één klik en
  * geeft een geconsolideerd GO/NO-GO terug (admin-only). Volgt de mutatieketen (auth → rol →
  * rate-limit → actie → audit). Elke deelzelftest hergebruikt zijn eigen pure kern; een integratie die
  * op een veilige fallback/demo draait wordt eerlijk als "overgeslagen" gerapporteerd (geen vals groen).
@@ -819,6 +884,25 @@ export async function runSelfTestSweepAction(): Promise<SelfTestSweepState> {
               : result.ok
                 ? "Bereikbaar en detecteert."
                 : "Controle faalt."),
+        };
+      },
+    },
+    {
+      key: "semantic-matcher",
+      label: "Semantische matching",
+      run: async (): Promise<SweepRunResult> => {
+        const spec = buildSemanticMatcherProbeSpec();
+        const result = await runSemanticMatcherSelfTest(spec);
+        return {
+          status: !result.active ? "skipped" : result.ok ? "pass" : "fail",
+          mode: spec.driverMode,
+          detail:
+            result.detail ??
+            (!result.active
+              ? "Lokale matcher — niets getest."
+              : result.ok
+                ? "Operationeel."
+                : "Niet operationeel."),
         };
       },
     },

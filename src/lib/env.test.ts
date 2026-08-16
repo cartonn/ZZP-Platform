@@ -365,6 +365,19 @@ describe("envWarnings", () => {
     expect(w.some((m) => /RATE_LIMIT_STORE=memory/.test(m))).toBe(true);
   });
 
+  it("waarschuwt voor SEMANTIC_MATCHER=pgvector in productie (nog niet operationeel, lokale fallback)", () => {
+    const w = envWarnings(prod({ SEMANTIC_MATCHER: "pgvector" }));
+    expect(w.some((m) => /SEMANTIC_MATCHER=pgvector/.test(m) && /lokale fallback/.test(m))).toBe(
+      true,
+    );
+  });
+
+  it("zwijgt over de semantische matcher bij de lokale default", () => {
+    expect(
+      envWarnings(prod({ SEMANTIC_MATCHER: "local" })).some((m) => /SEMANTIC_MATCHER/.test(m)),
+    ).toBe(false);
+  });
+
   it("waarschuwt voor SEED_DEMO=true in productie (demo-accounts + onderdrukte verifier-waarschuwingen)", () => {
     const w = envWarnings(prod({ SEED_DEMO: "true" }));
     expect(w.some((m) => /SEED_DEMO=true/.test(m) && /demo1234/.test(m))).toBe(true);

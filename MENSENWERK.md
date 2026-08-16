@@ -255,6 +255,27 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   SIGTERM-draining, die stil kapot was). Beide gefixt en geverifieerd: `SIGUSR2 → /api/readiness` gaat
   nu van `200/draining:false` naar `503/draining:true` terwijl het proces blijft draaien.
 
+- **Semantische matching (pgvector): stille-degradatie-gat gedicht** (laag, code-kant GEDAAN
+  2026-08-16): `SEMANTIC_MATCHER=pgvector` was de enige env-selecteerbare driver die de "halve
+  activering is gevaarlijker dan geen"-regel (CLAUDE.md §8) ontweek — de pgvector-matcher gooit
+  vandaag onvoorwaardelijk (er is nog geen echte DB-provisioning), en de aanroeper ving die fout
+  stil op tot relevantie `0`. Selecteren van `pgvector` zette zo **zonder boot-fout, waarschuwing,
+  status of metriek** stilletjes de relevantie-component van élke match op nul. Nu valt
+  `getSemanticMatcher()` (`src/lib/services/semantic-matcher.ts`) **graceful terug** op de werkende
+  `LocalSemanticMatcher` zodra pgvector geselecteerd-maar-niet-operationeel is (nieuw:
+  `isOperational()`, en `configuredSemanticMatcher()` voor de ruwe keuze); de productie-env-validatie
+  waarschuwt expliciet dat matching op de lokale fallback draait; `/admin/systeemstatus` toont een
+  eigen item "Semantische matching" (groep Schaalbaarheid: `local` = ok, `pgvector` = aandacht in
+  productie); en er is een read-only **semantische-matching-zelftest**
+  (`src/lib/services/semantic-matcher-selftest.ts`) + go-live-sweep-runner + UI-kaart die eerlijk
+  meldt "local → niets getest (geen vals groen)", "pgvector geselecteerd maar niet operationeel →
+  fout (aandacht)", of "operationeel + plausibele round-trip → geslaagd". Resterend mensenwerk: de
+  **echte pgvector-provisioning** — de `vector`-extensie op de managed Postgres aanzetten, een
+  embedding-kolom toevoegen + vullen via een embedding-pipeline, en een ANN-index (HNSW/IVFFlat)
+  bouwen, plus een echte capability-check in `isOperational()`. Tot die tijd is
+  `SEMANTIC_MATCHER=local` de juiste productie-instelling en draait matching volledig op de
+  deterministische lokale matcher. Zie RUNBOOK §2b voor de operationele stappen.
+
 ## §1. Hosting, database, opslag, domein, geheimen
 
 **Wat:** de plek waar de website draait, waar gegevens worden bewaard en waar documenten veilig

@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-16 — Semantische matching (pgvector): stille-degradatie-gat gedicht
+
+**Wat:** `SEMANTIC_MATCHER=pgvector` was de enige env-selecteerbare driver die de "halve activering is
+gevaarlijker dan geen"-regel ontweek: `PgVectorSemanticMatcher.relatedness()` gooit onvoorwaardelijk
+(nog geen echte DB-provisioning) en `safeRelatedness` ving dat stil op tot `0` — selecteren van
+pgvector zette zo zonder boot-fout, waarschuwing, status of metriek stilletjes de relevantie-component
+van elke match in `matching.ts` op nul. Nu valt `getSemanticMatcher()` graceful terug op de werkende
+`LocalSemanticMatcher` zodra pgvector geselecteerd-maar-niet-operationeel is, met een productie-
+env-waarschuwing, een eigen `/admin/systeemstatus`-item (groep Schaalbaarheid), een read-only
+semantische-matching-zelftest + go-live-sweep-runner + UI-kaart (eerlijk: "local → niets getest",
+"pgvector niet operationeel → aandacht", "operationeel + plausibele round-trip → geslaagd").
+
+**Bestanden:** `src/lib/services/semantic-matcher.ts` (`isOperational()`, `configuredSemanticMatcher()`,
+graceful fallback in `getSemanticMatcher()`), `src/lib/env.ts` (envWarnings), `src/lib/system-status.ts`
+(nieuw item `semantic-matcher`), `src/lib/services/semantic-matcher-selftest.ts` (nieuw) + sweep-runner
+en actie in de systeemstatus-actions, `src/components/admin/semantic-matcher-selftest.tsx` (nieuw,
+kaart op `/admin/systeemstatus`), tests over al het bovenstaande. Docs: `MENSENWERK.md` §0b (nieuwe
+mensenwerk-bullet: pgvector-provisioning resteert), `docs/RUNBOOK.md` §2b (nieuw, operationele stappen).
+**Gate:** typecheck, lint, test, build, prettier groen.
+
 ## 2026-08-16 — Security-/privacy-auditronde (basis `main` @ cf0e2827) — geen nieuwe gaten (docs-PR)
 
 **Wat:** volledige security-/privacy-auditronde over de delta `e11b7cf9..cf0e2827` (#1105–#1109), met de
