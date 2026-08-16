@@ -400,9 +400,14 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // (NB — SHIFT_HANDOFF_REJECTED valt hier NIET onder: die notificatie landt op de feed van de
     // AANVRAGER, terwijl de vrije tekst door de BESLISSER is geschreven. Die kopie wordt daarom apart,
     // per gereconstrueerde body, geredact via `ownDecidedRejectedHandoffs` onderaan de transactie.)
+    // AVG art. 17: naast de body wordt óók `readAt` gewist. Dat is een door de betrokkene zélf gezette
+    // gedrags-/engagement-timestamp (het exacte moment waarop hij een melding las) die na anonimisering
+    // toewijsbaar blijft aan de (hernoemde, maar identieke) `User.id` — dezelfde residuele-gedragsmetadata-
+    // klasse die we al dichtten voor `User.lastLoginAt`/`previousLoginAt` en `ConversationParticipant.
+    // lastReadAt`. De export (`account-export.ts`) gaf `readAt` al prijs; deze erasure maakt dat symmetrisch.
     prisma.notification.updateMany({
       where: { userId },
-      data: { body: "[Verwijderd op verzoek van de gebruiker]" },
+      data: { body: "[Verwijderd op verzoek van de gebruiker]", readAt: null },
     }),
     // AVG art. 17 (recht op verwijdering): álle vrije-tekstvelden die de betrokkene zélf schreef en
     // die PII kunnen bevatten worden onomkeerbaar overschreven. Een `user.update` triggert geen

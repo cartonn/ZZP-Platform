@@ -4,6 +4,59 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-16b (basis: `main` @ b6f13fba) — 1× MIDDEL OPGELOST (erasure-gat op `Notification.readAt`)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(1: **authz/IDOR/mass-assignment** — volledige lees van álle 51 `src/app/**/actions.ts` server-actions op de
+`auth→rol→ownership→Zod→actie→audit`-keten, incl. het als "niet individueel geopend" geparkeerde residu; 2:
+**privacy/AVG** — erasure↔export-symmetrie over élk PII-/gedragsmetadata-veld in `schema.prisma`, PII-in-logs,
+dataminimalisatie, k-anonimiteit; 3: **injectie/upload/SSRF/redirect/auth/headers/deps** — 11 export-routes op
+formule-injectie, `dangerouslySetInnerHTML`, raw SQL, upload/path-traversal, SSRF, open redirect, wachtwoord-
+reset-token, CSP/headers, `npm audit`, foutlek). Plus orchestrator-probes (document-/media-routes, k-anonimiteit,
+mail-noop-PII, console-logging zelf geverifieerd).
+
+**Uitkomst:** authz/IDOR-sweep **schoon** (geen bereikbaar gat — het "authz-dekkingsresidu" bleek een
+review-procesgat, geen live kwetsbaarheid: alle 51 bestanden hadden de keten al correct). Injectie/upload/SSRF/
+auth/headers/deps **schoon** (`npm audit --omit=dev` = 0; `next@15.5.21`/`next-auth@5.0.0-beta.32`/`prisma@6.19.3`
+geen toepasselijke CVE). **Eén MIDDEL privacy-gat gevonden én gefixt** (zie hieronder), plus 3 LAAG/LOW geparkeerd.
+
+### OPGELOST — `Notification.readAt` overleeft AVG art. 17-erasure (MIDDEL · AVG art. 17 + Architectuurregel 5)
+
+**Geschonden regel:** Architectuurregel 5 (audit/AVG-symmetrie) + AVG art. 17 (recht op vergetelheid). Exact
+dezelfde residuele-gedragsmetadata-klasse als `User.lastLoginAt`/`previousLoginAt` (ronde 2026-08-15) en
+`ConversationParticipant.lastReadAt` (#1097) — hier op `Notification.readAt` (`prisma/schema.prisma`).
+
+**Repro (vóór de fix):** ZZP'er A ontvangt en leest notificaties → elke gelezen rij krijgt een exact `readAt`-
+tijdstip (wanneer A het platform gebruikte). Admin anonimiseert A op een art. 17-verzoek. De erasure-transactie
+(`admin/gebruikers/actions.ts`) redact wél de notificatie-`body`, maar liet `readAt` staan op elke rij, nog steeds
+gekoppeld aan de (hernoemde maar identieke) `User.id` → het platform bleef onbeperkt exact-getimede
+engagement-metadata van een gewist individu bewaren. `grep readAt admin/gebruikers/actions.ts` = 0 hits.
+**Ironie:** de vorige fix-writeup (deze backlog) noemde `Notification.readAt` als "al correct" — maar dat gold
+alleen de **export**-kant; niemand controleerde de **erasure**, en die wiste 'm nooit.
+
+**Fix (dit PR):** de brede eigen-feed-wipe zet nu `readAt: null` naast de body-redactie (binnen dezelfde
+anonimiseringstransactie). Het account is na anonimisering SUSPENDED zonder wachtwoord → de leesstaat heeft geen
+operationeel doel meer. Symmetrisch met de `readAt` die `account-export.ts` al prijsgaf.
+**Test (rood→groen):** `anonymize-erasure.test.ts` — "wist de eigen leesbevestigingen op notificaties
+(`Notification.readAt → null`)" selecteert de brede eigen-feed-`notification.updateMany` (`where == { userId }`)
+en assert `readAt === null` + body geredact. Geverifieerd rood→groen door alleen de bronwijziging te reverten.
+
+### GEPARKEERD (LAAG/LOW — repro + severity)
+
+- **`LessonCompletion.completedAt` + `IdeaVote.createdAt` niet in erasure én niet in export (LAAG · AVG art. 15/17).**
+  `prisma/schema.prisma` — twee zelf-actie-timestamps met `userId`-FK (academie-lesvoltooiing, ideeën-stem) worden
+  noch bij `anonymizeUser` genulld noch in `buildAccountExport` opgenomen. Zelfde "activiteit-timestamp gekoppeld aan
+  een nog-levende `userId`"-patroon als het `readAt`-gat, maar **symmetrisch afwezig aan beide kanten** (geen
+  eenzijdig lek) en lagere gevoeligheid (interne training/feature-voting, geen identiteit/financieel/gezondheid).
+  **Aanbevolen fix:** óf beide op `null` bij erasure + opnemen in de export (symmetrie), óf een gedocumenteerde
+  retentie-/grondslag-afweging (FG-beslissing). Aparte, kleine increment.
+- **Registratie lekt e-mail-enumeratie (LOW · OWASP A07 / anti-enumeratie-inconsistentie).**
+  `src/app/register/actions.ts` geeft een aparte veldfout ("Er bestaat al een account met dit e-mailadres.") bij een
+  bestaand e-mailadres — inconsistent met de anti-enumeratie elders (login-timing-egalisatie, uniforme
+  reset-respons). Begrensd door `registerRateLimiter` (per IP). Veelvoorkomende, vaak noodzakelijke UX; **product-/
+  FG-afweging**: accepteren als gedocumenteerde trade-off, óf naar een "check je inbox"-respons met
+  verificatie-mailflow. Geen code-defect; geen fix zonder productbeslissing.
+
 ## Ronde 2026-08-16 (basis: `main` @ cf0e2827) — GEEN nieuwe gaten in de delta (`e11b7cf9..cf0e2827`)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
