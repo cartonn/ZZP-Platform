@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-16 — ZZP'er: gemiddeld uurtarief per maand op /inzicht
+
+**Wat:** de tarief-tegenhanger van de winst-/uren-trends. De ZZP'er zag op `/inzicht` wél hoevéél hij
+verdiende (omzet/winst) en hoevéél hij werkte (gewerkte uren per maand), maar niet tegen wélk gemiddeld
+uurtarief — precies het signaal dat laat zien of het tarief over tijd stijgt of erodeert (betere
+opdrachtgevers/onderhandeling vs. bijklussen tegen een laag tarief). Nu een "Gemiddeld uurtarief per
+maand"-kaart: een **naar uren gewogen** gemiddelde `Σ(rateCents × uren) / Σ(uren)` per maand (excl.
+ORT-toeslagen; een schone, ondubbelzinnige maat), met headline-gemiddelde over het venster, delta deze
+maand vs. vorige, en een staafstrip. Bron = exact dezelfde APPROVED HOURS-prestaties als
+`worked-hours-trend` + het `rateCents`-snapshot, door dezelfde `monthlyRevenue`-bucketing → geen drift
+met de geld-/urentrends. Maanden zonder uren blijven `null` (geen misleidende €0/u).
+
+**Bestanden:** `src/lib/hourly-rate-trend.ts` (nieuw, puur `buildHourlyRateTrend` + owner-gescoopte
+fetcher `getFreelancerHourlyRateTrend`), `src/lib/hourly-rate-trend.test.ts` (nieuw, 8 tests: weging,
+venster, kwartier-precisie, null-maanden, delta), `src/app/(protected)/inzicht/page.tsx`
+(`GemiddeldUurtariefPerMaandCard` + wiring in `FreelancerInzicht`). Read-only, alleen FREELANCER, geen
+schema-/mutatie-/auth-oppervlak. Gate: typecheck, lint, test, build, prettier groen. PR #1112.
+
 ## 2026-08-16 — Semantische matching (pgvector): stille-degradatie-gat gedicht
 
 **Wat:** `SEMANTIC_MATCHER=pgvector` was de enige env-selecteerbare driver die de "halve activering is
