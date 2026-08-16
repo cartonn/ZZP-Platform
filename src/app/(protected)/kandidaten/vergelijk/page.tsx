@@ -1,40 +1,28 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Award, CalendarCheck, Gauge, ShieldCheck, Trophy, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Award,
+  CalendarCheck,
+  Download,
+  Gauge,
+  ShieldCheck,
+  Trophy,
+  Users,
+} from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getTranslator } from "@/lib/i18n/server";
-import { prisma } from "@/lib/db";
-import { computeCompliance } from "@/lib/matching";
-import { computeTrustLevel, TRUST_LEVEL_EXPLANATION } from "@/lib/trust";
-import { summarizeAvailability } from "@/lib/availability";
-import {
-  START_FIT_SHORT_LABEL,
-  START_FIT_VARIANT,
-  classifyStartFit,
-  nextFitAfterStart,
-  nextFitLabel,
-} from "@/lib/candidate-availability";
-import { mandatoryDocuments } from "@/lib/mandatory-documents";
-import {
-  PROXIMITY_VARIANT,
-  classifyCandidateProximity,
-  proximityLabel,
-} from "@/lib/candidate-proximity";
-import { getDeliveryQualityForProfiles } from "@/lib/data/freelancer-delivery-quality";
-import { getReviewRatingsForCandidates } from "@/lib/data/candidate-reviews";
-import { getSharedHistoryForCandidates } from "@/lib/data/candidate-history";
-import { type CompareCandidate, buildCandidateComparison } from "@/lib/candidate-compare";
-import { type ApplicantFieldSummary, summarizeApplicantField } from "@/lib/applicant-field";
-import { rankCandidates } from "@/lib/candidate-ranking";
+import { TRUST_LEVEL_EXPLANATION } from "@/lib/trust";
+import { START_FIT_SHORT_LABEL, START_FIT_VARIANT } from "@/lib/candidate-availability";
+import { PROXIMITY_VARIANT, proximityLabel } from "@/lib/candidate-proximity";
+import { type CompareCandidate } from "@/lib/candidate-compare";
+import { type ApplicantFieldSummary } from "@/lib/applicant-field";
+import { getCandidateComparisonForJob } from "@/lib/candidate-compare-data";
 import { firstName } from "@/lib/kandidaten-triage";
-import {
-  type AvailabilityWindowType,
-  type CredentialType,
-  type CredentialStatus,
-} from "@/lib/enums";
 import { formatDateShortNl } from "@/lib/format-date";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -47,10 +35,6 @@ export const metadata: Metadata = { title: "Kandidaten vergelijken · Handslag" 
 
 const TRUST_LABEL = { BASIS: "Basis", DEELS: "Deels", VOLLEDIG: "Volledig" } as const;
 
-// Alleen reacties die nog in de race zijn — afgewezen/ingetrokken kandidaten vergelijk je niet.
-const ACTIVE_STATUSES = ["NEW", "VIEWED", "SHORTLIST", "ACCEPTED"] as const;
-const MAX_COMPARE = 8;
-
 export default async function VergelijkKandidatenPage({
   searchParams,
 }: {
@@ -61,119 +45,9 @@ export default async function VergelijkKandidatenPage({
   const jobId = (await searchParams).job;
   if (!jobId) notFound();
 
-  // Ownership-poort: alleen een eigen opdracht. Onbekend/vreemd id → notFound (geen lek).
-  const job = await prisma.job.findFirst({
-    where: { id: jobId, company: { userId: actor.id } },
-    select: {
-      id: true,
-      title: true,
-      startDate: true,
-      rateMin: true,
-      rateMax: true,
-      workMode: true,
-      location: true,
-      skills: { select: { skillId: true, required: true } },
-      credentialRequirements: { select: { credentialType: true, required: true } },
-    },
-  });
-  if (!job) notFound();
-
-  const applications = await prisma.application.findMany({
-    where: { jobId: job.id, status: { in: [...ACTIVE_STATUSES] } },
-    orderBy: { matchScore: "desc" },
-    take: MAX_COMPARE,
-    include: {
-      freelancer: {
-        select: {
-          id: true,
-          headline: true,
-          visibility: true,
-          location: true,
-          user: { select: { id: true, name: true, identityVerifiedAt: true } },
-          availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
-          credentials: { select: { type: true, status: true, expiresAt: true } },
-        },
-      },
-    },
-  });
-
-  // Drie gebatchte, eigenaar-/subject-gescoopte queries (geen N+1), spiegel van /kandidaten:
-  // leverbetrouwbaarheid, reputatie-sterren en de gedeelde historie met déze opdrachtgever.
-  const [deliveryByProfile, ratingByUser, historyByProfile] = await Promise.all([
-    getDeliveryQualityForProfiles(applications.map((a) => a.freelancer.id)),
-    getReviewRatingsForCandidates(applications.map((a) => a.freelancer.user.id)),
-    getSharedHistoryForCandidates(
-      actor.id,
-      applications.map((a) => a.freelancer.id),
-    ),
-  ]);
-
-  const requiredTypes = job.credentialRequirements
-    .filter((r) => r.required)
-    .map((r) => r.credentialType as CredentialType);
-  const nowMs = Date.now();
-
-  const candidates: CompareCandidate[] = applications.map((app) => {
-    const creds = app.freelancer.credentials.map((c) => ({
-      type: c.type as CredentialType,
-      status: c.status as CredentialStatus,
-      expiresAt: c.expiresAt,
-    }));
-    const compliance =
-      requiredTypes.length > 0 ? computeCompliance(requiredTypes, creds).status : null;
-    const trust = computeTrustLevel({
-      identityVerified: !!app.freelancer.user.identityVerifiedAt,
-      verifiedCredentialCount: creds.filter(
-        (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > nowMs),
-      ).length,
-      mandatoryDocsComplete: mandatoryDocuments(creds).allSatisfied,
-    });
-    const delivery = deliveryByProfile.get(app.freelancer.id);
-    const windows = app.freelancer.availabilityWindows.map((w) => ({
-      ...w,
-      type: w.type as AvailabilityWindowType,
-    }));
-    const startFit = job.startDate ? classifyStartFit(windows, job.startDate) : undefined;
-    return {
-      id: app.id,
-      name: app.freelancer.user.name ?? "—",
-      matchScore: app.matchScore,
-      proposedRate: app.proposedRate,
-      trustLevel: trust.level,
-      complianceStatus: compliance,
-      firstTimeRightRate:
-        delivery && delivery.tone !== "INSUFFICIENT" ? delivery.firstTimeRightRate : null,
-      available: !!summarizeAvailability(windows),
-      startFit,
-      // Niet inzetbaar op de startdatum? Reken de eerstvolgende vrije dag uit als plan-optie.
-      nextFitLabel:
-        startFit === "blocked" || startFit === "none"
-          ? (() => {
-              const nf = nextFitAfterStart(windows, job.startDate);
-              return nf ? nextFitLabel(nf) : undefined;
-            })()
-          : undefined,
-      // Reistijd naar de opdracht (#612). Pure schatting (geen serieel blokkerende externe call);
-      // null bij remote of onbekende plaats — dan geen chip.
-      proximity: classifyCandidateProximity({
-        jobWorkMode: job.workMode,
-        jobLocation: job.location,
-        candidateLocation: app.freelancer.location,
-      }),
-      // Reputatie + rehire-signaal — al op /kandidaten aanwezig, nu ook naast elkaar.
-      reviewRating: (() => {
-        const r = ratingByUser.get(app.freelancer.user.id);
-        return r && r.count > 0 ? { average: r.average, count: r.count } : null;
-      })(),
-      sharedHistory: historyByProfile.get(app.freelancer.id) ?? null,
-    };
-  });
-
-  const comparison = buildCandidateComparison(candidates);
-  const ranking = rankCandidates(candidates);
-  // Poolsamenvatting: de "vorm van het veld" over exact de kandidaten die naast elkaar staan
-  // (matchspreiding, compliant-deel, beschikbaar op de startdatum). Pure afleiding, geen extra query.
-  const field = summarizeApplicantField(candidates);
+  const data = await getCandidateComparisonForJob(actor.id, jobId);
+  if (!data) notFound();
+  const { job, candidates, comparison, ranking, field } = data;
 
   // Lege cel: geen kille "—" maar een leesbaar, gedempt signaal dat er (nog) geen gegeven is.
   const noData = <span className="text-muted-foreground">{t("Nog geen gegevens")}</span>;
@@ -191,6 +65,16 @@ export default async function VergelijkKandidatenPage({
           eyebrow="De etalage · vergelijken"
           title={t("Kandidaten vergelijken")}
           description={`${t("Reacties op")} "${job.title}" ${t("naast elkaar, met de uitspringer per onderdeel.")}`}
+          action={
+            candidates.length >= 2 ? (
+              <Button asChild size="sm" variant="secondary">
+                <a href={`/kandidaten/vergelijk/export?job=${job.id}`}>
+                  <Download className="mr-1.5 size-4" aria-hidden />
+                  {t("Exporteren")}
+                </a>
+              </Button>
+            ) : undefined
+          }
         />
       </div>
 

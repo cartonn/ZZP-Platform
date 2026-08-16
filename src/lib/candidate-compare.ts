@@ -5,9 +5,10 @@
 
 import { type ComplianceStatus } from "@/lib/matching";
 import { type TrustLevel } from "@/lib/trust";
-import { type StartFit } from "@/lib/candidate-availability";
-import { type CandidateProximity } from "@/lib/candidate-proximity";
+import { type StartFit, START_FIT_SHORT_LABEL } from "@/lib/candidate-availability";
+import { type CandidateProximity, proximityLabel } from "@/lib/candidate-proximity";
 import { type SharedHistory } from "@/lib/candidate-history";
+import { toCsv } from "@/lib/csv";
 
 /** Eén kandidaat zoals de opdrachtgever die vergelijkt. Velden komen uit de bestaande motoren. */
 export interface CompareCandidate {
@@ -131,4 +132,69 @@ export function buildCandidateComparison(candidates: CompareCandidate[]): Candid
       c.reviewRating && c.reviewRating.count > 0 ? c.reviewRating.average : null,
     ),
   };
+}
+
+// --- CSV-export ------------------------------------------------------------
+// Serialiseert de vergelijking naar CSV zodat de opdrachtgever de kandidaten-shortlist kan
+// bewaren of delen (parity met de andere ledger-exports). Puur: geen DB, geen I/O. Kandidaatnamen
+// zijn vrije gebruikerstekst, daarom via `toCsv` (RFC 4180-quoting + CWE-1236 formule-injectie-guard).
+// Score en aanbeveling komen als losse params binnen (`scoreById`/`recommendedId`) om een circulaire
+// import met de ranking-module te vermijden.
+
+const TRUST_LABEL: Record<TrustLevel, string> = {
+  BASIS: "Basis",
+  DEELS: "Deels",
+  VOLLEDIG: "Volledig",
+};
+
+const COMPLIANCE_LABEL: Record<ComplianceStatus, string> = {
+  COMPLIANT: "Compleet",
+  WARNING: "Aandacht",
+  NON_COMPLIANT: "Niet compleet",
+};
+
+/**
+ * Bouwt de CSV-tekst voor de kandidatenvergelijking: één rij per kandidaat, in de meegegeven
+ * volgorde (al aflopend op matchscore). Decimalen krijgen een komma (NL-conventie). Ontbrekende
+ * velden blijven leeg; een opdracht zonder certificaat-eis toont compliance als "n.v.t.".
+ */
+export function exportCandidateComparisonCsv(input: {
+  candidates: CompareCandidate[];
+  comparison: CandidateComparison;
+  scoreById: Record<string, number>;
+  recommendedId: string | null;
+}): string {
+  const header = [
+    "Kandidaat",
+    "Totaalprofiel",
+    "Aanbevolen",
+    "Match",
+    "Tariefvoorstel (EUR/uur)",
+    "Vertrouwen",
+    "Reputatie",
+    "Compliance",
+    "Eerste keer akkoord",
+    "Beschikbaar op startdatum",
+    "Reistijd",
+    "Eerdere samenwerkingen",
+  ];
+
+  const rows: (string | number)[][] = input.candidates.map((c) => [
+    c.name,
+    input.scoreById[c.id] ?? "",
+    c.id === input.recommendedId ? "Ja" : "",
+    c.matchScore != null ? `${c.matchScore}%` : "",
+    c.proposedRate != null ? String(c.proposedRate) : "",
+    TRUST_LABEL[c.trustLevel],
+    c.reviewRating
+      ? `${String(c.reviewRating.average).replace(".", ",")} (${c.reviewRating.count})`
+      : "",
+    c.complianceStatus === null ? "n.v.t." : COMPLIANCE_LABEL[c.complianceStatus],
+    c.firstTimeRightRate != null ? `${c.firstTimeRightRate}%` : "",
+    c.startFit && c.startFit !== "unknown" ? START_FIT_SHORT_LABEL[c.startFit] : "",
+    c.proximity ? proximityLabel(c.proximity) : "",
+    c.sharedHistory ? String(c.sharedHistory.count) : "",
+  ]);
+
+  return toCsv([header, ...rows]);
 }

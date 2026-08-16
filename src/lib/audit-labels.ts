@@ -159,6 +159,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   HOURS_CRITERION_REMINDER_SENT: "Urencriterium-herinnering verstuurd",
   DIENSTEN_EXPORTED: "Diensten geëxporteerd",
   PRESTATIES_EXPORTED: "Prestaties geëxporteerd",
+  CANDIDATES_COMPARED_EXPORTED: "Kandidatenvergelijking geëxporteerd",
 
   // Notificaties & meldingen
   NOTIFICATION_PREFERENCES_UPDATED: "Notificatievoorkeuren bijgewerkt",

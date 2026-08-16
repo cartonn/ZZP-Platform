@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-16 — opdrachtgever: kandidatenvergelijking exporteren (CSV)
+
+**Wat:** de kandidaat-vergelijkingstabel (`/kandidaten/vergelijk`) was de enige hiring-beslissurface
+van de opdrachtgever zonder uitweg — elke zusterpagina (prestaties, verplichtingen, administratie,
+diensten) heeft al een CSV-export. Nu kan de opdrachtgever de shortlist-vergelijking exporteren om
+buiten het platform te delen/bewaren (met een collega die niet op het platform zit, of voor het dossier).
+
+**Aanpak (één bron van waarheid, geen drift):** de assemblage die inline in de pagina zat is verplaatst
+naar een gedeelde server-functie `getCandidateComparisonForJob(actorId, jobId)`
+(`src/lib/candidate-compare-data.ts`) — ownership-gepoort (vreemd/onbekend id → `null`, geen lek). Zowel
+de pagina als de nieuwe export-route voeden zich hieruit, dus de geëxporteerde cijfers kunnen nooit
+driften van wat op het scherm staat. Pure serializer `exportCandidateComparisonCsv`
+(`src/lib/candidate-compare.ts`) via de gedeelde `toCsv`-kern → RFC 4180-quoting + CWE-1236
+formule-injectie-guard (kandidaatnamen zijn vrije gebruikerstekst). Route
+`/kandidaten/vergelijk/export` spiegelt exact het `/prestaties/export`-patroon: `requireActor` +
+CLIENT-only 403, rate-limit, ownership-404, `<2` kandidaten → 400, `CANDIDATES_COMPARED_EXPORTED`
+audit-log (AVG art. 5(2)). "Exporteren"-knop in de PageHeader, alleen bij ≥2 kandidaten (geen dode knop).
+
+**CSV-kolommen:** Kandidaat · Totaalprofiel · Aanbevolen · Match · Tariefvoorstel (EUR/uur) · Vertrouwen ·
+Reputatie · Compliance · Eerste keer akkoord · Beschikbaar op startdatum · Reistijd · Eerdere samenwerkingen.
+
+**Bestanden:** NEW `src/lib/candidate-compare-data.ts`, NEW
+`src/app/(protected)/kandidaten/vergelijk/export/route.ts`; EDIT `src/lib/candidate-compare.ts`
+(+serializer +8 tests in `candidate-compare.test.ts`), `src/app/(protected)/kandidaten/vergelijk/page.tsx`
+(gebruikt de gedeelde functie, netto −148 regels), `src/lib/audit-labels.ts` (NL-label). **Mensenwerk:** geen.
+Gate: typecheck, lint, test (6092), prettier groen; build lokaal geverifieerd.
+
 ## 2026-08-16 — correctheid: revenue-trend telt gecrediteerde cascade-facturen niet meer als omzet
 
 **Wat:** de omzet-trendkaarten op alle vier de dashboards (ZZP'er/opdrachtgever/bemiddelaar/platform,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   type CompareCandidate,
   buildCandidateComparison,
+  exportCandidateComparisonCsv,
   pickUniqueBest,
 } from "./candidate-compare";
 
@@ -152,5 +153,129 @@ describe("buildCandidateComparison", () => {
     expect(result.bestTrustId).toBe("b");
     expect(result.bestComplianceId).toBe("a");
     expect(result.bestDeliveryId).toBe("b");
+  });
+});
+
+describe("exportCandidateComparisonCsv", () => {
+  function serialize(
+    candidates: CompareCandidate[],
+    over?: { scoreById?: Record<string, number>; recommendedId?: string | null },
+  ): string {
+    return exportCandidateComparisonCsv({
+      candidates,
+      comparison: buildCandidateComparison(candidates),
+      scoreById: over?.scoreById ?? {},
+      recommendedId: over?.recommendedId ?? null,
+    });
+  }
+
+  function lines(csv: string): string[] {
+    return csv.split("\r\n");
+  }
+
+  it("zet een kopregel met alle 12 kolommen", () => {
+    const csv = serialize([candidate({ id: "a" }), candidate({ id: "b" })]);
+    const header = lines(csv)[0]!.split(";");
+    expect(header).toEqual([
+      "Kandidaat",
+      "Totaalprofiel",
+      "Aanbevolen",
+      "Match",
+      "Tariefvoorstel (EUR/uur)",
+      "Vertrouwen",
+      "Reputatie",
+      "Compliance",
+      "Eerste keer akkoord",
+      "Beschikbaar op startdatum",
+      "Reistijd",
+      "Eerdere samenwerkingen",
+    ]);
+  });
+
+  it("schrijft één rij per kandidaat in de gegeven volgorde", () => {
+    const csv = serialize([
+      candidate({ id: "a", name: "Anna" }),
+      candidate({ id: "b", name: "Bram" }),
+      candidate({ id: "c", name: "Cas" }),
+    ]);
+    const rows = lines(csv);
+    expect(rows).toHaveLength(4); // kop + 3
+    expect(rows[1]!.split(";")[0]).toBe("Anna");
+    expect(rows[2]!.split(";")[0]).toBe("Bram");
+    expect(rows[3]!.split(";")[0]).toBe("Cas");
+  });
+
+  it("markeert alleen de aanbevolen kandidaat met Ja", () => {
+    const csv = serialize([candidate({ id: "a" }), candidate({ id: "b" })], {
+      recommendedId: "b",
+    });
+    const rows = lines(csv);
+    expect(rows[1]!.split(";")[2]).toBe(""); // a niet aanbevolen
+    expect(rows[2]!.split(";")[2]).toBe("Ja"); // b aanbevolen
+  });
+
+  it("laat null-velden leeg", () => {
+    const csv = serialize([candidate({ id: "a" }), candidate({ id: "b" })]);
+    const cells = lines(csv)[1]!.split(";");
+    // Totaalprofiel, Match, Tarief, Reputatie, Eerste keer, Startdatum, Reistijd, Historie leeg
+    expect(cells[1]).toBe(""); // Totaalprofiel (geen score)
+    expect(cells[3]).toBe(""); // Match
+    expect(cells[4]).toBe(""); // Tarief
+    expect(cells[6]).toBe(""); // Reputatie
+    expect(cells[8]).toBe(""); // Eerste keer akkoord
+    expect(cells[9]).toBe(""); // Beschikbaar op startdatum
+    expect(cells[10]).toBe(""); // Reistijd
+    expect(cells[11]).toBe(""); // Eerdere samenwerkingen
+  });
+
+  it("toont n.v.t. bij een opdracht zonder certificaat-eis (complianceStatus null)", () => {
+    const csv = serialize([
+      candidate({ id: "a", complianceStatus: null }),
+      candidate({ id: "b", complianceStatus: null }),
+    ]);
+    expect(lines(csv)[1]!.split(";")[7]).toBe("n.v.t.");
+  });
+
+  it("vertaalt vertrouwens- en compliance-labels", () => {
+    const csv = serialize([
+      candidate({ id: "a", trustLevel: "VOLLEDIG", complianceStatus: "COMPLIANT" }),
+      candidate({ id: "b", trustLevel: "DEELS", complianceStatus: "NON_COMPLIANT" }),
+    ]);
+    const rows = lines(csv);
+    expect(rows[1]!.split(";")[5]).toBe("Volledig");
+    expect(rows[1]!.split(";")[7]).toBe("Compleet");
+    expect(rows[2]!.split(";")[5]).toBe("Deels");
+    expect(rows[2]!.split(";")[7]).toBe("Niet compleet");
+  });
+
+  it("vult score, match, tarief, reputatie en historie in", () => {
+    const csv = serialize(
+      [
+        candidate({
+          id: "a",
+          name: "Anna",
+          matchScore: 88,
+          proposedRate: 65,
+          reviewRating: { average: 4.5, count: 3 },
+          sharedHistory: { count: 2, lastCompletedAt: null },
+        }),
+        candidate({ id: "b" }),
+      ],
+      { scoreById: { a: 91 }, recommendedId: "a" },
+    );
+    const cells = lines(csv)[1]!.split(";");
+    expect(cells[1]).toBe("91"); // Totaalprofiel
+    expect(cells[3]).toBe("88%"); // Match
+    expect(cells[4]).toBe("65"); // Tarief
+    expect(cells[6]).toBe("4,5 (3)"); // Reputatie met komma-decimaal
+    expect(cells[11]).toBe("2"); // Eerdere samenwerkingen
+  });
+
+  it("beschermt tegen formule-injectie in een kandidaatnaam (CWE-1236)", () => {
+    const csv = serialize([candidate({ id: "a", name: "=cmd()" }), candidate({ id: "b" })]);
+    const firstCell = lines(csv)[1]!;
+    // toCsv laat de cel niet met een kale '=' beginnen (voorloopse apostrof, evt. binnen quotes).
+    expect(firstCell.startsWith("=")).toBe(false);
+    expect(firstCell).toContain("'=cmd()");
   });
 });
