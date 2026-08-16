@@ -38,6 +38,11 @@
   Reageert hij met `503`, dan is de DB onbereikbaar → zie §6 (incident).
 - Een DB-storing op `/api/health` wordt gerapporteerd via de observability-reporter (Sentry-ready
   zodra `SENTRY_DSN` gezet is; anders gestructureerd gelogd).
+- **Harde time-out op de DB-probes:** beide probes doen een DB-round-trip binnen een harde deadline
+  (`HEALTH_PROBE_TIMEOUT_MS`, default 3000 ms, geklemd 250–30000). Een DB die de verbinding openhoudt
+  maar niet meer antwoordt (pool-uitputting, lock-contentie, netwerk-partitie met open socket) laat de
+  probe zo **niet oneindig hangen**: een verlopen probe telt als `degraded`/`not ready` (`503`), nooit
+  als vals groen. Zet op `0` om de deadline bewust uit te schakelen (onbeperkt wachten).
 - **Graceful shutdown / drainen (twee fasen, zero-downtime redeploy):** zodra de server een
   afsluitsignaal (SIGTERM/SIGINT — een Railway-redeploy of een operator die stopt) ontvangt, verloopt
   de afsluiting in twee fasen zodat een rolling redeploy geen verkeer verliest:

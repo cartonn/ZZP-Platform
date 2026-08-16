@@ -255,6 +255,20 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   SIGTERM-draining, die stil kapot was). Beide gefixt en geverifieerd: `SIGUSR2 → /api/readiness` gaat
   nu van `200/draining:false` naar `503/draining:true` terwijl het proces blijft draaien.
 
+- **Harde time-out op de gezondheids-probes (liveness/readiness)** (laag, code-kant GEDAAN
+  2026-08-16): `/api/health` (liveness) en `/api/readiness` (readiness) doen een DB-round-trip
+  (`SELECT 1` + kerntabel-count) om te bewijzen dat de app + database gezond zijn. Een _fout_ (DB
+  onbereikbaar) werd al netjes afgevangen, maar een DB die de verbinding openhoudt en simpelweg **niet
+  meer antwoordt** (connection-pool-uitputting, lock-contentie, netwerk-partitie met open socket) liet
+  de probe **oneindig hangen** — precies de stille faalmodus die de codebase voor álle uitgaande HTTP
+  al afvangt (`fetchWithTimeout`) en voor cron-taken (`withTaskTimeout`), maar niet voor de DB-probes.
+  Beide probes hebben nu een **harde deadline** (`withProbeTimeout`,
+  `src/lib/observability/probe-timeout.ts`): een verlopen probe telt als `degraded`/`not ready`
+  (`503`) i.p.v. de probe te laten hangen — de load balancer/orchestrator krijgt zo altijd binnen de
+  deadline een deterministisch antwoord (nooit vals groen). Default 3000 ms, geklemd 250–30000,
+  instelbaar via `HEALTH_PROBE_TIMEOUT_MS` (`0` = bewust uit). Zie RUNBOOK §monitoring. Resterend
+  mensenwerk: **niets** — werkt out-of-the-box.
+
 - **Semantische matching (pgvector): stille-degradatie-gat gedicht** (laag, code-kant GEDAAN
   2026-08-16): `SEMANTIC_MATCHER=pgvector` was de enige env-selecteerbare driver die de "halve
   activering is gevaarlijker dan geen"-regel (CLAUDE.md §8) ontweek — de pgvector-matcher gooit
