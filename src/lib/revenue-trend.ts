@@ -8,6 +8,7 @@
 import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { monthlyRevenue, monthDeltaPct, type RevenueSource } from "./revenue";
+import { revenueCountedInvoiceWhere } from "./administration/revenue-recognition";
 
 export type { RevenueMonth } from "./revenue";
 
@@ -54,7 +55,7 @@ export function buildRevenueTrend(rows: RevenueSource[], now: Date, months = 6):
 
 /**
  * Omzettrend voor de ingelogde ZZP'er: facturen waarvan de ZZP'er de uitsteller is
- * (`issuerUserId`), excl. geannuleerde en facturen zonder factuurdatum.
+ * (`issuerUserId`), excl. geannuleerde/gecrediteerde en facturen zonder factuurdatum.
  */
 export async function getFreelancerRevenueTrend(
   userId: string,
@@ -65,7 +66,7 @@ export async function getFreelancerRevenueTrend(
     where: {
       issuerUserId: userId,
       issuedAt: { gte: revenueWindowStart(now, months) },
-      status: { not: "CANCELLED" },
+      ...revenueCountedInvoiceWhere,
     },
     select: { issuedAt: true, totalCents: true },
   });
@@ -75,7 +76,7 @@ export async function getFreelancerRevenueTrend(
 
 /**
  * Omzettrend voor de ingelogde opdrachtgever: facturen waarvan de opdrachtgever de
- * tegenpartij is (`counterpartyUserId`), excl. geannuleerde en zonder factuurdatum.
+ * tegenpartij is (`counterpartyUserId`), excl. geannuleerde/gecrediteerde en zonder factuurdatum.
  */
 export async function getClientRevenueTrend(
   userId: string,
@@ -86,7 +87,7 @@ export async function getClientRevenueTrend(
     where: {
       counterpartyUserId: userId,
       issuedAt: { gte: revenueWindowStart(now, months) },
-      status: { not: "CANCELLED" },
+      ...revenueCountedInvoiceWhere,
     },
     select: { issuedAt: true, totalCents: true },
   });
@@ -111,7 +112,7 @@ export async function getTenantRevenueTrend(
   const invoices = await prisma.invoice.findMany({
     where: {
       issuedAt: { gte: revenueWindowStart(now, months) },
-      status: { not: "CANCELLED" },
+      ...revenueCountedInvoiceWhere,
       issuerUserId: { not: null },
       collaboration: { job: { tenantId } },
     },
@@ -127,7 +128,7 @@ export async function getTenantRevenueTrend(
  * sommeren over `issuerUserId not null` telt elke transactie precies één keer en sluit
  * eventuele platform-fee-facturen (`issuerUserId` null) uit. Dit is doorzet/GMV dat via het
  * platform loopt, geen platform-inkomsten (het platform boekt niets — Besluit 1). Excl.
- * geannuleerde facturen en facturen zonder factuurdatum.
+ * geannuleerde/gecrediteerde facturen en facturen zonder factuurdatum.
  */
 export async function getPlatformRevenueTrend(
   now: Date = new Date(),
@@ -136,7 +137,7 @@ export async function getPlatformRevenueTrend(
   const invoices = await prisma.invoice.findMany({
     where: {
       issuedAt: { gte: revenueWindowStart(now, months) },
-      status: { not: "CANCELLED" },
+      ...revenueCountedInvoiceWhere,
       issuerUserId: { not: null },
     },
     select: { issuedAt: true, totalCents: true },

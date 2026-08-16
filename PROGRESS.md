@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-16 — correctheid: revenue-trend telt gecrediteerde cascade-facturen niet meer als omzet
+
+**Wat:** de omzet-trendkaarten op alle vier de dashboards (ZZP'er/opdrachtgever/bemiddelaar/platform,
+`src/lib/revenue-trend.ts`) filterden op de **legacy**-kolom `status: { not: "CANCELLED" }`. De
+cascade-lifecycle (de werkproces-flow) kent géén `CANCELLED` — haar reversal-eindtoestand is `CREDITED`
+(de legacy→cascade-migratie mapt `CANCELLED → CREDITED`). Een gecrediteerde/teruggedraaide
+cascade-factuur houdt haar legacy `status` bewust op `DRAFT`, glipt dus door de filter en werd tóch als
+omzet meegeteld → over-rapportage op elk omzet-dashboard (server-side-waarheid geschonden). Geparkeerd
+functioneel-correctheidsitem uit persona-sweep run 79.
+
+**Fix:** gedeelde reporting-helper `src/lib/administration/revenue-recognition.ts`
+(`isInvoiceRevenueCounted` pure + `revenueCountedInvoiceWhere` Prisma-where), gespiegeld op de vorm van
+`outstandingInvoiceWhere` (./outstanding) en `isInvoiceSettled` (../cascade/completion): cascade telt mee
+tenzij `CREDITED`, legacy telt mee tenzij `CANCELLED`. Alle vier de fetchers in `revenue-trend.ts`
+gebruiken nu `...revenueCountedInvoiceWhere` i.p.v. de legacy-only filter → één bron van waarheid, geen
+toekomstige drift. Read-only, geen schema-/mutatie-/auth-oppervlak. +9 tests (`revenue-recognition.test.ts`).
+Gate: typecheck, lint, test (19 in scope), build, prettier groen.
+
 ## 2026-08-16 — prod: harde time-out op de DB-probes van /api/health + /api/readiness
 
 **Wat:** de liveness- (`/api/health`) en readiness- (`/api/readiness`) probes deden een DB-round-trip
