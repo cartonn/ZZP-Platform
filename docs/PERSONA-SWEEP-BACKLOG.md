@@ -1,5 +1,58 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-16 (run 79) · **main-commit basis:** `18ce0957`
+> **Uitkomst:** **2 bereikbare defecten gevonden én gefixt** (1× cascade/geld-integriteit HOOG —
+> verweesde afgekeurde prestatie bij auto-afronding; 1× next-action-engine LAAG/should-fix —
+> non-deterministische compliance-slice). 4 parallelle adversariële Opus-code-audits op niet-
+> overlappende oppervlakken (authz/IDOR/tenant-isolatie, cascade/geld-integriteit + verboden
+> statusovergangen, next-action-engine-correctheid, malicieuze input/CSV/XSS). Twee audits
+> (authz/IDOR/tenant, malicieuze input) vonden **0 bereikbare gaten**; de cascade- en next-action-
+> audits leverden elk één fix. 1 non-security consistentie-nit geparkeerd.
+>
+> - **OPGELOST — afgekeurde prestatie raakt permanent verweesd bij auto-afronding van de samenwerking
+>   (HOOG, geld-integriteit):** de afrond-gereedheidscheck telde alleen `SUBMITTED`-prestaties als
+>   "open werk"; een `REJECTED`-prestatie (afgekeurd, maar corrigeerbaar — `performanceMachine`:
+>   `REJECTED → SUBMITTED/DRAFT`) blokkeerde afronden niet. **Asymmetrie die het als vergissing
+>   verraadt:** een `REJECTED`-_factuur_ telt via `isInvoiceSettled` juist wél als openstaand en
+>   blokkeert afronden. **Repro:** één ACTIVE-samenwerking, prestatie P1 SUBMITTED → door opdrachtgever
+>   REJECTED (nooit hersteld). Losse cyclus P2 (geen overlap) → APPROVED → factuur I2 → ingediend →
+>   goedgekeurd → **betaald**. `confirmPayment` berekent `hasOtherOpenWork` uit
+>   `performance.count({SUBMITTED})` = 0 (P1 is REJECTED, niet SUBMITTED) → de samenwerking springt
+>   auto op `COMPLETED`. Daarna weigert `assertCollaborationNotTerminal` élke herindiening van P1 →
+>   corrigeerbare (mogelijk terecht te betalen) uren muurvast, geen herstelpad, geen notificatie.
+>   **Geschonden regel:** "afronden met onbeoordeeld/corrigeerbaar werk moet onmogelijk zijn" +
+>   symmetrie met de factuurzijde. **Fix:** `REJECTED`-prestaties tellen nu als open werk bij het
+>   **afronden** (auto + handmatig): `collaborationCompletableGuard` (Event E) blokkeert
+>   `{ in: ["SUBMITTED","REJECTED"] }`; `collaborationTerminableGuard({ blockRejectedPerformances })`
+>   parametriseert dat (AAN voor COMPLETED, UIT voor CANCELLED); `hasOpenCollaborationWork` /
+>   `completionBlockReason` kennen een nieuw `rejectedPerformances`-veld; `payment-commands.ts` +
+>   `samenwerkingen/actions.ts` tellen de REJECTED-prestaties mee op de afrondpaden. **Bewust NIET op
+>   het annuleer-pad:** een afgebroken deal mag afgekeurd werk laten vervallen (`cancellationBlockReason`
+>   negeert het). Escape zonder deadlock: de ZZP'er dient P1 opnieuw in (→ SUBMITTED → grace-auto-
+>   approve → factuur → betaling) of de samenwerking blijft ACTIVE (herstelbare staat). +12 tests
+>   (completion/handlers-guard-vorm + reden-precedentie + annuleren negeert REJECTED).
+> - **OPGELOST — non-deterministische compliance-slice aan opdrachtgeverskant (LAAG/should-fix, DOEL
+>   1b):** `clientCredentialAlerts` (`src/lib/collaboration-alerts.ts`) las ACTIVE-samenwerkingen met
+>   `take: 200` **zónder `orderBy`** — de enige plek in dit oppervlak waar de "deterministische
+>   `orderBy` náást elke `take`"-conventie (pending-tasks.ts) ontbrak. De functie voedt het zwaarst-
+>   wegende opdrachtgever-signaal (`clientComplianceTask`, `P.complianceRipple`) vanuit twee
+>   ongecachte call-sites in één render (`pending-tasks.ts` → /acties+badge+rail; `signals.ts` →
+>   dashboard-snapshot); zonder vaste volgorde kan Postgres het 200-rij-venster per scan anders
+>   teruggeven → dezelfde compliance-alert flappert of spreekt zichzelf tussen de twee oppervlakken
+>   tegen bij >200 gelijktijdige ACTIVE-samenwerkingen (institutionele opdrachtgever). Zelfde spiegel
+>   in `src/lib/data/freelancer-compliance.ts` (`getActiveCollaborationRequirements`). **Fix:**
+>   `orderBy: { createdAt: "asc" }` op beide (oudste-eerst, self-healing), conform runs 76/77.
+>
+> **Geparkeerd (nit, niet gefixt):** `availabilityWindowSchema.startDate/endDate`
+> (`src/lib/validation.ts:270-280`) gebruikt `z.coerce.date()` zónder min/max-jaargrens, anders dan de
+> diensten-import-datumchecks. Een `startDate=9999-12-31` wordt cosmetisch geaccepteerd maar crasht
+> niets downstream (`awayUntil`/`formatDateShortNl` verwerken het). Geen beveiligingsdefect — puur een
+> consistentie-gap met de datum-grens-discipline elders. Prioriteit LAAG.
+>
+> ---
+>
+> **Vorige run:**
+>
 > **Datum:** 2026-08-15 (run 78) · **main-commit basis:** `f90828b0`
 > **Uitkomst:** **2 bereikbare defecten gevonden én gefixt** (1× cascade/geld-integriteit HOOG-MED,
 > 1× next-action-engine MED; geen geparkeerde correctheids-/beveiligingsitems deze run). 4 parallelle

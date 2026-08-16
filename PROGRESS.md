@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-16 — Persona-sweep run 79: verweesde afgekeurde prestatie bij auto-afronding (HOOG) + non-deterministische compliance-slice
+
+**Wat:** kritische-gebruiker-sweep (4 parallelle adversariële Opus-code-audits op authz/IDOR/tenant,
+cascade/geld-integriteit, next-action-engine, malicieuze input). Twee audits vonden 0 bereikbare gaten;
+twee leverden elk één fix.
+
+1. **HOOG — afgekeurde prestatie raakt permanent verweesd bij auto-afronding (geld-integriteit).** De
+   afrond-gereedheidscheck telde alleen `SUBMITTED`-prestaties als "open werk"; een corrigeerbare
+   `REJECTED`-prestatie (performanceMachine: `REJECTED → SUBMITTED/DRAFT`) blokkeerde afronden niet —
+   terwijl een `REJECTED`-factuur dat via `isInvoiceSettled` wél doet (de asymmetrie die het als
+   vergissing verraadt). Bij betaling van een ándere factuurcyclus sprong de samenwerking auto op
+   `COMPLETED` en verweesde de afgekeurde prestatie permanent (`assertCollaborationNotTerminal` weigert
+   daarna élke herindiening → geld muurvast, geen herstelpad). **Fix:** `REJECTED` telt nu als open
+   werk bij **afronden** (auto Event E + handmatig), **niet** bij annuleren (afgebroken deal mag
+   afgekeurd werk laten vervallen). Geen deadlock: de ZZP'er dient opnieuw in (→ grace-auto-approve →
+   factuur → betaling) of de samenwerking blijft ACTIVE.
+2. **LAAG/should-fix (DOEL 1b) — non-deterministische compliance-slice.** `clientCredentialAlerts` las
+   ACTIVE-samenwerkingen met `take: 200` zónder `orderBy` (voedt `clientComplianceTask` uit twee
+   ongecachte call-sites) → flapperende/tegensprekende compliance-alert bij >200 samenwerkingen.
+   `orderBy: { createdAt: "asc" }` toegevoegd, idem in `getActiveCollaborationRequirements`.
+
+**Bestanden:** `src/lib/cascade/completion.ts` (rejectedPerformances-veld + guard-parametrisering +
+afgekeurd-blokreden), `src/lib/cascade/completion.test.ts` (+12 tests), `src/lib/cascade/payment-commands.ts`
+(REJECTED-telling op auto-afrondpad), `src/lib/cascade/handlers.test.ts` (guard-vorm), `src/app/(protected)/samenwerkingen/actions.ts`
+(REJECTED-telling + guard-keuze op de handmatige afrondpaden), `src/lib/collaboration-alerts.ts` +
+`src/lib/data/freelancer-compliance.ts` (deterministische orderBy), `docs/PERSONA-SWEEP-BACKLOG.md`.
+Geparkeerd: `availabilityWindowSchema` datum zonder jaargrens (non-security consistentie-nit). Gate:
+typecheck, lint, test (6054), build, prettier groen.
+
 ## 2026-08-16 — ZZP'er: gemiddeld uurtarief per maand op /inzicht
 
 **Wat:** de tarief-tegenhanger van de winst-/uren-trends. De ZZP'er zag op `/inzicht` wél hoevéél hij

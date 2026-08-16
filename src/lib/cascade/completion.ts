@@ -32,14 +32,28 @@ export interface OpenWorkSnapshot {
   otherInvoices: InvoiceStateSnapshot[];
   /** Aantal ingediende prestaties (Performance status SUBMITTED) dat nog op goedkeuring wacht. */
   submittedPerformances: number;
+  /**
+   * Aantal AFGEKEURDE (Performance status REJECTED) prestaties. Afgekeurd werk is corrigeerbaar
+   * (`performanceMachine`: REJECTED → SUBMITTED/DRAFT) — de ZZP'er hoort het te herstellen en opnieuw
+   * in te dienen, waarna het pas een factuur wordt. Blokkeert daarom AFRONDEN, spiegelend aan een
+   * REJECTED-factuur (`isInvoiceSettled` telt die óók als openstaand): zou de samenwerking auto-
+   * afronden op de betaling van een ándere cyclus, dan verweest de afgekeurde prestatie permanent
+   * (na COMPLETED weigert `assertCollaborationNotTerminal` elke herindiening — geld muurvast). Blokkeert
+   * NIET annuleren: bij het afbreken van een deal mag afgekeurd werk vervallen. Optioneel; het
+   * annuleer-pad geeft dit veld niet mee (default 0).
+   */
+  rejectedPerformances?: number;
 }
 
 /**
- * True zodra er nog openstaand geld (een niet-afgewikkelde andere factuur) of onbeoordeeld
- * werk (een ingediende prestatie) is. Pure functie, geen DB.
+ * True zodra er nog openstaand geld (een niet-afgewikkelde andere factuur), onbeoordeeld werk (een
+ * ingediende prestatie) of corrigeerbaar afgekeurd werk (een REJECTED-prestatie) is. Pure functie,
+ * geen DB. Wordt gebruikt door het auto-afrond-pad (betaling, Event E) — dus afronden-context, waar
+ * ook een afgekeurde prestatie het afronden hoort tegen te houden.
  */
 export function hasOpenCollaborationWork(snapshot: OpenWorkSnapshot): boolean {
   if (snapshot.submittedPerformances > 0) return true;
+  if ((snapshot.rejectedPerformances ?? 0) > 0) return true;
   return snapshot.otherInvoices.some((inv) => !isInvoiceSettled(inv));
 }
 
@@ -68,7 +82,10 @@ export function hasOpenCollaborationWork(snapshot: OpenWorkSnapshot): boolean {
 export function collaborationCompletableGuard(currentInvoiceId: string): Record<string, unknown> {
   return {
     disputedAt: null,
-    performances: { none: { status: "SUBMITTED" } },
+    // SUBMITTED = onbeoordeeld werk; REJECTED = corrigeerbaar afgekeurd werk. Beide houden het
+    // auto-afronden tegen zodat een afgekeurde prestatie niet verweest wanneer een ándere factuur-
+    // cyclus uitbetaalt (spiegelt de REJECTED-factuur die via `isInvoiceSettled` óók openstaand is).
+    performances: { none: { status: { in: ["SUBMITTED", "REJECTED"] } } },
     invoices: {
       none: {
         id: { not: currentInvoiceId },
@@ -105,10 +122,20 @@ export function collaborationCompletableGuard(currentInvoiceId: string): Record<
  * `disputedAt: null` sluit bovendien het venster waarin een gelijktijdig geopend dispuut zou wegvallen.
  * Plain object (geen Prisma-import) — puur en unit-testbaar.
  */
-export function collaborationTerminableGuard(): Record<string, unknown> {
+export function collaborationTerminableGuard(opts?: {
+  /**
+   * Blokkeer óók op een AFGEKEURDE (REJECTED) prestatie. AAN voor het handmatige AFRONDEN
+   * (COMPLETED): afgekeurd werk is corrigeerbaar en zou anders verweest raken. UIT (default) voor
+   * ANNULEREN (CANCELLED): een afgebroken deal mag afgekeurd werk laten vervallen.
+   */
+  blockRejectedPerformances?: boolean;
+}): Record<string, unknown> {
+  const blockedPerformanceStatuses = opts?.blockRejectedPerformances
+    ? ["SUBMITTED", "REJECTED"]
+    : ["SUBMITTED"];
   return {
     disputedAt: null,
-    performances: { none: { status: "SUBMITTED" } },
+    performances: { none: { status: { in: blockedPerformanceStatuses } } },
     invoices: {
       none: {
         OR: [
@@ -139,6 +166,12 @@ export function completionBlockReason(snapshot: OpenWorkSnapshot): string | null
     return snapshot.submittedPerformances === 1
       ? "Er wacht nog 1 ingediende urenstaat of oplevering op goedkeuring. Beoordeel die eerst voordat je de samenwerking afrondt."
       : `Er wachten nog ${snapshot.submittedPerformances} ingediende urenstaten of opleveringen op goedkeuring. Beoordeel die eerst voordat je de samenwerking afrondt.`;
+  }
+  const rejected = snapshot.rejectedPerformances ?? 0;
+  if (rejected > 0) {
+    return rejected === 1
+      ? "Er staat nog 1 afgekeurde urenstaat of oplevering open. Corrigeer en dien die opnieuw in — of laat 'm alsnog goedkeuren — voordat je de samenwerking afrondt."
+      : `Er staan nog ${rejected} afgekeurde urenstaten of opleveringen open. Corrigeer en dien die opnieuw in voordat je de samenwerking afrondt.`;
   }
   return null;
 }

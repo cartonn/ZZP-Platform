@@ -435,7 +435,7 @@ describe("Event E — planPaymentConfirmedEvent", () => {
     // huidige factuur uitsluit en op ander open werk toetst.
     expect(completion?.optional).toBe(true);
     expect(completion?.guard).toMatchObject({
-      performances: { none: { status: "SUBMITTED" } },
+      performances: { none: { status: { in: ["SUBMITTED", "REJECTED"] } } },
       invoices: { none: { id: { not: "i1" } } },
     });
     expect(fx.notifications.map((n) => n.userId).sort()).toEqual(["c1", "f1"]);

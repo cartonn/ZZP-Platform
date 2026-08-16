@@ -23,6 +23,9 @@ export async function getActiveCollaborationRequirements(
 
   const collaborations = await prisma.collaboration.findMany({
     where: { freelancerId: profile.id, status: "ACTIVE" },
+    // Deterministische orderBy náást de take (conventie in pending-tasks.ts): stabiel, self-healing
+    // 200-rij-venster i.p.v. een per-scan wisselende slice. Spiegelt clientCredentialAlerts.
+    orderBy: { createdAt: "asc" },
     take: 200,
     include: {
       job: {

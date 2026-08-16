@@ -132,6 +132,22 @@ describe("hasOpenCollaborationWork", () => {
       ),
     ).toBe(true);
   });
+
+  it("één afgekeurde (REJECTED) prestatie → openstaand werk (blokkeert auto-afronden)", () => {
+    expect(hasOpenCollaborationWork(snapshot({ rejectedPerformances: 1 }))).toBe(true);
+  });
+
+  it("afgekeurde prestatie naast alleen-afgewikkelde facturen → nog steeds openstaand werk", () => {
+    expect(
+      hasOpenCollaborationWork(
+        snapshot({ otherInvoices: [inv("SUBMITTED", "PAID")], rejectedPerformances: 2 }),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejectedPerformances default 0 (weggelaten) → geen openstaand werk", () => {
+    expect(hasOpenCollaborationWork(snapshot())).toBe(false);
+  });
 });
 
 // ─── completionBlockReason ───────────────────────────────────────────────────
@@ -182,6 +198,24 @@ describe("completionBlockReason", () => {
       "Er wachten nog 3 ingediende urenstaten of opleveringen op goedkeuring. Beoordeel die eerst voordat je de samenwerking afrondt.",
     );
   });
+
+  it("één afgekeurde prestatie zonder open factuur/ingediende prestatie → afgekeurd-reden (enkelvoud)", () => {
+    expect(completionBlockReason(snapshot({ rejectedPerformances: 1 }))).toBe(
+      "Er staat nog 1 afgekeurde urenstaat of oplevering open. Corrigeer en dien die opnieuw in — of laat 'm alsnog goedkeuren — voordat je de samenwerking afrondt.",
+    );
+  });
+
+  it("meerdere afgekeurde prestaties → afgekeurd-reden (meervoud)", () => {
+    expect(completionBlockReason(snapshot({ rejectedPerformances: 2 }))).toBe(
+      "Er staan nog 2 afgekeurde urenstaten of opleveringen open. Corrigeer en dien die opnieuw in voordat je de samenwerking afrondt.",
+    );
+  });
+
+  it("ingediende prestatie weegt zwaarder dan een afgekeurde (beoordeel eerst wat op de opdrachtgever wacht)", () => {
+    expect(
+      completionBlockReason(snapshot({ submittedPerformances: 1, rejectedPerformances: 1 })),
+    ).toContain("op goedkeuring");
+  });
 });
 
 // ─── cancellationBlockReason ─────────────────────────────────────────────────
@@ -220,14 +254,29 @@ describe("cancellationBlockReason — symmetrisch met afronden (annuleren mag ni
       "Er wachten nog 3 ingediende urenstaten of opleveringen op goedkeuring. Beoordeel of wijs die eerst af voordat je de samenwerking annuleert.",
     );
   });
+
+  it("een afgekeurde prestatie blokkeert annuleren NIET (alleen afronden) — afgebroken deal mag afgekeurd werk laten vervallen", () => {
+    expect(cancellationBlockReason(snapshot({ rejectedPerformances: 3 }))).toBeNull();
+  });
 });
 
 // ─── collaborationCompletableGuard ────────────────────────────────────────────
 
 describe("collaborationCompletableGuard — write-time eligibility guard (Event E race)", () => {
-  it("weigert afronding zolang er een SUBMITTED-prestatie is (relationele none)", () => {
+  it("weigert afronding zolang er een SUBMITTED- of REJECTED-prestatie is (relationele none)", () => {
     const guard = collaborationCompletableGuard("inv-huidig");
-    expect(guard.performances).toEqual({ none: { status: "SUBMITTED" } });
+    expect(guard.performances).toEqual({ none: { status: { in: ["SUBMITTED", "REJECTED"] } } });
+  });
+
+  it("blokkeert auto-afronding op een AFGEKEURDE prestatie — anders verweest die bij betaling van een andere cyclus", () => {
+    // Regressie (persona-sweep run 79): REJECTED-werk is corrigeerbaar (performanceMachine: REJECTED →
+    // SUBMITTED/DRAFT) maar telde niet als open werk, terwijl een REJECTED-factuur dat wél doet. Zo kon
+    // de betaling van een losse cyclus de samenwerking auto-afronden en de afgekeurde prestatie permanent
+    // verwezen (na COMPLETED weigert assertCollaborationNotTerminal elke herindiening → geld muurvast).
+    const guard = collaborationCompletableGuard("inv-huidig") as {
+      performances: { none: { status: { in: string[] } } };
+    };
+    expect(guard.performances.none.status.in).toContain("REJECTED");
   });
 
   it("sluit de zojuist betaalde factuur uit én toetst op niet-afgewikkelde andere facturen", () => {
@@ -264,7 +313,7 @@ describe("collaborationTerminableGuard — write-time TOCTOU-guard voor het hand
   it("levert exact de verwachte relationele vorm (disputedAt null, geen SUBMITTED-prestatie, geen open factuur)", () => {
     expect(collaborationTerminableGuard()).toEqual({
       disputedAt: null,
-      performances: { none: { status: "SUBMITTED" } },
+      performances: { none: { status: { in: ["SUBMITTED"] } } },
       invoices: {
         none: {
           OR: [
@@ -277,7 +326,23 @@ describe("collaborationTerminableGuard — write-time TOCTOU-guard voor het hand
   });
 
   it("weigert terminale transitie zolang er een SUBMITTED-prestatie is (relationele none)", () => {
-    expect(collaborationTerminableGuard().performances).toEqual({ none: { status: "SUBMITTED" } });
+    expect(collaborationTerminableGuard().performances).toEqual({
+      none: { status: { in: ["SUBMITTED"] } },
+    });
+  });
+
+  it("annuleren (default) blokkeert NIET op een afgekeurde prestatie — een afgebroken deal mag afgekeurd werk laten vervallen", () => {
+    const guard = collaborationTerminableGuard() as {
+      performances: { none: { status: { in: string[] } } };
+    };
+    expect(guard.performances.none.status.in).not.toContain("REJECTED");
+  });
+
+  it("afronden (blockRejectedPerformances) blokkeert óók op een afgekeurde prestatie zodat die niet verweest", () => {
+    const guard = collaborationTerminableGuard({ blockRejectedPerformances: true }) as {
+      performances: { none: { status: { in: string[] } } };
+    };
+    expect(guard.performances.none.status.in).toEqual(["SUBMITTED", "REJECTED"]);
   });
 
   it("her-toetst de dispuut-vries in dezelfde write (disputedAt: null)", () => {

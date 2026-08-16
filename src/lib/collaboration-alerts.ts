@@ -252,6 +252,12 @@ export async function clientCredentialAlerts(userId: string): Promise<ClientCred
     // consistent met pending-tasks.ts en signals.ts. De pure `clientCredentialAlertsFromRows` guardt
     // hier nogmaals op (defense-in-depth + testbaar zonder DB).
     where: { companyId: company.id, status: "ACTIVE", disputedAt: null },
+    // Deterministische orderBy náást elke take (conventie in pending-tasks.ts): zonder vaste
+    // volgorde kan Postgres het 200-rij-venster per scan anders teruggeven, waardoor dezelfde
+    // compliance-alert tussen /acties (pending-tasks.ts) en de dashboard-snapshot (signals.ts)
+    // — twee ongecachte call-sites in één render — kan flapperen of tegenspreken. Oudste-eerst is
+    // self-healing en spiegelt de al-gefixte keur-/factuur-slices (runs 76/77).
+    orderBy: { createdAt: "asc" },
     take: 200,
     include: COLLABORATION_ALERT_INCLUDE,
   });

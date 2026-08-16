@@ -52,7 +52,7 @@ export async function confirmPayment(actor: Actor, invoiceId: string): Promise<v
   // Dit is de pre-transactionele lees; de write-time backstop tegen een race (nieuw open werk
   // tussen deze lees en de write) zit in de relationele guard op de afrond-statuswijziging
   // (planPaymentConfirmedEvent → collaborationCompletableGuard, `optional`-skip in apply.ts).
-  const [otherInvoices, submittedPerformances] = await Promise.all([
+  const [otherInvoices, submittedPerformances, rejectedPerformances] = await Promise.all([
     prisma.invoice.findMany({
       where: { collaborationId: inv.collaborationId, id: { not: invoiceId } },
       select: { lifecycleStatus: true, status: true },
@@ -60,8 +60,17 @@ export async function confirmPayment(actor: Actor, invoiceId: string): Promise<v
     prisma.performance.count({
       where: { collaborationId: inv.collaborationId, status: "SUBMITTED" },
     }),
+    // Afgekeurde (corrigeerbare) prestaties houden het auto-afronden óók tegen — anders verweest die
+    // prestatie permanent wanneer een ándere factuur-cyclus uitbetaalt.
+    prisma.performance.count({
+      where: { collaborationId: inv.collaborationId, status: "REJECTED" },
+    }),
   ]);
-  const hasOtherOpenWork = hasOpenCollaborationWork({ otherInvoices, submittedPerformances });
+  const hasOtherOpenWork = hasOpenCollaborationWork({
+    otherInvoices,
+    submittedPerformances,
+    rejectedPerformances,
+  });
 
   const effects = planPaymentConfirmedEvent({
     invoice: {

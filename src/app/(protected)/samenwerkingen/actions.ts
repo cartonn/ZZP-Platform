@@ -282,15 +282,21 @@ async function applyCollaborationStatusChange(
   // niet-afgewikkelde factuur) óf een ingediende prestatie die nog op goedkeuring wacht. Symmetrisch
   // met de annuleer-rem; server-side de waarheid. Spiegelt de cascade-afronding (confirmPayment).
   if (targetStatus === "COMPLETED") {
-    const [otherInvoices, submittedPerformances] = await Promise.all([
+    const [otherInvoices, submittedPerformances, rejectedPerformances] = await Promise.all([
       // unbounded-allow: factuurstatus van één samenwerking voor de afronden-rem; per-collab begrensd
       prisma.invoice.findMany({
         where: { collaborationId },
         select: { lifecycleStatus: true, status: true },
       }),
       prisma.performance.count({ where: { collaborationId, status: "SUBMITTED" } }),
+      // Afgekeurd (corrigeerbaar) werk blokkeert afronden — niet annuleren (zie de CANCELLED-rem).
+      prisma.performance.count({ where: { collaborationId, status: "REJECTED" } }),
     ]);
-    const reason = completionBlockReason({ otherInvoices, submittedPerformances });
+    const reason = completionBlockReason({
+      otherInvoices,
+      submittedPerformances,
+      rejectedPerformances,
+    });
     if (reason) throw new Error(reason);
   }
 
@@ -344,15 +350,20 @@ async function applyCollaborationStatusChange(
     // Her-verificatie van de afronden-rem: rond nooit af met open geld of een onbeoordeelde prestatie
     // die ná de pre-check hierboven binnenkwam.
     if (targetStatus === "COMPLETED") {
-      const [otherInvoices, submittedPerformances] = await Promise.all([
+      const [otherInvoices, submittedPerformances, rejectedPerformances] = await Promise.all([
         // unbounded-allow: factuurstatus van één samenwerking voor de afronden-rem; per-collab begrensd
         tx.invoice.findMany({
           where: { collaborationId },
           select: { lifecycleStatus: true, status: true },
         }),
         tx.performance.count({ where: { collaborationId, status: "SUBMITTED" } }),
+        tx.performance.count({ where: { collaborationId, status: "REJECTED" } }),
       ]);
-      const reason = completionBlockReason({ otherInvoices, submittedPerformances });
+      const reason = completionBlockReason({
+        otherInvoices,
+        submittedPerformances,
+        rejectedPerformances,
+      });
       if (reason) throw new Error(reason);
     }
     // Her-verificatie van de annuleer-rem (TOCTOU-dicht): geen annulering terwijl er ná de pre-check
@@ -382,9 +393,13 @@ async function applyCollaborationStatusChange(
       where: {
         id: collaborationId,
         status: from,
-        ...(targetStatus === "COMPLETED" || targetStatus === "CANCELLED"
-          ? collaborationTerminableGuard()
-          : {}),
+        // AFRONDEN blokkeert óók op een afgekeurde (corrigeerbare) prestatie zodat die niet verweest;
+        // ANNULEREN niet (een afgebroken deal mag afgekeurd werk laten vervallen).
+        ...(targetStatus === "COMPLETED"
+          ? collaborationTerminableGuard({ blockRejectedPerformances: true })
+          : targetStatus === "CANCELLED"
+            ? collaborationTerminableGuard()
+            : {}),
       },
       // Stempel het afrondingsmoment bij de handmatige afronding — net als de cascade-applier dat doet
       // bij de betalings-cascade (één semantiek, twee paden). Ankert het blinde beoordelingsvenster.
