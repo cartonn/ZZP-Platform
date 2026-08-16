@@ -9,6 +9,7 @@ import {
   Gauge,
   PieChart,
   Target,
+  TrendingUp,
   Building2,
   Users,
 } from "lucide-react";
@@ -54,6 +55,7 @@ import {
 } from "@/components/insight/bi";
 import { getFreelancerProfitTrend, type ProfitTrend } from "@/lib/profit-trend";
 import { getFreelancerWorkedHoursTrend, type WorkedHoursTrend } from "@/lib/worked-hours-trend";
+import { getFreelancerHourlyRateTrend, type HourlyRateTrend } from "@/lib/hourly-rate-trend";
 import {
   getHoursCriterionSummary,
   type HoursCriterionSummary,
@@ -279,6 +281,75 @@ function GewerkteUrenPerMaandCard({ trend }: { trend: WorkedHoursTrend }) {
   );
 }
 
+/** Uurtarief in centen → "€ 80/u" (nl-NL, hele euro's; tarieven zijn in de praktijk rond). */
+function formatEuroPerHour(cents: number): string {
+  return `${formatEuro(cents)}/u`;
+}
+
+/**
+ * Gemiddeld-uurtarief-per-maand voor de ZZP'er: de tarief-tegenhanger van de winst-/uren-trends. Toont
+ * het naar uren gewogen gemiddelde uurtarief per maand, zodat zichtbaar wordt of het tarief over tijd
+ * stijgt of erodeert. De cijfers komen uit `buildHourlyRateTrend` (zelfde APPROVED HOURS-prestaties +
+ * `rateCents`-snapshot en dezelfde maand-bucketing als de geldtrends), server-side berekend.
+ */
+function GemiddeldUurtariefPerMaandCard({ trend }: { trend: HourlyRateTrend }) {
+  if (!trend.hasData || trend.averageRateCents === null) {
+    return (
+      <BiWidget title="Gemiddeld uurtarief per maand">
+        <EmptyState
+          icon={TrendingUp}
+          title="Nog geen tariefcijfers"
+          description="Zodra je uren tegen een uurtarief zijn goedgekeurd, zie je hier hoe je gemiddelde uurtarief zich per maand ontwikkelt."
+        />
+      </BiWidget>
+    );
+  }
+  return (
+    <BiWidget title="Gemiddeld uurtarief per maand">
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Gemiddeld · laatste {trend.months} maanden
+            </p>
+            <p className="mt-1 font-mono text-3xl font-semibold tabular-nums tracking-tight">
+              {formatEuroPerHour(trend.averageRateCents)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              naar gewerkte uren gewogen · excl. toeslagen
+            </p>
+          </div>
+          {trend.deltaPct !== null && (
+            <div>
+              <p className="text-xs text-muted-foreground">Deze maand vs. vorige</p>
+              <p
+                className={cn(
+                  "mt-0.5 font-mono text-lg font-semibold tabular-nums",
+                  trend.deltaPct >= 0 ? "text-success" : "text-warning",
+                )}
+              >
+                {trend.deltaPct >= 0 ? "+" : ""}
+                {formatPercent(trend.deltaPct)}
+              </p>
+            </div>
+          )}
+        </div>
+        <BarSeries
+          data={trend.series.map((m) => ({
+            key: m.key,
+            label: m.label,
+            value: m.rateCents ?? 0,
+          }))}
+          formatValue={formatEuroPerHour}
+          height={132}
+          tone="accent"
+          label="Gemiddeld uurtarief per maand"
+        />
+      </div>
+    </BiWidget>
+  );
+}
+
 /**
  * Fee-per-maand trend voor de bemiddelaar: spiegel van de ZZP'er "Winst per maand". Toont de fee die
  * de bemiddelaar over het doorgezette volume verdient, per maand — zijn kern-P&L over tijd. De cijfers
@@ -414,17 +485,27 @@ function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
 }
 
 async function FreelancerInzicht({ userId }: { userId: string }) {
-  const [s, membership, trend, quality, hoursCriterion, profitTrend, workedHours, revenueByClient] =
-    await Promise.all([
-      getFreelancerStats(userId),
-      getFreelancerMembership(userId),
-      getFreelancerRevenueTrend(userId),
-      getDeliveryQuality(userId),
-      getHoursCriterionSummary(userId),
-      getFreelancerProfitTrend(userId),
-      getFreelancerWorkedHoursTrend(userId),
-      getFreelancerRevenueBreakdown(userId),
-    ]);
+  const [
+    s,
+    membership,
+    trend,
+    quality,
+    hoursCriterion,
+    profitTrend,
+    workedHours,
+    hourlyRate,
+    revenueByClient,
+  ] = await Promise.all([
+    getFreelancerStats(userId),
+    getFreelancerMembership(userId),
+    getFreelancerRevenueTrend(userId),
+    getDeliveryQuality(userId),
+    getHoursCriterionSummary(userId),
+    getFreelancerProfitTrend(userId),
+    getFreelancerWorkedHoursTrend(userId),
+    getFreelancerHourlyRateTrend(userId),
+    getFreelancerRevenueBreakdown(userId),
+  ]);
   if (!s) {
     return (
       <Card>
@@ -456,6 +537,8 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
       <WinstPerMaandCard trend={profitTrend} />
 
       <GewerkteUrenPerMaandCard trend={workedHours} />
+
+      <GemiddeldUurtariefPerMaandCard trend={hourlyRate} />
 
       <OmzetPerOpdrachtgeverWidget breakdown={revenueByClient} />
 
