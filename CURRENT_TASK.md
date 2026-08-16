@@ -268,6 +268,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — gemiddeld betaald uurtarief per maand op /inzicht (2026-08-16, PR #1114)** —
+> de kosten-tegenhanger van de ZZP'er-tariefstrip (#1112). De client-`/inzicht` toonde totale uitgaven + uitgaven per ZZP'er,
+> maar niet tegen wélk gemiddeld uurtarief hij inhuurt (tariefinflatie-signaal). Nu een "Gemiddeld betaald uurtarief per maand"-kaart:
+> naar afgenomen uren gewogen `Σ(rateCents × uren)/Σ(uren)` per maand (excl. ORT), venster-gemiddelde + delta + staafstrip. Hergebruikt
+> de identieke pure `buildHourlyRateTrend` met een client-gescoopte fetcher (`getClientHourlyRateTrend`, `collaboration.company.userId`)
+> → geen drift met de ZZP'er-variant; delta neutraal getoond (kostenstijging ≠ prestatie). `GemiddeldUurtariefPerMaandCard`
+> geparametriseerd (title/caption/emptyDescription/deltaTone); ZZP'er-aanroep ongewijzigd. Read-only, alleen CLIENT, geen schema-/
+> mutatie-/auth-oppervlak. +3 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — semantische matching (pgvector): stille-degradatie-gat gedicht (2026-08-16)** —
 > `SEMANTIC_MATCHER=pgvector` was de enige env-selecteerbare driver die zonder boot-fout/waarschuwing/status/metriek stilletjes de
 > relevantie-component van elke match op `0` zette (`relatedness()` gooit, `safeRelatedness` ving het stil op). `getSemanticMatcher()`

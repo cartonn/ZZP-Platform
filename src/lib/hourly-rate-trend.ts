@@ -141,14 +141,54 @@ export async function getFreelancerHourlyRateTrend(
     select: { hours: true, rateCents: true, periodEnd: true, periodStart: true, approvedAt: true },
   });
 
-  const priced: HourlyRateRow[] = rows
-    // Alleen prestaties met echte uren én een geldig tarief tellen mee voor een gewogen gemiddelde.
-    .filter((r) => (r.hours ?? 0) > 0 && (r.rateCents ?? 0) > 0)
-    .map((r) => ({
-      occurredAt: r.periodEnd ?? r.periodStart ?? r.approvedAt ?? now,
-      hours: r.hours ?? 0,
-      rateCents: r.rateCents ?? 0,
-    }));
+  return buildHourlyRateTrend(pricedHourlyRateRows(rows, now), now, months);
+}
 
-  return buildHourlyRateTrend(priced, now, months);
+/**
+ * Gemiddeld-uurtarief-trend voor de ingelogde opdrachtgever: de kosten-tegenhanger van de ZZP'er-
+ * variant. Leest exact dezelfde goedgekeurde uren-prestaties, maar gescoopt op de samenwerkingen van
+ * dít bedrijf (`collaboration.company.userId`), en aggregeert ze via de identieke pure
+ * `buildHourlyRateTrend`. Zo ziet de opdrachtgever of het gemiddelde uurtarief dat hij betaalt over
+ * tijd oploopt (tariefinflatie) of daalt. Owner-gescoopt; nooit een andermans samenwerking. Read-only.
+ */
+export async function getClientHourlyRateTrend(
+  userId: string,
+  now: Date = new Date(),
+  months = 6,
+): Promise<HourlyRateTrend> {
+  const floor = windowStart(now, months);
+  const rows = await prisma.performance.findMany({
+    where: {
+      status: "APPROVED",
+      type: "HOURS",
+      collaboration: { company: { userId } },
+      OR: [{ periodEnd: { gte: floor } }, { periodEnd: null, approvedAt: { gte: floor } }],
+    },
+    select: { hours: true, rateCents: true, periodEnd: true, periodStart: true, approvedAt: true },
+  });
+
+  return buildHourlyRateTrend(pricedHourlyRateRows(rows, now), now, months);
+}
+
+/** Gedeelde normalisatie: filter op echte uren + geldig tarief en kies het bucket-moment (periode-einde). */
+function pricedHourlyRateRows(
+  rows: readonly {
+    hours: number | null;
+    rateCents: number | null;
+    periodEnd: Date | null;
+    periodStart: Date | null;
+    approvedAt: Date | null;
+  }[],
+  now: Date,
+): HourlyRateRow[] {
+  return (
+    rows
+      // Alleen prestaties met echte uren én een geldig tarief tellen mee voor een gewogen gemiddelde.
+      .filter((r) => (r.hours ?? 0) > 0 && (r.rateCents ?? 0) > 0)
+      .map((r) => ({
+        occurredAt: r.periodEnd ?? r.periodStart ?? r.approvedAt ?? now,
+        hours: r.hours ?? 0,
+        rateCents: r.rateCents ?? 0,
+      }))
+  );
 }
