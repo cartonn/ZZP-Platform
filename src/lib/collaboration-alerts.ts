@@ -251,7 +251,21 @@ export async function clientCredentialAlerts(userId: string): Promise<ClientCred
     // disputedAt: null → een bevroren (in dispuut zijnde) samenwerking levert geen next-action op,
     // consistent met pending-tasks.ts en signals.ts. De pure `clientCredentialAlertsFromRows` guardt
     // hier nogmaals op (defense-in-depth + testbaar zonder DB).
-    where: { companyId: company.id, status: "ACTIVE", disputedAt: null },
+    //
+    // `job: { credentialRequirements: { some: { required: true } } }` — alleen samenwerkingen met een
+    // verplicht certificaat-vereiste kunnen een compliance-alert opleveren (de pure functie slaat
+    // `requiredTypes.length === 0` over), dus filteren we ze hier al weg zodat ze geen venster-slot
+    // vullen. `orderBy: createdAt asc` maakt het venster deterministisch en self-healing: zonder een
+    // expliciete ordening is wélke 200-van-N rijen Prisma teruggeeft niet gegarandeerd, waardoor de
+    // hoogste opdrachtgever-taak (P.complianceRipple=85) tussen page-loads kon flapperen bij >200
+    // gelijktijdige ACTIVE-samenwerkingen. Spiegelt de determinisme-conventie elders (run 77/79).
+    where: {
+      companyId: company.id,
+      status: "ACTIVE",
+      disputedAt: null,
+      job: { credentialRequirements: { some: { required: true } } },
+    },
+    orderBy: { createdAt: "asc" },
     take: 200,
     include: COLLABORATION_ALERT_INCLUDE,
   });

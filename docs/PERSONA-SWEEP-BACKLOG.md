@@ -1,5 +1,77 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-16 (run 79) · **main-commit basis:** `5cf777d2`
+> **Uitkomst:** **4 bereikbare defecten gevonden én gefixt** (1× server-side-waarheid/integriteit HOOG,
+> 1× functionele KPI-correctheid MED, 2× next-action-engine DOEL 1b MED/LAAG). 4 parallelle adversariële
+> Opus-code-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie, cascade/geld-integriteit
+>
+> - verboden statusovergangen, next-action-engine-correctheid, malicieuze input/CSV/XSS) + een live
+>   Playwright-probe (17 checks: privilege-escalatie ZZP'er/opdrachtgever/bemiddelaar → `/admin/*` en
+>   `/franchise/*`, IDOR/onzin-id → 404/redirect, nooit 500). De authz/IDOR- en malicieuze-input-audits én
+>   alle 17 runtime-probes vonden **0 bereikbare gaten**; de cascade- en next-action-audits leverden elk twee
+>   fixes. Alle vier gefixt met rood→groen-regressietests op niet-overlappende bestanden (2 subagents).
+>
+> * **OPGELOST — server-side-waarheid geschonden: legacy factuur-acties konden een cascade-factuur muteren
+>   (HOOG, integriteit — CLAUDE.md regel 1/2/5):** `sendInvoice`/`markInvoicePaid`/`cancelInvoice`
+>   (`src/app/(protected)/facturen/actions.ts`) checkten NIET of de factuur een cascade-factuur is
+>   (`lifecycleStatus != null`) vóór het toepassen van een legacy `assertInvoiceTransition` + schrijven van
+>   de legacy `status`. Een cascade-factuur houdt haar legacy `status` bewust op `DRAFT` de hele lifecycle
+>   door (SUBMITTED/APPROVED); `INVOICE_TRANSITIONS.DRAFT` staat DRAFT→CANCELLED/SENT toe, dus
+>   `cancelInvoice(cascadeInvoiceId)` — door de eigenende ZZP'er direct aangeroepen — slaagde en schreef
+>   `status:"CANCELLED"` + een **valse `INVOICE_CANCELLED`-auditregel** voor een factuur die de echte
+>   cascade-state-machine nooit annuleerde, waarna `revenue-trend.ts`'s `status:{not:"CANCELLED"}`-filters de
+>   lopende factuur uit élk omzet-dashboard lieten vallen. De precondition werd alléén client-side afgedwongen
+>   (`cascade`-gate in `facturen/[id]/page.tsx`). **Fix:** `if (invoice.lifecycleStatus != null) throw new
+Error(CASCADE_FLOW_MESSAGE)` na de ownership-/dispuut-check in alle drie de acties (spiegelt de bestaande
+>   `createInvoice`-guard). +6 tests (cascade-factuur → geweigerd, geen updateMany/audit; legacy-factuur →
+>   loopt door).
+> * **OPGELOST — "Openstaand"-KPI ondertelde openstaande cascade-facturen (MED, functionele correctheid):**
+>   `getFreelancerStats` (`src/lib/freelancer-stats.ts`) telde openstaand op `status IN (SENT,OVERDUE)` —
+>   puur de legacy-kolom. Cascade-facturen (de primaire flow) houden legacy `status` op DRAFT terwijl ze
+>   SUBMITTED/APPROVED zijn, dus echte openstaande omzet was onzichtbaar tot de betaaltermijn (~30 dgn)
+>   verstreek en de te-laat-cron de rij op OVERDUE zette → de ZZP'er zag op `/inzicht` tot 30 dagen te weinig
+>   openstaand per factuur. **Fix:** hergebruik de bestaande canonieke `outstandingInvoiceWhere`
+>   (`src/lib/administration/outstanding.ts`, OR over lifecycle SUBMITTED/APPROVED/OVERDUE + legacy
+>   SENT/OVERDUE) die `client-stats.ts` al gebruikt — geen derde divergente kopie. +tests (cascade
+>   SUBMITTED/APPROVED/OVERDUE meegeteld ondanks legacy DRAFT; PAID/CANCELLED/DRAFT niet).
+> * **OPGELOST — outer-window-blindheid op de certificaat-taken van de ZZP'er (DOEL 1b, MED):** de drie
+>   samenwerking-gebonden certificaat-taken (`credentialCollabExpiry`/`Expired`/`Missing`,
+>   `src/lib/actions/pending-tasks.ts`) werden afgeleid uit de `collabs`-relatie (`orderBy: updatedAt desc,
+take: MAX`). Run 78 dichtte ditzelfde `updatedAt`-venstergat voor de geld-taken (openInvoices/rejectedPerfs)
+>   maar niet voor deze drie certificaat-emitters. Een verlopend/afgekeurd/ontbrekend vereist certificaat bumpt
+>   `Collaboration.updatedAt` niet, dus bij >MAX gelijktijdige samenwerkingen viel een ouder-getekende
+>   samenwerking met een compliance-gat buiten `take: MAX` en verdween de aanlever-/vernieuw-taak PERMANENT uit
+>   /acties, de badge én de dashboard-rail (niet self-healing), terwijl de opdrachtgever de spiegel-alert wél
+>   zag. **Fix:** dedicated, `credentialRequirements: { some: { required: true } }`-gefilterde, `createdAt
+asc`-geordende query (alleen certificaat-dragende samenwerkingen vullen het venster, oudste blijft staan →
+>   self-healing); spiegelt het run-78 `openInvoices`-patroon. +2 regressietests.
+> * **OPGELOST — non-deterministisch venster in de opdrachtgever-compliance-query (DOEL 1b, LAAG):**
+>   `clientCredentialAlerts` (`src/lib/collaboration-alerts.ts`) window-de 200 samenwerkingen **zonder
+>   `orderBy`** — de enige `take: N`-query in deze familie zonder ordening. Bij >200 gelijktijdige
+>   ACTIVE-samenwerkingen was wélke 200-van-N rijen Prisma teruggaf niet gegarandeerd → de hoogste
+>   opdrachtgever-next-action (`clientComplianceTask`, P.complianceRipple=85) kon tussen page-loads flapperen.
+>   **Fix:** `orderBy: { createdAt: "asc" }` (deterministisch, oudste blijft staan → self-healing) +
+>   `job: { credentialRequirements: { some: { required: true } } }`-filter (alleen samenwerkingen die een
+>   alert kúnnen opleveren vullen het venster). +regressietest op de query-argumenten.
+>
+> **Geparkeerd (met repro, niet gefixt deze run):**
+>
+> - **`revenue-trend.ts` leunt op de legacy `status`-kolom (MED, functionele correctheid — zelfde wortel als
+>   de KPI-fix):** de omzet-trend-queries filteren op `status: { not: "CANCELLED" }` en tellen omzet uit de
+>   legacy `status`-kolom; door de legacy/lifecycle-drift kan een lopende cascade-factuur onder- of
+>   verkeerd-gerapporteerd worden op de omzet-dashboards (freelancer/client/tenant/platform). **Aanpak:** een
+>   gedeelde `isInvoiceCancelledForReporting`/`settled`-helper (analoog aan `isInvoiceSettled` in
+>   `cascade/completion.ts`) zodat toekomstige stats/report-code de drift niet herintroduceert. Aparte,
+>   grotere increment (raakt 4 dashboards) — daarom geparkeerd, niet in deze run meegenomen.
+> - **Authz-audit-residu (LAAG, dekking):** de authz/IDOR/tenant-audit was representatief, niet 100%
+>   bestandsdekkend; de action-bestanden `abonnement`, `academie`, `beschikbaarheid`, `ideeen`, `ontzorgd/*`,
+>   `prognose`, `rooster`, `uitgaven`, `search` zijn niet individueel geopend (elk gesampled bestandstype toonde
+>   wél het gedisciplineerde auth→rol→ownership→Zod→audit-patroon). Volgende sweep: deze expliciet nalopen.
+>
+> ---
+>
+> **Vorige run:**
+>
 > **Datum:** 2026-08-15 (run 78) · **main-commit basis:** `f90828b0`
 > **Uitkomst:** **2 bereikbare defecten gevonden én gefixt** (1× cascade/geld-integriteit HOOG-MED,
 > 1× next-action-engine MED; geen geparkeerde correctheids-/beveiligingsitems deze run). 4 parallelle

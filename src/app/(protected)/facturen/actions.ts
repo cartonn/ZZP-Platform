@@ -283,6 +283,13 @@ export async function sendInvoice(invoiceId: string): Promise<void> {
   // spiegelt `assertNotDisputed` in de cascade-laag, die elke andere geld-mutatie al blokkeert.
   if (invoice.collaboration?.disputedAt) throw new Error(DISPUTE_FROZEN_INVOICE_MESSAGE);
 
+  // Server-side waarheid (CLAUDE.md regel 1/2): een cascade-factuur (lifecycleStatus != null) loopt via
+  // de uren-/prestatieflow en houdt haar legacy `status` bewust op DRAFT. Zonder deze rem kon een legacy-
+  // actie (annuleren/versturen/betaald) de legacy-status van een cascade-factuur muteren — met een valse
+  // audit-regel en uitsluiting uit de omzet-dashboards (revenue-trend `status != CANCELLED`) als gevolg.
+  // De UI verbergt deze knoppen al (page.tsx `cascade`-gate); dit dwingt dezelfde regel server-side af.
+  if (invoice.lifecycleStatus != null) throw new Error(CASCADE_FLOW_MESSAGE);
+
   const from = invoice.status as InvoiceStatus;
   try {
     assertInvoiceTransition(from, "SENT");
@@ -334,6 +341,13 @@ export async function markInvoicePaid(invoiceId: string): Promise<void> {
   // Dispuut-bevriezing (§4 zijpad): geen geldstroom-actie zolang de samenwerking gedisputeerd is —
   // spiegelt `assertNotDisputed` in de cascade-laag.
   if (invoice.collaboration?.disputedAt) throw new Error(DISPUTE_FROZEN_INVOICE_MESSAGE);
+
+  // Server-side waarheid (CLAUDE.md regel 1/2): een cascade-factuur (lifecycleStatus != null) loopt via
+  // de uren-/prestatieflow en houdt haar legacy `status` bewust op DRAFT. Zonder deze rem kon een legacy-
+  // actie (annuleren/versturen/betaald) de legacy-status van een cascade-factuur muteren — met een valse
+  // audit-regel en uitsluiting uit de omzet-dashboards (revenue-trend `status != CANCELLED`) als gevolg.
+  // De UI verbergt deze knoppen al (page.tsx `cascade`-gate); dit dwingt dezelfde regel server-side af.
+  if (invoice.lifecycleStatus != null) throw new Error(CASCADE_FLOW_MESSAGE);
 
   const from = invoice.status as InvoiceStatus;
   // Een verlopen factuur staat in de DB nog als SENT; PAID is vanuit beide geldig.
@@ -466,6 +480,13 @@ export async function cancelInvoice(invoiceId: string): Promise<void> {
   // deze rem kon één partij een verzonden/openstaande factuur die ónder het dispuut valt eenzijdig
   // annuleren (de gedisputeerde geldregel wissen vóór de admin het dispuut beslecht).
   if (invoice.collaboration?.disputedAt) throw new Error(DISPUTE_FROZEN_INVOICE_MESSAGE);
+
+  // Server-side waarheid (CLAUDE.md regel 1/2): een cascade-factuur (lifecycleStatus != null) loopt via
+  // de uren-/prestatieflow en houdt haar legacy `status` bewust op DRAFT. Zonder deze rem kon een legacy-
+  // actie (annuleren/versturen/betaald) de legacy-status van een cascade-factuur muteren — met een valse
+  // audit-regel en uitsluiting uit de omzet-dashboards (revenue-trend `status != CANCELLED`) als gevolg.
+  // De UI verbergt deze knoppen al (page.tsx `cascade`-gate); dit dwingt dezelfde regel server-side af.
+  if (invoice.lifecycleStatus != null) throw new Error(CASCADE_FLOW_MESSAGE);
 
   const from = invoice.status as InvoiceStatus;
   try {
