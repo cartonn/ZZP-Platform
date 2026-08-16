@@ -4,6 +4,60 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-16 (basis: `main` @ cf0e2827) — GEEN nieuwe gaten in de delta (`e11b7cf9..cf0e2827`)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(1: **security/authz/IDOR/injectie** — de nieuwe delta-bestanden + brede sweep over route-handlers/server-actions
+op auth→rol→ownership→Zod→actie→audit, IDOR, cross-tenant, `$queryRaw(Unsafe)`, `dangerouslySetInnerHTML`,
+CSV-/formule-injectie, SSRF, open redirect, mass-assignment; 2: **privacy/AVG** — erasure↔export-symmetrie
+(onafhankelijk geverifieerd, niet enkel het backlogdocument), dataminimalisatie, k-anonimiteit, PII-in-logs;
+3: **runtime/deps** — `npm audit`, dependency-CVE's, headers/CSP, secrets, env-validatie). Plus orchestrator-
+probes (headers/CSP + foutlek + versies zelf geverifieerd). **Delta-oppervlak:** #1105 (login-recency
+erasure/export — al OPGELOST vorige ronde), #1106 (pre-shutdown drain-venster), #1107 (roster-CSV-export
+`/franchise/zzpers/export`), #1108 (omzet-per-opdrachtgever `/inzicht`), #1109 (plaatsing-einddatum agenda-feed).
+
+**Uitkomst:** géén nieuwe KRITIEK/HOOG/MIDDEL-bevinding. Alle nieuwe oppervlakken zijn read-only afgeleide
+BI/export/agenda-features op reeds server-side gescoopte data; `git diff e11b7cf9..cf0e2827 -- prisma/schema.prisma`
+is **leeg** (geen nieuw PII-veld → geen nieuw erasure/export-symmetriegat mogelijk). De twee reeds bekende,
+naar de mens (FG) geëscaleerde items blijven open (zie onder): third-party-geschreven PII over de betrokkene bij
+`anonymizeUser` (KRITIEK, juridische bewaargrond-afweging) en `kvkNumber` op het publieke profiel (LAAG, product/FG).
+
+### GEEN NIEUWE GATEN — bewijs met OWASP/AVG-dekking
+
+- **Nieuwe roster-CSV-export schoon (A01/A03/CWE-1236).** `src/app/(protected)/franchise/zzpers/export/route.ts`:
+  `requireActor()` → expliciete `actor.role !== "FRANCHISER"` (403) → `tenantScopeWhere(actor)` (geen client-id/tenant
+  geaccepteerd; scope server-side uit de sessie) → `enforceRateLimit(exportRateLimiter, franchise-roster:${actor.id})`
+  → `ROSTER_EXPORTED`-audit (`audit-labels.ts:118`). CSV via `toCsv`/`escapeCsvField` (`src/lib/csv.ts:137-141`):
+  formule-injectie-guard (`= + @ \t \r` en niet-numeriek `-` krijgen een `'`-prefix), getest in
+  `roster-export.test.ts`. Filters (`q/availability/status/sort`) zijn in-memory pure TS op reeds gescoopte data,
+  geen query-interpolatie, enums whitelisted.
+- **Nieuwe BI-uitsplitsing schoon (A01/AVG-minimalisatie).** `getFreelancerRevenueBreakdown` scoopt strikt op
+  `issuerUserId` + `status: PAID`; aangeroepen met `actor.id` uit de sessie (`inzicht/page.tsx`), geen id-parameter →
+  geen IDOR. Eigen transactiedata van de actor → k-anonimiteit terecht niet van toepassing.
+- **Agenda-feed-uitbreiding schoon (A01/AVG art. 17 liveness).** `/api/agenda/feed.ics` blijft: HMAC-token
+  (`timingSafeEqual`) gebonden aan `u`, rate-limit op IP+`u` vóór DB-I/O, live liveness-poort
+  (`status !== ACTIVE || anonymizedAt` → 404-anti-oracle) zodat een geschorst/gewist account niets meer serveert.
+  De nieuwe `CollaborationDeadline.counterpartyName` draagt **geen bedragen** en is parity met het bestaande rooster
+  (jobtitel + tegenpartij) — bewuste, gedocumenteerde risico-acceptatie voor deze bearer-feed, geen nieuwe klasse.
+- **Injectie-/mass-assignment-sweep schoon (A03/A08).** 0× `$queryRawUnsafe`; de enige `$queryRaw` zijn statische
+  `SELECT 1`-healthchecks; enige `dangerouslySetInnerHTML` = het nonce-gepoorte theme-script (`layout.tsx`); geen
+  `data: { ...clientInput }`-spread van een rauwe client-payload.
+- **Runtime/deps schoon.** `npm audit --omit=dev` (productie) = **0 kwetsbaarheden** → CI-`audit`-poort groen.
+  Volledige audit: 3 **dev-only** transitieve items (`brace-expansion`/`js-yaml` HIGH via `@typescript-eslint`/lint,
+  `esbuild` LOW Windows-only via `tsx`/`vite`) — niet in de productiebundel, blokkeren de poort niet. **LAAG/informatief**
+  (aanbeveling: `npm audit fix` opportunistisch in een routine-PR). Versie-CVE-dekking (WebSearch, voorbij trainings-
+  cutoff): `next` **15.5.21** dekt niet alleen CVE-2025-29927 (middleware-bypass, ≥15.2.3) maar landt **exact** op de
+  **Next.js Security Release juli 2026** (9 CVE's, 4× HIGH — o.a. CVE-2026-64641 Server-Action-DoS, CVE-2026-64645
+  rewrite/redirect-SSRF/open-redirect, CVE-2026-64649 Host-header-SSRF). `@auth/core` **0.41.3** / `next-auth`
+  **5.0.0-beta.32** landen **exact** op de **Auth.js security-update juli 2026** (4 advisories: malformed Bearer in
+  `getToken`, OAuth account-linking-confusion, provider-bound check-cookies, NFKC-e-mailnormalisatie). `prisma`/
+  `@prisma/client` **6.19.3**: geen publieke ORM-CVE. `.env` niet in git; `scripts/scan-secrets.sh` schoon.
+- **Headers/CSP + foutafhandeling schoon (A05).** Per-request nonce-CSP (geen `unsafe-inline` voor scripts in prod,
+  `src/middleware.ts` + `lib/csp.ts`); `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY`,
+  `Permissions-Policy`, HSTS `max-age=63072000; includeSubDomains; preload`. Elke gebruiker-gerichte foutmelding is
+  een getypeerde domeinfout (`AuthorizationError`/`UploadValidationError`/`TransitionError`) met een gecontroleerde
+  boodschap — geen rauwe stacktrace of Prisma-fout naar de gebruiker.
+
 ## Ronde 2026-08-15 (basis: `main` @ e11b7cf9) — 1× MIDDEL opgelost (erasure/export-gat op de login-recency-metadata)
 
 Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

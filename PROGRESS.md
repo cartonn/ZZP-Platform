@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-16 — Security-/privacy-auditronde (basis `main` @ cf0e2827) — geen nieuwe gaten (docs-PR)
+
+**Wat:** volledige security-/privacy-auditronde over de delta `e11b7cf9..cf0e2827` (#1105–#1109), met de
+orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(security/authz/IDOR/injectie · privacy/AVG erasure↔export · runtime/deps/headers/CSP). **Uitkomst: geen
+nieuwe KRITIEK/HOOG/MIDDEL-bevinding.** De nieuwe oppervlakken (roster-CSV-export `/franchise/zzpers/export`,
+omzet-per-opdrachtgever `/inzicht`, plaatsing-einddatum agenda-feed) zijn read-only afgeleide BI/export/agenda-
+features op reeds server-side gescoopte data; `git diff … -- prisma/schema.prisma` is leeg (geen nieuw PII-veld).
+Geverifieerd: tenant-scope + FRANCHISER-only + rate-limit + audit + formule-injectie-guard op de CSV-export;
+`issuerUserId`-scope op de BI-uitsplitsing; HMAC+liveness op de feed; `npm audit --omit=dev` = 0 (CI-poort groen,
+3 resterende items zijn dev-only); `next` 15.5.21 (voorbij CVE-2025-29927); volledige security-header-set + nonce-CSP;
+foutmeldingen zijn getypeerde domeinfouten (geen stack-/Prisma-lek). Twee reeds bekende, naar de FG geëscaleerde
+items blijven open (third-party-PII bij `anonymizeUser` — KRITIEK juridisch; publiek `kvkNumber` — LAAG product).
+
+**Bestanden:** `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-16 toegevoegd met bewijs + OWASP/AVG-dekking),
+`PROGRESS.md`. Geen bronwijziging — geen agent-fixbare code-bevinding deze ronde.
+
 ## 2026-08-16 — ZZP'er + opdrachtgever: plaatsing-einddatum in de agenda-feed (PR volgt)
 
 **Wat:** de persoonlijke agenda-export (`/api/agenda` + webcal `/api/agenda/feed.ics`) exporteerde
