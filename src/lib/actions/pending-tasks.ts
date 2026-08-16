@@ -603,19 +603,54 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     }
   }
 
+  // Samenwerkingen met een VERPLICHT certificaat-vereiste — bewust LOSGEKOPPELD van de `collabs`-
+  // relatie hierboven, exact zoals `rejectedPerfs`/`openInvoices` (run 76-78). Die `collabs`-query
+  // ordent `updatedAt desc, take: MAX`, maar `Collaboration.updatedAt` volgt certificaat-activiteit
+  // niet: een certificaat dat verloopt/wordt afgekeurd/nooit wordt aangeleverd raakt de
+  // samenwerkingsrij nooit, dus voor een lopende/voorgestelde samenwerking staat `updatedAt`
+  // bevroren op het teken-/voorstel-moment (outer-window-blindheid). Bij >MAX gelijktijdige
+  // samenwerkingen viel de ouder-getekende — met net een verlopen/ontbrekend vereist certificaat —
+  // buiten `take: MAX`, en dan verdween de compliance-taak (credentialCollabExpiry/Expired/Missing)
+  // stil uit /acties, de badge én de dashboard-rail, terwijl het geld/de inzet muurvast zit én de
+  // opdrachtgever de spiegel-alert (clientComplianceTask) wél zag — permanent, niet self-healing.
+  // Deze query filtert op `credentialRequirements: { some: { required: true } }` (alleen
+  // samenwerkingen die überhaupt een compliance-taak kúnnen opleveren vullen het venster) en ordent
+  // `createdAt asc` (deterministisch, oudste blijft staan → self-healing). Persona-sweep run 79.
+  const credentialCollabs = await prisma.collaboration.findMany({
+    where: {
+      freelancer: { userId },
+      status: { in: ["PROPOSED", "ACTIVE"] },
+      disputedAt: null,
+      job: { credentialRequirements: { some: { required: true } } },
+    },
+    select: {
+      id: true,
+      job: {
+        select: {
+          title: true,
+          credentialRequirements: { where: { required: true }, select: { credentialType: true } },
+        },
+      },
+      company: { select: { name: true } },
+    },
+    orderBy: { createdAt: "asc" },
+    take: MAX,
+  });
+  const credentialCollabInputs = credentialCollabs.map((c) => ({
+    collaborationId: c.id,
+    companyName: c.company.name,
+    jobTitle: c.job.title,
+    requiredTypes: c.job.credentialRequirements.map(
+      (r) => r.credentialType as CollabCredentialInput["type"],
+    ),
+  }));
+
   // Vereist certificaat van een lopende/voorgestelde samenwerking dat binnenkort verloopt: één
   // gerichte, samenwerking-gebonden taak per certificaat (urgenter dan de generieke verval-taak).
   // De gedekte certificaten worden hieronder van de generieke lijst afgetrokken → geen dubbele taak.
   const coveredExpiringCredIds = new Set<string>();
   const collabConcerns = collaborationCredentialExpiryConcerns({
-    collaborations: collabs.map((c) => ({
-      collaborationId: c.id,
-      companyName: c.company.name,
-      jobTitle: c.job.title,
-      requiredTypes: c.job.credentialRequirements.map(
-        (r) => r.credentialType as CollabCredentialInput["type"],
-      ),
-    })),
+    collaborations: credentialCollabInputs,
     credentials: allCreds,
     now,
   });
@@ -644,14 +679,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // /certificaten-nav-badge (signals.ts) telt → badge kan niet driften van /acties (run 70).
   const { expired: expiredRequired, missing: missingRequired } =
     collaborationRequiredCredentialGaps({
-      collaborations: collabs.map((c) => ({
-        collaborationId: c.id,
-        companyName: c.company.name,
-        jobTitle: c.job.title,
-        requiredTypes: c.job.credentialRequirements.map(
-          (r) => r.credentialType as CollabCredentialInput["type"],
-        ),
-      })),
+      collaborations: credentialCollabInputs,
       credentials: allCreds,
       mandatoryTypes: MANDATORY_CREDENTIAL_TYPES,
       now,

@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-16 — Persona-sweep run 79: 4 defecten gefixt (integriteit + KPI + 2× next-action)
+
+**Wat:** kritische-gebruiker-sweep over alle vier rollen (4 parallelle adversariële code-audits op
+niet-overlappende oppervlakken + een live Playwright-probe van 17 privilege-escalatie/IDOR/404-checks).
+De authz/IDOR- en malicieuze-input-audits + alle 17 runtime-probes vonden **0 bereikbare gaten**; de
+cascade- en next-action-audits leverden elk twee fixes. Alle vier gefixt met rood→groen-regressietests
+(2 subagents op niet-overlappende bestanden):
+
+1. **Server-side-waarheid (HOOG):** `sendInvoice`/`markInvoicePaid`/`cancelInvoice` weigerden geen
+   cascade-factuur (`lifecycleStatus != null`) → een legacy-actie kon de legacy `status` van een
+   cascade-factuur muteren (valse `INVOICE_CANCELLED`-audit + uitsluiting uit omzet-dashboards). Guard
+   toegevoegd (CLAUDE.md regel 1/2/5).
+2. **KPI-correctheid (MED):** "Openstaand" op `/inzicht` (ZZP'er) ondertelde openstaande cascade-facturen
+   tot ~30 dgn; nu via de canonieke `outstandingInvoiceWhere`.
+3. **Next-action DOEL 1b (MED):** certificaat-taken van de ZZP'er vielen uit het `updatedAt`-venster
+   (run-78-klasse, niet gedekt voor certificaten) → dedicated ongewindowde query.
+4. **Next-action DOEL 1b (LAAG):** `clientCredentialAlerts` window zonder `orderBy` → deterministisch +
+   certificaat-gefilterd.
+
+**Bestanden:** `src/app/(protected)/facturen/actions.ts` (+ `actions-cascade-guard.test.ts`),
+`src/lib/freelancer-stats.ts` (+ test), `src/lib/actions/pending-tasks.ts` (+
+`pending-tasks-credential-outer-window.test.ts`), `src/lib/collaboration-alerts.ts` (+
+`collaboration-alerts-query.test.ts`). Geparkeerd (in backlog, met repro): `revenue-trend.ts`
+legacy-`status`-afhankelijkheid (zelfde wortel, aparte grotere increment); authz-dekkingsresidu (9
+action-bestanden niet individueel geopend). Gate: typecheck/lint/test/build/prettier groen.
+
 ## 2026-08-16 — Opdrachtgever: gemiddeld betaald uurtarief per maand op /inzicht
 
 **Wat:** de kosten-tegenhanger van de ZZP'er-tariefstrip (#1112) voor de opdrachtgever. De client-`/inzicht`

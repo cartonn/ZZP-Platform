@@ -4,6 +4,7 @@
 
 import { prisma } from "@/lib/db";
 import { type Availability } from "@/lib/enums";
+import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
 
 export interface FreelancerStats {
   /** Betaalde facturen (omzet die binnen is). */
@@ -49,7 +50,15 @@ export async function getFreelancerStats(userId: string): Promise<FreelancerStat
       _sum: { totalCents: true },
     }),
     prisma.invoice.aggregate({
-      where: { issuerUserId: userId, status: { in: ["SENT", "OVERDUE"] } },
+      // "Openstaand" = nog te ontvangen omzet. De legacy `status`-kolom spiegelt de
+      // cascade-`lifecycleStatus` maar deels: een cascade-factuur (de primaire flow) houdt haar
+      // legacy `status` op DRAFT terwijl ze SUBMITTED of APPROVED is — pas PAID/CANCELLED (en later
+      // via de te-laat-cron OVERDUE) worden teruggespiegeld. Alleen op `status IN (SENT,OVERDUE)`
+      // filteren mist dus élke openstaande cascade-factuur tot de betaaltermijn verstrijkt, waardoor
+      // de KPI de echte openstaande omzet tot ~30 dagen per factuur ondertelt. De canonieke
+      // `outstandingInvoiceWhere` (OR over lifecycle SUBMITTED/APPROVED/OVERDUE + legacy SENT/OVERDUE)
+      // dekt beide paden; PAID/CANCELLED/DRAFT tellen niet mee. Persona-sweep run 79.
+      where: { issuerUserId: userId, ...outstandingInvoiceWhere },
       _sum: { totalCents: true },
     }),
     prisma.performance.aggregate({
