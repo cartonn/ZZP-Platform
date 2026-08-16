@@ -105,12 +105,21 @@ describe("getClientHourlyRateTrend", () => {
     await getClientHourlyRateTrend("client-1", NOW, 6);
 
     expect(findMany).toHaveBeenCalledTimes(1);
-    const where = findMany.mock.calls[0][0].where;
+    const where = (
+      findMany.mock.calls[0]?.[0] as {
+        where: {
+          status: string;
+          type: string;
+          collaboration: unknown;
+          OR: Array<{ periodEnd: { gte: Date } }>;
+        };
+      }
+    ).where;
     expect(where.status).toBe("APPROVED");
     expect(where.type).toBe("HOURS");
     expect(where.collaboration).toEqual({ company: { userId: "client-1" } });
     // Venstervloer = eerste dag van de vroegste maand (mrt 2026 bij 6 mnd vanaf aug).
-    expect(where.OR[0].periodEnd.gte.toISOString()).toBe("2026-03-01T00:00:00.000Z");
+    expect(where.OR[0]?.periodEnd.gte.toISOString()).toBe("2026-03-01T00:00:00.000Z");
   });
 
   it("aggregeert de gescoopte prestaties als een gewogen gemiddelde en filtert nul-uren/nul-tarief eruit", async () => {
