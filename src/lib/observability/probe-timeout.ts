@@ -25,8 +25,11 @@ export const MAX_PROBE_TIMEOUT_MS = 30_000;
 export const DEFAULT_PROBE_TIMEOUT_MS = 3_000;
 
 /**
- * Leest de probe-time-out (ms) uit een ruwe env-waarde en klemt hem op [MIN, MAX]. Een lege,
- * niet-numerieke of niet-positieve waarde valt terug op de default. Puur/testbaar.
+ * Leest de probe-time-out (ms) uit een ruwe env-waarde en klemt hem op [MIN, MAX]. Een expliciete
+ * `0` (of `off`/`none`/`false`) schakelt de deadline **bewust uit** (onbeperkt wachten — oud gedrag)
+ * en retourneert `0`, zónder klemmen — de gedocumenteerde escape-hatch (`HEALTH_PROBE_TIMEOUT_MS=0`)
+ * die `withProbeTimeout` op de "geen deadline"-tak zet. Een lege, niet-numerieke of ongeldige waarde
+ * valt terug op de (zelf geklemde) default. Consistent met `resolveTaskTimeoutMs`. Puur/testbaar.
  */
 export function resolveProbeTimeoutMs(
   raw: string | undefined,
@@ -34,8 +37,14 @@ export function resolveProbeTimeoutMs(
 ): number {
   const clamp = (n: number) =>
     Math.min(MAX_PROBE_TIMEOUT_MS, Math.max(MIN_PROBE_TIMEOUT_MS, Math.round(n)));
-  const parsed = raw !== undefined && raw.trim() !== "" ? Number(raw) : NaN;
-  if (Number.isFinite(parsed) && parsed > 0) return clamp(parsed);
+  if (raw !== undefined) {
+    const trimmed = raw.trim().toLowerCase();
+    if (trimmed === "0" || trimmed === "off" || trimmed === "none" || trimmed === "false") {
+      return 0; // bewust uitgeschakeld — geen deadline
+    }
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed > 0) return clamp(parsed);
+  }
   const parsedFallback =
     Number.isFinite(fallback) && fallback > 0 ? fallback : DEFAULT_PROBE_TIMEOUT_MS;
   return clamp(parsedFallback);

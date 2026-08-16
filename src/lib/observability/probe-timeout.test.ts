@@ -85,8 +85,18 @@ describe("resolveProbeTimeoutMs", () => {
     expect(resolveProbeTimeoutMs("5000")).toBe(5_000);
   });
 
-  it("valt bij een niet-positieve waarde terug op de default", () => {
-    expect(resolveProbeTimeoutMs("0")).toBe(DEFAULT_PROBE_TIMEOUT_MS);
+  it("schakelt de deadline bewust uit bij een expliciete 0/off/none/false", () => {
+    // De gedocumenteerde escape-hatch (HEALTH_PROBE_TIMEOUT_MS=0): geen deadline, onbeperkt wachten.
+    // Retourneert 0 (niet geklemd op MIN) zodat withProbeTimeout de "geen deadline"-tak neemt.
+    expect(resolveProbeTimeoutMs("0")).toBe(0);
+    expect(resolveProbeTimeoutMs("off")).toBe(0);
+    expect(resolveProbeTimeoutMs("none")).toBe(0);
+    expect(resolveProbeTimeoutMs("false")).toBe(0);
+    expect(resolveProbeTimeoutMs(" 0 ")).toBe(0);
+  });
+
+  it("valt bij een negatieve/ongeldige waarde veilig terug op de default (deadline blijft aan)", () => {
+    // Een negatieve waarde is geen gedocumenteerde escape-hatch: de deadline blijft aan (fail-safe).
     expect(resolveProbeTimeoutMs("-100")).toBe(DEFAULT_PROBE_TIMEOUT_MS);
   });
 
