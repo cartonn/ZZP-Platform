@@ -44,8 +44,14 @@ naar de mens (FG) geëscaleerde items blijven open (zie onder): third-party-gesc
   `data: { ...clientInput }`-spread van een rauwe client-payload.
 - **Runtime/deps schoon.** `npm audit --omit=dev` (productie) = **0 kwetsbaarheden** → CI-`audit`-poort groen.
   Volledige audit: 3 **dev-only** transitieve items (`brace-expansion`/`js-yaml` HIGH via `@typescript-eslint`/lint,
-  `esbuild` LOW) — niet in de productiebundel, blokkeren de poort niet. **LAAG/informatief.** `next` 15.5.21 (voorbij
-  CVE-2025-29927 middleware-bypass, ≥15.2.3); `next-auth` 5.0.0-beta.32; `.env` niet in git.
+  `esbuild` LOW Windows-only via `tsx`/`vite`) — niet in de productiebundel, blokkeren de poort niet. **LAAG/informatief**
+  (aanbeveling: `npm audit fix` opportunistisch in een routine-PR). Versie-CVE-dekking (WebSearch, voorbij trainings-
+  cutoff): `next` **15.5.21** dekt niet alleen CVE-2025-29927 (middleware-bypass, ≥15.2.3) maar landt **exact** op de
+  **Next.js Security Release juli 2026** (9 CVE's, 4× HIGH — o.a. CVE-2026-64641 Server-Action-DoS, CVE-2026-64645
+  rewrite/redirect-SSRF/open-redirect, CVE-2026-64649 Host-header-SSRF). `@auth/core` **0.41.3** / `next-auth`
+  **5.0.0-beta.32** landen **exact** op de **Auth.js security-update juli 2026** (4 advisories: malformed Bearer in
+  `getToken`, OAuth account-linking-confusion, provider-bound check-cookies, NFKC-e-mailnormalisatie). `prisma`/
+  `@prisma/client` **6.19.3**: geen publieke ORM-CVE. `.env` niet in git; `scripts/scan-secrets.sh` schoon.
 - **Headers/CSP + foutafhandeling schoon (A05).** Per-request nonce-CSP (geen `unsafe-inline` voor scripts in prod,
   `src/middleware.ts` + `lib/csp.ts`); `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY`,
   `Permissions-Policy`, HSTS `max-age=63072000; includeSubDomains; preload`. Elke gebruiker-gerichte foutmelding is
