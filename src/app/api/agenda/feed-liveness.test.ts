@@ -45,6 +45,7 @@ vi.mock("@/lib/calendar/user-deadlines", () => ({
     invoices: [],
     vat: [],
     incomeTax: null,
+    collaborations: [],
   })),
 }));
 

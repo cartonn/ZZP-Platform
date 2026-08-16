@@ -23,6 +23,9 @@ import { type AdministrativeDeadlines } from "@/lib/calendar/deadlines";
  * - BTW: gedelegeerd aan de bestaande deadline-engine (leeg voor rollen zonder eigen grootboek).
  * - Inkomstenbelasting: de eerstvolgende IB-aangifte-deadline (1 mei ná het belastingjaar), alleen
  *   voor een ZZP'er met omzet in dat jaar; anders `null`.
+ * - Plaatsingen: lopende (ACTIVE, niet-betwiste) samenwerkingen met een vastgelegde einddatum die nog
+ *   niet is verstreken, waarbij de gebruiker de ZZP'er óf de opdrachtgever is. Alleen ZZP'er/
+ *   opdrachtgever hebben eigen plaatsingen; bemiddelaar/admin krijgen niets (agenda = eigen data).
  *
  * BTW-reikwijdte (bewust smaller dan certificaten/facturen): `getVatDeadlinesForActor` levert alleen
  * kwartalen die nú actie verdienen — deadline binnen ~14 dagen óf verstreken, én een niet-nul saldo.
@@ -37,32 +40,50 @@ export async function loadUserAdministrativeDeadlines(
   role: UserRole,
   now: Date = new Date(),
 ): Promise<AdministrativeDeadlines> {
-  const [credentialRows, invoiceRows, vatSummaries, incomeTax] = await Promise.all([
-    role === "FREELANCER"
-      ? prisma.credential.findMany({
-          where: {
-            status: "VERIFIED",
-            expiresAt: { not: null },
-            freelancerProfile: { userId },
-          },
-          orderBy: { expiresAt: "asc" },
-          select: { id: true, title: true, expiresAt: true },
-        })
-      : Promise.resolve([]),
-    prisma.invoice.findMany({
-      where: {
-        dueAt: { not: null },
-        AND: [
-          outstandingInvoiceWhere,
-          { OR: [{ issuerUserId: userId }, { counterpartyUserId: userId }] },
-        ],
-      },
-      orderBy: { dueAt: "asc" },
-      select: { id: true, number: true, dueAt: true, counterpartyUserId: true },
-    }),
-    getVatDeadlinesForActor(userId, role, now),
-    getIncomeTaxDeadlineForActor(userId, role, now),
-  ]);
+  const [credentialRows, invoiceRows, vatSummaries, incomeTax, collaborationRows] =
+    await Promise.all([
+      role === "FREELANCER"
+        ? prisma.credential.findMany({
+            where: {
+              status: "VERIFIED",
+              expiresAt: { not: null },
+              freelancerProfile: { userId },
+            },
+            orderBy: { expiresAt: "asc" },
+            select: { id: true, title: true, expiresAt: true },
+          })
+        : Promise.resolve([]),
+      prisma.invoice.findMany({
+        where: {
+          dueAt: { not: null },
+          AND: [
+            outstandingInvoiceWhere,
+            { OR: [{ issuerUserId: userId }, { counterpartyUserId: userId }] },
+          ],
+        },
+        orderBy: { dueAt: "asc" },
+        select: { id: true, number: true, dueAt: true, counterpartyUserId: true },
+      }),
+      getVatDeadlinesForActor(userId, role, now),
+      getIncomeTaxDeadlineForActor(userId, role, now),
+      role === "FREELANCER" || role === "CLIENT"
+        ? prisma.collaboration.findMany({
+            where: {
+              status: "ACTIVE",
+              disputedAt: null,
+              endDate: { not: null, gte: now },
+              OR: [{ freelancer: { userId } }, { company: { userId } }],
+            },
+            orderBy: { endDate: "asc" },
+            select: {
+              id: true,
+              endDate: true,
+              freelancer: { select: { userId: true, user: { select: { name: true } } } },
+              company: { select: { userId: true, name: true } },
+            },
+          })
+        : Promise.resolve([]),
+    ]);
 
   return {
     // expiresAt/dueAt zijn door de where-clausules gegarandeerd non-null; de `== null`-guard in de
@@ -85,5 +106,18 @@ export async function loadUserAdministrativeDeadlines(
     ),
     vat: vatSummaries.map((v) => ({ year: v.year, quarter: v.quarter, deadline: v.deadline })),
     incomeTax: incomeTax ? { taxYear: incomeTax.taxYear, deadline: incomeTax.deadline } : null,
+    // endDate is door de where-clausule gegarandeerd non-null; de guard maakt dat typebreed expliciet.
+    collaborations: collaborationRows.flatMap((c) => {
+      if (c.endDate == null) return [];
+      const asClient = c.company.userId === userId;
+      return [
+        {
+          id: c.id,
+          endDate: c.endDate,
+          counterpartyName: asClient ? c.freelancer.user.name : c.company.name,
+          asClient,
+        },
+      ];
+    }),
   };
 }

@@ -45,6 +45,16 @@ export interface IncomeTaxDeadline {
   deadline: Date;
 }
 
+/** Het einde van een lopende plaatsing (samenwerking met een vastgelegde einddatum). */
+export interface CollaborationDeadline {
+  id: string;
+  endDate: Date;
+  /** De naam van de tegenpartij vanuit het perspectief van deze gebruiker. */
+  counterpartyName: string;
+  /** true = de gebruiker is de opdrachtgever (tegenpartij = ZZP'er); false = de gebruiker is de ZZP'er. */
+  asClient: boolean;
+}
+
 /** De volledige set administratieve deadlines van één gebruiker. */
 export interface AdministrativeDeadlines {
   credentials: CredentialDeadline[];
@@ -52,6 +62,8 @@ export interface AdministrativeDeadlines {
   vat: VatDeadline[];
   /** Eerstvolgende IB-aangifte-deadline (alleen ZZP'er met omzet), of `null`. */
   incomeTax: IncomeTaxDeadline | null;
+  /** Einddatums van lopende plaatsingen (samenwerkingen) waarbij de gebruiker partij is. */
+  collaborations: CollaborationDeadline[];
 }
 
 // ---------------------------------------------------------------------------
@@ -60,9 +72,9 @@ export interface AdministrativeDeadlines {
 
 /**
  * Zet administratieve deadlines om naar losse gehele-dag-IcsEvents (geen herhaling). Bewaart de
- * invoervolgorde binnen elke categorie; certificaten, dan facturen, dan BTW, dan de IB-aangifte. De
- * UID's zijn stabiel en uniek binnen de per-gebruiker-feed, zodat agenda-apps events bijwerken i.p.v.
- * dupliceren.
+ * invoervolgorde binnen elke categorie; certificaten, dan facturen, dan BTW, dan de IB-aangifte, dan
+ * de plaatsing-einddatums. De UID's zijn stabiel en uniek binnen de per-gebruiker-feed, zodat
+ * agenda-apps events bijwerken i.p.v. dupliceren.
  */
 export function administrativeDeadlineEvents(input: AdministrativeDeadlines): IcsEvent[] {
   const events: IcsEvent[] = [];
@@ -106,6 +118,18 @@ export function administrativeDeadlineEvents(input: AdministrativeDeadlines): Ic
       start: input.incomeTax.deadline,
       allDay: true,
       description: "Uiterste datum voor de aangifte inkomstenbelasting over dit belastingjaar.",
+    });
+  }
+
+  for (const col of input.collaborations) {
+    events.push({
+      uid: `collab-end-${col.id}@zzp-platform`,
+      summary: `Einde plaatsing: ${col.counterpartyName}`,
+      start: col.endDate,
+      allDay: true,
+      description: col.asClient
+        ? `De plaatsing van ${col.counterpartyName} loopt af. Plan tijdig een verlenging of een vervanger.`
+        : `Je plaatsing bij ${col.counterpartyName} loopt af. Plan tijdig een vervolg of een nieuwe opdracht.`,
     });
   }
 
