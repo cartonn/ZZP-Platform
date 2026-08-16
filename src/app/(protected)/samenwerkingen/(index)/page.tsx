@@ -174,8 +174,11 @@ export default async function SamenwerkingenPage({
       select: { collaborationId: true, lifecycleStatus: true, status: true },
     }),
     prisma.performance.groupBy({
-      by: ["collaborationId"],
-      where: { collaborationId: { in: collabIds }, status: "SUBMITTED" },
+      // SUBMITTED (onbeoordeeld) én REJECTED (afgekeurd, corrigeerbaar) — beide blokkeren AFRONDEN
+      // server-side (completionBlockReason), dus de knopweergave hieronder moet ze allebei kennen om
+      // geen dode "Afronden"-knop te tonen. Per-status geteld zodat de reden klopt (spiegelt actions.ts).
+      by: ["collaborationId", "status"],
+      where: { collaborationId: { in: collabIds }, status: { in: ["SUBMITTED", "REJECTED"] } },
       _count: { _all: true },
     }),
   ]);
@@ -186,9 +189,12 @@ export default async function SamenwerkingenPage({
     list.push({ lifecycleStatus: r.lifecycleStatus, status: r.status });
     invoicesByCollab.set(r.collaborationId, list);
   }
-  const submittedPerfByCollab = new Map(
-    pendingPerfRows.map((r) => [r.collaborationId, r._count._all]),
-  );
+  const submittedPerfByCollab = new Map<string, number>();
+  const rejectedPerfByCollab = new Map<string, number>();
+  for (const r of pendingPerfRows) {
+    if (r.status === "REJECTED") rejectedPerfByCollab.set(r.collaborationId, r._count._all);
+    else submittedPerfByCollab.set(r.collaborationId, r._count._all);
+  }
 
   // Toon de agenda-export alleen wanneer er echt een geplande, actieve samenwerking is (geen dode
   // knop): status ACTIVE met een startdatum én vastgelegde weekdagen.
@@ -273,6 +279,7 @@ export default async function SamenwerkingenPage({
                 const completionBlock = completionBlockReason({
                   otherInvoices: invoicesByCollab.get(c.id) ?? [],
                   submittedPerformances: submittedPerfByCollab.get(c.id) ?? 0,
+                  rejectedPerformances: rejectedPerfByCollab.get(c.id) ?? 0,
                 });
 
                 const requiredTypes = c.job.credentialRequirements.map(

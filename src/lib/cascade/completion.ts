@@ -170,8 +170,8 @@ export function completionBlockReason(snapshot: OpenWorkSnapshot): string | null
   const rejected = snapshot.rejectedPerformances ?? 0;
   if (rejected > 0) {
     return rejected === 1
-      ? "Er staat nog 1 afgekeurde urenstaat of oplevering open. Corrigeer en dien die opnieuw in — of laat 'm alsnog goedkeuren — voordat je de samenwerking afrondt."
-      : `Er staan nog ${rejected} afgekeurde urenstaten of opleveringen open. Corrigeer en dien die opnieuw in voordat je de samenwerking afrondt.`;
+      ? "Er staat nog 1 afgekeurde urenstaat of oplevering open. Laat de ZZP'er die corrigeren en opnieuw indienen voordat je de samenwerking afrondt."
+      : `Er staan nog ${rejected} afgekeurde urenstaten of opleveringen open. Laat de ZZP'er die corrigeren en opnieuw indienen voordat je de samenwerking afrondt.`;
   }
   return null;
 }

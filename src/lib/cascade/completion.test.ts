@@ -201,13 +201,13 @@ describe("completionBlockReason", () => {
 
   it("één afgekeurde prestatie zonder open factuur/ingediende prestatie → afgekeurd-reden (enkelvoud)", () => {
     expect(completionBlockReason(snapshot({ rejectedPerformances: 1 }))).toBe(
-      "Er staat nog 1 afgekeurde urenstaat of oplevering open. Corrigeer en dien die opnieuw in — of laat 'm alsnog goedkeuren — voordat je de samenwerking afrondt.",
+      "Er staat nog 1 afgekeurde urenstaat of oplevering open. Laat de ZZP'er die corrigeren en opnieuw indienen voordat je de samenwerking afrondt.",
     );
   });
 
   it("meerdere afgekeurde prestaties → afgekeurd-reden (meervoud)", () => {
     expect(completionBlockReason(snapshot({ rejectedPerformances: 2 }))).toBe(
-      "Er staan nog 2 afgekeurde urenstaten of opleveringen open. Corrigeer en dien die opnieuw in voordat je de samenwerking afrondt.",
+      "Er staan nog 2 afgekeurde urenstaten of opleveringen open. Laat de ZZP'er die corrigeren en opnieuw indienen voordat je de samenwerking afrondt.",
     );
   });
 
