@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-16 — Security-/privacy-audit: erasure-gat op `Notification.readAt` gedicht (AVG art. 17)
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: authz/IDOR/mass-assignment over álle 51 server-actions; privacy/AVG
+erasure↔export-symmetrie; injectie/upload/SSRF/redirect/auth/headers/deps). De authz-sweep en de
+injectie/deps-sweep vonden **0 bereikbare gaten** (het geparkeerde "authz-dekkingsresidu" bleek een
+review-procesgat, geen live kwetsbaarheid; `npm audit --omit=dev` = 0). De privacy-audit vond **1 MIDDEL-gat
+en dat is gefixt (rood→groen):**
+
+**`Notification.readAt` overleefde AVG art. 17-erasure (MIDDEL).** De anonimiseringstransactie
+(`admin/gebruikers/actions.ts`) redact wél de notificatie-`body`, maar liet `readAt` — de exacte
+lees-/engagement-timestamp die de betrokkene zélf zette — staan op elke rij, nog steeds gekoppeld aan de
+identieke `User.id`. Dezelfde residuele-gedragsmetadata-klasse als de eerder gedichte `lastLoginAt`/`lastReadAt`.
+Ironisch: de vorige fix-writeup noemde `readAt` als "al correct", maar dat gold alleen de export-kant. Fix: de
+brede eigen-feed-`notification.updateMany` zet nu óók `readAt: null` (binnen dezelfde transactie), symmetrisch
+met de export die `readAt` al prijsgaf.
+
+**Bestanden:** `src/app/(protected)/admin/gebruikers/actions.ts` (+ regressietest in `anonymize-erasure.test.ts`:
+"wist de eigen leesbevestigingen op notificaties (`Notification.readAt → null`)" — geverifieerd rood→groen).
+**Geparkeerd (backlog, met repro):** `LessonCompletion.completedAt`/`IdeaVote.createdAt` symmetrisch afwezig in
+erasure+export (LAAG); registratie-e-mail-enumeratie (LOW, product/FG-afweging). Gate: typecheck/lint/test/build/
+prettier groen. Zie `docs/SECURITY-PRIVACY-BACKLOG.md` ronde 2026-08-16b.
+
 ## 2026-08-16 — Persona-sweep run 79: 4 defecten gefixt (integriteit + KPI + 2× next-action)
 
 **Wat:** kritische-gebruiker-sweep over alle vier rollen (4 parallelle adversariële code-audits op

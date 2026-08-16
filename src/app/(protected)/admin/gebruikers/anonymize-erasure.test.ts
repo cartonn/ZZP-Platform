@@ -325,6 +325,28 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect((o.args.data as { lastReadAt: Date | null }).lastReadAt).toBeNull();
   });
 
+  it("wist de eigen leesbevestigingen op notificaties (Notification.readAt → null)", async () => {
+    await anonymizeUser("user-42");
+    // Naast de body-redactie wist de brede eigen-feed-wipe óók `readAt`. Dat is een door de betrokkene
+    // zélf gezette engagement-timestamp (wanneer hij een melding las) die na anonimisering anders
+    // toewijsbaar blijft aan de identieke `User.id` — dezelfde residuele-gedragsmetadata-klasse als
+    // `lastLoginAt`/`lastReadAt`. De export gaf `readAt` al prijs; zonder deze wis is de erasure
+    // asymmetrisch (rood→groen). Meerdere notification.updateMany's; pak de brede eigen-feed-variant
+    // (where == exact { userId }, zonder title-filter).
+    const ops = findAll("notification.updateMany") as Array<{
+      args: { where: Record<string, unknown>; data: { body?: unknown; readAt?: unknown } };
+    }>;
+    const ownFeedOp = ops.find(
+      (o) =>
+        o.args.where.userId === "user-42" &&
+        Object.keys(o.args.where).length === 1 &&
+        o.args.where.title === undefined,
+    );
+    expect(ownFeedOp).toBeDefined();
+    expect((ownFeedOp!.args.data as { body: string }).body).toMatch(/verwijderd/i);
+    expect(ownFeedOp!.args.data.readAt).toBeNull();
+  });
+
   it("redact eigen shift-overname-redenen (ShiftHandoff.reason)", async () => {
     await anonymizeUser("user-42");
     const o = find("shiftHandoff.updateMany") as { args: { where: unknown; data: unknown } };
