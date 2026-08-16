@@ -93,6 +93,29 @@ Naast de liveness-probe exposeert `GET /api/metrics` machine-leesbare gauges (Pr
   in `alerts.yml` die niet aan de inhibitie wordt toegevoegd breekt de poort (zodat 'ie niet stil door de
   onderhouds-demping heen paget).
 
+### 2b. Semantische matching (pgvector) provisioneren
+
+Matching (`src/lib/services/semantic-matcher.ts`) draait standaard op de deterministische
+`LocalSemanticMatcher` (`SEMANTIC_MATCHER=local`, productie-geschikt). `SEMANTIC_MATCHER=pgvector`
+valt vandaag **graceful terug** op diezelfde lokale matcher zolang pgvector niet operationeel is
+(`isOperational()` → false) — geen stille degradatie meer, maar ook nog geen echte semantische
+matching. Om pgvector daadwerkelijk in gebruik te nemen:
+
+1. Zet de **`vector`-extensie** aan op de managed Postgres (`CREATE EXTENSION IF NOT EXISTS vector;`).
+2. Voeg een **embedding-kolom** toe en vul die via een embedding-pipeline (batch of on-write) voor de
+   relevante entiteiten (bv. opdrachten/profielen).
+3. Bouw een **ANN-index** op die kolom (bv. HNSW of IVFFlat) voor snelle nearest-neighbour-lookups.
+4. Implementeer de echte capability-check in `PgVectorSemanticMatcher.isOperational()` (nu een stub)
+   zodat het systeem pas als "operationeel" meldt als extensie, kolom en index daadwerkelijk aanwezig
+   en bruikbaar zijn.
+5. Zet `SEMANTIC_MATCHER=pgvector` en bevestig via de **semantische-matching-zelftest** op
+   `/admin/systeemstatus` (en de go-live-sweep) dat de driver echt operationeel is en een plausibele
+   round-trip geeft — niet alleen dat de env-variabele staat. `/admin/systeemstatus` toont de status
+   in de groep "Schaalbaarheid" (`ok` = local, `attention` = pgvector geselecteerd maar niet
+   operationeel in productie).
+
+Zie ook `MENSENWERK.md` §0b voor de mensenwerk-samenvatting.
+
 ## 3. Deploy
 
 **Normale flow (aanbevolen):** merge een PR naar `main` na een groene CI-poort. Railway bouwt en

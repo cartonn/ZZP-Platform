@@ -59,6 +59,32 @@ describe("collectSystemStatus — web-push-posture", () => {
   });
 });
 
+describe("collectSystemStatus — semantische-matching-posture", () => {
+  it("toont de lokale matcher als ok (productie-geschikte default)", () => {
+    const item = itemByKey(makeEnv({ SEMANTIC_MATCHER: "local" }), "semantic-matcher");
+    expect(item.level).toBe("ok");
+    expect(item.mode).toBe("local");
+  });
+
+  it("markeert pgvector als aandacht in productie (geselecteerd maar niet operationeel)", () => {
+    const item = itemByKey(
+      makeEnv({ SEMANTIC_MATCHER: "pgvector", NODE_ENV: "production" }),
+      "semantic-matcher",
+    );
+    expect(item.level).toBe("attention");
+    expect(item.mode).toBe("pgvector");
+    expect(item.detail).toMatch(/lokale fallback/);
+  });
+
+  it("toont pgvector buiten productie louter informatief (fallback, geen aandacht)", () => {
+    const item = itemByKey(
+      makeEnv({ SEMANTIC_MATCHER: "pgvector", NODE_ENV: "development" }),
+      "semantic-matcher",
+    );
+    expect(item.level).toBe("fallback");
+  });
+});
+
 describe("collectSystemStatus — volledig bekabelde productie", () => {
   const env = makeEnv({
     STORAGE_DRIVER: "s3",

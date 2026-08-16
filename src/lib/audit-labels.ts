@@ -242,6 +242,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   ERROR_MONITORING_SELFTEST_RUN: "Foutmonitoring-zelftest uitgevoerd",
   UPLOAD_SCANNER_SELFTEST_RUN: "Upload-scanner-zelftest uitgevoerd",
   PASSWORD_BREACH_SELFTEST_RUN: "Gelekt-wachtwoord-zelftest uitgevoerd",
+  SEMANTIC_MATCHER_SELFTEST_RUN: "Semantische-matching-zelftest uitgevoerd",
 };
 
 /** Of een audit-actie een expliciet NL-label heeft (i.p.v. de geleesbare fallback).

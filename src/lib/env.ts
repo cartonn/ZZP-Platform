@@ -352,6 +352,16 @@ export function envWarnings(env: Env): string[] {
       "RATE_LIMIT_STORE=memory — rate-limits gelden per proces; bij meerdere instances zijn de limieten per instance. Zet RATE_LIMIT_STORE=upstash (met UPSTASH_REDIS_REST_URL/TOKEN) vóór horizontale schaling.",
     );
   }
+  if (env.SEMANTIC_MATCHER === "pgvector") {
+    // pgvector is een geselecteerde-maar-nog-niet-operationele driver: de DB-provisioning (extensie,
+    // embedding-kolom, ANN-index + embedding-pijplijn) is mensenwerk. Zolang die ontbreekt valt
+    // semantische matching GRACIEUS terug op de lokale matcher (geen stille nul-degradatie). Maak die
+    // stand zichtbaar zodat een operator niet denkt dat pgvector actief is terwijl het op de fallback
+    // draait; bevestig de operationele staat met de semantische-matching-zelftest op /admin/systeemstatus.
+    warnings.push(
+      "SEMANTIC_MATCHER=pgvector — de pgvector-driver is nog niet operationeel (DB-provisioning = mensenwerk); semantische matching draait op de lokale fallback. Voorzie de pgvector-extensie/embedding-kolom/index of zet SEMANTIC_MATCHER=local. Bevestig met de semantische-matching-zelftest.",
+    );
+  }
   if (/^postgres(ql)?:\/\//i.test(env.DATABASE_URL) && !env.DATABASE_CONNECTION_LIMIT) {
     warnings.push(
       "DATABASE_CONNECTION_LIMIT ontbreekt — Prisma opent per instance een eigen pool (default num_cpus*2+1); bij meerdere instances kan dat het connectie-plafond van de managed Postgres uitputten. Zet DATABASE_CONNECTION_LIMIT (bijv. 5–10 per instance) vóór horizontale schaling.",

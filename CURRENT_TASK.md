@@ -268,6 +268,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — semantische matching (pgvector): stille-degradatie-gat gedicht (2026-08-16)** —
+> `SEMANTIC_MATCHER=pgvector` was de enige env-selecteerbare driver die zonder boot-fout/waarschuwing/status/metriek stilletjes de
+> relevantie-component van elke match op `0` zette (`relatedness()` gooit, `safeRelatedness` ving het stil op). `getSemanticMatcher()`
+> (`src/lib/services/semantic-matcher.ts`) valt nu graceful terug op `LocalSemanticMatcher` zolang pgvector niet operationeel is
+> (nieuw `isOperational()`/`configuredSemanticMatcher()`), plus env-waarschuwing, `/admin/systeemstatus`-item (groep Schaalbaarheid),
+> read-only semantische-matching-zelftest + go-live-sweep-runner + UI-kaart. Resterend is puur mensenwerk (pgvector-DB-provisioning:
+> extensie, embedding-kolom, ANN-index, echte `isOperational()`-check — zie MENSENWERK.md §0b, RUNBOOK §2b); `SEMANTIC_MATCHER=local`
+> blijft tot dan de juiste productie-instelling. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — HIBP gelekt-wachtwoord-controle live zelftest + go-live-sweep (2026-08-14, PR #1094)** —
 > de gelekt-wachtwoord-controle (`password-breach.ts`, HIBP, `PASSWORD_BREACH_CHECK=hibp`) was de enige **fail-open** externe integratie
 > zónder live-zelftest/sweep-entry/metric. Een stille HIBP-storing (netwerk/time-out/non-200/gewijzigd contract) laat élk nieuw wachtwoord
