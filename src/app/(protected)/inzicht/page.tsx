@@ -55,7 +55,11 @@ import {
 } from "@/components/insight/bi";
 import { getFreelancerProfitTrend, type ProfitTrend } from "@/lib/profit-trend";
 import { getFreelancerWorkedHoursTrend, type WorkedHoursTrend } from "@/lib/worked-hours-trend";
-import { getFreelancerHourlyRateTrend, type HourlyRateTrend } from "@/lib/hourly-rate-trend";
+import {
+  getFreelancerHourlyRateTrend,
+  getClientHourlyRateTrend,
+  type HourlyRateTrend,
+} from "@/lib/hourly-rate-trend";
 import {
   getHoursCriterionSummary,
   type HoursCriterionSummary,
@@ -292,20 +296,33 @@ function formatEuroPerHour(cents: number): string {
  * stijgt of erodeert. De cijfers komen uit `buildHourlyRateTrend` (zelfde APPROVED HOURS-prestaties +
  * `rateCents`-snapshot en dezelfde maand-bucketing als de geldtrends), server-side berekend.
  */
-function GemiddeldUurtariefPerMaandCard({ trend }: { trend: HourlyRateTrend }) {
+function GemiddeldUurtariefPerMaandCard({
+  trend,
+  title = "Gemiddeld uurtarief per maand",
+  emptyDescription = "Zodra je uren tegen een uurtarief zijn goedgekeurd, zie je hier hoe je gemiddelde uurtarief zich per maand ontwikkelt.",
+  caption = "naar gewerkte uren gewogen · excl. toeslagen",
+  deltaTone = "earner",
+}: {
+  trend: HourlyRateTrend;
+  title?: string;
+  emptyDescription?: string;
+  caption?: string;
+  /** "earner": stijging = groen (ZZP'er verdient meer). "neutral": richting is geen waardeoordeel (opdrachtgever-kosten). */
+  deltaTone?: "earner" | "neutral";
+}) {
   if (!trend.hasData || trend.averageRateCents === null) {
     return (
-      <BiWidget title="Gemiddeld uurtarief per maand">
+      <BiWidget title={title}>
         <EmptyState
           icon={TrendingUp}
           title="Nog geen tariefcijfers"
-          description="Zodra je uren tegen een uurtarief zijn goedgekeurd, zie je hier hoe je gemiddelde uurtarief zich per maand ontwikkelt."
+          description={emptyDescription}
         />
       </BiWidget>
     );
   }
   return (
-    <BiWidget title="Gemiddeld uurtarief per maand">
+    <BiWidget title={title}>
       <div className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
           <div className="min-w-0">
@@ -315,9 +332,7 @@ function GemiddeldUurtariefPerMaandCard({ trend }: { trend: HourlyRateTrend }) {
             <p className="mt-1 font-mono text-3xl font-semibold tabular-nums tracking-tight">
               {formatEuroPerHour(trend.averageRateCents)}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              naar gewerkte uren gewogen · excl. toeslagen
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">{caption}</p>
           </div>
           {trend.deltaPct !== null && (
             <div>
@@ -325,7 +340,11 @@ function GemiddeldUurtariefPerMaandCard({ trend }: { trend: HourlyRateTrend }) {
               <p
                 className={cn(
                   "mt-0.5 font-mono text-lg font-semibold tabular-nums",
-                  trend.deltaPct >= 0 ? "text-success" : "text-warning",
+                  deltaTone === "neutral"
+                    ? "text-foreground"
+                    : trend.deltaPct >= 0
+                      ? "text-success"
+                      : "text-warning",
                 )}
               >
                 {trend.deltaPct >= 0 ? "+" : ""}
@@ -673,11 +692,12 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
 }
 
 async function ClientInzicht({ userId }: { userId: string }) {
-  const [s, trend, timeToFill, spend] = await Promise.all([
+  const [s, trend, timeToFill, spend, hourlyRate] = await Promise.all([
     getClientStats(userId),
     getClientRevenueTrend(userId),
     getClientTimeToFill(userId),
     getClientSpendBreakdown(userId),
+    getClientHourlyRateTrend(userId),
   ]);
   if (!s) {
     return (
@@ -813,6 +833,14 @@ async function ClientInzicht({ userId }: { userId: string }) {
           </div>
         )}
       </BiWidget>
+
+      <GemiddeldUurtariefPerMaandCard
+        trend={hourlyRate}
+        title="Gemiddeld betaald uurtarief per maand"
+        caption="naar afgenomen uren gewogen · excl. toeslagen"
+        emptyDescription="Zodra uren tegen een uurtarief zijn goedgekeurd, zie je hier hoe het gemiddelde uurtarief dat je betaalt zich per maand ontwikkelt."
+        deltaTone="neutral"
+      />
     </div>
   );
 }

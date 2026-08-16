@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-16 — Opdrachtgever: gemiddeld betaald uurtarief per maand op /inzicht
+
+**Wat:** de kosten-tegenhanger van de ZZP'er-tariefstrip (#1112) voor de opdrachtgever. De client-`/inzicht`
+toonde totale uitgaven (hero-trend) en uitgaven per ZZP'er, maar niet tegen wélk gemiddeld uurtarief hij
+inhuurt — precies het signaal dat tariefinflatie (of -daling) over tijd zichtbaar maakt. Nu een "Gemiddeld
+betaald uurtarief per maand"-kaart: het naar afgenomen uren gewogen gemiddelde `Σ(rateCents × uren)/Σ(uren)`
+per maand (excl. ORT-toeslagen), met venster-gemiddelde, delta deze maand vs. vorige en een staafstrip.
+Hergebruikt de identieke pure `buildHourlyRateTrend` als de ZZP'er-variant met een client-gescoopte fetcher
+(`collaboration.company.userId`) → dezelfde weging/bucketing, geen drift. De delta is **neutraal getoond**
+(geen groen/oranje waardeoordeel): een stijgend inhuurtarief is voor de opdrachtgever een kostenstijging,
+geen prestatie. Maanden zonder uren blijven `null` (geen misleidende €0/u).
+
+**Bestanden:** `src/lib/hourly-rate-trend.ts` (nieuw `getClientHourlyRateTrend` + gedeelde
+`pricedHourlyRateRows`-normalisatie), `src/lib/hourly-rate-trend.test.ts` (+3 tests: company-scope-where,
+gewogen aggregatie + nul-uren/nul-tarief-filter, periode-fallback), `src/app/(protected)/inzicht/page.tsx`
+(`GemiddeldUurtariefPerMaandCard` geparametriseerd met `title`/`caption`/`emptyDescription`/`deltaTone`;
+ZZP'er-aanroep ongewijzigd; wiring in `ClientInzicht`). Read-only, alleen CLIENT, geen schema-/mutatie-/
+auth-oppervlak. Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-08-16 — ZZP'er: gemiddeld uurtarief per maand op /inzicht
 
 **Wat:** de tarief-tegenhanger van de winst-/uren-trends. De ZZP'er zag op `/inzicht` wél hoevéél hij

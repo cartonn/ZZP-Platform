@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { buildHourlyRateTrend, type HourlyRateRow } from "./hourly-rate-trend";
+
+const findMany = vi.fn();
+vi.mock("@/lib/db", () => ({ prisma: { performance: { findMany: (a: unknown) => findMany(a) } } }));
 
 // Vast referentiemoment (Europe/Amsterdam ≈ UTC+2 in augustus). Anker ligt op de 15e.
 const NOW = new Date("2026-08-15T12:00:00Z");
@@ -90,5 +93,86 @@ describe("buildHourlyRateTrend", () => {
     expect(t.series).toHaveLength(3);
     expect(t.series[0]?.key).toBe("2026-06");
     expect(t.series.at(-1)?.key).toBe("2026-08");
+  });
+});
+
+describe("getClientHourlyRateTrend", () => {
+  beforeEach(() => findMany.mockReset());
+
+  it("scoopt op de samenwerkingen van het bedrijf (company.userId) met de juiste status/type/venster", async () => {
+    const { getClientHourlyRateTrend } = await import("./hourly-rate-trend");
+    findMany.mockResolvedValue([]);
+    await getClientHourlyRateTrend("client-1", NOW, 6);
+
+    expect(findMany).toHaveBeenCalledTimes(1);
+    const where = (
+      findMany.mock.calls[0]?.[0] as {
+        where: {
+          status: string;
+          type: string;
+          collaboration: unknown;
+          OR: Array<{ periodEnd: { gte: Date } }>;
+        };
+      }
+    ).where;
+    expect(where.status).toBe("APPROVED");
+    expect(where.type).toBe("HOURS");
+    expect(where.collaboration).toEqual({ company: { userId: "client-1" } });
+    // Venstervloer = eerste dag van de vroegste maand (mrt 2026 bij 6 mnd vanaf aug).
+    expect(where.OR[0]?.periodEnd.gte.toISOString()).toBe("2026-03-01T00:00:00.000Z");
+  });
+
+  it("aggregeert de gescoopte prestaties als een gewogen gemiddelde en filtert nul-uren/nul-tarief eruit", async () => {
+    const { getClientHourlyRateTrend } = await import("./hourly-rate-trend");
+    findMany.mockResolvedValue([
+      {
+        hours: 10,
+        rateCents: 9000,
+        periodEnd: new Date("2026-08-03T09:00:00Z"),
+        periodStart: null,
+        approvedAt: null,
+      },
+      {
+        hours: 0,
+        rateCents: 8000,
+        periodEnd: new Date("2026-08-04T09:00:00Z"),
+        periodStart: null,
+        approvedAt: null,
+      },
+      {
+        hours: 5,
+        rateCents: 0,
+        periodEnd: new Date("2026-08-05T09:00:00Z"),
+        periodStart: null,
+        approvedAt: null,
+      },
+    ]);
+    const t = await getClientHourlyRateTrend("client-1", NOW, 6);
+    // Alleen de eerste rij telt: 10 u à €90 → €90/u.
+    expect(t.series.find((m) => m.key === "2026-08")?.rateCents).toBe(9000);
+    expect(t.averageRateCents).toBe(9000);
+  });
+
+  it("valt terug op periode-begin en goedkeuringsdatum als het periode-einde ontbreekt", async () => {
+    const { getClientHourlyRateTrend } = await import("./hourly-rate-trend");
+    findMany.mockResolvedValue([
+      {
+        hours: 4,
+        rateCents: 5000,
+        periodEnd: null,
+        periodStart: new Date("2026-07-10T09:00:00Z"),
+        approvedAt: null,
+      },
+      {
+        hours: 4,
+        rateCents: 7000,
+        periodEnd: null,
+        periodStart: null,
+        approvedAt: new Date("2026-08-10T09:00:00Z"),
+      },
+    ]);
+    const t = await getClientHourlyRateTrend("client-1", NOW, 6);
+    expect(t.series.find((m) => m.key === "2026-07")?.rateCents).toBe(5000);
+    expect(t.series.find((m) => m.key === "2026-08")?.rateCents).toBe(7000);
   });
 });
