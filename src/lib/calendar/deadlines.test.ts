@@ -9,6 +9,7 @@ const empty: AdministrativeDeadlines = {
   invoices: [],
   vat: [],
   incomeTax: null,
+  collaborations: [],
 };
 
 describe("administrativeDeadlineEvents", () => {
@@ -79,7 +80,36 @@ describe("administrativeDeadlineEvents", () => {
     expect(administrativeDeadlineEvents({ ...empty, incomeTax: null })).toEqual([]);
   });
 
-  it("bewaart de categorievolgorde: certificaten, facturen, BTW, dan IB", () => {
+  it("mapt een plaatsing-einddatum naar een gehele-dag-event met stabiele UID — perspectief ZZP'er", () => {
+    const endDate = new Date("2026-10-01T00:00:00Z");
+    const [event] = administrativeDeadlineEvents({
+      ...empty,
+      collaborations: [
+        { id: "col-1", endDate, counterpartyName: "Zorggroep De Linde", asClient: false },
+      ],
+    });
+    expect(event!.uid).toBe("collab-end-col-1@zzp-platform");
+    expect(event!.summary).toBe("Einde plaatsing: Zorggroep De Linde");
+    expect(event!.allDay).toBe(true);
+    expect(event!.start).toBe(endDate);
+    expect(event!.recurrenceDays).toBeUndefined();
+    // ZZP'er-perspectief: vervolg/nieuwe opdracht.
+    expect(event!.description).toContain("vervolg");
+  });
+
+  it("onderscheidt het opdrachtgever-perspectief op een plaatsing-einddatum (verlenging/vervanger)", () => {
+    const endDate = new Date("2026-10-01T00:00:00Z");
+    const [event] = administrativeDeadlineEvents({
+      ...empty,
+      collaborations: [
+        { id: "col-2", endDate, counterpartyName: "Sanne de Vries", asClient: true },
+      ],
+    });
+    expect(event!.summary).toBe("Einde plaatsing: Sanne de Vries");
+    expect(event!.description).toContain("verlenging");
+  });
+
+  it("bewaart de categorievolgorde: certificaten, facturen, BTW, IB, dan plaatsingen", () => {
     const d = new Date("2026-06-01T00:00:00Z");
     const ibDeadline = new Date("2027-05-01T00:00:00Z");
     const events = administrativeDeadlineEvents({
@@ -87,12 +117,14 @@ describe("administrativeDeadlineEvents", () => {
       invoices: [{ id: "i1", number: "F-1", dueAt: d, payable: true }],
       vat: [{ year: 2026, quarter: 2, deadline: d }],
       incomeTax: { taxYear: 2026, deadline: ibDeadline },
+      collaborations: [{ id: "col-1", endDate: d, counterpartyName: "De Linde", asClient: false }],
     });
     expect(events.map((e) => e.uid)).toEqual([
       "cred-expiry-c1@zzp-platform",
       "invoice-due-i1@zzp-platform",
       "vat-return-2026-Q2@zzp-platform",
       "income-tax-2026@zzp-platform",
+      "collab-end-col-1@zzp-platform",
     ]);
   });
 });

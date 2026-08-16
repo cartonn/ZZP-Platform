@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-16 — ZZP'er + opdrachtgever: plaatsing-einddatum in de agenda-feed (PR volgt)
+
+**Wat:** de persoonlijke agenda-export (`/api/agenda` + webcal `/api/agenda/feed.ics`) exporteerde
+certificaat-verloop, factuur-vervaldatum, BTW- en IB-aangifte, maar niet het **einde van een lopende
+plaatsing** (samenwerking met een vastgelegde einddatum). Het aflopen van een inzet is juist het moment
+waarop beide partijen actie moeten plannen (ZZP'er: vervolg/nieuwe opdracht; opdrachtgever: verlenging/
+vervanger). De bestaande `collaborationScheduleEvents` zet wekelijkse dienst-dagen in de feed en bindt de
+herhaling met `until: endDate`, maar zonder een expliciete "einde"-markering: in een agenda-app stoppen de
+diensten dan stilletjes. Nu een los gehele-dag-event "Einde plaatsing: {tegenpartij}" op de einddatum, in
+béide feeds (éénmaal abonneren → altijd in de eigen agenda-app), met een rol-bewuste tekst.
+
+**Bestanden:** `src/lib/calendar/deadlines.ts` — nieuwe `CollaborationDeadline` + `collaborations`-veld op
+`AdministrativeDeadlines`; `administrativeDeadlineEvents` emit een all-day event `collab-end-{id}@zzp-platform`
+(stabiele, van `collab-{id}` onderscheiden UID) ná de IB-deadline, met perspectief-tekst (asClient →
+verlenging/vervanger, anders vervolg/nieuwe opdracht). `src/lib/calendar/user-deadlines.ts` — laadt ACTIVE,
+niet-betwiste samenwerkingen met een nog-niet-verstreken einddatum waarbij de gebruiker de ZZP'er (`freelancer.userId`)
+óf de opdrachtgever (`company.userId`) is; bemiddelaar/admin krijgen niets (agenda = eigen data). Read-only,
+alleen eigen plaatsingen (privacy — nooit data van een ander), geen schema-/mutatie-/auth-oppervlak. +8 tests
+(deadlines: perspectief + volgorde; user-deadlines: scoping + mapping + rol-guard). Gate: typecheck, lint, test,
+build, prettier groen.
+
 ## 2026-08-15 — ZZP'er: omzet per opdrachtgever (client-concentratie) op /inzicht (PR #1108)
 
 **Wat:** de ZZP'er zag op `/inzicht` nog niet welk deel van zijn omzet van welke opdrachtgever komt —

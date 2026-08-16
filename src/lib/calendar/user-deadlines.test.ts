@@ -8,7 +8,10 @@ interface FindArgs {
     expiresAt?: unknown;
     freelancerProfile?: unknown;
     dueAt?: unknown;
+    disputedAt?: unknown;
+    endDate?: unknown;
     AND?: Array<{ OR?: Array<Record<string, unknown>> }>;
+    OR?: Array<Record<string, unknown>>;
   };
 }
 
@@ -20,11 +23,15 @@ const invoiceFindManyMock = vi.hoisted(() =>
 );
 const getVatDeadlinesMock = vi.hoisted(() => vi.fn(async () => [] as unknown[]));
 const getIncomeTaxDeadlineMock = vi.hoisted(() => vi.fn(async () => null as unknown));
+const collaborationFindManyMock = vi.hoisted(() =>
+  vi.fn<(args: FindArgs) => Promise<unknown[]>>(async () => []),
+);
 
 vi.mock("@/lib/db", () => ({
   prisma: {
     credential: { findMany: credentialFindManyMock },
     invoice: { findMany: invoiceFindManyMock },
+    collaboration: { findMany: collaborationFindManyMock },
   },
 }));
 vi.mock("@/lib/data/vat-deadline", () => ({ getVatDeadlinesForActor: getVatDeadlinesMock }));
@@ -46,6 +53,8 @@ beforeEach(() => {
   getVatDeadlinesMock.mockResolvedValue([]);
   getIncomeTaxDeadlineMock.mockReset();
   getIncomeTaxDeadlineMock.mockResolvedValue(null);
+  collaborationFindManyMock.mockReset();
+  collaborationFindManyMock.mockResolvedValue([]);
 });
 
 describe("loadUserAdministrativeDeadlines", () => {
@@ -144,5 +153,57 @@ describe("loadUserAdministrativeDeadlines", () => {
     getIncomeTaxDeadlineMock.mockResolvedValue(null);
     const result = await loadUserAdministrativeDeadlines(USER, "CLIENT", NOW);
     expect(result.incomeTax).toBeNull();
+  });
+
+  it("ZZP'er: laadt lopende plaatsingen met einddatum en toont de opdrachtgever als tegenpartij", async () => {
+    collaborationFindManyMock.mockResolvedValue([
+      {
+        id: "col-1",
+        endDate: new Date("2026-10-01T00:00:00Z"),
+        freelancer: { userId: USER, user: { name: "Sanne de Vries" } },
+        company: { userId: "other-client", name: "Zorggroep De Linde" },
+      },
+    ]);
+    const result = await loadUserAdministrativeDeadlines(USER, "FREELANCER", NOW);
+    expect(result.collaborations).toEqual([
+      {
+        id: "col-1",
+        endDate: new Date("2026-10-01T00:00:00Z"),
+        counterpartyName: "Zorggroep De Linde",
+        asClient: false,
+      },
+    ]);
+    // Scoping: alleen ACTIVE, niet-betwiste, nog-niet-verstreken plaatsingen van de eigen gebruiker.
+    const where = collaborationFindManyMock.mock.calls[0]?.[0]?.where;
+    expect(where!.status).toBe("ACTIVE");
+    expect(where!.disputedAt).toBeNull();
+    expect(where!.endDate).toEqual({ not: null, gte: NOW });
+    expect(where!.OR).toEqual([{ freelancer: { userId: USER } }, { company: { userId: USER } }]);
+  });
+
+  it("opdrachtgever: toont de ZZP'er als tegenpartij (asClient) op de plaatsing-einddatum", async () => {
+    collaborationFindManyMock.mockResolvedValue([
+      {
+        id: "col-2",
+        endDate: new Date("2026-11-15T00:00:00Z"),
+        freelancer: { userId: "other-zzp", user: { name: "Sanne de Vries" } },
+        company: { userId: USER, name: "Mijn Bedrijf BV" },
+      },
+    ]);
+    const result = await loadUserAdministrativeDeadlines(USER, "CLIENT", NOW);
+    expect(result.collaborations).toEqual([
+      {
+        id: "col-2",
+        endDate: new Date("2026-11-15T00:00:00Z"),
+        counterpartyName: "Sanne de Vries",
+        asClient: true,
+      },
+    ]);
+  });
+
+  it("bemiddelaar/admin: geen plaatsing-query (agenda = eigen data)", async () => {
+    await loadUserAdministrativeDeadlines(USER, "FRANCHISER", NOW);
+    await loadUserAdministrativeDeadlines(USER, "ADMIN", NOW);
+    expect(collaborationFindManyMock).not.toHaveBeenCalled();
   });
 });
