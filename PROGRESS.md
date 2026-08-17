@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-17 — ZZP'er: CSV-export van de vastgelegde zakelijke uitgaven
+
+**Wat:** de ZZP'er kon zijn vastgelegde zakelijke uitgaven (het "Uitgaven"-paneel op de administratie-hub:
+datum/omschrijving/categorie/netto/btw) nog nergens exporteren, terwijl facturen, prognose, grootboek én
+btw dat allemaal wél hebben. De grootboek-CSV (`administrationCsv`) draagt alleen rekening/debet/credit —
+de omschrijving én categorie van een kostenpost vallen weg — dus een boekhouder kreeg nergens een
+gecategoriseerde kostenlijst. Uitgaven waren de laatste geld-oppervlakte zonder export.
+
+**Fix:** nieuwe pure leaf `src/lib/administration/expenses-csv.ts` (`EXPENSES_EXPORT_HEADERS` +
+`expensesCsv`) bouwt de CSV uit owner-gescopet uitgaven-rijen: datum als ISO `jjjj-mm-dd`, oplopend op
+datum gesorteerd (grootboek-conventie, deterministisch los van aanlevervolgorde), geld via de canonieke
+`centsToEuroPlain`, categorie → NL-label (schermpariteit, onbekend → "Overig"), formule-injectie (CWE-1236)
+in de vrije omschrijving afgevangen door `toCsv`/`escapeCsvField`. Nieuwe route
+`/api/administratie/uitgaven` (auth → rol FREELANCER — alleen de ZZP'er boekt uitgaven, parity met
+`uitgaven/actions.ts` → rate-limit → owner-gescopet `expense.findMany` → CSV → audit `EXPENSES_EXPORTED`).
+"Uitgaven CSV"-knop in het uitgaven-paneel (alleen bij ≥1 post). Read-only, owner-gescopet, geen schema-/
+mutatie-/authketen-wijziging; spiegelt de bestaande btw-/grootboek-export-routes. +7 tests. NL-auditlabel
+toegevoegd. Gate: typecheck, lint, test, build, prettier groen.
+
+**Bestanden:** `src/lib/administration/expenses-csv.ts` (+ `.test.ts`),
+`src/app/api/administratie/uitgaven/route.ts`, `src/components/administratie/uitgaven-panel.tsx`,
+`src/lib/audit-labels.ts`.
+
 ## 2026-08-17 — Bemiddelaar: CSV-export van de opdrachtgever-uitsplitsing op /inzicht
 
 **Wat:** de "Per opdrachtgever"-uitsplitsing op `/inzicht` (bemiddelaar) toont per opdrachtgever de

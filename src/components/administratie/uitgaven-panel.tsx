@@ -1,4 +1,4 @@
-import { Layers, Receipt, ReceiptText, TrendingUp } from "lucide-react";
+import { Download, Layers, Receipt, ReceiptText, TrendingUp } from "lucide-react";
 import { type Actor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
@@ -172,7 +172,17 @@ export async function UitgavenPanel({ actor }: { actor: Actor }) {
 
       {/* Lijst */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold">Vastgelegde uitgaven</h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold">Vastgelegde uitgaven</h2>
+          {expenses.length > 0 && (
+            <a
+              href="/api/administratie/uitgaven"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            >
+              <Download className="size-3.5" aria-hidden /> Uitgaven CSV
+            </a>
+          )}
+        </div>
         {expenses.length === 0 ? (
           <Card>
             <EmptyState
