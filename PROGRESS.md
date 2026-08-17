@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-17 — Robuustheid: rate-limit op de idee-engagement-mutaties (UGC-flood-rem)
+
+**Wat:** de ideeën-hub is het enige open UGC-oppervlak — `createIdea`, `toggleVote` en `addComment`
+(`src/app/(protected)/ideeen/actions.ts`) staan open voor élke ingelogde gebruiker (FREELANCER/CLIENT),
+schrijven vrije tekst en doen notificatie-fan-out naar de indiener. Anders dan élke andere UGC-mutatie in
+de codebase (`messageRateLimiter`/`applicationRateLimiter`/`inviteRateLimiter`/`noShowReportRateLimiter`)
+hadden deze drie **geen volume-rem** — een authenticated/gecompromitteerd account kon een scripted flood
+draaien: notificatie-/DB-/audit-DoS + gerichte harassment van een indiener. Gevonden in de authz-audit-
+residu-sweep (persona-sweep backlog, "beveiliging/robuustheid eerst").
+
+**Fix:** nieuwe gedeelde `ideaEngagementRateLimiter` (default 40 acties/5 min, env
+`IDEA_ENGAGEMENT_RATE_LIMIT`, prefix `idea:`) in `src/lib/rate-limit.ts`, gewired vóór de write in alle
+drie de engagement-acties: `createIdea` weigert met een nette foutstate; `toggleVote`/`addComment`
+(void) vallen stil terug (ongewijzigde stand). Eén gedeelde bucket per gebruiker, ruim boven normaal
+gebruik. Auth-/Zod-poort blijft leidend; dit is een extra volume-rem (defense-in-depth), parity met de
+bestaande UGC-remmen. Geen schema-/authketen-wijziging. +6 tests. Gate: typecheck, lint, unit-test,
+build, prettier groen.
+
+**Bestanden:** `src/lib/rate-limit.ts`, `src/app/(protected)/ideeen/actions.ts`,
+`src/app/(protected)/ideeen/rate-limit.test.ts`.
+
 ## 2026-08-17 — prod: stille-faal-gauge voor de ZZP-lidmaatschap-bijdrage (omzet-registratie)
 
 **Wat:** de `zzp-membership`-cron (de kern-ZZP-monetisatie, €40/actieve maand, PIDZ-model) registreert per
