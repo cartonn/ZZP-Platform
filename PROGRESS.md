@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-17 — Bemiddelaar: CSV-export van de opdrachtgever-uitsplitsing op /inzicht
+
+**Wat:** de "Per opdrachtgever"-uitsplitsing op `/inzicht` (bemiddelaar) toont per opdrachtgever de
+betaalde omzet, het aantal diensten en de vulgraad — maar die kon nergens geëxporteerd worden. De
+opdrachtgever en de ZZP'er hebben al diverse CSV-exports (openstaande posten, diensten, prognose,
+fees, roster); een staffing-bemiddelaar wil zijn omzet-per-klant in een spreadsheet kunnen bewerken,
+delen of tegen zijn eigen boekhouding leggen. Nu een "Exporteer (CSV)"-knop op de widget.
+
+**Fix:** nieuwe pure leaf `src/lib/franchise/company-breakdown-export.ts`
+(`COMPANY_BREAKDOWN_EXPORT_HEADERS` + `companyBreakdownCsv`) bouwt de CSV uit de reeds tenant-gescopet
+`CompanyBreakdownRow[]` — geld in euro's via de canonieke `centsToEuroPlain`, formule-injectie (CWE-1236)
+afgevangen door `toCsv`/`escapeCsvField`, rij-volgorde behouden (scherm-pariteit). Nieuwe route
+`/franchise/opdrachtgevers/export` (auth → rol FRANCHISER → rate-limit → `getTenantCompanyBreakdown` →
+zelfde "met activiteit"-filter als de widget → CSV → audit `TENANT_COMPANY_BREAKDOWN_EXPORTED`). Read-only,
+tenant-gescopet, geen schema-/mutatie-/authketen-wijziging; spiegelt de bestaande roster-/fee-export-routes.
++6 tests. Gate: typecheck, lint, test, build, prettier groen.
+
+**Bestanden:** `src/lib/franchise/company-breakdown-export.ts` (+ `.test.ts`),
+`src/app/(protected)/franchise/opdrachtgevers/export/route.ts`, `src/app/(protected)/inzicht/page.tsx`.
+
 ## 2026-08-17 — Correctheid: betaalde omzet telt cascade-PAID mee (earnedCents/spentCents)
 
 **Wat:** `getFreelancerStats.earnedCents` (ZZP'er `/inzicht`, kaart "omzet die binnen is") en
