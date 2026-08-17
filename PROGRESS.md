@@ -52,6 +52,36 @@ test, build, prettier groen. MENSENWERK.md §3b bijgewerkt.
 **Volgende stap:** resterend mensenwerk voor betaald ZZP-lidmaatschap blijft: betaalprovider per ZZP'er +
 PENDING-bijdragen → verzonden abonnementsfacturen (`ZzpMembershipCharge.invoiceId`).
 
+## 2026-08-17 — Security/Privacy-audit: bericht-erasure-lek (KRITIEK) + privé-certificaat op publiek dossier (HOOG)
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+bearer-feeds / erasure-symmetrie / document-serving+IDOR). De delta sinds de vorige ronde (nieuwe
+CSV-exports, metrics-route, push-heartbeat) was schoon; twee reeds bestaande gaten gevonden én gefixt.
+
+**Fix 1 (KRITIEK · AVG art. 17 · Architectuurregel 5 · OWASP A01):** elk verzonden bericht werd verbatim
+(≤120 tekens) naar `Notification.body` op de feed van de ONTVANGER gekopieerd; de erasure
+(`anonymizeUser`) redact wél `Message.body` en de eigen-feed-notificaties, maar niet die kopie op andermans
+feed → de berichttekst (telefoon/adres) overleefde art. 17 op de ontvangersfeed én in diens inzage-export.
+Gedeelde drift-vrije builder `messageNotificationBody`/`MESSAGE_NOTIFICATION_BODY_MAX` (`src/lib/messaging.ts`);
+`anonymizeUser` snapshot de eigen verzonden berichten en redact per uniek (gesprek, body-slice) de exacte
+MESSAGE-notificatiekopie op álle feeds. Spiegelt de no-show-/handoff-/dispuut-multi-kopie-behandeling.
+
+**Fix 2 (HOOG · OWASP A01 · AVG art. 5(1)(a)/(b) · Architectuurregel 1):** het publieke, niet-verlopende
+vertrouwensdossier `/vertrouwen/[profileId]/[token]` selecteerde `where: { status: "VERIFIED" }` zonder de
+per-certificaat consent-toggle `visibility` (default PRIVATE) te honoreren — anders dan de sibling `/zzp/[id]`
+— en toonde/telde daardoor privé-gehouden VOG/BIG/diploma's op de bearer-URL. Query filtert nu
+`{ status: "VERIFIED", visibility: "PUBLIC" }`; PRIVÉ-certificaten verlaten de route niet.
+
+**Tests (rood→groen):** `anonymize-erasure.test.ts` (MESSAGE-notificatiekopie op ontvangersfeed) +
+`vertrouwen-liveness.test.ts` (query laadt alleen PUBLIC-certificaten). Beide handmatig rood→groen geverifieerd.
+Rest geparkeerd in `docs/SECURITY-PRIVACY-BACKLOG.md` (2× MIDDEL audit-volledigheid, 2× LAAG, 1 MENSENWERK-
+escalatie over een stale ongemergde branch). Gate: typecheck/lint/test/build/prettier groen.
+
+**Bestanden:** `src/lib/messaging.ts`, `src/app/(protected)/berichten/actions.ts`,
+`src/app/(protected)/admin/gebruikers/actions.ts` (+ `anonymize-erasure.test.ts`),
+`src/app/vertrouwen/[profileId]/[token]/page.tsx` (+ `vertrouwen-liveness.test.ts`),
+`docs/SECURITY-PRIVACY-BACKLOG.md`.
+
 ## 2026-08-17 — ZZP'er: CSV-export van de vastgelegde zakelijke uitgaven
 
 **Wat:** de ZZP'er kon zijn vastgelegde zakelijke uitgaven (het "Uitgaven"-paneel op de administratie-hub:

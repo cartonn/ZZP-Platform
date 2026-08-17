@@ -4,6 +4,102 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-17b (basis: `main` @ a8a454bb) — 1× KRITIEK + 1× HOOG OPGELOST (bericht-erasure-lek + privé-certificaat op publiek dossier)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(1: **bearer-token/publieke feeds** — `/vertrouwen/[profileId]/[token]`, `/api/agenda/feed.ics`, share-/feed-tokens,
+`password-reset`, `shared-credentials`; 2: **erasure↔export-symmetrie** — volledige `schema.prisma`-sweep +
+`account-anonymization.ts`/`account-export.ts`/`admin/gebruikers/actions.ts`; 3: **document-/media-serving + IDOR** —
+`api/media/[...key]`, `api/documents/[id]`, alle PDF-/dossier-routes, `storage.ts` path-traversal, `/admin`-RBAC).
+Plus orchestrator-probes (delta `c33670cd..a8a454bb`: nieuwe CSV-exports `administratie/uitgaven` + `franchise/
+opdrachtgevers` en `metrics`-route — allen server-side gescoopt/geaudit/formule-injectie-veilig; `$queryRawUnsafe`=0;
+enige `dangerouslySetInnerHTML`=nonce-theme-script; geen user-gestuurde `fetch`/SSRF; geen open redirect; geen PII
+in `console.*` (mail-noop logt geen adres in productie, M-3 intact); `npm audit --omit=dev`=**0**).
+
+**Uitkomst:** delta schoon; **twee reeds bestaande gaten gevonden én gefixt** (zie onder). De rest geparkeerd
+(2× MIDDEL audit-volledigheid, 1× LAAG, plus een MENSENWERK-escalatie over een stale ongemergde branch).
+
+### OPGELOST — Berichttekst overleeft afzender-erasure via een verbatim kopie in `Notification.body` op de ontvangersfeed (KRITIEK · AVG art. 17 vs. art. 15/20 · Architectuurregel 5 · OWASP A01)
+
+**Geschonden regel:** Architectuurregel 5 (audit/erasure alles wat telt) + AVG art. 17 (vergetelheid) tegenover
+art. 15/20 (inzage/portabiliteit). Zelfde multi-kopie-klasse als eerder gedicht voor `INVOICE_CREDITED`,
+`NO_SHOW_REPORTED`, `SHIFT_HANDOFF_REJECTED` — hier op de **MESSAGE**-notificatie, het meest gevoelige
+vrije-tekstkanaal (directe berichten op een VOG/diploma-platform).
+
+**Repro (vóór de fix):** ZZP'er A stuurt opdrachtgever B een bericht `"Bel me op 06-12345678, adres Kerkstraat 12"`
+(≤120 tekens). `sendMessage` (`berichten/actions.ts`) maakt een `Notification{ userId: B, type: "MESSAGE",
+body: <bericht verbatim> }` op **B's** feed. A dient een art. 17-verzoek in; admin draait `anonymizeUser(A.id)`.
+De erasure redact `Message.body` (senderId==A) én de notificaties op A's **eigen** feed (`where: { userId: A }`),
+maar raakt de kopie op **B's** feed nooit → A's telefoon/adres blijft onbeperkt leesbaar op B's feed **én** in B's
+AVG-inzage-export (`account-export.ts:179` geeft `Notification.body` onvoorwaardelijk prijs). `grep` bevestigde:
+geen enkele test dekte `Message.body`-redactie of de MESSAGE-notificatiekopie.
+
+**Fix (dit PR):** gedeelde, drift-vrije body-builder `messageNotificationBody` + `MESSAGE_NOTIFICATION_BODY_MAX`
+(`src/lib/messaging.ts`), gebruikt door zowel `sendMessage` als de erasure. `anonymizeUser` snapshot vóór de
+transactie de eigen verzonden berichten (`senderId==userId`) en redact per uniek (gesprek, body-slice) de exacte
+notificatiekopie (`type: "MESSAGE"` + `link: /berichten/<conv>` + exacte `body`) op álle feeds — spiegelt de
+no-show-/handoff-/dispuut-behandeling. **Test (rood→groen):** `anonymize-erasure.test.ts` — "redact de berichttekst
+óók uit de MESSAGE-notificatie op de feed van de ONTVANGER"; faalt zonder de transactie-op (geen MESSAGE-updateMany).
+
+### OPGELOST — Publiek vertrouwensdossier lekte PRIVÉ-gemarkeerde certificaten (VOG/BIG/diploma) via de bearer-URL (HOOG · OWASP A01 · AVG art. 5(1)(a)/(b) · Architectuurregel 1)
+
+**Geschonden regel:** Architectuurregel 1 (server-side waarheid; consent-status niet inconsistent tussen views) +
+OWASP A01 (broken access control — inconsistente autorisatie tussen twee views op dezelfde resource) + AVG art.
+5(1)(a)/(b) (doelbinding/grondslag: de per-certificaat consent-toggle).
+
+**Repro (vóór de fix):** `Credential.visibility` staat **standaard op PRIVATE** (`schema.prisma:654`) en is een
+per-certificaat consent-toggle op `/certificaten`. De sibling publieke viewer `/zzp/[id]` honoreert 'm
+(`profile-screen.tsx:316` → `publicCredentials = filter(c => c.visibility === "PUBLIC")`). Maar het publieke,
+niet-verlopende bearer-dossier `/vertrouwen/[profileId]/[token]/page.tsx` selecteerde `where: { status: "VERIFIED" }`
+**zonder** visibility-filter en toonde élk geverifieerd certificaat bij type/titel/uitgever/verificatiebron — én
+telde ze mee in het vertrouwensniveau + de verplichte-documenten-check. Een ZZP'er die alleen z'n diploma openbaar
+maakte maar VOG/BIG privé hield, lekte die privé-certificaten aan iedereen met de deellink (niet per-certificaat
+intrekbaar). Nul testdekking (alle fixtures gebruikten `credentials: []`).
+
+**Fix (dit PR):** de credentials-query filtert nu `where: { status: "VERIFIED", visibility: "PUBLIC" }` — PRIVÉ-
+certificaten verlaten deze route niet (tightest fix; consistent met `/zzp/[id]`). **Test (rood→groen):**
+`vertrouwen-liveness.test.ts` — "laadt alléén OPENBAAR-gemaakte certificaten"; assert de query-vorm, faalt zonder
+de fix (`where` enkel `{ status: "VERIFIED" }`).
+
+### GEPARKEERD (repro + severity)
+
+- **Ontbrekende `auditDeniedAccess` op de not-found-tak van de platform-factuur-PDF-route (MIDDEL · OWASP A09/CWE-208 · Architectuurregel 5).**
+  `src/app/api/admin/facturatie/[id]/pdf/route.ts:29-30` geeft bij `getPlatformBillingInvoiceDetail(id) === null`
+  een 404 **zonder auditregel** — terwijl álle sibling-PDF-/document-routes (`documents/[id]`, `facturen/[id]/pdf`,
+  `prestaties/[id]/pdf`, `samenwerkingen/[id]/{modelovereenkomst,dossier,dba-dossier}`) vóór dezelfde 404
+  `auditDeniedAccess(... outcome: "not-found")` schrijven (recon-logging + timing-pariteit, CWE-208). Deze route
+  kreeg wél de success-audit (2026-06-25) maar werd niet meegenomen in de latere denied-access-retrofit; de not-found-
+  tak heeft geen regressietest. **Geen IDOR** (route is `requireRole("ADMIN")`; admin heeft blanket-toegang), dus
+  audit-/timing-volledigheid, niet vertrouwelijkheid. **Fix:** voeg `auditDeniedAccess({ action:
+"PLATFORM_BILLING_PDF_ACCESS_DENIED", entityType: "PlatformInvoice", entityId: id, outcome: "not-found" })` toe
+  vóór de 404 + regressietest (pariteit met `pdf-routes-audit.test.ts`).
+- **Agenda-ICS-feed (`/api/agenda/feed.ics`) heeft geen enkel audit-signaal op een niet-intrekbare bearer-feed met derde-partij-PII (MIDDEL · OWASP A09 · Architectuurregel 5).**
+  De handler (`feed.ics/route.ts:24-87`) roept nergens `audit()` aan, terwijl de sibling `/vertrouwen`-route dat
+  wél doet (`TRUST_DOSSIER_VIEWED`) en de feed-code zelf de data als derde-partij-PII benoemt en erkent dat er geen
+  per-token-intrekking is. Zonder audit is een gelekt/gescraped feed-token forensisch onzichtbaar (alleen ephemere
+  in-memory rate-limit-tellers). **Precondities die de severity dempen:** externe agenda-apps pollen elke paar
+  minuten → naïef per-poll auditen is ruis. **Fix:** een rate-limited/gede-dupliceerd (bv. eerste-gebruik-per-dag-
+  per-token) `AGENDA_FEED_VIEWED`-signaal.
+- **`/vertrouwen`-dossier-audit mist `ipAddress`/`userAgent` (LAAG · AVG art. 5(2) volledigheid).**
+  `vertrouwen/[profileId]/[token]/page.tsx:38-45` berekent `ipAddress` via `requestMeta()` voor de rate-limiter,
+  maar de `audit()`-aanroep (`:122-127`) geeft het niet mee — terwijl `AuditEntry` het ondersteunt en andere
+  publieke flows (`wachtwoord-vergeten/actions.ts`) `...meta` al meesturen. Zonder is de scraping-IP van deze
+  gevoelige, niet-intrekbare publieke URL niet te herleiden. **Fix:** `await audit({ ...meta, actorId: null, ... })`.
+- **`/api/documents/[id]` blob-missing-tak zonder audit (LAAG · AVG art. 5(2) volledigheid).** Ongewijzigd sinds
+  vorige ronde (`route.ts:70-71`): na geslaagde autorisatie geeft `storage.exists === false` een 404 zonder audit,
+  terwijl found/forbidden/success wél auditen. Niet exploiteerbaar (post-autorisatie, eigen document); stille gat
+  in de toegang-trail. **Fix:** route deze tak door hetzelfde `audit`-patroon (bv. `DOCUMENT_BLOB_MISSING`).
+
+### MENSENWERK-escalatie (branch-hygiëne — geen codegat)
+
+- **Stale ongemergde branch `origin/feat/auto-20260816-122711-556` (PR #1115, "gepubliceerde reputatie op het
+  portable vertrouwensdossier").** Deze branch (commit `d3e7d225`, ~13 commits achter `main`) is NIET in `main` —
+  ondanks dat de routine-opdracht suggereerde dat de reputatie al gepubliceerd was. Bevat ook een verweesde,
+  racende WIP-commit van een tweede agent. Op eigen merites lijkt de code redelijk (alleen geaggregeerde PUBLISHED-
+  reviews, geen individuele auteurstekst), maar is stale en niet door de CI-/agent-review-poort. **Actie voor de
+  mens:** (a) bevestig dat 'ie niet stil gemerged/gedeployed wordt buiten de poort; (b) bij rebase+merge: hertoets
+  tegen het hierboven gefixte visibility-gat — #1115 voegt een NIEUWE sectie toe aan exact dezelfde pagina.
+
 ## Ronde 2026-08-17 (basis: `main` @ c33670cd) — 1× MIDDEL OPGELOST (logo-upload accepteerde PDF)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

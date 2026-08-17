@@ -55,8 +55,17 @@ export default async function TrustDossierPage({
       user: {
         select: { name: true, identityVerifiedAt: true, status: true, anonymizedAt: true },
       },
+      // Alleen VERIFIED-certificaten die de ZZP'er expliciet OPENBAAR maakte (`visibility: "PUBLIC"`).
+      // `Credential.visibility` staat standaard op PRIVATE en is een per-certificaat consent-toggle op
+      // /certificaten; de sibling publieke viewer `/zzp/[id]` (`profile-screen.tsx` → `publicCredentials`)
+      // honoreert 'm al. Zonder deze filter lekte dit niet-verlopende publieke bearer-dossier élk
+      // geverifieerd certificaat (incl. een PRIVÉ-gehouden VOG/BIG/diploma) bij naam/type/uitgever én
+      // telde het mee in het vertrouwensniveau en de verplichte-documenten-check — een schending van de
+      // door de betrokkene gegeven toestemming (OWASP A01, inconsistente autorisatie tussen twee views
+      // op dezelfde data; AVG art. 5(1)(a)/(b) doelbinding/grondslag). Filter in de query zodat PRIVÉ-
+      // certificaten deze route nooit verlaten.
       credentials: {
-        where: { status: "VERIFIED" },
+        where: { status: "VERIFIED", visibility: "PUBLIC" },
         select: {
           id: true,
           type: true,

@@ -67,7 +67,16 @@ vi.mock("@/lib/db", () => ({
       deleteMany: vi.fn(async () => ({})),
       findMany: vi.fn(async () => []),
     },
-    message: { updateMany: op("message.updateMany") },
+    message: {
+      updateMany: op("message.updateMany"),
+      // Eén door de betrokkene VERZONDEN bericht: de eerste 120 tekens staan verbatim in de body van
+      // de MESSAGE-notificatie op de feed van de ONTVANGER (userId == ontvanger). Bij verwijdering van
+      // de afzender moet die notificatiekopie mee-geredact worden (art. 17, tweede kopie op andermans
+      // feed — buiten de brede eigen-feed-wipe).
+      findMany: vi.fn(async () => [
+        { conversationId: "conv-5", body: "Bel me op 06-12345678, mijn adres is Kerkstraat 12" },
+      ]),
+    },
     notification: { updateMany: op("notification.updateMany") },
     invoice: {
       // Eén door de betrokkene ZÉLF gecrediteerde factuur (lifecycleStatus CREDITED): de reden is
@@ -630,6 +639,30 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(own).toBeDefined();
     expect(own!.args.where).toEqual({ userId: "user-42" });
     expect(own!.args.data.body).toMatch(/verwijderd/i);
+  });
+
+  it("redact de berichttekst óók uit de MESSAGE-notificatie op de feed van de ONTVANGER (AVG art. 17, KRITIEK)", async () => {
+    await anonymizeUser("user-42");
+    // Elk verzonden bericht is verbatim (≤120 tekens) naar de body van de MESSAGE-notificatie op de
+    // feed van de ONTVANGER gekopieerd (userId == ontvanger). De `Message.body`-redactie (senderId)
+    // en de brede eigen-feed-wipe (userId == betrokkene) raken die tweede kopie geen van beide — zonder
+    // deze gerichte redactie blijft de vrije berichttekst (telefoon/adres) leesbaar op andermans feed
+    // én in diens AVG-inzage-export (`account-export.ts` geeft `Notification.body` onvoorwaardelijk
+    // prijs). Deze assert faalt zonder de fix (rood→groen). Meerdere notification.updateMany's; pak de
+    // MESSAGE-variant op zijn where-vorm.
+    const ops = findAll("notification.updateMany") as Array<{
+      args: { where: { type?: unknown; link?: string; body?: string }; data: { body?: string } };
+    }>;
+    const o = ops.find((x) => x.args.where.type === "MESSAGE");
+    expect(o).toBeDefined();
+    // Gescopet op het exacte, deterministisch reconstrueerbare tripel (type + gespreks-deep-link +
+    // body-slice) zodat we nooit het bericht van een ándere afzender in hetzelfde gesprek raken.
+    expect(o!.args.where).toEqual({
+      type: "MESSAGE",
+      link: "/berichten/conv-5",
+      body: "Bel me op 06-12345678, mijn adres is Kerkstraat 12",
+    });
+    expect(o!.args.data.body).toMatch(/verwijderd/i);
   });
 
   it("wist de privé favorieten-notitie van de CLIENT (FavoriteFreelancer.note)", async () => {

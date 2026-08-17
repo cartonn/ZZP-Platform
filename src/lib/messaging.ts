@@ -5,6 +5,24 @@ export function isParticipant(participantUserIds: readonly string[], userId: str
   return participantUserIds.includes(userId);
 }
 
+/**
+ * Maximale lengte (tekens) van de vrije berichttekst die verbatim in de body van de
+ * MESSAGE-notificatie op de feed van de ontvanger wordt gekopieerd. Eén bron van waarheid: de
+ * verzendactie (`sendMessage`) én de AVG-erasure (`anonymizeUser`, die deze exacte kopie moet
+ * terugvinden en redacten wanneer de afzender wordt verwijderd) delen hem, zodat er geen
+ * magic-number-drift ontstaat waardoor de erasure de notificatiekopie zou missen.
+ */
+export const MESSAGE_NOTIFICATION_BODY_MAX = 120;
+
+/**
+ * De body-snippet van de MESSAGE-notificatie: de eerste `MESSAGE_NOTIFICATION_BODY_MAX` tekens van
+ * het bericht. Puur en deterministisch, zodat de erasure de kopie op andermans feed exact kan
+ * reconstrueren (type + gespreks-deep-link + deze body) en redacten (AVG art. 17).
+ */
+export function messageNotificationBody(body: string): string {
+  return body.slice(0, MESSAGE_NOTIFICATION_BODY_MAX);
+}
+
 export interface MessageLike {
   senderId: string;
   createdAt: Date;
