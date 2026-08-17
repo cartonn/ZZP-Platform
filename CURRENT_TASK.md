@@ -268,6 +268,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — push-aflever-heartbeat / dead-man's-switch voor web-push (2026-08-17)** —
+> web-push (VAPID/PWA-pushmeldingen) was, anders dan e-mail, een gebruikersgericht afleverkanaal zónder doorlopend
+> afleversignaal; een systematisch afwijzend kanaal (geroteerde/verlopen VAPID-sleutels, provider-storing) liet élke
+> pushmelding stil mislukken omdat de delivery-taak elke behandelde notificatie best-effort als gepusht markeert
+> (geen retry) en doorgaat. Nu registreert `src/lib/push-delivery-task.ts` na elke afleverronde die aan echte
+> (niet-verlopen) endpoints probeerde af te leveren de uitkomst in een singleton `PushDeliveryHeartbeat` (geen PII),
+> event-gedreven net als mail (`never`/`ok`/`failing`, geen staleness-op-leeftijd; verlopen abonnementen tellen
+> bewust niet als mislukking) — zichtbaar op `/admin/systeemstatus` ("Push-aflevering"), machine-leesbaar via
+> `zzp_push_delivery_ok`/`zzp_push_consecutive_failures`/`zzp_push_last_failure_age_seconds` op `/api/metrics`, met
+> drop-in alert `ZzpPushDeliveryFailing` in `docs/observability/alerts.yml`. Resterend mensenwerk: niets extra —
+> vult zichzelf zodra web-push bekabeld is. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — gemiddeld betaald uurtarief per maand op /inzicht (2026-08-16, PR #1114)** —
 > de kosten-tegenhanger van de ZZP'er-tariefstrip (#1112). De client-`/inzicht` toonde totale uitgaven + uitgaven per ZZP'er,
 > maar niet tegen wélk gemiddeld uurtarief hij inhuurt (tariefinflatie-signaal). Nu een "Gemiddeld betaald uurtarief per maand"-kaart:

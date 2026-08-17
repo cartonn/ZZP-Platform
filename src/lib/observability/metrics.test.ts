@@ -38,6 +38,9 @@ const HEALTHY: MetricsInput = {
   mailDeliveryOk: true,
   mailDeliveryConsecutiveFailures: 0,
   mailDeliveryLastFailureAgeSeconds: null,
+  pushDeliveryOk: true,
+  pushDeliveryConsecutiveFailures: 0,
+  pushDeliveryLastFailureAgeSeconds: null,
 };
 
 function valueOf(input: MetricsInput, name: string): number {
@@ -350,11 +353,17 @@ describe("buildMetrics", () => {
       mailDeliveryOk: false,
       mailDeliveryConsecutiveFailures: 4,
       mailDeliveryLastFailureAgeSeconds: 300,
+      pushDeliveryOk: false,
+      pushDeliveryConsecutiveFailures: 5,
+      pushDeliveryLastFailureAgeSeconds: 600,
     };
     expect(valueOf(input, "zzp_db_reachable")).toBe(0);
     expect(valueOf(input, "zzp_mail_delivery_ok")).toBe(0);
     expect(valueOf(input, "zzp_mail_consecutive_failures")).toBe(4);
     expect(valueOf(input, "zzp_mail_last_failure_age_seconds")).toBe(300);
+    expect(valueOf(input, "zzp_push_delivery_ok")).toBe(0);
+    expect(valueOf(input, "zzp_push_consecutive_failures")).toBe(5);
+    expect(valueOf(input, "zzp_push_last_failure_age_seconds")).toBe(600);
     expect(valueOf(input, "zzp_maintenance_mode")).toBe(1);
     expect(valueOf(input, "zzp_credentials_overdue_expiry")).toBe(12);
     expect(valueOf(input, "zzp_subscriptions_overdue_expiry")).toBe(8);
@@ -411,6 +420,9 @@ describe("buildMetrics", () => {
       "zzp_mail_delivery_ok",
       "zzp_mail_consecutive_failures",
       "zzp_mail_last_failure_age_seconds",
+      "zzp_push_delivery_ok",
+      "zzp_push_consecutive_failures",
+      "zzp_push_last_failure_age_seconds",
     ]);
   });
 });

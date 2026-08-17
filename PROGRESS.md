@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-17 — Prod-rijpheid: push-aflever-heartbeat (dead-man's-switch voor web-push)
+
+**Wat:** web-push (VAPID/PWA-pushmeldingen) was — anders dan e-mail — een gebruikersgericht
+afleverkanaal zónder doorlopend afleversignaal. Een systematisch afwijzend kanaal (geroteerde/verlopen
+VAPID-sleutels, provider-storing) liet élke pushmelding stil mislukken; de delivery-taak markeert elke
+behandelde notificatie best-effort als gepusht (geen retry) en gaat door, dus niemand merkte het tot een
+gebruiker klaagde — exact de stille faalmodus die de mail-aflever-heartbeat al afving.
+
+**Fix:** nieuw Prisma-model `PushDeliveryHeartbeat` (singleton-rij per kanaal "web-push"; geen PII —
+alleen tijdstippen, `lastOk`, `consecutiveFailures`). Pure oordeelslogica
+`src/lib/observability/push-delivery-freshness.ts` (`evaluatePushDeliveryFreshness`,
+`pushDeliveryStatusItem`) is event-gedreven (uitkomst van de laatste afleverronde, géén
+staleness-op-leeftijd, net als mail) met status `never`/`ok`/`failing`. DB-kant
+`src/lib/observability/push-delivery-heartbeat.ts` (`recordPushDeliverySuccess`/
+`recordPushDeliveryFailure`/`getPushDeliveryFreshness`; fail-open). Gewired in
+`src/lib/push-delivery-task.ts`: ná elke afleverronde die aan echte (niet-verlopen) endpoints probeerde
+af te leveren → `delivered>0` = success, geen success maar echte (niet-verlopen) fouten = failure, alleen
+churn (verlopen 404/410-abonnementen) of niets = neutraal. Verlopen abonnementen tellen bewust niet als
+mislukking. Drie Prometheus-gauges op `/api/metrics` (`zzp_push_delivery_ok`,
+`zzp_push_consecutive_failures`, `zzp_push_last_failure_age_seconds`), admin-kaart "Push-aflevering" op
+`/admin/systeemstatus`, drop-in alert `ZzpPushDeliveryFailing` in `docs/observability/alerts.yml`
+(toegevoegd aan de onderhouds-inhibitie in `alertmanager.yml`).
+
+**Mensenwerk:** niets extra — de kaart/gauge vullen zichzelf zodra web-push bekabeld is (VAPID-sleutels
+gezet) en de eerste afleverronde draait. Optioneel: richt een monitor op `ZzpPushDeliveryFailing`.
+
 ## 2026-08-17 — security/privacy: bedrijfslogo-upload weigert nu server-side een PDF (CWE-434)
 
 **Wat:** de bedrijfslogo-upload (`updateCompanyProfile`, `src/app/(protected)/bedrijf/actions.ts`)

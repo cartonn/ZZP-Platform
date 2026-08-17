@@ -228,6 +228,23 @@ export interface MetricsInput {
   mailDeliveryConsecutiveFailures: number;
   /** Leeftijd van de laatste mislukte e-mailverzending in seconden, of null als er nooit één was. */
   mailDeliveryLastFailureAgeSeconds: number | null;
+  /**
+   * Levert het web-push-kanaal momenteel af? true = de laatste afleverronde leverde af (of er is nog
+   * nooit iets afgeleverd — neutraal gezond), false = de laatste ronde probeerde af te leveren maar
+   * niets kwam aan (het kanaal wijst af). Net als de mail-heartbeat GEEN staleness-op-leeftijd: push is
+   * event-gedreven. Het alarm zit op OPEENVOLGENDE mislukkingen (pushDeliveryConsecutiveFailures).
+   * Verlopen abonnementen (churn, 404/410) tellen bewust NIET als mislukking.
+   */
+  pushDeliveryOk: boolean;
+  /**
+   * Aantal opeenvolgende mislukte web-push-afleverrondes sinds de laatste geslaagde (0 als het kanaal ok
+   * is of nog nooit iets afleverde). Een systematisch afwijzend kanaal (geroteerde/verlopen VAPID-
+   * sleutels, provider-storing) laat élke pushmelding stil mislukken; een monitor paget op een
+   * aanhoudende teller, niet op één transiënte fout.
+   */
+  pushDeliveryConsecutiveFailures: number;
+  /** Leeftijd van de laatste mislukte web-push-afleverronde in seconden, of null als er nooit één was. */
+  pushDeliveryLastFailureAgeSeconds: number | null;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -409,6 +426,24 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: `Leeftijd van de laatste mislukte e-mailverzending in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_mail_consecutive_failures / zzp_mail_delivery_ok.`,
       type: "gauge",
       value: age(input.mailDeliveryLastFailureAgeSeconds),
+    },
+    {
+      name: "zzp_push_delivery_ok",
+      help: "1 als de laatste web-push-afleverronde afleverde (of er nog nooit iets afgeleverd is — neutraal gezond), 0 als de laatste ronde wél echte (niet-verlopen) endpoints probeerde maar niets aankwam (kanaal wijst af). Web-push is een gebruikersgericht afleverkanaal; een afwijzend kanaal (geroteerde/verlopen VAPID-sleutels, provider-storing) laat pushmeldingen stil mislukken.",
+      type: "gauge",
+      value: flag(input.pushDeliveryOk),
+    },
+    {
+      name: "zzp_push_consecutive_failures",
+      help: "Aantal opeenvolgende mislukte web-push-afleverrondes sinds de laatste geslaagde (0 = kanaal ok of nog niets afgeleverd). Alarmeer op een AANHOUDENDE teller (systematisch afwijzend kanaal: geroteerde/verlopen VAPID-sleutels, provider-storing), niet op één transiënte fout. Verlopen abonnementen (churn) tellen niet mee.",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.pushDeliveryConsecutiveFailures)),
+    },
+    {
+      name: "zzp_push_last_failure_age_seconds",
+      help: `Leeftijd van de laatste mislukte web-push-afleverronde in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_push_consecutive_failures / zzp_push_delivery_ok.`,
+      type: "gauge",
+      value: age(input.pushDeliveryLastFailureAgeSeconds),
     },
   ];
 }

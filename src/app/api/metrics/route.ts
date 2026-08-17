@@ -49,6 +49,7 @@ import { authorizeCron } from "@/lib/cron-auth";
 import { getCronFreshness } from "@/lib/observability/cron-heartbeat";
 import { getBackupFreshness } from "@/lib/observability/backup-heartbeat";
 import { getMailDeliveryFreshness } from "@/lib/observability/mail-delivery-heartbeat";
+import { getPushDeliveryFreshness } from "@/lib/observability/push-delivery-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { waitingSince } from "@/lib/verification-queue";
 import {
@@ -334,10 +335,11 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
-  const [cron, backup, mail] = await Promise.all([
+  const [cron, backup, mail, push] = await Promise.all([
     getCronFreshness(undefined, now),
     getBackupFreshness(now),
     getMailDeliveryFreshness(now),
+    getPushDeliveryFreshness(now),
   ]);
 
   return {
@@ -351,6 +353,9 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     mailDeliveryOk: mail.status !== "failing",
     mailDeliveryConsecutiveFailures: mail.consecutiveFailures,
     mailDeliveryLastFailureAgeSeconds: mail.failureAgeSeconds,
+    pushDeliveryOk: push.status !== "failing",
+    pushDeliveryConsecutiveFailures: push.consecutiveFailures,
+    pushDeliveryLastFailureAgeSeconds: push.failureAgeSeconds,
     verificationQueue,
     verificationQueueOldestAgeSeconds,
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),
