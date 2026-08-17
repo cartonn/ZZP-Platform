@@ -4,6 +4,75 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-17 (basis: `main` @ c33670cd) — 1× MIDDEL OPGELOST (logo-upload accepteerde PDF)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(1: **machine-/ongeauthenticeerde endpoints** — alle `src/app/api/tasks/**`, `backups/heartbeat`, `metrics`,
+`csp-report`, `client-error`, `push/**`, `billing/webhook`, `health`, `readiness` + hun guards
+(`cron-auth.ts`, `rate-limit.ts`, `client-ip.ts`, Stripe-signature); 2: **document-/media-serving** —
+`api/media/[...key]`, `api/documents/[id]`, alle PDF-/dossier-/export-routes + `storage.ts` op
+path-traversal/IDOR/audit/CSP; 3: **cross-tenant/franchise + mass-assignment** — alle `franchise/**`-actions/
+-routes, `lib/franchise/**`, `tenancy.ts`, `tenant-billing/**` + overposting/status-transitie-sweep). Plus
+orchestrator-probes (`dangerouslySetInnerHTML`, `$queryRawUnsafe`, open-redirect/callbackUrl, SSRF via
+`new URL`/`fetch`, `npm audit --omit=dev`).
+
+**Uitkomst:** cross-tenant/franchise + mass-assignment **schoon** (elke id-accepterende mutatie her-scoopt
+server-side via `ownsViaTenant`/`tenantScopeWhere`; geen `data:{...raw}`-spread; status via expliciete
+transitiemaps). Injectie/redirect/SSRF/deps **schoon** (0× `$queryRawUnsafe`; enige
+`dangerouslySetInnerHTML` = het nonce-gepoorte theme-script; geen user-gestuurde server-fetch;
+`npm audit --omit=dev` = **0**). **Eén MIDDEL upload-/server-side-truth-gat gevonden én gefixt** (zie onder);
+2 items geparkeerd met repro (1 cron-hardening, 1 LAAG audit-volledigheid).
+
+### OPGELOST — Bedrijfslogo-upload accepteerde een echte PDF, inline geserveerd via `/api/media` (MIDDEL · CWE-434 / OWASP A04 · Architectuurregel 1 + 4)
+
+**Geschonden regel:** Architectuurregel 1 (server-side is de waarheid) + 4 (upload altijd valideren op type).
+OWASP A04:2021 (Insecure Design) / CWE-434 (Unrestricted Upload of File with Dangerous Type).
+
+**Repro (vóór de fix):** een `CLIENT` bewerkt het eigen bedrijfsprofiel en POST een écht PDF-bestand als
+`logo`-veld (rauwe form-POST/devtools, langs het client-`accept="image/png,image/jpeg,image/webp"` heen).
+`validateUpload`/`assertContentMatchesMime` in `bedrijf/actions.ts` valideerden tegen de brede,
+gedeelde `ALLOWED_MIME_TYPES` (incl. `application/pdf`) — de PDF passeerde met geldige magic-bytes en
+malware-scan, `Company.logoKey` werd gezet. Vervolgens serveert `api/media/[...key]/route.ts` (branch
+`ext === "pdf" → application/pdf`) het bestand **inline** aan élke ingelogde gebruiker (alle rollen/tenants),
+**zonder audit en zonder CSP** — content-hosting/phishing vanaf het vertrouwde platform-domein, en een
+valse "logo's zijn altijd onschuldige afbeeldingen"-aanname in de threat-model van de media-route.
+
+**Fix (dit PR):** `validateUpload`/`assertContentMatchesMime` (`src/lib/services/storage.ts`) krijgen een
+optionele `allowed`-parameter (default = alle types, dus documenten/certificaten ongewijzigd);
+`bedrijf/actions.ts` geeft de nieuwe `IMAGE_MIME_TYPES`-allowlist mee → een PDF (of ander niet-beeld-type)
+wordt nu **server-side** geweigerd, óók wanneer de client het type eerlijk als `application/pdf` opgeeft
+(de signatuur matcht dan wél, maar valt buiten de allowlist — tweede poort). Defense-in-depth: de
+media-route zet nu ook een `Content-Security-Policy: sandbox; default-src 'none'` op de gestreamde
+respons (parity met de document-route). **Test (rood→groen):** `storage.test.ts` — "weigert een PDF wanneer
+alleen afbeeldingen zijn toegestaan (logo-upload)" + "weigert een echte PDF onder de alleen-afbeelding
+allowlist (logo)". Zonder de `allowed`-param vallen beide terug op de PDF-inclusieve `ALLOWED_MIME_TYPES`
+en falen → rood; met de fix groen.
+
+### GEPARKEERD (repro + severity)
+
+- **Cron-/taakroutes zonder rate-limiting op de `CRON_SECRET`-check + geen minimum-entropie (HOOG-contingent → praktisch MIDDEL · OWASP A07 · defense-in-depth).**
+  `src/lib/cron-auth.ts` doet een correcte `timingSafeEqual` (Bearer-only), maar de 16 cron-gepoorte routes
+  (`src/app/api/tasks/**`, `run-all`, `backups/heartbeat`, `metrics`) hebben **geen rate-limiter** op een
+  mislukte auth — anders dan `csp-report`/`client-error`/`billing/webhook`. `env.ts` valideert `CRON_SECRET`
+  niet op minimumlengte (contrast: `AUTH_SECRET` hard `min(16)` + waarschuwing `< 32`). **Repro:** zet een
+  zwak `CRON_SECRET`; een ongethrottelde online brute-force van `POST /api/tasks/run-all` /
+  `backups/heartbeat` kan het raden → op-afroep task-runs (reminder-/retentie-spam) of het maskeren van de
+  backup-dead-man's-switch (`heartbeat` op `{ok:true}` zetten). **Precondities die de severity dempen:** een
+  sterk `CRON_SECRET` (`openssl rand -base64 32`, zoals `.env.example:165` aanbeveelt) maakt brute-force
+  onhaalbaar ongeacht rate-limiting; `timingSafeEqual` sluit het timing-side-channel al. Daarom
+  defense-in-depth, niet een live bereikbaar gat. **Aanbevolen fix (aparte, kleine increment):** (1) een
+  gedeelde `guardCronRequest(request)` die naast de 503/401 een per-IP `RateLimiter` toepast (429), toegepast
+  op alle 16 routes; (2) een niet-fatale env-waarschuwing bij een `CRON_SECRET < 32` (symmetrisch met
+  `AUTH_SECRET`, respecteert Architectuurregel 8 — nooit de boot breken). MENSENWERK: bevestig dat de
+  productie-`CRON_SECRET` in Railway al hoge entropie heeft als stop-gap.
+- **`/api/documents/[id]`: ontbrekende audit-tak bij "record bestaat, blob mist" (LAAG · AVG art. 5(2) volledigheid).**
+  `src/app/api/documents/[id]/route.ts` (~r69–72): ná een geslaagde autorisatie geeft
+  `storage.exists(doc.storageKey) === false` (een `Document`-rij zonder blob — integriteitsdrift) een 404
+  **zonder auditregel**, terwijl found/forbidden/success in dit bestand allemaal wél auditen. Niet
+  exploiteerbaar (post-autorisatie, alleen eigen document), maar een stille gat in de "wie-zag/probeerde-welk-
+  document"-trail. **Aanbevolen fix:** route deze tak door hetzelfde `audit`/`auditDeniedAccess`-patroon, of
+  documenteer expliciet waarom ze is uitgesloten.
+
 ## Ronde 2026-08-16b (basis: `main` @ b6f13fba) — 1× MIDDEL OPGELOST (erasure-gat op `Notification.readAt`)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

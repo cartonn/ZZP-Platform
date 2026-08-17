@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-17 — security/privacy: bedrijfslogo-upload weigert nu server-side een PDF (CWE-434)
+
+**Wat:** de bedrijfslogo-upload (`updateCompanyProfile`, `src/app/(protected)/bedrijf/actions.ts`)
+valideerde `type` tegen de brede, gedeelde `ALLOWED_MIME_TYPES` (incl. `application/pdf`). Een `CLIENT`
+kon dus een echt PDF-bestand als `logo` POSTen langs het client-`accept="image/*"` heen; het passeerde
+`validateUpload`/`assertContentMatchesMime` + malware-scan en werd via `/api/media/[...key]` **inline**
+aan élke ingelogde gebruiker (alle rollen/tenants) geserveerd — content-hosting/phishing vanaf het
+vertrouwde platform-domein. Schending van Architectuurregel 1 (server-side = waarheid; alleen het
+client-attribuut poortte) + 4 (upload valideren op type). CWE-434 / OWASP A04.
+
+**Fix:** `validateUpload`/`assertContentMatchesMime` (`src/lib/services/storage.ts`) krijgen een optionele
+`allowed`-parameter (default = alle types → documenten/certificaten ongewijzigd); nieuwe
+`IMAGE_MIME_TYPES`-allowlist. De logo-upload geeft die mee → een PDF wordt server-side geweigerd, óók bij
+een eerlijk opgegeven `application/pdf` (signatuur matcht wél, maar valt buiten de allowlist — tweede
+poort). Defense-in-depth: `/api/media/[...key]` zet nu ook `Content-Security-Policy: sandbox; default-src
+'none'` op de gestreamde respons (parity met de document-route).
+
+**Bestanden:** EDIT `src/lib/services/storage.ts` (allowlist-param + `IMAGE_MIME_TYPES`),
+`src/app/(protected)/bedrijf/actions.ts` (geeft `IMAGE_MIME_TYPES` mee), `src/app/api/media/[...key]/route.ts`
+(sandbox-CSP), `src/lib/services/storage.test.ts` (+4 tests, rood→groen). Backlog bijgewerkt (ronde
+2026-08-17: 1× MIDDEL OPGELOST; 2 geparkeerd: cron-rate-limit/entropie HOOG-contingent + LAAG document-
+audit-tak). **Mensenwerk:** overweeg het productie-`CRON_SECRET` te bevestigen op hoge entropie (backlog).
+Gate: typecheck, lint, test (6100), prettier, build groen.
+
 ## 2026-08-17 — correctheid: maanddoel (ZZP'er) telt handmatige legacy-facturen mee
 
 **Wat:** `getRealizedRevenueThisMonthCents` (`src/lib/data/monthly-income.ts`) — de motor achter het

@@ -63,6 +63,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string[] 
       "X-Content-Type-Options": "nosniff",
       // Geen cross-origin embedding van onze media, ook niet via een gelekte key (defense-in-depth).
       "Cross-Origin-Resource-Policy": CROSS_ORIGIN_RESOURCE_POLICY,
+      // Sandbox-CSP: mocht ooit een niet-beeld-bestand deze route bereiken en de gebruiker de URL
+      // direct openen, dan mag het geen scripts/embeds uitvoeren. De upload-allowlist (IMAGE_MIME_TYPES
+      // op de logo-upload) is de primaire poort; dit is defense-in-depth, parity met de document-route.
+      "Content-Security-Policy": "sandbox; default-src 'none'",
     },
   });
 }
