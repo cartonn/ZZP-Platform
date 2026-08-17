@@ -69,10 +69,17 @@ asc`-geordende query (alleen certificaat-dragende samenwerkingen vullen het vens
 >   op `status: "PAID"` (legacy-only, mist cascade-PAID)~~ — **OPGELOST (2026-08-17, PR #1124):** canonieke
 >   `src/lib/administration/paid-revenue.ts` (`isInvoicePaidRevenue`/`paidRevenueInvoiceWhere`, cascade
 >   PAID/PROCESSED + legacy PAID; CREDITED/CANCELLED tellen niet mee) gewired in `earnedCents` + `spentCents`.
-> - **Authz-audit-residu (LAAG, dekking):** de authz/IDOR/tenant-audit was representatief, niet 100%
+> - ~~**Authz-audit-residu (LAAG, dekking):** de authz/IDOR/tenant-audit was representatief, niet 100%
 >   bestandsdekkend; de action-bestanden `abonnement`, `academie`, `beschikbaarheid`, `ideeen`, `ontzorgd/*`,
->   `prognose`, `rooster`, `uitgaven`, `search` zijn niet individueel geopend (elk gesampled bestandstype toonde
->   wél het gedisciplineerde auth→rol→ownership→Zod→audit-patroon). Volgende sweep: deze expliciet nalopen.
+>   `prognose`, `rooster`, `uitgaven`, `search` zijn niet individueel geopend.~~ **NAGELOPEN (2026-08-17,
+>   PR #1131):** alle negen bestanden + hun helpers individueel adversarieel geaudit (2 parallelle Opus
+>   security-subagents op niet-overlappende sets). 8/9 schoon (volledige auth→rol→ownership→Zod→audit-keten,
+>   TOCTOU-veilige compound-guards, anti-oracle-scoping). **1 reachable robuustheidsdefect gevonden + gefixt:**
+>   `ideeen/actions.ts` (`createIdea`/`toggleVote`/`addComment`) miste — als enige open UGC-oppervlak — de
+>   volume-rem die élke andere UGC-mutatie wél heeft → scripted notificatie-/DB-/audit-flood + harassment.
+>   Gefixt met een gedeelde `ideaEngagementRateLimiter` (+6 tests). _Forward-looking (geen huidige exploit,
+>   genoteerd): `ontzorgd/aangifte startFiling` roept `partner.prepareConcept` aan vóór de dedup-check; onder
+>   de huidige `NoopTaxFilingPartner` kosteloos, maar wire een rate-limiter zodra `TAX_PARTNER_DRIVER=live`._
 >
 > ---
 >
