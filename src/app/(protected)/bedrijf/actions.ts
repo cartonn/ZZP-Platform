@@ -8,6 +8,7 @@ import {
   assertContentMatchesMime,
   generateStorageKey,
   getStorage,
+  IMAGE_MIME_TYPES,
   UploadValidationError,
   validateUpload,
 } from "@/lib/services/storage";
@@ -65,8 +66,14 @@ export async function updateCompanyProfile(
   if (logo instanceof File && logo.size > 0) {
     const buffer = Buffer.from(await logo.arrayBuffer());
     try {
-      validateUpload({ filename: logo.name, mimeType: logo.type, size: logo.size });
-      assertContentMatchesMime(buffer, logo.type);
+      // Alleen-afbeelding allowlist: een bedrijfslogo wordt via /api/media inline aan élke ingelogde
+      // gebruiker geserveerd (un-sandboxed). Een PDF (of ander niet-beeld-type) hoort hier niet thuis;
+      // het client-side `accept`-attribuut mag niet de enige poort zijn (regel 1: server = waarheid).
+      validateUpload(
+        { filename: logo.name, mimeType: logo.type, size: logo.size },
+        IMAGE_MIME_TYPES,
+      );
+      assertContentMatchesMime(buffer, logo.type, IMAGE_MIME_TYPES);
       // Malware-scan vóór de opslag (CLAUDE.md regel 4 — dezelfde poort als de document-/certificaat-
       // upload). Zonder deze regel omzeilt de logo-upload de scanner die #631 introduceerde: een
       // besmet bestand belandt dan onbekeken in de opslag én wordt via /api/media aan elke ingelogde

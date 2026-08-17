@@ -7,6 +7,7 @@ import {
   buildContentDisposition,
   generateStorageKey,
   getStorage,
+  IMAGE_MIME_TYPES,
   MAX_UPLOAD_BYTES,
   resolveExpectedSse,
   resolveSignedUrlTtl,
@@ -42,6 +43,23 @@ describe("validateUpload", () => {
     expect(() => validateUpload({ ...ok, size: 0 })).toThrow(UploadValidationError);
     expect(() => validateUpload({ ...ok, filename: "" })).toThrow(UploadValidationError);
   });
+
+  // Alleen-afbeelding allowlist (logo-upload): een PDF hoort niet via /api/media aan elke ingelogde
+  // gebruiker geserveerd te worden. Server-side is de waarheid (regel 1), niet enkel `accept`-attribuut.
+  it("weigert een PDF wanneer alleen afbeeldingen zijn toegestaan (logo-upload)", () => {
+    expect(() =>
+      validateUpload(
+        { filename: "logo.pdf", mimeType: "application/pdf", size: 1024 },
+        IMAGE_MIME_TYPES,
+      ),
+    ).toThrow(UploadValidationError);
+  });
+
+  it("accepteert een afbeelding onder de alleen-afbeelding allowlist", () => {
+    expect(() =>
+      validateUpload({ filename: "logo.png", mimeType: "image/png", size: 1024 }, IMAGE_MIME_TYPES),
+    ).not.toThrow();
+  });
 });
 
 describe("sniffMimeType / assertContentMatchesMime (magic bytes)", () => {
@@ -75,6 +93,16 @@ describe("sniffMimeType / assertContentMatchesMime (magic bytes)", () => {
   it("weigert een vervalst Content-Type (HTML als pdf, of pdf-bytes als png)", () => {
     expect(() => assertContentMatchesMime(html, "application/pdf")).toThrow(UploadValidationError);
     expect(() => assertContentMatchesMime(pdf, "image/png")).toThrow(UploadValidationError);
+  });
+
+  // Zelfs een eerlijk als application/pdf gedeclareerde, écht-PDF upload moet worden geweigerd zodra
+  // het doel alleen afbeeldingen toestaat (logo). De signatuur matcht dan wél het opgegeven type, maar
+  // valt buiten de allowlist — de tweede poort vangt dit (CWE-434 / server-side is de waarheid).
+  it("weigert een echte PDF onder de alleen-afbeelding allowlist (logo)", () => {
+    expect(() => assertContentMatchesMime(pdf, "application/pdf", IMAGE_MIME_TYPES)).toThrow(
+      UploadValidationError,
+    );
+    expect(() => assertContentMatchesMime(png, "image/png", IMAGE_MIME_TYPES)).not.toThrow();
   });
 });
 

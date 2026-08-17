@@ -20,6 +20,28 @@ export const ALLOWED_MIME_TYPES = [
 ] as const;
 export type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
 
+/**
+ * Alleen-afbeelding subset. Voor upload-doelen die géén PDF horen te accepteren (bv. het bedrijfslogo,
+ * dat via de un-sandboxed /api/media-route aan élke ingelogde gebruiker inline wordt geserveerd). Zonder
+ * een per-doel-allowlist valideert een logo-upload tegen de brede `ALLOWED_MIME_TYPES` en passeert een
+ * echte PDF de server-side controle — terwijl alleen het client-side `accept`-attribuut hem tegenhoudt
+ * (schending van CLAUDE.md regel 1: server-side is de waarheid). CWE-434 / OWASP A04 (insecure design).
+ */
+export const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
+
+/** Leesbare labels per MIME-type voor de validatie-foutmelding (geen rauw MIME naar de gebruiker). */
+const MIME_LABEL: Record<AllowedMimeType, string> = {
+  "application/pdf": "PDF",
+  "image/png": "PNG",
+  "image/jpeg": "JPEG",
+  "image/webp": "WEBP",
+};
+
+/** "PDF, PNG, JPEG, WEBP" — de toegestane types als leesbare, komma-gescheiden lijst. */
+function allowedLabels(allowed: readonly AllowedMimeType[]): string {
+  return allowed.map((m) => MIME_LABEL[m]).join(", ");
+}
+
 export class UploadValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -33,14 +55,21 @@ export interface UploadCandidate {
   size: number;
 }
 
-/** Valideert type + grootte vóór opslag. Werpt `UploadValidationError` bij afkeuring. */
-export function validateUpload(file: UploadCandidate): void {
+/**
+ * Valideert type + grootte vóór opslag. Werpt `UploadValidationError` bij afkeuring.
+ * `allowed` beperkt de toegestane MIME-types voor dit specifieke doel (default: alle toegestane
+ * types). Geef bv. `IMAGE_MIME_TYPES` mee voor een logo-upload die geen PDF hoort te accepteren.
+ */
+export function validateUpload(
+  file: UploadCandidate,
+  allowed: readonly AllowedMimeType[] = ALLOWED_MIME_TYPES,
+): void {
   if (!file.filename?.trim()) {
     throw new UploadValidationError("Bestandsnaam ontbreekt.");
   }
-  if (!ALLOWED_MIME_TYPES.includes(file.mimeType as AllowedMimeType)) {
+  if (!allowed.includes(file.mimeType as AllowedMimeType)) {
     throw new UploadValidationError(
-      `Bestandstype niet toegestaan: ${file.mimeType}. Toegestaan: PDF, PNG, JPEG, WEBP.`,
+      `Bestandstype niet toegestaan: ${file.mimeType}. Toegestaan: ${allowedLabels(allowed)}.`,
     );
   }
   if (file.size <= 0) {
@@ -90,11 +119,21 @@ export function sniffMimeType(buffer: Buffer): AllowedMimeType | null {
 /**
  * Werpt `UploadValidationError` als de echte byte-signatuur niet overeenkomt met het opgegeven
  * MIME-type. Voorkomt dat een uitvoerbaar/HTML-bestand met een vervalste Content-Type passeert.
+ * `allowed` beperkt daarnaast de toegestane types voor dit doel: zo weigert een logo-upload een echte
+ * PDF óók wanneer de client `application/pdf` eerlijk opgeeft (dan matcht de signatuur wél, maar valt
+ * het type buiten de allowlist). Default: alle toegestane types (gedrag ongewijzigd voor documenten).
  */
-export function assertContentMatchesMime(buffer: Buffer, declaredMime: string): void {
-  if (sniffMimeType(buffer) !== declaredMime) {
+export function assertContentMatchesMime(
+  buffer: Buffer,
+  declaredMime: string,
+  allowed: readonly AllowedMimeType[] = ALLOWED_MIME_TYPES,
+): void {
+  const sniffed = sniffMimeType(buffer);
+  if (sniffed === null || sniffed !== declaredMime || !allowed.includes(sniffed)) {
     throw new UploadValidationError(
-      "De bestandsinhoud komt niet overeen met het opgegeven type. Upload een geldig PDF-, PNG-, JPEG- of WEBP-bestand.",
+      `De bestandsinhoud komt niet overeen met het opgegeven type. Upload een geldig bestand (${allowedLabels(
+        allowed,
+      )}).`,
     );
   }
 }
