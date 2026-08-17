@@ -215,6 +215,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   TAX_FILING_REVOKED: "Belastingaangifte ingetrokken",
   VAT_REMINDER_SENT: "Btw-herinnering verstuurd",
   VAT_OVERVIEW_EXPORTED: "Btw-overzicht geëxporteerd",
+  EXPENSES_EXPORTED: "Uitgaven geëxporteerd",
 
   // Platform & beheer
   PLATFORM_BILLING_GENERATED: "Facturatie gegenereerd",
