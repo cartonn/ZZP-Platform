@@ -125,6 +125,22 @@ groups:
           summary: "E-mailkanaal wijst af"
           description: "Het e-mailkanaal levert niet meer af (zzp_mail_delivery_ok=0, ≥3 opeenvolgende mislukkingen). Notificaties, wachtwoordherstel en herinneringen komen niet aan. Controleer de provider-sleutel/domeinverificatie en het server-logboek (of Sentry). Zie MENSENWERK §2."
 
+      - alert: ZzpPushDeliveryFailing
+        # Het web-push-kanaal (VAPID/PWA-pushmeldingen) wijst systematisch af: de laatste afleverronde
+        # leverde niets af (zzp_push_delivery_ok=0) én er zijn ≥3 opeenvolgende mislukte rondes. Push is
+        # event-gedreven (geen staleness-op-leeftijd), dus de conditie zit op de teller, niet op ouderdom.
+        # Oorzaak meestal geroteerde/verlopen VAPID-sleutels of een provider-storing — élke pushmelding
+        # mislukt dan stil. Verlopen abonnementen (churn, 404/410) tellen NIET mee: alleen echte, actieve
+        # endpoints die niets ontvingen. De ≥3-drempel + `for:` negeren één transiënte fout. Herstel wordt
+        # automatisch gewist zodra een afleverronde weer aankomt. Zie MENSENWERK §0b (web-push).
+        expr: zzp_push_delivery_ok == 0 and zzp_push_consecutive_failures >= 3
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Web-push-kanaal wijst af"
+          description: "Het web-push-kanaal levert niet meer af (zzp_push_delivery_ok=0, ≥3 opeenvolgende mislukte afleverrondes). Pushmeldingen komen niet aan op actieve abonnementen. Controleer de VAPID-sleutels (geroteerd/verlopen), het VAPID-subject en het server-logboek (of Sentry). Zie MENSENWERK §0b."
+
   - name: zzp-platform-stille-faal-backlogs
     rules:
       # Deze drie tellen werk dat een cron-run HAD moeten doen. De cron-heartbeat bewijst alleen DÁT de

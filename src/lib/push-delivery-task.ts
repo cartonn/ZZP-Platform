@@ -6,6 +6,10 @@
 import { prisma } from "@/lib/db";
 import { buildPushPayload } from "@/lib/push/payload";
 import { isWebPushConfigured, sendToSubscription } from "@/lib/push/web-push";
+import {
+  recordPushDeliverySuccess,
+  recordPushDeliveryFailure,
+} from "@/lib/observability/push-delivery-heartbeat";
 
 export interface PushDeliveryResult {
   /** Aantal behandelde notificaties. */
@@ -18,6 +22,24 @@ export interface PushDeliveryResult {
   pruned: number;
   /** True wanneer er geen VAPID-config is en de run is overgeslagen. */
   skipped?: boolean;
+}
+
+/**
+ * Beslist puur wat een afleverronde aan de dead-man's-switch-heartbeat meldt, op basis van de ronde-
+ * uitkomst. Bewust apart + testbaar: de "verlopen abonnementen (churn) tellen NIET als mislukking"-regel
+ * is de kern van de detector — alleen echte (niet-verlopen) endpoints die niets ontvingen wijzen op een
+ * afwijzend kanaal.
+ *   - `success` : ≥1 endpoint ontving de melding (het kanaal werkt; wist ook een eerdere storing).
+ *   - `failure` : geen enkele geslaagde aflevering terwijl er wél echte (niet-verlopen) pogingen waren.
+ *   - `none`    : alleen churn (verlopen endpoints) of niets geprobeerd → neutraal, niets registreren.
+ */
+export function classifyPushDeliveryOutcome(input: {
+  delivered: number;
+  realFailures: number;
+}): "success" | "failure" | "none" {
+  if (input.delivered > 0) return "success";
+  if (input.realFailures > 0) return "failure";
+  return "none";
 }
 
 /** Bovengrens per run; de pushedAt-markering laat een volgende run de rest oppakken. */
@@ -58,6 +80,10 @@ export async function runPushDeliveryTask(opts: { now?: Date }): Promise<PushDel
   }
 
   let delivered = 0;
+  // Echte (niet-verlopen) afleverfouten: een 404/410 is churn (het endpoint bestaat niet meer → opruimen),
+  // GEEN kanaalstoring. Alleen niet-verlopen fouten (netwerk, 5xx, 401/403 VAPID-auth) wijzen op een
+  // afwijzend kanaal en voeden de dead-man's-switch-heartbeat hieronder.
+  let realFailures = 0;
   const expiredEndpoints = new Set<string>();
   for (const n of candidates) {
     const payload = JSON.stringify(buildPushPayload(n));
@@ -66,7 +92,21 @@ export async function runPushDeliveryTask(opts: { now?: Date }): Promise<PushDel
       const res = await sendToSubscription(s, payload);
       if (res.ok) delivered += 1;
       else if (res.expired) expiredEndpoints.add(s.endpoint);
+      else realFailures += 1;
     }
+  }
+
+  // Push-aflever-heartbeat (dead-man's-switch): oordeel op de UITKOMST van deze afleverronde, niet op
+  // leeftijd (push is event-gedreven). ≥1 geslaagde aflevering → het kanaal werkt (wist ook een eerdere
+  // storing). Geen enkele succesvolle aflevering terwijl er wél echte (niet-verlopen) pogingen waren →
+  // het kanaal wijst af (geroteerde/verlopen VAPID-sleutels, provider-storing). Alleen churn (verlopen
+  // endpoints) of niets afgeleverd → neutraal, niets registreren. Fail-open: een heartbeat-storing mag
+  // de afleverronde niet laten falen.
+  const outcome = classifyPushDeliveryOutcome({ delivered, realFailures });
+  if (outcome === "success") {
+    await recordPushDeliverySuccess(now);
+  } else if (outcome === "failure") {
+    await recordPushDeliveryFailure(now);
   }
 
   // Markeer álle behandelde notificaties als gepusht (best-effort; niet eindeloos herproberen).

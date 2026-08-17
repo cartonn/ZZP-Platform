@@ -509,6 +509,26 @@ goedgekeurd", wachtwoord/uitnodiging) heb je een mailprovider nodig.
    op een echt kanaal staat en de eerste mail uitgaat. Optioneel: richt een monitor op
    `ZzpMailDeliveryFailing`.
 
+   **Code-kant GEDAAN (2026-08-17) — push-aflever-heartbeat (dead-man's-switch voor web-push):** hetzelfde
+   gat als hierboven, nu voor het andere gebruikersgerichte afleverkanaal: web-push (VAPID/PWA-
+   pushmeldingen) had geen doorlopend afleversignaal. Een systematisch afwijzend kanaal (geroteerde/
+   verlopen VAPID-sleutels, provider-storing) liet élke pushmelding stil mislukken; de delivery-taak
+   markeert elke behandelde notificatie best-effort als gepusht (geen retry) en gaat door, dus niemand
+   merkte het tot een gebruiker klaagde. Nu registreert `src/lib/push-delivery-task.ts` na elke
+   afleverronde die aan echte (niet-verlopen) endpoints probeerde af te leveren de uitkomst in een
+   singleton `PushDeliveryHeartbeat` (geen PII — alleen tijdstippen, `lastOk`, `consecutiveFailures`):
+   `delivered>0` = success, geen success maar echte fouten = failure, alleen churn (verlopen 404/410-
+   abonnementen) of niets = neutraal (niets geregistreerd — verlopen abonnementen tellen bewust niet als
+   mislukking). Zelfde event-gedreven oordeel als mail (`never`/`ok`/`failing`, géén staleness-op-leeftijd).
+   Zichtbaar op `/admin/systeemstatus` (nieuwe kaart "Push-aflevering") en machine-leesbaar op
+   `/api/metrics` via `zzp_push_delivery_ok`, `zzp_push_consecutive_failures` en
+   `zzp_push_last_failure_age_seconds`. Een drop-in Prometheus-alert `ZzpPushDeliveryFailing`
+   (`zzp_push_delivery_ok == 0 and zzp_push_consecutive_failures >= 3`, `for: 15m`, warning) staat in
+   `docs/observability/alerts.yml` en is toegevoegd aan de onderhouds-inhibitie in `alertmanager.yml`.
+   Resterend mensenwerk: **niets extra** — de kaart/gauge vullen zichzelf zodra web-push bekabeld is
+   (VAPID-sleutels gezet, zie §7) en de eerste afleverronde draait. Optioneel: richt een monitor op
+   `ZzpPushDeliveryFailing`.
+
 ---
 
 ## §3. Betalingen / abonnementen
