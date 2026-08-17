@@ -6,6 +6,7 @@ import { z } from "zod";
 import { AuthorizationError, requireActor, requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { ideaEngagementRateLimiter } from "@/lib/rate-limit";
 import {
   ideaAudienceSchema,
   ideaStatusSchema,
@@ -45,6 +46,12 @@ export async function createIdea(_prev: IdeaFormState, formData: FormData): Prom
   } catch (e) {
     if (e instanceof AuthorizationError) return { error: e.message };
     throw e;
+  }
+
+  // Volume-rem (parity met message/application/invite/noshow): stop een scripted flood van ideeën
+  // (DB-/audit-groei) vóór de duurdere write. De auth-/Zod-poort blijft leidend.
+  if (!(await ideaEngagementRateLimiter.check(actor.id)).allowed) {
+    return { error: "Te veel acties kort achter elkaar. Wacht even en probeer het opnieuw." };
   }
 
   const parsed = ideaSchema.safeParse({
@@ -91,6 +98,9 @@ export async function createIdea(_prev: IdeaFormState, formData: FormData): Prom
 /** Stem op een idee, of trek je stem in als je al gestemd had (toggle). Eén stem per persoon. */
 export async function toggleVote(ideaId: string): Promise<void> {
   const actor = await requireActor();
+  // Volume-rem (gedeelde idee-engagement-bucket): een geflood-de stem-toggle blijft een stille no-op —
+  // de UI toont de ongewijzigde stemstand. Ruim boven normaal gebruik.
+  if (!(await ideaEngagementRateLimiter.check(actor.id)).allowed) return;
   // deleteMany is idempotent: had de gebruiker al gestemd, dan is dit een intrekking. Anders voegen
   // we de stem toe (alleen als het idee bestaat), tolerant voor dubbelklik/race op de unique key.
   const removed = await prisma.ideaVote.deleteMany({ where: { ideaId, userId: actor.id } });
@@ -175,6 +185,9 @@ const commentSchema = z.string().trim().min(2, "Schrijf een korte reactie.").max
 /** Plaats een reactie op een idee. De indiener wordt genotificeerd (tenzij hij zelf reageert). */
 export async function addComment(ideaId: string, formData: FormData): Promise<void> {
   const actor = await requireActor();
+  // Volume-rem (gedeelde idee-engagement-bucket): een reactie notificeert de indiener — zonder rem is
+  // dit een gerichte notificatie-flood/harassment-vector. Geflood-de reactie = stille no-op.
+  if (!(await ideaEngagementRateLimiter.check(actor.id)).allowed) return;
   const parsed = commentSchema.safeParse(formData.get("body"));
   if (!parsed.success) return;
 

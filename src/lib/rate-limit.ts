@@ -476,6 +476,24 @@ export const noShowReportRateLimiter = new RateLimiter(
 );
 
 /**
+ * Maximaal IDEA_ENGAGEMENT_RATE_LIMIT (default 40) idee-mutaties per gebruiker per 5 minuten. De
+ * ideeën-hub is het enige open UGC-oppervlak: `createIdea`, `toggleVote` en `addComment` staan open
+ * voor élke ingelogde gebruiker (FREELANCER/CLIENT), schrijven vrije tekst en doen notificatie-fan-out
+ * (een reactie notificeert de indiener, een idee schrijft een audit + zelf-stem). Zonder rem kan een
+ * authenticated/gecompromitteerd account herhaalde POST's scripten → notificatie-/DB-/audit-flood +
+ * gerichte harassment van een indiener. Eén gedeelde bucket over de drie engagement-acties, ruim boven
+ * normaal gebruik (niemand plaatst legitiem 40 ideeën/stemmen/reacties in 5 minuten) maar het stopt een
+ * geautomatiseerde flood. Parity met de andere UGC-mutatie-remmen (message/application/invite/noshow);
+ * de auth-/Zod-poort blijft leidend, dit is een extra volume-rem (defense-in-depth).
+ */
+export const ideaEngagementRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("IDEA_ENGAGEMENT_RATE_LIMIT", 40),
+  5 * 60_000,
+  "idea:",
+);
+
+/**
  * Maximaal CSP_REPORT_RATE_LIMIT (default 30) CSP-violatie-rapporten per IP per minuut. De
  * rapport-route (/api/csp-report) is publiek en ongeauthenticeerd (de browser stuurt de ping);
  * een defecte pagina of een kwaadwillende kan er anders een log-/CPU-flood mee veroorzaken. Ruim
