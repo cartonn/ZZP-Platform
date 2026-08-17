@@ -13,12 +13,14 @@ import {
   TrendingUp,
   Building2,
   Users,
+  UserPlus,
 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requireActor, type Actor } from "@/lib/authz";
 import { type UserRole } from "@/lib/enums";
 import { computeTenantFee } from "@/lib/tenant-fee";
 import { buildTenantFeeTrend, type TenantFeeTrend } from "@/lib/tenant-fee-trend";
+import { getTenantPlacementsTrend, type PlacementsTrend } from "@/lib/placements-trend";
 import { getFreelancerStats } from "@/lib/freelancer-stats";
 import { getFreelancerMembership } from "@/lib/freelancer-membership";
 import { getDeliveryQuality, DELIVERY_TONE_LABEL } from "@/lib/collaboration-quality";
@@ -424,6 +426,69 @@ function FeePerMaandCard({ trend }: { trend: TenantFeeTrend }) {
           height={132}
           tone="success"
           label="Fee per maand"
+        />
+      </div>
+    </BiWidget>
+  );
+}
+
+/** Aantal plaatsingen → "3 plaatsingen" (nl-NL, correct enkel-/meervoud). */
+function formatPlacements(count: number): string {
+  return plural(count, "plaatsing", "plaatsingen");
+}
+
+/**
+ * Plaatsingen-per-maand voor de bemiddelaar: de operationele doorzet-tegenhanger van de geld-trends
+ * ("Doorgezet volume" / "Fee per maand"). Toont hoevéél nieuwe samenwerkingen per maand tot stand
+ * kwamen — de kern-throughput van een bemiddeling. De cijfers komen uit `buildPlacementsTrend`
+ * (zelfde maand-bucketing als de geldtrends), server-side berekend. Alleen tellingen — geen bedragen.
+ */
+function PlaatsingenPerMaandCard({ trend }: { trend: PlacementsTrend }) {
+  if (!trend.hasData) {
+    return (
+      <BiWidget title="Plaatsingen per maand">
+        <EmptyState
+          icon={UserPlus}
+          title="Nog geen plaatsingen"
+          description="Zodra je samenwerkingen tot stand komen, zie je hier hoeveel plaatsingen je per maand realiseert."
+        />
+      </BiWidget>
+    );
+  }
+  return (
+    <BiWidget title="Plaatsingen per maand">
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Plaatsingen · laatste {trend.months} maanden
+            </p>
+            <p className="mt-1 font-mono text-3xl font-semibold tabular-nums tracking-tight">
+              {trend.totalCount}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">nieuwe samenwerkingen per maand</p>
+          </div>
+          {trend.deltaPct !== null && (
+            <div>
+              <p className="text-xs text-muted-foreground">Deze maand vs. vorige</p>
+              <p
+                className={cn(
+                  "mt-0.5 font-mono text-lg font-semibold tabular-nums",
+                  trend.deltaPct >= 0 ? "text-success" : "text-warning",
+                )}
+              >
+                {trend.deltaPct >= 0 ? "+" : ""}
+                {formatPercent(trend.deltaPct)}
+              </p>
+            </div>
+          )}
+        </div>
+        <BarSeries
+          data={trend.series.map((m) => ({ key: m.key, label: m.label, value: m.count }))}
+          formatValue={formatPlacements}
+          height={132}
+          tone="accent"
+          label="Plaatsingen per maand"
         />
       </div>
     </BiWidget>
@@ -917,7 +982,7 @@ function ClientFunnelWidget({
 }
 
 async function FranchiserInzicht({ actor }: { actor: Actor }) {
-  const [s, byCompany, trend, tenant, timeToFill] = await Promise.all([
+  const [s, byCompany, trend, tenant, timeToFill, placements] = await Promise.all([
     getTenantStats(actor),
     getTenantCompanyBreakdown(actor),
     getTenantRevenueTrend(actor),
@@ -928,6 +993,7 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
         })
       : Promise.resolve(null),
     getTenantTimeToFill(actor),
+    getTenantPlacementsTrend(actor),
   ]);
   if (!s) {
     return (
@@ -993,6 +1059,8 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
       </BiWidget>
 
       {feeSet && <FeePerMaandCard trend={feeTrend} />}
+
+      <PlaatsingenPerMaandCard trend={placements} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <StatusDonutWidget

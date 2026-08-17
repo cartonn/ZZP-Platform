@@ -268,6 +268,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Bemiddelaar — plaatsingen-per-maand trend op /inzicht (2026-08-17, PR #1132)** —
+> alle bestaande franchiser-trends op `/inzicht` ("Doorgezet volume", "Fee per maand") meten in euro's; er was geen zicht op de
+> operationele doorzet — hoevéél nieuwe plaatsingen per maand tot stand komen (recruitment-KPI, kern-throughput van een bemiddeling).
+> Nieuwe kaart "Plaatsingen per maand" (staafstrip, 6 mnd) telt de nieuwe samenwerkingen per kalendermaand + totaal + delta laatste
+> maand. Nieuwe pure `src/lib/placements-trend.ts` (`buildPlacementsTrend`/`getTenantPlacementsTrend`) hergebruikt exact de
+> maand-bucketing (`monthlyRevenue`) + delta (`monthDeltaPct`) uit `revenue.ts` door elke plaatsing als één "cent" te tellen → geen
+> drift met de geld-trends. Telt alleen ACTIVE/COMPLETED-samenwerkingen (echte inzet), tenant-gescoopt via `job.tenantId`;
+> plaatsingsdatum = `startDate` met `createdAt`-terugval. Read-only, alleen FRANCHISER, geen schema-/mutatie-/auth-oppervlak. +6 tests.
+> Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — push-aflever-heartbeat / dead-man's-switch voor web-push (2026-08-17)** —
 > web-push (VAPID/PWA-pushmeldingen) was, anders dan e-mail, een gebruikersgericht afleverkanaal zónder doorlopend
 > afleversignaal; een systematisch afwijzend kanaal (geroteerde/verlopen VAPID-sleutels, provider-storing) liet élke

@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-17 — Bemiddelaar: plaatsingen-per-maand trend op /inzicht
+
+**Wat:** alle bestaande franchiser-trends op `/inzicht` ("Doorgezet volume", "Fee per maand") meten in
+euro's; er was geen zicht op de **operationele doorzet** — hoevéél nieuwe plaatsingen per maand tot stand
+komen, de kern-throughput van een bemiddeling (recruitment-KPI). Nieuwe kaart "Plaatsingen per maand"
+(staafstrip, laatste 6 maanden) telt de nieuwe samenwerkingen per kalendermaand, met totaal in het venster
+
+- delta laatste maand vs. voorlaatste.
+
+**Hoe:** nieuwe pure `src/lib/placements-trend.ts` (`buildPlacementsTrend` + `getTenantPlacementsTrend`).
+Hergebruikt exact de maand-bucketing (`monthlyRevenue`) én delta (`monthDeltaPct`) uit `revenue.ts` door
+elke plaatsing als één "cent" te tellen → geen drift met de geld-trends (zelfde TZ Europe/Amsterdam,
+maandgrenzen, NL-labels). Telt alleen samenwerkingen die een echte inzet werden (status ACTIVE/COMPLETED),
+tenant-gescoopt via `job.tenantId`; plaatsingsdatum = afgesproken `startDate` met `createdAt` als terugval
+voor legacy-rijen. DB-vloer op het venster + veiligheidscap (500). Read-only, alleen FRANCHISER, geen
+schema-/mutatie-/auth-oppervlak. +6 tests. Gate: typecheck, lint, test, build, prettier groen.
+
+**Bestanden:** `src/lib/placements-trend.ts`, `src/lib/placements-trend.test.ts`,
+`src/app/(protected)/inzicht/page.tsx`.
+
 ## 2026-08-17 — Robuustheid: rate-limit op de idee-engagement-mutaties (UGC-flood-rem)
 
 **Wat:** de ideeën-hub is het enige open UGC-oppervlak — `createIdea`, `toggleVote` en `addComment`
