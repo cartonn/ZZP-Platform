@@ -1,20 +1,11 @@
 import { prisma } from "@/lib/db";
+import { realizedRevenueInvoiceWhere } from "@/lib/administration/realized-revenue";
 
 /**
  * Data-laag voor het maanddoel van de ZZP'er. Levert het reeds gefactureerde bedrag van de lopende
  * kalendermaand (Europe/Amsterdam). Omzet volgt de factuurdatum (`issuedAt`), consistent met de rest
  * van de administratie (zie `src/lib/revenue.ts`) — niet de betaaldatum.
  */
-
-// Facturen die daadwerkelijk verstuurd zijn (dus omzet vormen). Concepten (DRAFT) tellen niet mee
-// als gerealiseerd — die zijn "nog te versturen" en horen bij het verwachte deel van het doel.
-const REALIZED_INVOICE_STATUSES = [
-  "SUBMITTED",
-  "APPROVED",
-  "OVERDUE",
-  "PAID",
-  "PROCESSED",
-] as const;
 
 const MONTH_KEY_FORMAT = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Europe/Amsterdam",
@@ -42,7 +33,11 @@ export async function getRealizedRevenueThisMonthCents(userId: string, now: Date
   const invoices = await prisma.invoice.findMany({
     where: {
       collaboration: { freelancer: { userId } },
-      lifecycleStatus: { in: [...REALIZED_INVOICE_STATUSES] },
+      // Gerealiseerde (verstuurde) omzet dekt zowel cascade-facturen (op `lifecycleStatus`) als
+      // handmatig aangemaakte legacy-facturen (`lifecycleStatus` NULL, op de live `status`). Alleen
+      // op `lifecycleStatus` filteren miste élke legacy-factuur → een handmatig verstuurde factuur
+      // telde niet mee in de maanddoel-voortgang. `realizedRevenueInvoiceWhere` dekt beide paden.
+      ...realizedRevenueInvoiceWhere,
       issuedAt: { gte: lowerBound, lte: now },
     },
     orderBy: { issuedAt: "desc" },

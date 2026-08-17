@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-17 — correctheid: maanddoel (ZZP'er) telt handmatige legacy-facturen mee
+
+**Wat:** `getRealizedRevenueThisMonthCents` (`src/lib/data/monthly-income.ts`) — de motor achter het
+**maanddoel** op `/prognose` én de geldpuls-glance op het dashboard — filterde de gerealiseerde
+(verstuurde) omzet op `lifecycleStatus: { in: [...] }`. Dat matcht alleen cascade-facturen; élke
+**handmatig** via `/facturen` aangemaakte legacy-factuur (`createInvoice` zet `lifecycleStatus` NULL en
+beweegt via de live `status`: DRAFT→SENT→PAID) viel buiten de filter. Gevolg: een ZZP'er die een losse
+factuur verstuurt zag die omzet **niet** terug in zijn maanddoel-voortgang — de KPI telde onder. Dezelfde
+dual-path-blindheid die `outstandingInvoiceWhere`/`revenueCountedInvoiceWhere` eerder dichtten.
+
+**Fix (één bron van waarheid, geen drift):** nieuwe canonieke helper
+`src/lib/administration/realized-revenue.ts` — `isInvoiceRealizedRevenue` (pure) +
+`realizedRevenueInvoiceWhere` (Prisma-where), gespiegeld op `outstanding.ts`: cascade matcht op
+`lifecycleStatus ∈ {SUBMITTED,APPROVED,OVERDUE,PAID,PROCESSED}`, legacy (`lifecycleStatus: null`) op
+`status ∈ {SENT,OVERDUE,PAID}`. Concept (DRAFT), afgekeurd (REJECTED) en teruggedraaid
+(CREDITED/CANCELLED) tellen op beide paden niet mee. `monthly-income.ts` gebruikt nu die where.
+
+**Bestanden:** NEW `src/lib/administration/realized-revenue.ts` (+`realized-revenue.test.ts`, 4 tests);
+EDIT `src/lib/data/monthly-income.ts` (gebruikt de helper, verwijdert de lokale cascade-only-lijst),
+`src/lib/data/monthly-income.test.ts` (+1 dual-path-where-test). **Mensenwerk:** geen. Read-only inzicht,
+geen schema-/mutatie-/auth-oppervlak. Gate: typecheck, lint, test (6097), prettier groen; build lokaal.
+
 ## 2026-08-16 — opdrachtgever: kandidatenvergelijking exporteren (CSV)
 
 **Wat:** de kandidaat-vergelijkingstabel (`/kandidaten/vergelijk`) was de enige hiring-beslissurface

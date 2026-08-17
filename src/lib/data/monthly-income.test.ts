@@ -39,4 +39,15 @@ describe("getRealizedRevenueThisMonthCents", () => {
     expect(arg.where.collaboration.freelancer.userId).toBe("user-9");
     expect(arg.take).toBeGreaterThan(0);
   });
+
+  it("dekt zowel cascade- als legacy-facturen (dual-path where — geen legacy-blindheid)", async () => {
+    findMany.mockResolvedValue([]);
+    await getRealizedRevenueThisMonthCents("user-1", new Date("2026-07-15T12:00:00Z"));
+    const arg = findMany.mock.calls[0]![0];
+    // Een handmatig aangemaakte legacy-factuur (lifecycleStatus NULL, status SENT) moet meetellen.
+    expect(arg.where.OR).toEqual([
+      { lifecycleStatus: { in: ["SUBMITTED", "APPROVED", "OVERDUE", "PAID", "PROCESSED"] } },
+      { lifecycleStatus: null, status: { in: ["SENT", "OVERDUE", "PAID"] } },
+    ]);
+  });
 });
