@@ -99,6 +99,75 @@ Event`), maar er is **geen enkele terugboek-transitie voor welke rol dan ook**. 
 >
 > ---
 >
+> **Datum:** 2026-08-17 (run 80) · **main-commit basis:** `3b7bfd6d`
+> **Uitkomst:** **1 bereikbaar defect volledig gefixt** (BI-scoping: betaalde/openstaande legacy-facturen
+> onzichtbaar op alle omzet-/uitgaven-dashboards — MED/HOOG functionele correctheid). 4 parallelle
+> adversariële Opus-code-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-residu, cascade/geld-
+> integriteit, next-action-engine, malicieuze input/CSV/XSS/upload). De authz/IDOR-audit (9 eerder
+> ongedekte action-bestanden) en de malicieuze-input-audit (16 CSV-exports, alle uploads, XSS-oppervlak,
+> Zod-grenzen) vonden **0 bereikbare gaten** — coverage-residu van run 79 gesloten. De cascade- en
+> next-action-audits leverden meerdere bevindingen; de belangrijkste (BI-scoping) is gefixt, de rest is
+> hieronder geparkeerd met repro.
+>
+> **OPGELOST — legacy-facturen vielen uit élke omzet-/uitgaven-BI door issuer/counterparty-scoping (MED/HOOG,
+> functionele correctheid — CLAUDE.md regel 1 server-side waarheid):** de BI-aggregatoren scoopten facturen
+> puur op `issuerUserId` (ZZP'er) / `counterpartyUserId` (opdrachtgever). Die velden zijn **cascade-only**;
+> de handmatige factuur (`/facturen/nieuw` → `createInvoice`, nog steeds bereikbaar op niet-cascade-
+> samenwerkingen) zet ze niet. De eenmalige cutover-migratie backfillde alleen bestaande rijen, dus élke
+> ná de cutover gemaakte legacy-factuur — óók betaald en verstuurd — viel uit `earnedCents`/`pendingCents`
+> (ZZP-dashboard/`/inzicht`), `spentCents` (opdrachtgever), de omzet-/uitgaven-uitsplitsing per partij, de
+> omzettrend (ZZP + opdrachtgever) én het bemiddelaar-dossier (`/franchise/zzpers/[id]` → Facturen-tab). Een
+> ZZP'er die een handmatige factuur maakte, verstuurde en op betaald zette, zag dat geld **nergens** terug —
+> ondermijnt vertrouwen in het platform. **Fix:** nieuwe canonieke `src/lib/administration/invoice-party-scope.ts`
+> (`freelancerIssuedInvoiceWhere`/`clientReceivedInvoiceWhere` + pure spiegels): OR over de cascade-tak
+> (`issuerUserId`/`counterpartyUserId`) én de legacy-tak (`issuerKey: null` + de samenwerkings-partij), waarbij
+> `issuerKey: null` de platform-fee (`issuerKey: "PLATFORM"`) uitsluit zodat die nooit als eigen omzet lekt.
+> Gewired in `freelancer-stats.ts`, `client-stats.ts`, `freelancer-revenue-breakdown.ts`,
+> `client-spend-breakdown.ts`, `revenue-trend.ts` (ZZP + opdrachtgever) en `franchise/roster-dossier.ts`
+> (tenant-grens blijft hard via een AND-tak). +18 tests (pure helpers + freelancer-stats-regressie: legacy telt
+> mee, platform-fee niet, cross-ZZP'er geïsoleerd).
+>
+> **Geparkeerd (met repro, niet gefixt deze run):**
+>
+> - **`tenant-stats.ts` open-omzet-KPI mist élke openstaande cascade-factuur (MED, franchise-hub):**
+>   `getTenantStats` (`src/lib/tenant-stats.ts:100-103`) telt `revenueOpenCents` op `status IN (SENT,OVERDUE)`
+>   (legacy-kolom), gescoopt via `collaboration: collabInTenant` (dat deel is correct). Een cascade-factuur
+>   houdt legacy `status` op DRAFT tijdens SUBMITTED/APPROVED/OVERDUE, dus de franchise-dashboard-KPI
+>   ondertelt élke openstaande cascade-factuur. **Fix:** vervang de ad-hoc status-filters door
+>   `outstandingInvoiceWhere`/`paidRevenueInvoiceWhere` (`src/lib/administration/`), gecombineerd met de
+>   bestaande tenant-scope. Idem `getTenantCompanyBreakdown` (`tenant-stats.ts:189-191`, `status: "PAID"`).
+>   Zelfde wortel als de eerder gedichte freelancer/client-KPI's; alleen tenant-stats miste de omzetting.
+> - \*\*Franchiser roster-inzetbaarheid-taak: `orderBy: id asc, take: 50` verbergt blokkers permanent bij
+>   > 50 roster-leden (BLOCKER-kandidaat, DOEL 1b):** `franchiseNotEngageableTask`
+>   > (`src/lib/actions/pending-tasks.ts:1252-1267`, gespiegeld in `src/lib/signals.ts:908-924`) haalt de
+>   > roster-profielen met `orderBy: { id: "asc" }, take: MAX` en leidt inzetbaarheid af uit
+>   > completeness/availability/credentials/lastLogin — geen daarvan correleert met `id`. Bij een tenant met
+>   > 50 ZZP'ers worden dezelfde laagste-50-op-id voor altijd geëvalueerd; een compliance-blokkade op
+>   > ZZP'er #55 verschijnt wél op `/franchise/zzpers` (onbegrensde load) maar NOOIT in `/acties`, de badge of
+>   > de dashboard-rail — niet self-healing. **Fix:\*\* drop de cap voor deze eigenaar-scoped, inherent begrensde
+>   > roster-query (`unbounded-allow`, zoals `pending-tasks.ts:373`), of orden op een urgentie-correlerend veld.
+> - **`performanceSubmitTask` + `contractSignTask` nog gekoppeld aan het niet-deterministische `collabs`-venster
+>   (SHOULD-FIX, DOEL 1b):** `pending-tasks.ts:473-513` leidt de "dien uren in"- en "teken contract"-taken af
+>   uit de `orderBy: updatedAt desc, take: MAX`-`collabs`-query. `Collaboration.updatedAt` bevriest op teken-
+>   moment en tracket geen prestatie-/contract-activiteit — runs 76-79 migreerden `rejectedPerfs`/`openInvoices`/
+>   credential-taken hierom naar dedicated `createdAt asc`-queries, maar deze twee eerste-stap-taken niet. Bij
+>   > 50 gelijktijdige samenwerkingen valt een ouder-getekende samenwerking met niet-ingediende uren of
+>   > ongetekend contract uit het venster → taak verdwijnt permanent (niet self-healing). **Fix:** splits beide uit
+>   > naar een dedicated, status-gefilterde, ongewindowde query (spiegel `openInvoices`).
+> - **`reviewLeaveTasks` ordent `completedAt desc` → dropt de meest-urgente review-nudges eerst (SHOULD-FIX,
+>   DOEL 1b):** `pending-tasks.ts:193-211` — het blind-review-venster is verankerd op `completedAt`; ouder =
+>   sneller weg. `desc` + `take: MAX` behoudt de minst-urgente en dropt de bijna-verlopende bij >50 open
+>   reviews. **Fix:** `orderBy: { completedAt: "asc" }` (zoals `renewalTasks` `endDate asc` ernaast).
+> - **`unreadConversations` geen deterministische `orderBy` vóór de slice (NIT, DOEL 1b):**
+>   `pending-tasks.ts:127-147` — welke 50 bericht-taken bij >50 ongelezen gesprekken verschijnen is
+>   niet-deterministisch. **Fix:** `orderBy: { lastReadAt: "asc" }` (oudste-ongelezen eerst).
+> - **Franchise-dossier factuurbadge toont stale legacy-status voor cascade-facturen (SHOULD-FIX):**
+>   `franchise/zzpers/[id]/page.tsx:435` rendert `InvoiceStatusBadge status={i.status}` — cascade blijft legacy
+>   DRAFT, dus een APPROVED cascade-factuur toont "Concept". **Fix:** `DossierInvoice` draagt `lifecycleStatus`,
+>   `FacturenTab` vertakt zoals `facturen/[id]/page.tsx:226-230`.
+
+---
+
 > **Vorige run:**
 >
 > **Datum:** 2026-08-17 (run 80) · **main-commit basis:** `060537a7`

@@ -465,6 +465,34 @@ escalatie over een stale ongemergde branch). Gate: typecheck/lint/test/build/pre
 `src/app/vertrouwen/[profileId]/[token]/page.tsx` (+ `vertrouwen-liveness.test.ts`),
 `docs/SECURITY-PRIVACY-BACKLOG.md`.
 
+---
+
+## 2026-08-17 — Persona-sweep run 80: legacy-facturen zichtbaar in álle omzet-/uitgaven-BI
+
+**Wat:** de BI-aggregatoren scoopten facturen puur op `issuerUserId` (ZZP'er) / `counterpartyUserId`
+(opdrachtgever) — beide **cascade-only** velden. De handmatige factuur (`/facturen/nieuw` →
+`createInvoice`, nog steeds bereikbaar op niet-cascade-samenwerkingen) zet die niet, en de eenmalige
+cutover-migratie backfillde alleen bestaande rijen. Dus élke ná de cutover gemaakte legacy-factuur —
+óók betaald en verstuurd — viel uit `earnedCents`/`pendingCents` (ZZP), `spentCents` (opdrachtgever),
+de omzet-/uitgaven-uitsplitsing per partij, de omzettrend (beide rollen) én het bemiddelaar-dossier.
+Een ZZP'er die een handmatige factuur maakte, verstuurde en op betaald zette, zag dat geld nergens terug.
+
+**Fix:** canonieke `src/lib/administration/invoice-party-scope.ts`
+(`freelancerIssuedInvoiceWhere`/`clientReceivedInvoiceWhere` + pure spiegels `isFreelancerIssuedInvoice`/
+`isClientReceivedInvoice`): OR over de cascade-tak (`issuerUserId`/`counterpartyUserId`) én de legacy-tak
+(`issuerKey: null` + de samenwerkings-partij). `issuerKey: null` sluit de platform-fee
+(`issuerKey: "PLATFORM"`) uit, zodat die nooit als eigen omzet/uitgave meetelt. Gewired in
+`freelancer-stats.ts`, `client-stats.ts`, `freelancer-revenue-breakdown.ts`, `client-spend-breakdown.ts`,
+`revenue-trend.ts` (ZZP + opdrachtgever) en `franchise/roster-dossier.ts` (tenant-grens blijft hard via een
+AND-tak). Read-only, geen schema-/mutatie-/authketen-wijziging. +18 tests (pure helpers + freelancer-stats-
+regressie: legacy telt mee, platform-fee niet, cross-ZZP'er geïsoleerd). Overige audit-bevindingen
+(tenant-stats open-omzet-KPI, 4× next-action outer-window/orderBy, dossier-badge) geparkeerd met repro in
+`docs/PERSONA-SWEEP-BACKLOG.md` (run 80). Gate: typecheck, lint, test, build, prettier groen.
+
+**Bestanden:** `src/lib/administration/invoice-party-scope.ts` (+ `.test.ts`), `src/lib/freelancer-stats.ts`
+(+ `.test.ts`), `src/lib/client-stats.ts`, `src/lib/freelancer-revenue-breakdown.ts`,
+`src/lib/client-spend-breakdown.ts`, `src/lib/revenue-trend.ts`, `src/lib/franchise/roster-dossier.ts`.
+
 ## 2026-08-17 — ZZP'er: CSV-export van de vastgelegde zakelijke uitgaven
 
 **Wat:** de ZZP'er kon zijn vastgelegde zakelijke uitgaven (het "Uitgaven"-paneel op de administratie-hub:

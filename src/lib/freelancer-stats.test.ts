@@ -22,19 +22,21 @@ describe("ratePercent", () => {
 
 type WhereValue = string | null | { in?: readonly string[]; notIn?: readonly string[] };
 interface InvoiceWhere {
-  // Relationele scope: `collaboration: { freelancer: { userId } }` — de kolom `issuerUserId` wordt
-  // niet meer gebruikt (die is NULL voor legacy loose-facturen).
-  collaboration?: { freelancer?: { userId?: string } };
+  issuerUserId?: string | null;
+  issuerKey?: string | null;
   status?: WhereValue;
   lifecycleStatus?: WhereValue;
+  collaboration?: { is?: { freelancer?: { is?: { userId?: string } } } };
   OR?: InvoiceWhere[];
+  AND?: InvoiceWhere[];
 }
 
 interface InvoiceFixture {
-  /** De kolom die alleen de cascade-handler zet — NULL voor legacy loose-facturen. */
   issuerUserId: string | null;
-  /** `collaboration.freelancer.userId` — altijd gevuld (de eigenaar van de samenwerking). */
-  collabFreelancerUserId: string;
+  /** null = legacy (handmatige) factuur; "PLATFORM" = platform-fee; userId = cascade. */
+  issuerKey: string | null;
+  /** De ZZP'er van de gekoppelde samenwerking (voor de legacy-scoping via de relatie). */
+  collaborationFreelancerUserId: string | null;
   status: string;
   lifecycleStatus: string | null;
   totalCents: number;
@@ -51,144 +53,109 @@ function matchField(cond: WhereValue | undefined, actual: string | null): boolea
 }
 
 function matchWhere(where: InvoiceWhere, inv: InvoiceFixture): boolean {
-  const scopedUserId = where.collaboration?.freelancer?.userId;
-  if (scopedUserId !== undefined && inv.collabFreelancerUserId !== scopedUserId) return false;
+  if (where.issuerUserId !== undefined && inv.issuerUserId !== where.issuerUserId) return false;
+  if (where.issuerKey !== undefined && inv.issuerKey !== where.issuerKey) return false;
   if (!matchField(where.status, inv.status)) return false;
   if (!matchField(where.lifecycleStatus, inv.lifecycleStatus)) return false;
+  const collabUserId = where.collaboration?.is?.freelancer?.is?.userId;
+  if (collabUserId !== undefined && inv.collaborationFreelancerUserId !== collabUserId)
+    return false;
   if (where.OR && !where.OR.some((branch) => matchWhere(branch, inv))) return false;
+  if (where.AND && !where.AND.every((branch) => matchWhere(branch, inv))) return false;
   return true;
 }
 
 const USER_ID = "u1";
 
-// Gemengde fixture: legacy loose-facturen (issuerUserId NULL — nooit door de cascade-handler gezet)
-// én cascade-facturen. Cascade-facturen houden hun legacy `status` op DRAFT terwijl ze via
-// `lifecycleStatus` door de keten bewegen. De relationele scope (`collaboration.freelancer.userId`)
-// telt beide paden mee; de oude kolom-scope (`issuerUserId: userId`) liet de legacy loose-rijen vallen.
+// Gemengde fixture: legacy én cascade facturen. Cascade-facturen houden hun legacy `status` op DRAFT
+// terwijl ze via `lifecycleStatus` door de keten bewegen — precies het gat dat de KPI eerder miste.
+// Cascade/gemigreerde-legacy fixture: issuerUserId gezet → matcht de eerste scope-tak (issuerUserId).
+const own = (
+  status: string,
+  lifecycleStatus: string | null,
+  totalCents: number,
+): InvoiceFixture => ({
+  issuerUserId: USER_ID,
+  issuerKey: USER_ID,
+  collaborationFreelancerUserId: USER_ID,
+  status,
+  lifecycleStatus,
+  totalCents,
+});
+
 const INVOICES: InvoiceFixture[] = [
-  // Legacy loose openstaand: issuerUserId NULL, maar de samenwerking is van USER_ID. Onder de oude
-  // kolom-scope vielen deze weg — dit is precies de regressie.
+  // Legacy openstaand (geen lifecycleStatus).
+  own("SENT", null, 10000),
+  own("OVERDUE", null, 5000),
+  // Cascade openstaand: legacy status blijft DRAFT, lifecycleStatus is de waarheid.
+  own("DRAFT", "SUBMITTED", 20000),
+  own("DRAFT", "APPROVED", 30000),
+  own("DRAFT", "OVERDUE", 7000),
+  // Niet openstaand: cascade DRAFT (nog geen verplichting), betaald, gecancelled, legacy DRAFT.
+  own("DRAFT", "DRAFT", 40000),
+  own("PAID", "PAID", 99000),
+  own("CANCELLED", null, 8000),
+  own("DRAFT", null, 15000),
+  own("PAID", null, 50000),
+  // Betaalde cascade-facturen: legacy status blijft DRAFT, lifecycleStatus is PAID/PROCESSED. Deze
+  // horen bij "betaald" (earnedCents) maar NIET bij "openstaand" — het gat dat earnedCents eerder miste.
+  own("DRAFT", "PAID", 25000),
+  own("DRAFT", "PROCESSED", 12000),
+  // Teruggedraaid: cascade CREDITED telt niet als binnengekomen geld (en ook niet als openstaand).
+  own("CANCELLED", "CREDITED", 33000),
+  // Legacy (handmatige) facturen ZONDER issuerUserId/issuerKey: horen bij deze ZZP'er alleen via de
+  // gekoppelde samenwerking. Het scoping-gat dat deze run dicht — vielen eerder volledig weg.
   {
     issuerUserId: null,
-    collabFreelancerUserId: USER_ID,
+    issuerKey: null,
+    collaborationFreelancerUserId: USER_ID,
     status: "SENT",
     lifecycleStatus: null,
-    totalCents: 10000,
+    totalCents: 3000,
   },
   {
     issuerUserId: null,
-    collabFreelancerUserId: USER_ID,
-    status: "OVERDUE",
-    lifecycleStatus: null,
-    totalCents: 5000,
-  },
-  // Cascade openstaand: legacy status blijft DRAFT, lifecycleStatus is de waarheid.
-  {
-    issuerUserId: USER_ID,
-    collabFreelancerUserId: USER_ID,
-    status: "DRAFT",
-    lifecycleStatus: "SUBMITTED",
-    totalCents: 20000,
-  },
-  {
-    issuerUserId: USER_ID,
-    collabFreelancerUserId: USER_ID,
-    status: "DRAFT",
-    lifecycleStatus: "APPROVED",
-    totalCents: 30000,
-  },
-  {
-    issuerUserId: USER_ID,
-    collabFreelancerUserId: USER_ID,
-    status: "DRAFT",
-    lifecycleStatus: "OVERDUE",
-    totalCents: 7000,
-  },
-  // Niet openstaand: cascade DRAFT (nog geen verplichting), betaald, gecancelled, legacy DRAFT.
-  {
-    issuerUserId: USER_ID,
-    collabFreelancerUserId: USER_ID,
-    status: "DRAFT",
-    lifecycleStatus: "DRAFT",
-    totalCents: 40000,
-  },
-  {
-    issuerUserId: USER_ID,
-    collabFreelancerUserId: USER_ID,
-    status: "PAID",
-    lifecycleStatus: "PAID",
-    totalCents: 99000,
-  },
-  {
-    issuerUserId: null,
-    collabFreelancerUserId: USER_ID,
-    status: "CANCELLED",
-    lifecycleStatus: null,
-    totalCents: 8000,
-  },
-  {
-    issuerUserId: null,
-    collabFreelancerUserId: USER_ID,
-    status: "DRAFT",
-    lifecycleStatus: null,
-    totalCents: 15000,
-  },
-  // Legacy loose betaald: issuerUserId NULL, samenwerking van USER_ID. Regressie: onder de oude
-  // kolom-scope viel deze betaalde omzet weg.
-  {
-    issuerUserId: null,
-    collabFreelancerUserId: USER_ID,
+    issuerKey: null,
+    collaborationFreelancerUserId: USER_ID,
     status: "PAID",
     lifecycleStatus: null,
-    totalCents: 50000,
+    totalCents: 4000,
   },
-  // Betaalde cascade-facturen: legacy status blijft DRAFT, lifecycleStatus is PAID/PROCESSED. Deze
-  // horen bij "betaald" (earnedCents) maar NIET bij "openstaand".
+  // Platform-fee op de samenwerking van deze ZZP'er (issuerKey "PLATFORM"): mag NOOIT als eigen omzet
+  // meetellen — de legacy-tak sluit 'm uit via `issuerKey: null`.
   {
-    issuerUserId: USER_ID,
-    collabFreelancerUserId: USER_ID,
-    status: "DRAFT",
+    issuerUserId: null,
+    issuerKey: "PLATFORM",
+    collaborationFreelancerUserId: USER_ID,
+    status: "PAID",
     lifecycleStatus: "PAID",
-    totalCents: 25000,
+    totalCents: 777000,
   },
-  {
-    issuerUserId: USER_ID,
-    collabFreelancerUserId: USER_ID,
-    status: "DRAFT",
-    lifecycleStatus: "PROCESSED",
-    totalCents: 12000,
-  },
-  // Teruggedraaid: cascade CREDITED telt niet als binnengekomen geld (en ook niet als openstaand).
-  {
-    issuerUserId: USER_ID,
-    collabFreelancerUserId: USER_ID,
-    status: "CANCELLED",
-    lifecycleStatus: "CREDITED",
-    totalCents: 33000,
-  },
-  // Andere ZZP'er: mag nooit meetellen (scoping via de samenwerking-eigenaar).
+  // Andere ZZP'er: mag nooit meetellen (scoping op issuerUserId én op de samenwerkings-freelancer).
   {
     issuerUserId: "u2",
-    collabFreelancerUserId: "u2",
+    issuerKey: "u2",
+    collaborationFreelancerUserId: "u2",
     status: "SENT",
     lifecycleStatus: null,
     totalCents: 123400,
   },
   {
     issuerUserId: "u2",
-    collabFreelancerUserId: "u2",
+    issuerKey: "u2",
+    collaborationFreelancerUserId: "u2",
     status: "DRAFT",
     lifecycleStatus: "PAID",
     totalCents: 456700,
   },
-  // Legacy loose factuur op de samenwerking van een ándere ZZP'er (issuerUserId NULL, eigenaar u2):
-  // mag ook niet meetellen — isolatie loopt via de relatie, niet via de kolom.
+  // Legacy factuur van een ándere ZZP'er (geen issuerUserId): mag ook niet lekken via de relatie-tak.
   {
     issuerUserId: null,
-    collabFreelancerUserId: "u2",
+    issuerKey: null,
+    collaborationFreelancerUserId: "u2",
     status: "PAID",
     lifecycleStatus: null,
-    totalCents: 777000,
+    totalCents: 888800,
   },
 ];
 
@@ -222,27 +189,30 @@ describe("getFreelancerStats — Openstaand-KPI", () => {
 
   it("telt openstaande cascade-facturen (SUBMITTED/APPROVED/OVERDUE) mee ondanks legacy status DRAFT", async () => {
     const stats = await getFreelancerStats(USER_ID);
-    // 10000 (legacy loose SENT) + 5000 (legacy loose OVERDUE) + 20000 (SUBMITTED) + 30000 (APPROVED)
-    // + 7000 (cascade OVERDUE)
-    expect(stats?.pendingCents).toBe(72000);
-  });
-
-  it("telt legacy loose-facturen (issuerUserId NULL) mee in Openstaand — de regressie", async () => {
-    const stats = await getFreelancerStats(USER_ID);
-    // De twee legacy loose-facturen (issuerUserId NULL, samenwerking van USER_ID) leveren 15000. Onder
-    // de oude kolom-scope (`issuerUserId: userId`) vielen die weg → 57000; met de relationele scope 72000.
-    expect(stats?.pendingCents).toBe(72000);
-    expect(stats?.pendingCents).not.toBe(57000);
+    // 10000 (SENT) + 5000 (legacy OVERDUE) + 20000 (SUBMITTED) + 30000 (APPROVED) + 7000 (cascade OVERDUE)
+    // + 3000 (legacy SENT zonder issuerUserId, via de samenwerking) = 75000.
+    expect(stats?.pendingCents).toBe(75000);
   });
 
   it("sluit betaalde, geannuleerde en (cascade)concept-facturen uit van Openstaand", async () => {
     const stats = await getFreelancerStats(USER_ID);
     // Betaald (99000/50000), geannuleerd (8000), cascade-concept (40000) en legacy-concept (15000)
-    // zitten NIET in het totaal — het blijft precies 72000.
-    expect(stats?.pendingCents).toBe(72000);
+    // zitten NIET in het totaal — het blijft precies 75000.
+    expect(stats?.pendingCents).toBe(75000);
+    // Zonder de fix (alleen legacy status IN (SENT,OVERDUE)) zou het totaal 15000 zijn.
+    expect(stats?.pendingCents).not.toBe(15000);
   });
 
-  it("scoopt op de ingelogde ZZP'er (facturen van een andere samenwerking-eigenaar tellen niet mee)", async () => {
+  it("telt een openstaande legacy-factuur zonder issuerUserId mee via de samenwerking (scoping-fix)", async () => {
+    const stats = await getFreelancerStats(USER_ID);
+    // De legacy SENT-factuur van 3000 (issuerUserId/issuerKey null) hoort bij deze ZZP'er alleen via
+    // de gekoppelde samenwerking. Vóór de fix (scoping puur op issuerUserId) viel 'ie volledig weg →
+    // 72000; met de fix telt 'ie mee → 75000.
+    expect(stats?.pendingCents).toBe(75000);
+    expect(stats?.pendingCents).not.toBe(72000);
+  });
+
+  it("scoopt op de ingelogde ZZP'er (facturen van een andere uitschrijver tellen niet mee)", async () => {
     const stats = await getFreelancerStats(USER_ID);
     // De u2-factuur van 123400 zit niet in het totaal.
     expect(stats?.pendingCents).toBeLessThan(123400);
@@ -256,27 +226,34 @@ describe("getFreelancerStats — betaalde omzet (earnedCents)", () => {
 
   it("telt cascade-PAID/PROCESSED mee ondanks legacy status DRAFT (naast legacy PAID)", async () => {
     const stats = await getFreelancerStats(USER_ID);
-    // Cascade PAID (99000) + legacy loose PAID (50000) + cascade PAID (25000) + cascade PROCESSED (12000).
-    expect(stats?.earnedCents).toBe(186000);
-  });
-
-  it("telt de legacy loose betaalde factuur (issuerUserId NULL) mee — de regressie", async () => {
-    const stats = await getFreelancerStats(USER_ID);
-    // De legacy loose PAID-factuur (50000, issuerUserId NULL, samenwerking van USER_ID) hoort in het
-    // totaal. Onder de oude kolom-scope (`issuerUserId: userId`) viel die weg → 136000.
-    expect(stats?.earnedCents).toBe(186000);
-    expect(stats?.earnedCents).not.toBe(136000);
+    // Legacy PAID (99000 status-PAID + 50000) + cascade PAID (25000) + cascade PROCESSED (12000)
+    // + legacy PAID zonder issuerUserId (4000, via de samenwerking) = 190000.
+    expect(stats?.earnedCents).toBe(190000);
+    // Zonder de fix (alleen legacy `status: "PAID"`) zou het 149000 zijn — de cascade-facturen die
+    // hun legacy status op DRAFT houden vielen weg.
+    expect(stats?.earnedCents).not.toBe(149000);
   });
 
   it("sluit teruggedraaide (CREDITED) en openstaande facturen uit van betaalde omzet", async () => {
     const stats = await getFreelancerStats(USER_ID);
     // De CREDITED-factuur (33000) en alle openstaande/concept-facturen tellen niet als binnengekomen geld.
-    expect(stats?.earnedCents).toBe(186000);
+    expect(stats?.earnedCents).toBe(190000);
+  });
+
+  it("telt een betaalde legacy-factuur zonder issuerUserId mee, maar de platform-fee niet (scoping-fix)", async () => {
+    const stats = await getFreelancerStats(USER_ID);
+    // De legacy PAID-factuur van 4000 (issuerUserId/issuerKey null) telt mee via de samenwerking; de
+    // platform-fee van 777000 (issuerKey "PLATFORM") NIET. Vóór de fix was het 186000.
+    expect(stats?.earnedCents).toBe(190000);
+    expect(stats?.earnedCents).not.toBe(186000);
+    // De platform-fee lekt niet in de eigen omzet.
+    expect(stats?.earnedCents).toBeLessThan(777000);
   });
 
   it("scoopt op de ingelogde ZZP'er (betaalde factuur van een andere samenwerking-eigenaar telt niet mee)", async () => {
     const stats = await getFreelancerStats(USER_ID);
-    // De betaalde u2-cascade-factuur (456700) én de legacy loose u2-factuur (777000) tellen niet mee.
+    // De betaalde u2-cascade-factuur (456700) én de legacy u2-factuur (888800, via de samenwerking van
+    // een ándere ZZP'er) zitten niet in het totaal.
     expect(stats?.earnedCents).toBeLessThan(456700);
   });
 });

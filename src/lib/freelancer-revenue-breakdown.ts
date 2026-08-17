@@ -7,7 +7,7 @@
 // bedrijfsrisico dat de ZZP'er zou moeten zien.
 
 import { prisma } from "@/lib/db";
-import { paidRevenueInvoiceWhere } from "@/lib/administration/paid-revenue";
+import { freelancerIssuedInvoiceWhere } from "@/lib/administration/invoice-party-scope";
 
 export interface FreelancerRevenueRow {
   companyId: string;
@@ -96,7 +96,10 @@ export async function getFreelancerRevenueBreakdown(
   userId: string,
 ): Promise<FreelancerRevenueBreakdown> {
   const invoices = await prisma.invoice.findMany({
-    where: { collaboration: { freelancer: { userId } }, ...paidRevenueInvoiceWhere },
+    // Scoping via `freelancerIssuedInvoiceWhere`: cascade op `issuerUserId`, legacy (handmatige
+    // factuur zonder issuerUserId) via de samenwerking. Legacy-facturen bewegen alleen via de live
+    // `status`, dus betaald = `status: "PAID"` blijft de juiste betaald-filter voor deze uitsplitsing.
+    where: { AND: [freelancerIssuedInvoiceWhere(userId), { status: "PAID" }] },
     select: {
       totalCents: true,
       collaborationId: true,

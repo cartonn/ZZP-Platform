@@ -9,6 +9,10 @@ import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { monthlyRevenue, monthDeltaPct, type RevenueSource } from "./revenue";
 import { revenueCountedInvoiceWhere } from "./administration/revenue-recognition";
+import {
+  clientReceivedInvoiceWhere,
+  freelancerIssuedInvoiceWhere,
+} from "./administration/invoice-party-scope";
 
 export type { RevenueMonth } from "./revenue";
 
@@ -66,9 +70,10 @@ export async function getFreelancerRevenueTrend(
 ): Promise<RevenueTrend> {
   const invoices = await prisma.invoice.findMany({
     where: {
-      collaboration: { freelancer: { userId } },
+      // Scoping via `freelancerIssuedInvoiceWhere`: cascade op `issuerUserId`, legacy via de
+      // samenwerking — een handmatige factuur (geen issuerUserId) viel eerder uit de trend.
+      AND: [freelancerIssuedInvoiceWhere(userId), revenueCountedInvoiceWhere],
       issuedAt: { gte: revenueWindowStart(now, months) },
-      ...revenueCountedInvoiceWhere,
     },
     select: { issuedAt: true, totalCents: true },
   });
@@ -89,9 +94,10 @@ export async function getClientRevenueTrend(
 ): Promise<RevenueTrend> {
   const invoices = await prisma.invoice.findMany({
     where: {
-      collaboration: { company: { userId } },
+      // Scoping via `clientReceivedInvoiceWhere`: cascade op `counterpartyUserId`, legacy via de
+      // samenwerking — een handmatige factuur (geen counterpartyUserId) viel eerder uit de trend.
+      AND: [clientReceivedInvoiceWhere(userId), revenueCountedInvoiceWhere],
       issuedAt: { gte: revenueWindowStart(now, months) },
-      ...revenueCountedInvoiceWhere,
     },
     select: { issuedAt: true, totalCents: true },
   });

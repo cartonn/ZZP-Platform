@@ -5,7 +5,7 @@
 // franchiser-uitsplitsing "Per opdrachtgever" (tenant-stats.ts) en de ZZP-opdrachtgever-spreiding.
 
 import { prisma } from "@/lib/db";
-import { paidRevenueInvoiceWhere } from "@/lib/administration/paid-revenue";
+import { clientReceivedInvoiceWhere } from "@/lib/administration/invoice-party-scope";
 
 export interface ClientSpendRow {
   freelancerId: string;
@@ -88,7 +88,10 @@ export function buildClientSpendBreakdown(
  */
 export async function getClientSpendBreakdown(userId: string): Promise<ClientSpendBreakdown> {
   const invoices = await prisma.invoice.findMany({
-    where: { collaboration: { company: { userId } }, ...paidRevenueInvoiceWhere },
+    // Scoping via `clientReceivedInvoiceWhere`: cascade op `counterpartyUserId`, legacy (handmatige
+    // factuur zonder counterpartyUserId) via de samenwerking. Legacy-facturen bewegen alleen via de
+    // live `status`, dus betaald = `status: "PAID"` blijft de juiste betaald-filter voor deze uitsplitsing.
+    where: { AND: [clientReceivedInvoiceWhere(userId), { status: "PAID" }] },
     select: {
       totalCents: true,
       collaborationId: true,

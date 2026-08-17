@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { tenantScopeWhere } from "@/lib/tenancy";
+import { freelancerIssuedInvoiceWhere } from "@/lib/administration/invoice-party-scope";
 import {
   type Availability,
   type WorkMode,
@@ -184,10 +185,15 @@ export async function getRosterDossier(
     }),
     prisma.invoice.findMany({
       // Alleen facturen die bij een samenwerking op een eigen-franchise-opdracht horen (geen lek van
-      // facturen voor overflow-werk bij een andere franchise).
+      // facturen voor overflow-werk bij een andere franchise). Scoping via
+      // `freelancerIssuedInvoiceWhere`: cascade op `issuerUserId`, legacy (handmatige factuur zonder
+      // issuerUserId) via de samenwerking — anders miste het dossier élke handmatige factuur van de
+      // ZZP'er. De tenant-grens blijft hard via de AND-tak op de opdracht.
       where: {
-        issuerUserId: profile.user.id,
-        collaboration: { is: { job: { is: tenantScopeWhere(actor) } } },
+        AND: [
+          freelancerIssuedInvoiceWhere(profile.user.id),
+          { collaboration: { is: { job: { is: tenantScopeWhere(actor) } } } },
+        ],
       },
       orderBy: { createdAt: "desc" },
       select: {
