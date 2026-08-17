@@ -51,7 +51,9 @@ export async function getFreelancerStats(userId: string): Promise<FreelancerStat
       // `status: "PAID"` filteren élke cascade-factuur: die houdt haar legacy `status` op DRAFT en
       // wordt via `lifecycleStatus` PAID/PROCESSED. De canonieke `paidRevenueInvoiceWhere` dekt
       // beide paden (cascade PAID/PROCESSED, legacy PAID); CREDITED/CANCELLED tellen niet mee.
-      where: { issuerUserId: userId, ...paidRevenueInvoiceWhere },
+      // Scoping via de altijd-gevulde relatie (`collaboration.freelancer.userId`) i.p.v. de kolom
+      // `issuerUserId` (die alleen de cascade-handler zet): zo tellen ook legacy loose-facturen mee.
+      where: { collaboration: { freelancer: { userId } }, ...paidRevenueInvoiceWhere },
       _sum: { totalCents: true },
     }),
     prisma.invoice.aggregate({
@@ -62,8 +64,10 @@ export async function getFreelancerStats(userId: string): Promise<FreelancerStat
       // filteren mist dus élke openstaande cascade-factuur tot de betaaltermijn verstrijkt, waardoor
       // de KPI de echte openstaande omzet tot ~30 dagen per factuur ondertelt. De canonieke
       // `outstandingInvoiceWhere` (OR over lifecycle SUBMITTED/APPROVED/OVERDUE + legacy SENT/OVERDUE)
-      // dekt beide paden; PAID/CANCELLED/DRAFT tellen niet mee. Persona-sweep run 79.
-      where: { issuerUserId: userId, ...outstandingInvoiceWhere },
+      // dekt beide paden; PAID/CANCELLED/DRAFT tellen niet mee. Persona-sweep run 79. Scoping via de
+      // altijd-gevulde relatie (`collaboration.freelancer.userId`) i.p.v. de kolom `issuerUserId`
+      // (alleen door de cascade-handler gezet), zodat ook legacy loose-facturen meetellen.
+      where: { collaboration: { freelancer: { userId } }, ...outstandingInvoiceWhere },
       _sum: { totalCents: true },
     }),
     prisma.performance.aggregate({

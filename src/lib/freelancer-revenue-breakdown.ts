@@ -1,11 +1,13 @@
 // Rol-gerichte BI voor de ZZP'er: uitsplitsing van de betaalde omzet per opdrachtgever. Geld in
-// integer-centen. Read-only inzicht; scoping op de eigen facturen (issuerUserId, status PAID) — exact
+// integer-centen. Read-only inzicht; scoping via de altijd-gevulde relatie
+// (`collaboration.freelancer.userId`) + `paidRevenueInvoiceWhere` — exact
 // dezelfde bron als `earnedCents` in freelancer-stats.ts, dus het totaal spoort altijd. Spiegelt de
 // opdrachtgever-uitsplitsing "Per ZZP'er" (client-spend-breakdown.ts) en de franchiser "Per
 // opdrachtgever" (tenant-stats.ts): een afhankelijkheidssignaal — te veel omzet bij één klant is een
 // bedrijfsrisico dat de ZZP'er zou moeten zien.
 
 import { prisma } from "@/lib/db";
+import { paidRevenueInvoiceWhere } from "@/lib/administration/paid-revenue";
 
 export interface FreelancerRevenueRow {
   companyId: string;
@@ -83,15 +85,18 @@ export function buildFreelancerRevenueBreakdown(
 }
 
 /**
- * Betaalde omzet per opdrachtgever voor de ingelogde ZZP'er. Scoping op de eigen facturen
- * (`issuerUserId`), zodat er nooit cijfers van andere ZZP'ers lekken. Bij geen betaalde facturen: lege
+ * Betaalde omzet per opdrachtgever voor de ingelogde ZZP'er. Scoping via de altijd-gevulde relatie
+ * (`collaboration.freelancer.userId`) i.p.v. de kolom `issuerUserId` (alleen door de cascade-handler
+ * gezet), zodat ook legacy loose-facturen meetellen en er nooit cijfers van andere ZZP'ers lekken. De
+ * canonieke `paidRevenueInvoiceWhere` dekt cascade PAID/PROCESSED én legacy PAID — exact dezelfde bron
+ * als `earnedCents` in freelancer-stats.ts, dus het totaal spoort. Bij geen betaalde facturen: lege
  * uitsplitsing (totaal 0, geen concentratiesignaal).
  */
 export async function getFreelancerRevenueBreakdown(
   userId: string,
 ): Promise<FreelancerRevenueBreakdown> {
   const invoices = await prisma.invoice.findMany({
-    where: { issuerUserId: userId, status: "PAID" },
+    where: { collaboration: { freelancer: { userId } }, ...paidRevenueInvoiceWhere },
     select: {
       totalCents: true,
       collaborationId: true,

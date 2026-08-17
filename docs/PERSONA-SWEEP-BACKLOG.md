@@ -49,6 +49,40 @@
 >
 > **Vorige run:**
 >
+> **Datum:** 2026-08-17 (run 80) · **main-commit basis:** `060537a7`
+> **Uitkomst:** **3 bereikbare defecten gevonden én gefixt** (1× server-side-waarheid/geld-KPI-correctheid
+> HOOG, 2× next-action-engine flicker DOEL 1b MED). 4 parallelle adversariële Opus-code-audits op
+> niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie · cascade/geld-integriteit + verboden
+> statusovergangen · next-action-engine-correctheid · malicieuze input/CSV/XSS/upload) + een live
+> Playwright-probe (28 checks, 4 rollen: privilege-escalatie ZZP'er/opdrachtgever/bemiddelaar → `/admin/*`
+> en `/franchise/*` alle geweigerd/redirect, IDOR/onzin-id → 404, nooit 500). De authz/IDOR-,
+> malicieuze-input-audits én alle live probes vonden **0 bereikbare gaten**; de cascade/geld-audit vond de
+> HOOG-bevinding, de next-action-audit de 2 flicker-fixes. Alle drie gefixt met rood→groen-regressietests.
+>
+> - **OPGELOST — geld-KPI's negeerden legacy loose-facturen door scoping op een NULL-kolom (HOOG,
+>   server-side-waarheid — CLAUDE.md regel 1):** álle omzet-KPI-queries scoopten op `Invoice.issuerUserId`/
+>   `counterpartyUserId` — kolommen die alléén de cascade-handler zet en die NULL blijven voor legacy
+>   loose-facturen (`createInvoice` zet ze nooit). Gecombineerd met de dual-path where-helpers
+>   (`paidRevenueInvoiceWhere`/`outstandingInvoiceWhere`/`revenueCountedInvoiceWhere`) was hun legacy-tak
+>   dóde code: de outer `issuerUserId = userId`-AND matchte nooit een NULL-rij, dus élke legacy betaalde/
+>   openstaande/verstuurde factuur viel uit de KPI's van ZZP'er én opdrachtgever (ondergroef #1124). **Fix:**
+>   scope via de altijd-gevulde relatie `collaboration.freelancer.userId` / `collaboration.company.userId`
+>   (patroon van `data/monthly-income.ts`), where-helpers behouden. 8 call-sites over `freelancer-stats.ts`,
+>   `client-stats.ts`, `freelancer-revenue-breakdown.ts`, `client-spend-breakdown.ts`, `revenue-trend.ts`
+>   (tenant/platform-trend bewust ongemoeid). +rood→groen-tests (legacy loose-fixtures + kruis-gebruiker-
+>   isolatie). Repro: ZZP'er maakt een losse factuur op een samenwerking zonder prestaties → opdrachtgever
+>   betaalt → bedrag verscheen nooit in "betaalde omzet"/"uitgaven voldaan" of de omzet-trend.
+> - **OPGELOST — 2× next-action flicker (DOEL 1b, MED):** twee gewindowde queries in `pending-tasks.ts`
+>   hadden `take: MAX` zonder `orderBy` → niet-deterministisch venster, taak flikkert tussen page-loads bij
+>   > MAX rijen. `unreadConversations` (`conversationParticipant.findMany` vóór `.slice(0, MAX)`) →
+>   > `orderBy: { conversationId: "asc" }`; client `cascadeOverduePayments` (`invoice.findMany`,
+>   > lifecycleStatus OVERDUE) → `orderBy: { createdAt: "asc" }`. +2 regressietests op de query-args.
+> - **Bevestigd schoon deze run:** authz/rol/ownership-keten & tenant-isolatie (franchiser), documenten
+>   privé (404-anti-oracle), Zod-grenzen op geld/uren (int4-overflow), required-reason (trim vóór check),
+>   XSS/CSV-injectie/upload-MIME, verboden statusovergangen (assert vóór write op elke cascade-pad).
+
+---
+
 > **Datum:** 2026-08-16 (run 79) · **main-commit basis:** `5cf777d2`
 > **Uitkomst:** **4 bereikbare defecten gevonden én gefixt** (1× server-side-waarheid/integriteit HOOG,
 > 1× functionele KPI-correctheid MED, 2× next-action-engine DOEL 1b MED/LAAG). 4 parallelle adversariële

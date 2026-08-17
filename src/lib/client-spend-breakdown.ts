@@ -1,9 +1,11 @@
 // Rol-gerichte BI voor de opdrachtgever: uitsplitsing van de betaalde uitgaven per ZZP'er. Geld in
-// integer-centen. Read-only inzicht; scoping op de eigen facturen (counterpartyUserId, status PAID) —
+// integer-centen. Read-only inzicht; scoping via de altijd-gevulde relatie
+// (`collaboration.company.userId`) + `paidRevenueInvoiceWhere` —
 // exact dezelfde bron als `spentCents` in client-stats.ts, dus het totaal spoort altijd. Spiegelt de
 // franchiser-uitsplitsing "Per opdrachtgever" (tenant-stats.ts) en de ZZP-opdrachtgever-spreiding.
 
 import { prisma } from "@/lib/db";
+import { paidRevenueInvoiceWhere } from "@/lib/administration/paid-revenue";
 
 export interface ClientSpendRow {
   freelancerId: string;
@@ -77,13 +79,16 @@ export function buildClientSpendBreakdown(
 }
 
 /**
- * Betaalde uitgaven per ZZP'er voor de ingelogde opdrachtgever. Scoping op de eigen facturen
- * (`counterpartyUserId`), zodat er nooit cijfers van andere opdrachtgevers lekken. Bij geen betaalde
- * facturen: lege uitsplitsing (totaal 0, geen concentratiesignaal).
+ * Betaalde uitgaven per ZZP'er voor de ingelogde opdrachtgever. Scoping via de altijd-gevulde relatie
+ * (`collaboration.company.userId`) i.p.v. de kolom `counterpartyUserId` (alleen door de cascade-handler
+ * gezet), zodat ook legacy loose-facturen meetellen en er nooit cijfers van andere opdrachtgevers
+ * lekken. De canonieke `paidRevenueInvoiceWhere` dekt cascade PAID/PROCESSED én legacy PAID — exact
+ * dezelfde bron als `spentCents` in client-stats.ts, dus het totaal spoort. Bij geen betaalde facturen:
+ * lege uitsplitsing (totaal 0, geen concentratiesignaal).
  */
 export async function getClientSpendBreakdown(userId: string): Promise<ClientSpendBreakdown> {
   const invoices = await prisma.invoice.findMany({
-    where: { counterpartyUserId: userId, status: "PAID" },
+    where: { collaboration: { company: { userId } }, ...paidRevenueInvoiceWhere },
     select: {
       totalCents: true,
       collaborationId: true,
