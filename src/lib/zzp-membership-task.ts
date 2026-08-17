@@ -3,12 +3,13 @@
 // (userId, period): meermaals draaien voegt niets dubbel toe en wijzigt bestaande bijdragen niet.
 // Geen geldstroom/incasso — alleen registratie als PENDING (betaalprovider = mensenwerk).
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ZZP_MEMBERSHIP } from "@/lib/config";
 import {
+  activeMembershipUserIds,
   monthKey,
   monthRange,
-  performanceMonthKey,
   planMembershipCharges,
 } from "@/lib/zzp-membership";
 
@@ -17,6 +18,31 @@ export interface ZzpMembershipResult {
   /** Aantal ZZP'ers met een bijdrage voor deze maand (incl. al bestaande). */
   billed: number;
 }
+
+/**
+ * Goedgekeurde prestaties die de maand `[start, end)` kunnen raken (periode, goedkeuring of aanmaak).
+ * De uiteindelijke maand-toewijzing gebeurt in `activeMembershipUserIds` (periode-begin leidend); deze
+ * where is bewust ruimer zodat geen kandidaat wordt gemist. Gedeeld door de taak én de stille-faal-gauge
+ * (`/api/metrics`), zodat die twee dezelfde bron van waarheid gebruiken en niet kunnen driften.
+ */
+export function membershipPerformanceWhere(start: Date, end: Date): Prisma.PerformanceWhereInput {
+  return {
+    status: "APPROVED",
+    OR: [
+      { periodStart: { gte: start, lt: end } },
+      { approvedAt: { gte: start, lt: end } },
+      { createdAt: { gte: start, lt: end } },
+    ],
+  };
+}
+
+/** De minimale kolom-selectie voor de maand-toewijzing (gedeeld door de taak én de gauge). */
+export const membershipPerformanceSelect = {
+  periodStart: true,
+  approvedAt: true,
+  createdAt: true,
+  collaboration: { select: { freelancer: { select: { userId: true } } } },
+} satisfies Prisma.PerformanceSelect;
 
 export async function runZzpMembershipTask(opts?: {
   now?: Date;
@@ -29,30 +55,12 @@ export async function runZzpMembershipTask(opts?: {
 
   const { start, end } = monthRange(target);
 
-  // Goedgekeurde prestaties die deze maand kunnen raken (periode, goedkeuring of aanmaak).
   const performances = await prisma.performance.findMany({
-    where: {
-      status: "APPROVED",
-      OR: [
-        { periodStart: { gte: start, lt: end } },
-        { approvedAt: { gte: start, lt: end } },
-        { createdAt: { gte: start, lt: end } },
-      ],
-    },
-    select: {
-      periodStart: true,
-      approvedAt: true,
-      createdAt: true,
-      collaboration: { select: { freelancer: { select: { userId: true } } } },
-    },
+    where: membershipPerformanceWhere(start, end),
+    select: membershipPerformanceSelect,
   });
 
-  const activeUserIds = new Set<string>();
-  for (const p of performances) {
-    if (performanceMonthKey(p) !== period) continue; // alleen werk dat écht in deze maand telt
-    const uid = p.collaboration?.freelancer?.userId;
-    if (uid) activeUserIds.add(uid);
-  }
+  const activeUserIds = activeMembershipUserIds(performances, period);
 
   const charges = planMembershipCharges([...activeUserIds], period);
   for (const c of charges) {

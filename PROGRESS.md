@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-17 — prod: stille-faal-gauge voor de ZZP-lidmaatschap-bijdrage (omzet-registratie)
+
+**Wat:** de `zzp-membership`-cron (de kern-ZZP-monetisatie, €40/actieve maand, PIDZ-model) registreert per
+maand idempotent een maandbijdrage voor elke ZZP'er die die maand werk had. Het was de **enige** omzet-/
+statustaak zónder stille-faal-detector: de cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie
+de bijdrage-registratie verwerkte. Viel de registratie stil (query-regressie, lock-contentie) terwijl de
+heartbeat "vers" bleef, dan bleven actieve ZZP'ers deze maand ongefactureerd en lekte de platform-omzet
+stil weg — onzichtbaar tot een handmatige controle.
+
+**Fix:** nieuwe gauge `zzp_membership_unbilled_active` op `/api/metrics` (aantal actieve ZZP'ers in de
+lopende maand — ≥1 goedgekeurde prestatie die op deze maand valt — zonder `ZzpMembershipCharge` voor die
+maand). Drift-vrij: taak en gauge delen nu `membershipPerformanceWhere` + `membershipPerformanceSelect`
+(`zzp-membership-task.ts`) en de pure `activeMembershipUserIds` (`zzp-membership.ts`, incl. de
+periode-begin-leidende maand-toewijzing). Gauge alleen berekend als het lidmaatschap AAN staat (anders per
+definitie 0 — de pilot-default; geen query). Drop-in alert `ZzpMembershipUnbilledActive` (`> 0`, `for: 30h`)
+in `alerts.yml` + toegevoegd aan de onderhouds-inhibitie in `alertmanager.yml`; beide drift-gates
+(`alerts-rules.ts`, `monitoring-bundle.ts`) klinken het vast. Faalt veilig (nooit een 500), geen PII.
+
+**Bestanden:** `src/lib/zzp-membership.ts` (+ `activeMembershipUserIds`/`MembershipPerformance`),
+`src/lib/zzp-membership-task.ts` (gedeelde where/select, refactor), `src/app/api/metrics/route.ts`,
+`src/lib/observability/metrics.ts`, `src/lib/observability/alerts-rules.ts`,
+`docs/observability/alerts.yml`, `docs/observability/alertmanager.yml`,
+tests: `src/lib/zzp-membership.test.ts`, `src/lib/observability/metrics.test.ts`. Gate: typecheck, lint,
+test, build, prettier groen. MENSENWERK.md §3b bijgewerkt.
+
+**Volgende stap:** resterend mensenwerk voor betaald ZZP-lidmaatschap blijft: betaalprovider per ZZP'er +
+PENDING-bijdragen → verzonden abonnementsfacturen (`ZzpMembershipCharge.invoiceId`).
+
 ## 2026-08-17 — ZZP'er: CSV-export van de vastgelegde zakelijke uitgaven
 
 **Wat:** de ZZP'er kon zijn vastgelegde zakelijke uitgaven (het "Uitgaven"-paneel op de administratie-hub:

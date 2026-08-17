@@ -3,8 +3,10 @@ import {
   monthKey,
   monthRange,
   performanceMonthKey,
+  activeMembershipUserIds,
   calculateMembershipCharge,
   planMembershipCharges,
+  type MembershipPerformance,
 } from "@/lib/zzp-membership";
 import { type ZzpMembershipConfig } from "@/lib/config";
 
@@ -83,5 +85,51 @@ describe("planMembershipCharges", () => {
 
   it("is leeg als het abonnement uit staat", () => {
     expect(planMembershipCharges(["u1"], "2026-06", off)).toEqual([]);
+  });
+});
+
+describe("activeMembershipUserIds", () => {
+  const perf = (
+    userId: string | null,
+    fields: Partial<Pick<MembershipPerformance, "periodStart" | "approvedAt" | "createdAt">>,
+  ): MembershipPerformance => ({
+    periodStart: fields.periodStart ?? null,
+    approvedAt: fields.approvedAt ?? null,
+    createdAt: fields.createdAt ?? new Date(Date.UTC(2000, 0, 1)),
+    collaboration: userId ? { freelancer: { userId } } : null,
+  });
+
+  it("verzamelt de unieke ZZP'ers wier prestatie op de periode valt (periode-begin leidend)", () => {
+    const ids = activeMembershipUserIds(
+      [
+        perf("u1", { periodStart: new Date(Date.UTC(2026, 5, 10)) }),
+        perf("u1", { approvedAt: new Date(Date.UTC(2026, 5, 20)) }), // dedup: zelfde gebruiker
+        perf("u2", { approvedAt: new Date(Date.UTC(2026, 5, 2)) }),
+      ],
+      "2026-06",
+    );
+    expect([...ids].sort()).toEqual(["u1", "u2"]);
+  });
+
+  it("negeert prestaties wier maand-toewijzing NIET op de periode valt", () => {
+    // periodStart (mei) is leidend, ook al valt approvedAt in juni → telt voor mei, niet juni.
+    const ids = activeMembershipUserIds(
+      [
+        perf("u1", {
+          periodStart: new Date(Date.UTC(2026, 4, 30)),
+          approvedAt: new Date(Date.UTC(2026, 5, 1)),
+        }),
+      ],
+      "2026-06",
+    );
+    expect(ids.size).toBe(0);
+  });
+
+  it("slaat prestaties zonder gekoppelde ZZP'er over", () => {
+    const ids = activeMembershipUserIds(
+      [perf(null, { periodStart: new Date(Date.UTC(2026, 5, 5)) })],
+      "2026-06",
+    );
+    expect(ids.size).toBe(0);
   });
 });

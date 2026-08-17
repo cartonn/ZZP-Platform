@@ -35,6 +35,7 @@ const HEALTHY: MetricsInput = {
   messagesRetentionBacklog: 0,
   webhookEventsRetentionBacklog: 0,
   routingCacheRetentionBacklog: 0,
+  membershipUnbilledActive: 0,
   mailDeliveryOk: true,
   mailDeliveryConsecutiveFailures: 0,
   mailDeliveryLastFailureAgeSeconds: null,
@@ -295,6 +296,21 @@ describe("buildMetrics", () => {
     ).toBe(4);
   });
 
+  it("mapt de ongefactureerde-actieve-ZZP'ers-backlog door als gauge", () => {
+    expect(
+      valueOf({ ...HEALTHY, membershipUnbilledActive: 17 }, "zzp_membership_unbilled_active"),
+    ).toBe(17);
+  });
+
+  it("klemt een negatieve/gebroken membership-backlog veilig op een niet-negatief geheel getal", () => {
+    expect(
+      valueOf({ ...HEALTHY, membershipUnbilledActive: -3 }, "zzp_membership_unbilled_active"),
+    ).toBe(0);
+    expect(
+      valueOf({ ...HEALTHY, membershipUnbilledActive: 6.7 }, "zzp_membership_unbilled_active"),
+    ).toBe(6);
+  });
+
   it("gebruikt de AGE_NEVER-sentinel wanneer een heartbeat nog nooit draaide", () => {
     const input = { ...HEALTHY, cronAgeSeconds: null, backupAgeSeconds: null };
     expect(valueOf(input, "zzp_cron_heartbeat_age_seconds")).toBe(AGE_NEVER);
@@ -350,6 +366,7 @@ describe("buildMetrics", () => {
       messagesRetentionBacklog: 3,
       webhookEventsRetentionBacklog: 6,
       routingCacheRetentionBacklog: 14,
+      membershipUnbilledActive: 20,
       mailDeliveryOk: false,
       mailDeliveryConsecutiveFailures: 4,
       mailDeliveryLastFailureAgeSeconds: 300,
@@ -378,6 +395,7 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_messages_retention_backlog")).toBe(3);
     expect(valueOf(input, "zzp_webhook_events_retention_backlog")).toBe(6);
     expect(valueOf(input, "zzp_routing_cache_retention_backlog")).toBe(14);
+    expect(valueOf(input, "zzp_membership_unbilled_active")).toBe(20);
     expect(valueOf(input, "zzp_cron_heartbeat_ok")).toBe(0);
     expect(valueOf(input, "zzp_cron_heartbeat_stale")).toBe(1);
     expect(valueOf(input, "zzp_backup_heartbeat_ok")).toBe(0);
@@ -417,6 +435,7 @@ describe("buildMetrics", () => {
       "zzp_messages_retention_backlog",
       "zzp_webhook_events_retention_backlog",
       "zzp_routing_cache_retention_backlog",
+      "zzp_membership_unbilled_active",
       "zzp_mail_delivery_ok",
       "zzp_mail_consecutive_failures",
       "zzp_mail_last_failure_age_seconds",

@@ -36,6 +36,33 @@ export function performanceMonthKey(p: {
   return monthKey(p.periodStart ?? p.approvedAt ?? p.createdAt);
 }
 
+/** Minimale prestatie-vorm die nodig is om de actieve ZZP'ers voor een maand te bepalen. */
+export interface MembershipPerformance {
+  periodStart: Date | null;
+  approvedAt: Date | null;
+  createdAt: Date;
+  collaboration: { freelancer: { userId: string } | null } | null;
+}
+
+/**
+ * De set unieke ZZP'er-`userId`'s die in `period` werk hadden: alle gegeven (goedgekeurde) prestaties
+ * wier `performanceMonthKey` exact op die maand valt. Pure filter — dezelfde bron van waarheid als de
+ * taak (`zzp-membership-task`) én de stille-faal-gauge (`/api/metrics`), zodat die twee niet kunnen
+ * driften. De aanroeper levert de prestaties (de DB-query met `membershipPerformanceWhere` zit in de taak).
+ */
+export function activeMembershipUserIds(
+  performances: readonly MembershipPerformance[],
+  period: string,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const p of performances) {
+    if (performanceMonthKey(p) !== period) continue; // alleen werk dat écht in deze maand telt
+    const uid = p.collaboration?.freelancer?.userId;
+    if (uid) ids.add(uid);
+  }
+  return ids;
+}
+
 /** Berekent de maandbijdrage (incl. btw) voor het gegeven abonnement, of niet-van-toepassing. */
 export function calculateMembershipCharge(
   config: ZzpMembershipConfig = ZZP_MEMBERSHIP,

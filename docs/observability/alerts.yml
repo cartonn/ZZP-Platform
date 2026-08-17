@@ -204,6 +204,23 @@ groups:
         annotations:
           summary: "Prestatie-grace-pijplijn verwerkt niets"
           description: "Er staan al > één cron-interval ingediende prestaties (SUBMITTED) wier grace-venster verstreken is die niet automatisch zijn goedgekeurd (zzp_performances_overdue_grace). De performance-grace-cron rondt af maar keurt geen prestaties goed → er wordt geen factuur aangemaakt en de ZZP'er wordt niet uitbetaald. Controleer de performance-grace-taak."
+      - alert: ZzpMembershipUnbilledActive
+        # Omzet-kritische registratie: de zzp-membership-cron legt per maand een maandbijdrage vast voor
+        # elke ZZP'er die die maand werk had (de kern-ZZP-monetisatie, PIDZ-model). De cron-heartbeat
+        # bewijst alleen DÁT de run afrondde, niet DÁT 'ie de bijdrage-registratie verwerkte. Een oplopende
+        # backlog terwijl de heartbeat "vers" is betekent dat actieve ZZP'ers deze maand ongefactureerd
+        # blijven → de platform-omzet lekt stil weg (geen bijdrage vastgelegd, dus later niets geïncasseerd).
+        # Een klein, tijdelijk aantal is normaal (een ZZP'er die vandaag actief wordt is "unbilled" tot de
+        # volgende dagelijkse run); daarom een ruime `for:` (> één cron-interval + speling) zodat alleen een
+        # AANHOUDENDE backlog paget. Staat het lidmaatschap uit (ZZP_MEMBERSHIP.enabled = false), dan is de
+        # gauge per definitie 0 en vuurt deze alert nooit.
+        expr: zzp_membership_unbilled_active > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "ZZP-lidmaatschap-registratie verwerkt niets"
+          description: "Er zijn al > één cron-interval actieve ZZP'ers in de lopende maand zonder een geregistreerde maandbijdrage (zzp_membership_unbilled_active). De zzp-membership-cron rondt af maar legt geen bijdragen vast → actieve ZZP'ers blijven ongefactureerd en de platform-omzet lekt stil weg. Controleer de zzp-membership-taak."
 
       - alert: ZzpAuditRetentionBacklog
         # AVG-dataminimalisatie (art. 5 lid 1e): auditregels dragen IP + user-agent. Een oplopende

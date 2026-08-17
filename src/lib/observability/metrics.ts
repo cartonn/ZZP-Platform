@@ -212,6 +212,20 @@ export interface MetricsInput {
    */
   routingCacheRetentionBacklog: number;
   /**
+   * Aantal actieve ZZP'ers in de LOPENDE maand (≥1 goedgekeurde prestatie wier maand op deze periode
+   * valt) die nog GEEN `ZzpMembershipCharge` voor die maand hebben — werk dat de `zzp-membership`-cron
+   * had moeten registreren (de kern-ZZP-monetisatie: een maandbijdrage per actieve ZZP'er, PIDZ-model).
+   * Dezelfde stille-faal-detector-klasse als `overdueExpirySubscriptions`, maar op de OMZET-registratie:
+   * de cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de bijdrage-registratie verwerkte.
+   * Blijft dit getal oplopen terwijl de heartbeat "vers" is, dan blijven actieve ZZP'ers deze maand
+   * ongefactureerd → de platform-omzet lekt stil weg (er wordt geen bijdrage vastgelegd, dus later niets
+   * geïncasseerd), zonder dat iets dat toont. Een klein, tijdelijk aantal is normaal: een ZZP'er die
+   * vandaag actief wordt is "unbilled" tot de volgende dagelijkse run. Staat het lidmaatschap UIT
+   * (`ZZP_MEMBERSHIP.enabled` = false, de pilot-default), dan is er per definitie geen registratie en is
+   * deze gauge `0` (geen misleidend signaal).
+   */
+  membershipUnbilledActive: number;
+  /**
    * Levert het e-mailkanaal momenteel af? true = de laatste échte verzending slaagde (of er is nog
    * nooit iets verzonden — neutraal gezond), false = de laatste verzending mislukte (het kanaal wijst
    * af). Anders dan de cron-/back-up-heartbeat is dit GEEN staleness-op-leeftijd: e-mail is
@@ -408,6 +422,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal routing-cacherijen (GeocodeCache + TravelRouteCache, platte-tekst locatie-PII in query/fromQuery/toQuery) wier eigen TTL (expiresAt) is verstreken die de routing-cache-retention-cron nog niet fysiek verwijderde (deze retentie staat altijd AAN — de TTL zit per rij ingebakken, geen instelvenster; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → locatie-PII bewaard over de eigen TTL heen, AVG art. 5(1)(e)).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.routingCacheRetentionBacklog)),
+    },
+    {
+      name: "zzp_membership_unbilled_active",
+      help: "Aantal actieve ZZP'ers in de lopende maand (≥1 goedgekeurde prestatie die op deze maand valt) zonder ZzpMembershipCharge voor die maand die de zzp-membership-cron nog niet registreerde (0 als het lidmaatschap uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen bijdrage-registratie → actieve ZZP'ers blijven ongefactureerd en de platform-omzet lekt stil weg).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.membershipUnbilledActive)),
     },
     {
       name: "zzp_mail_delivery_ok",

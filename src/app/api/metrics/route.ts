@@ -28,7 +28,9 @@
 // webhook-event-retention-cron nog niet snoeide — GEEN PII: opslag-hygiëne/availability, de ledger groeit
 // anders onbeperkt door) en zzp_routing_cache_retention_backlog (routing-cacherijen — GeocodeCache +
 // TravelRouteCache, platte-tekst locatie-PII — wier eigen TTL is verstreken die de routing-cache-retention-cron
-// nog niet fysiek verwijderde; altijd actief, geen instelvenster — AVG-dataminimalisatie) — stille-faal-detectors
+// nog niet fysiek verwijderde; altijd actief, geen instelvenster — AVG-dataminimalisatie) en
+// zzp_membership_unbilled_active (actieve ZZP'ers in de lopende maand zonder geregistreerde maandbijdrage die
+// de zzp-membership-cron nog niet vastlegde — omzetlek, alleen als het lidmaatschap aan staat) — stille-faal-detectors
 // die de heartbeat niet vangt — en zzp_mail_delivery_ok / zzp_mail_consecutive_failures /
 // zzp_mail_last_failure_age_seconds (mail-aflever-heartbeat: levert het e-mailkanaal nog af, of wijst een
 // systematisch afwijzende provider élke notificatie/reset/herinnering stil af — event-gedreven, geen
@@ -75,7 +77,9 @@ import { webhookEventRetentionCutoff } from "@/lib/webhook-event-retention";
 import { prunableWebhookEventWhere } from "@/lib/webhook-event-retention-task";
 import { prunableRoutingCacheWhere } from "@/lib/routing-cache-retention-task";
 import { overdueReviewRevealWhere } from "@/lib/reviews-reveal-task";
-import { performanceGraceDays } from "@/lib/config";
+import { ZZP_MEMBERSHIP, performanceGraceDays } from "@/lib/config";
+import { activeMembershipUserIds, monthKey, monthRange } from "@/lib/zzp-membership";
+import { membershipPerformanceSelect, membershipPerformanceWhere } from "@/lib/zzp-membership-task";
 import { graceCutoff, overduePerformanceGraceWhere } from "@/lib/performance-grace-task";
 import { reportError } from "@/lib/observability/report";
 import type { CronFreshness } from "@/lib/observability/cron-freshness";
@@ -120,6 +124,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let messagesRetentionBacklog = 0;
   let webhookEventsRetentionBacklog = 0;
   let routingCacheRetentionBacklog = 0;
+  let membershipUnbilledActive = 0;
   if (dbReachable) {
     try {
       verificationQueue = await prisma.credential.count({ where: { status: "SUBMITTED" } });
@@ -332,6 +337,35 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
     }
+    if (ZZP_MEMBERSHIP.enabled) {
+      try {
+        // Actieve ZZP'ers in de LOPENDE maand (≥1 goedgekeurde prestatie die op deze maand valt) zonder
+        // ZzpMembershipCharge voor die maand: werk dat de zzp-membership-cron had moeten registreren (de
+        // kern-ZZP-monetisatie). Hergebruikt exact `membershipPerformanceWhere` + `activeMembershipUserIds`
+        // (dezelfde bron van waarheid, incl. de periode-begin-leidende maand-toewijzing) als de taak zelf,
+        // zodat de gauge de echte cron-backlog telt en niet kan driften. Alleen berekend als het
+        // lidmaatschap AAN staat (anders per definitie 0 — de pilot-default; geen query, geen misleidend
+        // signaal). Een ZZP'er die vandaag actief wordt is "unbilled" tot de volgende dagelijkse run.
+        const period = monthKey(now);
+        const { start, end } = monthRange(now);
+        // unbounded-allow: exact dezelfde lezing als de zzp-membership-taak zelf (één maand goedgekeurde
+        // prestaties), begrensd tot de lopende maand en alleen actief als het lidmaatschap AAN staat (default
+        // uit); een `take` zou de actieve-ZZP'ers-telling ondertellen → vals-negatieve omzet-gauge.
+        const performances = await prisma.performance.findMany({
+          where: membershipPerformanceWhere(start, end),
+          select: membershipPerformanceSelect,
+        });
+        const activeUserIds = activeMembershipUserIds(performances, period);
+        if (activeUserIds.size > 0) {
+          const billed = await prisma.zzpMembershipCharge.count({
+            where: { period, userId: { in: [...activeUserIds] } },
+          });
+          membershipUnbilledActive = Math.max(0, activeUserIds.size - billed);
+        }
+      } catch (error) {
+        await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+      }
+    }
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
@@ -372,6 +406,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     messagesRetentionBacklog,
     webhookEventsRetentionBacklog,
     routingCacheRetentionBacklog,
+    membershipUnbilledActive,
   };
 }
 
