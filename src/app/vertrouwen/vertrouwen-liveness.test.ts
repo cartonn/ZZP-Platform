@@ -117,4 +117,21 @@ describe("/vertrouwen/[profileId]/[token] — liveness- & tenant-poort", () => {
     await render("wrong");
     expect(auditMock).not.toHaveBeenCalled();
   });
+
+  it("laadt alléén OPENBAAR-gemaakte certificaten (PRIVÉ-VOG/BIG/diploma lekt niet op de publieke bearer-URL, OWASP A01 / AVG art. 5, HOOG)", async () => {
+    // `Credential.visibility` staat standaard op PRIVATE en is een per-certificaat consent-toggle; de
+    // sibling publieke viewer `/zzp/[id]` honoreert 'm. Zonder de `visibility: "PUBLIC"`-filter laadde
+    // dit niet-verlopende publieke dossier élk VERIFIED-certificaat (incl. een privé-gehouden VOG/BIG)
+    // en toonde het bij naam/type/uitgever + telde het mee in het vertrouwensniveau. Assert de query-
+    // vorm zelf, zodat PRIVÉ-certificaten deze route nooit verlaten (rood→groen: zonder de fix is de
+    // where enkel `{ status: "VERIFIED" }`).
+    await render("valid");
+    const call = findUniqueMock.mock.calls[0]?.[0] as {
+      select?: { credentials?: { where?: Record<string, unknown> } };
+    };
+    expect(call?.select?.credentials?.where).toEqual({
+      status: "VERIFIED",
+      visibility: "PUBLIC",
+    });
+  });
 });

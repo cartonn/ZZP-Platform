@@ -20,6 +20,7 @@ import { userStatusSchema } from "@/lib/enums";
 import { DISPUTE_ADMIN_NOTIFICATION_TITLE } from "@/lib/cascade/dispute-commands";
 import { collaborationsWithActiveDisputeOpenedBy } from "@/lib/dispute-ownership";
 import { NO_SHOW_REASON_REDACTED, noShowReportedNotificationBody } from "@/lib/no-show";
+import { messageNotificationBody } from "@/lib/messaging";
 import { ideaCommentNotificationTitle, ideaStatusNotificationTitle } from "@/lib/ideas";
 import { shiftHandoffRejectedNotificationBody } from "@/lib/shift-handoff";
 
@@ -359,6 +360,31 @@ export async function anonymizeUser(userId: string): Promise<void> {
     },
   });
 
+  // AVG art. 17: elk door de betrokkene VERZONDEN bericht is óók verbatim (≤120 tekens) naar de body
+  // van de MESSAGE-notificatie op de feed van de ONTVANGER gekopieerd (`sendMessage` in
+  // `berichten/actions.ts`, via `messageNotificationBody`). Die kopie leeft op andermans
+  // `Notification`-rij (userId == ontvanger) en wordt dus NIET geraakt door de brede eigen-feed-wipe
+  // in de transactie (die alleen `userId == betrokkene` matcht) — noch door de `Message.body`-redactie
+  // (andere tabel). Zonder deze redactie overleeft de vrije berichttekst (telefoon/adres/mogelijke
+  // gezondheidsdetails) art. 17 op de ontvangersfeed én in diens AVG-inzage-export
+  // (`account-export.ts` geeft `Notification.body` onvoorwaardelijk prijs). Spiegelt de no-show-/
+  // handoff-/dispuut-drie-kopie-behandeling. Snapshot vóór de transactie (dus vóór de
+  // `Message.body`-redactie), zodat we de originele tekst nog kunnen reconstrueren; de exacte match
+  // (type + gespreks-deep-link + body-slice) raakt nooit een bericht van een ándere afzender.
+  // unbounded-allow: AVG art. 17: alle eigen verzonden berichten van één betrokkene; een take zou stilletjes PII-kopieën laten staan
+  const ownSentMessages = await prisma.message.findMany({
+    where: { senderId: userId },
+    select: { conversationId: true, body: true },
+  });
+  const ownMessageNotificationCopies = Array.from(
+    new Map(
+      ownSentMessages.map((m) => {
+        const body = messageNotificationBody(m.body);
+        return [`${m.conversationId} ${body}`, { conversationId: m.conversationId, body }];
+      }),
+    ).values(),
+  );
+
   const now = new Date();
   const meta = await requestMeta();
   await prisma.$transaction([
@@ -409,6 +435,19 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { userId },
       data: { body: "[Verwijderd op verzoek van de gebruiker]", readAt: null },
     }),
+    // AVG art. 17 (tweede kopie): de verbatim berichttekst in de MESSAGE-notificatie op de feed van
+    // de ONTVANGER (userId == ontvanger, dus buiten de eigen-feed-wipe hierboven). Per uniek
+    // (gesprek, body-slice) gereconstrueerd uit `ownSentMessages` (snapshot vóór deze transactie).
+    // De match op type + exacte deep-link + exacte body-slice is precies genoeg om nooit een bericht
+    // van een ándere afzender in hetzelfde gesprek te raken; matcht toevallig ook de kopie op de eigen
+    // feed (al geredact hierboven) — idempotent, wist nooit minder. Titel ("Nieuw bericht") is
+    // generiek en blijft staan.
+    ...ownMessageNotificationCopies.map((c) =>
+      prisma.notification.updateMany({
+        where: { type: "MESSAGE", link: `/berichten/${c.conversationId}`, body: c.body },
+        data: { body: "[Bericht verwijderd op verzoek van de gebruiker]" },
+      }),
+    ),
     // AVG art. 17 (recht op verwijdering): álle vrije-tekstvelden die de betrokkene zélf schreef en
     // die PII kunnen bevatten worden onomkeerbaar overschreven. Een `user.update` triggert geen
     // cascade op deze kindrijen, dus ze moeten expliciet mee in de transactie — anders blijft

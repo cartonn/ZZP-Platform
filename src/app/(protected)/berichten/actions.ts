@@ -6,7 +6,7 @@ import { AuthorizationError, requireActor, requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { hasTenant, visibleFreelancersWhere } from "@/lib/tenancy";
 import { audit } from "@/lib/audit";
-import { isParticipant } from "@/lib/messaging";
+import { isParticipant, messageNotificationBody } from "@/lib/messaging";
 import { messageRateLimiter } from "@/lib/rate-limit";
 import { messageSchema } from "@/lib/validation";
 
@@ -68,7 +68,7 @@ export async function sendMessage(
           userId,
           type: "MESSAGE",
           title: "Nieuw bericht",
-          body: parsed.data.body.slice(0, 120),
+          body: messageNotificationBody(parsed.data.body),
           link: `/berichten/${conversationId}`,
         },
       }),
