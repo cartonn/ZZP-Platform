@@ -6,6 +6,7 @@ import {
   BarChart3,
   Clock,
   Coins,
+  Download,
   Gauge,
   PieChart,
   Target,
@@ -1054,7 +1055,21 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
         </BiWidget>
       </div>
 
-      <BiWidget title="Per opdrachtgever">
+      <BiWidget
+        title="Per opdrachtgever"
+        action={
+          withActivity.length > 0 ? (
+            <Link
+              href="/franchise/opdrachtgevers/export"
+              prefetch={false}
+              className="focus-ring inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:underline"
+            >
+              <Download className="size-3.5" aria-hidden />
+              Exporteer (CSV)
+            </Link>
+          ) : undefined
+        }
+      >
         {withActivity.length === 0 ? (
           <EmptyState
             icon={Building2}
