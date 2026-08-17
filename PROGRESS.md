@@ -34,8 +34,8 @@ PENDING-bijdragen → verzonden abonnementsfacturen (`ZzpMembershipCharge.invoic
 ## 2026-08-17 — Security/Privacy-audit: bericht-erasure-lek (KRITIEK) + privé-certificaat op publiek dossier (HOOG)
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
-bearer-feeds / erasure-symmetrie / document-serving+IDOR). De delta sinds de vorige ronde (nieuwe CSV-exports
-+ metrics-route + push-heartbeat) was schoon; twee reeds bestaande gaten gevonden én gefixt.
+bearer-feeds / erasure-symmetrie / document-serving+IDOR). De delta sinds de vorige ronde (nieuwe
+CSV-exports, metrics-route, push-heartbeat) was schoon; twee reeds bestaande gaten gevonden én gefixt.
 
 **Fix 1 (KRITIEK · AVG art. 17 · Architectuurregel 5 · OWASP A01):** elk verzonden bericht werd verbatim
 (≤120 tekens) naar `Notification.body` op de feed van de ONTVANGER gekopieerd; de erasure
