@@ -71,8 +71,15 @@ const INVOICES: InvoiceFixture[] = [
   { issuerUserId: USER_ID, status: "CANCELLED", lifecycleStatus: null, totalCents: 8000 },
   { issuerUserId: USER_ID, status: "DRAFT", lifecycleStatus: null, totalCents: 15000 },
   { issuerUserId: USER_ID, status: "PAID", lifecycleStatus: null, totalCents: 50000 },
+  // Betaalde cascade-facturen: legacy status blijft DRAFT, lifecycleStatus is PAID/PROCESSED. Deze
+  // horen bij "betaald" (earnedCents) maar NIET bij "openstaand" — het gat dat earnedCents eerder miste.
+  { issuerUserId: USER_ID, status: "DRAFT", lifecycleStatus: "PAID", totalCents: 25000 },
+  { issuerUserId: USER_ID, status: "DRAFT", lifecycleStatus: "PROCESSED", totalCents: 12000 },
+  // Teruggedraaid: cascade CREDITED telt niet als binnengekomen geld (en ook niet als openstaand).
+  { issuerUserId: USER_ID, status: "CANCELLED", lifecycleStatus: "CREDITED", totalCents: 33000 },
   // Andere ZZP'er: mag nooit meetellen (scoping op issuerUserId).
   { issuerUserId: "u2", status: "SENT", lifecycleStatus: null, totalCents: 123400 },
+  { issuerUserId: "u2", status: "DRAFT", lifecycleStatus: "PAID", totalCents: 456700 },
 ];
 
 const invoiceAggregate = vi.fn(async ({ where }: { where: InvoiceWhere }) => {
@@ -122,5 +129,32 @@ describe("getFreelancerStats — Openstaand-KPI", () => {
     const stats = await getFreelancerStats(USER_ID);
     // De u2-factuur van 123400 zit niet in het totaal.
     expect(stats?.pendingCents).toBeLessThan(123400);
+  });
+});
+
+describe("getFreelancerStats — betaalde omzet (earnedCents)", () => {
+  beforeEach(() => {
+    invoiceAggregate.mockClear();
+  });
+
+  it("telt cascade-PAID/PROCESSED mee ondanks legacy status DRAFT (naast legacy PAID)", async () => {
+    const stats = await getFreelancerStats(USER_ID);
+    // Legacy PAID (99000 status-PAID + 50000) + cascade PAID (25000) + cascade PROCESSED (12000).
+    expect(stats?.earnedCents).toBe(186000);
+    // Zonder de fix (alleen legacy `status: "PAID"`) zou het 149000 zijn — de cascade-facturen die
+    // hun legacy status op DRAFT houden vielen weg.
+    expect(stats?.earnedCents).not.toBe(149000);
+  });
+
+  it("sluit teruggedraaide (CREDITED) en openstaande facturen uit van betaalde omzet", async () => {
+    const stats = await getFreelancerStats(USER_ID);
+    // De CREDITED-factuur (33000) en alle openstaande/concept-facturen tellen niet als binnengekomen geld.
+    expect(stats?.earnedCents).toBe(186000);
+  });
+
+  it("scoopt op de ingelogde ZZP'er (betaalde factuur van een andere uitschrijver telt niet mee)", async () => {
+    const stats = await getFreelancerStats(USER_ID);
+    // De betaalde u2-cascade-factuur van 456700 zit niet in het totaal.
+    expect(stats?.earnedCents).toBeLessThan(456700);
   });
 });

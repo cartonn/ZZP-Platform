@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-17 — Correctheid: betaalde omzet telt cascade-PAID mee (earnedCents/spentCents)
+
+**Wat:** `getFreelancerStats.earnedCents` (ZZP'er `/inzicht`, kaart "omzet die binnen is") en
+`getClientStats.spentCents` (opdrachtgever, "uitgaven die voldaan zijn") telden betaalde omzet op de
+legacy `status: "PAID"`-kolom. Cascade-facturen (de primaire werkproces-flow) houden hun legacy
+`status` op DRAFT en bewegen alleen via `lifecycleStatus` (PAID → PROCESSED), dus élke cascade-betaalde
+factuur telde structureel niet mee — dezelfde wortel als het eerder gedichte "Openstaand"-KPI-gat
+(persona-sweep run 79), maar op de betaald-metriek. Restpunt uit die run.
+
+**Fix:** nieuwe canonieke `src/lib/administration/paid-revenue.ts` (`isInvoicePaidRevenue` +
+`paidRevenueInvoiceWhere`), gespiegeld op `outstandingInvoiceWhere`: cascade telt mee bij PAID/PROCESSED,
+legacy bij PAID; CREDITED (teruggedraaid) en CANCELLED tellen bewust NIET mee (enger dan `isInvoiceSettled`,
+dat afgewikkeld-inclusief-teruggedraaid bedoelt). Beide statsfuncties gebruiken nu `...paidRevenueInvoiceWhere`
+i.p.v. `status: "PAID"` — één bron van waarheid, geen divergente kopie. Read-only, geen schema-/mutatie-/
+auth-oppervlak. +7 tests op de pure helper + 3 integratietests in `freelancer-stats.test.ts` (cascade
+PAID/PROCESSED meegeteld, CREDITED/openstaand uitgesloten, scoping). Gate: typecheck, lint, test, build,
+prettier groen.
+
+**Bestanden:** `src/lib/administration/paid-revenue.ts` (+ `.test.ts`), `src/lib/freelancer-stats.ts`,
+`src/lib/client-stats.ts`, `src/lib/freelancer-stats.test.ts`.
+
 ## 2026-08-17 — Prod-rijpheid: push-aflever-heartbeat (dead-man's-switch voor web-push)
 
 **Wat:** web-push (VAPID/PWA-pushmeldingen) was — anders dan e-mail — een gebruikersgericht

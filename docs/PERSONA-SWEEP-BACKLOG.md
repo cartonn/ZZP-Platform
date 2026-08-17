@@ -65,8 +65,10 @@ asc`-geordende query (alleen certificaat-dragende samenwerkingen vullen het vens
 >   `revenueCountedInvoiceWhere`, gespiegeld op `outstandingInvoiceWhere`/`isInvoiceSettled`): cascade telt
 >   mee tenzij `CREDITED`, legacy tenzij `CANCELLED`; alle vier de fetchers in `revenue-trend.ts` gebruiken
 >   nu `...revenueCountedInvoiceWhere`. +9 tests.
->   _Resterend (apart, niet in deze fix):_ `freelancer-stats.ts`/`client-stats.ts` tellen "betaalde omzet"
->   op `status: "PAID"` (legacy-only, mist cascade-PAID) — andere metriek, andere wortel; volgende increment.
+>   _Resterend (apart, niet in deze fix):_ ~~`freelancer-stats.ts`/`client-stats.ts` tellen "betaalde omzet"
+>   op `status: "PAID"` (legacy-only, mist cascade-PAID)~~ — **OPGELOST (2026-08-17, PR #1124):** canonieke
+>   `src/lib/administration/paid-revenue.ts` (`isInvoicePaidRevenue`/`paidRevenueInvoiceWhere`, cascade
+>   PAID/PROCESSED + legacy PAID; CREDITED/CANCELLED tellen niet mee) gewired in `earnedCents` + `spentCents`.
 > - **Authz-audit-residu (LAAG, dekking):** de authz/IDOR/tenant-audit was representatief, niet 100%
 >   bestandsdekkend; de action-bestanden `abonnement`, `academie`, `beschikbaarheid`, `ideeen`, `ontzorgd/*`,
 >   `prognose`, `rooster`, `uitgaven`, `search` zijn niet individueel geopend (elk gesampled bestandstype toonde

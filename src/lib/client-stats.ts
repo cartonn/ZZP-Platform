@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { clientCredentialAlerts } from "@/lib/collaboration-alerts";
 import { ratePercent } from "@/lib/freelancer-stats";
 import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
+import { paidRevenueInvoiceWhere } from "@/lib/administration/paid-revenue";
 import { plural } from "@/lib/plural";
 
 /**
@@ -68,7 +69,11 @@ export async function getClientStats(userId: string): Promise<ClientStats | null
     oldestNew,
   ] = await Promise.all([
     prisma.invoice.aggregate({
-      where: { counterpartyUserId: userId, status: "PAID" },
+      // "Uitgaven die voldaan zijn" = geld dat de opdrachtgever daadwerkelijk betaald heeft. Net als
+      // bij "Openstaand" mist alléén op de legacy `status: "PAID"` filteren élke cascade-factuur (die
+      // blijft legacy DRAFT en wordt via `lifecycleStatus` PAID/PROCESSED). De canonieke
+      // `paidRevenueInvoiceWhere` dekt beide paden; CREDITED/CANCELLED tellen niet mee.
+      where: { counterpartyUserId: userId, ...paidRevenueInvoiceWhere },
       _sum: { totalCents: true },
     }),
     prisma.invoice.aggregate({

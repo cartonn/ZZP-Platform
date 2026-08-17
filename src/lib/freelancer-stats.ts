@@ -5,6 +5,7 @@
 import { prisma } from "@/lib/db";
 import { type Availability } from "@/lib/enums";
 import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
+import { paidRevenueInvoiceWhere } from "@/lib/administration/paid-revenue";
 
 export interface FreelancerStats {
   /** Betaalde facturen (omzet die binnen is). */
@@ -46,7 +47,11 @@ export async function getFreelancerStats(userId: string): Promise<FreelancerStat
 
   const [paid, pending, approvedHours, collabRows, appRows, matchAgg] = await Promise.all([
     prisma.invoice.aggregate({
-      where: { issuerUserId: userId, status: "PAID" },
+      // "Betaald" = geld dat binnen is. Net als bij "Openstaand" mist alléén op de legacy
+      // `status: "PAID"` filteren élke cascade-factuur: die houdt haar legacy `status` op DRAFT en
+      // wordt via `lifecycleStatus` PAID/PROCESSED. De canonieke `paidRevenueInvoiceWhere` dekt
+      // beide paden (cascade PAID/PROCESSED, legacy PAID); CREDITED/CANCELLED tellen niet mee.
+      where: { issuerUserId: userId, ...paidRevenueInvoiceWhere },
       _sum: { totalCents: true },
     }),
     prisma.invoice.aggregate({
