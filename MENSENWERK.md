@@ -647,6 +647,20 @@ alleen geregistreerd en getoond. De volgende stappen zijn nog mensenwerk:
    de tenant-fee wordt er **nog niets geïncasseerd** — resterend mensenwerk: betaalprovider per ZZP'er
    - het omzetten van de PENDING-bijdragen naar verzonden abonnementsfacturen
      (`ZzpMembershipCharge.invoiceId`). Bedrag bij te stellen in de config.
+     **Code-kant GEDAAN (2026-08-17) — stille-faal-gauge voor de bijdrage-registratie:**
+     `/api/metrics` heeft nu `zzp_membership_unbilled_active` (aantal actieve ZZP'ers in de lopende maand —
+     ≥1 goedgekeurde prestatie die op deze maand valt — zonder `ZzpMembershipCharge` voor die maand die de
+     `zzp-membership`-cron nog niet registreerde). Dit was de enige omzet-/statustaak zónder stille-faal-
+     detector: de cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de bijdrage-registratie
+     verwerkte — bleef dit getal oplopen terwijl de heartbeat "vers" is, dan bleven actieve ZZP'ers deze
+     maand ongefactureerd en lekte de platform-omzet stil weg. De gauge hergebruikt **exact** dezelfde bron
+     van waarheid als de taak (`membershipPerformanceWhere` + `activeMembershipUserIds`, incl. de
+     periode-begin-leidende maand-toewijzing) → kan niet driften. Staat het lidmaatschap **UIT**
+     (`ZZP_MEMBERSHIP.enabled` = false, de pilot-default), dan is de gauge per definitie `0` (geen query,
+     geen misleidend signaal). Drop-in Prometheus-alert `ZzpMembershipUnbilledActive` (`> 0` met `for: 30h`
+     > één cron-interval) in `docs/observability/alerts.yml`, vastgeklonken aan beide drift-gates
+     > (`alerts-rules.ts` + de onderhouds-inhibitie in `alertmanager.yml`). Faalt veilig (nooit een 500),
+     > bevat geen PII. Resterend mensenwerk: **niets extra**.
 
 ---
 

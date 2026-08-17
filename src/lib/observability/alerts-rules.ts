@@ -72,6 +72,7 @@ const SAMPLE_INPUT: MetricsInput = {
   messagesRetentionBacklog: 0,
   webhookEventsRetentionBacklog: 0,
   routingCacheRetentionBacklog: 0,
+  membershipUnbilledActive: 0,
   mailDeliveryOk: true,
   mailDeliveryConsecutiveFailures: 0,
   mailDeliveryLastFailureAgeSeconds: null,
