@@ -23,12 +23,16 @@ const collaborationFindMany = vi.fn((_a: Args) => Promise.resolve(state.renewals
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn(() => Promise.resolve({ tenantId: "t-1" })) },
+    company: { findMany: vi.fn(() => Promise.resolve([])) },
     lead: { count: vi.fn(() => Promise.resolve(0)) },
     shiftHandoff: { count: vi.fn(() => Promise.resolve(0)) },
     credential: { findMany: vi.fn(() => Promise.resolve([])) },
     freelancerProfile: { findMany: vi.fn(() => Promise.resolve([])) },
-    job: { findMany: vi.fn(() => Promise.resolve([])) },
-    collaboration: { findMany: (a: Args) => collaborationFindMany(a) },
+    job: { findMany: vi.fn(() => Promise.resolve([])), groupBy: vi.fn(() => Promise.resolve([])) },
+    collaboration: {
+      findMany: (a: Args) => collaborationFindMany(a),
+      groupBy: vi.fn(() => Promise.resolve([])),
+    },
   },
 }));
 

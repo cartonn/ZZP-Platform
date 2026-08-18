@@ -20,6 +20,7 @@ let rosterQueries: RosterQuery[] = [];
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn(async () => ({ tenantId: "tenant-1" })) },
+    company: { findMany: vi.fn(async () => []) },
     lead: { count: vi.fn(async () => 0) },
     shiftHandoff: { count: vi.fn(async () => 0) },
     credential: { findMany: vi.fn(async () => []) },
@@ -29,8 +30,8 @@ vi.mock("@/lib/db", () => ({
         return [];
       }),
     },
-    job: { findMany: vi.fn(async () => []) },
-    collaboration: { findMany: vi.fn(async () => []) },
+    job: { findMany: vi.fn(async () => []), groupBy: vi.fn(async () => []) },
+    collaboration: { findMany: vi.fn(async () => []), groupBy: vi.fn(async () => []) },
   },
 }));
 

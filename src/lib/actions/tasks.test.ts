@@ -28,6 +28,7 @@ import {
   franchiseStaleDienstTask,
   franchiseStaleDienstRollupTask,
   franchiseLeadFollowupTask,
+  franchiseClientReengagementTask,
   clientComplianceTask,
   reviewLeaveTask,
   respondInvitationTask,
@@ -550,6 +551,24 @@ describe("task builders", () => {
     expect(many.title).toContain("wachten");
     // Roster-compliance weegt zwaarder dan lead-opvolging.
     expect(franchiseCredentialExpiryTask("p", "x", 1).priority).toBeGreaterThan(many.priority);
+  });
+
+  it("bemiddelaar: stilgevallen opdrachtgever is een link-taak naar het klantdetail", () => {
+    const t = franchiseClientReengagementTask("co-1", "Stille Zorg BV", 45);
+    expect(t).toMatchObject({
+      kind: "franchise-client-reengagement",
+      id: "franchise-client-reengagement:co-1",
+      companyId: "co-1",
+      resolver: "link",
+      href: "/franchise/opdrachtgevers/co-1",
+      tone: "attention",
+    });
+    expect(t.priority).toBe(P.franchiserClientReengagement);
+    expect(t.title).toContain("Stille Zorg BV");
+    expect(t.subtitle).toContain("45");
+    // Warmer dan koude lead-acquisitie, maar onder een aflopende plaatsing (daar loopt nog omzet).
+    expect(t.priority).toBeGreaterThan(franchiseLeadFollowupTask(1).priority);
+    expect(t.priority).toBeLessThan(P.franchiserCollaborationRenewal);
   });
 
   it("bemiddelaar: acute-onbezet is een aggregaat link-taak naar /franchise/diensten", () => {

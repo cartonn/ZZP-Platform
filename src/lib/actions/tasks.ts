@@ -107,6 +107,7 @@ export type PendingTask =
   | (TaskBase & { kind: "franchise-stale-service"; jobId: string })
   | (TaskBase & { kind: "franchise-stale-service-rollup" })
   | (TaskBase & { kind: "franchise-collaboration-renewal"; collabId: string })
+  | (TaskBase & { kind: "franchise-client-reengagement"; companyId: string })
   | (TaskBase & { kind: "franchise-guided-setup"; step: string })
   | (TaskBase & {
       kind: "shift-handoff-decide";
@@ -1300,6 +1301,34 @@ export function franchiseCollaborationRenewalTask(
     resolver: "link", // deep-link naar het franchise-samenwerkingoverzicht (geen detailpagina per inzet)
     href: "/franchise/samenwerkingen?status=ACTIVE",
     collabId,
+  };
+}
+
+/**
+ * Een opdrachtgever is stilgevallen: geen open dienst en geen lopende samenwerking, en de laatste
+ * activiteit (of, als er nooit iets liep, de aanmelddatum) is ≥ `CLIENT_IDLE_DAYS` geleden. Dé
+ * re-engagement-actie van de bemiddelaar — een warme, bestaande relatie opnieuw benaderen voor een
+ * vervolgopdracht is hoger-leverage dan koude acquisitie (benchmark Bullhorn/PIDZ-regiokantoor). De
+ * relatiegezondheid stond al op de klantenlijst-strip én het klantdetail, maar niet op /acties of in
+ * een badge — het "signaal op één oppervlak"-anti-patroon dat de codebase herhaaldelijk dicht. Zelfde
+ * pure classificatie (`classifyClientHealth`) als die twee oppervlakken, dus de drie surfaces driften
+ * niet. Deep-link naar het klantdetail waar de bemiddelaar de relatie kan opvolgen.
+ */
+export function franchiseClientReengagementTask(
+  companyId: string,
+  companyName: string,
+  idleDays: number,
+): PendingTask {
+  return {
+    kind: "franchise-client-reengagement",
+    id: `franchise-client-reengagement:${companyId}`,
+    title: `${companyName} is stilgevallen — benader voor een vervolgopdracht`,
+    subtitle: `Geen open dienst of lopende plaatsing · ${plural(idleDays, "dag", "dagen")} rustig`,
+    tone: "attention",
+    priority: P.franchiserClientReengagement,
+    resolver: "link",
+    href: `/franchise/opdrachtgevers/${companyId}`,
+    companyId,
   };
 }
 

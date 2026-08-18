@@ -1101,6 +1101,43 @@ dus een toekomstig debug-logstatement in die flow zou volledige juridische namen
 Overige oppervlakken (IDOR/cross-tenant, injectie/upload/headers/SSRF, token-gated public routes,
 password-reset, `/api/metrics`, `npm audit --omit=dev`) getraceerd schoon; details in de backlog.
 
+---
+
+## 2026-08-13 — bemiddelaar: stilgevallen opdrachtgever als next-action op /acties + badge
+
+**Wat:** De relatiegezondheid "stilgevallen opdrachtgever" (`attention`-tier: geen open dienst én geen
+lopende samenwerking, ≥ `CLIENT_IDLE_DAYS`=30 dagen rustig) stond al op de klantenlijst-strip
+(`/franchise/opdrachtgevers`) én op het klantdetail (`ClientReengagementCard`), maar ontbrak op `/acties`
+en `/franchise/opdrachtgevers` was het **enige** bemiddeling-navitem met een pagina-signaal zónder badge —
+het "signaal op één oppervlak"-anti-patroon dat de codebase herhaaldelijk dicht (spiegelt de CLIENT
+cold-jobs-fix + de franchise-renewal-badge #1063). Een warme, bestaande relatie opnieuw benaderen voor een
+vervolgopdracht is hoger-leverage dan koude acquisitie (benchmark Bullhorn/PIDZ-regiokantoor); dit is dé
+re-engagement-actie van de bemiddelaar.
+
+**Verandering:**
+
+- **Eén bron van waarheid:** nieuwe pure `buildClientActivityInputs` + `clientIdleDays` in
+  `src/lib/franchise/client-health.ts` — de "laatst-actief"-afleiding (recentste van open-opdracht vs.
+  laatste samenwerking) leeft nu op één plek. De klantenlijst-pagina, de next-action-engine én de nav-badge
+  delen 'm, dus de drie oppervlakken kunnen niet driften (`classifyClientHealth` was al gedeeld).
+- **/acties:** nieuwe `franchiseClientReengagementTask` (kind `franchise-client-reengagement`, tone
+  `attention`, deep-link naar het klantdetail) in `franchiserTasks` (`pending-tasks.ts`) — één taak per
+  `attention`-klant. Prioriteit `P.franchiserClientReengagement`=55: onder een aflopende plaatsing (62,
+  daar loopt nog omzet), boven een koude lead (50, bestaande relatie = hogere kans).
+- **Badge:** nieuwe `attentionClients`-telling in `signals.ts` (href `/franchise/opdrachtgevers`, tone
+  `attention`) = exact het aantal /acties-taken (zelfde `buildClientActivityInputs` → `summarizeClientHealth`).
+- Query-scope in engine + badge spiegelt de pagina exact: `company.findMany({ where: { tenantId } })` +
+  twee gegroepeerde aggregaten (open-opdrachten, laatste-samenwerking) — geen N+1. Server-side waarheid,
+  read-only signaal, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+
+**Bestanden:** `src/lib/franchise/client-health.ts` (+`.test.ts`), `src/lib/actions/tasks.ts` (+`.test.ts`),
+`src/lib/actions/pending-tasks.ts` (+`pending-tasks-franchiser.test.ts`), `src/lib/next-actions.ts`,
+`src/lib/signals.ts` (+`.test.ts`), `src/app/(protected)/franchise/opdrachtgevers/page.tsx` (deelt nu de
+helper). +tests (helper-afleiding/idle-days, builder+prioriteitsordening, engine-emissie×3, badge-pariteit).
+Gate: typecheck, lint, test, build, prettier groen.
+
+**Volgende stap:** volgend concurrent-gedreven UX/data-increment of HOOG-gat uit de backlog.
+
 ## 2026-08-13 — prod: retry + env-time-out hardening op de externe verificatie-HTTP (DUO/BIG/iDIN)
 
 **Wat:** De gedeelde verificatie-HTTP-helper (`src/lib/services/http-verify.ts`, gebruikt door de echte

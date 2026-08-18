@@ -381,6 +381,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 > eis beide of geen) + subject-formaatvalidatie. system-status: posture-item "Push-notificaties" (ok als bekabeld, anders fallback — optionele
 > extra, nooit "aandacht"). +24 tests (config/env/system-status). Geen schema-/mutatie-/auth-oppervlak; geen gedragswijziging als push al bekabeld
 > is. Resterend mensenwerk: optioneel `npx web-push generate-vapid-keys` + de sleutels in de secrets. Gate: typecheck, lint, test, build, prettier groen.
+
+---
+
+> Gedaan (niet opnieuw): **Bemiddelaar — stilgevallen opdrachtgever als next-action op /acties + /franchise/opdrachtgevers-badge (2026-08-13, PR #1083)** —
+> de relatiegezondheid "stilgevallen opdrachtgever" (`attention`-tier: geen open dienst én geen lopende samenwerking, ≥ `CLIENT_IDLE_DAYS`=30 dagen
+> rustig) stond al op de klantenlijst-strip én het klantdetail (`ClientReengagementCard`), maar niet op `/acties`, en `/franchise/opdrachtgevers` was
+> het enige bemiddeling-navitem met een pagina-signaal zónder badge — het "signaal op één oppervlak"-anti-patroon. Re-engagement van een warme,
+> bestaande relatie is hoger-leverage dan koude acquisitie (benchmark Bullhorn/PIDZ-regiokantoor). Nu emit `franchiserTasks` per `attention`-klant een
+> `franchiseClientReengagementTask` (kind `franchise-client-reengagement`, deep-link naar het klantdetail) op /acties + de rail, en `signals.ts` telt
+> `attentionClients` als badge op `/franchise/opdrachtgevers` (exact het aantal /acties-taken). Eén bron van waarheid: nieuwe pure
+> `buildClientActivityInputs`/`clientIdleDays` in `client-health.ts` die de klantenlijst-pagina, de engine én de badge delen (de "laatst-actief"-
+> afleiding leeft op één plek → geen drift). Prioriteit `P.franchiserClientReengagement`=55 (onder aflopende plaatsing 62, boven koude lead 50).
+> Query spiegelt de pagina exact (`company.findMany({ where:{ tenantId }})` + 2 groupBy-aggregaten, geen N+1). Server-side waarheid, read-only signaal,
+> geen schema-/mutatie-/auth-oppervlak. +tests (helper, builder+ordening, engine×3, badge-pariteit). Gate: typecheck, lint, test, build, prettier groen.
 >
 > Gedaan (niet opnieuw): **ZZP'er — verwachte betaaldatum in de openstaande-posten CSV (debiteurenlijst) (2026-08-13, PR #1075)** —
 > de `/openstaand`-pagina toont de ZZP'er per post de realistische verwachte-betaaldatum (uit het betaalgedrag van de opdrachtgever), maar de

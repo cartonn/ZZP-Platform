@@ -20,7 +20,10 @@ const applicationFindMany = vi.fn((_a: Args) => Promise.resolve([] as unknown[])
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn(() => Promise.resolve({ tenantId: "t-1" })) },
-    company: { findUnique: vi.fn(() => Promise.resolve({ id: "co-1" })) },
+    company: {
+      findUnique: vi.fn(() => Promise.resolve({ id: "co-1" })),
+      findMany: vi.fn(() => Promise.resolve([])),
+    },
     application: {
       count: vi.fn(() => Promise.resolve(0)),
       findMany: (a: Args) => applicationFindMany(a),
@@ -28,10 +31,12 @@ vi.mock("@/lib/db", () => ({
     job: {
       count: vi.fn(() => Promise.resolve(0)),
       findMany: (a: Args) => jobFindMany(a),
+      groupBy: vi.fn(() => Promise.resolve([])),
     },
     collaboration: {
       count: vi.fn(() => Promise.resolve(0)),
       findMany: vi.fn(() => Promise.resolve([])),
+      groupBy: vi.fn(() => Promise.resolve([])),
     },
     performance: { count: vi.fn(() => Promise.resolve(0)) },
     invoice: {

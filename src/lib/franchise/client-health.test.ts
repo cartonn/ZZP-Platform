@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   CLIENT_IDLE_DAYS,
+  buildClientActivityInputs,
   classifyClientHealth,
   clientHealthHeadline,
   clientHealthLabel,
+  clientIdleDays,
   summarizeClientHealth,
   type ClientActivityInput,
 } from "@/lib/franchise/client-health";
@@ -123,5 +125,56 @@ describe("clientHealthLabel", () => {
     expect(clientHealthLabel("active")).toEqual({ label: "Plaatst nu", tone: "success" });
     expect(clientHealthLabel("attention")).toEqual({ label: "Stilgevallen", tone: "warning" });
     expect(clientHealthLabel("quiet")).toEqual({ label: "Rustig", tone: "muted" });
+  });
+});
+
+describe("clientIdleDays", () => {
+  it("telt vanaf de laatste activiteit als die er is", () => {
+    const lastActivityAt = new Date(NOW.getTime() - 12 * 24 * 60 * 60 * 1000);
+    expect(clientIdleDays(client({ lastActivityAt }), NOW)).toBe(12);
+  });
+
+  it("valt terug op de aanmelddatum als er nooit activiteit was", () => {
+    const createdAt = new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000);
+    expect(clientIdleDays(client({ createdAt, lastActivityAt: null }), NOW)).toBe(40);
+  });
+});
+
+describe("buildClientActivityInputs", () => {
+  const createdAt = new Date("2026-01-01T00:00:00Z");
+  const olderJob = new Date("2026-05-01T00:00:00Z");
+  const newerCollab = new Date("2026-06-01T00:00:00Z");
+
+  it("kiest het recentste activiteitsmoment (open-opdracht vs. laatste samenwerking)", () => {
+    const map = buildClientActivityInputs(
+      [{ id: "c1", createdAt, activeCollaborationCount: 0 }],
+      [{ companyId: "c1", _count: { _all: 3 }, _max: { createdAt: olderJob } }],
+      [{ companyId: "c1", _max: { updatedAt: newerCollab } }],
+    );
+    const input = map.get("c1")!;
+    expect(input.publishedJobCount).toBe(3);
+    expect(input.lastActivityAt).toEqual(newerCollab);
+  });
+
+  it("laat lastActivityAt null als er geen enkele activiteit is (valt terug op aanmelddatum in de classificatie)", () => {
+    const map = buildClientActivityInputs(
+      [{ id: "c2", createdAt, activeCollaborationCount: 0 }],
+      [],
+      [],
+    );
+    const input = map.get("c2")!;
+    expect(input.publishedJobCount).toBe(0);
+    expect(input.lastActivityAt).toBeNull();
+    expect(classifyClientHealth(input, NOW)).toBe("attention");
+  });
+
+  it("neemt de actieve-samenwerkingstelling over uit de bedrijf-rij", () => {
+    const map = buildClientActivityInputs(
+      [{ id: "c3", createdAt, activeCollaborationCount: 2 }],
+      [],
+      [],
+    );
+    expect(map.get("c3")!.activeCollaborationCount).toBe(2);
+    expect(classifyClientHealth(map.get("c3")!, NOW)).toBe("active");
   });
 });

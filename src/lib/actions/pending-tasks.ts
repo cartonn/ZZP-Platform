@@ -69,6 +69,7 @@ import {
   franchiseStaleDienstTask,
   franchiseStaleDienstRollupTask,
   franchiseCollaborationRenewalTask,
+  franchiseClientReengagementTask,
   franchiseGuidedSetupTasks,
   shiftHandoffTask,
   clientComplianceTask,
@@ -109,6 +110,11 @@ import { collaborationBlocksProposal } from "@/lib/collaboration-reproposal";
 import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 import { getRosterFillSignalsForTenant } from "@/lib/franchise/dienst-fill-signal";
 import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
+import {
+  buildClientActivityInputs,
+  classifyClientHealth,
+  clientIdleDays,
+} from "@/lib/franchise/client-health";
 
 /** Harde bovengrens per kind (voorkomt N+1/zware lijsten op /acties); "+N meer" buiten beschouwing. */
 const MAX = 50;
@@ -1219,6 +1225,9 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     companiesWithoutDiensten,
     openHandoffs,
     endingCollabs,
+    reengageCompanies,
+    reengagePublishedJobs,
+    reengageCollabActivity,
   ] = await Promise.all([
     // De in-venster (now, soon] verlopende VERIFIED-certs van tenant-ZZP'ers — de kandidaat-nudges.
     // Alleen op dit venster filteren (niet álle certs) is bewust: onbeperkt-geldige certs
@@ -1357,6 +1366,31 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
       },
       orderBy: { endDate: "asc" },
       take: MAX,
+    }),
+    // Relatiegezondheid-bron voor de re-engagement-taak: alle tenant-opdrachtgevers + hun actieve
+    // samenwerkingen. `unbounded-allow`: exact de scope/definitie van /franchise/opdrachtgevers
+    // (`tenantScopeWhere` = `{ tenantId }`; per tenant een beheerbaar aantal bedrijven), zodat /acties,
+    // de badge en de klantenlijst-pagina niet driften. De twee groupBy-aggregaten hieronder leveren de
+    // open-opdracht-telling en het laatste-activiteitsmoment.
+    prisma.company.findMany({
+      where: { tenantId },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        _count: { select: { collaborations: { where: { status: "ACTIVE" } } } },
+      },
+    }),
+    prisma.job.groupBy({
+      by: ["companyId"],
+      where: { company: { tenantId }, status: "PUBLISHED" },
+      _count: { _all: true },
+      _max: { createdAt: true },
+    }),
+    prisma.collaboration.groupBy({
+      by: ["companyId"],
+      where: { company: { tenantId } },
+      _max: { updatedAt: true },
     }),
   ]);
 
@@ -1508,6 +1542,25 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
         renewal.daysRemaining,
       ),
     );
+  }
+
+  // Stilgevallen opdrachtgevers (geen open dienst/lopende plaatsing, ≥ CLIENT_IDLE_DAYS rustig) — het
+  // re-engagement-signaal. Zelfde pure afleiding + classificatie (`buildClientActivityInputs`/
+  // `classifyClientHealth`) als de klantenlijst-strip en de nav-badge, dus de drie oppervlakken driften
+  // niet. Eén taak per `attention`-klant; de badge telt exact dit aantal.
+  const clientActivity = buildClientActivityInputs(
+    reengageCompanies.map((c) => ({
+      id: c.id,
+      createdAt: c.createdAt,
+      activeCollaborationCount: c._count.collaborations,
+    })),
+    reengagePublishedJobs,
+    reengageCollabActivity,
+  );
+  for (const c of reengageCompanies) {
+    const activity = clientActivity.get(c.id);
+    if (!activity || classifyClientHealth(activity, now) !== "attention") continue;
+    tasks.push(franchiseClientReengagementTask(c.id, c.name, clientIdleDays(activity, now)));
   }
 
   return tasks;

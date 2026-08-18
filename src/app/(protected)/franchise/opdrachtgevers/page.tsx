@@ -14,10 +14,10 @@ import { plural } from "@/lib/plural";
 import { cn } from "@/lib/utils";
 import { ClientHealthStrip } from "@/components/franchise/client-health-strip";
 import {
+  buildClientActivityInputs,
   classifyClientHealth,
   clientHealthLabel,
   summarizeClientHealth,
-  type ClientActivityInput,
   type ClientHealth,
 } from "@/lib/franchise/client-health";
 
@@ -87,28 +87,17 @@ export default async function FranchiseOpdrachtgeversPage({
       : Promise.resolve([]),
   ]);
 
-  const publishedByCompany = new Map(publishedJobs.map((g) => [g.companyId, g]));
-  const lastCollabByCompany = new Map(collabActivity.map((g) => [g.companyId, g._max.updatedAt]));
-
   const now = new Date();
-  const activityByCompany = new Map<string, ClientActivityInput>();
-  for (const c of companies) {
-    const pub = publishedByCompany.get(c.id);
-    const lastJobAt = pub?._max.createdAt ?? null;
-    const lastCollabAt = lastCollabByCompany.get(c.id) ?? null;
-    const lastActivityAt =
-      lastJobAt && lastCollabAt
-        ? lastJobAt > lastCollabAt
-          ? lastJobAt
-          : lastCollabAt
-        : (lastJobAt ?? lastCollabAt);
-    activityByCompany.set(c.id, {
+  // Eén bron van waarheid met /acties + de nav-badge: dezelfde pure afleiding van de klant-activiteit.
+  const activityByCompany = buildClientActivityInputs(
+    companies.map((c) => ({
+      id: c.id,
       createdAt: c.createdAt,
-      publishedJobCount: pub?._count._all ?? 0,
       activeCollaborationCount: c._count.collaborations,
-      lastActivityAt,
-    });
-  }
+    })),
+    publishedJobs,
+    collabActivity,
+  );
 
   const summary = summarizeClientHealth([...activityByCompany.values()], now);
 
