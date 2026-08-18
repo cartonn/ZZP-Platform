@@ -80,14 +80,14 @@ export async function runHealthIncidentRetentionTask(opts: {
     let redactedInBatch = 0;
     for (const row of stale) {
       const next = redactIncidentIp(row);
-      if (!next) continue; // defensief: query filtert dit al weg.
-      // Redact ELKE kolom van de rij die het IP droeg (evidence, summary én de machine-dedupeKey).
-      await prisma.healthIncident.update({
-        where: { id: row.id },
-        data: { evidence: next.evidence, summary: next.summary, dedupeKey: next.dedupeKey },
-      });
-      // Afgeleide kopieën die hetzelfde IP droegen mee-redigeren, zodat de opslagbeperking over álle
-      // stores geldt (het IP is triviaal terug te halen uit één ongeredigeerde kopie):
+      if (!next) continue; // defensief: query filtert dit al weg (zie de break-uitleg onderaan).
+      // Volgorde is bewust: redigeer eerst de AFGELEIDE kopieën, en de incident-rij ALS LAATSTE.
+      // Zodra de rij is geredigeerd valt ze buiten de kandidaatquery (evidence bevat de sentinel);
+      // ware ze eerst aan de beurt, dan zou een crash vóór de kopie-updates het IP permanent in de
+      // auditregel/notificatie achterlaten (de rij wordt nooit meer opgepakt). Nu blijft de rij het
+      // worklist-anker tot alle kopieën schoon zijn; een re-run na crash herberekent dezelfde
+      // deterministische `next`-waarden en convergeert (updateMany matcht dan 0 op reeds-geredigeerde
+      // kopieën). De kopieën dragen hetzelfde IP:
       //  1) de auditregel HEALTH_INCIDENT_OPENED bewaart het (oude) dedupeKey als entityId;
       //  2) de admin-notificatie (bij CRITICAL) kopieert de summary in de body.
       if (next.dedupeKey !== row.dedupeKey) {
@@ -102,12 +102,19 @@ export async function runHealthIncidentRetentionTask(opts: {
           data: { body: next.summary },
         });
       }
+      // Redact ELKE kolom van de rij die het IP droeg (evidence, summary én de machine-dedupeKey) —
+      // als laatste stap, zodat de rij pas uit de worklist valt als de kopieën al schoon zijn.
+      await prisma.healthIncident.update({
+        where: { id: row.id },
+        data: { evidence: next.evidence, summary: next.summary, dedupeKey: next.dedupeKey },
+      });
       redactedInBatch += 1;
     }
     redacted += redactedInBatch;
 
-    // Vangnet tegen een oneindige lus: als een volle batch niets redigeerde (zou niet mogen na de
-    // query-sluitingen), stop dan i.p.v. dezelfde rijen te blijven ophalen.
+    // Vangnet tegen een oneindige lus: een rij waarvoor `redactIncidentIp` `null` gaf (bv.
+    // onparseerbare evidence met een toevallige `"ip":"`-substring) blijft in de kandidaatset staan;
+    // als een volle batch niets redigeerde, stop dan i.p.v. diezelfde rijen te blijven ophalen.
     if (redactedInBatch === 0) break;
     if (stale.length < BATCH_SIZE) break;
   }

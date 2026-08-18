@@ -218,6 +218,38 @@ describe("runHealthIncidentRetentionTask", () => {
     expect(notif.body).toContain(AUDIT_PII_REDACTED);
   });
 
+  it("convergeert na een gedeeltelijke run: incident nog IP-dragend, kopieën al schoon", async () => {
+    // Simuleert een crash die de kopie-updates wél maar de incident-rij-update niet meer haalde
+    // (de kopieën gaan nu eerst). De rij houdt het oude IP; een re-run moet de rij alsnog redigeren
+    // zonder de reeds-schone kopieën te raken. Bewijst dat de rij het worklist-anker blijft.
+    ipIncident("old", "203.0.113.7", 120);
+    store.auditLogs.push({
+      id: "audit-open-old",
+      action: "HEALTH_INCIDENT_OPENED",
+      entityType: "HealthIncident",
+      entityId: `auth-login-burst-${AUDIT_PII_REDACTED}-w-old`, // al geredigeerd
+      createdAt: new Date(NOW.getTime() - 120 * DAY),
+    });
+    store.notifications.push({
+      id: "notif-old",
+      type: "HEALTH_INCIDENT",
+      body: `12 mislukte inlogpogingen vanaf IP ${AUDIT_PII_REDACTED} in het laatste uur.`, // al geredigeerd
+    });
+
+    const result = await runHealthIncidentRetentionTask({ now: NOW });
+
+    expect(result.redacted).toBe(1);
+    const row = store.incidents.find((r) => r.id === "old")!;
+    expect(`${row.evidence}\n${row.summary}\n${row.dedupeKey}`).not.toContain("203.0.113.7");
+    // Kopieën blijven schoon (geen dubbele redactie, geen IP teruggekomen).
+    expect(store.auditLogs.find((r) => r.id === "audit-open-old")!.entityId).not.toContain(
+      "203.0.113.7",
+    );
+    expect(store.notifications.find((r) => r.id === "notif-old")!.body).not.toContain(
+      "203.0.113.7",
+    );
+  });
+
   it("laat verse incidenten (binnen het venster) ongemoeid — IP blijft voor onderzoek", async () => {
     ipIncident("fresh", "198.51.100.9", 10); // binnen 90 dagen
     const result = await runHealthIncidentRetentionTask({ now: NOW });
