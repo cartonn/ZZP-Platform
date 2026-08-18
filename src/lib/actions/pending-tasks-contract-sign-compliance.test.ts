@@ -31,14 +31,31 @@ vi.mock("@/lib/db", () => ({
     collaboration: {
       findMany: vi.fn(
         async (args?: {
-          where?: { status?: { in?: string[] }; company?: unknown; freelancer?: unknown };
+          where?: {
+            status?: { in?: string[] } | string;
+            company?: unknown;
+            freelancer?: unknown;
+            endDate?: unknown;
+            job?: unknown;
+            OR?: unknown;
+          };
         }) => {
-          const inList = args?.where?.status?.in ?? [];
-          const isProposedActive = inList.includes("ACTIVE") && !inList.includes("COMPLETED");
-          if (!isProposedActive) return [];
+          const w = args?.where ?? {};
+          if (w.status === "COMPLETED") return [];
+          if (w.endDate !== undefined) return [];
           // Onderscheid de ZZP'er-query (where.freelancer) van de opdrachtgever-query (where.company).
-          if (args?.where?.company) return state.clientCollabs;
-          if (args?.where?.freelancer) return state.freelancerCollabs;
+          const src = (w.company ? state.clientCollabs : state.freelancerCollabs) as {
+            status: string;
+          }[];
+          // credentialCollabs (status {in:[...]} + job-filter, ZZP'er) → alle PROPOSED/ACTIVE.
+          if (typeof w.status === "object" && w.status?.in) {
+            return src.filter((c) => c.status === "PROPOSED" || c.status === "ACTIVE");
+          }
+          // Ongewindowde teken-query (PROPOSED) — run 81.
+          if (w.status === "PROPOSED") return src.filter((c) => c.status === "PROPOSED");
+          // Ongewindowde indien-query (ACTIVE + OR) — run 81.
+          if (w.status === "ACTIVE" && w.OR !== undefined)
+            return src.filter((c) => c.status === "ACTIVE");
           return [];
         },
       ),
