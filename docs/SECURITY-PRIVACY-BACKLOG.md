@@ -4,6 +4,66 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-18b (basis: `main` @ d61d5236) — 1× MIDDEL OPGELOST (fail-open rol-dispatch lekte admin-taken)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken van
+de delta `590ffb7f..d61d5236` (18 commits): 1) **BI-/aggregatie-/reputatie-privacy** — `client-spend-breakdown`,
+`freelancer-revenue-breakdown`, `client-stats`, `freelancer-stats`, `revenue-trend`, `freelancer-reputation`
+(+`data/`), `roster-engageability`, `diensten-summary`, `market-rate` k-anonimiteit, `public-trust` en de
+publieke bearer-token-dossierpagina `vertrouwen/[profileId]/[token]` (+33 regels reputatiesectie); 2)
+**server-action-authz-keten** — `actions/pending-tasks.ts` (+292), `actions/tasks.ts`, `diensten/**`
+(import/export/page); 3) **multi-tenant/franchise-isolatie** — `franchise/diensten` + `franchise/opdrachtgevers`
+(lijst + detail `[id]`), `franchise/client-health`, `franchise/dienst-status-filter`, `tenancy.ts`. Plus
+orchestrator-probes: `$queryRawUnsafe`/`queryRawUnsafe`=**0**, enige `dangerouslySetInnerHTML`=nonce-theme-script
+(`layout.tsx`), geen user-gestuurde `fetch`/SSRF, geen param-gestuurde open redirect, `api/metrics` = CRON_SECRET
+bearer fail-closed (geen PII/secret in output, `no-store`).
+
+**Uitkomst:** BI-surface + franchise-tenant-isolatie (incl. de detail-`[id]`-routes: `getDienstDetail` faalt
+gesloten op `job.tenantId !== tenantId`; `setDienstStatus`/`removeDepartment`/`proposeFreelancer` allen
+`ownsViaTenant`-gescoopt + geaudit) **schoon** — geen nieuwe KRITIEK/HOOG. **Eén MIDDEL fail-open gedicht**
+(zie onder). Twee LAAG-items geparkeerd.
+
+### OPGELOST — Fail-open rol-dispatch in `computeTasks` lekt platform-brede admin-taken bij een onbekende rol (MIDDEL · OWASP A01 · CLAUDE.md regel 1 fail-closed + regel 6 enums-als-strings)
+
+**Geschonden regel:** Server-side waarheid / fail-closed (regel 1) + enums-als-strings (regel 6) + OWASP A01
+(Broken Access Control — fail-open default).
+
+**Repro (vóór de fix):** `src/lib/actions/pending-tasks.ts:319-326`. De rol-dispatch `computeTasks(userId, role)`
+behandelde met `return rankTasks(await adminTasks())` álles wat geen `FREELANCER`/`CLIENT`/`FRANCHISER` was als
+admin. `adminTasks()` is bewust ongescoopt en geeft platform-brede, gevoelige PII terug: AVG-verwijderverzoeken
+(mét naam), open disputen, no-show-meldingen, SUBMITTED-verificatie-inzenders (mét naam), open supporttickets.
+Rollen zijn strings (regel 6), en `pendingTaskCount(userId, role: string)` (sidebar-badge in `app-shell.tsx`)
+neemt de rol als vrije string aan. Een out-of-enum rol (bad migration, directe DB-write, een toekomstige 5e rol
+die deze switch niet bijwerkt) viel zo stil door naar de volledige admin-takenlijst i.p.v. te weigeren. Test met
+een gemockte SUBMITTED-verificatie bevestigde: onbekende rol → adminTasks() draaide → de inzender-PII kwam als
+taak terug (`pendingTaskCount` telde 'm mee).
+
+**Fix (dit PR):** expliciete `if (role === "ADMIN") return rankTasks(await adminTasks());` + `return []` op de
+fallthrough (fail-closed). Alleen een expliciete ADMIN ziet nog adminTasks; elke onbekende rol krijgt een lege
+lijst. **Test (rood→groen):** `src/lib/actions/pending-tasks-unknown-role-fail-closed.test.ts` — onbekende rol
+→ `[]` én géén admin-query aangeraakt (rood: lekte de gemockte verificatie); `pendingTaskCount(..,"DEMO")` = 0;
+controle: ADMIN raakt de admin-queries nog wél (fix beperkt tot onbekende rollen).
+
+### GEPARKEERD — Sidebar-badge `pendingTaskCount` voedt zich met de (mogelijk stale) JWT-rol i.p.v. een verse DB-rol (LAAG · CLAUDE.md regel 1 in spirit)
+
+**Repro:** `src/components/app-shell.tsx:35,41` roept `pendingTaskCount(user.id, user.role)` met `user.role` uit
+de sessie/JWT (`auth.config.ts`: rol wordt op de JWT gezet bij inlog, niet her-gelezen uit de DB tijdens de
+silent refresh binnen `maxAge`). Een mid-sessie gedegradeerde ex-admin ziet z'n badge-telling nog even de
+admin-wachtrij-omvang weerspiegelen tot de token cyclet. **Alleen count** (geen entiteit-PII: `/acties` zelf
+gebruikt `requireActor()` → verse DB-rol, dus de takenlíjst lekt niet), self-healing binnen het sessievenster,
+en `/admin`-toegang wordt door verse `requireRole`-checks alsnog geblokkeerd. **Aanbevolen fix:** laat de
+sidebar-badge een verse rol afleiden (`currentActor()`) of laat `pendingTaskCount` een geverifieerde `Actor`
+aannemen i.p.v. een rauwe `role: string`. Cosmetisch/badge-only → LAAG; de fail-closed dispatch hierboven dekt
+bovendien het onbekende-rol-deel af (een stale-maar-geldige "ADMIN" blijft over).
+
+### GEPARKEERD — Reputatie-aggregaat zonder minimum-sample-drempel (LAAG · informatief)
+
+**Repro:** `src/lib/data/freelancer-reputation.ts` toont het reputatie-gemiddelde zodra `count >= 1`; bij precies
+één gepubliceerde beoordeling is het getoonde gemiddelde numeriek gelijk aan die ene score. Dit betreft de
+**eigen** reputatie van de ZZP'er (die de dossierlink zelf deelt), geen derde-partij-PII, en volgt de bestaande
+platformconventie (`company-reputation`, `candidate-reviews` hebben ook geen min-count-gate). **Geen exploit.**
+**Aanbeveling (optioneel, consistentie):** een uniforme `n>=3`-vloer over alle review-surfaces overwegen.
+
 ## Ronde 2026-08-18 (basis: `main` @ 590ffb7f) — 1× MIDDEL OPGELOST (platformfactuur-PDF not-found-tak ongeaudit)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
