@@ -39,7 +39,7 @@ import {
 } from "@/lib/revenue-trend";
 import { formatEuro } from "@/lib/invoices";
 import { cn } from "@/lib/utils";
-import { plural } from "@/lib/plural";
+import { plural, pluralWord } from "@/lib/plural";
 import { summarizeClientApplications } from "@/lib/client-application-funnel";
 import {
   toDonutData,
@@ -597,7 +597,7 @@ function BetaalgedragPerOpdrachtgeverWidget({ rows }: { rows: PayerBehaviorRow[]
                       <span className="font-medium tabular-nums text-foreground">
                         {behavior.avgDaysToPay}
                       </span>{" "}
-                      {plural(behavior.avgDaysToPay, "dag", "dagen")} betaaltijd
+                      {pluralWord(behavior.avgDaysToPay, "dag", "dagen")} betaaltijd
                     </span>
                   )}
                   {behavior.onTimePct != null && (
@@ -608,9 +608,7 @@ function BetaalgedragPerOpdrachtgeverWidget({ rows }: { rows: PayerBehaviorRow[]
                       op tijd
                     </span>
                   )}
-                  <span>
-                    {behavior.sampleSize} {plural(behavior.sampleSize, "betaling", "betalingen")}
-                  </span>
+                  <span>{plural(behavior.sampleSize, "betaling", "betalingen")}</span>
                 </div>
               </div>
             );
