@@ -72,14 +72,19 @@ export async function getClientStats(userId: string): Promise<ClientStats | null
       // "Uitgaven die voldaan zijn" = geld dat de opdrachtgever daadwerkelijk betaald heeft. Net als
       // bij "Openstaand" mist alléén op de legacy `status: "PAID"` filteren élke cascade-factuur (die
       // blijft legacy DRAFT en wordt via `lifecycleStatus` PAID/PROCESSED). De canonieke
-      // `paidRevenueInvoiceWhere` dekt beide paden; CREDITED/CANCELLED tellen niet mee.
-      where: { counterpartyUserId: userId, ...paidRevenueInvoiceWhere },
+      // `paidRevenueInvoiceWhere` dekt beide paden; CREDITED/CANCELLED tellen niet mee. Scoping via de
+      // altijd-gevulde relatie (`collaboration.company.userId`) i.p.v. de kolom `counterpartyUserId`
+      // (alleen door de cascade-handler gezet), zodat ook legacy loose-facturen meetellen.
+      where: { collaboration: { company: { userId } }, ...paidRevenueInvoiceWhere },
       _sum: { totalCents: true },
     }),
     prisma.invoice.aggregate({
       // Cascade-bewust: cascade-facturen blijven status='DRAFT' en gelden als openstaand op hun
-      // lifecycleStatus (SUBMITTED/APPROVED/OVERDUE); legacy-facturen op status SENT/OVERDUE.
-      where: { counterpartyUserId: userId, ...outstandingInvoiceWhere },
+      // lifecycleStatus (SUBMITTED/APPROVED/OVERDUE); legacy-facturen op status SENT/OVERDUE. Scoping
+      // via de altijd-gevulde relatie (`collaboration.company.userId`) i.p.v. de kolom
+      // `counterpartyUserId` (alleen door de cascade-handler gezet), zodat ook legacy loose-facturen
+      // meetellen.
+      where: { collaboration: { company: { userId } }, ...outstandingInvoiceWhere },
       _sum: { totalCents: true },
     }),
     prisma.job.count({

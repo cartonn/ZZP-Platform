@@ -126,6 +126,12 @@ interface UnreadConversation {
 async function unreadConversations(userId: string): Promise<UnreadConversation[]> {
   const participants = await prisma.conversationParticipant.findMany({
     where: { userId },
+    // Deterministisch ordenen vóór de `.slice(0, MAX)` verderop: Prisma garandeert geen rijvolgorde
+    // zonder orderBy, dus bij >MAX gelijktijdig-ongelezen gesprekken zou wisselen wélke MAX in het
+    // venster landen — de berichttaak flikkert dan tussen requests (verschijnt/verdwijnt). `conversationId
+    // asc` is stabiel en altijd aanwezig → self-healing venster (zelfde conventie als de andere gewindowde
+    // queries hier).
+    orderBy: { conversationId: "asc" },
     select: { conversationId: true, lastReadAt: true },
   });
   if (participants.length === 0) return [];
@@ -949,6 +955,12 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
           },
         },
       },
+      // Deterministisch ordenen bij de take-limiet: Prisma garandeert geen rijvolgorde zonder orderBy,
+      // dus bij >MAX gelijktijdige cascade-overdue-facturen zou wisselen wélke MAX het venster vullen —
+      // de betaal-nudge flikkert dan tussen requests (verschijnt/verdwijnt), tegen de badge-telling in.
+      // `createdAt asc` (oudste blijft staan → self-healing) volgt de conventie van de andere gewindowde
+      // queries in dit bestand (openInvoices, credentialCollabs).
+      orderBy: { createdAt: "asc" },
       take: MAX,
     }),
   ]);

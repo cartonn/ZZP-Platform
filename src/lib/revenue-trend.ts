@@ -54,8 +54,10 @@ export function buildRevenueTrend(rows: RevenueSource[], now: Date, months = 6):
 }
 
 /**
- * Omzettrend voor de ingelogde ZZP'er: facturen waarvan de ZZP'er de uitsteller is
- * (`issuerUserId`), excl. geannuleerde/gecrediteerde en facturen zonder factuurdatum.
+ * Omzettrend voor de ingelogde ZZP'er: facturen waarvan de ZZP'er de uitsteller is. Scoping via de
+ * altijd-gevulde relatie (`collaboration.freelancer.userId`) i.p.v. de kolom `issuerUserId` (alleen
+ * door de cascade-handler gezet), zodat ook legacy loose-facturen meetellen. Excl.
+ * geannuleerde/gecrediteerde en facturen zonder factuurdatum.
  */
 export async function getFreelancerRevenueTrend(
   userId: string,
@@ -64,7 +66,7 @@ export async function getFreelancerRevenueTrend(
 ): Promise<RevenueTrend> {
   const invoices = await prisma.invoice.findMany({
     where: {
-      issuerUserId: userId,
+      collaboration: { freelancer: { userId } },
       issuedAt: { gte: revenueWindowStart(now, months) },
       ...revenueCountedInvoiceWhere,
     },
@@ -75,8 +77,10 @@ export async function getFreelancerRevenueTrend(
 }
 
 /**
- * Omzettrend voor de ingelogde opdrachtgever: facturen waarvan de opdrachtgever de
- * tegenpartij is (`counterpartyUserId`), excl. geannuleerde/gecrediteerde en zonder factuurdatum.
+ * Omzettrend voor de ingelogde opdrachtgever: facturen waarvan de opdrachtgever de tegenpartij is.
+ * Scoping via de altijd-gevulde relatie (`collaboration.company.userId`) i.p.v. de kolom
+ * `counterpartyUserId` (alleen door de cascade-handler gezet), zodat ook legacy loose-facturen
+ * meetellen. Excl. geannuleerde/gecrediteerde en zonder factuurdatum.
  */
 export async function getClientRevenueTrend(
   userId: string,
@@ -85,7 +89,7 @@ export async function getClientRevenueTrend(
 ): Promise<RevenueTrend> {
   const invoices = await prisma.invoice.findMany({
     where: {
-      counterpartyUserId: userId,
+      collaboration: { company: { userId } },
       issuedAt: { gte: revenueWindowStart(now, months) },
       ...revenueCountedInvoiceWhere,
     },

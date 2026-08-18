@@ -12,6 +12,9 @@ const state = vi.hoisted(() => ({
   completedCollabs: [] as unknown[],
   overdueLegacy: 0,
   overdueCascade: 0,
+  // Cascade-overdue-facturen voor het opdrachtgever-pad (clientTasks) — geserveerd op de
+  // `lifecycleStatus === "OVERDUE"`-tak van de gedeelde invoice-mock.
+  cascadeOverdue: [] as unknown[],
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -54,8 +57,14 @@ vi.mock("@/lib/db", () => ({
     // gevallen) samenwerking nooit stil uit het actiecentrum valt. Afgeleid uit state.collabs: alle
     // openstaande facturen (DRAFT/REJECTED/APPROVED/OVERDUE) op ACTIVE-samenwerkingen, oudste-eerst.
     invoice: {
-      findMany: vi.fn(async () =>
-        (state.collabs as ReturnType<typeof collab>[])
+      findMany: vi.fn(async (args?: { where?: { lifecycleStatus?: unknown } }) => {
+        // Opdrachtgever-paden gebruiken een scalar `lifecycleStatus`-string: de cascade-overdue-nudge
+        // ("OVERDUE") en de keur-query ("SUBMITTED"). Het freelancer-openInvoices-pad gebruikt een
+        // `{ in: [...] }`-object en valt door naar de bestaande afleiding uit state.collabs.
+        const ls = args?.where?.lifecycleStatus;
+        if (ls === "OVERDUE") return state.cascadeOverdue;
+        if (ls === "SUBMITTED") return [];
+        return (state.collabs as ReturnType<typeof collab>[])
           .filter((c) => c.status === "ACTIVE")
           .flatMap((c) =>
             c.invoices
@@ -70,9 +79,14 @@ vi.mock("@/lib/db", () => ({
                 collaboration: { job: { title: c.job.title } },
               })),
           )
-          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
-      ),
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      }),
     },
+    // Opdrachtgever-pad (clientTasks) — inert voor de freelancer-tests, maar nodig zodat de client-run
+    // de cascade-overdue-query bereikt zonder te crashen.
+    company: { findUnique: vi.fn(async () => null) },
+    application: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
+    job: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
     conversationParticipant: { findMany: vi.fn(async () => []) },
     message: { groupBy: vi.fn(async () => []) },
     conversation: { findMany: vi.fn(async () => []) },
@@ -103,7 +117,16 @@ vi.mock("@/lib/data/vat-deadline", () => ({
   getVatDeadlinesForActor: vi.fn(async () => []),
 }));
 
+// Opdrachtgever-tak isoleren: de externe compliance-/koud-lopende-opdracht-loaders neutraliseren zodat
+// de client-run uitsluitend de cascade-overdue-query raakt.
+vi.mock("@/lib/collaboration-alerts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/collaboration-alerts")>();
+  return { ...actual, clientCredentialAlerts: vi.fn(async () => []) };
+});
+vi.mock("@/lib/data/client-cold-jobs", () => ({ getClientColdJobs: vi.fn(async () => []) }));
+
 import { pendingTasks } from "@/lib/actions/pending-tasks";
+import { prisma } from "@/lib/db";
 import { P } from "@/lib/next-actions";
 import { UNBILLED_AGING_DAYS } from "@/lib/unbilled-invoices";
 
@@ -132,6 +155,7 @@ beforeEach(() => {
   state.completedCollabs = [];
   state.overdueLegacy = 0;
   state.overdueCascade = 0;
+  state.cascadeOverdue = [];
 });
 
 // Afgeronde samenwerking zoals de review-nudge-query (status COMPLETED) hem oplevert.
@@ -371,5 +395,51 @@ describe("freelancerTasks — beoordelings-nudge na afronding", () => {
 
     const tasks = await pendingTasks(ACTOR);
     expect(tasks.some((t) => t.id === "review-leave:done-2")).toBe(false);
+  });
+});
+
+// Determinisme-regressie: gewindowde queries (`take: MAX`) zonder `orderBy` geven Prisma geen
+// gegarandeerde rijvolgorde, waardoor wélke rijen in het venster landen per request wisselt — een
+// nog-openstaande next-action flikkert dan (verschijnt op de ene render, verdwijnt op de volgende).
+// Deze tests borgen dat de twee eerder ongeorderde queries nu een deterministische `orderBy` meegeven.
+const CLIENT_ACTOR = { id: "user-client", role: "CLIENT", status: "ACTIVE" } as const;
+
+type FindManyArg = { where?: { lifecycleStatus?: unknown }; orderBy?: unknown };
+
+function findManyCalls(fn: unknown): FindManyArg[] {
+  return (fn as { mock: { calls: Array<[FindManyArg?]> } }).mock.calls
+    .map((c) => c[0])
+    .filter((a): a is FindManyArg => a !== undefined);
+}
+
+describe("next-action-engine — deterministische windowing (flicker-regressie)", () => {
+  it("conversationParticipant.findMany ordent deterministisch vóór de MAX-slice", async () => {
+    await pendingTasks(ACTOR);
+    const calls = findManyCalls(prisma.conversationParticipant.findMany);
+    expect(calls.length).toBeGreaterThan(0);
+    // Elke aanroep moet een stabiele orderBy dragen; anders wisselt bij >MAX ongelezen gesprekken
+    // welke MAX de berichttaken vullen → messageReplyTask flikkert.
+    expect(calls.every((c) => c.orderBy !== undefined)).toBe(true);
+    expect(calls[0]?.orderBy).toEqual({ conversationId: "asc" });
+  });
+
+  it("de cascade-overdue invoice.findMany (opdrachtgever) ordent deterministisch bij de MAX-limiet", async () => {
+    state.cascadeOverdue = [
+      {
+        id: "inv-1",
+        collaboration: {
+          id: "collab-1",
+          job: { title: "Nachtdienst" },
+          freelancer: { user: { name: "Sanne" } },
+        },
+      },
+    ];
+    await pendingTasks(CLIENT_ACTOR);
+    const overdueCall = findManyCalls(prisma.invoice.findMany).find(
+      (c) => c.where?.lifecycleStatus === "OVERDUE",
+    );
+    expect(overdueCall).toBeDefined();
+    // Oudste blijft staan → self-healing venster (zelfde conventie als openInvoices/credentialCollabs).
+    expect(overdueCall?.orderBy).toEqual({ createdAt: "asc" });
   });
 });

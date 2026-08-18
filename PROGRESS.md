@@ -267,6 +267,47 @@ tenant-gescopet, geen schema-/mutatie-/authketen-wijziging; spiegelt de bestaand
 **Bestanden:** `src/lib/franchise/company-breakdown-export.ts` (+ `.test.ts`),
 `src/app/(protected)/franchise/opdrachtgevers/export/route.ts`, `src/app/(protected)/inzicht/page.tsx`.
 
+---
+
+## 2026-08-17 — Persona-sweep run 80: geld-KPI's tellen legacy loose-facturen mee + 2 flicker-fixes
+
+**Wat (HOOG, server-side-waarheid/correctheid):** álle geld-KPI-queries scoopten op de kolom
+`Invoice.issuerUserId`/`counterpartyUserId` — die alléén de cascade-handler zet en die NULL blijft voor
+legacy loose-facturen (`createInvoice` in `facturen/actions.ts` zet ze nooit). Gecombineerd met de
+dual-path where-helpers (`paidRevenueInvoiceWhere`/`outstandingInvoiceWhere`/`revenueCountedInvoiceWhere`)
+was de legacy-tak van die OR's daardoor DODE code: de outer `issuerUserId = userId`-AND matchte nooit een
+NULL-rij, dus élke legacy betaalde/openstaande/verstuurde factuur viel structureel uit de omzet-KPI's van
+de ZZP'er én de opdrachtgever. Dit ondergroef precies de commit die cascade-PAID zou meetellen (#1124).
+Gevonden door een adversariële cascade/geld-audit (persona-sweep); de authz/IDOR-, malicieuze-input- en
+next-action-audits + een live Playwright-probe (28 checks, 4 rollen: privilege-escalatie ZZP'er/
+opdrachtgever/bemiddelaar → `/admin/*`+`/franchise/*` alle geweigerd/redirect, onzin-id → 404, nooit 500)
+vonden 0 bereikbare gaten.
+
+**Fix:** scope via de altijd-gevulde relatie `collaboration: { freelancer: { userId } }` /
+`collaboration: { company: { userId } }` (het patroon dat `data/monthly-income.ts` al gebruikt), met de
+canonieke where-helpers behouden. 8 call-sites over 5 bestanden: `freelancer-stats.ts` (earned+pending),
+`client-stats.ts` (spent+open), `freelancer-revenue-breakdown.ts` + `client-spend-breakdown.ts` (nu ook
+`paidRevenueInvoiceWhere` i.p.v. rauw `status:"PAID"` → cascade PROCESSED klopt mee), `revenue-trend.ts`
+(ZZP'er + opdrachtgever; `getTenantRevenueTrend`/`getPlatformRevenueTrend` bewust ONGEMOEID — die eisen
+`issuerUserId` present om platform-fees uit te sluiten). Collaboraties worden nooit hard-deleted, dus
+`collaborationId` is in de praktijk nooit NULL → geen orphan-regressie.
+
+**Plus 2 next-action flicker-fixes (DOEL 1b):** twee gewindowde queries in `actions/pending-tasks.ts`
+hadden `take: MAX` zonder `orderBy` → niet-deterministisch venster, taak flikkert tussen page-loads.
+`unreadConversations` (`conversationParticipant.findMany` vóór `.slice(0, MAX)`) → `orderBy: {
+conversationId: "asc" }`; client `cascadeOverduePayments` (`invoice.findMany`, lifecycleStatus OVERDUE) →
+`orderBy: { createdAt: "asc" }`. Spiegelt de conventie van de andere gewindowde queries (self-healing).
+
+**Tests (rood→groen):** fake-db `matchWhere` uitgebreid naar de relationele shape + legacy loose-fixtures
+(id-kolom NULL, collab van de gebruiker) in `freelancer-stats.test.ts`/`client-stats.test.ts`; nieuwe
+DB-fetcher-suites voor de twee breakdowns + `revenue-trend.test.ts`; kruis-gebruiker-isolatie geborgd.
+2 nieuwe flicker-regressietests op de query-args in `pending-tasks.test.ts`. Gate: typecheck, lint,
+test (591 files / 6138 tests), build, prettier — groen.
+
+**Bestanden:** `src/lib/freelancer-stats.ts`, `src/lib/client-stats.ts`,
+`src/lib/freelancer-revenue-breakdown.ts`, `src/lib/client-spend-breakdown.ts`, `src/lib/revenue-trend.ts`,
+`src/lib/actions/pending-tasks.ts` (+ hun `.test.ts`).
+
 ## 2026-08-17 — Correctheid: betaalde omzet telt cascade-PAID mee (earnedCents/spentCents)
 
 **Wat:** `getFreelancerStats.earnedCents` (ZZP'er `/inzicht`, kaart "omzet die binnen is") en

@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { buildRevenueTrend, toRevenueRows } from "./revenue-trend";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  buildRevenueTrend,
+  getClientRevenueTrend,
+  getFreelancerRevenueTrend,
+  toRevenueRows,
+} from "./revenue-trend";
 
 const now = new Date("2026-06-09T10:00:00Z");
 
@@ -129,5 +134,152 @@ describe("buildRevenueTrend", () => {
   it("series heeft de gevraagde lengte in months", () => {
     const trend = buildRevenueTrend([], now, 12);
     expect(trend.series).toHaveLength(12);
+  });
+});
+
+// --- getFreelancerRevenueTrend / getClientRevenueTrend: DB-scope over legacy loose + cascade -------
+
+type WhereValue = string | null | { in?: readonly string[]; notIn?: readonly string[] };
+interface InvoiceWhere {
+  collaboration?: { freelancer?: { userId?: string }; company?: { userId?: string } };
+  status?: WhereValue;
+  lifecycleStatus?: WhereValue;
+  issuedAt?: { gte?: Date };
+  OR?: InvoiceWhere[];
+}
+
+interface InvoiceFixture {
+  /** Kolom die alleen de cascade-handler zet — NULL voor legacy loose-facturen. */
+  issuerUserId: string | null;
+  collabFreelancerUserId: string;
+  collabCompanyUserId: string;
+  status: string;
+  lifecycleStatus: string | null;
+  issuedAt: Date;
+  totalCents: number;
+}
+
+function matchField(cond: WhereValue | undefined, actual: string | null): boolean {
+  if (cond === undefined) return true;
+  if (cond === null) return actual === null;
+  if (typeof cond === "string") return actual === cond;
+  if (cond.in) return actual != null && cond.in.includes(actual);
+  if (cond.notIn) return actual != null && !cond.notIn.includes(actual);
+  return true;
+}
+
+function matchWhere(where: InvoiceWhere, inv: InvoiceFixture): boolean {
+  const freelancerScope = where.collaboration?.freelancer?.userId;
+  if (freelancerScope !== undefined && inv.collabFreelancerUserId !== freelancerScope) return false;
+  const companyScope = where.collaboration?.company?.userId;
+  if (companyScope !== undefined && inv.collabCompanyUserId !== companyScope) return false;
+  if (where.issuedAt?.gte && inv.issuedAt < where.issuedAt.gte) return false;
+  if (!matchField(where.status, inv.status)) return false;
+  if (!matchField(where.lifecycleStatus, inv.lifecycleStatus)) return false;
+  if (where.OR && !where.OR.some((branch) => matchWhere(branch, inv))) return false;
+  return true;
+}
+
+const FREELANCER_ID = "f-user";
+const COMPANY_ID = "c-user";
+const may = new Date("2026-05-10T08:00:00Z");
+
+const TREND_INVOICES: InvoiceFixture[] = [
+  // Legacy loose (issuerUserId NULL) — telt mee (niet CANCELLED). De regressie.
+  {
+    issuerUserId: null,
+    collabFreelancerUserId: FREELANCER_ID,
+    collabCompanyUserId: COMPANY_ID,
+    status: "SENT",
+    lifecycleStatus: null,
+    issuedAt: may,
+    totalCents: 10000,
+  },
+  // Cascade PAID (legacy status DRAFT) — telt mee.
+  {
+    issuerUserId: FREELANCER_ID,
+    collabFreelancerUserId: FREELANCER_ID,
+    collabCompanyUserId: COMPANY_ID,
+    status: "DRAFT",
+    lifecycleStatus: "PAID",
+    issuedAt: may,
+    totalCents: 20000,
+  },
+  // Teruggedraaid cascade (CREDITED) — telt niet mee.
+  {
+    issuerUserId: FREELANCER_ID,
+    collabFreelancerUserId: FREELANCER_ID,
+    collabCompanyUserId: COMPANY_ID,
+    status: "CANCELLED",
+    lifecycleStatus: "CREDITED",
+    issuedAt: may,
+    totalCents: 33000,
+  },
+  // Geannuleerde legacy loose — telt niet mee.
+  {
+    issuerUserId: null,
+    collabFreelancerUserId: FREELANCER_ID,
+    collabCompanyUserId: COMPANY_ID,
+    status: "CANCELLED",
+    lifecycleStatus: null,
+    issuedAt: may,
+    totalCents: 8000,
+  },
+  // Andere ZZP'er/opdrachtgever — telt nooit mee.
+  {
+    issuerUserId: null,
+    collabFreelancerUserId: "other-f",
+    collabCompanyUserId: "other-c",
+    status: "PAID",
+    lifecycleStatus: null,
+    issuedAt: may,
+    totalCents: 999000,
+  },
+];
+
+const findMany = vi.fn(async ({ where }: { where: InvoiceWhere }) =>
+  TREND_INVOICES.filter((inv) => matchWhere(where, inv)).map((inv) => ({
+    issuedAt: inv.issuedAt,
+    totalCents: inv.totalCents,
+  })),
+);
+
+vi.mock("@/lib/db", () => ({
+  prisma: { invoice: { findMany: (args: { where: InvoiceWhere }) => findMany(args) } },
+}));
+
+describe("getFreelancerRevenueTrend — DB-scope", () => {
+  beforeEach(() => {
+    findMany.mockClear();
+  });
+
+  it("telt legacy loose (issuerUserId NULL) én cascade mee, excl. teruggedraaid/geannuleerd", async () => {
+    const trend = await getFreelancerRevenueTrend(FREELANCER_ID, now, 6);
+    // Legacy loose 10000 + cascade 20000 = 30000 in mei; CREDITED (33000) en CANCELLED (8000) uitgesloten.
+    expect(trend.totalCents).toBe(30000);
+    // Onder de oude kolom-scope (`issuerUserId: userId`) viel de legacy loose 10000 weg → 20000.
+    expect(trend.totalCents).not.toBe(20000);
+  });
+
+  it("scoopt op de eigen samenwerkingen (andere ZZP'er telt niet mee)", async () => {
+    const trend = await getFreelancerRevenueTrend(FREELANCER_ID, now, 6);
+    expect(trend.totalCents).toBeLessThan(999000);
+  });
+});
+
+describe("getClientRevenueTrend — DB-scope", () => {
+  beforeEach(() => {
+    findMany.mockClear();
+  });
+
+  it("telt legacy loose (counterpartyUserId NULL) én cascade mee, excl. teruggedraaid/geannuleerd", async () => {
+    const trend = await getClientRevenueTrend(COMPANY_ID, now, 6);
+    expect(trend.totalCents).toBe(30000);
+    expect(trend.totalCents).not.toBe(20000);
+  });
+
+  it("scoopt op de eigen company (andere opdrachtgever telt niet mee)", async () => {
+    const trend = await getClientRevenueTrend(COMPANY_ID, now, 6);
+    expect(trend.totalCents).toBeLessThan(999000);
   });
 });
