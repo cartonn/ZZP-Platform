@@ -268,6 +268,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — urenstaat-uitschieter-signaal bij goedkeuren op /prestaties (2026-08-18, PR #1150)** —
+> het uurtarief van een urenstaat staat server-side vast (`rateCents = col.rate * 100` bij indienen); het **aantal uren** is
+> daarmee de enige vrij-in te voeren waarde die de opdrachtgever bij het goedkeuren afstempelt — óók via het één-klik
+> bulk-goedkeurpaneel. Een urenstaat die opvallend hoger is dan wat deze ZZP'er op dezelfde samenwerking normaal indient was stil
+> overbetalingsrisico. Nu een rustige "controleer even"-attentie (geen blokkade). Nieuwe pure `src/lib/performance-hours-anomaly.ts`
+> (`detectHoursAnomalies`): **mediaan**-baseline uit de GOEDGEKEURDE HOURS-urenstaten per samenwerking, markeert elke nog INGEDIENDE
+> urenstaat die de mediaan met ≥30% **én** ≥8 u overstijgt (min-steekproef 3; absolute-uren-vloer dempt ruis op kleine weken;
+> mediaan robuuster dan gemiddelde tegen scheve historie). Gewired als per-rij-waarschuwing op `/prestaties` + "controleer uren"-chip
+> op het bulk-goedkeurpaneel (spiegelt de `hasStale`-chip). Baseline over de vólledige set (niet de gefilterde view). Read-only, alleen
+> CLIENT, geen schema-/mutatie-/authz-/domeinmotor-oppervlak; goedkeuren loopt onveranderd door `approvePerformance`. +16 tests. Gate:
+> typecheck, lint, test (6309), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er — diensten-samenvattingsstrip op /diensten (2026-08-18, PR #1145)** —
 > de ZZP'er-urenstatenlijst (`/diensten`) was een platte lijst zonder aggregaat, terwijl de opdrachtgever-tegenhanger
 > (`/prestaties`) juist wél een geld-samenvatting toont (`summarizePendingApprovalValue`). Die asymmetrie is gedicht met een

@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-18 — Opdrachtgever: urenstaat-uitschieter-signaal bij goedkeuren (/prestaties)
+
+**Wat:** het uurtarief van een urenstaat staat server-side vast (bij indienen `rateCents = col.rate * 100`;
+de ZZP'er voert het tarief nooit vrij in). Het **aantal uren** is daarmee de enige vrij-in te voeren
+waarde die de opdrachtgever bij het goedkeuren afstempelt — óók via het één-klik bulk-goedkeurpaneel. Een
+urenstaat die opvallend hoger is dan wat deze ZZP'er op dezelfde samenwerking normaal indient, was stil
+overbetalingsrisico. Nu een rustige "controleer even"-attentie (geen blokkade, geen beschuldiging).
+Benchmark: Temper/Zorgwerk tonen per-shift verwacht-vs-geklokt zodat de inkoper uitschieters vóór
+goedkeuren ziet.
+
+**Hoe:** nieuwe pure `src/lib/performance-hours-anomaly.ts` — `detectHoursAnomalies(rows)` bouwt per
+samenwerking een **mediaan**-baseline uit de GOEDGEKEURDE HOURS-urenstaten (door de opdrachtgever
+geaccepteerde historie = betrouwbare grond) en markeert elke nog INGEDIENDE urenstaat die de mediaan met
+≥30% **én** ≥8 uur overstijgt (min-steekproef 3; mediaan robuuster dan gemiddelde tegen scheve historie;
+absolute-uren-vloer dempt ruis op kleine weken). Gewired als per-rij-waarschuwing op `/prestaties`
+("≈X% meer uren dan gebruikelijk (52 u vs. mediaan 37 u) — controleer even") + een "controleer uren"-chip
+op het bulk-goedkeurpaneel (spiegelt de bestaande `hasStale`-chip) zodat een groep met een uitschieter
+niet blind in één klik wordt afgestempeld. Baseline over de VOLLEDIGE set (niet de gefilterde view).
+
+**Bestanden:** `src/lib/performance-hours-anomaly.ts` (+`.test.ts`, 14 tests), `src/lib/prestaties-bulk.ts`
+(+`hasAnomaly` + optionele `anomalyIds`-param, default leeg → gedragsbehoudend; +2 tests),
+`src/app/(protected)/prestaties/page.tsx`, `src/app/(protected)/prestaties/bulk-approve-panel.tsx`.
+Read-only, alleen CLIENT-oppervlak, geen schema-/mutatie-/authz-/domeinmotor-wijziging; server-side blijft
+de waarheid (goedkeuren loopt onveranderd door `approvePerformance`). Gate: typecheck, lint, test (6309),
+build, prettier groen.
+
 ## 2026-08-18 — Opdrachtgever: "Afgenomen uren per maand" op /inzicht (capaciteits-signaal)
 
 **Wat:** de opdrachtgever zag op `/inzicht` wél totale uitgaven (€) en gemiddeld betaald uurtarief per

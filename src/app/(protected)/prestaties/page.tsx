@@ -26,6 +26,7 @@ import {
 } from "@/lib/client-delivery-reliability";
 import { insufficientSampleNotice } from "@/lib/sample-size";
 import { groupSubmittedForBulkApproval } from "@/lib/prestaties-bulk";
+import { detectHoursAnomalies, formatHoursNl } from "@/lib/performance-hours-anomaly";
 import { BulkApprovePanel } from "./bulk-approve-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,12 @@ export default async function PrestatiesPage({
   const pendingCount = submitted.length;
   const pendingValue = summarizePendingApprovalValue(allPrestaties);
   const queue = summarizePerformanceApproval(submitted, now);
+  // Uren zijn de enige vrij-in te voeren waarde die de opdrachtgever afstempelt (het uurtarief staat
+  // server-side vast). Markeer ingediende urenstaten die opvallend hoger zijn dan wat deze ZZP'er op
+  // deze samenwerking normaal indient — een rustige "controleer even", geen blokkade. Over de volledige
+  // set (niet de gefilterde view), zodat de baseline uit de volledige goedgekeurde historie komt.
+  const hoursAnomalies = detectHoursAnomalies(allPrestaties);
+  const anomalyIds = new Set(hoursAnomalies.keys());
   // Samenwerkingen met ≥2 ingediende urenstaten kunnen in één keer worden goedgekeurd; bij één
   // volstaat de bestaande "Keuren →"-link. Losstaand van het statusfilter (bulk werkt altijd op de
   // volledige ingediende set, niet op het gefilterde overzicht). Disputed prestaties uitgesloten.
@@ -118,6 +125,7 @@ export default async function PrestatiesPage({
     allPrestaties.filter((p) => !p.disputed),
     now,
     PERFORMANCE_APPROVAL_STALE_DAYS,
+    anomalyIds,
   );
 
   return (
@@ -298,6 +306,16 @@ export default async function PrestatiesPage({
                         </p>
                       );
                     })()}
+                  {(() => {
+                    const anomaly = p.status === "SUBMITTED" ? hoursAnomalies.get(p.id) : undefined;
+                    return anomaly ? (
+                      <p className="mt-0.5 text-xs font-medium text-warning">
+                        ≈{anomaly.deltaPct}% meer uren dan gebruikelijk (
+                        {formatHoursNl(anomaly.hours)} u vs. mediaan{" "}
+                        {formatHoursNl(anomaly.baselineHours)} u) — controleer even.
+                      </p>
+                    ) : null;
+                  })()}
                   {p.rejectionReason && (
                     <p className="mt-1 text-xs text-danger">Reden afkeuring: {p.rejectionReason}</p>
                   )}
