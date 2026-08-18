@@ -104,10 +104,48 @@ export async function getFreelancerWorkedHoursTrend(
     select: { hours: true, periodEnd: true, periodStart: true, approvedAt: true },
   });
 
-  const worked: WorkedHoursRow[] = rows.map((r) => ({
+  return buildWorkedHoursTrend(workedRows(rows, now), now, months);
+}
+
+/**
+ * Afgenomen-uren-trend voor de ingelogde opdrachtgever: de capaciteits-tegenhanger van de ZZP'er-
+ * variant. Leest exact dezelfde goedgekeurde uren-prestaties, maar gescoopt op de samenwerkingen van
+ * dít bedrijf (`collaboration.company.userId`), en aggregeert ze via de identieke pure
+ * `buildWorkedHoursTrend`. Zo ziet de opdrachtgever hoevéél externe capaciteit (uren) hij per maand
+ * afneemt en of die groeit of krimpt — zodat hij vooruit kan plannen. Owner-gescoopt; nooit een
+ * andermans samenwerking. Read-only.
+ */
+export async function getClientWorkedHoursTrend(
+  userId: string,
+  now: Date = new Date(),
+  months = 6,
+): Promise<WorkedHoursTrend> {
+  const floor = windowStart(now, months);
+  const rows = await prisma.performance.findMany({
+    where: {
+      status: "APPROVED",
+      type: "HOURS",
+      collaboration: { company: { userId } },
+      OR: [{ periodEnd: { gte: floor } }, { periodEnd: null, approvedAt: { gte: floor } }],
+    },
+    select: { hours: true, periodEnd: true, periodStart: true, approvedAt: true },
+  });
+
+  return buildWorkedHoursTrend(workedRows(rows, now), now, months);
+}
+
+/** Gedeelde normalisatie: kies het bucket-moment (periode-einde met veilige terugval) + de uren. */
+function workedRows(
+  rows: readonly {
+    hours: number | null;
+    periodEnd: Date | null;
+    periodStart: Date | null;
+    approvedAt: Date | null;
+  }[],
+  now: Date,
+): WorkedHoursRow[] {
+  return rows.map((r) => ({
     occurredAt: r.periodEnd ?? r.periodStart ?? r.approvedAt ?? now,
     hours: r.hours ?? 0,
   }));
-
-  return buildWorkedHoursTrend(worked, now, months);
 }

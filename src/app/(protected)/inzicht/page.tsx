@@ -60,7 +60,11 @@ import {
   RevenueHero,
 } from "@/components/insight/bi";
 import { getFreelancerProfitTrend, type ProfitTrend } from "@/lib/profit-trend";
-import { getFreelancerWorkedHoursTrend, type WorkedHoursTrend } from "@/lib/worked-hours-trend";
+import {
+  getFreelancerWorkedHoursTrend,
+  getClientWorkedHoursTrend,
+  type WorkedHoursTrend,
+} from "@/lib/worked-hours-trend";
 import {
   getFreelancerHourlyRateTrend,
   getClientHourlyRateTrend,
@@ -228,27 +232,40 @@ function WinstPerMaandCard({ trend }: { trend: ProfitTrend }) {
  * worden. De cijfers komen uit `buildWorkedHoursTrend` (zelfde maand-bucketing als de geldtrends),
  * server-side berekend. Alleen uren — geen bedragen.
  */
-function GewerkteUrenPerMaandCard({ trend }: { trend: WorkedHoursTrend }) {
+function GewerkteUrenPerMaandCard({
+  trend,
+  title = "Gewerkte uren per maand",
+  caption = "goedgekeurde uren per maand",
+  emptyDescription = "Zodra je uren zijn goedgekeurd, zie je hier hoeveel je per maand hebt gewerkt.",
+  actionHref = "/diensten",
+  actionLabel = "Naar diensten",
+  deltaTone = "earner",
+}: {
+  trend: WorkedHoursTrend;
+  title?: string;
+  caption?: string;
+  emptyDescription?: string;
+  actionHref?: string;
+  actionLabel?: string;
+  /** "earner": meer uren = groen (ZZP'er werkt meer). "neutral": afgenomen capaciteit is geen waardeoordeel (opdrachtgever). */
+  deltaTone?: "earner" | "neutral";
+}) {
   if (!trend.hasData) {
     return (
-      <BiWidget title="Gewerkte uren per maand">
-        <EmptyState
-          icon={Clock}
-          title="Nog geen gewerkte uren"
-          description="Zodra je uren zijn goedgekeurd, zie je hier hoeveel je per maand hebt gewerkt."
-        />
+      <BiWidget title={title}>
+        <EmptyState icon={Clock} title="Nog geen gewerkte uren" description={emptyDescription} />
       </BiWidget>
     );
   }
   return (
     <BiWidget
-      title="Gewerkte uren per maand"
+      title={title}
       action={
         <Link
-          href="/diensten"
+          href={actionHref}
           className="focus-ring inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:underline"
         >
-          Naar diensten
+          {actionLabel}
           <ArrowRight className="size-3.5" aria-hidden />
         </Link>
       }
@@ -257,12 +274,12 @@ function GewerkteUrenPerMaandCard({ trend }: { trend: WorkedHoursTrend }) {
         <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
           <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Gewerkt · laatste {trend.months} maanden
+              {deltaTone === "neutral" ? "Afgenomen" : "Gewerkt"} · laatste {trend.months} maanden
             </p>
             <p className="mt-1 font-mono text-3xl font-semibold tabular-nums tracking-tight">
               {formatUren(trend.totalHours)}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">goedgekeurde uren per maand</p>
+            <p className="mt-1 text-xs text-muted-foreground">{caption}</p>
           </div>
           {trend.deltaPct !== null && (
             <div>
@@ -270,7 +287,11 @@ function GewerkteUrenPerMaandCard({ trend }: { trend: WorkedHoursTrend }) {
               <p
                 className={cn(
                   "mt-0.5 font-mono text-lg font-semibold tabular-nums",
-                  trend.deltaPct >= 0 ? "text-success" : "text-warning",
+                  deltaTone === "neutral"
+                    ? "text-foreground"
+                    : trend.deltaPct >= 0
+                      ? "text-success"
+                      : "text-warning",
                 )}
               >
                 {trend.deltaPct >= 0 ? "+" : ""}
@@ -284,7 +305,7 @@ function GewerkteUrenPerMaandCard({ trend }: { trend: WorkedHoursTrend }) {
           formatValue={formatUren}
           height={132}
           tone="accent"
-          label="Gewerkte uren per maand"
+          label={title}
         />
       </div>
     </BiWidget>
@@ -831,12 +852,13 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
 }
 
 async function ClientInzicht({ userId }: { userId: string }) {
-  const [s, trend, timeToFill, spend, hourlyRate] = await Promise.all([
+  const [s, trend, timeToFill, spend, hourlyRate, workedHours] = await Promise.all([
     getClientStats(userId),
     getClientRevenueTrend(userId),
     getClientTimeToFill(userId),
     getClientSpendBreakdown(userId),
     getClientHourlyRateTrend(userId),
+    getClientWorkedHoursTrend(userId),
   ]);
   if (!s) {
     return (
@@ -978,6 +1000,16 @@ async function ClientInzicht({ userId }: { userId: string }) {
         title="Gemiddeld betaald uurtarief per maand"
         caption="naar afgenomen uren gewogen · excl. toeslagen"
         emptyDescription="Zodra uren tegen een uurtarief zijn goedgekeurd, zie je hier hoe het gemiddelde uurtarief dat je betaalt zich per maand ontwikkelt."
+        deltaTone="neutral"
+      />
+
+      <GewerkteUrenPerMaandCard
+        trend={workedHours}
+        title="Afgenomen uren per maand"
+        caption="goedgekeurde uren · afgenomen capaciteit"
+        emptyDescription="Zodra uren zijn goedgekeurd, zie je hier hoeveel externe capaciteit je per maand afneemt."
+        actionHref="/prestaties"
+        actionLabel="Naar prestaties"
         deltaTone="neutral"
       />
     </div>
