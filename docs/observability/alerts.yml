@@ -163,6 +163,23 @@ groups:
         annotations:
           summary: "Abonnement-verval-pijplijn verwerkt niets"
           description: "Er staan al > één cron-interval betaalde ACTIVE-abonnementen met een verstreken periode-einde die niet naar CANCELLED zijn gezet (zzp_subscriptions_overdue_expiry). De entitlement-guard dekt de toegang af, maar verval/renewal (notificaties, ledger) ligt stil."
+      - alert: ZzpSubscriptionsStalePending
+        # Anders dan de andere backlogs bewaakt deze alert GEEN cron maar de betaal-WEBHOOK: een betaalde
+        # checkout upsert een abonnement naar PENDING, en alleen de webhook tilt 'm daarna naar ACTIVE
+        # (paid) of PAST_DUE (failed) — er is geen cron die PENDING verwerkt. Een enkele PENDING-rij is een
+        # verlaten checkout (ruis), maar een stil kapotte webhook (verkeerde callback-URL, handtekening-
+        # mismatch, geblokkeerde poort) laat ÉLKE checkout op PENDING staan → niemand wordt geactiveerd en
+        # de platform-omzet lekt stil weg. De gauge telt alleen rijen ouder dan het venster
+        # (SUBSCRIPTION_PENDING_STALE_HOURS, default 24u — ruim voor instant-methodes zoals iDEAL/kaart);
+        # de ruime `for:` zorgt dat alleen een AANHOUDENDE achterstand paget, niet één trage betaling.
+        # Met de mock-provider (pilot-default) bestaat er nooit een PENDING-rij en vuurt deze alert nooit.
+        expr: zzp_subscriptions_stale_pending > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Abonnement-activatie via de betaal-webhook verwerkt niets"
+          description: "Er hangen al > één cron-interval abonnementen langer dan het venster (SUBSCRIPTION_PENDING_STALE_HOURS) in status PENDING (zzp_subscriptions_stale_pending) — een betaalde checkout die de betaal-webhook nooit op ACTIVE/PAST_DUE tilde. Een oplopend aantal duidt op een stil kapotte webhook (verkeerde callback-URL, handtekening-mismatch, geblokkeerde poort) → niemand wordt geactiveerd en de platform-omzet lekt stil weg. Controleer de webhook-configuratie bij de betaalprovider (Mollie/Stripe) en /api/billing/webhook."
       - alert: ZzpInvoiceOverdueBacklog
         expr: zzp_invoices_overdue_unflipped > 0
         for: 30h

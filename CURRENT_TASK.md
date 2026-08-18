@@ -268,6 +268,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — stil-kapotte-webhook-detector `zzp_subscriptions_stale_pending` (2026-08-18, PR #1135)** —
+> een betaalde checkout upsert een `Subscription` naar `PENDING`; alléén de betaal-webhook tilt 'm daarna naar `ACTIVE` (paid)/`PAST_DUE`
+> (failed) — er is géén cron die `PENDING` verwerkt. Elke andere abonnementsstatus had al een stille-faal-gauge, `PENDING` niet: een
+> verlaten checkout is één stille rij, maar een stil kapotte webhook (verkeerde callback-URL, handtekening-mismatch, geblokkeerde poort)
+> laat ÉLKE checkout op `PENDING` staan → niemand geactiveerd, platform-omzet lekt stil weg, zonder dat iets dat toont. Nieuwe read-only
+> gauge `zzp_subscriptions_stale_pending` op `/api/metrics` (abonnementen langer dan `SUBSCRIPTION_PENDING_STALE_HOURS`, default 24u, in
+> `PENDING`), zelfde patroon als `zzp_subscriptions_overdue_expiry`: pure `stalePendingSubscriptionWhere`/`pendingStaleCutoff`
+> (`src/lib/subscription-pending-stale.ts`, één bron van waarheid, `updatedAt`-klok reset bij een verse checkout-poging), config-clamp,
+> gauge, route-query, drift-gate-sample, Prometheus-alert `ZzpSubscriptionsStalePending` (`> 0`, `for: 30h`) + onderhouds-inhibitie. Met de
+> mock-provider (pilot-default) bestaat er nooit een `PENDING`-rij → gauge `0`. Geen schema-/mutatie-/auth-oppervlak, geen PII/secrets.
+> +tests (where/cutoff/config-parser/metrics-map+clamp/route-query+fail-veilig/drift-gates). Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er — betaalgedrag per opdrachtgever op /inzicht (2026-08-18, PR #1133)** —
 > de ZZP'er zag "Omzet per opdrachtgever" (van wíe komt mijn omzet), maar niet hoe goed elke klant betaalt (betaaltermijn/op-tijd
 > per opdrachtgever) — de cashflow-hefboom. Nieuwe kaart "Betaalgedrag per opdrachtgever": per klant een toon-badge (Betaalt op tijd/
