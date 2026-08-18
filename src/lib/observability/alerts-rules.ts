@@ -53,6 +53,9 @@ const SAMPLE_INPUT: MetricsInput = {
   cronAgeSeconds: 0,
   cronOk: true,
   cronStale: false,
+  // Niet-lege lijst zodat buildMetrics de gelabelde familie `zzp_cron_task_failed` produceert en de
+  // drift-gate die naam kent (de waarden doen niet ter zake — we lezen alleen de namen).
+  cronFailedTasks: ["voorbeeld"],
   backupAgeSeconds: 0,
   backupOk: true,
   backupStale: false,

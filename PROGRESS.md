@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-18 — Prod-rijpheid: per-runner cron-faal-attributie op /api/metrics (`zzp_cron_task_failed`)
+
+**Wat:** de cron-heartbeat legt al vast _welke_ sub-taak-runners tijdens de laatste `run-all` faalden
+(`cron.failedTasks`, getoond op `/admin/systeemstatus`), maar `/api/metrics` — het vlak waarvan het doel
+is "alarmeren ZONDER op /admin in te loggen" — liet die attributie vallen en exposeerde enkel het aggregaat
+`zzp_cron_heartbeat_ok` (0/1). Een via Prometheus gepagete operator zag _dát_ een runner faalde, niet
+_welke_. Nu een gelabelde gauge-familie `zzp_cron_task_failed{task="..."}` (1 reeks per gefaalde runner op de
+laatste run; bij een geslaagde run géén reeks).
+
+**Hoe:** `Metric` kreeg een optioneel `labels`-veld; `buildMetrics` spreidt de familie direct ná
+`zzp_cron_heartbeat_stale` (gesorteerd + ontdubbeld → deterministisch). `renderPrometheus` emit HELP/TYPE
+precies één keer per naam (dubbele HELP = parsefout) en escapet labelwaarden; gauges zonder labels blijven
+byte-identiek (geen leeg `{}`-suffix). `metricsToJson` keyt een gelabelde reeks met het label-suffix.
+`MetricsInput.cronFailedTasks` gevoed uit `cron.failedTasks` in de route. Drop-in alert `ZzpCronTaskFailed`
+(`== 1`, `for: 30m`, warning, `task`-label in de tekst) + onderhouds-inhibitie + `ZzpCronStale`-wortel-
+oorzaak-demping in `alertmanager.yml`; drift-gate-`SAMPLE_INPUT` in `alerts-rules.ts` bijgewerkt.
+
+**Bestanden:** `src/lib/observability/metrics.ts` (+`.test.ts`), `src/lib/observability/alerts-rules.ts`,
+`src/app/api/metrics/route.ts`, `docs/observability/alerts.yml`, `docs/observability/alertmanager.yml`.
+Read-only, geen extra DB-read, geen PII (taaknamen = statische identifiers), geen schema-/mutatie-/auth-
+oppervlak. Gate: observability-tests 66 groen; typecheck/lint/test/build/prettier groen.
+
+**Volgende stap:** volgende hoogste-hefboom prod-rijpheid-item uit MENSENWERK.md.
+
 ## 2026-08-18 — ZZP'er: diensten-samenvattingsstrip op /diensten (spiegel van de opdrachtgever-kant)
 
 **Wat:** de ZZP'er-urenstatenlijst (`/diensten`) was een platte lijst zonder aggregaat, terwijl de

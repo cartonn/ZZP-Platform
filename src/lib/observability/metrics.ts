@@ -21,6 +21,13 @@ export interface Metric {
   help: string;
   type: MetricType;
   value: number;
+  /**
+   * Optionele Prometheus-labels ({ task: "payment-reminders" } → `{task="payment-reminders"}`). Alleen
+   * gebruikt voor gelabelde families (meerdere reeksen onder één metric-naam); ontbreekt bij gewone
+   * gauges. De labelwaarden worden bij het renderen ge-escaped en bevatten uitsluitend statische
+   * code-identifiers — nooit persoonsgegevens.
+   */
+  labels?: Record<string, string>;
 }
 
 /** Sentinel voor "nog nooit gemeten" (heartbeat heeft nog niet gedraaid). */
@@ -39,6 +46,15 @@ export interface MetricsInput {
   cronOk: boolean | null;
   /** Staat de cron-heartbeat op "stale" (buiten het venster)? */
   cronStale: boolean;
+  /**
+   * Namen van de sub-taken (runners) die tijdens de laatste `run-all` faalden — leeg wanneer de run
+   * slaagde of nog nooit draaide. Statische code-identifiers (bv. "payment-reminders"), géén
+   * persoonsgegevens. Het aggregaat `cronOk` (→ `zzp_cron_heartbeat_ok`) zegt alléén *dát* er een
+   * taakfout was; deze lijst zegt *welke* runner faalde, zodat een via Prometheus gepagete operator de
+   * vastgelopen runner ziet zonder op /admin/systeemstatus in te loggen. Wordt gerenderd als de
+   * gelabelde gauge-familie `zzp_cron_task_failed{task="..."}` (1 per gefaalde runner).
+   */
+  cronFailedTasks: readonly string[];
   /** Leeftijd van de laatste database-back-up-heartbeat in seconden, of null. */
   backupAgeSeconds: number | null;
   /** Slaagde de laatste back-up? null als er nog nooit een melding was. */
@@ -285,6 +301,24 @@ function age(seconds: number | null): number {
 }
 
 /**
+ * Bouwt de gelabelde gauge-familie `zzp_cron_task_failed{task="..."}`: één reeks (waarde 1) per
+ * sub-taak-runner die tijdens de laatste `run-all` faalde. Bij een volledig geslaagde run (lege lijst)
+ * verschijnt er GEEN enkele reeks — een gezonde run is de afwezigheid van deze familie, precies zoals
+ * een Prometheus-conditie `zzp_cron_task_failed == 1` verwacht. De namen worden ontdubbeld én gesorteerd
+ * zodat de expositie deterministisch is (de heartbeat bewaart ze in faalvolgorde; alleen de *set* telt).
+ */
+function cronFailedTaskMetrics(failedTasks: readonly string[]): Metric[] {
+  const unique = [...new Set(failedTasks)].sort();
+  return unique.map((task) => ({
+    name: "zzp_cron_task_failed",
+    help: "1 per geplande-taak-runner die tijdens de laatste run-all faalde (label `task` = de runner-naam, een statische identifier, geen PII). Alleen gefaalde runners exposeren een reeks; bij een volledig geslaagde run is er geen enkele. Complementeert het aggregaat zzp_cron_heartbeat_ok (0/1) met per-runner-attributie zodat een gepagete operator ziet WELKE runner vastloopt zonder op /admin/systeemstatus in te loggen.",
+    type: "gauge" as const,
+    labels: { task },
+    value: 1,
+  }));
+}
+
+/**
  * Vertaalt de operationele invoer naar een deterministische lijst gauges. Pure functie: dezelfde
  * invoer geeft altijd exact dezelfde uitvoer (stabiele volgorde), geschikt voor snapshot-tests én
  * voor een Prometheus-scraper.
@@ -321,6 +355,8 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       type: "gauge",
       value: input.cronStale ? 1 : 0,
     },
+    // Gelabelde familie: 1 reeks per gefaalde runner op de laatste run (leeg bij een geslaagde run).
+    ...cronFailedTaskMetrics(input.cronFailedTasks),
     {
       name: "zzp_backup_heartbeat_age_seconds",
       help: `Leeftijd van de laatste database-back-up-heartbeat in seconden (${AGE_NEVER} = nog nooit gemeld).`,
@@ -487,27 +523,59 @@ export function buildMetrics(input: MetricsInput): Metric[] {
 }
 
 /**
- * Rendert Metric[] naar de Prometheus-tekstexpositie (versie 0.0.4): per metric een `# HELP`- en
- * `# TYPE`-regel gevolgd door de waarde. Pure functie. Niet-eindige waarden vallen veilig terug op 0
- * zodat een scraper nooit een `NaN`/`Inf`-parsefout krijgt.
+ * Escapet een Prometheus-labelwaarde volgens de tekstexpositie: backslash, dubbele quote en newline.
+ * De labelwaarden zijn vandaag uitsluitend statische taaknamen (veilig), maar het escapen houdt de
+ * expositie robuust tegen een toekomstige labelbron.
+ */
+function escapeLabelValue(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+}
+
+/**
+ * Rendert de optionele labels naar het Prometheus-suffix `{k="v",...}` (gesorteerd op sleutel voor een
+ * deterministische uitvoer). Geen/lege labels → lege string, zodat gewone gauges byte-identiek blijven.
+ */
+function formatLabels(labels: Record<string, string> | undefined): string {
+  if (!labels) return "";
+  const keys = Object.keys(labels).sort();
+  if (keys.length === 0) return "";
+  return `{${keys.map((k) => `${k}="${escapeLabelValue(labels[k] ?? "")}"`).join(",")}}`;
+}
+
+/**
+ * Rendert Metric[] naar de Prometheus-tekstexpositie (versie 0.0.4): per metric-NAAM één `# HELP`- en
+ * `# TYPE`-regel (ook bij een gelabelde familie met meerdere reeksen onder dezelfde naam — Prometheus
+ * verbiedt dubbele HELP/TYPE), gevolgd door de waarde-regel(s) mét labelsuffix. Pure functie.
+ * Niet-eindige waarden vallen veilig terug op 0 zodat een scraper nooit een `NaN`/`Inf`-parsefout krijgt.
  */
 export function renderPrometheus(metrics: Metric[]): string {
   const lines: string[] = [];
+  const headerEmitted = new Set<string>();
   for (const metric of metrics) {
     const value = Number.isFinite(metric.value) ? metric.value : 0;
-    lines.push(`# HELP ${metric.name} ${metric.help}`);
-    lines.push(`# TYPE ${metric.name} ${metric.type}`);
-    lines.push(`${metric.name} ${value}`);
+    if (!headerEmitted.has(metric.name)) {
+      lines.push(`# HELP ${metric.name} ${metric.help}`);
+      lines.push(`# TYPE ${metric.name} ${metric.type}`);
+      headerEmitted.add(metric.name);
+    }
+    lines.push(`${metric.name}${formatLabels(metric.labels)} ${value}`);
   }
   // Prometheus vereist een afsluitende newline.
   return lines.join("\n") + "\n";
 }
 
-/** Rendert Metric[] naar een plat JSON-object { naam: waarde } voor niet-Prometheus-monitors. */
+/**
+ * Rendert Metric[] naar een plat JSON-object { naam: waarde } voor niet-Prometheus-monitors. Een
+ * gelabelde reeks krijgt de labels als sleutel-suffix (`zzp_cron_task_failed{task="..."}`) zodat
+ * meerdere reeksen onder dezelfde naam niet over elkaar heen schrijven; gewone gauges houden de kale
+ * naam als sleutel (byte-identiek aan voorheen).
+ */
 export function metricsToJson(metrics: Metric[]): Record<string, number> {
   const out: Record<string, number> = {};
   for (const metric of metrics) {
-    out[metric.name] = Number.isFinite(metric.value) ? metric.value : 0;
+    out[`${metric.name}${formatLabels(metric.labels)}`] = Number.isFinite(metric.value)
+      ? metric.value
+      : 0;
   }
   return out;
 }
