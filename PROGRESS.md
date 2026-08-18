@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-18 — Persona-sweep run 81: outer-window-blindheid op de teken-/indien-taak (DOEL 1b)
+
+**Wat:** de "Contract ondertekenen"-taak (PROPOSED — ZZP'er én opdrachtgever) en de "Uren indienen"-taak
+(ACTIVE zonder ingediende prestatie) waren als laatste next-action-emitters nog gevoed door de gecapte
+`collaboration.findMany({ orderBy: { updatedAt: "desc" }, take: MAX })`. Omdat `Collaboration.updatedAt`
+alleen bij een directe rij-mutatie bumpt (tekenen/dispuut/annuleren/auto-afronding) en níét bij het
+voorstellen-en-wachten of het indienen van een prestatie, viel bij >MAX gelijktijdige PROPOSED+ACTIVE-
+samenwerkingen een ouder-voorgestelde/ouder-getekende samenwerking buiten het venster → de teken-/indien-
+taak verdween permanent uit /acties, de badge én de dashboard-rail (niet self-healing), terwijl het
+samenwerkingsdetail de partij nog als "aan zet" toonde en het geld muurvast zat.
+
+**Hoe:** beide taken uit dedicated, status-gefilterde, ONGEWINDOWDE queries (`status: "PROPOSED"` resp.
+`status: "ACTIVE"` + `OR: [{performances:{none:{}}}, {performances:{some:{status:"DRAFT"}}}]`,
+`orderBy: createdAt asc` → oudste blijft staan, self-healing), gespiegeld aan de run-76-79-fixes
+(`rejectedPerfs`/`openInvoices`/`credentialCollabs`). Fase-bepaling (meest recente prestatie DRAFT/geen)
+spiegelt cascade/stage.ts.
+
+**Bestanden:** `src/lib/actions/pending-tasks.ts` (freelancer- + client-tak),
+`src/lib/actions/pending-tasks-sign-submit-outer-window.test.ts` (nieuw, 3 tests: teken-taak ZZP'er/
+opdrachtgever + indien-taak buiten het venster), `pending-tasks-contract-sign-compliance.test.ts` (mock
+bijgewerkt naar de nieuwe query-vormen), `docs/PERSONA-SWEEP-BACKLOG.md`. **Tests:** volledige suite groen.
+Geparkeerd (backlog): `franchiseNotEngageableTask` roster-cap op `id:asc` (bemiddelaar, LAAG).
+Gate: typecheck/lint/test/build/prettier groen (CI-poort volgt op de PR).
+
+---
+
 ## 2026-08-18 — Bemiddelaar: statusfilter op de dienstenlijst (`/franchise/diensten`)
 
 **Wat:** de bemiddelaar-dienstenlijst (`/franchise/diensten`) was de enige franchise-lijst zónder filter —

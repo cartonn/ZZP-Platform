@@ -1,5 +1,54 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-18 (run 81) · **main-commit basis:** `94088b32`
+> **Uitkomst:** **1 bereikbaar DOEL 1b-defect gevonden én gefixt** (next-action-engine outer-window-
+> blindheid, MED). 4 parallelle adversariële Opus-code-audits op niet-overlappende oppervlakken
+> (authz/IDOR/tenant-isolatie, cascade/geld-integriteit + verboden statusovergangen, next-action-engine-
+> correctheid, malicieuze input/CSV/XSS). Drie audits (authz/IDOR/tenant, cascade/geld, malicieuze input)
+> vonden **0 bereikbare gaten**; de next-action-audit leverde de fix hieronder + één lager-vertrouwen
+> geparkeerd item. De live build/probe kon lokaal niet draaien (het remote-egressbeleid van deze sessie
+> weigert `next/font/google`-fetches via undici → OOM/ECONNRESET; omzeild voor de build met een undici-
+> ProxyAgent-preload, maar de e2e-probe is aan CI overgelaten — geen codedefect).
+>
+> - **OPGELOST — outer-window-blindheid op de teken-/indien-taak (DOEL 1b, MED):** de "Contract
+>   ondertekenen"-taak (`contractSignTask`, PROPOSED — ZZP'er én opdrachtgever) en de "Uren indienen"-taak
+>   (`performanceSubmitTask`, ACTIVE zonder ingediende prestatie) werden afgeleid uit dezelfde gecapte
+>   `collaboration.findMany({ orderBy: { updatedAt: "desc" }, take: MAX })` die run 77-79 al voor de geld-/
+>   keur-/certificaat-emitters had losgekoppeld — maar déze twee bleven achter. `Collaboration.updatedAt`
+>   wordt alleen bij een directe mutatie op de rij gebumpt (tekenen/dispuut/annuleren/auto-afronding);
+>   voorstellen-én-wachten of een prestatie indienen raakt de rij niet. Bij >MAX gelijktijdige PROPOSED+
+>   ACTIVE-samenwerkingen viel een ouder-voorgestelde (teken-taak) of ouder-getekende ACTIVE-samenwerking-
+>   zonder-prestatie (indien-taak) buiten het venster en verdween de taak PERMANENT uit /acties, de badge én
+>   de dashboard-rail (de actie zelf bumpt `updatedAt` niet → niet self-healing), terwijl het
+>   samenwerkingsdetail de partij nog wél als "aan zet" toonde en het geld muurvast zat (alleen een
+>   APPROVED-prestatie wordt ooit een factuur). **Fix:** beide taken uit dedicated, status-gefilterde,
+>   ONGEWINDOWDE queries (`status: "PROPOSED"` resp. `status: "ACTIVE"` + `OR: [{performances:{none:{}}},
+{performances:{some:{status:"DRAFT"}}}]`, `orderBy: createdAt asc` → oudste blijft staan, self-healing),
+>   gespiegeld aan `rejectedPerfs`/`openInvoices`/`credentialCollabs` (run 76-79). Bestanden:
+>   `src/lib/actions/pending-tasks.ts` (freelancer + client). +6 regressietests
+>   (`pending-tasks-sign-submit-outer-window.test.ts`: teken-taak ZZP'er/opdrachtgever + indien-taak buiten
+>   het venster; mock in `pending-tasks-contract-sign-compliance.test.ts` bijgewerkt naar de nieuwe
+>   query-vormen).
+>
+> **Geparkeerd (met repro, niet gefixt deze run):**
+>
+> - **`franchiseNotEngageableTask` roster-cap op `id: asc` (bemiddelaar, DOEL 1b, LAAG — lager vertrouwen):**
+>   `src/lib/actions/pending-tasks.ts` (~regel 1252-1267) haalt de roster-leden op met
+>   `prisma.freelancerProfile.findMany({ where:{tenantId}, orderBy:{id:"asc"}, take: MAX })` en berekent
+>   inzetbaarheid pas ná de cap. Anders dan de FIFO-admin-queues (die legen naarmate oudere items worden
+>   afgehandeld en zo ruimte maken) groeit een tenant-roster alleen maar — een roster-lid voorbij de 50ste
+>   (op `id`-volgorde, niet urgentie-gecorreleerd) wordt door `computeEngageability` NOOIT beoordeeld, dus
+>   een echt niet-inzetbaar lid (ontbrekend/verlopen verplicht document) levert permanent geen taak op
+>   /acties/badge. **Repro:** tenant met >50 `FreelancerProfile`-rijen; het lid met het hoogste id mist een
+>   verplicht document → geen `franchiseNotEngageableTask`. **Fix-richting:** filter de blokkerende
+>   predicaat DB-zijdig (SUBMITTED/REJECTED/verlopend-certificaat-gekoppelde ids eerst, ongewindowd) met een
+>   residu-rollup voor de rest — spiegel `franchiseStaleDienstRollupTask`. Lager vertrouwen: vereist >50
+>   roster-leden bij één tenant; de demo-tenant haalt dat niet, dus niet live gereproduceerd.
+>
+> ---
+>
+> **Vorige run:**
+>
 > **Datum:** 2026-08-16 (run 79) · **main-commit basis:** `5cf777d2`
 > **Uitkomst:** **4 bereikbare defecten gevonden én gefixt** (1× server-side-waarheid/integriteit HOOG,
 > 1× functionele KPI-correctheid MED, 2× next-action-engine DOEL 1b MED/LAAG). 4 parallelle adversariële

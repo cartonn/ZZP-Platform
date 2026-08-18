@@ -469,12 +469,25 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     }
   }
 
-  // Lopende/voorgestelde samenwerkingen (geen disputen — die zijn bevroren).
-  const collabs = await prisma.collaboration.findMany({
-    where: { freelancer: { userId }, status: { in: ["PROPOSED", "ACTIVE"] }, disputedAt: null },
+  // Overdue-facturen die hier een eigen, specifieke betaal-taak krijgen, worden niet nóg eens
+  // als generieke "factuur over de vervaldatum"-rij getoond (zie de residu-aftrek onderaan).
+  let surfacedOverdue = 0;
+
+  // Onderteken-taak (PROPOSED) — bewust LOSGEKOPPELD van een gecapt `updatedAt`-venster, exact zoals
+  // `rejectedPerfs`/`openInvoices`/`credentialCollabs` (run 76-79). Een eerdere `orderBy: updatedAt desc,
+  // take: MAX`-samenwerkings-query voedde deze taak; `Collaboration.updatedAt` is echter een @updatedAt-
+  // kolom die ALLEEN bij een directe mutatie op de rij wordt bijgewerkt (tekenen, dispuut, annuleren,
+  // auto-afronding). Een PROPOSED-samenwerking staat dus bevroren op het VOORSTEL-moment, en bij >MAX
+  // gelijktijdige PROPOSED+ACTIVE-samenwerkingen viel een ouder-voorgestelde samenwerking buiten het
+  // venster → de "Onderteken"-taak verdween PERMANENT uit /acties, de badge én de dashboard-rail, terwijl
+  // het samenwerkingsdetail 'm nog wél als "aan zet" toonde (het tekenen zelf bumpt het venster niet →
+  // niet self-healing). Een status-gefilterde, ongewindowde `PROPOSED`-query (`createdAt asc`, oudste
+  // blijft staan) heelt self-healing: een rij verlaat de lijst pas als 'ie niet langer PROPOSED is.
+  // Persona-sweep run 81.
+  const proposedCollabs = await prisma.collaboration.findMany({
+    where: { freelancer: { userId }, status: "PROPOSED", disputedAt: null },
     select: {
       id: true,
-      status: true,
       job: {
         select: {
           title: true,
@@ -482,48 +495,57 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         },
       },
       company: { select: { name: true } },
-      // Meest recente prestatie eerst: die bepaalt de fase (spiegelt cascade/stage.ts). We halen
-      // de status op (niet alleen de REJECTED-rijen) zodat we óók "nog geen prestatie" kunnen zien.
-      performances: {
-        select: { id: true, status: true },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      },
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { createdAt: "asc" },
     take: MAX,
   });
-  // Overdue-facturen die hier een eigen, specifieke betaal-taak krijgen, worden niet nóg eens
-  // als generieke "factuur over de vervaldatum"-rij getoond (zie de residu-aftrek onderaan).
-  let surfacedOverdue = 0;
-  for (const c of collabs) {
-    if (c.status === "PROPOSED") {
-      // Inzetbaarheid-gate (server-waarheid, contract-commands.ts): tekenen wordt geweigerd zolang
-      // een vereist certificaat ontbreekt/verlopen is. De "Onderteken"-taak zou dan een dode knop
-      // zijn (signContract gooit, de samenwerking blijft PROPOSED, de taak verdwijnt nooit) en spreekt
-      // het samenwerkingsdetail tegen, dat de teken-knop in deze staat al verbergt. De ZZP'er krijgt
-      // in plaats daarvan de vernieuw-/aanlever-taak (collaborationExpired/MissingRequiredCredentials
-      // hieronder — dezelfde `collabs`, dus óók voor PROPOSED). Persona-sweep run 58.
-      const requiredTypes = c.job.credentialRequirements.map(
-        (r) => r.credentialType as CredentialType,
-      );
-      if (!collaborationPlacementBlocked(requiredTypes, allCreds, now)) {
-        tasks.push(contractSignTask(c.id, c.job.title, c.company.name));
-      }
-      continue;
+  for (const c of proposedCollabs) {
+    // Inzetbaarheid-gate (server-waarheid, contract-commands.ts): tekenen wordt geweigerd zolang
+    // een vereist certificaat ontbreekt/verlopen is. De "Onderteken"-taak zou dan een dode knop
+    // zijn (signContract gooit, de samenwerking blijft PROPOSED, de taak verdwijnt nooit) en spreekt
+    // het samenwerkingsdetail tegen, dat de teken-knop in deze staat al verbergt. De ZZP'er krijgt
+    // in plaats daarvan de vernieuw-/aanlever-taak (collaborationExpired/MissingRequiredCredentials
+    // hieronder — óók voor PROPOSED via `credentialCollabs`). Persona-sweep run 58.
+    const requiredTypes = c.job.credentialRequirements.map(
+      (r) => r.credentialType as CredentialType,
+    );
+    if (!collaborationPlacementBlocked(requiredTypes, allCreds, now)) {
+      tasks.push(contractSignTask(c.id, c.job.title, c.company.name));
     }
-    // ACTIVE ⟹ contract getekend. De meest recente prestatie bepaalt wie aan zet is, exact zoals de
-    // cascade-fase (stage.ts): nog geen/DRAFT = de ZZP'er moet uren indienen; REJECTED = corrigeren
-    // en opnieuw indienen; SUBMITTED = de opdrachtgever keurt (geen ZZP'er-taak); APPROVED = de
-    // factuur-tak hieronder neemt over. Zonder de submit-taak sprak /acties de fase tegen.
+  }
+
+  // Uren-indienen-taak (ACTIVE zonder ingediende prestatie) — óók losgekoppeld van het `updatedAt`-
+  // venster, zelfde outer-window-blindheid als hierboven: het indienen van een prestatie raakt
+  // `Collaboration.updatedAt` niet, dus bij >MAX gelijktijdige samenwerkingen viel een ouder-getekende
+  // ACTIVE-samenwerking die nog uren moet indienen buiten het venster en verdween de submit-taak
+  // permanent (het geld kwam er nooit — alleen een APPROVED-prestatie wordt ooit een factuur). De
+  // DB-filter (`performances: none` OF `some DRAFT`) laat alleen samenwerkingen toe die een submit-taak
+  // KÚNNEN opleveren het venster vullen; de fase-bepaling (meest recente prestatie DRAFT/geen) spiegelt
+  // cascade/stage.ts en houdt de taak weg zodra de laatste prestatie SUBMITTED/APPROVED is. `createdAt
+  // asc` → self-healing. Persona-sweep run 81.
+  const submitCollabs = await prisma.collaboration.findMany({
+    where: {
+      freelancer: { userId },
+      status: "ACTIVE",
+      disputedAt: null,
+      OR: [{ performances: { none: {} } }, { performances: { some: { status: "DRAFT" } } }],
+    },
+    select: {
+      id: true,
+      job: { select: { title: true } },
+      // Meest recente prestatie eerst: die bepaalt de fase (spiegelt cascade/stage.ts). Nog geen/DRAFT =
+      // de ZZP'er moet uren indienen; REJECTED = `rejectedPerfs` (apart); SUBMITTED = de opdrachtgever
+      // keurt (geen ZZP'er-taak); APPROVED = de factuur-tak (`openInvoices`) neemt over.
+      performances: { select: { status: true }, orderBy: { createdAt: "desc" }, take: 1 },
+    },
+    orderBy: { createdAt: "asc" },
+    take: MAX,
+  });
+  for (const c of submitCollabs) {
     const latestPerf = c.performances[0];
     if (!latestPerf || latestPerf.status === "DRAFT") {
       tasks.push(performanceSubmitTask(c.id, c.job.title));
     }
-    // Afgekeurde prestaties worden hieronder apart (ongewindowd) opgehaald — zie `rejectedPerfs`.
-    // De factuur-afgeleide taken (betaling markeren / concept indienen) komen eveneens uit een aparte,
-    // ongewindowde query — zie `openInvoices` verderop — omdat `Collaboration.updatedAt` de factuur-
-    // activiteit niet volgt (outer-window-blindheid, zie de doc-comment daar).
   }
 
   // Elke AFGEKEURDE prestatie vraagt om correctie + herindiening — óók een prestatie van een vorige
@@ -958,11 +980,16 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
       );
   }
 
-  const collabs = await prisma.collaboration.findMany({
-    where: { company: { userId }, status: { in: ["PROPOSED", "ACTIVE"] }, disputedAt: null },
+  // Onderteken-taak (PROPOSED, opdrachtgever-zijde) — spiegelt de ZZP'er-fix: losgekoppeld van het
+  // `updatedAt`-venster (outer-window-blindheid, zie de ZZP'er-doc-comment). Bij >MAX gelijktijdige
+  // PROPOSED+ACTIVE-samenwerkingen viel een ouder-voorgestelde samenwerking buiten het gecapte venster en
+  // verdween de teken-taak permanent bij de opdrachtgever. Status-gefilterde, ongewindowde `PROPOSED`-
+  // query (`createdAt asc`) → self-healing. De te-keuren prestaties/facturen (SUBMITTED) komen apart en
+  // ONGEWINDOWD uit `approvePerformances`/`approveInvoices` verderop. Persona-sweep run 81.
+  const proposedCollabs = await prisma.collaboration.findMany({
+    where: { company: { userId }, status: "PROPOSED", disputedAt: null },
     select: {
       id: true,
-      status: true,
       job: {
         select: {
           title: true,
@@ -975,34 +1002,27 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
           credentials: { select: { type: true, status: true, expiresAt: true } },
         },
       },
-      // De te-keuren prestaties/facturen (SUBMITTED) worden apart, ONGEWINDOWD opgehaald — zie
-      // `approvePerformances`/`approveInvoices` verderop. `Collaboration.updatedAt` volgt die activiteit
-      // niet (outer-window-blindheid, zie de doc-comment daar), dus ze mogen niet uit de gecapte
-      // samenwerkingsvenster-relatie komen.
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { createdAt: "asc" },
     take: MAX,
   });
-  for (const c of collabs) {
-    if (c.status === "PROPOSED") {
-      const name = c.freelancer.user.name ?? "ZZP'er";
-      // Onderdruk de "Onderteken"-taak zolang de plaatsing door een certificaat-gat geblokkeerd is:
-      // signContract weigert dan (server-waarheid), dus de knop kan nooit slagen én de opdrachtgever
-      // is niet de partij die het gat kan dichten (alleen de ZZP'er levert het bewijsstuk aan). Zonder
-      // deze gate zag de opdrachtgever op /acties/dashboard/badge een dode teken-knop, terwijl het
-      // samenwerkingsdetail hem in deze staat al geen knop toont. Persona-sweep run 58.
-      const requiredTypes = c.job.credentialRequirements.map(
-        (r) => r.credentialType as CredentialType,
-      );
-      const creds: FreelancerCredential[] = c.freelancer.credentials.map((cr) => ({
-        type: cr.type as CredentialType,
-        status: cr.status as FreelancerCredential["status"],
-        expiresAt: cr.expiresAt,
-      }));
-      if (!collaborationPlacementBlocked(requiredTypes, creds)) {
-        tasks.push(contractSignTask(c.id, c.job.title, name));
-      }
-      continue;
+  for (const c of proposedCollabs) {
+    const name = c.freelancer.user.name ?? "ZZP'er";
+    // Onderdruk de "Onderteken"-taak zolang de plaatsing door een certificaat-gat geblokkeerd is:
+    // signContract weigert dan (server-waarheid), dus de knop kan nooit slagen én de opdrachtgever
+    // is niet de partij die het gat kan dichten (alleen de ZZP'er levert het bewijsstuk aan). Zonder
+    // deze gate zag de opdrachtgever op /acties/dashboard/badge een dode teken-knop, terwijl het
+    // samenwerkingsdetail hem in deze staat al geen knop toont. Persona-sweep run 58.
+    const requiredTypes = c.job.credentialRequirements.map(
+      (r) => r.credentialType as CredentialType,
+    );
+    const creds: FreelancerCredential[] = c.freelancer.credentials.map((cr) => ({
+      type: cr.type as CredentialType,
+      status: cr.status as FreelancerCredential["status"],
+      expiresAt: cr.expiresAt,
+    }));
+    if (!collaborationPlacementBlocked(requiredTypes, creds)) {
+      tasks.push(contractSignTask(c.id, c.job.title, name));
     }
   }
 
