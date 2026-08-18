@@ -268,6 +268,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Bemiddelaar — statusfilter op de dienstenlijst `/franchise/diensten` (2026-08-18, PR #1136)** —
+> de bemiddelaar-dienstenlijst was de enige franchise-lijst zónder filter (concept/open/gevuld/gesloten in één platte lijst),
+> terwijl `/franchise/zzpers` (zoek+filter+sorteer), `/franchise/opdrachtgevers` (health-tabs) én de opdrachtgever-`/opdrachten`
+> (`JOB_STATUS_FILTER`-pills) wél triage-baar zijn. Een bemiddelaar met tientallen diensten kon niet inzoomen op "wat staat open".
+> Nu statusfilter-pills (Alle/Open/Gevuld/Concept/Gesloten) met tellingen, spiegel van het `/opdrachten`-pill-patroon. Anders dan
+> `job-status-filter.ts` (puur op `status`) leeft hier naast `status` een afgeleide `filled`-boolean (actieve samenwerking), dus de
+> groepen zijn **wederzijds uitsluitende** triage-buckets met precedentie `gevuld > concept (DRAFT) > gesloten (CLOSED) > open`,
+> gelijk aan de lijst-badge (`filled ? "Gevuld" : JobStatusBadge`) → pill en badge dezelfde taal, som van de tellingen = totaal.
+> Server-side waarheid via `?status=`; aggregatiekaarten (vulgraad/prognose) blijven over de vólledige set, alleen de lijst filtert;
+> geen extra DB-query, gefilterde empty-state. Nieuwe pure `src/lib/franchise/dienst-status-filter.ts` (+11 tests). Read-only, geen
+> schema-/mutatie-/auth-oppervlak. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — stil-kapotte-webhook-detector `zzp_subscriptions_stale_pending` (2026-08-18, PR #1135)** —
 > een betaalde checkout upsert een `Subscription` naar `PENDING`; alléén de betaal-webhook tilt 'm daarna naar `ACTIVE` (paid)/`PAST_DUE`
 > (failed) — er is géén cron die `PENDING` verwerkt. Elke andere abonnementsstatus had al een stille-faal-gauge, `PENDING` niet: een

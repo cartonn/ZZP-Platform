@@ -19,16 +19,33 @@ import {
   acuteFillabilityHeadline,
 } from "@/lib/franchise/acute-fillability";
 import { isStartAcute } from "@/lib/franchise/acute-open-diensten";
+import { withParams } from "@/components/admin/base-path";
+import {
+  DIENST_STATUS_FILTER_ORDER,
+  DIENST_STATUS_FILTER_LABEL,
+  parseDienstStatusFilter,
+  filterDienstenByStatus,
+  summarizeDienstStatusGroups,
+} from "@/lib/franchise/dienst-status-filter";
 
 export const metadata: Metadata = { title: "Diensten · Bemiddeling" };
+
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 const DAY = 86_400_000;
 // Een gepubliceerde dienst die zo lang openstaat zonder actieve plaatsing vraagt aandacht — de
 // franchiser kan dan ingrijpen (extra ZZP'ers benaderen, tarief bijstellen) vóór hij onvervuld blijft.
 const AT_RISK_DAYS = 7;
 
-export default async function FranchiseDienstenPage() {
+export default async function FranchiseDienstenPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const actor = await requireRole("FRANCHISER");
+  const sp = await searchParams;
   // unbounded-allow: franchise-tenant-scoped diensten; beheerbaar volume
   const diensten = await prisma.job.findMany({
     where: tenantScopeWhere(actor),
@@ -100,6 +117,14 @@ export default async function FranchiseDienstenPage() {
       r.published && !r.filled ? (r.openDays ?? 0) + 1000 : 0;
     return weight(b) - weight(a) || b.d.createdAt.getTime() - a.d.createdAt.getTime();
   });
+
+  // Statusfilter over de (gesorteerde) lijst. De aggregatiekaarten hierboven (vulgraad, prognose)
+  // blijven bewust over de vólledige set berekend; alleen de onderste lijst filtert. `status` op de
+  // rij toevoegen zodat de afgeleide groep (gevuld > concept > gesloten > open) bepaald kan worden.
+  const activeFilter = parseDienstStatusFilter(first(sp.status));
+  const filterRows = sorted.map((r) => ({ ...r, status: r.d.status }));
+  const groupCounts = summarizeDienstStatusGroups(filterRows);
+  const visible = filterDienstenByStatus(filterRows, activeFilter);
 
   return (
     <div className="space-y-6">
@@ -239,55 +264,92 @@ export default async function FranchiseDienstenPage() {
           />
         </Card>
       ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-          {sorted.map(({ d, filled, openDays, atRisk }) => {
-            const fillChip = filled
-              ? null
-              : dienstFillChip(fillSignals.get(d.id) ?? { readyMatches: 0, idleReady: 0 });
-            return (
-              <Link
-                key={d.id}
-                href={`/franchise/diensten/${d.id}`}
-                className="card-interactive flex items-start justify-between gap-3 p-4"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{d.title}</p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {d.company.name}
-                    {d.department ? ` · ${d.department.name}` : ""}
-                  </p>
-                  {openDays != null && (
-                    <p
-                      className={`mt-0.5 text-xs ${atRisk ? "text-warning" : "text-muted-foreground"}`}
-                    >
-                      {openDays === 0
-                        ? "Vandaag uitgezet"
-                        : `${plural(openDays, "dag", "dagen")} open`}
-                      {d._count.applications === 0 ? " · nog geen reacties" : ""}
-                    </p>
-                  )}
-                  {fillChip && (
-                    <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                      <UserCheck className="size-3" aria-hidden />
-                      {fillChip.label}
-                    </span>
-                  )}
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
-                  {filled ? (
-                    <Badge variant="success">Gevuld</Badge>
-                  ) : (
-                    <JobStatusBadge status={d.status as JobStatus} />
-                  )}
-                  {d._count.applications > 0 && (
-                    <Badge variant="muted">
-                      {plural(d._count.applications, "reactie", "reacties")}
-                    </Badge>
-                  )}
-                </div>
-              </Link>
-            );
-          })}
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-1.5">
+            {DIENST_STATUS_FILTER_ORDER.map((group) => {
+              const active = activeFilter === group;
+              return (
+                <Link
+                  key={group}
+                  href={
+                    group === "all"
+                      ? "/franchise/diensten"
+                      : withParams("/franchise/diensten", { status: group })
+                  }
+                  aria-current={active ? "page" : undefined}
+                  className={[
+                    "focus-ring inline-flex items-center rounded-md border px-3 py-1 text-sm transition-colors",
+                    active
+                      ? "border-accent-foreground/20 bg-accent text-accent-foreground"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted",
+                  ].join(" ")}
+                >
+                  {DIENST_STATUS_FILTER_LABEL[group]} ({groupCounts[group]})
+                </Link>
+              );
+            })}
+          </div>
+
+          {visible.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={Clock}
+                title="Geen diensten met deze status"
+                description="Pas het filter aan om meer diensten te zien."
+              />
+            </Card>
+          ) : (
+            <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+              {visible.map(({ d, filled, openDays, atRisk }) => {
+                const fillChip = filled
+                  ? null
+                  : dienstFillChip(fillSignals.get(d.id) ?? { readyMatches: 0, idleReady: 0 });
+                return (
+                  <Link
+                    key={d.id}
+                    href={`/franchise/diensten/${d.id}`}
+                    className="card-interactive flex items-start justify-between gap-3 p-4"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{d.title}</p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {d.company.name}
+                        {d.department ? ` · ${d.department.name}` : ""}
+                      </p>
+                      {openDays != null && (
+                        <p
+                          className={`mt-0.5 text-xs ${atRisk ? "text-warning" : "text-muted-foreground"}`}
+                        >
+                          {openDays === 0
+                            ? "Vandaag uitgezet"
+                            : `${plural(openDays, "dag", "dagen")} open`}
+                          {d._count.applications === 0 ? " · nog geen reacties" : ""}
+                        </p>
+                      )}
+                      {fillChip && (
+                        <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                          <UserCheck className="size-3" aria-hidden />
+                          {fillChip.label}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
+                      {filled ? (
+                        <Badge variant="success">Gevuld</Badge>
+                      ) : (
+                        <JobStatusBadge status={d.status as JobStatus} />
+                      )}
+                      {d._count.applications > 0 && (
+                        <Badge variant="muted">
+                          {plural(d._count.applications, "reactie", "reacties")}
+                        </Badge>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

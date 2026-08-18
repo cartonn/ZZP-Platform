@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-18 — Bemiddelaar: statusfilter op de dienstenlijst (`/franchise/diensten`)
+
+**Wat:** de bemiddelaar-dienstenlijst (`/franchise/diensten`) was de enige franchise-lijst zónder filter —
+alles (concept/open/gevuld/gesloten) stond in één platte lijst, terwijl `/franchise/zzpers` (zoek+filter+
+sorteer) en `/franchise/opdrachtgevers` (health-tabs) wél triage-baar zijn en de opdrachtgever zijn eigen
+`/opdrachten` met `JOB_STATUS_FILTER`-pills heeft. Een bemiddelaar met tientallen diensten over meerdere
+opdrachtgevers kon niet snel inzoomen op "wat staat nog open" vs "gevuld" vs "concept".
+
+**Hoe:** statusfilter-pills (Alle / Open / Gevuld / Concept / Gesloten) met tellingen, spiegel van het
+`/opdrachten`-pill-patroon. Anders dan `job-status-filter.ts` (puur op `status`) leeft hier naast `status`
+een afgeleide `filled`-boolean (actieve samenwerking), dus de groepen zijn **wederzijds uitsluitende**
+triage-buckets met precedentie `gevuld > concept (DRAFT) > gesloten (CLOSED) > open (gepubliceerd, ongevuld)`
+— gelijk aan de lijst-badge (`filled ? "Gevuld" : JobStatusBadge`), zodat pill en badge dezelfde taal
+spreken en de som van de losse tellingen het totaal is. Server-side waarheid via de URL (`?status=`,
+deelbaar/herlaadbaar). De aggregatiekaarten (vulgraad, dekkingsprognose) blijven bewust over de vólledige
+set berekend; alleen de onderste lijst filtert. Geen extra DB-query (filter over reeds-geladen rijen),
+gefilterde empty-state ("Geen diensten met deze status").
+
+**Bestanden:** `src/lib/franchise/dienst-status-filter.ts` (nieuw, pure functies) + `.test.ts` (11 tests:
+afgeleide groep/precedentie, parse-fallback, filter-ordebehoud+immutabiliteit, tellingen som=totaal,
+metadata), `src/app/(protected)/franchise/diensten/page.tsx` (searchParams + pills + gefilterde lijst).
+**Tests:** unit 11/11 groen. Gate: typecheck, lint, test, build, prettier groen (CI-poort volgt op PR #1136).
+
+---
+
 ## 2026-08-18 — Prod-rijpheid: stil-kapotte-webhook-detector (`zzp_subscriptions_stale_pending`)
 
 **Wat:** een betaalde checkout upsert een `Subscription` naar status `PENDING`; alléén de betaal-webhook
