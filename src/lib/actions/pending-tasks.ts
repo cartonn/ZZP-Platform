@@ -23,6 +23,13 @@ import {
 } from "@/lib/credentials";
 import { type CredentialType } from "@/lib/enums";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
+import {
+  credentialCollabWhere,
+  openInvoiceWhere,
+  proposedCollabWhere,
+  rejectedPerfWhere,
+  submitCollabWhere,
+} from "@/lib/data/freelancer-cascade-work";
 import { overdueInvoiceBreakdown, overdueInvoiceCount, paymentDueSoonCount } from "@/lib/signals";
 import { summarizeAvailabilityFreshness } from "@/lib/availability";
 import { type AvailabilityWindowType } from "@/lib/enums";
@@ -515,7 +522,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // blijft staan) heelt self-healing: een rij verlaat de lijst pas als 'ie niet langer PROPOSED is.
   // Persona-sweep run 81.
   const proposedCollabs = await prisma.collaboration.findMany({
-    where: { freelancer: { userId }, status: "PROPOSED", disputedAt: null },
+    where: proposedCollabWhere(userId),
     select: {
       id: true,
       job: {
@@ -554,12 +561,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // cascade/stage.ts en houdt de taak weg zodra de laatste prestatie SUBMITTED/APPROVED is. `createdAt
   // asc` → self-healing. Persona-sweep run 81.
   const submitCollabs = await prisma.collaboration.findMany({
-    where: {
-      freelancer: { userId },
-      status: "ACTIVE",
-      disputedAt: null,
-      OR: [{ performances: { none: {} } }, { performances: { some: { status: "DRAFT" } } }],
-    },
+    where: submitCollabWhere(userId),
     select: {
       id: true,
       job: { select: { title: true } },
@@ -590,10 +592,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // Spiegelt de factuur-lus, die óók eerst op status filtert vóór de take-limiet. `performanceResubmit-
   // Task` sleutelt per prestatie-id → dedupe-veilig. Persona-sweep run 76 (positioneel) + 77 (venster).
   const rejectedPerfs = await prisma.performance.findMany({
-    where: {
-      status: "REJECTED",
-      collaboration: { freelancer: { userId }, status: "ACTIVE", disputedAt: null },
-    },
+    where: rejectedPerfWhere(userId),
     select: {
       id: true,
       collaborationId: true,
@@ -620,10 +619,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // direct op de samenwerkings-eigenaar en heelt self-healing. `paymentConfirm/invoiceSubmitTask`
   // sleutelen per factuur-id → dedupe-veilig. Persona-sweep run 78 (outer-window-blindheid).
   const openInvoices = await prisma.invoice.findMany({
-    where: {
-      lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED", "OVERDUE"] },
-      collaboration: { freelancer: { userId }, status: "ACTIVE", disputedAt: null },
-    },
+    where: openInvoiceWhere(userId),
     select: {
       id: true,
       lifecycleStatus: true,
@@ -669,12 +665,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // samenwerkingen die überhaupt een compliance-taak kúnnen opleveren vullen het venster) en ordent
   // `createdAt asc` (deterministisch, oudste blijft staan → self-healing). Persona-sweep run 79.
   const credentialCollabs = await prisma.collaboration.findMany({
-    where: {
-      freelancer: { userId },
-      status: { in: ["PROPOSED", "ACTIVE"] },
-      disputedAt: null,
-      job: { credentialRequirements: { some: { required: true } } },
-    },
+    where: credentialCollabWhere(userId),
     select: {
       id: true,
       job: {

@@ -63,17 +63,16 @@ beforeEach(() => {
 });
 
 describe("FREELANCER /samenwerkingen-badge — plaatsings-gate gespiegeld (run 70)", () => {
-  it("de cascade-query haalt de vereiste certificaat-types op (job.credentialRequirements)", async () => {
+  it("de teken-query haalt de vereiste certificaat-types op (job.credentialRequirements)", async () => {
+    // Run 82: de contract-onderteken-taak komt uit een aparte, status-gefilterde PROPOSED-query
+    // (`proposedCollabWhere`, gedeeld met /acties) die de vereiste types selecteert zodat de badge de
+    // plaatsings-gate kan spiegelen. Zonder die select zou de badge terugvallen op de onvoorwaardelijke
+    // telling.
     await navBadges("FREELANCER", "u-1");
-    const cascade = collaborationFindMany.mock.calls
+    const proposed = collaborationFindMany.mock.calls
       .map((c) => c[0])
-      .find(
-        (a) =>
-          (a.where?.status as { in?: string[] })?.in?.includes("PROPOSED") &&
-          (a.select?.invoices !== undefined || a.select?.performances !== undefined),
-      );
-    expect(cascade).toBeDefined();
-    expect(hasCredentialRequirements(cascade!.select)).toBe(true);
+      .find((a) => a.where?.status === "PROPOSED" && hasCredentialRequirements(a.select));
+    expect(proposed).toBeDefined();
   });
 
   it("haalt het volledige certificaatdossier op (findMany zonder status-filter) voor de gate", async () => {

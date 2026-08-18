@@ -1,5 +1,55 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-18 (run 82) · **main-commit basis:** `1a3e68e1`
+> **Uitkomst:** **1 bereikbaar HIGH DOEL 1b-defect gevonden én gefixt** (FREELANCER cascadebadge outer-
+> window-blindheid + 2 sub-vectoren) + **1 HIGH geld/administratie-defect gevonden en GEPARKEERD** (aparte
+> PR — domeinmotor). 4 parallelle adversariële Opus-code-audits op niet-overlappende oppervlakken
+> (authz/IDOR/tenant-isolatie · cascade/geld-integriteit + verboden statusovergangen · next-action-engine-
+> correctheid · malicieuze input/CSV/XSS/upload). De authz/IDOR- én malicieuze-input-audits vonden **0
+> bereikbare gaten**; de next-action-audit leverde de gefixte badge-defecten, de cascade/geld-audit het
+> geparkeerde HIGH-item. (De live Playwright-probe is aan CI overgelaten — het remote-egressbeleid van deze
+> sessie weigert `next/font/google`-fetches; geen codedefect.)
+>
+> - **OPGELOST — FREELANCER `/samenwerkingen`-cascadebadge outer-window-blindheid (HIGH + 2 MED, DOEL 1b):**
+>   de badge (`cascadeWork`, signals.ts) las de cascade-taken uit één gecombineerde `collaboration.findMany(
+{ orderBy: { updatedAt: "desc" }, take: 50 })`, terwijl /acties (`freelancerTasks`, pending-tasks.ts) al
+>   was losgekoppeld naar aparte, status-gefilterde, `createdAt asc`-queries. `Collaboration.updatedAt` bumpt
+>   niet bij een prestatie indienen of factuur (goed)keuren → voor een ACTIVE-samenwerking bevroren op het
+>   teken-moment; bij >50 gelijktijdige PROPOSED+ACTIVE viel een ouder-getekende met openstaand werk buiten
+>   het venster en verdween de actie PERMANENT uit de badge (niet self-healing), terwijl /acties + de rail 'm
+>   toonden. Sub-vectoren: `invoices: { take: 5 }` zónder orderBy (ondertelling + flicker) en prestatie-fase
+>   uit alléén de laatste prestatie (miste een oudere REJECTED). **Fix:** gedeelde
+>   `src/lib/data/freelancer-cascade-work.ts` (5 WHERE-builders gedeeld met /acties + `getFreelancerCascade-
+WorkCount` die de 4 emitters exact spiegelt); collab-vereist-cert-gaten uit de ongewindowde
+>   `credentialCollabWhere`-query. Dode pure `countFreelancerCascadeWork` verwijderd. +12 tests.
+>
+> **GEPARKEERD (run 82, HIGH — aparte PR, administratie-domeinmotor "niet aankomen behalve voor tests"):**
+>
+> - **HIGH (geld/administratie-integriteit — CLAUDE.md regel 1/5):** een SUBMITTED- of REJECTED-cascade-
+>   factuur boekt bij eerste indiening omzet (`OMZET`) + af-te-dragen-BTW (`BTW_AF_TE_DRAGEN`) + debiteur
+>   (`DEBITEUREN`) in het grootboek (`ledger.ts planInvoiceSubmitted`, via `handlers.ts planInvoiceSubmitted-
+Event`), maar er is **geen enkele terugboek-transitie voor welke rol dan ook**. De lifecycle-machine
+>   (`lifecycles.ts`) maakt `CREDITED` alléén bereikbaar vanuit APPROVED/OVERDUE/PAID/PROCESSED; vanuit
+>   SUBMITTED zijn de enige uitgangen APPROVED/REJECTED, vanuit REJECTED alleen SUBMITTED. `creditInvoice`
+>   gooit dus voor een SUBMITTED/REJECTED-factuur (óók voor admin), en legacy `cancelInvoice` weigert cascade-
+>   facturen. `planInvoiceRejectedEvent` boekt bewust niet terug. **Repro:** prestatie goedgekeurd → concept-
+>   factuur; ZZP'er dient factuur in (SUBMITTED → omzet+BTW+debiteur geboekt); opdrachtgever wijst af (of
+>   keurt nooit goed). Er is nu geen pad dat de bedragen terugboekt → de BTW-aangifte (`overview.ts vatReturn`)
+>   over-declareert af-te-dragen-BTW, de debiteurenbalans toont een fantoom-post, en de status-gebaseerde
+>   rapporten (`outstanding.ts`/`realized-revenue.ts` sluiten REJECTED uit) spreken de grootboek-gebaseerde
+>   tegen. **Secundair (LOW/MED):** `revenueCountedInvoiceWhere` (revenue-trend) telt een REJECTED-factuur
+>   nog als omzet (sluit alleen CREDITED uit) terwijl `realizedRevenueInvoiceWhere` (maandinkomen-widget)
+>   REJECTED wél uitsluit → twee omzetdefinities, zelfde periode, verschillende getallen. **Aanbevolen fix
+>   (eigen PR + zorgvuldige review):** sta `SUBMITTED→CREDITED`/`REJECTED→CREDITED` toe met terugboekende
+>   postings (`reversePayment: false`), óf laat `planInvoiceRejectedEvent` de reversal boeken. **Waarom
+>   geparkeerd:** raakt de administratie-domeinmotor (audit-backlog: "niet aankomen behalve voor tests") én
+>   bevat een BTW-/product-keuze (auto-crediteren bij afwijzing?) die een gefocuste, apart-gereviewde PR
+>   verdient — geen autonome self-merge.
+>
+> ---
+>
+> **Vorige run:**
+>
 > **Datum:** 2026-08-18 (run 81) · **main-commit basis:** `94088b32`
 > **Uitkomst:** **1 bereikbaar DOEL 1b-defect gevonden én gefixt** (next-action-engine outer-window-
 > blindheid, MED). 4 parallelle adversariële Opus-code-audits op niet-overlappende oppervlakken
