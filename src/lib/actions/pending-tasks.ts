@@ -329,7 +329,15 @@ const computeTasks = cache(async (userId: string, role: string): Promise<Pending
   // Bemiddelaar: doorlopende tenant-taken (roster-compliance + lead-opvolging). De fallthrough naar
   // de admin-taken blijft uitgesloten — een FRANCHISER ziet nooit platform-brede admin-items.
   if (role === "FRANCHISER") return rankTasks(await franchiserTasks(userId));
-  return rankTasks(await adminTasks());
+  if (role === "ADMIN") return rankTasks(await adminTasks());
+  // Fail-closed op een onbekende rol. `adminTasks()` is bewust ongescoopt en geeft platform-brede,
+  // gevoelige PII terug (AVG-verwijderverzoeken, disputen, no-show-meldingen, verificatie-inzenders,
+  // supporttickets). Een fallthrough-default die "alles wat geen FREELANCER/CLIENT/FRANCHISER is"
+  // als admin behandelt, is fail-open: rollen zijn strings (enums-als-strings, architectuurregel 6),
+  // dus een bad migration, directe DB-write of een toekomstige 5e rol die deze switch niet bijwerkt
+  // zou stil de volledige admin-takenlijst prijsgeven i.p.v. te weigeren. Onbekend → geen taken.
+  // OWASP A01 (Broken Access Control — fail-open default). Alleen een expliciete ADMIN ziet adminTasks.
+  return [];
 });
 
 export async function pendingTasks(actor: Actor): Promise<PendingTask[]> {
