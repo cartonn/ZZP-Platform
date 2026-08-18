@@ -1,13 +1,22 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import {
   createExpense,
   deleteExpense,
   type ExpenseFormState,
 } from "@/app/(protected)/uitgaven/actions";
-import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABEL, EXPENSE_DESCRIPTION_MAX } from "@/lib/expense";
+import {
+  EXPENSE_CATEGORIES,
+  EXPENSE_CATEGORY_LABEL,
+  EXPENSE_DESCRIPTION_MAX,
+  EXPENSE_VAT_RATES,
+  type ExpenseVatRateKey,
+  vatCentsForRate,
+  centsToEuroInput,
+  parseEurosToCents,
+} from "@/lib/expense";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -32,9 +41,38 @@ export function UitgavenForm() {
   );
   const formRef = useRef<HTMLFormElement>(null);
 
+  // Btw-tarief + bedragen zijn gecontroleerd zodat het btw-bedrag automatisch uit het netto volgt.
+  // De server (`createExpense`) blijft de bron van waarheid en her-valideert netto én btw los.
+  const [net, setNet] = useState("");
+  const [vat, setVat] = useState("");
+  const [rate, setRate] = useState<ExpenseVatRateKey>("21");
+
+  // Herbereken het btw-bedrag uit een netto en een tarief; "custom" laat de ZZP'er het zelf typen.
+  function recomputeVat(nextNet: string, nextRate: ExpenseVatRateKey) {
+    if (nextRate === "custom") return;
+    const bps = EXPENSE_VAT_RATES.find((r) => r.key === nextRate)?.bps ?? 0;
+    const netCents = parseEurosToCents(nextNet);
+    setVat(netCents === null ? "" : centsToEuroInput(vatCentsForRate(netCents, bps)));
+  }
+
+  function onNetChange(value: string) {
+    setNet(value);
+    recomputeVat(value, rate);
+  }
+
+  function onRateChange(value: ExpenseVatRateKey) {
+    setRate(value);
+    recomputeVat(net, value);
+  }
+
   // Reset na een geslaagde boeking — leeg de velden zodat de volgende invoer schoon begint.
   useEffect(() => {
-    if (state?.ok) formRef.current?.reset();
+    if (state?.ok) {
+      formRef.current?.reset();
+      setNet("");
+      setVat("");
+      setRate("21");
+    }
   }, [state]);
 
   return (
@@ -86,7 +124,7 @@ export function UitgavenForm() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
           <label htmlFor="expense-net" className="block text-xs font-medium text-foreground">
             Bedrag excl. btw (€)
@@ -97,7 +135,28 @@ export function UitgavenForm() {
             type="text"
             inputMode="decimal"
             placeholder="0,00"
+            value={net}
+            onChange={(e) => onNetChange(e.target.value)}
           />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="expense-vat-rate" className="block text-xs font-medium text-foreground">
+            Btw-tarief
+          </label>
+          <select
+            id="expense-vat-rate"
+            value={rate}
+            onChange={(e) => onRateChange(e.target.value as ExpenseVatRateKey)}
+            className="focus-ring h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
+          >
+            {EXPENSE_VAT_RATES.map((r) => (
+              <option key={r.key} value={r.key}>
+                {r.label}
+              </option>
+            ))}
+            <option value="custom">Handmatig</option>
+          </select>
         </div>
 
         <div className="space-y-1.5">
@@ -110,10 +169,19 @@ export function UitgavenForm() {
             type="text"
             inputMode="decimal"
             placeholder="0,00"
+            value={vat}
+            onChange={(e) => {
+              // Een handmatige aanpassing zet het tarief op "Handmatig" zodat het niet overschreven wordt.
+              setVat(e.target.value);
+              setRate("custom");
+            }}
           />
-          <p className="text-xs text-muted-foreground">Voorbelasting — het btw-deel van de bon.</p>
         </div>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Btw (voorbelasting) volgt automatisch uit het tarief. Kies “Handmatig” om het btw-deel zelf
+        in te vullen — bv. een bon met gemengde tarieven.
+      </p>
 
       {state?.error && (
         <p role="alert" className="text-xs font-medium text-danger">

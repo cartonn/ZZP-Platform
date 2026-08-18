@@ -99,6 +99,38 @@ export function parseEurosToCents(raw: string): number | null {
 }
 
 /**
+ * Standaard Nederlandse btw-tarieven voor de uitgave-invoer (voorbelasting), in basispunten zodat
+ * alles integer blijft rekenen. `custom` (handmatig) staat de ZZP'er toe het btw-deel zelf te typen
+ * — bv. een bon met gemengde tarieven of buitenlandse btw. Sluit aan op `VAT_RATE_BPS` (config).
+ */
+export const EXPENSE_VAT_RATES = [
+  { key: "21", bps: 2100, label: "21%" },
+  { key: "9", bps: 900, label: "9%" },
+  { key: "0", bps: 0, label: "0% / vrijgesteld" },
+] as const;
+export type ExpenseVatRateKey = (typeof EXPENSE_VAT_RATES)[number]["key"] | "custom";
+
+/**
+ * Btw-bedrag (voorbelasting) in centen bij een nettobedrag en een tarief in basispunten.
+ * Deterministisch afgerond (`Math.round`, spiegelt `administration/vat.ts`). Niet-eindige of
+ * niet-positieve invoer → 0, zodat een leeg of ongeldig nettobedrag nooit een btw-bedrag suggereert.
+ */
+export function vatCentsForRate(netCents: number, bps: number): number {
+  if (!Number.isFinite(netCents) || netCents <= 0) return 0;
+  if (!Number.isFinite(bps) || bps <= 0) return 0;
+  return Math.round((netCents * bps) / 10000);
+}
+
+/**
+ * Formatteert een centenbedrag als euro-invoerwaarde met NL-komma-decimaal (bv. 2100 → "21,00").
+ * Nul of ongeldig → "" (leeg veld) i.p.v. "0,00", zodat de UI geen valse nul toont vóór invoer.
+ */
+export function centsToEuroInput(cents: number): string {
+  if (!Number.isFinite(cents) || cents <= 0) return "";
+  return (cents / 100).toFixed(2).replace(".", ",");
+}
+
+/**
  * Grootboekregels voor één uitgave, vanuit het perspectief van de ZZP'er (FREELANCER). Debet KOSTEN
  * (netto) + debet BTW_VOORBELASTING (btw) tegenover credit BETAALD (totaal) — de boeking sluit
  * (debet = credit). De btw-regel wordt alleen toegevoegd als er btw is. Bedragen ≤ 0 worden
