@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-18 — Opdrachtgever: "Afgenomen uren per maand" op /inzicht (capaciteits-signaal)
+
+**Wat:** de opdrachtgever zag op `/inzicht` wél totale uitgaven (€) en gemiddeld betaald uurtarief per
+maand (#1114), maar geen **hours-volume** — hoevéél externe capaciteit hij per maand afneemt. Dat is het
+kern-capaciteitsplanningssignaal: piek/dal in inhuur zie je niet in € als het uurtarief tegelijk beweegt.
+De ZZP'er heeft al een "Gewerkte uren per maand"-kaart; de opdrachtgever-tegenhanger ontbrak.
+
+**Hoe:** nieuwe `getClientWorkedHoursTrend(userId)` in `src/lib/worked-hours-trend.ts` — spiegel van
+`getFreelancerWorkedHoursTrend`, alleen scoped op `collaboration.company.userId`. Voedt exact dezelfde
+pure `buildWorkedHoursTrend` (identieke maand-bucketing/delta uit `revenue.ts`) → geen drift met de €- en
+uurtarief-trends. `GewerkteUrenPerMaandCard` op de inzicht-pagina geparametriseerd
+(title/caption/emptyDescription/action/deltaTone) zodat één component beide rollen dient; ZZP'er-aanroep
+gedragsbehoudend. Op de CLIENT-tak nieuwe render: titel "Afgenomen uren per maand", deep-link naar
+`/prestaties`, `deltaTone="neutral"` (meer inhuur is geen waardeoordeel op /inzicht — spiegelt de al
+neutrale gemiddeld-uurtarief-kaart daar). Nieuwe normalisatie-helper `workedRows()` dedupt de mapping
+tussen beide fetchers.
+
+**Bestanden:** `src/lib/worked-hours-trend.ts`, `src/lib/worked-hours-trend.test.ts`,
+`src/app/(protected)/inzicht/page.tsx`. Read-only, alleen CLIENT-oppervlak nieuw; geen schema-/mutatie-/
+auth-/domeinmotor-wijziging. +4 tests (freelancer-scope-where, client-scope-where + venstervloer,
+client-aggregatie, terugval periode/goedkeuring, null-uren als nul).
+
 ## 2026-08-18 — Prod-rijpheid: per-runner cron-faal-attributie op /api/metrics (`zzp_cron_task_failed`)
 
 **Wat:** de cron-heartbeat legt al vast _welke_ sub-taak-runners tijdens de laatste `run-all` faalden
