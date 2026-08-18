@@ -7,6 +7,10 @@
 import { prisma } from "@/lib/db";
 import { userHasEntitlement } from "@/lib/entitlement-guard";
 import { hoursCriterion, type HoursCriterion } from "@/lib/tax/hours-criterion";
+import {
+  hoursCriterionCheckpoint,
+  HOURS_REMINDER_MIN_PROJECTED_BPS,
+} from "@/lib/hours-criterion-reminder";
 import { URENCRITERIUM_HOURS } from "@/lib/tax/config";
 
 export { URENCRITERIUM_HOURS };
@@ -75,6 +79,34 @@ export function hoursCriterionHint(criterion: HoursCriterion): string {
     return `Nog ${criterion.remainingHours} uur tot de zelfstandigenaftrek — op de resterende weken (${pace}) is dat dit jaar realistisch niet meer te halen. Registreer je indirecte uren (acquisitie, administratie, scholing, reistijd) om zo dicht mogelijk bij de grens te komen.`;
   }
   return `Nog ${criterion.remainingHours} uur tot de zelfstandigenaftrek — houd ${pace} aan tot het eind van het jaar. Registreer ook je indirecte uren (acquisitie, administratie, scholing, reistijd) om je aftrek veilig te stellen.`;
+}
+
+/**
+ * Verdient de urencriterium-stand een next-action op `/acties`? De kaart op `/inzicht` toont de stand
+ * altijd (passief); een next-action mag alléén verschijnen wanneer bijsturen zin heeft en realistisch is
+ * — anders is het ruis of ontmoedigend. Pure functie, deterministisch (los testbaar, `now` geïnjecteerd).
+ *
+ * Gates (delen de checkpoint-/activiteit-/koers-/trajectdrempel-logica van de proactieve herinnering
+ * `hours-criterion-reminder.ts`, met één bewust strengere uitsluiting: `onhaalbaar` — zie de laatste gate):
+ *  - alleen in het seizoen H2/Q4 (`hoursCriterionCheckpoint`): jan–jun is de jaarprognose te ruisgevoelig;
+ *  - er moet activiteit zijn (`!noActivity`): zonder één geboekt uur is een nudge ruis;
+ *  - niet al gehaald en niet op koers (`!met && !projectedMet`): dan is er niets te doen;
+ *  - binnen realistisch bereik (`projectedTotal ≥ HOURS_REMINDER_MIN_PROJECTED_BPS`, 60% van 1.225):
+ *    ligt de prognose daaronder, dan streeft de ZZP'er dit jaar duidelijk niet naar de aftrek en zou een
+ *    melding louter ontmoedigen — exact de trajectdrempel die `planHoursCriterionReminders` ook hanteert;
+ *  - nog realistisch bij te sturen (`feasibility` = `haalbaar`/`ambitieus`): een "je haalt het dit jaar
+ *    niet meer"-melding (`onhaalbaar`) op /acties ontmoedigt zonder handelingsperspectief — die laten we weg.
+ */
+export function hoursCriterionNeedsAction(
+  summary: HoursCriterionSummary,
+  now: Date = new Date(),
+): boolean {
+  if (hoursCriterionCheckpoint(now) === null) return false;
+  if (summary.noActivity) return false;
+  if (summary.met || summary.projectedMet) return false;
+  const projectedBps = Math.round((summary.projectedTotal / URENCRITERIUM_HOURS) * 10000);
+  if (projectedBps < HOURS_REMINDER_MIN_PROJECTED_BPS) return false;
+  return summary.feasibility === "haalbaar" || summary.feasibility === "ambitieus";
 }
 
 /**

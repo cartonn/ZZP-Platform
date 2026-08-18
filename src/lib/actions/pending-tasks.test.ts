@@ -116,6 +116,10 @@ vi.mock("@/lib/data/income-tax-deadline", () => ({
 vi.mock("@/lib/data/vat-deadline", () => ({
   getVatDeadlinesForActor: vi.fn(async () => []),
 }));
+vi.mock("@/lib/tax/hours-criterion-summary", () => ({
+  getHoursCriterionSummary: vi.fn(async () => null),
+  hoursCriterionNeedsAction: vi.fn(() => false),
+}));
 
 // Opdrachtgever-tak isoleren: de externe compliance-/koud-lopende-opdracht-loaders neutraliseren zodat
 // de client-run uitsluitend de cascade-overdue-query raakt.
