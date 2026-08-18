@@ -1549,6 +1549,28 @@ geïmporteerd, niet-overlappende periodes). Gate: typecheck/lint/test/build/pret
 
 **Volgende stap:** volgende persona-sweep-gat of concurrent-gedreven UX/data-increment.
 
+## 2026-08-18 — prod: unit-tests voor `runDisputeReminderTask` (PR #1141)
+
+**Wat:** de laatste van de drie state-muterende run-all cron-taken zonder dedicated unit-test kreeg er
+één (`src/lib/dispute-reminders-task.test.ts`). `reviews-reveal-task` en `push-delivery-task` kregen hun
+test intussen los (via andere PR's); `dispute-reminders-task` was de resterende leemte. De taak draait
+mee in `/api/tasks/run-all` en muteert state: `DomainEvent` + notificatie + audit voor béíde partijen bij
+een open dispuut (dag 3/7), plus escalatie-fan-out naar alle actieve admins daarna, idempotent via
+`DomainEvent.dedupeKey`. DoD vereist tests naast state-muterende geplande taken.
+
+**Tests:** 6 in `dispute-reminders-task.test.ts` — lege toestand, niets-due (tussendag), herinnering-fan-out
+naar béíde partijen (dag 3), idempotentie via dedupeKey (afgeleid uit de échte planner, geen aannames over
+het sleutelformaat), escalatie-fan-out naar alléén actieve admins (dag 8; suspended admin + gewone user als
+ruis genegeerd), en filtering van rijen zonder `freelancer.userId`/`company.userId`. Faithful prisma-mock
+(incl. de admin-query-filter `role: ADMIN, status: ACTIVE`); de pure planner `planDisputeReminders` draait
+écht mee. Geen gedragswijziging aan de runner — puur test-coverage-hardening. Gate: typecheck/lint/test
+(601 files, 6211 tests)/build/prettier lokaal groen; CI-poort via PR #1141 (squash auto-merge).
+
+**Context:** de eerdere run (#1012, 31-7) bundelde alle drie de tests maar werd zonder merge gesloten nadat
+twee ervan piecemeal op main landden; deze PR dicht enkel het resterende gat.
+
+**Volgende stap:** volgende persona-sweep-gat of concurrent-gedreven productie-rijpheid-increment.
+
 ## 2026-08-12 — prod: reviews-reveal stille-faal-gauge (`zzp_reviews_overdue_reveal`, PR #1061)
 
 **Wat:** operationele-monitoring-gauge die de blinde vlek van de cron-heartbeat dicht voor de
