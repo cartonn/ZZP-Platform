@@ -23,6 +23,10 @@ import {
 } from "@/lib/collaboration-credential-expiry";
 import { rosterExpiringByProfile, supersededVerifiedCredentialIds } from "@/lib/credentials";
 import {
+  credentialCollabWhere,
+  getFreelancerCascadeWorkCount,
+} from "@/lib/data/freelancer-cascade-work";
+import {
   ROSTER_ENGAGEABILITY_SELECT,
   evaluateRosterEngageability,
 } from "@/lib/data/roster-engageability";
@@ -188,55 +192,13 @@ export function countFranchiseDienstAlerts(input: {
   return (input.hasAcute ? 1 : 0) + shown + residue;
 }
 
-/**
- * Eén cascade-samenwerking van de ZZP'er, uitgedund tot wat de fase bepaalt: de status van de
- * samenwerking, de status van de meest recente prestatie (of `null` = nog geen prestatie) en de
- * lifecycle-status van de nog-openstaande facturen (DRAFT/REJECTED/APPROVED/OVERDUE). Pure invoer.
- */
-export interface FreelancerCascadeCollab {
-  status: "PROPOSED" | "ACTIVE";
-  latestPerformanceStatus: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | null;
-  openInvoiceStatuses: readonly ("DRAFT" | "REJECTED" | "APPROVED" | "OVERDUE")[];
-  /**
-   * Alleen PROPOSED: is de plaatsing geblokkeerd door een certificaat-gat (NON_COMPLIANT)? Dan
-   * onderdrukt `/acties` (pending-tasks.ts) de contract-onderteken-taak — signContract weigert
-   * server-side, de teken-knop is op het detail al verborgen. De badge moet die taak dan óók niet
-   * tellen, anders toont `/samenwerkingen` een fantoom-actie zonder tegenhanger op /acties
-   * (badge↔lijst-pariteit). `undefined`/`false` = niet geblokkeerd (gedragsbehoudend).
-   */
-  placementBlocked?: boolean;
-}
-
-/**
- * Aantal cascade-taken waar de ZZP'er "aan zet" is — exact de samenwerkingtaken die het actiecentrum
- * (`/acties`, pending-tasks.ts) toont, zodat de `/samenwerkingen`-nav-badge de "aan zet"-lijst niet
- * ondertelt. Spiegelt de fase-logica van `freelancerTasks`:
- *   - PROPOSED                → 1 (contract ondertekenen);
- *   - ACTIVE, geen/DRAFT-prestatie → 1 (uren/oplevering indienen);
- *   - ACTIVE, REJECTED-prestatie   → 1 (corrigeren en opnieuw indienen);
- *   - ACTIVE, SUBMITTED/APPROVED-prestatie → 0 vanuit de prestatiekant (opdrachtgever is aan zet);
- *   - per openstaande factuur (DRAFT/REJECTED indienen, APPROVED/OVERDUE betaling markeren) → +1.
- * OVERDUE draagt dezelfde ZZP-actie als APPROVED (betaling markeren) en telt daarom mee — anders
- * ondertelt de badge exact de over-de-vervaldatum-cascadefacturen die /acties (pending-tasks.ts) én
- * de cascade-fase (stage.ts, "aan zet"/attention) wél tonen. Pure functie, los testbaar.
- */
-export function countFreelancerCascadeWork(collabs: readonly FreelancerCascadeCollab[]): number {
-  let count = 0;
-  for (const c of collabs) {
-    if (c.status === "PROPOSED") {
-      // Contract ondertekenen — maar niet wanneer de plaatsing door een certificaat-gat is
-      // geblokkeerd: /acties onderdrukt die taak dan (zie pending-tasks.ts, run 58), dus telt de
-      // badge 'm ook niet mee (badge↔lijst-pariteit). Geen gat → gedraagt zich als voorheen.
-      if (!c.placementBlocked) count += 1;
-      continue;
-    }
-    // ACTIVE ⟹ contract getekend; de meest recente prestatie bepaalt de fase.
-    const perf = c.latestPerformanceStatus;
-    if (perf === null || perf === "DRAFT" || perf === "REJECTED") count += 1;
-    count += c.openInvoiceStatuses.length;
-  }
-  return count;
-}
+// De FREELANCER cascade-"aan zet"-telling voor de `/samenwerkingen`-nav-badge is verhuisd naar de
+// gedeelde bron `@/lib/data/freelancer-cascade-work.ts` (`getFreelancerCascadeWorkCount`), die exact
+// dezelfde status-gefilterde, self-healing queries draait als de /acties-emitters (pending-tasks.ts
+// `freelancerTasks`). De vroegere pure `countFreelancerCascadeWork` las één gecombineerd
+// `updatedAt desc, take: 50`-venster, wat een ouder-getekende ACTIVE-samenwerking met openstaand
+// geld-/prestatiewerk buiten het venster liet vallen (permanent, niet self-healing) — badge stiller
+// dan /acties. Zie het bestand voor de volledige achtergrond (persona-sweep run 82).
 
 /**
  * CLIENT-tegenhanger van {@link countFreelancerCascadeWork}: de opdrachtgever is "aan zet" op
@@ -479,10 +441,11 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       mandatoryCreds,
       unreadMessages,
       overdueInvoices,
-      cascadeCollabs,
+      credentialCollabRows,
       savedJobs,
       renewalWork,
       placementCreds,
+      cascadeWorkCount,
     ] = await Promise.all([
       prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
       // Het volledige VERIFIED-dossier (niet enkel de in-venster verlopende rijen): superseded-
@@ -505,19 +468,14 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       }),
       unreadConversationCount(userId),
       overdueInvoiceCount("FREELANCER", userId),
-      // Cascade-werkproces: dezelfde scope als het actiecentrum (pending-tasks.ts) — lopende/
-      // voorgestelde, niet-bevroren samenwerkingen. De meest recente prestatie + openstaande
-      // facturen bepalen wie aan zet is; countFreelancerCascadeWork telt de ZZP'er-taken.
+      // Lopende/voorgestelde samenwerkingen met een VERPLICHT certificaat-vereiste — de bron voor de
+      // collab-vereist-certificaat-gaten (verlopen/ontbrekend) in de /certificaten-badge. Spiegelt de
+      // ONGEWINDOWDE /acties-query `credentialCollabs` (pending-tasks.ts, run 79) via dezelfde gedeelde
+      // WHERE (`credentialCollabWhere`) → geen `updatedAt`-venster, kan niet driften. Alleen `required`-
+      // vereisten hoeven mee: samenwerkingen zonder vereist certificaat leveren nooit een gat op.
       prisma.collaboration.findMany({
-        where: {
-          freelancer: { userId },
-          status: { in: ["PROPOSED", "ACTIVE"] },
-          disputedAt: null,
-        },
+        where: credentialCollabWhere(userId),
         select: {
-          status: true,
-          // Vereiste certificaat-types van de opdracht: nodig om — net als /acties — de contract-
-          // onderteken-taak te onderdrukken zodra de plaatsing door een certificaat-gat is geblokkeerd.
           job: {
             select: {
               credentialRequirements: {
@@ -526,24 +484,8 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
               },
             },
           },
-          performances: {
-            select: { status: true },
-            orderBy: { createdAt: "desc" },
-            take: 1,
-          },
-          invoices: {
-            where: { lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED", "OVERDUE"] } },
-            select: { lifecycleStatus: true },
-            take: 5,
-          },
         },
-        // Deterministische orde (run 55): de autoritaire /acties-bron voor ditzelfde signaal
-        // (`freelancerTasks` in pending-tasks.ts) cap't óók op 50 (`MAX === CASCADE_SCAN_LIMIT`) maar met
-        // `orderBy: { updatedAt: "desc" }`. Zonder een gelijke orde hier pakken de twee (structureel
-        // verschillende) queries bij >50 lopende/voorgestelde samenwerkingen een andere 50-rij-subset →
-        // de nav-badge divergeert van /acties + de dashboard-rail. Zelfde klasse als de run-54-fix voor
-        // de franchiser-badge (credential-expiry). Matcht pending-tasks.ts → kan niet driften.
-        orderBy: { updatedAt: "desc" },
+        orderBy: { createdAt: "asc" },
         take: CASCADE_SCAN_LIMIT,
       }),
       // bewaarde opdrachten die nog open staan (PUBLISHED) — gelijk aan de "open"-partitie op /opgeslagen
@@ -562,12 +504,12 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         where: { freelancerProfileId: profile.id },
         select: { id: true, title: true, type: true, status: true, expiresAt: true },
       }),
+      // Cascade-"aan zet"-telling (contract ondertekenen / uren indienen / afgekeurde prestatie
+      // herindienen / openstaande factuur) uit dezelfde gedeelde, status-gefilterde, self-healing
+      // queries als de /acties-emitters (pending-tasks.ts `freelancerTasks`) → badge↔/acties-pariteit,
+      // geen `updatedAt`-venster dat een ouder-getekende samenwerking met openstaand werk laat vallen.
+      getFreelancerCascadeWorkCount(userId, now),
     ]);
-    const placementCredList: FreelancerCredential[] = placementCreds.map((c) => ({
-      type: c.type as CredentialType,
-      status: c.status as FreelancerCredential["status"],
-      expiresAt: c.expiresAt,
-    }));
     // Superseded-aware verval-telling voor de /certificaten-badge. `/acties` + de dashboard-rail
     // (pending-tasks.ts `freelancerTasks` → `supersededVerifiedCredentialIds`) sluiten een ouder,
     // bijna-verlopend VERIFIED-cert uit zodra een nieuwer, nu-geldig exemplaar van hetzelfde type de
@@ -591,26 +533,9 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         c.expiresAt <= soon &&
         !supersededExpiringIds.has(c.id),
     ).length;
-    const cascadeWork =
-      countFreelancerCascadeWork(
-        cascadeCollabs.map((c) => ({
-          status: c.status as FreelancerCascadeCollab["status"],
-          latestPerformanceStatus:
-            (c.performances[0]?.status as FreelancerCascadeCollab["latestPerformanceStatus"]) ??
-            null,
-          openInvoiceStatuses: c.invoices.map(
-            (i) => i.lifecycleStatus as "DRAFT" | "REJECTED" | "APPROVED" | "OVERDUE",
-          ),
-          // Alleen relevant voor PROPOSED; de pure telling negeert het veld op ACTIVE.
-          placementBlocked:
-            c.status === "PROPOSED" &&
-            collaborationPlacementBlocked(
-              c.job.credentialRequirements.map((r) => r.credentialType as CredentialType),
-              placementCredList,
-              now,
-            ),
-        })),
-      ) + renewalWork;
+    // De cascade-taaktelling komt uit de gedeelde `getFreelancerCascadeWorkCount` (zelfde queries als
+    // /acties); het vervolgsignaal (`renewalWork`, aparte `endDate`-gebonden telling) telt daar bovenop.
+    const cascadeWork = cascadeWorkCount + renewalWork;
     // Ontbrekende/verlopen verplichte documenten tellen óók mee in de /certificaten-badge, zodat de
     // badge niet stiller is dan /acties + de dashboard-rail (die de mandatoryDocumentTask tonen). De
     // pure helper dedupt tegen REJECTED-types (die al in `rejected` zitten) → geen dubbeltelling.
@@ -639,7 +564,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       expiresAt: c.expiresAt,
     }));
     const collabCredGaps = collaborationRequiredCredentialGaps({
-      collaborations: cascadeCollabs.map((c, i) => ({
+      collaborations: credentialCollabRows.map((c, i) => ({
         collaborationId: String(i),
         companyName: "",
         jobTitle: "",

@@ -29,6 +29,47 @@ set, niet de gefilterde view) → geen extra query, kan niet driften van de lijs
 
 ---
 
+## 2026-08-18 — ZZP'er: `/samenwerkingen`-cascadebadge ongewindowd (outer-window-blindheid, DOEL 1b — persona-sweep run 82)
+
+**Wat:** de FREELANCER `/samenwerkingen`-nav-badge (`cascadeWork`, signals.ts) las de cascade-"aan zet"-
+taken uit één gecombineerde `collaboration.findMany({ orderBy: { updatedAt: "desc" }, take: 50 })`, terwijl
+de autoritaire /acties-bron (`freelancerTasks`, pending-tasks.ts) al eerder (run 76-81) was losgekoppeld
+naar aparte, status-gefilterde, `createdAt asc`-queries per taaksoort. `Collaboration.updatedAt` bumpt niet
+bij een prestatie indienen of een factuur (goed)keuren, dus voor een ACTIVE-samenwerking stond het venster
+bevroren op het teken-moment: bij >50 gelijktijdige PROPOSED+ACTIVE-samenwerkingen viel een ouder-getekende
+met openstaand geld-/prestatiewerk buiten `updatedAt desc, take: 50` en verdween de actie PERMANENT uit de
+badge (niet self-healing — de actie afhandelen bumpt `updatedAt` niet), terwijl /acties + de dashboard-rail
+'m wél toonden ("signaal op één oppervlak"-anti-patroon). Twee inner-caps verergerden het: `invoices: {
+take: 5 }` zónder orderBy (niet-deterministische ondertelling + flicker per page-load) en de prestatie-fase
+uit alléén de meest-recente prestatie (miste een oudere REJECTED-prestatie onder een nieuwere). Dezelfde
+klasse trof de collab-vereist-certificaat-gaten in de /certificaten-badge, die uit hetzelfde `updatedAt`-
+venster werd geput. Gevonden door de persona-sweep next-action-audit (HIGH + 2 MED).
+
+**Hoe:** nieuwe gedeelde bron `src/lib/data/freelancer-cascade-work.ts` met (a) de vijf WHERE-builders
+(`proposedCollabWhere`/`submitCollabWhere`/`rejectedPerfWhere`/`openInvoiceWhere`/`credentialCollabWhere`) —
+één bron van waarheid die /acties (pending-tasks.ts) én de badge (signals.ts) nu delen, zodat de query-vormen
+niet kunnen driften — en (b) `getFreelancerCascadeWorkCount`, die de vier /acties-emitters exact spiegelt:
+één per niet-geblokkeerde PROPOSED, één per ACTIVE zonder/DRAFT-prestatie, één per AFGEKEURDE prestatie
+(aparte ongewindowde count → geen latest-only-blindheid) en één per openstaande cascade-factuur (aparte
+ongewindowde count → geen take:5-cap), elk gecapt op de /acties-take (50). De badge put de collab-vereist-
+certificaat-gaten nu uit de ONGEWINDOWDE `credentialCollabWhere`-query (spiegel van /acties run 79). De
+vroegere pure `countFreelancerCascadeWork` (+ `FreelancerCascadeCollab`-type) is verwijderd (dode code na de
+verhuizing).
+
+**Bestanden:** `src/lib/data/freelancer-cascade-work.ts` (nieuw) + `freelancer-cascade-work.test.ts` (nieuw,
+12 tests: query-vormen self-healing/geen updatedAt-venster/geen invoice-cap, outer-window-regressie,
+placementBlocked-pariteit, per-prestatie/per-factuur-telling + cap, WHERE-builder-vormen),
+`src/lib/signals.ts` (badge naar de gedeelde bron), `src/lib/actions/pending-tasks.ts` (5 queries naar de
+gedeelde WHERE-builders — gedragsbehoudend, drift-proof), `src/lib/signals.test.ts` (dode pure-counter-tests
+weg), `signals.badge-gaps-run65/70/70b/badge-gaps/badge-renewal-work.test.ts` (mocks/routing bijgewerkt),
+`signals.freelancer-cascade-order.test.ts` (verwijderd — asserteerde de nu-gerepareerde updatedAt-vorm).
+
+**Tests:** volledige unit-suite groen (605 files, 6270 tests). Gate: typecheck, lint, test, build, prettier.
+
+**GEPARKEERD (HIGH, aparte PR — administratie-domeinmotor):** de cascade/geld-audit vond dat een SUBMITTED/
+REJECTED cascadefactuur omzet + af-te-dragen-BTW + debiteur boekt zonder enige terugboek-transitie voor welke
+rol dan ook (creditInvoice vereist APPROVED/OVERDUE/PAID/PROCESSED). Zie `docs/PERSONA-SWEEP-BACKLOG.md`.
+
 ## 2026-08-18 — Bemiddelaar: roster-inzetbaarheid ongewindowd (outer-window-blindheid, DOEL 1b)
 
 **Wat:** de roster-inzetbaarheidsscan (die een niet-inzetbaar/plaatsing-blokkerend roster-lid signaleert)

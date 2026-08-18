@@ -2,12 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildBadges,
   countClientCascadeWork,
-  countFreelancerCascadeWork,
   countUnreadConversations,
   startOfUtcDay,
   withActionCenterBadge,
 } from "./signals";
-import type { FreelancerCascadeCollab } from "./signals";
 
 describe("buildBadges", () => {
   it("laat items met telling 0 of ontbrekend weg", () => {
@@ -170,106 +168,6 @@ describe("buildBadges", () => {
     expect(badges["/franchise/diensten"]).toEqual({ count: 2, tone: "attention" });
     expect(badges["/franchise/samenwerkingen"]).toEqual({ count: 5, tone: "attention" });
     expect(badges["/franchise/opdrachtgevers"]).toEqual({ count: 6, tone: "attention" });
-  });
-});
-
-describe("countFreelancerCascadeWork", () => {
-  const collab = (o: Partial<FreelancerCascadeCollab>): FreelancerCascadeCollab => ({
-    status: "ACTIVE",
-    latestPerformanceStatus: null,
-    openInvoiceStatuses: [],
-    ...o,
-  });
-
-  it("telt 0 zonder samenwerkingen", () => {
-    expect(countFreelancerCascadeWork([])).toBe(0);
-  });
-
-  it("telt een voorgestelde samenwerking als één taak (contract ondertekenen)", () => {
-    expect(countFreelancerCascadeWork([collab({ status: "PROPOSED" })])).toBe(1);
-  });
-
-  it("telt een PROPOSED met plaatsings-blokkade NIET mee (badge↔lijst-pariteit)", () => {
-    // /acties (pending-tasks.ts, run 58) onderdrukt de contract-onderteken-taak zolang een vereist
-    // certificaat ontbreekt/verlopen is → de badge mag die fantoom-actie ook niet tellen.
-    expect(
-      countFreelancerCascadeWork([collab({ status: "PROPOSED", placementBlocked: true })]),
-    ).toBe(0);
-    // Geen blokkade → gedraagt zich als voorheen (+1).
-    expect(
-      countFreelancerCascadeWork([collab({ status: "PROPOSED", placementBlocked: false })]),
-    ).toBe(1);
-  });
-
-  it("negeert placementBlocked op een ACTIVE samenwerking (alleen PROPOSED-relevant)", () => {
-    expect(
-      countFreelancerCascadeWork([
-        collab({ status: "ACTIVE", latestPerformanceStatus: "DRAFT", placementBlocked: true }),
-      ]),
-    ).toBe(1);
-  });
-
-  it("telt de indien-fase mee: ACTIVE zonder prestatie is de ZZP'er aan zet", () => {
-    expect(countFreelancerCascadeWork([collab({ latestPerformanceStatus: null })])).toBe(1);
-  });
-
-  it("telt een DRAFT-prestatie als indien-taak", () => {
-    expect(countFreelancerCascadeWork([collab({ latestPerformanceStatus: "DRAFT" })])).toBe(1);
-  });
-
-  it("telt een REJECTED-prestatie als corrigeer-taak", () => {
-    expect(countFreelancerCascadeWork([collab({ latestPerformanceStatus: "REJECTED" })])).toBe(1);
-  });
-
-  it("telt géén prestatietaak wanneer de opdrachtgever aan zet is (SUBMITTED/APPROVED)", () => {
-    expect(countFreelancerCascadeWork([collab({ latestPerformanceStatus: "SUBMITTED" })])).toBe(0);
-    expect(countFreelancerCascadeWork([collab({ latestPerformanceStatus: "APPROVED" })])).toBe(0);
-  });
-
-  it("telt elke openstaande factuur als aparte taak (indienen/corrigeren/betaling markeren)", () => {
-    expect(
-      countFreelancerCascadeWork([
-        collab({
-          latestPerformanceStatus: "SUBMITTED",
-          openInvoiceStatuses: ["DRAFT", "REJECTED", "APPROVED"],
-        }),
-      ]),
-    ).toBe(3);
-  });
-
-  it("telt een OVERDUE-factuur mee (betaling markeren) — mag niet uit de badge vallen", () => {
-    // Regressie: de badge-query filterde OVERDUE eruit terwijl /acties (pending-tasks.ts) en de
-    // cascade-fase (stage.ts) de over-de-vervaldatum-factuur wél als "betaling markeren" tonen.
-    expect(
-      countFreelancerCascadeWork([
-        collab({ latestPerformanceStatus: "APPROVED", openInvoiceStatuses: ["OVERDUE"] }),
-      ]),
-    ).toBe(1);
-    // Combinatie met een indien-fase op een andere cyclus telt op tot 2, net als APPROVED.
-    expect(
-      countFreelancerCascadeWork([
-        collab({ latestPerformanceStatus: "REJECTED", openInvoiceStatuses: ["OVERDUE"] }),
-      ]),
-    ).toBe(2);
-  });
-
-  it("combineert de indien-fase met een openstaande factuur op dezelfde samenwerking", () => {
-    // meerdere cycli: prestatie opnieuw in te dienen + een APPROVED-factuur te markeren
-    expect(
-      countFreelancerCascadeWork([
-        collab({ latestPerformanceStatus: "REJECTED", openInvoiceStatuses: ["APPROVED"] }),
-      ]),
-    ).toBe(2);
-  });
-
-  it("sommeert over meerdere samenwerkingen", () => {
-    expect(
-      countFreelancerCascadeWork([
-        collab({ status: "PROPOSED" }),
-        collab({ latestPerformanceStatus: null }),
-        collab({ latestPerformanceStatus: "SUBMITTED", openInvoiceStatuses: ["DRAFT"] }),
-      ]),
-    ).toBe(3);
   });
 });
 

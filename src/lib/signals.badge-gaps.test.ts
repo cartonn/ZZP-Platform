@@ -35,6 +35,7 @@ vi.mock("@/lib/db", () => ({
     conversationParticipant: { findMany: vi.fn(() => Promise.resolve([])) },
     message: { groupBy: vi.fn(() => Promise.resolve([])) },
     invoice: { count: vi.fn(() => Promise.resolve(0)) },
+    performance: { count: vi.fn(() => Promise.resolve(0)) },
     collaboration: {
       findMany: vi.fn(() => Promise.resolve([])),
       count: vi.fn(() => Promise.resolve(0)),

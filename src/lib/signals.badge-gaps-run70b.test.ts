@@ -26,16 +26,17 @@ const state = {
   mandatoryCreds: VALID_MANDATORY as unknown[],
 };
 
-function isCascadeQuery(a: Args): boolean {
+// De collab-vereist-certificaat-gaten worden geteld uit de ONGEWINDOWDE credential-collab-query
+// (`credentialCollabWhere`, run 82): status in {PROPOSED,ACTIVE} + selecteert job.credentialRequirements
+// (geen performances/invoices meer — die tellen nu via aparte counts). Voed alleen die query.
+function isCredentialCollabQuery(a: Args): boolean {
   const inList = (a.where?.status as { in?: string[] })?.in ?? [];
-  return (
-    inList.includes("PROPOSED") &&
-    (a.select?.performances !== undefined || a.select?.invoices !== undefined)
-  );
+  const job = a.select?.job as { select?: Record<string, unknown> } | undefined;
+  return inList.includes("PROPOSED") && job?.select?.credentialRequirements !== undefined;
 }
 
 const collaborationFindMany = vi.fn((a: Args) =>
-  Promise.resolve(isCascadeQuery(a) && state.collab ? [state.collab] : []),
+  Promise.resolve(isCredentialCollabQuery(a) && state.collab ? [state.collab] : []),
 );
 const credentialFindMany = vi.fn((a: Args) => {
   const where = a.where ?? {};
