@@ -3,7 +3,6 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-
 ## 2026-08-18 — Persona-sweep run 81: outer-window-blindheid op de teken-/indien-taak (DOEL 1b)
 
 **Wat:** de "Contract ondertekenen"-taak (PROPOSED — ZZP'er én opdrachtgever) en de "Uren indienen"-taak
@@ -519,7 +518,9 @@ cascade- en next-action-audits leverden elk twee fixes. Alle vier gefixt met roo
 `collaboration-alerts-query.test.ts`). Geparkeerd (in backlog, met repro): `revenue-trend.ts`
 legacy-`status`-afhankelijkheid (zelfde wortel, aparte grotere increment); authz-dekkingsresidu (9
 action-bestanden niet individueel geopend). Gate: typecheck/lint/test/build/prettier groen.
+
 ---
+
 ## 2026-08-16 — ZZP'er: gepubliceerde reputatie op het portable vertrouwensdossier
 
 **Wat:** het deelbare vertrouwensdossier (`/vertrouwen/[profileId]/[token]`) bewees tot nu toe naam +
