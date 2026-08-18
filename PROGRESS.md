@@ -83,6 +83,26 @@ mutatie-/auth-oppervlak; geen PII/secrets in de uitvoer.
 **Resterend mensenwerk:** niets extra — werkt zodra een echte betaalprovider actief is; optioneel
 `SUBSCRIPTION_PENDING_STALE_HOURS` ruimer bij een meerdaags-afwikkelende betaalmethode (SEPA-overboeking).
 
+---
+
+## 2026-08-18 — Security/privacy-auditronde: platformfactuur-PDF not-found-tak geaudit (MIDDEL, A09/CWE-208)
+
+**Wat:** volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële
+Opus-audits op niet-overlappende oppervlakken: BI-/aggregatie-privacy · server-action-authz-keten ·
+multi-tenant/franchise-isolatie + document-/PDF-serving). Delta `a8a454bb..590ffb7f` en de
+kernoppervlakken **schoon** — geen nieuwe KRITIEK/HOOG/MIDDEL exploiteerbare gaten (OWASP A01–A09 +
+SSRF/redirect/CSV-formule-injectie/k-anonimiteit/PII-over-fetch/erasure gedekt; `npm audit --omit=dev`=0).
+**Eén tracked MIDDEL audit-completeness-gat gedicht:** de platformfactuur-PDF-route auditte alleen de
+success-tak, niet de not-found-tak — een admin die op niet-bestaande factuur-id's probeert liet geen
+forensisch spoor na, en het verschil in werk (audit-write vs. niets) was een meetbaar timing-zijkanaal
+(CWE-208). Nu schrijft de not-found-tak `PLATFORM_BILLING_PDF_ACCESS_DENIED (outcome:"not-found")` vóór de
+identieke 404 — spiegelt exact de sibling-PDF-/document-routes.
+
+**Bestanden:** `src/app/api/admin/facturatie/[id]/pdf/route.ts` (fix),
+`src/app/api/admin/facturatie/platform-pdf-audit.test.ts` (nieuw, rood→groen: faalt zonder de audit-aanroep),
+`docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-18; item verplaatst naar OPGELOST). Gate: typecheck, lint,
+test, prettier groen (build-poort via CI — lokaal blokkeert alleen de Google-Fonts-fetch, geen codegat).
+
 ## 2026-08-18 — ZZP'er: betaalgedrag per opdrachtgever op /inzicht
 
 **Wat:** de ZZP'er zag op `/inzicht` wél "Omzet per opdrachtgever" (van wíe komt mijn omzet — een
