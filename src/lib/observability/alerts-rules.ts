@@ -61,6 +61,7 @@ const SAMPLE_INPUT: MetricsInput = {
   maintenanceMode: false,
   overdueExpiryCredentials: 0,
   overdueExpirySubscriptions: 0,
+  stalePendingSubscriptions: 0,
   overdueUnflippedInvoices: 0,
   overdueReviewReveals: 0,
   overduePerformanceGrace: 0,

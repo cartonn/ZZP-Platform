@@ -107,6 +107,7 @@ describe("GET /api/metrics", () => {
   it("telt de verificatie-wachtrij en de expiry-backlog als aparte queries", async () => {
     // Eerste count = verificatie-wachtrij (SUBMITTED), tweede count = overdue-expiry (VERIFIED, verlopen).
     countMock.mockResolvedValueOnce(4).mockResolvedValueOnce(9);
+    // Eerste subscription.count = overdue-expiry (ACTIVE verlopen), tweede = stale-pending (PENDING te lang).
     subscriptionCountMock.mockResolvedValueOnce(3);
     const res = await GET(req({ auth: `Bearer ${SECRET}` }));
     const body = await res.text();
@@ -114,7 +115,26 @@ describe("GET /api/metrics", () => {
     expect(body).toContain("zzp_credentials_overdue_expiry 9");
     expect(body).toContain("zzp_subscriptions_overdue_expiry 3");
     expect(countMock).toHaveBeenCalledTimes(2);
-    expect(subscriptionCountMock).toHaveBeenCalledTimes(1);
+    expect(subscriptionCountMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("telt de vastgelopen-PENDING-abonnementen (checkout die de webhook nooit bevestigde) als aparte query", async () => {
+    // Tweede subscription.count = stale-pending; de eerste (overdue-expiry) valt op de default (0).
+    subscriptionCountMock.mockResolvedValueOnce(0).mockResolvedValueOnce(11);
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    const body = await res.text();
+    expect(body).toContain("zzp_subscriptions_stale_pending 11");
+    expect(subscriptionCountMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("laat een falende vastgelopen-PENDING-telling de respons niet omverhalen (geen 500)", async () => {
+    subscriptionCountMock
+      .mockResolvedValueOnce(0)
+      .mockRejectedValueOnce(new Error("subscription count kapot"));
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain("zzp_subscriptions_stale_pending 0");
   });
 
   it("telt de betaal-verval-backlog (cascade-facturen APPROVED met verstreken vervaldatum) door", async () => {

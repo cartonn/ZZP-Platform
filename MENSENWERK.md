@@ -592,6 +592,23 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
    `ZzpWebhookEventsRetentionBacklog` in `docs/observability/alerts.yml`, vastgeklonken aan de drift-gate.
    Resterend mensenwerk: **niets extra**.
 
+   **Code-kant GEDAAN (2026-08-18) — stil-kapotte-webhook-detector (`zzp_subscriptions_stale_pending`):**
+   een betaalde checkout upsert een `Subscription` naar status `PENDING`; alléén de betaal-webhook tilt
+   'm daarna gezaghebbend naar `ACTIVE` (paid) of `PAST_DUE` (failed) — er is géén cron die `PENDING`
+   verwerkt. Elke andere abonnementsstatus had al een stille-faal-gauge, maar `PENDING` niet. Een verlaten
+   checkout is één stille rij (ruis), maar een **stil kapotte webhook** (verkeerde callback-URL,
+   handtekening-mismatch, geblokkeerde poort) laat ÉLKE checkout op `PENDING` staan → niemand wordt
+   geactiveerd en de platform-omzet lekt stil weg, zonder dat iets dat toont. `/api/metrics` heeft nu
+   `zzp_subscriptions_stale_pending` (abonnementen die langer dan `SUBSCRIPTION_PENDING_STALE_HOURS`,
+   default 24u, in `PENDING` hangen). Read-only telling, geen PII/secrets, hergebruikt de pure
+   `stalePendingSubscriptionWhere` (`src/lib/subscription-pending-stale.ts`) als één bron van waarheid. Met
+   de mock-provider (pilot-default) bestaat er nooit een `PENDING`-rij → gauge `0` (geen misleidend
+   signaal). Drop-in alert `ZzpSubscriptionsStalePending` (`> 0`, `for: 30h`) in
+   `docs/observability/alerts.yml` + onderhouds-inhibitie in `alertmanager.yml`, vastgeklonken aan de
+   drift-gates. Resterend mensenwerk: **niets extra** — de gauge werkt zodra een echte betaalprovider
+   actief is; optioneel `SUBSCRIPTION_PENDING_STALE_HOURS` ruimer zetten als je een meerdaags-afwikkelende
+   betaalmethode (SEPA-overboeking) inschakelt, zodat een legitiem trage betaling niet als vastgelopen telt.
+
    **Code-kant GEDAAN (2026-07-16) — betaalprovider-connectiviteitszelftest:** zodra je de
    API-sleutels hierboven hebt geplakt, kun je op `/admin/systeemstatus` (admin-only) de nieuwe
    **Betaalprovider-zelftest** draaien — zelfde patroon als de Opslag-/E-mail-/Rate-limit-/

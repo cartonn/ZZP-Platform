@@ -10,6 +10,8 @@
 // zzp_credentials_overdue_expiry (VERIFIED-credentials wier vervaldatum voorbij is maar die de
 // expiry-cron nog niet omzette) en zzp_subscriptions_overdue_expiry (betaalde ACTIVE-abonnementen wier
 // periode voorbij is maar die de subscription-expiry-cron nog niet op CANCELLED zette) en
+// zzp_subscriptions_stale_pending (abonnementen die te lang in PENDING hangen — een betaalde checkout
+// die de betaal-webhook nooit op ACTIVE/PAST_DUE tilde; stil-kapotte-webhook-detector, geen cron) en
 // zzp_invoices_overdue_unflipped (cascade-facturen APPROVED met verstreken vervaldatum die de
 // payment-reminders-cron nog niet op OVERDUE zette) en zzp_reviews_overdue_reveal (beoordelingen met een
 // verstreken double-blind reveal-venster die de reviews-reveal-cron nog niet publiceerde) en
@@ -77,7 +79,11 @@ import { webhookEventRetentionCutoff } from "@/lib/webhook-event-retention";
 import { prunableWebhookEventWhere } from "@/lib/webhook-event-retention-task";
 import { prunableRoutingCacheWhere } from "@/lib/routing-cache-retention-task";
 import { overdueReviewRevealWhere } from "@/lib/reviews-reveal-task";
-import { ZZP_MEMBERSHIP, performanceGraceDays } from "@/lib/config";
+import { ZZP_MEMBERSHIP, performanceGraceDays, subscriptionPendingStaleHours } from "@/lib/config";
+import {
+  pendingStaleCutoff,
+  stalePendingSubscriptionWhere,
+} from "@/lib/subscription-pending-stale";
 import { activeMembershipUserIds, monthKey, monthRange } from "@/lib/zzp-membership";
 import { membershipPerformanceSelect, membershipPerformanceWhere } from "@/lib/zzp-membership-task";
 import { graceCutoff, overduePerformanceGraceWhere } from "@/lib/performance-grace-task";
@@ -113,6 +119,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let verificationQueueOldestAgeSeconds: number | null = null;
   let overdueExpiryCredentials = 0;
   let overdueExpirySubscriptions = 0;
+  let stalePendingSubscriptions = 0;
   let overdueUnflippedInvoices = 0;
   let overdueReviewReveals = 0;
   let overduePerformanceGrace = 0;
@@ -169,6 +176,20 @@ async function collectInput(now: Date): Promise<MetricsInput> {
           currentPeriodEnd: { lt: now },
           plan: { priceCents: { gt: 0 } },
         },
+      });
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
+    try {
+      // Abonnementen die te lang in PENDING hangen: een betaalde checkout die de betaal-webhook nooit op
+      // ACTIVE/PAST_DUE tilde. Anders dan de andere backlogs bewaakt dit GEEN cron maar de webhook zelf —
+      // er is geen cron die PENDING verwerkt. Hergebruikt exact `stalePendingSubscriptionWhere` (dezelfde
+      // bron van waarheid), met de cutoff uit het geconfigureerde venster. Met de mock-provider bestaat er
+      // nooit een PENDING-rij → per definitie 0 (de pilot-default; geen misleidend signaal).
+      stalePendingSubscriptions = await prisma.subscription.count({
+        where: stalePendingSubscriptionWhere(
+          pendingStaleCutoff(subscriptionPendingStaleHours(), now),
+        ),
       });
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
@@ -395,6 +416,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),
     overdueExpiryCredentials,
     overdueExpirySubscriptions,
+    stalePendingSubscriptions,
     overdueUnflippedInvoices,
     overdueReviewReveals,
     overduePerformanceGrace,

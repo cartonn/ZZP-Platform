@@ -392,6 +392,36 @@ export function backupMaxAgeHours(): number {
   return parseBackupMaxAgeHours(process.env.BACKUP_MAX_AGE_HOURS);
 }
 
+// --- Vastgelopen-PENDING-abonnement venster (observability, stille-faal-detector) ---------------
+// Maximale leeftijd (in uren) dat een abonnement in status PENDING mag verkeren vóór 'ie als
+// "vastgelopen" telt. Een betaalde checkout upsert een Subscription naar PENDING; de betaal-webhook
+// zet 'm daarna gezaghebbend op ACTIVE (paid) of PAST_DUE (failed). Blijft een rij lang PENDING, dan
+// is de checkout verlaten óf — kritischer — de webhook levert stil niet af (verkeerde URL,
+// handtekening-mismatch): dan blijft ÉLKE checkout op PENDING staan en wordt niemand geactiveerd,
+// zonder dat iets dat toont. De default van 24 uur is een ruime marge voor de instant-methodes
+// (iDEAL/kaart/Apple/Google Pay, die binnen minuten afronden). LET OP: schakelt de operator een
+// meerdaags-afwikkelende methode in (SEPA-overboeking via Mollie blijft dagen legitiem "open"), zet
+// dan een ruimer venster zodat een legitieme trage betaling niet als vastgelopen telt.
+export const SUBSCRIPTION_PENDING_STALE_HOURS_DEFAULT = 24;
+export const SUBSCRIPTION_PENDING_STALE_HOURS_MIN = 1;
+export const SUBSCRIPTION_PENDING_STALE_HOURS_MAX = 24 * 30; // 30 dagen bovengrens; ruim voor elke afwikkeling.
+export function parseSubscriptionPendingStaleHours(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === "") return SUBSCRIPTION_PENDING_STALE_HOURS_DEFAULT;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return SUBSCRIPTION_PENDING_STALE_HOURS_DEFAULT;
+  // Klem naar een verstandige bandbreedte: een typefout mag de detector niet nutteloos maken (te
+  // klein → een legitieme in-flight checkout telt al als vastgelopen) of uitschakelen (absurd groot).
+  return Math.min(
+    SUBSCRIPTION_PENDING_STALE_HOURS_MAX,
+    Math.max(SUBSCRIPTION_PENDING_STALE_HOURS_MIN, Math.floor(n)),
+  );
+}
+
+/** Geconfigureerd vastgelopen-PENDING-venster in uren (default 24). */
+export function subscriptionPendingStaleHours(): number {
+  return parseSubscriptionPendingStaleHours(process.env.SUBSCRIPTION_PENDING_STALE_HOURS);
+}
+
 // --- Annuleringstermijn (productbesluit eigenaar 12-6-2026) ----------------
 // De opdrachtgever annuleert kosteloos zolang de startdatum nog minstens dit aantal dagen weg is;
 // korter op de start (of na de start) ontstaat een betalingsverplichting. Symmetrisch geregistreerd:

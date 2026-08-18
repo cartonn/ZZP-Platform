@@ -75,6 +75,18 @@ export interface MetricsInput {
    */
   overdueExpirySubscriptions: number;
   /**
+   * Aantal abonnementen dat langer dan het geconfigureerde venster (`SUBSCRIPTION_PENDING_STALE_HOURS`)
+   * in status `PENDING` hangt — een betaalde checkout die nooit door de webhook is bevestigd. Anders dan
+   * `overdueExpirySubscriptions` bewaakt dit GEEN cron maar de betaal-**webhook**: een PENDING-rij
+   * wordt alleen door de webhook naar ACTIVE (paid) of PAST_DUE (failed) getild; er is geen cron die
+   * PENDING verwerkt. Dezelfde stille-faal-detector-klasse: een verlaten checkout is één stille rij,
+   * maar een stil kapotte webhook (verkeerde callback-URL, handtekening-mismatch, geblokkeerde poort)
+   * laat ÉLKE checkout op PENDING staan — niemand wordt geactiveerd, de platform-omzet lekt stil weg,
+   * zonder dat iets dat toont. De mock-provider (pilot-default) maakt nooit een PENDING-rij aan, dus is
+   * deze gauge dan per definitie `0`; 'ie wordt pas relevant met een echte betaalprovider.
+   */
+  stalePendingSubscriptions: number;
+  /**
    * Aantal cascade-facturen met `lifecycleStatus === "APPROVED"` wier `dueAt` in het verleden ligt maar
    * die de payment-reminders-cron nog niet op `OVERDUE` zette — werk dat die cron had moeten doen
    * (`planPaymentReminders.toMarkOverdue` → `APPROVED → OVERDUE`). Dezelfde stille-faal-detector-klasse
@@ -356,6 +368,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal betaalde ACTIVE-abonnementen met een verstreken periode-einde die de subscription-expiry-cron nog niet op CANCELLED (→ Gratis) zette (een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen verval-/renewal-pijplijn).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.overdueExpirySubscriptions)),
+    },
+    {
+      name: "zzp_subscriptions_stale_pending",
+      help: "Aantal abonnementen dat langer dan het geconfigureerde venster (SUBSCRIPTION_PENDING_STALE_HOURS, default 24u) in status PENDING hangt — een betaalde checkout die de betaal-webhook nooit op ACTIVE/PAST_DUE tilde (0 met de mock-provider — de pilot-default; een enkele verlaten checkout is normaal; aanhoudend/oplopend duidt op een stil kapotte webhook: verkeerde callback-URL/handtekening-mismatch/geblokkeerde poort → niemand wordt geactiveerd en de platform-omzet lekt stil weg).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.stalePendingSubscriptions)),
     },
     {
       name: "zzp_invoices_overdue_unflipped",

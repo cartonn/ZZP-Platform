@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-18 — Prod-rijpheid: stil-kapotte-webhook-detector (`zzp_subscriptions_stale_pending`)
+
+**Wat:** een betaalde checkout upsert een `Subscription` naar status `PENDING`; alléén de betaal-webhook
+tilt 'm daarna gezaghebbend naar `ACTIVE` (paid) of `PAST_DUE` (failed) — er is géén cron die `PENDING`
+verwerkt. Elke andere abonnementsstatus had al een stille-faal-gauge (ACTIVE→`overdue_expiry`,
+PAST_DUE→ladder), maar `PENDING` niet. Een verlaten checkout is één stille rij, maar een **stil kapotte
+webhook** (verkeerde callback-URL, handtekening-mismatch, geblokkeerde poort) laat ÉLKE checkout op
+`PENDING` staan → niemand wordt geactiveerd en de platform-omzet lekt stil weg, zonder dat iets dat toont.
+
+**Hoe:** nieuwe read-only stille-faal-gauge `zzp_subscriptions_stale_pending` op `/api/metrics` (aantal
+abonnementen langer dan `SUBSCRIPTION_PENDING_STALE_HOURS`, default 24u, in `PENDING`). Zelfde patroon als
+`zzp_subscriptions_overdue_expiry`/`zzp_membership_unbilled_active`: pure where-helper
+(`src/lib/subscription-pending-stale.ts`, `stalePendingSubscriptionWhere`/`pendingStaleCutoff` — één bron
+van waarheid, `updatedAt`-klok zodat een verse checkout-poging de wachtklok reset), config-parser met clamp
+(`src/lib/config.ts`), gauge (`src/lib/observability/metrics.ts`), route-query (`src/app/api/metrics/route.ts`),
+drift-gate-sample (`alerts-rules.ts`), Prometheus-alert `ZzpSubscriptionsStalePending` (`> 0`, `for: 30h`,
+`docs/observability/alerts.yml`) + onderhouds-inhibitie (`alertmanager.yml`). Met de mock-provider
+(pilot-default) bestaat er nooit een `PENDING`-rij → gauge `0` (geen misleidend signaal). Geen schema-/
+mutatie-/auth-oppervlak; geen PII/secrets in de uitvoer.
+
+**Bestanden:** `src/lib/subscription-pending-stale.ts` (+`.test.ts`), `src/lib/config.ts`,
+`src/lib/observability/metrics.ts` (+`.test.ts`), `src/lib/observability/alerts-rules.ts`,
+`src/app/api/metrics/route.ts` (+`.test.ts`), `docs/observability/alerts.yml` + `alertmanager.yml`,
+`MENSENWERK.md`. **Tests:** where-/cutoff-/config-parser-unit, metrics-gauge (map+clamp), route-query
+(aparte query + fail-veilig), drift-gates (alerts-rules + monitoring-bundle) groen.
+
+**Resterend mensenwerk:** niets extra — werkt zodra een echte betaalprovider actief is; optioneel
+`SUBSCRIPTION_PENDING_STALE_HOURS` ruimer bij een meerdaags-afwikkelende betaalmethode (SEPA-overboeking).
+
 ## 2026-08-18 — ZZP'er: betaalgedrag per opdrachtgever op /inzicht
 
 **Wat:** de ZZP'er zag op `/inzicht` wél "Omzet per opdrachtgever" (van wíe komt mijn omzet — een

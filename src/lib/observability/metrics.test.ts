@@ -24,6 +24,7 @@ const HEALTHY: MetricsInput = {
   maintenanceMode: false,
   overdueExpiryCredentials: 0,
   overdueExpirySubscriptions: 0,
+  stalePendingSubscriptions: 0,
   overdueUnflippedInvoices: 0,
   overdueReviewReveals: 0,
   overduePerformanceGrace: 0,
@@ -65,6 +66,7 @@ describe("buildMetrics", () => {
     expect(valueOf(HEALTHY, "zzp_maintenance_mode")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_credentials_overdue_expiry")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_subscriptions_overdue_expiry")).toBe(0);
+    expect(valueOf(HEALTHY, "zzp_subscriptions_stale_pending")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_invoices_overdue_unflipped")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_reviews_overdue_reveal")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_performances_overdue_grace")).toBe(0);
@@ -103,6 +105,21 @@ describe("buildMetrics", () => {
     expect(
       valueOf({ ...HEALTHY, overdueExpirySubscriptions: 3.7 }, "zzp_subscriptions_overdue_expiry"),
     ).toBe(3);
+  });
+
+  it("mapt de vastgelopen-PENDING-abonnementen-detector door als gauge", () => {
+    expect(
+      valueOf({ ...HEALTHY, stalePendingSubscriptions: 9 }, "zzp_subscriptions_stale_pending"),
+    ).toBe(9);
+  });
+
+  it("klemt een negatieve/gebroken vastgelopen-PENDING-teller veilig op een niet-negatief geheel getal", () => {
+    expect(
+      valueOf({ ...HEALTHY, stalePendingSubscriptions: -2 }, "zzp_subscriptions_stale_pending"),
+    ).toBe(0);
+    expect(
+      valueOf({ ...HEALTHY, stalePendingSubscriptions: 4.8 }, "zzp_subscriptions_stale_pending"),
+    ).toBe(4);
   });
 
   it("mapt de betaal-verval-backlog (APPROVED maar verstreken) door als gauge", () => {
@@ -355,6 +372,7 @@ describe("buildMetrics", () => {
       maintenanceMode: true,
       overdueExpiryCredentials: 12,
       overdueExpirySubscriptions: 8,
+      stalePendingSubscriptions: 16,
       overdueUnflippedInvoices: 5,
       overdueReviewReveals: 10,
       overduePerformanceGrace: 13,
@@ -384,6 +402,7 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_maintenance_mode")).toBe(1);
     expect(valueOf(input, "zzp_credentials_overdue_expiry")).toBe(12);
     expect(valueOf(input, "zzp_subscriptions_overdue_expiry")).toBe(8);
+    expect(valueOf(input, "zzp_subscriptions_stale_pending")).toBe(16);
     expect(valueOf(input, "zzp_invoices_overdue_unflipped")).toBe(5);
     expect(valueOf(input, "zzp_reviews_overdue_reveal")).toBe(10);
     expect(valueOf(input, "zzp_performances_overdue_grace")).toBe(13);
@@ -424,6 +443,7 @@ describe("buildMetrics", () => {
       "zzp_maintenance_mode",
       "zzp_credentials_overdue_expiry",
       "zzp_subscriptions_overdue_expiry",
+      "zzp_subscriptions_stale_pending",
       "zzp_invoices_overdue_unflipped",
       "zzp_reviews_overdue_reveal",
       "zzp_performances_overdue_grace",
