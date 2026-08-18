@@ -3,7 +3,6 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-
 ## 2026-08-18 — Persona-sweep run 81: outer-window-blindheid op de teken-/indien-taak (DOEL 1b)
 
 **Wat:** de "Contract ondertekenen"-taak (PROPOSED — ZZP'er én opdrachtgever) en de "Uren indienen"-taak
@@ -802,7 +801,9 @@ gaten**; de next-action-audit leverde twee vensterbepaalde onzichtbaarheids-defe
 `performance.findMany`-stub toegevoegd aan 5 sibling-mocks). **Checks:** typecheck/lint/test/build/prettier
 groen. Backlog + PROGRESS bijgewerkt. Geparkeerd (nit, LAAG): `drawer-resolver.tsx:32` generiek
 "Afronden"-label op de identiteits-drawer.
+
 ---
+
 ## 2026-08-15 — Alle rollen: paginanavigatie in de snelzoeker (⌘K) — "Ga naar …"
 
 **Wat (elke rol springt met het toetsenbord direct naar een pagina):** de globale snelzoeker (⌘K)
