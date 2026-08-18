@@ -5012,7 +5012,9 @@ poort-reparatie zodat de kritieke fix zichzelf betrouwbaar door de gate trekt.
 **Bestanden:** `package.json`, `package-lock.json`, `.github/workflows/ci.yml`,
 `docs/SECURITY-PRIVACY-BACKLOG.md`, `PROGRESS.md`. **Vervolg:** #890/#891 (duplicaat-bumps) sluiten als
 gesuperseerd; geparkeerd LAAG — `on.push.branches` beperken tot `main` om de dubbele CI-run te elimineren.
+
 ---
+
 ## 2026-07-23 — routine: marginale belastingreservering (hou X% van je volgende euro winst opzij) — ZZP'er
 
 **Wat:** het Ontzorgd-paneel (`/ontzorgd`) toonde de ZZP'er de totale belastingreservering + de
