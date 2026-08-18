@@ -105,6 +105,27 @@ describe("groupSubmittedForBulkApproval", () => {
     expect(groups[0]!.hasStale).toBe(true);
   });
 
+  it("zet hasAnomaly zodra één ingediende prestatie in de uitschieter-set zit", () => {
+    const flagged = perf({ collaborationId: "col-1", id: "spike" });
+    const normal = perf({ collaborationId: "col-1", id: "ok" });
+    const groups = groupSubmittedForBulkApproval(
+      [flagged, normal],
+      NOW,
+      STALE_DAYS,
+      new Set(["spike"]),
+    );
+    expect(groups[0]!.hasAnomaly).toBe(true);
+  });
+
+  it("hasAnomaly is standaard false zonder uitschieter-set", () => {
+    const groups = groupSubmittedForBulkApproval(
+      [perf({ collaborationId: "col-1" }), perf({ collaborationId: "col-1" })],
+      NOW,
+      STALE_DAYS,
+    );
+    expect(groups[0]!.hasAnomaly).toBe(false);
+  });
+
   it("geeft een lege lijst zonder ingediende prestaties", () => {
     expect(
       groupSubmittedForBulkApproval(

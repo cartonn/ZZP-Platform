@@ -18,6 +18,12 @@ export interface BulkApproveGroup {
   totalCents: number;
   /** true zodra minstens één van de ingediende prestaties al ≥ staleDays wacht. */
   hasStale: boolean;
+  /**
+   * true zodra minstens één van de ingediende urenstaten een uren-uitschieter is (opvallend meer uren
+   * dan gebruikelijk op deze samenwerking). Zo keurt de opdrachtgever een groep niet blind in één klik
+   * goed zonder die urenstaat even te controleren. Zie `detectHoursAnomalies`.
+   */
+  hasAnomaly: boolean;
 }
 
 /**
@@ -31,6 +37,7 @@ export function groupSubmittedForBulkApproval(
   prestaties: PrestatieOverzicht[],
   now: number,
   staleDays: number,
+  anomalyIds: ReadonlySet<string> = new Set(),
 ): BulkApproveGroup[] {
   const staleMs = staleDays * 24 * 60 * 60 * 1000;
   const byCollab = new Map<string, BulkApproveGroup>();
@@ -46,6 +53,7 @@ export function groupSubmittedForBulkApproval(
         count: 0,
         totalCents: 0,
         hasStale: false,
+        hasAnomaly: false,
       };
       byCollab.set(p.collaborationId, group);
     }
@@ -53,6 +61,9 @@ export function groupSubmittedForBulkApproval(
     group.totalCents += p.subtotalCents ?? 0;
     if (p.submittedAt && now - p.submittedAt.getTime() >= staleMs) {
       group.hasStale = true;
+    }
+    if (anomalyIds.has(p.id)) {
+      group.hasAnomaly = true;
     }
   }
 

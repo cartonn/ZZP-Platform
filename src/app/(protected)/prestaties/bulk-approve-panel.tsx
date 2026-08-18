@@ -79,6 +79,12 @@ export function BulkApprovePanel({ groups }: { groups: BulkApproveGroup[] }) {
                       wacht al lang
                     </span>
                   )}
+                  {g.hasAnomaly && (
+                    <span className="inline-flex items-center gap-1 font-medium text-warning">
+                      <TriangleAlert className="size-3" aria-hidden />
+                      controleer uren
+                    </span>
+                  )}
                 </div>
                 {row?.message && (
                   <p
