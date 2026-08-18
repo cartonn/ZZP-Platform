@@ -142,6 +142,10 @@ vi.mock("@/lib/data/income-tax-deadline", () => ({
   getIncomeTaxDeadlineForActor: vi.fn(async () => null),
 }));
 vi.mock("@/lib/data/vat-deadline", () => ({ getVatDeadlinesForActor: vi.fn(async () => []) }));
+vi.mock("@/lib/tax/hours-criterion-summary", () => ({
+  getHoursCriterionSummary: vi.fn(async () => null),
+  hoursCriterionNeedsAction: vi.fn(() => false),
+}));
 vi.mock("@/lib/data/client-cold-jobs", () => ({ getClientColdJobs: vi.fn(async () => []) }));
 vi.mock("@/lib/collaboration-alerts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/collaboration-alerts")>();
