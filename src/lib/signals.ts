@@ -15,19 +15,17 @@ import {
   RENEWAL_WINDOW_DAYS,
 } from "@/lib/collaboration-renewal";
 import { prisma } from "@/lib/db";
-import {
-  type Availability,
-  type CredentialStatus,
-  type CredentialType,
-  type UserRole,
-} from "@/lib/enums";
+import { type CredentialStatus, type CredentialType, type UserRole } from "@/lib/enums";
 import { collaborationPlacementBlocked } from "@/lib/collaborations";
 import {
   collaborationRequiredCredentialGaps,
   type CollabCredentialInput,
 } from "@/lib/collaboration-credential-expiry";
 import { rosterExpiringByProfile, supersededVerifiedCredentialIds } from "@/lib/credentials";
-import { computeEngageability } from "@/lib/engageability";
+import {
+  ROSTER_ENGAGEABILITY_SELECT,
+  evaluateRosterEngageability,
+} from "@/lib/data/roster-engageability";
 import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
 import { buildClientActivityInputs, summarizeClientHealth } from "@/lib/franchise/client-health";
 import { MANDATORY_CREDENTIAL_TYPES, mandatoryDocumentAlertCount } from "@/lib/mandatory-documents";
@@ -925,25 +923,15 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         take: CASCADE_SCAN_LIMIT,
       }),
       // /franchise/zzpers — roster-inzetbaarheid: exact de bron/velden die `franchiseNotEngageableTask`
-      // (pending-tasks.ts) via `computeEngageability` gebruikt om een plaatsing-blokkerende (INACTIEF)
-      // ZZP'er te herkennen. Zelfde helper als /franchise/zzpers, zodat de oppervlakken niet driften.
+      // (pending-tasks.ts) gebruikt om een plaatsing-blokkerende (INACTIEF) ZZP'er te herkennen.
+      // Gedeelde select/evaluatie via `roster-engageability.ts`, zodat de `notEngageable`-telling op de
+      // badge en op /acties per definitie niet kan driften. ONGEWINDOWD (geen `take`): capte eerder op
+      // 50 (`id: asc`), waardoor een niet-inzetbaar roster-lid voorbij de 50e permanent uit de badge én
+      // /acties viel (persona-sweep run 81, DOEL 1b). Per tenant een beheerbaar aantal profielen —
+      // spiegelt de ongelimiteerde `company.findMany({ tenantId })`-scan verderop in deze berekening.
       prisma.freelancerProfile.findMany({
         where: { tenantId },
-        select: {
-          id: true,
-          completeness: true,
-          availability: true,
-          user: { select: { identityVerifiedAt: true, lastLoginAt: true } },
-          credentials: { select: { type: true, status: true, expiresAt: true } },
-        },
-        // Deterministische ordering, identiek aan de /acties-bron (`franchiseNotEngageableTask`,
-        // pending-tasks.ts): beide cappen op 50 (CASCADE_SCAN_LIMIT === MAX). Zonder identieke
-        // `orderBy` pakken de twee onafhankelijke roster-queries bij >50 roster-leden binnen één
-        // tenant een ánder 50-rij-subset → een andere `notEngageable`-telling → de
-        // /franchise/zzpers-badge divergeert van /acties. Zelfde drift-klasse als de al-gefixte
-        // verloop-cert-query hierboven (`orderBy: expiresAt`).
-        orderBy: { id: "asc" },
-        take: CASCADE_SCAN_LIMIT,
+        select: ROSTER_ENGAGEABILITY_SELECT,
       }),
       // /franchise/diensten — gepubliceerde, ONGEVULDE tenant-diensten + startdatum, voor het
       // acute-onbezet-aggregaat (`franchiseAcuteDienstTask`). Zelfde definitie én deterministische,
@@ -1070,21 +1058,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     }
     let notEngageable = 0;
     for (const f of roster) {
-      const eng = computeEngageability(
-        {
-          credentials: f.credentials.map((c) => ({
-            type: c.type as FreelancerCredential["type"],
-            status: c.status as FreelancerCredential["status"],
-            expiresAt: c.expiresAt,
-          })),
-          completeness: f.completeness,
-          availability: f.availability as Availability,
-          identityVerified: f.user.identityVerifiedAt != null,
-          lastActiveAt: f.user.lastLoginAt ?? null,
-        },
-        now,
-      );
-      if (eng.status === "INACTIEF") notEngageable += 1;
+      if (evaluateRosterEngageability(f, now).status === "INACTIEF") notEngageable += 1;
     }
     const rosterAlerts = expiringProfiles + notEngageable;
 

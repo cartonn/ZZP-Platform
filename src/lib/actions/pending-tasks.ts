@@ -9,7 +9,10 @@ import { type Actor } from "@/lib/authz";
 import { type Availability } from "@/lib/enums";
 import { computeFreelancerCompleteness, computeCompanyCompleteness } from "@/lib/profile";
 import { mandatoryDocuments, MANDATORY_CREDENTIAL_TYPES } from "@/lib/mandatory-documents";
-import { computeEngageability } from "@/lib/engageability";
+import {
+  ROSTER_ENGAGEABILITY_SELECT,
+  evaluateRosterEngageability,
+} from "@/lib/data/roster-engageability";
 import { formatMissing } from "@/lib/next-actions";
 import { startOfUtcDay } from "@/lib/signals";
 import { type FreelancerCredential } from "@/lib/matching";
@@ -1322,22 +1325,18 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     }),
     // Roster-inzetbaarheid: alle tenant-ZZP'ers met de signalen die computeEngageability nodig heeft,
     // zodat een niet-inzetbare (plaatsing-blokkerende) ZZP'er óók op /acties en in de zijbalk-badge
-    // telt — voorheen alleen op de dashboard-rail. Zelfde helper/bron als /franchise/zzpers.
+    // telt — voorheen alleen op de dashboard-rail. Gedeelde select/evaluatie met de nav-badge
+    // (signals.ts) via `roster-engageability.ts`, zodat de telling niet kan driften.
+    //
+    // ONGEWINDOWD (geen `take`): de scan capte eerder op 50 (`id: asc`), waardoor een niet-inzetbaar
+    // roster-lid voorbij de 50e permanent buiten /acties, de badge én de rail viel — de blokkerende
+    // actie (ontbrekend/verlopen verplicht document) bumpt geen venster, dus niet self-healing
+    // (persona-sweep run 81, DOEL 1b). `orderBy: { id: "asc" }` blijft voor een stabiele volgorde van de
+    // losse taken. Per tenant een beheerbaar aantal profielen (spiegelt de ongelimiteerde tenant-scans).
     prisma.freelancerProfile.findMany({
       where: { tenantId },
-      select: {
-        id: true,
-        completeness: true,
-        availability: true,
-        user: { select: { name: true, identityVerifiedAt: true, lastLoginAt: true } },
-        credentials: { select: { type: true, status: true, expiresAt: true } },
-      },
-      // Deterministische ordering, identiek aan de nav-badge-bron (signals.ts): beide cappen op 50
-      // (MAX === CASCADE_SCAN_LIMIT). Zonder identieke `orderBy` pakken de twee onafhankelijke
-      // roster-queries bij >50 roster-leden een ánder 50-rij-subset → de niet-inzetbaar-telling op
-      // /acties kan driften van de zijbalk-badge. Zie signals.roster-order.test.ts.
+      select: ROSTER_ENGAGEABILITY_SELECT,
       orderBy: { id: "asc" },
-      take: MAX,
     }),
     // Ongedekte diensten die te lang open staan (gepubliceerd, geen actieve samenwerking, ouder dan de
     // drempel). Oudste eerst — zelfde definitie/drempel als de dashboard-rail.
@@ -1507,20 +1506,7 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
   // blokkeert plaatsing. Zelfde helper/bron (computeEngageability) als /franchise/zzpers en het
   // dashboard, zodat de oppervlakken elkaar nooit tegenspreken.
   for (const f of roster) {
-    const eng = computeEngageability(
-      {
-        credentials: f.credentials.map((c) => ({
-          type: c.type as FreelancerCredential["type"],
-          status: c.status as FreelancerCredential["status"],
-          expiresAt: c.expiresAt,
-        })),
-        completeness: f.completeness,
-        availability: f.availability as Availability,
-        identityVerified: f.user.identityVerifiedAt != null,
-        lastActiveAt: f.user.lastLoginAt ?? null,
-      },
-      now,
-    );
+    const eng = evaluateRosterEngageability(f, now);
     if (eng.status !== "INACTIEF") continue;
     const reason = eng.blockers.length
       ? formatMissing(eng.blockers)

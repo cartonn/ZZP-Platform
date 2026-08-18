@@ -1,16 +1,16 @@
-// Cross-surface next-action-defect (DOEL 1b, "signaal op één oppervlak" — badge-divergentie boven 50)
-// voor de FRANCHISER-rol; geparkeerde NIT uit persona-sweep run 68.
+// Cross-surface next-action-defect (DOEL 1b) voor de FRANCHISER-rol; geparkeerde bevinding uit
+// persona-sweep run 81 (outer-window-blindheid op de roster-inzetbaarheidsscan).
 //
-// Defect (NIT → drift-preventie): de roster-`freelancerProfile.findMany({ where: { tenantId } })` draait
-// op TWEE oppervlakken — de /franchise/zzpers-nav-badge (`navBadges` → `rosterAlerts` in signals.ts) én
-// de autoritaire /acties-bron (`pendingTasks` → `franchiserTasks`, pending-tasks.ts). Beide cappen op 50
-// (`CASCADE_SCAN_LIMIT === MAX === 50`), maar de badge-query had GÉÉN `orderBy`. Bij >50 roster-leden per
-// tenant pakken de twee onafhankelijke queries niet-gegarandeerd hetzelfde 50-rij-subset → een andere
-// `notEngageable`-telling → de badge divergeert van /acties. Exact dezelfde klasse als de freelancer-
-// cascade-badge (signals.freelancer-cascade-order.test.ts) en de franchiser credential-expiry-badge.
+// Defect: de roster-`freelancerProfile.findMany({ where: { tenantId } })` draait op TWEE oppervlakken —
+// de /franchise/zzpers-nav-badge (`navBadges` → `rosterAlerts` in signals.ts) én de autoritaire
+// /acties-bron (`pendingTasks` → `franchiserTasks`, pending-tasks.ts). Beide capten op 50 (`id: asc`),
+// dus een niet-inzetbaar (plaatsing-blokkerend, INACTIEF) roster-lid voorbij de 50e viel op BEIDE
+// oppervlakken permanent weg — en omdat de blokkerende actie (ontbrekend/verlopen verplicht document)
+// geen venster bumpt, was dat niet self-healing (undercount t.o.v. de onbegrensde /franchise/zzpers-lijst).
 //
-// Fix: `orderBy: { id: "asc" }` op beide roster-queries → beide truncaten identiek. Deze test is rood
-// zonder die orderBy op de nav-badge-query.
+// Fix: beide roster-queries scannen ONGEWINDOWD de volledige tenant-roster (geen `take`), via de
+// gedeelde `roster-engageability.ts`-select/evaluatie → geen 50-cap-blindheid meer én geen drift tussen
+// badge en /acties. Deze test is rood zodra de nav-badge-query weer een `take` krijgt.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -41,15 +41,15 @@ beforeEach(() => {
   rosterQueries = [];
 });
 
-describe("navBadges FRANCHISER — roster-badge truncateert deterministisch (DOEL 1b)", () => {
-  it("de roster-query heeft orderBy { id: asc } + take 50 (gelijk aan /acties)", async () => {
+describe("navBadges FRANCHISER — roster-inzetbaarheid scant ongewindowd (DOEL 1b)", () => {
+  it("de roster-query scant de volledige tenant-roster (geen take-cap → geen 50-cap-blindheid)", async () => {
     await navBadges("FRANCHISER", "u-1");
-    // De FRANCHISER-badge draait één roster-`freelancerProfile.findMany` (gescoped op tenantId, take 50);
-    // die voedt de niet-inzetbaar-telling. Assert de deterministische-truncatie-invariant zodat de badge
-    // hetzelfde 50-rij-subset pakt als de /acties-bron (pending-tasks.ts).
+    // De FRANCHISER-badge draait één roster-`freelancerProfile.findMany` (gescoped op tenantId); die
+    // voedt de niet-inzetbaar-telling. Assert dat de query ONGEWINDOWD is (geen `take`), zodat een
+    // niet-inzetbaar roster-lid voorbij de 50e niet stil uit de badge valt — gelijk aan de /acties-bron
+    // (pending-tasks.ts), die exact dezelfde ongewindowde scan draait.
     const roster = rosterQueries.find((q) => q.where?.tenantId === "tenant-1");
     expect(roster).toBeDefined();
-    expect(roster?.orderBy).toEqual({ id: "asc" });
-    expect(roster?.take).toBe(50);
+    expect(roster?.take).toBeUndefined();
   });
 });

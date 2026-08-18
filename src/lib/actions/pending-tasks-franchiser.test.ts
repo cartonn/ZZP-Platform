@@ -114,9 +114,12 @@ vi.mock("@/lib/db", () => ({
       findMany: vi.fn(async () => state.reengageCompanies),
     },
     freelancerProfile: {
+      // Faithful: past de `take`-slice toe als de query er één draagt, zodat een teruggedraaide fix
+      // (opnieuw een `take: 50`-cap → een niet-inzetbaar roster-lid voorbij de 50e valt uit de slice)
+      // meteen rood wordt. De productiecode scant nu ONGEWINDOWD (geen take) de volledige tenant-roster.
       findMany: vi.fn(async (args: { orderBy?: unknown; take?: number }) => {
         state.rosterQuery = { orderBy: args?.orderBy, take: args?.take };
-        return state.roster;
+        return typeof args?.take === "number" ? state.roster.slice(0, args.take) : state.roster;
       }),
       count: vi.fn(async () => state.counts.freelancers),
     },
@@ -215,16 +218,18 @@ beforeEach(() => {
   };
 });
 
-describe("bemiddelaar next-actions — roster-query truncateert deterministisch (DOEL 1b)", () => {
-  it("de roster-freelancerProfile-query heeft orderBy { id: asc } + take 50 (gelijk aan de nav-badge)", async () => {
+describe("bemiddelaar next-actions — roster-inzetbaarheid scant ongewindowd (DOEL 1b)", () => {
+  it("de roster-freelancerProfile-query is ongewindowd (geen take) — geen 50-cap-blindheid", async () => {
     state.roster = [engaged];
     await pendingTasks(ACTOR);
     // De roster-query (`freelancerProfile.findMany({ where: { tenantId } })`) voedt de niet-inzetbaar-
-    // taak. Op de nav-badge (signals.ts) draait exact dezelfde query met dezelfde `take: 50`. Zonder
-    // een identieke `orderBy` pakken de twee onafhankelijke queries bij >50 roster-leden een ánder
-    // subset → de badge divergeert van /acties. Deze assert is rood zodra de `orderBy` verdwijnt.
+    // taak. Ze scant ONGEWINDOWD de volledige tenant-roster (geen `take`), zodat een niet-inzetbaar
+    // roster-lid voorbij de 50e niet stil uit /acties valt. De nav-badge (signals.ts) draait exact
+    // dezelfde ongewindowde scan via de gedeelde `roster-engageability.ts`-select → geen drift. De
+    // `orderBy: { id: "asc" }` blijft voor een stabiele volgorde van de losse taken. Rood zodra de
+    // query weer een `take` krijgt.
     expect(state.rosterQuery?.orderBy).toEqual({ id: "asc" });
-    expect(state.rosterQuery?.take).toBe(50);
+    expect(state.rosterQuery?.take).toBeUndefined();
   });
 });
 
@@ -247,6 +252,23 @@ describe("bemiddelaar next-actions — niet-inzetbare ZZP'er telt op /acties + b
     state.roster = [engaged];
     const tasks = await pendingTasks(ACTOR);
     expect(tasks.some((t) => t.kind === "franchise-not-engageable")).toBe(false);
+  });
+
+  it("signaleert een niet-inzetbaar lid voorbij de oude 50-cap (outer-window, DOEL 1b)", async () => {
+    // 55 inzetbare leden + het niet-inzetbare lid als 56e (id-volgorde onder de oude `id: asc`-cap).
+    // Onder de oude `take: 50` viel dit lid buiten het venster → geen taak (permanente undercount).
+    // De ongewindowde scan pakt de volledige roster → de taak verschijnt.
+    state.roster = [
+      ...Array.from({ length: 55 }, (_, i) => ({
+        ...engaged,
+        id: `prof-actief-${String(i).padStart(2, "0")}`,
+      })),
+      notEngaged,
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    const notEng = tasks.filter((t) => t.kind === "franchise-not-engageable");
+    expect(notEng).toHaveLength(1);
+    expect(notEng[0]?.id).toBe("franchise-not-engageable:prof-inactief");
   });
 });
 
