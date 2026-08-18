@@ -61,7 +61,7 @@ describe("buildFreelancerPayerBehavior", () => {
   it("computes payment behaviour per company from the freelancer's own paid invoices", () => {
     const rows = buildFreelancerPayerBehavior(goodClient("co1", "Zorg BV"));
     expect(rows).toHaveLength(1);
-    const zorg = rows[0];
+    const zorg = rows[0]!;
     expect(zorg.companyId).toBe("co1");
     expect(zorg.name).toBe("Zorg BV");
     expect(zorg.behavior.sampleSize).toBe(3);
@@ -76,13 +76,13 @@ describe("buildFreelancerPayerBehavior", () => {
       ...slowClient("co-slow", "Trage NV"),
     ]);
     expect(rows.map((r) => r.companyId)).toEqual(["co-slow", "co-good"]);
-    expect(rows[0].behavior.tone).toBe("warning");
-    expect(rows[1].behavior.tone).toBe("good");
+    expect(rows[0]!.behavior.tone).toBe("warning");
+    expect(rows[1]!.behavior.tone).toBe("good");
   });
 
   it("does not leak individual invoice amounts (only aggregate stats)", () => {
     const rows = buildFreelancerPayerBehavior(goodClient("co1", "Zorg BV"));
-    const keys = Object.keys(rows[0].behavior).sort();
+    const keys = Object.keys(rows[0]!.behavior).sort();
     expect(keys).toEqual(["avgDaysToPay", "onTimePct", "sampleSize", "tone"]);
   });
 
@@ -92,6 +92,6 @@ describe("buildFreelancerPayerBehavior", () => {
       inv("co1", null, "2026-02-01", "2026-02-28", "2026-02-06"),
       inv("co1", null, "2026-03-01", "2026-03-30", "2026-03-06"),
     ]);
-    expect(rows[0].name).toBe("Onbekende opdrachtgever");
+    expect(rows[0]!.name).toBe("Onbekende opdrachtgever");
   });
 });
