@@ -6,6 +6,7 @@ import {
   BarChart3,
   Clock,
   Coins,
+  CreditCard,
   Download,
   Gauge,
   PieChart,
@@ -27,6 +28,7 @@ import { getDeliveryQuality, DELIVERY_TONE_LABEL } from "@/lib/collaboration-qua
 import { getClientStats } from "@/lib/client-stats";
 import { getClientSpendBreakdown } from "@/lib/client-spend-breakdown";
 import { getFreelancerRevenueBreakdown } from "@/lib/freelancer-revenue-breakdown";
+import { getFreelancerPayerBehavior, type PayerBehaviorRow } from "@/lib/freelancer-payer-behavior";
 import { getClientTimeToFill, getTenantTimeToFill } from "@/lib/time-to-fill";
 import { getTenantStats, getTenantCompanyBreakdown } from "@/lib/tenant-stats";
 import {
@@ -47,6 +49,7 @@ import {
 } from "@/lib/status-breakdown";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   GaugeRing,
@@ -550,6 +553,74 @@ function OmzetPerOpdrachtgeverWidget({
   );
 }
 
+// Toon → badge-taal, gelijk aan de gedragsblokken (signal-chips.tsx). Hier plat Nederlands, want de
+// hele /inzicht-pagina gebruikt geen i18n-wrapper.
+const PAYER_TONE_BADGE: Record<
+  PayerBehaviorRow["behavior"]["tone"],
+  { label: string; variant: "success" | "warning" | "default" | "muted" }
+> = {
+  good: { label: "Betaalt op tijd", variant: "success" },
+  neutral: { label: "Gemiddeld", variant: "default" },
+  warning: { label: "Betaalt vaak laat", variant: "warning" },
+  unknown: { label: "Onbekend", variant: "muted" },
+};
+
+/**
+ * Betaalgedrag per opdrachtgever voor de ZZP'er: hoe snel en betrouwbaar betaalt elke klant de eigen
+ * facturen. De tegenhanger van "Omzet per opdrachtgever" — dáár zie je van wíe je omzet komt, hier of
+ * die klant ook op tijd overmaakt. Traag betalende opdrachtgevers staan bovenaan (de cashflow-hefboom).
+ * Cijfers via `getFreelancerPayerBehavior` (hergebruikt `computePaymentBehavior` → geen drift met het
+ * betaalgedrag-blok op de opdracht-detailpagina); alleen eigen facturen, alleen geaggregeerde statistiek.
+ */
+function BetaalgedragPerOpdrachtgeverWidget({ rows }: { rows: PayerBehaviorRow[] }) {
+  return (
+    <BiWidget title="Betaalgedrag per opdrachtgever">
+      {rows.length === 0 ? (
+        <EmptyState
+          icon={CreditCard}
+          title="Nog niet genoeg betaalhistorie"
+          description="Zodra je opdrachtgevers meerdere facturen hebben betaald, zie je hier wie snel en betrouwbaar betaalt."
+        />
+      ) : (
+        <div className="space-y-3">
+          {rows.map(({ companyId, name, behavior }) => {
+            const badge = PAYER_TONE_BADGE[behavior.tone];
+            return (
+              <div key={companyId} className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="min-w-0 truncate text-sm font-medium">{name}</p>
+                  <Badge variant={badge.variant}>{badge.label}</Badge>
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                  {behavior.avgDaysToPay != null && (
+                    <span>
+                      <span className="font-medium tabular-nums text-foreground">
+                        {behavior.avgDaysToPay}
+                      </span>{" "}
+                      {plural(behavior.avgDaysToPay, "dag", "dagen")} betaaltijd
+                    </span>
+                  )}
+                  {behavior.onTimePct != null && (
+                    <span>
+                      <span className="font-medium tabular-nums text-foreground">
+                        {behavior.onTimePct}%
+                      </span>{" "}
+                      op tijd
+                    </span>
+                  )}
+                  <span>
+                    {behavior.sampleSize} {plural(behavior.sampleSize, "betaling", "betalingen")}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </BiWidget>
+  );
+}
+
 function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
   return (
     <BiWidget
@@ -580,6 +651,7 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
     workedHours,
     hourlyRate,
     revenueByClient,
+    payerBehavior,
   ] = await Promise.all([
     getFreelancerStats(userId),
     getFreelancerMembership(userId),
@@ -590,6 +662,7 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
     getFreelancerWorkedHoursTrend(userId),
     getFreelancerHourlyRateTrend(userId),
     getFreelancerRevenueBreakdown(userId),
+    getFreelancerPayerBehavior(userId),
   ]);
   if (!s) {
     return (
@@ -626,6 +699,8 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
       <GemiddeldUurtariefPerMaandCard trend={hourlyRate} />
 
       <OmzetPerOpdrachtgeverWidget breakdown={revenueByClient} />
+
+      <BetaalgedragPerOpdrachtgeverWidget rows={payerBehavior} />
 
       {hoursCriterion && <UrencriteriumCard summary={hoursCriterion} />}
 

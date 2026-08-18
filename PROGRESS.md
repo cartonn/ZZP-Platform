@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-18 — ZZP'er: betaalgedrag per opdrachtgever op /inzicht
+
+**Wat:** de ZZP'er zag op `/inzicht` wél "Omzet per opdrachtgever" (van wíe komt mijn omzet — een
+afhankelijkheidssignaal), maar niet **hoe goed elke klant betaalt** (betaaltermijn/op-tijd per
+opdrachtgever). Dat is de cashflow-hefboom: weten wélke opdrachtgever traag betaalt is direct actionable
+(nabellen, of voortaan liever bij snelle betalers werken). Nieuwe kaart "Betaalgedrag per opdrachtgever":
+per klant een toon-badge (Betaalt op tijd / Gemiddeld / Betaalt vaak laat) + gemiddelde betaaltijd +
+op-tijd-% + aantal betalingen; traag betalende opdrachtgevers staan bovenaan.
+
+**Hoe:** nieuwe pure `src/lib/freelancer-payer-behavior.ts` (`buildFreelancerPayerBehavior` +
+`getFreelancerPayerBehavior`). Groepeert de eigen betaalde facturen (`issuerUserId`, status PAID — zelfde
+bron als de omzet-uitsplitsing) per opdrachtgever en voedt elke groep in de bestaande pure
+`computePaymentBehavior` (payment-behavior.ts) → geen drift met het betaalgedrag-blok op de
+opdracht-detailpagina. Alleen opdrachtgevers met genoeg betaalhistorie (`sampleSize >=
+PAYMENT_MIN_SAMPLE_SIZE`, tone ≠ unknown) komen in de lijst (rustige kaart); gesorteerd op toon
+(waarschuwing eerst), dan betaaltijd aflopend, dan naam. Read-only, alleen FREELANCER, alleen
+geaggregeerde statistiek (geen individuele factuurbedragen), geen schema-/mutatie-/auth-oppervlak. +7
+tests. Gate: typecheck, lint, test, build, prettier groen.
+
+**Bestanden:** `src/lib/freelancer-payer-behavior.ts`, `src/lib/freelancer-payer-behavior.test.ts`,
+`src/app/(protected)/inzicht/page.tsx`.
+
 ## 2026-08-17 — Bemiddelaar: plaatsingen-per-maand trend op /inzicht
 
 **Wat:** alle bestaande franchiser-trends op `/inzicht` ("Doorgezet volume", "Fee per maand") meten in
