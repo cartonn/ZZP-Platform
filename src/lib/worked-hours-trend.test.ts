@@ -179,6 +179,24 @@ describe("getClientWorkedHoursTrend", () => {
     expect(t.series.find((m) => m.key === "2026-07")?.hours).toBe(2);
   });
 
+  it("kiest het periode-einde boven periode-begin én goedkeuringsdatum als alle drie aanwezig zijn", async () => {
+    const { getClientWorkedHoursTrend } = await import("./worked-hours-trend");
+    // Periode-begin (juli) en goedkeuring (juni) liggen in andere maanden dan het periode-einde
+    // (augustus). De uren horen in augustus te vallen — periode-einde wint de bucketkeuze.
+    findMany.mockResolvedValue([
+      {
+        hours: 5,
+        periodEnd: new Date("2026-08-28T09:00:00Z"),
+        periodStart: new Date("2026-07-01T09:00:00Z"),
+        approvedAt: new Date("2026-06-15T09:00:00Z"),
+      },
+    ]);
+    const t = await getClientWorkedHoursTrend("client-1", NOW, 6);
+    expect(t.series.find((m) => m.key === "2026-08")?.hours).toBe(5);
+    expect(t.series.find((m) => m.key === "2026-07")?.hours).toBe(0);
+    expect(t.series.find((m) => m.key === "2026-06")?.hours).toBe(0);
+  });
+
   it("behandelt null-uren als nul", async () => {
     const { getClientWorkedHoursTrend } = await import("./worked-hours-trend");
     findMany.mockResolvedValue([
