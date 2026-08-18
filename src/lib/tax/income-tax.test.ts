@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { progressiveTax, taxableProfit, estimateIncomeTax } from "@/lib/tax/income-tax";
+import {
+  progressiveTax,
+  taxableProfit,
+  estimateIncomeTax,
+  marginalIncomeTaxRateBps,
+  MARGINAL_PROBE_CENTS,
+} from "@/lib/tax/income-tax";
 import { ZELFSTANDIGENAFTREK_CENTS, STARTERSAFTREK_CENTS } from "@/lib/tax/config";
 
 describe("progressiveTax", () => {
@@ -69,5 +75,42 @@ describe("estimateIncomeTax", () => {
     const r = estimateIncomeTax({ profitCents: 0, urencriteriumMet: true });
     expect(r.totalCents).toBe(0);
     expect(r.effectiveRateBps).toBe(0);
+  });
+});
+
+describe("marginalIncomeTaxRateBps", () => {
+  it("winst binnen de eerste schijf: ~35,9% marginaal (MKB-vrijstelling × 35,82% + Zvw)", () => {
+    // €30.000 winst, urencriterium gehaald: de aftrek is een vast bedrag (niet marginaal),
+    // dus de volgende euro wordt belast na 12,7% MKB-vrijstelling in de eerste schijf.
+    // 0,873 × (35,82% + 5,26%) ≈ 35,86%.
+    const bps = marginalIncomeTaxRateBps({ profitCents: 3000000, urencriteriumMet: true });
+    expect(bps).toBeGreaterThan(3560);
+    expect(bps).toBeLessThan(3610);
+  });
+
+  it("winst volledig onder de zelfstandigenaftrek → marginaal 0% (volgende euro nog aftrekbaar)", () => {
+    // €0 winst, urencriterium gehaald, probe €1.000 < zelfstandigenaftrek €1.200 → geheel geabsorbeerd.
+    expect(marginalIncomeTaxRateBps({ profitCents: 0, urencriteriumMet: true })).toBe(0);
+  });
+
+  it("progressief: marginale voet in de toptariefschijf ligt hoger dan in de eerste schijf", () => {
+    const laag = marginalIncomeTaxRateBps({ profitCents: 3000000, urencriteriumMet: true });
+    const hoog = marginalIncomeTaxRateBps({ profitCents: 10000000, urencriteriumMet: true });
+    expect(hoog).toBeGreaterThan(laag);
+  });
+
+  it("nooit negatief; ligt onder het nominale toptarief (49,5%)", () => {
+    const bps = marginalIncomeTaxRateBps({ profitCents: 12000000, urencriteriumMet: true });
+    expect(bps).toBeGreaterThanOrEqual(0);
+    expect(bps).toBeLessThan(4950);
+  });
+
+  it("zonder urencriterium wordt de eerste euro al belast (geen aftrek om te absorberen)", () => {
+    const bps = marginalIncomeTaxRateBps({ profitCents: 0, urencriteriumMet: false });
+    expect(bps).toBeGreaterThan(0);
+  });
+
+  it("standaard-probe is € 1.000", () => {
+    expect(MARGINAL_PROBE_CENTS).toBe(100000);
   });
 });

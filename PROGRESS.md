@@ -5099,6 +5099,37 @@ poort-reparatie zodat de kritieke fix zichzelf betrouwbaar door de gate trekt.
 `docs/SECURITY-PRIVACY-BACKLOG.md`, `PROGRESS.md`. **Vervolg:** #890/#891 (duplicaat-bumps) sluiten als
 gesuperseerd; geparkeerd LAAG — `on.push.branches` beperken tot `main` om de dubbele CI-run te elimineren.
 
+---
+
+## 2026-07-23 — routine: marginale belastingreservering (hou X% van je volgende euro winst opzij) — ZZP'er
+
+**Wat:** het Ontzorgd-paneel (`/ontzorgd`) toonde de ZZP'er de totale belastingreservering + de
+**gemiddelde** effectieve heffing (`effectiveRateBps`), maar niet de **marginale** set-aside-voet:
+"van elke volgende euro winst — hoeveel gaat naar de belasting?" Onder een progressief stelsel (schijven +
+12,7% MKB-vrijstelling + vaste ondernemersaftrek) onderschat het gemiddelde structureel wat je op de
+volgende euro moet reserveren: de vaste aftrek drukt het gemiddelde maar geldt niet marginaal. Benchmark:
+elke ZZP-boekhouder (Moneybird/Tellow) toont dit vuistregel-percentage. Nu een compacte regel op de
+"Opzij zetten"-kaart — **"Van elke volgende € 1.000 winst: ~€ X IB/Zvw"** — zodat de ZZP'er weet hoeveel
+van elke extra euro omzet écht van de fiscus is.
+
+**Architectuur/grens:** pure `marginalIncomeTaxRateBps(input, deltaCents=€1.000)` (`src/lib/tax/income-tax.ts`)
+meet de heffing bij `winst` vs. `winst + delta` via de bestaande `estimateIncomeTax` — **geen eigen
+schijvenlogica**, dus één bron van waarheid, kan niet driften. Winst volledig onder de zelfstandigenaftrek
+geeft terecht 0% (de volgende euro valt nog binnen de aftrek); nooit negatief; blijft onder het nominale
+toptarief. Gewired in `buildOntzorgOverview` (`ontzorg-overview.ts`, veld `marginalReserveBps`) + de
+"Opzij zetten"-kaart (`ontzorgd-panel.tsx`, alleen bij > 0). **Geen extra query, geen schemawijziging,
+geen mutatie/auth-oppervlak** — read-only afleiding op de reeds-berekende winst. Indicatief (`TAX_DISCLAIMER`).
+
+**Bestanden:** `src/lib/tax/income-tax.ts` (+`MARGINAL_PROBE_CENTS`, +`marginalIncomeTaxRateBps`),
+`src/lib/tax/ontzorg-overview.ts`, `src/components/administratie/ontzorgd-panel.tsx`, + tests. **Tests:**
++7 (`income-tax.test.ts`: eerste schijf ~35,9%, onder-aftrek 0%, progressie top > eerste schijf, nooit
+negatief/onder toptarief, zonder urencriterium al belast, probe-constante; `ontzorg-overview.test.ts`:
+aggregaat-veld). Gate: typecheck, lint, prettier, **4917 unit-tests**, build — allemaal groen (exit 0).
+
+**Poort-noot:** `audit` is momenteel **rood op `main`** door twee nieuw-gepubliceerde kritieke Auth.js-CVE's
+(fix in-flight: #890) — pre-existing base-branch-failure, niet door deze diff (puur additief, geen
+dependency-wijziging). Wordt groen zodra #890 gemerged is en deze branch daarop rebaset.
+
 ## 2026-07-23 — security/privacy-audit: bron-IP op beveiligingsincidenten geredigeerd na venster (HOOG, AVG)
 
 **Wat:** orchestrator (Opus 4.8) + 3 parallelle Opus-audits op niet-overlappende oppervlakken —

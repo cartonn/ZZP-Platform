@@ -9,7 +9,11 @@ import {
   type LedgerEntry,
   type Quarter,
 } from "@/lib/administration/overview";
-import { estimateIncomeTax, type IncomeTaxEstimate } from "@/lib/tax/income-tax";
+import {
+  estimateIncomeTax,
+  marginalIncomeTaxRateBps,
+  type IncomeTaxEstimate,
+} from "@/lib/tax/income-tax";
 import {
   reservationAdvice,
   availableToWithdrawCents,
@@ -46,6 +50,7 @@ export interface OntzorgOverview {
   costCents: number;
   reservation: ReservationAdvice;
   availableCents: number; //         beschikbaar om uit te keren
+  marginalReserveBps: number; //     IB+Zvw-voet op de volgende winst (vuistregel-percentage)
   hours: HoursCriterion;
   incomeTax: IncomeTaxEstimate;
   korApproaching: boolean; //        nadert de €20.000-grens (>80%)
@@ -83,6 +88,12 @@ export function buildOntzorgOverview(input: OntzorgInput): OntzorgOverview {
     starter: input.starter,
   });
 
+  const marginalReserveBps = marginalIncomeTaxRateBps({
+    profitCents,
+    urencriteriumMet: hours.met,
+    starter: input.starter,
+  });
+
   const korApproaching =
     summary.revenueCents >= Math.round(KOR_THRESHOLD_CENTS * 0.8) &&
     summary.revenueCents < KOR_THRESHOLD_CENTS;
@@ -112,6 +123,7 @@ export function buildOntzorgOverview(input: OntzorgInput): OntzorgOverview {
     costCents: summary.costCents,
     reservation,
     availableCents: availableToWithdrawCents(profitCents, reservation),
+    marginalReserveBps,
     hours,
     incomeTax,
     korApproaching,
