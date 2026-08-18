@@ -4,6 +4,7 @@ import { getPlatformBillingInvoiceDetail } from "@/lib/platform-billing/billing-
 import { buildPlatformBillingPdf } from "@/lib/platform-billing/billing-pdf";
 import { privateFileHeaders } from "@/lib/security/resource-headers";
 import { audit } from "@/lib/audit";
+import { auditDeniedAccess } from "@/lib/security/access-audit";
 import { requestMeta } from "@/lib/request-meta";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
@@ -27,7 +28,22 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   const { id } = await ctx.params;
   const detail = await getPlatformBillingInvoiceDetail(id);
-  if (!detail) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+  if (!detail) {
+    // Niet-gevonden doet hetzelfde werk (audit-write via requestMeta) als de success-tak hieronder,
+    // zodat de responstijd de twee niet onderscheidt (timing-zijkanaal, CWE-208) én een admin die op
+    // niet-bestaande platformfactuur-id's probeert forensisch zichtbaar blijft (recon-signaal,
+    // OWASP A09/CLAUDE.md regel 5). Spiegelt de sibling-PDF-/document-routes; deze not-found-tak was
+    // als enige niet meegenomen in de denied-access-retrofit.
+    await auditDeniedAccess({
+      actorId: actor.id,
+      action: "PLATFORM_BILLING_PDF_ACCESS_DENIED",
+      entityType: "PlatformInvoice",
+      entityId: id,
+      outcome: "not-found",
+      metadata: { viewerRole: actor.role },
+    });
+    return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+  }
 
   // AVG/compliance (CLAUDE.md regel 5): inzage van een gevoelig financieel document met PII
   // (bedrijfsnaam, bedragen) vastleggen — wie-zag-welke-platformfactuur-wanneer. Spiegelt de

@@ -221,6 +221,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   PLATFORM_BILLING_GENERATED: "Facturatie gegenereerd",
   PLATFORM_BILLING_STATUS_SET: "Facturatiestatus gewijzigd",
   PLATFORM_BILLING_PDF_ACCESSED: "Platformfactuur-PDF ingezien",
+  PLATFORM_BILLING_PDF_ACCESS_DENIED: "Platformfactuur-PDF-toegang geweigerd",
   PLATFORM_INVOICES_EXPORTED: "Platformfacturen geëxporteerd",
   AUDIT_LOG_EXPORTED: "Audit-log geëxporteerd",
   AVG_REGISTER_EXPORTED: "Verwerkingsregister geëxporteerd",

@@ -4,6 +4,48 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-18 (basis: `main` @ 590ffb7f) — 1× MIDDEL OPGELOST (platformfactuur-PDF not-found-tak ongeaudit)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(1: **BI-/aggregatie-privacy** — `/inzicht`, `freelancer-payer-behavior.ts` (delta), `placements-trend.ts` (delta),
+alle `*-breakdown/*-behavior/*-trend`-libs, `market-rate.ts` k-anonimiteit, `api/metrics` + franchise-BI/-exports;
+2: **server-action-authz-keten** — alle `(protected)/**/actions.ts` behalve `franchise/**`+`admin/**`: IDOR/rol/Zod/
+mass-assignment/status-transities/audit; 3: **multi-tenant/franchise-isolatie + document-/media-/PDF-serving** —
+`tenancy.ts`, `franchise/**`, `api/documents/[id]`, `api/media/[...key]`, alle PDF-/dossier-routes, `storage.ts`
+path-traversal/upload). Plus orchestrator-probes (delta `a8a454bb..590ffb7f`: nieuwe BI-kaarten
+betaalgedrag-per-opdrachtgever + plaatsingen-trend, `ideeen`-rate-limit, `metrics`-route — allen server-side
+gescoopt/geaudit; `$queryRawUnsafe`=0; enige `dangerouslySetInnerHTML`=nonce-theme-script; geen user-gestuurde
+`fetch`/SSRF; geen open redirect; alle 13 CSV-exports via `escapeCsvField` (CWE-1236 formule-injectie-veilig);
+mail-noop/observability loggen geen PII in productie (M-3 intact); `npm audit --omit=dev`=**0**).
+
+**Uitkomst:** delta + kernoppervlakken **schoon** — geen nieuwe KRITIEK/HOOG/MIDDEL exploiteerbare gaten. OWASP
+Top-10-dekking: A01 (authz/IDOR/tenant — anti-oracle 404 + TOCTOU compound-guards uniform), A02 (SSE-at-rest op
+elke upload), A03 (0× raw SQL / geen user-XSS / CSV-formule-guard), A04 (per-doel MIME-allowlist + magic-bytes),
+A05 (CSP-nonce + rate-limits op login/register/reset/message/upload), A07 (reset-token: 32-byte random, sha256-at-
+rest, 1u TTL, atomair eenmalig; sessie-invalidatie bij wachtwoordwijziging), A09 (audit op elke gevoelige actie +
+denied-access-timing-pariteit). **Eén tracked MIDDEL audit-completeness-gat gefixt** (zie onder); de rest van de
+geparkeerde items blijft staan.
+
+### OPGELOST — Platformfactuur-PDF-route auditte de not-found-tak niet (MIDDEL · OWASP A09 · CWE-208 · Architectuurregel 5)
+
+**Geschonden regel:** Architectuurregel 5 (audit alles wat telt) + OWASP A09 (security logging) + CWE-208
+(observable timing discrepancy). Was al geparkeerd in ronde 2026-08-17b.
+
+**Repro (vóór de fix):** `src/app/api/admin/facturatie/[id]/pdf/route.ts:29-30` gaf bij
+`getPlatformBillingInvoiceDetail(id) === null` een 404 **zonder** auditregel, terwijl álle sibling-PDF-/document-
+routes (`facturen/[id]/pdf`, `prestaties/[id]/pdf`, `documents/[id]`, de dossier-routes) vóór hun 404
+`auditDeniedAccess(... outcome:"not-found")` schrijven. De success-tak van déze route deed wél `requestMeta()` +
+`audit()` (een DB-write); de not-found-tak keerde direct terug → (a) een admin die op niet-bestaande
+platformfactuur-id's probeert (recon) liet geen forensisch spoor na, en (b) het verschil in werk (write vs. geen
+write) is meetbaar aan de responstijd (CWE-208). **Geen IDOR** (route is `requireRole("ADMIN")`; admin heeft
+blanket-toegang) — dus audit-/timing-volledigheid, niet vertrouwelijkheid. Nul testdekking op deze tak.
+
+**Fix (dit PR):** `auditDeniedAccess({ action:"PLATFORM_BILLING_PDF_ACCESS_DENIED", entityType:"PlatformInvoice",
+entityId:id, outcome:"not-found" })` vóór de 404 — spiegelt exact de sibling-routes en het gedeelde
+`access-audit.ts`-afsluitpunt (identiek werk op beide takken → geen timing-zijkanaal). **Test (rood→groen):**
+`src/app/api/admin/facturatie/platform-pdf-audit.test.ts` — "niet-bestaande factuur: 404 én een
+PLATFORM_BILLING_PDF_ACCESS_DENIED-auditregel"; faalt zonder de audit-aanroep (0 audit-calls op de not-found-tak).
+
 ## Ronde 2026-08-17b (basis: `main` @ a8a454bb) — 1× KRITIEK + 1× HOOG OPGELOST (bericht-erasure-lek + privé-certificaat op publiek dossier)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
@@ -63,7 +105,7 @@ de fix (`where` enkel `{ status: "VERIFIED" }`).
 
 ### GEPARKEERD (repro + severity)
 
-- **Ontbrekende `auditDeniedAccess` op de not-found-tak van de platform-factuur-PDF-route (MIDDEL · OWASP A09/CWE-208 · Architectuurregel 5).**
+- **~~Ontbrekende `auditDeniedAccess` op de not-found-tak van de platform-factuur-PDF-route (MIDDEL · OWASP A09/CWE-208 · Architectuurregel 5).~~ → OPGELOST in ronde 2026-08-18 (zie boven).**
   `src/app/api/admin/facturatie/[id]/pdf/route.ts:29-30` geeft bij `getPlatformBillingInvoiceDetail(id) === null`
   een 404 **zonder auditregel** — terwijl álle sibling-PDF-/document-routes (`documents/[id]`, `facturen/[id]/pdf`,
   `prestaties/[id]/pdf`, `samenwerkingen/[id]/{modelovereenkomst,dossier,dba-dossier}`) vóór dezelfde 404
