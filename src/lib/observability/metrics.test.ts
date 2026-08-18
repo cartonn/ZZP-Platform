@@ -16,6 +16,7 @@ const HEALTHY: MetricsInput = {
   cronAgeSeconds: 3600,
   cronOk: true,
   cronStale: false,
+  cronFailedTasks: [],
   backupAgeSeconds: 7200,
   backupOk: true,
   backupStale: false,
@@ -364,6 +365,7 @@ describe("buildMetrics", () => {
       cronAgeSeconds: 999999,
       cronOk: false,
       cronStale: true,
+      cronFailedTasks: ["payment-reminders", "expiry"],
       backupAgeSeconds: 999999,
       backupOk: null,
       backupStale: true,
@@ -427,6 +429,30 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_verification_queue")).toBe(3);
   });
 
+  it("exposeert GEEN zzp_cron_task_failed-reeks bij een geslaagde run (lege familie)", () => {
+    const family = buildMetrics(HEALTHY).filter((m) => m.name === "zzp_cron_task_failed");
+    expect(family).toEqual([]);
+  });
+
+  it("exposeert één zzp_cron_task_failed-reeks (waarde 1) per gefaalde runner, gesorteerd + ontdubbeld", () => {
+    const input: MetricsInput = {
+      ...HEALTHY,
+      cronOk: false,
+      cronFailedTasks: ["reviews-reveal", "expiry", "reviews-reveal", "expiry"],
+    };
+    const family = buildMetrics(input).filter((m) => m.name === "zzp_cron_task_failed");
+    expect(family.map((m) => m.labels?.task)).toEqual(["expiry", "reviews-reveal"]);
+    expect(family.every((m) => m.value === 1)).toBe(true);
+  });
+
+  it("plaatst de zzp_cron_task_failed-familie direct ná zzp_cron_heartbeat_stale", () => {
+    const input: MetricsInput = { ...HEALTHY, cronOk: false, cronFailedTasks: ["expiry"] };
+    const names = buildMetrics(input).map((m) => m.name);
+    const staleIdx = names.indexOf("zzp_cron_heartbeat_stale");
+    expect(names[staleIdx + 1]).toBe("zzp_cron_task_failed");
+    expect(names[staleIdx + 2]).toBe("zzp_backup_heartbeat_age_seconds");
+  });
+
   it("levert een stabiele volgorde en volledige set gauges", () => {
     const names = buildMetrics(HEALTHY).map((m) => m.name);
     expect(names).toEqual([
@@ -482,6 +508,49 @@ describe("renderPrometheus", () => {
     expect(text).toContain("zzp_test 0");
     expect(text).not.toContain("NaN");
   });
+
+  it("emit HELP/TYPE precies één keer per naam voor een gelabelde familie", () => {
+    const text = renderPrometheus([
+      {
+        name: "zzp_cron_task_failed",
+        help: "h",
+        type: "gauge",
+        labels: { task: "expiry" },
+        value: 1,
+      },
+      {
+        name: "zzp_cron_task_failed",
+        help: "h",
+        type: "gauge",
+        labels: { task: "payment-reminders" },
+        value: 1,
+      },
+    ]);
+    // Prometheus verbiedt dubbele HELP/TYPE-regels onder dezelfde naam.
+    expect(text.match(/# HELP zzp_cron_task_failed /g)).toHaveLength(1);
+    expect(text.match(/# TYPE zzp_cron_task_failed /g)).toHaveLength(1);
+    expect(text).toContain('zzp_cron_task_failed{task="expiry"} 1');
+    expect(text).toContain('zzp_cron_task_failed{task="payment-reminders"} 1');
+  });
+
+  it("rendert gauges zonder labels byte-identiek (geen leeg {}-suffix)", () => {
+    const text = renderPrometheus([{ name: "zzp_up", help: "h", type: "gauge", value: 1 }]);
+    expect(text).toContain("\nzzp_up 1\n");
+    expect(text).not.toContain("zzp_up{}");
+  });
+
+  it("escapet labelwaarden (backslash, quote, newline)", () => {
+    const text = renderPrometheus([
+      {
+        name: "zzp_cron_task_failed",
+        help: "h",
+        type: "gauge",
+        labels: { task: 'a"b\\c\nd' },
+        value: 1,
+      },
+    ]);
+    expect(text).toContain('zzp_cron_task_failed{task="a\\"b\\\\c\\nd"} 1');
+  });
 });
 
 describe("metricsToJson", () => {
@@ -490,5 +559,19 @@ describe("metricsToJson", () => {
     expect(json.zzp_up).toBe(1);
     expect(json.zzp_verification_queue).toBe(4);
     expect(json.zzp_cron_heartbeat_age_seconds).toBe(3600);
+  });
+
+  it("keyt een gelabelde reeks met het label-suffix (geen collision onder dezelfde naam)", () => {
+    const json = metricsToJson(
+      buildMetrics({
+        ...HEALTHY,
+        cronOk: false,
+        cronFailedTasks: ["expiry", "payment-reminders"],
+      }),
+    );
+    expect(json['zzp_cron_task_failed{task="expiry"}']).toBe(1);
+    expect(json['zzp_cron_task_failed{task="payment-reminders"}']).toBe(1);
+    // De kale naam bestaat niet als sleutel (elke reeks draagt zijn labelsuffix).
+    expect(json.zzp_cron_task_failed).toBeUndefined();
   });
 });

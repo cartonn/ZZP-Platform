@@ -90,7 +90,21 @@ groups:
           severity: warning
         annotations:
           summary: "Laatste cron-run faalde"
-          description: "De laatste geplande-taken-run rapporteerde een taakfout (zzp_cron_heartbeat_ok=0). Bekijk de run-all-logs."
+          description: "De laatste geplande-taken-run rapporteerde een taakfout (zzp_cron_heartbeat_ok=0). Bekijk de run-all-logs. Welke runner faalde staat in ZzpCronTaskFailed (`task`-label)."
+      - alert: ZzpCronTaskFailed
+        # Per-runner-attributie bij een gefaalde cron-run: WELKE geplande-taak-runner faalde. Vuurt samen
+        # met ZzpCronLastRunFailed (aggregaat 0/1), maar draagt het `task`-label zodat de operator direct
+        # de vastgelopen runner ziet — zonder op /admin/systeemstatus in te loggen of de run-all-logs te
+        # grepen. Alleen gefaalde runners exposeren een reeks (waarde altijd 1); bij een geslaagde run is
+        # er geen enkele, dus dooft de alert vanzelf. `for` spiegelt ZzpCronLastRunFailed (30m dempt de
+        # nooit-gedraaid/transient-flap tussen twee runs).
+        expr: zzp_cron_task_failed == 1
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cron-runner {{ $labels.task }} faalde in de laatste run"
+          description: "De geplande-taak-runner `{{ $labels.task }}` faalde tijdens de laatste run-all. Bekijk de run-all-logs (of Sentry, indien geconfigureerd) voor het foutdetail van díe runner. Zie RUNBOOK §6."
       - alert: ZzpBackupStale
         # De externe database-back-up meldde langer dan BACKUP_MAX_AGE_HOURS geen succes: het
         # back-up-schema lijkt gestopt (opgezegde snapshot-policy, mislukte dump). Dataverlies-risico.

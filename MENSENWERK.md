@@ -529,6 +529,23 @@ goedgekeurd", wachtwoord/uitnodiging) heb je een mailprovider nodig.
    (VAPID-sleutels gezet, zie §7) en de eerste afleverronde draait. Optioneel: richt een monitor op
    `ZzpPushDeliveryFailing`.
 
+   **Code-kant GEDAAN (2026-08-18) — per-runner cron-faal-attributie op `/api/metrics`:** de cron-heartbeat
+   legt al vast _welke_ sub-taak-runners (payment-reminders, expiry, reviews-reveal, …) tijdens de laatste
+   `run-all` faalden (`cron.failedTasks`) en toont dat op `/admin/systeemstatus`, maar `/api/metrics` — het
+   machine-leesbare vlak waarvan het hele doel is "alarmeren ZONDER op /admin in te loggen" — liet die
+   attributie vallen en exposeerde enkel het aggregaat `zzp_cron_heartbeat_ok` (0/1). Een via Prometheus
+   gepagete operator zag dus wél _dát_ een runner faalde, maar niet _welke_ — precies de blinde vlek die de
+   rest van de metrics-bundle juist dicht. Nu rendert `buildMetrics` (`src/lib/observability/metrics.ts`) de
+   gelabelde gauge-familie `zzp_cron_task_failed{task="..."}` (1 reeks per gefaalde runner op de laatste run;
+   bij een geslaagde run verschijnt géén reeks, zodat een gezonde run de afwezigheid ervan is). Labelwaarden
+   zijn statische code-identifiers (geen PII); de Prometheus-render emit HELP/TYPE precies één keer per naam
+   (dubbele HELP is een parsefout) en escapet de labels. Drop-in alert `ZzpCronTaskFailed`
+   (`zzp_cron_task_failed == 1`, `for: 30m`, warning, met het `task`-label in summary/description) in
+   `docs/observability/alerts.yml`, toegevoegd aan de onderhouds-inhibitie én aan de `ZzpCronStale`-wortel-
+   oorzaak-demping in `alertmanager.yml`, en vastgeklonken aan de drift-gates (`alerts-rules`/
+   `monitoring-bundle`). Geen extra DB-read (de data bestaat al in de heartbeat), read-only, geen schema-/
+   mutatie-/auth-oppervlak. Resterend mensenwerk: **niets** — werkt zodra de cron draait.
+
 ---
 
 ## §3. Betalingen / abonnementen

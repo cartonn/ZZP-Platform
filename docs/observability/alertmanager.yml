@@ -48,14 +48,14 @@ inhibit_rules:
   - source_matchers:
       - alertname = "ZzpMaintenanceModeOn"
     target_matchers:
-      - alertname =~ "ZzpTargetDown|ZzpMetricsAbsent|ZzpDatabaseUnreachable|ZzpCronStale|ZzpCronLastRunFailed|ZzpBackupStale|ZzpBackupLastFailed|ZzpMailDeliveryFailing|ZzpPushDeliveryFailing|ZzpCredentialExpiryBacklog|ZzpSubscriptionExpiryBacklog|ZzpSubscriptionsStalePending|ZzpInvoiceOverdueBacklog|ZzpReviewsOverdueReveal|ZzpPerformancesOverdueGrace|ZzpMembershipUnbilledActive|ZzpAuditRetentionBacklog|ZzpApplicationsRetentionBacklog|ZzpNotificationsRetentionBacklog|ZzpLeadsRetentionBacklog|ZzpHealthIncidentsIpRetentionBacklog|ZzpMessagesRetentionBacklog|ZzpWebhookEventsRetentionBacklog|ZzpRoutingCacheRetentionBacklog|ZzpVerificationQueueDeep|ZzpVerificationOldestTooOld"
+      - alertname =~ "ZzpTargetDown|ZzpMetricsAbsent|ZzpDatabaseUnreachable|ZzpCronStale|ZzpCronLastRunFailed|ZzpCronTaskFailed|ZzpBackupStale|ZzpBackupLastFailed|ZzpMailDeliveryFailing|ZzpPushDeliveryFailing|ZzpCredentialExpiryBacklog|ZzpSubscriptionExpiryBacklog|ZzpSubscriptionsStalePending|ZzpInvoiceOverdueBacklog|ZzpReviewsOverdueReveal|ZzpPerformancesOverdueGrace|ZzpMembershipUnbilledActive|ZzpAuditRetentionBacklog|ZzpApplicationsRetentionBacklog|ZzpNotificationsRetentionBacklog|ZzpLeadsRetentionBacklog|ZzpHealthIncidentsIpRetentionBacklog|ZzpMessagesRetentionBacklog|ZzpWebhookEventsRetentionBacklog|ZzpRoutingCacheRetentionBacklog|ZzpVerificationQueueDeep|ZzpVerificationOldestTooOld"
 
-  # 2. Wortel-oorzaak-demping: staat de cron volledig stil (critical), dan is "laatste run faalde"
-  #    (warning) dezelfde storing — onderdruk de ruis.
+  # 2. Wortel-oorzaak-demping: staat de cron volledig stil (critical), dan zijn "laatste run faalde"
+  #    (warning, aggregaat) én de per-runner-attributie (warning) dezelfde storing — onderdruk de ruis.
   - source_matchers:
       - alertname = "ZzpCronStale"
     target_matchers:
-      - alertname = "ZzpCronLastRunFailed"
+      - alertname =~ "ZzpCronLastRunFailed|ZzpCronTaskFailed"
 
   # 3. Idem voor de back-up: stil back-up-schema (critical) dempt "laatste back-up faalde" (warning).
   - source_matchers:

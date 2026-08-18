@@ -402,6 +402,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     cronAgeSeconds: ageSeconds(cron, now),
     cronOk: cron.lastOk,
     cronStale: cron.status === "stale",
+    cronFailedTasks: cron.failedTasks,
     backupAgeSeconds: ageSeconds(backup, now),
     backupOk: backup.lastOk,
     backupStale: backup.status === "stale",
