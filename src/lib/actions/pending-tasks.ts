@@ -329,6 +329,8 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // worden gedekt, zodat hetzelfde certificaat niet dubbel verschijnt).
   let allCreds: CollabCredentialInput[] = [];
   const expiringCreds: { id: string; title: string }[] = [];
+  // Uitgesteld: pas emitten na de collab-gap-check (dedup tegen credentialCollabExpiredTask).
+  const expiredNonMandatoryCreds: { id: string; title: string }[] = [];
 
   const [profile, account, overdue, unread] = await Promise.all([
     // Gedeelde, request-gecachte profiel-load (zie getCompletenessProfile): op het dashboard
@@ -406,11 +408,10 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         c.status === "EXPIRED" &&
         !MANDATORY_CREDENTIAL_TYPES.includes(c.type as (typeof MANDATORY_CREDENTIAL_TYPES)[number])
       )
-        // Een écht verlopen NIET-verplicht certificaat (diploma/certificaat/licentie/overig) krijgt
-        // een blijvende vernieuw-taak. Verplichte types (VOG/verzekering) worden hieronder al door de
-        // mandatoryDocumentTask("expired") gedekt (hogere band, blokkeert inzetbaarheid) — daar geen
-        // dubbele rij.
-        tasks.push(credentialFixTask(c.id, c.title, "expired"));
+        // Uitgesteld: een door een samenwerking vereist verlopen certificaat krijgt hieronder de
+        // hogere-band credentialCollabExpiredTask — de expired-fix-taak dedupt daar dan tegen,
+        // net zoals expiringCreds dedupten tegen coveredExpiringCredIds.
+        expiredNonMandatoryCreds.push({ id: c.id, title: c.title });
     }
     // Ontbrekend/verlopen verplicht document = taak (blokkeert inzetbaarheid). In beoordeling
     // = geen taak: daar is de admin aan zet, niet de ZZP'er.
@@ -752,6 +753,15 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         extraCollabCount: rest.length,
       }),
     );
+  }
+
+  // Verlopen niet-verplichte certificaten: dedup tegen de collab-gedekte set — een cert dat al een
+  // credentialCollabExpiredTask kreeg (hogere band, samenwerking-context) moet geen tweede,
+  // lagere-band credentialFixTask opleveren naar hetzelfde /certificaten/{id}/bewerken.
+  const coveredExpiredCredIds = new Set(expiredRequired.map((c) => c.credentialId));
+  for (const ec of expiredNonMandatoryCreds) {
+    if (coveredExpiredCredIds.has(ec.id)) continue;
+    tasks.push(credentialFixTask(ec.id, ec.title, "expired"));
   }
 
   // Generieke "certificaat verloopt binnenkort"-taken voor de certificaten die géén lopende

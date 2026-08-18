@@ -14,6 +14,13 @@ const state = vi.hoisted(() => ({
     status: string;
     expiresAt: Date | null;
   }[],
+  // Samenwerkingen die een certificaat vereisen (voor de collab-overlap-dedup-test).
+  // Worden alleen teruggegeven als de query job.credentialRequirements in de where heeft.
+  credentialCollabs: [] as {
+    id: string;
+    job: { title: string; credentialRequirements: { credentialType: string }[] };
+    company: { name: string };
+  }[],
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -21,11 +28,23 @@ vi.mock("@/lib/db", () => ({
     user: { findUnique: vi.fn(async () => ({ identityVerifiedAt: new Date() })) },
     credential: { findMany: vi.fn(async () => state.creds) },
     availabilityWindow: { findMany: vi.fn(async () => []) },
-    collaboration: { findMany: vi.fn(async () => []) },
+    collaboration: {
+      findMany: vi.fn(async (args: { where?: { job?: { credentialRequirements?: unknown } } }) => {
+        // Geef alleen de credential-collab-set terug voor de query die job.credentialRequirements
+        // filtert (dat is de enige query in freelancerTasks die dat veld in where heeft).
+        if (args?.where?.job?.credentialRequirements) return state.credentialCollabs;
+        return [];
+      }),
+    },
+    performance: { findMany: vi.fn(async () => []) },
+    invoice: { findMany: vi.fn(async () => []) },
     conversationParticipant: { findMany: vi.fn(async () => []) },
     message: { groupBy: vi.fn(async () => []) },
     conversation: { findMany: vi.fn(async () => []) },
     noShowReport: { findFirst: vi.fn(async () => null), count: vi.fn(async () => 0) },
+    auditLog: { findMany: vi.fn(async () => []) },
+    job: { findMany: vi.fn(async () => []) },
+    application: { findMany: vi.fn(async () => []) },
   },
 }));
 
@@ -49,9 +68,13 @@ vi.mock("@/lib/data/freelancer-profile", () => ({
 
 vi.mock("@/lib/signals", () => ({
   overdueInvoiceCount: vi.fn(async () => 0),
+  overdueInvoiceBreakdown: vi.fn(async () => ({ legacy: 0, cascade: 0 })),
   paymentDueSoonCount: vi.fn(async () => 0),
 }));
 
+vi.mock("@/lib/data/income-tax-deadline", () => ({
+  getIncomeTaxDeadlineForActor: vi.fn(async () => null),
+}));
 vi.mock("@/lib/data/vat-deadline", () => ({
   getVatDeadlinesForActor: vi.fn(async () => []),
 }));
@@ -62,6 +85,7 @@ const ACTOR = { id: "user-zzp", role: "FREELANCER", status: "ACTIVE" } as const;
 
 beforeEach(() => {
   state.creds = [];
+  state.credentialCollabs = [];
 });
 
 describe("verlopen niet-verplicht certificaat — blijvende vernieuw-taak", () => {
@@ -113,5 +137,33 @@ describe("verlopen niet-verplicht certificaat — blijvende vernieuw-taak", () =
     ];
     const tasks = await pendingTasks(ACTOR);
     expect(tasks.map((t) => t.id)).not.toContain("credential-fix:cred-cert");
+  });
+
+  it("een EXPIRED diploma dat door een samenwerking vereist is geeft precies één taak (collab-expired, geen dubbele fix-rij)", async () => {
+    state.creds = [
+      {
+        id: "cred-diploma",
+        title: "Diploma Verpleegkunde",
+        type: "DIPLOMA",
+        status: "EXPIRED",
+        expiresAt: new Date("2020-01-01"),
+      },
+    ];
+    state.credentialCollabs = [
+      {
+        id: "collab-1",
+        job: {
+          title: "Verpleegkundige Nacht",
+          credentialRequirements: [{ credentialType: "DIPLOMA" }],
+        },
+        company: { name: "Zorggroep Noord" },
+      },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    const ids = tasks.map((t) => t.id);
+    // De collab-expired-taak (hogere band, samenwerking-context) dekt het al.
+    expect(ids).toContain("credential-collab-expired:cred-diploma");
+    // Geen tweede, lagere-band credential-fix-rij voor hetzelfde certificaat.
+    expect(ids).not.toContain("credential-fix:cred-diploma");
   });
 });

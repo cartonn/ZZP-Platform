@@ -647,8 +647,22 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       now,
     });
     const collabCredentialAlerts = collabCredGaps.expired.length + collabCredGaps.missing.length;
+    // Standalone verlopen niet-verplichte certs die géén samenwerking vereist: /acties toont hiervoor
+    // de nieuwe credentialFixTask("expired"), maar `collabCredentialAlerts` telt ze niet mee (dat
+    // zijn alleen collab-vereiste gaten). Zelfde filter als de dedup in pending-tasks.ts → badge kan
+    // niet driften van /acties.
+    const collabExpiredCredIds = new Set(collabCredGaps.expired.map((c) => c.credentialId));
+    const standaloneExpiredAlerts = placementCreds.filter(
+      (c) =>
+        c.status === "EXPIRED" &&
+        !MANDATORY_CREDENTIAL_TYPES.includes(
+          c.type as (typeof MANDATORY_CREDENTIAL_TYPES)[number],
+        ) &&
+        !collabExpiredCredIds.has(c.id),
+    ).length;
     return buildBadges({
-      credentialAlerts: rejected + expiring + mandatoryAlerts + collabCredentialAlerts,
+      credentialAlerts:
+        rejected + expiring + mandatoryAlerts + collabCredentialAlerts + standaloneExpiredAlerts,
       unreadMessages,
       overdueInvoices,
       cascadeWork,
