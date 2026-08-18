@@ -26,6 +26,10 @@ const state = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn(async () => ({ identityVerifiedAt: new Date() })) },
+    // Geen actief abonnement → getActivePlanKey = FREE → getHoursCriterionSummary geeft null (geen
+    // IB_VOORBEREIDING-entitlement), zodat de urencriterium-tak (freelancerTasks) de credential-tak
+    // niet vervuilt. Zonder deze mock crasht `prisma.subscription.findUnique` (entitlement-guard).
+    subscription: { findUnique: vi.fn(async () => null) },
     credential: { findMany: vi.fn(async () => state.creds) },
     availabilityWindow: { findMany: vi.fn(async () => []) },
     collaboration: {
