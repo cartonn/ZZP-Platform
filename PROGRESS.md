@@ -519,6 +519,32 @@ cascade- en next-action-audits leverden elk twee fixes. Alle vier gefixt met roo
 legacy-`status`-afhankelijkheid (zelfde wortel, aparte grotere increment); authz-dekkingsresidu (9
 action-bestanden niet individueel geopend). Gate: typecheck/lint/test/build/prettier groen.
 
+---
+
+## 2026-08-16 — ZZP'er: gepubliceerde reputatie op het portable vertrouwensdossier
+
+**Wat:** het deelbare vertrouwensdossier (`/vertrouwen/[profileId]/[token]`) bewees tot nu toe naam +
+vertrouwensniveau + staat van dienst + geverifieerde certificaten, maar niet het sterkste sociale
+vertrouwenssignaal dat een opdrachtgever off-platform wil zien: het **cijfer dat eerdere
+opdrachtgevers gaven**. Nu een "Beoordelingen"-sectie met het geaggregeerde gemiddelde + aantal over de
+`PUBLISHED` `CLIENT_ON_FREELANCER`-beoordelingen (na een afgeronde samenwerking). De ZZP'er deelt zijn
+eigen dossier en wint er sneller werk mee; de opdrachtgever die de link krijgt, vertrouwt sneller.
+Alleen **geaggregeerd** (gemiddelde + aantal, nooit individuele beoordelingen/reviewer-identiteit —
+privacy by design), alleen `PUBLISHED` (een blinde `PENDING_REVEAL` lekt niet vóór de simultane
+onthulling), en alleen opgehaald/getoond binnen dezelfde deel-poort (ACTIVE, niet geanonimiseerd,
+PUBLIC, `tenantId === null`). Geen enkele beoordeling → sectie verborgen (geen misleidende "0,0 (0)";
+het vertrouwensniveau + de certificaten dragen daar). Spiegelt het bestaande
+`data/company-reputation.ts`-patroon exact (mirror-conventie, geen drift).
+
+**Bestanden:** `src/lib/freelancer-reputation.ts` (nieuw, puur `freelancerReputationFromReviews` +
+null-gating), `src/lib/freelancer-reputation.test.ts` (nieuw, 4 tests: nul/ongeldig → null,
+gewogen aggregatie, ongeldige cijfers genegeerd), `src/lib/data/freelancer-reputation.ts` (nieuw,
+`getFreelancerReputation(userId)` — begrensde `PUBLISHED CLIENT_ON_FREELANCER`-query),
+`src/app/vertrouwen/[profileId]/[token]/page.tsx` (`userId` in select, fetch + "Beoordelingen"-sectie
+met de gedeelde `RatingStars`), `src/app/vertrouwen/vertrouwen-liveness.test.ts` (review-mock + userId
+in fixture). Read-only, publieke sessieloze route, geen schema-/mutatie-/auth-oppervlak. Gate:
+typecheck, lint, test (6055 pass), build, prettier groen.
+
 ## 2026-08-16 — Opdrachtgever: gemiddeld betaald uurtarief per maand op /inzicht
 
 **Wat:** de kosten-tegenhanger van de ZZP'er-tariefstrip (#1112) voor de opdrachtgever. De client-`/inzicht`

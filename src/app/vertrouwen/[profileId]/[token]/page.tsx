@@ -10,6 +10,8 @@ import { verifyDossierToken, shareTokenSecret } from "@/lib/share-token";
 import { computeTrustLevel } from "@/lib/trust";
 import { getFreelancerTrackRecord } from "@/lib/data/freelancer-track-record";
 import { trackRecordHighlights } from "@/lib/freelancer-track-record";
+import { getFreelancerReputation } from "@/lib/data/freelancer-reputation";
+import { RatingStars } from "@/components/reviews/rating-stars";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { audit } from "@/lib/audit";
@@ -49,6 +51,7 @@ export default async function TrustDossierPage({
     where: { id: profileId },
     select: {
       id: true,
+      userId: true,
       visibility: true,
       tenantId: true,
       headline: true,
@@ -141,6 +144,12 @@ export default async function TrustDossierPage({
   const trackRecord = await getFreelancerTrackRecord(profileId);
   const trackHighlights = trackRecordHighlights(trackRecord);
 
+  // Gepubliceerde opdrachtgever-reputatie (richting CLIENT_ON_FREELANCER). Alleen binnen het
+  // geautoriseerde pad opgehaald (na de deel-poort) en alleen geaggregeerd — nooit individuele
+  // beoordelingen. `null` zolang er geen enkele gepubliceerde beoordeling is, zodat een nieuwkomer
+  // niet met "0,0 (0)" pronkt (het vertrouwensniveau + de certificaten dragen daar).
+  const reputation = await getFreelancerReputation(profile.userId);
+
   const now = Date.now();
   const activeVerified = profile.credentials.filter(
     (c) => !c.expiresAt || c.expiresAt.getTime() > now,
@@ -224,6 +233,30 @@ export default async function TrustDossierPage({
               Feitelijke ervaring, geteld op Handslag uit afgeronde samenwerkingen en goedgekeurde
               uren.
             </p>
+          </section>
+        )}
+
+        {/* Gepubliceerde opdrachtgever-reputatie: geaggregeerd cijfer + aantal, nooit individuele
+            beoordelingen. Alleen getoond bij >= 1 gepubliceerde beoordeling (reputation != null). */}
+        {reputation && (
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold tracking-tight">Beoordelingen</h2>
+            <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <RatingStars
+                  average={reputation.average}
+                  count={reputation.count}
+                  size="md"
+                  showValue
+                />
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Gemiddeld cijfer over{" "}
+                <span className="font-medium tabular-nums text-foreground">{reputation.count}</span>{" "}
+                {reputation.count === 1 ? "beoordeling" : "beoordelingen"} van opdrachtgevers na een
+                afgeronde samenwerking op Handslag.
+              </p>
+            </div>
           </section>
         )}
 
