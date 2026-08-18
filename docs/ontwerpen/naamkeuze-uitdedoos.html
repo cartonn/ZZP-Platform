@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Naamkeuze uit de doos — top 5 creatieve namen, .nl vrij</title>
+    <style>
+      :root {
+        --paper: #fafaf7;
+        --panel: #ffffff;
+        --ink: #1c1e1b;
+        --muted: #6d716a;
+        --hair: #e3e4dc;
+        --seal: #0f766e;
+        --seal-soft: #e7f1ef;
+        --warm: #b4633a;
+        --dark: #16211f;
+      }
+      html {
+        background: var(--paper);
+      }
+      body {
+        font:
+          16px/1.6 -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+        color: var(--ink);
+        margin: 0;
+      }
+      .wrap {
+        max-width: 1020px;
+        margin: 0 auto;
+        padding: 48px 24px 96px;
+      }
+      .eyebrow {
+        font:
+          600 12px/1 ui-monospace,
+          "SF Mono",
+          Menlo,
+          monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--seal);
+        margin: 0 0 14px;
+      }
+      h1 {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(30px, 4.5vw, 42px);
+        line-height: 1.12;
+        font-weight: 500;
+        margin: 0 0 12px;
+        text-wrap: balance;
+      }
+      .lede {
+        color: var(--muted);
+        max-width: 46em;
+        margin: 0 0 40px;
+      }
+      .name-card {
+        border: 1px solid var(--hair);
+        border-radius: 12px;
+        background: var(--panel);
+        margin: 26px 0;
+        overflow: hidden;
+      }
+      .n-head {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px 22px;
+        border-bottom: 1px solid var(--hair);
+      }
+      .n-rank {
+        font:
+          700 18px/1 ui-monospace,
+          Menlo,
+          monospace;
+        color: var(--seal);
+        background: var(--seal-soft);
+        border-radius: 8px;
+        padding: 9px 11px;
+      }
+      .n-head h2 {
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 24px;
+        margin: 0;
+      }
+      .n-domain {
+        margin-left: auto;
+        font:
+          600 13px/1 ui-monospace,
+          Menlo,
+          monospace;
+        color: var(--seal);
+        background: var(--seal-soft);
+        border-radius: 999px;
+        padding: 7px 13px;
+        white-space: nowrap;
+      }
+      .n-body {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 0;
+      }
+      .logos {
+        display: grid;
+        grid-template-rows: 1fr 1fr;
+        border-right: 1px solid var(--hair);
+      }
+      .logo-chip {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 26px 18px;
+      }
+      .logo-chip.light {
+        background: var(--paper);
+        border-bottom: 1px solid var(--hair);
+      }
+      .logo-chip.dark {
+        background: var(--dark);
+      }
+      .n-text {
+        padding: 20px 24px 24px;
+      }
+      .n-text p {
+        margin: 0 0 12px;
+        max-width: 52em;
+      }
+      .n-text dl {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin: 16px 0 0;
+      }
+      .n-text dt {
+        font:
+          600 11px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .n-text dd {
+        margin: 0;
+        font-size: 14.5px;
+      }
+      h3.section {
+        font-family: Georgia, serif;
+        font-weight: 500;
+        font-size: 24px;
+        margin: 64px 0 8px;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0 0 20px;
+        max-width: 48em;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 14.5px;
+        background: var(--panel);
+        border: 1px solid var(--hair);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--hair);
+      }
+      th {
+        font:
+          600 11px/1.4 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      td.mono {
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 13.5px;
+      }
+      .vrij {
+        color: var(--seal);
+        font-weight: 600;
+      }
+      .bezet {
+        color: var(--warm);
+        font-weight: 600;
+      }
+      .note {
+        border: 1px solid var(--hair);
+        border-left: 4px solid var(--warm);
+        background: var(--panel);
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-top: 40px;
+        font-size: 14.5px;
+        color: var(--muted);
+      }
+      @media (max-width: 720px) {
+        .n-body {
+          grid-template-columns: 1fr;
+        }
+        .logos {
+          grid-template-rows: none;
+          grid-template-columns: 1fr 1fr;
+          border-right: 0;
+          border-bottom: 1px solid var(--hair);
+        }
+        .logo-chip.light {
+          border-bottom: 0;
+          border-right: 1px solid var(--hair);
+        }
+        .n-domain {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <p class="eyebrow">ZZP Platform · naam &amp; beeldmerk · uit de doos · 29 juli 2026</p>
+      <h1>Vijf namen uit de doos — beelden in plaats van beschrijvingen</h1>
+      <p class="lede">
+        Geen letterlijke vertrouwen-plus-werk-samenstellingen, maar Nederlandse beelden met een
+        verhaal: de handslag waarmee een afspraak bindend werd, de sterkhouder van het team, werk
+        dat goud waard is. Alle vijf .nl-domeinen zijn vrij (gecontroleerd 29-7-2026 via twee
+        onafhankelijke DNS-resolvers) en de marktcheck vond geen bestaande naamgenoten. Gerangschikt
+        op merkkracht.
+      </p>
+
+      <!-- 1 · HANDSLAG -->
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">1</span>
+          <h2>Handslag</h2>
+          <span class="n-domain">handslag.nl · vrij</span>
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="260"
+                height="72"
+                viewBox="0 0 260 72"
+                role="img"
+                aria-label="Logo Handslag"
+              >
+                <g transform="translate(36,36)" fill="none" stroke-linecap="round">
+                  <path d="M -20 -6 A 13 13 0 1 0 -20 6" stroke="#1c1e1b" stroke-width="5" />
+                  <path d="M 20 6 A 13 13 0 1 0 20 -6" stroke="#0f766e" stroke-width="5" />
+                </g>
+                <text x="76" y="31" font-family="Georgia, serif" font-size="21" fill="#1c1e1b">
+                  Handslag
+                </text>
+                <text
+                  x="76"
+                  y="50"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="10"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  AFGESPROKEN IS AFGESPROKEN
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="260"
+                height="72"
+                viewBox="0 0 260 72"
+                role="img"
+                aria-label="Logo Handslag, donkere variant"
+              >
+                <g transform="translate(36,36)" fill="none" stroke-linecap="round">
+                  <path d="M -20 -6 A 13 13 0 1 0 -20 6" stroke="#f2f4f0" stroke-width="5" />
+                  <path d="M 20 6 A 13 13 0 1 0 20 -6" stroke="#5fbdb2" stroke-width="5" />
+                </g>
+                <text x="76" y="31" font-family="Georgia, serif" font-size="21" fill="#f2f4f0">
+                  Handslag
+                </text>
+                <text
+                  x="76"
+                  y="50"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="10"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  AFGESPROKEN IS AFGESPROKEN
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              Eeuwenlang was de handslag hét Nederlandse contract: een afspraak op de markt,
+              bezegeld met één gebaar — bindend zonder papier. Precies wat het platform digitaal
+              waarmaakt: afspraken waar je van op aan kunt, tussen twee gelijkwaardige partijen.
+              Warm, menselijk én juridisch van toon. Het beeldmerk: twee open ringen die in elkaar
+              haken — de digitale handslag.
+            </p>
+            <dl>
+              <div>
+                <dt>Sterk</dt>
+                <dd>
+                  Vertelt het hele product in één gebaar · warm en bindend tegelijk · werkt in elke
+                  zin ("op handslag geregeld")
+                </dd>
+              </div>
+              <div>
+                <dt>Let op</dt>
+                <dd>Niet verwarren met "handjeklap" (dat woord vermijden in alle teksten)</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+
+      <!-- 2 · STERKHOUDER -->
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">2</span>
+          <h2>Sterkhouder</h2>
+          <span class="n-domain">sterkhouder.nl · vrij</span>
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="260"
+                height="72"
+                viewBox="0 0 260 72"
+                role="img"
+                aria-label="Logo Sterkhouder"
+              >
+                <g transform="translate(36,38)">
+                  <polygon points="-6,-16 6,-16 10,2 -10,2" fill="#0f766e" />
+                  <rect
+                    x="-24"
+                    y="-8"
+                    width="13"
+                    height="10"
+                    rx="2"
+                    transform="rotate(-14 -17 -3)"
+                    fill="none"
+                    stroke="#1c1e1b"
+                    stroke-width="2.5"
+                  />
+                  <rect
+                    x="11"
+                    y="-8"
+                    width="13"
+                    height="10"
+                    rx="2"
+                    transform="rotate(14 17 -3)"
+                    fill="none"
+                    stroke="#1c1e1b"
+                    stroke-width="2.5"
+                  />
+                  <rect x="-22" y="8" width="44" height="4" rx="2" fill="#1c1e1b" />
+                </g>
+                <text x="76" y="31" font-family="Georgia, serif" font-size="21" fill="#1c1e1b">
+                  Sterkhouder
+                </text>
+                <text
+                  x="76"
+                  y="50"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="10"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  DE KRACHT VAN HET TEAM
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="260"
+                height="72"
+                viewBox="0 0 260 72"
+                role="img"
+                aria-label="Logo Sterkhouder, donkere variant"
+              >
+                <g transform="translate(36,38)">
+                  <polygon points="-6,-16 6,-16 10,2 -10,2" fill="#5fbdb2" />
+                  <rect
+                    x="-24"
+                    y="-8"
+                    width="13"
+                    height="10"
+                    rx="2"
+                    transform="rotate(-14 -17 -3)"
+                    fill="none"
+                    stroke="#f2f4f0"
+                    stroke-width="2.5"
+                  />
+                  <rect
+                    x="11"
+                    y="-8"
+                    width="13"
+                    height="10"
+                    rx="2"
+                    transform="rotate(14 17 -3)"
+                    fill="none"
+                    stroke="#f2f4f0"
+                    stroke-width="2.5"
+                  />
+                  <rect x="-22" y="8" width="44" height="4" rx="2" fill="#f2f4f0" />
+                </g>
+                <text x="76" y="31" font-family="Georgia, serif" font-size="21" fill="#f2f4f0">
+                  Sterkhouder
+                </text>
+                <text
+                  x="76"
+                  y="50"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="10"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  DE KRACHT VAN HET TEAM
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              Een sterkhouder is degene op wie het team leunt — sinds 2009 gewoon een Van
+              Dale-woord, maar nog door niemand geclaimd als merk. Het zet de ZZP'er neer als wat
+              die is: niet een "flexkracht" die een gat vult, maar de steunpilaar die het verschil
+              maakt. Het beeldmerk: de sluitsteen van een boog — haal hem weg en alles zakt in.
+            </p>
+            <dl>
+              <div>
+                <dt>Sterk</dt>
+                <dd>
+                  Eert de vakmens · echt woord met gezag · sluitsteen is een tijdloos beeldmerk
+                </dd>
+              </div>
+              <div>
+                <dt>Let op</dt>
+                <dd>
+                  Iets minder tweezijdig (spreekt vooral de ZZP'er aan, minder de opdrachtgever)
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+
+      <!-- 3 · GULDENWERK -->
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">3</span>
+          <h2>Guldenwerk</h2>
+          <span class="n-domain">guldenwerk.nl · vrij</span>
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="260"
+                height="72"
+                viewBox="0 0 260 72"
+                role="img"
+                aria-label="Logo Guldenwerk"
+              >
+                <g transform="translate(36,36)">
+                  <circle r="24" fill="none" stroke="#0f766e" stroke-width="2.5" />
+                  <circle
+                    r="24"
+                    fill="none"
+                    stroke="#0f766e"
+                    stroke-width="6"
+                    stroke-dasharray="1.2 4.6"
+                  />
+                  <text
+                    x="0"
+                    y="9"
+                    text-anchor="middle"
+                    font-family="Georgia, serif"
+                    font-style="italic"
+                    font-weight="bold"
+                    font-size="26"
+                    fill="#0f766e"
+                  >
+                    G
+                  </text>
+                </g>
+                <text x="76" y="31" font-family="Georgia, serif" font-size="21" fill="#1c1e1b">
+                  Guldenwerk
+                </text>
+                <text
+                  x="76"
+                  y="50"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="10"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  WERK DAT GOUD WAARD IS
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="260"
+                height="72"
+                viewBox="0 0 260 72"
+                role="img"
+                aria-label="Logo Guldenwerk, donkere variant"
+              >
+                <g transform="translate(36,36)">
+                  <circle r="24" fill="none" stroke="#5fbdb2" stroke-width="2.5" />
+                  <circle
+                    r="24"
+                    fill="none"
+                    stroke="#5fbdb2"
+                    stroke-width="6"
+                    stroke-dasharray="1.2 4.6"
+                  />
+                  <text
+                    x="0"
+                    y="9"
+                    text-anchor="middle"
+                    font-family="Georgia, serif"
+                    font-style="italic"
+                    font-weight="bold"
+                    font-size="26"
+                    fill="#5fbdb2"
+                  >
+                    G
+                  </text>
+                </g>
+                <text x="76" y="31" font-family="Georgia, serif" font-size="21" fill="#f2f4f0">
+                  Guldenwerk
+                </text>
+                <text
+                  x="76"
+                  y="50"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="10"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  WERK DAT GOUD WAARD IS
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              "Gulden" draagt drie lagen tegelijk: de oude munt (eerlijk afrekenen), de gulden regel
+              (behandel de ander zoals jezelf — onze symmetrie tussen ZZP'er en opdrachtgever) en de
+              gulden snede (perfecte verhouding — de match). Het beeldmerk: een geribbelde muntrand
+              met gegraveerde G, als een geslagen gulden.
+            </p>
+            <dl>
+              <div>
+                <dt>Sterk</dt>
+                <dd>
+                  Drie betekenislagen · nostalgisch-Nederlands zonder oubollig te zijn · financiële
+                  degelijkheid
+                </dd>
+              </div>
+              <div>
+                <dt>Let op</dt>
+                <dd>
+                  De muntassociatie legt nadruk op geld; de verificatiekant moet uit de huisstijl
+                  komen
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+
+      <!-- 4 · VAKVONK -->
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">4</span>
+          <h2>Vakvonk</h2>
+          <span class="n-domain">vakvonk.nl · vrij</span>
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="260"
+                height="72"
+                viewBox="0 0 260 72"
+                role="img"
+                aria-label="Logo Vakvonk"
+              >
+                <g transform="translate(36,36)">
+                  <polygon points="0,-22 5,-5 22,0 5,5 0,22 -5,5 -22,0 -5,-5" fill="#0f766e" />
+                  <circle cx="15" cy="-15" r="3.5" fill="#b4633a" />
+                </g>
+                <text x="76" y="31" font-family="Georgia, serif" font-size="21" fill="#1c1e1b">
+                  Vakvonk
+                </text>
+                <text
+                  x="76"
+                  y="50"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="10"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  WAAR VAKMANSCHAP OVERSLAAT
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="260"
+                height="72"
+                viewBox="0 0 260 72"
+                role="img"
+                aria-label="Logo Vakvonk, donkere variant"
+              >
+                <g transform="translate(36,36)">
+                  <polygon points="0,-22 5,-5 22,0 5,5 0,22 -5,5 -22,0 -5,-5" fill="#5fbdb2" />
+                  <circle cx="15" cy="-15" r="3.5" fill="#d08a63" />
+                </g>
+                <text x="76" y="31" font-family="Georgia, serif" font-size="21" fill="#f2f4f0">
+                  Vakvonk
+                </text>
+                <text
+                  x="76"
+                  y="50"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="10"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  WAAR VAKMANSCHAP OVERSLAAT
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              De vonk die overslaat als de juiste vakmens en de juiste opdracht elkaar raken — én de
+              vonk van het aambeeld, het oerbeeld van ambacht. Kort, allitererend en energiek; de
+              jongste naam van de vijf. Het beeldmerk: een vierpuntige vonk met één afspringende
+              spat in de warme steunkleur.
+            </p>
+            <dl>
+              <div>
+                <dt>Sterk</dt>
+                <dd>
+                  Energie en optimisme · alliteratie blijft hangen · matching-metafoor ingebakken
+                </dd>
+              </div>
+              <div>
+                <dt>Let op</dt>
+                <dd>
+                  Minder gewicht voor het verificatie-/documentenverhaal; leunt op de huisstijl voor
+                  gezag
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+
+      <!-- 5 · EIGENMEESTER -->
+      <article class="name-card">
+        <div class="n-head">
+          <span class="n-rank">5</span>
+          <h2>Eigenmeester</h2>
+          <span class="n-domain">eigenmeester.nl · vrij</span>
+        </div>
+        <div class="n-body">
+          <div class="logos">
+            <div class="logo-chip light">
+              <svg
+                width="260"
+                height="72"
+                viewBox="0 0 260 72"
+                role="img"
+                aria-label="Logo Eigenmeester"
+              >
+                <g transform="translate(36,36)">
+                  <rect
+                    x="-17"
+                    y="-17"
+                    width="34"
+                    height="34"
+                    rx="6"
+                    transform="rotate(45)"
+                    fill="none"
+                    stroke="#0f766e"
+                    stroke-width="2.5"
+                  />
+                  <text
+                    x="0"
+                    y="8"
+                    text-anchor="middle"
+                    font-family="Georgia, serif"
+                    font-weight="bold"
+                    font-size="22"
+                    fill="#1c1e1b"
+                  >
+                    M
+                  </text>
+                  <circle cx="0" cy="-16" r="2.5" fill="#0f766e" />
+                </g>
+                <text x="76" y="31" font-family="Georgia, serif" font-size="21" fill="#1c1e1b">
+                  Eigenmeester
+                </text>
+                <text
+                  x="76"
+                  y="50"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="10"
+                  letter-spacing="2"
+                  fill="#6d716a"
+                >
+                  MEESTER OVER JE EIGEN WERK
+                </text>
+              </svg>
+            </div>
+            <div class="logo-chip dark">
+              <svg
+                width="260"
+                height="72"
+                viewBox="0 0 260 72"
+                role="img"
+                aria-label="Logo Eigenmeester, donkere variant"
+              >
+                <g transform="translate(36,36)">
+                  <rect
+                    x="-17"
+                    y="-17"
+                    width="34"
+                    height="34"
+                    rx="6"
+                    transform="rotate(45)"
+                    fill="none"
+                    stroke="#5fbdb2"
+                    stroke-width="2.5"
+                  />
+                  <text
+                    x="0"
+                    y="8"
+                    text-anchor="middle"
+                    font-family="Georgia, serif"
+                    font-weight="bold"
+                    font-size="22"
+                    fill="#f2f4f0"
+                  >
+                    M
+                  </text>
+                  <circle cx="0" cy="-16" r="2.5" fill="#5fbdb2" />
+                </g>
+                <text x="76" y="31" font-family="Georgia, serif" font-size="21" fill="#f2f4f0">
+                  Eigenmeester
+                </text>
+                <text
+                  x="76"
+                  y="50"
+                  font-family="ui-monospace, Menlo, monospace"
+                  font-size="10"
+                  letter-spacing="2"
+                  fill="#8fa39d"
+                >
+                  MEESTER OVER JE EIGEN WERK
+                </text>
+              </svg>
+            </div>
+          </div>
+          <div class="n-text">
+            <p>
+              "Zijn eigen meester zijn" — de reden waarom iemand ZZP'er wordt, gevangen in één
+              woord, met de gilde-echo van de meesterproef erin. Zelfstandigheid én vakmanschap
+              tegelijk. Het beeldmerk: een meesterteken zoals ambachtslieden dat in hun werk sloegen
+              — een geslagen M in een ruit.
+            </p>
+            <dl>
+              <div>
+                <dt>Sterk</dt>
+                <dd>
+                  Raakt het diepste ZZP-motief (vrijheid) · gilde-erfgoed · meesterteken past bij
+                  verificatie
+                </dd>
+              </div>
+              <div>
+                <dt>Let op</dt>
+                <dd>Langste naam van de vijf · "meester" kan ook juridisch klinken (mr.)</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+
+      <h3 class="section">Domeincontrole (29-7-2026)</h3>
+      <p class="sub">
+        Zelfde methode als de eerste ronde: NS-query in het .nl-register via Cloudflare 1.1.1.1 én
+        Google 8.8.8.8 — beide geven "bestaat niet" voor alle vijf. Creatieve reserves die óók vrij
+        zijn: roervast.nl, klaremunt.nl, kroonmerk.nl, werkgetij.nl, gildevast.nl, vrijgilde.nl,
+        opengoed.nl, grootwerk.nl.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Naam</th>
+            <th>Domein</th>
+            <th>Status .nl</th>
+            <th>Marktcheck</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Handslag</td>
+            <td class="mono">handslag.nl</td>
+            <td class="vrij">vrij</td>
+            <td>geen naamgenoot gevonden</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Sterkhouder</td>
+            <td class="mono">sterkhouder.nl</td>
+            <td class="vrij">vrij</td>
+            <td>alleen als woord in Van Dale/taalmedia; geen bedrijf</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Guldenwerk</td>
+            <td class="mono">guldenwerk.nl</td>
+            <td class="vrij">vrij</td>
+            <td>geen naamgenoot gevonden</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Vakvonk</td>
+            <td class="mono">vakvonk.nl</td>
+            <td class="vrij">vrij</td>
+            <td>geen naamgenoot gevonden</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>Eigenmeester</td>
+            <td class="mono">eigenmeester.nl</td>
+            <td class="vrij">vrij</td>
+            <td>geen naamgenoot gevonden</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="note">
+        <strong>Afgevallen na de marktcheck:</strong> "Vrijvaart" (vrijvaart.nl is vrij, maar er
+        bestaat al een Amsterdams bureau VrijVaart in het handelsregister). <br /><br />
+        <strong>Belangrijk (mensenwerk):</strong> een DNS-check is een sterke maar geen absolute
+        garantie. Registreer de gekozen naam vandaag nog bij een .nl-registrar (± €10/jaar) en leg
+        het merk vast in het BOIP-merkenregister vóór de livegang. De eerste, klassieke top 5 (Het
+        Waarmerk, Zegelwerk, Vakkeur, Betrouwd, Waarwerk) staat op de pagina "naamkeuze".
+      </div>
+    </div>
+  </body>
+</html>
