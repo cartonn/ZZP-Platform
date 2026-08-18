@@ -268,6 +268,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — betaalgedrag per opdrachtgever op /inzicht (2026-08-18, PR #1133)** —
+> de ZZP'er zag "Omzet per opdrachtgever" (van wíe komt mijn omzet), maar niet hoe goed elke klant betaalt (betaaltermijn/op-tijd
+> per opdrachtgever) — de cashflow-hefboom. Nieuwe kaart "Betaalgedrag per opdrachtgever": per klant een toon-badge (Betaalt op tijd/
+> Gemiddeld/Betaalt vaak laat) + gemiddelde betaaltijd + op-tijd-% + aantal betalingen; traagste betalers bovenaan. Nieuwe pure
+> `src/lib/freelancer-payer-behavior.ts` groepeert de eigen betaalde facturen (`issuerUserId`, PAID) per opdrachtgever en voedt elke
+> groep in de bestaande pure `computePaymentBehavior` → geen drift met het betaalgedrag-blok op de opdracht-detailpagina. Alleen
+> klanten met genoeg historie (`sampleSize >= PAYMENT_MIN_SAMPLE_SIZE`); read-only, alleen FREELANCER, alleen geaggregeerde statistiek,
+> geen schema-/mutatie-/auth-oppervlak. +7 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Bemiddelaar — plaatsingen-per-maand trend op /inzicht (2026-08-17, PR #1132)** —
 > alle bestaande franchiser-trends op `/inzicht` ("Doorgezet volume", "Fee per maand") meten in euro's; er was geen zicht op de
 > operationele doorzet — hoevéél nieuwe plaatsingen per maand tot stand komen (recruitment-KPI, kern-throughput van een bemiddeling).
