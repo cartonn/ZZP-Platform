@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-18 — Bemiddelaar: roster-inzetbaarheid ongewindowd (outer-window-blindheid, DOEL 1b)
+
+**Wat:** de roster-inzetbaarheidsscan (die een niet-inzetbaar/plaatsing-blokkerend roster-lid signaleert)
+capte op 50 (`freelancerProfile.findMany({ where:{tenantId}, orderBy:{id:"asc"}, take: 50 })`) op BEIDE
+oppervlakken — de /acties-bron (`franchiseNotEngageableTask`, pending-tasks.ts) én de /franchise/zzpers-
+nav-badge (`rosterAlerts`, signals.ts). Een niet-inzetbaar lid (ontbrekend/verlopen verplicht document)
+voorbij de 50e (op id-volgorde) werd door `computeEngageability` nooit beoordeeld → geen taak, geen badge,
+geen rail. Omdat de blokkerende actie geen `updatedAt`-venster bumpt, was dat niet self-healing
+(undercount t.o.v. de onbegrensde /franchise/zzpers-lijst). Geparkeerde bevinding uit persona-sweep run 81.
+
+**Hoe:** beide oppervlakken scannen nu ONGEWINDOWD (geen `take`) de volledige tenant-roster via één
+gedeelde bron `src/lib/data/roster-engageability.ts` (`ROSTER_ENGAGEABILITY_SELECT` +
+`evaluateRosterEngageability`, die `computeEngageability` als enige waarheid gebruikt). Dat sluit zowel de
+50-cap-blindheid áls de fragiele "houd orderBy/take identiek"-drift-invariant af: één helper → geen drift
+mogelijk. Per tenant een beheerbaar aantal profielen (spiegelt de ongelimiteerde `company.findMany({
+tenantId })`-scan in dezelfde badge-berekening); lichte select. `orderBy: { id: "asc" }` blijft in
+pending-tasks voor een stabiele volgorde van de losse taken.
+
+**Bestanden:** `src/lib/data/roster-engageability.ts` (nieuw) + `roster-engageability.test.ts` (nieuw, 4
+tests), `src/lib/signals.ts`, `src/lib/actions/pending-tasks.ts`,
+`src/lib/actions/pending-tasks-franchiser.test.ts` (outer-window-regressietest: 55 inzetbaar + 1 niet-
+inzetbaar als 56e, take-aware roster-mock; query-shape-assert → "geen take"),
+`src/lib/signals.roster-order.test.ts` (badge query-shape-assert → "geen take"), backlog bijgewerkt.
+**Tests:** volledige suite groen (6267). Gate: typecheck/lint/test/prettier groen; build hangt lokaal op
+`next/font/google`-egress (bekende sessie-limiet, geen codedefect) → CI-poort draait de build/e2e.
+
+---
+
 ## 2026-08-18 — Persona-sweep run 81: outer-window-blindheid op de teken-/indien-taak (DOEL 1b)
 
 **Wat:** de "Contract ondertekenen"-taak (PROPOSED — ZZP'er én opdrachtgever) en de "Uren indienen"-taak

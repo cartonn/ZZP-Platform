@@ -30,20 +30,22 @@
 >   het venster; mock in `pending-tasks-contract-sign-compliance.test.ts` bijgewerkt naar de nieuwe
 >   query-vormen).
 >
-> **Geparkeerd (met repro, niet gefixt deze run):**
->
-> - **`franchiseNotEngageableTask` roster-cap op `id: asc` (bemiddelaar, DOEL 1b, LAAG — lager vertrouwen):**
->   `src/lib/actions/pending-tasks.ts` (~regel 1252-1267) haalt de roster-leden op met
->   `prisma.freelancerProfile.findMany({ where:{tenantId}, orderBy:{id:"asc"}, take: MAX })` en berekent
->   inzetbaarheid pas ná de cap. Anders dan de FIFO-admin-queues (die legen naarmate oudere items worden
->   afgehandeld en zo ruimte maken) groeit een tenant-roster alleen maar — een roster-lid voorbij de 50ste
->   (op `id`-volgorde, niet urgentie-gecorreleerd) wordt door `computeEngageability` NOOIT beoordeeld, dus
->   een echt niet-inzetbaar lid (ontbrekend/verlopen verplicht document) levert permanent geen taak op
->   /acties/badge. **Repro:** tenant met >50 `FreelancerProfile`-rijen; het lid met het hoogste id mist een
->   verplicht document → geen `franchiseNotEngageableTask`. **Fix-richting:** filter de blokkerende
->   predicaat DB-zijdig (SUBMITTED/REJECTED/verlopend-certificaat-gekoppelde ids eerst, ongewindowd) met een
->   residu-rollup voor de rest — spiegel `franchiseStaleDienstRollupTask`. Lager vertrouwen: vereist >50
->   roster-leden bij één tenant; de demo-tenant haalt dat niet, dus niet live gereproduceerd.
+> **OPGELOST (run 82, 2026-08-18) — `franchiseNotEngageableTask` roster-cap op `id: asc` (bemiddelaar,
+> DOEL 1b):** de roster-inzetbaarheidsscan haalde de roster-leden op met
+> `prisma.freelancerProfile.findMany({ where:{tenantId}, orderBy:{id:"asc"}, take: MAX })` en berekende
+> inzetbaarheid pas ná de cap. Anders dan de FIFO-admin-queues (die legen naarmate oudere items worden
+> afgehandeld) groeit een tenant-roster alleen maar — een niet-inzetbaar lid (ontbrekend/verlopen
+> verplicht document) voorbij de 50ste (op `id`-volgorde) werd door `computeEngageability` NOOIT
+> beoordeeld, dus leverde het permanent geen taak op /acties, de badge én de rail (de blokkerende actie
+> bumpt geen venster → niet self-healing). **Fix:** beide oppervlakken (pending-tasks.ts + signals.ts)
+> scannen nu ONGEWINDOWD (geen `take`) de volledige tenant-roster via een gedeelde bron
+> (`src/lib/data/roster-engageability.ts`: `ROSTER_ENGAGEABILITY_SELECT` + `evaluateRosterEngageability`)
+> — dat sluit zowel de 50-cap-blindheid als de fragiele "houd orderBy/take identiek"-drift-invariant af
+> (per tenant een beheerbaar aantal profielen, spiegelt de ongelimiteerde `company.findMany({tenantId})`).
+> +outer-window-regressietest (55 inzetbaar + 1 niet-inzetbaar als 56e; take-aware roster-mock) +
+> helper-unittests + badge/acties-query-shape-asserts omgezet naar "geen take". Bestanden:
+> `src/lib/data/roster-engageability.ts` (+test), `src/lib/signals.ts`, `src/lib/actions/pending-tasks.ts`,
+> `src/lib/signals.roster-order.test.ts`, `src/lib/actions/pending-tasks-franchiser.test.ts`.
 >
 > ---
 >
