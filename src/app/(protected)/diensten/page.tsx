@@ -4,8 +4,10 @@ import { Clock, Download, Upload } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { getDienstenForFreelancer } from "@/lib/diensten";
+import { summarizeDiensten, hasDienstenSummary } from "@/lib/diensten-summary";
 import { formatEuro } from "@/lib/invoices";
 import { formatDateRangeNl } from "@/lib/format-date";
+import { DienstenSummaryStrip } from "@/components/diensten/diensten-summary-strip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -71,6 +73,10 @@ export default async function DienstenPage({
     ? allDiensten.filter((d) => d.status === filterStatus)
     : allDiensten;
 
+  // Samenvatting over de VOLLEDIGE set (niet de gefilterde view): wat wacht op goedkeuring, wat is
+  // goedgekeurd, en wat er nog van de ZZP'er zelf nodig is. Pure afleiding, geen extra query.
+  const summary = summarizeDiensten(allDiensten);
+
   const activeCollaborations: ActiveCollaborationOption[] = activeCollabRows.map((c) => ({
     id: c.id,
     jobTitle: c.job.title,
@@ -109,6 +115,8 @@ export default async function DienstenPage({
           </Button>
         </div>
       </header>
+
+      {hasDienstenSummary(summary) && <DienstenSummaryStrip summary={summary} />}
 
       {/* Statusfilter */}
       <nav className="flex flex-wrap gap-2 text-sm" aria-label="Filter op status">

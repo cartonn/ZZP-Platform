@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-18 — ZZP'er: diensten-samenvattingsstrip op /diensten (spiegel van de opdrachtgever-kant)
+
+**Wat:** de ZZP'er-urenstatenlijst (`/diensten`) was een platte lijst zonder aggregaat, terwijl de
+opdrachtgever-tegenhanger (`/prestaties`) juist wél een geld-samenvatting toont (`summarizePendingApprovalValue`
+— "≈ €X wacht op jouw goedkeuring"). Die asymmetrie is nu gedicht met een rustige samenvattingsstrip boven
+de lijst: **Wacht op goedkeuring** (€ + aantal urenstaten die bij de opdrachtgevers op goedkeuring wachten,
+geld dat vaststaat maar nog niet mag factureren; met "N zonder tarief nog niet meegerekend" als een
+urenstaat geen berekenbaar subtotaal heeft — zelfde afspraak als de payer-kant), **Goedgekeurd** (€ +
+aantal vrijgegeven voor facturatie) en **Nog van jou** (concept in te dienen + afkeuring te herstellen,
+beide als deep-link naar het bestaande statusfilter → direct actioneerbaar). De ZZP'er ziet zo in één
+oogopslag hoeveel gewerkte waarde bij de klant vastzit en wat er nog van hemzelf nodig is, zonder elke rij
+te scannen.
+
+**Hoe:** nieuwe pure `src/lib/diensten-summary.ts` (`summarizeDiensten` → wachtend/goedgekeurd/concept/
+afgekeurd + `hasDienstenSummary`) werkt op de reeds geladen `getDienstenForFreelancer`-data (over de VOLLEDIGE
+set, niet de gefilterde view) → geen extra query, kan niet driften van de lijst eronder. Component
+`src/components/diensten/diensten-summary-strip.tsx` (3-koloms strip). Display-only, alleen FREELANCER
+(pagina gate't al op rol), geen schema-/mutatie-/auth-oppervlak.
+
+**Bestanden:** `src/lib/diensten-summary.ts` (nieuw) + `diensten-summary.test.ts` (nieuw, 7 tests),
+`src/components/diensten/diensten-summary-strip.tsx` (nieuw), `src/app/(protected)/diensten/page.tsx`
+(strip gewired boven het statusfilter), PROGRESS + backlog bijgewerkt.
+**Tests:** typecheck/lint/prettier groen; nieuwe unit-tests 7/7; volledige suite + build via de CI-poort.
+
+---
+
 ## 2026-08-18 — Bemiddelaar: roster-inzetbaarheid ongewindowd (outer-window-blindheid, DOEL 1b)
 
 **Wat:** de roster-inzetbaarheidsscan (die een niet-inzetbaar/plaatsing-blokkerend roster-lid signaleert)

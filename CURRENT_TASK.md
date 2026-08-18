@@ -268,6 +268,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — diensten-samenvattingsstrip op /diensten (2026-08-18, PR #1145)** —
+> de ZZP'er-urenstatenlijst (`/diensten`) was een platte lijst zonder aggregaat, terwijl de opdrachtgever-tegenhanger
+> (`/prestaties`) juist wél een geld-samenvatting toont (`summarizePendingApprovalValue`). Die asymmetrie is gedicht met een
+> rustige 3-koloms strip boven de lijst: **Wacht op goedkeuring** (€ + aantal urenstaten die bij de opdrachtgevers op
+> goedkeuring wachten — geld dat vaststaat maar nog niet mag factureren; "N zonder tarief nog niet meegerekend" als een
+> urenstaat geen berekenbaar subtotaal heeft, zelfde afspraak als de payer-kant), **Goedgekeurd** (€ + aantal vrijgegeven voor
+> facturatie) en **Nog van jou** (concept in te dienen + afkeuring te herstellen, beide als deep-link naar het bestaande
+> statusfilter). Nieuwe pure `src/lib/diensten-summary.ts` (`summarizeDiensten`/`hasDienstenSummary`) werkt op de reeds geladen
+> `getDienstenForFreelancer`-data over de VOLLEDIGE set (niet de gefilterde view) → geen extra query, kan niet driften van de
+> lijst eronder. Display-only, alleen FREELANCER, geen schema-/mutatie-/auth-oppervlak. +7 tests. Gate: typecheck, lint, test,
+> build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Bemiddelaar — statusfilter op de dienstenlijst `/franchise/diensten` (2026-08-18, PR #1136)** —
 > de bemiddelaar-dienstenlijst was de enige franchise-lijst zónder filter (concept/open/gevuld/gesloten in één platte lijst),
 > terwijl `/franchise/zzpers` (zoek+filter+sorteer), `/franchise/opdrachtgevers` (health-tabs) én de opdrachtgever-`/opdrachten`
