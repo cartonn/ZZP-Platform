@@ -29,6 +29,8 @@ next-env.d.ts
 
 # Claude Code — persoonlijke, lokale settings/permissies (niet delen met het team)
 .claude/settings.local.json
+# Agent worktrees — tijdelijke checkout-dirs voor subagents, nooit committen
+.claude/worktrees/
 
 # database (local sqlite)
 *.db
