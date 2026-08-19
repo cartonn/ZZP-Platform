@@ -61,7 +61,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       className={`${fontSans.variable} ${fontDisplay.variable} ${fontMono.variable}`}
     >
       <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* suppressHydrationWarning: de browser leegt het nonce-attribuut in de DOM
+            (nonce hiding), dus hydratie ziet altijd server-nonce ≠ client-"" — dat is
+            browsergedrag, geen bug; het script is bij het parsen al door de CSP gevalideerd. */}
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+        />
       </head>
       <body className="min-h-screen antialiased">
         <LocaleProvider locale={locale}>
