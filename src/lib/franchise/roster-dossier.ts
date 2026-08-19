@@ -183,11 +183,14 @@ export async function getRosterDossier(
       },
     }),
     prisma.invoice.findMany({
-      // Alleen facturen die bij een samenwerking op een eigen-franchise-opdracht horen (geen lek van
-      // facturen voor overflow-werk bij een andere franchise).
+      // Alleen facturen die bij een samenwerking van déze ZZP'er op een eigen-franchise-opdracht horen
+      // (geen lek van facturen voor overflow-werk bij een andere franchise). Scoping via de altijd-
+      // gevulde relatie (`collaboration.freelancerId` + tenant, net als de prestatie-query hierboven)
+      // i.p.v. de kolom `issuerUserId` — die zet alleen de cascade-handler, dus een legacy loose-factuur
+      // (handmatig via /facturen/nieuw) miste anders volledig uit het dossier. Zelfde relatie-scoping
+      // als de geld-KPI's (#1125).
       where: {
-        issuerUserId: profile.user.id,
-        collaboration: { is: { job: { is: tenantScopeWhere(actor) } } },
+        collaboration: { is: { freelancerId: profile.id, job: { is: tenantScopeWhere(actor) } } },
       },
       orderBy: { createdAt: "desc" },
       select: {

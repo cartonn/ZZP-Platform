@@ -1,5 +1,24 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-19 (run 83) · **main-commit basis:** `e8f3e0c3`
+> **Uitkomst:** **1 residu-defect gefixt** (bemiddelaar-dossier factuur-scoping). Run 80 (#1128) vond
+> "legacy loose-facturen vallen uit de omzet-/uitgaven-BI door issuer/counterparty-scoping"; datzelfde
+> defect werd parallel al door **#1125** (relatie-scoping via `collaboration.company/freelancer.userId`)
+> naar `main` gemerged voor 5 van de 6 geraakte bestanden, waardoor #1128 redundant werd en op de
+> `check`-poort botste (dubbele fixtures). #1128 is daarom **gesloten** (superseded). Eén bestand dat
+> #1125 niet dekte is nu alsnog gefixt:
+>
+> **OPGELOST — bemiddelaar-dossier Facturen-tab miste de legacy loose-facturen van een ZZP'er (MED,
+> functionele correctheid):** `getRosterDossier` (`src/lib/franchise/roster-dossier.ts`) scoopte de
+> facturenlijst op de kolom `issuerUserId` — die zet alléén de cascade-handler. Een handmatige factuur
+> (`/facturen/nieuw`, geen `issuerUserId`) viel volledig uit het dossier dat de bemiddelaar van een
+> ZZP'er ziet. **Fix:** scoping via de altijd-gevulde relatie (`collaboration.freelancerId` + tenant, net
+> als de prestatie-query ernaast), consistent met de relatie-scoping-conventie van #1125. Tenant-grens
+> blijft hard. +3 tests (nieuw `roster-dossier.test.ts`: relatie-scoping i.p.v. `issuerUserId`, legacy
+> loose-factuur verschijnt, null bij cross-tenant). Gate: typecheck, lint, test, build, prettier groen.
+>
+> ---
+
 > **Datum:** 2026-08-18 (run 82) · **main-commit basis:** `1a3e68e1`
 > **Uitkomst:** **1 bereikbaar HIGH DOEL 1b-defect gevonden én gefixt** (FREELANCER cascadebadge outer-
 > window-blindheid + 2 sub-vectoren) + **1 HIGH geld/administratie-defect gevonden en GEPARKEERD** (aparte

@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-19 — Persona-sweep run 83: bemiddelaar-dossier toont legacy loose-facturen (residu na #1125)
+
+**Wat:** run 80 (#1128) vond dat legacy loose-facturen uit de omzet-/uitgaven-BI vielen door scoping op de
+cascade-only kolommen `issuerUserId`/`counterpartyUserId`. Datzelfde defect werd parallel al door **#1125**
+(relatie-scoping via `collaboration.company/freelancer.userId`) naar `main` gemerged voor 5 van de 6
+geraakte bestanden → #1128 werd redundant en botste op de `check`-poort → **gesloten (superseded)**. Eén
+bestand dat #1125 niet dekte: het bemiddelaar-dossier (`getRosterDossier`) scoopte de Facturen-tab nog op
+`issuerUserId` en miste dus élke handmatige factuur van een ZZP'er in het dossier dat de bemiddelaar ziet.
+
+**Fix:** scoping via de altijd-gevulde relatie (`collaboration.freelancerId` + tenant, net als de
+prestatie-query ernaast) i.p.v. `issuerUserId`, consistent met de relatie-scoping-conventie van #1125. De
+tenant-grens blijft hard. Read-only, geen schema-/mutatie-/authketen-wijziging. +3 tests (nieuw
+`roster-dossier.test.ts`). Gate: typecheck, lint, test (6353), build, prettier groen.
+
+**Bestanden:** `src/lib/franchise/roster-dossier.ts` (+ nieuw `.test.ts`).
+
 ## 2026-08-19 — Opdrachtgever: betaalgegevens (IBAN + betaalkenmerk) op de factuur-PDF
 
 **Wat:** het factuurdetail (`facturen/[id]`) toont een `PaymentDetailsCard` met de betaalgegevens
