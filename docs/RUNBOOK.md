@@ -121,6 +121,27 @@ matching. Om pgvector daadwerkelijk in gebruik te nemen:
 
 Zie ook `MENSENWERK.md` §0b voor de mensenwerk-samenvatting.
 
+### 2c. Web-push (VAPID) verifiëren vóór go-live
+
+Web-push (PWA-pushmeldingen, `src/lib/push/web-push.ts`) staat standaard **uit**: zonder de
+VAPID-sleutels blijven alleen de in-app meldingen werken (niets crasht). Om push in gebruik te nemen:
+
+1. Genereer een sleutelpaar: `npx web-push generate-vapid-keys`.
+2. Zet `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (beide sámen — één van de twee is een gevaarlijke
+   halve activering die de boot-validatie in productie hard blokkeert) en optioneel `VAPID_SUBJECT`
+   (mailto:/https:-contact, RFC 8292) als productie-secrets (Railway), **niet** in git.
+3. Bevestig via de **web-push-zelftest** op `/admin/systeemstatus` (en de go-live-sweep) dat de
+   sleutels correct gewired zijn — niet alleen dat de env-variabelen staan. De zelftest is een
+   **lokale crypto-controle** (verstuurt géén pushbericht): hij signeert een VAPID-verzendheader
+   (zoals élke echte verzending) én vergelijkt de public/private-keypair, zodat een verkeerd geplakte
+   of niet-bij-elkaar-horende keypair zichtbaar wordt vóór de eerste echte melding stil mislukt. Staat
+   push uit, dan meldt de zelftest dat eerlijk ("niets getest" — geen vals groen).
+4. De doorlopende afleverbewaking loopt daarna via de **push-aflever-heartbeat**
+   (`zzp_push_delivery_ok` op `/api/metrics`, kaart "Push-aflevering" op `/admin/systeemstatus`,
+   alert `ZzpPushDeliveryFailing`).
+
+Zie ook `MENSENWERK.md` §2/§7 voor de mensenwerk-samenvatting.
+
 ## 3. Deploy
 
 **Normale flow (aanbevolen):** merge een PR naar `main` na een groene CI-poort. Railway bouwt en
