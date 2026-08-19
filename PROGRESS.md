@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-19 — Security/Privacy-audit: behavioural-metadata overleefde erasure (AVG art. 17/15)
+
+**Wat:** security-/privacy-auditronde (basis `main` @ 126505f6). Orchestrator (Opus 4.8) + 3 parallelle
+adversariële Opus-audits op niet-overlappende oppervlakken (server-action-authz-keten; AVG erasure↔export-
+symmetrie over de volledige 60+-model `schema.prisma`; multi-tenant-isolatie + document-/media-/PDF-/dossier-
+serving + bearer-tokens) + orchestrator-probes op de delta. **Geen nieuwe KRITIEK/HOOG/MIDDEL** — authz-keten,
+tenant-isolatie, document-serving en de nieuwe CSV-/aggregatie-delta schoon (nieuwe CSV-kolommen numeriek → geen
+formule-injectie; aggregaties owner-gescoopt). **Eén geparkeerde LAAG gedicht.**
+
+**Fix:** `LessonCompletion.completedAt` + `IdeaVote.createdAt` — twee zelf-actie-timestamps met `userId`-FK die
+`anonymizeUser` de `User`-rij in place laat overschrijven (id blijft) → de kindrijen bleven volledig gekoppeld
+staan na een verwijderverzoek (art. 17), en ontbraken in de inzage-export (art. 15/20). Nu: hard delete in de
+erasure-transactie (`src/app/(protected)/admin/gebruikers/actions.ts`) + opgenomen in `buildAccountExport`
+(`src/lib/account-export.ts`, smalle eigen-`userId`-gescoopte select) — symmetrisch.
+
+**Tests (rood→groen):** `anonymize-erasure.test.ts` (+2 cases: beide `deleteMany`'s met `where: { userId }` in
+de transactie) en `account-export.test.ts` (+1 case: sectie-presence + scope/select). Gate groen: typecheck +
+lint + 6321 unit-tests + `prettier --check .` + build. Backlog bijgewerkt (item → OPGELOST).
+
 ## 2026-08-19 — ZZP'er + opdrachtgever: ORT-uitsplitsing in de urenstaat-CSV-exports
 
 **Wat:** de urenstaat-CSV-exports (`/diensten` voor de ZZP'er, `/prestaties` voor de opdrachtgever)

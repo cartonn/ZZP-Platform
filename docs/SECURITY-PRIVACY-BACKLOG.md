@@ -4,6 +4,54 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-19 (basis: `main` @ 126505f6) — 1× LAAG OPGELOST (behavioural-metadata overleefde erasure + ontbrak in export)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.
+
+1. **server-action-authz-keten** — alle `(protected)/**/actions.ts` (m.u.v. `admin/**`+`franchise/**`) + `src/lib/actions/**`
+
+- de cascade-command-laag (`src/lib/cascade/*-commands.ts`): IDOR/rol/ownership/Zod/mass-assignment/status-transitie/audit.
+
+2. **AVG erasure↔export-symmetrie** — volledige `schema.prisma`-modelsweep (60+ modellen) vs. `account-anonymization.ts`/
+   `anonymizeUser`/`account-export.ts`. 3) **multi-tenant/franchise-isolatie + document-/media-/PDF-/dossier-serving +
+   bearer-tokens** — `tenancy.ts`, `franchise/**`, `api/documents/[id]`, `api/media/[...key]`, alle PDF-/dossier-routes,
+   `storage.ts` path-traversal, `vertrouwen/[profileId]/[token]`, `api/agenda/feed.ics`. Plus orchestrator-probes op de
+   delta `d61d5236..126505f6` (6 commits: ORT-uitsplitsing in de urenstaat-CSV-exports, afgenomen-uren-trend, urenstaat-
+   uitschieter-signaal, cron-faal-attributie): nieuwe CSV-kolommen zijn **numeriek** (uren/EUR, geen user-tekst) → geen
+   CWE-1236 formule-injectie; `toCsv`/`escapeCsvField` behouden de formule-guard + RFC-4180-quoting; alle nieuwe
+   aggregaties (`worked-hours-trend`, `performance-hours-anomaly`, `ort-breakdown`) zijn owner-gescoopt via geneste
+   Prisma-`where` (`collaboration.freelancer.userId`/`company.userId`), read-only, deterministisch. `$queryRawUnsafe`=**0**,
+   enige `dangerouslySetInnerHTML`=nonce-theme-script, geen user-gestuurde `fetch`/SSRF (push-endpoint achter allowlist),
+   `npm audit --omit=dev`=**0**, geen PII in `console.*`.
+
+**Uitkomst:** authz-keten, tenant-isolatie, document-serving en erasure-completeness **schoon** — geen nieuwe
+KRITIEK/HOOG/MIDDEL. **Eén geparkeerde LAAG gedicht** (zie onder). De HOOG bij-de-mens-`Review.comment`-subjectkant
+(regel 927-935) en de e-mail-enumeratie-LOW blijven geparkeerd.
+
+### OPGELOST — `LessonCompletion` + `IdeaVote` overleefden erasure én ontbraken in export (LAAG · AVG art. 15/17/art. 5 minimalisatie)
+
+**Geschonden regel:** AVG art. 17 (recht op vergetelheid) + art. 5 (dataminimalisatie) — toewijsbare gedragsmetadata
+over de betrokkene overleefde een verwijderverzoek; en art. 15/20 (inzage/portabiliteit) — de betrokkene kon deze
+eigen data niet exporteren. Was geparkeerd sinds ronde 2026-08-18b (regel 313-319).
+
+**Repro (vóór de fix):** `prisma/schema.prisma` — `LessonCompletion` (`userId` + `completedAt`) en `IdeaVote`
+(`userId` + `createdAt`) dragen elk uitsluitend de eigen `userId` + een zelf-actie-timestamp. `anonymizeUser`
+(`src/app/(protected)/admin/gebruikers/actions.ts`) overschrijft de `User`-rij **in place** (de id blijft), dus deze
+kindrijen bleven volledig gekoppeld staan: welke academielessen de nu-geanonimiseerde persoon afrondde en op welke
+ideeën hij stemde, mét het exacte tijdstip. Een `user.update` triggert geen cascade → de rijen overleefden art. 17.
+Spiegelbeeldig ontbraken beide in `buildAccountExport` (`src/lib/account-export.ts`), dus de betrokkene kon ze niet
+inzien/exporteren. Zelfde residuele-gedragsmetadata-klasse als `readAt`/`lastReadAt`/`lastLoginAt` (eerder gedicht),
+maar hier symmetrisch afwezig aan beide kanten.
+
+**Fix (dit PR):** `prisma.lessonCompletion.deleteMany({ where: { userId } })` + `prisma.ideaVote.deleteMany({ where:
+{ userId } })` toegevoegd aan de anonimiseringstransactie (hard delete — de rij = enkel persoonlijke data, geen
+gedeelde/tegenpartij-waarde; `onDelete: Cascade` vanaf zowel User als Idea/Lesson markeert ze al als wegwerpbaar,
+net als `workExperience`/`pushSubscription`). Symmetrisch: beide modellen toegevoegd aan `buildAccountExport`
+(`lessonCompletions`/`ideaVotes`, smalle select `{ lessonId, completedAt }`/`{ ideaId, createdAt }`, gescopet op de
+eigen `userId`). **Test (rood→groen):** `anonymize-erasure.test.ts` — twee nieuwe cases asserteren dat beide
+`deleteMany`'s met `where: { userId }` in de transactie zitten (zonder de bronwijziging: `find(...) === undefined` →
+`toBeDefined()` faalt); `account-export.test.ts` — sectie-presence + scope/select-assert op de eigen `userId`.
+
 ## Ronde 2026-08-18b (basis: `main` @ d61d5236) — 1× MIDDEL OPGELOST (fail-open rol-dispatch lekte admin-taken)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken van
@@ -310,13 +358,9 @@ en assert `readAt === null` + body geredact. Geverifieerd rood→groen door alle
 
 ### GEPARKEERD (LAAG/LOW — repro + severity)
 
-- **`LessonCompletion.completedAt` + `IdeaVote.createdAt` niet in erasure én niet in export (LAAG · AVG art. 15/17).**
-  `prisma/schema.prisma` — twee zelf-actie-timestamps met `userId`-FK (academie-lesvoltooiing, ideeën-stem) worden
-  noch bij `anonymizeUser` genulld noch in `buildAccountExport` opgenomen. Zelfde "activiteit-timestamp gekoppeld aan
-  een nog-levende `userId`"-patroon als het `readAt`-gat, maar **symmetrisch afwezig aan beide kanten** (geen
-  eenzijdig lek) en lagere gevoeligheid (interne training/feature-voting, geen identiteit/financieel/gezondheid).
-  **Aanbevolen fix:** óf beide op `null` bij erasure + opnemen in de export (symmetrie), óf een gedocumenteerde
-  retentie-/grondslag-afweging (FG-beslissing). Aparte, kleine increment.
+- **~~`LessonCompletion.completedAt` + `IdeaVote.createdAt` niet in erasure én niet in export (LAAG · AVG art. 15/17).~~**
+  **OPGELOST in ronde 2026-08-19** (zie boven): hard delete in de erasure-transactie + opgenomen in `buildAccountExport`
+  (symmetrie), met rood→groen-tests.
 - **Registratie lekt e-mail-enumeratie (LOW · OWASP A07 / anti-enumeratie-inconsistentie).**
   `src/app/register/actions.ts` geeft een aparte veldfout ("Er bestaat al een account met dit e-mailadres.") bij een
   bestaand e-mailadres — inconsistent met de anti-enumeratie elders (login-timing-egalisatie, uniforme

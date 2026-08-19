@@ -46,6 +46,8 @@ function fakeDb(rows: Record<string, unknown> = {}) {
     leadContact: { findMany: make("leadContact", "findMany") },
     domainEvent: { findMany: make("domainEvent", "findMany") },
     conversationParticipant: { findMany: make("conversationParticipant", "findMany") },
+    lessonCompletion: { findMany: make("lessonCompletion", "findMany") },
+    ideaVote: { findMany: make("ideaVote", "findMany") },
   };
   return { db: db as unknown as PrismaClient, calls };
 }
@@ -83,6 +85,8 @@ describe("buildAccountExport", () => {
       "leadContacts",
       "openDisputeReasons",
       "readReceipts",
+      "lessonCompletions",
+      "ideaVotes",
     ] as const) {
       expect(payload).toHaveProperty(key);
     }
@@ -124,6 +128,22 @@ describe("buildAccountExport", () => {
     expect((cp?.args.where as Record<string, unknown>).userId).toBe(ACTOR);
     // Alleen conversationId + het leestijdstip; geen bredere PII van de tegenpartij.
     expect(cp?.args.select).toEqual({ conversationId: true, lastReadAt: true });
+  });
+
+  it("neemt de eigen afgeronde lessen en idee-stemmen mee, gescopet op de actor (AVG art. 15/20)", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const lc = calls.find((c) => c.table === "lessonCompletion");
+    expect(lc).toBeDefined();
+    // Uitsluitend de eigen voltooiingen — nooit die van een ander.
+    expect((lc?.args.where as Record<string, unknown>).userId).toBe(ACTOR);
+    expect(lc?.args.select).toEqual({ lessonId: true, completedAt: true });
+
+    const iv = calls.find((c) => c.table === "ideaVote");
+    expect(iv).toBeDefined();
+    expect((iv?.args.where as Record<string, unknown>).userId).toBe(ACTOR);
+    expect(iv?.args.select).toEqual({ ideaId: true, createdAt: true });
   });
 
   it("neemt alleen door de actor geschreven ondersteuningsberichten mee (geen admin-antwoorden)", async () => {
