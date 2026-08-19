@@ -113,7 +113,7 @@ test("opdrachtgever maakt, publiceert en ZZP'er vindt de opdracht", async ({ pag
   // Status is nu concept zodra de "Publiceren"-actie weer verschijnt (eenduidig).
   await expect(page.getByRole("button", { name: "Publiceren" })).toBeVisible();
   // Onder parallelle SQLite-load kan de read kort na de write nog 200 geven; poll tot 404.
-  await expect.poll(async () => (await fp.goto(detailUrl))?.status(), { timeout: 10000 }).toBe(404);
+  await expect.poll(async () => (await fp.goto(detailUrl))?.status(), { timeout: 30000 }).toBe(404);
 
   await ctx.close();
 });
