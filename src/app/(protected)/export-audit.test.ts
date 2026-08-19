@@ -63,12 +63,27 @@ vi.mock("@/lib/prestaties", () => ({
   getPrestatiesForClient: vi.fn(async () => [{}, {}, {}, {}]),
   exportPrestatiesCsv: vi.fn(() => "csv"),
 }));
+vi.mock("@/lib/freelancer-revenue-breakdown", () => ({
+  getFreelancerRevenueBreakdown: vi.fn(async () => ({
+    rows: [{ companyId: "c-1", name: "De Linde", paidCents: 250000, placements: 2, sharePct: 100 }],
+    totalPaidCents: 250000,
+    concentrationPct: 100,
+  })),
+}));
+vi.mock("@/lib/client-spend-breakdown", () => ({
+  getClientSpendBreakdown: vi.fn(async () => ({
+    rows: [{ freelancerId: "f-1", name: "Sanne", paidCents: 120000, placements: 1, sharePct: 100 }],
+    totalPaidCents: 120000,
+    concentrationPct: 100,
+  })),
+}));
 
 import { GET as dienstenGet } from "./diensten/export/route";
 import { GET as verplichtingenGet } from "./verplichtingen/export/route";
 import { GET as prognoseGet } from "./prognose/export/route";
 import { GET as prestatiesGet } from "./prestaties/export/route";
 import { GET as facturenGet } from "./facturen/export/route";
+import { GET as relatiesGet } from "./inzicht/relaties/export/route";
 
 beforeEach(() => {
   auditCreateMock.mockClear();
@@ -122,6 +137,33 @@ describe("CSV-exportroutes — AVG-auditplicht", () => {
   it("factuurregister-export weigert een ADMIN (geen eigen register)", async () => {
     store.actor = { id: "u-6", role: "ADMIN", status: "ACTIVE", tenantId: null };
     const res = await facturenGet();
+    expect(res.status).toBe(403);
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("relatie-uitsplitsing-export (FREELANCER) schrijft een RELATION_BREAKDOWN_EXPORTED-auditregel", async () => {
+    store.actor = { id: "u-7", role: "FREELANCER", status: "ACTIVE", tenantId: null };
+    const res = await relatiesGet();
+    expect(res.status).toBe(200);
+    expect(auditCreateMock).toHaveBeenCalledTimes(1);
+    expect(auditCreateMock.mock.calls[0]![0].data).toMatchObject({
+      action: "RELATION_BREAKDOWN_EXPORTED",
+    });
+  });
+
+  it("relatie-uitsplitsing-export (CLIENT) schrijft een RELATION_BREAKDOWN_EXPORTED-auditregel", async () => {
+    store.actor = { id: "u-8", role: "CLIENT", status: "ACTIVE", tenantId: null };
+    const res = await relatiesGet();
+    expect(res.status).toBe(200);
+    expect(auditCreateMock).toHaveBeenCalledTimes(1);
+    expect(auditCreateMock.mock.calls[0]![0].data).toMatchObject({
+      action: "RELATION_BREAKDOWN_EXPORTED",
+    });
+  });
+
+  it("relatie-uitsplitsing-export weigert een ADMIN (geen eigen relatie-overzicht)", async () => {
+    store.actor = { id: "u-9", role: "ADMIN", status: "ACTIVE", tenantId: null };
+    const res = await relatiesGet();
     expect(res.status).toBe(403);
     expect(auditCreateMock).not.toHaveBeenCalled();
   });

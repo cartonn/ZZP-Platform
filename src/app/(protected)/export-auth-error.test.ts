@@ -39,12 +39,17 @@ vi.mock("@/lib/prestaties", () => ({
   exportPrestatiesCsv: vi.fn(),
 }));
 vi.mock("@/lib/onboarding/import", () => ({ importTemplateCsv: vi.fn(() => "csv") }));
+vi.mock("@/lib/freelancer-revenue-breakdown", () => ({
+  getFreelancerRevenueBreakdown: vi.fn(),
+}));
+vi.mock("@/lib/client-spend-breakdown", () => ({ getClientSpendBreakdown: vi.fn() }));
 
 import { GET as dienstenGet } from "./diensten/export/route";
 import { GET as verplichtingenGet } from "./verplichtingen/export/route";
 import { GET as prognoseGet } from "./prognose/export/route";
 import { GET as prestatiesGet } from "./prestaties/export/route";
 import { GET as facturenGet } from "./facturen/export/route";
+import { GET as relatiesGet } from "./inzicht/relaties/export/route";
 import { GET as importTemplateGet } from "./admin/import/template/route";
 
 describe("Download-routes — AuthorizationError geeft nette status, geen rauwe 500", () => {
@@ -70,6 +75,11 @@ describe("Download-routes — AuthorizationError geeft nette status, geen rauwe 
 
   it("factuurregister-export vangt de 401 af tot een response", async () => {
     const res = await facturenGet();
+    expect(res.status).toBe(401);
+  });
+
+  it("relatie-uitsplitsing-export vangt de 401 af tot een response", async () => {
+    const res = await relatiesGet();
     expect(res.status).toBe(401);
   });
 
