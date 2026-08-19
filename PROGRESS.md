@@ -3,6 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-19 — Opdrachtgever: certificaat-compliance CSV-export (PR #1162)
+
+**Wat:** de opdrachtgever ziet op het dashboard de momentopname "Certificaten van je ZZP'ers"
+(hoeveel lopende samenwerkingen een certificaat-actie vragen: ontbrekend/verlopen/verloopt-binnenkort/
+in-beoordeling), maar kon die compliance-stand niet meenemen naar een kwaliteits-/zorgverantwoordelijke.
+Nu een "Exporteer (CSV)"-actie op de momentopname-kaart (alleen bij ≥1 samenwerking) die per lopende
+samenwerking die aandacht vraagt één rij levert: ZZP'er, opdracht, status (Actie vereist/Let op) en
+welke vereiste certificaten ontbreken/verlopen/binnenkort-verlopen/in-beoordeling zijn. Benchmark:
+onze klant-zichtbare compliance is juist het onderscheid t.o.v. PIDZ/Zorgwerk (dossier verborgen achter
+de bemiddelaar); een downloadbaar compliance-register versterkt dat.
+
+**Hoe:** nieuwe pure `src/lib/collaboration-compliance-csv.ts` (`complianceCsv`): vaste kop, één rij per
+melding, certificaattypes via `CREDENTIAL_TYPE_LABEL` gescheiden met ", " (niet ";", het CSV-
+scheidingsteken), bedrag-loze display-only export via de gedeelde `toCsv` (formule-injectie-guard,
+CWE-1236, op ZZP'er-naam/opdrachttitel van derden). De rijen komen uit exact dezelfde bron als de
+dashboard-momentopname (`clientCredentialAlertsFromRows` → alleen niet-COMPLIANT) → geen scherm↔export-
+drift. Nieuwe rol-bewuste route `src/app/(protected)/samenwerkingen/certificaten/export/route.ts`:
+alleen CLIENT (FREELANCER beheert eigen certificaten, ADMIN heeft de verificatiequeue → 403),
+rate-limited, ongewindowde query (`disputedAt: null` + verplichte certificaat-vereiste, spiegelt
+`clientCredentialAlerts`), triage-sortering (NON_COMPLIANT vóór WARNING, dan op naam), auditregel
+`COMPLIANCE_REGISTER_EXPORTED`. Read-only, geen schema-/mutatie-/authz-/domeinmotor-oppervlak.
+
+**Bestanden:** `src/lib/collaboration-compliance-csv.ts` (+test, 6), route (+ shared export-audit-
+parity in `src/app/(protected)/export-audit.test.ts`, 3 nieuwe cases: CLIENT 200 + audit, FREELANCER/
+ADMIN 403), `src/components/dashboard/compliance-snapshot-card.tsx` (export-link), audit-label.
+
+**Gate:** typecheck, lint, test (6390), build, prettier (`--check .`) groen.
+
+**Volgende stap:** PR-poort (6 checks) afwachten → auto-merge.
+
 ## 2026-08-19 — ZZP'er + opdrachtgever: CSV-export relatie-uitsplitsing op /inzicht (omzet/uitgaven per relatie)
 
 **Wat:** de kaarten "Omzet per opdrachtgever" (ZZP'er) en "Uitgaven per ZZP'er" (opdrachtgever) op

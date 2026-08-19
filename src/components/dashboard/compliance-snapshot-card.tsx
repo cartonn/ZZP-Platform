@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldAlert, ArrowRight } from "lucide-react";
+import { ShieldAlert, ArrowRight, Download } from "lucide-react";
 import { type ClientComplianceSnapshot } from "@/lib/collaboration-alerts";
 import { plural } from "@/lib/plural";
 
@@ -52,7 +52,7 @@ export function ComplianceSnapshotCard({ snapshot }: { snapshot: ClientComplianc
         </div>
       )}
 
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
         <Link
           href="/samenwerkingen"
           className="focus-ring inline-flex items-center gap-1 text-sm text-primary hover:underline"
@@ -60,6 +60,14 @@ export function ComplianceSnapshotCard({ snapshot }: { snapshot: ClientComplianc
           Bekijk samenwerkingen
           <ArrowRight className="size-3.5" aria-hidden />
         </Link>
+        <a
+          href="/samenwerkingen/certificaten/export"
+          download
+          className="focus-ring inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline"
+        >
+          <Download className="size-3.5" aria-hidden />
+          Exporteer (CSV)
+        </a>
       </div>
     </section>
   );
