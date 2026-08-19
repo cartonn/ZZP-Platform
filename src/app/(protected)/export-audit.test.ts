@@ -23,6 +23,7 @@ vi.mock("@/lib/rate-limit-guard", () => ({ enforceRateLimit: vi.fn(async () => n
 vi.mock("@/lib/db", () => ({
   prisma: {
     auditLog: { create: auditCreateMock },
+    collaboration: { findMany: vi.fn(async () => [{ id: "col-1" }]) },
     invoice: {
       findMany: vi.fn(async () => [
         {
@@ -77,6 +78,24 @@ vi.mock("@/lib/client-spend-breakdown", () => ({
     concentrationPct: 100,
   })),
 }));
+vi.mock("@/lib/collaboration-alerts", () => ({
+  COLLABORATION_ALERT_INCLUDE: {},
+  clientCredentialAlertsFromRows: vi.fn(() => [
+    {
+      collaborationId: "col-1",
+      jobId: "j-1",
+      jobTitle: "Nachtdiensten",
+      freelancerName: "Sanne",
+      alert: {
+        status: "NON_COMPLIANT",
+        missing: ["VOG"],
+        expired: [],
+        expiringSoon: [],
+        inReview: [],
+      },
+    },
+  ]),
+}));
 
 import { GET as dienstenGet } from "./diensten/export/route";
 import { GET as verplichtingenGet } from "./verplichtingen/export/route";
@@ -84,6 +103,7 @@ import { GET as prognoseGet } from "./prognose/export/route";
 import { GET as prestatiesGet } from "./prestaties/export/route";
 import { GET as facturenGet } from "./facturen/export/route";
 import { GET as relatiesGet } from "./inzicht/relaties/export/route";
+import { GET as complianceGet } from "./samenwerkingen/certificaten/export/route";
 
 beforeEach(() => {
   auditCreateMock.mockClear();
@@ -164,6 +184,30 @@ describe("CSV-exportroutes — AVG-auditplicht", () => {
   it("relatie-uitsplitsing-export weigert een ADMIN (geen eigen relatie-overzicht)", async () => {
     store.actor = { id: "u-9", role: "ADMIN", status: "ACTIVE", tenantId: null };
     const res = await relatiesGet();
+    expect(res.status).toBe(403);
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("compliance-export (CLIENT) schrijft een COMPLIANCE_REGISTER_EXPORTED-auditregel", async () => {
+    store.actor = { id: "u-10", role: "CLIENT", status: "ACTIVE", tenantId: null };
+    const res = await complianceGet();
+    expect(res.status).toBe(200);
+    expect(auditCreateMock).toHaveBeenCalledTimes(1);
+    expect(auditCreateMock.mock.calls[0]![0].data).toMatchObject({
+      action: "COMPLIANCE_REGISTER_EXPORTED",
+    });
+  });
+
+  it("compliance-export weigert een FREELANCER (beheert eigen certificaten)", async () => {
+    store.actor = { id: "u-11", role: "FREELANCER", status: "ACTIVE", tenantId: null };
+    const res = await complianceGet();
+    expect(res.status).toBe(403);
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("compliance-export weigert een ADMIN (verificatiequeue i.p.v. eigen dossier)", async () => {
+    store.actor = { id: "u-12", role: "ADMIN", status: "ACTIVE", tenantId: null };
+    const res = await complianceGet();
     expect(res.status).toBe(403);
     expect(auditCreateMock).not.toHaveBeenCalled();
   });

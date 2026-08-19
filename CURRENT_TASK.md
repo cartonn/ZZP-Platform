@@ -268,6 +268,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — certificaat-compliance CSV-export (2026-08-19, PR #1162)** —
+> de opdrachtgever ziet de dashboard-momentopname "Certificaten van je ZZP'ers" (welke lopende samenwerkingen een certificaat-actie
+> vragen), maar kon die compliance-stand niet exporteren voor een kwaliteits-/zorgverantwoordelijke. Nu een "Exporteer (CSV)"-actie op de
+> momentopname-kaart (alleen bij ≥1 samenwerking): één rij per melding — ZZP'er, opdracht, status (Actie vereist/Let op), en welke vereiste
+> certificaten ontbreken/verlopen/binnenkort-verlopen/in-beoordeling zijn. Nieuwe pure `src/lib/collaboration-compliance-csv.ts`
+> (`complianceCsv`, certificaattypes via `CREDENTIAL_TYPE_LABEL`, gescheiden met ", " zodat het CSV-scheidingsteken ";" de cel niet quoot;
+> gedeelde `toCsv` met formule-injectie-guard CWE-1236 op namen/titels van derden). De rijen komen uit exact dezelfde bron als de
+> momentopname (`clientCredentialAlertsFromRows` → alleen niet-COMPLIANT) → geen scherm↔export-drift. Nieuwe rol-bewuste route
+> `src/app/(protected)/samenwerkingen/certificaten/export/route.ts` (alleen CLIENT; FREELANCER/ADMIN 403; rate-limited; ongewindowde query
+> die `clientCredentialAlerts` spiegelt; triage-sortering NON_COMPLIANT vóór WARNING; auditregel `COMPLIANCE_REGISTER_EXPORTED`). Read-only,
+> geen schema-/mutatie-/authz-/domeinmotor-oppervlak. Benchmark: klant-zichtbare compliance is ons onderscheid t.o.v. PIDZ/Zorgwerk
+> (verborgen dossier). +9 tests (6 pure + 3 route-auth/-audit-parity) + audit-label. Gate: typecheck, lint, test (6390), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er + opdrachtgever — CSV-export relatie-uitsplitsing op /inzicht (omzet/uitgaven per relatie) (2026-08-19, PR #1159)** —
 > de kaarten "Omzet per opdrachtgever" (ZZP'er) en "Uitgaven per ZZP'er" (opdrachtgever) op `/inzicht` toonden de betaalde omzet/uitgaven per
 > relatie op het scherm, maar waren — anders dan de franchiser-tegenhanger "Per opdrachtgever" (die al `/franchise/opdrachtgevers/export` had) —
