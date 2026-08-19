@@ -268,6 +268,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — betaalgegevens (IBAN + betaalkenmerk) op de factuur-PDF (2026-08-19, PR #1154)** —
+> het factuurdetail toont een `PaymentDetailsCard` (IBAN/t.n.v./betaalkenmerk/bedrag), maar die kaart is `print-hide` én de canonieke
+> factuur-**PDF** (`invoice-pdf.ts`) bevatte géén betaalinstructie — een opgeslagen/geprinte/doorgestuurde factuur miste dus elke IBAN
+> of betaalkenmerk (betalen = opzoeken/overtypen, foutgevoelig). Nu een "Betaalgegevens"-blok op de PDF dat de on-screen kaart exact
+> spiegelt. Nieuwe pure `invoicePaymentRows(data)` (`src/lib/invoice-pdf.ts`, één bron → geen screen↔PDF-drift): IBAN via `formatIban`,
+> t.n.v. = crediteurnaam, betaalkenmerk = `Factuur <nummer>`, bedrag = `totalCents` incl. btw (bij verlegde btw = 0 → werkelijk over te
+> maken bedrag), uiterlijk betalen = vervaldatum; geen IBAN → geen blok (zelfde voorwaarde als de kaart). PDF-route selecteert nu
+> `freelancer.iban` en geeft het door; `buildInvoicePdf` tekent het blok onder de totalen. Geen nieuwe dependency, geen schema-/mutatie-/
+> authz-wijziging, display-only. +5 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — abonnements-reconcile-cron als webhook-backstop / self-healing (2026-08-19, PR #1153)** —
 > een betaalde checkout zet een `Subscription` op `PENDING`; **alleen** de inkomende betaal-webhook tilt 'm daarna naar `ACTIVE`/`PAST_DUE`.
 > `provider.paymentStatus(providerRef)` werd tot nu toe **uitsluitend** vanuit de webhook-route aangeroepen — valt die webhook stil (verkeerde

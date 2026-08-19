@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-19 — Opdrachtgever: betaalgegevens (IBAN + betaalkenmerk) op de factuur-PDF
+
+**Wat:** het factuurdetail (`facturen/[id]`) toont een `PaymentDetailsCard` met de betaalgegevens
+(IBAN, t.n.v., betaalkenmerk, bedrag, uiterlijk betalen), maar die kaart is `print-hide` én de
+canonieke factuur-**PDF** (`invoice-pdf.ts`, de printbare/opslaanbare/door te sturen versie) bevatte
+géén betaalinstructie. Een opdrachtgever die de PDF opslaat of naar zijn boekhouding stuurt had geen
+IBAN of betaalkenmerk — betalen kostte een omweg (opzoeken/overtypen, foutgevoelig). Nu draagt de PDF
+een "Betaalgegevens"-blok dat de on-screen kaart exact spiegelt. Benchmark: elke professionele
+facturatietool (Moneybird/e-Boekhouden) zet de betaalinstructie op het factuurdocument zelf.
+
+**Hoe:** nieuwe pure `invoicePaymentRows(data)` in `src/lib/invoice-pdf.ts` bouwt de rijen (IBAN via
+`formatIban`, t.n.v. = crediteurnaam, betaalkenmerk = `Factuur <nummer>`, bedrag = `totalCents` incl.
+btw, uiterlijk betalen = vervaldatum) — één bron, spiegelt de `PaymentDetailsCard` → geen screen↔PDF-
+drift. `Bedrag` = totaal incl. btw, gelijk aan de kaart en aan het factuurtotaal; bij verlegde btw is
+btw = 0 dus dat is het werkelijk over te maken bedrag. Geen IBAN → `null` → geen blok (dezelfde
+voorwaarde als de kaart). `buildInvoicePdf` tekent het blok onder de totalen. De PDF-route
+(`/api/facturen/[id]/pdf`) selecteert nu `freelancer.iban` en geeft het door. Geen nieuwe dependency,
+geen schema-/mutatie-/authz-wijziging (route-authz/audit ongewijzigd), display-only.
+
+**Tests:** +5 (`invoice-pdf.test.ts`): `invoicePaymentRows` null zonder IBAN, exacte rij-spiegeling
+(opgemaakt IBAN/kenmerk/bedrag/vervaldatum), vervaldatum weggelaten zonder `dueAt`, verlegde-btw-bedrag
+= totaal, en een geldige PDF-build mét IBAN. Gate: typecheck + lint + test + build + prettier groen.
+
 ## 2026-08-19 — Security/Privacy-audit: behavioural-metadata overleefde erasure (AVG art. 17/15)
 
 **Wat:** security-/privacy-auditronde (basis `main` @ 126505f6). Orchestrator (Opus 4.8) + 3 parallelle

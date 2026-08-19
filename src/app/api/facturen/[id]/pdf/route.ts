@@ -53,6 +53,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
               userId: true,
               kvkNumber: true,
               btwNumber: true,
+              iban: true,
               user: { select: { name: true } },
             },
           },
@@ -123,6 +124,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     vatCents: inv.vatCents ?? 0,
     totalCents: inv.totalCents ?? 0,
     lines: inv.lines,
+    iban: inv.collaboration?.freelancer.iban ?? null,
   });
 
   const safeNumber = (inv.partyInvoiceNumber ?? inv.number).replace(/[^\w.\-]+/g, "_");

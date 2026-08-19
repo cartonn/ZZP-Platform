@@ -4,6 +4,7 @@
 import "server-only";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { A4, PDF_MARGIN, PDF_RIGHT, PDF_MUTED, PDF_LINE, euro, makeWriter } from "@/lib/pdf-common";
+import { formatIban } from "@/lib/fiscal";
 
 export interface InvoicePdfLine {
   description: string;
@@ -26,6 +27,34 @@ export interface InvoicePdfData {
   vatCents: number;
   totalCents: number;
   lines: InvoicePdfLine[];
+  /** SEPA-IBAN van de crediteur; leeg/afwezig → geen betaalgegevens-blok op de PDF. */
+  iban?: string | null;
+}
+
+export interface InvoicePaymentRow {
+  label: string;
+  value: string;
+}
+
+/**
+ * Betaalgegevens-rijen voor op de factuur-PDF. Spiegelt exact de on-screen `PaymentDetailsCard`
+ * (IBAN, t.n.v., betaalkenmerk, bedrag, uiterlijk betalen) zodat scherm en PDF niet driften. Puur
+ * en testbaar. Geeft `null` zonder IBAN — dan hoort er geen betaalinstructie op de factuur.
+ *
+ * `Bedrag` = totaal incl. btw (`totalCents`), gelijk aan de kaart en aan het factuurtotaal; bij
+ * verlegde btw is dat het door de opdrachtgever daadwerkelijk over te maken bedrag (btw = 0).
+ */
+export function invoicePaymentRows(data: InvoicePdfData): InvoicePaymentRow[] | null {
+  const iban = data.iban?.trim();
+  if (!iban) return null;
+  const rows: InvoicePaymentRow[] = [
+    { label: "IBAN", value: formatIban(iban) },
+    { label: "T.n.v.", value: data.fromName },
+    { label: "Betaalkenmerk", value: `Factuur ${data.number}` },
+    { label: "Bedrag", value: euro(data.totalCents) },
+  ];
+  if (data.dueAt) rows.push({ label: "Uiterlijk betalen", value: data.dueAt });
+  return rows;
 }
 
 const REGIME_LABEL: Record<string, string> = {
@@ -128,6 +157,24 @@ export async function buildInvoicePdf(data: InvoicePdfData): Promise<Uint8Array>
   });
   draw("Totaal incl. btw", totalLabelR - 130, y, { size: 11, f: bold });
   drawRight(euro(data.totalCents), right, y, { size: 11, f: bold });
+
+  // Betaalgegevens — de opdrachtgever betaalt rechtstreeks (off-platform); dit blok geeft de
+  // gestructureerde gegevens (IBAN, betaalkenmerk, bedrag) zodat correct + op tijd betaald wordt.
+  // Spiegelt de on-screen PaymentDetailsCard, die op de printbare pagina juist `print-hide` is —
+  // zonder dit blok mist een opgeslagen/geprinte factuur elke betaalinstructie.
+  const paymentRows = invoicePaymentRows(data);
+  if (paymentRows) {
+    y -= 34;
+    hr(y);
+    y -= 16;
+    draw("Betaalgegevens", M, y, { size: 9, f: bold, color: PDF_MUTED });
+    y -= 15;
+    for (const r of paymentRows) {
+      draw(r.label, M, y, { size: 9, color: PDF_MUTED });
+      draw(r.value, M + 110, y, { size: 10 });
+      y -= 14;
+    }
+  }
 
   // Regime-notitie onderaan
   if (data.vatRegime === "REVERSE_CHARGE") {
