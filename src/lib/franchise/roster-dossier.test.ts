@@ -59,7 +59,13 @@ describe("getRosterDossier — factuur-scoping", () => {
     await getRosterDossier(ACTOR, "p1");
 
     expect(invoiceFindMany).toHaveBeenCalledTimes(1);
-    const where = invoiceFindMany.mock.calls[0][0].where;
+    const arg = invoiceFindMany.mock.calls[0]?.[0] as {
+      where: {
+        collaboration: { is: { freelancerId: string; job: { is: unknown } } };
+        issuerUserId?: string;
+      };
+    };
+    const where = arg.where;
     // Scoping via de altijd-gevulde relatie: déze ZZP'er, binnen de eigen tenant.
     expect(where.collaboration.is.freelancerId).toBe("p1");
     expect(where.collaboration.is.job.is).toEqual({ tenantId: "t1" });
