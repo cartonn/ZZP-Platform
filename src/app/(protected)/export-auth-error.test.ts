@@ -44,6 +44,7 @@ import { GET as dienstenGet } from "./diensten/export/route";
 import { GET as verplichtingenGet } from "./verplichtingen/export/route";
 import { GET as prognoseGet } from "./prognose/export/route";
 import { GET as prestatiesGet } from "./prestaties/export/route";
+import { GET as facturenGet } from "./facturen/export/route";
 import { GET as importTemplateGet } from "./admin/import/template/route";
 
 describe("Download-routes — AuthorizationError geeft nette status, geen rauwe 500", () => {
@@ -64,6 +65,11 @@ describe("Download-routes — AuthorizationError geeft nette status, geen rauwe 
 
   it("prestaties-export vangt de 401 af tot een response", async () => {
     const res = await prestatiesGet();
+    expect(res.status).toBe(401);
+  });
+
+  it("factuurregister-export vangt de 401 af tot een response", async () => {
+    const res = await facturenGet();
     expect(res.status).toBe(401);
   });
 

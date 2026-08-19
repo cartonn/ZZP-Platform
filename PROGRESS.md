@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-19 — ZZP'er + opdrachtgever: factuurregister-CSV-export op /facturen (verkoop-/inkoopboek)
+
+**Wat:** de administratie kende al een **grootboek**-CSV (`/api/administratie/export` — één rij per
+boeking, gelinkt vanaf de Boekhouding-tab), maar geen **factuurregister**: het verkoopboek (ZZP'er) /
+inkoopboek (opdrachtgever) dat een boekhouder als factuuroverzicht vraagt — één rij per factuur. Nu
+exporteert de facturenlijst op `/facturen` (en in de Administratie-hub) dat register als CSV via een
+nieuwe "Exporteer (CSV)"-knop naast "Nieuwe factuur". Benchmark: elke facturatietool (Moneybird/Stripe/
+Deel) laat je je factuurlijst als boekhoudbestand downloaden.
+
+**Hoe:** nieuwe pure `src/lib/invoice-register-csv.ts` (`invoiceRegisterCsv`): kolommen factuurnummer,
+factuurdatum, vervaldatum, tegenpartij, omschrijving, bedrag_excl_btw, btw, bedrag_incl_btw, status,
+betaald_op — oplopend op factuurdatum, concepten (zonder datum) onderaan. De **status** hergebruikt
+exact `invoiceGroup` + `INVOICE_FILTER_LABEL` (dezelfde cascade-bewuste indeling als de filter-pills)
+→ geen scherm↔export-drift. Bedragen via de gedeelde `centsToEuroPlain`/`toCsv` (formule-injectie-
+beveiliging in de CSV-kern). Excl./btw-splitsing: cascade-factuur draagt `subtotalCents`/`vatCents`
+(invariant excl.+btw=incl.); een legacy losse factuur zonder splitsing → totaal excl. + €0 btw
+(deterministisch, verzint nooit een btw-splitsing). Nieuwe route
+`src/app/(protected)/facturen/export/route.ts`: rol-bewust (FREELANCER → verkoop, CLIENT → inkoop;
+ADMIN 403 — die heeft `/admin/facturatie`), **exact dezelfde `where` als het facturen-paneel** (alleen
+eigen facturen), rate-limited (`exportRateLimiter`), `AuthorizationError`→nette status, één auditregel
+`INVOICE_REGISTER_EXPORTED`. Knop in `facturen-panel.tsx` (alleen als er facturen zijn). Read-only,
+geen schema-/mutatie-/domeinmotor-wijziging.
+
+**Tests:** +11 (`invoice-register-csv.test.ts`: net/vat-fallback + invariant, vaste kop, chronologische
+sortering met concepten onderaan, lege velden, formule-injectie-guard, openstaand-groepslabel) + route
+geregistreerd in de gedeelde `export-auth-error` (401-parity) en `export-audit` (auditregel + ADMIN-403)
+tests + audit-label. Gate: typecheck, lint, test (6362+), build, prettier groen.
+
 ## 2026-08-19 — Opdrachtgever: betaalgegevens (IBAN + betaalkenmerk) op de factuur-PDF
 
 **Wat:** het factuurdetail (`facturen/[id]`) toont een `PaymentDetailsCard` met de betaalgegevens

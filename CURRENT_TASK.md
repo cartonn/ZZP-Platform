@@ -268,6 +268,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er + opdrachtgever — factuurregister-CSV-export op /facturen (verkoop-/inkoopboek) (2026-08-19, PR #1156)** —
+> de administratie kende al een **grootboek**-CSV (`/api/administratie/export`, regel per boeking, vanaf de Boekhouding-tab) maar geen
+> **factuurregister**: het verkoopboek (ZZP'er) / inkoopboek (opdrachtgever) — één rij per factuur, dat een boekhouder als factuuroverzicht
+> vraagt. Nu een "Exporteer (CSV)"-knop op `/facturen` (naast "Nieuwe factuur", alleen bij ≥1 factuur). Nieuwe pure
+> `src/lib/invoice-register-csv.ts` (`invoiceRegisterCsv`): kolommen factuurnummer/factuurdatum/vervaldatum/tegenpartij/omschrijving/
+> bedrag_excl_btw/btw/bedrag_incl_btw/status/betaald_op, oplopend op factuurdatum (concepten onderaan). De **status** hergebruikt exact
+> `invoiceGroup` + `INVOICE_FILTER_LABEL` (zelfde cascade-bewuste indeling als de filter-pills) → geen scherm↔export-drift; bedragen via de
+> gedeelde `centsToEuroPlain`/`toCsv` (formule-injectie-guard in de CSV-kern). Excl./btw-splitsing uit `subtotalCents`/`vatCents` (invariant
+> excl.+btw=incl.); legacy losse factuur zonder splitsing → totaal excl. + €0 btw (verzint nooit een splitsing). Nieuwe route
+> `src/app/(protected)/facturen/export/route.ts`: rol-bewust (FREELANCER=verkoop, CLIENT=inkoop, ADMIN 403 — die heeft /admin/facturatie),
+> **exact dezelfde `where` als het facturen-paneel** (alleen eigen facturen), rate-limited, `AuthorizationError`→nette status, auditregel
+> `INVOICE_REGISTER_EXPORTED`. Read-only, geen schema-/mutatie-/domeinmotor-oppervlak. +11 tests + gedeelde export-auth/-audit-parity + audit-label.
+> Gate: typecheck, lint, test (6362+), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — betaalgegevens (IBAN + betaalkenmerk) op de factuur-PDF (2026-08-19, PR #1154)** —
 > het factuurdetail toont een `PaymentDetailsCard` (IBAN/t.n.v./betaalkenmerk/bedrag), maar die kaart is `print-hide` én de canonieke
 > factuur-**PDF** (`invoice-pdf.ts`) bevatte géén betaalinstructie — een opgeslagen/geprinte/doorgestuurde factuur miste dus elke IBAN

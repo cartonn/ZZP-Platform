@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getTranslator } from "@/lib/i18n/server";
-import { Plus, Receipt } from "lucide-react";
+import { Download, Plus, Receipt } from "lucide-react";
 import { type Actor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro, invoiceableCollaborationsWhere } from "@/lib/invoices";
@@ -230,13 +230,24 @@ export async function FacturenPanel({
 
   return (
     <div className="space-y-6">
-      {canInvoice && (
-        <div className="flex justify-end">
-          <Button asChild>
-            <Link href="/facturen/nieuw">
-              <Plus className="size-4" aria-hidden /> {t("Nieuwe factuur")}
-            </Link>
-          </Button>
+      {(canInvoice || invoices.length > 0) && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {invoices.length > 0 && (
+            <Button asChild variant="secondary">
+              {/* Factuurregister (verkoop-/inkoopboek) als CSV voor de boekhouder — één rij per
+                  factuur, naast de grootboek-export op de Boekhouding-tab. */}
+              <a href="/facturen/export" download>
+                <Download className="size-4" aria-hidden /> {t("Exporteer (CSV)")}
+              </a>
+            </Button>
+          )}
+          {canInvoice && (
+            <Button asChild>
+              <Link href="/facturen/nieuw">
+                <Plus className="size-4" aria-hidden /> {t("Nieuwe factuur")}
+              </Link>
+            </Button>
+          )}
         </div>
       )}
 
