@@ -422,6 +422,54 @@ export function subscriptionPendingStaleHours(): number {
   return parseSubscriptionPendingStaleHours(process.env.SUBSCRIPTION_PENDING_STALE_HOURS);
 }
 
+// --- Abonnements-reconciliatie (webhook-backstop) --------------------------
+// De reconcile-cron (src/lib/subscription-reconcile-task.ts) poll't de betaalprovider voor PENDING-
+// abonnementen die langer dan dit venster op een webhook-bevestiging wachten, en past de opgehaalde
+// status alsnog toe (self-healing bij een gemiste/stille webhook). Het venster is bewust *korter* dan
+// het stale-detectievenster (SUBSCRIPTION_PENDING_STALE_HOURS): de poll heelt een gemiste webhook
+// idealiter vóór de stale-gauge ooit afgaat. Ondergrens beschermt een legitiem in-flight checkout
+// (instant iDEAL/kaart rondt binnen minuten af; onder de ondergrens zou de poll een normale betaling
+// al opvragen); een `open`-status laat de rij hoe dan ook ongemoeid, dus een trage SEPA-betaling wordt
+// nooit ten onrechte omgezet. Bovengrens = 24u zodat een typefout de backstop niet uitschakelt.
+export const SUBSCRIPTION_RECONCILE_AFTER_MINUTES_DEFAULT = 30;
+export const SUBSCRIPTION_RECONCILE_AFTER_MINUTES_MIN = 5;
+export const SUBSCRIPTION_RECONCILE_AFTER_MINUTES_MAX = 24 * 60; // 24u bovengrens.
+export function parseSubscriptionReconcileAfterMinutes(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === "") return SUBSCRIPTION_RECONCILE_AFTER_MINUTES_DEFAULT;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return SUBSCRIPTION_RECONCILE_AFTER_MINUTES_DEFAULT;
+  return Math.min(
+    SUBSCRIPTION_RECONCILE_AFTER_MINUTES_MAX,
+    Math.max(SUBSCRIPTION_RECONCILE_AFTER_MINUTES_MIN, Math.floor(n)),
+  );
+}
+
+/** Geconfigureerd reconcile-venster in minuten (default 30). */
+export function subscriptionReconcileAfterMinutes(): number {
+  return parseSubscriptionReconcileAfterMinutes(process.env.SUBSCRIPTION_RECONCILE_AFTER_MINUTES);
+}
+
+// Max aantal abonnementen dat één reconcile-tick bij de provider opvraagt. Begrenst de uitgaande
+// provider-calls per run (elke rij = één GET) zodat een grote achterstand niet in één tick de provider
+// bestookt of de cron-deadline overschrijdt; de resterende rijen komen de volgende tick aan de beurt.
+export const SUBSCRIPTION_RECONCILE_MAX_BATCH_DEFAULT = 50;
+export const SUBSCRIPTION_RECONCILE_MAX_BATCH_MIN = 1;
+export const SUBSCRIPTION_RECONCILE_MAX_BATCH_MAX = 500;
+export function parseSubscriptionReconcileMaxBatch(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === "") return SUBSCRIPTION_RECONCILE_MAX_BATCH_DEFAULT;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return SUBSCRIPTION_RECONCILE_MAX_BATCH_DEFAULT;
+  return Math.min(
+    SUBSCRIPTION_RECONCILE_MAX_BATCH_MAX,
+    Math.max(SUBSCRIPTION_RECONCILE_MAX_BATCH_MIN, Math.floor(n)),
+  );
+}
+
+/** Geconfigureerde reconcile-batchgrootte per tick (default 50). */
+export function subscriptionReconcileMaxBatch(): number {
+  return parseSubscriptionReconcileMaxBatch(process.env.SUBSCRIPTION_RECONCILE_MAX_BATCH);
+}
+
 // --- Annuleringstermijn (productbesluit eigenaar 12-6-2026) ----------------
 // De opdrachtgever annuleert kosteloos zolang de startdatum nog minstens dit aantal dagen weg is;
 // korter op de start (of na de start) ontstaat een betalingsverplichting. Symmetrisch geregistreerd:

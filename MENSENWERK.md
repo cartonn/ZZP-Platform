@@ -657,6 +657,25 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
      voor automatische **maandelijkse hernieuwing** (i.p.v. handmatig opnieuw betalen bij verval) een
      Mollie-mandaat/recurring-koppeling — een vervolgstap bovenop deze verval-cyclus.
 
+   **Code-kant GEDAAN (2026-08-19) — reconcile-cron als webhook-backstop (self-healing).** Een betaalde
+   checkout zet een abonnement op `PENDING`; **alleen** de inkomende betaal-webhook tilt 'm daarna naar
+   `ACTIVE`/`PAST_DUE`. Valt die webhook stil (verkeerde callback-URL, handtekening-mismatch, geblokkeerde
+   poort, provider-retry uitgeput), dan bleef élke checkout vóór dit werk **voor altijd** op `PENDING`
+   staan — niemand geactiveerd, omzet lekt stil weg. PR #1135 voegde alleen _detectie_ toe
+   (`zzp_subscriptions_stale_pending`-gauge); dit voegt de _self-healing_ toe die betaalproviders
+   (Stripe/Mollie) expliciet aanbevelen. De nieuwe taak `subscription-reconcile` (in `/api/tasks/run-all`
+   - los `/api/tasks/subscription-reconcile`, `src/lib/subscription-reconcile-task.ts`) poll't de provider
+     (`paymentStatus(providerRef)`) voor PENDING-abonnementen die langer dan `SUBSCRIPTION_RECONCILE_AFTER_MINUTES`
+     (default 30, geklemd 5–1440) op een webhook-bevestiging wachten, en past de opgehaalde status alsnog toe —
+     precies wat de gemiste webhook had gedaan. De statustoepassing loopt via **exact dezelfde** idempotente
+     apply-helper als de webhook (`src/lib/billing/apply-payment-status.ts`, gedeelde `ProcessedWebhookEvent`-
+     ledger) → één bron van waarheid, dus een reconcile + een late webhook op dezelfde betaling kunnen de
+     periode niet twee keer verlengen. Een `open`-status laat de rij ongemoeid (trage SEPA telt nooit als
+     vastgelopen). Batch begrensd per tick (`SUBSCRIPTION_RECONCILE_MAX_BATCH`, default 50); provider-/DB-fout
+     per rij → overslaan (volgende tick opnieuw), nooit de hele run breken. **No-op met de mock-provider**
+     (pilot-default: nooit een externe PENDING-rij). Resterend mensenwerk: **niets extra** — de backstop draait
+     zodra een echte betaalprovider (`BILLING_PROVIDER=stripe`/`mollie`) actief is.
+
 ### §3b. Franchise-facturatie (tenant-billing)
 
 **Wat:** de franchise-monetisatie (3+1 hybride: een maandabonnement per vestiging + een lichte
