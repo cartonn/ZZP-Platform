@@ -161,6 +161,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   DIENSTEN_EXPORTED: "Diensten geëxporteerd",
   PRESTATIES_EXPORTED: "Prestaties geëxporteerd",
   INVOICE_REGISTER_EXPORTED: "Factuurregister geëxporteerd",
+  RELATION_BREAKDOWN_EXPORTED: "Relatie-uitsplitsing geëxporteerd",
   CANDIDATES_COMPARED_EXPORTED: "Kandidatenvergelijking geëxporteerd",
 
   // Notificaties & meldingen

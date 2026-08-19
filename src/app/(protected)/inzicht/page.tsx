@@ -525,13 +525,33 @@ function PlaatsingenPerMaandCard({ trend }: { trend: PlacementsTrend }) {
  * één opdrachtgever is een bedrijfsrisico). De cijfers komen uit `getFreelancerRevenueBreakdown`
  * (dezelfde bron als `earnedCents` → geen drift), server-side berekend. Alleen eigen facturen.
  */
+/**
+ * Downloadlink voor de relatie-uitsplitsing (rol-bewuste route: ZZP'er → omzet per opdrachtgever,
+ * opdrachtgever → uitgaven per ZZP'er). Spiegelt de franchiser-export-actie "Per opdrachtgever".
+ */
+function RelatieCsvExportLink() {
+  return (
+    <Link
+      href="/inzicht/relaties/export"
+      prefetch={false}
+      className="focus-ring inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:underline"
+    >
+      <Download className="size-3.5" aria-hidden />
+      Exporteer (CSV)
+    </Link>
+  );
+}
+
 function OmzetPerOpdrachtgeverWidget({
   breakdown,
 }: {
   breakdown: Awaited<ReturnType<typeof getFreelancerRevenueBreakdown>>;
 }) {
   return (
-    <BiWidget title="Omzet per opdrachtgever">
+    <BiWidget
+      title="Omzet per opdrachtgever"
+      action={breakdown.rows.length > 0 ? <RelatieCsvExportLink /> : undefined}
+    >
       {breakdown.rows.length === 0 ? (
         <EmptyState
           icon={Building2}
@@ -954,7 +974,10 @@ async function ClientInzicht({ userId }: { userId: string }) {
         />
       </div>
 
-      <BiWidget title="Per ZZP'er">
+      <BiWidget
+        title="Per ZZP'er"
+        action={spend.rows.length > 0 ? <RelatieCsvExportLink /> : undefined}
+      >
         {spend.rows.length === 0 ? (
           <EmptyState
             icon={Users}

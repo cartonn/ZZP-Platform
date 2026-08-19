@@ -268,6 +268,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er + opdrachtgever — CSV-export relatie-uitsplitsing op /inzicht (omzet/uitgaven per relatie) (2026-08-19, PR #1159)** —
+> de kaarten "Omzet per opdrachtgever" (ZZP'er) en "Uitgaven per ZZP'er" (opdrachtgever) op `/inzicht` toonden de betaalde omzet/uitgaven per
+> relatie op het scherm, maar waren — anders dan de franchiser-tegenhanger "Per opdrachtgever" (die al `/franchise/opdrachtgevers/export` had) —
+> niet exporteerbaar. Nu een "Exporteer (CSV)"-actie op beide kaarten (alleen bij ≥1 relatie) die het debiteuren-/crediteuren-per-relatie-overzicht
+> als CSV levert (kolommen relatie/bedrag/aandeel/samenwerkingen), naast het per-factuur-register (#1156). Nieuwe pure
+> `src/lib/relation-breakdown-csv.ts` (`relationBreakdownCsv`, rol-afhankelijke koppen; behoudt de scherm-volgorde → geen drift; gedeelde
+> `centsToEuroPlain`/`toCsv` met formule-injectie-guard). Nieuwe rol-bewuste route `src/app/(protected)/inzicht/relaties/export/route.ts`
+> (FREELANCER=`getFreelancerRevenueBreakdown`, CLIENT=`getClientSpendBreakdown` — exact de kaart-fetchers, alleen eigen relaties; ADMIN/FRANCHISER
+> 403; rate-limited; auditregel `RELATION_BREAKDOWN_EXPORTED`). Read-only, geen schema-/mutatie-/domeinmotor-oppervlak. +6 tests + export-auth/-audit-
+> parity + audit-label. Gate: typecheck, lint, test (6377), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er + opdrachtgever — factuurregister-CSV-export op /facturen (verkoop-/inkoopboek) (2026-08-19, PR #1156)** —
 > de administratie kende al een **grootboek**-CSV (`/api/administratie/export`, regel per boeking, vanaf de Boekhouding-tab) maar geen
 > **factuurregister**: het verkoopboek (ZZP'er) / inkoopboek (opdrachtgever) — één rij per factuur, dat een boekhouder als factuuroverzicht

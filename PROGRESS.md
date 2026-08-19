@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-19 — ZZP'er + opdrachtgever: CSV-export relatie-uitsplitsing op /inzicht (omzet/uitgaven per relatie)
+
+**Wat:** de kaarten "Omzet per opdrachtgever" (ZZP'er) en "Uitgaven per ZZP'er" (opdrachtgever) op
+`/inzicht` toonden de betaalde omzet/uitgaven per relatie op het scherm, maar waren — anders dan de
+franchiser-tegenhanger "Per opdrachtgever" (die al een `/franchise/opdrachtgevers/export` had) — niet
+exporteerbaar. Nu draagt elke kaart een "Exporteer (CSV)"-actie (alleen bij ≥1 relatie) die het
+debiteuren-/crediteuren-per-relatie-overzicht als CSV levert — wat een boekhouder naast het
+per-factuur-register (#1156) vraagt. Benchmark: elke boekhoudtool laat je een omzet-per-klant /
+inkoop-per-leverancier-overzicht downloaden.
+
+**Hoe:** nieuwe pure `src/lib/relation-breakdown-csv.ts` (`relationBreakdownCsv`): kolommen relatie,
+bedrag (EUR), aandeel (%), samenwerkingen — met rol-afhankelijke koppen ("Opdrachtgever" + "Omzet (EUR)"
+voor de ZZP'er, "ZZP'er" + "Uitgaven (EUR)" voor de opdrachtgever), de enige tekst die tussen de twee
+verschilt. Behoudt de aangeleverde volgorde (bedrag aflopend, zoals op de kaart) → geen scherm↔export-
+drift. Bedragen via de gedeelde `centsToEuroPlain`/`toCsv` (formule-injectie-guard, CWE-1236, op de
+relatienaam van derden). Nieuwe rol-bewuste route `src/app/(protected)/inzicht/relaties/export/route.ts`:
+FREELANCER → `getFreelancerRevenueBreakdown`, CLIENT → `getClientSpendBreakdown` (exact dezelfde fetchers
+als de kaarten, alleen eigen relaties), ADMIN/FRANCHISER → 403 (die hebben `/admin/facturatie` resp.
+`/franchise/opdrachtgevers/export`), rate-limited (`exportRateLimiter`), `AuthorizationError`→nette
+status, auditregel `RELATION_BREAKDOWN_EXPORTED`. `RelatieCsvExportLink` op beide `BiWidget`-kaarten.
+Read-only, geen schema-/mutatie-/domeinmotor-oppervlak.
+
+**Tests:** +6 (`relation-breakdown-csv.test.ts`: rol-koppen ZZP'er+opdrachtgever, rij-serialisatie,
+volgorde-behoud, formule-injectie-guard, lege-set→alleen kop) + route geregistreerd in de gedeelde
+`export-auth-error` (401-parity) en `export-audit` (auditregel FREELANCER+CLIENT + ADMIN-403) tests +
+audit-label. Gate: typecheck, lint, test (6377), build, prettier groen.
+
 ## 2026-08-19 — ZZP'er + opdrachtgever: factuurregister-CSV-export op /facturen (verkoop-/inkoopboek)
 
 **Wat:** de administratie kende al een **grootboek**-CSV (`/api/administratie/export` — één rij per
