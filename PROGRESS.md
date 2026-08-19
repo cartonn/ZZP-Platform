@@ -30,6 +30,37 @@ volgorde-behoud, formule-injectie-guard, lege-set→alleen kop) + route geregist
 `export-auth-error` (401-parity) en `export-audit` (auditregel FREELANCER+CLIENT + ADMIN-403) tests +
 audit-label. Gate: typecheck, lint, test (6377), build, prettier groen.
 
+## 2026-08-19 — persona-sweep: /openstaand consumeert de canonieke openstaand-regel (dedup drift-val)
+
+**Wat (persona-sweep, DOEL 2 / geld-integriteit):** de `/openstaand`-pagina
+(`openstaand-panel.tsx`) én haar CSV-export (`/api/administratie/openstaand/route.ts`) rolden de
+openstaand-statusregel (cascade `SUBMITTED/APPROVED/OVERDUE`, legacy `SENT/OVERDUE`) **inline als
+literal-arrays** uit, terwijl `outstanding.ts` (`isInvoiceOutstanding` / `outstandingInvoiceWhere`)
+al de canonieke bron is die 9 andere consumenten (freelancer-stats, signals, payment-obligations,
+freelancer-cascade-work, pending-tasks, tasks, calendar, income-forecast) delen. Twee kopieën van
+hetzelfde getal → zodra `OUTSTANDING_LIFECYCLE` verandert, lopen de dashboard-"openstaand"-KPI en de
+pagina/CSV die letterlijk "openstaand" heet **stil uiteen** voor identieke facturen in dezelfde
+periode (CLAUDE.md regel 1/6 — één bron van waarheid, server-side).
+
+**Hoe:** beide sites vervangen de hand-gerolde `.filter((inv) => …)` door
+`invoices.filter(isInvoiceOutstanding)` + import uit `@/lib/administration/outstanding`. Geen
+gedragswijziging vandaag (de literals matchten de canonieke set exact) — dit sluit de drift-val.
+Regressie: `src/lib/administration/openstaand-consistency.test.ts` (bron-niveau: beide consumenten
+importeren de canonieke helper én bevatten de hand-gerolde literal niet meer — RED vóór de fix).
+
+**Checks:** typecheck + lint + prettier groen; unit-suite groen (nieuwe test + bestaande
+`outstanding.test.ts`). Build lokaal geblokkeerd door het egress-beleid (next/font/google-fetch) —
+CI-poort bewijst de build.
+
+**Persona-sweep-bevindingen (4 parallelle adversariële Opus-audits):** authz/IDOR/tenant-isolatie
+**0 gaten**; malicieuze input/CSV/XSS/upload **0 gaten** (elke export via de gedeelde
+`toCsv`/`escapeCsvField`; `validatePerformanceForm` dekt negatief/NaN/overflow); cascade/geld leverde
+de gefixte /openstaand-dedup. De next-action-audit meldde een "ADMIN badge overcount"-HIGH, maar
+verificatie wees uit dat de badge-bestemming `/admin/verificaties` de **volledige, ongecapte**
+wachtrij toont — de badge klopt met zijn bestemming; alleen de secundaire `/acties`-aggregator capt op
+50 (bewust, "+N meer"). Geen defect; capping zou de badge juist laten ónder-tellen (wrong-direction).
+Geparkeerd met analyse in `docs/PERSONA-SWEEP-BACKLOG.md`.
+
 ## 2026-08-19 — ZZP'er + opdrachtgever: factuurregister-CSV-export op /facturen (verkoop-/inkoopboek)
 
 **Wat:** de administratie kende al een **grootboek**-CSV (`/api/administratie/export` — één rij per

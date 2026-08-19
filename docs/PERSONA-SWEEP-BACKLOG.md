@@ -1,5 +1,47 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-19 (run 83) · **main-commit basis:** `55aa62e3`
+> **Uitkomst:** **1 geld-integriteit/drift-defect gevonden én gefixt** (MED — /openstaand-pagina + CSV
+> dupliceerden de openstaand-statusregel inline i.p.v. de canonieke `isInvoiceOutstanding`). 4 parallelle
+> adversariële Opus-code-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie ·
+> cascade/geld-integriteit + verboden statusovergangen · next-action-engine/badge-pariteit ·
+> malicieuze input/CSV/XSS/upload). Authz/IDOR én malicieuze-input vonden **0 bereikbare gaten**; de
+> cascade/geld-audit leverde de gefixte /openstaand-dedup. (Live Playwright-probe is aan CI overgelaten
+> — het egressbeleid van deze sessie weigert `next/font/google`-fetches → lokale build/probe faalt; geen
+> codedefect.)
+>
+> - **OPGELOST — /openstaand consumeert de canonieke openstaand-regel (MED, geld-integriteit, DOEL 2):**
+>   `src/app/api/administratie/openstaand/route.ts:61` en `src/components/administratie/openstaand-panel.tsx:76`
+>   rolden de openstaand-regel (cascade `SUBMITTED/APPROVED/OVERDUE`, legacy `SENT/OVERDUE`) inline als
+>   literal-arrays uit, terwijl `src/lib/administration/outstanding.ts` (`isInvoiceOutstanding`) al de
+>   canonieke bron is die 9 andere consumenten delen. Twee definities van hetzelfde getal → drift-val
+>   op de pagina die letterlijk "openstaand" heet zodra `OUTSTANDING_LIFECYCLE` wijzigt. **Fix:** beide
+>   `.filter(isInvoiceOutstanding)` + import; +regressietest `openstaand-consistency.test.ts` (bron-niveau,
+>   RED vóór de fix). Geen gedragswijziging vandaag (literals matchten de canonieke set).
+>
+> **GEPARKEERD / GEEN-DEFECT (run 83, met verificatie):**
+>
+> - **GEEN DEFECT — "ADMIN nav-badge overcount vs /acties (>50)":** de next-action-audit meldde dat de
+>   ADMIN-badges (`signals.ts:1035-1052`: pendingVerifications/openDisputes/openSupportTickets/
+>   pendingNoShowVerdicts/openAdminHandoffs) rauwe `.count()` gebruiken terwijl `adminTasks()` op 50 capt.
+>   **Verificatie:** de badge-bestemming `/admin/verificaties/page.tsx:51` doet `findMany({ where: { status:
+"SUBMITTED" } })` **zónder `take`** → toont de volledige wachtrij; alle rijen zijn daar bereikbaar en
+>   afhandelbaar. De badge klopt dus met zijn eigen bestemming; alleen de secundaire `/acties`-aggregator
+>   capt op 50 (bewust, "+N meer buiten beschouwing"). De audit-claim "5 nieuwste zijn nergens
+>   afhandelbaar" is onjuist. De aanbevolen fix (badge cappen op 50) zou de badge juist laten ónder-tellen
+>   t.o.v. de echte backlog + de queue-pagina — een wrong-direction-regressie. **Geen actie.**
+> - **LOW/latent — CLIENT cascade-badge mist expliciete `collaboration.status: "ACTIVE"`-filter:**
+>   `signals.ts:643` (`cascadePerf`) / `:650` (`cascadeInv`) scopen alleen op `company.userId` + `disputedAt:
+null`, terwijl de /acties-emitters (`pending-tasks.ts:1094`/`:1117`) óók `status: "ACTIVE"` vereisen.
+>   Nu onbereikbaar (een SUBMITTED-prestatie/-factuur kan niet coëxisteren met een niet-ACTIVE
+>   samenwerking — de cancel/complete-guards blokkeren dat), maar defense-in-depth-nit: een toekomstige
+>   guard-wijziging zou het gat stil kunnen heropenen. Aanbevolen: `status: "ACTIVE"` toevoegen aan beide
+>   count-queries voor pariteit. Geen urgentie.
+>
+> ---
+>
+> **Vorige run:**
+>
 > **Datum:** 2026-08-18 (run 82) · **main-commit basis:** `1a3e68e1`
 > **Uitkomst:** **1 bereikbaar HIGH DOEL 1b-defect gevonden én gefixt** (FREELANCER cascadebadge outer-
 > window-blindheid + 2 sub-vectoren) + **1 HIGH geld/administratie-defect gevonden en GEPARKEERD** (aparte

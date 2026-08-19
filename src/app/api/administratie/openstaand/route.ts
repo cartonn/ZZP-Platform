@@ -5,6 +5,7 @@ import { AuthorizationError, requireActor } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { buildAgingReport, agingCsv, type OpenInvoice } from "@/lib/administration/aging";
+import { isInvoiceOutstanding } from "@/lib/administration/outstanding";
 import { buildPayoutForecastMap, effectivePayoutDate } from "@/lib/administration/payout-forecast";
 import { type PayoutForecast } from "@/lib/invoice-payment-forecast";
 import { exportRateLimiter } from "@/lib/rate-limit";
@@ -58,13 +59,10 @@ async function fetchOpenInvoices(
       : Promise.resolve([]),
   ]);
 
-  const outstanding = invoices.filter((inv) => {
-    const isCascade = inv.lifecycleStatus != null;
-    if (isCascade) {
-      return ["SUBMITTED", "APPROVED", "OVERDUE"].includes(inv.lifecycleStatus as string);
-    }
-    return ["SENT", "OVERDUE"].includes(inv.status as string);
-  });
+  // Canonieke openstaand-regel (één bron van waarheid, gedeeld met de 9 andere consumenten en
+  // de /openstaand-pagina) — nooit de literal-arrays hier inline dupliceren: dat laat de CSV en
+  // het dashboard-getal uiteenlopen zodra de regel in outstanding.ts verandert.
+  const outstanding = invoices.filter(isInvoiceOutstanding);
 
   const open = outstanding.map((inv) => {
     const isCascade = inv.lifecycleStatus != null;
