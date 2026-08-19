@@ -268,6 +268,22 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — abonnements-reconcile-cron als webhook-backstop / self-healing (2026-08-19, PR #1153)** —
+> een betaalde checkout zet een `Subscription` op `PENDING`; **alleen** de inkomende betaal-webhook tilt 'm daarna naar `ACTIVE`/`PAST_DUE`.
+> `provider.paymentStatus(providerRef)` werd tot nu toe **uitsluitend** vanuit de webhook-route aangeroepen — valt die webhook stil (verkeerde
+> callback-URL, handtekening-mismatch, geblokkeerde poort, provider-retry uitgeput), dan bleef élke checkout **voor altijd** op `PENDING` staan
+> (niemand geactiveerd, omzet lekt stil weg). PR #1135 voegde alleen _detectie_ toe (`zzp_subscriptions_stale_pending`-gauge); dit voegt de
+> _self-healing_ toe die Stripe/Mollie expliciet aanbevelen. Nieuwe taak `subscription-reconcile` (in `/api/tasks/run-all` + los
+> `/api/tasks/subscription-reconcile`, `src/lib/subscription-reconcile-task.ts`): poll't de provider voor PENDING-rijen die langer dan
+> `SUBSCRIPTION_RECONCILE_AFTER_MINUTES` (default 30, geklemd 5–1440) mét een `providerRef` op een bevestiging wachten, en past de opgehaalde
+> status alsnog toe. De statustoepassing is geëxtraheerd naar de gedeelde idempotente `src/lib/billing/apply-payment-status.ts`
+> (`applyResolvedPaymentStatus`) die **zowel** de webhook **als** de reconcile-taak gebruiken → één bron van waarheid + dezelfde
+> `ProcessedWebhookEvent`-ledger-grendel, dus reconcile + late webhook op dezelfde betaling verlengen de periode niet twee keer. `open` laat de
+> rij ongemoeid (trage SEPA telt nooit als vastgelopen); batch begrensd per tick (`SUBSCRIPTION_RECONCILE_MAX_BATCH`, default 50); provider-/DB-fout
+> per rij → overslaan (volgende tick opnieuw), nooit de hele run breken. No-op met de mock-provider. Webhook-route gedrag ongewijzigd (behavior-preserving
+> refactor). Resterend mensenwerk: niets extra — draait zodra `BILLING_PROVIDER=stripe`/`mollie` actief is. +24 tests (apply-helper 8, reconcile-taak 8,
+> config-parsers 4, webhook-refactor groen). Gate: typecheck, lint, test (6342), build, prettier, check:env groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er + opdrachtgever — ORT-uitsplitsing in de urenstaat-CSV-exports (2026-08-19, PR #1151)** —
 > de CSV-exports van `/diensten` (ZZP'er) en `/prestaties` (opdrachtgever) droegen enkel een `ORT` Ja/Nee-kolom + het totaal-
 > subtotaal, waardoor een zorg-boekhouder/payroll de onregelmatigheidstoeslag niet kon afstemmen tegen een CAO-loonstrook.

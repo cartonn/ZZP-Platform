@@ -15,6 +15,7 @@ import { runJobAlertsTask } from "@/lib/job-alerts-task";
 import { runJobEngagementTask } from "@/lib/job-engagement-task";
 import { runSubscriptionPastDueTask } from "@/lib/past-due-task";
 import { runSubscriptionExpiryTask } from "@/lib/subscription-expiry-task";
+import { runSubscriptionReconcileTask } from "@/lib/subscription-reconcile-task";
 import { runMonitorTask } from "@/lib/monitoring/monitor-task";
 import { runZzpMembershipTask } from "@/lib/zzp-membership-task";
 import { runPerformanceGraceTask } from "@/lib/performance-grace-task";
@@ -65,6 +66,10 @@ export async function POST(request: Request): Promise<Response> {
     { name: "job-engagement", fn: () => runJobEngagementTask({ actorId: null }) },
     { name: "subscription-past-due", fn: () => runSubscriptionPastDueTask({ actorId: null }) },
     { name: "subscription-expiry", fn: () => runSubscriptionExpiryTask({ actorId: null }) },
+    {
+      name: "subscription-reconcile",
+      fn: () => runSubscriptionReconcileTask({ actorId: null }),
+    },
     { name: "zzp-membership", fn: () => runZzpMembershipTask({}) },
     { name: "performance-grace", fn: () => runPerformanceGraceTask({ actorId: null }) },
     {
