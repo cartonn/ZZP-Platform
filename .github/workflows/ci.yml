@@ -5,6 +5,15 @@ on:
     branches: ["**"]
   pull_request:
 
+# Per git-ref hoogstens één CI-run tegelijk: een nieuwe push op dezelfde branch (of PR-synchronize)
+# annuleert de vorige, nog lopende run. Zonder dit stapelen snel opeenvolgende pushes meerdere volledige
+# runs op elkaar; die concurreren om de (begrensde) GitHub-runnerpool, waardoor e2e-shards de 25-min
+# job-timeout raken en als "cancelled" falen (gezien op #1154). Push- en pull_request-triggers houden een
+# eigen groep (verschillende github.ref), dus de reguliere twee runs per head blijven bestaan.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
