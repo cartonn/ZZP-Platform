@@ -528,6 +528,25 @@ goedgekeurd", wachtwoord/uitnodiging) heb je een mailprovider nodig.
    Resterend mensenwerk: **niets extra** — de kaart/gauge vullen zichzelf zodra web-push bekabeld is
    (VAPID-sleutels gezet, zie §7) en de eerste afleverronde draait. Optioneel: richt een monitor op
    `ZzpPushDeliveryFailing`.
+   **Code-kant GEDAAN (2026-08-19) — web-push (VAPID) operationele zelftest + go-live-sweep:** web-push was
+   de énige geconfigureerde integratie zónder connectiviteits-/operationele zelftest in de go-live-sweep —
+   elke andere koppeling (opslag/mail/rate-limit/verificatie/betaling/routing/upload-scanner/error-monitoring/
+   database/semantische-matching/gelekt-wachtwoord) kan een beheerder vóór livegang met één klik bevestigen;
+   web-push niet. Het enige signaal was de aflever-heartbeat hierboven, die pas iets toont ná de eerste échte
+   pushronde — dus vóór de eerste melding was er GEEN bevestiging dat de VAPID-sleutels correct gewired zijn
+   (een verkeerd geplakte of niet-bij-elkaar-horende keypair faalde stil bij de eerste melding). Nu een
+   **lokale crypto-probe** (`probeWebPushVapid` in `src/lib/push/web-push.ts`, pure zelftest-logica in
+   `src/lib/services/push-selftest.ts`): zónder een pushbericht te versturen signeert hij een VAPID-JWT (exact
+   de signering die élke echte verzending doet) én vergelijkt hij de public/private-keypair (leidt de public
+   key af uit de private-scalar en vergelijkt byte-voor-byte — vangt de klassieke copy-paste-mismatch).
+   Bewijst drie dingen: geldige `VAPID_SUBJECT` (RFC 8292), sleutels welgevormd + signeer-baar, en de keypair
+   hoort bij elkaar. Zichtbaar als losse kaart op `/admin/systeemstatus` (**Web-push-zelftest**) én als runner
+   in de één-klik go-live-sweep. Staat web-push uit (geen sleutels), dan meldt het eerlijk "niets getest"
+   (geen vals groen); een halve config (`partial`, één sleutel) telt als aandacht (env-validatie blokkeert dat
+   al bij boot in productie). Loopt door de authz-keten (rol → rate-limit → audit, `WEB_PUSH_SELFTEST_RUN`);
+   de uitvoer bevat nooit een sleutelwaarde — alleen welgevormd-ja/nee + de config-stand. Read-only, geen
+   schema-/mutatie-oppervlak. Resterend mensenwerk: **niets extra** — de knop is er zodra de VAPID-sleutels
+   gezet zijn.
 
    **Code-kant GEDAAN (2026-08-18) — per-runner cron-faal-attributie op `/api/metrics`:** de cron-heartbeat
    legt al vast _welke_ sub-taak-runners (payment-reminders, expiry, reviews-reveal, …) tijdens de laatste

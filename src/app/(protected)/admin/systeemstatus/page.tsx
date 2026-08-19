@@ -27,6 +27,8 @@ import { UploadScannerSelfTest } from "@/components/admin/upload-scanner-selftes
 import { PasswordBreachSelfTest } from "@/components/admin/password-breach-selftest";
 import { SemanticMatcherSelfTest } from "@/components/admin/semantic-matcher-selftest";
 import { ErrorMonitoringSelfTest } from "@/components/admin/error-monitoring-selftest";
+import { PushSelfTest } from "@/components/admin/push-selftest";
+import { resolveWebPushConfigState } from "@/lib/push/config";
 
 export const metadata: Metadata = { title: "Systeemstatus · Handslag" };
 
@@ -78,6 +80,9 @@ export default async function SysteemstatusPage() {
       <UploadScannerSelfTest driverMode={env.UPLOAD_SCANNER} />
       <PasswordBreachSelfTest configured={env.PASSWORD_BREACH_CHECK === "hibp"} />
       <SemanticMatcherSelfTest driverMode={env.SEMANTIC_MATCHER} />
+      <PushSelfTest
+        driverMode={resolveWebPushConfigState(env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY)}
+      />
       <ErrorMonitoringSelfTest configured={Boolean(env.SENTRY_DSN)} />
     </div>
   );

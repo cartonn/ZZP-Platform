@@ -3,6 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-19 — Prod-rijpheid: web-push (VAPID) operationele zelftest + go-live-sweep-runner (PR #1161)
+
+**Wat:** web-push was de énige geconfigureerde integratie zónder connectiviteits-/operationele zelftest
+in de go-live-sweep. Elke andere koppeling (opslag/mail/rate-limit/verificatie/betaling/routing/
+upload-scanner/error-monitoring/database/semantische-matching/gelekt-wachtwoord) kan een beheerder vóór
+livegang met één klik bevestigen; web-push niet — het enige signaal was de aflever-heartbeat, die pas
+iets toont ná de eerste échte pushronde. Een verkeerd geplakte of niet-bij-elkaar-horende VAPID-keypair
+faalde daardoor stil bij de eerste melding. Die asymmetrie is nu gedicht.
+
+**Hoe:** lokale crypto-probe `probeWebPushVapid` (`src/lib/push/web-push.ts`) — verstuurt geen
+pushbericht: signeert een VAPID-JWT (exact de signering die élke echte verzending doet) én leidt de
+public key af uit de private-scalar (`createECDH("prime256v1")`) om byte-voor-byte te vergelijken met de
+geconfigureerde public key (vangt de copy-paste-mismatch). Pure/injecteerbare zelftest-logica in
+`src/lib/services/push-selftest.ts` (spiegel van routing-/semantic-matcher-selftest): off → "niets
+getest" (geen vals groen), partial → aandacht, configured → probe (subject → signering → keypair). Losse
+kaart `PushSelfTest` (`src/components/admin/push-selftest.tsx`) op `/admin/systeemstatus` + runner
+`web-push` in de sweep + server-actie `runWebPushSelfTestAction` (authz → rate-limit
+`webPushSelfTestRateLimiter` → audit `WEB_PUSH_SELFTEST_RUN`). Nooit een sleutelwaarde in de uitvoer.
+
+**Bestanden:** `src/lib/services/push-selftest.ts` (+ test), `src/lib/push/web-push.ts` (+ nieuwe
+`web-push.test.ts`), `src/lib/rate-limit.ts`, `src/app/(protected)/admin/systeemstatus/actions.ts`,
+`src/components/admin/push-selftest.tsx`, `src/app/(protected)/admin/systeemstatus/page.tsx`,
+`.env.example` (`WEB_PUSH_SELFTEST_RATE_LIMIT`), MENSENWERK/PROGRESS/CURRENT_TASK.
+
+**Tests:** +24 (18 pure/probe: off/partial/configured, subject/sign/keypair-mismatch, safe-detail,
+real generated-keypair probe + mismatch + malformed). Read-only, geen schema-/mutatie-oppervlak.
+
+**Volgende stap:** DoD-gate groen (typecheck/lint/test/build/prettier/check:env) → PR #1161 ready +
+auto-merge na de 6-checks-poort. Resterend mensenwerk: niets extra — knop actief zodra de VAPID-sleutels staan.
+
 ## 2026-08-19 — ZZP'er + opdrachtgever: CSV-export relatie-uitsplitsing op /inzicht (omzet/uitgaven per relatie)
 
 **Wat:** de kaarten "Omzet per opdrachtgever" (ZZP'er) en "Uitgaven per ZZP'er" (opdrachtgever) op

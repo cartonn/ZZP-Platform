@@ -268,6 +268,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — web-push (VAPID) operationele zelftest + go-live-sweep-runner (2026-08-19, PR #1161)** —
+> web-push was de énige geconfigureerde integratie zónder connectiviteits-/operationele zelftest in de go-live-sweep (opslag/mail/rate-limit/
+> verificatie/betaling/routing/upload-scanner/error-monitoring/database/semantische-matching/gelekt-wachtwoord hadden er al één). Het enige
+> signaal was de aflever-heartbeat, die pas iets toont ná de eerste échte pushronde — dus vóór de eerste melding was er geen bevestiging dat de
+> VAPID-sleutels correct gewired zijn; een verkeerd geplakte of niet-bij-elkaar-horende keypair faalde stil. Nieuwe **lokale crypto-probe**
+> `probeWebPushVapid` (`src/lib/push/web-push.ts`) + pure zelftest-logica `src/lib/services/push-selftest.ts`: signeert zónder een pushbericht te
+> versturen een VAPID-JWT (zoals élke echte verzending) én vergelijkt de public/private-keypair (leidt de public key af uit de private-scalar,
+> byte-vergelijk — vangt de copy-paste-mismatch). Bewijst: geldige `VAPID_SUBJECT` (RFC 8292), sleutels welgevormd + signeer-baar, keypair-match.
+> Losse kaart op `/admin/systeemstatus` (`PushSelfTest`) + runner in de go-live-sweep. Off → eerlijk "niets getest" (geen vals groen); partial →
+> aandacht (env-validatie blokkeert dat al bij boot). Authz-keten (rol → rate-limit `webPushSelfTestRateLimiter` → audit `WEB_PUSH_SELFTEST_RUN`);
+> nooit een sleutelwaarde in de uitvoer. Read-only, geen schema-/mutatie-oppervlak. +24 tests (18 pure/probe + parity). `WEB_PUSH_SELFTEST_RATE_LIMIT`
+> gedocumenteerd. Gate: typecheck, lint, test, build, prettier, check:env groen. Resterend mensenwerk: niets extra — knop actief zodra de VAPID-sleutels staan.
+>
 > Gedaan (niet opnieuw): **ZZP'er + opdrachtgever — CSV-export relatie-uitsplitsing op /inzicht (omzet/uitgaven per relatie) (2026-08-19, PR #1159)** —
 > de kaarten "Omzet per opdrachtgever" (ZZP'er) en "Uitgaven per ZZP'er" (opdrachtgever) op `/inzicht` toonden de betaalde omzet/uitgaven per
 > relatie op het scherm, maar waren — anders dan de franchiser-tegenhanger "Per opdrachtgever" (die al `/franchise/opdrachtgevers/export` had) —

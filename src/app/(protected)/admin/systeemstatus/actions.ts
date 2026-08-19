@@ -16,6 +16,7 @@ import {
   rateLimitSelfTestRateLimiter,
   routingSelfTestRateLimiter,
   semanticMatcherSelfTestRateLimiter,
+  webPushSelfTestRateLimiter,
   selfTestSweepRateLimiter,
   storageSelfTestRateLimiter,
   uploadScannerSelfTestRateLimiter,
@@ -94,6 +95,13 @@ import {
   type SemanticMatcherDriverMode,
   type SemanticMatcherSelfTestReport,
 } from "@/lib/services/semantic-matcher-selftest";
+import {
+  runWebPushSelfTest,
+  type WebPushDriverMode,
+  type WebPushSelfTestReport,
+} from "@/lib/services/push-selftest";
+import { probeWebPushVapid } from "@/lib/push/web-push";
+import { resolveWebPushConfigState } from "@/lib/push/config";
 
 export type StorageSelfTestState =
   | { ok: true; report: StorageSelfTestReport }
@@ -579,6 +587,62 @@ export async function runSemanticMatcherSelfTestAction(): Promise<SemanticMatche
   return { ok: true, report };
 }
 
+export type WebPushSelfTestState =
+  | { ok: true; report: WebPushSelfTestReport }
+  | { ok: false; error: string };
+
+/**
+ * Bouwt de probe-spec voor het web-push (VAPID) kanaal uit de omgeving. Gedeeld door de losse zelftest én
+ * de go-live-sweep zodat de config-detectie (`resolveWebPushConfigState`) en de lokale VAPID-probe op één
+ * plek staan. Staat web-push uit (`off`), dan krijgt de spec geen `run` — dat wordt eerlijk als "niets
+ * getest" gerapporteerd. Een halve config (`partial`) telt als fout zonder probe (er is geen tweede sleutel
+ * om mee te signeren).
+ */
+function buildWebPushProbeSpec() {
+  const driverMode: WebPushDriverMode = resolveWebPushConfigState(
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY,
+  );
+  return {
+    active: driverMode !== "off",
+    driverMode,
+    run: driverMode === "configured" ? () => probeWebPushVapid() : undefined,
+  };
+}
+
+/**
+ * Draait een operationele zelftest tegen het web-push (VAPID) kanaal (admin-only). Volgt de mutatieketen
+ * (auth → rol → rate-limit → actie → audit). Staat web-push uit (geen VAPID-sleutels), dan is er niets te
+ * testen en meldt de zelftest dat eerlijk (geen vals groen — in-app meldingen blijven werken). Zijn beide
+ * sleutels gezet, dan doet hij een LOKALE crypto-probe: signeert een VAPID-JWT (zoals élke echte verzending)
+ * en vergelijkt de public/private-keypair, zodat een verkeerd geplakte of niet-bij-elkaar-horende keypair
+ * zichtbaar wordt vóór de eerste echte melding. Verstuurt geen pushbericht. De uitvoer bevat nooit secrets
+ * of sleutelwaarden — alleen de uitkomst en de config-stand.
+ */
+export async function runWebPushSelfTestAction(): Promise<WebPushSelfTestState> {
+  const actor = await requireRole("ADMIN");
+
+  if (!(await webPushSelfTestRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
+  }
+
+  const spec = buildWebPushProbeSpec();
+  const report = await runWebPushSelfTest(spec);
+
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "WEB_PUSH_SELFTEST_RUN",
+    entityType: "WebPush",
+    entityId: spec.driverMode,
+    metadata: { ok: report.ok, active: report.active },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { ok: true, report };
+}
+
 export type ErrorMonitoringSelfTestState =
   | { ok: true; report: ErrorMonitoringSelfTestReport }
   | { ok: false; error: string };
@@ -903,6 +967,25 @@ export async function runSelfTestSweepAction(): Promise<SelfTestSweepState> {
               : result.ok
                 ? "Operationeel."
                 : "Niet operationeel."),
+        };
+      },
+    },
+    {
+      key: "web-push",
+      label: "Web-push (VAPID)",
+      run: async (): Promise<SweepRunResult> => {
+        const spec = buildWebPushProbeSpec();
+        const result = await runWebPushSelfTest(spec);
+        return {
+          status: !result.active ? "skipped" : result.ok ? "pass" : "fail",
+          mode: spec.driverMode,
+          detail:
+            result.detail ??
+            (!result.active
+              ? "Web-push uit — niets getest."
+              : result.ok
+                ? "VAPID-sleutels operationeel."
+                : "VAPID-config faalt."),
         };
       },
     },

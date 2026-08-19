@@ -682,6 +682,19 @@ export const semanticMatcherSelfTestRateLimiter = new RateLimiter(
 );
 
 /**
+ * Maximaal WEB_PUSH_SELFTEST_RATE_LIMIT (default 6) web-push-zelftests per beheerder per 5 minuten. De
+ * admin-actie (/admin/systeemstatus) doet een lokale VAPID-crypto-probe (JWT-signering + keypair-match)
+ * tegen de geconfigureerde sleutels — geen externe call, maar de rem houdt een per ongeluk herhaalde klik
+ * of een script binnen de perken (parity met de andere zelftests).
+ */
+export const webPushSelfTestRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("WEB_PUSH_SELFTEST_RATE_LIMIT", 6),
+  5 * 60_000,
+  "webpushselftest:",
+);
+
+/**
  * Maximaal SELFTEST_SWEEP_RATE_LIMIT (default 3) go-live-sweeps per beheerder per 5 minuten. Eén sweep
  * draait álle actieve zelftests tegelijk (opslag, database, rate-limit, verificatie, betaalprovider,
  * upload-scanner, error-monitoring) — dus strakker dan de losse zelftests, zodat een herhaalde klik
