@@ -268,6 +268,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er + opdrachtgever — ORT-uitsplitsing in de urenstaat-CSV-exports (2026-08-19, PR #1151)** —
+> de CSV-exports van `/diensten` (ZZP'er) en `/prestaties` (opdrachtgever) droegen enkel een `ORT` Ja/Nee-kolom + het totaal-
+> subtotaal, waardoor een zorg-boekhouder/payroll de onregelmatigheidstoeslag niet kon afstemmen tegen een CAO-loonstrook.
+> Nu 4 extra kolommen — Reguliere uren, ORT-uren, Basisbedrag (EUR), ORT-toeslag (EUR) — met de invariant basis + toeslag =
+> subtotaal. Nieuwe pure `src/lib/ort-breakdown.ts` (`summarizeOrtBreakdown`) bouwt de uitsplitsing uitsluitend op de canonieke
+> `computeOrt`-motor (NORMAL = regulier, overige categorieën = ORT; bedragen 1-op-1 → geen drift met het factuursubtotaal);
+> platte uren zonder segmenten → alles regulier; geen uurtarief (milestone) → leeg (kolommen blijven leeg, geen "0,00"-basis).
+> Gewired in `getDienstenForFreelancer`/`getPrestatiesForClient` (geen extra query) + beide `exportXxxCsv`. Display/export-only,
+> geen schema-/mutatie-/authz-/domeinmotor-wijziging. +tests (helper 6, CSV-kolommen ZZP'er+opdrachtgever, milestone-leeg).
+> Gate: typecheck, lint, test (6318), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — urenstaat-uitschieter-signaal bij goedkeuren op /prestaties (2026-08-18, PR #1150)** —
 > het uurtarief van een urenstaat staat server-side vast (`rateCents = col.rate * 100` bij indienen); het **aantal uren** is
 > daarmee de enige vrij-in te voeren waarde die de opdrachtgever bij het goedkeuren afstempelt — óók via het één-klik

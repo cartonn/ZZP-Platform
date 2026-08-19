@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-19 — ZZP'er + opdrachtgever: ORT-uitsplitsing in de urenstaat-CSV-exports
+
+**Wat:** de urenstaat-CSV-exports (`/diensten` voor de ZZP'er, `/prestaties` voor de opdrachtgever)
+droegen enkel een `ORT` Ja/Nee-kolom en het totaalsubtotaal. Een zorg-ZZP'er-boekhouder en de payroll/
+finance van de opdrachtgever konden de onregelmatigheidstoeslag daarmee niet afstemmen tegen een
+CAO-loonstrook (VVT/GGZ/GHZ). Nu splitst elke export uit naar **Reguliere uren**, **ORT-uren**,
+**Basisbedrag (EUR)** en **ORT-toeslag (EUR)** — met de invariant basis + toeslag = subtotaal. Benchmark:
+Zorgwerk/Nmbrs specificeren de ORT op de loonstrook; nu is onze export daarmee reconcilieerbaar.
+
+**Hoe:** nieuwe pure `src/lib/ort-breakdown.ts` — `summarizeOrtBreakdown({segments, hours, rateCents,
+rates})` bouwt de uitsplitsing uitsluitend op de canonieke `computeOrt`-motor (NORMAL-uren = regulier,
+overige categorieën = ORT; bedragen 1-op-1 uit `computeOrt` → kan niet driften van het factuursubtotaal).
+Platte uren zonder segmenten → alles regulier, geen toeslag; geen bruikbaar uurtarief (bv. milestone) →
+lege uitsplitsing. Gewired in `getDienstenForFreelancer`/`getPrestatiesForClient` (het parsen van
+segmenten + `resolveOrtRates` bestond daar al, geen extra query) en in beide `exportXxxCsv`-functies;
+de 4 nieuwe kolommen blijven leeg voor niet-HOURS-rijen (geen "0,00"-basis die een uurbasis suggereert).
+
+**Bestanden:** `src/lib/ort-breakdown.ts` (+`.test.ts`, 6 tests), `src/lib/diensten.ts`,
+`src/lib/prestaties.ts`, `src/lib/diensten.test.ts`, `src/lib/prestaties.test.ts` (+CSV-kolomtests),
+`src/lib/prestaties-bulk.test.ts` + `src/lib/diensten-summary.test.ts` (fixtures). Display/export-only,
+geen schema-/mutatie-/authz-/domeinmotor-wijziging; server-side blijft de waarheid. Gate: typecheck, lint,
+test (6318), build, prettier groen.
+
 ## 2026-08-18 — Opdrachtgever: urenstaat-uitschieter-signaal bij goedkeuren (/prestaties)
 
 **Wat:** het uurtarief van een urenstaat staat server-side vast (bij indienen `rateCents = col.rate * 100`;

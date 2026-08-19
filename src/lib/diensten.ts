@@ -3,6 +3,7 @@
 
 import { prisma } from "@/lib/db";
 import { type OrtSegment, ortSubtotalCents, resolveOrtRates } from "@/lib/ort";
+import { type OrtBreakdown, summarizeOrtBreakdown } from "@/lib/ort-breakdown";
 import { parseCsvRecords, escapeCsvField } from "@/lib/csv";
 import { MAX_SHIFT_HOURS } from "@/lib/shift";
 
@@ -18,6 +19,8 @@ export interface DienstSummary {
   hours: number | null;
   subtotalCents: number | null;
   hasOrt: boolean;
+  /** Uitsplitsing regulier/ORT-uren + basis/toeslag (voor de export en afstemming met een loonstrook). */
+  ortBreakdown: OrtBreakdown;
   description: string;
   submittedAt: Date | null;
   approvedAt: Date | null;
@@ -78,6 +81,12 @@ export async function getDienstenForFreelancer(userId: string): Promise<DienstSu
       hours: p.hours,
       subtotalCents,
       hasOrt: !!(ortSegs && ortSegs.length > 0),
+      ortBreakdown: summarizeOrtBreakdown({
+        segments: ortSegs,
+        hours: p.hours,
+        rateCents: p.type === "HOURS" ? p.rateCents : null,
+        rates,
+      }),
       description: p.description,
       submittedAt: p.submittedAt,
       approvedAt: p.approvedAt,
@@ -99,6 +108,10 @@ function fmtDate(d: Date | null): string {
 function fmtEur(cents: number | null): string {
   if (cents == null) return "";
   return (cents / 100).toFixed(2).replace(".", ",");
+}
+
+function fmtHours(hours: number): string {
+  return hours.toString().replace(".", ",");
 }
 
 const STATUS_LABEL_EXPORT: Record<string, string> = {
@@ -124,6 +137,10 @@ export function exportDienstenCsv(diensten: DienstSummary[]): string {
     "Periode eind",
     "Uren",
     "ORT",
+    "Reguliere uren",
+    "ORT-uren",
+    "Basisbedrag (EUR)",
+    "ORT-toeslag (EUR)",
     "Subtotaal (EUR)",
     "Ingediend op",
     "Goedgekeurd op",
@@ -142,6 +159,10 @@ export function exportDienstenCsv(diensten: DienstSummary[]): string {
       fmtDate(d.periodEnd),
       d.hours != null ? d.hours.toString().replace(".", ",") : "",
       d.hasOrt ? "Ja" : "Nee",
+      d.type === "HOURS" ? fmtHours(d.ortBreakdown.normalHours) : "",
+      d.type === "HOURS" ? fmtHours(d.ortBreakdown.ortHours) : "",
+      d.type === "HOURS" ? fmtEur(d.ortBreakdown.baseCents) : "",
+      d.type === "HOURS" ? fmtEur(d.ortBreakdown.surchargeCents) : "",
       fmtEur(d.subtotalCents),
       fmtDate(d.submittedAt),
       fmtDate(d.approvedAt),

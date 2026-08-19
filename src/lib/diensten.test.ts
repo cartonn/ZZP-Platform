@@ -135,6 +135,12 @@ describe("exportDienstenCsv", () => {
     hours: 80,
     subtotalCents: 16000_00,
     hasOrt: true,
+    ortBreakdown: {
+      normalHours: 40,
+      ortHours: 40,
+      baseCents: 14000_00,
+      surchargeCents: 2000_00,
+    },
     description: "Januari nachtzorg",
     submittedAt: new Date("2026-02-01"),
     approvedAt: new Date("2026-02-02"),
@@ -166,6 +172,41 @@ describe("exportDienstenCsv", () => {
   it("formatteert bedragen als EUR met komma", () => {
     const csv = exportDienstenCsv([base]);
     expect(csv).toContain("16000,00");
+  });
+
+  it("bevat de ORT-uitsplitsingskolommen met basis + toeslag", () => {
+    const csv = exportDienstenCsv([base]);
+    const lines = csv.split("\r\n");
+    const header = lines[0]!.split(";");
+    const row = lines[1]!.split(";");
+    const col = (name: string) => row[header.indexOf(name)];
+    expect(header).toContain("Reguliere uren");
+    expect(header).toContain("ORT-uren");
+    expect(col("Reguliere uren")).toBe("40");
+    expect(col("ORT-uren")).toBe("40");
+    // basis + toeslag = subtotaal (afstembaar met een loonstrook)
+    expect(col("Basisbedrag (EUR)")).toBe("14000,00");
+    expect(col("ORT-toeslag (EUR)")).toBe("2000,00");
+  });
+
+  it("laat de ORT-uitsplitsing leeg voor een milestone (geen uurbasis)", () => {
+    const milestone: DienstSummary = {
+      ...base,
+      type: "MILESTONE",
+      hours: null,
+      hasOrt: false,
+      ortBreakdown: { normalHours: 0, ortHours: 0, baseCents: 0, surchargeCents: 0 },
+    };
+    const csv = exportDienstenCsv([milestone]);
+    const lines = csv.split("\r\n");
+    const header = lines[0]!.split(";");
+    const row = lines[1]!.split(";");
+    const col = (name: string) => row[header.indexOf(name)];
+    // Geen "0,00"-basisbedrag dat een uurbasis suggereert; het subtotaal blijft wél gevuld.
+    expect(col("Reguliere uren")).toBe("");
+    expect(col("Basisbedrag (EUR)")).toBe("");
+    expect(col("ORT-toeslag (EUR)")).toBe("");
+    expect(col("Subtotaal (EUR)")).toBe("16000,00");
   });
 
   it("escapet aanhalingstekens", () => {
