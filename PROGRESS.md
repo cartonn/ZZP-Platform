@@ -881,6 +881,23 @@ alleen eigen plaatsingen (privacy — nooit data van een ander), geen schema-/mu
 (deadlines: perspectief + volgorde; user-deadlines: scoping + mapping + rol-guard). Gate: typecheck, lint, test,
 build, prettier groen.
 
+## 2026-08-15 — Prod-hardening: per-runner time-out op de go-live zelftest-sweep
+
+**Wat:** de go-live GO/NO-GO-sweep (`runSelfTestSweep`, admin-only op `/admin/systeemstatus`) draaide
+alle connectiviteits-zelftests parallel via `Promise.all` **zonder wall-clock-bound**. De meeste
+helpers hebben een eigen HTTP-time-out, maar de database-round-trip (`prisma.$queryRaw SELECT 1`) heeft
+géén query-time-out — een verkeerd geconfigureerde/hangende Postgres (TCP geaccepteerd, nooit antwoord),
+of een S3-/clamd-endpoint dat de verbinding accepteert maar stil blijft, zou de héle admin-sweep — en
+dus het go-live-oordeel — oneindig laten blokkeren, precies bij de productie-gereedheidscheck.
+
+**Fix:** per-runner deadline (default 15 s, `DEFAULT_SWEEP_RUNNER_TIMEOUT_MS`; `timeoutMs ≤ 0` = uit) in
+de pure sweep-module. Een runner die niet op tijd settelt wordt een `fail` met detail `Time-out`
+(→ NO-GO — de juiste posture: een check die niet afrondt is géén GO). De verlaten runner-promise krijgt
+een no-op-`catch` (geen unhandled rejection) en de timer wordt altijd opgeruimd. Puur/injecteerbaar,
+geen wijziging aan het call-site (default backwards-compatible). +6 tests (fake timers). Gate:
+typecheck/lint/test/prettier lokaal groen; build + e2e via CI.
+**Bestanden:** `src/lib/services/selftest-sweep.ts` (+ `.test.ts`), `MENSENWERK.md` (§11).
+
 ## 2026-08-15 — ZZP'er: omzet per opdrachtgever (client-concentratie) op /inzicht (PR #1108)
 
 **Wat:** de ZZP'er zag op `/inzicht` nog niet welk deel van zijn omzet van welke opdrachtgever komt —

@@ -50,6 +50,26 @@ export interface SweepRunner {
   run: () => Promise<SweepRunResult>;
 }
 
+/**
+ * Standaard-deadline per runner. Elke zelftest doet een externe round-trip; de meeste helpers hebben
+ * een eigen HTTP-time-out, maar niet allemaal (de DB-`SELECT 1` via Prisma heeft géén query-time-out).
+ * Zonder deze bovengrens zou één hangende integratie (bv. een verkeerd geconfigureerde Postgres die de
+ * TCP-verbinding accepteert maar nooit antwoordt) de héle admin-sweep — en dus het go-live GO/NO-GO-
+ * oordeel — oneindig laten blokkeren. 15 s is ruim boven een gezonde round-trip en ver onder een
+ * proxy-/browser-time-out.
+ */
+export const DEFAULT_SWEEP_RUNNER_TIMEOUT_MS = 15_000;
+
+/** Opties voor {@link runSelfTestSweep}. */
+export interface SweepOptions {
+  /**
+   * Wall-clock-deadline per runner in ms. Een runner die niet binnen de deadline settelt wordt een
+   * `fail` (→ NO-GO — de juiste go-live-posture: een zelftest die niet op tijd afrondt is géén GO).
+   * Default {@link DEFAULT_SWEEP_RUNNER_TIMEOUT_MS}. Een waarde ≤ 0 schakelt de bovengrens uit.
+   */
+  timeoutMs?: number;
+}
+
 /** GO wanneer geen enkele actieve zelftest faalde; NO-GO zodra er één faalt. */
 export type SweepVerdict = "go" | "no-go";
 
@@ -88,34 +108,71 @@ export function summarizeSweep(entries: SweepEntry[]): SweepReport {
   };
 }
 
+/** Sentinel: uniek object zodat een time-out nooit met een legitiem runner-resultaat botst. */
+const TIMED_OUT = Symbol("sweep-runner-timeout");
+
 /**
- * Draait alle runners (parallel) en vat ze samen. Elke runner heeft een eigen vangnet: een throw of
- * een afwijzing wordt een `fail`-entry met een veilige detail — één kapotte integratie zet nooit de
- * hele sweep om. De volgorde van de runners blijft in het rapport behouden.
+ * Draait één runner met een wall-clock-deadline. Settelt de runner (resolve óf reject) binnen de
+ * deadline, dan wordt zijn uitkomst normaal verwerkt; anders wordt hij een veilige `fail`-entry met
+ * `detail: "Time-out"`. De timer wordt altijd opgeruimd en de afgebroken runner-promise krijgt een
+ * no-op-`catch` zodat een latere afwijzing geen unhandled rejection wordt.
  */
-export async function runSelfTestSweep(runners: SweepRunner[]): Promise<SweepReport> {
-  const entries = await Promise.all(
-    runners.map(async (runner): Promise<SweepEntry> => {
-      try {
-        const result = await runner.run();
-        return {
-          key: runner.key,
-          label: runner.label,
-          status: result.status,
-          mode: result.mode,
-          detail: result.detail,
-        };
-      } catch (error) {
-        return {
-          key: runner.key,
-          label: runner.label,
-          status: "fail",
-          mode: "onbekend",
-          detail: safeSweepDetail(error),
-        };
-      }
-    }),
+async function runOne(runner: SweepRunner, timeoutMs: number): Promise<SweepEntry> {
+  const base = { key: runner.key, label: runner.label };
+
+  // Nooit-afwijzende wrapper: vangt zowel resolve als reject, zodat een verlaten runner (na time-out)
+  // geen unhandled rejection oplevert.
+  const settled = runner.run().then(
+    (result) => ({ ok: true as const, result }),
+    (error) => ({ ok: false as const, error }),
   );
 
+  if (!(timeoutMs > 0)) {
+    const outcome = await settled;
+    return outcome.ok
+      ? {
+          ...base,
+          status: outcome.result.status,
+          mode: outcome.result.mode,
+          detail: outcome.result.detail,
+        }
+      : { ...base, status: "fail", mode: "onbekend", detail: safeSweepDetail(outcome.error) };
+  }
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<typeof TIMED_OUT>((resolve) => {
+    timer = setTimeout(() => resolve(TIMED_OUT), timeoutMs);
+  });
+
+  try {
+    const outcome = await Promise.race([settled, deadline]);
+    if (outcome === TIMED_OUT) {
+      return { ...base, status: "fail", mode: "onbekend", detail: "Time-out" };
+    }
+    return outcome.ok
+      ? {
+          ...base,
+          status: outcome.result.status,
+          mode: outcome.result.mode,
+          detail: outcome.result.detail,
+        }
+      : { ...base, status: "fail", mode: "onbekend", detail: safeSweepDetail(outcome.error) };
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
+ * Draait alle runners (parallel) en vat ze samen. Elke runner heeft een eigen vangnet: een throw, een
+ * afwijzing of het overschrijden van de per-runner-deadline wordt een `fail`-entry met een veilige
+ * detail — één kapotte of hangende integratie zet nooit de hele sweep om en blokkeert de request niet
+ * oneindig. De volgorde van de runners blijft in het rapport behouden.
+ */
+export async function runSelfTestSweep(
+  runners: SweepRunner[],
+  options: SweepOptions = {},
+): Promise<SweepReport> {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_SWEEP_RUNNER_TIMEOUT_MS;
+  const entries = await Promise.all(runners.map((runner) => runOne(runner, timeoutMs)));
   return summarizeSweep(entries);
 }
