@@ -143,6 +143,9 @@ export default async function SamenwerkingenPage({
         take: 1,
         select: { lifecycleStatus: true, createdAt: true },
       },
+      // Blokkerende afgekeurde prestatie ongewindowd (parity met /acties + de cascadebadge): een
+      // oudere REJECTED-prestatie telt ook als een nieuwere 'm uit het `take: 1`-venster duwt.
+      _count: { select: { performances: { where: { status: "REJECTED" } } } },
     },
   });
 
@@ -354,6 +357,7 @@ export default async function SamenwerkingenPage({
                             disputed: c.disputedAt !== null,
                             latestPerformanceStatus: (c.performances[0]?.status ??
                               null) as PerformanceState | null,
+                            hasRejectedPerformance: c._count.performances > 0,
                             latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
                               null) as InvoiceLifecycleState | null,
                             performanceNewerThanInvoice: isPerformanceNewerThanInvoice(

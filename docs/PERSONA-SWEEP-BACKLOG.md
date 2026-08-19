@@ -1,5 +1,54 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-19 (run 83) · **main-commit basis:** `a3de1a62`
+> **Uitkomst:** **1 bereikbaar HOOG DOEL 1b-defect gevonden én gefixt** (cascadefase verklaarde "niets te doen"
+> met een openstaande afgekeurde prestatie) + **1 HOOG geld-integriteit-defect gevonden en GEPARKEERD** (ORT-tarief
+> live opgelost i.p.v. bevroren — aparte PR: administratie-domeinmotor + productkeuze). 4 parallelle adversariële
+> Opus-code-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie · cascade/geld-integriteit +
+> verboden statusovergangen · next-action-engine-correctheid · malicieuze input/CSV/XSS/upload). De authz/IDOR- én
+> malicieuze-input-audits vonden **0 bereikbare gaten** (deze surfaces zijn diep gehard: CWE-1236/79/203-guards,
+> filtered-count-parity, anti-oracle). De live Playwright-probe is aan CI overgelaten (remote-egressbeleid weigert
+> `next/font/google`-fetches; geen codedefect).
+>
+> - **OPGELOST — `cascadeStage`/statusregel blind voor een gemaskeerde afgekeurde prestatie (HOOG, DOEL 1b):**
+>   `cascadeStage()` (+ `collaborationStatusLine`) leidde de prestatie-fase af uit alléén `latestPerformanceStatus`.
+>   Op één ACTIVE-samenwerking mag de ZZP'er meerdere (niet-overlappende) prestaties naast elkaar hebben. Werd een
+>   oudere REJECTED-prestatie gemaskeerd door een nieuwere SUBMITTED/APPROVED/DRAFT, dan verklaarde het dashboard, de
+>   `/samenwerkingen`-lijst én de status-regel op het detail de ZZP'er "Je hoeft nu niets te doen — wacht op
+>   goedkeuring", terwijl `/acties` (`rejectedPerfWhere`) diezelfde afgekeurde prestatie nog wél als taak toonde —
+>   een zichzelf tegensprekend scherm waarop de ZZP'er stil zijn geld misloopt. **Repro:** ZZP'er dient P1 in →
+>   opdrachtgever wijst P1 af (REJECTED); ZZP'er dient via het altijd-zichtbare bovenste formulier een tweede
+>   prestatie P2 in (createPerformance→submitPerformance, andere/geen periode → overlap-guard blokkeert niet) →
+>   `performances[0]` = P2 SUBMITTED → cascadefase = "wacht op goedkeuring", youAreUp:false, terwijl P1 nog een open
+>   corrigeer-taak is. **Fix:** `hasRejectedPerformance`-input + freelancer-rescue (spiegelt `priorCycleFreelancerPhase`
+>   voor facturen); ongewindowd gevoed via gefilterde `_count { performances: { where: { status: "REJECTED" } } }` op
+>   dashboard + lijst en de reeds-geladen prestatielijst op het detail (self-healing, geen venster-blindheid). +7 tests.
+>   Bestanden: `src/lib/cascade/stage.ts`, `dashboard/page.tsx`, `samenwerkingen/(index)/page.tsx`,
+>   `samenwerkingen/[id]/page.tsx`, `stage.test.ts`, `collaboration-status-line.test.ts`.
+>
+> **GEPARKEERD (run 83, HOOG — aparte PR, administratie-domeinmotor + productkeuze):**
+>
+> - **HOOG (geld-integriteit — CLAUDE.md regel 1):** de ORT-onregelmatigheidstoeslag wordt **live bij goedkeuren**
+>   opgelost i.p.v. bevroren bij indienen. `approvePerformance`/`autoApprovePerformance`
+>   (`src/lib/cascade/performance-commands.ts`) berekenen `ortRates` via `resolveOrtRates({ ortProfile, ortCustomRates })`
+>   uit de **live** `Collaboration` (`loadPerformance`, `commands-shared.ts`), niet uit een op de `Performance`-rij
+>   bevroren waarde. `schema.prisma` bevriest wél het basis-uurtarief (`Performance.rateCents`) maar heeft géén
+>   equivalent ORT-snapshotveld — die asymmetrie is het gat. **Repro:** ACTIVE-samenwerking met ORT-profiel; ZZP'er
+>   dient een HOURS-prestatie met `ortSegments` in (SUBMITTED, verwacht bedrag met de huidige toeslag); vóór goedkeuren
+>   roept de opdrachtgever `setOrtProfileAction` (`samenwerkingen/[id]/actions.ts`) aan naar MAATWERK met lagere (0%)
+>   percentages — geen ACTIVE-/dispuut-/pending-SUBMITTED-guard blokkeert dat; opdrachtgever keurt goed → de
+>   auto-factuur (`subtotalCents`/`vatCents`) en de grootboek-postings (OMZET/BTW/DEBITEUREN) worden met de nieuwe,
+>   lagere toeslag geboekt, zonder diff/waarschuwing. **Aanbevolen fix (eigen PR + zorgvuldige review):** ofwel een
+>   ORT-snapshot op de `Performance`-rij bij indienen (spiegel van `rateCents`; schema + migratie), ofwel
+>   `setOrtProfileAction` blokkeren zolang er een SUBMITTED-prestatie op de samenwerking staat. **Waarom geparkeerd:**
+>   raakt de administratie-domeinmotor ("niet aankomen behalve voor tests") en bevat een productkeuze (mag het
+>   ORT-profiel mid-cyclus wijzigen, en hoe corrigeer je een al ingediende prestatie?) die een gefocuste, apart-
+>   gereviewde PR verdient — geen autonome self-merge.
+>
+> ---
+>
+> **Vorige run:**
+>
 > **Datum:** 2026-08-18 (run 82) · **main-commit basis:** `1a3e68e1`
 > **Uitkomst:** **1 bereikbaar HIGH DOEL 1b-defect gevonden én gefixt** (FREELANCER cascadebadge outer-
 > window-blindheid + 2 sub-vectoren) + **1 HIGH geld/administratie-defect gevonden en GEPARKEERD** (aparte

@@ -36,6 +36,24 @@ describe("collaborationStatusLine", () => {
     expect(line.text).toMatch(/Actie nodig/i);
   });
 
+  it("zegt niet 'niets te doen' tegen de ZZP'er zolang een oudere afgekeurde prestatie openstaat", () => {
+    // Regressie (PERSONA-SWEEP): een nieuwere SUBMITTED-prestatie maskeerde een oudere REJECTED, waardoor
+    // de zin "Je hoeft nu niets te doen — wacht op goedkeuring van je uren" verscheen terwijl /acties
+    // diezelfde afgekeurde prestatie nog als taak toonde. `hasRejectedPerformance` maakt de ZZP'er weer
+    // aan zet (corrigeren) — geen zichzelf tegensprekend scherm.
+    const line = collaborationStatusLine(
+      base({
+        viewer: "FREELANCER",
+        latestPerformanceStatus: "SUBMITTED",
+        hasRejectedPerformance: true,
+      }),
+    );
+    expect(line.youAreUp).toBe(true);
+    expect(line.text).toMatch(/^Actie nodig:/);
+    expect(line.text).toMatch(/corrigeer de afgekeurde uren/i);
+    expect(line.text).not.toMatch(/niets te doen/i);
+  });
+
   it("geeft een rustige terminale zin bij een afgeronde samenwerking", () => {
     const line = collaborationStatusLine(base({ collaborationStatus: "COMPLETED" }));
     expect(line.youAreUp).toBe(false);

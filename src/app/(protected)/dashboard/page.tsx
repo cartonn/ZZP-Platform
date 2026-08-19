@@ -263,6 +263,10 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
               take: 1,
               select: { lifecycleStatus: true, createdAt: true },
             },
+            // Blokkerende afgekeurde prestatie ongewindowd: een oudere REJECTED-prestatie blijft een
+            // ZZP-actie ook als een nieuwere prestatie 'm uit het `take: 1`-venster duwt (parity met
+            // /acties + de cascadebadge). Zie cascadeStage `hasRejectedPerformance`.
+            _count: { select: { performances: { where: { status: "REJECTED" } } } },
           },
           orderBy: { updatedAt: "desc" },
         }),
@@ -311,6 +315,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         contractStatus: c.contractStatus as ContractStatus,
         disputed: c.disputedAt !== null,
         latestPerformanceStatus: (c.performances[0]?.status ?? null) as PerformanceState | null,
+        hasRejectedPerformance: c._count.performances > 0,
         latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
           null) as InvoiceLifecycleState | null,
         performanceNewerThanInvoice: isPerformanceNewerThanInvoice(

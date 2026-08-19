@@ -3,6 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-19 — Persona-sweep: cascadefase verklaarde "niets te doen" met een openstaande afgekeurde prestatie (DOEL 1b)
+
+**Wat:** kritische-gebruiker-sweep (basis `main` @ a3de1a62). Orchestrator (Opus 4.8) + 4 parallelle
+adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie · cascade/geld-integriteit
+
+- verboden statusovergangen · next-action-engine-correctheid · malicieuze input/CSV/XSS/upload). Authz/IDOR- én
+  malicieuze-input-audits: **0 bereikbare gaten**. Twee HOOG bereikbare bevindingen: de next-action-bevinding
+  hieronder (gefixt) + een geld-integriteit-bevinding (ORT-tarief live opgelost i.p.v. bevroren) die de
+  administratie-domeinmotor + een productkeuze raakt → **GEPARKEERD** voor een aparte, apart-gereviewde PR.
+
+**Fix (DOEL 1b, HOOG):** `cascadeStage()` (+ `collaborationStatusLine`) leidde de prestatie-fase af uit alléén
+`latestPerformanceStatus` (de meest recente prestatie). Op één ACTIVE-samenwerking mag de ZZP'er meerdere
+(niet-overlappende) prestaties naast elkaar hebben (`createPerformance` gate't alleen op ACTIVE). Werd een oudere
+REJECTED-prestatie gemaskeerd door een nieuwere SUBMITTED/APPROVED/DRAFT, dan verklaarde het dashboard, de
+`/samenwerkingen`-lijst én de status-regel op het detail de ZZP'er "Je hoeft nu niets te doen — wacht op
+goedkeuring", terwijl `/acties` (`rejectedPerfWhere`, pending-tasks.ts) diezelfde afgekeurde prestatie nog wél
+als taak toonde — een zichzelf tegensprekend scherm waarop de ZZP'er stil zijn geld misloopt. Nu een
+`hasRejectedPerformance`-input + freelancer-rescue (spiegelt de bestaande `priorCycleFreelancerPhase`-rescue voor
+facturen): een openstaande REJECTED-prestatie houdt de ZZP'er "aan zet" (corrigeren) ongeacht de nieuwere
+prestatie. Ongewindowd gevoed via een gefilterde `_count` (`{ performances: { where: { status: "REJECTED" } } }`)
+op het dashboard + de samenwerkingen-lijst, en via de reeds-geladen prestatielijst op het detail — geen extra
+query, self-healing (geen venster-blindheid). Rescue is freelancer-only (de opdrachtgever keurt gewoon de
+nieuwere prestatie).
+
+**Bestanden:** `src/lib/cascade/stage.ts` (input + rescue), `src/app/(protected)/dashboard/page.tsx`,
+`src/app/(protected)/samenwerkingen/(index)/page.tsx`, `src/app/(protected)/samenwerkingen/[id]/page.tsx`.
+**Tests (rood→groen):** `stage.test.ts` (+6: gemaskeerde SUBMITTED/APPROVED → aan zet, opdrachtgever ongewijzigd,
+REJECTED-latest ongewijzigd, geen valse rescue, terminale toestanden winnen), `collaboration-status-line.test.ts`
+(+1: geen "niets te doen"-contradictie). Gate: typecheck + lint + unit + build + `prettier --write .` groen.
+Backlog bijgewerkt (bevinding → OPGELOST; ORT-tarief-bevinding → GEPARKEERD met repro).
+
 ## 2026-08-19 — Security/Privacy-audit: behavioural-metadata overleefde erasure (AVG art. 17/15)
 
 **Wat:** security-/privacy-auditronde (basis `main` @ 126505f6). Orchestrator (Opus 4.8) + 3 parallelle

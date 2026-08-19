@@ -312,6 +312,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         contractStatus: col.contractStatus as ContractStatus,
         disputed: frozen,
         latestPerformanceStatus: (col.performances[0]?.status ?? null) as PerformanceState | null,
+        // De volledige (ongewindowde) prestatielijst is hier al geladen; een oudere REJECTED-prestatie
+        // die niet de meest recente is blijft zo een zichtbare ZZP-actie (parity met /acties).
+        hasRejectedPerformance: col.performances.some((p) => p.status === "REJECTED"),
         latestInvoiceStatus: (col.invoices[0]?.lifecycleStatus ??
           null) as InvoiceLifecycleState | null,
         performanceNewerThanInvoice: isPerformanceNewerThanInvoice(

@@ -399,6 +399,79 @@ describe("cascadeStage — keten + viewer-perspectief", () => {
     });
   });
 
+  describe("afgekeurde prestatie gemaskeerd door een nieuwere — prior-prestatie-rescue", () => {
+    // Regressie (PERSONA-SWEEP): op één ACTIVE-samenwerking mag de ZZP'er meerdere (niet-overlappende)
+    // prestaties naast elkaar hebben. Wordt een oudere REJECTED-prestatie gemaskeerd door een nieuwere,
+    // niet-afgekeurde prestatie in `latestPerformanceStatus`, dan verklaarde de statusregel de ZZP'er
+    // ten onrechte "niets te doen — wacht op goedkeuring" terwijl /acties (`rejectedPerfWhere`) diezelfde
+    // afgekeurde prestatie nog wél als taak toont. `hasRejectedPerformance` sluit dat gat.
+
+    it("nieuwere SUBMITTED-prestatie + oudere REJECTED: ZZP'er blijft aan zet (corrigeren), niet 'wacht op goedkeuring'", () => {
+      const fr = cascadeStage(
+        base({ latestPerformanceStatus: "SUBMITTED", hasRejectedPerformance: true }),
+      );
+      expect(fr.id).toBe("performance-rejected");
+      expect(fr.youAreUp).toBe(true);
+      expect(fr.tone).toBe("attention");
+      expect(fr.step).toBe(2);
+    });
+
+    it("nieuwere APPROVED-prestatie + oudere REJECTED: ZZP'er blijft aan zet (corrigeren)", () => {
+      const fr = cascadeStage(
+        base({ latestPerformanceStatus: "APPROVED", hasRejectedPerformance: true }),
+      );
+      expect(fr.id).toBe("performance-rejected");
+      expect(fr.youAreUp).toBe(true);
+    });
+
+    it("opdrachtgever ziet de rescue niet — hij keurt gewoon de nieuwere prestatie", () => {
+      const cl = cascadeStage(
+        base({
+          viewer: "CLIENT",
+          latestPerformanceStatus: "SUBMITTED",
+          hasRejectedPerformance: true,
+        }),
+      );
+      expect(cl.id).toBe("performance-approve");
+      expect(cl.youAreUp).toBe(true);
+    });
+
+    it("de afgekeurde prestatie is zélf de meest recente: ongewijzigd (bestaande REJECTED-tak)", () => {
+      const fr = cascadeStage(
+        base({ latestPerformanceStatus: "REJECTED", hasRejectedPerformance: true }),
+      );
+      expect(fr.id).toBe("performance-rejected");
+      expect(fr.youAreUp).toBe(true);
+    });
+
+    it("geen afgekeurde prestatie: nieuwere SUBMITTED houdt de reguliere keur-fase (geen valse rescue)", () => {
+      const fr = cascadeStage(
+        base({ latestPerformanceStatus: "SUBMITTED", hasRejectedPerformance: false }),
+      );
+      expect(fr.id).toBe("performance-approve");
+      expect(fr.youAreUp).toBe(false);
+    });
+
+    it("terminale/overschrijvende toestanden winnen van de rescue (afgerond blijft afgerond)", () => {
+      const done = cascadeStage(
+        base({
+          collaborationStatus: "COMPLETED",
+          latestPerformanceStatus: "APPROVED",
+          hasRejectedPerformance: true,
+        }),
+      );
+      expect(done.id).toBe("completed");
+      const disputed = cascadeStage(
+        base({
+          disputed: true,
+          latestPerformanceStatus: "SUBMITTED",
+          hasRejectedPerformance: true,
+        }),
+      );
+      expect(disputed.id).toBe("disputed");
+    });
+  });
+
   it("CTA verwijst altijd naar de samenwerking-detailpagina", () => {
     for (const o of [
       {},

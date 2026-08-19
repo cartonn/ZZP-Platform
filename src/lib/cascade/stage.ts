@@ -20,6 +20,18 @@ export interface CascadeStageInput {
   disputed: boolean;
   /** Status van de meest recente prestatie, of null als er nog geen is. */
   latestPerformanceStatus: PerformanceState | null;
+  /**
+   * Heeft deze samenwerking ÉÉN OF MEER prestaties met status REJECTED (ongeacht of dat de meest
+   * recente is)? De ZZP'er kan op één ACTIVE-samenwerking meerdere prestaties naast elkaar hebben
+   * (`createPerformance` gate't alleen op ACTIVE; niet-overlappende periodes mogen parallel). Een
+   * oudere REJECTED-prestatie blijft dan een blokkerende ZZP-actie (corrigeren + opnieuw indienen),
+   * óók als een nieuwere prestatie 'm maskeert in `latestPerformanceStatus`. Zonder deze vlag
+   * verklaarde de statusregel de ZZP'er "niets te doen — wacht op goedkeuring" terwijl /acties
+   * (`rejectedPerfWhere`, pending-tasks.ts) diezelfde afgekeurde prestatie nog wél als taak toont —
+   * een zichzelf tegensprekend scherm waarop de ZZP'er stil zijn geld misloopt. Spiegelt de
+   * `priorCycleFreelancerPhase`-rescue die facturen al hadden. Default false (single-prestatie).
+   */
+  hasRejectedPerformance?: boolean;
   /** Lifecycle-status van de meest recente cascade-factuur, of null. */
   latestInvoiceStatus: InvoiceLifecycleState | null;
   /**
@@ -111,6 +123,22 @@ export function cascadeStage(input: CascadeStageInput): CascadeStage {
   if (isFreelancer && input.performanceNewerThanInvoice) {
     const prior = priorCycleFreelancerPhase(input.latestInvoiceStatus, href, total);
     if (prior) return prior;
+  }
+
+  // Prior-prestatie-rescue (spiegelt `priorCycleFreelancerPhase` voor facturen): een oudere, nog niet
+  // gecorrigeerde REJECTED-prestatie blijft een blokkerende ZZP-actie ook als een nieuwere prestatie
+  // (SUBMITTED/APPROVED/DRAFT) 'm maskeert in `latestPerformanceStatus`. Alleen de ZZP'er is hier aan
+  // zet (de opdrachtgever heeft de afkeuring al gedaan en beoordeelt de nieuwere prestatie hieronder).
+  // Plaatsing vóór de reguliere prestatie-/factuurfasen: het corrigeren van de afgekeurde uren is de
+  // vroegste openstaande stap (step 2) en hoort dus als eerste te tonen. De `perf === "REJECTED"`-tak
+  // hieronder dekt het geval dat de afgekeurde prestatie zélf de meest recente is; deze rescue vult
+  // het gat waarin een nieuwere, niet-afgekeurde prestatie ervoor in de plaats stond.
+  if (
+    isFreelancer &&
+    input.hasRejectedPerformance &&
+    input.latestPerformanceStatus !== "REJECTED"
+  ) {
+    return { id: "performance-rejected", badgeLabel: "Afgekeurd", label: "Uren/oplevering afgekeurd — corrigeer en dien opnieuw in", step: 2, totalSteps: total, youAreUp: true, tone: "attention", cta: { label: "Corrigeer en dien opnieuw in", href } }; // prettier-ignore
   }
 
   // Stap 2 — uren/oplevering indienen (na getekend contract).
