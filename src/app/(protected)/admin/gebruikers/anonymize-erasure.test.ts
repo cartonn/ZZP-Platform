@@ -153,6 +153,8 @@ vi.mock("@/lib/db", () => ({
     },
     pushSubscription: { deleteMany: op("pushSubscription.deleteMany") },
     conversationParticipant: { updateMany: op("conversationParticipant.updateMany") },
+    lessonCompletion: { deleteMany: op("lessonCompletion.deleteMany") },
+    ideaVote: { deleteMany: op("ideaVote.deleteMany") },
     auditLog: {
       create: op("auditLog.create"),
       update: op("auditLog.update"),
@@ -735,6 +737,27 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
   it("verwijdert push-abonnementen (PushSubscription — toestel-identifier)", async () => {
     await anonymizeUser("user-42");
     const o = find("pushSubscription.deleteMany") as { args: { where: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ userId: "user-42" });
+  });
+
+  it("verwijdert de afgeronde academielessen (LessonCompletion — eigen leer-/voortgangsmetadata, AVG art. 17, LAAG)", async () => {
+    await anonymizeUser("user-42");
+    // `LessonCompletion` draagt uitsluitend de eigen `userId` + `completedAt` (welke les, wanneer
+    // afgerond) — toewijsbare gedragsmetadata over de betrokkene, geen gedeelde/tegenpartij-waarde. Een
+    // `user.update` triggert geen cascade, dus zonder deze deleteMany overleeft de metadata art. 17
+    // (rood→groen). De AVG-inzage (`account-export.ts`) geeft deze rijen nu óók prijs (art. 15/20-symmetrie).
+    const o = find("lessonCompletion.deleteMany") as { args: { where: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ userId: "user-42" });
+  });
+
+  it("verwijdert de stemmen op ideeën (IdeaVote — eigen gedragsmetadata, AVG art. 17, LAAG)", async () => {
+    await anonymizeUser("user-42");
+    // `IdeaVote` draagt uitsluitend de eigen `userId` + `createdAt` (op welk idee, wanneer gestemd) —
+    // toewijsbare gedragsmetadata over de betrokkene. Zonder deze deleteMany overleeft ze art. 17
+    // (rood→groen). Symmetrisch met de inzage-export die deze stemmen nu prijsgeeft.
+    const o = find("ideaVote.deleteMany") as { args: { where: unknown } };
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ userId: "user-42" });
   });

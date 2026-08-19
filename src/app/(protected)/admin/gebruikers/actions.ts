@@ -643,6 +643,17 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { userId },
       data: { lastReadAt: null },
     }),
+    // AVG art. 17 — engagement-/gedragsmetadata die de betrokkene zelf genereerde: welke lessen hij
+    // afrondde (`LessonCompletion`) en op welke ideeën hij stemde (`IdeaVote`), telkens mét het exacte
+    // tijdstip (`completedAt`/`createdAt`). Beide rijen dragen uitsluitend zíjn `userId` + een
+    // zelf-actie-timestamp — er zit geen gedeelde/tegenpartij-waarde in — dus ze horen volledig te
+    // verdwijnen, net als `workExperience`/`pushSubscription` (rij = enkel persoonlijke data → hard
+    // delete i.p.v. redact). Het schema markeert ze al als wegwerpbaar (`onDelete: Cascade` vanaf zowel
+    // User als Idea/Lesson). Een `user.update` triggert geen cascade → expliciet verwijderen. Zonder dit
+    // overleeft toewijsbare gedragsmetadata (wat las/stemde deze persoon, en wanneer) een art. 17-verzoek.
+    // Spiegelbeeld: de export (`account-export.ts`) geeft deze twee nu óók prijs (art. 15/20-symmetrie).
+    prisma.lessonCompletion.deleteMany({ where: { userId } }),
+    prisma.ideaVote.deleteMany({ where: { userId } }),
     // AVG art. 17 (zie de `ownCreditedInvoices`-toelichting hierboven): de zelf-geschreven creditreden
     // in zijn drie kopieën. (1) De reden op de eigen credit-facturen wissen.
     ...(ownCreditedInvoiceIds.length

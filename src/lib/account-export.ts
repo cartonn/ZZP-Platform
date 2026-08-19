@@ -44,6 +44,9 @@ export interface AccountExportPayload {
   leadContacts: unknown;
   openDisputeReasons: unknown;
   readReceipts: unknown;
+  // AVG art. 15/20 — eigen engagement-/gedragsmetadata (symmetrisch met de erasure die deze nu wist):
+  lessonCompletions: unknown;
+  ideaVotes: unknown;
 }
 
 const EXPORT_NOTICE =
@@ -93,6 +96,8 @@ export async function buildAccountExport(
     leadContacts,
     openDisputeReasons,
     readReceipts,
+    lessonCompletions,
+    ideaVotes,
   ] = await Promise.all([
     db.user.findUnique({
       where: { id: actorId },
@@ -429,6 +434,21 @@ export async function buildAccountExport(
       where: { userId: actorId },
       select: { conversationId: true, lastReadAt: true },
     }),
+    // AVG art. 15/20 — de eigen afgeronde academielessen (`LessonCompletion.completedAt`): welke lessen
+    // de betrokkene voltooide en wanneer. Eigen leer-/voortgangsmetadata; scope strikt op de eigen
+    // `userId`. lessonId is een onveranderlijke id die de actor in-app al ziet. Symmetrisch met de
+    // erasure die deze rijen nu verwijdert.
+    db.lessonCompletion.findMany({
+      where: { userId: actorId },
+      select: { lessonId: true, completedAt: true },
+    }),
+    // AVG art. 15/20 — de eigen stemmen op ideeën (`IdeaVote.createdAt`): op welke ideeën de betrokkene
+    // stemde en wanneer. Eigen gedragsmetadata; scope strikt op de eigen `userId`. ideaId is een
+    // onveranderlijke id die de actor in-app al ziet. Symmetrisch met de erasure die deze rijen nu wist.
+    db.ideaVote.findMany({
+      where: { userId: actorId },
+      select: { ideaId: true, createdAt: true },
+    }),
   ]);
 
   return {
@@ -464,5 +484,7 @@ export async function buildAccountExport(
     leadContacts,
     openDisputeReasons,
     readReceipts,
+    lessonCompletions,
+    ideaVotes,
   };
 }
