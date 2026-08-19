@@ -18,6 +18,7 @@ function perf(overrides: Partial<PrestatieOverzicht> = {}): PrestatieOverzicht {
     hours: 8,
     subtotalCents: 20000,
     hasOrt: false,
+    ortBreakdown: { normalHours: 8, ortHours: 0, baseCents: 20000, surchargeCents: 0 },
     description: "",
     submittedAt: new Date(NOW),
     approvedAt: null,

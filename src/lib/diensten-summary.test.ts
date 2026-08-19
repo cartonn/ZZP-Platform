@@ -15,6 +15,7 @@ function dienst(overrides: Partial<DienstSummary>): DienstSummary {
     hours: 20,
     subtotalCents: 100_00,
     hasOrt: false,
+    ortBreakdown: { normalHours: 20, ortHours: 0, baseCents: 100_00, surchargeCents: 0 },
     description: "",
     submittedAt: new Date("2026-01-08"),
     approvedAt: null,
