@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   escapeIcsText,
   formatIcsDate,
+  formatIcsAlarmTrigger,
   foldIcsLine,
   buildIcsCalendar,
   type IcsEvent,
@@ -294,5 +295,115 @@ describe("buildIcsCalendar", () => {
     expect(pos1).toBeGreaterThan(-1);
     expect(pos2).toBeGreaterThan(-1);
     expect(pos1).toBeLessThan(pos2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatIcsAlarmTrigger
+// ---------------------------------------------------------------------------
+
+describe("formatIcsAlarmTrigger", () => {
+  it("geeft PT0S voor 0 dagen (op de startdag zelf)", () => {
+    expect(formatIcsAlarmTrigger(0)).toBe("PT0S");
+  });
+
+  it("geeft -P{n}D voor n≥1 dagen vooraf", () => {
+    expect(formatIcsAlarmTrigger(7)).toBe("-P7D");
+    expect(formatIcsAlarmTrigger(30)).toBe("-P30D");
+  });
+
+  it("kapt een niet-geheel getal naar beneden af", () => {
+    expect(formatIcsAlarmTrigger(7.9)).toBe("-P7D");
+  });
+
+  it("geeft null voor ongeldige invoer (negatief/NaN/oneindig)", () => {
+    expect(formatIcsAlarmTrigger(-1)).toBeNull();
+    expect(formatIcsAlarmTrigger(Number.NaN)).toBeNull();
+    expect(formatIcsAlarmTrigger(Number.POSITIVE_INFINITY)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildIcsCalendar — VALARM
+// ---------------------------------------------------------------------------
+
+describe("buildIcsCalendar — VALARM", () => {
+  const fixedNow = new Date("2026-01-01T00:00:00Z");
+
+  it("emitteert een VALARM-blok binnen het VEVENT met ACTION, TRIGGER en DESCRIPTION", () => {
+    const event: IcsEvent = {
+      uid: "evt-alarm",
+      summary: "Deadline",
+      start: new Date("2026-06-03T00:00:00Z"),
+      allDay: true,
+      alarms: [{ daysBefore: 7, description: "Over 7 dagen" }],
+    };
+    const output = buildIcsCalendar([event], { prodId: "-//Test//NL", now: fixedNow });
+    expect(output).toContain("BEGIN:VALARM");
+    expect(output).toContain("ACTION:DISPLAY");
+    expect(output).toContain("TRIGGER:-P7D");
+    expect(output).toContain("DESCRIPTION:Over 7 dagen");
+    expect(output).toContain("END:VALARM");
+    // Het VALARM staat binnen het VEVENT (vóór END:VEVENT).
+    expect(output.indexOf("BEGIN:VALARM")).toBeLessThan(output.indexOf("END:VEVENT"));
+    expect(output.indexOf("BEGIN:VEVENT")).toBeLessThan(output.indexOf("BEGIN:VALARM"));
+  });
+
+  it("emitteert meerdere VALARM-blokken in invoervolgorde", () => {
+    const event: IcsEvent = {
+      uid: "evt-multi",
+      summary: "Deadline",
+      start: new Date("2026-06-03T00:00:00Z"),
+      allDay: true,
+      alarms: [
+        { daysBefore: 30, description: "Over 30 dagen" },
+        { daysBefore: 7, description: "Over 7 dagen" },
+      ],
+    };
+    const output = buildIcsCalendar([event], { prodId: "-//Test//NL", now: fixedNow });
+    expect(output.split("BEGIN:VALARM").length - 1).toBe(2);
+    expect(output.indexOf("TRIGGER:-P30D")).toBeLessThan(output.indexOf("TRIGGER:-P7D"));
+  });
+
+  it("slaat een alarm met ongeldige daysBefore over (geen kapotte TRIGGER-regel)", () => {
+    const event: IcsEvent = {
+      uid: "evt-bad",
+      summary: "Deadline",
+      start: new Date("2026-06-03T00:00:00Z"),
+      allDay: true,
+      alarms: [
+        { daysBefore: -3, description: "ongeldig" },
+        { daysBefore: 7, description: "geldig" },
+      ],
+    };
+    const output = buildIcsCalendar([event], { prodId: "-//Test//NL", now: fixedNow });
+    expect(output.split("BEGIN:VALARM").length - 1).toBe(1);
+    expect(output).toContain("TRIGGER:-P7D");
+    expect(output).not.toContain("DESCRIPTION:ongeldig");
+  });
+
+  it("emitteert geen VALARM wanneer alarms ontbreekt of leeg is", () => {
+    const event: IcsEvent = {
+      uid: "evt-none",
+      summary: "Zonder alarm",
+      start: new Date("2026-06-03T00:00:00Z"),
+      allDay: true,
+      alarms: [],
+    };
+    const output = buildIcsCalendar([event], { prodId: "-//Test//NL", now: fixedNow });
+    expect(output).not.toContain("BEGIN:VALARM");
+  });
+
+  it("escapet speciale tekens in de VALARM-DESCRIPTION", () => {
+    const event: IcsEvent = {
+      uid: "evt-esc",
+      summary: "Deadline",
+      start: new Date("2026-06-03T00:00:00Z"),
+      allDay: true,
+      alarms: [{ daysBefore: 0, description: "a;b,c" }],
+    };
+    const output = buildIcsCalendar([event], { prodId: "-//Test//NL", now: fixedNow });
+    expect(output).toContain("TRIGGER:PT0S");
+    expect(output).toContain("DESCRIPTION:a\\;b\\,c");
   });
 });

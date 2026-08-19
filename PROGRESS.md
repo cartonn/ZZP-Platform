@@ -3,6 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-19 — ZZP'er: herinnerings-alarmen (VALARM) op de agenda-deadlines (PR #1164)
+
+**Wat:** de persoonlijke agenda-feed (`/api/agenda` eenmalige export + `/api/agenda/feed.ics`
+abonneer-feed) exporteerde de administratieve deadlines (certificaat-verloop, factuur-vervaldatum,
+BTW-aangifte, IB-aangifte, einde plaatsing) als kále all-day-events zónder herinnering. Een abonnee
+zag de deadline pas op de dag zelf in zijn agenda — te laat om nog een VOG te verlengen of een
+BTW-aangifte voor te bereiden. Nu dragen die deadline-events VALARM-herinneringen die ruim vooraf
+afgaan, zodat de ZZP'er tijdig een nudge in zijn eigen agenda-app (Google/Apple/Outlook) krijgt.
+Benchmark: elke serieuze agenda-integratie (Stripe-facturen, Calendly, o.a.) stuurt reminders mee —
+een deadline-feed zónder alarm is half werk. Voorloopvensters: certificaat 30 + 7 dagen (verlengen
+kost weken), factuur 3 dagen, BTW 7 dagen, IB 14 dagen, einde plaatsing 14 dagen.
+
+**Hoe:** `src/lib/calendar/ics.ts` — nieuw `IcsAlarm`-type (`daysBefore` + `description`) + optioneel
+`alarms`-veld op `IcsEvent`; pure `formatIcsAlarmTrigger(daysBefore)` (0 → `PT0S`, n≥1 → `-P{n}D`,
+ongeldig/negatief/NaN/∞ → `null` zodat een kapot alarm nooit een ongeldige TRIGGER-regel oplevert);
+`buildIcsCalendar` serialiseert per event de `alarms` als `BEGIN:VALARM`/`ACTION:DISPLAY`/`TRIGGER`/
+`DESCRIPTION`/`END:VALARM` sub-componenten binnen het VEVENT (RFC 5545), met dezelfde tekst-escaping
+en line-folding als de rest. `src/lib/calendar/deadlines.ts` — `administrativeDeadlineEvents` hangt de
+voorloopvensters per categorie aan elk deadline-event; teksten zijn perspectief-/betaal-bewust en
+bevatten (net als de events zelf) géén bedragen, want de abonneer-feed is een publieke bearer-URL.
+Het weekrooster (`schedule.ts`, terugkerende diensten) blijft bewust alarm-loos — dat zou per dienst
+een pop-up geven. Puur, server-side, deterministisch; geen schema-/mutatie-/authz-oppervlak.
+
+**Bestanden:** `src/lib/calendar/ics.ts` (+`ics.test.ts`, VALARM- + trigger-tests),
+`src/lib/calendar/deadlines.ts` (+`deadlines.test.ts`, alarm-assertions per categorie).
+
+**Gate:** typecheck, lint, test (6403), build, prettier (`--check .`) groen.
+
+**Volgende stap:** PR-poort (6 checks) afwachten → auto-merge.
+
 ## 2026-08-19 — Opdrachtgever: certificaat-compliance CSV-export (PR #1162)
 
 **Wat:** de opdrachtgever ziet op het dashboard de momentopname "Certificaten van je ZZP'ers"

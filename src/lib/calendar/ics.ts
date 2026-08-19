@@ -8,6 +8,19 @@ import { WEEKDAYS, type Weekday } from "@/lib/enums";
 // Types
 // ---------------------------------------------------------------------------
 
+/**
+ * Eén herinnerings-alarm (VALARM, ACTION:DISPLAY) dat een agenda-app vóór het event laat afgaan.
+ * Voor all-day-events die een deadline markeren (certificaat-verloop, factuur/BTW/IB, einde
+ * plaatsing) is dit de kern van de waarde: de gebruiker wil rúim vooraf een nudge, niet pas op de
+ * dag zelf. De trigger is relatief aan DTSTART; `daysBefore` dagen ervóór (0 = op de startdag).
+ */
+export interface IcsAlarm {
+  /** Aantal hele dagen vóór DTSTART dat de melding afgaat. Niet-negatief geheel getal (0 = startdag). */
+  daysBefore: number;
+  /** Weergavetekst van de melding (verplicht bij ACTION:DISPLAY per RFC 5545). */
+  description: string;
+}
+
 /** Beschrijving van één kalender-event dat naar iCalendar-formaat wordt omgezet. */
 export interface IcsEvent {
   uid: string;
@@ -22,6 +35,8 @@ export interface IcsEvent {
   until?: Date;
   description?: string;
   location?: string;
+  /** Herinnerings-alarmen (VALARM) die vóór DTSTART afgaan; leeg/undefined = geen alarm. */
+  alarms?: IcsAlarm[];
 }
 
 // ---------------------------------------------------------------------------
@@ -81,6 +96,18 @@ export function formatIcsDate(date: Date, opts?: { dateOnly?: boolean }): string
   const mi = pad(date.getUTCMinutes());
   const s = pad(date.getUTCSeconds());
   return `${y}${mo}${d}T${h}${mi}${s}Z`;
+}
+
+/**
+ * Formatteert een VALARM-TRIGGER-waarde (relatief aan DTSTART) uit een aantal dagen-vooraf.
+ * `daysBefore` wordt naar beneden afgekapt op een niet-negatief geheel getal.
+ * 0 → "PT0S" (op de startdag zelf); n≥1 → "-P{n}D" (n dagen ervóór). Geeft null voor ongeldige
+ * invoer (NaN/negatief/oneindig) zodat een kapot alarm nooit een ongeldige regel produceert.
+ */
+export function formatIcsAlarmTrigger(daysBefore: number): string | null {
+  if (!Number.isFinite(daysBefore) || daysBefore < 0) return null;
+  const days = Math.floor(daysBefore);
+  return days === 0 ? "PT0S" : `-P${days}D`;
 }
 
 /**
@@ -192,6 +219,21 @@ export function buildIcsCalendar(
 
     if (event.location !== undefined && event.location !== "") {
       lines.push(fold(`LOCATION:${escapeIcsText(event.location)}`));
+    }
+
+    // Herinnerings-alarmen (VALARM). Sub-component van VEVENT; komt vóór END:VEVENT. Een alarm met
+    // een ongeldige daysBefore (formatIcsAlarmTrigger → null) wordt overgeslagen zodat het nooit een
+    // ongeldige TRIGGER-regel oplevert.
+    if (event.alarms) {
+      for (const alarm of event.alarms) {
+        const trigger = formatIcsAlarmTrigger(alarm.daysBefore);
+        if (trigger === null) continue;
+        lines.push(fold("BEGIN:VALARM"));
+        lines.push(fold("ACTION:DISPLAY"));
+        lines.push(fold(`TRIGGER:${trigger}`));
+        lines.push(fold(`DESCRIPTION:${escapeIcsText(alarm.description)}`));
+        lines.push(fold("END:VALARM"));
+      }
     }
 
     lines.push(fold("END:VEVENT"));
