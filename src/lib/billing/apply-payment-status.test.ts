@@ -57,7 +57,7 @@ describe("applyResolvedPaymentStatus", () => {
     expect(ledgerCreateMock).toHaveBeenCalledWith({
       data: { provider: "stripe", eventKey: "pi_123:paid" },
     });
-    const data = updateMock.mock.calls[0][0] as { data: Record<string, unknown> };
+    const data = updateMock.mock.calls[0]![0] as { data: Record<string, unknown> };
     expect(data.data.status).toBe("ACTIVE");
     expect(data.data.pastDueAt).toBeNull();
     // Periode = now + 1 maand.
@@ -74,7 +74,7 @@ describe("applyResolvedPaymentStatus", () => {
   it("zet een PENDING-abonnement bij 'failed' op PAST_DUE (+ audit)", async () => {
     const out = await applyResolvedPaymentStatus(ctx("failed", "PENDING"));
     expect(out).toBe("failed");
-    const data = updateMock.mock.calls[0][0] as { data: Record<string, unknown> };
+    const data = updateMock.mock.calls[0]![0] as { data: Record<string, unknown> };
     expect(data.data.status).toBe("PAST_DUE");
     expect(data.data.pastDueAt).toEqual(NOW);
     expect(auditCreateMock).toHaveBeenCalledTimes(1);

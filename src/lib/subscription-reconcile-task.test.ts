@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { PaymentProvider, PaymentStatus } from "@/lib/billing/provider";
 
-const findManyMock = vi.hoisted(() => vi.fn(async (): Promise<unknown[]> => []));
+const findManyMock = vi.hoisted(() => vi.fn<(args: unknown) => Promise<unknown[]>>(async () => []));
 const applyMock = vi.hoisted(() => vi.fn(async (): Promise<string> => "unchanged"));
 
 vi.mock("@/lib/db", () => ({ prisma: { subscription: { findMany: findManyMock } } }));
@@ -60,7 +60,7 @@ describe("runSubscriptionReconcileTask", () => {
   it("vraagt alleen stale PENDING-rijen mét een providerRef op (juiste query-vorm)", async () => {
     const provider = fakeProvider("stripe", async () => "open");
     await runSubscriptionReconcileTask({ now: NOW, provider });
-    const args = findManyMock.mock.calls[0][0] as {
+    const args = findManyMock.mock.calls[0]![0] as {
       where: Record<string, unknown>;
       orderBy: unknown;
       take: number;
@@ -132,14 +132,11 @@ describe("runSubscriptionReconcileTask", () => {
       { id: "s2", userId: "u2", status: "PENDING", providerRef: "pi_2" },
     ]);
     const paymentStatus = vi
-      .fn<[string], Promise<PaymentStatus>>()
+      .fn<(ref: string) => Promise<PaymentStatus>>()
       .mockRejectedValueOnce(new Error("provider 503"))
       .mockResolvedValueOnce("paid");
     applyMock.mockResolvedValue("activated");
-    const provider = fakeProvider(
-      "stripe",
-      paymentStatus as unknown as (r: string) => Promise<PaymentStatus>,
-    );
+    const provider = fakeProvider("stripe", paymentStatus);
 
     const result = await runSubscriptionReconcileTask({ now: NOW, provider });
 
