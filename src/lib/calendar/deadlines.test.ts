@@ -127,4 +127,76 @@ describe("administrativeDeadlineEvents", () => {
       "collab-end-col-1@zzp-platform",
     ]);
   });
+
+  it("hangt herinnerings-alarmen aan een certificaat-verloop: 30 én 7 dagen vooraf", () => {
+    const [event] = administrativeDeadlineEvents({
+      ...empty,
+      credentials: [{ id: "c1", title: "VOG", expiresAt: new Date("2026-09-01T00:00:00Z") }],
+    });
+    expect(event!.alarms?.map((a) => a.daysBefore)).toEqual([30, 7]);
+    expect(event!.alarms?.[0]!.description).toContain("VOG");
+  });
+
+  it("hangt één alarm (3 dagen vooraf) aan een factuur-deadline, betaal-bewust van tekst", () => {
+    const [payable] = administrativeDeadlineEvents({
+      ...empty,
+      invoices: [
+        { id: "i1", number: "F-1", dueAt: new Date("2026-06-01T00:00:00Z"), payable: true },
+      ],
+    });
+    expect(payable!.alarms?.map((a) => a.daysBefore)).toEqual([3]);
+    expect(payable!.alarms?.[0]!.description).toContain("betaal");
+
+    const [receivable] = administrativeDeadlineEvents({
+      ...empty,
+      invoices: [
+        { id: "i2", number: "F-2", dueAt: new Date("2026-06-01T00:00:00Z"), payable: false },
+      ],
+    });
+    expect(receivable!.alarms?.map((a) => a.daysBefore)).toEqual([3]);
+    expect(receivable!.alarms?.[0]!.description).not.toContain("betaal");
+  });
+
+  it("hangt een alarm (7 dagen) aan een BTW-deadline en (14 dagen) aan de IB-deadline", () => {
+    const [vat] = administrativeDeadlineEvents({
+      ...empty,
+      vat: [{ year: 2026, quarter: 2, deadline: new Date("2026-07-31T00:00:00Z") }],
+    });
+    expect(vat!.alarms?.map((a) => a.daysBefore)).toEqual([7]);
+
+    const [ib] = administrativeDeadlineEvents({
+      ...empty,
+      incomeTax: { taxYear: 2026, deadline: new Date("2027-05-01T00:00:00Z") },
+    });
+    expect(ib!.alarms?.map((a) => a.daysBefore)).toEqual([14]);
+  });
+
+  it("hangt een alarm (14 dagen vooraf) aan een plaatsing-einddatum, perspectief-bewust", () => {
+    const [asFreelancer] = administrativeDeadlineEvents({
+      ...empty,
+      collaborations: [
+        {
+          id: "col-1",
+          endDate: new Date("2026-06-01T00:00:00Z"),
+          counterpartyName: "De Linde",
+          asClient: false,
+        },
+      ],
+    });
+    expect(asFreelancer!.alarms?.map((a) => a.daysBefore)).toEqual([14]);
+    expect(asFreelancer!.alarms?.[0]!.description).toContain("vervolg");
+
+    const [asClient] = administrativeDeadlineEvents({
+      ...empty,
+      collaborations: [
+        {
+          id: "col-2",
+          endDate: new Date("2026-06-01T00:00:00Z"),
+          counterpartyName: "Sanne",
+          asClient: true,
+        },
+      ],
+    });
+    expect(asClient!.alarms?.[0]!.description).toContain("vervanger");
+  });
 });

@@ -268,6 +268,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — herinnerings-alarmen (VALARM) op de agenda-deadlines (2026-08-19, PR #1164)** —
+> de agenda-feed (`/api/agenda` + `/api/agenda/feed.ics`) exporteerde de administratieve deadlines (certificaat-verloop, factuur-vervaldatum,
+> BTW, IB, einde plaatsing) als kále all-day-events zónder VALARM: een abonnee zag de deadline pas op de dag zelf, te laat om nog een VOG te
+> verlengen of een BTW-aangifte voor te bereiden. Nu dragen die deadline-events herinnerings-alarmen die ruim vooraf afgaan in de eigen agenda-app
+> (certificaat 30 + 7 dagen, factuur 3, BTW 7, IB 14, einde plaatsing 14). `src/lib/calendar/ics.ts`: nieuw `IcsAlarm`-type (`daysBefore`+`description`)
+>
+> - optioneel `alarms` op `IcsEvent`; pure `formatIcsAlarmTrigger` (0→`PT0S`, n≥1→`-P{n}D`, ongeldig→`null`); `buildIcsCalendar` serialiseert
+>   `BEGIN:VALARM`/`ACTION:DISPLAY`/`TRIGGER`/`DESCRIPTION` binnen het VEVENT (RFC 5545, zelfde escaping/folding). `src/lib/calendar/deadlines.ts`:
+>   `administrativeDeadlineEvents` hangt de voorloopvensters per categorie aan, teksten perspectief-/betaal-bewust en bedrag-loos (publieke bearer-feed).
+>   Weekrooster blijft alarm-loos (geen pop-up per dienst). Puur/server-side/deterministisch, geen schema-/mutatie-/authz-oppervlak. +tests (VALARM-
+>   serialisatie + trigger-formatter in ics.test.ts; alarm-assertions per categorie in deadlines.test.ts). Gate: typecheck, lint, test (6403), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — certificaat-compliance CSV-export (2026-08-19, PR #1162)** —
 > de opdrachtgever ziet de dashboard-momentopname "Certificaten van je ZZP'ers" (welke lopende samenwerkingen een certificaat-actie
 > vragen), maar kon die compliance-stand niet exporteren voor een kwaliteits-/zorgverantwoordelijke. Nu een "Exporteer (CSV)"-actie op de

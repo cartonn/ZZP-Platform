@@ -86,6 +86,12 @@ export function administrativeDeadlineEvents(input: AdministrativeDeadlines): Ic
       start: c.expiresAt,
       allDay: true,
       description: "Verleng dit document op tijd zodat je inzetbaar blijft.",
+      // Verlengen van een VOG/diploma/verzekering kost weken: waarschuw ruim vooraf, met een
+      // tweede nudge kort ervóór.
+      alarms: [
+        { daysBefore: 30, description: `Certificaat verloopt over 30 dagen: ${c.title}` },
+        { daysBefore: 7, description: `Certificaat verloopt over 7 dagen: ${c.title}` },
+      ],
     });
   }
 
@@ -98,6 +104,14 @@ export function administrativeDeadlineEvents(input: AdministrativeDeadlines): Ic
       description: inv.payable
         ? "Uiterste betaaldatum van deze factuur."
         : "Uiterste betaaldatum voor de opdrachtgever.",
+      alarms: [
+        {
+          daysBefore: 3,
+          description: inv.payable
+            ? `Factuur ${inv.number} vervalt over 3 dagen — betaal op tijd.`
+            : `Factuur ${inv.number} vervalt over 3 dagen.`,
+        },
+      ],
     });
   }
 
@@ -108,6 +122,9 @@ export function administrativeDeadlineEvents(input: AdministrativeDeadlines): Ic
       start: v.deadline,
       allDay: true,
       description: "Uiterste datum voor de BTW-aangifte en -betaling.",
+      alarms: [
+        { daysBefore: 7, description: `BTW-aangifte Q${v.quarter} ${v.year} over 7 dagen.` },
+      ],
     });
   }
 
@@ -118,6 +135,12 @@ export function administrativeDeadlineEvents(input: AdministrativeDeadlines): Ic
       start: input.incomeTax.deadline,
       allDay: true,
       description: "Uiterste datum voor de aangifte inkomstenbelasting over dit belastingjaar.",
+      alarms: [
+        {
+          daysBefore: 14,
+          description: `Aangifte inkomstenbelasting ${input.incomeTax.taxYear} over 14 dagen.`,
+        },
+      ],
     });
   }
 
@@ -130,6 +153,16 @@ export function administrativeDeadlineEvents(input: AdministrativeDeadlines): Ic
       description: col.asClient
         ? `De plaatsing van ${col.counterpartyName} loopt af. Plan tijdig een verlenging of een vervanger.`
         : `Je plaatsing bij ${col.counterpartyName} loopt af. Plan tijdig een vervolg of een nieuwe opdracht.`,
+      // Een aflopende plaatsing verdient tijdige opvolging (verlenging/vervolg); waarschuw 2 weken
+      // vooraf.
+      alarms: [
+        {
+          daysBefore: 14,
+          description: col.asClient
+            ? `Plaatsing van ${col.counterpartyName} loopt over 14 dagen af — plan verlenging of vervanger.`
+            : `Je plaatsing bij ${col.counterpartyName} loopt over 14 dagen af — plan een vervolg.`,
+        },
+      ],
     });
   }
 
