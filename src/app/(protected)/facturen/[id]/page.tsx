@@ -20,6 +20,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { PaymentReminderButton } from "@/components/invoices/payment-reminder-button";
 import { canSendPaymentReminder, isAwaitingPayment } from "@/lib/manual-payment-reminder";
+import { isInvoicePaymentPending } from "@/lib/invoice-payment-status";
 import { assessInvoiceCompliance } from "@/lib/invoice-legal";
 import { InvoiceComplianceCard } from "@/components/invoices/invoice-compliance-card";
 import { cancelInvoice, markInvoicePaid, sendInvoice } from "../actions";
@@ -171,10 +172,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   // + op tijd kan betalen. Beide partijen zien hetzelfde blok. Vereist een IBAN op het ZZP-profiel.
   const issuerIban = invoice.collaboration.freelancer.iban;
   const invoiceNumber = cascade ? (invoice.partyInvoiceNumber ?? invoice.number) : invoice.number;
-  const paymentPending = cascade
-    ? ["SUBMITTED", "APPROVED", "OVERDUE"].includes(invoice.lifecycleStatus ?? "")
-    : status === "SENT" || status === "OVERDUE";
-  const showPaymentDetails = !!issuerIban && paymentPending;
+  const showPaymentDetails = !!issuerIban && isInvoicePaymentPending(status, lifecycle);
 
   // De ZZP'er (crediteur) kan voor een te late, onbetaalde factuur een aanmaning opstellen.
   const overdueForReminder =

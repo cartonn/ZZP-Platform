@@ -17,14 +17,23 @@ facturatietool (Moneybird/e-Boekhouden) zet de betaalinstructie op het factuurdo
 `formatIban`, t.n.v. = crediteurnaam, betaalkenmerk = `Factuur <nummer>`, bedrag = `totalCents` incl.
 btw, uiterlijk betalen = vervaldatum) — één bron, spiegelt de `PaymentDetailsCard` → geen screen↔PDF-
 drift. `Bedrag` = totaal incl. btw, gelijk aan de kaart en aan het factuurtotaal; bij verlegde btw is
-btw = 0 dus dat is het werkelijk over te maken bedrag. Geen IBAN → `null` → geen blok (dezelfde
-voorwaarde als de kaart). `buildInvoicePdf` tekent het blok onder de totalen. De PDF-route
-(`/api/facturen/[id]/pdf`) selecteert nu `freelancer.iban` en geeft het door. Geen nieuwe dependency,
-geen schema-/mutatie-/authz-wijziging (route-authz/audit ongewijzigd), display-only.
+btw = 0 dus dat is het werkelijk over te maken bedrag. Geen IBAN → `null` → geen blok. `buildInvoicePdf`
+tekent het blok onder de totalen. De PDF-route (`/api/facturen/[id]/pdf`) selecteert nu `freelancer.iban`
 
-**Tests:** +5 (`invoice-pdf.test.ts`): `invoicePaymentRows` null zonder IBAN, exacte rij-spiegeling
-(opgemaakt IBAN/kenmerk/bedrag/vervaldatum), vervaldatum weggelaten zonder `dueAt`, verlegde-btw-bedrag
-= totaal, en een geldige PDF-build mét IBAN. Gate: typecheck + lint + test + build + prettier groen.
+- `status`/`lifecycleStatus` en geeft ze door. Geen nieuwe dependency, geen schema-/mutatie-/authz-
+  wijziging (route-authz/audit ongewijzigd), display-only.
+
+**Betaal-pending-gate (agent-review should-fix):** het blok verscheen aanvankelijk op élke factuur mét
+IBAN — ook op een `PAID`/`CANCELLED`/concept-factuur, wat tot een onterechte betaling kon aanzetten. De
+betaal-pending-gate die de `PaymentDetailsCard` al gebruikte is nu geëxtraheerd naar een gedeelde pure
+`src/lib/invoice-payment-status.ts` (`isInvoicePaymentPending`: cascade SUBMITTED/APPROVED/OVERDUE, los
+SENT/OVERDUE) en gebruikt door zowel het factuurdetail (page) als de PDF-route → één bron, geen drift;
+een betaalde/geannuleerde factuur krijgt geen betaalinstructie meer.
+
+**Tests:** +5 (`invoice-pdf.test.ts`): `invoicePaymentRows` null zonder IBAN, null bij `paymentDue:false`,
+exacte rij-spiegeling (opgemaakt IBAN/kenmerk/bedrag/vervaldatum), vervaldatum weggelaten zonder `dueAt`,
+verlegde-btw-bedrag = totaal, geldige PDF-build mét IBAN; +3 (`invoice-payment-status.test.ts`) over de
+cascade-/losse-status-gate. Gate: typecheck + lint + test (6351) + build + prettier groen.
 
 ## 2026-08-19 — Security/Privacy-audit: behavioural-metadata overleefde erasure (AVG art. 17/15)
 

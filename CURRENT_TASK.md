@@ -274,9 +274,12 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 > of betaalkenmerk (betalen = opzoeken/overtypen, foutgevoelig). Nu een "Betaalgegevens"-blok op de PDF dat de on-screen kaart exact
 > spiegelt. Nieuwe pure `invoicePaymentRows(data)` (`src/lib/invoice-pdf.ts`, één bron → geen screen↔PDF-drift): IBAN via `formatIban`,
 > t.n.v. = crediteurnaam, betaalkenmerk = `Factuur <nummer>`, bedrag = `totalCents` incl. btw (bij verlegde btw = 0 → werkelijk over te
-> maken bedrag), uiterlijk betalen = vervaldatum; geen IBAN → geen blok (zelfde voorwaarde als de kaart). PDF-route selecteert nu
-> `freelancer.iban` en geeft het door; `buildInvoicePdf` tekent het blok onder de totalen. Geen nieuwe dependency, geen schema-/mutatie-/
-> authz-wijziging, display-only. +5 tests. Gate: typecheck, lint, test, build, prettier groen.
+> maken bedrag), uiterlijk betalen = vervaldatum; geen IBAN → geen blok. De betaal-pending-gate die de `PaymentDetailsCard` al gebruikte
+> is geëxtraheerd naar een gedeelde pure `src/lib/invoice-payment-status.ts` (`isInvoicePaymentPending`) en gebruikt door zowel het
+> factuurdetail als de PDF-route → één bron, geen drift; een betaalde/geannuleerde/concept-factuur krijgt géén betaalinstructie meer
+> (agent-review should-fix). PDF-route selecteert nu `freelancer.iban` + `status`/`lifecycleStatus`; `buildInvoicePdf` tekent het blok
+> onder de totalen. Geen nieuwe dependency, geen schema-/mutatie-/authz-wijziging, display-only. +8 tests. Gate: typecheck, lint, test
+> (6351), build, prettier groen.
 >
 > Gedaan (niet opnieuw): **Prod-rijpheid — abonnements-reconcile-cron als webhook-backstop / self-healing (2026-08-19, PR #1153)** —
 > een betaalde checkout zet een `Subscription` op `PENDING`; **alleen** de inkomende betaal-webhook tilt 'm daarna naar `ACTIVE`/`PAST_DUE`.

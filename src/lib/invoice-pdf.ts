@@ -29,6 +29,12 @@ export interface InvoicePdfData {
   lines: InvoicePdfLine[];
   /** SEPA-IBAN van de crediteur; leeg/afwezig → geen betaalgegevens-blok op de PDF. */
   iban?: string | null;
+  /**
+   * Staat de factuur nog open voor betaling (zie `isInvoicePaymentPending`)? `false` onderdrukt het
+   * betaalgegevens-blok — een betaalde/geannuleerde/gecrediteerde factuur mag geen betaalinstructie
+   * tonen. Weggelaten → niet onderdrukt (toont zodra er een IBAN is); de route levert de waarde altijd.
+   */
+  paymentDue?: boolean;
 }
 
 export interface InvoicePaymentRow {
@@ -37,14 +43,19 @@ export interface InvoicePaymentRow {
 }
 
 /**
- * Betaalgegevens-rijen voor op de factuur-PDF. Spiegelt exact de on-screen `PaymentDetailsCard`
- * (IBAN, t.n.v., betaalkenmerk, bedrag, uiterlijk betalen) zodat scherm en PDF niet driften. Puur
- * en testbaar. Geeft `null` zonder IBAN — dan hoort er geen betaalinstructie op de factuur.
+ * Betaalgegevens-rijen voor op de factuur-PDF. Spiegelt de on-screen `PaymentDetailsCard` (IBAN,
+ * t.n.v., betaalkenmerk, bedrag, uiterlijk betalen) — zelfde velden en dezelfde betaal-pending-gate
+ * (`isInvoicePaymentPending`, via `paymentDue`) zodat scherm en PDF niet driften; de datumopmaak
+ * volgt de PDF-conventie (ISO `yyyy-mm-dd`, gelijk aan de overige datums op de PDF). Puur/testbaar.
+ *
+ * Geeft `null` zonder IBAN óf wanneer de factuur niet meer op betaling wacht (`paymentDue === false`)
+ * — een betaalde/geannuleerde factuur krijgt zo geen betaalinstructie die tot onterecht betalen leidt.
  *
  * `Bedrag` = totaal incl. btw (`totalCents`), gelijk aan de kaart en aan het factuurtotaal; bij
  * verlegde btw is dat het door de opdrachtgever daadwerkelijk over te maken bedrag (btw = 0).
  */
 export function invoicePaymentRows(data: InvoicePdfData): InvoicePaymentRow[] | null {
+  if (data.paymentDue === false) return null;
   const iban = data.iban?.trim();
   if (!iban) return null;
   const rows: InvoicePaymentRow[] = [

@@ -66,6 +66,16 @@ describe("invoicePaymentRows", () => {
     expect(invoicePaymentRows({ ...base, iban: "   " })).toBeNull();
   });
 
+  it("geeft null als de factuur niet meer op betaling wacht (betaald/geannuleerd)", () => {
+    expect(
+      invoicePaymentRows({ ...base, iban: "NL91ABNA0417164300", paymentDue: false }),
+    ).toBeNull();
+    // paymentDue weggelaten of true → wél tonen (zolang er een IBAN is).
+    expect(
+      invoicePaymentRows({ ...base, iban: "NL91ABNA0417164300", paymentDue: true }),
+    ).not.toBeNull();
+  });
+
   it("spiegelt de PaymentDetailsCard: IBAN (opgemaakt), t.n.v., betaalkenmerk, bedrag", () => {
     const rows = invoicePaymentRows({ ...base, iban: "nl91abna0417164300" });
     expect(rows).toEqual([
