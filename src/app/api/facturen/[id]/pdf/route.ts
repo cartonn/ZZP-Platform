@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { AuthorizationError, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { buildInvoicePdf } from "@/lib/invoice-pdf";
+import { isInvoicePaymentPending } from "@/lib/invoice-payment-status";
+import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { privateFileHeaders } from "@/lib/security/resource-headers";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
@@ -41,6 +43,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       vatCents: true,
       totalCents: true,
       vatRegime: true,
+      status: true,
+      lifecycleStatus: true,
       issuerUserId: true,
       counterpartyUserId: true,
       lines: { select: { description: true, quantity: true, unitCents: true, amountCents: true } },
@@ -53,6 +57,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
               userId: true,
               kvkNumber: true,
               btwNumber: true,
+              iban: true,
               user: { select: { name: true } },
             },
           },
@@ -123,6 +128,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     vatCents: inv.vatCents ?? 0,
     totalCents: inv.totalCents ?? 0,
     lines: inv.lines,
+    iban: inv.collaboration?.freelancer.iban ?? null,
+    // Betaalgegevens alleen op een factuur die nog op betaling wacht (zelfde gate als de
+    // on-screen PaymentDetailsCard) — geen betaalinstructie op een betaalde/geannuleerde factuur.
+    paymentDue: isInvoicePaymentPending(
+      inv.status,
+      inv.lifecycleStatus as InvoiceLifecycleState | null,
+    ),
   });
 
   const safeNumber = (inv.partyInvoiceNumber ?? inv.number).replace(/[^\w.\-]+/g, "_");

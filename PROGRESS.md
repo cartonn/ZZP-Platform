@@ -3,6 +3,38 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-19 — Opdrachtgever: betaalgegevens (IBAN + betaalkenmerk) op de factuur-PDF
+
+**Wat:** het factuurdetail (`facturen/[id]`) toont een `PaymentDetailsCard` met de betaalgegevens
+(IBAN, t.n.v., betaalkenmerk, bedrag, uiterlijk betalen), maar die kaart is `print-hide` én de
+canonieke factuur-**PDF** (`invoice-pdf.ts`, de printbare/opslaanbare/door te sturen versie) bevatte
+géén betaalinstructie. Een opdrachtgever die de PDF opslaat of naar zijn boekhouding stuurt had geen
+IBAN of betaalkenmerk — betalen kostte een omweg (opzoeken/overtypen, foutgevoelig). Nu draagt de PDF
+een "Betaalgegevens"-blok dat de on-screen kaart exact spiegelt. Benchmark: elke professionele
+facturatietool (Moneybird/e-Boekhouden) zet de betaalinstructie op het factuurdocument zelf.
+
+**Hoe:** nieuwe pure `invoicePaymentRows(data)` in `src/lib/invoice-pdf.ts` bouwt de rijen (IBAN via
+`formatIban`, t.n.v. = crediteurnaam, betaalkenmerk = `Factuur <nummer>`, bedrag = `totalCents` incl.
+btw, uiterlijk betalen = vervaldatum) — één bron, spiegelt de `PaymentDetailsCard` → geen screen↔PDF-
+drift. `Bedrag` = totaal incl. btw, gelijk aan de kaart en aan het factuurtotaal; bij verlegde btw is
+btw = 0 dus dat is het werkelijk over te maken bedrag. Geen IBAN → `null` → geen blok. `buildInvoicePdf`
+tekent het blok onder de totalen. De PDF-route (`/api/facturen/[id]/pdf`) selecteert nu `freelancer.iban`
+
+- `status`/`lifecycleStatus` en geeft ze door. Geen nieuwe dependency, geen schema-/mutatie-/authz-
+  wijziging (route-authz/audit ongewijzigd), display-only.
+
+**Betaal-pending-gate (agent-review should-fix):** het blok verscheen aanvankelijk op élke factuur mét
+IBAN — ook op een `PAID`/`CANCELLED`/concept-factuur, wat tot een onterechte betaling kon aanzetten. De
+betaal-pending-gate die de `PaymentDetailsCard` al gebruikte is nu geëxtraheerd naar een gedeelde pure
+`src/lib/invoice-payment-status.ts` (`isInvoicePaymentPending`: cascade SUBMITTED/APPROVED/OVERDUE, los
+SENT/OVERDUE) en gebruikt door zowel het factuurdetail (page) als de PDF-route → één bron, geen drift;
+een betaalde/geannuleerde factuur krijgt geen betaalinstructie meer.
+
+**Tests:** +5 (`invoice-pdf.test.ts`): `invoicePaymentRows` null zonder IBAN, null bij `paymentDue:false`,
+exacte rij-spiegeling (opgemaakt IBAN/kenmerk/bedrag/vervaldatum), vervaldatum weggelaten zonder `dueAt`,
+verlegde-btw-bedrag = totaal, geldige PDF-build mét IBAN; +3 (`invoice-payment-status.test.ts`) over de
+cascade-/losse-status-gate. Gate: typecheck + lint + test (6351) + build + prettier groen.
+
 ## 2026-08-19 — Security/Privacy-audit: behavioural-metadata overleefde erasure (AVG art. 17/15)
 
 **Wat:** security-/privacy-auditronde (basis `main` @ 126505f6). Orchestrator (Opus 4.8) + 3 parallelle
