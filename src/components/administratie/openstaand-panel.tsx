@@ -12,6 +12,7 @@ import {
   type AgingBucketKey,
 } from "@/lib/administration/aging";
 import { buildPayoutForecastMap, effectivePayoutDate } from "@/lib/administration/payout-forecast";
+import { isInvoiceOutstanding } from "@/lib/administration/outstanding";
 import { buildReminderEligibilityMap } from "@/lib/administration/openstaand-reminders";
 import { type ManualReminderEligibility } from "@/lib/manual-payment-reminder";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
@@ -73,13 +74,10 @@ async function fetchOpenInvoices(
       : Promise.resolve([]),
   ]);
 
-  const outstanding = invoices.filter((inv) => {
-    const isCascade = inv.lifecycleStatus != null;
-    if (isCascade) {
-      return ["SUBMITTED", "APPROVED", "OVERDUE"].includes(inv.lifecycleStatus as string);
-    }
-    return ["SENT", "OVERDUE"].includes(inv.status as string);
-  });
+  // Canonieke openstaand-regel (één bron van waarheid, gedeeld met de CSV-export en 9 andere
+  // consumenten) — nooit de literal-arrays hier inline dupliceren: dat laat het scherm en het
+  // dashboard-getal uiteenlopen zodra de regel in outstanding.ts verandert.
+  const outstanding = invoices.filter(isInvoiceOutstanding);
 
   const open = outstanding.map((inv) => {
     const isCascade = inv.lifecycleStatus != null;
