@@ -1,5 +1,45 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-20 (run 84) · **main-commit basis:** `9ab0fa25`
+> **Uitkomst:** **1 geld-integriteit/drift-defect gevonden én gefixt** (MED — de omzettrend-grafieken
+> (`revenue-trend.ts`, alle 4 rollen) telden een **afgewezen (REJECTED) cascade-factuur als fantoom-omzet**
+> terwijl de maanddoel-widget diezelfde factuur al uitsloot → twee omzetdefinities voor dezelfde periode).
+> Deze run kon voor het eerst **lokaal builden** (env-proxy-workaround: `NODE_USE_ENV_PROXY=1` +
+> `NODE_EXTRA_CA_CERTS` laat undici's fetch de agent-proxy honoreren → `next/font/google` lukt;
+> "✓ Compiled successfully"). 4 parallelle adversariële Opus-code-audits op niet-overlappende oppervlakken
+> (authz/IDOR/tenant-isolatie · cascade/geld-integriteit + verboden statusovergangen · next-action-engine/
+> badge-pariteit · malicieuze input/CSV/XSS/upload). Authz/IDOR, cascade/geld én malicieuze-input vonden
+> **0 nieuwe bereikbare gaten**; de next-action-audit her-rapporteerde de bekende badge/`/acties`-cap-klasse
+> die run 83 al als GEEN-DEFECT verifieerde (zie hieronder).
+>
+> - **OPGELOST — omzettrend telde een REJECTED cascade-factuur als fantoom-omzet (MED, geld-integriteit,
+>   DOEL 1/DOEL 2, CLAUDE.md regel 1/5):** `src/lib/revenue-trend.ts` (alle 4 fetchers: freelancer/client/
+>   tenant/platform) gebruikte `revenueCountedInvoiceWhere` (sluit alléén CREDITED uit), terwijl de
+>   maanddoel-widget (`src/lib/data/monthly-income.ts`) `realizedRevenueInvoiceWhere` gebruikt (sluit óók
+>   DRAFT/REJECTED uit). Een cascade-factuur zet `issuedAt` bij SUBMITTED; wordt hij daarna afgewezen
+>   (SUBMITTED→REJECTED), dan blijft `issuedAt` staan → de trend-grafiek telde 'm nog als omzet, terwijl
+>   de maanddoel-widget diezelfde afgewezen factuur al uitsloot. Twee omzetdefinities, zelfde periode,
+>   verschillende getallen (de lopende-maand-waarde in de trend ≠ het maanddoel-bedrag). **Fix:** alle 4
+>   fetchers gebruiken nu `realizedRevenueInvoiceWhere` → de trend spiegelt exact de canonieke
+>   realized-regel van de maanddoel-widget; de nu-verweesde `revenue-recognition.ts` (enige consument was
+>   revenue-trend) + zijn test verwijderd (geen slop). +regressietest (REJECTED-fixture: RED onder de oude
+>   where → 80000, GROEN nu → 30000).
+>
+> **GEEN-DEFECT (run 84, met verificatie — her-bevestigt run 83):**
+>
+> - **GEEN DEFECT — "badge (unbounded `.count()`) ≠ `/acties` (`take: MAX=50`) voor ADMIN/CLIENT/FRANCHISER":**
+>   de next-action-audit rapporteerde dat de nav-badges rauwe `.count()` gebruiken terwijl de `/acties`-
+>   emitters op `MAX=50` cappen (pending-tasks.ts:134-135, expliciet "+N meer buiten beschouwing"), dus bij
+>   > 50 open rijen toont de badge het echte aantal en `/acties` maar 50. **Verificatie:** dit is exact de
+>   > klasse die run 83 al als GEEN-DEFECT verifieerde. De badge moet de **echte, afhandelbare backlog**
+>   > weerspiegelen — de bestemming van elke badge toont de volledige (ongewindowde) wachtrij: ADMIN-
+>   > verificaties (`/admin/verificaties`, `findMany` zonder `take`), CLIENT-prestaties (elke
+>   > `performanceApproveTask` linkt naar de samenwerkings-detailpagina `/samenwerkingen/[id]`, per-collab
+>   > onbegrensd), enz. `/acties` is een **bewust begrensde top-50-aggregator** ("+N meer"), geen bron van
+>   > waarheid. De aanbevolen fix (badge cappen op `Math.min(count, 50)`) zou de badge juist laten ónder-tellen
+>   > t.o.v. de echte backlog + de bestemmingspagina — dezelfde wrong-direction-regressie die run 83 al
+>   > afwees. **Geen actie.**
+
 > **Datum:** 2026-08-19 (run 83) · **main-commit basis:** `55aa62e3`
 > **Uitkomst:** **1 geld-integriteit/drift-defect gevonden én gefixt** (MED — /openstaand-pagina + CSV
 > dupliceerden de openstaand-statusregel inline i.p.v. de canonieke `isInvoiceOutstanding`). 4 parallelle
