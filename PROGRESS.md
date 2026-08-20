@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-20 — routine: vaardigheidsfilter op de ZZP'er-etalage (opdrachtgever)
+
+**Wat (opdrachtgever-UX/asymmetriedichting):** de opdrachtgever kan de ZZP'er-etalage (`/freelancers`)
+nu narrowen op concrete **vaardigheden** (React, VOG-chauffeur, ORT-avond, enz.) — spiegel van de
+skill-filter die het `/opdrachten`-scherm voor de ZZP'er al had. Tot nu toe stonden op de etalage
+alleen zoekbalk, vertrouwensniveau en "alleen beschikbaar"; wie een team samenstelde voor een
+specifieke vaardigheid moest kaart-voor-kaart lezen. De skill-filter chips staan onder de filterrij
+als een rustig `Vaardigheden`-blok — meest voorkomend eerst, alfabetisch bij gelijke frequentie,
+een `Toon alle N vaardigheden`-toggle voor lange catalogi en `Wis vaardigheden` voor snelle reset.
+
+**Hoe:** nieuwe pure `buildFreelancerSkillCatalog(cards)` (`src/lib/freelancer-search.ts`) bouwt de
+catalogus uitsluitend uit skills die minstens één zichtbare ZZP'er voert → klikken kan nooit naar 0
+resultaten leiden vanwege een niet-vertegenwoordigde vaardigheid (klantvriendelijker dan een
+globale DB-lijst). Frequentie desc, tiebreaker `localeCompare(nl)` op naam, dan op id → volledig
+deterministisch. Filter loopt door de bestaande `applyFreelancerFilters` (skillIds-tak bestond al,
+werd alleen door geen UI gebruikt) → geen nieuwe filterlogica, geen nieuwe query. UI: chips met OR-
+semantiek (gelijk aan `/opdrachten`); geselecteerde skills die buiten de top-N vallen blijven altijd
+zichtbaar (anders "verdwijnt" een actieve filter); `hasActiveFilter` + `clearAll` bewaken de empty-
+state-CTA. Client-only, geen schema-/mutatie-/authz-/domeinmotor-oppervlak. +7 tests (dedup, freq-
+sortering, index-align tussen `skillIds`/`skillLabels`, orphan-fallback, dirty-input, geen mutatie).
+
+**Bestanden:** `src/lib/freelancer-search.ts`, `src/lib/freelancer-search.test.ts`,
+`src/app/(protected)/freelancers/freelancer-browse.tsx`. Gate: typecheck/lint/test (6467)/build/
+prettier groen. PR #1175.
+
 ## 2026-08-20 — prod: stille-faal-detector `zzp_disputes_overdue_escalation` (cascade-freeze)
 
 **Wat (observability/prod-rijpheid):** sluit het laatste gat in de cron-stille-faal-detector-familie.

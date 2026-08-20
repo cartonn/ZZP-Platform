@@ -268,6 +268,21 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — vaardigheidsfilter op de ZZP'er-etalage (2026-08-20)** —
+> `/freelancers` had tot nu toe alleen zoekbalk + vertrouwensniveau + "alleen beschikbaar"; de
+> opdrachtgever kon niet narrowen op concrete vaardigheden (VOG-chauffeur, ORT-avond, React, …). De
+> pure `applyFreelancerFilters` ondersteunde de `skillIds`-tak (OR-semantiek, gelijk aan de
+> `/opdrachten`-skillfilter) al — de UI legde die filter nergens bloot. Nieuwe pure
+> `buildFreelancerSkillCatalog(cards)` (`src/lib/freelancer-search.ts`) construeert de catalogus
+> uitsluitend uit skills die minstens één zichtbare ZZP'er voert (klikken kan nooit naar 0 vallen op
+> een niet-vertegenwoordigde skill; klantvriendelijker dan een globale DB-lijst); frequentie desc,
+> tiebreaker `localeCompare(nl)` op naam, dan op id → volledig deterministisch. Chips onder de
+> filterrij (label `Vaardigheden` + count per chip), `Toon alle N vaardigheden`-toggle voor lange
+> catalogi (>12), geselecteerde skills buiten de top-N blijven altijd zichtbaar (anders "verdwijnt"
+> een actieve filter), `Wis vaardigheden` voor snelle reset, empty-state-CTA respecteert de nieuwe
+> filter. Client-only, geen schema-/mutatie-/authz-/query-oppervlak. +7 tests. Gate: typecheck,
+> lint, test (6467), build, prettier groen. PR #1175.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever + bemiddelaar — voorstel-ouderdomssignaal op onondertekende
 > samenwerkingen (2026-08-20)** — een `PROPOSED`-samenwerking (contract nog niet ondertekend) toont in
 > de werkproces-fase "Contract ter ondertekening · Aan zet", maar niet de **duur**: een voorstel van een

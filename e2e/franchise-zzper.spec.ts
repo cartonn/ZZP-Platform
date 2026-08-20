@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
-import { reloadUntilVisible } from "./_robust";
+import { clickForUrl, reloadUntilVisible } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -51,8 +51,12 @@ test("franchiser onboardt een ZZP'er met skill en beschikbaarheid, met roster-de
       .first(),
   ).toBeVisible();
   // Sluit de CSV-export-link (/franchise/zzpers/export) uit — die downloadt en navigeert niet.
-  await page.locator('a[href^="/franchise/zzpers/"]:not([href*="/zzpers/export"])').first().click();
-  await page.waitForURL(/\/franchise\/zzpers\/[a-z0-9]+$/);
+  // #329-robuust: de link-click kan hangen terwijl de navigatie slaagde → clickForUrl herprobeert.
+  await clickForUrl(
+    page.locator('a[href^="/franchise/zzpers/"]:not([href*="/zzpers/export"])').first(),
+    page,
+    /\/franchise\/zzpers\/[a-z0-9]+$/,
+  );
 
   // Roster-detail toont beschikbaarheid, minstens één skill en de certificaten-lege-staat.
   await expect(page.getByRole("heading", { name: naam })).toBeVisible();
@@ -60,7 +64,7 @@ test("franchiser onboardt een ZZP'er met skill en beschikbaarheid, met roster-de
   await expect(page.getByText("Skills", { exact: true })).toBeVisible();
   // Certificaten leven op de "Bestanden"-tab van het dossier; voor een verse ZZP'er is die leeg.
   const bestandenLink = page.getByRole("link", { name: "Bestanden" });
-  await Promise.all([page.waitForURL(/[?&]tab=bestanden/), bestandenLink.click()]);
+  await clickForUrl(bestandenLink, page, /[?&]tab=bestanden/);
   await expect(page.getByText("Nog geen bestanden")).toBeVisible();
   await shot(page, "franchise-zzper-detail");
 });
