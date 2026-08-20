@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Star, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { sortFavorites } from "@/lib/favorites";
+import { hasFlexpoolSummary, summarizeFlexpool } from "@/lib/favorites-summary";
 import { type Availability } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -68,50 +69,82 @@ export async function FlexpoolPanel({ companyId }: { companyId: string }) {
     );
   }
 
+  // Samenvatting bovenaan: "wie kan er nu?" in één oogopslag over de hele poule, zodat een
+  // groeiende flexpool niet rij-voor-rij gescand hoeft te worden. Puur afgeleid uit dezelfde
+  // rijen als de lijst → kan niet driften.
+  const summary = summarizeFlexpool(favorites);
+
   return (
-    <ul className="space-y-3">
-      {favorites.map((fav) => {
-        const a = AVAILABILITY[fav.availability];
-        const subtitle = [fav.freelancer.headline, fav.freelancer.location]
-          .filter(Boolean)
-          .join(" · ");
-        return (
-          <li key={fav.freelancerProfileId}>
-            <Card>
-              <CardContent className="flex flex-wrap items-start justify-between gap-4 p-4 sm:p-5">
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <Link
-                      href={`/zzp/${fav.freelancer.id}`}
-                      className="focus-ring rounded font-medium hover:underline"
-                    >
-                      {fav.freelancer.user.name}
-                    </Link>
-                    <Badge variant={a.variant}>{a.label}</Badge>
-                    {fav.freelancer.hourlyRate != null && (
-                      <span className="text-sm text-muted-foreground">
-                        <span className="font-mono">€ {fav.freelancer.hourlyRate}</span>/uur
-                      </span>
+    <div className="space-y-3">
+      {hasFlexpoolSummary(summary) && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+          <span className="font-medium">
+            Beschikbaar nu:{" "}
+            <span
+              className={summary.available > 0 ? "text-success" : "text-muted-foreground"}
+              data-testid="flexpool-available-count"
+            >
+              {summary.available}
+            </span>
+          </span>
+          {summary.limited > 0 && (
+            <span className="text-muted-foreground">{summary.limited} beperkt</span>
+          )}
+          {summary.unknown > 0 && (
+            <span className="text-muted-foreground">{summary.unknown} onbekend</span>
+          )}
+          {summary.unavailable > 0 && (
+            <span className="text-muted-foreground">{summary.unavailable} niet</span>
+          )}
+          <span className="ml-auto text-muted-foreground">{summary.total} in je poule</span>
+        </div>
+      )}
+      <ul className="space-y-3">
+        {favorites.map((fav) => {
+          const a = AVAILABILITY[fav.availability];
+          const subtitle = [fav.freelancer.headline, fav.freelancer.location]
+            .filter(Boolean)
+            .join(" · ");
+          return (
+            <li key={fav.freelancerProfileId}>
+              <Card>
+                <CardContent className="flex flex-wrap items-start justify-between gap-4 p-4 sm:p-5">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <Link
+                        href={`/zzp/${fav.freelancer.id}`}
+                        className="focus-ring rounded font-medium hover:underline"
+                      >
+                        {fav.freelancer.user.name}
+                      </Link>
+                      <Badge variant={a.variant}>{a.label}</Badge>
+                      {fav.freelancer.hourlyRate != null && (
+                        <span className="text-sm text-muted-foreground">
+                          <span className="font-mono">€ {fav.freelancer.hourlyRate}</span>/uur
+                        </span>
+                      )}
+                    </div>
+                    {subtitle && (
+                      <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
                     )}
+                    {fav.note && <p className="text-sm">{fav.note}</p>}
                   </div>
-                  {subtitle && <p className="truncate text-sm text-muted-foreground">{subtitle}</p>}
-                  {fav.note && <p className="text-sm">{fav.note}</p>}
-                </div>
-                <ConfirmButton
-                  action={removeFavorite.bind(null, fav.freelancerProfileId)}
-                  title="Uit je poule verwijderen?"
-                  description={`${fav.freelancer.user.name} wordt uit je flexpool gehaald. Je kunt deze ZZP'er later opnieuw toevoegen.`}
-                  confirmLabel="Verwijderen"
-                  aria-label={`${fav.freelancer.user.name} uit je poule verwijderen`}
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                  Verwijderen
-                </ConfirmButton>
-              </CardContent>
-            </Card>
-          </li>
-        );
-      })}
-    </ul>
+                  <ConfirmButton
+                    action={removeFavorite.bind(null, fav.freelancerProfileId)}
+                    title="Uit je poule verwijderen?"
+                    description={`${fav.freelancer.user.name} wordt uit je flexpool gehaald. Je kunt deze ZZP'er later opnieuw toevoegen.`}
+                    confirmLabel="Verwijderen"
+                    aria-label={`${fav.freelancer.user.name} uit je poule verwijderen`}
+                  >
+                    <Trash2 className="size-4" aria-hidden />
+                    Verwijderen
+                  </ConfirmButton>
+                </CardContent>
+              </Card>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

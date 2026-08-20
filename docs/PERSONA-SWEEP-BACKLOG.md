@@ -1,5 +1,14 @@
 # Persona-sweep — gaten-backlog
 
+> **Routine-increment 2026-08-20 — GEDAAN (geen sweep, UX/data-waarde):** flexpool-
+> beschikbaarheidsstrip voor de opdrachtgever. De flexpool (`/favorieten` + de flexpool-tab)
+> toonde per ZZP'er wél een beschikbaarheidsbadge maar geen aggregaat — bij een poule naar
+> `take: 100` moest de opdrachtgever rij-voor-rij scannen om te zien wie er nú beschikbaar is.
+> Nieuwe pure `src/lib/favorites-summary.ts` (`summarizeFlexpool`, totaal-behoudend) + rustige
+> strip bovenaan `FlexpoolPanel` die leidt met "Beschikbaar nu: N", afgeleid uit exact dezelfde
+> rijen als de lijst (geen drift). Display-only, geen schema-/mutatie-/authz-oppervlak. +6 tests.
+> Gate groen (typecheck/lint/test 6425/build/prettier). PR #1170.
+
 > **Datum:** 2026-08-20 (run 84) · **main-commit basis:** `9ab0fa25`
 > **Uitkomst:** **1 geld-integriteit/drift-defect gevonden én gefixt** (MED — de omzettrend-grafieken
 > (`revenue-trend.ts`, alle 4 rollen) telden een **afgewezen (REJECTED) cascade-factuur als fantoom-omzet**

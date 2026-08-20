@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-20 — Opdrachtgever: flexpool-beschikbaarheidsstrip ("wie kan er nu?")
+
+**Wat:** de flexpool (`/favorieten` + de flexpool-tab van de bedrijfsprofiel-hub) toonde per ZZP'er
+een beschikbaarheidsbadge, maar geen aggregaat: bij een poule die naar `take: 100` groeit moest de
+opdrachtgever rij-voor-rij scannen om te zien wie er nú beschikbaar is. Noord-ster "toon alleen wat
+telt": een rustige samenvattingsstrip bovenaan leidt nu met **"Beschikbaar nu: N"** (groen bij >0),
+met een subtiele uitsplitsing beperkt/onbekend/niet en het pooltotaal. Display-only, geen schema-
+wijziging (leunt op het bestaande `FreelancerProfile.availability`-veld dat de lijst al laadt).
+
+**Hoe:** nieuwe pure `src/lib/favorites-summary.ts` (`summarizeFlexpool`/`hasFlexpoolSummary`): telt
+de poule per beschikbaarheidsbucket (AVAILABLE/LIMITED/UNAVAILABLE/UNKNOWN), totaal-behoudend (de vier
+buckets sommeren altijd tot `total`); een onbekende waarde valt defensief in de unknown-bucket, nooit
+in available. Gewired in `src/components/favorites/flexpool-panel.tsx` uit **exact dezelfde rijen** als
+de lijst eronder (`summarizeFlexpool(favorites)`) → kan niet driften; strip alleen bij een niet-lege
+poule. Read-only, alleen CLIENT (het paneel is al eigenaar-gescoped), geen mutatie-/authz-/domeinmotor-
+oppervlak. Tests: 6 (bucket-telling, totaal-invariant, lege poule, onbekende waarde, `hasFlexpoolSummary`).
+Gate: typecheck, lint, test (6425), build, prettier groen.
+
 ## 2026-08-20 — Opdrachtgever + bemiddelaar: voorstel-ouderdomssignaal op onondertekende samenwerkingen
 
 **Wat:** een voorgestelde samenwerking (`PROPOSED`, contract nog niet ondertekend) toont in de
