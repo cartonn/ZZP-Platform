@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { planPastDue, type PastDueCandidate } from "@/lib/past-due";
+import {
+  overdueDowngradeSubscriptionWhere,
+  pastDueDowngradeBacklogCutoff,
+  planPastDue,
+  type PastDueCandidate,
+} from "@/lib/past-due";
 
 const now = new Date("2026-06-20T12:00:00Z");
 const daysAgo = (n: number) => new Date(now.getTime() - n * 24 * 60 * 60 * 1000);
@@ -70,5 +75,45 @@ describe("planPastDue", () => {
     expect(firstKey).toBeDefined();
     expect(secondKey).toBeDefined();
     expect(secondKey).not.toBe(firstKey);
+  });
+});
+
+describe("overdueDowngradeSubscriptionWhere / pastDueDowngradeBacklogCutoff", () => {
+  // JS-spiegel van de Prisma-where: status PAST_DUE (per constructie waar voor kandidaten) én de
+  // effectieve PAST_DUE-begintijd (pastDueAt ?? updatedAt) op of vóór de cutoff.
+  const matchesWhere = (c: PastDueCandidate, cutoff: Date): boolean =>
+    (c.pastDueAt ?? c.updatedAt).getTime() <= cutoff.getTime();
+
+  it("levert een status-PAST_DUE-where met de pastDueAt/updatedAt-OR", () => {
+    const cutoff = pastDueDowngradeBacklogCutoff(now);
+    expect(overdueDowngradeSubscriptionWhere(cutoff)).toEqual({
+      status: "PAST_DUE",
+      OR: [{ pastDueAt: { lte: cutoff } }, { pastDueAt: null, updatedAt: { lte: cutoff } }],
+    });
+  });
+
+  it("dekt exact de rijen die planPastDue zou downgraden (geen drift met de cron-beslissing)", () => {
+    const cutoff = pastDueDowngradeBacklogCutoff(now);
+    const candidates = [
+      cand({ id: "d0", pastDueAt: daysAgo(0) }),
+      cand({ id: "d1", pastDueAt: daysAgo(1) }),
+      cand({ id: "d7", pastDueAt: daysAgo(7) }), // exact dag 7 → herinnering, geen downgrade
+      cand({ id: "d8", pastDueAt: daysAgo(8) }), // dag 8 → downgrade
+      cand({ id: "d9", pastDueAt: daysAgo(9) }),
+      cand({ id: "d20", pastDueAt: daysAgo(20) }),
+      cand({ id: "legacy7", pastDueAt: null, updatedAt: daysAgo(7) }),
+      cand({ id: "legacy8", pastDueAt: null, updatedAt: daysAgo(8) }),
+    ];
+
+    const downgraded = new Set(
+      planPastDue(candidates, now).downgrades.map((d) => d.subscriptionId),
+    );
+    const matchedByWhere = new Set(
+      candidates.filter((c) => matchesWhere(c, cutoff)).map((c) => c.id),
+    );
+
+    expect(matchedByWhere).toEqual(downgraded);
+    // Sanity: de verwachte downgrade-set (dag > 7).
+    expect([...downgraded].sort()).toEqual(["d20", "d8", "d9", "legacy8"]);
   });
 });

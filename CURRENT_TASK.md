@@ -268,6 +268,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — vastgelopen-PAST_DUE-downgrade-detector `zzp_subscriptions_past_due_overdue_downgrade` (2026-08-20)** —
+> sluit het laatste gat in de abonnement-stille-faal-familie. Elke abonnementsstatus had een stille-faal-gauge behalve de PAST_DUE-downgrade:
+> een mislukte betaling zet een abonnement op `PAST_DUE` (webhook), waarna de `subscription-past-due`-cron herinnert (dag 1/3/7) en op dag 8+
+> downgradet naar `CANCELLED` (→ Gratis). De cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de downgrade-pijplijn verwerkte —
+> `overdueExpirySubscriptions` dekt ACTIVE-verval, `stalePendingSubscriptions` dekt PENDING, maar PAST_DUE-downgrade was ongedekt: bleef dat werk
+> stil hangen dan bleven mislukte betalingen eeuwig in PAST_DUE hangen en gingen de herstel-herinneringen niet uit (verloren omzet-herstel;
+> géén toegangslek — de entitlement-guard behandelt PAST_DUE al als Gratis). Nieuwe read-only gauge `zzp_subscriptions_past_due_overdue_downgrade`
+> op `/api/metrics` (PAST_DUE-abonnementen voorbij de downgrade-drempel `PAST_DUE_DOWNGRADE_AFTER_DAYS`, 7 dagen). Nieuwe pure
+> `overdueDowngradeSubscriptionWhere`/`pastDueDowngradeBacklogCutoff` (`src/lib/past-due.ts`, `pastDueAt ?? updatedAt`-OR), via drift-gate-test
+> vastgeklonken aan de downgrade-beslissing van `planPastDue` → kan niet driften. Prometheus-alert `ZzpSubscriptionsPastDueOverdueDowngrade`
+> (`> 0`, `for: 30h`) + onderhouds-inhibitie, vastgeklonken aan beide drift-gates. Met de mock-provider (pilot-default) → gauge `0`. Read-only,
+> geen schema-/mutatie-/auth-oppervlak, geen PII/secrets. +tests (metrics-map+clamp, volledige gauge-set, route-query-telling, where↔planPastDue-drift).
+> Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er — herinnerings-alarmen (VALARM) op de agenda-deadlines (2026-08-19, PR #1164)** —
 > de agenda-feed (`/api/agenda` + `/api/agenda/feed.ics`) exporteerde de administratieve deadlines (certificaat-verloop, factuur-vervaldatum,
 > BTW, IB, einde plaatsing) als kále all-day-events zónder VALARM: een abonnee zag de deadline pas op de dag zelf, te laat om nog een VOG te

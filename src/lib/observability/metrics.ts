@@ -103,6 +103,19 @@ export interface MetricsInput {
    */
   stalePendingSubscriptions: number;
   /**
+   * Aantal PAST_DUE-abonnementen wier effectieve PAST_DUE-leeftijd (`pastDueAt ?? updatedAt`) de
+   * downgrade-drempel (`PAST_DUE_DOWNGRADE_AFTER_DAYS`, 7 dagen) heeft overschreden maar die de
+   * `subscription-past-due`-cron nog niet naar `CANCELLED` (→ Gratis) zette. Sluit het laatste gat in de
+   * abonnement-stille-faal-familie: `overdueExpirySubscriptions` dekt ACTIVE-verval, `stalePendingSubscriptions`
+   * dekt PENDING, deze dekt PAST_DUE. Een mislukte betaling zet de rij op PAST_DUE (webhook); de cron
+   * herinnert (dag 1/3/7) en downgradet daarna. De entitlement-guard behandelt PAST_DUE al als Gratis
+   * (geen toegangslek), maar een oplopende backlog terwijl de cron-heartbeat "vers" is betekent dat de
+   * hele past-due-pijplijn stilligt: mislukte betalingen blijven eeuwig in PAST_DUE hangen en de
+   * herstel-herinneringen gaan niet uit (verloren omzet-herstel + rommelige abonnementstaat). De
+   * mock-provider (pilot-default) maakt nooit een PAST_DUE-rij aan → per definitie `0`.
+   */
+  overduePastDueDowngrades: number;
+  /**
    * Aantal cascade-facturen met `lifecycleStatus === "APPROVED"` wier `dueAt` in het verleden ligt maar
    * die de payment-reminders-cron nog niet op `OVERDUE` zette — werk dat die cron had moeten doen
    * (`planPaymentReminders.toMarkOverdue` → `APPROVED → OVERDUE`). Dezelfde stille-faal-detector-klasse
@@ -410,6 +423,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal abonnementen dat langer dan het geconfigureerde venster (SUBSCRIPTION_PENDING_STALE_HOURS, default 24u) in status PENDING hangt — een betaalde checkout die de betaal-webhook nooit op ACTIVE/PAST_DUE tilde (0 met de mock-provider — de pilot-default; een enkele verlaten checkout is normaal; aanhoudend/oplopend duidt op een stil kapotte webhook: verkeerde callback-URL/handtekening-mismatch/geblokkeerde poort → niemand wordt geactiveerd en de platform-omzet lekt stil weg).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.stalePendingSubscriptions)),
+    },
+    {
+      name: "zzp_subscriptions_past_due_overdue_downgrade",
+      help: "Aantal PAST_DUE-abonnementen wier PAST_DUE-leeftijd de downgrade-drempel (PAST_DUE_DOWNGRADE_AFTER_DAYS, 7 dagen) overschreed maar die de subscription-past-due-cron nog niet op CANCELLED (→ Gratis) zette (0 met de mock-provider — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen past-due-pijplijn: mislukte betalingen blijven eeuwig in PAST_DUE hangen en de herstel-herinneringen gaan niet uit).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.overduePastDueDowngrades)),
     },
     {
       name: "zzp_invoices_overdue_unflipped",

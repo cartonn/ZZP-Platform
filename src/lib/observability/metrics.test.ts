@@ -26,6 +26,7 @@ const HEALTHY: MetricsInput = {
   overdueExpiryCredentials: 0,
   overdueExpirySubscriptions: 0,
   stalePendingSubscriptions: 0,
+  overduePastDueDowngrades: 0,
   overdueUnflippedInvoices: 0,
   overdueReviewReveals: 0,
   overduePerformanceGrace: 0,
@@ -121,6 +122,31 @@ describe("buildMetrics", () => {
     expect(
       valueOf({ ...HEALTHY, stalePendingSubscriptions: 4.8 }, "zzp_subscriptions_stale_pending"),
     ).toBe(4);
+  });
+
+  it("mapt de vastgelopen-PAST_DUE-downgrade-detector door als gauge", () => {
+    expect(valueOf(HEALTHY, "zzp_subscriptions_past_due_overdue_downgrade")).toBe(0);
+    expect(
+      valueOf(
+        { ...HEALTHY, overduePastDueDowngrades: 6 },
+        "zzp_subscriptions_past_due_overdue_downgrade",
+      ),
+    ).toBe(6);
+  });
+
+  it("klemt een negatieve/gebroken PAST_DUE-downgrade-teller veilig op een niet-negatief geheel getal", () => {
+    expect(
+      valueOf(
+        { ...HEALTHY, overduePastDueDowngrades: -5 },
+        "zzp_subscriptions_past_due_overdue_downgrade",
+      ),
+    ).toBe(0);
+    expect(
+      valueOf(
+        { ...HEALTHY, overduePastDueDowngrades: 2.9 },
+        "zzp_subscriptions_past_due_overdue_downgrade",
+      ),
+    ).toBe(2);
   });
 
   it("mapt de betaal-verval-backlog (APPROVED maar verstreken) door als gauge", () => {
@@ -375,6 +401,7 @@ describe("buildMetrics", () => {
       overdueExpiryCredentials: 12,
       overdueExpirySubscriptions: 8,
       stalePendingSubscriptions: 16,
+      overduePastDueDowngrades: 17,
       overdueUnflippedInvoices: 5,
       overdueReviewReveals: 10,
       overduePerformanceGrace: 13,
@@ -405,6 +432,7 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_credentials_overdue_expiry")).toBe(12);
     expect(valueOf(input, "zzp_subscriptions_overdue_expiry")).toBe(8);
     expect(valueOf(input, "zzp_subscriptions_stale_pending")).toBe(16);
+    expect(valueOf(input, "zzp_subscriptions_past_due_overdue_downgrade")).toBe(17);
     expect(valueOf(input, "zzp_invoices_overdue_unflipped")).toBe(5);
     expect(valueOf(input, "zzp_reviews_overdue_reveal")).toBe(10);
     expect(valueOf(input, "zzp_performances_overdue_grace")).toBe(13);
@@ -470,6 +498,7 @@ describe("buildMetrics", () => {
       "zzp_credentials_overdue_expiry",
       "zzp_subscriptions_overdue_expiry",
       "zzp_subscriptions_stale_pending",
+      "zzp_subscriptions_past_due_overdue_downgrade",
       "zzp_invoices_overdue_unflipped",
       "zzp_reviews_overdue_reveal",
       "zzp_performances_overdue_grace",

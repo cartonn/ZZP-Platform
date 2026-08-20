@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-20 — Prod-rijpheid: vastgelopen-PAST_DUE-downgrade-detector `zzp_subscriptions_past_due_overdue_downgrade`
+
+**Wat:** sloot het laatste gat in de abonnement-stille-faal-gauge-familie. Elke abonnementsstatus had
+al een stille-faal-detector op `/api/metrics` behalve de PAST_DUE-**downgrade**: een mislukte betaling
+zet een abonnement op `PAST_DUE` (webhook), waarna de `subscription-past-due`-cron herinnert (dag 1/3/7)
+en op dag 8+ downgradet naar `CANCELLED` (→ Gratis). De cron-heartbeat bewijst alleen dát de run afrondde,
+niet dát 'ie de downgrade-pijplijn verwerkte — `overdueExpirySubscriptions` dekt ACTIVE-verval,
+`stalePendingSubscriptions` dekt PENDING, maar PAST_DUE-downgrade was ongedekt: bleef dat werk stil hangen,
+dan bleven mislukte betalingen eeuwig in `PAST_DUE` hangen en gingen de herstel-herinneringen niet uit
+(verloren omzet-herstel + rommelige abonnementstaat; géén toegangslek — de entitlement-guard behandelt
+PAST_DUE al als Gratis).
+
+**Hoe:** nieuwe pure `pastDueDowngradeBacklogCutoff`/`overdueDowngradeSubscriptionWhere`
+(`src/lib/past-due.ts`, `pastDueAt ?? updatedAt`-OR, cutoff = `now - (7+1)d`), via drift-gate-test in
+`past-due.test.ts` vastgeklonken aan de downgrade-beslissing van `planPastDue` → kan niet driften. Nieuwe
+gauge `zzp_subscriptions_past_due_overdue_downgrade` in `metrics.ts` (+ `MetricsInput`-veld
+`overduePastDueDowngrades`), gewired in `src/app/api/metrics/route.ts` (derde `subscription.count`-query,
+fail-veilig). Prometheus-alert `ZzpSubscriptionsPastDueOverdueDowngrade` (`> 0`, `for: 30h`) in
+`docs/observability/alerts.yml` + onderhouds-inhibitie in `alertmanager.yml`, vastgeklonken aan beide
+drift-gates (`alerts-rules.ts` SAMPLE_INPUT + monitoring-bundle). Read-only, geen schema-/mutatie-/auth-
+oppervlak, geen PII/secrets. Met de mock-provider (pilot-default) → gauge `0`. Tests: metrics-map+clamp,
+volledige gauge-set-volgorde, route-query-telling (3 subscription.count-queries), where↔planPastDue-drift.
+Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-08-20 — Security/privacy-audit: `SavedJob`/`FavoriteFreelancer`-rij/`NotificationPreference` overleefden erasure (HOOG, AVG art. 15/17/20)
 
 **Wat:** volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële
