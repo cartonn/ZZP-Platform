@@ -264,12 +264,17 @@ async function collectInput(now: Date): Promise<MetricsInput> {
       // die de runner gebruikt) — zo telt de gauge alleen collabs die nog GEEN escalatie kregen. De
       // IN-lijst is per definitie klein (open disputen zijn zeldzaam), dus een enkele round-trip.
       const cutoff = disputeEscalationBacklogCutoff(now);
+      // unbounded-allow: een backlog-gauge moet ELKE openstaande escalatie tellen; een `take` zou de
+      // stille-faal-telling onderschatten (vals-negatief). De where is scherp begrensd (open disputen
+      // voorbij de drempel — een zeldzame, kleine set), dus geen praktisch geheugelrisico.
       const candidates = await prisma.collaboration.findMany({
         where: overdueDisputeCollaborationWhere(cutoff),
         select: { id: true },
       });
       if (candidates.length > 0) {
         const keys = candidates.map((c) => disputeEscalationDedupeKey(c.id));
+        // unbounded-allow: de IN-lijst is `keys` (afgeleid van `candidates` hierboven — dezelfde
+        // begrensde set), dus deze lezing is intrinsiek gebonden aan de al-begrensde backlog.
         const escalated = await prisma.domainEvent.findMany({
           where: { dedupeKey: { in: keys } },
           select: { dedupeKey: true },
