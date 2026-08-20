@@ -8,10 +8,7 @@
 // `summarizeCollaborationRenewal` zodat de strip niet kan driften met de next-action/badge (CLAUDE.md
 // regel 1: de server bepaalt de waarheid, deze helper levert enkel de afgeleide presentatie).
 
-import {
-  summarizeCollaborationRenewal,
-  type CollaborationRenewalPhase,
-} from "@/lib/collaboration-renewal";
+import { summarizeCollaborationRenewal } from "@/lib/collaboration-renewal";
 import { summarizeProposalAge, PROPOSAL_STALE_DAYS } from "@/lib/collaboration-proposal-age";
 
 /** Minimale invoer per samenwerking — volledig afleidbaar uit de al opgehaalde rijen. */
@@ -130,23 +127,9 @@ export function franchiseCollabHeadline(summary: FranchiseCollabOversight): stri
 }
 
 /**
- * Compacte per-rij-chip voor een ACTIVE-inzet in het vervolgvenster. `null` als de rij geen aandacht
- * vraagt (on_track/lapsed/geen einddatum/niet-ACTIVE) — dan blijft de rij rustig. Alleen presentatie;
- * de fase komt uit dezelfde pure bron als de strip en de next-action.
+ * Compacte per-rij-chip voor een ACTIVE-inzet in het vervolgvenster. Verhuisd naar de canonieke
+ * `collaboration-renewal`-module (naast `renewalHeadline`), zodat zowel de bemiddelaar-lijst als de
+ * deelnemer-lijst (`/samenwerkingen`) dezelfde chip uit één bron tekenen — geen drift. Hier
+ * her-geëxporteerd zodat de bestaande importpaden ongewijzigd blijven.
  */
-export function renewalRowBadge(
-  phase: CollaborationRenewalPhase,
-  daysRemaining: number | null,
-): { label: string; tone: "warning" | "danger" } | null {
-  if (phase === "overdue") {
-    const late = daysRemaining !== null ? -daysRemaining : 0;
-    if (late <= 0) return { label: "Voorbij einddatum", tone: "danger" };
-    return { label: `${late} ${late === 1 ? "dag" : "dagen"} over tijd`, tone: "danger" };
-  }
-  if (phase === "ending_soon") {
-    if (daysRemaining === 0) return { label: "Loopt vandaag af", tone: "warning" };
-    if (daysRemaining === 1) return { label: "Loopt morgen af", tone: "warning" };
-    return { label: `Loopt af over ${daysRemaining} dagen`, tone: "warning" };
-  }
-  return null;
-}
+export { renewalRowBadge } from "@/lib/collaboration-renewal";

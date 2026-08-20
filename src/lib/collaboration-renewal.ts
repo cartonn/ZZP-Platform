@@ -103,6 +103,29 @@ export function countAttentionRenewals(
   return count;
 }
 
+/**
+ * Compacte per-rij-chip voor een ACTIVE-inzet in het vervolgvenster. `null` als de rij geen aandacht
+ * vraagt (on_track/lapsed/geen einddatum/niet-ACTIVE) — dan blijft de rij rustig. Alleen presentatie;
+ * de fase komt uit dezelfde pure bron (`summarizeCollaborationRenewal`) als de strip, de next-action
+ * en de detail-nudge → één taal op elk oppervlak, geen drift.
+ */
+export function renewalRowBadge(
+  phase: CollaborationRenewalPhase,
+  daysRemaining: number | null,
+): { label: string; tone: "warning" | "danger" } | null {
+  if (phase === "overdue") {
+    const late = daysRemaining !== null ? -daysRemaining : 0;
+    if (late <= 0) return { label: "Voorbij einddatum", tone: "danger" };
+    return { label: `${late} ${late === 1 ? "dag" : "dagen"} over tijd`, tone: "danger" };
+  }
+  if (phase === "ending_soon") {
+    if (daysRemaining === 0) return { label: "Loopt vandaag af", tone: "warning" };
+    if (daysRemaining === 1) return { label: "Loopt morgen af", tone: "warning" };
+    return { label: `Loopt af over ${daysRemaining} dagen`, tone: "warning" };
+  }
+  return null;
+}
+
 /** Compacte, rustige kop per fase/rol — de nudge zelf blijft advies, geen blokkade. */
 export function renewalHeadline(
   phase: CollaborationRenewalPhase,

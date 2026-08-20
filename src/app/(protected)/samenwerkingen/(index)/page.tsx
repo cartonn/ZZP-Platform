@@ -17,6 +17,7 @@ import { type CollaborationStatus, type ContractStatus, type CredentialType } fr
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { cascadeStage, isPerformanceNewerThanInvoice } from "@/lib/cascade/stage";
 import { summarizeProposalAge } from "@/lib/collaboration-proposal-age";
+import { summarizeCollaborationRenewal, renewalRowBadge } from "@/lib/collaboration-renewal";
 import { assessCancellation } from "@/lib/cancellation";
 import { pageArgs, splitPage } from "@/lib/pagination";
 import { withParams } from "@/components/admin/base-path";
@@ -302,6 +303,17 @@ export default async function SamenwerkingenPage({
                         ...jobDbaIndicators(c.job),
                       })
                     : null;
+                // Vervolgsignaal: nadert (of passeerde) een lopende inzet zijn einddatum? Zelfde pure
+                // bron als de bemiddelaar-lijst, de next-action en de detail-nudge — beide partijen
+                // plannen zo tijdig een vervolg. Alleen bij attention (ending_soon/overdue) een chip.
+                const renewal = summarizeCollaborationRenewal({
+                  status,
+                  endDate: c.endDate,
+                  disputed: c.disputedAt !== null,
+                });
+                const renewalBadge = renewal.attention
+                  ? renewalRowBadge(renewal.phase, renewal.daysRemaining)
+                  : null;
                 return (
                   <Card key={c.id}>
                     <CardContent className="space-y-3">
@@ -322,6 +334,14 @@ export default async function SamenwerkingenPage({
                                   title="DBA-aandachtspunt — geen juridisch oordeel"
                                 >
                                   {DBA_LEVEL_LABEL[dba.level]}
+                                </Badge>
+                              )}
+                              {renewalBadge && (
+                                <Badge
+                                  variant={renewalBadge.tone}
+                                  title="Plan tijdig een vervolg — de samenwerking nadert de einddatum."
+                                >
+                                  {renewalBadge.label}
                                 </Badge>
                               )}
                             </span>

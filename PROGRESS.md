@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-20 — routine: vervolgsignaal (renewal-badge) op de /samenwerkingen-lijst (ZZP'er + opdrachtgever)
+
+**Wat (deelnemer-UX/asymmetriedichting, beide rollen):** de bemiddelaar zag op
+`/franchise/samenwerkingen` al per lopende plaatsing een `renewalRowBadge` ("Loopt af over N dagen" /
+"Voorbij einddatum"), en het samenwerkingsdetail toont de volledige `RenewalNudge` — maar de
+deelnemer-lijst `/samenwerkingen` (ZZP'er + opdrachtgever) toonde voor dezelfde ACTIVE-inzet enkel een
+platte `Eind: {datum}` zónder aflooop-signaal. Juist de twee partijen die een vervolg moeten plannen
+(Temper/Pidz: "verleng je serie"; de opdrachtgever raakt een goede ZZP'er niet kwijt, de ZZP'er lijnt
+de volgende opdracht op tijd op) misten het signaal op de plek waar ze hun samenwerkingen beheren. Nu
+staat de rustige chip naast de status-/DBA-badge, alleen bij attention (ending_soon/overdue).
+
+**Hoe:** `renewalRowBadge` verhuisd van `src/lib/franchise/collaboration-oversight.ts` naar de
+canonieke `src/lib/collaboration-renewal.ts` (naast `renewalHeadline`), met een re-export in oversight
+zodat de bestaande importpaden ongewijzigd blijven. De deelnemer-lijst berekent per ACTIVE-kaart
+`summarizeCollaborationRenewal({ status, endDate, disputed })` uit de reeds geladen velden (geen extra
+query) en tekent `renewalRowBadge` — exact dezelfde pure bron als de bemiddelaar-lijst, de next-action
+(`renewalTasks`) en de detail-nudge → één taal op elk oppervlak, geen drift. Read-only, geen schema-/
+mutatie-/authz-/domeinmotor-oppervlak; server bepaalt de fase, UI toont alleen. +tests (renewalRowBadge
+canoniek: rustige fases → null, ending_soon/overdue-labels enkelvoud/meervoud, drift-spiegel met
+summarizeCollaborationRenewal). Gate: typecheck/lint/test (6471)/build/prettier groen. PR #1176.
+
+**Bestanden:** `src/lib/collaboration-renewal.ts`, `src/lib/collaboration-renewal.test.ts`,
+`src/lib/franchise/collaboration-oversight.ts`, `src/app/(protected)/samenwerkingen/(index)/page.tsx`.
+
 ## 2026-08-20 — routine: vaardigheidsfilter op de ZZP'er-etalage (opdrachtgever)
 
 **Wat (opdrachtgever-UX/asymmetriedichting):** de opdrachtgever kan de ZZP'er-etalage (`/freelancers`)
