@@ -5,6 +5,7 @@ import { type Actor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro, invoiceableCollaborationsWhere } from "@/lib/invoices";
 import { isInvoiceOutstanding } from "@/lib/administration/outstanding";
+import { isInvoicePaidRevenue } from "@/lib/administration/paid-revenue";
 import { summarizeDebtors, shouldShowDebtorSummary } from "@/lib/debtor-summary";
 import { DebtorSummaryCard } from "@/components/administratie/debtor-summary-card";
 import { invoiceDueStatus } from "@/lib/invoice-due";
@@ -87,8 +88,11 @@ export async function FacturenPanel({
     },
   });
 
+  // Cascade-bewust: cascade-facturen blijven status='DRAFT' en bewegen alleen via `lifecycleStatus`
+  // (PAID/PROCESSED = betaald). Alleen op `status: "PAID"` filteren mist ELKE cascade-factuur —
+  // dezelfde dual-path-regel als de Openstaand-kaart hieronder.
   const paidCents = invoices.reduce(
-    (sum, inv) => (inv.status === "PAID" ? sum + inv.totalCents : sum),
+    (sum, inv) => (isInvoicePaidRevenue(inv) ? sum + inv.totalCents : sum),
     0,
   );
   // Cascade-bewust: cascade-facturen blijven status='DRAFT' en gelden als openstaand op hun
@@ -136,7 +140,9 @@ export async function FacturenPanel({
   // Verwachte-betaaldatum (alleen ZZP'er): per opdrachtgever het betaalgedrag uit de eigen
   // betaalde facturen afleiden (privacy — nooit data van andere ZZP'ers), zodat we per openstaande
   // factuur kunnen tonen wanneer betaling realistisch binnenkomt. Geen extra query: we hebben de
-  // hele factuurlijst al. paidAt = Invoice.updatedAt bij status PAID (zie payment-behavior.ts).
+  // hele factuurlijst al. paidAt = Invoice.updatedAt zodra de factuur betaald is — cascade-bewust
+  // via isInvoicePaidRevenue (cascade-facturen op lifecycleStatus PAID/PROCESSED, legacy op status
+  // PAID); zie payment-behavior.ts.
   const behaviorByCompany = new Map<string, PaymentBehavior>();
   if (isFreelancer) {
     const rowsByCompany = new Map<
@@ -150,7 +156,7 @@ export async function FacturenPanel({
       rows.push({
         issuedAt: inv.issuedAt,
         dueAt: inv.dueAt,
-        paidAt: inv.status === "PAID" ? inv.updatedAt : null,
+        paidAt: isInvoicePaidRevenue(inv) ? inv.updatedAt : null,
       });
       rowsByCompany.set(companyId, rows);
     }
@@ -168,7 +174,7 @@ export async function FacturenPanel({
         invoices.map((inv) => ({
           issuedAt: inv.issuedAt,
           dueAt: inv.dueAt,
-          paidAt: inv.status === "PAID" ? inv.updatedAt : null,
+          paidAt: isInvoicePaidRevenue(inv) ? inv.updatedAt : null,
         })),
       )
     : null;

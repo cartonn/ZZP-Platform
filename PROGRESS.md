@@ -3,6 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-20 — persona-sweep: franchiser-KPI's + /facturen "Betaald" telden cascade-facturen niet mee
+
+**Wat (geld-integriteit/drift, DOEL 1/DOEL 2, HIGH):** de bemiddelaar-/franchiser-dashboard-KPI's
+(`revenuePaidCents`, `revenueOpenCents` en de omzet-per-opdrachtgever-breakdown) én de "Betaald"-KPI
+op `/facturen` filterden op de **legacy** `status: "PAID"` / `status IN (SENT,OVERDUE)`. Cascade-
+facturen (de primaire werkproces-flow) houden hun live `status` op `'DRAFT'` en bewegen alleen via
+`lifecycleStatus` (PAID/PROCESSED). Alléén op `status` filteren mist daardoor **elke** cascade-factuur
+→ de franchiser zag een near-nul betaalde omzet en de "Betaald"-kaart telde alleen legacy-facturen,
+terwijl exact dezelfde metriek elders in de app (client-/freelancer-stats, de Openstaand-kaart drie
+regels lager) al de canonieke dual-path-regel gebruikt. Twee omzetdefinities, dezelfde periode. Ook
+`paidAt` (voor DSO/betaalgedrag-voorspelling in `facturen-panel`) miste cascade-betalingen.
+
+**Hoe:** `src/lib/tenant-stats.ts` gebruikt nu `paidRevenueInvoiceWhere` + `outstandingInvoiceWhere`
+(`@/lib/administration/{paid-revenue,outstanding}`) in de 3 queries (getTenantStats paid/open +
+getTenantCompanyBreakdown), en `src/components/administratie/facturen-panel.tsx` gebruikt
+`isInvoicePaidRevenue(inv)` voor `paidCents` en de twee `paidAt`-afleidingen. Geen schema-/mutatie-/
+authz-oppervlak — puur read-only aggregatie die nu spiegelt wat de rest van de app doet. Regressietest
+in `paid-revenue.test.ts` (betaalde-omzet-som over gemengde fixture: cascade-PAID met status=DRAFT telt
+mee → 1500_00; onder de oude `status==="PAID"`-regel zou 500_00 uitkomen). Gate: typecheck/lint/test/
+prettier groen. Gevonden via 4 parallelle adversariële Opus-audits (authz/IDOR, cascade/geld, next-
+actions, malicieuze input); authz/IDOR + malicieuze-input rapporteerden 0 nieuwe bereikbare gaten.
+
+**Tweede fix (DOEL 1b, next-action-correctheid):** `src/lib/actions/pending-tasks.ts`
+(`freelancerTasks`) gaf een niet-verplicht certificaat dat VERIFIED is maar waarvan `expiresAt` al
+voorbij is (nog niet cron-geflipt naar EXPIRED) **geen** vernieuw-actie: de tak matchte alleen de
+letterlijke `status === "EXPIRED"`, terwijl `isExpired`/`computeCompliance` en de verplicht-document-
+verlengkandidaat 30 regels lager al `status==="VERIFIED" && expiresAt<=now` als verlopen behandelen.
+Tussen expiry-cron-runs (of zonder `CRON_SECRET`) zakte het vertrouwensniveau zonder herstelactie op
+/acties/badge/dashboard. Fix: de expired-non-mandatory-tak gebruikt nu dezelfde computed-check.
++regressietest (VERIFIED + verleden `expiresAt` → fix-taak).
+
 ## 2026-08-20 — ZZP'er: dubbelboek-signaal op opdracht-detail (botst met lopende samenwerking)
 
 **Wat:** het bestaande agenda-signaal op de opdracht-detail waarschuwde de ZZP'er alleen als de

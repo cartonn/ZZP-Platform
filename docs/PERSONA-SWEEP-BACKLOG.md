@@ -1,5 +1,44 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-20 (run 85) · **main-commit basis:** `7556aa65`
+> **Uitkomst:** **1 geld-integriteit/drift-defect gevonden én gefixt (HIGH, FRANCHISER + ZZP'er/CLIENT).**
+> 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie ·
+> cascade/geld-integriteit + verboden statusovergangen · next-action-engine · malicieuze input/CSV/XSS/
+> upload). Authz/IDOR (39 route-handlers + ~53 server-actions enumeratief nagelopen: document-endpoints
+> anti-oracle 404, tenant-isolatie centraal + unit-getest, cascade party-checks TOCTOU-veilig) én
+> malicieuze-input (Zod money/hours-bounds, gedeelde CSV-escape-kern, upload magic-byte-sniff +
+> UUID-storage-key, geen `findUniqueOrThrow` → 404-vs-500) vonden **0 nieuwe bereikbare gaten**.
+>
+> - **OPGELOST — franchiser-KPI's + /facturen "Betaald" telden cascade-facturen niet mee (HIGH,
+>   geld-integriteit/drift, DOEL 1/DOEL 2, CLAUDE.md regel 1/5):** `src/lib/tenant-stats.ts`
+>   (getTenantStats paid/open-aggregaten + getTenantCompanyBreakdown) filterde op de legacy
+>   `status: "PAID"` / `status IN (SENT,OVERDUE)`, en `src/components/administratie/facturen-panel.tsx`
+>   telde `paidCents` + de twee `paidAt`-afleidingen op `inv.status === "PAID"`. Cascade-facturen (de
+>   primaire flow) houden hun live `status` op `'DRAFT'` en bewegen alleen via `lifecycleStatus`
+>   (PAID/PROCESSED) → alléén op `status` filteren mist ELKE cascade-factuur. `client-stats.ts`/
+>   `freelancer-stats.ts` en de Openstaand-kaart 3 regels lager gebruikten de canonieke dual-path-regel
+>   al; tenant-stats + de Betaald-kaart niet → de franchiser zag een near-nul betaalde omzet en de
+>   Betaald-kaart/DSO-voorspelling driftte van de rest van de app. **Fix:** `paidRevenueInvoiceWhere` +
+>   `outstandingInvoiceWhere` in tenant-stats' 3 queries; `isInvoicePaidRevenue(inv)` in facturen-panel.
+>   Puur read-only aggregatie, geen schema-/mutatie-/authz-oppervlak. +regressietest (betaalde-omzet-som
+>   over gemengde fixture: cascade-PAID/status=DRAFT telt mee → 1500_00; oude regel → 500_00).
+> - **OPGELOST — next-action: VERIFIED-cert voorbij `expiresAt` (nog niet cron-geflipt naar EXPIRED)
+>   kreeg geen vernieuw-actie (should-fix, DOEL 1b, next-action-correctheid):** `pending-tasks.ts`
+>   (`freelancerTasks`) matchte een niet-verplicht verlopen certificaat alléén op de letterlijke
+>   `status === "EXPIRED"`. De flip VERIFIED→EXPIRED gebeurt cron/admin-gedreven (`runExpiryTask`);
+>   tussen runs door (of als `CRON_SECRET` nog niet gezet is) heeft een feitelijk verlopen cert nog
+>   status VERIFIED en viel het door beide takken heen (niet "verloopt binnenkort" want `expiresAt > now`
+>   faalt; niet "expired" want status ≠ EXPIRED) → géén `credential-fix`-taak op /acties/badge/dashboard,
+>   terwijl `isExpired`/`computeCompliance`/`collaborationExpiredRequiredCredentials` en de verplicht-
+>   document-verlengkandidaat 30 regels lager al de computed-check `status==="VERIFIED" && expiresAt<=now`
+>   gebruiken → het vertrouwensniveau zakte zonder herstelactie. **Fix:** de expired-non-mandatory-tak
+>   gebruikt nu diezelfde computed-check. +regressietest (VERIFIED + verleden `expiresAt` → fix-taak).
+> - **GEPARKEERD (nit, geen defect) — dode prioriteitsband `credentialExpiryBatch: 58` in
+>   `src/lib/next-actions.ts:74`:** de constante wordt door geen enkele emitter gebruikt (grep: 0
+>   verwijzingen); de expiry-batch is cron/admin-gedreven, niet als admin-next-action ontsloten.
+>   Opruimen (of bewust bedraden als admin-vangnet-taak) — buiten scope van deze run gehouden om de
+>   PR strak op de twee gedrags-fixes te houden.
+
 > **Routine-increment 2026-08-20 — GEDAAN (geen sweep, UX/data-waarde):** dubbelboek-signaal op
 > de opdracht-detail voor de ZZP'er. Het bestaande agenda-signaal dekte alleen zelf-gezette
 > onbeschikbaar/beperkt-vensters; een al **lopende (ACTIVE) samenwerking** die hetzelfde tijdvak
