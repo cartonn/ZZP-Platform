@@ -129,6 +129,26 @@ describe("verlopen niet-verplicht certificaat — blijvende vernieuw-taak", () =
     expect(ids).not.toContain("credential-fix:cred-vog");
   });
 
+  it("een VERIFIED certificaat waarvan expiresAt al voorbij is (nog niet cron-geflipt naar EXPIRED) geeft toch de vernieuw-taak", async () => {
+    // De expiry-batch (VERIFIED→EXPIRED) draait cron/admin-gedreven; tussen runs door heeft een
+    // feitelijk verlopen cert nog status VERIFIED. Verval is server-berekend (expiresAt <= now),
+    // dus de vernieuw-taak moet er staan — anders zakt het vertrouwensniveau zonder dat /acties,
+    // de badge of het dashboard de ZZP'er een herstelactie geeft.
+    state.creds = [
+      {
+        id: "cred-bhv",
+        title: "BHV",
+        type: "CERTIFICATE",
+        status: "VERIFIED",
+        expiresAt: new Date("2020-01-01"),
+      },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    const fix = tasks.find((t) => t.id === "credential-fix:cred-bhv");
+    expect(fix).toBeDefined();
+    expect(fix && "cause" in fix ? fix.cause : undefined).toBe("expired");
+  });
+
   it("een VERIFIED (nog geldig) certificaat geeft geen vernieuw-taak", async () => {
     state.creds = [
       {

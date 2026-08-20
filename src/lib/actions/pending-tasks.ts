@@ -434,7 +434,13 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         // Uitgesteld: kan een samenwerking-gebonden verval-taak worden (dedup verderop).
         expiringCreds.push({ id: c.id, title: c.title });
       else if (
-        c.status === "EXPIRED" &&
+        // Verval-detectie is server-berekend, niet afhankelijk van de batch-flip VERIFIED→EXPIRED:
+        // een VERIFIED-cert waarvan `expiresAt` al voorbij is, is feitelijk verlopen (zelfde
+        // computed-check als isExpired/computeCompliance/de verplicht-document-verlengkandidaat
+        // hieronder) — anders zou het cert tussen de expiry-cron-runs door geen verleng-actie krijgen
+        // terwijl het vertrouwensniveau al is gedaald.
+        (c.status === "EXPIRED" ||
+          (c.status === "VERIFIED" && c.expiresAt !== null && c.expiresAt <= now)) &&
         !MANDATORY_CREDENTIAL_TYPES.includes(c.type as (typeof MANDATORY_CREDENTIAL_TYPES)[number])
       )
         // Uitgesteld: een door een samenwerking vereist verlopen certificaat krijgt hieronder de

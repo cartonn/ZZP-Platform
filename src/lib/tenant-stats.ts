@@ -8,6 +8,8 @@ import { ratePercent } from "@/lib/freelancer-stats";
 import { computeEngageability } from "@/lib/engageability";
 import { type FreelancerCredential } from "@/lib/matching";
 import { type Availability } from "@/lib/enums";
+import { paidRevenueInvoiceWhere } from "@/lib/administration/paid-revenue";
+import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
 
 export interface TenantStats {
   /** Betaalde facturen die via tenant-samenwerkingen lopen. */
@@ -93,12 +95,16 @@ export async function getTenantStats(
 
   const [paid, open, companies, totalJobs, filledJobs, openJobs, collabRows, rosterProfiles] =
     await Promise.all([
+      // Cascade-bewust: cascade-facturen houden hun live `status` op 'DRAFT' en bewegen alleen via
+      // `lifecycleStatus`. Alléén op `status` filteren mist ELKE cascade-factuur — dezelfde
+      // dual-path-regel die client-stats/freelancer-stats gebruiken (paidRevenueInvoiceWhere /
+      // outstandingInvoiceWhere), zodat de franchiser-KPI's niet driften van de rest van de app.
       prisma.invoice.aggregate({
-        where: { status: "PAID", collaboration: collabInTenant },
+        where: { ...paidRevenueInvoiceWhere, collaboration: collabInTenant },
         _sum: { totalCents: true },
       }),
       prisma.invoice.aggregate({
-        where: { status: { in: ["SENT", "OVERDUE"] }, collaboration: collabInTenant },
+        where: { ...outstandingInvoiceWhere, collaboration: collabInTenant },
         _sum: { totalCents: true },
       }),
       prisma.company.count({ where: { tenantId } }),
@@ -187,7 +193,8 @@ export async function getTenantCompanyBreakdown(actor: Actor): Promise<CompanyBr
       },
     }),
     prisma.invoice.findMany({
-      where: { status: "PAID", collaboration: { job: { tenantId } } },
+      // Cascade-bewust (zie getTenantStats): via de canonieke betaald-regel, niet de legacy `status`.
+      where: { ...paidRevenueInvoiceWhere, collaboration: { job: { tenantId } } },
       select: { totalCents: true, collaboration: { select: { companyId: true } } },
     }),
   ]);
