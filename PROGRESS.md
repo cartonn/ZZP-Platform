@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-20 — Security/privacy-audit: `SavedJob`/`FavoriteFreelancer`-rij/`NotificationPreference` overleefden erasure (HOOG, AVG art. 15/17/20)
+
+**Wat:** volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële
+Opus-audits: authz/IDOR/tenant · injectie/SSRF/upload/secrets/headers · privacy/AVG). De hele delta
+sinds de vorige ronde (`126505f6..f598d699`: CSV-exports, ICS-agenda-feed, factuur-PDF-IBAN,
+billing-webhook, reconcile-cron) is schoon bevonden. Eén overgebleven instantie van de
+erasure↔export-symmetrie-klasse (`LessonCompletion`/`IdeaVote`/`readAt`) gedicht: `SavedJob`
+(bookmark-gedragsmetadata van de ZZP'er) overleefde `anonymizeUser` (profiel wordt geüpdatet, niet
+verwijderd → `onDelete: Cascade` vuurt niet) én ontbrak in de AVG-export; plus twee consistentie-items
+(`FavoriteFreelancer`-rij redacteerde enkel de notitie i.p.v. de rij te wissen; `NotificationPreference`
+opt-out-config overleefde).
+
+**Hoe:** `src/app/(protected)/admin/gebruikers/actions.ts` — `savedJob.deleteMany` +
+`notificationPreference.deleteMany` toegevoegd aan de anonimiseringstransactie; `favoriteFreelancer`
+van `updateMany({note:null})` → `deleteMany`. `src/lib/account-export.ts` — `savedJobs`-sectie
+(select `{jobId, createdAt}`, gescopet op `freelancer.userId`). Tests rood→groen in
+`anonymize-erasure.test.ts` (3 cases) + `account-export.test.ts` (1 case). Gate groen: typecheck, lint,
+6407 unit-tests, build, prettier. Backlog bijgewerkt (`docs/SECURITY-PRIVACY-BACKLOG.md`, ronde 2026-08-20).
+
 ## 2026-08-20 — Opdrachtgever: cascade-badge ACTIVE-scope pariteit met /acties (PR #1165)
 
 **Wat:** de opdrachtgever-cascadebadges op `/samenwerkingen` (`cascadePerf` = prestaties keuren,

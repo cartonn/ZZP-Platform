@@ -47,6 +47,7 @@ export interface AccountExportPayload {
   // AVG art. 15/20 — eigen engagement-/gedragsmetadata (symmetrisch met de erasure die deze nu wist):
   lessonCompletions: unknown;
   ideaVotes: unknown;
+  savedJobs: unknown;
 }
 
 const EXPORT_NOTICE =
@@ -98,6 +99,7 @@ export async function buildAccountExport(
     readReceipts,
     lessonCompletions,
     ideaVotes,
+    savedJobs,
   ] = await Promise.all([
     db.user.findUnique({
       where: { id: actorId },
@@ -449,6 +451,15 @@ export async function buildAccountExport(
       where: { userId: actorId },
       select: { ideaId: true, createdAt: true },
     }),
+    // AVG art. 15/20 — de eigen opgeslagen opdrachten (`SavedJob.createdAt`): welke vacatures de
+    // betrokkene als ZZP'er bewaarde en wanneer. Eigen bookmark-/gedragsmetadata; scope strikt op de
+    // eigen `userId` via het freelancerprofiel. jobId is een onveranderlijke id die de actor in-app al
+    // ziet. Symmetrisch met de erasure die deze rijen nu wist (spiegel van `favoriteNotes` aan de
+    // opdrachtgeverskant).
+    db.savedJob.findMany({
+      where: { freelancer: { userId: actorId } },
+      select: { jobId: true, createdAt: true },
+    }),
   ]);
 
   return {
@@ -486,5 +497,6 @@ export async function buildAccountExport(
     readReceipts,
     lessonCompletions,
     ideaVotes,
+    savedJobs,
   };
 }

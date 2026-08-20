@@ -621,14 +621,16 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { createdById: userId },
       data: { body: "[Verwijderd op verzoek van de gebruiker]" },
     }),
-    // Privé favorieten-notitie die de betrokkene als CLIENT zelf schreef over een ZZP'er
-    // (FavoriteFreelancer.note, vrije tekst — een subjectief oordeel dat de betrokkene identificeert
-    // als auteur). De Company wordt geüpdatet (niet verwijderd), dus de onDelete:Cascade op
-    // FavoriteFreelancer vuurt niet → expliciet wissen. Gescopet op de eigen bedrijven (company.userId)
-    // — nooit de notitie van een andere opdrachtgever.
-    prisma.favoriteFreelancer.updateMany({
+    // AVG art. 17 — de eigen favorieten die de betrokkene als CLIENT bijhield (`FavoriteFreelancer`):
+    // niet alleen de privé-notitie (vrije tekst, een subjectief oordeel dat de auteur identificeert),
+    // maar de héle rij — welke ZZP'ers de nu-verwijderde opdrachtgever bookmarkte en wanneer
+    // (`createdAt`) — is zíjn eigen gedragsmetadata zonder tegenpartij-waarde (de ZZP'er ziet deze
+    // privé-bookmark nooit). De Company wordt geüpdatet (niet verwijderd), dus de onDelete:Cascade op
+    // FavoriteFreelancer vuurt niet → expliciet wissen (hard delete i.p.v. enkel de notitie redacten,
+    // zodat geen relatie+timestamp achterblijft). Spiegelbeeld van de `SavedJob`-wis aan de ZZP-kant.
+    // Gescopet op de eigen bedrijven (company.userId) — nooit een favoriet van een andere opdrachtgever.
+    prisma.favoriteFreelancer.deleteMany({
       where: { company: { userId } },
-      data: { note: null },
     }),
     // Push-abonnementen: het endpoint is een persistente toestel-/browser-identifier (en userAgent
     // aanvullende PII). Een `user.update` triggert geen cascade-delete → expliciet verwijderen.
@@ -654,6 +656,21 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // Spiegelbeeld: de export (`account-export.ts`) geeft deze twee nu óók prijs (art. 15/20-symmetrie).
     prisma.lessonCompletion.deleteMany({ where: { userId } }),
     prisma.ideaVote.deleteMany({ where: { userId } }),
+    // AVG art. 17 — de eigen opgeslagen opdrachten (`SavedJob`): welke vacatures de betrokkene als
+    // ZZP'er bewaarde en wanneer (`createdAt`). Spiegelbeeld van `FavoriteFreelancer` aan de
+    // opdrachtgeverskant. De rij draagt uitsluitend zíjn `freelancerProfileId` + een zelf-actie-
+    // timestamp — geen gedeelde/tegenpartij-waarde — dus hoort volledig te verdwijnen (hard delete),
+    // net als `lessonCompletion`/`ideaVote`. Het `FreelancerProfile` wordt geüpdatet (niet verwijderd),
+    // dus de `onDelete: Cascade` op `SavedJob.freelancerProfileId` vuurt niet → expliciet wissen.
+    // Gescopet op het eigen profiel (`freelancer.userId`), nooit de bookmarks van een andere ZZP'er.
+    // Zonder dit overleeft toewijsbare gedragsmetadata (wat deze persoon bewaarde, en wanneer) een
+    // art. 17-verzoek; symmetrisch is de rij nu ook exporteerbaar (`account-export.ts`, art. 15/20).
+    prisma.savedJob.deleteMany({ where: { freelancer: { userId } } }),
+    // AVG art. 17 — de eigen e-mailvoorkeuren (`NotificationPreference`): per categorie of de
+    // betrokkene e-mail aan/uit zette. Opt-out-/gedragsconfiguratie gebonden aan zíjn `userId`; een
+    // `user.update` triggert de `onDelete: Cascade` niet → expliciet wissen (hard delete — de rij is
+    // enkel persoonlijke voorkeurstaat zonder tegenpartij-/retentiewaarde).
+    prisma.notificationPreference.deleteMany({ where: { userId } }),
     // AVG art. 17 (zie de `ownCreditedInvoices`-toelichting hierboven): de zelf-geschreven creditreden
     // in zijn drie kopieën. (1) De reden op de eigen credit-facturen wissen.
     ...(ownCreditedInvoiceIds.length
