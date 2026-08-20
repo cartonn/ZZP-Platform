@@ -111,7 +111,8 @@ vi.mock("@/lib/db", () => ({
       ]),
     },
     leadContact: { updateMany: op("leadContact.updateMany") },
-    availabilityWindow: { updateMany: op("availabilityWindow.updateMany") },
+    availabilityWindow: { deleteMany: op("availabilityWindow.deleteMany") },
+    invoiceLine: { updateMany: op("invoiceLine.updateMany") },
     workExperience: { deleteMany: op("workExperience.deleteMany") },
     indirectHoursEntry: { updateMany: op("indirectHoursEntry.updateMany") },
     performance: { updateMany: op("performance.updateMany") },
@@ -510,12 +511,35 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect((o.args.data as { cancellationReason: string | null }).cancellationReason).toBeNull();
   });
 
-  it("wist de vrije-tekstnoot op beschikbaarheidsvensters (AvailabilityWindow.note)", async () => {
+  it("wist het volledige beschikbaarheidsvenster (AvailabilityWindow — datums+type+uren+noot, AVG art. 17)", async () => {
+    // Vóór de fix: alleen `note` werd genulld → startDate/endDate/type/hoursPerWeek overleefden als
+    // gedragsmetadata (een patroon van UNAVAILABLE-vensters kan omstandigheden prijsgeven), gekoppeld
+    // aan de behouden FreelancerProfile.id. Zonder tegenpartij-/fiscale bewaargrond wist de fix nu de
+    // hele rij (spiegel WorkExperience/SavedJob). Rood zonder de bronwijziging (updateMany → deleteMany).
     await anonymizeUser("user-42");
-    const o = find("availabilityWindow.updateMany") as { args: { where: unknown; data: unknown } };
+    const o = find("availabilityWindow.deleteMany") as { args: { where: unknown } };
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ freelancerProfile: { userId: "user-42" } });
-    expect((o.args.data as { note: string | null }).note).toBeNull();
+    // De oude, partiële updateMany mag niet meer draaien.
+    expect(find("availabilityWindow.updateMany")).toBeUndefined();
+  });
+
+  it("wist de zelf-getypte factuurregel-omschrijvingen (InvoiceLine.description, AVG art. 17)", async () => {
+    // Handmatige/cascade-factuur → InvoiceLine.description is zelf-getypte vrije tekst van de
+    // uitschrijver (kan opdrachtgever/locatie/persoondetails bevatten). De Invoice-rij blijft staan
+    // (fiscale bewaargrond) maar de omschrijving moet mee. Gescopet op de EIGEN uitschrijver-facturen:
+    // issuerUserId == de betrokkene (cascade) óf de samenwerking-freelancer-link (legacy loose).
+    await anonymizeUser("user-42");
+    const o = find("invoiceLine.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({
+      invoice: {
+        OR: [{ issuerUserId: "user-42" }, { collaboration: { freelancer: { userId: "user-42" } } }],
+      },
+    });
+    expect((o.args.data as { description: string }).description).toBe(
+      "[Verwijderd op verzoek van de gebruiker]",
+    );
   });
 
   it("wist de eigen dispuutreden, gescopet op de eigen DISPUTE_OPENED-events", async () => {

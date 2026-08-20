@@ -500,13 +500,15 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { decidedByUserId: userId },
       data: { decisionNote: null },
     }),
-    // Beschikbaarheidsnoten: vrije tekst die de ZZP'er zelf schreef en die een reden of (medische)
-    // details kan bevatten ("ziek", agenda-info). FreelancerProfile wordt geüpdatet (niet verwijderd),
-    // dus de onDelete:Cascade op AvailabilityWindow vuurt niet → expliciet wissen.
-    prisma.availabilityWindow.updateMany({
-      where: { freelancerProfile: { userId } },
-      data: { note: null },
-    }),
+    // Beschikbaarheidsvensters: naast de vrije-tekst-`note` (reden/medische details, bv. "ziek") is óók
+    // de rest van de rij — `startDate`/`endDate`/`type`/`hoursPerWeek` — de eigen agenda-/gezondheids-
+    // historie van de betrokkene (een patroon van UNAVAILABLE-vensters kan omstandigheden prijsgeven),
+    // gekoppeld aan de behouden `FreelancerProfile.id`. FreelancerProfile wordt geüpdatet (niet
+    // verwijderd), dus de onDelete:Cascade op AvailabilityWindow vuurt niet. De rij heeft geen
+    // tegenpartij-/fiscale bewaargrond (anders dan Invoice/Expense/Performance) → volledig wissen
+    // (spiegel WorkExperience/SavedJob), niet enkel de note redacten. Eerdere ronde dekte alleen `note`
+    // (AVG art. 17: residuele gedragsmetadata mocht niet blijven staan).
+    prisma.availabilityWindow.deleteMany({ where: { freelancerProfile: { userId } } }),
     // Werkervaring: rol/organisatie/omschrijving zijn zelf-gerapporteerde vrije tekst die de
     // betrokkene op zijn (publieke) profiel toonde — kan namen/opdrachtgevers/identificerende
     // details bevatten. FreelancerProfile wordt geüpdatet (niet verwijderd), dus de
@@ -545,6 +547,24 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // eigen uitgaven (userId == de betrokkene). Spiegelt Performance.description / Application.motivation.
     prisma.expense.updateMany({
       where: { userId },
+      data: { description: "[Verwijderd op verzoek van de gebruiker]" },
+    }),
+    // Factuurregel-omschrijvingen (InvoiceLine.description): vrije tekst die de ZZP'er (uitschrijver)
+    // zélf typte op een handmatige/cascade-factuur — kan opdrachtgever/locatie/persoonsdetails bevatten
+    // ("Werkzaamheden bij mevr. De Vries, Julianalaan 12"). De Invoice-rij blijft staan als fiscale
+    // bewaargrond (bedrag/btw/nummer/datum — net als Expense/Performance/IndirectHoursEntry), maar de
+    // zelf-getypte omschrijving moet mee: de factuur wordt niet verwijderd, dus de onDelete:Cascade op
+    // InvoiceLine vuurt niet → expliciet redacten. Spiegelt exact Performance.description /
+    // Expense.description. Gescopet op de EIGEN facturen van de ZZP'er (issuerUserId == de betrokkene
+    // voor cascade-facturen, óf de samenwerking-freelancer-link voor legacy loose-facturen zonder
+    // issuerUserId). description is non-nullable → neutrale redactiestring. Een opdrachtgever die enkel
+    // tegenpartij is (counterpartyUserId) schrijft deze tekst niet, dus die scope blijft er bewust uit.
+    prisma.invoiceLine.updateMany({
+      where: {
+        invoice: {
+          OR: [{ issuerUserId: userId }, { collaboration: { freelancer: { userId } } }],
+        },
+      },
       data: { description: "[Verwijderd op verzoek van de gebruiker]" },
     }),
     // Eigen ideeën: titel + omschrijving zijn door de betrokkene geschreven vrije tekst (PII-risico);
