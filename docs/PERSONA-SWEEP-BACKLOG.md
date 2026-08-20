@@ -30,13 +30,15 @@
 >   capt op 50 (bewust, "+N meer buiten beschouwing"). De audit-claim "5 nieuwste zijn nergens
 >   afhandelbaar" is onjuist. De aanbevolen fix (badge cappen op 50) zou de badge juist laten ónder-tellen
 >   t.o.v. de echte backlog + de queue-pagina — een wrong-direction-regressie. **Geen actie.**
-> - **LOW/latent — CLIENT cascade-badge mist expliciete `collaboration.status: "ACTIVE"`-filter:**
->   `signals.ts:643` (`cascadePerf`) / `:650` (`cascadeInv`) scopen alleen op `company.userId` + `disputedAt:
-null`, terwijl de /acties-emitters (`pending-tasks.ts:1094`/`:1117`) óók `status: "ACTIVE"` vereisen.
->   Nu onbereikbaar (een SUBMITTED-prestatie/-factuur kan niet coëxisteren met een niet-ACTIVE
->   samenwerking — de cancel/complete-guards blokkeren dat), maar defense-in-depth-nit: een toekomstige
->   guard-wijziging zou het gat stil kunnen heropenen. Aanbevolen: `status: "ACTIVE"` toevoegen aan beide
->   count-queries voor pariteit. Geen urgentie.
+> - **OPGELOST (2026-08-20, PR #1165) — CLIENT cascade-badge mist expliciete `collaboration.status:
+"ACTIVE"`-filter:** `signals.ts` (`cascadePerf`/`cascadeInv`) scopte alleen op `company.userId` +
+>   `disputedAt: null`, terwijl de /acties-emitters (`pending-tasks.ts` `approvePerformances`/
+>   `approveInvoices`) óók `status: "ACTIVE"` vereisen (en de factuurtelling miste de expliciete
+>   `company: { userId }`-scope). Nu onbereikbaar (een SUBMITTED-prestatie/-factuur kan niet coëxisteren
+>   met een niet-ACTIVE samenwerking — de cancel/complete-guards blokkeren dat), maar defense-in-depth:
+>   een toekomstige guard-wijziging zou het gat stil kunnen heropenen. **Fix:** `status: "ACTIVE"` (+
+>   `company: { userId }` op de factuurtelling) toegevoegd aan beide badge-query's zodat ze exact de
+>   WHERE van hun /acties-emitter spiegelen; +regressietest `signals.cascade-active-parity.test.ts`.
 >
 > ---
 >
