@@ -4,6 +4,7 @@ import {
   RENEWAL_WINDOW_DAYS,
   RENEWAL_OVERDUE_GRACE_DAYS,
   renewalHeadline,
+  renewalRowBadge,
   summarizeCollaborationRenewal,
 } from "./collaboration-renewal";
 
@@ -166,5 +167,45 @@ describe("renewalHeadline", () => {
     expect(renewalHeadline("ending_soon", 1)).toMatch(/morgen/i);
     expect(renewalHeadline("ending_soon", 7)).toMatch(/7 dagen/);
     expect(renewalHeadline("on_track", 40)).toMatch(/loopt nog/i);
+  });
+});
+
+describe("renewalRowBadge", () => {
+  it("geeft geen chip voor rustige fases", () => {
+    expect(renewalRowBadge("on_track", 40)).toBeNull();
+    expect(renewalRowBadge("lapsed", -50)).toBeNull();
+    expect(renewalRowBadge("none", null)).toBeNull();
+  });
+
+  it("labelt ending_soon met resterende dagen (warning-toon)", () => {
+    expect(renewalRowBadge("ending_soon", 0)).toEqual({
+      label: "Loopt vandaag af",
+      tone: "warning",
+    });
+    expect(renewalRowBadge("ending_soon", 1)).toEqual({
+      label: "Loopt morgen af",
+      tone: "warning",
+    });
+    expect(renewalRowBadge("ending_soon", 5)).toEqual({
+      label: "Loopt af over 5 dagen",
+      tone: "warning",
+    });
+  });
+
+  it("labelt overdue met dagen-over-tijd (danger-toon), enkelvoud vs meervoud", () => {
+    expect(renewalRowBadge("overdue", 0)).toEqual({ label: "Voorbij einddatum", tone: "danger" });
+    expect(renewalRowBadge("overdue", -1)).toEqual({ label: "1 dag over tijd", tone: "danger" });
+    expect(renewalRowBadge("overdue", -4)).toEqual({ label: "4 dagen over tijd", tone: "danger" });
+  });
+
+  it("spiegelt de fase van summarizeCollaborationRenewal (geen drift)", () => {
+    const summary = summarizeCollaborationRenewal({
+      status: "ACTIVE",
+      endDate: endInDays(3),
+      now: NOW,
+    });
+    const badge = renewalRowBadge(summary.phase, summary.daysRemaining);
+    expect(summary.attention).toBe(true);
+    expect(badge).toEqual({ label: "Loopt af over 3 dagen", tone: "warning" });
   });
 });

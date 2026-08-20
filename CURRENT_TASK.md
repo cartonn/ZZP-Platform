@@ -268,6 +268,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er + opdrachtgever — vervolgsignaal (renewal-badge) op de /samenwerkingen-lijst (2026-08-20)** —
+> de bemiddelaar zag op `/franchise/samenwerkingen` al per lopende plaatsing een `renewalRowBadge` ("Loopt af over
+> N dagen" / "Voorbij einddatum") en het detail toont de volledige `RenewalNudge`, maar de deelnemer-lijst
+> `/samenwerkingen` (ZZP'er + opdrachtgever) toonde voor dezelfde ACTIVE-inzet enkel een platte `Eind:`-datum zónder
+> aflooop-signaal — juist de twee partijen die een vervolg moeten plannen. `renewalRowBadge` verhuisd naar de
+> canonieke `src/lib/collaboration-renewal.ts` (re-export in `franchise/collaboration-oversight.ts` → importpaden
+> ongewijzigd); de deelnemer-lijst berekent per ACTIVE-kaart `summarizeCollaborationRenewal` uit de reeds geladen
+> velden (geen extra query) en tekent de chip naast de status-/DBA-badge, alleen bij attention (ending_soon/overdue).
+> Zelfde pure bron als de bemiddelaar-lijst + next-action + detail-nudge → geen drift. Read-only, geen schema-/
+> mutatie-/authz-oppervlak. +tests (renewalRowBadge canoniek). Gate: typecheck/lint/test (6471)/build/prettier groen. PR #1176.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — vaardigheidsfilter op de ZZP'er-etalage (2026-08-20)** —
 > `/freelancers` had tot nu toe alleen zoekbalk + vertrouwensniveau + "alleen beschikbaar"; de
 > opdrachtgever kon niet narrowen op concrete vaardigheden (VOG-chauffeur, ORT-avond, React, …). De
