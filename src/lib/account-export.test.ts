@@ -48,6 +48,7 @@ function fakeDb(rows: Record<string, unknown> = {}) {
     conversationParticipant: { findMany: make("conversationParticipant", "findMany") },
     lessonCompletion: { findMany: make("lessonCompletion", "findMany") },
     ideaVote: { findMany: make("ideaVote", "findMany") },
+    savedJob: { findMany: make("savedJob", "findMany") },
   };
   return { db: db as unknown as PrismaClient, calls };
 }
@@ -87,6 +88,7 @@ describe("buildAccountExport", () => {
       "readReceipts",
       "lessonCompletions",
       "ideaVotes",
+      "savedJobs",
     ] as const) {
       expect(payload).toHaveProperty(key);
     }
@@ -144,6 +146,13 @@ describe("buildAccountExport", () => {
     expect(iv).toBeDefined();
     expect((iv?.args.where as Record<string, unknown>).userId).toBe(ACTOR);
     expect(iv?.args.select).toEqual({ ideaId: true, createdAt: true });
+
+    // De eigen opgeslagen opdrachten (SavedJob) — gescopet op het eigen profiel (freelancer.userId),
+    // smalle select (jobId + createdAt), nooit de bookmarks van een andere ZZP'er.
+    const sj = calls.find((c) => c.table === "savedJob");
+    expect(sj).toBeDefined();
+    expect((sj?.args.where as { freelancer?: { userId?: string } }).freelancer?.userId).toBe(ACTOR);
+    expect(sj?.args.select).toEqual({ jobId: true, createdAt: true });
   });
 
   it("neemt alleen door de actor geschreven ondersteuningsberichten mee (geen admin-antwoorden)", async () => {

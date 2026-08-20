@@ -141,7 +141,7 @@ vi.mock("@/lib/db", () => ({
       updateMany: op("idea.updateMany"),
     },
     collaboration: { updateMany: op("collaboration.updateMany") },
-    favoriteFreelancer: { updateMany: op("favoriteFreelancer.updateMany") },
+    favoriteFreelancer: { deleteMany: op("favoriteFreelancer.deleteMany") },
     domainEvent: {
       // Standaard: één nog-open dispuut dat de betrokkene zelf opende (col-7). De volle event-velden
       // (type/actorId) zijn nodig voor de replay in `collaborationsWithActiveDisputeOpenedBy`. Wordt
@@ -155,6 +155,8 @@ vi.mock("@/lib/db", () => ({
     conversationParticipant: { updateMany: op("conversationParticipant.updateMany") },
     lessonCompletion: { deleteMany: op("lessonCompletion.deleteMany") },
     ideaVote: { deleteMany: op("ideaVote.deleteMany") },
+    savedJob: { deleteMany: op("savedJob.deleteMany") },
+    notificationPreference: { deleteMany: op("notificationPreference.deleteMany") },
     auditLog: {
       create: op("auditLog.create"),
       update: op("auditLog.update"),
@@ -667,12 +669,39 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(o!.args.data.body).toMatch(/verwijderd/i);
   });
 
-  it("wist de privé favorieten-notitie van de CLIENT (FavoriteFreelancer.note)", async () => {
+  it("verwijdert de favorieten die de CLIENT bijhield (FavoriteFreelancer — rij + notitie, AVG art. 17)", async () => {
     await anonymizeUser("user-42");
-    const o = find("favoriteFreelancer.updateMany") as { args: { where: unknown; data: unknown } };
+    // De héle rij wordt gewist, niet enkel de `note`: `companyId + freelancerProfileId + createdAt` is
+    // zíjn eigen bookmark-/gedragsmetadata (welke ZZP'ers hij bookmarkte, wanneer) zonder tegenpartij-
+    // waarde — de ZZP'er ziet deze privé-favoriet nooit. Enkel de notitie redacten liet relatie+timestamp
+    // achter (art. 17-residu). Gescopet op de eigen bedrijven (company.userId), nooit een favoriet van een
+    // andere opdrachtgever. Zonder de deleteMany overleeft de bookmark art. 17 (rood→groen).
+    const o = find("favoriteFreelancer.deleteMany") as { args: { where: unknown } };
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ company: { userId: "user-42" } });
-    expect((o.args.data as { note: string | null }).note).toBeNull();
+  });
+
+  it("verwijdert de opgeslagen opdrachten (SavedJob — eigen bookmark-/gedragsmetadata, AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // `SavedJob` draagt uitsluitend zíjn `freelancerProfileId` + `createdAt` (welke vacature bewaard,
+    // wanneer) — toewijsbare gedragsmetadata over de betrokkene, geen gedeelde/tegenpartij-waarde. Het
+    // `FreelancerProfile` wordt geüpdatet (niet verwijderd), dus de `onDelete: Cascade` vuurt niet; zonder
+    // deze deleteMany overleeft de bookmark-historie art. 17 (rood→groen). Gescopet op het eigen profiel
+    // (freelancer.userId), nooit de bookmarks van een andere ZZP'er. De inzage-export geeft ze nu óók prijs.
+    const o = find("savedJob.deleteMany") as { args: { where: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ freelancer: { userId: "user-42" } });
+  });
+
+  it("verwijdert de e-mailvoorkeuren (NotificationPreference — eigen opt-out-config, AVG art. 17)", async () => {
+    await anonymizeUser("user-42");
+    // `NotificationPreference` (`userId + category + emailEnabled`) is de eigen opt-out-/voorkeurstaat —
+    // gedragsconfiguratie gebonden aan de betrokkene. Een `user.update` triggert de cascade niet; zonder
+    // deze deleteMany blijft "welke e-mailcategorieën deze (geanonimiseerde) gebruiker uitzette" staan
+    // (rood→groen). Gescopet strikt op de eigen `userId`.
+    const o = find("notificationPreference.deleteMany") as { args: { where: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ userId: "user-42" });
   });
 
   it("verwijdert de zelf-gerapporteerde werkervaring (WorkExperience — vrije-tekst-PII op het profiel)", async () => {

@@ -4,6 +4,78 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-20 (basis: `main` @ f598d699) — 1× HOOG + 2× consistentie OPGELOST (bookmark-gedragsmetadata overleefde erasure)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(1) authz/IDOR/functie-autorisatie + multi-tenant-isolatie, (2) injectie/SSRF/upload/secrets/headers/CSP/
+open-redirect/CSRF + `npm audit`, (3) privacy/AVG (erasure↔export-symmetrie via volledige schema-modelsweep,
+dataminimalisatie/PII-over-fetch, cross-party/cross-tenant, audit-logging, k-anonimiteit, retentie, derden).
+
+Extra orchestrator-probes op de delta `126505f6..f598d699` (11 commits: relatie-/certificaat-/factuurregister-
+CSV-exports, ICS-agenda-feed + VALARM-deadlines, factuur-PDF IBAN-blok, billing-webhook-refactor,
+subscription-reconcile-cron):
+
+- **CSV-exports** (`relation-breakdown-csv`, `collaboration-compliance-csv`, `invoice-register-csv`) — alle
+  vrije-tekst (bedrijfs-/ZZP'er-namen, opdrachttitels) loopt via `escapeCsvField` (CWE-1236 formule-guard op
+  `= + @ \t \r` + negatief-getal-uitzondering + RFC-4180-quoting). De twee nieuwe routes: `requireActor` →
+  rol-gate (FREELANCER/CLIENT resp. CLIENT-only) → `exportRateLimiter` → owner-gescoopte fetch → auditregel.
+  Schoon.
+- **ICS-feed** (`calendar/ics.ts` + `deadlines.ts`, `api/agenda/feed.ics`) — `escapeIcsText` dekt RFC 5545
+  §3.3.11 (`\ ; ,` + CRLF→`\n`, losse `\r` weg); UID/DTSTAMP server-gegenereerd → geen CRLF/property-injectie.
+  De publieke bearer-feed: rate-limit (IP|userId) → HMAC-tokenverificatie → live liveness-poort (SUSPENDED/
+  `anonymizedAt` → 404) vóór elke DB-I/O. Schoon.
+- **Factuur-PDF IBAN** (`invoice-pdf.ts`, `facturen/[id]/pdf`) — IBAN + t.n.v. komen uit
+  `collaboration.freelancer` (de crediteur), getoond aan de betrokken partijen + admin, 4-weg ownership +
+  audit (toegestaan én geweigerd) + timing-veilige 404-maskering. Geen cross-party-lek. Schoon.
+- **Billing-webhook** — rate-limit vóór al het werk, 64 KB body-cap, Stripe-handtekening via `timingSafeEqual`
+  - 300s replay-tolerantie, gezaghebbende status-refetch, idempotente ledger-grendel, altijd 200. Schoon.
+- `$queryRawUnsafe`=**0** (enige `$queryRaw`=parameterloze `SELECT 1`-healthprobes), enige
+  `dangerouslySetInnerHTML`=nonce-theme-script, geen user-gestuurde server-`fetch`/SSRF (push achter
+  allowlist, routing-host hardcoded), storage-driver `resolve()` blokkeert path-traversal, `npm audit
+--omit=dev`=**0**, geen PII/secret in `console.*`, geen `.env` in git.
+
+**Uitkomst:** authz-keten, tenant-isolatie, injectie/SSRF/upload/secrets/headers en de volledige delta
+**schoon** — geen nieuwe KRITIEK/MIDDEL. **Eén HOOG + twee consistentie-items gedicht** (zie onder): de
+erasure↔export-symmetrie-klasse (`LessonCompletion`/`IdeaVote`/`readAt`) had nog één ontsnapte instantie.
+
+### OPGELOST — `SavedJob` overleefde erasure én ontbrak in export; `FavoriteFreelancer`-rij + `NotificationPreference` overleefden erasure (HOOG + 2× consistentie · AVG art. 15/17/20 · CLAUDE.md regel 5)
+
+**Geschonden regel:** AVG art. 17 (recht op vergetelheid) — toewijsbare bookmark-/gedragsmetadata over de
+betrokkene overleefde een verwijderverzoek; art. 15/20 (inzage/portabiliteit) — de betrokkene kon zijn eigen
+opgeslagen opdrachten niet exporteren. Zelfde residuele-gedragsmetadata-klasse als `LessonCompletion`/
+`IdeaVote`/`readAt` (eerdere rondes), hier voor de bookmark-modellen.
+
+**Repro (vóór de fix):**
+
+- **`SavedJob`** (`prisma/schema.prisma:1403`, `freelancerProfileId + jobId + createdAt`, `onDelete: Cascade`) —
+  `anonymizeUser` (`admin/gebruikers/actions.ts`) anonimiseert het profiel via
+  `freelancerProfile.updateMany` (een **update**, geen delete), dus de cascade op
+  `SavedJob.freelancerProfileId` vuurt nooit. Er was géén `savedJob.deleteMany`. Na een voltooide erasure gaf
+  `SELECT * FROM SavedJob WHERE freelancerProfileId = <behouden profiel-id>` nog steeds de bookmark-historie
+  (welke vacatures de nu-geanonimiseerde persoon bewaarde, mét tijdstip). Spiegelbeeldig ontbrak `SavedJob` in
+  `buildAccountExport` (`account-export.ts`), terwijl het spiegelmodel `FavoriteFreelancer.note` (opdrachtgever)
+  wél werd geëxporteerd → de betrokkene kon zijn eigen bookmarks niet inzien.
+- **`FavoriteFreelancer`-rij** (LAAG) — de erasure redacteerde enkel `note` (`updateMany({data:{note:null}})`); de
+  rij zelf (`companyId + freelancerProfileId + createdAt`) bleef staan, joinbaar aan het geanonimiseerde bedrijf
+  ("deze verwijderde opdrachtgever bookmarkte deze ZZP'ers, op deze tijdstippen").
+- **`NotificationPreference`** (LAAG/MIDDEL, `schema.prisma:274`, `userId + category + emailEnabled`) — geen
+  `deleteMany` in `anonymizeUser`; de opt-out-config overleefde als "welke e-mailcategorieën deze
+  (geanonimiseerde) gebruiker uitzette".
+
+**Fix (dit PR):**
+
+- `prisma.savedJob.deleteMany({ where: { freelancer: { userId } } })` + `prisma.notificationPreference.deleteMany
+({ where: { userId } })` toegevoegd aan de anonimiseringstransactie (hard delete — rij = enkel persoonlijke
+  data, geen tegenpartij-/retentiewaarde; `onDelete: Cascade` markeert `SavedJob` al als wegwerpbaar).
+- `FavoriteFreelancer`-handling omgezet van `updateMany({note:null})` naar `deleteMany` (héle rij wist; de
+  ZZP'er ziet deze privé-bookmark nooit → geen tegenpartij-waarde). Gescopet op `company: { userId }`.
+- `SavedJob` toegevoegd aan `buildAccountExport` (`savedJobs`, smalle select `{ jobId, createdAt }`, gescopet op
+  `freelancer: { userId: actorId }`).
+- **Tests (rood→groen):** `anonymize-erasure.test.ts` — drie nieuwe/aangepaste cases asserteren de drie
+  `deleteMany`'s met de juiste owner-scope (zonder de bronwijziging: `find(...) === undefined` →
+  `toBeDefined()` faalt); `account-export.test.ts` — `savedJobs` sectie-presence + scope/select-assert op
+  `freelancer.userId`. Volledige gate groen (typecheck, lint, 6407 unit-tests, build, prettier).
+
 ## Ronde 2026-08-19 (basis: `main` @ 126505f6) — 1× LAAG OPGELOST (behavioural-metadata overleefde erasure + ontbrak in export)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.
