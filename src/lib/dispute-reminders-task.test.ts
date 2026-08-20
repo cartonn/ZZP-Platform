@@ -6,7 +6,12 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { vi } from "vitest";
-import { planDisputeReminders, type DisputeReminderCandidate } from "@/lib/dispute-reminders";
+import {
+  disputeEscalationBacklogCutoff,
+  disputeEscalationDedupeKey,
+  planDisputeReminders,
+  type DisputeReminderCandidate,
+} from "@/lib/dispute-reminders";
 
 // --- In-memory store --------------------------------------------------------
 const store = {
@@ -246,5 +251,48 @@ describe("runDisputeReminderTask", () => {
     expect(store.notifications).toHaveLength(0);
     expect(store.auditLogs).toHaveLength(0);
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("overdueDisputeCollaborationWhere", () => {
+  it("levert de exacte Prisma-where met disputedAt-cutoff en status ≠ CANCELLED", async () => {
+    const { overdueDisputeCollaborationWhere } = await import("@/lib/dispute-reminders-task");
+    const cutoff = disputeEscalationBacklogCutoff(NOW);
+    expect(overdueDisputeCollaborationWhere(cutoff)).toEqual({
+      disputedAt: { not: null, lte: cutoff },
+      status: { not: "CANCELLED" },
+    });
+  });
+
+  it("dedupeKey-helper vormt de escalatie-sleutel per samenwerking", () => {
+    expect(disputeEscalationDedupeKey("abc-123")).toBe("dispute-escalation-abc-123");
+  });
+
+  it("drift-gate: runner-escalatie gebruikt exact disputeEscalationDedupeKey(<id>)", async () => {
+    // Bewijst dat de planner (en dus de runner) de helper aanroept — niet een parallelle inline
+    // literal die stil zou driften t.o.v. de metrics-kant die tegen dezelfde sleutel dedupliceert.
+    store.collaborations = [
+      makeCollab({ id: "collab-drift", disputedDaysAgo: 8, jobTitle: "Drift-gate" }),
+    ];
+    store.users = [{ id: "admin-1", role: "ADMIN", status: "ACTIVE" }];
+
+    const { runDisputeReminderTask } = await import("@/lib/dispute-reminders-task");
+    const result = await runDisputeReminderTask({ actorId: null, now: NOW });
+
+    expect(result.escalated).toBe(1);
+    const escalationEvent = store.domainEvents.find((e) => e.type === "DISPUTE_ESCALATION");
+    expect(escalationEvent?.dedupeKey).toBe(disputeEscalationDedupeKey("collab-drift"));
+
+    // Sanity: de planner produceert dezelfde sleutel via de helper.
+    const cand: DisputeReminderCandidate = {
+      collaborationId: "collab-drift",
+      disputedAt: daysAgo(8),
+      collabStatus: "ACTIVE",
+      freelancerUserId: "zzp-1",
+      clientUserId: "client-1",
+      jobTitle: "Drift-gate",
+    };
+    const plan = planDisputeReminders([cand], NOW);
+    expect(plan.escalations[0]?.dedupeKey).toBe(disputeEscalationDedupeKey("collab-drift"));
   });
 });

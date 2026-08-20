@@ -253,6 +253,23 @@ groups:
         annotations:
           summary: "Prestatie-grace-pijplijn verwerkt niets"
           description: "Er staan al > één cron-interval ingediende prestaties (SUBMITTED) wier grace-venster verstreken is die niet automatisch zijn goedgekeurd (zzp_performances_overdue_grace). De performance-grace-cron rondt af maar keurt geen prestaties goed → er wordt geen factuur aangemaakt en de ZZP'er wordt niet uitbetaald. Controleer de performance-grace-taak."
+      - alert: ZzpDisputesOverdueEscalation
+        # Cascade-freeze-detector: een open dispuut bevriest de facturatie-cascade (geen factuur, geen
+        # betaling, geen afronding). planDisputeReminders escaleert naar de admins wanneer d > 7
+        # (DISPUTE_ESCALATE_AFTER_DAYS), maar de cron-heartbeat bewijst alleen DÁT de run afrondde, niet
+        # DÁT 'ie de escalatie-pijplijn verwerkte. Een oplopende backlog terwijl de heartbeat "vers" is
+        # betekent dat open disputen boven de drempel eeuwig zonder escalatie blijven → admins worden
+        # nooit gepaget om te bemiddelen, de cascade blijft bevroren, en de ZZP'er wacht op geld. Een
+        # klein, tijdelijk aantal (tot één cron-interval nadat een dispuut d=8 passeert) is normaal;
+        # daarom een ruime `for:` (> één cron-interval + speling) zodat alleen een AANHOUDENDE backlog
+        # paget.
+        expr: zzp_disputes_overdue_escalation > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dispute-escalatie-pijplijn verwerkt niets"
+          description: "Er staan al > één cron-interval open disputen voorbij de escalatie-drempel (DISPUTE_ESCALATE_AFTER_DAYS, 7 dagen) die niet naar admins geëscaleerd zijn (zzp_disputes_overdue_escalation). De dispute-reminders-cron rondt af maar escaleert geen disputen → cascade blijft bevroren (geen factuur/betaling/afronding), admins worden nooit gepaget om te bemiddelen, en de ZZP'er wacht op geld. Controleer de dispute-reminders-runner in /api/tasks/run-all."
       - alert: ZzpMembershipUnbilledActive
         # Omzet-kritische registratie: de zzp-membership-cron legt per maand een maandbijdrage vast voor
         # elke ZZP'er die die maand werk had (de kern-ZZP-monetisatie, PIDZ-model). De cron-heartbeat

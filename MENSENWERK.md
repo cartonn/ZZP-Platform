@@ -646,6 +646,25 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
    onderhouds-inhibitie in `alertmanager.yml`, vastgeklonken aan de drift-gates. Resterend mensenwerk:
    **niets extra** — de gauge werkt zodra een echte betaalprovider actief is.
 
+   **Code-kant GEDAAN (2026-08-20) — dispute-escalatie stille-faal-gauge (`zzp_disputes_overdue_escalation`):**
+   sluit het **laatste gat** in de cron-stille-faal-detector-familie: elke omzet-/statustaak had al een
+   gauge die telt wat de cron nog niet verwerkte, behalve de **dispute-escalatie**. Een open dispuut
+   bevriest de facturatie-cascade (geen factuur/betaling/afronding); de `dispute-reminders`-cron escaleert
+   het naar de admins zodra het langer dan de drempel (`DISPUTE_ESCALATE_AFTER_DAYS`, 7 dagen) open staat.
+   De cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de escalatie-pijplijn verwerkte —
+   bleef dat stil hangen, dan werden admins nooit gepaget om te bemiddelen, de cascade bleef bevroren en de
+   ZZP'er wachtte op geld, zonder dat iets dat toonde. `/api/metrics` heeft nu
+   `zzp_disputes_overdue_escalation` (open disputen — `disputedAt` gezet, status ≠ CANCELLED — voorbij de
+   escalatie-drempel die de cron nog niet als `DISPUTE_ESCALATION`-`DomainEvent` vastlegde). Read-only
+   telling (backlog minus al-gevuurde dedupeKeys → geen dubbeltelling), geen PII/secrets, met de nieuwe
+   pure `overdueDisputeCollaborationWhere`/`disputeEscalationBacklogCutoff`/`disputeEscalationDedupeKey`
+   (`src/lib/dispute-reminders*.ts`) die via een drift-gate-test aan de escalatie-beslissing van
+   `planDisputeReminders` zijn vastgeklonken (kan niet driften van de cron). Drop-in alert
+   `ZzpDisputesOverdueEscalation` (`> 0`, `for: 30h`) in `docs/observability/alerts.yml` +
+   onderhouds-inhibitie in `alertmanager.yml`, vastgeklonken aan beide drift-gates. Resterend mensenwerk:
+   **niets extra** — de gauge/alert werken out-of-the-box (0 zolang er geen open disputen boven de drempel
+   zijn).
+
    **Code-kant GEDAAN (2026-07-16) — betaalprovider-connectiviteitszelftest:** zodra je de
    API-sleutels hierboven hebt geplakt, kun je op `/admin/systeemstatus` (admin-only) de nieuwe
    **Betaalprovider-zelftest** draaien — zelfde patroon als de Opslag-/E-mail-/Rate-limit-/

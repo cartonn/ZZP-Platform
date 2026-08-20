@@ -62,6 +62,35 @@ export function disputeAgeDays(disputedAt: Date, now: Date): number {
 const REMIND_DAYS = REMINDERS.disputeReminderDays.filter((d) => d > 0);
 const ESCALATE_AFTER = REMIND_DAYS.length ? Math.max(...REMIND_DAYS) : 7;
 
+/**
+ * Externe her-export van `ESCALATE_AFTER`: de leeftijd (in hele dagen) waarboven `planDisputeReminders`
+ * escaleert. Eén bron van waarheid voor de backlog-cutoff van de gauge `zzp_disputes_overdue_escalation`;
+ * verandert de config-drempel, dan schuift zowel de plan-beslissing als de where-vorm automatisch mee.
+ */
+export const DISPUTE_ESCALATE_AFTER_DAYS = ESCALATE_AFTER;
+
+const DAY_MS = 1000 * 60 * 60 * 24;
+
+/**
+ * Snijpunt waarvóór (of waarop) een open dispuut al door de cron naar admins geëscaleerd had moeten zijn.
+ * `planDisputeReminders` escaleert zodra `d > ESCALATE_AFTER` (7) met `d = floor(ageDays)` — d.w.z. de
+ * dispuut-leeftijd ≥ 8 hele dagen. Een dispuut wier `disputedAt` op of vóór dit punt ligt, had de cron
+ * dus al als escalatie moeten vuren. Eén bron van waarheid voor de gauge `zzp_disputes_overdue_escalation`;
+ * een drift-gate-test klinkt de cutoff vast aan de escalatie-beslissing van `planDisputeReminders`.
+ */
+export function disputeEscalationBacklogCutoff(now: Date): Date {
+  return new Date(now.getTime() - (DISPUTE_ESCALATE_AFTER_DAYS + 1) * DAY_MS);
+}
+
+/**
+ * Dedupe-sleutel voor de escalatie-DomainEvent van een dispuut. Eén bron van waarheid: zowel de planner
+ * als de metrics-kant (die tegen dezelfde sleutel moet dedupliceren om reeds geëscaleerde disputen uit
+ * de gauge te schrappen) mogen deze helper aanroepen — een parallelle inline-literal zou stil driften.
+ */
+export function disputeEscalationDedupeKey(collaborationId: string): string {
+  return `dispute-escalation-${collaborationId}`;
+}
+
 function reminderBody(jobTitle: string, ageDays: number): string {
   return `Het dispuut op "${jobTitle}" staat al ${plural(ageDays, "dag", "dagen")} open. Zolang het niet is opgelost ligt de facturatie en betaling stil. Los het samen op of vraag het platform om bemiddeling.`;
 }
@@ -104,7 +133,7 @@ export function planDisputeReminders(
         collaborationId: c.collaborationId,
         jobTitle: c.jobTitle,
         ageDays: d,
-        dedupeKey: `dispute-escalation-${c.collaborationId}`,
+        dedupeKey: disputeEscalationDedupeKey(c.collaborationId),
       });
     }
   }

@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-20 — prod: stille-faal-detector `zzp_disputes_overdue_escalation` (cascade-freeze)
+
+**Wat (observability/prod-rijpheid):** sluit het laatste gat in de cron-stille-faal-detector-familie.
+Elke omzet-/statustaak had al een `/api/metrics`-gauge die telt wat de cron nog niet verwerkte
+(credentials-expiry, subscriptions ACTIVE/PENDING/PAST_DUE, invoice-flip, reviews-reveal,
+performance-grace, membership, alle retentie-crons) — behalve de **dispute-escalatie**. Een open
+dispuut bevriest de facturatie-cascade (geen factuur/betaling/afronding); `planDisputeReminders`
+escaleert het naar de admins zodra `d > DISPUTE_ESCALATE_AFTER_DAYS` (7). De cron-heartbeat bewijst
+alleen dát de run afrondde, niet dát 'ie de escalatie-pijplijn verwerkte — bleef dat stil hangen, dan
+werden admins nooit gepaget, de cascade bleef bevroren en de ZZP'er wachtte op geld, zonder dat iets
+dat toonde.
+
+**Hoe:** nieuwe pure helpers `disputeEscalationBacklogCutoff(now)` + `DISPUTE_ESCALATE_AFTER_DAYS` +
+`disputeEscalationDedupeKey(id)` (`src/lib/dispute-reminders.ts`, dedupeKey nu één bron van waarheid,
+de inline-literal in de planner vervangen) en `overdueDisputeCollaborationWhere(cutoff)`
+(`src/lib/dispute-reminders-task.ts`, spiegelt de plan-guards `disputedAt != null` + `status !=
+CANCELLED`). Gauge `zzp_disputes_overdue_escalation` op `/api/metrics` (route telt de where-backlog
+minus de al-gevuurde `DomainEvent`-dedupeKeys → geen dubbeltelling; read-only, geen PII/secrets).
+Drop-in alert `ZzpDisputesOverdueEscalation` (`> 0`, `for: 30h`, warning) in
+`docs/observability/alerts.yml` + onderhouds-inhibitie in `alertmanager.yml`. Vastgeklonken aan beide
+drift-gates (`alerts-rules.ts` + `monitoring-bundle.test.ts`) en aan de escalatie-beslissing van de
+planner (drift-gate-test op de cutoff-grens: d=8 escaleert, d=7 niet). Gate: typecheck/lint/test
+(dispute-reminders 26 + observability 284) / prettier(`--check .`) groen. Gebouwd met 2 parallelle
+Opus-subagents op niet-overlappende bestanden. Resterend mensenwerk: **niets extra** — de gauge/alert
+werken out-of-the-box (0 zolang er geen open disputen boven de drempel zijn).
+
 ## 2026-08-20 — persona-sweep: franchiser-KPI's + /facturen "Betaald" telden cascade-facturen niet mee
 
 **Wat (geld-integriteit/drift, DOEL 1/DOEL 2, HIGH):** de bemiddelaar-/franchiser-dashboard-KPI's

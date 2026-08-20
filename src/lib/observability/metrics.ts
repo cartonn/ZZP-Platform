@@ -151,6 +151,21 @@ export interface MetricsInput {
    */
   overduePerformanceGrace: number;
   /**
+   * Aantal open disputen (Collaboration.disputedAt gezet, status != CANCELLED) wier leeftijd de
+   * dispute-escalatie-drempel (`DISPUTE_ESCALATE_AFTER_DAYS`, 7 dagen) overschreed maar die de
+   * `dispute-reminders`-cron nog niet naar admins escaleerde — werk dat die cron had moeten doen
+   * (`planDisputeReminders` vuurt bij `d > DISPUTE_ESCALATE_AFTER_DAYS` een `DISPUTE_ESCALATION`-event
+   * naar de admins). Dezelfde stille-faal-detector-klasse als de andere overdue-backlogs: de
+   * cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de dispute-escalatie-pijplijn
+   * verwerkte. Een klein, tijdelijk aantal (tot één cron-interval nadat een dispuut d=8 passeert) is
+   * normaal; blijft dit getal oplopen terwijl de heartbeat "vers" is, dan blijven open disputen boven
+   * de drempel eeuwig zonder escalatie naar admins → de facturatie-cascade blijft bevroren (geen
+   * factuur, geen betaling, geen afronding), admins worden nooit gepaget om te bemiddelen, en de
+   * ZZP'er wacht op geld terwijl de opdrachtgever niet weet dat 'ie bevroren is. Anders dan de
+   * abonnement-familie is er hier GEEN entitlement-guard-vangnet — een stille cron is een echt gat.
+   */
+  overdueDisputeEscalations: number;
+  /**
    * Aantal auditregels ouder dan het geconfigureerde `AUDIT_LOG_RETENTION_DAYS`-venster die de
    * `audit-retention`-cron nog niet snoeide — werk dat die cron had moeten doen. Dezelfde
    * stille-faal-detector-klasse als `overdueExpiryCredentials`/`overdueExpirySubscriptions`/
@@ -447,6 +462,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal ingediende prestaties (SUBMITTED) wier grace-venster (PERFORMANCE_GRACE_DAYS) verstreken is — op een niet-geannuleerde/niet-betwiste samenwerking — die de performance-grace-cron nog niet automatisch goedkeurde (0 als het grace-venster uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen grace-pijplijn: prestaties blijven na hun deadline in SUBMITTED hangen → geen factuur, de ZZP'er wordt niet uitbetaald).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.overduePerformanceGrace)),
+    },
+    {
+      name: "zzp_disputes_overdue_escalation",
+      help: "Aantal open disputen (Collaboration.disputedAt gezet, status != CANCELLED) wier leeftijd de dispute-escalatie-drempel (DISPUTE_ESCALATE_AFTER_DAYS, 7 dagen) overschreed maar die de dispute-reminders-cron nog niet naar admins escaleerde (een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen escalatie-pijplijn: bevroren cascade blijft bevroren, admins worden nooit gepaget om te bemiddelen, ZZP'er wacht op geld).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.overdueDisputeEscalations)),
     },
     {
       name: "zzp_audit_retention_backlog",

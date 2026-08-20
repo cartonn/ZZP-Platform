@@ -4,9 +4,28 @@
 // zoals runPerformanceApprovalReminderTask. Geen geldstroom, geen cascade-mutatie. Vult het gat dat
 // een open dispuut — anders dan alle andere cascade-stalls — geen actieve nudge had.
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { planDisputeReminders, type DisputeReminderCandidate } from "@/lib/dispute-reminders";
+
+/**
+ * Where-vorm voor open disputen die al door de cron naar admins geëscaleerd hadden moeten zijn: er is
+ * een `disputedAt` en die ligt op of vóór de cutoff, én de samenwerking is niet geannuleerd. Spiegelt
+ * de plan-guards uit `planDisputeReminders` (`if (!c.disputedAt) continue; if (c.collabStatus ===
+ * "CANCELLED") continue;`) — één bron van waarheid voor de gauge `zzp_disputes_overdue_escalation` op
+ * /api/metrics. Een drift-gate-test klinkt deze vorm vast aan de escalatie-beslissing van de planner.
+ *
+ * NB: dit is de ESCALATIE-achterstand (de duidelijke monotone stille-faalmodus). Blijft dit getal
+ * oplopen terwijl de cron-heartbeat "vers" is, dan verwerkt de dispuut-reminder-pijplijn geen escalaties
+ * meer: open disputen blijven eeuwig zonder admin-signaal hangen en bemiddeling komt nooit op gang.
+ */
+export function overdueDisputeCollaborationWhere(cutoff: Date): Prisma.CollaborationWhereInput {
+  return {
+    disputedAt: { not: null, lte: cutoff },
+    status: { not: "CANCELLED" },
+  };
+}
 
 export interface DisputeReminderResult {
   reminded: number;

@@ -17,7 +17,9 @@
 // verstreken double-blind reveal-venster die de reviews-reveal-cron nog niet publiceerde) en
 // zzp_performances_overdue_grace (ingediende prestaties wier grace-venster verstreken is die de
 // performance-grace-cron nog niet automatisch goedkeurde — geen factuur, ZZP'er niet uitbetaald) en
-// zzp_audit_retention_backlog (auditregels ouder
+// zzp_disputes_overdue_escalation (open disputen boven DISPUTE_ESCALATE_AFTER_DAYS die de
+// dispute-reminders-cron nog niet naar admins escaleerde — bevroren cascade blijft bevroren, admins
+// worden nooit gepaget, ZZP'er wacht op geld) en zzp_audit_retention_backlog (auditregels ouder
 // dan AUDIT_LOG_RETENTION_DAYS die de audit-retention-cron nog niet snoeide — AVG-dataminimalisatie) en
 // zzp_applications_retention_backlog (terminale reacties met vrije-tekst-PII ouder dan
 // APPLICATION_RETENTION_DAYS die de application-retention-cron nog niet snoeide — AVG-dataminimalisatie) en
@@ -88,6 +90,11 @@ import { overdueDowngradeSubscriptionWhere, pastDueDowngradeBacklogCutoff } from
 import { activeMembershipUserIds, monthKey, monthRange } from "@/lib/zzp-membership";
 import { membershipPerformanceSelect, membershipPerformanceWhere } from "@/lib/zzp-membership-task";
 import { graceCutoff, overduePerformanceGraceWhere } from "@/lib/performance-grace-task";
+import {
+  disputeEscalationBacklogCutoff,
+  disputeEscalationDedupeKey,
+} from "@/lib/dispute-reminders";
+import { overdueDisputeCollaborationWhere } from "@/lib/dispute-reminders-task";
 import { reportError } from "@/lib/observability/report";
 import type { CronFreshness } from "@/lib/observability/cron-freshness";
 import {
@@ -125,6 +132,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let overdueUnflippedInvoices = 0;
   let overdueReviewReveals = 0;
   let overduePerformanceGrace = 0;
+  let overdueDisputeEscalations = 0;
   let auditRetentionBacklog = 0;
   let applicationsRetentionBacklog = 0;
   let notificationsRetentionBacklog = 0;
@@ -242,6 +250,36 @@ async function collectInput(now: Date): Promise<MetricsInput> {
         overduePerformanceGrace = await prisma.performance.count({
           where: overduePerformanceGraceWhere(graceCutoff(now, days)),
         });
+      }
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
+    try {
+      // Open disputen wier leeftijd de dispute-escalatie-drempel (DISPUTE_ESCALATE_AFTER_DAYS, 7 dagen)
+      // overschreed maar die de dispute-reminders-cron nog niet naar admins escaleerde: werk dat die
+      // cron had moeten doen (`planDisputeReminders` vuurt bij `d > DISPUTE_ESCALATE_AFTER_DAYS` een
+      // DISPUTE_ESCALATION-event, met dedupeKey `dispute-escalation-<collabId>`). Hergebruikt exact
+      // `overdueDisputeCollaborationWhere(disputeEscalationBacklogCutoff(now))` als bron van waarheid,
+      // en trekt vervolgens de reeds-geëscaleerden af via de DomainEvent-dedupeKey (identieke sleutel
+      // die de runner gebruikt) — zo telt de gauge alleen collabs die nog GEEN escalatie kregen. De
+      // IN-lijst is per definitie klein (open disputen zijn zeldzaam), dus een enkele round-trip.
+      const cutoff = disputeEscalationBacklogCutoff(now);
+      // unbounded-allow: een backlog-gauge moet ELKE openstaande escalatie tellen; een `take` zou de
+      // stille-faal-telling onderschatten (vals-negatief). De where is scherp begrensd (open disputen
+      // voorbij de drempel — een zeldzame, kleine set), dus geen praktisch geheugelrisico.
+      const candidates = await prisma.collaboration.findMany({
+        where: overdueDisputeCollaborationWhere(cutoff),
+        select: { id: true },
+      });
+      if (candidates.length > 0) {
+        const keys = candidates.map((c) => disputeEscalationDedupeKey(c.id));
+        // unbounded-allow: de IN-lijst is `keys` (afgeleid van `candidates` hierboven — dezelfde
+        // begrensde set), dus deze lezing is intrinsiek gebonden aan de al-begrensde backlog.
+        const escalated = await prisma.domainEvent.findMany({
+          where: { dedupeKey: { in: keys } },
+          select: { dedupeKey: true },
+        });
+        overdueDisputeEscalations = Math.max(0, candidates.length - escalated.length);
       }
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
@@ -437,6 +475,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     overdueUnflippedInvoices,
     overdueReviewReveals,
     overduePerformanceGrace,
+    overdueDisputeEscalations,
     auditRetentionBacklog,
     applicationsRetentionBacklog,
     notificationsRetentionBacklog,
