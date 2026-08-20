@@ -3,6 +3,7 @@
 // taakrunner via getMailSender(). Geen secrets in de tekst.
 
 import { type MailMessage } from "@/lib/services/mail-sender";
+import { formatEmailRecipient } from "@/lib/services/email-address";
 import { plural } from "@/lib/plural";
 
 const PLATFORM = process.env.PLATFORM_NAME ?? "Handslag";
@@ -16,9 +17,11 @@ function esc(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-/** Recipient-header: "Naam <email>" of alleen "email" als naam ontbreekt. */
+/** Recipient-header: "Naam <email>" of alleen "email" als naam ontbreekt. De weergavenaam wordt
+ *  van stuurtekens ontdaan zodat een CR/LF in de profielnaam geen header-injectie kan opleveren
+ *  (CWE-93; zie email-address.ts). */
 function recipient(name: string, email: string): string {
-  return name && name !== email ? `${name} <${email}>` : email;
+  return formatEmailRecipient(name, email);
 }
 
 function html(content: string): string {

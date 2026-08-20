@@ -3,6 +3,7 @@
 // command-laag via getMailSender() (best-effort, wrapped in try/catch).
 
 import { type MailMessage } from "@/lib/services/mail-sender";
+import { formatEmailRecipient } from "@/lib/services/email-address";
 
 const PLATFORM = process.env.PLATFORM_NAME ?? "Handslag";
 
@@ -44,8 +45,10 @@ function btn(url: string, label: string): string {
   return `<a href="${esc(url)}" style="display:inline-block;padding:10px 16px;background:#18181b;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">${esc(label)}</a>`;
 }
 
+// De weergavenaam wordt van stuurtekens ontdaan zodat een CR/LF in de profielnaam geen
+// header-injectie kan opleveren (CWE-93; zie email-address.ts).
 function to(name: string, email: string): string {
-  return name && name !== email ? `${name} <${email}>` : email;
+  return formatEmailRecipient(name, email);
 }
 
 export interface UserContact {

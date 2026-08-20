@@ -423,11 +423,15 @@ describe("buildAccountExport", () => {
     expect(select.number).toBe(true);
     expect(select.totalCents).toBe(true);
     expect(select.subtotalCents).toBe(true);
-    // Tegenpartij-id's en vrije tekst lekken niet mee.
+    // Tegenpartij-id + interne markers lekken niet mee.
     expect(select.counterpartyUserId).toBeUndefined();
-    expect(select.issuerUserId).toBeUndefined();
     expect(select.rejectionReason).toBeUndefined();
-    expect(select.lines).toBeUndefined();
+    // `issuerUserId` en `lines` zitten WEL in de query-select: nodig voor de per-rij
+    // JS-filter die `lines` alleen voor de eigen uitschrijver-facturen laat staan (spiegel van de
+    // InvoiceLine-erasure). De hulpvelden worden vóór retour uit de payload gestript — dat is
+    // apart gedekt in de "neemt de eigen factuurregel-omschrijvingen mee ..."-test.
+    expect(select.issuerUserId).toBe(true);
+    expect(select.lines).toBeDefined();
   });
 
   it("neemt de eigen urenstaten mee, gescopet op de eigen samenwerkingen als ZZP'er, zonder afkeurnotitie van de tegenpartij (AVG art. 15/20)", async () => {
@@ -446,6 +450,97 @@ describe("buildAccountExport", () => {
     expect(select.ortSegments).toBe(true);
     // De afkeurreden is door de goedkeurende tegenpartij geschreven — hoort er niet in.
     expect(select.rejectionReason).toBeUndefined();
+  });
+
+  it("exporteert het volledige AvailabilityWindow (niet gefilterd op note!==null; incl. hoursPerWeek, AVG art. 15/20)", async () => {
+    // Vóór de fix: `where: { note: { not: null } }` en het select-veld `hoursPerWeek` ontbrak → een
+    // ZZP'er kreeg zijn eigen agenda-datums/uren NIET in de inzage-export. Rood zonder de fix.
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+    const avail = calls.find((c) => c.table === "availabilityWindow");
+    expect(avail).toBeDefined();
+    // Geen note-filter meer: de héle eigen agenda-historie moet erin.
+    expect((avail!.args.where as Record<string, unknown>).note).toBeUndefined();
+    const sel = avail!.args.select as Record<string, unknown>;
+    expect(sel.startDate).toBe(true);
+    expect(sel.endDate).toBe(true);
+    expect(sel.type).toBe(true);
+    expect(sel.hoursPerWeek).toBe(true);
+    expect(sel.note).toBe(true);
+  });
+
+  it("neemt de eigen factuurregel-omschrijvingen mee alleen op de EIGEN uitschrijver-facturen (art. 15/20; spiegel van de InvoiceLine-erasure)", async () => {
+    // Vóór de fix: `lines` ontbrak volledig in het invoice-select → de uitschrijver kreeg zijn eigen
+    // getypte regel-omschrijvingen niet in de export. Fix laadt `lines` op de brede OR, samen met de
+    // hulpvelden (issuerUserId + collaboration.freelancer.userId) waarmee we per rij in JS filteren:
+    // eigen uitschrijver → `lines` blijft; enkel tegenpartij (opdrachtgever) → `lines` weg (dat is
+    // tegenpartij-tekst, geen eigen PII).
+    const { db, calls } = fakeDb({
+      invoice: [
+        // Eigen cascade-factuur (issuerUserId == actor)
+        {
+          number: "2025-A",
+          totalCents: 5000,
+          issuerUserId: ACTOR,
+          collaboration: null,
+          lines: [
+            {
+              description: "Werk bij mevr. De Vries",
+              quantity: 1,
+              unitCents: 5000,
+              amountCents: 5000,
+            },
+          ],
+        },
+        // Legacy loose-factuur zonder issuerUserId, maar samenwerking-freelancer == actor
+        {
+          number: "2025-B",
+          totalCents: 6000,
+          issuerUserId: null,
+          collaboration: { freelancer: { userId: ACTOR } },
+          lines: [{ description: "Losse dienst", quantity: 2, unitCents: 3000, amountCents: 6000 }],
+        },
+        // Factuur waarop de actor enkel TEGENPARTIJ is → lines is tegenpartij-tekst, moet weggefilterd.
+        {
+          number: "2025-C",
+          totalCents: 7000,
+          issuerUserId: "other-user",
+          collaboration: { freelancer: { userId: "other-user" } },
+          lines: [
+            {
+              description: "Geheim van de ZZP'er",
+              quantity: 1,
+              unitCents: 7000,
+              amountCents: 7000,
+            },
+          ],
+        },
+      ],
+    });
+    const payload = await buildAccountExport(db, ACTOR);
+    // Bewijs dat de brede scope + het `lines`-select nu meegeladen worden vanuit de DB.
+    const invoiceCall = calls.find((c) => c.table === "invoice");
+    const sel = invoiceCall!.args.select as Record<string, unknown>;
+    expect(sel.lines).toBeDefined();
+    expect(sel.issuerUserId).toBe(true);
+    const invoices = payload.invoices as Array<Record<string, unknown>>;
+    // Eigen uitschrijver (cascade + legacy): `lines` blijft.
+    const own1 = invoices.find((i) => i.number === "2025-A")!;
+    const own2 = invoices.find((i) => i.number === "2025-B")!;
+    expect(own1.lines).toEqual([
+      { description: "Werk bij mevr. De Vries", quantity: 1, unitCents: 5000, amountCents: 5000 },
+    ]);
+    expect(own2.lines).toEqual([
+      { description: "Losse dienst", quantity: 2, unitCents: 3000, amountCents: 6000 },
+    ]);
+    // Enkel tegenpartij: `lines` weg (tegenpartij-tekst).
+    const counterparty = invoices.find((i) => i.number === "2025-C")!;
+    expect(counterparty.lines).toBeUndefined();
+    // Hulpvelden (issuerUserId, collaboration) lekken niet naar het payload-object.
+    for (const inv of invoices) {
+      expect(inv.issuerUserId).toBeUndefined();
+      expect(inv.collaboration).toBeUndefined();
+    }
   });
 
   it("geeft de canned rijen door in de juiste secties", async () => {

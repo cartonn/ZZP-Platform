@@ -4,6 +4,111 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-20 (basis: `main` @ a84aad94) — 3× OPGELOST (e-mail-CRLF-injectie + 2× erasure-restanten)
+
+Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(1) authz/IDOR/functie-autorisatie + multi-tenant-isolatie, (2) injectie/SSRF/upload/secrets/headers/CSP/
+open-redirect/CSRF + `npm audit`, (3) privacy/AVG (erasure↔export-symmetrie via volledige schema-modelsweep,
+dataminimalisatie/PII-over-fetch, cross-party/cross-tenant, audit-logging, k-anonimiteit, retentie, derden),
+(4) auth/sessie/tokens/rate-limiting/CSRF/mass-assignment/account-status. Delta t.o.v. de vorige
+ronde: 6 nieuwe commits (`f598d699..a84aad94` — flexpool-strip, samenwerking-dubbelboek-signaal,
+franchise-cascade-KPI, PAST_DUE-downgrade-detector, revenue-trend-fix, voorstel-ouderdomssignaal).
+Runtime-probe niet gedraaid — statisch grep+lees was voldoende gezien de codebase al door ~30 ronden is
+uitgehard en de delta pure read-side aggregaties bevatte.
+
+**Uitkomst:** authz/IDOR/tenant-isolatie, auth/sessie/tokens en de delta **schoon** — géén nieuwe
+KRITIEK/HOOG in die oppervlakken. Injectie-audit vond **1× MIDDEL** (e-mail-header-CRLF-injectie via
+ongesaneerde weergavenaam, CWE-93). Privacy-audit vond **2× erasure-restanten** (1× MIDDEL:
+`InvoiceLine.description` + 1× LAAG–MIDDEL: rest van `AvailabilityWindow` naast `note`). Alle drie
+gefixt in dit PR met bijbehorende rood→groen-tests.
+
+### OPGELOST — E-mail-header-/CRLF-injectie via ongesaneerde weergavenaam (MIDDEL · CWE-93 · OWASP A03 Injection)
+
+**Geschonden regel:** CLAUDE.md architectuurregel 1 (server-side is de waarheid): de mail-sink krijgt
+een `to`-string die uit gebruiker-gecontroleerde profieldata (`User.name`, `Company.name`) is opgebouwd
+zonder saneringslaag; de laag mag geen ruwe stuurtekens naar de mail-driver doorgeven.
+
+**Repro (vóór de fix):** een gebruiker zet zijn `User.name` op `"Jan\r\nBcc: aanvaller@evil.com"` (het
+Zod-schema `trimmed(120)` in `src/lib/validation.ts` knipt alleen rand-witruimte; ingebedde CR/LF komt
+er ongemoeid door). Bij de volgende herinnerings-/welkomstmail bouwt `recipient()`/`to()` in
+`src/lib/services/{reminder-emails,cascade-emails}.ts` en `src/lib/onboarding/welcome-email.ts` de
+`to`-string via `` `${name} <${email}>` `` — de CR/LF gaat rechtstreeks naar
+`MailMessage.to`. De SMTP-driver (`nodemailer.sendMail({ to })`) is de klassieke vector: een CR/LF in
+het display-name-deel kan een extra header of ontvanger smokkelen (`Bcc:` → stille exfiltratie van de
+mailinhoud, incl. het tijdelijke wachtwoord uit `buildWelcomeEmail`). De JSON-API-drivers
+(Resend/Postmark/SES) sturen 'm als string-waarde — geen directe on-the-wire header — maar geven wel
+ongesaneerde input aan een externe address-parser door.
+
+**Fix (dit PR):** nieuwe pure helper `src/lib/services/email-address.ts` (met test) —
+`sanitizeDisplayName` verwijdert de C0-reeks (`\x00-\x1F` incl. CR/LF/tab) + DEL + `<`/`>`/`"`;
+`formatEmailRecipient` bouwt `"<gesaneerde naam> <email>"` (of alleen het adres) en saneert het adres
+ook (defense-in-depth naast `z.string().email()`). De drie recipient-builders (`reminder-emails.ts`,
+`cascade-emails.ts`, `welcome-email.ts`) delegeren nu naar deze helper — sink-laag-verdediging in
+lijn met `escapeCsvField` (CSV-formule), `escapeIcsText` (RFC 5545) en `sanitizeAttachmentFilename`
+(Content-Disposition) elders in de codebase. **Tests (10, rood→groen):** injectiepogingen produceren
+nooit een CR/LF in de uitvoer; adres-delimiters `<`/`>` verlaten het display-name-deel; adres-sanering
+dekt óók een CR/LF in het adres.
+
+### OPGELOST — `InvoiceLine.description` (zelf-getypte vrije tekst) overleefde erasure én ontbrak in export (MIDDEL · AVG art. 15/17/20 · CLAUDE.md regel 5)
+
+**Geschonden regel:** AVG art. 17 (recht op vergetelheid) — zelf-getypte vrije tekst van de betrokkene
+mag na een verwijderverzoek niet permanent leesbaar blijven; art. 15/20 (inzage/portabiliteit) — de
+uitschrijver kon zijn eigen regelomschrijvingen niet inzien/exporteren. Zelfde erasure-gap-klasse als
+de reeds-gefixte `Application.motivation`/`Expense.description`/`Performance.description`.
+
+**Repro (vóór de fix):** ZZP'er maakt een handmatige/cascade-factuur met een regel-omschrijving als
+`"Werkzaamheden bij mevr. De Vries, Julianalaan 12, 06-xxxxxxx"` (200 tekens vrije tekst per regel via
+`invoiceLineSchema`) → admin roept `anonymizeUser(freelancerId)` aan → `InvoiceLine`-rijen worden
+nergens door de 812-regel-erasure-transactie geraakt (alleen `ownCreditedInvoices` — cascade
+`lifecycleStatus: "CREDITED"`-facturen — krijgen hun `rejectionReason` gescrubd; legacy-loose-facturen
+dragen geen `issuerUserId` en vallen dáár al buiten) → de vrije tekst blijft permanent leesbaar voor
+de opdrachtgever + admin, gekoppeld aan de behouden `Collaboration.freelancerId`. Spiegelbeeldig
+ontbrak `Invoice.lines` in `buildAccountExport` (art. 15/20).
+
+**Fix (dit PR):**
+
+- Nieuwe `prisma.invoiceLine.updateMany` in de anonimiseringstransactie: `data:
+  { description: "[Verwijderd op verzoek van de gebruiker]" }` (non-nullable String → neutrale
+  redactiestring, spiegel `Expense.description`/`Performance.description`). Gescopet op de EIGEN
+  uitschrijver-facturen: `{ invoice: { OR: [{ issuerUserId: userId }, { collaboration: { freelancer:
+{ userId } } }] } }` (cascade + legacy-loose). Een opdrachtgever die enkel tegenpartij is
+  (`counterpartyUserId`) schrijft deze tekst niet, dus die scope blijft er bewust uit.
+- `buildAccountExport` — invoice-select uitgebreid met `lines: { description, quantity, unitCents,
+amountCents }` + hulpvelden `issuerUserId` en `collaboration.freelancer.userId`; per-rij JS-filter na
+  de DB-lezing houdt `lines` alleen op de eigen uitschrijver-facturen (spiegel van de erasure-scoping)
+  en stript de hulpvelden uit het uiteindelijke payload-object. Zo landen de zelf-getypte
+  omschrijvingen bij de uitschrijver in de eigen inzage-export zonder ze aan een enkel-tegenpartij-
+  opdrachtgever te lekken.
+- **Tests (rood→groen):** `anonymize-erasure.test.ts` — nieuwe case asserteert de `invoiceLine.updateMany`-
+  scope en de redactiestring (rood zonder de bronwijziging: `find(...) === undefined`);
+  `account-export.test.ts` — nieuwe case bewijst met drie canned facturen (eigen cascade, legacy loose,
+  enkel-tegenpartij) dat `lines` correct wél/niet wordt meegegeven én dat de hulpvelden nooit in het
+  payload-object lekken; bestaande "geen tegenpartij-vrije-tekst"-test aangepast om te bevestigen dat
+  `issuerUserId`/`lines` nu WEL in het query-select zitten (nodig voor de JS-filter) maar niet in de
+  uiteindelijke payload.
+
+### OPGELOST — `AvailabilityWindow` datums/type/uren overleefden erasure; export gefilterd op `note !== null` (LAAG–MIDDEL · AVG art. 15/17/20 · CLAUDE.md regel 5)
+
+**Geschonden regel:** AVG art. 17 — een eerdere ronde redacteerde alleen `note` (vrije tekst met
+reden/medische details, bv. "ziek") maar liet `startDate`/`endDate`/`type`/`hoursPerWeek` staan als
+gedragsmetadata over de betrokkene (een patroon van UNAVAILABLE-vensters kan omstandigheden prijsgeven),
+gekoppeld aan de behouden `FreelancerProfile.id` (die admin kan mappen). Geen tegenpartij-/fiscale
+bewaargrond (anders dan `Invoice`/`Expense`/`Performance`). Spiegelbeeldig art. 15/20 gap: de export
+scope'te op `where: { note: { not: null } }` en select had geen `hoursPerWeek` → de betrokkene kreeg de
+datums/uren-historie niet in de eigen inzage-export.
+
+**Fix (dit PR):**
+
+- `anonymizeUser`: `prisma.availabilityWindow.deleteMany({ where: { freelancerProfile: { userId } } })`
+  in plaats van de partiële `updateMany({ data: { note: null } })` — spiegel van `WorkExperience`/
+  `SavedJob` ("geen tegenpartij-waarde → hard delete").
+- `buildAccountExport`: note-filter uit het `where` gehaald + `hoursPerWeek` toegevoegd aan het select
+  → volledige agenda-historie in de export.
+- **Tests (rood→groen):** `anonymize-erasure.test.ts` — bestaande test aangepast om de nieuwe
+  `deleteMany` te asserteren én expliciet te bewijzen dat de oude `updateMany` niet meer draait;
+  `account-export.test.ts` — nieuwe test asserteert het weggenomen note-filter + de aanwezigheid van
+  `hoursPerWeek` in het select.
+
 ## Ronde 2026-08-20 (basis: `main` @ f598d699) — 1× HOOG + 2× consistentie OPGELOST (bookmark-gedragsmetadata overleefde erasure)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

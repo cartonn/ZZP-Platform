@@ -277,9 +277,12 @@ export async function buildAccountExport(
     }),
     // Eigen facturen: de actor is partij (uitschrijver = ZZP'er via issuerUserId, of opdrachtgever
     // via counterpartyUserId; legacy-facturen zonder die velden herleiden we via de samenwerking).
-    // Deze financiële transactierecords zijn eigen persoonsgegevens (art. 15/20). Bewust alleen de
-    // gestructureerde bedragen/status/nummer — géén vrije tekst (factuurregel-omschrijvingen zouden
-    // voor de opdrachtgever de tekst van de tegenpartij zijn) en géén tegenpartij-id.
+    // Deze financiële transactierecords zijn eigen persoonsgegevens (art. 15/20). De regel-
+    // omschrijvingen (`lines[].description`) zijn zelf-getypte vrije tekst van de UITSCHRIJVER en
+    // horen daarom in diens eigen inzage-export — spiegel van de erasure-redactie op InvoiceLine.
+    // Voor een opdrachtgever (counterpartyUserId) is diezelfde tekst tegenpartij-tekst → daar bewust
+    // NIET meesturen; de gefilterde `lines`-relatiescope zorgt dat rijen alleen bij de eigen
+    // uitschrijver-facturen (issuerUserId óf legacy-collaboration-link) verschijnen.
     db.invoice.findMany({
       where: {
         OR: [
@@ -300,6 +303,16 @@ export async function buildAccountExport(
         totalCents: true,
         vatRegime: true,
         createdAt: true,
+        issuerUserId: true,
+        collaboration: { select: { freelancer: { select: { userId: true } } } },
+        lines: {
+          select: {
+            description: true,
+            quantity: true,
+            unitCents: true,
+            amountCents: true,
+          },
+        },
       },
     }),
     // Eigen urenstaten/opleveringen (Performance): de gewerkte uren/perioden/tarief die de ZZP'er
@@ -396,11 +409,21 @@ export async function buildAccountExport(
       where: { decidedByUserId: actorId, decisionNote: { not: null } },
       select: { collaborationId: true, decisionNote: true, status: true, decidedAt: true },
     }),
-    // Beschikbaarheidsnoten die de actor als ZZP'er zelf schreef (AvailabilityWindow.note, vrije
-    // tekst met mogelijk een reden of details). Gescopet op het eigen profiel. Alleen rijen met noot.
+    // Eigen beschikbaarheidsvensters (AvailabilityWindow): het volledige agenda-record dat de ZZP'er
+    // zelf plaatste — startDate/endDate/type/hoursPerWeek + vrije-tekst-noot. Onder art. 15/20 heeft de
+    // betrokkene recht op de gehele agenda-historie, niet enkel de rijen met een noot (eerdere versie
+    // gaf `where: { note: { not: null } }` mee, wat de datums/type onterecht buiten de eigen export
+    // hield). Gescopet op het eigen profiel.
     db.availabilityWindow.findMany({
-      where: { freelancerProfile: { userId: actorId }, note: { not: null } },
-      select: { startDate: true, endDate: true, type: true, note: true, createdAt: true },
+      where: { freelancerProfile: { userId: actorId } },
+      select: {
+        startDate: true,
+        endDate: true,
+        type: true,
+        hoursPerWeek: true,
+        note: true,
+        createdAt: true,
+      },
     }),
     // No-show-meldingen die de actor als melder (opdrachtgever/franchiser) zelf schreef
     // (NoShowReport.reason). Eigen vrije tekst; verdictNote (admin-oordeel) blijft eruit en de
@@ -462,6 +485,22 @@ export async function buildAccountExport(
     }),
   ]);
 
+  // Alleen op de EIGEN uitschrijver-facturen (issuerUserId == actor, óf legacy-loose via de
+  // samenwerking-freelancer-link) horen de regel-omschrijvingen: die tekst is door de UITSCHRIJVER
+  // getypt en is diens eigen PII (art. 15/20). Voor een opdrachtgever die enkel tegenpartij is
+  // (counterpartyUserId of company-link) is diezelfde tekst tegenpartij-tekst en blijft er bewust
+  // buiten — spiegel van de erasure-scoping op InvoiceLine. Prisma's `select` heeft geen
+  // per-rij-voorwaarde; we filteren hier in JS en strippen ook de hulpvelden die we voor de check
+  // hebben geladen (issuerUserId + collaboration.freelancer.userId).
+  type InvoiceExportRow = (typeof invoices)[number];
+  const shapedInvoices = invoices.map((inv: InvoiceExportRow) => {
+    const isOwnIssuer =
+      inv.issuerUserId === actorId || inv.collaboration?.freelancer?.userId === actorId;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { issuerUserId: _iu, collaboration: _c, lines, ...rest } = inv;
+    return isOwnIssuer ? { ...rest, lines } : rest;
+  });
+
   return {
     exportedAt: now.toISOString(),
     notice: EXPORT_NOTICE,
@@ -480,7 +519,7 @@ export async function buildAccountExport(
     ideaComments,
     indirectHours,
     ideas,
-    invoices,
+    invoices: shapedInvoices,
     performances,
     cancelledCollaborations,
     favoriteNotes,

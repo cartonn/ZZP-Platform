@@ -4,6 +4,7 @@
 // wachtwoordwijziging (User.mustChangePassword). Geen geheimen loggen; deze tekst gaat alleen per mail.
 
 import { type MailMessage } from "@/lib/services/mail-sender";
+import { formatEmailRecipient } from "@/lib/services/email-address";
 
 export interface WelcomeEmailInput {
   name: string;
@@ -64,5 +65,5 @@ export function buildWelcomeEmail(input: WelcomeEmailInput): MailMessage {
   </body>
 </html>`;
 
-  return { to: `${input.name} <${input.email}>`, subject, text, html };
+  return { to: formatEmailRecipient(input.name, input.email), subject, text, html };
 }
