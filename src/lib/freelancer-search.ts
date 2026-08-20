@@ -145,6 +145,41 @@ export function applyFreelancerFilters(
   return result;
 }
 
+/**
+ * Bouwt een gededupliceerde catalogus van vaardigheden uit de geladen kaartdata, gesorteerd op
+ * frequentie (meestvoorkomend eerst), ties alfabetisch op naam (nl-collatie) en dan op id voor
+ * volledige determinisme. Voedt de vaardigheidsfilter-chips op de ZZP'er-etalage: alleen skills
+ * die minstens één zichtbare ZZP'er daadwerkelijk voert komen in de filter, zodat een click nooit
+ * naar 0 resultaten leidt vanwege een niet-vertegenwoordigde skill. Puur; muteert de invoer niet.
+ */
+export interface FreelancerSkillOption {
+  id: string;
+  name: string;
+  /** Aantal ZZP'ers in de invoer dat deze vaardigheid heeft. */
+  count: number;
+}
+
+export function buildFreelancerSkillCatalog(
+  cards: readonly FreelancerCard[],
+): FreelancerSkillOption[] {
+  // skillIds/skillLabels zijn index-aligned (zie `getAllPublicFreelancers`); we itereren per index
+  // zodat een label-drift tussen ZZP'ers (theoretisch onmogelijk, maar defensief) niet ontstaat.
+  const byId = new Map<string, { name: string; count: number }>();
+  for (const c of cards) {
+    for (let i = 0; i < c.skillIds.length; i++) {
+      const id = c.skillIds[i];
+      if (!id) continue;
+      const name = c.skillLabels[i] ?? id;
+      const existing = byId.get(id);
+      if (existing) existing.count += 1;
+      else byId.set(id, { name, count: 1 });
+    }
+  }
+  return Array.from(byId, ([id, v]) => ({ id, name: v.name, count: v.count })).sort(
+    (a, b) => b.count - a.count || a.name.localeCompare(b.name, "nl") || a.id.localeCompare(b.id),
+  );
+}
+
 /** Haalt alle publieke ZZP-profielen op; berekent trust + beschikbaarheid server-side. */
 export async function getAllPublicFreelancers(
   tenantScope: { tenantId?: string | null } = {},
