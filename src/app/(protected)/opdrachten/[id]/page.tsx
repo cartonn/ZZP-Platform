@@ -59,7 +59,12 @@ import {
   type JobAvailabilitySignal,
 } from "@/lib/job-availability-signal";
 import { JobAvailabilitySignalCard } from "@/components/jobs/job-availability-signal-card";
-import { type AvailabilityWindowType } from "@/lib/enums";
+import {
+  assessJobCollaborationConflict,
+  type JobCollaborationConflict,
+} from "@/lib/job-collaboration-conflict";
+import { JobCollaborationConflictCard } from "@/components/jobs/job-collaboration-conflict-card";
+import { type AvailabilityWindowType, type CollaborationStatus } from "@/lib/enums";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
@@ -184,6 +189,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   let rateFit: JobRateFitAssessment | null = null;
   // Agenda-signaal: valt de startdatum in een periode die de ZZP'er zelf op onbeschikbaar/beperkt zette?
   let availabilitySignal: JobAvailabilitySignal | null = null;
+  // Dubbelboek-signaal: valt de startdatum binnen een al lopende samenwerking van de ZZP'er?
+  let collaborationConflict: JobCollaborationConflict | null = null;
   // Bewaard-status voor de bewaar-knop (alleen relevant voor een niet-eigenaar ZZP'er).
   let isSaved = false;
   // Opgeslagen standaard-motivatie: vult het reageerveld voor (quick-apply).
@@ -265,6 +272,42 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             note: w.note,
           })),
         );
+        // Dubbelboeking met een al lopende samenwerking: valt de startdatum binnen de looptijd van
+        // een ACTIVE samenwerking van deze ZZP'er? Owner- + venster-gescoopte query (inherent klein:
+        // een ZZP'er heeft weinig lopende samenwerkingen tegelijk). De huidige opdracht wordt
+        // uitgesloten — een eigen samenwerking daarop zou hoe dan ook `myApplication` hebben gezet.
+        if (job.startDate) {
+          // unbounded-allow: owner-gescoopt (freelancerId) + status ACTIVE + venster rond de
+          // startdatum; deze set is inherent klein (weinig lopende samenwerkingen tegelijk).
+          const activeCollaborations = await prisma.collaboration.findMany({
+            where: {
+              freelancerId: profile.id,
+              status: "ACTIVE",
+              jobId: { not: job.id },
+              startDate: { not: null, lte: job.startDate },
+              OR: [{ endDate: null }, { endDate: { gte: job.startDate } }],
+            },
+            select: {
+              id: true,
+              status: true,
+              startDate: true,
+              endDate: true,
+              job: { select: { title: true } },
+              company: { select: { name: true } },
+            },
+          });
+          collaborationConflict = assessJobCollaborationConflict(
+            job.startDate,
+            activeCollaborations.map((c) => ({
+              id: c.id,
+              status: c.status as CollaborationStatus,
+              startDate: c.startDate,
+              endDate: c.endDate,
+              jobTitle: c.job.title,
+              clientName: c.company.name,
+            })),
+          );
+        }
       }
       // Live compliance voor een reeds verstuurde reactie (i.p.v. de bevroren snapshot).
       if (myApplication) {
@@ -903,6 +946,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             {rateFit && <JobRateFitCard assessment={rateFit} />}
             {effectiveRate && <EffectiveRateCard summary={effectiveRate} />}
             {availabilitySignal && <JobAvailabilitySignalCard signal={availabilitySignal} />}
+            {collaborationConflict && (
+              <JobCollaborationConflictCard conflict={collaborationConflict} />
+            )}
             {jobCompetition && <JobCompetitionCard competition={jobCompetition} />}
             <ApplicationForm
               action={createApplication.bind(null, job.id)}

@@ -1,5 +1,15 @@
 # Persona-sweep — gaten-backlog
 
+> **Routine-increment 2026-08-20 — GEDAAN (geen sweep, UX/data-waarde):** dubbelboek-signaal op
+> de opdracht-detail voor de ZZP'er. Het bestaande agenda-signaal dekte alleen zelf-gezette
+> onbeschikbaar/beperkt-vensters; een al **lopende (ACTIVE) samenwerking** die hetzelfde tijdvak
+> beslaat werd niet gesignaleerd. Nieuwe pure `src/lib/job-collaboration-conflict.ts`
+> (`assessJobCollaborationConflict`, deterministisch, open-einde-veilig) + rustige danger-kaart
+> `job-collaboration-conflict-card.tsx`, gewired in `opdrachten/[id]/page.tsx` (owner- + venster-
+> gescoopte query, huidige opdracht uitgesloten, alleen niet-eigenaar ZZP'er zonder actieve reactie).
+> Advies-only, geen mutatie-/authz-oppervlak. +10 tests. Gate groen (typecheck/lint/test 6445/build/
+> prettier). PR #1171.
+
 > **Routine-increment 2026-08-20 — GEDAAN (geen sweep, UX/data-waarde):** flexpool-
 > beschikbaarheidsstrip voor de opdrachtgever. De flexpool (`/favorieten` + de flexpool-tab)
 > toonde per ZZP'er wél een beschikbaarheidsbadge maar geen aggregaat — bij een poule naar

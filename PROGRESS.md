@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-20 — ZZP'er: dubbelboek-signaal op opdracht-detail (botst met lopende samenwerking)
+
+**Wat:** het bestaande agenda-signaal op de opdracht-detail waarschuwde de ZZP'er alleen als de
+startdatum in een venster valt dat hij **zelf** op onbeschikbaar/beperkt zette. Een ZZP'er hoeft
+zich echter niet expliciet op onbeschikbaar te zetten om al dubbel geboekt te raken: een al
+**lopende (ACTIVE) samenwerking** dekt hetzelfde tijdvak. Nieuw signaal waarschuwt vóór het reageren
+wanneer de startdatum binnen de looptijd van zo'n samenwerking valt — "Botst met een lopende
+samenwerking: <klus> bij <opdrachtgever>". Advies-only (de ZZP'er kan gewoon reageren), server-side
+berekend, geen mutatie-/authz-oppervlak.
+
+**Hoe:** nieuwe pure `src/lib/job-collaboration-conflict.ts` (`assessJobCollaborationConflict`):
+inclusief bereik [start, end], open einde (`endDate === null`) loopt door tot FAR_FUTURE (idioom uit
+`availability-conflicts.ts`), alleen ACTIVE telt (PROPOSED/COMPLETED/CANCELLED niet), samenwerking
+zonder startdatum wordt genegeerd, deterministische keuze (vroegste start, dan laagste id). Component
+`src/components/jobs/job-collaboration-conflict-card.tsx` (rustige danger-kaart, spiegelt de
+`JobAvailabilitySignalCard`-taal). Gewired in `opdrachten/[id]/page.tsx`: owner- + venster-gescoopte
+`collaboration.findMany` (huidige opdracht uitgesloten), alleen voor de niet-eigenaar ZZP'er zonder
+actieve reactie op een PUBLISHED-opdracht. Tests: 10. Gate: typecheck, lint, test (6445), build,
+prettier groen.
+
 ## 2026-08-20 — Opdrachtgever: flexpool-beschikbaarheidsstrip ("wie kan er nu?")
 
 **Wat:** de flexpool (`/favorieten` + de flexpool-tab van de bedrijfsprofiel-hub) toonde per ZZP'er
