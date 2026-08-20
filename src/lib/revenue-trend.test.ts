@@ -225,6 +225,19 @@ const TREND_INVOICES: InvoiceFixture[] = [
     issuedAt: may,
     totalCents: 8000,
   },
+  // Afgewezen cascade (REJECTED, met factuurdatum uit de SUBMITTED-fase) — telt NIET mee als omzet.
+  // Regressie: de oude `revenueCountedInvoiceWhere` sloot alleen CREDITED uit, dus deze afgewezen
+  // factuur telde als fantoom-omzet in de trend terwijl de maanddoel-widget (`realizedRevenueInvoiceWhere`)
+  // 'm al uitsloot → twee omzetdefinities voor dezelfde periode. Nu spiegelt de trend de realized-regel.
+  {
+    issuerUserId: FREELANCER_ID,
+    collabFreelancerUserId: FREELANCER_ID,
+    collabCompanyUserId: COMPANY_ID,
+    status: "DRAFT",
+    lifecycleStatus: "REJECTED",
+    issuedAt: may,
+    totalCents: 50000,
+  },
   // Andere ZZP'er/opdrachtgever — telt nooit mee.
   {
     issuerUserId: null,
@@ -255,10 +268,19 @@ describe("getFreelancerRevenueTrend — DB-scope", () => {
 
   it("telt legacy loose (issuerUserId NULL) én cascade mee, excl. teruggedraaid/geannuleerd", async () => {
     const trend = await getFreelancerRevenueTrend(FREELANCER_ID, now, 6);
-    // Legacy loose 10000 + cascade 20000 = 30000 in mei; CREDITED (33000) en CANCELLED (8000) uitgesloten.
+    // Legacy loose 10000 + cascade 20000 = 30000 in mei; CREDITED (33000), CANCELLED (8000) en
+    // REJECTED (50000) uitgesloten.
     expect(trend.totalCents).toBe(30000);
     // Onder de oude kolom-scope (`issuerUserId: userId`) viel de legacy loose 10000 weg → 20000.
     expect(trend.totalCents).not.toBe(20000);
+  });
+
+  it("sluit een afgewezen (REJECTED) cascade-factuur uit — geen fantoom-omzet in de trend", async () => {
+    // Onder de oude `revenueCountedInvoiceWhere` (sluit alleen CREDITED uit) telde de REJECTED-factuur
+    // van 50000 mee → totaal 80000, in tegenspraak met de maanddoel-widget. De realized-regel sluit 'm uit.
+    const trend = await getFreelancerRevenueTrend(FREELANCER_ID, now, 6);
+    expect(trend.totalCents).toBe(30000);
+    expect(trend.totalCents).not.toBe(80000);
   });
 
   it("scoopt op de eigen samenwerkingen (andere ZZP'er telt niet mee)", async () => {
@@ -272,10 +294,12 @@ describe("getClientRevenueTrend — DB-scope", () => {
     findMany.mockClear();
   });
 
-  it("telt legacy loose (counterpartyUserId NULL) én cascade mee, excl. teruggedraaid/geannuleerd", async () => {
+  it("telt legacy loose (counterpartyUserId NULL) én cascade mee, excl. teruggedraaid/geannuleerd/afgewezen", async () => {
     const trend = await getClientRevenueTrend(COMPANY_ID, now, 6);
+    // CREDITED (33000), CANCELLED (8000) én REJECTED (50000) uitgesloten → 30000.
     expect(trend.totalCents).toBe(30000);
     expect(trend.totalCents).not.toBe(20000);
+    expect(trend.totalCents).not.toBe(80000);
   });
 
   it("scoopt op de eigen company (andere opdrachtgever telt niet mee)", async () => {

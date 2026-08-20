@@ -8,7 +8,7 @@
 import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { monthlyRevenue, monthDeltaPct, type RevenueSource } from "./revenue";
-import { revenueCountedInvoiceWhere } from "./administration/revenue-recognition";
+import { realizedRevenueInvoiceWhere } from "./administration/realized-revenue";
 
 export type { RevenueMonth } from "./revenue";
 
@@ -56,8 +56,11 @@ export function buildRevenueTrend(rows: RevenueSource[], now: Date, months = 6):
 /**
  * Omzettrend voor de ingelogde ZZP'er: facturen waarvan de ZZP'er de uitsteller is. Scoping via de
  * altijd-gevulde relatie (`collaboration.freelancer.userId`) i.p.v. de kolom `issuerUserId` (alleen
- * door de cascade-handler gezet), zodat ook legacy loose-facturen meetellen. Excl.
- * geannuleerde/gecrediteerde en facturen zonder factuurdatum.
+ * door de cascade-handler gezet), zodat ook legacy loose-facturen meetellen. Telt uitsluitend
+ * gerealiseerde (verstuurde) omzet via `realizedRevenueInvoiceWhere` — dezelfde canonieke regel als de
+ * maanddoel-widget (`getRealizedRevenueThisMonthCents`), zodat de trend-lopende-maand exact het
+ * maanddoel-bedrag spiegelt. Excl. concept/afgekeurde/geannuleerde/gecrediteerde en facturen zonder
+ * factuurdatum.
  */
 export async function getFreelancerRevenueTrend(
   userId: string,
@@ -68,7 +71,7 @@ export async function getFreelancerRevenueTrend(
     where: {
       collaboration: { freelancer: { userId } },
       issuedAt: { gte: revenueWindowStart(now, months) },
-      ...revenueCountedInvoiceWhere,
+      ...realizedRevenueInvoiceWhere,
     },
     select: { issuedAt: true, totalCents: true },
   });
@@ -80,7 +83,8 @@ export async function getFreelancerRevenueTrend(
  * Omzettrend voor de ingelogde opdrachtgever: facturen waarvan de opdrachtgever de tegenpartij is.
  * Scoping via de altijd-gevulde relatie (`collaboration.company.userId`) i.p.v. de kolom
  * `counterpartyUserId` (alleen door de cascade-handler gezet), zodat ook legacy loose-facturen
- * meetellen. Excl. geannuleerde/gecrediteerde en zonder factuurdatum.
+ * meetellen. Telt uitsluitend gerealiseerde (verstuurde) omzet via `realizedRevenueInvoiceWhere`.
+ * Excl. concept/afgekeurde/geannuleerde/gecrediteerde en zonder factuurdatum.
  */
 export async function getClientRevenueTrend(
   userId: string,
@@ -91,7 +95,7 @@ export async function getClientRevenueTrend(
     where: {
       collaboration: { company: { userId } },
       issuedAt: { gte: revenueWindowStart(now, months) },
-      ...revenueCountedInvoiceWhere,
+      ...realizedRevenueInvoiceWhere,
     },
     select: { issuedAt: true, totalCents: true },
   });
@@ -101,8 +105,9 @@ export async function getClientRevenueTrend(
 
 /**
  * Omzettrend voor de ingelogde franchisenemer: facturen via tenant-samenwerkingen
- * (`collaboration.job.tenantId`), excl. platform-fees (`issuerUserId` moet aanwezig zijn),
- * excl. geannuleerde en zonder factuurdatum. Geeft een lege trend terug als de actor
+ * (`collaboration.job.tenantId`), excl. platform-fees (`issuerUserId` moet aanwezig zijn). Telt
+ * uitsluitend gerealiseerde (verstuurde) omzet via `realizedRevenueInvoiceWhere`; excl.
+ * concept/afgekeurde/geannuleerde en zonder factuurdatum. Geeft een lege trend terug als de actor
  * geen tenant heeft.
  */
 export async function getTenantRevenueTrend(
@@ -116,7 +121,7 @@ export async function getTenantRevenueTrend(
   const invoices = await prisma.invoice.findMany({
     where: {
       issuedAt: { gte: revenueWindowStart(now, months) },
-      ...revenueCountedInvoiceWhere,
+      ...realizedRevenueInvoiceWhere,
       issuerUserId: { not: null },
       collaboration: { job: { tenantId } },
     },
@@ -131,8 +136,9 @@ export async function getTenantRevenueTrend(
  * elke cascade-transactie wordt door de ZZP'er één keer aan de opdrachtgever gefactureerd, dus
  * sommeren over `issuerUserId not null` telt elke transactie precies één keer en sluit
  * eventuele platform-fee-facturen (`issuerUserId` null) uit. Dit is doorzet/GMV dat via het
- * platform loopt, geen platform-inkomsten (het platform boekt niets — Besluit 1). Excl.
- * geannuleerde/gecrediteerde facturen en facturen zonder factuurdatum.
+ * platform loopt, geen platform-inkomsten (het platform boekt niets — Besluit 1). Telt uitsluitend
+ * gerealiseerde (verstuurde) omzet via `realizedRevenueInvoiceWhere`; excl.
+ * concept/afgekeurde/geannuleerde/gecrediteerde facturen en facturen zonder factuurdatum.
  */
 export async function getPlatformRevenueTrend(
   now: Date = new Date(),
@@ -141,7 +147,7 @@ export async function getPlatformRevenueTrend(
   const invoices = await prisma.invoice.findMany({
     where: {
       issuedAt: { gte: revenueWindowStart(now, months) },
-      ...revenueCountedInvoiceWhere,
+      ...realizedRevenueInvoiceWhere,
       issuerUserId: { not: null },
     },
     select: { issuedAt: true, totalCents: true },

@@ -26,6 +26,25 @@ extra zin + een conditionele "Voorstel stilstaand"-tegel in `CollaborationOversi
 > `include`). Read-only, geen mutatie-/authz-/domeinmotor-oppervlak. Tests: 9 (helper) + oversight-count/
 > headline (stalled-tak, combinatie, meervoud). Gate: typecheck, lint, test, build, prettier groen.
 
+## 2026-08-20 — Persona-sweep (run 84): omzettrend telde afgewezen factuur als fantoom-omzet
+
+**Wat:** de omzettrend-grafieken (`src/lib/revenue-trend.ts`, alle 4 rollen: freelancer/opdrachtgever/
+franchiser/platform) telden een **afgewezen (REJECTED) cascade-factuur nog als omzet**, terwijl de
+maanddoel-widget (`src/lib/data/monthly-income.ts`) diezelfde factuur al uitsloot → twee omzetdefinities
+voor dezelfde periode (de lopende-maand-waarde in de trend week af van het maanddoel-bedrag). Een
+cascade-factuur zet `issuedAt` bij SUBMITTED; bij afwijzing (SUBMITTED→REJECTED) blijft `issuedAt` staan,
+dus de trend (die op `issuedAt` bucket) telde de fantoom-omzet mee.
+
+**Hoe:** alle 4 fetchers stapten over van `revenueCountedInvoiceWhere` (sluit alléén CREDITED uit) naar
+`realizedRevenueInvoiceWhere` (sluit óók DRAFT/REJECTED uit) — dezelfde canonieke realized-regel als de
+maanddoel-widget, zodat de getallen niet meer kunnen driften. De nu-verweesde
+`src/lib/administration/revenue-recognition.ts` (enige consument was revenue-trend) + zijn test zijn
+verwijderd (geen slop). +regressietest in `revenue-trend.test.ts` (REJECTED-fixture: RED onder de oude
+where → 80000, GROEN nu → 30000). Verder 4 adversariële Opus-audits (authz/IDOR/tenant, cascade/geld,
+malicieuze input, next-action/badge): 0 nieuwe bereikbare gaten; de badge/`/acties`-cap-melding is
+her-geverifieerd als GEEN-DEFECT (run 83-precedent — badge = echte backlog, `/acties` bewust top-50).
+Details: `docs/PERSONA-SWEEP-BACKLOG.md` (run 84).
+
 ## 2026-08-20 — Prod-rijpheid: vastgelopen-PAST_DUE-downgrade-detector `zzp_subscriptions_past_due_overdue_downgrade`
 
 **Wat:** sloot het laatste gat in de abonnement-stille-faal-gauge-familie. Elke abonnementsstatus had
