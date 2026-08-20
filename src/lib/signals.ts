@@ -639,19 +639,25 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       // cascade: prestaties goedkeuren (telt ook mee in pendingPerformances voor /prestaties-badge).
       // Bevroren (dispuut) samenwerkingen uitsluiten — symmetrisch met de FREELANCER-tak
       // (disputedAt: null hierboven) en met /acties (pending-tasks.ts): approvePerformance weigert
-      // een bevroren deal (assertNotDisputed), dus die telt niet als werk "aan zet".
+      // een bevroren deal (assertNotDisputed), dus die telt niet als werk "aan zet". De
+      // `status: "ACTIVE"`-grens spiegelt de /acties-emitter exact (pending-tasks.ts
+      // `approvePerformances`): een SUBMITTED-prestatie kan nu niet coëxisteren met een niet-ACTIVE
+      // samenwerking (de complete/cancel-guards blokkeren dat), maar zónder deze grens zou een
+      // toekomstige guard-wijziging het gat stil heropenen en zou de badge /acties tegenspreken.
       prisma.performance.count({
         where: {
           status: "SUBMITTED",
-          collaboration: { company: { userId }, disputedAt: null },
+          collaboration: { company: { userId }, status: "ACTIVE", disputedAt: null },
         },
       }),
       // cascade: facturen goedkeuren — idem bevroren deals uitsluiten (approveInvoice weigert ze).
+      // Zelfde `company: { userId }` + `status: "ACTIVE"`-scope als de /acties-emitter
+      // (pending-tasks.ts `approveInvoices`) zodat de badge nooit van /acties kan driften.
       prisma.invoice.count({
         where: {
           counterpartyUserId: userId,
           lifecycleStatus: "SUBMITTED",
-          collaboration: { disputedAt: null },
+          collaboration: { company: { userId }, status: "ACTIVE", disputedAt: null },
         },
       }),
       // cascade: facturen over de vervaldatum waar de opdrachtgever de betalende partij is — voedt de

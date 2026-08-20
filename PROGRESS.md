@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-20 — Opdrachtgever: cascade-badge ACTIVE-scope pariteit met /acties (PR #1165)
+
+**Wat:** de opdrachtgever-cascadebadges op `/samenwerkingen` (`cascadePerf` = prestaties keuren,
+`cascadeInv` = facturen keuren, in `signals.ts navBadges`) scopten alleen op `company.userId` +
+`disputedAt: null`, terwijl de bijbehorende `/acties`-emitters (`pending-tasks.ts`
+`approvePerformances`/`approveInvoices`) óók `status: "ACTIVE"` vereisen — en de factuurtelling miste
+bovendien de expliciete `company: { userId }`-scope. Zo'n telling is nu nog gelijk (een SUBMITTED-
+prestatie/-factuur kan niet coëxisteren met een niet-ACTIVE samenwerking — de complete/cancel-guards
+blokkeren dat), maar het is een defense-in-depth badge↔/acties-drift-val: een toekomstige guard-
+wijziging zou het gat stil heropenen, waarna de badge werk zou tellen dat `/acties` en het
+samenwerkingsdetail níét tonen (fantoom-actie, DOEL 1b). Beide tellingen dragen nu de exacte
+samenwerkings-scope van hun /acties-emitter → geen drift meer mogelijk. Bron: persona-sweep run 83
+(LOW/latent-item).
+
+**Hoe:** `src/lib/signals.ts` — `status: "ACTIVE"` toegevoegd aan de `performance.count`-badge; en
+`company: { userId }, status: "ACTIVE"` aan de SUBMITTED-`invoice.count`-badge, zodat beide exact de
+WHERE van `pending-tasks.ts` spiegelen. Server-side, deterministisch; geen schema-/mutatie-/authz-/
+domeinmotor-oppervlak.
+
+**Bestanden:** `src/lib/signals.ts`, `src/lib/signals.cascade-active-parity.test.ts` (nieuw, 2 tests
+die de ACTIVE + eigenaar-scope op beide badge-query's asserten).
+
+**Gate:** typecheck, lint, signals-tests (106), build, prettier (`--write`) groen.
+
+**Volgende stap:** PR-poort (6 checks) afwachten → auto-merge.
+
 ## 2026-08-19 — ZZP'er: herinnerings-alarmen (VALARM) op de agenda-deadlines (PR #1164)
 
 **Wat:** de persoonlijke agenda-feed (`/api/agenda` eenmalige export + `/api/agenda/feed.ics`
