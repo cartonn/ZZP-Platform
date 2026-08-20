@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-20 — Opdrachtgever + bemiddelaar: voorstel-ouderdomssignaal op onondertekende samenwerkingen
+
+**Wat:** een voorgestelde samenwerking (`PROPOSED`, contract nog niet ondertekend) toont in de
+werkproces-fase "Contract ter ondertekening · Aan zet", maar niet de **duur**: een voorstel van een uur
+oud zag er identiek uit als een dat al acht dagen stil hing. De renewal-motor veroudert alleen ACTIVE-
+inzet tegen de einddatum; een PROPOSED-maar-niet-getekende plaatsing werd nergens verouderd. Nu maakt een
+rustig signaal het stilstaan zichtbaar zodat de opdrachtgever (die voorstelde en wacht) de ZZP'er kan
+aansporen of de zoektocht heropent, en de bemiddelaar vastgelopen plaatsingen ziet. Puur/display, geen
+schema-wijziging (leunt op `Collaboration.createdAt`).
+
+**Hoe:** nieuwe pure `src/lib/collaboration-proposal-age.ts` (`summarizeProposalAge`, gespiegeld op
+`collaboration-renewal.ts`): alleen een PROPOSED, niet-getekende, niet-bevroren samenwerking komt in
+aanmerking; onder de drempel (`PROPOSAL_STALE_DAYS = 4`, dempt weekend-ruis) `fresh`/geen label,
+daarboven `stalling` met label "Wacht al N dagen op ondertekening"; hele UTC-dagen (TZ-robuust), klemt
+klok-skew naar 0. Gewired op `/samenwerkingen` (index, beide rollen) als rustige `text-warning`-regel in
+het contract-sign-fase-blok (alleen bij attention). Franchise-toezicht: `collaboration-oversight.ts` telt
+nu `stalledProposals` uit dezelfde pure bron (geen drift), surft dat in `franchiseCollabHeadline` als
+extra zin + een conditionele "Voorstel stilstaand"-tegel in `CollaborationOversightStrip` (alleen bij
+
+> 0; grid 3→4 kolommen). `FranchiseCollabInput` kreeg `createdAt`+`contractStatus` (al beschikbaar via
+> `include`). Read-only, geen mutatie-/authz-/domeinmotor-oppervlak. Tests: 9 (helper) + oversight-count/
+> headline (stalled-tak, combinatie, meervoud). Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-08-20 — Prod-rijpheid: vastgelopen-PAST_DUE-downgrade-detector `zzp_subscriptions_past_due_overdue_downgrade`
 
 **Wat:** sloot het laatste gat in de abonnement-stille-faal-gauge-familie. Elke abonnementsstatus had

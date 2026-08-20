@@ -16,6 +16,7 @@ import { type FreelancerCredential } from "@/lib/matching";
 import { type CollaborationStatus, type ContractStatus, type CredentialType } from "@/lib/enums";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { cascadeStage, isPerformanceNewerThanInvoice } from "@/lib/cascade/stage";
+import { summarizeProposalAge } from "@/lib/collaboration-proposal-age";
 import { assessCancellation } from "@/lib/cancellation";
 import { pageArgs, splitPage } from "@/lib/pagination";
 import { withParams } from "@/components/admin/base-path";
@@ -370,6 +371,22 @@ export default async function SamenwerkingenPage({
                                 <span className="text-sm">{stage.label}</span>
                                 {stage.youAreUp && <Badge variant="accent">Aan zet</Badge>}
                               </div>
+                              {(() => {
+                                // Voorstel-ouderdom: hoe lang wacht dit voorstel al op
+                                // ondertekening? Alleen tonen als het echt stilstaat (fresh/none
+                                // houden de lijst rustig). Zelfde pure bron als de bemiddelaar-strip.
+                                const age = summarizeProposalAge({
+                                  status,
+                                  contractStatus: c.contractStatus,
+                                  createdAt: c.createdAt,
+                                  disputed: c.disputedAt !== null,
+                                });
+                                return age.attention && age.label ? (
+                                  <p className="mt-1 text-xs font-medium text-warning">
+                                    {age.label}
+                                  </p>
+                                ) : null;
+                              })()}
                               <div className="mt-2 flex items-center gap-3">
                                 <Progress
                                   value={Math.round((stage.step / stage.totalSteps) * 100)}
