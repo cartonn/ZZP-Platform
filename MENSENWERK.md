@@ -626,6 +626,26 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
    actief is; optioneel `SUBSCRIPTION_PENDING_STALE_HOURS` ruimer zetten als je een meerdaags-afwikkelende
    betaalmethode (SEPA-overboeking) inschakelt, zodat een legitiem trage betaling niet als vastgelopen telt.
 
+   **Code-kant GEDAAN (2026-08-20) — vastgelopen-PAST_DUE-downgrade-detector (`zzp_subscriptions_past_due_overdue_downgrade`):**
+   sluit het **laatste gat** in de abonnement-stille-faal-familie. Elke abonnementsstatus had al een
+   stille-faal-gauge behalve de PAST_DUE-**downgrade**: een mislukte betaling zet een abonnement op
+   `PAST_DUE` (webhook), waarna de `subscription-past-due`-cron herinnert (dag 1/3/7) en op dag 8+
+   downgradet naar `CANCELLED` (→ Gratis). De cron-heartbeat bewijst alleen dát de run afrondde, niet dát
+   'ie de downgrade-pijplijn verwerkte — bleef dit werk stil hangen (`overdueExpirySubscriptions` dekt
+   ACTIVE-verval, `stalePendingSubscriptions` dekt PENDING, maar PAST_DUE-downgrade was ongedekt), dan
+   bleven mislukte betalingen **eeuwig in PAST_DUE** hangen en gingen de herstel-herinneringen niet uit —
+   verloren omzet-herstel + rommelige abonnementstaat, zonder dat iets dat toont (de entitlement-guard
+   behandelt PAST_DUE al als Gratis, dus géén toegangslek). `/api/metrics` heeft nu
+   `zzp_subscriptions_past_due_overdue_downgrade` (PAST_DUE-abonnementen wier leeftijd de downgrade-drempel
+   `PAST_DUE_DOWNGRADE_AFTER_DAYS`, 7 dagen, overschreed maar die nog niet gedowngraded zijn). Read-only
+   telling, geen PII/secrets, met een nieuwe pure `overdueDowngradeSubscriptionWhere`/
+   `pastDueDowngradeBacklogCutoff` (`src/lib/past-due.ts`) die via een drift-gate-test aan de
+   downgrade-beslissing van `planPastDue` is vastgeklonken (kan niet driften van de cron). Met de
+   mock-provider (pilot-default) bestaat er nooit een `PAST_DUE`-rij → gauge `0`. Drop-in alert
+   `ZzpSubscriptionsPastDueOverdueDowngrade` (`> 0`, `for: 30h`) in `docs/observability/alerts.yml` +
+   onderhouds-inhibitie in `alertmanager.yml`, vastgeklonken aan de drift-gates. Resterend mensenwerk:
+   **niets extra** — de gauge werkt zodra een echte betaalprovider actief is.
+
    **Code-kant GEDAAN (2026-07-16) — betaalprovider-connectiviteitszelftest:** zodra je de
    API-sleutels hierboven hebt geplakt, kun je op `/admin/systeemstatus` (admin-only) de nieuwe
    **Betaalprovider-zelftest** draaien — zelfde patroon als de Opslag-/E-mail-/Rate-limit-/

@@ -115,7 +115,8 @@ describe("GET /api/metrics", () => {
     expect(body).toContain("zzp_credentials_overdue_expiry 9");
     expect(body).toContain("zzp_subscriptions_overdue_expiry 3");
     expect(countMock).toHaveBeenCalledTimes(2);
-    expect(subscriptionCountMock).toHaveBeenCalledTimes(2);
+    // Drie subscription.count-queries: overdue-expiry (ACTIVE), stale-pending (PENDING), past-due-downgrade (PAST_DUE).
+    expect(subscriptionCountMock).toHaveBeenCalledTimes(3);
   });
 
   it("telt de vastgelopen-PENDING-abonnementen (checkout die de webhook nooit bevestigde) als aparte query", async () => {
@@ -124,7 +125,19 @@ describe("GET /api/metrics", () => {
     const res = await GET(req({ auth: `Bearer ${SECRET}` }));
     const body = await res.text();
     expect(body).toContain("zzp_subscriptions_stale_pending 11");
-    expect(subscriptionCountMock).toHaveBeenCalledTimes(2);
+    expect(subscriptionCountMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("telt de vastgelopen-PAST_DUE-downgrades (past-due-cron downgradet niets) als aparte query", async () => {
+    // Derde subscription.count = past-due-downgrade-backlog; de eerste twee vallen op de default (0).
+    subscriptionCountMock
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(7);
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    const body = await res.text();
+    expect(body).toContain("zzp_subscriptions_past_due_overdue_downgrade 7");
+    expect(subscriptionCountMock).toHaveBeenCalledTimes(3);
   });
 
   it("laat een falende vastgelopen-PENDING-telling de respons niet omverhalen (geen 500)", async () => {

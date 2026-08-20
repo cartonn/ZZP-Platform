@@ -84,6 +84,7 @@ import {
   pendingStaleCutoff,
   stalePendingSubscriptionWhere,
 } from "@/lib/subscription-pending-stale";
+import { overdueDowngradeSubscriptionWhere, pastDueDowngradeBacklogCutoff } from "@/lib/past-due";
 import { activeMembershipUserIds, monthKey, monthRange } from "@/lib/zzp-membership";
 import { membershipPerformanceSelect, membershipPerformanceWhere } from "@/lib/zzp-membership-task";
 import { graceCutoff, overduePerformanceGraceWhere } from "@/lib/performance-grace-task";
@@ -120,6 +121,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let overdueExpiryCredentials = 0;
   let overdueExpirySubscriptions = 0;
   let stalePendingSubscriptions = 0;
+  let overduePastDueDowngrades = 0;
   let overdueUnflippedInvoices = 0;
   let overdueReviewReveals = 0;
   let overduePerformanceGrace = 0;
@@ -190,6 +192,19 @@ async function collectInput(now: Date): Promise<MetricsInput> {
         where: stalePendingSubscriptionWhere(
           pendingStaleCutoff(subscriptionPendingStaleHours(), now),
         ),
+      });
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
+    try {
+      // PAST_DUE-abonnementen die de downgrade-drempel (PAST_DUE_DOWNGRADE_AFTER_DAYS, 7 dagen)
+      // overschreden maar nog niet naar CANCELLED (→ Gratis) zijn gezet: werk dat de subscription-past-due-
+      // cron had moeten doen. Sluit het laatste gat in de abonnement-stille-faal-familie (naast
+      // overdueExpirySubscriptions/stalePendingSubscriptions). Hergebruikt exact `overdueDowngradeSubscriptionWhere`
+      // (dezelfde bron van waarheid, gespiegeld aan planPastDue's downgrade-beslissing). Met de mock-provider
+      // bestaat er nooit een PAST_DUE-rij → per definitie 0 (de pilot-default; geen misleidend signaal).
+      overduePastDueDowngrades = await prisma.subscription.count({
+        where: overdueDowngradeSubscriptionWhere(pastDueDowngradeBacklogCutoff(now)),
       });
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
@@ -418,6 +433,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     overdueExpiryCredentials,
     overdueExpirySubscriptions,
     stalePendingSubscriptions,
+    overduePastDueDowngrades,
     overdueUnflippedInvoices,
     overdueReviewReveals,
     overduePerformanceGrace,
