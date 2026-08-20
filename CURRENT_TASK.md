@@ -268,6 +268,21 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever + bemiddelaar — voorstel-ouderdomssignaal op onondertekende
+> samenwerkingen (2026-08-20)** — een `PROPOSED`-samenwerking (contract nog niet ondertekend) toont in
+> de werkproces-fase "Contract ter ondertekening · Aan zet", maar niet de **duur**: een voorstel van een
+> uur oud zag er identiek uit als een dat al 8 dagen stil hing. De renewal-motor veroudert alleen ACTIVE-
+> inzet tegen de einddatum; PROPOSED-maar-niet-getekend werd nergens verouderd. Nieuwe pure
+> `src/lib/collaboration-proposal-age.ts` (`summarizeProposalAge`, gespiegeld op `collaboration-renewal.ts`):
+> alleen PROPOSED + niet-getekend + niet-bevroren komt in aanmerking; onder `PROPOSAL_STALE_DAYS` (4, dempt
+> weekend-ruis) `fresh`/geen label, daarboven `stalling` + "Wacht al N dagen op ondertekening"; hele UTC-
+> dagen, klok-skew→0. Gewired op `/samenwerkingen` (index, beide rollen) als rustige `text-warning`-regel in
+> het contract-sign-fase-blok (alleen bij attention). Franchise-toezicht: `collaboration-oversight.ts` telt
+> nu `stalledProposals` uit dezelfde pure bron (geen drift) → `franchiseCollabHeadline`-zin + conditionele
+> "Voorstel stilstaand"-tegel in `CollaborationOversightStrip` (alleen bij >0). Read-only, geen schema-/
+> mutatie-/authz-/domeinmotor-oppervlak. +tests (helper 9 + oversight stalled-tak/headline-combinatie).
+> Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — vastgelopen-PAST_DUE-downgrade-detector `zzp_subscriptions_past_due_overdue_downgrade` (2026-08-20)** —
 > sluit het laatste gat in de abonnement-stille-faal-familie. Elke abonnementsstatus had een stille-faal-gauge behalve de PAST_DUE-downgrade:
 > een mislukte betaling zet een abonnement op `PAST_DUE` (webhook), waarna de `subscription-past-due`-cron herinnert (dag 1/3/7) en op dag 8+

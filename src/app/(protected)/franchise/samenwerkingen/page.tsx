@@ -47,6 +47,8 @@ type Row = FilterableCollaboration & {
   id: string;
   departmentName: string | null;
   companyUserId: string;
+  contractStatus: string;
+  createdAt: Date;
   updatedAt: Date;
   endDate: Date | null;
   disputedAt: Date | null;
@@ -86,6 +88,8 @@ export default async function FranchiseSamenwerkingenPage({
     freelancerName: c.freelancer.user.name ?? "",
     departmentName: c.job.department?.name ?? null,
     companyUserId: c.company.userId,
+    contractStatus: c.contractStatus,
+    createdAt: c.createdAt,
     updatedAt: c.updatedAt,
     endDate: c.endDate,
     disputedAt: c.disputedAt,

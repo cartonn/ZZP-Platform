@@ -15,7 +15,14 @@ function daysFromNow(n: number): Date {
 }
 
 function collab(overrides: Partial<FranchiseCollabInput> = {}): FranchiseCollabInput {
-  return { status: "ACTIVE", endDate: null, disputedAt: null, ...overrides };
+  return {
+    status: "ACTIVE",
+    contractStatus: "DRAFT",
+    createdAt: NOW,
+    endDate: null,
+    disputedAt: null,
+    ...overrides,
+  };
 }
 
 describe("summarizeFranchiseCollaborations", () => {
@@ -33,8 +40,21 @@ describe("summarizeFranchiseCollaborations", () => {
     expect(s.total).toBe(7);
     expect(s.active).toBe(4);
     expect(s.proposed).toBe(1);
+    expect(s.stalledProposals).toBe(0); // vers voorstel (createdAt = NOW)
     expect(s.endingSoon).toBe(1);
     expect(s.overdue).toBe(1);
+  });
+
+  it("telt een PROPOSED dat te lang op ondertekening wacht als stilstaand", () => {
+    const rows = [
+      collab({ status: "PROPOSED", createdAt: daysFromNow(-9) }), // stilstaand (> 4 dagen)
+      collab({ status: "PROPOSED", createdAt: daysFromNow(-1) }), // vers
+      collab({ status: "PROPOSED", createdAt: daysFromNow(-30), contractStatus: "SIGNED" }), // getekend → niet
+      collab({ status: "PROPOSED", createdAt: daysFromNow(-30), disputedAt: NOW }), // bevroren → niet
+    ];
+    const s = summarizeFranchiseCollaborations(rows, NOW);
+    expect(s.proposed).toBe(4);
+    expect(s.stalledProposals).toBe(1);
   });
 
   it("negeert het vervolgsignaal bij een dispuut (bevroren)", () => {
@@ -54,7 +74,14 @@ describe("summarizeFranchiseCollaborations", () => {
 
   it("is leeg voor een lege lijst", () => {
     const s = summarizeFranchiseCollaborations([], NOW);
-    expect(s).toEqual({ total: 0, active: 0, proposed: 0, endingSoon: 0, overdue: 0 });
+    expect(s).toEqual({
+      total: 0,
+      active: 0,
+      proposed: 0,
+      stalledProposals: 0,
+      endingSoon: 0,
+      overdue: 0,
+    });
   });
 
   it("blijft consistent met summarizeCollaborationRenewal (geen drift)", () => {
@@ -106,6 +133,30 @@ describe("franchiseCollabHeadline", () => {
       NOW,
     );
     expect(franchiseCollabHeadline(s)).toContain("2 lopen binnenkort af");
+  });
+
+  it("noemt stilstaande voorstellen ook zonder vervolg-aandacht", () => {
+    const s = summarizeFranchiseCollaborations(
+      [collab({ status: "PROPOSED", createdAt: daysFromNow(-9) })],
+      NOW,
+    );
+    const headline = franchiseCollabHeadline(s);
+    expect(headline).toContain("1 voorstel wacht al langer dan");
+    expect(headline).toContain("op ondertekening");
+  });
+
+  it("combineert de vervolg- en voorstel-tak in één regel", () => {
+    const s = summarizeFranchiseCollaborations(
+      [
+        collab({ status: "ACTIVE", endDate: daysFromNow(4) }),
+        collab({ status: "PROPOSED", createdAt: daysFromNow(-6) }),
+        collab({ status: "PROPOSED", createdAt: daysFromNow(-8) }),
+      ],
+      NOW,
+    );
+    const headline = franchiseCollabHeadline(s);
+    expect(headline).toContain("1 loopt binnenkort af");
+    expect(headline).toContain("2 voorstellen wachten");
   });
 });
 

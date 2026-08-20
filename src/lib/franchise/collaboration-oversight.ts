@@ -12,14 +12,19 @@ import {
   summarizeCollaborationRenewal,
   type CollaborationRenewalPhase,
 } from "@/lib/collaboration-renewal";
+import { summarizeProposalAge, PROPOSAL_STALE_DAYS } from "@/lib/collaboration-proposal-age";
 
 /** Minimale invoer per samenwerking — volledig afleidbaar uit de al opgehaalde rijen. */
 export interface FranchiseCollabInput {
-  /** CollaborationStatus. Alleen ACTIVE telt mee voor het vervolgsignaal. */
+  /** CollaborationStatus. ACTIVE telt voor het vervolgsignaal, PROPOSED voor het voorstel-stilstaan. */
   status: string;
+  /** ContractStatus — SIGNED = getekend → een PROPOSED-rij telt niet als stilstaand voorstel. */
+  contractStatus: string;
+  /** Moment van voorstellen (`Collaboration.createdAt`) — ankert het voorstel-ouderdomssignaal. */
+  createdAt: Date;
   /** Einddatum; null = open einde → geen aflooop-signaal. */
   endDate: Date | null;
-  /** Bevroren door een dispuut → geen vervolg-nudge tot dat is opgelost. */
+  /** Bevroren door een dispuut → geen vervolg-/voorstel-nudge tot dat is opgelost. */
   disputedAt: Date | null;
 }
 
@@ -29,6 +34,8 @@ export interface FranchiseCollabOversight {
   active: number;
   /** Aantal PROPOSED-samenwerkingen (wachten op akkoord opdrachtgever). */
   proposed: number;
+  /** PROPOSED-inzet die al langer dan de drempel op ondertekening wacht (vraagt aandacht). */
+  stalledProposals: number;
   /** ACTIVE-inzet binnen het vervolgvenster vóór de einddatum. */
   endingSoon: number;
   /** ACTIVE-inzet voorbij de einddatum, nog binnen de grace (vraagt aandacht). */
@@ -48,11 +55,23 @@ export function summarizeFranchiseCollaborations(
     total: rows.length,
     active: 0,
     proposed: 0,
+    stalledProposals: 0,
     endingSoon: 0,
     overdue: 0,
   };
   for (const row of rows) {
-    if (row.status === "PROPOSED") summary.proposed += 1;
+    if (row.status === "PROPOSED") {
+      summary.proposed += 1;
+      // Voorstel-ouderdom uit dezelfde pure bron als de samenwerkingenlijst → geen drift.
+      const age = summarizeProposalAge({
+        status: row.status,
+        contractStatus: row.contractStatus,
+        createdAt: row.createdAt,
+        disputed: row.disputedAt !== null,
+        now,
+      });
+      if (age.attention) summary.stalledProposals += 1;
+    }
     if (row.status !== "ACTIVE") continue;
     summary.active += 1;
     const phase = summarizeCollaborationRenewal({
@@ -78,20 +97,36 @@ export function franchiseCollabAttention(summary: FranchiseCollabOversight): num
  */
 export function franchiseCollabHeadline(summary: FranchiseCollabOversight): string | null {
   if (summary.total === 0) return null;
-  const attention = franchiseCollabAttention(summary);
-  if (attention === 0) return null;
-  const parts: string[] = [];
-  if (summary.overdue > 0) {
-    parts.push(
-      `${summary.overdue} ${summary.overdue === 1 ? "inzet is" : "inzetten zijn"} voorbij de einddatum`,
+
+  const sentences: string[] = [];
+
+  // Vervolgsignaal (ACTIVE-inzet die afloopt of voorbij de einddatum is).
+  if (franchiseCollabAttention(summary) > 0) {
+    const parts: string[] = [];
+    if (summary.overdue > 0) {
+      parts.push(
+        `${summary.overdue} ${summary.overdue === 1 ? "inzet is" : "inzetten zijn"} voorbij de einddatum`,
+      );
+    }
+    if (summary.endingSoon > 0) {
+      parts.push(
+        `${summary.endingSoon} ${summary.endingSoon === 1 ? "loopt" : "lopen"} binnenkort af`,
+      );
+    }
+    sentences.push(
+      `${parts.join(" en ")} — plan tijdig een vervolg zodat je opdrachtgever geen bezettingsgat krijgt.`,
     );
   }
-  if (summary.endingSoon > 0) {
-    parts.push(
-      `${summary.endingSoon} ${summary.endingSoon === 1 ? "loopt" : "lopen"} binnenkort af`,
+
+  // Voorstel-stilstaan (PROPOSED-inzet die te lang op ondertekening wacht).
+  if (summary.stalledProposals > 0) {
+    const n = summary.stalledProposals;
+    sentences.push(
+      `${n} ${n === 1 ? "voorstel wacht" : "voorstellen wachten"} al langer dan ${PROPOSAL_STALE_DAYS} dagen op ondertekening — stuur een herinnering of heropen de zoektocht.`,
     );
   }
-  return `${parts.join(" en ")} — plan tijdig een vervolg zodat je opdrachtgever geen bezettingsgat krijgt.`;
+
+  return sentences.length > 0 ? sentences.join(" ") : null;
 }
 
 /**
