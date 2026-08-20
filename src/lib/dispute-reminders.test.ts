@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   planDisputeReminders,
   disputeAgeDays,
+  disputeEscalationBacklogCutoff,
+  disputeEscalationDedupeKey,
+  DISPUTE_ESCALATE_AFTER_DAYS,
   type DisputeReminderCandidate,
 } from "@/lib/dispute-reminders";
 
@@ -116,5 +119,53 @@ describe("planDisputeReminders", () => {
     const plan = planDisputeReminders([candidate({ disputedAt: daysAgo(3) })], NOW);
     expect(plan.reminders[0]!.body).toContain("Verpleegkundige (detachering)");
     expect(plan.reminders[0]!.body).toContain("3 dagen");
+  });
+});
+
+describe("disputeEscalationBacklogCutoff / DISPUTE_ESCALATE_AFTER_DAYS", () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  it("spiegelt de config-drempel ESCALATE_AFTER (huidige default = 7 dagen)", () => {
+    // Config-default: REMINDERS.disputeReminderDays = [3, 7] → Math.max = 7. Verandert de config,
+    // dan schuift de constante mee — de assert bewaakt zowel de waarde als de her-export.
+    expect(DISPUTE_ESCALATE_AFTER_DAYS).toBe(7);
+  });
+
+  it("legt de cutoff exact (DISPUTE_ESCALATE_AFTER_DAYS + 1) dagen vóór now", () => {
+    const cutoff = disputeEscalationBacklogCutoff(NOW);
+    expect(NOW.getTime() - cutoff.getTime()).toBe((DISPUTE_ESCALATE_AFTER_DAYS + 1) * DAY_MS);
+  });
+
+  it("drift-gate: dispuut op de cutoff escaleert, één ms na de cutoff niet (spijkert where aan plan)", () => {
+    // Een dispuut wier disputedAt exact op de cutoff ligt is 8 hele dagen oud (d=8, d>7 → escaleert).
+    // Eén milliseconde na de cutoff (dus jonger dan 8 hele dagen) valt d op 7 (d>7 → false).
+    const cutoff = disputeEscalationBacklogCutoff(NOW);
+    const justOverdue = candidate({ collaborationId: "on-cutoff", disputedAt: cutoff });
+    const justNotOverdue = candidate({
+      collaborationId: "past-cutoff",
+      disputedAt: new Date(cutoff.getTime() + 1),
+    });
+
+    const planOverdue = planDisputeReminders([justOverdue], NOW);
+    expect(planOverdue.escalations.map((e) => e.collaborationId)).toEqual(["on-cutoff"]);
+
+    const planFresh = planDisputeReminders([justNotOverdue], NOW);
+    expect(planFresh.escalations).toEqual([]);
+  });
+});
+
+describe("disputeEscalationDedupeKey", () => {
+  it("levert een stabiele sleutel per samenwerking", () => {
+    expect(disputeEscalationDedupeKey("abc-123")).toBe("dispute-escalation-abc-123");
+  });
+
+  it("wordt door planDisputeReminders gebruikt (geen parallelle inline literal)", () => {
+    // Drift-gate: als iemand de helper vergeet en terug naar een inline literal in de planner gaat,
+    // moet deze assert breken zodra de sleutelvorm daar afwijkt.
+    const plan = planDisputeReminders(
+      [candidate({ collaborationId: "collab-X", disputedAt: daysAgo(8) })],
+      NOW,
+    );
+    expect(plan.escalations[0]?.dedupeKey).toBe(disputeEscalationDedupeKey("collab-X"));
   });
 });
