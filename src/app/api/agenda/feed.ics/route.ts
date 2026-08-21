@@ -10,6 +10,7 @@ import { shareTokenSecret } from "@/lib/share-token";
 import { agendaFeedRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
 import { requestMeta } from "@/lib/request-meta";
+import { auditAgendaFeedView } from "@/lib/calendar/feed-audit";
 import { prisma } from "@/lib/db";
 
 // Publieke, abonneerbare agenda-feed (webcal). Bewust GEEN sessie: een externe agenda-app
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
   // zodat één IP niet alle gebruikers-tokens sequentieel kan aftasten binnen één venster. Bij
   // overschrijding: 429 + Retry-After (enforceRateLimit), niet de 404-oracle — een limiet is geen
   // uitspraak over het bestaan van een gebruiker.
-  const { ipAddress } = await requestMeta();
+  const { ipAddress, userAgent } = await requestMeta();
   const limited = await enforceRateLimit(
     agendaFeedRateLimiter,
     `${ipAddress ?? "onbekend"}|${userId ?? "onbekend"}`,
@@ -59,6 +60,16 @@ export async function GET(request: NextRequest) {
   });
   if (!user || user.anonymizedAt || user.status !== "ACTIVE") {
     return new Response("Niet gevonden", { status: 404 });
+  }
+
+  // Forensische trail (AVG art. 5(2) / OWASP A09): leg deze geautoriseerde weergave vast, gede-
+  // dupliceerd per (gebruiker, bron-IP, dag), zodat een gelekt/gescraped feed-token niet langer
+  // onzichtbaar is zonder de trail te overspoelen met poll-ruis. Best-effort — mag de feed nooit
+  // breken (agenda-apps verwachten een 200 met het rooster).
+  try {
+    await auditAgendaFeedView({ userId, ipAddress, userAgent, now: new Date() });
+  } catch {
+    // Bewust ingeslikt: een audit-schrijffout mag de rooster-levering niet blokkeren.
   }
 
   const [mapped, deadlines] = await Promise.all([

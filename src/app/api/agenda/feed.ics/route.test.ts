@@ -16,8 +16,19 @@ const userFindUniqueMock = vi.hoisted(() =>
 const enforceMock = vi.hoisted(() =>
   vi.fn(async (_limiter: unknown, _key: string) => null as NextResponse | null),
 );
+const auditFeedViewMock = vi.hoisted(() =>
+  vi.fn(
+    async (_p: {
+      userId: string;
+      ipAddress: string | null;
+      userAgent: string | null;
+      now: Date;
+    }) => {},
+  ),
+);
 
 vi.mock("@/lib/calendar/feed-token", () => ({ verifyAgendaFeedToken: verifyTokenMock }));
+vi.mock("@/lib/calendar/feed-audit", () => ({ auditAgendaFeedView: auditFeedViewMock }));
 vi.mock("@/lib/share-token", () => ({ shareTokenSecret: () => "test-secret-minstens-16-tekens" }));
 vi.mock("@/lib/rate-limit", () => ({ agendaFeedRateLimiter: { check: vi.fn() } }));
 vi.mock("@/lib/rate-limit-guard", () => ({ enforceRateLimit: enforceMock }));
@@ -64,6 +75,7 @@ beforeEach(() => {
     anonymizedAt: null,
     role: "FREELANCER",
   });
+  auditFeedViewMock.mockClear();
 });
 
 describe("agenda-feed is rate-limited (security-review M-4, parity met dossierViewRateLimiter)", () => {
@@ -93,5 +105,42 @@ describe("agenda-feed is rate-limited (security-review M-4, parity met dossierVi
     const res = await GET(feedRequest());
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toContain("text/calendar");
+  });
+});
+
+describe("agenda-feed laat een forensisch spoor na (AVG art. 5(2) / OWASP A09)", () => {
+  it("een geautoriseerde weergave logt AGENDA_FEED_VIEWED met de user-id + bron-IP + user-agent", async () => {
+    const res = await GET(feedRequest("user-7"));
+    expect(res.status).toBe(200);
+    expect(auditFeedViewMock).toHaveBeenCalledTimes(1);
+    const arg = auditFeedViewMock.mock.calls[0]?.[0];
+    expect(arg?.userId).toBe("user-7");
+    expect(arg?.ipAddress).toBe("203.0.113.9");
+    expect(arg?.userAgent).toBe("vitest");
+  });
+
+  it("een 429 van de limiter logt géén weergave (geen serve → geen spoor)", async () => {
+    enforceMock.mockResolvedValue(
+      NextResponse.json({ error: "Te veel verzoeken." }, { status: 429 }),
+    );
+    await GET(feedRequest());
+    expect(auditFeedViewMock).not.toHaveBeenCalled();
+  });
+
+  it("een geschorst/geanonimiseerd account (404) logt géén weergave", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      status: "SUSPENDED",
+      anonymizedAt: null,
+      role: "FREELANCER",
+    });
+    const res = await GET(feedRequest());
+    expect(res.status).toBe(404);
+    expect(auditFeedViewMock).not.toHaveBeenCalled();
+  });
+
+  it("een auditfout breekt de feed niet (best-effort): de route levert 200", async () => {
+    auditFeedViewMock.mockRejectedValueOnce(new Error("db down"));
+    const res = await GET(feedRequest());
+    expect(res.status).toBe(200);
   });
 });

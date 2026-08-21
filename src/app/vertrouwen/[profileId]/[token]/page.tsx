@@ -37,7 +37,7 @@ export default async function TrustDossierPage({
 
   // Brute-force-/scrape-rem (security-review M-4): sessieloze route, dus per IP begrensd.
   // Bij overschrijding tonen we dezelfde 404 als bij een ongeldig token (geen oracle).
-  const { ipAddress } = await requestMeta();
+  const { ipAddress, userAgent } = await requestMeta();
   if (!(await dossierViewRateLimiter.check(`dossier:${ipAddress ?? "onbekend"}`)).allowed) {
     notFound();
   }
@@ -130,12 +130,17 @@ export default async function TrustDossierPage({
     );
   }
 
-  // Audit: elke weergave wordt gelogd (CLAUDE.md regel 5).
+  // Audit: elke weergave wordt gelogd (CLAUDE.md regel 5). Inclusief bron-IP + user-agent (AVG
+  // art. 5(2) verantwoordingsplicht) — deze niet-intrekbare publieke bearer-URL serveert derde-
+  // partij-PII (naam + certificaten), dus de scraping-/inzage-bron moet forensisch herleidbaar zijn,
+  // net als bij de andere publieke flows (`wachtwoord-vergeten`, agenda-feed) die `...meta` meesturen.
   await audit({
     actorId: null,
     action: "TRUST_DOSSIER_VIEWED",
     entityType: "FreelancerProfile",
     entityId: profileId,
+    ipAddress,
+    userAgent,
   });
 
   // Feitelijke staat van dienst: afgeronde samenwerkingen + gewerkte uren. Alleen binnen het

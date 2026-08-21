@@ -22,7 +22,9 @@ const store = {
   profile: null as Record<string, unknown> | null,
 };
 
-const auditMock = vi.hoisted(() => vi.fn(async () => {}));
+const auditMock = vi.hoisted(() =>
+  vi.fn<(entry: Record<string, unknown>) => Promise<void>>(async () => {}),
+);
 const findUniqueMock = vi.hoisted(() => vi.fn());
 // Staat-van-dienst-aggregatie (getFreelancerTrackRecord) draait alleen op het gedeelde pad; lege
 // defaults houden deze poort-test gefocust op de liveness/tenant-poort (0 hoogtepunten → geen sectie).
@@ -49,7 +51,7 @@ vi.mock("@/lib/rate-limit", () => ({
   dossierViewRateLimiter: { check: vi.fn(async () => ({ allowed: true })) },
 }));
 vi.mock("@/lib/request-meta", () => ({
-  requestMeta: vi.fn(async () => ({ ipAddress: "203.0.113.1" })),
+  requestMeta: vi.fn(async () => ({ ipAddress: "203.0.113.1", userAgent: "vitest-agent" })),
 }));
 
 import TrustDossierPage from "./[profileId]/[token]/page";
@@ -89,6 +91,19 @@ describe("/vertrouwen/[profileId]/[token] — liveness- & tenant-poort", () => {
   it("actief + PUBLIC + geen tenant + geldig token → dossier gedeeld (audit gelogd)", async () => {
     await render("valid");
     expect(auditMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("de audit legt de bron-IP + user-agent vast (AVG art. 5(2) — herleidbaarheid van deze publieke bearer-URL)", async () => {
+    // Zonder de fix mist de audit `ipAddress`/`userAgent` → de scraping-bron van deze niet-intrekbare
+    // publieke URL met derde-partij-PII is forensisch onherleidbaar (rood→groen).
+    await render("valid");
+    expect(auditMock.mock.calls[0]?.[0]).toMatchObject({
+      action: "TRUST_DOSSIER_VIEWED",
+      entityType: "FreelancerProfile",
+      entityId: "profile-1",
+      ipAddress: "203.0.113.1",
+      userAgent: "vitest-agent",
+    });
   });
 
   it("geschorst account (status !== ACTIVE) → niet gedeeld, geen audit", async () => {

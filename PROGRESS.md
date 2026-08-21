@@ -29,6 +29,30 @@ acties- + lifecycle-suites groen. Twee next-action-defecten gevonden én gefixt,
 **Tests:** +alle nieuwe unit-tests groen; volledige suite **6538 passed (625 files)**. Gate: typecheck, lint,
 test, build, prettier groen. E2e live geverifieerd (bundled Chromium).
 
+## 2026-08-21 — security/privacy: forensische trail op publieke bearer-PII-oppervlakken
+
+**Wat:** twee geparkeerde audit-completeness-gaten op **publieke, niet-intrekbare bearer-URL's met
+derde-partij-PII** gedicht (AVG art. 5(2) verantwoordingsplicht / OWASP A09). (1) De publieke agenda-feed
+`/api/agenda/feed.ics` — die het volledige werkrooster incl. tegenpartij-namen serveert op een niet-intrekbaar
+HMAC-token — liet als enige gevoelige weergaveroute **geen enkel auditspoor** na; een gelekt/gescraped token was
+forensisch onzichtbaar. Nu logt de route na de token- én liveness-poort een `AGENDA_FEED_VIEWED`-regel met
+bron-IP + user-agent, **gede-dupliceerd per (gebruiker, bron-IP, kalenderdag)** zodat de periodieke poll van
+agenda-apps de trail niet overspoelt maar élke distincte bron één keer per dag wordt vastgelegd. (2) De
+`/vertrouwen`-dossier-audit (`TRUST_DOSSIER_VIEWED`) gaf `ipAddress`/`userAgent` niet mee terwijl ze beschikbaar
+waren — nu wel, zodat de scraping-bron van die publieke URL herleidbaar is.
+
+**Hoe:** nieuwe pure/geïnjecteerde-klok `src/lib/calendar/feed-audit.ts` (`auditAgendaFeedView`, `startOfUtcDay`);
+best-effort try/catch in `feed.ics/route.ts` (audit-fout breekt de feed nooit); `vertrouwen/.../page.tsx` leest
+`userAgent` en vult de bestaande `audit()`-aanroep aan. De delta-audit van de 4 nieuwe commits
+(`50d2c060..ba636008`, bemiddelaar-lijst + metrics-refactor) was schoon: tenant-scoping op de openstaand-
+aggregatie klopt (`collaboration.companyId ∈ tenantScopeWhere`), metrics blijft `CRON_SECRET`-fail-closed +
+alleen geaggregeerde gauges. `npm audit --omit=dev`: 0 vulnerabilities. +9 tests (feed-audit 4, route 4,
+vertrouwen 1). Gate: typecheck, lint, test (6535), prettier groen; build.
+
+**Bestanden:** `src/lib/calendar/feed-audit.ts` (+ test), `src/app/api/agenda/feed.ics/route.ts` (+ test),
+`src/app/vertrouwen/[profileId]/[token]/page.tsx` (+ `vertrouwen-liveness.test.ts`),
+`docs/SECURITY-PRIVACY-BACKLOG.md`, `PROGRESS.md`.
+
 ## 2026-08-21 — routine: grootste-knelpunt op de opdracht-bereikkaart (opdrachtgever)
 
 **Wat (opdrachtgever):** de bereikkaart (`JobReachCard`) op een gepubliceerde opdracht toont al
