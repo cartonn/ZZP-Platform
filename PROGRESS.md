@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-21 — routine: betaalgedrag-per-opdrachtgever CSV-export op /inzicht (ZZP'er)
+
+**Wat (administratie-ontzorging, ZZP'er):** de kaart "Betaalgedrag per opdrachtgever" op `/inzicht`
+toont per klant de gemiddelde betaaltijd, het op-tijd-percentage, het aantal betalingen en het
+oordeel (Betaalt op tijd / Gemiddeld / Betaalt vaak laat) — maar was, anders dan de buurkaarten
+"Omzet per opdrachtgever" (`/inzicht/relaties/export`) en de franchiser-per-opdrachtgever-export,
+niet exporteerbaar. Een ZZP'er (of zijn boekhouder/factoringpartner) kon de debiteuren-
+betrouwbaarheidslijst — de cashflow-hefboom om te beslissen wie na te bellen of bij wie voortaan
+liever te werken — niet meenemen. Nu een "Exporteer (CSV)"-actie op de kaart (alleen bij ≥1 rij).
+
+**Hoe:** nieuwe pure `src/lib/payer-behavior-csv.ts` (`payerBehaviorCsv`): kolommen
+Opdrachtgever/Gemiddelde betaaltijd (dagen)/Op tijd (%)/Aantal betalingen/Beoordeling; behoudt de
+scherm-volgorde (waarschuwing eerst) → geen scherm↔export-drift; niet-berekenbare betaaltijd/op-tijd
+→ lege cel (nooit een verzonnen "0"); oordeel-tekst spiegelt de badge-taal (`PAYER_TONE_BADGE`);
+gedeelde `toCsv` met formule-injectie-guard (CWE-1236) op bedrijfsnamen van derden. Nieuwe rol-bewuste
+route `src/app/(protected)/inzicht/betaalgedrag/export/route.ts`: alleen FREELANCER (CLIENT ziet zijn
+eigen betaalreputatie op `/verplichtingen`, ADMIN heeft `/admin/facturatie` → beide 403); rate-limited;
+hergebruikt exact `getFreelancerPayerBehavior` (dezelfde bron als de kaart, alleen eigen facturen);
+auditregel `PAYER_BEHAVIOR_EXPORTED` (AVG art. 5(2)). Read-only, geen schema-/mutatie-/domeinmotor-
+oppervlak, alleen geaggregeerde eigen betaalrelatie (geen individueel factuurbedrag). +tests (CSV-
+kolommen/volgorde/lege-cel/injectie 5 + route-auth/-audit-parity FREELANCER/CLIENT/ADMIN 3). Gate:
+typecheck/lint/test/build/prettier groen.
+
+**Bestanden:** `src/lib/payer-behavior-csv.ts`, `src/lib/payer-behavior-csv.test.ts`,
+`src/app/(protected)/inzicht/betaalgedrag/export/route.ts`, `src/app/(protected)/inzicht/page.tsx`,
+`src/lib/audit-labels.ts`, `src/app/(protected)/export-audit.test.ts`.
+
 ## 2026-08-20 — routine: vervolgsignaal (renewal-badge) op de /samenwerkingen-lijst (ZZP'er + opdrachtgever)
 
 **Wat (deelnemer-UX/asymmetriedichting, beide rollen):** de bemiddelaar zag op
