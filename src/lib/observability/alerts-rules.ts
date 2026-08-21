@@ -50,6 +50,7 @@ export const INFO_ONLY_METRICS: ReadonlySet<string> = new Set([
  */
 const SAMPLE_INPUT: MetricsInput = {
   dbReachable: true,
+  metricsCollectionComplete: true,
   cronAgeSeconds: 0,
   cronOk: true,
   cronStale: false,

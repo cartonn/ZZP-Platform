@@ -13,6 +13,7 @@ import {
 
 const HEALTHY: MetricsInput = {
   dbReachable: true,
+  metricsCollectionComplete: true,
   cronAgeSeconds: 3600,
   cronOk: true,
   cronStale: false,
@@ -58,6 +59,7 @@ describe("buildMetrics", () => {
   it("mapt een gezonde staat naar de verwachte gauges", () => {
     expect(valueOf(HEALTHY, "zzp_up")).toBe(1);
     expect(valueOf(HEALTHY, "zzp_db_reachable")).toBe(1);
+    expect(valueOf(HEALTHY, "zzp_metrics_collection_complete")).toBe(1);
     expect(valueOf(HEALTHY, "zzp_cron_heartbeat_age_seconds")).toBe(3600);
     expect(valueOf(HEALTHY, "zzp_cron_heartbeat_ok")).toBe(1);
     expect(valueOf(HEALTHY, "zzp_cron_heartbeat_stale")).toBe(0);
@@ -79,6 +81,21 @@ describe("buildMetrics", () => {
 
   it("mapt onderhoudsmodus naar 1", () => {
     expect(valueOf({ ...HEALTHY, maintenanceMode: true }, "zzp_maintenance_mode")).toBe(1);
+  });
+
+  it("mapt de collectie-volledigheid-vlag naar 1 (compleet) en 0 (afgekapt)", () => {
+    expect(
+      valueOf({ ...HEALTHY, metricsCollectionComplete: true }, "zzp_metrics_collection_complete"),
+    ).toBe(1);
+    expect(
+      valueOf({ ...HEALTHY, metricsCollectionComplete: false }, "zzp_metrics_collection_complete"),
+    ).toBe(0);
+  });
+
+  it("plaatst zzp_metrics_collection_complete direct ná zzp_db_reachable", () => {
+    const names = buildMetrics(HEALTHY).map((m) => m.name);
+    const dbIdx = names.indexOf("zzp_db_reachable");
+    expect(names[dbIdx + 1]).toBe("zzp_metrics_collection_complete");
   });
 
   it("mapt de expiry-backlog (VERIFIED maar verlopen) door als gauge", () => {
@@ -406,6 +423,7 @@ describe("buildMetrics", () => {
   it("mapt een ongezonde staat naar 0-vlaggen en stale=1", () => {
     const input: MetricsInput = {
       dbReachable: false,
+      metricsCollectionComplete: false,
       cronAgeSeconds: 999999,
       cronOk: false,
       cronStale: true,
@@ -441,6 +459,7 @@ describe("buildMetrics", () => {
       pushDeliveryLastFailureAgeSeconds: 600,
     };
     expect(valueOf(input, "zzp_db_reachable")).toBe(0);
+    expect(valueOf(input, "zzp_metrics_collection_complete")).toBe(0);
     expect(valueOf(input, "zzp_mail_delivery_ok")).toBe(0);
     expect(valueOf(input, "zzp_mail_consecutive_failures")).toBe(4);
     expect(valueOf(input, "zzp_mail_last_failure_age_seconds")).toBe(300);
@@ -506,6 +525,7 @@ describe("buildMetrics", () => {
     expect(names).toEqual([
       "zzp_up",
       "zzp_db_reachable",
+      "zzp_metrics_collection_complete",
       "zzp_cron_heartbeat_age_seconds",
       "zzp_cron_heartbeat_ok",
       "zzp_cron_heartbeat_stale",
