@@ -1,5 +1,48 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-21 (run 86) · **main-commit basis:** `ba636008`
+> **Uitkomst:** **2 next-action-/screen-consistentie-defecten gevonden én gefixt (1 BLOCKER FRANCHISER, 1 should-fix
+> FREELANCER/CLIENT); 1 inert geld-trap geparkeerd.**
+> 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie ·
+> cascade/geld-integriteit + verboden statusovergangen · next-action-engine · malicieuze input/CSV/XSS/upload).
+> Authz/IDOR (route-handlers + server-actions enumeratief nagelopen: document-endpoints anti-oracle 404,
+> tenant-isolatie centraal, cascade party-checks TOCTOU-veilig) én malicieuze-input (Zod money/hours-bounds,
+> gedeelde CSV-escape-kern, upload magic-byte-sniff, geen `*OrThrow` → 404-vs-500) vonden **0 nieuwe bereikbare
+> gaten**. **Live geverifieerd** (Playwright/bundled Chromium tegen de productie-server): critical-personas
+> adversarieel **12/12 groen** (privilege-escalatie, cross-rol datalek, twee-context IDOR, onzin-id→404-niet-500,
+> malicieuze lege-titel-opdracht), acties/next-action-suite groen, lifecycle-cascade groen.
+>
+> - **OPGELOST — BLOCKER: bemiddelaar-next-action voor roster-certificaatverval verdween zodra het cert
+>   feitelijk verliep (DOEL 1b, next-action-correctheid, CLAUDE.md regel 1):** `franchiserTasks`
+>   (`src/lib/actions/pending-tasks.ts`) haalde alleen de in-venster `(now, soon]` verlopende VERIFIED-certs op
+>   (`expiringRosterCreds` → `rosterExpiringByProfile`); zodra `expiresAt <= now` viel het cert uit BEIDE en was
+>   er — anders dan de ZZP-zijde (`freelancerTasks`) — GEEN franchiser "reeds verlopen"-tak. `franchiseNotEngageableTask`
+>   dekte het niet (engageability kijkt alleen naar verplichte documenten VOG/verzekering), dus een niet-verplicht
+>   maar job-vereist certificaattype (bv. BIG) dat verliep werd onzichtbaar op /acties, de badge én de rail —
+>   precies wanneer het compliance-probleem ERGER werd. **Fix:** nieuwe pure `rosterExpiredByProfile` (computed-verval
+>   `status==="EXPIRED" || (VERIFIED && expiresAt<=now)`, superseded/gedekt-uitgesloten, verplichte typen buiten),
+>   builder `franchiseCredentialExpiredTask` (prioriteitsband `franchiserCredentialExpired: 72`, boven "binnenkort"),
+>   aparte tenant-gescopete `expiredRosterCreds`-query in `franchiserTasks`, mutueel exclusief met "binnenkort" op
+>   `expiresAt<=now`. +9 tests (7 helper + 1 builder + union).
+> - **OPGELOST — should-fix: "Voortgang"-stepper (`buildChainSteps`) sprak zichzelf tegen op multi-cyclus
+>   samenwerkingen (DOEL 1b, screen-consistentie):** de stepper evalueerde `.some()` over de VOLLEDIGE prestatie-/
+>   factuurhistorie, dus op een ACTIVE-samenwerking met cyclus 1 betaald + cyclus 2 verse uren toonde 'ie ten
+>   onrechte "Prestatie: Goedgekeurd" + "Factuur/Betaling: Betaald · niets te doen" — terwijl de `collaborationStatusLine`
+>   op HETZELFDE scherm (via `stage.ts`/`isPerformanceNewerThanInvoice`) correct de cyclus-2-actie toonde. **Fix:**
+>   `buildChainSteps` herschreven om de nieuwste prestatie/factuur (index 0 van de `createdAt desc`-arrays) + de vlag
+>   `performanceNewerThanInvoice` te gebruiken (spiegelt `stage.ts`: vorige-cyclus-factuur wordt genuld). `page.tsx`
+>   tilt de recency-const boven beide callsites → één bron, geen drift. +multi-cyclus-regressietests (28 groen).
+> - **GEPARKEERD (should-fix, inert — feature bewust uitgesteld/mensenwerk): Event F platformfee-`followups`
+>   is dode plumbing.** `planPaymentConfirmedEvent` (`src/lib/cascade/handlers.ts:485-496`) pusht bij
+>   `PLATFORM_FEE.enabled && trigger==="AFTER_PAYMENT"` een `PLATFORM_FEE_INVOICED`-event op `effects.followups`,
+>   maar noch `applyCascadeEffects` (`apply.ts`) noch `persistInTransaction` (`commands-shared.ts`) consumeert
+>   `followups` ooit → stil gedropt. Inert vandaag (`PLATFORM_FEE.enabled=false`, bedragen 0), dus geen live geld
+>   in het geding, maar een stille-faal-val: zodra iemand de fee-flag aanzet worden platformfees nooit gefactureerd
+>   zónder fout/log. Event F's runtime-activering is bewust uitgesteld tot "Fase 7 / na het fee-besluit"
+>   (`platform-fee.ts` docstring) — dus fix = OFWEL `followups` echt bedraden (= Event F bouwen, mensenwerk/besluit),
+>   OFWEL de dode plumbing weghalen + een boot-guard die `PLATFORM_FEE.enabled` weigert tot Event F echt gewired is.
+>   Buiten scope van deze run gehouden (geen live impact); expliciet MENSENWERK vóór de fee-flag ooit aangaat.
+
 > **Datum:** 2026-08-20 (run 85) · **main-commit basis:** `7556aa65`
 > **Uitkomst:** **1 geld-integriteit/drift-defect gevonden én gefixt (HIGH, FRANCHISER + ZZP'er/CLIENT).**
 > 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie ·

@@ -94,6 +94,7 @@ export const P = {
   // Franchiser-operationeel: doorlopende tenant-taken zodra de franchise draait (item-niveau).
   franchiserRosterNotEngageable: 84, // roster-ZZP'er niet inzetbaar (ontbrekend doc/verificatie) — blokkeert plaatsing
   franchiserServiceAcute: 78, // open dienst dreigt onbezet (start deze week/verstreken/geen datum) — vullen kan niet wachten
+  franchiserCredentialExpired: 72, // roster-certificaat van een tenant-ZZP'er is REEDS verlopen — urgenter dan "verloopt binnenkort" (de compliance-gap is nu actief), maar onder een acuut onbezette dienst
   franchiserCredentialExpiring: 70, // roster-certificaat van een tenant-ZZP'er verloopt binnenkort
   franchiserServiceStale: 65, // gepubliceerde dienst staat lang open zonder plaatsing
   franchiserServiceStaleRollup: 64, // rollup van de resterende lang-open diensten — strikt onder de per-dienst-taak zodat de specifieke, oudste diensten voorop blijven (niet meer afhankelijk van de push-volgorde bij een gelijke prioriteit)

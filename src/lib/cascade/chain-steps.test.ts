@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { buildChainSteps } from "@/lib/cascade/chain-steps";
 
-// Helpers om invoer compact te schrijven
+// Helpers om invoer compact te schrijven. Arrays komen `createdAt desc` binnen: index 0 = nieuwste.
 function col(
   status: string,
   performances: Array<{ status: string }> = [],
   invoices: Array<{ lifecycleStatus: string | null }> = [],
+  performanceNewerThanInvoice = false,
 ) {
-  return { status, performances, invoices };
+  return { status, performances, invoices, performanceNewerThanInvoice };
 }
 
 describe("buildChainSteps — stap 1 (Contract)", () => {
@@ -73,11 +74,14 @@ describe("buildChainSteps — stap 2 (Prestatie)", () => {
     expect(perf.detail).toContain("Concept");
   });
 
-  it("APPROVED heeft hogere prioriteit dan REJECTED (beide aanwezig)", () => {
+  it("de NIEUWSTE prestatie (index 0) bepaalt de stap, niet de historie", () => {
+    // Nieuwste = REJECTED, oudere = APPROVED. De verse afgekeurde prestatie hoort bij de huidige
+    // cyclus en bepaalt de stap → error. De oude APPROVED van een vorige cyclus maskeert dit niet.
     const perf = buildChainSteps(
       col("ACTIVE", [{ status: "REJECTED" }, { status: "APPROVED" }]),
     )[1]!;
-    expect(perf.status).toBe("done");
+    expect(perf.status).toBe("error");
+    expect(perf.detail).toContain("Afgekeurd");
   });
 });
 
@@ -150,6 +154,69 @@ describe("buildChainSteps — stap 4 (Betaling)", () => {
   it("factuur PROCESSED → betaling done", () => {
     const pay = buildChainSteps(col("ACTIVE", [], [{ lifecycleStatus: "PROCESSED" }]))[3]!;
     expect(pay.status).toBe("done");
+  });
+});
+
+describe("buildChainSteps — multi-cyclus (regressie: cyclus-1 factuur maskeert cyclus-2 niet)", () => {
+  // Cyclus 1 is APPROVED + PAID; daarna dient de ZZP'er verse cyclus-2-uren in. Omdat de nieuwste
+  // prestatie nieuwer is dan de nieuwste factuur (`performanceNewerThanInvoice=true`), hoort die
+  // PAID-factuur bij een vorige cyclus en telt ze NIET voor de huidige fase.
+  it("cyclus-2 DRAFT → Prestatie=active (concept), Factuur/Betaling NIET betaald", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "DRAFT" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "PAID" }],
+        true,
+      ),
+    );
+    expect(steps[1]!.status).toBe("active");
+    expect(steps[1]!.detail).toContain("Concept");
+    expect(steps[2]!.status).toBe("waiting"); // Factuur: geen huidige-cyclus-factuur
+    expect(steps[2]!.detail).not.toBe("Betaald");
+    expect(steps[3]!.status).toBe("waiting"); // Betaling: niets ontvangen deze cyclus
+    expect(steps[3]!.detail).not.toBe("Ontvangen");
+  });
+
+  it("cyclus-2 SUBMITTED → Prestatie=active (ter goedkeuring), Factuur/Betaling niet done", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "SUBMITTED" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "PAID" }],
+        true,
+      ),
+    );
+    expect(steps[1]!.status).toBe("active");
+    expect(steps[1]!.detail).toContain("goedkeuring");
+    expect(steps[2]!.status).toBe("waiting");
+    expect(steps[3]!.status).toBe("waiting");
+  });
+
+  it("cyclus-2 REJECTED → Prestatie=error, Factuur/Betaling niet done", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "REJECTED" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "PROCESSED" }],
+        true,
+      ),
+    );
+    expect(steps[1]!.status).toBe("error");
+    expect(steps[2]!.status).toBe("waiting");
+    expect(steps[2]!.detail).not.toBe("Betaald");
+    expect(steps[3]!.status).toBe("waiting");
+    expect(steps[3]!.detail).not.toBe("Ontvangen");
+  });
+
+  it("single-cyclus (vlag=false): APPROVED prestatie + PAID factuur → beide done", () => {
+    const steps = buildChainSteps(
+      col("ACTIVE", [{ status: "APPROVED" }], [{ lifecycleStatus: "PAID" }], false),
+    );
+    expect(steps[1]!.status).toBe("done");
+    expect(steps[2]!.status).toBe("done");
+    expect(steps[2]!.detail).toBe("Betaald");
+    expect(steps[3]!.status).toBe("done");
   });
 });
 

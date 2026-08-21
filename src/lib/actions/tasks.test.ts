@@ -24,6 +24,7 @@ import {
   availabilityRefreshTask,
   draftJobsTask,
   franchiseCredentialExpiryTask,
+  franchiseCredentialExpiredTask,
   franchiseAcuteDienstTask,
   franchiseStaleDienstTask,
   franchiseStaleDienstRollupTask,
@@ -539,6 +540,30 @@ describe("task builders", () => {
     expect(many.title).toContain("3");
     expect(many.title).toContain("verlopen");
     expect(many.id).toBe("franchise-credential-expiry:prof-2");
+  });
+
+  it("bemiddelaar: reeds-verlopen roster-certificaat is een urgentere per-ZZP'er link-taak", () => {
+    const single = franchiseCredentialExpiredTask("prof-1", "Lars Bakker", 1);
+    expect(single).toMatchObject({
+      kind: "franchise-credential-expired",
+      profileId: "prof-1",
+      resolver: "link",
+      href: "/franchise/zzpers/prof-1",
+      tone: "attention",
+    });
+    expect(single.id).toBe("franchise-credential-expired:prof-1");
+    expect(single.priority).toBe(P.franchiserCredentialExpired);
+    expect(single.title).toContain("Lars Bakker");
+    expect(single.title).toContain("verlopen");
+
+    const many = franchiseCredentialExpiredTask("prof-2", "Sanne de Vries", 3);
+    expect(many.title).toContain("3");
+    expect(many.id).toBe("franchise-credential-expired:prof-2");
+
+    // Reeds verlopen is urgenter dan "verloopt binnenkort": de compliance-gap is nu actief.
+    expect(single.priority).toBeGreaterThan(
+      franchiseCredentialExpiryTask("prof-1", "Lars Bakker", 1).priority,
+    );
   });
 
   it("bemiddelaar: lead-opvolging is een aggregaat link-taak naar /franchise/leads", () => {

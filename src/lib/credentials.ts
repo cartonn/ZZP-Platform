@@ -245,6 +245,63 @@ export function rosterExpiringByProfile(
 }
 
 /**
+ * Aggregeer per tenant-ZZP'er hoeveel NIET-verplichte certificaten FEITELIJK verlopen zijn — de
+ * bemiddelaar-tegenhanger van de ZZP-zijdige "reeds verlopen"-tak (`freelancerTasks`). Zonder deze
+ * telling verdween het roster-compliance-signaal precies wanneer het erger werd: een cert dat
+ * "binnenkort verloopt" (venster `(now, soon]`, zie `rosterExpiringByProfile`) valt uit dat venster
+ * zodra `expiresAt <= now`, terwijl er geen ander franchiser-signaal de plek innam.
+ *
+ * Verval is server-berekend, niet afhankelijk van de batch-flip VERIFIED→EXPIRED: een cert telt als
+ * verlopen bij `status === "EXPIRED"` óf `status === "VERIFIED" && expiresAt != null && expiresAt <= now`
+ * (zelfde computed-check als `isExpired`). Verplichte typen (`mandatoryTypes`, bv. VOG/verzekering)
+ * vallen buiten: die worden al door de engageability-tak gedekt (`franchiseNotEngageableTask`); alleen
+ * niet-verplichte, job-vereiste certs (bv. BIG-registratie) vielen door het gat.
+ *
+ * Dekkings-uitsluiting (spiegelt de superseded-gedachte van `rosterExpiringByProfile`): telt een
+ * verlopen cert NIET zodra er een ander VERIFIED-cert van hetzelfde type bestaat dat nú geldig is
+ * (geen vervaldatum, of `expiresAt > now`) — dan is de compliance voor dat type al gedekt en is de
+ * verleng-nudge vals. De dekkingscheck gebeurt binnen het eigen dossier van elke ZZP'er. Alleen
+ * ZZP'ers met minstens één relevant verlopen cert komen terug. Puur/deterministisch; de volgorde
+ * volgt de eerste-verschijning per profiel in `credentials`.
+ */
+export function rosterExpiredByProfile(
+  credentials: readonly RosterCredentialInput[],
+  now: Date,
+  mandatoryTypes: readonly string[],
+): RosterExpiryEntry[] {
+  const nowMs = now.getTime();
+  const mandatory = new Set<string>(mandatoryTypes);
+  const byProfile = new Map<string, { name: string; creds: RosterCredentialInput[] }>();
+  for (const c of credentials) {
+    const entry = byProfile.get(c.freelancerProfileId);
+    if (entry) entry.creds.push(c);
+    else byProfile.set(c.freelancerProfileId, { name: c.freelancerName, creds: [c] });
+  }
+
+  const result: RosterExpiryEntry[] = [];
+  for (const [profileId, { name, creds }] of byProfile) {
+    // Typen met een nu-geldig VERIFIED-cert: die dekken de compliance al → verlopen exemplaren van
+    // datzelfde type tellen niet mee (identieke dekkingsregel als de superseded-check hierboven).
+    const coveredTypes = new Set<string>();
+    for (const c of creds) {
+      if (c.status !== "VERIFIED") continue;
+      if (c.expiresAt != null && c.expiresAt.getTime() <= nowMs) continue; // niet nu-geldig
+      coveredTypes.add(c.type);
+    }
+    let count = 0;
+    for (const c of creds) {
+      if (mandatory.has(c.type)) continue; // engageability dekt verplichte typen al
+      const expired =
+        c.status === "EXPIRED" ||
+        (c.status === "VERIFIED" && c.expiresAt != null && c.expiresAt.getTime() <= nowMs);
+      if (expired && !coveredTypes.has(c.type)) count += 1;
+    }
+    if (count > 0) result.push({ profileId, name, count });
+  }
+  return result;
+}
+
+/**
  * Geeft de nieuwe status als een credential door expiry moet wijzigen, anders `null`.
  * Gebruikt door de expiry-job (Sessie 5) om VERIFIED -> EXPIRED te markeren.
  */

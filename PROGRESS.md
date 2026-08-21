@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-21 — persona-sweep (run 86): 2 next-action-defecten gefixt (BLOCKER franchiser + should-fix stepper)
+
+**Wat:** kritische-persona-sweep (4 rollen). 4 parallelle adversariële Opus-audits (authz/IDOR/tenant ·
+cascade/geld · next-action-engine · malicieuze input) + live Playwright-verificatie tegen de productie-server.
+Authz/IDOR en malicieuze-input: **0 nieuwe gaten**. Live adversarieel (critical-personas) **12/12 groen**
+(privilege-escalatie, cross-rol datalek, twee-context IDOR, onzin-id→404-niet-500, lege-titel-opdracht),
+acties- + lifecycle-suites groen. Twee next-action-defecten gevonden én gefixt, één inerte geld-trap geparkeerd.
+
+- **BLOCKER (FRANCHISER) — roster-certificaatverval-taak verdween bij feitelijk verval.** `franchiserTasks`
+  had geen "reeds verlopen"-tak (alleen `(now, soon]`-venster); een niet-verplicht job-vereist cert (bv. BIG)
+  dat verliep werd onzichtbaar op /acties/badge/rail. Fix: pure `rosterExpiredByProfile` +
+  `franchiseCredentialExpiredTask` (band `franchiserCredentialExpired: 72`) + aparte tenant-gescopete query,
+  mutueel exclusief met "binnenkort". Bestanden: `src/lib/credentials.ts`, `src/lib/actions/tasks.ts`,
+  `src/lib/actions/pending-tasks.ts`, `src/lib/next-actions.ts`.
+- **should-fix (FREELANCER/CLIENT) — "Voortgang"-stepper sprak zichzelf tegen op multi-cyclus.** `buildChainSteps`
+  gebruikte `.some()` over de volledige historie → cyclus-1-PAID maskeerde verse cyclus-2-uren met "Betaald ·
+  niets te doen", in tegenspraak met de statusline op hetzelfde scherm. Fix: index-0 (nieuwste) + vlag
+  `performanceNewerThanInvoice` (spiegelt `stage.ts`); `page.tsx` deelt één recency-const met de statusline.
+  Bestanden: `src/lib/cascade/chain-steps.ts`, `src/app/(protected)/samenwerkingen/[id]/page.tsx`.
+- **Geparkeerd (inert, MENSENWERK):** Event F platformfee-`followups` is dode plumbing (nooit geconsumeerd door
+  `apply.ts`/`commands-shared.ts`); inert (fee-flag uit, bedragen 0) maar stille-faal-val zodra de flag aangaat.
+  Zie `docs/PERSONA-SWEEP-BACKLOG.md` (run 86).
+
+**Tests:** +alle nieuwe unit-tests groen; volledige suite **6538 passed (625 files)**. Gate: typecheck, lint,
+test, build, prettier groen. E2e live geverifieerd (bundled Chromium).
+
 ## 2026-08-21 — routine: grootste-knelpunt op de opdracht-bereikkaart (opdrachtgever)
 
 **Wat (opdrachtgever):** de bereikkaart (`JobReachCard`) op een gepubliceerde opdracht toont al

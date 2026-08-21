@@ -107,6 +107,7 @@ export type PendingTask =
   | (TaskBase & { kind: "draft-jobs" })
   | (TaskBase & { kind: "job-needs-attention"; jobId: string })
   | (TaskBase & { kind: "franchise-credential-expiry"; profileId: string })
+  | (TaskBase & { kind: "franchise-credential-expired"; profileId: string })
   | (TaskBase & { kind: "franchise-open-dienst-acute" })
   | (TaskBase & { kind: "franchise-lead-followup" })
   | (TaskBase & { kind: "franchise-not-engageable"; profileId: string })
@@ -1099,6 +1100,31 @@ export function franchiseCredentialExpiryTask(
     subtitle: "Vraag de ZZP'er om te vernieuwen — roster-compliance",
     tone: "attention",
     priority: P.franchiserCredentialExpiring,
+    resolver: "link",
+    href: `/franchise/zzpers/${profileId}`,
+    profileId,
+  };
+}
+
+/**
+ * Eén taak per tenant-ZZP'er met certificaten die REEDS verlopen zijn — de urgentere tegenhanger van
+ * `franchiseCredentialExpiryTask`. Verschijnt zodra een niet-verplicht, job-vereist certificaat de
+ * vervaldatum passeert (server-berekend, niet afhankelijk van de VERIFIED→EXPIRED-batch), zodat het
+ * roster-compliance-signaal niet verdwijnt op het moment dat de gap juist actief wordt. Geaggregeerd
+ * per ZZP'er; deep-link naar het ZZP'er-detail om de vernieuwing op te volgen.
+ */
+export function franchiseCredentialExpiredTask(
+  profileId: string,
+  name: string,
+  count: number,
+): PendingTask {
+  return {
+    kind: "franchise-credential-expired",
+    id: `franchise-credential-expired:${profileId}`,
+    title: `${name}: ${plural(count, "certificaat verlopen", "certificaten verlopen")} — vernieuwing nodig`,
+    subtitle: "Vraag de ZZP'er om te vernieuwen — roster-compliance loopt nu risico",
+    tone: "attention",
+    priority: P.franchiserCredentialExpired,
     resolver: "link",
     href: `/franchise/zzpers/${profileId}`,
     profileId,
