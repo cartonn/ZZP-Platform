@@ -613,9 +613,29 @@ const PAYER_TONE_BADGE: Record<
  * Cijfers via `getFreelancerPayerBehavior` (hergebruikt `computePaymentBehavior` → geen drift met het
  * betaalgedrag-blok op de opdracht-detailpagina); alleen eigen facturen, alleen geaggregeerde statistiek.
  */
+/**
+ * Downloadlink voor het betaalgedrag-per-opdrachtgever-overzicht (ZZP'er → debiteuren-
+ * betrouwbaarheidslijst voor de boekhouder). Spiegelt de export-actie op "Omzet per opdrachtgever".
+ */
+function BetaalgedragCsvExportLink() {
+  return (
+    <Link
+      href="/inzicht/betaalgedrag/export"
+      prefetch={false}
+      className="focus-ring inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:underline"
+    >
+      <Download className="size-3.5" aria-hidden />
+      Exporteer (CSV)
+    </Link>
+  );
+}
+
 function BetaalgedragPerOpdrachtgeverWidget({ rows }: { rows: PayerBehaviorRow[] }) {
   return (
-    <BiWidget title="Betaalgedrag per opdrachtgever">
+    <BiWidget
+      title="Betaalgedrag per opdrachtgever"
+      action={rows.length > 0 ? <BetaalgedragCsvExportLink /> : undefined}
+    >
       {rows.length === 0 ? (
         <EmptyState
           icon={CreditCard}

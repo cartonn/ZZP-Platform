@@ -78,6 +78,15 @@ vi.mock("@/lib/client-spend-breakdown", () => ({
     concentrationPct: 100,
   })),
 }));
+vi.mock("@/lib/freelancer-payer-behavior", () => ({
+  getFreelancerPayerBehavior: vi.fn(async () => [
+    {
+      companyId: "c-1",
+      name: "De Linde",
+      behavior: { sampleSize: 5, avgDaysToPay: 12, onTimePct: 90, tone: "good" },
+    },
+  ]),
+}));
 vi.mock("@/lib/collaboration-alerts", () => ({
   COLLABORATION_ALERT_INCLUDE: {},
   clientCredentialAlertsFromRows: vi.fn(() => [
@@ -103,6 +112,7 @@ import { GET as prognoseGet } from "./prognose/export/route";
 import { GET as prestatiesGet } from "./prestaties/export/route";
 import { GET as facturenGet } from "./facturen/export/route";
 import { GET as relatiesGet } from "./inzicht/relaties/export/route";
+import { GET as betaalgedragGet } from "./inzicht/betaalgedrag/export/route";
 import { GET as complianceGet } from "./samenwerkingen/certificaten/export/route";
 
 beforeEach(() => {
@@ -184,6 +194,30 @@ describe("CSV-exportroutes — AVG-auditplicht", () => {
   it("relatie-uitsplitsing-export weigert een ADMIN (geen eigen relatie-overzicht)", async () => {
     store.actor = { id: "u-9", role: "ADMIN", status: "ACTIVE", tenantId: null };
     const res = await relatiesGet();
+    expect(res.status).toBe(403);
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("betaalgedrag-export (FREELANCER) schrijft een PAYER_BEHAVIOR_EXPORTED-auditregel", async () => {
+    store.actor = { id: "u-11", role: "FREELANCER", status: "ACTIVE", tenantId: null };
+    const res = await betaalgedragGet();
+    expect(res.status).toBe(200);
+    expect(auditCreateMock).toHaveBeenCalledTimes(1);
+    expect(auditCreateMock.mock.calls[0]![0].data).toMatchObject({
+      action: "PAYER_BEHAVIOR_EXPORTED",
+    });
+  });
+
+  it("betaalgedrag-export weigert een CLIENT (ziet eigen betaalreputatie op /verplichtingen)", async () => {
+    store.actor = { id: "u-12", role: "CLIENT", status: "ACTIVE", tenantId: null };
+    const res = await betaalgedragGet();
+    expect(res.status).toBe(403);
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("betaalgedrag-export weigert een ADMIN", async () => {
+    store.actor = { id: "u-13", role: "ADMIN", status: "ACTIVE", tenantId: null };
+    const res = await betaalgedragGet();
     expect(res.status).toBe(403);
     expect(auditCreateMock).not.toHaveBeenCalled();
   });
