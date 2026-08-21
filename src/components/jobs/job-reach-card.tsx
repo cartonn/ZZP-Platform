@@ -1,6 +1,7 @@
-import { Users } from "lucide-react";
+import { AlertTriangle, Users } from "lucide-react";
 import { LevelChip } from "@/components/jobs/signal-chips";
 import { type ReachSummary } from "@/lib/job-reach";
+import { type ReachBottleneck } from "@/lib/job-reach-bottleneck";
 
 const LEVEL_STYLE: Record<ReachSummary["level"], { dot: string; hint: string }> = {
   good: { dot: "bg-success", hint: "text-success" },
@@ -20,8 +21,15 @@ const LEVEL_LABEL: Record<ReachSummary["level"], string> = {
  * Presentationeel — het bereik is server-side berekend (`getJobReach` → `summarizeJobReach`);
  * deze component beslist niets.
  */
-export function JobReachCard({ reach }: { reach: ReachSummary }) {
+export function JobReachCard({
+  reach,
+}: {
+  reach: ReachSummary & { bottleneck?: ReachBottleneck | null };
+}) {
   const style = LEVEL_STYLE[reach.level];
+  // Toon het grootste knelpunt alleen wanneer het bereik niet goed is — bij goed bereik heeft de
+  // opdrachtgever geen sturingsactie nodig en zou het signaal ruis zijn.
+  const bottleneck = reach.level === "good" ? null : reach.bottleneck;
 
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card p-5">
@@ -57,6 +65,18 @@ export function JobReachCard({ reach }: { reach: ReachSummary }) {
       )}
 
       {reach.hint && <p className={`text-xs ${style.hint}`}>{reach.hint}</p>}
+
+      {bottleneck && (
+        <div className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+          <div className="space-y-0.5">
+            <p className="text-xs font-medium text-foreground">
+              Grootste knelpunt: {bottleneck.label}
+            </p>
+            <p className="text-xs text-muted-foreground">{bottleneck.hint}</p>
+          </div>
+        </div>
+      )}
 
       <p className="text-xs text-muted-foreground">
         Passende, openbare profielen die nog niet reageerden — los van directe uitnodigingen.

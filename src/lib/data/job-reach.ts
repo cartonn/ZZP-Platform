@@ -1,8 +1,9 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { scoreJobForFreelancer } from "@/lib/matching";
+import { scoreJobForFreelancer, topGapReasonComplianceFirst } from "@/lib/matching";
 import { discoverableFreelancerWhere } from "@/lib/freelancer-visibility";
 import { summarizeJobReach, type ReachSummary } from "@/lib/job-reach";
+import { summarizeReachBottleneck, type ReachBottleneck } from "@/lib/job-reach-bottleneck";
 
 // Begrensde scan, gelijk aan de suggestie-scan (SCAN_LIMIT in suggestions.ts): houdt de
 // kosten op een gepubliceerde opdracht-detail bounded, ook bij een grote tenant-pool.
@@ -15,7 +16,10 @@ const REACH_SCAN_LIMIT = 200;
  * niet-gepubliceerde opdracht (geen bereik te tonen). Spiegelt de scope van
  * `suggestedFreelancersForJob`: cross-tenant lekt nooit (altijd op `job.tenantId` gescoped).
  */
-export async function getJobReach(jobId: string): Promise<ReachSummary | null> {
+/** Bereik-samenvatting plus het grootste knelpunt (concrete sturingstip) voor de opdrachtgever. */
+export type JobReach = ReachSummary & { bottleneck: ReachBottleneck | null };
+
+export async function getJobReach(jobId: string): Promise<JobReach | null> {
   const job = await prisma.job.findUnique({
     where: { id: jobId },
     include: {
@@ -66,8 +70,16 @@ export async function getJobReach(jobId: string): Promise<ReachSummary | null> {
         availabilityWindows: p.availabilityWindows,
         industries: p.industries,
       });
-      return { score: match.score, available: match.availability.status === "AVAILABLE" };
+      return {
+        score: match.score,
+        available: match.availability.status === "AVAILABLE",
+        // Zwaarst wegende minpunt (compliance-eerst) voedt het grootste-knelpunt-signaal.
+        topGapLabel: topGapReasonComplianceFirst(match.reasons),
+      };
     });
 
-  return summarizeJobReach(candidates);
+  return {
+    ...summarizeJobReach(candidates),
+    bottleneck: summarizeReachBottleneck(candidates),
+  };
 }
