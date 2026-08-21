@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-21 — security/privacy: inzage/erasure-asymmetrie gedicht (NotificationPreference in export)
+
+**Wat (AVG art. 15/20, alle rollen):** security-/privacy-auditronde (orchestrator Opus 4.8 + 4 parallelle
+adversariële Opus-audits op niet-overlappende oppervlakken: authz/IDOR/tenant · injectie/SSRF/upload/secrets ·
+privacy/AVG · auth/sessie/headers). `npm audit`: 0 vulnerabilities. Authz/IDOR/tenant, injectie/SSRF/upload/
+secrets en auth/sessie/headers **schoon** (getraceerd, geen nieuwe KRITIEK/HOOG). Privacy vond **1× MIDDEL**:
+`NotificationPreference` (de per-categorie e-mail-opt-out-keuzes van de betrokkene) werd door `anonymizeUser`
+wél gewist maar ontbrak in `buildAccountExport` → een inzage/erasure-asymmetrie (art. 15/20). Gedicht met
+rood→groen-test. 2 reeds-geparkeerde FG-items herbevestigd (KvK op publiek profiel; TaxFilingRequest-erasure) —
+bewust niet unilateraal gewijzigd (juridische/FG-afweging, zie MENSENWERK.md + backlog).
+
+**Hoe:** `buildAccountExport` leest nu `notificationPreference.findMany` gescopet op de eigen `userId` (smalle
+select: category/emailEnabled/createdAt/updatedAt) en neemt het op als `notificationPreferences` in de
+payload/interface — spiegel van `pushSubscriptions` (óók een eigen kanaalrecord). Tests: present-keys-lus +
+nieuwe scoping-test (rood zonder de bronwijziging). Gate: typecheck/lint/prettier/test/build groen.
+
+**Bestanden:** `src/lib/account-export.ts`, `src/lib/account-export.test.ts`,
+`docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-21).
+
 ## 2026-08-21 — routine: betaalgedrag-per-opdrachtgever CSV-export op /inzicht (ZZP'er)
 
 **Wat (administratie-ontzorging, ZZP'er):** de kaart "Betaalgedrag per opdrachtgever" op `/inzicht`

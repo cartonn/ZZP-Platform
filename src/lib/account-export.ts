@@ -48,6 +48,11 @@ export interface AccountExportPayload {
   lessonCompletions: unknown;
   ideaVotes: unknown;
   savedJobs: unknown;
+  // AVG art. 15/20 — de eigen e-mailkanaal-voorkeuren (NotificationPreference): per categorie of het
+  // bijbehorende e-mailkanaal mag verzenden. Dit zijn de door de betrokkene zelf gemaakte opt-out-keuzes
+  // (eigen persoonsgegeven); ze horen in de inzage/portabiliteit — symmetrisch met de erasure die deze
+  // rijen nu verwijdert (`anonymizeUser` → `notificationPreference.deleteMany`).
+  notificationPreferences: unknown;
 }
 
 const EXPORT_NOTICE =
@@ -100,6 +105,7 @@ export async function buildAccountExport(
     lessonCompletions,
     ideaVotes,
     savedJobs,
+    notificationPreferences,
   ] = await Promise.all([
     db.user.findUnique({
       where: { id: actorId },
@@ -483,6 +489,14 @@ export async function buildAccountExport(
       where: { freelancer: { userId: actorId } },
       select: { jobId: true, createdAt: true },
     }),
+    // AVG art. 15/20 — de eigen e-mailkanaal-voorkeuren (`NotificationPreference`): per categorie of het
+    // bijbehorende herinnerings-/signaal-e-mailkanaal mag verzenden. Dit zijn de door de betrokkene zelf
+    // gemaakte opt-out-keuzes; scope strikt op de eigen `userId`. Symmetrisch met de erasure die deze
+    // rijen nu verwijdert (spiegel van `pushSubscriptions` — óók een eigen kanaal-/voorkeurrecord).
+    db.notificationPreference.findMany({
+      where: { userId: actorId },
+      select: { category: true, emailEnabled: true, createdAt: true, updatedAt: true },
+    }),
   ]);
 
   // Alleen op de EIGEN uitschrijver-facturen (issuerUserId == actor, óf legacy-loose via de
@@ -537,5 +551,6 @@ export async function buildAccountExport(
     lessonCompletions,
     ideaVotes,
     savedJobs,
+    notificationPreferences,
   };
 }
