@@ -49,6 +49,7 @@ function fakeDb(rows: Record<string, unknown> = {}) {
     lessonCompletion: { findMany: make("lessonCompletion", "findMany") },
     ideaVote: { findMany: make("ideaVote", "findMany") },
     savedJob: { findMany: make("savedJob", "findMany") },
+    notificationPreference: { findMany: make("notificationPreference", "findMany") },
   };
   return { db: db as unknown as PrismaClient, calls };
 }
@@ -89,6 +90,7 @@ describe("buildAccountExport", () => {
       "lessonCompletions",
       "ideaVotes",
       "savedJobs",
+      "notificationPreferences",
     ] as const) {
       expect(payload).toHaveProperty(key);
     }
@@ -153,6 +155,26 @@ describe("buildAccountExport", () => {
     expect(sj).toBeDefined();
     expect((sj?.args.where as { freelancer?: { userId?: string } }).freelancer?.userId).toBe(ACTOR);
     expect(sj?.args.select).toEqual({ jobId: true, createdAt: true });
+  });
+
+  it("neemt de eigen e-mailkanaal-voorkeuren mee, gescopet op de actor (AVG art. 15/20; spiegel van de NotificationPreference-erasure)", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const np = calls.find((c) => c.table === "notificationPreference");
+    // Rood zonder de bronwijziging: buildAccountExport bevroeg NotificationPreference nooit, terwijl
+    // `anonymizeUser` de rijen wél wist → een inzage/erasure-asymmetrie (art. 15/20). Deze assert eist
+    // dat de export het eigen kanaalvoorkeur-record leest.
+    expect(np).toBeDefined();
+    // Uitsluitend de eigen opt-out-keuzes — nooit die van een ander.
+    expect((np?.args.where as Record<string, unknown>).userId).toBe(ACTOR);
+    // Categorie + de aan/uit-vlag + tijdstempels; geen bredere PII.
+    expect(np?.args.select).toEqual({
+      category: true,
+      emailEnabled: true,
+      createdAt: true,
+      updatedAt: true,
+    });
   });
 
   it("neemt alleen door de actor geschreven ondersteuningsberichten mee (geen admin-antwoorden)", async () => {

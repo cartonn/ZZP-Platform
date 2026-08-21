@@ -4,6 +4,46 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-21 (basis: `main` @ b32f50d5) — 1× OPGELOST (inzage/erasure-asymmetrie: NotificationPreference)
+
+Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(1) authz/IDOR/functie-autorisatie + multi-tenant-isolatie, (2) injectie/SSRF/upload/secrets/headers/CSP/
+open-redirect/CSRF + `npm audit`, (3) privacy/AVG (erasure↔export-symmetrie via volledige schema-modelsweep,
+dataminimalisatie/PII-over-fetch, cross-party/cross-tenant, audit-logging, k-anonimiteit, retentie, derden),
+(4) auth/sessie/tokens/rate-limiting/CSRF/mass-assignment/account-status. Delta t.o.v. de vorige ronde:
+5 commits (`c6bce01e..b32f50d5` — e-mail-CRLF-fix + 2× erasure, dispute-escalatie-detector, ZZP-etalage
+vaardigheidsfilter, renewal-badge op /samenwerkingen, betaalgedrag-CSV-export). `npm audit`: **0 vulnerabilities**.
+
+**Uitkomst:** authz/IDOR/tenant-isolatie **schoon** (documenten/dossiers/DBA-PDF/cascade-geld-mutaties/
+franchise-oversight/admin-gating getraceerd — geen object-level/IDOR/cross-tenant-gat). Injectie/SSRF/
+upload/secrets **schoon** (CSV/ICS/e-mail-header-saneringen consistent toegepast, geen `$queryRawUnsafe`,
+SSRF-hosts hardcoded, uploads magic-byte-gevalideerd, geen gecommitte secrets). Auth/sessie/headers **schoon**
+(live-DB-herverificatie, reset-token 256-bit/eenmalig/1u, rate-limiters fail-closed, geen mass-assignment,
+SameSite=Lax + strict-CSP-nonce, geen open redirect). Privacy/AVG vond **1× MIDDEL** inzage/erasure-asymmetrie
+(hieronder OPGELOST) + 2 reeds-geparkeerde FG-items herbevestigd (KvK op publiek profiel; TaxFilingRequest-erasure).
+
+### OPGELOST — `NotificationPreference` ontbrak in `buildAccountExport` terwijl erasure het wist (MIDDEL · AVG art. 15/20 · CLAUDE.md regel 5)
+
+**Geschonden regel:** AVG art. 15/20 (inzage/portabiliteit) — een door de betrokkene zélf gemaakte keuze
+(per e-mailcategorie opt-out) is een eigen persoonsgegeven en moet in de zelf-export zichtbaar zijn. De
+erasure wist het wél (`anonymizeUser` → `notificationPreference.deleteMany`, `admin/gebruikers/actions.ts:693`),
+dus een inzage/erasure-asymmetrie: het platform verwerkt het gegeven, verwijdert het op verzoek, maar toont
+het niet in de inzage. Zelfde asymmetrie-klasse als de reeds-gefixte InvoiceLine/AvailabilityWindow/SavedJob.
+
+**Repro (vóór de fix):** een gebruiker zet op `/instellingen` een e-mailcategorie (bv. `payment`/`invoice`/
+`vat`/`dba`) uit → er ontstaat een `NotificationPreference`-rij (`category`, `emailEnabled=false`). Bij een
+inzageverzoek via `GET /api/account/export` (`buildAccountExport`) ontbreekt elke `notificationPreferences`-
+sectie — de gebruiker kan zijn eigen opt-out-keuzes niet inzien of meenemen (portabiliteit), terwijl ze wel
+zijn opgeslagen en op verzoek worden gewist.
+
+**Fix (dit PR):** `buildAccountExport` (`src/lib/account-export.ts`) leest nu
+`notificationPreference.findMany({ where: { userId: actorId }, select: { category, emailEnabled, createdAt,
+updatedAt } })` en neemt het op als `notificationPreferences` in de payload/interface — strikt gescopet op de
+eigen `userId` (spiegel van `pushSubscriptions`, óók een eigen kanaalrecord). **Tests (rood→groen):**
+`account-export.test.ts` — de present-keys-lus eist nu `notificationPreferences`, en een nieuwe scoping-test
+asserteert `where.userId === actor` + de smalle select (rood zonder de bronwijziging: de `notificationPreference`-
+call ontbreekt in de fake-Prisma-calllijst → `find(...) === undefined`).
+
 ## Ronde 2026-08-20 (basis: `main` @ a84aad94) — 3× OPGELOST (e-mail-CRLF-injectie + 2× erasure-restanten)
 
 Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
