@@ -1,5 +1,12 @@
 // Cascade-keten stappen — puur, geen React. Bouwt de visuele voortgangsstappen (contract →
-// prestatie → factuur → betaling) op basis van de huidige status van een samenwerking.
+// prestatie → factuur → betaling) op basis van de HUIDIGE cyclus van een samenwerking.
+//
+// Belangrijk (spiegelt src/lib/cascade/stage.ts): `performances` en `invoices` komen `createdAt desc`
+// binnen (zie de query in samenwerkingen/[id]/page.tsx), dus index 0 is telkens het MEEST RECENTE
+// record. We evalueren daarom de nieuwste prestatie/factuur — niet `.some()` over de volledige
+// historie. Anders zou op een multi-cyclus ACTIVE-samenwerking (cyclus 1 betaald, cyclus 2 verse
+// uren) de stepper "Prestatie: Goedgekeurd" + "Factuur: Betaald" tonen terwijl de status-line op
+// hetzelfde scherm de cyclus-2-actie toont — een zichzelf tegensprekend scherm.
 
 export type ChainStepStatus = "done" | "active" | "waiting" | "error";
 
@@ -11,8 +18,18 @@ export interface ChainStep {
 
 export function buildChainSteps(col: {
   status: string;
+  /** `createdAt desc`: index 0 is de meest recente prestatie. */
   performances: Array<{ status: string }>;
+  /** `createdAt desc`: index 0 is de meest recente factuur. */
   invoices: Array<{ lifecycleStatus: string | null }>;
+  /**
+   * Is de meest recente prestatie nieuwer dan de meest recente factuur? Zo ja, dan hoort die factuur
+   * bij een vorige cyclus en telt ze niet voor de huidige fase: de ZZP'er heeft na een betaalde
+   * cyclus nieuwe uren ingediend. Zonder deze vlag zou een PAID-factuur van cyclus 1 de verse
+   * cyclus-2-uren maskeren met "Factuur betaald · niets te doen". Default false (single-cyclus).
+   * Berekend via `isPerformanceNewerThanInvoice` in stage.ts — dezelfde bron als de status-line.
+   */
+  performanceNewerThanInvoice?: boolean;
 }): ChainStep[] {
   const steps: ChainStep[] = [];
 
@@ -24,56 +41,59 @@ export function buildChainSteps(col: {
     detail: contractDone ? "Getekend" : "Wachten op ondertekening",
   });
 
-  // Stap 2: Prestatie (uren / oplevering)
-  const perfs = col.performances;
+  // Stap 2: Prestatie (uren / oplevering) — volgt de NIEUWSTE prestatie (huidige cyclus).
+  const latestPerf = col.performances[0]?.status ?? null;
   let perfStatus: ChainStepStatus = "waiting";
   let perfDetail = "Nog geen uren of oplevering ingediend";
   if (!contractDone) {
     perfStatus = "waiting";
     perfDetail = "Volgt na contract";
-  } else if (perfs.some((p) => p.status === "APPROVED")) {
+  } else if (latestPerf === "APPROVED") {
     perfStatus = "done";
     perfDetail = "Goedgekeurd";
-  } else if (perfs.some((p) => p.status === "SUBMITTED")) {
+  } else if (latestPerf === "SUBMITTED") {
     perfStatus = "active";
     perfDetail = "Ter goedkeuring";
-  } else if (perfs.some((p) => p.status === "REJECTED")) {
+  } else if (latestPerf === "REJECTED") {
     perfStatus = "error";
     perfDetail = "Afgekeurd — nieuw indienen";
-  } else if (perfs.length > 0) {
+  } else if (latestPerf !== null) {
+    // DRAFT (of elke andere niet-terminale concept-status)
     perfStatus = "active";
     perfDetail = "Concept aangemaakt";
   }
   steps.push({ label: "Prestatie", status: perfStatus, detail: perfDetail });
 
-  // Stap 3: Factuur
-  const invs = col.invoices.filter((i) => i.lifecycleStatus);
+  // Stap 3: Factuur — beoordeel de factuur van de HUIDIGE cyclus. Een vorige-cyclus-factuur wordt
+  // genuld zodra de nieuwste prestatie nieuwer is (spiegelt `inv` in stage.ts); zo maskeert een
+  // betaalde cyclus-1-factuur nooit de verse, nog te factureren cyclus-2-uren.
+  const inv = col.performanceNewerThanInvoice ? null : (col.invoices[0]?.lifecycleStatus ?? null);
   let invStatus: ChainStepStatus = "waiting";
   let invDetail = "Volgt na goedkeuring prestatie";
-  if (invs.some((i) => ["PAID", "PROCESSED"].includes(i.lifecycleStatus!))) {
+  if (inv === "PAID" || inv === "PROCESSED") {
     invStatus = "done";
     invDetail = "Betaald";
-  } else if (invs.some((i) => i.lifecycleStatus === "APPROVED")) {
+  } else if (inv === "APPROVED") {
     invStatus = "active";
     invDetail = "Goedgekeurd — wachten op betaling";
-  } else if (invs.some((i) => i.lifecycleStatus === "SUBMITTED")) {
+  } else if (inv === "SUBMITTED") {
     invStatus = "active";
     invDetail = "Ter goedkeuring";
-  } else if (invs.some((i) => i.lifecycleStatus === "REJECTED")) {
+  } else if (inv === "REJECTED") {
     invStatus = "error";
     invDetail = "Afgekeurd";
-  } else if (invs.some((i) => i.lifecycleStatus === "OVERDUE")) {
+  } else if (inv === "OVERDUE") {
     invStatus = "error";
     invDetail = "Vervallen — betaling te laat";
-  } else if (invs.some((i) => i.lifecycleStatus === "DRAFT")) {
+  } else if (inv === "DRAFT") {
     invStatus = "active";
     invDetail = "Concept — nog niet ingediend";
   }
   steps.push({ label: "Factuur", status: invStatus, detail: invDetail });
 
-  // Stap 4: Betaling
-  const paid = invs.some((i) => ["PAID", "PROCESSED"].includes(i.lifecycleStatus!));
-  const invApproved = invs.some((i) => i.lifecycleStatus === "APPROVED");
+  // Stap 4: Betaling — op dezelfde huidige-cyclus-factuur (`inv`).
+  const paid = inv === "PAID" || inv === "PROCESSED";
+  const invApproved = inv === "APPROVED";
   steps.push({
     label: "Betaling",
     status: paid ? "done" : invApproved ? "active" : "waiting",

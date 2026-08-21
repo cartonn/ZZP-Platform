@@ -19,9 +19,10 @@ import { type FreelancerCredential } from "@/lib/matching";
 import {
   CREDENTIAL_TYPE_LABEL,
   rosterExpiringByProfile,
+  rosterExpiredByProfile,
   supersededVerifiedCredentialIds,
 } from "@/lib/credentials";
-import { type CredentialType } from "@/lib/enums";
+import { type CredentialType, type CredentialStatus } from "@/lib/enums";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import {
   credentialCollabWhere,
@@ -73,6 +74,7 @@ import {
   draftJobsTask,
   jobNeedsAttentionTask,
   franchiseCredentialExpiryTask,
+  franchiseCredentialExpiredTask,
   franchiseAcuteDienstTask,
   franchiseLeadFollowupTask,
   franchiseNotEngageableTask,
@@ -1256,6 +1258,7 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
 
   const [
     expiringRosterCreds,
+    expiredRosterCreds,
     dueLeads,
     openDiensten,
     roster,
@@ -1281,6 +1284,26 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
         freelancerProfile: { tenantId },
         status: "VERIFIED",
         expiresAt: { gte: now, lte: soon },
+      },
+      select: {
+        freelancerProfileId: true,
+        freelancerProfile: { select: { user: { select: { name: true } } } },
+      },
+      orderBy: { expiresAt: "asc" },
+      take: MAX,
+    }),
+    // De REEDS verlopen, NIET-verplichte VERIFIED/EXPIRED-certs van tenant-ZZP'ers — de tegenhanger
+    // van `expiringRosterCreds`, zodat het compliance-signaal niet verdwijnt zodra een cert de
+    // vervaldatum passeert (persona-sweep: de "verloopt binnenkort"-taak viel weg juist toen de gap
+    // actief werd). Verval is server-berekend: `status = EXPIRED` (batch-geflipt) óf een VERIFIED-cert
+    // waarvan `expiresAt < now` (computed, tussen de expiry-cron-runs door). Verplichte typen
+    // (VOG/verzekering) blijven buiten scope: die dekt de engageability-tak al. Alleen kandidaat-
+    // profielen selecteren; de dekkende (nu-geldige) certs volgen hierna op een gescopete query.
+    prisma.credential.findMany({
+      where: {
+        freelancerProfile: { tenantId },
+        type: { notIn: [...MANDATORY_CREDENTIAL_TYPES] },
+        OR: [{ status: "EXPIRED" }, { status: "VERIFIED", expiresAt: { lt: now } }],
       },
       select: {
         freelancerProfileId: true,
@@ -1475,6 +1498,39 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     );
     for (const e of rosterExpiry)
       tasks.push(franchiseCredentialExpiryTask(e.profileId, e.name, e.count));
+  }
+
+  // Zelfde patroon voor de REEDS verlopen roster-certs: per kandidaat-ZZP'er alle VERIFIED/EXPIRED-
+  // certs ophalen (verlopen exemplaren om te tellen + nu-geldige om dekking van hetzelfde type te
+  // detecteren). `rosterExpiredByProfile` past de computed verval-grens (`expiresAt <= now`) en de
+  // dekkings- én verplicht-type-uitsluiting toe, zodat een cert nooit tegelijk als "binnenkort" én
+  // "verlopen" telt (mutueel exclusief op exact dezelfde grens die de "binnenkort"-tak hanteert).
+  const expiredCandidateNames = new Map<string, string>();
+  for (const c of expiredRosterCreds)
+    expiredCandidateNames.set(c.freelancerProfileId, c.freelancerProfile.user.name ?? "ZZP'er");
+
+  if (expiredCandidateNames.size > 0) {
+    const expiredCoverCreds = await prisma.credential.findMany({
+      where: {
+        status: { in: ["VERIFIED", "EXPIRED"] },
+        freelancerProfileId: { in: [...expiredCandidateNames.keys()] },
+      },
+      select: { id: true, type: true, status: true, expiresAt: true, freelancerProfileId: true },
+    });
+    const rosterExpired = rosterExpiredByProfile(
+      expiredCoverCreds.map((c) => ({
+        id: c.id,
+        type: c.type,
+        status: c.status as CredentialStatus,
+        expiresAt: c.expiresAt,
+        freelancerProfileId: c.freelancerProfileId,
+        freelancerName: expiredCandidateNames.get(c.freelancerProfileId) ?? "ZZP'er",
+      })),
+      now,
+      MANDATORY_CREDENTIAL_TYPES,
+    );
+    for (const e of rosterExpired)
+      tasks.push(franchiseCredentialExpiredTask(e.profileId, e.name, e.count));
   }
 
   if (dueLeads > 0) tasks.push(franchiseLeadFollowupTask(dueLeads));

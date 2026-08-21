@@ -10,6 +10,7 @@ import {
   isExpired,
   isExpiringSoon,
   rosterExpiringByProfile,
+  rosterExpiredByProfile,
   statusForDecision,
   supersededVerifiedCredentialIds,
   TransitionError,
@@ -354,6 +355,191 @@ describe("rosterExpiringByProfile", () => {
       ],
       now,
       soon,
+    );
+    expect(result).toEqual([]);
+  });
+});
+
+describe("rosterExpiredByProfile", () => {
+  const now = new Date("2026-07-30T00:00:00Z");
+  const past = new Date("2026-07-01T00:00:00Z"); // al verlopen
+  const morePast = new Date("2026-06-01T00:00:00Z"); // eerder verlopen
+  const future = new Date("2026-09-01T00:00:00Z"); // nu geldig
+  const MANDATORY = ["VOG", "INSURANCE"] as const;
+
+  it("telt een VERIFIED-cert met een verleden vervaldatum (niet-verplicht type) als verlopen", () => {
+    const result = rosterExpiredByProfile(
+      [
+        {
+          id: "c1",
+          type: "LICENSE",
+          status: "VERIFIED",
+          expiresAt: past, // feitelijk verlopen, nog niet batch-geflipt
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+      ],
+      now,
+      MANDATORY,
+    );
+    expect(result).toEqual([{ profileId: "p1", name: "Sanne", count: 1 }]);
+  });
+
+  it("telt een EXPIRED-status cert (batch-geflipt) als verlopen", () => {
+    const result = rosterExpiredByProfile(
+      [
+        {
+          id: "c1",
+          type: "BIG",
+          status: "EXPIRED",
+          expiresAt: past,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+      ],
+      now,
+      MANDATORY,
+    );
+    expect(result).toEqual([{ profileId: "p1", name: "Sanne", count: 1 }]);
+  });
+
+  it("telt een verlopen exemplaar NIET zodra een nu-geldig cert van hetzelfde type de compliance dekt", () => {
+    const result = rosterExpiredByProfile(
+      [
+        {
+          id: "oud",
+          type: "BIG",
+          status: "EXPIRED",
+          expiresAt: past,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+        {
+          id: "nieuw",
+          type: "BIG",
+          status: "VERIFIED",
+          expiresAt: future, // vernieuwd, nu geldig → dekt het type
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+      ],
+      now,
+      MANDATORY,
+    );
+    expect(result).toEqual([]); // geen valse verleng-nudge
+  });
+
+  it("dekt met een onbeperkt-geldig vervangend cert (geen vervaldatum)", () => {
+    const result = rosterExpiredByProfile(
+      [
+        {
+          id: "oud",
+          type: "BIG",
+          status: "VERIFIED",
+          expiresAt: past,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+        {
+          id: "eeuwig",
+          type: "BIG",
+          status: "VERIFIED",
+          expiresAt: null,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+      ],
+      now,
+      MANDATORY,
+    );
+    expect(result).toEqual([]);
+  });
+
+  it("sluit verplichte typen uit (engageability dekt VOG/verzekering al)", () => {
+    const result = rosterExpiredByProfile(
+      [
+        {
+          id: "vog",
+          type: "VOG",
+          status: "EXPIRED",
+          expiresAt: past,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+        {
+          id: "verz",
+          type: "INSURANCE",
+          status: "VERIFIED",
+          expiresAt: past,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+      ],
+      now,
+      MANDATORY,
+    );
+    expect(result).toEqual([]);
+  });
+
+  it("telt niet-verplichte niet-gedekte typen per ZZP'er en scheidt de tellingen", () => {
+    const result = rosterExpiredByProfile(
+      [
+        {
+          id: "lic",
+          type: "LICENSE",
+          status: "VERIFIED",
+          expiresAt: past,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+        {
+          id: "big",
+          type: "BIG",
+          status: "EXPIRED",
+          expiresAt: morePast,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+        {
+          id: "cert",
+          type: "CERTIFICATE",
+          status: "VERIFIED",
+          expiresAt: past,
+          freelancerProfileId: "p2",
+          freelancerName: "Jeroen",
+        },
+      ],
+      now,
+      MANDATORY,
+    );
+    expect(result).toEqual([
+      { profileId: "p1", name: "Sanne", count: 2 },
+      { profileId: "p2", name: "Jeroen", count: 1 },
+    ]);
+  });
+
+  it("negeert nu-geldige en onbeperkt-geldige certs (nog niet verlopen)", () => {
+    const result = rosterExpiredByProfile(
+      [
+        {
+          id: "geldig",
+          type: "LICENSE",
+          status: "VERIFIED",
+          expiresAt: future,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+        {
+          id: "onbeperkt",
+          type: "BIG",
+          status: "VERIFIED",
+          expiresAt: null,
+          freelancerProfileId: "p1",
+          freelancerName: "Sanne",
+        },
+      ],
+      now,
+      MANDATORY,
     );
     expect(result).toEqual([]);
   });

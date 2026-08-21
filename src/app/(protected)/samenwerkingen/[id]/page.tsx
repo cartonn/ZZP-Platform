@@ -301,6 +301,14 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       );
   }
 
+  // Eén bron voor de cyclus-recency: is de nieuwste prestatie nieuwer dan de nieuwste factuur? Zo ja,
+  // dan hoort die factuur bij een vorige cyclus. Zowel de status-line als de voortgang-stepper delen
+  // deze berekening — anders zouden ze op een multi-cyclus-samenwerking uit elkaar lopen (drift).
+  const performanceNewerThanInvoice = isPerformanceNewerThanInvoice(
+    col.performances[0]?.createdAt ?? null,
+    col.invoices[0]?.createdAt ?? null,
+  );
+
   // Eén status-regel bovenaan: "wat wordt er nú van wie verwacht?" — hergebruikt de cascade-fase.
   // Zo opent het detail met handelingsperspectief in plaats van met het no-show-blok (dat is
   // verplaatst naar onderaan). Alleen voor de betrokken partijen.
@@ -314,10 +322,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         latestPerformanceStatus: (col.performances[0]?.status ?? null) as PerformanceState | null,
         latestInvoiceStatus: (col.invoices[0]?.lifecycleStatus ??
           null) as InvoiceLifecycleState | null,
-        performanceNewerThanInvoice: isPerformanceNewerThanInvoice(
-          col.performances[0]?.createdAt ?? null,
-          col.invoices[0]?.createdAt ?? null,
-        ),
+        performanceNewerThanInvoice,
       })
     : null;
 
@@ -498,7 +503,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       {/* Cascade-keten: visuele voortgang van contract t/m betaling */}
       {col.status !== "CANCELLED" &&
         (() => {
-          const steps = buildChainSteps(col);
+          const steps = buildChainSteps({ ...col, performanceNewerThanInvoice });
           return (
             <Card>
               <CardContent className="py-4">
