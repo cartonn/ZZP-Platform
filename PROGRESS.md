@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-21 — routine: openstaand-bedrag per opdrachtgever op de bemiddelaar-lijst
+
+**Wat (bemiddelaar):** de opdrachtgevers-lijst `/franchise/opdrachtgevers` toonde per klant de
+relatiegezondheid + de **betaalgedrag-reputatie** (#1180: "betaalt vaak laat"), maar niet het
+concrete **openstaande bedrag / te-laat-bedrag** — juist het cijfer dat een pool-manager nodig heeft
+om cashflow te bewaken: de reputatie-chip is kwalitatief, "€2.400 open · €900 > 30 dagen te laat" is
+direct actiegericht. Nu een pool-headline ("Openstaand bij de pool: €X · waarvan €Y te laat bij N
+opdrachtgevers") plus per klant het openstaande bedrag rechts + een `€… te laat`-badge (zwaarste-
+bucket-toon) alleen wanneer er iets te laat is. Verbergt zich volledig als er niets openstaat.
+
+**Hoe:** nieuwe pure `src/lib/franchise/client-outstanding.ts` (`clientOutstandingByCompany` +
+`poolOutstandingTotals`) hergebruikt bewust de canonieke aging-motor (`buildAgingReport`) → de
+bedragen en de zwaarste-bucket-classificatie zijn byte-identiek aan de `/openstaand`-pagina, geen
+tweede definitie. De lijst laadt in de bestaande `Promise.all` de openstaande facturen van de pool
+(`outstandingInvoiceWhere` + `collaboration.companyId in ids`, tenant-gescopet), groepeert per
+opdrachtgever en tekent de map per rij (O(1)-lookup). Read-only, geen schema-/mutatie-/authz-
+oppervlak; alleen geaggregeerde bedragen van de eigen pool. +6 tests. Gate: typecheck, lint, test,
+build, prettier groen. PR #1181.
+
+**Bestanden:** `src/app/(protected)/franchise/opdrachtgevers/page.tsx`,
+`src/lib/franchise/client-outstanding.ts`, `src/lib/franchise/client-outstanding.test.ts`,
+`PROGRESS.md`.
+
 ## 2026-08-21 — routine: betaalgedrag-signaal op de bemiddelaar-opdrachtgeverslijst
 
 **Wat (bemiddelaar):** de opdrachtgevers-lijst `/franchise/opdrachtgevers` toonde per klant de
