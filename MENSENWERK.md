@@ -269,6 +269,21 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   instelbaar via `HEALTH_PROBE_TIMEOUT_MS` (`0` = bewust uit). Zie RUNBOOK §monitoring. Resterend
   mensenwerk: **niets** — werkt out-of-the-box.
 
+- **`/api/metrics`-scrape gehard (bounded-parallel + harde deadline)** (laag, code-kant GEDAAN
+  2026-08-21): de Prometheus-scrape verzamelt ~18 onafhankelijke backlog-tellingen. Die liepen tot nu toe
+  **strikt serieel en zónder deadline** — anders dan de health/readiness-probes (die kregen al
+  `withProbeTimeout`) en álle uitgaande HTTP (`fetchWithTimeout`). Een trage/gelockte DB liet zo elke
+  scrape stapelen en Prisma-connecties vasthouden (dezelfde hang-klasse). De collectie loopt nu
+  **bounded-parallel** (`METRICS_COLLECT_CONCURRENCY`, default 4 — laag genoeg om de connectiepool niet te
+  monopoliseren) achter een **harde deadline** (`METRICS_COLLECT_TIMEOUT_MS`, default 5000 ms, geklemd
+  [250, 30000]; `0`/`off` = bewust uit) via de gedeelde `src/lib/observability/metrics-collect.ts` +
+  `probe-timeout.ts`. Overschrijdt de collectie de deadline, dan wordt de scrape **afgekapt**: de reeds
+  afgeronde tellingen gaan de deur uit, de rest houdt zijn default (0), en de nieuwe gauge
+  `zzp_metrics_collection_complete` gaat op **0** zodat een monitor die vals-lage nullen niet als gezond
+  leest (nieuwe alert `ZzpMetricsCollectionIncomplete`, in de onderhouds-inhibitie). Fail-safe defaults +
+  drift-vrije where-clauses ongewijzigd. Zie RUNBOOK §2a. Resterend mensenwerk: **niets** — werkt
+  out-of-the-box; optioneel de twee env-knoppen bijstellen.
+
 - **Semantische matching (pgvector): stille-degradatie-gat gedicht** (laag, code-kant GEDAAN
   2026-08-16): `SEMANTIC_MATCHER=pgvector` was de enige env-selecteerbare driver die de "halve
   activering is gevaarlijker dan geen"-regel (CLAUDE.md §8) ontweek — de pgvector-matcher gooit

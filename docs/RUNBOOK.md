@@ -97,6 +97,16 @@ Naast de liveness-probe exposeert `GET /api/metrics` machine-leesbare gauges (Pr
   moet écht bestaan, en de onderhouds-inhibitie moet **elke** operationele alert dekken — een nieuwe alert
   in `alerts.yml` die niet aan de inhibitie wordt toegevoegd breekt de poort (zodat 'ie niet stil door de
   onderhouds-demping heen paget).
+- **Scrape-hardening (bounded-parallel + deadline):** de scrape verzamelt ~18 onafhankelijke
+  backlog-tellingen. Die lopen **bounded-parallel** (env `METRICS_COLLECT_CONCURRENCY`, default 4 — laag
+  genoeg om de Prisma-connectiepool niet te monopoliseren) achter een **harde deadline**
+  (`METRICS_COLLECT_TIMEOUT_MS`, default 5000 ms, geklemd [250, 30000]; `0`/`off` schakelt de deadline
+  bewust uit). Zonder deze grens laat een trage/gelockte DB elke scrape stapelen en connecties vasthouden
+  — dezelfde hang-klasse die de health/readiness-probes al met `withProbeTimeout` afvangen. Overschrijdt de
+  DB-collectie de deadline, dan wordt de scrape **afgekapt**: de reeds afgeronde tellingen worden
+  geëxposeerd, de rest houdt zijn default (0), en de gauge `zzp_metrics_collection_complete` gaat op **0**
+  zodat een monitor die vals-lage nullen **niet** als gezond leest (alert `ZzpMetricsCollectionIncomplete`).
+  Bij 1 rondde de collectie volledig binnen de deadline af.
 
 ### 2b. Semantische matching (pgvector) provisioneren
 

@@ -73,6 +73,8 @@ describe("GET /api/metrics", () => {
     process.env.CRON_SECRET = SECRET;
     delete process.env.MAINTENANCE_MODE;
     delete process.env.PERFORMANCE_GRACE_DAYS;
+    delete process.env.METRICS_COLLECT_TIMEOUT_MS;
+    delete process.env.METRICS_COLLECT_CONCURRENCY;
   });
 
   it("geeft 503 zonder CRON_SECRET", async () => {
@@ -257,6 +259,25 @@ describe("GET /api/metrics", () => {
     expect(body).toContain("zzp_db_reachable 0");
     expect(countMock).not.toHaveBeenCalled();
     expect(subscriptionCountMock).not.toHaveBeenCalled();
+  });
+
+  it("meldt zzp_metrics_collection_complete 1 als de collectie binnen de deadline afrondt", async () => {
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    const body = await res.text();
+    expect(body).toContain("zzp_metrics_collection_complete 1");
+  });
+
+  it("kapt de scrape af bij een te trage DB (deadline) → collection_complete 0, nog steeds 200", async () => {
+    // Eén backlog-telling hangt voorbij de deadline; withProbeTimeout verwerpt de race met een
+    // ProbeTimeoutError. De route houdt de reeds-afgeronde tellingen, zet de rest op default, en flipt
+    // zzp_metrics_collection_complete → 0 zodat een monitor de vals-lage nullen niet als gezond leest.
+    process.env.METRICS_COLLECT_TIMEOUT_MS = "250"; // minimaal geklemde deadline (probe-range)
+    invoiceCountMock.mockImplementationOnce(() => new Promise<number>(() => {})); // rondt nooit af
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain("zzp_metrics_collection_complete 0");
+    expect(body).toContain("zzp_db_reachable 1");
   });
 
   it("markeert een stale cron-heartbeat als stale=1", async () => {

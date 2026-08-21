@@ -40,6 +40,16 @@ export const AGE_NEVER = -1;
 export interface MetricsInput {
   /** Is de database bereikbaar (SELECT 1 geslaagd)? */
   dbReachable: boolean;
+  /**
+   * Rondde de DB-collectie álle backlog-tellingen af binnen de scrape-deadline
+   * (METRICS_COLLECT_TIMEOUT_MS)? true = compleet; false = de scrape werd afgekapt (een trage/gelockte
+   * DB overschreed de deadline), waardoor sommige backlog-gauges hun default (0) houden zónder dat hun
+   * query afrondde. KRITIEK voor de interpretatie: bij false mag een monitor de backlog-nullen NIET als
+   * gezond lezen (vals-negatief) — daarom een eigen alarmeerbaar signaal i.p.v. stil degraderen. De
+   * cron-/backup-heartbeats en dbReachable staan hier los van; deze vlag zegt alleen iets over de
+   * volledigheid van de per-scrape DB-tellingen.
+   */
+  metricsCollectionComplete: boolean;
   /** Leeftijd van de laatste geplande-taken-cron-run in seconden, of null als 'ie nog nooit draaide. */
   cronAgeSeconds: number | null;
   /** Draaide de laatste cron-run zonder taakfouten? null als er nog nooit een run was. */
@@ -364,6 +374,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "1 als de database bereikbaar was (SELECT 1 geslaagd), anders 0.",
       type: "gauge",
       value: flag(input.dbReachable),
+    },
+    {
+      name: "zzp_metrics_collection_complete",
+      help: "1 als de DB-collectie alle backlog-tellingen binnen de scrape-deadline (METRICS_COLLECT_TIMEOUT_MS) afrondde, 0 als de scrape werd afgekapt door een trage/gelockte DB. Bij 0 houden sommige backlog-gauges hun default (0) zonder afgeronde query — lees die nullen dan NIET als gezond (vals-negatief).",
+      type: "gauge",
+      value: input.metricsCollectionComplete ? 1 : 0,
     },
     {
       name: "zzp_cron_heartbeat_age_seconds",

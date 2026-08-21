@@ -68,6 +68,22 @@ groups:
         annotations:
           summary: "Database onbereikbaar"
           description: "De app kan de database niet bereiken (zzp_db_reachable=0). Zie RUNBOOK §6 (incident-respons)."
+      - alert: ZzpMetricsCollectionIncomplete
+        # De /api/metrics-scrape verzamelt ~18 onafhankelijke backlog-tellingen; die lopen nu bounded-
+        # parallel achter een harde deadline (METRICS_COLLECT_TIMEOUT_MS). Overschrijdt een trage/gelockte
+        # DB die deadline, dan wordt de scrape afgekapt en houden sommige backlog-gauges hun default (0)
+        # zónder afgeronde query — een vals-negatief dat de backlog-alerts stil zou maskeren. Deze gauge
+        # maakt dat expliciet: bij 0 mag je de backlog-nullen NIET als gezond lezen. Anders dan
+        # ZzpDatabaseUnreachable (SELECT 1 faalt volledig) vangt dit een DB die wél antwoordt maar te
+        # traag is voor de volledige tellingen-collectie binnen de deadline. `for: 15m` negeert een
+        # incidentele trage scrape; aanhoudend duidt op DB-druk (pool-contentie, lock, trage queries).
+        expr: zzp_metrics_collection_complete == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Metrics-collectie onvolledig (scrape afgekapt)"
+          description: "De /api/metrics-scrape rondde de backlog-tellingen niet binnen de deadline (METRICS_COLLECT_TIMEOUT_MS) af (zzp_metrics_collection_complete=0): een trage/gelockte DB. Sommige backlog-gauges kunnen nu vals-laag (0) staan — vertrouw ze niet tot dit herstelt. Controleer DB-druk (pool-contentie/locks/trage queries); stel eventueel METRICS_COLLECT_TIMEOUT_MS of METRICS_COLLECT_CONCURRENCY bij. Zie RUNBOOK §2a."
 
   - name: zzp-platform-dead-mans-switch
     rules:
