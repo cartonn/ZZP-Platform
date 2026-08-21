@@ -22,6 +22,13 @@ import {
 } from "@/lib/franchise/client-health";
 import { getPaymentBehaviorForCompanies } from "@/lib/data/payment-behavior";
 import { paymentTrustChip, paymentTrustChipBadgeVariant } from "@/lib/payment-behavior";
+import {
+  clientOutstandingByCompany,
+  poolOutstandingTotals,
+} from "@/lib/franchise/client-outstanding";
+import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
+import { formatEuro } from "@/lib/invoices";
+import { type AgingBucketKey } from "@/lib/administration/aging";
 
 export const metadata: Metadata = { title: "Opdrachtgevers · Bemiddeling" };
 
@@ -40,6 +47,13 @@ const FILTER_TABS: { key: string; label: string }[] = [
   { key: "actief", label: "Plaatst nu" },
   { key: "rustig", label: "Rustig" },
 ];
+
+/** Zwaarste-bucket → badge-toon; identiek aan de /openstaand-pagina (geen drift). */
+function bucketVariant(key: AgingBucketKey): "muted" | "warning" | "danger" {
+  if (key === "d61_90" || key === "d90plus") return "danger";
+  if (key === "d0_30" || key === "d31_60") return "warning";
+  return "muted";
+}
 
 export default async function FranchiseOpdrachtgeversPage({
   searchParams,
@@ -71,7 +85,7 @@ export default async function FranchiseOpdrachtgeversPage({
 
   // Twee gegroepeerde aggregaten (geen N+1) voor het relatiegezondheid-signaal: welke klanten hebben
   // een open opdracht en wanneer plaatsten ze voor het laatst werk. Tenant-gescopet via de klant-ids.
-  const [publishedJobs, collabActivity, paymentByCompany] = await Promise.all([
+  const [publishedJobs, collabActivity, paymentByCompany, outstandingInvoices] = await Promise.all([
     ids.length
       ? prisma.job.groupBy({
           by: ["companyId"],
@@ -92,9 +106,40 @@ export default async function FranchiseOpdrachtgeversPage({
     // én de eigen fee-inning. De ids zijn al tenant-gescopet (`tenantScopeWhere`), dus de scoping-eis van
     // de batch-loader (defense-in-depth) is voldaan; alleen het geaggregeerde oordeel, geen factuurdata.
     getPaymentBehaviorForCompanies(ids),
+    // Openstaande facturen van de pool-ZZP'ers per opdrachtgever: het concrete cashflowsignaal dat de
+    // betaalgedrag-reputatie mist — hoeveel staat er nú open bij deze klant en hoeveel is te laat. De
+    // facturen lopen via de samenwerking (`collaboration.companyId`); tenant-gescopet via de klant-ids.
+    // Canonieke openstaand-regel (`outstandingInvoiceWhere`) → geen drift met /openstaand.
+    ids.length
+      ? // unbounded-allow: franchise-tenant-scoped openstaande facturen; beheerbaar volume
+        prisma.invoice.findMany({
+          where: { ...outstandingInvoiceWhere, collaboration: { companyId: { in: ids } } },
+          select: {
+            totalCents: true,
+            dueAt: true,
+            collaboration: { select: { companyId: true } },
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   const now = new Date();
+  // Openstaand per opdrachtgever via de canonieke aging-motor (drift-vrij met /openstaand).
+  const outstandingByCompany = clientOutstandingByCompany(
+    outstandingInvoices.flatMap((inv) =>
+      inv.collaboration
+        ? [
+            {
+              companyId: inv.collaboration.companyId,
+              amountCents: inv.totalCents,
+              dueAt: inv.dueAt,
+            },
+          ]
+        : [],
+    ),
+    now,
+  );
+  const poolOutstanding = poolOutstandingTotals(outstandingByCompany);
   // Eén bron van waarheid met /acties + de nav-badge: dezelfde pure afleiding van de klant-activiteit.
   const activityByCompany = buildClientActivityInputs(
     companies.map((c) => ({
@@ -119,6 +164,7 @@ export default async function FranchiseOpdrachtgeversPage({
         // Alleen de beslis-relevante uitersten (op tijd / vaak laat); neutraal/onbekend → null → geen
         // chip, zodat de lijst rustig blijft (dezelfde afspraak als de ZZP'er-opdrachtenlijst).
         paymentChip: behavior ? paymentTrustChip(behavior) : null,
+        outstanding: outstandingByCompany.get(c.id) ?? null,
       };
     })
     .filter((r) => (activeFilter ? r.health === activeFilter : true));
@@ -150,6 +196,31 @@ export default async function FranchiseOpdrachtgeversPage({
       ) : (
         <>
           <ClientHealthStrip summary={summary} />
+
+          {poolOutstanding.totalOpenCents > 0 && (
+            <Card className="p-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <div>
+                  <p className="text-xs text-muted-foreground">Openstaand bij de pool</p>
+                  <p className="text-lg font-semibold tabular-nums">
+                    {formatEuro(poolOutstanding.totalOpenCents)}
+                  </p>
+                </div>
+                {poolOutstanding.overdueCents > 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Waarvan{" "}
+                    <span className="font-medium text-warning">
+                      {formatEuro(poolOutstanding.overdueCents)}
+                    </span>{" "}
+                    te laat bij{" "}
+                    {plural(poolOutstanding.clientsOverdue, "opdrachtgever", "opdrachtgevers")}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Niets te laat</p>
+                )}
+              </div>
+            </Card>
+          )}
 
           <div className="flex flex-wrap gap-2">
             {FILTER_TABS.map((tab) => {
@@ -189,7 +260,7 @@ export default async function FranchiseOpdrachtgeversPage({
             </Card>
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-              {rows.map(({ company: c, health, lastActivityAt, paymentChip }) => {
+              {rows.map(({ company: c, health, lastActivityAt, paymentChip, outstanding }) => {
                 const badge = clientHealthLabel(health);
                 return (
                   <Link
@@ -206,10 +277,24 @@ export default async function FranchiseOpdrachtgeversPage({
                             {paymentChip.label}
                           </Badge>
                         )}
+                        {outstanding && outstanding.overdueCount > 0 && (
+                          <Badge variant={bucketVariant(outstanding.worstBucket)}>
+                            {formatEuro(outstanding.overdueCents)} te laat
+                          </Badge>
+                        )}
                       </div>
                       <p className="truncate text-sm text-muted-foreground">{c.user.email}</p>
                     </div>
                     <p className="shrink-0 text-right text-xs text-muted-foreground">
+                      {outstanding ? (
+                        <>
+                          <span className="font-medium tabular-nums text-foreground">
+                            {formatEuro(outstanding.totalOpenCents)}
+                          </span>{" "}
+                          openstaand
+                          <br />
+                        </>
+                      ) : null}
                       {plural(c._count.departments, "afdeling", "afdelingen")} ·{" "}
                       {plural(c._count.jobs, "dienst", "diensten")}
                       <br />
