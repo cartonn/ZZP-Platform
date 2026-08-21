@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-21 — routine: grootste-knelpunt op de opdracht-bereikkaart (opdrachtgever)
+
+**Wat (opdrachtgever):** de bereikkaart (`JobReachCard`) op een gepubliceerde opdracht toont al
+hoeveel passende, vindbare ZZP'ers de opdracht bereikt en gaf een **generieke** sturingstip
+("een hoger tarief, minder verplichte eisen of een flexibelere werkvorm..."). Die tip is nu
+**concreet en data-gedreven**: bij niet-goed bereik toont de kaart het grootste knelpunt in de
+eigen pool — welke enkele eis het meest voorkomende minpunt is bij de passende-maar-nog-niet-
+sterk-beschikbare ZZP'ers (vereist certificaat / vereiste skills / tarief boven budget / werkmodus
+/ reistijd / branche / beschikbaarheid) — met telling en een gerichte actie ("Het tarief van 7
+passende ZZP'ers ligt boven je budget. Een hoger maximumtarief vergroot je keuze."). Benchmark:
+Pidz/Zorgwerk tonen enkel een count; wij maken de drempel verklaarbaar zodat de opdrachtgever
+gericht bijstuurt vóór de opdracht koud wordt.
+
+**Hoe:** nieuwe pure `src/lib/job-reach-bottleneck.ts` (`categorizeReachGap` +
+`summarizeReachBottleneck`) categoriseert de bestaande, verklaarbare match-gap-labels (uit
+`computeMatchScore`, ongewijzigd) en telt de dominante categorie in de conversie-pool (score
+≥ `REACH_MIN_SCORE`, nog niet sterk-én-beschikbaar). Gelijkspel breekt op een vaste prioriteit
+(certificaat als hardste blokkade eerst); nooit over-claimen op een enkeling (min. 2 ZZP'ers →
+anders `null`). `getJobReach` verzamelt per kandidaat `topGapReasonComplianceFirst` en geeft naast
+de `ReachSummary` nu een `bottleneck` mee (`JobReach`-type); de kaart toont het alleen wanneer het
+bereik niet "goed" is. Geen wijziging aan de matchmotor/domeinmotor; read-only, geen schema-/
+mutatie-/authz-oppervlak; alleen geaggregeerde tellingen van de eigen tenant-pool. +18 tests. Gate:
+typecheck, lint, test (6526), build, prettier groen. PR #1182.
+
+**Bestanden:** `src/lib/job-reach-bottleneck.ts`, `src/lib/job-reach-bottleneck.test.ts`,
+`src/lib/data/job-reach.ts`, `src/components/jobs/job-reach-card.tsx`, `PROGRESS.md`.
+
 ## 2026-08-21 — routine: openstaand-bedrag per opdrachtgever op de bemiddelaar-lijst
 
 **Wat (bemiddelaar):** de opdrachtgevers-lijst `/franchise/opdrachtgevers` toonde per klant de
