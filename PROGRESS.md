@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-21 — routine: betaalgedrag-signaal op de bemiddelaar-opdrachtgeverslijst
+
+**Wat (bemiddelaar):** de opdrachtgevers-lijst `/franchise/opdrachtgevers` toonde per klant de
+**relatiegezondheid** (activiteit: plaatst nu / stilgevallen / rustig) maar geen **betaalgedrag** —
+terwijl juist de bemiddelaar het risico van structureel-trage betalers moet zien: die bedreigen de
+cashflow van de hele pool ZZP'ers én de eigen fee-inning. Nu een rustige extra badge naast de
+gezondheidsbadge — "Betaalt op tijd" (success) / "Betaalt vaak laat" (warning) — alleen bij een
+uitgesproken reputatie (neutraal/onbekend → geen chip, lijst blijft rustig). Zelfde afspraak en
+dezelfde pure bron als de ZZP'er-opdrachtenlijst en de opdracht-detail-`payment-behavior-block` →
+geen drift; alleen het geaggregeerde oordeel, nooit een individuele factuur of bedrag.
+
+**Hoe:** de lijst laadt nu `getPaymentBehaviorForCompanies(ids)` in de bestaande `Promise.all` naast
+de gezondheids-aggregaten (parallel, batch-loader begrenst per klant met `take: 25`); de `ids` zijn
+al tenant-gescopet (`tenantScopeWhere`) → scoping-eis van de batch-loader voldaan. Per rij levert
+`paymentTrustChip(behavior)` de chip (good/warning/null). Nieuwe pure `paymentTrustChipBadgeVariant`
+(`payment-behavior.ts`) mapt de chip-toon deterministisch op de gedeelde `Badge`-variant (success/
+warning) → één bron, geen inline-drift. Read-only, geen schema-/mutatie-/authz-oppervlak. +2 tests
+(badge-variant-mapping, good+warning). Gate: typecheck, lint, test, build, prettier groen. PR #1180.
+
+**Bestanden:** `src/app/(protected)/franchise/opdrachtgevers/page.tsx`, `src/lib/payment-behavior.ts`,
+`src/lib/payment-behavior.test.ts`, `PROGRESS.md`.
+
 ## 2026-08-21 — security/privacy: inzage/erasure-asymmetrie gedicht (NotificationPreference in export)
 
 **Wat (AVG art. 15/20, alle rollen):** security-/privacy-auditronde (orchestrator Opus 4.8 + 4 parallelle

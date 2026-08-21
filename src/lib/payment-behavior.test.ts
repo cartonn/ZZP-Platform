@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computePaymentBehavior,
   paymentTrustChip,
+  paymentTrustChipBadgeVariant,
   type PaymentBehavior,
   type PaymentRow,
 } from "./payment-behavior";
@@ -222,5 +223,19 @@ describe("paymentTrustChip", () => {
     expect(
       paymentTrustChip({ sampleSize: 1, avgDaysToPay: null, onTimePct: null, tone: "unknown" }),
     ).toBeNull();
+  });
+});
+
+describe("paymentTrustChipBadgeVariant", () => {
+  it("mapt een goede chip op de success-badge", () => {
+    expect(paymentTrustChipBadgeVariant({ label: "Betaalt op tijd", tone: "good" })).toBe(
+      "success",
+    );
+  });
+
+  it("mapt een waarschuwingschip op de warning-badge", () => {
+    expect(paymentTrustChipBadgeVariant({ label: "Betaalt vaak laat", tone: "warning" })).toBe(
+      "warning",
+    );
   });
 });
