@@ -325,6 +325,23 @@ export interface MetricsInput {
   pushDeliveryConsecutiveFailures: number;
   /** Leeftijd van de laatste mislukte web-push-afleverronde in seconden, of null als er nooit één was. */
   pushDeliveryLastFailureAgeSeconds: number | null;
+  /**
+   * Opereert het object-opslagkanaal (S3, STORAGE_DRIVER=s3) momenteel? true = de laatste échte operatie
+   * (put/get/delete/exists) slaagde (of er is nog nooit iets opgeslagen/opgehaald — neutraal gezond),
+   * false = de laatste operatie mislukte (de backend wijst af). Net als de mail-/push-heartbeat GEEN
+   * staleness-op-leeftijd: opslag is event-gedreven. Het alarm zit op OPEENVOLGENDE mislukkingen
+   * (storageDeliveryConsecutiveFailures), niet op een oude laatste-operatie.
+   */
+  storageDeliveryOk: boolean;
+  /**
+   * Aantal opeenvolgende mislukte object-opslag-operaties sinds de laatste geslaagde (0 als het kanaal ok
+   * is of nog nooit iets deed). Een systematisch falende backend (verlopen AWS-sleutel, ingetrokken IAM,
+   * verwijderde/verkeerde bucket, regio-storing) laat élke document-upload/-download stil mislukken; een
+   * monitor paget op een aanhoudende teller, niet op één transiënte fout.
+   */
+  storageDeliveryConsecutiveFailures: number;
+  /** Leeftijd van de laatste mislukte object-opslag-operatie in seconden, of null als er nooit één was. */
+  storageDeliveryLastFailureAgeSeconds: number | null;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -574,6 +591,24 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: `Leeftijd van de laatste mislukte web-push-afleverronde in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_push_consecutive_failures / zzp_push_delivery_ok.`,
       type: "gauge",
       value: age(input.pushDeliveryLastFailureAgeSeconds),
+    },
+    {
+      name: "zzp_storage_delivery_ok",
+      help: "1 als de laatste échte object-opslag-operatie (put/get/delete/exists via STORAGE_DRIVER=s3) slaagde (of er nog nooit iets opgeslagen/opgehaald is — neutraal gezond), 0 als de laatste operatie mislukte (backend wijst af). Object-opslag is een productie-kernkanaal (VOG/diploma/verzekering upload+download); een falende backend laat die stil mislukken.",
+      type: "gauge",
+      value: flag(input.storageDeliveryOk),
+    },
+    {
+      name: "zzp_storage_consecutive_failures",
+      help: "Aantal opeenvolgende mislukte object-opslag-operaties sinds de laatste geslaagde (0 = kanaal ok of nog niets gedaan). Alarmeer op een AANHOUDENDE teller (systematisch falende backend: verlopen AWS-sleutel, ingetrokken IAM, verwijderde/verkeerde bucket, regio-storing), niet op één transiënte fout.",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.storageDeliveryConsecutiveFailures)),
+    },
+    {
+      name: "zzp_storage_last_failure_age_seconds",
+      help: `Leeftijd van de laatste mislukte object-opslag-operatie in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_storage_consecutive_failures / zzp_storage_delivery_ok.`,
+      type: "gauge",
+      value: age(input.storageDeliveryLastFailureAgeSeconds),
     },
   ];
 }

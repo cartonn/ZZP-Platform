@@ -3,6 +3,39 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-21 — Prod-rijpheid: opslag-aflever-heartbeat (dead-man's-switch object-opslag)
+
+**Wat:** object-opslag (S3/S3-compatibel, `STORAGE_DRIVER=s3`) was — anders dan mail/push — een
+productie-kernkanaal (VOG/diploma/verzekering upload+download) zónder doorlopend afleversignaal. Een
+systematisch falende backend (verlopen AWS-sleutel, ingetrokken IAM, verwijderde/verkeerde bucket,
+regio-storing) liet élke put/get/delete/exists stil mislukken; de upload-code vangt de fout af en toont
+een generieke melding, dus niemand merkte een AANHOUDENDE storing tot een gebruiker klaagde — exact de
+stille faalmodus die de mail-/push-aflever-heartbeat al afvingen.
+
+**Fix:** nieuw Prisma-model `StorageDeliveryHeartbeat` (singleton-rij per kanaal "object-storage"; geen
+PII — alleen tijdstippen, `lastOk`, `consecutiveFailures`, driver-modus). Pure oordeelslogica
+`src/lib/observability/storage-delivery-freshness.ts` (`evaluateStorageDeliveryFreshness`,
+`storageDeliveryStatusItem`) is event-gedreven (uitkomst van de laatste operatie, géén
+staleness-op-leeftijd, net als mail/push) met status `never`/`ok`/`failing`. DB-kant
+`src/lib/observability/storage-delivery-heartbeat.ts` (`recordStorageDeliverySuccess`/
+`recordStorageDeliveryFailure`/`getStorageDeliveryFreshness`; fail-open). Gewired via een nieuwe
+`RecordingStorageDriver`-decorator in `src/lib/services/storage.ts` die uitsluitend om de echte
+S3-driver wordt gewikkeld (`getStorage()`); de lokale disk-fallback blijft kaal. De decorator registreert
+put/get/delete/exists (+ het optionele `describeEncryption`); `getSignedDownloadUrl` niet (lokale
+berekening, geen backend-round-trip). Drie Prometheus-gauges op `/api/metrics` (`zzp_storage_delivery_ok`,
+`zzp_storage_consecutive_failures`, `zzp_storage_last_failure_age_seconds`), admin-kaart "Object-opslag"
+op `/admin/systeemstatus`, drop-in alert `ZzpStorageDeliveryFailing` in `docs/observability/alerts.yml`
+(toegevoegd aan de onderhouds-inhibitie in `alertmanager.yml`; `..._last_failure_age_seconds` als
+`INFO_ONLY`-gauge in de alerts-drift-gate).
+
+**Tests:** `storage-delivery-freshness.test.ts` (pure oordeel + StatusItem, PII-vrij),
+`recording-storage-driver.test.ts` (succes/mislukking-registratie, fout doorgooien, get/delete/exists,
+`getSignedDownloadUrl` niet geregistreerd, `describeEncryption` voorwaardelijk), metrics-gauges +
+volgorde-snapshot bijgewerkt. typecheck/lint/prettier groen.
+
+**Mensenwerk:** niets extra — de kaart/gauge vullen zichzelf zodra `STORAGE_DRIVER=s3` staat en de
+eerste document-operatie draait. Optioneel: richt een monitor op `ZzpStorageDeliveryFailing`.
+
 ## 2026-08-21 — persona-sweep (run 86): 2 next-action-defecten gefixt (BLOCKER franchiser + should-fix stepper)
 
 **Wat:** kritische-persona-sweep (4 rollen). 4 parallelle adversariële Opus-audits (authz/IDOR/tenant ·

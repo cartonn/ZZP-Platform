@@ -171,6 +171,22 @@ groups:
           summary: "Web-push-kanaal wijst af"
           description: "Het web-push-kanaal levert niet meer af (zzp_push_delivery_ok=0, ≥3 opeenvolgende mislukte afleverrondes). Pushmeldingen komen niet aan op actieve abonnementen. Controleer de VAPID-sleutels (geroteerd/verlopen), het VAPID-subject en het server-logboek (of Sentry). Zie MENSENWERK §0b."
 
+      - alert: ZzpStorageDeliveryFailing
+        # Het object-opslagkanaal (STORAGE_DRIVER=s3) wijst systematisch af: de laatste operatie mislukte
+        # (zzp_storage_delivery_ok=0) én er zijn ≥3 opeenvolgende mislukkingen. Opslag is event-gedreven
+        # (geen staleness-op-leeftijd), dus de conditie zit op de teller, niet op ouderdom. Oorzaak meestal
+        # een verlopen AWS-sleutel, ingetrokken IAM-rechten, een verwijderde/verkeerde bucket of een
+        # regio-storing — élke document-upload/-download (VOG, diploma's, verzekering) mislukt dan stil. De
+        # ≥3-drempel + `for:` negeren één transiënte fout. Herstel wordt automatisch gewist zodra een
+        # operatie slaagt (of draai de Opslag-zelftest op /admin/systeemstatus). Zie MENSENWERK §1c.
+        expr: zzp_storage_delivery_ok == 0 and zzp_storage_consecutive_failures >= 3
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Object-opslag wijst af"
+          description: "De object-opslag levert niet meer (zzp_storage_delivery_ok=0, ≥3 opeenvolgende mislukkingen). Documenten (VOG, diploma's, verzekering) kunnen niet worden opgeslagen of opgehaald. Controleer de opslag-credentials/bucket (verlopen AWS-sleutel, ingetrokken IAM, verwijderde/verkeerde bucket, regio-storing) en het server-logboek (of Sentry). Zie MENSENWERK §1c."
+
   - name: zzp-platform-stille-faal-backlogs
     rules:
       # Deze drie tellen werk dat een cron-run HAD moeten doen. De cron-heartbeat bewijst alleen DÁT de
