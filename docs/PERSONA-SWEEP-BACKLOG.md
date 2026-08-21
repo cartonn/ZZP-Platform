@@ -39,6 +39,15 @@
 >   Opruimen (of bewust bedraden als admin-vangnet-taak) — buiten scope van deze run gehouden om de
 >   PR strak op de twee gedrags-fixes te houden.
 
+> **Routine-increment 2026-08-21 — GEDAAN (geen sweep, UX/data-waarde):** betaalgedrag-signaal op
+> de bemiddelaar-opdrachtgeverslijst `/franchise/opdrachtgevers`. De lijst toonde relatiegezondheid
+> (activiteit) maar geen betaalgedrag — juist de bemiddelaar moet structureel-trage betalers zien
+> (cashflow hele pool + eigen fee-inning). Nu een rustige extra badge naast de gezondheidsbadge
+> ("Betaalt op tijd"/"Betaalt vaak laat", alleen bij uitgesproken reputatie) uit de bestaande pure
+> `getPaymentBehaviorForCompanies` + `paymentTrustChip`; nieuwe pure `paymentTrustChipBadgeVariant`
+> (chip-toon → Badge-variant, één bron). Tenant-gescopete ids, alleen geaggregeerd oordeel (geen
+> factuurdata). Read-only, geen schema-/mutatie-/authz-oppervlak. +2 tests. Gate groen. PR #1180.
+
 > **Routine-increment 2026-08-20 — GEDAAN (geen sweep, UX/data-waarde):** dubbelboek-signaal op
 > de opdracht-detail voor de ZZP'er. Het bestaande agenda-signaal dekte alleen zelf-gezette
 > onbeschikbaar/beperkt-vensters; een al **lopende (ACTIVE) samenwerking** die hetzelfde tijdvak

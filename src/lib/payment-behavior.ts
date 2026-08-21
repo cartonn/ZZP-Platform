@@ -124,6 +124,15 @@ export function paymentTrustChip(behavior: PaymentBehavior): PaymentTrustChip | 
   return null;
 }
 
+/**
+ * Badge-variant voor een `PaymentTrustChip` in een lijstweergave die de gedeelde `Badge` gebruikt (bv.
+ * de bemiddelaar-opdrachtgeverslijst): `good` → `success`, `warning` → `warning`. Eén bron zodat de
+ * chip-toon niet driftet van de betekenis in `paymentTrustChip`. Puur en totaal (elke chip-toon maakt).
+ */
+export function paymentTrustChipBadgeVariant(chip: PaymentTrustChip): "success" | "warning" {
+  return chip.tone === "good" ? "success" : "warning";
+}
+
 function determineTone(avgDaysToPay: number | null, onTimePct: number | null): PaymentTone {
   // Goed: snel betaald (≤14 dagen) of bijna altijd op tijd (≥90%).
   if (

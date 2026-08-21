@@ -20,6 +20,8 @@ import {
   summarizeClientHealth,
   type ClientHealth,
 } from "@/lib/franchise/client-health";
+import { getPaymentBehaviorForCompanies } from "@/lib/data/payment-behavior";
+import { paymentTrustChip, paymentTrustChipBadgeVariant } from "@/lib/payment-behavior";
 
 export const metadata: Metadata = { title: "Opdrachtgevers · Bemiddeling" };
 
@@ -69,7 +71,7 @@ export default async function FranchiseOpdrachtgeversPage({
 
   // Twee gegroepeerde aggregaten (geen N+1) voor het relatiegezondheid-signaal: welke klanten hebben
   // een open opdracht en wanneer plaatsten ze voor het laatst werk. Tenant-gescopet via de klant-ids.
-  const [publishedJobs, collabActivity] = await Promise.all([
+  const [publishedJobs, collabActivity, paymentByCompany] = await Promise.all([
     ids.length
       ? prisma.job.groupBy({
           by: ["companyId"],
@@ -85,6 +87,11 @@ export default async function FranchiseOpdrachtgeversPage({
           _max: { updatedAt: true },
         })
       : Promise.resolve([]),
+    // Betaalgedrag-reputatie per opdrachtgever: welke klanten betalen structureel te laat? Voor de
+    // bemiddelaar het kernrisicosignaal — trage betalers bedreigen de cashflow van de hele pool ZZP'ers
+    // én de eigen fee-inning. De ids zijn al tenant-gescopet (`tenantScopeWhere`), dus de scoping-eis van
+    // de batch-loader (defense-in-depth) is voldaan; alleen het geaggregeerde oordeel, geen factuurdata.
+    getPaymentBehaviorForCompanies(ids),
   ]);
 
   const now = new Date();
@@ -104,10 +111,14 @@ export default async function FranchiseOpdrachtgeversPage({
   const rows = companies
     .map((c) => {
       const activity = activityByCompany.get(c.id)!;
+      const behavior = paymentByCompany.get(c.id);
       return {
         company: c,
         health: classifyClientHealth(activity, now),
         lastActivityAt: activity.lastActivityAt,
+        // Alleen de beslis-relevante uitersten (op tijd / vaak laat); neutraal/onbekend → null → geen
+        // chip, zodat de lijst rustig blijft (dezelfde afspraak als de ZZP'er-opdrachtenlijst).
+        paymentChip: behavior ? paymentTrustChip(behavior) : null,
       };
     })
     .filter((r) => (activeFilter ? r.health === activeFilter : true));
@@ -178,7 +189,7 @@ export default async function FranchiseOpdrachtgeversPage({
             </Card>
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-              {rows.map(({ company: c, health, lastActivityAt }) => {
+              {rows.map(({ company: c, health, lastActivityAt, paymentChip }) => {
                 const badge = clientHealthLabel(health);
                 return (
                   <Link
@@ -187,9 +198,14 @@ export default async function FranchiseOpdrachtgeversPage({
                     className="card-interactive flex items-start justify-between gap-3 p-4"
                   >
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <p className="truncate font-medium">{c.name}</p>
                         <Badge variant={badge.tone}>{badge.label}</Badge>
+                        {paymentChip && (
+                          <Badge variant={paymentTrustChipBadgeVariant(paymentChip)}>
+                            {paymentChip.label}
+                          </Badge>
+                        )}
                       </div>
                       <p className="truncate text-sm text-muted-foreground">{c.user.email}</p>
                     </div>
