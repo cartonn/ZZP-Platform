@@ -41,6 +41,9 @@ export const INFO_ONLY_METRICS: ReadonlySet<string> = new Set([
   // Rauwe leeftijd van de laatste push-mislukking; de alarmeerbare conditie zit in
   // zzp_push_consecutive_failures / zzp_push_delivery_ok (event-gedreven, geen staleness-op-leeftijd).
   "zzp_push_last_failure_age_seconds",
+  // Rauwe leeftijd van de laatste opslag-mislukking; de alarmeerbare conditie zit in
+  // zzp_storage_consecutive_failures / zzp_storage_delivery_ok (event-gedreven, geen staleness-op-leeftijd).
+  "zzp_storage_last_failure_age_seconds",
 ]);
 
 /**
@@ -86,6 +89,9 @@ const SAMPLE_INPUT: MetricsInput = {
   pushDeliveryOk: true,
   pushDeliveryConsecutiveFailures: 0,
   pushDeliveryLastFailureAgeSeconds: null,
+  storageDeliveryOk: true,
+  storageDeliveryConsecutiveFailures: 0,
+  storageDeliveryLastFailureAgeSeconds: null,
 };
 
 /** De canonieke set gauge-namen die /api/metrics daadwerkelijk exposeert (uit `buildMetrics`). */

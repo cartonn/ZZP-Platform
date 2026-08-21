@@ -404,16 +404,89 @@ class S3StorageDriver implements StorageDriver {
   }
 }
 
+/**
+ * Decorator die de UITKOMST van elke échte opslag-operatie (put/get/delete/exists) registreert in de
+ * opslag-aflever-heartbeat (dead-man's-switch, src/lib/observability/storage-delivery-heartbeat.ts)
+ * zonder het opslaggedrag te veranderen: bij succes markeert 'ie het kanaal als operationeel, bij een
+ * fout telt 'ie de opeenvolgende-mislukkingen-teller op en gooit de originele fout door (zodat de
+ * oproeper 'm nog steeds afhandelt). De registratie is fail-open — een DB-storing in de heartbeat mag
+ * een geslaagde opslag-operatie niet alsnog laten falen, noch een echte fout maskeren. Wordt uitsluitend
+ * om de echte S3-driver gewikkeld; de lokale disk-driver (dev-fallback) blijft kaal.
+ *
+ * `getSignedDownloadUrl` wordt NIET geregistreerd: presigning is een lokale berekening (geen
+ * backend-round-trip), dus het zegt niets over de bereikbaarheid van de opslag. `describeEncryption`
+ * (HeadObject, alleen aanwezig op de S3-driver) wordt wél geregistreerd — het is een echte round-trip.
+ */
+export class RecordingStorageDriver implements StorageDriver {
+  constructor(
+    private readonly inner: StorageDriver,
+    private readonly driver: string,
+  ) {
+    // describeEncryption alleen doorgeven (en registreren) als de inner-driver het ondersteunt, zodat de
+    // zelftest de methode-aanwezigheid net zo detecteert als op de kale driver.
+    if (typeof inner.describeEncryption === "function") {
+      this.describeEncryption = (key: string) =>
+        this.record(() => this.inner.describeEncryption!(key));
+    }
+  }
+
+  private async record<T>(op: () => Promise<T>): Promise<T> {
+    // Lazy import: houdt storage.ts vrij van een harde observability-import op modulepad-niveau en
+    // voorkomt import-cycles (de heartbeat trekt prisma + report mee).
+    const { recordStorageDeliverySuccess, recordStorageDeliveryFailure } =
+      await import("@/lib/observability/storage-delivery-heartbeat");
+    let result: T;
+    try {
+      result = await op();
+    } catch (error) {
+      await recordStorageDeliveryFailure(this.driver);
+      throw error;
+    }
+    await recordStorageDeliverySuccess(this.driver);
+    return result;
+  }
+
+  put(key: string, data: Buffer, mimeType: string): Promise<StoredObject> {
+    return this.record(() => this.inner.put(key, data, mimeType));
+  }
+
+  get(key: string): Promise<Buffer> {
+    return this.record(() => this.inner.get(key));
+  }
+
+  delete(key: string): Promise<void> {
+    return this.record(() => this.inner.delete(key));
+  }
+
+  exists(key: string): Promise<boolean> {
+    return this.record(() => this.inner.exists(key));
+  }
+
+  getSignedDownloadUrl(key: string, opts?: SignedUrlOptions): Promise<string | null> {
+    return this.inner.getSignedDownloadUrl(key, opts);
+  }
+
+  // Voorwaardelijk gezet in de constructor (alleen als de inner-driver 'm heeft).
+  describeEncryption?: (key: string) => Promise<StorageEncryptionInfo>;
+}
+
 let cached: StorageDriver | null = null;
 
 export function getStorage(): StorageDriver {
   if (cached) return cached;
   const driver = process.env.STORAGE_DRIVER ?? "local";
   if (driver === "s3") {
-    cached = new S3StorageDriver();
+    // De echte backend wordt in de aflever-heartbeat gewikkeld (uitkomst-registratie); de lokale
+    // disk-driver blijft kaal — die is geen productie-kanaal en faalt niet op dezelfde manier.
+    cached = new RecordingStorageDriver(new S3StorageDriver(), driver);
   } else {
     const dir = process.env.STORAGE_LOCAL_DIR ?? "./storage";
     cached = new LocalStorageDriver(path.resolve(process.cwd(), dir));
   }
   return cached;
+}
+
+/** Reset de storage-singleton — uitsluitend voor tests (env-driver-wissel). */
+export function _resetStorageForTest(): void {
+  cached = null;
 }

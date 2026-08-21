@@ -409,6 +409,28 @@ nodig met back-ups en beveiligde opslag.
    multipart-boundaries), met een drift-poort-test tegen `MAX_UPLOAD_BYTES`
    (`src/lib/services/upload-body-limit.test.ts`). Resterend mensenwerk: **niets** — echte documenten
    tot 10 MB komen nu binnen.
+   **Code-kant GEDAAN (2026-08-21) — opslag-aflever-heartbeat (dead-man's-switch):** de opslag-zelftest
+   en encryptie-verificatie hierboven bewijzen bereikbaarheid **vóór go-live**, op een moment dat een
+   mens ervoor kiest te klikken. Ze zeggen niets over de duizenden échte document-operaties daarna:
+   object-opslag is een productie-kernkanaal (upload+download van VOG/diploma/verzekering), maar had —
+   anders dan mail/push/cron/back-up — geen doorlopend afleversignaal. Een systematisch falende backend
+   (verlopen AWS-sleutel, ingetrokken IAM-rechten, verwijderde/verkeerde bucket, regio-storing) laat élke
+   put/get/delete/exists stil mislukken; de upload-code vangt de fout af en toont een generieke melding,
+   dus niemand merkt een AANHOUDENDE storing tot een gebruiker klaagt. Nu registreert elke operatie via de
+   echte S3-driver haar uitkomst in een singleton `StorageDeliveryHeartbeat`, via een
+   `RecordingStorageDriver`-decorator rond `getStorage()` (de lokale disk-fallback registreert bewust niets
+   — geen productie-kanaal). Net als de mail-/push-heartbeat is dit **geen** staleness-op-leeftijd
+   (opslag is event-gedreven; een rustige periode is normaal) maar het oordeel op de **laatste** operatie:
+   `never`/`ok`/`failing` met een teller `consecutiveFailures`. Zichtbaar op `/admin/systeemstatus`
+   (kaart "Object-opslag") en machine-leesbaar op `/api/metrics` via `zzp_storage_delivery_ok`,
+   `zzp_storage_consecutive_failures`, `zzp_storage_last_failure_age_seconds`. Drop-in Prometheus-alert
+   `ZzpStorageDeliveryFailing` (`zzp_storage_delivery_ok == 0 and zzp_storage_consecutive_failures >= 3`,
+   `for: 15m`, warning) in `docs/observability/alerts.yml`, in de onderhouds-inhibitie
+   (`alertmanager.yml`). Bevat nooit keys/paden/foutinhoud — alleen tijdstippen, de teller en de
+   driver-modus; registratie is fail-open (een DB-storing in de heartbeat mag een geslaagde operatie niet
+   laten falen, noch een echte fout maskeren). Resterend mensenwerk: **niets extra** — de kaart/gauge
+   vullen zichzelf zodra `STORAGE_DRIVER=s3` staat en de eerste document-operatie draait. Optioneel: richt
+   een monitor op `ZzpStorageDeliveryFailing`.
 
 ### 1d. Domein + HTTPS
 
