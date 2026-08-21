@@ -4,6 +4,55 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-21b (basis: `main` @ ba636008) — 2× OPGELOST (forensische trail op publieke bearer-PII-oppervlakken)
+
+Audit: orchestrator (Opus 4.8). Delta t.o.v. de vorige ronde: 4 commits (`50d2c060..ba636008` —
+`/api/metrics` scrape-hardening, betaalgedrag-signaal + openstaand-bedrag per opdrachtgever op de
+bemiddelaar-lijst, grootste-knelpunt op de opdracht-bereikkaart). `npm audit --omit=dev`: **0 vulnerabilities**.
+
+**Uitkomst delta schoon:** de bemiddelaar-oppervlakken (`franchise/opdrachtgevers/page.tsx` +
+`lib/franchise/client-outstanding.ts`) her-scoopen tenant-correct — openstaande facturen worden gefilterd
+op `collaboration.companyId ∈ tenantScopeWhere(actor)`-ids, de aggregatie (`clientOutstandingByCompany`,
+`poolOutstandingTotals`) is puur over die reeds tenant-gescopet opgehaalde rijen (geen cross-tenant-lek, geen
+IDOR). De `/api/metrics`-refactor blijft `CRON_SECRET`-fail-closed en emit alleen geaggregeerde gauges (geen
+PII/secrets). **Twee reeds-geparkeerde forensische-trail-gaten op publieke, niet-intrekbare bearer-URL's met
+derde-partij-PII gedicht** (zie onder) — AVG art. 5(2) verantwoordingsplicht / OWASP A09.
+
+### OPGELOST — Publieke agenda-feed (`/api/agenda/feed.ics`) liet géén auditspoor na (MIDDEL · OWASP A09 · AVG art. 5(2) · Architectuurregel 5)
+
+**Geschonden regel:** Architectuurregel 5 (audit alles wat telt) / OWASP A09 (Security Logging & Monitoring
+Failures) / AVG art. 5(2) (verantwoordingsplicht). De feed-URL draagt een **niet-intrekbaar** bearer-token en
+serveert derde-partij-PII (namen van tegenpartijen in het werkrooster), maar riep — als enige gevoelige
+weergaveroute — nergens `audit()` aan. Een gelekt/gescraped feed-token was daardoor forensisch onzichtbaar
+(alleen ephemere in-memory rate-limit-tellers). De sibling `/vertrouwen`-route logt wél (`TRUST_DOSSIER_VIEWED`).
+
+**Repro (vóór de fix):** haal `GET /api/agenda/feed.ics?u=<userId>&t=<geldig-token>` op vanaf een willekeurig IP
+→ 200 met het volledige rooster incl. tegenpartij-namen, zonder enige `AuditLog`-regel. Herhaal vanaf een tweede
+IP (gelekt token) → nog steeds geen spoor. Er is geen manier om achteraf vast te stellen welke bron de feed las.
+
+**Fix (dit PR):** nieuwe `src/lib/calendar/feed-audit.ts` (`auditAgendaFeedView`) schrijft ná de token- én
+liveness-poort een `AGENDA_FEED_VIEWED`-regel met bron-IP + user-agent. **Gede-dupliceerd per (gebruiker,
+bron-IP, kalenderdag)** — externe agenda-apps pollen de feed periodiek, dus per-poll auditen zou de trail
+overspoelen; nu wordt élke distincte pollende/scrapende bron precies één keer per dag vastgelegd. Best-effort
+(try/catch) zodat een audit-schrijffout de feed nooit breekt. **Test (rood→groen):** `feed-audit.test.ts`
+(4× dedup-/schrijf-logica) + uitbreiding `feed.ics/route.test.ts` (4× wiring: 200 logt mét IP+UA, 429/404 loggen
+niet, auditfout breekt de feed niet). Zonder de helper bestaat de module niet → rood.
+
+### OPGELOST — `/vertrouwen`-dossier-audit miste `ipAddress`/`userAgent` (LAAG · AVG art. 5(2) volledigheid)
+
+**Geschonden regel:** AVG art. 5(2) (volledigheid van de audit-trail). De `audit()`-aanroep op de publieke,
+niet-intrekbare vertrouwensdossier-bearer-URL (naam + certificaten = derde-partij-PII) gaf `ipAddress`/
+`userAgent` **niet** mee, terwijl `AuditEntry` het ondersteunt, de IP al voor de rate-limiter werd berekend, en
+andere publieke flows (`wachtwoord-vergeten`) `...meta` al meesturen. De scraping-bron van deze URL was zo
+niet-herleidbaar.
+
+**Repro (vóór de fix):** open `/vertrouwen/<profileId>/<token>` → `TRUST_DOSSIER_VIEWED` wordt gelogd, maar met
+`ipAddress = null`, `userAgent = null`.
+
+**Fix (dit PR):** `page.tsx` leest nu ook `userAgent` uit `requestMeta()` en geeft `ipAddress`/`userAgent` mee
+aan de bestaande `audit()`-aanroep. **Test (rood→groen):** uitbreiding `vertrouwen-liveness.test.ts` — assert
+dat de audit `ipAddress`/`userAgent` draagt; zonder de fix zijn ze afwezig → rood.
+
 ## Ronde 2026-08-21 (basis: `main` @ b32f50d5) — 1× OPGELOST (inzage/erasure-asymmetrie: NotificationPreference)
 
 Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
@@ -440,18 +489,8 @@ de fix (`where` enkel `{ status: "VERIFIED" }`).
   audit-/timing-volledigheid, niet vertrouwelijkheid. **Fix:** voeg `auditDeniedAccess({ action:
 "PLATFORM_BILLING_PDF_ACCESS_DENIED", entityType: "PlatformInvoice", entityId: id, outcome: "not-found" })` toe
   vóór de 404 + regressietest (pariteit met `pdf-routes-audit.test.ts`).
-- **Agenda-ICS-feed (`/api/agenda/feed.ics`) heeft geen enkel audit-signaal op een niet-intrekbare bearer-feed met derde-partij-PII (MIDDEL · OWASP A09 · Architectuurregel 5).**
-  De handler (`feed.ics/route.ts:24-87`) roept nergens `audit()` aan, terwijl de sibling `/vertrouwen`-route dat
-  wél doet (`TRUST_DOSSIER_VIEWED`) en de feed-code zelf de data als derde-partij-PII benoemt en erkent dat er geen
-  per-token-intrekking is. Zonder audit is een gelekt/gescraped feed-token forensisch onzichtbaar (alleen ephemere
-  in-memory rate-limit-tellers). **Precondities die de severity dempen:** externe agenda-apps pollen elke paar
-  minuten → naïef per-poll auditen is ruis. **Fix:** een rate-limited/gede-dupliceerd (bv. eerste-gebruik-per-dag-
-  per-token) `AGENDA_FEED_VIEWED`-signaal.
-- **`/vertrouwen`-dossier-audit mist `ipAddress`/`userAgent` (LAAG · AVG art. 5(2) volledigheid).**
-  `vertrouwen/[profileId]/[token]/page.tsx:38-45` berekent `ipAddress` via `requestMeta()` voor de rate-limiter,
-  maar de `audit()`-aanroep (`:122-127`) geeft het niet mee — terwijl `AuditEntry` het ondersteunt en andere
-  publieke flows (`wachtwoord-vergeten/actions.ts`) `...meta` al meesturen. Zonder is de scraping-IP van deze
-  gevoelige, niet-intrekbare publieke URL niet te herleiden. **Fix:** `await audit({ ...meta, actorId: null, ... })`.
+- **~~Agenda-ICS-feed (`/api/agenda/feed.ics`) heeft geen enkel audit-signaal op een niet-intrekbare bearer-feed met derde-partij-PII (MIDDEL · OWASP A09 · Architectuurregel 5).~~ → OPGELOST in ronde 2026-08-21b (zie boven): `auditAgendaFeedView` + `AGENDA_FEED_VIEWED`, gede-dupliceerd per (gebruiker, bron-IP, dag).**
+- **~~`/vertrouwen`-dossier-audit mist `ipAddress`/`userAgent` (LAAG · AVG art. 5(2) volledigheid).~~ → OPGELOST in ronde 2026-08-21b (zie boven): `page.tsx` leest nu ook `userAgent` en geeft `ipAddress`/`userAgent` mee aan de bestaande `audit()`.**
 - **`/api/documents/[id]` blob-missing-tak zonder audit (LAAG · AVG art. 5(2) volledigheid).** Ongewijzigd sinds
   vorige ronde (`route.ts:70-71`): na geslaagde autorisatie geeft `storage.exists === false` een 404 zonder audit,
   terwijl found/forbidden/success wél auditen. Niet exploiteerbaar (post-autorisatie, eigen document); stille gat
