@@ -76,6 +76,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   PERFORMANCE_REJECTED: "Prestatie afgekeurd",
   PERFORMANCE_SUBMISSION_REMINDER: "Herinnering prestatie indienen",
   PERFORMANCE_APPROVAL_REMINDER: "Herinnering prestatie goedkeuren",
+  APPLICATION_DECISION_REMINDER: "Herinnering beslissing kandidaat",
   PERFORMANCE_APPROVAL_ESCALATED: "Prestatie-goedkeuring geëscaleerd",
   DISPUTE_OPENED: "Dispuut geopend",
   DISPUTE_RESOLVED: "Dispuut opgelost",

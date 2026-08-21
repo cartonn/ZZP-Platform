@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-21 — Opdrachtgever: proactieve kandidaat-beslissing-reminders (cron)
+
+**Wat:** opdrachtgevers kregen al pró-actieve reminders om prestaties te keuren
+(`performance-approval-reminders`) en facturen te betalen (`payment-reminders`), maar niets voor het
+vroegste, meest impactvolle lek in de trechter: een reeds-bekeken kandidaat (VIEWED/SHORTLIST) die te
+lang op een beslissing wacht en koud wordt. De ZZP'er zag op /reacties al de versheid van de eigen
+reactie; de opdrachtgever zag alleen het `staleApplications`-next-action-signaal op /kandidaten — maar
+alleen bij inloggen. Concurrenten (Temper/Malt/Deel) belonen snelle opdrachtgevers en verliezen talent
+bij trage reacties; deze nudge maakt dat expliciet en tijdig.
+
+**Fix:** nieuwe pure planner `src/lib/application-decision-reminders.ts`
+(`planApplicationDecisionReminders`) + runner `src/lib/application-decision-reminders-task.ts`
+(`runApplicationDecisionReminderTask`), gemodelleerd naar `performance-approval-reminders`. De reminder
+vuurt op de per-fase aandachtsdrempel uit de bestaande `WAIT_ATTENTION_DAYS` (VIEWED 14 / SHORTLIST 21)
+plus de config-offsets `REMINDERS.applicationDecisionDays` ([0, 7]) → exact wanneer /kandidaten de
+reactie óók als "wacht al langer dan gebruikelijk" markeert (geen drift). Alleen VIEWED/SHORTLIST
+(NEW dekt `applicationsReviewTask` al), alleen een nog-gepubliceerde opdracht zonder samenwerking.
+Notificatie → /kandidaten, idempotent via DomainEvent dedupeKey (`APPLICATION_DECISION_REMINDER`),
+audit-label toegevoegd. Geregistreerd in `/api/tasks/run-all`. Puur/server-side/deterministisch, geen
+schema-/authz-/geldstroom-oppervlak. +18 tests (planner 9, runner 4, audit-drift-gate). Gate:
+typecheck, lint, test (6593), build, prettier groen. PR #1186.
+
 ## 2026-08-21 — Prod-rijpheid: opslag-aflever-heartbeat (dead-man's-switch object-opslag)
 
 **Wat:** object-opslag (S3/S3-compatibel, `STORAGE_DRIVER=s3`) was — anders dan mail/push — een

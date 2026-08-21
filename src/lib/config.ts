@@ -143,6 +143,14 @@ export const REMINDERS = {
   /** Betaaltermijn opdrachtgever (na Event D): dagen vóór/na vervaldag. */
   paymentBeforeDueDays: [5, 1] as const,
   /**
+   * Kandidaat wacht op een beslissing van de opdrachtgever (VIEWED/SHORTLIST). Dit zijn OFFSETS
+   * bovenop de per-fase aandachtsdrempel (`WAIT_ATTENTION_DAYS`: VIEWED 14, SHORTLIST 21), zodat de
+   * eerste nudge exact samenvalt met het moment waarop de reactie op /kandidaten "wacht al langer dan
+   * gebruikelijk" gaat tonen (geen drift). `0` = op de drempel, `7` = een week later als vervolg.
+   * NEW-reacties tellen niet mee: die dekt de "nieuwe reacties"-taak al (anders dubbel).
+   */
+  applicationDecisionDays: [0, 7] as const,
+  /**
    * E-mail-fallback (digest): ongelezen in-app-notificaties ouder dan dit aantal uren worden
    * gebundeld in één e-mail per gebruiker. De wachttijd geeft de app-route eerst de kans;
    * wie dagelijks inlogt krijgt nooit digest-mail.

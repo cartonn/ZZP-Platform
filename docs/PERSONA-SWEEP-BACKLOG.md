@@ -82,6 +82,16 @@
 >   Opruimen (of bewust bedraden als admin-vangnet-taak) — buiten scope van deze run gehouden om de
 >   PR strak op de twee gedrags-fixes te houden.
 
+> **Routine-increment 2026-08-21 — GEDAAN (geen sweep, UX/data-waarde):** proactieve
+> kandidaat-beslissing-reminders (cron) voor de opdrachtgever. Opdrachtgevers kregen al reminders om te
+> keuren en te betalen, maar niets voor het vroegste trechterlek: een reeds-bekeken kandidaat
+> (VIEWED/SHORTLIST) die te lang op een beslissing wacht en koud wordt. Nieuwe pure planner
+> `application-decision-reminders.ts` + runner `application-decision-reminders-task.ts` (patroon van
+> `performance-approval-reminders`); vuurt op de bestaande `WAIT_ATTENTION_DAYS`-drempels + offsets
+> `REMINDERS.applicationDecisionDays` [0, 7] → geen drift met het `staleApplications`-schermsignaal.
+> Notificatie → /kandidaten, idempotent via DomainEvent dedupeKey, audit-label + registratie in
+> run-all. Puur/server-side, geen schema-/authz-/geldstroom-oppervlak. +18 tests. Gate groen. PR #1186.
+>
 > **Routine-increment 2026-08-21 — GEDAAN (geen sweep, UX/data-waarde):** betaalgedrag-signaal op
 > de bemiddelaar-opdrachtgeverslijst `/franchise/opdrachtgevers`. De lijst toonde relatiegezondheid
 > (activiteit) maar geen betaalgedrag — juist de bemiddelaar moet structureel-trage betalers zien
