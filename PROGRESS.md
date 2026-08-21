@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-21 — ZZP'er: startdatum-sortering op de opdrachtenlijst
+
+**Wat:** de opdrachtenlijst (`/opdrachten`) kon sorteren op beste match, nieuwste en tarief, maar niet
+op **startdatum** — terwijl `job-start-proximity.ts` (de "start binnenkort"-signalering) al bestond en
+elke opdracht een `startDate` heeft. Een ZZP'er die een gat in de agenda wil vullen, wil juist bovenaan
+zien wat het eerst begint. Benchmark: shift-/klusplatformen (Temper/Zorgwerk) laten kandidaten sorteren
+op "start binnenkort".
+
+**Fix:** nieuwe pure `src/lib/job-start-sort.ts` (`sortJobsByStart`) rangschikt vanuit _nu_: aankomende
+starts oplopend (soonste eerst) → voorbije-maar-nog-open starts aflopend (recentst gestart eerst, dichtst
+bij nu) → opdrachten zonder startdatum; tie-break op nieuwst gepubliceerd, dan id (volledig
+deterministisch, UTC-middernacht dus geen TZ-ruis). `start_soon` toegevoegd aan `JOB_SORTS`; de pagina
+deelt het bestaande in-geheugen scan-en-pagineer-pad met de matchsortering (`scanAndRank`), zodat de
+sortering die de database niet kan (aankomend↔voorbij↔ongedateerd) toch klopt over de gescande set.
+Werkt voor iedereen (geen profiel nodig, anders dan match). Sorteeroptie "Startdatum (eerst)" in
+`job-filters.tsx`. Read-only, geen schema-/mutatie-/authz-/domeinmotor-oppervlak. +9 tests (sort 8 +
+normalize-accepteert-start_soon). Gate: typecheck, lint, test, build, prettier groen. PR #1187.
+
 ## 2026-08-21 — Opdrachtgever: proactieve kandidaat-beslissing-reminders (cron)
 
 **Wat:** opdrachtgevers kregen al pró-actieve reminders om prestaties te keuren

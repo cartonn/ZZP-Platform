@@ -211,6 +211,7 @@ export function JobFilters({
         >
           {canSortByMatch && <option value="match">{translate("Beste match eerst")}</option>}
           <option value="recent">{translate("Nieuwste eerst")}</option>
+          <option value="start_soon">{translate("Startdatum (eerst)")}</option>
           <option value="rate_desc">{translate("Tarief hoog → laag")}</option>
           <option value="rate_asc">{translate("Tarief laag → hoog")}</option>
         </Select>
