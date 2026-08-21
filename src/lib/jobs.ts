@@ -43,7 +43,9 @@ export function canPublish(job: { title?: string | null; description?: string | 
 
 // "match" = beste persoonlijke match eerst (kern-differentiator; alleen zinvol voor een ZZP'er mét
 // profiel — de pagina valt terug op DB-sortering wanneer er geen profiel is). Standaardsortering.
-export const JOB_SORTS = ["match", "recent", "rate_desc", "rate_asc"] as const;
+// "start_soon" = eerstvolgende startdatum eerst (aankomend vóór voorbij vóór ongedateerd); in het
+// geheugen gerangschikt over de gescande set, net als "match" (zie job-start-sort.ts).
+export const JOB_SORTS = ["match", "recent", "rate_desc", "rate_asc", "start_soon"] as const;
 export type JobSort = (typeof JOB_SORTS)[number];
 
 export const JOBS_PER_PAGE = 10;

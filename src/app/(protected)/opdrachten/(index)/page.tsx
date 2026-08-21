@@ -27,6 +27,7 @@ import { prisma } from "@/lib/db";
 import { JOBS_PER_PAGE, MATCH_SORT_SCAN_CAP, normalizeJobFilters } from "@/lib/jobs";
 import { scoreJobForFreelancer, topGapReason, topPositiveReason } from "@/lib/matching";
 import { sortJobsByMatch } from "@/lib/job-match-sort";
+import { sortJobsByStart } from "@/lib/job-start-sort";
 import { jobStartProximity } from "@/lib/job-start-proximity";
 import { getTranslator } from "@/lib/i18n/server";
 import {
@@ -430,6 +431,11 @@ async function BrowseJobs({
   // Match-sortering is alleen zinvol met een profiel om tegen te scoren (ADMIN heeft er geen). Zonder
   // profiel valt de weergave terug op de DB-sortering (publishedAt-desc) en tonen we geen matchbadges.
   const effectiveMatchSort = f.sort === "match" && profile != null;
+  // Startdatum-sortering rangschikt (net als match) in het geheugen vanuit *nu* over de gescande set —
+  // dat kan de database niet ("aankomend vóór voorbij vóór ongedateerd" is geen platte kolomsortering).
+  // Werkt voor iedereen (geen profiel nodig). Deelt daarom het scan-en-pagineer-pad met match.
+  const startSort = f.sort === "start_soon";
+  const scanAndRank = effectiveMatchSort || startSort;
 
   // Branchefilter: een expliciet gekozen branche (`industryId`) is het meest specifiek en wint. Anders,
   // wanneer de ZZP'er de "Mijn vakgebied"-quickfilter aanzet, beperk tot de eigen profielbranches. Zo
@@ -459,8 +465,8 @@ async function BrowseJobs({
       orderBy,
       // Bij match-sortering halen we de volledige (begrensde) zichtbare set op om in het geheugen te
       // scoren en pagineren; anders laat de database zelf de juiste pagina zien.
-      skip: effectiveMatchSort ? 0 : (f.page - 1) * JOBS_PER_PAGE,
-      take: effectiveMatchSort ? MATCH_SORT_SCAN_CAP : JOBS_PER_PAGE,
+      skip: scanAndRank ? 0 : (f.page - 1) * JOBS_PER_PAGE,
+      take: scanAndRank ? MATCH_SORT_SCAN_CAP : JOBS_PER_PAGE,
       include: {
         company: { select: { name: true } },
         industry: { select: { name: true } },
@@ -516,17 +522,33 @@ async function BrowseJobs({
     }
   }
 
-  // Match-sortering: herrangschik de gescande set op matchscore (bij gelijke score nieuwste eerst) en
-  // knip de huidige pagina eruit. Zonder match-sort is de databank-volgorde al de weergave-volgorde.
+  // In-geheugen-sortering (match óf startdatum): herrangschik de gescande set en knip de huidige pagina
+  // eruit. Zonder scan-sortering is de databank-volgorde al de weergave-volgorde.
+  const pageSlice = <T,>(rows: T[]): T[] =>
+    rows.slice((f.page - 1) * JOBS_PER_PAGE, f.page * JOBS_PER_PAGE);
   const visibleJobs = effectiveMatchSort
-    ? sortJobsByMatch(
-        jobs.map((job) => ({
-          job,
-          score: matchByJob.get(job.id)?.score ?? 0,
-          publishedAt: job.publishedAt,
-        })),
-      ).slice((f.page - 1) * JOBS_PER_PAGE, f.page * JOBS_PER_PAGE)
-    : jobs;
+    ? pageSlice(
+        sortJobsByMatch(
+          jobs.map((job) => ({
+            job,
+            score: matchByJob.get(job.id)?.score ?? 0,
+            publishedAt: job.publishedAt,
+          })),
+        ),
+      )
+    : startSort
+      ? pageSlice(
+          sortJobsByStart(
+            jobs.map((job) => ({
+              job,
+              id: job.id,
+              startDate: job.startDate,
+              publishedAt: job.publishedAt,
+            })),
+            now,
+          ),
+        )
+      : jobs;
 
   // Bewaarde opdrachten (alleen ZZP'er): welke opdrachten al gebookmarkt zijn, zodat de bewaar-knop
   // per zichtbare opdracht direct de juiste staat toont. Rijen komen uit de parallelle batch hierboven.
@@ -690,7 +712,7 @@ async function BrowseJobs({
     ? `/opdrachten?sort=${encodeURIComponent(explicitSort)}`
     : "/opdrachten";
 
-  const paginationTotal = effectiveMatchSort ? jobs.length : total;
+  const paginationTotal = scanAndRank ? jobs.length : total;
   const totalPages = Math.max(1, Math.ceil(paginationTotal / JOBS_PER_PAGE));
   const mkPageHref = (page: number) => {
     const p = new URLSearchParams();

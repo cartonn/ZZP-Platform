@@ -51,6 +51,10 @@ describe("normalizeJobFilters", () => {
     expect(normalizeJobFilters({ sort: "recent" }).sort).toBe("recent");
   });
 
+  it("accepteert 'start_soon' (startdatum-sortering)", () => {
+    expect(normalizeJobFilters({ sort: "start_soon" }).sort).toBe("start_soon");
+  });
+
   it("accepteert geldige enums en parseert tarief-range", () => {
     const f = normalizeJobFilters({
       workMode: "REMOTE",

@@ -268,6 +268,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — startdatum-sortering op de opdrachtenlijst (2026-08-21, PR #1187)** —
+> `/opdrachten` sorteerde op beste match, nieuwste en tarief, maar niet op **startdatum**, terwijl
+> `job-start-proximity.ts` al bestond en elke opdracht een `startDate` heeft. Een ZZP'er die een gat in de
+> agenda wil vullen wil bovenaan zien wat het eerst begint (benchmark Temper/Zorgwerk: "start binnenkort").
+> Nieuwe pure `src/lib/job-start-sort.ts` (`sortJobsByStart`) rangschikt vanuit _nu_: aankomend oplopend
+> (soonste eerst) → voorbij-maar-open aflopend (recentst gestart eerst) → ongedateerd; tie-break nieuwst
+> gepubliceerd, dan id (deterministisch, UTC-middernacht). `start_soon` in `JOB_SORTS`; de pagina deelt het
+> in-geheugen scan-en-pagineer-pad met de matchsortering (`scanAndRank`). Werkt voor iedereen (geen profiel
+> nodig). Sorteeroptie "Startdatum (eerst)" in `job-filters.tsx`. Read-only, geen schema-/mutatie-/authz-/
+> domeinmotor-oppervlak. +9 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er + opdrachtgever — vervolgsignaal (renewal-badge) op de /samenwerkingen-lijst (2026-08-20)** —
 > de bemiddelaar zag op `/franchise/samenwerkingen` al per lopende plaatsing een `renewalRowBadge` ("Loopt af over
 > N dagen" / "Voorbij einddatum") en het detail toont de volledige `RenewalNudge`, maar de deelnemer-lijst
