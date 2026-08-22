@@ -342,6 +342,23 @@ export interface MetricsInput {
   storageDeliveryConsecutiveFailures: number;
   /** Leeftijd van de laatste mislukte object-opslag-operatie in seconden, of null als er nooit één was. */
   storageDeliveryLastFailureAgeSeconds: number | null;
+  /**
+   * Opereert het betaalprovider-kanaal (Stripe/Mollie, BILLING_PROVIDER=stripe|mollie) momenteel? true = de
+   * laatste échte uitgaande operatie (startCheckout/paymentStatus/checkConnectivity) slaagde (of er is nog
+   * nooit iets gedaan — neutraal gezond), false = de laatste operatie mislukte (de provider wijst af). Net als
+   * de mail-/push-/opslag-heartbeat GEEN staleness-op-leeftijd: betalingen zijn event-gedreven. Het alarm zit
+   * op OPEENVOLGENDE mislukkingen (billingDeliveryConsecutiveFailures), niet op een oude laatste-operatie.
+   */
+  billingDeliveryOk: boolean;
+  /**
+   * Aantal opeenvolgende mislukte betaalprovider-operaties sinds de laatste geslaagde (0 als het kanaal ok
+   * is of nog nooit iets deed). Een systematisch falende backend (verlopen/ingetrokken API-sleutel, geschorst
+   * account, provider-storing) laat élke checkout/statuscontrole stil mislukken; een monitor paget op een
+   * aanhoudende teller, niet op één transiënte fout.
+   */
+  billingDeliveryConsecutiveFailures: number;
+  /** Leeftijd van de laatste mislukte betaalprovider-operatie in seconden, of null als er nooit één was. */
+  billingDeliveryLastFailureAgeSeconds: number | null;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -609,6 +626,24 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: `Leeftijd van de laatste mislukte object-opslag-operatie in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_storage_consecutive_failures / zzp_storage_delivery_ok.`,
       type: "gauge",
       value: age(input.storageDeliveryLastFailureAgeSeconds),
+    },
+    {
+      name: "zzp_billing_delivery_ok",
+      help: "1 als de laatste échte betaalprovider-operatie (startCheckout/paymentStatus/checkConnectivity via BILLING_PROVIDER=stripe|mollie) slaagde (of er nog nooit iets gedaan is — neutraal gezond), 0 als de laatste operatie mislukte (provider wijst af). De betaalprovider is een productie-kernkanaal (abonnement-checkout + statuscontrole); een falende backend laat checkouts stil op PENDING hangen.",
+      type: "gauge",
+      value: flag(input.billingDeliveryOk),
+    },
+    {
+      name: "zzp_billing_consecutive_failures",
+      help: "Aantal opeenvolgende mislukte betaalprovider-operaties sinds de laatste geslaagde (0 = kanaal ok of nog niets gedaan). Alarmeer op een AANHOUDENDE teller (systematisch falende backend: verlopen/ingetrokken API-sleutel, geschorst account, provider-storing), niet op één transiënte fout.",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.billingDeliveryConsecutiveFailures)),
+    },
+    {
+      name: "zzp_billing_last_failure_age_seconds",
+      help: `Leeftijd van de laatste mislukte betaalprovider-operatie in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_billing_consecutive_failures / zzp_billing_delivery_ok.`,
+      type: "gauge",
+      value: age(input.billingDeliveryLastFailureAgeSeconds),
     },
   ];
 }

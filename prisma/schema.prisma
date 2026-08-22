@@ -1515,6 +1515,25 @@ model StorageDeliveryHeartbeat {
   updatedAt           DateTime  @updatedAt
 }
 
+// Dead-man's-switch voor het uitgaande betaalprovider-kanaal (Stripe/Mollie, BILLING_PROVIDER=stripe|mollie).
+// De betaalprovider is een productie-kernkanaal (abonnement-checkout + statuscontrole), maar had — anders dan
+// storage/mail/push — geen doorlopend afleversignaal: een systematisch falende backend (verlopen/ingetrokken
+// API-sleutel, geschorst account, provider-storing) laat élke startCheckout/paymentStatus stil mislukken; een
+// checkout blijft dan voor altijd op PENDING hangen. Elke uitgaande operatie via de échte provider registreert
+// hier haar uitkomst (via de RecordingPaymentProvider-decorator); de no-op-provider (mock/gratis default) doet
+// dat bewust niet. Singleton-rij per kanaal. Bevat geen persoonsgegevens — alleen tijdstippen, of de laatste
+// operatie slaagde, het aantal opeenvolgende mislukkingen en de driver-modus (nooit sleutels/endpoints/foutinhoud).
+model BillingDeliveryHeartbeat {
+  channel             String    @id // bv. "payment-provider"
+  lastAttemptAt       DateTime
+  lastOk              Boolean
+  lastSuccessAt       DateTime?
+  lastFailureAt       DateTime?
+  consecutiveFailures Int       @default(0)
+  driver              String // BILLING_PROVIDER-modus bij de laatste poging: "mollie" | "stripe"
+  updatedAt           DateTime  @updatedAt
+}
+
 // Idempotentie-grendel voor de betaal-webhook (/api/billing/webhook). Elke verwerkte
 // provider-ping wordt hier exact één keer vastgelegd op (provider, eventKey), waarbij
 // eventKey = "<paymentRef>:<status>". Een herspeeld of dubbel-afgeleverd event schendt de

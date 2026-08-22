@@ -752,6 +752,30 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
      (pilot-default: nooit een externe PENDING-rij). Resterend mensenwerk: **niets extra** — de backstop draait
      zodra een echte betaalprovider (`BILLING_PROVIDER=stripe`/`mollie`) actief is.
 
+   **Code-kant GEDAAN (2026-08-22) — betaalprovider-aflever-heartbeat (dead-man's-switch).** De
+   connectiviteitszelftest en reconcile-backstop hierboven bewijzen bereikbaarheid **vóór go-live** (op een
+   moment dat een mens klikt) of herstellen een **enkele** gemiste webhook. Ze zeggen niets over de
+   doorlopende gezondheid van het uitgaande betaalkanaal daarna: een systematisch falende backend
+   (verlopen/ingetrokken API-sleutel, geschorst account, provider-storing) laat élke `startCheckout`/
+   `paymentStatus` stil mislukken — checkouts hangen dan voor altijd op PENDING en niemand merkt de
+   AANHOUDENDE storing tot een gebruiker klaagt dat betalen niet lukt. De betaalprovider was — anders dan
+   opslag/mail/push/cron/back-up — het laatste productie-kernkanaal zónder doorlopend afleversignaal. Nu
+   registreert elke uitgaande operatie via de échte provider haar uitkomst in een singleton
+   `BillingDeliveryHeartbeat`, via een `RecordingPaymentProvider`-decorator rond `getPaymentProvider()` (de
+   no-op/mock-provider registreert bewust niets — geen externe call, geen productie-kanaal). Net als de
+   opslag-/mail-/push-heartbeat is dit **geen** staleness-op-leeftijd (betalingen zijn event-gedreven; een
+   rustige periode is normaal) maar het oordeel op de **laatste** operatie: `never`/`ok`/`failing` met een
+   teller `consecutiveFailures`. Zichtbaar op `/admin/systeemstatus` (kaart "Betaalprovider") en
+   machine-leesbaar op `/api/metrics` via `zzp_billing_delivery_ok`, `zzp_billing_consecutive_failures`,
+   `zzp_billing_last_failure_age_seconds`. Drop-in Prometheus-alert `ZzpBillingDeliveryFailing`
+   (`zzp_billing_delivery_ok == 0 and zzp_billing_consecutive_failures >= 3`, `for: 15m`, warning) in
+   `docs/observability/alerts.yml`, in de onderhouds-inhibitie (`alertmanager.yml`). Bevat nooit
+   sleutels/endpoints/foutinhoud — alleen tijdstippen, de teller en de driver-modus; registratie is
+   fail-open (een DB-storing in de heartbeat mag een geslaagde checkout niet laten falen, noch een echte
+   fout maskeren). Resterend mensenwerk: **niets extra** — de kaart/gauge vullen zichzelf zodra
+   `BILLING_PROVIDER=stripe`/`mollie` staat en de eerste checkout/statuscontrole draait. Optioneel: richt
+   een monitor op `ZzpBillingDeliveryFailing`.
+
 ### §3b. Franchise-facturatie (tenant-billing)
 
 **Wat:** de franchise-monetisatie (3+1 hybride: een maandabonnement per vestiging + een lichte
