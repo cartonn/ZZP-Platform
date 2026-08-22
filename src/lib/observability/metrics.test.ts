@@ -53,6 +53,9 @@ const HEALTHY: MetricsInput = {
   billingDeliveryOk: true,
   billingDeliveryConsecutiveFailures: 0,
   billingDeliveryLastFailureAgeSeconds: null,
+  billingWebhookAuthOk: true,
+  billingWebhookAuthConsecutiveFailures: 0,
+  billingWebhookAuthLastFailureAgeSeconds: null,
 };
 
 function valueOf(input: MetricsInput, name: string): number {
@@ -469,6 +472,9 @@ describe("buildMetrics", () => {
       billingDeliveryOk: false,
       billingDeliveryConsecutiveFailures: 7,
       billingDeliveryLastFailureAgeSeconds: 1200,
+      billingWebhookAuthOk: false,
+      billingWebhookAuthConsecutiveFailures: 9,
+      billingWebhookAuthLastFailureAgeSeconds: 1500,
     };
     expect(valueOf(input, "zzp_db_reachable")).toBe(0);
     expect(valueOf(input, "zzp_metrics_collection_complete")).toBe(0);
@@ -484,6 +490,9 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_billing_delivery_ok")).toBe(0);
     expect(valueOf(input, "zzp_billing_consecutive_failures")).toBe(7);
     expect(valueOf(input, "zzp_billing_last_failure_age_seconds")).toBe(1200);
+    expect(valueOf(input, "zzp_billing_webhook_auth_ok")).toBe(0);
+    expect(valueOf(input, "zzp_billing_webhook_auth_consecutive_failures")).toBe(9);
+    expect(valueOf(input, "zzp_billing_webhook_auth_last_failure_age_seconds")).toBe(1500);
     expect(valueOf(input, "zzp_maintenance_mode")).toBe(1);
     expect(valueOf(input, "zzp_credentials_overdue_expiry")).toBe(12);
     expect(valueOf(input, "zzp_subscriptions_overdue_expiry")).toBe(8);
@@ -582,6 +591,9 @@ describe("buildMetrics", () => {
       "zzp_billing_delivery_ok",
       "zzp_billing_consecutive_failures",
       "zzp_billing_last_failure_age_seconds",
+      "zzp_billing_webhook_auth_ok",
+      "zzp_billing_webhook_auth_consecutive_failures",
+      "zzp_billing_webhook_auth_last_failure_age_seconds",
     ]);
   });
 });

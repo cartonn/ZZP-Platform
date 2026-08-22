@@ -9,6 +9,10 @@ const checkMock = vi.hoisted(() =>
   vi.fn(async () => ({ allowed: true, remaining: 59, retryAfterMs: 0 })),
 );
 const resolveWebhookRefMock = vi.hoisted(() => vi.fn(async (): Promise<string | null> => "tr_123"));
+const classifyWebhookAuthMock = vi.hoisted(() =>
+  vi.fn(async (): Promise<"ok" | "invalid" | "not-applicable"> => "ok"),
+);
+const recordWebhookAuthOutcomeMock = vi.hoisted(() => vi.fn(async () => {}));
 const paymentStatusMock = vi.hoisted(() =>
   vi.fn(async (): Promise<"paid" | "open" | "failed"> => "open"),
 );
@@ -49,8 +53,12 @@ vi.mock("@/lib/billing/provider", () => ({
   getPaymentProvider: () => ({
     name: "stripe",
     resolveWebhookRef: resolveWebhookRefMock,
+    classifyWebhookAuth: classifyWebhookAuthMock,
     paymentStatus: paymentStatusMock,
   }),
+}));
+vi.mock("@/lib/observability/billing-webhook-auth-heartbeat", () => ({
+  recordWebhookAuthOutcome: recordWebhookAuthOutcomeMock,
 }));
 
 import { POST } from "@/app/api/billing/webhook/route";
@@ -68,6 +76,9 @@ beforeEach(() => {
   checkMock.mockResolvedValue({ allowed: true, remaining: 59, retryAfterMs: 0 });
   resolveWebhookRefMock.mockReset();
   resolveWebhookRefMock.mockResolvedValue("tr_123");
+  classifyWebhookAuthMock.mockReset();
+  classifyWebhookAuthMock.mockResolvedValue("ok");
+  recordWebhookAuthOutcomeMock.mockClear();
   paymentStatusMock.mockReset();
   paymentStatusMock.mockResolvedValue("open");
   findFirstMock.mockReset();
@@ -109,6 +120,24 @@ describe("POST /api/billing/webhook", () => {
     const res = await POST(post("{}"));
     expect(res.status).toBe(200);
     expect(resolveWebhookRefMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("registreert de handtekening-uitkomst in de webhook-auth-heartbeat (instrumentatie)", async () => {
+    classifyWebhookAuthMock.mockResolvedValue("invalid");
+    const res = await POST(post("{}"));
+    expect(res.status).toBe(200);
+    expect(classifyWebhookAuthMock).toHaveBeenCalledTimes(1);
+    expect(recordWebhookAuthOutcomeMock).toHaveBeenCalledWith("invalid", "stripe");
+  });
+
+  it("een falende instrumentatie verandert de verwerking niet (fail-open, 200 + resolutie loopt door)", async () => {
+    classifyWebhookAuthMock.mockRejectedValue(new Error("boom"));
+    findFirstMock.mockResolvedValue({ id: "sub1", userId: "u1", status: "PENDING" });
+    paymentStatusMock.mockResolvedValue("paid");
+    const res = await POST(post("{}"));
+    expect(res.status).toBe(200);
+    expect(resolveWebhookRefMock).toHaveBeenCalledTimes(1);
+    expect(updateMock).toHaveBeenCalledTimes(1); // de echte verwerking blijft ongemoeid
   });
 
   // OWASP A05 / CWE-400: het endpoint is publiek + ongeauthenticeerd. Een overmaatse body wordt

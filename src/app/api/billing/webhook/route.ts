@@ -9,6 +9,7 @@ import { getPaymentProvider } from "@/lib/billing/provider";
 import { billingWebhookRateLimiter } from "@/lib/rate-limit";
 import { clientIpFromRequest } from "@/lib/client-ip";
 import { applyResolvedPaymentStatus } from "@/lib/billing/apply-payment-status";
+import { recordWebhookAuthOutcome } from "@/lib/observability/billing-webhook-auth-heartbeat";
 
 export const dynamic = "force-dynamic";
 
@@ -38,10 +39,28 @@ export async function POST(request: Request): Promise<Response> {
   const provider = getPaymentProvider();
 
   // De rauwe body één keer lezen (Stripe-handtekeningverificatie vereist de exacte, ongeparste body).
+  let raw: string;
+  try {
+    raw = await request.text();
+  } catch {
+    return new Response("ok", { status: 200 }); // body onleesbaar
+  }
+  if (raw.length > MAX_BODY_BYTES) return new Response("ok", { status: 200 });
+
+  // Observability-instrumentatie (fail-open, verandert NOOIT de control-flow hieronder): registreer of
+  // de webhook-handtekening klopt in de betaal-webhook-handtekening-heartbeat. Zo wordt een systematisch
+  // falende verificatie — de stille faal van een verkeerd/geroteerd STRIPE_WEBHOOK_SECRET — zichtbaar
+  // (`resolveWebhookRef` geeft daarvoor dezelfde `null` als voor een irrelevant event). `classifyWebhookAuth`
+  // en de registratie mogen per contract nooit throwen; de extra try is een laatste vangnet.
+  try {
+    const authOutcome = await provider.classifyWebhookAuth(raw, request.headers);
+    await recordWebhookAuthOutcome(authOutcome, provider.name);
+  } catch {
+    // Instrumentatie is best-effort en mag de verwerking nooit blokkeren.
+  }
+
   let paymentId: string | null;
   try {
-    const raw = await request.text();
-    if (raw.length > MAX_BODY_BYTES) return new Response("ok", { status: 200 });
     paymentId = await provider.resolveWebhookRef(raw, request.headers);
   } catch {
     return new Response("ok", { status: 200 }); // niets te doen / ongeldige of niet-geverifieerde ping

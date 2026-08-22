@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-22 — Prod-rijpheid: betaal-webhook-handtekening-heartbeat (dead-man's-switch, INKOMENDE kant)
+
+**Wat:** Sluit het inkomende gat in de betaal-observability. De betaalprovider-aflever-heartbeat (#1190) bewaakt de
+UITGAANDE calls; de INKOMENDE Stripe-webhooks niet. Stripe ondertekent elke webhook en de route negeert een ongeldige
+handtekening bewust stil (`resolveWebhookRef`→`null`, altijd 200). Een verkeerd/geroteerd `STRIPE_WEBHOOK_SECRET` laat
+daardoor élke webhook stil de verificatie falen → betaalde abonnementen blijven op PENDING hangen tot de reconcile-cron
+ze veel later redt; onzichtbaar want dezelfde `null` als voor een irrelevant event (`stalePendingSubscriptions` vangt
+alleen het vertraagde symptoom). Nu: pure `classifyWebhookAuth` op de PaymentProvider (Stripe: ok/invalid/not-applicable;
+Mollie/noop: not-applicable), door de route PUUR voor observability aangeroepen (raakt de control-flow nooit) en
+geregistreerd in een aparte `payment-webhook-auth`-heartbeat die de bestaande per-`channel` `BillingDeliveryHeartbeat`-tabel
+hergebruikt (geen schema-wijziging). Event-gedreven, fail-open, nooit sleutels/foutinhoud.
+
+**Bestanden:** `src/lib/billing/provider.ts` (+`WebhookAuthOutcome`/`classifyWebhookAuth` op interface + 3 impls),
+`src/lib/billing/recording-payment-provider.ts` (passthrough), `src/lib/observability/billing-webhook-auth-heartbeat.ts`
+(+`billing-webhook-auth-status.ts` pure statusItem), `src/app/api/billing/webhook/route.ts` (instrumentatie), `metrics.ts`
+
+- `metrics/route.ts` (3 gauges), `alerts-rules.ts` (INFO_ONLY + SAMPLE_INPUT), `docs/observability/alerts.yml`
+  (`ZzpBillingWebhookSignatureFailing`) + `alertmanager.yml` (inhibitie), `systeemstatus/page.tsx` +
+  `components/admin/billing-webhook-auth-card.tsx` (kaart "Betaal-webhook"). Tests: classify per provider, pure statusItem,
+  outcome→writer-mapping, route-instrumentatie fail-open + record-assertie, metrics-gauge-set + drift-gate + inhibitie-parity.
+
+**Checks:** typecheck ✓ · lint ✓ (0 warnings) · affected tests 136 passed ✓ · build + prettier (repo) → in PR-gate. Resterend
+mensenwerk: niets extra — de kaart/gauge vullen zichzelf zodra Stripe webhooks aflevert.
+
 ## 2026-08-22 — Security-/privacy-auditronde 2026-08-22b (basis `main` @ 6e5ffd01): geen nieuwe gaten
 
 **Wat:** Volledige security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

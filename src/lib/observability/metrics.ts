@@ -359,6 +359,23 @@ export interface MetricsInput {
   billingDeliveryConsecutiveFailures: number;
   /** Leeftijd van de laatste mislukte betaalprovider-operatie in seconden, of null als er nooit één was. */
   billingDeliveryLastFailureAgeSeconds: number | null;
+  /**
+   * Klopt de handtekening van het INKOMENDE betaal-webhook-kanaal? true = de laatste getekende webhook
+   * (Stripe) verifieerde geldig (of er is er nog nooit één geweest — neutraal gezond), false = de laatste
+   * inkomende webhook faalde de handtekeningverificatie. Anders dan billingDeliveryOk (dat de UITGAANDE
+   * provider-calls bewaakt) dekt dit de stille faal van een verkeerd/geroteerd STRIPE_WEBHOOK_SECRET, dat
+   * élke webhook doet negeren → abonnementen blijven op PENDING hangen. Event-gedreven; het alarm zit op
+   * OPEENVOLGENDE mislukkingen. Ongetekende kanalen (noop/Mollie) registreren niets → blijft "ok/never".
+   */
+  billingWebhookAuthOk: boolean;
+  /**
+   * Aantal opeenvolgende inkomende webhooks met een ongeldige handtekening sinds de laatste geldige (0 als
+   * ok of nog nooit een getekende webhook). Een aanhoudende teller wijst op een verkeerd webhook-secret
+   * (of vervalste pings tegen het publieke endpoint); een monitor paget daarop, niet op één transiënte fout.
+   */
+  billingWebhookAuthConsecutiveFailures: number;
+  /** Leeftijd van de laatste ongeldig-getekende webhook in seconden, of null als er nooit één was. */
+  billingWebhookAuthLastFailureAgeSeconds: number | null;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -644,6 +661,24 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: `Leeftijd van de laatste mislukte betaalprovider-operatie in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_billing_consecutive_failures / zzp_billing_delivery_ok.`,
       type: "gauge",
       value: age(input.billingDeliveryLastFailureAgeSeconds),
+    },
+    {
+      name: "zzp_billing_webhook_auth_ok",
+      help: "1 als de laatste INKOMENDE getekende betaal-webhook (Stripe) een geldige handtekening had (of er nog nooit één was — neutraal gezond), 0 als de laatste inkomende webhook de handtekeningverificatie faalde. Dekt de stille faal van een verkeerd/geroteerd STRIPE_WEBHOOK_SECRET: dan wordt élke webhook genegeerd en blijven betaalde abonnementen op PENDING hangen. Ongetekende kanalen (noop/Mollie) registreren niets.",
+      type: "gauge",
+      value: flag(input.billingWebhookAuthOk),
+    },
+    {
+      name: "zzp_billing_webhook_auth_consecutive_failures",
+      help: "Aantal opeenvolgende inkomende betaal-webhooks met een ongeldige handtekening sinds de laatste geldige (0 = kanaal ok of nog nooit een getekende webhook). Alarmeer op een AANHOUDENDE teller (verkeerd webhook-secret, of vervalste pings tegen het publieke endpoint), niet op één transiënte fout.",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.billingWebhookAuthConsecutiveFailures)),
+    },
+    {
+      name: "zzp_billing_webhook_auth_last_failure_age_seconds",
+      help: `Leeftijd van de laatste ongeldig-getekende betaal-webhook in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_billing_webhook_auth_consecutive_failures / zzp_billing_webhook_auth_ok.`,
+      type: "gauge",
+      value: age(input.billingWebhookAuthLastFailureAgeSeconds),
     },
   ];
 }

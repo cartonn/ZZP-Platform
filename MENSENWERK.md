@@ -776,6 +776,30 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
    `BILLING_PROVIDER=stripe`/`mollie` staat en de eerste checkout/statuscontrole draait. Optioneel: richt
    een monitor op `ZzpBillingDeliveryFailing`.
 
+   **Code-kant GEDAAN (2026-08-22) — betaal-webhook-handtekening-heartbeat (dead-man's-switch, INKOMENDE
+   kant).** De heartbeat hierboven bewaakt de **uitgaande** provider-calls; deze dekt de **inkomende**
+   webhooks. Stripe ondertekent elke webhook, en de webhook-route negeert een webhook met een ongeldige
+   handtekening bewust stil (`resolveWebhookRef` → `null`, altijd 200, geen retry-storm). Het gevolg: een
+   **verkeerd of geroteerd `STRIPE_WEBHOOK_SECRET`** laat élke inkomende webhook stil de verificatie falen
+   — een betaling slaagt, maar het abonnement wordt nooit geactiveerd en blijft op PENDING hangen tot de
+   reconcile-cron het veel later redt. Deze faalmodus was tot nu toe **onzichtbaar**: `resolveWebhookRef`
+   geeft voor een ongeldige handtekening dezelfde `null` als voor een irrelevant event, en de bestaande
+   `stalePendingSubscriptions`-detector vangt alleen het (vertraagde) symptoom, niet de oorzaak. Nu
+   classificeert de route elke inkomende webhook puur voor observability (`classifyWebhookAuth` op de
+   provider — verandert **nooit** de control-flow) en registreert de uitkomst in een aparte
+   `payment-webhook-auth`-heartbeat (hergebruikt de bestaande, per-`channel` gesleutelde
+   `BillingDeliveryHeartbeat`-tabel — **geen schema-wijziging**). Ongetekende kanalen (noop/Mollie —
+   Mollie ondertekent niet) registreren bewust niets. Event-gedreven oordeel op de laatste webhook
+   (`never`/`ok`/`failing` + teller), fail-open (instrumentatie mag de webhook-verwerking nooit blokkeren),
+   bevat nooit sleutels/foutinhoud. Zichtbaar op `/admin/systeemstatus` (kaart "Betaal-webhook") en op
+   `/api/metrics` via `zzp_billing_webhook_auth_ok`, `zzp_billing_webhook_auth_consecutive_failures`,
+   `zzp_billing_webhook_auth_last_failure_age_seconds`. Drop-in Prometheus-alert
+   `ZzpBillingWebhookSignatureFailing` (`== 0 and >= 3`, `for: 15m`, warning) in
+   `docs/observability/alerts.yml`, in de onderhouds-inhibitie (`alertmanager.yml`). Resterend mensenwerk:
+   **niets extra** — de kaart/gauge vullen zichzelf zodra Stripe webhooks aflevert. Waarde bij go-live: een
+   verkeerd geplakt webhook-secret wordt binnen ~15 min zichtbaar mét de exacte oorzaak, i.p.v. pas uren
+   later via het stille-PENDING-symptoom.
+
 ### §3b. Franchise-facturatie (tenant-billing)
 
 **Wat:** de franchise-monetisatie (3+1 hybride: een maandabonnement per vestiging + een lichte

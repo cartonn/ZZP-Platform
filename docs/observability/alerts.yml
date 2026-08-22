@@ -204,6 +204,25 @@ groups:
           summary: "Betaalprovider wijst af"
           description: "De betaalprovider levert niet meer (zzp_billing_delivery_ok=0, ≥3 opeenvolgende mislukkingen). Abonnement-checkouts kunnen niet worden gestart of statussen niet worden opgehaald — een checkout blijft op PENDING hangen. Controleer de provider-credentials (verlopen/ingetrokken API-sleutel, geschorst account) en het server-logboek (of Sentry). Zie MENSENWERK §3."
 
+      - alert: ZzpBillingWebhookSignatureFailing
+        # Het INKOMENDE betaal-webhook-kanaal (Stripe ondertekent elke webhook) faalt systematisch de
+        # handtekeningverificatie: de laatste getekende webhook was ongeldig (zzp_billing_webhook_auth_ok=0)
+        # én er zijn ≥3 opeenvolgende ongeldige handtekeningen. Dit is een ándere faalmodus dan
+        # ZzpBillingDeliveryFailing (dat de UITGAANDE calls bewaakt): oorzaak is bijna altijd een
+        # verkeerd/geroteerd STRIPE_WEBHOOK_SECRET in de env — dan wordt élke webhook genegeerd en blijft een
+        # betaald abonnement op PENDING hangen tot de reconcile-cron het veel later redt (verloren/vertraagde
+        # activering). Kan ook duiden op vervalste webhook-pings tegen het publieke endpoint. Ongetekende
+        # kanalen (noop/Mollie) registreren niets → deze alert vuurt daar per definitie niet. Event-gedreven,
+        # dus de conditie zit op de teller; de ≥3-drempel + `for:` negeren één transiënte/vervalste ping.
+        # Herstel wordt automatisch gewist zodra een geldig-getekende webhook binnenkomt. Zie MENSENWERK §3.
+        expr: zzp_billing_webhook_auth_ok == 0 and zzp_billing_webhook_auth_consecutive_failures >= 3
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Betaal-webhook-handtekening ongeldig"
+          description: "Inkomende betaal-webhooks falen de handtekeningverificatie (zzp_billing_webhook_auth_ok=0, ≥3 opeenvolgende ongeldige handtekeningen). Vermoedelijk staat STRIPE_WEBHOOK_SECRET verkeerd of is hij geroteerd zonder de env bij te werken — dan worden alle webhooks genegeerd en blijven betaalde abonnementen op PENDING hangen. Controleer het webhook-secret in het Stripe-dashboard-endpoint tegen de env-secret. Zie MENSENWERK §3."
+
   - name: zzp-platform-stille-faal-backlogs
     rules:
       # Deze drie tellen werk dat een cron-run HAD moeten doen. De cron-heartbeat bewijst alleen DÁT de
