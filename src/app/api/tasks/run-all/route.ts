@@ -23,6 +23,7 @@ import { runPerformanceApprovalReminderTask } from "@/lib/performance-approval-r
 import { runDisputeReminderTask } from "@/lib/dispute-reminders-task";
 import { runPerformanceSubmissionReminderTask } from "@/lib/performance-submission-reminders-task";
 import { runApplicationDecisionReminderTask } from "@/lib/application-decision-reminders-task";
+import { runConversationReplyReminderTask } from "@/lib/conversation-reply-reminders-task";
 import { runNotificationDigestTask } from "@/lib/notification-digest-task";
 import { runReviewsRevealTask } from "@/lib/reviews-reveal-task";
 import { runPushDeliveryTask } from "@/lib/push-delivery-task";
@@ -85,6 +86,10 @@ export async function POST(request: Request): Promise<Response> {
     {
       name: "application-decision-reminders",
       fn: () => runApplicationDecisionReminderTask({ actorId: null }),
+    },
+    {
+      name: "conversation-reply-reminders",
+      fn: () => runConversationReplyReminderTask({ actorId: null }),
     },
     { name: "reviews-reveal", fn: () => runReviewsRevealTask({ actorId: null }) },
     { name: "push-delivery", fn: () => runPushDeliveryTask({}) },

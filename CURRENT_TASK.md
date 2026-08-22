@@ -268,6 +268,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Alle rollen — proactieve reminder voor onbeantwoorde berichten (cron) (2026-08-22, PR #1188)** —
+> `/berichten` toonde de wachtende kant al dat een gesprek "stil" ligt (`conversation-turn.ts` vanaf
+> `CONVERSATION_STALE_DAYS`=3), maar niemand nudget de kant die aan zet is: de ontvanger van het laatste bericht die
+> nog niet antwoordde (zag het pas bij inloggen). Nieuwe pure planner `conversation-reply-reminders.ts` + runner
+> `conversation-reply-reminders-task.ts` (patroon van `application-decision-reminders`): nudge op dag 3 en 7 na het
+> laatste bericht (`CONVERSATION_STALE_DAYS` + offsets `REMINDERS.conversationReplyDays` [0,4], geen drift met het
+> /berichten-stiltesignaal), daarna stop (max 2). Elke deelnemer behalve de afzender; idempotent via DomainEvent
+> dedupeKey per (gesprek, ontvanger, dag). Notificatie → /berichten/[id], nieuwe categorie "messages" (Berichten),
+> audit-label + registratie in run-all. Runner-scan begrensd op `Conversation.updatedAt`-venster; planner beslist de
+> exacte dag uit `lastMessage.createdAt`. Puur/server-side, geen schema-/authz-/geldstroom-oppervlak. +24 tests. Gate groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er — startdatum-sortering op de opdrachtenlijst (2026-08-21, PR #1187)** —
 > `/opdrachten` sorteerde op beste match, nieuwste en tarief, maar niet op **startdatum**, terwijl
 > `job-start-proximity.ts` al bestond en elke opdracht een `startDate` heeft. Een ZZP'er die een gat in de

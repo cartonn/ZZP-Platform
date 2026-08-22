@@ -9,6 +9,7 @@ export const NOTIFICATION_CATEGORIES = [
   "dispute", //      dispuut/escalatie
   "credential", //   certificaat/verificatie
   "collaboration", //samenwerking
+  "messages", //     bericht/gesprek (onbeantwoord, wacht op antwoord)
   "idea", //         ideeënbox (statuswijziging, reactie)
   "system", //       overig/systeem
 ] as const;
@@ -61,6 +62,7 @@ const META: Record<string, NotificationMeta> = {
   JOB_PROPOSAL: { category: "collaboration", tone: "attention" }, // bemiddelaar draagt ZZP'er voor op dienst
   JOB_INVITE: { category: "collaboration", tone: "attention" }, // opdrachtgever nodigt ZZP'er direct uit voor een opdracht
   JOB_CLOSED: { category: "system", tone: "info" }, // opdracht gesloten: open reactie is niet meer beschikbaar
+  CONVERSATION_REPLY_REMINDER: { category: "messages", tone: "attention" }, // onbeantwoord bericht, gesprek ligt stil
 };
 
 /** Categorie + toon voor een notificatietype; valt terug op een neutrale systeem-categorie. */
@@ -77,6 +79,7 @@ export const NOTIFICATION_CATEGORY_LABEL: Record<NotificationCategory, string> =
   dispute: "Disputen",
   credential: "Certificaten",
   collaboration: "Samenwerkingen",
+  messages: "Berichten",
   idea: "Ideeënbox",
   system: "Overig",
 };
