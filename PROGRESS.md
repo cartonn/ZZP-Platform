@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-22 — ZZP'er: concurrentie-context op /reacties
+
+**Wat:** Op `/reacties` zag de ZZP'er al een wachttijd-signaal en de reactiebereidheid van de
+opdrachtgever, maar nooit **hoeveel andere kandidaten** met hem concurreren op een nog-openstaande
+reactie. Nieuwe rustige context-regel onder de kaart ("Enige kandidaat" / "Nog N andere kandidaten" +
+beslis-tip) helpt de vervolgvraag ná het reageren: blijven wachten of breder kijken. Post-application
+tegenhanger van het bestaande pre-application signaal (`job-competition.ts`) op de opdrachtenlijst/-detail.
+Op de shortlist blijft de duiding geruststellend (sterkste openstaande positie); bij veel belangstelling
+wijst de tip rustig naar andere opdrachten (zelfde constructieve richting als het wacht-signaal).
+
+**Hoe:** Nieuwe pure `summarizeApplicationCompetition` in `src/lib/application-competition.ts` — leidt
+uitsluitend af uit de geaggregeerde telling van ándere nog-openstaande kandidaten + de eigen status;
+geeft `null` bij een besliste/afgehandelde reactie. Drempels via `competitionLevel` uit `job-competition.ts`
+(geen drift met het pre-application signaal). Lekt geen identiteit/score/reactie van andere kandidaten —
+alleen hun aantal. Component `application-competition-note.tsx` (rustige regel, toon positive/neutral/
+caution). Gewired in `reacties/page.tsx`: de job-`_count` telt nu ook `applications`
+(`freelancerId != eigen id`, status ∈ NEW/VIEWED/SHORTLIST) → één gebatchte query, geen N+1; de note toont
+alleen zolang de reactie nog echt kan lopen (niet dicht/vervuld, geen samenwerking). Read-only, geen
+schema-/mutatie-/authz-/domeinmotor-oppervlak. +9 tests. Gate: typecheck, lint, test, build, prettier groen.
+
+**Volgende stap:** publiceer-/claim-kant van de rooster-marktplaats (open Fase 3), of het volgende
+persona-sweep-HIGH-gat.
+
 ## 2026-08-22 — ZZP'er: quickfilter "Alleen waar ik aan voldoe" op /opdrachten
 
 **Wat:** De opdrachtenlijst toont per rij al een inzetbaarheids-chip (mist/verlopen vereist certificaat),
