@@ -13,6 +13,8 @@ import { ApplicationStatusBadge } from "@/components/applications/application-st
 import { OutcomesSummary } from "@/components/applications/outcomes-summary";
 import { WaitSignal } from "@/components/applications/wait-signal";
 import { ApplicantResponsivenessNote } from "@/components/applications/applicant-responsiveness-note";
+import { ApplicationCompetitionNote } from "@/components/applications/application-competition-note";
+import { summarizeApplicationCompetition } from "@/lib/application-competition";
 import { getClientResponsivenessForCompanies } from "@/lib/data/client-responsiveness";
 import {
   countApplicationsAwaitingAttention,
@@ -136,8 +138,20 @@ export default async function ReactiesPage({
               company: { select: { id: true, name: true } },
               credentialRequirements: { select: { credentialType: true, required: true } },
               // Actieve samenwerkingen op de opdracht (met wie dan ook) — zodat een nog-openstaande
-              // reactie op een reeds vervulde opdracht niet hoopvol blijft tonen.
-              _count: { select: { collaborations: { where: { status: "ACTIVE" } } } },
+              // reactie op een reeds vervulde opdracht niet hoopvol blijft tonen. Daarnaast de
+              // geaggregeerde telling van ándere nog-openstaande kandidaten (niet deze ZZP'er, niet
+              // ingetrokken/afgewezen) → concurrentie-context zonder identiteit te lekken.
+              _count: {
+                select: {
+                  collaborations: { where: { status: "ACTIVE" } },
+                  applications: {
+                    where: {
+                      freelancerId: { not: profile.id },
+                      status: { in: ["NEW", "VIEWED", "SHORTLIST"] },
+                    },
+                  },
+                },
+              },
             },
           },
           collaboration: { select: { id: true, status: true } },
@@ -304,6 +318,16 @@ export default async function ReactiesPage({
                 const responsiveness = wait
                   ? responsivenessByCompany.get(app.job.company.id)
                   : undefined;
+                // Concurrentie-context: hoeveel andere kandidaten staan er nog open op deze opdracht?
+                // Alleen zinvol zolang de reactie nog echt kan lopen (niet dicht/vervuld, geen
+                // samenwerking) — de helper zelf dooft al bij een besliste status.
+                const competition =
+                  !availability && !app.collaboration
+                    ? summarizeApplicationCompetition({
+                        otherApplicantCount: app.job._count.applications,
+                        status: app.status,
+                      })
+                    : null;
                 return (
                   <div key={app.id} className="rounded-lg border border-border bg-card p-4">
                     <Link
@@ -379,6 +403,7 @@ export default async function ReactiesPage({
                     {responsiveness && (
                       <ApplicantResponsivenessNote responsiveness={responsiveness} />
                     )}
+                    {competition && <ApplicationCompetitionNote note={competition} t={t} />}
                     {availability && (
                       <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border pt-2">
                         <Badge variant="muted">
