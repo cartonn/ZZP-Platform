@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-22 — Persona-sweep (run 87): stepper-zelftegenspraak (CREDITED + OVERDUE) + franchiser-verwoording
+
+**Wat:** Kritische-gebruiker-sweep over alle 4 rollen (4 parallelle adversariële Opus-audits +
+live Playwright-sweep). 3 next-action-/screen-consistentie-defecten gevonden én gefixt; authz/IDOR,
+tenant-isolatie, malicieuze input en geld-integriteit vonden 0 nieuwe bereikbare gaten.
+(1) `buildChainSteps` (`src/lib/cascade/chain-steps.ts`) had geen `CREDITED`-tak → de "Voortgang"-stepper
+sprak de status-line ("Factuur gecrediteerd") op hetzelfde scherm tegen (toonde "volgt nog" voor een
+afgewikkelde factuur). (2) Dezelfde stepper negeerde `OVERDUE` in de Betaling-stap (`invApproved` testte
+alleen `APPROVED`) → "Volgt na factuurgoedkeuring" terwijl de factuur al goedgekeurd én te laat was.
+(3) Franchiser-taak `franchiseNotEngageableTask` (`src/lib/actions/tasks.ts`) vroeg de franchiser zelf
+het bewijsstuk aan te vullen — alleen de ZZP'er kan dat; verwoording gelijkgetrokken met de zustertaak.
+
+**Hoe:** CREDITED- en OVERDUE-takken toegevoegd aan `buildChainSteps`, spiegelt `stage.ts` (dat beide al
+correct als afgewikkelde-/betalingsfase kent) → één bron, geen drift. Puur, read-only render-afleiding,
+geen schema-/mutatie-/authz-oppervlak. +3 regressietests (chain-steps.test.ts, 53 groen). Franchiser-subtitle
+tekstfix. Gate: typecheck, lint, test (636 files / 6637 tests), build, prettier groen.
+
+**Volgende stap:** volgende persona-sweep-run of het volgende backlog-HIGH-item.
+
 ## 2026-08-22 — ZZP'er: concurrentie-context op /reacties
 
 **Wat:** Op `/reacties` zag de ZZP'er al een wachttijd-signaal en de reactiebereidheid van de
