@@ -4,6 +4,54 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-22b (basis: `main` @ 6e5ffd01) — GEEN NIEUWE GATEN (delta + systemische sweep schoon)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.
+Delta t.o.v. de vorige ronde (basis `29a30441`): 6 commits (`29a30441..6e5ffd01`) — o.a. de billing-aflever-
+heartbeat / dead-man's-switch betaalprovider (#1190), de notificatie-META-dekking (icoon/label/categorie voor
+20 ontbrekende types, #1191), het opdrachtenfilter "alleen waar ik aan voldoe" voor de ZZP'er (#1193), de
+concurrentie-context op `/reacties` (#1194) en de Voortgang-stepper-fix (#1195). `npm audit --omit=dev`:
+**0 vulnerabilities** (geen advisories over Next.js 15 / Auth.js v5 / Prisma).
+
+**Dekking (OWASP Top 10 / ASVS + AVG):** (1) object-/functie-niveau-autz + IDOR + multi-tenant-isolatie op de
+nieuwe billing-heartbeat-, filter- en concurrentie-oppervlakken (A01); (2) injectie (SQL/`$queryRaw`, XSS/
+`dangerouslySetInnerHTML`, CSV-/formule-injectie) (A03); (3) SSRF op server-side `fetch` met user-URL (A10);
+(4) upload-/storage-veiligheid + path-traversal (A01/A04); (5) secrets in code/log/client-bundle + `.env`-tracking
+(A05/A07); (6) auth/sessie/rate-limiting fail-closed (A07); (7) security-headers/CSP-nonce (A05); (8) foutafhandeling
+(geen Prisma-fout/stacktrace naar client) (A05/A09); (9) mass-assignment/overposting (A08); (10) AVG: dataminimalisatie
+
+- cross-partij/cross-tenant PII-lek, audit-logging van gevoelige acties, inzage/erasure-symmetrie, k-anonimiteit,
+  retentie, logs-lekken-geen-PII, derden-doorgifte (AVG art. 5/15/17/20/25/32).
+
+**Uitkomst — schoon.** Drie parallelle audits + eigen data-flow-tracing vonden **0 bereikbare nieuwe gaten**:
+
+- **Concurrentie-context op `/reacties` (`application-competition.ts`).** De pagina is `requireRole("FREELANCER")`-
+  gated en de reacties zijn strikt eigenaar-gescoopt (`freelancerId: profile.id`). De concurrentie-telling
+  (`_count.applications` met `freelancerId: { not: profile.id }`, open statussen) is puur **geaggregeerd** — de helper
+  leidt uitsluitend een aantal + toon af, lekt geen identiteit, score of reactie van andere kandidaten. AVG art. 5(1)(c)
+  dataminimalisatie — schoon.
+- **Billing-aflever-heartbeat + recording-payment-provider + `/api/metrics`.** De decorator/heartbeat persisteert/logt
+  **geen** PII of secrets — alleen een statische `channel`/`driver`-string + timestamps/booleans/tellers (geverifieerd
+  tegen het `BillingDeliveryHeartbeat`-model). De nieuwe billing-gauges dragen **geen labels** (geen per-user/per-invoice
+  cardinaliteit-DoS); `checkConnectivity` werpt een HTTP-status-only fout (geen key/endpoint). `/api/metrics` blijft
+  fail-closed (503 zonder `CRON_SECRET`, 401 via timing-safe `authorizeCron`), lekt geen Prisma-fout. De admin-heartbeat-
+  kaart is SSR + `requireRole("ADMIN")`-gated, rendert geen secret-patroon. CLAUDE.md regel 4/5 — schoon.
+- **Opdrachtenfilter "alleen waar ik aan voldoe" + compliance-chip + cascade chain-steps.** Compliance/eligibility
+  wordt server-side tegen de eigen credentials van de ingelogde actor berekend (`profile` uitsluitend via
+  `userId: actor.id`); geen query-param kan een ander `freelancerId` injecteren. Het `onlyEligible`-in-memory-filter
+  opereert alléén op de reeds tenant-gescoopte (`visibleJobsWhere`) resultaatset. De chip toont een generiek label
+  (nooit het concrete credential-type/bestand). `buildChainSteps` is een pure weergavefunctie zonder DB/mutatie; de
+  ownership-check staat op de samenwerkingspagina vóór de aanroep. A01/server-side-waarheid — schoon.
+- **Systemische sweep (voorbij de delta).** Alle 42 `/api`-route-handlers gepoort (`requireActor`/`requireRole`/
+  `authorizeCron`); de factuur-/prestatie-/dossier-/DBA-/modelovereenkomst-PDF-routes hebben exemplarische IDOR-
+  bescherming (404-maskering CWE-203/208, `auditDeniedAccess` bij weiger én not-found, rate-limit). Franchiser-cross-
+  tenant fail-closed via `tenantScopeWhere` (403 zonder tenant) + live-DB `currentActor` (schorsing/anonimisering/
+  wachtwoordwijziging/tenant-suspend trekken toegang live in). De agenda-`feed.ics`-bearer-feed: HMAC + `timingSafeEqual`
+  - rate-limit vóór DB-I/O + liveness-gate (geschorst/gewist → 404) + forensische audit. AVG-erasure (`anonymizeUser`)
+    is `requireRole("ADMIN")`-gated (mens-getriggerd), wist document-bytes + scrubt audit-PII/notificaties/ideeën/credentials.
+    Documenten worden uitsluitend via de storage-abstractie geserveerd met `canAccessDocument` (owner/ADMIN); path-traversal
+    geblokkeerd in `LocalStorageDriver.resolve`; signed-URL alleen voor niet-gevoelige logo's met geklemde TTL.
+
 ## Ronde 2026-08-22 (basis: `main` @ 29a30441) — GEEN NIEUWE GATEN (delta + brede sweep schoon)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.

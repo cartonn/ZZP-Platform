@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-22 — Security-/privacy-auditronde 2026-08-22b (basis `main` @ 6e5ffd01): geen nieuwe gaten
+
+**Wat:** Volledige security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken) over de 6-commit-delta (`29a30441..6e5ffd01`: billing-aflever-heartbeat #1190,
+notificatie-META #1191, opdrachtenfilter "alleen waar ik aan voldoe" #1193, concurrentie-context /reacties #1194,
+stepper-fix #1195) + een systemische sweep. **0 bereikbare nieuwe gaten.** `npm audit --omit=dev`: 0 vulnerabilities.
+
+**Dekking:** IDOR/object-autz op alle 42 `/api`-routes, multi-tenant-isolatie (`tenantScopeWhere` fail-closed +
+live-DB `currentActor`), injectie (SQL/XSS/CSV), SSRF, upload/path-traversal, secrets, auth/sessie/rate-limiting,
+CSP-nonce, foutafhandeling, mass-assignment; AVG: dataminimalisatie (aggregaat-only concurrentie-telling),
+audit-logging, inzage/erasure-symmetrie, k-anonimiteit, PII in logs/metrics/derden-doorgifte. Details in
+`docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-22b). Geen codewijziging — docs-only PR.
+
+**Checks:** typecheck + lint + test (636 files / 6637 tests groen) + build + prettier. Volgende stap: volgende
+delta-auditronde bij nieuwe commits op `main`.
+
 ## 2026-08-22 — Persona-sweep (run 87): stepper-zelftegenspraak (CREDITED + OVERDUE) + franchiser-verwoording
 
 **Wat:** Kritische-gebruiker-sweep over alle 4 rollen (4 parallelle adversariële Opus-audits +
