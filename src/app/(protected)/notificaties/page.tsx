@@ -11,6 +11,8 @@ import {
   Workflow,
   Lightbulb,
   MessageSquare,
+  Inbox,
+  UserCog,
 } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -50,8 +52,10 @@ const CATEGORY_ICON: Record<NotificationCategory, typeof Bell> = {
   dispute: AlertTriangle,
   credential: FileCheck,
   collaboration: Handshake,
+  application: Inbox,
   messages: MessageSquare,
   idea: Lightbulb,
+  account: UserCog,
   system: Bell,
 };
 
