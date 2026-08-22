@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-22 — Security-/privacy-auditronde: geen nieuwe gaten (delta + brede sweep schoon)
+
+**Wat:** Adversariële security-/privacy-audit op `main` @ `29a30441` — orchestrator (Opus 4.8) + 3 parallelle
+Opus-audits op niet-overlappende oppervlakken: (1) authz/IDOR/tenant-isolatie op de nieuwe cron-reminder-taken
+(kandidaat-beslissing #1186, onbeantwoorde-berichten #1188) + `/api/tasks/run-all`; (2) recording-storage-driver
+
+- storage-aflever-heartbeat + `/api/metrics`; (3) brede regressie-sweep injectie/SSRF/secrets/CSP/mass-assignment/
+  RBAC/erasure + `npm audit`.
+
+**Uitkomst:** **0 bereikbare nieuwe security-/privacy-gaten**; `npm audit --omit=dev` = 0 vulnerabilities.
+Reminder-notificaties dragen geen derde-partij-PII (ontvangers strikt server-side gescoopt, berichtinhoud nooit
+ingesloten); `/api/tasks/run-all` fail-closed op `CRON_SECRET` (timing-safe); recording-storage-driver logt/
+persisteert geen document-bytes/keys/PII; metrics blijven geaggregeerde gauges. Volledige OWASP-/AVG-dekking +
+per-oppervlak-bewijs in `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-22).
+
+**Observatie (buiten scope — UX, geen security):** 24 notificatietypes ontbreken in de `META`-map
+(`src/lib/notifications.ts`) en vallen terug op `system`/`info`. Puur presentatie (geen data-exposure);
+doorverwezen naar de functionele/persona-sweep-backlog als eigen kleine UX-PR met coverage-test.
+
+**Bestanden:** `docs/SECURITY-PRIVACY-BACKLOG.md`, `PROGRESS.md` (docs-only).
+
 ## 2026-08-22 — Alle rollen: proactieve reminder voor onbeantwoorde berichten (cron)
 
 **Wat:** `/berichten` toont de wachtende kant al dat een gesprek "stil" ligt (`conversation-turn.ts`:
