@@ -22,6 +22,7 @@ export function JobFilters({
   myIndustryCount = 0,
   canSortByMatch = false,
   canHideApplied = false,
+  canFilterEligible = false,
 }: {
   industries: { id: string; name: string }[];
   skills: { id: string; name: string }[];
@@ -31,6 +32,8 @@ export function JobFilters({
   canSortByMatch?: boolean;
   /** Toont de "Verberg opdrachten waarop ik al reageerde"-quickfilter (ZZP'er mét profiel). */
   canHideApplied?: boolean;
+  /** Toont de "Alleen waar ik aan voldoe"-quickfilter (ZZP'er mét profiel; compliance-gebaseerd). */
+  canFilterEligible?: boolean;
 }) {
   const translate = useT();
   const router = useRouter();
@@ -89,6 +92,13 @@ export function JobFilters({
       else p.set("hideApplied", "1");
     });
 
+  const onlyEligibleActive = params.get("onlyEligible") === "1";
+  const toggleOnlyEligible = () =>
+    push((p) => {
+      if (onlyEligibleActive) p.delete("onlyEligible");
+      else p.set("onlyEligible", "1");
+    });
+
   const selectedSkills = new Set(params.getAll("skillIds"));
   const toggleSkill = (id: string) =>
     push((p) => {
@@ -101,7 +111,7 @@ export function JobFilters({
 
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-      {(myIndustryCount > 0 || canHideApplied) && (
+      {(myIndustryCount > 0 || canHideApplied || canFilterEligible) && (
         <div className="flex flex-wrap items-center gap-2">
           {myIndustryCount > 0 && (
             <button
@@ -131,6 +141,21 @@ export function JobFilters({
               )}
             >
               {translate("Verberg waar ik op reageerde")}
+            </button>
+          )}
+          {canFilterEligible && (
+            <button
+              type="button"
+              onClick={toggleOnlyEligible}
+              aria-pressed={onlyEligibleActive}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+                onlyEligibleActive
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:bg-muted",
+              )}
+            >
+              {translate("Alleen waar ik aan voldoe")}
             </button>
           )}
           {mineActive && (

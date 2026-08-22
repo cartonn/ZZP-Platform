@@ -61,7 +61,11 @@ import { summarizeJobPipeline, type JobPipeline } from "@/lib/job-pipeline";
 import { competitionChip, summarizeJobCompetition } from "@/lib/job-competition";
 import { paymentTrustChip, type PaymentTrustChip } from "@/lib/payment-behavior";
 import { jobRateFitChip, type JobRateFitChip } from "@/lib/job-rate-fit";
-import { jobComplianceChip, type JobComplianceChip } from "@/lib/jobs/compliance-chip";
+import {
+  jobComplianceChip,
+  isJobComplianceEligible,
+  type JobComplianceChip,
+} from "@/lib/jobs/compliance-chip";
 import { jobFillUrgency, type JobFillUrgencyChip } from "@/lib/jobs/fill-urgency";
 import { clientJobAttentionRank, sortJobsByAttention } from "@/lib/jobs/attention-order";
 import { JobFillUrgencyBadge } from "@/components/jobs/job-fill-urgency-badge";
@@ -435,7 +439,12 @@ async function BrowseJobs({
   // dat kan de database niet ("aankomend vóór voorbij vóór ongedateerd" is geen platte kolomsortering).
   // Werkt voor iedereen (geen profiel nodig). Deelt daarom het scan-en-pagineer-pad met match.
   const startSort = f.sort === "start_soon";
-  const scanAndRank = effectiveMatchSort || startSort;
+  // "Alleen waar ik aan voldoe": verberg opdrachten waarvoor de ZZP'er nú niet inzetbaar is
+  // (server-side NON_COMPLIANT). Compliance is per-ZZP'er en kan dus — net als match — niet in de
+  // database gefilterd worden; we scannen de zichtbare set en filteren in het geheugen. Zonder
+  // profiel is er niets om compliance tegen te berekenen → de vlag doet niets.
+  const onlyEligible = f.onlyEligible && profile != null;
+  const scanAndRank = effectiveMatchSort || startSort || onlyEligible;
 
   // Branchefilter: een expliciet gekozen branche (`industryId`) is het meest specifiek en wint. Anders,
   // wanneer de ZZP'er de "Mijn vakgebied"-quickfilter aanzet, beperk tot de eigen profielbranches. Zo
@@ -507,6 +516,9 @@ async function BrowseJobs({
     // beslisfactor in de zorg, tot nu toe weggegooid op de lijst (`scoreJobForFreelancer` berekent
     // 'm al). `null` bij COMPLIANT of geen harde eisen → geen chip (rustige lijst).
     complianceChip: JobComplianceChip | null;
+    // Is de ZZP'er nú inzetbaar (geen ontbrekend/verlopen vereist certificaat)? Voedt de
+    // "Alleen waar ik aan voldoe"-quickfilter; berekend uit dezelfde compliance als de chip.
+    eligible: boolean;
   };
   const matchByJob = new Map<string, JobMatch>();
   if (profile) {
@@ -518,9 +530,18 @@ async function BrowseJobs({
         reason: topPositiveReason(result.reasons),
         gap: topGapReason(result.reasons),
         complianceChip: jobComplianceChip(result.compliance, requiredCredCount),
+        eligible: isJobComplianceEligible(result.compliance),
       });
     }
   }
+
+  // Inzetbaarheids-filter: houd alleen de opdrachten over waarvoor de ZZP'er nú voldoet. Filtert de
+  // gescande set vóór sortering/paginering, zodat telling én pagina's kloppen. Alleen actief mét
+  // profiel (`onlyEligible` is dan al false zonder profiel); een opdracht zonder score-entry (nooit
+  // in dit tak, want gefilterd achter `profile`) telt defensief als niet-inzetbaar.
+  const scannedJobs = onlyEligible
+    ? jobs.filter((job) => matchByJob.get(job.id)?.eligible === true)
+    : jobs;
 
   // In-geheugen-sortering (match óf startdatum): herrangschik de gescande set en knip de huidige pagina
   // eruit. Zonder scan-sortering is de databank-volgorde al de weergave-volgorde.
@@ -529,7 +550,7 @@ async function BrowseJobs({
   const visibleJobs = effectiveMatchSort
     ? pageSlice(
         sortJobsByMatch(
-          jobs.map((job) => ({
+          scannedJobs.map((job) => ({
             job,
             score: matchByJob.get(job.id)?.score ?? 0,
             publishedAt: job.publishedAt,
@@ -539,7 +560,7 @@ async function BrowseJobs({
     : startSort
       ? pageSlice(
           sortJobsByStart(
-            jobs.map((job) => ({
+            scannedJobs.map((job) => ({
               job,
               id: job.id,
               startDate: job.startDate,
@@ -548,7 +569,11 @@ async function BrowseJobs({
             now,
           ),
         )
-      : jobs;
+      : onlyEligible
+        ? // Alleen-inzetbaar zonder scan-sortering: DB-volgorde (publishedAt-desc) behouden, alleen
+          // de niet-inzetbare opdrachten eruit en dan pagineren over de gefilterde set.
+          pageSlice(scannedJobs)
+        : jobs;
 
   // Bewaarde opdrachten (alleen ZZP'er): welke opdrachten al gebookmarkt zijn, zodat de bewaar-knop
   // per zichtbare opdracht direct de juiste staat toont. Rijen komen uit de parallelle batch hierboven.
@@ -712,7 +737,11 @@ async function BrowseJobs({
     ? `/opdrachten?sort=${encodeURIComponent(explicitSort)}`
     : "/opdrachten";
 
-  const paginationTotal = scanAndRank ? jobs.length : total;
+  // Bij scan-sortering pagineren we de in het geheugen (gefilterd + gerangschikte) set. De
+  // "gevonden"-teller in de kop volgt de inzetbaarheids-filter (`scannedJobs`) zodat de telling
+  // klopt met wat de ZZP'er ziet; de match-/startsortering laten de DB-telling ongewijzigd.
+  const paginationTotal = scanAndRank ? scannedJobs.length : total;
+  const foundTotal = onlyEligible ? scannedJobs.length : total;
   const totalPages = Math.max(1, Math.ceil(paginationTotal / JOBS_PER_PAGE));
   const mkPageHref = (page: number) => {
     const p = new URLSearchParams();
@@ -741,6 +770,7 @@ async function BrowseJobs({
         myIndustryCount={myIndustryIds.length}
         canSortByMatch={profile != null}
         canHideApplied={profile != null}
+        canFilterEligible={profile != null}
       />
 
       <ActiveFilterChips chips={activeChips} />
@@ -761,7 +791,7 @@ async function BrowseJobs({
       ) : (
         <>
           <p className="text-xs text-muted-foreground">
-            {plural(total, t("opdracht"), t("opdrachten"))} {t("gevonden")}
+            {plural(foundTotal, t("opdracht"), t("opdrachten"))} {t("gevonden")}
           </p>
           <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
             {visibleJobs.map((job) => {

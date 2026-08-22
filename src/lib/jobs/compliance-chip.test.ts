@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { jobComplianceChip } from "./compliance-chip";
+import { jobComplianceChip, isJobComplianceEligible } from "./compliance-chip";
 import type { ComplianceResult } from "@/lib/matching";
 
 function compliance(over: Partial<ComplianceResult>): ComplianceResult {
@@ -40,5 +40,30 @@ describe("jobComplianceChip", () => {
   it("toont een zachte 'in beoordeling'-chip bij WARNING (SUBMITTED)", () => {
     const chip = jobComplianceChip(compliance({ status: "WARNING", inReview: ["VOG"] }), 1);
     expect(chip).toEqual({ tone: "muted", label: "Certificaat in beoordeling" });
+  });
+});
+
+describe("isJobComplianceEligible", () => {
+  it("is inzetbaar wanneer de ZZP'er aan alle eisen voldoet (COMPLIANT)", () => {
+    expect(isJobComplianceEligible(compliance({ status: "COMPLIANT" }))).toBe(true);
+  });
+
+  it("blijft inzetbaar wanneer een certificaat nog in beoordeling is (WARNING)", () => {
+    // WARNING = mag reageren terwijl de admin de laatste stap afrondt → niet verbergen.
+    expect(isJobComplianceEligible(compliance({ status: "WARNING", inReview: ["VOG"] }))).toBe(
+      true,
+    );
+  });
+
+  it("is niet inzetbaar bij een ontbrekend vereist certificaat (NON_COMPLIANT)", () => {
+    expect(isJobComplianceEligible(compliance({ status: "NON_COMPLIANT", missing: ["VOG"] }))).toBe(
+      false,
+    );
+  });
+
+  it("is niet inzetbaar bij een verlopen vereist certificaat (NON_COMPLIANT)", () => {
+    expect(isJobComplianceEligible(compliance({ status: "NON_COMPLIANT", expired: ["VOG"] }))).toBe(
+      false,
+    );
   });
 });

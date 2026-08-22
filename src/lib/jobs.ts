@@ -63,6 +63,12 @@ export interface JobFilters {
   mine: boolean;
   /** ZZP-quickfilter: verberg opdrachten waarop de ZZP'er al (niet-ingetrokken) heeft gereageerd. */
   hideApplied: boolean;
+  /**
+   * ZZP-quickfilter: verberg opdrachten waarvoor de ZZP'er nú niet inzetbaar is (een vereist
+   * certificaat ontbreekt of is verlopen → server-side `NON_COMPLIANT`). Alleen zinvol met een
+   * profiel om compliance tegen te berekenen; de pagina negeert de vlag zonder profiel.
+   */
+  onlyEligible: boolean;
   location?: string;
   workMode?: WorkMode;
   rateMin?: number;
@@ -124,6 +130,7 @@ export function normalizeJobFilters(params: RawParams): JobFilters {
     industryId,
     mine: first(params.mine) === "1",
     hideApplied: first(params.hideApplied) === "1",
+    onlyEligible: first(params.onlyEligible) === "1",
     location,
     workMode,
     rateMin,

@@ -22,6 +22,17 @@ export interface JobComplianceChip {
   label: string;
 }
 
+/**
+ * Is de ZZP'er nú inzetbaar voor deze opdracht qua harde certificaateisen? Gebruikt door de
+ * "Alleen waar ik aan voldoe"-quickfilter op `/opdrachten`: alleen `NON_COMPLIANT` (een vereist
+ * certificaat ontbreekt of is verlopen) telt als niet-inzetbaar. `WARNING` (nog in beoordeling)
+ * blijft inzetbaar — de ZZP'er mag reageren terwijl de admin de laatste stap afrondt — net als de
+ * lijst-chip die "in beoordeling" als zacht (muted) signaal toont, niet als blokkade.
+ */
+export function isJobComplianceEligible(compliance: Pick<ComplianceResult, "status">): boolean {
+  return compliance.status !== "NON_COMPLIANT";
+}
+
 export function jobComplianceChip(
   compliance: Pick<ComplianceResult, "status" | "missing" | "expired">,
   requiredCredentialCount: number,

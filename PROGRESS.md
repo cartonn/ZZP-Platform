@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-22 — ZZP'er: quickfilter "Alleen waar ik aan voldoe" op /opdrachten
+
+**Wat:** De opdrachtenlijst toont per rij al een inzetbaarheids-chip (mist/verlopen vereist certificaat),
+maar de ZZP'er kon niet in één klik de opdrachten wegfilteren waarvoor hij nú niet inzetbaar is. Nieuwe
+quickfilter "Alleen waar ik aan voldoe" verbergt opdrachten met server-side `NON_COMPLIANT` (een vereist
+certificaat ontbreekt of is verlopen). Zo ziet de ZZP'er alleen wat telt — geen tijd meer verspild aan
+opdrachten die hij toch niet mag oppakken. `WARNING` (certificaat in beoordeling) blijft zichtbaar: dan
+mag hij reageren terwijl de admin de laatste stap afrondt.
+
+**Hoe:** Nieuwe pure `isJobComplianceEligible(compliance)` in `src/lib/jobs/compliance-chip.ts`
+(`status !== "NON_COMPLIANT"`), uit exact dezelfde compliance als de bestaande lijst-chip → geen drift.
+`onlyEligible` toegevoegd aan `JobFilters` + `normalizeJobFilters` (`src/lib/jobs.ts`, alleen op "1") en
+aan `describeActiveJobFilters` (`src/lib/jobs/active-filters.ts`, dismissible chip). Compliance is per-ZZP'er
+en dus niet DB-side te filteren; `opdrachten/(index)/page.tsx` scant (zoals match/startdatum) de zichtbare
+set, berekent inzetbaarheid in het geheugen (`scoreJobForFreelancer` → `isJobComplianceEligible`), filtert
+`scannedJobs` vóór sortering/paginering en corrigeert de "gevonden"-teller. Toggle in `job-filters.tsx`
+(`canFilterEligible`, alleen ZZP'er mét profiel). Read-only, geen schema-/mutatie-/authz-/domeinmotor-
+oppervlak. +tests (isJobComplianceEligible 4, onlyEligible-parse, chip + volgorde). Gate: typecheck, lint,
+test (6625), build, prettier groen. PR #1193.
+
 ## 2026-08-22 — Alle rollen: notificatie-presentatie voor 20 ontbrekende types (icoon/toon/categorie)
 
 **Wat:** 20 uitgestuurde notificatietypes stonden niet in de `META`-map van `src/lib/notifications.ts`
