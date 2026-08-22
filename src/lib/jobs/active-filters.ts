@@ -78,6 +78,11 @@ export function describeActiveJobFilters(
     chips.push({ id: "hideApplied", label: "Zonder mijn reacties", param: "hideApplied" });
   }
 
+  // 2c. "Alleen waar ik aan voldoe"-quickfilter (verberg niet-inzetbare opdrachten).
+  if (filters.onlyEligible) {
+    chips.push({ id: "onlyEligible", label: "Alleen waar ik aan voldoe", param: "onlyEligible" });
+  }
+
   // 3. Vaardigheden (multi-value): één chip per id, in volgorde.
   for (const skillId of filters.skillIds) {
     const name = lookups.skills.find((s) => s.id === skillId)?.name;

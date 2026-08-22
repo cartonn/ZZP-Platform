@@ -14,6 +14,7 @@ function makeFilters(overrides: Partial<JobFilters> = {}): JobFilters {
     industryId: undefined,
     mine: false,
     hideApplied: false,
+    onlyEligible: false,
     location: undefined,
     workMode: undefined,
     rateMin: undefined,
@@ -69,6 +70,22 @@ describe("describeActiveJobFilters", () => {
       emptyLookups,
     );
     expect(chips.map((c) => c.id)).toEqual(["mine", "hideApplied"]);
+  });
+
+  it("toont de 'Alleen waar ik aan voldoe'-chip als onlyEligible true is", () => {
+    const chips = describeActiveJobFilters(makeFilters({ onlyEligible: true }), emptyLookups);
+    expect(chips).toEqual([
+      { id: "onlyEligible", label: "Alleen waar ik aan voldoe", param: "onlyEligible" },
+    ]);
+    expect(hasActiveJobFilters(makeFilters({ onlyEligible: true }))).toBe(true);
+  });
+
+  it("plaatst de onlyEligible-chip na hideApplied (deterministische volgorde)", () => {
+    const chips = describeActiveJobFilters(
+      makeFilters({ hideApplied: true, onlyEligible: true }),
+      emptyLookups,
+    );
+    expect(chips.map((c) => c.id)).toEqual(["hideApplied", "onlyEligible"]);
   });
 
   it("onderdrukt de mine-chip als een industryId gezet is (industryId wint)", () => {

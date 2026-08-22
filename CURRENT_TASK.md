@@ -268,6 +268,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — quickfilter "Alleen waar ik aan voldoe" op /opdrachten (2026-08-22, PR #1193)** —
+> de opdrachtenlijst toonde per rij al de inzetbaarheids-chip (mist/verlopen vereist certificaat), maar de ZZP'er
+> kon niet in één klik de opdrachten wegfilteren waarvoor hij nú niet inzetbaar is. Nieuwe quickfilter verbergt
+> server-side `NON_COMPLIANT`-opdrachten (vereist certificaat ontbreekt/verlopen); `WARNING` (in beoordeling) blijft
+> zichtbaar (mag reageren terwijl de admin afrondt). Nieuwe pure `isJobComplianceEligible` (`jobs/compliance-chip.ts`,
+> uit dezelfde compliance als de chip → geen drift); `onlyEligible` op `JobFilters`/`normalizeJobFilters` (alleen "1")
+>
+> - `describeActiveJobFilters` (dismissible chip). Compliance is per-ZZP'er → niet DB-side te filteren; de pagina
+>   scant (zoals match/startdatum) de zichtbare set, filtert `scannedJobs` in het geheugen vóór sortering/paginering en
+>   corrigeert de "gevonden"-teller. Toggle in `job-filters.tsx` (`canFilterEligible`, alleen ZZP'er mét profiel).
+>   Read-only, geen schema-/mutatie-/authz-/domeinmotor-oppervlak. +tests. Gate: typecheck, lint, test (6625), build,
+>   prettier groen.
+>
 > Gedaan (niet opnieuw): **Alle rollen — notificatie-presentatie voor 20 ontbrekende types (2026-08-22, PR #1191)** —
 > 20 uitgestuurde notificatietypes ontbraken in de `META`-map (`src/lib/notifications.ts`) en vielen op `/notificaties`
 >

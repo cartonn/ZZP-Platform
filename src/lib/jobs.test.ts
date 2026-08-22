@@ -76,6 +76,22 @@ describe("normalizeJobFilters", () => {
     expect(f.rateMax).toBe(90);
   });
 
+  it("parseert de quickfilter-vlaggen (mine/hideApplied/onlyEligible) alleen op '1'", () => {
+    const off = normalizeJobFilters({});
+    expect(off.mine).toBe(false);
+    expect(off.hideApplied).toBe(false);
+    expect(off.onlyEligible).toBe(false);
+
+    const on = normalizeJobFilters({ mine: "1", hideApplied: "1", onlyEligible: "1" });
+    expect(on.mine).toBe(true);
+    expect(on.hideApplied).toBe(true);
+    expect(on.onlyEligible).toBe(true);
+
+    // Alleen de exacte waarde "1" activeert de vlag; alles anders blijft false.
+    expect(normalizeJobFilters({ onlyEligible: "true" }).onlyEligible).toBe(false);
+    expect(normalizeJobFilters({ onlyEligible: "0" }).onlyEligible).toBe(false);
+  });
+
   it("dedupliceert skillIds en clampt page >= 1", () => {
     const f = normalizeJobFilters({ skillIds: ["a", "a", "b"], page: "0" });
     expect(f.skillIds).toEqual(["a", "b"]);
