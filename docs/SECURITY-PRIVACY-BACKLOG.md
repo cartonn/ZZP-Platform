@@ -4,6 +4,55 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-22 (basis: `main` @ 29a30441) — GEEN NIEUWE GATEN (delta + brede sweep schoon)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.
+Delta t.o.v. de vorige auditronde (basis `ba636008`): commits `ba636008..29a30441` — o.a. de agenda-/
+vertrouwens-forensische-trail (#1184), de storage-aflever-heartbeat / dead-man's-switch object-opslag (#1185),
+de nieuwe **cron-reminder-taken** kandidaat-beslissing (#1186) + onbeantwoorde-berichten (#1188), start-datum-
+sortering (#1187) en de `/api/tasks/run-all`-verzamel-cron. `npm audit --omit=dev`: **0 vulnerabilities**
+(250 prod-dependencies, geen advisories over Next.js 15 / Auth.js v5 / Prisma).
+
+**Dekking (OWASP Top 10 / ASVS + AVG):** (1) object-/functie-niveau-autz + IDOR + multi-tenant-isolatie
+op de nieuwe reminder-/task-oppervlakken (A01); (2) injectie (SQL/`$queryRawUnsafe`, XSS/`dangerouslySetInnerHTML`,
+CSV-/formule-injectie in exports) (A03); (3) SSRF op server-side `fetch` met user-URL (A10); (4) upload-/storage-
+veiligheid + path-traversal via de nieuwe recording-storage-driver (A01/A04); (5) secrets in code/log/client-bundle +
+`.env`-tracking (A05/A07); (6) auth/sessie/rate-limiting fail-closed op login/register/reset (A07); (7) security-
+headers/CSP-nonce-regressie (A05); (8) foutafhandeling (geen Prisma-fout/stacktrace naar client) (A05/A09);
+(9) mass-assignment/overposting (`.passthrough()`, body-spread in Prisma) (A08); (10) AVG: dataminimalisatie +
+cross-partij/cross-tenant PII-lek in notificatieteksten, audit-logging van gevoelige acties, inzage/erasure-
+symmetrie, k-anonimiteit, retentie, logs-lekken-geen-PII, derden-doorgifte (AVG art. 5/15/20/25/32).
+
+**Uitkomst — schoon.** Drie parallelle audits + eigen data-flow-tracing vonden **0 bereikbare nieuwe gaten**:
+
+- **Nieuwe cron-reminder-taken (kandidaat-beslissing + onbeantwoorde-berichten).** Ontvangers zijn strikt
+  server-side gescoopt (`job.company.userId` resp. de reeds-bekende `Conversation.participants` minus de afzender);
+  notificatie-body bevat **geen derde-partij-PII** — alleen de opdrachttitel (eigen opdracht) + een dagteller resp.
+  de afzendernaam die de ontvanger binnen dat gesprek al ziet. **Berichtinhoud wordt bewust nooit geselecteerd of
+  ingesloten.** Idempotent (`DomainEvent.dedupeKey`), begrensd (`SCAN_LIMIT=500`), geaudit; geen fan-out-abuse-pad
+  (alleen via de CRON_SECRET-poort bereikbaar). AVG art. 5(1)(c) dataminimalisatie — schoon.
+- **`/api/tasks/run-all`-verzamel-cron.** Fail-closed: 503 zonder `CRON_SECRET`, 401 via timing-safe `authorizeCron`
+  (Bearer-header, geen secret in query/logs) — dezelfde helper als alle 14 andere `/api/tasks/*`-routes. De respons
+  bevat alleen taaknamen + tellers; ruwe foutdetails gaan uitsluitend server-side naar de error-reporter. OWASP A01/A07.
+- **Recording-storage-driver + storage-aflever-heartbeat.** Pure pass-through-decorator; logt/persisteert **geen**
+  document-bytes, object-keys of PII — alleen een statische `channel`/`driver`-string + timestamps/booleans/tellers
+  (geverifieerd tegen het `StorageDeliveryHeartbeat`-model). `/api/metrics` blijft geaggregeerde gauges (geen per-user/
+  per-object-labels), `CRON_SECRET`-fail-closed; de admin-heartbeat-kaart is SSR + `requireRole("ADMIN")`-gated met
+  een regressietest tegen key-patroon-lek in de UI-tekst. CLAUDE.md regel 4/5 — schoon.
+- **Brede regressie-sweep.** Geen `$queryRawUnsafe`/`$executeRawUnsafe`; enige `dangerouslySetInnerHTML` is het
+  statische theme-script; CSV-exports saneren formule-prefixen via `csv.ts` (`= + @ \t \r -`); SSRF-hosts hardcoded/
+  env (Geoapify/DUO/BIG/iDIN), geen user-URL-fetch; open-redirect niet mogelijk (post-login hardcoded `/dashboard`);
+  geen `.passthrough()`/body-spread; CSP-nonce + `strict-dynamic` intact; foutroutes geven getypeerde
+  `AuthorizationError`-boodschappen, geen Prisma-stacktrace; `anonymizeUser` blijft `requireRole("ADMIN")`-gated.
+
+**Observatie (GEEN security/privacy — UX-categorisatie, doorverwezen naar de functionele/persona-sweep-backlog):**
+24 notificatietypes (o.a. `APPLICATION_DECISION_REMINDER`, `PERFORMANCE_SUBMISSION_REMINDER`, `SUBSCRIPTION_RENEWAL`,
+`SHIFT_HANDOFF_*`, `NO_SHOW_*`) ontbreken in de `META`-map in `src/lib/notifications.ts` en vallen terug op
+`system`/`info` i.p.v. een passende categorie/toon. Puur presentatie/UX (geen data-exposure: de notificatie gaat
+nog steeds uitsluitend naar de correcte `userId`); bewust **buiten scope** van deze security/privacy-PR gehouden
+(CLAUDE.md regel 7 — geen scope-creep; vereist per-type domeinoordeel). Aanbevolen als eigen kleine UX-PR met een
+coverage-test die elk geëmitteerd notificatietype op een niet-fallback `META`-entry afdwingt.
+
 ## Ronde 2026-08-21b (basis: `main` @ ba636008) — 2× OPGELOST (forensische trail op publieke bearer-PII-oppervlakken)
 
 Audit: orchestrator (Opus 4.8). Delta t.o.v. de vorige ronde: 4 commits (`50d2c060..ba636008` —
