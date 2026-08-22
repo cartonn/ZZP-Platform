@@ -195,6 +195,28 @@ export function supersededVerifiedCredentialIds(
   return superseded;
 }
 
+/**
+ * De set certificaat-`type`s die door een nú-geldig VERIFIED-certificaat worden gedekt: status
+ * VERIFIED én (geen vervaldatum, of `expiresAt > now`). Een verlopen exemplaar van een gedekt type
+ * hoeft de ZZP'er niet te vernieuwen — de compliance draagt dat type al via het geldige exemplaar,
+ * dus een verleng-nudge daarop is vals (verdwijnt nooit nuttig). Eén bron voor de dekkingsregel die
+ * zowel de ZZP-zijdige `freelancerTasks` als de roster-tak (`rosterExpiredByProfile`) gebruiken, zodat
+ * beide surfaces niet driften. Puur/deterministisch.
+ */
+export function coveredCredentialTypes(
+  credentials: readonly SupersedeInput[],
+  now: Date = new Date(),
+): Set<string> {
+  const nowMs = now.getTime();
+  const covered = new Set<string>();
+  for (const c of credentials) {
+    if (c.status !== "VERIFIED") continue;
+    if (c.expiresAt != null && c.expiresAt.getTime() <= nowMs) continue; // niet nu-geldig
+    covered.add(c.type);
+  }
+  return covered;
+}
+
 export interface RosterCredentialInput extends SupersedeInput {
   freelancerProfileId: string;
   freelancerName: string;
@@ -282,12 +304,7 @@ export function rosterExpiredByProfile(
   for (const [profileId, { name, creds }] of byProfile) {
     // Typen met een nu-geldig VERIFIED-cert: die dekken de compliance al → verlopen exemplaren van
     // datzelfde type tellen niet mee (identieke dekkingsregel als de superseded-check hierboven).
-    const coveredTypes = new Set<string>();
-    for (const c of creds) {
-      if (c.status !== "VERIFIED") continue;
-      if (c.expiresAt != null && c.expiresAt.getTime() <= nowMs) continue; // niet nu-geldig
-      coveredTypes.add(c.type);
-    }
+    const coveredTypes = coveredCredentialTypes(creds, now);
     let count = 0;
     for (const c of creds) {
       if (mandatory.has(c.type)) continue; // engageability dekt verplichte typen al

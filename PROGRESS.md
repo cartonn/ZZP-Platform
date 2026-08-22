@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-22 — Persona-sweep run 87: twee next-action-/screen-consistentie-fixes (ZZP'er + opdrachtgever)
+
+**Wat:** 4 parallelle adversariële audits (authz/IDOR/tenant · cascade/geld · next-action · malicieuze
+input) + live Playwright-smoke (4 rollen loggen in, dashboard + /acties laden foutloos; niet-admin →
+/admin/\* geweigerd; onzin-id's → geen 500). Twee DOEL-1b-defecten gevonden én gefixt:
+
+1. **`src/lib/cascade/stage.ts`** — de multi-cyclus-rescue draaide alléén voor de ZZP'er, dus een
+   opdrachtgever met een ingediende (`SUBMITTED`) vorige-cyclus-factuur + verse cyclus-2-uren zag "Wacht
+   op uren van de ZZP'er · niets te doen" terwijl `/acties` de keur-taak wél toonde — zichzelf
+   tegensprekend scherm dat de uitbetaling stil vertraagde. `priorCycleFreelancerPhase` →
+   viewer-bewuste `priorCyclePhase`; vuurt nu voor beide viewers maar alleen voor de partij die aan zet
+   is (opdrachtgever: alleen SUBMITTED → `invoice-approve`). +3 regressietests.
+2. **`src/lib/actions/pending-tasks.ts` + `src/lib/credentials.ts`** — een reeds-verlopen niet-verplicht
+   certificaat gaf een valse "vernieuwen"-taak terwijl een nieuwer geldig certificaat van hetzelfde
+   type de compliance al dekte (nooit-verdwijnende nudge). Nieuwe gedeelde pure `coveredCredentialTypes`
+   (ook `rosterExpiredByProfile` gebruikt 'm nu → geen drift); dekking-exclusie op de reeds-verlopen
+   tak. +5 testgevallen.
+
+**Geparkeerd (backlog):** bulk-CSV-import (`/admin/import`) omzeilt de canonieke Zod-veldvalidatie
+(`name`/`companyName` zonder bovengrens; `kvkNumber`/`btwNumber` ongevalideerd) — should-fix,
+data-integriteit, admin-only, losse PR.
+
+**Gate:** typecheck, lint, test (6626), build, prettier (hele repo) groen. Zie
+`docs/PERSONA-SWEEP-BACKLOG.md` (run 87).
+
 ## 2026-08-22 — Alle rollen: notificatie-presentatie voor 20 ontbrekende types (icoon/toon/categorie)
 
 **Wat:** 20 uitgestuurde notificatietypes stonden niet in de `META`-map van `src/lib/notifications.ts`

@@ -359,9 +359,10 @@ describe("cascadeStage — keten + viewer-perspectief", () => {
       expect(fr.youAreUp).toBe(true);
     });
 
-    it("opdrachtgever krijgt nooit de vorige-cyclus-ZZP-actie (alleen zijn eigen fase)", () => {
-      // CLIENT met een verse REJECTED-prestatie + open vorige-cyclus-factuur: de rescue is
-      // freelancer-only, dus de opdrachtgever ziet ongewijzigd de afgekeurde-prestatie-fase.
+    it("opdrachtgever krijgt geen vorige-cyclus-ZZP-actie (DRAFT/REJECTED/APPROVED/OVERDUE)", () => {
+      // CLIENT met een verse REJECTED-prestatie + een vorige-cyclus-factuur die de ZZP'er toebehoort
+      // (APPROVED = ZZP'er markeert betaling): de opdrachtgever is daar niet aan zet, dus de rescue
+      // geeft null en de opdrachtgever ziet ongewijzigd de afgekeurde-prestatie-fase.
       const cl = cascadeStage(
         base({
           viewer: "CLIENT",
@@ -372,6 +373,66 @@ describe("cascadeStage — keten + viewer-perspectief", () => {
       );
       expect(cl.id).toBe("performance-rejected");
       expect(cl.youAreUp).toBe(false);
+    });
+
+    // Regressie (PERSONA-SWEEP run 87): een vorige-cyclus-factuur die SUBMITTED is wacht op de
+    // opdrachtgever (Event D: alleen zijn goedkeuring deblokkeert de betaling van de ZZP'er). Voorheen
+    // vuurde de rescue alléén voor de ZZP'er (`isFreelancer &&`), dus zag de opdrachtgever bij een
+    // verse cyclus-2-prestatie "Wacht op uren van de ZZP'er · niets te doen" terwijl er een door hém
+    // goed te keuren factuur openstond — een zichzelf tegensprekend scherm (het actiecentrum toonde de
+    // keur-taak wél) dat de uitbetaling stil vertraagde. De opdrachtgever is nu aan zet.
+    it("SUBMITTED-vorige-factuur + nieuwere DRAFT-prestatie: opdrachtgever aan zet (keur factuur)", () => {
+      const cl = cascadeStage(
+        base({
+          viewer: "CLIENT",
+          latestPerformanceStatus: "DRAFT",
+          latestInvoiceStatus: "SUBMITTED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(cl.id).toBe("invoice-approve");
+      expect(cl.youAreUp).toBe(true);
+      expect(cl.tone).toBe("attention");
+      // De ZZP'er blijft ondertussen aan zet voor de verse cyclus-2-uren (geen valse keur-actie).
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: "DRAFT",
+          latestInvoiceStatus: "SUBMITTED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("performance-submit");
+      expect(fr.youAreUp).toBe(true);
+    });
+
+    it("SUBMITTED-vorige-factuur + nieuwere REJECTED-prestatie: opdrachtgever keurt de factuur", () => {
+      // Ongeacht de status van de verse cyclus-2-prestatie blijft de openstaande keur-actie van de
+      // opdrachtgever de primaire fase (staat verder in de keten dan de afgekeurde prestatie).
+      const cl = cascadeStage(
+        base({
+          viewer: "CLIENT",
+          latestPerformanceStatus: "REJECTED",
+          latestInvoiceStatus: "SUBMITTED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(cl.id).toBe("invoice-approve");
+      expect(cl.youAreUp).toBe(true);
+    });
+
+    it("niet-SUBMITTED vorige factuur zonder nieuwere prestatie-vlag: geen client-rescue", () => {
+      // Zonder `performanceNewerThanInvoice` (single-cyclus) telt de factuur voor de huidige fase en
+      // loopt de reguliere afleiding — de rescue mag niet vuren.
+      const cl = cascadeStage(
+        base({
+          viewer: "CLIENT",
+          latestPerformanceStatus: "APPROVED",
+          latestInvoiceStatus: "SUBMITTED",
+          performanceNewerThanInvoice: false,
+        }),
+      );
+      expect(cl.id).toBe("invoice-approve");
+      expect(cl.youAreUp).toBe(true);
     });
 
     it("PAID-factuur + nieuwere DRAFT-prestatie: geen valse rescue (verse uren indienen)", () => {

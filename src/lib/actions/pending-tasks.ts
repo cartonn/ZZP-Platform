@@ -18,6 +18,7 @@ import { startOfUtcDay } from "@/lib/signals";
 import { type FreelancerCredential } from "@/lib/matching";
 import {
   CREDENTIAL_TYPE_LABEL,
+  coveredCredentialTypes,
   rosterExpiringByProfile,
   rosterExpiredByProfile,
   supersededVerifiedCredentialIds,
@@ -424,6 +425,11 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     // compliance al draagt, is superseded: het verval ervan is niet meer relevant, dus géén
     // "verloopt binnenkort"-nudge (dat zou een valse melding zijn die nooit nuttig verdwijnt).
     const supersededIds = supersededVerifiedCredentialIds(allCreds, now);
+    // Typen met een nu-geldig VERIFIED-cert dekken de compliance al: een verlopen exemplaar van zo'n
+    // gedekt type hoeft de ZZP'er niet te vernieuwen (identieke dekkingsregel als rosterExpiredByProfile).
+    // supersededIds dekt dit NIET voor de reeds-verlopen tak — die markeert alleen nu-geldige VERIFIED-
+    // exemplaren als superseded, niet de al-verlopen exemplaren die de fix-taak zouden triggeren.
+    const coveredTypes = coveredCredentialTypes(allCreds, now);
     for (const c of creds) {
       if (c.status === "REJECTED") tasks.push(credentialFixTask(c.id, c.title, "rejected"));
       else if (
@@ -443,7 +449,12 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         // terwijl het vertrouwensniveau al is gedaald.
         (c.status === "EXPIRED" ||
           (c.status === "VERIFIED" && c.expiresAt !== null && c.expiresAt <= now)) &&
-        !MANDATORY_CREDENTIAL_TYPES.includes(c.type as (typeof MANDATORY_CREDENTIAL_TYPES)[number])
+        !MANDATORY_CREDENTIAL_TYPES.includes(
+          c.type as (typeof MANDATORY_CREDENTIAL_TYPES)[number],
+        ) &&
+        // Een ander nu-geldig VERIFIED-cert van hetzelfde type draagt de compliance al → geen
+        // valse vernieuw-taak op dit (gedekte) verlopen exemplaar (het verval is niet meer relevant).
+        !coveredTypes.has(c.type)
       )
         // Uitgesteld: een door een samenwerking vereist verlopen certificaat krijgt hieronder de
         // hogere-band credentialCollabExpiredTask — de expired-fix-taak dedupt daar dan tegen,

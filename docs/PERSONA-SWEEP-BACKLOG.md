@@ -1,5 +1,64 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-22 (run 87) · **main-commit basis:** `10d08c8d`
+> **Uitkomst:** **2 next-action-/screen-consistentie-defecten gevonden én gefixt (beide should-fix,
+> DOEL 1b); 1 should-fix data-integriteit geparkeerd.**
+> 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie ·
+> cascade/geld-integriteit + verboden statusovergangen · next-action-engine · malicieuze input/CSV/XSS/
+> upload). **Live geverifieerd** (Playwright/bundled Chromium tegen de productie-server, seed SEED_DEMO):
+> alle vier de rollen loggen in, dashboard + /acties laden zonder page-errors; niet-admin-rollen worden
+> geweigerd bij `/admin/*` (redirect naar /dashboard); adversariële HTTP-smoke: alle beschermde routes
+> 307-redirect voor unauth (auth-vóór-ownership), onzin-id's → geen 500, `/api/media/../../etc/passwd`
+> geblokkeerd. Authz/IDOR (39 route-handlers + server-actions enumeratief nagelopen: export-routes
+> tenant-/owner-gescopet, document-endpoints anti-oracle 404, franchise-mutaties via `tenantScopeWhere`)
+> vond **0 nieuwe bereikbare gaten**.
+>
+> - **OPGELOST — should-fix: opdrachtgever kreeg géén "keur factuur"-next-action bij een
+>   ingediende vorige-cyclus-factuur zodra er verse cyclus-2-uren waren (DOEL 1b, screen-consistentie,
+>   CLAUDE.md regel 1):** `cascadeStage` (`src/lib/cascade/stage.ts`) draaide de multi-cyclus-rescue
+>   alléén voor de ZZP'er (`if (isFreelancer && performanceNewerThanInvoice)`). Op één ACTIVE-
+>   samenwerking gate't `createPerformance` alleen op ACTIVE, dus een ZZP'er kan cyclus-2-uren indienen
+>   terwijl de cyclus-1-factuur nog op `SUBMITTED` staat (wacht op de opdrachtgever, Event D — alleen
+>   zijn goedkeuring deblokkeert de uitbetaling). Voor de CLIENT-viewer werd de rescue overgeslagen →
+>   `inv` was door `performanceNewerThanInvoice` genuld → de fase viel door naar de cyclus-2-prestatie
+>   en toonde "Wacht op uren/oplevering van de ZZP'er · niets te doen" op de samenwerkingslijst, het
+>   dashboard "Wat loopt er nu" én de status-line — terwijl `/acties` (`pending-tasks.ts`, queryt alle
+>   `lifecycleStatus:"SUBMITTED"`-facturen) de keur-taak wél toonde. Zichzelf tegensprekend scherm dat
+>   de uitbetaling van de ZZP'er stil vertraagde. **Fix:** `priorCycleFreelancerPhase` → viewer-bewuste
+>   `priorCyclePhase(viewer, …)`; de rescue vuurt nu voor beide viewers maar geeft alleen een fase
+>   terug voor de partij die daadwerkelijk aan zet is op de vorige-cyclus-factuur (ZZP'er: DRAFT/
+>   REJECTED/APPROVED/OVERDUE; opdrachtgever: alleen SUBMITTED → `invoice-approve`, aan zet). ZZP-gedrag
+>   ongewijzigd (SUBMITTED blijft `null` → ZZP'er valt door naar de verse cyclus-2-uren). Werkt op alle
+>   `cascadeStage`-callsites (lijst, dashboard, detail, `collaboration-status-line.ts`, franchise-
+>   rosterdossier). +3 regressietests (CLIENT SUBMITTED+DRAFT/REJECTED aan zet; single-cyclus vuurt
+>   niet); bestaande "opdrachtgever krijgt geen ZZP-actie"-test verduidelijkt. Stepper `chain-steps.ts`
+>   bewust ongemoeid: die toont de HUIDIGE cyclus (een vorige-cyclus-factuur hoort daar niet in één
+>   4-stappen-strip die dan twee cycli tegelijk zou beschrijven).
+> - **OPGELOST — should-fix: reeds-verlopen niet-verplicht certificaat gaf een valse
+>   "vernieuwen"-next-action wanneer een nieuwer certificaat de compliance al dekte (DOEL 1b,
+>   next-action-correctheid):** `freelancerTasks` (`src/lib/actions/pending-tasks.ts`) sloot in de
+>   "verloopt binnenkort"-tak superseded certificaten uit (`!supersededIds.has`), maar de zustertak
+>   "reeds verlopen niet-verplicht" niet — terwijl `supersededVerifiedCredentialIds` bewust alléén nog-
+>   geldige VERIFIED-certs markeert (niet de al-verlopen). Twee certs van hetzelfde niet-verplichte type
+>   (oud VERIFIED+verleden `expiresAt` óf EXPIRED; nieuw VERIFIED+toekomst) → de ZZP'er kreeg een
+>   `credential-fix`-taak voor het oude, al-gedekte cert die nooit vanzelf verdween. **Fix:** dekking-
+>   check analoog aan de franchiser-`rosterExpiredByProfile` (`coveredTypes`): sluit een verlopen cert
+>   uit zodra een nog-geldig VERIFIED-cert van hetzelfde type bestaat; een los verlopen cert zónder
+>   vervanger blijft de taak tonen. (Zie de sub-sectie hieronder voor het exacte increment.)
+> - **GEPARKEERD (should-fix, data-integriteit, admin-only) — bulk-CSV-import omzeilt de canonieke
+>   Zod-veldvalidatie.** `buildImportPreview` (`src/lib/onboarding/import.ts`, geconsumeerd door
+>   `/admin/import`) is het enige schrijfpad naar `User`/`Company`/`FreelancerProfile` dat vrije-tekst-
+>   velden NIET door de gedeelde Zod-schema's in `src/lib/validation.ts` haalt: `name` heeft alleen een
+>   ondergrens (`< 2`), geen bovengrens (`registerSchema` capt op 120); `companyName` idem (vs
+>   `optionalText(160)`); `kvkNumber`/`btwNumber` gaan ONGEVALIDEERD uit de cel de DB in (elk ander pad
+>   draait `isValidKvk`/`isValidBtwId` + normalizers). Niet direct XSS-baar (downstream-render is JSX/
+>   `escapeHtml`, CSV-export escapet via de gedeelde kern), dus geen HIGH — wel een tweede, zwakkere
+>   waarheidsbron (CLAUDE.md regel 6 "één schema") + minor-DoS via een 2 MB `name`. **Fix-richting:**
+>   `name`/`companyName` door `trimmed(N)`, `kvkNumber`/`btwNumber` door `isValidKvk`/`isValidBtwId` +
+>   normalizers (falen → `warning` + gedropte waarde, net als `parseHourlyRate`/`parseWebsite` al doen
+>   in dezelfde file) vóór `buildImportPreview`. Geparkeerd om de PR strak op de twee next-action-fixes
+>   (coherent thema DOEL 1b) te houden; ander oppervlak (input-validatie), losse kleine PR waard.
+
 > **Datum:** 2026-08-21 (run 86) · **main-commit basis:** `ba636008`
 > **Uitkomst:** **2 next-action-/screen-consistentie-defecten gevonden én gefixt (1 BLOCKER FRANCHISER, 1 should-fix
 > FREELANCER/CLIENT); 1 inert geld-trap geparkeerd.**
