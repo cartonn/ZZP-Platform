@@ -151,6 +151,14 @@ export const REMINDERS = {
    */
   applicationDecisionDays: [0, 7] as const,
   /**
+   * Onbeantwoord bericht: de ontvanger van het laatste bericht heeft nog niet geantwoord en het
+   * gesprek ligt stil. Dit zijn OFFSETS bovenop de in-app stiltedrempel `CONVERSATION_STALE_DAYS`
+   * (3), zodat de eerste nudge exact samenvalt met het moment waarop /berichten het gesprek als
+   * "stil — wacht op antwoord" markeert (geen drift). `0` = op de drempel (dag 3), `4` = een
+   * vervolg-nudge (dag 7); daarna stopt het (max 2 nudges per gesprek).
+   */
+  conversationReplyDays: [0, 4] as const,
+  /**
    * E-mail-fallback (digest): ongelezen in-app-notificaties ouder dan dit aantal uren worden
    * gebundeld in één e-mail per gebruiker. De wachttijd geeft de app-route eerst de kans;
    * wie dagelijks inlogt krijgt nooit digest-mail.

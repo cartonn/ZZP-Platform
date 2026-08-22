@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-22 — Alle rollen: proactieve reminder voor onbeantwoorde berichten (cron)
+
+**Wat:** `/berichten` toont de wachtende kant al dat een gesprek "stil" ligt (`conversation-turn.ts`:
+`isStaleAwaitingReply` vanaf `CONVERSATION_STALE_DAYS` = 3), maar niemand nudget de kant die aan zet is
+— de ontvanger van het laatste bericht die nog niet antwoordde. Die zag het pas bij inloggen. Voor alle
+drie de rollen (ZZP'er, opdrachtgever, bemiddelaar) is trage/uitblijvende reactie het meest voorkomende
+lek in de matching-trechter. Benchmark: Intercom/Malt/Temper nudgen onbeantwoorde berichten.
+
+**Fix:** nieuwe pure planner `src/lib/conversation-reply-reminders.ts` (`planConversationReplyReminders`)
+
+- runner `src/lib/conversation-reply-reminders-task.ts` (`runConversationReplyReminderTask`), gemodelleerd
+  naar `application-decision-reminders`. De nudge vuurt op `CONVERSATION_STALE_DAYS` + config-offsets
+  `REMINDERS.conversationReplyDays` ([0, 4]) → precies dag 3 en 7 na het laatste bericht (exact wanneer
+  /berichten het gesprek als "stil — wacht op antwoord" markeert; geen drift), daarna stopt het (max 2
+  nudges). Elke deelnemer behalve de afzender krijgt de nudge; gededupliceerd per (gesprek, ontvanger, dag)
+  via DomainEvent dedupeKey (idempotent). Notificatie → `/berichten/[id]`, audit-label
+  `CONVERSATION_REPLY_REMINDER`, geregistreerd in `/api/tasks/run-all`. Runner-query begrenst de scan tot
+  het reminder-venster op `Conversation.updatedAt` (dat elke berichtzending bijwerkt); de planner beslist de
+  exacte dag uit het werkelijke `lastMessage.createdAt` (bron van waarheid). Nieuwe notificatie-categorie
+  "messages" (label "Berichten", icoon `MessageSquare`) zodat reply-nudges apart groeperen op /notificaties.
+  Puur/server-side/deterministisch, geen schema-/authz-/geldstroom-oppervlak.
+
+**Tests:** `conversation-reply-reminders.test.ts` (planner: dag 3/7, tussenliggende dagen stil, leeg
+gesprek, 3-weg, dedup, fallback-teksten, klok-skew→floor, geen mutatie, venster) +
+`conversation-reply-reminders-task.test.ts` (notificatie/event/audit, idempotentie, geen berichten,
+3-weg). Notifications-drift-test dekt de nieuwe categorie. Gate: typecheck, lint, test, build, prettier.
+
 ## 2026-08-21 — ZZP'er: startdatum-sortering op de opdrachtenlijst
 
 **Wat:** de opdrachtenlijst (`/opdrachten`) kon sorteren op beste match, nieuwste en tarief, maar niet
