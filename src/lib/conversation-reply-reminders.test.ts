@@ -36,13 +36,13 @@ describe("planConversationReplyReminders", () => {
     const plan = planConversationReplyReminders([convo()], NOW);
     expect(plan.reminders).toHaveLength(1);
     const r = plan.reminders[0];
-    expect(r.userId).toBe("recipient");
-    expect(r.notificationType).toBe("CONVERSATION_REPLY_REMINDER");
-    expect(r.stage).toBe("day-3");
-    expect(r.body).toContain("Sanne");
-    expect(r.body).toContain("3 dagen");
-    expect(r.body).toContain('over "Nachtdienst VVT"');
-    expect(r.dedupeKey).toBe("conversation-reply-reminder-c1-recipient-3");
+    expect(r?.userId).toBe("recipient");
+    expect(r?.notificationType).toBe("CONVERSATION_REPLY_REMINDER");
+    expect(r?.stage).toBe("day-3");
+    expect(r?.body).toContain("Sanne");
+    expect(r?.body).toContain("3 dagen");
+    expect(r?.body).toContain('over "Nachtdienst VVT"');
+    expect(r?.dedupeKey).toBe("conversation-reply-reminder-c1-recipient-3");
   });
 
   it("vuurt ook op de vervolg-dag 7", () => {
@@ -51,7 +51,7 @@ describe("planConversationReplyReminders", () => {
       NOW,
     );
     expect(plan.reminders).toHaveLength(1);
-    expect(plan.reminders[0].stage).toBe("day-7");
+    expect(plan.reminders[0]?.stage).toBe("day-7");
   });
 
   it("vuurt niet op een tussenliggende dag (idempotent per dag)", () => {
@@ -89,8 +89,8 @@ describe("planConversationReplyReminders", () => {
 
   it("laat de opdrachttitel weg wanneer er geen opdracht is; valt terug op 'Iemand'", () => {
     const plan = planConversationReplyReminders([convo({ jobTitle: null, senderName: null })], NOW);
-    expect(plan.reminders[0].body).toContain("Iemand wacht al 3 dagen op je antwoord.");
-    expect(plan.reminders[0].body).not.toContain('over "');
+    expect(plan.reminders[0]?.body).toContain("Iemand wacht al 3 dagen op je antwoord.");
+    expect(plan.reminders[0]?.body).not.toContain('over "');
   });
 
   it("gebruikt enkelvoud niet op dag 3 (meervoud), maar telt hele dagen (klok-skew → floor)", () => {
@@ -100,7 +100,7 @@ describe("planConversationReplyReminders", () => {
       NOW,
     );
     expect(plan.reminders).toHaveLength(1);
-    expect(plan.reminders[0].stage).toBe("day-3");
+    expect(plan.reminders[0]?.stage).toBe("day-3");
   });
 
   it("muteert de invoer niet", () => {
