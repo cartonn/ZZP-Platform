@@ -130,6 +130,19 @@ describe("buildChainSteps — stap 3 (Factuur)", () => {
     const inv = buildChainSteps(col("ACTIVE", [], [{ lifecycleStatus: "PROCESSED" }]))[2]!;
     expect(inv.status).toBe("done");
   });
+
+  // Regressie: een gecrediteerde (teruggedraaide) factuur op een nog-ACTIVE samenwerking viel
+  // eerder door naar de "Volgt na goedkeuring prestatie"-default (waiting) — waarmee de stepper de
+  // status-line ("Factuur gecrediteerd", een afgewikkelde eindtoestand in stage.ts) op hetzelfde
+  // scherm tegensprak. Nu een afgewikkelde eindtoestand (done · "Gecrediteerd").
+  it("factuur CREDITED → done (afgewikkeld, geen tegenstrijdige 'volgt nog'-tekst)", () => {
+    const inv = buildChainSteps(
+      col("ACTIVE", [{ status: "APPROVED" }], [{ lifecycleStatus: "CREDITED" }]),
+    )[2]!;
+    expect(inv.status).toBe("done");
+    expect(inv.detail).toBe("Gecrediteerd");
+    expect(inv.detail).not.toContain("Volgt");
+  });
 });
 
 describe("buildChainSteps — stap 4 (Betaling)", () => {
@@ -154,6 +167,23 @@ describe("buildChainSteps — stap 4 (Betaling)", () => {
   it("factuur PROCESSED → betaling done", () => {
     const pay = buildChainSteps(col("ACTIVE", [], [{ lifecycleStatus: "PROCESSED" }]))[3]!;
     expect(pay.status).toBe("done");
+  });
+
+  // Regressie: OVERDUE hoort bij de betalingsfase (factuur goedgekeurd, alleen te laat). Eerder
+  // toonde de Betaling-stap "waiting · Volgt na factuurgoedkeuring" terwijl de status-line op
+  // hetzelfde scherm "markeer de betaling" vroeg — een zichzelf tegensprekend scherm.
+  it("factuur OVERDUE → betaling active (niet 'volgt na factuurgoedkeuring')", () => {
+    const pay = buildChainSteps(col("ACTIVE", [], [{ lifecycleStatus: "OVERDUE" }]))[3]!;
+    expect(pay.status).toBe("active");
+    expect(pay.detail).toContain("te laat");
+    expect(pay.detail).not.toContain("factuurgoedkeuring");
+  });
+
+  // Regressie: een gecrediteerde factuur wikkelt af zonder betaling — geen openstaande betaalactie.
+  it("factuur CREDITED → betaling done (niet verschuldigd)", () => {
+    const pay = buildChainSteps(col("ACTIVE", [], [{ lifecycleStatus: "CREDITED" }]))[3]!;
+    expect(pay.status).toBe("done");
+    expect(pay.detail).toContain("gecrediteerd");
   });
 });
 

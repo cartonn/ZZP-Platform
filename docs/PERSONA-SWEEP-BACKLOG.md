@@ -1,5 +1,40 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-22 (run 87) · **main-commit basis:** `1d6ab0f5`
+> **Uitkomst:** **3 next-action-/screen-consistentie-defecten gevonden én gefixt** (2× stepper-zelftegenspraak in
+> `chain-steps.ts` — should-fix, FREELANCER/CLIENT; 1× verkeerde partij-aan-zet-verwoording franchiser — nit).
+> 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie ·
+> cascade/geld-integriteit + verboden statusovergangen · next-action-engine · malicieuze input/CSV/XSS/upload) +
+> live Playwright-sweep (bundled Chromium) over alle 4 rollen. Authz/IDOR (route-handlers + server-actions
+> enumeratief nagelopen: document-endpoints anti-oracle 404, tenant-isolatie centraal, cascade party-checks
+> TOCTOU-veilig), malicieuze-input (Zod money/hours-bounds, gedeelde CSV-escape-kern, upload magic-byte-sniff,
+> geen `*OrThrow` → 404-vs-500) en geld-integriteit (dual-path invoice-helpers cascade-aware, `computeVat`
+> integer-centen) vonden **0 nieuwe bereikbare gaten**. Live: privilege-escalatie (FREELANCER/CLIENT → /admin/\*
+> redirect naar dashboard), onzin-id → 404-niet-500 (8/8), login+dashboard+/acties per rol groen. (`/rooster` en
+> `/administratie` voor FREELANCER/CLIENT zijn `requireActor`-schermen met per-actor/tenant-gescopete inhoud —
+> geen leak, by design.)
+>
+> - **OPGELOST — should-fix: "Voortgang"-stepper (`buildChainSteps`) sprak de status-line tegen bij een
+>   `CREDITED`-factuur (DOEL 1b, screen-consistentie, CLAUDE.md regel 1):** `src/lib/cascade/chain-steps.ts` had
+>   geen `CREDITED`-tak; op een nog-ACTIVE samenwerking met een gecrediteerde (teruggedraaide) factuur — bereikbaar
+>   via `creditInvoice` op APPROVED/OVERDUE (`lifecycles.ts` staat het toe) — viel de Factuur-stap door naar de
+>   default "Volgt na goedkeuring prestatie" (waiting) en de Betaling-stap naar "Volgt na factuurgoedkeuring",
+>   terwijl de status-line op HETZELFDE scherm (via `stage.ts`, dat CREDITED wél als afgewikkelde eindtoestand
+>   kent) "Factuur gecrediteerd" toonde. **Fix:** CREDITED-tak toegevoegd aan zowel Factuur (done · "Gecrediteerd")
+>   als Betaling (done · "Niet verschuldigd (gecrediteerd)"), spiegelt `stage.ts`. +2 regressietests.
+> - **OPGELOST — should-fix: "Voortgang"-stepper Betaling-stap negeerde `OVERDUE` (DOEL 1b, screen-consistentie):**
+>   in dezelfde `buildChainSteps` testte `invApproved` alleen op `"APPROVED"`, niet op `"OVERDUE"`. Op een ACTIVE
+>   samenwerking met APPROVED-prestatie + OVERDUE-factuur toonde de status-line "markeer de betaling" (betalingsfase,
+>   actie nodig) maar de Betaling-stap "waiting · Volgt na factuurgoedkeuring" — alsof de factuur nog goedgekeurd
+>   moest worden terwijl die al goedgekeurd én te laat is. `stage.ts:142` behandelt `APPROVED || OVERDUE` al als
+>   dezelfde betalingsfase. **Fix:** `invApproved = inv === "APPROVED" || inv === "OVERDUE"`, aparte detail-tekst
+>   voor OVERDUE ("Wachten op betaling — te laat"). +1 regressietest.
+> - **OPGELOST — nit: franchiser-taak `franchiseNotEngageableTask` wees de verkeerde partij aan (DOEL 1b,
+>   partij-aan-zet):** de subtitle "Blokkeert plaatsing — vul de ontbrekende verificatie aan" wordt aan de FRANCHISER
+>   getoond, maar alleen de ZZP'er kan een bewijsstuk uploaden; de enige franchiser-actie op die pagina is "Stuur
+>   herinnering". De zustertaak `franchiseCredentialExpiryTask` verwoordt dit correct ("Vraag de ZZP'er…"). **Fix:**
+>   subtitle → "Blokkeert plaatsing — vraag de ZZP'er het bewijsstuk aan te vullen" (`src/lib/actions/tasks.ts`).
+
 > **Datum:** 2026-08-21 (run 86) · **main-commit basis:** `ba636008`
 > **Uitkomst:** **2 next-action-/screen-consistentie-defecten gevonden én gefixt (1 BLOCKER FRANCHISER, 1 should-fix
 > FREELANCER/CLIENT); 1 inert geld-trap geparkeerd.**

@@ -73,6 +73,13 @@ export function buildChainSteps(col: {
   if (inv === "PAID" || inv === "PROCESSED") {
     invStatus = "done";
     invDetail = "Betaald";
+  } else if (inv === "CREDITED") {
+    // Gecrediteerd is een afgewikkelde eindtoestand (spiegelt stage.ts): de factuur is
+    // teruggedraaid, niemand hoeft nog te betalen. Zonder deze tak viel CREDITED door naar de
+    // "Volgt na goedkeuring prestatie"-default en sprak de stepper de status-line ("Factuur
+    // gecrediteerd") op hetzelfde scherm tegen.
+    invStatus = "done";
+    invDetail = "Gecrediteerd";
   } else if (inv === "APPROVED") {
     invStatus = "active";
     invDetail = "Goedgekeurd — wachten op betaling";
@@ -93,15 +100,25 @@ export function buildChainSteps(col: {
 
   // Stap 4: Betaling — op dezelfde huidige-cyclus-factuur (`inv`).
   const paid = inv === "PAID" || inv === "PROCESSED";
-  const invApproved = inv === "APPROVED";
+  // OVERDUE hoort net als APPROVED bij de betalingsfase (spiegelt stage.ts: `APPROVED || OVERDUE`):
+  // de factuur ís goedgekeurd, alleen te laat. Zonder OVERDUE hier toonde de Betaling-stap "waiting ·
+  // Volgt na factuurgoedkeuring" terwijl de status-line "markeer de betaling" vroeg — tegenstrijdig.
+  const invApproved = inv === "APPROVED" || inv === "OVERDUE";
+  const overdue = inv === "OVERDUE";
+  const credited = inv === "CREDITED";
   steps.push({
     label: "Betaling",
-    status: paid ? "done" : invApproved ? "active" : "waiting",
+    // Gecrediteerd: afgewikkeld zonder betaling — geen openstaande actie (spiegelt stage.ts).
+    status: paid || credited ? "done" : invApproved ? "active" : "waiting",
     detail: paid
       ? "Ontvangen"
-      : invApproved
-        ? "Wachten op betaling"
-        : "Volgt na factuurgoedkeuring",
+      : credited
+        ? "Niet verschuldigd (gecrediteerd)"
+        : overdue
+          ? "Wachten op betaling — te laat"
+          : invApproved
+            ? "Wachten op betaling"
+            : "Volgt na factuurgoedkeuring",
   });
 
   return steps;

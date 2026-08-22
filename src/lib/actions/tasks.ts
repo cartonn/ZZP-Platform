@@ -1276,7 +1276,9 @@ export function franchiseNotEngageableTask(
     kind: "franchise-not-engageable",
     id: `franchise-not-engageable:${profileId}`,
     title: `${name} is nog niet inzetbaar — ${reason}`,
-    subtitle: "Blokkeert plaatsing — vul de ontbrekende verificatie aan",
+    // De franchiser kan zelf geen bewijsstuk uploaden (alleen de ZZP'er), dus vraag de ZZP'er
+    // erom — spiegelt de verwoording van franchiseCredentialExpiryTask ("Vraag de ZZP'er…").
+    subtitle: "Blokkeert plaatsing — vraag de ZZP'er het bewijsstuk aan te vullen",
     tone: "attention",
     priority: P.franchiserRosterNotEngageable,
     resolver: "link",
