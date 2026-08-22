@@ -187,6 +187,23 @@ groups:
           summary: "Object-opslag wijst af"
           description: "De object-opslag levert niet meer (zzp_storage_delivery_ok=0, ≥3 opeenvolgende mislukkingen). Documenten (VOG, diploma's, verzekering) kunnen niet worden opgeslagen of opgehaald. Controleer de opslag-credentials/bucket (verlopen AWS-sleutel, ingetrokken IAM, verwijderde/verkeerde bucket, regio-storing) en het server-logboek (of Sentry). Zie MENSENWERK §1c."
 
+      - alert: ZzpBillingDeliveryFailing
+        # Het betaalprovider-kanaal (BILLING_PROVIDER=stripe|mollie) wijst systematisch af: de laatste
+        # uitgaande operatie mislukte (zzp_billing_delivery_ok=0) én er zijn ≥3 opeenvolgende mislukkingen.
+        # Betalingen zijn event-gedreven (geen staleness-op-leeftijd), dus de conditie zit op de teller, niet
+        # op ouderdom. Oorzaak meestal een verlopen/ingetrokken API-sleutel, een geschorst account of een
+        # provider-storing — élke abonnement-checkout/statuscontrole mislukt dan stil en een checkout blijft
+        # voor altijd op PENDING hangen. De ≥3-drempel + `for:` negeren één transiënte fout. Herstel wordt
+        # automatisch gewist zodra een operatie slaagt (of draai de Betaalprovider-zelftest op
+        # /admin/systeemstatus). Zie MENSENWERK §3.
+        expr: zzp_billing_delivery_ok == 0 and zzp_billing_consecutive_failures >= 3
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Betaalprovider wijst af"
+          description: "De betaalprovider levert niet meer (zzp_billing_delivery_ok=0, ≥3 opeenvolgende mislukkingen). Abonnement-checkouts kunnen niet worden gestart of statussen niet worden opgehaald — een checkout blijft op PENDING hangen. Controleer de provider-credentials (verlopen/ingetrokken API-sleutel, geschorst account) en het server-logboek (of Sentry). Zie MENSENWERK §3."
+
   - name: zzp-platform-stille-faal-backlogs
     rules:
       # Deze drie tellen werk dat een cron-run HAD moeten doen. De cron-heartbeat bewijst alleen DÁT de

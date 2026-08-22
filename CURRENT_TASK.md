@@ -268,6 +268,21 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — betaalprovider-aflever-heartbeat (dead-man's-switch) (2026-08-22, PR #1190)** —
+> completeert de dead-man's-switch-familie: opslag/mail/push/cron/back-up hadden een doorlopend afleversignaal, de
+> **betaalprovider (Stripe/Mollie outbound)** — het laatste productie-kernkanaal — niet. Een verlopen/ingetrokken
+> API-sleutel of provider-storing laat élke `startCheckout`/`paymentStatus` stil mislukken (checkout hangt eeuwig op
+> PENDING); de connectiviteitszelftest bewijst alleen bereikbaarheid vóór go-live (menselijke klik), de reconcile-cron
+> herstelt één gemiste webhook — geen van beide bewaakt doorlopend. Patroon = `RecordingStorageDriver`:
+> `RecordingPaymentProvider`-decorator rond `getPaymentProvider()` (alleen om de échte provider; no-op/mock blijft kaal),
+> elke uitgaande operatie registreert in singleton `BillingDeliveryHeartbeat`; `resolveWebhookRef` (inbound) loopt
+> ongeregistreerd door. Event-gedreven oordeel op de laatste operatie (`never`/`ok`/`failing` + teller), geen
+> staleness-op-leeftijd; fail-open registratie; nooit sleutels/endpoints/foutinhoud. Kaart "Betaalprovider" op
+> `/admin/systeemstatus`, gauges `zzp_billing_delivery_ok`/`_consecutive_failures`/`_last_failure_age_seconds` op
+> `/api/metrics`, alert `ZzpBillingDeliveryFailing` (`==0 and >=3`, `for: 15m`) + inhibitie. +15 tests (pure freshness +
+> decorator) + metrics-gauge-set/assertions. Resterend mensenwerk: niets extra (vult zichzelf zodra
+> `BILLING_PROVIDER=stripe`/`mollie` staat). Gate: typecheck/lint/test/build/prettier groen.
+>
 > Gedaan (niet opnieuw): **Alle rollen — proactieve reminder voor onbeantwoorde berichten (cron) (2026-08-22, PR #1188)** —
 > `/berichten` toonde de wachtende kant al dat een gesprek "stil" ligt (`conversation-turn.ts` vanaf
 > `CONVERSATION_STALE_DAYS`=3), maar niemand nudget de kant die aan zet is: de ontvanger van het laatste bericht die

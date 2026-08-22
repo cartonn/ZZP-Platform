@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-22 — Prod-rijpheid: betaalprovider-aflever-heartbeat (dead-man's-switch)
+
+**Wat:** Completeert de dead-man's-switch-familie. Opslag/mail/push/cron/back-up hadden een doorlopend
+afleversignaal; de **betaalprovider (Stripe/Mollie outbound)** — het laatste productie-kernkanaal — nog niet.
+Een verlopen/ingetrokken API-sleutel of provider-storing laat élke `startCheckout`/`paymentStatus` stil
+mislukken; checkouts hangen dan voor altijd op PENDING zonder zichtbaar signaal. De connectiviteitszelftest
+bewijst alleen bereikbaarheid vóór go-live (op een menselijke klik); de reconcile-cron herstelt één gemiste
+webhook; geen van beide bewaakt de doorlopende gezondheid van het uitgaande betaalkanaal.
+
+**Hoe (patroon = `RecordingStorageDriver`):** `RecordingPaymentProvider`-decorator rond `getPaymentProvider()`
+(alleen om de échte Stripe/Mollie-provider; de no-op/mock blijft kaal — geen externe call, geen productie-kanaal).
+Elke uitgaande operatie (`startCheckout`/`paymentStatus`/`checkConnectivity`) registreert haar uitkomst in een
+singleton `BillingDeliveryHeartbeat`; `resolveWebhookRef` (inbound, mag nooit throwen) loopt ongeregistreerd
+door. Event-gedreven oordeel op de **laatste** operatie (`never`/`ok`/`failing` + `consecutiveFailures`), geen
+staleness-op-leeftijd. Fail-open registratie (mag een geslaagde checkout niet laten falen, noch een echte fout
+maskeren); bevat nooit sleutels/endpoints/foutinhoud.
+
+**Bestanden:** `prisma/schema.prisma` (model `BillingDeliveryHeartbeat`), `src/lib/observability/billing-delivery-freshness.ts`
+(pure) + `.test.ts`, `src/lib/observability/billing-delivery-heartbeat.ts` (DB), `src/lib/billing/recording-payment-provider.ts`
+
+- `.test.ts`, wiring in `src/lib/billing/provider.ts` (`getPaymentProvider`), `src/lib/observability/metrics.ts` +
+  `metrics.test.ts` (3 gauges `zzp_billing_delivery_ok`/`_consecutive_failures`/`_last_failure_age_seconds`),
+  `src/app/api/metrics/route.ts`, `src/components/admin/billing-delivery-heartbeat-card.tsx` +
+  `src/app/(protected)/admin/systeemstatus/page.tsx` (kaart "Betaalprovider"), `docs/observability/alerts.yml`
+  (`ZzpBillingDeliveryFailing`) + `alertmanager.yml` (inhibitie), `src/lib/observability/alerts-rules.ts` (sample),
+  `MENSENWERK.md` §3. **Gate:** typecheck ✓, lint/test/build/prettier (zie PR-poort). PR #1190.
+
 ## 2026-08-22 — Security-/privacy-auditronde: geen nieuwe gaten (delta + brede sweep schoon)
 
 **Wat:** Adversariële security-/privacy-audit op `main` @ `29a30441` — orchestrator (Opus 4.8) + 3 parallelle

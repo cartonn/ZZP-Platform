@@ -3,6 +3,7 @@
 // dev/demo) + echte implementaties (Mollie, Stripe), pluggable via env (BILLING_PROVIDER).
 // Geen geld uit het WERKproces via het platform (Besluit 1); dit is uitsluitend de abonnementsfee.
 
+import { RecordingPaymentProvider } from "@/lib/billing/recording-payment-provider";
 import { verifyStripeSignature } from "@/lib/billing/stripe-signature";
 import { fetchWithTimeout, resolveHttpTimeoutMs } from "@/lib/services/fetch-timeout";
 
@@ -317,12 +318,14 @@ export function getPaymentProvider(): PaymentProvider {
   if (cached) return cached;
   switch (process.env.BILLING_PROVIDER) {
     case "mollie":
-      cached = new MolliePaymentProvider(process.env.MOLLIE_API_KEY);
+      // Wrap de échte provider in de RecordingPaymentProvider zodat elke uitgaande operatie de
+      // billing-aflever-heartbeat (dead-man's-switch) voedt. De no-op-provider (default) blijft kaal:
+      // die doet geen externe call en is geen productie-kanaal (parity met de lokale disk-storage).
+      cached = new RecordingPaymentProvider(new MolliePaymentProvider(process.env.MOLLIE_API_KEY));
       break;
     case "stripe":
-      cached = new StripePaymentProvider(
-        process.env.STRIPE_API_KEY,
-        process.env.STRIPE_WEBHOOK_SECRET,
+      cached = new RecordingPaymentProvider(
+        new StripePaymentProvider(process.env.STRIPE_API_KEY, process.env.STRIPE_WEBHOOK_SECRET),
       );
       break;
     default:
