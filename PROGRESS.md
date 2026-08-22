@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-22 — ZZP'er: verwachte-betaaldatum op het factuurdetail (cashflow)
+
+**Wat:** De openstaande-postenlijst (`/openstaand`) toont per factuur al de realistische verwachte-betaaldatum
+("verwacht betaald rond {datum} · doorgaans N dagen na de vervaldag"), afgeleid uit het gemeten betaalgedrag
+van déze opdrachtgever. Het **factuurdetail** — juist het scherm waar de ZZP'er één openstaande factuur
+bekijkt — toonde alleen de contractuele vervaldatum. Nu draagt het detail dezelfde forecast als een rustige
+kaart naast de betaalgegevens. De #1 cashflow-vraag ("wanneer krijg ik mijn geld?") wordt beantwoord op het
+punt van aandacht. Benchmark: de Deel/Wise "when will I actually get paid"-cue.
+
+**Hoe:** Nieuwe pure `forecastForOpenInvoice(open, paid)` in `src/lib/administration/payout-forecast.ts` — wrapt
+`buildPayoutForecastMap` voor één factuur, dus **exact dezelfde conservatieve regel** als de lijst (alleen een
+betrouwbare projectie die later valt dan de vervaldag; anders `null` → geen kaart, geen scherm↔detail-drift).
+Het factuurdetail (`facturen/[id]/page.tsx`) haalt bij een openstaande, ZZP'er-eigen factuur de eigen betaalde
+facturen aan déze opdrachtgever op (tenant-veilig via `collaboration.freelancer.userId` + `companyId`) en rendert
+`PaymentForecastCard`. Read-only, server-side waarheid, geen schema-/mutatie-/authz-oppervlak.
+
+**Bestanden:** `src/lib/administration/payout-forecast.ts` (+`forecastForOpenInvoice`),
+`src/components/invoices/payment-forecast-card.tsx` (nieuw), `src/app/(protected)/facturen/[id]/page.tsx` (query +
+render). Tests: `payout-forecast.test.ts` +4 (trage betaler → forecast, snelle betaler → null, te weinig historie
+→ null, andere opdrachtgever → null).
+
+**Checks:** typecheck ✓ · lint + test + build + prettier → PR-gate. Resterend mensenwerk: geen.
+
 ## 2026-08-22 — Prod-rijpheid: betaal-webhook-handtekening-heartbeat (dead-man's-switch, INKOMENDE kant)
 
 **Wat:** Sluit het inkomende gat in de betaal-observability. De betaalprovider-aflever-heartbeat (#1190) bewaakt de

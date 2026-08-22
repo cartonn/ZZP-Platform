@@ -268,6 +268,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — verwachte-betaaldatum op het factuurdetail (cashflow) (2026-08-22, PR #1198)** —
+> de openstaande-postenlijst (`/openstaand`) toont per factuur al de realistische verwachte-betaaldatum (afgeleid uit
+> het gemeten betaalgedrag van déze opdrachtgever), maar het **factuurdetail** — juist het scherm waar de ZZP'er één
+> openstaande factuur bekijkt — toonde alleen de contractuele vervaldatum. Nu draagt het detail dezelfde forecast als
+> een rustige kaart naast de betaalgegevens (#1 cashflow-vraag "wanneer krijg ik mijn geld?" beantwoord op het punt van
+> aandacht; benchmark Deel/Wise). Nieuwe pure `forecastForOpenInvoice(open, paid)` (`src/lib/administration/payout-forecast.ts`)
+> wrapt `buildPayoutForecastMap` voor één factuur → exact dezelfde conservatieve regel als de lijst (alleen een
+> betrouwbare projectie die later valt dan de vervaldag; anders `null` → geen kaart, geen scherm↔detail-drift). Het
+> factuurdetail haalt tenant-veilig de eigen betaalde facturen aan déze opdrachtgever op en rendert `PaymentForecastCard`.
+> Read-only, server-side waarheid, geen schema-/mutatie-/authz-oppervlak. +4 tests. Gate: typecheck ✓ · lint/test/build/prettier → PR-gate.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — betaal-webhook-handtekening-heartbeat (dead-man's-switch, INKOMENDE kant) (2026-08-22)** —
 > completeert de betaal-observability: de betaalprovider-aflever-heartbeat (#1190) bewaakt de UITGAANDE calls, maar de
 > INKOMENDE webhooks niet. Stripe ondertekent elke webhook; de route negeert een ongeldige handtekening bewust stil

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildPayoutForecastMap,
   effectivePayoutDate,
+  forecastForOpenInvoice,
   type OpenInvoiceForForecast,
   type PaidInvoiceForForecast,
 } from "./payout-forecast";
@@ -112,5 +113,35 @@ describe("effectivePayoutDate", () => {
 
   it("geeft null wanneer er noch forecast noch vervaldatum is", () => {
     expect(effectivePayoutDate("unknown", null, new Map())).toBeNull();
+  });
+});
+
+describe("forecastForOpenInvoice", () => {
+  const issuedAt = d("2026-06-01T00:00:00Z");
+  const open: OpenInvoiceForForecast = {
+    id: "inv1",
+    companyId: "c1",
+    issuedAt,
+    dueAt: new Date(issuedAt.getTime() + 14 * DAY),
+  };
+
+  it("geeft de betrouwbare forecast bij een trage betaler (later dan de vervaldag)", () => {
+    const forecast = forecastForOpenInvoice(open, paidHistory("c1", 5, 40));
+    expect(forecast).not.toBeNull();
+    expect(forecast!.confident).toBe(true);
+    expect(forecast!.expectedAt.getTime()).toBe(issuedAt.getTime() + 40 * DAY);
+    expect(forecast!.daysAfterDue).toBe(26);
+  });
+
+  it("geeft null bij een snelle betaler (verwacht niet vóór de vervaldag tonen)", () => {
+    expect(forecastForOpenInvoice(open, paidHistory("c1", 5, 3))).toBeNull();
+  });
+
+  it("geeft null bij onvoldoende historie (< drempel)", () => {
+    expect(forecastForOpenInvoice(open, paidHistory("c1", 2, 40))).toBeNull();
+  });
+
+  it("negeert betaalhistorie van een andere opdrachtgever", () => {
+    expect(forecastForOpenInvoice(open, paidHistory("c2", 5, 40))).toBeNull();
   });
 });

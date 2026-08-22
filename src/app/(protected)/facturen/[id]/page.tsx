@@ -12,6 +12,8 @@ import { currentDunningStage } from "@/lib/payment-reminders";
 import { buildAanmaningData } from "@/lib/aanmaning";
 import { AanmaningSection } from "@/components/invoices/aanmaning-section";
 import { PaymentDetailsCard } from "@/components/invoices/payment-details-card";
+import { PaymentForecastCard } from "@/components/invoices/payment-forecast-card";
+import { forecastForOpenInvoice } from "@/lib/administration/payout-forecast";
 import { formatIban } from "@/lib/fiscal";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { Button } from "@/components/ui/button";
@@ -88,7 +90,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           ortProfile: true,
           ortCustomRates: true,
           job: { select: { title: true } },
-          company: { select: { name: true, userId: true } },
+          company: { select: { id: true, name: true, userId: true } },
           freelancer: {
             select: {
               userId: true,
@@ -173,6 +175,34 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   const issuerIban = invoice.collaboration.freelancer.iban;
   const invoiceNumber = cascade ? (invoice.partyInvoiceNumber ?? invoice.number) : invoice.number;
   const showPaymentDetails = !!issuerIban && isInvoicePaymentPending(status, lifecycle);
+
+  // Verwachte-betaaldatum (ZZP'er, cashflow): projecteer op deze openstaande factuur het gemeten
+  // betaalgedrag van déze opdrachtgever — dezelfde motor als de /openstaand-lijst. Alleen een
+  // betrouwbare projectie die later valt dan de vervaldag komt terug (anders null → geen kaart). Het
+  // betaalgedrag rust uitsluitend op de eigen betaalde facturen van deze ZZP'er aan deze opdrachtgever.
+  const companyId = invoice.collaboration.company.id;
+  const paymentForecast =
+    isFreelancerOwner && isInvoicePaymentPending(status, lifecycle)
+      ? forecastForOpenInvoice(
+          { id: invoice.id, companyId, issuedAt: invoice.issuedAt, dueAt: invoice.dueAt },
+          (
+            await prisma.invoice.findMany({
+              where: {
+                collaboration: { freelancer: { userId: actor.id }, companyId },
+                status: "PAID",
+              },
+              orderBy: { updatedAt: "desc" },
+              take: 300,
+              select: { issuedAt: true, dueAt: true, updatedAt: true },
+            })
+          ).map((row) => ({
+            companyId,
+            issuedAt: row.issuedAt,
+            dueAt: row.dueAt,
+            paidAt: row.updatedAt,
+          })),
+        )
+      : null;
 
   // De ZZP'er (crediteur) kan voor een te late, onbetaalde factuur een aanmaning opstellen.
   const overdueForReminder =
@@ -339,6 +369,13 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           amountFormatted={formatEuro(invoice.totalCents)}
           dueDateFormatted={invoice.dueAt ? fmt(invoice.dueAt) : null}
           isPayer={isClient}
+        />
+      )}
+
+      {paymentForecast && (
+        <PaymentForecastCard
+          expectedAtFormatted={fmt(paymentForecast.expectedAt)}
+          daysAfterDue={paymentForecast.daysAfterDue}
         />
       )}
 
