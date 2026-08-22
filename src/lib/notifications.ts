@@ -9,8 +9,10 @@ export const NOTIFICATION_CATEGORIES = [
   "dispute", //      dispuut/escalatie
   "credential", //   certificaat/verificatie
   "collaboration", //samenwerking
+  "application", //   reactie op een opdracht (ontvangen/afgewezen/ingetrokken)
   "messages", //     bericht/gesprek (onbeantwoord, wacht op antwoord)
   "idea", //         ideeënbox (statuswijziging, reactie)
+  "account", //      account & toegang (status, verwijderverzoek)
   "system", //       overig/systeem
 ] as const;
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
@@ -57,13 +59,47 @@ const META: Record<string, NotificationMeta> = {
   INVOICE_DRAFT_ESCALATION: { category: "invoice", tone: "attention" },
   JOB_MATCH: { category: "system", tone: "info" },
   JOB_COLD: { category: "system", tone: "attention" }, // opdracht koud: weinig respons, vraagt actie
-  APPLICATION_WITHDRAWN: { category: "system", tone: "info" }, // ZZP'er trok zijn reactie in
   POOL_INVITE: { category: "collaboration", tone: "attention" },
   JOB_PROPOSAL: { category: "collaboration", tone: "attention" }, // bemiddelaar draagt ZZP'er voor op dienst
   JOB_INVITE: { category: "collaboration", tone: "attention" }, // opdrachtgever nodigt ZZP'er direct uit voor een opdracht
   JOB_CLOSED: { category: "system", tone: "info" }, // opdracht gesloten: open reactie is niet meer beschikbaar
   CONVERSATION_REPLY_REMINDER: { category: "messages", tone: "attention" }, // onbeantwoord bericht, gesprek ligt stil
+  // Reactie-trechter (opdracht ↔ ZZP'er) — bij elkaar onder "Reacties".
+  APPLICATION_RECEIVED: { category: "application", tone: "attention" }, // opdrachtgever: nieuwe reactie, vraagt actie
+  APPLICATION_REJECTED: { category: "application", tone: "info" }, // ZZP'er: reactie afgewezen
+  APPLICATION_WITHDRAWN: { category: "application", tone: "info" }, // ZZP'er trok zijn reactie in
+  // Certificaat-verificatiebeslissingen.
+  CREDENTIAL_VERIFIED: { category: "credential", tone: "success" },
+  CREDENTIAL_REJECTED: { category: "credential", tone: "attention" },
+  // Factuur-lifecycle (ontvangst + betaald).
+  INVOICE_SENT: { category: "invoice", tone: "attention" }, // ontvanger: nieuwe factuur, actie (betalen)
+  INVOICE_PAID: { category: "invoice", tone: "success" },
+  // Berichten.
+  MESSAGE: { category: "messages", tone: "attention" }, // nieuw bericht in een gesprek
+  // Dispuut-escalatie (cascade blijft bevroren).
+  DISPUTE_ESCALATION: { category: "dispute", tone: "attention" },
+  // Werkproces — dienst-uitvoering (no-show + overname + auto-goedkeuring).
+  PERFORMANCE_AUTO_APPROVED: { category: "workflow", tone: "info" }, // niet op tijd beoordeeld → auto-goedgekeurd
+  NO_SHOW_REPORTED: { category: "workflow", tone: "attention" },
+  NO_SHOW_JUDGED: { category: "workflow", tone: "info" },
+  SHIFT_HANDOFF_REQUESTED: { category: "workflow", tone: "attention" },
+  SHIFT_HANDOFF_APPROVED: { category: "workflow", tone: "success" },
+  SHIFT_HANDOFF_REJECTED: { category: "workflow", tone: "attention" },
+  // Abonnement (billing) — sluit aan bij SUBSCRIPTION_PAST_DUE onder "Betalingen".
+  SUBSCRIPTION_RENEWAL: { category: "payment", tone: "info" }, // verloopt binnenkort — verleng
+  SUBSCRIPTION_EXPIRED: { category: "payment", tone: "attention" }, // teruggezet naar Gratis
+  // Account & toegang.
+  ACCOUNT_STATUS: { category: "account", tone: "info" }, // welkom/status-/toegangswijziging
+  ACCOUNT_DELETION_REQUESTED: { category: "account", tone: "attention" }, // admin: verwijderverzoek te verwerken
+  // Helpdesk + platform-bewaking (blijven onder "Overig").
+  SUPPORT_REPLY: { category: "system", tone: "info" }, // reactie van de helpdesk
+  HEALTH_INCIDENT: { category: "system", tone: "attention" }, // platform-bewaking, admin
 };
+
+/** Of een notificatietype een expliciete presentatie kent (i.p.v. de neutrale system/info-fallback). */
+export function isNotificationTypeKnown(type: string): boolean {
+  return Object.prototype.hasOwnProperty.call(META, type);
+}
 
 /** Categorie + toon voor een notificatietype; valt terug op een neutrale systeem-categorie. */
 export function notificationMeta(type: string): NotificationMeta {
@@ -79,7 +115,9 @@ export const NOTIFICATION_CATEGORY_LABEL: Record<NotificationCategory, string> =
   dispute: "Disputen",
   credential: "Certificaten",
   collaboration: "Samenwerkingen",
+  application: "Reacties",
   messages: "Berichten",
   idea: "Ideeënbox",
+  account: "Account",
   system: "Overig",
 };

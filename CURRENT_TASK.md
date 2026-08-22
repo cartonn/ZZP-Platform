@@ -268,6 +268,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Alle rollen — notificatie-presentatie voor 20 ontbrekende types (2026-08-22, PR #1191)** —
+> 20 uitgestuurde notificatietypes ontbraken in de `META`-map (`src/lib/notifications.ts`) en vielen op `/notificaties`
+>
+> - digest-mail terug op de generieke `system`/`info`-fallback (geen icoon/toon, samengeklonterd onder "Overig" zonder
+>   eigen filtertegel). De security-audit van 2026-08-22 signaleerde dit expliciet als losse UX-PR met coverage-test.
+>   `META` aangevuld met alle 20 + juiste categorie/toon; twee nieuwe categorieën `application` ("Reacties":
+>   `APPLICATION_RECEIVED`/`_REJECTED`/`_WITHDRAWN`, laatste uit "Overig" naar zijn siblings) en `account` ("Account":
+>   `ACCOUNT_STATUS`/`ACCOUNT_DELETION_REQUESTED`); overige onder credential/invoice/messages/dispute/workflow/payment/
+>   system. Nieuwe pure `isNotificationTypeKnown`; `CATEGORY_ICON` (Inbox/UserCog) — `Record<NotificationCategory>` dwingt
+>   volledigheid af via typecheck. Puur presentatie, geen schema-/mutatie-/authz-/domeinmotor-oppervlak. +drift-test (elk
+>   uitgestuurd type heeft expliciete presentatie). Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — betaalprovider-aflever-heartbeat (dead-man's-switch) (2026-08-22, PR #1190)** —
 > completeert de dead-man's-switch-familie: opslag/mail/push/cron/back-up hadden een doorlopend afleversignaal, de
 > **betaalprovider (Stripe/Mollie outbound)** — het laatste productie-kernkanaal — niet. Een verlopen/ingetrokken

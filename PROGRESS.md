@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-22 — Alle rollen: notificatie-presentatie voor 20 ontbrekende types (icoon/toon/categorie)
+
+**Wat:** 20 uitgestuurde notificatietypes stonden niet in de `META`-map van `src/lib/notifications.ts`
+en vielen op `/notificaties` (+ digest-mail) terug op de generieke `system`/`info`-fallback: geen eigen
+icoon, geen toon, samengeklonterd onder "Overig" zonder eigen filtertegel. De security-/privacy-audit
+van 2026-08-22 signaleerde dit expliciet als losse UX-PR met coverage-test. Raakt alle drie de rollen:
+de reactie-trechter (opdrachtgever/ZZP'er), certificaatbeslissingen, factuur-ontvangst/betaling,
+berichten, dienst-uitvoering (no-show/overname/auto-goedkeuring), abonnement en account-events kregen
+nu een herkenbaar icoon + eigen groepskop.
+
+**Hoe:** `META` aangevuld met de 20 types + correcte categorie/toon. Twee nieuwe categorieën die een
+coherent cluster groeperen: **`application` ("Reacties")** — `APPLICATION_RECEIVED`/`_REJECTED`/
+`_WITHDRAWN` (die laatste verhuisd uit "Overig" naar zijn siblings) — en **`account` ("Account")** —
+`ACCOUNT_STATUS`/`ACCOUNT_DELETION_REQUESTED`. Overige types onder bestaande categorieën: credential
+(`CREDENTIAL_VERIFIED`/`_REJECTED`), invoice (`INVOICE_SENT`/`_PAID`), messages (`MESSAGE`), dispute
+(`DISPUTE_ESCALATION`), workflow (`PERFORMANCE_AUTO_APPROVED`, `NO_SHOW_*`, `SHIFT_HANDOFF_*`), payment
+(`SUBSCRIPTION_RENEWAL`/`_EXPIRED`, aansluitend op `SUBSCRIPTION_PAST_DUE`), system (`SUPPORT_REPLY`,
+`HEALTH_INCIDENT`). Nieuwe pure `isNotificationTypeKnown(type)`. `CATEGORY_ICON` in de notificaties-
+pagina uitgebreid (`Inbox` voor Reacties, `UserCog` voor Account) — het `Record<NotificationCategory>`
+dwingt volledigheid af via de typecheck. Digest + filter iereren categorieën dynamisch → geen extra
+wiring. Puur presentatie, geen schema-/mutatie-/authz-/domeinmotor-oppervlak.
+
+**Bestanden:** `src/lib/notifications.ts` (META + 2 categorieën/labels + `isNotificationTypeKnown`),
+`src/app/(protected)/notificaties/page.tsx` (2 iconen), `src/lib/notifications.test.ts` (drift-test:
+elk uitgestuurd type heeft expliciete presentatie + nieuwe groeperingen + label per categorie).
+**Gate:** typecheck ✓, lint ✓, prettier ✓, test (notifications 21) ✓, build (zie PR-poort). PR #1191.
+
 ## 2026-08-22 — Prod-rijpheid: betaalprovider-aflever-heartbeat (dead-man's-switch)
 
 **Wat:** Completeert de dead-man's-switch-familie. Opslag/mail/push/cron/back-up hadden een doorlopend
