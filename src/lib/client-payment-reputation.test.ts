@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { summarizePaymentReputation } from "@/lib/client-payment-reputation";
+import { paymentTermBenchmark, summarizePaymentReputation } from "@/lib/client-payment-reputation";
 import { type PaymentBehavior } from "@/lib/payment-behavior";
 
 function behavior(overrides: Partial<PaymentBehavior> = {}): PaymentBehavior {
@@ -45,5 +45,50 @@ describe("summarizePaymentReputation", () => {
     expect(r.hasStats).toBe(false);
     expect(r.headline).toMatch(/nog geen/i);
     expect(r.tip).toMatch(/eerste facturen/i);
+  });
+});
+
+describe("paymentTermBenchmark", () => {
+  it("markeert een snelle betaler als sneller dan de standaardtermijn (30 dagen)", () => {
+    const b = paymentTermBenchmark(behavior({ tone: "good", avgDaysToPay: 12 }));
+    expect(b).not.toBeNull();
+    expect(b!.comparison).toBe("faster");
+    expect(b!.standardDays).toBe(30);
+    expect(b!.deltaDays).toBe(18);
+    expect(b!.sentence).toMatch(/18 dagen sneller/i);
+  });
+
+  it("markeert een trage betaler als langzamer dan de standaardtermijn", () => {
+    const b = paymentTermBenchmark(behavior({ tone: "warning", avgDaysToPay: 45, onTimePct: 40 }));
+    expect(b!.comparison).toBe("slower");
+    expect(b!.deltaDays).toBe(15);
+    expect(b!.sentence).toMatch(/15 dagen langzamer/i);
+  });
+
+  it("toont binnen de marge (±3 dagen) 'rond de standaardtermijn'", () => {
+    const b = paymentTermBenchmark(behavior({ tone: "neutral", avgDaysToPay: 31 }));
+    expect(b!.comparison).toBe("around");
+    expect(b!.sentence).toMatch(/rond de standaard betaaltermijn/i);
+  });
+
+  it("behandelt de marge-grens deterministisch: precies 3 dagen verschil is nog 'rond'", () => {
+    expect(paymentTermBenchmark(behavior({ tone: "good", avgDaysToPay: 27 }))!.comparison).toBe(
+      "around",
+    );
+    expect(paymentTermBenchmark(behavior({ tone: "warning", avgDaysToPay: 33 }))!.comparison).toBe(
+      "around",
+    );
+    // Net buiten de marge (4 dagen) kantelt het naar faster/slower.
+    expect(paymentTermBenchmark(behavior({ tone: "good", avgDaysToPay: 26 }))!.comparison).toBe(
+      "faster",
+    );
+    expect(paymentTermBenchmark(behavior({ tone: "warning", avgDaysToPay: 34 }))!.comparison).toBe(
+      "slower",
+    );
+  });
+
+  it("geeft null zonder bruikbaar gemiddelde (unknown of ontbrekend)", () => {
+    expect(paymentTermBenchmark(behavior({ tone: "unknown", avgDaysToPay: null }))).toBeNull();
+    expect(paymentTermBenchmark(behavior({ avgDaysToPay: null }))).toBeNull();
   });
 });
