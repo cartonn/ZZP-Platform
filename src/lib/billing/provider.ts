@@ -41,6 +41,12 @@ export class BillingConnectivityError extends Error {
   }
 }
 
+/**
+ * Uitkomst van {@link PaymentProvider.classifyWebhookAuth}: het handtekening-authenticiteitsoordeel
+ * van één binnengekomen webhook, puur voor de dead-man's-switch op stille verificatie-mislukkingen.
+ */
+export type WebhookAuthOutcome = "ok" | "invalid" | "not-applicable";
+
 export interface PaymentProvider {
   readonly name: string;
   /** Start een betaling; null redirect = direct geactiveerd (geen externe stap). */
@@ -55,6 +61,23 @@ export interface PaymentProvider {
    * invoer — een aanvaller mag geen 500 kunnen forceren.
    */
   resolveWebhookRef(rawBody: string, headers: Headers): Promise<string | null>;
+  /**
+   * Classificeert PUUR de handtekening-authenticiteit van een binnengekomen webhook — uitsluitend voor
+   * observability (de dead-man's-switch op stille handtekening-mislukkingen, `billing-webhook-auth`).
+   * Verandert NOOIT de control-flow van de webhook-route; die blijft leunen op `resolveWebhookRef`.
+   * Uitkomst:
+   * - `"ok"`             : handtekening geldig (de webhook is authentiek geverifieerd) — óók bij een
+   *                        geldig-getekend event dat we verder negeren (niet-checkout).
+   * - `"invalid"`        : handtekening ONgeldig — de klassieke stille faal van een verkeerd/geroteerd
+   *                        `STRIPE_WEBHOOK_SECRET` (élke webhook faalt verificatie → abonnementen blijven
+   *                        op PENDING hangen tot de reconcile-cron ze veel later redt). Dit is het
+   *                        te-alarmeren signaal — anders onzichtbaar, want `resolveWebhookRef` geeft
+   *                        voor een ongeldige handtekening dezelfde `null` als voor een irrelevant event.
+   * - `"not-applicable"` : geen getekend kanaal (noop / Mollie ondertekent niet / ontbrekend secret) —
+   *                        er is niets te verifiëren, dus niets te bewaken.
+   * Mag NOOIT throwen (zelfde reden als `resolveWebhookRef`): een aanvaller mag geen 500 forceren.
+   */
+  classifyWebhookAuth(rawBody: string, headers: Headers): Promise<WebhookAuthOutcome>;
   /**
    * Connectiviteitszelftest (admin-only, /admin/systeemstatus). Doet een **read-only**,
    * geauthenticeerde round-trip tegen de provider — bewijst bereikbaarheid + geldige sleutel
@@ -96,6 +119,9 @@ export class NoopPaymentProvider implements PaymentProvider {
   }
   async resolveWebhookRef(): Promise<string | null> {
     return null; // geen externe webhook bij de no-op provider
+  }
+  async classifyWebhookAuth(): Promise<WebhookAuthOutcome> {
+    return "not-applicable"; // geen getekend kanaal: niets te verifiëren
   }
   async checkConnectivity(): Promise<void> {
     // Geen externe provider: niets te testen. De zelftest meldt dit eerlijk als "niets getest".
@@ -166,6 +192,13 @@ export class MolliePaymentProvider implements PaymentProvider {
   // status gezaghebbend op bij Mollie. We lezen dus alleen het id uit de body.
   async resolveWebhookRef(rawBody: string): Promise<string | null> {
     return readMollieWebhookId(rawBody);
+  }
+
+  // Mollie ondertekent zijn webhook niet: er valt geen handtekening te verifiëren, dus er is niets te
+  // bewaken. De veiligheid van het Mollie-kanaal zit in het gezaghebbend ophalen van de status bij
+  // Mollie (paymentStatus), niet in een webhook-handtekening.
+  async classifyWebhookAuth(): Promise<WebhookAuthOutcome> {
+    return "not-applicable";
   }
 
   // Read-only connectiviteitscontrole: GET /v2/methods lijst de beschikbare betaalmethoden — een
@@ -272,6 +305,27 @@ export class StripePaymentProvider implements PaymentProvider {
     if (typeof event.type !== "string" || !event.type.startsWith("checkout.session.")) return null;
     const id = event.data?.object?.id;
     return typeof id === "string" && id ? id : null;
+  }
+
+  // Puur observability: verifieert alleen de handtekening (niet de event-inhoud) om de stille faal van
+  // een verkeerd/geroteerd STRIPE_WEBHOOK_SECRET te detecteren. Een geldig-getekend event dat we verder
+  // negeren (niet-checkout) telt als "ok" — de webhook is immers authentiek. Zonder secret valt er niets
+  // te verifiëren ("not-applicable"; de env-validatie blokkeert dat al hard in productie). Werpt nooit.
+  async classifyWebhookAuth(rawBody: string, headers: Headers): Promise<WebhookAuthOutcome> {
+    if (!this.webhookSecret) return "not-applicable";
+    try {
+      const ok = verifyStripeSignature(
+        rawBody,
+        headers.get("stripe-signature"),
+        this.webhookSecret,
+        {
+          now: this.nowMs,
+        },
+      );
+      return ok ? "ok" : "invalid";
+    } catch {
+      return "invalid";
+    }
   }
 
   // Read-only connectiviteitscontrole: GET /v1/balance haalt het accountsaldo op — een idempotente

@@ -268,6 +268,21 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — betaal-webhook-handtekening-heartbeat (dead-man's-switch, INKOMENDE kant) (2026-08-22)** —
+> completeert de betaal-observability: de betaalprovider-aflever-heartbeat (#1190) bewaakt de UITGAANDE calls, maar de
+> INKOMENDE webhooks niet. Stripe ondertekent elke webhook; de route negeert een ongeldige handtekening bewust stil
+> (`resolveWebhookRef`→`null`, altijd 200). Gevolg: een verkeerd/geroteerd `STRIPE_WEBHOOK_SECRET` laat élke webhook stil de
+> verificatie falen → betaalde abonnementen blijven op PENDING hangen tot de reconcile-cron ze veel later redt. Onzichtbaar,
+> want `resolveWebhookRef` geeft voor een ongeldige handtekening dezelfde `null` als voor een irrelevant event; `stalePendingSubscriptions`
+> vangt alleen het vertraagde symptoom. Nieuwe pure `classifyWebhookAuth` op de PaymentProvider (Stripe: ok/invalid/not-applicable;
+> Mollie/noop: not-applicable) — de route roept 'm PUUR voor observability aan (verandert nooit de control-flow) en registreert de
+> uitkomst in een aparte `payment-webhook-auth`-heartbeat die de bestaande per-`channel` `BillingDeliveryHeartbeat`-tabel hergebruikt
+> (geen schema-wijziging). Event-gedreven oordeel (`never`/`ok`/`failing`+teller), fail-open, nooit sleutels/foutinhoud. Kaart
+> "Betaal-webhook" op `/admin/systeemstatus`; gauges `zzp_billing_webhook_auth_ok`/`_consecutive_failures`/`_last_failure_age_seconds`
+> op `/api/metrics`; alert `ZzpBillingWebhookSignatureFailing` (`==0 and >=3`, `for:15m`) + inhibitie. +tests (classify per provider,
+> pure statusItem, outcome→writer-mapping, route-instrumentatie fail-open, metrics-gauge-set + drift-gate). Resterend mensenwerk:
+> niets extra (vult zichzelf zodra Stripe webhooks aflevert). Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **ZZP'er — quickfilter "Alleen waar ik aan voldoe" op /opdrachten (2026-08-22, PR #1193)** —
 > de opdrachtenlijst toonde per rij al de inzetbaarheids-chip (mist/verlopen vereist certificaat), maar de ZZP'er
 > kon niet in één klik de opdrachten wegfilteren waarvoor hij nú niet inzetbaar is. Nieuwe quickfilter verbergt

@@ -57,6 +57,7 @@ import { getBackupFreshness } from "@/lib/observability/backup-heartbeat";
 import { getMailDeliveryFreshness } from "@/lib/observability/mail-delivery-heartbeat";
 import { getPushDeliveryFreshness } from "@/lib/observability/push-delivery-heartbeat";
 import { getBillingDeliveryFreshness } from "@/lib/observability/billing-delivery-heartbeat";
+import { getWebhookAuthFreshness } from "@/lib/observability/billing-webhook-auth-heartbeat";
 import { getStorageDeliveryFreshness } from "@/lib/observability/storage-delivery-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { waitingSince } from "@/lib/verification-queue";
@@ -525,13 +526,14 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
-  const [cron, backup, mail, push, storage, billing] = await Promise.all([
+  const [cron, backup, mail, push, storage, billing, webhookAuth] = await Promise.all([
     getCronFreshness(undefined, now),
     getBackupFreshness(now),
     getMailDeliveryFreshness(now),
     getPushDeliveryFreshness(now),
     getStorageDeliveryFreshness(now),
     getBillingDeliveryFreshness(now),
+    getWebhookAuthFreshness(now),
   ]);
 
   return {
@@ -556,6 +558,9 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     billingDeliveryOk: billing.status !== "failing",
     billingDeliveryConsecutiveFailures: billing.consecutiveFailures,
     billingDeliveryLastFailureAgeSeconds: billing.failureAgeSeconds,
+    billingWebhookAuthOk: webhookAuth.status !== "failing",
+    billingWebhookAuthConsecutiveFailures: webhookAuth.consecutiveFailures,
+    billingWebhookAuthLastFailureAgeSeconds: webhookAuth.failureAgeSeconds,
     verificationQueue,
     verificationQueueOldestAgeSeconds,
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),

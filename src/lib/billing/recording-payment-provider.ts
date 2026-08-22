@@ -12,6 +12,7 @@ import type {
   CheckoutResult,
   PaymentProvider,
   PaymentStatus,
+  WebhookAuthOutcome,
 } from "@/lib/billing/provider";
 
 export class RecordingPaymentProvider implements PaymentProvider {
@@ -56,5 +57,11 @@ export class RecordingPaymentProvider implements PaymentProvider {
   // Geen uitgaande call + mag nooit throwen: ongeregistreerd doorlaten (parity met het provider-contract).
   resolveWebhookRef(rawBody: string, headers: Headers): Promise<string | null> {
     return this.inner.resolveWebhookRef(rawBody, headers);
+  }
+
+  // Puur inkomende observability (geen uitgaande call): ongeregistreerd doorlaten. De webhook-route
+  // registreert de uitkomst zelf in de aparte billing-webhook-auth-heartbeat.
+  classifyWebhookAuth(rawBody: string, headers: Headers): Promise<WebhookAuthOutcome> {
+    return this.inner.classifyWebhookAuth(rawBody, headers);
   }
 }

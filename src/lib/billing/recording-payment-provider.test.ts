@@ -40,6 +40,10 @@ class FakeProvider implements PaymentProvider {
     this.calls.push("resolveWebhookRef");
     return "pi_1";
   }
+  async classifyWebhookAuth(): Promise<"ok" | "invalid" | "not-applicable"> {
+    this.calls.push("classifyWebhookAuth");
+    return "ok";
+  }
   async checkConnectivity(): Promise<void> {
     this.calls.push("checkConnectivity");
     if (this.fail) throw new Error("ProviderDown");
@@ -80,6 +84,13 @@ describe("RecordingPaymentProvider — aflever-heartbeat-registratie", () => {
     await expect(rec.paymentStatus("pi_1")).rejects.toThrow("ProviderDown");
     await expect(rec.checkConnectivity()).rejects.toThrow("ProviderDown");
     expect(recordFailure).toHaveBeenCalledTimes(2);
+  });
+
+  it("laat classifyWebhookAuth ongeregistreerd door (inkomende observability, geen uitgaande call)", async () => {
+    const rec = new RecordingPaymentProvider(new FakeProvider());
+    await expect(rec.classifyWebhookAuth("raw", new Headers())).resolves.toBe("ok");
+    expect(recordSuccess).not.toHaveBeenCalled();
+    expect(recordFailure).not.toHaveBeenCalled();
   });
 
   it("laat resolveWebhookRef ongeregistreerd door (geen uitgaande call, mag nooit throwen)", async () => {
