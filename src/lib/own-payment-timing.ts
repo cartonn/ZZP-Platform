@@ -27,6 +27,20 @@ const AROUND_MARGIN_DAYS = 3;
 /** Hoe de eigen gemiddelde betaaltermijn zich verhoudt tot de standaard betaaltermijn (30 dagen). */
 export type PaymentTermComparison = "faster" | "around" | "slower";
 
+/**
+ * Classificeert een gemiddelde betaaltermijn (dagen) t.o.v. de standaard betaaltermijn (30 dagen)
+ * met een marge van `AROUND_MARGIN_DAYS` eromheen. Pure functie, één bron van waarheid voor zowel
+ * de ZZP'er-DSO-samenvatting (hieronder) als de opdrachtgever-betaalreputatie-benchmark
+ * (`client-payment-reputation.ts`) — zo drift de sneller/rond/langzamer-grens nooit tussen de twee
+ * perspectieven.
+ */
+export function classifyPaymentTermVsStandard(avgDaysToPay: number): PaymentTermComparison {
+  const delta = avgDaysToPay - STANDARD_PAYMENT_TERM_DAYS;
+  if (delta < -AROUND_MARGIN_DAYS) return "faster";
+  if (delta > AROUND_MARGIN_DAYS) return "slower";
+  return "around";
+}
+
 export interface OwnPaymentTiming {
   /** Aantal betaalde facturen dat het signaal voedt (≥ PAYMENT_MIN_SAMPLE_SIZE). */
   sampleSize: number;
@@ -56,9 +70,7 @@ export function summarizeOwnPaymentTiming(rows: PaymentRow[]): OwnPaymentTiming 
   if (behavior.tone === "unknown") return null;
 
   const avgDaysToPay = behavior.avgDaysToPay;
-  const delta = avgDaysToPay - STANDARD_PAYMENT_TERM_DAYS;
-  const vsStandard: PaymentTermComparison =
-    delta < -AROUND_MARGIN_DAYS ? "faster" : delta > AROUND_MARGIN_DAYS ? "slower" : "around";
+  const vsStandard = classifyPaymentTermVsStandard(avgDaysToPay);
 
   return {
     sampleSize: behavior.sampleSize,

@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-22 — Opdrachtgever: platform-betaaltermijn-benchmark op de betaalreputatie
+
+**Wat:** De betaalreputatie-kaart op `/verplichtingen` (`PaymentReputationCard`) toonde de eigen gemiddelde
+betaaltijd van de opdrachtgever, maar zette die tegen niets af — het getal bleef abstract. Nu draagt de kaart
+een concrete benchmark tegen de standaard betaaltermijn (30 dagen): "Je betaalt gemiddeld X dagen sneller/
+langzamer dan de standaard betaaltermijn van 30 dagen — …", of "Je betaalt rond de standaard betaaltermijn".
+Dat maakt de reputatie actiegericht: sneller betalen trekt vakmensen aan → de ZZP'er krijgt eerder betaald.
+Benchmark: Deel/Moneybird/e-Boekhouden tonen de betaaltermijn prominent.
+
+**Hoe:** Dezelfde bron van waarheid als de ZZP'er-DSO-kant (`own-payment-timing.ts`): de sneller/rond/langzamer-
+classificatie t.o.v. 30 dagen (marge ±3) is geëxtraheerd naar een geëxporteerde pure `classifyPaymentTermVsStandard`
+en wordt door beide perspectieven hergebruikt (geen drift). Nieuwe pure `paymentTermBenchmark(behavior)` in
+`client-payment-reputation.ts` levert `{ comparison, avgDaysToPay, standardDays, deltaDays, sentence }` of `null`
+(te weinig historie / `unknown` → geen benchmark). De kaart rendert de zin met tone-kleur (faster=success,
+slower=warning, around=muted). Read-only, geen schema-/mutatie-/authz-oppervlak.
+
+**Bestanden:** `src/lib/own-payment-timing.ts` (extract `classifyPaymentTermVsStandard`),
+`src/lib/client-payment-reputation.ts` (+`paymentTermBenchmark`/`PaymentTermBenchmark`),
+`src/components/administratie/payment-reputation-card.tsx` (render). Tests:
+`client-payment-reputation.test.ts` +5 (faster/slower/around + marge-grens ±3 + null-gevallen).
+
+**Checks:** targeted tests 16 ✓ · typecheck/lint/build/prettier → PR-gate. Resterend mensenwerk: geen.
+
 ## 2026-08-22 — ZZP'er: verwachte-betaaldatum op het factuurdetail (cashflow)
 
 **Wat:** De openstaande-postenlijst (`/openstaand`) toont per factuur al de realistische verwachte-betaaldatum

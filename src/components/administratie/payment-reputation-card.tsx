@@ -2,7 +2,7 @@ import { CreditCard, Info } from "lucide-react";
 import { BehaviorToneBadge } from "@/components/jobs/signal-chips";
 import { Card, CardContent } from "@/components/ui/card";
 import { PAYMENT_MIN_SAMPLE_SIZE, type PaymentBehavior } from "@/lib/payment-behavior";
-import { summarizePaymentReputation } from "@/lib/client-payment-reputation";
+import { paymentTermBenchmark, summarizePaymentReputation } from "@/lib/client-payment-reputation";
 import { insufficientSampleNotice } from "@/lib/sample-size";
 
 /**
@@ -13,6 +13,9 @@ import { insufficientSampleNotice } from "@/lib/sample-size";
 export function PaymentReputationCard({ behavior }: { behavior: PaymentBehavior }) {
   const { avgDaysToPay, onTimePct, sampleSize } = behavior;
   const reputation = summarizePaymentReputation(behavior);
+  // Benchmark tegen de standaard betaaltermijn (30 dagen) — dezelfde bron als de ZZP'er-kant, zodat de
+  // opdrachtgever zijn betaaltijd concreet kan plaatsen. Null zonder bruikbaar gemiddelde (geen benchmark).
+  const benchmark = paymentTermBenchmark(behavior);
   // Onder de minimum-steekproef tonen we geen cijfers; wél concreet hoeveel betalingen er nog nodig
   // zijn (zelfde presentatie-regel als de leverbetrouwbaarheid-kaart, geen misleidend beeld).
   const sampleNotice = insufficientSampleNotice(sampleSize, PAYMENT_MIN_SAMPLE_SIZE, {
@@ -52,6 +55,20 @@ export function PaymentReputationCard({ behavior }: { behavior: PaymentBehavior 
               op basis van {sampleSize} {sampleSize === 1 ? "betaling" : "betalingen"}
             </span>
           </div>
+        )}
+
+        {benchmark && (
+          <p
+            className={
+              benchmark.comparison === "faster"
+                ? "text-sm text-success"
+                : benchmark.comparison === "slower"
+                  ? "text-sm text-warning"
+                  : "text-sm text-muted-foreground"
+            }
+          >
+            {benchmark.sentence}
+          </p>
         )}
 
         {!reputation.hasStats && sampleNotice && (

@@ -268,6 +268,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — platform-betaaltermijn-benchmark op de betaalreputatie (2026-08-22, PR #1199)** —
+> de betaalreputatie-kaart op `/verplichtingen` (`PaymentReputationCard`) toonde de eigen gemiddelde betaaltijd, maar
+> zette die tegen niets af (abstract getal). Nu een concrete benchmark tegen de standaard betaaltermijn (30 dagen):
+> "Je betaalt gemiddeld X dagen sneller/langzamer dan de standaard betaaltermijn van 30 dagen — …" (marge ±3 → "rond
+> de standaardtermijn"), tone-gekleurd (faster=success, slower=warning). Dezelfde sneller/rond/langzamer-classificatie
+> als de ZZP'er-DSO-kant, geëxtraheerd naar een geëxporteerde pure `classifyPaymentTermVsStandard` (`own-payment-timing.ts`)
+> en door beide hergebruikt (geen drift). Nieuwe pure `paymentTermBenchmark(behavior)` (`client-payment-reputation.ts`)
+> → `{ comparison, deltaDays, sentence, … }` of `null` (te weinig historie/`unknown`). Nudget sneller betalen → ZZP'er
+> krijgt eerder betaald (benchmark Deel/Moneybird). Read-only, geen schema-/mutatie-/authz-oppervlak. +5 tests. Gate:
+> targeted tests 16 ✓ · typecheck/lint/build/prettier → PR-gate.
+>
 > Gedaan (niet opnieuw): **ZZP'er — verwachte-betaaldatum op het factuurdetail (cashflow) (2026-08-22, PR #1198)** —
 > de openstaande-postenlijst (`/openstaand`) toont per factuur al de realistische verwachte-betaaldatum (afgeleid uit
 > het gemeten betaalgedrag van déze opdrachtgever), maar het **factuurdetail** — juist het scherm waar de ZZP'er één

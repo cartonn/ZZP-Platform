@@ -7,6 +7,11 @@
 // individuele factuurdata — enkel de reeds geaggregeerde `PaymentBehavior`.
 
 import { type PaymentBehavior, type PaymentTone } from "@/lib/payment-behavior";
+import {
+  classifyPaymentTermVsStandard,
+  STANDARD_PAYMENT_TERM_DAYS,
+  type PaymentTermComparison,
+} from "@/lib/own-payment-timing";
 
 export interface PaymentReputation {
   tone: PaymentTone;
@@ -16,6 +21,52 @@ export interface PaymentReputation {
   tip: string;
   /** Of er genoeg betaalhistorie is om cijfers (betaaltijd/op-tijd) te tonen. */
   hasStats: boolean;
+}
+
+export interface PaymentTermBenchmark {
+  /** Sneller/rond/langzamer dan de standaard betaaltermijn (30 dagen). */
+  comparison: PaymentTermComparison;
+  /** Gemiddelde betaaltermijn van de opdrachtgever (dagen). */
+  avgDaysToPay: number;
+  /** De referentietermijn waartegen vergeleken wordt (30 dagen). */
+  standardDays: number;
+  /** Absoluut verschil in dagen t.o.v. de standaardtermijn (≥ 0). */
+  deltaDays: number;
+  /** Eén concrete vergelijkingszin voor de opdrachtgever. */
+  sentence: string;
+}
+
+/**
+ * Zet de gemiddelde betaaltijd van de opdrachtgever af tegen de standaard betaaltermijn (30 dagen) —
+ * dezelfde benchmark en sneller/rond/langzamer-classificatie als de ZZP'er-kant
+ * (`own-payment-timing.ts`), zodat beide perspectieven op dezelfde grens rusten. Geeft `null` wanneer
+ * er geen bruikbaar gemiddelde is (te weinig historie / `unknown`); dan toont de kaart geen benchmark.
+ * Puur en deterministisch (geen I/O).
+ */
+export function paymentTermBenchmark(behavior: PaymentBehavior): PaymentTermBenchmark | null {
+  if (behavior.tone === "unknown") return null;
+  if (behavior.avgDaysToPay == null) return null;
+
+  const avgDaysToPay = behavior.avgDaysToPay;
+  const comparison = classifyPaymentTermVsStandard(avgDaysToPay);
+  // `faster`/`slower` gelden alleen buiten de ±3-dagen-marge, dus het verschil is er altijd ≥ 4 dagen
+  // (meervoud). De `around`-zin noemt geen verschil. Daarom volstaat "dagen" overal.
+  const deltaDays = Math.abs(avgDaysToPay - STANDARD_PAYMENT_TERM_DAYS);
+
+  const sentence =
+    comparison === "faster"
+      ? `Je betaalt gemiddeld ${deltaDays} dagen sneller dan de standaard betaaltermijn van ${STANDARD_PAYMENT_TERM_DAYS} dagen — dat maakt je aantrekkelijk voor vakmensen.`
+      : comparison === "slower"
+        ? `Je betaalt gemiddeld ${deltaDays} dagen langzamer dan de standaard betaaltermijn van ${STANDARD_PAYMENT_TERM_DAYS} dagen — sneller betalen trekt vakmensen aan.`
+        : `Je betaalt rond de standaard betaaltermijn van ${STANDARD_PAYMENT_TERM_DAYS} dagen.`;
+
+  return {
+    comparison,
+    avgDaysToPay,
+    standardDays: STANDARD_PAYMENT_TERM_DAYS,
+    deltaDays,
+    sentence,
+  };
 }
 
 /**
