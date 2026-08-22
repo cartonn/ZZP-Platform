@@ -84,6 +84,21 @@ export function buildPayoutForecastMap(
 }
 
 /**
+ * Verwachte-betaaldatum voor één openstaande factuur (het factuurdetail, ZZP'er). Deelt exact dezelfde
+ * conservatieve regel als de lijst (`buildPayoutForecastMap`): alleen een **betrouwbare** forecast die
+ * **later** valt dan de contractuele vervaldag komt terug — anders `null` (de UI toont dan enkel de
+ * vervaldatum). Zo blijven lijst en detail voor dezelfde factuur nooit uiteenlopen.
+ *
+ * Puur en deterministisch — geschikt voor unit-tests zonder DB.
+ */
+export function forecastForOpenInvoice(
+  open: OpenInvoiceForForecast,
+  paid: readonly PaidInvoiceForForecast[],
+): PayoutForecast | null {
+  return buildPayoutForecastMap([open], paid).get(open.id) ?? null;
+}
+
+/**
  * Effectieve verwachte-binnendatum voor een openstaande factuur: de betrouwbare betaalgedrag-forecast
  * indien aanwezig, anders de contractuele vervaldatum. Bron van waarheid voor zowel de per-rij-regel
  * als de "binnenkomend deze week"-samenvatting, zodat beide nooit uiteenlopen.
