@@ -4,6 +4,7 @@ import {
   MolliePaymentProvider,
   NoopPaymentProvider,
   StripePaymentProvider,
+  type PaymentProvider,
 } from "@/lib/billing/provider";
 
 // classifyWebhookAuth is PUUR observability: het classificeert de handtekening-authenticiteit van een
@@ -26,12 +27,14 @@ const checkoutBody = JSON.stringify({
 
 describe("classifyWebhookAuth", () => {
   it("Noop-provider: not-applicable (geen getekend kanaal)", async () => {
-    const p = new NoopPaymentProvider();
+    // Als PaymentProvider getypt: de interface-signatuur (2 params) i.p.v. de concrete 0-param-impl,
+    // zodat de contract-aanroep met (body, headers) geldig is voor deze ongetekende driver.
+    const p: PaymentProvider = new NoopPaymentProvider();
     expect(await p.classifyWebhookAuth("{}", new Headers())).toBe("not-applicable");
   });
 
   it("Mollie-provider: not-applicable (ondertekent niet)", async () => {
-    const p = new MolliePaymentProvider("test_key");
+    const p: PaymentProvider = new MolliePaymentProvider("test_key");
     expect(await p.classifyWebhookAuth("id=tr_1", new Headers())).toBe("not-applicable");
   });
 
