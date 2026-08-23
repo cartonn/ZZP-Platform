@@ -46,6 +46,8 @@ import { getJobReach } from "@/lib/data/job-reach";
 import { JobReachCard } from "@/components/jobs/job-reach-card";
 import { summarizeVacancyPerformance } from "@/lib/job-vacancy-performance";
 import { JobVacancyPerformanceCard } from "@/components/jobs/job-vacancy-performance-card";
+import { diagnoseJobVacancyRate } from "@/lib/vacancy-rate-diagnosis";
+import { getJobRateBands } from "@/lib/data/job-rate-bands";
 import { summarizeStaffingRisk } from "@/lib/job-staffing-risk";
 import { JobStaffingRiskCard } from "@/components/jobs/job-staffing-risk-card";
 import { summarizeJobCompetition, type CompetitionSummary } from "@/lib/job-competition";
@@ -368,6 +370,25 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             })
           ).map((a) => a.createdAt),
         })
+      : null;
+
+  // Tarief-diagnose voor de eigenaar: loopt deze opdracht koud én biedt hij onder het markttarief,
+  // toon dan één concrete, direct oplosbare conclusie ("je biedt tot €X/u, markttarief ~€Y/u") mét
+  // een bewerk-link — dezelfde regel als op de opdrachtenlijst (gedeelde pure `diagnoseJobVacancyRate`,
+  // geen drift). Alleen relevant wanneer het vacaturetempo om bijsturen vraagt én er een begrensde
+  // bovengrens is; de marktband wordt dan pas geladen (geen onnodige query).
+  const vacancyRateDiagnosis =
+    vacancyPerformance?.attention === true && job.rateMax != null
+      ? await (async () => {
+          const bands = await getJobRateBands(job.industryId ? [job.industryId] : []);
+          return diagnoseJobVacancyRate({
+            attention: vacancyPerformance.attention,
+            rateMax: job.rateMax,
+            industryId: job.industryId,
+            byIndustry: bands.byIndustry,
+            platform: bands.platform,
+          });
+        })()
       : null;
 
   // Bezettingsrisico voor de eigenaar: nadert de startdatum terwijl er nog niemand is vastgelegd?
@@ -711,7 +732,13 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
 
       {isOwner && staffingRisk && <JobStaffingRiskCard summary={staffingRisk} jobId={job.id} />}
 
-      {isOwner && vacancyPerformance && <JobVacancyPerformanceCard summary={vacancyPerformance} />}
+      {isOwner && vacancyPerformance && (
+        <JobVacancyPerformanceCard
+          summary={vacancyPerformance}
+          rateDiagnosis={vacancyRateDiagnosis}
+          editHref={`/opdrachten/${job.id}/bewerken`}
+        />
+      )}
 
       {isOwner && reach && <JobReachCard reach={reach} />}
 

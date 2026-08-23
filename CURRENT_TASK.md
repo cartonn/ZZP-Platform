@@ -268,6 +268,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — tarief-diagnose op het opdracht-detail (2026-08-23, PR #1205)** —
+> de concrete tarief-diagnose ("Je biedt tot €X/u, terwijl het markttarief rond €Y/u ligt") stond alleen op de
+> opdrachtenlijst (`/opdrachten`), niet op het opdracht-**detail** — juist het scherm waar de opdrachtgever één koud
+> lopende opdracht beheert en met één klik kan bewerken. Nu toont het Vacaturetempo-blok op het detail dezelfde
+> diagnose + een "Tarief aanpassen →"-link naar het bewerk-scherm ("reacties blijven uit, geen idee waarom" → een
+> meetbare, direct oplosbare knop op het punt van aandacht; benchmark Malt/Deel). Nieuwe gedeelde pure
+> `diagnoseJobVacancyRate` (`src/lib/vacancy-rate-diagnosis.ts`) kiest de marktband (branche → platform-terugval) en
+> levert de diagnose via de bestaande `diagnoseVacancyRate` → lijst én detail delen exact dezelfde regel (geen drift).
+> Detail berekent de diagnose alleen bij `vacancyPerformance.attention` + begrensde `rateMax`; pas dán laadt het de
+> marktband (`getJobRateBands`, geen onnodige query). `JobVacancyPerformanceCard` kreeg optionele `rateDiagnosis`/
+> `editHref`. Server-side waarheid, alleen geaggregeerde mediaan, geen schema-/mutatie-/authz-/domeinmotor-oppervlak.
+> +6 tests. Gate: typecheck, targeted test (13) ✓ · lint/test/build/prettier → PR-gate.
+>
 > Gedaan (niet opnieuw): **ZZP'er — onbenutte-beschikbaarheid signaal (idle capacity) (2026-08-23, PR #1203)** —
 > zet gedeclareerde beschikbaarheid om in een concreet "vul deze dagen"-signaal. Op `/beschikbaarheid` toont een
 > rustige kaart de open dagen/periodes die de ZZP'er als inzetbaar deelde (AVAILABLE/LIMITED-vensters) maar waar
