@@ -268,6 +268,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Alle rollen — snelle antwoorden in de berichten-composer (2026-08-23, PR #1210)** —
+> de composer op `/berichten/[id]` was kaal (tekstveld + verstuurknop); elke standaardzin moest opnieuw getypt.
+> Nu rol- en context-bewuste snelle antwoorden (chips) boven het veld: een klik plaatst de gecureerde zin in de
+> composer (nog aanpasbaar). Puur deterministische bron `quickReplies({ role, hasJob, isOpener })`
+> (`src/lib/quick-replies.ts`) → max 4 gededupliceerde suggesties; rol bepaalt toon (ZZP'er/opdrachtgever/
+> bemiddelaar/admin), opener vs. vervolg kiest een andere set, een aan een opdracht gekoppeld gesprek voegt een
+> opdracht-refererende opener toe. Geen mutatie-oppervlak — de zin gaat door dezelfde `sendMessage`-actie
+> (auth→participant→Zod), geen dode knop. De pagina berekent de context uit reeds geladen velden (geen extra
+> query, geen schemawijziging). Component `QuickReplies` + controlled composer met insert-op-klik. +9 tests. Gate:
+> typecheck, lint, test (6777), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Bemiddelaar — operations-agenda (.ics) (2026-08-23, PR #1206)** — de agenda-export
 > (.ics) leverde niets voor de FRANCHISER-rol (`/api/agenda` + `user-deadlines.ts`: "bemiddelaar/admin krijgen
 > niets"), terwijl een bemiddelaar volledig rond twee roster-feiten plant die zijn oversight-cockpit al toont:
