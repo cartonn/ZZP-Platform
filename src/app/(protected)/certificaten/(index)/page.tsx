@@ -39,6 +39,8 @@ import { ExpiryOverviewCard } from "@/components/credentials/expiry-overview-car
 import { InzetImpactCard } from "@/components/credentials/inzet-impact-card";
 import { CredentialDemandCard } from "@/components/credentials/credential-demand-card";
 import { VerificationTurnaroundCard } from "@/components/credentials/verification-turnaround-card";
+import { renewalNudge } from "@/lib/credential-renewal-leadtime";
+import { RenewalLeadtimeNote } from "@/components/credentials/renewal-leadtime-note";
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -272,6 +274,13 @@ export default async function CertificatenPage() {
             const status = c.status as CredentialStatus;
             const days = daysUntilExpiry(c.expiresAt);
             const expiringSoon = isExpiringSoon({ status, expiresAt: c.expiresAt });
+            // Doorlooptijd-nudge: verkrijgen van een nieuw bewijsstuk kost weken (VOG via Justis
+            // 2–8 weken). Wijs de ZZP'er er op tijd op, zodat hij inzetbaar blijft bij verval.
+            const leadNudge = renewalNudge({
+              type: c.type as CredentialType,
+              status,
+              daysUntilExpiry: days,
+            });
             // Losse verificatie-aanvraag alleen vanuit concept/afgewezen/verlopen.
             // (VERIFIED->SUBMITTED bestaat wél in de map, maar uitsluitend bij document-vervangen.)
             const canSubmit =
@@ -352,6 +361,8 @@ export default async function CertificatenPage() {
                       </ul>
                     </details>
                   )}
+
+                  <RenewalLeadtimeNote nudge={leadNudge} />
 
                   <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                     {canSubmit && (

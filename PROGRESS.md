@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-23 — ZZP'er: doorlooptijd-nudge bij bijna-verlopen certificaat
+
+**Wat:** De certificaatkaart op `/certificaten` toonde per bewijsstuk de resterende dagen tot verval
+("Vervalt {datum} · over N dagen") plus een "Vernieuwen"-knop, maar waarschuwde nergens dat het
+_verkrijgen_ van een nieuw bewijsstuk weken kan duren. Een VOG aanvragen bij Justis duurt doorgaans
+2 tot 8 weken; een ZZP'er die pas begint als het certificaat bijna verloopt, verliest zijn
+inzetbaarheid terwijl er een geldig bewijsstuk ontbreekt. Nu draagt de kaart een rustige
+doorlooptijd-nudge die op tijd aanzet tot vernieuwen (trust-/verificatie-differentiatie; geen
+concurrent doet dit). Toonkleur schaalt met de urgentie t.o.v. de doorlooptijd.
+
+**Hoe:** Nieuwe pure `renewalNudge` in `src/lib/credential-renewal-leadtime.ts` — een map
+`RENEWAL_LEAD_TIMES` met de externe doorlooptijd per type (VOG concreet: 2–8 weken/Justis;
+CERTIFICATE/LICENSE hedged: "enkele weken"; verzekering/diploma/overig: géén nudge). De beslissing:
+`EXPIRED` → altijd `start_now`/danger; `VERIFIED` met verval binnen de doorlooptijd → `start_now`
+(danger onder de ondergrens, anders warning); net erbuiten binnen een plan-buffer van 30 dagen →
+`plan_ahead`/info; daarbuiten → `null` (geen ruis). Presentatiecomponent
+`RenewalLeadtimeNote` (`renewal-leadtime-note.tsx`) rendert de nudge; niets zonder nudge. Gewired op
+de certificaatkaart, boven de actie-rij. Read-only, server-side waarheid, geen schema-/mutatie-/
+authz-/domeinmotor-oppervlak.
+
+**Bestanden:** `src/lib/credential-renewal-leadtime.ts` (nieuw),
+`src/components/credentials/renewal-leadtime-note.tsx` (nieuw),
+`src/app/(protected)/certificaten/(index)/page.tsx` (wiring). Tests:
+`credential-renewal-leadtime.test.ts` (13; grenswaarden, statussen, horizon, per type).
+
+**Checks:** typecheck ✓ · lint ✓ · targeted tests 13 ✓ · prettier (repo) ✓ · test + build → PR-gate.
+Resterend mensenwerk: geen.
+
 ## 2026-08-22 — Opdrachtgever: platform-betaaltermijn-benchmark op de betaalreputatie
 
 **Wat:** De betaalreputatie-kaart op `/verplichtingen` (`PaymentReputationCard`) toonde de eigen gemiddelde
