@@ -1,6 +1,8 @@
-import { Gauge } from "lucide-react";
+import { Gauge, Wallet, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { LevelChip } from "@/components/jobs/signal-chips";
 import { type VacancyPerformanceSummary } from "@/lib/job-vacancy-performance";
+import { type VacancyRateDiagnosis } from "@/lib/vacancy-rate-diagnosis";
 
 const TONE_STYLE: Record<VacancyPerformanceSummary["tone"], { dot: string; hint: string }> = {
   positive: { dot: "bg-success", hint: "text-success" },
@@ -17,7 +19,17 @@ function plural(n: number, one: string, many: string): string {
  * reacties en het tempo per week. Presentationeel — het tempo is server-side berekend
  * (`summarizeVacancyPerformance`); deze component beslist niets en toont nooit kandidaatgegevens.
  */
-export function JobVacancyPerformanceCard({ summary }: { summary: VacancyPerformanceSummary }) {
+export function JobVacancyPerformanceCard({
+  summary,
+  rateDiagnosis,
+  editHref,
+}: {
+  summary: VacancyPerformanceSummary;
+  /** Concrete tarief-diagnose bij een koud lopende opdracht (server-side berekend); null → verbergen. */
+  rateDiagnosis?: VacancyRateDiagnosis | null;
+  /** Bewerk-link zodat de opdrachtgever het tarief direct kan bijstellen. */
+  editHref?: string;
+}) {
   const style = TONE_STYLE[summary.tone];
 
   return (
@@ -53,6 +65,25 @@ export function JobVacancyPerformanceCard({ summary }: { summary: VacancyPerform
       </div>
 
       <p className={`text-xs ${style.hint}`}>{summary.hint}</p>
+
+      {rateDiagnosis && (
+        <div className="space-y-1.5 rounded-md border border-warning/40 bg-warning/5 p-3">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-warning">
+            <Wallet className="size-3.5 shrink-0" aria-hidden />
+            {rateDiagnosis.label}
+          </p>
+          <p className="text-xs text-muted-foreground">{rateDiagnosis.hint}</p>
+          {editHref && (
+            <Link
+              href={editHref}
+              className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              Tarief aanpassen
+              <ArrowRight className="size-3.5" aria-hidden />
+            </Link>
+          )}
+        </div>
+      )}
 
       <p className="text-xs text-muted-foreground">
         Tempo sinds publicatie — alleen zichtbaar voor jou.

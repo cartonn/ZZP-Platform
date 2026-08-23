@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-23 — Opdrachtgever: tarief-diagnose op het opdracht-detail
+
+**Wat:** De concrete tarief-diagnose ("Je biedt tot €X/u, terwijl het markttarief rond €Y/u ligt")
+stond alleen op de opdrachtenlijst (`/opdrachten`), niet op het **opdracht-detail** — juist het scherm
+waar de opdrachtgever één koud lopende opdracht beheert en met één klik kan bewerken. Nu toont het
+Vacaturetempo-blok op het detail dezelfde diagnose plus een "Tarief aanpassen →"-link naar het
+bewerk-scherm. Verandert "reacties blijven uit, geen idee waarom" in een meetbare, direct oplosbare
+knop op het punt van aandacht (benchmark Malt/Deel: markttarief-advies waar de klant handelt).
+
+**Hoe:** Nieuwe gedeelde pure `diagnoseJobVacancyRate` (`src/lib/vacancy-rate-diagnosis.ts`) kiest de
+juiste marktband (branche → platform-terugval) en levert de diagnose via de bestaande
+`diagnoseVacancyRate` — zo delen lijst én detail exact dezelfde regel (geen drift). Het detail berekent
+de diagnose alleen wanneer het vacaturetempo om bijsturen vraagt (`vacancyPerformance.attention`) én er
+een begrensde `rateMax` is; pas dán wordt de marktband geladen (`getJobRateBands`, geen onnodige query).
+`JobVacancyPerformanceCard` kreeg optionele props `rateDiagnosis` + `editHref` (rendert het blok alleen
+bij een diagnose). Server-side is de waarheid; alleen geaggregeerde mediaan, nooit een individueel
+ZZP'er-tarief. Geen schema-/mutatie-/authz-/domeinmotor-oppervlak.
+
+**Bestanden:** `src/lib/vacancy-rate-diagnosis.ts` (+ `.test.ts`, +6 tests → 13),
+`src/components/jobs/job-vacancy-performance-card.tsx`, `src/app/(protected)/opdrachten/[id]/page.tsx`.
+
+**Gate:** typecheck ✓ · targeted test 13 ✓ · lint/test/build/prettier → PR-gate.
+
+---
+
 ## 2026-08-23 — ZZP'er: onbenutte-beschikbaarheid signaal (idle capacity)
 
 **Wat:** Zet gedeclareerde beschikbaarheid om in een concreet "vul deze dagen"-signaal. Op

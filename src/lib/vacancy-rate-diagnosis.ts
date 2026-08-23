@@ -65,3 +65,43 @@ export function diagnoseVacancyRate(input: VacancyRateDiagnosisInput): VacancyRa
       `Een hoger tarief trekt doorgaans meer kandidaten.`,
   };
 }
+
+/** Minimale marktband-vorm die de diagnose nodig heeft (structureel compatibel met `MarketBand`). */
+export interface VacancyRateBandLike {
+  scope: MarketRateScope;
+  /** Mediaan-uurtarief (euro), afgerond; null bij scope "none". */
+  median: number | null;
+}
+
+export interface JobVacancyRateDiagnosisInput {
+  /** Vraagt de opdracht om bijsturen? (koud/stil gevallen — uit het vacaturetempo.) */
+  attention: boolean;
+  /** De geboden bovengrens (euro); null bij open-eind tarief. */
+  rateMax: number | null;
+  /** Branche van de opdracht; null → platformbrede band. */
+  industryId: string | null;
+  /** Marktbanden per branche-id. */
+  byIndustry: Record<string, VacancyRateBandLike>;
+  /** Platformbrede terugval-band (wanneer geen branche is gekozen of onbekend). */
+  platform: VacancyRateBandLike;
+}
+
+/**
+ * Kiest de juiste marktband voor de opdracht (branche → platform-terugval) en levert de
+ * tarief-diagnose. Zo delen de opdrachtenlijst én het opdracht-detail exact dezelfde regel
+ * (geen drift): `attention` + begrensde `rateMax` + een band met genoeg data, anders `null`.
+ */
+export function diagnoseJobVacancyRate(
+  input: JobVacancyRateDiagnosisInput,
+): VacancyRateDiagnosis | null {
+  const { attention, rateMax, industryId, byIndustry, platform } = input;
+  if (!attention || rateMax === null) return null;
+  const band = (industryId ? byIndustry[industryId] : platform) ?? platform;
+  if (!band) return null;
+  return diagnoseVacancyRate({
+    attention,
+    scope: band.scope,
+    median: band.median,
+    rateMax,
+  });
+}
