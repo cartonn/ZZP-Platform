@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-23e — ZZP'er: wachttijd-signaal per urenstaat op /diensten
+
+**Wat:** Een ingediende urenstaat (`SUBMITTED`) blokkeert stil de facturatie-cascade — pas ná goedkeuring
+(`APPROVED`) mag de ZZP'er factureren — maar `/diensten` toonde alleen de statusbadge "Ter goedkeuring", niet
+hóé lang die al hangt. Nu een per-rij chip **"Wacht al X dagen op goedkeuring"** (met `Clock`-icoon) op elke
+ingediende urenstaat, plus een aandachtsregel boven de lijst zodra er urenstaten langer dan gebruikelijk
+wachten ("… kun je er niet voor factureren — stoot de opdrachtgever gerust even aan"). Geeft de ZZP'er rust én
+een concreet moment om te stoten; #1 cashflow-blokkade zichtbaar op het punt van aandacht (benchmark
+Temper/Zorgwerk shift-status).
+
+**Ontwerp:** Nieuwe pure `src/lib/performance-wait.ts` — spiegel van `application-wait.ts` (reactie-kant) en van
+de opdrachtgever-nudge `performance-approval-reminders.ts`. `summarizePerformanceWait({status, submittedAt}, now)`
+geeft alleen een signaal voor `SUBMITTED` mét `submittedAt` (DRAFT is aan de ZZP'er zelf, REJECTED toont al zijn
+reden, APPROVED wacht niet meer); `daysWaiting` geklemd op ≥0 (toekomstige `submittedAt` = 0, nooit negatief);
+`attention` zodra `daysWaiting ≥ PERFORMANCE_WAIT_ATTENTION_DAYS = max(REMINDERS.performanceApprovalDays)` (=7) —
+dezelfde cadans die de opdrachtgever nudged, dus geen drift. `performanceWaitLabel` (dag 0 = "Vandaag ingediend");
+`countPerformancesAwaitingAttention` voedt de aandachtsregel (over de VOLLEDIGE set, niet de gefilterde view).
+`submittedAt` zit al op `DienstSummary` (geen extra query, geen schemawijziging). Read-only, server-side waarheid,
+geen mutatie-/authz-/domeinmotor-oppervlak.
+
+**Bestanden:** `src/lib/performance-wait.ts` (+ `.test.ts`, 14 tests), `src/app/(protected)/diensten/page.tsx`
+(imports + aandachtsregel + per-rij chip). **Gate:** typecheck ✓ · lint ✓ · test 6791 ✓ · build ✓ · prettier ✓.
+
 ## 2026-08-23d — Alle rollen: snelle antwoorden in de berichten-composer
 
 **Wat:** De berichten-composer (`/berichten/[id]`) was kaal — enkel een tekstveld + verstuurknop. Een

@@ -7,6 +7,13 @@ import { getDienstenForFreelancer } from "@/lib/diensten";
 import { summarizeDiensten, hasDienstenSummary } from "@/lib/diensten-summary";
 import { formatEuro } from "@/lib/invoices";
 import { formatDateRangeNl } from "@/lib/format-date";
+import {
+  countPerformancesAwaitingAttention,
+  performanceWaitLabel,
+  summarizePerformanceWait,
+} from "@/lib/performance-wait";
+import { plural } from "@/lib/plural";
+import { cn } from "@/lib/utils";
 import { DienstenSummaryStrip } from "@/components/diensten/diensten-summary-strip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,6 +84,10 @@ export default async function DienstenPage({
   // goedgekeurd, en wat er nog van de ZZP'er zelf nodig is. Pure afleiding, geen extra query.
   const summary = summarizeDiensten(allDiensten);
 
+  // Ingediende urenstaten die al langer dan gebruikelijk op goedkeuring wachten (blokkeren stil de
+  // facturatie). Over de VOLLEDIGE set, zodat het signaal niet wegvalt door een statusfilter.
+  const awaitingAttention = countPerformancesAwaitingAttention(allDiensten);
+
   const activeCollaborations: ActiveCollaborationOption[] = activeCollabRows.map((c) => ({
     id: c.id,
     jobTitle: c.job.title,
@@ -117,6 +128,17 @@ export default async function DienstenPage({
       </header>
 
       {hasDienstenSummary(summary) && <DienstenSummaryStrip summary={summary} />}
+
+      {awaitingAttention > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-primary">
+          <Clock className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <p>
+            {plural(awaitingAttention, "urenstaat wacht", "urenstaten wachten")} al langer dan
+            gebruikelijk op goedkeuring. Zolang die niet goedgekeurd is, kun je er niet voor
+            factureren — stoot de opdrachtgever gerust even aan.
+          </p>
+        </div>
+      )}
 
       {/* Statusfilter */}
       <nav className="flex flex-wrap gap-2 text-sm" aria-label="Filter op status">
@@ -168,6 +190,7 @@ export default async function DienstenPage({
               label: d.status,
               variant: "muted" as const,
             };
+            const wait = summarizePerformanceWait(d);
             return (
               <div key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
@@ -193,6 +216,17 @@ export default async function DienstenPage({
                   </div>
                   {d.rejectionReason && (
                     <p className="mt-1 text-xs text-danger">Reden afkeuring: {d.rejectionReason}</p>
+                  )}
+                  {wait && (
+                    <p
+                      className={cn(
+                        "mt-1 flex items-center gap-1 text-xs",
+                        wait.attention ? "font-medium text-primary" : "text-muted-foreground",
+                      )}
+                    >
+                      <Clock className="size-3 shrink-0" aria-hidden />
+                      {performanceWaitLabel(wait)}
+                    </p>
                   )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
