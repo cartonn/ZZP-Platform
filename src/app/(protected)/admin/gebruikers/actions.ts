@@ -23,6 +23,10 @@ import { NO_SHOW_REASON_REDACTED, noShowReportedNotificationBody } from "@/lib/n
 import { messageNotificationBody } from "@/lib/messaging";
 import { ideaCommentNotificationTitle, ideaStatusNotificationTitle } from "@/lib/ideas";
 import { shiftHandoffRejectedNotificationBody } from "@/lib/shift-handoff";
+import {
+  invoiceRejectedNotificationBody,
+  performanceRejectedNotificationBody,
+} from "@/lib/cascade/notification-bodies";
 
 export async function setUserStatus(userId: string, target: string): Promise<void> {
   const actor = await requireRole("ADMIN");
@@ -314,6 +318,54 @@ export async function anonymizeUser(userId: string): Promise<void> {
   });
   const ownCreditedInvoiceIds = ownCreditedInvoices.map((i) => i.id);
 
+  // AVG art. 17: de door de OPDRACHTGEVER (counterparty) ZÉLF getypte AFKEUR-reden bij een factuur.
+  // `rejectInvoice` (cascade → `planInvoiceRejectedEvent`) — enkel de opdrachtgever mag afkeuren
+  // (`actor.id === inv.counterpartyUserId`) — schrijft die vrije tekst in DRIE kopieën:
+  // `Invoice.rejectionReason` (lifecycleStatus "REJECTED"), de `INVOICE_REJECTED`-auditmetadata
+  // (`{ reason }`) én de body van de `INVOICE_REJECTED`-notificatie op de feed van de ZZP'er
+  // (`issuerUserId`, een ándere gebruiker dan de schrijver). Spiegelbeeld van `ownCreditedInvoices`:
+  // dáár is de reden door de ZZP'er (issuer) geschreven en wordt hij gewist bij diens erasure; hier is
+  // de reden door de OPDRACHTGEVER geschreven en moet hij gewist worden bij díens erasure. Dezelfde
+  // `rejectionReason`-kolom, maar strikt gescheiden via `lifecycleStatus` + de eigenaars-scope, zodat we
+  // nooit een reden van de tegenpartij raken. Gescopet op de eigen afgekeurde facturen
+  // (counterpartyUserId == de betrokkene, REJECTED); `issuerUserId` reconstrueert straks de exacte
+  // ZZP'er-notificatie-body (die notificatie heeft geen deep-link om op te scopen).
+  // unbounded-allow: AVG art. 17: alle eigen afgekeurde facturen met reden van één betrokkene; een take zou stilletjes PII laten staan
+  const ownRejectedInvoices = await prisma.invoice.findMany({
+    where: {
+      counterpartyUserId: userId,
+      lifecycleStatus: "REJECTED",
+      rejectionReason: { not: null },
+    },
+    select: { id: true, rejectionReason: true, issuerUserId: true },
+  });
+  const ownRejectedInvoiceIds = ownRejectedInvoices.map((i) => i.id);
+
+  // AVG art. 17: de door de OPDRACHTGEVER ZÉLF getypte AFKEUR-reden bij een prestatie/urenstaat.
+  // `rejectPerformance` (cascade → `planPerformanceRejectedEvent`) — enkel de opdrachtgever mag afkeuren
+  // (`actor.id === perf.clientUserId`) — schrijft die vrije tekst in DRIE kopieën: `Performance.
+  // rejectionReason` (status "REJECTED"), de `PERFORMANCE_REJECTED`-auditmetadata (`{ reason }`) én de
+  // body van de `PERFORMANCE_REJECTED`-notificatie op de ZZP'er-feed (`collaboration.freelancer.userId`,
+  // een ándere gebruiker dan de schrijver). De erasure van de ZZP'er redact al `Performance.description`/
+  // `milestoneTitle` (zelf-geschreven), maar bewust NIET `rejectionReason` (door de tegenpartij
+  // geschreven, mogelijke geschil-bewaargrond) — dus die reden hoort bij de erasure van de OPDRACHTGEVER
+  // (de auteur). Gescopet op de eigen bedrijfsprestaties (collaboration.company.userId == de betrokkene,
+  // REJECTED); de ZZP'er-userId reconstrueert straks de exacte notificatie-body.
+  // unbounded-allow: AVG art. 17: alle eigen afgekeurde prestaties met reden van één betrokkene; een take zou stilletjes PII laten staan
+  const ownRejectedPerformances = await prisma.performance.findMany({
+    where: {
+      status: "REJECTED",
+      rejectionReason: { not: null },
+      collaboration: { company: { userId } },
+    },
+    select: {
+      id: true,
+      rejectionReason: true,
+      collaboration: { select: { freelancer: { select: { userId: true } } } },
+    },
+  });
+  const ownRejectedPerformanceIds = ownRejectedPerformances.map((p) => p.id);
+
   // AVG art. 17: de door de MÉLDER (opdrachtgever/franchiser) ZÉLF getypte no-show-reden. `reportNoShow`
   // schrijft die vrije tekst in TWEE kopieën: (1) `NoShowReport.reason` en (2) verbatim in de body van de
   // `NO_SHOW_REPORTED`-notificatie op de feed van de gemelde ZZP'er (`Reden: <reden>`). De AVG-data-export
@@ -529,8 +581,9 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // Collaboration wordt niet verwijderd, dus de onDelete:Cascade op Performance vuurt niet →
     // expliciet redacten. Spiegelt Application.motivation/AvailabilityWindow.note/ShiftHandoff.reason.
     // description is niet-nullable (@default("")) → neutrale redactiestring; milestoneTitle is nullable
-    // → null. rejectionReason is door de OPDRACHTGEVER geschreven over de ZZP'er en heeft mogelijk een
-    // bewaargrond bij een facturatie-/urengeschil — bewust niet hier (zie backlog).
+    // → null. rejectionReason is door de OPDRACHTGEVER geschreven over de ZZP'er en blijft hier bewust
+    // staan (mogelijke geschil-bewaargrond, geen PII van de ZZP'er); die reden wordt bij de erasure van
+    // de OPDRACHTGEVER — de auteur — gewist via `ownRejectedPerformances` onderaan de transactie.
     prisma.performance.updateMany({
       where: { collaboration: { freelancer: { userId } } },
       data: {
@@ -545,6 +598,15 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // fiscale bewaargrond (bedrag/btw/datum/categorie — net als Invoice/IndirectHoursEntry/Performance),
     // dus non-nullable `description` → neutrale redactiestring, niet de rij verwijderen. Gescopet op de
     // eigen uitgaven (userId == de betrokkene). Spiegelt Performance.description / Application.motivation.
+    //
+    // NB (AVG art. 17(3)(b) — bewust NIET geraakt): `TaxFilingRequest` blijft volledig staan. De rij
+    // draagt geen door de betrokkene getypte vrije tekst (`partnerName` = de naam van het belastingkantoor,
+    // `mandateKind` is een enum) en valt onder de fiscale bewaarplicht (7 jaar, art. 52 AWR) die het
+    // verwerkingsregister (`lib/compliance/processing-register.ts`) als grondslag registreert — dezelfde
+    // grond die ook de Invoice-/Expense-/Performance-kernvelden bewaart. De inzage-export
+    // (`account-export.ts`) toont `taxFilingRequests` wél (art. 15/20); die asymmetrie is hier bewust en
+    // rechtmatig. Expliciet gedocumenteerd zodat een volgende pass de rij niet per abuis wist of de stilte
+    // als een omissie leest.
     prisma.expense.updateMany({
       where: { userId },
       data: { description: "[Verwijderd op verzoek van de gebruiker]" },
@@ -779,6 +841,82 @@ export async function anonymizeUser(userId: string): Promise<void> {
         data: { body: "[Verwijderd op verzoek van de gebruiker]" },
       }),
     ),
+    // AVG art. 17 (zie de `ownRejectedInvoices`-toelichting hierboven): de door de OPDRACHTGEVER zélf
+    // getypte factuur-afkeurreden in zijn drie kopieën. (1) De reden op de eigen afgekeurde facturen
+    // wissen.
+    ...(ownRejectedInvoiceIds.length
+      ? [
+          prisma.invoice.updateMany({
+            where: { id: { in: ownRejectedInvoiceIds } },
+            data: { rejectionReason: null },
+          }),
+          // (2) De reden in de `INVOICE_REJECTED`-auditmetadata redacten (de metadata draagt enkel
+          // `{ reason }`); actor/actie/tijd blijven als verantwoordingsspoor. De generieke
+          // `scrubAuditMetadataPii`-pass raakt een vrije-tekstreden nooit (die matcht geen e-mail/naam),
+          // dus dit is de enige plek waar deze kopie sneuvelt. Scope op de afkeur-actie + de eigen
+          // factuur-id's raakt nooit een `INVOICE_CREDITED`-regel (ZZP'er-kant).
+          prisma.auditLog.updateMany({
+            where: {
+              action: "INVOICE_REJECTED",
+              entityType: "Invoice",
+              entityId: { in: ownRejectedInvoiceIds },
+            },
+            data: { metadata: JSON.stringify({ reason: AUDIT_PII_REDACTED }) },
+          }),
+        ]
+      : []),
+    // (3) De ZZP'er (crediteur) ontving een `INVOICE_REJECTED`-notificatie met de reden verbatim in de
+    // body. Die notificatie heeft geen deep-link (link = "/facturen"), dus scope op de exacte,
+    // deterministisch reconstrueerbare body (via de gedeelde `invoiceRejectedNotificationBody`) op de
+    // feed van de ZZP'er (`issuerUserId`) — zo raken we nooit de afkeuring van een ándere opdrachtgever.
+    ...ownRejectedInvoices
+      .filter((i) => i.issuerUserId && i.rejectionReason)
+      .map((i) =>
+        prisma.notification.updateMany({
+          where: {
+            userId: i.issuerUserId as string,
+            type: "INVOICE_REJECTED",
+            body: invoiceRejectedNotificationBody(i.rejectionReason as string),
+          },
+          data: { body: "[Verwijderd op verzoek van de gebruiker]" },
+        }),
+      ),
+    // AVG art. 17 (zie de `ownRejectedPerformances`-toelichting hierboven): de door de OPDRACHTGEVER zélf
+    // getypte prestatie-afkeurreden in zijn drie kopieën. (1) De reden op de eigen afgekeurde prestaties
+    // wissen.
+    ...(ownRejectedPerformanceIds.length
+      ? [
+          prisma.performance.updateMany({
+            where: { id: { in: ownRejectedPerformanceIds } },
+            data: { rejectionReason: null },
+          }),
+          // (2) De reden in de `PERFORMANCE_REJECTED`-auditmetadata redacten (enkel `{ reason }`).
+          prisma.auditLog.updateMany({
+            where: {
+              action: "PERFORMANCE_REJECTED",
+              entityType: "Performance",
+              entityId: { in: ownRejectedPerformanceIds },
+            },
+            data: { metadata: JSON.stringify({ reason: AUDIT_PII_REDACTED }) },
+          }),
+        ]
+      : []),
+    // (3) De ZZP'er ontving een `PERFORMANCE_REJECTED`-notificatie met de reden verbatim in de body
+    // (link = "/samenwerkingen", geen deep-link). Reconstrueer die body deterministisch via de gedeelde
+    // `performanceRejectedNotificationBody` en redact precies díe notificatie op de ZZP'er-feed — nooit
+    // de afkeuring van een ándere opdrachtgever.
+    ...ownRejectedPerformances
+      .filter((p) => p.collaboration?.freelancer?.userId && p.rejectionReason)
+      .map((p) =>
+        prisma.notification.updateMany({
+          where: {
+            userId: p.collaboration!.freelancer.userId,
+            type: "PERFORMANCE_REJECTED",
+            body: performanceRejectedNotificationBody(p.rejectionReason as string),
+          },
+          data: { body: "[Verwijderd op verzoek van de gebruiker]" },
+        }),
+      ),
     prisma.auditLog.create({
       data: auditData({
         actorId: actor.id,
