@@ -6,6 +6,7 @@ import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { isParticipant, lastReadOutgoingMessageId } from "@/lib/messaging";
 import { summarizeReplyLatency } from "@/lib/message-reply-latency";
+import { quickReplies } from "@/lib/quick-replies";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MessageComposer } from "./message-composer";
@@ -150,7 +151,14 @@ export default async function GesprekPage({ params }: { params: Promise<{ id: st
         )}
       </div>
 
-      <MessageComposer conversationId={conversation.id} />
+      <MessageComposer
+        conversationId={conversation.id}
+        quickReplies={quickReplies({
+          role: actor.role,
+          hasJob: conversation.job !== null,
+          isOpener: conversation.messages.length === 0,
+        })}
+      />
     </div>
   );
 }

@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-23d — Alle rollen: snelle antwoorden in de berichten-composer
+
+**Wat:** De berichten-composer (`/berichten/[id]`) was kaal — enkel een tekstveld + verstuurknop. Een
+opdrachtgever/bemiddelaar met veel gesprekken en een ZZP'er die snel wil reageren typten elke standaardzin
+opnieuw. Nu staan er rol- en context-bewuste **snelle antwoorden** (chips) boven het veld; een klik plaatst
+de gecureerde zin in de composer (nog aanpasbaar vóór verzenden). Sneller reageren voor alle drie de rollen
+(benchmark Temper/Intercom snelle antwoorden), zonder de verklaarbaarheid/verificatie-kern te raken.
+
+**Ontwerp:** Puur deterministische bron `quickReplies({ role, hasJob, isOpener })` (`src/lib/quick-replies.ts`)
+→ tot 4 gededupliceerde suggesties. Rol bepaalt toon/zinnen (ZZP'er, opdrachtgever, bemiddelaar, admin/support);
+opener (lege thread) vs. vervolgantwoord kiest een andere set; een aan een opdracht gekoppeld gesprek voegt
+een opdracht-refererende opener vooraan toe. Geen mutatie-oppervlak: de gekozen zin gaat door dezelfde
+`sendMessage`-actie (auth → participant-check → Zod) als elk handmatig bericht — geen dode knop.
+
+**Bestanden:** `src/lib/quick-replies.ts` (+`.test.ts`), `src/components/messaging/quick-replies.tsx`,
+`src/app/(protected)/berichten/[id]/message-composer.tsx` (composer nu controlled + insert), `.../[id]/page.tsx`
+(berekent context uit reeds geladen velden — geen extra query, geen schemawijziging).
+
+**Tests:** volledige gate lokaal groen — typecheck 0, lint clean, prettier clean, build exit 0, vitest
+**6777 passed (650 files)**. Nieuwe suite quick-replies (9): max-cap, per-rol niet-leeg, uniciteit,
+determinisme, opdracht-opener alleen bij opener+hasJob, opener≠vervolg, admin geen opdracht-opener. PR #1210.
+
 ## 2026-08-23c — Prod: rate-limit-store aflever-heartbeat (dead-man's-switch)
 
 **Wat:** Completeert de dead-man's-switch-familie. De gedeelde rate-limit-store (Upstash Redis REST,
