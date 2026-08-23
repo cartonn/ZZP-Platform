@@ -268,6 +268,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — wachttijd-signaal per urenstaat op /diensten (2026-08-23, PR #1211)** —
+> een ingediende urenstaat (`SUBMITTED`) blokkeert stil de facturatie-cascade (pas ná `APPROVED` mag de ZZP'er
+> factureren), maar `/diensten` toonde alleen "Ter goedkeuring", niet hóé lang die al hangt. Nu een per-rij chip
+> "Wacht al X dagen op goedkeuring" op elke ingediende urenstaat + een aandachtsregel boven de lijst zodra er
+> urenstaten langer dan gebruikelijk wachten ("… kun je er niet voor factureren — stoot de opdrachtgever gerust
+> aan"). Nieuwe pure `src/lib/performance-wait.ts` (spiegel van `application-wait.ts` + de opdrachtgever-nudge
+> `performance-approval-reminders.ts`): `summarizePerformanceWait` geeft alleen een signaal voor `SUBMITTED` mét
+> `submittedAt` (DRAFT/REJECTED/APPROVED → null), `daysWaiting` geklemd op ≥0, `attention` zodra ≥
+> `PERFORMANCE_WAIT_ATTENTION_DAYS = max(REMINDERS.performanceApprovalDays)` (=7, dezelfde cadans die de
+> opdrachtgever nudged → geen drift); `performanceWaitLabel` + `countPerformancesAwaitingAttention`. `submittedAt`
+> zit al op `DienstSummary` (geen extra query, geen schemawijziging). Read-only, geen mutatie-/authz-/domeinmotor-
+> oppervlak. +14 tests. Gate: typecheck, lint, test (6791), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Alle rollen — snelle antwoorden in de berichten-composer (2026-08-23, PR #1210)** —
 > de composer op `/berichten/[id]` was kaal (tekstveld + verstuurknop); elke standaardzin moest opnieuw getypt.
 > Nu rol- en context-bewuste snelle antwoorden (chips) boven het veld: een klik plaatst de gecureerde zin in de
