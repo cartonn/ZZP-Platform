@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-23 — ZZP'er: onbenutte-beschikbaarheid signaal (idle capacity)
+
+**Wat:** Zet gedeclareerde beschikbaarheid om in een concreet "vul deze dagen"-signaal. Op
+`/beschikbaarheid` toont een rustige kaart de open dagen/periodes die de ZZP'er als inzetbaar deelde
+(AVAILABLE/LIMITED-vensters) maar waar nog geen samenwerking op loopt — in de komende 6 weken, met
+doorklik naar `/opdrachten`. Vult het "leegloop"-gat: het platform meet alles rond factureren/betalen
+maar niet de open capaciteit vóór het werk er is (benchmark Temper/Zorgwerk/Malt utilization).
+
+**Hoe:** Nieuwe pure `findIdleCapacity` (`src/lib/availability-gaps.ts`): interval-subtractie op
+UTC-dag-granulariteit — inzetbare vensters (AVAILABLE/LIMITED) minus geboekte (PROPOSED/ACTIVE)
+samenwerkingen, geklemd op `[vandaag, vandaag+42d]`, gemergd → `{ openRanges, totalOpenDays, hasAny }`.
+Inclusieve einddag (spiegelt `availability.ts`); open-einde-collab (endDate null) loopt door tot de
+horizon; collab zonder startdatum telt niet mee; COMPLETED/CANCELLED tellen niet als boeking.
+Read-only presentational component `IdleCapacityCard` (rendert niets bij geen open capaciteit).
+Bedraad in `beschikbaarheid/page.tsx` — die laadt de vensters + PROPOSED/ACTIVE-collabs al, dus **geen
+extra query** (alleen `status` toegevoegd aan de bestaande select). Geen schema-/mutatie-/
+domeinmotor-wijziging.
+
+**Bestanden:** `src/lib/availability-gaps.ts` (+ `.test.ts`, 13 tests),
+`src/components/beschikbaarheid/idle-capacity-card.tsx`, `src/app/(protected)/beschikbaarheid/page.tsx`.
+
+**Gate:** typecheck ✓ · lint ✓ · test 6722 ✓ · build ✓ · prettier ✓ → PR-gate.
+
+---
+
 ## 2026-08-23 — Prod-rijpheid: verificatie-adapter aflever-heartbeat (dead-man's-switch DUO/BIG/iDIN)
 
 **Wat:** Completeert de dead-man's-switch-familie. De externe verificatie-registers (DUO-diploma's,

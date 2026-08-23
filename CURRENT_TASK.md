@@ -268,6 +268,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — onbenutte-beschikbaarheid signaal (idle capacity) (2026-08-23, PR #1203)** —
+> zet gedeclareerde beschikbaarheid om in een concreet "vul deze dagen"-signaal. Op `/beschikbaarheid` toont een
+> rustige kaart de open dagen/periodes die de ZZP'er als inzetbaar deelde (AVAILABLE/LIMITED-vensters) maar waar
+> nog geen samenwerking op loopt — in de komende 6 weken, met doorklik naar `/opdrachten`. Vult het "leegloop"-gat:
+> het platform meet alles rond factureren/betalen maar niet de open capaciteit vóór het werk er is (benchmark
+> Temper/Zorgwerk/Malt utilization). Nieuwe pure `findIdleCapacity` (`src/lib/availability-gaps.ts`):
+> interval-subtractie op UTC-dag-granulariteit — inzetbare vensters minus geboekte (PROPOSED/ACTIVE) samenwerkingen,
+> geklemd op `[vandaag, vandaag+42d]`, gemergd → `{ openRanges, totalOpenDays, hasAny }`. Inclusieve einddag
+> (spiegelt `availability.ts`); open-einde-collab loopt door tot de horizon; collab zonder startdatum telt niet mee;
+> COMPLETED/CANCELLED tellen niet als boeking. Read-only `IdleCapacityCard` (rendert niets bij geen open capaciteit);
+> bedraad in `beschikbaarheid/page.tsx` zonder extra query (de pagina laadt vensters + collabs al). Geen schema-/
+> mutatie-/domeinmotor-oppervlak. +13 tests. Gate: typecheck, lint, test (6722), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — verificatie-adapter aflever-heartbeat (dead-man's-switch DUO/BIG/iDIN) (2026-08-23, PR #1202)** —
 > completeert de dead-man's-switch-familie: de externe verificatie-registers (DUO/BIG/iDIN) — de kern-differentiator — waren het
 > enige productie-kernkanaal met een uitgaande externe call zónder doorlopend afleversignaal (opslag/mail/push/billing/cron/back-up

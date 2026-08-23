@@ -6,6 +6,9 @@ import { prisma } from "@/lib/db";
 import { summarizeAvailability, upcomingWindows } from "@/lib/availability";
 import { type AvailabilityWindowType } from "@/lib/enums";
 import { detectAvailabilityConflicts } from "@/lib/availability-conflicts";
+import { findIdleCapacity } from "@/lib/availability-gaps";
+import { type CollaborationStatus } from "@/lib/enums";
+import { IdleCapacityCard } from "@/components/beschikbaarheid/idle-capacity-card";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -40,6 +43,7 @@ export default async function BeschikbaarheidPage() {
           where: { freelancerId: profile.id, status: { in: ["PROPOSED", "ACTIVE"] } },
           select: {
             id: true,
+            status: true,
             startDate: true,
             endDate: true,
             job: { select: { title: true } },
@@ -60,6 +64,17 @@ export default async function BeschikbaarheidPage() {
       endDate: c.endDate,
       jobTitle: c.job.title,
       clientName: c.company.name,
+    })),
+  );
+
+  // Onbenutte beschikbaarheid: de open dagen die de ZZP'er deelde maar waar (nog) geen samenwerking
+  // op loopt. Zelfde reeds-geladen vensters + collabs → geen extra query.
+  const idle = findIdleCapacity(
+    windows,
+    collabRows.map((c) => ({
+      status: c.status as CollaborationStatus,
+      startDate: c.startDate,
+      endDate: c.endDate,
     })),
   );
 
@@ -121,6 +136,8 @@ export default async function BeschikbaarheidPage() {
           </ul>
         </section>
       )}
+
+      <IdleCapacityCard idle={idle} />
 
       <AvailabilityForm />
 
