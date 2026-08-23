@@ -4,6 +4,79 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-23 (basis: `main` @ c2c7cd60) — 2× HOOG OPGELOST (onvolledige AVG-erasure) + 1× LAAG gedocumenteerd
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(IDOR/object-authz · cross-tenant/franchiser-isolatie · privacy/AVG). Delta t.o.v. de vorige ronde (basis
+`6e5ffd01`): commits `6e5ffd01..c2c7cd60` — de betaal-webhook-handtekening-heartbeat (#1197), verwachte-
+betaaldatum op het factuurdetail (#1198), platform-betaaltermijn-benchmark op de betaalreputatie (#1199) en de
+doorlooptijd-nudge bij bijna-verlopen certificaat (#1200). `npm audit --omit=dev`: **0 vulnerabilities** (prod
+schoon); `npm audit` (incl. dev): 6 (5 HOOG/1 LAAG) — **uitsluitend dev-transitief** (prisma-CLI→deepmerge-ts,
+brace-expansion, js-yaml, esbuild-Windows), niet bereikbaar in de productie-runtime — zie LAAG-item onderaan.
+
+**Dekking (OWASP Top 10 / ASVS + AVG):** A01 (object-/functie-authz + IDOR + multi-tenant), A03 (SQL/`$queryRaw`,
+XSS/`dangerouslySetInnerHTML`, CSV-/formule-injectie), A05 (CSP-nonce/HSTS/frame-deny/nosniff/Permissions-Policy),
+A07 (auth/sessie/rate-limiting fail-closed), A08 (mass-assignment), A10 (SSRF op server-side `fetch`), upload-/
+storage-veiligheid + path-traversal, foutafhandeling (geen Prisma-fout/stacktrace naar client), én AVG art. 5/15/
+17/20/25/32 (dataminimalisatie, inzage/erasure-symmetrie, k-anonimiteit, retentie, logs-lekken-geen-PII, derden).
+
+### OPGELOST — [KRITIEK-blok HOOG] Door de OPDRACHTGEVER getypte AFKEUR-reden overleefde díens eigen AVG-erasure (2 velden, 3 kopieën elk)
+
+- **Geschonden regel:** AVG art. 17 (recht op verwijdering) + de eigen multi-kopie-erasure-invariant van de
+  codebase (CLAUDE.md regel 5, audit/PII). **OWASP:** A01 (privacy-datablootstelling van eigen PII).
+- **Repro (bevestigd, bereikbaar via de bestaande `anonymizeUser`-admin-actie):**
+  1. Opdrachtgever keurt een factuur af (`rejectInvoice`) of een prestatie (`rejectPerformance`) met een
+     vrije-tekstreden. Die reden landt in DRIE kopieën: (1) `Invoice.rejectionReason` /
+     `Performance.rejectionReason`, (2) de `INVOICE_REJECTED` / `PERFORMANCE_REJECTED`-auditmetadata (`{ reason }`),
+     (3) verbatim in de body van de notificatie op de feed van de ZZP'er (een ándere gebruiker).
+  2. De opdrachtgever verzoekt om verwijdering → admin draait `anonymizeUser`. De erasure redacteerde WÉL de
+     symmetrische ZZP'er-kant (`INVOICE_CREDITED`-creditreden) maar had voor de afkeur-reden geen op de
+     opdrachtgever (`counterpartyUserId` / `collaboration.company.userId`) gescoopte redactie — de reden bleef
+     leesbaar op de ZZP'er-feed, in diens AVG-inzage-export (`account-export.ts` geeft `Notification.body` prijs)
+     én in het auditlogboek. De code parkeerde dit ("bewust niet hier — zie backlog") maar dekte alleen de
+     ZZP'er-erasure-hoek, niet de opdrachtgever-als-auteur-hoek.
+- **Fix (deze PR):** `anonymizeUser` (`src/app/(protected)/admin/gebruikers/actions.ts`) leest nu vóór de
+  transactie de eigen afgekeurde facturen (`counterpartyUserId == betrokkene`, REJECTED) én prestaties
+  (`collaboration.company.userId == betrokkene`, REJECTED) en redacteert in de transactie alle drie de kopieën:
+  `rejectionReason` → null, de `{ reason }`-auditmetadata → `[verwijderd]`, en de exact gereconstrueerde
+  notificatie-body op de ZZP'er-feed. De body-strings staan nu in één gedeelde bron
+  (`src/lib/cascade/notification-bodies.ts`, `invoiceRejectedNotificationBody`/`performanceRejectedNotificationBody`),
+  gebruikt door zowel de schrijver (`cascade/handlers.ts`) als de erasure — drift-vrij (spiegelt de no-show-/
+  shift-handoff-behandeling). Rood→groen: 6 nieuwe erasure-tests + een locked-body-test; volledige gate groen.
+
+### GEDOCUMENTEERD (LAAG) — `TaxFilingRequest` ontbrak het expliciete retentie-spoor
+
+- **Bevinding:** `TaxFilingRequest` was het enige PII-dragende model zonder de "waarom-niet-geraakt"-toelichting die
+  elk ander model in de erasure heeft. **Geen live lek:** de rij bevat geen zelf-getypte vrije tekst (`partnerName`
+  = naam belastingkantoor, `mandateKind` = enum) en valt onder de fiscale bewaarplicht (7 jaar, art. 52 AWR),
+  dezelfde grond (AVG art. 17(3)(b)) die ook Invoice/Expense/Performance-kernvelden bewaart.
+- **Fix (deze PR):** expliciete toelichting toegevoegd bij de erasure zodat een volgende pass de rij niet per abuis
+  wist of de stilte als omissie leest. De inzage/erasure-asymmetrie (`account-export.ts` toont het, erasure raakt
+  het niet) is nu gedocumenteerd rechtmatig.
+
+### Schone oppervlakken (0 bereikbare gaten — 3 parallelle adversariële audits + eigen tracing)
+
+- **IDOR / object-authz (A01):** alle 8 dynamische route-handlers met een client-`id` (documenten, factuur-/
+  prestatie-/dossier-/DBA-/modelovereenkomst-PDF, media) + de mutatie-subset van 64 action-files + 22 dynamische
+  pagina's: overal `auth → rol → ownership → Zod → actie → audit`, 404-maskering (CWE-203/208), denied-access-audit,
+  rate-limit. `e.message` naar client alleen bij getypte `AuthorizationError`/`HttpError` (nooit rauwe Prisma-fout).
+- **Cross-tenant / franchiser-isolatie:** elke franchiser-query gescoopt via `tenantScopeWhere`/`ownsViaTenant`
+  (tenant uit live-DB `currentActor`, nooit uit een query-param), fail-closed (403 zonder tenant), tenant-suspend
+  trekt toegang live in. Geen "link bestaande ZZP'er op id"-pad → geen cross-tenant-koppel-vector.
+- **Privacy overige (AVG):** erasure dekt ~30 PII-modellen (de eerder gemelde InvoiceLine/AvailabilityWindow/
+  NotificationPreference nu bevestigd afgedekt); logger redacteert PII recursief (test-afgedwongen); k-anonimiteit op
+  markttarief (`MARKET_RATE_MIN_SAMPLE = 10`); BIG-verifier minimaliseert derden-doorgifte; lead-retentie 12mnd-sweep.
+- **Delta-code zelf (#1197–#1200):** de webhook-`classifyWebhookAuth` is fail-open observability die de control-flow
+  nóóit wijzigt (blijft leunen op `resolveWebhookRef`); de nieuwe forecast-/benchmark-/nudge-code is puur/deterministisch,
+  scoopt PII strikt op de eigen actor (`userId: actor.id`), lekt geen tegenpartij-PII, en de factuur-forecast is
+  `isFreelancerOwner`-gated met een correcte ownership-keten. Geen secrets/PII in de nieuwe observability-/admin-kaarten.
+
+### Geparkeerd (LAAG) — dev-transitieve npm-advisories
+
+- `npm audit` (incl. dev) meldt 6 advisories (deepmerge-ts/prisma-CLI, brace-expansion, js-yaml, esbuild-Windows) —
+  allemaal **dev-only DoS/ReDoS**, niet in de productie-runtime (`--omit=dev` = 0). Niet gefixt: `npm audit fix
+--force` zou de prisma-CLI-major kunnen breken. Volgen bij de volgende prisma-bump; geen productie-risico.
+
 ## Ronde 2026-08-22b (basis: `main` @ 6e5ffd01) — GEEN NIEUWE GATEN (delta + systemische sweep schoon)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.

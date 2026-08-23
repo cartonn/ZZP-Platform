@@ -24,6 +24,10 @@ import { PLATFORM_FEE, type VatRegime, type OrtCategory } from "@/lib/config";
 import { type CascadeEffects, emptyEffects } from "@/lib/cascade/types";
 import { CascadeError } from "@/lib/cascade/commands-shared";
 import { collaborationCompletableGuard } from "@/lib/cascade/completion";
+import {
+  invoiceRejectedNotificationBody,
+  performanceRejectedNotificationBody,
+} from "@/lib/cascade/notification-bodies";
 import { boundReason } from "@/lib/text-bounds";
 
 // --- Event A — Contract getekend -------------------------------------------
@@ -232,7 +236,7 @@ export function planPerformanceRejected(ctx: PerformanceRejectedCtx): CascadeEff
     userId: ctx.freelancerUserId,
     type: "PERFORMANCE_REJECTED",
     title: "Uren/oplevering afgekeurd",
-    body: `Reden: ${reason}. Pas het aan en dien opnieuw in.`,
+    body: performanceRejectedNotificationBody(reason),
     link: "/samenwerkingen",
   });
   fx.audits.push({
@@ -390,7 +394,7 @@ export function planInvoiceRejectedEvent(ctx: InvoiceRejectedCtx): CascadeEffect
     userId: ctx.freelancerUserId,
     type: "INVOICE_REJECTED",
     title: "Factuur afgekeurd",
-    body: `Reden: ${reason}. Corrigeer de factuur en dien hem opnieuw in.`,
+    body: invoiceRejectedNotificationBody(reason),
     link: "/facturen",
   });
   fx.audits.push({

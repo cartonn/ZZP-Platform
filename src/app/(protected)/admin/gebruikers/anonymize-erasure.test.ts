@@ -79,16 +79,33 @@ vi.mock("@/lib/db", () => ({
     },
     notification: { updateMany: op("notification.updateMany") },
     invoice: {
-      // Eén door de betrokkene ZÉLF gecrediteerde factuur (lifecycleStatus CREDITED): de reden is
-      // zelf-geschreven vrije tekst en moet — anders dan een REJECTED-reden (tegenpartij) — mee gewist.
-      findMany: vi.fn(async () => [
-        {
-          id: "inv-credit-1",
-          rejectionReason: "Verkeerd uurtarief gefactureerd, correctie",
-          partyInvoiceNumber: "2026-014",
-          counterpartyUserId: "client-77",
-        },
-      ]),
+      // Args-bewust: de erasure leest tweemaal `invoice.findMany` — de eigen CREDIT-facturen (reden
+      // door de ZZP'er zelf geschreven) én de eigen REJECTED-facturen (reden door de OPDRACHTGEVER zelf
+      // geschreven, gescopet op counterpartyUserId). Beide dragen zelf-geschreven vrije tekst die bij
+      // de erasure van de AUTEUR mee moet — de mock moet ze scheiden op `lifecycleStatus`.
+      findMany: vi.fn(async (args?: { where?: { lifecycleStatus?: string } }) => {
+        if (args?.where?.lifecycleStatus === "REJECTED") {
+          // De betrokkene (user-42) is hier de OPDRACHTGEVER (counterparty) die de factuur afkeurde;
+          // de reden staat op de eigen factuur, in de audit-metadata én verbatim op de ZZP'er-feed
+          // (issuer-55). Zonder de nieuwe redactie overleeft die door de opdrachtgever getypte reden
+          // art. 17 op andermans feed en in diens inzage-export.
+          return [
+            {
+              id: "inv-reject-1",
+              rejectionReason: "Uren komen niet overeen met de opdracht",
+              issuerUserId: "issuer-55",
+            },
+          ];
+        }
+        return [
+          {
+            id: "inv-credit-1",
+            rejectionReason: "Verkeerd uurtarief gefactureerd, correctie",
+            partyInvoiceNumber: "2026-014",
+            counterpartyUserId: "client-77",
+          },
+        ];
+      }),
       updateMany: op("invoice.updateMany"),
     },
     application: { updateMany: op("application.updateMany") },
@@ -115,7 +132,19 @@ vi.mock("@/lib/db", () => ({
     invoiceLine: { updateMany: op("invoiceLine.updateMany") },
     workExperience: { deleteMany: op("workExperience.deleteMany") },
     indirectHoursEntry: { updateMany: op("indirectHoursEntry.updateMany") },
-    performance: { updateMany: op("performance.updateMany") },
+    performance: {
+      // Eén door de betrokkene als OPDRACHTGEVER afgekeurde prestatie (status REJECTED): de reden is
+      // door de opdrachtgever zelf geschreven en staat op de eigen prestatie, in de audit-metadata én
+      // verbatim op de feed van de ZZP'er (freelancer-66) — dus mee wissen bij diens erasure (art. 17).
+      findMany: vi.fn(async () => [
+        {
+          id: "perf-reject-1",
+          rejectionReason: "Oplevering onvolledig, ontbrekende rapportage",
+          collaboration: { freelancer: { userId: "freelancer-66" } },
+        },
+      ]),
+      updateMany: op("performance.updateMany"),
+    },
     expense: { updateMany: op("expense.updateMany") },
     noShowReport: {
       // Eén no-show die de betrokkene als MÉLDER (opdrachtgever/franchiser) zelf indiende: de reden is
@@ -257,6 +286,10 @@ import { anonymizeUser } from "./actions";
 import { prisma } from "@/lib/db";
 import { noShowReportedNotificationBody } from "@/lib/no-show";
 import { shiftHandoffRejectedNotificationBody } from "@/lib/shift-handoff";
+import {
+  invoiceRejectedNotificationBody,
+  performanceRejectedNotificationBody,
+} from "@/lib/cascade/notification-bodies";
 import { ideaCommentNotificationTitle, ideaStatusNotificationTitle } from "@/lib/ideas";
 
 const find = (model: string) => tx.ops.find((o) => o.model === model);
@@ -895,7 +928,8 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     // `Invoice.rejectionReason` (lifecycleStatus CREDITED). `anonymizeUser` raakte de Invoice nergens
     // aan — zonder deze updateMany overleeft de zelf-geschreven reden art. 17 (rood→groen). Gescopet op
     // de eigen credit-facturen (issuerUserId == de betrokkene, CREDITED) zodat een REJECTED-reden
-    // (door de OPDRACHTGEVER geschreven, geparkeerd) niet wordt geraakt.
+    // (door de OPDRACHTGEVER geschreven, apart geredact bij díens erasure) niet in dezelfde updateMany
+    // wordt geraakt. De credit-updateMany komt als eerste `invoice.updateMany` in de transactie.
     const o = find("invoice.updateMany") as { args: { where: unknown; data: unknown } };
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ id: { in: ["inv-credit-1"] } });
@@ -938,6 +972,115 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
       userId: "client-77",
       type: "INVOICE_CREDITED",
       body: "Factuur 2026-014 is gecrediteerd door de ZZP'er. Reden: Verkeerd uurtarief gefactureerd, correctie.",
+    });
+    expect(o!.args.data.body).toMatch(/verwijderd/i);
+  });
+
+  it("wist de door de OPDRACHTGEVER getypte factuur-afkeurreden op de eigen afgekeurde facturen (Invoice.rejectionReason, AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // `rejectInvoice` (cascade) zet de door de OPDRACHTGEVER zélf getypte afkeurreden op
+    // `Invoice.rejectionReason` (lifecycleStatus REJECTED). Bij verwijdering van de OPDRACHTGEVER — de
+    // AUTEUR — moet die reden mee; zonder deze updateMany overleeft de zelf-geschreven reden art. 17
+    // (rood→groen). Gescopet op de eigen afgekeurde facturen (counterpartyUserId == de betrokkene,
+    // REJECTED). Pak de tweede `invoice.updateMany` (de eerste is de credit-variant hierboven).
+    const ops = findAll("invoice.updateMany") as Array<{
+      args: { where: { id?: { in?: string[] } }; data: { rejectionReason?: string | null } };
+    }>;
+    const o = ops.find((x) => x.args.where.id?.in?.includes("inv-reject-1"));
+    expect(o).toBeDefined();
+    expect(o!.args.where).toEqual({ id: { in: ["inv-reject-1"] } });
+    expect(o!.args.data.rejectionReason).toBeNull();
+  });
+
+  it("redact de factuur-afkeurreden óók uit de INVOICE_REJECTED-auditmetadata (AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // Tweede kopie: de reden staat in de `{ reason }`-metadata van het `INVOICE_REJECTED`-auditrecord.
+    // De generieke email/naam-scrub raakt vrije tekst niet — zonder deze expliciete updateMany overleeft
+    // de reden art. 17 (rood→groen). Gescopet op de afkeur-actie + de eigen factuur-id's.
+    const ops = findAll("auditLog.updateMany") as Array<{
+      args: { where: { action?: string; entityId?: unknown }; data: { metadata?: string } };
+    }>;
+    const o = ops.find((x) => x.args.where.action === "INVOICE_REJECTED");
+    expect(o).toBeDefined();
+    expect(o!.args.where).toEqual({
+      action: "INVOICE_REJECTED",
+      entityType: "Invoice",
+      entityId: { in: ["inv-reject-1"] },
+    });
+    const meta = JSON.parse(o!.args.data.metadata as string);
+    expect(meta.reason).toBe("[verwijderd]");
+  });
+
+  it("redact de factuur-afkeurreden óók uit de INVOICE_REJECTED-notificatie op de ZZP'er-feed (AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // Derde kopie: de ZZP'er (crediteur) ontving een `INVOICE_REJECTED`-notificatie met de reden
+    // verbatim in de body. Die notificatie heeft geen deep-link (link = "/facturen"), dus wordt gescopet
+    // op de exacte, deterministisch reconstrueerbare body (via de gedeelde `invoiceRejectedNotificationBody`)
+    // op de feed van de ZZP'er (issuer-55) — nooit de afkeuring van een ándere opdrachtgever. Zonder deze
+    // updateMany blijft de door de opdrachtgever getypte reden bij de ZZP'er zichtbaar (rood→groen).
+    const ops = findAll("notification.updateMany") as Array<{
+      args: { where: { userId?: string; type?: string; body?: string }; data: { body?: string } };
+    }>;
+    const o = ops.find((x) => x.args.where.type === "INVOICE_REJECTED");
+    expect(o).toBeDefined();
+    expect(o!.args.where).toEqual({
+      userId: "issuer-55",
+      type: "INVOICE_REJECTED",
+      body: invoiceRejectedNotificationBody("Uren komen niet overeen met de opdracht"),
+    });
+    expect(o!.args.data.body).toMatch(/verwijderd/i);
+  });
+
+  it("wist de door de OPDRACHTGEVER getypte prestatie-afkeurreden op de eigen afgekeurde prestaties (Performance.rejectionReason, AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // `rejectPerformance` (cascade) zet de door de OPDRACHTGEVER zélf getypte afkeurreden op
+    // `Performance.rejectionReason` (status REJECTED). De ZZP'er-erasure redact al description/
+    // milestoneTitle maar bewust NIET deze reden (door de tegenpartij geschreven). Bij verwijdering van
+    // de OPDRACHTGEVER — de AUTEUR — moet hij mee; zonder deze updateMany overleeft de reden art. 17
+    // (rood→groen). Gescopet op de eigen bedrijfsprestaties (collaboration.company.userId == de
+    // betrokkene, REJECTED). Pak de `performance.updateMany` met de reject-id (de andere redact
+    // description/milestoneTitle op de ZZP'er-scope).
+    const ops = findAll("performance.updateMany") as Array<{
+      args: { where: { id?: { in?: string[] } }; data: { rejectionReason?: string | null } };
+    }>;
+    const o = ops.find((x) => x.args.where.id?.in?.includes("perf-reject-1"));
+    expect(o).toBeDefined();
+    expect(o!.args.where).toEqual({ id: { in: ["perf-reject-1"] } });
+    expect(o!.args.data.rejectionReason).toBeNull();
+  });
+
+  it("redact de prestatie-afkeurreden óók uit de PERFORMANCE_REJECTED-auditmetadata (AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // Tweede kopie: de `{ reason }`-metadata van het `PERFORMANCE_REJECTED`-auditrecord.
+    const ops = findAll("auditLog.updateMany") as Array<{
+      args: { where: { action?: string; entityId?: unknown }; data: { metadata?: string } };
+    }>;
+    const o = ops.find((x) => x.args.where.action === "PERFORMANCE_REJECTED");
+    expect(o).toBeDefined();
+    expect(o!.args.where).toEqual({
+      action: "PERFORMANCE_REJECTED",
+      entityType: "Performance",
+      entityId: { in: ["perf-reject-1"] },
+    });
+    const meta = JSON.parse(o!.args.data.metadata as string);
+    expect(meta.reason).toBe("[verwijderd]");
+  });
+
+  it("redact de prestatie-afkeurreden óók uit de PERFORMANCE_REJECTED-notificatie op de ZZP'er-feed (AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // Derde kopie: de ZZP'er ontving een `PERFORMANCE_REJECTED`-notificatie met de reden verbatim in de
+    // body (link = "/samenwerkingen", geen deep-link). Gereconstrueerd via de gedeelde
+    // `performanceRejectedNotificationBody` en op de feed van de ZZP'er (freelancer-66) geredact — nooit
+    // de afkeuring van een ándere opdrachtgever. Zonder deze updateMany blijft de reden zichtbaar (rood→groen).
+    const ops = findAll("notification.updateMany") as Array<{
+      args: { where: { userId?: string; type?: string; body?: string }; data: { body?: string } };
+    }>;
+    const o = ops.find((x) => x.args.where.type === "PERFORMANCE_REJECTED");
+    expect(o).toBeDefined();
+    expect(o!.args.where).toEqual({
+      userId: "freelancer-66",
+      type: "PERFORMANCE_REJECTED",
+      body: performanceRejectedNotificationBody("Oplevering onvolledig, ontbrekende rapportage"),
     });
     expect(o!.args.data.body).toMatch(/verwijderd/i);
   });

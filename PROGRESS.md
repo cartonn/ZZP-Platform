@@ -3,6 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-23 — Security/Privacy-audit: door de opdrachtgever getypte afkeur-reden overleefde díens AVG-erasure (2× HOOG opgelost)
+
+**Wat:** Adversariële security-/privacy-auditronde (basis `main` @ c2c7cd60). Drie parallelle Opus-audits
+(IDOR/object-authz · cross-tenant/franchiser · privacy/AVG) + eigen delta-tracing over #1197–#1200. Twee
+bevestigde HOOG-bevindingen gedicht: de door de **opdrachtgever** zelf getypte AFKEUR-reden bij een factuur
+(`rejectInvoice`) én een prestatie (`rejectPerformance`) overleefde de AVG-erasure van díe opdrachtgever
+(AVG art. 17). De reden leeft in drie kopieën — `rejectionReason`, de `INVOICE_REJECTED`/`PERFORMANCE_REJECTED`-
+auditmetadata en verbatim in de notificatie op de ZZP'er-feed — en bleef na anonimisering leesbaar op de
+ZZP'er-feed, in diens inzage-export én in het auditlogboek. De erasure dekte alleen de symmetrische ZZP'er-kant
+(creditreden); de opdrachtgever-als-auteur-hoek was geparkeerd. Alle drie de kopieën worden nu op de
+opdrachtgever gescoopt geredact. Plus 1× LAAG gedocumenteerd (`TaxFilingRequest` retentie-spoor). Alle overige
+oppervlakken schoon (`npm audit --omit=dev` = 0).
+
+**Hoe:** `anonymizeUser` (`src/app/(protected)/admin/gebruikers/actions.ts`) leest nu de eigen afgekeurde
+facturen (`counterpartyUserId`, REJECTED) en prestaties (`collaboration.company.userId`, REJECTED) vóór de
+transactie en redacteert in de transactie `rejectionReason → null`, de `{ reason }`-auditmetadata → `[verwijderd]`
+en de exact gereconstrueerde notificatie-body op de ZZP'er-feed. Body-strings in één gedeelde bron
+`src/lib/cascade/notification-bodies.ts` (`invoiceRejectedNotificationBody`/`performanceRejectedNotificationBody`),
+gebruikt door zowel `cascade/handlers.ts` als de erasure — drift-vrij (spiegelt de no-show-/handoff-behandeling).
+
+**Bestanden:** `src/lib/cascade/notification-bodies.ts` (+ `.test.ts` locked-body), `src/lib/cascade/handlers.ts`
+(gebruikt de helpers), `src/app/(protected)/admin/gebruikers/actions.ts` (2 snapshot-reads + 6 transactie-ops +
+TaxFilingRequest-toelichting), `src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts` (6 nieuwe tests +
+args-bewuste invoice/performance-mocks), `docs/SECURITY-PRIVACY-BACKLOG.md`.
+
+**Tests:** rood→groen bewezen (6 erasure-tests falen zonder de fix, alle 57 slagen ermee). Volledige gate groen:
+typecheck ✓, lint ✓, `vitest run` 6687/6687 ✓, `prettier --check .` ✓, build ✓.
+
+**Volgende stap:** volgende backlog-/delta-item; dev-transitieve npm-advisories volgen bij de volgende prisma-bump.
+
 ## 2026-08-23 — ZZP'er: doorlooptijd-nudge bij bijna-verlopen certificaat
 
 **Wat:** De certificaatkaart op `/certificaten` toonde per bewijsstuk de resterende dagen tot verval
