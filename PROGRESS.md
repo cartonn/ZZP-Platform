@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-23 — Prod-rijpheid: verificatie-adapter aflever-heartbeat (dead-man's-switch DUO/BIG/iDIN)
+
+**Wat:** Completeert de dead-man's-switch-familie. De externe verificatie-registers (DUO-diploma's,
+BIG-register, iDIN-identiteit) — de kern-differentiator — waren het enige productie-kernkanaal met een
+uitgaande externe call zónder doorlopend afleversignaal (opslag/mail/push/billing/cron/back-up hadden dat
+al). Een verlopen/ingetrokken sleutel of register-storing laat élke `verify()` stil mislukken; de
+connectiviteitszelftest bewijst alleen bereikbaarheid vóór go-live (menselijke klik). Nu registreert elke
+uitgaande operatie via een écht register haar uitkomst; een monitor alarmeert op een AANHOUDENDE storing.
+
+**Hoe:** `Recording{Diploma,Big,Identity}Verifier`-decorators rond `get*Verifier()` (alleen de échte
+adapters; de mock-verifiers registreren bewust niets). Nieuwe `VerificationDeliveryHeartbeat` (één rij per
+register). Pure freshness + pessimistische aggregatie (`failing` zodra ≥1 register faalt, zodat één stille
+storing niet gemaskeerd wordt). "Slagen" = het register antwoordde (ook `verified:false`); "mislukken" =
+de call wierp. Fail-open registratie; nooit sleutels/endpoints/foutinhoud/houdergegevens. Gauges + alert +
+onderhouds-inhibitie + admin-kaart, gelijk aan de billing-heartbeat.
+
+**Bestanden:** `src/lib/observability/verification-delivery-freshness.ts` (+ `.test.ts`),
+`verification-delivery-heartbeat.ts` (+ `.test.ts`), `src/lib/services/recording-verifier.ts` (+ `.test.ts`),
+`{diploma,big,identity}-verifier.ts` (factory-wiring + testupdate), `prisma/schema.prisma`
+(`VerificationDeliveryHeartbeat`), `src/lib/observability/metrics.ts` (3 gauges) + `metrics.test.ts`,
+`alerts-rules.ts` (INFO_ONLY + sample), `src/app/api/metrics/route.ts`, `docs/observability/alerts.yml`
+(`ZzpVerificationDeliveryFailing`) + `alertmanager.yml` (inhibitie),
+`src/components/admin/verification-delivery-heartbeat-card.tsx` + `.../systeemstatus/page.tsx`. MENSENWERK
+§4/dead-man's-switch bijgewerkt.
+
+**Gate:** typecheck ✓ · lint ✓ · prettier ✓ · targeted tests (observability + services, 719) ✓ · build → PR-gate.
+Resterend mensenwerk: niets extra (vult zichzelf zodra een echt register aanstaat).
+
 ## 2026-08-23 — Security/Privacy-audit: door de opdrachtgever getypte afkeur-reden overleefde díens AVG-erasure (2× HOOG opgelost)
 
 **Wat:** Adversariële security-/privacy-auditronde (basis `main` @ c2c7cd60). Drie parallelle Opus-audits

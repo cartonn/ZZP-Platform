@@ -1,4 +1,5 @@
 import { verifyViaHttp, type VerifyEndpointConfig } from "@/lib/services/http-verify";
+import { RecordingBigVerifier } from "@/lib/services/recording-verifier";
 
 // BIG-registerverificatie (beroepsregistratie zorg) achter een schone service-grens.
 //
@@ -83,7 +84,10 @@ export class BigRegisterVerifier implements BigVerifier {
 }
 
 export function getBigVerifier(): BigVerifier {
-  return process.env.BIG_VERIFIER === "bigregister"
-    ? new BigRegisterVerifier()
-    : new MockBigVerifier();
+  // Alleen de echte BIG-koppeling krijgt de aflever-heartbeat (dead-man's-switch): de mock doet geen
+  // externe call en is geen productie-kanaal.
+  if (process.env.BIG_VERIFIER === "bigregister") {
+    return new RecordingBigVerifier(new BigRegisterVerifier(), "bigregister");
+  }
+  return new MockBigVerifier();
 }

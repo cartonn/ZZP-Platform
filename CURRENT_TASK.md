@@ -268,6 +268,21 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — verificatie-adapter aflever-heartbeat (dead-man's-switch DUO/BIG/iDIN) (2026-08-23, PR #1202)** —
+> completeert de dead-man's-switch-familie: de externe verificatie-registers (DUO/BIG/iDIN) — de kern-differentiator — waren het
+> enige productie-kernkanaal met een uitgaande externe call zónder doorlopend afleversignaal (opslag/mail/push/billing/cron/back-up
+> hadden dat al). Een verlopen/ingetrokken sleutel of register-storing laat élke `verify()` stil mislukken; de connectiviteitszelftest
+> bewijst alleen bereikbaarheid vóór go-live (menselijke klik). Patroon = `RecordingPaymentProvider`: `Recording{Diploma,Big,Identity}Verifier`-
+> decorators rond `get*Verifier()` (alleen de échte adapters; de mocks registreren bewust niets), elke uitgaande operatie registreert in
+> een `VerificationDeliveryHeartbeat` (één rij per register). "Slagen" = het register antwoordde (ook `verified:false` — geslaagde
+> aflevering); "mislukken" = de call wierp. Event-gedreven oordeel op de laatste operatie (`never`/`ok`/`failing` + teller), pessimistisch
+> geaggregeerd over de registers (`failing` zodra ≥1 register faalt — geen maskering); fail-open registratie; nooit
+> sleutels/endpoints/foutinhoud/houdergegevens. Kaart "Verificatie-registers" op `/admin/systeemstatus`; gauges
+> `zzp_verification_delivery_ok`/`_consecutive_failures`/`_last_failure_age_seconds` op `/api/metrics`; alert `ZzpVerificationDeliveryFailing`
+> (`==0 and >=3`, `for:15m`) + inhibitie. +tests (pure freshness/aggregate, decorators succes/afwijzing/throw, heartbeat mapping+fail-open,
+> metrics-gauge-set+drift-gates). Resterend mensenwerk: niets extra (vult zichzelf zodra een echt register aanstaat). Gate: typecheck, lint,
+> prettier, targeted tests (719) groen · build → PR-gate.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — platform-betaaltermijn-benchmark op de betaalreputatie (2026-08-22, PR #1199)** —
 > de betaalreputatie-kaart op `/verplichtingen` (`PaymentReputationCard`) toonde de eigen gemiddelde betaaltijd, maar
 > zette die tegen niets af (abstract getal). Nu een concrete benchmark tegen de standaard betaaltermijn (30 dagen):

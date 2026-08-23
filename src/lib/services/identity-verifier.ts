@@ -1,4 +1,5 @@
 import { verifyViaHttp, type VerifyEndpointConfig } from "@/lib/services/http-verify";
+import { RecordingIdentityVerifier } from "@/lib/services/recording-verifier";
 
 // Identiteitsverificatie achter een schone service-grens.
 //
@@ -87,7 +88,10 @@ export interface IdentityVerifier {
 }
 
 export function getIdentityVerifier(): IdentityVerifier {
-  return process.env.IDENTITY_VERIFIER === "idin"
-    ? new IdinIdentityVerifier()
-    : new MockIdentityVerifier();
+  // Alleen de echte iDIN-koppeling krijgt de aflever-heartbeat (dead-man's-switch): de mock doet geen
+  // externe call en is geen productie-kanaal.
+  if (process.env.IDENTITY_VERIFIER === "idin") {
+    return new RecordingIdentityVerifier(new IdinIdentityVerifier(), "idin");
+  }
+  return new MockIdentityVerifier();
 }

@@ -57,6 +57,7 @@ import { getBackupFreshness } from "@/lib/observability/backup-heartbeat";
 import { getMailDeliveryFreshness } from "@/lib/observability/mail-delivery-heartbeat";
 import { getPushDeliveryFreshness } from "@/lib/observability/push-delivery-heartbeat";
 import { getBillingDeliveryFreshness } from "@/lib/observability/billing-delivery-heartbeat";
+import { getVerificationDeliveryOverview } from "@/lib/observability/verification-delivery-heartbeat";
 import { getWebhookAuthFreshness } from "@/lib/observability/billing-webhook-auth-heartbeat";
 import { getStorageDeliveryFreshness } from "@/lib/observability/storage-delivery-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
@@ -526,15 +527,18 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
-  const [cron, backup, mail, push, storage, billing, webhookAuth] = await Promise.all([
-    getCronFreshness(undefined, now),
-    getBackupFreshness(now),
-    getMailDeliveryFreshness(now),
-    getPushDeliveryFreshness(now),
-    getStorageDeliveryFreshness(now),
-    getBillingDeliveryFreshness(now),
-    getWebhookAuthFreshness(now),
-  ]);
+  const [cron, backup, mail, push, storage, billing, webhookAuth, verification] = await Promise.all(
+    [
+      getCronFreshness(undefined, now),
+      getBackupFreshness(now),
+      getMailDeliveryFreshness(now),
+      getPushDeliveryFreshness(now),
+      getStorageDeliveryFreshness(now),
+      getBillingDeliveryFreshness(now),
+      getWebhookAuthFreshness(now),
+      getVerificationDeliveryOverview(now),
+    ],
+  );
 
   return {
     dbReachable,
@@ -561,6 +565,9 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     billingWebhookAuthOk: webhookAuth.status !== "failing",
     billingWebhookAuthConsecutiveFailures: webhookAuth.consecutiveFailures,
     billingWebhookAuthLastFailureAgeSeconds: webhookAuth.failureAgeSeconds,
+    verificationDeliveryOk: verification.aggregate.status !== "failing",
+    verificationDeliveryConsecutiveFailures: verification.aggregate.consecutiveFailures,
+    verificationDeliveryLastFailureAgeSeconds: verification.aggregate.failureAgeSeconds,
     verificationQueue,
     verificationQueueOldestAgeSeconds,
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),

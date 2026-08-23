@@ -4,6 +4,7 @@ import {
   getDiplomaVerifier,
   MockDiplomaVerifier,
 } from "@/lib/services/diploma-verifier";
+import { RecordingDiplomaVerifier } from "@/lib/services/recording-verifier";
 
 describe("MockDiplomaVerifier", () => {
   const v = new MockDiplomaVerifier();
@@ -41,10 +42,11 @@ describe("getDiplomaVerifier", () => {
     process.env.DIPLOMA_VERIFIER = original;
   });
 
-  it("kiest mock standaard en duo bij env", () => {
+  it("kiest mock standaard en de echte DUO-verifier (met aflever-heartbeat-decorator) bij env", () => {
     delete process.env.DIPLOMA_VERIFIER;
     expect(getDiplomaVerifier()).toBeInstanceOf(MockDiplomaVerifier);
     process.env.DIPLOMA_VERIFIER = "duo";
-    expect(getDiplomaVerifier()).toBeInstanceOf(DuoDiplomaVerifier);
+    // De echte koppeling wordt in de aflever-heartbeat-decorator gewrapt (dead-man's-switch).
+    expect(getDiplomaVerifier()).toBeInstanceOf(RecordingDiplomaVerifier);
   });
 });
