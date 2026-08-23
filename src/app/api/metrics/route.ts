@@ -60,6 +60,7 @@ import { getBillingDeliveryFreshness } from "@/lib/observability/billing-deliver
 import { getVerificationDeliveryOverview } from "@/lib/observability/verification-delivery-heartbeat";
 import { getWebhookAuthFreshness } from "@/lib/observability/billing-webhook-auth-heartbeat";
 import { getStorageDeliveryFreshness } from "@/lib/observability/storage-delivery-heartbeat";
+import { getRateLimitDeliveryFreshness } from "@/lib/observability/ratelimit-delivery-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { waitingSince } from "@/lib/verification-queue";
 import {
@@ -527,8 +528,8 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
-  const [cron, backup, mail, push, storage, billing, webhookAuth, verification] = await Promise.all(
-    [
+  const [cron, backup, mail, push, storage, billing, webhookAuth, verification, rateLimit] =
+    await Promise.all([
       getCronFreshness(undefined, now),
       getBackupFreshness(now),
       getMailDeliveryFreshness(now),
@@ -537,8 +538,8 @@ async function collectInput(now: Date): Promise<MetricsInput> {
       getBillingDeliveryFreshness(now),
       getWebhookAuthFreshness(now),
       getVerificationDeliveryOverview(now),
-    ],
-  );
+      getRateLimitDeliveryFreshness(now),
+    ]);
 
   return {
     dbReachable,
@@ -568,6 +569,9 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     verificationDeliveryOk: verification.aggregate.status !== "failing",
     verificationDeliveryConsecutiveFailures: verification.aggregate.consecutiveFailures,
     verificationDeliveryLastFailureAgeSeconds: verification.aggregate.failureAgeSeconds,
+    rateLimitDeliveryOk: rateLimit.status !== "failing",
+    rateLimitDeliveryConsecutiveFailures: rateLimit.consecutiveFailures,
+    rateLimitDeliveryLastFailureAgeSeconds: rateLimit.failureAgeSeconds,
     verificationQueue,
     verificationQueueOldestAgeSeconds,
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),

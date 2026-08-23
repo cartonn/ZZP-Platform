@@ -53,6 +53,9 @@ export const INFO_ONLY_METRICS: ReadonlySet<string> = new Set([
   // Rauwe leeftijd van de laatste verificatie-register-mislukking; de alarmeerbare conditie zit in
   // zzp_verification_consecutive_failures / zzp_verification_delivery_ok (event-gedreven, geen staleness-op-leeftijd).
   "zzp_verification_last_failure_age_seconds",
+  // Rauwe leeftijd van de laatste rate-limit-store-mislukking; de alarmeerbare conditie zit in
+  // zzp_ratelimit_consecutive_failures / zzp_ratelimit_delivery_ok (event-gedreven, geen staleness-op-leeftijd).
+  "zzp_ratelimit_last_failure_age_seconds",
 ]);
 
 /**
@@ -110,6 +113,9 @@ const SAMPLE_INPUT: MetricsInput = {
   verificationDeliveryOk: true,
   verificationDeliveryConsecutiveFailures: 0,
   verificationDeliveryLastFailureAgeSeconds: null,
+  rateLimitDeliveryOk: true,
+  rateLimitDeliveryConsecutiveFailures: 0,
+  rateLimitDeliveryLastFailureAgeSeconds: null,
 };
 
 /** De canonieke set gauge-namen die /api/metrics daadwerkelijk exposeert (uit `buildMetrics`). */

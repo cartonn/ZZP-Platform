@@ -392,6 +392,22 @@ export interface MetricsInput {
   verificationDeliveryConsecutiveFailures: number;
   /** Leeftijd van de meest recente register-mislukking in seconden, of null als er nooit één was. */
   verificationDeliveryLastFailureAgeSeconds: number | null;
+  /**
+   * Accepteert de gedeelde rate-limit-store (Upstash, RATE_LIMIT_STORE=upstash) onze operaties nog? true = de
+   * laatste consume slaagde (of er is er nog nooit één geweest — neutraal gezond), false = de store wijst
+   * systematisch af. De rate-limiter beschermt login/registratie/wachtwoordherstel tegen brute-force; de
+   * Upstash-store is FAIL-OPEN, dus een aanhoudende storing zet die bescherming STIL uit over alle instances.
+   * Event-gedreven; het alarm zit op OPEENVOLGENDE mislukkingen. Zonder gedeelde store (in-memory default)
+   * blijft dit "ok/never".
+   */
+  rateLimitDeliveryOk: boolean;
+  /**
+   * Aantal opeenvolgende mislukte rate-limit-store-operaties sinds de laatste geslaagde (0 als ok of nog nooit
+   * een operatie). Een monitor paget op een AANHOUDENDE storing, niet op één transiënte fout.
+   */
+  rateLimitDeliveryConsecutiveFailures: number;
+  /** Leeftijd van de meest recente rate-limit-store-mislukking in seconden, of null als er nooit één was. */
+  rateLimitDeliveryLastFailureAgeSeconds: number | null;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -713,6 +729,24 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: `Leeftijd van de meest recente mislukte verificatie-register-operatie in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_verification_consecutive_failures / zzp_verification_delivery_ok.`,
       type: "gauge",
       value: age(input.verificationDeliveryLastFailureAgeSeconds),
+    },
+    {
+      name: "zzp_ratelimit_delivery_ok",
+      help: "1 als de laatste operatie tegen de gedeelde rate-limit-store (Upstash, RATE_LIMIT_STORE=upstash) slaagde (of er nog nooit één was — neutraal gezond), 0 als de store systematisch afwijst. De rate-limiter beschermt login/registratie/wachtwoordherstel tegen brute-force; de Upstash-store is FAIL-OPEN, dus een afwijzende store zet die bescherming stil uit over alle instances. Zonder gedeelde store (in-memory default) registreert niets → blijft 1.",
+      type: "gauge",
+      value: flag(input.rateLimitDeliveryOk),
+    },
+    {
+      name: "zzp_ratelimit_consecutive_failures",
+      help: "Aantal opeenvolgende mislukte rate-limit-store-operaties sinds de laatste geslaagde (0 = store ok of nog nooit een operatie). Alarmeer op een AANHOUDENDE teller (verlopen/ingetrokken REST-token, verwijderde database, verkeerde URL, regio-storing), niet op één transiënte fout.",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.rateLimitDeliveryConsecutiveFailures)),
+    },
+    {
+      name: "zzp_ratelimit_last_failure_age_seconds",
+      help: `Leeftijd van de meest recente mislukte rate-limit-store-operatie in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_ratelimit_consecutive_failures / zzp_ratelimit_delivery_ok.`,
+      type: "gauge",
+      value: age(input.rateLimitDeliveryLastFailureAgeSeconds),
     },
   ];
 }

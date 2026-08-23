@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-23c — Prod: rate-limit-store aflever-heartbeat (dead-man's-switch)
+
+**Wat:** Completeert de dead-man's-switch-familie. De gedeelde rate-limit-store (Upstash Redis REST,
+`RATE_LIMIT_STORE=upstash`) was het **laatste fail-open** externe productie-kernkanaal zonder doorlopend
+afleversignaal. `UpstashRateLimitStore.consume()` fail-opent stil bij een Redis-storing → de brute-force-/
+misbruikbescherming op login/registratie/wachtwoordherstel valt onopgemerkt weg over alle instances.
+
+**Fix:** elke `consume()` via de échte Upstash-store registreert haar uitkomst in een nieuwe
+`RateLimitDeliveryHeartbeat` (in-memory default registreert niets). Event-gedreven oordeel op de laatste
+operatie; **success-coalescing** (`RATELIMIT_HEARTBEAT_COALESCE_MS`, default 15s) houdt de auth-hot-path
+vrij van een DB-write per verzoek, mislukkingen worden altijd direct vastgelegd, herstel schrijft meteen.
+Admin-kaart "Rate-limit-store" op `/admin/systeemstatus`; gauges `zzp_ratelimit_delivery_ok`/
+`zzp_ratelimit_consecutive_failures`/`zzp_ratelimit_last_failure_age_seconds` op `/api/metrics`; alert
+`ZzpRateLimitStoreDeliveryFailing` (`==0 and >=3`, `for:15m`) + onderhouds-inhibitie.
+
+**Bestanden:** `prisma/schema.prisma` (model), `src/lib/observability/ratelimit-delivery-freshness.ts`
+(+test), `src/lib/observability/ratelimit-delivery-heartbeat.ts` (+test), `src/lib/rate-limit.ts` (+test-
+wiring), `src/lib/observability/metrics.ts` (+3 gauges), `src/app/api/metrics/route.ts`,
+`src/components/admin/ratelimit-delivery-heartbeat-card.tsx`, `.../admin/systeemstatus/page.tsx`,
+`src/lib/observability/alerts-rules.ts`, `docs/observability/alerts.yml` + `alertmanager.yml`, MENSENWERK §0b.
+
+**Tests:** volledige gate lokaal groen — typecheck 0, lint clean, prettier `--check .` clean, build compiled
+(2.7min), vitest **6768 passed (649 files)**. Nieuwe suites: ratelimit-delivery-freshness (11), -heartbeat
+(coalescing/fail-open/read), rate-limit wiring-asserts, metrics/alerts-rules/monitoring-bundle drift groen.
+PR #1209.
+
 ## 2026-08-23b — Security/privacy: annuleerreden overleefde AVG-erasure (HOOG)
 
 **Wat:** Security-/privacy-auditronde (basis `main` @ 57790fa6). Eén HOOG AVG-gat gevonden én gedicht —
