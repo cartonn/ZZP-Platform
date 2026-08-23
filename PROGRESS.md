@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-23 — Bemiddelaar: operations-agenda (.ics)
+
+**Wat:** De agenda-export (.ics) leverde tot nu toe niets voor de FRANCHISER-rol (`/api/agenda` +
+`user-deadlines.ts`: "bemiddelaar/admin krijgen niets"). Toch plant een bemiddelaar volledig rond twee
+roster-feiten die zijn oversight-cockpit al toont: **aflopende plaatsingen** (verlengvenster) en
+**verlopende rostercertificaten** (inzetbaarheid). Nu een sessie-geauthenticeerde `.ics`-download op
+`/franchise/samenwerkingen` (knop "Agenda (.ics)" in de kop) die beide als gehele-dag-events met
+herinneringen (plaatsing 14 dagen vooraf; certificaat 30 + 7 dagen vooraf) in de eigen agenda-app zet.
+Benchmark Temper/Zorgwerk (shifts in je agenda), maar dan op operationeel roster-niveau voor de coördinator.
+
+**Hoe:** Nieuwe pure mapper `brokerAgendaEvents` (`src/lib/franchise/agenda.ts`) → `IcsEvent[]`, gevoed
+door `buildIcsCalendar` (ics.ts). Server-side loader `loadBrokerAgenda` (`src/lib/data/franchise-agenda.ts`)
+doet twee tenant-gescoopte, take-begrensde queries: ACTIEVE niet-betwiste samenwerkingen met een
+toekomstige einddatum (via `job.tenantId`, zoals de samenwerkingen-cockpit) + VERIFIED rostercertificaten
+met een toekomstige verloopdatum (via `freelancerProfile.tenantId`). Bemiddelaar zonder tenant →
+fail-closed lege agenda. Route `/franchise/agenda` (requireActor + rol FRANCHISER, rate-limit, AVG-audit
+`FRANCHISE_AGENDA_EXPORTED`). Bewust ALLEEN sessie-download (geen publieke token-feed), geen bedragen in
+de events — alleen namen die de bemiddelaar in zijn cockpit al beheert. Puur read-only, geen schema-/
+mutatie-/domeinmotor-oppervlak.
+
+**Bestanden:** `src/lib/franchise/agenda.ts` (+ `.test.ts`, 6 tests), `src/lib/data/franchise-agenda.ts`,
+`src/app/(protected)/franchise/agenda/route.ts`, `src/app/(protected)/franchise/samenwerkingen/page.tsx`,
+`src/lib/audit-labels.ts` (nieuw label).
+
+**Gate:** typecheck ✓ · lint ✓ · test (agenda 6, franchise+calendar+audit-drift 408) ✓ · build ✓ · prettier ✓.
+
+---
+
 ## 2026-08-23 — Opdrachtgever: tarief-diagnose op het opdracht-detail
 
 **Wat:** De concrete tarief-diagnose ("Je biedt tot €X/u, terwijl het markttarief rond €Y/u ligt")

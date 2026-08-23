@@ -119,6 +119,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   TENANT_FEES_EXPORTED: "Bemiddelingsfees geëxporteerd",
   TENANT_COMPANY_BREAKDOWN_EXPORTED: "Opdrachtgever-uitsplitsing geëxporteerd",
   ROSTER_EXPORTED: "Roster geëxporteerd",
+  FRANCHISE_AGENDA_EXPORTED: "Roosteragenda geëxporteerd",
 
   // Certificaten & documenten
   CREDENTIAL_CREATED: "Certificaat aangemaakt",
