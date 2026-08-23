@@ -165,6 +165,68 @@ describe("buildImportPreview", () => {
     expect(row.issues.some((i) => i.field === "website")).toBe(false);
   });
 
+  const kvkHeader = "naam;email;rol;bedrijfsnaam;kvk;btw";
+
+  it("normaliseert een geldig KvK- en BTW-nummer (zelfde bron als het formulier)", () => {
+    const csv = [
+      kvkHeader,
+      "Zorgburo;info@zorgburo.nl;Opdrachtgever;Zorgburo Noord;1234 5678;nl123456789b01",
+    ].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.kvkNumber).toBe("12345678");
+    expect(row.btwNumber).toBe("NL123456789B01");
+    expect(row.importable).toBe(true);
+    expect(row.issues.some((i) => i.field === "kvkNumber" || i.field === "btwNumber")).toBe(false);
+  });
+
+  it("ongeldig KvK-nummer → waarschuwing + gedropt, rij blijft importeerbaar", () => {
+    const csv = [
+      kvkHeader,
+      "Anna;a@example.nl;ZZP'er;;12ab;", // 12ab is geen 8-cijferig KvK
+    ].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.kvkNumber).toBeNull();
+    expect(row.issues.some((i) => i.level === "warning" && i.field === "kvkNumber")).toBe(true);
+    expect(row.importable).toBe(true);
+  });
+
+  it("ongeldig BTW-id → waarschuwing + gedropt, rij blijft importeerbaar", () => {
+    const csv = [kvkHeader, "Anna;a@example.nl;ZZP'er;;;NIETVALIDE"].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.btwNumber).toBeNull();
+    expect(row.issues.some((i) => i.level === "warning" && i.field === "btwNumber")).toBe(true);
+    expect(row.importable).toBe(true);
+  });
+
+  it("te lange naam is een fout (niet importeerbaar, max 120)", () => {
+    const longName = "a".repeat(121);
+    const csv = [header, `${longName};a@example.nl;ZZP'er;;;`].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.issues.some((i) => i.level === "error" && i.field === "name")).toBe(true);
+    expect(row.importable).toBe(false);
+  });
+
+  it("te lange bedrijfsnaam is een fout (niet importeerbaar, max 160)", () => {
+    const longCompany = "b".repeat(161);
+    const csv = [header, `Bedrijf;x@example.nl;Opdrachtgever;${longCompany};;`].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.issues.some((i) => i.level === "error" && i.field === "companyName")).toBe(true);
+    expect(row.importable).toBe(false);
+  });
+
+  it("te lange headline/locatie → waarschuwing + afgekapt op 120, rij blijft importeerbaar", () => {
+    const longText = "c".repeat(200);
+    const csv = [
+      "naam;email;rol;functie;locatie",
+      `Anna;a@example.nl;ZZP'er;${longText};${longText}`,
+    ].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.headline).toHaveLength(120);
+    expect(row.location).toHaveLength(120);
+    expect(row.issues.filter((i) => i.level === "warning").length).toBeGreaterThanOrEqual(2);
+    expect(row.importable).toBe(true);
+  });
+
   it("leeg bestand → lege preview", () => {
     expect(buildImportPreview("").summary.total).toBe(0);
     expect(buildImportPreview(header).summary.total).toBe(0);

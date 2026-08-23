@@ -9,6 +9,16 @@
 import { z } from "zod";
 import { escapeCsvField, parseCsvRecords, detectDelimiter } from "@/lib/csv";
 import { httpUrl } from "@/lib/validation";
+import { isValidKvk, normalizeKvk, isValidBtwId, normalizeBtwId } from "@/lib/fiscal";
+
+// Veldgrenzen — één bron van waarheid met de canonieke Zod-schema's in `validation.ts`
+// (`registerSchema`/`freelancerProfileSchema`): naam ≤120, bedrijfsnaam ≤160, headline/locatie ≤120.
+// De bulk-import is het enige mutatiepad dat NIET door die schema's loopt; zonder deze grenzen kan een
+// CSV-cel een onbegrensde naam of een ongeldig/ongenormaliseerd KvK-/BTW-nummer de DB in schrijven —
+// een tweede, zwakkere waarheidsbron (CLAUDE.md regel 2/6). Geen XSS (JSX escapet), wel data-integriteit.
+const NAME_MAX = 120;
+const COMPANY_NAME_MAX = 160;
+const TEXT_MAX = 120; // headline + locatie
 
 // Her-export zodat bestaande importers (de admin-import-actie + tests) dit pad blijven gebruiken.
 export { parseCsvRecords, detectDelimiter };
@@ -186,6 +196,57 @@ function parseHourlyRate(raw: string, issues: ImportIssue[]): number | null {
 }
 
 /**
+ * Valideert + normaliseert een KvK-nummer via dezelfde bron van waarheid als het handmatige
+ * profielformulier (`isValidKvk`/`normalizeKvk`). Een ongeldige waarde blokkeert de onboarding niet:
+ * waarschuwen en droppen (net als een onleesbaar uurtarief of een kapotte website) — het KvK-veld is
+ * optioneel. Een geldige waarde wordt genormaliseerd (spaties/punten weg) zodat de import dezelfde
+ * canonieke vorm oplevert als het formulier.
+ */
+function parseKvk(raw: string, issues: ImportIssue[]): string | null {
+  if (!raw) return null;
+  if (!isValidKvk(raw)) {
+    issues.push({
+      level: "warning",
+      field: "kvkNumber",
+      message: `KvK-nummer "${raw}" is ongeldig (8 cijfers) — overgeslagen.`,
+    });
+    return null;
+  }
+  return normalizeKvk(raw);
+}
+
+/** Idem voor het BTW-id (`isValidBtwId`/`normalizeBtwId`). Ongeldig → waarschuwen en droppen. */
+function parseBtw(raw: string, issues: ImportIssue[]): string | null {
+  if (!raw) return null;
+  if (!isValidBtwId(raw)) {
+    issues.push({
+      level: "warning",
+      field: "btwNumber",
+      message: `BTW-id "${raw}" is ongeldig (bijv. NL123456789B01) — overgeslagen.`,
+    });
+    return null;
+  }
+  return normalizeBtwId(raw);
+}
+
+/**
+ * Optioneel cosmetisch tekstveld (headline/locatie) begrensd tot `max` tekens (spiegelt
+ * `optionalText(120)`). Te lang → waarschuwen en afkappen i.p.v. de rij blokkeren.
+ */
+function capText(raw: string, max: number, field: string, issues: ImportIssue[]): string | null {
+  if (!raw) return null;
+  if (raw.length > max) {
+    issues.push({
+      level: "warning",
+      field,
+      message: `Veld "${field}" is te lang (max ${max} tekens) — afgekapt.`,
+    });
+    return raw.slice(0, max);
+  }
+  return raw;
+}
+
+/**
  * Bouwt het importvoorstel uit ruwe CSV-tekst (alleen formaatvalidatie; DB-checks doet de server).
  * Lege bestanden of bestanden zonder herkende verplichte kolommen leveren een lege preview met
  * een uitleg in de eerste (virtuele) rij niet — die fout meldt de server-laag aan de gebruiker.
@@ -219,6 +280,12 @@ export function buildImportPreview(text: string): ImportPreview {
 
     if (name.length < 2)
       issues.push({ level: "error", field: "name", message: "Naam ontbreekt of is te kort." });
+    else if (name.length > NAME_MAX)
+      issues.push({
+        level: "error",
+        field: "name",
+        message: `Naam is te lang (max ${NAME_MAX} tekens).`,
+      });
 
     let email = "";
     const emailParsed = emailSchema.safeParse(emailRaw);
@@ -261,6 +328,12 @@ export function buildImportPreview(text: string): ImportPreview {
         field: "companyName",
         message: "Bedrijfsnaam is verplicht voor een opdrachtgever.",
       });
+    } else if (companyName && companyName.length > COMPANY_NAME_MAX) {
+      issues.push({
+        level: "error",
+        field: "companyName",
+        message: `Bedrijfsnaam is te lang (max ${COMPANY_NAME_MAX} tekens).`,
+      });
     }
 
     const hourlyRate = parseHourlyRate(get(rec, "hourlyRate"), issues);
@@ -273,11 +346,11 @@ export function buildImportPreview(text: string): ImportPreview {
       email,
       role,
       companyName,
-      headline: get(rec, "headline") || null,
+      headline: capText(get(rec, "headline"), TEXT_MAX, "headline", issues),
       hourlyRate,
-      location: get(rec, "location") || null,
-      kvkNumber: get(rec, "kvkNumber") || null,
-      btwNumber: get(rec, "btwNumber") || null,
+      location: capText(get(rec, "location"), TEXT_MAX, "location", issues),
+      kvkNumber: parseKvk(get(rec, "kvkNumber"), issues),
+      btwNumber: parseBtw(get(rec, "btwNumber"), issues),
       website: parseWebsite(get(rec, "website"), issues),
       skills,
       issues,

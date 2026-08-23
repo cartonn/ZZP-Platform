@@ -64,10 +64,20 @@ export function buildChainSteps(col: {
   }
   steps.push({ label: "Prestatie", status: perfStatus, detail: perfDetail });
 
-  // Stap 3: Factuur — beoordeel de factuur van de HUIDIGE cyclus. Een vorige-cyclus-factuur wordt
-  // genuld zodra de nieuwste prestatie nieuwer is (spiegelt `inv` in stage.ts); zo maskeert een
-  // betaalde cyclus-1-factuur nooit de verse, nog te factureren cyclus-2-uren.
-  const inv = col.performanceNewerThanInvoice ? null : (col.invoices[0]?.lifecycleStatus ?? null);
+  // Stap 3: Factuur — beoordeel de relevante factuur. Een vorige-cyclus-factuur wordt alleen genuld
+  // wanneer die AFGEWIKKELD is (PAID/PROCESSED/CREDITED) én de nieuwste prestatie nieuwer is; zo
+  // maskeert een betaalde cyclus-1-factuur nooit de verse, nog te factureren cyclus-2-uren. Een
+  // vorige-cyclus-factuur die nog een OPEN actie heeft (SUBMITTED/APPROVED/OVERDUE/REJECTED/DRAFT)
+  // blijft zichtbaar: die is nog niet afgewikkeld en de status-line op hetzelfde scherm toont er via
+  // `priorCyclePhase` (stage.ts) óók de actie voor ("corrigeer de afgekeurde factuur" / "keur de
+  // factuur"). Zonder deze uitzondering viel zo'n open factuur door naar de "Volgt na goedkeuring
+  // prestatie"-default en sprak de stepper de status-line tegen (een kalme, foutloze flow terwijl er
+  // geld openstaat). De stepper is viewer-agnostisch: hij toont de objectieve keten-toestand, niet
+  // wie er aan zet is — dus dit blijft correct voor zowel de ZZP'er als de opdrachtgever.
+  const latestInv = col.invoices[0]?.lifecycleStatus ?? null;
+  const priorInvoiceSettled =
+    latestInv === "PAID" || latestInv === "PROCESSED" || latestInv === "CREDITED";
+  const inv = col.performanceNewerThanInvoice && priorInvoiceSettled ? null : latestInv;
   let invStatus: ChainStepStatus = "waiting";
   let invDetail = "Volgt na goedkeuring prestatie";
   if (inv === "PAID" || inv === "PROCESSED") {

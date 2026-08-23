@@ -250,6 +250,91 @@ describe("buildChainSteps — multi-cyclus (regressie: cyclus-1 factuur maskeert
   });
 });
 
+describe("buildChainSteps — multi-cyclus (regressie: NIET-afgewikkelde vorige-cyclus-factuur blijft zichtbaar)", () => {
+  // Een vorige-cyclus-factuur die nog een OPEN actie heeft mag NIET worden gemaskeerd zodra de ZZP'er
+  // verse uren indient — anders toont de stepper een kalme, foutloze flow terwijl de status-line op
+  // hetzelfde scherm de openstaande factuuractie toont (zichzelf tegensprekend scherm). Alleen een
+  // AFGEWIKKELDE (PAID/PROCESSED/CREDITED) factuur wordt genuld.
+  it("vorige REJECTED-factuur + verse cyclus-2 DRAFT → Factuur=error (niet gemaskeerd)", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "DRAFT" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "REJECTED" }],
+        true,
+      ),
+    );
+    expect(steps[2]!.status).toBe("error");
+    expect(steps[2]!.detail).toBe("Afgekeurd");
+  });
+
+  it("vorige APPROVED-factuur + verse cyclus-2 uren → Betaling=active (wachten op betaling)", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "SUBMITTED" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "APPROVED" }],
+        true,
+      ),
+    );
+    expect(steps[2]!.status).toBe("active");
+    expect(steps[3]!.status).toBe("active");
+    expect(steps[3]!.detail).toBe("Wachten op betaling");
+  });
+
+  it("vorige OVERDUE-factuur + verse cyclus-2 uren → Factuur=error, Betaling te laat", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "DRAFT" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "OVERDUE" }],
+        true,
+      ),
+    );
+    expect(steps[2]!.status).toBe("error");
+    expect(steps[3]!.detail).toBe("Wachten op betaling — te laat");
+  });
+
+  it("vorige SUBMITTED-factuur + verse cyclus-2 uren → Factuur=active (ter goedkeuring)", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "DRAFT" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "SUBMITTED" }],
+        true,
+      ),
+    );
+    expect(steps[2]!.status).toBe("active");
+    expect(steps[2]!.detail).toBe("Ter goedkeuring");
+  });
+
+  it("vorige DRAFT-factuur + verse cyclus-2 uren → Factuur=active (concept, niet gemaskeerd)", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "DRAFT" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "DRAFT" }],
+        true,
+      ),
+    );
+    expect(steps[2]!.status).toBe("active");
+    expect(steps[2]!.detail).toContain("Concept");
+  });
+
+  it("vorige CREDITED-factuur (afgewikkeld) + verse uren → wél genuld (geen maskering van cyclus 2)", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "DRAFT" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "CREDITED" }],
+        true,
+      ),
+    );
+    expect(steps[2]!.status).toBe("waiting"); // afgewikkeld → geen huidige-cyclus-factuur
+    expect(steps[2]!.detail).not.toBe("Gecrediteerd");
+  });
+});
+
 describe("buildChainSteps — altijd 4 stappen", () => {
   it("geeft precies 4 stappen terug", () => {
     expect(buildChainSteps(col("PROPOSED"))).toHaveLength(4);

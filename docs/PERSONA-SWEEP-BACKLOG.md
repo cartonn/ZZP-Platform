@@ -1,5 +1,47 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-23 (run 88) · **main-commit basis:** `84ac27d3`
+> **Uitkomst:** **2 defecten gevonden én gefixt** (1× data-integriteit/validatie-consistentie should-fix in de
+> bulk-CSV-import; 1× screen-consistentie should-fix in de Voortgang-stepper `chain-steps.ts`). 3 parallelle
+> adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie · cascade/geld-integriteit
+>
+> - next-action-engine · malicieuze input/CSV/XSS/upload). De authz/IDOR-audit (delta sinds de laatste schone
+>   checkpoint `c68420e0` t/m `84ac27d3`, 57 bestanden: AVG-erasure-fix #1201, billing-webhook-auth-heartbeat,
+>   `/api/metrics` cron-gated, verifier-decorators, systeemstatus-kaarten) vond **0 nieuwe bereikbare gaten**; de
+>   malicieuze-input-audit vond **0** buiten de CSV-import (CSV-export-kern, XSS, upload-scan, money/hours-bounds
+>   geverifieerd schoon). Live Playwright niet gedraaid (Google-Fonts-host niet in de proxy-allowlist → `next/font`
+>   faalt lokaal met ECONNRESET; e2e draait in CI met font-toegang) — audits waren de vind-route.
+>
+> * **OPGELOST — should-fix: bulk-CSV-import (`/admin/import`) omzeilde de canonieke Zod-veldvalidatie
+>   (data-integriteit/validatie-consistentie, CLAUDE.md regel 2/6):** `buildImportPreview`
+>   (`src/lib/onboarding/import.ts`) bouwde de rij ad-hoc en liep NIET door `registerSchema`/
+>   `freelancerProfileSchema` (de enige-bron-van-waarheid overal elders). Concreet ongevalideerd:
+>   `kvkNumber`/`btwNumber` (geen `isValidKvk`/`isValidBtwId`, geen normalisatie — elk ander pad doet dit),
+>   `name`/`companyName` (alleen min-lengte, geen bovengrens; canoniek 120/160), `headline`/`location` (geen
+>   bovengrens; canoniek 120). Enige admin-only mutatiepad dat de gedeelde keten omzeilde → een tweede, zwakkere
+>   waarheidsbron. **Niet XSS** (JSX escapet; CSV-exports via gedeelde `escapeCsvField`-kern), dus geen HIGH — wél
+>   een echte should-fix. **Fix:** `parseKvk`/`parseBtw`-helpers (spiegelen `parseWebsite`: ongeldig → waarschuwing
+>   - droppen, geldig → genormaliseerd), `capText` voor headline/locatie (te lang → waarschuwing + afkappen op 120),
+>     en te lange naam/bedrijfsnaam → fout (niet-importeerbaar, spiegelt de harde canonieke grens). +7 tests. De
+>     server-actie her-valideerde de website al defense-in-depth; KvK/BTW komen nu in canonieke vorm de DB in.
+> * **OPGELOST — should-fix: Voortgang-stepper (`buildChainSteps`) maskeerde een niet-afgewikkelde vorige-cyclus-
+>   factuur (DOEL 1b, screen-consistentie, CLAUDE.md regel 1):** `chain-steps.ts:70` nulde `inv` bij ELKE
+>   `performanceNewerThanInvoice`-situatie, dus zodra de ZZP'er verse cyclus-2-uren indiende terwijl de cyclus-1-
+>   factuur nog OPEN stond (REJECTED/DRAFT/SUBMITTED/APPROVED/OVERDUE), viel de Factuur-stap door naar de default
+>   "Volgt na goedkeuring prestatie" (waiting) en de Betaling-stap naar "waiting" — een kalme, foutloze flow terwijl
+>   de status-line op HETZELFDE scherm (via `priorCyclePhase`/`priorCycleFreelancerPhase` in `stage.ts`) de
+>   openstaande factuuractie toonde ("corrigeer de afgekeurde factuur" / "keur de factuur"). **Fix:** null `inv`
+>   alléén als de vorige-cyclus-factuur is AFGEWIKKELD (`PAID`/`PROCESSED`/`CREDITED`); een nog-open factuur blijft
+>   zichtbaar met haar echte status. Viewer-agnostisch (toont objectieve keten-toestand, niet wie aan zet is) → geen
+>   drift met de per-viewer status-line, en losgekoppeld van de `stage.ts`-herwerking in open PR #1192. +6 tests.
+> * **GEVONDEN — al in-flight (NIET opnieuw opgepakt, voorkomt merge-conflict): CLIENT ziet "niets te doen" terwijl
+>   een SUBMITTED vorige-cyclus-factuur op zijn goedkeuring wacht (`stage.ts`).** De cascade-`priorCycle`-rescue
+>   draaide alleen voor de ZZP'er (`isFreelancer && performanceNewerThanInvoice`); voor de opdrachtgever-viewer werd
+>   `inv` genuld en toonde de status-line "Je hoeft nu niets te doen" terwijl `/acties` de keur-taak wél toonde.
+>   **Dit is precies wat open PR #1192 (persona-sweep run 87) al fixt** (`priorCycleFreelancerPhase` →
+>   viewer-bewuste `priorCyclePhase(viewer, …)`). Zodra #1192 gemerged is, is deze bevinding gedekt; niet
+>   gedupliceerd om conflicten te vermijden.
+
 > **Datum:** 2026-08-22 (run 87) · **main-commit basis:** `1d6ab0f5`
 > **Uitkomst:** **3 next-action-/screen-consistentie-defecten gevonden én gefixt** (2× stepper-zelftegenspraak in
 > `chain-steps.ts` — should-fix, FREELANCER/CLIENT; 1× verkeerde partij-aan-zet-verwoording franchiser — nit).

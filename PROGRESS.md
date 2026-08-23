@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-23 — persona-sweep run 88: CSV-import-validatie + Voortgang-stepper vorige-cyclus
+
+**Wat:** Kritische-gebruiker-sweep (4 rollen) via 3 parallelle adversariële Opus-audits. **2 should-fix
+defecten gevonden én gefixt**; 1 bevinding al in-flight (#1192), 0 nieuwe authz/IDOR-gaten in de delta.
+
+1. **Bulk-CSV-import omzeilde de canonieke Zod-veldvalidatie** (`src/lib/onboarding/import.ts`): `kvkNumber`/
+   `btwNumber` ongevalideerd + ongenormaliseerd, `name`/`companyName`/`headline`/`location` zonder bovengrens —
+   het enige admin-only mutatiepad dat niet door `registerSchema`/`freelancerProfileSchema` liep (regel 2/6).
+   Fix: `parseKvk`/`parseBtw` (ongeldig → waarschuwing+droppen, geldig → genormaliseerd via `@/lib/fiscal`),
+   `capText` (headline/locatie afkappen op 120), naam/bedrijfsnaam te lang → fout. Geen XSS (JSX escapet).
+2. **Voortgang-stepper maskeerde een niet-afgewikkelde vorige-cyclus-factuur** (`src/lib/cascade/chain-steps.ts`):
+   `inv` werd bij elke `performanceNewerThanInvoice` genuld, ook als de vorige factuur nog OPEN stond
+   (REJECTED/DRAFT/SUBMITTED/APPROVED/OVERDUE) → kalme foutloze stepper terwijl de status-line de open actie
+   toonde. Fix: null alléén een AFGEWIKKELDE factuur (PAID/PROCESSED/CREDITED). Viewer-agnostisch, losgekoppeld
+   van de `stage.ts`-herwerking in #1192.
+
+**Bestanden:** `src/lib/onboarding/import.ts` (+ `.test.ts`, +7), `src/lib/cascade/chain-steps.ts`
+(+ `.test.ts`, +6), `docs/PERSONA-SWEEP-BACKLOG.md`, `PROGRESS.md`.
+**Checks:** typecheck · lint · test (unit) · prettier lokaal; build+e2e via CI-poort.
+
 ## 2026-08-23 — ZZP'er: onbenutte-beschikbaarheid signaal (idle capacity)
 
 **Wat:** Zet gedeclareerde beschikbaarheid om in een concreet "vul deze dagen"-signaal. Op
