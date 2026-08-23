@@ -4,6 +4,7 @@ import {
   IdinIdentityVerifier,
   MockIdentityVerifier,
 } from "@/lib/services/identity-verifier";
+import { RecordingIdentityVerifier } from "@/lib/services/recording-verifier";
 
 describe("MockIdentityVerifier", () => {
   const v = new MockIdentityVerifier();
@@ -43,6 +44,7 @@ describe("getIdentityVerifier", () => {
     delete process.env.IDENTITY_VERIFIER;
     expect(getIdentityVerifier()).toBeInstanceOf(MockIdentityVerifier);
     process.env.IDENTITY_VERIFIER = "idin";
-    expect(getIdentityVerifier()).toBeInstanceOf(IdinIdentityVerifier);
+    // De echte koppeling wordt in de aflever-heartbeat-decorator gewrapt (dead-man's-switch).
+    expect(getIdentityVerifier()).toBeInstanceOf(RecordingIdentityVerifier);
   });
 });

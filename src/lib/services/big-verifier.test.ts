@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { BigRegisterVerifier, getBigVerifier, MockBigVerifier } from "@/lib/services/big-verifier";
+import { RecordingBigVerifier } from "@/lib/services/recording-verifier";
 
 describe("MockBigVerifier", () => {
   const v = new MockBigVerifier();
@@ -39,6 +40,7 @@ describe("getBigVerifier", () => {
     delete process.env.BIG_VERIFIER;
     expect(getBigVerifier()).toBeInstanceOf(MockBigVerifier);
     process.env.BIG_VERIFIER = "bigregister";
-    expect(getBigVerifier()).toBeInstanceOf(BigRegisterVerifier);
+    // De echte koppeling wordt in de aflever-heartbeat-decorator gewrapt (dead-man's-switch).
+    expect(getBigVerifier()).toBeInstanceOf(RecordingBigVerifier);
   });
 });

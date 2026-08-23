@@ -12,6 +12,7 @@ import { getPushDeliveryFreshness } from "@/lib/observability/push-delivery-hear
 import { getStorageDeliveryFreshness } from "@/lib/observability/storage-delivery-heartbeat";
 import { getBillingDeliveryFreshness } from "@/lib/observability/billing-delivery-heartbeat";
 import { getWebhookAuthFreshness } from "@/lib/observability/billing-webhook-auth-heartbeat";
+import { getVerificationDeliveryOverview } from "@/lib/observability/verification-delivery-heartbeat";
 import { PageHeader } from "@/components/ui/page-header";
 import { SystemStatusPanel } from "@/components/admin/system-status-panel";
 import { CronHeartbeatCard } from "@/components/admin/cron-heartbeat-card";
@@ -21,6 +22,7 @@ import { PushDeliveryHeartbeatCard } from "@/components/admin/push-delivery-hear
 import { StorageDeliveryHeartbeatCard } from "@/components/admin/storage-delivery-heartbeat-card";
 import { BillingDeliveryHeartbeatCard } from "@/components/admin/billing-delivery-heartbeat-card";
 import { BillingWebhookAuthCard } from "@/components/admin/billing-webhook-auth-card";
+import { VerificationDeliveryHeartbeatCard } from "@/components/admin/verification-delivery-heartbeat-card";
 import { SelfTestSweep } from "@/components/admin/selftest-sweep";
 import { DbSelfTest } from "@/components/admin/db-selftest";
 import { StorageSelfTest } from "@/components/admin/storage-selftest";
@@ -63,6 +65,7 @@ export default async function SysteemstatusPage() {
   const storageDeliveryFreshness = await getStorageDeliveryFreshness();
   const billingDeliveryFreshness = await getBillingDeliveryFreshness();
   const webhookAuthFreshness = await getWebhookAuthFreshness();
+  const verificationDeliveryOverview = await getVerificationDeliveryOverview();
 
   return (
     <div className="space-y-6">
@@ -79,6 +82,7 @@ export default async function SysteemstatusPage() {
       <StorageDeliveryHeartbeatCard freshness={storageDeliveryFreshness} />
       <BillingDeliveryHeartbeatCard freshness={billingDeliveryFreshness} />
       <BillingWebhookAuthCard freshness={webhookAuthFreshness} />
+      <VerificationDeliveryHeartbeatCard overview={verificationDeliveryOverview} />
       <SelfTestSweep />
       <DbSelfTest provider={detectDbProvider(process.env.DATABASE_URL)} />
       <StorageSelfTest driverMode={env.STORAGE_DRIVER} />

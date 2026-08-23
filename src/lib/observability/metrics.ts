@@ -376,6 +376,22 @@ export interface MetricsInput {
   billingWebhookAuthConsecutiveFailures: number;
   /** Leeftijd van de laatste ongeldig-getekende webhook in seconden, of null als er nooit één was. */
   billingWebhookAuthLastFailureAgeSeconds: number | null;
+  /**
+   * Antwoorden de externe verificatie-registers (DUO/BIG/iDIN) nog? true = de laatste operatie van elk
+   * geconfigureerd register slaagde (of er is er nog nooit één geweest — neutraal gezond), false = ≥1
+   * register wijst systematisch af. Verificatie is de kern-differentiator; een verlopen/ingetrokken
+   * sleutel laat élke verify() stil mislukken. Pessimistisch geaggregeerd over de registers zodat een
+   * aanhoudende storing van één register niet wordt gemaskeerd door een ander. Event-gedreven; het alarm
+   * zit op OPEENVOLGENDE mislukkingen. Zonder geconfigureerd register (demo-verifier) blijft dit "ok/never".
+   */
+  verificationDeliveryOk: boolean;
+  /**
+   * Hoogste opeenvolgende-mislukkingen-teller over de falende registers sinds de laatste geslaagde operatie
+   * (0 als ok of nog nooit een operatie). Een monitor paget op een AANHOUDENDE storing, niet op één fout.
+   */
+  verificationDeliveryConsecutiveFailures: number;
+  /** Leeftijd van de meest recente register-mislukking in seconden, of null als er nooit één was. */
+  verificationDeliveryLastFailureAgeSeconds: number | null;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -679,6 +695,24 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: `Leeftijd van de laatste ongeldig-getekende betaal-webhook in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_billing_webhook_auth_consecutive_failures / zzp_billing_webhook_auth_ok.`,
       type: "gauge",
       value: age(input.billingWebhookAuthLastFailureAgeSeconds),
+    },
+    {
+      name: "zzp_verification_delivery_ok",
+      help: "1 als de laatste operatie van elk geconfigureerd extern verificatie-register (DUO/BIG/iDIN) slaagde (of er nog nooit één was — neutraal gezond), 0 als ≥1 register systematisch afwijst. Verificatie is de kern-differentiator; een verlopen/ingetrokken sleutel of register-storing laat élke verify() stil mislukken. Pessimistisch geaggregeerd over de registers. Zonder geconfigureerd register (demo-verifier) registreert niets → blijft 1.",
+      type: "gauge",
+      value: flag(input.verificationDeliveryOk),
+    },
+    {
+      name: "zzp_verification_consecutive_failures",
+      help: "Hoogste aantal opeenvolgende mislukkingen over de falende verificatie-registers sinds de laatste geslaagde operatie (0 = alle ok of nog nooit een operatie). Alarmeer op een AANHOUDENDE teller (verlopen sleutel/geschorst account/register-storing), niet op één transiënte fout.",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.verificationDeliveryConsecutiveFailures)),
+    },
+    {
+      name: "zzp_verification_last_failure_age_seconds",
+      help: `Leeftijd van de meest recente mislukte verificatie-register-operatie in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_verification_consecutive_failures / zzp_verification_delivery_ok.`,
+      type: "gauge",
+      value: age(input.verificationDeliveryLastFailureAgeSeconds),
     },
   ];
 }

@@ -50,6 +50,9 @@ export const INFO_ONLY_METRICS: ReadonlySet<string> = new Set([
   // Rauwe leeftijd van de laatste ongeldig-getekende betaal-webhook; de alarmeerbare conditie zit in
   // zzp_billing_webhook_auth_consecutive_failures / zzp_billing_webhook_auth_ok (event-gedreven).
   "zzp_billing_webhook_auth_last_failure_age_seconds",
+  // Rauwe leeftijd van de laatste verificatie-register-mislukking; de alarmeerbare conditie zit in
+  // zzp_verification_consecutive_failures / zzp_verification_delivery_ok (event-gedreven, geen staleness-op-leeftijd).
+  "zzp_verification_last_failure_age_seconds",
 ]);
 
 /**
@@ -104,6 +107,9 @@ const SAMPLE_INPUT: MetricsInput = {
   billingWebhookAuthOk: true,
   billingWebhookAuthConsecutiveFailures: 0,
   billingWebhookAuthLastFailureAgeSeconds: null,
+  verificationDeliveryOk: true,
+  verificationDeliveryConsecutiveFailures: 0,
+  verificationDeliveryLastFailureAgeSeconds: null,
 };
 
 /** De canonieke set gauge-namen die /api/metrics daadwerkelijk exposeert (uit `buildMetrics`). */

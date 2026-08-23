@@ -1534,6 +1534,27 @@ model BillingDeliveryHeartbeat {
   updatedAt           DateTime  @updatedAt
 }
 
+// Dead-man's-switch voor de uitgaande externe verificatie-registers (DUO-diploma's, BIG-register,
+// iDIN-identiteit; DIPLOMA_VERIFIER=duo / BIG_VERIFIER=bigregister / IDENTITY_VERIFIER=idin). Verificatie
+// is de KERN-differentiator van het platform, maar was — anders dan storage/mail/push/billing — het enige
+// productie-kernkanaal met een uitgaande externe call zonder doorlopend afleversignaal: een verlopen/
+// ingetrokken sleutel, een geschorst register-account of een register-storing laat élke verify() stil
+// mislukken; de ZZP'er kan zijn bewijsstuk dan niet laten verifiëren. Elke uitgaande operatie via een
+// écht register registreert hier haar uitkomst (via de Recording*Verifier-decorators); de mock-verifiers
+// (dev/demo default) doen dat bewust niet. Eén singleton-rij per register (channel). Bevat geen
+// persoonsgegevens — alleen tijdstippen, of de laatste operatie slaagde, het aantal opeenvolgende
+// mislukkingen en de driver-modus (nooit sleutels/endpoints/foutinhoud/gegevens van de houder).
+model VerificationDeliveryHeartbeat {
+  channel             String    @id // "verification-diploma" | "verification-big" | "verification-identity"
+  lastAttemptAt       DateTime
+  lastOk              Boolean
+  lastSuccessAt       DateTime?
+  lastFailureAt       DateTime?
+  consecutiveFailures Int       @default(0)
+  driver              String // register-driver bij de laatste poging: "duo" | "bigregister" | "idin"
+  updatedAt           DateTime  @updatedAt
+}
+
 // Idempotentie-grendel voor de betaal-webhook (/api/billing/webhook). Elke verwerkte
 // provider-ping wordt hier exact één keer vastgelegd op (provider, eventKey), waarbij
 // eventKey = "<paymentRef>:<status>". Een herspeeld of dubbel-afgeleverd event schendt de

@@ -1,4 +1,5 @@
 import { verifyViaHttp, type VerifyEndpointConfig } from "@/lib/services/http-verify";
+import { RecordingDiplomaVerifier } from "@/lib/services/recording-verifier";
 
 // Diploma-/certificaatverificatie achter een schone service-grens.
 //
@@ -81,7 +82,10 @@ export class DuoDiplomaVerifier implements DiplomaVerifier {
 }
 
 export function getDiplomaVerifier(): DiplomaVerifier {
-  return process.env.DIPLOMA_VERIFIER === "duo"
-    ? new DuoDiplomaVerifier()
-    : new MockDiplomaVerifier();
+  // Alleen de echte DUO-koppeling krijgt de aflever-heartbeat (dead-man's-switch): de mock doet geen
+  // externe call en is geen productie-kanaal.
+  if (process.env.DIPLOMA_VERIFIER === "duo") {
+    return new RecordingDiplomaVerifier(new DuoDiplomaVerifier(), "duo");
+  }
+  return new MockDiplomaVerifier();
 }

@@ -223,6 +223,26 @@ groups:
           summary: "Betaal-webhook-handtekening ongeldig"
           description: "Inkomende betaal-webhooks falen de handtekeningverificatie (zzp_billing_webhook_auth_ok=0, ≥3 opeenvolgende ongeldige handtekeningen). Vermoedelijk staat STRIPE_WEBHOOK_SECRET verkeerd of is hij geroteerd zonder de env bij te werken — dan worden alle webhooks genegeerd en blijven betaalde abonnementen op PENDING hangen. Controleer het webhook-secret in het Stripe-dashboard-endpoint tegen de env-secret. Zie MENSENWERK §3."
 
+      - alert: ZzpVerificationDeliveryFailing
+        # De uitgaande externe verificatie-registers (DUO-diploma's, BIG-register, iDIN-identiteit;
+        # DIPLOMA_VERIFIER=duo / BIG_VERIFIER=bigregister / IDENTITY_VERIFIER=idin) wijzen systematisch af:
+        # de laatste operatie van ≥1 register mislukte (zzp_verification_delivery_ok=0) én er zijn ≥3
+        # opeenvolgende mislukkingen. Verificatie is de KERN-differentiator van het platform. Verificaties
+        # zijn event-gedreven (geen staleness-op-leeftijd), dus de conditie zit op de teller, niet op
+        # ouderdom. Oorzaak meestal een verlopen/ingetrokken register-sleutel, een geschorst account of een
+        # register-storing — élke diploma-/BIG-/identiteitscontrole mislukt dan stil en de ZZP'er kan zijn
+        # bewijsstuk niet laten verifiëren. De ≥3-drempel + `for:` negeren één transiënte fout. Herstel wordt
+        # automatisch gewist zodra een operatie slaagt (of draai de Verificatie-adapters-zelftest op
+        # /admin/systeemstatus). Zonder geconfigureerd register (demo-verifier) vuurt deze alert per definitie
+        # niet. Zie MENSENWERK §4.
+        expr: zzp_verification_delivery_ok == 0 and zzp_verification_consecutive_failures >= 3
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Verificatie-register wijst af"
+          description: "Een extern verificatie-register (DUO/BIG/iDIN) levert niet meer (zzp_verification_delivery_ok=0, ≥3 opeenvolgende mislukkingen). Diploma-/BIG-/identiteitscontroles kunnen niet worden uitgevoerd — de ZZP'er kan zijn bewijsstuk niet laten verifiëren. Controleer de register-credentials (verlopen/ingetrokken sleutel, geschorst account) en het server-logboek (of Sentry). Zie MENSENWERK §4."
+
   - name: zzp-platform-stille-faal-backlogs
     rules:
       # Deze drie tellen werk dat een cron-run HAD moeten doen. De cron-heartbeat bewijst alleen DÁT de

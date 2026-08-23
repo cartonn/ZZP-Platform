@@ -182,6 +182,30 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   herhaling. Inert zolang een demo-verifier draait (raakt alleen de echte adapters). Resterend
   mensenwerk: **niets** — optioneel bij te stellen via `VERIFY_HTTP_TIMEOUT_MS`/`VERIFY_HTTP_RETRIES`.
 
+- **Verificatie-adapter aflever-heartbeat (dead-man's-switch)** (code-kant GEDAAN 2026-08-23): completeert
+  de dead-man's-switch-familie. Opslag/mail/push/billing (uitgaand + webhook-inkomend)/cron/back-up hadden
+  al een doorlopend afleversignaal; de externe verificatie-registers (DUO-diploma's, BIG-register,
+  iDIN-identiteit) — de **kern-differentiator** van het platform — waren het **enige productie-kernkanaal
+  met een uitgaande externe call zónder** zo'n signaal. De connectiviteitszelftest (`verify-selftest.ts`)
+  bewijst alleen bereikbaarheid vóór go-live (menselijke klik); een verlopen/ingetrokken register-sleutel,
+  een geschorst account of een register-storing laat élke `verify()` daarná stil mislukken — de upload-actie
+  vangt de fout af en toont een generieke melding, dus niemand merkt een AANHOUDENDE storing tot een ZZP'er
+  klaagt dat zijn diploma/BIG/identiteit niet te verifiëren is. Nu registreert elke uitgaande operatie via
+  een écht register haar uitkomst in een `VerificationDeliveryHeartbeat` (één rij per register), via
+  `Recording{Diploma,Big,Identity}Verifier`-decorators rond `get*Verifier()` (de mock-verifiers — dev/demo
+  default — registreren bewust niets, geen productie-kanaal). "Slagen" = het register **antwoordde** (ongeacht
+  of het bewijsstuk inhoudelijk `verified:true`/`false` was — een terecht afgewezen diploma is een geslaagde
+  aflevering); "mislukken" = de call wierp. Event-gedreven oordeel op de **laatste** operatie
+  (`never`/`ok`/`failing` + teller), pessimistisch geaggregeerd over de registers zodat een aanhoudende
+  storing van één register niet wordt gemaskeerd door een ander; fail-open registratie; nooit
+  sleutels/endpoints/foutinhoud/houdergegevens. Kaart "Verificatie-registers" op `/admin/systeemstatus`;
+  gauges `zzp_verification_delivery_ok`/`zzp_verification_consecutive_failures`/
+  `zzp_verification_last_failure_age_seconds` op `/api/metrics`; alert `ZzpVerificationDeliveryFailing`
+  (`==0 and >=3`, `for:15m`, warning) in `docs/observability/alerts.yml`, in de onderhouds-inhibitie.
+  Resterend mensenwerk: **niets extra** — de kaart/gauges vullen zichzelf zodra een echt register aanstaat
+  (`DIPLOMA_VERIFIER=duo` / `BIG_VERIFIER=bigregister` / `IDENTITY_VERIFIER=idin`) en de eerste verificatie
+  draait. Optioneel: richt een monitor op `ZzpVerificationDeliveryFailing`.
+
 - **Zoekmachine-indexering afgeschermd** (laag, code-kant GEDAAN 9-7-2026): dit platform is
   login-gated en verwerkt gevoelige documenten — een besloten pilot hoort niet in Google. Indexering
   staat nu **standaard uit**: `/robots.txt` (`src/app/robots.ts`) disallowt alles en elke response
