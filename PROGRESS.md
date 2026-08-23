@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-23b — Security/privacy: annuleerreden overleefde AVG-erasure (HOOG)
+
+**Wat:** Security-/privacy-auditronde (basis `main` @ 57790fa6). Eén HOOG AVG-gat gevonden én gedicht —
+zelfde bugklasse als #1201: de door de ANNULEERDER zélf getypte `Collaboration.cancellationReason`
+(`changeCollaborationStatus`) landt in drie kopieën (DB-kolom, `COLLABORATION_STATUS_CHANGED`-auditmetadata,
+`COLLABORATION_STATUS`-notificatie op de TEGENPARTIJ-feed), maar `anonymizeUser` wiste alleen de DB-kolom.
+De reden bleef zo leesbaar op de tegenpartij-feed, in diens AVG-inzage-export én in het auditlogboek na de
+erasure van de annuleerder (AVG art. 17; mogelijk art. 9-gevoelig — bv. een ziekte-reden).
+
+**Fix:** `anonymizeUser` redacteert nu alle drie de kopieën (kolom → null, auditmetadata-`reason` → `[verwijderd]`
+via parse-en-patch met behoud van from/to/chargeable, tegenpartij-notificatie-body gereconstrueerd en geredact).
+Gedeelde body-helper `collaborationCancelledNotificationBody` in `src/lib/cascade/notification-bodies.ts` (schrijver
+
+- erasure, drift-vrij).
+
+**Bestanden:** `src/lib/cascade/notification-bodies.ts` (+test), `src/app/(protected)/samenwerkingen/actions.ts`
+(schrijver gebruikt de helper), `src/app/(protected)/admin/gebruikers/actions.ts` (erasure), `anonymize-erasure.test.ts`.
+
+**Tests:** rood→groen — 2 nieuwe erasure-tests (auditmetadata + tegenpartij-notificatie) + 2 locked-body-tests.
+anonymize-erasure 59 groen, notification-bodies 4 groen, samenwerkingen 52 groen; lint groen. Overige delta
+(#1202–#1207) schoon bevonden door 3 parallelle adversariële audits (IDOR/cross-tenant, injectie/SSRF/upload/export).
+Zie `docs/SECURITY-PRIVACY-BACKLOG.md` ronde 2026-08-23b.
+
 ## 2026-08-23 — Bemiddelaar: operations-agenda (.ics)
 
 **Wat:** De agenda-export (.ics) leverde tot nu toe niets voor de FRANCHISER-rol (`/api/agenda` +

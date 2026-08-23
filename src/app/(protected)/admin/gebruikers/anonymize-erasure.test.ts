@@ -170,7 +170,23 @@ vi.mock("@/lib/db", () => ({
       ]),
       updateMany: op("idea.updateMany"),
     },
-    collaboration: { updateMany: op("collaboration.updateMany") },
+    collaboration: {
+      updateMany: op("collaboration.updateMany"),
+      // Eén samenwerking die de betrokkene (user-42, hier de ZZP'er) zelf annuleerde: de
+      // `cancellationReason` is zelf-geschreven vrije tekst die verbatim in de body van de
+      // COLLABORATION_STATUS-notificatie op de feed van de TEGENPARTIJ (de opdrachtgever client-70)
+      // staat én in de COLLABORATION_STATUS_CHANGED-auditmetadata — dus mee redacten bij de erasure
+      // van de annuleerder (art. 17, drie kopieën).
+      findMany: vi.fn(async () => [
+        {
+          id: "col-cancel-1",
+          cancellationReason: "Gestopt wegens ziekte, kan de dienst niet afmaken",
+          cancellationChargeable: true,
+          company: { userId: "client-70" },
+          freelancer: { userId: "user-42" },
+        },
+      ]),
+    },
     favoriteFreelancer: { deleteMany: op("favoriteFreelancer.deleteMany") },
     domainEvent: {
       // Standaard: één nog-open dispuut dat de betrokkene zelf opende (col-7). De volle event-velden
@@ -208,6 +224,26 @@ vi.mock("@/lib/db", () => ({
             {
               id: "idea-audit-planned",
               metadata: JSON.stringify({ from: "OPEN", to: "PLANNED" }),
+            },
+          ];
+        }
+        if (args?.where?.action === "COLLABORATION_STATUS_CHANGED") {
+          // De annuleer-regel draagt naast from/to óók de zelf-getypte reden + chargeable-oordeel:
+          // alleen `reason` mag verdwijnen, from/to/chargeable blijven als verantwoordingsspoor. Een
+          // gewone statuswijziging ({ from, to }, geen reason) blijft volledig ongemoeid.
+          return [
+            {
+              id: "collab-audit-cancel",
+              metadata: JSON.stringify({
+                from: "ACTIVE",
+                to: "CANCELLED",
+                reason: "Gestopt wegens ziekte, kan de dienst niet afmaken",
+                chargeable: true,
+              }),
+            },
+            {
+              id: "collab-audit-complete",
+              metadata: JSON.stringify({ from: "ACTIVE", to: "COMPLETED" }),
             },
           ];
         }
@@ -289,6 +325,7 @@ import { shiftHandoffRejectedNotificationBody } from "@/lib/shift-handoff";
 import {
   invoiceRejectedNotificationBody,
   performanceRejectedNotificationBody,
+  collaborationCancelledNotificationBody,
 } from "@/lib/cascade/notification-bodies";
 import { ideaCommentNotificationTitle, ideaStatusNotificationTitle } from "@/lib/ideas";
 
@@ -542,6 +579,53 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ cancelledById: "user-42" });
     expect((o.args.data as { cancellationReason: string | null }).cancellationReason).toBeNull();
+  });
+
+  it("redact de annuleerreden óók uit de COLLABORATION_STATUS_CHANGED-auditmetadata (AVG art. 17, HOOG)", async () => {
+    // Tweede kopie: de zelf-getypte reden staat verbatim in de `{ from, to, reason, chargeable }`-
+    // metadata van het COLLABORATION_STATUS_CHANGED-auditrecord. De generieke email/naam-scrub raakt
+    // een vrije-tekstreden nooit → die overleefde art. 17. Alleen de `reason`-sleutel wordt geredact;
+    // from/to/chargeable blijven als verantwoordingsspoor. De reden-loze statuswijziging (COMPLETED,
+    // zonder reason) mag ongemoeid blijven. Vóór de fix bestaat deze scrub niet (rood→groen).
+    await anonymizeUser("user-42");
+    const updates = findAll("auditLog.update") as Array<{
+      args: { where: { id: string }; data: { metadata?: string } };
+    }>;
+    const cancelOp = updates.find((u) => u.args.where.id === "collab-audit-cancel");
+    expect(cancelOp).toBeDefined();
+    const meta = JSON.parse(cancelOp!.args.data.metadata as string);
+    expect(meta.reason).toBe("[verwijderd]");
+    expect(meta.from).toBe("ACTIVE");
+    expect(meta.to).toBe("CANCELLED");
+    expect(meta.chargeable).toBe(true);
+    // De reden-loze afrondingsovergang wordt niet aangeraakt (geen loze reason-sleutel toegevoegd).
+    expect(updates.some((u) => u.args.where.id === "collab-audit-complete")).toBe(false);
+  });
+
+  it("redact de annuleerreden óók uit de COLLABORATION_STATUS-notificatie op de tegenpartij-feed (AVG art. 17, HOOG)", async () => {
+    // Derde kopie: de TEGENPARTIJ (de opdrachtgever client-70, ≠ de annuleerder user-42) ontving een
+    // COLLABORATION_STATUS-notificatie met de reden verbatim in de body. Die notificatie heeft geen
+    // deep-link (link = "/samenwerkingen"), dus scope op de exacte, deterministisch reconstrueerbare
+    // body (via de gedeelde `collaborationCancelledNotificationBody`) op de feed van de tegenpartij —
+    // zo raken we nooit de annulering van een ándere gebruiker. De brede eigen-feed-wipe raakt deze
+    // kopie op andermans feed NIET. Vóór de fix bestaat deze redactie niet (rood→groen).
+    await anonymizeUser("user-42");
+    const expectedBody = collaborationCancelledNotificationBody(
+      "Gestopt wegens ziekte, kan de dienst niet afmaken",
+      true,
+    );
+    const ops = findAll("notification.updateMany") as Array<{
+      args: {
+        where: { userId?: string; type?: unknown; body?: unknown };
+        data: { body?: unknown };
+      };
+    }>;
+    const o = ops.find(
+      (x) => x.args.where.type === "COLLABORATION_STATUS" && x.args.where.userId === "client-70",
+    );
+    expect(o).toBeDefined();
+    expect(o!.args.where.body).toBe(expectedBody);
+    expect(o!.args.data.body).toMatch(/verwijderd/i);
   });
 
   it("wist het volledige beschikbaarheidsvenster (AvailabilityWindow — datums+type+uren+noot, AVG art. 17)", async () => {

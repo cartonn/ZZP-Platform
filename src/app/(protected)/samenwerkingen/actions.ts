@@ -15,6 +15,7 @@ import {
 } from "@/lib/cascade/completion";
 import { signContract, CascadeError } from "@/lib/cascade/commands";
 import { assessCancellation } from "@/lib/cancellation";
+import { collaborationCancelledNotificationBody } from "@/lib/cascade/notification-bodies";
 import {
   type CollaborationStatus,
   type CredentialType,
@@ -406,11 +407,10 @@ async function applyCollaborationStatusChange(
         type: "COLLABORATION_STATUS",
         title: cancellationData ? "Samenwerking geannuleerd" : "Samenwerking bijgewerkt",
         body: cancellationData
-          ? `Reden: ${cancellation!.reason}${
-              cancellationData.cancellationChargeable
-                ? " · Geannuleerd binnen 7 dagen vóór de start — voor de opdrachtgever geldt een betalingsverplichting."
-                : ""
-            }`
+          ? collaborationCancelledNotificationBody(
+              cancellation!.reason,
+              cancellationData.cancellationChargeable,
+            )
           : `Status: ${targetStatus}.`,
         link: "/samenwerkingen",
       },

@@ -18,3 +18,23 @@ export function invoiceRejectedNotificationBody(reason: string): string {
 export function performanceRejectedNotificationBody(reason: string): string {
   return `Reden: ${reason}. Pas het aan en dien opnieuw in.`;
 }
+
+/**
+ * Body van de `COLLABORATION_STATUS`-notificatie die de TEGENPARTIJ op haar feed ontvangt wanneer een
+ * samenwerking wordt geannuleerd. De annulering is symmetrisch: de annuleerder kan de opdrachtgever óf
+ * de ZZP'er zijn, en de door hém/haar zélf getypte `reason` (vrije tekst → PII van de annuleerder) landt
+ * verbatim in de body op de feed van de ándere partij. Eén gedeelde helper zodat de schrijver
+ * (`changeCollaborationStatus` in `samenwerkingen/actions.ts`) en de AVG-erasure (`anonymizeUser`, die
+ * bij verwijdering van de annuleerder exact díe body op de tegenpartij-feed moet redacten) nooit driften.
+ * Spiegelt `invoiceRejectedNotificationBody` / `performanceRejectedNotificationBody`.
+ */
+export function collaborationCancelledNotificationBody(
+  reason: string,
+  chargeable: boolean,
+): string {
+  return `Reden: ${reason}${
+    chargeable
+      ? " · Geannuleerd binnen 7 dagen vóór de start — voor de opdrachtgever geldt een betalingsverplichting."
+      : ""
+  }`;
+}
