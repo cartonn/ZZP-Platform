@@ -195,6 +195,29 @@ export function supersededVerifiedCredentialIds(
   return superseded;
 }
 
+/**
+ * De set certificaattypen waarvoor de ZZP'er NÚ een geldig VERIFIED-certificaat heeft — geen
+ * vervaldatum, of `expiresAt > now`. Zo'n type is compliance-gedekt: een ánder (verlopen of
+ * afgewezen) exemplaar van datzelfde type levert geen actueel gat op en hoeft geen verleng-nudge te
+ * krijgen (dat zou een valse melding zijn die nooit nuttig verdwijnt). Gedeelde bron voor de
+ * dekkings-uitsluiting in de ZZP-zijdige next-actions (`freelancerTasks`), de /certificaten-badge
+ * (`signals.ts`) én de bemiddelaar-telling (`rosterExpiredByProfile`) → één regel, geen drift.
+ * Puur/deterministisch.
+ */
+export function coveredCredentialTypes(
+  credentials: readonly SupersedeInput[],
+  now: Date = new Date(),
+): Set<string> {
+  const nowMs = now.getTime();
+  const covered = new Set<string>();
+  for (const c of credentials) {
+    if (c.status !== "VERIFIED") continue;
+    if (c.expiresAt != null && c.expiresAt.getTime() <= nowMs) continue; // niet nu-geldig
+    covered.add(c.type);
+  }
+  return covered;
+}
+
 export interface RosterCredentialInput extends SupersedeInput {
   freelancerProfileId: string;
   freelancerName: string;
@@ -282,12 +305,7 @@ export function rosterExpiredByProfile(
   for (const [profileId, { name, creds }] of byProfile) {
     // Typen met een nu-geldig VERIFIED-cert: die dekken de compliance al → verlopen exemplaren van
     // datzelfde type tellen niet mee (identieke dekkingsregel als de superseded-check hierboven).
-    const coveredTypes = new Set<string>();
-    for (const c of creds) {
-      if (c.status !== "VERIFIED") continue;
-      if (c.expiresAt != null && c.expiresAt.getTime() <= nowMs) continue; // niet nu-geldig
-      coveredTypes.add(c.type);
-    }
+    const coveredTypes = coveredCredentialTypes(creds, now);
     let count = 0;
     for (const c of creds) {
       if (mandatory.has(c.type)) continue; // engageability dekt verplichte typen al

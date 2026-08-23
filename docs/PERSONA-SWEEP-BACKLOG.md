@@ -1,5 +1,58 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-23 (run 89) · **main-commit basis:** `b1c3ff1f`
+> **Uitkomst:** **1 next-action-consistentie-defect gevonden én gefixt (should-fix, FREELANCER); 1 geld-integriteit-gat
+> geparkeerd (HIGH, protected accounting engine → mensenwerk-review-waardige fix).**
+> 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie ·
+> cascade/geld-integriteit + verboden statusovergangen · next-action-engine · malicieuze input/CSV/XSS/upload).
+> Authz/IDOR (route-handlers + server-actions enumeratief nagelopen: document-endpoints anti-oracle 404,
+> tenant-isolatie centraal, cascade party-checks TOCTOU-veilig via compound `updateMany`-guards) én malicieuze-input
+> (Zod money/hours-bounds `Number.isFinite`-guard, gedeelde CSV-escape-kern, ICS/PDF/email-escaping, upload
+> magic-byte-sniff + UUID-storage-key, geen `*OrThrow` → 404-vs-500) vonden **0 nieuwe bereikbare gaten**.
+>
+> - **OPGELOST — should-fix: FREELANCER kreeg een valse "verlopen certificaat vernieuwen"-taak voor een REEDS
+>   GEDEKT type (DOEL 1b, next-action-correctheid, CLAUDE.md regel 1):** de verlopen-tak in `freelancerTasks`
+>   (`src/lib/actions/pending-tasks.ts:438-451`) paste — anders dan de expiry-tak één blok hoger (`!supersededIds.has`)
+>   en de bemiddelaar-zijde (`rosterExpiredByProfile`, met `coveredTypes`) — GEEN dekkings-uitsluiting toe. Een niet-
+>   verplicht certificaat van type X met status `EXPIRED` (of computed-verlopen `VERIFIED && expiresAt<=now`) leverde
+>   altijd een `credentialFixTask(..., "expired")` op /acties + dashboard-rail + badge op, óók als de ZZP'er al een
+>   nieuw, nu-geldig VERIFIED-cert van datzelfde type X had. `computeCompliance([X], creds, now)` gaf dan COMPLIANT →
+>   een next-action die het tegenspreekt en die nooit nuttig verdwijnt (er is geen gat; het oude, verlopen exemplaar
+>   is superseded). De franchiser-blik op dezelfde roster-member (`rosterExpiredByProfile`) sloot X al uit → surface-
+>   drift. `supersededVerifiedCredentialIds` dekte dit niet: die kijkt alleen naar VERIFIED-exemplaren, niet naar een
+>   cert met status EXPIRED. **Fix:** nieuwe gedeelde pure `coveredCredentialTypes(creds, now)` (`src/lib/credentials.ts`)
+>   = de set typen met een nu-geldig VERIFIED-cert; toegepast op de verlopen-tak in `pending-tasks.ts` én op
+>   `standaloneExpiredAlerts` in `src/lib/signals.ts` (badge↔/acties-pariteit); `rosterExpiredByProfile` gerefactord om
+>   dezelfde helper te gebruiken (één bron, geen drift). Read-only, geen schema-/mutatie-/authz-oppervlak. +tests
+>   (5 helper-unit + 3 pending-tasks-regressie, red→green geverifieerd).
+> - **GEPARKEERD (HIGH, geld-integriteit — protected accounting engine, mensenwerk-review-waardige fix):
+>   een AFGEKEURDE cascade-factuur houdt zijn OMZET/BTW-boeking (opgeblazen BTW-aangifte) zonder terugboeking én kan
+>   niet gecorrigeerd worden → permanente overwaardering + samenwerking-deadlock.** `submitInvoice`
+>   (`src/lib/cascade/invoice-commands.ts:29`) boekt bij de éérste indiening `DEBITEUREN/OMZET/BTW_AF_TE_DRAGEN` bij de
+>   ZZP'er (`planInvoiceSubmittedEvent` → `planInvoiceSubmitted`, handlers.ts:286-296). De client-kant
+>   (KOSTEN/VOORBELASTING) wordt pas bij `approveInvoice` geboekt (Event D). `rejectInvoice`
+>   (`planInvoiceRejectedEvent`, handlers.ts:378-408) pusht **geen** tegenboeking. De lifecycle-machine
+>   (`src/lib/lifecycles.ts:82`) staat vanuit `REJECTED` alléén `["SUBMITTED"]` toe — een REJECTED-factuur is dus
+>   **niet crediteerbaar** (geen void/reversal-pad), en `SETTLED_INVOICE_LIFECYCLE` (`completion.ts:8` =
+>   `PAID/PROCESSED/CREDITED`) telt REJECTED als **open geld** → `completionBlockReason`/`cancellationBlockReason` +
+>   de write-time `collaborationTerminableGuard` blokkeren AFRONDEN én ANNULEREN zolang de afgekeurde factuur bestaat.
+>   `buildVatDeclaration`/`vatReturn` (`overview.ts`) sommeren `BTW_AF_TE_DRAGEN`/OMZET **zonder factuurstatus-filter**
+>   → de afgekeurde, nooit-betaalde factuur blaast rubriek 1a/5a op.
+>   **Repro (FREELANCER+CLIENT, geen admin):** contract getekend → ACTIVE; ZZP'er dient uren in → client keurt prestatie
+>   goed → concept-factuur; ZZP'er `submitInvoice` → SUBMITTED (boekt €1000 + €210 BTW); client `rejectInvoice(reden)`
+>   → REJECTED, geen tegenboeking; client weigert goed te keuren. Resultaat: OMZET €1000 + BTW €210 blijven permanent
+>   op het grootboek + in de kwartaal-BTW-aangifte, zónder correctiepad, en de samenwerking staat vast op ACTIVE
+>   (kan niet afgerond/geannuleerd worden door beide partijen). **Reachability:** alleen permanent als de factuur voor
+>   altijd REJECTED blijft (in de normale flow: reject → ZZP'er corrigeert → heraanbieden → goedkeuren → betalen, en
+>   de omzet blijft éénmalig geboekt — correct bij gelijk bedrag; heraanbieden herboekt bewust niet). Edge, maar reëel.
+>   **Fix-richting (NIET in deze run — raakt de expliciet-beschermde accounting-motor):** OFWEL de ZZP-zijdige omzet/
+>   BTW-erkenning van Event C (submit) naar Event D (approve) verplaatsen (symmetrisch met de client-kant), OFWEL
+>   `planInvoiceRejectedEvent` een submit-zijdige-only tegenboeking laten emitteren + REJECTED behandelen als
+>   settled/crediteerbaar zodat de terminale overgangen niet deadlocken. Let op: `planInvoiceCredited` reverst ook de
+>   client-zijdige approve-postings (die bij REJECTED nooit geboekt zijn) → een naïeve `REJECTED→CREDITED` zou de
+>   grootboek-balans aan de client-kant negatief trekken; er is een credit-variant nodig die alléén de submit-postings
+>   terugboekt. Grotere, risicovolle engine-wijziging + accountancy-review → mensenwerk.
+
 > **Datum:** 2026-08-22 (run 87) · **main-commit basis:** `1d6ab0f5`
 > **Uitkomst:** **3 next-action-/screen-consistentie-defecten gevonden én gefixt** (2× stepper-zelftegenspraak in
 > `chain-steps.ts` — should-fix, FREELANCER/CLIENT; 1× verkeerde partij-aan-zet-verwoording franchiser — nit).
