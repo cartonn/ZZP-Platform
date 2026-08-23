@@ -14,6 +14,16 @@ import {
   type RateLimitResult,
 } from "@/lib/rate-limit";
 
+// De aflever-heartbeat wordt door UpstashRateLimitStore.consume lazily geïmporteerd en aangeroepen. Mock 'm
+// zodat de unit-tests hermetisch blijven (geen echte DB-schrijf) én we de dead-man's-switch-wiring kunnen
+// verifiëren. De MemoryRateLimitStore raakt 'm bewust niet aan.
+const recordRateLimitDeliverySuccess = vi.hoisted(() => vi.fn(async () => {}));
+const recordRateLimitDeliveryFailure = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock("@/lib/observability/ratelimit-delivery-heartbeat", () => ({
+  recordRateLimitDeliverySuccess,
+  recordRateLimitDeliveryFailure,
+}));
+
 // Vaste referentietijdstempel voor deterministische tests — geen echte timers.
 const BASE_NOW = 1_700_000_000_000; // willekeurige, vaste epoch-waarde
 const LIMIT = 3;
@@ -207,6 +217,11 @@ describe("RateLimiter (wrapper)", () => {
 });
 
 describe("UpstashRateLimitStore", () => {
+  beforeEach(() => {
+    recordRateLimitDeliverySuccess.mockClear();
+    recordRateLimitDeliveryFailure.mockClear();
+  });
+
   // Bouwt een fetch-mock die de Upstash pipeline-respons nabootst: [INCR, PEXPIRE, PTTL].
   function fetchReturning(count: number, ttlMs: number): typeof fetch {
     return vi.fn(async () => ({
@@ -225,6 +240,9 @@ describe("UpstashRateLimitStore", () => {
     expect(r.allowed).toBe(true);
     expect(r.remaining).toBe(2);
     expect(r.retryAfterMs).toBe(0);
+    // Dead-man's-switch: een geslaagde round-trip registreert delivery-success (driver "upstash").
+    expect(recordRateLimitDeliverySuccess).toHaveBeenCalledWith("upstash");
+    expect(recordRateLimitDeliveryFailure).not.toHaveBeenCalled();
   });
 
   it("weigert boven de limiet en gebruikt PTTL voor retryAfterMs", async () => {
@@ -272,6 +290,9 @@ describe("UpstashRateLimitStore", () => {
     const r = await store.consume("ip", 3, 60_000, BASE_NOW);
     expect(r.allowed).toBe(true);
     expect(r.remaining).toBe(3);
+    // Dead-man's-switch: de fail-open mislukking wordt geregistreerd zodat een aanhoudende storing zichtbaar wordt.
+    expect(recordRateLimitDeliveryFailure).toHaveBeenCalledWith("upstash");
+    expect(recordRateLimitDeliverySuccess).not.toHaveBeenCalled();
   });
 
   it("fail-open: staat het verzoek toe als de Upstash-fetch hangt (timeout)", async () => {

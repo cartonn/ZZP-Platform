@@ -191,14 +191,39 @@ export class UpstashRateLimitStore implements RateLimitStore {
       // PTTL geeft -1 (geen TTL) of -2 (geen key); val dan terug op het volledige venster.
       const retryAfterMs = allowed ? 0 : ttlMs > 0 ? ttlMs : windowMs;
 
+      // Dead-man's-switch: registreer dat het gedeelde kanaal onze operatie accepteerde (gecoalesceerd).
+      await this.recordDelivery(true);
       return { allowed, remaining, retryAfterMs };
     } catch (err) {
       logger.error("rate-limit: Upstash consume mislukt — fail-open", {
         scope: "rate-limit",
         error: err instanceof Error ? err.message : String(err),
       });
+      // Dead-man's-switch: registreer de mislukking (altijd), zodat een AANHOUDENDE storing zichtbaar wordt
+      // — de fail-open hieronder zet de rate-limiting anders stil uit zonder dat iets dat toont.
+      await this.recordDelivery(false);
       // Fail-open: beschikbaarheid boven een tijdelijk zwakkere limiet.
       return { allowed: true, remaining: limit, retryAfterMs: 0 };
+    }
+  }
+
+  /**
+   * Registreert de uitkomst van de laatste consume tegen de gedeelde store in de aflever-heartbeat.
+   * Lazy import (houdt rate-limit.ts vrij van een harde observability-import op modulepad-niveau en
+   * voorkomt import-cycles: de heartbeat trekt prisma + report mee). Best-effort: de heartbeat-schrijf
+   * is zelf fail-open, maar een falende dynamic import mag consume nooit alsnog laten falen.
+   */
+  private async recordDelivery(ok: boolean): Promise<void> {
+    try {
+      const { recordRateLimitDeliverySuccess, recordRateLimitDeliveryFailure } =
+        await import("@/lib/observability/ratelimit-delivery-heartbeat");
+      if (ok) {
+        await recordRateLimitDeliverySuccess("upstash");
+      } else {
+        await recordRateLimitDeliveryFailure("upstash");
+      }
+    } catch {
+      // Observability mag het kernpad nooit breken.
     }
   }
 

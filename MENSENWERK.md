@@ -75,6 +75,24 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   stap-uitkomsten + store-modus), loopt door de authz-keten (rol → rate-limit → audit) en laat nooit
   een probe-key achter. Resterend mensenwerk: **niets extra** — de knop is er zodra
   `RATE_LIMIT_STORE=upstash` staat.
+  **Code-kant GEDAAN (2026-08-23) — rate-limit-store aflever-heartbeat (dead-man's-switch):** de
+  zelftest hierboven bewijst bereikbaarheid **vóór go-live** (menselijke klik); hij zegt niets over de
+  duizenden échte rate-limit-checks daarna. Omdat de Upstash-store bewust **fail-open** is, laat een
+  AANHOUDENDE storing (verlopen/ingetrokken REST-token, verwijderde database, verkeerde URL, regio-storing)
+  élke `consume()` stil doorlaten — de brute-force-/misbruikbescherming op login/registratie/wachtwoordherstel
+  valt dan weg **zonder dat iets dat toont**. Dit was het laatste fail-open productie-kernkanaal zónder
+  doorlopend afleversignaal (storage/mail/push/billing/verificatie hadden er al één). Nu registreert elke
+  `consume()` via de échte Upstash-store haar uitkomst in een `RateLimitDeliveryHeartbeat` (de in-memory
+  default registreert bewust niets — geen productie-kanaal). Event-gedreven oordeel op de **laatste**
+  operatie (`never`/`ok`/`failing` + teller); geslaagde operaties worden **gecoalesceerd** (max één schrijf
+  per venster, `RATELIMIT_HEARTBEAT_COALESCE_MS`, default 15s) zodat de auth-hot-path geen DB-write per
+  verzoek krijgt, mislukkingen worden altijd direct vastgelegd en een herstel schrijft meteen. Kaart
+  "Rate-limit-store" op `/admin/systeemstatus`; gauges `zzp_ratelimit_delivery_ok`/
+  `zzp_ratelimit_consecutive_failures`/`zzp_ratelimit_last_failure_age_seconds` op `/api/metrics`; alert
+  `ZzpRateLimitStoreDeliveryFailing` (`==0 and >=3`, `for:15m`, warning) in `docs/observability/alerts.yml`,
+  in de onderhouds-inhibitie. Bevat nooit keys/endpoints/foutinhoud/rate-limit-keys. Resterend mensenwerk:
+  **niets extra** — de kaart/gauges vullen zichzelf zodra `RATE_LIMIT_STORE=upstash` staat en de eerste
+  check draait. Optioneel: richt een monitor op `ZzpRateLimitStoreDeliveryFailing`.
 - **Externe error-monitoring (Sentry) aanzetten** (laag, code-kant GEDAAN 24-6-2026): server-fouten
   worden nu gestructureerd en PII-veilig gelogd (`src/lib/observability/`), met een readiness-endpoint
   (`/api/readiness`, los van `/api/health`) en een error-reporting-grens die Next.js-server-fouten

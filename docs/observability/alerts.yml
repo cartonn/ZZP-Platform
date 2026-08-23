@@ -243,6 +243,26 @@ groups:
           summary: "Verificatie-register wijst af"
           description: "Een extern verificatie-register (DUO/BIG/iDIN) levert niet meer (zzp_verification_delivery_ok=0, ≥3 opeenvolgende mislukkingen). Diploma-/BIG-/identiteitscontroles kunnen niet worden uitgevoerd — de ZZP'er kan zijn bewijsstuk niet laten verifiëren. Controleer de register-credentials (verlopen/ingetrokken sleutel, geschorst account) en het server-logboek (of Sentry). Zie MENSENWERK §4."
 
+      - alert: ZzpRateLimitStoreDeliveryFailing
+        # De gedeelde rate-limit-store (Upstash Redis REST, RATE_LIMIT_STORE=upstash) wijst systematisch af:
+        # de laatste operatie mislukte (zzp_ratelimit_delivery_ok=0) én er zijn ≥3 opeenvolgende mislukkingen.
+        # De rate-limiter is bewust FAIL-OPEN — bij een storing laat 'ie verzoeken door (beschikbaarheid boven
+        # een tijdelijk zwakkere limiet). Dat is juist voor één blip, maar bij een AANHOUDENDE storing valt de
+        # brute-force-/misbruikbescherming op login, registratie en wachtwoordherstel STIL weg over alle
+        # instances — zonder deze alert merkt niemand dat. Rate-limit-operaties zijn event-gedreven (geen
+        # staleness-op-leeftijd), dus de conditie zit op de teller, niet op ouderdom. Oorzaak meestal een
+        # verlopen/ingetrokken REST-token, een verwijderde/verkeerde Upstash-database of een regio-storing. De
+        # ≥3-drempel + `for:` negeren één transiënte fout. Herstel wordt automatisch gewist zodra een operatie
+        # slaagt (of draai de Rate-limit-zelftest op /admin/systeemstatus). Zonder gedeelde store (in-memory
+        # default) registreert niets → deze alert vuurt per definitie niet. Zie MENSENWERK §0b.
+        expr: zzp_ratelimit_delivery_ok == 0 and zzp_ratelimit_consecutive_failures >= 3
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rate-limit-store wijst af"
+          description: "De gedeelde rate-limit-store (Upstash) levert niet meer (zzp_ratelimit_delivery_ok=0, ≥3 opeenvolgende mislukkingen). De limiter fail-opent, dus de brute-force-/misbruikbescherming op login, registratie en wachtwoordherstel geldt niet meer gedeeld over de instances. Controleer de Upstash-configuratie (verlopen/ingetrokken REST-token, verwijderde database, verkeerde URL, regio-storing) en het server-logboek (of Sentry). Zie MENSENWERK §0b."
+
   - name: zzp-platform-stille-faal-backlogs
     rules:
       # Deze drie tellen werk dat een cron-run HAD moeten doen. De cron-heartbeat bewijst alleen DÁT de

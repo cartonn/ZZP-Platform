@@ -1555,6 +1555,30 @@ model VerificationDeliveryHeartbeat {
   updatedAt           DateTime  @updatedAt
 }
 
+// Dead-man's-switch voor de gedeelde rate-limit-store (Upstash Redis REST, RATE_LIMIT_STORE=upstash). De
+// rate-limiter beschermt login/registratie/wachtwoordherstel tegen brute-force en misbruik; bij horizontale
+// schaling moet die telling gedeeld zijn. De Upstash-store is bewust FAIL-OPEN: valt de Redis-call uit, dan
+// laat consume() het verzoek toe (beschikbaarheid boven een tijdelijk zwakkere limiet). Dat is de juiste keuze
+// voor één blip, maar een AANHOUDENDE storing (verlopen/ingetrokken REST-token, verwijderde database, verkeerde
+// URL, regio-storing) zet de rate-limiting dan STIL uit over alle instances — de brute-force-bescherming valt
+// weg zonder dat iets dat toont. Anders dan storage/mail/push/billing/verification had dit fail-open kanaal geen
+// doorlopend afleversignaal. Elke uitgaande consume() via de échte Upstash-store registreert hier haar uitkomst
+// (de in-memory default — pilot/dev — registreert bewust niets, geen productie-kanaal). Geslaagde operaties worden
+// bewust GECOALESCEERD (max één schrijf per venster) zodat de auth-hot-path geen DB-write per verzoek krijgt;
+// mislukkingen worden altijd direct vastgelegd zodat een monitor op een aanhoudende storing scherp blijft.
+// Singleton-rij per kanaal. Bevat geen persoonsgegevens — alleen tijdstippen, of de laatste operatie slaagde,
+// het aantal opeenvolgende mislukkingen en de driver-modus (nooit keys/endpoints/foutinhoud/rate-limit-keys).
+model RateLimitDeliveryHeartbeat {
+  channel             String    @id // bv. "rate-limit-store"
+  lastAttemptAt       DateTime
+  lastOk              Boolean
+  lastSuccessAt       DateTime?
+  lastFailureAt       DateTime?
+  consecutiveFailures Int       @default(0)
+  driver              String // RATE_LIMIT_STORE-modus bij de laatste poging: "upstash"
+  updatedAt           DateTime  @updatedAt
+}
+
 // Idempotentie-grendel voor de betaal-webhook (/api/billing/webhook). Elke verwerkte
 // provider-ping wordt hier exact één keer vastgelegd op (provider, eventKey), waarbij
 // eventKey = "<paymentRef>:<status>". Een herspeeld of dubbel-afgeleverd event schendt de
