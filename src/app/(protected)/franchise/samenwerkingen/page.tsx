@@ -1,5 +1,5 @@
 import { type Metadata } from "next";
-import { Handshake } from "lucide-react";
+import { Handshake, Download } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { hasTenant } from "@/lib/tenancy";
@@ -137,6 +137,16 @@ export default async function FranchiseSamenwerkingenPage({
         eyebrow="De cockpit · samenwerkingen"
         title="Samenwerkingen"
         description="Toezicht op de samenwerkingen die uit je diensten zijn voortgekomen."
+        action={
+          <a
+            href="/franchise/agenda"
+            download="roosteragenda.ics"
+            className="focus-ring inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Download className="size-4" aria-hidden />
+            Agenda (.ics)
+          </a>
+        }
       />
 
       {rows.length === 0 ? (

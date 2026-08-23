@@ -268,6 +268,21 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Bemiddelaar — operations-agenda (.ics) (2026-08-23, PR #1206)** — de agenda-export
+> (.ics) leverde niets voor de FRANCHISER-rol (`/api/agenda` + `user-deadlines.ts`: "bemiddelaar/admin krijgen
+> niets"), terwijl een bemiddelaar volledig rond twee roster-feiten plant die zijn oversight-cockpit al toont:
+> aflopende plaatsingen (verlengvenster) + verlopende rostercertificaten (inzetbaarheid). Nu een sessie-
+> geauthenticeerde `.ics`-download op `/franchise/samenwerkingen` (knop "Agenda (.ics)") die beide als gehele-dag-
+> events met herinneringen (plaatsing 14d vooraf; certificaat 30+7d vooraf) in de eigen agenda-app zet (benchmark
+> Temper/Zorgwerk, maar op operationeel roster-niveau voor de coördinator). Nieuwe pure `brokerAgendaEvents`
+> (`src/lib/franchise/agenda.ts`) → `IcsEvent[]` via `buildIcsCalendar`; loader `loadBrokerAgenda`
+> (`src/lib/data/franchise-agenda.ts`) doet 2 tenant-gescoopte, take-begrensde queries (ACTIEVE niet-betwiste
+> samenwerkingen met toekomstige einddatum via `job.tenantId` + VERIFIED rostercertificaten met toekomstige
+> verloopdatum via `freelancerProfile.tenantId`); tenant-loos → fail-closed leeg. Route `/franchise/agenda`
+> (requireActor + rol FRANCHISER, rate-limit, AVG-audit `FRANCHISE_AGENDA_EXPORTED`). Bewust alleen sessie-download
+> (geen publieke token-feed), geen bedragen in events. Read-only, geen schema-/mutatie-/domeinmotor-oppervlak.
+> +6 tests. Gate: typecheck, lint, test (agenda 6 · franchise+calendar+audit 408), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — tarief-diagnose op het opdracht-detail (2026-08-23, PR #1205)** —
 > de concrete tarief-diagnose ("Je biedt tot €X/u, terwijl het markttarief rond €Y/u ligt") stond alleen op de
 > opdrachtenlijst (`/opdrachten`), niet op het opdracht-**detail** — juist het scherm waar de opdrachtgever één koud
