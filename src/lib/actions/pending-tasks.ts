@@ -21,6 +21,7 @@ import {
   rosterExpiringByProfile,
   rosterExpiredByProfile,
   supersededVerifiedCredentialIds,
+  coveredCredentialTypes,
 } from "@/lib/credentials";
 import { type CredentialType, type CredentialStatus } from "@/lib/enums";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
@@ -424,6 +425,13 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     // compliance al draagt, is superseded: het verval ervan is niet meer relevant, dus géén
     // "verloopt binnenkort"-nudge (dat zou een valse melding zijn die nooit nuttig verdwijnt).
     const supersededIds = supersededVerifiedCredentialIds(allCreds, now);
+    // Typen die nú al door een geldig VERIFIED-cert gedekt zijn: een reeds-verlopen (of afgewezen)
+    // exemplaar van datzelfde type is geen actueel gat → geen verleng-taak. De superseded-check
+    // hierboven dekt alleen VERIFIED-maar-overbodige exemplaren; een cert met status EXPIRED valt
+    // daar buiten (die is niet VERIFIED), dus de verlopen-tak heeft de bredere type-dekkingsregel
+    // nodig — identiek aan de bemiddelaar-zijde (`rosterExpiredByProfile`), zodat beide surfaces
+    // niet tegenspreken.
+    const coveredTypes = coveredCredentialTypes(allCreds, now);
     for (const c of creds) {
       if (c.status === "REJECTED") tasks.push(credentialFixTask(c.id, c.title, "rejected"));
       else if (
@@ -443,7 +451,12 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         // terwijl het vertrouwensniveau al is gedaald.
         (c.status === "EXPIRED" ||
           (c.status === "VERIFIED" && c.expiresAt !== null && c.expiresAt <= now)) &&
-        !MANDATORY_CREDENTIAL_TYPES.includes(c.type as (typeof MANDATORY_CREDENTIAL_TYPES)[number])
+        !MANDATORY_CREDENTIAL_TYPES.includes(
+          c.type as (typeof MANDATORY_CREDENTIAL_TYPES)[number],
+        ) &&
+        // Dekkings-uitsluiting: een verlopen cert waarvan het type al door een nu-geldig VERIFIED-cert
+        // wordt gedragen, is geen actueel gat (compliance blijft COMPLIANT) → geen valse verleng-taak.
+        !coveredTypes.has(c.type)
       )
         // Uitgesteld: een door een samenwerking vereist verlopen certificaat krijgt hieronder de
         // hogere-band credentialCollabExpiredTask — de expired-fix-taak dedupt daar dan tegen,

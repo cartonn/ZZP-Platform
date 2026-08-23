@@ -21,7 +21,11 @@ import {
   collaborationRequiredCredentialGaps,
   type CollabCredentialInput,
 } from "@/lib/collaboration-credential-expiry";
-import { rosterExpiringByProfile, supersededVerifiedCredentialIds } from "@/lib/credentials";
+import {
+  rosterExpiringByProfile,
+  supersededVerifiedCredentialIds,
+  coveredCredentialTypes,
+} from "@/lib/credentials";
 import {
   credentialCollabWhere,
   getFreelancerCascadeWorkCount,
@@ -580,13 +584,26 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     // zijn alleen collab-vereiste gaten). Zelfde filter als de dedup in pending-tasks.ts → badge kan
     // niet driften van /acties.
     const collabExpiredCredIds = new Set(collabCredGaps.expired.map((c) => c.credentialId));
+    // Dekkings-uitsluiting (spiegelt pending-tasks.ts `freelancerTasks`): een verlopen cert waarvan
+    // het type al door een nu-geldig VERIFIED-cert wordt gedragen, is geen actueel gat → geen
+    // valse badge die /acties (dat het óók uitsluit) tegenspreekt. Zelfde gedeelde pure helper.
+    const coveredTypes = coveredCredentialTypes(
+      placementCreds.map((c) => ({
+        id: c.id,
+        type: c.type,
+        status: c.status as CredentialStatus,
+        expiresAt: c.expiresAt,
+      })),
+      now,
+    );
     const standaloneExpiredAlerts = placementCreds.filter(
       (c) =>
         c.status === "EXPIRED" &&
         !MANDATORY_CREDENTIAL_TYPES.includes(
           c.type as (typeof MANDATORY_CREDENTIAL_TYPES)[number],
         ) &&
-        !collabExpiredCredIds.has(c.id),
+        !collabExpiredCredIds.has(c.id) &&
+        !coveredTypes.has(c.type),
     ).length;
     return buildBadges({
       credentialAlerts:

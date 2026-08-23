@@ -13,6 +13,7 @@ import {
   rosterExpiredByProfile,
   statusForDecision,
   supersededVerifiedCredentialIds,
+  coveredCredentialTypes,
   TransitionError,
 } from "@/lib/credentials";
 
@@ -189,6 +190,59 @@ describe("supersededVerifiedCredentialIds", () => {
       now,
     );
     expect(set.size).toBe(0); // verschillende typen → geen onderlinge dekking
+  });
+});
+
+describe("coveredCredentialTypes", () => {
+  const now = new Date("2026-07-30T00:00:00Z");
+  const later = new Date("2027-09-01T00:00:00Z");
+  const past = new Date("2026-07-01T00:00:00Z");
+
+  it("neemt een type op met een nu-geldig VERIFIED-cert (mét toekomstige vervaldatum)", () => {
+    const set = coveredCredentialTypes(
+      [{ id: "a", type: "LICENSE", status: "VERIFIED", expiresAt: later }],
+      now,
+    );
+    expect(set.has("LICENSE")).toBe(true);
+  });
+
+  it("neemt een onbeperkt-geldig VERIFIED-cert (geen vervaldatum) op", () => {
+    const set = coveredCredentialTypes(
+      [{ id: "a", type: "BIG", status: "VERIFIED", expiresAt: null }],
+      now,
+    );
+    expect(set.has("BIG")).toBe(true);
+  });
+
+  it("sluit een al-verlopen VERIFIED-cert uit (dekt de compliance niet meer)", () => {
+    const set = coveredCredentialTypes(
+      [{ id: "a", type: "LICENSE", status: "VERIFIED", expiresAt: past }],
+      now,
+    );
+    expect(set.has("LICENSE")).toBe(false);
+  });
+
+  it("sluit een niet-VERIFIED cert uit (EXPIRED/DRAFT/REJECTED dekken niets)", () => {
+    const set = coveredCredentialTypes(
+      [
+        { id: "a", type: "LICENSE", status: "EXPIRED", expiresAt: past },
+        { id: "b", type: "VOG", status: "DRAFT", expiresAt: later },
+        { id: "c", type: "INSURANCE", status: "REJECTED", expiresAt: later },
+      ],
+      now,
+    );
+    expect(set.size).toBe(0);
+  });
+
+  it("een geldig exemplaar dekt het type ook als er een verlopen exemplaar van hetzelfde type bestaat", () => {
+    const set = coveredCredentialTypes(
+      [
+        { id: "oud", type: "LICENSE", status: "EXPIRED", expiresAt: past },
+        { id: "nieuw", type: "LICENSE", status: "VERIFIED", expiresAt: later },
+      ],
+      now,
+    );
+    expect(set.has("LICENSE")).toBe(true); // het nieuwe, geldige exemplaar dekt het type
   });
 });
 
