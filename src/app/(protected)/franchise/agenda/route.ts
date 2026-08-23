@@ -8,6 +8,10 @@ import { loadBrokerAgenda } from "@/lib/data/franchise-agenda";
 import { exportRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
+// De route hangt van de sessie (cookies via requireActor) af en mag nooit statisch worden
+// geoptimaliseerd — parity met de zuster-export-routes (o.a. franchise/zzpers/export).
+export const dynamic = "force-dynamic";
+
 // Bemiddelaar operations-agenda (.ics): de operationele roster-deadlines van de ingelogde FRANCHISER
 // — aflopende plaatsingen + verlopende rostercertificaten — als RFC 5545-kalender. Alleen de eigen
 // tenant (roster), sessie-gebonden download (geen publieke token-feed, zodat de gevoeligheid van een
