@@ -26,6 +26,7 @@ import { shiftHandoffRejectedNotificationBody } from "@/lib/shift-handoff";
 import {
   invoiceRejectedNotificationBody,
   performanceRejectedNotificationBody,
+  collaborationCancelledNotificationBody,
 } from "@/lib/cascade/notification-bodies";
 
 export async function setUserStatus(userId: string, target: string): Promise<void> {
@@ -412,6 +413,68 @@ export async function anonymizeUser(userId: string): Promise<void> {
     },
   });
 
+  // AVG art. 17: de door de ANNULEERDER zélf getypte annuleerreden bij een samenwerking.
+  // `changeCollaborationStatus` (annulering is symmetrisch — de annuleerder kan de opdrachtgever óf de
+  // ZZP'er zijn, reden verplicht) schrijft die vrije tekst in DRIE kopieën: (1) `Collaboration.
+  // cancellationReason`, (2) de `COLLABORATION_STATUS_CHANGED`-auditmetadata (`{ from, to, reason,
+  // chargeable }`) én (3) verbatim in de body van de `COLLABORATION_STATUS`-notificatie op de feed van
+  // de TEGENPARTIJ (`otherUserId`, een ándere gebruiker dan de annuleerder). Kopie 1 werd al gewist
+  // (`collaboration.updateMany({ cancelledById: userId })` in de transactie), maar kopie 2 en 3 werden
+  // nergens geraakt: de generieke `scrubAuditMetadataPii`-pass matcht een vrije-tekstreden nooit, en de
+  // brede eigen-feed-wipe (`notification.updateMany({ where: { userId } })`) raakt alleen de EIGEN feed
+  // van de betrokkene — niet de kopie op de tegenpartij-feed. Zonder deze reconstruct-en-redact overleeft
+  // de zelf-getypte reden (mogelijk art. 9 — bv. een ziekte-reden) art. 17 op andermans feed, in diens
+  // AVG-inzage-export (`account-export.ts` geeft `Notification.body` prijs) én in het auditlogboek.
+  // Spiegelt exact de `ownRejectedInvoices`/`ownRejectedPerformances`-drie-kopie-behandeling. Snapshot
+  // vóór de transactie; `company.userId`/`freelancer.userId` reconstrueren de tegenpartij (de partij ≠
+  // de annuleerder) en de exacte, deterministische body (via de gedeelde
+  // `collaborationCancelledNotificationBody`, geen deep-link om op te scopen).
+  // unbounded-allow: AVG art. 17: alle eigen geannuleerde samenwerkingen met reden van één betrokkene; een take zou stilletjes PII-kopieën laten staan
+  const ownCancelledCollaborations = await prisma.collaboration.findMany({
+    where: { cancelledById: userId, cancellationReason: { not: null } },
+    select: {
+      id: true,
+      cancellationReason: true,
+      cancellationChargeable: true,
+      company: { select: { userId: true } },
+      freelancer: { select: { userId: true } },
+    },
+  });
+  const ownCancelledCollaborationIds = ownCancelledCollaborations.map((c) => c.id);
+  // (2) De reden in de `COLLABORATION_STATUS_CHANGED`-auditmetadata redacten. Anders dan de
+  // INVOICE_REJECTED-metadata draagt deze méér dan `{ reason }` (`{ from, to, chargeable }` is het
+  // verantwoordingsspoor van de statusovergang, geen PII) → parse-en-patch alleen de `reason`-sleutel,
+  // exact zoals `ideaStatusAuditScrubOps`. Alleen annuleer-regels dragen een `reason`; een gewone
+  // statuswijziging ({ from, to }) blijft ongemoeid.
+  const collabCancelAuditScrubOps = ownCancelledCollaborationIds.length
+    ? // unbounded-allow: AVG art. 17: alle annuleer-auditregels van de eigen samenwerkingen; een take zou stilletjes PII laten staan
+      (
+        await prisma.auditLog.findMany({
+          where: {
+            action: "COLLABORATION_STATUS_CHANGED",
+            entityType: "Collaboration",
+            entityId: { in: ownCancelledCollaborationIds },
+          },
+          select: { id: true, metadata: true },
+        })
+      ).flatMap((row) => {
+        if (!row.metadata) return [];
+        let parsed: Record<string, unknown>;
+        try {
+          parsed = JSON.parse(row.metadata) as Record<string, unknown>;
+        } catch {
+          return [];
+        }
+        if (!("reason" in parsed)) return [];
+        return [
+          prisma.auditLog.update({
+            where: { id: row.id },
+            data: { metadata: JSON.stringify({ ...parsed, reason: AUDIT_PII_REDACTED }) },
+          }),
+        ];
+      })
+    : [];
+
   // AVG art. 17: elk door de betrokkene VERZONDEN bericht is óók verbatim (≤120 tekens) naar de body
   // van de MESSAGE-notificatie op de feed van de ONTVANGER gekopieerd (`sendMessage` in
   // `berichten/actions.ts`, via `messageNotificationBody`). Die kopie leeft op andermans
@@ -475,9 +538,13 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // passwordHash en kan het zijn feed nooit meer inzien, dus de body heeft geen operationeel doel meer
     // → onomkeerbaar redacten voor álle eigen notificaties. Robuust: een toekomstig reden-dragend type
     // dat de betrokkene ONTVANGT valt hier automatisch onder. De titel blijft staan (generiek, geen PII).
-    // (NB — SHIFT_HANDOFF_REJECTED valt hier NIET onder: die notificatie landt op de feed van de
-    // AANVRAGER, terwijl de vrije tekst door de BESLISSER is geschreven. Die kopie wordt daarom apart,
-    // per gereconstrueerde body, geredact via `ownDecidedRejectedHandoffs` onderaan de transactie.)
+    // (NB — SHIFT_HANDOFF_REJECTED en de annuleer-variant van COLLABORATION_STATUS vallen hier NIET
+    // onder wanneer de betrokkene de AUTEUR is: die notificatie landt op de feed van de TEGENPARTIJ
+    // (aanvrager resp. de andere samenwerkingspartij), terwijl de vrije tekst door de betrokkene zélf
+    // is geschreven. Die kopie wordt daarom apart, per gereconstrueerde body, geredact via
+    // `ownDecidedRejectedHandoffs` resp. `ownCancelledCollaborations` in de transactie. De EIGEN-feed-
+    // kopie van een COLLABORATION_STATUS-annulering die de betrokkene ONTVING als tegenpartij valt wél
+    // gewoon onder deze brede wipe.)
     // AVG art. 17: naast de body wordt óók `readAt` gewist. Dat is een door de betrokkene zélf gezette
     // gedrags-/engagement-timestamp (het exacte moment waarop hij een melding las) die na anonimisering
     // toewijsbaar blijft aan de (hernoemde, maar identieke) `User.id` — dezelfde residuele-gedragsmetadata-
@@ -646,12 +713,38 @@ export async function anonymizeUser(userId: string): Promise<void> {
         declineReason: null,
       },
     }),
-    // Annuleerreden die de betrokkene zélf schreef (cancelledById == userId). Alleen de eigen tekst —
-    // een door de tegenpartij geschreven reden blijft (die valt onder diens eigen verwerking).
+    // Annuleerreden die de betrokkene zélf schreef (cancelledById == userId), in drie kopieën (zie de
+    // `ownCancelledCollaborations`-toelichting hierboven). (1) De reden op de eigen geannuleerde
+    // samenwerkingen wissen. Alleen de eigen tekst — een door de tegenpartij geschreven reden blijft
+    // (die valt onder diens eigen verwerking).
     prisma.collaboration.updateMany({
       where: { cancelledById: userId },
       data: { cancellationReason: null },
     }),
+    // (2) De reden in de `COLLABORATION_STATUS_CHANGED`-auditmetadata redacten (parse-en-patch: enkel de
+    // `reason`-sleutel; from/to/chargeable blijven als verantwoordingsspoor).
+    ...collabCancelAuditScrubOps,
+    // (3) De tegenpartij ontving een `COLLABORATION_STATUS`-notificatie met de reden verbatim in de body
+    // (link = "/samenwerkingen", geen deep-link). Reconstrueer die body deterministisch via de gedeelde
+    // `collaborationCancelledNotificationBody` en redact precies díe notificatie op de tegenpartij-feed
+    // (de partij ≠ de annuleerder) — nooit de annulering van een ándere gebruiker.
+    ...ownCancelledCollaborations
+      .map((c) => ({
+        counterpartyUserId: c.company.userId === userId ? c.freelancer.userId : c.company.userId,
+        reason: c.cancellationReason,
+        chargeable: c.cancellationChargeable,
+      }))
+      .filter((c) => c.counterpartyUserId && c.reason)
+      .map((c) =>
+        prisma.notification.updateMany({
+          where: {
+            userId: c.counterpartyUserId as string,
+            type: "COLLABORATION_STATUS",
+            body: collaborationCancelledNotificationBody(c.reason as string, c.chargeable),
+          },
+          data: { body: "[Verwijderd op verzoek van de gebruiker]" },
+        }),
+      ),
     // Eigen dispuutreden: vrije tekst die de betrokkene schreef bij het openen van een dispuut.
     // resolveDispute wist 'm normaliter bij oplossing; staat een dispuut nog open op het moment van
     // anonimisering, dan blijft die tekst anders herleidbaar achter. Gescopet op de samenwerkingen waar

@@ -4,6 +4,74 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-23b (basis: `main` @ 57790fa6) — 1× HOOG OPGELOST (onvolledige AVG-erasure, annuleerreden) + delta schoon
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(AVG-erasure-symmetrie · IDOR/object-authz + cross-tenant · injectie/SSRF/upload/export). Delta t.o.v. de
+vorige ronde (basis `c2c7cd60`): commits `c2c7cd60..57790fa6` — de bemiddelaar-operations-agenda (.ics, #1206),
+de verificatie-adapter aflever-heartbeat (dead-man's-switch DUO/BIG/iDIN, #1202), de tarief-diagnose op het
+opdracht-detail (#1205), het onbenutte-beschikbaarheid-signaal (#1203), de gedekt-verlopen-certificaat-taakfix
+(#1207) en de #1201-erasurefix zelf. `npm audit` (incl. dev): 6 advisories — **uitsluitend dev-transitief**
+(brace-expansion, deepmerge-ts/prisma-CLI, js-yaml, esbuild-Windows), niet in de productie-runtime (`--omit=dev`
+= 0); ongewijzigd t.o.v. de vorige ronde (zie LAAG-item hieronder).
+
+**Dekking (OWASP Top 10 / ASVS + AVG):** A01 (object-/functie-authz + IDOR + multi-tenant), A03 (SQL/`$queryRaw`,
+XSS/`dangerouslySetInnerHTML`, CSV-/formule-injectie, iCal/RFC 5545-injectie), A05 (headers), A07 (auth/sessie),
+A10 (SSRF op server-side `fetch`), upload-/storage-veiligheid + path-traversal, foutafhandeling, én AVG art. 5/15/
+17/25/32 (dataminimalisatie, inzage/erasure-symmetrie, k-anonimiteit, logs-lekken-geen-PII, derden-doorgifte).
+
+### OPGELOST — [HOOG] Door de ANNULEERDER getypte annuleerreden overleefde díens eigen AVG-erasure (2 van de 3 kopieën)
+
+- **Geschonden regel:** AVG art. 17 (recht op verwijdering) + de multi-kopie-erasure-invariant van de codebase
+  (CLAUDE.md regel 5). **OWASP:** A01 (privacy-datablootstelling). Zelfde bugklasse als #1201 (afkeurreden).
+- **Repro (bevestigd):**
+  1. Een partij (opdrachtgever óf ZZP'er) annuleert een samenwerking (`changeCollaborationStatus`) met een
+     verplichte vrije-tekstreden. Die reden landt in DRIE kopieën: (1) `Collaboration.cancellationReason`,
+     (2) de `COLLABORATION_STATUS_CHANGED`-auditmetadata (`{ from, to, reason, chargeable }`), (3) verbatim in de
+     body van de `COLLABORATION_STATUS`-notificatie op de feed van de TEGENPARTIJ (een ándere gebruiker).
+  2. De annuleerder verzoekt om verwijdering → admin draait `anonymizeUser`. Die wiste tot nu toe alléén kopie 1
+     (`collaboration.updateMany({ cancelledById })`). Kopie 2 (auditmetadata) en kopie 3 (tegenpartij-notificatie)
+     werden nergens geraakt: de generieke `scrubAuditMetadataPii` matcht geen vrije tekst, en de brede eigen-feed-
+     wipe (`notification.updateMany({ where: { userId } })`) raakt alleen de EIGEN feed van de betrokkene. De reden
+     bleef dus leesbaar op de tegenpartij-feed, in diens AVG-inzage-export (`account-export.ts` geeft
+     `Notification.body` prijs) én in het auditlogboek. Mogelijk art. 9-gevoelig (bv. een ziekte-reden).
+- **Fix (deze PR):** `anonymizeUser` (`src/app/(protected)/admin/gebruikers/actions.ts`) leest nu vóór de transactie
+  de eigen geannuleerde samenwerkingen (`cancelledById == betrokkene`, reden ≠ null) mét beide partij-userId's, en
+  redacteert in de transactie alle drie de kopieën: `cancellationReason` → null, de `reason`-sleutel in de
+  `COLLABORATION_STATUS_CHANGED`-auditmetadata → `[verwijderd]` (parse-en-patch; `from`/`to`/`chargeable` blijven als
+  verantwoordingsspoor), en de exact gereconstrueerde notificatie-body op de tegenpartij-feed (partij ≠ annuleerder).
+  De body-string staat nu in de gedeelde bron `src/lib/cascade/notification-bodies.ts`
+  (`collaborationCancelledNotificationBody`), gebruikt door zowel de schrijver (`samenwerkingen/actions.ts`) als de
+  erasure — drift-vrij (spiegelt de #1201-afkeurreden-behandeling). Rood→groen: 2 nieuwe erasure-tests
+  (auditmetadata + tegenpartij-notificatie) + 2 locked-body-tests; volledige gate groen.
+
+### Schone oppervlakken (0 bereikbare gaten — 3 parallelle adversariële audits + eigen tracing)
+
+- **Delta-code (#1202–#1207):** de nieuwe `.ics`-bemiddelaar-agenda-route is `requireActor` → rol (FRANCHISER) →
+  tenant-gescoopte queries (`job.tenantId`/`freelancerProfile.tenantId`) → rate-limit → RFC 5545-ge-escapete
+  serialisatie (`escapeIcsText` dekt backslash/`;`/`,`/CRLF) → audit; geen cross-tenant-lek, geen iCal-injectie
+  (UID's zijn interne DB-id's). De verificatie-heartbeat-decorators slaan geen PII op (alleen kanaal + driver-naam;
+  fail-open, wijzigen het `verify()`-resultaat nooit). De tarief-diagnose op het opdracht-detail is owner-gated en
+  respecteert de k-anonimiteitsdrempel (`MARKET_RATE_MIN_SAMPLE = 10` via `computeMarketBand`). De
+  signals/pending-tasks/availability-gaps-wijzigingen zijn puur/deterministisch en op de eigen actor gescoopt.
+- **IDOR / object-authz (A01):** alle dynamische route-handlers met een client-`id` (documenten, factuur-/prestatie-/
+  dossier-/DBA-/modelovereenkomst-PDF, media, franchise-exports, agenda) + de mutatie-subset van de action-files:
+  overal `auth → rol → ownership → Zod → actie → audit`, 404-maskering (CWE-203/208-veilig), denied-access-audit.
+- **Cross-tenant / franchiser-isolatie:** elke franchiser-query gescoopt via `tenantScopeWhere`/`ownsViaTenant`
+  (tenant uit live-DB `currentActor`), fail-closed, tenant-suspend trekt toegang live in.
+- **Injectie/SSRF/upload/export (A03/A10):** geen `$queryRawUnsafe`/rauwe SQL; enige `dangerouslySetInnerHTML` is
+  een statisch themascript (CSP-nonce); CSV-exports lopen allemaal via `escapeCsvField` (neutraliseert `= + - @`
+  \t \r); alle server-side `fetch`-hosts zijn vast/env-gebaseerd (DUO/BIG/iDIN, Geoapify, HIBP, Mollie/Stripe) —
+  geen user-gestuurde URL/host; uploads via de storage-abstractie met type-/grootte-/magic-byte-validatie,
+  server-gegenereerde storage-keys en path-traversal-guard; rauwe Prisma-fouten bereiken de client nooit
+  (`safe-action-error.ts`).
+
+### Geparkeerd (LAAG) — dev-transitieve npm-advisories
+
+- `npm audit` (incl. dev) meldt 6 advisories (deepmerge-ts/prisma-CLI, brace-expansion, js-yaml, esbuild-Windows) —
+  allemaal **dev-only DoS/ReDoS**, niet in de productie-runtime (`--omit=dev` = 0). Ongewijzigd t.o.v. de vorige
+  ronde; volgen bij de volgende prisma-bump (`npm audit fix --force` zou de prisma-CLI-major kunnen breken).
+
 ## Ronde 2026-08-23 (basis: `main` @ c2c7cd60) — 2× HOOG OPGELOST (onvolledige AVG-erasure) + 1× LAAG gedocumenteerd
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
