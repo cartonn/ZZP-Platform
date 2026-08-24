@@ -1,4 +1,4 @@
-import { CalendarClock, CircleAlert, Wallet } from "lucide-react";
+import { CalendarClock, CircleAlert, TrendingUp, Wallet } from "lucide-react";
 import { type Actor } from "@/lib/authz";
 import { getObligationItemsForClient } from "@/lib/data/payment-obligations";
 import { formatEuro } from "@/lib/invoices";
@@ -8,6 +8,10 @@ import {
   type ObligationItem,
   type ObligationStage,
 } from "@/lib/payment-obligations";
+import {
+  chargesByInvoiceId,
+  summarizeObligationOverdueCharges,
+} from "@/lib/payment-obligation-charges";
 import { shouldShowCreditorSummary, summarizeCreditors } from "@/lib/creditor-summary";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -72,6 +76,8 @@ export async function VerplichtingenPanel({
   const obligations = buildPaymentObligations(obligationItems, now);
   const dueThisWeek = summarizeDueThisWeek(obligationItems, now);
   const creditors = summarizeCreditors(obligationItems, now);
+  const overdueCharges = summarizeObligationOverdueCharges(obligationItems, now);
+  const chargesById = chargesByInvoiceId(overdueCharges);
   const hasItems = obligationItems.length > 0;
 
   if (!hasItems) {
@@ -148,6 +154,28 @@ export async function VerplichtingenPanel({
         </div>
       )}
 
+      {/* Oplopende extra kosten op te late facturen — self-interest-nudge: eerst deze afbetalen. */}
+      {overdueCharges.hasCharges && (
+        <div className="flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm">
+          <TrendingUp className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden />
+          <div className="space-y-0.5">
+            <p className="text-foreground">
+              Over je te late{" "}
+              {overdueCharges.count === 1 ? "factuur" : `${overdueCharges.count} facturen`} loopt nu{" "}
+              <span className="font-semibold tabular-nums">
+                {formatEuro(overdueCharges.totalExtraCents)}
+              </span>{" "}
+              aan extra kosten op. Betaal deze eerst om verder oplopen te stoppen.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Wettelijke handelsrente ({formatEuro(overdueCharges.totalInterestCents)}) plus
+              incassokosten ({formatEuro(overdueCharges.totalCollectionCostsCents)}) die een
+              ZZP&apos;er bij verzuim mag claimen (art. 6:119a BW en WIK). Bedragen zijn indicatief.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Te betalen per leverancier — "aan wie moet ik betalen?" */}
       {shouldShowCreditorSummary(creditors) && <CreditorSummaryCard summary={creditors} />}
 
@@ -164,27 +192,37 @@ export async function VerplichtingenPanel({
               </span>
             </div>
             <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-              {bucket.items.map((item) => (
-                <div
-                  key={item.invoiceId}
-                  className="flex items-center justify-between gap-4 px-4 py-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-medium">{item.counterpartyName}</p>
-                      <Badge variant={stageVariant(item.stage)}>{stageLabel(item.stage)}</Badge>
+              {bucket.items.map((item) => {
+                const charges = chargesById.get(item.invoiceId);
+                return (
+                  <div
+                    key={item.invoiceId}
+                    className="flex items-center justify-between gap-4 px-4 py-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-sm font-medium">{item.counterpartyName}</p>
+                        <Badge variant={stageVariant(item.stage)}>{stageLabel(item.stage)}</Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                        {item.jobTitle && <span className="truncate">{item.jobTitle}</span>}
+                        {item.number && <span className="font-mono">{item.number}</span>}
+                        {item.dueDate && <span>{formatNlDate(item.dueDate)}</span>}
+                      </div>
+                      {charges && (
+                        <p className="mt-0.5 text-xs font-medium text-danger">
+                          +{formatEuro(charges.totalWithChargesCents - item.grossCents)} rente &amp;
+                          incassokosten · {charges.daysOverdue}{" "}
+                          {charges.daysOverdue === 1 ? "dag" : "dagen"} te laat
+                        </p>
+                      )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                      {item.jobTitle && <span className="truncate">{item.jobTitle}</span>}
-                      {item.number && <span className="font-mono">{item.number}</span>}
-                      {item.dueDate && <span>{formatNlDate(item.dueDate)}</span>}
-                    </div>
+                    <span className="shrink-0 font-mono text-sm font-semibold tabular-nums">
+                      {formatEuro(item.grossCents)}
+                    </span>
                   </div>
-                  <span className="shrink-0 font-mono text-sm font-semibold tabular-nums">
-                    {formatEuro(item.grossCents)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         ))}
