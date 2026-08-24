@@ -46,6 +46,8 @@ import { getJobReach } from "@/lib/data/job-reach";
 import { JobReachCard } from "@/components/jobs/job-reach-card";
 import { summarizeVacancyPerformance } from "@/lib/job-vacancy-performance";
 import { JobVacancyPerformanceCard } from "@/components/jobs/job-vacancy-performance-card";
+import { assessJobListingQuality } from "@/lib/job-listing-quality";
+import { JobListingQualityCard } from "@/components/jobs/job-listing-quality-card";
 import { diagnoseJobVacancyRate } from "@/lib/vacancy-rate-diagnosis";
 import { getJobRateBands } from "@/lib/data/job-rate-bands";
 import { summarizeStaffingRisk } from "@/lib/job-staffing-risk";
@@ -389,6 +391,24 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             platform: bands.platform,
           });
         })()
+      : null;
+
+  // Listing-kwaliteit voor de eigenaar: welke onderdelen van de plaatsing zelf ontbreken nog
+  // (omschrijving, skills, startdatum, locatie …)? Dezelfde checks als de live kwaliteitsmeter in het
+  // bewerk-formulier (gedeelde pure `assessJobQuality`), maar hier gescoped op de niet-tarief-dimensies
+  // — de tarief-advisering blijft exclusief bij de vacaturetempo-/tarief-diagnose hierboven. Geen extra
+  // query: alle velden zitten al op `job`. Alleen voor een gepubliceerde opdracht met open punten.
+  const listingQuality =
+    isOwner && status === "PUBLISHED"
+      ? assessJobListingQuality({
+          title: job.title,
+          description: job.description,
+          industryId: job.industryId,
+          location: job.location,
+          workMode: job.workMode,
+          hasStartDate: job.startDate != null,
+          requiredSkillCount: job.skills.filter((s) => s.required).length,
+        })
       : null;
 
   // Bezettingsrisico voor de eigenaar: nadert de startdatum terwijl er nog niemand is vastgelegd?
@@ -736,6 +756,13 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         <JobVacancyPerformanceCard
           summary={vacancyPerformance}
           rateDiagnosis={vacancyRateDiagnosis}
+          editHref={`/opdrachten/${job.id}/bewerken`}
+        />
+      )}
+
+      {isOwner && listingQuality && !listingQuality.complete && (
+        <JobListingQualityCard
+          quality={listingQuality}
           editHref={`/opdrachten/${job.id}/bewerken`}
         />
       )}
