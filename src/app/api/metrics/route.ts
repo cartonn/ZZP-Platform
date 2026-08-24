@@ -81,6 +81,7 @@ import { leadRetentionCutoff } from "@/lib/lead-retention";
 import { prunableLeadWhere } from "@/lib/lead-retention-task";
 import { healthIncidentIpRetentionCutoff } from "@/lib/health-incident-retention";
 import { prunableHealthIncidentIpWhere } from "@/lib/health-incident-retention-task";
+import { openHealthIncidentWhere } from "@/lib/observability/health-incident-open";
 import { messageRetentionCutoff } from "@/lib/message-retention";
 import { prunableMessageWhere } from "@/lib/message-retention-task";
 import { supportTicketRetentionCutoff } from "@/lib/support-retention";
@@ -152,6 +153,8 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let notificationsRetentionBacklog = 0;
   let leadsRetentionBacklog = 0;
   let healthIncidentsIpRetentionBacklog = 0;
+  let openIncidentsCritical = 0;
+  let openIncidentsWarn = 0;
   let messagesRetentionBacklog = 0;
   let supportTicketsRetentionBacklog = 0;
   let webhookEventsRetentionBacklog = 0;
@@ -419,6 +422,24 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     });
     collectors.push(async () => {
       try {
+        // OPEN (nog niet getriageerde) beveiligingsincidenten per alarmeerbare severity: het platform
+        // detecteert de anomalie (inlog-burst/reset-flood/rolwijziging-burst/CVE) en legt 'm vast als
+        // HealthIncident, maar zonder deze telling blijft die bevinding onzichtbaar tot een admin op
+        // /admin/bewaking inlogt. Hergebruikt exact `openHealthIncidentWhere` (dezelfde bron van waarheid
+        // als de UI/ack-flow) zodat de gauge niet kan driften. Zodra een incident ACKNOWLEDGED/RESOLVED is,
+        // valt het uit de OPEN-set. Twee gelabelde tellingen (CRITICAL paget snel, WARN vraagt triage).
+        const [critical, warn] = await Promise.all([
+          prisma.healthIncident.count({ where: openHealthIncidentWhere("CRITICAL") }),
+          prisma.healthIncident.count({ where: openHealthIncidentWhere("WARN") }),
+        ]);
+        openIncidentsCritical = critical;
+        openIncidentsWarn = warn;
+      } catch (error) {
+        await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+      }
+    });
+    collectors.push(async () => {
+      try {
         // Berichten (Message, chatinhoud in body) ouder dan het MESSAGE_RETENTION_DAYS-venster die de
         // message-retention-cron nog niet snoeide: werk dat die cron had moeten doen. Hergebruikt exact
         // `prunableMessageWhere` (dezelfde bron van waarheid, incl. de lopende-samenwerking-guard) als de
@@ -610,6 +631,8 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     notificationsRetentionBacklog,
     leadsRetentionBacklog,
     healthIncidentsIpRetentionBacklog,
+    openIncidentsCritical,
+    openIncidentsWarn,
     messagesRetentionBacklog,
     supportTicketsRetentionBacklog,
     webhookEventsRetentionBacklog,

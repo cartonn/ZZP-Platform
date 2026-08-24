@@ -237,6 +237,25 @@ export interface MetricsInput {
    */
   healthIncidentsIpRetentionBacklog: number;
   /**
+   * Aantal OPEN (nog niet getriageerde) beveiligingsincidenten met severity CRITICAL uit de
+   * bewakingsmotor (HealthIncident, status `OPEN`) — een inlog-burst boven de kritieke drempel of een
+   * high/critical dependency-CVE die de detector zélf vaststelde. Anders dan de retentie-backlog is dit
+   * GEEN AVG-signaal maar een operationeel beveiligingssignaal: het platform detecteert de anomalie en
+   * legt 'm vast, maar zonder deze gauge blijft die bevinding onzichtbaar tot een admin op
+   * `/admin/bewaking` inlogt — een externe monitor kan er dan niet op pagen. Zodra een admin het
+   * incident ACKNOWLEDGED of RESOLVED, telt het niet meer mee (een mens heeft het opgepakt). `0` is de
+   * gezonde staat.
+   */
+  openIncidentsCritical: number;
+  /**
+   * Aantal OPEN (nog niet getriageerde) beveiligingsincidenten met severity WARN uit de bewakingsmotor
+   * (HealthIncident, status `OPEN`) — een wachtwoordreset-flood, een rolwijziging-burst of een
+   * moderate dependency-CVE. Dezelfde detector-tegenhanger als {@link openIncidentsCritical}, maar
+   * lager urgent: WARN vraagt triage (een aanhoudende backlog paget), CRITICAL paget snel. `0` is de
+   * gezonde staat.
+   */
+  openIncidentsWarn: number;
+  /**
    * Aantal berichten (Message) ouder dan het geconfigureerde `MESSAGE_RETENTION_DAYS`-venster die de
    * `message-retention`-cron nog niet snoeide — werk dat die cron had moeten doen (mits het gesprek niet
    * aan een lopende samenwerking hangt). Dezelfde stille-faal-detector-klasse als de andere retentie-
@@ -579,6 +598,18 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal open disputen (Collaboration.disputedAt gezet, status != CANCELLED) wier leeftijd de dispute-escalatie-drempel (DISPUTE_ESCALATE_AFTER_DAYS, 7 dagen) overschreed maar die de dispute-reminders-cron nog niet naar admins escaleerde (een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen escalatie-pijplijn: bevroren cascade blijft bevroren, admins worden nooit gepaget om te bemiddelen, ZZP'er wacht op geld).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.overdueDisputeEscalations)),
+    },
+    {
+      name: "zzp_health_incidents_open_critical",
+      help: "Aantal OPEN (nog niet getriageerde) beveiligingsincidenten met severity CRITICAL uit de eigen bewakingsmotor (HealthIncident, status OPEN) — bv. een inlog-burst boven de kritieke drempel of een high/critical dependency-CVE die de detector zélf vaststelde. Het platform detecteert de anomalie en legt 'm vast, maar zonder externe alertering blijft die bevinding onzichtbaar tot een admin op /admin/bewaking inlogt. Paget snel; wordt 0 zodra een admin het incident ACKNOWLEDGED of RESOLVED (een mens heeft het opgepakt).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.openIncidentsCritical)),
+    },
+    {
+      name: "zzp_health_incidents_open_warn",
+      help: "Aantal OPEN (nog niet getriageerde) beveiligingsincidenten met severity WARN uit de eigen bewakingsmotor (HealthIncident, status OPEN) — bv. een wachtwoordreset-flood, een rolwijziging-burst of een moderate dependency-CVE. Lager urgent dan de CRITICAL-variant: een aanhoudende backlog vraagt triage. Wordt 0 zodra een admin het incident ACKNOWLEDGED of RESOLVED.",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.openIncidentsWarn)),
     },
     {
       name: "zzp_audit_retention_backlog",
