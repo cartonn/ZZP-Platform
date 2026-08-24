@@ -5,6 +5,8 @@ import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { computeCompliance } from "@/lib/matching";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
+import { actionableCredentialFixes } from "@/lib/credential-fix";
+import { CredentialFixLinks } from "@/components/credentials/credential-fix-links";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -399,6 +401,18 @@ export default async function ReactiesPage({
                           ) : null;
                         })()}
                     </Link>
+                    {/* Van diagnose naar actie: staat deze reactie nog echt open (niet dicht/vervuld,
+                        geen lopende samenwerking) en blokkeert een ontbrekend/verlopen vereist
+                        certificaat, dan één klik naar het uploadformulier met het juiste type
+                        voorgeselecteerd. Buiten de kaart-brede <Link> (geen geneste anchors); rendert
+                        niets zonder oplosbare blokkade. */}
+                    {!app.collaboration && !availability && compliance && (
+                      <CredentialFixLinks
+                        fixes={actionableCredentialFixes(compliance)}
+                        t={t}
+                        className="mt-2"
+                      />
+                    )}
                     {wait && <WaitSignal wait={wait} t={t} />}
                     {responsiveness && (
                       <ApplicantResponsivenessNote responsiveness={responsiveness} />

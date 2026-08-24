@@ -17,6 +17,7 @@ import { canViewJob } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
 import { JOB_TRANSITIONS } from "@/lib/jobs";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
+import { credentialFixHref } from "@/lib/credential-fix";
 import {
   type CredentialType,
   type CredentialStatus,
@@ -979,10 +980,10 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                           </span>
                           {urgent && (
                             <Link
-                              href="/certificaten"
+                              href={credentialFixHref(type)}
                               className="text-xs font-medium underline underline-offset-2"
                             >
-                              {t("Toevoegen")}
+                              {state === "expired" ? t("Vernieuwen") : t("Toevoegen")}
                             </Link>
                           )}
                         </li>

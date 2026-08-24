@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-24 — ZZP'er: één-klik certificaat regelen bij een blokkade (/reacties + opdracht-detail)
+
+**Wat (PR volgt):** wanneer een ZZP'er niet voldoet aan een vereist certificaat, was de vervolgstap niet één klik ver.
+Op `/reacties` stond de compliance-blokkade als dóóde tekst ("Je mist: VOG") zónder oplospad; op het opdracht-detail
+(`/opdrachten/[id]`) wees de "Toevoegen"-link naar het generieke `/certificaten`-overzicht i.p.v. het type-voorgevulde
+formulier dat élk ander oppervlak (Actiecentrum, samenwerkingsherinnering, inzetbaarheid) al gebruikt — een
+inconsistentie. Nu overal één klik naar `/certificaten/nieuw?type=X` op de plek van de blokkade (noord-ster: toon wat
+actie vraagt en maak die actie direct).
+
+**Bestanden:** `src/lib/credential-fix.ts` (nieuw) — pure `credentialFixHref(type)` (canonieke deep-link) +
+`actionableCredentialFixes(compliance)` (ontbrekend eerst, dan verlopen; inReview is geen actie; deterministisch,
+dedup); `src/lib/credential-fix.test.ts` (nieuw, 8 tests); `src/components/credentials/credential-fix-links.tsx`
+(nieuw, presentatie-alleen chips "Regel …"/"Vernieuw …", rendert niets zonder oplosbare blokkade);
+`src/app/(protected)/reacties/page.tsx` (fix-links onder een nog-openstaande, niet-compliant reactie — buiten de
+kaart-brede `<Link>`, geen geneste anchors); `src/app/(protected)/opdrachten/[id]/page.tsx` (urgente-cred-link →
+`credentialFixHref(type)`, label "Vernieuwen" bij verlopen).
+
+**Logica:** compliance blijft server-side waarheid (`computeCompliance`); de fix-links leiden alleen af, muteren niets
+(geen dode knop). Read-only, geen schema-/mutatie-/authz-/beschermde-motor-oppervlak.
+
+**Gate:** typecheck ✓, lint ✓, `npm run test` (662 files, 6886 tests) ✓, build ✓, prettier ✓. **Volgende:** CI-poort → auto-merge.
+
 ## 2026-08-24 — ZZP'er: win-back signaal "Klanten om opnieuw te benaderen" op /inzicht
 
 **Wat (PR #1222):** het platform meet de betaalde omzet per opdrachtgever al (`freelancer-revenue-breakdown.ts`),

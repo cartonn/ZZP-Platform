@@ -268,6 +268,21 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — één-klik certificaat regelen bij een blokkade (/reacties + opdracht-detail) (2026-08-24)** —
+> wanneer een ZZP'er niet voldoet aan een vereist certificaat was de vervolgstap niet één klik ver: op `/reacties` stond de
+> compliance-blokkade als dóóde tekst zónder oplospad, en op het opdracht-detail wees de "Toevoegen"-link naar het generieke
+> `/certificaten`-overzicht i.p.v. het type-voorgevulde formulier dat élk ander oppervlak (Actiecentrum, samenwerkingsherinnering,
+> inzetbaarheid) al gebruikt (drift). Nieuw: pure `credentialFixHref(type)` (canonieke deep-link naar `/certificaten/nieuw?type=X`)
+>
+> - `actionableCredentialFixes(compliance)` (ontbrekend eerst, dan verlopen; inReview is géén actie; deterministisch + dedup)
+>   in `src/lib/credential-fix.ts`; presentatie-component `CredentialFixLinks` (chips "Regel …"/"Vernieuw …", rendert niets zonder
+>   oplosbare blokkade). Gewired op `/reacties` (onder een nog-openstaande, niet-compliante reactie — buiten de kaart-brede
+>   `<Link>`, geen geneste anchors) en op `/opdrachten/[id]` (urgente-cred-link → `credentialFixHref(type)`, label "Vernieuwen" bij
+>   verlopen). Compliance blijft server-side waarheid (`computeCompliance`); de fix-links leiden alleen af, muteren niets (geen dode
+>   knop). Read-only, geen schema-/mutatie-/authz-/beschermde-motor-oppervlak. +8 tests. Gate: typecheck ✓, lint ✓, test (662 files,
+>
+> 6886. ✓, build ✓, prettier ✓ · CI-poort → PR.
+>
 > Gedaan (niet opnieuw): **ZZP'er — win-back signaal "Klanten om opnieuw te benaderen" op /inzicht (2026-08-24, PR #1222)** —
 > het platform meet de betaalde omzet per opdrachtgever al (`freelancer-revenue-breakdown.ts`, widget "Omzet per
 > opdrachtgever"), maar nooit de **recency** ervan — dus een opdrachtgever die je eerder echt omzet opleverde maar al
