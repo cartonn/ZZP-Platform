@@ -15,6 +15,11 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
 import { clientReengagement } from "@/lib/franchise/client-reengagement";
 import { ClientReengagementCard } from "@/components/franchise/client-reengagement-card";
+import { getPaymentBehaviorForCompany } from "@/lib/data/payment-behavior";
+import { clientOutstandingByCompany } from "@/lib/franchise/client-outstanding";
+import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
+import { buildClientFinancialRelation } from "@/lib/franchise/client-financials";
+import { ClientFinancialRelationCard } from "@/components/franchise/client-financial-relation-card";
 import { DepartmentForm } from "./department-form";
 import { DienstInlineForm } from "./dienst-inline-form";
 import { removeDepartment } from "../actions";
@@ -68,18 +73,30 @@ export default async function OpdrachtgeverDetailPage({
   // Relatiegezondheid + re-engagement-hint: exact dezelfde activiteitsinvoer als de klantenlijst
   // (`summarizeClientHealth`), zodat lijst en detail nooit een andere status tonen. Drie kleine,
   // geïndexeerde aggregaten (geen N+1) op de reeds tenant-geverifieerde klant.
-  const [publishedAgg, activeCollabCount, lastCollabAgg] = await Promise.all([
-    prisma.job.aggregate({
-      where: { companyId: company.id, status: "PUBLISHED" },
-      _count: { _all: true },
-      _max: { createdAt: true },
-    }),
-    prisma.collaboration.count({ where: { companyId: company.id, status: "ACTIVE" } }),
-    prisma.collaboration.aggregate({
-      where: { companyId: company.id },
-      _max: { updatedAt: true },
-    }),
-  ]);
+  // Financiële relatie met déze klant: openstaand/te-laat + betaalgedrag. Beide draaien pas ná de
+  // tenant-verificatie hierboven (company != null), zodat de betaalreputatie-loader — die volgens zijn
+  // eigen contract een reeds-gescopet bedrijf verwacht — nooit een klant buiten deze bemiddeling raakt.
+  // Canonieke helpers (`outstandingInvoiceWhere` + aging-motor, `getPaymentBehaviorForCompany`) → geen
+  // drift met de opdrachtgeverslijst.
+  const [publishedAgg, activeCollabCount, lastCollabAgg, outstandingInvoices, paymentBehavior] =
+    await Promise.all([
+      prisma.job.aggregate({
+        where: { companyId: company.id, status: "PUBLISHED" },
+        _count: { _all: true },
+        _max: { createdAt: true },
+      }),
+      prisma.collaboration.count({ where: { companyId: company.id, status: "ACTIVE" } }),
+      prisma.collaboration.aggregate({
+        where: { companyId: company.id },
+        _max: { updatedAt: true },
+      }),
+      // unbounded-allow: openstaande facturen van één (tenant-geverifieerde) opdrachtgever; klein volume
+      prisma.invoice.findMany({
+        where: { ...outstandingInvoiceWhere, collaboration: { companyId: company.id } },
+        select: { totalCents: true, dueAt: true },
+      }),
+      getPaymentBehaviorForCompany(company.id),
+    ]);
   const lastJobAt = publishedAgg._max.createdAt;
   const lastCollabAt = lastCollabAgg._max.updatedAt;
   const lastActivityAt =
@@ -88,6 +105,7 @@ export default async function OpdrachtgeverDetailPage({
         ? lastJobAt
         : lastCollabAt
       : (lastJobAt ?? lastCollabAt);
+  const now = new Date();
   const reengagement = clientReengagement(
     {
       createdAt: company.createdAt,
@@ -95,8 +113,20 @@ export default async function OpdrachtgeverDetailPage({
       activeCollaborationCount: activeCollabCount,
       lastActivityAt,
     },
-    new Date(),
+    now,
   );
+
+  // Openstaand per opdrachtgever via de canonieke aging-motor (drift-vrij met de lijst/`/openstaand`).
+  const outstanding =
+    clientOutstandingByCompany(
+      outstandingInvoices.map((inv) => ({
+        companyId: company.id,
+        amountCents: inv.totalCents,
+        dueAt: inv.dueAt,
+      })),
+      now,
+    ).get(company.id) ?? null;
+  const financialRelation = buildClientFinancialRelation(outstanding, paymentBehavior);
 
   // Onboarding "afmaken"-balk zolang er nog geen afdeling óf nog geen dienst is — zelfde regel als
   // de wizard (getOnboardingState). Linkt terug naar de juiste wizard-stap.
@@ -148,6 +178,8 @@ export default async function OpdrachtgeverDetailPage({
       {!onboardingIncomplete && (
         <ClientReengagementCard reengagement={reengagement} companyId={company.id} />
       )}
+
+      <ClientFinancialRelationCard relation={financialRelation} />
 
       <Card>
         <CardContent className="space-y-5 p-5">

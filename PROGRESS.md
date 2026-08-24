@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-24 — Bemiddelaar: financiële relatie op het opdrachtgever-detail — PR #1217
+
+**Wat:** de bemiddelaar zag op de opdrachtgeverslijst (`/franchise/opdrachtgevers`) per klant al de
+betaalgedrag-chip + openstaand/te-laat, maar op het **opdrachtgever-detail**
+(`/franchise/opdrachtgevers/[id]`) viel die financiële context weg — terwijl `paymentTrustChip` in zijn
+eigen docstring "de volledige cijfers staan op de detailpagina" belooft (die stonden er niet). Nieuwe
+read-only "Financiële relatie"-kaart bij het klantdetail: openstaand bij de pool + zwaarste te-late
+bucket (canonieke aging-motor → drift-vrij met de lijst en `/openstaand`) + betaalreputatie (chip +
+concrete cijfers: gemiddeld aantal dagen tot betaling, % op tijd, over N facturen). Benchmark
+Deel/Malt client-account-health. De twee financiële reads draaien pas ná de tenant-verificatie van de
+klant (company != null), zodat de betaalreputatie-loader — die volgens contract een reeds-gescopet
+bedrijf verwacht — nooit een klant buiten deze bemiddeling raakt. Kaart rendert niets zonder signaal
+(`hasAny=false` → verse klant blijft rustig). Geen schema-/mutatie-/authz-oppervlak.
+
+**Bestanden:** `src/lib/franchise/client-financials.ts` (pure `buildClientFinancialRelation` +
+`paymentHistorySentence` + `agingBucketBadgeVariant`),
+`src/components/franchise/client-financial-relation-card.tsx`, wiring in
+`src/app/(protected)/franchise/opdrachtgevers/[id]/page.tsx`.
+
+**Tests:** `src/lib/franchise/client-financials.test.ts` (12: bucket-toon-mapping, cijferzin-drempel/
+enkelvoud/partieel, leeg-verse-klant, openstaand-zonder-historie, worstBucket-null bij nul openstaand,
+reputatiechip). Gate: typecheck (exit 0), lint (0 warnings), test (nieuw 12 groen), prettier (4 bestanden)
+· build → PR-gate #1217.
+
+**Rest (mensenwerk):** niets.
+
 ## 2026-08-24 — Opdrachtgever: kosten van te laat betalen op /verplichtingen — PR #1215
 
 **Wat:** de betaalverplichtingen-lijst (`/verplichtingen`) toonde te late facturen alleen als "Te laat";
