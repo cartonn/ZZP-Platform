@@ -32,6 +32,38 @@ describe("buildCollaborationTurnItems", () => {
     expect(todo[0]).toContain("certificaat");
   });
 
+  // Kern-regressie (DOEL 1b, next-action-correctheid): een geblokkeerde plaatsing kan alleen de
+  // ZZP'er oplossen (eigen certificaat aanvullen). De opdrachtgever mag daarom GEEN imperatief krijgen
+  // die hij niet kan uitvoeren (wrong-party next-action) — hij ziet een passieve wacht-regel.
+  it("PROPOSED geblokkeerd + opdrachtgever: passieve wacht-op-de-ZZP'er-regel, geen imperatief", () => {
+    const todo = buildCollaborationTurnItems({
+      ...base,
+      status: "PROPOSED",
+      placementBlocked: true,
+      isClient: true,
+      isFreelancer: false,
+      placementMissing: "VOG",
+    });
+    expect(todo.some((t) => t.includes("Wacht tot de ZZP'er") && t.includes("aanvult (VOG)"))).toBe(
+      true,
+    );
+    expect(todo.some((t) => t.includes("Vul het ontbrekende"))).toBe(false);
+  });
+
+  it("PROPOSED geblokkeerd + ZZP'er: imperatief om het certificaat aan te vullen", () => {
+    const todo = buildCollaborationTurnItems({
+      ...base,
+      status: "PROPOSED",
+      placementBlocked: true,
+      isFreelancer: true,
+      isClient: false,
+      placementMissing: "VOG",
+    });
+    expect(
+      todo.some((t) => t.includes("Vul het ontbrekende of verlopen certificaat aan (VOG)")),
+    ).toBe(true);
+  });
+
   it("ACTIVE opdrachtgever: ingediende prestatie wacht op goedkeuring", () => {
     const todo = buildCollaborationTurnItems({
       ...base,
