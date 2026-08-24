@@ -1,22 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Regressietest (persona-sweep, TOCTOU document-substitutie): persistCredential leest de status
-// (loadOwnedCredential) en doet dán een trage putBlob (AV-scan + storage-put) vóór de write. Een
-// gelijktijdige admin-beslissing (verifyCredential → VERIFIED) in dat venster mag het bewijsstuk NIET
-// stil vervangen op de nu-beoordeelde rij, en het beoordeelde document mag NIET verwijderd worden.
-// De write is nu een compound-guarded `updateMany({ where: { id, status } })` + count-gate; matcht die
-// 0 rijen (status inmiddels veranderd), dan breekt de transactie af — geen doc-swap, geen
-// verificationRequest, en deleteDocumentById draait niet (oud document blijft staan).
+// Regressietest (defense-in-depth IDOR — OWASP A01, CLAUDE.md regel 2): `deleteDocumentById` (de
+// interne opruimer die het vorige bewijsstuk wist bij een credential-resubmit) verwijdert nooit een
+// document dat niet van de actor is. De huidige aanroepers geven altijd een documentId door dat uit
+// een eigen credential (`loadOwnedCredential`) komt — dit is dus geen open gat — maar een toekomstige
+// call-site met een form-/client-gestuurde id zou zonder deze guard andermans document kunnen wissen.
+// Rood→groen: zonder de `doc.ownerId !== actorId`-check zou het vreemde document alsnog verwijderd
+// worden. We drijven het pad via de publieke `saveCredentialInline` (gewonnen race → doc-swap +
+// opruim van het vorige document).
 
-const { updateManyMock, docCreateMock, reqCreateMock, docDeleteMock, docFindMock } = vi.hoisted(
-  () => ({
+const { updateManyMock, docCreateMock, reqCreateMock, docDeleteMock, docFindMock, auditMock } =
+  vi.hoisted(() => ({
     updateManyMock: vi.fn(async () => ({ count: 1 })),
     docCreateMock: vi.fn(async () => ({ id: "doc-new" })),
     reqCreateMock: vi.fn(async () => ({})),
     docDeleteMock: vi.fn(async () => ({})),
     docFindMock: vi.fn(async () => ({ storageKey: "old-key", ownerId: "user-1" })),
-  }),
-);
+    auditMock: vi.fn(async () => {}),
+  }));
 
 const txClient = {
   document: { create: docCreateMock },
@@ -68,7 +69,7 @@ vi.mock("@/lib/services/storage", async (orig) => {
 vi.mock("@/lib/services/upload-scanner", () => ({ assertUploadClean: vi.fn(async () => {}) }));
 vi.mock("@/lib/audit", async (orig) => {
   const actual = await orig<typeof import("@/lib/audit")>();
-  return { ...actual, audit: vi.fn(async () => {}), auditData: (d: unknown) => d };
+  return { ...actual, audit: auditMock, auditData: (d: unknown) => d };
 });
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
@@ -86,41 +87,50 @@ function form(): FormData {
   return fd;
 }
 
-describe("persistCredential (hasFile) — TOCTOU document-substitutie-guard", () => {
+describe("deleteDocumentById — defense-in-depth ownership-guard", () => {
   beforeEach(() => {
     updateManyMock.mockReset();
+    updateManyMock.mockResolvedValue({ count: 1 });
     docCreateMock.mockClear();
     reqCreateMock.mockClear();
     docDeleteMock.mockClear();
-    docFindMock.mockClear();
+    docFindMock.mockReset();
+    auditMock.mockClear();
   });
 
-  it("verliest de race (status inmiddels beoordeeld → count:0): geen doc-swap, oud document blijft, nette fout", async () => {
-    updateManyMock.mockResolvedValueOnce({ count: 0 }); // admin heeft 'm net → VERIFIED gezet
-    const res = await saveCredentialInline(undefined, form());
-
-    expect(res).toEqual({ error: expect.stringMatching(/inmiddels beoordeeld/i) });
-    // De guard matchte de compound where op (id + gesnapshotte status).
-    expect(updateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "cred-1", status: "SUBMITTED" } }),
-    );
-    // Cruciaal: geen verificationRequest én het beoordeelde document mag NIET verwijderd zijn.
-    expect(reqCreateMock).not.toHaveBeenCalled();
-    expect(docDeleteMock).not.toHaveBeenCalled();
-  });
-
-  it("wint de race (count:1): doc-swap + oud document opgeruimd", async () => {
-    updateManyMock.mockResolvedValueOnce({ count: 1 });
+  it("verwijdert het vorige document wanneer het van de actor is", async () => {
+    docFindMock.mockResolvedValue({ storageKey: "old-key", ownerId: "user-1" });
     const res = await saveCredentialInline(undefined, form());
 
     expect(res).toEqual({ ok: true });
-    expect(updateManyMock).toHaveBeenCalledWith(
+    expect(docDeleteMock).toHaveBeenCalledWith({ where: { id: "doc-old" } });
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "DOCUMENT_DELETED", entityId: "doc-old" }),
+    );
+    expect(auditMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: "DOCUMENT_DELETE_DENIED" }),
+    );
+  });
+
+  it("verwijdert NIET wanneer het document van een andere gebruiker is, en audit de geweigerde poging", async () => {
+    // Simuleert een toekomstige call-site die een vreemd (niet-eigen) documentId doorgeeft.
+    docFindMock.mockResolvedValue({ storageKey: "old-key", ownerId: "iemand-anders" });
+    const res = await saveCredentialInline(undefined, form());
+
+    expect(res).toEqual({ ok: true });
+    // Cruciaal: het vreemde document blijft staan.
+    expect(docDeleteMock).not.toHaveBeenCalled();
+    // De geweigerde poging is auditeerbaar vastgelegd (fail-closed + spoor).
+    expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "cred-1", status: "SUBMITTED" },
-        data: expect.objectContaining({ documentId: "doc-new" }),
+        actorId: "user-1",
+        action: "DOCUMENT_DELETE_DENIED",
+        entityType: "Document",
+        entityId: "doc-old",
       }),
     );
-    // Bij een gewonnen race wordt het vorige document (doc-old) opgeruimd.
-    expect(docDeleteMock).toHaveBeenCalledWith({ where: { id: "doc-old" } });
+    expect(auditMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: "DOCUMENT_DELETED", entityId: "doc-old" }),
+    );
   });
 });
