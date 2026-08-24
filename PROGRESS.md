@@ -26,6 +26,32 @@ test (655 files / **6822** passed), build (exit 0) groen · CI-poort → PR #121
 
 **Rest (mensenwerk):** niets.
 
+## 2026-08-24 — Persona-sweep run 90: CSV-import-validatie + next-action-zelftegenspraak (dispuut-freeze)
+
+**Wat:** 4 parallelle adversariële Opus-audits (authz/IDOR/tenant · cascade/geld · next-action · malicieuze input) +
+live smoke (chromium, geseede prod-server: 4 rollen login + /acties + samenwerking-detail 200; privilege-escalatie
+FREELANCER/CLIENT → /admin/\* + /franchise/\* redirect; onzin-id → 404-niet-500). **2 defecten gefixt, 2 geparkeerd.**
+
+1. **Malicieuze input / data-integriteit (should-fix, CLAUDE.md 2/6):** de admin bulk-CSV-import schreef
+   `name`/`companyName`/`headline`/`location`/`kvkNumber`/`btwNumber` ongebonden + ongevalideerd naar de DB — het
+   enige write-pad buiten de Zod-bron-van-waarheid. Fix: `parseKvk`/`parseBtw`/`parseOptionalText` in
+   `src/lib/onboarding/import.ts` (valideren + normaliseren, ongeldig/te-lang → waarschuwing + droppen; naam/bedrijf
+   te lang → fout). Pariteit met `register/freelancer/companyProfileSchema`.
+2. **Next-action-zelftegenspraak (should-fix, DOEL 1b, CLAUDE.md 1):** de "Aan zet"-TurnBanner op het
+   samenwerking-detail negeerde de dispuut-freeze (`if (active)` zonder `!frozen`) → toonde "keur de prestatie/factuur
+   goed" terwijl de status-regel + bevroren-kaart "acties geblokkeerd" zeiden en de knop verborgen was. Fix: todo-logica
+   geëxtraheerd naar pure `buildCollaborationTurnItems` (`src/lib/cascade/turn-items.ts`) mét `ACTIVE && !frozen`-poort.
+
+**Bestanden:** `src/lib/onboarding/import.ts` (+`import.test.ts`), `src/lib/cascade/turn-items.ts` (nieuw) +
+`turn-items.test.ts` (nieuw), `src/app/(protected)/samenwerkingen/[id]/page.tsx` (wiring, `plural`-import weg).
+
+**Tests:** +8 import-regressie (bounds/KvK/BTW-formaat) · +8 turn-items (incl. bevroren-regressie, rol-scheiding).
+Gate: typecheck (exit 0), lint (0 warnings), test **6828 passed (655 files)**, prettier `--write .`, build groen.
+
+**Geparkeerd (docs/PERSONA-SWEEP-BACKLOG.md, run 90):** BLOCKER robustness — DRAFT-cascadefactuur maakt de
+samenwerking permanent niet-afrondbaar/annuleerbaar zonder ontsnapping (raakt de beschermde cascade/completion-engine
+→ mensenwerk); should-fix — multi-cyclus viewer-asymmetrie maskeert de client-factuurgoedkeuring op het detail.
+
 ## 2026-08-24 — Prod-rijpheid: support-ticket retentie (AVG art. 5(1)(e) opslagbeperking) — PR #1214
 
 **Wat:** SupportTicket/SupportMessage was het **enige** PII-dragende model zónder retentie-sweep

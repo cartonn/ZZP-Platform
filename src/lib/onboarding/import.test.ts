@@ -171,6 +171,67 @@ describe("buildImportPreview", () => {
   });
 });
 
+describe("buildImportPreview — veld-bounds & KvK/BTW-formaat (Zod-pariteit)", () => {
+  const fullHeader = "naam;email;rol;bedrijfsnaam;functie;locatie;kvk;btw;website;vaardigheden";
+
+  it("naam langer dan 120 tekens → fout (niet importeerbaar)", () => {
+    const longName = "A".repeat(121);
+    const csv = [fullHeader, `${longName};a@example.nl;ZZP'er;;;;;;;`].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.importable).toBe(false);
+    expect(row.issues.some((i) => i.field === "name" && i.level === "error")).toBe(true);
+  });
+
+  it("bedrijfsnaam langer dan 160 tekens (opdrachtgever) → fout", () => {
+    const longCo = "B".repeat(161);
+    const csv = [fullHeader, `Bedrijf X;x@example.nl;Opdrachtgever;${longCo};;;;;;`].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.importable).toBe(false);
+    expect(row.issues.some((i) => i.field === "companyName" && i.level === "error")).toBe(true);
+  });
+
+  it("ongeldig KvK-nummer → waarschuwing + gedropt (rij blijft importeerbaar)", () => {
+    const csv = [fullHeader, "Anna;a@example.nl;ZZP'er;;;;niet-geldig-1234;;;"].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.importable).toBe(true);
+    expect(row.kvkNumber).toBeNull();
+    expect(row.issues.some((i) => i.field === "kvkNumber" && i.level === "warning")).toBe(true);
+  });
+
+  it("geldig KvK-nummer wordt genormaliseerd (spaties/punten weg)", () => {
+    const csv = [fullHeader, "Anna;a@example.nl;ZZP'er;;;;12.34.56.78;;;"].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.kvkNumber).toBe("12345678");
+    expect(row.issues.some((i) => i.field === "kvkNumber")).toBe(false);
+  });
+
+  it("ongeldig BTW-nummer → waarschuwing + gedropt", () => {
+    const csv = [fullHeader, "Anna;a@example.nl;ZZP'er;;;;;garbage;not,valid;"].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.importable).toBe(true);
+    expect(row.btwNumber).toBeNull();
+    expect(row.issues.some((i) => i.field === "btwNumber" && i.level === "warning")).toBe(true);
+  });
+
+  it("geldig BTW-nummer wordt genormaliseerd", () => {
+    const csv = [fullHeader, "Anna;a@example.nl;ZZP'er;;;;;nl123456789b01;;"].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.btwNumber).toBe("NL123456789B01");
+    expect(row.issues.some((i) => i.field === "btwNumber")).toBe(false);
+  });
+
+  it("te lange functie/locatie → waarschuwing + gedropt (rij blijft importeerbaar)", () => {
+    const longText = "x".repeat(121);
+    const csv = [fullHeader, `Anna;a@example.nl;ZZP'er;;${longText};${longText};;;;`].join("\r\n");
+    const row = buildImportPreview(csv).rows[0]!;
+    expect(row.importable).toBe(true);
+    expect(row.headline).toBeNull();
+    expect(row.location).toBeNull();
+    expect(row.issues.some((i) => i.field === "headline" && i.level === "warning")).toBe(true);
+    expect(row.issues.some((i) => i.field === "location" && i.level === "warning")).toBe(true);
+  });
+});
+
 describe("importTemplateCsv", () => {
   it("is zelf een geldige, importeerbare CSV", () => {
     const p = buildImportPreview(importTemplateCsv());
