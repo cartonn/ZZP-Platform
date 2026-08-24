@@ -4,6 +4,73 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-24 (basis: `main` @ 3f51108e) — 1× LAAG OPGELOST (defense-in-depth IDOR, document-delete) + delta schoon
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(AVG-erasure-volledigheid · IDOR/object-authz + functie-authz · cross-tenant/franchiser-isolatie +
+injectie/SSRF/upload/export/PII-overfetch/secrets-logs). Delta t.o.v. de vorige ronde (basis `57790fa6`):
+commits `57790fa6..3f51108e` — de annuleerreden-erasurefix (#1208, zélf de vorige ronde), de rate-limit-store
+aflever-heartbeat/dead-man's-switch + `zzp_ratelimit_delivery_*`-gauges op `/api/metrics` (#1209), de snelle-
+antwoorden in de berichten-composer (alle rollen, #1210), het wachttijd-signaal per urenstaat op `/diensten`
+(ZZP'er, #1211) en de maanddoel-tempo/kalender-pacing op `/prognose` (ZZP'er, #1212). `npm audit --omit=dev`:
+**0 vulnerabilities** (prod-runtime schoon); `npm audit` (incl. dev): dev-transitieve advisories ongewijzigd
+t.o.v. de vorige ronde (zie het LAAG-item onderaan de 08-23-ronde).
+
+**Dekking (OWASP Top 10 / ASVS + AVG):** A01 (object-/functie-authz + IDOR + multi-tenant), A03 (SQL/`$queryRaw`,
+XSS/`dangerouslySetInnerHTML`, CSV-/formule-injectie), A05 (headers/CSP-nonce), A07 (auth/sessie/rate-limiting),
+A10 (SSRF op server-side `fetch`), upload-/storage-veiligheid + path-traversal, foutafhandeling, secrets/logs,
+én AVG art. 5/15/17/25/32 (dataminimalisatie, inzage/erasure-symmetrie, k-anonimiteit, logs-lekken-geen-PII,
+derden-doorgifte). De 3 adversariële audits traceerden élk hun oppervlak zelf (niet louter de backlog-claim):
+franchiser-`where`-clausules, alle `[id]`/`[...key]`-document/PDF/dossier-routes, en élk vrije-tekst-PII-veld in
+`schema.prisma` tegen `anonymizeUser`/`account-export.ts`.
+
+### OPGELOST — [LAAG · defense-in-depth IDOR / A01] `deleteDocumentById` deed geen eigen ownership-check
+
+- **Geschonden regel:** CLAUDE.md regel 2 (auth → rol → **ownership** → Zod → actie → audit op elke mutatie).
+  **OWASP:** A01 (Broken Object Level Authorization / IDOR). Severity LAAG omdat het nu niet exploiteerbaar is
+  (beide call-sites geven een documentId door dat uit een eigen credential via `loadOwnedCredential` komt),
+  maar een toekomstige call-site met een form-/client-gestuurde id zou zonder deze guard andermans (gevoelig)
+  document kunnen verwijderen — precies de latente IDOR die deze harden dicht zet.
+- **Repro (latent):** `deleteDocumentById(actorId, documentId)` (`src/app/(protected)/certificaten/actions.ts`)
+  laadde het document op `id` alleen (`findUnique({ where: { id } })`, select `storageKey`) en deed daarna een
+  onvoorwaardelijke `document.delete({ where: { id } })` — géén filter op `ownerId`. Een aanroeper die een
+  vreemde documentId zou doorgeven, wist dat vreemde document (+ blob) zonder eigenaarscheck.
+- **Fix (deze PR):** de functie selecteert nu ook `ownerId` en faalt fail-closed bij een mismatch: is
+  `doc.ownerId !== actorId`, dan verwijdert ze niets, schrijft ze een `DOCUMENT_DELETE_DENIED`-auditregel (het
+  bestaande denied-audit-idioom, spiegelt `DOCUMENT_ACCESS_DENIED`) en keert terug. De bestaande, legitieme
+  resubmit-opruiming (eigen document) blijft werken. Rood→groen: nieuw testbestand
+  `certificaten/delete-owner-guard.test.ts` (2 tests: eigen document → verwijderd + `DOCUMENT_DELETED`;
+  vreemd document → NIET verwijderd + `DOCUMENT_DELETE_DENIED`) — de tweede test faalt zonder de guard
+  (bevestigd: guard uitgezet → vreemd document alsnog verwijderd). De TOCTOU-mock in `persist-toctou.test.ts`
+  levert nu ook `ownerId` (weerspiegelt dat het opgeruimde document van de actor is). Volledige gate groen.
+
+### Schone oppervlakken (0 nieuwe bereikbare gaten — 3 parallelle adversariële audits + eigen tracing)
+
+- **Delta-code (#1209–#1212):** `/api/metrics` is CRON_SECRET-gated (fail-closed: geen secret → 503, fout token
+  → 401), `force-dynamic`, `no-store`, en de uitvoer bevat uitsluitend geaggregeerde numerieke gauges — geen
+  PII, geen secrets; de nieuwe `RateLimitDeliveryHeartbeat`-tabel houdt alleen timestamps/teller/driver-modus
+  (expliciet geen PII). De snelle antwoorden (`quick-replies.ts`) zijn volledig statische, gecureerde zinnen die
+  door dezelfde `sendMessage`-actie (auth → participant-check → validatie) lopen als elk handmatig bericht — geen
+  nieuw mutatiepad, geen injectie (React auto-escape, geen `dangerouslySetInnerHTML`). Het wachttijd-signaal
+  (`performance-wait.ts`) en de maanddoel-tempo (`income-goal.ts`) zijn pure, deterministische afleidingen uit
+  al-geladen, op de eigen actor gescoopte data — geen nieuwe Prisma-query, geen PII-overfetch naar de client.
+- **IDOR / object-authz (A01):** alle 42 route-handlers + de mutatie-subset van de 53 action-files: overal
+  `auth → rol → ownership/tenant → Zod → actie → audit`, met 404-maskering (CWE-203/208-veilig) en denied-access-
+  audit op de document/PDF/dossier-routes. Geen blinde `update({ where: { id } })` op client-`id`; geen
+  mass-assignment (`ownerId`/`role`/`tenantId`/`status` altijd server-afgeleid uit `actor`).
+- **Cross-tenant / franchiser-isolatie:** elke franchiser-query gescoopt via `tenantScopeWhere`/`ownsViaTenant`/
+  post-fetch `tenantId`-guard (tenant uit live-DB `currentActor`), fail-closed; exports (fees/companies/roster)
+  rol-gated + tenant-gescoopt + ge-audit.
+- **AVG-erasure-volledigheid (art. 17):** `anonymizeUser` redacteert voor élk vrije-tekst-veld met een cross-
+  party/audit/domain-event-kopie álle kopieën (bron-rij → auditmetadata → domain-event-payload → tegenpartij-
+  notificatie via de gedeelde body-builders). `account-export.ts` is tegenpartij-minimaal (derde-partij-relaties
+  alleen als opaque id, vrije tekst alleen eigen-geschreven rijen). Geen nieuw sch, geen nieuwe PII-kopie.
+- **Injectie/SSRF/upload/export (A03/A10):** geen `$queryRawUnsafe`/rauwe SQL; enige `dangerouslySetInnerHTML` is
+  het statische thema-script (CSP-nonce); CSV via `escapeCsvField`; alle server-side `fetch`-hosts vast/env-
+  gebaseerd (Geoapify/DUO/BIG/iDIN/HIBP/Mollie/Stripe) — geen user-gestuurde host; uploads via de storage-
+  abstractie met type-/grootte-/magic-byte-validatie + path-traversal-guard; rauwe Prisma-fouten bereiken de
+  client nooit (`safe-action-error.ts`).
+
 ## Ronde 2026-08-23b (basis: `main` @ 57790fa6) — 1× HOOG OPGELOST (onvolledige AVG-erasure, annuleerreden) + delta schoon
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
@@ -5624,10 +5691,11 @@ design, A07 auth failures, A09 logging) + AVG art. 5/15/17/30 als kader.
   `z.enum(["FREELANCER","CLIENT"])`) vlak vóór de DB-write, binnen de bestaande per-rij-try. Test:
   `import-role.test.ts`.
 
-- **[LAAG · defense-in-depth IDOR]** `deleteDocumentById` (`certificaten/actions.ts`) doet geen
-  eigen ownership-check (vertrouwt op de aanroepers die een eigen credential-document doorgeven). Nu
-  niet exploiteerbaar; een toekomstige call-site met een form-id zou het wel maken. Fix: in de
-  functie `doc.ownerId !== actorId` checken (en `ownerId` selecteren).
+- **[LAAG · defense-in-depth IDOR] — OPGELOST (ronde 2026-08-24):** `deleteDocumentById`
+  (`certificaten/actions.ts`) deed geen eigen ownership-check (vertrouwde op de aanroepers die een eigen
+  credential-document doorgeven). De functie selecteert nu `ownerId` en faalt fail-closed bij
+  `doc.ownerId !== actorId` (`DOCUMENT_DELETE_DENIED`-audit, niets verwijderd). Regressietest:
+  `certificaten/delete-owner-guard.test.ts` (rood→groen bevestigd). Zie de 2026-08-24-ronde bovenaan.
 
 - **[LAAG · audit-volledigheid]** `removeDepartment`/`removeAfdelingStep` (franchise) auditen geen
   count van geraakte `Job.departmentId`-cascades. Fix: `affectedJobIds` in metadata.

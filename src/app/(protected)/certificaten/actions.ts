@@ -71,9 +71,23 @@ async function deleteDocumentById(actorId: string, documentId: string | null) {
   if (!documentId) return;
   const doc = await prisma.document.findUnique({
     where: { id: documentId },
-    select: { storageKey: true },
+    select: { storageKey: true, ownerId: true },
   });
   if (!doc) return;
+  // Defense-in-depth ownership-guard (CLAUDE.md regel 2, OWASP A01/IDOR): verwijder nooit een
+  // document dat niet van de actor is. De huidige aanroepers geven altijd een documentId door dat
+  // uit een eigen credential (`loadOwnedCredential`) komt, dus dit is nu geen open gat — maar een
+  // toekomstige call-site met een form-/client-id zou zonder deze check een fremd document kunnen
+  // wissen. Fail-closed: bij een mismatch niets verwijderen, wél de poging auditen.
+  if (doc.ownerId !== actorId) {
+    await audit({
+      actorId,
+      action: "DOCUMENT_DELETE_DENIED",
+      entityType: "Document",
+      entityId: documentId,
+    });
+    return;
+  }
   await prisma.document.delete({ where: { id: documentId } });
   await getStorage()
     .delete(doc.storageKey)

@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-24 — Security/privacy-audit: defense-in-depth ownership-guard op document-delete
+
+**Wat:** Security-/privacy-auditronde (basis `main` @ 3f51108e). Orchestrator (Opus 4.8) + 3 parallelle
+adversariële Opus-audits op niet-overlappende oppervlakken (AVG-erasure-volledigheid · IDOR/object-authz +
+functie-authz · cross-tenant/franchiser-isolatie + injectie/SSRF/upload/export/PII-overfetch/secrets-logs).
+Delta `57790fa6..3f51108e` (#1209–#1212: rate-limit-heartbeat, snelle antwoorden, wachttijd-signaal,
+maanddoel-tempo) is schoon; geen nieuwe bereikbare gaten in OWASP A01/A03/A05/A07/A10 of AVG art. 5/15/17/25/32.
+
+**Gefixt (1× LAAG, defense-in-depth):** `deleteDocumentById` (`src/app/(protected)/certificaten/actions.ts`)
+deed geen eigen ownership-check en vertrouwde volledig op de aanroepers. De functie selecteert nu `ownerId` en
+faalt fail-closed bij `doc.ownerId !== actorId` (schrijft `DOCUMENT_DELETE_DENIED`-audit, verwijdert niets) —
+CLAUDE.md regel 2 (auth→rol→**ownership**→…), OWASP A01/IDOR. Sluit een latente IDOR voor toekomstige call-sites.
+
+**Bestanden:** `src/app/(protected)/certificaten/actions.ts` (guard), `.../delete-owner-guard.test.ts` (nieuw,
+rood→groen: eigen doc → verwijderd; vreemd doc → geblokkeerd + audit), `.../persist-toctou.test.ts` (mock levert
+nu `ownerId`), `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde-entry + item OPGELOST).
+
+**Gate:** typecheck ✓ · lint ✓ · prettier --check . ✓ · build ✓ · test 6800/6800 ✓. `npm audit --omit=dev` = 0.
+
 ## 2026-08-24 — ZZP'er: maanddoel-tempo (kalender-pacing) op /prognose
 
 **Wat:** De maanddoel-status ("op koers") volgde uitsluitend uit `realized + concepten ≥ doel` en negeerde wáár
