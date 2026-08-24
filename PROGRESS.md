@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-24 — Opdrachtgever: listing-kwaliteit tips op het opdracht-detail — PR #1218
+
+**Wat:** de kwaliteitsmeter (`assessJobQuality`) — die de opdrachtgever helpt een sterke plaatsing te
+schrijven — leefde **alleen in het bewerk-formulier** en verdween zodra de opdracht gepubliceerd was.
+Op het live opdracht-detail stonden alleen márkt-signalen (vacaturetempo, tarief-diagnose, bereik),
+nooit een signaal over de **plaatsing zelf** (dunne omschrijving, geen skills, geen startdatum). Nieuwe
+read-only "Maak deze opdracht sterker"-kaart voor de eigenaar op `/opdrachten/[id]`: toont de openstaande
+listing-verbeterpunten (titel/omschrijving/branche/skills/startdatum/locatie), zwaarst wegend eerst, met
+een bewerk-link. Bewust gescoped op de **niet-tarief**-dimensies — de tarief-advisering blijft exclusief
+bij de vacaturetempo-/tarief-diagnose op hetzelfde scherm (geen dubbele tarief-tip). Eén bron van
+waarheid: de checks komen uit `assessJobQuality`; de nieuwe helper filtert en herordent alleen. Geen
+extra query (alle velden zitten al op `job`), geen schema-/mutatie-/authz-/domeinmotor-oppervlak. Alleen
+zichtbaar voor de eigenaar bij een PUBLISHED opdracht met open punten (compleet → kaart verdwijnt).
+
+**Bestanden:** `src/lib/job-listing-quality.ts` (pure `assessJobListingQuality` +
+`LISTING_QUALITY_CHECK_CODES`), `src/components/jobs/job-listing-quality-card.tsx`, wiring in
+`src/app/(protected)/opdrachten/[id]/page.tsx`.
+
+**Tests:** `src/lib/job-listing-quality.test.ts` (5: volledige plaatsing → geen tips/compleet, dunne
+plaatsing → alle zes tips zwaarst-eerst, tarief-dimensie genegeerd, REMOTE→locatie voldaan, alleen
+vereiste skills tellen). Gate: typecheck, lint, test (nieuw 5 groen + volledige suite), prettier
+(4 bestanden) · build → PR-gate #1218.
+
+**Rest (mensenwerk):** niets.
+
 ## 2026-08-24 — Bemiddelaar: financiële relatie op het opdrachtgever-detail — PR #1217
 
 **Wat:** de bemiddelaar zag op de opdrachtgeverslijst (`/franchise/opdrachtgevers`) per klant al de
