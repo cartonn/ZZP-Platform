@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-24 — Prod-rijpheid: open beveiligingsincident-gauges + alerts (dead-man's-switch voor de eigen detector)
+
+**Wat (PR #1221):** de platform-eigen bewakingsmotor (`src/lib/monitoring/detectors.ts` + `runMonitorTask`,
+dagelijkse cron) detecteert anomalieën (inlog-burst, wachtwoordreset-flood, rolwijziging-burst,
+dependency-CVE) en persisteert ze als `HealthIncident` (status `OPEN`). Dit was het **enige** detector-signaal
+zónder machine-leesbare exposure: `/api/metrics` toonde alleen de AVG-retentie-backlog van incidenten, niet de
+**open, onopgeloste** incidenten — een externe monitor kon dus **niet pagen** wanneer het platform zélf een
+brute-force-burst of privilege-escalatie detecteerde (alleen zichtbaar als een admin op `/admin/bewaking`
+inlogde). Precies de stille-faalmodus die de rest van de metrics-familie dicht.
+
+- **Nieuw:** pure single-source-of-truth `openHealthIncidentWhere` + `ALERTABLE_INCIDENT_SEVERITIES`
+  (`src/lib/observability/health-incident-open.ts`) — drift-proof gedeeld met de count.
+- **Gauges:** `zzp_health_incidents_open_critical` / `zzp_health_incidents_open_warn` op `/api/metrics`
+  (bounded-parallel collector, hergebruikt de where; telt alleen status `OPEN` → valt terug naar 0 zodra een
+  admin ACKNOWLEDGED/RESOLVED). INFO-severity bewust niet geëxposeerd (geen ruis). Bevat nooit PII.
+- **Alerts:** `ZzpSecurityIncidentCritical` (severity critical, `for:5m` — paget snel) /
+  `ZzpSecurityIncidentWarn` (warning, `for:6h`) in nieuwe groep `zzp-platform-beveiliging`
+  (`docs/observability/alerts.yml`); beide toegevoegd aan de onderhouds-inhibitie in `alertmanager.yml`
+  (monitoring-bundle drift-gate eist dat).
+- **Tests:** `health-incident-open.test.ts` (where + severity-lijst, enum-drift-gate); `metrics.test.ts`
+  (healthy/degraded/orde + clamp); `alerts-rules.test.ts` + `monitoring-bundle.test.ts` groen (drift-gates).
+- **Docs:** MENSENWERK.md §0b (code-kant GEDAAN; resterend mensenwerk: niets extra, optioneel monitor eraan
+  hangen).
+- **Gate:** typecheck ✓, targeted tests (81 + bundle/alerts) ✓; lint/test/build/prettier → PR-gate.
+
 ## 2026-08-24 — Security/privacy-audit: 2× TOCTOU-race gedicht (MIDDEL geld-integriteit ORT + LAAG AVG-retentie)
 
 **Wat (delta-audit `3f51108e..e656bcf2`; orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

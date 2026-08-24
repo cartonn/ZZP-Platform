@@ -268,6 +268,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — open beveiligingsincident-gauges + alerts (dead-man's-switch eigen detector) (2026-08-24, PR #1221)** —
+> de bewakingsmotor (`detectors.ts` + `runMonitorTask`, dagelijkse cron) detecteert anomalieën (inlog-burst,
+> reset-flood, rolwijziging-burst, dependency-CVE) en legt ze vast als `HealthIncident` (status OPEN, zichtbaar op
+> `/admin/bewaking`), maar `/api/metrics` exposeerde alleen de AVG-retentie-backlog — niet de **open** incidenten,
+> dus een externe monitor kon niet pagen op een gedetecteerde brute-force/escalatie (stille-faalmodus). Nu twee gauges
+> `zzp_health_incidents_open_critical`/`_warn` via de single-source-of-truth `openHealthIncidentWhere`
+> (`src/lib/observability/health-incident-open.ts`, drift-proof gedeeld met de count; alleen status OPEN → 0 zodra
+> ACKNOWLEDGED/RESOLVED; INFO bewust niet geëxposeerd; nooit PII) + alerts `ZzpSecurityIncidentCritical` (`for:5m`,
+> critical) / `ZzpSecurityIncidentWarn` (`for:6h`) in nieuwe groep `zzp-platform-beveiliging`, in de onderhouds-inhibitie.
+> +tests (pure where/severity + enum-drift-gate; metrics healthy/degraded/orde/clamp; alerts-rules + monitoring-bundle
+> drift-gates). Resterend mensenwerk: niets extra (optioneel monitor eraan hangen). Gate: typecheck ✓, targeted tests
+> (81 + bundle) ✓ · lint/test/build/prettier → PR-gate.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — support-ticket retentie (AVG art. 5(1)(e) opslagbeperking) (2026-08-24, PR #1214)** —
 > SupportTicket/SupportMessage was het **enige** PII-model zónder retentie-sweep (audit/application/message/notification/
 > lead/health-incident/webhook-event/routing-cache hadden er al één): `subject` + elke SupportMessage-`body` dragen

@@ -326,6 +326,22 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   drift-vrije where-clauses ongewijzigd. Zie RUNBOOK §2a. Resterend mensenwerk: **niets** — werkt
   out-of-the-box; optioneel de twee env-knoppen bijstellen.
 
+- **Externe alertering op de eigen beveiligingsdetector** (laag, code-kant GEDAAN 2026-08-24): de
+  platform-eigen bewakingsmotor (`src/lib/monitoring/detectors.ts` + `runMonitorTask`, in de dagelijkse
+  cron) detecteert anomalieën (inlog-burst, wachtwoordreset-flood, rolwijziging-burst, dependency-CVE) en
+  legt ze vast als `HealthIncident` (status `OPEN`, zichtbaar op `/admin/bewaking`). Tot nu toe was dat
+  het **enige** detector-signaal zonder machine-leesbare exposure: `/api/metrics` toonde alleen de
+  AVG-retentie-backlog van incidenten, niet de **open, onopgeloste** incidenten — een externe monitor kon
+  dus **niet pagen** wanneer het platform zélf een brute-force-burst of privilege-escalatie detecteerde
+  (alleen zichtbaar als een admin inlogde). Dat gat is nu gedicht met twee gauges
+  `zzp_health_incidents_open_critical` / `zzp_health_incidents_open_warn` (via de single-source-of-truth
+  `openHealthIncidentWhere` in `src/lib/observability/health-incident-open.ts`, drift-proof gedeeld met de
+  count) + twee alerts `ZzpSecurityIncidentCritical` (page, `for:5m`) / `ZzpSecurityIncidentWarn`
+  (`for:6h`) in `docs/observability/alerts.yml`, in de onderhouds-inhibitie. De gauge valt vanzelf terug
+  naar 0 zodra een admin het incident ACKNOWLEDGED of RESOLVED. Bevat nooit PII — alleen tellingen per
+  severity. Resterend mensenwerk: **niets extra** — de gauges vullen zichzelf; optioneel richt je een
+  monitor op `ZzpSecurityIncidentCritical`/`ZzpSecurityIncidentWarn`.
+
 - **Semantische matching (pgvector): stille-degradatie-gat gedicht** (laag, code-kant GEDAAN
   2026-08-16): `SEMANTIC_MATCHER=pgvector` was de enige env-selecteerbare driver die de "halve
   activering is gevaarlijker dan geen"-regel (CLAUDE.md §8) ontweek — de pgvector-matcher gooit

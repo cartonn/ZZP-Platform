@@ -37,6 +37,8 @@ const HEALTHY: MetricsInput = {
   notificationsRetentionBacklog: 0,
   leadsRetentionBacklog: 0,
   healthIncidentsIpRetentionBacklog: 0,
+  openIncidentsCritical: 0,
+  openIncidentsWarn: 0,
   messagesRetentionBacklog: 0,
   supportTicketsRetentionBacklog: 0,
   webhookEventsRetentionBacklog: 0,
@@ -92,6 +94,8 @@ describe("buildMetrics", () => {
     expect(valueOf(HEALTHY, "zzp_reviews_overdue_reveal")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_performances_overdue_grace")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_disputes_overdue_escalation")).toBe(0);
+    expect(valueOf(HEALTHY, "zzp_health_incidents_open_critical")).toBe(0);
+    expect(valueOf(HEALTHY, "zzp_health_incidents_open_warn")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_audit_retention_backlog")).toBe(0);
   });
 
@@ -112,6 +116,22 @@ describe("buildMetrics", () => {
     const names = buildMetrics(HEALTHY).map((m) => m.name);
     const dbIdx = names.indexOf("zzp_db_reachable");
     expect(names[dbIdx + 1]).toBe("zzp_metrics_collection_complete");
+  });
+
+  it("mapt de open-beveiligingsincidenten (CRITICAL/WARN) door als aparte gauges", () => {
+    expect(
+      valueOf({ ...HEALTHY, openIncidentsCritical: 2 }, "zzp_health_incidents_open_critical"),
+    ).toBe(2);
+    expect(valueOf({ ...HEALTHY, openIncidentsWarn: 5 }, "zzp_health_incidents_open_warn")).toBe(5);
+  });
+
+  it("klemt een negatieve/gebroken open-incidenten-teller veilig op een niet-negatief geheel getal", () => {
+    expect(
+      valueOf({ ...HEALTHY, openIncidentsCritical: -1 }, "zzp_health_incidents_open_critical"),
+    ).toBe(0);
+    expect(valueOf({ ...HEALTHY, openIncidentsWarn: 4.8 }, "zzp_health_incidents_open_warn")).toBe(
+      4,
+    );
   });
 
   it("mapt de expiry-backlog (VERIFIED maar verlopen) door als gauge", () => {
@@ -463,6 +483,8 @@ describe("buildMetrics", () => {
       notificationsRetentionBacklog: 11,
       leadsRetentionBacklog: 4,
       healthIncidentsIpRetentionBacklog: 9,
+      openIncidentsCritical: 2,
+      openIncidentsWarn: 8,
       messagesRetentionBacklog: 3,
       supportTicketsRetentionBacklog: 5,
       webhookEventsRetentionBacklog: 6,
@@ -522,6 +544,8 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_reviews_overdue_reveal")).toBe(10);
     expect(valueOf(input, "zzp_performances_overdue_grace")).toBe(13);
     expect(valueOf(input, "zzp_disputes_overdue_escalation")).toBe(19);
+    expect(valueOf(input, "zzp_health_incidents_open_critical")).toBe(2);
+    expect(valueOf(input, "zzp_health_incidents_open_warn")).toBe(8);
     expect(valueOf(input, "zzp_audit_retention_backlog")).toBe(15);
     expect(valueOf(input, "zzp_applications_retention_backlog")).toBe(7);
     expect(valueOf(input, "zzp_notifications_retention_backlog")).toBe(11);
@@ -591,6 +615,8 @@ describe("buildMetrics", () => {
       "zzp_reviews_overdue_reveal",
       "zzp_performances_overdue_grace",
       "zzp_disputes_overdue_escalation",
+      "zzp_health_incidents_open_critical",
+      "zzp_health_incidents_open_warn",
       "zzp_audit_retention_backlog",
       "zzp_applications_retention_backlog",
       "zzp_notifications_retention_backlog",

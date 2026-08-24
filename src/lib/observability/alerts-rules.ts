@@ -91,6 +91,8 @@ const SAMPLE_INPUT: MetricsInput = {
   notificationsRetentionBacklog: 0,
   leadsRetentionBacklog: 0,
   healthIncidentsIpRetentionBacklog: 0,
+  openIncidentsCritical: 0,
+  openIncidentsWarn: 0,
   messagesRetentionBacklog: 0,
   supportTicketsRetentionBacklog: 0,
   webhookEventsRetentionBacklog: 0,

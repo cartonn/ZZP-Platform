@@ -544,6 +544,36 @@ groups:
           summary: "Oudste verificatie wacht te lang"
           description: "De langst wachtende verificatie-inzending wacht > 24 uur (zzp_verification_queue_oldest_age_seconds). Handel de wachtrij op /admin/verificaties af."
 
+  - name: zzp-platform-beveiliging
+    rules:
+      - alert: ZzpSecurityIncidentCritical
+        # De platform-eigen bewakingsmotor (src/lib/monitoring/detectors.ts + runMonitorTask, dagelijkse
+        # cron) detecteert anomalieën en persisteert ze als HealthIncident (status OPEN). Een CRITICAL
+        # incident = een inlog-burst boven de kritieke drempel (mogelijke brute-force/credential-stuffing)
+        # of een high/critical dependency-CVE. Zonder deze alert blijft die bevinding onzichtbaar tot een
+        # admin op /admin/bewaking inlogt — precies de stille-faalmodus die de rest van de metrics-familie
+        # dicht. Paget snel (korte `for:`): een gedetecteerde aanval wacht niet op kantooruren. De gauge
+        # valt vanzelf terug naar 0 zodra een admin het incident ACKNOWLEDGED of RESOLVED.
+        expr: zzp_health_incidents_open_critical > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Kritiek beveiligingsincident open"
+          description: "De bewakingsmotor heeft ≥1 OPEN CRITICAL beveiligingsincident vastgesteld (zzp_health_incidents_open_critical) — bv. een inlog-burst of een kritieke dependency-CVE. Onderzoek het op /admin/bewaking en bevestig (ACKNOWLEDGE) of los het op (RESOLVE)."
+      - alert: ZzpSecurityIncidentWarn
+        # WARN-incident = wachtwoordreset-flood, rolwijziging-burst of een moderate dependency-CVE. Lager
+        # urgent dan CRITICAL: vraagt triage, geen 3-uur-'s-nachts-page. Een ruime `for:` zodat alleen een
+        # AANHOUDEND onbehandeld incident paget (een admin heeft de dag om te triageren). Valt terug naar 0
+        # zodra het incident ACKNOWLEDGED/RESOLVED is.
+        expr: zzp_health_incidents_open_warn > 0
+        for: 6h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Beveiligingsincident (WARN) open"
+          description: "De bewakingsmotor heeft ≥1 OPEN WARN beveiligingsincident vastgesteld (zzp_health_incidents_open_warn) — bv. een wachtwoordreset-flood of een rolwijziging-burst. Triageer het op /admin/bewaking."
+
   - name: zzp-platform-onderhoud
     rules:
       - alert: ZzpMaintenanceModeOn
