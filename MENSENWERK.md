@@ -1035,6 +1035,23 @@ Resterend mensenwerk: **niets extra** — de knop is er zodra `ROUTING_PROVIDER=
    privacyjurist** (dit blijft jouw juridische keuze) en daarna `MESSAGE_RETENTION_DAYS` zetten (bv.
    `365`). Zolang het leeg blijft verandert er niets.
 
+   **Code-kant GEDAAN (2026-08-24) — support-ticket-retentie afgedwongen:** SupportTicket/SupportMessage
+   was het **enige** PII-dragende model zónder retentie-sweep (auditlog/reacties/berichten/notificaties/
+   leads/beveiligingsincidenten/webhook-ledger/routing-cache hadden er al één). Het onderwerp (`subject`)
+   en elk supportbericht (`body`) dragen vrije-tekst-PII — de aanvrager beschrijft z'n probleem — en
+   afgehandelde tickets stapelden onbeperkt op (AVG art. 5 lid 1e opslagbeperking). Er is nu een geplande
+   taak **`support-retention`** (in `/api/tasks/run-all`, pure kern `src/lib/support-retention.ts` +
+   `src/lib/support-retention-task.ts`) die **afgehandelde (RESOLVED)** tickets ouder dan het venster
+   gebatcht en idempotent snoeit (verwijdering cascadeert naar de gekoppelde berichten), met één
+   verantwoordings-auditrecord per snoei-actie (geen PII — alleen aantal + cutoff + venster). Een nog-open
+   ticket (NEW/TRIAGED/AWAITING_USER/REOPENED) of een legacy-ticket zonder afhandelmoment (`resolvedAt`)
+   blijft altijd staan. Anders dan de auditlog-/berichten-retentie (default UIT wegens onomkeerbaarheid/
+   geschillenwaarde) is support-communicatie operationeel platformverkeer, dus staat deze sweep **standaard
+   AAN op 365 dagen** (`SUPPORT_TICKET_RETENTION_DAYS`; min-vloer 30, expliciete `0` = uit). Machine-leesbaar
+   op `/api/metrics` (`zzp_support_tickets_retention_backlog`); nieuwe verwerkingsregister-activiteit
+   "support-communicatie" + `RETENTION_SCHEDULE`-entry. Resterend mensenwerk: **niets** — werkt out-of-the-box;
+   optioneel het venster laten bevestigen door een privacyjurist en `SUPPORT_TICKET_RETENTION_DAYS` bijstellen.
+
 ### 5b. Wet DBA (schijnzelfstandigheid)
 
 **Stappen:**

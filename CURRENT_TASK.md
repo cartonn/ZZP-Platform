@@ -268,6 +268,23 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — support-ticket retentie (AVG art. 5(1)(e) opslagbeperking) (2026-08-24, PR #1214)** —
+> SupportTicket/SupportMessage was het **enige** PII-model zónder retentie-sweep (audit/application/message/notification/
+> lead/health-incident/webhook-event/routing-cache hadden er al één): `subject` + elke SupportMessage-`body` dragen
+> vrije-tekst-PII (de aanvrager beschrijft z'n probleem), en afgehandelde tickets stapelden onbeperkt op → AVG-
+> opslagbeperking-overtreding. Nieuw: pure `supportTicketRetentionCutoff` (`src/lib/support-retention.ts`) +
+> `runSupportTicketRetentionTask`/`prunableSupportTicketWhere` (`src/lib/support-retention-task.ts`, gebatchte delete,
+> idempotent, audit `SUPPORT_TICKETS_PRUNED` zonder PII). SCOPE-VEILIG: alleen `status: RESOLVED` mét gezette
+> `resolvedAt < cutoff` (open/wachtende/legacy-zonder-anker tickets blijven staan); verwijdering cascadeert naar de
+> berichten (`onDelete: Cascade`). Config `SUPPORT_TICKET_RETENTION_DAYS` **default AAN op 365d** (min-vloer 30, expliciete
+> 0 = uit) — support is operationeel platformverkeer (anders dan message-retention, default UIT wegens geschillenwaarde).
+> Gewired in `run-all` (nieuwe taak `support-retention`) + metrics-gauge `zzp_support_tickets_retention_backlog`
+> (hergebruikt exact `prunableSupportTicketWhere`, kan niet driften) + verwerkingsregister-activiteit "support-communicatie"
+>
+> - `RETENTION_SCHEDULE`-entry + audit-label. Resterend mensenwerk: **niets extra** (optioneel `SUPPORT_TICKET_RETENTION_DAYS`
+>   tunen). +tests (pure cutoff 4 · task 9 incl. scope/batch/idempotentie/audit; metrics drift-gate + register-invarianten).
+>   Gate: typecheck, lint, prettier (repo), targeted tests (118 + metrics-route 23) groen · build → PR-gate.
+>
 > Gedaan (niet opnieuw): **ZZP'er — maanddoel-tempo (kalender-pacing) op /prognose (2026-08-24, PR #1212)** —
 > de maanddoel-status ("op koers") volgde uitsluitend uit `realized + concepten ≥ doel` en negeerde wáár je in de
 > maand zit (dag 3 met 10% → onterecht geruststellend). Voor het urencriterium bestond pacing al wél

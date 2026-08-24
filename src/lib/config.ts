@@ -365,6 +365,35 @@ export function messageRetentionDays(): number {
   return parseMessageRetentionDays(process.env.MESSAGE_RETENTION_DAYS);
 }
 
+// --- Support-ticket-retentie (AVG art. 5(1)(e), opslagbeperking) -------------
+// Het verwerkingsregister ("support-communicatie") belooft helpdesk-tickets "tot afhandeling + een
+// redelijke termijn" te bewaren. Een SupportTicket-rij draagt vrije-tekst-PII in `subject` en elke
+// SupportMessage in `body` (de aanvrager beschrijft z'n probleem — kan naam/contact/situatiedetails
+// bevatten); die onbeperkt bewaren ís de overtreding, en support was het enige PII-model zónder
+// retentie-sweep. Net als notificatie-/reactie-retentie is dít een AVG-verplichting: de sweep staat
+// standaard AAN op een ruim venster (365 dagen ≈ 12 maanden na afhandeling) wanneer de env leeg is.
+// Anders dan berichten tussen partijen (message-retention, default UIT wegens geschillenwaarde) is
+// support-communicatie operationeel platformverkeer; een jaar na afhandeling is er geen grond meer om
+// het te bewaren. Alleen RESOLVED-tickets vallen onder de sweep (open/wachtende tickets nooit); de
+// verwijdering ankert op `resolvedAt` (het afhandelmoment). Een operator kan tunen; een expliciete
+// 0/negatieve waarde zet 'm uit. De minimumvloer voorkomt dat een typefout ("3" i.p.v. "365") nog-verse
+// afgehandelde tickets te agressief wist. Verwijderen van een ticket cascadeert naar z'n SupportMessages.
+export const SUPPORT_TICKET_RETENTION_MIN_DAYS = 30;
+export const SUPPORT_TICKET_RETENTION_DEFAULT_DAYS = 365; // 12 maanden na afhandeling — het beloofde venster.
+export function parseSupportTicketRetentionDays(raw: string | undefined): number {
+  // Leeg/ongeconfigureerd → dwing het beloofde venster af (fail-safe naar wissen, niet naar bewaren).
+  if (raw === undefined || raw.trim() === "") return SUPPORT_TICKET_RETENTION_DEFAULT_DAYS;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return SUPPORT_TICKET_RETENTION_DEFAULT_DAYS;
+  if (n <= 0) return 0; // expliciete operator-override: retentie uit.
+  return Math.max(SUPPORT_TICKET_RETENTION_MIN_DAYS, Math.floor(n));
+}
+
+/** Geconfigureerd support-ticket-retentievenster in dagen; 0 = uitgeschakeld (expliciete override). */
+export function supportTicketRetentionDays(): number {
+  return parseSupportTicketRetentionDays(process.env.SUPPORT_TICKET_RETENTION_DAYS);
+}
+
 // --- Cron-heartbeat venster (observability, dead-man's-switch) --------------
 // Maximale leeftijd (in uren) van de laatste geplande-taken-cron-run vóór 'ie als "stale" geldt op
 // /admin/systeemstatus. De cron draait standaard dagelijks (run-all-tasks.yml, 05:00 UTC); de
