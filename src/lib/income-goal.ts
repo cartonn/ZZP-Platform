@@ -150,6 +150,120 @@ export function incomeGoalGlance(
   }
 }
 
+/**
+ * Kalender-tempo van het maanddoel: weegt de dag-van-de-maand mee zodat een geruststellend
+ * "op koers" niet louter uit `realized + concepten ≥ doel` volgt. Vergelijkt het gerealiseerde
+ * met wat een gelijkmatig tempo op deze dag opgeleverd zou hebben.
+ */
+export type IncomeGoalPaceState = "ahead" | "on_track" | "behind";
+
+export interface IncomeGoalPace {
+  /** Dag van de maand (1..31, UTC). */
+  dayOfMonth: number;
+  /** Aantal dagen in deze maand (28..31). */
+  daysInMonth: number;
+  /** Resterende dagen ná vandaag (0 op de laatste dag). */
+  daysRemaining: number;
+  /** Bedrag dat een gelijkmatig tempo op deze dag opgeleverd zou hebben (centen). */
+  expectedByNowCents: number;
+  /** realized − expectedByNow: positief = voor op schema, negatief = achter. */
+  deltaCents: number;
+  /** Nog te gaan tot het doel op basis van het gerealiseerde (centen). */
+  remainingToGoalCents: number;
+  /** Benodigd tempo voor de rest van de maand om het doel te halen (centen/week). */
+  neededPerWeekCents: number;
+  state: IncomeGoalPaceState;
+  tone: IncomeGoalGlanceTone;
+}
+
+/** Tolerantieband rond het gelijkmatige tempo (10%) voordat "voor"/"achter" oordeelt. */
+const PACE_TOLERANCE_BPS = 1000;
+
+/**
+ * Bereken het kalender-tempo voor een maanddoel. Geeft `null` wanneer er geen doel is (`none`)
+ * of het doel al gehaald is (`achieved`) — dan zegt de statusregel al genoeg en is een tempo-
+ * oordeel ruis. `now` wordt geïnjecteerd (deterministisch, los testbaar); alle datumrekenkunde
+ * in UTC, consistent met de rest van de codebase.
+ */
+export function incomeGoalPace(
+  summary: IncomeGoalSummary,
+  now: Date = new Date(),
+): IncomeGoalPace | null {
+  if (summary.status === "none" || summary.status === "achieved" || summary.goalCents === null) {
+    return null;
+  }
+
+  const goalCents = summary.goalCents;
+  const realizedCents = summary.realizedCents;
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  const dayOfMonth = now.getUTCDate();
+  // Dag 0 van de vólgende maand = laatste dag van deze maand.
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const daysRemaining = Math.max(0, daysInMonth - dayOfMonth);
+
+  // Gelijkmatig tempo: het deel van het doel dat na `dayOfMonth` dagen geboekt zou moeten zijn.
+  const elapsedFraction = clamp(dayOfMonth / daysInMonth, 0, 1);
+  const expectedByNowCents = Math.round(goalCents * elapsedFraction);
+  const deltaCents = realizedCents - expectedByNowCents;
+  const remainingToGoalCents = Math.max(0, goalCents - realizedCents);
+
+  // Weken tot het maandeinde (minstens één dag), zodat het benodigde weektempo eindig blijft.
+  const weeksRemaining = Math.max(daysRemaining, 1) / 7;
+  const neededPerWeekCents = Math.round(remainingToGoalCents / weeksRemaining);
+
+  const band = Math.round((expectedByNowCents * PACE_TOLERANCE_BPS) / 10000);
+  let state: IncomeGoalPaceState;
+  if (deltaCents > band) {
+    state = "ahead";
+  } else if (deltaCents < -band) {
+    state = "behind";
+  } else {
+    state = "on_track";
+  }
+
+  const tone: IncomeGoalGlanceTone =
+    state === "ahead" ? "success" : state === "behind" ? "warning" : "primary";
+
+  return {
+    dayOfMonth,
+    daysInMonth,
+    daysRemaining,
+    expectedByNowCents,
+    deltaCents,
+    remainingToGoalCents,
+    neededPerWeekCents,
+    state,
+    tone,
+  };
+}
+
+/**
+ * Uitlegzin voor het kalender-tempo. `formatEuro` wordt geïnjecteerd zodat de module puur en
+ * import-vrij blijft (spiegelt `incomeGoalGlance`).
+ */
+export function incomeGoalPaceHint(
+  pace: IncomeGoalPace,
+  formatEuro: (cents: number) => string,
+): string {
+  const day = `dag ${pace.dayOfMonth}/${pace.daysInMonth}`;
+  switch (pace.state) {
+    case "ahead":
+      return `Je loopt voor op schema — na ${day} zou een gelijkmatig tempo ${formatEuro(pace.expectedByNowCents)} zijn.`;
+    case "on_track":
+      return `Op koers voor de tijd van de maand — na ${day} lig je rond het gelijkmatige tempo (${formatEuro(pace.expectedByNowCents)}).`;
+    case "behind":
+    default: {
+      const achterstand = formatEuro(Math.abs(pace.deltaCents));
+      if (pace.daysRemaining === 0) {
+        return `De maand is bijna om en je zit ${achterstand} onder het gelijkmatige tempo.`;
+      }
+      const dagen = pace.daysRemaining === 1 ? "dag" : "dagen";
+      return `Je loopt ${achterstand} achter op het gelijkmatige tempo — houd ≈ ${formatEuro(pace.neededPerWeekCents)}/week aan in de resterende ${pace.daysRemaining} ${dagen} om je doel te halen.`;
+    }
+  }
+}
+
 /** Korte NL koptekst per status voor de kaart. */
 export function incomeGoalHeadline(summary: IncomeGoalSummary): string {
   switch (summary.status) {

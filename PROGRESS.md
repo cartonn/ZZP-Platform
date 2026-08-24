@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-24 — ZZP'er: maanddoel-tempo (kalender-pacing) op /prognose
+
+**Wat:** De maanddoel-status ("op koers") volgde uitsluitend uit `realized + concepten ≥ doel` en negeerde wáár
+je in de maand zit — op dag 3 met 10% kreeg je onterecht een geruststellend beeld, op dag 27 met 55% geen alarm.
+Voor het **urencriterium** bestond kalender-pacing al wél (`hours-criterion-summary` met weektempo/haalbaarheid);
+dit sluit datzelfde gat voor het **omzetdoel**. De maanddoel-kaart op `/prognose` toont nu onder de statusregel
+een tempo-zin die het gerealiseerde afzet tegen wat een gelijkmatig tempo op déze dag opgeleverd zou hebben, met
+bij achterstand het benodigde weektempo voor de rest van de maand (benchmark Malt/Deel: verwacht-vs-werkelijk
+tempo bij inkomensdoelen).
+
+**Ontwerp:** Twee nieuwe pure functies in `src/lib/income-goal.ts`. `incomeGoalPace(summary, now)` → `IncomeGoalPace`
+of `null` (geen doel `none` óf al `achieved` → geen tempo-ruis). UTC-datumrekenkunde: `dayOfMonth`, `daysInMonth`
+(dag-0-van-volgende-maand-truc, dus feb=28), `elapsedFraction = dayOfMonth/daysInMonth`,
+`expectedByNowCents = round(goal × fractie)`, `deltaCents = realized − expectedByNow`,
+`neededPerWeekCents = round(remainingToGoal / max(daysRemaining,1)×7)`. Toestand met een 10%-tolerantieband
+(`ahead`/`on_track`/`behind`) → toon `success`/`primary`/`warning`. `incomeGoalPaceHint(pace, formatEuro)` levert
+de NL-zin (formatEuro geïnjecteerd, module import-vrij — spiegelt `incomeGoalGlance`). `IncomeGoalCard` kreeg een
+optionele `pace`-prop + tempo-regel; `/prognose/page.tsx` berekent `pace` uit de al aanwezige `now` en
+`goalSummary` (geen extra query, geen schemawijziging). Read-only, server-side waarheid, geen
+mutatie-/authz-/domeinmotor-oppervlak.
+
+**Bestanden:** `src/lib/income-goal.ts` (+~110 r.), `src/lib/income-goal.test.ts` (+7 tests, 19 totaal),
+`src/components/administratie/income-goal-card.tsx`, `src/app/(protected)/prognose/page.tsx`.
+
+**Gate:** typecheck ✓ · lint ✓ · test 6798 ✓ · prettier ✓ · build → PR-gate (#1212). **Volgende stap:** dezelfde
+pacing-zin desgewenst naar de dashboard-`incomeGoalGlance`-chip (nu buiten scope gehouden).
+
 ## 2026-08-23e — ZZP'er: wachttijd-signaal per urenstaat op /diensten
 
 **Wat:** Een ingediende urenstaat (`SUBMITTED`) blokkeert stil de facturatie-cascade — pas ná goedkeuring
