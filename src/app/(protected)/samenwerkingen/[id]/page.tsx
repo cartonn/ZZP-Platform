@@ -69,7 +69,7 @@ import { RatingStars } from "@/components/reviews/rating-stars";
 import { ReviewList } from "@/components/reviews/review-list";
 import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
 import { formatDateShortNl } from "@/lib/format-date";
-import { plural } from "@/lib/plural";
+import { buildCollaborationTurnItems } from "@/lib/cascade/turn-items";
 
 export const metadata: Metadata = { title: "Samenwerking · Handslag" };
 
@@ -270,36 +270,22 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   // samenwerking is de overeenkomst historisch en read-only (geen actieve "Akkoord geven" meer).
   const agreementStillOpen = col.status === "PROPOSED" || col.status === "ACTIVE";
 
-  // "Aan zet": wat moet déze rol nu doen?
-  const todo: string[] = [];
-  if (col.status === "PROPOSED")
-    todo.push(
-      placementBlocked
-        ? `Vul het ontbrekende of verlopen certificaat aan (${placementMissing}) — daarna kan het contract worden ondertekend.`
-        : "Onderteken het contract om de opdracht te starten.",
-    );
-  if (active) {
-    const submitted = col.performances.filter((p) => p.status === "SUBMITTED").length;
-    if (isClient && submitted > 0)
-      todo.push(
-        `${plural(submitted, "ingediende prestatie", "ingediende prestaties")} ${submitted === 1 ? "wacht" : "wachten"} op je goedkeuring.`,
-      );
-    const draftInv = col.invoices.filter((i) => i.lifecycleStatus === "DRAFT").length;
-    if (isFreelancer && draftInv > 0)
-      todo.push(
-        `${plural(draftInv, "concept-factuur", "concept-facturen")} klaar om in te dienen.`,
-      );
-    const submittedInv = col.invoices.filter((i) => i.lifecycleStatus === "SUBMITTED").length;
-    if (isClient && submittedInv > 0)
-      todo.push(
-        `${plural(submittedInv, "factuur", "facturen")} ${submittedInv === 1 ? "wacht" : "wachten"} op je goedkeuring.`,
-      );
-    const approvedInv = col.invoices.filter((i) => i.lifecycleStatus === "APPROVED").length;
-    if (isFreelancer && approvedInv > 0)
-      todo.push(
-        `${plural(approvedInv, "goedgekeurde factuur", "goedgekeurde facturen")}: markeer de ontvangst zodra je bent betaald.`,
-      );
-  }
+  // "Aan zet": wat moet déze rol nu doen? Pure kern in `buildCollaborationTurnItems` (unit-testbaar).
+  // De `frozen`-poort zit in die functie: bij een open dispuut is de cascade bevroren, alle echte
+  // actieknoppen hieronder zijn verborgen en de status-regel toont "werkproces bevroren" — de banner
+  // mag zichzelf dan niet tegenspreken met een "keur de prestatie/factuur goed"-nudge (DOEL 1b).
+  const todo = buildCollaborationTurnItems({
+    status: col.status,
+    frozen,
+    isClient,
+    isFreelancer,
+    placementBlocked,
+    placementMissing,
+    submittedPerformances: col.performances.filter((p) => p.status === "SUBMITTED").length,
+    draftInvoices: col.invoices.filter((i) => i.lifecycleStatus === "DRAFT").length,
+    submittedInvoices: col.invoices.filter((i) => i.lifecycleStatus === "SUBMITTED").length,
+    approvedInvoices: col.invoices.filter((i) => i.lifecycleStatus === "APPROVED").length,
+  });
 
   // Eén bron voor de cyclus-recency: is de nieuwste prestatie nieuwer dan de nieuwste factuur? Zo ja,
   // dan hoort die factuur bij een vorige cyclus. Zowel de status-line als de voortgang-stepper delen

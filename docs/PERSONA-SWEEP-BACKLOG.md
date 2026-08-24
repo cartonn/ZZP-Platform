@@ -1,5 +1,67 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-24 (run 90) · **main-commit basis:** `2825d012`
+> **Uitkomst:** **2 defecten gevonden én gefixt** (1 malicieuze-input/data-integriteit should-fix; 1 next-action-
+> zelftegenspraak should-fix, alle rollen op het samenwerking-detail). **2 geparkeerd** (1 BLOCKER robustness-deadlock
+> in de beschermde cascade-engine → mensenwerk-review-waardige fix; 1 next-action should-fix, viewer-asymmetrie).
+> 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie ·
+> cascade/geld-integriteit + verboden statusovergangen · next-action-engine · malicieuze input/CSV/XSS/upload) + live
+> smoke (chromium tegen de geseede productie-server): 4 rollen login + /acties (200), samenwerking-detail (200),
+> privilege-escalatie FREELANCER/CLIENT → /admin/\* + /franchise/\* (redirect naar dashboard), onzin-id → 404-niet-500.
+> Authz/IDOR/tenant (agenda-.ics-feeds HMAC-scoped, support-tickets ownership-herchecked, franchise tenant-gescoped,
+> document-endpoints anti-oracle 404) vond **0 nieuwe bereikbare gaten**.
+>
+> - **OPGELOST — should-fix (malicieuze input/data-integriteit, CLAUDE.md regel 2/6): admin bulk-CSV-import schreef
+>   ongebonden/ongevalideerde strings naar de DB, buiten de Zod-bron-van-waarheid om.** `buildImportPreview`
+>   (`src/lib/onboarding/import.ts`) deed voor `name`/`companyName`/`headline`/`location`/`kvkNumber`/`btwNumber`
+>   enkel `get() || null` — géén `.max()`-grens en géén KvK/BTW-formaatcheck, terwijl élk ander schrijfpad die velden
+>   via `registerSchema`/`freelancerProfileSchema`/`companyProfileSchema` bindt (naam 120, bedrijf 160, headline/locatie
+>   120, KvK 8 cijfers via `isValidKvk`, BTW `NL…B01` via `isValidBtwId`). De Prisma-kolommen zijn ongebonden `String`,
+>   dus `commitImport` (`admin/import/actions.ts`) persisteerde bv. een 50k-teken-naam of `kvk="rommel;123"` verbatim —
+>   het enige write-pad waar de Zod-invariant niet gold (admin-only, dus should-fix niet blocker; realistisch pad =
+>   een geprepareerde CSV die een admin "even moet onboarden"). **Fix:** nieuwe pure helpers `parseKvk`/`parseBtw`
+>   (valideren + normaliseren, ongeldig → waarschuwing + droppen, net als `parseWebsite`/`parseHourlyRate`) en
+>   `parseOptionalText` (te lang → waarschuwing + droppen); `name`/`companyName` te lang → fout (rij niet importeerbaar,
+>   zichtbaar). +8 regressietests (red→green).
+> - **OPGELOST — should-fix (next-action-zelftegenspraak, DOEL 1b, CLAUDE.md regel 1): de "Aan zet"-TurnBanner op het
+>   samenwerking-detail negeerde de dispuut-freeze.** `src/app/(protected)/samenwerkingen/[id]/page.tsx` bouwde het
+>   `todo`-blok op `if (active)` (= `status==="ACTIVE"`), zónder de `!frozen`-poort die élke echte actieknop op
+>   diezelfde pagina wél heeft (`!actionsLocked`/`!frozen`). Bij een open dispuut (`disputedAt` gezet, status blijft
+>   ACTIVE — `openDispute` vereist alleen ACTIVE, niet de afwezigheid van openstaande prestaties/facturen) toonde de
+>   TurnBanner tóch "1 ingediende prestatie wacht op je goedkeuring" (actie-styling) — terwijl de status-regel bovenaan
+>   én de bevroren-kaart eronder "werkproces bevroren, acties geblokkeerd" zeiden en de echte keur-knop verborgen was.
+>   Directe zelftegenspraak op hetzelfde scherm, alle vier de `todo`-takken (client-prestatie, ZZP-concept-factuur,
+>   client-factuur, ZZP-goedgekeurd). **Fix:** de todo-logica geëxtraheerd naar een pure `buildCollaborationTurnItems`
+>   (`src/lib/cascade/turn-items.ts`, unit-testbaar) mét de `status==="ACTIVE" && !frozen`-poort; de PROPOSED-tak blijft
+>   los (een dispuut kan alleen op ACTIVE). +8 tests (incl. de bevroren-regressie, red→green).
+> - **GEPARKEERD (BLOCKER, robustness-deadlock — beschermde cascade-engine, mensenwerk-review-waardige fix):
+>   een DRAFT-cascadefactuur maakt de samenwerking permanent niet-afrondbaar én niet-annuleerbaar, zonder enige
+>   ontsnapping (ook geen admin).** Zodra de CLIENT een prestatie goedkeurt, maakt `planPerformanceApproved`
+>   (`handlers.ts:163-208`) automatisch een Invoice met `lifecycleStatus="DRAFT"` (nul grootboekboekingen,
+>   `apply.ts:40-62`). De invoice-lifecycle (`lifecycles.ts:82`) staat vanuit DRAFT alléén `["SUBMITTED"]` toe, en
+>   `submitInvoice` (`invoice-commands.ts:29`) is gescoopt op `actor.id === issuerUserId` → **alleen de ZZP'er** kan een
+>   DRAFT verder brengen. `isInvoiceSettled` (`completion.ts:23`) telt DRAFT als open geld, dus
+>   `cancellationBlockReason`/`completionBlockReason` + de write-time `collaborationTerminableGuard` blokkeren AFRONDEN
+>   én ANNULEREN. `applyCollaborationStatusChange` (`samenwerkingen/actions.ts:237`) beperkt callers tot de twee
+>   partijen (admin is geen partij → anti-oracle "niet gevonden"), en `admin/samenwerkingen` is read-only → géén
+>   admin-override. **Repro (FREELANCER+CLIENT, geen admin, geen dispuut):** contract getekend → ACTIVE; ZZP'er dient
+>   uren in; client keurt goed → auto-DRAFT-factuur; ZZP'er dient de factuur nooit in (onbereikbaar of bewust als
+>   drukmiddel) → beide partijen kunnen de samenwerking voor altijd niet afronden/annuleren. **Fix-richting (NIET nu —
+>   raakt de expliciet-beschermde cascade/completion-engine):** een begrensd resolutiepad — bv. een admin-forceerbare
+>   void voor een DRAFT-factuur (veilig want nul boekingen, raakt de accounting-motor niet) of een grace-task-auto-void
+>   analoog aan `performance-grace-task.ts`. Vereist een nieuwe terminale DRAFT-overgang + forcing-function + review →
+>   mensenwerk (zelfde klasse als het geparkeerde REJECTED-factuur-gat van run 89, maar veiliger want geen boekingen).
+> - **GEPARKEERD (should-fix, next-action viewer-asymmetrie, DOEL 1b): op een multi-cyclus-samenwerking maskeert het
+>   samenwerking-detail de openstaande factuurgoedkeuring van de CLIENT.** De vorige-cyclus-reddingslogica in
+>   `stage.ts:98-114` (`priorCycleFreelancerPhase`) is gegated op `isFreelancer && performanceNewerThanInvoice`; als de
+>   ZZP'er een cyclus-2-prestatie aanmaakt terwijl de cyclus-1-factuur nog `SUBMITTED` is (wacht op de client), nullen
+>   `cascadeStage` én `buildChainSteps` de vorige factuur uit en vallen door naar de cyclus-2-prestatiefase. Er is géén
+>   client-zijdige redding, dus de statusregel + stepper op het detail zeggen "wacht op de uren van de ZZP'er" terwijl
+>   `/acties` (`clientTasks`) correct de te-keuren factuur toont → scherm↔/acties-drift. **Fix-richting:** de redding in
+>   `stage.ts` uitbreiden met `!isFreelancer && latestInvoiceStatus==="SUBMITTED"` (invoice-approve-fase, `youAreUp`),
+>   en dezelfde viewer-bewustheid in `buildChainSteps` (of minstens de echte lifecycle tonen i.p.v. onvoorwaardelijk
+>   nullen). Raakt de cascade-fase-engine (stage.ts/chain-steps.ts) → aparte, zorgvuldig geteste run.
+
 > **Datum:** 2026-08-23 (run 89) · **main-commit basis:** `b1c3ff1f`
 > **Uitkomst:** **1 next-action-consistentie-defect gevonden én gefixt (should-fix, FREELANCER); 1 geld-integriteit-gat
 > geparkeerd (HIGH, protected accounting engine → mensenwerk-review-waardige fix).**

@@ -9,6 +9,16 @@
 import { z } from "zod";
 import { escapeCsvField, parseCsvRecords, detectDelimiter } from "@/lib/csv";
 import { httpUrl } from "@/lib/validation";
+import { isValidKvk, normalizeKvk, isValidBtwId, normalizeBtwId } from "@/lib/fiscal";
+
+// Lengte-grenzen — één bron van waarheid met de Zod-profielschema's in `src/lib/validation.ts`
+// (`registerSchema`, `freelancerProfileSchema`, `companyProfileSchema`). De bulk-import schreef deze
+// velden voorheen ongebonden naar de DB (plain String-kolommen, geen Zod ertussen) → de enige
+// write-pad waar de "Zod is de bron van waarheid"-invariant (CLAUDE.md regel 2/6) niet gold.
+const NAME_MAX = 120; // registerSchema.name
+const COMPANY_NAME_MAX = 160; // companyProfileSchema.name / registerSchema.companyName
+const HEADLINE_MAX = 120; // freelancerProfileSchema.headline (optionalText(120))
+const LOCATION_MAX = 120; // freelancer/company location (optionalText(120))
 
 // Her-export zodat bestaande importers (de admin-import-actie + tests) dit pad blijven gebruiken.
 export { parseCsvRecords, detectDelimiter };
@@ -186,6 +196,67 @@ function parseHourlyRate(raw: string, issues: ImportIssue[]): number | null {
 }
 
 /**
+ * Valideert een KvK-kolom tegen dezelfde bron van waarheid als het handmatige profielformulier
+ * (`isValidKvk`/`normalizeKvk`, `freelancerProfileSchema`). Een ongeldig/ongebonden KvK-nummer zou
+ * anders rauw in `FreelancerProfile.kvkNumber` belanden, terwijl de rest van de codebase erop
+ * vertrouwt dat dit veld óf leeg is óf exact 8 cijfers (compliance-/factuurweergave). Ongeldig →
+ * waarschuwen en droppen (net als website/uurtarief); een fout KvK-nummer blokkeert de onboarding niet.
+ */
+function parseKvk(raw: string, issues: ImportIssue[]): string | null {
+  if (!raw) return null;
+  if (!isValidKvk(raw)) {
+    issues.push({
+      level: "warning",
+      field: "kvkNumber",
+      message: `KvK-nummer "${raw}" is ongeldig (8 cijfers verwacht) — overgeslagen.`,
+    });
+    return null;
+  }
+  return normalizeKvk(raw);
+}
+
+/**
+ * Valideert een BTW-kolom tegen `isValidBtwId`/`normalizeBtwId` (dezelfde bron als het profielformulier).
+ * Ongeldig → waarschuwen en droppen, zodat `FreelancerProfile.btwNumber` óf leeg is óf het
+ * genormaliseerde `NL………B01`-formaat heeft en niet stilletjes met rommel gevuld raakt.
+ */
+function parseBtw(raw: string, issues: ImportIssue[]): string | null {
+  if (!raw) return null;
+  if (!isValidBtwId(raw)) {
+    issues.push({
+      level: "warning",
+      field: "btwNumber",
+      message: `BTW-nummer "${raw}" is ongeldig (formaat NL123456789B01) — overgeslagen.`,
+    });
+    return null;
+  }
+  return normalizeBtwId(raw);
+}
+
+/**
+ * Grenst een optioneel tekstveld af op de Zod-schemamax. Te lang → waarschuwen en droppen (zoals
+ * website/uurtarief), zodat een ongebonden string nooit stil in de DB belandt. Leeg → null.
+ */
+function parseOptionalText(
+  raw: string,
+  max: number,
+  field: string,
+  label: string,
+  issues: ImportIssue[],
+): string | null {
+  if (!raw) return null;
+  if (raw.length > max) {
+    issues.push({
+      level: "warning",
+      field,
+      message: `${label} is te lang (max ${max} tekens) — overgeslagen.`,
+    });
+    return null;
+  }
+  return raw;
+}
+
+/**
  * Bouwt het importvoorstel uit ruwe CSV-tekst (alleen formaatvalidatie; DB-checks doet de server).
  * Lege bestanden of bestanden zonder herkende verplichte kolommen leveren een lege preview met
  * een uitleg in de eerste (virtuele) rij niet — die fout meldt de server-laag aan de gebruiker.
@@ -219,6 +290,12 @@ export function buildImportPreview(text: string): ImportPreview {
 
     if (name.length < 2)
       issues.push({ level: "error", field: "name", message: "Naam ontbreekt of is te kort." });
+    else if (name.length > NAME_MAX)
+      issues.push({
+        level: "error",
+        field: "name",
+        message: `Naam is te lang (max ${NAME_MAX} tekens).`,
+      });
 
     let email = "";
     const emailParsed = emailSchema.safeParse(emailRaw);
@@ -261,6 +338,12 @@ export function buildImportPreview(text: string): ImportPreview {
         field: "companyName",
         message: "Bedrijfsnaam is verplicht voor een opdrachtgever.",
       });
+    } else if (role === "CLIENT" && companyName && companyName.length > COMPANY_NAME_MAX) {
+      issues.push({
+        level: "error",
+        field: "companyName",
+        message: `Bedrijfsnaam is te lang (max ${COMPANY_NAME_MAX} tekens).`,
+      });
     }
 
     const hourlyRate = parseHourlyRate(get(rec, "hourlyRate"), issues);
@@ -273,11 +356,23 @@ export function buildImportPreview(text: string): ImportPreview {
       email,
       role,
       companyName,
-      headline: get(rec, "headline") || null,
+      headline: parseOptionalText(
+        get(rec, "headline"),
+        HEADLINE_MAX,
+        "headline",
+        "Functie",
+        issues,
+      ),
       hourlyRate,
-      location: get(rec, "location") || null,
-      kvkNumber: get(rec, "kvkNumber") || null,
-      btwNumber: get(rec, "btwNumber") || null,
+      location: parseOptionalText(
+        get(rec, "location"),
+        LOCATION_MAX,
+        "location",
+        "Locatie",
+        issues,
+      ),
+      kvkNumber: parseKvk(get(rec, "kvkNumber"), issues),
+      btwNumber: parseBtw(get(rec, "btwNumber"), issues),
       website: parseWebsite(get(rec, "website"), issues),
       skills,
       issues,
