@@ -28,8 +28,8 @@ describe("summarizeDormantClients", () => {
   it("markeert een klant zonder lopende samenwerking en oude afronding als slapend", () => {
     const out = summarizeDormantClients([client({})], NOW);
     expect(out.dormantCount).toBe(1);
-    expect(out.rows[0].daysSince).toBe(120);
-    expect(out.rows[0].monthsSince).toBe(4);
+    expect(out.rows[0]!.daysSince).toBe(120);
+    expect(out.rows[0]!.monthsSince).toBe(4);
     expect(out.dormantPaidCents).toBe(500_00);
   });
 
@@ -76,7 +76,7 @@ describe("summarizeDormantClients", () => {
       [client({ lastCompletedAt: daysAgo(DORMANT_CLIENT_DAYS) })],
       NOW,
     );
-    expect(justOver.rows[0].monthsSince).toBe(Math.max(1, Math.floor(DORMANT_CLIENT_DAYS / 30)));
+    expect(justOver.rows[0]!.monthsSince).toBe(Math.max(1, Math.floor(DORMANT_CLIENT_DAYS / 30)));
 
     const future = summarizeDormantClients([client({ lastCompletedAt: daysAgo(-5) })], NOW);
     expect(future.dormantCount).toBe(0);
@@ -222,7 +222,7 @@ describe("getDormantClients — DB-scope", () => {
   it("scoopt de Collaboration-query op de ingelogde ZZP'er én de omzet-opleverende opdrachtgevers", async () => {
     await getDormantClients(USER_ID, breakdownFixture(), NOW);
     expect(findMany).toHaveBeenCalledTimes(1);
-    const where = findMany.mock.calls[0][0].where as CollabWhere;
+    const where = findMany.mock.calls[0]![0].where as CollabWhere;
     expect(where.freelancer?.userId).toBe(USER_ID);
     expect(where.companyId?.in).toEqual(["co1", "co2", "co3", "co4", "co5"]);
   });
@@ -232,7 +232,7 @@ describe("getDormantClients — DB-scope", () => {
     // co2 (lopend), co5 (recent) vallen af; co1/co3/co4 blijven, op omzet aflopend.
     expect(out.rows.map((r) => r.companyId)).toEqual(["co1", "co3", "co4"]);
     // co1: de max van de eigen COMPLETED-rijen (120d), niet 300d en niet de leak van u2 (5d).
-    expect(out.rows[0].daysSince).toBe(120);
+    expect(out.rows[0]!.daysSince).toBe(120);
     expect(out.dormantCount).toBe(3);
     expect(out.dormantPaidCents).toBe(1_400_00);
   });
