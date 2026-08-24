@@ -78,31 +78,38 @@ describe("summarizeObligationOverdueCharges", () => {
     expect(exposure.totalCollectionCostsCents).toBe(expectedCollection);
     expect(exposure.totalExtraCents).toBe(expectedInterest + expectedCollection);
     expect(exposure.interestRateBps).toBeGreaterThan(0);
-    expect(exposure.items[0].invoiceId).toBe("inv-late");
-    expect(exposure.items[0].charges.daysOverdue).toBe(30);
+    const [first] = exposure.items;
+    expect(first?.invoiceId).toBe("inv-late");
+    expect(first?.charges.daysOverdue).toBe(30);
   });
 
   it("aggregates across multiple past-due invoices and skips non-charging ones", () => {
-    const items: ObligationItem[] = [
-      item({ invoiceId: "a", grossCents: 121000, dueDate: new Date(NOW.getTime() - 30 * DAY) }),
-      item({ invoiceId: "b", grossCents: 60500, dueDate: new Date(NOW.getTime() - 10 * DAY) }),
-      // Not yet due → contributes nothing.
-      item({
-        invoiceId: "c",
-        stage: "APPROVED",
-        grossCents: 50000,
-        dueDate: new Date(NOW.getTime() + 3 * DAY),
-      }),
-    ];
-    const exposure = summarizeObligationOverdueCharges(items, NOW);
+    const invoiceA = item({
+      invoiceId: "a",
+      grossCents: 121000,
+      dueDate: new Date(NOW.getTime() - 30 * DAY),
+    });
+    const invoiceB = item({
+      invoiceId: "b",
+      grossCents: 60500,
+      dueDate: new Date(NOW.getTime() - 10 * DAY),
+    });
+    // Not yet due → contributes nothing.
+    const invoiceC = item({
+      invoiceId: "c",
+      stage: "APPROVED",
+      grossCents: 50000,
+      dueDate: new Date(NOW.getTime() + 3 * DAY),
+    });
+    const exposure = summarizeObligationOverdueCharges([invoiceA, invoiceB, invoiceC], NOW);
 
     const sumInterest =
       calculateStatutoryInterestCents({
         principalCents: 121000,
-        dueAt: items[0].dueDate,
+        dueAt: invoiceA.dueDate,
         now: NOW,
       }) +
-      calculateStatutoryInterestCents({ principalCents: 60500, dueAt: items[1].dueDate, now: NOW });
+      calculateStatutoryInterestCents({ principalCents: 60500, dueAt: invoiceB.dueDate, now: NOW });
     const sumCollection =
       calculateCollectionCostsCents(121000) + calculateCollectionCostsCents(60500);
 
