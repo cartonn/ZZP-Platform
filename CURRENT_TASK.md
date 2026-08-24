@@ -268,6 +268,23 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — win-back signaal "Klanten om opnieuw te benaderen" op /inzicht (2026-08-24, PR #1222)** —
+> het platform meet de betaalde omzet per opdrachtgever al (`freelancer-revenue-breakdown.ts`, widget "Omzet per
+> opdrachtgever"), maar nooit de **recency** ervan — dus een opdrachtgever die je eerder echt omzet opleverde maar al
+> maanden stil is, verdween uit beeld. Herhaalwerk is doorgaans de goedkoopste nieuwe opdracht (benchmark Malt/CRM:
+> die pushen actief repeat-clients). Nieuw: pure `summarizeDormantClients(inputs, now)` (`src/lib/dormant-clients.ts`)
+> markeert een klant "slapend" bij (1) afgeronde historie, (2) geen lopende PROPOSED/ACTIVE-samenwerking, én (3)
+> laatste COMPLETED-afronding ouder dan `DORMANT_CLIENT_DAYS = 90`; sorteert op betaalde omzet aflopend (dan leeftijd);
+> een `lastCompletedAt` in de toekomst (data-ruis) valt via de negatieve leeftijd buiten de drempel. Loader
+> `getDormantClients(userId, breakdown)` verrijkt de reeds geladen omzet-uitsplitsing (zelfde bron → geen drift) met
+> één tenant-veilige `Collaboration`-query (freelancer-gescoopt, begrensd tot de opdrachtgevers die omzet opleverden;
+> legacy COMPLETED zonder `completedAt` valt terug op `endDate`/`updatedAt`). Nieuwe `BiWidget` "Klanten om opnieuw te
+> benaderen" op `/inzicht` (FREELANCER-tak) toont per klant naam, "laatste samenwerking N maanden geleden" en de
+> betaalde omzet; rendert alleen bij ≥1 slapende klant (rustige pagina). Informatief — geen dode knop (er is geen
+> ZZP→klant conversatie-startpad; de ZZP'er benadert via het eigen kanaal). Read-only, server-side waarheid, geen
+> schema-/mutatie-/authz-/beschermde-motor-oppervlak. +7 tests. Gate: typecheck ✓, lint ✓, test (6874) ✓, build ✓,
+> prettier ✓ · CI-poort → PR.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — open beveiligingsincident-gauges + alerts (dead-man's-switch eigen detector) (2026-08-24, PR #1221)** —
 > de bewakingsmotor (`detectors.ts` + `runMonitorTask`, dagelijkse cron) detecteert anomalieën (inlog-burst,
 > reset-flood, rolwijziging-burst, dependency-CVE) en legt ze vast als `HealthIncident` (status OPEN, zichtbaar op
