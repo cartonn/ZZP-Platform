@@ -268,6 +268,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — maanddoel-tempo (kalender-pacing) op /prognose (2026-08-24, PR #1212)** —
+> de maanddoel-status ("op koers") volgde uitsluitend uit `realized + concepten ≥ doel` en negeerde wáár je in de
+> maand zit (dag 3 met 10% → onterecht geruststellend). Voor het urencriterium bestond pacing al wél
+> (`hours-criterion-summary`); dit sluit datzelfde gat voor het omzetdoel. De maanddoel-kaart op `/prognose` toont
+> nu onder de statusregel een tempo-zin die het gerealiseerde afzet tegen een gelijkmatig tempo op déze dag, met bij
+> achterstand het benodigde weektempo voor de rest van de maand (benchmark Malt/Deel verwacht-vs-werkelijk tempo).
+> Twee nieuwe pure fns in `src/lib/income-goal.ts`: `incomeGoalPace(summary, now)` → `IncomeGoalPace|null` (geen
+> doel/`achieved` → null), UTC-datumrekenkunde (`dayOfMonth`, `daysInMonth` via dag-0-truc → feb=28,
+> `expectedByNowCents = round(goal×dayOfMonth/daysInMonth)`, `deltaCents`, `neededPerWeekCents`), 10%-tolerantieband
+> → `ahead`/`on_track`/`behind` + toon; `incomeGoalPaceHint(pace, formatEuro)` (import-vrij, spiegelt
+> `incomeGoalGlance`). `IncomeGoalCard` kreeg optionele `pace`-prop; `/prognose/page.tsx` berekent 'm uit de al
+> aanwezige `now` + `goalSummary` (geen extra query, geen schemawijziging). Read-only, geen mutatie-/authz-/
+> domeinmotor-oppervlak. +7 tests (19 totaal). Gate: typecheck, lint, test (6798), prettier groen · build → PR-gate.
+>
 > Gedaan (niet opnieuw): **ZZP'er — wachttijd-signaal per urenstaat op /diensten (2026-08-23, PR #1211)** —
 > een ingediende urenstaat (`SUBMITTED`) blokkeert stil de facturatie-cascade (pas ná `APPROVED` mag de ZZP'er
 > factureren), maar `/diensten` toonde alleen "Ter goedkeuring", niet hóé lang die al hangt. Nu een per-rij chip

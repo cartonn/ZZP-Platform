@@ -3,13 +3,31 @@
 import { useActionState, useRef, useState } from "react";
 import { Target } from "lucide-react";
 import { setMonthlyIncomeGoal, type IncomeGoalState } from "@/app/(protected)/prognose/actions";
-import { incomeGoalHeadline, type IncomeGoalSummary } from "@/lib/income-goal";
+import {
+  incomeGoalHeadline,
+  incomeGoalPaceHint,
+  type IncomeGoalPace,
+  type IncomeGoalSummary,
+} from "@/lib/income-goal";
 import { formatEuro } from "@/lib/invoices";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+
+/** Tekstkleur per tempo-toon — refined, geen decoratie: succes/waarschuwing/primair. */
+function paceTone(tone: IncomeGoalPace["tone"]): string {
+  switch (tone) {
+    case "success":
+      return "text-success";
+    case "warning":
+      return "text-warning";
+    case "primary":
+    default:
+      return "text-primary";
+  }
+}
 
 /** Tekstkleur per doelstatus — refined, geen decoratie: succes/waarschuwing/primair/gedempt. */
 function headlineTone(status: IncomeGoalSummary["status"]): string {
@@ -91,7 +109,13 @@ function GoalForm({
  * ZZP'er en laat het doel instellen, wijzigen of wissen. Ontvangt een al-berekende samenvatting
  * (`IncomeGoalSummary`) — de component bevat geen bedrijfslogica, alleen presentatie.
  */
-export function IncomeGoalCard({ summary }: { summary: IncomeGoalSummary }) {
+export function IncomeGoalCard({
+  summary,
+  pace,
+}: {
+  summary: IncomeGoalSummary;
+  pace?: IncomeGoalPace | null;
+}) {
   const [editing, setEditing] = useState(false);
   const headline = incomeGoalHeadline(summary);
 
@@ -163,6 +187,13 @@ export function IncomeGoalCard({ summary }: { summary: IncomeGoalSummary }) {
 
         {/* Statusregel */}
         <p className={cn("text-sm font-medium", headlineTone(summary.status))}>{headline}</p>
+
+        {/* Kalender-tempo: weegt de dag van de maand mee, zodat "op koers" niet te vroeg geruststelt. */}
+        {pace && (
+          <p className={cn("text-xs", paceTone(pace.tone))}>
+            {incomeGoalPaceHint(pace, formatEuro)}
+          </p>
+        )}
 
         {/* Wijzig — onthult het bewerkformulier (voorgevuld) plus "Wis doel". */}
         <div>

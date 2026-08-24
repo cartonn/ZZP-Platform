@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   incomeGoalGlance,
   incomeGoalHeadline,
+  incomeGoalPace,
+  incomeGoalPaceHint,
   summarizeIncomeGoal,
   type IncomeGoalInput,
 } from "./income-goal";
@@ -166,5 +168,81 @@ describe("incomeGoalGlance", () => {
       hint: "Nog € 2100.00 tot je maanddoel",
       tone: "warning",
     });
+  });
+});
+
+describe("incomeGoalPace", () => {
+  const euro = (cents: number) => `€ ${(cents / 100).toFixed(2)}`;
+  // €6000 doel; verwacht deel bij een gelijkmatig tempo hangt van de dag van de maand af.
+  const goal = summarizeIncomeGoal({ goalCents: 600_000, realizedCents: 0, expectedCents: 0 });
+
+  it("returns null when there is no goal", () => {
+    const s = summarizeIncomeGoal({ goalCents: null, realizedCents: 100_000, expectedCents: 0 });
+    expect(incomeGoalPace(s, new Date(Date.UTC(2026, 0, 15)))).toBeNull();
+  });
+
+  it("returns null when the goal is already achieved", () => {
+    const s = summarizeIncomeGoal({ goalCents: 600_000, realizedCents: 600_000, expectedCents: 0 });
+    expect(s.status).toBe("achieved");
+    expect(incomeGoalPace(s, new Date(Date.UTC(2026, 0, 15)))).toBeNull();
+  });
+
+  it("flags 'behind' when realized trails the even pace, with a needed weekly pace", () => {
+    const s = summarizeIncomeGoal({ goalCents: 600_000, realizedCents: 100_000, expectedCents: 0 });
+    const pace = incomeGoalPace(s, new Date(Date.UTC(2026, 0, 15)));
+    expect(pace).not.toBeNull();
+    expect(pace).toMatchObject({
+      dayOfMonth: 15,
+      daysInMonth: 31,
+      daysRemaining: 16,
+      expectedByNowCents: 290_323,
+      deltaCents: -190_323,
+      remainingToGoalCents: 500_000,
+      neededPerWeekCents: 218_750,
+      state: "behind",
+      tone: "warning",
+    });
+    expect(incomeGoalPaceHint(pace!, euro)).toBe(
+      "Je loopt € 1903.23 achter op het gelijkmatige tempo — houd ≈ € 2187.50/week aan in de resterende 16 dagen om je doel te halen.",
+    );
+  });
+
+  it("flags 'ahead' when realized leads the even pace", () => {
+    const s = summarizeIncomeGoal({ goalCents: 600_000, realizedCents: 300_000, expectedCents: 0 });
+    const pace = incomeGoalPace(s, new Date(Date.UTC(2026, 0, 10)));
+    expect(pace?.state).toBe("ahead");
+    expect(pace?.tone).toBe("success");
+    expect(pace?.expectedByNowCents).toBe(193_548);
+    expect(incomeGoalPaceHint(pace!, euro)).toBe(
+      "Je loopt voor op schema — na dag 10/31 zou een gelijkmatig tempo € 1935.48 zijn.",
+    );
+  });
+
+  it("flags 'on_track' within the tolerance band around the even pace", () => {
+    const s = summarizeIncomeGoal({ goalCents: 600_000, realizedCents: 290_000, expectedCents: 0 });
+    const pace = incomeGoalPace(s, new Date(Date.UTC(2026, 0, 15)));
+    expect(pace?.state).toBe("on_track");
+    expect(pace?.tone).toBe("primary");
+    expect(incomeGoalPaceHint(pace!, euro)).toBe(
+      "Op koers voor de tijd van de maand — na dag 15/31 lig je rond het gelijkmatige tempo (€ 2903.23).",
+    );
+  });
+
+  it("uses a month-is-nearly-over phrasing on the last day", () => {
+    const s = summarizeIncomeGoal({ goalCents: 600_000, realizedCents: 400_000, expectedCents: 0 });
+    const pace = incomeGoalPace(s, new Date(Date.UTC(2026, 0, 31)));
+    expect(pace?.daysRemaining).toBe(0);
+    expect(pace?.state).toBe("behind");
+    expect(incomeGoalPaceHint(pace!, euro)).toBe(
+      "De maand is bijna om en je zit € 2000.00 onder het gelijkmatige tempo.",
+    );
+  });
+
+  it("respects the shorter length of February", () => {
+    const s = summarizeIncomeGoal({ goalCents: 600_000, realizedCents: 0, expectedCents: 0 });
+    const pace = incomeGoalPace(s, new Date(Date.UTC(2026, 1, 14)));
+    expect(pace?.daysInMonth).toBe(28);
+    expect(pace?.expectedByNowCents).toBe(300_000);
+    expect(goal.status).toBe("behind");
   });
 });

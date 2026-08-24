@@ -5,7 +5,7 @@ import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { getForecastItemsForFreelancer } from "@/lib/data/income-forecast";
 import { getRealizedRevenueThisMonthCents } from "@/lib/data/monthly-income";
-import { summarizeIncomeGoal } from "@/lib/income-goal";
+import { summarizeIncomeGoal, incomeGoalPace } from "@/lib/income-goal";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { PrognosePanel } from "@/components/administratie/prognose-panel";
@@ -40,6 +40,7 @@ export default async function PrognosePage() {
     realizedCents,
     expectedCents,
   });
+  const goalPace = incomeGoalPace(goalSummary, now);
 
   return (
     <div className="space-y-6">
@@ -58,7 +59,7 @@ export default async function PrognosePage() {
           ) : undefined
         }
       />
-      <IncomeGoalCard summary={goalSummary} />
+      <IncomeGoalCard summary={goalSummary} pace={goalPace} />
       <PrognosePanel actor={actor} items={items} />
     </div>
   );
