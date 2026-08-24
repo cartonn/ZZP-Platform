@@ -18,8 +18,6 @@ export interface DormantClientInput {
   name: string;
   /** Betaalde omzet ooit bij deze opdrachtgever (centen). Rangschikkingsbasis. */
   paidCents: number;
-  /** Aandeel van de totale betaalde omzet (0–100, afgerond). */
-  sharePct: number;
   /** Afrondmoment van de meest recente COMPLETED-samenwerking; `null` = geen afgeronde historie. */
   lastCompletedAt: Date | null;
   /** Loopt er nu een niet-terminale samenwerking (PROPOSED/ACTIVE)? Dan niet slapend. */
@@ -30,7 +28,6 @@ export interface DormantClientRow {
   companyId: string;
   name: string;
   paidCents: number;
-  sharePct: number;
   /** Dagen sinds de laatste afronding (≥ DORMANT_CLIENT_DAYS). */
   daysSince: number;
   /** Afgeronde maanden sinds de laatste afronding (≥ 1), voor de UI-tekst. */
@@ -48,9 +45,9 @@ const EMPTY: DormantClientSummary = { rows: [], dormantCount: 0, dormantPaidCent
 
 /**
  * Pure aggregator: filtert de betaalde-omzet-klanten op "slapend" (afgeronde historie, geen lopende
- * samenwerking, laatste afronding ouder dan DORMANT_CLIENT_DAYS) en sorteert op omzet aflopend
- * (dan op leeftijd aflopend). `now` wordt geïnjecteerd zodat de leeftijd reproduceerbaar is. Een
- * `lastCompletedAt` in de toekomst (data-ruis) levert een negatieve leeftijd op en valt dus buiten
+ * samenwerking, laatste afronding DORMANT_CLIENT_DAYS dagen of langer geleden) en sorteert op omzet
+ * aflopend (dan op leeftijd aflopend). `now` wordt geïnjecteerd zodat de leeftijd reproduceerbaar is.
+ * Een `lastCompletedAt` in de toekomst (data-ruis) levert een negatieve leeftijd op en valt dus buiten
  * de drempel — precies wat je wilt.
  */
 export function summarizeDormantClients(
@@ -67,7 +64,6 @@ export function summarizeDormantClients(
       companyId: c.companyId,
       name: c.name,
       paidCents: c.paidCents,
-      sharePct: c.sharePct,
       daysSince,
       monthsSince: Math.max(1, Math.floor(daysSince / DAYS_PER_MONTH)),
     });
@@ -90,6 +86,7 @@ export function summarizeDormantClients(
 export async function getDormantClients(
   userId: string,
   breakdown: FreelancerRevenueBreakdown,
+  now: Date = new Date(),
 ): Promise<DormantClientSummary> {
   if (breakdown.rows.length === 0) return EMPTY;
 
@@ -107,8 +104,10 @@ export async function getDormantClients(
       continue;
     }
     if (col.status === "COMPLETED") {
-      // completedAt is de canonieke afrondingsklok; een legacy COMPLETED zonder stempel valt terug op
-      // endDate en anders updatedAt, zodat recency nooit verloren gaat.
+      // completedAt is de canonieke afrondingsklok. Bewust een ándere terugval dan de repo-conventie
+      // `completedAt ?? createdAt` (freelancer-client-history.ts e.a.): voor een recency-signaal is het
+      // eindmoment (endDate) een betere benadering dan het startmoment (createdAt); updatedAt sluit de
+      // rij. Zo verliest een legacy COMPLETED zonder stempel nooit z'n recency — niet "fixen" naar createdAt.
       const at = col.completedAt ?? col.endDate ?? col.updatedAt;
       const prev = lastCompleted.get(col.companyId);
       if (!prev || at.getTime() > prev.getTime()) lastCompleted.set(col.companyId, at);
@@ -120,9 +119,9 @@ export async function getDormantClients(
       companyId: r.companyId,
       name: r.name,
       paidCents: r.paidCents,
-      sharePct: r.sharePct,
       lastCompletedAt: lastCompleted.get(r.companyId) ?? null,
       hasActiveCollaboration: active.has(r.companyId),
     })),
+    now,
   );
 }
