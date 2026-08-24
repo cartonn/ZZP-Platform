@@ -302,21 +302,6 @@ export async function setOrtProfileAction(
     throw new Error("Samenwerking niet gevonden.");
   }
 
-  // Geld-integriteit (CLAUDE.md regel 1 & 2 — server-side waarheid): het factuurbedrag van een
-  // prestatie wordt uit de ACTUELE ORT-toeslagen van de samenwerking afgeleid op het moment van
-  // goedkeuren, niet gesnapshot bij indienen. Zolang er nog een INGEDIENDE (SUBMITTED) urenstaat op
-  // goedkeuring wacht, mag de betalende partij de toeslagen daarom niet wijzigen — anders kan zij het
-  // reeds ingediende, nog niet goedgekeurde bedrag eenzijdig verlagen of verhogen. Blokkeer de
-  // wijziging tot elke openstaande urenstaat is goedgekeurd of afgekeurd.
-  const submittedPerformances = await prisma.performance.count({
-    where: { collaborationId, status: "SUBMITTED" },
-  });
-  if (submittedPerformances > 0) {
-    throw new Error(
-      "Je kunt de toeslagen niet wijzigen terwijl er nog een ingediende urenstaat op goedkeuring wacht — die bepaalt straks het factuurbedrag. Keur de openstaande urensta(a)t(en) eerst goed of af.",
-    );
-  }
-
   let customRates: string | null = null;
   if (isCustom) {
     const rates = {} as Record<OrtCategory, number>;
@@ -333,13 +318,36 @@ export async function setOrtProfileAction(
     customRates = JSON.stringify(rates);
   }
 
-  await prisma.collaboration.update({
-    where: { id: collaborationId },
+  // Geld-integriteit (CLAUDE.md regel 1 & 2 — server-side waarheid): het factuurbedrag van een
+  // prestatie wordt uit de ACTUELE ORT-toeslagen van de samenwerking afgeleid op het moment van
+  // goedkeuren, niet gesnapshot bij indienen. Zolang er nog een INGEDIENDE (SUBMITTED) urenstaat op
+  // goedkeuring wacht, mag de betalende partij de toeslagen daarom niet wijzigen — anders kan zij het
+  // reeds ingediende, nog niet goedgekeurde bedrag eenzijdig verlagen of verhogen.
+  //
+  // Atomiciteit (TOCTOU-veilig): de guard "geen SUBMITTED-urenstaat" en de rate-write gebeuren in ÉÉN
+  // conditionele UPDATE (`updateMany` met `performances: { none: { status: "SUBMITTED" } }`), niet als
+  // los count-dan-update. Een losse count laat op Postgres onder gelijktijdige belasting een venster
+  // waarin de ZZP'er een urenstaat indient ná de check maar vóór de write — waarna het reeds-ingediende
+  // bedrag alsnog eenzijdig verschuift (precies de bug die deze guard dicht). Met de relationele
+  // `none`-conditie evalueert de database guard én schrijfactie in dezelfde statement: verschijnt er een
+  // SUBMITTED-urenstaat, dan matcht de WHERE niet meer en raakt de UPDATE 0 rijen → we blokkeren.
+  const { count: updated } = await prisma.collaboration.updateMany({
+    where: {
+      id: collaborationId,
+      performances: { none: { status: "SUBMITTED" } },
+    },
     data: {
       ortProfile: isCustom ? null : sector === "DEFAULT" ? null : sector,
       ortCustomRates: customRates,
     },
   });
+  if (updated === 0) {
+    // De samenwerking bestaat en is van deze actor (hierboven geverifieerd), dus 0 rijen betekent:
+    // de `none`-guard blokkeerde — er wacht nog een ingediende urenstaat op goedkeuring.
+    throw new Error(
+      "Je kunt de toeslagen niet wijzigen terwijl er nog een ingediende urenstaat op goedkeuring wacht — die bepaalt straks het factuurbedrag. Keur de openstaande urensta(a)t(en) eerst goed of af.",
+    );
+  }
   // De ORT-toeslagen bepalen direct het geld op elke toekomstige prestatie/factuur — een geld-
   // bepalende wijziging hoort in het auditspoor (CLAUDE.md regel 5), net als de buur-acties hier.
   await audit({
