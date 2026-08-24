@@ -401,18 +401,23 @@ export default async function ReactiesPage({
                           ) : null;
                         })()}
                     </Link>
-                    {/* Van diagnose naar actie: staat deze reactie nog echt open (niet dicht/vervuld,
-                        geen lopende samenwerking) en blokkeert een ontbrekend/verlopen vereist
-                        certificaat, dan één klik naar het uploadformulier met het juiste type
-                        voorgeselecteerd. Buiten de kaart-brede <Link> (geen geneste anchors); rendert
-                        niets zonder oplosbare blokkade. */}
-                    {!app.collaboration && !availability && compliance && (
-                      <CredentialFixLinks
-                        fixes={actionableCredentialFixes(compliance)}
-                        t={t}
-                        className="mt-2"
-                      />
-                    )}
+                    {/* Van diagnose naar actie: staat deze reactie nog echt open (status
+                        NEW/VIEWED/SHORTLIST, opdracht niet dicht/vervuld, geen lopende samenwerking) en
+                        blokkeert een ontbrekend/verlopen vereist certificaat, dan één klik naar het
+                        uploadformulier met het juiste type voorgeselecteerd. De status-poort houdt het
+                        signaal weg bij afgehandelde reacties (afgewezen/ingetrokken/geaccepteerd) — daar
+                        is "regel dit certificaat" niet de contextuele volgende stap. Buiten de
+                        kaart-brede <Link> (geen geneste anchors); rendert niets zonder oplosbare blokkade. */}
+                    {["NEW", "VIEWED", "SHORTLIST"].includes(app.status) &&
+                      !app.collaboration &&
+                      !availability &&
+                      compliance && (
+                        <CredentialFixLinks
+                          fixes={actionableCredentialFixes(compliance)}
+                          t={t}
+                          className="mt-2"
+                        />
+                      )}
                     {wait && <WaitSignal wait={wait} t={t} />}
                     {responsiveness && (
                       <ApplicantResponsivenessNote responsiveness={responsiveness} />

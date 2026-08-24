@@ -21,8 +21,10 @@ export interface CredentialFix {
 
 /**
  * Deep-link naar het uploadformulier met het documenttype voorgeselecteerd. Dezelfde route en query
- * die het Actiecentrum, de samenwerkingsherinnering en de inzetbaarheidssamenvatting gebruiken —
- * dit is de canonieke bouwer voor het "regel-dit-certificaat-op-de-plek-van-de-blokkade"-pad.
+ * die het Actiecentrum, de samenwerkingsherinnering en de inzetbaarheidssamenvatting elk al bouwen;
+ * deze helper bundelt dat patroon voor het "regel-dit-certificaat-op-de-plek-van-de-blokkade"-pad
+ * (compliance-signalen op /reacties en het opdracht-detail). Consolidatie van de bestaande kopieën
+ * is een aparte opruimstap.
  */
 export function credentialFixHref(type: CredentialType): string {
   return `/certificaten/nieuw?type=${encodeURIComponent(type)}`;
