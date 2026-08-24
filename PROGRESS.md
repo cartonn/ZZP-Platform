@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-24 — Persona-sweep run 91: ORT-toeslag geld-integriteit + wrong-party next-action
+
+**Wat (2 defecten gevonden én gefixt; 4 parallelle adversariële Opus-audits + live smoke, 0 nieuw geparkeerd):**
+
+1. **HIGH — geld-integriteit (CLIENT+FREELANCER):** `setOrtProfileAction`
+   (`src/app/(protected)/samenwerkingen/[id]/actions.ts`) liet de opdrachtgever de ORT-toeslagen wijzigen
+   terwijl er een reeds ingediende (`SUBMITTED`) urenstaat op goedkeuring wachtte. Omdat het factuurbedrag pas bij
+   goedkeuring uit de **actuele** samenwerking-toeslagen wordt geresolved (niet gesnapshot bij indienen), kon de
+   betalende partij het nog niet goedgekeurde bedrag eenzijdig verlagen/verhogen. **Fix:** guard die de wijziging
+   blokkeert zolang er een `SUBMITTED`-prestatie op de samenwerking staat (buiten de beschermde cascade/accounting-
+   motor, geen schemawijziging). +3 tests (`ort-guard.test.ts`).
+2. **should-fix — next-action wrong-party (DOEL 1b):** de PROPOSED-tak van `buildCollaborationTurnItems`
+   (`src/lib/cascade/turn-items.ts`) was niet partij-bewust: bij een geblokkeerde plaatsing droeg de "Aan zet"-banner
+   óók de opdrachtgever op het certificaat aan te vullen dat alleen de ZZP'er kan aanvullen (tegenspraak met de
+   Contract-kaart + /acties). **Fix:** partij-bewuste tekst — ZZP'er houdt de imperatief, opdrachtgever krijgt een
+   passieve "wacht op de ZZP'er"-regel. +2 tests (`turn-items.test.ts`).
+
+**Bestanden:** `src/app/(protected)/samenwerkingen/[id]/actions.ts` (+guard),
+`src/app/(protected)/samenwerkingen/[id]/ort-guard.test.ts` (nieuw), `src/lib/cascade/turn-items.ts` (partij-bewust),
+`src/lib/cascade/turn-items.test.ts` (+cases), `docs/PERSONA-SWEEP-BACKLOG.md` (run 91).
+**Gate:** typecheck, lint, test (unit), build, prettier groen → PR-gate. **Live smoke:** 4 rollen login→/dashboard,
+/acties=200, privilege-escalatie→redirect /dashboard, onzin-id→404-niet-500.
+
 ## 2026-08-24 — Opdrachtgever: listing-kwaliteit tips op het opdracht-detail — PR #1218
 
 **Wat:** de kwaliteitsmeter (`assessJobQuality`) — die de opdrachtgever helpt een sterke plaatsing te

@@ -6,7 +6,10 @@
 // alle echte actieknoppen verborgen en toont de status-regel "werkproces bevroren". De cascade-todo's
 // mogen dan NIET verschijnen (anders spreekt de banner de bevroren-kaart eronder tegen). De PROPOSED-
 // todo (contract tekenen) staat los van de cascade-freeze: een dispuut kan alleen op een ACTIVE-
-// samenwerking geopend worden, dus die tak is nooit tegelijk met `frozen` actief.
+// samenwerking geopend worden, dus die tak is nooit tegelijk met `frozen` actief. De PROPOSED-tak is
+// bovendien partij-bewust: bij een geblokkeerde plaatsing (ontbrekend/verlopen certificaat) krijgt
+// alleen de ZZP'er de imperatief om aan te vullen; de opdrachtgever ziet een passieve "wacht op de
+// ZZP'er"-regel — hij kan andermans certificaat niet uploaden (wrong-party next-action vermeden).
 
 import { plural } from "@/lib/plural";
 
@@ -36,11 +39,22 @@ export function buildCollaborationTurnItems(input: TurnItemsInput): string[] {
   const todo: string[] = [];
 
   if (input.status === "PROPOSED") {
-    todo.push(
-      input.placementBlocked
-        ? `Vul het ontbrekende of verlopen certificaat aan (${input.placementMissing}) — daarna kan het contract worden ondertekend.`
-        : "Onderteken het contract om de opdracht te starten.",
-    );
+    if (input.placementBlocked) {
+      // Alleen de ZZP'er kan zijn eigen certificaat aanvullen. Toon de opdrachtgever daarom een
+      // passieve "wacht op de ZZP'er"-regel i.p.v. een imperatief die hij niet kan uitvoeren
+      // (wrong-party next-action; consistent met de Contract-kaart en /acties). DOEL 1b.
+      if (input.isClient && !input.isFreelancer) {
+        todo.push(
+          `Wacht tot de ZZP'er het ontbrekende of verlopen certificaat aanvult (${input.placementMissing}) — daarna kan het contract worden ondertekend.`,
+        );
+      } else {
+        todo.push(
+          `Vul het ontbrekende of verlopen certificaat aan (${input.placementMissing}) — daarna kan het contract worden ondertekend.`,
+        );
+      }
+    } else {
+      todo.push("Onderteken het contract om de opdracht te starten.");
+    }
   }
 
   // Bij een open dispuut is de cascade bevroren: geen cascade-actie tonen (zie modulekop).

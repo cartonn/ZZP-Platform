@@ -1,5 +1,45 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-24 (run 91) · **main-commit basis:** `f73101f3`
+> **Uitkomst:** **2 defecten gevonden én gefixt** (1 HIGH geld-integriteit, CLIENT+FREELANCER; 1 should-fix
+> next-action wrong-party, CLIENT op het samenwerking-detail). **0 nieuw geparkeerd** (de authz/IDOR/tenant- en
+> malicieuze-input-audits vonden 0 nieuwe bereikbare gaten; de eerder geparkeerde items blijven staan).
+> 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie ·
+> cascade/geld-integriteit + verboden statusovergangen · next-action-engine · malicieuze input/CSV/XSS/upload) +
+> live smoke (chromium tegen de geseede productie-server): 4 rollen login → /dashboard, /acties (200 alle rollen),
+> privilege-escalatie FREELANCER/CLIENT → /admin/verificaties + /franchise/samenwerkingen (redirect naar /dashboard),
+> onzin-id → **404-niet-500** (alle rollen).
+>
+> - **OPGELOST — HIGH (geld-integriteit, CLAUDE.md regel 1 & 2 — server-side waarheid): de opdrachtgever kon de
+>   ORT-toeslagen van een samenwerking wijzigen terwijl er een reeds INGEDIENDE urenstaat op goedkeuring wachtte,
+>   en zo eenzijdig het nog niet goedgekeurde factuurbedrag verlagen/verhogen.** Het factuurbedrag van een prestatie
+>   wordt uit de **actuele** `Collaboration.ortProfile`/`ortCustomRates` afgeleid op het moment van goedkeuren
+>   (`approvePerformance`/`autoApprovePerformance` → `resolveOrtRates`), níet gesnapshot bij `submitPerformance`
+>   (`Performance.ortSegments` bewaart alleen `{category, hours}`, geen bps-tarief). `setOrtProfileAction`
+>   (`src/app/(protected)/samenwerkingen/[id]/actions.ts`) checkte enkel ownership/anti-oracle — géén statusgate —
+>   dus de betalende partij kon in het venster tussen indienen en (auto)goedkeuren bv. de nachttoeslag naar 0% zetten;
+>   de auto-gegenereerde concept-factuur ontstond dan met het verlaagde bedrag, zonder notificatie aan de ZZP'er.
+>   **Repro (CLIENT+FREELANCER, geen admin, geen race):** ACTIVE-samenwerking met zorg-ORT (bv. 30% nacht) → ZZP'er
+>   dient een nacht/weekend-urenstaat in (SUBMITTED) → CLIENT roept `setOrtProfileAction` aan met MAATWERK custom 0%
+>   → CLIENT keurt de prestatie goed → factuur ontstaat zónder de 30% toeslag. **Fix (guard, buiten de beschermde
+>   cascade/accounting-motor + zonder schemawijziging):** `setOrtProfileAction` blokkeert de wijziging zodra de
+>   samenwerking één of meer `SUBMITTED`-prestaties heeft ("Keur de openstaande urensta(a)t(en) eerst goed of af").
+>   Dit sluit het bereikbare venster volledig: zolang werk op goedkeuring wacht kan het tarief niet veranderen, dus
+>   het bij goedkeuring geresolvede tarief is identiek aan dat bij indienen. +3 regressietests (red→green,
+>   `ort-guard.test.ts`). _Defense-in-depth-vervolg (geparkeerd, raakt de motor + schema): de geresolvede bps ook op
+>   de `Performance`-rij snapshotten bij indienen, analoog aan `rateCents` — aparte zorgvuldig-geteste run._
+> - **OPGELOST — should-fix (next-action wrong-party, DOEL 1b, CLAUDE.md regel 1): de PROPOSED-TurnBanner op het
+>   samenwerking-detail droeg de opdrachtgever op een certificaat aan te vullen dat alleen de ZZP'er kan aanvullen.**
+>   De PROPOSED-tak van `buildCollaborationTurnItems` (`src/lib/cascade/turn-items.ts:38-44`) was — anders dan de
+>   ACTIVE-cascade-tak eronder — **niet partij-bewust**: bij een geblokkeerde plaatsing (ontbrekend/verlopen vereist
+>   certificaat, viewer-onafhankelijk berekend uit de ZZP'er-credentials) toonde de "Aan zet"-banner bij BEIDE partijen
+>   "Vul het ontbrekende of verlopen certificaat aan (X)". De opdrachtgever kan andermans certificaat niet uploaden →
+>   een actie die hij niet kan doen en die door geen enkele client-actie verdwijnt; dit sprak de Contract-kaart lager
+>   op dezelfde pagina (correct: geen actieknop voor de client) én de lege /acties van de client tegen. **Fix:** de
+>   PROPOSED-blocked-tekst partij-bewust gemaakt — de ZZP'er houdt de imperatief; de opdrachtgever krijgt een passieve
+>   "Wacht tot de ZZP'er … aanvult"-regel (fallback zonder partij-flag blijft de imperatief → geen regressie).
+>   +2 regressietests (red→green, `turn-items.test.ts`).
+
 > **Datum:** 2026-08-24 (run 90) · **main-commit basis:** `2825d012`
 > **Uitkomst:** **2 defecten gevonden én gefixt** (1 malicieuze-input/data-integriteit should-fix; 1 next-action-
 > zelftegenspraak should-fix, alle rollen op het samenwerking-detail). **2 geparkeerd** (1 BLOCKER robustness-deadlock

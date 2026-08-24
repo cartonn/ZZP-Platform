@@ -302,6 +302,21 @@ export async function setOrtProfileAction(
     throw new Error("Samenwerking niet gevonden.");
   }
 
+  // Geld-integriteit (CLAUDE.md regel 1 & 2 — server-side waarheid): het factuurbedrag van een
+  // prestatie wordt uit de ACTUELE ORT-toeslagen van de samenwerking afgeleid op het moment van
+  // goedkeuren, niet gesnapshot bij indienen. Zolang er nog een INGEDIENDE (SUBMITTED) urenstaat op
+  // goedkeuring wacht, mag de betalende partij de toeslagen daarom niet wijzigen — anders kan zij het
+  // reeds ingediende, nog niet goedgekeurde bedrag eenzijdig verlagen of verhogen. Blokkeer de
+  // wijziging tot elke openstaande urenstaat is goedgekeurd of afgekeurd.
+  const submittedPerformances = await prisma.performance.count({
+    where: { collaborationId, status: "SUBMITTED" },
+  });
+  if (submittedPerformances > 0) {
+    throw new Error(
+      "Je kunt de toeslagen niet wijzigen terwijl er nog een ingediende urenstaat op goedkeuring wacht — die bepaalt straks het factuurbedrag. Keur de openstaande urensta(a)t(en) eerst goed of af.",
+    );
+  }
+
   let customRates: string | null = null;
   if (isCustom) {
     const rates = {} as Record<OrtCategory, number>;
