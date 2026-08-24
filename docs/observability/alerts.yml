@@ -476,6 +476,21 @@ groups:
           summary: "Berichten-retentie-snoei verwerkt niets (AVG-dataminimalisatie)"
           description: "Er staan al > één cron-interval berichten ouder dan het geconfigureerde MESSAGE_RETENTION_DAYS-venster (niet gekoppeld aan een lopende samenwerking) die niet zijn gesnoeid (zzp_messages_retention_backlog). De message-retention-cron rondt af maar verwijdert niets → berichtinhoud (Message.body) wordt over de beloofde bewaartermijn heen bewaard (AVG art. 5(1)(e)). Controleer de message-retention-taak."
 
+      - alert: ZzpSupportTicketsRetentionBacklog
+        # AVG-dataminimalisatie (art. 5 lid 1e): afgehandelde support-tickets dragen vrije-tekst-PII in het
+        # onderwerp (SupportTicket.subject) en elk supportbericht (SupportMessage.body) — de aanvrager
+        # beschrijft z'n probleem. Het verwerkingsregister belooft "tot afhandeling + max. 12 maanden na
+        # afhandeling". Een oplopende backlog terwijl de heartbeat "vers" is betekent dat support-inhoud over
+        # de beloofde termijn heen bewaard blijft. Anders dan de berichten-retentie staat SUPPORT_TICKET_RETENTION_DAYS
+        # standaard AAN (365d), dus deze alert is out-of-the-box actief; expliciete 0 zet 'm uit (dan altijd 0).
+        expr: zzp_support_tickets_retention_backlog > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Support-ticket-retentie-snoei verwerkt niets (AVG-dataminimalisatie)"
+          description: "Er staan al > één cron-interval afgehandelde support-tickets ouder dan het geconfigureerde SUPPORT_TICKET_RETENTION_DAYS-venster die niet zijn gesnoeid (zzp_support_tickets_retention_backlog). De support-retention-cron rondt af maar verwijdert niets → support-inhoud (SupportTicket.subject + SupportMessage.body, vrije-tekst-PII) wordt over de beloofde bewaartermijn heen bewaard (AVG art. 5(1)(e)). Controleer de support-retention-taak."
+
       - alert: ZzpWebhookEventsRetentionBacklog
         # GEEN AVG-kwestie (de webhook-ledgerrijen dragen geen PII — alleen een opaque providerreferentie +
         # status) maar opslag-hygiëne/availability: de ProcessedWebhookEvent-ledger groeit monotoon met elk

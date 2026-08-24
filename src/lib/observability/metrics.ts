@@ -250,6 +250,18 @@ export interface MetricsInput {
    */
   messagesRetentionBacklog: number;
   /**
+   * Aantal afgehandelde support-tickets (SupportTicket, vrije-tekst-PII in `subject` + de gekoppelde
+   * SupportMessage-`body`) wier `resolvedAt` ouder is dan het geconfigureerde
+   * `SUPPORT_TICKET_RETENTION_DAYS`-venster die de `support-retention`-cron nog niet snoeide — werk dat
+   * die cron had moeten doen. Dezelfde stille-faal-detector-klasse als de andere retentie-backlogs en
+   * net zo privacygevoelig: een helpdesk-ticket draagt de vrije-tekst-omschrijving van de aanvrager. De
+   * cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn verwerkte; blijft
+   * dit getal oplopen terwijl de heartbeat "vers" is, dan bewaart de app support-inhoud over de beloofde
+   * termijn heen zonder dat iets dat toont. Staat retentie UIT (venster expliciet 0), dan is er per
+   * definitie geen achterstand en is deze gauge `0`.
+   */
+  supportTicketsRetentionBacklog: number;
+  /**
    * Aantal webhook-ledgerrijen (ProcessedWebhookEvent) ouder dan het geconfigureerde
    * `WEBHOOK_EVENT_RETENTION_DAYS`-venster die de `webhook-event-retention`-cron nog niet snoeide — werk
    * dat die cron had moeten doen. Dezelfde stille-faal-detector-klasse als de andere retentie-backlogs,
@@ -603,6 +615,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal berichten (Message, chatinhoud in body) ouder dan het geconfigureerde MESSAGE_RETENTION_DAYS-venster (en niet gekoppeld aan een lopende samenwerking) die de message-retention-cron nog niet snoeide (0 als retentie uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → berichtinhoud bewaard over de beloofde termijn heen, AVG art. 5(1)(e)).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.messagesRetentionBacklog)),
+    },
+    {
+      name: "zzp_support_tickets_retention_backlog",
+      help: "Aantal afgehandelde support-tickets (SupportTicket, vrije-tekst-PII in subject + de gekoppelde SupportMessage-body) wier resolvedAt ouder is dan het geconfigureerde SUPPORT_TICKET_RETENTION_DAYS-venster die de support-retention-cron nog niet snoeide (0 als retentie expliciet uit staat; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → support-inhoud bewaard over de beloofde termijn heen, AVG art. 5(1)(e)).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.supportTicketsRetentionBacklog)),
     },
     {
       name: "zzp_webhook_events_retention_backlog",

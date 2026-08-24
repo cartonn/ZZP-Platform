@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-24 — Prod-rijpheid: support-ticket retentie (AVG art. 5(1)(e) opslagbeperking) — PR #1214
+
+**Wat:** SupportTicket/SupportMessage was het **enige** PII-dragende model zónder retentie-sweep
+(audit/application/message/notification/lead/health-incident/webhook-event/routing-cache hadden er al één).
+`subject` + elke SupportMessage-`body` dragen vrije-tekst-PII (de aanvrager beschrijft z'n probleem);
+afgehandelde tickets stapelden onbeperkt op → opslagbeperking-overtreding. Nu een geplande snoei-taak +
+observability, volgens het bestaande retentie-patroon.
+
+**Bestanden:** `src/lib/support-retention.ts` (pure `supportTicketRetentionCutoff`), `src/lib/support-retention-task.ts`
+(`runSupportTicketRetentionTask` + `prunableSupportTicketWhere` — gebatchte delete, idempotent, audit
+`SUPPORT_TICKETS_PRUNED` zonder PII; SCOPE-VEILIG: alleen `status: RESOLVED` mét `resolvedAt < cutoff`,
+cascade wist berichten), `src/lib/config.ts` (`SUPPORT_TICKET_RETENTION_DAYS`, **default AAN 365d**, min 30,
+0=uit), `run-all/route.ts` (taak `support-retention`), `observability/metrics.ts` + `api/metrics/route.ts`
+(gauge `zzp_support_tickets_retention_backlog`, hergebruikt exact `prunableSupportTicketWhere` → geen drift),
+`observability/alerts-rules.ts` + `metrics.test.ts` (sample-input + drift-gate), `audit-labels.ts` (label),
+`compliance/processing-register.ts` (activiteit "support-communicatie" + `RETENTION_SCHEDULE`-entry).
+
+**Tests:** pure cutoff (4) · task (9: scope open/legacy, batch >500, idempotentie, audit-zonder-PII, uit-override) ·
+metrics drift-gate + processing-register-invarianten groen. Gate: typecheck (exit 0), lint (0 warnings),
+prettier `--check .` (repo), targeted vitest 118 + metrics-route 23 groen · build → PR-gate #1214.
+
+**Rest (mensenwerk):** niets — werkt out-of-the-box; optioneel `SUPPORT_TICKET_RETENTION_DAYS` bijstellen.
+
 ## 2026-08-24 — Security/privacy-audit: defense-in-depth ownership-guard op document-delete
 
 **Wat:** Security-/privacy-auditronde (basis `main` @ 3f51108e). Orchestrator (Opus 4.8) + 3 parallelle

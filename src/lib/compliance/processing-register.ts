@@ -235,6 +235,28 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
     ],
   },
 
+  // 8b. Support-communicatie (helpdesk)
+  {
+    key: "support-communicatie",
+    name: "Support-communicatie",
+    purpose:
+      "Behandelen van helpdesk-/supportverzoeken van gebruikers en het verbeteren van de dienstverlening.",
+    legalBasis: "GERECHTVAARDIGD_BELANG",
+    dataSubjects: ["ZZP'ers", "Opdrachtgevers", "Bemiddelaars", "Beheerders"],
+    dataCategories: ["Onderwerp", "Berichtinhoud", "Afzender", "Tijdstempel", "Ticketstatus"],
+    sensitive: false,
+    recipients: ["Intern platformbeheer (helpdesk)"],
+    retention:
+      "Tot afhandeling + redelijke termijn (max. 12 maanden na afhandeling; automatisch afgedwongen door de geplande retentie-sweep run-all → support-retention, die afgehandelde (RESOLVED) tickets ouder dan het venster hard wist, geankerd op resolvedAt — een nog-open ticket blijft staan; verwijdering cascadeert naar de gekoppelde berichten)",
+    securityMeasures: [
+      "Toegang beperkt tot de aanvrager en helpdeskbeheer",
+      "Versleutelde opslag",
+      "Toegang op rol (RBAC)",
+      "Auditlogging",
+      "Beperkte bewaartermijn",
+    ],
+  },
+
   // 9. Samenwerkingen & Wet-DBA-beoordeling
   {
     key: "samenwerkingen-wet-dba",
@@ -668,6 +690,14 @@ export const RETENTION_SCHEDULE: readonly RetentionRule[] = [
     period: "Max. 6 maanden; daarna automatisch gewist",
     rationale:
       "Gerechtvaardigd belang (dienstverlening/attendering); na het venster vervalt de noodzaak. Een notificatie draagt PII in titel/inhoud (bv. naam van de tegenpartij, bedragen, statusupdates); het 6-maandenvenster (art. 5(1)(e)) wordt automatisch afgedwongen door een geplande retentie-sweep (run-all → notification-retention) die notificaties met createdAt vóór de afkapdatum hard wist, ongeacht lees-/digest-/push-status",
+  },
+  {
+    key: "support-communicatie",
+    category: "Support-communicatie (helpdesk-tickets)",
+    period:
+      "Tot afhandeling + redelijke termijn (max. 12 maanden na afhandeling); daarna automatisch gewist",
+    rationale:
+      "Gerechtvaardigd belang (klantondersteuning en dienstverbetering); na afhandeling vervalt de noodzaak. Een support-ticket draagt vrije-tekst-PII in het onderwerp en elk bericht in de body (de aanvrager beschrijft z'n probleem); het venster (art. 5(1)(e)) wordt automatisch afgedwongen door een geplande retentie-sweep (run-all → support-retention) die afgehandelde (RESOLVED) tickets ouder dan het venster hard wist, geankerd op het afhandelmoment (resolvedAt) — een nog-open ticket blijft staan; verwijdering cascadeert naar de gekoppelde berichten",
   },
 ] as const;
 

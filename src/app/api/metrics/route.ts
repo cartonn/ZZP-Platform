@@ -70,6 +70,7 @@ import {
   leadRetentionDays,
   healthIncidentIpRetentionDays,
   messageRetentionDays,
+  supportTicketRetentionDays,
   webhookEventRetentionDays,
 } from "@/lib/config";
 import { auditRetentionCutoff } from "@/lib/audit-retention";
@@ -82,6 +83,8 @@ import { healthIncidentIpRetentionCutoff } from "@/lib/health-incident-retention
 import { prunableHealthIncidentIpWhere } from "@/lib/health-incident-retention-task";
 import { messageRetentionCutoff } from "@/lib/message-retention";
 import { prunableMessageWhere } from "@/lib/message-retention-task";
+import { supportTicketRetentionCutoff } from "@/lib/support-retention";
+import { prunableSupportTicketWhere } from "@/lib/support-retention-task";
 import { webhookEventRetentionCutoff } from "@/lib/webhook-event-retention";
 import { prunableWebhookEventWhere } from "@/lib/webhook-event-retention-task";
 import { prunableRoutingCacheWhere } from "@/lib/routing-cache-retention-task";
@@ -150,6 +153,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let leadsRetentionBacklog = 0;
   let healthIncidentsIpRetentionBacklog = 0;
   let messagesRetentionBacklog = 0;
+  let supportTicketsRetentionBacklog = 0;
   let webhookEventsRetentionBacklog = 0;
   let routingCacheRetentionBacklog = 0;
   let membershipUnbilledActive = 0;
@@ -432,6 +436,24 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     });
     collectors.push(async () => {
       try {
+        // Afgehandelde support-tickets (SupportTicket, vrije-tekst-PII in subject + SupportMessage-body)
+        // wier resolvedAt ouder is dan het SUPPORT_TICKET_RETENTION_DAYS-venster die de support-retention-
+        // cron nog niet snoeide: werk dat die cron had moeten doen. Hergebruikt exact
+        // `prunableSupportTicketWhere` (dezelfde bron van waarheid, incl. de RESOLVED-/resolvedAt-guard) als
+        // de taak zelf, zodat de gauge de echte cron-backlog telt en niet kan driften. Staat retentie
+        // expliciet uit (cutoff === null), dan is er per definitie geen achterstand → 0.
+        const cutoff = supportTicketRetentionCutoff(supportTicketRetentionDays(), now);
+        if (cutoff) {
+          supportTicketsRetentionBacklog = await prisma.supportTicket.count({
+            where: prunableSupportTicketWhere(cutoff),
+          });
+        }
+      } catch (error) {
+        await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+      }
+    });
+    collectors.push(async () => {
+      try {
         // Webhook-ledgerrijen (ProcessedWebhookEvent) ouder dan het WEBHOOK_EVENT_RETENTION_DAYS-venster die
         // de webhook-event-retention-cron nog niet snoeide: werk dat die cron had moeten doen. Hergebruikt
         // exact `prunableWebhookEventWhere` (dezelfde bron van waarheid als de taak zelf) zodat de gauge de
@@ -589,6 +611,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     leadsRetentionBacklog,
     healthIncidentsIpRetentionBacklog,
     messagesRetentionBacklog,
+    supportTicketsRetentionBacklog,
     webhookEventsRetentionBacklog,
     routingCacheRetentionBacklog,
     membershipUnbilledActive,

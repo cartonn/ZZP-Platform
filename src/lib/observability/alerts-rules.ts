@@ -92,6 +92,7 @@ const SAMPLE_INPUT: MetricsInput = {
   leadsRetentionBacklog: 0,
   healthIncidentsIpRetentionBacklog: 0,
   messagesRetentionBacklog: 0,
+  supportTicketsRetentionBacklog: 0,
   webhookEventsRetentionBacklog: 0,
   routingCacheRetentionBacklog: 0,
   membershipUnbilledActive: 0,

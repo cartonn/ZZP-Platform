@@ -38,6 +38,7 @@ const HEALTHY: MetricsInput = {
   leadsRetentionBacklog: 0,
   healthIncidentsIpRetentionBacklog: 0,
   messagesRetentionBacklog: 0,
+  supportTicketsRetentionBacklog: 0,
   webhookEventsRetentionBacklog: 0,
   routingCacheRetentionBacklog: 0,
   membershipUnbilledActive: 0,
@@ -463,6 +464,7 @@ describe("buildMetrics", () => {
       leadsRetentionBacklog: 4,
       healthIncidentsIpRetentionBacklog: 9,
       messagesRetentionBacklog: 3,
+      supportTicketsRetentionBacklog: 5,
       webhookEventsRetentionBacklog: 6,
       routingCacheRetentionBacklog: 14,
       membershipUnbilledActive: 20,
@@ -526,6 +528,7 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_leads_retention_backlog")).toBe(4);
     expect(valueOf(input, "zzp_health_incidents_ip_retention_backlog")).toBe(9);
     expect(valueOf(input, "zzp_messages_retention_backlog")).toBe(3);
+    expect(valueOf(input, "zzp_support_tickets_retention_backlog")).toBe(5);
     expect(valueOf(input, "zzp_webhook_events_retention_backlog")).toBe(6);
     expect(valueOf(input, "zzp_routing_cache_retention_backlog")).toBe(14);
     expect(valueOf(input, "zzp_membership_unbilled_active")).toBe(20);
@@ -594,6 +597,7 @@ describe("buildMetrics", () => {
       "zzp_leads_retention_backlog",
       "zzp_health_incidents_ip_retention_backlog",
       "zzp_messages_retention_backlog",
+      "zzp_support_tickets_retention_backlog",
       "zzp_webhook_events_retention_backlog",
       "zzp_routing_cache_retention_backlog",
       "zzp_membership_unbilled_active",
