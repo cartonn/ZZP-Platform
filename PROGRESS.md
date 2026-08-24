@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-24 — Opdrachtgever: kosten van te laat betalen op /verplichtingen — PR #1215
+
+**Wat:** de betaalverplichtingen-lijst (`/verplichtingen`) toonde te late facturen alleen als "Te laat";
+de wettelijk oplopende gevolgen bleven onzichtbaar voor de debiteur. De reken-engine
+`src/lib/collection-costs.ts` (handelsrente art. 6:119a BW + incassokosten WIK, getest) werd tot nu toe
+alléén door de aanmaning van de ZZP'er gebruikt — de opdrachtgever zag die cijfers nooit. Nu een
+self-interest-nudge: een roll-up-melding ("over je te late facturen loopt nu €X aan extra kosten op —
+betaal deze eerst om verder oplopen te stoppen") + per te late rij een sub-regel
+("+ €Y rente & incassokosten · N dagen te laat"). Benchmark Stripe/Deel late-fee-transparantie. Geen
+nieuwe query's; drift-vrij (exact dezelfde `summarizeOverdueCharges` op `grossCents` als de aanmaning op
+`totalCents`). Alleen indicatie — het platform int niet (Besluit 1).
+
+**Bestanden:** `src/lib/payment-obligation-charges.ts` (pure `summarizeObligationOverdueCharges` +
+`chargesByInvoiceId`; aggregeert de engine over de al geladen `ObligationItem[]`),
+`src/components/administratie/verplichtingen-panel.tsx` (roll-up-melding + per-rij sub-regel).
+
+**Tests:** `src/lib/payment-obligation-charges.test.ts` (9: lege set, SUBMITTED/nog-niet-verlopen
+overslaan, due-vandaag = 0 kosten, engine-pariteit, multi-factuur-aggregatie + skip, custom rente,
+lookup-map). Gate: typecheck (exit 0), lint (0 warnings), prettier `--check .` (repo),
+test (655 files / **6822** passed), build (exit 0) groen · CI-poort → PR #1215.
+
+**Rest (mensenwerk):** niets.
+
 ## 2026-08-24 — Prod-rijpheid: support-ticket retentie (AVG art. 5(1)(e) opslagbeperking) — PR #1214
 
 **Wat:** SupportTicket/SupportMessage was het **enige** PII-dragende model zónder retentie-sweep
