@@ -3,6 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-24 — Security/privacy-audit: 2× TOCTOU-race gedicht (MIDDEL geld-integriteit ORT + LAAG AVG-retentie)
+
+**Wat (delta-audit `3f51108e..e656bcf2`; orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken; 2 defecten gevonden én gefixt, 2 LAAG geparkeerd):**
+
+1. **MIDDEL — geld-integriteit / A04 TOCTOU:** de nieuwe ORT-guard in `setOrtProfileAction`
+   (`src/app/(protected)/samenwerkingen/[id]/actions.ts`) deed een losse `performance.count` en pas dáárna een
+   aparte `collaboration.update` — twee niet-transactionele statements. Op Postgres onder gelijktijdige belasting kan
+   de ZZP'er in dat venster een urenstaat indienen, waarna de toeslagen-update het reeds-ingediende bedrag alsnog
+   eenzijdig verschuift (heropent exact de #1219-bug). **Fix:** guard + write gevouwen in één conditionele
+   `updateMany` met `performances: { none: { status: "SUBMITTED" } }` in de where — de DB evalueert guard én write
+   atomisch; verschijnt er een SUBMITTED-urenstaat, dan 0 rijen → blokkeer. `ort-guard.test.ts` herschreven (rood→groen).
+2. **LAAG — AVG art. 5(1)(d) / gegevensverlies · TOCTOU:** `runSupportTicketRetentionTask`
+   (`src/lib/support-retention-task.ts`) verwijderde per batch op `id in [...]` zónder de RESOLVED+resolvedAt-guard te
+   herhalen; een in het venster heropend ticket kon zo alsnog gewist worden. **Fix:** `deleteMany` draagt nu het
+   volledige where-predicaat (`{ ...where, id: { in } }`) — fail-closed. +1 TOCTOU-regressietest (rood→groen).
+
+**Geparkeerd (LAAG):** zelfde select-then-delete-patroon in de zuster-retentietaken (message/lead/application/…);
+CSV-import lengte-constanten handmatig gespiegeld i.p.v. uit de Zod-schema's geïmporteerd. Zie
+`docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-24b).
+
+**Schone oppervlakken (0 nieuwe bereikbare gaten):** CSV-onboarding-import (triple-gated, geen mass-assignment,
+`httpUrl()`-XSS-guard, RFC4180-parser, formule-injectie-guard, size/row-limieten), support-retentie + cron-routes
+(fail-closed CRON-auth timing-safe, geen PII in metrics, complete PII-erasure via cascade), franchiser-financials +
+nieuwe UI-kaarten (tenant-gescoopt ná `tenantScopeWhere`, k-anon onder min-sample, geen `dangerouslySetInnerHTML`).
+`npm audit --omit=dev`: 0 vulnerabilities.
+
+**Bestanden:** `src/app/(protected)/samenwerkingen/[id]/actions.ts`, `.../ort-guard.test.ts`,
+`src/lib/support-retention-task.ts`, `src/lib/support-retention-task.test.ts`, `docs/SECURITY-PRIVACY-BACKLOG.md`,
+`PROGRESS.md`. **Gate:** typecheck, lint, test (659 files / 6861 tests), build, prettier groen.
+
 ## 2026-08-24 — Persona-sweep run 91: ORT-toeslag geld-integriteit + wrong-party next-action
 
 **Wat (2 defecten gevonden én gefixt; 4 parallelle adversariële Opus-audits + live smoke, 0 nieuw geparkeerd):**

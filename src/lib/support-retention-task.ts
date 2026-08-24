@@ -73,8 +73,13 @@ export async function runSupportTicketRetentionTask(opts: {
     if (stale.length === 0) break;
 
     // Cascade (`onDelete: Cascade` op SupportMessage) verwijdert de bijbehorende berichten mee.
+    // TOCTOU-veiligheid (voorkomt gegevensverlies, AVG art. 5(1)(d) juistheid): herhaal het volledige
+    // guard-predicaat (`...where`) óók op de delete, niet alleen `id in [...]`. Wordt een ticket in het
+    // smalle venster tussen deze `findMany` en de `deleteMany` heropend (RESOLVED → REOPENED) of van
+    // anker ontdaan, dan matcht het niet meer en blijft het staan — een weer-actief ticket mag nooit
+    // sneuvelen. Fail-closed: alleen rijen die op verwijdermoment nóg afgehandeld-en-verlopen zijn.
     const { count } = await prisma.supportTicket.deleteMany({
-      where: { id: { in: stale.map((r) => r.id) } },
+      where: { ...where, id: { in: stale.map((r) => r.id) } },
     });
     pruned += count;
 

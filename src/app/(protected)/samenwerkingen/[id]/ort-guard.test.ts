@@ -10,15 +10,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const requireActorMock = vi.fn();
 vi.mock("@/lib/authz", () => ({ requireActor: () => requireActorMock() }));
 
-const performanceCount = vi.fn();
 const collaborationFindUnique = vi.fn();
-const collaborationUpdate = vi.fn();
+const collaborationUpdateMany = vi.fn();
 vi.mock("@/lib/db", () => ({
   prisma: {
-    performance: { count: (...args: unknown[]) => performanceCount(...args) },
     collaboration: {
       findUnique: (...args: unknown[]) => collaborationFindUnique(...args),
-      update: (...args: unknown[]) => collaborationUpdate(...args),
+      updateMany: (...args: unknown[]) => collaborationUpdateMany(...args),
     },
   },
 }));
@@ -49,9 +47,15 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Standaard: opdrachtgever-eigenaar van de samenwerking.
   collaborationFindUnique.mockResolvedValue({ company: { userId: "c1" } });
-  collaborationUpdate.mockResolvedValue({});
+  // De atomische conditionele UPDATE: default → 1 rij geraakt (geen SUBMITTED-urenstaat, wijziging mag).
+  collaborationUpdateMany.mockResolvedValue({ count: 1 });
   auditMock.mockResolvedValue(undefined);
 });
+
+// De relationele guard die de check-en-schrijf atomisch maakt: de UPDATE mag alleen slagen als er
+// geen SUBMITTED-urenstaat is. Deze conditie MOET in de `where` van de updateMany staan (niet als losse
+// count ervoor) — anders is de TOCTOU-race terug. Dit is de red→green-invariant.
+const ATOMIC_GUARD = { performances: { none: { status: "SUBMITTED" } } };
 
 async function msg(p: Promise<unknown>): Promise<string> {
   try {
@@ -63,38 +67,49 @@ async function msg(p: Promise<unknown>): Promise<string> {
 }
 
 describe("setOrtProfileAction — ORT-toeslagen bevroren tijdens openstaande ingediende urenstaat", () => {
-  it("blokkeert de wijziging als er een SUBMITTED-urenstaat op goedkeuring wacht (update NIET aangeroepen)", async () => {
+  it("schrijft de wijziging via één atomische conditionele UPDATE met de SUBMITTED-guard in de WHERE", async () => {
     requireActorMock.mockResolvedValue(CLIENT);
-    performanceCount.mockResolvedValue(1);
+    const { setOrtProfileAction } = await import("./actions");
+
+    await setOrtProfileAction("col-1", ortForm());
+    // TOCTOU-invariant: guard + write in dezelfde statement — de `none`-conditie staat in de where.
+    expect(collaborationUpdateMany).toHaveBeenCalledTimes(1);
+    expect(collaborationUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "col-1", ...ATOMIC_GUARD }),
+      }),
+    );
+  });
+
+  it("blokkeert de wijziging als de atomische UPDATE 0 rijen raakt (SUBMITTED-urenstaat wacht)", async () => {
+    requireActorMock.mockResolvedValue(CLIENT);
+    // De DB evalueert de guard: er is een SUBMITTED-urenstaat → 0 rijen geraakt.
+    collaborationUpdateMany.mockResolvedValue({ count: 0 });
     const { setOrtProfileAction } = await import("./actions");
 
     const message = await msg(setOrtProfileAction("col-1", ortForm()));
     expect(message).toMatch(/urensta/i);
-    expect(collaborationUpdate).not.toHaveBeenCalled();
+    // Geen audit bij een geblokkeerde (0-rijen) wijziging.
     expect(auditMock).not.toHaveBeenCalled();
-    // De guard telt exact de ingediende prestaties van déze samenwerking.
-    expect(performanceCount).toHaveBeenCalledWith({
-      where: { collaborationId: "col-1", status: "SUBMITTED" },
-    });
   });
 
-  it("staat de wijziging toe als er geen ingediende urenstaat openstaat (update WEL aangeroepen)", async () => {
+  it("staat de wijziging toe als er geen ingediende urenstaat openstaat (audit WEL geschreven)", async () => {
     requireActorMock.mockResolvedValue(CLIENT);
-    performanceCount.mockResolvedValue(0);
+    collaborationUpdateMany.mockResolvedValue({ count: 1 });
     const { setOrtProfileAction } = await import("./actions");
 
     await setOrtProfileAction("col-1", ortForm());
-    expect(collaborationUpdate).toHaveBeenCalledTimes(1);
+    expect(collaborationUpdateMany).toHaveBeenCalledTimes(1);
     expect(auditMock).toHaveBeenCalledTimes(1);
   });
 
   it("blokkeert ook een admin zolang er een SUBMITTED-urenstaat openstaat", async () => {
     requireActorMock.mockResolvedValue(ADMIN);
-    performanceCount.mockResolvedValue(2);
+    collaborationUpdateMany.mockResolvedValue({ count: 0 });
     const { setOrtProfileAction } = await import("./actions");
 
     const message = await msg(setOrtProfileAction("col-1", ortForm()));
     expect(message).toMatch(/urensta/i);
-    expect(collaborationUpdate).not.toHaveBeenCalled();
+    expect(auditMock).not.toHaveBeenCalled();
   });
 });

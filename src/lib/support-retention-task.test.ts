@@ -51,10 +51,17 @@ vi.mock("@/lib/db", () => ({
           .slice(0, args.take)
           .map((r) => ({ id: r.id }));
       }),
-      deleteMany: vi.fn(async (args: { where: { id: { in: string[] } } }) => {
+      deleteMany: vi.fn(async (args: { where: { id: { in: string[] } } & Partial<WhereArg> }) => {
         const ids = new Set(args.where.id.in);
+        const hasGuard = args.where.status !== undefined || args.where.resolvedAt !== undefined;
         const before = store.tickets.length;
-        store.tickets = store.tickets.filter((r) => !ids.has(r.id));
+        store.tickets = store.tickets.filter((r) => {
+          if (!ids.has(r.id)) return true; // niet in deze batch → blijft
+          // Een echte DB-delete honoreert de VOLLEDIGE where: een rij die op verwijdermoment niet
+          // meer aan status/resolvedAt voldoet (bv. heropend in het TOCTOU-venster) wordt overgeslagen.
+          if (hasGuard) return !matches(r, args.where as WhereArg);
+          return false; // alleen id-filter → verwijderen
+        });
         return { count: before - store.tickets.length };
       }),
     },
@@ -177,6 +184,29 @@ describe("runSupportTicketRetentionTask", () => {
     await runSupportTicketRetentionTask({ now: NOW });
     const second = await runSupportTicketRetentionTask({ now: NOW });
     expect(second.pruned).toBe(0);
+  });
+
+  it("wist geen ticket dat in het TOCTOU-venster is heropend (deleteMany her-checkt de guard)", async () => {
+    // Eén afgehandeld, verlopen ticket dat in aanmerking komt voor snoeien.
+    seed(1, "old", { status: "RESOLVED", resolvedAgeDays: 400 });
+    const { prisma } = await import("@/lib/db");
+    const findManyMock = prisma.supportTicket.findMany as unknown as ReturnType<typeof vi.fn>;
+    // Simuleer een concurrent heropening in het venster tussen findMany en deleteMany: de helpdesk
+    // heropent het ticket (RESOLVED → REOPENED) nádat het als "stale" is geselecteerd, maar vóór de
+    // delete. Een weer-actief ticket mag NOOIT sneuvelen (AVG art. 5(1)(d) juistheid + gegevensverlies).
+    findManyMock.mockImplementationOnce(async (args: { where: WhereArg; take: number }) => {
+      const rows = store.tickets
+        .filter((r) => matches(r, args.where))
+        .slice(0, args.take)
+        .map((r) => ({ id: r.id }));
+      const reopened = store.tickets.find((r) => r.id === "old-0");
+      if (reopened) reopened.status = "REOPENED";
+      return rows;
+    });
+    const res = await runSupportTicketRetentionTask({ now: NOW });
+    // Zonder de `...where`-guard op de deleteMany zou het heropende ticket alsnog gewist zijn (pruned 1).
+    expect(res.pruned).toBe(0);
+    expect(store.tickets.map((r) => r.id)).toEqual(["old-0"]); // overleeft
   });
 
   it("prunableSupportTicketWhere bevat de status- én resolvedAt-guard", () => {

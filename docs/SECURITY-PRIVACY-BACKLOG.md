@@ -4,6 +4,99 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-24b (basis: `main` @ e656bcf2) — 2× TOCTOU OPGELOST (MIDDEL geld-integriteit ORT + LAAG AVG-retentie) + delta schoon
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(CSV-onboarding-import: injectie/mass-assignment/Zod-pariteit · support-retentie + cron-routes: AVG art. 5(1)(e)/
+authz/PII-in-logs · ORT-geld-integriteit + franchiser-financials + nieuwe UI-kaarten: money-manipulatie/cross-tenant/
+PII-overfetch). Delta t.o.v. de vorige ronde (basis `3f51108e`): commits `3f51108e..e656bcf2` — de defense-in-depth
+`deleteDocumentById`-ownership-guard (#1213), de support-ticket-retentie AVG art. 5(1)(e) (#1214), de kosten-van-te-laat-
+betalen op `/verplichtingen` (#1215), de CSV-import-Zod-pariteit + dispuut-freeze-next-action (#1216), de financiële
+relatie op opdrachtgever-detail (bemiddelaar, #1217), de listing-kwaliteit-tips (#1218) en de ORT-toeslag-geld-integriteit
+
+- wrong-party next-action (#1219). `npm audit --omit=dev`: **0 vulnerabilities** (prod-runtime schoon); `npm audit` (incl.
+  dev): 6 dev-transitieve advisories, ongewijzigd t.o.v. de vorige ronde.
+
+**Dekking (OWASP Top 10 / ASVS + AVG):** A01 (object-/functie-authz + IDOR + multi-tenant), A03 (SQL/`$queryRaw`, XSS/
+`dangerouslySetInnerHTML`, CSV-/formule-injectie), A04 (insecure design: TOCTOU/race op check-then-act), A05 (headers/CSP),
+A07 (auth/sessie/rate-limiting/cron-auth timing-safe), A10 (SSRF op server-side `fetch`), upload-/storage-veiligheid,
+foutafhandeling, secrets/logs, én AVG art. 5(1)(c/d/e), 15, 17, 25, 32.
+
+### OPGELOST — [MIDDEL · geld-integriteit / A04 TOCTOU] ORT-toeslag-guard was niet atomair met de rate-write
+
+- **Geschonden regel:** CLAUDE.md regel 1 & 2 (server-side waarheid; geen client-beïnvloedbaar factuurbedrag).
+  **OWASP:** A04 (Insecure Design — check-then-act TOCTOU-race). Severity MIDDEL: smal venster, maar heropent exact de
+  geld-integriteitsbug die #1219 dicht wilde zetten, op productie-Postgres onder gelijktijdige belasting.
+- **Repro (bevestigd, latent op Postgres; SQLite serialiseert writes):** `setOrtProfileAction`
+  (`src/app/(protected)/samenwerkingen/[id]/actions.ts`) deed een losse `prisma.performance.count({ status: SUBMITTED })`
+  en pas dáárna een aparte `collaboration.update` met de nieuwe ORT-toeslagen — twee niet-transactionele statements. Het
+  factuurbedrag wordt bij goedkeuren live uit de collaboration-toeslagen afgeleid (niet gesnapshot bij indienen,
+  bevestigd via `loadPerformance`). In het venster tussen de count (= 0) en de update kan de ZZP'er een urenstaat
+  indienen (`submitPerformance`); daarna commit de update de toeslagen → het reeds-ingediende, nog niet goedgekeurde
+  bedrag verschuift alsnog eenzijdig. Geen `$transaction`, row-lock of versiecheck sloot het gat.
+- **Fix (deze PR):** guard + write gevouwen in één conditionele `updateMany` met de relationele conditie
+  `performances: { none: { status: "SUBMITTED" } }` in de `where`. De database evalueert guard én schrijfactie in
+  dezelfde statement (correlated NOT EXISTS): verschijnt er een SUBMITTED-urenstaat, dan matcht de WHERE niet meer en
+  raakt de UPDATE 0 rijen → we blokkeren met dezelfde melding, i.p.v. het bedrag alsnog te wijzigen. Werkt op SQLite én
+  Postgres, geen extra query. Rood→groen: `ort-guard.test.ts` herschreven — nieuwe atomiciteitstest assert dat de
+  `none`-guard in de `updateMany.where` staat (faalt zonder de fix, bevestigd), plus geblokkeerd (count 0 → throw, geen
+  audit) en toegestaan (count 1 → audit) voor CLIENT én ADMIN. Volledige gate groen.
+
+### OPGELOST — [LAAG · AVG art. 5(1)(d) juistheid / gegevensverlies · TOCTOU] support-retentie-delete her-checkte de guard niet
+
+- **Geschonden regel:** AVG art. 5(1)(d) (juistheid — geen verlies van nog-actieve data) + de scope-veiligheidsinvariant
+  van de retentietaak (nooit een lopend ticket wissen). Severity LAAG: smal venster, lage kans.
+- **Repro (latent):** `runSupportTicketRetentionTask` (`src/lib/support-retention-task.ts`) selecteerde per batch de
+  stale-ticket-id's (`findMany` met de RESOLVED+resolvedAt-guard) en verwijderde die dáárna strikt op `id in [...]`
+  zónder de guard te herhalen op de `deleteMany`. Heropent de helpdesk een ticket (RESOLVED → REOPENED) in het venster
+  tussen `findMany` en `deleteMany`, dan wist de sweep alsnog een weer-actief ticket (+ z'n `SupportMessage`-cascade) —
+  gegevensverlies op data die had moeten blijven. (Systemisch patroon; zie het geparkeerde LAAG-item hieronder.)
+- **Fix (deze PR):** de `deleteMany` draagt nu het volledige guard-predicaat (`{ ...where, id: { in } }`), zodat een rij
+  die op verwijdermoment niet meer RESOLVED-en-verlopen is, wordt overgeslagen (fail-closed). Rood→groen: nieuwe test
+  simuleert een concurrent heropening in het TOCTOU-venster (findMany geeft de id terug, mutateert de status naar
+  REOPENED, dan deleteMany) en assert `pruned === 0` + ticket overleeft — faalt zonder de `...where`-guard (bevestigd).
+  Volledige gate groen.
+
+### Geparkeerd — [LAAG · A04 TOCTOU] zelfde select-then-delete-patroon in de zuster-retentietaken
+
+- **Severity:** LAAG (systemisch, lage kans, pre-existing). **Bestanden:** `src/lib/message-retention-task.ts`,
+  `lead-retention-task.ts`, `application-retention-task.ts`, `notification-retention-task.ts`,
+  `health-incident-retention-task.ts`, `webhook-event-retention-task.ts`, `routing-cache-retention-task.ts` (verifieer
+  elk). **Repro/risico:** dezelfde `findMany`-ids → `deleteMany({ where: { id: { in } } })` zonder de guard te herhalen;
+  bij de meeste is de bron immutabel na retentie (webhook-ledger, routing-cache), maar message/application/notification
+  kunnen theoretisch nog muteren. **Aanbevolen fix:** spiegel de support-retentie-fix — voeg het volledige where-predicaat
+  toe aan elke `deleteMany` (`{ ...where, id: { in } }`) + een TOCTOU-regressietest per taak.
+
+### Geparkeerd — [LAAG · onderhoudbaarheid] CSV-import lengte-constanten zijn handmatig gespiegeld i.p.v. geïmporteerd
+
+- **Severity:** LAAG (niet exploiteerbaar; drift-risico). **Bestand:** `src/lib/onboarding/import.ts` (`NAME_MAX`=120,
+  `COMPANY_NAME_MAX`=160, `HEADLINE_MAX`/`LOCATION_MAX`=120). **Risico:** deze maxima zijn met de hand gelijkgehouden aan
+  de Zod-schema's in `src/lib/validation.ts` (`registerSchema`/`freelancerProfileSchema`/`companyProfileSchema`); wijzigt
+  iemand een max in `validation.ts` zonder de constante hier bij te werken, dan drift de import-schrijfpad stil uit
+  Zod-pariteit. Nu getest op waarde-pariteit maar via gedupliceerde getallen. **Aanbevolen fix:** importeer de maxima
+  rechtstreeks uit de Zod-schema's (of assert gelijkheid in een test die faalt bij drift) i.p.v. de getallen te dupliceren.
+
+### Schone oppervlakken (0 nieuwe bereikbare gaten — 3 parallelle adversariële audits + eigen tracing)
+
+- **CSV-onboarding-import (A01/A03/A04):** `/admin/import` triple-gated (middleware → `requireRole("ADMIN")` op page +
+  beide actions + template-route; `requireRole` leest rol/status live uit DB, geen JWT-vertrouwen). Volledige
+  `auth → rol → Zod → actie → audit`-keten op `commitImport` (per-rij `USER_IMPORTED` + samenvattend `USERS_IMPORTED`,
+  transactioneel). Geen mass-assignment: `role` via vaste alias-map (geen ADMIN-alias) + herbevestigd met `assertImportRole`
+  (Zod-enum) vóór de write; `status`/`mustChangePassword`/`passwordHash` server-afgeleid; geen `tenantId` (ADMIN-globaal).
+  `website` dubbel gevalideerd via `httpUrl()` (blokkeert `javascript:`/`data:` → geen stored XSS). CSV-parser is een
+  hand-rolled RFC4180-parser (geen ReDoS), export via `escapeCsvField` (formule-injectie-guard), `MAX_CSV_BYTES`=2MB +
+  `MAX_ROWS`=500 vóór parsen. E-mail-fouten via maskerende logger (geen PII/secret in logs).
+- **Support-retentie + cron-routes (AVG art. 5(1)(e) / A07):** `prunableSupportTicketWhere` = RESOLVED + `resolvedAt`
+  (not null, < cutoff); strikte `<`, geen off-by-one; cascade wist `SupportMessage`-body's mee; geen PII-kopie elders
+  (geen notificatie/audit met ticket-subject/body). `/api/tasks/run-all` + `/api/metrics` fail-closed CRON-gated (geen
+  secret → 503, fout token → 401 via `timingSafeEqual`, Bearer-header niet query-param); metrics-gauge is een kaal
+  geaggregeerd getal, geen PII. Verwerkingsregister-entry (grondslag GERECHTVAARDIGD_BELANG, 12 mnd) matcht de code 1:1.
+- **Franchiser-financials + nieuwe UI-kaarten (cross-tenant / AVG art. 5(1)(c)):** `franchise/opdrachtgevers/[id]` haalt
+  `company` met `tenantScopeWhere(actor)` + `notFound()`; alle financiële queries draaien pas ná die tenant-verificatie op
+  `company.id`. `VerplichtingenPanel` rol-gated (CLIENT) + data via `counterpartyUserId: actor.id` (eigen data). Betaalgedrag
+  onder `PAYMENT_MIN_SAMPLE_SIZE` toont geen individuele factuur/bedrag (alleen aggregaat). Geen `dangerouslySetInnerHTML`;
+  alle DB-strings via React-auto-escape. `payment-obligation-charges.ts`/`job-listing-quality.ts` zijn puur/DB-vrij.
+
 ## Ronde 2026-08-24 (basis: `main` @ 3f51108e) — 1× LAAG OPGELOST (defense-in-depth IDOR, document-delete) + delta schoon
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
