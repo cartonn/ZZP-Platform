@@ -49,10 +49,10 @@ describe("actionableCredentialFixes", () => {
   });
 
   it("muteert de invoer-arrays niet", () => {
-    const missing: CredentialType[] = ["VOG", "BIG"];
+    const missing: CredentialType[] = ["VOG", "DIPLOMA"];
     const expired: CredentialType[] = ["LICENSE"];
     actionableCredentialFixes({ missing, expired });
-    expect(missing).toEqual(["VOG", "BIG"]);
+    expect(missing).toEqual(["VOG", "DIPLOMA"]);
     expect(expired).toEqual(["LICENSE"]);
   });
 });
