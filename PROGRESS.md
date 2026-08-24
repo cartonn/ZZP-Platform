@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-24 — ZZP'er: win-back signaal "Klanten om opnieuw te benaderen" op /inzicht
+
+**Wat (PR #1222):** het platform meet de betaalde omzet per opdrachtgever al (`freelancer-revenue-breakdown.ts`),
+maar nooit de **recency** — een opdrachtgever die eerder echt omzet opleverde maar al maanden stil is, verdween uit
+beeld. Herhaalwerk is doorgaans de goedkoopste nieuwe opdracht (benchmark Malt/CRM). Nu een read-only win-back-kaart.
+
+**Bestanden:** `src/lib/dormant-clients.ts` (nieuw) — pure `summarizeDormantClients(inputs, now)` + `DORMANT_CLIENT_DAYS = 90`
+
+- loader `getDormantClients(userId, breakdown)`; `src/lib/dormant-clients.test.ts` (nieuw, 7 tests);
+  `src/app/(protected)/inzicht/page.tsx` — nieuwe `BiWidget` "Klanten om opnieuw te benaderen" in de FREELANCER-tak,
+  gerenderd na "Omzet per opdrachtgever" en alleen bij ≥1 slapende klant.
+
+**Logica:** slapend = afgeronde COMPLETED-historie + geen lopende PROPOSED/ACTIVE-samenwerking + laatste afronding
+
+> 90d geleden; gesorteerd op betaalde omzet aflopend. Recency uit één tenant-veilige `Collaboration`-query
+> (freelancer-gescoopt, begrensd tot de omzet-opleverende opdrachtgevers; legacy COMPLETED zonder `completedAt` valt
+> terug op `endDate`/`updatedAt`). Zelfde omzetbron als de bestaande widget → geen drift. Geen dode knop (informatief;
+> geen ZZP→klant conversatie-startpad). Geen schema-/mutatie-/authz-/beschermde-motor-oppervlak.
+
+**Gate:** typecheck ✓, lint ✓, `npm run test` (661 files, 6874 tests) ✓, build ✓, prettier ✓. **Volgende:** CI-poort → auto-merge.
+
 ## 2026-08-24 — Prod-rijpheid: open beveiligingsincident-gauges + alerts (dead-man's-switch voor de eigen detector)
 
 **Wat (PR #1221):** de platform-eigen bewakingsmotor (`src/lib/monitoring/detectors.ts` + `runMonitorTask`,

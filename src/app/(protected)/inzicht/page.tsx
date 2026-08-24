@@ -28,6 +28,7 @@ import { getDeliveryQuality, DELIVERY_TONE_LABEL } from "@/lib/collaboration-qua
 import { getClientStats } from "@/lib/client-stats";
 import { getClientSpendBreakdown } from "@/lib/client-spend-breakdown";
 import { getFreelancerRevenueBreakdown } from "@/lib/freelancer-revenue-breakdown";
+import { getDormantClients, type DormantClientSummary } from "@/lib/dormant-clients";
 import { getFreelancerPayerBehavior, type PayerBehaviorRow } from "@/lib/freelancer-payer-behavior";
 import { getClientTimeToFill, getTenantTimeToFill } from "@/lib/time-to-fill";
 import { getTenantStats, getTenantCompanyBreakdown } from "@/lib/tenant-stats";
@@ -594,6 +595,41 @@ function OmzetPerOpdrachtgeverWidget({
   );
 }
 
+/**
+ * Win-back-signaal voor de ZZP'er: opdrachtgevers die eerder omzet opleverden maar waar al maanden
+ * geen samenwerking meer mee liep. Herhaalwerk is doorgaans de snelste nieuwe opdracht. Informatief —
+ * het platform surfacet het signaal; de ZZP'er neemt zelf contact op via zijn eigen kanaal (geen dode
+ * knop). Rendert alleen wanneer er slapende klanten zijn (de aanroeper gate't op `dormantCount`).
+ */
+function SlapendeKlantenWidget({ summary }: { summary: DormantClientSummary }) {
+  return (
+    <BiWidget title="Klanten om opnieuw te benaderen">
+      <div className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Deze opdrachtgevers leverden je eerder omzet op, maar er liep al een tijd geen
+          samenwerking meer. Herhaalwerk is vaak de snelste nieuwe opdracht.
+        </p>
+        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+          {summary.rows.map((r) => (
+            <div key={r.companyId} className="flex items-center justify-between gap-4 px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{r.name}</p>
+                <p className="metadata-row mt-0.5">
+                  laatste samenwerking {r.monthsSince}{" "}
+                  {pluralWord(r.monthsSince, "maand", "maanden")} geleden
+                </p>
+              </div>
+              <span className="shrink-0 font-mono text-sm font-medium tabular-nums">
+                {formatEuro(r.paidCents)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </BiWidget>
+  );
+}
+
 // Toon → badge-taal, gelijk aan de gedragsblokken (signal-chips.tsx). Hier plat Nederlands, want de
 // hele /inzicht-pagina gebruikt geen i18n-wrapper.
 const PAYER_TONE_BADGE: Record<
@@ -734,6 +770,8 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
       </Card>
     );
   }
+  // Win-back: verrijk de reeds geladen omzet-uitsplitsing met samenwerking-recency (één extra query).
+  const dormantClients = await getDormantClients(userId, revenueByClient);
   const hasQuality = quality !== null && quality.tone !== "INSUFFICIENT";
   return (
     <div className="space-y-4">
@@ -758,6 +796,8 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
       <GemiddeldUurtariefPerMaandCard trend={hourlyRate} />
 
       <OmzetPerOpdrachtgeverWidget breakdown={revenueByClient} />
+
+      {dormantClients.dormantCount > 0 && <SlapendeKlantenWidget summary={dormantClients} />}
 
       <BetaalgedragPerOpdrachtgeverWidget rows={payerBehavior} />
 
