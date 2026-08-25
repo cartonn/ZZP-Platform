@@ -25,7 +25,12 @@ import { type Actor, requireActor } from "@/lib/authz";
 import { visibleJobsWhere } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
 import { JOBS_PER_PAGE, MATCH_SORT_SCAN_CAP, normalizeJobFilters } from "@/lib/jobs";
-import { scoreJobForFreelancer, topGapReason, topPositiveReason } from "@/lib/matching";
+import {
+  computeCompliance,
+  scoreJobForFreelancer,
+  topGapReason,
+  topPositiveReason,
+} from "@/lib/matching";
 import { sortJobsByMatch } from "@/lib/job-match-sort";
 import { sortJobsByStart } from "@/lib/job-start-sort";
 import { jobStartProximity } from "@/lib/job-start-proximity";
@@ -33,6 +38,8 @@ import { getTranslator } from "@/lib/i18n/server";
 import {
   type ApplicationStatus,
   type AvailabilityWindowType,
+  type CredentialStatus,
+  type CredentialType,
   type JobStatus,
   type WorkMode,
 } from "@/lib/enums";
@@ -81,6 +88,12 @@ import {
 } from "@/lib/job-vacancy-performance";
 import { summarizeVacancyPortfolio, vacancyPortfolioHeadline } from "@/lib/job-vacancy-overview";
 import { VacancyPaceChip } from "@/components/jobs/vacancy-pace-chip";
+import {
+  jobDecisionChip,
+  summarizeCandidatesAwaitingDecision,
+  type JobDecisionChip,
+} from "@/lib/candidate-decision";
+import { DecisionBacklogChip } from "@/components/jobs/decision-backlog-chip";
 import { diagnoseVacancyRate, type VacancyRateDiagnosis } from "@/lib/vacancy-rate-diagnosis";
 import { VacancyRateDiagnosisNote } from "@/components/jobs/vacancy-rate-diagnosis-note";
 import { getJobRateBands } from "@/lib/data/job-rate-bands";
@@ -246,6 +259,80 @@ async function ClientJobs({
     }
   }
 
+  // Beslis-achterstand per opdracht: nog-onbesliste reacties (NEW/VIEWED/SHORTLIST) die langer liggen
+  // dan bij hun matchkwaliteit past — een sterke kandidaat raakt elders aan de slag als je te lang
+  // wacht. Spiegelt de paginabrede band op /kandidaten (`summarizeCandidatesAwaitingDecision`), maar
+  // per opdracht op de lijstkaart zodat de opdrachtgever in één oogopslag ziet wélke opdracht een
+  // beslissing vraagt. Eén begrensde query over enkel de nog-onbesliste reacties (geen N+1); compliance
+  // wordt exact zoals op /kandidaten berekend (`computeCompliance`), zodat een niet-inzetbare kandidaat
+  // niet als "sterke match die je elders verliest" meetelt — geen drift met het detailscherm.
+  const undecided = await prisma.application.findMany({
+    where: {
+      job: { company: { userId } },
+      status: { in: ["NEW", "VIEWED", "SHORTLIST"] },
+    },
+    orderBy: { createdAt: "asc" },
+    take: 2000,
+    select: {
+      jobId: true,
+      status: true,
+      matchScore: true,
+      createdAt: true,
+      collaboration: { select: { id: true } },
+      job: {
+        select: {
+          credentialRequirements: { select: { credentialType: true, required: true } },
+        },
+      },
+      freelancer: {
+        select: { credentials: { select: { type: true, status: true, expiresAt: true } } },
+      },
+    },
+  });
+  const decisionInputsByJob = new Map<
+    string,
+    {
+      status: string;
+      matchScore: number | null;
+      createdAt: Date;
+      hasCollaboration: boolean;
+      complianceBlocked: boolean;
+    }[]
+  >();
+  for (const app of undecided) {
+    const requiredTypes = app.job.credentialRequirements
+      .filter((r) => r.required)
+      .map((r) => r.credentialType as CredentialType);
+    const compliance =
+      requiredTypes.length > 0
+        ? computeCompliance(
+            requiredTypes,
+            app.freelancer.credentials.map((c) => ({
+              type: c.type as CredentialType,
+              status: c.status as CredentialStatus,
+              expiresAt: c.expiresAt,
+            })),
+          )
+        : null;
+    const list = decisionInputsByJob.get(app.jobId) ?? [];
+    list.push({
+      status: app.status,
+      matchScore: app.matchScore,
+      createdAt: app.createdAt,
+      // Exact zoals /kandidaten (`hasCollaboration: !!a.collaboration`): een nog-onbesliste reactie
+      // die al een samenwerking heeft (bv. na een teruggedraaide ACCEPTED→SHORTLIST met bestaand
+      // voorstel) telt daar niet mee, dus hier ook niet — anders drift de lijst-chip te hoog.
+      hasCollaboration: app.collaboration != null,
+      complianceBlocked: compliance?.status === "NON_COMPLIANT",
+    });
+    decisionInputsByJob.set(app.jobId, list);
+  }
+  const decisionChipByJob = new Map<string, JobDecisionChip>();
+  for (const [jobId, inputs] of decisionInputsByJob) {
+    const chip = jobDecisionChip(summarizeCandidatesAwaitingDecision(inputs, now));
+    if (chip) decisionChipByJob.set(jobId, chip);
+  }
+
   // Statusfilter (Alle/Concept/Gepubliceerd/Gesloten) — tellingen over de volledige lijst voor de
   // pill-labels, de gefilterde lijst voor de weergave. Spiegelt het pill-patroon van /facturen.
   const activeFilter = parseJobStatusFilter(first(searchParams.status));
@@ -349,6 +436,10 @@ async function ClientJobs({
                   <JobPipelineStrip
                     pipeline={pipelineByJob.get(job.id) ?? summarizeJobPipeline([])}
                   />
+
+                  {decisionChipByJob.has(job.id) && (
+                    <DecisionBacklogChip chip={decisionChipByJob.get(job.id)!} />
+                  )}
 
                   {fillUrgencyByJob.has(job.id) && (
                     <JobFillUrgencyBadge chip={fillUrgencyByJob.get(job.id)!} />

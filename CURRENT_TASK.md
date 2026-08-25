@@ -268,6 +268,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — beslis-achterstand-chip op de opdrachtenlijst (2026-08-25, PR #1235)** —
+> de beslis-achterstand (nog-onbesliste reacties die langer wachten dan bij hun matchkwaliteit past; een sterke
+> kandidaat raakt elders aan de slag) stond alleen als paginabrede band op `/kandidaten`, niet op de opdrachtenlijst
+> (`/opdrachten`, CLIENT-tak) waar de opdrachtgever al zijn opdrachten overziet. Nu een per-opdracht chip op de kaart
+> in "Mijn opdrachten": `N kandidaten wachten op je beslissing` (`(sterke match)` + warning-toon zodra er een sterke
+> match wacht; anders gedempt). List↔detail-pariteit (zelfde patroon #1205/#1224); benchmark marktplaats-liquiditeit.
+> Nieuwe pure `jobDecisionChip(summary)` (`src/lib/candidate-decision.ts`) → `{total,strong,tone,label}|null` (null bij
+> rust; `strong` geklemd op `total`), gevoed uit exact dezelfde `summarizeCandidatesAwaitingDecision` mét exacte
+> compliance-berekening (`computeCompliance`) zodat een `NON_COMPLIANT`-kandidaat niet als urgentie meetelt — geen
+> drift. Eén begrensde query (`take:2000`) over enkel de nog-onbesliste reacties (`NEW/VIEWED/SHORTLIST`) van de eigen
+> opdrachten (geen N+1). Component `DecisionBacklogChip` (`LevelChip`-idioom). Server-side, geen mutatie-/schema-/
+> authz-/beschermde-motor-oppervlak, geen dode knop. +5 tests. Gate: typecheck ✓, targeted test (19) ✓, prettier ✓ ·
+> lint/build/CI-poort → PR.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — boven-budget-signaal in de kandidatenvergelijking (2026-08-25, PR #1230)** —
 > `/kandidaten/vergelijk` laadde `Job.rateMax` (budgetplafond) wél maar gebruikte het nergens: een kandidaat die boven
 > het eigen budget bood (€ 80/u terwijl je tot € 65/u zoekt) stond ongemarkeerd naast de anderen, en de "scherpste

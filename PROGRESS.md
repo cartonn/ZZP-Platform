@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-25 — Opdrachtgever: beslis-achterstand-chip op de opdrachtenlijst (PR #1235)
+
+**Wat:** de beslis-achterstand (nog-onbesliste reacties die langer wachten dan bij hun matchkwaliteit past — een
+sterke kandidaat raakt elders aan de slag) stond alleen als paginabrede band op `/kandidaten`, niet op de
+opdrachtenlijst waar de opdrachtgever al zijn opdrachten overziet. Nu een per-opdracht chip op de kaart in
+"Mijn opdrachten": `N kandidaten wachten op je beslissing` (`(sterke match)` + warning-toon zodra er een sterke
+match wacht; anders een rustige gedempte chip). List↔detail-pariteit (zelfde patroon als #1205/#1224);
+benchmark marktplaats-liquiditeit (Pidz/Temper/Zorgwerk beslissen snel).
+
+**Hoe:** nieuwe pure `jobDecisionChip(summary)` (`src/lib/candidate-decision.ts`) → `{ total, strong, tone, label }
+| null` (null bij rust; `strong` geklemd op `total`); gevoed uit exact dezelfde `summarizeCandidatesAwaitingDecision`
+als de band op `/kandidaten`, mét **exacte compliance-berekening** (`computeCompliance`) zodat een `NON_COMPLIANT`-
+kandidaat niet als urgentie meetelt — geen drift met het detailscherm. Eén begrensde query (`take: 2000`) over enkel
+de nog-onbesliste reacties (`NEW`/`VIEWED`/`SHORTLIST`) van de eigen opdrachten (geen N+1). Nieuwe presentatie-
+component `DecisionBacklogChip` (`LevelChip`-idioom, consistent met `VacancyPaceChip`). Server-side waarheid, geen
+mutatie-/schema-/authz-/beschermde-motor-oppervlak; geen dode knop. +5 tests (24 totaal in `candidate-decision`).
+
+**Gate:** typecheck ✓, targeted test (19 file) ✓, pre-commit lint ✓, prettier ✓ · lint/build/CI-poort → PR #1235.
+
 ## 2026-08-25 — ZZP'er: opgeslagen zoekopdrachten op de opdrachten-marktplaats (slice 1)
 
 **Wat:** de ZZP'er kan een gefilterde zoekopdracht op `/opdrachten` **bewaren** en later met één klik opnieuw
