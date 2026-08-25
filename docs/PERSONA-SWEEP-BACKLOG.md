@@ -1,5 +1,40 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-25 (run 92) · **main-commit basis:** `43494880`
+> **Uitkomst:** **1 defect gevonden én gefixt** (should-fix next-action-drift, DOEL 1b, FREELANCER op
+> het samenwerking-detail). **0 nieuw geparkeerd** (de authz/IDOR/tenant-, cascade/geld-integriteit- en
+> malicieuze-input-audits vonden 0 nieuwe bereikbare gaten; de eerder geparkeerde items blijven staan).
+> 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie ·
+> cascade/geld-integriteit + verboden statusovergangen · next-action-engine · malicieuze input/CSV/
+> XSS/upload) + live smoke (chromium tegen de geseede lokale server): 4 rollen login → /dashboard,
+> /acties (200 alle rollen), privilege-escalatie FREELANCER/CLIENT/FRANCHISER → /admin/\* + /franchise/\*
+> (307 redirect naar /dashboard), onzin-id → **404-niet-500** (alle rollen). Geen 500's, geen 200-leaks.
+>
+> - **OPGELOST — should-fix (next-action-drift, DOEL 1b, CLAUDE.md regel 1): de "Aan zet"-TurnBanner op
+>   het samenwerking-detail dropte silently de betaal-markeer-actie van de FREELANCER bij een OVERDUE-
+>   factuur, terwijl de status-regel bovenaan en de voortgang-stepper eronder wél "markeer de betaling"
+>   toonden — screen↔screen/-acties-drift.** `src/app/(protected)/samenwerkingen/[id]/page.tsx:287`
+>   telde alleen `lifecycleStatus === "APPROVED"` in `approvedInvoices`, en `buildCollaborationTurnItems`
+>   (`src/lib/cascade/turn-items.ts:74-77`) had geen OVERDUE-tak — anders dan `cascade/stage.ts:142`
+>   ("APPROVED of OVERDUE → betaling registreren"), `chain-steps.ts:106` (`invApproved = APPROVED ||
+OVERDUE`) en `pending-tasks.ts:667-671` (dezelfde ZZP-actie, `paymentConfirmTask`). **Repro
+>   (FREELANCER):** ACTIVE-samenwerking met één factuur `lifecycleStatus="OVERDUE"` (goedgekeurd maar
+>   te laat), geen andere openstaande performances/facturen → viewer=FREELANCER, `/samenwerkingen/[id]`
+>   → TurnBanner (het hoge-contrast-"aan zet"-blok) is afwezig; `/acties` en de stepper tonen de actie
+>   wél. **Fix:** nieuw veld `overdueInvoices` in `TurnItemsInput`; ZZP-tak voegt APPROVED + OVERDUE
+>   samen tot één betaal-markeer-actie ("(betaling te laat)"-suffix zodra er OVERDUE bij zit); page.tsx
+>   telt beide statussen. +4 regressietests (red→green, incl. OVERDUE-only, gecombineerd APPROVED+
+>   OVERDUE, rol-scheiding CLIENT geen actie, bevroren-dispuut ook OVERDUE weg).
+> - **Verificatie (0 nieuwe gaten):** authz/IDOR/cross-party/cross-tenant (route-handlers +
+>   server-actions enumeratief nagelopen: ownership + anti-oracle 404, TOCTOU-veilige compound-guarded
+>   `updateMany`, tenant-isolatie via `ownsViaTenant`/`hasTenant`, geen role-mutation-actie); cascade/
+>   geld-integriteit (contract-skip afgewezen; re-propose geblokkeerd bij bestaande signatures/
+>   invoices/performances; credit alleen APPROVED/OVERDUE/PAID/PROCESSED, dedupe-key; completion/
+>   cancel-guard atomisch mee-geschreven; performance-bounds `Number.isFinite` + overlap-guard); en
+>   malicieuze input (`escapeCsvField` in alle 14 CSV-producers; upload magic-byte-sniff + UUID-key;
+>   HTML-emails alle interpolaties door `esc()`/`escapeHtml()`; geen `dangerouslySetInnerHTML` op
+>   user-content; alle numerieke Zod-velden `int().min().max()`-begrensd).
+
 > **Datum:** 2026-08-24 (run 91) · **main-commit basis:** `f73101f3`
 > **Uitkomst:** **2 defecten gevonden én gefixt** (1 HIGH geld-integriteit, CLIENT+FREELANCER; 1 should-fix
 > next-action wrong-party, CLIENT op het samenwerking-detail). **0 nieuw geparkeerd** (de authz/IDOR/tenant- en

@@ -32,6 +32,13 @@ export interface TurnItemsInput {
   submittedInvoices: number;
   /** Aantal Invoice met lifecycleStatus APPROVED (ZZP'er markeert ontvangst na betaling). */
   approvedInvoices: number;
+  /**
+   * Aantal Invoice met lifecycleStatus OVERDUE (goedgekeurd maar te laat). Hoort net als APPROVED bij
+   * de betalingsfase van de ZZP'er (spiegelt cascade/stage.ts `APPROVED || OVERDUE`, chain-steps.ts en
+   * /acties `pending-tasks.ts`). Zonder dit veld toonde de TurnBanner géén actie voor een te-late
+   * factuur, terwijl de status-regel en stepper op dezelfde pagina wél "markeer de betaling" vroegen.
+   */
+  overdueInvoices: number;
 }
 
 /** De "Aan zet"-zinnen voor de huidige rol; lege array = niets te doen (of bevroren). */
@@ -71,9 +78,16 @@ export function buildCollaborationTurnItems(input: TurnItemsInput): string[] {
       todo.push(
         `${plural(input.submittedInvoices, "factuur", "facturen")} ${input.submittedInvoices === 1 ? "wacht" : "wachten"} op je goedkeuring.`,
       );
-    if (input.isFreelancer && input.approvedInvoices > 0)
+    // APPROVED én OVERDUE dragen dezelfde ZZP-actie (betaling markeren) — exact zoals cascade/stage.ts
+    // (`APPROVED || OVERDUE`), chain-steps.ts en /acties (pending-tasks.ts). Zonder OVERDUE hier bleef
+    // de TurnBanner leeg bij een te-late factuur terwijl de status-regel en stepper eronder wél
+    // "markeer de betaling" toonden — screen↔screen/-acties-drift (DOEL 1b, next-action-correctheid).
+    const payableInvoices = input.approvedInvoices + input.overdueInvoices;
+    if (input.isFreelancer && payableInvoices > 0)
       todo.push(
-        `${plural(input.approvedInvoices, "goedgekeurde factuur", "goedgekeurde facturen")}: markeer de ontvangst zodra je bent betaald.`,
+        input.overdueInvoices > 0
+          ? `${plural(payableInvoices, "goedgekeurde factuur", "goedgekeurde facturen")} (betaling te laat): markeer de ontvangst zodra je bent betaald.`
+          : `${plural(payableInvoices, "goedgekeurde factuur", "goedgekeurde facturen")}: markeer de ontvangst zodra je bent betaald.`,
       );
   }
 
