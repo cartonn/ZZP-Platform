@@ -263,6 +263,27 @@ groups:
           summary: "Rate-limit-store wijst af"
           description: "De gedeelde rate-limit-store (Upstash) levert niet meer (zzp_ratelimit_delivery_ok=0, ≥3 opeenvolgende mislukkingen). De limiter fail-opent, dus de brute-force-/misbruikbescherming op login, registratie en wachtwoordherstel geldt niet meer gedeeld over de instances. Controleer de Upstash-configuratie (verlopen/ingetrokken REST-token, verwijderde database, verkeerde URL, regio-storing) en het server-logboek (of Sentry). Zie MENSENWERK §0b."
 
+      - alert: ZzpPasswordBreachCheckDeliveryFailing
+        # De externe gelekt-wachtwoord-controle (HIBP "Pwned Passwords", PASSWORD_BREACH_CHECK=hibp) wijst
+        # systematisch af: de laatste controle mislukte (zzp_password_breach_delivery_ok=0) én er zijn ≥3
+        # opeenvolgende mislukkingen. De controle is bewust FAIL-OPEN — bij een storing laat 'ie het gekozen
+        # wachtwoord door (beschikbaarheid boven een best-effort extra check). Dat is juist voor één blip, maar
+        # bij een AANHOUDENDE storing worden wachtwoorden STIL niet meer getoetst tegen bekende datalekken op
+        # registratie, wachtwoordherstel en wachtwoord wijzigen — de credential-stuffing-bescherming
+        # (NIST 800-63B / OWASP ASVS 2.1.7) valt weg zonder dat iemand het merkt. Breach-controles zijn
+        # event-gedreven (geen staleness-op-leeftijd), dus de conditie zit op de teller, niet op ouderdom.
+        # Oorzaak meestal een HIBP-outage, een verkeerde/geblokkeerde base-URL, of een DNS-/uitgaande-firewall-
+        # storing. De ≥3-drempel + `for:` negeren één transiënte fout. Herstel wordt automatisch gewist zodra
+        # een controle slaagt (of draai de Gelekt-wachtwoord-zelftest op /admin/systeemstatus). Zonder externe
+        # controle (noop-default) registreert niets → deze alert vuurt per definitie niet. Zie MENSENWERK §0b.
+        expr: zzp_password_breach_delivery_ok == 0 and zzp_password_breach_consecutive_failures >= 3
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gelekt-wachtwoord-controle wijst af"
+          description: "De externe gelekt-wachtwoord-controle (HIBP) levert niet meer (zzp_password_breach_delivery_ok=0, ≥3 opeenvolgende mislukkingen). De controle fail-opent, dus gekozen wachtwoorden worden niet meer getoetst tegen bekende datalekken op registratie, wachtwoordherstel en wachtwoord wijzigen — de credential-stuffing-bescherming is stil weggevallen. Controleer de HIBP-bereikbaarheid (verkeerde/geblokkeerde base-URL, DNS-/netwerkstoring, uitgaande firewall) en het server-logboek (of Sentry). Zie MENSENWERK §0b."
+
   - name: zzp-platform-stille-faal-backlogs
     rules:
       # Deze drie tellen werk dat een cron-run HAD moeten doen. De cron-heartbeat bewijst alleen DÁT de

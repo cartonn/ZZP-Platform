@@ -106,6 +106,56 @@ describe("HibpPasswordBreachChecker", () => {
     expect(await checker.check("")).toEqual({ breached: false, skipped: true, count: 0 });
     expect(impl).not.toHaveBeenCalled();
   });
+
+  describe("onDelivery-aflever-heartbeat-hook", () => {
+    it("meldt succes (true) bij een geldig HIBP-antwoord", async () => {
+      const { impl } = fakeFetch(`${PASSWORD_HASH.slice(5)}:42`);
+      const onDelivery = vi.fn();
+      const checker = new HibpPasswordBreachChecker({ fetchImpl: impl, onDelivery });
+      await checker.check("password");
+      expect(onDelivery).toHaveBeenCalledTimes(1);
+      expect(onDelivery).toHaveBeenCalledWith(true);
+    });
+
+    it("meldt mislukking (false) bij een niet-ok respons", async () => {
+      const { impl } = fakeFetch("", { ok: false, status: 503 });
+      const onDelivery = vi.fn();
+      const checker = new HibpPasswordBreachChecker({ fetchImpl: impl, onDelivery });
+      await checker.check("password");
+      expect(onDelivery).toHaveBeenCalledWith(false);
+    });
+
+    it("meldt mislukking (false) bij een netwerkfout", async () => {
+      const impl = vi.fn(async () => {
+        throw new Error("network down");
+      }) as unknown as typeof fetch;
+      const onDelivery = vi.fn();
+      const checker = new HibpPasswordBreachChecker({ fetchImpl: impl, onDelivery });
+      await checker.check("password");
+      expect(onDelivery).toHaveBeenCalledWith(false);
+    });
+
+    it("meldt niets bij een leeg wachtwoord (geen operatie)", async () => {
+      const impl = vi.fn() as unknown as typeof fetch;
+      const onDelivery = vi.fn();
+      const checker = new HibpPasswordBreachChecker({ fetchImpl: impl, onDelivery });
+      await checker.check("");
+      expect(onDelivery).not.toHaveBeenCalled();
+    });
+
+    it("een werpende hook breekt de fail-open-controle niet", async () => {
+      const { impl } = fakeFetch(`${PASSWORD_HASH.slice(5)}:42`);
+      const onDelivery = vi.fn(() => {
+        throw new Error("heartbeat db down");
+      });
+      const checker = new HibpPasswordBreachChecker({ fetchImpl: impl, onDelivery });
+      await expect(checker.check("password")).resolves.toEqual({
+        breached: true,
+        skipped: false,
+        count: 42,
+      });
+    });
+  });
 });
 
 describe("createPasswordBreachChecker", () => {

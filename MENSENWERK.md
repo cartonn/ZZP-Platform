@@ -80,8 +80,9 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   duizenden échte rate-limit-checks daarna. Omdat de Upstash-store bewust **fail-open** is, laat een
   AANHOUDENDE storing (verlopen/ingetrokken REST-token, verwijderde database, verkeerde URL, regio-storing)
   élke `consume()` stil doorlaten — de brute-force-/misbruikbescherming op login/registratie/wachtwoordherstel
-  valt dan weg **zonder dat iets dat toont**. Dit was het laatste fail-open productie-kernkanaal zónder
-  doorlopend afleversignaal (storage/mail/push/billing/verificatie hadden er al één). Nu registreert elke
+  valt dan weg **zonder dat iets dat toont**. Dit was het laatste fail-open productie-**kern**kanaal zónder
+  doorlopend afleversignaal (storage/mail/push/billing/verificatie hadden er al één; de gelekt-wachtwoord-
+  controle — óók fail-open — kreeg er op 25-8 óók één, zie onder §gelekt-wachtwoord). Nu registreert elke
   `consume()` via de échte Upstash-store haar uitkomst in een `RateLimitDeliveryHeartbeat` (de in-memory
   default registreert bewust niets — geen productie-kanaal). Event-gedreven oordeel op de **laatste**
   operatie (`never`/`ok`/`failing` + teller); geslaagde operaties worden **gecoalesceerd** (max één schrijf
@@ -1128,6 +1129,25 @@ rate-limit → audit) en heeft geen op te ruimen bijwerking
 (`src/lib/services/password-breach-selftest.ts`, actie in `.../systeemstatus/actions.ts`, zelfde patroon
 als de Opslag-/E-mail-/Rate-limit-/Verificatie-/Betaal-/Upload-scanner-/Error-monitoring-zelftest).
 Resterend mensenwerk: **niets extra** — de knop is er zodra `PASSWORD_BREACH_CHECK=hibp` staat.
+**Code-kant GEDAAN (2026-08-25) — gelekt-wachtwoord-controle aflever-heartbeat (dead-man's-switch):** de
+zelftest hierboven bewijst bereikbaarheid **vóór go-live** (menselijke klik); hij zegt niets over de échte
+controles daarna. Omdat de HIBP-controle bewust **fail-open** is (een HIBP-storing mag registratie/
+wachtwoordwijziging niet platleggen), laat een AANHOUDENDE storing (HIBP-outage, verkeerde/geblokkeerde
+base-URL, DNS-/uitgaande-firewall-storing) élke `check()` stil doorlaten — de credential-stuffing-
+bescherming op registratie, wachtwoordherstel en wachtwoord wijzigen valt dan weg **zonder dat iets dat
+toont**. Dit was — naast rate-limit (23-8) — het laatste fail-open kanaal zónder doorlopend afleversignaal.
+Nu registreert elke `check()` via de échte HIBP-adapter haar uitkomst in een
+`PasswordBreachDeliveryHeartbeat` (de noop-default registreert bewust niets — geen productie-kanaal).
+Event-gedreven oordeel op de **laatste** operatie (`never`/`ok`/`failing` + teller); anders dan de
+rate-limit-store zit dit niet op een hot-path (alleen bij het KIEZEN van een wachtwoord), dus geen
+coalescing nodig — één upsert per controle. Kaart "Gelekt-wachtwoord-controle" op `/admin/systeemstatus`;
+gauges `zzp_password_breach_delivery_ok`/`zzp_password_breach_consecutive_failures`/
+`zzp_password_breach_last_failure_age_seconds` op `/api/metrics`; alert `ZzpPasswordBreachCheckDeliveryFailing`
+(`==0 and >=3`, `for:15m`, warning) in `docs/observability/alerts.yml`, in de onderhouds-inhibitie en
+vastgeklonken aan de drift-gate. De heartbeat is zelf fail-open (een DB-storing mag een controle nooit
+laten falen) en bevat nooit het wachtwoord/de hash/de foutinhoud — alleen tijdstip, teller en driver-modus.
+Resterend mensenwerk: **niets extra** — de kaart/gauges vullen zichzelf zodra `PASSWORD_BREACH_CHECK=hibp`
+staat en de eerste controle draait. Optioneel: richt een monitor op `ZzpPasswordBreachCheckDeliveryFailing`.
 
 **Code-kant GEDAAN (2026-07-22) — cross-origin-isolatie + Permissions-Policy-hardening:** naast de al
 sterke statische headers (HSTS+preload, `X-Frame-Options: DENY`, nosniff, `Referrer-Policy`) en de

@@ -439,6 +439,22 @@ export interface MetricsInput {
   rateLimitDeliveryConsecutiveFailures: number;
   /** Leeftijd van de meest recente rate-limit-store-mislukking in seconden, of null als er nooit één was. */
   rateLimitDeliveryLastFailureAgeSeconds: number | null;
+
+  /**
+   * 1 als de laatste gelekt-wachtwoord-controle (HIBP, PASSWORD_BREACH_CHECK=hibp) slaagde (of er nog nooit één
+   * was — neutraal gezond), 0 als HIBP systematisch afwijst/onbereikbaar is. De controle is FAIL-OPEN, dus een
+   * aanhoudende storing laat gelekte wachtwoorden STIL passeren op registratie/wachtwoordherstel/wijzigen.
+   * Event-gedreven; het alarm zit op OPEENVOLGENDE mislukkingen. Zonder externe controle (noop-default) blijft
+   * dit "ok/never".
+   */
+  passwordBreachDeliveryOk: boolean;
+  /**
+   * Aantal opeenvolgende mislukte gelekt-wachtwoord-controles sinds de laatste geslaagde (0 als ok of nog nooit
+   * een operatie). Een monitor paget op een AANHOUDENDE storing, niet op één transiënte fout.
+   */
+  passwordBreachDeliveryConsecutiveFailures: number;
+  /** Leeftijd van de meest recente gelekt-wachtwoord-controle-mislukking in seconden, of null als er nooit één was. */
+  passwordBreachDeliveryLastFailureAgeSeconds: number | null;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -796,6 +812,24 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: `Leeftijd van de meest recente mislukte rate-limit-store-operatie in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_ratelimit_consecutive_failures / zzp_ratelimit_delivery_ok.`,
       type: "gauge",
       value: age(input.rateLimitDeliveryLastFailureAgeSeconds),
+    },
+    {
+      name: "zzp_password_breach_delivery_ok",
+      help: "1 als de laatste gelekt-wachtwoord-controle (HIBP, PASSWORD_BREACH_CHECK=hibp) slaagde (of er nog nooit één was — neutraal gezond), 0 als HIBP systematisch afwijst/onbereikbaar is. De controle weigert wachtwoorden uit bekende datalekken (NIST 800-63B / OWASP ASVS 2.1.7) maar is FAIL-OPEN, dus een aanhoudende storing laat gelekte wachtwoorden stil passeren op registratie/wachtwoordherstel/wijzigen. Zonder externe controle (noop-default) registreert niets → blijft 1.",
+      type: "gauge",
+      value: flag(input.passwordBreachDeliveryOk),
+    },
+    {
+      name: "zzp_password_breach_consecutive_failures",
+      help: "Aantal opeenvolgende mislukte gelekt-wachtwoord-controles sinds de laatste geslaagde (0 = ok of nog nooit een operatie). Alarmeer op een AANHOUDENDE teller (HIBP-outage, verkeerde/geblokkeerde base-URL, DNS-/netwerkstoring), niet op één transiënte fout.",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.passwordBreachDeliveryConsecutiveFailures)),
+    },
+    {
+      name: "zzp_password_breach_last_failure_age_seconds",
+      help: `Leeftijd van de meest recente mislukte gelekt-wachtwoord-controle in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_password_breach_consecutive_failures / zzp_password_breach_delivery_ok.`,
+      type: "gauge",
+      value: age(input.passwordBreachDeliveryLastFailureAgeSeconds),
     },
   ];
 }

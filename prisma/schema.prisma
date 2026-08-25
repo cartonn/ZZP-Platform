@@ -1579,6 +1579,25 @@ model RateLimitDeliveryHeartbeat {
   updatedAt           DateTime  @updatedAt
 }
 
+// Aflever-heartbeat (dead-man's-switch) voor de gelekt-wachtwoord-controle (HIBP,
+// PASSWORD_BREACH_CHECK=hibp). De controle is bewust FAIL-OPEN — een storing (netwerk/time-out/
+// niet-ok/parsefout) laat het wachtwoord toe zodat registratie/wachtwoordherstel nooit door een
+// externe blip wordt geblokkeerd. Een AANHOUDENDE storing (HIBP-outage, verkeerde base-URL, DNS)
+// zet de credential-stuffing-bescherming dan STIL uit zonder dat iets dat toont. Elke échte check
+// via de HIBP-adapter registreert hier haar uitkomst (de noop-default registreert bewust niets —
+// geen productie-kanaal). Event-gedreven oordeel op de laatste operatie (never/ok/failing + teller).
+// Bevat geen persoonsgegevens — alleen tijdstippen, de teller en de driver-modus.
+model PasswordBreachDeliveryHeartbeat {
+  channel             String    @id // "password-breach"
+  lastAttemptAt       DateTime
+  lastOk              Boolean
+  lastSuccessAt       DateTime?
+  lastFailureAt       DateTime?
+  consecutiveFailures Int       @default(0)
+  driver              String // PASSWORD_BREACH_CHECK-modus bij de laatste poging: "hibp"
+  updatedAt           DateTime  @updatedAt
+}
+
 // Idempotentie-grendel voor de betaal-webhook (/api/billing/webhook). Elke verwerkte
 // provider-ping wordt hier exact één keer vastgelegd op (provider, eventKey), waarbij
 // eventKey = "<paymentRef>:<status>". Een herspeeld of dubbel-afgeleverd event schendt de
