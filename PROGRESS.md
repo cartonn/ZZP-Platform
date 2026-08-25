@@ -15,13 +15,15 @@ heen (inclusief de kritieke piket-paging). Een hernoemde/vertypte subroute-recei
 tot een operator de config laadde. Toegevoegd: (1) `collectRouteReceivers` — verzamelt élke receiver in de
 route-boom, test eist dat ze allemaal gedefinieerd zijn; (2) `routedSeverities` — test pint dat
 `severity=critical` een **eigen** route houdt, zodat een routing-refactor de directe paging-SLA niet stil
-in de trage default-bucket laat vallen.
+in de trage default-bucket laat vallen; (3) `definedSeverities` — test eist dat élke severity waarop een
+subroute matcht ook echt een alert draagt in `alerts.yml` (een typo als `severity = "critcal"` matcht
+stil niets → alerts vallen ongemerkt in de default-bucket).
 
-**Bestanden:** `src/lib/observability/monitoring-bundle.ts` (+2 pure helpers `collectRouteReceivers`,
-`routedSeverities` + `AlertmanagerRoute`-type), `src/lib/observability/monitoring-bundle.test.ts` (+3 tests).
+**Bestanden:** `src/lib/observability/monitoring-bundle.ts` (+3 pure helpers `collectRouteReceivers`,
+`routedSeverities`, `definedSeverities` + `AlertmanagerRoute`-type), `src/lib/observability/monitoring-bundle.test.ts` (+4 tests).
 Geen gedragswijziging in de app; puur een CI-poort die config-drift in de monitoring drop-in vangt.
 
-**Tests:** `monitoring-bundle` → 12 passed (was 9). Geen menselijke reststap gewijzigd (nog steeds: eigen
+**Tests:** `monitoring-bundle` → 13 passed (was 9). Geen menselijke reststap gewijzigd (nog steeds: eigen
 receiver-webhooks in `alertmanager.yml` invullen + Prometheus op de host richten — zie RUNBOOK §2a).
 
 ## 2026-08-25 — security/privacy: Sentry-breadcrumbs scrubben (HOOG — secret-/PII-exfiltratie dicht)

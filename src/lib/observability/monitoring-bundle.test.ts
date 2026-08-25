@@ -8,6 +8,7 @@ import {
   type AlertmanagerRoute,
   collectRouteReceivers,
   definedAlertNames,
+  definedSeverities,
   referencedAlertNames,
   routedSeverities,
   extractMetricsPath,
@@ -117,6 +118,20 @@ describe("alertmanager.yml — routing + inhibitie", () => {
       routedSeverities(amDoc.route).has("critical"),
       "geen dedicated route voor severity=critical → kritieke paging valt in de trage default-bucket",
     ).toBe(true);
+  });
+
+  it("elke severity waarop een route matcht bestaat als severity in alerts.yml (geen dode matcher)", () => {
+    // Een subroute die op een severity matcht die GEEN alert draagt (bv. een typo `severity =
+    // "critcal"`) matcht stil niets → de bedoelde alerts vallen terug in de default-bucket zonder dat
+    // iets dat toont. Klink de gerouteerde severities vast aan de severities die alerts.yml echt hangt.
+    const defined = definedSeverities(alertsText);
+    expect(defined.has("critical"), "alerts.yml declareert geen severity-labels meer").toBe(true);
+    const routed = [...routedSeverities(amDoc.route)];
+    const orphaned = routed.filter((s) => !defined.has(s)).sort();
+    expect(
+      orphaned,
+      `route matcht op severity die geen enkele alert draagt (dode/vertypte matcher): ${orphaned.join(", ")}`,
+    ).toEqual([]);
   });
 
   it("elke gerefereerde Zzp*-alertnaam bestaat écht in alerts.yml (geen dode demping)", () => {

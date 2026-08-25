@@ -101,6 +101,21 @@ export function collectRouteReceivers(route: AlertmanagerRoute | undefined): Set
 }
 
 /**
+ * Verzamelt de `severity`-labelwaarden die `alerts.yml` daadwerkelijk aan alerts hangt (bv.
+ * `critical`, `warning`, `info`). Bewust een simpele scan op `severity:`-labels — precies waar een
+ * Prometheus-regel zijn severity declareert. Gedeeld met de routing-gate zodat een subroute die op een
+ * severity matcht die GEEN enkele alert draagt (een typo als `severity = "critcal"`) opvalt: zo'n route
+ * matcht stil niets en de bedoelde alerts vallen terug in de trage default-bucket.
+ */
+export function definedSeverities(rulesText: string): Set<string> {
+  const severities = new Set<string>();
+  for (const match of rulesText.matchAll(/^\s*severity:\s*["']?([A-Za-z][A-Za-z0-9_]*)["']?/gm)) {
+    if (match[1]) severities.add(match[1]);
+  }
+  return severities;
+}
+
+/**
  * Verzamelt de `severity`-waarden waarvoor de route-boom een EIGEN (matcher-)route heeft — d.w.z. een
  * subroute met een matcher als `severity = "critical"` of `severity =~ "critical|warning"`. Puur:
  * geparste route-boom in, set severity-waarden uit.
