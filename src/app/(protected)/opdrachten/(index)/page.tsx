@@ -291,7 +291,13 @@ async function ClientJobs({
   });
   const decisionInputsByJob = new Map<
     string,
-    { status: string; matchScore: number | null; createdAt: Date; complianceBlocked: boolean }[]
+    {
+      status: string;
+      matchScore: number | null;
+      createdAt: Date;
+      hasCollaboration: boolean;
+      complianceBlocked: boolean;
+    }[]
   >();
   for (const app of undecided) {
     const requiredTypes = app.job.credentialRequirements
@@ -313,18 +319,17 @@ async function ClientJobs({
       status: app.status,
       matchScore: app.matchScore,
       createdAt: app.createdAt,
+      // Exact zoals /kandidaten (`hasCollaboration: !!a.collaboration`): een nog-onbesliste reactie
+      // die al een samenwerking heeft (bv. na een teruggedraaide ACCEPTED→SHORTLIST met bestaand
+      // voorstel) telt daar niet mee, dus hier ook niet — anders drift de lijst-chip te hoog.
+      hasCollaboration: app.collaboration != null,
       complianceBlocked: compliance?.status === "NON_COMPLIANT",
     });
     decisionInputsByJob.set(app.jobId, list);
   }
   const decisionChipByJob = new Map<string, JobDecisionChip>();
   for (const [jobId, inputs] of decisionInputsByJob) {
-    const chip = jobDecisionChip(
-      summarizeCandidatesAwaitingDecision(
-        inputs.map((i) => ({ ...i, hasCollaboration: false })),
-        now,
-      ),
-    );
+    const chip = jobDecisionChip(summarizeCandidatesAwaitingDecision(inputs, now));
     if (chip) decisionChipByJob.set(jobId, chip);
   }
 
