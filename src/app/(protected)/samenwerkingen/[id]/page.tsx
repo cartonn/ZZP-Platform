@@ -285,6 +285,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
     draftInvoices: col.invoices.filter((i) => i.lifecycleStatus === "DRAFT").length,
     submittedInvoices: col.invoices.filter((i) => i.lifecycleStatus === "SUBMITTED").length,
     approvedInvoices: col.invoices.filter((i) => i.lifecycleStatus === "APPROVED").length,
+    overdueInvoices: col.invoices.filter((i) => i.lifecycleStatus === "OVERDUE").length,
   });
 
   // Eén bron voor de cyclus-recency: is de nieuwste prestatie nieuwer dan de nieuwste factuur? Zo ja,
