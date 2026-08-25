@@ -83,6 +83,15 @@ export interface HibpCheckerOptions {
   timeoutMs?: number;
   /** Basis-URL van de range-API (default de publieke HIBP-endpoint). */
   baseUrl?: string;
+  /**
+   * Aflever-heartbeat-hook (dead-man's-switch): wordt aangeroepen met de uitkomst van élke échte
+   * controle — `true` als HIBP een geldig antwoord gaf (ongeacht breached/niet), `false` als de
+   * controle fail-openende (netwerk/time-out/niet-ok/parsefout). Optioneel + injecteerbaar zodat de
+   * checker PUUR/testbaar blijft: unit-tests laten 'm weg (geen DB), de fabriek
+   * (`getPasswordBreachChecker`) wiret de echte heartbeat-registratie. Wordt nooit aangeroepen voor
+   * een lege wachtwoord-invoer (geen operatie). Mag nooit werpen — de checker vangt 'm sowieso af.
+   */
+  onDelivery?: (ok: boolean) => void | Promise<void>;
 }
 
 /**
@@ -97,15 +106,28 @@ export class HibpPasswordBreachChecker implements PasswordBreachChecker {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
   private readonly baseUrl: string;
+  private readonly onDelivery?: (ok: boolean) => void | Promise<void>;
 
   constructor(options: HibpCheckerOptions = {}) {
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_HTTP_TIMEOUT_MS;
     // Zonder trailing slash; we plakken zelf "/{prefix}".
     this.baseUrl = (options.baseUrl ?? "https://api.pwnedpasswords.com/range").replace(/\/+$/, "");
+    this.onDelivery = options.onDelivery;
+  }
+
+  /** Meldt de aflever-heartbeat de uitkomst; slikt elke fout (observability mag de check nooit breken). */
+  private async signalDelivery(ok: boolean): Promise<void> {
+    if (!this.onDelivery) return;
+    try {
+      await this.onDelivery(ok);
+    } catch {
+      // Bewust genegeerd: de heartbeat is best-effort en mag de fail-open-controle niet beïnvloeden.
+    }
   }
 
   async check(password: string): Promise<PasswordBreachResult> {
+    // Lege invoer is geen operatie tegen HIBP → geen aflever-signaal (geen vals succes/mislukking).
     if (!password) return SKIPPED;
     const hash = await sha1Hex(password);
     const prefix = hash.slice(0, 5);
@@ -121,12 +143,19 @@ export class HibpPasswordBreachChecker implements PasswordBreachChecker {
         },
         { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "HIBP" },
       );
-      if (!res.ok) return SKIPPED;
+      // Een niet-ok respons is een storing van het kanaal (bereikbaar maar afwijzend) → mislukking.
+      if (!res.ok) {
+        await this.signalDelivery(false);
+        return SKIPPED;
+      }
       const body = await res.text();
       const count = matchSuffixCount(body, suffix);
+      // HIBP gaf een geldig antwoord — de controle draaide (ongeacht breached/niet) → succes.
+      await this.signalDelivery(true);
       return { breached: count > 0, skipped: false, count };
     } catch {
       // Netwerkfout of time-out: fail-open. Een lek-check mag de flow nooit blokkeren.
+      await this.signalDelivery(false);
       return SKIPPED;
     }
   }
@@ -174,6 +203,19 @@ export function getPasswordBreachChecker(): PasswordBreachChecker {
   if (!cached) {
     cached = createPasswordBreachChecker(process.env.PASSWORD_BREACH_CHECK, {
       timeoutMs: resolveHttpTimeoutMs(process.env.PASSWORD_BREACH_HTTP_TIMEOUT_MS),
+      // Aflever-heartbeat (dead-man's-switch) voor het échte HIBP-kanaal. Lazy import: houdt deze
+      // service vrij van een harde observability/prisma-import op modulepad-niveau (voorkomt
+      // import-cycles) en laat de noop-default volledig inert. Best-effort — de registratie is zelf
+      // fail-open en mag een controle nooit alsnog laten falen.
+      onDelivery: async (ok: boolean) => {
+        const { recordPasswordBreachDeliverySuccess, recordPasswordBreachDeliveryFailure } =
+          await import("@/lib/observability/password-breach-delivery-heartbeat");
+        if (ok) {
+          await recordPasswordBreachDeliverySuccess("hibp");
+        } else {
+          await recordPasswordBreachDeliveryFailure("hibp");
+        }
+      },
     });
   }
   return cached;

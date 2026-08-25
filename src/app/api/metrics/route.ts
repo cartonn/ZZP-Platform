@@ -61,6 +61,7 @@ import { getVerificationDeliveryOverview } from "@/lib/observability/verificatio
 import { getWebhookAuthFreshness } from "@/lib/observability/billing-webhook-auth-heartbeat";
 import { getStorageDeliveryFreshness } from "@/lib/observability/storage-delivery-heartbeat";
 import { getRateLimitDeliveryFreshness } from "@/lib/observability/ratelimit-delivery-heartbeat";
+import { getPasswordBreachDeliveryFreshness } from "@/lib/observability/password-breach-delivery-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { waitingSince } from "@/lib/verification-queue";
 import {
@@ -571,18 +572,29 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   }
 
   // De freshness-lezers vangen hun eigen DB-fouten af en geven dan "never" terug.
-  const [cron, backup, mail, push, storage, billing, webhookAuth, verification, rateLimit] =
-    await Promise.all([
-      getCronFreshness(undefined, now),
-      getBackupFreshness(now),
-      getMailDeliveryFreshness(now),
-      getPushDeliveryFreshness(now),
-      getStorageDeliveryFreshness(now),
-      getBillingDeliveryFreshness(now),
-      getWebhookAuthFreshness(now),
-      getVerificationDeliveryOverview(now),
-      getRateLimitDeliveryFreshness(now),
-    ]);
+  const [
+    cron,
+    backup,
+    mail,
+    push,
+    storage,
+    billing,
+    webhookAuth,
+    verification,
+    rateLimit,
+    passwordBreach,
+  ] = await Promise.all([
+    getCronFreshness(undefined, now),
+    getBackupFreshness(now),
+    getMailDeliveryFreshness(now),
+    getPushDeliveryFreshness(now),
+    getStorageDeliveryFreshness(now),
+    getBillingDeliveryFreshness(now),
+    getWebhookAuthFreshness(now),
+    getVerificationDeliveryOverview(now),
+    getRateLimitDeliveryFreshness(now),
+    getPasswordBreachDeliveryFreshness(now),
+  ]);
 
   return {
     dbReachable,
@@ -615,6 +627,9 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     rateLimitDeliveryOk: rateLimit.status !== "failing",
     rateLimitDeliveryConsecutiveFailures: rateLimit.consecutiveFailures,
     rateLimitDeliveryLastFailureAgeSeconds: rateLimit.failureAgeSeconds,
+    passwordBreachDeliveryOk: passwordBreach.status !== "failing",
+    passwordBreachDeliveryConsecutiveFailures: passwordBreach.consecutiveFailures,
+    passwordBreachDeliveryLastFailureAgeSeconds: passwordBreach.failureAgeSeconds,
     verificationQueue,
     verificationQueueOldestAgeSeconds,
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),

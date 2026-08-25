@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-25 — prod: gelekt-wachtwoord-controle aflever-heartbeat (dead-man's-switch)
+
+**Wat:** de laatste fail-open productie-security-control zónder doorlopend afleversignaal dichtgezet. De HIBP-
+gelekt-wachtwoord-controle (`PASSWORD_BREACH_CHECK=hibp`) is bewust fail-open — een aanhoudende storing
+(HIBP-outage, verkeerde/geblokkeerde base-URL, DNS) laat élke `check()` stil doorlaten en de credential-stuffing-
+bescherming op registratie/wachtwoordherstel/wijzigen valt weg zonder dat iets dat toont. Nu registreert elke
+échte HIBP-controle haar uitkomst in een `PasswordBreachDeliveryHeartbeat`; de noop-default registreert niets.
+Event-gedreven oordeel (never/ok/failing + teller), geen coalescing (geen hot-path). Spiegelt exact het
+rate-limit/mail-heartbeat-patroon. Volledig inert zolang `PASSWORD_BREACH_CHECK=noop` (pilot ongewijzigd).
+
+**Bestanden:** `prisma/schema.prisma` (+model), `src/lib/observability/password-breach-delivery-freshness.ts` (+test),
+`src/lib/observability/password-breach-delivery-heartbeat.ts` (+test), `src/lib/services/password-breach.ts`
+(onDelivery-hook, gewired in de fabriek) + `.test.ts` (+5 hook-tests), `src/lib/observability/metrics.ts` (+3 gauges),
+`src/app/api/metrics/route.ts`, `src/lib/observability/alerts-rules.ts` (drift-gate), `docs/observability/alerts.yml`
+(+alert `ZzpPasswordBreachCheckDeliveryFailing`), `docs/observability/alertmanager.yml` (onderhouds-inhibitie),
+`src/components/admin/password-breach-delivery-heartbeat-card.tsx`, `.../admin/systeemstatus/page.tsx`,
+`src/lib/observability/metrics.test.ts`, MENSENWERK.md. Tests: 6 bestanden groen (106). typecheck groen.
+**Resterend mensenwerk:** niets extra — vult zichzelf zodra `PASSWORD_BREACH_CHECK=hibp` staat.
+
 ## 2026-08-25 — Security/privacy-auditronde 2026-08-25b: client-error message URL-scrub (LAAG) + brede her-audit schoon
 
 **Wat:** security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op niet-overlappende
