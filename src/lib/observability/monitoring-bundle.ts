@@ -65,3 +65,68 @@ export function loadsRuleFile(prometheusText: string, fileName: string): boolean
   if (idx === -1) return false;
   return prometheusText.slice(idx).includes(fileName);
 }
+
+/**
+ * Eén knoop in de Alertmanager `route`-boom. We modelleren alleen wat de drift-gate nodig heeft: de
+ * receiver van deze knoop, de matchers waarop 'ie routeert, en de geneste subroutes. Overige velden
+ * (`group_by`, `*_interval`, …) negeren we bewust.
+ */
+export interface AlertmanagerRoute {
+  receiver?: string;
+  matchers?: string[];
+  routes?: AlertmanagerRoute[];
+}
+
+/**
+ * Verzamelt ELKE receiver-naam die ergens in de route-boom wordt gerefereerd — de top-level receiver
+ * én die van elke (diep geneste) subroute. Puur: een geparste route-knoop in, een set namen uit.
+ *
+ * Waarom dit een eigen gate verdient: Alertmanager WEIGERT de héle config te laden als één (ook diep
+ * geneste) subroute naar een receiver verwijst die niet in `receivers` staat. Het gevolg is dan niet
+ * één gemiste alert maar een DODE alerting-pijplijn — geen enkele alert routeert nog ergens heen,
+ * inclusief de kritieke piket-paging. De bestaande gate dekte alleen de top-level `route.receiver`;
+ * een hernoemde/vertypte subroute-receiver glipte er stil doorheen tot de operator de config laadde.
+ */
+export function collectRouteReceivers(route: AlertmanagerRoute | undefined): Set<string> {
+  const names = new Set<string>();
+  const stack: AlertmanagerRoute[] = route ? [route] : [];
+  while (stack.length > 0) {
+    const node = stack.pop() as AlertmanagerRoute;
+    if (typeof node.receiver === "string" && node.receiver.length > 0) {
+      names.add(node.receiver);
+    }
+    for (const child of node.routes ?? []) stack.push(child);
+  }
+  return names;
+}
+
+/**
+ * Verzamelt de `severity`-waarden waarvoor de route-boom een EIGEN (matcher-)route heeft — d.w.z. een
+ * subroute met een matcher als `severity = "critical"` of `severity =~ "critical|warning"`. Puur:
+ * geparste route-boom in, set severity-waarden uit.
+ *
+ * Waarom: kritieke alerts horen een eigen route te hebben (sneller `repeat_interval`, evt. een
+ * piket-kanaal). Zonder eigen route vallen ze stil terug op de trage default-bucket — dan paget een
+ * DB-onbereikbaar of stille cron pas na het default-herhaalvenster i.p.v. meteen. Deze helper laat de
+ * test vastklinken dat `critical` een dedicated route houdt, zodat een refactor van de routing die
+ * paging-SLA niet stil wegneemt.
+ */
+export function routedSeverities(route: AlertmanagerRoute | undefined): Set<string> {
+  const severities = new Set<string>();
+  const stack: AlertmanagerRoute[] = route ? [route] : [];
+  while (stack.length > 0) {
+    const node = stack.pop() as AlertmanagerRoute;
+    for (const matcher of node.matchers ?? []) {
+      // Matcher-syntax: `severity = "critical"` of `severity =~ "critical|warning"`.
+      const match = matcher.match(/severity\s*=~?\s*["']?([^"'\s]+)["']?/);
+      if (match?.[1]) {
+        for (const value of match[1].split("|")) {
+          const trimmed = value.trim();
+          if (trimmed) severities.add(trimmed);
+        }
+      }
+    }
+    for (const child of node.routes ?? []) stack.push(child);
+  }
+  return severities;
+}

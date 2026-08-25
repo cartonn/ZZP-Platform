@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-25 — prod/observability: drift-gate dekt nu de HELE Alertmanager-route-boom + kritieke-paging-route
+
+**Wat:** hardening van de monitoring-bundle drift-gate (`monitoring-bundle.test.ts`). De gate klonk
+`alertmanager.yml` al vast aan `alerts.yml` (geen dode inhibit-referentie; onderhouds-inhibitie dekt élke
+operationele alert), maar valideerde bij de **routing** alleen de top-level `route.receiver` — niet de
+receivers van de **geneste subroutes** (`routes[].receiver`, nu `critical`/`default`). Dat is een stille
+faalmodus: Alertmanager **weigert de HÉLE config te laden** als één (ook geneste) subroute naar een
+niet-gedefinieerde receiver verwijst → een dode alerting-pijplijn, geen enkele alert routeert nog ergens
+heen (inclusief de kritieke piket-paging). Een hernoemde/vertypte subroute-receiver glipte er stil doorheen
+tot een operator de config laadde. Toegevoegd: (1) `collectRouteReceivers` — verzamelt élke receiver in de
+route-boom, test eist dat ze allemaal gedefinieerd zijn; (2) `routedSeverities` — test pint dat
+`severity=critical` een **eigen** route houdt, zodat een routing-refactor de directe paging-SLA niet stil
+in de trage default-bucket laat vallen.
+
+**Bestanden:** `src/lib/observability/monitoring-bundle.ts` (+2 pure helpers `collectRouteReceivers`,
+`routedSeverities` + `AlertmanagerRoute`-type), `src/lib/observability/monitoring-bundle.test.ts` (+3 tests).
+Geen gedragswijziging in de app; puur een CI-poort die config-drift in de monitoring drop-in vangt.
+
+**Tests:** `monitoring-bundle` → 12 passed (was 9). Geen menselijke reststap gewijzigd (nog steeds: eigen
+receiver-webhooks in `alertmanager.yml` invullen + Prometheus op de host richten — zie RUNBOOK §2a).
+
 ## 2026-08-25 — security/privacy: Sentry-breadcrumbs scrubben (HOOG — secret-/PII-exfiltratie dicht)
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op niet-overlappende

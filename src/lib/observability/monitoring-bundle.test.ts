@@ -5,8 +5,11 @@ import { describe, expect, it } from "vitest";
 import {
   MAINTENANCE_ALERT,
   METRICS_PATH,
+  type AlertmanagerRoute,
+  collectRouteReceivers,
   definedAlertNames,
   referencedAlertNames,
+  routedSeverities,
   extractMetricsPath,
   loadsRuleFile,
 } from "./monitoring-bundle";
@@ -31,7 +34,7 @@ interface AmMatcherRule {
   target_matchers?: string[];
 }
 interface AlertmanagerDoc {
-  route?: { receiver?: string; routes?: unknown[] };
+  route?: AlertmanagerRoute;
   receivers?: { name: string }[];
   inhibit_rules?: AmMatcherRule[];
 }
@@ -85,6 +88,35 @@ describe("alertmanager.yml — routing + inhibitie", () => {
   it("de route-receiver bestaat als gedefinieerde receiver", () => {
     const receiverNames = new Set((amDoc.receivers ?? []).map((r) => r.name));
     expect(receiverNames.has(amDoc.route?.receiver ?? "")).toBe(true);
+  });
+
+  it("ELKE receiver in de route-boom (ook geneste subroutes) is gedefinieerd", () => {
+    // Alertmanager weigert de HELE config te laden als één (ook geneste) subroute naar een
+    // niet-gedefinieerde receiver verwijst → een dode alerting-pijplijn, geen enkele alert routeert
+    // nog. De check hierboven dekte alleen de top-level receiver; deze dekt de volledige boom.
+    const receiverNames = new Set((amDoc.receivers ?? []).map((r) => r.name));
+    const used = collectRouteReceivers(amDoc.route);
+    expect(used.size, "route-boom refereert geen enkele receiver").toBeGreaterThan(0);
+    const undefinedReceivers = [...used].filter((n) => !receiverNames.has(n)).sort();
+    expect(
+      undefinedReceivers,
+      `subroute(s) verwijzen naar niet-gedefinieerde receiver(s) → Alertmanager weigert de hele config: ${undefinedReceivers.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("kritieke alerts houden een eigen route (paging niet stil in de trage default-bucket)", () => {
+    // alerts.yml gebruikt severity `critical` voor de directe paging-condities (DB onbereikbaar,
+    // cron/back-up stil, scrape dood). Zonder een eigen route valt die stil terug op het trage
+    // default-`repeat_interval` — dan paget on-call pas na dat venster i.p.v. meteen. Pin de dedicated
+    // route zodat een routing-refactor de paging-SLA niet ongemerkt wegneemt.
+    const usesCritical = /severity:\s*critical/.test(alertsText);
+    expect(usesCritical, "alerts.yml definieert geen critical alert meer — pas deze gate aan").toBe(
+      true,
+    );
+    expect(
+      routedSeverities(amDoc.route).has("critical"),
+      "geen dedicated route voor severity=critical → kritieke paging valt in de trage default-bucket",
+    ).toBe(true);
   });
 
   it("elke gerefereerde Zzp*-alertnaam bestaat écht in alerts.yml (geen dode demping)", () => {
