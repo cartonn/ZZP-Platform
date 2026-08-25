@@ -3,6 +3,8 @@ import {
   computeCompanyCompleteness,
   computeFreelancerCompleteness,
   profileVisibleTo,
+  rankCompletenessSteps,
+  PROFILE_COMPLETENESS_ANCHORS,
   type CompletenessInput,
 } from "@/lib/profile";
 import { type Actor } from "@/lib/authz";
@@ -92,6 +94,58 @@ describe("computeCompanyCompleteness", () => {
     const r = computeCompanyCompleteness({ ...empty, description: "x", hasIndustry: true });
     expect(r.score).toBe(55); // 35 + 20
     expect(r.missing.map((m) => m.key)).toEqual(["location", "website", "logo"]);
+  });
+});
+
+describe("rankCompletenessSteps", () => {
+  it("rangschikt ontbrekende onderdelen op puntenwinst, hoogste eerst", () => {
+    const steps = rankCompletenessSteps(computeFreelancerCompleteness(empty));
+    expect(steps).toHaveLength(8);
+    // Puntenwinst monotoon dalend.
+    for (let i = 1; i < steps.length; i++) {
+      expect(steps[i].points).toBeLessThanOrEqual(steps[i - 1].points);
+    }
+    // Functietitel (20) is de grootste stap en staat bovenaan.
+    expect(steps[0]).toMatchObject({ key: "headline", points: 20 });
+  });
+
+  it("breekt gelijke punten deterministisch op labelnaam (nl)", () => {
+    const steps = rankCompletenessSteps(computeFreelancerCompleteness(empty));
+    // bio, hourlyRate en skills wegen elk 15; volgorde op label: 'Korte bio', 'Minstens één skill', 'Uurtarief'.
+    const fifteen = steps.filter((s) => s.points === 15).map((s) => s.label);
+    expect(fifteen).toEqual(["Korte bio", "Minstens één skill", "Uurtarief"]);
+  });
+
+  it("geeft per stap een deep-link naar het juiste edit-veld-anker", () => {
+    const steps = rankCompletenessSteps(computeFreelancerCompleteness(empty));
+    const headline = steps.find((s) => s.key === "headline");
+    expect(headline?.href).toBe("/profiel/bewerken#headline");
+    const skills = steps.find((s) => s.key === "skills");
+    expect(skills?.href).toBe("/profiel/bewerken#vaardigheden");
+  });
+
+  it("elke freelancer-criteriumsleutel heeft een anker (geen dode deep-link)", () => {
+    for (const step of rankCompletenessSteps(computeFreelancerCompleteness(empty))) {
+      expect(PROFILE_COMPLETENESS_ANCHORS[step.key]).toBeDefined();
+      expect(step.href).toContain("#");
+    }
+  });
+
+  it("valt zonder anker terug op de kale bewerk-pagina", () => {
+    const steps = rankCompletenessSteps({
+      score: 0,
+      missing: [{ key: "onbekend", label: "Onbekend", points: 5 }],
+    });
+    expect(steps[0].href).toBe("/profiel/bewerken");
+  });
+
+  it("respecteert een aangepaste editHref", () => {
+    const steps = rankCompletenessSteps(computeFreelancerCompleteness(empty), "/x");
+    expect(steps[0].href).toBe("/x#headline");
+  });
+
+  it("is leeg bij een volledig profiel", () => {
+    expect(rankCompletenessSteps(computeFreelancerCompleteness(full))).toEqual([]);
   });
 });
 

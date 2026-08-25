@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-25 — ZZP'er: profiel-verbeterstappen (ranked completeness) op het eigen profiel
+
+**Wat (PR #1227):** het profielscherm toonde de compleetheid als ring-percentage, maar nergens welke velden nog
+ontbraken of hoeveel elk oplevert — een abstract getal zonder concreet pad. Een vollediger profiel wordt aantoonbaar
+vaker gevonden en beter gematcht (engageability/matching). Nu een eigenaar-only kaart "Maak je profiel sterker" die de
+ontbrekende onderdelen toont, gerangschikt op puntenwinst (grootste sprong eerst), met "+X%" per stap en een deep-link
+rechtstreeks naar het juiste veld op het bewerk-formulier (geen dode knop). Benchmark: profielsterkte-flows (LinkedIn/Malt).
+
+**Bestanden:** `src/lib/profile.ts` — `CompletenessResult.missing` draagt nu `points` (additief); nieuwe pure
+`rankCompletenessSteps(result, editHref?)` (sorteer op punten desc, tie-break op label nl, deep-link via
+`PROFILE_COMPLETENESS_ANCHORS`); `computeCompanyCompleteness` meegetrokken. `src/app/(protected)/profiel/profile-form.tsx`
+— `id="branches"` op de branches-fieldset (anker). `src/components/profile/profile-screen.tsx` — eigenaar-only kaart.
+`src/lib/profile.test.ts` — +7 tests (rangschikking, tie-break, ankers-dekking, fallback zonder anker, custom href, leeg
+bij vol; 16 totaal).
+
+**Logica:** puur, server-side afgeleid uit de bestaande compleetheids-signalen; geen extra query, geen schema-/mutatie-/
+authz-/domeinmotor-oppervlak. Alleen zichtbaar voor de eigenaar (`isOwner`).
+
+**Gate:** typecheck ✓, lint ✓, test (662 files, 6902 tests) ✓, build ✓, prettier ✓. **Volgende:** CI-poort → auto-merge.
+
 ## 2026-08-25 — security/privacy: Sentry-breadcrumbs scrubben (HOOG — secret-/PII-exfiltratie dicht)
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op niet-overlappende
