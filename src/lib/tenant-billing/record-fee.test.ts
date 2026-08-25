@@ -37,7 +37,8 @@ const aggregateMock = vi.fn(async (args: { where: { lifecycleStatus: unknown } }
   return { _sum: { subtotalCents: sum } };
 });
 
-const upsertMock = vi.fn(async () => undefined);
+type UpsertArg = { create: { feeCents: number; vatCents: number } };
+const upsertMock = vi.fn((_args: UpsertArg): Promise<void> => Promise.resolve());
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -52,7 +53,7 @@ vi.mock("@/lib/db", () => ({
     },
     collaborationFee: {
       findUnique: vi.fn(async () => null),
-      upsert: (args: unknown) => upsertMock(args as never),
+      upsert: (args: unknown) => upsertMock(args as UpsertArg),
     },
   },
 }));
@@ -84,9 +85,7 @@ describe("recordTenantFeeForCollaboration — grondslag", () => {
       planKey: TENANT_BILLING.defaultPlanKey,
     });
     expect(upsertMock).toHaveBeenCalledTimes(1);
-    const upsertArg = upsertMock.mock.calls[0]![0] as {
-      create: { feeCents: number; vatCents: number };
-    };
+    const upsertArg = upsertMock.mock.calls[0]![0];
     // Regressie-anker: met de oude "PAID"-only grondslag zou de grondslag € 100 zijn → lagere fee.
     if (expected) {
       expect(upsertArg.create.feeCents).toBe(expected.feeCents);
