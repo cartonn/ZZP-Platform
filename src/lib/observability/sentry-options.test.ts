@@ -123,6 +123,71 @@ describe("scrubSentryEvent", () => {
     expect((event.contexts?.session as Record<string, unknown>).email).toBe("sanne@example.com");
   });
 
+  it("strip de query-string (o.a. een API-key) uit de URL van een http-breadcrumb", () => {
+    // Regressie: de Sentry-SDK legt standaard een http/fetch-breadcrumb aan met de VOLLEDIGE URL.
+    // De Geoapify-`apiKey` staat in die query-string; zonder breadcrumb-scrub lekt hij naar Sentry.
+    const event: SentryEvent = {
+      breadcrumbs: [
+        {
+          category: "http",
+          type: "http",
+          data: {
+            method: "GET",
+            url: "https://api.geoapify.com/v1/geocode/search?text=Amsterdam&apiKey=SECRET_KEY_123",
+            status_code: 200,
+          },
+        },
+      ],
+    };
+    const out = scrubSentryEvent(event);
+    const crumb = (out.breadcrumbs as Array<{ data: Record<string, unknown> }>)[0]!;
+    expect(crumb.data.url).toBe("https://api.geoapify.com/v1/geocode/search");
+    expect(JSON.stringify(out)).not.toContain("SECRET_KEY_123");
+    // niet-gevoelige velden blijven intact
+    expect(crumb.data.method).toBe("GET");
+    expect(crumb.data.status_code).toBe(200);
+  });
+
+  it("redigeert een geheim reset-token in een navigatie-breadcrumb (token-in-pad)", () => {
+    const event: SentryEvent = {
+      breadcrumbs: [
+        {
+          category: "navigation",
+          message: "navigating to https://app.example.nl/wachtwoord-herstellen/abc123def456",
+          data: { to: "https://app.example.nl/wachtwoord-herstellen/abc123def456" },
+        },
+      ],
+    };
+    const out = scrubSentryEvent(event);
+    const crumb = (
+      out.breadcrumbs as Array<{ message: string; data: Record<string, unknown> }>
+    )[0]!;
+    expect(JSON.stringify(out)).not.toContain("abc123def456");
+    expect(crumb.data.to).toBe("https://app.example.nl/wachtwoord-herstellen/[redacted]");
+    expect(crumb.message).toContain("[redacted]");
+  });
+
+  it("redacteert PII op sleutelnaam in breadcrumb-data en muteert het origineel niet", () => {
+    const event: SentryEvent = {
+      breadcrumbs: [{ category: "console", data: { email: "sanne@example.com", level: "warn" } }],
+    };
+    const out = scrubSentryEvent(event);
+    const crumb = (out.breadcrumbs as Array<{ data: Record<string, unknown> }>)[0]!;
+    expect(crumb.data.email).toBe("s***@example.com");
+    expect(crumb.data.level).toBe("warn");
+    // origineel onaangetast (pure functie)
+    expect((event.breadcrumbs as Array<{ data: Record<string, unknown> }>)[0]!.data.email).toBe(
+      "sanne@example.com",
+    );
+  });
+
+  it("laat een event zonder breadcrumbs en niet-array breadcrumbs ongemoeid", () => {
+    expect(scrubSentryEvent({}).breadcrumbs).toBeUndefined();
+    // defensief: een onverwacht type mag niet crashen
+    const weird: SentryEvent = { breadcrumbs: "oops" as unknown };
+    expect(scrubSentryEvent(weird).breadcrumbs).toBe("oops");
+  });
+
   it("is veilig op een leeg event", () => {
     expect(scrubSentryEvent({})).toEqual({});
   });

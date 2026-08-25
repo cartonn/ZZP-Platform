@@ -4,6 +4,67 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-25 (basis: `main` @ bb591865) — HOOG OPGELOST (Sentry-breadcrumbs lekten secrets/PII) + 2 geparkeerd (MIDDEL/LAAG)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
+(1) cross-tenant/IDOR op `src/lib/tenancy.ts` + alle `franchise/**`-actions/pages/exports, (2) object-/functie-authz-keten
+op de per-gebruiker `actions.ts` (samenwerkingen/facturen/documenten/reacties/profiel/account/certificaten/uitgaven/
+support/prestaties) + `src/components/actions/**`, (3) SSRF/injectie/PII-naar-derden/secrets/logs (routing/geocode,
+mail, observability/report + Sentry). Delta t.o.v. de vorige ronde (basis `e656bcf2..bb591865`, o.a. `/api/metrics`,
+dormant-clients, job-start-proximity, health-incident-open): opnieuw geverifieerd — de nieuwe `/api/metrics`-route is
+fail-closed achter dezelfde Bearer `CRON_SECRET` (geen PII/secrets in de uitvoer), `dormant-clients` is strikt
+freelancer-gescoopt (geen cross-partij-PII). `npm audit --omit=dev`: **0 vulnerabilities** (prod-runtime schoon).
+
+**Dekking (OWASP Top 10 / ASVS + AVG):** A01 (object-/functie-authz + IDOR + multi-tenant — beide authz-audits CONFIRMED
+schoon), A02/A09 (secret-/PII-exfiltratie via logging/monitoring — de HOOG-bevinding hieronder), A03 (SQL/`$queryRaw`
+alleen `SELECT 1`, XSS/`dangerouslySetInnerHTML` alleen het statische, nonce-gated theme-script, CSV-formule-injectie
+gedekt door `escapeCsvField`), A05 (headers/CSP/nonce), A10 (SSRF: routing/mail-hosts zijn vast, nooit user-gestuurd),
+upload-/storage-veiligheid (magic-bytes + allowlist + sandbox-CSP + presign-TTL), document-privacy (owner/admin +
+anti-oracle 404 + audit op inzage én weigering), AVG art. 5(1)(c/d/e), 15, 17, 25, 32, 44.
+
+### OPGELOST — [HOOG · A02/A09 secret-/PII-exfiltratie · AVG art. 32/44] Sentry-breadcrumbs werden nooit gescrubd
+
+- **Geschonden regel:** CLAUDE.md ("geen secrets in git/log/code") + AVG art. 32 (passende beveiliging) / art. 44+
+  (doorgifte aan een derde, mogelijk buiten-EER). **OWASP:** A09 (Security Logging & Monitoring Failures) / A02
+  (Cryptographic/secret exposure). Severity HOOG: een echt secret (`GEOAPIFY_API_KEY`) én account-overname-/deel-tokens
+  konden naar de externe verwerker (Sentry) lekken zodra `SENTRY_DSN` in productie gezet is.
+- **Repro (CONFIRMED, latent tot `SENTRY_DSN` gezet is):** `@sentry/nextjs` (`^10.70.0`) **is** geïnstalleerd (de
+  header-comment in `sentry-options.ts` beweerde ten onrechte "NIET geïnstalleerd"). `report.ts` initialiseert Sentry met
+  `buildSentryInitOptions()` → default integrations, incl. de `httpIntegration` die STANDAARD per uitgaande http/fetch-call
+  én per navigatie een breadcrumb aanlegt met de **volledige URL, query-string inbegrepen**. `scrubSentryEvent` (de
+  `beforeSend`-scrubber) redigeerde `user`/`server_name`/`request.*`/`extra`/`contexts` maar **raakte `event.breadcrumbs`
+  nooit aan**, en er was geen `beforeBreadcrumb`. De Geoapify-`apiKey` staat in de query-string van elke geocode/route-call
+  (`routing.ts:191`); daarnaast dragen navigatie-breadcrumbs paden als `/wachtwoord-herstellen/<reset-token>` en
+  `/vertrouwen/<id>/<deel-token>`. Bij élke in dezelfde request/proces gevangen fout gingen die breadcrumbs ongescrubd mee.
+- **Fix (deze PR):** URL-/pad-scrubbing verhuisd naar een gedeelde pure module `src/lib/observability/url-scrub.ts`
+  (`sanitizeUrl`/`stripUrlQueries`/`scrubSecretPathSegments`, één bron van waarheid met `client-error.ts`). `scrubSentryEvent`
+  scrubt nu ook `event.breadcrumbs`: query-string + fragment weg en geheime pad-segmenten geredigeerd op elke URL in
+  `message` en in de string-waarden van `data`, plus dezelfde recursieve PII/secret-redactie (`redact`) als `extra`/`contexts`.
+  Rood→groen: nieuwe tests in `sentry-options.test.ts` (http-breadcrumb met `apiKey` → gestript, navigatie-breadcrumb met
+  reset-token → `[redacted]`, PII-sleutel in `data` → geredacteerd, niet-array `breadcrumbs` → veilig) + `url-scrub.test.ts`;
+  falen zonder de fix (`SECRET_KEY_123` bleef in de output). Stale header-comment gecorrigeerd.
+
+### Geparkeerd — [MIDDEL · AVG art. 5(1)(c) minimalisatie / art. 13 juistheid privacyverklaring] `location`-vrijetekst gaat ongefilterd naar de routeprovider
+
+- **Repro (CONFIRMED):** `location` is `optionalText(120)` (`src/lib/validation.ts:124,193,214`) — vrije tekst, geen
+  stad-only-format. `geocodePlace` (`src/lib/services/routing.ts`) stuurt de rauwe waarde als `text` naar Geoapify wanneer
+  `ROUTING_PROVIDER=geoapify` actief is (via `applications-create.ts` + opdracht-detailpagina). De privacyverklaring
+  (`src/app/privacy/page.tsx:137-139`) belooft echter expliciet "we sturen een plaatsnaam (geen adres of naam)". Een
+  gebruiker die een volledig straatadres intypt, laat dat adres alsnog de grens over gaan — in strijd met de belofte.
+- **Aanbevolen fix:** óf `location` valideren/normaliseren naar stadsniveau (picker/autocomplete of adres-patroon weigeren)
+  vóór geocoding, óf de privacyverklaring-tekst verzachten. **Vereist een product/juridische keuze (MENSENWERK.md §5)** —
+  daarom geparkeerd, niet autonoom "gefixt" met een woordkeuze.
+
+### Geparkeerd — [LAAG · AVG art. 5(1)(f) · defense-in-depth] client-error `message` wordt niet URL-query-gestript
+
+- **Repro (PLAUSIBLE):** `parseClientError` (`src/lib/observability/client-error.ts`) haalt `stack`/`componentStack` wél
+  door `stripUrlQueries`, maar `message` alleen door `truncate`. Bevat een browser-foutbericht toevallig een volledige URL
+  met query-string (bv. een gefaalde fetch die de request-URL met een token echoot), dan bereikt die de logger (alleen
+  e-mail-gemaskeerd) en Sentry (als exception-`value`, buiten de breadcrumb-scrub om) ongestript. De dominante
+  token-lek-paden (pagina-URL + stacktraces) zijn al gedekt; dit is defense-in-depth.
+- **Aanbevolen fix:** pas `stripUrlQueries` ook op `message` toe in `parseClientError` (nu triviaal — de helper is al
+  geïmporteerd uit `url-scrub.ts`).
+
 ## Ronde 2026-08-24b (basis: `main` @ e656bcf2) — 2× TOCTOU OPGELOST (MIDDEL geld-integriteit ORT + LAAG AVG-retentie) + delta schoon
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

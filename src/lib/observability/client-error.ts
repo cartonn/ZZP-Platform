@@ -9,6 +9,12 @@
 // vrije tekst wordt hard afgekapt. De logger maskeert daarbovenop nog e-mails. Puur: geen I/O,
 // muteert de input niet.
 
+import { scrubSecretPathSegments, stripUrlQueries } from "@/lib/observability/url-scrub";
+
+// De URL-/pad-scrubbing woont in url-scrub.ts (gedeeld met de Sentry-event-scrubber). Re-export
+// zodat bestaande importeurs `scrubSecretPathSegments` via dit pad kunnen blijven gebruiken.
+export { scrubSecretPathSegments };
+
 /** Genormaliseerde, PII-arme weergave van één client-fout — veilig om te loggen/rapporteren. */
 export interface NormalizedClientError {
   /** Fout-naam (bv. "TypeError"). Afgekapt; leeg → "Error". */
@@ -31,54 +37,6 @@ export const MAX_STACK_LEN = 4000;
 export const MAX_COMPONENT_STACK_LEN = 2000;
 export const MAX_NAME_LEN = 100;
 export const MAX_DIGEST_LEN = 100;
-
-// Routes die een GEHEIM in het PAD dragen (niet in de query). De waarde per prefix is het aantal
-// pad-segmenten ná de prefix dat je mag behouden; alles daarna wordt geredigeerd. Zonder deze scrub
-// zou een render-crash op zo'n pagina het token via `location.href` naar de logs/Sentry lekken —
-// account-overname (reset-token) of gevoelige-documenten-lek (deel-token). logger.redact scrubt op
-// sleutelnaam, niet op een hex-token binnen een pad-waarde, dus we moeten het hier hard weghalen.
-// LET OP: voeg elke nieuwe token-in-pad-route hier toe.
-const SECRET_PATH_KEEP_AFTER_PREFIX: Record<string, number> = {
-  "wachtwoord-herstellen": 0, // /wachtwoord-herstellen/<reset-token>  → token weg
-  vertrouwen: 1, // /vertrouwen/<profileId>/<deel-token> → profileId blijft, token weg
-};
-
-const REDACTED_SEGMENT = "[redacted]";
-
-/**
- * Redigeert geheime pad-segmenten van bekende token-in-pad-routes (zie SECRET_PATH_KEEP_AFTER_PREFIX).
- * Puur: laat een pad zonder geheim segment ongewijzigd.
- */
-export function scrubSecretPathSegments(path: string): string {
-  // "/a/b" → ["", "a", "b"]; segments[1] is het eerste pad-segment.
-  const segments = path.split("/");
-  const first = segments[1];
-  if (!first || !(first in SECRET_PATH_KEEP_AFTER_PREFIX)) return path;
-  // Redact vanaf (prefix-positie 1) + (te behouden segmenten) + 1.
-  const redactStart = SECRET_PATH_KEEP_AFTER_PREFIX[first]! + 2;
-  for (let i = redactStart; i < segments.length; i += 1) {
-    if (segments[i]) segments[i] = REDACTED_SEGMENT;
-  }
-  return segments.join("/");
-}
-
-/** Reduceert één http(s)-URL tot origin+pad zonder query/fragment én met geredigeerde geheime segmenten. */
-function sanitizeUrl(url: string): string {
-  const cut = url.search(/[?#]/);
-  const base = cut === -1 ? url : url.slice(0, cut);
-  try {
-    const parsed = new URL(base);
-    return `${parsed.origin}${scrubSecretPathSegments(parsed.pathname)}`;
-  } catch {
-    return base;
-  }
-}
-
-/** Sanitize elke http(s)-URL in een vrije-tekst-string: query/fragment weg + geheime segmenten weg. */
-function stripUrlQueries(text: string): string {
-  // Match een http(s)-URL tot de eerste whitespace/haakje/aanhaling.
-  return text.replace(/https?:\/\/[^\s)'"]+/g, (url) => sanitizeUrl(url));
-}
 
 /** Kap een string af op `max` tekens met een ellipsis-marker. */
 function truncate(value: string, max: number): string {

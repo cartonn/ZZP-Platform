@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-25 — security/privacy: Sentry-breadcrumbs scrubben (HOOG — secret-/PII-exfiltratie dicht)
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op niet-overlappende
+oppervlakken: cross-tenant/IDOR, per-gebruiker authz-keten, SSRF/injectie/PII-naar-derden). Beide authz-audits CONFIRMED
+schoon; de delta sinds `e656bcf2` (o.a. `/api/metrics`, dormant-clients) opnieuw geverifieerd schoon. **HOOG-bevinding
+gefixt:** `scrubSentryEvent` (`beforeSend`) redigeerde `user`/`server_name`/`request`/`extra`/`contexts` maar raakte
+`event.breadcrumbs` nooit aan. `@sentry/nextjs` (geïnstalleerd) legt via de default `httpIntegration` per uitgaande
+call/navigatie een breadcrumb aan met de **volledige URL incl. query-string** — waarin de Geoapify-`apiKey` (`routing.ts`)
+en token-in-pad-routes (`/wachtwoord-herstellen/<token>`, `/vertrouwen/<id>/<token>`) zitten. Zodra `SENTRY_DSN` in
+productie staat lekte dat naar de externe verwerker (AVG art. 32/44, OWASP A02/A09; CLAUDE.md "geen secrets in logs").
+
+**Bestanden:** `src/lib/observability/url-scrub.ts` (nieuw — gedeelde pure URL-/pad-scrubbing, één bron van waarheid met
+`client-error.ts`); `src/lib/observability/sentry-options.ts` (breadcrumb-scrub in `scrubSentryEvent` + stale header-comment
+gecorrigeerd); `src/lib/observability/client-error.ts` (hergebruikt `url-scrub`, re-export `scrubSecretPathSegments`);
+`src/lib/observability/sentry-options.test.ts` (+4 breadcrumb-tests, rood→groen), `src/lib/observability/url-scrub.test.ts`
+(nieuw). Geparkeerd in de backlog: MIDDEL (location-vrijetekst → routeprovider, product/juridische keuze) + LAAG
+(client-error `message` niet URL-gestript). Zie `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-25).
+
+**Tests:** `sentry-options` + `url-scrub` + `client-error` → 49 passed. `npm audit --omit=dev`: 0 vulnerabilities.
+
 ## 2026-08-25 — ZZP'er: startdatum-urgentie + reageer-nudge op het opdracht-detail
 
 **Wat:** de urgentie-chip "begint over N dagen" stond alleen op de opdrachten**lijst** (`/opdrachten`), niet op het
