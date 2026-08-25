@@ -1,8 +1,8 @@
-// Gehardende Sentry-init-opties (pure, testbaar; los van het @sentry/nextjs-pakket dat NIET
-// geïnstalleerd is). `report.ts` geeft deze opties door aan `sentry.init(...)` zodra SENTRY_DSN
-// gezet is en het pakket beschikbaar is.
+// Gehardende Sentry-init-opties (pure, testbaar; los van het @sentry/nextjs-pakket). `report.ts`
+// geeft deze opties door aan `sentry.init(...)` zodra SENTRY_DSN gezet is en het pakket beschikbaar is.
 
 import { redact } from "@/lib/observability/logger";
+import { stripUrlQueries } from "@/lib/observability/url-scrub";
 //
 // Waarom een eigen seam i.p.v. een kaal `{ dsn }`:
 //   1. AVG (dit platform verwerkt gevoelige documenten; Sentry is een externe — mogelijk
@@ -38,6 +38,15 @@ export interface SentryEvent {
   server_name?: unknown;
   contexts?: Record<string, unknown>;
   extra?: Record<string, unknown>;
+  /** Auto-verzamelde breadcrumbs (o.a. http/fetch-calls) — dragen VOLLEDIGE URL's met query-string. */
+  breadcrumbs?: unknown;
+  [key: string]: unknown;
+}
+
+/** Minimale, structurele vorm van één Sentry-breadcrumb — genoeg om URL's/PII veilig te scrubben. */
+export interface SentryBreadcrumb {
+  message?: unknown;
+  data?: unknown;
   [key: string]: unknown;
 }
 
@@ -96,7 +105,38 @@ export function scrubSentryEvent(event: SentryEvent): SentryEvent {
     scrubbed.contexts = redact(scrubbed.contexts as Record<string, unknown>);
   }
 
+  // Breadcrumbs: de Sentry-SDK legt STANDAARD (default integrations) automatisch een spoor aan van
+  // o.a. elke uitgaande http/fetch-call en elke navigatie — mét de VOLLEDIGE URL, query-string
+  // inbegrepen. `beforeSend` krijgt die breadcrumbs pas ná het scrubben van `request.url` mee, dus
+  // zonder deze stap lekt exact wat we elders wél weghalen alsnog naar de externe verwerker: de
+  // Geoapify-`apiKey` (die in de query-string van elke geocode/route-call staat) en geheime tokens in
+  // paden (/wachtwoord-herstellen/<token>, /vertrouwen/<id>/<token>). AVG art. 32/44 + "geen secrets
+  // in logs". Elke breadcrumb wordt door dezelfde URL-scrub (query/fragment + geheime pad-segmenten
+  // weg) en recursieve PII/secret-redactie gehaald als de rest van het event.
+  if (Array.isArray(scrubbed.breadcrumbs)) {
+    scrubbed.breadcrumbs = scrubbed.breadcrumbs.map(scrubBreadcrumb);
+  }
+
   return scrubbed;
+}
+
+/**
+ * Scrubt één breadcrumb: strip query-strings/geheime pad-segmenten uit elke URL in `message` en in de
+ * (top-level) string-waarden van `data` (waar http-breadcrumbs de call-URL neerzetten), en haal `data`
+ * daarna door de recursieve PII/secret-redactie. Puur; laat niet-object-invoer ongemoeid.
+ */
+function scrubBreadcrumb(crumb: unknown): unknown {
+  if (!crumb || typeof crumb !== "object") return crumb;
+  const c = { ...(crumb as SentryBreadcrumb) };
+  if (typeof c.message === "string") c.message = stripUrlQueries(c.message);
+  if (c.data && typeof c.data === "object" && !Array.isArray(c.data)) {
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(c.data as Record<string, unknown>)) {
+      cleaned[key] = typeof value === "string" ? stripUrlQueries(value) : value;
+    }
+    c.data = redact(cleaned);
+  }
+  return c;
 }
 
 /** Behoudt alleen het pad van een (mogelijk absolute) URL; valt bij een parse-fout veilig terug. */
