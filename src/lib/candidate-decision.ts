@@ -130,3 +130,40 @@ export function summarizeCandidatesAwaitingDecision(
   }
   return { total, strong };
 }
+
+/** Presentatie-samenvatting van de beslis-achterstand voor één opdracht op de opdrachtenlijst. */
+export interface JobDecisionChip {
+  /** Aantal nog-onbesliste reacties dat langer ligt dan bij zijn matchkwaliteit past (≥ 1). */
+  total: number;
+  /** Hoeveel daarvan een sterke match zijn (het duurst om te verliezen). */
+  strong: number;
+  /** Warning zodra er een sterke match op je beslissing wacht; anders een rustige gedempte chip. */
+  tone: "warning" | "muted";
+  /** Kant-en-klare, genderneutrale NL-chiptekst voor de kaart. */
+  label: string;
+}
+
+/**
+ * Bouwt het beslis-achterstand-chipsignaal voor één opdracht-kaart uit de urgentie-samenvatting
+ * (`summarizeCandidatesAwaitingDecision`). Rendert niets zonder urgentie (`total <= 0` → null), zodat
+ * rustige opdrachten geen ruis krijgen. Spiegelt de paginabrede band op /kandidaten, maar per opdracht
+ * op de lijst zodat de opdrachtgever in één oogopslag ziet wélke opdracht een beslissing vraagt: een
+ * sterke kandidaat die te lang onbeslist ligt raakt elders aan de slag. Puur en presentationeel — telt
+ * niets zelf en toont nooit kandidaatgegevens; de volledige lijst staat op /kandidaten.
+ */
+export function jobDecisionChip(summary: {
+  total: number;
+  strong: number;
+}): JobDecisionChip | null {
+  if (summary.total <= 0) return null;
+  const total = summary.total;
+  const strong = Math.max(0, Math.min(summary.strong, total));
+  const noun = total === 1 ? "kandidaat wacht" : "kandidaten wachten";
+  const strongSuffix = strong > 0 ? " (sterke match)" : "";
+  return {
+    total,
+    strong,
+    tone: strong > 0 ? "warning" : "muted",
+    label: `${total} ${noun} op je beslissing${strongSuffix}`,
+  };
+}

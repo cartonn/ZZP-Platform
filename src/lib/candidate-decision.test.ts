@@ -6,6 +6,7 @@ import {
   STRONG_MATCH_MIN,
   summarizeCandidateDecision,
   summarizeCandidatesAwaitingDecision,
+  jobDecisionChip,
   type CandidateDecisionInput,
 } from "@/lib/candidate-decision";
 
@@ -161,5 +162,45 @@ describe("summarizeCandidatesAwaitingDecision", () => {
     summarizeCandidatesAwaitingDecision(inputs, NOW);
     expect(JSON.stringify(inputs)).toBe(snapshot);
     expect(summarizeCandidatesAwaitingDecision([], NOW)).toEqual({ total: 0, strong: 0 });
+  });
+});
+
+describe("jobDecisionChip", () => {
+  it("returns null when nothing is waiting (quiet card stays clean)", () => {
+    expect(jobDecisionChip({ total: 0, strong: 0 })).toBeNull();
+    expect(jobDecisionChip({ total: -1, strong: 0 })).toBeNull();
+  });
+
+  it("uses the singular noun and a muted tone for one non-strong candidate", () => {
+    expect(jobDecisionChip({ total: 1, strong: 0 })).toEqual({
+      total: 1,
+      strong: 0,
+      tone: "muted",
+      label: "1 kandidaat wacht op je beslissing",
+    });
+  });
+
+  it("uses the plural noun for multiple candidates", () => {
+    expect(jobDecisionChip({ total: 3, strong: 0 })).toEqual({
+      total: 3,
+      strong: 0,
+      tone: "muted",
+      label: "3 kandidaten wachten op je beslissing",
+    });
+  });
+
+  it("raises to warning tone and flags the strong match", () => {
+    expect(jobDecisionChip({ total: 2, strong: 1 })).toEqual({
+      total: 2,
+      strong: 1,
+      tone: "warning",
+      label: "2 kandidaten wachten op je beslissing (sterke match)",
+    });
+  });
+
+  it("clamps a strong count that exceeds the total (defensive)", () => {
+    const chip = jobDecisionChip({ total: 1, strong: 5 });
+    expect(chip?.strong).toBe(1);
+    expect(chip?.tone).toBe("warning");
   });
 });
