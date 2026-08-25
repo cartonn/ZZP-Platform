@@ -5,6 +5,9 @@
 /** Toont het signaal alleen binnen deze horizon (verder weg = geen ruis op de lijst). */
 export const JOB_START_SOON_DAYS = 14;
 
+/** Binnen deze horizon telt de start als "urgent" (extra klemtoon, dringende actie). */
+export const JOB_START_URGENT_DAYS = 3;
+
 export interface JobStartProximity {
   /** Hele dagen tot de start (UTC-dagen); negatief = al begonnen. */
   days: number;
@@ -12,6 +15,8 @@ export interface JobStartProximity {
   label: string;
   /** True zolang de start nog niet geweest is (vandaag of in de toekomst). */
   upcoming: boolean;
+  /** "urgent" bij ≤ JOB_START_URGENT_DAYS dagen, anders "soon" — stuurt de klemtoon in de UI. */
+  urgency: "urgent" | "soon";
 }
 
 function utcMidnightMs(d: Date): number {
@@ -33,5 +38,25 @@ export function jobStartProximity(
   if (days < 0 || days > horizonDays) return null;
   const label =
     days === 0 ? "begint vandaag" : days === 1 ? "begint morgen" : `begint over ${days} dagen`;
-  return { days, label, upcoming: true };
+  return {
+    days,
+    label,
+    upcoming: true,
+    urgency: days <= JOB_START_URGENT_DAYS ? "urgent" : "soon",
+  };
+}
+
+/**
+ * Zin voor de ZZP'er op het opdracht-detail: dringt op tijdig reageren aan wanneer de opdracht bijna
+ * begint en hij nog niet reageerde. `null` (geen ruis) zodra hij al gereageerd heeft, de start niet
+ * dringend is, of er geen proximity-signaal is. Puur en testbaar — de pagina rendert alleen de tekst.
+ */
+export function jobStartApplyNudge(
+  proximity: JobStartProximity | null,
+  hasApplied: boolean,
+): string | null {
+  if (!proximity || hasApplied || proximity.urgency !== "urgent") return null;
+  const opener =
+    proximity.days === 0 ? "Begint vandaag" : proximity.label.replace(/^begint/, "Begint");
+  return `${opener} — reageer op tijd als je interesse hebt.`;
 }

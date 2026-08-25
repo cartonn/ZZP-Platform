@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
+  CalendarClock,
   Check,
   Copy,
   ExternalLink,
@@ -90,6 +91,7 @@ import { JobStatusButton } from "./job-status-button";
 import { startConversationWithFreelancer } from "@/app/(protected)/berichten/actions";
 import { ApplicationForm } from "./application-form";
 import { formatDateShortNl } from "@/lib/format-date";
+import { jobStartApplyNudge, jobStartProximity } from "@/lib/job-start-proximity";
 import { getPaymentBehaviorForCompany } from "@/lib/data/payment-behavior";
 import { PaymentBehaviorBlock } from "@/components/jobs/payment-behavior-block";
 import { getClientReliabilityForCompany } from "@/lib/data/client-reliability";
@@ -513,6 +515,16 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         )
       : null;
 
+  // Tijd-signaal voor de bekijker: hoe dichtbij is de startdatum? Zelfde bron als de opdrachtenlijst
+  // (jobStartProximity), zodat de urgentie-chip op detail én lijst identiek is. Een neutraal feit →
+  // voor elke bekijker naast de startdatum; de reageer-nudge alléén voor een ZZP'er die nog niet
+  // reageerde op een gepubliceerde opdracht (server-side afgeleid, geen extra query).
+  const startProximity = jobStartProximity(job.startDate, new Date());
+  const startApplyNudge =
+    actor.role === "FREELANCER" && !isOwner && status === "PUBLISHED"
+      ? jobStartApplyNudge(startProximity, myApplication != null)
+      : null;
+
   const { t } = await getTranslator();
 
   return (
@@ -580,7 +592,28 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                 {t("Start:")} {formatDateShortNl(job.startDate)}
               </span>
             )}
+            {startProximity && (
+              <span
+                className={`inline-flex items-center gap-1 font-medium ${
+                  startProximity.urgency === "urgent" ? "text-warning" : "text-muted-foreground"
+                }`}
+              >
+                <CalendarClock className="size-3.5" aria-hidden />{" "}
+                {startProximity.days === 0
+                  ? t("begint vandaag")
+                  : startProximity.days === 1
+                    ? t("begint morgen")
+                    : t("begint over N dagen").replace("N", String(startProximity.days))}
+              </span>
+            )}
           </div>
+
+          {startApplyNudge && (
+            <p className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
+              <CalendarClock className="size-4 shrink-0 text-warning" aria-hidden />
+              <span>{startApplyNudge}</span>
+            </p>
+          )}
 
           <p className="whitespace-pre-line text-sm leading-relaxed">{job.description}</p>
         </CardContent>

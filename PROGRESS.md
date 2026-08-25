@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-25 — ZZP'er: startdatum-urgentie + reageer-nudge op het opdracht-detail
+
+**Wat:** de urgentie-chip "begint over N dagen" stond alleen op de opdrachten**lijst** (`/opdrachten`), niet op het
+opdracht-**detail** — juist het scherm waar de ZZP'er één opdracht bekijkt en beslist te reageren. Wie via een link/
+notificatie direct op het detail landt, miste de glance-urgentie (benchmark Temper/Zorgwerk: dringend te vullen
+diensten duwen op tijdige actie). Nu toont de meta-regel dezelfde chip (zelfde bron → geen drift), en een ZZP'er die
+nog niet reageerde op een gepubliceerde, bijna-startende opdracht krijgt een rustige nudge "Begint over N dagen —
+reageer op tijd als je interesse hebt."
+
+**Bestanden:** `src/lib/job-start-proximity.ts` — `JobStartProximity.urgency` ("urgent" ≤ `JOB_START_URGENT_DAYS = 3`,
+anders "soon") + nieuwe pure `jobStartApplyNudge(proximity, hasApplied)` (null zodra al gereageerd / niet dringend /
+geen signaal); `src/lib/job-start-proximity.test.ts` (+7 tests, 12 totaal); `src/app/(protected)/opdrachten/[id]/page.tsx`
+— chip in de meta-regel (urgent = `text-warning`, soon = gedempt) + reageer-nudge (alleen FREELANCER, `!isOwner`,
+PUBLISHED, geen eigen reactie).
+
+**Logica:** server-side afgeleid uit `job.startDate` + `new Date()` (geen extra query, geen schemawijziging).
+Chip is een neutraal feit → elke bekijker; nudge alleen wanneer de ZZP'er er baat bij heeft en geen dode knop volgt
+(hij scrollt naar het bestaande reageer-formulier). Hergebruikt bestaande i18n-keys (begint vandaag/morgen/over N
+dagen) — geen dictionary-werk. Geen mutatie-/authz-/domeinmotor-oppervlak.
+
+**Gate:** typecheck ✓, lint ✓, prettier ✓, targeted test (12) ✓; `npm run test` + build → PR-gate. **Volgende:** CI-poort → auto-merge.
+
 ## 2026-08-24 — ZZP'er: win-back signaal "Klanten om opnieuw te benaderen" op /inzicht
 
 **Wat (PR #1222):** het platform meet de betaalde omzet per opdrachtgever al (`freelancer-revenue-breakdown.ts`),
