@@ -103,7 +103,7 @@ describe("rankCompletenessSteps", () => {
     expect(steps).toHaveLength(8);
     // Puntenwinst monotoon dalend.
     for (let i = 1; i < steps.length; i++) {
-      expect(steps[i].points).toBeLessThanOrEqual(steps[i - 1].points);
+      expect(steps[i]!.points).toBeLessThanOrEqual(steps[i - 1]!.points);
     }
     // Functietitel (20) is de grootste stap en staat bovenaan.
     expect(steps[0]).toMatchObject({ key: "headline", points: 20 });
@@ -136,12 +136,12 @@ describe("rankCompletenessSteps", () => {
       score: 0,
       missing: [{ key: "onbekend", label: "Onbekend", points: 5 }],
     });
-    expect(steps[0].href).toBe("/profiel/bewerken");
+    expect(steps[0]!.href).toBe("/profiel/bewerken");
   });
 
   it("respecteert een aangepaste editHref", () => {
     const steps = rankCompletenessSteps(computeFreelancerCompleteness(empty), "/x");
-    expect(steps[0].href).toBe("/x#headline");
+    expect(steps[0]!.href).toBe("/x#headline");
   });
 
   it("is leeg bij een volledig profiel", () => {
