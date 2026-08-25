@@ -28,7 +28,12 @@ const db = vi.hoisted(() => ({
   ),
   searchDeleteMany: vi.fn(async (_args: { where: Record<string, unknown> }) => ({ count: 1 })),
 }));
-const auditMock = vi.hoisted(() => vi.fn(async () => undefined));
+const auditMock = vi.hoisted(() =>
+  vi.fn(
+    async (_entry: { actorId: string; action: string; entityType: string; entityId: string }) =>
+      undefined,
+  ),
+);
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/authz", () => ({
