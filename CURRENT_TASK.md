@@ -268,6 +268,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er — startdatum-urgentie + reageer-nudge op het opdracht-detail (2026-08-25)** —
+> de urgentie-chip "begint over N dagen" stond alleen op de opdrachten**lijst** (`/opdrachten`, `jobStartProximity`),
+> niet op het opdracht-**detail** — juist het scherm waar de ZZP'er één opdracht bekijkt en beslist te reageren
+> (list→detail-pariteit, zelfde patroon als #1205/#1198). Wie via een link/notificatie direct op het detail landt,
+> miste de glance-urgentie. Nieuw: `JobStartProximity.urgency` ("urgent" ≤ `JOB_START_URGENT_DAYS = 3`, anders "soon")
+>
+> - pure `jobStartApplyNudge(proximity, hasApplied)` (`src/lib/job-start-proximity.ts`) → null zodra al gereageerd /
+>   niet dringend / geen signaal. Het detail (`opdrachten/[id]/page.tsx`) toont de chip in de meta-regel (urgent =
+>   `text-warning`, soon = gedempt; zelfde bron als de lijst → geen drift) en — alleen voor een FREELANCER die nog niet
+>   reageerde op een gepubliceerde, bijna-startende opdracht — een rustige nudge "Begint over N dagen — reageer op tijd
+>   als je interesse hebt." Server-side afgeleid uit `job.startDate` + `new Date()` (geen extra query, geen
+>   schemawijziging); hergebruikt bestaande i18n-keys (geen dictionary-werk); geen mutatie-/authz-/domeinmotor-oppervlak.
+>   +7 tests (12 totaal). Gate: typecheck ✓, lint ✓, prettier ✓, targeted test (12) ✓ · test/build → PR-gate.
+>
 > Gedaan (niet opnieuw): **ZZP'er — win-back signaal "Klanten om opnieuw te benaderen" op /inzicht (2026-08-24, PR #1222)** —
 > het platform meet de betaalde omzet per opdrachtgever al (`freelancer-revenue-breakdown.ts`, widget "Omzet per
 > opdrachtgever"), maar nooit de **recency** ervan — dus een opdrachtgever die je eerder echt omzet opleverde maar al

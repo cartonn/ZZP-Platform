@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { JOB_START_SOON_DAYS, jobStartProximity } from "./job-start-proximity";
+import {
+  JOB_START_SOON_DAYS,
+  JOB_START_URGENT_DAYS,
+  jobStartApplyNudge,
+  jobStartProximity,
+} from "./job-start-proximity";
 
 const now = new Date("2026-07-01T09:30:00Z");
 const inDays = (n: number) => new Date(Date.UTC(2026, 6, 1 + n));
@@ -37,5 +42,40 @@ describe("jobStartProximity", () => {
   it("respecteert een aangepaste horizon", () => {
     expect(jobStartProximity(inDays(10), now, 7)).toBeNull();
     expect(jobStartProximity(inDays(5), now, 7)?.days).toBe(5);
+  });
+
+  it("markeert de start als urgent tot en met de urgent-drempel, daarna als soon", () => {
+    expect(jobStartProximity(inDays(0), now)?.urgency).toBe("urgent");
+    expect(jobStartProximity(inDays(JOB_START_URGENT_DAYS), now)?.urgency).toBe("urgent");
+    expect(jobStartProximity(inDays(JOB_START_URGENT_DAYS + 1), now)?.urgency).toBe("soon");
+    expect(jobStartProximity(inDays(JOB_START_SOON_DAYS), now)?.urgency).toBe("soon");
+  });
+});
+
+describe("jobStartApplyNudge", () => {
+  it("geeft null zonder proximity-signaal", () => {
+    expect(jobStartApplyNudge(null, false)).toBeNull();
+  });
+
+  it("geeft null zodra de ZZP'er al gereageerd heeft", () => {
+    expect(jobStartApplyNudge(jobStartProximity(inDays(1), now), true)).toBeNull();
+  });
+
+  it("geeft null wanneer de start nog niet dringend is (soon)", () => {
+    const soon = jobStartProximity(inDays(JOB_START_URGENT_DAYS + 1), now);
+    expect(soon?.urgency).toBe("soon");
+    expect(jobStartApplyNudge(soon, false)).toBeNull();
+  });
+
+  it("nudget tot reageren bij een dringende start zonder eigen reactie", () => {
+    expect(jobStartApplyNudge(jobStartProximity(inDays(3), now), false)).toBe(
+      "Begint over 3 dagen — reageer op tijd als je interesse hebt.",
+    );
+    expect(jobStartApplyNudge(jobStartProximity(inDays(1), now), false)).toBe(
+      "Begint morgen — reageer op tijd als je interesse hebt.",
+    );
+    expect(jobStartApplyNudge(jobStartProximity(inDays(0), now), false)).toBe(
+      "Begint vandaag — reageer op tijd als je interesse hebt.",
+    );
   });
 });
