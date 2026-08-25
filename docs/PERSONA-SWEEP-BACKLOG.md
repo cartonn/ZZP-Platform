@@ -1,5 +1,58 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-25 (run 93) · **main-commit basis:** `949ffd0b`
+> **Uitkomst:** **1 defect gevonden én gefixt** (should-fix geld-integriteit, tenant-/franchise-facturatie).
+> **1 nieuw geparkeerd** (should-fix next-action-badge, DOEL 1b). 4 parallelle adversariële Opus-audits op
+> niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie · cascade/geld-integriteit + verboden
+> statusovergangen · next-action-engine · malicieuze input/CSV/XSS/upload). De authz/IDOR/tenant- én
+> malicieuze-input-audits vonden **0 nieuwe bereikbare gaten** (deze oppervlakken zijn diep gehard:
+> anti-oracle 404, compound-guarded `updateMany`, `ownsViaTenant`/`tenantScopeWhere`, `escapeCsvField` op
+> alle CSV-producers, `esc()`/`escapeHtml()` in alle HTML-mails, magic-byte upload-sniff, begrensde Zod-velden).
+>
+> - **OPGELOST — should-fix (geld-integriteit, CLAUDE.md regel 1 & 2 — server-side waarheid): de
+>   transactie-fee per tenant-samenwerking telde `PROCESSED`-facturen niet mee in de grondslag →
+>   structurele ONDERfacturatie van de franchise-fee.** `recordTenantFeeForCollaboration`
+>   (`src/lib/tenant-billing/record-fee.ts:23`) aggregeerde de betaalde waarde over
+>   `lifecycleStatus: "PAID"` **alléén**. Een betaalde cascadefactuur beweegt na administratieve
+>   verwerking door naar `PROCESSED` (lifecycle-map `lifecycles.ts:89`: `PAID → PROCESSED`) en de
+>   cutover-migratie (`scripts/migrate-legacy-invoices.mjs`) zet legacy-`PAID` → `PROCESSED`. Élke andere
+>   "betaalde omzet"-teller gebruikt de canonieke `PAID_REVENUE_LIFECYCLE = ["PAID","PROCESSED"]`
+>   (`src/lib/administration/paid-revenue.ts:14`, o.a. `paid-revenue`, `completion.ts`, `realized-revenue`);
+>   `record-fee.ts` was de enige uitzondering. `TENANT_BILLING.enabled = true` (`config.ts:94`), dus
+>   productie-bereikbaar. **Repro (ADMIN/FRANCHISER, geen DB-manipulatie):** tenant-samenwerking met een
+>   factuur op `lifecycleStatus="PROCESSED"` (via de cutover-migratie of een toekomstig `PAID→PROCESSED`-pad)
+>   - een tweede factuur die via `confirmPayment` `PAID` wordt → `recordTenantFeeForCollaboration` herberekent
+>     de grondslag als `sum(subtotalCents where lifecycleStatus="PAID")` en laat de PROCESSED-waarde vallen.
+>     De fee bevriest bij facturatie (`record-fee.ts:44`, status != PENDING) → de onderfacturatie corrigeert
+>     zich daarna nooit meer (permanent omzetlek). **Fix:** grondslag over
+>     `lifecycleStatus in PAID_REVENUE_LIFECYCLE` (dezelfde constante → geen drift). +1 regressietest
+>     (`record-fee.test.ts`, rood→groen: honoreert de aggregate-where over een vaste factuurset, oude
+>     "PAID"-only telt te laag).
+> - **GEPARKEERD — should-fix (next-action-badge, DOEL 1b, CLAUDE.md regel 1 — "signaal op één oppervlak"):
+>   de drie fiscale/administratie-next-actions (BTW-aangifte te laat, IB-deadline, urencriterium) verschijnen
+>   op `/acties` maar hebben géén nav-badge, anders dan élke andere next-action-soort.** `pending-tasks.ts`
+>   emit `vatDeadlineTask`/`incomeTaxDeadlineTask`/`hoursCriterionTask` voor FREELANCER én CLIENT
+>   (`:835-855`, `:1248-1250`); `vatDeadlineOverdue` heeft prioriteit 74 (`next-actions.ts:65`) — hoger dan
+>   `contractSign` (72). Maar `signals.ts` (`SignalCounts`/`SIGNAL_HREF`/`SIGNAL_TONE`) kent geen
+>   `vatDeadline`/`incomeTaxDeadline`/`hoursCriterion`-sleutel → geen badge. **Repro:** FREELANCER/CLIENT met
+>   een `AdministrationEntry` in een gesloten BTW-kwartaal met openstaand saldo + verstreken deadline →
+>   `/acties` toont "BTW-aangifte Q… — N dagen te laat" (top-item), de sidebar toont géén badge. **Waarom
+>   geparkeerd (geen mechanische fix):** de taken deep-linken naar `/administratie` + `/ontzorgd/aangifte` +
+>   `/ontzorgd/uren` (`tasks.ts:1168/1201/1223`), maar géén van die routes staat in `nav.ts` — het zichtbare
+>   nav-item "Administratie" wijst naar `/financien` (een ándere route). De badge vereist dus een productkeuze
+>   (welk nav-item draagt 'm; toont `/financien` de BTW-/aangifte-stand?) en risico op drift; aparte, apart-
+>   gereviewde PR waard. **Fix-richting:** voeg `vatDeadline`/`incomeTaxDeadline`/`hoursCriterion` (of één
+>   `administrationAlerts`) aan `SignalCounts` toe, gevoed uit exact dezelfde
+>   `getVatDeadlinesForActor`/`getIncomeTaxDeadlineForActor`/`getHoursCriterionSummary` als `pending-tasks.ts`
+>   (geen drift), en wire naar het gekozen nav-item.
+> - **Overige nits (niet gefixt, hygiëne):** (1) `assertBalanced` (ledger debit=credit-invariant) wordt alleen
+>   in tests uitgevoerd, niet aan de write-grens in `apply.ts:106` — vandaag niet exploiteerbaar (postings
+>   zijn puur/getest geconstrueerd), maar consistent met de repo-filosofie ware het beter het bij de write te
+>   verifiëren. (2) `submitInvoice` (Event C) is de enige forward-cascade-command zonder `dedupeKey` — niet
+>   exploiteerbaar (status-guarded `updateMany` rolt een dubbele submit terug), puur consistentie. (3) mail
+>   `subject`-regels lopen niet door de CRLF-strippende `sanitizeDisplayName` zoals `to`-namen — vandaag niet
+>   bereikbaar (JSON-HTTP-mailproviders), alleen relevant bij een toekomstige raw-header-driver.
+
 > **Datum:** 2026-08-25 (run 92) · **main-commit basis:** `43494880`
 > **Uitkomst:** **1 defect gevonden én gefixt** (should-fix next-action-drift, DOEL 1b, FREELANCER op
 > het samenwerking-detail). **0 nieuw geparkeerd** (de authz/IDOR/tenant-, cascade/geld-integriteit- en

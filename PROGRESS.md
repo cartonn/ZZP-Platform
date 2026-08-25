@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-25 — Persona-sweep run 93: tenant-fee grondslag telt PROCESSED (geld-integriteit)
+
+**Wat:** should-fix geld-integriteit — de transactie-fee per tenant-samenwerking
+(`recordTenantFeeForCollaboration`, `src/lib/tenant-billing/record-fee.ts`) berekende de betaalde
+grondslag over `lifecycleStatus: "PAID"` alléén, terwijl een betaalde cascadefactuur na verwerking
+doorbeweegt naar `PROCESSED` (en de cutover-migratie legacy-PAID → PROCESSED zet). Élke andere
+"betaalde omzet"-teller gebruikt de canonieke `PAID_REVENUE_LIFECYCLE = ["PAID","PROCESSED"]`;
+`record-fee.ts` was de enige uitzondering → PROCESSED-waarde viel stil uit de fee-grondslag →
+structurele ONDERfacturatie van de franchise-fee (bevriest bij facturatie, corrigeert nooit meer).
+`TENANT_BILLING.enabled = true`, dus productie-bereikbaar. **Fix:** grondslag over
+`lifecycleStatus in PAID_REVENUE_LIFECYCLE` (zelfde constante → geen drift).
+
+**Bestanden:** `src/lib/tenant-billing/record-fee.ts` (+ import `PAID_REVENUE_LIFECYCLE`),
+`src/lib/tenant-billing/record-fee.test.ts` (nieuw, +1 test rood→groen), `docs/PERSONA-SWEEP-BACKLOG.md` (run 93).
+
+**Gevonden via:** 4 parallelle adversariële Opus-audits (authz/IDOR/tenant · cascade/geld-integriteit ·
+next-action-engine · malicieuze input). Authz/IDOR/tenant + malicieuze-input: 0 nieuwe bereikbare gaten.
+**Geparkeerd (backlog run 93):** ontbrekende nav-badge voor de fiscale next-actions (BTW/IB/urencriterium) —
+vereist een productkeuze (welk nav-item), aparte PR waard.
+
+**Gate:** typecheck ✓, lint ✓ (0 warnings), targeted test ✓ (rood→groen geverifieerd), prettier ✓,
+build ✓ (eerder groen) · full test + CI-poort → PR.
+
 ## 2026-08-25 — Opdrachtgever: boven-budget-signaal in de kandidatenvergelijking
 
 **Wat (PR #1230):** de kandidatenvergelijking (`/kandidaten/vergelijk`) laadde het budgetplafond van de opdracht

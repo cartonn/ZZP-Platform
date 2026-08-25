@@ -7,6 +7,7 @@
 import { prisma } from "@/lib/db";
 import { TENANT_BILLING } from "@/lib/config";
 import { planCollaborationFeeRecord } from "@/lib/tenant-billing/collaboration-fee";
+import { PAID_REVENUE_LIFECYCLE } from "@/lib/administration/paid-revenue";
 import { audit } from "@/lib/audit";
 
 export async function recordTenantFeeForCollaboration(collaborationId: string): Promise<void> {
@@ -20,8 +21,13 @@ export async function recordTenantFeeForCollaboration(collaborationId: string): 
   if (!tenantId) return; // platform-samenwerking: geen tenant-fee
 
   // Cumulatief betaalde waarde excl. btw over alle betaalde cascade-facturen van deze samenwerking.
+  // "Betaald" = PAID én PROCESSED (de canonieke regel uit paid-revenue.ts): een PAID-cascadefactuur
+  // beweegt na administratieve verwerking door naar PROCESSED (lifecycle-map lifecycles.ts) en de
+  // cutover-migratie zet legacy-PAID → PROCESSED. Alleen op "PAID" filteren liet PROCESSED-facturen
+  // stil uit de fee-grondslag vallen → structurele onderfacturatie (de fee bevriest bij facturatie en
+  // corrigeert daarna nooit meer). Zelfde constante als élke andere "betaalde omzet"-teller → geen drift.
   const paid = await prisma.invoice.aggregate({
-    where: { collaborationId, lifecycleStatus: "PAID" },
+    where: { collaborationId, lifecycleStatus: { in: [...PAID_REVENUE_LIFECYCLE] } },
     _sum: { subtotalCents: true },
   });
   const valueCents = paid._sum.subtotalCents ?? 0;
