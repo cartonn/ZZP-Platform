@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-25 — Security/privacy-auditronde 2026-08-25b: client-error message URL-scrub (LAAG) + brede her-audit schoon
+
+**Wat:** security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op niet-overlappende
+oppervlakken: HTTP route-handlers/IDOR/cron-auth/SSRF · cross-tenant isolatie franchise/** + tenant-billing · privacy/AVG
+anonimisering/export/logs/storage). Delta sinds vorige ronde (`bb591865..e33dc875`, 6 commits) her-geverifieerd schoon.
+Alle drie audits: **geen nieuwe exploitbare gaten\*\* (route-authz, tenant-isolatie en volledige account-anonimisering
+CONFIRMED schoon). Eén geparkeerd LAAG-item volledig afgehecht:
+
+- **[LAAG · AVG art. 5(1)(f) · OWASP A09] client-error `message` niet URL-gestript** — `parseClientError`
+  (`src/lib/observability/client-error.ts`) haalde `stack`/`componentStack` wél door `stripUrlQueries` maar `message`
+  alleen door `truncate`. Een browser-foutbericht met een token-dragende URL (query of token-in-pad) bereikte zo de
+  logger + Sentry exception-`value` (buiten de breadcrumb-scrub om) ongestript. **Fix:** `message` gaat nu door dezelfde
+  `stripUrlQueries` vóór de truncate. Rood→groen: +2 tests (URL-query-token gestript; reset-token-in-pad → `[redacted]`).
+
+`npm audit --omit=dev`: 0 vulnerabilities (prod schoon). Volledige gate groen.
+
+**Bestanden:** `src/lib/observability/client-error.ts`, `src/lib/observability/client-error.test.ts` (+2 tests),
+`docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-25b), `PROGRESS.md`.
+
 ## 2026-08-25 — Persona-sweep run 93: tenant-fee grondslag telt PROCESSED (geld-integriteit)
 
 **Wat:** should-fix geld-integriteit — de transactie-fee per tenant-samenwerking

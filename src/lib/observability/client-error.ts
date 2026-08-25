@@ -84,7 +84,11 @@ export function parseClientError(payload: unknown): NormalizedClientError | null
 
   return {
     name: name ? truncate(name, MAX_NAME_LEN) : "Error",
-    message: message ? truncate(message, MAX_MESSAGE_LEN) : "(geen bericht)",
+    // Strip URL-query's/fragmenten óók uit de message: een browser-foutbericht kan een volledige URL
+    // met een token echoën (bv. een gefaalde fetch die de request-URL teruggeeft). Zonder deze scrub
+    // bereikt dat token de logger (alleen e-mail-gemaskeerd) én Sentry als exception-`value` (buiten
+    // de breadcrumb-scrub om). Zelfde behandeling als stack/componentStack. AVG art. 5(1)(f).
+    message: message ? truncate(stripUrlQueries(message), MAX_MESSAGE_LEN) : "(geen bericht)",
     stack: stack ? truncate(stripUrlQueries(stack), MAX_STACK_LEN) : null,
     componentStack: componentStack
       ? truncate(stripUrlQueries(componentStack), MAX_COMPONENT_STACK_LEN)
