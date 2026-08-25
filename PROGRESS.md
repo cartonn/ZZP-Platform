@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-25 — ZZP'er: dubbelboeking-waarschuwing eigen samenwerkingen op /beschikbaarheid
+
+**Wat (PR #1229):** de ZZP'er kan twee eigen PROPOSED/ACTIVE-samenwerkingen accepteren die qua looptijd overlappen —
+werk komt uit meerdere kanalen (platform-opdrachten, directe klanten, verschillende bemiddelaars) — zonder enige
+waarschuwing. De bemiddelaar krijgt dit signaal wél bij een voordracht (`franchise/roster-double-booking`), de vakmens
+zelf niet: `/beschikbaarheid` detecteerde alleen UNAVAILABLE-venster × samenwerking, geen samenwerking × samenwerking.
+Een vakmens kan niet twee opdrachten tegelijk draaien; een overlap valt anders pas als no-show op. Nu een rustige
+danger-kaart die overlappende paren toont met de botsperiode en deep-links naar beide samenwerkingen (benchmark
+Zorgwerk/Pidz: waarschuw vóór de botsing i.p.v. achteraf). Rendert niets zonder overlap.
+
+**Bestanden:** `src/lib/collaboration-overlap.ts` (nieuw) — pure `findCollaborationOverlaps(placements, now?)`: uniek paar
+(i<j), inclusieve bereik-overlap, `null` startDate → genegeerd (geen vals alarm), `null` endDate → open-einde-schildwacht
+`FAR_FUTURE`, overslaan als de overlap volledig in het verleden ligt, deterministisch gesorteerd op overlapStart dan de
+gecombineerde ids. `src/lib/collaboration-overlap.test.ts` (nieuw, 10 tests). `src/components/beschikbaarheid/double-booking-card.tsx`
+(nieuw). `src/app/(protected)/beschikbaarheid/page.tsx` — bedraad op de reeds-geladen `collabRows` (geen extra query).
+
+**Logica:** puur, server-side afgeleid uit de reeds geladen PROPOSED/ACTIVE-samenwerkingen; geen extra query, geen
+schema-/mutatie-/authz-/domeinmotor-oppervlak. Alleen zichtbaar voor de eigenaar (FREELANCER via `requireRole`).
+
+**Gate:** typecheck ✓, lint ✓, test (663 files, 6916 tests) ✓, prettier ✓; build → PR-gate. **Volgende:** CI-poort → auto-merge.
+
 ## 2026-08-25 — ZZP'er: profiel-verbeterstappen (ranked completeness) op het eigen profiel
 
 **Wat (PR #1227):** het profielscherm toonde de compleetheid als ring-percentage, maar nergens welke velden nog

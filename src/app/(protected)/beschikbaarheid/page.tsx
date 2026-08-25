@@ -7,8 +7,10 @@ import { summarizeAvailability, upcomingWindows } from "@/lib/availability";
 import { type AvailabilityWindowType } from "@/lib/enums";
 import { detectAvailabilityConflicts } from "@/lib/availability-conflicts";
 import { findIdleCapacity } from "@/lib/availability-gaps";
+import { findCollaborationOverlaps } from "@/lib/collaboration-overlap";
 import { type CollaborationStatus } from "@/lib/enums";
 import { IdleCapacityCard } from "@/components/beschikbaarheid/idle-capacity-card";
+import { DoubleBookingCard } from "@/components/beschikbaarheid/double-booking-card";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -78,6 +80,18 @@ export default async function BeschikbaarheidPage() {
     })),
   );
 
+  // Dubbelboeking: overlappen twee eigen samenwerkingen qua looptijd? Zelfde reeds-geladen collabs
+  // (PROPOSED/ACTIVE) → geen extra query.
+  const overlaps = findCollaborationOverlaps(
+    collabRows.map((c) => ({
+      id: c.id,
+      jobTitle: c.job.title,
+      clientName: c.company.name,
+      startDate: c.startDate,
+      endDate: c.endDate,
+    })),
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -136,6 +150,8 @@ export default async function BeschikbaarheidPage() {
           </ul>
         </section>
       )}
+
+      <DoubleBookingCard overlaps={overlaps} />
 
       <IdleCapacityCard idle={idle} />
 
