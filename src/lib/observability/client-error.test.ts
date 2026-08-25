@@ -108,6 +108,30 @@ describe("parseClientError", () => {
     expect(result!.stack).toContain("/vertrouwen/prof-1/[redacted]");
   });
 
+  it("strip een URL-query-token uit de message zelf (niet alleen uit stack/url)", () => {
+    // Een browser kan een volledige URL met token in het foutbericht echoën (bv. een gefaalde fetch
+    // die de request-URL teruggeeft). Die message wordt de Sentry exception-`value` — buiten de
+    // breadcrumb-scrub om — dus het token moet hier al weg zijn. AVG art. 5(1)(f).
+    const result = parseClientError({
+      message: "Failed to fetch https://app.test/api/x?token=SUPERSECRET123 (500)",
+    });
+    expect(result).not.toBeNull();
+    expect(result!.message).not.toContain("SUPERSECRET123");
+    expect(result!.message).not.toContain("?token");
+    // Het niet-geheime deel van het bericht blijft leesbaar behouden.
+    expect(result!.message).toContain("Failed to fetch");
+    expect(result!.message).toContain("https://app.test/api/x");
+  });
+
+  it("redigeert een reset-token dat via een pad in de message zit", () => {
+    const resetToken = "Z".repeat(43);
+    const result = parseClientError({
+      message: `Navigation error at https://app.test/wachtwoord-herstellen/${resetToken}`,
+    });
+    expect(result!.message).not.toContain(resetToken);
+    expect(result!.message).toContain("/wachtwoord-herstellen/[redacted]");
+  });
+
   it("valt terug op veilige defaults bij ontbrekende velden", () => {
     const result = parseClientError({ name: "Error" });
     expect(result).toMatchObject({

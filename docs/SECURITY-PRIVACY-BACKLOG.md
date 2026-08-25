@@ -4,6 +4,48 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-25b (basis: `main` @ e33dc875) — LAAG OPGELOST (client-error message URL-scrub) + delta schoon + brede her-audit schoon
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
+(1) álle HTTP route-handlers (`src/app/api/**/route.ts` + de `(protected)/**/export/route.ts`): IDOR op elk
+`[id]`-endpoint (documents/media/facturen-pdf/prestaties-pdf/dossier/dba-dossier/modelovereenkomst/admin-facturatie),
+path-traversal op `media/[...key]`, cron-auth fail-closed op alle `tasks/*` + `metrics` + `heartbeat`, SSRF op push,
+webhook-signing, anti-oracle 404-maskering, rate-limiting op PII-exports; (2) cross-tenant isolatie: `tenancy.ts` +
+álle `franchise/**`-actions/pages/exports + `tenant-billing/**` — client-beïnvloedbare tenant-resolutie, cross-tenant
+IDOR op gegokt id, aggregaties over tenants; (3) privacy/AVG: `account-anonymization.ts` (volledigheid van wissing:
+user/profiel/documenten-in-storage/berichten/notificaties/audit-PII/credentials), `account-export.ts`, `avg/export`,
+PII-overfetch naar de client, logs, `compliance/**`, `storage.ts`. Delta t.o.v. de vorige ronde (basis
+`bb591865..e33dc875`, 6 commits — kandidatenvergelijking + CSV-export, dubbelboeking-detectie ZZP'er,
+profiel-verbeterstappen, tenant-fee-grondslag): opnieuw geverifieerd — de kandidaat-vergelijk-loader
+(`candidate-compare-data.ts`) is ownership-gepoort (`company: { userId: actorId }`), de CSV-export gaat via `toCsv`
+(RFC 4180 + CWE-1236 formule-injectie-guard) + audit + rate-limit, `collaboration-overlap.ts` is puur/server-side,
+`record-fee.ts` (tenant-fee) is tenant-gescoopt + idempotent + bevroren-na-facturatie. `npm audit --omit=dev`:
+**0 vulnerabilities** (prod-runtime schoon); `npm audit` incl. dev: 6 dev-transitieve DoS-advisories (prisma-config/
+esbuild-dev-server/js-yaml), niet bereikbaar in de prod-runtime, ongewijzigd t.o.v. vorige ronde.
+
+**Dekking (OWASP Top 10 / ASVS + AVG):** A01 (object-/functie-authz + IDOR + multi-tenant — alle drie audits CONFIRMED
+schoon), A02/A09 (secret-/PII-exfiltratie via logging/monitoring — de LAAG-fix hieronder sluit het laatste
+client-error-lekpad), A03 (SQL/`$queryRaw`, XSS, CSV-formule-injectie), A04 (TOCTOU), A05 (headers/CSP/nonce),
+A07 (auth/sessie/rate-limiting/cron-auth timing-safe), A10 (SSRF: push-allowlist, vaste routing/mail-hosts),
+upload-/storage-veiligheid (magic-bytes + sandbox + path-traversal-guard), document-privacy (owner/admin + anti-oracle
+404 + audit), AVG art. 5(1)(c/d/e/f), 15, 17 (volledige anonimisering geverifieerd), 25, 32, 44.
+
+### OPGELOST — [LAAG · AVG art. 5(1)(f) · A09 defense-in-depth] client-error `message` werd niet URL-query-gestript
+
+- **Geschonden regel:** AVG art. 5(1)(f) (integriteit/vertrouwelijkheid) + CLAUDE.md ("geen secrets in log"). **OWASP:**
+  A09 (Security Logging & Monitoring Failures). Severity LAAG: smal, latent pad (dominante token-lekpaden — pagina-URL +
+  stacktraces — waren al gedekt); dit was het laatste geparkeerde defense-in-depth-item uit ronde 2026-08-25.
+- **Repro (PLAUSIBLE → nu dicht):** `parseClientError` (`src/lib/observability/client-error.ts`) haalde `stack` en
+  `componentStack` wél door `stripUrlQueries`, maar `message` alleen door `truncate`. Bevat een browser-foutbericht
+  toevallig een volledige URL met query-string of een token-in-pad (bv. een gefaalde fetch die de request-URL met een
+  deel-/reset-token echoot), dan bereikte die de logger (alleen e-mail-gemaskeerd) én Sentry als exception-`value`
+  (`toReportableError` → `new Error(message)`) — buiten de breadcrumb-scrub om — ongestript.
+- **Fix (deze PR):** `message` gaat nu door dezelfde `stripUrlQueries` als stack/componentStack (query/fragment weg +
+  geheime pad-segmenten geredigeerd), vóór de truncate. Rood→groen: twee nieuwe tests in `client-error.test.ts` —
+  een URL-query-token in de message (`?token=SUPERSECRET123` → gestript, leesbare rest blijft) en een reset-token in
+  een pad in de message (`/wachtwoord-herstellen/<token>` → `[redacted]`); beide faalden zonder de fix (het token bleef
+  in de output). Volledige gate groen.
+
 ## Ronde 2026-08-25 (basis: `main` @ bb591865) — HOOG OPGELOST (Sentry-breadcrumbs lekten secrets/PII) + 2 geparkeerd (MIDDEL/LAAG)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
@@ -55,7 +97,7 @@ anti-oracle 404 + audit op inzage én weigering), AVG art. 5(1)(c/d/e), 15, 17, 
   vóór geocoding, óf de privacyverklaring-tekst verzachten. **Vereist een product/juridische keuze (MENSENWERK.md §5)** —
   daarom geparkeerd, niet autonoom "gefixt" met een woordkeuze.
 
-### Geparkeerd — [LAAG · AVG art. 5(1)(f) · defense-in-depth] client-error `message` wordt niet URL-query-gestript
+### OPGELOST (ronde 2026-08-25b) — [LAAG · AVG art. 5(1)(f) · defense-in-depth] client-error `message` wordt niet URL-query-gestript
 
 - **Repro (PLAUSIBLE):** `parseClientError` (`src/lib/observability/client-error.ts`) haalt `stack`/`componentStack` wél
   door `stripUrlQueries`, maar `message` alleen door `truncate`. Bevat een browser-foutbericht toevallig een volledige URL
