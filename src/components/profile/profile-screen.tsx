@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, Calendar, CalendarOff, Globe, MapPin } from "lucide-react";
+import { AlertTriangle, Calendar, CalendarOff, ChevronRight, Globe, MapPin } from "lucide-react";
 import { currentActor } from "@/lib/authz";
 import { getTranslator } from "@/lib/i18n/server";
 import { prisma } from "@/lib/db";
-import { profileVisibleTo, computeFreelancerCompleteness } from "@/lib/profile";
+import {
+  profileVisibleTo,
+  computeFreelancerCompleteness,
+  rankCompletenessSteps,
+} from "@/lib/profile";
 import { tenantEntityVisibleTo } from "@/lib/tenancy";
 import { summarizeAvailability, summarizeAway } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
@@ -337,6 +341,9 @@ export async function ProfileScreen({
     skillCount: profile.skills.length,
     industryCount: profile.industries.length,
   });
+  // Verbeterstappen: alleen voor de eigenaar zinvol (deep-links naar het eigen edit-formulier).
+  // Gerangschikt op puntenwinst zodat de grootste sprong bovenaan staat.
+  const completenessSteps = isOwner ? rankCompletenessSteps(completeness) : [];
   // Inzetbaarheids-samenvatting: hetzelfde oordeel als op het dashboard, uit dezelfde bron. De
   // blokkerende status staat als warning-badge in de kop, zodat "Profiel compleet" nooit los naast
   // een niet-inzetbaar profiel staat. Alleen voor de eigenaar (de badge is owner-only) — daarom
@@ -690,6 +697,40 @@ export async function ProfileScreen({
                 </p>
               </CardContent>
             </Card>
+
+            {isOwner && completenessSteps.length > 0 && (
+              <Card>
+                <CardContent className="py-4">
+                  <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t("Maak je profiel sterker")}
+                  </h2>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {t(
+                      "Een vollediger profiel wordt vaker gevonden en beter gematcht. Begin met de grootste stap.",
+                    )}
+                  </p>
+                  <ul className="mt-3 space-y-1.5">
+                    {completenessSteps.map((step) => (
+                      <li key={step.key}>
+                        <Link
+                          href={step.href}
+                          className="focus-ring group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+                        >
+                          <span className="min-w-0 flex-1 truncate">{t(step.label)}</span>
+                          <span className="shrink-0 text-xs font-medium tabular-nums text-success">
+                            +{step.points}%
+                          </span>
+                          <ChevronRight
+                            className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                            aria-hidden
+                          />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardContent className="py-4">

@@ -237,7 +237,7 @@ export function ProfileForm({
         )}
       </fieldset>
 
-      <fieldset>
+      <fieldset id="branches">
         <legend className="mb-2 block text-sm font-medium">Branches</legend>
         {industries.length === 0 ? (
           <p className="text-sm text-muted-foreground">Geen branches beschikbaar.</p>
