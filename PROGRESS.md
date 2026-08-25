@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-25 — ZZP'er: opgeslagen zoekopdrachten op de opdrachten-marktplaats (slice 1)
+
+**Wat:** de ZZP'er kan een gefilterde zoekopdracht op `/opdrachten` **bewaren** en later met één klik opnieuw
+toepassen — een staple bij Temper/Malt/Indeed die volledig ontbrak (geen `SavedJobSearch`-model). Slice 1 =
+persistente opslag + hertoepassen; een nieuwe-match-notificatie is een latere slice. Op de marktplaats verschijnt
+onder de actieve-filter-chips een balk met de bewaarde zoekopdrachten (pills die de filterset opnieuw toepassen,
+elk met verwijder-bevestiging) plus — alleen bij actieve filters — een compact "Bewaar zoekopdracht"-formulier.
+
+**Server = waarheid:** de client stuurt de huidige query; de action hernormaliseert 'm via `normalizeJobFilters`
+(onbekende/ongeldige params vallen weg) en hercanoniseert via `jobFiltersToQueryString` (deterministisch → de
+`@@unique([freelancerProfileId, query])` dedupliceert vanzelf). Volledige mutatieketen: auth → rol (FREELANCER) →
+eigen profiel → Zod (naam) → hernormalisatie → limiet (`MAX_SAVED_SEARCHES=20`) → upsert → audit
+(`JOB_SEARCH_SAVED`/`JOB_SEARCH_DELETED`). Verwijderen is eigenaar-scoped (`deleteMany({ id, freelancerProfileId })`)
+zonder existence-oracle. Lege filterset kan niet bewaard worden.
+
+**Bestanden:** `prisma/schema.prisma` (+model `SavedJobSearch` + relatie op `FreelancerProfile`),
+`src/lib/jobs/saved-search.ts` (+test — pure `jobFiltersToQueryString`/`savedSearchHref`/`savedSearchNameSchema` +
+constanten), `src/app/(protected)/opdrachten/saved-search-actions.ts` (+test — `saveJobSearch`/`deleteJobSearch`),
+`src/components/jobs/saved-searches-bar.tsx` + `src/components/jobs/save-search-form.tsx` (UI),
+`src/app/(protected)/opdrachten/(index)/page.tsx` (laden + renderen). Read-only op de bestaande matchmotor; geen
+i18n-werk. **Volgende stap (slice 2):** nieuwe-match-notificatie per bewaarde zoekopdracht (cron).
+
 ## 2026-08-25 — prod: gelekt-wachtwoord-controle aflever-heartbeat (dead-man's-switch)
 
 **Wat:** de laatste fail-open productie-security-control zónder doorlopend afleversignaal dichtgezet. De HIBP-
