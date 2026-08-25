@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-25 — Opdrachtgever: boven-budget-signaal in de kandidatenvergelijking
+
+**Wat (PR #1230):** de kandidatenvergelijking (`/kandidaten/vergelijk`) laadde het budgetplafond van de opdracht
+(`Job.rateMax`) wél, maar gebruikte het nergens. Een kandidaat die boven het eigen budget van de opdracht biedt
+(bv. € 80/u terwijl je tot € 65/u zoekt) stond ongemarkeerd naast de anderen — de opdrachtgever moest z'n eigen
+budget uit z'n hoofd erbij halen. De "scherpste tarief"-uitlichting toont alleen de láágste, niet wie erbóven zit.
+Nu een rustige `warning`-badge "Boven budget" onder het tariefvoorstel van elke kandidaat die het plafond overschrijdt,
+plus een "Boven budget"-kolom in de CSV-export. Spiegelt de ZZP'er-kant (`job-rate-fit-detail.ts`, benchmark Malt/Temper:
+houd "betaalt boven/onder budget" zichtbaar op het beslismoment).
+
+**Bestanden:** `src/lib/candidate-compare.ts` — nieuwe pure `isRateOverBudget(proposedRate, budgetMaxRate)` (strikt
+boven een positief plafond; geen tarief/budget → false, geen vals signaal); `CandidateComparison.budgetMaxRate`;
+`buildCandidateComparison(candidates, budgetMaxRate?)` draagt het (geclampte) plafond mee; CSV kreeg de "Boven budget"-kolom.
+`src/lib/candidate-compare-data.ts` — geeft `job.rateMax` door aan `buildCandidateComparison`. `src/app/(protected)/kandidaten/vergelijk/page.tsx`
+— badge in de tarief-cel. `src/lib/candidate-compare.test.ts` — +6 tests (isRateOverBudget-grenzen, plafond-threading incl.
+0/negatief/één-kandidaat, CSV-kolom) + bestaande CSV-index-tests bijgewerkt (13 kolommen).
+
+**Logica:** puur, server-side afgeleid; geen extra query, geen schema-/mutatie-/authz-/domeinmotor-oppervlak. Alleen
+zichtbaar voor de eigenaar van de opdracht (CLIENT via `requireRole` + ownership-poort in de loader). Geen dictionary-werk
+(nieuwe NL-strings vallen door de `translate`-fallback).
+
+**Gate:** typecheck (loopt), lint ✓, test (candidate-compare 29) ✓, prettier ✓; test/build → PR-gate. **Volgende:** CI-poort → auto-merge.
+
 ## 2026-08-25 — ZZP'er: dubbelboeking-waarschuwing eigen samenwerkingen op /beschikbaarheid
 
 **Wat (PR #1229):** de ZZP'er kan twee eigen PROPOSED/ACTIVE-samenwerkingen accepteren die qua looptijd overlappen —

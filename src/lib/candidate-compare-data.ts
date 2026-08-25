@@ -156,7 +156,7 @@ export async function getCandidateComparisonForJob(
     };
   });
 
-  const comparison = buildCandidateComparison(candidates);
+  const comparison = buildCandidateComparison(candidates, job.rateMax);
   const ranking = rankCandidates(candidates);
   // Poolsamenvatting: de "vorm van het veld" over exact de kandidaten die naast elkaar staan
   // (matchspreiding, compliant-deel, beschikbaar op de startdatum). Pure afleiding, geen extra query.

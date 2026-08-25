@@ -16,7 +16,7 @@ import { getTranslator } from "@/lib/i18n/server";
 import { TRUST_LEVEL_EXPLANATION } from "@/lib/trust";
 import { START_FIT_SHORT_LABEL, START_FIT_VARIANT } from "@/lib/candidate-availability";
 import { PROXIMITY_VARIANT, proximityLabel } from "@/lib/candidate-proximity";
-import { type CompareCandidate } from "@/lib/candidate-compare";
+import { type CompareCandidate, isRateOverBudget } from "@/lib/candidate-compare";
 import { type ApplicantFieldSummary } from "@/lib/applicant-field";
 import { getCandidateComparisonForJob } from "@/lib/candidate-compare-data";
 import { firstName } from "@/lib/kandidaten-triage";
@@ -153,7 +153,21 @@ export default async function VergelijkKandidatenPage({
                     candidates={candidates}
                     winnerId={comparison.bestRateId}
                     render={(c) =>
-                      c.proposedRate != null ? `€ ${c.proposedRate}${t("/uur")}` : noData
+                      c.proposedRate != null ? (
+                        <span className="inline-flex flex-col items-start gap-1">
+                          <span>{`€ ${c.proposedRate}${t("/uur")}`}</span>
+                          {isRateOverBudget(c.proposedRate, comparison.budgetMaxRate) && (
+                            <Badge
+                              variant="warning"
+                              title={t("Boven het budget van deze opdracht")}
+                            >
+                              {t("Boven budget")}
+                            </Badge>
+                          )}
+                        </span>
+                      ) : (
+                        noData
+                      )
                     }
                   />
                   <CompareRow

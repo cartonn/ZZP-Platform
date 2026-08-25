@@ -268,6 +268,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever — boven-budget-signaal in de kandidatenvergelijking (2026-08-25, PR #1230)** —
+> `/kandidaten/vergelijk` laadde `Job.rateMax` (budgetplafond) wél maar gebruikte het nergens: een kandidaat die boven
+> het eigen budget bood (€ 80/u terwijl je tot € 65/u zoekt) stond ongemarkeerd naast de anderen, en de "scherpste
+> tarief"-uitlichting toont alleen de láágste. Nu een rustige `warning`-badge "Boven budget" onder het tariefvoorstel van
+> elke kandidaat die het plafond overschrijdt + een "Boven budget"-kolom in de CSV-export (spiegel van de ZZP'er-kant
+> `job-rate-fit-detail.ts`; benchmark Malt/Temper: houd "boven/onder budget" zichtbaar op het beslismoment). Nieuwe pure
+> `isRateOverBudget(proposedRate, budgetMaxRate)` (strikt boven een positief plafond; geen tarief/budget → false, geen
+> vals signaal); `CandidateComparison.budgetMaxRate`; `buildCandidateComparison(candidates, budgetMaxRate?)` draagt het
+> geclampte plafond mee; loader geeft `job.rateMax` door. Puur, server-side, geen extra query/schema/mutatie/authz/
+> domeinmotor-oppervlak, ownership-poort in de loader. Geen dictionary-werk (NL via `translate`-fallback). +6 tests
+> (29 totaal). Gate: lint ✓, targeted test (29) ✓, prettier ✓ · typecheck/test/build → PR-gate.
+>
 > Gedaan (niet opnieuw): **ZZP'er — startdatum-urgentie + reageer-nudge op het opdracht-detail (2026-08-25)** —
 > de urgentie-chip "begint over N dagen" stond alleen op de opdrachten**lijst** (`/opdrachten`, `jobStartProximity`),
 > niet op het opdracht-**detail** — juist het scherm waar de ZZP'er één opdracht bekijkt en beslist te reageren

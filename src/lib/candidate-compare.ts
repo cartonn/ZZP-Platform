@@ -62,6 +62,26 @@ export interface CandidateComparison {
   bestDeliveryId: string | null;
   /** Id van de uniek hoogste reputatie (gemiddelde sterren), of null. */
   bestRatingId: string | null;
+  /**
+   * Het budgetplafond (€/uur) van de opdracht (`Job.rateMax`), of null als er geen plafond is
+   * opgegeven. Hiermee toont de UI per kandidaat of het tariefvoorstel boven het eigen budget
+   * uitkomt (`isRateOverBudget`) — een beslisrelevant feit dat anders onzichtbaar blijft.
+   */
+  budgetMaxRate: number | null;
+}
+
+/**
+ * Ligt het door de kandidaat voorgestelde tarief (€/uur) boven het budgetplafond van de opdracht?
+ * Alleen `true` bij een positief plafond én een positief voorstel dat er strikt bovenuit gaat — zo
+ * blijft "geen budget opgegeven" of "geen tarief voorgesteld" bewust stil (geen vals signaal). Puur.
+ */
+export function isRateOverBudget(
+  proposedRate: number | null | undefined,
+  budgetMaxRate: number | null | undefined,
+): boolean {
+  if (proposedRate == null || proposedRate <= 0) return false;
+  if (budgetMaxRate == null || budgetMaxRate <= 0) return false;
+  return proposedRate > budgetMaxRate;
 }
 
 const TRUST_RANK: Record<TrustLevel, number> = { BASIS: 0, DEELS: 1, VOLLEDIG: 2 };
@@ -102,7 +122,12 @@ export function pickUniqueBest(
  * uniek-beste. Minimaal 2 kandidaten zijn nodig voor een zinvolle uitlichting, maar de functie
  * werkt ook met 1 (dan blijven alle winnaars null — niets om te vergelijken).
  */
-export function buildCandidateComparison(candidates: CompareCandidate[]): CandidateComparison {
+export function buildCandidateComparison(
+  candidates: CompareCandidate[],
+  budgetMaxRate: number | null = null,
+): CandidateComparison {
+  // Alleen een positief plafond telt als budgetgrens (0/negatief → geen signaal).
+  const budget = budgetMaxRate != null && budgetMaxRate > 0 ? budgetMaxRate : null;
   // Met minder dan twee kandidaten valt er niets uit te lichten — geen winnaars.
   if (candidates.length < 2) {
     return {
@@ -113,10 +138,12 @@ export function buildCandidateComparison(candidates: CompareCandidate[]): Candid
       bestComplianceId: null,
       bestDeliveryId: null,
       bestRatingId: null,
+      budgetMaxRate: budget,
     };
   }
   return {
     candidates: [...candidates],
+    budgetMaxRate: budget,
     bestMatchId: pickUniqueBest(candidates, (c) => c.matchScore),
     // Scherpste = laagste tarief → negeer en negatief maken zodat "hoger = beter" blijft gelden.
     bestRateId: pickUniqueBest(candidates, (c) =>
@@ -170,6 +197,7 @@ export function exportCandidateComparisonCsv(input: {
     "Aanbevolen",
     "Match",
     "Tariefvoorstel (EUR/uur)",
+    "Boven budget",
     "Vertrouwen",
     "Reputatie",
     "Compliance",
@@ -185,6 +213,7 @@ export function exportCandidateComparisonCsv(input: {
     c.id === input.recommendedId ? "Ja" : "",
     c.matchScore != null ? `${c.matchScore}%` : "",
     c.proposedRate != null ? String(c.proposedRate) : "",
+    isRateOverBudget(c.proposedRate, input.comparison.budgetMaxRate) ? "Ja" : "",
     TRUST_LABEL[c.trustLevel],
     c.reviewRating
       ? `${String(c.reviewRating.average).replace(".", ",")} (${c.reviewRating.count})`

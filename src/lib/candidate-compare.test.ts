@@ -3,6 +3,7 @@ import {
   type CompareCandidate,
   buildCandidateComparison,
   exportCandidateComparisonCsv,
+  isRateOverBudget,
   pickUniqueBest,
 } from "./candidate-compare";
 
@@ -156,6 +157,49 @@ describe("buildCandidateComparison", () => {
   });
 });
 
+describe("isRateOverBudget", () => {
+  it("true wanneer het voorstel strikt boven het plafond ligt", () => {
+    expect(isRateOverBudget(80, 65)).toBe(true);
+  });
+
+  it("false op of onder het plafond (gelijk telt niet als boven)", () => {
+    expect(isRateOverBudget(65, 65)).toBe(false);
+    expect(isRateOverBudget(50, 65)).toBe(false);
+  });
+
+  it("false zonder tarief of zonder (positief) budget — geen vals signaal", () => {
+    expect(isRateOverBudget(null, 65)).toBe(false);
+    expect(isRateOverBudget(80, null)).toBe(false);
+    expect(isRateOverBudget(0, 65)).toBe(false);
+    expect(isRateOverBudget(80, 0)).toBe(false);
+    expect(isRateOverBudget(-10, 65)).toBe(false);
+    expect(isRateOverBudget(80, -5)).toBe(false);
+  });
+});
+
+describe("buildCandidateComparison — budgetplafond", () => {
+  it("draagt een positief plafond mee", () => {
+    const result = buildCandidateComparison(
+      [candidate({ id: "a", proposedRate: 80 }), candidate({ id: "b", proposedRate: 60 })],
+      65,
+    );
+    expect(result.budgetMaxRate).toBe(65);
+  });
+
+  it("geen/0/negatief plafond → null (geen budgetgrens)", () => {
+    const cs = [candidate({ id: "a" }), candidate({ id: "b" })];
+    expect(buildCandidateComparison(cs).budgetMaxRate).toBeNull();
+    expect(buildCandidateComparison(cs, 0).budgetMaxRate).toBeNull();
+    expect(buildCandidateComparison(cs, -5).budgetMaxRate).toBeNull();
+  });
+
+  it("draagt het plafond ook mee bij één kandidaat (geen winnaars)", () => {
+    const result = buildCandidateComparison([candidate({ id: "a", proposedRate: 90 })], 70);
+    expect(result.budgetMaxRate).toBe(70);
+    expect(result.bestRateId).toBeNull();
+  });
+});
+
 describe("exportCandidateComparisonCsv", () => {
   function serialize(
     candidates: CompareCandidate[],
@@ -173,7 +217,7 @@ describe("exportCandidateComparisonCsv", () => {
     return csv.split("\r\n");
   }
 
-  it("zet een kopregel met alle 12 kolommen", () => {
+  it("zet een kopregel met alle 13 kolommen", () => {
     const csv = serialize([candidate({ id: "a" }), candidate({ id: "b" })]);
     const header = lines(csv)[0]!.split(";");
     expect(header).toEqual([
@@ -182,6 +226,7 @@ describe("exportCandidateComparisonCsv", () => {
       "Aanbevolen",
       "Match",
       "Tariefvoorstel (EUR/uur)",
+      "Boven budget",
       "Vertrouwen",
       "Reputatie",
       "Compliance",
@@ -214,18 +259,35 @@ describe("exportCandidateComparisonCsv", () => {
     expect(rows[2]!.split(";")[2]).toBe("Ja"); // b aanbevolen
   });
 
+  it("markeert alleen boven-budget-kandidaten in de Boven-budget-kolom", () => {
+    const candidates = [
+      candidate({ id: "a", name: "Anna", proposedRate: 80 }),
+      candidate({ id: "b", name: "Bram", proposedRate: 60 }),
+    ];
+    const csv = exportCandidateComparisonCsv({
+      candidates,
+      comparison: buildCandidateComparison(candidates, 65),
+      scoreById: {},
+      recommendedId: null,
+    });
+    const rows = lines(csv);
+    expect(rows[1]!.split(";")[5]).toBe("Ja"); // Anna € 80 > € 65
+    expect(rows[2]!.split(";")[5]).toBe(""); // Bram € 60 ≤ € 65
+  });
+
   it("laat null-velden leeg", () => {
     const csv = serialize([candidate({ id: "a" }), candidate({ id: "b" })]);
     const cells = lines(csv)[1]!.split(";");
-    // Totaalprofiel, Match, Tarief, Reputatie, Eerste keer, Startdatum, Reistijd, Historie leeg
+    // Totaalprofiel, Match, Tarief, Boven budget, Reputatie, Eerste keer, Startdatum, Reistijd, Historie leeg
     expect(cells[1]).toBe(""); // Totaalprofiel (geen score)
     expect(cells[3]).toBe(""); // Match
     expect(cells[4]).toBe(""); // Tarief
-    expect(cells[6]).toBe(""); // Reputatie
-    expect(cells[8]).toBe(""); // Eerste keer akkoord
-    expect(cells[9]).toBe(""); // Beschikbaar op startdatum
-    expect(cells[10]).toBe(""); // Reistijd
-    expect(cells[11]).toBe(""); // Eerdere samenwerkingen
+    expect(cells[5]).toBe(""); // Boven budget (geen tarief/budget)
+    expect(cells[7]).toBe(""); // Reputatie
+    expect(cells[9]).toBe(""); // Eerste keer akkoord
+    expect(cells[10]).toBe(""); // Beschikbaar op startdatum
+    expect(cells[11]).toBe(""); // Reistijd
+    expect(cells[12]).toBe(""); // Eerdere samenwerkingen
   });
 
   it("toont n.v.t. bij een opdracht zonder certificaat-eis (complianceStatus null)", () => {
@@ -233,7 +295,7 @@ describe("exportCandidateComparisonCsv", () => {
       candidate({ id: "a", complianceStatus: null }),
       candidate({ id: "b", complianceStatus: null }),
     ]);
-    expect(lines(csv)[1]!.split(";")[7]).toBe("n.v.t.");
+    expect(lines(csv)[1]!.split(";")[8]).toBe("n.v.t.");
   });
 
   it("vertaalt vertrouwens- en compliance-labels", () => {
@@ -242,10 +304,10 @@ describe("exportCandidateComparisonCsv", () => {
       candidate({ id: "b", trustLevel: "DEELS", complianceStatus: "NON_COMPLIANT" }),
     ]);
     const rows = lines(csv);
-    expect(rows[1]!.split(";")[5]).toBe("Volledig");
-    expect(rows[1]!.split(";")[7]).toBe("Compleet");
-    expect(rows[2]!.split(";")[5]).toBe("Deels");
-    expect(rows[2]!.split(";")[7]).toBe("Niet compleet");
+    expect(rows[1]!.split(";")[6]).toBe("Volledig");
+    expect(rows[1]!.split(";")[8]).toBe("Compleet");
+    expect(rows[2]!.split(";")[6]).toBe("Deels");
+    expect(rows[2]!.split(";")[8]).toBe("Niet compleet");
   });
 
   it("vult score, match, tarief, reputatie en historie in", () => {
@@ -267,8 +329,9 @@ describe("exportCandidateComparisonCsv", () => {
     expect(cells[1]).toBe("91"); // Totaalprofiel
     expect(cells[3]).toBe("88%"); // Match
     expect(cells[4]).toBe("65"); // Tarief
-    expect(cells[6]).toBe("4,5 (3)"); // Reputatie met komma-decimaal
-    expect(cells[11]).toBe("2"); // Eerdere samenwerkingen
+    expect(cells[5]).toBe(""); // Boven budget (geen budget meegegeven)
+    expect(cells[7]).toBe("4,5 (3)"); // Reputatie met komma-decimaal
+    expect(cells[12]).toBe("2"); // Eerdere samenwerkingen
   });
 
   it("beschermt tegen formule-injectie in een kandidaatnaam (CWE-1236)", () => {
