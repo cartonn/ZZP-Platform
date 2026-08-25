@@ -48,7 +48,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { JobFilters } from "@/components/jobs/job-filters";
 import { ActiveFilterChips } from "@/components/jobs/active-filter-chips";
-import { describeActiveJobFilters } from "@/lib/jobs/active-filters";
+import { describeActiveJobFilters, hasActiveJobFilters } from "@/lib/jobs/active-filters";
+import { SavedSearchesBar } from "@/components/jobs/saved-searches-bar";
+import { jobFiltersToQueryString } from "@/lib/jobs/saved-search";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SaveJobButton } from "@/components/jobs/save-job-button";
 import { JobPipelineStrip } from "@/components/jobs/job-pipeline-strip";
@@ -737,6 +739,20 @@ async function BrowseJobs({
     ? `/opdrachten?sort=${encodeURIComponent(explicitSort)}`
     : "/opdrachten";
 
+  // Opgeslagen zoekopdrachten (alleen voor een ZZP'er met profiel): de bewaarde filtersets die met
+  // één klik opnieuw toepasbaar zijn. `canSave` toont het bewaar-formulier alleen wanneer er nu
+  // filters actief zijn; `currentQuery` is de canonieke query die dan wordt opgeslagen.
+  const savedSearches = profile
+    ? // unbounded-allow: eigenaar-scoped, begrensd tot MAX_SAVED_SEARCHES per ZZP'er
+      await prisma.savedJobSearch.findMany({
+        where: { freelancerProfileId: profile.id },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, name: true, query: true },
+      })
+    : [];
+  const canSaveSearch = profile != null && hasActiveJobFilters(f);
+  const currentSearchQuery = jobFiltersToQueryString(f);
+
   // Bij scan-sortering pagineren we de in het geheugen (gefilterd + gerangschikte) set. De
   // "gevonden"-teller in de kop volgt de inzetbaarheids-filter (`scannedJobs`) zodat de telling
   // klopt met wat de ZZP'er ziet; de match-/startsortering laten de DB-telling ongewijzigd.
@@ -774,6 +790,14 @@ async function BrowseJobs({
       />
 
       <ActiveFilterChips chips={activeChips} />
+
+      {(savedSearches.length > 0 || canSaveSearch) && (
+        <SavedSearchesBar
+          searches={savedSearches}
+          canSave={canSaveSearch}
+          currentQuery={currentSearchQuery}
+        />
+      )}
 
       {visibleJobs.length === 0 ? (
         <Card>

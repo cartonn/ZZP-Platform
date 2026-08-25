@@ -373,6 +373,7 @@ model FreelancerProfile {
   noShowReports       NoShowReport[]
   favoritedBy         FavoriteFreelancer[]
   savedJobs           SavedJob[]
+  savedSearches       SavedJobSearch[]
   workExperiences     WorkExperience[]
 
   @@index([tenantId])
@@ -1412,6 +1413,23 @@ model SavedJob {
   @@unique([freelancerProfileId, jobId])
   @@index([freelancerProfileId])
   @@index([jobId])
+}
+
+// Opgeslagen zoekopdracht op de opdrachten-marktplaats: de ZZP'er bewaart een set filters
+// (genormaliseerd tot een canonieke query-string) om er later met één klik op terug te komen.
+// `query` is de server-genormaliseerde `JobFilters` als URL-query (excl. paginering); de
+// filters worden bij het hertoepassen opnieuw server-side gevalideerd (server = waarheid).
+model SavedJobSearch {
+  id                  String   @id @default(cuid())
+  freelancerProfileId String
+  name                String
+  query               String
+  createdAt           DateTime @default(now())
+
+  freelancer FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([freelancerProfileId, query])
+  @@index([freelancerProfileId])
 }
 
 model LessonCompletion {
