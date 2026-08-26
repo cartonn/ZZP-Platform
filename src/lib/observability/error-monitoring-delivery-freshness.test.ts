@@ -78,9 +78,10 @@ describe("errorMonitoringDeliveryStatusItem", () => {
     );
     expect(item.level).toBe("ok");
     expect(item.key).toBe("error-monitoring-delivery-heartbeat");
-    // Alleen de env-VARIABELENAAM mag genoemd worden, nooit een concrete DSN-URL/token.
-    expect(item.detail).not.toMatch(/https?:\/\//i);
-    expect(item.detail).not.toMatch(/ingest\.sentry\.io/i);
+    // Alleen de env-VARIABELENAAM mag genoemd worden, nooit een concrete DSN-URL/token. Plain
+    // substring-checks (geen regex) — een URL-schema of Sentry-host hoort niet in de gebruikerstekst.
+    expect(item.detail.includes("://")).toBe(false);
+    expect(item.detail.includes("ingest.sentry.io")).toBe(false);
   });
 
   it("failing → attention-niveau met driver in de modus + herstel-hint", () => {
