@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-26 — routine: verse treffers uit bewaarde zoekopdrachten op het dashboard (ZZP'er)
+
+**Wat:** de bewaarde zoekopdrachten tonen op `/opdrachten` al een totaal-match-teller (#1236) en een
+"N nieuw sinds 7 dagen"-badge (#1239). Deze increment brengt die verse-treffer-blik naar het
+**startscherm**: een compacte "Verse treffers"-rail-sectie op het ZZP'er-dashboard toont per bewaarde
+zoekopdracht met nieuwe treffers de naam + "+N" (afgelopen 7 dagen) + totaal, elk één klik naar de
+gefilterde marktplaats. Zo ziet de ZZP'er in één oogopslag welke bewaarde zoekopdracht vers werk heeft
+zonder eerst de marktplaats te openen — een job-alert-re-engagementpatroon à la LinkedIn/Indeed op de
+plek waar hij begint. Alleen zoekopdrachten met `recent > 0` verschijnen, gesorteerd op verse treffers,
+gecapt op 4; leeg → niets gerenderd (dashboard blijft rustig).
+
+**Server-side waarheid, geen drift:** hergebruikt exact `countSavedSearchMatches`
+(`src/lib/jobs/saved-search-counts.ts` → `buildJobMarketplaceWhere`) — dezelfde where-opbouw,
+tenant-zichtbaarheid en "vers gepubliceerd"-venster als de marktplaats-teller. `onlyEligible`-queries
+(niet betrouwbaar DB-telbaar) worden overgeslagen. De pure filter-/sorteer-/cap-logica
+(`buildSavedSearchAlerts`) is losgetrokken van de I/O en unit-getest. FREELANCER-only; optionele
+rail-slot in `WorkspaceDashboard` → nul impact op CLIENT/FRANCHISER.
+
+**Bestanden:** `src/lib/jobs/saved-search-alerts.ts` (NIEUW — `SavedSearchAlert`,
+`buildSavedSearchAlerts`, `getSavedSearchAlertsForFreelancer`),
+`src/lib/jobs/saved-search-alerts.test.ts` (NIEUW — 7 tests op de pure builder),
+`src/components/dashboard/saved-search-spotlight.tsx` (NIEUW — rail-sectie, leeg → null),
+`src/components/dashboard/workspace-dashboard.tsx` (optionele `spotlight`-prop),
+`src/app/(protected)/dashboard/page.tsx` (FREELANCER-gated laden + prop),
+`src/app/(protected)/dashboard/live-role.test.tsx` (mock voor de nieuwe FREELANCER-tak-dep).
+
+**Checks:** typecheck ✓ · lint ✓ · test 675 files / 7028 tests ✓ · build ✓ · prettier ✓.
+
 ## 2026-08-26 — persona-sweep run 94: tenant-fee volgt een creditnota (geld-integriteit)
 
 **Wat:** persona-sweep (4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken).

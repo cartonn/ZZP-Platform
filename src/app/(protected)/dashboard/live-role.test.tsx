@@ -39,6 +39,9 @@ vi.mock("@/lib/i18n/server", () => ({
 const recommendedJobs = vi.hoisted(() => vi.fn(async () => []));
 vi.mock("@/lib/recommendations", () => ({ recommendedJobs }));
 vi.mock("@/lib/actions/pending-tasks", () => ({ pendingTasks: vi.fn(async () => []) }));
+vi.mock("@/lib/jobs/saved-search-alerts", () => ({
+  getSavedSearchAlertsForFreelancer: vi.fn(async () => []),
+}));
 vi.mock("@/lib/data/freelancer-profile", () => ({
   getCompletenessProfile: vi.fn(async () => null),
 }));

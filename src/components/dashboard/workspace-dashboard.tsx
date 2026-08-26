@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { getTranslator } from "@/lib/i18n/server";
 import {
@@ -85,6 +86,8 @@ export interface WorkspaceDashboardProps {
   week?: { title: string; count: string; days: WsWeekDay[] };
   seal?: { title: string; subtitle: string; items: WsSealItem[]; reportHref?: string };
   notice?: WsNotice | null;
+  /** Optionele extra rail-inhoud, gerenderd na 'Volgende acties' (rendert zichzelf of null). */
+  spotlight?: ReactNode;
 }
 
 const TONE_TEXT: Record<ActionTone, string> = {
@@ -106,6 +109,7 @@ export async function WorkspaceDashboard({
   week,
   seal,
   notice,
+  spotlight,
 }: WorkspaceDashboardProps) {
   const { t } = await getTranslator();
   return (
@@ -284,6 +288,9 @@ export async function WorkspaceDashboard({
               </ul>
             )}
           </section>
+
+          {/* Optionele rail-spotlight (rendert zichzelf of null) */}
+          {spotlight}
 
           {/* Week-strip */}
           {week && (
