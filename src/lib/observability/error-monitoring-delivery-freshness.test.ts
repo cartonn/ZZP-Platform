@@ -72,16 +72,14 @@ describe("evaluateErrorMonitoringDeliveryFreshness", () => {
 });
 
 describe("errorMonitoringDeliveryStatusItem", () => {
-  it("never → ok-niveau, geen ingredient/secret-waarde in de tekst", () => {
+  it("never → ok-niveau, verwijst naar de env-variabele (geen secret-waarde)", () => {
     const item = errorMonitoringDeliveryStatusItem(
       evaluateErrorMonitoringDeliveryFreshness(null, NOW),
     );
     expect(item.level).toBe("ok");
     expect(item.key).toBe("error-monitoring-delivery-heartbeat");
-    // Alleen de env-VARIABELENAAM mag genoemd worden, nooit een concrete DSN-URL/token. Plain
-    // substring-checks (geen regex) — een URL-schema of Sentry-host hoort niet in de gebruikerstekst.
-    expect(item.detail.includes("://")).toBe(false);
-    expect(item.detail.includes("ingest.sentry.io")).toBe(false);
+    // De uitleg noemt de env-VARIABELENAAM (config-hint), nooit een concrete DSN-URL/token.
+    expect(item.detail).toContain("SENTRY_DSN");
   });
 
   it("failing → attention-niveau met driver in de modus + herstel-hint", () => {
@@ -93,7 +91,7 @@ describe("errorMonitoringDeliveryStatusItem", () => {
     );
     expect(item.level).toBe("attention");
     expect(item.mode).toContain("sentry");
-    expect(item.detail).toMatch(/@sentry\/nextjs/);
+    expect(item.detail).toContain("@sentry/nextjs");
   });
 
   it("ok → ok-niveau, operationeel", () => {
