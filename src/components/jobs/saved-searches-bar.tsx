@@ -16,6 +16,12 @@ export interface SavedSearchItem {
    * pagina per-ZZP'er in het geheugen versmalt) → dan tonen we geen teller.
    */
   matchCount?: number | null;
+  /**
+   * Daarvan het aantal dat de afgelopen dagen is gepubliceerd — het "verse werk"-signaal. Toont een
+   * los groen "N nieuw"-pilletje zodat de ZZP'er in één oogopslag ziet welke bewaarde zoekopdracht
+   * nieuwe opdrachten heeft. `0`/`null` → geen badge (rustige pagina).
+   */
+  newCount?: number | null;
 }
 
 /**
@@ -72,6 +78,15 @@ export function SavedSearchesBar({
               }`}
             >
               {s.matchCount}
+            </span>
+          )}
+          {typeof s.newCount === "number" && s.newCount > 0 && (
+            <span
+              className="ml-0.5 shrink-0 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium tabular-nums text-emerald-600 dark:text-emerald-400"
+              title={`${s.newCount} nieuw sinds een week`}
+              aria-label={`${s.newCount} nieuw sinds een week`}
+            >
+              {s.newCount} nieuw
             </span>
           )}
           <ConfirmButton
