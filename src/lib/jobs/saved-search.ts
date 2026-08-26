@@ -42,6 +42,21 @@ export function jobFiltersToQueryString(filters: JobFilters): string {
 }
 
 /**
+ * Zet een opgeslagen (canonieke) URL-query om naar de RawParams-vorm die `normalizeJobFilters`
+ * verwacht: sleutels met meerdere waarden (bv. `skillIds`) worden een array. Zo overleeft een
+ * meervoudige `skillIds` de normalisatie.
+ */
+export function savedSearchQueryToRawParams(query: string): Record<string, string | string[]> {
+  const params = new URLSearchParams(query);
+  const raw: Record<string, string | string[]> = {};
+  for (const key of new Set(params.keys())) {
+    const values = params.getAll(key);
+    raw[key] = values.length > 1 ? values : (values[0] ?? "");
+  }
+  return raw;
+}
+
+/**
  * Href waarmee een bewaarde zoekopdracht opnieuw wordt toegepast op de marktplaats. Een lege query
  * (geen actieve filters) geeft de kale `/opdrachten`.
  */
