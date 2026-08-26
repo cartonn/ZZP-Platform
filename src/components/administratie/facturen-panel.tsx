@@ -45,6 +45,7 @@ const CASCADE_LABEL: Record<
   REJECTED: { label: "Afgekeurd", variant: "danger" },
   OVERDUE: { label: "Te laat", variant: "danger" },
   CREDITED: { label: "Gecrediteerd", variant: "danger" },
+  WITHDRAWN: { label: "Ingetrokken", variant: "muted" },
 };
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
