@@ -24,6 +24,7 @@ import {
   collabLink,
 } from "@/lib/cascade/commands-shared";
 import { boundReason } from "@/lib/text-bounds";
+import { recordTenantFeeForCollaboration } from "@/lib/tenant-billing/record-fee";
 
 // --- Event C — Factuur indienen --------------------------------------------
 export async function submitInvoice(actor: Actor, invoiceId: string): Promise<void> {
@@ -315,4 +316,14 @@ export async function creditInvoice(
       terminalGuardAllowCompleted: true,
     },
   );
+
+  // Best-effort: herbereken de franchise-transactie-fee. Een creditnota draait betaalde omzet terug,
+  // dus de nog-openstaande (PENDING) fee moet mee omlaag — of vervallen als er geen betaalde grondslag
+  // meer over is (idempotent; no-op als billing uit staat of de samenwerking niet bij een tenant hoort).
+  // Mag het crediteren zelf nooit laten falen.
+  if (inv.collaborationId) {
+    try {
+      await recordTenantFeeForCollaboration(inv.collaborationId);
+    } catch {}
+  }
 }

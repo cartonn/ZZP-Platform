@@ -202,6 +202,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   FRANCHISE_BRANDING_UPDATED: "Bemiddeling-branding bijgewerkt",
   FRANCHISE_FEE_PERCENT_UPDATED: "Fee-percentage ingesteld",
   TENANT_FEE_RECORDED: "Fee geboekt",
+  TENANT_FEE_REVERSED: "Fee ingetrokken",
 
   // Support
   SUPPORT_TICKET_CREATED: "Supportticket aangemaakt",

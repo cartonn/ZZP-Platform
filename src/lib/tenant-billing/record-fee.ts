@@ -31,7 +31,14 @@ export async function recordTenantFeeForCollaboration(collaborationId: string): 
     _sum: { subtotalCents: true },
   });
   const valueCents = paid._sum.subtotalCents ?? 0;
-  if (valueCents <= 0) return;
+
+  // Eenmaal gefactureerd = bevroren; niet meer herberekenen, overschrijven of intrekken. Een creditnota
+  // ná facturatie van de fee vereist een handmatige correctie in de billing-cockpit (buiten scope hier).
+  const existing = await prisma.collaborationFee.findUnique({
+    where: { collaborationId },
+    select: { status: true },
+  });
+  if (existing && existing.status !== "PENDING") return;
 
   const subscription = await prisma.tenantSubscription.findUnique({
     where: { tenantId },
@@ -39,15 +46,27 @@ export async function recordTenantFeeForCollaboration(collaborationId: string): 
   });
   const planKey = subscription?.planKey ?? TENANT_BILLING.defaultPlanKey;
 
-  const record = planCollaborationFeeRecord({ collaborationId, tenantId, valueCents, planKey });
-  if (!record) return; // billing uit of fee 0
+  const record =
+    valueCents > 0
+      ? planCollaborationFeeRecord({ collaborationId, tenantId, valueCents, planKey })
+      : null;
 
-  // Eenmaal gefactureerd = bevroren; niet meer herberekenen of overschrijven.
-  const existing = await prisma.collaborationFee.findUnique({
-    where: { collaborationId },
-    select: { status: true },
-  });
-  if (existing && existing.status !== "PENDING") return;
+  // Geen fee (meer) van toepassing: grondslag op 0 (bv. alle facturen gecrediteerd) of fee rondt op 0
+  // af. Een nog-openstaande (PENDING) fee mag dan niet blijven staan — anders factureert de billing-run
+  // straks een fee over teruggedraaide omzet aan de tenant (geld-integriteit). Trek 'm in.
+  if (!record) {
+    if (existing) {
+      await prisma.collaborationFee.delete({ where: { collaborationId } });
+      await audit({
+        actorId: null,
+        action: "TENANT_FEE_REVERSED",
+        entityType: "Collaboration",
+        entityId: collaborationId,
+        metadata: { tenantId, valueCents },
+      });
+    }
+    return;
+  }
 
   await prisma.collaborationFee.upsert({
     where: { collaborationId },
