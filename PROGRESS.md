@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-26 — persona-sweep run 94: tenant-fee volgt een creditnota (geld-integriteit)
+
+**Wat:** persona-sweep (4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken).
+**1 defect gevonden én gefixt** (should-fix geld-integriteit): een openstaande franchise-transactie-fee
+overleefde een creditnota → de tenant werd gefactureerd over teruggedraaide omzet. De fee wordt bij
+`confirmPayment` éénmalig geboekt uit een punt-in-tijd-momentopname; crediteert de ZZP'er die factuur
+daarna (`creditInvoice` → `INVOICE_CREDITED`, `PAID`/`PROCESSED` → `CREDITED`), dan draaide de cascade
+wél het grootboek terug (`reversePayment`) maar niets raakte de `CollaborationFee`. Bij een
+enkele-factuur-samenwerking triggerde geen latere betaling een herberekening → de `PENDING`-fee bleef op
+de teruggedraaide grondslag en de billing-run factureerde 'm alsnog. **Fix:** `creditInvoice` roept
+`recordTenantFeeForCollaboration` (best-effort) aan; de recorder herberekent de grondslag over
+`PAID_REVENUE_LIFECYCLE` en trekt een nog-openstaande (`PENDING`) fee in (`delete` + audit
+`TENANT_FEE_REVERSED`) bij grondslag 0, of herberekent 'm omlaag bij een deel-credit. Een al
+gefactureerde (bevroren) fee blijft met rust. **1 nieuw geparkeerd** (next-action-pariteit
+beslis-achterstand-chip, DOEL 1b — zie backlog). authz/IDOR/tenant- én malicieuze-input-audits: 0 nieuwe
+bereikbare gaten.
+
+**Bestanden:** `src/lib/tenant-billing/record-fee.ts` (reconcile-tak: intrekken/omlaag-herberekenen),
+`src/lib/cascade/invoice-commands.ts` (`creditInvoice` roept de recorder aan),
+`src/lib/audit-labels.ts` (`TENANT_FEE_REVERSED`-label),
+`src/lib/tenant-billing/record-fee-credit.test.ts` (+4 regressietests, rood→groen),
+`docs/PERSONA-SWEEP-BACKLOG.md` (run 94).
+
+**Checks:** typecheck ✓ · lint ✓ · test 674 files / 7021 tests ✓ · build ✓ · prettier ✓.
+
 ## 2026-08-26 — routine: "nieuw sinds 7 dagen"-signaal op bewaarde zoekopdrachten (ZZP'er)
 
 **Wat:** naast de bestaande totaal-match-teller op elke bewaarde zoekopdracht (op `/opdrachten`) toont

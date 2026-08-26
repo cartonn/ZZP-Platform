@@ -1,5 +1,53 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-26 (run 94) · **main-commit basis:** `9b144852`
+> **Uitkomst:** **1 defect gevonden én gefixt** (should-fix geld-integriteit, tenant-/franchise-facturatie —
+> stale tenant-fee overleeft een creditnota). **1 nieuw geparkeerd** (should-fix/design next-action-pariteit,
+> DOEL 1b — beslis-achterstand-chip). 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+> (authz/IDOR/tenant-isolatie · cascade/geld-integriteit + verboden statusovergangen · next-action-engine ·
+> malicieuze input/CSV/XSS/upload). De authz/IDOR/tenant- én malicieuze-input-audits vonden **0 nieuwe
+> bereikbare gaten** (opnieuw bevestigd diep gehard: anti-oracle 404 op document- en cross-tenant-paden,
+> `ownsViaTenant`/`tenantScopeWhere`, `escapeCsvField`/`escapeIcsText` op álle CSV-/ICS-producers,
+> `esc()`/`escapeHtml()` + CRLF-strip in mails, magic-byte upload-sniff, begrensde Zod-velden).
+>
+> - **OPGELOST — should-fix (geld-integriteit, CLAUDE.md regel 1 & 2 — server-side waarheid): een
+>   openstaande tenant-transactie-fee overleefde een creditnota → de franchise-tenant werd gefactureerd
+>   over teruggedraaide omzet (fee over omzet die niet meer bestaat).** `recordTenantFeeForCollaboration`
+>   (`src/lib/tenant-billing/record-fee.ts`) boekt de fee éénmalig uit een punt-in-tijd-momentopname bij
+>   `confirmPayment`. Crediteert de ZZP'er die factuur daarna (`creditInvoice` → `INVOICE_CREDITED`,
+>   lifecycle `PAID`/`PROCESSED` → `CREDITED`, toegestaan door de state-machine, óók ná `COMPLETED`), dan
+>   draaide `planInvoiceCreditedEvent` (`src/lib/cascade/handlers.ts:520`) wél het grootboek terug
+>   (`reversePayment`), maar niets raakte de `CollaborationFee`. Bij een enkele-factuur-samenwerking (zeer
+>   gangbaar) triggert geen latere betaling een herberekening → de `PENDING`-fee bleef op de oude,
+>   teruggedraaide grondslag staan; de billing-run (`billing-run.ts`) bundelde 'm alsnog in een
+>   tenant-factuur. `TENANT_BILLING.enabled = true` (`config.ts:93`), dus productie-bereikbaar. **Repro
+>   (FREELANCER/CLIENT, geen DB-manipulatie):** tenant-samenwerking → prestatie goedgekeurd → factuur →
+>   `confirmPayment` (fee `PENDING` geboekt) → FREELANCER crediteert de factuur → de `PENDING`-fee blijft
+>   ongewijzigd staan. **Fix:** `creditInvoice` roept `recordTenantFeeForCollaboration` (best-effort) aan;
+>   de recorder herberekent de grondslag over `PAID_REVENUE_LIFECYCLE` en **trekt een nog-openstaande
+>   (`PENDING`) fee in** (`delete` + audit `TENANT_FEE_REVERSED`) zodra er geen betaalde grondslag meer
+>   over is, of **herberekent 'm omlaag** bij een deel-creditnota (grondslag > 0). Een al gefactureerde
+>   (bevroren, status != `PENDING`) fee blijft met rust (correctie hoort dan in de billing-cockpit).
+>   +4 regressietests (`record-fee-credit.test.ts`, rood→groen: intrekken bij grondslag 0, bevroren fee
+>   met rust, omlaag-herberekenen bij deel-credit, geen lege intrekking zonder bestaande fee).
+> - **GEPARKEERD — should-fix/design (next-action-pariteit, DOEL 1b, CLAUDE.md regel 1 — "signaal op één
+>   oppervlak"): de nieuwe beslis-achterstand-chip op `/opdrachten` (#1235) toont een `warning`-getoonde
+>   "wacht op je beslissing" na 2-8 dagen (`DECISION_PATIENCE_DAYS`, `candidate-decision.ts:18`), maar er
+>   staat géén corresponderend item op `/acties` en géén nav-badge.** De canonieke next-action/badge-drempel
+>   is `WAIT_ATTENTION_DAYS = {NEW:7,VIEWED:14,SHORTLIST:21}` (`application-wait.ts:10` → `staleApplicationsTask`
+>   `next-actions.ts:78` + `newApplications`-badge `signals.ts`). **Repro:** CLIENT met een SHORTLIST-kandidaat,
+>   `matchScore=85`, `createdAt=now-3d` → `/opdrachten` toont een warning-chip "wacht op je beslissing (sterke
+>   match)", terwijl `/acties` + de `/kandidaten`-badge niets tonen (3 < 21). **Waarom geparkeerd (geen
+>   mechanische fix):** het onderliggende tier-signaal (`candidate-decision.ts`) is niet nieuw en bewust
+>   los-gekoppeld van `next-actions.ts` (bestaat sinds 25-6 als `/kandidaten`-banner, zie PROGRESS.md); de
+>   diff maakt het alleen prominenter zichtbaar. Twee-lagen-ontwerp (zachte nudge vs. harde next-action) is
+>   verdedigbaar → productkeuze nodig, aparte apart-gereviewde PR. **Fix-richting:** óf (a) wire het
+>   "strong+attention"-geval in `pending-tasks.ts`/`signals.ts` (echte /acties-parity + badge), óf (b) als het
+>   een zachtere/eerdere nudge moet blijven: laat de gedeelde `warning`-toon + "wacht op je beslissing"-copy
+>   vallen zodat het visueel te onderscheiden is van een echte next-action (impliceert geen /acties-parity).
+
+---
+
 > **Datum:** 2026-08-25 (run 93) · **main-commit basis:** `949ffd0b`
 > **Uitkomst:** **1 defect gevonden én gefixt** (should-fix geld-integriteit, tenant-/franchise-facturatie).
 > **1 nieuw geparkeerd** (should-fix next-action-badge, DOEL 1b). 4 parallelle adversariële Opus-audits op
