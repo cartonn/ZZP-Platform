@@ -46,6 +46,8 @@ import {
 import { activeVerifiedCount } from "@/lib/credentials";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
+import { getSavedSearchAlertsForFreelancer } from "@/lib/jobs/saved-search-alerts";
+import { SavedSearchSpotlight } from "@/components/dashboard/saved-search-spotlight";
 import { suggestedFreelancersForClient, type ClientFreelancerSuggestion } from "@/lib/suggestions";
 import {
   clientCredentialAlertsFromRows,
@@ -807,12 +809,14 @@ export default async function DashboardPage() {
     tasks,
     freelancerRevenueTrend,
     unbilledInvoices,
+    savedSearchAlerts,
   ] = await Promise.all([
     dashboardData(role, user.id!),
     role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
     pendingTasks(actor),
     role === "FREELANCER" ? getFreelancerRevenueTrend(user.id!) : Promise.resolve(null),
     role === "FREELANCER" ? getUnbilledInvoiceSummary(user.id!) : Promise.resolve(null),
+    role === "FREELANCER" ? getSavedSearchAlertsForFreelancer(actor) : Promise.resolve([]),
   ]);
   const weekStrip = week ? buildWeekStrip(week) : null;
 
@@ -949,6 +953,7 @@ export default async function DashboardPage() {
         week={wk}
         seal={seal}
         notice={notice}
+        spotlight={<SavedSearchSpotlight alerts={savedSearchAlerts} />}
       />
     );
   }
