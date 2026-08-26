@@ -26,6 +26,8 @@ export type ProposeCollaborationLabels = {
   conflictRange: string;
   /** Toelichting bij een hervoorstel (het vorige voorstel is geannuleerd). */
   reproposalNote: string;
+  /** Toelichting dat de velden zijn voorgevuld (tarief/startdatum) en vrij aanpasbaar zijn. */
+  prefillNote: string;
 };
 
 /**
@@ -44,6 +46,8 @@ export function ProposeCollaboration({
   labels,
   reproposal = false,
   unavailableWindows = [],
+  defaultRate = null,
+  defaultStartIso = null,
 }: {
   applicationId: string;
   labels: ProposeCollaborationLabels;
@@ -51,15 +55,22 @@ export function ProposeCollaboration({
   reproposal?: boolean;
   /** Toekomstige UNAVAILABLE-vensters van de kandidaat, server-side voorberekend. */
   unavailableWindows?: UnavailableWindow[];
+  /** Vooringevuld uurtarief (uit het tariefvoorstel van de kandidaat); null = leeg veld. */
+  defaultRate?: number | null;
+  /** Vooringevulde startdatum als ISO (uit de opdracht); null = leeg veld. */
+  defaultStartIso?: string | null;
 }) {
   const action = proposeCollaboration.bind(null, applicationId);
   const [state, formAction, isPending] = useActionState<ProposalState, FormData>(action, undefined);
   const fe = state?.fieldErrors ?? {};
 
   // Live spiegel van de ingevulde datums (ISO) om het conflict-signaal te berekenen. De DateInput
-  // blijft uncontrolled; we lezen alleen de getypte waarde mee via onChange.
-  const [startIso, setStartIso] = useState("");
+  // blijft uncontrolled; we lezen alleen de getypte waarde mee via onChange. De startdatum begint
+  // op de vooringevulde waarde zodat het conflict-signaal meteen klopt bij een voorgevulde datum.
+  const [startIso, setStartIso] = useState(defaultStartIso ?? "");
   const [endIso, setEndIso] = useState("");
+
+  const prefilled = defaultRate != null || (defaultStartIso ?? "") !== "";
 
   const conflicts = useMemo(
     () => proposalDateConflicts(startIso, endIso, unavailableWindows),
@@ -76,12 +87,14 @@ export function ProposeCollaboration({
           type="number"
           min={1}
           max={2000}
+          defaultValue={defaultRate ?? undefined}
           placeholder={labels.ratePlaceholder}
           aria-label={labels.rate}
         />
         <DateInput
           name="startDate"
           aria-label={labels.startDate}
+          defaultValue={defaultStartIso ?? undefined}
           onChange={(e) => setStartIso(readIso(e.target.value))}
         />
         <DateInput
@@ -90,6 +103,7 @@ export function ProposeCollaboration({
           onChange={(e) => setEndIso(readIso(e.target.value))}
         />
       </div>
+      {prefilled && <p className="text-xs text-muted-foreground">{labels.prefillNote}</p>}
       {conflicts.length > 0 && (
         <div
           role="status"
