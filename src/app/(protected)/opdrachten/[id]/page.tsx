@@ -73,6 +73,8 @@ import { type AvailabilityWindowType, type CollaborationStatus } from "@/lib/enu
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
+import { buildFreelancerComplianceSignal } from "@/lib/job-dba-freelancer";
+import { FreelancerComplianceBlock } from "@/components/jobs/freelancer-compliance-block";
 import { estimateTravelMinutesWithRouting } from "@/lib/services/routing";
 import {
   recommendModelAgreement,
@@ -349,6 +351,16 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         getFreelancerClientHistory(actor.id, job.companyId),
       ])
     : [null, null, null, null, null];
+
+  // Wet-DBA + rechtsvermoeden-signaal voor de ZZP'er (spiegelbeeld van het owner-only blok):
+  // helpt beslissen "zet deze opdracht mijn zelfstandigheid onder druk?" vóór het reageren.
+  // Puur afgeleid uit de reeds geladen job-velden — geen extra query.
+  const freelancerCompliance = showClientSignals
+    ? buildFreelancerComplianceSignal({
+        dbaRisk: job.dbaRisk,
+        rateMinCents: job.rateMin != null ? job.rateMin * 100 : null,
+      })
+    : null;
 
   // Spiegelbeeld voor de opdrachtgever: openbare ZZP'ers die passen en nog niet reageerden,
   // plus de geaggregeerde bereik-indicatie (hoeveel passend/beschikbaar). Parallel opgehaald.
@@ -918,6 +930,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       {clientReliability && <ClientReliabilityBlock reliability={clientReliability} />}
 
       {clientResponsiveness && <ClientResponsivenessBlock responsiveness={clientResponsiveness} />}
+
+      {freelancerCompliance && <FreelancerComplianceBlock signal={freelancerCompliance} />}
 
       {isOwner ? (
         <div className="flex flex-wrap gap-2 border-t border-border pt-4">

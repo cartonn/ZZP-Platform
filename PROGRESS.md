@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-26 — routine: Wet-DBA + rechtsvermoeden-signaal voor de ZZP'er op opdracht-detail
+
+**Wat:** de Wet-DBA-risico-inschatting (schijnzelfstandigheid) en de rechtsvermoeden-drempel
+(< €38/uur) stonden op de opdracht-detailpagina **uitsluitend voor de eigenaar** (`isOwner`-blokken).
+De ZZP'er zag vóór het reageren dus niet of een opdracht zijn zelfstandigheid onder druk zet — een
+kern-compliancezorg op de NL-markt (Wet DBA-handhaving). Dit increment toont een **rol-gepast
+spiegelbeeld** van dat signaal aan de ZZP'er, naast de bestaande opdrachtgever-vertrouwenssignalen
+(betaalgedrag/betrouwbaarheid/reactiebereidheid): DBA-risicobadge + ZZP'er-gerichte handelingsuitleg
+("bespreek vrije vervanging, een afgebakend resultaat …", niet de opdrachtgever-tekst "herzie de
+opdracht"), plus de rechtsvermoeden-waarschuwing bij een tarief onder de drempel. Beantwoordt "kan ik
+dit vertrouwen?" op het beslismoment. Benchmark: Malt/Deel etaleren compliance vooraf.
+
+**Waarom veilig:** puur afgeleid uit reeds geladen job-velden (`job.dbaRisk`, `job.rateMin`) — **geen
+extra query, geen schema-wijziging, geen mutatie/authz-oppervlak**. Alleen zichtbaar voor de
+niet-eigenaar FREELANCER (`showClientSignals`); toont geen opgeslagen DBA-reden-strings van de
+opdrachtgever (die zijn opdrachtgever-geframed) — enkel het geaggregeerde niveau + rol-gepaste tekst.
+`buildFreelancerComplianceSignal` valideert `dbaRisk` tegen `DBA_RISK_LEVELS` en geeft `null` als er
+niets te tonen valt (geen niveau én tarief boven de drempel), zodat het blok rustig verdwijnt. Elk blok
+sluit af met "Hulpmiddel, geen juridisch advies."
+
+**Bestanden:** `src/lib/job-dba-freelancer.ts` (NIEUW — pure helper + `DBA_FREELANCER_ADVICE`),
+`src/lib/job-dba-freelancer.test.ts` (NIEUW — 11 tests), `src/components/jobs/freelancer-compliance-block.tsx`
+(NIEUW — presentationeel), `src/app/(protected)/opdrachten/[id]/page.tsx` (signaal berekenen + blok renderen).
+
+**Checks:** typecheck ✓ · lint ✓ · test (nieuw 11/11; suite 7055) ✓ · build ✓ · prettier ✓ → PR #1247 + CI-poort.
+
 ## 2026-08-26 — routine: prefill tarief + startdatum in het samenwerkingsvoorstel (opdrachtgever)
 
 **Wat:** wanneer de opdrachtgever op `/kandidaten` een geaccepteerde kandidaat een samenwerking
