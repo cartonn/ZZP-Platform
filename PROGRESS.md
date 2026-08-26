@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-26 — routine: "nieuw sinds 7 dagen"-signaal op bewaarde zoekopdrachten (ZZP'er)
+
+**Wat:** naast de bestaande totaal-match-teller op elke bewaarde zoekopdracht (op `/opdrachten`) toont
+de pill nu een los groen "N nieuw"-badge: hoeveel van de passende, zichtbare opdrachten de afgelopen
+**7 dagen** zijn gepubliceerd. Zo ziet de ZZP'er in één oogopslag welke bewaarde zoekopdracht _vers_
+werk heeft — een re-engagement-patroon à la LinkedIn/Indeed job-alerts, zonder een tweede scherm te
+openen. Server-side waarheid: dezelfde `buildJobMarketplaceWhere` als de totaal-teller (geen drift),
+verrijkt met een `publishedAt >= cutoff`-venster (fallback `createdAt` voor legacy-rijen, nooit
+onder-rapporteren). `onlyEligible`-zoekopdrachten blijven `null` (niet betrouwbaar DB-telbaar).
+
+**Bestanden:** `src/lib/jobs/saved-search-counts.ts` (`SavedSearchMatchCount {total,recent}`,
+`RECENT_SAVED_SEARCH_DAYS`, pure `recentSavedSearchCutoff`/`withRecentPublishedWindow`,
+`countSavedSearchMatches` → richer return + injecteerbare `now`),
+`src/app/(protected)/opdrachten/(index)/page.tsx` (wiring → `matchCount`/`newCount`),
+`src/components/jobs/saved-searches-bar.tsx` ("N nieuw"-badge).
+
+**Tests:** `saved-search-counts.test.ts` uitgebreid (9 groen): `recentSavedSearchCutoff` (exact venster),
+`withRecentPublishedWindow` (non-destructieve AND-compositie + publishedAt/createdAt-fallback). Volledige
+gate lokaal groen: typecheck ✓, lint ✓, prettier ✓, build + full test in CI-poort.
+
+**Volgende stap:** overweeg "nieuw sinds je laatst keek" (per-zoekopdracht `lastViewedAt`) als opvolger
+i.p.v. het vaste 7-daagse venster — vereist een view-tracking-mutatie (apart increment).
+
 ## 2026-08-26 — prod: error-monitoring aflever-heartbeat (dead-man's-switch)
 
 **Wat:** het laatste fail-open productie-**kern**kanaal zónder doorlopend afleversignaal gedicht. De

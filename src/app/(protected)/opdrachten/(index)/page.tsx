@@ -58,7 +58,10 @@ import { ActiveFilterChips } from "@/components/jobs/active-filter-chips";
 import { describeActiveJobFilters, hasActiveJobFilters } from "@/lib/jobs/active-filters";
 import { SavedSearchesBar } from "@/components/jobs/saved-searches-bar";
 import { jobFiltersToQueryString } from "@/lib/jobs/saved-search";
-import { countSavedSearchMatches } from "@/lib/jobs/saved-search-counts";
+import {
+  countSavedSearchMatches,
+  type SavedSearchMatchCount,
+} from "@/lib/jobs/saved-search-counts";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SaveJobButton } from "@/components/jobs/save-job-button";
 import { JobPipelineStrip } from "@/components/jobs/job-pipeline-strip";
@@ -822,13 +825,21 @@ async function BrowseJobs({
     profile && savedSearchRows.length > 0
       ? await countSavedSearchMatches(
           savedSearchRows.map((s) => s.query),
-          { actor, myIndustryIds, profileId: profile.id },
+          {
+            actor,
+            myIndustryIds,
+            profileId: profile.id,
+          },
         )
-      : new Map<string, number | null>();
-  const savedSearches = savedSearchRows.map((s) => ({
-    ...s,
-    matchCount: savedSearchCounts.get(s.query) ?? null,
-  }));
+      : new Map<string, SavedSearchMatchCount | null>();
+  const savedSearches = savedSearchRows.map((s) => {
+    const counts = savedSearchCounts.get(s.query) ?? null;
+    return {
+      ...s,
+      matchCount: counts ? counts.total : null,
+      newCount: counts ? counts.recent : null,
+    };
+  });
   const canSaveSearch = profile != null && hasActiveJobFilters(f);
   const currentSearchQuery = jobFiltersToQueryString(f);
 

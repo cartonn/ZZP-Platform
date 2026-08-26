@@ -26,6 +26,42 @@ export interface SavedSearchCountContext {
   profileId: string;
 }
 
+/** Venster (dagen) waarbinnen een passende opdracht als "nieuw" telt op de bewaarde zoekopdracht. */
+export const RECENT_SAVED_SEARCH_DAYS = 7;
+
+/** Totale én verse teller voor één bewaarde zoekopdracht. */
+export interface SavedSearchMatchCount {
+  /** Aantal nu-passende, zichtbare gepubliceerde opdrachten. */
+  total: number;
+  /** Daarvan: aantal dat de afgelopen `RECENT_SAVED_SEARCH_DAYS` dagen is gepubliceerd. */
+  recent: number;
+}
+
+/** Puur: de ondergrens-datum (nu − `RECENT_SAVED_SEARCH_DAYS` dagen) voor het "nieuw"-venster. */
+export function recentSavedSearchCutoff(now: Date): Date {
+  return new Date(now.getTime() - RECENT_SAVED_SEARCH_DAYS * 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Puur: verrijk een bestaande count-where met het "vers gepubliceerd"-venster. Een gepubliceerde
+ * opdracht draagt normaliter `publishedAt`; legacy/seed-rijen zonder `publishedAt` vallen terug op
+ * `createdAt`, zodat de verse-teller nooit onder-rapporteert. Componeert non-destructief via `AND`
+ * (de basis-where blijft ongemoeid). Geen I/O.
+ */
+export function withRecentPublishedWindow(
+  where: Prisma.JobWhereInput,
+  cutoff: Date,
+): Prisma.JobWhereInput {
+  return {
+    AND: [
+      where,
+      {
+        OR: [{ publishedAt: { gte: cutoff } }, { publishedAt: null, createdAt: { gte: cutoff } }],
+      },
+    ],
+  };
+}
+
 /**
  * Puur: bouw de count-where voor één bewaarde (canonieke) query, of `null` wanneer de query niet
  * betrouwbaar DB-telbaar is (`onlyEligible` — per-ZZP'er compliance-verfijning gebeurt in-memory,
@@ -45,22 +81,28 @@ export function savedSearchCountWhere(
 }
 
 /**
- * Telt per canonieke query de nu-passende, zichtbare gepubliceerde opdrachten. `onlyEligible`-queries
- * krijgen `null` (niet betrouwbaar DB-telbaar). Dedupliceert identieke queries (telt elk maar één
- * keer) en draait de counts parallel.
+ * Telt per canonieke query de nu-passende, zichtbare gepubliceerde opdrachten (`total`) én daarvan
+ * het aantal dat de afgelopen `RECENT_SAVED_SEARCH_DAYS` dagen is gepubliceerd (`recent`).
+ * `onlyEligible`-queries krijgen `null` (niet betrouwbaar DB-telbaar). Dedupliceert identieke queries
+ * (telt elk maar één keer) en draait de counts parallel. `now` is injecteerbaar voor determinisme.
  */
 export async function countSavedSearchMatches(
   queries: readonly string[],
   ctx: SavedSearchCountContext,
-): Promise<Map<string, number | null>> {
+  now: Date = new Date(),
+): Promise<Map<string, SavedSearchMatchCount | null>> {
   const unique = [...new Set(queries)];
+  const cutoff = recentSavedSearchCutoff(now);
   const entries = await Promise.all(
     unique.map(async (query) => {
       const where = savedSearchCountWhere(query, ctx);
       if (where === null) return [query, null] as const;
-      // Een `count` is inherent begrensd (aggregatie, geen rij-materialisatie) — geen scan-cap nodig.
-      const count = await prisma.job.count({ where });
-      return [query, count] as const;
+      // Twee `count`-aggregaties (geen rij-materialisatie) — begrensd door MAX_SAVED_SEARCHES.
+      const [total, recent] = await Promise.all([
+        prisma.job.count({ where }),
+        prisma.job.count({ where: withRecentPublishedWindow(where, cutoff) }),
+      ]);
+      return [query, { total, recent }] as const;
     }),
   );
   return new Map(entries);
