@@ -4,7 +4,46 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
-## Ronde 2026-08-25b (basis: `main` @ e33dc875) — LAAG OPGELOST (client-error message URL-scrub) + delta schoon + brede her-audit schoon
+## Ronde 2026-08-26 (basis: `main` @ b46cfa06) — HOOG OPGELOST (Next.js Critical CVE-patch, App Router Server-Action DoS) + brede her-audit + delta schoon
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
+(1) álle server actions (`"use server"`: samenwerkingen/facturen/documenten/reacties/profiel/account/certificaten/
+uitgaven/support/prestaties/bewaarde-zoekopdrachten + de FRANCHISER multi-tenant-actions) op de auth→rol→ownership→
+Zod→actie→audit-keten, IDOR, mass-assignment, statusovergangen, existence-oracles; (2) álle HTTP-handlers
+(`api/**/route.ts` + `(protected)/**/route.ts`): IDOR op elk `[id]`-endpoint, path-traversal op `media/[...key]`,
+cron/metrics/heartbeat fail-closed + timing-safe, SSRF (push-allowlist/vaste geocode-host), open redirect, error-leakage,
+rate-limiting op PII-exports; (3) privacy/AVG: `account-anonymization.ts` (volledigheid art. 17), `account-export.ts`/
+`avg/export` (art. 15), PII-minimalisatie naar de client, PII-in-logs, derde-partij-flows (Sentry/Geoapify/HIBP, art. 44),
+k-anonimiteit markttarief (≥10), retentie. **Alle drie audits: CLEAN — geen bevestigde nieuwe bevindingen** op de
+applicatie-oppervlakken. Delta t.o.v. de vorige basis (`e33dc875..b46cfa06`, 8 commits — bewaarde zoekopdrachten +
+match-teller (ZZP'er), beslis-achterstand-chip (opdrachtgever), gelekt-wachtwoord-controle-heartbeat, tenant-fee-
+grondslag, client-error URL-scrub) apart geverifieerd: de saved-search-actions dragen de volledige authz-keten +
+no-oracle `deleteMany`, `buildJobMarketplaceWhere`/de match-teller injecteren `visibleJobsWhere(actor)` (tenant-gescoopt,
+geen cross-tenant-telling), de HIBP-controle is k-anoniem (alleen 5-teken SHA-1-prefix verlaat de server, bcrypt-opslag,
+fail-open, logt nooit wachtwoord/hash). `npm audit --omit=dev`: **0 vulnerabilities** (prod-runtime, vóór én ná de bump).
+
+De enige nieuwe bevinding kwam uit de **stack-CVE-sweep** (OWASP A06 — Vulnerable & Outdated Components), niet uit de
+codebase — zie hieronder.
+
+### OPGELOST — [HOOG · OWASP A06 Vulnerable & Outdated Components · CLAUDE.md kwaliteitslat] Next.js 15.5.21 lag onder de augustus-2026 Critical-patch
+
+- **Geschonden regel:** OWASP Top 10 A06 (Vulnerable and Outdated Components) — een productieframework draaien met een
+  bekende, gepubliceerde Critical-kwetsbaarheid. **Severity HOOG** (upstream Critical): beschikbaarheid van een
+  productie-SaaS met gevoelige documenten; geen datalek, wél een remote-triggerbare DoS.
+- **Repro (CONFIRMED):** de app draaide op `next@15.5.21` (exact gepind in `package.json`). De **augustus-2026
+  Next.js security-release** dichtte **twee Critical-kwetsbaarheden**, gepatcht in **15.5.24** (Maintenance LTS). De
+  meest relevante — _Denial of Service in App Router using Server Actions_ — laat een speciaal vervaardigd HTTP-verzoek
+  naar een willekeurig App-Router Server-Function-endpoint bij deserialisatie buitensporig CPU-gebruik veroorzaken (DoS).
+  Dit platform draait **volledig op App Router + server actions**, dus dat endpoint-oppervlak is direct bereikbaar. (De
+  tweede fix — middleware/proxy-bypass bij Turbopack + single-locale — is hier niet van toepassing: i18n is uitgezet.)
+  Bron: Next.js augustus-2026 security-release-aankondiging + release-notes 15.5.24.
+- **Fix (deze PR):** `next` gebumpt `15.5.21 → 15.5.24` (Maintenance-LTS-patchlijn; geen major-migratie), lockfile
+  bijgewerkt, volledige gate opnieuw gedraaid (build inbegrepen — de bump breekt niets). Rood→groen: een supply-chain-
+  regressiepoort `src/lib/security/next-version-floor.test.ts` bewaakt de veilige vloer 15.5.24 (installed-versie én de
+  `package.json`-range); faalt onder de vloer (bewezen: 15.5.21 → RED), slaagt op/boven de vloer (15.5.24 → GREEN),
+  laat toekomstige patch-bumps binnen 15.5.x toe. **`npm audit --omit=dev`: 0 vulnerabilities** ná de bump.
+- **Zij-notitie (ongewijzigd, al veilig):** `next-auth@5.0.0-beta.32` is al ≥ de patch voor CVE-2026-73421 (improper
+  authorization / fail-open middleware, gefixt in beta.32). Geen actie nodig.
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
 (1) álle HTTP route-handlers (`src/app/api/**/route.ts` + de `(protected)/**/export/route.ts`): IDOR op elk

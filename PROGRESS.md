@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-26 — security: Next.js Critical CVE-patch (App Router Server-Action DoS) + brede her-audit schoon
+
+**Wat:** security-/privacy-auditronde (basis `main` @ b46cfa06). Orchestrator (Opus 4.8) + 3 parallelle
+adversariële Opus-audits op niet-overlappende oppervlakken — (1) álle server actions op de
+auth→rol→ownership→Zod→actie→audit-keten + IDOR/mass-assignment/statusovergangen/existence-oracles,
+(2) álle HTTP-handlers (IDOR/path-traversal/cron-fail-closed/SSRF/open-redirect/error-leakage/export-
+rate-limit), (3) privacy/AVG (anonimisering art. 17, export art. 15, PII-minimalisatie/logs, derde-
+partij-flows art. 44, k-anonimiteit, retentie). **Alle drie: CLEAN** op de applicatie-oppervlakken; de
+delta sinds de vorige basis (`e33dc875..b46cfa06` — bewaarde zoekopdrachten, match-teller, beslis-
+achterstand-chip, gelekt-wachtwoord-heartbeat) apart geverifieerd schoon.
+
+De enige nieuwe bevinding kwam uit de **stack-CVE-sweep** (OWASP A06): de app draaide op `next@15.5.21`,
+onder de **augustus-2026 Next.js-patch 15.5.24** die twee Critical-kwetsbaarheden dichtte — waaronder een
+_DoS in App Router Server Actions_ (crafted request → excessieve CPU bij deserialisatie), direct van
+toepassing omdat het platform volledig op App Router + server actions draait. **Fix:** `next`
+15.5.21 → 15.5.24 (Maintenance-LTS-patch), lockfile bijgewerkt. `next-auth@5.0.0-beta.32` was al ≥ de
+CVE-2026-73421-patch (geen actie).
+
+**Bestanden:** `package.json` + `package-lock.json` (next 15.5.24), nieuw
+`src/lib/security/next-version-floor.test.ts` (supply-chain-regressiepoort op de veilige vloer; RED op
+15.5.21 → GREEN op 15.5.24, patch-bumps binnen 15.5.x toegestaan), `docs/SECURITY-PRIVACY-BACKLOG.md`.
+`npm audit --omit=dev`: 0 vulnerabilities vóór én ná. Volgende: door met de backlog-items.
+
 ## 2026-08-26 — ZZP'er: match-teller op bewaarde zoekopdrachten (PR #1236)
 
 **Wat:** elke bewaarde zoekopdracht op `/opdrachten` toont nu een drift-vrije teller met het aantal
