@@ -27,6 +27,10 @@ import { getClientStats, fillRateHint } from "@/lib/client-stats";
 import { getClientRevenueTrend, getFreelancerRevenueTrend } from "@/lib/revenue-trend";
 import { getUnbilledInvoiceSummary } from "@/lib/data/unbilled-invoices";
 import { summarizeRosterExpiringSoon } from "@/lib/data/roster-expiry";
+import {
+  getPoolOutstandingGlance,
+  type PoolOutstandingGlance,
+} from "@/lib/franchise/pool-outstanding";
 import { formatDeltaPct, earningsDeltaTone } from "@/lib/revenue-delta";
 import { getTranslator } from "@/lib/i18n/server";
 import { avatarAccent } from "@/lib/avatar-accent";
@@ -119,6 +123,8 @@ interface DashboardData {
   seal?: { title: string; subtitle: string; items: WsSealItem[]; reportHref?: string };
   /** Passief rail-signaal (alleen FREELANCER): no-show-stand — historie, geen openstaande actie. */
   notice?: WsNotice | null;
+  /** Pool-brede openstaand-cashflow-glance (alleen FRANCHISER); null wanneer er niets openstaat. */
+  poolOutstanding?: PoolOutstandingGlance | null;
 }
 
 /** Kopkaart in de stijl van het publieke profiel: subtitel, kerncijfers, zegel, publieke link. */
@@ -683,6 +689,9 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       ],
       reportHref: "/franchise/zzpers",
     };
+    // Pool-brede openstaand-cashflow: het enige geldcijfer op het bemiddelaar-startscherm. Dezelfde
+    // canonieke aging-motor als /franchise/opdrachtgevers en /openstaand → geen drift.
+    const poolOutstanding = await getPoolOutstandingGlance(tenantId, now);
     return {
       stats: [
         { label: "Opdrachtgevers", value: companies, href: "/franchise/opdrachtgevers" },
@@ -697,6 +706,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       isNewAccount: companies === 0 && freelancers === 0,
       professionals,
       seal,
+      poolOutstanding,
     };
   }
 
@@ -804,6 +814,7 @@ export default async function DashboardPage() {
       professionals,
       seal: franchiserSeal,
       notice,
+      poolOutstanding,
     },
     matches,
     tasks,
@@ -1062,11 +1073,28 @@ export default async function DashboardPage() {
   // --- BEMIDDELAAR: #19 drie-koloms workspace met echte data ---
   if (role === "FRANCHISER") {
     const fKpiIcons = [Briefcase, Users, Inbox, Gauge];
-    const fKpis = stats.slice(0, 4).map((st, i) => ({
+    const fKpis: WsKpi[] = stats.slice(0, 4).map((st, i) => ({
       icon: fKpiIcons[i] ?? Gauge,
       label: st.label,
       value: String(st.value),
     }));
+    // Geld-glance: het enige cijfer in euro's op het bemiddelaar-startscherm — "hoeveel staat er nu
+    // open bij mijn pool, en hoeveel te laat?" Alleen tonen bij ≥1 openstaande post (rustig scherm);
+    // een te late post zet de toon op waarschuwing. Zelfde motor als /franchise/opdrachtgevers.
+    if (poolOutstanding) {
+      fKpis.push({
+        icon: Wallet,
+        label: "Openstaand bij pool",
+        value: formatEuro(poolOutstanding.totalOpenCents),
+        hint:
+          poolOutstanding.overdueCount > 0
+            ? `${formatEuro(poolOutstanding.overdueCents)} te laat · ${poolOutstanding.clientsOverdue} ${poolOutstanding.clientsOverdue === 1 ? "opdrachtgever" : "opdrachtgevers"}`
+            : "alles binnen betaaltermijn",
+        ...(poolOutstanding.tone === "warning"
+          ? { delta: "te laat", deltaTone: "warning" as const }
+          : {}),
+      });
+    }
     const openD = Number(stats.find((s) => s.label === "Open diensten")?.value ?? 0);
     const wk = buildCurrentWeek(new Date(), `${openD} ${openD === 1 ? "dienst" : "diensten"}`);
     // Volgende acties uit één bron: de item-engine (`tasks`) levert de geleide opzet, roster-
