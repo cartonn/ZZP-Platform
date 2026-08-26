@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-26 — routine: openstaand-cashflow-KPI op het bemiddelaar-dashboard
+
+**Wat:** het bemiddelaar-startscherm (FRANCHISER-tak van `dashboard/page.tsx`) was volledig
+telling-gebaseerd (opdrachtgevers, ZZP'ers, open diensten, samenwerkingen) — geen enkel geldcijfer,
+terwijl de FREELANCER/CLIENT-dashboards al een geld-glance dragen. Deze increment brengt de al
+bestaande, geteste pool-openstaand-motor (`poolOutstandingTotals`, tot nu alleen op
+`/franchise/opdrachtgevers`) naar het dashboard als glance-KPI-tegel: "Openstaand bij pool" toont het
+totale openstaande bedrag bij de pool-ZZP'ers, met een hint "€X te laat · N opdrachtgever(s)" en een
+warning-toon zodra er iets te laat is. Zo ziet de bemiddelaar zijn kern-cashflowsignaal waar hij de dag
+begint, zonder eerst `/franchise/opdrachtgevers` te openen.
+
+**Server-side waarheid, geen drift:** hergebruikt de canonieke aging-motor (`buildAgingReport` via
+`clientOutstandingByCompany` + `poolOutstandingTotals`) en de canonieke openstaand-regel
+(`outstandingInvoiceWhere`) — dezelfde bron/bedragen als `/franchise/opdrachtgevers` en `/openstaand`.
+Tenant-gescopet via `collaboration.company.tenantId`. Pure presenter `buildPoolOutstandingGlance`
+(null bij €0 → rustig scherm; warning-toon bij te laat) is losgetrokken van de I/O en unit-getest.
+Read-only, geen schema-/mutatie-/authz-oppervlak.
+
+**Bestanden:** `src/lib/franchise/pool-outstanding.ts` (NIEUW — `PoolOutstandingGlance`,
+`buildPoolOutstandingGlance`, `getPoolOutstandingGlance`),
+`src/lib/franchise/pool-outstanding.test.ts` (NIEUW — 5 tests op de pure presenter),
+`src/app/(protected)/dashboard/page.tsx` (FRANCHISER-tak: laden + KPI-tegel; `DashboardData.poolOutstanding`).
+
+**Checks:** typecheck · lint · test · build · prettier → PR #1242 / CI-poort.
+
 ## 2026-08-26 — routine: verse treffers uit bewaarde zoekopdrachten op het dashboard (ZZP'er)
 
 **Wat:** de bewaarde zoekopdrachten tonen op `/opdrachten` al een totaal-match-teller (#1236) en een
