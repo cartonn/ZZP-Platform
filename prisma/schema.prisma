@@ -1616,6 +1616,28 @@ model PasswordBreachDeliveryHeartbeat {
   updatedAt           DateTime  @updatedAt
 }
 
+// Aflever-heartbeat (dead-man's-switch) voor de externe error-monitoring (Sentry, SENTRY_DSN gezet).
+// De error-reporter is bewust FAIL-OPEN — kan een fout niet naar de externe monitor worden gestuurd
+// (pakket @sentry/nextjs niet geïnstalleerd, of captureException/init werpt), dan valt 'ie STIL terug
+// op console-loggen zodat het rapporteren zelf nooit een request laat falen. Juist voor één blip, maar
+// een AANHOUDENDE storing (verwijderd/niet-geïnstalleerd pakket, kapotte DSN, geblokkeerde uitgaande
+// route) laat élke server-/taakfout de externe monitoring STIL missen — precies de faalmodus die de
+// point-in-time-zelftest (menselijke klik) niet doorlopend afvangt. Elke échte capture via de
+// Sentry-reporter registreert hier haar uitkomst (de console-default zónder DSN registreert bewust niets —
+// geen extern kanaal). Event-gedreven oordeel op de laatste operatie (never/ok/failing + teller);
+// geslaagde captures worden gecoalesceerd (de reporter zit op de fout-hot-path bij een fout-storm).
+// Bevat geen persoonsgegevens, geen DSN en geen foutinhoud — alleen tijdstippen, de teller en de driver.
+model ErrorMonitoringDeliveryHeartbeat {
+  channel             String    @id // "error-monitoring"
+  lastAttemptAt       DateTime
+  lastOk              Boolean
+  lastSuccessAt       DateTime?
+  lastFailureAt       DateTime?
+  consecutiveFailures Int       @default(0)
+  driver              String // error-monitoring-modus bij de laatste poging: "sentry"
+  updatedAt           DateTime  @updatedAt
+}
+
 // Idempotentie-grendel voor de betaal-webhook (/api/billing/webhook). Elke verwerkte
 // provider-ping wordt hier exact één keer vastgelegd op (provider, eventKey), waarbij
 // eventKey = "<paymentRef>:<status>". Een herspeeld of dubbel-afgeleverd event schendt de

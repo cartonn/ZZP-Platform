@@ -68,6 +68,9 @@ const HEALTHY: MetricsInput = {
   passwordBreachDeliveryOk: true,
   passwordBreachDeliveryConsecutiveFailures: 0,
   passwordBreachDeliveryLastFailureAgeSeconds: null,
+  errorMonitoringDeliveryOk: true,
+  errorMonitoringDeliveryConsecutiveFailures: 0,
+  errorMonitoringDeliveryLastFailureAgeSeconds: null,
 };
 
 function valueOf(input: MetricsInput, name: string): number {
@@ -517,6 +520,9 @@ describe("buildMetrics", () => {
       passwordBreachDeliveryOk: false,
       passwordBreachDeliveryConsecutiveFailures: 11,
       passwordBreachDeliveryLastFailureAgeSeconds: 2400,
+      errorMonitoringDeliveryOk: false,
+      errorMonitoringDeliveryConsecutiveFailures: 12,
+      errorMonitoringDeliveryLastFailureAgeSeconds: 2700,
     };
     expect(valueOf(input, "zzp_db_reachable")).toBe(0);
     expect(valueOf(input, "zzp_metrics_collection_complete")).toBe(0);
@@ -544,6 +550,9 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_password_breach_delivery_ok")).toBe(0);
     expect(valueOf(input, "zzp_password_breach_consecutive_failures")).toBe(11);
     expect(valueOf(input, "zzp_password_breach_last_failure_age_seconds")).toBe(2400);
+    expect(valueOf(input, "zzp_error_monitoring_delivery_ok")).toBe(0);
+    expect(valueOf(input, "zzp_error_monitoring_consecutive_failures")).toBe(12);
+    expect(valueOf(input, "zzp_error_monitoring_last_failure_age_seconds")).toBe(2700);
     expect(valueOf(input, "zzp_maintenance_mode")).toBe(1);
     expect(valueOf(input, "zzp_credentials_overdue_expiry")).toBe(12);
     expect(valueOf(input, "zzp_subscriptions_overdue_expiry")).toBe(8);
@@ -660,6 +669,9 @@ describe("buildMetrics", () => {
       "zzp_password_breach_delivery_ok",
       "zzp_password_breach_consecutive_failures",
       "zzp_password_breach_last_failure_age_seconds",
+      "zzp_error_monitoring_delivery_ok",
+      "zzp_error_monitoring_consecutive_failures",
+      "zzp_error_monitoring_last_failure_age_seconds",
     ]);
   });
 });

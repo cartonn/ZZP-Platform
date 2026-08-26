@@ -136,6 +136,30 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   Opslag-/E-mail-/Rate-limit-/Verificatie-/Betaalprovider-/Upload-scanner-zelftest). Resterend
   mensenwerk: **niets extra** — de knop is er zodra `SENTRY_DSN` gezet is (en `@sentry/nextjs`
   geïnstalleerd).
+  **Code-kant GEDAAN (2026-08-26) — error-monitoring aflever-heartbeat (dead-man's-switch):** de
+  zelftest hierboven bewijst bereikbaarheid **vóór go-live** (menselijke klik); hij zegt niets over de
+  duizenden échte fout-captures daarna. Omdat de error-reporter bewust **fail-open** is (kan 'ie een fout
+  niet naar Sentry sturen — pakket niet geïnstalleerd, of `captureException`/`init` werpt — dan valt 'ie
+  stil terug op console zodat het rapporteren zelf nooit een request laat falen), laat een AANHOUDENDE
+  storing (niet-geïnstalleerd/verwijderd `@sentry/nextjs`, kapotte DSN, geblokkeerde uitgaande route) élke
+  onafgevangen server-/taakfout de externe monitoring STIL missen — de operator denkt fouten in Sentry te
+  zien terwijl ze alleen in de host-logs belanden. Dit was het laatste fail-open productie-**kern**kanaal
+  zónder doorlopend afleversignaal (storage/mail/push/billing/verificatie/rate-limit/gelekt-wachtwoord
+  hadden er al één). Nu registreert elke capture via de Sentry-reporter (`SENTRY_DSN` gezet) haar uitkomst
+  in een `ErrorMonitoringDeliveryHeartbeat` (de console-default zónder DSN registreert bewust niets — geen
+  extern kanaal). Event-gedreven oordeel op de **laatste** operatie (`never`/`ok`/`failing` + teller);
+  geslaagde captures worden **gecoalesceerd** (max één schrijf per venster, `ERROR_MONITORING_HEARTBEAT_COALESCE_MS`,
+  default 15s) zodat een fout-storm de fout-hot-path geen DB-write per capture geeft, mislukkingen worden
+  altijd direct vastgelegd en een herstel schrijft meteen. **Belangrijk:** de heartbeat vangt de dóórlopende
+  **dispatch**-storing af (pakket ontbreekt / init/capture werpt); het definitieve transport-bewijs (flush)
+  blijft de point-in-time-zelftest. Kaart "Error-monitoring" op `/admin/systeemstatus`; gauges
+  `zzp_error_monitoring_delivery_ok`/`zzp_error_monitoring_consecutive_failures`/
+  `zzp_error_monitoring_last_failure_age_seconds` op `/api/metrics`; alert `ZzpErrorMonitoringDeliveryFailing`
+  (`==0 and >=3`, `for:15m`, warning) in `docs/observability/alerts.yml`, in de onderhouds-inhibitie. De
+  heartbeat logt zijn eigen DB-schrijffout bewust rechtstreeks via de logger (nooit via `reportError` —
+  dat zou terug door de Sentry-reporter routen → recursie). Bevat nooit de DSN, PII of foutinhoud.
+  Resterend mensenwerk: **niets extra** — de kaart/gauges vullen zichzelf zodra `SENTRY_DSN` gezet is en de
+  eerste fout wordt gerapporteerd. Optioneel: richt een monitor op `ZzpErrorMonitoringDeliveryFailing`.
 - **CSP-violatie-rapportage aanzetten/monitoren** (laag, code-kant GEDAAN 5-7-2026): de
   Content-Security-Policy stuurt nu violatie-rapporten naar een eigen endpoint (`/api/csp-report`)
   via `report-to` (moderne Reporting API + `Reporting-Endpoints`-header) én `report-uri` (fallback,

@@ -11,6 +11,15 @@ vi.mock("@/lib/observability/logger", () => ({
   },
 }));
 
+// De aflever-heartbeat wordt apart getest (met eigen prisma-mock); hier mocken we 'm zodat de
+// reporter-test losstaat van de DB en we kunnen verifiëren dat capture succes/mislukking registreert.
+const recordSuccess = vi.hoisted(() => vi.fn(async () => {}));
+const recordFailure = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock("@/lib/observability/error-monitoring-delivery-heartbeat", () => ({
+  recordErrorMonitoringDeliverySuccess: recordSuccess,
+  recordErrorMonitoringDeliveryFailure: recordFailure,
+}));
+
 import { logger } from "@/lib/observability/logger";
 import {
   __resetReporterForTests,
@@ -44,6 +53,8 @@ beforeEach(() => {
   sentryCaptureException.mockClear();
   sentryCaptureMessage.mockClear();
   sentryFlush.mockClear();
+  recordSuccess.mockClear();
+  recordFailure.mockClear();
 });
 
 afterEach(() => {
@@ -199,5 +210,43 @@ describe("probeErrorMonitoring", () => {
     expect(result.packageInstalled).toBe(false);
     expect(result.delivered).toBe(false);
     expect(result.detail).toContain("@sentry/nextjs");
+  });
+});
+
+describe("aflever-heartbeat-wiring (SentryErrorReporter.capture)", () => {
+  it("een geslaagde capture registreert aflever-succes, geen mislukking", async () => {
+    process.env.SENTRY_DSN = "https://example@o0.ingest.sentry.io/0";
+    await reportError(new Error("boom"), { source: "onRequestError" });
+    expect(sentryCaptureException).toHaveBeenCalledTimes(1);
+    expect(recordSuccess).toHaveBeenCalledTimes(1);
+    expect(recordFailure).not.toHaveBeenCalled();
+  });
+
+  it("een ontbrekend @sentry/nextjs-pakket registreert een aflever-mislukking en valt terug op console", async () => {
+    process.env.SENTRY_DSN = "https://example@o0.ingest.sentry.io/0";
+    __setSentryLoaderForTests(async () => null);
+    await reportError(new Error("boom"), { source: "onRequestError" });
+    expect(recordFailure).toHaveBeenCalledTimes(1);
+    expect(recordSuccess).not.toHaveBeenCalled();
+    // Console-fallback schreef de fout gestructureerd weg.
+    expect(errorSpy.mock.calls.filter((c) => c[0] === "unhandled-error")).toHaveLength(1);
+  });
+
+  it("een werpende captureException registreert een aflever-mislukking en valt terug op console (geen worp)", async () => {
+    process.env.SENTRY_DSN = "https://example@o0.ingest.sentry.io/0";
+    sentryCaptureException.mockImplementationOnce(() => {
+      throw new Error("transport kapot");
+    });
+    await expect(reportError(new Error("boom"))).resolves.toBeUndefined();
+    expect(recordFailure).toHaveBeenCalledTimes(1);
+    expect(recordSuccess).not.toHaveBeenCalled();
+    expect(errorSpy.mock.calls.filter((c) => c[0] === "unhandled-error")).toHaveLength(1);
+  });
+
+  it("zonder SENTRY_DSN (console-reporter) registreert de heartbeat niets", async () => {
+    delete process.env.SENTRY_DSN;
+    await reportError(new Error("boom"));
+    expect(recordSuccess).not.toHaveBeenCalled();
+    expect(recordFailure).not.toHaveBeenCalled();
   });
 });
