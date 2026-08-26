@@ -13,6 +13,7 @@ import {
 } from "@/lib/kandidaten-filter";
 import { computeCompliance, scoreJobForFreelancer, topPositiveReason } from "@/lib/matching";
 import { computeClientResponsiveness } from "@/lib/client-responsiveness";
+import { buildCollaborationProposalPrefill } from "@/lib/collaboration-proposal-prefill";
 import { ResponsivenessReputationCard } from "@/components/administratie/responsiveness-reputation-card";
 import {
   summarizeCandidateDecision,
@@ -114,6 +115,7 @@ export default async function KandidatenPage({
     reproposalNote: t(
       "Je vorige voorstel is geannuleerd. Stuur een nieuw voorstel om de samenwerking alsnog te starten.",
     ),
+    prefillNote: t("Vooringevuld met het tariefvoorstel en de startdatum — pas gerust aan."),
   };
   const bulkLabels = {
     viewed: t("Bekeken"),
@@ -455,6 +457,12 @@ export default async function KandidatenPage({
                 // "Blokkeert een levende/afgeronde samenwerking een nieuw voorstel?" — false bij geen
                 // collaboration én bij een herbruikbaar geannuleerd voorstel. Voedt de triage + de knoppen.
                 const collabBlocks = app.collaboration != null && !reproposable;
+                // Vooringave voor het samenwerkingsvoorstel: tariefvoorstel van de kandidaat + de
+                // startdatum van de opdracht. Server blijft de waarheid; dit scheelt overtypen.
+                const proposalPrefill = buildCollaborationProposalPrefill({
+                  proposedRate: app.proposedRate,
+                  jobStartDate: app.job.startDate,
+                });
                 // Live compliance: actuele certificaatstatus, niet de bevroren snapshot van het
                 // reactiemoment (een VOG kan intussen verlopen zijn). Eén keer berekend (zie
                 // complianceByApp) en hier hergebruikt, zodat band en rij hetzelfde oordeel tonen. De
@@ -840,6 +848,8 @@ export default async function KandidatenPage({
                         applicationId={app.id}
                         reproposal={reproposable}
                         labels={proposeLabels}
+                        defaultRate={proposalPrefill.rate}
+                        defaultStartIso={proposalPrefill.startIso}
                         unavailableWindows={app.freelancer.availabilityWindows
                           .filter((w) => w.type === "UNAVAILABLE" && w.endDate >= now)
                           .map((w) => ({

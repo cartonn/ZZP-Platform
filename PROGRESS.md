@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-26 — routine: prefill tarief + startdatum in het samenwerkingsvoorstel (opdrachtgever)
+
+**Wat:** wanneer de opdrachtgever op `/kandidaten` een geaccepteerde kandidaat een samenwerking
+voorstelt, startten de velden **Tarief** en **Startdatum** leeg — terwijl het tariefvoorstel van de
+kandidaat (`proposedRate`) en de startdatum van de opdracht al op dezelfde rij staan. Dit increment
+vult die twee velden voor (client-side gemak; de server blijft de waarheid + validatie), met een
+muted toelichting "Vooringevuld … pas gerust aan". Scheelt overtypen + tikfouten op het hoogste-
+inzet-moment (geaccepteerd → getekende samenwerking). Vertaalt de "geen re-entry"-UX van Linear/
+Stripe naar onze accept→collaborate-stap.
+
+**Waarom veilig:** de vooringave is puur convenience. `buildCollaborationProposalPrefill`
+(nieuw, puur) vult het tarief alléén uit `proposedRate` en alléén als het binnen de schema-grenzen
+[1, 2000] én geheel is (raadt bewust géén budget-bedrag als bindend voorstel); de startdatum uit
+`job.startDate` (ISO), of leeg. Het formulier accepteert de defaults als `defaultValue` (blijft
+uncontrolled); de startdatum-default voedt meteen de bestaande onbeschikbaarheids-conflictcheck.
+`proposeCollaboration` + `collaborationProposalSchema` valideren onveranderd server-side.
+
+**Bestanden:** `src/lib/collaboration-proposal-prefill.ts` (NIEUW — pure helper),
+`src/lib/collaboration-proposal-prefill.test.ts` (NIEUW — 7 tests),
+`src/app/(protected)/kandidaten/propose-collaboration.tsx` (defaultRate/defaultStartIso props +
+prefill-hint), `src/app/(protected)/kandidaten/page.tsx` (prefill berekenen + doorgeven + label).
+
+**Checks:** typecheck ✓ · lint ✓ · test (nieuw 7/7) ✓ · build ✓ · prettier ✓ → PR #1246 + CI-poort.
+
 ## 2026-08-26 — security/privacy: `SavedJobSearch` in de AVG-erasure + durable dekkingspoort
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
