@@ -841,6 +841,17 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // Zonder dit overleeft toewijsbare gedragsmetadata (wat deze persoon bewaarde, en wanneer) een
     // art. 17-verzoek; symmetrisch is de rij nu ook exporteerbaar (`account-export.ts`, art. 15/20).
     prisma.savedJob.deleteMany({ where: { freelancer: { userId } } }),
+    // AVG art. 17 — de eigen bewaarde zoekopdrachten (`SavedJobSearch`): de door de betrokkene zelf
+    // getypte naam (vrije tekst — kan een persoon/plaats/opdrachtgever benoemen) én de opgeslagen
+    // zoekfilter (`query`) + het aanmaakmoment (`createdAt`). Dit is eigen gedrags-/voorkeurmetadata
+    // (waar de betrokkene als ZZP'er naar werk zocht, en wanneer) zonder gedeelde/tegenpartij- of
+    // fiscale bewaarwaarde — exact het profiel van `SavedJob` hierboven. Het `FreelancerProfile` wordt
+    // geüpdatet (niet verwijderd), dus de `onDelete: Cascade` op `SavedJobSearch.freelancerProfileId`
+    // vuurt niet → expliciet hard verwijderen (spiegel `savedJob`/`workExperience`/`availabilityWindow`).
+    // Gescopet op het eigen profiel (`freelancer.userId`), nooit de bewaarde zoekopdrachten van een
+    // andere ZZP'er. Zonder dit overleeft toewijsbare gedragsmetadata een art. 17-verzoek; symmetrisch
+    // is de rij nu ook exporteerbaar (`account-export.ts`, art. 15/20).
+    prisma.savedJobSearch.deleteMany({ where: { freelancer: { userId } } }),
     // AVG art. 17 — de eigen e-mailvoorkeuren (`NotificationPreference`): per categorie of de
     // betrokkene e-mail aan/uit zette. Opt-out-/gedragsconfiguratie gebonden aan zíjn `userId`; een
     // `user.update` triggert de `onDelete: Cascade` niet → expliciet wissen (hard delete — de rij is

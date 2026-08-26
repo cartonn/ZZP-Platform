@@ -4,6 +4,64 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-26 (2e run — basis: `main` @ 94db801e) — MIDDEL OPGELOST (onvolledige AVG art. 17-erasure: `SavedJobSearch`) + durable dekkingspoort + brede her-audit schoon
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
+(1) de delta sinds de vorige basis (bewaarde-zoekopdrachten-alerts/-tellers, job-zichtbaarheid/tenant-scoping,
+franchise pool-openstaand) op cross-tenant-lek, IDOR, existence-oracle; (2) **álle 59 HTTP route-handlers**
+(`api/**/route.ts` + `(protected)/**/route.ts`): IDOR op elk `[id]`/`[...key]`-endpoint, path-traversal op
+`media/[...key]`, cron/metrics/heartbeat fail-closed + timing-safe, SSRF (push-allowlist), open redirect,
+error-leakage, rate-limiting op PII-exports, anti-oracle 404; (3) privacy/AVG: `account-anonymization`/
+`anonymizeUser` (volledigheid art. 17 tegen álle 78 modellen), `account-export` (art. 15/20), PII-minimalisatie
+naar de client, PII-in-logs, derde-partij-flows (Sentry/Geoapify/HIBP), k-anonimiteit markttarief (≥10), retentie.
+Audits (1) en (2): **CLEAN — geen bevestigde nieuwe bevindingen**. Audit (3) vond de erasure exceptioneel volledig
+(incl. drie-kopie-lekken naar ándermans notificatie-feed), maar signaleerde één **procesgat**: er was geen
+CI-poort die afdwingt dat een nieuw PII-dragend model in de erasure wordt gedraad — en precies dat gat had zich al
+gemanifesteerd. `npm audit --omit=dev`: **0 vulnerabilities** (prod-runtime schoon); dev-transitieve DoS-advisories
+(brace-expansion/deepmerge-ts/esbuild/js-yaml) ongewijzigd, niet bereikbaar in de prod-runtime.
+
+### OPGELOST — [MIDDEL · AVG art. 17 (recht op vergetelheid) + art. 15/20 · OWASP A01/privacy] `SavedJobSearch` overleefde de account-anonimisering
+
+- **Geschonden regel:** AVG art. 17 — een verwijderverzoek moet álle persoonsgegevens van de betrokkene wissen.
+  **Severity MIDDEL:** reëel onvolledige erasure van eigen gedrags-/voorkeurmetadata; latent (geen cross-partij-lek —
+  de rij is privé voor de ZZP'er, net als `SavedJob`).
+- **Repro (CONFIRMED):** `SavedJobSearch` (`name` = zelf-getypte vrije tekst, kan een persoon/plaats/opdrachtgever
+  benoemen; `query` = opgeslagen zoekfilter; `createdAt`) is de exacte structurele spiegel van `SavedJob`
+  (`freelancerProfileId` + `onDelete: Cascade`). `SavedJob` wordt in `anonymizeUser` expliciet hard verwijderd, maar
+  `SavedJobSearch` — toegevoegd met de recente bewaarde-zoekopdrachten-feature (#1239–#1241) — was nooit ingedraad.
+  Omdat de anonimisering het `FreelancerProfile` **update** (niet verwijdert), vuurt de `onDelete: Cascade` niet →
+  de rijen bleven staan, toewijsbaar aan de behouden `FreelancerProfile.id`. De inzage-export (`account-export.ts`)
+  toonde `SavedJob` wél maar `SavedJobSearch` niet → óók een art. 15/20-asymmetrie.
+- **Fix (deze PR):** (a) `prisma.savedJobSearch.deleteMany({ where: { freelancer: { userId } } })` toegevoegd aan de
+  erasure-transactie (spiegel van `savedJob`); (b) `savedJobSearches` toegevoegd aan `account-export.ts` (naam +
+  query + createdAt, gescopet op het eigen profiel) voor art. 15/20-symmetrie. Rood→groen: assertie in
+  `anonymize-erasure.test.ts` (deleteMany gescopet op `freelancer.userId`) en in `account-export.test.ts` (sectie +
+  scope + select); beide falen zonder de bronwijziging.
+- **Durable poort (voorkomt herhaling):** nieuwe `anonymize-schema-coverage.test.ts` — enumereert álle 78
+  Prisma-modellen en dwingt af dat elk model óf door `anonymizeUser` wordt aangeraakt (`prisma.<model>`, woordgrens),
+  óf op een expliciete, **gemotiveerde** uitzonderingslijst staat ([INFRA]/[REFERENCE]/[JOIN]/[FISCAAL]/[CASCADE]/
+  [AUTH]/[APART]). Een toekomstig PII-model dat op geen van beide lijsten staat breekt de CI-poort i.p.v. stil PII te
+  laten overleven. Bewezen rood→groen: zonder de `SavedJobSearch`-fix meldt de poort exact `SavedJobSearch` als
+  ongeclassificeerd. Spiegelt `logger.pii-name-coverage.test.ts` (die hetzelfde doet voor log-redactie).
+
+### GEPARKEERD — [LAAG · AVG art. 5(1)(e) opslagbeperking · MENSENWERK] productie-retentievensters staan default UIT
+
+- **Geschonden regel:** AVG art. 5(1)(e) (opslagbeperking). **Severity LAAG** — by-design inert per CLAUDE.md regel 8
+  (een integratie/retentievenster start pas na expliciete operator-configuratie), geen codedefect.
+- **Repro:** `LEAD_RETENTION_DAYS`, `APPLICATION_RETENTION_DAYS` en de audit-log-retentie staan uitgecommentarieerd in
+  `.env.example` → de opruimtaken zijn inert tot een mens ze op Railway zet. **MENSENWERK:** vóór go-live met echte
+  VOG/diploma/BIG-gegevens moet een mens bevestigen dat deze vensters (én `PASSWORD_BREACH_CHECK=hibp`, `SENTRY_DSN`)
+  daadwerkelijk aan staan. Niet iets dat een agent stil in productie-config mag omzetten.
+
+### GEPARKEERD — [LAAG · OWASP A06 · dev-only] `Account`/`Session` (Auth.js-adaptertabellen) niet in de erasure gewist
+
+- **Geschonden regel:** AVG art. 17 defense-in-depth. **Severity LAAG:** dit platform draait op credentials+JWT
+  (stateless), dus `Account` (OAuth-tokens) en `Session` zijn in de praktijk **niet gevuld**; de erasure maakt het
+  account sowieso inert (SUSPENDED, lege passwordHash, `currentActor` blokkeert). Bewust op de dekkingspoort-allowlist
+  ([AUTH]) gezet i.p.v. gewist.
+- **Aanbevolen fix (indien OAuth ooit wordt ingeschakeld):** voeg `prisma.account.deleteMany`/`session.deleteMany`
+  (`where: { userId }`) aan de erasure toe zodat provider-tokens niet achterblijven. Nu een no-op, dus geparkeerd.
+
 ## Ronde 2026-08-26 (basis: `main` @ b46cfa06) — HOOG OPGELOST (Next.js Critical CVE-patch, App Router Server-Action DoS) + brede her-audit + delta schoon
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —

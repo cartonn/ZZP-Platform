@@ -49,6 +49,7 @@ function fakeDb(rows: Record<string, unknown> = {}) {
     lessonCompletion: { findMany: make("lessonCompletion", "findMany") },
     ideaVote: { findMany: make("ideaVote", "findMany") },
     savedJob: { findMany: make("savedJob", "findMany") },
+    savedJobSearch: { findMany: make("savedJobSearch", "findMany") },
     notificationPreference: { findMany: make("notificationPreference", "findMany") },
   };
   return { db: db as unknown as PrismaClient, calls };
@@ -90,6 +91,7 @@ describe("buildAccountExport", () => {
       "lessonCompletions",
       "ideaVotes",
       "savedJobs",
+      "savedJobSearches",
       "notificationPreferences",
     ] as const) {
       expect(payload).toHaveProperty(key);
@@ -155,6 +157,17 @@ describe("buildAccountExport", () => {
     expect(sj).toBeDefined();
     expect((sj?.args.where as { freelancer?: { userId?: string } }).freelancer?.userId).toBe(ACTOR);
     expect(sj?.args.select).toEqual({ jobId: true, createdAt: true });
+
+    // De eigen bewaarde zoekopdrachten (SavedJobSearch) — gescopet op het eigen profiel (freelancer.userId),
+    // select op naam + zoekfilter + aanmaakmoment, nooit de zoekopdrachten van een andere ZZP'er. Rood
+    // zonder de bronwijziging: buildAccountExport bevroeg SavedJobSearch nooit, terwijl `anonymizeUser` de
+    // rijen nu wél wist → een inzage/erasure-asymmetrie (art. 15/20).
+    const sjs = calls.find((c) => c.table === "savedJobSearch");
+    expect(sjs).toBeDefined();
+    expect((sjs?.args.where as { freelancer?: { userId?: string } }).freelancer?.userId).toBe(
+      ACTOR,
+    );
+    expect(sjs?.args.select).toEqual({ name: true, query: true, createdAt: true });
   });
 
   it("neemt de eigen e-mailkanaal-voorkeuren mee, gescopet op de actor (AVG art. 15/20; spiegel van de NotificationPreference-erasure)", async () => {
