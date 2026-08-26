@@ -668,7 +668,7 @@ export async function withdrawInvoiceAction(
 ): Promise<void> {
   const actor = await requireActor();
   try {
-    await withdrawInvoice(actor, invoiceId, boundReason(formData.get("reason")));
+    await withdrawInvoice(actor, invoiceId, boundReason(formData.get("withdrawReason")));
   } catch (e) {
     toMessage(e);
   }

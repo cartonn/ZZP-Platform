@@ -945,7 +945,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                               className="mt-2 flex items-center gap-2"
                             >
                               <input
-                                name="reason"
+                                name="withdrawReason"
                                 aria-label="Reden voor intrekken (optioneel)"
                                 placeholder="Reden (optioneel)"
                                 className="focus-ring flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs"
