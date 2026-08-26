@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-26 — security/privacy: `SavedJobSearch` in de AVG-erasure + durable dekkingspoort
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: delta+job-zichtbaarheid/tenant-scoping; álle 59 HTTP route-handlers;
+privacy/AVG). Audits 1 en 2 CLEAN. Audit 3 vond de erasure exceptioneel volledig, maar één **reëel gat**:
+`SavedJobSearch` (bewaarde zoekopdrachten, feature #1239–#1241) overleefde `anonymizeUser` — de exacte
+structurele spiegel van `SavedJob` (`freelancerProfileId` + `onDelete: Cascade`), maar niet ingedraad. Omdat
+de anonimisering het `FreelancerProfile` update (niet verwijdert), vuurt de cascade niet → `name` (vrije
+tekst) + `query` + `createdAt` bleven staan, toewijsbaar aan de behouden profiel-id (AVG art. 17). Ook een
+inzage-asymmetrie: `account-export` toonde `SavedJob` wél, `SavedJobSearch` niet (art. 15/20).
+
+**Fix:** (a) `savedJobSearch.deleteMany({ freelancer: { userId } })` in de erasure-transactie; (b)
+`savedJobSearches` (naam+query+createdAt, eigen-profiel-scope) in `account-export`. **Durable poort:** nieuwe
+`anonymize-schema-coverage.test.ts` dwingt af dat élk van de 78 Prisma-modellen óf door `anonymizeUser` wordt
+aangeraakt óf op een gemotiveerde uitzonderingslijst staat — een toekomstig PII-model breekt anders de CI-poort
+(spiegelt `logger.pii-name-coverage.test.ts`). Bewezen rood→groen: zonder de fix meldt de poort exact
+`SavedJobSearch`.
+
+**Bestanden:** `src/app/(protected)/admin/gebruikers/actions.ts` (erasure),
+`src/lib/account-export.ts` (export), `src/app/(protected)/admin/gebruikers/anonymize-schema-coverage.test.ts`
+(NIEUW — dekkingspoort), `+ anonymize-erasure.test.ts` / `account-export.test.ts` (rood→groen-asserties),
+`docs/SECURITY-PRIVACY-BACKLOG.md`. Geparkeerd (LAAG): retentievensters default-uit (MENSENWERK),
+`Account`/`Session` niet gewist (dev-only, credentials+JWT → niet gevuld).
+
+**Checks:** typecheck · lint · test (7037) · build · prettier → PR + CI-poort.
+
 ## 2026-08-26 — routine: openstaand-cashflow-KPI op het bemiddelaar-dashboard
 
 **Wat:** het bemiddelaar-startscherm (FRANCHISER-tak van `dashboard/page.tsx`) was volledig

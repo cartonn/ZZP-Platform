@@ -48,6 +48,10 @@ export interface AccountExportPayload {
   lessonCompletions: unknown;
   ideaVotes: unknown;
   savedJobs: unknown;
+  // AVG art. 15/20 — de eigen bewaarde zoekopdrachten (SavedJobSearch): naam + zoekfilter + aanmaakmoment.
+  // Eigen gedrags-/voorkeurmetadata (waar de betrokkene naar werk zocht, en wanneer); symmetrisch met de
+  // erasure die deze rijen nu wist (`anonymizeUser` → `savedJobSearch.deleteMany`).
+  savedJobSearches: unknown;
   // AVG art. 15/20 — de eigen e-mailkanaal-voorkeuren (NotificationPreference): per categorie of het
   // bijbehorende e-mailkanaal mag verzenden. Dit zijn de door de betrokkene zelf gemaakte opt-out-keuzes
   // (eigen persoonsgegeven); ze horen in de inzage/portabiliteit — symmetrisch met de erasure die deze
@@ -105,6 +109,7 @@ export async function buildAccountExport(
     lessonCompletions,
     ideaVotes,
     savedJobs,
+    savedJobSearches,
     notificationPreferences,
   ] = await Promise.all([
     db.user.findUnique({
@@ -489,6 +494,14 @@ export async function buildAccountExport(
       where: { freelancer: { userId: actorId } },
       select: { jobId: true, createdAt: true },
     }),
+    // AVG art. 15/20 — de eigen bewaarde zoekopdrachten (`SavedJobSearch`): de zelf-getypte naam, de
+    // opgeslagen zoekfilter (`query`) en het aanmaakmoment. Eigen gedrags-/voorkeurmetadata; scope strikt
+    // op het eigen freelancerprofiel. Symmetrisch met de erasure die deze rijen nu wist (spiegel van
+    // `savedJobs`).
+    db.savedJobSearch.findMany({
+      where: { freelancer: { userId: actorId } },
+      select: { name: true, query: true, createdAt: true },
+    }),
     // AVG art. 15/20 — de eigen e-mailkanaal-voorkeuren (`NotificationPreference`): per categorie of het
     // bijbehorende herinnerings-/signaal-e-mailkanaal mag verzenden. Dit zijn de door de betrokkene zelf
     // gemaakte opt-out-keuzes; scope strikt op de eigen `userId`. Symmetrisch met de erasure die deze
@@ -551,6 +564,7 @@ export async function buildAccountExport(
     lessonCompletions,
     ideaVotes,
     savedJobs,
+    savedJobSearches,
     notificationPreferences,
   };
 }

@@ -202,6 +202,7 @@ vi.mock("@/lib/db", () => ({
     lessonCompletion: { deleteMany: op("lessonCompletion.deleteMany") },
     ideaVote: { deleteMany: op("ideaVote.deleteMany") },
     savedJob: { deleteMany: op("savedJob.deleteMany") },
+    savedJobSearch: { deleteMany: op("savedJobSearch.deleteMany") },
     notificationPreference: { deleteMany: op("notificationPreference.deleteMany") },
     auditLog: {
       create: op("auditLog.create"),
@@ -830,6 +831,19 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     // deze deleteMany overleeft de bookmark-historie art. 17 (rood→groen). Gescopet op het eigen profiel
     // (freelancer.userId), nooit de bookmarks van een andere ZZP'er. De inzage-export geeft ze nu óók prijs.
     const o = find("savedJob.deleteMany") as { args: { where: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ freelancer: { userId: "user-42" } });
+  });
+
+  it("verwijdert de bewaarde zoekopdrachten (SavedJobSearch — eigen zoek-/voorkeurmetadata, AVG art. 17, MIDDEL)", async () => {
+    await anonymizeUser("user-42");
+    // `SavedJobSearch` (`name` = zelf-getypte vrije tekst, `query` = opgeslagen zoekfilter, `createdAt`)
+    // is de exacte spiegel van `SavedJob`: eigen gedrags-/voorkeurmetadata over de betrokkene (waar hij
+    // naar werk zocht, en wanneer), zonder gedeelde/tegenpartij-waarde. Het `FreelancerProfile` wordt
+    // geüpdatet (niet verwijderd), dus de `onDelete: Cascade` vuurt niet; zonder deze deleteMany overleeft
+    // de zoek-historie art. 17 (rood→groen; de saved-search-feature liet dit gat eerder ontstaan). Gescopet
+    // op het eigen profiel (freelancer.userId), nooit de zoekopdrachten van een andere ZZP'er.
+    const o = find("savedJobSearch.deleteMany") as { args: { where: unknown } };
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ freelancer: { userId: "user-42" } });
   });
