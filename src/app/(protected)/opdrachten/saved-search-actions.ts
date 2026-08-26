@@ -11,24 +11,10 @@ import {
   MAX_SAVED_SEARCHES,
   jobFiltersToQueryString,
   savedSearchNameSchema,
+  savedSearchQueryToRawParams,
 } from "@/lib/jobs/saved-search";
 
 export type SavedSearchState = { error?: string; ok?: boolean } | undefined;
-
-/**
- * Zet een platte URL-query (`q=...&skillIds=a&skillIds=b`) om naar de `RawParams`-vorm die
- * `normalizeJobFilters` verwacht: sleutels met meerdere waarden worden een array. Zo overleeft
- * bijvoorbeeld een meervoudige `skillIds` de normalisatie.
- */
-function queryToRawParams(query: string): Record<string, string | string[]> {
-  const params = new URLSearchParams(query);
-  const raw: Record<string, string | string[]> = {};
-  for (const key of new Set(params.keys())) {
-    const values = params.getAll(key);
-    raw[key] = values.length > 1 ? values : (values[0] ?? "");
-  }
-  return raw;
-}
 
 /**
  * Bewaart de huidige zoekopdracht (filterset) van de ZZP'er.
@@ -65,7 +51,7 @@ export async function saveJobSearch(
   // Server-side waarheid: normaliseer de meegestuurde query opnieuw en hercanoniseer 'm, zodat de
   // opslag nooit ongeldige of niet-canonieke input bevat.
   const rawQuery = typeof formData.get("query") === "string" ? String(formData.get("query")) : "";
-  const filters = normalizeJobFilters(queryToRawParams(rawQuery));
+  const filters = normalizeJobFilters(savedSearchQueryToRawParams(rawQuery));
   if (!hasActiveJobFilters(filters)) {
     return { error: "Stel eerst filters in om een zoekopdracht te bewaren." };
   }

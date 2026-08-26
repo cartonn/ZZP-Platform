@@ -9,6 +9,13 @@ export interface SavedSearchItem {
   id: string;
   name: string;
   query: string;
+  /**
+   * Aantal nu-passende, zichtbare opdrachten voor deze bewaarde filterset — dezelfde telling die de
+   * marktplaats in de kop toont wanneer je de zoekopdracht opent (geen drift). `null` betekent "niet
+   * betrouwbaar te tellen" (de zoekopdracht bevat de inzetbaarheids-verfijning `onlyEligible`, die de
+   * pagina per-ZZP'er in het geheugen versmalt) → dan tonen we geen teller.
+   */
+  matchCount?: number | null;
 }
 
 /**
@@ -49,6 +56,24 @@ export function SavedSearchesBar({
           >
             {s.name}
           </Link>
+          {typeof s.matchCount === "number" && (
+            <span
+              className={
+                "ml-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-xs font-medium tabular-nums " +
+                (s.matchCount > 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")
+              }
+              title={
+                s.matchCount > 0
+                  ? `${s.matchCount} passende ${s.matchCount === 1 ? "opdracht" : "opdrachten"} nu`
+                  : "Nu geen passende opdrachten"
+              }
+              aria-label={`${s.matchCount} passende ${
+                s.matchCount === 1 ? "opdracht" : "opdrachten"
+              }`}
+            >
+              {s.matchCount}
+            </span>
+          )}
           <ConfirmButton
             action={deleteJobSearch.bind(null, s.id)}
             triggerVariant="ghost"

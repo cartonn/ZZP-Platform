@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-26 — ZZP'er: match-teller op bewaarde zoekopdrachten (PR #1236)
+
+**Wat:** elke bewaarde zoekopdracht op `/opdrachten` toont nu een drift-vrije teller met het aantal
+nu-passende, zichtbare opdrachten (`12`, primary-toon bij > 0, gedempt bij 0). Zo ziet de ZZP'er in
+één oogopslag wélke bewaarde zoekopdracht kansen bevat — staple bij Indeed/LinkedIn (resultaatteller
+op opgeslagen zoekopdrachten) die ontbrak (slice 1, #1234, gaf alleen hertoepassen). Slice 2's
+cron-notificatie blijft open; dit is de on-page tegenhanger zonder overlap met de profiel-gedreven
+JOB_MATCH-alerts (`job-alerts.ts`).
+
+**Server = waarheid, geen drift:** de teller hergebruikt exact dezelfde where-opbouw als de
+marktplaats. Daarvoor is de inline where-constructie van de marktplaatspagina geëxtraheerd naar een
+gedeelde pure functie `buildJobMarketplaceWhere` (`src/lib/jobs/marketplace-where.ts`) — één bron
+voor tenant-zichtbaarheid + tarief/tekst/locatie/werkvorm/vaardigheden/certificaat/branche/
+`hideApplied`. De teller (`countSavedSearchMatches`, `src/lib/jobs/saved-search-counts.ts`) draait
+per (gededupliceerde) canonieke query een `prisma.job.count` — parallel, begrensd tot
+MAX_SAVED_SEARCHES (20). Een zoekopdracht met `onlyEligible` krijgt **geen** teller (`null`): die
+kop-telling wordt op de pagina per-ZZP'er in het geheugen op compliance versmald en is niet met een
+kale DB-count te reproduceren → geen screen↔teller-drift.
+
+**Bestanden:** `src/lib/jobs/marketplace-where.ts` (+`.test.ts`, 11 tests) — gedeelde where-builder;
+`src/lib/jobs/saved-search-counts.ts` (+`.test.ts`, 9 tests) — teller + pure `savedSearchCountWhere`;
+`src/lib/jobs/saved-search.ts` — pure `savedSearchQueryToRawParams` geëxtraheerd (query→RawParams),
+hergebruikt in `saved-search-actions.ts`; `src/app/(protected)/opdrachten/(index)/page.tsx` — gebruikt
+nu de gedeelde builder + berekent en toont de tellers; `src/components/jobs/saved-searches-bar.tsx` —
+teller-badge per pill. Read-only op de matchmotor; geen schema-/mutatie-/authz-oppervlak; geen dode
+knop. **Gate:** typecheck ✓, lint ✓, targeted tests 32/32 ✓, prettier ✓ · build/CI-poort → PR #1236.
+
 ## 2026-08-25 — Opdrachtgever: beslis-achterstand-chip op de opdrachtenlijst (PR #1235)
 
 **Wat:** de beslis-achterstand (nog-onbesliste reacties die langer wachten dan bij hun matchkwaliteit past — een

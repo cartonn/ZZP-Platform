@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { type Actor, requireActor } from "@/lib/authz";
-import { visibleJobsWhere } from "@/lib/tenancy";
+import { buildJobMarketplaceWhere } from "@/lib/jobs/marketplace-where";
 import { prisma } from "@/lib/db";
 import { JOBS_PER_PAGE, MATCH_SORT_SCAN_CAP, normalizeJobFilters } from "@/lib/jobs";
 import {
@@ -58,6 +58,7 @@ import { ActiveFilterChips } from "@/components/jobs/active-filter-chips";
 import { describeActiveJobFilters, hasActiveJobFilters } from "@/lib/jobs/active-filters";
 import { SavedSearchesBar } from "@/components/jobs/saved-searches-bar";
 import { jobFiltersToQueryString } from "@/lib/jobs/saved-search";
+import { countSavedSearchMatches } from "@/lib/jobs/saved-search-counts";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SaveJobButton } from "@/components/jobs/save-job-button";
 import { JobPipelineStrip } from "@/components/jobs/job-pipeline-strip";
@@ -478,26 +479,6 @@ async function BrowseJobs({
 }) {
   const f = normalizeJobFilters(searchParams);
 
-  // Gesloten per tenant (+ overflow): een tenant-ZZP'er ziet diensten van zijn franchise + opengestelde
-  // diensten; een directe ZZP'er platform-opdrachten + opengestelde diensten. ADMIN ziet alles.
-  // Tarieffilters als AND-clausules: sluit een opdracht alléén uit als de relevante grens bekend is
-  // én buiten bereik valt. Een onbekende grens (nullable rateMin/rateMax) telt niet als uitsluiting —
-  // anders verdween een "€80+/uur"-opdracht (rateMax null) stilzwijgend bij een minimumtarief-filter.
-  const and: Prisma.JobWhereInput[] = [visibleJobsWhere(actor)];
-  if (f.rateMin != null) and.push({ OR: [{ rateMax: { gte: f.rateMin } }, { rateMax: null }] });
-  if (f.rateMax != null) and.push({ OR: [{ rateMin: { lte: f.rateMax } }, { rateMin: null }] });
-  // AND-clausule zodat de tekstzoek-OR hieronder de zichtbaarheids-OR niet overschrijft.
-  const where: Prisma.JobWhereInput = { status: "PUBLISHED", AND: and };
-  if (f.q) where.OR = [{ title: { contains: f.q } }, { description: { contains: f.q } }];
-  if (f.location) where.location = { contains: f.location };
-  if (f.workMode) where.workMode = f.workMode;
-  if (f.skillIds.length) where.skills = { some: { skillId: { in: f.skillIds } } };
-  if (f.requiredCredential) {
-    where.credentialRequirements = {
-      some: { credentialType: f.requiredCredential, required: true },
-    };
-  }
-
   // "recent" én "match" vallen op publishedAt-desc: bij match-sortering scant dit de nieuwste
   // opdrachten binnen de cap, die daarna in het geheugen op matchscore worden herrangschikt.
   const orderBy: Prisma.JobOrderByWithRelationInput =
@@ -539,26 +520,18 @@ async function BrowseJobs({
   const onlyEligible = f.onlyEligible && profile != null;
   const scanAndRank = effectiveMatchSort || startSort || onlyEligible;
 
-  // Branchefilter: een expliciet gekozen branche (`industryId`) is het meest specifiek en wint. Anders,
-  // wanneer de ZZP'er de "Mijn vakgebied"-quickfilter aanzet, beperk tot de eigen profielbranches. Zo
-  // ziet een zorg-ZZP'er in één klik geen IT-opdrachten meer. Zonder profielbranches doet `mine` niets.
+  // Eigen profielbranches: voeden de "Mijn vakgebied"-quickfilter in de gedeelde where-builder.
   const myIndustryIds = profile ? profile.industries.map((i) => i.industryId) : [];
-  if (f.industryId) {
-    where.industryId = f.industryId;
-  } else if (f.mine && myIndustryIds.length > 0) {
-    where.industryId = { in: myIndustryIds };
-  }
 
-  // "Verberg opdrachten waarop ik al reageerde" (alleen ZZP'er): sluit opdrachten uit waarop deze
-  // ZZP'er al een niet-ingetrokken reactie heeft. Server-side where-clause vóór count én paginering,
-  // zodat de telling én de pagina's kloppen (niet post-fetch). Een ingetrokken (WITHDRAWN) reactie
-  // telt niet mee — de opdracht is dan weer een echte, herbruikbare kans. `and`-push muteert de array
-  // waar `where.AND` naar verwijst; gebeurt vóór de queries, dus effect is gegarandeerd.
-  if (profile && f.hideApplied) {
-    and.push({
-      NOT: { applications: { some: { freelancerId: profile.id, status: { not: "WITHDRAWN" } } } },
-    });
-  }
+  // Gedeelde where-builder: één bron van waarheid voor de zichtbare, gepubliceerde-opdrachten-where
+  // (tenant-zichtbaarheid + overflow, tariefgrenzen, tekstzoek/locatie/werkvorm/vaardigheden/
+  // certificaat, branche/`mine`, en `hideApplied`). Dezelfde functie voedt de bewaarde-zoekopdracht-
+  // teller hieronder, zodat die telling niet kan afwijken van wat de ZZP'er hier ziet.
+  const where = buildJobMarketplaceWhere(f, {
+    actor,
+    myIndustryIds,
+    profileId: profile?.id ?? null,
+  });
 
   const [total, jobs, industries, skills, savedRows, invitations] = await Promise.all([
     prisma.job.count({ where }),
@@ -833,7 +806,7 @@ async function BrowseJobs({
   // Opgeslagen zoekopdrachten (alleen voor een ZZP'er met profiel): de bewaarde filtersets die met
   // één klik opnieuw toepasbaar zijn. `canSave` toont het bewaar-formulier alleen wanneer er nu
   // filters actief zijn; `currentQuery` is de canonieke query die dan wordt opgeslagen.
-  const savedSearches = profile
+  const savedSearchRows = profile
     ? // unbounded-allow: eigenaar-scoped, begrensd tot MAX_SAVED_SEARCHES per ZZP'er
       await prisma.savedJobSearch.findMany({
         where: { freelancerProfileId: profile.id },
@@ -841,6 +814,21 @@ async function BrowseJobs({
         select: { id: true, name: true, query: true },
       })
     : [];
+  // Per bewaarde zoekopdracht het aantal nu-passende, zichtbare opdrachten — dezelfde telling die de
+  // kop toont wanneer je de zoekopdracht opent (gedeelde `buildJobMarketplaceWhere`, geen drift).
+  // `onlyEligible`-zoekopdrachten leveren `null` (die kop-telling wordt per-ZZP'er in het geheugen
+  // versmald en is dus niet met een kale DB-count te reproduceren) → dan toont de pill geen teller.
+  const savedSearchCounts =
+    profile && savedSearchRows.length > 0
+      ? await countSavedSearchMatches(
+          savedSearchRows.map((s) => s.query),
+          { actor, myIndustryIds, profileId: profile.id },
+        )
+      : new Map<string, number | null>();
+  const savedSearches = savedSearchRows.map((s) => ({
+    ...s,
+    matchCount: savedSearchCounts.get(s.query) ?? null,
+  }));
   const canSaveSearch = profile != null && hasActiveJobFilters(f);
   const currentSearchQuery = jobFiltersToQueryString(f);
 
