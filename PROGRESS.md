@@ -29,6 +29,24 @@ aangeraakt óf op een gemotiveerde uitzonderingslijst staat — een toekomstig P
 
 **Checks:** typecheck · lint · test (7037) · build · prettier → PR + CI-poort.
 
+## 2026-08-26 — prod: semantische-matching stille-degradatie op /api/metrics + Prometheus-alert (PR #1245)
+
+**Wat:** de laatste stille-degradatie-detector zonder machine-leesbare exposure gedicht.
+`SEMANTIC_MATCHER=pgvector` kan geselecteerd-maar-niet-operationeel zijn → `getSemanticMatcher()` valt
+graceful terug op de lokale matcher (lagere matching-kwaliteit op de kern-differentiatie). Dit stond al
+op `/admin/systeemstatus` + de zelftest, maar niet op `/api/metrics`; een externe monitor kon er dus niet
+op pagen. Nu: config-afgeleide gauge `zzp_semantic_matcher_degraded` (geen DB-read, geen PII) + alert
+`ZzpSemanticMatcherDegraded` (`==1`, `for:6h`, warning), in de onderhouds-inhibitie, achter de drift-gates.
+
+**Bestanden:** `src/lib/services/semantic-matcher.ts` (nieuwe pure helper `isSemanticMatcherDegraded()` als
+één bron van waarheid), `src/lib/observability/metrics.ts` (input-veld + gauge), `src/app/api/metrics/route.ts`
+(populatie via de helper + header), `docs/observability/alerts.yml` (nieuwe groep + alert),
+`docs/observability/alertmanager.yml` (inhibit target_matchers).
+
+**Tests:** helper (3) + metrics-gauge healthy/degraded + snapshot-volgorde; drift-gates groen
+(metrics/alerts-rules/monitoring-bundle: 92 passed). typecheck exit 0, prettier schoon. **Resterend
+mensenwerk:** niets extra — gauge valt naar 0 zodra pgvector operationeel is of op local staat.
+
 ## 2026-08-26 — routine: openstaand-cashflow-KPI op het bemiddelaar-dashboard
 
 **Wat:** het bemiddelaar-startscherm (FRANCHISER-tak van `dashboard/page.tsx`) was volledig

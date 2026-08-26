@@ -129,3 +129,21 @@ export function getSemanticMatcher(): SemanticMatcher {
   }
   return new LocalSemanticMatcher();
 }
+
+/**
+ * Draait de matching STIL op de lokale fallback terwijl de operator pgvector SELECTEERDE? Dat is de
+ * "halve activering"-faalmodus: de operator denkt mogelijk dat semantische matching via pgvector actief
+ * is, terwijl `getSemanticMatcher()` graceful terugvalt op de lokale matcher zolang de DB-provisioning
+ * (extensie/kolom/index/embedding-pijplijn = mensenwerk) ontbreekt. Eén bron van waarheid, gedeeld door
+ * de systeemstatus-posture én de `/api/metrics`-gauge (`zzp_semantic_matcher_degraded`) zodat een
+ * externe monitor erop kan alarmeren zónder op /admin in te loggen.
+ *
+ * `true` ⟺ pgvector geselecteerd én niet operationeel. `local` (of geen config) → `false` (dat is een
+ * geldige, productie-geschikte eindtoestand, geen degradatie). Puur/synchroon: leidt de stand af uit de
+ * env-keuze + `isOperational()`, doet geen DB-round-trip (het definitieve round-trip-bewijs blijft de
+ * point-in-time semantische-matching-zelftest).
+ */
+export function isSemanticMatcherDegraded(): boolean {
+  if (configuredSemanticMatcher() !== "pgvector") return false;
+  return !new PgVectorSemanticMatcher().isOperational();
+}

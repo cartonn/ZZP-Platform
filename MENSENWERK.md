@@ -387,6 +387,17 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   bouwen, plus een echte capability-check in `isOperational()`. Tot die tijd is
   `SEMANTIC_MATCHER=local` de juiste productie-instelling en draait matching volledig op de
   deterministische lokale matcher. Zie RUNBOOK §2b voor de operationele stappen.
+  **Code-kant GEDAAN (2026-08-26) — stille-degradatie nu machine-leesbaar + pageerbaar:** de
+  geselecteerde-maar-niet-operationele stand (matching valt stil terug op de lokale fallback) stond al
+  op `/admin/systeemstatus` + de zelftest, maar was — als **enige** stille-degradatie-detector — niet
+  zichtbaar op `/api/metrics`; een externe monitor kon er dus niet op alarmeren zonder dat een admin
+  inlogt. Nu exposeert `/api/metrics` de config-afgeleide gauge `zzp_semantic_matcher_degraded`
+  (1 = pgvector geselecteerd maar niet operationeel; geen DB-read, geen PII — één bron van waarheid via
+  `isSemanticMatcherDegraded()` in `src/lib/services/semantic-matcher.ts`), met een drop-in alert
+  `ZzpSemanticMatcherDegraded` (`== 1`, `for:6h`, warning) in `docs/observability/alerts.yml`, in de
+  onderhouds-inhibitie en achter de drift-gates. Resterend mensenwerk: **niets extra** — de gauge valt
+  vanzelf naar 0 zodra pgvector operationeel is of `SEMANTIC_MATCHER=local` staat. Optioneel: richt een
+  monitor op `ZzpSemanticMatcherDegraded`.
 
 ## §1. Hosting, database, opslag, domein, geheimen
 

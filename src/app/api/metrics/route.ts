@@ -7,6 +7,8 @@
 // Gauges: zzp_up, zzp_db_reachable, zzp_cron_heartbeat_* / zzp_backup_heartbeat_* (dead-man's-switch),
 // zzp_verification_queue (wachtrijdiepte), zzp_verification_queue_oldest_age_seconds (SLA-signaal: hoe
 // lang wacht de oudste inzending al), zzp_maintenance_mode (onderhoudsmodus aan → 1) en
+// zzp_semantic_matcher_degraded (SEMANTIC_MATCHER=pgvector geselecteerd maar niet operationeel → matching
+// draait stil op de lokale fallback; stille-degradatie-detector op de kern-differentiatie) en
 // zzp_credentials_overdue_expiry (VERIFIED-credentials wier vervaldatum voorbij is maar die de
 // expiry-cron nog niet omzette) en zzp_subscriptions_overdue_expiry (betaalde ACTIVE-abonnementen wier
 // periode voorbij is maar die de subscription-expiry-cron nog niet op CANCELLED zette) en
@@ -64,6 +66,7 @@ import { getRateLimitDeliveryFreshness } from "@/lib/observability/ratelimit-del
 import { getPasswordBreachDeliveryFreshness } from "@/lib/observability/password-breach-delivery-heartbeat";
 import { getErrorMonitoringDeliveryFreshness } from "@/lib/observability/error-monitoring-delivery-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
+import { isSemanticMatcherDegraded } from "@/lib/services/semantic-matcher";
 import { waitingSince } from "@/lib/verification-queue";
 import {
   auditLogRetentionDays,
@@ -639,6 +642,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     verificationQueue,
     verificationQueueOldestAgeSeconds,
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),
+    semanticMatcherDegraded: isSemanticMatcherDegraded(),
     overdueExpiryCredentials,
     overdueExpirySubscriptions,
     stalePendingSubscriptions,

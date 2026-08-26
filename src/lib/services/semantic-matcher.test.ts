@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   configuredSemanticMatcher,
+  isSemanticMatcherDegraded,
   LocalSemanticMatcher,
   PgVectorSemanticMatcher,
   getSemanticMatcher,
@@ -117,5 +118,29 @@ describe("getSemanticMatcher", () => {
     const matcher = getSemanticMatcher();
     expect(matcher).toBeInstanceOf(LocalSemanticMatcher);
     expect(matcher.relatedness("zorg verpleging", "zorg verpleging")).toBeGreaterThan(0);
+  });
+});
+
+describe("isSemanticMatcherDegraded", () => {
+  const originalEnv = process.env.SEMANTIC_MATCHER;
+
+  afterEach(() => {
+    if (originalEnv === undefined) delete process.env.SEMANTIC_MATCHER;
+    else process.env.SEMANTIC_MATCHER = originalEnv;
+  });
+
+  it("is niet gedegradeerd zonder config (lokale matcher is een geldige eindtoestand)", () => {
+    delete process.env.SEMANTIC_MATCHER;
+    expect(isSemanticMatcherDegraded()).toBe(false);
+  });
+
+  it("is niet gedegradeerd bij SEMANTIC_MATCHER=local", () => {
+    process.env.SEMANTIC_MATCHER = "local";
+    expect(isSemanticMatcherDegraded()).toBe(false);
+  });
+
+  it("is gedegradeerd bij pgvector zolang die niet operationeel is (stille terugval op lokaal)", () => {
+    process.env.SEMANTIC_MATCHER = "pgvector";
+    expect(isSemanticMatcherDegraded()).toBe(true);
   });
 });
