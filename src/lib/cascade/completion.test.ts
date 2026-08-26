@@ -149,7 +149,7 @@ describe("completionBlockReason", () => {
 
   it("één open factuur → enkelvoud-reden over geld", () => {
     expect(completionBlockReason(snapshot({ otherInvoices: [inv("APPROVED", "APPROVED")] }))).toBe(
-      "Er staat nog 1 factuur open voor deze samenwerking. Markeer die als betaald of crediteer 'm eerst.",
+      "Er staat nog 1 factuur open voor deze samenwerking. Markeer die als betaald, crediteer of trek 'm eerst in.",
     );
   });
 
@@ -159,7 +159,7 @@ describe("completionBlockReason", () => {
         snapshot({ otherInvoices: [inv("APPROVED", "APPROVED"), inv("SENT", null)] }),
       ),
     ).toBe(
-      "Er staan nog 2 facturen open voor deze samenwerking. Markeer die als betaald of crediteer ze eerst.",
+      "Er staan nog 2 facturen open voor deze samenwerking. Markeer die als betaald, crediteer of trek ze eerst in.",
     );
   });
 
@@ -197,7 +197,7 @@ describe("cancellationBlockReason — symmetrisch met afronden (annuleren mag ni
 
   it("een DRAFT-cascadefactuur (niet afgewikkeld) blokkeert annuleren — het gat dat de oude, enge check miste", () => {
     expect(cancellationBlockReason(snapshot({ otherInvoices: [inv("DRAFT", "DRAFT")] }))).toBe(
-      "Er staat nog 1 factuur open voor deze samenwerking. Markeer die als betaald of crediteer 'm eerst.",
+      "Er staat nog 1 factuur open voor deze samenwerking. Markeer die als betaald, crediteer of trek 'm eerst in.",
     );
   });
 
@@ -244,7 +244,7 @@ describe("collaborationCompletableGuard — write-time eligibility guard (Event 
   it("gebruikt dezelfde afgewikkeld-sets als isInvoiceSettled (één bron van waarheid)", () => {
     // De guard mag alleen niet-afgewikkelde facturen als 'open' tellen; de sets komen 1:1 uit
     // completion.ts, zodat guard en isInvoiceSettled nooit uit elkaar lopen.
-    expect(SETTLED_INVOICE_LIFECYCLE).toEqual(["PAID", "PROCESSED", "CREDITED"]);
+    expect(SETTLED_INVOICE_LIFECYCLE).toEqual(["PAID", "PROCESSED", "CREDITED", "WITHDRAWN"]);
     expect(SETTLED_INVOICE_LEGACY_STATUS).toEqual(["PAID", "CANCELLED"]);
   });
 

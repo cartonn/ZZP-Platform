@@ -83,6 +83,13 @@ export function cascadeStage(input: CascadeStageInput): CascadeStage {
   if (inv === "CREDITED") {
     return { id: "credited", badgeLabel: "Gecrediteerd", label: "Factuur gecrediteerd", step: total, totalSteps: total, youAreUp: false, tone: "info", cta: bekijk }; // prettier-ignore
   }
+  // Ingetrokken is net als gecrediteerd een afgewikkelde eindtoestand (SETTLED_INVOICE_LIFECYCLE): de
+  // factuur is definitief teruggetrokken, niemand hoeft nog iets te doen. Zonder deze tak viel WITHDRAWN
+  // door naar de "betaling registreren"-default onderaan en toonde het scherm ten onrechte "Markeer de
+  // betaling" voor een ingetrokken factuur — een verkeerd next-action-signaal.
+  if (inv === "WITHDRAWN") {
+    return { id: "withdrawn", badgeLabel: "Ingetrokken", label: "Factuur ingetrokken", step: total, totalSteps: total, youAreUp: false, tone: "info", cta: bekijk }; // prettier-ignore
+  }
 
   // Stap 1 — contract ondertekenen. In productie kent het contract enkel de overgang DRAFT → SIGNED
   // (SENT wordt nergens gezet): een voorgestelde samenwerking (PROPOSED) is meteen ondertekenbaar en

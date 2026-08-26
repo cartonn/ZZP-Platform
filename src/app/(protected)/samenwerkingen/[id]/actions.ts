@@ -16,6 +16,7 @@ import {
   rejectInvoice,
   confirmPayment,
   creditInvoice,
+  withdrawInvoice,
   openDispute,
   resolveDispute,
   type CreatePerformanceInput,
@@ -654,6 +655,20 @@ export async function creditInvoiceAction(
   const actor = await requireActor();
   try {
     await creditInvoice(actor, invoiceId, boundReason(formData.get("reason")));
+  } catch (e) {
+    toMessage(e);
+  }
+  refresh(collaborationId);
+}
+
+export async function withdrawInvoiceAction(
+  invoiceId: string,
+  collaborationId: string,
+  formData: FormData,
+): Promise<void> {
+  const actor = await requireActor();
+  try {
+    await withdrawInvoice(actor, invoiceId, boundReason(formData.get("reason")));
   } catch (e) {
     toMessage(e);
   }

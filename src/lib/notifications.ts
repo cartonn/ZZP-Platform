@@ -36,6 +36,7 @@ const META: Record<string, NotificationMeta> = {
   INVOICE_APPROVED: { category: "invoice", tone: "success" },
   INVOICE_REJECTED: { category: "invoice", tone: "attention" },
   INVOICE_CREDITED: { category: "invoice", tone: "info" },
+  INVOICE_WITHDRAWN: { category: "invoice", tone: "info" },
   PAYMENT_CONFIRMED: { category: "payment", tone: "success" },
   PAYMENT_OVERDUE: { category: "payment", tone: "attention" },
   PAYMENT_REMINDER: { category: "payment", tone: "info" },

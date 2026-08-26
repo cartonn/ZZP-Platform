@@ -19,6 +19,7 @@ export const DOMAIN_EVENT_TYPES = [
   "INVOICE_SUBMITTED", //        C  (ZZP'er dient factuur in)
   "INVOICE_APPROVED", //         D  (opdrachtgever keurt factuur goed)
   "INVOICE_REJECTED", //         D' (zijpad)
+  "INVOICE_WITHDRAWN", //        zijpad: nog-niet-aanvaarde factuur ingetrokken (terminaal, boeking terug)
   "PAYMENT_MARKED", //           E  (gemarkeerd betaald)
   "PAYMENT_CONFIRMED", //        E  (ontvangst bevestigd)
   "PAYMENT_OVERDUE", //          zijpad: betaling te laat

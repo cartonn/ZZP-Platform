@@ -4,8 +4,11 @@
 // springen — anders raakt die betaalverplichting of dat werk los van zijn context.
 // Server-berekend, geen DB-toegang (CLAUDE.md regel 1). Pure functie, unit-testbaar.
 
-// Een cascade-factuur (lifecycleStatus gezet) is afgewikkeld zodra de keten klaar is.
-export const SETTLED_INVOICE_LIFECYCLE = ["PAID", "PROCESSED", "CREDITED"] as const;
+// Een cascade-factuur (lifecycleStatus gezet) is afgewikkeld zodra de keten klaar is: betaald
+// (PAID/PROCESSED), teruggedraaid (CREDITED) óf terminaal ingetrokken (WITHDRAWN — een nog-niet-
+// aanvaarde factuur die de uitschrijver heeft teruggetrokken; de indien-boeking is teruggedraaid, dus
+// er staat geen geld meer open). Alle drie de eindtoestanden blokkeren het afronden/annuleren niet.
+export const SETTLED_INVOICE_LIFECYCLE = ["PAID", "PROCESSED", "CREDITED", "WITHDRAWN"] as const;
 // Een legacy-factuur (geen lifecycleStatus) is afgewikkeld bij betaald of geannuleerd.
 export const SETTLED_INVOICE_LEGACY_STATUS = ["PAID", "CANCELLED"] as const;
 
@@ -16,9 +19,10 @@ export interface InvoiceStateSnapshot {
 
 /**
  * Een factuur is "afgewikkeld" (geen openstaand geld meer) als ze cascade is met
- * lifecycleStatus PAID/PROCESSED/CREDITED, of legacy (geen lifecycleStatus) met status
+ * lifecycleStatus PAID/PROCESSED/CREDITED/WITHDRAWN, of legacy (geen lifecycleStatus) met status
  * PAID/CANCELLED. Alle overige toestanden (DRAFT, SUBMITTED, APPROVED, OVERDUE, REJECTED,
- * legacy SENT/DRAFT) gelden als openstaand.
+ * legacy SENT/DRAFT) gelden als openstaand. Een REJECTED-factuur blijft openstaand tot ze wordt
+ * heraangeboden (→ betaald) of ingetrokken (→ WITHDRAWN).
  */
 export function isInvoiceSettled(inv: InvoiceStateSnapshot): boolean {
   if (inv.lifecycleStatus != null) {
@@ -132,8 +136,8 @@ export function completionBlockReason(snapshot: OpenWorkSnapshot): string | null
   const openInvoices = snapshot.otherInvoices.filter((inv) => !isInvoiceSettled(inv)).length;
   if (openInvoices > 0) {
     return openInvoices === 1
-      ? "Er staat nog 1 factuur open voor deze samenwerking. Markeer die als betaald of crediteer 'm eerst."
-      : `Er staan nog ${openInvoices} facturen open voor deze samenwerking. Markeer die als betaald of crediteer ze eerst.`;
+      ? "Er staat nog 1 factuur open voor deze samenwerking. Markeer die als betaald, crediteer of trek 'm eerst in."
+      : `Er staan nog ${openInvoices} facturen open voor deze samenwerking. Markeer die als betaald, crediteer of trek ze eerst in.`;
   }
   if (snapshot.submittedPerformances > 0) {
     return snapshot.submittedPerformances === 1
@@ -156,8 +160,8 @@ export function cancellationBlockReason(snapshot: OpenWorkSnapshot): string | nu
   const openInvoices = snapshot.otherInvoices.filter((inv) => !isInvoiceSettled(inv)).length;
   if (openInvoices > 0) {
     return openInvoices === 1
-      ? "Er staat nog 1 factuur open voor deze samenwerking. Markeer die als betaald of crediteer 'm eerst."
-      : `Er staan nog ${openInvoices} facturen open voor deze samenwerking. Markeer die als betaald of crediteer ze eerst.`;
+      ? "Er staat nog 1 factuur open voor deze samenwerking. Markeer die als betaald, crediteer of trek 'm eerst in."
+      : `Er staan nog ${openInvoices} facturen open voor deze samenwerking. Markeer die als betaald, crediteer of trek ze eerst in.`;
   }
   if (snapshot.submittedPerformances > 0) {
     return snapshot.submittedPerformances === 1

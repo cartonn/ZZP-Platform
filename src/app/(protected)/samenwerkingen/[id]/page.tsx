@@ -52,6 +52,7 @@ import {
   rejectPerformanceAction,
   editAndResubmitPerformanceAction,
   submitInvoiceAction,
+  withdrawInvoiceAction,
   approveInvoiceAction,
   rejectInvoiceAction,
   confirmPaymentAction,
@@ -95,6 +96,7 @@ const INV_STATUS: Record<
   REJECTED: { label: "Afgekeurd", variant: "danger" },
   OVERDUE: { label: "Te laat", variant: "danger" },
   CREDITED: { label: "Gecrediteerd", variant: "danger" },
+  WITHDRAWN: { label: "Ingetrokken", variant: "muted" },
 };
 
 function fmt(d: Date | null) {
@@ -928,6 +930,36 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                                 : "Indienen"}
                             </PendingSubmitButton>
                           </form>
+                        )}
+                      {isFreelancer &&
+                        !actionsLocked &&
+                        (inv.lifecycleStatus === "DRAFT" ||
+                          inv.lifecycleStatus === "SUBMITTED" ||
+                          inv.lifecycleStatus === "REJECTED") && (
+                          <details className="text-xs">
+                            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                              Factuur intrekken
+                            </summary>
+                            <form
+                              action={withdrawInvoiceAction.bind(null, inv.id, col.id)}
+                              className="mt-2 flex items-center gap-2"
+                            >
+                              <input
+                                name="reason"
+                                aria-label="Reden voor intrekken (optioneel)"
+                                placeholder="Reden (optioneel)"
+                                className="focus-ring flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                              />
+                              <PendingSubmitButton size="sm" variant="secondary">
+                                Intrekken
+                              </PendingSubmitButton>
+                            </form>
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              Trek de factuur definitief terug als ze niet betaald wordt. Zo blijft
+                              de samenwerking niet openstaan; je kunt haar daarna afronden of
+                              annuleren.
+                            </p>
+                          </details>
                         )}
                       {isClient && inv.lifecycleStatus === "SUBMITTED" && !actionsLocked && (
                         <>

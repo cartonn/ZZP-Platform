@@ -106,6 +106,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   INVOICE_PAID: "Factuur betaald",
   INVOICE_CANCELLED: "Factuur geannuleerd",
   INVOICE_CREDITED: "Factuur gecrediteerd",
+  INVOICE_WITHDRAWN: "Factuur ingetrokken",
   INVOICE_DRAFT_REMINDER: "Herinnering conceptfactuur",
   INVOICE_DRAFT_ESCALATED: "Conceptfactuur geëscaleerd",
   INVOICE_PDF_ACCESSED: "Factuur-PDF ingezien",

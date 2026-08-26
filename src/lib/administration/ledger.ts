@@ -109,6 +109,26 @@ export function planInvoiceCredited(
   return postings;
 }
 
+/**
+ * Zijpad — factuur ingetrokken (WITHDRAWN). Een nog-niet-aanvaarde factuur (DRAFT/SUBMITTED/REJECTED)
+ * die terminaal wordt teruggetrokken. Alleen de INDIEN-boeking (Event C, `planInvoiceSubmitted`:
+ * debiteuren/omzet/af-te-dragen-BTW bij de uitschrijver) kan bestaan — een niet-aanvaarde factuur is
+ * nooit door de opdrachtgever geboekt (Event D) en nooit betaald (Event E). Intrekken draait daarom
+ * uitsluitend die indien-boeking terug (alle bedragen negatief), zodat er geen spookvordering
+ * (DEBITEUREN > 0), spookomzet of spook-BTW-schuld bij de ZZP'er achterblijft. Een DRAFT-factuur is
+ * nooit ingediend → geen boeking → de caller geeft dit pad dan niet mee.
+ */
+export function planInvoiceWithdrawn(fin: InvoiceFinancials): Posting[] {
+  const negated: InvoiceFinancials = {
+    issuer: fin.issuer,
+    counterparty: fin.counterparty,
+    subtotalCents: -fin.subtotalCents,
+    vatCents: -fin.vatCents,
+    totalCents: -fin.totalCents,
+  };
+  return planInvoiceSubmitted(negated);
+}
+
 // --- Analyse / overzichten --------------------------------------------------
 
 /** Sommeert per partij per rekening het netto saldo (debet − credit). */
