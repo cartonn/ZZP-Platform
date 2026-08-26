@@ -62,6 +62,7 @@ import { getWebhookAuthFreshness } from "@/lib/observability/billing-webhook-aut
 import { getStorageDeliveryFreshness } from "@/lib/observability/storage-delivery-heartbeat";
 import { getRateLimitDeliveryFreshness } from "@/lib/observability/ratelimit-delivery-heartbeat";
 import { getPasswordBreachDeliveryFreshness } from "@/lib/observability/password-breach-delivery-heartbeat";
+import { getErrorMonitoringDeliveryFreshness } from "@/lib/observability/error-monitoring-delivery-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { waitingSince } from "@/lib/verification-queue";
 import {
@@ -583,6 +584,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     verification,
     rateLimit,
     passwordBreach,
+    errorMonitoring,
   ] = await Promise.all([
     getCronFreshness(undefined, now),
     getBackupFreshness(now),
@@ -594,6 +596,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     getVerificationDeliveryOverview(now),
     getRateLimitDeliveryFreshness(now),
     getPasswordBreachDeliveryFreshness(now),
+    getErrorMonitoringDeliveryFreshness(now),
   ]);
 
   return {
@@ -630,6 +633,9 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     passwordBreachDeliveryOk: passwordBreach.status !== "failing",
     passwordBreachDeliveryConsecutiveFailures: passwordBreach.consecutiveFailures,
     passwordBreachDeliveryLastFailureAgeSeconds: passwordBreach.failureAgeSeconds,
+    errorMonitoringDeliveryOk: errorMonitoring.status !== "failing",
+    errorMonitoringDeliveryConsecutiveFailures: errorMonitoring.consecutiveFailures,
+    errorMonitoringDeliveryLastFailureAgeSeconds: errorMonitoring.failureAgeSeconds,
     verificationQueue,
     verificationQueueOldestAgeSeconds,
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),

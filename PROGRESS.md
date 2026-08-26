@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-26 — prod: error-monitoring aflever-heartbeat (dead-man's-switch)
+
+**Wat:** het laatste fail-open productie-**kern**kanaal zónder doorlopend afleversignaal gedicht. De
+error-reporter (Sentry, `SENTRY_DSN`) is bewust fail-open — kan 'ie een fout niet naar Sentry dispatchen
+(pakket `@sentry/nextjs` niet geïnstalleerd — de gedocumenteerde valkuil — of `captureException`/`init`
+werpt), dan valt 'ie stil terug op console. De point-in-time-zelftest bewees alleen bereikbaarheid vóór
+go-live; een AANHOUDENDE storing liet élke onafgevangen server-/taakfout STIL de externe monitoring missen.
+Nu registreert elke capture via de Sentry-reporter haar uitkomst in een `ErrorMonitoringDeliveryHeartbeat`
+(never/ok/failing + teller; console-default zonder DSN registreert niets). Success-writes gecoalesceerd
+(fout-hot-path), mislukkingen direct. Kritisch: de heartbeat logt zijn eigen DB-fout rechtstreeks via de
+logger (nooit `reportError` → recursie door de reporter).
+
+**Bestanden:** `prisma/schema.prisma` (model `ErrorMonitoringDeliveryHeartbeat`),
+`src/lib/observability/error-monitoring-delivery-freshness.ts` (pure logica + StatusItem),
+`error-monitoring-delivery-heartbeat.ts` (DB + coalescing), `report.ts` (wiring in `SentryErrorReporter.capture`),
+`metrics.ts` (3 gauges `zzp_error_monitoring_*`), `api/metrics/route.ts`, `alerts-rules.ts` (INFO_ONLY + sample),
+`docs/observability/alerts.yml` (`ZzpErrorMonitoringDeliveryFailing`), `alertmanager.yml` (onderhouds-inhibitie),
+`components/admin/error-monitoring-delivery-heartbeat-card.tsx` + `systeemstatus/page.tsx` (admin-kaart).
+
+**Tests:** freshness (9) + heartbeat/coalescing/fail-open (12) + report-wiring (4) + metrics-gauges. Volledige
+suite 7013/7014 groen (de ene rode is environmenteel: stale node_modules `next@15.5.21` vs declared 15.5.24 —
+CI installeert vers). typecheck/lint/prettier groen. **Resterend mensenwerk:** niets extra; gauges vullen zich
+zodra `SENTRY_DSN` gezet is. **Volgende:** volgende hoogste-hefboom prod-rijpheid-stap.
+
 ## 2026-08-26 — security: Next.js Critical CVE-patch (App Router Server-Action DoS) + brede her-audit schoon
 
 **Wat:** security-/privacy-auditronde (basis `main` @ b46cfa06). Orchestrator (Opus 4.8) + 3 parallelle

@@ -6,6 +6,10 @@
 
 import { logger } from "@/lib/observability/logger";
 import { buildSentryInitOptions } from "@/lib/observability/sentry-options";
+import {
+  recordErrorMonitoringDeliverySuccess,
+  recordErrorMonitoringDeliveryFailure,
+} from "@/lib/observability/error-monitoring-delivery-heartbeat";
 
 export interface ReportContext {
   /** Herkomst van de fout, bv. "onRequestError", "task:expiry". */
@@ -104,6 +108,10 @@ class SentryErrorReporter implements ErrorReporter {
 
   async capture(error: unknown, context?: ReportContext): Promise<void> {
     if (sentryUnavailable) {
+      // Aanhoudende dispatch-storing: het pakket bleek eerder onbereikbaar en we loggen alleen nog
+      // gestructureerd. Registreer élke zulke capture als aflever-mislukking (dead-man's-switch) zodat
+      // een AANHOUDENDE storing zichtbaar wordt, en val daarna terug op console.
+      await recordErrorMonitoringDeliveryFailure();
       await this.fallback.capture(error, context);
       return;
     }
@@ -119,20 +127,37 @@ class SentryErrorReporter implements ErrorReporter {
             "Pakket @sentry/nextjs is niet geïnstalleerd; fouten worden gestructureerd gelogd.",
         });
       }
+      await recordErrorMonitoringDeliveryFailure();
       await this.fallback.capture(error, context);
       return;
     }
 
-    if (!sentryInitDone) {
-      sentryInitDone = true;
-      // Gehardende opties (environment/release + PII-scrubbing + sendDefaultPii:false), zodat een
-      // AVG-platform met gevoelige documenten geen request-headers/cookies/IP/gebruikersdata naar
-      // de externe verwerker lekt. Zie sentry-options.ts.
-      sentry.init(buildSentryInitOptions());
+    // init + captureException kunnen werpen (kapotte DSN, transport-init). Dat mag het rapporteren nooit
+    // laten falen: bij een worp registreren we een aflever-mislukking en vallen terug op console.
+    try {
+      if (!sentryInitDone) {
+        sentryInitDone = true;
+        // Gehardende opties (environment/release + PII-scrubbing + sendDefaultPii:false), zodat een
+        // AVG-platform met gevoelige documenten geen request-headers/cookies/IP/gebruikersdata naar
+        // de externe verwerker lekt. Zie sentry-options.ts.
+        sentry.init(buildSentryInitOptions());
+      }
+      // request-id als tag zodat je in Sentry direct op de correlatie-ID kunt filteren/zoeken.
+      const tags = context?.requestId ? { request_id: context.requestId } : undefined;
+      sentry.captureException(error, { extra: { ...context }, tags });
+    } catch (dispatchError) {
+      await recordErrorMonitoringDeliveryFailure();
+      logger.warn("sentry-dispatch-failed", {
+        reason:
+          dispatchError instanceof Error
+            ? dispatchError.name
+            : "onbekende dispatch-fout naar Sentry",
+      });
+      await this.fallback.capture(error, context);
+      return;
     }
-    // request-id als tag zodat je in Sentry direct op de correlatie-ID kunt filteren/zoeken.
-    const tags = context?.requestId ? { request_id: context.requestId } : undefined;
-    sentry.captureException(error, { extra: { ...context }, tags });
+    // De capture werd naar het live transport gedispatched (fire-and-forget). Registreer succes (gecoalesceerd).
+    await recordErrorMonitoringDeliverySuccess();
   }
 }
 

@@ -284,6 +284,28 @@ groups:
           summary: "Gelekt-wachtwoord-controle wijst af"
           description: "De externe gelekt-wachtwoord-controle (HIBP) levert niet meer (zzp_password_breach_delivery_ok=0, ≥3 opeenvolgende mislukkingen). De controle fail-opent, dus gekozen wachtwoorden worden niet meer getoetst tegen bekende datalekken op registratie, wachtwoordherstel en wachtwoord wijzigen — de credential-stuffing-bescherming is stil weggevallen. Controleer de HIBP-bereikbaarheid (verkeerde/geblokkeerde base-URL, DNS-/netwerkstoring, uitgaande firewall) en het server-logboek (of Sentry). Zie MENSENWERK §0b."
 
+      - alert: ZzpErrorMonitoringDeliveryFailing
+        # De externe error-monitoring (Sentry, SENTRY_DSN gezet) dispatcht systematisch niet: de laatste
+        # capture kon niet naar het live transport (zzp_error_monitoring_delivery_ok=0) én er zijn ≥3
+        # opeenvolgende mislukkingen. De error-reporter is bewust FAIL-OPEN — kan 'ie een fout niet naar
+        # Sentry sturen, dan valt 'ie stil terug op console-loggen zodat het rapporteren zelf nooit een
+        # request laat falen. Dat is juist voor één blip, maar bij een AANHOUDENDE storing mist élke
+        # onafgevangen server-/taakfout STIL de externe monitoring (alleen host-logs) — de operator denkt
+        # fouten in Sentry te zien terwijl ze er niet aankomen. Captures zijn event-gedreven (geen
+        # staleness-op-leeftijd), dus de conditie zit op de teller, niet op ouderdom. Oorzaak meestal een
+        # niet-geïnstalleerd/verwijderd @sentry/nextjs-pakket (de gedocumenteerde valkuil: DSN gezet maar
+        # pakket ontbreekt), een kapotte DSN, of een geblokkeerde uitgaande route. De ≥3-drempel + `for:`
+        # negeren één transiënte fout. Herstel wordt automatisch gewist zodra een capture weer dispatcht (of
+        # draai de Error-monitoring-zelftest op /admin/systeemstatus). Zonder SENTRY_DSN registreert niets →
+        # deze alert vuurt per definitie niet. Zie MENSENWERK §0b.
+        expr: zzp_error_monitoring_delivery_ok == 0 and zzp_error_monitoring_consecutive_failures >= 3
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Error-monitoring levert niet af"
+          description: "De externe error-monitoring (Sentry) dispatcht niet meer (zzp_error_monitoring_delivery_ok=0, ≥3 opeenvolgende mislukkingen). De reporter fail-opent, dus onafgevangen server-/taakfouten worden alleen nog naar de host-logs geschreven en bereiken Sentry NIET — de externe monitoring is stil weggevallen terwijl SENTRY_DSN gezet is. Meestal ontbreekt het pakket @sentry/nextjs (installeer het en deploy opnieuw) of is de DSN/uitgaande route kapot. Controleer het server-logboek en draai de Error-monitoring-zelftest op /admin/systeemstatus. Zie MENSENWERK §0b."
+
   - name: zzp-platform-stille-faal-backlogs
     rules:
       # Deze drie tellen werk dat een cron-run HAD moeten doen. De cron-heartbeat bewijst alleen DÁT de

@@ -455,6 +455,23 @@ export interface MetricsInput {
   passwordBreachDeliveryConsecutiveFailures: number;
   /** Leeftijd van de meest recente gelekt-wachtwoord-controle-mislukking in seconden, of null als er nooit één was. */
   passwordBreachDeliveryLastFailureAgeSeconds: number | null;
+
+  /**
+   * 1 als de laatste capture via de externe error-monitoring (Sentry, SENTRY_DSN gezet) naar het live
+   * transport werd gedispatched (of er nog nooit één was — neutraal gezond), 0 als de dispatch systematisch
+   * faalt (pakket @sentry/nextjs niet geïnstalleerd, of captureException/init werpt). De reporter is
+   * FAIL-OPEN, dus een aanhoudende storing laat élke server-/taakfout STIL de externe monitoring missen
+   * (alleen host-logs). Event-gedreven; het alarm zit op OPEENVOLGENDE mislukkingen. Zonder SENTRY_DSN
+   * registreert niets → blijft "ok/never".
+   */
+  errorMonitoringDeliveryOk: boolean;
+  /**
+   * Aantal opeenvolgende mislukte error-monitoring-dispatches sinds de laatste geslaagde (0 als ok of nog
+   * nooit een operatie). Een monitor paget op een AANHOUDENDE storing, niet op één transiënte fout.
+   */
+  errorMonitoringDeliveryConsecutiveFailures: number;
+  /** Leeftijd van de meest recente error-monitoring-dispatch-mislukking in seconden, of null als er nooit één was. */
+  errorMonitoringDeliveryLastFailureAgeSeconds: number | null;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -830,6 +847,24 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: `Leeftijd van de meest recente mislukte gelekt-wachtwoord-controle in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_password_breach_consecutive_failures / zzp_password_breach_delivery_ok.`,
       type: "gauge",
       value: age(input.passwordBreachDeliveryLastFailureAgeSeconds),
+    },
+    {
+      name: "zzp_error_monitoring_delivery_ok",
+      help: "1 als de laatste capture via de externe error-monitoring (Sentry, SENTRY_DSN gezet) naar het live transport werd gedispatched (of er nog nooit één was — neutraal gezond), 0 als de dispatch systematisch faalt (pakket @sentry/nextjs niet geïnstalleerd, of captureException/init werpt). De reporter is FAIL-OPEN, dus een aanhoudende storing laat élke onafgevangen server-/taakfout stil de externe monitoring missen (alleen host-logs). Zonder SENTRY_DSN registreert niets → blijft 1.",
+      type: "gauge",
+      value: flag(input.errorMonitoringDeliveryOk),
+    },
+    {
+      name: "zzp_error_monitoring_consecutive_failures",
+      help: "Aantal opeenvolgende mislukte error-monitoring-dispatches sinds de laatste geslaagde (0 = ok of nog nooit een operatie). Alarmeer op een AANHOUDENDE teller (niet-geïnstalleerd/verwijderd @sentry/nextjs, kapotte DSN, geblokkeerde uitgaande route), niet op één transiënte fout.",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.errorMonitoringDeliveryConsecutiveFailures)),
+    },
+    {
+      name: "zzp_error_monitoring_last_failure_age_seconds",
+      help: `Leeftijd van de meest recente mislukte error-monitoring-dispatch in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_error_monitoring_consecutive_failures / zzp_error_monitoring_delivery_ok.`,
+      type: "gauge",
+      value: age(input.errorMonitoringDeliveryLastFailureAgeSeconds),
     },
   ];
 }
