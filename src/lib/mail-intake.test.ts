@@ -112,6 +112,12 @@ describe("intake-alias (plus-adressering)", () => {
     ).toBe("ff00aa1122");
   });
 
+  it("normaliseert hoofdletters in het ontvangeradres naar het lowercase-token", () => {
+    expect(mailIntakeRecipientAlias({ MessageID: "m1", To: "AANVRAAG+ABCDEF1234@INTAKE.NL" })).toBe(
+      "abcdef1234",
+    );
+  });
+
   it("negeert ontvangers zonder of met een ongeldig plus-token", () => {
     expect(mailIntakeRecipientAlias({ MessageID: "m1", To: "aanvraag@intake.nl" })).toBeNull();
     expect(mailIntakeRecipientAlias({ MessageID: "m1", To: "aanvraag+X!@intake.nl" })).toBeNull();
