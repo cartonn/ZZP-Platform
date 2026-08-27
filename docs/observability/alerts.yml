@@ -306,6 +306,31 @@ groups:
           summary: "Error-monitoring levert niet af"
           description: "De externe error-monitoring (Sentry) dispatcht niet meer (zzp_error_monitoring_delivery_ok=0, ≥3 opeenvolgende mislukkingen). De reporter fail-opent, dus onafgevangen server-/taakfouten worden alleen nog naar de host-logs geschreven en bereiken Sentry NIET — de externe monitoring is stil weggevallen terwijl SENTRY_DSN gezet is. Meestal ontbreekt het pakket @sentry/nextjs (installeer het en deploy opnieuw) of is de DSN/uitgaande route kapot. Controleer het server-logboek en draai de Error-monitoring-zelftest op /admin/systeemstatus. Zie MENSENWERK §0b."
 
+      - alert: ZzpUploadScanDeliveryFailing
+        # De malware-scan van geüploade bewijsstukken (ClamAV, UPLOAD_SCANNER=clamav) levert systematisch
+        # geen beslissend verdict: de laatste scan kon de clamd-daemon niet bereiken of kreeg een
+        # onherkenbare respons (zzp_upload_scan_delivery_ok=0) én er zijn ≥3 opeenvolgende mislukkingen.
+        # De scan-grens (assertUploadClean) is standaard FAIL-CLOSED — is de scanner onbereikbaar, dan
+        # wordt de upload geweigerd en is de storing luidruchtig zichtbaar. Maar met
+        # UPLOAD_SCAN_FAIL_OPEN=true (bewust doorlaten tijdens een clamd-storing) wordt de grens STIL
+        # fail-open: élk geüpload bewijsstuk (VOG, diploma, verzekering) gaat dan ONGESCAND naar de opslag
+        # zonder dat iets dat toont. Een verdict "error" (clamd antwoordt, maar met een lege/onherkenbare
+        # respons — bv. kapotte virusdefinities) telt óók als mislukking: de scanner draait dan wel maar
+        # detecteert niets. Scans zijn event-gedreven (geen staleness-op-leeftijd), dus de conditie zit op
+        # de teller, niet op ouderdom. Oorzaak meestal een verkeerde/geblokkeerde CLAMAV_HOST/CLAMAV_PORT,
+        # een netwerk-/firewallstoring, of lege/kapotte virusdefinities in de daemon. De ≥3-drempel +
+        # `for:` negeren één transiënte fout. Herstel wordt automatisch gewist zodra een scan weer een
+        # verdict levert (of draai de Upload-scanner-zelftest op /admin/systeemstatus). Zonder actieve
+        # scanner (UPLOAD_SCANNER=noop) registreert niets → deze alert vuurt per definitie niet. Zie
+        # MENSENWERK §0b.
+        expr: zzp_upload_scan_delivery_ok == 0 and zzp_upload_scan_consecutive_failures >= 3
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Malware-scan uploads levert niet af"
+          description: "De malware-scan van geüploade bewijsstukken (ClamAV) levert geen beslissend verdict meer (zzp_upload_scan_delivery_ok=0, ≥3 opeenvolgende mislukkingen). De clamd-daemon is onbereikbaar (verkeerde/geblokkeerde CLAMAV_HOST/CLAMAV_PORT, netwerkstoring, time-out) of antwoordt met een onherkenbare respons (lege/kapotte virusdefinities). Staat de scan-grens op fail-closed (default), dan worden uploads nú geweigerd; staat UPLOAD_SCAN_FAIL_OPEN=true, dan gaan bewijsstukken (VOG, diploma, verzekering) STIL ongescand naar de opslag. Controleer de clamd-daemon en draai de Upload-scanner-zelftest op /admin/systeemstatus. Zie MENSENWERK §0b."
+
   - name: zzp-platform-stille-faal-backlogs
     rules:
       # Deze drie tellen werk dat een cron-run HAD moeten doen. De cron-heartbeat bewijst alleen DÁT de

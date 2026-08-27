@@ -197,6 +197,30 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   (`src/lib/services/upload-scanner-selftest.ts`, actie in `.../systeemstatus/actions.ts`, zelfde
   patroon als de Opslag-/E-mail-/Rate-limit-/Verificatie-/Betaalprovider-zelftest). Resterend
   mensenwerk: **niets extra** — de knop is er zodra `UPLOAD_SCANNER=clamav` staat.
+  **Code-kant GEDAAN (2026-08-27) — upload-scanner aflever-heartbeat (dead-man's-switch):** de zelftest
+  hierboven bewijst bereikbaarheid **vóór go-live** (menselijke klik); hij zegt niets over de duizenden
+  échte scans daarna. De scan-grens (`assertUploadClean`) is standaard **fail-closed** — een onbereikbare
+  clamd weigert dan uploads, luidruchtig zichtbaar. Maar met `UPLOAD_SCAN_FAIL_OPEN=true` (bewust
+  doorlaten tijdens een clamd-storing waarin beschikbaarheid boven scannen gaat) wordt de grens **STIL
+  fail-open**: élk geüpload bewijsstuk (VOG, diploma, verzekering) gaat dan **ongescand** naar de opslag
+  zonder dat iets dat toont. Ook een clamd die wél antwoordt maar met een onherkenbare/lege respons
+  (verdict `error`, bv. lege/kapotte virusdefinities) telt als een niet-afleverend kanaal. Dit was het
+  laatste fail-open-**capabele** productiekanaal zónder doorlopend afleversignaal
+  (storage/mail/push/billing/verificatie/rate-limit/gelekt-wachtwoord/error-monitoring hadden er al één).
+  Nu registreert elke échte scan via de ClamAV-scanner haar uitkomst in een `UploadScanDeliveryHeartbeat`
+  (de Noop-default registreert bewust niets — geen kanaal; uploads worden dan ongescand doorgelaten).
+  Event-gedreven oordeel op de **laatste** scan (`never`/`ok`/`failing` + teller); geslaagde scans worden
+  **gecoalesceerd** (max één schrijf per venster, `UPLOAD_SCAN_HEARTBEAT_COALESCE_MS`, default 15s) zodat
+  een reeks uploads geen DB-write per scan geeft, mislukkingen worden altijd direct vastgelegd en een
+  herstel schrijft meteen. Kaart "Malware-scan uploads" op `/admin/systeemstatus`; gauges
+  `zzp_upload_scan_delivery_ok`/`zzp_upload_scan_consecutive_failures`/
+  `zzp_upload_scan_last_failure_age_seconds` op `/api/metrics`; alert `ZzpUploadScanDeliveryFailing`
+  (`==0 and >=3`, `for:15m`, warning) in `docs/observability/alerts.yml`, in de onderhouds-inhibitie.
+  Belangrijk: de heartbeat legt de controle-flow niet stil (verdict `error` verandert het doorlaten/
+  weigeren niet — het voegt alleen zichtbaarheid toe); het definitieve detectie-bewijs blijft de
+  EICAR-Upload-scanner-zelftest. Bevat nooit host/poort, secrets, PII of de bestandsinhoud. Resterend
+  mensenwerk: **niets extra** — de kaart/gauges vullen zichzelf zodra `UPLOAD_SCANNER=clamav` staat en de
+  eerste scan draait. Optioneel: richt een monitor op `ZzpUploadScanDeliveryFailing`.
 - **Dependency graph + Dependabot aanzetten** (laag, web-toggle): de `dependency-review`-poort
   vereist GitHub's Dependency graph. Zet die (en Dependabot security updates) aan op
   github.com/cartonn/ZZP-Platform/settings/security_analysis. De supply-chain-CVE-check draait

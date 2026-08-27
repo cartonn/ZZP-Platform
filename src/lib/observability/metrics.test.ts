@@ -71,6 +71,9 @@ const HEALTHY: MetricsInput = {
   errorMonitoringDeliveryOk: true,
   errorMonitoringDeliveryConsecutiveFailures: 0,
   errorMonitoringDeliveryLastFailureAgeSeconds: null,
+  uploadScanDeliveryOk: true,
+  uploadScanDeliveryConsecutiveFailures: 0,
+  uploadScanDeliveryLastFailureAgeSeconds: null,
 };
 
 function valueOf(input: MetricsInput, name: string): number {
@@ -523,6 +526,9 @@ describe("buildMetrics", () => {
       errorMonitoringDeliveryOk: false,
       errorMonitoringDeliveryConsecutiveFailures: 12,
       errorMonitoringDeliveryLastFailureAgeSeconds: 2700,
+      uploadScanDeliveryOk: false,
+      uploadScanDeliveryConsecutiveFailures: 13,
+      uploadScanDeliveryLastFailureAgeSeconds: 3000,
     };
     expect(valueOf(input, "zzp_db_reachable")).toBe(0);
     expect(valueOf(input, "zzp_metrics_collection_complete")).toBe(0);
@@ -553,6 +559,9 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_error_monitoring_delivery_ok")).toBe(0);
     expect(valueOf(input, "zzp_error_monitoring_consecutive_failures")).toBe(12);
     expect(valueOf(input, "zzp_error_monitoring_last_failure_age_seconds")).toBe(2700);
+    expect(valueOf(input, "zzp_upload_scan_delivery_ok")).toBe(0);
+    expect(valueOf(input, "zzp_upload_scan_consecutive_failures")).toBe(13);
+    expect(valueOf(input, "zzp_upload_scan_last_failure_age_seconds")).toBe(3000);
     expect(valueOf(input, "zzp_maintenance_mode")).toBe(1);
     expect(valueOf(input, "zzp_credentials_overdue_expiry")).toBe(12);
     expect(valueOf(input, "zzp_subscriptions_overdue_expiry")).toBe(8);
@@ -672,6 +681,9 @@ describe("buildMetrics", () => {
       "zzp_error_monitoring_delivery_ok",
       "zzp_error_monitoring_consecutive_failures",
       "zzp_error_monitoring_last_failure_age_seconds",
+      "zzp_upload_scan_delivery_ok",
+      "zzp_upload_scan_consecutive_failures",
+      "zzp_upload_scan_last_failure_age_seconds",
     ]);
   });
 });

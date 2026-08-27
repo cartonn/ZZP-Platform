@@ -19,6 +19,10 @@
 import { UploadValidationError } from "@/lib/services/storage";
 import { logger } from "@/lib/observability/logger";
 import { getErrorReporter } from "@/lib/observability/report";
+import {
+  recordUploadScanDeliverySuccess,
+  recordUploadScanDeliveryFailure,
+} from "@/lib/observability/upload-scan-delivery-heartbeat";
 
 /** clamd luistert standaard op TCP-poort 3310. */
 export const CLAMAV_DEFAULT_PORT = 3310;
@@ -168,6 +172,10 @@ export async function assertUploadClean(
   target: UploadScanTarget,
   scanner: UploadScanner = getUploadScanner(),
 ): Promise<void> {
+  // Alleen de échte ClamAV-scanner voedt de aflever-heartbeat; de Noop-default is geen productie-kanaal
+  // (uploads worden dan bewust ongescand doorgelaten) en registreert daarom niets.
+  const isRealScanner = scanner.name === "clamav";
+
   let result: UploadScanResult;
   try {
     result = await scanner.scan(buffer);
@@ -177,6 +185,8 @@ export async function assertUploadClean(
       source: "upload-scanner",
       extra: { scanner: scanner.name, mimeType: target.mimeType, size: target.size },
     });
+    // Dead-man's-switch: een onbereikbare/time-outte daemon is een afleverstoring. Best-effort; werpt niet.
+    if (isRealScanner) await recordUploadScanDeliveryFailure();
     if (uploadScanFailOpen()) {
       logger.warn("upload-scan-degraded", { scanner: scanner.name, failOpen: true });
       return;
@@ -184,6 +194,15 @@ export async function assertUploadClean(
     throw new UploadValidationError(
       "Dit bestand kon niet op malware worden gecontroleerd. Probeer het later opnieuw.",
     );
+  }
+
+  // Een verdict "error" betekent dat clamd wél antwoordde maar met een onherkenbare/lege respons (bv.
+  // kapotte virusdefinities): het kanaal levert geen echt oordeel. Registreer als afleverstoring (de
+  // controle-flow blijft ongewijzigd — dit voegt alleen zichtbaarheid toe). Een beslissend verdict
+  // (clean/infected) bewijst dat de scanner bereikbaar én operationeel is → success.
+  if (isRealScanner) {
+    if (result.verdict === "error") await recordUploadScanDeliveryFailure();
+    else await recordUploadScanDeliverySuccess();
   }
 
   if (result.verdict === "infected") {

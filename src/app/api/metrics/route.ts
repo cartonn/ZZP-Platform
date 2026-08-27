@@ -63,6 +63,7 @@ import { getStorageDeliveryFreshness } from "@/lib/observability/storage-deliver
 import { getRateLimitDeliveryFreshness } from "@/lib/observability/ratelimit-delivery-heartbeat";
 import { getPasswordBreachDeliveryFreshness } from "@/lib/observability/password-breach-delivery-heartbeat";
 import { getErrorMonitoringDeliveryFreshness } from "@/lib/observability/error-monitoring-delivery-heartbeat";
+import { getUploadScanDeliveryFreshness } from "@/lib/observability/upload-scan-delivery-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { waitingSince } from "@/lib/verification-queue";
 import {
@@ -585,6 +586,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     rateLimit,
     passwordBreach,
     errorMonitoring,
+    uploadScan,
   ] = await Promise.all([
     getCronFreshness(undefined, now),
     getBackupFreshness(now),
@@ -597,6 +599,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     getRateLimitDeliveryFreshness(now),
     getPasswordBreachDeliveryFreshness(now),
     getErrorMonitoringDeliveryFreshness(now),
+    getUploadScanDeliveryFreshness(now),
   ]);
 
   return {
@@ -636,6 +639,9 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     errorMonitoringDeliveryOk: errorMonitoring.status !== "failing",
     errorMonitoringDeliveryConsecutiveFailures: errorMonitoring.consecutiveFailures,
     errorMonitoringDeliveryLastFailureAgeSeconds: errorMonitoring.failureAgeSeconds,
+    uploadScanDeliveryOk: uploadScan.status !== "failing",
+    uploadScanDeliveryConsecutiveFailures: uploadScan.consecutiveFailures,
+    uploadScanDeliveryLastFailureAgeSeconds: uploadScan.failureAgeSeconds,
     verificationQueue,
     verificationQueueOldestAgeSeconds,
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),

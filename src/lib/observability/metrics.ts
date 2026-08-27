@@ -472,6 +472,23 @@ export interface MetricsInput {
   errorMonitoringDeliveryConsecutiveFailures: number;
   /** Leeftijd van de meest recente error-monitoring-dispatch-mislukking in seconden, of null als er nooit één was. */
   errorMonitoringDeliveryLastFailureAgeSeconds: number | null;
+
+  /**
+   * 1 als de laatste malware-scan van een geüpload bewijsstuk (ClamAV, UPLOAD_SCANNER=clamav) een
+   * beslissend verdict leverde (of er nog nooit één was — neutraal gezond), 0 als de scan systematisch
+   * mislukt (clamd onbereikbaar/time-out, of een onherkenbare respons zoals kapotte virusdefinities). De
+   * scan-grens is standaard FAIL-CLOSED (weigert dan uploads), maar met UPLOAD_SCAN_FAIL_OPEN=true STIL
+   * fail-open: dan gaan bestanden ONGESCAND naar de opslag. Event-gedreven; het alarm zit op OPEENVOLGENDE
+   * mislukkingen. Zonder actieve scanner (noop) registreert niets → blijft "ok/never".
+   */
+  uploadScanDeliveryOk: boolean;
+  /**
+   * Aantal opeenvolgende mislukte upload-scans sinds de laatste geslaagde (0 als ok of nog nooit een
+   * operatie). Een monitor paget op een AANHOUDENDE storing, niet op één transiënte fout.
+   */
+  uploadScanDeliveryConsecutiveFailures: number;
+  /** Leeftijd van de meest recente upload-scan-mislukking in seconden, of null als er nooit één was. */
+  uploadScanDeliveryLastFailureAgeSeconds: number | null;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -865,6 +882,24 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: `Leeftijd van de meest recente mislukte error-monitoring-dispatch in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_error_monitoring_consecutive_failures / zzp_error_monitoring_delivery_ok.`,
       type: "gauge",
       value: age(input.errorMonitoringDeliveryLastFailureAgeSeconds),
+    },
+    {
+      name: "zzp_upload_scan_delivery_ok",
+      help: "1 als de laatste malware-scan van een geüpload bewijsstuk (ClamAV, UPLOAD_SCANNER=clamav) een beslissend verdict leverde (of er nog nooit één was — neutraal gezond), 0 als de scan systematisch mislukt (clamd onbereikbaar/time-out, of een onherkenbare respons zoals kapotte virusdefinities). De scan-grens is standaard FAIL-CLOSED (weigert dan uploads); met UPLOAD_SCAN_FAIL_OPEN=true gaan bestanden STIL ongescand naar de opslag. Zonder actieve scanner (noop) registreert niets → blijft 1.",
+      type: "gauge",
+      value: flag(input.uploadScanDeliveryOk),
+    },
+    {
+      name: "zzp_upload_scan_consecutive_failures",
+      help: "Aantal opeenvolgende mislukte upload-scans sinds de laatste geslaagde (0 = ok of nog nooit een operatie). Alarmeer op een AANHOUDENDE teller (verkeerde/geblokkeerde CLAMAV_HOST/CLAMAV_PORT, netwerkstoring, kapotte virusdefinities), niet op één transiënte fout.",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.uploadScanDeliveryConsecutiveFailures)),
+    },
+    {
+      name: "zzp_upload_scan_last_failure_age_seconds",
+      help: `Leeftijd van de meest recente mislukte upload-scan in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_upload_scan_consecutive_failures / zzp_upload_scan_delivery_ok.`,
+      type: "gauge",
+      value: age(input.uploadScanDeliveryLastFailureAgeSeconds),
     },
   ];
 }
