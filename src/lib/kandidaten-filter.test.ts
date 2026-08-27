@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   KANDIDATEN_FILTER_LABELS,
+  buildKandidatenHref,
   countApplicationsByStatus,
   filterApplicationsByStatus,
   isApplicationStatus,
@@ -71,6 +72,27 @@ describe("countApplicationsByStatus", () => {
   it("negeert onbekende statuswaarden", () => {
     const counts = countApplicationsByStatus([{ status: "BOGUS" }, { status: "NEW" }]);
     expect(counts.NEW).toBe(1);
+  });
+});
+
+describe("buildKandidatenHref", () => {
+  it("geeft de kale route zonder status of scope", () => {
+    expect(buildKandidatenHref({})).toBe("/kandidaten");
+    expect(buildKandidatenHref({ status: "", job: null })).toBe("/kandidaten");
+  });
+  it("zet alleen het statusfilter", () => {
+    expect(buildKandidatenHref({ status: "SHORTLIST" })).toBe("/kandidaten?status=SHORTLIST");
+  });
+  it("zet alleen de opdracht-scope", () => {
+    expect(buildKandidatenHref({ job: "job-1" })).toBe("/kandidaten?job=job-1");
+  });
+  it("behoudt status én scope samen", () => {
+    expect(buildKandidatenHref({ status: "NEW", job: "job-1" })).toBe(
+      "/kandidaten?status=NEW&job=job-1",
+    );
+  });
+  it("codeert bijzondere tekens in de opdracht-id", () => {
+    expect(buildKandidatenHref({ job: "a b&c" })).toBe("/kandidaten?job=a+b%26c");
   });
 });
 

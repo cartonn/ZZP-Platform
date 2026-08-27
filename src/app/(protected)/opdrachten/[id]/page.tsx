@@ -53,6 +53,8 @@ import { diagnoseJobVacancyRate } from "@/lib/vacancy-rate-diagnosis";
 import { getJobRateBands } from "@/lib/data/job-rate-bands";
 import { summarizeStaffingRisk } from "@/lib/job-staffing-risk";
 import { JobStaffingRiskCard } from "@/components/jobs/job-staffing-risk-card";
+import { summarizeJobPipelineFromCounts } from "@/lib/job-pipeline";
+import { JobCandidateFunnelCard } from "@/components/jobs/job-candidate-funnel-card";
 import { summarizeJobCompetition, type CompetitionSummary } from "@/lib/job-competition";
 import { JobCompetitionCard } from "@/components/jobs/job-competition-card";
 import { summarizeEffectiveRate, type EffectiveRateSummary } from "@/lib/effective-rate";
@@ -69,7 +71,11 @@ import {
   type JobCollaborationConflict,
 } from "@/lib/job-collaboration-conflict";
 import { JobCollaborationConflictCard } from "@/components/jobs/job-collaboration-conflict-card";
-import { type AvailabilityWindowType, type CollaborationStatus } from "@/lib/enums";
+import {
+  type AvailabilityWindowType,
+  type CollaborationStatus,
+  type ApplicationStatus,
+} from "@/lib/enums";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
@@ -430,23 +436,37 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   // PROPOSED voorstel telt bewust níét als lock-in — de ZZP'er heeft nog niet toegezegd — en valt al
   // onder de ACCEPTED-reactie waaruit het voortkomt. Reactie-tellingen uit één groupBy; de
   // samenwerking-check uit één count. Alleen relevant voor een gepubliceerde opdracht.
+  // Reactie-tellingen per status voor deze opdracht — één aggregate-query die zowel de reactie-funnel
+  // als het bezettingsrisico voedt (geen dubbele query). Alleen voor de eigenaar.
+  const ownerApplicationCounts = isOwner
+    ? await prisma.application.groupBy({
+        by: ["status"],
+        where: { jobId: job.id },
+        _count: { _all: true },
+      })
+    : null;
+  const applicationCountByStatus: Partial<Record<ApplicationStatus, number>> = {};
+  for (const row of ownerApplicationCounts ?? []) {
+    applicationCountByStatus[row.status as ApplicationStatus] = row._count._all;
+  }
+
+  // Reactie-funnel voor de eigenaar: hoeveel mensen reageerden en waar staan ze (nieuw/bekeken/
+  // shortlist/geaccepteerd/afgewezen), met een directe instap naar het beoordelen van déze opdracht.
+  // Puur afgeleid uit de tellingen hierboven; ingetrokken reacties tellen niet mee.
+  const candidateFunnel = ownerApplicationCounts
+    ? summarizeJobPipelineFromCounts(applicationCountByStatus)
+    : null;
+
   const staffingRisk =
     isOwner && status === "PUBLISHED" && job.startDate
       ? await (async () => {
-          const [byStatus, activeCollabs] = await Promise.all([
-            prisma.application.groupBy({
-              by: ["status"],
-              where: { jobId: job.id },
-              _count: { _all: true },
-            }),
-            prisma.collaboration.count({
-              where: { jobId: job.id, status: { in: ["ACTIVE", "COMPLETED"] } },
-            }),
-          ]);
-          const countFor = (s: string) => byStatus.find((r) => r.status === s)?._count._all ?? 0;
-          const applicantCount = byStatus
-            .filter((r) => r.status !== "WITHDRAWN")
-            .reduce((sum, r) => sum + r._count._all, 0);
+          const activeCollabs = await prisma.collaboration.count({
+            where: { jobId: job.id, status: { in: ["ACTIVE", "COMPLETED"] } },
+          });
+          const countFor = (s: ApplicationStatus) => applicationCountByStatus[s] ?? 0;
+          // `applicantCount` = alle actieve reacties (excl. WITHDRAWN) — dezelfde definitie als
+          // `JobPipeline.total`, dus hergebruiken we die teller (geen drift).
+          const applicantCount = candidateFunnel?.total ?? 0;
           return summarizeStaffingRisk({
             status,
             startDate: job.startDate,
@@ -794,6 +814,10 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             </section>
           ) : null;
         })()}
+
+      {isOwner && candidateFunnel && (
+        <JobCandidateFunnelCard pipeline={candidateFunnel} jobId={job.id} />
+      )}
 
       {isOwner && staffingRisk && <JobStaffingRiskCard summary={staffingRisk} jobId={job.id} />}
 

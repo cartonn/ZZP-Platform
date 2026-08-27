@@ -26,6 +26,22 @@ export function normalizeKandidatenFilter(raw: string | undefined): "" | Applica
   return raw && isApplicationStatus(raw) ? raw : "";
 }
 
+/**
+ * Bouwt een `/kandidaten`-href die zowel het statusfilter als een eventuele opdracht-scope
+ * (`?job=<id>`) behoudt. Pure query-string-compositie zodat de statustabs bij een op één opdracht
+ * gescoopte lijst binnen die scope blijven. Lege waarden worden weggelaten (geen `?status=`).
+ */
+export function buildKandidatenHref(opts: {
+  status?: "" | ApplicationStatus;
+  job?: string | null;
+}): string {
+  const params = new URLSearchParams();
+  if (opts.status) params.set("status", opts.status);
+  if (opts.job) params.set("job", opts.job);
+  const qs = params.toString();
+  return qs ? `/kandidaten?${qs}` : "/kandidaten";
+}
+
 /** Filter de reacties op status; "" laat alles staan. Muteert de invoer niet. */
 export function filterApplicationsByStatus<T extends { status: string }>(
   applications: readonly T[],

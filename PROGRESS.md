@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-27 — routine: kandidaat-funnel + bekijk-kandidaten-deeplink op opdracht-detail (opdrachtgever)
+
+**Wat:** de opdrachtgever zag op de opdracht-detailpagina (`/opdrachten/[id]`) wél bezettingsrisico,
+vacaturetempo en listing-kwaliteit, maar nergens **hoeveel mensen reageerden en waar ze staan** — en
+er was geen instap naar het beoordelen van déze opdracht (`/kandidaten` toont álle opdrachten door
+elkaar). Dit increment plaatst een compacte **reactie-funnel** in de eigenaar-kolom (nieuw / bekeken /
+op shortlist / geaccepteerd / afgewezen, met "nieuw" uitgelicht) plus een **"Bekijk kandidaten"**-
+deeplink, en maakt `/kandidaten` **scopebaar op één opdracht** (`?job=<id>`) met een scope-banner en
+"Toon alle opdrachten"-uitgang. Benchmark: de per-vacature funnels van Temper/Malt.
+
+**Waarom veilig:** de funnel is puur afgeleid uit één owner-only `groupBy` op de reactiestatussen —
+diezelfde aggregate voedt nu óók het bezettingsrisico (geen dubbele query; `applicantCount` hergebruikt
+`JobPipeline.total`, dezelfde WITHDRAWN-uitsluiting → geen drift). Alleen zichtbaar voor de eigenaar
+(`isOwner`), toont geen kandidaatgegevens. De `?job`-scope is **server-side gevalideerd**: alleen een
+opdracht van deze opdrachtgever telt, een onbekende/andermans id valt terug op "alle opdrachten" — geen
+lege lijst, geen cross-tenant-lek (de company-userId-scope op de query blijft altijd staan). De
+statustabs behouden de scope via `buildKandidatenHref` (pure query-compositie).
+
+**Bestanden:** `src/lib/job-pipeline.ts` (+`summarizeJobPipelineFromCounts`, pure — voedt de funnel uit
+tellingen i.p.v. losse reacties; `summarizeJobPipeline` deelt nu dezelfde kern),
+`src/lib/job-pipeline.test.ts` (+4 tests), `src/components/jobs/job-candidate-funnel-card.tsx` (NIEUW,
+presentationeel), `src/lib/kandidaten-filter.ts` (+`buildKandidatenHref`),
+`src/lib/kandidaten-filter.test.ts` (+5 tests), `src/app/(protected)/opdrachten/[id]/page.tsx`
+(gedeelde groupBy + funnel-kaart), `src/app/(protected)/kandidaten/page.tsx` (`?job`-scope + banner).
+
+**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (nieuw 9/9; funnel + href) · build (zie PR-poort)
+→ PR #1251 + CI-poort.
+
 ## 2026-08-27 — prod: upload-scanner aflever-heartbeat (dead-man's-switch)
 
 **Wat:** het laatste fail-open-**capabele** productiekanaal zónder doorlopend afleversignaal gedicht. De
