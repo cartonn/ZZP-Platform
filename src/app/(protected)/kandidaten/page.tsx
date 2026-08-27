@@ -63,6 +63,8 @@ import { getDeliveryQualityForProfiles } from "@/lib/data/freelancer-delivery-qu
 import { getSharedHistoryForCandidates } from "@/lib/data/candidate-history";
 import { getCompletedCollaborationCounts } from "@/lib/data/candidate-track-records";
 import { CandidateExperienceBadge } from "@/components/freelancer/candidate-experience-badge";
+import { CandidateMultiApplyBadge } from "@/components/freelancer/candidate-multi-apply-badge";
+import { summarizeMultiApply, otherAppliedJobs } from "@/lib/candidate-multi-apply";
 import { getReviewRatingsForCandidates } from "@/lib/data/candidate-reviews";
 import { changeApplicationStatus } from "./actions";
 import { ApplicationNoteForm } from "./application-note-form";
@@ -263,6 +265,18 @@ export default async function KandidatenPage({
   const comparableJobs = [...comparableByJob.entries()]
     .filter(([, v]) => v.count >= 2)
     .map(([id, v]) => ({ id, title: v.title, count: v.count }));
+
+  // Breedte-signaal per kandidaat: op hoeveel van je opdrachten reageerde één ZZP'er (nog in de race)?
+  // Afgeleid uit dezelfde reeds opgehaalde lijst (geen extra query); afgewezen/ingetrokken tellen niet
+  // mee (spiegelt de vergelijk-instap hierboven). Alleen kandidaten met ≥ 2 opdrachten komen terug.
+  const multiApplyByFreelancer = summarizeMultiApply(
+    applications.map((a) => ({
+      freelancerId: a.freelancer.id,
+      jobId: a.job.id,
+      jobTitle: a.job.title,
+      status: a.status,
+    })),
+  );
 
   // Beslis-nu-signaal: hoeveel nog-onbesliste reacties liggen langer dan past bij hun matchkwaliteit?
   // Sterke kandidaten raken elders aan de slag als je te lang wacht — afgeleid uit de reeds opgehaalde
@@ -553,6 +567,11 @@ export default async function KandidatenPage({
                 // de echte status. Gekoppeld aan de tier-eigen patience, niet aan een vaste drempel, zodat
                 // er geen NEW-rij zonder enige status-aanduiding ontstaat.
                 const fresh = status === "NEW" && !decision?.attention;
+                // Andere opdrachten (≠ deze) waarop dezelfde kandidaat ook nog meedingt.
+                const otherJobs = otherAppliedJobs(
+                  multiApplyByFreelancer.get(app.freelancer.id),
+                  app.job.id,
+                );
                 const lead = !app.collaboration ? (
                   <input
                     type="checkbox"
@@ -588,6 +607,7 @@ export default async function KandidatenPage({
                                 (historyByProfile.get(app.freelancer.id)?.count ?? 0) >= 1
                               }
                             />
+                            <CandidateMultiApplyBadge otherJobs={otherJobs} />
                             {(() => {
                               // Reputatie: gemiddelde opdrachtgever-beoordeling. Alleen tonen bij ≥1
                               // gepubliceerde beoordeling — anders draagt het vertrouwensniveau.
@@ -661,6 +681,21 @@ export default async function KandidatenPage({
                         {t("Naar opdracht")}: {app.job.title}
                       </Link>
                     </p>
+
+                    {otherJobs.length > 0 && (
+                      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                        <span>{t("Reageerde ook op je opdrachten:")}</span>
+                        {otherJobs.map((job) => (
+                          <Link
+                            key={job.id}
+                            href={`/kandidaten?job=${job.id}`}
+                            className="underline-offset-4 hover:text-foreground hover:underline"
+                          >
+                            {job.title}
+                          </Link>
+                        ))}
+                      </p>
+                    )}
 
                     <VerificationMarks credentials={app.freelancer.credentials} />
 
