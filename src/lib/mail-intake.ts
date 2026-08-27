@@ -217,9 +217,11 @@ export function parseDutchDate(value: string): Date | null {
 
   const written = value.toLowerCase().match(/(\d{1,2})\s+([a-zà-ÿ]+)\s+(\d{4})/);
   if (written) {
-    const monthIndex = DUTCH_MONTHS.findIndex((m) => m.startsWith(written[2].slice(0, 3)));
-    if (monthIndex >= 0)
-      return validUtcDate(Number(written[3]), monthIndex + 1, Number(written[1]));
+    const monthWord = written[2] ?? "";
+    const monthIndex = DUTCH_MONTHS.findIndex((m) => m.startsWith(monthWord.slice(0, 3)));
+    if (monthIndex >= 0) {
+      return validUtcDate(Number(written[3] ?? ""), monthIndex + 1, Number(written[1] ?? ""));
+    }
   }
   return null;
 }
