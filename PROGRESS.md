@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-27 — security/privacy: durable RBAC-dekkingspoort admin-API + brede her-audit schoon
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: (1) server actions in de minder-betreden mappen, (2) cross-tenant isolatie +
+PII-overfetch + k-anonimiteit, (3) injectie/upload/SSRF/secrets/headers/error-leakage). **Alle drie CLEAN —
+geen bevestigde exploiteerbare bevindingen.** De delta sinds de vorige basis (`94db801e..2f85b8b5`) apart
+geverifieerd: de nieuwe waarde-/prefill-/DBA-afgeleiden zijn puur en achter bestaande ownership-poorten. `npm
+audit --omit=dev`: 0 vulnerabilities. Enige actie: één defense-in-depth-hardening (geen live gat).
+
+**Fix:** durable dekkingspoort `src/app/api/admin/admin-route-authz-coverage.test.ts` — dwingt af dat élke
+`src/app/api/admin/**/route.ts` server-side `requireRole("ADMIN")` in de handler heeft. Sluit het procesgat
+dat `isAdminPath` (middleware) `/api/admin/*` niet dekt (bewust — een API hoort 403 JSON, geen redirect), dus
+admin-API-routes hebben geen middleware-vangnet en leunen alleen op de handler-aanroep. Bewezen rood→groen
+(guard tijdelijk weggehaald → poort meldt exact die route). Spiegelt `anonymize-schema-coverage.test.ts`.
+
+**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit 7065/7065 ✓ · build ✓. Backlog + PROGRESS bijgewerkt.
+
 ## 2026-08-27 — routine: waarde-overzicht (geleverd/betaald/openstaand) op het samenwerking-detail
 
 **Wat:** het werkproces-detail (`/samenwerkingen/[id]`) somde prestaties en facturen op als losse
