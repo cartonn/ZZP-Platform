@@ -28,6 +28,29 @@ Zijbalk-item (CLIENT), notificatie-meta, audit-labels, `.env.example`, MENSENWER
 
 **Volgende stap:** e2e-flow (webhook → queue → concept) en optioneel per-company intake-aliassen.
 
+## 2026-08-27 — routine: per-factuur belastingreservering-hint (ZZP'er)
+
+**Wat:** de ZZP'er heeft een precies belastingradar op `/ontzorgd` (BTW-stand + IB/Zvw-reservering over de
+winst-tot-nu), maar op het inn-moment zelf — de factuur-detailpagina — stond nergens _hoeveel van déze
+factuur_ opzij te zetten. Nu toont dat scherm voor de crediteur een rustige "opzij zetten van deze
+factuur"-kaart: de volledige btw apart (die int hij namens de Belastingdienst) + een conservatieve
+vuistregel voor IB+Zvw over de netto-omzet, met doorverwijzing naar het precieze `/ontzorgd`-beeld.
+Benchmark: de per-factuur reserveringssuggesties van NL-boekhoudtools (Tellow/Jortt) — maar op het moment
+dat je factureert, niet pas in een apart dashboard.
+
+**Hoe:** nieuwe pure lib `src/lib/tax/invoice-reserve.ts` — `invoiceReserveHint({subtotalCents,vatCents})`
+(btw volledig + `INCOME_RESERVE_DEFAULT_BPS`-vuistregel over de netto-omzet; onbekende kosten verlagen de
+werkelijke heffing → bewust over-reserveren = veilig) + `shouldShowInvoiceReserve` (alleen de crediteur,
+alleen bij bekende netto-/btw-uitsplitsing (cascade), niet voor CANCELLED/CREDITED/REJECTED — je hoeft niets
+te reserveren voor teruggedraaide omzet). Herbruikt de canonieke `INCOME_RESERVE_DEFAULT_BPS` → geen drift
+met de radar. Read-only, server-side, geen schema-/mutatie-/authz-oppervlak, geen dode knop; het woord "AI"
+komt nergens voor.
+
+**Bestanden:** `src/lib/tax/invoice-reserve.ts` (+ `.test.ts`, +9 tests),
+`src/components/invoices/invoice-reserve-card.tsx` (NIEUW, presentationeel),
+`src/app/(protected)/facturen/[id]/page.tsx` (import + hint-afleiding + render na de betaalkaarten).
+**Checks:** typecheck ✓ · lint ✓ · prettier (hele repo) ✓ · unit (9/9 nieuw) · build → PR #1255 · CI-poort.
+
 ## 2026-08-27 — routine: betaalgedrag opdrachtgever op het samenwerking-detail (ZZP'er)
 
 **Wat:** de ZZP'er zag het betaalgedrag van een opdrachtgever (gemiddelde betaaltijd, % op tijd) al op de
