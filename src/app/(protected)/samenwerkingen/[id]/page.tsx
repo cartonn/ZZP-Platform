@@ -28,6 +28,8 @@ import { ORT_SECTORS, ORT_SECTOR_LABEL, reviewBlindDays } from "@/lib/config";
 import { buildChainSteps } from "@/lib/cascade/chain-steps";
 import { collaborationStatusLine } from "@/lib/collaboration-status-line";
 import { summarizeCollaborationRenewal } from "@/lib/collaboration-renewal";
+import { summarizeCollaborationValue } from "@/lib/collaboration-value";
+import { CollaborationValueSummary } from "@/components/collaborations/collaboration-value-summary";
 import { collaborationLockReason, terminalLockNotice } from "@/lib/collaboration-lock";
 import { RenewalNudge } from "@/components/collaborations/renewal-nudge";
 import { isPerformanceNewerThanInvoice } from "@/lib/cascade/stage";
@@ -323,6 +325,12 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           disputed: frozen,
         })
       : null;
+
+  // Waarde-/voortgangsoverzicht van deze samenwerking (geleverd/betaald/openstaand/concept). Alleen
+  // voor de betrokken partijen en alleen wanneer er iets te tonen is (verse samenwerking blijft rustig).
+  const valueSummary = isParticipant
+    ? summarizeCollaborationValue(col.performances, col.invoices)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -753,6 +761,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           </p>
         )
       )}
+
+      {/* Waarde-overzicht: geleverd/betaald/openstaand/concept in één blik, vlak boven de detailsecties. */}
+      {valueSummary && <CollaborationValueSummary summary={valueSummary} />}
 
       {/* Prestaties: urenstaat / oplevering. Anker "uren" — de deep-link vanaf de Urenstaten-pagina
           ("Urenstaat indienen") landt hier op het indienformulier. */}
