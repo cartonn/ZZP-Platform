@@ -3,6 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-27 — routine: waarde-overzicht (geleverd/betaald/openstaand) op het samenwerking-detail
+
+**Wat:** het werkproces-detail (`/samenwerkingen/[id]`) somde prestaties en facturen op als losse
+regels, maar telde ze nergens op. Op een lange, meer-cyclus-samenwerking kon geen van beide partijen
+in één blik zien "hoeveel goedgekeurd werk staat er, wat is binnen, wat staat nog uit". Portfolio-brede
+optellingen bestonden alleen op `/inzicht` — nooit per samenwerking. Dit increment plaatst een compact
+**waarde-overzicht** vlak boven de detailsecties: **Goedgekeurd** (goedgekeurde uren + opleveringen, met
+"N nog ter goedkeuring"), **Betaald**, **Openstaand** (met "waarvan € te laat"), en **Concept** (nog in te
+dienen, alleen als er iets in concept staat). Beantwoordt "wat heb ik geleverd / wat is binnen / wat staat
+nog uit" op de plek waar beide partijen een lopende inzet beheren. Benchmark: de per-engagement roll-ups
+van Deel/Malt.
+
+**Waarom veilig:** puur afgeleid uit de reeds geladen `col.performances` + `col.invoices` — **geen extra
+query, geen schema-wijziging, geen mutatie/authz-oppervlak**. `summarizeCollaborationValue` (nieuw, puur)
+leunt op exact dezelfde canonieke factuurregels als de rest van de administratie
+(`isInvoicePaidRevenue`/`isInvoiceOutstanding`) → geen drift met /facturen of het dashboard. De
+geldbedragen zijn onderling exclusief (betaald ⊕ openstaand ⊕ concept; een gecrediteerde/afgekeurde
+factuur telt in geen enkele emmer); `overdueCents` is een deelverzameling van openstaand (aandacht-signaal,
+telt niet dubbel). Alleen zichtbaar voor de betrokken partijen (`isParticipant`) en alleen wanneer er iets
+te tonen valt (verse samenwerking blijft rustig → helper geeft `null`).
+
+**Bestanden:** `src/lib/collaboration-value.ts` (NIEUW — pure summarizer),
+`src/lib/collaboration-value.test.ts` (NIEUW — 6 tests),
+`src/components/collaborations/collaboration-value-summary.tsx` (NIEUW — presentationeel),
+`src/app/(protected)/samenwerkingen/[id]/page.tsx` (summary berekenen + kaart renderen).
+
+**Checks:** typecheck ✓ · lint ✓ · test (nieuw 6/6; suite 7060 groen — de enige rode is de
+Next-version-floor-test op stale lokale node_modules 15.5.21 vs. gedeclareerd 15.5.24, CI draait `npm ci`
+vers → groen) · build ✓ · prettier ✓ → PR #1248 + CI-poort.
+
 ## 2026-08-26 — routine: Wet-DBA + rechtsvermoeden-signaal voor de ZZP'er op opdracht-detail
 
 **Wat:** de Wet-DBA-risico-inschatting (schijnzelfstandigheid) en de rechtsvermoeden-drempel
