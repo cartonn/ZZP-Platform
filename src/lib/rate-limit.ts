@@ -561,6 +561,20 @@ export const billingWebhookRateLimiter = new RateLimiter(
 );
 
 /**
+ * Maximaal MAIL_INTAKE_WEBHOOK_RATE_LIMIT (default 60) inbound-mail-webhookpings per IP per minuut.
+ * Het endpoint is met een secret afgeschermd, maar de rem begrenst — vóór auth, body-read en
+ * DB-I/O — een geautomatiseerde flood (parity met billingWebhookRateLimiter). De drempel ligt ruim
+ * boven een legitieme mailburst van de provider; de call-site geeft bij overschrijding bewust 200
+ * terug zodat de provider niet in een retry-storm schiet.
+ */
+export const mailIntakeWebhookRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("MAIL_INTAKE_WEBHOOK_RATE_LIMIT", 60),
+  60_000,
+  "mailintake:",
+);
+
+/**
  * Maximaal STORAGE_SELFTEST_RATE_LIMIT (default 6) opslag-zelftests per beheerder per 5 minuten. De
  * admin-actie (/admin/systeemstatus) doet een echte round-trip tegen de storage-driver (put/get/
  * delete) — bij S3 zijn dat betaalde API-calls tegen de bucket. De rem houdt een per ongeluk

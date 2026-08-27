@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-27 — Mail-intake: dienstaanvragen per e-mail → reviewqueue → concept-opdracht
+
+**Wat:** eerste verticale snede van "MailSync" (benchmark Bendy/GOED: planners typen aanvragen niet
+meer over). Een opdrachtgever mailt een dienstaanvraag; de inbound-webhook parset hem deterministisch
+(NL sleutel-waarde-regels: Functie/Locatie/Tarief/Startdatum/Werkwijze/Omschrijving + fallbacks) en
+zet hem als NEW in de reviewqueue `/opdrachten/mail-intake` (notificatie + audit). De opdrachtgever
+houdt menselijke controle: overnemen maakt een **concept**-opdracht (publiceren via de bestaande flow,
+incl. plan-gating en DBA-check — geen tweede publicatiepad), afwijzen vereist server-side een reden,
+heropenen kan. Feature staat default UIT: zonder `MAIL_INTAKE_WEBHOOK_SECRET` is het endpoint 404.
+
+**Hoe:** nieuw model `MailIntake` (idempotent op provider-`messageId`, geparsede velden als snapshot,
+`@@index([companyId, status])`); statusmap `MAIL_INTAKE_TRANSITIONS` (NEW→ACCEPTED|DISMISSED,
+DISMISSED→NEW, ACCEPTED terminaal) in `src/lib/enums.ts`; pure parser/auth/overgangen in
+`src/lib/mail-intake.ts` (21 unit-tests). Webhook `src/app/api/mail-intake/webhook/route.ts`:
+rate-limit vóór al het werk → timing-safe Bearer/Basic-auth (Postmark-URL-credentials) → byte-grens →
+Zod-payload → afzender-match op account-e-mailadres van een actieve CLIENT (geen match → niets
+opslaan, dataminimalisatie) → transactioneel create + audit + notificatie (P2002 = duplicate → inert).
+Queue-UI + server actions (auth → rol → ownership → validatie → overgangsmap → audit, met
+TOCTOU-grendel via `updateMany(status: "NEW")`) in `src/app/(protected)/opdrachten/mail-intake/`.
+Zijbalk-item (CLIENT), notificatie-meta, audit-labels, `.env.example`, MENSENWERK §2b (inbound-provider
+
+- MX/DNS = mensenwerk).
+
+**Volgende stap:** e2e-flow (webhook → queue → concept) en optioneel per-company intake-aliassen.
+
 ## 2026-08-27 — routine: betaalgedrag opdrachtgever op het samenwerking-detail (ZZP'er)
 
 **Wat:** de ZZP'er zag het betaalgedrag van een opdrachtgever (gemiddelde betaaltijd, % op tijd) al op de

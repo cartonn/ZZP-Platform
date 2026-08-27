@@ -351,6 +351,24 @@ export const TAX_FILING_TRANSITIONS: Record<TaxFilingStatus, readonly TaxFilingS
 };
 
 // ---------------------------------------------------------------------------
+// Mail-intake (dienstaanvraag per e-mail → reviewqueue → concept-opdracht). NEW = binnengekomen,
+// wacht op beoordeling door de opdrachtgever; ACCEPTED = overgenomen als concept-opdracht
+// (terminaal — de opdracht leeft verder in de gewone opdracht-flow); DISMISSED = afgewezen
+// (reden verplicht, server-side afgedwongen), kan heropend worden.
+// ---------------------------------------------------------------------------
+
+export const MAIL_INTAKE_STATUSES = ["NEW", "ACCEPTED", "DISMISSED"] as const;
+export type MailIntakeStatus = (typeof MAIL_INTAKE_STATUSES)[number];
+export const mailIntakeStatusSchema = z.enum(MAIL_INTAKE_STATUSES);
+
+/** Enige toegestane overgangsmap (CLAUDE.md regel 3); assertMailIntakeTransition dwingt af. */
+export const MAIL_INTAKE_TRANSITIONS: Record<MailIntakeStatus, readonly MailIntakeStatus[]> = {
+  NEW: ["ACCEPTED", "DISMISSED"],
+  ACCEPTED: [],
+  DISMISSED: ["NEW"],
+};
+
+// ---------------------------------------------------------------------------
 // Credential-statusovergangen (CLAUDE.md regel 3)
 //
 // Dit is de enige toegestane overgangsmap. `assertTransition` in

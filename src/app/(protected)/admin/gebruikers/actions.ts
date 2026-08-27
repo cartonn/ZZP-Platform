@@ -518,6 +518,11 @@ export async function anonymizeUser(userId: string): Promise<void> {
       data: freelancerProfileAnonymizationData(),
     }),
     prisma.company.updateMany({ where: { userId }, data: companyAnonymizationData() }),
+    // Mail-intake: per e-mail binnengekomen dienstaanvragen van dit bedrijf bevatten directe PII
+    // (afzenderadres = het account-e-mailadres + de ruwe mailinhoud). Geen fiscale bewaargrond —
+    // volledig wissen (AVG art. 17). De gekoppelde concept-opdracht (Job) blijft geanonimiseerd
+    // bestaan via de company-anonimisering hierboven (MailIntake → Job is onDelete: SetNull).
+    prisma.mailIntake.deleteMany({ where: { company: { userId } } }),
     prisma.credential.deleteMany({ where: { freelancerProfile: { userId } } }),
     // NB: de document-rijen worden bewust NIET hier verwijderd, maar race-vrij ná de transactie
     // (zie onder, CWE-367/art. 17). Credential → Document is `onDelete: SetNull`, dus het verwijderen

@@ -690,6 +690,28 @@ goedgekeurd", wachtwoord/uitnodiging) heb je een mailprovider nodig.
    `monitoring-bundle`). Geen extra DB-read (de data bestaat al in de heartbeat), read-only, geen schema-/
    mutatie-/auth-oppervlak. Resterend mensenwerk: **niets** — werkt zodra de cron draait.
 
+### §2b. Inbound e-mail voor mail-intake (dienstaanvragen per e-mail)
+
+**Wat:** de **mail-intake** is code-kant af (27-8-2026): een opdrachtgever mailt een dienstaanvraag,
+de webhook `/api/mail-intake/webhook` parset hem deterministisch en zet hem in de reviewqueue
+`/opdrachten/mail-intake`; de opdrachtgever neemt hem met één klik over als concept-opdracht en
+publiceert via de gewone flow (plan-gating + DBA-check blijven gelden). Benchmark: Bendy/GOED
+"MailSync" — aanvragen niet meer overtypen. **Zonder inbound-provider staat de feature veilig UIT**
+(`MAIL_INTAKE_WEBHOOK_SECRET` ontbreekt → endpoint 404).
+**Stappen (mensenwerk):**
+
+1. Kies een provider met **inbound e-mail** (bv. **Postmark Inbound**; SES Receiving kan ook).
+2. Richt een intake-adres in (bv. `aanvraag@jouwdomein.nl`) en zet de **MX/DNS-records** die de
+   provider opgeeft bij je domeinregistrar.
+3. Genereer een secret (`openssl rand -base64 32`) en zet het als `MAIL_INTAKE_WEBHOOK_SECRET` in
+   de secrets-kluis/Railway.
+4. Configureer bij de provider de webhook-URL **met het secret als basic-auth-wachtwoord**:
+   `https://intake:<secret>@<productie-host>/api/mail-intake/webhook` (of laat de provider een
+   `Authorization: Bearer <secret>`-header meesturen).
+5. Klaar. Afzenders worden gematcht op het **account-e-mailadres van een actieve opdrachtgever**;
+   mail van onbekende afzenders wordt bewust niet opgeslagen (dataminimalisatie). Bijlagen worden
+   genegeerd. AVG: neem "inkomende aanvraagmails" op in het verwerkingsregister bij livegang.
+
 ---
 
 ## §3. Betalingen / abonnementen
