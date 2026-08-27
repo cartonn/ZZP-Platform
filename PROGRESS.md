@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-27 — routine: kandidaat die op meerdere van je opdrachten reageerde (opdrachtgever)
+
+**Wat:** breedte-/intentie-signaal op `/kandidaten`. Wanneer één ZZP'er op meerdere van je open
+opdrachten reageerde, stonden die reacties als losse rijen zonder dat zichtbaar was dat het één en
+dezelfde persoon is. Nu een compacte chip **"Ook op N andere opdrachten"** in de kandidaat-kop
+(naast historie/ervaring), met de andere opdrachttitels in de tooltip én als deeplinks in de
+uitgeklapte rij. Zo herkent de opdrachtgever een hoog-intentie, veelzijdige kandidaat (plaats op de
+best passende rol), telt hij dezelfde persoon niet dubbel bij het inschatten van de pijplijndiepte,
+en accepteert hij niet per ongeluk dezelfde ZZP'er op twee botsende opdrachten. Benchmark:
+Malt/Deel/Temper tonen "applied to N of your roles". Afgewezen/ingetrokken reacties tellen niet mee
+(spiegelt de bestaande vergelijk-instap). Alleen opdrachten van déze opdrachtgever — geen data van een
+andere opdrachtgever, geen tarieven/scores.
+
+**Hoe:** pure `summarizeMultiApply`/`otherAppliedJobs`/`multiApplyLabel` (`src/lib/candidate-multi-apply.ts`,
+dedup op jobId, ≥2-drempel, deterministische sortering) + chip-component
+(`src/components/freelancer/candidate-multi-apply-badge.tsx`). Gewired in `/kandidaten/page.tsx`: één
+in-memory aggregatie over de reeds opgehaalde reactielijst (**geen extra query**, geen schema-/mutatie-/
+authz-oppervlak). +11 unit-tests.
+
+**DoD:** prettier ✓ · unit 11 groen · typecheck/lint/test/build → CI-poort.
+
+**Volgende stap:** CI-poort groen afwachten (6 checks incl. agent-review), dan self-merge via auto-merge.
+
 ## 2026-08-27 — routine: opdrachtgever-activiteit/anciënniteit trust-line (ZZP'er)
 
 **Wat:** cold-start-vertrouwenssignaal over de opdrachtgever op de opdracht-detailpagina. De bestaande

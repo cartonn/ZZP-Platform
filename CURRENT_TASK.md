@@ -268,6 +268,24 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> OPEN — BOUWEN (verified-absent, gap-hunt 2026-08-27; niet-overlappend gecheckt):
+>
+> - **ZZP'er — geboekte-omzet-vooruitblik (booked-revenue runway / inkomsten-cliff) op `/prognose`.**
+>   Alle bestaande forecasts zijn receivables (geld voor reeds geleverd werk: `income-forecast.ts`,
+>   `cashflow-forecast.ts`, `invoice-payment-forecast.ts`). Niets projecteert vooruit uit ACTIVE
+>   `Collaboration` (`rate × geplande dagen` over `weekdays` t/m `endDate`) → "hoeveel inkomen zit al vast
+>   de komende weken, en wanneer droogt het op?" Nieuw `src/lib/booked-revenue-forecast.ts` (pure
+>   aggregator + dunne loader, hergebruik `weekdays.ts`/`WORK_HOURS_PER_DAY`), kaart boven `PrognosePanel`.
+>   Read-only, geen schema/mutatie. ~180-260 regels.
+> - **Bemiddelaar — "openstaande voordrachten die stil vallen" (voordracht follow-up aging) op
+>   `/franchise/diensten`.** Het hele voordracht-systeem is forward-only (`dienst-fill-signal.ts`,
+>   `dienst-voordraag-overzicht.ts`: "wie kán ik nog voordragen?"). Niets beantwoordt "wie nodigde ik al
+>   uit en laat me hangen?" Bron: `AuditLog` `action=FRANCHISE_FREELANCER_PROPOSED` (createdAt = uitnodiging,
+>   metadata `{freelancerId,tenantId}`) → drop zodra de ZZP'er reageerde (`Application` non-WITHDRAWN) of de
+>   dienst gevuld/gesloten is; anders bucket op leeftijd (vers / >2d / >5d). Nieuw
+>   `src/lib/franchise/voordracht-opvolging.ts` + strip bij de acute-fillability-kop. Read-only, geen
+>   schema/mutatie. ~100-200 regels.
+
 > Gedaan (niet opnieuw): **Opdrachtgever — beslis-achterstand-chip op de opdrachtenlijst (2026-08-25, PR #1235)** —
 > de beslis-achterstand (nog-onbesliste reacties die langer wachten dan bij hun matchkwaliteit past; een sterke
 > kandidaat raakt elders aan de slag) stond alleen als paginabrede band op `/kandidaten`, niet op de opdrachtenlijst
