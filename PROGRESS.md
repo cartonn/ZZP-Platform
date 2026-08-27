@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-27 — routine: betaalgedrag opdrachtgever op het samenwerking-detail (ZZP'er)
+
+**Wat:** de ZZP'er zag het betaalgedrag van een opdrachtgever (gemiddelde betaaltijd, % op tijd) al op de
+opdracht-detailpagina (pre-application, `PaymentBehaviorBlock`), maar niet op het actieve samenwerking-detail
+(`/samenwerkingen/[id]`) — juist het scherm waar hij die opdrachtgever factureert en op betaling wacht. Nu toont
+dat scherm hetzelfde blok in de factuur-context, uitsluitend voor de ZZP'er-partij, zodat hij weet of hij snel
+betaald wordt of gericht moet nabellen (benchmark Deel/Malt/CRM: houd betaalbetrouwbaarheid zichtbaar op het
+inn-moment). Surface-parity in het idioom van #1205/#1224.
+
+**Hoe:** nieuwe pure poort `showsClientPaymentContext({ isFreelancer, collaborationStatus, invoiceCount })`
+(`src/lib/collaboration-payer-context.ts`) → toont het blok zodra er te innen valt (ACTIVE-inzet of ≥1 factuur),
+nooit op een voorgestelde samenwerking zonder facturen (geen ruis) en nooit voor de opdrachtgever/admin (die
+factureren niet). Hergebruikt de bestaande `getPaymentBehaviorForCompany(col.companyId)` + `PaymentBehaviorBlock`
+— exact dezelfde bron/berekening als de opdracht-detailpagina, dus geen drift. De ZZP'er is deelnemer aan de
+samenwerking → `col.companyId` is voor hem legitiem zichtbaar (voldoet aan de scoping-eis van de data-helper).
+Read-only, server-side waarheid, geen mutatie-/schema-/authz-/domeinmotor-oppervlak, geen dode knop.
+
+**Bestanden:** `src/lib/collaboration-payer-context.ts` (+ `.test.ts`, +5 tests),
+`src/app/(protected)/samenwerkingen/[id]/page.tsx` (import + fetch + render in de Facturen-sectie).
+**Checks:** typecheck ✓, lint ✓, targeted test (5) ✓, prettier schoon, build → PR · CI-poort geverifieerd.
+
 ## 2026-08-27 — persona-sweep run 95: geannuleerde platformfactuur geeft fees terug (geld-integriteit)
 
 **Wat:** een geannuleerde platformfactuur (`PlatformBillingInvoice` → CANCELLED) liet zijn gebundelde
