@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-27 — routine: opdrachtgever-activiteit/anciënniteit trust-line (ZZP'er)
+
+**Wat:** cold-start-vertrouwenssignaal over de opdrachtgever op de opdracht-detailpagina. De bestaande
+gedrags-/reputatieblokken (betaalgedrag/annulering/reactiebereidheid/reputatie) verbergen zich bij een
+nieuwe opdrachtgever zonder historie — dan zag de ZZP'er niets om "kan ik dit vertrouwen?" op te
+beantwoorden. Nu toont het "Over de opdrachtgever"-blok altijd een publieke activiteitsregel: **"Lid
+sinds {maand jaar}"** + (indien > 0) **aantal geplaatste opdrachten** + **aantal afgeronde
+samenwerkingen**. Benchmark: Malt/Temper tonen dit als baseline-vertrouwen. Alleen voor de ZZP'er
+(niet de eigenaar), geaggregeerd, geen PII — spiegelbeeld van "op het platform sinds" op het ZZP-profiel.
+
+**Hoe:** pure `summarizeCompanyActivity` (`src/lib/company-activity.ts`, null-gate op niet-positieve
+tellingen zoals company-reputation.ts) + dunne fetcher (`src/lib/data/company-activity.ts`,
+begrensde `count`-queries: jobs != DRAFT, collaborations COMPLETED; `memberSince` uit het reeds
+geladen Company-record) + UI-blok (`src/components/jobs/company-activity-block.tsx`, `formatMonthYearNl`).
+Ingebed in de bestaande "Over de opdrachtgever"-sectie op `/opdrachten/[id]` (render-conditie verruimd
+zodat een kaal bedrijf tóch de activiteitsregel toont; de detail-`div` verbergt zich als leeg). +5 unit-tests.
+
+**DoD:** typecheck ✓ · lint ✓ · build ✓ · unit 7168+5 groen (de enige rode test is de Next-versievloer
+door stale container-`node_modules` 15.5.21; `package.json`/lockfile pinnen 15.5.24 → CI `npm ci` groen).
+
+**Volgende stap:** CI-poort groen afwachten (6 checks incl. agent-review), dan self-merge via auto-merge.
+
 ## 2026-08-27 — prod: routing-provider aflever-heartbeat (dead-man's-switch)
 
 **Wat:** het laatste actieve keyed externe integratiekanaal (routing/Geoapify, `ROUTING_PROVIDER=geoapify`)
