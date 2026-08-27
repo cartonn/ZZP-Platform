@@ -123,6 +123,10 @@ describe("parser-bouwstenen", () => {
       mailHtmlToText("<p>Functie: <b>Verzorgende IG</b></p><p>Locatie: Ede &amp; Wageningen</p>"),
     ).toBe("Functie: Verzorgende IG\nLocatie: Ede & Wageningen");
   });
+
+  it("ontsnapt entiteiten precies één keer (geen double-unescape van &amp;lt;)", () => {
+    expect(mailHtmlToText("a &amp;lt; b")).toBe("a &lt; b");
+  });
 });
 
 describe("parseMailIntake", () => {
