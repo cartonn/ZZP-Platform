@@ -4,6 +4,47 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-27 (basis: `main` @ 2f85b8b5) — brede her-audit schoon; durable RBAC-dekkingspoort op het admin-API-oppervlak toegevoegd
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
+(1) álle server actions in de minder-betreden mappen (`admin/**`, `franchise/**`, `support`, `ideeen`,
+`academie`, `diensten/importeer`, `abonnement`, `reacties`): de auth→rol→ownership→Zod→actie→audit-keten,
+IDOR op gegokt id, mass-assignment, statusovergangen, existence-oracles; (2) cross-tenant isolatie
+(`tenancy.ts` + álle `franchise/**` + `tenant-billing/**` + `platform-billing/**`) op client-beïnvloedbare
+tenant-resolutie/cross-tenant-lek, plus PII-overfetch naar de client (select vs include) en k-anonimiteit
+markttarief (≥10); (3) injectie (XSS/`dangerouslySetInnerHTML`, CSV/formule-injectie in álle exports, SQLi,
+template-injectie), upload-veiligheid (type/grootte/magic-bytes/geen publiek pad/geen traversal), SSRF
+(routing/geocode/HIBP/web-push-allowlist), open redirect, secrets/PII-in-logs, security headers/CSP/nonce,
+error-leakage. **Alle drie audits: CLEAN — geen bevestigde nieuwe bevindingen.** De delta t.o.v. de vorige
+basis (`94db801e..2f85b8b5`, 4 commits — waarde-overzicht samenwerking, Wet-DBA/rechtsvermoeden-signaal
+ZZP'er op opdracht-detail, tarief/startdatum-prefill in samenwerkingsvoorstel) apart geverifieerd: de nieuwe
+`collaboration-value`/`collaboration-proposal-prefill`/`job-dba-freelancer` zijn pure, deterministische
+afgeleiden achter de bestaande `isParticipant`/`showClientSignals`-poorten over reeds ownership-gescoopte data
+— geen nieuw authz-oppervlak. `npm audit --omit=dev`: **0 vulnerabilities** (prod-runtime schoon); Next.js
+15.5.24 (augustus-2026 Critical-patch) en next-auth beta.32 blijven op de veilige vloer. De enige actie deze
+ronde is een defense-in-depth-hardening (geen live gat) — zie hieronder.
+
+### OPGELOST (defense-in-depth · durable poort) — [LAAG · OWASP A01 Broken Access Control · CLAUDE.md architectuurregel 2] admin-API-routes hadden geen CI-poort die server-side `requireRole("ADMIN")` afdwong
+
+- **Geschonden regel:** CLAUDE.md architectuurregel 2 (auth → rol → ownership → … op elke toegang) als
+  procesgat, niet als live defect. **Severity LAAG — geen exploiteerbaar gat vandaag:** elke bestaande
+  `/api/admin/*`-route (`api/admin/export/invoices`, `api/admin/facturatie/[id]/pdf`) roept correct
+  `requireRole("ADMIN")` aan.
+- **Repro (procesgat, CONFIRMED):** de middleware-route-guard `isAdminPath` (`src/lib/route-guards.ts`) matcht
+  alleen de PAGINA-paden `/admin` + `/admin/*`, NIET `/api/admin/*` (ander prefix). Dat is bewust — de
+  middleware beschermt met een _redirect_ naar /dashboard, wat voor een API-route de verkeerde semantiek is
+  (een consument hoort 403 JSON, geen 307 naar HTML). Gevolg: admin-API-routes hebben géén middleware-vangnet;
+  hun enige rolpoort is de `requireRole`-aanroep in de handler zelf. Die dekking werd tot nu toe alleen door
+  ontwikkelaars-discipline bewaakt — precies de faalmodus die eerder al PII stil liet overleven (`SavedJobSearch`
+  in de erasure). Een toekomstige `/api/admin/*`-route die de aanroep vergeet, zou admin-only data (facturen-
+  export, facturatie-PDF) aan elke ingelogde gebruiker serveren zonder dat iets het tegenhoudt.
+- **Fix (deze PR):** durable dekkingspoort `src/app/api/admin/admin-route-authz-coverage.test.ts` — enumereert
+  recursief álle `src/app/api/admin/**/route.ts` en dwingt af dat elk bestand een `requireRole(...)`-aanroep met
+  "ADMIN" bevat (variadisch; `requireRole("ADMIN","FRANCHISER")` telt mee), plus een niet-vacuüm-guard
+  (≥2 routes gevonden). Bewezen rood→groen: met `requireRole("ADMIN")` vervangen door `requireActor()` op
+  `api/admin/export/invoices/route.ts` meldt de poort exact die route als ongedekt; hersteld → groen. Bevat ook
+  een zelftest van de checker (comment-gestript, alle argumentvolgordes). Spiegelt `anonymize-schema-coverage.test.ts`.
+
 ## Ronde 2026-08-26 (2e run — basis: `main` @ 94db801e) — MIDDEL OPGELOST (onvolledige AVG art. 17-erasure: `SavedJobSearch`) + durable dekkingspoort + brede her-audit schoon
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
