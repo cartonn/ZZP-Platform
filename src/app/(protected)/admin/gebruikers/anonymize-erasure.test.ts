@@ -188,6 +188,7 @@ vi.mock("@/lib/db", () => ({
       ]),
     },
     favoriteFreelancer: { deleteMany: op("favoriteFreelancer.deleteMany") },
+    mailIntake: { deleteMany: op("mailIntake.deleteMany") },
     domainEvent: {
       // Standaard: één nog-open dispuut dat de betrokkene zelf opende (col-7). De volle event-velden
       // (type/actorId) zijn nodig voor de replay in `collaborationsWithActiveDisputeOpenedBy`. Wordt
