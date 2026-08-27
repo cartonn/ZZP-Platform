@@ -65,6 +65,10 @@ const schema = z
     // Beveiligt POST /api/tasks/* (verloopdetectie, herinneringen, cascade-runners). Optioneel;
     // zonder waarde zijn de taak-endpoints uitgeschakeld (503).
     CRON_SECRET: z.string().optional(),
+    // Beveiligt POST /api/mail-intake/webhook (dienstaanvragen per e-mail → reviewqueue).
+    // Optioneel; zonder waarde is het endpoint uitgeschakeld (404) en staat mail-intake uit.
+    // De inbound-mailprovider (bv. Postmark Inbound) is mensenwerk — zie MENSENWERK.md.
+    MAIL_INTAKE_WEBHOOK_SECRET: z.string().optional(),
     // Cron-heartbeat: maximale leeftijd (uren) van de laatste run-all-run vóór de systeemstatus 'm
     // als "stale" markeert (dead-man's-switch). Optioneel; default 36 (zie config.ts).
     CRON_MAX_AGE_HOURS: z.string().optional(),

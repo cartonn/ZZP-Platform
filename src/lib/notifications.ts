@@ -63,6 +63,7 @@ const META: Record<string, NotificationMeta> = {
   JOB_PROPOSAL: { category: "collaboration", tone: "attention" }, // bemiddelaar draagt ZZP'er voor op dienst
   JOB_INVITE: { category: "collaboration", tone: "attention" }, // opdrachtgever nodigt ZZP'er direct uit voor een opdracht
   JOB_CLOSED: { category: "system", tone: "info" }, // opdracht gesloten: open reactie is niet meer beschikbaar
+  MAIL_INTAKE_RECEIVED: { category: "workflow", tone: "attention" }, // aanvraag per e-mail wacht op beoordeling
   CONVERSATION_REPLY_REMINDER: { category: "messages", tone: "attention" }, // onbeantwoord bericht, gesprek ligt stil
   // Reactie-trechter (opdracht ↔ ZZP'er) — bij elkaar onder "Reacties".
   APPLICATION_RECEIVED: { category: "application", tone: "attention" }, // opdrachtgever: nieuwe reactie, vraagt actie

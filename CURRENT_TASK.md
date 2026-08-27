@@ -2599,6 +2599,13 @@ in-browser-verificatie (interactieve sessie).
 
 ### Backlog (na de overhaul-fasen)
 
+0. **Mail-intake (27-8-2026): fase 1 GEBOUWD** — dienstaanvraag per e-mail → inbound-webhook
+   (`/api/mail-intake/webhook`, default UIT zonder `MAIL_INTAKE_WEBHOOK_SECRET`) → deterministische
+   parse → reviewqueue `/opdrachten/mail-intake` → overnemen als **concept**-opdracht (publiceren via
+   de bestaande flow). Zie PROGRESS.md 27-8 en MENSENWERK §2b (inbound-provider + MX/DNS = mensenwerk).
+   **Vervolg (open):** (a) e2e-test webhook→queue→concept; (b) per-company intake-alias i.p.v.
+   afzender-match, zodat een zorginstelling die niet zelf accounthouder is kan mailen; (c) meetlus:
+   doorlooptijd mail→gepubliceerd tonen in Inzicht.
 1. Semantiek als uitlegbare scorecomponent (fundering staat er: `src/lib/semantic.ts` +
    `src/lib/services/semantic-matcher.ts`); pgvector geparkeerd achter de ADR-trigger — zie
    `docs/decisions/0010-semantische-matching.md` (> ~50k discoverable profielen óf scoring > ~50ms p95).

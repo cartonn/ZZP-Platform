@@ -69,6 +69,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", section: "Werk", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.action, href: "/acties", icon: "inbox", section: "Werk", enabled: true }, // prettier-ignore
     { label: `Mijn ${TERM_PLURAL.job.toLowerCase()}`, href: "/opdrachten", icon: "briefcase", section: "Werk", enabled: true }, // prettier-ignore
+    { label: "Mail-intake", href: "/opdrachten/mail-intake", icon: "inbox", section: "Werk", enabled: true }, // prettier-ignore
     { label: "ZZP'ers vinden", href: "/freelancers", icon: "users", section: "Werk", enabled: true }, // prettier-ignore
     // Flexpool zit nu als tab in de bedrijfsprofiel-hub (/bedrijf?tab=flexpool), niet meer apart.
     { label: "Reacties", href: "/kandidaten", icon: "users", section: "Werk", enabled: true }, // prettier-ignore

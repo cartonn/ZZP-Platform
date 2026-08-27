@@ -433,6 +433,7 @@ model Company {
   collaborations Collaboration[]
   departments    Department[]
   favorites      FavoriteFreelancer[]
+  mailIntakes    MailIntake[]
 
   @@index([tenantId])
 }
@@ -519,6 +520,7 @@ model Job {
   conversations          Conversation[]
   collaborations         Collaboration[]
   savedBy                SavedJob[]
+  mailIntake             MailIntake?
 
   @@index([status])
   @@index([companyId])
@@ -544,6 +546,40 @@ model JobCredentialRequirement {
   job            Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@unique([jobId, credentialType])
+}
+
+// ---------------------------------------------------------------------------
+// Mail-intake — dienstaanvragen die per e-mail binnenkomen (inbound-webhook) en na
+// beoordeling door de opdrachtgever een concept-opdracht worden. Zie src/lib/mail-intake.ts.
+// ---------------------------------------------------------------------------
+
+model MailIntake {
+  id                String    @id @default(cuid())
+  companyId         String
+  messageId         String    @unique //  provider-MessageID: idempotentie bij webhook-retries
+  fromAddress       String
+  subject           String
+  textBody          String
+  status            String    @default("NEW") // MailIntakeStatus: NEW | ACCEPTED | DISMISSED
+  // Deterministisch geparsede velden (server-side; de reviewqueue toont ze naast de ruwe mail).
+  parsedTitle       String?
+  parsedDescription String?
+  parsedLocation    String?
+  parsedRateMin     Int?
+  parsedRateMax     Int?
+  parsedStartDate   DateTime?
+  parsedWorkMode    String? //   WorkMode
+  jobId             String?   @unique //   gezet bij ACCEPTED: de aangemaakte concept-opdracht
+  dismissReason     String? //   verplicht bij DISMISSED (server-side afgedwongen)
+  receivedAt        DateTime  @default(now())
+  decidedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  job     Job?    @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status])
 }
 
 // ---------------------------------------------------------------------------

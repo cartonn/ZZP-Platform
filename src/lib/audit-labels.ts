@@ -48,6 +48,12 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   JOB_ENGAGEMENT_ALERT_SENT: "Signaal weinig reacties verstuurd",
   JOB_SAVED: "Opdracht bewaard",
   JOB_UNSAVED: "Opdracht uit bewaard verwijderd",
+
+  // Mail-intake (dienstaanvragen per e-mail)
+  MAIL_INTAKE_RECEIVED: "Aanvraag per e-mail ontvangen",
+  MAIL_INTAKE_ACCEPTED: "Mail-aanvraag overgenomen als concept-opdracht",
+  MAIL_INTAKE_DISMISSED: "Mail-aanvraag afgewezen",
+  MAIL_INTAKE_REOPENED: "Mail-aanvraag heropend",
   JOB_SEARCH_SAVED: "Zoekopdracht bewaard",
   JOB_SEARCH_DELETED: "Zoekopdracht verwijderd",
   APPLICATION_CREATED: "Gereageerd op opdracht",
