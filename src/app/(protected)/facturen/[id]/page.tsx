@@ -25,6 +25,8 @@ import { canSendPaymentReminder, isAwaitingPayment } from "@/lib/manual-payment-
 import { isInvoicePaymentPending } from "@/lib/invoice-payment-status";
 import { assessInvoiceCompliance } from "@/lib/invoice-legal";
 import { InvoiceComplianceCard } from "@/components/invoices/invoice-compliance-card";
+import { invoiceReserveHint, shouldShowInvoiceReserve } from "@/lib/tax/invoice-reserve";
+import { InvoiceReserveCard } from "@/components/invoices/invoice-reserve-card";
 import { cancelInvoice, markInvoicePaid, sendInvoice } from "../actions";
 import { PrintButton } from "@/components/ui/print-button";
 import { formatDateShortNl } from "@/lib/format-date";
@@ -204,6 +206,21 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
         )
       : null;
 
+  // Reserveringshint (ZZP'er): hoeveel van déze factuur opzij te zetten voor btw + inkomstenbelasting.
+  // Alleen de crediteur, alleen bij een bekende netto-/btw-uitsplitsing en niet-teruggedraaide omzet.
+  const reserve =
+    shouldShowInvoiceReserve({
+      isFreelancerOwner,
+      subtotalCents: invoice.subtotalCents,
+      vatCents: invoice.vatCents,
+      status,
+      lifecycleStatus: lifecycle,
+    }) &&
+    invoice.subtotalCents != null &&
+    invoice.vatCents != null
+      ? invoiceReserveHint({ subtotalCents: invoice.subtotalCents, vatCents: invoice.vatCents })
+      : null;
+
   // De ZZP'er (crediteur) kan voor een te late, onbetaalde factuur een aanmaning opstellen.
   const overdueForReminder =
     isFreelancerOwner &&
@@ -378,6 +395,8 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           daysAfterDue={paymentForecast.daysAfterDue}
         />
       )}
+
+      {reserve && <InvoiceReserveCard hint={reserve} />}
 
       {compliance && <InvoiceComplianceCard compliance={compliance} />}
 
