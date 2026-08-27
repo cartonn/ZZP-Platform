@@ -1,5 +1,46 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-27 (run 95) · **main-commit basis:** `33d8964a`
+> **Uitkomst:** **1 defect gevonden én gefixt** (should-fix geld-integriteit, platform-facturatie —
+> een geannuleerde platformfactuur liet zijn gebundelde fee/abonnementsbijdragen wees achter → permanent
+> omzetlek). Live doorklik + adversariële probe-matrix over alle 4 rollen: **0 nieuwe bereikbare
+> security-/robuustheidsgaten**. 3 parallelle adversariële Opus-audits (authz/IDOR/tenant op de nieuwste
+> features · cascade/geld-integriteit + verboden statusovergangen · next-action-engine). De authz/IDOR-audit
+> vond 0 gaten (nieuwste PR's #1246-1251 correct owner-/tenant-scoped); de next-action-audit bevestigde de
+> engine schoon op wrong-party/stale/ordering (alleen de al-geparkeerde beslis-achterstand-pariteit #1235
+> blijft open, ongewijzigd).
+>
+> **Live-bewijs (Playwright/Chromium, qa.db seed):** alle 4 rollen loggen in en renderen hun schermen (200,
+> geen crash/empty). Adversariële matrix (elke rol → andermans/verboden resource): privilege-escalatie naar
+> `/admin/*` → **307 redirect** (ZZP/CLIENT/FRANCHISER), admin-API's → **403**; IDOR op andermans
+> factuur-pdf/samenwerking-dossier/dba-dossier/modelovereenkomst/document/samenwerking-pagina → **404**
+> (anti-oracle, geen 500/lek); onzin-id's → **404**, nooit 500; task-endpoints (geen CRON_SECRET) → **405**.
+>
+> - **OPGELOST — should-fix (geld-integriteit, CLAUDE.md regel 1 — server-side waarheid, "een reversal draait
+>   álles terug"): een geannuleerde platformfactuur (`PlatformBillingInvoice` DRAFT/SENT → CANCELLED) liet zijn
+>   gebundelde `CollaborationFee`/`ZzpMembershipCharge`-regels op `status=INVOICED` met een `invoiceId` naar de
+>   nu-dode factuur → die regels werden NOOIT opnieuw gefactureerd → structureel omzetlek voor de
+>   franchise/het platform.** De facturatie-run (`billing-run.ts`) bundelt `PENDING`-bijdragen op een DRAFT-factuur
+>   en zet ze op `INVOICED`+`invoiceId`; een volgende run scant alléén nog `PENDING`. `setBillingStatusAction`
+>   (`src/app/(protected)/admin/facturatie/actions.ts`) voerde de toegestane overgang DRAFT/SENT→CANCELLED uit maar
+>   raakte **alleen** de factuurrij aan — de fee/charge-regels bleven bevroren op de geannuleerde factuur. Fee-status
+>   is append-only (PENDING|INVOICED), dus er was geen INVOICED→PENDING-pad; de regels bleven eeuwig hangen.
+>   `TENANT_BILLING.enabled=true`, dus productie-bereikbaar. **Repro (ADMIN, geen DB-manipulatie):** tenant-fee
+>   `PENDING` → "genereer facturatie" (fee → INVOICED op DRAFT `PF-2026-xxxx`) → factuur annuleren → "genereer
+>   facturatie" opnieuw → er wordt niets aangemaakt; de fee staat nog INVOICED op een geannuleerde factuur.
+>   **Fix:** bij `CANCELLED` geeft de action de gebundelde regels **atomair** (in één `$transaction`, achter dezelfde
+>   concurrency-guard) terug aan de facturatie: `collaborationFee`/`zzpMembershipCharge` waar `invoiceId=<factuur>` en
+>   `status=INVOICED` → `invoiceId=null, status=PENDING`, zodat de volgende run ze correct opnieuw factureert.
+>   Append-only blijft gerespecteerd (de fee verdwijnt niet; hij keert terug naar PENDING). Audit-metadata verrijkt
+>   met `releasedFees`/`releasedCharges`. +2 regressietests (`actions.test.ts`, rood→groen: CANCELLED geeft fee/charge
+>   terug met losgekoppelde invoiceId + PENDING; verloren concurrency-race raakt de regels niet aan).
+> - **GEPARKEERD (ongewijzigd) — should-fix/design (next-action-pariteit, DOEL 1b, #1235):** de beslis-achterstand-chip
+>   op `/opdrachten` (`candidate-decision.ts`, `DECISION_PATIENCE_DAYS` 2-8d) heeft nog steeds geen corresponderend
+>   `/acties`-item of nav-badge (canonieke drempel `WAIT_ATTENTION_DAYS` NEW7/VIEWED14/SHORTLIST21). Twee-lagen-ontwerp
+>   (zachte nudge vs. harde next-action) — productkeuze, aparte gereviewde PR. Zie run 94 hieronder voor fix-richting.
+
+---
+
 > **Datum:** 2026-08-26 (run 94) · **main-commit basis:** `9b144852`
 > **Uitkomst:** **1 defect gevonden én gefixt** (should-fix geld-integriteit, tenant-/franchise-facturatie —
 > stale tenant-fee overleeft een creditnota). **1 nieuw geparkeerd** (should-fix/design next-action-pariteit,

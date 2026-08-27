@@ -72,6 +72,49 @@ export async function setBillingStatusAction(id: string, to: PlatformBillingStat
     throw e;
   }
 
+  // CANCELLED intrekt de factuur én GEEFT de gebundelde bijdragen terug aan de facturatie-run.
+  // De billing-run zet de gebundelde fees/abonnementsbijdragen op INVOICED met een `invoiceId`;
+  // een volgende run pakt alleen nog `PENDING`-rijen. Zonder deze terugzet blijven de regels dus
+  // hangen op een geannuleerde (niet-live) factuur en worden ze NOOIT opnieuw gefactureerd →
+  // structureel omzetlek voor de franchise/het platform (geld-integriteit, CLAUDE.md regel 1: een
+  // reversal draait álles terug). We doen dit atomair in één transactie, achter dezelfde
+  // concurrency-guard: alleen als de factuur nog exact `from` is, en we geven alleen de rijen terug
+  // die daadwerkelijk aan déze factuur gebonden zijn (`invoiceId`, status INVOICED). De append-only
+  // "een fee verdwijnt nooit"-regel blijft gerespecteerd: de fee verdwijnt niet, hij keert terug
+  // naar PENDING om alsnog correct gefactureerd te worden.
+  if (nextStatus === "CANCELLED") {
+    const released = await prisma.$transaction(async (tx) => {
+      const flip = await tx.platformBillingInvoice.updateMany({
+        where: { id: invoiceId, status: from },
+        data: { status: nextStatus },
+      });
+      if (flip.count === 0) return null;
+      const fees = await tx.collaborationFee.updateMany({
+        where: { invoiceId, status: "INVOICED" },
+        data: { invoiceId: null, status: "PENDING" },
+      });
+      const charges = await tx.zzpMembershipCharge.updateMany({
+        where: { invoiceId, status: "INVOICED" },
+        data: { invoiceId: null, status: "PENDING" },
+      });
+      return { fees: fees.count, charges: charges.count };
+    });
+    if (!released) throw new Error("Deze factuur is intussen al bijgewerkt.");
+    await audit({
+      actorId: actor.id,
+      action: "PLATFORM_BILLING_STATUS_SET",
+      entityType: "PlatformBillingInvoice",
+      entityId: invoiceId,
+      metadata: {
+        to: nextStatus,
+        releasedFees: released.fees,
+        releasedCharges: released.charges,
+      },
+    });
+    revalidatePath("/admin/facturatie");
+    return;
+  }
+
   // Concurrency-guard (zoals de verificatieflow): de overgang slaagt alleen als de status nog
   // exact `from` is. Zo kunnen twee gelijktijdige beslissingen (twee tabs, of straks een
   // betaalprovider-webhook + admin-klik) niet allebei dezelfde transitie doorzetten.

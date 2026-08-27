@@ -16,6 +16,19 @@ const updateManyMock = vi.hoisted(() =>
 );
 const auditMock = vi.hoisted(() => vi.fn(async (_args: unknown): Promise<void> => {}));
 
+// Mocks voor het CANCELLED-terugzetpad: de fee/abonnementsbijdragen die aan de geannuleerde factuur
+// hingen moeten terug naar PENDING (invoiceId losgekoppeld) zodat een volgende facturatie-run ze
+// opnieuw oppakt. Zonder dit lekt de fee-omzet permanent weg (geld-integriteit).
+const feeUpdateManyMock = vi.hoisted(() =>
+  vi.fn(async (_args: unknown): Promise<{ count: number }> => ({ count: 0 })),
+);
+const chargeUpdateManyMock = vi.hoisted(() =>
+  vi.fn(async (_args: unknown): Promise<{ count: number }> => ({ count: 0 })),
+);
+const invoiceUpdateManyInTxMock = vi.hoisted(() =>
+  vi.fn(async (_args: unknown): Promise<{ count: number }> => ({ count: 1 })),
+);
+
 vi.mock("@/lib/authz", () => ({
   requireRole: vi.fn(async () => ({ id: "admin-1", role: "ADMIN", status: "ACTIVE" })),
   AuthorizationError: class extends Error {},
@@ -26,6 +39,13 @@ vi.mock("@/lib/audit", () => ({ audit: auditMock }));
 vi.mock("@/lib/db", () => ({
   prisma: {
     platformBillingInvoice: { findUnique: findUniqueMock, updateMany: updateManyMock },
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        platformBillingInvoice: { updateMany: invoiceUpdateManyInTxMock },
+        collaborationFee: { updateMany: feeUpdateManyMock },
+        zzpMembershipCharge: { updateMany: chargeUpdateManyMock },
+      }),
+    ),
   },
 }));
 
@@ -37,6 +57,12 @@ beforeEach(() => {
   updateManyMock.mockClear();
   updateManyMock.mockResolvedValue({ count: 1 });
   auditMock.mockClear();
+  feeUpdateManyMock.mockClear();
+  feeUpdateManyMock.mockResolvedValue({ count: 0 });
+  chargeUpdateManyMock.mockClear();
+  chargeUpdateManyMock.mockResolvedValue({ count: 0 });
+  invoiceUpdateManyInTxMock.mockClear();
+  invoiceUpdateManyInTxMock.mockResolvedValue({ count: 1 });
 });
 
 describe("setBillingStatusAction — grensvalidatie", () => {
@@ -80,5 +106,65 @@ describe("setBillingStatusAction — grensvalidatie", () => {
     };
     expect(auditArg.entityId).toBe("inv-42");
     expect(auditArg.metadata.to).toBe("SENT");
+  });
+
+  it("CANCELLED geeft de gebundelde fee/abonnementsbijdragen terug aan de facturatie (invoiceId los, status PENDING)", async () => {
+    findUniqueMock.mockResolvedValue({ status: "DRAFT" });
+    feeUpdateManyMock.mockResolvedValue({ count: 2 });
+    chargeUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    await setBillingStatusAction("inv-cancel", "CANCELLED");
+
+    // De factuur wordt binnen de transactie geflipt, achter de concurrency-guard (status === from).
+    expect(invoiceUpdateManyInTxMock).toHaveBeenCalledTimes(1);
+    const flipArg = invoiceUpdateManyInTxMock.mock.calls[0]![0] as {
+      where: { id: string; status: string };
+      data: { status: string };
+    };
+    expect(flipArg.where).toMatchObject({ id: "inv-cancel", status: "DRAFT" });
+    expect(flipArg.data.status).toBe("CANCELLED");
+
+    // Kern van de fix: de fee-regels van DEZE factuur keren terug naar PENDING met een losgekoppelde
+    // invoiceId, zodat de volgende billing-run ze opnieuw factureert (geen permanent omzetlek).
+    expect(feeUpdateManyMock).toHaveBeenCalledTimes(1);
+    const feeArg = feeUpdateManyMock.mock.calls[0]![0] as {
+      where: { invoiceId: string; status: string };
+      data: { invoiceId: null; status: string };
+    };
+    expect(feeArg.where).toMatchObject({ invoiceId: "inv-cancel", status: "INVOICED" });
+    expect(feeArg.data).toMatchObject({ invoiceId: null, status: "PENDING" });
+
+    expect(chargeUpdateManyMock).toHaveBeenCalledTimes(1);
+    const chargeArg = chargeUpdateManyMock.mock.calls[0]![0] as {
+      where: { invoiceId: string; status: string };
+      data: { invoiceId: null; status: string };
+    };
+    expect(chargeArg.where).toMatchObject({ invoiceId: "inv-cancel", status: "INVOICED" });
+    expect(chargeArg.data).toMatchObject({ invoiceId: null, status: "PENDING" });
+
+    // De niet-transactionele updateMany (SENT/PAID-pad) mag hier NIET gebruikt zijn.
+    expect(updateManyMock).not.toHaveBeenCalled();
+
+    const auditArg = auditMock.mock.calls[0]![0] as {
+      metadata: { to: string; releasedFees: number; releasedCharges: number };
+    };
+    expect(auditArg.metadata).toMatchObject({
+      to: "CANCELLED",
+      releasedFees: 2,
+      releasedCharges: 1,
+    });
+  });
+
+  it("CANCELLED die de concurrency-race verliest (factuur al gewijzigd) raakt de fee-regels niet", async () => {
+    findUniqueMock.mockResolvedValue({ status: "DRAFT" });
+    invoiceUpdateManyInTxMock.mockResolvedValue({ count: 0 }); // iemand anders was eerder
+
+    await expect(setBillingStatusAction("inv-cancel", "CANCELLED")).rejects.toThrow(
+      "Deze factuur is intussen al bijgewerkt.",
+    );
+    // Cruciaal: geen terugzet van fees/charges als de flip niet won → geen dubbele/onterechte release.
+    expect(feeUpdateManyMock).not.toHaveBeenCalled();
+    expect(chargeUpdateManyMock).not.toHaveBeenCalled();
+    expect(auditMock).not.toHaveBeenCalled();
   });
 });
