@@ -30,6 +30,9 @@ import { collaborationStatusLine } from "@/lib/collaboration-status-line";
 import { summarizeCollaborationRenewal } from "@/lib/collaboration-renewal";
 import { summarizeCollaborationValue } from "@/lib/collaboration-value";
 import { CollaborationValueSummary } from "@/components/collaborations/collaboration-value-summary";
+import { showsClientPaymentContext } from "@/lib/collaboration-payer-context";
+import { getPaymentBehaviorForCompany } from "@/lib/data/payment-behavior";
+import { PaymentBehaviorBlock } from "@/components/jobs/payment-behavior-block";
 import { collaborationLockReason, terminalLockNotice } from "@/lib/collaboration-lock";
 import { RenewalNudge } from "@/components/collaborations/renewal-nudge";
 import { isPerformanceNewerThanInvoice } from "@/lib/cascade/stage";
@@ -330,6 +333,19 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   // voor de betrokken partijen en alleen wanneer er iets te tonen is (verse samenwerking blijft rustig).
   const valueSummary = isParticipant
     ? summarizeCollaborationValue(col.performances, col.invoices)
+    : null;
+
+  // Betaalgedrag van de opdrachtgever — dezelfde reputatie die de ZZP'er pre-application op de
+  // opdracht-detailpagina ziet, nu ook op het scherm waar hij die opdrachtgever factureert en op
+  // betaling wacht. Alleen voor de ZZP'er-partij (die factureert) en alleen wanneer er te innen
+  // valt (actieve inzet of ≥1 factuur). De ZZP'er is deelnemer aan deze samenwerking, dus
+  // `col.companyId` is voor hem legitiem zichtbaar (voldoet aan de scoping-eis van de helper).
+  const clientPaymentBehavior = showsClientPaymentContext({
+    isFreelancer,
+    collaborationStatus: col.status,
+    invoiceCount: col.invoices.length,
+  })
+    ? await getPaymentBehaviorForCompany(col.companyId)
     : null;
 
   return (
@@ -1014,6 +1030,10 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
             })}
           </div>
         )}
+
+        {/* Betaalgedrag van de opdrachtgever: hoe snel/betrouwbaar betaalt deze klant zijn facturen?
+            Zelfde bron en blok als de opdracht-detailpagina — geen drift. Alleen voor de ZZP'er. */}
+        {clientPaymentBehavior && <PaymentBehaviorBlock behavior={clientPaymentBehavior} />}
       </section>
 
       {/* No-show-registratie (productbesluit 12-6-2026): naar onderen verplaatst — het is een
