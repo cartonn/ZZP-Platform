@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-27 — Mail-intake fase 2: per-bedrijf intake-aliassen (plus-adressering)
+
+**Wat:** elk bedrijf kan nu een eigen intake-adres genereren (`aanvraag+<alias>@intake-domein`),
+zodat óók aanvragers zonder eigen account (bv. de planner van een zorginstelling) dienstaanvragen
+kunnen mailen — het gat van fase 1, waar alleen het account-e-mailadres van de opdrachtgever
+matchte. Beheer op `/opdrachten/mail-intake`: genereren, vernieuwen (oude adres vervalt per direct,
+achter een bevestigingsdialoog) en uitschakelen; alles geaudit. De webhook koppelt alias-first
+(ontvangeradres) en valt terug op de afzender-match; beide paden accepteren alleen een ACTIEF,
+niet-geanonimiseerd CLIENT-account.
+
+**Hoe:** `Company.mailIntakeAlias` (nullable, `@@index`, bewust GEEN `@unique` — een unieke
+constraint op een bestaande tabel laat `prisma db push` zonder `--accept-data-loss` de deploy
+weigeren; uniekheid komt van 80 bits entropie + botsingscheck bij genereren). Pure helpers in
+`src/lib/mail-intake.ts` (`generateMailIntakeAlias`, `mailIntakeRecipientAlias` uit To/ToFull,
+`formatMailIntakeAddress`) met unit-tests. Erasure trekt het alias in
+(`companyAnonymizationData`). Weergave van het volledige adres via optionele env
+`MAIL_INTAKE_ADDRESS`; MENSENWERK §2b uitgebreid (plus-adressering/inbound-domein).
+
+**Volgende stap:** e2e-flow (webhook → queue → concept) en de meetlus mail→gepubliceerd in Inzicht.
+
 ## 2026-08-27 — Mail-intake: dienstaanvragen per e-mail → reviewqueue → concept-opdracht
 
 **Wat:** eerste verticale snede van "MailSync" (benchmark Bendy/GOED: planners typen aanvragen niet

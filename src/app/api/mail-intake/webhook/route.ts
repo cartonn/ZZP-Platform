@@ -1,6 +1,8 @@
 // Mail-intake-webhook: de inbound-mailprovider (bv. Postmark Inbound) POST hier de JSON van
-// een binnengekomen dienstaanvraag-mail. Afzender wordt gematcht op het account-e-mailadres
-// van een actieve opdrachtgever; de mail wordt deterministisch geparsed en als NEW-aanvraag
+// een binnengekomen dienstaanvraag-mail. Het bedrijf wordt bepaald via het intake-alias in
+// het ontvangeradres (aanvraag+<alias>@…, werkt ook voor externe aanvragers) of anders via
+// afzender-match op het account-e-mailadres van een actieve opdrachtgever; de mail wordt
+// deterministisch geparsed en als NEW-aanvraag
 // in de reviewqueue (/opdrachten/mail-intake) gezet — publiceren blijft mensenwerk van de
 // opdrachtgever via de bestaande concept-opdracht-flow. Zonder MAIL_INTAKE_WEBHOOK_SECRET is
 // het endpoint uitgeschakeld (404): integraties staan default UIT/inert (CLAUDE.md regel 8).
@@ -16,6 +18,7 @@ import { clientIpFromRequest } from "@/lib/client-ip";
 import { mailIntakeWebhookRateLimiter } from "@/lib/rate-limit";
 import {
   isAuthorizedMailIntakeHeader,
+  mailIntakeRecipientAlias,
   MAIL_INTAKE_BODY_MAX,
   MAIL_INTAKE_SUBJECT_MAX,
   mailHtmlToText,
@@ -73,15 +76,49 @@ export async function POST(request: Request): Promise<Response> {
   const sender = mailIntakeSenderEmail(payload);
   if (!sender) return ok();
 
-  // Afzender → actieve opdrachtgever mét bedrijfsprofiel. Geen match → niets opslaan
-  // (dataminimalisatie: mail van onbekenden bewaren we niet).
-  const user = await prisma.user.findFirst({
-    where: { email: sender, role: "CLIENT", status: "ACTIVE", anonymizedAt: null },
-    select: { id: true, company: { select: { id: true } } },
-  });
-  if (!user?.company) return ok();
-  const companyId = user.company.id;
-  const userId = user.id;
+  // Bedrijf bepalen, in volgorde van specificiteit:
+  //   1. Intake-alias in het ontvangeradres (aanvraag+<alias>@…): koppelt aan dát bedrijf,
+  //      ongeacht de afzender — zo kan een externe aanvrager (bv. de planner van een
+  //      zorginstelling) mailen zonder eigen account. Het alias is een capability-token
+  //      dat het bedrijf zelf deelt/vernieuwt; de reviewqueue blijft de menselijke poort.
+  //   2. Afzender-match op het account-e-mailadres van een actieve opdrachtgever.
+  // Geen match → niets opslaan (dataminimalisatie: mail van onbekenden bewaren we niet).
+  // In beide paden geldt: alleen een ACTIEF, niet-geanonimiseerd CLIENT-account ontvangt.
+  let companyId: string | null = null;
+  let userId: string | null = null;
+
+  const alias = mailIntakeRecipientAlias(payload);
+  if (alias) {
+    const company = await prisma.company.findFirst({
+      where: { mailIntakeAlias: alias },
+      select: {
+        id: true,
+        user: { select: { id: true, role: true, status: true, anonymizedAt: true } },
+      },
+    });
+    if (
+      company &&
+      company.user.role === "CLIENT" &&
+      company.user.status === "ACTIVE" &&
+      !company.user.anonymizedAt
+    ) {
+      companyId = company.id;
+      userId = company.user.id;
+    }
+  }
+
+  if (!companyId || !userId) {
+    const user = await prisma.user.findFirst({
+      where: { email: sender, role: "CLIENT", status: "ACTIVE", anonymizedAt: null },
+      select: { id: true, company: { select: { id: true } } },
+    });
+    if (!user?.company) return ok();
+    companyId = user.company.id;
+    userId = user.id;
+  }
+  // Snapshot naar consts: de `let`-narrowing hierboven reikt niet tot in de transactie-closure.
+  const targetCompanyId = companyId;
+  const targetUserId = userId;
 
   const subject = (payload.Subject ?? "").trim().slice(0, MAIL_INTAKE_SUBJECT_MAX);
   const textBody = (payload.TextBody?.trim() || mailHtmlToText(payload.HtmlBody ?? ""))
@@ -97,7 +134,7 @@ export async function POST(request: Request): Promise<Response> {
     await prisma.$transaction(async (tx) => {
       const intake = await tx.mailIntake.create({
         data: {
-          companyId,
+          companyId: targetCompanyId,
           messageId: payload.MessageID,
           fromAddress: sender,
           subject,
@@ -122,7 +159,7 @@ export async function POST(request: Request): Promise<Response> {
       });
       await tx.notification.create({
         data: {
-          userId,
+          userId: targetUserId,
           type: "MAIL_INTAKE_RECEIVED",
           title: "Nieuwe aanvraag per e-mail",
           body: parsed.title

@@ -13,7 +13,11 @@ import { AuthorizationError, requireRole } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { type MailIntakeStatus, workModeSchema } from "@/lib/enums";
-import { assertMailIntakeTransition, MailIntakeTransitionError } from "@/lib/mail-intake";
+import {
+  assertMailIntakeTransition,
+  generateMailIntakeAlias,
+  MailIntakeTransitionError,
+} from "@/lib/mail-intake";
 import { type ResolveState } from "@/lib/actions/resolve-state";
 
 const intakeIdSchema = z.string().trim().min(1).max(64);
@@ -228,6 +232,92 @@ export async function reopenMailIntakeState(
     return transitionError(e);
   }
 
+  revalidatePath("/opdrachten/mail-intake");
+  return { ok: true };
+}
+
+/**
+ * Genereert (of vernieuwt) het intake-alias van het eigen bedrijf. Het alias is een
+ * capability-token: vernieuwen trekt het oude plus-adres per direct in — bewust, want dat is
+ * precies de herstelactie wanneer een adres bij te veel partijen is beland. Audit verplicht.
+ */
+export async function rotateMailIntakeAliasState(
+  _prev: ResolveState,
+  _formData: FormData,
+): Promise<ResolveState> {
+  let actor;
+  try {
+    actor = await requireRole("CLIENT");
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { error: e.message };
+    throw e;
+  }
+
+  const company = await prisma.company.findUnique({
+    where: { userId: actor.id },
+    select: { id: true, mailIntakeAlias: true },
+  });
+  if (!company) return { error: "Bedrijfsprofiel niet gevonden." };
+
+  // Uniekheid op applicatieniveau (schema heeft bewust geen @unique — zie schema.prisma):
+  // 80 bits entropie maakt een botsing theoretisch; de pre-check + retry is het vangnet.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const alias = generateMailIntakeAlias();
+    const clash = await prisma.company.findFirst({
+      where: { mailIntakeAlias: alias },
+      select: { id: true },
+    });
+    if (clash) continue;
+    await prisma.$transaction([
+      prisma.company.update({ where: { id: company.id }, data: { mailIntakeAlias: alias } }),
+      prisma.auditLog.create({
+        data: auditData({
+          actorId: actor.id,
+          action: company.mailIntakeAlias
+            ? "MAIL_INTAKE_ALIAS_ROTATED"
+            : "MAIL_INTAKE_ALIAS_CREATED",
+          entityType: "Company",
+          entityId: company.id,
+        }),
+      }),
+    ]);
+    revalidatePath("/opdrachten/mail-intake");
+    return { ok: true };
+  }
+  return { error: "Genereren mislukte, probeer het opnieuw." };
+}
+
+/** Schakelt het intake-alias uit: het plus-adres werkt per direct niet meer. */
+export async function disableMailIntakeAliasState(
+  _prev: ResolveState,
+  _formData: FormData,
+): Promise<ResolveState> {
+  let actor;
+  try {
+    actor = await requireRole("CLIENT");
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { error: e.message };
+    throw e;
+  }
+
+  const company = await prisma.company.findUnique({
+    where: { userId: actor.id },
+    select: { id: true, mailIntakeAlias: true },
+  });
+  if (!company) return { error: "Bedrijfsprofiel niet gevonden." };
+  if (!company.mailIntakeAlias) return { ok: true }; // al uit — idempotent
+
+  await prisma.$transaction([
+    prisma.company.update({ where: { id: company.id }, data: { mailIntakeAlias: null } }),
+    prisma.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: "MAIL_INTAKE_ALIAS_DISABLED",
+        entityType: "Company",
+        entityId: company.id,
+      }),
+    }),
+  ]);
   revalidatePath("/opdrachten/mail-intake");
   return { ok: true };
 }

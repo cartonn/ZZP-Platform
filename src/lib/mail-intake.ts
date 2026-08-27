@@ -9,7 +9,7 @@
 // unit-getest zijn. De webhook-route en de server actions leveren de I/O-keten
 // (auth → rol → ownership → Zod → actie → audit, CLAUDE.md regel 2).
 
-import { timingSafeEqual } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { MAIL_INTAKE_TRANSITIONS, type MailIntakeStatus, type WorkMode } from "@/lib/enums";
 
@@ -74,6 +74,8 @@ export const mailIntakeWebhookSchema = z.object({
   MessageID: z.string().trim().min(1).max(200),
   From: z.string().optional(),
   FromFull: z.object({ Email: z.string().optional() }).optional(),
+  To: z.string().optional(),
+  ToFull: z.array(z.object({ Email: z.string().optional() })).optional(),
   Subject: z.string().optional(),
   TextBody: z.string().optional(),
   HtmlBody: z.string().optional(),
@@ -86,10 +88,70 @@ export type MailIntakeWebhookPayload = z.infer<typeof mailIntakeWebhookSchema>;
  * adres uit een `Naam <adres>`-From-header geplukt. Ongeldig/afwezig → null.
  */
 export function mailIntakeSenderEmail(payload: MailIntakeWebhookPayload): string | null {
-  const raw = payload.FromFull?.Email?.trim() || payload.From?.trim() || "";
+  return extractEmailAddress(payload.FromFull?.Email?.trim() || payload.From?.trim() || "");
+}
+
+/** "Naam <adres>" of kaal adres → gevalideerd lowercase-adres, anders null. */
+function extractEmailAddress(raw: string): string | null {
   const bracketed = raw.match(/<([^<>\s]+@[^<>\s]+)>/);
   const candidate = (bracketed?.[1] ?? raw).trim().toLowerCase();
   return z.string().email().safeParse(candidate).success ? candidate : null;
+}
+
+// ---------------------------------------------------------------------------
+// Per-bedrijf intake-alias (plus-adressering)
+//
+// Elk bedrijf kan een uniek alias-token krijgen; mail aan `local+<alias>@intake-domein`
+// wordt dan aan dát bedrijf gekoppeld, ongeacht de afzender. Zo kan een aanvrager die
+// zelf geen accounthouder is (bv. de planner van een zorginstelling) rechtstreeks mailen.
+// Het token is een capability: deel het alleen met partijen die aanvragen mogen indienen;
+// vernieuwen trekt het oude adres in. De reviewqueue blijft de menselijke poort.
+// ---------------------------------------------------------------------------
+
+/** Vorm van een geldig alias-token (lowercase hex uit generateMailIntakeAlias). */
+export const MAIL_INTAKE_ALIAS_RE = /^[a-z0-9]{8,32}$/;
+
+/** Nieuw, niet-raadbaar alias-token (20 hex-tekens ≈ 80 bits entropie). */
+export function generateMailIntakeAlias(): string {
+  return randomBytes(10).toString("hex");
+}
+
+/**
+ * Alias-token uit de ontvangeradressen van de payload: het deel na de eerste `+` in de
+ * local part (`aanvraag+<alias>@domein`). `ToFull` is gezaghebbend; `To` ("Naam <a@b>, c@d")
+ * is de fallback. Eerste geldige token wint; geen (geldig) token → null.
+ */
+export function mailIntakeRecipientAlias(payload: MailIntakeWebhookPayload): string | null {
+  const candidates: string[] = [];
+  for (const entry of payload.ToFull ?? []) {
+    if (entry.Email) candidates.push(entry.Email);
+  }
+  for (const part of (payload.To ?? "").split(",")) {
+    if (part.trim()) candidates.push(part);
+  }
+  for (const raw of candidates) {
+    const email = extractEmailAddress(raw);
+    if (!email) continue;
+    const local = email.slice(0, email.indexOf("@"));
+    const plus = local.indexOf("+");
+    if (plus < 0) continue;
+    const token = local.slice(plus + 1);
+    if (MAIL_INTAKE_ALIAS_RE.test(token)) return token;
+  }
+  return null;
+}
+
+/**
+ * Volledig intake-adres voor een bedrijf: basisadres `local@domein` + alias →
+ * `local+<alias>@domein`. Ongeldig basisadres → null (de UI toont dan alleen het token).
+ */
+export function formatMailIntakeAddress(baseAddress: string, alias: string): string | null {
+  const at = baseAddress.indexOf("@");
+  if (at <= 0 || at !== baseAddress.lastIndexOf("@") || at === baseAddress.length - 1) return null;
+  const local = baseAddress.slice(0, at);
+  const domain = baseAddress.slice(at + 1);
+  if (local.includes("+") || /\s/.test(baseAddress)) return null;
+  return `${local}+${alias}@${domain}`;
 }
 
 /** Grove HTML→tekst-fallback voor mails zonder TextBody: tags eruit, basisentiteiten terug. */

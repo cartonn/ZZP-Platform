@@ -211,6 +211,7 @@ export function companyAnonymizationData(): {
   website: null;
   location: null;
   logoKey: null;
+  mailIntakeAlias: null;
 } {
   return {
     name: ANONYMIZED_NAME,
@@ -218,5 +219,8 @@ export function companyAnonymizationData(): {
     website: null,
     location: null,
     logoKey: null,
+    // Intake-alias intrekken: een geanonimiseerd account mag geen werkend inname-kanaal
+    // achterlaten waarmee derden nog aanvragen in de (dode) queue kunnen blijven mailen.
+    mailIntakeAlias: null,
   };
 }
