@@ -423,6 +423,13 @@ model Company {
   website     String?
   location    String?
   tenantId    String? //                gedenormaliseerd uit User.tenantId voor tenant-scoping
+  // Mail-intake-alias: uniek plus-adres-token (aanvraag+<alias>@intake-domein) waarmee óók
+  // externe aanvragers (bv. een zorginstelling zonder eigen account) aanvragen kunnen mailen.
+  // null = alias uitgeschakeld; alleen de afzender-match op het accountadres blijft dan werken.
+  // Bewust GEEN @unique: een unieke constraint op een bestaande tabel laat `prisma db push`
+  // (zonder --accept-data-loss, zoals scripts/start.mjs draait) de deploy weigeren. Uniekheid
+  // wordt afgedwongen op applicatieniveau (80 bits random + botsingscheck bij genereren).
+  mailIntakeAlias String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -436,6 +443,7 @@ model Company {
   mailIntakes    MailIntake[]
 
   @@index([tenantId])
+  @@index([mailIntakeAlias])
 }
 
 model Skill {

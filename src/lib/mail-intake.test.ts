@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   assertMailIntakeTransition,
+  formatMailIntakeAddress,
+  generateMailIntakeAlias,
+  MAIL_INTAKE_ALIAS_RE,
+  mailIntakeRecipientAlias,
   canMailIntakeTransition,
   cleanMailSubject,
   isAuthorizedMailIntakeHeader,
@@ -78,6 +82,48 @@ describe("afzender-normalisatie", () => {
   it("geeft null bij een ongeldig of ontbrekend adres", () => {
     expect(mailIntakeSenderEmail({ MessageID: "m1", From: "geen-adres" })).toBeNull();
     expect(mailIntakeSenderEmail({ MessageID: "m1" })).toBeNull();
+  });
+});
+
+describe("intake-alias (plus-adressering)", () => {
+  it("genereert een geldig, niet-triviaal token", () => {
+    const a = generateMailIntakeAlias();
+    const b = generateMailIntakeAlias();
+    expect(a).toMatch(MAIL_INTAKE_ALIAS_RE);
+    expect(a).toHaveLength(20);
+    expect(a).not.toBe(b);
+  });
+
+  it("haalt het alias uit ToFull (gezaghebbend)", () => {
+    expect(
+      mailIntakeRecipientAlias({
+        MessageID: "m1",
+        ToFull: [{ Email: "aanvraag+abcdef1234@intake.nl" }],
+      }),
+    ).toBe("abcdef1234");
+  });
+
+  it("valt terug op de To-header en pakt het eerste geldige token", () => {
+    expect(
+      mailIntakeRecipientAlias({
+        MessageID: "m1",
+        To: 'Planner <planner@zorg.nl>, "Intake" <aanvraag+ff00aa1122@intake.nl>',
+      }),
+    ).toBe("ff00aa1122");
+  });
+
+  it("negeert ontvangers zonder of met een ongeldig plus-token", () => {
+    expect(mailIntakeRecipientAlias({ MessageID: "m1", To: "aanvraag@intake.nl" })).toBeNull();
+    expect(mailIntakeRecipientAlias({ MessageID: "m1", To: "aanvraag+X!@intake.nl" })).toBeNull();
+    expect(mailIntakeRecipientAlias({ MessageID: "m1" })).toBeNull();
+  });
+
+  it("bouwt het volledige intake-adres uit basisadres + alias", () => {
+    expect(formatMailIntakeAddress("aanvraag@intake.nl", "abcdef1234")).toBe(
+      "aanvraag+abcdef1234@intake.nl",
+    );
+    expect(formatMailIntakeAddress("geen-adres", "abcdef1234")).toBeNull();
+    expect(formatMailIntakeAddress("al+plus@intake.nl", "abcdef1234")).toBeNull();
   });
 });
 

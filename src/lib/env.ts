@@ -69,6 +69,10 @@ const schema = z
     // Optioneel; zonder waarde is het endpoint uitgeschakeld (404) en staat mail-intake uit.
     // De inbound-mailprovider (bv. Postmark Inbound) is mensenwerk — zie MENSENWERK.md.
     MAIL_INTAKE_WEBHOOK_SECRET: z.string().optional(),
+    // Basisadres van de inbound-mailbox (bv. aanvraag@intake.jouwdomein.nl). Alleen voor
+    // weergave: de reviewqueue toont hiermee het volledige per-bedrijf plus-adres
+    // (local+<alias>@domein). Optioneel; zonder waarde toont de UI het kale alias-token.
+    MAIL_INTAKE_ADDRESS: z.string().optional(),
     // Cron-heartbeat: maximale leeftijd (uren) van de laatste run-all-run vóór de systeemstatus 'm
     // als "stale" markeert (dead-man's-switch). Optioneel; default 36 (zie config.ts).
     CRON_MAX_AGE_HOURS: z.string().optional(),

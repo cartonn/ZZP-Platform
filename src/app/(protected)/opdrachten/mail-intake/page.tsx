@@ -10,8 +10,16 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { acceptMailIntakeState, dismissMailIntakeState, reopenMailIntakeState } from "./actions";
+import {
+  acceptMailIntakeState,
+  disableMailIntakeAliasState,
+  dismissMailIntakeState,
+  reopenMailIntakeState,
+  rotateMailIntakeAliasState,
+} from "./actions";
 import { AcceptIntakeForm, DismissIntakeForm, ReopenIntakeForm } from "./intake-forms";
+import { CreateAliasForm, DisableAliasForm, RotateAliasForm } from "./alias-forms";
+import { formatMailIntakeAddress } from "@/lib/mail-intake";
 
 export const metadata: Metadata = { title: "Mail-intake · Handslag" };
 
@@ -63,7 +71,7 @@ export default async function MailIntakePage() {
 
   const company = await prisma.company.findUnique({
     where: { userId: actor.id },
-    select: { id: true },
+    select: { id: true, mailIntakeAlias: true },
   });
 
   if (!company) {
@@ -96,6 +104,13 @@ export default async function MailIntakePage() {
   const open = intakes.filter((i) => i.status === "NEW").reverse(); // oudste eerst beoordelen
   const handled = intakes.filter((i) => i.status !== "NEW").slice(0, 10);
 
+  // Volledig plus-adres alleen tonen wanneer de beheerder het intake-basisadres heeft gezet
+  // (MAIL_INTAKE_ADDRESS, zie MENSENWERK par. 2b); anders tonen we het kale alias-token.
+  const baseAddress = process.env.MAIL_INTAKE_ADDRESS ?? "";
+  const intakeAddress = company.mailIntakeAlias
+    ? formatMailIntakeAddress(baseAddress, company.mailIntakeAlias)
+    : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -105,13 +120,53 @@ export default async function MailIntakePage() {
       />
 
       <Card>
-        <CardContent className="flex items-start gap-3 p-4 text-sm text-muted-foreground">
-          <Mail className="mt-0.5 size-4 shrink-0 text-foreground" aria-hidden />
-          <p>
-            Mail een aanvraag vanaf je <strong>account-e-mailadres</strong> naar het intake-adres
-            van het platform. Herkende velden zoals <em>Functie, Locatie, Tarief, Startdatum</em> en{" "}
-            <em>Werkwijze</em> worden alvast ingevuld; jij houdt de controle en publiceert zelf.
-          </p>
+        <CardContent className="space-y-3 p-4 text-sm">
+          <div className="flex items-start gap-3 text-muted-foreground">
+            <Mail className="mt-0.5 size-4 shrink-0 text-foreground" aria-hidden />
+            <p>
+              Mail een aanvraag vanaf je <strong>account-e-mailadres</strong> naar het intake-adres
+              van het platform, of geef je aanvragers je <strong>eigen intake-adres</strong>{" "}
+              hieronder — dan hoeven zij geen account te hebben. Herkende velden zoals{" "}
+              <em>Functie, Locatie, Tarief, Startdatum</em> en <em>Werkwijze</em> worden alvast
+              ingevuld; jij houdt de controle en publiceert zelf.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 border-t pt-3">
+            {company.mailIntakeAlias ? (
+              <>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-muted-foreground">Jouw intake-adres</p>
+                  {intakeAddress ? (
+                    <code className="break-all text-sm">{intakeAddress}</code>
+                  ) : (
+                    <p className="text-sm">
+                      Alias <code className="break-all">{company.mailIntakeAlias}</code>{" "}
+                      <span className="text-muted-foreground">
+                        (het intake-domein is nog niet geconfigureerd — het volledige adres
+                        verschijnt hier zodra dat is ingericht)
+                      </span>
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Deel dit adres alleen met partijen die aanvragen mogen indienen; vernieuwen
+                    trekt het oude adres in.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <RotateAliasForm action={rotateMailIntakeAliasState} />
+                  <DisableAliasForm action={disableMailIntakeAliasState} />
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+                  Nog geen eigen intake-adres: alleen mail vanaf je account-e-mailadres wordt nu
+                  aangenomen. Genereer een adres om ook externe aanvragers te laten mailen.
+                </p>
+                <CreateAliasForm action={rotateMailIntakeAliasState} />
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
 

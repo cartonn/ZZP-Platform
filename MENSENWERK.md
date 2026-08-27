@@ -708,9 +708,17 @@ publiceert via de gewone flow (plan-gating + DBA-check blijven gelden). Benchmar
 4. Configureer bij de provider de webhook-URL **met het secret als basic-auth-wachtwoord**:
    `https://intake:<secret>@<productie-host>/api/mail-intake/webhook` (of laat de provider een
    `Authorization: Bearer <secret>`-header meesturen).
-5. Klaar. Afzenders worden gematcht op het **account-e-mailadres van een actieve opdrachtgever**;
-   mail van onbekende afzenders wordt bewust niet opgeslagen (dataminimalisatie). Bijlagen worden
-   genegeerd. AVG: neem "inkomende aanvraagmails" op in het verwerkingsregister bij livegang.
+5. Zet ook `MAIL_INTAKE_ADDRESS` (het basisadres van de inbound-mailbox, bv.
+   `aanvraag@intake.jouwdomein.nl`). Alleen voor weergave: de reviewqueue toont er het volledige
+   **per-bedrijf plus-adres** mee (`aanvraag+<alias>@…`). Zorg dat de provider plus-adressering
+   aflevert (bij een inbound-domein/catch-all is dat automatisch zo; Postmark Inbound ondersteunt
+   dit standaard).
+6. Klaar. Een mail wordt aan een bedrijf gekoppeld via (a) het **per-bedrijf intake-alias** in het
+   ontvangeradres — de opdrachtgever genereert/vernieuwt dit zelf op `/opdrachten/mail-intake`,
+   zodat ook aanvragers zónder account (bv. een zorginstelling) kunnen mailen — of anders (b) de
+   afzender-match op het **account-e-mailadres van een actieve opdrachtgever**. Mail zonder match
+   wordt bewust niet opgeslagen (dataminimalisatie). Bijlagen worden genegeerd. AVG: neem
+   "inkomende aanvraagmails" op in het verwerkingsregister bij livegang.
 
 ---
 
