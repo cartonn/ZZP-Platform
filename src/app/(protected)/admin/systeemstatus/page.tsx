@@ -17,6 +17,7 @@ import { getRateLimitDeliveryFreshness } from "@/lib/observability/ratelimit-del
 import { getPasswordBreachDeliveryFreshness } from "@/lib/observability/password-breach-delivery-heartbeat";
 import { getErrorMonitoringDeliveryFreshness } from "@/lib/observability/error-monitoring-delivery-heartbeat";
 import { getUploadScanDeliveryFreshness } from "@/lib/observability/upload-scan-delivery-heartbeat";
+import { getRoutingDeliveryFreshness } from "@/lib/observability/routing-delivery-heartbeat";
 import { PageHeader } from "@/components/ui/page-header";
 import { SystemStatusPanel } from "@/components/admin/system-status-panel";
 import { CronHeartbeatCard } from "@/components/admin/cron-heartbeat-card";
@@ -31,6 +32,7 @@ import { RateLimitDeliveryHeartbeatCard } from "@/components/admin/ratelimit-del
 import { PasswordBreachDeliveryHeartbeatCard } from "@/components/admin/password-breach-delivery-heartbeat-card";
 import { ErrorMonitoringDeliveryHeartbeatCard } from "@/components/admin/error-monitoring-delivery-heartbeat-card";
 import { UploadScanDeliveryHeartbeatCard } from "@/components/admin/upload-scan-delivery-heartbeat-card";
+import { RoutingDeliveryHeartbeatCard } from "@/components/admin/routing-delivery-heartbeat-card";
 import { SelfTestSweep } from "@/components/admin/selftest-sweep";
 import { DbSelfTest } from "@/components/admin/db-selftest";
 import { StorageSelfTest } from "@/components/admin/storage-selftest";
@@ -78,6 +80,7 @@ export default async function SysteemstatusPage() {
   const passwordBreachDeliveryFreshness = await getPasswordBreachDeliveryFreshness();
   const errorMonitoringDeliveryFreshness = await getErrorMonitoringDeliveryFreshness();
   const uploadScanDeliveryFreshness = await getUploadScanDeliveryFreshness();
+  const routingDeliveryFreshness = await getRoutingDeliveryFreshness();
 
   return (
     <div className="space-y-6">
@@ -99,6 +102,7 @@ export default async function SysteemstatusPage() {
       <PasswordBreachDeliveryHeartbeatCard freshness={passwordBreachDeliveryFreshness} />
       <ErrorMonitoringDeliveryHeartbeatCard freshness={errorMonitoringDeliveryFreshness} />
       <UploadScanDeliveryHeartbeatCard freshness={uploadScanDeliveryFreshness} />
+      <RoutingDeliveryHeartbeatCard freshness={routingDeliveryFreshness} />
       <SelfTestSweep />
       <DbSelfTest provider={detectDbProvider(process.env.DATABASE_URL)} />
       <StorageSelfTest driverMode={env.STORAGE_DRIVER} />

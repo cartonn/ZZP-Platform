@@ -1071,6 +1071,31 @@ nooit de sleutel of de aanroep-URL (alleen stap-uitkomst + driver-modus), loopt 
 Resterend mensenwerk: **niets extra** — de knop is er zodra `ROUTING_PROVIDER=geoapify` staat. Optioneel:
 `ROUTING_HTTP_TIMEOUT_MS` (ms, geklemd 1000–60000) om de time-out bij te stellen.
 
+**Code-kant GEDAAN (2026-08-27) — routing-provider aflever-heartbeat (dead-man's-switch):** de
+zelftest hierboven bewijst bereikbaarheid **vóór go-live** (menselijke klik); hij zegt niets over de
+duizenden échte reistijd-lookups daarna. Omdat de routing bewust **graceful degradeert** — bij élke
+storing valt `estimateTravelMinutesWithRouting` STIL terug op de offline haversine-schatting
+(`.catch(() => null)`), en `fetchJson` slikte een `!res.ok` (HTTP 401/403/429/5xx bij een verkeerde
+sleutel) — laat een AANHOUDENDE storing (verlopen/ingetrokken/verkeerde `GEOAPIFY_API_KEY`, een
+provider- of netwerkstoring) élke lookup stil degraderen: de match-reistijden worden onnauwkeuriger
+**zonder dat iets dat toont**. Routing was het laatste actieve keyed externe integratiekanaal met een
+go-live-zelftest maar zónder doorlopend afleversignaal (storage/mail/push/billing/verificatie/
+rate-limit/error-monitoring/upload-scan hadden er al één). Nu registreert elke uitgaande round-trip via
+de échte Geoapify-provider (geocode óf route) haar uitkomst in een `RoutingDeliveryHeartbeat` (de
+offline provider registreert bewust niets — geen extern kanaal). "Slagen" = de provider **antwoordde**
+(2xx + parseerbaar, óók als er geen geocode-match was — dan valt de aanroeper terecht terug, maar de
+aflevering was gezond); "mislukken" = onbereikbaar/time-out, non-2xx, of een onleesbaar antwoord.
+Event-gedreven oordeel op de **laatste** operatie (`never`/`ok`/`failing` + teller); geslaagde lookups
+worden **gecoalesceerd** (max één schrijf per venster, `ROUTING_HEARTBEAT_COALESCE_MS`, default 15s)
+zodat de matching-hot-path geen DB-write per lookup krijgt, mislukkingen worden altijd direct
+vastgelegd en een herstel schrijft meteen. Kaart "Routing-provider" op `/admin/systeemstatus`; gauges
+`zzp_routing_delivery_ok`/`zzp_routing_consecutive_failures`/`zzp_routing_last_failure_age_seconds` op
+`/api/metrics`; alert `ZzpRoutingDeliveryFailing` (`==0 and >=3`, `for:15m`, warning) in
+`docs/observability/alerts.yml`, in de onderhouds-inhibitie. Bevat nooit de sleutel, de aanroep-URL of
+adres-/houdergegevens. Resterend mensenwerk: **niets extra** — de kaart/gauges vullen zichzelf zodra
+`ROUTING_PROVIDER=geoapify` staat en de eerste lookup draait. Optioneel: richt een monitor op
+`ZzpRoutingDeliveryFailing`.
+
 ---
 
 ## §5. Juridisch & privacy (AVG / Wet DBA / Wkkgz / security)

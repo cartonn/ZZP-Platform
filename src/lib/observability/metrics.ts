@@ -489,6 +489,21 @@ export interface MetricsInput {
   uploadScanDeliveryConsecutiveFailures: number;
   /** Leeftijd van de meest recente upload-scan-mislukking in seconden, of null als er nooit één was. */
   uploadScanDeliveryLastFailureAgeSeconds: number | null;
+  /**
+   * True als de laatste reistijd-lookup via de externe routing-provider (Geoapify) door de provider
+   * werd beantwoord (of er nog nooit één was — neutraal gezond); false als de provider systematisch niet
+   * meer antwoordt (onbereikbaar/time-out, of weigert: verkeerde/verlopen/ingetrokken GEOAPIFY_API_KEY →
+   * HTTP 401/403/429/5xx). Élke lookup valt dan STIL terug op de offline haversine-schatting. Event-gedreven;
+   * het alarm zit op OPEENVOLGENDE mislukkingen. Zonder actieve provider (offline) registreert niets → "ok".
+   */
+  routingDeliveryOk: boolean;
+  /**
+   * Aantal opeenvolgende mislukte routing-lookups sinds de laatste geslaagde (0 als ok of nog nooit een
+   * operatie). Een monitor paget op een AANHOUDENDE storing, niet op één transiënte fout.
+   */
+  routingDeliveryConsecutiveFailures: number;
+  /** Leeftijd van de meest recente routing-lookup-mislukking in seconden, of null als er nooit één was. */
+  routingDeliveryLastFailureAgeSeconds: number | null;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -900,6 +915,24 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: `Leeftijd van de meest recente mislukte upload-scan in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_upload_scan_consecutive_failures / zzp_upload_scan_delivery_ok.`,
       type: "gauge",
       value: age(input.uploadScanDeliveryLastFailureAgeSeconds),
+    },
+    {
+      name: "zzp_routing_delivery_ok",
+      help: "1 als de laatste reistijd-lookup via de externe routing-provider (Geoapify, ROUTING_PROVIDER=geoapify) door de provider werd beantwoord (of er nog nooit één was — neutraal gezond), 0 als de provider systematisch niet meer antwoordt (onbereikbaar/time-out, of weigert: verkeerde/verlopen/ingetrokken GEOAPIFY_API_KEY → HTTP 401/403/429/5xx). Élke lookup valt dan STIL terug op de offline haversine-schatting → onnauwkeurigere match-reistijden. Zonder actieve provider (offline) registreert niets → blijft 1.",
+      type: "gauge",
+      value: flag(input.routingDeliveryOk),
+    },
+    {
+      name: "zzp_routing_consecutive_failures",
+      help: "Aantal opeenvolgende mislukte routing-lookups sinds de laatste geslaagde (0 = ok of nog nooit een operatie). Alarmeer op een AANHOUDENDE teller (verkeerde/verlopen GEOAPIFY_API_KEY, netwerk-/providerstoring), niet op één transiënte fout.",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.routingDeliveryConsecutiveFailures)),
+    },
+    {
+      name: "zzp_routing_last_failure_age_seconds",
+      help: `Leeftijd van de meest recente mislukte routing-lookup in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_routing_consecutive_failures / zzp_routing_delivery_ok.`,
+      type: "gauge",
+      value: age(input.routingDeliveryLastFailureAgeSeconds),
     },
   ];
 }

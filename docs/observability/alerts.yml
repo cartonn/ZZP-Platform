@@ -331,6 +331,26 @@ groups:
           summary: "Malware-scan uploads levert niet af"
           description: "De malware-scan van geüploade bewijsstukken (ClamAV) levert geen beslissend verdict meer (zzp_upload_scan_delivery_ok=0, ≥3 opeenvolgende mislukkingen). De clamd-daemon is onbereikbaar (verkeerde/geblokkeerde CLAMAV_HOST/CLAMAV_PORT, netwerkstoring, time-out) of antwoordt met een onherkenbare respons (lege/kapotte virusdefinities). Staat de scan-grens op fail-closed (default), dan worden uploads nú geweigerd; staat UPLOAD_SCAN_FAIL_OPEN=true, dan gaan bewijsstukken (VOG, diploma, verzekering) STIL ongescand naar de opslag. Controleer de clamd-daemon en draai de Upload-scanner-zelftest op /admin/systeemstatus. Zie MENSENWERK §0b."
 
+      - alert: ZzpRoutingDeliveryFailing
+        # De externe reistijd-routing (Geoapify, ROUTING_PROVIDER=geoapify) levert systematisch geen geldige
+        # lookup meer: de laatste routing-operatie mislukte (zzp_routing_delivery_ok=0) én er zijn ≥3
+        # opeenvolgende mislukkingen. De routing-grens is bewust FAIL-SILENT — is de provider onbereikbaar of
+        # weigert 'ie het verzoek, dan valt élke lookup STIL terug op de offline haversine-schatting: de
+        # match-reistijden worden onnauwkeuriger zonder dat iets dat toont. Routing-operaties zijn
+        # event-gedreven (geen staleness-op-leeftijd), dus de conditie zit op de teller, niet op ouderdom.
+        # Oorzaak meestal een verkeerde/verlopen/ingetrokken GEOAPIFY_API_KEY (HTTP 401/403/429), een
+        # provider-storing (5xx) of een netwerk-/firewall-/time-outstoring. De ≥3-drempel + `for:` negeren één
+        # transiënte fout. Herstel wordt automatisch gewist zodra een lookup weer slaagt (of draai de
+        # Routing-zelftest op /admin/systeemstatus). Zonder actieve provider (offline default) registreert
+        # niets → deze alert vuurt per definitie niet. Zie MENSENWERK.
+        expr: zzp_routing_delivery_ok == 0 and zzp_routing_consecutive_failures >= 3
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Routing-provider levert niet af"
+          description: "De externe routing-provider (Geoapify) levert geen reistijd-lookups meer (zzp_routing_delivery_ok=0, ≥3 opeenvolgende mislukkingen). Onbereikbaar (netwerk/time-out) of weigert het verzoek (verkeerde/verlopen/ingetrokken GEOAPIFY_API_KEY, HTTP 401/403/429/5xx). Élke lookup valt nu STIL terug op de offline reistijd-schatting → match-reistijden worden onnauwkeuriger zonder dat iets dat toont. Controleer de GEOAPIFY_API_KEY en draai de Routing-zelftest op /admin/systeemstatus."
+
   - name: zzp-platform-stille-faal-backlogs
     rules:
       # Deze drie tellen werk dat een cron-run HAD moeten doen. De cron-heartbeat bewijst alleen DÁT de

@@ -1,4 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const recordRoutingSuccess = vi.hoisted(() => vi.fn(async () => {}));
+const recordRoutingFailure = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock("@/lib/observability/routing-delivery-heartbeat", () => ({
+  recordRoutingDeliverySuccess: recordRoutingSuccess,
+  recordRoutingDeliveryFailure: recordRoutingFailure,
+}));
+
 import {
   checkRoutingConnectivity,
   estimateTravelMinutesWithRouting,
@@ -55,6 +63,11 @@ function jsonResponse(body: unknown): Response {
     headers: { "Content-Type": "application/json" },
   });
 }
+
+beforeEach(() => {
+  recordRoutingSuccess.mockClear();
+  recordRoutingFailure.mockClear();
+});
 
 describe("routing helpers", () => {
   it("normaliseert plaatsnamen voor stabiele cache keys", () => {
@@ -146,6 +159,83 @@ describe("estimateTravelMinutesWithRouting", () => {
         apiKey: "",
       }),
     ).resolves.toBeGreaterThan(70);
+  });
+});
+
+describe("routing delivery heartbeat", () => {
+  const now = new Date("2026-06-08T12:00:00Z");
+
+  it("registreert succes bij een geslaagde geoapify-round-trip", async () => {
+    const cache = new MemoryRoutingCache();
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      const href = String(url);
+      if (href.includes("/geocode/")) {
+        const text = new URL(href).searchParams.get("text");
+        return jsonResponse({
+          features: [
+            {
+              properties:
+                text === "Amsterdam"
+                  ? { lat: 52.3676, lon: 4.9041, formatted: "Amsterdam" }
+                  : { lat: 51.9225, lon: 4.4792, formatted: "Rotterdam" },
+            },
+          ],
+        });
+      }
+      return jsonResponse({ features: [{ properties: { distance: 78_000, time: 4_200 } }] });
+    }) as typeof fetch;
+
+    await expect(
+      estimateTravelMinutesWithRouting("Amsterdam", "Rotterdam", {
+        provider: "geoapify",
+        apiKey: "test-key",
+        cache,
+        fetchImpl,
+        now,
+      }),
+    ).resolves.toBe(70);
+
+    // Twee geocodes + één route = drie gezonde afleveringen.
+    expect(recordRoutingSuccess).toHaveBeenCalledTimes(3);
+    expect(recordRoutingSuccess).toHaveBeenCalledWith(now);
+    expect(recordRoutingFailure).not.toHaveBeenCalled();
+  });
+
+  it("registreert mislukking bij een niet-ok HTTP-antwoord en valt terug op de offline schatting", async () => {
+    const fetchImpl = vi.fn(
+      async () => new Response("nope", { status: 401 }),
+    ) as unknown as typeof fetch;
+
+    const minutes = await estimateTravelMinutesWithRouting("Amsterdam", "Rotterdam", {
+      provider: "geoapify",
+      apiKey: "bad-key",
+      cache: new MemoryRoutingCache(),
+      fetchImpl,
+      now,
+    });
+
+    expect(recordRoutingFailure).toHaveBeenCalledWith(now);
+    expect(recordRoutingSuccess).not.toHaveBeenCalled();
+    // Terugval op de deterministische offline schatter (niet-null getal).
+    expect(minutes).toBeGreaterThan(0);
+  });
+
+  it("registreert mislukking wanneer de fetch werpt en valt terug", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("connect ECONNREFUSED");
+    }) as unknown as typeof fetch;
+
+    const minutes = await estimateTravelMinutesWithRouting("Amsterdam", "Rotterdam", {
+      provider: "geoapify",
+      apiKey: "test-key",
+      cache: new MemoryRoutingCache(),
+      fetchImpl,
+      now,
+    });
+
+    expect(recordRoutingFailure).toHaveBeenCalledWith(now);
+    expect(recordRoutingSuccess).not.toHaveBeenCalled();
+    expect(minutes).toBeGreaterThan(0);
   });
 });
 
