@@ -23,6 +23,40 @@ weigeren; uniekheid komt van 80 bits entropie + botsingscheck bij genereren). Pu
 
 **Volgende stap:** e2e-flow (webhook → queue → concept) en de meetlus mail→gepubliceerd in Inzicht.
 
+## 2026-08-27 — Persona-sweep run 96: mail-intake-webhook was dood in productie (bereikbaarheid)
+
+**Wat:** kritische-gebruiker-sweep over alle 4 rollen (live doorklik + adversariële probe-matrix). **1
+should-fix defect gevonden én gefixt** (functionele bereikbaarheid, CLAUDE.md "geen dode knoppen").
+De net-geshipte mail-intake-provider-webhook `/api/mail-intake/webhook` (#1254) stond **niet** in de
+publieke-routes-allowlist (`isPublicPath`, `src/lib/route-guards.ts`). De inbound-mailprovider POST't
+zonder sessie-cookie → de auth-middleware redirectte de POST naar `/login` (**307**) vóór de
+secret-guard van de route ook maar draaide → de webhook bereikte nooit z'n handler → de **hele
+mail-intake was functioneel dood in productie** zodra `MAIL_INTAKE_WEBHOOK_SECRET` gezet wordt. Exact
+dezelfde valkuil die eerder de betaal-webhook (`/api/billing/webhook`) trof en toen is opgelost — de
+mail-intake herhaalde 'm. **Live-repro (Playwright/curl):** `POST /api/mail-intake/webhook` → `307`,
+`location: /login?callbackUrl=…`.
+
+**Fix:** `pathname === "/api/mail-intake/webhook"` toegevoegd aan `isPublicPath` (met comment; parity
+met de betaal-webhook). De route blijft zelf secret-gated (404 zonder secret, timing-safe 401 bij
+verkeerde auth) → geen nieuw oppervlak, alleen bereikbaarheid. +2 regressietests in
+`src/lib/route-guards.test.ts` (webhook publiek; subpaden/collectie `/api/mail-intake`,
+`/api/mail-intake/webhook/extra` blijven achter de inlogmuur). **Live-bewijs ná fix (secret gezet):**
+no-auth → **401**, foute Bearer → **401**, geldige Bearer + onbekende afzender → **200** (niets
+opgeslagen, dataminimalisatie), geldige Bearer + bekende CLIENT → **200** + `MailIntake`-rij `NEW`
+aangemaakt (parser: `Tarief: 85 euro`→85, `Locatie: Utrecht`→Utrecht).
+
+**Adversariële matrix (alle 4 rollen, 0 nieuwe bereikbare gaten):** privilege-escalatie naar
+`/admin/*` → **307 redirect** (ZZP/CLIENT/FRANCHISER), admin ok → 200; mail-intake-reviewqueue voor
+niet-CLIENT → `requireRole("CLIENT")` gooit **403** (error-boundary, geen datalek — freelancer/
+franchiser hebben geen Company); onzin-id's op `/opdrachten|/samenwerkingen|/facturen|/zzp` → **404**,
+nooit 500; mail-intake-actions (`accept/dismiss/reopen`) diep gehard: `requireRole`→`ownIntake`
+(company-by-userId, companyId-match)→statusovergangsmap→TOCTOU-`updateMany(status:"NEW")`→audit.
+
+**Checks:** typecheck ✓ · lint ✓ · test **685 files / 7127 tests** ✓ · build ✓ · prettier --check ✓.
+
+**Bestanden:** `src/lib/route-guards.ts`, `src/lib/route-guards.test.ts`, `PROGRESS.md`,
+`docs/PERSONA-SWEEP-BACKLOG.md`.
+
 ## 2026-08-27 — Mail-intake: dienstaanvragen per e-mail → reviewqueue → concept-opdracht
 
 **Wat:** eerste verticale snede van "MailSync" (benchmark Bendy/GOED: planners typen aanvragen niet

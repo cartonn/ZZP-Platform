@@ -19,6 +19,13 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/api/billing/webhook")).toBe(true);
   });
 
+  it("staat de mail-intake-webhook inlogvrij toe (inbound-mailprovider POST't zonder sessie; route is zelf secret-gated)", () => {
+    // Regressie: shipte (#1254) zonder allowlist-entry → een sessieloze provider-POST werd naar
+    // /login geredirect (307) vóór de secret-guard van de route draaide, waardoor de mail-intake
+    // functioneel dood was in productie. Zelfde valkuil als de betaal-webhook hierboven.
+    expect(isPublicPath("/api/mail-intake/webhook")).toBe(true);
+  });
+
   it("staat de CSP-violatie-ontvanger inlogvrij toe (browser POST't zonder sessie, óók vanaf /login)", () => {
     expect(isPublicPath("/api/csp-report")).toBe(true);
   });
@@ -44,6 +51,9 @@ describe("isPublicPath", () => {
       // De rest van /api/billing blijft beschermd: alleen de exacte webhook-route is publiek.
       "/api/billing",
       "/api/billing/webhook/extra",
+      // Alleen de exacte mail-intake-webhook-route is publiek, geen subpaden of de collectie.
+      "/api/mail-intake",
+      "/api/mail-intake/webhook/extra",
       "/api/media/logo.png",
       // Alleen de exacte csp-report-route is publiek, geen subpaden.
       "/api/csp-report/extra",

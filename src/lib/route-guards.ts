@@ -44,7 +44,14 @@ export function isPublicPath(pathname: string): boolean {
     // provider (bron van waarheid) en antwoordt altijd 200 zonder data te lekken. Stond ten
     // onrechte achter de inlogmuur, waardoor een live webhook naar /login zou worden geredirect
     // en abonnementen na betaling nooit zouden activeren.
-    pathname === "/api/billing/webhook"
+    pathname === "/api/billing/webhook" ||
+    // Mail-intake-provider-webhook (Postmark/SES inbound): de provider POST't de binnengekomen
+    // aanvraagmail zonder sessie-cookie. De route is zelf secret-gated (404 zonder
+    // MAIL_INTAKE_WEBHOOK_SECRET, timing-safe 401 bij verkeerde auth) en lekt nooit data. Zónder
+    // deze allowlist-entry redirect de middleware de sessieloze provider-POST naar /login (307),
+    // waardoor de webhook nooit z'n handler bereikt en de hele mail-intake dood is in productie —
+    // dezelfde valkuil als de betaal-webhook hierboven.
+    pathname === "/api/mail-intake/webhook"
   );
 }
 

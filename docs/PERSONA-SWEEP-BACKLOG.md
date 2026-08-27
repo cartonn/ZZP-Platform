@@ -1,5 +1,35 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-27 (run 96) · **main-commit basis:** `f0b8e84d`
+> **Uitkomst:** **1 defect gevonden én gefixt** (should-fix functionele bereikbaarheid — de net-geshipte
+> mail-intake-provider-webhook was dood in productie omdat de auth-middleware de sessieloze provider-POST
+> naar `/login` redirectte). Live doorklik + adversariële probe-matrix over alle 4 rollen: **0 nieuwe
+> bereikbare security-/robuustheidsgaten**. De nieuwste features (#1246-1254: mail-intake, betaalgedrag,
+> kandidaat-funnel, Wet-DBA-signaal, waarde-overzicht, prefill-voorstel) adversarieel doorgelicht op
+> authz/IDOR/tenant + malicieuze input; de mail-intake-server-actions bleken correct owner-/tenant-scoped
+> met TOCTOU-grendel.
+>
+> - **OPGELOST — should-fix (functionele bereikbaarheid, CLAUDE.md "geen dode knoppen / productiekwaliteit"):
+>   de inbound-mailprovider-webhook `/api/mail-intake/webhook` (#1254) stond niet in de publieke-routes-
+>   allowlist (`isPublicPath`, `src/lib/route-guards.ts`).** De provider (Postmark/SES) POST't zonder
+>   sessie-cookie; de auth-middleware redirectte die POST naar `/login` (**307**) vóór de secret-guard van
+>   de route draaide → de webhook bereikte nooit z'n handler → de hele mail-intake was dood in productie
+>   zodra `MAIL_INTAKE_WEBHOOK_SECRET` gezet wordt. Exact dezelfde valkuil die eerder de betaal-webhook
+>   (`/api/billing/webhook`) trof (die staat mét comment al in de allowlist) — de mail-intake herhaalde 'm.
+>   **Repro (curl/Playwright, geen auth):** `POST /api/mail-intake/webhook` → `307`,
+>   `location: /login?callbackUrl=…`. **Fix:** `pathname === "/api/mail-intake/webhook"` toegevoegd aan
+>   `isPublicPath` (met comment; parity met de betaal-webhook). De route blijft zelf secret-gated (404
+>   zonder secret, timing-safe 401 bij verkeerde auth) — geen nieuw oppervlak, alleen bereikbaarheid.
+>   +2 regressietests (`route-guards.test.ts`: webhook publiek; `/api/mail-intake` + `…/webhook/extra`
+>   blijven gewald). **Live-bewijs ná fix (secret gezet):** no-auth → 401, foute Bearer → 401, geldige
+>   Bearer + onbekende afzender → 200 (niets opgeslagen), geldige Bearer + bekende CLIENT → 200 +
+>   `MailIntake`-rij NEW aangemaakt.
+> - **GEPARKEERD (ongewijzigd) — should-fix/design (next-action-pariteit, DOEL 1b, #1235):** de
+>   beslis-achterstand-chip op `/opdrachten` heeft nog geen corresponderend `/acties`-item of nav-badge.
+>   Twee-lagen-ontwerp — productkeuze, aparte gereviewde PR (zie run 94/95 hieronder voor fix-richting).
+
+---
+
 > **Datum:** 2026-08-27 (run 95) · **main-commit basis:** `33d8964a`
 > **Uitkomst:** **1 defect gevonden én gefixt** (should-fix geld-integriteit, platform-facturatie —
 > een geannuleerde platformfactuur liet zijn gebundelde fee/abonnementsbijdragen wees achter → permanent
