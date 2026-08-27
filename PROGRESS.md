@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-27 — persona-sweep run 95: geannuleerde platformfactuur geeft fees terug (geld-integriteit)
+
+**Wat:** een geannuleerde platformfactuur (`PlatformBillingInvoice` → CANCELLED) liet zijn gebundelde
+`CollaborationFee`/`ZzpMembershipCharge`-regels bevroren op `INVOICED` met een `invoiceId` naar de dode
+factuur. De facturatie-run pakt alleen `PENDING`-regels, dus die fees werden nooit opnieuw gefactureerd →
+permanent omzetlek voor de franchise/het platform. `setBillingStatusAction` raakte bij annuleren alleen de
+factuurrij aan. **Fix:** bij CANCELLED worden de regels nu atomair (één `$transaction`, achter dezelfde
+concurrency-guard) teruggegeven aan de facturatie — `invoiceId=null, status=PENDING` — zodat de volgende run
+ze correct opnieuw factureert (append-only gerespecteerd: de fee verdwijnt niet, hij keert terug naar PENDING).
+
+**Bestanden:** `src/app/(protected)/admin/facturatie/actions.ts` (CANCELLED-terugzet + verrijkte audit-metadata
+`releasedFees`/`releasedCharges`), `src/app/(protected)/admin/facturatie/actions.test.ts` (+2 regressietests).
+**Checks:** typecheck + lint + 7099 unit-tests + build groen, prettier schoon. Live doorklik + adversariële
+probe-matrix (4 rollen): 0 nieuwe security-/robuustheidsgaten (priv-esc → 307/403, IDOR → 404, onzin-id → 404,
+geen 500). Details in `docs/PERSONA-SWEEP-BACKLOG.md` (run 95).
+
 ## 2026-08-27 — routine: kandidaat-funnel + bekijk-kandidaten-deeplink op opdracht-detail (opdrachtgever)
 
 **Wat:** de opdrachtgever zag op de opdracht-detailpagina (`/opdrachten/[id]`) wél bezettingsrisico,
