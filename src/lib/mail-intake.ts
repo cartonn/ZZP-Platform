@@ -88,7 +88,7 @@ export type MailIntakeWebhookPayload = z.infer<typeof mailIntakeWebhookSchema>;
 export function mailIntakeSenderEmail(payload: MailIntakeWebhookPayload): string | null {
   const raw = payload.FromFull?.Email?.trim() || payload.From?.trim() || "";
   const bracketed = raw.match(/<([^<>\s]+@[^<>\s]+)>/);
-  const candidate = (bracketed ? bracketed[1] : raw).trim().toLowerCase();
+  const candidate = (bracketed?.[1] ?? raw).trim().toLowerCase();
   return z.string().email().safeParse(candidate).success ? candidate : null;
 }
 
@@ -169,9 +169,9 @@ export function parseRateRange(value: string): { rateMin: number | null; rateMax
   const amounts = tokens
     .map((t) => Math.round(Number.parseFloat(t.replace(",", "."))))
     .filter((n) => Number.isFinite(n) && n >= 1 && n <= 1000);
-  if (amounts.length === 0) return { rateMin: null, rateMax: null };
-  if (amounts.length === 1) return { rateMin: amounts[0], rateMax: null };
   const [a, b] = amounts;
+  if (a == null) return { rateMin: null, rateMax: null };
+  if (b == null) return { rateMin: a, rateMax: null };
   return a <= b ? { rateMin: a, rateMax: b } : { rateMin: b, rateMax: a };
 }
 
@@ -210,10 +210,10 @@ function validUtcDate(year: number, month: number, day: number): Date | null {
  */
 export function parseDutchDate(value: string): Date | null {
   const iso = value.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (iso) return validUtcDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+  if (iso) return validUtcDate(Number(iso[1] ?? ""), Number(iso[2] ?? ""), Number(iso[3] ?? ""));
 
   const dmy = value.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
-  if (dmy) return validUtcDate(Number(dmy[3]), Number(dmy[2]), Number(dmy[1]));
+  if (dmy) return validUtcDate(Number(dmy[3] ?? ""), Number(dmy[2] ?? ""), Number(dmy[1] ?? ""));
 
   const written = value.toLowerCase().match(/(\d{1,2})\s+([a-zà-ÿ]+)\s+(\d{4})/);
   if (written) {
@@ -257,14 +257,14 @@ export function parseMailIntake(subject: string, textBody: string): ParsedMailIn
 
   for (const line of textBody.split(/\r?\n/)) {
     const match = line.match(KEY_LINE);
-    const field = match ? fieldForLabel(match[1]) : null;
+    const field = match ? fieldForLabel(match[1] ?? "") : null;
     if (!match || !field) {
       // Vervolgregel: hoort bij de omschrijving-sectie of bij de vrije tekst.
       (inDescription ? descriptionLines : plainLines).push(line);
       continue;
     }
     inDescription = false;
-    const value = match[2].trim();
+    const value = (match[2] ?? "").trim();
     switch (field) {
       case "title":
         if (!result.title && value) result.title = value;
