@@ -110,6 +110,8 @@ import { ClientHistoryBlock } from "@/components/jobs/client-history-block";
 import { getFreelancerClientHistory } from "@/lib/data/freelancer-client-history";
 import { getClientResponsivenessForCompany } from "@/lib/data/client-responsiveness";
 import { ClientResponsivenessBlock } from "@/components/jobs/client-responsiveness-block";
+import { getCompanyActivity } from "@/lib/data/company-activity";
+import { CompanyActivityBlock } from "@/components/jobs/company-activity-block";
 import { relatedJobsForFreelancer } from "@/lib/recommendations";
 import { RelatedJobsSection } from "@/components/jobs/related-jobs-section";
 import { getTranslator } from "@/lib/i18n/server";
@@ -154,6 +156,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         select: {
           name: true,
           userId: true,
+          createdAt: true,
           description: true,
           website: true,
           location: true,
@@ -346,6 +349,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
     clientResponsiveness,
     companyReputation,
     clientHistory,
+    companyActivity,
   ] = showClientSignals
     ? await Promise.all([
         getPaymentBehaviorForCompany(job.companyId),
@@ -355,8 +359,10 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         // "Eerder samengewerkt"-vertrouwenssignaal: afgeronde samenwerkingen tussen déze ZZP'er en
         // deze opdrachtgever. Gescoopt op het (ZZP'er, opdrachtgever)-paar — geen andere partij.
         getFreelancerClientHistory(actor.id, job.companyId),
+        // Cold-start-vertrouwen: lid-sinds + activiteit, óók als alle gedragsblokken zich verbergen.
+        getCompanyActivity(job.companyId, job.company.createdAt),
       ])
-    : [null, null, null, null, null];
+    : [null, null, null, null, null, null];
 
   // Wet-DBA + rechtsvermoeden-signaal voor de ZZP'er (spiegelbeeld van het owner-only blok):
   // helpt beslissen "zet deze opdracht mijn zelfstandigheid onder druk?" vóór het reageren.
@@ -909,7 +915,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       )}
 
       {!isOwner &&
-        (job.company.description ||
+        (companyActivity ||
+          job.company.description ||
           job.company.location ||
           job.company.website ||
           job.company.industry) && (
@@ -917,24 +924,27 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {t("Over de opdrachtgever")}
             </h2>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              {job.company.location && (
-                <span className="inline-flex items-center gap-1">
-                  <MapPin className="size-3.5" aria-hidden /> {job.company.location}
-                </span>
-              )}
-              {job.company.industry && <span>{job.company.industry.name}</span>}
-              {job.company.website && (
-                <a
-                  href={job.company.website}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                >
-                  {t("Website")} <ExternalLink className="size-3.5" aria-hidden />
-                </a>
-              )}
-            </div>
+            {companyActivity && <CompanyActivityBlock activity={companyActivity} />}
+            {(job.company.location || job.company.industry || job.company.website) && (
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                {job.company.location && (
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin className="size-3.5" aria-hidden /> {job.company.location}
+                  </span>
+                )}
+                {job.company.industry && <span>{job.company.industry.name}</span>}
+                {job.company.website && (
+                  <a
+                    href={job.company.website}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
+                  >
+                    {t("Website")} <ExternalLink className="size-3.5" aria-hidden />
+                  </a>
+                )}
+              </div>
+            )}
             {job.company.description && (
               <p className="whitespace-pre-line text-sm leading-relaxed">
                 {job.company.description}
