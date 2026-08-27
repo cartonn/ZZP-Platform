@@ -1700,6 +1700,25 @@ model UploadScanDeliveryHeartbeat {
   updatedAt           DateTime  @updatedAt
 }
 
+// Aflever-heartbeat / dead-man's-switch op de externe routing-provider (ROUTING_PROVIDER=geoapify).
+// De reistijd-routing valt bij ELKE storing STIL terug op de offline haversine-schatting
+// (estimateTravelMinutesWithRouting → .catch → estimateTravelMinutes). Een verlopen/ingetrokken/
+// verkeerde GEOAPIFY_API_KEY of een register-storing laat zo élke lookup stil degraderen — de
+// match-reistijd wordt onnauwkeuriger zonder dat iets dat toont. Deze singleton-rij legt de uitkomst
+// van de laatste échte provider-round-trip vast (geocode of route). Bevat nooit de API-sleutel, de
+// aanroep-URL of adres-/houdergegevens — alleen tijdstip, teller en de driver-modus ("geoapify").
+// De offline provider registreert bewust NIETS (geen extern kanaal).
+model RoutingDeliveryHeartbeat {
+  channel             String    @id // "routing"
+  lastAttemptAt       DateTime
+  lastOk              Boolean
+  lastSuccessAt       DateTime?
+  lastFailureAt       DateTime?
+  consecutiveFailures Int       @default(0)
+  driver              String // routing-provider bij de laatste poging: "geoapify"
+  updatedAt           DateTime  @updatedAt
+}
+
 // Idempotentie-grendel voor de betaal-webhook (/api/billing/webhook). Elke verwerkte
 // provider-ping wordt hier exact één keer vastgelegd op (provider, eventKey), waarbij
 // eventKey = "<paymentRef>:<status>". Een herspeeld of dubbel-afgeleverd event schendt de
