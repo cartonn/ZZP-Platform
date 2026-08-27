@@ -6,6 +6,10 @@ import { createHash } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { estimateTravelMinutes } from "@/lib/services/travel-distance";
 import { fetchWithTimeout, resolveHttpTimeoutMs } from "@/lib/services/fetch-timeout";
+import {
+  recordRoutingDeliverySuccess,
+  recordRoutingDeliveryFailure,
+} from "@/lib/observability/routing-delivery-heartbeat";
 
 export type RoutingProvider = "offline" | "geoapify";
 export type RoutingMode = "drive";
@@ -253,10 +257,38 @@ export function parseGeoapifyRoutingResponse(
   };
 }
 
-async function fetchJson(fetchImpl: typeof fetch, url: string): Promise<unknown | null> {
-  const res = await fetchImpl(url);
-  if (!res.ok) return null;
-  return res.json();
+/**
+ * Voert de daadwerkelijke uitgaande provider-fetch uit en registreert de aflever-uitkomst in de
+ * routing-heartbeat (dead-man's-switch). Aangeroepen ALLEEN op de échte geoapify-provider mét sleutel
+ * (de aanroepers gaten daarop). Semantiek van "aflevering":
+ * - fetch werpt (netwerk/DNS/time-out) → mislukking → null
+ * - `!res.ok` (401/403/429/5xx) → mislukking → null
+ * - `res.json()` werpt (onleesbaar) → mislukking → null
+ * - 2xx + parseerbare JSON → succes → json (ongeacht of de inhoud een match bevat: de provider
+ *   antwoordde gezond; een lege maar geldige body telt als succes)
+ * De heartbeat-recorders zijn fail-open (werpen nooit naar buiten), dus geen extra afhandeling.
+ */
+async function fetchJson(fetchImpl: typeof fetch, url: string, now: Date): Promise<unknown | null> {
+  let res: Response;
+  try {
+    res = await fetchImpl(url);
+  } catch {
+    await recordRoutingDeliveryFailure(now);
+    return null;
+  }
+  if (!res.ok) {
+    await recordRoutingDeliveryFailure(now);
+    return null;
+  }
+  let json: unknown;
+  try {
+    json = await res.json();
+  } catch {
+    await recordRoutingDeliveryFailure(now);
+    return null;
+  }
+  await recordRoutingDeliverySuccess(now);
+  return json;
 }
 
 export async function geocodePlace(
@@ -277,7 +309,7 @@ export async function geocodePlace(
   const cached = await cache.getGeocode(queryKey, now);
   if (cached) return cached;
 
-  const json = await fetchJson(opts.fetchImpl ?? fetch, geoapifyGeocodeUrl(query, apiKey));
+  const json = await fetchJson(opts.fetchImpl ?? fetch, geoapifyGeocodeUrl(query, apiKey), now);
   const point = parseGeoapifyGeocodeResponse(json);
   if (!point) return null;
 
@@ -319,6 +351,7 @@ export async function getTravelRoute(
   const json = await fetchJson(
     opts.fetchImpl ?? fetch,
     geoapifyRoutingUrl(fromPoint, toPoint, mode, apiKey),
+    now,
   );
   const route = parseGeoapifyRoutingResponse(json, fromPoint, toPoint);
   if (!route) return null;

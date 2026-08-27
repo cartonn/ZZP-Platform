@@ -64,6 +64,7 @@ import { getRateLimitDeliveryFreshness } from "@/lib/observability/ratelimit-del
 import { getPasswordBreachDeliveryFreshness } from "@/lib/observability/password-breach-delivery-heartbeat";
 import { getErrorMonitoringDeliveryFreshness } from "@/lib/observability/error-monitoring-delivery-heartbeat";
 import { getUploadScanDeliveryFreshness } from "@/lib/observability/upload-scan-delivery-heartbeat";
+import { getRoutingDeliveryFreshness } from "@/lib/observability/routing-delivery-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { waitingSince } from "@/lib/verification-queue";
 import {
@@ -587,6 +588,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     passwordBreach,
     errorMonitoring,
     uploadScan,
+    routing,
   ] = await Promise.all([
     getCronFreshness(undefined, now),
     getBackupFreshness(now),
@@ -600,6 +602,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     getPasswordBreachDeliveryFreshness(now),
     getErrorMonitoringDeliveryFreshness(now),
     getUploadScanDeliveryFreshness(now),
+    getRoutingDeliveryFreshness(now),
   ]);
 
   return {
@@ -642,6 +645,9 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     uploadScanDeliveryOk: uploadScan.status !== "failing",
     uploadScanDeliveryConsecutiveFailures: uploadScan.consecutiveFailures,
     uploadScanDeliveryLastFailureAgeSeconds: uploadScan.failureAgeSeconds,
+    routingDeliveryOk: routing.status !== "failing",
+    routingDeliveryConsecutiveFailures: routing.consecutiveFailures,
+    routingDeliveryLastFailureAgeSeconds: routing.failureAgeSeconds,
     verificationQueue,
     verificationQueueOldestAgeSeconds,
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),

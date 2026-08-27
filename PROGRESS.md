@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-27 — prod: routing-provider aflever-heartbeat (dead-man's-switch)
+
+**Wat:** het laatste actieve keyed externe integratiekanaal (routing/Geoapify, `ROUTING_PROVIDER=geoapify`)
+had een go-live-zelftest maar géén doorlopend afleversignaal. De reistijd-routing degradeert bewust
+graceful: bij élke storing valt `estimateTravelMinutesWithRouting` STIL terug op de offline
+haversine-schatting (`.catch(() => null)`), en `fetchJson` slikte een `!res.ok` (HTTP 401/403/429/5xx bij
+een verkeerde/verlopen sleutel). Een aanhoudende storing degradeerde zo élke match-reistijd zonder dat
+iets dat toonde. Nu een dead-man's-switch in hetzelfde patroon als storage/mail/push/billing/verificatie/
+rate-limit/error-monitoring/upload-scan: heartbeat (event-gedreven, gecoalesceerde successen) + freshness
+
+- `/api/metrics`-gauges + Prometheus-alert + `/admin/systeemstatus`-kaart.
+
+**Hoe:** orchestrator (Opus 4.8) + 4 parallelle Opus-builders op niet-overlappende bestanden.
+
+- Nieuw: `prisma` model `RoutingDeliveryHeartbeat`; `src/lib/observability/routing-delivery-freshness.ts`
+  (puur oordeel + `routingDeliveryStatusItem`) + `routing-delivery-heartbeat.ts` (DB + coalescing,
+  `ROUTING_HEARTBEAT_COALESCE_MS`) + tests; `src/components/admin/routing-delivery-heartbeat-card.tsx`.
+- Instrumentatie: `src/lib/services/routing.ts` — de uitgaande geoapify-fetches (geocode + route)
+  registreren nu hun aflever-uitkomst (2xx+parseerbaar = geslaagd, óók bij lege match; throw/non-2xx/
+  onleesbaar = mislukt); gedrag verder ongewijzigd (fallback blijft). `routing.test.ts` mockt de heartbeat.
+- Wiring: `/api/metrics` + `metrics.ts` (gauges `zzp_routing_delivery_ok`/`_consecutive_failures`/
+  `_last_failure_age_seconds`) + `alerts-rules.ts` drift-gate; `docs/observability/alerts.yml`
+  (`ZzpRoutingDeliveryFailing`, ==0 and >=3, for:15m, warning) + `alertmanager.yml` onderhouds-inhibitie.
+- Docs: MENSENWERK §4d bijgewerkt (code-kant GEDAAN; resterend mensenwerk = niets extra).
+
+**Volgende stap:** CI-poort groen afwachten (6 checks incl. agent-review), dan self-merge via auto-merge.
+
 ## 2026-08-27 — Security-/privacy-auditronde (2e run, basis `main` @ 78a0b9ce): geen nieuwe gaten
 
 **Wat:** adversariële security-/privacy-audit op de delta sinds de vorige audit (`2f85b8b5..78a0b9ce`) —
