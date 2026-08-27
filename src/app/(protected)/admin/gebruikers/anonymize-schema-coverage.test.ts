@@ -80,6 +80,7 @@ const ALLOWLIST: Record<string, string> = {
   PasswordBreachDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
   PushDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
   RateLimitDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
+  RoutingDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
   StorageDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
   UploadScanDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
   VerificationDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
