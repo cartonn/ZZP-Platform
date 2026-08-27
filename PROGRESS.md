@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-27 — prod: upload-scanner aflever-heartbeat (dead-man's-switch)
+
+**Wat:** het laatste fail-open-**capabele** productiekanaal zónder doorlopend afleversignaal gedicht. De
+malware-scan van geüploade bewijsstukken (ClamAV, `UPLOAD_SCANNER=clamav`) had al een driver-seam +
+EICAR-zelftest, maar geen heartbeat. De scan-grens (`assertUploadClean`) is standaard fail-closed, maar met
+`UPLOAD_SCAN_FAIL_OPEN=true` **stil fail-open**: bij een clamd-storing gaat élk bewijsstuk (VOG, diploma,
+verzekering) dan ongescand naar de opslag zonder dat iets dat toont. Ook een verdict `error` (clamd
+antwoordt met een onherkenbare/lege respons — kapotte defs) telt nu als niet-afleverend.
+
+**Bestanden:** `src/lib/observability/upload-scan-delivery-freshness.ts` (pure event-gedreven beoordeling +
+StatusItem) · `.../upload-scan-delivery-heartbeat.ts` (DB-upsert + success-coalescing, fail-open, logt
+direct) · wiring in `src/lib/services/upload-scanner.ts` (alleen de echte clamav-scanner voedt de
+heartbeat; Noop registreert niets; verdict clean/infected → success, error/geworpen → failure, control-flow
+ongewijzigd) · Prisma-model `UploadScanDeliveryHeartbeat` · 3 gauges in `metrics.ts` + `route.ts` ·
+drift-gate + INFO_ONLY in `alerts-rules.ts` · alert `ZzpUploadScanDeliveryFailing` in `alerts.yml` +
+onderhouds-inhibitie in `alertmanager.yml` · admin-kaart "Malware-scan uploads" op `/admin/systeemstatus` ·
+allowlist-entry in `anonymize-schema-coverage.test.ts`. Bevat nooit host/poort, secrets, PII of
+bestandsinhoud.
+
+**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit ✓ · build ✓ (zie PR-poort). MENSENWERK §0b +
+CURRENT_TASK bijgewerkt. Resterend mensenwerk: **niets extra** — kaart/gauges vullen zichzelf zodra
+`UPLOAD_SCANNER=clamav` staat.
+
 ## 2026-08-27 — security/privacy: durable RBAC-dekkingspoort admin-API + brede her-audit schoon
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { UploadValidationError } from "@/lib/services/storage";
+
+// Mock de aflever-heartbeat zodat de wiring-tests kunnen verifiëren WELKE uitkomst per verdict/scanner
+// wordt geregistreerd, zonder een echte DB te raken. De heartbeat-logica zelf is los getest.
+const recordSuccess = vi.hoisted(() => vi.fn(async () => {}));
+const recordFailure = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock("@/lib/observability/upload-scan-delivery-heartbeat", () => ({
+  recordUploadScanDeliverySuccess: recordSuccess,
+  recordUploadScanDeliveryFailure: recordFailure,
+}));
 import {
   assertUploadClean,
   ClamAvUploadScanner,
@@ -139,5 +148,71 @@ describe("assertUploadClean", () => {
   it("laat door bij een onbereikbare scanner als fail-open aan staat", async () => {
     process.env.UPLOAD_SCAN_FAIL_OPEN = "true";
     await expect(assertUploadClean(bytes, target, scannerThrowing())).resolves.toBeUndefined();
+  });
+});
+
+describe("assertUploadClean — aflever-heartbeat wiring", () => {
+  const clamav = (result: unknown): UploadScanner => ({
+    name: "clamav",
+    scan: async () => result as never,
+  });
+  const clamavThrowing = (): UploadScanner => ({
+    name: "clamav",
+    scan: async () => {
+      throw new Error("clamd onbereikbaar");
+    },
+  });
+  const noop = (result: unknown): UploadScanner => ({
+    name: "noop",
+    scan: async () => result as never,
+  });
+
+  afterEach(() => {
+    recordSuccess.mockClear();
+    recordFailure.mockClear();
+  });
+
+  it("een beslissend verdict (clean) via de clamav-scanner registreert success", async () => {
+    await assertUploadClean(bytes, target, clamav({ verdict: "clean", scanner: "clamav" }));
+    expect(recordSuccess).toHaveBeenCalledTimes(1);
+    expect(recordFailure).not.toHaveBeenCalled();
+  });
+
+  it("een infected verdict registreert óók success (de scanner werkt correct)", async () => {
+    await expect(
+      assertUploadClean(
+        bytes,
+        target,
+        clamav({ verdict: "infected", scanner: "clamav", signature: "X" }),
+      ),
+    ).rejects.toBeInstanceOf(UploadValidationError);
+    expect(recordSuccess).toHaveBeenCalledTimes(1);
+    expect(recordFailure).not.toHaveBeenCalled();
+  });
+
+  it("verdict 'error' (onherkenbare respons) registreert een mislukking, zonder de flow te wijzigen", async () => {
+    await expect(
+      assertUploadClean(
+        bytes,
+        target,
+        clamav({ verdict: "error", scanner: "clamav", message: "leeg" }),
+      ),
+    ).resolves.toBeUndefined();
+    expect(recordFailure).toHaveBeenCalledTimes(1);
+    expect(recordSuccess).not.toHaveBeenCalled();
+  });
+
+  it("een onbereikbare clamav-scanner registreert een mislukking", async () => {
+    await expect(assertUploadClean(bytes, target, clamavThrowing())).rejects.toBeInstanceOf(
+      UploadValidationError,
+    );
+    expect(recordFailure).toHaveBeenCalledTimes(1);
+    expect(recordSuccess).not.toHaveBeenCalled();
+  });
+
+  it("de Noop-scanner (geen kanaal) registreert niets", async () => {
+    await assertUploadClean(bytes, target, noop({ verdict: "skipped", scanner: "noop" }));
+    expect(recordSuccess).not.toHaveBeenCalled();
+    expect(recordFailure).not.toHaveBeenCalled();
   });
 });

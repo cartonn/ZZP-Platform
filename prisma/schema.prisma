@@ -1638,6 +1638,24 @@ model ErrorMonitoringDeliveryHeartbeat {
   updatedAt           DateTime  @updatedAt
 }
 
+// Aflever-heartbeat (dead-man's-switch) van de malware-scan van geüploade bewijsstukken. De scan-grens
+// (assertUploadClean) stuurt elk bestand vóór opslag langs een ClamAV-daemon (UPLOAD_SCANNER=clamav) en
+// is standaard FAIL-CLOSED (weiger bij storing), maar met UPLOAD_SCAN_FAIL_OPEN=true STIL fail-open: dan
+// gaan bestanden ongescand naar de opslag zonder dat iets dat toont. Elke échte scan registreert hier
+// haar uitkomst; event-gedreven oordeel op de laatste operatie. De Noop-scanner (geen kanaal) registreert
+// niet. Geslaagde scans worden gecoalesceerd (de scan zit op het upload-pad). Bevat geen persoonsgegevens,
+// geen host/poort en geen bestandsinhoud — alleen tijdstippen, de teller en de driver.
+model UploadScanDeliveryHeartbeat {
+  channel             String    @id // "upload-scan"
+  lastAttemptAt       DateTime
+  lastOk              Boolean
+  lastSuccessAt       DateTime?
+  lastFailureAt       DateTime?
+  consecutiveFailures Int       @default(0)
+  driver              String // scanner-modus bij de laatste poging: "clamav"
+  updatedAt           DateTime  @updatedAt
+}
+
 // Idempotentie-grendel voor de betaal-webhook (/api/billing/webhook). Elke verwerkte
 // provider-ping wordt hier exact één keer vastgelegd op (provider, eventKey), waarbij
 // eventKey = "<paymentRef>:<status>". Een herspeeld of dubbel-afgeleverd event schendt de

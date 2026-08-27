@@ -81,6 +81,7 @@ const ALLOWLIST: Record<string, string> = {
   PushDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
   RateLimitDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
   StorageDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
+  UploadScanDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
   VerificationDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
   HealthIncident: "[INFRA] systeem-gezondheidsincident: geen persoonsgegevens.",
   EventHandlerRun: "[INFRA] event-handler-idempotentie: geen PII.",
