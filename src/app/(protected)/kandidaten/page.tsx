@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { APPLICATION_TRANSITIONS } from "@/lib/applications";
 import {
   KANDIDATEN_FILTER_LABELS,
+  buildKandidatenHref,
   countApplicationsByStatus,
   filterApplicationsByStatus,
   normalizeKandidatenFilter,
@@ -97,6 +98,18 @@ export default async function KandidatenPage({
   // Deeplink vanuit /kandidaten/vergelijk ("Kies X") of een gedeelde link: open deze rij meteen.
   const openId = params.open || null;
 
+  // Opdracht-scope (deeplink "Bekijk kandidaten" vanaf de opdracht-detailpagina): beperk de lijst tot
+  // één opdracht. Server-side gevalideerd — alleen een opdracht van deze opdrachtgever telt; een
+  // onbekende/andermans id valt terug op "alle opdrachten" (geen lege lijst, geen cross-tenant-lek).
+  const requestedJobId = params.job || null;
+  const scopedJob = requestedJobId
+    ? await prisma.job.findFirst({
+        where: { id: requestedJobId, company: { userId: actor.id } },
+        select: { id: true, title: true },
+      })
+    : null;
+  const jobScope = scopedJob?.id ?? null;
+
   const noteLabels = {
     placeholder: t("Interne notitie (alleen voor jou)…"),
     saving: t("Opslaan…"),
@@ -131,7 +144,10 @@ export default async function KandidatenPage({
 
   // unbounded-allow: kandidaten-matching; volume beperkt door filter
   const applications = await prisma.application.findMany({
-    where: { job: { company: { userId: actor.id } } },
+    where: {
+      job: { company: { userId: actor.id } },
+      ...(jobScope ? { jobId: jobScope } : {}),
+    },
     // Beste match eerst; de werkstroom-volgorde (NEW vóór afgehandelde) zetten we in-memory, want
     // `status` is een string-kolom — DB-`asc` zou lexicografisch sorteren (ACCEPTED bovenaan).
     orderBy: { matchScore: "desc" },
@@ -327,12 +343,38 @@ export default async function KandidatenPage({
         description={t("Reacties op je opdrachten, met match en compliance.")}
       />
 
+      {scopedJob && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+            <span className="min-w-0">
+              {t("Reacties op")}{" "}
+              <Link
+                href={`/opdrachten/${scopedJob.id}`}
+                className="font-medium underline-offset-4 hover:underline"
+              >
+                {scopedJob.title}
+              </Link>
+            </span>
+            <Link
+              href="/kandidaten"
+              className="focus-ring shrink-0 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              {t("Toon alle opdrachten")}
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
       {applications.length === 0 ? (
         <Card>
           <EmptyState
             icon={Users}
             title={t("Nog geen reacties")}
-            description={t("Zodra ZZP'ers reageren op je opdrachten, zie je ze hier.")}
+            description={
+              scopedJob
+                ? t("Er zijn nog geen reacties op deze opdracht.")
+                : t("Zodra ZZP'ers reageren op je opdrachten, zie je ze hier.")
+            }
           />
         </Card>
       ) : (
@@ -343,7 +385,10 @@ export default async function KandidatenPage({
           <nav className="flex flex-wrap gap-2 text-sm" aria-label={t("Filter op status")}>
             {Object.entries(KANDIDATEN_FILTER_LABELS).map(([val, label]) => {
               const active = val === filterStatus;
-              const href = val ? `/kandidaten?status=${val}` : "/kandidaten";
+              const href = buildKandidatenHref({
+                status: val as "" | ApplicationStatus,
+                job: jobScope,
+              });
               const count = val === "" ? applications.length : counts[val as ApplicationStatus];
               return (
                 <Link

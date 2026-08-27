@@ -30,34 +30,27 @@ export interface JobPipeline {
  * opdracht nodig heeft.
  */
 export function summarizeJobPipeline(statuses: readonly ApplicationStatus[]): JobPipeline {
-  let newCount = 0;
-  let viewed = 0;
-  let shortlist = 0;
-  let accepted = 0;
-  let rejected = 0;
-
+  const counts: Partial<Record<ApplicationStatus, number>> = {};
   for (const status of statuses) {
-    switch (status) {
-      case "NEW":
-        newCount += 1;
-        break;
-      case "VIEWED":
-        viewed += 1;
-        break;
-      case "SHORTLIST":
-        shortlist += 1;
-        break;
-      case "ACCEPTED":
-        accepted += 1;
-        break;
-      case "REJECTED":
-        rejected += 1;
-        break;
-      case "WITHDRAWN":
-        // Ingetrokken: telt niet mee.
-        break;
-    }
+    counts[status] = (counts[status] ?? 0) + 1;
   }
+  return summarizeJobPipelineFromCounts(counts);
+}
+
+/**
+ * Zelfde pijplijn-samenvatting, maar gevoed door reeds-uitgetelde statustellingen (bv. een Prisma
+ * `groupBy({ by: ["status"], _count })`). Zo hoeft de opdracht-detailpagina niet elke losse reactie
+ * op te halen om de funnel te tonen — één aggregate-query volstaat. Ontbrekende statussen tellen als 0;
+ * ingetrokken reacties (WITHDRAWN) blijven buiten het totaal.
+ */
+export function summarizeJobPipelineFromCounts(
+  counts: Partial<Record<ApplicationStatus, number>>,
+): JobPipeline {
+  const newCount = counts.NEW ?? 0;
+  const viewed = counts.VIEWED ?? 0;
+  const shortlist = counts.SHORTLIST ?? 0;
+  const accepted = counts.ACCEPTED ?? 0;
+  const rejected = counts.REJECTED ?? 0;
 
   const total = newCount + viewed + shortlist + accepted + rejected;
   return {
