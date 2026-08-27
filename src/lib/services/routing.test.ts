@@ -195,10 +195,41 @@ describe("routing delivery heartbeat", () => {
       }),
     ).resolves.toBe(70);
 
-    // Twee geocodes + één route = drie gezonde afleveringen.
-    expect(recordRoutingSuccess).toHaveBeenCalledTimes(3);
+    // Alleen de VOLLEDIG geslaagde reistijd-lookup telt als aflevering: de twee interne geocode-
+    // successen worden onderdrukt zodat een tussentijdse success de mislukkingen-teller niet terugzet.
+    expect(recordRoutingSuccess).toHaveBeenCalledTimes(1);
     expect(recordRoutingSuccess).toHaveBeenCalledWith(now);
     expect(recordRoutingFailure).not.toHaveBeenCalled();
+  });
+
+  it("registreert bij geocode-OK maar route-fout enkel een mislukking (geen teller-oscillatie)", async () => {
+    // Gemengde faalmodus: de geocodes antwoorden 2xx maar het route-endpoint faalt structureel
+    // (bv. 503). Zou een tussentijdse geocode-success de teller resetten, dan zou de aanhoudende
+    // route-degradatie de `>=3`-alert nooit laten vuren. Deze test borgt: geen success-registratie,
+    // alleen een mislukking — de teller kan zo doortellen.
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      const href = String(url);
+      if (href.includes("/geocode/")) {
+        return jsonResponse({
+          features: [{ properties: { lat: 52.3676, lon: 4.9041, formatted: "Amsterdam" } }],
+        });
+      }
+      return new Response("upstream down", { status: 503 });
+    }) as unknown as typeof fetch;
+
+    const minutes = await estimateTravelMinutesWithRouting("Amsterdam", "Rotterdam", {
+      provider: "geoapify",
+      apiKey: "test-key",
+      cache: new MemoryRoutingCache(),
+      fetchImpl,
+      now,
+    });
+
+    expect(recordRoutingSuccess).not.toHaveBeenCalled();
+    expect(recordRoutingFailure).toHaveBeenCalledTimes(1);
+    expect(recordRoutingFailure).toHaveBeenCalledWith(now);
+    // Terugval op de deterministische offline schatter.
+    expect(minutes).toBeGreaterThan(0);
   });
 
   it("registreert mislukking bij een niet-ok HTTP-antwoord en valt terug op de offline schatting", async () => {

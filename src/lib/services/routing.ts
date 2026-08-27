@@ -143,6 +143,15 @@ export interface RoutingOptions {
   now?: Date;
   geocodeTtlDays?: number;
   routeTtlDays?: number;
+  /**
+   * Intern: onderdruk het registreren van een GESLAAGDE aflever-heartbeat op deze round-trip. Gezet door
+   * `getTravelRoute` op zijn interne geocode-sub-calls, zodat alleen een VOLLEDIG geslaagde reistijd-
+   * lookup (beide geocodes + de route) de opeenvolgende-mislukkingen-teller terugzet — niet een
+   * tussentijdse geocode-success. Anders zou een aanhoudend falende route-endpoint (geocode 2xx, route
+   * 5xx) de teller per match op 0↔1 laten oscilleren en de `>=3`-alert nooit laten vuren, terwijl de
+   * degradatie doorloopt. Een MISLUKKING wordt altijd direct geregistreerd, ongeacht deze vlag.
+   */
+  suppressSuccessRecord?: boolean;
 }
 
 const DEFAULT_GEOCODE_TTL_DAYS = 180;
@@ -267,8 +276,18 @@ export function parseGeoapifyRoutingResponse(
  * - 2xx + parseerbare JSON → succes → json (ongeacht of de inhoud een match bevat: de provider
  *   antwoordde gezond; een lege maar geldige body telt als succes)
  * De heartbeat-recorders zijn fail-open (werpen nooit naar buiten), dus geen extra afhandeling.
+ *
+ * `recordSuccessOnDelivery` bepaalt of een 2xx-succes ook de GESLAAGDE heartbeat schrijft (die de
+ * mislukkingen-teller terugzet). Een MISLUKKING wordt ALTIJD geregistreerd; alleen de success-registratie
+ * is gated, zodat `getTravelRoute` een tussentijdse geocode-success kan onderdrukken en pas de volledige
+ * lookup als aflevering telt (zie `suppressSuccessRecord`).
  */
-async function fetchJson(fetchImpl: typeof fetch, url: string, now: Date): Promise<unknown | null> {
+async function fetchJson(
+  fetchImpl: typeof fetch,
+  url: string,
+  now: Date,
+  recordSuccessOnDelivery: boolean,
+): Promise<unknown | null> {
   let res: Response;
   try {
     res = await fetchImpl(url);
@@ -287,7 +306,7 @@ async function fetchJson(fetchImpl: typeof fetch, url: string, now: Date): Promi
     await recordRoutingDeliveryFailure(now);
     return null;
   }
-  await recordRoutingDeliverySuccess(now);
+  if (recordSuccessOnDelivery) await recordRoutingDeliverySuccess(now);
   return json;
 }
 
@@ -309,7 +328,12 @@ export async function geocodePlace(
   const cached = await cache.getGeocode(queryKey, now);
   if (cached) return cached;
 
-  const json = await fetchJson(opts.fetchImpl ?? fetch, geoapifyGeocodeUrl(query, apiKey), now);
+  const json = await fetchJson(
+    opts.fetchImpl ?? fetch,
+    geoapifyGeocodeUrl(query, apiKey),
+    now,
+    !opts.suppressSuccessRecord,
+  );
   const point = parseGeoapifyGeocodeResponse(json);
   if (!point) return null;
 
@@ -344,14 +368,20 @@ export async function getTravelRoute(
   const cached = await cache.getRoute(cacheKey, now);
   if (cached) return cached;
 
-  const fromPoint = await geocodePlace(fromQuery, opts);
-  const toPoint = await geocodePlace(toQuery, opts);
+  // De interne geocode-sub-calls onderdrukken hun GESLAAGDE heartbeat: alleen een volledig geslaagde
+  // reistijd-lookup (hieronder, de route-round-trip) telt als aflevering en zet de mislukkingen-teller
+  // terug. Zo kan een aanhoudend falende route-endpoint (geocode 2xx, route 5xx) de teller niet stil
+  // op 0↔1 laten oscilleren. Een MISLUKKING in een geocode wordt wél direct geregistreerd.
+  const geocodeOpts: RoutingOptions = { ...opts, now, suppressSuccessRecord: true };
+  const fromPoint = await geocodePlace(fromQuery, geocodeOpts);
+  const toPoint = await geocodePlace(toQuery, geocodeOpts);
   if (!fromPoint || !toPoint) return null;
 
   const json = await fetchJson(
     opts.fetchImpl ?? fetch,
     geoapifyRoutingUrl(fromPoint, toPoint, mode, apiKey),
     now,
+    true,
   );
   const route = parseGeoapifyRoutingResponse(json, fromPoint, toPoint);
   if (!route) return null;
