@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-27 — Security-/privacy-auditronde (2e run, basis `main` @ 78a0b9ce): geen nieuwe gaten
+
+**Wat:** adversariële security-/privacy-audit op de delta sinds de vorige audit (`2f85b8b5..78a0b9ce`) —
+de nieuwe mail-intake (publieke webhook + reviewqueue + per-bedrijf plus-adres-alias), de kandidaat-funnel/
+deeplink, betaalgedrag-opdrachtgever op samenwerking-detail, belastingreservering-hint, upload-scan-heartbeat.
+Orchestrator (Opus 4.8) + 2 parallelle Opus-audits op niet-overlappende oppervlakken (IDOR/tenant + cross-party
+PII/k-anon). **Beide CLEAN — geen bevestigde bevindingen.** Geverifieerd: mail-intake-webhook secret-gated +
+timing-safe + rate-limited + 10 MB-DoS-grens + correcte `isPublicPath`-allowlist; de mutatieketen draagt
+auth→rol→ownership→Zod→overgangsmap→TOCTOU-claim→audit met tenant-denormalisatie; de PII-dragende `MailIntake`
+wordt in de erasure (`anonymizeUser`) hard verwijderd (dekkingspoort groen) en het alias ingetrokken; betaalgedrag
+respecteert de k=3-drempel; nieuwe metrics zijn label-loze getallen. `npm audit --omit=dev`: 0 vulnerabilities.
+
+**Hoe:** docs-only ronde — `docs/SECURITY-PRIVACY-BACKLOG.md` bijgewerkt met de dekking (OWASP A01/A02/A03/A04/A07 +
+AVG art. 17/dataminimalisatie/k-anonimiteit) en het clean-resultaat. Geen codewijziging nodig deze ronde.
+
+**Volgende stap:** volgende run — brede re-sweep + delta sinds `78a0b9ce`.
+
 ## 2026-08-27 — Mail-intake fase 2: per-bedrijf intake-aliassen (plus-adressering)
 
 **Wat:** elk bedrijf kan nu een eigen intake-adres genereren (`aanvraag+<alias>@intake-domein`),

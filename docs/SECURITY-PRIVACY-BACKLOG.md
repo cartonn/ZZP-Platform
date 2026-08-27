@@ -4,6 +4,60 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-27 (2e run — basis: `main` @ 78a0b9ce) — mail-intake-delta + brede her-audit: geen nieuwe gaten
+
+Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.
+Focus lag op de **delta sinds de vorige audit** (`2f85b8b5..78a0b9ce`, 9 commits — de nieuwe **mail-intake**
+(`#1254`/`#1256`/`#1257`: publieke inbound-webhook + reviewqueue + per-bedrijf plus-adres-alias), de
+kandidaat-funnel + bekijk-kandidaten-deeplink (`#1251`), betaalgedrag-opdrachtgever op het samenwerking-detail
+(`#1253`), per-factuur belastingreservering-hint (`#1255`), upload-scan aflever-heartbeat (`#1250`) en de
+platform-fee-refund bij annulering (`#1252`)), aangevuld met een brede re-sweep op de belendende oppervlakken.
+
+**Wat is geprobeerd / gedekt (OWASP Top 10 + AVG):**
+
+- **[A01 Broken Access Control / IDOR + tenant-isolatie]** — De hele mail-intake-mutatieketen
+  (`opdrachten/mail-intake/actions.ts`: accept/dismiss/reopen + alias rotate/disable) draagt de volledige
+  keten auth → `requireRole("CLIENT")` → ownership (`ownIntake` matcht `intake.companyId` tegen de eigen
+  `Company.id` via `userId`) → Zod → expliciete overgangsmap (`assertMailIntakeTransition`) → TOCTOU-veilige
+  `updateMany`-claim → audit. `acceptMailIntakeState` denormaliseert `tenantId: company.tenantId` op de nieuwe
+  Job (spiegel van `saveJob`) → een franchise-aanvraag blijft binnen de tenant; geen cross-tenant-lek. Sample
+  van 10 `[id]`/`[...key]`-route-handlers (documents/media/dossier/dba-dossier/modelovereenkomst/facturen-pdf/
+  admin-facturatie-pdf/prestaties-pdf/franchise-exports) herbevestigd: elk fetcht-dan-vergelijkt server-side
+  ownership/tenant/rol tegen de live `actor`, met identieke 404 voor niet-gevonden én verboden (anti-oracle,
+  CWE-203) en `auditDeniedAccess` bij weigering. De bekijk-kandidaten-deeplink (`kandidaten/page.tsx?job=`)
+  scoopt de `application.findMany` **onvoorwaardelijk** op `job: { company: { userId: actor.id } }`, dus een
+  gegokt/vreemd `job`-id lekt nooit andermans kandidaten (defense-in-depth).
+- **[A07/A02 Auth + crypto — publieke webhook]** — `/api/mail-intake/webhook` is secret-gated (404 zonder
+  `MAIL_INTAKE_WEBHOOK_SECRET` — geen halve activering, CLAUDE.md regel 8), timing-safe geautoriseerd
+  (`isAuthorizedMailIntakeHeader`: `Bearer`/`Basic`, `timingSafeEqual`, lengte-check), en correct op de
+  `isPublicPath`-allowlist (exact-match, geen prefix-lek). Het alias-token is 80-bit `randomBytes` +
+  `/^[a-z0-9]{8,32}$/`-vorm → niet-raadbaar; de company-resolutie (alias- én afzenderpad) eist in beide
+  paden een **ACTIEF, niet-geanonimiseerd CLIENT**-account.
+- **[A03 Injectie / XSS / CSV-formule]** — Geen nieuwe `dangerouslySetInnerHTML`; alle mail-afgeleide velden
+  (`fromAddress`/`subject`/`textBody`/parsed) worden als JSX-tekst gerenderd (auto-escaped). De parser
+  (`mail-intake.ts`) is puur/deterministisch, geen `$queryRaw`, geen template-injectie; `mailHtmlToText`
+  decodeert `&amp;` als laatste (CWE-116 dubbel-ontsnappen vermeden). Kandidaat-funnel/betaalgedrag/
+  belastingreservering zijn read-only Prisma-querybuilder-aggregaties, geen string-interpolatie.
+- **[A04/DoS]** — Webhook buffert body achter een 10 MB-grens (Content-Length-voorcheck + na-check),
+  rate-limit vóór auth/DB-I/O, en `200`-responsbeleid (parity betaal-webhook) tegen retry-storms; alleen
+  ontbrekend secret (404) en mislukte auth (401) wijken af.
+- **[AVG art. 17 — recht op vergetelheid]** — De nieuwe PII-dragende tabel `MailIntake` (`fromAddress` =
+  derde-partij-e-mail, `subject`, `textBody` = vrije tekst) wordt in `anonymizeUser` **hard verwijderd**
+  (`prisma.mailIntake.deleteMany({ where: { company: { userId } } })`), en `companyAnonymizationData` zet
+  `mailIntakeAlias: null` (geen werkend inname-kanaal na erasure). De durable `anonymize-schema-coverage.test.ts`
+  dekt `MailIntake` af (test groen). Geverifieerd rood-signaal-vrij: het model staat niet ongeclassificeerd.
+- **[AVG dataminimalisatie + k-anonimiteit]** — Betaalgedrag-signaal hergebruikt de bestaande
+  `PAYMENT_MIN_SAMPLE_SIZE = 3`-drempel (onder 3 betaalde facturen: `null`, tone `unknown`, geen getallen);
+  `showsClientPaymentContext` voegt alleen een tweede weergave-oppervlak toe en verzwakt de drempel niet, en
+  wordt uitsluitend voor de ZZP'er-partij (`isFreelancer`) berekend/getoond, nooit voor de opdrachtgever of
+  meekijkende admin. Kandidaat-funnel toont enkel aggregaat-tellingen van de eigen opdracht (gate `isOwner`),
+  geen kandidaat-PII. Nieuwe metrics-gauges (`zzp_upload_scan_*`) zijn pure numerieke waarden zonder labels/PII.
+
+**Resultaat:** beide adversariële audits + de orchestrator-review: **CLEAN — geen bevestigde nieuwe bevindingen.**
+`npm audit --omit=dev`: **0 vulnerabilities** (prod-runtime schoon). De 6 resterende advisories (brace-expansion/
+deepmerge-ts/esbuild/js-yaml) zijn dev-transitief, niet bereikbaar in de prod-runtime — ongewijzigd geparkeerd
+zoals de vorige rondes. Geen fix nodig deze ronde; dit is een dekkings-/verificatie-PR (docs-only).
+
 ## Ronde 2026-08-27 (basis: `main` @ 2f85b8b5) — brede her-audit schoon; durable RBAC-dekkingspoort op het admin-API-oppervlak toegevoegd
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
