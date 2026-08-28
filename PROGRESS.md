@@ -18,8 +18,7 @@ generiek).
 
 **Bestanden:** `src/lib/system-status.ts` (+`mailIntakeItem`, gewired in de groep), tests in
 `src/lib/system-status.test.ts` (5 nieuwe cases: uit/aan/adres-hint/plus-adres/leeg-secret; twee
-fully-wired fixtures aangevuld met het secret). MENSENWERK.md §2b + PROGRESS.md + CURRENT_TASK.md
-bijgewerkt.
+fully-wired fixtures aangevuld met het secret). MENSENWERK.md §2b + PROGRESS.md bijgewerkt.
 
 **Checks:** typecheck ✓, lint ✓, `prettier --check .` ✓, `system-status.test.ts` 48/48 ✓, build (CI).
 **Volgende stap:** CI-poort verifiëren (`gh pr checks`) en auto-merge na groen.
