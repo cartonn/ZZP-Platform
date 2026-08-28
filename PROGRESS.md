@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-28 — persona-sweep run 98: AVG-retentie mail-intake dekt óók de auditlog-PII
+
+**Wat:** persona-sweep (4 rollen, 3 doelen). Eén defect gevonden én gefixt — **AVG art. 5(1)(e)
+(opslagbeperking)**: de mail-intake-retentie-sweep (`runMailIntakeRetentionTask`, #1265) wiste de
+`MailIntake`-rij ná het venster, maar de inbound-webhook legt hetzelfde `fromAddress` (e-mailadres van
+een externe, account-loze aanvrager) óók vast in het `MAIL_INTAKE_RECEIVED`-auditrecord
+(`metadata.fromAddress`). De generieke auditlog-retentie staat default UIT → die tweede PII-kopie
+overleefde de sweep onbeperkt. De opslagbeperking die de taak claimt af te dwingen was zo maar half waar.
+
+**Hoe:** nieuwe `scrubReceivedAuditPii` in `src/lib/mail-intake-retention-task.ts` redact `fromAddress`
+uit het bijbehorende auditrecord op het moment dat de intake-rij daadwerkelijk gewist is (hergebruik van
+`scrubAuditMetadataPii`, exact-match). Survivor-diff op de per-batch verwijderde id's zodat een
+TOCTOU-heropende NEW-intake zijn auditspoor houdt. `MAIL_INTAKE_PRUNED.metadata.auditScrubbed` legt het
+aantal geredacte records vast (art. 5(2) verantwoording).
+
+**Tests/gate:** +2 regressietests (`mail-intake-retention-task.test.ts`, nu 11 tests, rood→groen:
+`fromAddress` → `[verwijderd]` + `messageId` intact; heropende intake ongemoeid). typecheck ✓, lint ✓
+(geen fouten), **unit 7243/7243 groen (696 files)**, build ✓, prettier ✓. Live Playwright/Chromium-sweep
+(qa.db seed): 4 rollen login→dashboard + `/acties` **200**; onzin-id's → **404**; privilege-escalatie
+→ `/admin/*` → redirect `/dashboard`; **0 HTTP 500's, 0 escalaties** over 33 checks. Backlog bijgewerkt.
+
 ## 2026-08-28 — opdrachtgever: kandidaat-reactiesnelheid op uitnodigingen (PR #1269)
 
 **Wat:** op de kandidatenlijst van een opdracht (`/opdrachten/[id]` → "Geschikte ZZP'ers") kreeg de

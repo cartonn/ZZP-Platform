@@ -16,6 +16,7 @@ interface IntakeRow {
   id: string;
   receivedAt: Date;
   status: string;
+  fromAddress: string | null;
 }
 
 interface AuditRow {
@@ -43,12 +44,20 @@ function matches(r: IntakeRow, where: WhereArg): boolean {
 vi.mock("@/lib/db", () => ({
   prisma: {
     mailIntake: {
-      findMany: vi.fn(async (args: { where: WhereArg; take: number }) => {
-        return store.intakes
-          .filter((r) => matches(r, args.where))
-          .slice(0, args.take)
-          .map((r) => ({ id: r.id }));
-      }),
+      findMany: vi.fn(
+        async (args: { where: WhereArg | { id: { in: string[] } }; take?: number }) => {
+          // Survivor-diff-query ná de delete: `{ where: { id: { in: [...] } } }` zonder status/cutoff.
+          if ("id" in args.where && !("receivedAt" in args.where)) {
+            const ids = new Set((args.where as { id: { in: string[] } }).id.in);
+            return store.intakes.filter((r) => ids.has(r.id)).map((r) => ({ id: r.id }));
+          }
+          const where = args.where as WhereArg;
+          return store.intakes
+            .filter((r) => matches(r, where))
+            .slice(0, args.take ?? store.intakes.length)
+            .map((r) => ({ id: r.id, fromAddress: r.fromAddress }));
+        },
+      ),
       // Honoreert het VOLLEDIGE where-predicaat (receivedAt-cutoff + status-guard) én de id-set — niet
       // alleen `id.in`. Zo maakt een regressie op de fail-closed guard (het weglaten van `...where` op de
       // delete) zichtbaar: een rij die tussen selectie en delete niet meer aan `where` voldoet (bv. een
@@ -64,6 +73,26 @@ vi.mock("@/lib/db", () => ({
       create: vi.fn(async (args: { data: Omit<AuditRow, "id" | "createdAt"> }) => {
         const row: AuditRow = { id: `audit-${idSeq++}`, createdAt: new Date(), ...args.data };
         store.auditLogs.push(row);
+        return row;
+      }),
+      findMany: vi.fn(
+        async (args: {
+          where: { action: string; entityType: string; entityId: { in: string[] } };
+        }) => {
+          const ids = new Set(args.where.entityId.in);
+          return store.auditLogs
+            .filter(
+              (r) =>
+                r.action === args.where.action &&
+                r.entityType === args.where.entityType &&
+                ids.has(r.entityId),
+            )
+            .map((r) => ({ id: r.id, entityId: r.entityId, metadata: r.metadata }));
+        },
+      ),
+      update: vi.fn(async (args: { where: { id: string }; data: { metadata: unknown } }) => {
+        const row = store.auditLogs.find((r) => r.id === args.where.id);
+        if (row) row.metadata = args.data.metadata;
         return row;
       }),
     },
@@ -85,8 +114,28 @@ function seed(count: number, ageDays: number, prefix: string, status: string): v
       id: `${prefix}-${i}`,
       receivedAt: new Date(NOW.getTime() - ageDays * DAY),
       status,
+      fromAddress: `${prefix}-${i}@extern.example`,
     });
   }
+}
+
+// Spiegelt het MAIL_INTAKE_RECEIVED-auditrecord dat de inbound-webhook schrijft: metadata als
+// JSON-string (net als auditData in productie), met de derde-partij-PII `fromAddress`.
+function seedReceivedAudit(intakeId: string, fromAddress: string): void {
+  store.auditLogs.push({
+    id: `audit-${idSeq++}`,
+    action: "MAIL_INTAKE_RECEIVED",
+    entityType: "MailIntake",
+    entityId: intakeId,
+    metadata: JSON.stringify({ messageId: `msg-${intakeId}`, fromAddress }),
+    createdAt: NOW,
+  });
+}
+
+function receivedAuditFor(intakeId: string): AuditRow | undefined {
+  return store.auditLogs.find(
+    (r) => r.action === "MAIL_INTAKE_RECEIVED" && r.entityId === intakeId,
+  );
 }
 
 beforeEach(() => {
@@ -139,9 +188,50 @@ describe("runMailIntakeRetentionTask", () => {
     // auditData serialiseert de metadata naar een JSON-string; parse terug voor de assertie.
     expect(JSON.parse(records[0]?.metadata as string)).toEqual({
       pruned: 1,
+      auditScrubbed: 0,
       retentionDays: 180,
       cutoff: new Date(NOW.getTime() - 180 * DAY).toISOString(),
     });
+  });
+
+  it("redact fromAddress uit het MAIL_INTAKE_RECEIVED-auditrecord van een gewiste intake (AVG art. 5(1)(e))", async () => {
+    seed(1, 200, "old", "ACCEPTED"); // > 180, beslist → wordt gewist
+    seedReceivedAudit("old-0", "old-0@extern.example");
+    const res = await runMailIntakeRetentionTask({ now: NOW });
+    expect(res.pruned).toBe(1);
+    // De PII-kopie in de auditlog is geredact, operationele velden blijven staan.
+    const audit = receivedAuditFor("old-0");
+    expect(JSON.parse(audit?.metadata as string)).toEqual({
+      messageId: "msg-old-0",
+      fromAddress: "[verwijderd]",
+    });
+    // De snoei-auditrecord telt de geredacte records mee (art. 5(2) verantwoording).
+    const prune = store.auditLogs.find((r) => r.action === "MAIL_INTAKE_PRUNED");
+    expect(JSON.parse(prune?.metadata as string).auditScrubbed).toBe(1);
+  });
+
+  it("laat het auditrecord van een TOCTOU-heropende (niet-gewiste) intake ongemoeid", async () => {
+    seed(1, 200, "reopened", "DISMISSED");
+    seedReceivedAudit("reopened-0", "reopened-0@extern.example");
+    const findManyMock = prisma.mailIntake.findMany as unknown as {
+      mockImplementationOnce: (
+        impl: (args: { where: WhereArg; take: number }) => Promise<{ id: string }[]>,
+      ) => void;
+    };
+    // Reopen (DISMISSED→NEW) net ná de selectie: de fail-closed deleteMany wist niets, dus het
+    // auditspoor (met fromAddress) hoort te blijven staan zolang de bronrij bestaat.
+    findManyMock.mockImplementationOnce(async (args) => {
+      const selected = store.intakes
+        .filter((r) => matches(r, args.where))
+        .slice(0, args.take)
+        .map((r) => ({ id: r.id, fromAddress: r.fromAddress }));
+      for (const r of store.intakes) if (r.id === "reopened-0") r.status = "NEW";
+      return selected;
+    });
+    const res = await runMailIntakeRetentionTask({ now: NOW });
+    expect(res.pruned).toBe(0);
+    const audit = receivedAuditFor("reopened-0");
+    expect(JSON.parse(audit?.metadata as string).fromAddress).toBe("reopened-0@extern.example");
   });
 
   it("schrijft geen auditrecord als er niets te snoeien is", async () => {
