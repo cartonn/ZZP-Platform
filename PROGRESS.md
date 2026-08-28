@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-28 — security/privacy-auditronde (delta sinds #1264 @ `55b8b51e`): geen nieuwe gaten
+
+**Wat:** volledige security-/privacy-her-audit — orchestrator (Opus 4.8) + 3 parallelle adversariële
+Opus-audits op niet-overlappende oppervlakken (A: broken access control/IDOR/tenant-isolatie · B:
+privacy/AVG · C: injectie/upload/secrets/SSRF/headers/errors/redirect/CSRF). Focus op de 7 commits sinds
+de vorige audit (win-back `dormant-freelancers`, kandidaat-reactiesnelheid, franchise-voordracht-opvolging,
+mail-intake-retentie) + een brede re-sweep (43 route handlers, diepte-steekproef van de 61 server-actions,
+tenant-scoping, upload/storage, anonymisering, k-anon).
+
+**Resultaat:** **CLEAN — geen bevestigde nieuwe bevindingen.** Alle nieuwe rol-signalen zijn read-only,
+eigen-scope aggregaten (`getDormantFreelancers` op `company:{userId}`, `getCandidateInviteResponsiveness`
+enkel op server-berekende ≤4 suggesties achter `isOwner`); tenant-scoping faalt gesloten; de LIKE-filter in
+`candidate-invite-responsiveness` gebruikt server-afgeleide cuids (geen injectie). `npm audit --omit=dev`
+(CI-poort) = 0 kwetsbaarheden; 6 dev-only transitieve DoS-bevindingen geparkeerd als **LAAG** (niet
+productie-bereikbaar). Docs-only PR: `docs/SECURITY-PRIVACY-BACKLOG.md` + `PROGRESS.md` bijgewerkt met de
+volledige OWASP Top 10 + AVG-dekkingsverantwoording.
+
+**Volgende stap:** aparte deps-PR met `npm audit fix` (non-breaking: brace-expansion/esbuild/js-yaml); de
+prisma-CLI-major-bump apart plannen.
+
 ## 2026-08-28 — persona-sweep run 98: AVG-retentie mail-intake dekt óók de auditlog-PII
 
 **Wat:** persona-sweep (4 rollen, 3 doelen). Eén defect gevonden én gefixt — **AVG art. 5(1)(e)
