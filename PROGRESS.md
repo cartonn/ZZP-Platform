@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-28 — bemiddelaar: voordracht-opvolging (stille voordrachten) op /franchise/diensten (PR #1268)
+
+**Wat:** het voordracht-systeem was forward-only (`dienst-fill-signal.ts`, `dienst-voordraag-overzicht.ts`:
+"wie kán ik voordragen?"); niets beantwoordde "wie nodigde ik al uit en laat me hangen?" Nu sluit een
+opvolgingssignaal die lus zodat een genegeerde uitnodiging niet stil een dienst open houdt.
+
+**Hoe:** nieuwe pure module `src/lib/franchise/voordracht-opvolging.ts` —
+`summarizeVoordrachtOpvolging`/`voordrachtOpvolgingStrip`/`voordrachtAgeBucket` + loader
+`getVoordrachtOpvolging(actor, now)`. Leest de gezaghebbende `FRANCHISE_FREELANCER_PROPOSED`-auditrecords
+(createdAt = uitnodiging, metadata `{freelancerId,tenantId}`) tenant-gescopet; dropt een voordracht zodra
+de ZZP'er zelf reageerde (`Application` non-WITHDRAWN) of de dienst niet meer open is (gevuld met ACTIVE /
+niet-PUBLISHED); buckett de rest op leeftijd (vers ≤2d / wachtend >2d / stil >5d). Nieuwe kaart
+"Voordrachten zonder reactie" op `/franchise/diensten` (warning bij ≥1 stille, anders muted): strip-regel +
+opvolgingslijst (oudste eerst, ZZP'er → dienst-link, "N dagen geen reactie"). Read-only, server-side
+waarheid, geen schema-/mutatie-/authz-oppervlak.
+
+**Tests/gate:** +12 unit-tests (`voordracht-opvolging.test.ts`). typecheck ✓, lint ✓, test (7233) ✓,
+build ✓, prettier ✓. CI-poort → PR #1268.
+
 ## 2026-08-28 — persona-sweep run 97: TOCTOU-grendel tenant-fee (geld-integriteit) + next-action-pariteit #1235
 
 **Wat:** kritische-gebruiker-sweep over alle 4 rollen (ZZP'er/opdrachtgever/franchiser/admin), live
