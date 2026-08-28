@@ -49,10 +49,14 @@ vi.mock("@/lib/db", () => ({
           .slice(0, args.take)
           .map((r) => ({ id: r.id }));
       }),
-      deleteMany: vi.fn(async (args: { where: { id: { in: string[] } } }) => {
+      // Honoreert het VOLLEDIGE where-predicaat (receivedAt-cutoff + status-guard) én de id-set — niet
+      // alleen `id.in`. Zo maakt een regressie op de fail-closed guard (het weglaten van `...where` op de
+      // delete) zichtbaar: een rij die tussen selectie en delete niet meer aan `where` voldoet (bv. een
+      // DISMISSED→NEW-reopen) mag niet gewist worden.
+      deleteMany: vi.fn(async (args: { where: WhereArg & { id: { in: string[] } } }) => {
         const ids = new Set(args.where.id.in);
         const before = store.intakes.length;
-        store.intakes = store.intakes.filter((r) => !ids.has(r.id));
+        store.intakes = store.intakes.filter((r) => !(ids.has(r.id) && matches(r, args.where)));
         return { count: before - store.intakes.length };
       }),
     },
@@ -70,6 +74,7 @@ import {
   runMailIntakeRetentionTask,
   prunableMailIntakeWhere,
 } from "@/lib/mail-intake-retention-task";
+import { prisma } from "@/lib/db";
 
 const NOW = new Date("2026-08-28T12:00:00.000Z");
 const DAY = 24 * 60 * 60 * 1000;
@@ -158,6 +163,28 @@ describe("runMailIntakeRetentionTask", () => {
     await runMailIntakeRetentionTask({ now: NOW });
     const second = await runMailIntakeRetentionTask({ now: NOW });
     expect(second.pruned).toBe(0);
+  });
+
+  it("wist NOOIT een intake die tussen selectie en delete live heropend werd naar NEW (TOCTOU fail-closed)", async () => {
+    seed(1, 200, "reopened", "DISMISSED"); // oud + beslist → wordt door findMany geselecteerd
+    // Simuleer een concurrente reopen (DISMISSED→NEW) net ná de selectie, vóór de delete: de findMany
+    // levert de rij nog als kandidaat, maar de status verandert direct erna. De fail-closed deleteMany
+    // (die het volledige where-predicaat honoreert) mag die nu-NEW rij dan niet meer wissen.
+    vi.mocked(prisma.mailIntake.findMany).mockImplementationOnce(
+      async (args: { where: WhereArg; take: number }) => {
+        const selected = store.intakes
+          .filter((r) => matches(r, args.where))
+          .slice(0, args.take)
+          .map((r) => ({ id: r.id }));
+        for (const r of store.intakes) if (r.id === "reopened-0") r.status = "NEW";
+        return selected;
+      },
+    );
+    const res = await runMailIntakeRetentionTask({ now: NOW });
+    expect(res.pruned).toBe(0);
+    expect(store.intakes.map((r) => r.id)).toEqual(["reopened-0"]);
+    // Geen snoei → geen auditrecord.
+    expect(store.auditLogs).toHaveLength(0);
   });
 
   it("prunableMailIntakeWhere bevat de receivedAt-cutoff én de besliste-status-guard", () => {

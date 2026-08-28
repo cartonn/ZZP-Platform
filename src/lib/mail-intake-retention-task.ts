@@ -68,8 +68,14 @@ export async function runMailIntakeRetentionTask(opts: {
     });
     if (stale.length === 0) break;
 
+    // FAIL-CLOSED tegen een TOCTOU-race: herhaal het guard-predicaat (`...where`) op de delete, niet
+    // alleen de id-set. Tussen findMany en deleteMany kan een DISMISSED-intake live heropend worden naar
+    // NEW (toegestane transitie DISMISSED→NEW via de reopen-actie, die `status: "NEW"` + `decidedAt: null`
+    // zet). Zonder de guard zou de delete die rij alsnog op id wissen — een heropende, openstaande aanvraag
+    // (en dus omzet) zou verdwijnen, precies de invariant die deze sweep bewaakt. Met `...where` valt zo'n
+    // rij buiten de delete (status niet meer ACCEPTED/DISMISSED) en blijft 'ie staan.
     const { count } = await prisma.mailIntake.deleteMany({
-      where: { id: { in: stale.map((r) => r.id) } },
+      where: { ...where, id: { in: stale.map((r) => r.id) } },
     });
     pruned += count;
 

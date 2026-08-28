@@ -16,12 +16,15 @@ verdwijnen. Bij ACCEPTED blijft de concept-opdracht (Job) staan (SetNull); allee
 
 **Hoe:** puur `mailIntakeRetentionCutoff` (`src/lib/mail-intake-retention.ts`) + gebatchte, idempotente
 runner `runMailIntakeRetentionTask` met `prunableMailIntakeWhere` als single-source-of-truth-guard
-(`src/lib/mail-intake-retention-task.ts`, patroon van message-/support-retention: batches van 500, max
-200/run, PII-vrij `MAIL_INTAKE_PRUNED`-auditrecord alleen bij daadwerkelijk snoeien). Config-helper
+(`src/lib/mail-intake-retention-task.ts`, patroon van support-retention: batches van 500, max 200/run,
+**fail-closed delete** — de `deleteMany` herhaalt het volledige guard-predicaat (`...where`, niet alleen
+`id.in`) zodat een DISMISSED-intake die tussen selectie en delete live heropend wordt naar NEW (toegestane
+transitie) niet alsnog op id gewist wordt (TOCTOU); PII-vrij `MAIL_INTAKE_PRUNED`-auditrecord alleen bij
+daadwerkelijk snoeien). Config-helper
 `mailIntakeRetentionDays()` (`src/lib/config.ts`, default AAN op 180 dagen — fail-safe naar wissen bij
 lege env, min 30, `0` = expliciet uit via `MAIL_INTAKE_RETENTION_DAYS`). Gewired als
-`mail-intake-retention` in de run-all-cron. +12 unit-tests (cutoff-randen + scope-guard/batching/
-idempotentie/audit). Geen nieuw authz-/mutatie-oppervlak (server-side cron, actorId null).
+`mail-intake-retention` in de run-all-cron. +13 unit-tests (cutoff-randen + scope-guard/batching/
+idempotentie/audit + TOCTOU-reopen-race). Geen nieuw authz-/mutatie-oppervlak (server-side cron, actorId null).
 
 **DoD:** prettier ✓ · typecheck ✓ · lint ✓ · unit 12 (nieuw) groen · volledige suite + build → gate ·
 CI-poort (6 checks incl. agent-review) → self-merge via auto-merge.
