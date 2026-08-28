@@ -720,6 +720,18 @@ publiceert via de gewone flow (plan-gating + DBA-check blijven gelden). Benchmar
    wordt bewust niet opgeslagen (dataminimalisatie). Bijlagen worden genegeerd. AVG: neem
    "inkomende aanvraagmails" op in het verwerkingsregister bij livegang.
 
+**Code-kant GEDAAN (2026-08-28) — mail-intake zichtbaar op de systeemstatus (go-live-posture):** de
+inbound mail-intake-webhook was het enige secret-gepoorte kanaal zonder een config-kaart op
+`/admin/systeemstatus` — elke andere integratie (opslag/e-mail/betaalprovider/betaal-webhook/push/
+verificatie/rate-limit/…) staat er al. Een operator die de inbound-provider bekabelt kon dus niet
+bevestigen **dát** mail-intake aanstaat zonder eerst een echte mail te sturen. Er is nu een kaart
+"Mail-intake (inbound webhook)" (`mailIntakeItem` in `src/lib/system-status.ts`, groep "Communicatie
+& betalingen"): **uit** (fallback, veilige default — geen `MAIL_INTAKE_WEBHOOK_SECRET`, endpoint 404)
+of **aan** (ok — secret gezet; de kaart wijst er bovendien op `MAIL_INTAKE_ADDRESS` te zetten zolang
+dat ontbreekt, zodat de reviewqueue het volledige plus-adres toont i.p.v. het kale alias-token). Toont
+alleen booleans/modus, nooit het secret zelf. Resterend mensenwerk: **niets extra** — de kaart vult
+zichzelf zodra `MAIL_INTAKE_WEBHOOK_SECRET` gezet is (stap 3 hierboven).
+
 ---
 
 ## §3. Betalingen / abonnementen

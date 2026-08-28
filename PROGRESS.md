@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-28 — prod: mail-intake zichtbaar op de systeemstatus (go-live-posture)
+
+**Wat:** de inbound mail-intake-webhook (`/api/mail-intake/webhook`, #1254) was het enige
+secret-gepoorte kanaal zónder een config-kaart op `/admin/systeemstatus` — elke andere integratie
+(opslag/e-mail/betaalprovider/betaal-webhook-handtekening/push/verificatie/rate-limit/…) stond er al.
+Een operator die de inbound-provider bekabelt kon dus niet bevestigen **dát** mail-intake aanstaat
+zonder eerst een echte mail te sturen. Nieuwe pure kaart "Mail-intake (inbound webhook)"
+(`mailIntakeItem` in `src/lib/system-status.ts`, groep "Communicatie & betalingen"): **uit** (fallback,
+veilige default zonder `MAIL_INTAKE_WEBHOOK_SECRET` → endpoint 404) of **aan** (ok zodra het secret
+gezet is; wijst bovendien op het zetten van `MAIL_INTAKE_ADDRESS` zolang dat ontbreekt). Toont alleen
+booleans/modus, nooit het secret. Geen UI-wijziging nodig (de systeemstatus-pagina rendert groepen/items
+generiek).
+
+**Bestanden:** `src/lib/system-status.ts` (+`mailIntakeItem`, gewired in de groep), tests in
+`src/lib/system-status.test.ts` (5 nieuwe cases: uit/aan/adres-hint/plus-adres/leeg-secret; twee
+fully-wired fixtures aangevuld met het secret). MENSENWERK.md §2b + PROGRESS.md + CURRENT_TASK.md
+bijgewerkt.
+
+**Checks:** typecheck ✓, lint ✓, `prettier --check .` ✓, `system-status.test.ts` 48/48 ✓, build (CI).
+**Volgende stap:** CI-poort verifiëren (`gh pr checks`) en auto-merge na groen.
+
 ## 2026-08-28 — security/privacy-auditronde (delta sinds #1264 @ `55b8b51e`): geen nieuwe gaten
 
 **Wat:** volledige security-/privacy-her-audit — orchestrator (Opus 4.8) + 3 parallelle adversariële

@@ -158,6 +158,7 @@ export function collectSystemStatus(env: Env): SystemStatus {
               ? "VAPID-sleutels gezet — PWA-pushmeldingen worden afgeleverd (in-app meldingen blijven ook werken)."
               : "Geen pushmeldingen (in-app meldingen blijven werken). Zet VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY (genereer met `npx web-push generate-vapid-keys`) om PWA-push aan te zetten.",
         },
+        mailIntakeItem(env),
       ],
     },
     {
@@ -391,6 +392,42 @@ function dbPoolItem(
     level: production ? "attention" : "fallback",
     detail:
       "Geen DATABASE_CONNECTION_LIMIT — Prisma opent per instance num_cpus*2+1 connecties; bij meerdere instances kan dat het DB-plafond uitputten. Zet DATABASE_CONNECTION_LIMIT vóór horizontale schaling.",
+  };
+}
+
+/**
+ * Status-item voor de inbound mail-intake-webhook (/api/mail-intake/webhook). Anders dan de
+ * betaal-webhook (die ondertekent en dus een handtekening-heartbeat krijgt) is dit een
+ * shared-secret-kanaal: het endpoint is default UIT (404) en activeert pas zodra
+ * MAIL_INTAKE_WEBHOOK_SECRET gezet is (CLAUDE.md regel 8, geen halve activering). Zonder een
+ * config-item op de systeemstatus kon een operator die de inbound-mailprovider (bv. Postmark
+ * Inbound) bekabelt niet bevestigen dát mail-intake aanstaat zonder eerst een echte mail te sturen —
+ * dit maakt die go-live-posture zichtbaar. Toont alleen booleans/modus, nooit het secret zelf.
+ *
+ * "uit" (geen secret) is een geldige, veilige eindtoestand (de feature staat bewust default uit,
+ * net als push/gelekt-wachtwoord/security.txt) → fallback, nooit "aandacht", ook niet in productie.
+ */
+function mailIntakeItem(env: Env): StatusItem {
+  const enabled = !!env.MAIL_INTAKE_WEBHOOK_SECRET?.trim();
+  if (!enabled) {
+    return {
+      key: "mail-intake",
+      label: "Mail-intake (inbound webhook)",
+      mode: "uit",
+      level: "fallback",
+      detail:
+        "Geen MAIL_INTAKE_WEBHOOK_SECRET — de inbound-webhook (/api/mail-intake/webhook) is uitgeschakeld (404) en mail-intake staat uit. Zet MAIL_INTAKE_WEBHOOK_SECRET en koppel je inbound-mailprovider (bv. Postmark Inbound) om dienstaanvragen per e-mail in de reviewqueue te ontvangen.",
+    };
+  }
+  const hasAddress = !!env.MAIL_INTAKE_ADDRESS?.trim();
+  return {
+    key: "mail-intake",
+    label: "Mail-intake (inbound webhook)",
+    mode: "aan",
+    level: "ok",
+    detail: hasAddress
+      ? "MAIL_INTAKE_WEBHOOK_SECRET gezet — de inbound-webhook accepteert geauthenticeerde dienstaanvraag-mails en zet ze in de reviewqueue. MAIL_INTAKE_ADDRESS gezet: de reviewqueue toont het volledige per-bedrijf plus-adres."
+      : "MAIL_INTAKE_WEBHOOK_SECRET gezet — de inbound-webhook accepteert geauthenticeerde dienstaanvraag-mails en zet ze in de reviewqueue. Zet ook MAIL_INTAKE_ADDRESS (het basisadres van de inbound-mailbox) zodat de reviewqueue het volledige per-bedrijf plus-adres toont i.p.v. het kale alias-token.",
   };
 }
 
