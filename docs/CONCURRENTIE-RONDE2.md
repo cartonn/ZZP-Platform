@@ -79,6 +79,16 @@ Eerlijk vastgelegd om dubbel werk (slop) te voorkomen.
 | 5   | Proactieve credential-expiry-alert | **GEBOUWD** (#397) | Hergebruikt de bestaande expiry-engine.                                                                                                                                                                                                                                                                                     |
 | 6   | Per-dienst inzetvorm-signaal       | **GEBOUWD** (#398) | Hergebruikt het bestaande DBA-risico.                                                                                                                                                                                                                                                                                       |
 
+### Vervolg-increment (liquiditeit, opdrachtgever)
+
+- **Kandidaat-reactiesnelheid op uitnodigingen** _(S, Temper/Pidz + Malt/Upwork)_ — **GEBOUWD (#1269)**.
+  Temper/Pidz nodigen automatisch de responsieve ZZP'ers uit; Malt/Upwork tonen een "reageert snel"-badge.
+  Vertaald naar onze verklaarbare, positief-only variant: op de kandidatenlijst van een opdracht toont een
+  badge "Reageert snel op uitnodigingen" bij een aantoonbaar responsieve voorgestelde ZZP'er (≥ 3
+  uitnodigingen, ≥ 60% respons, mediaan ≤ 1 dag), afgeleid uit de `JOB_INVITED`-auditrecords +
+  niet-ingetrokken `Application`-reacties. Nooit een negatief label. Helpt de opdrachtgever de responsieve
+  kandidaten als eerste uit te nodigen → snellere vulling.
+
 ### PARKEREN (eigenaars-/strategiebeslissing — niet autonoom bouwen)
 
 7. **Externe roostersysteem-integratie** _(L, Zorgwerk + Bendy)_ — ingest van flex-aanvragen uit

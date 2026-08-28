@@ -43,6 +43,8 @@ import {
   type MatchResult,
 } from "@/lib/matching";
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
+import { getCandidateInviteResponsiveness } from "@/lib/data/candidate-invite-responsiveness";
+import { CandidateResponsivenessBadge } from "@/components/jobs/candidate-responsiveness-badge";
 import { getJobReach } from "@/lib/data/job-reach";
 import { JobReachCard } from "@/components/jobs/job-reach-card";
 import { summarizeVacancyPerformance } from "@/lib/job-vacancy-performance";
@@ -380,6 +382,13 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
     isOwner && status === "PUBLISHED"
       ? await Promise.all([suggestedFreelancersForJob(job.id), getJobReach(job.id)])
       : [[], null];
+
+  // Positief reactiesnelheid-signaal per voorgestelde ZZP'er: nodig de responsieve kandidaten als
+  // eerste uit → sneller gevuld. Begrensd door de kleine suggestie-set (≤ 4).
+  const candidateResponsiveness =
+    suggestions.length > 0
+      ? await getCandidateInviteResponsiveness(suggestions.map((f) => f.freelancerId))
+      : null;
 
   // Vacaturetempo voor de eigenaar: hoe presteert deze gepubliceerde opdracht in de tijd
   // (dagen open, reacties/week, momentum). Afgeleid uit het publicatiemoment + de actieve
@@ -880,6 +889,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                     {f.name}
                   </Link>
                   <TrustBadge level={f.trustLevel} />
+                  <CandidateResponsivenessBadge
+                    responsiveness={candidateResponsiveness?.get(f.freelancerId)}
+                  />
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-3">
                   {/* Rustig: badges alleen als ze iets signaleren — beschikbaar/compliant is de norm. */}

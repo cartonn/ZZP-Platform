@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-28 — opdrachtgever: kandidaat-reactiesnelheid op uitnodigingen (PR #1269)
+
+**Wat:** op de kandidatenlijst van een opdracht (`/opdrachten/[id]` → "Geschikte ZZP'ers") kreeg de
+opdrachtgever geen enkel signaal over wélke voorgestelde ZZP'ers doorgaans snel op een uitnodiging
+reageren. Nu toont een positief-only badge "Reageert snel op uitnodigingen" bij een aantoonbaar
+responsieve kandidaat, zodat de opdrachtgever die als eerste uitnodigt en de opdracht sneller vult
+(liquiditeit — de Temper/Pidz auto-uitnodig-sterkte, vertaald naar onze verklaarbare matching).
+
+**Hoe:** nieuwe pure module `src/lib/candidate-invite-responsiveness.ts`
+(`summarizeCandidateInviteResponsiveness`) + loader `src/lib/data/candidate-invite-responsiveness.ts`
+(`getCandidateInviteResponsiveness(freelancerIds, now)`). Afgeleid uit onveranderlijke feiten: de
+gezaghebbende `JOB_INVITED`-auditrecords (invitedAt = createdAt, freelancerId in metadata) + de
+niet-ingetrokken `Application.createdAt` van dezelfde ZZP'er op dezelfde opdracht ("gereageerd").
+Drempel: ≥ 3 uitnodigingen, ≥ 60% respons, mediane reactietijd ≤ 1 dag. **Uitsluitend positief** —
+nooit een negatief label dat een individuele ZZP'er schaadt (geen badge = geen signaal, niet "traag").
+Twee begrensde queries (suggestie-set ≤ 4); enkel geaggregeerde tellingen (privacy by design). Badge
+`src/components/jobs/candidate-responsiveness-badge.tsx` in de suggestie-rij, tooltip met onderbouwing.
+
+**Tests/gate:** +8 unit-tests (`candidate-invite-responsiveness.test.ts`: min-steekproef, bucket-labels,
+grens 60%/1-dag, reactie-vóór-uitnodiging genegeerd, lege invoer). typecheck ✓, lint ✓, unit groen,
+build ✓, prettier ✓. CI-poort → PR #1269.
+
 ## 2026-08-28 — bemiddelaar: voordracht-opvolging (stille voordrachten) op /franchise/diensten (PR #1268)
 
 **Wat:** het voordracht-systeem was forward-only (`dienst-fill-signal.ts`, `dienst-voordraag-overzicht.ts`:
