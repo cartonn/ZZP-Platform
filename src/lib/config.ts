@@ -394,6 +394,34 @@ export function supportTicketRetentionDays(): number {
   return parseSupportTicketRetentionDays(process.env.SUPPORT_TICKET_RETENTION_DAYS);
 }
 
+// --- Mail-intake-retentie (AVG art. 5(1)(e), opslagbeperking) ----------------
+// Een MailIntake-rij (inbound aanvraag-mail) draagt derde-partij-PII in `fromAddress` (het e-mailadres
+// van een externe aanvrager die zonder account via het intake-alias mailt), `subject` en de vrije-tekst
+// `textBody`; die onbeperkt bewaren ís de overtreding, en MailIntake was het enige PII-dragende model
+// zónder retentie-sweep. Net als notificatie-/support-retentie is dít een AVG-verplichting: de sweep
+// staat standaard AAN op een ruim venster (180 dagen ≈ 6 maanden) wanneer de env leeg is. De ruwe
+// inbound-mail heeft na de beoordeling geen zelfstandige bewaargrond meer — bij ACCEPTED is de
+// concept-opdracht (Job) het durende artefact, bij DISMISSED is de aanvraag afgehandeld. Alleen besliste
+// intakes (ACCEPTED/DISMISSED) vallen onder de sweep (een NEW/heropende intake nooit); de verwijdering
+// ankert op de onveranderlijke `receivedAt`. Een operator kan tunen; een expliciete 0/negatieve waarde
+// zet 'm uit. De minimumvloer voorkomt dat een typefout ("3" i.p.v. "180") nog-verse intakes te agressief
+// wist. Verwijderen raakt alleen de MailIntake-rij; een via ACCEPTED aangemaakte Job blijft (SetNull).
+export const MAIL_INTAKE_RETENTION_MIN_DAYS = 30;
+export const MAIL_INTAKE_RETENTION_DEFAULT_DAYS = 180; // 6 maanden — fail-safe naar wissen bij lege env.
+export function parseMailIntakeRetentionDays(raw: string | undefined): number {
+  // Leeg/ongeconfigureerd → dwing het beloofde venster af (fail-safe naar wissen, niet naar bewaren).
+  if (raw === undefined || raw.trim() === "") return MAIL_INTAKE_RETENTION_DEFAULT_DAYS;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return MAIL_INTAKE_RETENTION_DEFAULT_DAYS;
+  if (n <= 0) return 0; // expliciete operator-override: retentie uit.
+  return Math.max(MAIL_INTAKE_RETENTION_MIN_DAYS, Math.floor(n));
+}
+
+/** Geconfigureerd mail-intake-retentievenster in dagen; 0 = uitgeschakeld (expliciete override). */
+export function mailIntakeRetentionDays(): number {
+  return parseMailIntakeRetentionDays(process.env.MAIL_INTAKE_RETENTION_DAYS);
+}
+
 // --- Cron-heartbeat venster (observability, dead-man's-switch) --------------
 // Maximale leeftijd (in uren) van de laatste geplande-taken-cron-run vóór 'ie als "stale" geldt op
 // /admin/systeemstatus. De cron draait standaard dagelijks (run-all-tasks.yml, 05:00 UTC); de

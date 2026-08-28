@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-28 — prod/AVG: retentie-sweep voor mail-intake (MailIntake storage-limitation)
+
+**Wat:** `MailIntake` (inbound aanvraag-mail, #1254) was het enige PII-dragende model **zonder**
+retentie-sweep. Een rij draagt derde-partij-PII in `fromAddress` (het e-mailadres van een externe
+aanvrager die zonder account via het intake-alias mailt), `subject` en de vrije-tekst `textBody`. Voor
+een live opdrachtgever stapelden die rijen zich onbeperkt op → AVG art. 5(1)(e) (opslagbeperking). Nu
+een geplande retentie-taak die **alleen besliste** intakes (ACCEPTED/DISMISSED) ouder dan het venster
+snoeit, geankerd op de onveranderlijke `receivedAt`; een NEW (nog te beoordelen, of heropend uit
+DISMISSED) intake wordt **nooit** geraakt — anders zou een openstaande aanvraag (en dus omzet)
+verdwijnen. Bij ACCEPTED blijft de concept-opdracht (Job) staan (SetNull); alleen de ruwe mail gaat weg.
+
+**Hoe:** puur `mailIntakeRetentionCutoff` (`src/lib/mail-intake-retention.ts`) + gebatchte, idempotente
+runner `runMailIntakeRetentionTask` met `prunableMailIntakeWhere` als single-source-of-truth-guard
+(`src/lib/mail-intake-retention-task.ts`, patroon van message-/support-retention: batches van 500, max
+200/run, PII-vrij `MAIL_INTAKE_PRUNED`-auditrecord alleen bij daadwerkelijk snoeien). Config-helper
+`mailIntakeRetentionDays()` (`src/lib/config.ts`, default AAN op 180 dagen — fail-safe naar wissen bij
+lege env, min 30, `0` = expliciet uit via `MAIL_INTAKE_RETENTION_DAYS`). Gewired als
+`mail-intake-retention` in de run-all-cron. +12 unit-tests (cutoff-randen + scope-guard/batching/
+idempotentie/audit). Geen nieuw authz-/mutatie-oppervlak (server-side cron, actorId null).
+
+**DoD:** prettier ✓ · typecheck ✓ · lint ✓ · unit 12 (nieuw) groen · volledige suite + build → gate ·
+CI-poort (6 checks incl. agent-review) → self-merge via auto-merge.
+
 ## 2026-08-28 — security/privacy-auditronde (delta sinds #1258): geen nieuwe gaten
 
 **Wat:** adversariële security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle Opus-audits op
