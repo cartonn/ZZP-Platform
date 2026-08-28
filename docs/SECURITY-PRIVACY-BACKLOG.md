@@ -4,6 +4,82 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-28b (basis: `main` @ 55b8b51e) — delta sinds #1264 + brede her-audit: geen nieuwe gaten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(A: broken access control/IDOR/tenant-isolatie · B: privacy/AVG · C: injectie/upload/secrets/SSRF/headers/
+errors/redirect/CSRF). Focus lag op de **delta sinds de vorige audit** (`29729c14..55b8b51e`, 7 commits) —
+de nieuwe rol-signalen en retentie-taak: de **win-back "ZZP'ers om opnieuw te benaderen"** op `/inzicht`
+(`#1266`, `dormant-freelancers.ts`), de **kandidaat-reactiesnelheid op uitnodigingen** op opdracht-detail
+(`#1269`, `candidate-invite-responsiveness.ts` + `data/…`), de **voordracht-opvolging (stille voordrachten)**
+op `/franchise/diensten` (`#1268`, `franchise/voordracht-opvolging.ts`), en de **AVG-retentie voor mail-intake**
+(`#1265`/`#1270`, `mail-intake-retention{,-task}.ts`) — aangevuld met een brede re-sweep van alle 43 route
+handlers, een representatieve diepte-steekproef van de 61 server-action-bestanden, de tenant-scoping-helpers,
+de upload-/storage-abstractie, de anonymisering en de market-rate/k-anon-aggregaten.
+
+**Wat is geprobeerd / gedekt (OWASP Top 10 + AVG):**
+
+- **[A01 Broken Access Control / IDOR + tenant-isolatie]** — Alle 43 route handlers gaan door
+  `requireActor()`/`requireRole()` (of `authorizeCron()` met `timingSafeEqual`, fail-closed 503 zonder
+  secret). De gevoelige document-/PDF-/dossier-routes doen een expliciete ownership-check tegen
+  `issuerUserId`/`counterpartyUserId`/`company.userId`/`freelancer.userId`/ADMIN, maskeren niet-gevonden
+  én verboden identiek (CWE-203 anti-oracle) en auditeren beide takken. `/admin` is dubbel afgedekt
+  (`isAdminPath` segment-grens in `middleware.ts` + `requireRole("ADMIN")` per pagina/actie);
+  `admin/shift-overnames` is de bewuste gedeelde ADMIN+FRANCHISER-actie met `ownsViaTenant`-scoping.
+  Tenant-helpers (`tenantScopeWhere`/`assertSameTenant`/`ownsViaTenant`/`visibleFreelancersWhere`) falen
+  gesloten (403) voor een niet-tenant-actor i.p.v. een open `{}`-filter. De nieuwe
+  `voordracht-opvolging.ts` scoopt élke query (jobs, voordracht-auditlogs, applications, roster) op
+  `actor.tenantId` vóór enige kruisverwijzing.
+- **[Nieuwe rol-signalen — eigen-scope aggregaten]** — `getDormantFreelancers(userId, …)` wordt met
+  `actor.id` aangeroepen (nooit client-input) en scoopt `Collaboration` op `company: { userId }`; toont
+  enkel eigen betaalde uitgaven + recency van ZZP'ers die al vóór déze opdrachtgever werkten. `getCandidate
+InviteResponsiveness(freelancerIds)` krijgt uitsluitend de server-berekende `suggestedFreelancersForJob(job.id)`-
+  set, gepoort achter `isOwner && status === "PUBLISHED"` (≤4 IDs, nooit attacker-controlled), en geeft enkel
+  positieve, geaggregeerde tellingen terug (drempel `MIN_INVITES = 3` als impliciete anti-singling-out-vloer;
+  nooit een negatief "reageert traag"-label, geen individuele reactie-timestamps, geen vreemde opdrachtgever).
+- **[A03 Injectie / XSS / CSV-formule]** — Geen `$queryRawUnsafe`/`$executeRawUnsafe`; alle `$queryRaw` zijn
+  parameterloze `SELECT 1`-health-probes. De nieuwe `metadata: { contains: '"freelancerId":"${id}"' }` is een
+  Prisma-geparametriseerde LIKE-filter met **server-afgeleide** `FreelancerProfile.id`-cuids (nooit request-input) —
+  geen SQL-/LIKE-injectie. Enige `dangerouslySetInnerHTML` is het statische, nonce-gegatede theme-script in
+  `layout.tsx`. Alle ~25 export-routes lopen door `escapeCsvField` (`csv.ts`) die `= + @ - \t \r`-cellen neutraliseert
+  (CWE-1236).
+- **[A04/A10 Upload + SSRF]** — Uploads: `validateUpload` (type-allowlist + ≤10 MB) → `assertContentMatchesMime`
+  (magic-byte-sniff) → `generateStorageKey` (random UUID, user-bestandsnaam nooit in het pad); `LocalStorageDriver.resolve`
+  heeft een echte path-traversal-guard. Alle drie de upload-ingangen (`documenten`/`certificaten`/`bedrijf`) chainen
+  identiek. Geen enkele server-side `fetch` bouwt zijn URL uit user-input — geen weg naar 169.254.169.254/localhost/RFC1918.
+- **[A02/A05/A07 Secrets, headers, auth, errors, redirect]** — Nul `NEXT_PUBLIC_`-secrets; `.env`/`*.db`/`/storage`/
+  `/uploads`/`/backups` `.gitignore`d en niet getrackt. CSP met per-request-nonce + `strict-dynamic`, HSTS,
+  `frame-ancestors 'none'`, `object-src 'none'`. Foutafhandeling lekt enkel gecontroleerde `AuthorizationError`-
+  boodschappen; elke andere exception her-throwt naar Next's generieke boundary (geen stacktrace/Prisma-fout).
+  Login hardcodeert `redirectTo: "/dashboard"` (geen open redirect); mutaties zijn Server Actions met Next's
+  same-origin-CSRF-bescherming.
+- **[AVG art. 17 + 5(1)(e) — vergetelheid & bewaartermijn]** — `anonymizeUser` blijft uitputtend
+  (`anonymize-schema-coverage.test.ts` 3/3 groen; de delta introduceert geen nieuw PII-model). De nieuwe
+  **mail-intake-retentie** dicht een echte storage-limitation-lacune: anker op onveranderlijke `receivedAt`,
+  raakt nooit `NEW`/heropende intakes, fail-closed TOCTOU-guard, default-on 180 dgn (30-dgn-vloer), PII-vrij
+  `MAIL_INTAKE_PRUNED`-auditrecord, en (in `#1270`) redactie van de 2e `fromAddress`-kopie in het
+  `MAIL_INTAKE_RECEIVED`-auditrecord via survivor-diff.
+- **[AVG dataminimalisatie + k-anonimiteit + audit]** — Geen nieuwe markttarief-/band-aggregatie in deze delta;
+  `MARKET_RATE_MIN_SAMPLE = 10` blijft gehandhaafd. De nieuwe widgets voegen geen cross-partij-PII-oppervlak toe
+  (enkel eigen-scope aggregaten). Documentinzage/verificatiebesluiten/exports/retentie zijn ge-audit.
+
+**`npm audit`:** productie-deps (`--omit=dev`, de CI-`audit`-poort) = **0 kwetsbaarheden**. De volledige audit
+(incl. dev-tooling, informatief `|| true` in CI) toont 6 bevindingen (1 laag, 5 hoog) uitsluitend in
+**dev-only transitieve deps** — `brace-expansion` (via eslint), `deepmerge-ts` (via prisma-CLI), `esbuild`
+(dev-server, alleen Windows), `js-yaml` — allemaal DoS/dev-tooling, **niet productie-bereikbaar**. Geparkeerd
+als **LAAG** (zie hieronder); `npm audit fix` (non-breaking) ruimt brace-expansion/esbuild/js-yaml op, prisma
+vergt een major-bump — bewust niet in deze docs-only ronde.
+
+**Geparkeerde bevinding (LAAG):**
+
+- **[LAAG · dev-only dependency-DoS]** — 6 `npm audit`-bevindingen in dev-only transitieve deps
+  (`brace-expansion`, `deepmerge-ts`/prisma-CLI, `esbuild` Windows-dev-server, `js-yaml`). Niet
+  productie-bereikbaar (`--omit=dev` = schoon; CI-poort groen). **Aanbevolen fix:** `npm audit fix` voor de
+  non-breaking drie in een aparte deps-PR; de prisma-CLI-major-bump apart plannen (breaking).
+
+**Resultaat:** alle drie de adversariële audits + de orchestrator-review: **CLEAN — geen bevestigde nieuwe
+bevindingen.** Dit is een dekkings-/verificatie-PR (docs-only).
+
 ## Ronde 2026-08-28 (basis: `main` @ 29729c14) — delta sinds #1258 + brede her-audit: geen nieuwe gaten
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
