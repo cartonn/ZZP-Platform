@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-28 — routine: "ZZP'ers om opnieuw te benaderen" win-back op /inzicht (opdrachtgever)
+
+**Wat:** de opdrachtgever kreeg op `/inzicht` wél te zien van wíe zijn uitgaven komen ("Per ZZP'er",
+`getClientSpendBreakdown`), maar nooit wélke goed bevallen ZZP'ers "koud" zijn geworden. De ZZP'er had
+dit spiegelbeeld al ("Klanten om opnieuw te benaderen", `getDormantClients` → `SlapendeKlantenWidget`);
+de opdrachtgever-kant ontbrak. Nu een win-back-widget die ZZP'ers toont die eerder betaalde uitgaven én
+afgerond werk opleverden, maar waar 90+ dagen geen samenwerking meer mee liep — en geen lopende
+(PROPOSED/ACTIVE) samenwerking. Een bekende ZZP'er opnieuw inzetten is sneller en veiliger dan een koude
+opdracht uitzetten (benchmark Malt/Temper re-engagement).
+
+**Hoe:** exact het spiegelbeeld van `dormant-clients.ts`. Pure aggregator `summarizeDormantFreelancers`
+
+- owner-veilige loader `getDormantFreelancers` (`src/lib/dormant-freelancers.ts`): bouwt voort op de
+  reeds geladen `ClientSpendBreakdown` (één bron → geen drift) en verrijkt met samenwerking-recency uit
+  één `Collaboration`-query gescoopt op `company.userId` + `freelancerId in <uitgaven-ZZP'ers>`.
+  Recency-terugval `completedAt ?? endDate ?? updatedAt` (legacy COMPLETED zonder stempel verliest nooit
+  z'n recency). Sortering op uitgaven aflopend, dan leeftijd. Presentatiewidget `SlapendeZzpersWidget`
+  inline in `ClientInzicht` (`src/app/(protected)/inzicht/page.tsx`), na "Per ZZP'er", rendert niets bij
+  0 slapende ZZP'ers. Read-only, server-side waarheid, geen schema-/mutatie-/authz-oppervlak, geen dode
+  knop. +11 unit-tests (pure-randen + owner-scoping/terugval/leeg-zonder-query).
+
+**DoD:** prettier ✓ · typecheck ✓ · lint ✓ · unit 11 (nieuw) groen · volledige suite 7217 groen (de
+enige rode test `next-version-floor` is het bekende stale-`node_modules`-artefact: 15.5.21 geïnstalleerd
+vs. 15.5.24 gepind → CI's verse `npm ci` installeert 15.5.24 → groen) · build ✓ · CI-poort (6 checks
+incl. agent-review) → self-merge via auto-merge.
+
 ## 2026-08-28 — prod/AVG: retentie-sweep voor mail-intake (MailIntake storage-limitation)
 
 **Wat:** `MailIntake` (inbound aanvraag-mail, #1254) was het enige PII-dragende model **zonder**
