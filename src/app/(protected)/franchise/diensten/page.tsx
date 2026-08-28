@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Clock, ArrowRight, AlertTriangle, UserCheck } from "lucide-react";
+import { Clock, ArrowRight, AlertTriangle, UserCheck, Hourglass } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
@@ -18,6 +18,10 @@ import {
   summarizeAcuteFillability,
   acuteFillabilityHeadline,
 } from "@/lib/franchise/acute-fillability";
+import {
+  getVoordrachtOpvolging,
+  voordrachtOpvolgingStrip,
+} from "@/lib/franchise/voordracht-opvolging";
 import { isStartAcute } from "@/lib/franchise/acute-open-diensten";
 import { withParams } from "@/components/admin/base-path";
 import {
@@ -71,6 +75,12 @@ export default async function FranchiseDienstenPage({
   // matchen goed genoeg om nu voor te dragen? Eén gebundelde load (roster + dienst-matchvelden), geen N+1.
   const openDienstIds = rows.filter((r) => r.published && !r.filled).map((r) => r.d.id);
   const fillSignals = await getRosterFillSignals(actor, openDienstIds, new Date(now));
+
+  // Voordracht-opvolging: welke roster-ZZP'ers heb ik al voorgedragen op een nog-open dienst en laten
+  // me hangen (geen reactie)? De rest van de pagina is forward-only ("wie kán ik voordragen?"); dit
+  // sluit de lus zodat een genegeerde uitnodiging niet stil een dienst open houdt. Read-only.
+  const voordrachtOpvolging = await getVoordrachtOpvolging(actor, new Date(now));
+  const opvolgingStrip = voordrachtOpvolgingStrip(voordrachtOpvolging);
 
   // Dekking over de gepubliceerde diensten (concept/gesloten tellen niet mee in de vulgraad).
   const published = rows.filter((r) => r.published);
@@ -250,6 +260,53 @@ export default async function FranchiseDienstenPage({
                   ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {opvolgingStrip && voordrachtOpvolging.items.length > 0 && (
+        <Card
+          className={
+            opvolgingStrip.tone === "warning"
+              ? "border-warning/40 bg-warning/5"
+              : "border-border bg-card"
+          }
+        >
+          <CardContent className="space-y-3 py-4">
+            <div className="flex items-center gap-2">
+              <Hourglass
+                className={`size-4 shrink-0 ${opvolgingStrip.tone === "warning" ? "text-warning" : "text-muted-foreground"}`}
+                aria-hidden
+              />
+              <p className="text-sm font-medium text-foreground">Voordrachten zonder reactie</p>
+            </div>
+            <p className="text-sm text-muted-foreground">{opvolgingStrip.label}</p>
+            <ul className="space-y-1.5">
+              {voordrachtOpvolging.items.map((it) => (
+                <li
+                  key={`${it.jobId}:${it.freelancerId}`}
+                  className="flex items-baseline justify-between gap-3 text-sm"
+                >
+                  <span className="flex min-w-0 items-baseline gap-2">
+                    <span className="truncate font-medium text-foreground">
+                      {it.freelancerName}
+                    </span>
+                    <span className="shrink-0 text-muted-foreground">op</span>
+                    <Link
+                      href={`/franchise/diensten/${it.jobId}`}
+                      className="truncate text-muted-foreground hover:underline"
+                    >
+                      {it.jobTitle}
+                    </Link>
+                  </span>
+                  <span
+                    className={`shrink-0 text-xs ${it.bucket === "stale" ? "text-warning" : "text-muted-foreground"}`}
+                  >
+                    {plural(it.ageDays, "dag", "dagen")} geen reactie
+                  </span>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       )}

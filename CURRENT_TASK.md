@@ -276,14 +276,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 >     (`src/components/administratie/booked-revenue-card.tsx`) boven `PrognosePanel`: geboekte waarde uit
 >     ACTIVE-samenwerkingen (`rate × 8u × resterende geplande weekdagen`), runway tot verste einddatum,
 >     maand-uitsplitsing, doorlopende samenwerkingen apart gemeld. Read-only, geen schema/mutatie. +14 tests.
-> - **Bemiddelaar — "openstaande voordrachten die stil vallen" (voordracht follow-up aging) op
->   `/franchise/diensten`.** Het hele voordracht-systeem is forward-only (`dienst-fill-signal.ts`,
->   `dienst-voordraag-overzicht.ts`: "wie kán ik nog voordragen?"). Niets beantwoordt "wie nodigde ik al
->   uit en laat me hangen?" Bron: `AuditLog` `action=FRANCHISE_FREELANCER_PROPOSED` (createdAt = uitnodiging,
->   metadata `{freelancerId,tenantId}`) → drop zodra de ZZP'er reageerde (`Application` non-WITHDRAWN) of de
->   dienst gevuld/gesloten is; anders bucket op leeftijd (vers / >2d / >5d). Nieuw
->   `src/lib/franchise/voordracht-opvolging.ts` + strip bij de acute-fillability-kop. Read-only, geen
->   schema/mutatie. ~100-200 regels.
+> - ~~**Bemiddelaar — "openstaande voordrachten die stil vallen" (voordracht follow-up aging) op
+>   `/franchise/diensten`.**~~ **GEDAAN (2026-08-28, PR #1268).** Pure
+>   `summarizeVoordrachtOpvolging`/`voordrachtOpvolgingStrip`/`voordrachtAgeBucket`
+>   (`src/lib/franchise/voordracht-opvolging.ts`) + loader `getVoordrachtOpvolging(actor, now)`: leest de
+>   gezaghebbende `FRANCHISE_FREELANCER_PROPOSED`-auditrecords (createdAt = uitnodiging, metadata
+>   `{freelancerId,tenantId}`) tenant-gescopet, dropt een voordracht zodra de ZZP'er zelf reageerde
+>   (`Application` non-WITHDRAWN) of de dienst niet meer open is (gevuld met ACTIVE / niet-PUBLISHED), en
+>   buckett de rest op leeftijd — vers (≤2d), wachtend (>2d) en stil (>5d). Nieuwe kaart "Voordrachten
+>   zonder reactie" op `/franchise/diensten` (warning bij ≥1 stille, anders muted): strip-regel +
+>   opvolgingslijst (oudste eerst, ZZP'er → dienst-link, "N dagen geen reactie"). Read-only, server-side
+>   waarheid, geen schema-/mutatie-/authz-oppervlak. +12 tests. Gate: typecheck ✓, lint ✓, test (7233) ✓,
+>   build ✓, prettier ✓ · CI-poort → PR.
 
 > Gedaan (niet opnieuw): **Opdrachtgever — beslis-achterstand-chip op de opdrachtenlijst (2026-08-25, PR #1235)** —
 > de beslis-achterstand (nog-onbesliste reacties die langer wachten dan bij hun matchkwaliteit past; een sterke
