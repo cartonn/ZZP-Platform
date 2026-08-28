@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-28 — security/privacy-auditronde (delta sinds #1258): geen nieuwe gaten
+
+**Wat:** adversariële security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle Opus-audits op
+niet-overlappende oppervlakken: A01/IDOR/tenant · privacy/AVG · injectie/upload/secrets/SSRF/headers).
+Focus op de delta `78a0b9ce..29729c14` (6 commits: routing-aflever-heartbeat #1259/#1260, opdrachtgever-
+activiteit trust-line #1261, kandidaat-multi-apply #1262, geboekte-omzet-vooruitblik #1263 + nieuwe
+metrics-gauges), plus een brede re-sweep (~52 server actions, ~42 routes, storage/upload, anonimisering,
+market-rate/k-anon). **Resultaat: CLEAN — geen bevestigde nieuwe bevindingen.** De nieuwe delta-oppervlakken
+zijn read-only, geaggregeerd en correct gescoopt (`getCompanyActivity` achter `showClientSignals`, alleen
+tellingen + `memberSince`; `summarizeMultiApply` puur afgeleid uit de reeds per-opdrachtgever-gescoopte
+`applications`-lijst; `/api/metrics` `CRON_SECRET`-gated fail-closed, geen PII in gauges; routing-fetch naar
+hardgecodeerde geoapify-host, geen SSRF). Eén LAAG-item geparkeerd (deployment-config, geen code-defect):
+retentie-crons default UIT → PII in `Notification`/`AuditLog` onbeperkt tot de go-live-checklist de
+`*_RETENTION_DAYS` zet (AVG art. 5(1)(e); mens-taak, al gedocumenteerd in MENSENWERK.md).
+
+**Hoe:** dekkings-/verificatie-PR (docs-only) — `docs/SECURITY-PRIVACY-BACKLOG.md` bijgewerkt met de ronde
+2026-08-28 (basis `29729c14`), OWASP Top 10 + AVG-dekkingsmatrix + het geparkeerde retentie-item.
+
+**DoD:** typecheck ✓ · lint ✓ · prettier ✓ · build ✓ · unit-suite groen · geen codewijziging → geen nieuw
+authz-/mutatie-oppervlak. CI-poort (6 checks incl. agent-review) → self-merge via auto-merge.
+
 ## 2026-08-28 — routine: geboekte-omzet-vooruitblik (booked-revenue runway) op /prognose (ZZP'er)
 
 **Wat:** alle bestaande ZZP'er-prognoses zijn _receivables_ — geld voor werk dat al geleverd is
