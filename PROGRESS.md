@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-28 — routine: één-klik officiële aanvraagbron in de certificaat-vernieuwingsnudge (ZZP'er)
+
+**Wat:** de doorlooptijd-nudge op `/certificaten` (`RenewalLeadtimeNote`) noemde de officiële instantie
+("Een VOG vraag je aan via Justis") maar linkte er niet naar — de ZZP'er moest de aanvraagpagina zelf
+opzoeken, precies op het moment dat we "vraag nu aan" zeggen. Nu: waar een **canonieke** officiële bron
+bestaat, verschijnt een directe één-klik-link naar die instantie. Nieuw optioneel veld
+`source: { label, url }` op `RenewalLeadTime`, ingevuld voor **VOG → Justis**
+(`https://www.justis.nl/producten/vog`); certificaat/licentie krijgen **bewust géén** bron (traject
+varieert te sterk, een verkeerde link is schadelijker dan geen). `renewalNudge` draagt de bron
+ongewijzigd mee; de note rendert 'm als veilige externe link (`target=_blank`, `rel=noopener noreferrer`).
+Server-side waarheid (constante, geen client-beslissing), read-only, geen nieuw auth-oppervlak.
+
+**Bestanden:** `src/lib/credential-renewal-leadtime.ts` (+`RenewalSource`, VOG-bron),
+`src/components/credentials/renewal-leadtime-note.tsx` (link-render). Tests:
+`credential-renewal-leadtime.test.ts` (+2), nieuw `renewal-leadtime-note.test.tsx` (3 render-cases).
+
+**Checks:** typecheck ✓, lint ✓ (`No ESLint warnings or errors`), `test` 18/18 (relevant) ✓,
+`prettier --write .` gedraaid, build+e2e in CI. **Volgende stap:** CI-poort groen → auto-merge (SQUASH).
+PR #1273.
+
 ## 2026-08-28 — prod: mail-intake zichtbaar op de systeemstatus (go-live-posture)
 
 **Wat:** de inbound mail-intake-webhook (`/api/mail-intake/webhook`, #1254) was het enige
