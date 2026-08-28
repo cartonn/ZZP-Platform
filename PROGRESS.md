@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-28 — routine: pool-dekkingsgat — gevraagde certificaten/skills vs. roster-aanbod (bemiddelaar)
+
+**Wat:** de bemiddelaar (`/franchise/zzpers`) had geen enkel scherm dat de **vraag** (verplicht gevraagde
+certificaten/vaardigheden over álle open diensten van de tenant) afzet tegen het **aanbod** (wat de eigen
+roster-pool geldig levert). Bestaande signalen zijn óf freelancer-facing (`credential-demand`/`skill-demand`
+= eigen profielgaten), óf per-losse-ZZP'er (`credential-compliance` = vervaldatums) óf per-losse-dienst
+(`dienst-fill-signal`). Niets aggregeerde supply-vs-demand over de pool. Nieuw: een pool-dekkingsstrip die
+antwoordt op "waar moet ik op werven / wie laat ik certificeren?" — bv. "3 open diensten vragen
+BIG-registratie · niemand in je pool". Een item is een gat wanneer het aanbod (distinct gekwalificeerde
+vakmensen) kleiner is dan de vraag (distinct open diensten); `none` = niemand kwalificeert (hard, werven),
+`scarce` = te weinig. Alleen VERPLICHTE eisen tellen; een certificaat levert pas aanbod als het VERIFIED én
+niet verlopen is. **Geen extra query** — vraag en aanbod komen uit de al-geladen `openDiensten` + roster op
+de pagina (één bron van waarheid met de plaatsbaarheid/compliance-strips). Read-only, server-side, geen
+schema-/mutatie-/authz-oppervlak.
+
+**Bestanden:** `src/lib/franchise/pool-coverage-gap.ts` (pure `computePoolCoverageGap` +
+`poolCoverageGapHeadline`), `src/components/franchise/pool-coverage-gap-strip.tsx`,
+`src/app/(protected)/franchise/zzpers/page.tsx` (vraag/aanbod-mapping + strip-render). Tests:
+`pool-coverage-gap.test.ts` (11: hard/scarce/volle-dekking/dedup/soort-scheiding/sortering/kop).
+
+**Checks:** typecheck ✓, `test` (pool-coverage 11) ✓, `prettier --write .` gedraaid, lint/test/build in CI.
+**Volgende stap:** CI-poort groen → auto-merge (SQUASH). PR #1274.
+
 ## 2026-08-28 — routine: één-klik officiële aanvraagbron in de certificaat-vernieuwingsnudge (ZZP'er)
 
 **Wat:** de doorlooptijd-nudge op `/certificaten` (`RenewalLeadtimeNote`) noemde de officiële instantie

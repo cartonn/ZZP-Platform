@@ -34,6 +34,12 @@ import {
 import { summarizeCredentialCompliance } from "@/lib/franchise/credential-compliance";
 import { CredentialComplianceStrip } from "@/components/franchise/credential-compliance-strip";
 import {
+  computePoolCoverageGap,
+  type CoverageDemandRow,
+  type CoverageSupplyRow,
+} from "@/lib/franchise/pool-coverage-gap";
+import { PoolCoverageGapStrip } from "@/components/franchise/pool-coverage-gap-strip";
+import {
   classifyRosterDormancy,
   summarizeRosterDormancy,
   type DormancyTier,
@@ -314,6 +320,55 @@ export default async function FranchiseZzpersPage({
   );
   const forecastHeadlineText = rosterForecastHeadline(forecast);
   const compliance = summarizeCredentialCompliance(cards.map((c) => ({ window: c.alertWindow })));
+  // Pool-dekkingsgat: welke verplicht-gevraagde certificaten/vaardigheden van de open diensten dekt de
+  // eigen roster-pool (nog) niet? Vraag uit dezelfde `openDiensten` als de plaatsbaarheid; aanbod uit
+  // dezelfde roster als de compliance-strip — geen extra query, één bron van waarheid. Alleen VERPLICHTE
+  // eisen (`required`) tellen; een certificaat levert pas aanbod als het VERIFIED én niet verlopen is.
+  const skillNameById = new Map(skills.map((s) => [s.id, s.name] as const));
+  const nowMs = now.getTime();
+  const coverageDemand: CoverageDemandRow[] = openDiensten.flatMap((j, i) => {
+    const dienstId = String(i); // elke openDiensten[i] is één distinct dienst → stabiele, unieke sleutel
+    const credRows: CoverageDemandRow[] = j.credentialRequirements
+      .filter((r) => r.required)
+      .map((r) => ({
+        kind: "credential",
+        key: r.credentialType,
+        label:
+          CREDENTIAL_TYPE_LABEL[r.credentialType as keyof typeof CREDENTIAL_TYPE_LABEL] ??
+          r.credentialType,
+        dienstId,
+      }));
+    const skillRows: CoverageDemandRow[] = j.skills
+      .filter((s) => s.required)
+      .map((s) => ({
+        kind: "skill",
+        key: s.skillId,
+        label: skillNameById.get(s.skillId) ?? s.skillId,
+        dienstId,
+      }));
+    return [...credRows, ...skillRows];
+  });
+  const coverageSupply: CoverageSupplyRow[] = freelancers.flatMap((f) => {
+    const validTypes = new Set(
+      f.credentials
+        .filter(
+          (c) => c.status === "VERIFIED" && (c.expiresAt === null || c.expiresAt.getTime() > nowMs),
+        )
+        .map((c) => c.type),
+    );
+    const credRows: CoverageSupplyRow[] = [...validTypes].map((t) => ({
+      kind: "credential",
+      key: t,
+      freelancerId: f.id,
+    }));
+    const skillRows: CoverageSupplyRow[] = f.skills.map((s) => ({
+      kind: "skill",
+      key: s.skillId,
+      freelancerId: f.id,
+    }));
+    return [...credRows, ...skillRows];
+  });
+  const poolCoverage = computePoolCoverageGap(coverageDemand, coverageSupply);
   // Re-engagement: welke bench-vakmensen koelen af (lang niet ingelogd, niet ingezet)? Over het hele
   // roster geteld (niet het filter), zodat de strip het volledige beeld toont. Telt de reeds per kaart
   // geclassificeerde tiers (één bron van waarheid met de kaart-chip, geen herberekening).
@@ -374,6 +429,10 @@ export default async function FranchiseZzpersPage({
           {/* Compliance-overzicht: "houd ik mijn pool compliant?" — verlopen/aflopende certificaten
               als aggregaat, klikbaar naar het alerts-filter. Rendert alleen bij een signaal. */}
           <CredentialComplianceStrip summary={compliance} />
+
+          {/* Pool-dekking: "waar moet ik op werven?" — verplicht-gevraagde certificaten/vaardigheden
+              van de open diensten die de pool (nog) niet dekt. Rendert alleen bij een dekkingsgat. */}
+          <PoolCoverageGapStrip result={poolCoverage} />
 
           {/* Re-engagement: "wie van mijn bench koelt af?" — vakmensen die lang niet inlogden en niet
               zijn ingezet, klikbaar naar het `?dormant=1`-filter. Rendert alleen bij een signaal. */}
