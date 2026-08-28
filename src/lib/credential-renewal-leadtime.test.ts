@@ -101,4 +101,17 @@ describe("renewalNudge", () => {
       expect(n?.message).toContain("enkele weken");
     }
   });
+
+  it("VOG draagt de officiële aanvraagbron (Justis, absolute https-URL) mee in de nudge", () => {
+    const n = renewalNudge({ type: "VOG", status: "VERIFIED", daysUntilExpiry: 10 });
+    expect(n?.leadTime.source?.label).toBe("Justis");
+    expect(n?.leadTime.source?.url).toMatch(/^https:\/\//);
+    expect(n?.leadTime.source?.url).toContain("justis.nl");
+  });
+
+  it("CERTIFICATE en LICENSE hebben geen canonieke bron (traject varieert te sterk)", () => {
+    for (const type of ["CERTIFICATE", "LICENSE"] as const) {
+      expect(RENEWAL_LEAD_TIMES[type]?.source).toBeUndefined();
+    }
+  });
 });

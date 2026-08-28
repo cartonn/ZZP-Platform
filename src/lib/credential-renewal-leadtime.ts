@@ -9,6 +9,19 @@
 
 import { type CredentialType, type CredentialStatus } from "@/lib/enums";
 
+/**
+ * Officiële, canonieke landelijke bron waar je dit bewijsstuk aanvraagt/vernieuwt. Alleen ingevuld
+ * wanneer er één onbetwiste instantie is (bv. VOG → Justis). Types met een sterk variërend traject
+ * (certificaat/licentie: uiteenlopende opleiders/instanties) krijgen bewust géén bron — een verkeerde
+ * link stuurt de ZZP'er de mist in.
+ */
+export interface RenewalSource {
+  /** Naam van de instantie, bv. "Justis". */
+  label: string;
+  /** Absolute https-URL naar de officiële aanvraag-/productpagina. */
+  url: string;
+}
+
 /** Typische externe doorlooptijd om een nieuw bewijsstuk van dit type te verkrijgen. */
 export interface RenewalLeadTime {
   /** Ondergrens in dagen (snelste realistische levering). */
@@ -19,6 +32,8 @@ export interface RenewalLeadTime {
   phrase: string;
   /** Korte, feitelijke context over het aanvraagtraject. */
   note: string;
+  /** Officiële aanvraagbron (één-klik naar de juiste instantie), of afwezig als die niet canoniek is. */
+  source?: RenewalSource;
 }
 
 /**
@@ -33,6 +48,7 @@ export const RENEWAL_LEAD_TIMES: Partial<Record<CredentialType, RenewalLeadTime>
     maxDays: 56,
     phrase: "2 tot 8 weken",
     note: "Een VOG vraag je aan via Justis; de doorlooptijd loopt op bij een papieren aanvraag.",
+    source: { label: "Justis", url: "https://www.justis.nl/producten/vog" },
   },
   CERTIFICATE: {
     minDays: 7,
