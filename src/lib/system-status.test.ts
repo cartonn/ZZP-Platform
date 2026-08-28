@@ -85,6 +85,45 @@ describe("collectSystemStatus — semantische-matching-posture", () => {
   });
 });
 
+describe("collectSystemStatus — mail-intake-posture", () => {
+  it("toont mail-intake als uit (fallback, nooit aandacht) zonder secret — ook in productie", () => {
+    const item = itemByKey(makeEnv({ NODE_ENV: "production" }), "mail-intake");
+    expect(item.level).toBe("fallback");
+    expect(item.mode).toBe("uit");
+    expect(item.detail).toMatch(/MAIL_INTAKE_WEBHOOK_SECRET/);
+  });
+
+  it("toont mail-intake als aan (ok) zodra het webhook-secret gezet is", () => {
+    const item = itemByKey(makeEnv({ MAIL_INTAKE_WEBHOOK_SECRET: "s".repeat(20) }), "mail-intake");
+    expect(item.level).toBe("ok");
+    expect(item.mode).toBe("aan");
+  });
+
+  it("wijst op MAIL_INTAKE_ADDRESS wanneer het secret gezet is maar het adres ontbreekt", () => {
+    const item = itemByKey(makeEnv({ MAIL_INTAKE_WEBHOOK_SECRET: "s".repeat(20) }), "mail-intake");
+    expect(item.level).toBe("ok");
+    expect(item.detail).toMatch(/MAIL_INTAKE_ADDRESS/);
+  });
+
+  it("meldt het volledige plus-adres wanneer secret én adres gezet zijn", () => {
+    const item = itemByKey(
+      makeEnv({
+        MAIL_INTAKE_WEBHOOK_SECRET: "s".repeat(20),
+        MAIL_INTAKE_ADDRESS: "aanvraag@intake.example.nl",
+      }),
+      "mail-intake",
+    );
+    expect(item.level).toBe("ok");
+    expect(item.detail).toMatch(/plus-adres/);
+  });
+
+  it("behandelt een leeg/whitespace secret als uit (geen halve activering)", () => {
+    const item = itemByKey(makeEnv({ MAIL_INTAKE_WEBHOOK_SECRET: "   " }), "mail-intake");
+    expect(item.level).toBe("fallback");
+    expect(item.mode).toBe("uit");
+  });
+});
+
 describe("collectSystemStatus — volledig bekabelde productie", () => {
   const env = makeEnv({
     STORAGE_DRIVER: "s3",
@@ -106,6 +145,8 @@ describe("collectSystemStatus — volledig bekabelde productie", () => {
     PASSWORD_BREACH_CHECK: "hibp",
     VAPID_PUBLIC_KEY: "pub",
     VAPID_PRIVATE_KEY: "priv",
+    MAIL_INTAKE_WEBHOOK_SECRET: "s".repeat(20),
+    MAIL_INTAKE_ADDRESS: "aanvraag@intake.example.nl",
   });
 
   it("markeert álles als ok en geeft geen aandacht-items", () => {
@@ -185,6 +226,8 @@ describe("collectSystemStatus — zoekmachine-indexering", () => {
       PASSWORD_BREACH_CHECK: "hibp",
       VAPID_PUBLIC_KEY: "pub",
       VAPID_PRIVATE_KEY: "priv",
+      MAIL_INTAKE_WEBHOOK_SECRET: "s".repeat(20),
+      MAIL_INTAKE_ADDRESS: "aanvraag@intake.example.nl",
     });
     const status = collectSystemStatus(wired);
     expect(status.counts.attention).toBe(0);
