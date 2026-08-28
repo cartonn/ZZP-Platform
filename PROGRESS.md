@@ -3,6 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-28 — persona-sweep run 97: TOCTOU-grendel tenant-fee (geld-integriteit) + next-action-pariteit #1235
+
+**Wat:** kritische-gebruiker-sweep over alle 4 rollen (ZZP'er/opdrachtgever/franchiser/admin), live
+doorgeklikt en adversarieel geprobed (Playwright/Chromium, qa.db seed) + 3 parallelle Opus-audits. **2
+defecten gefixt:**
+
+1. **HIGH geld-integriteit — TOCTOU in `recordTenantFeeForCollaboration`** (`src/lib/tenant-billing/
+record-fee.ts`): las `existing.status` en muteerde daarna via `delete`/`upsert` alleen op
+   `collaborationId`, zonder de status opnieuw te poorten. Een gelijktijdige `generatePlatformBilling`
+   kon de `CollaborationFee` `PENDING → INVOICED` flippen tussen lezing en schrijfactie → de recorder
+   wiste/overschreef een reeds-gefactureerde fee die een live `PlatformBillingInvoice` dekt (onreconcilieerbaar
+   omzetgat / bevroren-invariant gebroken). **Fix:** status-gepoorte, atomaire `deleteMany`/`updateMany`
+   (where `status: "PENDING"`) + `create`-terugval met P2002-no-op. +2 regressietests (rood→groen); bestaande
+   grondslag-/creditnota-tests gemigreerd naar de gepoortte mocks.
+
+2. **should-fix/design — next-action-pariteit #1235** (4 runs geparkeerd): de beslis-achterstand-chip
+   (`/opdrachten`) én -band (`/kandidaten`) gebruikten de `warning`-alarmkleur zonder /acties-pariteit →
+   visueel niet te onderscheiden van een echte next-action. **Fix (option b):** toon uitsluitend `muted`
+   (`JobDecisionChip.tone` versmald in `candidate-decision.ts`), `/kandidaten`-band gehertint naar neutraal;
+   copy/telling ongewijzigd, bewust géén /acties-item/badge. +regressietest.
+
+**Adversarieel bewijs:** privilege-escalatie → redirect naar `/dashboard`; onzin-/nul-id's → 404 (anti-oracle);
+task-endpoints fail-closed (503/404); betaal-webhook veilige altijd-200 no-op; **0 HTTP 500's**. 0 nieuwe
+bereikbare security-/robuustheidsgaten (authz/IDOR/tenant op #1247-1266 schoon).
+
+**Bestanden:** `src/lib/tenant-billing/record-fee.ts` (+ `.test.ts`, `record-fee-credit.test.ts`),
+`src/lib/candidate-decision.ts` (+ `.test.ts`), `src/components/jobs/decision-backlog-chip.tsx`,
+`src/app/(protected)/kandidaten/page.tsx`. Backlog bijgewerkt (run 97).
+
+**DoD:** prettier ✓ · typecheck ✓ · lint ✓ · unit groen · build ✓ → CI-poort (6 checks incl. agent-review) → self-merge via auto-merge.
+
 ## 2026-08-28 — routine: "ZZP'ers om opnieuw te benaderen" win-back op /inzicht (opdrachtgever)
 
 **Wat:** de opdrachtgever kreeg op `/inzicht` wél te zien van wíe zijn uitgaven komen ("Per ZZP'er",
