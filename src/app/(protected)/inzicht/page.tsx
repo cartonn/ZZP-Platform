@@ -29,6 +29,7 @@ import { getClientStats } from "@/lib/client-stats";
 import { getClientSpendBreakdown } from "@/lib/client-spend-breakdown";
 import { getFreelancerRevenueBreakdown } from "@/lib/freelancer-revenue-breakdown";
 import { getDormantClients, type DormantClientSummary } from "@/lib/dormant-clients";
+import { getDormantFreelancers, type DormantFreelancerSummary } from "@/lib/dormant-freelancers";
 import { getFreelancerPayerBehavior, type PayerBehaviorRow } from "@/lib/freelancer-payer-behavior";
 import { getClientTimeToFill, getTenantTimeToFill } from "@/lib/time-to-fill";
 import { getTenantStats, getTenantCompanyBreakdown } from "@/lib/tenant-stats";
@@ -630,6 +631,43 @@ function SlapendeKlantenWidget({ summary }: { summary: DormantClientSummary }) {
   );
 }
 
+/**
+ * Slapende ZZP'ers voor de opdrachtgever: het spiegelbeeld van "Klanten om opnieuw te benaderen".
+ * Toont welke eerder-betaalde, goed bevallen ZZP'ers al maanden niet meer zijn ingezet — een bekende
+ * ZZP'er opnieuw inzetten is doorgaans sneller dan een koude opdracht uitzetten. Cijfers via
+ * `getDormantFreelancers` (bouwt voort op dezelfde uitgaven-uitsplitsing als "Per ZZP'er" → geen
+ * drift); alleen eigen, geaggregeerde cijfers.
+ */
+function SlapendeZzpersWidget({ summary }: { summary: DormantFreelancerSummary }) {
+  return (
+    <BiWidget title="ZZP'ers om opnieuw te benaderen">
+      <div className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Deze ZZP&apos;ers leverden je eerder werk op, maar er liep al een tijd geen samenwerking
+          meer. Een bekende ZZP&apos;er opnieuw inzetten is vaak sneller dan een nieuwe opdracht
+          uitzetten.
+        </p>
+        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+          {summary.rows.map((r) => (
+            <div key={r.freelancerId} className="flex items-center justify-between gap-4 px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{r.name}</p>
+                <p className="metadata-row mt-0.5">
+                  laatste samenwerking {r.monthsSince}{" "}
+                  {pluralWord(r.monthsSince, "maand", "maanden")} geleden
+                </p>
+              </div>
+              <span className="shrink-0 font-mono text-sm font-medium tabular-nums">
+                {formatEuro(r.paidCents)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </BiWidget>
+  );
+}
+
 // Toon → badge-taal, gelijk aan de gedragsblokken (signal-chips.tsx). Hier plat Nederlands, want de
 // hele /inzicht-pagina gebruikt geen i18n-wrapper.
 const PAYER_TONE_BADGE: Record<
@@ -951,6 +989,10 @@ async function ClientInzicht({ userId }: { userId: string }) {
       </Card>
     );
   }
+  // Win-back: welke goed bevallen ZZP'ers zijn "slapend" geworden. Bouwt voort op de reeds geladen
+  // uitgaven-uitsplitsing (één bron → geen drift), dus na de Promise.all — het spiegelbeeld van de
+  // ZZP'er-widget "Klanten om opnieuw te benaderen".
+  const dormantFreelancers = await getDormantFreelancers(userId, spend);
   return (
     <div className="space-y-4">
       <RevenueHero
@@ -1077,6 +1119,8 @@ async function ClientInzicht({ userId }: { userId: string }) {
           </div>
         )}
       </BiWidget>
+
+      {dormantFreelancers.dormantCount > 0 && <SlapendeZzpersWidget summary={dormantFreelancers} />}
 
       <GemiddeldUurtariefPerMaandCard
         trend={hourlyRate}
