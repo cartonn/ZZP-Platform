@@ -1,5 +1,35 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-28 (run 98) · **main-commit basis:** `6b546d85`
+> **Uitkomst:** **1 defect gevonden én gefixt** — **AVG/privacy (opslagbeperking, art. 5(1)(e)):
+> een tweede, niet-geruimde PII-kopie in de auditlog.** De mail-intake-retentie-sweep
+> (`runMailIntakeRetentionTask`, #1265) wist de `MailIntake`-rij ná het venster, maar de inbound-webhook
+> legt hetzelfde `fromAddress` (e-mailadres van een externe, account-loze aanvrager) óók vast in het
+> `MAIL_INTAKE_RECEIVED`-auditrecord (`metadata.fromAddress`, `route.ts:157`). De generieke auditlog-
+> retentie staat default UIT, dus die kopie overleeft de sweep onbeperkt — precies de opslagbeperking die
+> de taak claimt af te dwingen ("MailIntake was het enige PII-dragende model zónder retentie-sweep") was
+> maar half waar. **Fix:** de sweep redact nu `fromAddress` uit het bijbehorende auditrecord op het moment
+> dat de intake-rij daadwerkelijk gewist is (`scrubReceivedAuditPii`, exact-match hergebruik van
+> `scrubAuditMetadataPii`; survivor-diff zodat een TOCTOU-heropende NEW-intake zijn auditspoor houdt).
+> `MAIL_INTAKE_PRUNED` telt `auditScrubbed` mee (art. 5(2) verantwoording). +2 regressietests (rood→groen:
+> `fromAddress` → `[verwijderd]`, `messageId` intact; heropende intake ongemoeid). Alle 4 rollen live
+> doorgeklikt (Playwright/Chromium, qa.db seed) + adversariële matrix over 33 checks: login→dashboard +
+> `/acties` **200** voor elke rol; onzin-id's op samenwerking/factuur/opdracht → **404** (anti-oracle);
+> privilege-escalatie ZZP/CLIENT/FRANCHISER → `/admin/*` → **redirect naar `/dashboard`** (geen escalatie).
+> **0 HTTP 500's, 0 escalaties.** 3 parallelle adversariële Opus-audits (data-loaders IDOR/tenant ·
+> next-action-engine DOEL 1b · mail-intake-webhook/retentie): geen nieuwe bereikbare security-gaten.
+>
+> - **OPGELOST — AVG art. 5(1)(e) (opslagbeperking): `fromAddress`-PII overleefde de mail-intake-retentie
+>   in de auditlog.** `src/lib/mail-intake-retention-task.ts` — `runMailIntakeRetentionTask` wiste alleen de
+>   `MailIntake`-rij; het `MAIL_INTAKE_RECEIVED`-auditrecord (geschreven door
+>   `src/app/api/mail-intake/webhook/route.ts:152-159`) hield `metadata.fromAddress` (derde-partij-e-mailadres)
+>   onbeperkt vast omdat `AUDIT_LOG_RETENTION_DAYS` default uit staat. Fix: nieuwe `scrubReceivedAuditPii`
+>   redact het adres uit het auditrecord bij het wissen (survivor-diff op de daadwerkelijk verwijderde id's);
+>   `MAIL_INTAKE_PRUNED.metadata.auditScrubbed` legt het aantal vast. Tests:
+>   `src/lib/mail-intake-retention-task.test.ts` (11 tests, +2 nieuw).
+
+---
+
 > **Datum:** 2026-08-28 (run 97) · **main-commit basis:** `d874fb6f`
 > **Uitkomst:** **2 defecten gevonden én gefixt** — (1) **HIGH geld-integriteit**: een ongepoortte
 > check-then-act-race in `recordTenantFeeForCollaboration` kon een reeds-gefactureerde (`INVOICED`)
