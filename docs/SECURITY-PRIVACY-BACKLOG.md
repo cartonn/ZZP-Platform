@@ -109,6 +109,16 @@ platform-fee-refund bij annulering (`#1252`)), aangevuld met een brede re-sweep 
   (`prisma.mailIntake.deleteMany({ where: { company: { userId } } })`), en `companyAnonymizationData` zet
   `mailIntakeAlias: null` (geen werkend inname-kanaal na erasure). De durable `anonymize-schema-coverage.test.ts`
   dekt `MailIntake` af (test groen). Geverifieerd rood-signaal-vrij: het model staat niet ongeclassificeerd.
+  **Code-kant GEDAAN (2026-08-28) — óók AVG art. 5(1)(e) (opslagbeperking) nu afgedwongen:** art. 17 dekte
+  alleen erasure-op-verzoek/accountverwijdering; de dóórlopende, tijdgebonden bewaartermijn ontbrak — voor
+  een live opdrachtgever stapelden `MailIntake`-rijen zich onbeperkt op. Nu een geplande sweep
+  **`mail-intake-retention`** (in `/api/tasks/run-all`, pure kern `src/lib/mail-intake-retention.ts` +
+  `src/lib/mail-intake-retention-task.ts`) die alleen **besliste** intakes (ACCEPTED/DISMISSED) ouder dan
+  het venster snoeit, geankerd op de onveranderlijke `receivedAt` (`prunableMailIntakeWhere` = single source
+  of truth). SCOPE-VEILIG: een NEW/heropende intake wordt nooit geraakt. Anders dan de auditlog-retentie
+  staat deze **standaard AAN op 180 dagen** (fail-safe naar wissen; `MAIL_INTAKE_RETENTION_DAYS` leeg = 180,
+  min 30, `0` = expliciet uit) — inbound derde-partij-mail heeft na de beoordeling geen zelfstandige
+  bewaargrond. PII-vrij `MAIL_INTAKE_PRUNED`-auditrecord (alleen telling + venster + cutoff).
 - **[AVG dataminimalisatie + k-anonimiteit]** — Betaalgedrag-signaal hergebruikt de bestaande
   `PAYMENT_MIN_SAMPLE_SIZE = 3`-drempel (onder 3 betaalde facturen: `null`, tone `unknown`, geen getallen);
   `showsClientPaymentContext` voegt alleen een tweede weergave-oppervlak toe en verzwakt de drempel niet, en

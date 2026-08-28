@@ -1172,6 +1172,25 @@ adres-/houdergegevens. Resterend mensenwerk: **niets extra** — de kaart/gauges
    "support-communicatie" + `RETENTION_SCHEDULE`-entry. Resterend mensenwerk: **niets** — werkt out-of-the-box;
    optioneel het venster laten bevestigen door een privacyjurist en `SUPPORT_TICKET_RETENTION_DAYS` bijstellen.
 
+   **Code-kant GEDAAN (2026-08-28) — mail-intake-retentie afgedwongen:** `MailIntake` (inbound
+   aanvraag-mail per e-mail) was ná support het **enige** PII-dragende model zónder retentie-sweep. Een
+   rij draagt **derde-partij-PII**: `fromAddress` (het e-mailadres van een externe aanvrager — bv. de
+   planner van een zorginstelling — die zonder eigen account via het intake-alias mailt), `subject` en de
+   vrije-tekst `textBody`. Erasure-op-verzoek was al gedekt (bij accountverwijdering worden de rijen hard
+   gewist), maar de dóórlopende, tijdgebonden bewaartermijn ontbrak — voor een live opdrachtgever
+   stapelden de rijen zich onbeperkt op (AVG art. 5 lid 1e opslagbeperking). Er is nu een geplande taak
+   **`mail-intake-retention`** (in `/api/tasks/run-all`, pure kern `src/lib/mail-intake-retention.ts` +
+   `src/lib/mail-intake-retention-task.ts`) die alleen **besliste** intakes (ACCEPTED/DISMISSED) ouder dan
+   het venster gebatcht en idempotent snoeit, geankerd op de onveranderlijke `receivedAt`, met één
+   verantwoordings-auditrecord per snoei-actie (geen PII — alleen aantal + cutoff + venster). Een **NEW**
+   (nog te beoordelen, of heropend uit DISMISSED) intake blijft altijd staan — die vroegtijdig wissen zou
+   een openstaande aanvraag laten verdwijnen. Bij ACCEPTED blijft de concept-opdracht (Job) staan; alleen
+   de ruwe mail gaat weg. Anders dan de auditlog-/berichten-retentie (default UIT) heeft inbound
+   derde-partij-mail na de beoordeling geen zelfstandige bewaargrond, dus staat deze sweep **standaard AAN
+   op 180 dagen** (`MAIL_INTAKE_RETENTION_DAYS`; min-vloer 30, expliciete `0` = uit). Resterend mensenwerk:
+   **niets** — werkt out-of-the-box; optioneel het venster laten bevestigen door een privacyjurist en
+   `MAIL_INTAKE_RETENTION_DAYS` bijstellen.
+
 ### 5b. Wet DBA (schijnzelfstandigheid)
 
 **Stappen:**
