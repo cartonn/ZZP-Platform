@@ -169,17 +169,22 @@ describe("runMailIntakeRetentionTask", () => {
     seed(1, 200, "reopened", "DISMISSED"); // oud + beslist → wordt door findMany geselecteerd
     // Simuleer een concurrente reopen (DISMISSED→NEW) net ná de selectie, vóór de delete: de findMany
     // levert de rij nog als kandidaat, maar de status verandert direct erna. De fail-closed deleteMany
-    // (die het volledige where-predicaat honoreert) mag die nu-NEW rij dan niet meer wissen.
-    vi.mocked(prisma.mailIntake.findMany).mockImplementationOnce(
-      async (args: { where: WhereArg; take: number }) => {
-        const selected = store.intakes
-          .filter((r) => matches(r, args.where))
-          .slice(0, args.take)
-          .map((r) => ({ id: r.id }));
-        for (const r of store.intakes) if (r.id === "reopened-0") r.status = "NEW";
-        return selected;
-      },
-    );
+    // (die het volledige where-predicaat honoreert) mag die nu-NEW rij dan niet meer wissen. De mock is
+    // los getypeerd (de echte Prisma-findMany-signatuur doet hier niet ter zake — de vi.mock-factory
+    // levert een simpele stub).
+    const findManyMock = prisma.mailIntake.findMany as unknown as {
+      mockImplementationOnce: (
+        impl: (args: { where: WhereArg; take: number }) => Promise<{ id: string }[]>,
+      ) => void;
+    };
+    findManyMock.mockImplementationOnce(async (args) => {
+      const selected = store.intakes
+        .filter((r) => matches(r, args.where))
+        .slice(0, args.take)
+        .map((r) => ({ id: r.id }));
+      for (const r of store.intakes) if (r.id === "reopened-0") r.status = "NEW";
+      return selected;
+    });
     const res = await runMailIntakeRetentionTask({ now: NOW });
     expect(res.pruned).toBe(0);
     expect(store.intakes.map((r) => r.id)).toEqual(["reopened-0"]);
