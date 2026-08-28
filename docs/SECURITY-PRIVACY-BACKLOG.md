@@ -4,6 +4,69 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-28 (basis: `main` @ 29729c14) — delta sinds #1258 + brede her-audit: geen nieuwe gaten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(A: broken access control/IDOR/tenant-isolatie · B: privacy/AVG · C: injectie/upload/secrets/SSRF/headers/
+errors/redirect). Focus lag op de **delta sinds de vorige audit** (`78a0b9ce..29729c14`, 6 commits — de
+routing-provider **aflever-heartbeat** (`#1259`/`#1260`: dead-man's-switch op de uitgaande geoapify-fetch),
+de **opdrachtgever-activiteit/anciënniteit trust-line** op opdracht-detail (`#1261`), het **kandidaat-
+multi-apply**-breedtesignaal op `/kandidaten` (`#1262`) en de **geboekte-omzet-vooruitblik** op `/prognose`
+(`#1263`), plus de bijbehorende nieuwe metrics-gauges), aangevuld met een brede re-sweep op de belendende
+oppervlakken (~52 server actions, ~42 route handlers, storage/upload, anonymisering, market-rate/k-anon).
+
+**Wat is geprobeerd / gedekt (OWASP Top 10 + AVG):**
+
+- **[A01 Broken Access Control / IDOR + tenant-isolatie]** — `currentActor()` laadt rol/status/tenant
+  **live uit de DB** (niet uit de JWT) en faalt gesloten op geschorst account, anonimisering, sessie-vóór-
+  wachtwoordwijziging én geschorste tenant (`tenantAccessBlocked`). Tenant-scoping (`tenantScopeWhere`,
+  `assertSameTenant`, `ownsViaTenant`, `visibleFreelancersWhere`, `canViewJob`) is één bron van waarheid,
+  toegepast op zowel lijst-query als detail-check. De gevoelige document-/PDF-routes delen één geharde vorm:
+  `requireActor`/`requireRole` → rate-limit → `findUnique` → ownership → **identieke 404 voor niet-gevonden
+  én verboden** (anti-oracle, CWE-203) → `DOCUMENT_ACCESS_DENIED`-audit op beide takken. De nieuwe delta-
+  oppervlakken zijn **read-only, geaggregeerd en correct gescoopt**: `getCompanyActivity` staat achter
+  `showClientSignals` (alleen de reagerende ZZP'er, nooit de eigenaar) en geeft enkel tellingen +
+  `memberSince` terug — geen individuele opdracht-/samenwerkingsdata, geen kandidaat-PII. `summarizeMultiApply`
+  is puur afgeleid uit de reeds per-opdrachtgever-gescoopte `applications`-lijst (geen extra query, nooit een
+  vreemde opdrachtgever, nooit tarieven/scores van de kandidaat op de andere opdracht). `/api/metrics` is
+  `CRON_SECRET`-Bearer-gated (fail-closed: 503 zonder secret, 401 bij fout token) en op de `isPublicPath`-
+  allowlist (exact-match).
+- **[A03 Injectie / XSS / CSV-formule]** — Geen nieuwe `dangerouslySetInnerHTML` (de enige is de statische,
+  nonce-gegatede theme-script in `layout.tsx`); geen `$queryRawUnsafe`/`$executeRawUnsafe`; alle `$queryRaw`
+  zijn parameterloze `SELECT 1`-health-probes. `escapeCsvField` neutraliseert `= + @ - \t \r`-cellen (CWE-1236).
+  De routing-URL-bouw zet de user-locatie enkel in `URLSearchParams` (geëncodeerde query-waarde — kan host/pad
+  niet wijzigen). Nieuwe metrics-gauges zijn pure numerieke waarden zonder labels/PII.
+- **[A04/A10 Upload + SSRF]** — Uploads: `validateUpload` (type-allowlist + ≤10 MB) → `assertContentMatchesMime`
+  (magic-byte-sniff vs. gedeclareerde MIME) → `generateStorageKey` (`YYYY/randomUUID.<ext>` — user-bestandsnaam
+  nooit in het pad); `LocalStorageDriver.resolve` heeft een path-traversal-guard. Elke server-side `fetch`
+  richt zich op een **hardgecodeerde provider-host** (geoapify/mollie/stripe/resend/HIBP) of env-endpoint —
+  geen user-gestuurde URL, geen weg naar 169.254.169.254/localhost/RFC1918.
+- **[A02/A05/A07 Secrets, headers, auth]** — Nul `NEXT_PUBLIC_`-secrets, geen `.env` in git, geen PII/secret
+  in logs (`logger.ts` redigeert + maskeert, met `pii-name-coverage`-gate). CSP met per-request-nonce +
+  `strict-dynamic`, HSTS, `frame-ancestors 'none'`, `object-src 'none'`. Login/register/reset rate-limited;
+  reset-token 256-bit `randomBytes`, SHA-256-at-rest, 1 u, single-use atomic; JWT 8 u + `passwordChangedAt`-
+  invalidatie live. Geen open redirect (login hardcodeert `redirectTo: "/dashboard"`).
+- **[AVG art. 17 — recht op vergetelheid]** — `anonymizeUser` is uitputtend: alle vrije-tekst-velden, de 2e/3e
+  PII-kopieën (reject/credit/cancel/no-show/dispute-redenen ook in counterparty-`Notification.body`,
+  `AuditLog.metadata`, `DomainEvent.payload`), gedragsmetadata, en documenten (rijen + blobs ná de transactie,
+  TOCTOU-veilig). De `anonymize-schema-coverage.test.ts`-gate breekt CI zodra een nieuw PII-model niet gedekt is;
+  de nieuwe delta introduceert geen ongedekt PII-model.
+- **[AVG dataminimalisatie + k-anonimiteit + audit]** — `computeMarketRate`/`computeMarketBand` geven pas
+  mediaan/p25/p75 vanaf `MARKET_RATE_MIN_SAMPLE = 10` peers (onder de drempel enkel een sample-telling).
+  Documentinzage/verificatiebesluiten/exports zijn allemaal ge-audit. Company-activity en multi-apply voegen
+  geen cross-partij-PII-oppervlak toe (enkel eigen-scope aggregaten).
+
+**Resultaat:** alle drie de adversariële audits + de orchestrator-review: **CLEAN — geen bevestigde nieuwe
+bevindingen.** Dit is een dekkings-/verificatie-PR (docs-only).
+
+**Geparkeerd (deployment-config, geen code-defect — LAAG):** de retentie-crons (`*_RETENTION_DAYS`) staan
+default UIT (opt-in, met een veilige floor voor `HEALTH_INCIDENT_IP_RETENTION_DAYS` = 90). Zonder ingevulde
+env-vars blijft PII in `Notification`/`AuditLog` onbeperkt bewaard — potentieel spanning met AVG art. 5(1)(e)
+(opslagbeperking) als de go-live-checklist deze niet zet. **Aanbevolen:** de go-live-runbook expliciet de
+retentievensters laten zetten (mens-taak; genoteerd in MENSENWERK.md). Geen codewijziging nodig.
+
+---
+
 ## Ronde 2026-08-27 (2e run — basis: `main` @ 78a0b9ce) — mail-intake-delta + brede her-audit: geen nieuwe gaten
 
 Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.
