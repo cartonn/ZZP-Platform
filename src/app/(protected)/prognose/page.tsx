@@ -4,11 +4,13 @@ import { Download } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { getForecastItemsForFreelancer } from "@/lib/data/income-forecast";
+import { getBookedRevenueForecast } from "@/lib/data/booked-revenue-forecast";
 import { getRealizedRevenueThisMonthCents } from "@/lib/data/monthly-income";
 import { summarizeIncomeGoal, incomeGoalPace } from "@/lib/income-goal";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { PrognosePanel } from "@/components/administratie/prognose-panel";
+import { BookedRevenueCard } from "@/components/administratie/booked-revenue-card";
 import { IncomeGoalCard } from "@/components/administratie/income-goal-card";
 
 export const metadata: Metadata = { title: "Inkomstenprognose · Handslag" };
@@ -21,13 +23,14 @@ export default async function PrognosePage() {
   }
 
   const now = new Date();
-  const [items, profile, realizedCents] = await Promise.all([
+  const [items, profile, realizedCents, bookedForecast] = await Promise.all([
     getForecastItemsForFreelancer(actor.id),
     prisma.freelancerProfile.findUnique({
       where: { userId: actor.id },
       select: { monthlyIncomeGoalCents: true },
     }),
     getRealizedRevenueThisMonthCents(actor.id, now),
+    getBookedRevenueForecast(actor.id, now),
   ]);
 
   // Nog te versturen concepten (DRAFT) tellen als het verwachte deel van het maanddoel.
@@ -60,6 +63,7 @@ export default async function PrognosePage() {
         }
       />
       <IncomeGoalCard summary={goalSummary} pace={goalPace} />
+      <BookedRevenueCard forecast={bookedForecast} />
       <PrognosePanel actor={actor} items={items} />
     </div>
   );
