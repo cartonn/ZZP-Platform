@@ -270,13 +270,12 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 > OPEN — BOUWEN (verified-absent, gap-hunt 2026-08-27; niet-overlappend gecheckt):
 >
-> - **ZZP'er — geboekte-omzet-vooruitblik (booked-revenue runway / inkomsten-cliff) op `/prognose`.**
->   Alle bestaande forecasts zijn receivables (geld voor reeds geleverd werk: `income-forecast.ts`,
->   `cashflow-forecast.ts`, `invoice-payment-forecast.ts`). Niets projecteert vooruit uit ACTIVE
->   `Collaboration` (`rate × geplande dagen` over `weekdays` t/m `endDate`) → "hoeveel inkomen zit al vast
->   de komende weken, en wanneer droogt het op?" Nieuw `src/lib/booked-revenue-forecast.ts` (pure
->   aggregator + dunne loader, hergebruik `weekdays.ts`/`WORK_HOURS_PER_DAY`), kaart boven `PrognosePanel`.
->   Read-only, geen schema/mutatie. ~180-260 regels.
+> - ~~**ZZP'er — geboekte-omzet-vooruitblik (booked-revenue runway / inkomsten-cliff) op `/prognose`.**~~
+>   **GEDAAN (2026-08-28, PR #1263).** Pure `buildBookedRevenueForecast` (`src/lib/booked-revenue-forecast.ts`)
+>   - loader (`src/lib/data/booked-revenue-forecast.ts`) + kaart "Al geboekt"
+>     (`src/components/administratie/booked-revenue-card.tsx`) boven `PrognosePanel`: geboekte waarde uit
+>     ACTIVE-samenwerkingen (`rate × 8u × resterende geplande weekdagen`), runway tot verste einddatum,
+>     maand-uitsplitsing, doorlopende samenwerkingen apart gemeld. Read-only, geen schema/mutatie. +14 tests.
 > - **Bemiddelaar — "openstaande voordrachten die stil vallen" (voordracht follow-up aging) op
 >   `/franchise/diensten`.** Het hele voordracht-systeem is forward-only (`dienst-fill-signal.ts`,
 >   `dienst-voordraag-overzicht.ts`: "wie kán ik nog voordragen?"). Niets beantwoordt "wie nodigde ik al

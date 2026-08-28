@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-28 — routine: geboekte-omzet-vooruitblik (booked-revenue runway) op /prognose (ZZP'er)
+
+**Wat:** alle bestaande ZZP'er-prognoses zijn _receivables_ — geld voor werk dat al geleverd is
+(`income-forecast.ts`, `cashflow-forecast.ts`, `invoice-payment-forecast.ts`). Niets keek vooruit
+uit lopende (ACTIVE) samenwerkingen. Nu een kaart **"Al geboekt"** bóven het prognose-paneel: hoeveel
+inkomen zit al vást in de agenda (`tarief × 8 u × resterende geplande weekdagen`), tot wanneer is de
+agenda gevuld ("runway"), en een maand-uitsplitsing vooruit. Doorlopende samenwerkingen zonder
+einddatum worden apart gemeld (niet geschat). Zo beantwoordt `/prognose` nu ook de ochtendvraag "hoe
+lang is m'n agenda gevuld en wat komt er binnen?" die de factuurgedreven prognose niet kon
+beantwoorden (benchmark Malt/Temper tonen "geboekt" naast "gefactureerd").
+
+**Hoe:** pure aggregator `buildBookedRevenueForecast` (`src/lib/booked-revenue-forecast.ts`,
+deterministisch: per resterende geplande weekdag `rate × WORK_HOURS_PER_DAY × 100` centen in de
+maand-emmer; venster van vandaag/latere startdatum t/m einddatum, geplafonneerd op `MAX_HORIZON_DAYS
+= 730` tegen corrupte data; lege `weekdays` → ma–vr; `rate` null/≤0 overgeslagen; open einde apart
+geteld; runway = verste échte einddatum onder de bijdragende samenwerkingen). Dunne loader
+`getBookedRevenueForecast` (`src/lib/data/booked-revenue-forecast.ts`, freelancer-gescoped
+`Collaboration`-query, `take:500`, `parseWeekdays`). Presentatiekaart
+`src/components/administratie/booked-revenue-card.tsx` (rendert niets zonder bijdrage). Gewired in
+`/prognose/page.tsx` (parallel geladen in de bestaande `Promise.all`, tussen doelkaart en paneel).
+Read-only, server-side waarheid, geen schema-/mutatie-/authz-oppervlak, geen dode knop. +14 unit-tests.
+
+**DoD:** prettier ✓ · typecheck ✓ · lint ✓ · unit 14 (nieuw) groen · volledige suite + build → gate ·
+CI-poort (6 checks incl. agent-review) → self-merge via auto-merge.
+
 ## 2026-08-27 — routine: kandidaat die op meerdere van je opdrachten reageerde (opdrachtgever)
 
 **Wat:** breedte-/intentie-signaal op `/kandidaten`. Wanneer één ZZP'er op meerdere van je open
