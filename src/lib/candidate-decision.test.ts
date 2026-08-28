@@ -189,11 +189,11 @@ describe("jobDecisionChip", () => {
     });
   });
 
-  it("raises to warning tone and flags the strong match", () => {
+  it("keeps the muted tone and flags the strong match", () => {
     expect(jobDecisionChip({ total: 2, strong: 1 })).toEqual({
       total: 2,
       strong: 1,
-      tone: "warning",
+      tone: "muted",
       label: "2 kandidaten wachten op je beslissing (sterke match)",
     });
   });
@@ -201,6 +201,14 @@ describe("jobDecisionChip", () => {
   it("clamps a strong count that exceeds the total (defensive)", () => {
     const chip = jobDecisionChip({ total: 1, strong: 5 });
     expect(chip?.strong).toBe(1);
-    expect(chip?.tone).toBe("warning");
+    expect(chip?.tone).toBe("muted");
+  });
+
+  // Regressie: dit signaal is bewust een zachte herinnering zonder /acties-pariteit (geen
+  // next-action, geen nav-badge). Het mag daarom nooit de alarmkleur (warning) krijgen, ook niet
+  // wanneer een sterke match wacht — anders valt het visueel samen met een echte volgende actie.
+  it("never uses a warning tone, even with a strong match waiting", () => {
+    expect(jobDecisionChip({ total: 5, strong: 3 })?.tone).toBe("muted");
+    expect(jobDecisionChip({ total: 1, strong: 1 })?.tone).toBe("muted");
   });
 });

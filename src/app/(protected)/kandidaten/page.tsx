@@ -468,9 +468,9 @@ export default async function KandidatenPage({
             </Card>
           )}
           {!filterStatus && decisionSummary.total > 0 && (
-            <Card className="border-warning/40 bg-warning/5">
+            <Card className="border-border bg-muted/40">
               <CardContent className="flex items-start gap-2.5 py-3 text-sm">
-                <Clock className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+                <Clock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
                 <p>
                   {decisionSummary.total === 1
                     ? t("1 kandidaat wacht op je beslissing")

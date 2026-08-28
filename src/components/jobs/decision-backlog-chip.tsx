@@ -2,7 +2,6 @@ import { LevelChip } from "@/components/jobs/signal-chips";
 import { type JobDecisionChip } from "@/lib/candidate-decision";
 
 const TONE_DOT: Record<JobDecisionChip["tone"], string> = {
-  warning: "bg-warning",
   muted: "bg-muted-foreground",
 };
 

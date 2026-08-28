@@ -137,8 +137,12 @@ export interface JobDecisionChip {
   total: number;
   /** Hoeveel daarvan een sterke match zijn (het duurst om te verliezen). */
   strong: number;
-  /** Warning zodra er een sterke match op je beslissing wacht; anders een rustige gedempte chip. */
-  tone: "warning" | "muted";
+  /**
+   * Altijd de rustige, gedempte toon. Bewust geen alarmkleur: dit signaal is een zachte
+   * herinnering zonder /acties-pariteit (geen next-action, geen nav-badge) en mag daarom
+   * visueel niet samenvallen met een echte volgende actie.
+   */
+  tone: "muted";
   /** Kant-en-klare, genderneutrale NL-chiptekst voor de kaart. */
   label: string;
 }
@@ -163,7 +167,7 @@ export function jobDecisionChip(summary: {
   return {
     total,
     strong,
-    tone: strong > 0 ? "warning" : "muted",
+    tone: "muted",
     label: `${total} ${noun} op je beslissing${strongSuffix}`,
   };
 }

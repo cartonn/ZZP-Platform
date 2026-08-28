@@ -1,5 +1,54 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-28 (run 97) · **main-commit basis:** `d874fb6f`
+> **Uitkomst:** **2 defecten gevonden én gefixt** — (1) **HIGH geld-integriteit**: een ongepoortte
+> check-then-act-race in `recordTenantFeeForCollaboration` kon een reeds-gefactureerde (`INVOICED`)
+> `CollaborationFee` — die een live platformfactuur dekt — **wissen of overschrijven** wanneer een
+> billing-run de rij tussen de status-lezing en de schrijfactie flipte; (2) **OPGELOST-geparkeerd —
+> next-action-pariteit (DOEL 1b, #1235, 4 runs geparkeerd)**: de beslis-achterstand-chip/-band gebruikte
+> de `warning`-alarmkleur zonder /acties-pariteit → visueel niet te onderscheiden van een echte
+> next-action; nu neutraal-gedempt (option b). Live doorklik + adversariële probe-matrix over alle 4
+> rollen (Playwright/Chromium, qa.db seed): **0 nieuwe bereikbare security-/robuustheidsgaten** — 3
+> parallelle adversariële Opus-audits (authz/IDOR/tenant op #1247-1266 · cascade/geld-integriteit +
+> verboden statusovergangen · next-action-engine).
+>
+> **Live-bewijs (Playwright/Chromium):** alle 4 rollen loggen in en renderen hun schermen + `/acties`
+> (200, geen crash). Adversariële matrix: privilege-escalatie ZZP/CLIENT/FRANCHISER → `/admin/*` →
+> **redirect naar `/dashboard`** (geen escalatie, final-URL geverifieerd); onzin-/nul-id's op
+> opdracht/samenwerking/factuur/bericht/zzper → **404** (anti-oracle, geen 500); task-endpoints zonder
+> `CRON_SECRET` → **503/404** (fail-closed); mail-intake-webhook zonder secret → **404**; betaal-webhook
+> → **200 "ok"** (bewust altijd-200 anti-retry, muteert alleen na handtekening-geverifieerde `resolveWebhookRef`).
+> **0 HTTP 500's over de hele matrix.**
+>
+> - **OPGELOST — HIGH (geld-integriteit, CLAUDE.md regel 1 — server-side waarheid; "eenmaal gefactureerd =
+>   bevroren"): ongepoortte TOCTOU tussen `recordTenantFeeForCollaboration` en `generatePlatformBilling`.**
+>   `recordTenantFeeForCollaboration` (`src/lib/tenant-billing/record-fee.ts`) las `existing.status` (regel
+>   37-41) en muteerde daarna via `delete({ where: { collaborationId } })` (intrekken bij grondslag 0) of
+>   `upsert(...).update` (herberekenen) — **beide alleen op `collaborationId`, zónder de status opnieuw te
+>   poorten**. Tussen de lezing en de schrijfactie kan `generatePlatformBilling` (`billing-run.ts`, gewired
+>   op `generateBillingAction`) de rij `PENDING → INVOICED` flippen en bundelen op een live DRAFT
+>   `PlatformBillingInvoice`. Het vertraagde `creditInvoice`-pad wiste dan de rij die een reeds-uitgegeven
+>   platformfactuur dekt (grootboek + auditspoor weg; tenant blijft de factuur schuldig → onreconcilieerbaar
+>   omzetgat), of overschreef de bevroren `feeCents`/`vatCents`. `TENANT_BILLING.enabled = true` → productie-
+>   bereikbaar. **Fix:** de delete/update zijn nu status-gepoort en atomair — `deleteMany({ where: {
+collaborationId, status: "PENDING" } })` (audit alleen bij `count > 0`) en `updateMany({ where: {
+collaborationId, status: "PENDING" }, ... })`; matcht `updateMany` 0 rijen dan valt het terug op `create`
+>   (nieuwe fee), en een unieke-`collaborationId`-botsing (P2002 — de bevroren rij bestaat al) is een stille
+>   no-op ("laat gefactureerde fee met rust"). Zelfde compound-guard-idioom als `setBillingStatusAction`/
+>   `collaborationCompletableGuard`. +2 regressietests (`record-fee-credit.test.ts`, rood→groen: fee blijft
+>   staan bij deleteMany-count 0; geen overschrijving + geen throw bij updateMany-count 0 + P2002-create).
+>   Bestaande grondslag-/creditnota-tests meegemigreerd naar de gepoortte mocks.
+> - **OPGELOST — should-fix/design (next-action-pariteit, DOEL 1b, #1235 — 4 runs geparkeerd):** de
+>   beslis-achterstand-chip op `/opdrachten` (`jobDecisionChip`, `candidate-decision.ts`) én de paginabrede
+>   band op `/kandidaten` gebruikten de `warning`-alarmkleur voor een zacht signaal dat **geen** corresponderend
+>   `/acties`-item of nav-badge heeft (canonieke drempel `WAIT_ATTENTION_DAYS` vs. de eerdere
+>   `DECISION_PATIENCE_DAYS`-nudge). In dit designsysteem is `warning` gereserveerd voor signalen die op een
+>   echte next-action mappen (bv. `JobFillUrgencyBadge` "acute" → `jobNeedsAttention`) → de chip/band viel
+>   visueel samen met een echte volgende actie. **Fix (option b):** de toon is nu uitsluitend `muted`
+>   (`JobDecisionChip.tone` versmald), de `/kandidaten`-band gehertint naar neutraal (`border-border
+bg-muted/40`, `text-muted-foreground`); copy en telling ongewijzigd. Bewust géén /acties-item/badge
+>   toegevoegd — het blijft een zachte herinnering. +regressietest (chip nooit `warning`, ook met sterke match).
+
 > **Datum:** 2026-08-27 (run 96) · **main-commit basis:** `f0b8e84d`
 > **Uitkomst:** **1 defect gevonden én gefixt** (should-fix functionele bereikbaarheid — de net-geshipte
 > mail-intake-provider-webhook was dood in productie omdat de auth-middleware de sessieloze provider-POST

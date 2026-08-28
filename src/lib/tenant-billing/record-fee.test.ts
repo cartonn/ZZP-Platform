@@ -37,8 +37,10 @@ const aggregateMock = vi.fn(async (args: { where: { lifecycleStatus: unknown } }
   return { _sum: { subtotalCents: sum } };
 });
 
-type UpsertArg = { create: { feeCents: number; vatCents: number } };
-const upsertMock = vi.fn((_args: UpsertArg): Promise<void> => Promise.resolve());
+// Geen bestaande fee-rij → `updateMany` matcht 0 rijen → de recorder valt terug op `create`.
+type CreateArg = { data: { feeCents: number; vatCents: number } };
+const updateManyMock = vi.fn(async () => ({ count: 0 }));
+const createMock = vi.fn((_args: CreateArg): Promise<void> => Promise.resolve());
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -53,7 +55,8 @@ vi.mock("@/lib/db", () => ({
     },
     collaborationFee: {
       findUnique: vi.fn(async () => null),
-      upsert: (args: unknown) => upsertMock(args as UpsertArg),
+      updateMany: () => updateManyMock(),
+      create: (args: unknown) => createMock(args as CreateArg),
     },
   },
 }));
@@ -62,7 +65,8 @@ vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => undefined) }));
 
 beforeEach(() => {
   aggregateMock.mockClear();
-  upsertMock.mockClear();
+  updateManyMock.mockClear();
+  createMock.mockClear();
 });
 
 describe("recordTenantFeeForCollaboration — grondslag", () => {
@@ -84,12 +88,12 @@ describe("recordTenantFeeForCollaboration — grondslag", () => {
       valueCents: 30_000,
       planKey: TENANT_BILLING.defaultPlanKey,
     });
-    expect(upsertMock).toHaveBeenCalledTimes(1);
-    const upsertArg = upsertMock.mock.calls[0]![0];
+    expect(createMock).toHaveBeenCalledTimes(1);
+    const createArg = createMock.mock.calls[0]![0];
     // Regressie-anker: met de oude "PAID"-only grondslag zou de grondslag € 100 zijn → lagere fee.
     if (expected) {
-      expect(upsertArg.create.feeCents).toBe(expected.feeCents);
-      expect(upsertArg.create.vatCents).toBe(expected.vatCents);
+      expect(createArg.data.feeCents).toBe(expected.feeCents);
+      expect(createArg.data.vatCents).toBe(expected.vatCents);
     }
   });
 });

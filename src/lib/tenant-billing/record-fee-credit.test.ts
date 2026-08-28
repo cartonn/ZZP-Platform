@@ -15,11 +15,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TENANT_BILLING } from "@/lib/config";
 
-// Per-test bestuurbare mocks.
+// Per-test bestuurbare mocks. De schrijfacties zijn status-gepoort: `deleteMany`/`updateMany` met
+// `status: "PENDING"` in de where-clause (atomair t.o.v. een gelijktijdige billing-run), `create` als
+// terugval wanneer er nog geen rij staat. De `...Count`-mocks laten een test de gematchte-rij-telling
+// sturen (0 = niets geraakt: geen rij, óf net naar INVOICED geflipt door een billing-run).
 const aggregateMock = vi.fn(async () => ({ _sum: { subtotalCents: 0 } }));
 const feeFindUniqueMock = vi.fn<() => Promise<{ status: string } | null>>(async () => null);
-const upsertMock = vi.fn(async () => undefined);
-const deleteMock = vi.fn(async () => undefined);
+const updateManyCount = { value: 1 };
+const deleteManyCount = { value: 1 };
+const updateManyMock = vi.fn(async () => ({ count: updateManyCount.value }));
+const deleteManyMock = vi.fn(async () => ({ count: deleteManyCount.value }));
+const createMock = vi.fn(async () => undefined);
 const auditMock = vi.fn<(entry: { action: string }) => Promise<void>>(async () => undefined);
 
 vi.mock("@/lib/db", () => ({
@@ -35,8 +41,9 @@ vi.mock("@/lib/db", () => ({
     },
     collaborationFee: {
       findUnique: () => feeFindUniqueMock(),
-      upsert: () => upsertMock(),
-      delete: () => deleteMock(),
+      updateMany: () => updateManyMock(),
+      deleteMany: () => deleteManyMock(),
+      create: () => createMock(),
     },
   },
 }));
@@ -46,9 +53,12 @@ vi.mock("@/lib/audit", () => ({ audit: (entry: { action: string }) => auditMock(
 beforeEach(() => {
   aggregateMock.mockClear();
   feeFindUniqueMock.mockClear();
-  upsertMock.mockClear();
-  deleteMock.mockClear();
+  updateManyMock.mockClear();
+  deleteManyMock.mockClear();
+  createMock.mockClear();
   auditMock.mockClear();
+  updateManyCount.value = 1;
+  deleteManyCount.value = 1;
 });
 
 describe("recordTenantFeeForCollaboration — creditnota-reconciliatie", () => {
@@ -60,8 +70,8 @@ describe("recordTenantFeeForCollaboration — creditnota-reconciliatie", () => {
     const { recordTenantFeeForCollaboration } = await import("@/lib/tenant-billing/record-fee");
     await recordTenantFeeForCollaboration("col-1");
 
-    expect(deleteMock).toHaveBeenCalledTimes(1);
-    expect(upsertMock).not.toHaveBeenCalled();
+    expect(deleteManyMock).toHaveBeenCalledTimes(1);
+    expect(updateManyMock).not.toHaveBeenCalled();
     // Auditspoor voor de intrekking.
     const auditArg = auditMock.mock.calls[0]![0];
     expect(auditArg.action).toBe("TENANT_FEE_REVERSED");
@@ -74,12 +84,12 @@ describe("recordTenantFeeForCollaboration — creditnota-reconciliatie", () => {
     const { recordTenantFeeForCollaboration } = await import("@/lib/tenant-billing/record-fee");
     await recordTenantFeeForCollaboration("col-1");
 
-    expect(deleteMock).not.toHaveBeenCalled();
-    expect(upsertMock).not.toHaveBeenCalled();
+    expect(deleteManyMock).not.toHaveBeenCalled();
+    expect(updateManyMock).not.toHaveBeenCalled();
     expect(auditMock).not.toHaveBeenCalled();
   });
 
-  it("herberekent (upsert) de fee naar beneden bij een deel-creditnota (grondslag > 0)", async () => {
+  it("herberekent (updateMany) de fee naar beneden bij een deel-creditnota (grondslag > 0)", async () => {
     // Eén van twee facturen gecrediteerd → grondslag nog € 100.
     aggregateMock.mockResolvedValueOnce({ _sum: { subtotalCents: 10_000 } });
     feeFindUniqueMock.mockResolvedValueOnce({ status: "PENDING" });
@@ -87,8 +97,9 @@ describe("recordTenantFeeForCollaboration — creditnota-reconciliatie", () => {
     const { recordTenantFeeForCollaboration } = await import("@/lib/tenant-billing/record-fee");
     await recordTenantFeeForCollaboration("col-1");
 
-    expect(upsertMock).toHaveBeenCalledTimes(1);
-    expect(deleteMock).not.toHaveBeenCalled();
+    expect(updateManyMock).toHaveBeenCalledTimes(1);
+    expect(createMock).not.toHaveBeenCalled(); // bestaande PENDING-rij geraakt → geen create-terugval
+    expect(deleteManyMock).not.toHaveBeenCalled();
   });
 
   it("doet niets als er geen fee stond en de grondslag 0 is (geen lege intrekking)", async () => {
@@ -98,8 +109,49 @@ describe("recordTenantFeeForCollaboration — creditnota-reconciliatie", () => {
     const { recordTenantFeeForCollaboration } = await import("@/lib/tenant-billing/record-fee");
     await recordTenantFeeForCollaboration("col-1");
 
-    expect(deleteMock).not.toHaveBeenCalled();
-    expect(upsertMock).not.toHaveBeenCalled();
+    expect(deleteManyMock).not.toHaveBeenCalled();
+    expect(updateManyMock).not.toHaveBeenCalled();
+    expect(auditMock).not.toHaveBeenCalled();
+  });
+
+  // TOCTOU-grendel (persona-sweep 2026-08-28): een billing-run kan de fee tussen de status-lezing en de
+  // schrijfactie naar INVOICED flippen. De status-gepoorte `deleteMany`/`updateMany` (where `status:
+  // "PENDING"`) matcht dan 0 rijen → de nu-gefactureerde fee (die een live platformfactuur dekt) mag
+  // NIET gewist of overschreven worden. Deze tests zijn rood met de oude ongepoortte `delete`/`upsert`.
+  it("wist een fee NIET als een billing-run 'm net naar INVOICED flipte (grondslag 0, deleteMany count 0)", async () => {
+    // Lezing zag nog PENDING, maar de gepoorte deleteMany matcht 0 rijen (billing-run won de race).
+    aggregateMock.mockResolvedValueOnce({ _sum: { subtotalCents: 0 } });
+    feeFindUniqueMock.mockResolvedValueOnce({ status: "PENDING" });
+    deleteManyCount.value = 0;
+
+    const { recordTenantFeeForCollaboration } = await import("@/lib/tenant-billing/record-fee");
+    await recordTenantFeeForCollaboration("col-1");
+
+    expect(deleteManyMock).toHaveBeenCalledTimes(1);
+    // Geen echte intrekking → geen misleidend TENANT_FEE_REVERSED-auditspoor voor een fee die er nog staat.
+    expect(auditMock).not.toHaveBeenCalled();
+  });
+
+  it("overschrijft een fee NIET als een billing-run 'm net naar INVOICED flipte (grondslag > 0, updateMany count 0, create botst op unique)", async () => {
+    // Lezing zag PENDING; de gepoorte updateMany matcht 0 rijen (net naar INVOICED). De create-terugval
+    // botst dan op de unieke collaborationId (de bevroren rij bestaat al) → P2002 → stille no-op.
+    const { Prisma } = await import("@prisma/client");
+    const p2002 = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+      code: "P2002",
+      clientVersion: "test",
+    });
+    aggregateMock.mockResolvedValueOnce({ _sum: { subtotalCents: 10_000 } });
+    feeFindUniqueMock.mockResolvedValueOnce({ status: "PENDING" });
+    updateManyCount.value = 0;
+    createMock.mockRejectedValueOnce(p2002);
+
+    const { recordTenantFeeForCollaboration } = await import("@/lib/tenant-billing/record-fee");
+    // Geen throw naar buiten: de botsing is een gewenste no-op (bevroren fee met rust gelaten).
+    await expect(recordTenantFeeForCollaboration("col-1")).resolves.toBeUndefined();
+
+    expect(updateManyMock).toHaveBeenCalledTimes(1);
+    expect(createMock).toHaveBeenCalledTimes(1);
+    // Niets echt geschreven → geen TENANT_FEE_RECORDED-auditspoor.
     expect(auditMock).not.toHaveBeenCalled();
   });
 });

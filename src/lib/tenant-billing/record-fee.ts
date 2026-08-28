@@ -4,6 +4,7 @@
 // billing uit staat, de samenwerking niet bij een tenant hoort, of de fee op 0 uitkomt. De aanroep
 // (confirmPayment) is best-effort: deze registratie faalt nooit de betaling zelf.
 // (Geen `import "server-only"`: dit bestand wordt via de cascade-commands ook door de seed geladen.)
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { TENANT_BILLING } from "@/lib/config";
 import { planCollaborationFeeRecord } from "@/lib/tenant-billing/collaboration-fee";
@@ -34,6 +35,11 @@ export async function recordTenantFeeForCollaboration(collaborationId: string): 
 
   // Eenmaal gefactureerd = bevroren; niet meer herberekenen, overschrijven of intrekken. Een creditnota
   // ná facturatie van de fee vereist een handmatige correctie in de billing-cockpit (buiten scope hier).
+  // Deze lezing dient alleen om vroeg te stoppen op een reeds-bevroren fee (bespaart werk); de
+  // uiteindelijke delete/update is óók status-gepoort (`status: "PENDING"` in de where-clause) zodat een
+  // billing-run die de rij tussen deze lezing en de schrijfactie naar INVOICED flipt, nooit een
+  // gefactureerde fee — die een live platformfactuur dekt — kan wissen of overschrijven (TOCTOU-grendel,
+  // zelfde compound-guard-patroon als `setBillingStatusAction`/`collaborationCompletableGuard`).
   const existing = await prisma.collaborationFee.findUnique({
     where: { collaborationId },
     select: { status: true },
@@ -56,35 +62,60 @@ export async function recordTenantFeeForCollaboration(collaborationId: string): 
   // straks een fee over teruggedraaide omzet aan de tenant (geld-integriteit). Trek 'm in.
   if (!record) {
     if (existing) {
-      await prisma.collaborationFee.delete({ where: { collaborationId } });
-      await audit({
-        actorId: null,
-        action: "TENANT_FEE_REVERSED",
-        entityType: "Collaboration",
-        entityId: collaborationId,
-        metadata: { tenantId, valueCents },
+      // Status-gepoort intrekken: alleen een nog-openstaande (PENDING) fee mag weg. `deleteMany` met de
+      // status in de where-clause is atomair — flipt een gelijktijdige billing-run de rij net naar
+      // INVOICED, dan matcht dit 0 rijen en blijft de gefactureerde fee (die een live platformfactuur
+      // dekt) staan i.p.v. gewist te worden. Audit alleen bij een echte intrekking.
+      const removed = await prisma.collaborationFee.deleteMany({
+        where: { collaborationId, status: "PENDING" },
       });
+      if (removed.count > 0) {
+        await audit({
+          actorId: null,
+          action: "TENANT_FEE_REVERSED",
+          entityType: "Collaboration",
+          entityId: collaborationId,
+          metadata: { tenantId, valueCents },
+        });
+      }
     }
     return;
   }
 
-  await prisma.collaborationFee.upsert({
-    where: { collaborationId },
-    create: {
-      collaborationId,
-      tenantId,
-      planKey: record.planKey,
-      feeCents: record.feeCents,
-      vatCents: record.vatCents,
-      status: "PENDING",
-    },
-    update: {
+  // Status-gepoorte herberekening. Eerst een guarded `updateMany` op de bestaande PENDING-rij: dit
+  // raakt nooit een INVOICED-rij (bevroren) en is atomair t.o.v. de billing-run. Matcht dat 0 rijen,
+  // dan bestaat er óf nog geen fee (maak er één), óf de fee is net bevroren (laat 'm met rust). We
+  // proberen daarom te creëren; botst dat op de unieke `collaborationId` (de bevroren rij bestaat al),
+  // dan is dat een no-op — precies de gewenste "laat gefactureerde fee met rust".
+  const updated = await prisma.collaborationFee.updateMany({
+    where: { collaborationId, status: "PENDING" },
+    data: {
       tenantId,
       planKey: record.planKey,
       feeCents: record.feeCents,
       vatCents: record.vatCents,
     },
   });
+
+  if (updated.count === 0) {
+    try {
+      await prisma.collaborationFee.create({
+        data: {
+          collaborationId,
+          tenantId,
+          planKey: record.planKey,
+          feeCents: record.feeCents,
+          vatCents: record.vatCents,
+          status: "PENDING",
+        },
+      });
+    } catch (err) {
+      // Unieke `collaborationId`-botsing: er staat al een (inmiddels bevroren of gelijktijdig
+      // aangemaakte) rij. Niet overschrijven — dat zou de bevroren-invariant breken. Geen audit.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return;
+      throw err;
+    }
+  }
 
   await audit({
     actorId: null,
