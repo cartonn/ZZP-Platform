@@ -15,6 +15,7 @@ import { PaymentDetailsCard } from "@/components/invoices/payment-details-card";
 import { PaymentForecastCard } from "@/components/invoices/payment-forecast-card";
 import { forecastForOpenInvoice } from "@/lib/administration/payout-forecast";
 import { formatIban } from "@/lib/fiscal";
+import { buildSepaQr } from "@/lib/payments/epc-qr";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -178,6 +179,20 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   const issuerIban = invoice.collaboration.freelancer.iban;
   const invoiceNumber = cascade ? (invoice.partyInvoiceNumber ?? invoice.number) : invoice.number;
   const showPaymentDetails = !!issuerIban && isInvoicePaymentPending(status, lifecycle);
+  const paymentReference = `Factuur ${invoiceNumber}`;
+
+  // SEPA scan-to-pay: bouw een EPC069-12 betaal-QR uit dezelfde server-side waarheid, zodat de
+  // opdrachtgever met zijn bankapp scant i.p.v. de gegevens over te tikken. Null als er (nog) geen
+  // geldige payload te bouwen is (bijv. ongeldige/afwezige IBAN) — de kaart valt dan terug op tekst.
+  const paymentQr =
+    showPaymentDetails && issuerIban
+      ? buildSepaQr({
+          name: invoice.collaboration.freelancer.user.name ?? "",
+          iban: issuerIban,
+          amountCents: invoice.totalCents,
+          remittance: paymentReference,
+        })
+      : null;
 
   // Verwachte-betaaldatum (ZZP'er, cashflow): projecteer op deze openstaande factuur het gemeten
   // betaalgedrag van déze opdrachtgever — dezelfde motor als de /openstaand-lijst. Alleen een
@@ -383,10 +398,11 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
         <PaymentDetailsCard
           ibanFormatted={formatIban(issuerIban)}
           accountName={invoice.collaboration.freelancer.user.name ?? ""}
-          paymentReference={`Factuur ${invoiceNumber}`}
+          paymentReference={paymentReference}
           amountFormatted={formatEuro(invoice.totalCents)}
           dueDateFormatted={invoice.dueAt ? fmt(invoice.dueAt) : null}
           isPayer={isClient}
+          qr={paymentQr}
         />
       )}
 
