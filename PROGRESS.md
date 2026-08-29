@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-29 — prod: boot-schema-sync retryt transiënte DB-onbereikbaarheid (deploy-veerkracht)
+
+**Wat:** `scripts/start.mjs` draait bij elke (her)start `prisma db push --skip-generate`. Die stap had
+als **enige** externe afhankelijkheid in de codebase geen retry: een transiënte Postgres-onbereikbaarheid
+tijdens een Railway-redeploy of DB-failover (opstartende database, connection-reset, korte netwerk-partitie
+→ Prisma P1001/P1002/P1008/P1017) liet de héle deploy spuriously falen — terwijl elke andere uitgaande call
+juist bounded retry+backoff heeft (`fetch-timeout.ts`, `http-verify.ts`).
+
+**Fix:** nieuwe pure/geteste `scripts/db-sync.mjs` (`syncSchema`) met begrensde exponentiële backoff
+**uitsluitend** op herkende transiënte connectiefouten (Prisma-codes + rauwe ECONNREFUSED/ECONNRESET/
+ETIMEDOUT/EAI_AGAIN). **Fail-fast** behouden op een destructieve-schemawijziging-weigering (bewust geen
+`--accept-data-loss`) en op élke andere/onbekende fout — de retry maskeert nooit een echt schema-/
+dataverlies-probleem (fataal wint altijd van transiënt, ook binnen dezelfde uitvoer). Defaults 5 retries /
+1s→16s, geklemd via `DB_SYNC_MAX_RETRIES`/`DB_SYNC_RETRY_BASE_MS`/`DB_SYNC_RETRY_MAX_MS`. `start.mjs` roept
+`await syncSchema({ log: console })` aan i.p.v. de kale `run(...)`.
+
+**Bestanden:** `scripts/db-sync.mjs` (nieuw), `scripts/db-sync.test.ts` (nieuw, 16 tests: classificatie
+transiënt/fataal + fataal-wint, env-clamping, backoff, retry-en-slaag / fail-fast / uitputting / retries=0),
+`scripts/start.mjs` (wiring + comment). Hergebruikt `clampMs` uit `shutdown-config.mjs` (zelfde .mjs-helper-
+patroon). **Checks:** db-sync 16/16 groen; typecheck/lint/build/prettier + volledige suite via de CI-poort.
+**Volgende:** de 3 geparkeerde LAAG-items (cross-tenant uitnodigings-teller, geocode-cache-adres, dev-only deps).
+
 ## 2026-08-29 — security/privacy: factuur-intrekreden overleefde de erasure (AVG art. 17, HOOG)
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

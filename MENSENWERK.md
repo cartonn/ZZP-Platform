@@ -471,6 +471,21 @@ nodig met back-ups en beveiligde opslag.
    (`src/lib/services/db-selftest.ts`, actie in `.../systeemstatus/actions.ts`). Resterend
    mensenwerk: **niets extra** — de knop is er standaard (en meldt eerlijk de lokale SQLite-provider
    tot `DATABASE_URL` op Postgres staat).
+   **Code-kant GEDAAN (2026-08-29) — boot-schema-sync retryt transiënte DB-onbereikbaarheid:**
+   `scripts/start.mjs` draait bij elke (her)start `prisma db push` om het schema idempotent op de
+   database te zetten. Tot nu toe had die stap — als **enige** externe afhankelijkheid in de codebase
+   — géén retry: een transiënte Postgres-onbereikbaarheid tijdens een Railway-redeploy of een
+   DB-failover (de database is nog aan het opstarten, een connection-reset, een korte netwerk-partitie)
+   liet de **héle deploy spuriously falen**, terwijl elke andere uitgaande call juist bounded
+   retry+backoff heeft. De schema-sync (`scripts/db-sync.mjs`, `syncSchema`) doet nu een begrensde
+   retry-met-exponentiële-backoff **uitsluitend** op een herkende transiënte connectiefout (Prisma
+   `P1001`/`P1002`/`P1008`/`P1017`, of rauwe `ECONNREFUSED`/`ECONNRESET`/`ETIMEDOUT`/`EAI_AGAIN`).
+   **Kritisch:** een destructieve-schemawijziging-weigering (het bewuste ontbreken van
+   `--accept-data-loss` dat productiedata beschermt) of élke andere/onbekende fout faalt nog steeds
+   **meteen, zonder retry** — de retry mag nooit een echt schema- of dataverlies-probleem achter een
+   paar minuten wachten verbergen. Defaults: 5 retries, 1s→16s backoff; bij te stellen via
+   `DB_SYNC_MAX_RETRIES` (0–10), `DB_SYNC_RETRY_BASE_MS`, `DB_SYNC_RETRY_MAX_MS`. Resterend mensenwerk:
+   **niets** — werkt out-of-the-box.
 
 ### 1c. Documentopslag (S3 of S3-compatibel)
 
