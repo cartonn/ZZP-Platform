@@ -66,6 +66,7 @@ import { getErrorMonitoringDeliveryFreshness } from "@/lib/observability/error-m
 import { getUploadScanDeliveryFreshness } from "@/lib/observability/upload-scan-delivery-heartbeat";
 import { getRoutingDeliveryFreshness } from "@/lib/observability/routing-delivery-heartbeat";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
+import { isSemanticMatcherDegraded } from "@/lib/services/semantic-matcher";
 import { waitingSince } from "@/lib/verification-queue";
 import {
   auditLogRetentionDays,
@@ -651,6 +652,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     verificationQueue,
     verificationQueueOldestAgeSeconds,
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),
+    semanticMatcherDegraded: isSemanticMatcherDegraded(),
     overdueExpiryCredentials,
     overdueExpirySubscriptions,
     stalePendingSubscriptions,

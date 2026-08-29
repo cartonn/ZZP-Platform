@@ -85,6 +85,12 @@ export interface MetricsInput {
   /** Staat de app in onderhoudsmodus (MAINTENANCE_MODE)? Zodat een monitor niet paget om de 503's. */
   maintenanceMode: boolean;
   /**
+   * Draait de semantische matching STIL op de lokale fallback terwijl de operator `SEMANTIC_MATCHER=pgvector`
+   * selecteerde (geselecteerd-maar-niet-operationeel)? Config-afgeleid: geen DB-read, geen PII.
+   * `false` bij `local`/geen config (geldige, productie-geschikte eindtoestand).
+   */
+  semanticMatcherDegraded: boolean;
+  /**
    * Aantal VERIFIED-credentials wier vervaldatum in het verleden ligt maar die nog niet naar EXPIRED
    * zijn omgezet — werk dat de expiry-cron had moeten doen. Een stille-faal-detector: de
    * cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie zijn werk deed. Blijft dit getal
@@ -615,6 +621,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "1 als de app in onderhoudsmodus staat (MAINTENANCE_MODE) en bezoekers een 503 krijgen, anders 0.",
       type: "gauge",
       value: input.maintenanceMode ? 1 : 0,
+    },
+    {
+      name: "zzp_semantic_matcher_degraded",
+      help: "1 als SEMANTIC_MATCHER=pgvector is geselecteerd maar niet operationeel is, waardoor matching stil op de lokale fallback draait (matching-kwaliteitsdegradatie), anders 0. Config-afgeleid, geen PII.",
+      type: "gauge",
+      value: input.semanticMatcherDegraded ? 1 : 0,
     },
     {
       name: "zzp_credentials_overdue_expiry",

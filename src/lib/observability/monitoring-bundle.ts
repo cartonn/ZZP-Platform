@@ -65,3 +65,70 @@ export function loadsRuleFile(prometheusText: string, fileName: string): boolean
   if (idx === -1) return false;
   return prometheusText.slice(idx).includes(fileName);
 }
+
+/**
+ * Eén knoop in de Alertmanager `route`-boom. We modelleren alleen wat de drift-gate nodig heeft: de
+ * receiver van deze knoop, de matchers waarop 'ie routeert, en de geneste subroutes.
+ */
+export interface AlertmanagerRoute {
+  receiver?: string;
+  matchers?: string[];
+  routes?: AlertmanagerRoute[];
+}
+
+/**
+ * Verzamelt ELKE receiver-naam die ergens in de route-boom wordt gerefereerd — de top-level receiver
+ * én die van elke (diep geneste) subroute. Puur: een geparste route-knoop in, een set namen uit.
+ *
+ * Alertmanager WEIGERT de héle config te laden als één (ook diep geneste) subroute naar een receiver
+ * verwijst die niet in `receivers` staat → een dode alerting-pijplijn, geen enkele alert routeert nog
+ * ergens heen. De bestaande gate dekte alleen de top-level `route.receiver`.
+ */
+export function collectRouteReceivers(route: AlertmanagerRoute | undefined): Set<string> {
+  const names = new Set<string>();
+  const stack: AlertmanagerRoute[] = route ? [route] : [];
+  while (stack.length > 0) {
+    const node = stack.pop() as AlertmanagerRoute;
+    if (typeof node.receiver === "string" && node.receiver.length > 0) {
+      names.add(node.receiver);
+    }
+    for (const child of node.routes ?? []) stack.push(child);
+  }
+  return names;
+}
+
+/**
+ * Verzamelt de `severity`-labelwaarden die `alerts.yml` daadwerkelijk aan alerts hangt.
+ * Gedeeld met de routing-gate zodat een subroute die op een severity matcht die GEEN enkele
+ * alert draagt (een typo) opvalt.
+ */
+export function definedSeverities(rulesText: string): Set<string> {
+  const severities = new Set<string>();
+  for (const match of rulesText.matchAll(/^\s*severity:\s*["']?([A-Za-z][A-Za-z0-9_]*)["']?/gm)) {
+    if (match[1]) severities.add(match[1]);
+  }
+  return severities;
+}
+
+/**
+ * Verzamelt de `severity`-waarden waarvoor de route-boom een eigen (matcher-)route heeft.
+ * Puur: geparste route-boom in, set severity-waarden uit.
+ */
+export function routedSeverities(route: AlertmanagerRoute | undefined): Set<string> {
+  const severities = new Set<string>();
+  const stack: AlertmanagerRoute[] = route ? [route] : [];
+  while (stack.length > 0) {
+    const node = stack.pop() as AlertmanagerRoute;
+    for (const matcher of node.matchers ?? []) {
+      const match = matcher.match(/severity\s*=~?\s*["']?([^"'\s]+)["']?/);
+      if (match?.[1]) {
+        for (const value of match[1].split("|")) {
+          const trimmed = value.trim();
+          if (trimmed) severities.add(trimmed);
+        }
+      }
+    }
+    for (const child of node.routes ?? []) stack.push(child);
+  }
+  return severities;
+}
