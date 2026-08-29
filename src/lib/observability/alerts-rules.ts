@@ -90,6 +90,7 @@ const SAMPLE_INPUT: MetricsInput = {
   verificationQueue: 0,
   verificationQueueOldestAgeSeconds: null,
   maintenanceMode: false,
+  semanticMatcherDegraded: false,
   overdueExpiryCredentials: 0,
   overdueExpirySubscriptions: 0,
   stalePendingSubscriptions: 0,

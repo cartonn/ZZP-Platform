@@ -490,6 +490,7 @@ describe("buildMetrics", () => {
       verificationQueue: 0,
       verificationQueueOldestAgeSeconds: null,
       maintenanceMode: true,
+      semanticMatcherDegraded: true,
       overdueExpiryCredentials: 12,
       overdueExpirySubscriptions: 8,
       stalePendingSubscriptions: 16,
