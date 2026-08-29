@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-29 — persona-sweep run 100: koud-opdracht-actie sprak zichzelf tegen + dubbelde
+
+**Wat:** kritische-gebruiker-sweep over 4 rollen (live doorgeklikt + 3 adversariële audits). Eén
+next-action-defect gevonden en gefixt (DOEL 1b, opdrachtgever): de "koud-lopende opdracht"-actie
+("weinig respons — verruim de zichtbaarheid") bleef vuren nadat de kandidaat al was vastgelegd
+(ACCEPTED-reactie in de propose-limbo of een PROPOSED-samenwerking) — recht tegenover de gelijktijdige
+"rond de hire af"/"onderteken het contract"-actie (Face A, statuscontradictie); en een opdracht die
+zowel koud als overdue-onbezet was leverde twee next-action-rijen voor dezelfde opdracht op, wat
+`pendingTaskCount` opblies (Face B, dubbele rij). Oorzaak: `getClientColdJobs` sloot alleen een
+ACTIVE-samenwerking uit, terwijl de zuster-producer `getClientOverdueJobs` (#1280) de bredere
+`lockedIn`-poort hanteert.
+
+**Bestanden:** `src/lib/data/client-cold-jobs.ts` (query spiegelt nu de `lockedIn`-poort: geen
+ACCEPTED-reactie én geen niet-geannuleerde samenwerking) + `src/lib/actions/pending-tasks.ts`
+(`clientTasks` berekent de overdue-set eerst en ontdubbelt de koud-taak per jobId — spiegelt de
+acute/stale-dienst-ontdubbeling). +2 regressietests (rood→groen) in `client-cold-jobs.test.ts`
+(lockedIn-poort in de query) en `pending-tasks-client-cold-jobs.test.ts` (dedup in de engine).
+
+**Checks:** typecheck ✓ · lint ✓ · 7346 unit-tests ✓ · build ✓ · prettier ✓. Live-matrix (4 rollen,
+Playwright/Chromium): geen 500's, cross-role → dashboard-redirect, IDOR/cross-tenant/onzin-id → 404.
+Overige audits (authz/IDOR/tenant, cascade/geld-integriteit): 0 nieuwe bereikbare gaten. Details in
+`docs/PERSONA-SWEEP-BACKLOG.md` (run 100).
+
 ## 2026-08-29 — routine: pool-brede openstaand-veroudering voor de bemiddelaar — PR #1283
 
 **Wat:** de pool-openstaand-kaart op `/franchise/opdrachtgevers` toonde wél het totale én het te-late

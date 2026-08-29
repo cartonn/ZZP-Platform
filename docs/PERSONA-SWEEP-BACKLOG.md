@@ -1,5 +1,44 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-29 (run 100) · **main-commit basis:** `d58cc9f9`
+> **Uitkomst:** **1 defect gevonden én gefixt** (DOEL 1b — next-action-engine, opdrachtgever): de
+> koud-lopende-opdracht-actie ("weinig respons — verruim de zichtbaarheid") sprak zijn eigen
+> gelijktijdige next-action tegen. 4 rollen live doorgeklikt (Playwright/Chromium, qa.db-seed) +
+> 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie ·
+> cascade/geld-integriteit + verboden statusovergangen · next-action-engine). De authz/IDOR/tenant- én
+> cascade-audits vonden **0 nieuwe bereikbare gaten** (opnieuw bevestigd diep gehard: live-rol-authz +
+> middleware-redirect, `ownsViaTenant`/`tenantScopeWhere`, anti-oracle 404 op vreemde/onzin-id's, geen
+> 500's, gebalanceerd grootboek op elk pad incl. de run-99 WITHDRAWN-terugboeking, fail-closed
+> state-machines + TOCTOU-guards, dedupeKeys). De live-matrix over 4 rollen bevestigde: login→dashboard +
+> `/acties` **200**; cross-role `/admin/*` & `/franchise/*` → **redirect naar /dashboard**; IDOR op
+> vreemde samenwerking/factuur → **404** (anti-oracle); cross-tenant dienst → **404** (eigen tenant/admin
+> **200**); onzin-id's op samenwerking/factuur/opdracht/bericht/certificaat → **404**, nergens een 500.
+>
+> - **OPGELOST — should-fix (DOEL 1b, CLAUDE.md regel 1 & 7 — server-side waarheid, "geen dode knoppen"/
+>   geen zichzelf-tegensprekende acties): de "koud-lopende opdracht"-next-action bleef vuren voor een
+>   opdracht waarvan de kandidaat al is vastgelegd, én dubbelde met de overdue-onbezet-actie.**
+>   `getClientColdJobs` (`src/lib/data/client-cold-jobs.ts`) sloot een opdracht alleen uit bij een
+>   **ACTIVE**-samenwerking, terwijl de zuster-producer `getClientOverdueJobs` (#1280) de bredere
+>   `lockedIn`-poort hanteert (géén ACCEPTED-reactie **én** géén niet-geannuleerde samenwerking). Gevolg
+>   **(Face A — statuscontradictie):** zodra de opdrachtgever een kandidaat had geaccepteerd (ACCEPTED-
+>   reactie in de propose-limbo, nog geen samenwerking) of een voorstel had gestuurd (PROPOSED-samenwerking,
+>   contract nog te tekenen), toonde `/acties` nog steeds "weinig respons — verruim de zichtbaarheid" voor
+>   diezelfde opdracht — recht tegenover de gelijktijdige "rond de hire af"/"onderteken het contract"-actie.
+>   Gevolg **(Face B — dubbele rij):** een opdracht die zowel koud als overdue-onbezet was leverde twee
+>   next-action-rijen op (`job-needs-attention` P=44 + `job-staffing-overdue` P=51), met dezelfde deep-link,
+>   en blies `pendingTaskCount` met één op — terwijl de codebase elke analoge overlap elders ontdubbelt
+>   (first-look/applications, acute/stale-dienst). **Repro (opdrachtgever, geen DB-manipulatie):** plaats
+>   een opdracht met ≤2 reacties ≥7 dagen open → accepteer de kandidaat (of stuur een voorstel) → `/acties`
+>   toont naast "rond de hire af" óók de tegenstrijdige "weinig respons"-nudge voor dezelfde opdracht.
+>   **Fix:** `getClientColdJobs` spiegelt nu de `lockedIn`-poort (`applications: { none: { status:
+"ACCEPTED" } }` + `collaborations: { none: { status: { not: "CANCELLED" } } }`) → Face A weg; en
+>   `clientTasks` (`src/lib/actions/pending-tasks.ts`) berekent de overdue-set eerst en slaat de koud-taak
+>   over voor een opdracht die al als overdue-onbezet gesignaleerd is → Face B weg (spiegelt de acute/stale-
+>   dienst-ontdubbeling). +2 regressietests (rood→groen): de lockedIn-poort in de query, en de dedup in de
+>   engine. Volledige gate groen (typecheck/lint/7346 unit-tests/build/prettier).
+>
+> ---
+>
 > **Datum:** 2026-08-29 (run 99 — herland van de op 29-08 gesloten PR #1243; agent-review-blockers vooraf verwerkt) · **main-commit basis:** `a7098550`
 > **Uitkomst:** **1 defect gevonden én gefixt** (should-fix robuustheid/geld-integriteit, betaal-cascade —
 > onontkoombare ACTIVE-deadlock + spookvordering bij een nooit-aanvaarde factuur). 4 parallelle adversariële

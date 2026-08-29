@@ -21,7 +21,7 @@ const state = vi.hoisted(() => ({
   apps: [] as { jobId: string; createdAt: Date }[],
 }));
 
-const jobFindMany = vi.fn(async () =>
+const jobFindMany = vi.fn(async (_args?: { where?: Record<string, unknown> }) =>
   state.jobs.map((j) => ({
     id: j.id,
     title: j.title,
@@ -37,7 +37,7 @@ const appFindMany = vi.fn(async (args: { where?: { jobId?: { in?: string[] } } }
 
 vi.mock("@/lib/db", () => ({
   prisma: {
-    job: { findMany: (...a: unknown[]) => jobFindMany(...(a as [])) },
+    job: { findMany: (a: unknown) => jobFindMany(a as never) },
     application: { findMany: (a: unknown) => appFindMany(a as never) },
   },
 }));
@@ -122,5 +122,30 @@ describe("getClientColdJobs", () => {
     const cold = await getClientColdJobs("u-1", NOW);
     expect(cold).toEqual([]);
     expect(appFindMany).not.toHaveBeenCalled();
+  });
+
+  it("sluit een vastgelegde opdracht DB-side uit: geen ACCEPTED-reactie én geen niet-geannuleerde samenwerking (lockedIn-poort)", async () => {
+    // Regressie: een reeds-geaccepteerde kandidaat (ACCEPTED-reactie, propose-limbo) of een PROPOSED-
+    // samenwerking betekent "iemand vastgelegd" → de opdracht mag níét als "weinig respons" verschijnen
+    // (dat sprak de gelijktijdige "rond de hire af"/"onderteken het contract"-actie tegen). De poort
+    // moet de lockedIn-uitsluiting van getClientOverdueJobs spiegelen, niet alleen ACTIVE uitsluiten.
+    state.jobs = [
+      {
+        id: "job-x",
+        title: "X",
+        publishedAt: daysAgo(14),
+        createdAt: daysAgo(14),
+        applicationCount: 0,
+      },
+    ];
+    await getClientColdJobs("u-1", NOW);
+    const where = (jobFindMany.mock.calls[0]?.[0]?.where ?? {}) as Record<
+      string,
+      Record<string, unknown>
+    >;
+    expect(where.applications).toEqual({ none: { status: "ACCEPTED" } });
+    expect(where.collaborations).toEqual({ none: { status: { not: "CANCELLED" } } });
+    // De oude, te smalle poort (alleen ACTIVE) mag niet terugkeren.
+    expect(where.collaborations).not.toEqual({ none: { status: "ACTIVE" } });
   });
 });

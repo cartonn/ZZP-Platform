@@ -1239,20 +1239,28 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   if (staleApplications) tasks.push(staleApplicationsTask(staleApplications));
   if (draftJobs > 0) tasks.push(draftJobsTask(draftJobs));
 
-  // Koud-lopende gepubliceerde opdrachten (geen/weinig kandidaten) — het vacaturetempo-signaal dat tot
-  // nu toe alleen op de opdracht-lijst/-detail + als achtergrondnotificatie stond, nu ook als
-  // next-action. Gedeelde `getClientColdJobs` → identiek aan de /opdrachten-nav-badge (geen drift).
-  for (const cold of await getClientColdJobs(userId, new Date())) {
-    tasks.push(jobNeedsAttentionTask(cold.jobId, cold.title, cold.headline));
-  }
-
   // Overdue-onbezette opdrachten (startdatum verstreken, nog niemand vastgelegd) — het verstreken-
   // planning-deadline-signaal dat al op het opdracht-detail (`JobStaffingRiskCard`) en de lijstbadge
   // stond, nu ook als next-action. Gedeelde `summarizeStaffingRisk` → identiek aan het detailscherm.
-  for (const overdue of await getClientOverdueJobs(userId, new Date())) {
+  // Vóór de koud-tak berekend zodat die zijn opdrachten kan ontdubbelen (zie hieronder).
+  const overdueJobs = await getClientOverdueJobs(userId, new Date());
+  for (const overdue of overdueJobs) {
     tasks.push(
       jobStaffingOverdueTask(overdue.jobId, overdue.title, overdue.daysUntilStart, overdue.action),
     );
+  }
+  const overdueJobIds = new Set(overdueJobs.map((o) => o.jobId));
+
+  // Koud-lopende gepubliceerde opdrachten (geen/weinig kandidaten) — het vacaturetempo-signaal dat tot
+  // nu toe alleen op de opdracht-lijst/-detail + als achtergrondnotificatie stond, nu ook als
+  // next-action. Gedeelde `getClientColdJobs` → identiek aan de /opdrachten-nav-badge (geen drift).
+  // Ontdubbeling: een opdracht die al als overdue-onbezet is gesignaleerd, tonen we níét óók als koud.
+  // De verstreken-planning-taak (P=51) is het urgentere, dominante signaal voor dezelfde opdracht/partij
+  // en subsumeert de zachtere "weinig respons"-nudge (P=44); beide tonen zou dezelfde deep-link twee keer
+  // geven en de badge (`pendingTaskCount`) opblazen. Spiegelt de acute/stale-dienst-ontdubbeling (bemiddelaar).
+  for (const cold of await getClientColdJobs(userId, new Date())) {
+    if (overdueJobIds.has(cold.jobId)) continue;
+    tasks.push(jobNeedsAttentionTask(cold.jobId, cold.title, cold.headline));
   }
 
   // BTW-aangifte-deadline (zie freelancerTasks) — ook de opdrachtgever heeft een eigen grootboek.
