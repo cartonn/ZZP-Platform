@@ -17,6 +17,11 @@ import {
   centsToEuroInput,
   parseEurosToCents,
 } from "@/lib/expense";
+import {
+  mileageExpenseNetCents,
+  parseExpenseKilometers,
+  mileageRateLabel,
+} from "@/lib/expense-mileage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -46,6 +51,31 @@ export function UitgavenForm() {
   const [net, setNet] = useState("");
   const [vat, setVat] = useState("");
   const [rate, setRate] = useState<ExpenseVatRateKey>("21");
+  // Categorie is gecontroleerd zodat de km-helper alleen bij reiskosten verschijnt. `km` voedt de
+  // rittenregistratie én berekent het nettobedrag tegen het vaste tarief (0% btw).
+  const [category, setCategory] = useState("REISKOSTEN");
+  const [km, setKm] = useState("");
+
+  // Verwerk een km-invoer: vul het nettobedrag met de wettelijke vergoeding en zet btw op 0% (een
+  // kilometervergoeding kent geen voorbelasting). De server (`createExpense`) blijft de bron van
+  // waarheid en her-valideert km, netto én btw los.
+  function onKmChange(value: string) {
+    setKm(value);
+    const parsed = parseExpenseKilometers(value);
+    if (parsed === null) return;
+    setNet(centsToEuroInput(mileageExpenseNetCents(parsed)));
+    setRate("0");
+    setVat("");
+  }
+
+  function onCategoryChange(value: string) {
+    setCategory(value);
+    // Km hoort alleen bij reiskosten; wissel je weg, dan verdwijnt de rittenregistratie.
+    if (value !== "REISKOSTEN") setKm("");
+  }
+
+  const kmValue = parseExpenseKilometers(km);
+  const kmNetCents = kmValue === null ? 0 : mileageExpenseNetCents(kmValue);
 
   // Herbereken het btw-bedrag uit een netto en een tarief; "custom" laat de ZZP'er het zelf typen.
   function recomputeVat(nextNet: string, nextRate: ExpenseVatRateKey) {
@@ -72,6 +102,8 @@ export function UitgavenForm() {
       setNet("");
       setVat("");
       setRate("21");
+      setCategory("REISKOSTEN");
+      setKm("");
     }
   }, [state]);
 
@@ -99,7 +131,8 @@ export function UitgavenForm() {
           <select
             id="expense-category"
             name="category"
-            defaultValue="REISKOSTEN"
+            value={category}
+            onChange={(e) => onCategoryChange(e.target.value)}
             className="focus-ring h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
           >
             {EXPENSE_CATEGORIES.map((c) => (
@@ -123,6 +156,33 @@ export function UitgavenForm() {
           />
         </div>
       </div>
+
+      {category === "REISKOSTEN" && (
+        <div className="space-y-1.5 rounded-lg border border-border bg-muted/40 p-3">
+          <label htmlFor="expense-km" className="block text-xs font-medium text-foreground">
+            Zakelijke kilometers <span className="text-muted-foreground">(optioneel)</span>
+          </label>
+          <Input
+            id="expense-km"
+            name="kilometers"
+            type="text"
+            inputMode="numeric"
+            placeholder="bijv. 42"
+            value={km}
+            onChange={(e) => onKmChange(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Leg je rit vast — het bedrag volgt automatisch uit de vaste vergoeding van €{" "}
+            {mileageRateLabel()}/km (0% btw).
+            {kmValue !== null && (
+              <span className="font-medium text-foreground">
+                {" "}
+                {kmValue} km = {centsToEuroInput(kmNetCents) || "0,00"} euro.
+              </span>
+            )}
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">

@@ -22,7 +22,7 @@ describe("expensesCsv", () => {
 
   it("rendert datum als ISO, geld in euro's met punt-decimaal en het NL-categorielabel", () => {
     const lines = expensesCsv([row()]).split("\r\n");
-    expect(lines[1]).toBe("2026-03-10;Treinkaartje;Reiskosten;12.50;0.88");
+    expect(lines[1]).toBe("2026-03-10;Treinkaartje;Reiskosten;12.50;0.88;");
   });
 
   it("sorteert oplopend op datum, los van de aanlever-volgorde", () => {
@@ -37,7 +37,14 @@ describe("expensesCsv", () => {
 
   it("valt terug op 'Overig' bij een onbekende categorie", () => {
     const lines = expensesCsv([row({ category: "ONZIN", description: "Rest" })]).split("\r\n");
-    expect(lines[1]).toBe("2026-03-10;Rest;Overig;12.50;0.88");
+    expect(lines[1]).toBe("2026-03-10;Rest;Overig;12.50;0.88;");
+  });
+
+  it("neemt de rittenregistratie-kilometers mee, en laat de kolom leeg zonder km", () => {
+    const withKm = expensesCsv([row({ kilometers: 42 })]).split("\r\n");
+    expect(withKm[1]).toBe("2026-03-10;Treinkaartje;Reiskosten;12.50;0.88;42");
+    const zeroKm = expensesCsv([row({ kilometers: 0 })]).split("\r\n");
+    expect(zeroKm[1]).toBe("2026-03-10;Treinkaartje;Reiskosten;12.50;0.88;");
   });
 
   it("dekt formule-injectie in de omschrijving af (CWE-1236)", () => {

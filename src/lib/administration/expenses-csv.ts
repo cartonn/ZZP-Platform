@@ -18,6 +18,7 @@ export const EXPENSES_EXPORT_HEADERS = [
   "categorie",
   "netto",
   "btw",
+  "kilometers",
 ] as const;
 
 /** Minimale rijvorm die de export nodig heeft (owner-gescopet aangeleverd door de route). */
@@ -27,6 +28,8 @@ export interface ExpenseCsvRow {
   category: string;
   netCents: number;
   vatCents: number;
+  /** Zakelijke rit-km (rittenregistratie), of null wanneer geen km is vastgelegd. */
+  kilometers?: number | null;
 }
 
 /** Categorie-string → NL-label (schermpariteit); onbekende waarden vallen terug op "Overig". */
@@ -49,6 +52,7 @@ export function expensesCsv(rows: readonly ExpenseCsvRow[]): string {
       categoryLabel(r.category),
       centsToEuroPlain(r.netCents),
       centsToEuroPlain(r.vatCents),
+      r.kilometers != null && r.kilometers > 0 ? String(r.kilometers) : "",
     ]);
   return toCsv([EXPENSES_EXPORT_HEADERS, ...body]);
 }
