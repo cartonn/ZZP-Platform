@@ -3,6 +3,7 @@ import { headers, cookies } from "next/headers";
 import { Bell, LogOut, Plus } from "lucide-react";
 import { type Session } from "next-auth";
 import { signOut } from "@/auth";
+import { logoutRedirect } from "@/lib/security/clear-site-data";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { SidebarRail } from "@/components/sidebar-rail";
@@ -122,7 +123,7 @@ export async function AppShell({
             <form
               action={async () => {
                 "use server";
-                await signOut({ redirectTo: "/login" });
+                await signOut({ redirectTo: logoutRedirect() });
               }}
               className="mt-2"
             >

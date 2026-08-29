@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
 import { buildCsp, generateNonce, reportingEndpointsHeader } from "@/lib/csp";
 import {
+  CLEAR_SITE_DATA_LOGOUT,
+  shouldClearSiteDataOnLogout,
+} from "@/lib/security/clear-site-data";
+import {
   buildMaintenancePage,
   isMaintenanceEnabled,
   maintenanceAllowsAdmin,
@@ -99,7 +103,16 @@ export default auth((request) => {
   );
   if (maintenance) return maintenance;
 
-  if (isPublicPath(pathname)) return nextWithCsp(request, requestId);
+  if (isPublicPath(pathname)) {
+    const response = nextWithCsp(request, requestId);
+    // Post-logout-landing (/login mét de logout-marker): laat de browser het cache-/storage-residu
+    // van de vorige sessie wissen (service-worker Cache-Storage van auth-gated pagina's + client-
+    // storage). Zie src/lib/security/clear-site-data.ts. Alleen bij een expliciete logout.
+    if (shouldClearSiteDataOnLogout(pathname, request.nextUrl.searchParams)) {
+      response.headers.set("Clear-Site-Data", CLEAR_SITE_DATA_LOGOUT);
+    }
+    return response;
+  }
 
   const origin = getPublicOrigin(request, request.nextUrl.origin);
   if (!request.auth?.user) {

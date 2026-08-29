@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { requireActor } from "@/lib/authz";
 import { signOut } from "@/auth";
+import { logoutRedirect } from "@/lib/security/clear-site-data";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
@@ -87,6 +88,6 @@ export async function changePassword(
 
   // Uitloggen → de gebruiker logt opnieuw in met het nieuwe wachtwoord en krijgt een verse sessie
   // (zonder de geforceerde-wijziging-vlag). signOut gooit een redirect; dit returnt dus niet.
-  await signOut({ redirectTo: "/login?changed=1" });
+  await signOut({ redirectTo: logoutRedirect("/login?changed=1") });
   return {};
 }

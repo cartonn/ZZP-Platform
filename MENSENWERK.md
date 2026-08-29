@@ -412,6 +412,18 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   `SEMANTIC_MATCHER=local` de juiste productie-instelling en draait matching volledig op de
   deterministische lokale matcher. Zie RUNBOOK §2b voor de operationele stappen.
 
+- **`Clear-Site-Data` bij uitloggen** (laag, code-kant GEDAAN 2026-08-29): dit platform is een PWA met
+  een service-worker (`public/sw.js`, cache `zzp-shell-v3`) die genavigeerde — dus auth-gated — pagina's
+  in de Cache-Storage bewaart, plus client-storage (localStorage). Op een **gedeelde/publieke computer**
+  kon een volgende gebruiker dat residu na het uitloggen nog inzien. Bij een expliciete logout draagt de
+  post-logout `/login`-navigatie nu de `Clear-Site-Data: "cache", "storage"`-header
+  (`src/lib/security/clear-site-data.ts`, gewired in `src/middleware.ts`; de `signOut(...)`-aanroepen
+  markeren de redirect), zodat de browser dat residu wist. Bewust **niet** `"cookies"` (NextAuth wist de
+  sessiecookie al expliciet; álle cookies wissen kan het inlogformulier zijn CSRF-cookie breken). Alleen
+  bij een expliciete logout, niet bij een verlopen sessie. Resterend mensenwerk: **niets** — browsers
+  honoreren de header alleen over een veilige (HTTPS) verbinding, dus actief in productie (Railway),
+  lokaal over http genegeerd.
+
 ## §1. Hosting, database, opslag, domein, geheimen
 
 **Wat:** de plek waar de website draait, waar gegevens worden bewaard en waar documenten veilig
