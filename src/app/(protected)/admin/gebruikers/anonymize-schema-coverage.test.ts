@@ -248,6 +248,49 @@ describe("AVG art. 17 — schema-dekking van de erasure (anonymizeUser)", () => 
     ).toEqual([]);
   });
 
+  it("elke cascade-auditactie die een vrije-tekstreden in de metadata schrijft, wordt door de erasure geredact (AVG art. 17)", () => {
+    // Faalklasse (deze ronde): een NIEUWE cascade-auditactie die een door de betrokkene zelf getypte
+    // `reason` in de `metadata` bewaart (bv. INVOICE_WITHDRAWN, commit 497940f2) werd toegevoegd zónder
+    // de bijbehorende scrub in `anonymizeUser`. De generieke email/naam-scrub raakt vrije tekst nooit,
+    // dus zo'n reden overleeft stil art. 17 — herleidbaar via `AuditLog.actorId`. Deze poort scant de
+    // cascade-bron op audit-effecten die een `reason` in de metadata zetten en eist voor elke gevonden
+    // actie een `action: "<NAAM>"`-redactie in de erasure-bron (spiegelt de veld-niveau-poort hierboven).
+    const cascadeFiles = ["src/lib/cascade/handlers.ts", "src/lib/cascade/dispute-commands.ts"];
+    const reasonActions = new Set<string>();
+    for (const rel of cascadeFiles) {
+      const src = readFileSync(resolve(process.cwd(), rel), "utf8");
+      // Splits de bron op elke `action: "<NAAM>"` en kijk of het bijbehorende effect-object (tot de
+      // volgende `action:` of +600 tekens) een `metadata:`-schrijfactie met een `reason` bevat.
+      const re = /action:\s*"([A-Z_]+)"/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(src)) !== null) {
+        const action = m[1]!;
+        const next = src.indexOf("action:", m.index + m[0].length);
+        const window = src.slice(
+          m.index,
+          next === -1 ? m.index + 600 : Math.min(next, m.index + 600),
+        );
+        if (/metadata:[^;]*\breason\b/.test(window)) reasonActions.add(action);
+      }
+    }
+    // Sanity: de scan moet de bekende reden-dragende acties vinden (anders is de extractie stuk en zou
+    // de poort stil altijd slagen).
+    expect(
+      reasonActions.size,
+      "scan vond geen reden-dragende cascade-auditacties — extractie waarschijnlijk kapot",
+    ).toBeGreaterThanOrEqual(4);
+
+    const src = anonymizeUserSource();
+    const unredacted = [...reasonActions].filter((a) => !new RegExp(`action:\\s*"${a}"`).test(src));
+    expect(
+      unredacted,
+      `Cascade-auditacties die een vrije-tekstreden in de metadata schrijven maar door de erasure ` +
+        `NIET worden geredact. Voeg een \`prisma.auditLog.updateMany({ where: { actorId: userId, ` +
+        `action: "<NAAM>" }, data: { metadata: JSON.stringify({ reason: AUDIT_PII_REDACTED }) } })\` toe ` +
+        `in anonymizeUser (AVG art. 17): ${unredacted.join(", ")}`,
+    ).toEqual([]);
+  });
+
   it("de uitzonderingslijst blijft eerlijk: geen dode of dubbel-gedekte vermeldingen", () => {
     const src = anonymizeUserSource();
     const models = new Set(schemaModels());

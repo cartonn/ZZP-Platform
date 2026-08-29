@@ -4,6 +4,75 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-29b (basis: `main` @ d58cc9f9) — HOOG OPGELOST: factuur-intrekreden (`INVOICE_WITHDRAWN`) overleefde de erasure (AVG art. 17) + structurele reden-metadata-dekkingspoort
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(A: broken access control/IDOR/tenant-isolatie · B: privacy/AVG · C: injectie/upload/secrets/SSRF/headers/
+errors/redirect/CSRF + `npm audit`). Focus op de delta sinds de vorige ronde (`45955a9c..d58cc9f9`, 8 commits:
+#1276 erasure-fix, #1277 Clear-Site-Data bij logout, #1278 herindiening-signaal, #1279 monitoring drift-gate,
+#1281 factuur-intrekken WITHDRAWN, #1282 mail-intake meetlus, #1280 overdue-onbezet next-action, #1283 pool-
+brede openstaand-veroudering) + een brede her-sweep van de authz-keten, tenant-scoping, upload/storage,
+injectie, de aggregaten en de erasure-dekking. Runtime: build + seed + geverifieerde poorten.
+
+**OPGELOST — [HOOG · AVG art. 17 (recht op vergetelheid) + art. 5(1)(c)] de zelf-getypte factuur-intrekreden
+overleefde de erasure.**
+De nieuwe `withdrawInvoice`-flow (commit #1281, `src/lib/cascade/invoice-commands.ts` → `withdrawInvoiceAction`
+in `samenwerkingen/[id]/actions.ts`, met een `withdrawReason`-vrijetekstveld in de UI) schrijft de door de
+ZZP'er (uitschrijver) getypte reden verbatim in de `{ reason }`-metadata van het `INVOICE_WITHDRAWN`-
+auditrecord (`src/lib/cascade/handlers.ts:468`). `anonymizeUser` redacte de zusteracties `DISPUTE_OPENED`,
+`INVOICE_CREDITED` en `INVOICE_REJECTED` al expliciet, maar `INVOICE_WITHDRAWN` was **niet** toegevoegd — de
+nieuwe reden-dragende auditactie glipte ongeredact door. De generieke `scrubAuditMetadataPii`-pass matcht enkel
+op exact e-mail/naam, nooit op een vrije zin, dus de reden overleefde en bleef herleidbaar via `AuditLog.actorId`
+→ de (hernoemde) `User`. Verzwarend: audit-retentie staat default UIT (`AUDIT_LOG_RETENTION_DAYS` leeg → geen
+purge), dus zonder operator-config bleef de reden na een verwijderverzoek onbeperkt bewaard. Repro: ZZP'er trekt
+een ingediende factuur in met een getypte reden → admin anonimiseert → `INVOICE_WITHDRAWN`-metadata bevat de
+reden nog. **Fix:** `prisma.auditLog.updateMany({ where: { actorId: userId, action: "INVOICE_WITHDRAWN" }, data:
+{ metadata: JSON.stringify({ reason: AUDIT_PII_REDACTED }) } })` in de anonimiseringstransactie (alleen de
+uitschrijver trekt in → `actorId == de betrokkene` is exact; spiegelt de `DISPUTE_OPENED`-redactie). Regressietest
+rood→groen in `anonymize-erasure.test.ts`.
+
+**OPGELOST — [structureel] geen poort ving een nieuwe reden-dragende cascade-auditactie af.**
+De vorige ronde voegde een veld-niveau-dekkingspoort toe voor behouden Prisma-modellen (Application/Performance),
+maar niets bewaakte dát elke cascade-auditactie die een vrije-tekstreden in de metadata zet ook door de erasure
+wordt geredact — precies waardoor `INVOICE_WITHDRAWN` stil doorglipte. **Fix:** nieuwe structurele poort in
+`anonymize-schema-coverage.test.ts` die `src/lib/cascade/handlers.ts` + `dispute-commands.ts` scant op audit-
+effecten die een `reason` in de metadata schrijven, en voor elke gevonden actie een `action: "<NAAM>"`-redactie
+in de `anonymizeUser`-bron eist. Geverifieerd rood zonder de fix (flagt exact `INVOICE_WITHDRAWN`), groen erna.
+Een volgende nieuwe reden-dragende auditactie zónder scrub breekt nu de CI-poort i.p.v. stil PII te laten
+overleven.
+
+**Bevinding A (broken access control/IDOR/tenant):** CLEAN. Alle document-/PDF-/dossier-streamingroutes checken
+ownership vóór de stream met identiek 404 (CWE-203) + `*_ACCESS_DENIED`-audit op beide takken; exports scopen op
+`actor.id`; de franchise/tenant-oppervlakken (actions + page-loaders) scopen uniform via `tenantScopeWhere`/
+`ownsViaTenant`/`assertSameTenant` en falen gesloten; alle 22 `/api/tasks/**`-cronroutes zijn `authorizeCron`-
+gepoort (timing-safe bearer, 503 zonder secret); webhooks secret-gated + timing-safe. De delta-code (`withdrawInvoice`,
+de nieuwe franchise/data-helpers) draagt correcte access control.
+
+**Bevinding C (injectie/upload/secrets/SSRF/headers/errors/redirect/CSRF):** CLEAN. Geen raw-SQL-unsafe (elke
+`$queryRaw` is een parameterloze `SELECT 1`-probe), enige `dangerouslySetInnerHTML` is het statische nonce-gated
+theme-script, CSV-formule-guard (`= + - @ \t \r`) op alle exports, upload-keten (type+grootte→magic-byte→malware-
+scan→random UUID-key→traversal-guard) intact, geen server-side fetch uit user-input (Geoapify-host hardcoded),
+login-redirect hardcoded `/dashboard` (geen open redirect), reset-tokens 256-bit/SHA-256/1u/single-use race-proof,
+webhook-HMAC timing-safe, `safe-action-error` maskeert Prisma/interne fouten, CSP-nonce + `frame-ancestors 'none'`
+
+- `object-src 'none'`. `npm audit --omit=dev` = **0** productie-kwetsbaarheden.
+
+**Geparkeerd (LAAG) — cross-tenant uitnodigings-teller aan opdrachtgever getoond.** Ongewijzigd sinds vorige ronde
+(`candidate-invite-responsiveness.ts`: platform-brede `Y`-noemer zonder k-vloer). Aanbevolen fix: noemer scopen op
+de kijkende tenant, óf enkel het kwalitatieve badge tonen, óf een kleine-aantallen-vloer.
+
+**Geparkeerd (LAAG) — geocode-cache kan precieze ZZP-adressen bevatten, ontkoppeld maar persistent.** Ongewijzigd
+(`routing.ts` `GeocodeCache`, 180 dgn TTL, niet user-gekoppeld). Aanbevolen fix: normaliseer routing-input naar
+plaats/postcode vóór egress/caching.
+
+**Geparkeerd (LAAG · dev-only dependency-DoS):** ongewijzigd — `npm audit`-bevindingen zitten in dev-only
+transitieve deps; niet productie-bereikbaar (`--omit=dev` = schoon). Fix: `npm audit fix` in een aparte deps-PR.
+
+**Resultaat:** 1× HOOG OPGELOST (erasure-gat) + 1× structurele dekkingspoort toegevoegd; A + C-oppervlakken CLEAN;
+3 bevindingen geparkeerd (LAAG).
+
+---
+
 ## Ronde 2026-08-29 (basis: `main` @ 45955a9c) — MIDDEL OPGELOST: residuele PII in `Application` overleefde de erasure (AVG art. 17) + veld-niveau-dekkingspoort
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

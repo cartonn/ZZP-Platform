@@ -794,6 +794,17 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { actorId: userId, action: "DISPUTE_OPENED" },
       data: { metadata: JSON.stringify({ reason: AUDIT_PII_REDACTED }) },
     }),
+    // Factuur-intrekreden: vrije tekst die de uitschrijver (ZZP'er) zelf typt bij het intrekken van een
+    // ingediende factuur (withdrawInvoice, cascade/invoice-commands.ts) — bewaard in de `{ reason }`-
+    // metadata van het eigen INVOICE_WITHDRAWN-auditrecord. Alleen de uitschrijver kan intrekken, dus
+    // `actorId == de betrokkene` is exact (spiegelt DISPUTE_OPENED/INVOICE_CREDITED). De generieke
+    // `scrubAuditMetadataPii`-pass raakt een vrije-tekstreden nooit (geen e-mail/naam-match), dus zonder
+    // deze expliciete redactie overleeft de reden art. 17 — herleidbaar via `AuditLog.actorId` naar de
+    // (hernoemde) User (audit-retentie staat default uit → potentieel onbeperkt bewaard).
+    prisma.auditLog.updateMany({
+      where: { actorId: userId, action: "INVOICE_WITHDRAWN" },
+      data: { metadata: JSON.stringify({ reason: AUDIT_PII_REDACTED }) },
+    }),
     // En de derde kopie: de admin-fanout-notificatie zet de reden verbatim in haar body
     // (`Dispuut bij "<opdracht>": <reden>`). Notificaties worden nergens anders aangeraakt, dus zonder
     // deze redactie blijft de vrije tekst herleidbaar bij élke admin. Gescopet op de admin-variant
