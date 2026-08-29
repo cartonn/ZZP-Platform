@@ -39,6 +39,7 @@ const VALUE_LABELS: Record<string, string> = {
   CANCELLED: "Geannuleerd",
   PROCESSED: "Verwerkt",
   CREDITED: "Gecrediteerd",
+  WITHDRAWN: "Ingetrokken",
 };
 
 function labelFor(key: string): string {

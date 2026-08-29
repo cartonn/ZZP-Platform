@@ -83,6 +83,7 @@ const LIFECYCLE_LABEL: Record<string, string> = {
   REJECTED: "Afgekeurd",
   OVERDUE: "Te laat",
   CREDITED: "Gecrediteerd",
+  WITHDRAWN: "Ingetrokken",
 };
 
 /** Platform-brede factuurexport → CSV voor financieel toezicht. Gesorteerd op datum. */

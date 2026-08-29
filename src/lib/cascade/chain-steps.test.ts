@@ -143,6 +143,17 @@ describe("buildChainSteps — stap 3 (Factuur)", () => {
     expect(inv.detail).toBe("Gecrediteerd");
     expect(inv.detail).not.toContain("Volgt");
   });
+
+  // Regressie (persona-sweep run 95): een INGETROKKEN factuur is terminaal afgewikkeld — de stepper
+  // mag niet terugvallen op "Volgt na goedkeuring prestatie" en zo de terminale status tegenspreken.
+  it("factuur WITHDRAWN → done (afgewikkeld, geen tegenstrijdige 'volgt nog'-tekst)", () => {
+    const inv = buildChainSteps(
+      col("ACTIVE", [{ status: "APPROVED" }], [{ lifecycleStatus: "WITHDRAWN" }]),
+    )[2]!;
+    expect(inv.status).toBe("done");
+    expect(inv.detail).toBe("Ingetrokken");
+    expect(inv.detail).not.toContain("Volgt");
+  });
 });
 
 describe("buildChainSteps — stap 4 (Betaling)", () => {
@@ -184,6 +195,13 @@ describe("buildChainSteps — stap 4 (Betaling)", () => {
     const pay = buildChainSteps(col("ACTIVE", [], [{ lifecycleStatus: "CREDITED" }]))[3]!;
     expect(pay.status).toBe("done");
     expect(pay.detail).toContain("gecrediteerd");
+  });
+
+  // Regressie: een ingetrokken factuur wikkelt af zonder betaling — geen openstaande betaalactie.
+  it("factuur WITHDRAWN → betaling done (niet verschuldigd)", () => {
+    const pay = buildChainSteps(col("ACTIVE", [], [{ lifecycleStatus: "WITHDRAWN" }]))[3]!;
+    expect(pay.status).toBe("done");
+    expect(pay.detail).toContain("ingetrokken");
   });
 });
 

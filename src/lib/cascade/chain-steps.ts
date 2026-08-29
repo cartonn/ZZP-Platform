@@ -80,6 +80,13 @@ export function buildChainSteps(col: {
     // gecrediteerd") op hetzelfde scherm tegen.
     invStatus = "done";
     invDetail = "Gecrediteerd";
+  } else if (inv === "WITHDRAWN") {
+    // Ingetrokken is net als gecrediteerd een afgewikkelde eindtoestand (spiegelt stage.ts): de
+    // factuur is definitief teruggetrokken, niemand hoeft nog te betalen. Zonder deze tak viel
+    // WITHDRAWN door naar de "Volgt na goedkeuring prestatie"-default en sprak de stepper de
+    // terminale status ("Factuur ingetrokken") op hetzelfde scherm tegen.
+    invStatus = "done";
+    invDetail = "Ingetrokken";
   } else if (inv === "APPROVED") {
     invStatus = "active";
     invDetail = "Goedgekeurd — wachten op betaling";
@@ -106,19 +113,22 @@ export function buildChainSteps(col: {
   const invApproved = inv === "APPROVED" || inv === "OVERDUE";
   const overdue = inv === "OVERDUE";
   const credited = inv === "CREDITED";
+  const withdrawn = inv === "WITHDRAWN";
   steps.push({
     label: "Betaling",
-    // Gecrediteerd: afgewikkeld zonder betaling — geen openstaande actie (spiegelt stage.ts).
-    status: paid || credited ? "done" : invApproved ? "active" : "waiting",
+    // Gecrediteerd/ingetrokken: afgewikkeld zonder betaling — geen openstaande actie (spiegelt stage.ts).
+    status: paid || credited || withdrawn ? "done" : invApproved ? "active" : "waiting",
     detail: paid
       ? "Ontvangen"
       : credited
         ? "Niet verschuldigd (gecrediteerd)"
-        : overdue
-          ? "Wachten op betaling — te laat"
-          : invApproved
-            ? "Wachten op betaling"
-            : "Volgt na factuurgoedkeuring",
+        : withdrawn
+          ? "Niet verschuldigd (ingetrokken)"
+          : overdue
+            ? "Wachten op betaling — te laat"
+            : invApproved
+              ? "Wachten op betaling"
+              : "Volgt na factuurgoedkeuring",
   });
 
   return steps;
