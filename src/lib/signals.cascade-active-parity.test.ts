@@ -42,6 +42,7 @@ vi.mock("@/lib/collaboration-alerts", async (importOriginal) => {
 });
 
 // navBadges(CLIENT) roept getClientColdJobs aan; neutraliseren.
+vi.mock("@/lib/data/client-overdue-jobs", () => ({ getClientOverdueJobs: vi.fn(async () => []) }));
 vi.mock("@/lib/data/client-cold-jobs", () => ({ getClientColdJobs: vi.fn(async () => []) }));
 
 import { navBadges } from "./signals";

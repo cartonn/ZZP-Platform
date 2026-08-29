@@ -127,6 +127,7 @@ vi.mock("@/lib/collaboration-alerts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/collaboration-alerts")>();
   return { ...actual, clientCredentialAlerts: vi.fn(async () => []) };
 });
+vi.mock("@/lib/data/client-overdue-jobs", () => ({ getClientOverdueJobs: vi.fn(async () => []) }));
 vi.mock("@/lib/data/client-cold-jobs", () => ({ getClientColdJobs: vi.fn(async () => []) }));
 
 import { pendingTasks } from "@/lib/actions/pending-tasks";

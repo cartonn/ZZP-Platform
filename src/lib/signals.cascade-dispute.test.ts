@@ -47,6 +47,7 @@ vi.mock("@/lib/collaboration-alerts", async (importOriginal) => {
 
 // navBadges(CLIENT) roept nu getClientColdJobs aan (prisma.job.findMany); neutraliseren zodat de
 // bestaande badge-assertions geïsoleerd blijven van het nieuwe koud-signaal.
+vi.mock("@/lib/data/client-overdue-jobs", () => ({ getClientOverdueJobs: vi.fn(async () => []) }));
 vi.mock("@/lib/data/client-cold-jobs", () => ({ getClientColdJobs: vi.fn(async () => []) }));
 
 import { navBadges } from "./signals";
