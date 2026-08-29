@@ -74,6 +74,8 @@ test("fout wachtwoord toont foutmelding", async ({ page }) => {
 test("uitloggen brengt terug naar /login", async ({ page }) => {
   await login(page, "zzp@zzp-platform.local");
   await page.getByRole("button", { name: "Uitloggen" }).click();
-  await page.waitForURL("**/login");
+  // De logout-redirect draagt de Clear-Site-Data-marker (?uitgelogd=1), dus matchen we /login
+  // met of zonder querystring (zie src/lib/security/clear-site-data.ts).
+  await page.waitForURL(/\/login(\?|$)/);
   await expect(page.getByRole("heading", { name: "Inloggen" })).toBeVisible();
 });
