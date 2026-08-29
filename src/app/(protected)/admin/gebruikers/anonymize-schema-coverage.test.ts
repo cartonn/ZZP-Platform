@@ -134,6 +134,40 @@ const ALLOWLIST: Record<string, string> = {
     "[APART] gesprekscontainer zonder eigen PII; berichten worden geredact en ConversationParticipant.lastReadAt gewist.",
 };
 
+// Veld-niveau-dekking (aanvulling op de model-niveau-poort hierboven). De model-poort ziet enkel
+// DÁT een model wordt aangeraakt, niet WÉLKE kolommen worden gewist. Daardoor kon een tweede,
+// gevoelige PII-kolom op een reeds-aangeraakt model stil een verwijderverzoek overleven — precies zo
+// bleef `Application.complianceSnapshot`/`matchScore`/`proposedRate` staan terwijl `motivation`/
+// `availability` al werden gewist (het model telde als "gedekt"). Dit is dezelfde faalklasse als de
+// `SavedJobSearch`-les uit de model-poort, één niveau dieper: een NIEUWE PII-kolom op een reeds-
+// gewist, BEHOUDEN (gepseudonimiseerd, niet cascade-verwijderd) model.
+//
+// Deze poort dwingt daarom af dat elke hieronder benoemde PII-kolom als geschreven data-sleutel
+// (`veld:`) in de erasure-body voorkomt. Dekt de inline-geschreven, behouden modellen waar extra
+// kolommen het risico vormen (Application, Performance). De helper-gedreven modellen (User/
+// FreelancerProfile/Company via `*AnonymizationData()`) hebben hun eigen uitputtende veld-asserties in
+// `anonymize-erasure.test.ts`. Een nieuwe PII-kolom op een van deze modellen die niet wordt gewist
+// breekt de poort i.p.v. stil PII te laten overleven (AVG art. 17 + 5(1)(c)).
+const REQUIRED_FIELDS: Record<string, string[]> = {
+  // Reactie op een opdracht — blijft gepseudonimiseerd staan (een geaccepteerde reactie draagt een
+  // Collaboration met bewaargrond). Vrije tekst + server-berekende per-persoon-snapshots moeten mee.
+  Application: [
+    "motivation",
+    "availability",
+    "complianceSnapshot",
+    "matchScore",
+    "proposedRate",
+    "note",
+  ],
+  // Prestatie/urenstaat — blijft als factuur-/fiscale historie staan; de zelf-getypte vrije tekst niet.
+  Performance: ["description", "milestoneTitle"],
+};
+
+/** True als `veld` als geschreven data-sleutel (`veld:`) in de erasure-body voorkomt. */
+function fieldIsWiped(src: string, field: string): boolean {
+  return new RegExp(`\\b${field}\\s*:`).test(src);
+}
+
 describe("AVG art. 17 — schema-dekking van de erasure (anonymizeUser)", () => {
   it("extractie werkt: bekende gewiste modellen worden als erasure-gedekt herkend", () => {
     const src = anonymizeUserSource();
@@ -155,6 +189,26 @@ describe("AVG art. 17 — schema-dekking van de erasure (anonymizeUser)", () => 
       `Modellen die noch door de erasure (anonymizeUser) worden aangeraakt, noch bewust zijn ` +
         `uitgezonderd. Draad ze in de erasure-transactie (AVG art. 17) óf voeg ze met een gemotiveerde ` +
         `reden toe aan ALLOWLIST in deze test: ${unclassified.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("gevoelige PII-kolommen op behouden modellen worden veld-voor-veld gewist (niet enkel het model aangeraakt)", () => {
+    const src = anonymizeUserSource();
+    const missing: string[] = [];
+    for (const [model, fields] of Object.entries(REQUIRED_FIELDS)) {
+      // Sanity: het model moet überhaupt door de erasure worden aangeraakt.
+      expect(isErased(src, model), `verwacht dat ${model} door de erasure wordt aangeraakt`).toBe(
+        true,
+      );
+      for (const field of fields) {
+        if (!fieldIsWiped(src, field)) missing.push(`${model}.${field}`);
+      }
+    }
+    expect(
+      missing,
+      `PII-kolommen op behouden modellen die de erasure niet (meer) wist. Draad ze in de ` +
+        `bijbehorende updateMany-data (AVG art. 17 + 5(1)(c)) — een reeds-gewist model dekt een ` +
+        `nieuwe/tweede PII-kolom niet automatisch: ${missing.join(", ")}`,
     ).toEqual([]);
   });
 

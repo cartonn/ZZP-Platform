@@ -583,7 +583,23 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { freelancer: { userId } },
       // Naast de motivatiebrief draagt ook het vrije-tekst-`availability`-veld (≤200 tekens, bv.
       // "bereikbaar op 06-…, kan per direct starten") door de betrokkene getypte PII → mee wissen.
-      data: { motivation: "[Verwijderd op verzoek van de gebruiker]", availability: null },
+      // Óók de server-berekende per-persoon-snapshots moeten mee: `complianceSnapshot` is een
+      // JSON-momentopname van wélke verplichte certificaten de betrokkene bij het reageren mistte of
+      // verlopen had (categorieën als VOG/LICENSE/INSURANCE — een gevoelig compliance-profiel van de
+      // persoon), `matchScore` is een afgeleide beoordeling van de betrokkene, en `proposedRate` het
+      // door de betrokkene zelf gevraagde tarief. Deze rij overleeft de erasure (gepseudonimiseerd,
+      // niet verwijderd — een geaccepteerde reactie draagt zelfs een Collaboration met bewaargrond),
+      // dus zonder deze wissing blijft herleidbare PII via `freelancerId → FreelancerProfile → User`
+      // gekoppeld aan de betrokkene achter (AVG art. 17 + 5(1)(c); spiegel AvailabilityWindow/SavedJob).
+      // De agreed rate voor facturatie leeft op de Collaboration/Invoice (eigen fiscale bewaargrond),
+      // dus het nullen van `proposedRate` hier raakt die historie niet.
+      data: {
+        motivation: "[Verwijderd op verzoek van de gebruiker]",
+        availability: null,
+        complianceSnapshot: null,
+        matchScore: null,
+        proposedRate: null,
+      },
     }),
     // Interne kandidaatnotitie die de betrokkene als CLIENT zelf schreef bij reacties op de eigen
     // opdrachten (Application.note, vrije tekst met mogelijk persoonlijke opmerkingen). Gescopet op de

@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-29 — security/privacy: residuele PII in `Application` overleefde de erasure (AVG art. 17) OPGELOST + veld-niveau-dekkingspoort
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: A01/IDOR/tenant · privacy/AVG · injectie/upload/secrets/SSRF/headers). A01 en
+injectie/upload/secrets CLEAN; `npm audit --omit=dev` = 0 productie-kwetsbaarheden. **Twee MIDDEL-bevindingen
+gefixt:** (1) `anonymizeUser` liet in de freelancer-gescopete `application.updateMany` naast de al-gewiste
+`motivation`/`availability` de server-berekende per-persoon-snapshots **`complianceSnapshot`** (JSON: wélke
+verplichte certificaten — o.a. VOG/LICENSE/INSURANCE — de betrokkene bij het reageren mistte/verlopen had, een
+gevoelig compliance-profiel), **`matchScore`** en **`proposedRate`** staan; die overleefden de erasure
+herleidbaar via `freelancerId → FreelancerProfile → User` (AVG art. 17 + 5(1)(c)). Nu mee-genulld. (2) De
+erasure-dekkingspoort was model-granulair (checkte enkel dát een model werd aangeraakt, niet wélke kolommen) —
+precies waardoor (1) door CI glipte; veld-niveau-companion-poort toegevoegd (`REQUIRED_FIELDS` per behouden
+inline-model). Twee andere LAAG-bevindingen (cross-tenant uitnodigings-teller; geocode-cache-adres) geparkeerd
+in de backlog.
+
+**Bestanden:** `src/app/(protected)/admin/gebruikers/actions.ts` (de drie velden mee-genulld),
+`src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts` (rood→groen regressietest),
+`src/app/(protected)/admin/gebruikers/anonymize-schema-coverage.test.ts` (veld-niveau-poort, rood zonder de
+fix), `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-08-29). Geverifieerd rood→groen op beide testen.
+
+---
+
 ## 2026-08-29 — routine: expiry-signaal op de admin-verificatiewachtrij (ADMIN)
 
 **Wat:** de verificatiewachtrij (`/admin/verificaties`) toont per SUBMITTED-certificaat al twee triage-assen
