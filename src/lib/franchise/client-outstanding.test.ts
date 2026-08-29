@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   clientOutstandingByCompany,
   poolOutstandingTotals,
+  poolOverdueAging,
   type ClientOutstandingInvoice,
 } from "@/lib/franchise/client-outstanding";
 
@@ -78,5 +79,42 @@ describe("poolOutstandingTotals", () => {
       overdueCount: 0,
       clientsOverdue: 0,
     });
+  });
+});
+
+describe("poolOverdueAging", () => {
+  it("somt het te late geld pool-breed per bucket op, oplopend in ouderdom", () => {
+    const invoices: ClientOutstandingInvoice[] = [
+      { companyId: "a", amountCents: 200_00, dueAt: daysAgo(10) }, // 1–30
+      { companyId: "b", amountCents: 100_00, dueAt: daysAgo(20) }, // 1–30 (zelfde bucket, andere klant)
+      { companyId: "a", amountCents: 300_00, dueAt: daysAgo(45) }, // 31–60
+      { companyId: "c", amountCents: 400_00, dueAt: daysAgo(95) }, // 90+
+    ];
+    const buckets = poolOverdueAging(invoices, NOW);
+
+    expect(buckets.map((b) => b.key)).toEqual(["d0_30", "d31_60", "d90plus"]);
+    expect(buckets.map((b) => b.totalCents)).toEqual([300_00, 300_00, 400_00]);
+    expect(buckets.find((b) => b.key === "d0_30")?.count).toBe(2);
+  });
+
+  it("laat niet-vervallen posten volledig buiten de uitsplitsing", () => {
+    const invoices: ClientOutstandingInvoice[] = [
+      { companyId: "a", amountCents: 500_00, dueAt: daysAhead(5) },
+      { companyId: "b", amountCents: 250_00, dueAt: null },
+    ];
+    expect(poolOverdueAging(invoices, NOW)).toEqual([]);
+  });
+
+  it("laat lege buckets weg (alleen buckets met een bedrag > 0)", () => {
+    const buckets = poolOverdueAging(
+      [{ companyId: "a", amountCents: 150_00, dueAt: daysAgo(75) }], // 61–90
+      NOW,
+    );
+    expect(buckets.map((b) => b.key)).toEqual(["d61_90"]);
+    expect(buckets[0]?.totalCents).toBe(150_00);
+  });
+
+  it("levert een lege lijst voor geen facturen", () => {
+    expect(poolOverdueAging([], NOW)).toEqual([]);
   });
 });

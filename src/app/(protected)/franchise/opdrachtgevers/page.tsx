@@ -25,6 +25,7 @@ import { paymentTrustChip, paymentTrustChipBadgeVariant } from "@/lib/payment-be
 import {
   clientOutstandingByCompany,
   poolOutstandingTotals,
+  poolOverdueAging,
 } from "@/lib/franchise/client-outstanding";
 import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
 import { formatEuro } from "@/lib/invoices";
@@ -54,6 +55,15 @@ function bucketVariant(key: AgingBucketKey): "muted" | "warning" | "danger" {
   if (key === "d0_30" || key === "d31_60") return "warning";
   return "muted";
 }
+
+/** Compacte ouderdomslabels voor de pool-brede veroudering-uitsplitsing (presentatie, geen logica). */
+const SHORT_BUCKET_LABEL: Record<AgingBucketKey, string> = {
+  notDue: "Nog niet vervallen",
+  d0_30: "1–30 dagen",
+  d31_60: "31–60 dagen",
+  d61_90: "61–90 dagen",
+  d90plus: "90+ dagen",
+};
 
 export default async function FranchiseOpdrachtgeversPage({
   searchParams,
@@ -124,22 +134,24 @@ export default async function FranchiseOpdrachtgeversPage({
   ]);
 
   const now = new Date();
-  // Openstaand per opdrachtgever via de canonieke aging-motor (drift-vrij met /openstaand).
-  const outstandingByCompany = clientOutstandingByCompany(
-    outstandingInvoices.flatMap((inv) =>
-      inv.collaboration
-        ? [
-            {
-              companyId: inv.collaboration.companyId,
-              amountCents: inv.totalCents,
-              dueAt: inv.dueAt,
-            },
-          ]
-        : [],
-    ),
-    now,
+  // Eén genormaliseerde openstaand-invoer, gedeeld door de per-opdrachtgever-rollup én de pool-brede
+  // veroudering (zelfde bron → geen drift). Facturen zonder samenwerking (theoretisch) vallen weg.
+  const outstandingRows = outstandingInvoices.flatMap((inv) =>
+    inv.collaboration
+      ? [
+          {
+            companyId: inv.collaboration.companyId,
+            amountCents: inv.totalCents,
+            dueAt: inv.dueAt,
+          },
+        ]
+      : [],
   );
+  // Openstaand per opdrachtgever via de canonieke aging-motor (drift-vrij met /openstaand).
+  const outstandingByCompany = clientOutstandingByCompany(outstandingRows, now);
   const poolOutstanding = poolOutstandingTotals(outstandingByCompany);
+  // Pool-brede veroudering van het te late geld: hoe erg is het te laat (recent vs. bijna oninbaar).
+  const poolOverdue = poolOverdueAging(outstandingRows, now);
   // Eén bron van waarheid met /acties + de nav-badge: dezelfde pure afleiding van de klant-activiteit.
   const activityByCompany = buildClientActivityInputs(
     companies.map((c) => ({
@@ -219,6 +231,17 @@ export default async function FranchiseOpdrachtgeversPage({
                   <p className="text-sm text-muted-foreground">Niets te laat</p>
                 )}
               </div>
+              {/* Veroudering-uitsplitsing: hoe erg is het te late geld — recent (waarschijnlijk inbaar)
+                  vs. 90+ dagen (bijna oninbaar). Alleen vervallen buckets met een bedrag, oplopend. */}
+              {poolOverdue.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+                  {poolOverdue.map((bucket) => (
+                    <Badge key={bucket.key} variant={bucketVariant(bucket.key)}>
+                      {SHORT_BUCKET_LABEL[bucket.key]}: {formatEuro(bucket.totalCents)}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </Card>
           )}
 

@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-29 — routine: pool-brede openstaand-veroudering voor de bemiddelaar — PR #1283
+
+**Wat:** de pool-openstaand-kaart op `/franchise/opdrachtgevers` toonde wél het totale én het te-late
+bedrag, maar niet _hoe erg_ dat te late geld te laat is. Voor een bemiddelaar is dat het verschil
+tussen €X dat 1–30 dagen openstaat (waarschijnlijk inbaar) en €X dat 90+ dagen openstaat (bijna
+oninbaar) — dezelfde cashflow-risicovraag die de `/openstaand`-pagina per administratie al beantwoordt,
+maar cross-client op poolniveau ontbrak. Nu een compacte veroudering-uitsplitsing (bedrag per
+ouderdomsbucket: 1–30 · 31–60 · 61–90 · 90+) onder het headline-totaal, met dezelfde bucket-tonen als
+de per-rij "te laat"-badge. Read-only, server-side waarheid, geen schema/mutatie.
+
+**Bestanden:** `src/lib/franchise/client-outstanding.ts` (nieuw `poolOverdueAging`: draait dezelfde
+genormaliseerde openstaand-invoer door de canonieke `buildAgingReport` → geen drift met `/openstaand`
+of de per-rij zwaarste-bucket; houdt alleen vervallen buckets met bedrag > 0 over, oplopend in
+ouderdom) + `.test.ts` (+4 tests: pool-brede optelling per bucket, niet-vervallen/`null` valt weg,
+lege buckets weggelaten, lege lijst). `src/app/(protected)/franchise/opdrachtgevers/page.tsx` (gedeelde
+`outstandingRows`-invoer voor de rollup én de veroudering; `SHORT_BUCKET_LABEL`; badge-rij in de
+pool-kaart). Gates: typecheck ✓, lint ✓, build ✓, test (10) ✓, prettier ✓ · CI-poort → PR #1283.
+Resterend mensenwerk: **niets**.
+
+---
+
 ## 2026-08-29 — routine: mail-intake meetlus (doorlooptijd mail→gepubliceerd) — PR #1282
 
 **Wat:** opdrachtgevers zagen geen feedback over hoe snel hun mail-aanvragen worden afgehandeld.

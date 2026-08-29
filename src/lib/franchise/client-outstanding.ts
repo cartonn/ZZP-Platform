@@ -11,6 +11,7 @@ import {
   type OpenInvoice,
   type RelationSummary,
   type AgingBucketKey,
+  type AgingBucketTotal,
 } from "@/lib/administration/aging";
 
 /** Minimale openstaande-factuur-rij per opdrachtgever (uit de al tenant-gescopet opgehaalde rijen). */
@@ -78,6 +79,35 @@ export interface PoolOutstandingTotals {
   overdueCount: number;
   /** Aantal opdrachtgevers met ≥1 te late openstaande post. */
   clientsOverdue: number;
+}
+
+/**
+ * Pool-brede veroudering-uitsplitsing van het te late geld: per ouderdomsbucket het totaalbedrag over
+ * álle opdrachtgevers samen. De headline-totalen (`poolOutstandingTotals`) zeggen _hoeveel_ er te laat
+ * is, niet _hoe erg_ — €5.000 dat 1–30 dagen te laat is (waarschijnlijk inbaar) leest de bemiddelaar
+ * anders dan €5.000 dat 90+ dagen openstaat (bijna oninbaar). Draait dezelfde invoer door de canonieke
+ * `buildAgingReport` (één bucket-definitie → geen drift met `/openstaand` of de per-rij zwaarste-bucket)
+ * en houdt alleen de vervallen buckets met een bedrag > 0 over, in oplopende ouderdom (AGING_BUCKETS-
+ * volgorde). `notDue` valt weg: dit is uitsluitend het te-late signaal.
+ */
+export function poolOverdueAging(
+  invoices: readonly ClientOutstandingInvoice[],
+  now: Date,
+): AgingBucketTotal[] {
+  const openInvoices: OpenInvoice[] = invoices.map((inv, i) => ({
+    id: `${inv.companyId}:${i}`,
+    number: "",
+    counterpartyName: inv.companyId,
+    counterpartyId: inv.companyId,
+    jobTitle: null,
+    dueAt: inv.dueAt,
+    amountCents: inv.amountCents,
+    collaborationId: null,
+    isCascade: false,
+  }));
+
+  const report = buildAgingReport(openInvoices, now);
+  return report.buckets.filter((b) => b.key !== "notDue" && b.totalCents > 0);
 }
 
 /** Aggregeert de per-opdrachtgever-map naar pool-totalen (zelfde bron → geen drift met de lijst). */
