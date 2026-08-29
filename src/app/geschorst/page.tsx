@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
 import { ShieldAlert } from "lucide-react";
 import { signOut } from "@/auth";
+import { logoutRedirect } from "@/lib/security/clear-site-data";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "Account geschorst · Handslag" };
@@ -23,7 +24,7 @@ export default function GeschorstPage() {
         <form
           action={async () => {
             "use server";
-            await signOut({ redirectTo: "/login" });
+            await signOut({ redirectTo: logoutRedirect() });
           }}
           className="mt-5"
         >

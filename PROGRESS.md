@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-29 — prod/security: `Clear-Site-Data` bij uitloggen (browser-residu op gedeelde computers)
+
+**Wat:** bij een expliciete logout laat de app de browser nu het cache-/storage-residu van de vorige
+sessie wissen via de `Clear-Site-Data`-responseheader (`"cache", "storage"`). Van belang omdat dit een PWA
+is met een service-worker (`public/sw.js`, cache `zzp-shell-v3`) die genavigeerde — dus auth-gated —
+pagina's in de Cache-Storage-API bewaart; op een gedeelde/publieke computer kon een volgende gebruiker die
+na het uitloggen nog inzien. Bewust **niet** `"cookies"` (NextAuth wist de sessiecookie al expliciet; álle
+cookies wissen in dezelfde response als het inlogformulier zijn CSRF-cookie zet, kan de login breken). Enkel
+bij een **expliciete** logout (marker-queryparam), niet bij een verlopen sessie. Puur/getest helper; de
+themavoorkeur (localStorage) valt terug op de systeemvoorkeur — niet-gevoelig, opnieuw instelbaar.
+
+**Bestanden:** `src/lib/security/clear-site-data.ts` (+ `.test.ts`, 10 tests groen), `src/middleware.ts`
+(header op de post-logout `/login`-navigatie), de drie `signOut(...)`-aanroepen dragen nu de logout-marker
+(`src/components/app-shell.tsx`, `src/app/geschorst/page.tsx`,
+`src/app/(protected)/account/wachtwoord/actions.ts`). Gates: typecheck + lint + build + prettier groen.
+Resterend mensenwerk: **niets** — werkt out-of-the-box (browsers honoreren de header alleen over HTTPS,
+dus actief in productie).
+
+---
+
 ## 2026-08-29 — security/privacy: residuele PII in `Application` overleefde de erasure (AVG art. 17) OPGELOST + veld-niveau-dekkingspoort
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
