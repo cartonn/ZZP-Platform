@@ -270,6 +270,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 > OPEN — BOUWEN (verified-absent, gap-hunt 2026-08-27; niet-overlappend gecheckt):
 >
+> - ~~**Opdrachtgever — overdue-onbezette opdracht (startdatum verstreken, nog niemand vastgelegd) als
+>   next-action op `/acties`.**~~ **GEDAAN (2026-08-29, PR #1280).** De `summarizeStaffingRisk` → phase
+>   `"overdue"`-logica dreef al de detailkaart (`JobStaffingRiskCard`) en de lijstbadge (`jobFillUrgency`),
+>   maar had geen next-action-oppervlak. Nieuwe loader `getClientOverdueJobs` (`src/lib/data/client-overdue-jobs.ts`)
+>   - `jobStaffingOverdueTask` (`P.jobStaffingOverdue = 51`) gewired in `clientTasks`; zelfde canonieke
+>     `summarizeStaffingRisk` → geen drift. +9 tests. (Nog open uit dezelfde gap-hunt: freelancer-marktplaats-
+>     markering voor reeds-gestarte opdrachten; leeftijd-bewuste DRAFT-opdracht-nudge.)
 > - ~~**ZZP'er — geboekte-omzet-vooruitblik (booked-revenue runway / inkomsten-cliff) op `/prognose`.**~~
 >   **GEDAAN (2026-08-28, PR #1263).** Pure `buildBookedRevenueForecast` (`src/lib/booked-revenue-forecast.ts`)
 >   - loader (`src/lib/data/booked-revenue-forecast.ts`) + kaart "Al geboekt"

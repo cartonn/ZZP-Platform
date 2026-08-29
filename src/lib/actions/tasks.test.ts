@@ -23,6 +23,7 @@ import {
   staleApplicationsTask,
   availabilityRefreshTask,
   draftJobsTask,
+  jobStaffingOverdueTask,
   franchiseCredentialExpiryTask,
   franchiseCredentialExpiredTask,
   franchiseAcuteDienstTask,
@@ -193,6 +194,33 @@ describe("task builders", () => {
     expect(t.resolver).toBe("drawer");
     expect(t.priority).toBe(65);
     expect(t.id).toBe("performance-approve:p1");
+  });
+
+  it("job-staffing-overdue: link-resolver, boven een koud lopende opdracht en boven een verse reactie", () => {
+    const t = jobStaffingOverdueTask("j1", "Nachtdienst VVT", -3, "review_shortlist");
+    expect(t).toMatchObject({
+      kind: "job-staffing-overdue",
+      id: "job-staffing-overdue:j1",
+      title: "Nachtdienst VVT",
+      resolver: "link",
+      tone: "attention",
+      priority: P.jobStaffingOverdue,
+      href: "/opdrachten/j1",
+      jobId: "j1",
+    });
+    // Kop + volgende-stap komen uit `summarizeStaffingRisk` (geen drift met de detailkaart).
+    expect(t.subtitle).toContain("De startdatum is verstreken");
+    expect(t.subtitle).toContain("shortlist");
+    // Een verstreken planning-deadline weegt zwaarder dan een koude opdracht en een verse reactie,
+    // maar onder de kandidaten die al te lang op een beslissing wachten.
+    expect(P.jobStaffingOverdue).toBeGreaterThan(P.jobNeedsAttention);
+    expect(P.jobStaffingOverdue).toBeGreaterThan(P.applications);
+    expect(P.jobStaffingOverdue).toBeLessThan(P.staleApplications);
+  });
+
+  it("job-staffing-overdue: kop voor 'gisteren' wijkt af (canonieke staffing-risk-tekst)", () => {
+    const t = jobStaffingOverdueTask("j2", "Dagdienst", -1, "widen_reach");
+    expect(t.subtitle).toContain("De startdatum was gisteren");
   });
 
   it("invoice-submit: afgekeurd weegt zwaarder dan een concept", () => {

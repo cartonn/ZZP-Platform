@@ -21,6 +21,31 @@ Resterend mensenwerk: **niets**.
 
 ---
 
+## 2026-08-29 — routine: overdue-onbezette opdracht als next-action (opdrachtgever)
+
+**Wat:** een gepubliceerde opdracht waarvan de startdatum al is verstreken terwijl er nog niemand is
+vastgelegd (`summarizeStaffingRisk` → phase `"overdue"`) toonde wél een kaart op het opdracht-detail
+(`JobStaffingRiskCard`) en een badge op de opdrachtenlijst (`jobFillUrgency`), maar bereikte het
+actiecentrum (`/acties`) nooit — precies het "signaal op één oppervlak"-anti-patroon dat de codebase
+herhaaldelijk dicht. De opdrachtgever zag zijn meest urgente bezettingsrisico (de opdracht start al
+leeg) niet tussen zijn openstaande acties. Nu een next-action "De startdatum is verstreken — nog
+niemand vastgelegd" met de gerichte volgende stap (bekijk shortlist / beoordeel reacties / verruim het
+bereik) uit exact hetzelfde canonieke `summarizeStaffingRisk` als de detailkaart → geen drift. Prioriteit
+`jobStaffingOverdue: 51` — boven een koud lopende opdracht (44), een aflopende relatie (46) en een verse
+reactie (50), onder de kandidaten die al te lang op een beslissing wachten (staleApplications 52 /
+firstLookOverdue 53). Read-only, server-side waarheid, geen schema/mutatie.
+
+**Bestanden:** `src/lib/data/client-overdue-jobs.ts` (nieuw, `getClientOverdueJobs`: DB-gepoort op
+PUBLISHED + startdatum vóór vandaag + geen ACCEPTED-reactie/niet-geannuleerde samenwerking, dan door de
+canonieke fase-poort; één begrensde jobs-query + één reactie-query voor de actie-afleiding, scan-cap 50,
+meest-verstreken eerst) + `.test.ts` (7 tests). `src/lib/actions/tasks.ts` (`jobStaffingOverdueTask` +
+kind `job-staffing-overdue`, subtitle uit `staffingRiskHeadline`/`staffingRiskActionLabel`).
+`src/lib/next-actions.ts` (`P.jobStaffingOverdue = 51`). `src/lib/actions/pending-tasks.ts` (gewired in
+`clientTasks`). `src/lib/actions/tasks.test.ts` (+2 tests). Gates: typecheck ✓, targeted test (79) ✓,
+prettier ✓ · lint/build/CI-poort → PR #1280. Resterend mensenwerk: **niets**.
+
+---
+
 ## 2026-08-29 — routine: herindiening-signaal op de verificatiewachtrij (admin)
 
 **Wat:** een `SUBMITTED`-certificaat dat na een of meer eerdere afwijzingen opnieuw is ingediend
