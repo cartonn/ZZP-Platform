@@ -368,6 +368,31 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(motivationOp!.args.data.availability).toBeNull();
   });
 
+  it("wist de server-berekende per-persoon-snapshots van de eigen reacties (Application.complianceSnapshot/matchScore/proposedRate)", async () => {
+    await anonymizeUser("user-42");
+    // De freelancer-gescopete application.updateMany moet naast de vrije tekst ook de afgeleide
+    // per-persoon-snapshots wissen: `complianceSnapshot` (JSON: wélke verplichte certificaten — o.a.
+    // VOG/LICENSE/INSURANCE — de betrokkene bij het reageren mistte/verlopen had, een gevoelig
+    // compliance-profiel), `matchScore` (afgeleide beoordeling) en `proposedRate` (zelf gevraagd
+    // tarief). De rij overleeft de erasure gepseudonimiseerd, dus zonder deze wissing blijft die PII
+    // via `freelancerId → FreelancerProfile → User` herleidbaar (AVG art. 17 + 5(1)(c)) — rood→groen.
+    const ops = findAll("application.updateMany") as Array<{
+      args: {
+        where: { freelancer?: unknown; job?: unknown };
+        data: {
+          complianceSnapshot?: unknown;
+          matchScore?: unknown;
+          proposedRate?: unknown;
+        };
+      };
+    }>;
+    const freelancerScopedOp = ops.find((o) => o.args.where.freelancer !== undefined);
+    expect(freelancerScopedOp).toBeDefined();
+    expect(freelancerScopedOp!.args.data.complianceSnapshot).toBeNull();
+    expect(freelancerScopedOp!.args.data.matchScore).toBeNull();
+    expect(freelancerScopedOp!.args.data.proposedRate).toBeNull();
+  });
+
   it("redact eigen support-berichten (SupportMessage.body)", async () => {
     await anonymizeUser("user-42");
     const o = find("supportMessage.updateMany") as { args: { where: unknown; data: unknown } };

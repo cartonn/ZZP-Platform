@@ -4,6 +4,79 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-29 (basis: `main` @ 45955a9c) — MIDDEL OPGELOST: residuele PII in `Application` overleefde de erasure (AVG art. 17) + veld-niveau-dekkingspoort
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(A: broken access control/IDOR/tenant-isolatie · B: privacy/AVG · C: injectie/upload/secrets/SSRF/headers/
+errors/redirect/CSRF + `npm audit`). Focus op de delta sinds de vorige ronde (`e9fe6b51..45955a9c`, 4 commits:
+#1272 mail-intake op systeemstatus, #1273 officiële aanvraagbron-nudge, #1274 pool-dekkingsgat bemiddelaar,
+#1275 expiry-signaal admin-verificatiewachtrij) + een brede her-sweep van de erasure, tenant-scoping, upload/
+storage, injectie en de aggregaten. Runtime: build + seed + geverifieerde poorten.
+
+**Bevinding A01 (broken access control/IDOR/tenant):** CLEAN. Alle 59 route handlers + 59 server actions door
+de keten auth→rol→ownership→Zod; tenant-helpers falen gesloten (403, nooit open `{}`); de delta-franchisecode
+(`pool-coverage-gap.ts`) leest uitsluitend upstream `tenantScopeWhere(actor)`-gescopete data. Anti-oracle
+(CWE-203) uniform op de gevoelige document-/PDF-/dossier-routes.
+
+**Bevinding C (injectie/upload/secrets/SSRF/headers/errors/redirect/CSRF):** CLEAN. Geen raw-SQL-unsafe,
+CSV-formule-guard op alle exports, upload-keten (type+grootte→magic-byte→random key→traversal-guard) intact,
+geen server-side fetch uit user-input, CSP-nonce/HSTS/frame-ancestors intact, timing-safe webhook/reset-tokens.
+De nieuwe `mailIntakeItem` (systeemstatus) toont enkel booleans/modus — **nooit het secret**. `npm audit
+--omit=dev` = **0** productie-kwetsbaarheden.
+
+**OPGELOST — [MIDDEL · AVG art. 17 (recht op vergetelheid) + art. 5(1)(c) minimalisatie] residuele PII in
+`Application` overleefde de erasure.**
+`anonymizeUser` (`src/app/(protected)/admin/gebruikers/actions.ts`) wiste in de freelancer-gescopete
+`application.updateMany` enkel `motivation` + `availability` en liet **`complianceSnapshot`, `matchScore` en
+`proposedRate`** staan. `complianceSnapshot` is een JSON-momentopname van wélke verplichte certificaten de
+betrokkene bij het reageren mistte/verlopen had (categorieën als **VOG/LICENSE/INSURANCE** — een gevoelig
+compliance-profiel), `matchScore` een afgeleide beoordeling, `proposedRate` het zelf gevraagde tarief. De rij
+overleeft de erasure gepseudonimiseerd (een geaccepteerde reactie draagt zelfs een `Collaboration`), dus die
+PII bleef via `freelancerId → FreelancerProfile → User` herleidbaar. Repro: freelancer met incomplete cert-set
+reageert (of wordt geaccepteerd) → admin anonimiseert → `complianceSnapshot`/`matchScore`/`proposedRate` op de
+`Application` staan er nog en joinen naar de (hernoemde) User. **Fix:** de drie velden mee-genulld in dezelfde
+`updateMany` (spiegel `AvailabilityWindow`/`SavedJob`-volledige-wis; de agreed rate voor facturatie leeft op
+`Collaboration`/`Invoice` met eigen fiscale bewaargrond, dus ongemoeid). Regressietest rood→groen in
+`anonymize-erasure.test.ts`.
+
+**OPGELOST — [MIDDEL · structureel] de erasure-dekkingspoort was model-granulair en liet partiële wisgaten door.**
+`anonymize-schema-coverage.test.ts` checkte enkel dát `prisma.<model>` voorkwam, niet wélke kolommen worden
+gewist — precies waardoor bovenstaande PII stil door de CI-poort glipte (`Application` telde "gedekt" via
+`motivation`/`availability`). **Fix:** veld-niveau-companion-poort toegevoegd: een gecureerde `REQUIRED_FIELDS`
+per behouden inline-geschreven model (`Application`, `Performance`) waarvan elke PII-kolom als geschreven
+data-sleutel in de erasure-body moet voorkomen; een nieuwe/tweede ongewiste PII-kolom breekt nu de poort. De
+helper-gedreven modellen (User/FreelancerProfile/Company via `*AnonymizationData()`) houden hun uitputtende
+veld-asserties in `anonymize-erasure.test.ts`. Geverifieerd rood zonder de fix (flagt exact
+`Application.complianceSnapshot/matchScore/proposedRate`), groen erna.
+
+**Geparkeerd (LAAG) — cross-tenant uitnodigings-teller aan opdrachtgever getoond.**
+`src/lib/data/candidate-invite-responsiveness.ts` berekent "reageert snel" over **alle** `JOB_INVITED`-
+auditrecords van een freelancer platform-breed (niet gescopet op de vragende opdrachtgever/tenant). De tooltip
+toont "Reageerde op X van de Y uitnodigingen" — de ruwe `Y` verraadt de platform-brede uitnodigingsactiviteit
+van de betrokkene aan een vreemde opdrachtgever, zonder k-vloer op de noemer. Geen derde-partij-identiteit lekt.
+**Geschonden beginsel:** AVG art. 5(1)(c) minimalisatie + tenant-grensverwachting. **Aanbevolen fix:** scoop de
+noemer op de kijkende tenant/opdrachtgever, óf toon enkel het kwalitatieve badge (laat de absolute `X/Y` weg),
+óf leg een kleine-aantallen-vloer op vóór de teller getoond wordt.
+
+**Geparkeerd (LAAG) — geocode-cache kan precieze ZZP-adressen bevatten, ontkoppeld maar persistent.**
+`src/lib/services/routing.ts` (`GeocodeCache`, `[INFRA]`-allowlisted) egresseert de ruwe `location`/`from`-
+string naar Geoapify en cachet die verbatim 180 dgn. Voor een eenmanszaak kan `FreelancerProfile.location` een
+thuisadres zijn; de erasure raakt deze cache bewust niet (niet user-gekoppeld → ook onbereikbaar voor art. 17).
+Laag risico (ontkoppeld van user-id, TTL-geveegd), maar een bekend adres blijft bevestigbaar via de hash-sleutel.
+**Geschonden beginsel:** AVG art. 5(1)(c) minimalisatie (dataminimalisatie bij derde-partij-egress).
+**Aanbevolen fix:** normaliseer routing-input naar plaats/postcode-granulariteit vóór egress/caching (strip
+huisnummers) zodat geen precies thuisadres het platform verlaat of in de cache blijft hangen.
+
+**Geparkeerde bevinding (LAAG · dev-only dependency-DoS):** ongewijzigd sinds vorige ronde — 6 `npm audit`-
+bevindingen in dev-only transitieve deps (`brace-expansion`, `deepmerge-ts`/prisma-CLI, `esbuild` Windows-dev,
+`js-yaml`). Niet productie-bereikbaar (`--omit=dev` = schoon). Fix: `npm audit fix` voor de non-breaking drie in
+een aparte deps-PR; prisma-CLI-major-bump apart plannen.
+
+**Resultaat:** 2× MIDDEL OPGELOST (erasure-gat + de dekkingspoort die het liet passeren), 3 bevindingen
+geparkeerd (LAAG). A01 + injectie/upload/secrets-oppervlakken CLEAN.
+
+---
+
 ## Ronde 2026-08-28b (basis: `main` @ 55b8b51e) — delta sinds #1264 + brede her-audit: geen nieuwe gaten
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

@@ -134,6 +134,76 @@ const ALLOWLIST: Record<string, string> = {
     "[APART] gesprekscontainer zonder eigen PII; berichten worden geredact en ConversationParticipant.lastReadAt gewist.",
 };
 
+// Veld-niveau-dekking (aanvulling op de model-niveau-poort hierboven). De model-poort ziet enkel
+// DÁT een model wordt aangeraakt, niet WÉLKE kolommen worden gewist. Daardoor kon een tweede,
+// gevoelige PII-kolom op een reeds-aangeraakt model stil een verwijderverzoek overleven — precies zo
+// bleef `Application.complianceSnapshot`/`matchScore`/`proposedRate` staan terwijl `motivation`/
+// `availability` al werden gewist (het model telde als "gedekt"). Dit is dezelfde faalklasse als de
+// `SavedJobSearch`-les uit de model-poort, één niveau dieper: een NIEUWE PII-kolom op een reeds-
+// gewist, BEHOUDEN (gepseudonimiseerd, niet cascade-verwijderd) model.
+//
+// Deze poort dwingt daarom af dat elke hieronder benoemde PII-kolom als geschreven data-sleutel
+// (`veld:`) voorkomt binnen een Prisma-aanroep-blok op het bijbehorende model (niet zomaar ergens in
+// de bron — zo kan een gelijknamige sleutel in een `where`/`select` van een ander model deze poort
+// niet ten onrechte laten slagen). Dekt de inline-geschreven, behouden modellen waar extra
+// kolommen het risico vormen (Application, Performance). De helper-gedreven modellen (User/
+// FreelancerProfile/Company via `*AnonymizationData()`) hebben hun eigen uitputtende veld-asserties in
+// `anonymize-erasure.test.ts`. Een nieuwe PII-kolom op een van deze modellen die niet wordt gewist
+// breekt de poort i.p.v. stil PII te laten overleven (AVG art. 17 + 5(1)(c)).
+const REQUIRED_FIELDS: Record<string, string[]> = {
+  // Reactie op een opdracht — blijft gepseudonimiseerd staan (een geaccepteerde reactie draagt een
+  // Collaboration met bewaargrond). Vrije tekst + server-berekende per-persoon-snapshots moeten mee.
+  Application: [
+    "motivation",
+    "availability",
+    "complianceSnapshot",
+    "matchScore",
+    "proposedRate",
+    "note",
+  ],
+  // Prestatie/urenstaat — blijft als factuur-/fiscale historie staan; de zelf-getypte vrije tekst niet.
+  Performance: ["description", "milestoneTitle"],
+};
+
+/**
+ * Alle argument-blokken (`(...)`) van de Prisma-client-aanroepen op `<model>` in de bron: elk
+ * `(?:prisma|tx).<accessor>.<methode>(…)`-blok met gebalanceerde haakjes. Zo blijft de veld-check
+ * gescopet op de aanroepen die het model écht raken — een gelijknamige sleutel in een `where`/`select`
+ * van een ánder model kan geen false pass geven.
+ */
+function modelCallBlocks(src: string, model: string): string[] {
+  const acc = accessor(model);
+  const blocks: string[] = [];
+  const re = new RegExp(`(?:prisma|tx)\\.${acc}\\b\\s*\\.\\s*[A-Za-z]+\\s*\\(`, "g");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    // Scan vanaf de openende `(` tot het gebalanceerde sluithaakje.
+    let depth = 0;
+    let i = m.index + m[0].length - 1; // wijst op de `(`
+    const start = i;
+    for (; i < src.length; i++) {
+      const ch = src[i];
+      if (ch === "(") depth++;
+      else if (ch === ")") {
+        depth--;
+        if (depth === 0) break;
+      }
+    }
+    blocks.push(src.slice(start, i + 1));
+  }
+  return blocks;
+}
+
+/**
+ * True als `veld` als geschreven data-sleutel (`veld:`) voorkomt binnen een aanroep-blok op `<model>`
+ * (niet ergens anders in de bron). Gescopet zodat een gelijknamige sleutel in een `where`/`select` van
+ * een ander model deze poort niet ten onrechte kan laten slagen.
+ */
+function fieldIsWiped(src: string, model: string, field: string): boolean {
+  const keyRe = new RegExp(`\\b${field}\\s*:`);
+  return modelCallBlocks(src, model).some((block) => keyRe.test(block));
+}
+
 describe("AVG art. 17 — schema-dekking van de erasure (anonymizeUser)", () => {
   it("extractie werkt: bekende gewiste modellen worden als erasure-gedekt herkend", () => {
     const src = anonymizeUserSource();
@@ -155,6 +225,26 @@ describe("AVG art. 17 — schema-dekking van de erasure (anonymizeUser)", () => 
       `Modellen die noch door de erasure (anonymizeUser) worden aangeraakt, noch bewust zijn ` +
         `uitgezonderd. Draad ze in de erasure-transactie (AVG art. 17) óf voeg ze met een gemotiveerde ` +
         `reden toe aan ALLOWLIST in deze test: ${unclassified.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("gevoelige PII-kolommen op behouden modellen worden veld-voor-veld gewist (niet enkel het model aangeraakt)", () => {
+    const src = anonymizeUserSource();
+    const missing: string[] = [];
+    for (const [model, fields] of Object.entries(REQUIRED_FIELDS)) {
+      // Sanity: het model moet überhaupt door de erasure worden aangeraakt.
+      expect(isErased(src, model), `verwacht dat ${model} door de erasure wordt aangeraakt`).toBe(
+        true,
+      );
+      for (const field of fields) {
+        if (!fieldIsWiped(src, model, field)) missing.push(`${model}.${field}`);
+      }
+    }
+    expect(
+      missing,
+      `PII-kolommen op behouden modellen die de erasure niet (meer) wist. Draad ze in de ` +
+        `bijbehorende updateMany-data (AVG art. 17 + 5(1)(c)) — een reeds-gewist model dekt een ` +
+        `nieuwe/tweede PII-kolom niet automatisch: ${missing.join(", ")}`,
     ).toEqual([]);
   });
 
