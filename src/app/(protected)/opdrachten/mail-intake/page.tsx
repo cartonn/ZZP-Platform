@@ -20,6 +20,7 @@ import {
 import { AcceptIntakeForm, DismissIntakeForm, ReopenIntakeForm } from "./intake-forms";
 import { CreateAliasForm, DisableAliasForm, RotateAliasForm } from "./alias-forms";
 import { formatMailIntakeAddress } from "@/lib/mail-intake";
+import { buildMailIntakeFunnel, formatDoorlooptijd } from "@/lib/mail-intake-funnel";
 
 export const metadata: Metadata = { title: "Mail-intake · Handslag" };
 
@@ -104,6 +105,27 @@ export default async function MailIntakePage() {
   const open = intakes.filter((i) => i.status === "NEW").reverse(); // oudste eerst beoordelen
   const handled = intakes.filter((i) => i.status !== "NEW").slice(0, 10);
 
+  // Meetlus (doorlooptijd): apart venster van 30 dagen met job.publishedAt voor de funnelstats.
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const recentForFunnel = await prisma.mailIntake.findMany({
+    where: { companyId: company.id, receivedAt: { gte: thirtyDaysAgo } },
+    select: {
+      receivedAt: true,
+      decidedAt: true,
+      status: true,
+      job: { select: { publishedAt: true } },
+    },
+    take: 200,
+  });
+  const funnel = buildMailIntakeFunnel(
+    recentForFunnel.map((i) => ({
+      receivedAt: i.receivedAt,
+      decidedAt: i.decidedAt,
+      status: i.status,
+      jobPublishedAt: i.job?.publishedAt ?? null,
+    })),
+  );
+
   // Volledig plus-adres alleen tonen wanneer de beheerder het intake-basisadres heeft gezet
   // (MAIL_INTAKE_ADDRESS, zie MENSENWERK par. 2b); anders tonen we het kale alias-token.
   const baseAddress = process.env.MAIL_INTAKE_ADDRESS ?? "";
@@ -118,6 +140,45 @@ export default async function MailIntakePage() {
         title="Mail-intake"
         description="Aanvragen die per e-mail binnenkomen staan hier klaar — beoordelen, overnemen als concept-opdracht en publiceren via de gewone flow. Geen overtypen meer."
       />
+
+      {funnel.total > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <p className="mb-3 text-xs font-medium text-muted-foreground">
+              Meetlus — afgelopen 30 dagen
+            </p>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
+              <div>
+                <dt className="text-xs text-muted-foreground">Ontvangen</dt>
+                <dd className="text-base font-semibold">{funnel.total}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Overgenomen</dt>
+                <dd className="text-base font-semibold">
+                  {funnel.accepted}
+                  {funnel.acceptanceRatePct !== null && (
+                    <span className="ml-1 text-xs font-normal text-muted-foreground">
+                      ({funnel.acceptanceRatePct}%)
+                    </span>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Mediaan beoordeling</dt>
+                <dd className="text-base font-semibold">
+                  {formatDoorlooptijd(funnel.medianReviewMinutes) ?? "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Mediaan tot publicatie</dt>
+                <dd className="text-base font-semibold">
+                  {formatDoorlooptijd(funnel.medianPublishMinutes) ?? "—"}
+                </dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="space-y-3 p-4 text-sm">

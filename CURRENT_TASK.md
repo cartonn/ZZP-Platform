@@ -2627,7 +2627,7 @@ in-browser-verificatie (interactieve sessie).
    **Fase 2 GEBOUWD (27-8-2026):** per-bedrijf intake-aliassen (plus-adressering) — beheer op
    `/opdrachten/mail-intake`, alias-first-koppeling in de webhook, erasure trekt het alias in;
    weergave via optionele `MAIL_INTAKE_ADDRESS`. **Vervolg (open):** (a) e2e-test
-   webhook→queue→concept; (c) meetlus: doorlooptijd mail→gepubliceerd tonen in Inzicht.
+   webhook→queue→concept; (c) ~~meetlus: doorlooptijd mail→gepubliceerd tonen in Inzicht~~ **GEBOUWD (29-8-2026, PR #1282)** — `buildMailIntakeFunnel()` + `formatDoorlooptijd()` in `src/lib/mail-intake-funnel.ts`; 30-daags funnelblok (Ontvangen / Overgenomen % / Mediaan beoordeling / Mediaan tot publicatie) op `/opdrachten/mail-intake`; 18 unit-tests groen.
 1. Semantiek als uitlegbare scorecomponent (fundering staat er: `src/lib/semantic.ts` +
    `src/lib/services/semantic-matcher.ts`); pgvector geparkeerd achter de ADR-trigger — zie
    `docs/decisions/0010-semantische-matching.md` (> ~50k discoverable profielen óf scoring > ~50ms p95).
