@@ -35,6 +35,11 @@ import {
 import { credentialTypeDemand, demandLevel } from "@/lib/verification-impact";
 import { getOpenJobCredentialRequirements } from "@/lib/data/verification-impact";
 import { submittedExpiryLabel, summarizeSubmittedExpiry } from "@/lib/verification-expiry";
+import {
+  countResubmissions,
+  resubmissionBadgeLabel,
+  resubmissionSignal,
+} from "@/lib/verification-resubmission";
 
 export const metadata: Metadata = { title: "Verificaties · Handslag" };
 
@@ -56,6 +61,13 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
     include: {
       document: { select: { id: true, mimeType: true } },
       freelancerProfile: { select: { user: { select: { name: true, email: true } } } },
+      // Onveranderlijke afwijs-historie: een SUBMITTED-cert met >= 1 eerdere REJECTED-beslissing is
+      // een herindiening (correctie). Klein per cert; de wachtrij is structureel klein.
+      verifications: {
+        where: { decision: "REJECTED" },
+        select: { reason: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -65,6 +77,9 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
   // Expiry-signaal over de hele backlog: hoeveel inzendingen zijn al verlopen (goedkeuren = direct
   // ongeldige credential)? Uit de al-geladen `expiresAt`, geen extra query.
   const expiry = summarizeSubmittedExpiry(queue, new Date(now));
+  // Herindiening-signaal over de hele backlog: hoeveel inzendingen zijn een correctie na een eerdere
+  // afwijzing? Uit de al-geladen afwijs-historie, geen extra query.
+  const resubmitCount = countResubmissions(queue);
 
   // Impact-signaal: hoeveel open opdrachten vragen (verplicht) elk certificaattype? Zo kan de admin,
   // binnen de FIFO-volgorde, zien welke beoordeling de meeste downstream-inzetbaarheid ontsluit.
@@ -104,7 +119,11 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
             {health.staleCount > 0
               ? ` · ${health.staleCount} langer dan ${VERIFICATION_STALE_DAYS} dagen`
               : ""}
-            {expiry.expiredCount > 0 ? ` · ${expiry.expiredCount} reeds verlopen` : ""}.
+            {expiry.expiredCount > 0 ? ` · ${expiry.expiredCount} reeds verlopen` : ""}
+            {resubmitCount > 0
+              ? ` · ${plural(resubmitCount, "herindiening", "herindieningen")}`
+              : ""}
+            .
           </>
         }
         action={<ExpiryButton />}
@@ -159,77 +178,100 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
             </Card>
           ) : (
             <div className="space-y-4">
-              {visible.map((c) => (
-                <Card key={c.id}>
-                  <CardContent className="space-y-3">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium">{c.title}</p>
-                        {(() => {
-                          const days = daysWaiting(waitingSince(c), now);
-                          return (
-                            <Badge variant={days >= VERIFICATION_STALE_DAYS ? "warning" : "muted"}>
-                              {waitingLabel(days)}
-                            </Badge>
-                          );
-                        })()}
-                        {(() => {
-                          const count = demand[c.type as CredentialType] ?? 0;
-                          if (count === 0) return null;
-                          return (
+              {visible.map((c) => {
+                const resubmit = resubmissionSignal(c.verifications);
+                return (
+                  <Card key={c.id}>
+                    <CardContent className="space-y-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium">{c.title}</p>
+                          {(() => {
+                            const days = daysWaiting(waitingSince(c), now);
+                            return (
+                              <Badge
+                                variant={days >= VERIFICATION_STALE_DAYS ? "warning" : "muted"}
+                              >
+                                {waitingLabel(days)}
+                              </Badge>
+                            );
+                          })()}
+                          {(() => {
+                            const count = demand[c.type as CredentialType] ?? 0;
+                            if (count === 0) return null;
+                            return (
+                              <Badge
+                                variant={demandLevel(count) === "high" ? "accent" : "muted"}
+                                title="Aantal open opdrachten dat dit certificaattype (verplicht) vereist"
+                              >
+                                Gevraagd · {plural(count, "open opdracht", "open opdrachten")}
+                              </Badge>
+                            );
+                          })()}
+                          {(() => {
+                            // Verlopen inzending goedkeuren levert een direct ongeldige credential op —
+                            // waarschuw de admin vóór de beslissing. Rendert niets bij een geldig bewijsstuk.
+                            const label = submittedExpiryLabel(c.expiresAt, new Date(now));
+                            if (!label) return null;
+                            const expired = label === "Reeds verlopen";
+                            return (
+                              <Badge
+                                variant={expired ? "danger" : "warning"}
+                                title={
+                                  expired
+                                    ? "Het bewijsstuk is al verlopen — goedkeuren levert een direct ongeldige credential op. Wijs af en vraag een vernieuwd document."
+                                    : "Het bewijsstuk verloopt binnenkort — houd hier rekening mee bij het beoordelen."
+                                }
+                              >
+                                {label}
+                              </Badge>
+                            );
+                          })()}
+                          {resubmit && (
                             <Badge
-                              variant={demandLevel(count) === "high" ? "accent" : "muted"}
-                              title="Aantal open opdrachten dat dit certificaattype (verplicht) vereist"
+                              variant="accent"
+                              title="Deze inzending is opnieuw ingediend na een eerdere afwijzing — controleer of het eerdere bezwaar is weggenomen."
                             >
-                              Gevraagd · {plural(count, "open opdracht", "open opdrachten")}
+                              {resubmissionBadgeLabel(resubmit.count)}
                             </Badge>
-                          );
-                        })()}
-                        {(() => {
-                          // Verlopen inzending goedkeuren levert een direct ongeldige credential op —
-                          // waarschuw de admin vóór de beslissing. Rendert niets bij een geldig bewijsstuk.
-                          const label = submittedExpiryLabel(c.expiresAt, new Date(now));
-                          if (!label) return null;
-                          const expired = label === "Reeds verlopen";
-                          return (
-                            <Badge
-                              variant={expired ? "danger" : "warning"}
-                              title={
-                                expired
-                                  ? "Het bewijsstuk is al verlopen — goedkeuren levert een direct ongeldige credential op. Wijs af en vraag een vernieuwd document."
-                                  : "Het bewijsstuk verloopt binnenkort — houd hier rekening mee bij het beoordelen."
-                              }
-                            >
-                              {label}
-                            </Badge>
-                          );
-                        })()}
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {CREDENTIAL_TYPE_LABEL[c.type as CredentialType]}
+                          {c.issuer ? ` · ${c.issuer}` : ""}
+                          {fmt(c.issuedAt) ? ` · uitgegeven ${fmt(c.issuedAt)}` : ""}
+                          {fmt(c.expiresAt) ? ` · vervalt ${fmt(c.expiresAt)}` : ""}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Ingediend door {c.freelancerProfile.user.name} (
+                          {c.freelancerProfile.user.email})
+                        </p>
+                        {resubmit && (
+                          <p className="text-xs text-muted-foreground">
+                            Eerder afgewezen
+                            {fmt(resubmit.latestAt) ? ` op ${fmt(resubmit.latestAt)}` : ""}
+                            {resubmit.latestReason ? `: “${resubmit.latestReason}”` : ""}
+                          </p>
+                        )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {CREDENTIAL_TYPE_LABEL[c.type as CredentialType]}
-                        {c.issuer ? ` · ${c.issuer}` : ""}
-                        {fmt(c.issuedAt) ? ` · uitgegeven ${fmt(c.issuedAt)}` : ""}
-                        {fmt(c.expiresAt) ? ` · vervalt ${fmt(c.expiresAt)}` : ""}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Ingediend door {c.freelancerProfile.user.name} (
-                        {c.freelancerProfile.user.email})
-                      </p>
-                    </div>
 
-                    {c.document && (
-                      <DocumentPreview documentId={c.document.id} mimeType={c.document.mimeType} />
-                    )}
+                      {c.document && (
+                        <DocumentPreview
+                          documentId={c.document.id}
+                          mimeType={c.document.mimeType}
+                        />
+                      )}
 
-                    <div className="space-y-3 border-t border-border pt-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <VerifyForm action={verifyCredentialState.bind(null, c.id)} />
-                        <RejectForm action={rejectCredentialState.bind(null, c.id)} />
+                      <div className="space-y-3 border-t border-border pt-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <VerifyForm action={verifyCredentialState.bind(null, c.id)} />
+                          <RejectForm action={rejectCredentialState.bind(null, c.id)} />
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>

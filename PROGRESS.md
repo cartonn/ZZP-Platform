@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-29 — routine: herindiening-signaal op de verificatiewachtrij (admin)
+
+**Wat:** een `SUBMITTED`-certificaat dat na een of meer eerdere afwijzingen opnieuw is ingediend
+(herindiening/correctie) was op `/admin/verificaties` niet te onderscheiden van een eerste inzending —
+de admin zag niet dát het een correctie was, noch de vorige afwijsreden. Juist die context versnelt de
+her-beoordeling (gericht controleren of het eerdere bezwaar is weggenomen) en sluit de lus voor een
+ZZP'er die door een afwijzing geblokkeerd was. Nu: een rustige `accent`-badge "Herindiening na
+afwijzing" (met aantal bij meer dan één) op de wachtrijkaart, de vorige afwijsdatum + -reden inline
+eronder, en een teller in de paginakop ("· N herindieningen"). Read-only, server-side waarheid uit de
+onveranderlijke `CredentialVerification`-historie (REJECTED-beslissingen) — **geen schema-wijziging, geen
+mutatie, geen accounting-engine, geen FIFO-herordening** (het signaal informeert; het verandert de
+volgorde niet). Uit de al-geladen historie, geen extra query.
+
+**Bestanden:** `src/lib/verification-resubmission.ts` (nieuw, pure: `resubmissionSignal`,
+`resubmissionBadgeLabel`, `countResubmissions`) + `.test.ts` (9 tests: null bij eerste inzending,
+recentste afwijzing ongeacht invoervolgorde, trim/lege-reden→null, geen mutatie, label enkel-/meervoud,
+telling). `src/app/(protected)/admin/verificaties/page.tsx` (query-include `verifications` REJECTED-only,
+badge + reden-regel + kop-teller). Gates: typecheck ✓, lint ✓, build ✓, targeted test (9) ✓, prettier ✓ ·
+CI-poort → PR #1278. Resterend mensenwerk: **niets**.
+
+---
+
 ## 2026-08-29 — prod/security: `Clear-Site-Data` bij uitloggen (browser-residu op gedeelde computers)
 
 **Wat:** bij een expliciete logout laat de app de browser nu het cache-/storage-residu van de vorige
