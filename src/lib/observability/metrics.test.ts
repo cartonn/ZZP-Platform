@@ -24,6 +24,7 @@ const HEALTHY: MetricsInput = {
   verificationQueue: 4,
   verificationQueueOldestAgeSeconds: 1800,
   maintenanceMode: false,
+  semanticMatcherDegraded: false,
   overdueExpiryCredentials: 0,
   overdueExpirySubscriptions: 0,
   stalePendingSubscriptions: 0,
@@ -99,6 +100,7 @@ describe("buildMetrics", () => {
     expect(valueOf(HEALTHY, "zzp_verification_queue")).toBe(4);
     expect(valueOf(HEALTHY, "zzp_verification_queue_oldest_age_seconds")).toBe(1800);
     expect(valueOf(HEALTHY, "zzp_maintenance_mode")).toBe(0);
+    expect(valueOf(HEALTHY, "zzp_semantic_matcher_degraded")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_credentials_overdue_expiry")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_subscriptions_overdue_expiry")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_subscriptions_stale_pending")).toBe(0);
@@ -113,6 +115,12 @@ describe("buildMetrics", () => {
 
   it("mapt onderhoudsmodus naar 1", () => {
     expect(valueOf({ ...HEALTHY, maintenanceMode: true }, "zzp_maintenance_mode")).toBe(1);
+  });
+
+  it("mapt semantische-matching-degradatie naar 1", () => {
+    expect(
+      valueOf({ ...HEALTHY, semanticMatcherDegraded: true }, "zzp_semantic_matcher_degraded"),
+    ).toBe(1);
   });
 
   it("mapt de collectie-volledigheid-vlag naar 1 (compleet) en 0 (afgekapt)", () => {
@@ -482,6 +490,7 @@ describe("buildMetrics", () => {
       verificationQueue: 0,
       verificationQueueOldestAgeSeconds: null,
       maintenanceMode: true,
+      semanticMatcherDegraded: true,
       overdueExpiryCredentials: 12,
       overdueExpirySubscriptions: 8,
       stalePendingSubscriptions: 16,
@@ -643,6 +652,7 @@ describe("buildMetrics", () => {
       "zzp_verification_queue",
       "zzp_verification_queue_oldest_age_seconds",
       "zzp_maintenance_mode",
+      "zzp_semantic_matcher_degraded",
       "zzp_credentials_overdue_expiry",
       "zzp_subscriptions_overdue_expiry",
       "zzp_subscriptions_stale_pending",

@@ -662,6 +662,22 @@ groups:
           summary: "Beveiligingsincident (WARN) open"
           description: "De bewakingsmotor heeft ≥1 OPEN WARN beveiligingsincident vastgesteld (zzp_health_incidents_open_warn) — bv. een wachtwoordreset-flood of een rolwijziging-burst. Triageer het op /admin/bewaking."
 
+  - name: zzp-platform-schaalbaarheid
+    rules:
+      - alert: ZzpSemanticMatcherDegraded
+        # Stille-degradatie-detector: SEMANTIC_MATCHER=pgvector geselecteerd maar niet operationeel.
+        # getSemanticMatcher() valt graceful terug op de lokale matcher (geen stille nul-degradatie),
+        # maar de operator denkt mogelijk dat pgvector actief is. Ruime `for:` — geen availability-incident
+        # maar een configuratie-/provisioning-stand die triage vraagt. Valt vanzelf naar 0 zodra pgvector
+        # operationeel is of SEMANTIC_MATCHER=local staat.
+        expr: zzp_semantic_matcher_degraded == 1
+        for: 6h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Semantische matching draait op de lokale fallback"
+          description: "SEMANTIC_MATCHER=pgvector is geselecteerd maar niet operationeel (zzp_semantic_matcher_degraded=1): matching valt stil terug op de lokale matcher (lagere matching-kwaliteit). Voltooi de pgvector-provisioning (extensie/embedding-kolom/index/pijplijn) of zet SEMANTIC_MATCHER=local. Bevestig met de semantische-matching-zelftest op /admin/systeemstatus. Zie RUNBOOK §2b."
+
   - name: zzp-platform-onderhoud
     rules:
       - alert: ZzpMaintenanceModeOn
