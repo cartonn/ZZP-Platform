@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-29 — routine: SEPA scan-to-pay QR op de factuur-betaalkaart (opdrachtgever + ZZP'er)
+
+**Wat:** het factuurdetail toont naast de bestaande betaalgegevens (IBAN/tenaamstelling/betaalkenmerk)
+nu een **EPC069-12 SEPA-betaal-QR**. De opdrachtgever scant de code met zijn bankapp (ING/Rabo/ABN/
+bunq/Knab ondersteunen de standaard) en IBAN, tenaamstelling, bedrag én betaalkenmerk staan
+vooringevuld — geen overtikken, geen typefouten, en het juiste kenmerk voor de reconciliatie bij de
+ZZP'er. Administratie-ontzorging op het snijvlak van beide rollen: sneller betaald, correct betaald.
+Concurrent-gedreven (Bendy/Deel automatiseren de betaalstap; een QR op de factuur is de professionele
+standaard) maar vertaald naar onze off-platform, rechtstreekse betaalrealiteit — geen incasso.
+
+**Server-side waarheid:** de QR is puur afgeleid uit het grootboek (bedrag = `invoice.totalCents`,
+IBAN van het ZZP-profiel, kenmerk = "Factuur <nummer>") en alleen zichtbaar zolang de factuur
+betaal-pending is (`isInvoicePaymentPending` + geldige IBAN). `buildEpcPayload` her-valideert de IBAN
+(`isValidIban`), begrenst naam (70) en kenmerk (140), neutraliseert control-tekens (geen EPC-regel-
+injectie) en weigert een bedrag buiten 0,01–999.999.999,99. Vaste zwart-op-wit render met quiet zone
+(scanbaar in licht én donker).
+
+**Bestanden:** `src/lib/payments/epc-qr.ts` (nieuw; pure `buildEpcPayload`/`encodeQrMatrix`/`buildSepaQr`,
+zero-dependency `qrcode-generator`), `src/components/invoices/sepa-qr-code.tsx` (nieuw; inline-SVG-render),
+`src/components/invoices/payment-details-card.tsx` (QR-blok + `qr`-prop), `src/app/(protected)/facturen/[id]/page.tsx`
+(server-side `buildSepaQr` + doorgeven), `package.json`/`package-lock.json` (`qrcode-generator` +
+`@types/qrcode-generator`). **Tests:** `src/lib/payments/epc-qr.test.ts` (nieuw, 10 tests: payload-vorm/
+volgorde, exacte bedrag-formattering, IBAN-normalisatie/-validatie, naam/kenmerk-begrenzing, control-teken-
+neutralisatie, deterministische matrix, null-pad). Gate: typecheck/lint/unit/build/prettier groen.
+**Volgende:** de 3 geparkeerde LAAG-items (cross-tenant uitnodigings-teller, geocode-cache-adres, dev-only deps).
+
 ## 2026-08-29 — routine: kilometerregistratie bij zakelijke uitgaven (ZZP'er, administratie-ontzorging)
 
 **Wat:** een ZZP'er die met eigen vervoer een zakelijke rit maakt, kan nu bij een reiskosten-uitgave

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, Landmark } from "lucide-react";
+import { Copy, Check, Landmark, QrCode } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { type SepaQr } from "@/lib/payments/epc-qr";
+import { SepaQrCode } from "@/components/invoices/sepa-qr-code";
 
 export interface PaymentDetailsCardProps {
   ibanFormatted: string;
@@ -12,6 +14,8 @@ export interface PaymentDetailsCardProps {
   dueDateFormatted: string | null;
   /** True voor de opdrachtgever (debiteur): tekst spoort aan tot betalen. */
   isPayer: boolean;
+  /** SEPA scan-to-pay QR (EPC069-12), of `null` als er geen geldige payload te bouwen is. */
+  qr?: SepaQr | null;
 }
 
 /**
@@ -26,6 +30,7 @@ export function PaymentDetailsCard({
   amountFormatted,
   dueDateFormatted,
   isPayer,
+  qr,
 }: PaymentDetailsCardProps) {
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -96,6 +101,24 @@ export function PaymentDetailsCard({
             </div>
           )}
         </dl>
+        {qr && (
+          <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 p-3">
+            <div className="shrink-0 rounded-md bg-white p-1.5 shadow-sm">
+              <SepaQrCode qr={qr} />
+            </div>
+            <div className="min-w-0 space-y-1">
+              <p className="flex items-center gap-1.5 text-sm font-medium">
+                <QrCode className="size-4 text-muted-foreground" aria-hidden />
+                Scan &amp; betaal
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isPayer
+                  ? "Scan de code met je bankapp; IBAN, tenaamstelling, bedrag en betaalkenmerk staan al ingevuld."
+                  : "De opdrachtgever kan deze code met de bankapp scannen — alle betaalgegevens staan er al in."}
+              </p>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

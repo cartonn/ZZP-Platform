@@ -98,6 +98,14 @@ Eerlijk vastgelegd om dubbel werk (slop) te voorkomen.
   (`mileage.ts`, opdrachtgever betaalt de rit): dit is de eigen aftrekbare kostenpost
   (`expense-mileage.ts`). Administratie-ontzorging: minder rekenwerk, correcte aftrek.
 
+- **SEPA scan-to-pay QR op de factuur** _(S, Bendy/Deel + professionele facturatiestandaard)_ —
+  **GEBOUWD (#1288)**. Bendy/Deel automatiseren de betaalstap; een EPC069-12-QR op de factuur is de
+  professionele standaard die elke NL-bankapp scant. Vertaald naar onze rechtstreekse (off-platform)
+  betaalrealiteit: naast de bestaande betaalgegevens een puur uit het grootboek afgeleide betaal-QR
+  (IBAN, tenaamstelling, bedrag, betaalkenmerk vooringevuld). Geen incasso/geldstroom — enkel minder
+  overtikken en het juiste kenmerk voor de reconciliatie. Helpt opdrachtgever (sneller, foutloos
+  betalen) én ZZP'er (sneller, correct-gereconcilieerd betaald). `src/lib/payments/epc-qr.ts`.
+
 ### PARKEREN (eigenaars-/strategiebeslissing — niet autonoom bouwen)
 
 7. **Externe roostersysteem-integratie** _(L, Zorgwerk + Bendy)_ — ingest van flex-aanvragen uit
