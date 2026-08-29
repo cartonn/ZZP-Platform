@@ -74,6 +74,7 @@ import {
   availabilityRefreshTask,
   draftJobsTask,
   jobNeedsAttentionTask,
+  jobStaffingOverdueTask,
   franchiseCredentialExpiryTask,
   franchiseCredentialExpiredTask,
   franchiseAcuteDienstTask,
@@ -107,6 +108,7 @@ import {
 import { reviewBlindDays } from "@/lib/config";
 import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
 import { getClientColdJobs } from "@/lib/data/client-cold-jobs";
+import { getClientOverdueJobs } from "@/lib/data/client-overdue-jobs";
 import { getIncomeTaxDeadlineForActor } from "@/lib/data/income-tax-deadline";
 import { incomeTaxDeadlineNeedsAction } from "@/lib/administration/income-tax-deadline";
 import {
@@ -1242,6 +1244,15 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   // next-action. Gedeelde `getClientColdJobs` → identiek aan de /opdrachten-nav-badge (geen drift).
   for (const cold of await getClientColdJobs(userId, new Date())) {
     tasks.push(jobNeedsAttentionTask(cold.jobId, cold.title, cold.headline));
+  }
+
+  // Overdue-onbezette opdrachten (startdatum verstreken, nog niemand vastgelegd) — het verstreken-
+  // planning-deadline-signaal dat al op het opdracht-detail (`JobStaffingRiskCard`) en de lijstbadge
+  // stond, nu ook als next-action. Gedeelde `summarizeStaffingRisk` → identiek aan het detailscherm.
+  for (const overdue of await getClientOverdueJobs(userId, new Date())) {
+    tasks.push(
+      jobStaffingOverdueTask(overdue.jobId, overdue.title, overdue.daysUntilStart, overdue.action),
+    );
   }
 
   // BTW-aangifte-deadline (zie freelancerTasks) — ook de opdrachtgever heeft een eigen grootboek.

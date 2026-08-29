@@ -17,6 +17,11 @@ import { type VatDeadlineSummary } from "@/lib/administration/vat-deadline";
 import { type IncomeTaxDeadlineSummary } from "@/lib/administration/income-tax-deadline";
 import { type HoursCriterionSummary } from "@/lib/tax/hours-criterion-summary";
 import { type StaleApplicationsSummary } from "@/lib/stale-applications";
+import {
+  staffingRiskHeadline,
+  staffingRiskActionLabel,
+  type StaffingRiskAction,
+} from "@/lib/job-staffing-risk";
 import { type FirstLookOverdueSummary } from "@/lib/client-first-look";
 import { INVITATION_AGING_DAYS, invitationAgeLabel } from "@/lib/received-invitations";
 import { UNBILLED_AGING_DAYS } from "@/lib/unbilled-invoices";
@@ -106,6 +111,7 @@ export type PendingTask =
   | (TaskBase & { kind: "availability-refresh" })
   | (TaskBase & { kind: "draft-jobs" })
   | (TaskBase & { kind: "job-needs-attention"; jobId: string })
+  | (TaskBase & { kind: "job-staffing-overdue"; jobId: string })
   | (TaskBase & { kind: "franchise-credential-expiry"; profileId: string })
   | (TaskBase & { kind: "franchise-credential-expired"; profileId: string })
   | (TaskBase & { kind: "franchise-open-dienst-acute" })
@@ -1076,6 +1082,32 @@ export function jobNeedsAttentionTask(
     tone: "attention",
     priority: P.jobNeedsAttention,
     resolver: "link", // bijsturen is meerstaps (tarief/eisen/omschrijving) → naar het opdracht-detail
+    href: `/opdrachten/${jobId}`,
+    jobId,
+  };
+}
+
+/**
+ * De opdrachtgever heeft een gepubliceerde opdracht waarvan de startdatum is verstreken terwijl er nog
+ * niemand is vastgelegd — de opdracht dreigt leeg te starten. Distinct en urgenter dan een koud lopende
+ * opdracht (`jobNeedsAttentionTask`, vacaturetempo): hier is de planning-deadline al gepasseerd. Kop en
+ * volgende-stap komen uit exact hetzelfde `summarizeStaffingRisk` als de detailkaart (geen drift); de
+ * afhandeling is meerstaps (vastleggen / eisen verruimen) → deep-link naar het opdracht-detail.
+ */
+export function jobStaffingOverdueTask(
+  jobId: string,
+  jobTitle: string,
+  daysUntilStart: number,
+  action: StaffingRiskAction,
+): PendingTask {
+  return {
+    kind: "job-staffing-overdue",
+    id: `job-staffing-overdue:${jobId}`,
+    title: jobTitle,
+    subtitle: `${staffingRiskHeadline("overdue", daysUntilStart)} — ${staffingRiskActionLabel(action)}`,
+    tone: "attention",
+    priority: P.jobStaffingOverdue,
+    resolver: "link",
     href: `/opdrachten/${jobId}`,
     jobId,
   };

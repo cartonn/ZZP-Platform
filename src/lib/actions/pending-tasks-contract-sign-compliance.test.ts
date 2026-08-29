@@ -91,6 +91,10 @@ vi.mock("@/lib/signals", () => ({
   overdueInvoiceCount: vi.fn(async () => 0),
   overdueInvoiceBreakdown: vi.fn(async () => ({ legacy: 0, cascade: 0 })),
   paymentDueSoonCount: vi.fn(async () => 0),
+  // getClientOverdueJobs (via clientTasks) leunt op startOfUtcDay; deze mock vervangt het hele
+  // module, dus die export moet erbij. Faithful — gelijk aan de echte implementatie.
+  startOfUtcDay: (now: Date) =>
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())),
 }));
 vi.mock("@/lib/data/income-tax-deadline", () => ({
   getIncomeTaxDeadlineForActor: vi.fn(async () => null),
