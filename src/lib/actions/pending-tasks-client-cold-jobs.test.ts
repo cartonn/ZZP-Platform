@@ -9,6 +9,12 @@ import { P } from "@/lib/next-actions";
 
 const state = vi.hoisted(() => ({
   cold: [] as { jobId: string; title: string; headline: string }[],
+  overdue: [] as {
+    jobId: string;
+    title: string;
+    daysUntilStart: number;
+    action: string;
+  }[],
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -41,7 +47,9 @@ vi.mock("@/lib/collaboration-alerts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/collaboration-alerts")>();
   return { ...actual, clientCredentialAlerts: vi.fn(async () => []) };
 });
-vi.mock("@/lib/data/client-overdue-jobs", () => ({ getClientOverdueJobs: vi.fn(async () => []) }));
+vi.mock("@/lib/data/client-overdue-jobs", () => ({
+  getClientOverdueJobs: vi.fn(async () => state.overdue),
+}));
 vi.mock("@/lib/data/client-cold-jobs", () => ({
   getClientColdJobs: vi.fn(async () => state.cold),
 }));
@@ -52,6 +60,7 @@ const ACTOR = { id: "user-client", role: "CLIENT", status: "ACTIVE" } as const;
 
 beforeEach(() => {
   state.cold = [];
+  state.overdue = [];
 });
 
 describe("clientTasks — koud-lopende opdracht als next-action", () => {
@@ -83,5 +92,27 @@ describe("clientTasks — koud-lopende opdracht als next-action", () => {
       "/opdrachten/job-1",
       "/opdrachten/job-2",
     ]);
+  });
+
+  it("een opdracht die zowel koud als overdue-onbezet is → alleen de overdue-taak (geen dubbele rij)", async () => {
+    // Regressie: #1280 voegde de overdue-onbezet-producer toe zonder de koud-tak te ontdubbelen, waardoor
+    // dezelfde opdracht twee next-action-rijen opleverde (job-needs-attention P=44 + job-staffing-overdue
+    // P=51), met dezelfde deep-link, en de badge (`pendingTaskCount`) met één opblies. De urgentere
+    // verstreken-planning-taak domineert; de koud-nudge voor diezelfde opdracht valt weg.
+    state.cold = [
+      { jobId: "job-1", title: "Nachtdienst VVT", headline: "Weinig respons" },
+      { jobId: "job-2", title: "Alleen koud", headline: "Traag tempo" },
+    ];
+    state.overdue = [
+      { jobId: "job-1", title: "Nachtdienst VVT", daysUntilStart: -3, action: "widen_reach" },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    // job-1 verschijnt alleen als overdue-taak, niet óók als koud-taak.
+    expect(tasks.filter((t) => t.kind === "job-needs-attention").map((t) => t.id)).toEqual([
+      "job-needs-attention:job-2",
+    ]);
+    expect(tasks.filter((t) => t.id === "job-staffing-overdue:job-1")).toHaveLength(1);
+    // job-1 komt in totaal maar één keer voor over alle taak-soorten heen.
+    expect(tasks.filter((t) => t.href === "/opdrachten/job-1")).toHaveLength(1);
   });
 });

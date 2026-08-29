@@ -46,8 +46,16 @@ export async function getClientColdJobs(
     where: {
       company: { userId },
       status: "PUBLISHED",
-      // Ongevuld: geen lopende samenwerking. Een gevulde opdracht vraagt niet meer om kandidaten.
-      collaborations: { none: { status: "ACTIVE" } },
+      // Onbezet: geen kandidaat vastgelegd. `lockedIn` = ACCEPTED-reactie óf een niet-geannuleerde
+      // samenwerking (PROPOSED/ACTIVE/…) — beide betekenen "iemand vastgelegd", dus de opdracht vraagt
+      // niet langer om méér kandidaten. Spiegelt de lockedIn-poort van `getClientOverdueJobs` +
+      // `summarizeStaffingRisk`. Voorheen sloot alleen een ACTIVE-samenwerking de opdracht uit, waardoor
+      // een reeds-geaccepteerde kandidaat (ACCEPTED-reactie, nog geen samenwerking — de propose-limbo)
+      // of een PROPOSED-samenwerking (contract nog te tekenen) tóch als "weinig respons — verruim de
+      // zichtbaarheid" verscheen: een next-action die de gelijktijdige "rond de hire af"/"onderteken het
+      // contract"-actie voor dezelfde opdracht rechtstreeks tegensprak.
+      applications: { none: { status: "ACCEPTED" } },
+      collaborations: { none: { status: { not: "CANCELLED" } } },
     },
     select: {
       id: true,
