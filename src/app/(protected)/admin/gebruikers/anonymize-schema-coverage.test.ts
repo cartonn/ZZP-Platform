@@ -143,7 +143,9 @@ const ALLOWLIST: Record<string, string> = {
 // gewist, BEHOUDEN (gepseudonimiseerd, niet cascade-verwijderd) model.
 //
 // Deze poort dwingt daarom af dat elke hieronder benoemde PII-kolom als geschreven data-sleutel
-// (`veld:`) in de erasure-body voorkomt. Dekt de inline-geschreven, behouden modellen waar extra
+// (`veld:`) voorkomt binnen een Prisma-aanroep-blok op het bijbehorende model (niet zomaar ergens in
+// de bron — zo kan een gelijknamige sleutel in een `where`/`select` van een ander model deze poort
+// niet ten onrechte laten slagen). Dekt de inline-geschreven, behouden modellen waar extra
 // kolommen het risico vormen (Application, Performance). De helper-gedreven modellen (User/
 // FreelancerProfile/Company via `*AnonymizationData()`) hebben hun eigen uitputtende veld-asserties in
 // `anonymize-erasure.test.ts`. Een nieuwe PII-kolom op een van deze modellen die niet wordt gewist
@@ -163,9 +165,43 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   Performance: ["description", "milestoneTitle"],
 };
 
-/** True als `veld` als geschreven data-sleutel (`veld:`) in de erasure-body voorkomt. */
-function fieldIsWiped(src: string, field: string): boolean {
-  return new RegExp(`\\b${field}\\s*:`).test(src);
+/**
+ * Alle argument-blokken (`(...)`) van de Prisma-client-aanroepen op `<model>` in de bron: elk
+ * `(?:prisma|tx).<accessor>.<methode>(…)`-blok met gebalanceerde haakjes. Zo blijft de veld-check
+ * gescopet op de aanroepen die het model écht raken — een gelijknamige sleutel in een `where`/`select`
+ * van een ánder model kan geen false pass geven.
+ */
+function modelCallBlocks(src: string, model: string): string[] {
+  const acc = accessor(model);
+  const blocks: string[] = [];
+  const re = new RegExp(`(?:prisma|tx)\\.${acc}\\b\\s*\\.\\s*[A-Za-z]+\\s*\\(`, "g");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    // Scan vanaf de openende `(` tot het gebalanceerde sluithaakje.
+    let depth = 0;
+    let i = m.index + m[0].length - 1; // wijst op de `(`
+    const start = i;
+    for (; i < src.length; i++) {
+      const ch = src[i];
+      if (ch === "(") depth++;
+      else if (ch === ")") {
+        depth--;
+        if (depth === 0) break;
+      }
+    }
+    blocks.push(src.slice(start, i + 1));
+  }
+  return blocks;
+}
+
+/**
+ * True als `veld` als geschreven data-sleutel (`veld:`) voorkomt binnen een aanroep-blok op `<model>`
+ * (niet ergens anders in de bron). Gescopet zodat een gelijknamige sleutel in een `where`/`select` van
+ * een ander model deze poort niet ten onrechte kan laten slagen.
+ */
+function fieldIsWiped(src: string, model: string, field: string): boolean {
+  const keyRe = new RegExp(`\\b${field}\\s*:`);
+  return modelCallBlocks(src, model).some((block) => keyRe.test(block));
 }
 
 describe("AVG art. 17 — schema-dekking van de erasure (anonymizeUser)", () => {
@@ -201,7 +237,7 @@ describe("AVG art. 17 — schema-dekking van de erasure (anonymizeUser)", () => 
         true,
       );
       for (const field of fields) {
-        if (!fieldIsWiped(src, field)) missing.push(`${model}.${field}`);
+        if (!fieldIsWiped(src, model, field)) missing.push(`${model}.${field}`);
       }
     }
     expect(
