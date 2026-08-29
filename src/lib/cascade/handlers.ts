@@ -15,6 +15,7 @@ import { type CollaborationStatus } from "@/lib/enums";
 import {
   planInvoiceApproved,
   planInvoiceSubmitted,
+  planInvoiceWithdrawn,
   planPaymentConfirmed,
   planInvoiceCredited,
 } from "@/lib/administration/ledger";
@@ -403,6 +404,68 @@ export function planInvoiceRejectedEvent(ctx: InvoiceRejectedCtx): CascadeEffect
     entityType: "Invoice",
     entityId: ctx.invoiceId,
     metadata: { reason },
+  });
+  return fx;
+}
+
+// --- Zijpad — Factuur ingetrokken (WITHDRAWN) ------------------------------
+export interface InvoiceWithdrawnCtx {
+  invoice: {
+    id: string;
+    lifecycleStatus: InvoiceLifecycleState;
+    subtotalCents: number;
+    vatCents: number;
+    totalCents: number;
+  };
+  clientUserId: string;
+  reason: string | null;
+  actorId: string | null;
+}
+
+/**
+ * Zijpad — de uitschrijver (of admin) trekt een nog-niet-aanvaarde factuur (DRAFT/SUBMITTED/REJECTED)
+ * terminaal terug. De indien-boeking (Event C) — de enige die op een niet-aanvaarde factuur kan
+ * bestaan — wordt teruggedraaid zodat er geen spookvordering/-omzet/-BTW achterblijft. Een DRAFT-factuur
+ * is nooit ingediend, dus dan is er niets te boeken. WITHDRAWN is terminaal en telt als afgewikkeld
+ * (SETTLED_INVOICE_LIFECYCLE) → de samenwerking kan daarna alsnog afronden/annuleren.
+ */
+export function planInvoiceWithdrawnEvent(ctx: InvoiceWithdrawnCtx): CascadeEffects {
+  invoiceLifecycleMachine.assert(ctx.invoice.lifecycleStatus, "WITHDRAWN");
+  const wasBooked =
+    ctx.invoice.lifecycleStatus === "SUBMITTED" || ctx.invoice.lifecycleStatus === "REJECTED";
+  const fx = emptyEffects();
+  fx.statusChanges.push({
+    entity: "Invoice",
+    id: ctx.invoice.id,
+    field: "lifecycleStatus",
+    from: ctx.invoice.lifecycleStatus,
+    to: "WITHDRAWN",
+  });
+  // Alleen een reeds ingediende factuur heeft een indien-boeking om terug te draaien.
+  if (wasBooked) {
+    fx.postings.push(
+      ...planInvoiceWithdrawn({
+        issuer: "FREELANCER",
+        counterparty: "CLIENT",
+        subtotalCents: ctx.invoice.subtotalCents,
+        vatCents: ctx.invoice.vatCents,
+        totalCents: ctx.invoice.totalCents,
+      }),
+    );
+  }
+  fx.notifications.push({
+    userId: ctx.clientUserId,
+    type: "INVOICE_WITHDRAWN",
+    title: "Factuur ingetrokken",
+    body: "De ZZP'er heeft deze factuur ingetrokken; er hoeft niets meer met deze factuur te gebeuren.",
+    link: "/facturen",
+  });
+  fx.audits.push({
+    actorId: ctx.actorId,
+    action: "INVOICE_WITHDRAWN",
+    entityType: "Invoice",
+    entityId: ctx.invoice.id,
+    metadata: ctx.reason ? { reason: ctx.reason } : {},
   });
   return fx;
 }

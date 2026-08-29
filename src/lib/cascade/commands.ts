@@ -26,6 +26,7 @@ export {
   approveInvoice,
   rejectInvoice,
   creditInvoice,
+  withdrawInvoice,
 } from "@/lib/cascade/invoice-commands";
 
 export { confirmPayment } from "@/lib/cascade/payment-commands";

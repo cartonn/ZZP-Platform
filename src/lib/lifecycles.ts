@@ -76,20 +76,27 @@ export const INVOICE_LIFECYCLE_STATES = [
   "REJECTED", // afgekeurd (zijpad)
   "OVERDUE", // te laat (zijpad)
   "CREDITED", // gecrediteerd (zijpad)
+  "WITHDRAWN", // ingetrokken (terminaal zijpad: nog-niet-aanvaarde factuur teruggetrokken door uitschrijver/admin)
 ] as const;
 export type InvoiceLifecycleState = (typeof INVOICE_LIFECYCLE_STATES)[number];
 export const invoiceLifecycleStateSchema = z.enum(INVOICE_LIFECYCLE_STATES);
 export const invoiceLifecycleMachine = defineStateMachine<InvoiceLifecycleState>(
   "InvoiceLifecycle",
   {
-    DRAFT: ["SUBMITTED"],
-    SUBMITTED: ["APPROVED", "REJECTED"],
+    // Een nog-niet-aanvaarde factuur (DRAFT/SUBMITTED/REJECTED) kan terminaal worden INGETROKKEN:
+    // de uitschrijver (of admin) trekt zijn eigen vordering terug wanneer die nooit betaald zal worden.
+    // Zo blijft een afgekeurde-en-nooit-heraangeboden factuur niet als "openstaand geld" hangen en kan
+    // de samenwerking alsnog terminaal worden (WITHDRAWN telt als afgewikkeld). Crediteren is voorbehouden
+    // aan een reeds aanvaarde/betaalde factuur (APPROVED+); intrekken aan het voor-aanvaarding-traject.
+    DRAFT: ["SUBMITTED", "WITHDRAWN"],
+    SUBMITTED: ["APPROVED", "REJECTED", "WITHDRAWN"],
     APPROVED: ["PAID", "OVERDUE", "CREDITED"],
     OVERDUE: ["PAID", "CREDITED"],
     PAID: ["PROCESSED", "CREDITED"],
     PROCESSED: ["CREDITED"],
-    REJECTED: ["SUBMITTED"], // corrigeren en opnieuw indienen (terug naar Event C)
+    REJECTED: ["SUBMITTED", "WITHDRAWN"], // corrigeren en opnieuw indienen (Event C) óf terminaal intrekken
     CREDITED: [],
+    WITHDRAWN: [],
   },
 );
 

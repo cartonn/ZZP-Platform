@@ -791,6 +791,34 @@ Read-only, geen schema-/mutatie-/authz-oppervlak.
 
 **Checks:** typecheck · lint · test · build · prettier → PR #1242 / CI-poort.
 
+## 2026-08-26 — persona-sweep run 95: factuur intrekken (WITHDRAWN) heft de ACTIVE-deadlock op
+
+**Wat:** de kritische-gebruiker-sweep (4 parallelle adversariële Opus-audits) vond één echt,
+productie-bereikbaar defect in de betaal-cascade: een nog-niet-aanvaarde factuur (DRAFT/SUBMITTED/
+REJECTED) zette de samenwerking **permanent op `ACTIVE`** vast. `isInvoiceSettled`/`completionBlockReason`/
+`cancellationBlockReason` telden élke niet-PAID/PROCESSED/CREDITED-factuur als "openstaand geld", maar
+vanuit REJECTED/SUBMITTED is crediteren onmogelijk (`invoiceLifecycleMachine`) en "markeer betaald"
+evenmin, en er bestond geen void/withdraw-actie — de getoonde blok-reden was letterlijk onuitvoerbaar.
+Bovendien liet een afgekeurde-en-nooit-heraangeboden factuur spook-omzet/-BTW/-debiteuren staan (Event C
+boekt bij indienen, afkeuren draait dat bewust niet terug).
+
+**Fix:** nieuwe terminale factuur-eindtoestand `WITHDRAWN` + command `withdrawInvoice` (alleen de
+uitschrijver of admin — de opdrachtgever kan hooguit afkeuren, geen escape). Intrekken draait de
+indien-boeking terug (`planInvoiceWithdrawn`), telt als afgewikkeld (`SETTLED_INVOICE_LIFECYCLE`) →
+afronden/annuleren kan weer, en `cascade/stage.ts` toont een terminale "Ingetrokken"-fase i.p.v. het
+foute "Markeer de betaling"-signaal. `openInvoiceWhere` (inclusion-lijst) sluit WITHDRAWN uit → de
+/acties-taak verdwijnt na intrekken (DOEL 1b-pariteit). UI: "Factuur intrekken" op DRAFT/SUBMITTED/
+REJECTED voor de ZZP'er.
+
+**Bestanden:** `src/lib/lifecycles.ts`, `src/lib/events.ts`, `src/lib/notifications.ts`,
+`src/lib/administration/ledger.ts`, `src/lib/cascade/{handlers,invoice-commands,commands,completion,stage}.ts`,
+`src/lib/{audit-labels,audit-metadata}.ts`, `src/lib/administration/csv.ts`,
+`src/app/(protected)/samenwerkingen/[id]/{actions,page}.tsx`, `src/app/(protected)/facturen/[id]/page.tsx`.
+**Tests:** `src/lib/cascade/invoice-withdraw.test.ts` (+9, machine-overgangen · boeking netto-nul · planner ·
+deadlock rood→groen) + geüpdatete `completion.test.ts`. Gate: typecheck + lint + unit groen, prettier,
+build. De 3 andere audit-oppervlakken (authz/IDOR/tenant · next-action · malicieuze input) vonden 0 nieuwe
+gaten. Zie `docs/PERSONA-SWEEP-BACKLOG.md` (run 95).
+
 ## 2026-08-26 — routine: verse treffers uit bewaarde zoekopdrachten op het dashboard (ZZP'er)
 
 **Wat:** de bewaarde zoekopdrachten tonen op `/opdrachten` al een totaal-match-teller (#1236) en een

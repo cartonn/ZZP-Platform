@@ -1,5 +1,48 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-29 (run 99 — herland van de op 29-08 gesloten PR #1243; agent-review-blockers vooraf verwerkt) · **main-commit basis:** `a7098550`
+> **Uitkomst:** **1 defect gevonden én gefixt** (should-fix robuustheid/geld-integriteit, betaal-cascade —
+> onontkoombare ACTIVE-deadlock + spookvordering bij een nooit-aanvaarde factuur). 4 parallelle adversariële
+> Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant-isolatie · cascade/geld-integriteit +
+> verboden statusovergangen · next-action-engine · malicieuze input/CSV/XSS/upload). De authz/IDOR/tenant-,
+> next-action- én malicieuze-input-audits vonden **0 nieuwe bereikbare gaten** (opnieuw bevestigd diep gehard:
+> live-rol-authz + anti-oracle 404, `ownsViaTenant`/`tenantScopeWhere`, inclusion-lijsten voor open/betaalde
+> omzet, `escapeCsvField`/`escapeIcsText` + `esc()`/`escapeHtml()`, magic-byte upload-sniff, begrensde Zod).
+> De next-action-drempeldivergentie (2/4/8 vs 14/21 dagen, kandidaat-beslissing) is dezelfde bewust-gelaagde
+> design-keuze die run 93/94 al parkeerden — geen nieuw defect.
+>
+> - **OPGELOST — should-fix (robuustheid + geld-integriteit, CLAUDE.md regel 1 & 3 — server-side waarheid,
+>   statusovergangen via expliciete map, "geen dode knoppen"): een nog-niet-aanvaarde cascade-factuur
+>   (DRAFT/SUBMITTED/REJECTED) zette de samenwerking PERMANENT op `ACTIVE` vast, en een afgekeurde-en-nooit-
+>   heraangeboden factuur liet spook-omzet/-BTW/-debiteuren op het grootboek van de ZZP'er staan.**
+>   `isInvoiceSettled`/`completionBlockReason`/`cancellationBlockReason` (`src/lib/cascade/completion.ts`)
+>   behandelden élke niet-PAID/PROCESSED/CREDITED-factuur als "openstaand geld" → afronden én annuleren
+>   geblokkeerd. Maar vanuit REJECTED/SUBMITTED is crediteren onmogelijk (`invoiceLifecycleMachine`:
+>   `CREDITED` alleen vanuit APPROVED+; `assert` gooit) en "markeer betaald" evenmin (`PAID` vereist
+>   APPROVED/OVERDUE); er bestond géén void/withdraw-actie en `resolveDispute` gaf de admin geen factuur-macht.
+>   De getoonde blok-reden ("Markeer die als betaald of crediteer 'm eerst") was voor een REJECTED-factuur
+>   letterlijk onuitvoerbaar → de enige "uitgang" (REJECTED→SUBMITTED→APPROVED) vereiste juist de weigerende
+>   partij. Bovendien boekt indienen (Event C) omzet/debiteuren/af-te-dragen-BTW éénmalig en draait afkeuren
+>   dat NIET terug (bewust, zodat heraanbieding niet dubbeltelt) → een nooit-heraangeboden REJECTED-factuur
+>   overwaardeert permanent de omzet + BTW-schuld. **Repro (FREELANCER/CLIENT, geen DB-manipulatie):** contract
+>   getekend → prestatie goedgekeurd → factuur ingediend (SUBMITTED, geboekt) → opdrachtgever keurt af (REJECTED)
+>   → ZZP'er wil de klus sluiten maar wil/kan de factuur niet opnieuw laten goedkeuren → afronden én annuleren
+>   blijven geweigerd met een onuitvoerbare instructie; samenwerking zit muurvast op ACTIVE. **Fix:** nieuwe
+>   terminale factuur-eindtoestand `WITHDRAWN` + command `withdrawInvoice` (`invoice-commands.ts`): alleen de
+>   uitschrijver (of admin) trekt zijn eigen nog-niet-aanvaarde vordering terug (de opdrachtgever kan hooguit
+>   afkeuren → geen escape waarbij de klant een terechte factuur wegpoetst). Intrekken draait de indien-boeking
+>   terug (`planInvoiceWithdrawn` → negatie van Event C; geen spookvordering/-omzet/-BTW), telt als afgewikkeld
+>   (`SETTLED_INVOICE_LIFECYCLE`) → afronden/annuleren kan weer, en `cascade/stage.ts` toont een terminale
+>   "Ingetrokken"-fase i.p.v. het foute "Markeer de betaling"-signaal (spiegelt de CREDITED-tak). De blok-reden
+>   noemt nu ook intrekken. `openInvoiceWhere` (inclusion-lijst) sluit WITHDRAWN uit → de /acties-taak
+>   "factuur indienen/corrigeren" verdwijnt netjes na intrekken (DOEL 1b-pariteit). UI: "Factuur intrekken"
+>   voor de ZZP'er op DRAFT/SUBMITTED/REJECTED. +9 regressietests (`invoice-withdraw.test.ts`): machine-
+>   overgangen (DRAFT/SUBMITTED/REJECTED→WITHDRAWN toegestaan, APPROVED/PAID→WITHDRAWN geweigerd, WITHDRAWN
+>   terminaal), boeking netto-nul, planner (postings/notificatie/audit; DRAFT geen boeking), en de deadlock
+>   rood→groen (REJECTED blokkeert → WITHDRAWN heft op).
+
+---
+
 > **Datum:** 2026-08-28 (run 98) · **main-commit basis:** `6b546d85`
 > **Uitkomst:** **1 defect gevonden én gefixt** — **AVG/privacy (opslagbeperking, art. 5(1)(e)):
 > een tweede, niet-geruimde PII-kopie in de auditlog.** De mail-intake-retentie-sweep
@@ -147,19 +190,15 @@ bg-muted/40`, `text-muted-foreground`); copy en telling ongewijzigd. Bewust gé�
 >   op `/opdrachten` (`candidate-decision.ts`, `DECISION_PATIENCE_DAYS` 2-8d) heeft nog steeds geen corresponderend
 >   `/acties`-item of nav-badge (canonieke drempel `WAIT_ATTENTION_DAYS` NEW7/VIEWED14/SHORTLIST21). Twee-lagen-ontwerp
 >   (zachte nudge vs. harde next-action) — productkeuze, aparte gereviewde PR. Zie run 94 hieronder voor fix-richting.
-
----
-
-> **Datum:** 2026-08-26 (run 94) · **main-commit basis:** `9b144852`
-> **Uitkomst:** **1 defect gevonden én gefixt** (should-fix geld-integriteit, tenant-/franchise-facturatie —
-> stale tenant-fee overleeft een creditnota). **1 nieuw geparkeerd** (should-fix/design next-action-pariteit,
-> DOEL 1b — beslis-achterstand-chip). 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
-> (authz/IDOR/tenant-isolatie · cascade/geld-integriteit + verboden statusovergangen · next-action-engine ·
-> malicieuze input/CSV/XSS/upload). De authz/IDOR/tenant- én malicieuze-input-audits vonden **0 nieuwe
-> bereikbare gaten** (opnieuw bevestigd diep gehard: anti-oracle 404 op document- en cross-tenant-paden,
-> `ownsViaTenant`/`tenantScopeWhere`, `escapeCsvField`/`escapeIcsText` op álle CSV-/ICS-producers,
-> `esc()`/`escapeHtml()` + CRLF-strip in mails, magic-byte upload-sniff, begrensde Zod-velden).
->
+>   **Datum:** 2026-08-26 (run 94) · **main-commit basis:** `9b144852`
+>   **Uitkomst:** **1 defect gevonden én gefixt** (should-fix geld-integriteit, tenant-/franchise-facturatie —
+>   stale tenant-fee overleeft een creditnota). **1 nieuw geparkeerd** (should-fix/design next-action-pariteit,
+>   DOEL 1b — beslis-achterstand-chip). 4 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+>   (authz/IDOR/tenant-isolatie · cascade/geld-integriteit + verboden statusovergangen · next-action-engine ·
+>   malicieuze input/CSV/XSS/upload). De authz/IDOR/tenant- én malicieuze-input-audits vonden **0 nieuwe
+>   bereikbare gaten** (opnieuw bevestigd diep gehard: anti-oracle 404 op document- en cross-tenant-paden,
+>   `ownsViaTenant`/`tenantScopeWhere`, `escapeCsvField`/`escapeIcsText` op álle CSV-/ICS-producers,
+>   `esc()`/`escapeHtml()` + CRLF-strip in mails, magic-byte upload-sniff, begrensde Zod-velden).
 > - **OPGELOST — should-fix (geld-integriteit, CLAUDE.md regel 1 & 2 — server-side waarheid): een
 >   openstaande tenant-transactie-fee overleefde een creditnota → de franchise-tenant werd gefactureerd
 >   over teruggedraaide omzet (fee over omzet die niet meer bestaat).** `recordTenantFeeForCollaboration`

@@ -12,6 +12,7 @@ import {
   planInvoiceApprovedEvent,
   planInvoiceRejectedEvent,
   planInvoiceCreditedEvent,
+  planInvoiceWithdrawnEvent,
 } from "@/lib/cascade/handlers";
 import { DEFAULT_PAYMENT_TERM_DAYS } from "@/lib/config";
 import {
@@ -326,4 +327,70 @@ export async function creditInvoice(
       await recordTenantFeeForCollaboration(inv.collaborationId);
     } catch {}
   }
+}
+
+// --- Zijpad — Factuur intrekken (WITHDRAWN) --------------------------------
+// De uitschrijver (of admin) trekt een nog-niet-aanvaarde factuur (DRAFT/SUBMITTED/REJECTED) terminaal
+// terug. Nodig omdat een afgekeurde (of nooit-goedgekeurde) factuur anders als "openstaand geld" de
+// samenwerking permanent op ACTIVE vastzet: crediteren kan niet (dat vereist een aanvaarde/betaalde
+// factuur) en "markeer betaald" evenmin — er was geen route uit. Intrekken draait de indien-boeking
+// terug (geen spookvordering) en telt als afgewikkeld, zodat afronden/annuleren weer kan. Alleen de
+// uitschrijver trekt zijn eigen vordering terug (de opdrachtgever kan hooguit afkeuren) — zo kan de
+// opdrachtgever niet met een afkeuring + intrekking een terechte factuur wegpoetsen.
+export async function withdrawInvoice(
+  actor: Actor,
+  invoiceId: string,
+  reason?: string,
+): Promise<void> {
+  const trimmed = reason ? boundReason(reason) : "";
+  const inv = await loadCascadeInvoice(invoiceId);
+  // Anti-oracle (CWE-203): niet-partij → "Factuur niet gevonden."; de tegenpartij (verkeerde kant)
+  // houdt de rolmelding. Symmetrisch met submitInvoice/creditInvoice.
+  if (
+    actor.role !== "ADMIN" &&
+    actor.id !== inv.issuerUserId &&
+    actor.id !== inv.counterpartyUserId
+  ) {
+    throw new CascadeError("Factuur niet gevonden.");
+  }
+  if (actor.role !== "ADMIN" && actor.id !== inv.issuerUserId) {
+    throw new CascadeError("Alleen de uitschrijver kan de factuur intrekken.");
+  }
+  // Tijdens een dispuut bevriest de cascade; intrekken op een dode (terminale) samenwerking mag niet.
+  if (inv.collaborationId) {
+    await assertNotDisputed(inv.collaborationId);
+    await assertCollaborationNotTerminal(inv.collaborationId);
+  }
+  const effects = planInvoiceWithdrawnEvent({
+    invoice: {
+      id: invoiceId,
+      lifecycleStatus: inv.lifecycleStatus,
+      subtotalCents: inv.subtotalCents,
+      vatCents: inv.vatCents,
+      totalCents: inv.totalCents,
+    },
+    clientUserId: inv.counterpartyUserId,
+    reason: trimmed || null,
+    actorId: actor.id,
+  });
+  await persistEventAndEffects(
+    {
+      type: "INVOICE_WITHDRAWN",
+      actorRole: actor.role,
+      actorId: actor.id,
+      subjectType: "Invoice",
+      subjectId: invoiceId,
+      correlationId: inv.correlationId,
+      // Eenmalige terminale overgang: dedupeKey maakt een dubbele intrekking idempotent.
+      dedupeKey: `invoice-withdrawn-${invoiceId}`,
+    },
+    effects,
+    {
+      owners: { FREELANCER: inv.issuerUserId, CLIENT: inv.counterpartyUserId },
+      correlationId: inv.correlationId,
+      invoiceId,
+      disputeGuardCollaborationId: inv.collaborationId,
+      terminalGuard: true,
+    },
+  );
 }
