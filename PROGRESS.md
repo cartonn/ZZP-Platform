@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-29 — routine: mail-intake meetlus (doorlooptijd mail→gepubliceerd) — PR #1282
+
+**Wat:** opdrachtgevers zagen geen feedback over hoe snel hun mail-aanvragen worden afgehandeld.
+Nu toont `/opdrachten/mail-intake` een 30-daags funnelblok: Ontvangen · Overgenomen (%) ·
+Mediaan beoordeling (ontvangen→beslist) · Mediaan tot publicatie (ontvangen→job.publishedAt).
+Widget toont alleen als `funnel.total > 0` (geen ruis bij lege mailbox).
+
+**Bestanden:** `src/lib/mail-intake-funnel.ts` (nieuw, puur — geen Prisma/Next: `buildMailIntakeFunnel`,
+`formatDoorlooptijd`; integer-gebaseerde mediaan, negatieve tijden geklemd op 0) +
+`src/lib/mail-intake-funnel.test.ts` (nieuw, 18 tests groen: lege reeks, statustelling,
+acceptatieratio, medianReviewMinutes incl. DISMISSED, medianPublishMinutes alleen ACCEPTED+gepubliceerd,
+negatieve tijden, single-row mediaan, formatDoorlooptijd edge-cases 0–10080 min) +
+`src/app/(protected)/opdrachten/mail-intake/page.tsx` (extra 30-daags query + UI-kaart).
+Gates: typecheck ✓, lint ✓, build ✓, test (18 nieuw + 46 bestaand) ✓, prettier ✓ · CI-poort → PR #1282.
+Resterend mensenwerk: **niets**.
+
+---
+
 ## 2026-08-29 — routine: herindiening-signaal op de verificatiewachtrij (admin)
 
 **Wat:** een `SUBMITTED`-certificaat dat na een of meer eerdere afwijzingen opnieuw is ingediend
