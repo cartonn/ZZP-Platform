@@ -433,7 +433,16 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     // niet tegenspreken.
     const coveredTypes = coveredCredentialTypes(allCreds, now);
     for (const c of creds) {
-      if (c.status === "REJECTED") tasks.push(credentialFixTask(c.id, c.title, "rejected"));
+      // Dekkings-uitsluiting (identiek aan de verlopen-tak hieronder én de gedeelde intentie in de
+      // comment bij `coveredTypes`: "een reeds-verlopen (of afgewezen) exemplaar van datzelfde type
+      // is geen actueel gat"): een AFGEWEZEN certificaat waarvan het type nú al door een geldig
+      // VERIFIED-cert wordt gedragen, is geen openstaand compliance-gat meer. Zonder deze gate bleef
+      // de hoog-geprioriteerde "Afgewezen certificaat opnieuw indienen"-taak (P.credentialRejected 80,
+      // tone attention) onbeperkt staan nadat een corrigerende, nu-geldige herindiening van hetzelfde
+      // type de compliance al droeg — een next-action die nooit verdween en de groene compliance-status
+      // op elk ander scherm (mandatoryDocuments/computeCompliance/opdrachtgever-zicht) tegensprak.
+      if (c.status === "REJECTED" && !coveredTypes.has(c.type))
+        tasks.push(credentialFixTask(c.id, c.title, "rejected"));
       else if (
         c.status === "VERIFIED" &&
         c.expiresAt !== null &&

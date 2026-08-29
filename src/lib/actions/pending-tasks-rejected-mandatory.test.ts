@@ -148,6 +148,34 @@ describe("verplicht document — afgewezen certificaat geen dubbele taak", () =>
     expect(ids).not.toContain("mandatory-document:VOG");
   });
 
+  it("REJECTED + VERIFIED-nu-geldig van hetzelfde type geeft GEEN fix-taak meer (compliance is gedekt)", async () => {
+    // De bug: een afgewezen VOG-indiening naast een gecorrigeerde, nu-geldige VOG. computeCompliance/
+    // mandatoryDocuments zien VOG als volledig gedekt (groen op elk ander scherm), maar de
+    // hoog-geprioriteerde "Afgewezen certificaat opnieuw indienen"-taak bleef onbeperkt staan —
+    // een next-action die de echte status tegensprak en nooit verdween. Nu gedekt door de
+    // `!coveredTypes.has(c.type)`-gate op de REJECTED-tak (spiegelt de verlopen-tak).
+    state.creds = [
+      { id: "cred-vog-rej", title: "VOG", type: "VOG", status: "REJECTED", expiresAt: null },
+      {
+        id: "cred-vog-new",
+        title: "VOG",
+        type: "VOG",
+        status: "VERIFIED",
+        expiresAt: new Date("2999-01-01"), // ruim in de toekomst → nu-geldig
+      },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    const ids = tasks.map((t) => t.id);
+    // Geen fix-taak: het type is al gedekt door het geldige exemplaar.
+    expect(ids).not.toContain("credential-fix:cred-vog-rej");
+    // En geen mandatory-taak: VOG-compliance is voldaan.
+    expect(ids).not.toContain("mandatory-document:VOG");
+    // Geen enkele VOG-gerelateerde next-action blijft hangen.
+    expect(ids.filter((id) => id.includes("cred-vog") || id === "mandatory-document:VOG")).toEqual(
+      [],
+    );
+  });
+
   it("EXPIRED verplicht document (geen rejected) deep-linkt naar VERLENGEN van dat certificaat", async () => {
     state.creds = [
       {

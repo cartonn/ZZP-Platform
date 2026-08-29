@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-29 — persona-sweep: afgewezen-certificaat next-action bleef hangen na een geldige herindiening (DOEL 1b)
+
+**Wat:** kritische-gebruiker-sweep (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: IDOR/tenant/document-privacy · cascade-geld/statusovergangen/input ·
+next-action-engine DOEL 1b). Twee audits CLEAN. **Eén DOEL 1b-defect gevonden én gefixt:** in
+`freelancerTasks` (`src/lib/actions/pending-tasks.ts`) was de REJECTED-tak **onvoorwaardelijk** — hij duwde
+`credentialFixTask("rejected")` voor elk afgewezen certificaat, zónder de `!coveredTypes.has(c.type)`-gate
+die de zustertak (verlopen, regel 459) wél heeft. Gevolg: een ZZP'er die na een afwijzing een gecorrigeerde,
+**nu-geldige** VERIFIED-herindiening van hetzelfde type aanleverde, hield de hoog-geprioriteerde "Afgewezen
+certificaat opnieuw indienen"-taak (`P.credentialRejected` 80, tone `attention`) **onbeperkt** op `/acties`,
+de nav-badge én de dashboard-rail — terwijl `mandatoryDocuments`/`computeCompliance` en het opdrachtgever-
+compliancezicht het type al als groen/gedekt toonden. Een next-action die de echte status tegensprak en
+nooit verdween (VOG/verzekering — kern-differentiatie). **Fix:** de REJECTED-tak nu gepoort met
+`!coveredTypes.has(c.type)` (spiegelt de verlopen-tak + de gedocumenteerde intentie "een reeds-verlopen
+(of afgewezen) exemplaar van datzelfde type is geen actueel gat"). Een afgewezen cert zonder geldige dekking
+houdt zijn fix-taak (ongewijzigd); met geldige dekking valt de taak weg.
+
+**Bestanden:** `src/lib/actions/pending-tasks.ts` (REJECTED-tak gepoort) + regressietest in
+`src/lib/actions/pending-tasks-rejected-mandatory.test.ts` (rood→groen geverifieerd: REJECTED + VERIFIED-nu-
+geldig van hetzelfde type → géén fix-taak; 8 tests groen). Live-bewijs: alle 4 rollen doorgeklikt
+(Playwright/Chromium, qa.db seed) + adversariële matrix (privilege-escalatie /admin/\* → redirect;
+onzin-id's → 404, geen 500; cron fail-closed). Gates: typecheck/lint/test/build/prettier. CI-poort → PR.
+
+---
+
 ## 2026-08-29 — routine: herindiening-signaal op de verificatiewachtrij (admin)
 
 **Wat:** een `SUBMITTED`-certificaat dat na een of meer eerdere afwijzingen opnieuw is ingediend
