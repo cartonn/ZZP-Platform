@@ -9,6 +9,7 @@ import { execSync, spawn } from "node:child_process";
 import http from "node:http";
 import { createRequire } from "node:module";
 import { resolveDrainMs, resolveForceKillMs } from "./shutdown-config.mjs";
+import { syncSchema } from "./db-sync.mjs";
 
 const require = createRequire(import.meta.url);
 
@@ -28,9 +29,14 @@ if (process.env.NODE_ENV === "production") {
 }
 
 run("node scripts/use-db-provider.mjs");
-// Bewust ZONDER --accept-data-loss: additieve wijzigingen (nieuwe kolommen/indexes) gaan door,
-// maar een destructieve wijziging faalt zichtbaar i.p.v. stilzwijgend data te wissen.
-run("npx prisma db push --skip-generate");
+// Schema idempotent op de database zetten met begrensde retry op TRANSIËNTE onbereikbaarheid
+// (Railway-redeploy / DB-failover / kort-nog-opstartende Postgres), zodat een deploy niet spurious
+// faalt op een database die enkele seconden later wél bereikbaar is. Het onderliggende commando
+// draait bewust ZONDER --accept-data-loss: additieve wijzigingen (nieuwe kolommen/indexes) gaan door,
+// maar een destructieve wijziging faalt zichtbaar i.p.v. stilzwijgend data te wissen — en zo'n fatale
+// weigering wordt NOOIT geretryd (alleen herkende connectiefouten), zodat de retry nooit een echt
+// schema-/dataverlies-probleem maskeert.
+await syncSchema({ log: console });
 
 const seedDemo = process.env.SEED_DEMO === "true";
 
