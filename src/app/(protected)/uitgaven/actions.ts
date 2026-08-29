@@ -5,6 +5,7 @@ import { requireRole, AuthorizationError } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { expenseSchema, planExpensePostings, parseEurosToCents } from "@/lib/expense";
+import { parseExpenseKilometers } from "@/lib/expense-mileage";
 
 export type ExpenseFormState = { ok?: true; error?: string } | undefined;
 
@@ -53,12 +54,23 @@ export async function createExpense(
   if (!occurredAt) return { error: "Kies een geldige datum." };
   if (occurredAt.getTime() > Date.now()) return { error: "De datum ligt in de toekomst." };
 
+  const category = String(formData.get("category") ?? "");
+  const kmRaw = String(formData.get("kilometers") ?? "").trim();
+  // Rittenregistratie is alleen betekenisvol bij reiskosten; km buiten die categorie negeren we.
+  // Een opgegeven maar ongeldig km-veld is een expliciete invoerfout (geen stille drop).
+  let kilometers: number | null = null;
+  if (category === "REISKOSTEN" && kmRaw !== "") {
+    kilometers = parseExpenseKilometers(kmRaw);
+    if (kilometers === null) return { error: "Vul een geldig aantal kilometers in." };
+  }
+
   const parsed = expenseSchema.safeParse({
     description: String(formData.get("description") ?? ""),
-    category: String(formData.get("category") ?? ""),
+    category,
     netCents,
     vatCents,
     occurredAt,
+    kilometers,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Controleer de ingevoerde gegevens." };
@@ -75,6 +87,7 @@ export async function createExpense(
         category: data.category,
         netCents: data.netCents,
         vatCents: data.vatCents,
+        kilometers: data.kilometers ?? null,
         occurredAt: data.occurredAt,
       },
     });
@@ -103,6 +116,7 @@ export async function createExpense(
           category: data.category,
           netCents: data.netCents,
           vatCents: data.vatCents,
+          ...(data.kilometers != null ? { kilometers: data.kilometers } : {}),
         },
       }),
     });

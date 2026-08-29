@@ -10,6 +10,7 @@
 
 import { z } from "zod";
 import { type Posting, type LedgerAccount } from "@/lib/administration/ledger";
+import { MILEAGE_MAX_KM } from "@/lib/expense-mileage";
 
 /** Aftrekbare-kosten-categorieën (string-enum, portable — geen native db-enum). */
 export const EXPENSE_CATEGORIES = [
@@ -69,6 +70,14 @@ export const expenseSchema = z
     netCents: cents,
     vatCents: cents,
     occurredAt: z.date({ invalid_type_error: "Kies een geldige datum." }),
+    // Optionele rittenregistratie: gereden zakelijke kilometers bij een reiskosten-uitgave. Alleen
+    // een positief geheel getal binnen de grens; null/afwezig = geen km vastgelegd.
+    kilometers: z
+      .number()
+      .int("Kilometers in hele getallen.")
+      .positive("Aantal kilometers moet groter dan 0 zijn.")
+      .max(MILEAGE_MAX_KM, "Aantal kilometers is te hoog.")
+      .nullish(),
   })
   .refine((v) => v.netCents + v.vatCents > 0, {
     message: "Vul een bedrag groter dan € 0 in.",

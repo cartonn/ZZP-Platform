@@ -1157,6 +1157,7 @@ async function main() {
       category: string;
       netCents: number;
       vatCents: number;
+      kilometers?: number;
       occurredAt: Date;
     }[] = [
       {
@@ -1183,6 +1184,15 @@ async function main() {
         vatCents: 3129, // 21%
         occurredAt: new Date(Date.UTC(thisYear, 0, 20)),
       },
+      {
+        id: "expense-sanne-4",
+        description: "Zakelijke rit — cliëntbezoek eigen auto",
+        category: "REISKOSTEN",
+        netCents: 120 * 23, // 120 km × € 0,23 (vaste kilometervergoeding)
+        vatCents: 0, // een kilometervergoeding kent geen voorbelasting
+        kilometers: 120,
+        occurredAt: new Date(Date.UTC(thisYear, 2, 18)),
+      },
     ];
     if (sanneUserId) {
       for (const e of demoExpenses) {
@@ -1193,6 +1203,7 @@ async function main() {
             category: e.category,
             netCents: e.netCents,
             vatCents: e.vatCents,
+            kilometers: e.kilometers ?? null,
             occurredAt: e.occurredAt,
           },
           create: {
@@ -1202,6 +1213,7 @@ async function main() {
             category: e.category,
             netCents: e.netCents,
             vatCents: e.vatCents,
+            kilometers: e.kilometers ?? null,
             occurredAt: e.occurredAt,
           },
         });

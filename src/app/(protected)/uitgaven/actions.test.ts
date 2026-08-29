@@ -142,6 +142,33 @@ describe("createExpense", () => {
     expect(res?.error).toBeTruthy();
     expect(tx.expenseCreate).not.toHaveBeenCalled();
   });
+
+  it("legt de rittenregistratie-kilometers vast bij een reiskosten-uitgave", async () => {
+    const res = await createExpense(undefined, form({ ...validFields, kilometers: "42" }));
+    expect(res).toEqual({ ok: true });
+    const created = tx.expenseCreate.mock.calls[0]![0] as { data: Record<string, unknown> };
+    expect(created.data.kilometers).toBe(42);
+    const audit = tx.auditCreate.mock.calls[0]![0] as unknown as { data: { metadata: string } };
+    expect(JSON.parse(audit.data.metadata).kilometers).toBe(42);
+  });
+
+  it("negeert kilometers buiten de reiskosten-categorie (geen rittenregistratie)", async () => {
+    const res = await createExpense(
+      undefined,
+      form({ ...validFields, category: "SOFTWARE", kilometers: "42" }),
+    );
+    expect(res).toEqual({ ok: true });
+    const created = tx.expenseCreate.mock.calls[0]![0] as { data: Record<string, unknown> };
+    expect(created.data.kilometers).toBeNull();
+    const audit = tx.auditCreate.mock.calls[0]![0] as unknown as { data: { metadata: string } };
+    expect(JSON.parse(audit.data.metadata).kilometers).toBeUndefined();
+  });
+
+  it("weigert een ongeldig aantal kilometers zonder te schrijven", async () => {
+    const res = await createExpense(undefined, form({ ...validFields, kilometers: "-5" }));
+    expect(res?.error).toBeTruthy();
+    expect(tx.expenseCreate).not.toHaveBeenCalled();
+  });
 });
 
 describe("deleteExpense", () => {

@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-29 — routine: kilometerregistratie bij zakelijke uitgaven (ZZP'er, administratie-ontzorging)
+
+**Wat:** een ZZP'er die met eigen vervoer een zakelijke rit maakt, kan nu bij een reiskosten-uitgave
+de gereden kilometers vastleggen. Het nettobedrag volgt automatisch uit de vaste wettelijke
+kilometervergoeding (€ 0,23/km, `MILEAGE_RATE_CENTS`) tegen 0% btw — een kilometervergoeding kent
+geen voorbelasting. De vastgelegde km vormen een herleidbare rittenregistratie (Belastingdienst-
+onderbouwing bij deze aftrekpost) en gaan mee in de uitgaven-CSV-export voor de boekhouder.
+Concurrent-gedreven (Bendy's declarabele kilometers), maar vertaald naar de eigen aftrekbare
+kostenpost i.p.v. de bestaande reiskosten-FACTUURregel (`mileage.ts`).
+
+**Server-side waarheid:** de km-helper in de form voorinvult alleen; `createExpense` her-valideert km
+(positief geheel getal ≤ 100.000), bewaart het op `Expense.kilometers` en negeert km buiten de
+reiskosten-categorie. Additieve, optionele schemakolom — veilig via `prisma db push` op SQLite én
+Postgres.
+
+**Bestanden:** `prisma/schema.prisma` (`Expense.kilometers Int?`), `src/lib/expense-mileage.ts`
+(nieuw; pure `mileageExpenseNetCents`/`parseExpenseKilometers`/`mileageRateLabel`, hergebruikt
+`MILEAGE_RATE_CENTS` uit config + `MILEAGE_MAX_KM` uit mileage.ts — één bron), `src/lib/expense.ts`
+(Zod-veld `kilometers`), `src/app/(protected)/uitgaven/actions.ts` (parse/opslag/audit),
+`src/app/api/administratie/uitgaven/route.ts` + `src/lib/administration/expenses-csv.ts` (km-kolom),
+`src/components/administratie/uitgaven-form.tsx` (km-veld + 0%-btw-berekening bij reiskosten),
+`src/components/administratie/uitgaven-panel.tsx` (km-badge in de lijst), `prisma/seed.ts`
+(demo-rit 120 km). **Tests:** `expense-mileage.test.ts` (nieuw), km-cases in `uitgaven/actions.test.ts`
+en `expenses-csv.test.ts`. Gate: typecheck/lint/unit/build/prettier groen.
+**Volgende:** de 3 geparkeerde LAAG-items (cross-tenant uitnodigings-teller, geocode-cache-adres,
+dev-only deps).
+
 ## 2026-08-29 — prod: boot-schema-sync retryt transiënte DB-onbereikbaarheid (deploy-veerkracht)
 
 **Wat:** `scripts/start.mjs` draait bij elke (her)start `prisma db push --skip-generate`. Die stap had

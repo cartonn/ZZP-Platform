@@ -89,6 +89,15 @@ Eerlijk vastgelegd om dubbel werk (slop) te voorkomen.
   niet-ingetrokken `Application`-reacties. Nooit een negatief label. Helpt de opdrachtgever de responsieve
   kandidaten als eerste uit te nodigen → snellere vulling.
 
+- **Kilometerregistratie bij zakelijke uitgaven** _(S, Bendy + boekhoudtools)_ — **GEBOUWD (#1287)**.
+  Bendy laat kilometers declareren; boekhoudtools voeren de vaste kilometervergoeding als aftrekpost.
+  Vertaald naar de ZZP'er-administratie: bij een reiskosten-uitgave de gereden km vastleggen; het
+  nettobedrag volgt uit de vaste wettelijke vergoeding (€ 0,23/km, 0% btw — een kilometervergoeding
+  kent geen voorbelasting). De km vormen een herleidbare rittenregistratie (Belastingdienst-
+  onderbouwing) en gaan mee in de uitgaven-CSV. Onderscheiden van de bestaande reiskosten-FACTUURregel
+  (`mileage.ts`, opdrachtgever betaalt de rit): dit is de eigen aftrekbare kostenpost
+  (`expense-mileage.ts`). Administratie-ontzorging: minder rekenwerk, correcte aftrek.
+
 ### PARKEREN (eigenaars-/strategiebeslissing — niet autonoom bouwen)
 
 7. **Externe roostersysteem-integratie** _(L, Zorgwerk + Bendy)_ — ingest van flex-aanvragen uit

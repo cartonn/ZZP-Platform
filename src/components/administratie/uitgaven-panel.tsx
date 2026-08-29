@@ -215,7 +215,14 @@ export async function UitgavenPanel({ actor }: { actor: Actor }) {
                         <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-muted-foreground">
                           {formatDateNl(e.occurredAt)}
                         </td>
-                        <td className="px-4 py-2.5">{e.description}</td>
+                        <td className="px-4 py-2.5">
+                          {e.description}
+                          {e.kilometers != null && e.kilometers > 0 && (
+                            <span className="ml-2 whitespace-nowrap rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                              {e.kilometers} km
+                            </span>
+                          )}
+                        </td>
                         <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">
                           {categoryLabel(e.category)}
                         </td>

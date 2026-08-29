@@ -973,6 +973,7 @@ model Expense {
   category    String //   ExpenseCategory (src/lib/expense.ts)
   netCents    Int //      bedrag exclusief btw
   vatCents    Int      @default(0) // aftrekbare voorbelasting
+  kilometers  Int? //     zakelijke rit-km (rittenregistratie); grondslag km-vergoeding € 0,23/km, 0% btw
   occurredAt  DateTime //  datum van de uitgave
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

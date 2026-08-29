@@ -31,7 +31,14 @@ export async function GET(): Promise<Response> {
   // unbounded-allow: volledige kostenlijst voor de boekhouder; owner-gescopet, geen cross-tenant lek.
   const rows = await prisma.expense.findMany({
     where: { userId: actor.id },
-    select: { occurredAt: true, description: true, category: true, netCents: true, vatCents: true },
+    select: {
+      occurredAt: true,
+      description: true,
+      category: true,
+      netCents: true,
+      vatCents: true,
+      kilometers: true,
+    },
   });
 
   const csv = expensesCsv(rows as ExpenseCsvRow[]);
