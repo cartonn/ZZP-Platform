@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-29 — routine: expiry-signaal op de admin-verificatiewachtrij (ADMIN)
+
+**Wat:** de verificatiewachtrij (`/admin/verificaties`) toont per SUBMITTED-certificaat al twee triage-assen
+— FIFO-eerlijkheid (wacht-badge) en downstream-waarde ("Gevraagd"-badge) — maar geen kwaliteits-as: of het
+ingediende bewijsstuk al **verlopen** is. `isExpired` rekent een VERIFIED-credential met verstreken
+`expiresAt` als verlopen, dus een goedgekeurde verlopen inzending levert een **direct ongeldige** credential
+op die de eerstvolgende `runExpiryTask` naar EXPIRED klapt (verspilde beoordeling + compliance-gat). Nieuw:
+een read-only expiry-badge per rij — `danger` "Reeds verlopen" (`expiresAt <= now`, zelfde grens als
+`isExpired`) of `warning` "Verloopt vandaag/morgen/over N dagen" (binnen 30 dagen) — plus een aggregaat
+"N reeds verlopen" in de wachtrij-kop naast het stale-signaal. Uit de al-geladen `expiresAt` (géén extra
+query), hergebruikt de status-agnostische primitief `daysUntilExpiry` (de VERIFIED-gepoortte
+`isExpired`/`isExpiringSoon` geven `false` voor SUBMITTED en zijn hier niet bruikbaar). Rendert niets bij een
+geldig bewijsstuk (rust boven ruis). Read-only, server-side, geen schema-/mutatie-/authz-oppervlak.
+
+**Bestanden:** `src/lib/verification-expiry.ts` (pure `classifySubmittedExpiry` + `submittedExpiryLabel` +
+`summarizeSubmittedExpiry`, `SUBMITTED_EXPIRY_SOON_DAYS = 30`),
+`src/app/(protected)/admin/verificaties/page.tsx` (kop-aggregaat + per-rij-badge). Tests:
+`verification-expiry.test.ts` (10: grens exact-op-nu, dag-flooring, null → valid, venster-rand, dag-bewuste
+labels, aggregaat).
+
+**Checks:** typecheck ✓, test (verification-expiry 10/10) ✓, lint ✓ (`No ESLint warnings or errors`),
+`prettier --write` gedraaid, build → CI. **Volgende stap:** CI-poort groen → auto-merge (SQUASH). PR #1275.
+
 ## 2026-08-28 — routine: pool-dekkingsgat — gevraagde certificaten/skills vs. roster-aanbod (bemiddelaar)
 
 **Wat:** de bemiddelaar (`/franchise/zzpers`) had geen enkel scherm dat de **vraag** (verplicht gevraagde

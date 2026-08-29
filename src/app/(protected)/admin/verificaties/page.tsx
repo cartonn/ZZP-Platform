@@ -34,6 +34,7 @@ import {
 } from "@/lib/verification-filter";
 import { credentialTypeDemand, demandLevel } from "@/lib/verification-impact";
 import { getOpenJobCredentialRequirements } from "@/lib/data/verification-impact";
+import { submittedExpiryLabel, summarizeSubmittedExpiry } from "@/lib/verification-expiry";
 
 export const metadata: Metadata = { title: "Verificaties · Handslag" };
 
@@ -61,6 +62,9 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
   const now = Date.now();
   // De wachtrij-gezondheid telt altijd de volledige backlog (niet de gefilterde weergave).
   const health = summarizeVerificationQueue(queue, now);
+  // Expiry-signaal over de hele backlog: hoeveel inzendingen zijn al verlopen (goedkeuren = direct
+  // ongeldige credential)? Uit de al-geladen `expiresAt`, geen extra query.
+  const expiry = summarizeSubmittedExpiry(queue, new Date(now));
 
   // Impact-signaal: hoeveel open opdrachten vragen (verplicht) elk certificaattype? Zo kan de admin,
   // binnen de FIFO-volgorde, zien welke beoordeling de meeste downstream-inzetbaarheid ontsluit.
@@ -100,7 +104,7 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
             {health.staleCount > 0
               ? ` · ${health.staleCount} langer dan ${VERIFICATION_STALE_DAYS} dagen`
               : ""}
-            .
+            {expiry.expiredCount > 0 ? ` · ${expiry.expiredCount} reeds verlopen` : ""}.
           </>
         }
         action={<ExpiryButton />}
@@ -178,6 +182,25 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
                               title="Aantal open opdrachten dat dit certificaattype (verplicht) vereist"
                             >
                               Gevraagd · {plural(count, "open opdracht", "open opdrachten")}
+                            </Badge>
+                          );
+                        })()}
+                        {(() => {
+                          // Verlopen inzending goedkeuren levert een direct ongeldige credential op —
+                          // waarschuw de admin vóór de beslissing. Rendert niets bij een geldig bewijsstuk.
+                          const label = submittedExpiryLabel(c.expiresAt, new Date(now));
+                          if (!label) return null;
+                          const expired = label === "Reeds verlopen";
+                          return (
+                            <Badge
+                              variant={expired ? "danger" : "warning"}
+                              title={
+                                expired
+                                  ? "Het bewijsstuk is al verlopen — goedkeuren levert een direct ongeldige credential op. Wijs af en vraag een vernieuwd document."
+                                  : "Het bewijsstuk verloopt binnenkort — houd hier rekening mee bij het beoordelen."
+                              }
+                            >
+                              {label}
                             </Badge>
                           );
                         })()}
