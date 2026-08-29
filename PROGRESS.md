@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-29 — security/privacy: factuur-intrekreden overleefde de erasure (AVG art. 17, HOOG)
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: access-control/IDOR/tenant · privacy/AVG · injectie/upload/secrets/headers).
+Eén concrete HOOG-bevinding in de delta sinds `45955a9c`: de nieuwe `withdrawInvoice`-flow (#1281) schrijft de
+door de ZZP'er getypte intrekreden in de `INVOICE_WITHDRAWN`-auditmetadata, maar `anonymizeUser` redacte die —
+anders dan de zusteracties `DISPUTE_OPENED`/`INVOICE_CREDITED`/`INVOICE_REJECTED` — niet, dus de vrije tekst
+overleefde een verwijderverzoek (herleidbaar via `AuditLog.actorId`; audit-retentie staat default uit).
+
+**Fix:** scrub-`updateMany` op `INVOICE_WITHDRAWN` in de anonimiseringstransactie + een nieuwe structurele
+dekkingspoort die de cascade-bron scant op reden-dragende auditacties en voor elk een scrub in `anonymizeUser`
+eist (zou dit gat hebben gevangen). **Bestanden:** `src/app/(protected)/admin/gebruikers/actions.ts`,
+`anonymize-erasure.test.ts` (regressietest rood→groen), `anonymize-schema-coverage.test.ts` (structurele poort),
+`docs/SECURITY-PRIVACY-BACKLOG.md`. Access-control- en injectie-/upload-/secrets-oppervlakken: CLEAN geverifieerd.
+**Tests:** typecheck + lint groen; 2 test files 67 tests groen (rood zonder de fix). **Volgende:** de 3 geparkeerde
+LAAG-items (cross-tenant uitnodigings-teller, geocode-cache-adres, dev-only deps).
+
 ## 2026-08-29 — persona-sweep run 100: koud-opdracht-actie sprak zichzelf tegen + dubbelde
 
 **Wat:** kritische-gebruiker-sweep over 4 rollen (live doorgeklikt + 3 adversariële audits). Eén

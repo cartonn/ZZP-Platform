@@ -758,6 +758,23 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(meta.reason).toBe("[verwijderd]");
   });
 
+  it("redact de factuur-intrekreden óók uit de INVOICE_WITHDRAWN-auditlog-metadata (AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // De ZZP'er (uitschrijver) typt bij het intrekken van een ingediende factuur een vrije-tekstreden
+    // die in de `{ reason }`-metadata van het eigen INVOICE_WITHDRAWN-auditrecord belandt (withdrawInvoice,
+    // cascade/invoice-commands.ts). De generieke email/naam-scrub raakt vrije tekst nooit, dus zonder een
+    // expliciete updateMany overleeft de reden art. 17 — herleidbaar via AuditLog.actorId naar de
+    // (hernoemde) User. Alleen de uitschrijver trekt in → actorId == de betrokkene is exact (rood→groen).
+    const ops = findAll("auditLog.updateMany") as Array<{
+      args: { where: { action?: string }; data: { metadata?: string } };
+    }>;
+    const o = ops.find((x) => x.args.where.action === "INVOICE_WITHDRAWN");
+    expect(o).toBeDefined();
+    expect(o!.args.where).toEqual({ actorId: "user-42", action: "INVOICE_WITHDRAWN" });
+    const meta = JSON.parse(o!.args.data.metadata as string);
+    expect(meta.reason).toBe("[verwijderd]");
+  });
+
   it("redact de metadata van de credential-auditregels (o.a. CREDENTIAL_REJECTED-reden, AVG art. 17, KRITIEK)", async () => {
     await anonymizeUser("user-42");
     // De credential-rijen worden hard verwijderd, maar hun auditregels overleven. De CREDENTIAL_REJECTED-
