@@ -110,6 +110,7 @@ export type PendingTask =
   | (TaskBase & { kind: "stale-applications" })
   | (TaskBase & { kind: "availability-refresh" })
   | (TaskBase & { kind: "draft-jobs" })
+  | (TaskBase & { kind: "stale-draft-job"; jobId: string })
   | (TaskBase & { kind: "job-needs-attention"; jobId: string })
   | (TaskBase & { kind: "job-staffing-overdue"; jobId: string })
   | (TaskBase & { kind: "franchise-credential-expiry"; profileId: string })
@@ -1058,6 +1059,27 @@ export function draftJobsTask(count: number): PendingTask {
     priority: P.drafts,
     resolver: "link",
     href: "/opdrachten",
+  };
+}
+
+/**
+ * Een concept-opdracht (DRAFT) die al lang stilstaat — de opdrachtgever begon een vacature maar
+ * publiceerde die nooit. Waar `draftJobsTask` alle concepten in één rustige telling vangt, licht deze
+ * taak een specifiek, vergeten concept uit met zijn leeftijd en deep-linkt naar de bewerkpagina waar het
+ * gepubliceerd wordt. Iets urgenter dan de passieve concept-telling (`drafts`), maar bewust `info`-toon:
+ * het is een kans, geen probleem. Leeftijd komt uit `summarizeDraftJobAging`.
+ */
+export function staleDraftJobTask(jobId: string, title: string, ageDays: number): PendingTask {
+  return {
+    kind: "stale-draft-job",
+    id: `stale-draft-job:${jobId}`,
+    title,
+    subtitle: `Concept — ${plural(ageDays, "dag", "dagen")} niet gepubliceerd`,
+    tone: "info",
+    priority: P.staleDraftJob,
+    resolver: "link", // publiceren is meerstaps (velden nalopen) → naar de bewerkpagina
+    href: `/opdrachten/${jobId}/bewerken`,
+    jobId,
   };
 }
 

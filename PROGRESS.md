@@ -3,6 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-30 — opdrachtgever: leeftijd-bewuste concept-opdracht-nudge op /acties
+
+**Wat:** een concept-opdracht (DRAFT) die de opdrachtgever begon maar nooit publiceerde, verdween in één
+platte telling ("N concept-opdrachten — publiceren?"), ongeacht of het concept vandaag of drie weken
+geleden werd aangeraakt. Nu splitst de takenlijst de concepten op leeftijd: een concept dat ≥14 dagen
+stilstaat (`Job.updatedAt`) wordt een eigen, deep-linkte next-action ("Concept — N dagen niet
+gepubliceerd" → `/opdrachten/[id]/bewerken`), terwijl verse concepten samen de rustige aggregaat-telling
+blijven. Zo mist de opdrachtgever nooit meer een half-afgemaakte, vergeten vacature — hetzelfde
+"signaal verdwijnt in een telling"-anti-patroon dat de codebase elders al dicht (first-look/stale,
+koud/overdue-opdracht). Server-side waarheid, read-only, geen mutatie/schema/authz-oppervlak.
+
+**Bestanden:**
+
+- `src/lib/draft-job-aging.ts` (NIEUW, puur) — `summarizeDraftJobAging(drafts, now)` splitst stil (≥
+  `STALE_DRAFT_JOB_DAYS = 14` dagen) vs. vers, oudste eerst; `draftAgeDays` klemt toekomstige `updatedAt`
+  (data-ruis) op 0.
+- `src/lib/data/client-draft-jobs.ts` (NIEUW) — `getClientDraftJobs(userId)`: eigenaar-gescoped +
+  begrensde (`DRAFT_JOB_SCAN_LIMIT = 50`) DRAFT-jobs met `updatedAt`.
+- `src/lib/actions/tasks.ts` — nieuwe `staleDraftJobTask(jobId, title, ageDays)` + kind `stale-draft-job`
+  (`info`-toon, deep-link naar de bewerkpagina).
+- `src/lib/next-actions.ts` — nieuwe prioriteit `staleDraftJob: 22` (boven `drafts: 20`, onder
+  `reviewPrompt: 24`).
+- `src/lib/actions/pending-tasks.ts` — DRAFT-count-query vervangen door de loader; stille concepten per
+  stuk, verse als aggregaat.
+
+**Tests:** `draft-job-aging.test.ts` (+7: drempel/sortering/stabiliteit/toekomst-klem) · `tasks.test.ts`
+(+builder-assert) · 6 bestaande pending-tasks/client-stats-mocks aangevuld met `job.findMany`. Gate:
+typecheck ✓, lint ✓, test 7509 ✓, build ✓ (na `npm ci` — stale node_modules miste `qrcode-generator`),
+prettier ✓ · CI-poort → PR #1299.
+
 ## 2026-08-30 — beveiliging: opt-in tweestapsverificatie (TOTP 2FA)
 
 **Wat:** opt-in tweestapsverificatie voor alle rollen. De crypto-kern (`src/lib/two-factor/*`), het

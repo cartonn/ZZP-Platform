@@ -283,7 +283,9 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 >   maar had geen next-action-oppervlak. Nieuwe loader `getClientOverdueJobs` (`src/lib/data/client-overdue-jobs.ts`)
 >   - `jobStaffingOverdueTask` (`P.jobStaffingOverdue = 51`) gewired in `clientTasks`; zelfde canonieke
 >     `summarizeStaffingRisk` → geen drift. +9 tests. (Nog open uit dezelfde gap-hunt:
->     leeftijd-bewuste DRAFT-opdracht-nudge.)
+>     ~~leeftijd-bewuste DRAFT-opdracht-nudge~~ **GEDAAN 2026-08-30, PR #1299** — een concept-opdracht die
+>     ≥14 dagen stilstaat (`Job.updatedAt`) wordt een eigen deep-linkte next-action i.p.v. één platte
+>     telling; `src/lib/draft-job-aging.ts` + `src/lib/data/client-draft-jobs.ts` + `staleDraftJobTask`.)
 > - ~~**ZZP'er — marktplaats-markering voor reeds-gestarte, nog-open opdrachten ("direct te starten").**~~
 >   **GEDAAN (2026-08-30, PR #1289).** Een PUBLISHED-opdracht met verstreken startdatum bleef zichtbaar
 >   (de `where` filtert alleen op status) maar toonde geen tijd-signaal (`jobStartProximity` → `null` voor

@@ -27,7 +27,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     company: { findUnique: vi.fn(async () => null) },
     application: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
-    job: { count: vi.fn(async () => 0) },
+    job: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
     // Twee collaboration.findMany-paden in clientTasks: het contract/cascade-pad (status in
     // [PROPOSED,ACTIVE], geen endDate-filter) en het nieuwe vervolg-pad (endDate-filter aanwezig).
     // We herkennen het vervolg-pad aan `where.endDate` en serveren daar de testrijen.

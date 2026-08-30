@@ -84,6 +84,7 @@ export const P = {
   reviewPromptClosing: 48, // beoordelingsvenster sluit bijna (≤3 dagen) — daarna nooit meer te doen (anti-vergeldingsslot), dus urgenter dan cosmetische nudges
   completeness: 30, // profiel/bedrijf onvolledig (cosmetisch)
   reviewPrompt: 24, // afgeronde samenwerking nog te beoordelen (blind venster open) — reputatie-nudge
+  staleDraftJob: 22, // een concept-opdracht die al ≥14 dagen stilstaat (vergeten, nooit gepubliceerd) — een concrete kans, dus actueler dan de passieve concept-telling (drafts 20), maar onder de beoordelings-reputatie-nudge (reviewPrompt 24) en alle attentie-taken. `info`-toon, nooit alarmerend.
   drafts: 20, // concept-opdrachten
   // Franchiser-activatie: geleide opzet van een nieuwe tenant (begeleidend, niet alarmerend).
   // De banden zijn rol-geïsoleerd (alleen franchiser-acties), dus overlap met bovenstaande

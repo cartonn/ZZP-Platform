@@ -21,7 +21,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     company: { findUnique: vi.fn(async () => null) },
     application: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
-    job: { count: vi.fn(async () => 0) },
+    job: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
     collaboration: { findMany: vi.fn(async () => []) },
     // Ongewindowde keur-query (approvePerformances) — leeg voor deze test.
     performance: { findMany: vi.fn(async () => []) },
