@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-30 — prod: web-push (VAPID) connectiviteits-/config-zelftest + go-live-sweep
+
+**Wat:** het push-kanaal (web-push/VAPID) had een aflever-heartbeat + alert (`ZzpPushDeliveryFailing`)
+die een AANHOUDENDE storing achteraf zichtbaar maakt, maar — anders dan mail/opslag/routing/rate-limit/
+verificatie/betaalprovider/upload-scanner/error-monitoring — **geen connectiviteits-/config-zelftest**
+vóór go-live, en stond niet in de één-klik go-live-sweep. De env-validatie blokkeert al een halve
+activering + ongeldig subject, maar bewees NIET dat de twee VAPID-sleutels bij elkaar horen. Een
+mismatched/verkeerd geplakt paar (publieke uit paar A, private uit paar B) overleeft de boot én de
+browser-subscribe, maar laat élke aflevering **stil met 403** mislukken — de stille faalmodus die de
+codebase overal elders afvangt.
+
+**Fix:** een **puur-lokale** VAPID-zelftest die het publieke punt afleidt uit de private scalar (ECDH op
+P-256) en vergelijkt, plus sleutel-formaat + subject-controle — **zonder abonnee, zonder verzending,
+zonder mutatie** (web-push is stateless zonder abonnee → geen server-round-trip; daardoor veilig in de
+sweep). Gewired op `/admin/systeemstatus` (nieuwe kaart "Web-push-zelftest") + de go-live-sweep. Niet
+geconfigureerd → eerlijk "niets getest" (geen vals groen); mismatched → fout met 403-uitleg. Output
+bevat nooit een (deel van een) sleutel; authz-keten (rol → rate-limit → audit).
+
+**Bestanden:** `src/lib/push/vapid-validate.ts` (nieuw, pure ECDH-validatie), `src/lib/services/push-selftest.ts`
+(nieuw, pure wrapper), `src/lib/rate-limit.ts` (`pushSelfTestRateLimiter`), `src/components/admin/push-selftest.tsx`
+(nieuw), `src/app/(protected)/admin/systeemstatus/actions.ts` (`runPushSelfTestAction` + sweep-entry),
+`src/app/(protected)/admin/systeemstatus/page.tsx`, `MENSENWERK.md`.
+**Tests:** `src/lib/push/vapid-validate.test.ts` (12: off/partial/valid/mismatched/invalid-public/
+invalid-private/invalid-subject/subject-varianten/geen-sleutellek) + `src/lib/services/push-selftest.test.ts`
+(10) — 22 nieuw, groen. Gate: typecheck/lint/unit/build/prettier → CI-poort.
+**Volgende:** geparkeerd — verdere prod-hardening; geen nieuw push-gat bekend.
+
 ## 2026-08-30 — security/privacy: cross-partij/cross-tenant lek in reactiesnelheid-badge gedicht (OWASP A01 + AVG art. 5(1)(c))
 
 **Wat:** de "reageert snel op uitnodigingen"-badge op de kandidatenlijst van een opdracht leunde op

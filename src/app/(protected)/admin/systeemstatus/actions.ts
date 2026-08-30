@@ -13,6 +13,7 @@ import {
   errorMonitoringSelfTestRateLimiter,
   mailSelfTestRateLimiter,
   passwordBreachSelfTestRateLimiter,
+  pushSelfTestRateLimiter,
   rateLimitSelfTestRateLimiter,
   routingSelfTestRateLimiter,
   semanticMatcherSelfTestRateLimiter,
@@ -94,6 +95,9 @@ import {
   type SemanticMatcherDriverMode,
   type SemanticMatcherSelfTestReport,
 } from "@/lib/services/semantic-matcher-selftest";
+import { runPushSelfTest, type PushSelfTestReport } from "@/lib/services/push-selftest";
+import { resolveWebPushConfigState } from "@/lib/push/config";
+import { validateVapid } from "@/lib/push/vapid-validate";
 
 export type StorageSelfTestState =
   | { ok: true; report: StorageSelfTestReport }
@@ -420,6 +424,60 @@ export async function runRoutingSelfTestAction(): Promise<RoutingSelfTestState> 
     entityType: "Routing",
     entityId: driverMode,
     metadata: { ok: report.ok, active: report.active },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { ok: true, report };
+}
+
+export type PushSelfTestState =
+  | { ok: true; report: PushSelfTestReport }
+  | { ok: false; error: string };
+
+/**
+ * Valideert het geconfigureerde web-push (VAPID) sleutelpaar (admin-only). Volgt de mutatieketen
+ * (auth → rol → rate-limit → actie → audit). Anders dan de overige zelftests doet web-push GEEN
+ * server-round-trip (VAPID is stateless zonder abonnee): dit is een PUUR-lokale cryptografische
+ * controle dat de publieke sleutel afleidt uit de private sleutel (ECDH op P-256), plus sleutel-
+ * formaat en subject — geen abonnee, geen verzending, geen mutatie. Zo valt een mismatched/verkeerd
+ * geplakt sleutelpaar (dat de boot én de browser-subscribe overleeft maar élke aflevering stil met
+ * 403 laat mislukken) vóór go-live door de mand. Staan de VAPID-sleutels niet gezet, dan is er niets
+ * te valideren en wordt dat eerlijk gemeld (geen vals groen). De uitvoer bevat nooit een sleutel —
+ * alleen de uitkomst-categorie en de configuratiestand.
+ */
+export async function runPushSelfTestAction(): Promise<PushSelfTestState> {
+  const actor = await requireRole("ADMIN");
+
+  if (!(await pushSelfTestRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
+  }
+
+  const configState = resolveWebPushConfigState(
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY,
+  );
+
+  const report = runPushSelfTest({
+    configState,
+    validate:
+      configState === "configured"
+        ? () =>
+            validateVapid(
+              process.env.VAPID_PUBLIC_KEY,
+              process.env.VAPID_PRIVATE_KEY,
+              process.env.VAPID_SUBJECT,
+            )
+        : undefined,
+  });
+
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "PUSH_SELFTEST_RUN",
+    entityType: "WebPush",
+    entityId: report.configState,
+    metadata: { ok: report.ok, active: report.active, outcome: report.outcome },
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
   });
@@ -945,6 +1003,35 @@ export async function runSelfTestSweepAction(): Promise<SelfTestSweepState> {
           status: !result.active ? "skipped" : result.ok ? "pass" : "fail",
           mode: driverMode,
           detail: result.detail ?? (result.ok ? "Bereikbaar." : "Kanaal faalt."),
+        };
+      },
+    },
+    {
+      key: "web-push",
+      label: "Web-push (VAPID)",
+      run: async (): Promise<SweepRunResult> => {
+        // PUUR-lokale VAPID-sleutelpaarvalidatie (geen netwerk, geen verzending) — bulk-veilig. Niet
+        // geconfigureerd = niets getest (skipped, geen vals groen); een halve/mismatched config = fail.
+        const configState = resolveWebPushConfigState(
+          process.env.VAPID_PUBLIC_KEY,
+          process.env.VAPID_PRIVATE_KEY,
+        );
+        const result = runPushSelfTest({
+          configState,
+          validate:
+            configState === "configured"
+              ? () =>
+                  validateVapid(
+                    process.env.VAPID_PUBLIC_KEY,
+                    process.env.VAPID_PRIVATE_KEY,
+                    process.env.VAPID_SUBJECT,
+                  )
+              : undefined,
+        });
+        return {
+          status: result.configState === "off" ? "skipped" : result.ok ? "pass" : "fail",
+          mode: result.configState,
+          detail: result.detail ?? (result.ok ? "Sleutelpaar geldig." : "Sleutelpaar faalt."),
         };
       },
     },

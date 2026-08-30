@@ -302,6 +302,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 >   waarheid, geen schema-/mutatie-/authz-oppervlak. +12 tests. Gate: typecheck ✓, lint ✓, test (7233) ✓,
 >   build ✓, prettier ✓ · CI-poort → PR.
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — web-push (VAPID) connectiviteits-/config-zelftest + go-live-sweep (2026-08-30, PR #1291)** —
+> het push-kanaal had een aflever-heartbeat + `ZzpPushDeliveryFailing`-alert (storing achteraf), maar als enige
+> gebruikersgerichte kanaal geen connectiviteits-/config-zelftest vóór go-live en stond niet in de sweep. De boot-validatie
+> vangt halve activering + ongeldig subject, maar bewees niet dat de twee VAPID-sleutels een PAAR vormen — een mismatched/
+> verkeerd geplakt paar overleeft boot + browser-subscribe en laat élke aflevering stil met 403 mislukken. Nieuwe puur-lokale
+> VAPID-zelftest (`src/lib/push/vapid-validate.ts` — ECDH-afleiding publiek uit privaat + formaat + subject; geen netwerk/
+> abonnee/verzending/mutatie) + wrapper (`push-selftest.ts`), gewired als kaart op `/admin/systeemstatus` + go-live-sweep-entry,
+> rate-limited + audit. Nooit een (deel van een) sleutel in de output. +22 tests. Gate → CI-poort.
+>
 > Gedaan (niet opnieuw): **Opdrachtgever — beslis-achterstand-chip op de opdrachtenlijst (2026-08-25, PR #1235)** —
 > de beslis-achterstand (nog-onbesliste reacties die langer wachten dan bij hun matchkwaliteit past; een sterke
 > kandidaat raakt elders aan de slag) stond alleen als paginabrede band op `/kandidaten`, niet op de opdrachtenlijst
