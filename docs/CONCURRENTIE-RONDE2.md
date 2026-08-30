@@ -114,6 +114,15 @@ Eerlijk vastgelegd om dubbel werk (slop) te voorkomen.
   deep-link-chip "Sterke match voor je opdracht «titel» · %". Read-only, geen nieuwe rekenlogica, geen
   geldstroom; opdrachten waarop de favoriet al reageerde vallen af. `src/lib/favorites/open-job-match.ts`.
 
+- **Betaal-vertrouwenssignaal op de eigen-reacties-lijst** _(S, Deel/Malt)_ — **GEBOUWD (#1294)**.
+  Deel/Malt maken de betaalbetrouwbaarheid zichtbaar op het beslismoment. `/reacties` toonde bij een nog-
+  openstaande reactie al de reactiebereidheid van de opdrachtgever, maar niet zijn betaalgedrag — terwijl
+  "krijg ik op tijd betaald?" het diepste vertrouwenssignaal is bij door-wachten-of-verder-kijken. Nu een
+  chip "Betaalt op tijd"/"Betaalt vaak laat" onder de openstaande reactie, hergebruikt exact hetzelfde
+  geaggregeerde `getPaymentBehaviorForCompanies` + `paymentTrustChip` als de opdrachtenlijst/-detail (surface-
+  pariteit). Read-only, geen individuele factuur/bedrag, geen geldstroom. `src/lib/payment-behavior.ts`
+  (`paymentTrustChipsByCompany`).
+
 ### PARKEREN (eigenaars-/strategiebeslissing — niet autonoom bouwen)
 
 7. **Externe roostersysteem-integratie** _(L, Zorgwerk + Bendy)_ — ingest van flex-aanvragen uit

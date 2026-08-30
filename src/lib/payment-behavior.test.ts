@@ -3,6 +3,7 @@ import {
   computePaymentBehavior,
   paymentTrustChip,
   paymentTrustChipBadgeVariant,
+  paymentTrustChipsByCompany,
   type PaymentBehavior,
   type PaymentRow,
 } from "./payment-behavior";
@@ -223,6 +224,33 @@ describe("paymentTrustChip", () => {
     expect(
       paymentTrustChip({ sampleSize: 1, avgDaysToPay: null, onTimePct: null, tone: "unknown" }),
     ).toBeNull();
+  });
+});
+
+describe("paymentTrustChipsByCompany", () => {
+  function behavior(tone: PaymentBehavior["tone"]): PaymentBehavior {
+    return { sampleSize: 5, avgDaysToPay: 10, onTimePct: 95, tone };
+  }
+
+  it("neemt alleen de good/warning-opdrachtgevers mee en laat neutraal/onbekend weg", () => {
+    const chips = paymentTrustChipsByCompany(
+      new Map([
+        ["c-good", behavior("good")],
+        ["c-warn", behavior("warning")],
+        ["c-neutral", behavior("neutral")],
+        ["c-unknown", { sampleSize: 1, avgDaysToPay: null, onTimePct: null, tone: "unknown" }],
+      ]),
+    );
+
+    expect(chips.size).toBe(2);
+    expect(chips.get("c-good")).toEqual({ label: "Betaalt op tijd", tone: "good" });
+    expect(chips.get("c-warn")).toEqual({ label: "Betaalt vaak laat", tone: "warning" });
+    expect(chips.has("c-neutral")).toBe(false);
+    expect(chips.has("c-unknown")).toBe(false);
+  });
+
+  it("geeft een lege map terug voor een lege invoer", () => {
+    expect(paymentTrustChipsByCompany(new Map()).size).toBe(0);
   });
 });
 

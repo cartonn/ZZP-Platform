@@ -16,6 +16,9 @@ import { ApplicantResponsivenessNote } from "@/components/applications/applicant
 import { ApplicationCompetitionNote } from "@/components/applications/application-competition-note";
 import { summarizeApplicationCompetition } from "@/lib/application-competition";
 import { getClientResponsivenessForCompanies } from "@/lib/data/client-responsiveness";
+import { getPaymentBehaviorForCompanies } from "@/lib/data/payment-behavior";
+import { paymentTrustChipsByCompany } from "@/lib/payment-behavior";
+import { ClientPaymentTrustNote } from "@/components/applications/client-payment-trust-note";
 import {
   countApplicationsAwaitingAttention,
   summarizeApplicationWait,
@@ -196,7 +199,15 @@ export default async function ReactiesPage({
       (app) => app.collaboration == null && ["NEW", "VIEWED", "SHORTLIST"].includes(app.status),
     )
     .map((app) => app.job.company.id);
-  const responsivenessByCompany = await getClientResponsivenessForCompanies(pendingCompanyIds);
+  // Reactiebereidheid én betaalgedrag van de opdrachtgever, gebatcht over dezelfde betrokken
+  // opdrachtgevers (geen N+1; de set is inherent klein). Betaalgedrag ("krijg ik op tijd betaald?")
+  // is het diepste vertrouwenssignaal bij de wacht-beslissing; hergebruikt exact hetzelfde
+  // geaggregeerde signaal + chip als de opdrachtenlijst — nooit een individuele factuur.
+  const [responsivenessByCompany, paymentBehaviorByCompany] = await Promise.all([
+    getClientResponsivenessForCompanies(pendingCompanyIds),
+    getPaymentBehaviorForCompanies(pendingCompanyIds),
+  ]);
+  const paymentTrustByCompany = paymentTrustChipsByCompany(paymentBehaviorByCompany);
 
   // Re-engagement na afwijzing: verankerd aan de meest recente afwijzing (server-berekend uit de al
   // opgehaalde reacties). Alleen dán halen we soortgelijke open opdrachten op via de bestaande
@@ -318,6 +329,10 @@ export default async function ReactiesPage({
                 const responsiveness = wait
                   ? responsivenessByCompany.get(app.job.company.id)
                   : undefined;
+                // Zelfde wacht-conditie: het betaalgedrag telt pas als afwachten nog aan de orde is.
+                const paymentTrust = wait
+                  ? paymentTrustByCompany.get(app.job.company.id)
+                  : undefined;
                 // Concurrentie-context: hoeveel andere kandidaten staan er nog open op deze opdracht?
                 // Alleen zinvol zolang de reactie nog echt kan lopen (niet dicht/vervuld, geen
                 // samenwerking) — de helper zelf dooft al bij een besliste status.
@@ -403,6 +418,7 @@ export default async function ReactiesPage({
                     {responsiveness && (
                       <ApplicantResponsivenessNote responsiveness={responsiveness} />
                     )}
+                    {paymentTrust && <ClientPaymentTrustNote chip={paymentTrust} />}
                     {competition && <ApplicationCompetitionNote note={competition} t={t} />}
                     {availability && (
                       <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border pt-2">
