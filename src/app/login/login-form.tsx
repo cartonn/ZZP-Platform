@@ -38,6 +38,23 @@ export function LoginForm() {
         />
       </Field>
 
+      <Field
+        label={t("Authenticatiecode (indien ingesteld)")}
+        htmlFor="token"
+        hint={t(
+          "Heb je tweestapsverificatie aangezet? Vul dan je 6-cijferige code of een herstelcode in.",
+        )}
+      >
+        <Input
+          id="token"
+          name="token"
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          placeholder="123456"
+        />
+      </Field>
+
       {state?.error && (
         <p role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
           {state.error}

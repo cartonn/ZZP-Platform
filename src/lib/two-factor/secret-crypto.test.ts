@@ -37,8 +37,8 @@ describe("secret-crypto (AES-256-GCM)", () => {
   it("werpt bij een gemanipuleerde ciphertext (GCM-authenticatie)", () => {
     const stored = encryptTwoFactorSecret("JBSWY3DPEHPK3PXP");
     const parts = stored.split(".");
-    const tampered = Buffer.from(parts[3], "base64");
-    tampered[0] ^= 0xff;
+    const tampered = Buffer.from(parts[3]!, "base64");
+    tampered[0] = tampered[0]! ^ 0xff;
     parts[3] = tampered.toString("base64");
     expect(() => decryptTwoFactorSecret(parts.join("."))).toThrow();
   });

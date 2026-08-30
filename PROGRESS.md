@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-30 — beveiliging: opt-in tweestapsverificatie (TOTP 2FA)
+
+**Wat:** opt-in tweestapsverificatie voor alle rollen. De crypto-kern (`src/lib/two-factor/*`), het
+schema (`User.twoFactorSecret`/`twoFactorEnabledAt` + `TwoFactorRecoveryCode`) en de server-actions
+(`account/tweestapsverificatie/actions.ts`) worden door parallelle agents geleverd; deze increment levert
+de presentatie-, env-, anonimiserings- en docs-kant.
+
+**Bestanden (deze increment):**
+
+- `src/app/login/login-form.tsx` — optioneel veld "Authenticatiecode (indien ingesteld)" (`name="token"`,
+  `inputMode="numeric"`, `autoComplete="one-time-code"`) onder het wachtwoord.
+- `src/app/(protected)/account/page.tsx` — kaart "Tweestapsverificatie" met statusbadge (Aan/Uit, uit
+  `twoFactorEnabledAt`) + link naar de subpagina.
+- `src/app/(protected)/account/tweestapsverificatie/{page,loading,two-factor-panel}.tsx` — server-pagina
+  (`getTwoFactorSetup`) + client-panel met drie toestanden (off → aanzetten; pending → sleutel/otpauth-URI
+  - 6-cijferige bevestiging → eenmalige herstelcodes; on → uitzetten met wachtwoord). Loading/error/empty.
+- `src/lib/env.ts` — `TWOFA_ENC_KEY` (AES-256-GCM-sleutel; niet-fatale productie-waarschuwing, valt terug
+  op AUTH_SECRET — CLAUDE.md §8).
+- `src/lib/account-anonymization.ts` — `userAnonymizationData` wist `twoFactorSecret`/`twoFactorEnabledAt`
+  (AVG art. 17).
+- `src/app/(protected)/admin/gebruikers/actions.ts` — `twoFactorRecoveryCode.deleteMany` in de
+  erasure-transactie (herstelcodes fysiek weg; `onDelete: Cascade` vuurt niet bij een `user.update`).
+
+**Tests:** `account-anonymization.test.ts` (+1: 2FA-velden gewist) — 43 groen. Gate: typecheck/lint groen
+voor deze bestanden (openstaande tsc-fouten zitten uitsluitend in de crypto-kern-bestanden van de parallelle
+agent; door de orchestrator samen te voegen).
+
 ## 2026-08-30 — security/privacy: onvolledige erasure van opdracht-vrije-tekst (Job) — AVG art. 17
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

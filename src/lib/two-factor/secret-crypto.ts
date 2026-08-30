@@ -46,13 +46,13 @@ export function encryptTwoFactorSecret(plaintextBase32: string): string {
  * formaat/versie of bij een authenticatie-mismatch (GCM-tag) — nooit stil een verkeerd geheim.
  */
 export function decryptTwoFactorSecret(stored: string): string {
-  const parts = stored.split(".");
-  if (parts.length !== 4 || parts[0] !== VERSION) {
+  const [version, ivB64, tagB64, ciphertextB64] = stored.split(".");
+  if (version !== VERSION || !ivB64 || !tagB64 || !ciphertextB64) {
     throw new Error("Onherkenbaar 2FA-geheimformaat.");
   }
-  const iv = Buffer.from(parts[1], "base64");
-  const tag = Buffer.from(parts[2], "base64");
-  const ciphertext = Buffer.from(parts[3], "base64");
+  const iv = Buffer.from(ivB64, "base64");
+  const tag = Buffer.from(tagB64, "base64");
+  const ciphertext = Buffer.from(ciphertextB64, "base64");
   const decipher = createDecipheriv("aes-256-gcm", deriveKey(), iv);
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");

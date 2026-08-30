@@ -247,6 +247,13 @@ describe("userAnonymizationData", () => {
     expect(data.lastLoginAt).toBeNull();
     expect(data.previousLoginAt).toBeNull();
   });
+
+  it("wist het 2FA-geheim en de activeringsdatum (twoFactorSecret/twoFactorEnabledAt) — art. 17", () => {
+    // Een geanonimiseerd account mag geen bruikbaar TOTP-geheim of actieve tweestapsverificatie
+    // behouden; de herstelcodes worden als aparte rijen fysiek verwijderd in de erasure-transactie.
+    expect(data.twoFactorSecret).toBeNull();
+    expect(data.twoFactorEnabledAt).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

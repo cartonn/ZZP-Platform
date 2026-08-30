@@ -905,6 +905,13 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // `user.update` triggert de `onDelete: Cascade` niet → expliciet wissen (hard delete — de rij is
     // enkel persoonlijke voorkeurstaat zonder tegenpartij-/retentiewaarde).
     prisma.notificationPreference.deleteMany({ where: { userId } }),
+    // AVG art. 17 — tweestapsverificatie-herstelcodes: eenmalige back-upcodes (bcrypt-hash) waarmee de
+    // betrokkene bij verlies van zijn authenticator-app kon inloggen. Het versleutelde TOTP-geheim
+    // (`User.twoFactorSecret`) + de activeringsdatum worden door `userAnonymizationData` op null gezet,
+    // maar deze codes staan als aparte `TwoFactorRecoveryCode`-rijen. Een `user.update` triggert de
+    // `onDelete: Cascade` niet (de User-rij wordt geüpdatet, niet verwijderd) → expliciet hard
+    // verwijderen zodat een geanonimiseerd account geen bruikbaar authenticatiemateriaal achterlaat.
+    prisma.twoFactorRecoveryCode.deleteMany({ where: { userId } }),
     // AVG art. 17 (zie de `ownCreditedInvoices`-toelichting hierboven): de zelf-geschreven creditreden
     // in zijn drie kopieën. (1) De reden op de eigen credit-facturen wissen.
     ...(ownCreditedInvoiceIds.length

@@ -50,6 +50,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "E-mail", type: "email" },
         password: { label: "Wachtwoord", type: "password" },
+        token: { label: "Authenticatiecode", type: "text" },
       },
       authorize: (raw) => authorizeCredentials(raw as Record<string, unknown> | undefined),
     }),

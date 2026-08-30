@@ -7,7 +7,7 @@ const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 // Omgekeerde lookup: teken → 5-bits waarde. Onbekende tekens blijven undefined → afgewezen.
 const CHAR_TO_VALUE: Record<string, number> = {};
-for (let i = 0; i < ALPHABET.length; i += 1) CHAR_TO_VALUE[ALPHABET[i]] = i;
+for (let i = 0; i < ALPHABET.length; i += 1) CHAR_TO_VALUE[ALPHABET.charAt(i)] = i;
 
 /** Codeer bytes naar een base32-string (RFC 4648, hoofdletters, zonder padding). */
 export function base32Encode(bytes: Uint8Array): string {
@@ -15,18 +15,18 @@ export function base32Encode(bytes: Uint8Array): string {
   let value = 0;
   let output = "";
 
-  for (let i = 0; i < bytes.length; i += 1) {
-    value = (value << 8) | bytes[i];
+  for (const byte of bytes) {
+    value = (value << 8) | byte;
     bits += 8;
     while (bits >= 5) {
-      output += ALPHABET[(value >>> (bits - 5)) & 31];
+      output += ALPHABET.charAt((value >>> (bits - 5)) & 31);
       bits -= 5;
     }
   }
 
   // Resterende bits (< 5) links uitgevuld tot één laatste teken.
   if (bits > 0) {
-    output += ALPHABET[(value << (5 - bits)) & 31];
+    output += ALPHABET.charAt((value << (5 - bits)) & 31);
   }
 
   return output;

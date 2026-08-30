@@ -25,7 +25,7 @@ describe("recovery-codes", () => {
   });
 
   it("hash + verify slaagt op de juiste code (ook door de mens gevarieerd getypt)", async () => {
-    const [code] = generateRecoveryCodes(1);
+    const code = generateRecoveryCodes(1)[0]!;
     const hash = await hashRecoveryCode(code);
     expect(await verifyRecoveryCode(code, hash)).toBe(true);
     expect(await verifyRecoveryCode(code.toLowerCase().replace(/-/g, " "), hash)).toBe(true);

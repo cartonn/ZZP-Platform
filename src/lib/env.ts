@@ -31,6 +31,10 @@ const schema = z
       .string()
       .min(16, "SHARE_TOKEN_SECRET moet minstens 16 tekens zijn.")
       .optional(),
+    // AES-256-GCM-sleutel waarmee het TOTP-geheim van tweestapsverificatie versleuteld at rest wordt
+    // bewaard. Valt in productie terug op AUTH_SECRET (afgeleid); rotatie van AUTH_SECRET maakt dan
+    // bestaande 2FA-geheimen onleesbaar. Aanbevolen: een eigen sleutel (`openssl rand -base64 32`).
+    TWOFA_ENC_KEY: z.string().min(16, "TWOFA_ENC_KEY moet minstens 16 tekens zijn.").optional(),
 
     // Documentopslag: lokale .gitignore'de map (default) of S3 / S3-compatibel (productie).
     STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
@@ -333,6 +337,11 @@ export function envWarnings(env: Env): string[] {
   if (!env.SHARE_TOKEN_SECRET) {
     warnings.push(
       "SHARE_TOKEN_SECRET ontbreekt — deelbare dossier-links vallen terug op AUTH_SECRET; rotatie van AUTH_SECRET breekt dan bestaande links. Aanbevolen (security-review H-1): genereer met `openssl rand -base64 32`.",
+    );
+  }
+  if (!env.TWOFA_ENC_KEY) {
+    warnings.push(
+      "TWOFA_ENC_KEY ontbreekt — het 2FA-geheim wordt versleuteld met een sleutel afgeleid van AUTH_SECRET; rotatie van AUTH_SECRET maakt bestaande 2FA-geheimen onleesbaar. Aanbevolen: genereer met `openssl rand -base64 32`.",
     );
   }
   if (!env.AUTH_URL && !env.NEXTAUTH_URL) {

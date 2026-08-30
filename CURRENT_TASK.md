@@ -268,6 +268,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Beveiliging — opt-in tweestapsverificatie (TOTP 2FA) (2026-08-30).** Per gebruiker
+> aan te zetten via `/account/tweestapsverificatie` (sleutel + otpauth-URI koppelen, 6-cijferige bevestiging,
+> eenmalige herstelcodes); login-formulier vraagt optioneel om de code; env `TWOFA_ENC_KEY` (AES-256-GCM,
+> valt terug op AUTH_SECRET); anonimisering wist `twoFactorSecret`/`twoFactorEnabledAt` + verwijdert de
+> herstelcodes (AVG art. 17). Crypto-kern (`src/lib/two-factor/*`), schema en server-actions door parallelle
+> agents; presentatie/env/anonimisering/docs in deze increment.
+
 > OPEN — BOUWEN (verified-absent, gap-hunt 2026-08-27; niet-overlappend gecheckt):
 >
 > - ~~**Opdrachtgever — overdue-onbezette opdracht (startdatum verstreken, nog niemand vastgelegd) als

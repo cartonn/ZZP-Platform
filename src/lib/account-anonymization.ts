@@ -149,6 +149,12 @@ export function userAnonymizationData(
   emailVerified: null;
   lastLoginAt: null;
   previousLoginAt: null;
+  // Tweestapsverificatie: een geanonimiseerd account mag geen bruikbaar 2FA-geheim behouden. Het
+  // versleutelde TOTP-geheim → null en de activeringsdatum → null (de herstelcodes worden als aparte
+  // rijen fysiek verwijderd in de erasure-transactie). Het account is sowieso SUSPENDED met lege
+  // passwordHash en kan nooit meer inloggen, dus er gaat niets nuttigs verloren.
+  twoFactorSecret: null;
+  twoFactorEnabledAt: null;
 } {
   return {
     name: ANONYMIZED_NAME,
@@ -163,6 +169,8 @@ export function userAnonymizationData(
     emailVerified: null,
     lastLoginAt: null,
     previousLoginAt: null,
+    twoFactorSecret: null,
+    twoFactorEnabledAt: null,
   };
 }
 

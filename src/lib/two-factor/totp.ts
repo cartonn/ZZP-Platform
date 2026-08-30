@@ -35,13 +35,11 @@ function counterToBuffer(counter: number): Buffer {
 function hotp(secretBase32: string, counter: number): string {
   const key = base32Decode(secretBase32);
   const hmac = createHmac("sha1", key).update(counterToBuffer(counter)).digest();
-  // Dynamic truncation (RFC 4226 §5.3): laatste nibble bepaalt de offset.
-  const offset = hmac[hmac.length - 1] & 0x0f;
-  const binary =
-    ((hmac[offset] & 0x7f) << 24) |
-    ((hmac[offset + 1] & 0xff) << 16) |
-    ((hmac[offset + 2] & 0xff) << 8) |
-    (hmac[offset + 3] & 0xff);
+  // Dynamic truncation (RFC 4226 §5.3): laatste nibble bepaalt de offset. `readUInt8`/`readUInt32BE`
+  // lezen typeveilig (nooit `undefined`) en de offset (0–15) + 4 bytes valt altijd binnen de 20-byte
+  // SHA1-digest. De hoogste bit wordt gemaskeerd zodat het resultaat een niet-negatief 31-bits getal is.
+  const offset = hmac.readUInt8(hmac.length - 1) & 0x0f;
+  const binary = hmac.readUInt32BE(offset) & 0x7fffffff;
   const code = binary % 10 ** TOTP_DIGITS;
   return code.toString().padStart(TOTP_DIGITS, "0");
 }
