@@ -1,8 +1,14 @@
 import Link from "next/link";
-import { Star, Trash2 } from "lucide-react";
+import { Star, Target, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { sortFavorites } from "@/lib/favorites";
 import { hasFlexpoolSummary, summarizeFlexpool } from "@/lib/favorites-summary";
+import {
+  bestOpenJobMatch,
+  type FlexpoolJobMatch,
+  type FlexpoolMatchJob,
+} from "@/lib/favorites/open-job-match";
+import { type FreelancerMatchSource } from "@/lib/matching";
 import { type Availability } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +25,110 @@ const AVAILABILITY: Record<
   UNAVAILABLE: { label: "Niet beschikbaar", variant: "muted" },
   UNKNOWN: { label: "Beschikbaarheid onbekend", variant: "muted" },
 };
+
+const EMPTY_JOB_SET: ReadonlySet<string> = new Set();
+
+/** De favoriet-rijen die `buildOpenJobMatches` nodig heeft om te scoren (subset van de query). */
+interface FavoriteProfileRow {
+  freelancerProfileId: string;
+  freelancer: {
+    headline: string | null;
+    bio: string | null;
+    location: string | null;
+    hourlyRate: number | null;
+    workMode: string;
+    maxTravelMinutes: number | null;
+    availability: string;
+    skills: readonly { skillId: string }[];
+    credentials: readonly { type: string; status: string; expiresAt: Date | null }[];
+    industries: readonly { industryId: string }[];
+    availabilityWindows: readonly { startDate: Date; endDate: Date; type: string }[];
+  };
+}
+
+/**
+ * Bepaal per favoriet de sterkste eigen open opdracht waarvoor deze bewezen ZZP'er nu een match is.
+ * Eén findMany voor de open opdrachten van de opdrachtgever + één voor de reeds-gereageerde
+ * combinaties; de scoring zelf is puur (`bestOpenJobMatch`, dezelfde motor als de kandidatenlijst).
+ * Read-only, eigenaar-gescoped (alleen `companyId`); geen mutatie, geen geldstroom.
+ */
+async function buildOpenJobMatches(
+  companyId: string,
+  rows: readonly FavoriteProfileRow[],
+): Promise<Map<string, FlexpoolJobMatch>> {
+  const result = new Map<string, FlexpoolJobMatch>();
+  if (rows.length === 0) return result;
+
+  const jobs = await prisma.job.findMany({
+    where: { companyId, status: "PUBLISHED" },
+    take: 100,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      industryId: true,
+      rateMin: true,
+      rateMax: true,
+      workMode: true,
+      location: true,
+      skills: { select: { skillId: true, required: true } },
+      credentialRequirements: { select: { credentialType: true, required: true } },
+    },
+  });
+  if (jobs.length === 0) return result;
+
+  const scorableJobs: FlexpoolMatchJob[] = jobs.map((j) => ({
+    id: j.id,
+    title: j.title,
+    description: j.description,
+    industryId: j.industryId,
+    rateMin: j.rateMin,
+    rateMax: j.rateMax,
+    workMode: j.workMode,
+    location: j.location,
+    skills: j.skills,
+    credentialRequirements: j.credentialRequirements,
+  }));
+
+  // Opdrachten waarop de favoriet al reageerde vallen af — geen dubbel signaal.
+  const freelancerIds = rows.map((r) => r.freelancerProfileId);
+  const applied = await prisma.application.findMany({
+    where: { jobId: { in: jobs.map((j) => j.id) }, freelancerId: { in: freelancerIds } },
+    select: { jobId: true, freelancerId: true },
+  });
+  const appliedByFreelancer = new Map<string, Set<string>>();
+  for (const a of applied) {
+    const set = appliedByFreelancer.get(a.freelancerId) ?? new Set<string>();
+    set.add(a.jobId);
+    appliedByFreelancer.set(a.freelancerId, set);
+  }
+
+  const now = new Date();
+  for (const row of rows) {
+    const f = row.freelancer;
+    const source: FreelancerMatchSource = {
+      skills: f.skills,
+      credentials: f.credentials,
+      hourlyRate: f.hourlyRate,
+      workMode: f.workMode,
+      location: f.location,
+      maxTravelMinutes: f.maxTravelMinutes,
+      headline: f.headline,
+      bio: f.bio,
+      availability: f.availability,
+      industries: f.industries,
+      availabilityWindows: f.availabilityWindows,
+    };
+    const match = bestOpenJobMatch(
+      scorableJobs,
+      source,
+      appliedByFreelancer.get(row.freelancerProfileId) ?? EMPTY_JOB_SET,
+      now,
+    );
+    if (match) result.set(row.freelancerProfileId, match);
+  }
+  return result;
+}
 
 /**
  * Flexpool/favorieten-paneel — de poule van bewezen ZZP'ers van één opdrachtgever.
@@ -40,10 +150,17 @@ export async function FlexpoolPanel({ companyId }: { companyId: string }) {
         select: {
           id: true,
           headline: true,
+          bio: true,
           location: true,
           hourlyRate: true,
+          workMode: true,
+          maxTravelMinutes: true,
           availability: true,
           user: { select: { name: true } },
+          skills: { select: { skillId: true } },
+          credentials: { select: { type: true, status: true, expiresAt: true } },
+          industries: { select: { industryId: true } },
+          availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
         },
       },
     },
@@ -53,6 +170,11 @@ export async function FlexpoolPanel({ companyId }: { companyId: string }) {
   const favorites = sortFavorites(
     rows.map((r) => ({ ...r, availability: r.freelancer.availability as Availability })),
   );
+
+  // Per favoriet: tegen welke van je eigen open opdrachten is deze bewezen ZZP'er nu een sterke
+  // match? Server-side waarheid met dezelfde matchmotor als de kandidatenlijst. Read-only signaal;
+  // de deep-link brengt de opdrachtgever naar de opdracht waar hij de uitnodiging verstuurt.
+  const matches = await buildOpenJobMatches(companyId, rows);
 
   if (favorites.length === 0) {
     return (
@@ -128,6 +250,24 @@ export async function FlexpoolPanel({ companyId }: { companyId: string }) {
                       <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
                     )}
                     {fav.note && <p className="text-sm">{fav.note}</p>}
+                    {matches.get(fav.freelancerProfileId) &&
+                      (() => {
+                        const match = matches.get(fav.freelancerProfileId)!;
+                        return (
+                          <Link
+                            href={`/opdrachten/${match.jobId}`}
+                            className="focus-ring inline-flex max-w-full items-center gap-1.5 rounded-md border border-success/30 bg-success/10 px-2 py-1 text-xs font-medium text-success hover:bg-success/15"
+                            data-testid="flexpool-open-job-match"
+                            title={match.reason ?? undefined}
+                          >
+                            <Target className="size-3.5 shrink-0" aria-hidden />
+                            <span className="truncate">
+                              Sterke match voor je opdracht «{match.jobTitle}»
+                            </span>
+                            <span className="shrink-0 font-mono">{match.score}%</span>
+                          </Link>
+                        );
+                      })()}
                   </div>
                   <ConfirmButton
                     action={removeFavorite.bind(null, fav.freelancerProfileId)}

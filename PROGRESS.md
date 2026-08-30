@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-30 — routine: flexpool → "sterke match voor je open opdracht" (opdrachtgever)
+
+**Wat:** de flexpool (poule van bewezen ZZP'ers van één opdrachtgever) toonde per favoriet alleen
+beschikbaarheid + notitie — een passieve contactlijst. De opdrachtgever zag niet tegen wélke van zijn
+**eigen open opdrachten** een favoriet nu een sterke match is. Concurrenten (Malt/Temper) tonen precies
+dit ("nodig je bewezen mensen direct uit voor wat je nu zoekt"). Vertaald naar onze verklaarbare
+matchmotor: per favoriet berekent het systeem de sterkste eigen PUBLISHED-opdracht op/boven de
+suggestie-drempel (70) en toont een deep-link-chip "Sterke match voor je opdracht «titel» · 87%" →
+de opdracht waar hij de uitnodiging verstuurt. Zo wordt de flexpool een actiesurface.
+
+**Aanpak:** hergebruikt exact `scoreJobForFreelancer` (dezelfde motor als de kandidatenlijst/`/opdrachten`);
+geen nieuwe rekenlogica. Read-only, eigenaar-gescoped (alleen `companyId`); opdrachten waarop de favoriet
+al reageerde vallen af (geen dubbel signaal); deterministische tiebreaker (titel, dan jobId). Geen
+mutatie, geen geldstroom, geen dode knop (chip linkt naar de bestaande opdracht-detailpagina).
+
+**Bestanden:** `src/lib/favorites/open-job-match.ts` (nieuw, pure `bestOpenJobMatch` + drempel),
+`src/components/favorites/flexpool-panel.tsx` (query uitgebreid met scoor-velden + `buildOpenJobMatches`
+data-laag + match-chip). **Tests:** `src/lib/favorites/open-job-match.test.ts` (7: sterkste boven drempel,
+hoogst-scorende bij meerdere, excludeJobIds, null onder drempel, lege lijst, deterministische tiebreaker,
+reden gevuld) — groen. Gate: typecheck/lint/7415 unit + build/prettier → CI-poort.
+
 ## 2026-08-30 — prod: web-push (VAPID) connectiviteits-/config-zelftest + go-live-sweep
 
 **Wat:** het push-kanaal (web-push/VAPID) had een aflever-heartbeat + alert (`ZzpPushDeliveryFailing`)
