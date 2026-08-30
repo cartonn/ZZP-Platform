@@ -4,6 +4,64 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-30 (basis: `main` @ f2ee166d) — HOOG OPGELOST: cross-partij/cross-tenant lek in de reactiesnelheid-badge (uitnodigingsteller platform-breed) — OWASP A01 + AVG art. 5(1)(c)
+
+Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(A: broken access control/IDOR/tenant-isolatie · B: injectie/upload/secrets/SSRF/headers/errors/redirect/CSRF +
+`npm audit`). Focus op de delta sinds de vorige ronde (`d58cc9f9..f2ee166d`, 5 commits: #1285 erasure-fix (vorige
+ronde), #1286 db-schema-sync retry, #1287 kilometerregistratie, #1288 SEPA scan-to-pay QR, #1289 "direct te
+starten"-signaal) + een brede her-sweep van de authz-keten, tenant-scoping, upload/storage, injectie, de EPC-QR-
+payload en de erasure-dekking. Runtime: build (exit 0) + geverifieerde poorten.
+
+**OPGELOST — [HOOG · OWASP A01 (Broken Access Control) + AVG art. 5(1)(c) (dataminimalisatie)] de reactiesnelheid-
+badge lekte platform-brede, cross-partij/cross-tenant uitnodigingstellingen aan één opdrachtgever.**
+`getCandidateInviteResponsiveness` (`src/lib/data/candidate-invite-responsiveness.ts`) aggregeerde de gezaghebbende
+`JOB_INVITED`-auditrecords van een ZZP'er **enkel** op `action` + `freelancerId` + terugkijkvenster — nooit op de
+_kijkende_ opdrachtgever. De badge-tooltip op de kandidatenlijst ("Reageerde op X van de Y uitnodigingen, meestal
+…") toonde daardoor de teller/noemer over **alle** opdrachtgevers heen: de opdrachtgever leerde hoe vaak de ZZP'er
+platform-breed was uitgenodigd (Y) — inclusief door concurrenten — en voor een **franchise (multi-tenant)** lekten
+de uitnodigingen van **andere tenants** door in het cijfer van één tenant (schending van de harde tenant-isolatie).
+Bovendien kon de badge zélf verschijnen (fast-drempel gehaald) puur op andermans uitnodigingen, terwijl de kijker
+de ZZP'er nauwelijks kende. Repro: opdrachtgever C1 nodigt F1 1× uit; concurrent C2 nodigt F1 5× uit (allen snel
+beantwoord) → C1 ziet op zijn kandidatenlijst een "reageert snel"-badge met tooltip "6 van de 6", opgebouwd uit
+C2's uitnodigingen. **Fix:** verplichte `companyId`-parameter; de invites worden na het ophalen gefilterd op
+opdrachten van déze `companyId` (`prisma.job.findMany({ where: { id: { in }, companyId } })`), en de reactie-query
+scoopt op diezelfde opdrachten. Zonder `companyId` → lege map (fail-closed, geen ongescoopte aggregatie). De caller
+(`opdrachten/[id]/page.tsx`, alleen zichtbaar voor `isOwner`) geeft nu `job.companyId` door. Regressietest
+rood→groen in `src/lib/data/candidate-invite-responsiveness.test.ts` (3 tests: teller=3 i.p.v. 8 platform-breed;
+geen badge als de kijker zelf < MIN_INVITES uitnodigde; fail-closed zonder companyId). Geverifieerd rood zonder de
+fix (invited 8→3 en 6→1), groen erna.
+
+**Bevinding A (broken access control/IDOR/tenant):** CLEAN. De volledige mutatieketen (auth→rol→ownership→Zod→
+actie→audit) is intact op alle geïnspecteerde server actions/route handlers, inclusief de delta (`createExpense`/
+`deleteExpense` met eigenaar-gescoopte lookup + CWE-203 anti-oracle; `anonymizeUser` achter `requireRole("ADMIN")`;
+franchise-acties via `ownsViaTenant`/`assertSameTenant`). Alle gevoelige document-/PDF-/dossier-routes checken
+ownership vóór de stream met identiek 404 + `*_ACCESS_DENIED`-audit op beide takken; `tenantScopeWhere` faalt
+gesloten (403, nooit open `{}`). De delta-code draagt correcte access control.
+
+**Bevinding B (injectie/upload/secrets/SSRF/headers/errors/redirect/CSRF):** CLEAN. De nieuwe EPC069-12 SEPA-QR
+(`epc-qr.ts`) strip't control-tekens uit `name`/`remittance` vóór de newline-gescheiden payload (geen regel-
+injectie van valse `BCD`/`SCT`/bedrag-regels; byte-cap 331) en rendert via een `<path>`-SVG uit integer-indices —
+geen `dangerouslySetInnerHTML`, geen user-input in de DOM. CSV-formule-guard (`= + - @ \t \r`, met correcte
+plain-negative-uitzondering) op álle exportpaden via de gedeelde `toCsv`. Upload-keten (magic-byte→scanner→random
+UUID-key→traversal-guard) intact; routing-fetch heeft een hardcoded Geoapify-host (geen SSRF); redacterende logger;
+`safe-action-error` maskeert Prisma/interne fouten; geen open redirect (`callbackUrl` wordt nergens geconsumeerd,
+login hardcodeert `/dashboard`); reset-tokens 256-bit/SHA-256/1u/single-use; login/register/reset rate-limited.
+`npm audit --omit=dev` = **0** productie-kwetsbaarheden.
+
+**Geparkeerd (LAAG) — geocode-cache kan precieze ZZP-adressen bevatten, ontkoppeld maar persistent.** Ongewijzigd
+(`routing.ts` `GeocodeCache`, 180 dgn TTL, niet user-gekoppeld). Aanbevolen fix: normaliseer routing-input naar
+plaats/postcode vóór egress/caching.
+
+**Geparkeerd (LAAG · dev-only dependency-DoS):** ongewijzigd — `npm audit`-bevindingen zitten in dev-only
+transitieve deps; niet productie-bereikbaar (`--omit=dev` = schoon). Fix: `npm audit fix` in een aparte deps-PR.
+
+**Resultaat:** 1× HOOG OPGELOST (cross-partij/cross-tenant badge-lek); A + B-oppervlakken CLEAN; 2 bevindingen
+geparkeerd (LAAG). De eerder geparkeerde "cross-tenant uitnodigings-teller" (LAAG) is hiermee **OPGELOST** en van de
+parkeerlijst verwijderd.
+
+---
+
 ## Ronde 2026-08-29b (basis: `main` @ d58cc9f9) — HOOG OPGELOST: factuur-intrekreden (`INVOICE_WITHDRAWN`) overleefde de erasure (AVG art. 17) + structurele reden-metadata-dekkingspoort
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
@@ -57,9 +115,8 @@ webhook-HMAC timing-safe, `safe-action-error` maskeert Prisma/interne fouten, CS
 
 - `object-src 'none'`. `npm audit --omit=dev` = **0** productie-kwetsbaarheden.
 
-**Geparkeerd (LAAG) — cross-tenant uitnodigings-teller aan opdrachtgever getoond.** Ongewijzigd sinds vorige ronde
-(`candidate-invite-responsiveness.ts`: platform-brede `Y`-noemer zonder k-vloer). Aanbevolen fix: noemer scopen op
-de kijkende tenant, óf enkel het kwalitatieve badge tonen, óf een kleine-aantallen-vloer.
+**~~Geparkeerd (LAAG) — cross-tenant uitnodigings-teller aan opdrachtgever getoond.~~ → OPGELOST in ronde
+2026-08-30** (`getCandidateInviteResponsiveness` scoopt nu op de kijkende `companyId`; zie de bovenste ronde).
 
 **Geparkeerd (LAAG) — geocode-cache kan precieze ZZP-adressen bevatten, ontkoppeld maar persistent.** Ongewijzigd
 (`routing.ts` `GeocodeCache`, 180 dgn TTL, niet user-gekoppeld). Aanbevolen fix: normaliseer routing-input naar

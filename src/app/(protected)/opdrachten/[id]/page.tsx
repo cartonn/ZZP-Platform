@@ -389,7 +389,10 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   // eerste uit → sneller gevuld. Begrensd door de kleine suggestie-set (≤ 4).
   const candidateResponsiveness =
     suggestions.length > 0
-      ? await getCandidateInviteResponsiveness(suggestions.map((f) => f.freelancerId))
+      ? await getCandidateInviteResponsiveness(
+          suggestions.map((f) => f.freelancerId),
+          job.companyId,
+        )
       : null;
 
   // Vacaturetempo voor de eigenaar: hoe presteert deze gepubliceerde opdracht in de tijd

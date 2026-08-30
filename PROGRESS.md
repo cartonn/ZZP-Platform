@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-30 — security/privacy: cross-partij/cross-tenant lek in reactiesnelheid-badge gedicht (OWASP A01 + AVG art. 5(1)(c))
+
+**Wat:** de "reageert snel op uitnodigingen"-badge op de kandidatenlijst van een opdracht leunde op
+`getCandidateInviteResponsiveness`, dat de `JOB_INVITED`-auditrecords van een ZZP'er **platform-breed**
+aggregeerde (alleen op `freelancerId` + venster, nooit op de kijkende opdrachtgever). De tooltip toonde daardoor
+"Reageerde op X van de Y uitnodigingen" over álle opdrachtgevers heen — een cross-partij-lek van de totale
+uitnodigingsvraag van de ZZP'er, en voor een franchise (multi-tenant) lekten uitnodigingen van **andere tenants**
+in het cijfer van één tenant (harde tenant-isolatie geschonden). De badge kon zelfs verschijnen puur op andermans
+uitnodigingen. Dit stond sinds meerdere rondes geparkeerd als LAAG; bij nadere beschouwing is het HOOG voor de
+multi-tenant franchiser.
+
+**Fix (server-side waarheid):** verplichte `companyId`-parameter op `getCandidateInviteResponsiveness`; de invites
+worden gefilterd op opdrachten van déze `companyId` (`prisma.job.findMany({ where:{ id:{in}, companyId }})`) en de
+reactie-query scoopt op diezelfde opdrachten. Zonder `companyId` → lege map (fail-closed). Caller
+`opdrachten/[id]/page.tsx` (badge alleen zichtbaar voor `isOwner`) geeft `job.companyId` door.
+
+**Bestanden:** `src/lib/data/candidate-invite-responsiveness.ts`, `src/app/(protected)/opdrachten/[id]/page.tsx`.
+**Tests:** `src/lib/data/candidate-invite-responsiveness.test.ts` (nieuw, 3 tests: teller=3 i.p.v. 8 platform-breed;
+geen badge als kijker zelf < MIN_INVITES uitnodigde; fail-closed zonder companyId). Rood→groen geverifieerd
+(invited 8→3, 6→1). Gate: typecheck/lint/unit/build/prettier groen · 2 parallelle adversariële her-sweeps
+(authz/IDOR/tenant + injectie/upload/secrets/SSRF) = CLEAN · CI-poort → PR.
+**Volgende:** geparkeerd (LAAG): geocode-cache adres-normalisatie vóór egress/caching; dev-only `npm audit fix`.
+
 ## 2026-08-30 — routine: "direct te starten"-signaal voor reeds-gestarte opdrachten (ZZP'er)
 
 **Wat:** een gepubliceerde opdracht waarvan de startdatum al verstreken is, blijft zichtbaar op de
