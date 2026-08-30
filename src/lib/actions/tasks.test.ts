@@ -23,6 +23,7 @@ import {
   staleApplicationsTask,
   availabilityRefreshTask,
   draftJobsTask,
+  staleDraftJobTask,
   jobStaffingOverdueTask,
   franchiseCredentialExpiryTask,
   franchiseCredentialExpiredTask,
@@ -346,6 +347,21 @@ describe("task builders", () => {
     expect(drafts.priority).toBe(P.drafts);
     // Concept-opdrachten wegen lichter dan nieuwe reacties.
     expect(drafts.priority).toBeLessThan(apps.priority);
+
+    const stale = staleDraftJobTask("job7", "Nachtdienst ZZP'er", 21);
+    expect(stale).toMatchObject({
+      kind: "stale-draft-job",
+      jobId: "job7",
+      title: "Nachtdienst ZZP'er",
+      tone: "info",
+      resolver: "link",
+      href: "/opdrachten/job7/bewerken",
+    });
+    expect(stale.subtitle).toContain("21 dagen");
+    // Een vergeten concept weegt zwaarder dan de passieve concept-telling, maar blijft licht.
+    expect(stale.priority).toBe(P.staleDraftJob);
+    expect(stale.priority).toBeGreaterThan(drafts.priority);
+    expect(stale.priority).toBeLessThan(apps.priority);
   });
 
   it("wachtende kandidaten: attention-link naar /kandidaten, boven nieuwe reacties, benoemt de leeftijd", () => {

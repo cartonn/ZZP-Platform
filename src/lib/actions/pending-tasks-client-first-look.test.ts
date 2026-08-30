@@ -33,7 +33,7 @@ vi.mock("@/lib/db", () => ({
         return [];
       }),
     },
-    job: { count: vi.fn(async () => 0) },
+    job: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
     collaboration: { findMany: vi.fn(async () => []) },
     // Ongewindowde keur-query (approvePerformances) — leeg voor deze test.
     performance: { findMany: vi.fn(async () => []) },

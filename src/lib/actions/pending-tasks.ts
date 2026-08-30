@@ -73,6 +73,7 @@ import {
   staleApplicationsTask,
   availabilityRefreshTask,
   draftJobsTask,
+  staleDraftJobTask,
   jobNeedsAttentionTask,
   jobStaffingOverdueTask,
   franchiseCredentialExpiryTask,
@@ -109,6 +110,8 @@ import { reviewBlindDays } from "@/lib/config";
 import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
 import { getClientColdJobs } from "@/lib/data/client-cold-jobs";
 import { getClientOverdueJobs } from "@/lib/data/client-overdue-jobs";
+import { getClientDraftJobs } from "@/lib/data/client-draft-jobs";
+import { summarizeDraftJobAging } from "@/lib/draft-job-aging";
 import { getIncomeTaxDeadlineForActor } from "@/lib/data/income-tax-deadline";
 import { incomeTaxDeadlineNeedsAction } from "@/lib/administration/income-tax-deadline";
 import {
@@ -917,7 +920,7 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     newApplications,
     agingNewCount,
     agingNewApplications,
-    draftJobs,
+    draftJobList,
     staleCandidates,
     acceptedCandidates,
     complianceAlerts,
@@ -948,7 +951,9 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
       orderBy: { createdAt: "asc" },
       take: MAX,
     }),
-    prisma.job.count({ where: { company: { userId }, status: "DRAFT" } }),
+    // Concept-opdrachten (met updatedAt-klok) voor de leeftijd-bewuste concept-nudge — de loader is
+    // eigenaar-gescoped + begrensd; `summarizeDraftJobAging` splitst stil vs. vers hieronder.
+    getClientDraftJobs(userId),
     // unbounded-allow: eigenaar-scoped (job.company.userId) + take-limiet
     prisma.application.findMany({
       where: {
@@ -1237,7 +1242,14 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     })),
   );
   if (staleApplications) tasks.push(staleApplicationsTask(staleApplications));
-  if (draftJobs > 0) tasks.push(draftJobsTask(draftJobs));
+  // Concept-opdrachten leeftijd-bewust: een lang stilstaand concept (≥14 dagen) krijgt een eigen,
+  // deep-linkte nudge; verse concepten blijven samen de rustige aggregaat-telling. Zo verdwijnt een
+  // vergeten, half-afgemaakte vacature niet meer in een platte telling.
+  const draftAging = summarizeDraftJobAging(draftJobList, new Date());
+  for (const stale of draftAging.stale) {
+    tasks.push(staleDraftJobTask(stale.jobId, stale.title, stale.ageDays));
+  }
+  if (draftAging.freshCount > 0) tasks.push(draftJobsTask(draftAging.freshCount));
 
   // Overdue-onbezette opdrachten (startdatum verstreken, nog niemand vastgelegd) — het verstreken-
   // planning-deadline-signaal dat al op het opdracht-detail (`JobStaffingRiskCard`) en de lijstbadge

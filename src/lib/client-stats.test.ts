@@ -178,7 +178,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     company: { findUnique: vi.fn(async () => ({ id: "co1" })) },
     invoice: { aggregate: (args: { where: InvoiceWhere }) => invoiceAggregate(args) },
-    job: { count: vi.fn(async () => 0) },
+    job: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
     collaboration: {
       groupBy: vi.fn(async () => []),
       count: vi.fn(async () => 0),
