@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-30 — routine: betaal-vertrouwenssignaal op /reacties (ZZP'er)
+
+**Wat:** op `/reacties` (de eigen-reacties-lijst van de ZZP'er) toonde een nog-openstaande reactie al de
+reactiebereidheid van de opdrachtgever (`ApplicantResponsivenessNote`), maar niet zijn betaalgedrag —
+terwijl "krijg ik straks op tijd betaald?" het diepste vertrouwenssignaal is bij de beslissing om door te
+wachten of verder te kijken. Datzelfde geaggregeerde betaalgedrag stond al op de opdrachtenlijst
+(`paymentTrustChip`) en het opdracht-detail (`PaymentBehaviorBlock`), maar niet op de triage-lijst waar de
+ZZP'er zijn lopende reacties overziet (list↔detail-/surface-pariteit, zelfde patroon als de responsiveness-
+note). Benchmark: Deel/Malt maken de betaalbetrouwbaarheid zichtbaar op het beslismoment.
+
+**Aanpak:** hergebruikt exact de bestaande `getPaymentBehaviorForCompanies`-batch (dezelfde loader als de
+opdrachtenlijst) over precies de `pendingCompanyIds` die al voor de responsiveness-batch werden afgeleid
+(nog-openstaande reacties, geen samenwerking) — één extra gebatchte query, parallel met de responsiveness-
+query (`Promise.all`), geen N+1. Nieuwe pure `paymentTrustChipsByCompany(map)` filtert naar de beslis-
+relevante uitersten (`good`/`warning`; neutraal/onbekend → weg zodat de lijst rustig blijft). De chip toont
+alleen het geaggregeerde oordeel — nooit een individuele factuur/bedrag; zelfde privacy-klasse en scoping
+(actor-eigen reacties) als de reeds getoonde responsiveness-note. Read-only, geen schema/mutatie/authz-
+oppervlak, geen dode knop.
+
+**Bestanden:** `src/lib/payment-behavior.ts` (+`paymentTrustChipsByCompany`), `src/lib/payment-behavior.test.ts`
+(+2 tests: alleen good/warning, lege invoer), `src/components/applications/client-payment-trust-note.tsx` (nieuw,
+spiegelt `ApplicantResponsivenessNote`, `BadgeEuro`-icoon, success/warning-toon), `src/app/(protected)/reacties/page.tsx`
+(batch + chip-map + render). **Checks:** typecheck ✓ · lint ✓ · 7432 unit-tests ✓ · build ✓ · prettier ✓ · CI-poort → PR.
+
 ## 2026-08-30 — routine: flexpool → "sterke match voor je open opdracht" (opdrachtgever)
 
 **Wat:** de flexpool (poule van bewezen ZZP'ers van één opdrachtgever) toonde per favoriet alleen

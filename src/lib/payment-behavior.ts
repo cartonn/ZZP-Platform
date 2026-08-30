@@ -133,6 +133,25 @@ export function paymentTrustChipBadgeVariant(chip: PaymentTrustChip): "success" 
   return chip.tone === "good" ? "success" : "warning";
 }
 
+/**
+ * Bouwt de map van betaal-vertrouwenschips per opdrachtgever uit een reeds geladen
+ * betaalgedrag-map (bv. de `getPaymentBehaviorForCompanies`-batch op de opdrachtenlijst of de
+ * eigen-reacties-lijst). Neemt uitsluitend de beslis-relevante uitersten mee (`good`/`warning`);
+ * opdrachtgevers met een neutrale/onbekende reputatie vallen weg (`paymentTrustChip` → null) zodat
+ * de weergave rustig blijft. Puur en deterministisch; toont enkel het geaggregeerde oordeel — nooit
+ * een individuele factuur.
+ */
+export function paymentTrustChipsByCompany(
+  behaviorByCompany: Map<string, PaymentBehavior>,
+): Map<string, PaymentTrustChip> {
+  const out = new Map<string, PaymentTrustChip>();
+  for (const [companyId, behavior] of behaviorByCompany) {
+    const chip = paymentTrustChip(behavior);
+    if (chip) out.set(companyId, chip);
+  }
+  return out;
+}
+
 function determineTone(avgDaysToPay: number | null, onTimePct: number | null): PaymentTone {
   // Goed: snel betaald (≤14 dagen) of bijna altijd op tijd (≥90%).
   if (
