@@ -275,8 +275,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 >   `"overdue"`-logica dreef al de detailkaart (`JobStaffingRiskCard`) en de lijstbadge (`jobFillUrgency`),
 >   maar had geen next-action-oppervlak. Nieuwe loader `getClientOverdueJobs` (`src/lib/data/client-overdue-jobs.ts`)
 >   - `jobStaffingOverdueTask` (`P.jobStaffingOverdue = 51`) gewired in `clientTasks`; zelfde canonieke
->     `summarizeStaffingRisk` → geen drift. +9 tests. (Nog open uit dezelfde gap-hunt: freelancer-marktplaats-
->     markering voor reeds-gestarte opdrachten; leeftijd-bewuste DRAFT-opdracht-nudge.)
+>     `summarizeStaffingRisk` → geen drift. +9 tests. (Nog open uit dezelfde gap-hunt:
+>     leeftijd-bewuste DRAFT-opdracht-nudge.)
+> - ~~**ZZP'er — marktplaats-markering voor reeds-gestarte, nog-open opdrachten ("direct te starten").**~~
+>   **GEDAAN (2026-08-30, PR #1289).** Een PUBLISHED-opdracht met verstreken startdatum bleef zichtbaar
+>   (de `where` filtert alleen op status) maar toonde geen tijd-signaal (`jobStartProximity` → `null` voor
+>   het verleden). Nieuwe pure `jobStartedSignal` (`src/lib/job-started-signal.ts`) markeert die opdrachten
+>   met een "Direct te starten"-chip op de marktplaatslijst én het opdracht-detail (list↔detail-pariteit) +
+>   act-now-nudge op detail; 30-daagse horizon tegen verouderde plaatsingen. +8 tests.
 > - ~~**ZZP'er — geboekte-omzet-vooruitblik (booked-revenue runway / inkomsten-cliff) op `/prognose`.**~~
 >   **GEDAAN (2026-08-28, PR #1263).** Pure `buildBookedRevenueForecast` (`src/lib/booked-revenue-forecast.ts`)
 >   - loader (`src/lib/data/booked-revenue-forecast.ts`) + kaart "Al geboekt"
