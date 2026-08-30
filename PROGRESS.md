@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-30 — routine: "direct te starten"-signaal voor reeds-gestarte opdrachten (ZZP'er)
+
+**Wat:** een gepubliceerde opdracht waarvan de startdatum al verstreken is, blijft zichtbaar op de
+ZZP'er-marktplaats (de `where` filtert alleen op `status: PUBLISHED`, niet op startdatum) maar toonde
+géén tijd-signaal — `jobStartProximity` geeft bewust `null` voor het verleden. Voor de ZZP'er is dat
+juist een sterk beslis-signaal: een nog-open opdracht die al had moeten beginnen betekent een hoge
+inhuurkans en direct inkomen (de opdrachtgever zoekt met spoed iemand die nú kan). Nu markeert een
+compacte **"Direct te starten"**-chip die opdrachten op de marktplaatslijst én — list↔detail-pariteit —
+op het opdracht-detail, met een act-now-nudge op het detail voor een ZZP'er die nog niet reageerde.
+Benchmark: Temper/urgent-shift-platforms lichten immediate-start prominent uit. Sluit elkaar uit met de
+aankomende-start-chip (verleden vs. heden/toekomst); zwijgt voorbij een 30-daagse horizon (verouderde/
+vergeten plaatsing → geen misleidend "direct te starten", rustige lijst).
+
+**Server-side waarheid:** pure, tijd-geïnjecteerde `jobStartedSignal(startDate, now, horizon=30)` —
+geen extra query, geen schema-/mutatie-/authz-oppervlak, geen dode knop. UTC-middernacht-rekening zodat
+"N dagen geleden" stabiel is los van het tijdstip. NL via `t()`-fallback (geen dictionary-werk).
+
+**Bestanden:** `src/lib/job-started-signal.ts` (nieuw), `src/app/(protected)/opdrachten/(index)/page.tsx`
+(marktplaats-chip), `src/app/(protected)/opdrachten/[id]/page.tsx` (detail-chip + nudge). **Tests:**
+`src/lib/job-started-signal.test.ts` (nieuw, 8 tests: null-paden, gisteren/N-dagen-labels, hele-UTC-dag-
+telling, horizon-grens incl./excl., aangepaste horizon). Gate: typecheck/lint/unit(7393)/build/prettier
+groen · CI-poort → PR #1289.
+**Volgende:** leeftijd-bewuste DRAFT-opdracht-nudge (opdrachtgever) uit dezelfde gap-hunt.
+
 ## 2026-08-29 — routine: SEPA scan-to-pay QR op de factuur-betaalkaart (opdrachtgever + ZZP'er)
 
 **Wat:** het factuurdetail toont naast de bestaande betaalgegevens (IBAN/tenaamstelling/betaalkenmerk)

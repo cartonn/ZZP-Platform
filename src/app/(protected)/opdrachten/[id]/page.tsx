@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Star,
   TriangleAlert,
+  Zap,
 } from "lucide-react";
 import { owns, requireActor } from "@/lib/authz";
 import { canViewJob } from "@/lib/tenancy";
@@ -102,6 +103,7 @@ import { startConversationWithFreelancer } from "@/app/(protected)/berichten/act
 import { ApplicationForm } from "./application-form";
 import { formatDateShortNl } from "@/lib/format-date";
 import { jobStartApplyNudge, jobStartProximity } from "@/lib/job-start-proximity";
+import { jobStartedSignal } from "@/lib/job-started-signal";
 import { getPaymentBehaviorForCompany } from "@/lib/data/payment-behavior";
 import { PaymentBehaviorBlock } from "@/components/jobs/payment-behavior-block";
 import { getClientReliabilityForCompany } from "@/lib/data/client-reliability";
@@ -566,10 +568,20 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   // (jobStartProximity), zodat de urgentie-chip op detail én lijst identiek is. Een neutraal feit →
   // voor elke bekijker naast de startdatum; de reageer-nudge alléén voor een ZZP'er die nog niet
   // reageerde op een gepubliceerde opdracht (server-side afgeleid, geen extra query).
-  const startProximity = jobStartProximity(job.startDate, new Date());
+  const nowForStart = new Date();
+  const startProximity = jobStartProximity(job.startDate, nowForStart);
   const startApplyNudge =
     actor.role === "FREELANCER" && !isOwner && status === "PUBLISHED"
       ? jobStartApplyNudge(startProximity, myApplication != null)
+      : null;
+  // Reeds gestart, nog open: "direct te starten"-signaal (verleden) — spiegelt de marktplaatslijst en
+  // sluit elkaar uit met de aankomende-start-chip (jobStartProximity dekt heden/toekomst). De act-now-
+  // nudge alléén voor een ZZP'er die nog niet reageerde op een gepubliceerde opdracht (parity met boven).
+  const startedSignal =
+    !isOwner && status === "PUBLISHED" ? jobStartedSignal(job.startDate, nowForStart) : null;
+  const startedNudge =
+    actor.role === "FREELANCER" && !isOwner && status === "PUBLISHED" && myApplication == null
+      ? startedSignal
       : null;
 
   const { t } = await getTranslator();
@@ -653,12 +665,24 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                     : t("begint over N dagen").replace("N", String(startProximity.days))}
               </span>
             )}
+            {startedSignal && (
+              <span className="inline-flex items-center gap-1 font-medium text-warning">
+                <Zap className="size-3.5" aria-hidden /> {t(startedSignal.label)}
+              </span>
+            )}
           </div>
 
           {startApplyNudge && (
             <p className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
               <CalendarClock className="size-4 shrink-0 text-warning" aria-hidden />
               <span>{startApplyNudge}</span>
+            </p>
+          )}
+
+          {startedNudge && (
+            <p className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
+              <Zap className="size-4 shrink-0 text-warning" aria-hidden />
+              <span>{t(startedNudge.detail)}</span>
             </p>
           )}
 

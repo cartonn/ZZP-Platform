@@ -19,6 +19,7 @@ import {
   ShieldQuestion,
   Users,
   Wallet,
+  Zap,
 } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { type Actor, requireActor } from "@/lib/authz";
@@ -34,6 +35,7 @@ import {
 import { sortJobsByMatch } from "@/lib/job-match-sort";
 import { sortJobsByStart } from "@/lib/job-start-sort";
 import { jobStartProximity } from "@/lib/job-start-proximity";
+import { jobStartedSignal } from "@/lib/job-started-signal";
 import { getTranslator } from "@/lib/i18n/server";
 import {
   type ApplicationStatus,
@@ -960,6 +962,17 @@ async function BrowseJobs({
                         return (
                           <span className="inline-flex items-center gap-1 font-medium text-warning">
                             <CalendarClock className="size-3" aria-hidden /> {label}
+                          </span>
+                        );
+                      })()}
+                      {(() => {
+                        // Reeds gestart, nog open: sterk "direct te starten"-signaal voor de ZZP'er.
+                        // Sluit elkaar uit met de aankomende-start-chip hierboven (verleden vs. toekomst).
+                        const started = jobStartedSignal(job.startDate, now);
+                        if (!started) return null;
+                        return (
+                          <span className="inline-flex items-center gap-1 font-medium text-warning">
+                            <Zap className="size-3" aria-hidden /> {t(started.label)}
                           </span>
                         );
                       })()}
