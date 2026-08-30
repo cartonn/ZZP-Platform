@@ -1,5 +1,56 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-30 (run 101) · **main-commit basis:** `1468ac57`
+> **Uitkomst:** **2 defecten gevonden én gefixt** (DOEL 1b — zelfde bugklasse: een urgentie-/matchsignaal
+> dat een reeds-vergeven opdracht aanprijst). Het tweede (flexpool "sterke match") werd bij het vinden nog
+> als openstaande niet-eigen PR #1292 gemeld en niet opgepakt; die PR is tijdens deze run naar `main`
+> gemergd → live-defect → meegefixt. 3 parallelle adversariële Opus-
+> audits op niet-overlappende oppervlakken (financiële invoer/EPC-QR · authz/IDOR/tenant op de laatste
+> ~25 commits · next-action-engine). De financiële-invoer- én authz/IDOR/tenant-audits vonden **0 nieuwe
+> bereikbare gaten** (opnieuw bevestigd diep gehard: `expenseSchema` int-centen/plafond/nul-uitgave +
+> gebalanceerd grootboek by-construction, `deleteExpense` anti-oracle findFirst; EPC-QR `sanitizeLine`
+> strip control/CRLF + 331-byte-cap + IBAN mod-97 + `notFound()`-eigenaarspoort; web-push VAPID-zelftest
+> ADMIN-only + rate-limit + geen subscriber-IDOR; reactiesnelheid-badge `companyId`-scoped fail-closed;
+> `withdrawInvoice` anti-oracle). De build faalde eerst lokaal op een **verouderde `node_modules`** (miste
+> `qrcode-generator` van #1288) — opgelost met `npm ci`; geen codedefect.
+>
+> - **OPGELOST — should-fix (DOEL 1b, CLAUDE.md regel 1 — server-side waarheid, "geen dode knoppen"/geen
+>   zichzelf-tegensprekende signalen): het "direct te starten"-urgentiesignaal (#1289) vuurde voor een
+>   opdracht waarvan de rol al bezet is — recht tegen de echte staffing-status in.** `jobStartedSignal`
+>   (`src/lib/job-started-signal.ts`) kijkt alléén naar de verstreken startdatum en kreeg géén lock-in-
+>   staat mee. De eigenaar-only `staffingRisk`-blok berekent wél `lockedIn` (`opdrachten/[id]/page.tsx`
+>   :480-499), maar dat is `isOwner`-gated — dus niet beschikbaar voor de ZZP'er-bekijker die de chip/nudge
+>   krijgt. Gevolg: een ZZP'er die géén kandidaat is, zag op **/opdrachten** (marktplaatslijst) én op het
+>   opdracht-detail een `Zap` "Direct te starten"-chip + "je kunt direct beginnen"-nudge voor een opdracht
+>   die de opdrachtgever al aan een ander had gegund (ACCEPTED-reactie in de propose-limbo óf een niet-
+>   geannuleerde samenwerking; `Job.status` blijft PUBLISHED). Precies de bugklasse die run 100 (`e7ee7e9f`)
+>   net voor de koud/overdue-opdrachtacties dichtte. **Repro (ZZP'er, geen DB-manipulatie):** opdrachtgever
+>   plaatst een opdracht met een startdatum in het (recente) verleden → accepteert kandidaat A → ZZP'er B
+>   (nooit gereageerd) opent /opdrachten of het detail → ziet "Direct te starten / je kunt direct beginnen"
+>   voor een reeds vergeven rol. **Fix:** nieuwe gedeelde poort `lockedInJobIds`
+>   (`src/lib/data/job-locked-in.ts`) — spiegelt byte-voor-byte het `lockedIn`-predicaat van
+>   `getClientColdJobs`/`getClientOverdueJobs` (`applications: { some: { status: "ACCEPTED" } }` OF
+>   `collaborations: { some: { status: { not: "CANCELLED" } } }`), DB-side gefilterd en begrensd op de
+>   zichtbare/betrokken job-ids. Beide call-sites onderdrukken het started-signaal wanneer de opdracht
+>   vergeven is: detail toetst alleen als er een signaal te onderdrukken is (geen extra query anders), de
+>   lijst toetst alleen de zichtbare opdrachten mét een actief signaal. +3 regressietests
+>   (`job-locked-in.test.ts`: lege invoer → geen query, exacte set-teruggave, en het exacte lockedIn-
+>   predicaat in de query). Volledige gate groen (typecheck/lint/7430 unit-tests/build/prettier).
+> - **OPGELOST — should-fix (zelfde bugklasse, tijdens deze run naar `main` gemergd via #1292):
+>   de flexpool "sterke match" beval een favoriet aan voor een reeds-vergeven rol.**
+>   `buildOpenJobMatches` (`src/components/favorites/flexpool-panel.tsx`) queryde
+>   `job.findMany({ where: { companyId, status: "PUBLISHED" } })` zonder lock-in-uitsluiting; alleen
+>   reeds-gereageerde opdrachten werden per favoriet uitgesloten (`bestOpenJobMatch`'s `excludeJobIds` in
+>   `src/lib/favorites/open-job-match.ts`), nooit een reeds-vergeven rol. Gevolg: de opdrachtgever kreeg
+>   een "sterke match — nodig X uit"-deep-link voor een opdracht die hij al aan iemand anders gunde. Bij
+>   het vinden was dit nog een openstaande PR (niet-eigen → niet oppakken); die PR is tijdens deze run
+>   gemergd, waardoor het een live-defect op `main` werd en is meegefixt. **Fix:** `buildOpenJobMatches`
+>   filtert de scoorbare opdrachten nu met dezelfde gedeelde `lockedInJobIds`-poort (dus vergeven rollen
+>   leveren geen signaal meer), naast de bestaande per-favoriet reeds-gereageerd-uitsluiting. Gedekt door
+>   de 3 `job-locked-in.test.ts`-tests op de gedeelde poort.
+>
+> ---
+>
 > **Datum:** 2026-08-29 (run 100) · **main-commit basis:** `d58cc9f9`
 > **Uitkomst:** **1 defect gevonden én gefixt** (DOEL 1b — next-action-engine, opdrachtgever): de
 > koud-lopende-opdracht-actie ("weinig respons — verruim de zichtbaarheid") sprak zijn eigen

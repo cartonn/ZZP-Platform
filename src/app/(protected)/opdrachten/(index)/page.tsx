@@ -36,6 +36,7 @@ import { sortJobsByMatch } from "@/lib/job-match-sort";
 import { sortJobsByStart } from "@/lib/job-start-sort";
 import { jobStartProximity } from "@/lib/job-start-proximity";
 import { jobStartedSignal } from "@/lib/job-started-signal";
+import { lockedInJobIds } from "@/lib/data/job-locked-in";
 import { getTranslator } from "@/lib/i18n/server";
 import {
   type ApplicationStatus,
@@ -707,6 +708,15 @@ async function BrowseJobs({
     }
   }
 
+  // "Direct te starten" (verstreken start, nog open) mag niet aansporen op een opdracht waarvan de rol
+  // al bezet is — dat spreekt de echte status tegen. Toets de lockedIn-poort (ACCEPTED-reactie of niet-
+  // geannuleerde samenwerking, spiegel van de opdrachtgever-next-actions) uitsluitend voor de zichtbare
+  // opdrachten mét een actief started-signaal (begrensde query; leeg → geen query).
+  const startedCandidateIds = visibleJobs
+    .filter((j) => jobStartedSignal(j.startDate, now) != null)
+    .map((j) => j.id);
+  const lockedInStartedJobIds = await lockedInJobIds(startedCandidateIds);
+
   // Reistijdsignaal per zichtbare opdracht (alleen ZZP'er met een bekende eigen plaats): hoe ver reist
   // de ZZP'er naar de opdracht-locatie? Spiegelbeeld van het reistijdsignaal dat de opdrachtgever al op
   // /kandidaten ziet, nu op de eigen triage-lijst — commuteerbare opdrachten in één oogopslag. REMOTE of
@@ -968,8 +978,9 @@ async function BrowseJobs({
                       {(() => {
                         // Reeds gestart, nog open: sterk "direct te starten"-signaal voor de ZZP'er.
                         // Sluit elkaar uit met de aankomende-start-chip hierboven (verleden vs. toekomst).
+                        // Onderdruk het signaal als de opdracht al vergeven is (lockedIn-poort).
                         const started = jobStartedSignal(job.startDate, now);
-                        if (!started) return null;
+                        if (!started || lockedInStartedJobIds.has(job.id)) return null;
                         return (
                           <span className="inline-flex items-center gap-1 font-medium text-warning">
                             <Zap className="size-3" aria-hidden /> {t(started.label)}

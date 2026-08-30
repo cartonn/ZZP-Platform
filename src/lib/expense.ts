@@ -82,6 +82,13 @@ export const expenseSchema = z
   .refine((v) => v.netCents + v.vatCents > 0, {
     message: "Vul een bedrag groter dan € 0 in.",
     path: ["netCents"],
+  })
+  // Toekomstige uitgaven horen niet in de administratie: een kostenpost is pas een feit als hij is
+  // gemaakt. Deze check hoort in het schema (de bron van waarheid), niet alleen bij één call site —
+  // zo kan geen enkel toekomstig call-punt (bulk-import, admin-correctie, API) hem overslaan.
+  .refine((v) => v.occurredAt.getTime() <= Date.now(), {
+    message: "De datum ligt in de toekomst.",
+    path: ["occurredAt"],
   });
 
 export type ExpenseInput = z.infer<typeof expenseSchema>;
