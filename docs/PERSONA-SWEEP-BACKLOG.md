@@ -1,5 +1,40 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-30 (run 102) · **main-commit basis:** `14643b2c`
+> **Uitkomst:** **1 defect gevonden én gefixt** (DOEL 1b — zelfde bugklasse als run 99–101: een
+> zichzelf tegensprekend scherm). 4 rollen live doorgeklikt (Playwright/Chromium, qa.db-seed) +
+> 3 adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant op de laatste ~30
+> commits · next-action-engine · live HTTP-probes). De authz/IDOR/tenant-audit én de live-matrix over 4
+> rollen vonden **0 nieuwe bereikbare gaten**: privilege-escalatie (ZZP'er/opdrachtgever/franchiser →
+> `/admin/*`, `/franchise/*`) → **307-redirect**; IDOR cross-partij (opdrachtgever bij ZorgGroep-collab;
+> ZZP'er bij andermans factuur/PDF) → **404**; cross-tenant (franchiser bij null-tenant collab) → **404**;
+> franchiser bij een null-tenant opdrachtgever/ZZP'er-detail → **200 "geen toegang"** zónder existentie-
+> oracle (identiek voor onzin- én echt-maar-verboden-id, geen datalek); ~15 onzin-id's op samenwerking/
+> factuur/opdracht/bericht/certificaat/prestatie/document/support → **404**, nergens een 500; alle
+> hoofdschermen per rol laden 200 zonder page-errors. VAPID-zelftest ADMIN-only + rate-limit + audit;
+> reactiesnelheid-badge `companyId`-gescoped; flexpool/started-signal lock-in-poort correct bedraad.
+>
+> - **OPGELOST — should-fix (DOEL 1b, CLAUDE.md regel 1 — server-side waarheid / "geen zichzelf-
+>   tegensprekende signalen"): de cascade-stepper (`buildChainSteps`) sprak de status-line
+>   (`priorCycleFreelancerPhase` in `stage.ts`) tegen bij een openstaande vorige-cyclus-factuur.**
+>   `buildChainSteps` (`src/lib/cascade/chain-steps.ts:70`) nulde de nieuwste factuur zodra
+>   `performanceNewerThanInvoice` (ZZP'er dient verse cyclus-2-uren in na een eerdere cyclus) — óók als
+>   die vorige factuur nog een openstaande ZZP-actie droeg. De Factuur-/Betaling-stap viel dan terug op
+>   "Volgt na goedkeuring prestatie" / "Volgt na factuurgoedkeuring", terwijl de status-line op hetzelfde
+>   samenwerkingsdetail juist "Dien je factuur in" / "Markeer de betaling" toonde. De multi-cyclus-rescue
+>   (PR #859) was naar `stage.ts` gepropageerd maar niet naar de stepper, die bewust gespiegeld wordt
+>   gehouden (CREDITED/WITHDRAWN/OVERDUE staan in beide). **Repro (FREELANCER, geen DB-manipulatie):**
+>   ACTIVE-samenwerking, contract getekend, cyclus-1-prestatie APPROVED + factuur DRAFT (nooit ingediend —
+>   `createPerformance` gate't alleen op ACTIVE) → ZZP'er dient verse cyclus-2-uren in (nieuwer dan de
+>   factuur) → detail toont status-line "Dien je factuur in" (attention) én stepper Factuur "waiting ·
+>   Volgt na goedkeuring prestatie". **Fix:** carve-out `priorCycleInvoiceOpen` — een openstaande vorige
+>   factuur (DRAFT/REJECTED/APPROVED/OVERDUE) blijft nu zichtbaar in de stepper, exact de set die
+>   `priorCycleFreelancerPhase` als live CTA opvoert; afgewikkeld (PAID/PROCESSED/CREDITED/WITHDRAWN) of
+>   wachtend (SUBMITTED) blijft genuld. +5 regressietests (`chain-steps.test.ts`, rood→groen). Volledige
+>   gate groen (typecheck/lint/7435 unit-tests/build/prettier).
+>
+> ---
+>
 > **Datum:** 2026-08-30 (run 101) · **main-commit basis:** `1468ac57`
 > **Uitkomst:** **2 defecten gevonden én gefixt** (DOEL 1b — zelfde bugklasse: een urgentie-/matchsignaal
 > dat een reeds-vergeven opdracht aanprijst). Het tweede (flexpool "sterke match") werd bij het vinden nog
