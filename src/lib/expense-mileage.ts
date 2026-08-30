@@ -47,3 +47,93 @@ export function parseExpenseKilometers(raw: string): number | null {
 export function mileageRateLabel(): string {
   return (MILEAGE_RATE_CENTS / 100).toFixed(2).replace(".", ",");
 }
+
+/** Minimale uitgave-vorm die de rittenregistratie nodig heeft. */
+export interface MileageLike {
+  occurredAt: Date;
+  description: string;
+  /** Vastgelegde zakelijke rit-km, of null/afwezig wanneer geen rit is geboekt. */
+  kilometers?: number | null;
+}
+
+/** Eén rit in de rittenregistratie (afgeleid uit een reiskosten-uitgave met km). */
+export interface MileageTrip {
+  occurredAt: Date;
+  description: string;
+  kilometers: number;
+  /** Km-aftrek in centen, canoniek afgeleid uit km × het vaste tarief (0% btw). */
+  netCents: number;
+}
+
+/** Jaartotalen van de rittenregistratie. */
+export interface MileageSummary {
+  /** Aantal ritten met een geldig vastgelegd km-aantal. */
+  tripCount: number;
+  /** Totaal gereden zakelijke kilometers. */
+  totalKm: number;
+  /** Totale km-aftrek in centen (som van km × vast tarief per rit). */
+  totalNetCents: number;
+}
+
+/**
+ * Normaliseert een opgeslagen km-waarde tot een geldig geheel getal binnen de grens, of `null`.
+ * Spiegelt de invoer-validatie (`parseExpenseKilometers`) zodat een ongeldige/te grote of niet-hele
+ * waarde nooit in de rittenregistratie of het aftrektotaal terechtkomt.
+ */
+function normalizeKm(value: number | null | undefined): number | null {
+  if (value == null || !Number.isInteger(value) || value <= 0 || value > MILEAGE_MAX_KM) {
+    return null;
+  }
+  return value;
+}
+
+/**
+ * Vat de vastgelegde zakelijke ritten samen (optioneel op kalenderjaar, UTC — spiegelt
+ * `summarizeExpenses`). Alleen uitgaven met een geldig km-aantal tellen mee; de km-aftrek wordt per rit
+ * canoniek uit het km-aantal afgeleid (`mileageExpenseNetCents`), niet uit een los opgeslagen bedrag,
+ * zodat het aftrektotaal niet kan driften. Puur, geen I/O.
+ */
+export function summarizeMileage(
+  expenses: readonly MileageLike[],
+  opts: { year?: number } = {},
+): MileageSummary {
+  let tripCount = 0;
+  let totalKm = 0;
+  let totalNetCents = 0;
+  for (const e of expenses) {
+    if (opts.year !== undefined && e.occurredAt.getUTCFullYear() !== opts.year) continue;
+    const km = normalizeKm(e.kilometers);
+    if (km === null) continue;
+    tripCount += 1;
+    totalKm += km;
+    totalNetCents += mileageExpenseNetCents(km);
+  }
+  return { tripCount, totalKm, totalNetCents };
+}
+
+/**
+ * Bouwt de rittenlijst (optioneel op kalenderjaar, UTC) — één regel per zakelijke rit met de canonieke
+ * km-aftrek. Recentste rit eerst (pariteit met de uitgavenlijst); stabiele tiebreak op omschrijving.
+ * Puur, geen I/O.
+ */
+export function mileageTripLog(
+  expenses: readonly MileageLike[],
+  opts: { year?: number } = {},
+): MileageTrip[] {
+  const trips: MileageTrip[] = [];
+  for (const e of expenses) {
+    if (opts.year !== undefined && e.occurredAt.getUTCFullYear() !== opts.year) continue;
+    const km = normalizeKm(e.kilometers);
+    if (km === null) continue;
+    trips.push({
+      occurredAt: e.occurredAt,
+      description: e.description,
+      kilometers: km,
+      netCents: mileageExpenseNetCents(km),
+    });
+  }
+  return trips.sort(
+    (a, b) =>
+      b.occurredAt.getTime() - a.occurredAt.getTime() || a.description.localeCompare(b.description),
+  );
+}

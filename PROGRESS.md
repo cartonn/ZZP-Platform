@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-30 — routine: rittenregistratie-overzicht (km-aftrek) voor de ZZP'er
+
+**Wat:** de zakelijke ritten (`Expense.kilometers`) werden per uitgave vastgelegd en als chip getoond,
+maar nergens geaggregeerd. De Belastingdienst verwacht bij de km-aftrek een coherente **rittenregistratie**
+(datum, rit, km, aftrek + jaartotalen). Toegevoegd op het uitgaven-paneel: een sectie "Rittenregistratie
+{jaar}" met drie kerncijfers (aantal ritten, totaal zakelijke km, km-aftrek dit jaar) + een compacte
+rittenlog (recentste 10) en een verwijzing naar de uitgaven-CSV voor de volledige lijst. Administratie-
+ontzorging: de ZZP'er ziet in één oogopslag zijn km-aftrek en heeft de onderbouwing paraat.
+
+**Aanpak:** puur afgeleid uit bestaande data — geen nieuw datamodel, geen mutatie, geen geldstroom. De
+km-aftrek wordt per rit **canoniek** uit het km-aantal afgeleid (`mileageExpenseNetCents`, één bron van
+waarheid), niet uit een los opgeslagen bedrag → geen drift. Owner-gescoopte, jaar-begrensde query los van
+de 200-rij-lijstcap zodat het jaartotaal klopt; alleen km-rijen, alleen de benodigde velden.
+
+**Bestanden:** `src/lib/expense-mileage.ts` (nieuw: `summarizeMileage`, `mileageTripLog`, `normalizeKm`
+
+- types), `src/components/administratie/uitgaven-panel.tsx` (rittenregistratie-sectie + jaar-gescoopte
+  query). **Tests:** `src/lib/expense-mileage.test.ts` (+9: geldige/ongeldige/te-grote km, jaarfilter UTC,
+  lege lijst, bovengrens, log-sortering recentste-eerst, stabiele tiebreak) — groen. Gate:
+  typecheck/lint/7438 unit + build/prettier lokaal groen → CI-poort.
+
 ## 2026-08-30 — routine: flexpool → "sterke match voor je open opdracht" (opdrachtgever)
 
 **Wat:** de flexpool (poule van bewezen ZZP'ers van één opdrachtgever) toonde per favoriet alleen
