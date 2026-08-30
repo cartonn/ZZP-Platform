@@ -16,17 +16,26 @@ const MAX_INVITE_LOGS = 400;
 
 /**
  * Berekent per ZZP'er het positieve reactiesnelheid-signaal op uitnodigingen, voor een (kleine) set
- * voorgestelde ZZP'ers op een opdracht. Twee begrensde queries: (1) de gezaghebbende `JOB_INVITED`-
- * auditrecords voor exact deze ZZP'ers binnen het terugkijkvenster, (2) hun niet-ingetrokken reacties
- * op precies de uitgenodigde opdrachten. Geeft uitsluitend geaggregeerde tellingen terug — geen
- * individuele reactie van een andere ZZP'er lekt naar de opdrachtgever (privacy by design).
+ * voorgestelde ZZP'ers op een opdracht. Drie begrensde queries: (1) de gezaghebbende `JOB_INVITED`-
+ * auditrecords voor exact deze ZZP'ers binnen het terugkijkvenster, (2) welke van die uitgenodigde
+ * opdrachten van de *kijkende* opdrachtgever (`companyId`) zijn, (3) hun niet-ingetrokken reacties op
+ * precies díe opdrachten. Geeft uitsluitend geaggregeerde tellingen terug — geen individuele reactie
+ * van een andere ZZP'er lekt naar de opdrachtgever (privacy by design).
+ *
+ * **Scoping op de kijkende opdrachtgever (`companyId`) is niet optioneel.** De teller/noemer moet
+ * uitsluitend uitnodigingen van déze opdrachtgever meetellen. Zonder die filter aggregeerde het
+ * signaal álle uitnodigingen die de ZZP'er platform-breed ontving — óók van concurrerende
+ * opdrachtgevers en (voor een franchise) van andere tenants — en lekte de badge-tooltip
+ * ("reageerde op X van de Y uitnodigingen") die cross-partij/cross-tenant tellingen aan één
+ * opdrachtgever. OWASP A01 (Broken Access Control) + AVG art. 5(1)(c) (dataminimalisatie).
  */
 export async function getCandidateInviteResponsiveness(
   freelancerIds: string[],
+  companyId: string,
   now: Date = new Date(),
 ): Promise<Map<string, CandidateInviteResponsiveness>> {
   const unique = [...new Set(freelancerIds)];
-  if (unique.length === 0) return new Map();
+  if (unique.length === 0 || !companyId) return new Map();
 
   const cutoff = new Date(now.getTime() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
   const logs = await prisma.auditLog.findMany({
@@ -63,10 +72,21 @@ export async function getCandidateInviteResponsiveness(
   }
   if (invites.length === 0) return new Map();
 
+  // Scope op de kijkende opdrachtgever: houd enkel de uitnodigingen over op opdrachten van déze
+  // `companyId`. Zo tellen uitnodigingen van andere opdrachtgevers/tenants nooit mee in de X/Y die de
+  // badge-tooltip toont (geen cross-partij/cross-tenant lek).
+  const ownJobs = await prisma.job.findMany({
+    where: { id: { in: [...jobIds] }, companyId },
+    select: { id: true },
+  });
+  const ownJobIds = new Set(ownJobs.map((j) => j.id));
+  const scopedInvites = invites.filter((inv) => ownJobIds.has(inv.jobId));
+  if (scopedInvites.length === 0) return new Map();
+
   const applications = await prisma.application.findMany({
     where: {
       freelancerId: { in: unique },
-      jobId: { in: [...jobIds] },
+      jobId: { in: [...ownJobIds] },
       status: { not: "WITHDRAWN" },
     },
     select: { freelancerId: true, jobId: true, createdAt: true },
@@ -81,7 +101,7 @@ export async function getCandidateInviteResponsiveness(
   }
 
   const byFreelancer = new Map<string, InviteResponse[]>();
-  for (const inv of invites) {
+  for (const inv of scopedInvites) {
     const respondedAt = earliest.get(`${inv.freelancerId}::${inv.jobId}`) ?? null;
     // Een reactie telt alleen als hij ná de uitnodiging kwam.
     const validResponse = respondedAt && respondedAt >= inv.invitedAt ? respondedAt : null;
