@@ -106,6 +106,14 @@ Eerlijk vastgelegd om dubbel werk (slop) te voorkomen.
   overtikken en het juiste kenmerk voor de reconciliatie. Helpt opdrachtgever (sneller, foutloos
   betalen) én ZZP'er (sneller, correct-gereconcilieerd betaald). `src/lib/payments/epc-qr.ts`.
 
+- **Flexpool → "sterke match voor je open opdracht"** _(S, Malt/Temper)_ — **GEBOUWD (#1292)**.
+  Malt/Temper maken hun favorieten/eigen pool actiegericht: nodig je bewezen mensen direct uit voor
+  wat je nu zoekt. Vertaald naar onze verklaarbare matchmotor: de flexpool toonde alleen
+  beschikbaarheid; nu berekent het systeem per favoriet de sterkste eigen PUBLISHED-opdracht op/boven
+  de suggestie-drempel (`scoreJobForFreelancer`, dezelfde motor als de kandidatenlijst) en toont een
+  deep-link-chip "Sterke match voor je opdracht «titel» · %". Read-only, geen nieuwe rekenlogica, geen
+  geldstroom; opdrachten waarop de favoriet al reageerde vallen af. `src/lib/favorites/open-job-match.ts`.
+
 ### PARKEREN (eigenaars-/strategiebeslissing — niet autonoom bouwen)
 
 7. **Externe roostersysteem-integratie** _(L, Zorgwerk + Bendy)_ — ingest van flex-aanvragen uit
