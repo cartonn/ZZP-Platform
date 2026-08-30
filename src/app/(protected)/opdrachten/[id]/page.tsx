@@ -104,6 +104,7 @@ import { ApplicationForm } from "./application-form";
 import { formatDateShortNl } from "@/lib/format-date";
 import { jobStartApplyNudge, jobStartProximity } from "@/lib/job-start-proximity";
 import { jobStartedSignal } from "@/lib/job-started-signal";
+import { lockedInJobIds } from "@/lib/data/job-locked-in";
 import { getPaymentBehaviorForCompany } from "@/lib/data/payment-behavior";
 import { PaymentBehaviorBlock } from "@/components/jobs/payment-behavior-block";
 import { getClientReliabilityForCompany } from "@/lib/data/client-reliability";
@@ -580,8 +581,14 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   // Reeds gestart, nog open: "direct te starten"-signaal (verleden) — spiegelt de marktplaatslijst en
   // sluit elkaar uit met de aankomende-start-chip (jobStartProximity dekt heden/toekomst). De act-now-
   // nudge alléén voor een ZZP'er die nog niet reageerde op een gepubliceerde opdracht (parity met boven).
-  const startedSignal =
+  // Onderdruk het signaal wanneer de opdracht al vergeven is (ACCEPTED-reactie of niet-geannuleerde
+  // samenwerking): "je kunt direct beginnen" op een bezette rol spreekt de echte status tegen — spiegelt
+  // de lockedIn-poort van de opdrachtgever-next-actions. Alleen toetsen als er iets te onderdrukken is.
+  let startedSignal =
     !isOwner && status === "PUBLISHED" ? jobStartedSignal(job.startDate, nowForStart) : null;
+  if (startedSignal && (await lockedInJobIds([job.id])).has(job.id)) {
+    startedSignal = null;
+  }
   const startedNudge =
     actor.role === "FREELANCER" && !isOwner && status === "PUBLISHED" && myApplication == null
       ? startedSignal

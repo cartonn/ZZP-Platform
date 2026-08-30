@@ -24,6 +24,39 @@ data-laag + match-chip). **Tests:** `src/lib/favorites/open-job-match.test.ts` (
 hoogst-scorende bij meerdere, excludeJobIds, null onder drempel, lege lijst, deterministische tiebreaker,
 reden gevuld) — groen. Gate: typecheck/lint/7415 unit + build/prettier → CI-poort.
 
+## 2026-08-30 — persona-sweep run 101: "direct te starten"-signaal onderdrukt op vergeven opdracht (ZZP'er)
+
+**Wat:** kritische-gebruiker-sweep over 4 rollen; 3 parallelle adversariële Opus-audits (financiële
+invoer/EPC-QR · authz/IDOR/tenant op de laatste ~25 commits · next-action-engine). Eén defect gevonden
+én gefixt; één gelijksoortig gat geparkeerd in een openstaande niet-eigen PR (#1292 flexpool). De
+financiële- en authz/IDOR/tenant-audits vonden 0 nieuwe bereikbare gaten.
+
+**Defect (DOEL 1b — server-side waarheid / geen zichzelf-tegensprekend signaal):** het "direct te
+starten"-urgentiesignaal (#1289) vuurde óók voor een opdracht waarvan de rol al bezet is (ACCEPTED-
+reactie of niet-geannuleerde samenwerking; `Job.status` blijft PUBLISHED). `jobStartedSignal` kijkt
+alleen naar de verstreken startdatum; de `lockedIn`-staat werd alleen `isOwner`-gated berekend, niet
+voor de ZZP'er-bekijker die de chip/nudge krijgt. Een niet-kandidaat-ZZP'er zag zo "je kunt direct
+beginnen" voor een reeds vergeven rol — dezelfde bugklasse die run 100 (`e7ee7e9f`) voor de koud/overdue-
+opdrachtacties dichtte.
+
+**Fix:** gedeelde poort `lockedInJobIds` (`src/lib/data/job-locked-in.ts`) die byte-voor-byte het
+`lockedIn`-predicaat van `getClientColdJobs`/`getClientOverdueJobs` spiegelt; beide call-sites
+(marktplaatslijst + opdracht-detail) onderdrukken het started-signaal wanneer de opdracht vergeven is.
+Ook: `expenseSchema` weigert nu een toekomstige datum in het schema zelf (bron van waarheid), niet enkel
+bij één call-site (defense-in-depth, audit-LOW).
+
+**Bestanden:** `src/lib/data/job-locked-in.ts` (+`.test.ts`, 3 tests), `src/app/(protected)/opdrachten/(index)/page.tsx`,
+`src/app/(protected)/opdrachten/[id]/page.tsx`, `src/lib/expense.ts` (+`expense.test.ts` 2 tests).
+**Checks:** typecheck ✓ · lint ✓ · 7430 unit-tests ✓ · build ✓ · prettier ✓. **Opmerking:** de build faalde
+eerst lokaal op een verouderde `node_modules` (miste `qrcode-generator` van #1288) → `npm ci`; geen codedefect.
+
+**Tweede defect (zelfde bugklasse, ondertussen gemergd via #1292):** de flexpool "sterke match"
+(`buildOpenJobMatches`, `src/components/favorites/flexpool-panel.tsx`) beval een favoriet aan voor een
+opdracht waarvan de rol al vergeven is — `job.findMany({ where: { companyId, status: "PUBLISHED" } })`
+zonder lock-in-uitsluiting. Tijdens deze run naar `main` gemergd (was bij het vinden nog een openstaande
+PR), dus meegefixt: `buildOpenJobMatches` sluit nu de vergeven opdrachten uit via dezelfde
+gedeelde `lockedInJobIds`-poort (door de 3 helper-tests gedekt).
+
 ## 2026-08-30 — prod: web-push (VAPID) connectiviteits-/config-zelftest + go-live-sweep
 
 **Wat:** het push-kanaal (web-push/VAPID) had een aflever-heartbeat + alert (`ZzpPushDeliveryFailing`)

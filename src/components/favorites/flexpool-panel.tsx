@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Star, Target, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { sortFavorites } from "@/lib/favorites";
+import { lockedInJobIds } from "@/lib/data/job-locked-in";
 import { hasFlexpoolSummary, summarizeFlexpool } from "@/lib/favorites-summary";
 import {
   bestOpenJobMatch,
@@ -77,18 +78,26 @@ async function buildOpenJobMatches(
   });
   if (jobs.length === 0) return result;
 
-  const scorableJobs: FlexpoolMatchJob[] = jobs.map((j) => ({
-    id: j.id,
-    title: j.title,
-    description: j.description,
-    industryId: j.industryId,
-    rateMin: j.rateMin,
-    rateMax: j.rateMax,
-    workMode: j.workMode,
-    location: j.location,
-    skills: j.skills,
-    credentialRequirements: j.credentialRequirements,
-  }));
+  // Reeds-vergeven opdrachten (een kandidaat vastgelegd óf een niet-geannuleerde samenwerking) mogen
+  // geen "sterke match — nodig X uit"-signaal opleveren: de rol is al bezet, dus dat spreekt de echte
+  // status tegen. Spiegelt de lockedIn-poort van de opdrachtgever-next-actions (getClientColdJobs/
+  // getClientOverdueJobs) en van het ZZP'er-"direct te starten"-signaal.
+  const lockedIn = await lockedInJobIds(jobs.map((j) => j.id));
+
+  const scorableJobs: FlexpoolMatchJob[] = jobs
+    .filter((j) => !lockedIn.has(j.id))
+    .map((j) => ({
+      id: j.id,
+      title: j.title,
+      description: j.description,
+      industryId: j.industryId,
+      rateMin: j.rateMin,
+      rateMax: j.rateMax,
+      workMode: j.workMode,
+      location: j.location,
+      skills: j.skills,
+      credentialRequirements: j.credentialRequirements,
+    }));
 
   // Opdrachten waarop de favoriet al reageerde vallen af — geen dubbel signaal.
   const freelancerIds = rows.map((r) => r.freelancerProfileId);

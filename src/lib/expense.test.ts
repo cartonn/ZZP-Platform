@@ -98,6 +98,17 @@ describe("expenseSchema", () => {
   it("accepteert netto 0 met alleen btw", () => {
     expect(expenseSchema.safeParse({ ...base, netCents: 0, vatCents: 100 }).success).toBe(true);
   });
+
+  it("weigert een datum in de toekomst (schema is de bron van waarheid)", () => {
+    const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const res = expenseSchema.safeParse({ ...base, occurredAt: future });
+    expect(res.success).toBe(false);
+    if (!res.success) expect(res.error.issues[0]?.path).toContain("occurredAt");
+  });
+
+  it("accepteert de datum van vandaag", () => {
+    expect(expenseSchema.safeParse({ ...base, occurredAt: new Date() }).success).toBe(true);
+  });
 });
 
 describe("planExpensePostings", () => {
