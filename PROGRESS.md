@@ -24,6 +24,32 @@ de 200-rij-lijstcap zodat het jaartotaal klopt; alleen km-rijen, alleen de benod
   lege lijst, bovengrens, log-sortering recentste-eerst, stabiele tiebreak) — groen. Gate:
   typecheck/lint/7438 unit + build/prettier lokaal groen → CI-poort.
 
+## 2026-08-30 — persona-sweep run 102: cascade-stepper spiegelt openstaande vorige-cyclus-factuur (parity met status-line)
+
+**Wat:** kritische-gebruiker-sweep over 4 rollen (live login + doorklik via Playwright/Chromium op
+qa.db-seed) + 3 adversariële Opus-audits (authz/IDOR/tenant op de laatste ~30 commits · next-action-engine).
+De authz/IDOR/tenant-audit én de live-probes vonden **0 nieuwe bereikbare gaten** (privilege-escalatie →
+307-redirect; IDOR cross-partij/cross-tenant → 404; franchiser bij null-tenant → "geen toegang" zonder
+existentie-oracle; ~15 onzin-id's → 404, nergens een 500). Eén defect (DOEL 1b, zelfde bugklasse als run
+99–101): de cascade-**stepper** sprak de **status-line** op hetzelfde samenwerkingsdetail tegen.
+
+**Defect:** `buildChainSteps` (`src/lib/cascade/chain-steps.ts`) nulde de nieuwste factuur zodra
+`performanceNewerThanInvoice` (verse cyclus-2-uren na een eerdere cyclus) — óók wanneer die vorige-cyclus-
+factuur nog een openstaande ZZP-actie droeg (DRAFT indienen / REJECTED corrigeren / APPROVED·OVERDUE
+betaling markeren). De Factuur-/Betaling-stap viel dan terug op de generieke "Volgt na goedkeuring
+prestatie"-default, terwijl de status-line (`priorCycleFreelancerPhase` in `stage.ts`) op hetzelfde scherm
+juist "Dien je factuur in" / "Markeer de betaling" toonde — een zichzelf tegensprekend scherm (CLAUDE.md
+regel 1). De multi-cyclus-rescue was in run-historie wél naar `stage.ts` gepropageerd maar niet naar de
+stepper (die twee worden bewust gespiegeld gehouden: CREDITED/WITHDRAWN/OVERDUE staan in beide).
+
+**Fix:** carve-out `priorCycleInvoiceOpen` — bij `performanceNewerThanInvoice` blijft de vorige factuur
+alleen genuld als ze afgewikkeld (PAID/PROCESSED/CREDITED/WITHDRAWN) of op-de-opdrachtgever-wachtend
+(SUBMITTED) is; een openstaande vorige factuur (DRAFT/REJECTED/APPROVED/OVERDUE) wordt nu wél in de stepper
+getoond — exact de set die `priorCycleFreelancerPhase` als live CTA opvoert. **Bestanden:**
+`src/lib/cascade/chain-steps.ts`. **Tests:** `chain-steps.test.ts` +5 (rood→groen: DRAFT→active,
+REJECTED→error, APPROVED→Betaling active, OVERDUE→error+te-laat, en SUBMITTED blijft waiting). Gate groen:
+typecheck/lint/**7435** unit/build/prettier.
+
 ## 2026-08-30 — routine: flexpool → "sterke match voor je open opdracht" (opdrachtgever)
 
 **Wat:** de flexpool (poule van bewezen ZZP'ers van één opdrachtgever) toonde per favoriet alleen

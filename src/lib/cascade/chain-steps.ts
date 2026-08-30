@@ -67,7 +67,23 @@ export function buildChainSteps(col: {
   // Stap 3: Factuur — beoordeel de factuur van de HUIDIGE cyclus. Een vorige-cyclus-factuur wordt
   // genuld zodra de nieuwste prestatie nieuwer is (spiegelt `inv` in stage.ts); zo maskeert een
   // betaalde cyclus-1-factuur nooit de verse, nog te factureren cyclus-2-uren.
-  const inv = col.performanceNewerThanInvoice ? null : (col.invoices[0]?.lifecycleStatus ?? null);
+  //
+  // Uitzondering (spiegelt de multi-cyclus-rescue `priorCycleFreelancerPhase` in stage.ts): draagt
+  // die vorige-cyclus-factuur nog een openstaande ZZP-actie — indienen (DRAFT), corrigeren (REJECTED)
+  // of betaling markeren (APPROVED/OVERDUE) — dan is die factuur níet afgewikkeld en blijft ze de
+  // primaire, te-tonen fase; nullen zou de Factuur-/Betaling-stap laten terugvallen op de generieke
+  // "Volgt na goedkeuring prestatie"-default terwijl de status-line op hetzelfde scherm juist "Dien je
+  // factuur in" / "Markeer de betaling" vraagt — een zichzelf tegensprekend scherm. Een afgewikkelde
+  // (PAID/PROCESSED/CREDITED/WITHDRAWN) of op-de-opdrachtgever-wachtende (SUBMITTED) vorige factuur
+  // blijft wél genuld — exact de set die `priorCycleFreelancerPhase` als `null` teruggeeft.
+  const latestInvoice = col.invoices[0]?.lifecycleStatus ?? null;
+  const priorCycleInvoiceOpen =
+    col.performanceNewerThanInvoice === true &&
+    (latestInvoice === "DRAFT" ||
+      latestInvoice === "REJECTED" ||
+      latestInvoice === "APPROVED" ||
+      latestInvoice === "OVERDUE");
+  const inv = col.performanceNewerThanInvoice && !priorCycleInvoiceOpen ? null : latestInvoice;
   let invStatus: ChainStepStatus = "waiting";
   let invDetail = "Volgt na goedkeuring prestatie";
   if (inv === "PAID" || inv === "PROCESSED") {

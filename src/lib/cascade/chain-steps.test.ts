@@ -268,6 +268,85 @@ describe("buildChainSteps — multi-cyclus (regressie: cyclus-1 factuur maskeert
   });
 });
 
+// Regressie (persona-sweep): op een multi-cyclus ACTIVE-samenwerking dient de ZZP'er verse
+// cyclus-2-uren in terwijl de cyclus-1-factuur nog een openstaande ZZP-actie draagt (nog niet
+// ingediend / afgekeurd / te betalen). De status-line (stage.ts `priorCycleFreelancerPhase`)
+// toont dan een live CTA ("Dien je factuur in" / "Markeer de betaling"); de stepper viel ten
+// onrechte terug op de generieke "Volgt na goedkeuring prestatie"-default → zichzelf tegensprekend
+// scherm. De stepper moet die openstaande vorige-cyclus-factuur nu spiegelen (parity met stage.ts).
+describe("buildChainSteps — multi-cyclus openstaande vorige-cyclus-factuur (parity met status-line)", () => {
+  it("vorige factuur DRAFT + cyclus-2 SUBMITTED → Factuur=active (concept), niet 'Volgt na goedkeuring'", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "SUBMITTED" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "DRAFT" }],
+        true,
+      ),
+    );
+    expect(steps[2]!.status).toBe("active");
+    expect(steps[2]!.detail).toContain("Concept");
+    expect(steps[2]!.detail).not.toBe("Volgt na goedkeuring prestatie");
+  });
+
+  it("vorige factuur REJECTED + cyclus-2 SUBMITTED → Factuur=error (afgekeurd)", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "SUBMITTED" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "REJECTED" }],
+        true,
+      ),
+    );
+    expect(steps[2]!.status).toBe("error");
+    expect(steps[2]!.detail).toContain("Afgekeurd");
+  });
+
+  it("vorige factuur APPROVED + cyclus-2 DRAFT → Betaling=active (wachten op betaling), niet waiting-default", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "DRAFT" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "APPROVED" }],
+        true,
+      ),
+    );
+    expect(steps[2]!.status).toBe("active");
+    expect(steps[2]!.detail).toContain("betaling");
+    expect(steps[3]!.status).toBe("active");
+    expect(steps[3]!.detail).not.toBe("Volgt na factuurgoedkeuring");
+  });
+
+  it("vorige factuur OVERDUE + cyclus-2 SUBMITTED → Factuur=error (vervallen), Betaling=active (te laat)", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "SUBMITTED" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "OVERDUE" }],
+        true,
+      ),
+    );
+    expect(steps[2]!.status).toBe("error");
+    expect(steps[3]!.status).toBe("active");
+    expect(steps[3]!.detail).toContain("te laat");
+  });
+
+  // Afgewikkelde/wachtende vorige factuur blijft wél genuld (geen valse actie) — dit is de andere
+  // helft van de parity: `priorCycleFreelancerPhase` geeft null voor SUBMITTED/PAID/PROCESSED.
+  it("vorige factuur SUBMITTED (wacht op opdrachtgever) + cyclus-2 SUBMITTED → Factuur=waiting", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "SUBMITTED" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "SUBMITTED" }],
+        true,
+      ),
+    );
+    expect(steps[2]!.status).toBe("waiting");
+    expect(steps[3]!.status).toBe("waiting");
+  });
+});
+
 describe("buildChainSteps — altijd 4 stappen", () => {
   it("geeft precies 4 stappen terug", () => {
     expect(buildChainSteps(col("PROPOSED"))).toHaveLength(4);
