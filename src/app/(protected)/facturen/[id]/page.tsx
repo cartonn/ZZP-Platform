@@ -1,7 +1,7 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Copy, FileText } from "lucide-react";
+import { ArrowLeft, Copy, FileCode, FileText } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
@@ -268,6 +268,11 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           <Button asChild variant="secondary" size="sm">
             <a href={`/api/facturen/${id}/pdf`} target="_blank" rel="noreferrer">
               <FileText className="size-4" aria-hidden /> Open als PDF
+            </a>
+          </Button>
+          <Button asChild variant="secondary" size="sm">
+            <a href={`/api/facturen/${id}/ubl`}>
+              <FileCode className="size-4" aria-hidden /> UBL (e-factuur)
             </a>
           </Button>
           <PrintButton />

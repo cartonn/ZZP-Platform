@@ -112,6 +112,14 @@ Eerlijk vastgelegd om dubbel werk (slop) te voorkomen.
   Toegevoegd op het uitgaven-paneel: jaartotalen (ritten, km, km-aftrek) + compacte rittenlog, puur afgeleid
   (`summarizeMileage`/`mileageTripLog` in `expense-mileage.ts`), km-aftrek canoniek uit km × vast tarief.
 
+- **UBL 2.1 e-factuur-export** _(S, Moneybird/e-boekhouden + Deel/Bendy)_ — **GEBOUWD (#1300)**.
+  Boekhoudtools en e-facturatieplatforms leveren de factuur als machineleesbare UBL/Peppol-XML zodat de
+  ontvanger 'm rechtstreeks in zijn administratie importeert (geen overtikken). Vertaald naar onze
+  bestaande factuur: naast PDF/CSV een puur uit de factuurdata afgeleide **UBL 2.1 (NLCIUS/SI-UBL,
+  EN 16931-subset)** download per factuur; btw-categorie volgt het regime (S/AE/E), betaalmiddel-blok
+  alleen op een openstaande factuur. Helpt de opdrachtgever (foutloze import) én de ZZP'er (professionele
+  standaard, snellere verwerking). `src/lib/invoice-ubl.ts` + `/api/facturen/[id]/ubl`.
+
 - **Flexpool → "sterke match voor je open opdracht"** _(S, Malt/Temper)_ — **GEBOUWD (#1292)**.
   Malt/Temper maken hun favorieten/eigen pool actiegericht: nodig je bewezen mensen direct uit voor
   wat je nu zoekt. Vertaald naar onze verklaarbare matchmotor: de flexpool toonde alleen

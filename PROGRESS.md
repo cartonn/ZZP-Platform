@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-30 — ZZP'er + opdrachtgever: UBL 2.1 e-factuur-export (download)
+
+**Wat:** naast de bestaande PDF- en CSV-export kan elke factuur nu als gestructureerde **UBL 2.1
+e-factuur (NLCIUS / SI-UBL 2.0, EN 16931-conform subset)** worden gedownload. De opdrachtgever
+importeert die machineleesbare XML rechtstreeks in zijn boekhouding (geen overtikken, geen tikfouten);
+de ZZP'er levert de professionele e-facturatiestandaard die boekhoudtools (Moneybird/e-boekhouden) en
+platforms als Deel al bieden. Puur/deterministisch afgeleid uit exact dezelfde factuurdata als de PDF —
+server-side de waarheid; de download-route spiegelt byte-voor-byte de authz/ownership/audit/rate-limit
+van de PDF-route (404-maskering, DENIED-audit, privé-bestand-headers). Btw-categorie volgt het
+factuurregime (S 21% / AE btw-verlegd / E vrijgesteld-KOR); betaalmiddel-blok (SEPA-code 58, IBAN,
+betaalkenmerk) alleen op een nog-openstaande factuur — dezelfde gate als de PDF/`PaymentDetailsCard`.
+
+**Bestanden:**
+
+- `src/lib/invoice-ubl.ts` (NIEUW, puur) — `buildInvoiceUbl(data)` → complete UBL-XML-string;
+  XML-escaping, punt-decimale bedragen, compacte IBAN, regime→btw-categorie, betaalmiddel-gate.
+- `src/lib/invoice-ubl.test.ts` (NIEUW) — 16 tests (well-formedness/tag-balans, kop-velden, de drie
+  regimes, escaping, betaalmiddel-gates, lege-datum-concept, regelnummering, determinisme).
+- `src/app/api/facturen/[id]/ubl/route.ts` (NIEUW) — download-route, spiegelt de PDF-route
+  (auth→rate-limit→ownership-404-maskering→audit); `application/xml`, bestandsnaam `factuur-<nr>.xml`.
+- `src/lib/audit-labels.ts` — labels `INVOICE_UBL_ACCESSED` / `INVOICE_UBL_ACCESS_DENIED` (drift-gate).
+- `src/app/(protected)/facturen/[id]/page.tsx` — knop "UBL (e-factuur)" naast "Open als PDF".
+
+**Gate:** typecheck ✓, lint ✓, test (7525) ✓, build ✓, prettier ✓ · CI-poort → PR #1300.
+
+---
+
 ## 2026-08-30 — opdrachtgever: leeftijd-bewuste concept-opdracht-nudge op /acties
 
 **Wat:** een concept-opdracht (DRAFT) die de opdrachtgever begon maar nooit publiceerde, verdween in één

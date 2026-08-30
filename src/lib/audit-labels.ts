@@ -124,6 +124,8 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   INVOICE_DRAFT_ESCALATED: "Conceptfactuur geëscaleerd",
   INVOICE_PDF_ACCESSED: "Factuur-PDF ingezien",
   INVOICE_PDF_ACCESS_DENIED: "Factuur-PDF-toegang geweigerd",
+  INVOICE_UBL_ACCESSED: "Factuur-UBL ingezien",
+  INVOICE_UBL_ACCESS_DENIED: "Factuur-UBL-toegang geweigerd",
   PERFORMANCE_PDF_ACCESSED: "Urenstaat/oplevering ingezien",
   PERFORMANCE_PDF_ACCESS_DENIED: "Urenstaat/oplevering-toegang geweigerd",
   MODEL_AGREEMENT_ACCESSED: "Modelovereenkomst ingezien",
