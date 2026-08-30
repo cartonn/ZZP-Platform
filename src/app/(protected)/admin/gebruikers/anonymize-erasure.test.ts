@@ -209,6 +209,7 @@ vi.mock("@/lib/db", () => ({
     savedJob: { deleteMany: op("savedJob.deleteMany") },
     savedJobSearch: { deleteMany: op("savedJobSearch.deleteMany") },
     notificationPreference: { deleteMany: op("notificationPreference.deleteMany") },
+    twoFactorRecoveryCode: { deleteMany: op("twoFactorRecoveryCode.deleteMany") },
     auditLog: {
       create: op("auditLog.create"),
       update: op("auditLog.update"),
