@@ -106,6 +106,12 @@ Eerlijk vastgelegd om dubbel werk (slop) te voorkomen.
   overtikken en het juiste kenmerk voor de reconciliatie. Helpt opdrachtgever (sneller, foutloos
   betalen) én ZZP'er (sneller, correct-gereconcilieerd betaald). `src/lib/payments/epc-qr.ts`.
 
+- **Rittenregistratie-overzicht (km-aftrek)** _(S, Bendy + boekhoudtools)_ — **GEBOUWD (#1295)**.
+  De zakelijke km bij een reiskosten-uitgave werden al vastgelegd (#1287), maar niet geaggregeerd. Bendy/
+  boekhoudtools tonen een rittenregistratie + km-aftrektotaal; de Belastingdienst verwacht die onderbouwing.
+  Toegevoegd op het uitgaven-paneel: jaartotalen (ritten, km, km-aftrek) + compacte rittenlog, puur afgeleid
+  (`summarizeMileage`/`mileageTripLog` in `expense-mileage.ts`), km-aftrek canoniek uit km × vast tarief.
+
 - **Flexpool → "sterke match voor je open opdracht"** _(S, Malt/Temper)_ — **GEBOUWD (#1292)**.
   Malt/Temper maken hun favorieten/eigen pool actiegericht: nodig je bewezen mensen direct uit voor
   wat je nu zoekt. Vertaald naar onze verklaarbare matchmotor: de flexpool toonde alleen

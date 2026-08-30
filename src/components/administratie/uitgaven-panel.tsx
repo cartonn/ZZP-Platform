@@ -1,4 +1,4 @@
-import { Download, Layers, Receipt, ReceiptText, TrendingUp } from "lucide-react";
+import { Car, Download, Layers, Receipt, ReceiptText, Route, TrendingUp } from "lucide-react";
 import { type Actor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
@@ -9,6 +9,7 @@ import {
   type ExpenseCategory,
 } from "@/lib/expense";
 import { expenseTrend } from "@/lib/expense-trend";
+import { summarizeMileage, mileageTripLog, mileageRateLabel } from "@/lib/expense-mileage";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BarSeries } from "@/components/insight/bi";
@@ -53,8 +54,24 @@ export async function UitgavenPanel({ actor }: { actor: Actor }) {
   });
   const trend = expenseTrend(trendExpenses, now, EXPENSE_TREND_MONTHS);
 
-  const summary = summarizeExpenses(expenses, { year: now.getUTCFullYear() });
+  const year = now.getUTCFullYear();
+  const summary = summarizeExpenses(expenses, { year });
   const categoryShares = expenseCategoryShares(summary);
+
+  // Rittenregistratie: aggregeer de vastgelegde zakelijke km apart van de 200-rij-lijstcap, zodat het
+  // jaartotaal en de aftrek kloppen. Owner-gescoopt, alleen de km-rijen van dit jaar (kleine subset),
+  // en enkel de velden die de registratie nodig heeft.
+  const yearFloor = new Date(Date.UTC(year, 0, 1));
+  const mileageRows = await prisma.expense.findMany({
+    where: { userId: actor.id, kilometers: { not: null }, occurredAt: { gte: yearFloor } },
+    select: { occurredAt: true, description: true, kilometers: true },
+    orderBy: { occurredAt: "desc" },
+  });
+  const mileage = summarizeMileage(mileageRows, { year });
+  const trips = mileageTripLog(mileageRows, { year });
+  // Compacte on-screen log; de volledige registratie staat in de uitgaven-CSV.
+  const TRIP_LOG_LIMIT = 10;
+  const visibleTrips = trips.slice(0, TRIP_LOG_LIMIT);
 
   return (
     <div className="space-y-6">
@@ -157,6 +174,93 @@ export async function UitgavenPanel({ actor }: { actor: Actor }) {
               </p>
             </CardContent>
           </Card>
+        </section>
+      )}
+
+      {/* Rittenregistratie — zakelijke km & km-aftrek (Belastingdienst-onderbouwing) */}
+      {mileage.tripCount > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+              <Route className="size-4" aria-hidden /> Rittenregistratie {year}
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              € {mileageRateLabel()}/km · 0% btw
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Card>
+              <CardContent className="space-y-1 py-4">
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Car className="size-3.5" aria-hidden /> Ritten
+                </p>
+                <p className="text-lg font-semibold tabular-nums">{mileage.tripCount}</p>
+                <p className="text-xs text-muted-foreground">dit jaar vastgelegd</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="space-y-1 py-4">
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Route className="size-3.5" aria-hidden /> Zakelijke km
+                </p>
+                <p className="text-lg font-semibold tabular-nums">
+                  {mileage.totalKm.toLocaleString("nl-NL")}
+                </p>
+                <p className="text-xs text-muted-foreground">totaal gereden dit jaar</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="space-y-1 py-4">
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <ReceiptText className="size-3.5" aria-hidden /> Km-aftrek
+                </p>
+                <p className="text-lg font-semibold tabular-nums">
+                  {formatEuro(mileage.totalNetCents)}
+                </p>
+                <p className="text-xs text-muted-foreground">aftrekbaar dit jaar</p>
+              </CardContent>
+            </Card>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[32rem] text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                      <th className="px-4 py-2.5 font-medium">Datum</th>
+                      <th className="px-4 py-2.5 font-medium">Rit</th>
+                      <th className="px-4 py-2.5 text-right font-medium">Km</th>
+                      <th className="px-4 py-2.5 text-right font-medium">Aftrek</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleTrips.map((t, i) => (
+                      <tr
+                        key={`${t.occurredAt.getTime()}-${i}`}
+                        className="border-b border-border last:border-0"
+                      >
+                        <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-muted-foreground">
+                          {formatDateNl(t.occurredAt)}
+                        </td>
+                        <td className="px-4 py-2.5">{t.description}</td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums">
+                          {t.kilometers.toLocaleString("nl-NL")}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                          {formatEuro(t.netCents)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+          <p className="text-xs text-muted-foreground">
+            {mileage.tripCount > visibleTrips.length
+              ? `De ${visibleTrips.length} recentste ritten. De volledige rittenregistratie staat in de uitgaven-CSV — de onderbouwing die de Belastingdienst bij de km-aftrek verwacht.`
+              : "Je rittenregistratie — de onderbouwing die de Belastingdienst bij de km-aftrek verwacht. De volledige lijst staat ook in de uitgaven-CSV."}
+          </p>
         </section>
       )}
 
