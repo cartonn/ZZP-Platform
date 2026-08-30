@@ -94,6 +94,14 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   in de onderhouds-inhibitie. Bevat nooit keys/endpoints/foutinhoud/rate-limit-keys. Resterend mensenwerk:
   **niets extra** — de kaart/gauges vullen zichzelf zodra `RATE_LIMIT_STORE=upstash` staat en de eerste
   check draait. Optioneel: richt een monitor op `ZzpRateLimitStoreDeliveryFailing`.
+- **Tweestapsverificatie (opt-in TOTP 2FA) — code-kant GEDAAN (2026-08-30):** gebruikers kunnen zelf
+  tweestapsverificatie aanzetten via `/account/tweestapsverificatie` (authenticator-app koppelen +
+  eenmalige herstelcodes); het login-formulier vraagt optioneel om de code. Het TOTP-geheim wordt
+  AES-256-GCM-versleuteld at rest bewaard en anonimisering/erasure wist het geheim + de herstelcodes
+  (AVG art. 17). Resterend mensenwerk: **optioneel** `TWOFA_ENC_KEY` zetten (`openssl rand -base64 32`)
+  in de Railway-secrets — zonder eigen sleutel valt de versleuteling terug op een uit `AUTH_SECRET`
+  afgeleide sleutel; rotatie van `AUTH_SECRET` maakt dan bestaande 2FA-geheimen onleesbaar. Geen harde
+  boot-eis (veilige fallback, CLAUDE.md §8).
 - **Externe error-monitoring (Sentry) aanzetten** (laag, code-kant GEDAAN 24-6-2026): server-fouten
   worden nu gestructureerd en PII-veilig gelogd (`src/lib/observability/`), met een readiness-endpoint
   (`/api/readiness`, los van `/api/health`) en een error-reporting-grens die Next.js-server-fouten

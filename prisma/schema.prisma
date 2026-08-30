@@ -36,6 +36,8 @@ model User {
   verifiedLegalName   String? //                     door de bron bevestigde juridische naam
   lastLoginAt         DateTime? //                   laatste geslaagde login (recency-signaal voor inzetbaarheid)
   previousLoginAt     DateTime? //                   login dáárvoor — venster voor "terwijl je weg was" (notificaties)
+  twoFactorSecret     String? //                     TOTP-geheim, AES-256-GCM-versleuteld at rest (nooit de rauwe base32). null = geen 2FA-geheim
+  twoFactorEnabledAt  DateTime? //                   tweestapsverificatie geactiveerd op; null = uit (opt-in, per gebruiker)
   tenantId            String? //                     franchise-lidmaatschap; null = directe platformgebruiker
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
@@ -77,10 +79,26 @@ model User {
   pushSubscriptions       PushSubscription[]
   indirectHoursEntries    IndirectHoursEntry[]
   expenses                Expense[]
+  twoFactorRecoveryCodes  TwoFactorRecoveryCode[]
 
   @@index([role])
   @@index([status])
   @@index([tenantId])
+}
+
+// Herstelcodes voor tweestapsverificatie: eenmalig te gebruiken back-upcodes zodat een gebruiker die
+// zijn authenticator-app kwijt is niet permanent buitengesloten raakt. Alleen de bcrypt-hash wordt
+// bewaard (nooit de code zelf); `usedAt` markeert verbruik zodat elke code precies één keer werkt.
+model TwoFactorRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String //  bcrypt-hash van de genormaliseerde code — nooit de code in platte tekst
+  usedAt    DateTime? // null = ongebruikt; gezet = verbruikt (eenmalig)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // Franchise / tenant: een Franchiser opereert een eigen tak met eigen opdrachtgevers + ZZP'ers.

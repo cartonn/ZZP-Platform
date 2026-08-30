@@ -10,6 +10,8 @@ export async function authenticate(_prev: LoginState, formData: FormData): Promi
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
+      // Optionele tweede factor (TOTP-code of herstelcode). Leeg voor accounts zonder 2FA.
+      token: formData.get("token"),
       redirectTo: "/dashboard",
     });
     return undefined;

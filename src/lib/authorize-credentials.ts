@@ -10,6 +10,9 @@ import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { loginRateLimiter } from "@/lib/rate-limit";
 import { loginBlockedByMaintenance } from "@/lib/maintenance";
+import { verifyTotp } from "@/lib/two-factor/totp";
+import { decryptTwoFactorSecret } from "@/lib/two-factor/secret-crypto";
+import { verifyRecoveryCode } from "@/lib/two-factor/recovery-codes";
 import { type UserRole } from "@/lib/enums";
 
 // Geldige cost-10-bcrypt-hash van een constante — nooit een echt wachtwoord. Dient als vergelijkings-
@@ -27,7 +30,89 @@ const credentialsSchema = z.object({
   // hoofdlettergevoelige unieke kolom (PostgreSQL) → onterechte buitensluiting.
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(1),
+  // Optionele tweede factor. Leeg/afwezig voor accounts zonder 2FA (geen gedragswijziging); voor
+  // accounts met 2FA aan is een geldige TOTP-code (6 cijfers) of een ongebruikte herstelcode vereist.
+  token: z.string().trim().optional(),
 });
+
+/**
+ * Tweede-factor-poort voor een account met 2FA ingeschakeld. Draait NA de geslaagde wachtwoordcheck
+ * als een EXTRA horde: retourneert alleen `true` bij een geldige TOTP-code of een ongebruikte
+ * herstelcode. Elke mislukking wordt geaudit (nooit de code/het geheim zelf in de metadata).
+ */
+async function verifySecondFactor(
+  user: { id: string; twoFactorSecret: string | null },
+  token: string | undefined,
+  email: string,
+  meta: { ipAddress: string | null; userAgent: string | null },
+): Promise<boolean> {
+  const provided = token?.trim();
+  if (!provided) {
+    await audit({
+      actorId: user.id,
+      action: "TWO_FACTOR_CHALLENGE_FAILED",
+      entityType: "User",
+      entityId: user.id,
+      metadata: { email, reason: "missing" },
+      ...meta,
+    });
+    return false;
+  }
+
+  // TOTP-pad: exact zes cijfers én een opgeslagen geheim. Decrypt-fout (bv. gemanipuleerde/roterende
+  // sleutel) telt als een mislukte factor, niet als een crash.
+  if (/^\d{6}$/.test(provided) && user.twoFactorSecret) {
+    let ok = false;
+    try {
+      ok = verifyTotp(decryptTwoFactorSecret(user.twoFactorSecret), provided);
+    } catch {
+      ok = false;
+    }
+    if (ok) return true;
+    await audit({
+      actorId: user.id,
+      action: "TWO_FACTOR_CHALLENGE_FAILED",
+      entityType: "User",
+      entityId: user.id,
+      metadata: { email, reason: "totp" },
+      ...meta,
+    });
+    return false;
+  }
+
+  // Herstelcode-pad: vergelijk tegen elke ongebruikte hash; bij een match markeer die code als
+  // verbruikt (eenmalig) en audit het gebruik.
+  const codes = await prisma.twoFactorRecoveryCode.findMany({
+    where: { userId: user.id, usedAt: null },
+  });
+  for (const code of codes) {
+    if (await verifyRecoveryCode(provided, code.codeHash)) {
+      await prisma.twoFactorRecoveryCode.update({
+        where: { id: code.id },
+        data: { usedAt: new Date() },
+      });
+      await audit({
+        actorId: user.id,
+        action: "TWO_FACTOR_RECOVERY_CODE_USED",
+        entityType: "User",
+        entityId: user.id,
+        metadata: { email },
+        ...meta,
+      });
+      return true;
+    }
+  }
+
+  await audit({
+    actorId: user.id,
+    action: "TWO_FACTOR_CHALLENGE_FAILED",
+    entityType: "User",
+    entityId: user.id,
+    metadata: { email, reason: "recovery" },
+    ...meta,
+  });
+  return false;
+}
 
 export interface AuthorizedUser {
   id: string;
@@ -65,7 +150,7 @@ export async function authorizeCredentials(
   const parsed = credentialsSchema.safeParse(raw);
   if (!parsed.success) return null;
 
-  const { email, password } = parsed.data;
+  const { email, password, token } = parsed.data;
   const meta = await requestMeta();
 
   // Brute-force-bescherming: begrens inlogpogingen per IP + e-mail. De server
@@ -104,6 +189,14 @@ export async function authorizeCredentials(
       metadata: { email },
       ...meta,
     });
+    return null;
+  }
+
+  // Tweestapsverificatie als EXTRA poort: alleen wanneer dit account 2FA heeft ingeschakeld
+  // (`twoFactorEnabledAt` gezet). Accounts zónder 2FA lopen exact het bestaande pad — geen
+  // gedragswijziging. De wachtwoordcheck is al geslaagd; een ontbrekende/foute tweede factor
+  // weigert de login stil (audit binnen verifySecondFactor), zonder de rate-limitteller te resetten.
+  if (user.twoFactorEnabledAt && !(await verifySecondFactor(user, token, email, meta))) {
     return null;
   }
 

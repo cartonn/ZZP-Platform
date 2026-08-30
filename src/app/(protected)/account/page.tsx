@@ -27,6 +27,7 @@ export default async function AccountPage() {
       deletionRequestedAt: true,
       identityVerifiedAt: true,
       verifiedLegalName: true,
+      twoFactorEnabledAt: true,
     },
   });
   if (!user) return null;
@@ -103,6 +104,32 @@ export default async function AccountPage() {
               className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent"
             >
               Wachtwoord wijzigen
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-medium">Tweestapsverificatie</h2>
+                {user.twoFactorEnabledAt ? (
+                  <Badge variant="success">Aan</Badge>
+                ) : (
+                  <Badge variant="muted">Uit</Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Beveilig je account met een extra code uit een authenticator-app.
+              </p>
+            </div>
+            <Link
+              href="/account/tweestapsverificatie"
+              className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent"
+            >
+              {user.twoFactorEnabledAt ? "Beheren" : "Instellen"}
             </Link>
           </div>
         </CardContent>

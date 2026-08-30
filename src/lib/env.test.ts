@@ -37,6 +37,7 @@ const INTEGRATION_VARS = [
   "CLAMAV_HOST",
   "CLAMAV_PORT",
   "SHARE_TOKEN_SECRET",
+  "TWOFA_ENC_KEY",
   "AUTH_URL",
   "NEXTAUTH_URL",
   "VAPID_PUBLIC_KEY",
@@ -280,6 +281,7 @@ describe("validateEnv", () => {
       process.env.AUTH_SECRET = "x".repeat(32);
       process.env.AUTH_URL = "https://app.zzp-platform.nl";
       process.env.SHARE_TOKEN_SECRET = "y".repeat(32);
+      process.env.TWOFA_ENC_KEY = "z".repeat(32);
     }
 
     it("breekt de boot NIET als SHARE_TOKEN_SECRET ontbreekt, maar waarschuwt (graceful fallback, H-1)", () => {
@@ -320,6 +322,7 @@ describe("envWarnings", () => {
       DATABASE_URL: "postgresql://localhost/zzp",
       AUTH_SECRET: "x".repeat(32),
       SHARE_TOKEN_SECRET: "y".repeat(32),
+      TWOFA_ENC_KEY: "z".repeat(32),
       AUTH_URL: "https://app.zzp-platform.nl",
       SENTRY_DSN: "https://example@o0.ingest.sentry.io/0",
       STORAGE_DRIVER: "s3",

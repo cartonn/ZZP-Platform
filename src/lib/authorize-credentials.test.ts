@@ -37,8 +37,31 @@ const { findUnique, rateCheck, rateReset, auditFn } = vi.hoisted(() => ({
   auditFn: vi.fn(async () => {}),
 }));
 
+const { rcFindMany, rcUpdate } = vi.hoisted(() => ({
+  rcFindMany: vi.fn(async (): Promise<{ id: string; codeHash: string }[]> => []),
+  rcUpdate: vi.fn(async () => ({})),
+}));
+
 vi.mock("@/lib/db", () => ({
-  prisma: { user: { findUnique } },
+  prisma: {
+    user: { findUnique },
+    twoFactorRecoveryCode: { findMany: rcFindMany, update: rcUpdate },
+  },
+}));
+
+// Tweede-factor-helpers deterministisch mocken zodat de tests de login-poort toetsen (niet de
+// crypto-kern, die apart is getest) en niet botsen met de gemockte bcryptjs in dit bestand.
+const verifyTotpMock = vi.hoisted(() => vi.fn(() => false));
+vi.mock("@/lib/two-factor/totp", () => ({ verifyTotp: verifyTotpMock }));
+
+const decryptSecretMock = vi.hoisted(() => vi.fn((stored: string) => stored));
+vi.mock("@/lib/two-factor/secret-crypto", () => ({
+  decryptTwoFactorSecret: decryptSecretMock,
+}));
+
+const verifyRecoveryMock = vi.hoisted(() => vi.fn(async () => false));
+vi.mock("@/lib/two-factor/recovery-codes", () => ({
+  verifyRecoveryCode: verifyRecoveryMock,
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -196,5 +219,128 @@ describe("authorizeCredentials — timing-egalisatie tegen e-mail-enumeratie", (
 
     // Ook al geeft compare true, zonder gebruiker mag er nooit een sessie ontstaan.
     expect(result).toBeNull();
+  });
+});
+
+// Tweestapsverificatie is een EXTRA poort NA de geslaagde wachtwoordcheck: alleen accounts met
+// `twoFactorEnabledAt` gezet moeten een geldige tweede factor (TOTP of ongebruikte herstelcode)
+// aanleveren. Accounts zonder 2FA lopen het bestaande pad — geen gedragswijziging.
+interface TwoFactorUser extends FakeUser {
+  twoFactorEnabledAt: Date | null;
+  twoFactorSecret: string | null;
+}
+
+const twoFactorUser = (): TwoFactorUser => ({
+  id: "user-1",
+  email: "jan@bedrijf.nl",
+  name: "Jan Jansen",
+  role: "FREELANCER",
+  status: "ACTIVE",
+  passwordHash: "hash",
+  mustChangePassword: false,
+  passwordChangedAt: new Date("2026-01-01T00:00:00Z"),
+  twoFactorEnabledAt: new Date("2026-02-01T00:00:00Z"),
+  twoFactorSecret: "enc-secret",
+});
+
+describe("authorizeCredentials — tweestapsverificatie-poort", () => {
+  beforeEach(() => {
+    findUnique.mockClear();
+    rateCheck.mockClear();
+    rateReset.mockClear();
+    auditFn.mockClear();
+    bcryptCompare.mockClear();
+    bcryptCompare.mockImplementation(async () => true); // wachtwoord klopt
+    rcFindMany.mockClear();
+    rcFindMany.mockImplementation(async () => []);
+    rcUpdate.mockClear();
+    verifyTotpMock.mockClear();
+    verifyTotpMock.mockReturnValue(false);
+    decryptSecretMock.mockClear();
+    decryptSecretMock.mockImplementation((stored: string) => stored);
+    verifyRecoveryMock.mockClear();
+    verifyRecoveryMock.mockImplementation(async () => false);
+    delete process.env.MAINTENANCE_MODE;
+    delete process.env.MAINTENANCE_ALLOW_ADMIN;
+  });
+
+  it("weigert een 2FA-account zonder tweede factor (token ontbreekt)", async () => {
+    findUnique.mockImplementationOnce(async () => twoFactorUser());
+
+    const result = await authorizeCredentials(CREDS);
+
+    expect(result).toBeNull();
+    expect(rateReset).not.toHaveBeenCalled();
+    expect(auditFn).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "TWO_FACTOR_CHALLENGE_FAILED" }),
+    );
+  });
+
+  it("laat een 2FA-account door met een geldige TOTP-code", async () => {
+    findUnique.mockImplementationOnce(async () => twoFactorUser());
+    verifyTotpMock.mockReturnValue(true);
+
+    const result = await authorizeCredentials({ ...CREDS, token: "123456" });
+
+    expect(result).toMatchObject({ id: "user-1" });
+    expect(verifyTotpMock).toHaveBeenCalledWith("enc-secret", "123456");
+    expect(rateReset).toHaveBeenCalledTimes(1);
+  });
+
+  it("weigert een 2FA-account met een foute TOTP-code", async () => {
+    findUnique.mockImplementationOnce(async () => twoFactorUser());
+    verifyTotpMock.mockReturnValue(false);
+
+    const result = await authorizeCredentials({ ...CREDS, token: "000000" });
+
+    expect(result).toBeNull();
+    expect(auditFn).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "TWO_FACTOR_CHALLENGE_FAILED" }),
+    );
+  });
+
+  it("laat een 2FA-account door met een geldige herstelcode en markeert die als gebruikt", async () => {
+    findUnique.mockImplementationOnce(async () => twoFactorUser());
+    rcFindMany.mockImplementationOnce(async () => [{ id: "rc-1", codeHash: "hash-1" }]);
+    verifyRecoveryMock.mockImplementation(async () => true);
+
+    const result = await authorizeCredentials({ ...CREDS, token: "7F3K-9QRW-2XMH-5DPT" });
+
+    expect(result).toMatchObject({ id: "user-1" });
+    // De TOTP-verificatie mag niet lopen voor een niet-6-cijferige invoer.
+    expect(verifyTotpMock).not.toHaveBeenCalled();
+    expect(rcUpdate).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "rc-1" } }));
+    expect(auditFn).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "TWO_FACTOR_RECOVERY_CODE_USED" }),
+    );
+  });
+
+  it("weigert een reeds gebruikte herstelcode (geen ongebruikte rijen matchen)", async () => {
+    findUnique.mockImplementationOnce(async () => twoFactorUser());
+    // usedAt: null-filter laat geen enkele rij over → geen match.
+    rcFindMany.mockImplementationOnce(async () => []);
+
+    const result = await authorizeCredentials({ ...CREDS, token: "7F3K-9QRW-2XMH-5DPT" });
+
+    expect(result).toBeNull();
+    expect(rcUpdate).not.toHaveBeenCalled();
+    expect(auditFn).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "TWO_FACTOR_CHALLENGE_FAILED" }),
+    );
+  });
+
+  it("laat een account zonder 2FA ongewijzigd (geen tweede-factor-check)", async () => {
+    findUnique.mockImplementationOnce(async () => ({
+      ...twoFactorUser(),
+      twoFactorEnabledAt: null,
+      twoFactorSecret: null,
+    }));
+
+    const result = await authorizeCredentials(CREDS);
+
+    expect(result).toMatchObject({ id: "user-1", role: "FREELANCER" });
+    expect(verifyTotpMock).not.toHaveBeenCalled();
+    expect(rcFindMany).not.toHaveBeenCalled();
+    expect(rateReset).toHaveBeenCalledTimes(1);
   });
 });
