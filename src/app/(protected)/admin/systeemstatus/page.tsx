@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { readEnv } from "@/lib/env";
+import { isWebPushConfigured } from "@/lib/push/config";
 import { detectDbProvider } from "@/lib/services/db-selftest";
 import { evaluateReadiness } from "@/lib/observability/readiness";
 import { collectSystemStatus } from "@/lib/system-status";
@@ -37,6 +38,7 @@ import { SelfTestSweep } from "@/components/admin/selftest-sweep";
 import { DbSelfTest } from "@/components/admin/db-selftest";
 import { StorageSelfTest } from "@/components/admin/storage-selftest";
 import { MailSelfTest } from "@/components/admin/mail-selftest";
+import { PushSelfTest } from "@/components/admin/push-selftest";
 import { RateLimitSelfTest } from "@/components/admin/ratelimit-selftest";
 import { VerifierSelfTest } from "@/components/admin/verifier-selftest";
 import { BillingSelfTest } from "@/components/admin/billing-selftest";
@@ -107,6 +109,7 @@ export default async function SysteemstatusPage() {
       <DbSelfTest provider={detectDbProvider(process.env.DATABASE_URL)} />
       <StorageSelfTest driverMode={env.STORAGE_DRIVER} />
       <MailSelfTest driverMode={env.EMAIL_DRIVER} />
+      <PushSelfTest configured={isWebPushConfigured(env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY)} />
       <RateLimitSelfTest storeMode={env.RATE_LIMIT_STORE} />
       <VerifierSelfTest />
       <BillingSelfTest providerMode={env.BILLING_PROVIDER} />

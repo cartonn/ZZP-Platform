@@ -699,6 +699,26 @@ goedgekeurd", wachtwoord/uitnodiging) heb je een mailprovider nodig.
    Resterend mensenwerk: **niets extra** — de kaart/gauge vullen zichzelf zodra web-push bekabeld is
    (VAPID-sleutels gezet, zie §7) en de eerste afleverronde draait. Optioneel: richt een monitor op
    `ZzpPushDeliveryFailing`.
+   **Code-kant GEDAAN (2026-08-30) — web-push (VAPID) connectiviteits-/config-zelftest:** de
+   aflever-heartbeat hierboven maakt een AANHOUDENDE storing achteraf zichtbaar; hij zegt niets over de
+   configuratie vóór go-live. De env-validatie blokkeert al een halve activering (precies één sleutel)
+   en een ongeldig `VAPID_SUBJECT`, maar bewees NIET dat de twee sleutels bij elkaar horen. Een
+   mismatched/verkeerd geplakt paar (publieke sleutel uit paar A, private uit paar B — klassieke
+   plak-fout) overleeft de boot én de browser-subscribe (die alleen de publieke sleutel gebruikt), maar
+   laat vervolgens élke aflevering **stil met 403** (ongeldige VAPID-signature) mislukken — precies de
+   stille faalmodus die de codebase overal elders met een zelftest afvangt. Op `/admin/systeemstatus`
+   (admin-only) kun je nu de **Web-push-zelftest** draaien: die valideert het geconfigureerde
+   VAPID-sleutelpaar **puur lokaal** — hij leidt het publieke punt af uit de private scalar (ECDH op
+   P-256) en vergelijkt, plus sleutel-formaat en subject — **zonder een abonnee, zonder een push te
+   versturen en zonder mutatie** (web-push is stateless zonder abonnee, dus er is geen server-round-trip
+   te doen; daardoor draait deze zelftest óók veilig mee in de één-klik go-live-sweep). Staan de
+   VAPID-sleutels niet gezet, dan meldt het scherm eerlijk "niets getest" (geen vals groen); een
+   mismatched paar wordt expliciet als fout gemeld met de 403-uitleg. De uitvoer bevat **nooit** een
+   (deel van een) sleutel (alleen de uitkomst-categorie + configuratiestand), loopt door de authz-keten
+   (rol → rate-limit → audit) en verstuurt niets extern (`src/lib/push/vapid-validate.ts` +
+   `src/lib/services/push-selftest.ts`, actie in `.../systeemstatus/actions.ts`, zelfde patroon als de
+   Opslag-/E-mail-/Rate-limit-/Verificatie-/Betaalprovider-/Routing-/Upload-scanner-/Error-monitoring-
+   zelftest). Resterend mensenwerk: **niets extra** — de knop is er zodra de VAPID-sleutels gezet zijn.
 
    **Code-kant GEDAAN (2026-08-18) — per-runner cron-faal-attributie op `/api/metrics`:** de cron-heartbeat
    legt al vast _welke_ sub-taak-runners (payment-reminders, expiry, reviews-reveal, …) tijdens de laatste
