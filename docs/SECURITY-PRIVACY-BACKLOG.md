@@ -4,6 +4,70 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-30b (basis: `main` @ 55410410) — HOOG OPGELOST: onvolledige erasure van door de opdrachtgever getypte vrije tekst op de opdracht (Job) — AVG art. 17 + 5(1)(c)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(A: broken access control/IDOR op alle server actions + niet-document API-routes · B: cross-tenant isolatie +
+document/PDF/media-serving · C: privacy/AVG — erasure-/anonimisering-dekking, PII in logs, dataminimalisatie,
+k-anonimiteit). Focus op de delta sinds de vorige ronde (`f2ee166d..55410410`, 6 commits: #1290 badge-scope-fix
+(vorige ronde), #1291 web-push VAPID-zelftest, #1292 flexpool open-job-match, #1293/#1296 persona-sweep,
+#1295 rittenregistratie) + een brede her-sweep van de authz-keten, tenant-scoping, upload/storage, injectie en
+de volledige erasure-dekking (alle ~85 PII-dragende modellen). Runtime: `npm audit --omit=dev` = **0**;
+Next 15.5.24 voorbij CVE-2025-29927 (middleware-bypass).
+
+**OPGELOST — [HOOG · AVG art. 17 (recht op vergetelheid) + art. 5(1)(c) (dataminimalisatie)] de door de
+OPDRACHTGEVER zelf getypte vrije tekst op zijn opdrachten (`Job.title`/`description`/`location`) overleefde
+`anonymizeUser` volledig, en een `PUBLISHED`-opdracht bleef daarna platform-breed zichtbaar.** `anonymizeUser`
+(`src/app/(protected)/admin/gebruikers/actions.ts`) redact élk zelf-geschreven vrije-tekstveld (Message,
+Application.motivation, Performance.description, InvoiceLine.description, SupportTicket.subject, …) maar raakte
+de `Job`-rijen nooit aan — een `company.update` cascadeert niet naar Job. `Job.description` is tot 5000 tekens
+onbeperkte vrije tekst die de opdrachtgever zelf typt; bij een eenmanszaak/ZZP-opdrachtgever (plausibel op dit
+platform, o.a. in de zorg-vertical) kan die diens eigen naam/telefoon/adres bevatten (`location` idem). De
+marktplaats-`where` (`src/lib/jobs/marketplace-where.ts`) filtert enkel op `status: "PUBLISHED"`, niet op de
+status van de eigenaar, dus een `PUBLISHED`-opdracht van een geanonimiseerd (SUSPENDED) account bleef zichtbaar
+voor élke ZZP'er — met de bedrijfsnaam getoond als "Verwijderde gebruiker" terwijl de opdrachttekst eronder de
+persoon nog noemde. De coverage-gate (`anonymize-schema-coverage.test.ts`) allowlistte `Job` met een
+motivering die alléén de bedrijfsnaam adresseerde, nooit de vrije tekst. Repro: eenmanszaak-opdrachtgever post
+een opdracht met "Bel Jan de Vries 06-12345678, Julianalaan 12, Utrecht voor intake" in de omschrijving →
+verwijderverzoek → admin draait `anonymizeUser` → `Company.name` wordt "Verwijderde gebruiker" maar de
+opdracht blijft byte-voor-byte staan én publiek browsbaar. **Fix:** nieuwe pure helper
+`jobAnonymizationData()` (`src/lib/account-anonymization.ts`) redact `title`/`description` naar neutrale tekst
+en `location` → null; twee bedrijfs-gescopete `prisma.job.updateMany`-ops in de erasure-transactie — één redact
+álle opdrachten van het bedrijf, één zet `PUBLISHED → CLOSED` (DRAFT/CLOSED ongemoeid) zodat een dode opdracht
+uit de publieke marktplaats verdwijnt. `Job` van de coverage-ALLOWLIST verwijderd (de gate dwingt dit nu af).
+Regressietests rood→groen: 2 in `anonymize-erasure.test.ts` (redactie + PUBLISHED→CLOSED) + 2 in
+`account-anonymization.test.ts` (pure helper) + de coverage-gate. Geverifieerd rood zonder de fix (3 falende
+tests), groen erna.
+
+**Bevinding A (broken access control/IDOR — alle server actions + niet-document API-routes):** CLEAN. De
+volledige mutatieketen (auth→rol→ownership→Zod→actie→audit) is intact; client-geleverde ownership-id's
+(`freelancerId` in `franchise/diensten`) worden server-side tegen de tenant-roster geverifieerd;
+zelfregistratie is hard beperkt tot FREELANCER/CLIENT (geen rol-mass-assignment); statusovergangen gebruiken
+TOCTOU-veilige `updateMany({ where: { id, status: from } })`; wachtwoord-reset 256-bit/SHA-256/1u/single-use;
+webhooks secret-/signature-gated en her-fetchen de gezaghebbende status. (Genoteerd, GEEN codefix — menselijke
+go-live-taak: met `BILLING_PROVIDER` ongezet valt de betaalprovider terug op `NoopPaymentProvider` en kan een
+plan zonder betaling actief worden — bewust dev-gedrag, reeds in MENSENWERK §5; menselijke sign-off vóór live.)
+
+**Bevinding B (cross-tenant + document/PDF/media):** CLEAN. `tenantScopeWhere`/`assertSameTenant`/`ownsViaTenant`
+falen gesloten (throw/false zonder tenant); roster-dossier, dienst-detail, leads, opdrachtgevers, zzpers,
+tenant-stats/billing en álle export-routes zijn tenant-gescopet met CWE-203-veilige identieke fout bij
+"niet gevonden" vs "andere tenant". Document/PDF/dossier-routes checken ownership vóór de stream met identiek
+404 + audit op beide takken; storage-`resolve()` blokkeert path-traversal; media-`key` wordt tegen de DB
+gevalideerd. FRANCHISER heeft geen download-pad naar credential-blobs (productgat, geen lek).
+
+**Geparkeerd (LAAG · robuustheid) — `franchise/zzpers/export/route.ts` roept `tenantScopeWhere(actor)` aan
+buiten de `try/catch` van `requireActor()`.** Een FRANCHISER met `tenantId === null` (bv. uit een tenant
+verwijderd zonder rol-downgrade) levert dan een generieke 500 i.p.v. de bedoelde 403 — géén datalek, alleen
+een inconsistent foutpad (de sibling-export-routes doen dit netter). Aanbevolen fix: expliciete
+`if (!hasTenant(actor)) return 403` vóór de query, parity met de andere export-routes.
+
+**Geparkeerd (LAAG) — geocode-cache kan precieze ZZP-adressen bevatten (ongewijzigd, vorige ronde).**
+Aanbevolen fix: normaliseer routing-input naar plaats/postcode vóór egress/caching.
+
+**Resultaat:** 1× HOOG OPGELOST (Job-erasure-gat); A/B-oppervlakken CLEAN; erasure-dekking van de overige ~85
+modellen, PII-log-redactie en k-anonimiteit (`MARKET_RATE_MIN_SAMPLE = 10`) geverifieerd intact; 2 bevindingen
+geparkeerd (LAAG).
+
 ## Ronde 2026-08-30 (basis: `main` @ f2ee166d) — HOOG OPGELOST: cross-partij/cross-tenant lek in de reactiesnelheid-badge (uitnodigingsteller platform-breed) — OWASP A01 + AVG art. 5(1)(c)
 
 Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

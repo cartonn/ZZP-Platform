@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  ANONYMIZED_JOB_DESCRIPTION,
+  ANONYMIZED_JOB_TITLE,
   ANONYMIZED_NAME,
   AUDIT_PII_REDACTED,
   anonymizedEmail,
   canAnonymizeUser,
   companyAnonymizationData,
   freelancerProfileAnonymizationData,
+  jobAnonymizationData,
   scrubAuditMetadataEmail,
   scrubAuditMetadataPii,
   userAnonymizationData,
@@ -309,5 +312,26 @@ describe("companyAnonymizationData", () => {
     expect(data.website).toBeNull();
     expect(data.location).toBeNull();
     expect(data.logoKey).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// jobAnonymizationData — AVG art. 17: door de opdrachtgever getypte vrije tekst op de opdracht
+// ---------------------------------------------------------------------------
+
+describe("jobAnonymizationData", () => {
+  const data = jobAnonymizationData();
+
+  it("vervangt de door de opdrachtgever getypte titel en omschrijving door neutrale redactietekst", () => {
+    // `title`/`description` zijn niet-nullable vrije tekst die de opdrachtgever zelf typte; bij een
+    // eenmanszaak/ZZP-opdrachtgever kunnen ze eigen naam/telefoon/adres bevatten. Zonder deze redactie
+    // overleeft die PII een verwijderverzoek en blijft — voor een PUBLISHED-opdracht — publiek
+    // zichtbaar (rood→groen).
+    expect(data.title).toBe(ANONYMIZED_JOB_TITLE);
+    expect(data.description).toBe(ANONYMIZED_JOB_DESCRIPTION);
+  });
+
+  it("wist de vrije-tekst-locatie (location → null, AVG art. 17)", () => {
+    expect(data.location).toBeNull();
   });
 });

@@ -12,6 +12,7 @@ import {
   canAnonymizeUser,
   companyAnonymizationData,
   freelancerProfileAnonymizationData,
+  jobAnonymizationData,
   scrubAuditMetadataPii,
   userAnonymizationData,
 } from "@/lib/account-anonymization";
@@ -518,10 +519,25 @@ export async function anonymizeUser(userId: string): Promise<void> {
       data: freelancerProfileAnonymizationData(),
     }),
     prisma.company.updateMany({ where: { userId }, data: companyAnonymizationData() }),
+    // AVG art. 17: de opdrachten (Job) van dit bedrijf dragen door de OPDRACHTGEVER zélf getypte
+    // vrije tekst (title/description/location) die bij een eenmanszaak/ZZP-opdrachtgever diens eigen
+    // naam/telefoon/adres kan bevatten. Een `company.update` cascadeert NIET naar Job, dus deze rijen
+    // werden nergens geraakt — de door de betrokkene geschreven PII overleefde de erasure en bleef,
+    // voor een PUBLISHED-opdracht, platform-breed zichtbaar voor élke ZZP'er (de marktplaats-`where`
+    // filtert enkel op `status`, niet op de status van de eigenaar). Onomkeerbaar redacten (spiegel
+    // van de Message/Application/Performance-vrije-tekstredactie).
+    prisma.job.updateMany({ where: { company: { userId } }, data: jobAnonymizationData() }),
+    // Publiek zichtbare opdrachten van het nu-geanonimiseerde (SUSPENDED) account uit de marktplaats
+    // halen: het account kan de opdracht nooit meer beheren of vervullen. Alleen PUBLISHED → CLOSED
+    // (DRAFT/CLOSED blijven ongemoeid), zodat een dode opdracht niet als levend listing blijft hangen.
+    prisma.job.updateMany({
+      where: { company: { userId }, status: "PUBLISHED" },
+      data: { status: "CLOSED" },
+    }),
     // Mail-intake: per e-mail binnengekomen dienstaanvragen van dit bedrijf bevatten directe PII
     // (afzenderadres = het account-e-mailadres + de ruwe mailinhoud). Geen fiscale bewaargrond —
-    // volledig wissen (AVG art. 17). De gekoppelde concept-opdracht (Job) blijft geanonimiseerd
-    // bestaan via de company-anonimisering hierboven (MailIntake → Job is onDelete: SetNull).
+    // volledig wissen (AVG art. 17). De gekoppelde concept-opdracht (Job) is hierboven geanonimiseerd
+    // (MailIntake → Job is onDelete: SetNull).
     prisma.mailIntake.deleteMany({ where: { company: { userId } } }),
     prisma.credential.deleteMany({ where: { freelancerProfile: { userId } } }),
     // NB: de document-rijen worden bewust NIET hier verwijderd, maar race-vrij ná de transactie

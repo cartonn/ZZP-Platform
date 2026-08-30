@@ -109,6 +109,10 @@ vi.mock("@/lib/db", () => ({
       updateMany: op("invoice.updateMany"),
     },
     application: { updateMany: op("application.updateMany") },
+    // De opdrachten (Job) van het bedrijf dragen door de OPDRACHTGEVER zelf getypte vrije tekst
+    // (title/description/location) die eigen naam/telefoon/adres kan bevatten en die bij de erasure
+    // mee moet — plus een PUBLISHED-opdracht die uit de publieke marktplaats moet (art. 17).
+    job: { updateMany: op("job.updateMany") },
     supportMessage: { updateMany: op("supportMessage.updateMany") },
     supportTicket: { updateMany: op("supportTicket.updateMany") },
     ideaComment: { updateMany: op("ideaComment.updateMany") },
@@ -391,6 +395,43 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(freelancerScopedOp!.args.data.complianceSnapshot).toBeNull();
     expect(freelancerScopedOp!.args.data.matchScore).toBeNull();
     expect(freelancerScopedOp!.args.data.proposedRate).toBeNull();
+  });
+
+  it("redact de door de opdrachtgever getypte vrije tekst op eigen opdrachten (Job.title/description/location)", async () => {
+    await anonymizeUser("user-42");
+    // De opdrachten van het bedrijf dragen door de OPDRACHTGEVER zelf getypte vrije tekst; een
+    // `company.update` cascadeert niet naar Job, dus zonder een expliciete job.updateMany blijft die
+    // (mogelijk naam/telefoon/adres-)tekst na anonimisering leesbaar en — voor een PUBLISHED-opdracht —
+    // platform-breed zichtbaar. De redactie-op is bedrijfs-gescopet op de eigen opdrachten (rood→groen).
+    const ops = findAll("job.updateMany") as Array<{
+      args: {
+        where: { company?: { userId?: string }; status?: string };
+        data: { title?: unknown; description?: unknown; location?: unknown; status?: unknown };
+      };
+    }>;
+    const redactOp = ops.find((o) => o.args.data.title !== undefined);
+    expect(redactOp, "verwacht een Job-redactie-op").toBeDefined();
+    expect(redactOp!.args.where).toEqual({ company: { userId: "user-42" } });
+    expect(redactOp!.args.data.title).toMatch(/verwijderd/i);
+    expect(redactOp!.args.data.description).toMatch(/verwijderd/i);
+    expect(redactOp!.args.data.location).toBeNull();
+  });
+
+  it("haalt PUBLISHED-opdrachten van het geanonimiseerde account uit de publieke marktplaats (Job.status → CLOSED)", async () => {
+    await anonymizeUser("user-42");
+    // Een geanonimiseerd (SUSPENDED) account kan de opdracht nooit meer beheren/vervullen; de
+    // marktplaats-where filtert enkel op status, niet op eigenaar-status. Alleen PUBLISHED → CLOSED,
+    // eigenaar-gescopet — DRAFT/CLOSED blijven ongemoeid (rood→groen).
+    const ops = findAll("job.updateMany") as Array<{
+      args: {
+        where: { company?: { userId?: string }; status?: string };
+        data: { status?: unknown };
+      };
+    }>;
+    const closeOp = ops.find((o) => o.args.where.status === "PUBLISHED");
+    expect(closeOp, "verwacht een PUBLISHED→CLOSED-op").toBeDefined();
+    expect(closeOp!.args.where).toEqual({ company: { userId: "user-42" }, status: "PUBLISHED" });
+    expect(closeOp!.args.data.status).toBe("CLOSED");
   });
 
   it("redact eigen support-berichten (SupportMessage.body)", async () => {
