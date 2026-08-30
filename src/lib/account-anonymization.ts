@@ -203,6 +203,33 @@ export function freelancerProfileAnonymizationData(): {
   };
 }
 
+/** Neutrale titel waarmee een geanonimiseerde opdracht (Job) wordt getoond. */
+export const ANONYMIZED_JOB_TITLE = "Verwijderde opdracht";
+
+/** Redactie-marker voor de vrije-tekst-omschrijving van een geanonimiseerde opdracht. */
+export const ANONYMIZED_JOB_DESCRIPTION = "[Verwijderd op verzoek van de gebruiker]";
+
+/**
+ * Vrije-tekstvelden op de opdracht (Job) worden onomkeerbaar overschreven. `title` (≤160) en
+ * `description` (≤5000) zijn door de OPDRACHTGEVER zélf getypte vrije tekst; bij een eenmanszaak/
+ * ZZP-opdrachtgever kunnen die — net als `location` — diens eigen naam/telefoon/adres bevatten.
+ * Een `company.update` cascadeert NIET naar de gekoppelde Job-rijen, dus deze velden werden bij de
+ * erasure nergens geraakt: door de betrokkene geschreven PII overleefde het art. 17-verzoek en bleef
+ * voor een PUBLISHED-opdracht platform-breed zichtbaar voor élke ZZP'er (de marktplaats-`where`
+ * filtert enkel op `status`, niet op de status van de eigenaar). Spiegel van
+ * `companyAnonymizationData()` en de Message/Application/Performance-vrije-tekstredactie. */
+export function jobAnonymizationData(): {
+  title: string;
+  description: string;
+  location: null;
+} {
+  return {
+    title: ANONYMIZED_JOB_TITLE,
+    description: ANONYMIZED_JOB_DESCRIPTION,
+    location: null,
+  };
+}
+
 /** Bedrijfsprofielvelden worden gewist; de naam wordt vervangen door de
  *  geanonimiseerde weergavenaam. */
 export function companyAnonymizationData(): {

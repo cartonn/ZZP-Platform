@@ -127,7 +127,6 @@ const ALLOWLIST: Record<string, string> = {
     "[AUTH] kortlevend reset-token; inert na erasure (lege passwordHash) en verloopt.",
   // [APART]
   Lead: "[APART] derde-partij lead-PII (aparte betrokkene, tenant-eigen); aparte verwerkings-/bewaargrond dan de account-houder. LeadContact.body (eigen notitie) wordt wél geredact.",
-  Job: "[APART] zakelijke opdracht-posting van de opdrachtgever (bedrijfsnaam wordt geanonimiseerd); andere partijen (sollicitanten) hebben belang bij behoud.",
   Tenant:
     "[APART] franchise-vestiging; canAnonymizeUser blokkeert fail-closed het anonimiseren van een tenant-eigenaar tot de vestiging is overgedragen/gesloten.",
   Conversation:

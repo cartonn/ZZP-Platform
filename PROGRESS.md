@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-30 — security/privacy: onvolledige erasure van opdracht-vrije-tekst (Job) — AVG art. 17
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: A broken-access-control/IDOR op alle server actions + niet-document API-routes,
+B cross-tenant + document/PDF/media, C privacy/AVG-erasure/logs/dataminimalisatie/k-anonimiteit). Eén HOOG
+gat gedicht: de door de **opdrachtgever** zelf getypte vrije tekst op zijn opdrachten (`Job.title`/
+`description`/`location`, tot 5000 tekens) overleefde `anonymizeUser` volledig — een `company.update`
+cascadeert niet naar Job. Bij een eenmanszaak/ZZP-opdrachtgever kan die tekst eigen naam/telefoon/adres
+bevatten; een `PUBLISHED`-opdracht van een geanonimiseerd (SUSPENDED) account bleef bovendien platform-breed
+zichtbaar (de marktplaats-`where` filtert enkel op `status`, niet op eigenaar-status). Onvolledige art. 17.
+
+**Aanpak:** nieuwe pure helper `jobAnonymizationData()` redact `title`/`description` → neutrale tekst,
+`location` → null; twee bedrijfs-gescopete `prisma.job.updateMany`-ops in de erasure-transactie (redact álle
+opdrachten + `PUBLISHED → CLOSED`, DRAFT/CLOSED ongemoeid). `Job` van de coverage-ALLOWLIST verwijderd (de
+schema-dekkings-gate dwingt dit nu af). Geen nieuw datamodel, geen scope-creep.
+
+**Bestanden:** `src/lib/account-anonymization.ts` (helper + constanten), `src/app/(protected)/admin/gebruikers/
+actions.ts` (2 transactie-ops + import), `.../anonymize-schema-coverage.test.ts` (Job uit ALLOWLIST).
+**Tests:** `anonymize-erasure.test.ts` (+2: redactie + PUBLISHED→CLOSED), `account-anonymization.test.ts`
+(+2: pure helper) — geverifieerd rood zonder de fix (3 falend), groen erna. A/B-oppervlakken CLEAN; overige
+~85 modellen + PII-log-redactie + k-anonimiteit intact. 2 LAAG geparkeerd (zzpers-export 500-vs-403,
+geocode-cache). Backlog: `docs/SECURITY-PRIVACY-BACKLOG.md` ronde 2026-08-30b. Gate: typecheck/lint/unit/
+build/prettier → CI-poort.
+
 ## 2026-08-30 — routine: rittenregistratie-overzicht (km-aftrek) voor de ZZP'er
 
 **Wat:** de zakelijke ritten (`Expense.kilometers`) werden per uitgave vastgelegd en als chip getoond,
