@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-31 — opdrachtgever: "Afwezig t/m X" op de dashboard-suggesties (screen-parity)
+
+**Wat:** de opdrachtgever-suggesties op het dashboard ("Voorgestelde ZZP'ers") toonden een groene
+"Beschikbaar"-chip voor een ZZP'er die nú met vakantie is (een UNAVAILABLE-venster dekt vandaag),
+terwijl het gelinkte publieke profiel (`/zzp/[id]`) én `/kandidaten`/`/reacties` diezelfde afwezigheid
+wél als "Afwezig t/m X" tonen. Oorzaak: de suggestie leunde op de coarse `availability`-status uit
+`match.availability.status`, die bij een lopende afwezigheid mét een tóékomstig inzetbaar venster naar
+"AVAILABLE" wijst (`currentOrNextAvailable` pakt het eerstvolgende bruikbare venster). Dit is exact het
+"signaal spreekt een ander scherm tegen"-anti-patroon dat de codebase elders al dicht. Nu leidt de
+suggestie een los `awayUntil` af uit dezelfde vensters die de matchscore voedt en toont de dashboard-rij
+de afwezigheid (muted, `bg-muted text-muted-foreground`) vóór de coarse status. Server-side waarheid,
+read-only, geen schema/mutatie/authz-oppervlak.
+
+**Bestanden:**
+
+- `src/lib/suggestions.ts` — `FreelancerSuggestion.awayUntil: Date | null` (dus ook op
+  `ClientFreelancerSuggestion`); `scoreProfilesForJob` leidt het af via `awayUntil(availabilityWindows,
+now)` — telt alleen een UNAVAILABLE-venster dat `now` dekt, niet een toekomstige afwezigheid.
+- `src/app/(protected)/dashboard/page.tsx` — CLIENT-suggestierij: `fr.awayUntil` → "Afwezig t/m
+  {datum}" (muted) i.p.v. `AVAILABILITY_LABEL`; `formatDateShortNl` geïmporteerd.
+- `src/lib/suggestions.test.ts` — `legacyScore`-parity + `s`/`cs`-fixtures dragen `awayUntil`; nieuw
+  blok "awayUntil (afwezig-signaal)" (+5: geen vensters → null; lopend venster → inclusieve einddatum;
+  afwezig ondanks toekomstig inzetbaar venster; toekomstige/verlopen telt niet; laatste einddatum wint).
+
+**Tests:** `suggestions.test.ts` 16 groen (5 nieuw). Gate: typecheck ✓, lint ✓, test 7504+ ✓ (na
+`npm ci` — stale node_modules miste `qrcode-generator` van #1288, geen codedefect), build ✓, prettier
+✓ · CI-poort → PR #1301.
+
 ## 2026-08-30 — opdrachtgever: leeftijd-bewuste concept-opdracht-nudge op /acties
 
 **Wat:** een concept-opdracht (DRAFT) die de opdrachtgever begon maar nooit publiceerde, verdween in één

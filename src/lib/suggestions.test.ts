@@ -12,6 +12,7 @@ import {
   scoreJobForFreelancer,
   SEMANTIC_HIGHLIGHT_THRESHOLD,
 } from "./matching";
+import { awayUntil } from "./availability";
 import { computeTrustLevel } from "./trust";
 import { mandatoryDocuments } from "./mandatory-documents";
 
@@ -22,6 +23,7 @@ const s = (freelancerId: string, score: number): FreelancerSuggestion => ({
   compliance: "COMPLIANT",
   trustLevel: "BASIS",
   availability: "AVAILABLE",
+  awayUntil: null,
   headline: null,
   location: null,
   rate: null,
@@ -39,6 +41,7 @@ const cs = (
   compliance: "COMPLIANT",
   trustLevel: "BASIS",
   availability: "AVAILABLE",
+  awayUntil: null,
   headline: null,
   location: null,
   rate: null,
@@ -188,6 +191,14 @@ function legacyScore(
         compliance: match.compliance.status,
         trustLevel: trust.level,
         availability: match.availability.status,
+        awayUntil: awayUntil(
+          p.availabilityWindows.map((w) => ({
+            startDate: w.startDate,
+            endDate: w.endDate,
+            type: w.type as never,
+          })),
+          new Date(now),
+        ),
         headline: p.headline,
         location: p.location,
         rate: p.hourlyRate,
@@ -375,5 +386,97 @@ describe("scoreProfilesForJob — parity met de oude per-opdracht scoring", () =
     // Strikt hoger: de inhoudelijke aansluiting tilt de score echt op, niet slechts als tiebreaker.
     expect(aligned!.relatedness ?? 0).toBeGreaterThan(blank!.relatedness ?? 0);
     expect(aligned!.score).toBeGreaterThan(blank!.score);
+  });
+});
+
+describe("scoreProfilesForJob — awayUntil (afwezig-signaal, parity met /zzp/[id])", () => {
+  const now = Date.UTC(2026, 5, 1); // 1 jun 2026
+  const future = new Date(Date.UTC(2030, 0, 1));
+
+  const job: FixtureJob = {
+    id: "job-ic",
+    title: "Verpleegkundige IC",
+    description: "Ervaren IC-verpleegkundige gezocht voor nachtdiensten",
+    industryId: "ind-zorg",
+    rateMin: 40,
+    rateMax: 70,
+    workMode: "ONSITE",
+    location: "Amsterdam",
+    skills: [{ skillId: "sk-ic", required: true, skill: { name: "Intensive care" } }],
+    credentialRequirements: [{ credentialType: "BIG", required: true }],
+  };
+
+  const baseProfile: FixtureProfile = {
+    id: "prof",
+    headline: "IC-verpleegkundige",
+    bio: "Ruime ervaring op de intensive care en nachtdiensten",
+    location: "Amsterdam",
+    hourlyRate: 55,
+    workMode: "ONSITE",
+    availability: "AVAILABLE",
+    maxTravelMinutes: null,
+    user: { name: "Anne", identityVerifiedAt: future },
+    skills: [{ skillId: "sk-ic", skill: { name: "Intensive care" } }],
+    credentials: [{ type: "BIG", status: "VERIFIED", expiresAt: future }],
+    industries: [{ industryId: "ind-zorg" }],
+    availabilityWindows: [],
+  };
+
+  const window = (startMs: number, endMs: number, type: string) => ({
+    startDate: new Date(startMs),
+    endDate: new Date(endMs),
+    type,
+  });
+
+  function scoreOne(windows: FixtureProfile["availabilityWindows"]) {
+    const out = scoreProfilesForJob(
+      job,
+      [{ ...baseProfile, availabilityWindows: windows }],
+      new Set<string>(),
+      4,
+      now,
+    );
+    expect(out).toHaveLength(1);
+    return out[0]!;
+  }
+
+  it("zonder vensters is awayUntil null", () => {
+    expect(scoreOne([]).awayUntil).toBeNull();
+  });
+
+  it("een lopend UNAVAILABLE-venster zet awayUntil op de (inclusieve) einddatum", () => {
+    const end = Date.UTC(2026, 5, 15);
+    const r = scoreOne([window(Date.UTC(2026, 4, 15), end, "UNAVAILABLE")]);
+    expect(r.awayUntil?.getTime()).toBe(end);
+  });
+
+  it("meldt afwezigheid óók als er een toekomstig inzetbaar venster is (de coarse status blijft misleidend)", () => {
+    const end = Date.UTC(2026, 5, 15);
+    const r = scoreOne([
+      window(Date.UTC(2026, 4, 15), end, "UNAVAILABLE"),
+      window(Date.UTC(2026, 6, 1), Date.UTC(2026, 6, 31), "AVAILABLE"),
+    ]);
+    // Precies de tegenspraak die het dashboard-signaal oploste: status wijst naar het toekomstige
+    // inzetbare venster, maar de ZZP'er is vandaag afwezig.
+    expect(r.availability).toBe("AVAILABLE");
+    expect(r.awayUntil?.getTime()).toBe(end);
+  });
+
+  it("een toekomstige of verlopen afwezigheid telt niet als 'nu afwezig'", () => {
+    const futureAway = scoreOne([
+      window(Date.UTC(2026, 6, 1), Date.UTC(2026, 6, 10), "UNAVAILABLE"),
+    ]);
+    expect(futureAway.awayUntil).toBeNull();
+    const pastAway = scoreOne([window(Date.UTC(2026, 3, 1), Date.UTC(2026, 3, 10), "UNAVAILABLE")]);
+    expect(pastAway.awayUntil).toBeNull();
+  });
+
+  it("bij overlappende afwezigheden wint de laatste einddatum", () => {
+    const later = Date.UTC(2026, 5, 20);
+    const r = scoreOne([
+      window(Date.UTC(2026, 4, 20), Date.UTC(2026, 5, 10), "UNAVAILABLE"),
+      window(Date.UTC(2026, 4, 25), later, "UNAVAILABLE"),
+    ]);
+    expect(r.awayUntil?.getTime()).toBe(later);
   });
 });
