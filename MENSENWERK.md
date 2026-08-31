@@ -1348,6 +1348,17 @@ via de geteste `src/lib/security/resource-headers.ts`) en een **uitgebreide `Per
 krachtige browserfunctie ontzegt die het platform niet gebruikt (camera/microfoon/geolocatie/betaling/
 usb/serial/…) plus FLoC/Topics-opt-out. Resterend mensenwerk: **niets** — de headers staan out-of-the-box
 aan; de pentest valideert ze.
+**Code-kant GEDAAN (2026-08-31) — extra header-hardening (OWASP Secure Headers Project):** de statische set
+kreeg er drie defense-in-depth-headers bij, alle op de globale `/:path*`-regel (`next.config.mjs`, bewaakt
+door `src/lib/security/next-config-headers.test.ts`): **`Origin-Agent-Cluster: ?1`** (vraagt de browser dit
+origin in een eigen agent-cluster/proces te isoleren — complementair aan COOP/CORP; moet consistent op élke
+response staan omdat de browser het per origin bij de eerste document-load beslist), **`X-Permitted-Cross-Domain-Policies:
+none`** (geen Adobe cross-domain policy files — Flash/Acrobat mogen geen cross-origin data van dit domein laden)
+en **`X-DNS-Prefetch-Control: off`** (geen speculatieve DNS-prefetch — kleine privacy-/lek-reductie voor een
+besloten platform). Daarnaast draagt de **productie**-CSP nu **`upgrade-insecure-requests`** (`src/lib/csp.ts`,
+alleen buiten dev): belt-and-suspenders bij HSTS — een per ongeluk absoluut-`http` subresource wordt stil naar
+`https` geüpgraded i.p.v. een mixed-content-blok; in development bewust weggelaten zodat lokale http-assets/HMR
+blijven werken. Resterend mensenwerk: **niets** — de headers staan out-of-the-box aan; de pentest valideert ze.
 
 ---
 

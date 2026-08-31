@@ -24,10 +24,20 @@ describe("next.config global security headers", () => {
     expect(h.get("Strict-Transport-Security")).toContain("includeSubDomains");
   });
 
-  it("isoleert cross-origin (COOP + CORP same-origin)", async () => {
+  it("isoleert cross-origin (COOP + CORP same-origin + Origin-Agent-Cluster)", async () => {
     const h = await globalHeaders();
     expect(h.get("Cross-Origin-Opener-Policy")).toBe("same-origin");
     expect(h.get("Cross-Origin-Resource-Policy")).toBe("same-origin");
+    // Origin-keyed agent-cluster (proces/geheugen-isolatie); ?1 = structured-header boolean true.
+    expect(h.get("Origin-Agent-Cluster")).toBe("?1");
+  });
+
+  it("dicht legacy cross-domain databestemmingen (XPCDP + DNS-prefetch)", async () => {
+    const h = await globalHeaders();
+    // Geen Adobe cross-domain policy files (Flash/Acrobat) — OWASP Secure Headers Project.
+    expect(h.get("X-Permitted-Cross-Domain-Policies")).toBe("none");
+    // Geen speculatieve DNS-prefetch van links (privacy/lek-reductie voor een besloten platform).
+    expect(h.get("X-DNS-Prefetch-Control")).toBe("off");
   });
 
   it("ontzegt krachtige browserfuncties via een uitgebreide Permissions-Policy", async () => {

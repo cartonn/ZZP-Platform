@@ -57,6 +57,16 @@ describe("buildCsp", () => {
       expect(csp).toContain(`report-uri ${CSP_REPORT_PATH}`);
     }
   });
+
+  it("productie: upgrade-insecure-requests aanwezig (belt-and-suspenders bij HSTS)", () => {
+    const csp = buildCsp({ nonce: "n", isDev: false });
+    expect(csp).toContain("upgrade-insecure-requests");
+  });
+
+  it("development: geen upgrade-insecure-requests (http-assets/HMR blijven werken)", () => {
+    const csp = buildCsp({ nonce: "n", isDev: true });
+    expect(csp).not.toContain("upgrade-insecure-requests");
+  });
 });
 
 describe("reportingEndpointsHeader", () => {
