@@ -54,7 +54,8 @@ vi.mock("@/lib/two-factor/totp", () => ({
     (p: { secret: string; accountName: string; issuer: string }) =>
       `otpauth://totp/${p.issuer}:${p.accountName}?secret=${p.secret}`,
   ),
-  verifyTotp: vi.fn(() => false),
+  // verifyTotpStep geeft de gematchte step (number) terug, of null bij geen match.
+  verifyTotpStep: vi.fn((): number | null => null),
 }));
 vi.mock("@/lib/two-factor/secret-crypto", () => ({
   encryptTwoFactorSecret: vi.fn((s: string) => `enc:${s}`),
@@ -71,7 +72,7 @@ import {
   confirmTwoFactorSetup,
   disableTwoFactor,
 } from "@/app/(protected)/account/tweestapsverificatie/actions";
-import { verifyTotp } from "@/lib/two-factor/totp";
+import { verifyTotpStep } from "@/lib/two-factor/totp";
 
 function form(fields: Record<string, string>): FormData {
   const fd = new FormData();
@@ -91,7 +92,7 @@ beforeEach(() => {
   userFindUnique.mockImplementation(async () => store.user);
   transaction.mockImplementation(async (ops: Promise<unknown>[]) => Promise.all(ops));
   bcryptCompare.mockImplementation(async () => true);
-  (verifyTotp as unknown as ReturnType<typeof vi.fn>).mockReturnValue(false);
+  (verifyTotpStep as unknown as ReturnType<typeof vi.fn>).mockReturnValue(null);
 });
 
 describe("getTwoFactorSetup", () => {
@@ -164,7 +165,7 @@ describe("confirmTwoFactorSetup", () => {
   });
 
   it("weigert bij een foute code en audit een mislukte challenge", async () => {
-    (verifyTotp as unknown as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (verifyTotpStep as unknown as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const res = await confirmTwoFactorSetup(undefined, form({ token: "000000" }));
     expect(res.error).toBe("De code klopt niet of is verlopen.");
     expect(auditMock).toHaveBeenCalledWith(
@@ -174,7 +175,7 @@ describe("confirmTwoFactorSetup", () => {
   });
 
   it("activeert 2FA bij een geldige code en slaat GEHASHTE herstelcodes op", async () => {
-    (verifyTotp as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (verifyTotpStep as unknown as ReturnType<typeof vi.fn>).mockReturnValue(42);
     const res = await confirmTwoFactorSetup(undefined, form({ token: "123456" }));
 
     // Platte codes exact één keer terug voor weergave.
@@ -188,9 +189,10 @@ describe("confirmTwoFactorSetup", () => {
     expect(created[0]?.codeHash).toBe("hash:CODE-0");
     expect(created.some((c) => c.codeHash === "CODE-0")).toBe(false);
 
-    // enabledAt gezet + audit.
+    // enabledAt gezet + de verbruikte step vastgelegd (replay-preventie voor de eerste login) + audit.
     const data = userUpdate.mock.calls[0]?.[0]?.data as Record<string, unknown>;
     expect(data.twoFactorEnabledAt).toBeInstanceOf(Date);
+    expect(data.twoFactorLastUsedStep).toBe(42);
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({ action: "TWO_FACTOR_ENABLED" }),
     );

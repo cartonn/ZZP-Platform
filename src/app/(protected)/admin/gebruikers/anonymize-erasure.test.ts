@@ -710,6 +710,18 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(find("availabilityWindow.updateMany")).toBeUndefined();
   });
 
+  it("verwijdert de tweestapsverificatie-herstelcodes gescopet op de betrokkene (AVG art. 17)", async () => {
+    // De TwoFactorRecoveryCode-rijen zijn bruikbaar authenticatiemateriaal (bcrypt-hash van eenmalige
+    // back-upcodes). Een `user.update` cascadeert er niet naartoe, dus ze worden expliciet hard
+    // verwijderd — maar ALLEEN die van de betrokkene. De coverage-gate is een tekst-scan die een
+    // scoping-regressie (bv. een `where` die álle gebruikers raakt of de call buiten de transactie)
+    // niet zou vangen; deze assertie dwingt de userId-scope hard af.
+    await anonymizeUser("user-42");
+    const o = find("twoFactorRecoveryCode.deleteMany") as { args: { where: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ userId: "user-42" });
+  });
+
   it("wist de zelf-getypte factuurregel-omschrijvingen (InvoiceLine.description, AVG art. 17)", async () => {
     // Handmatige/cascade-factuur → InvoiceLine.description is zelf-getypte vrije tekst van de
     // uitschrijver (kan opdrachtgever/locatie/persoondetails bevatten). De Invoice-rij blijft staan

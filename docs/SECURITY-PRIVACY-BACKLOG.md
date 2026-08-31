@@ -4,6 +4,65 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-31 (basis: `main` @ c67387ab) — MIDDEL OPGELOST: TOTP-code kon binnen zijn ±venster hergebruikt worden (geen replay-preventie) — OWASP A07 / ASVS 2.8.4 / RFC 6238 §5.2
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(A: broken access control/IDOR op alle server actions + niet-document API-routes · B: cross-tenant isolatie +
+document/PDF/media-serving + upload/SSRF · C: privacy/AVG — erasure-/anonimisering-dekking incl. de nieuwe 2FA-
+velden, PII in logs, dataminimalisatie, k-anonimiteit). Focus op de delta sinds de vorige ronde
+(`55410410..c67387ab`, incl. **#1298 TOTP 2FA** — de belangrijkste nieuwe auth-sensitieve feature — plus #1299
+concept-opdracht-nudge en #1301 "Afwezig t/m X"-signaal). Runtime: build (exit 0) na `npm ci`.
+
+**OPGELOST — [MIDDEL · OWASP A07 (Identification & Authentication Failures) / OWASP ASVS 2.8.4 / RFC 6238 §5.2]
+een geldige TOTP-code bleef ~30–90 s (±1 tijdvenster) herbruikbaar: de login-poort onthield de verbruikte
+tijdteller niet.** `verifySecondFactor` (`src/lib/authorize-credentials.ts`) accepteerde élke crypto-geldige
+6-cijferige code zonder bij te houden welke tijdstap (step) al verbruikt was. Een afgekeken, gephishte of via
+een reverse-proxy gerelayede code kon daardoor binnen zijn geldigheidsvenster een **tweede** login opzetten
+(TOTP-replay). ASVS L2 2.8.4 eist expliciet dat een time-based OTP niet meer dan één keer binnen zijn
+geldigheid wordt geaccepteerd. Repro: onderschep (shoulder-surf/AITM-phishing) één geldige 6-cijferige code van
+een 2FA-account samen met het (herbruikte/gelekte) wachtwoord → speel binnen ~60 s dezelfde code opnieuw af →
+vóór de fix ontstaat een tweede geldige sessie. **Fix:** nieuw veld `User.twoFactorLastUsedStep Int?` (de hoogst-
+verbruikte TOTP-step). Nieuwe pure helper `verifyTotpStep()` (`src/lib/two-factor/totp.ts`) geeft de gematchte
+step terug i.p.v. alleen een boolean (`verifyTotp` blijft als boolean-variant bestaan). De login-poort claimt de
+step **atomair en TOCTOU-veilig** met één voorwaardelijke `prisma.user.updateMany({ where: { id, OR: [step=null,
+step<matched] }, data: { step: matched } })`: alleen een strikt-nieuwere step wint (`count===1`); een reeds
+verbruikte step (`count===0`) telt als replay, wordt geaudit (`TWO_FACTOR_CHALLENGE_FAILED`, reason `replay`) en
+levert géén sessie. Twee parallelle logins met dezelfde code → maar één wint. De enrollment-bevestiging
+(`confirmTwoFactorSetup`) legt de bij de bevestiging verbruikte step meteen vast zodat exact díe code niet voor
+de eerste echte login herbruikt kan worden; `disableTwoFactor` reset de step. Regressietests rood→groen: 2 in
+`authorize-credentials.test.ts` (atomaire lt-claim vastgelegd; replay geweigerd bij `count===0`) + 4 in
+`totp.test.ts` (`verifyTotpStep` geeft de juiste step / null) + 1 in de confirm-actie-test (step vastgelegd).
+Geverifieerd: zonder de guard geeft de replay-test een sessie i.p.v. `null` (rood), groen erna.
+
+**Bevinding A (broken access control/IDOR — alle server actions + niet-document API-routes):** CLEAN. De volledige
+mutatieketen (auth→rol→ownership→Zod→actie→audit) is intact; anti-existence-oracle (CWE-203) en TOCTOU-veilige
+`updateMany`-statusguards consistent toegepast; geen rol-/ownerId-/tenantId-mass-assignment; cron/webhooks
+timing-safe secret-gated. De delta-commits (#1299 owner-gescopete draft-nudge, #1301 read-only dashboardsignaal)
+introduceren geen nieuwe authz-oppervlakte.
+
+**Bevinding B (cross-tenant + document/PDF/media + upload/SSRF):** CLEAN. `tenantScopeWhere`/`assertSameTenant`/
+`ownsViaTenant` falen gesloten; alle document-/PDF-/dossier-routes checken ownership vóór de stream met identiek
+404 + audit op beide takken; storage-abstractie sniff't magic-bytes, gebruikt een random UUID-key en blokkeert
+path-traversal; de enige server-side egress (Geoapify routing) heeft een hardcoded host (geen SSRF).
+
+**Bevinding C (privacy/AVG — incl. 2FA-erasure):** CLEAN. `anonymizeUser` nult `twoFactorSecret`/`twoFactorEnabledAt`
+(via `userAnonymizationData`) én hard-verwijdert de `TwoFactorRecoveryCode`-rijen binnen dezelfde erasure-transactie
+(AVG art. 17); de schema-coverage-gate allowlist het nieuwe model niet stil. Geen PII/secret in logs (redacterende
+logger; audit-metadata bevat nooit de code/het geheim); `account-export` exporteert geen 2FA-secret/hash naar de
+betrokkene zelf; #1301 selecteert enkel `startDate/endDate/type` uit `AvailabilityWindow` (de vrije-tekst `note` —
+mogelijk gezondheidsdata — lekt niet naar de client). k-anonimiteit (`MARKET_RATE_MIN_SAMPLE = 10`) intact.
+Bijgewerkt als belt-and-suspenders: expliciete userId-scope-assertie op `twoFactorRecoveryCode.deleteMany` in
+`anonymize-erasure.test.ts` (een scoping-regressie wordt nu door een unit-test gevangen, niet alleen de tekst-scan).
+
+**Geparkeerd (LAAG · robuustheid) — `franchise/zzpers/export/route.ts` roept `tenantScopeWhere(actor)` aan buiten de
+`try/catch` van `requireActor()`** (ongewijzigd, vorige ronde). Aanbevolen fix: expliciete `if (!hasTenant(actor))
+return 403` vóór de query, parity met de sibling-export-routes.
+
+**Geparkeerd (LAAG) — geocode-cache kan precieze ZZP-adressen bevatten (ongewijzigd).** Aanbevolen fix: normaliseer
+routing-input naar plaats/postcode vóór egress/caching.
+
+**Resultaat:** 1× MIDDEL OPGELOST (TOTP-replay); A/B/C-oppervlakken CLEAN; 2 bevindingen geparkeerd (LAAG).
+
 ## Ronde 2026-08-30b (basis: `main` @ 55410410) — HOOG OPGELOST: onvolledige erasure van door de opdrachtgever getypte vrije tekst op de opdracht (Job) — AVG art. 17 + 5(1)(c)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

@@ -50,30 +50,46 @@ export function generateTotp(secretBase32: string, opts: { now?: Date } = {}): s
 }
 
 /**
- * Verifieer een ingevoerde code tegen het geheim. Accepteert een klokafwijking van ±`window`
- * perioden (default 1 → ±30 s) zodat een net-verlopen of net-vernieuwde code nog werkt. De invoer
- * moet exact `TOTP_DIGITS` cijfers zijn; vergelijking is timing-veilig.
+ * Verifieer een ingevoerde code en geef de exacte tijdteller (step) terug die matchte, of `null` bij
+ * geen match. Accepteert een klokafwijking van ±`window` perioden (default 1 → ±30 s). De step is
+ * nodig voor replay-preventie: de login-poort onthoudt de hoogst-verbruikte step per account zodat
+ * eenzelfde code niet twee keer werkt binnen zijn ±venster-geldigheid (RFC 6238 §5.2 / OWASP ASVS
+ * 2.8.4). Vergelijking is timing-veilig.
  */
-export function verifyTotp(
+export function verifyTotpStep(
   secretBase32: string,
   token: string,
   opts: { now?: Date; window?: number } = {},
-): boolean {
+): number | null {
   const cleaned = token.replace(/\s/g, "");
-  if (!new RegExp(`^\\d{${TOTP_DIGITS}}$`).test(cleaned)) return false;
+  if (!new RegExp(`^\\d{${TOTP_DIGITS}}$`).test(cleaned)) return null;
 
   const window = opts.window ?? 1;
   const center = counterForTime(opts.now ?? new Date());
   const provided = Buffer.from(cleaned);
 
   for (let drift = -window; drift <= window; drift += 1) {
-    const candidate = Buffer.from(hotp(secretBase32, center + drift));
+    const step = center + drift;
+    const candidate = Buffer.from(hotp(secretBase32, step));
     // Lengtes zijn altijd gelijk (beide TOTP_DIGITS), dus timingSafeEqual is veilig te gebruiken.
     if (candidate.length === provided.length && timingSafeEqual(candidate, provided)) {
-      return true;
+      return step;
     }
   }
-  return false;
+  return null;
+}
+
+/**
+ * Verifieer een ingevoerde code tegen het geheim (boolean-variant van {@link verifyTotpStep}).
+ * Accepteert een klokafwijking van ±`window` perioden (default 1 → ±30 s) zodat een net-verlopen of
+ * net-vernieuwde code nog werkt. De invoer moet exact `TOTP_DIGITS` cijfers zijn; timing-veilig.
+ */
+export function verifyTotp(
+  secretBase32: string,
+  token: string,
+  opts: { now?: Date; window?: number } = {},
+): boolean {
+  return verifyTotpStep(secretBase32, token, opts) !== null;
 }
 
 /**

@@ -10,7 +10,7 @@ import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { loginRateLimiter } from "@/lib/rate-limit";
 import { loginBlockedByMaintenance } from "@/lib/maintenance";
-import { verifyTotp } from "@/lib/two-factor/totp";
+import { verifyTotpStep } from "@/lib/two-factor/totp";
 import { decryptTwoFactorSecret } from "@/lib/two-factor/secret-crypto";
 import { verifyRecoveryCode } from "@/lib/two-factor/recovery-codes";
 import { type UserRole } from "@/lib/enums";
@@ -41,7 +41,7 @@ const credentialsSchema = z.object({
  * herstelcode. Elke mislukking wordt geaudit (nooit de code/het geheim zelf in de metadata).
  */
 async function verifySecondFactor(
-  user: { id: string; twoFactorSecret: string | null },
+  user: { id: string; twoFactorSecret: string | null; twoFactorLastUsedStep: number | null },
   token: string | undefined,
   email: string,
   meta: { ipAddress: string | null; userAgent: string | null },
@@ -62,13 +62,37 @@ async function verifySecondFactor(
   // TOTP-pad: exact zes cijfers én een opgeslagen geheim. Decrypt-fout (bv. gemanipuleerde/roterende
   // sleutel) telt als een mislukte factor, niet als een crash.
   if (/^\d{6}$/.test(provided) && user.twoFactorSecret) {
-    let ok = false;
+    let step: number | null = null;
     try {
-      ok = verifyTotp(decryptTwoFactorSecret(user.twoFactorSecret), provided);
+      step = verifyTotpStep(decryptTwoFactorSecret(user.twoFactorSecret), provided);
     } catch {
-      ok = false;
+      step = null;
     }
-    if (ok) return true;
+    if (step !== null) {
+      // Replay-preventie (RFC 6238 §5.2 / OWASP ASVS 2.8.4). Een geldige TOTP-code blijft ~30–90 s
+      // geldig (±1 venster); zonder deze poort kan een afgekeken/gephishte/gerelayede code binnen dat
+      // venster een tweede login opzetten. We onthouden de hoogst-verbruikte step per account en
+      // accepteren alleen een strikt nieuwere. De check-and-set is één atomaire, voorwaardelijke
+      // `updateMany` (TOCTOU-veilig): twee parallelle logins met dezelfde code → maar één wint
+      // (count===1); de ander telt als replay.
+      const claimed = await prisma.user.updateMany({
+        where: {
+          id: user.id,
+          OR: [{ twoFactorLastUsedStep: null }, { twoFactorLastUsedStep: { lt: step } }],
+        },
+        data: { twoFactorLastUsedStep: step },
+      });
+      if (claimed.count === 1) return true;
+      await audit({
+        actorId: user.id,
+        action: "TWO_FACTOR_CHALLENGE_FAILED",
+        entityType: "User",
+        entityId: user.id,
+        metadata: { email, reason: "replay" },
+        ...meta,
+      });
+      return false;
+    }
     await audit({
       actorId: user.id,
       action: "TWO_FACTOR_CHALLENGE_FAILED",

@@ -37,22 +37,25 @@ const { findUnique, rateCheck, rateReset, auditFn } = vi.hoisted(() => ({
   auditFn: vi.fn(async () => {}),
 }));
 
-const { rcFindMany, rcUpdate } = vi.hoisted(() => ({
+const { rcFindMany, rcUpdate, userUpdateMany } = vi.hoisted(() => ({
   rcFindMany: vi.fn(async (): Promise<{ id: string; codeHash: string }[]> => []),
   rcUpdate: vi.fn(async () => ({})),
+  // Atomaire, voorwaardelijke claim van de TOTP-step (replay-preventie). Default: succesvol (count 1).
+  userUpdateMany: vi.fn(async () => ({ count: 1 })),
 }));
 
 vi.mock("@/lib/db", () => ({
   prisma: {
-    user: { findUnique },
+    user: { findUnique, updateMany: userUpdateMany },
     twoFactorRecoveryCode: { findMany: rcFindMany, update: rcUpdate },
   },
 }));
 
 // Tweede-factor-helpers deterministisch mocken zodat de tests de login-poort toetsen (niet de
 // crypto-kern, die apart is getest) en niet botsen met de gemockte bcryptjs in dit bestand.
-const verifyTotpMock = vi.hoisted(() => vi.fn(() => false));
-vi.mock("@/lib/two-factor/totp", () => ({ verifyTotp: verifyTotpMock }));
+// `verifyTotpStep` geeft de gematchte step terug (number) of null bij geen match.
+const verifyTotpStepMock = vi.hoisted(() => vi.fn((): number | null => null));
+vi.mock("@/lib/two-factor/totp", () => ({ verifyTotpStep: verifyTotpStepMock }));
 
 const decryptSecretMock = vi.hoisted(() => vi.fn((stored: string) => stored));
 vi.mock("@/lib/two-factor/secret-crypto", () => ({
@@ -228,6 +231,7 @@ describe("authorizeCredentials — timing-egalisatie tegen e-mail-enumeratie", (
 interface TwoFactorUser extends FakeUser {
   twoFactorEnabledAt: Date | null;
   twoFactorSecret: string | null;
+  twoFactorLastUsedStep: number | null;
 }
 
 const twoFactorUser = (): TwoFactorUser => ({
@@ -241,6 +245,7 @@ const twoFactorUser = (): TwoFactorUser => ({
   passwordChangedAt: new Date("2026-01-01T00:00:00Z"),
   twoFactorEnabledAt: new Date("2026-02-01T00:00:00Z"),
   twoFactorSecret: "enc-secret",
+  twoFactorLastUsedStep: null,
 });
 
 describe("authorizeCredentials — tweestapsverificatie-poort", () => {
@@ -254,8 +259,10 @@ describe("authorizeCredentials — tweestapsverificatie-poort", () => {
     rcFindMany.mockClear();
     rcFindMany.mockImplementation(async () => []);
     rcUpdate.mockClear();
-    verifyTotpMock.mockClear();
-    verifyTotpMock.mockReturnValue(false);
+    userUpdateMany.mockClear();
+    userUpdateMany.mockImplementation(async () => ({ count: 1 }));
+    verifyTotpStepMock.mockClear();
+    verifyTotpStepMock.mockReturnValue(null);
     decryptSecretMock.mockClear();
     decryptSecretMock.mockImplementation((stored: string) => stored);
     verifyRecoveryMock.mockClear();
@@ -278,24 +285,68 @@ describe("authorizeCredentials — tweestapsverificatie-poort", () => {
 
   it("laat een 2FA-account door met een geldige TOTP-code", async () => {
     findUnique.mockImplementationOnce(async () => twoFactorUser());
-    verifyTotpMock.mockReturnValue(true);
+    verifyTotpStepMock.mockReturnValue(100);
 
     const result = await authorizeCredentials({ ...CREDS, token: "123456" });
 
     expect(result).toMatchObject({ id: "user-1" });
-    expect(verifyTotpMock).toHaveBeenCalledWith("enc-secret", "123456");
+    expect(verifyTotpStepMock).toHaveBeenCalledWith("enc-secret", "123456");
     expect(rateReset).toHaveBeenCalledTimes(1);
   });
 
   it("weigert een 2FA-account met een foute TOTP-code", async () => {
     findUnique.mockImplementationOnce(async () => twoFactorUser());
-    verifyTotpMock.mockReturnValue(false);
+    verifyTotpStepMock.mockReturnValue(null);
 
     const result = await authorizeCredentials({ ...CREDS, token: "000000" });
 
     expect(result).toBeNull();
+    expect(userUpdateMany).not.toHaveBeenCalled();
     expect(auditFn).toHaveBeenCalledWith(
       expect.objectContaining({ action: "TWO_FACTOR_CHALLENGE_FAILED" }),
+    );
+  });
+
+  // Replay-preventie (RFC 6238 §5.2 / OWASP ASVS 2.8.4): een geldige TOTP-code blijft ~30–90 s geldig;
+  // zonder de step-poort kan een afgekeken/gerelayede code binnen dat venster een tweede login opzetten.
+  it("legt de verbruikte step atomair vast met een strikt-nieuwer (lt) guard", async () => {
+    findUnique.mockImplementationOnce(async () => ({
+      ...twoFactorUser(),
+      twoFactorLastUsedStep: 99,
+    }));
+    verifyTotpStepMock.mockReturnValue(100);
+
+    const result = await authorizeCredentials({ ...CREDS, token: "123456" });
+
+    expect(result).toMatchObject({ id: "user-1" });
+    expect(userUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: "user-1",
+        OR: [{ twoFactorLastUsedStep: null }, { twoFactorLastUsedStep: { lt: 100 } }],
+      },
+      data: { twoFactorLastUsedStep: 100 },
+    });
+  });
+
+  it("weigert een herbruikte TOTP-code (atomaire claim mislukt, count 0)", async () => {
+    findUnique.mockImplementationOnce(async () => ({
+      ...twoFactorUser(),
+      twoFactorLastUsedStep: 100,
+    }));
+    // De code matcht crypto-gezien nog (±venster), maar step 100 is al verbruikt → de voorwaardelijke
+    // updateMany raakt geen rij (count 0) → replay geweigerd, géén sessie.
+    verifyTotpStepMock.mockReturnValue(100);
+    userUpdateMany.mockImplementationOnce(async () => ({ count: 0 }));
+
+    const result = await authorizeCredentials({ ...CREDS, token: "123456" });
+
+    expect(result).toBeNull();
+    expect(rateReset).not.toHaveBeenCalled();
+    expect(auditFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "TWO_FACTOR_CHALLENGE_FAILED",
+        metadata: expect.objectContaining({ reason: "replay" }),
+      }),
     );
   });
 
@@ -308,7 +359,7 @@ describe("authorizeCredentials — tweestapsverificatie-poort", () => {
 
     expect(result).toMatchObject({ id: "user-1" });
     // De TOTP-verificatie mag niet lopen voor een niet-6-cijferige invoer.
-    expect(verifyTotpMock).not.toHaveBeenCalled();
+    expect(verifyTotpStepMock).not.toHaveBeenCalled();
     expect(rcUpdate).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "rc-1" } }));
     expect(auditFn).toHaveBeenCalledWith(
       expect.objectContaining({ action: "TWO_FACTOR_RECOVERY_CODE_USED" }),
@@ -339,7 +390,7 @@ describe("authorizeCredentials — tweestapsverificatie-poort", () => {
     const result = await authorizeCredentials(CREDS);
 
     expect(result).toMatchObject({ id: "user-1", role: "FREELANCER" });
-    expect(verifyTotpMock).not.toHaveBeenCalled();
+    expect(verifyTotpStepMock).not.toHaveBeenCalled();
     expect(rcFindMany).not.toHaveBeenCalled();
     expect(rateReset).toHaveBeenCalledTimes(1);
   });
