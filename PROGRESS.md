@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-31 — routine: start-urgentie op de eigen-reacties-lijst (ZZP'er)
+
+**Wat:** op `/reacties` (de eigen-reacties-lijst van de ZZP'er) toonde een nog-openstaande reactie het
+wacht-signaal (reactiedatum) en het dood-signaal (opdracht gesloten/vervuld), maar niets over de
+**startdatum van de opdracht zelf**. Een reactie op een opdracht die over 2 dagen begint — of die al
+had moeten beginnen — terwijl de opdrachtgever nog niet besliste, is een eigen "aan zet"-moment: de
+beslis-window sluit, dus doorwachten of verder kijken wordt urgenter. Datzelfde start-signaal stond al
+op de marktplaats-lijst (`jobStartProximity` "begint over N dagen") en op nog-open verstreken
+opdrachten (`jobStartedSignal` "Direct te starten"), maar niet op de triage-lijst waar de ZZP'er zijn
+lopende reacties overziet (surface-pariteit). Server-side afgeleid, read-only, geen
+schema-/mutatie-/authz-oppervlak, geen dode knop.
+
+**Aanpak:** nieuwe pure `applicationStartUrgency` (`src/lib/application-start-urgency.ts`) componeert de
+bestaande proximity-primitieven in de reactie-context: alleen voor een écht openstaande reactie
+(NEW/VIEWED/SHORTLIST, geen eigen samenwerking, opdracht niet dood) → "Begint over N dagen — nog geen
+beslissing" (urgent ≤3d, anders soon/gedempt) of "Startdatum verstreken — nog geen beslissing"
+(urgent). Zelfde bron als lijst/detail → geen drift. De pagina laadt `Job.startDate` erbij en rendert
+de note direct onder de kaart (boven het wacht-signaal), stijl-idioom van `ApplicantResponsivenessNote`.
+
+**Bestanden:** `src/lib/application-start-urgency.ts` (nieuw), `src/lib/application-start-urgency.test.ts`
+(nieuw, 11 tests), `src/components/applications/application-start-urgency-note.tsx` (nieuw), `src/app/
+(protected)/reacties/page.tsx` (`startDate` in select + compute + render). **Checks:** typecheck ✓ ·
+lint ✓ · vitest (application-start-urgency, 11) ✓ · build ✓ · prettier ✓ · CI-poort → PR.
+
 ## 2026-08-31 — prod: security-header hardening (Origin-Agent-Cluster / X-Permitted-Cross-Domain-Policies / upgrade-insecure-requests)
 
 **Wat:** productie-hardening van de statische security-headers (OWASP Secure Headers Project), náást de al

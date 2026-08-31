@@ -15,6 +15,8 @@ import { WaitSignal } from "@/components/applications/wait-signal";
 import { ApplicantResponsivenessNote } from "@/components/applications/applicant-responsiveness-note";
 import { ApplicationCompetitionNote } from "@/components/applications/application-competition-note";
 import { summarizeApplicationCompetition } from "@/lib/application-competition";
+import { ApplicationStartUrgencyNote } from "@/components/applications/application-start-urgency-note";
+import { applicationStartUrgency } from "@/lib/application-start-urgency";
 import { getClientResponsivenessForCompanies } from "@/lib/data/client-responsiveness";
 import {
   countApplicationsAwaitingAttention,
@@ -109,6 +111,7 @@ export default async function ReactiesPage({
 }) {
   const actor = await requireRole("FREELANCER");
   const { t } = await getTranslator();
+  const now = new Date();
   const filter = parseApplicationFilter(await searchParams);
   const profile = await prisma.freelancerProfile.findUnique({
     where: { userId: actor.id },
@@ -135,6 +138,7 @@ export default async function ReactiesPage({
               id: true,
               title: true,
               status: true,
+              startDate: true,
               company: { select: { id: true, name: true } },
               credentialRequirements: { select: { credentialType: true, required: true } },
               // Actieve samenwerkingen op de opdracht (met wie dan ook) — zodat een nog-openstaande
@@ -293,6 +297,17 @@ export default async function ReactiesPage({
                   jobStatus: app.job.status as JobStatus,
                   activeCollaborations: app.job._count.collaborations,
                 });
+                // Start-urgentie: de opdracht begint binnenkort (of had al moeten beginnen) terwijl
+                // er nog geen beslissing is — de beslis-window sluit. Alleen zinvol zolang de reactie
+                // écht openstaand is (niet dood/vervuld, geen samenwerking); dezelfde proximity-bron
+                // als de marktplaats/het opdracht-detail (geen drift).
+                const startUrgency = applicationStartUrgency({
+                  applicationStatus: app.status,
+                  hasCollaboration: app.collaboration != null,
+                  jobDead: availability != null,
+                  startDate: app.job.startDate,
+                  now,
+                });
                 // Zodra er een samenwerking uit de reactie is voortgekomen, wijst de kaart naar het
                 // werkproces (de logische volgende stap) i.p.v. terug naar de opdracht.
                 const hint = app.collaboration
@@ -399,6 +414,7 @@ export default async function ReactiesPage({
                           ) : null;
                         })()}
                     </Link>
+                    {startUrgency && <ApplicationStartUrgencyNote urgency={startUrgency} />}
                     {wait && <WaitSignal wait={wait} t={t} />}
                     {responsiveness && (
                       <ApplicantResponsivenessNote responsiveness={responsiveness} />
