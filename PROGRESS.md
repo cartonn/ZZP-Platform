@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-31 — security/privacy: TOTP-replay-preventie op de login (OWASP A07 / ASVS 2.8.4 / RFC 6238 §5.2)
+
+**Wat:** security-/privacy-auditronde (basis `main` @ c67387ab) met de nieuwe #1298 TOTP-2FA als
+hoofdfocus. Orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits (access control/IDOR ·
+tenant/document/upload/SSRF · privacy/AVG incl. 2FA-erasure) — alle drie oppervlakken CLEAN. Eén
+substantieel gat gevonden én gedicht: de login-poort onthield de verbruikte TOTP-tijdstap niet, dus een
+crypto-geldige 6-cijferige code bleef binnen zijn ±venster (~30–90 s) herbruikbaar → TOTP-replay (een
+afgekeken/gephishte/gerelayede code kon een tweede sessie opzetten). Fix: hoogst-verbruikte step per
+account onthouden en atomair (TOCTOU-veilig) claimen; alleen een strikt-nieuwere step wint, een reeds
+verbruikte telt als replay (geaudit, geen sessie).
+
+**Bestanden:**
+
+- `prisma/schema.prisma` — `User.twoFactorLastUsedStep Int?` (hoogst-verbruikte TOTP-step; replay-guard).
+- `src/lib/two-factor/totp.ts` — nieuwe pure helper `verifyTotpStep()` (geeft de gematchte step of null);
+  `verifyTotp` blijft de boolean-variant erbovenop.
+- `src/lib/authorize-credentials.ts` — `verifySecondFactor` claimt de step via één voorwaardelijke
+  `prisma.user.updateMany({ where: { id, OR:[step=null, step<matched] }, data:{ step: matched } })`;
+  `count===0` → replay (audit reason `replay`, geen sessie).
+- `src/app/(protected)/account/tweestapsverificatie/actions.ts` — `confirmTwoFactorSetup` legt de bij de
+  bevestiging verbruikte step vast; `disableTwoFactor` reset de step.
+- Tests rood→groen: `totp.test.ts` (+4 `verifyTotpStep`), `authorize-credentials.test.ts` (+2 replay/lt-claim),
+  `account/tweestapsverificatie/actions.test.ts` (step vastgelegd), `anonymize-erasure.test.ts` (+1 belt-and-
+  suspenders: userId-scope op `twoFactorRecoveryCode.deleteMany`).
+- `docs/SECURITY-PRIVACY-BACKLOG.md` — ronde 2026-08-31 (1× MIDDEL OPGELOST; A/B/C CLEAN; 2 LAAG geparkeerd).
+
+**Tests:** volledige unit-suite 719 files / 7521 tests groen. Gate: typecheck ✓, lint ✓, build ✓, prettier ✓.
+2FA-erasure (secret/enabledAt genulld + recovery-codes hard-verwijderd) geverifieerd intact.
+
 ## 2026-08-31 — opdrachtgever: "Afwezig t/m X" op de dashboard-suggesties (screen-parity)
 
 **Wat:** de opdrachtgever-suggesties op het dashboard ("Voorgestelde ZZP'ers") toonden een groene

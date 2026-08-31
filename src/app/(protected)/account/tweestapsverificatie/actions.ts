@@ -7,7 +7,7 @@ import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
-import { generateTotpSecret, otpauthUri, verifyTotp } from "@/lib/two-factor/totp";
+import { generateTotpSecret, otpauthUri, verifyTotpStep } from "@/lib/two-factor/totp";
 import { encryptTwoFactorSecret, decryptTwoFactorSecret } from "@/lib/two-factor/secret-crypto";
 import { generateRecoveryCodes, hashRecoveryCode } from "@/lib/two-factor/recovery-codes";
 
@@ -121,14 +121,14 @@ export async function confirmTwoFactorSetup(
     return { error: "De code klopt niet of is verlopen." };
   }
 
-  let valid = false;
+  let step: number | null = null;
   try {
-    valid = verifyTotp(decryptTwoFactorSecret(user.twoFactorSecret), parsed.data.token);
+    step = verifyTotpStep(decryptTwoFactorSecret(user.twoFactorSecret), parsed.data.token);
   } catch {
-    valid = false;
+    step = null;
   }
   const meta = await requestMeta();
-  if (!valid) {
+  if (step === null) {
     await audit({
       actorId: actor.id,
       action: "TWO_FACTOR_CHALLENGE_FAILED",
@@ -150,7 +150,9 @@ export async function confirmTwoFactorSetup(
     }),
     prisma.user.update({
       where: { id: actor.id },
-      data: { twoFactorEnabledAt: new Date() },
+      // De bij de bevestiging verbruikte step meteen vastleggen zodat exact díe code niet binnen zijn
+      // ±venster hergebruikt kan worden voor de eerste echte login (replay-preventie, RFC 6238 §5.2).
+      data: { twoFactorEnabledAt: new Date(), twoFactorLastUsedStep: step },
     }),
   ]);
 
@@ -203,7 +205,7 @@ export async function disableTwoFactor(
     prisma.twoFactorRecoveryCode.deleteMany({ where: { userId: actor.id } }),
     prisma.user.update({
       where: { id: actor.id },
-      data: { twoFactorSecret: null, twoFactorEnabledAt: null },
+      data: { twoFactorSecret: null, twoFactorEnabledAt: null, twoFactorLastUsedStep: null },
     }),
   ]);
 

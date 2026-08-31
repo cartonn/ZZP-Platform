@@ -21,26 +21,27 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 model User {
-  id                  String    @id @default(cuid())
-  email               String    @unique
-  passwordHash        String
-  name                String
-  role                String    @default("FREELANCER") // UserRole: FREELANCER | CLIENT | ADMIN
-  status              String    @default("ACTIVE") //       UserStatus: ACTIVE | SUSPENDED | PENDING
-  mustChangePassword  Boolean   @default(false) //      true = geforceerde wachtwoordwijziging (bv. na bulk-import)
-  passwordChangedAt   DateTime  @default(now()) //     generatie-stempel: elke wachtwoordwijziging/-reset zet dit → sessies van vóór dit moment vervallen live (OWASP A07)
-  emailVerified       DateTime?
-  deletionRequestedAt DateTime? //                   AVG: door gebruiker aangevraagde verwijdering
-  anonymizedAt        DateTime? //                   AVG: door beheer uitgevoerde anonimisering (recht op verwijdering)
-  identityVerifiedAt  DateTime? //                   iDIN/eIDAS-identiteitsverificatie
-  verifiedLegalName   String? //                     door de bron bevestigde juridische naam
-  lastLoginAt         DateTime? //                   laatste geslaagde login (recency-signaal voor inzetbaarheid)
-  previousLoginAt     DateTime? //                   login dáárvoor — venster voor "terwijl je weg was" (notificaties)
-  twoFactorSecret     String? //                     TOTP-geheim, AES-256-GCM-versleuteld at rest (nooit de rauwe base32). null = geen 2FA-geheim
-  twoFactorEnabledAt  DateTime? //                   tweestapsverificatie geactiveerd op; null = uit (opt-in, per gebruiker)
-  tenantId            String? //                     franchise-lidmaatschap; null = directe platformgebruiker
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  passwordHash          String
+  name                  String
+  role                  String    @default("FREELANCER") // UserRole: FREELANCER | CLIENT | ADMIN
+  status                String    @default("ACTIVE") //       UserStatus: ACTIVE | SUSPENDED | PENDING
+  mustChangePassword    Boolean   @default(false) //      true = geforceerde wachtwoordwijziging (bv. na bulk-import)
+  passwordChangedAt     DateTime  @default(now()) //     generatie-stempel: elke wachtwoordwijziging/-reset zet dit → sessies van vóór dit moment vervallen live (OWASP A07)
+  emailVerified         DateTime?
+  deletionRequestedAt   DateTime? //                   AVG: door gebruiker aangevraagde verwijdering
+  anonymizedAt          DateTime? //                   AVG: door beheer uitgevoerde anonimisering (recht op verwijdering)
+  identityVerifiedAt    DateTime? //                   iDIN/eIDAS-identiteitsverificatie
+  verifiedLegalName     String? //                     door de bron bevestigde juridische naam
+  lastLoginAt           DateTime? //                   laatste geslaagde login (recency-signaal voor inzetbaarheid)
+  previousLoginAt       DateTime? //                   login dáárvoor — venster voor "terwijl je weg was" (notificaties)
+  twoFactorSecret       String? //                     TOTP-geheim, AES-256-GCM-versleuteld at rest (nooit de rauwe base32). null = geen 2FA-geheim
+  twoFactorEnabledAt    DateTime? //                   tweestapsverificatie geactiveerd op; null = uit (opt-in, per gebruiker)
+  twoFactorLastUsedStep Int? //                     hoogst-verbruikte TOTP-tijdteller (step) — replay-preventie (RFC 6238 §5.2): eenzelfde code werkt niet tweemaal binnen zijn ±venster. null = nog geen code verbruikt
+  tenantId              String? //                     franchise-lidmaatschap; null = directe platformgebruiker
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   // Franchise (tenant): een gebruiker is lid van max. één tenant (tenant); een Franchiser
   // bezit daarnaast precies één tenant (ownedTenant). Twee aparte relaties → named relations.

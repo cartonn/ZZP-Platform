@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { TOTP_DIGITS, generateTotp, generateTotpSecret, otpauthUri, verifyTotp } from "./totp";
+import {
+  TOTP_DIGITS,
+  generateTotp,
+  generateTotpSecret,
+  otpauthUri,
+  verifyTotp,
+  verifyTotpStep,
+} from "./totp";
 import { base32Encode } from "./base32";
 
 // RFC 6238 Appendix B testvector: seed "12345678901234567890" (ASCII) in base32, SHA1, 8 digits.
@@ -43,6 +50,38 @@ describe("verifyTotp / generateTotp", () => {
   it("negeert spaties in de ingevoerde code", () => {
     const now = new Date(59 * 1000);
     expect(verifyTotp(RFC_SECRET, "287 082", { now, window: 0 })).toBe(true);
+  });
+});
+
+// verifyTotpStep geeft de exact gematchte tijdteller (step) terug — de bouwsteen voor replay-preventie
+// in de login-poort (RFC 6238 §5.2): die onthoudt de hoogst-verbruikte step en weigert hergebruik.
+describe("verifyTotpStep", () => {
+  it("geeft de step van het huidige venster terug bij een geldige code", () => {
+    const now = new Date(1_700_000_000 * 1000);
+    const expectedStep = Math.floor(now.getTime() / 1000 / 30);
+    const code = generateTotp(RFC_SECRET, { now });
+    expect(verifyTotpStep(RFC_SECRET, code, { now, window: 0 })).toBe(expectedStep);
+  });
+
+  it("geeft de step van het vórige venster terug (klokafwijking binnen ±1)", () => {
+    const now = new Date(1_700_000_000 * 1000);
+    const prev = new Date(now.getTime() - 30_000);
+    const prevStep = Math.floor(prev.getTime() / 1000 / 30);
+    const prevCode = generateTotp(RFC_SECRET, { now: prev });
+    expect(verifyTotpStep(RFC_SECRET, prevCode, { now, window: 1 })).toBe(prevStep);
+  });
+
+  it("geeft null terug bij een foute of niet-6-cijferige code", () => {
+    const now = new Date(1_700_000_000 * 1000);
+    expect(verifyTotpStep(RFC_SECRET, "000000", { now })).toBeNull();
+    expect(verifyTotpStep(RFC_SECRET, "12345", { now })).toBeNull();
+    expect(verifyTotpStep(RFC_SECRET, "", { now })).toBeNull();
+  });
+
+  it("verifyTotp blijft de boolean-variant (true wanneer een step matcht)", () => {
+    const now = new Date(59 * 1000);
+    expect(verifyTotp(RFC_SECRET, "287082", { now, window: 0 })).toBe(true);
+    expect(verifyTotpStep(RFC_SECRET, "287082", { now, window: 0 })).not.toBeNull();
   });
 });
 
