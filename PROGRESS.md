@@ -3,6 +3,45 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-31 — ZZP'er: vindbaarheid-kaart spiegelt afwezigheid (geen misleidend groen vinkje tijdens vakantie)
+
+**Wat:** de vindbaarheid-kaart op `/profiel/bewerken` toonde "Beschikbaarheid gedeeld ✓ / je bent goed
+vindbaar" óók wanneer de ZZP'er nú met vakantie is (een UNAVAILABLE-venster dekt vandaag, geen inzetbaar
+venster) én zijn scalaire veld nog op "Direct beschikbaar" stond — terwijl de opdrachtgever-zoeklijst
+(`freelancer-search.ts`) diezelfde ZZP'er juist uit het "Alleen beschikbaar"-filter laat vallen
+(`availabilitySummary → null`). Direct zichzelf-tegensprekend signaal (CLAUDE.md regel 1): de kaart claimde
+vindbaarheid die de server-waarheid tegensprak. Zelfde bugklasse als #1301 (client-side "Afwezig t/m X").
+
+**Fix:** één pure helper `usableAvailability(windows, scalarAvailable, now)` in `availability.ts` die exact de
+away-suppressie van `freelancer-search.ts` spiegelt (venster óf scalar-fallback, maar NIET tijdens een
+afwezigheidsvenster) en de "Afwezig t/m …"-samenvatting teruggeeft. De pagina gebruikt de helper i.p.v. de
+naïeve scalar-fallback. De beschikbaarheid-factor wordt tijdens afwezigheid een eerlijke blokkade met een
+afwezigheid-bewuste hint ("Afwezig t/m X — daarom tel je nu niet mee bij 'alleen beschikbaar' …") i.p.v. het
+misplaatste "geef je beschikbaarheid aan" (hij dééldde die juist). Vindbaarheid zakt dan naar `limited`
+("Je bent vindbaar, maar niet optimaal") — de waarheid.
+
+**Bestanden:**
+
+- `src/lib/availability.ts` — nieuwe pure helper `usableAvailability` + `UsableAvailability`-type.
+- `src/lib/freelancer-findability.ts` — optioneel `awaySummary` op `FindabilityInput`; afwezigheid-bewuste
+  hint voor de beschikbaarheid-factor.
+- `src/app/(protected)/profiel/bewerken/page.tsx` — gebruikt `usableAvailability`; geeft `awaySummary` door.
+- `src/lib/availability.test.ts` — +5 `usableAvailability`-tests (venster wint, scalar-fallback, away-suppressie
+  óók bij "Direct beschikbaar", venster wint van afwezigheid).
+- `src/lib/freelancer-findability.test.ts` — +3 tests (afwezigheid-blokkade, generieke fallback, geen lekkende
+  afwezigheid-tekst wanneer de factor gehaald is).
+
+**Vervolg (volgende run — geverifieerd gat, zelfde bugklasse, NIET in deze PR):** de "Voorgestelde/Geschikte
+ZZP'ers"-suggesties + "Nodig alle uit"-actie (`suggestedFreelancersForJob`/`suggestedFreelancersForClient` in
+`src/lib/suggestions.ts`) missen de `lockedInJobIds`-poort → ze werven kandidaten voor een reeds-vergeven rol
+(ACCEPTED-reactie of niet-geannuleerde samenwerking), terwijl dezelfde pagina de onbezet-/started-signalen wél
+onderdrukt. Fix: poort in `suggestedFreelancersForJob` (`lockedInJobIds([job.id])`) + DB-side uitsluiting in
+`suggestedFreelancersForClient` (`applications: { none: { status: "ACCEPTED" } }` + `collaborations: { none: {
+status: { not: "CANCELLED" } } }`), spiegelt `getClientColdJobs`.
+
+**Checks:** typecheck ✓ · lint ✓ · vitest (availability + freelancer-findability, 45 tests) ✓. Volledige gate
+(typecheck/lint/unit/build/prettier) → PR #1304 → CI-poort.
+
 ## 2026-08-31 — routine: aangifte-deadline-agenda op /ontzorgd/aangifte (ZZP'er)
 
 **Wat:** het aangiftescherm (`/ontzorgd/aangifte`) toonde wél de lopende aangiftes, maar niet WANNEER de

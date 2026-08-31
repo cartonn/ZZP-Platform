@@ -22,6 +22,14 @@ export interface FindabilityInput {
    * `summarizeAvailabilityFreshness`. Optioneel; ontbreekt → niet verouderd.
    */
   availabilityStale?: boolean;
+  /**
+   * De ZZP'er zit nú in een expliciet "niet beschikbaar"-venster (vakantie) zónder inzetbaar venster —
+   * dan is `hasAvailability` false (spiegelt de away-suppressie in `freelancer-search.ts`: hij valt uit
+   * het "Alleen beschikbaar"-filter). Deze samenvatting ("Afwezig t/m …") maakt de beschikbaarheid-factor
+   * eerlijk: niet "geef je beschikbaarheid aan" (hij deelde die juist), maar "je bent nu afwezig". Optioneel;
+   * ontbreekt of `null` → niet afwezig. Alleen betekenisvol wanneer `hasAvailability` false is.
+   */
+  awaySummary?: string | null;
 }
 
 export interface FindabilityFactor {
@@ -100,7 +108,14 @@ function buildFactors(input: FindabilityInput): FindabilityFactor[] {
       key: "availability",
       label: "Beschikbaarheid gedeeld",
       done: input.hasAvailability,
-      hint: "Geef je beschikbaarheid aan zodat je meetelt bij het filter 'alleen beschikbaar'.",
+      // Afwezigheid is een eigen, eerlijke blokkade-tekst: de ZZP'er dééldde zijn beschikbaarheid
+      // (een vakantievenster), maar telt nú niet mee bij "Alleen beschikbaar" (spiegelt de
+      // away-suppressie in freelancer-search.ts). Dus niet "geef je beschikbaarheid aan", maar
+      // "je bent nu afwezig". Alleen relevant wanneer de factor niet gehaald is (`!hasAvailability`).
+      hint:
+        !input.hasAvailability && input.awaySummary
+          ? `${input.awaySummary} — daarom tel je nu niet mee bij het filter 'alleen beschikbaar'. Zodra je afwezigheid voorbij is, ben je weer vindbaar.`
+          : "Geef je beschikbaarheid aan zodat je meetelt bij het filter 'alleen beschikbaar'.",
       href: "/beschikbaarheid",
       stale: availabilityIsStale(input),
     },

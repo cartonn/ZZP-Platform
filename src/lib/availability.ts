@@ -116,6 +116,43 @@ export function summarizeAway(
   return until ? `Afwezig t/m ${formatDateShortNl(until)}` : null;
 }
 
+/** Of de ZZP'er meetelt als "beschikbaar" op de opdrachtgever-schermen, plus de afwezigheid-samenvatting. */
+export interface UsableAvailability {
+  /**
+   * Telt de ZZP'er nú mee bij het "Alleen beschikbaar"-filter/sortering: een inzetbaar venster, óf de
+   * scalaire fallback (AVAILABLE/LIMITED) — maar NIET wanneer hij nu in een afwezigheidsvenster zit.
+   */
+  hasAvailability: boolean;
+  /** "Afwezig t/m …" wanneer hij nú weg is (en geen inzetbaar venster dekt); anders `null`. */
+  awaySummary: string | null;
+}
+
+/**
+ * Bepaalt of een profiel als "beschikbaar" bovenkomt op de opdrachtgever-vindoppervlakken, exact zoals
+ * `freelancer-search.ts` het `availabilitySummary`-veld afleidt: een inzetbaar venster wint; anders valt
+ * het terug op het scalaire veld (AVAILABLE/LIMITED) — TENZIJ de ZZP'er nu in een expliciet
+ * "niet beschikbaar"-venster zit (vakantie). In dat afwezigheidsgeval onderdrukt de zoeklijst de
+ * scalar-fallback (`availabilitySummary` wordt `null`, hij valt uit "Alleen beschikbaar"); deze helper
+ * spiegelt dat zodat afgeleide UI (bv. de vindbaarheid-kaart) niet ten onrechte "beschikbaar" claimt
+ * terwijl de ZZP'er weg is. Puur — `now` en het scalar-signaal worden geïnjecteerd.
+ *
+ * @param scalarAvailable of het scalaire `availability`-veld AVAILABLE of LIMITED is (de fallback-bron).
+ */
+export function usableAvailability(
+  windows: readonly WindowLike[],
+  scalarAvailable: boolean,
+  now: Date = new Date(),
+): UsableAvailability {
+  const windowSummary = summarizeAvailability(windows, now);
+  if (windowSummary !== null) return { hasAvailability: true, awaySummary: null };
+  const awaySummary = summarizeAway(windows, now);
+  return {
+    // Afwezig nu → geen "beschikbaar"-signaal (spiegelt de away-suppressie in freelancer-search.ts).
+    hasAvailability: awaySummary === null && scalarAvailable,
+    awaySummary,
+  };
+}
+
 /** Versheid van de gedeelde beschikbaarheidsagenda. */
 export type AvailabilityFreshnessStatus = "fresh" | "expired" | "empty";
 

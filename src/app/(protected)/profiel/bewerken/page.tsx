@@ -4,7 +4,7 @@ import { ExternalLink, UserX } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { computeFreelancerCompleteness } from "@/lib/profile";
-import { summarizeAvailability, summarizeAvailabilityFreshness } from "@/lib/availability";
+import { summarizeAvailabilityFreshness, usableAvailability } from "@/lib/availability";
 import { summarizeFindability } from "@/lib/freelancer-findability";
 import { FindabilityCard } from "@/components/profile/findability-card";
 import { computeMarketRate } from "@/lib/market-rate";
@@ -116,20 +116,28 @@ export default async function ProfielPage() {
     endDate: Date;
     type: "AVAILABLE" | "LIMITED" | "UNAVAILABLE";
   }[];
-  const hasAvailability =
-    summarizeAvailability(availabilityWindows, new Date()) !== null ||
-    availabilityScalar === "AVAILABLE" ||
-    availabilityScalar === "LIMITED";
+  const now = new Date();
+  // Spiegel exact de opdrachtgever-zoeklijst (`freelancer-search.ts`): een inzetbaar venster óf de
+  // scalar-fallback (AVAILABLE/LIMITED) telt als "beschikbaar" — behalve wanneer de ZZP'er nú in een
+  // afwezigheidsvenster (vakantie) zit; dan valt hij uit "Alleen beschikbaar" en is de afwezigheid het
+  // waarheidssignaal. Zonder deze away-suppressie maskeert een oud "Direct beschikbaar"-veld de vakantie
+  // met een misleidend groen vinkje op de vindbaarheid-kaart.
+  const { hasAvailability, awaySummary } = usableAvailability(
+    availabilityWindows,
+    availabilityScalar === "AVAILABLE" || availabilityScalar === "LIMITED",
+    now,
+  );
   // Verouderde agenda: wél vensters gedeeld, maar alle einddata liggen in het verleden. De ZZP'er is
   // dan nog vindbaar via de scalar-fallback, maar opdrachtgevers zien geen toekomstige inzet meer —
   // dezelfde `expired`-conditie waar het actiecentrum op nudget (pending-tasks.ts).
   const availabilityStale =
-    summarizeAvailabilityFreshness(availabilityWindows, new Date()).status === "expired";
+    summarizeAvailabilityFreshness(availabilityWindows, now).status === "expired";
   const findability = summarizeFindability({
     isPublic: profile.visibility === "PUBLIC",
     hasSkills: skillIds.length > 0,
     hasAvailability,
     availabilityStale,
+    awaySummary,
   });
 
   return (
