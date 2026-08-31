@@ -109,6 +109,7 @@ export type PendingTask =
   | (TaskBase & { kind: "first-look-overdue" })
   | (TaskBase & { kind: "stale-applications" })
   | (TaskBase & { kind: "availability-refresh" })
+  | (TaskBase & { kind: "idle-capacity" })
   | (TaskBase & { kind: "draft-jobs" })
   | (TaskBase & { kind: "stale-draft-job"; jobId: string })
   | (TaskBase & { kind: "job-needs-attention"; jobId: string })
@@ -1046,6 +1047,26 @@ export function availabilityRefreshTask(): PendingTask {
     priority: P.availabilityStale,
     resolver: "link",
     href: "/beschikbaarheid",
+  };
+}
+
+/**
+ * De ZZP'er heeft open (onbenutte) beschikbare dagen in de komende weken — beschikbaar zonder
+ * opdracht. Spiegelt de `/beschikbaarheid`-kaart "Onbenutte beschikbaarheid" exact (zelfde bron
+ * `findIdleCapacity` + zelfde `hasAny`-poort → geen drift): waar die kaart de open dagen passief
+ * toont, maakt deze taak er een actiegerichte nudge van om die dagen te vullen. Zachte inkomstenkans
+ * (tone "info"): deep-link naar de marktplaats `/opdrachten` waar de ZZP'er werk oppakt.
+ */
+export function idleCapacityTask(totalOpenDays: number): PendingTask {
+  return {
+    kind: "idle-capacity",
+    id: "idle-capacity",
+    title: `${plural(totalOpenDays, "open dag", "open dagen")} in je agenda`,
+    subtitle: "Je bent beschikbaar zonder opdracht — bekijk de marktplaats",
+    tone: "info",
+    priority: P.openCapacity,
+    resolver: "link",
+    href: "/opdrachten",
   };
 }
 
