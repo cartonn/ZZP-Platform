@@ -315,6 +315,22 @@ export interface MetricsInput {
    */
   routingCacheRetentionBacklog: number;
   /**
+   * Aantal mail-intake-rijen (MailIntake) ouder dan het geconfigureerde `MAIL_INTAKE_RETENTION_DAYS`-venster
+   * met een besliste status (ACCEPTED/DISMISSED) die de `mail-intake-retention`-cron nog niet snoeide — werk
+   * dat die cron had moeten doen. Dezelfde stille-faal-detector-klasse als de andere retentie-backlogs, en
+   * net zo privacygevoelig: een MailIntake-rij draagt DERDE-PARTIJ-PII — het e-mailadres (`fromAddress`) van
+   * een externe aanvrager die zonder account via het intake-alias mailt, plus `subject` en de vrije-tekst
+   * `textBody`. Het verwerkingsregister belooft opslagbeperking (AVG art. 5(1)(e)); de leeslaag raakt de ruwe
+   * mail nooit fysiek, dus deze cron is de enige die de belofte afdwingt. Anders dan de meeste config-
+   * gevensterde retenties staat mail-intake-retentie ALTIJD aan (fail-safe default 180 dagen, min. 30 — een
+   * lege env wist juist wél), dus de gauge is niet `0`-per-definitie. Alleen besliste intakes tellen mee:
+   * een nog te beoordelen intake (status NEW) valt bewust buiten de sweep en dus buiten deze gauge (de
+   * beoordelingsachterstand is een andere zorg dan de snoei-achterstand). De cron-heartbeat bewijst alleen dát
+   * de run afrondde, niet dát 'ie de snoei-pijplijn verwerkte; blijft dit getal oplopen terwijl de heartbeat
+   * "vers" is, dan bewaart de app derde-partij-PII over de beloofde termijn heen zonder dat iets dat toont.
+   */
+  mailIntakeRetentionBacklog: number;
+  /**
    * Aantal actieve ZZP'ers in de LOPENDE maand (≥1 goedgekeurde prestatie wier maand op deze periode
    * valt) die nog GEEN `ZzpMembershipCharge` voor die maand hebben — werk dat de `zzp-membership`-cron
    * had moeten registreren (de kern-ZZP-monetisatie: een maandbijdrage per actieve ZZP'er, PIDZ-model).
@@ -741,6 +757,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal routing-cacherijen (GeocodeCache + TravelRouteCache, platte-tekst locatie-PII in query/fromQuery/toQuery) wier eigen TTL (expiresAt) is verstreken die de routing-cache-retention-cron nog niet fysiek verwijderde (deze retentie staat altijd AAN — de TTL zit per rij ingebakken, geen instelvenster; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → locatie-PII bewaard over de eigen TTL heen, AVG art. 5(1)(e)).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.routingCacheRetentionBacklog)),
+    },
+    {
+      name: "zzp_mail_intake_retention_backlog",
+      help: "Aantal mail-intake-rijen (MailIntake, derde-partij-PII in fromAddress/subject/textBody) met een besliste status (ACCEPTED/DISMISSED) ouder dan het geconfigureerde MAIL_INTAKE_RETENTION_DAYS-venster die de mail-intake-retention-cron nog niet snoeide (deze retentie staat ALTIJD aan — fail-safe default 180 dagen, min. 30, geen uit-stand; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → derde-partij-PII bewaard over de beloofde termijn heen, AVG art. 5(1)(e)).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.mailIntakeRetentionBacklog)),
     },
     {
       name: "zzp_membership_unbilled_active",

@@ -1829,8 +1829,9 @@ maanden). Beide gauges hergebruiken **exact** dezelfde bron van waarheid als de 
   500), bevatten geen PII. Resterend mensenwerk: **niets extra**.
   **Code-kant GEDAAN (2026-08-02) — routing-cache-retentie-backlog stille-faal-gauge:**
   `zzp_routing_cache_retention_backlog` (aantal `GeocodeCache`- + `TravelRouteCache`-rijen wier eigen TTL
-  — `expiresAt` — is verstreken die de `routing-cache-retention`-cron nog niet fysiek verwijderde). Hiermee is
-  het **laatste** PII-dragende retentie-prune gedekt door een stille-faal-detector: beide routing-cachetabellen
+  — `expiresAt` — is verstreken die de `routing-cache-retention`-cron nog niet fysiek verwijderde). Dekt weer een
+  PII-dragende retentie-prune met een stille-faal-detector (het `MailIntake`-model kreeg de zijne pas op 2026-08-31,
+  zie onder — dát sloot de familie): beide routing-cachetabellen
   bewaren **platte-tekst locatiegegevens** (`query`/`fromQuery`/`toQuery` — herleidbare adres-/plaatsindicaties van
   ZZP'ers en opdrachten die naar Geoapify zijn gestuurd of daaruit zijn afgeleid). De leeslaag negeert verlopen
   rijen alleen **lazy** (`routing.ts`) — fysiek blijven ze staan, dus deze cron is de enige die de opslagbeperking
@@ -1844,6 +1845,26 @@ maanden). Beide gauges hergebruiken **exact** dezelfde bron van waarheid als de 
   (`ZzpRoutingCacheRetentionBacklog`, `> 0` met `for: 30h` > één cron-interval) in `docs/observability/alerts.yml`,
   vastgeklonken aan beide drift-gates (`alerts-rules.ts` + de onderhouds-inhibitie in `alertmanager.yml`). Faalt
   veilig (nooit een 500), bevat geen PII. Resterend mensenwerk: **niets extra**.
+  **Code-kant GEDAAN (2026-08-31) — mail-intake-retentie-backlog stille-faal-gauge:**
+  `zzp_mail_intake_retention_backlog` (aantal `MailIntake`-rijen met een **besliste** status
+  (`ACCEPTED`/`DISMISSED`) ouder dan het `MAIL_INTAKE_RETENTION_DAYS`-venster die de `mail-intake-retention`-cron
+  nog niet snoeide). Sluit het **allerlaatste** gat in de retentie-backlog-familie: `MailIntake` was het enige
+  PII-dragende model met een retentie-cron **zonder** stille-faal-gauge/alert. Een `MailIntake`-rij draagt
+  **derde-partij-PII** — het e-mailadres (`fromAddress`) van een externe aanvrager die zonder account via het
+  intake-alias mailt, plus `subject` en de vrije-tekst `textBody`. De leeslaag raakt de ruwe mail nooit fysiek, dus
+  deze cron is de enige die de opslagbeperking (AVG art. 5(1)(e)) afdwingt. **Anders dan de meeste config-gevensterde
+  retenties staat mail-intake-retentie ALTIJD aan** (fail-safe default 180 dagen, min. 30 — een lege env wist juist
+  wél), dus de gauge is nooit `0`-per-definitie. Alleen besliste intakes tellen mee: een nog te beoordelen intake
+  (status `NEW`) valt bewust buiten de sweep en dus buiten de gauge (de beoordelings-achterstand is een andere zorg
+  dan de snoei-achterstand). De gauge hergebruikt **exact** dezelfde bron van waarheid als de taak zelf
+  (`prunableMailIntakeWhere(cutoff)` + `mailIntakeRetentionCutoff` — geëxporteerd uit
+  `mail-intake-retention-task.ts`/`mail-intake-retention.ts`, gedeeld door de delete én de count) → kan niet driften.
+  De cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn verwerkte — blijft dit getal
+  oplopen terwijl de heartbeat "vers" is, dan bewaart de app derde-partij-PII over de beloofde termijn heen zonder
+  dat iets dat toont. Drop-in Prometheus-alert (`ZzpMailIntakeRetentionBacklog`, `> 0` met `for: 30h` > één
+  cron-interval) in `docs/observability/alerts.yml`, vastgeklonken aan beide drift-gates (`alerts-rules.ts` + de
+  onderhouds-inhibitie in `alertmanager.yml`). Faalt veilig (nooit een 500), bevat geen PII. Resterend mensenwerk:
+  **niets extra**.
   **Code-kant GEDAAN (2026-08-12) — beoordelings-reveal stille-faal-gauge:** `zzp_reviews_overdue_reveal`
   (aantal beoordelingen wier double-blind reveal-venster is verstreken — `Review` met status `PENDING_REVEAL`
   en `revealDeadline` in het verleden — die de `reviews-reveal`-cron nog niet publiceerde). Dezelfde

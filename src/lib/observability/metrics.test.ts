@@ -44,6 +44,7 @@ const HEALTHY: MetricsInput = {
   supportTicketsRetentionBacklog: 0,
   webhookEventsRetentionBacklog: 0,
   routingCacheRetentionBacklog: 0,
+  mailIntakeRetentionBacklog: 0,
   membershipUnbilledActive: 0,
   mailDeliveryOk: true,
   mailDeliveryConsecutiveFailures: 0,
@@ -431,6 +432,21 @@ describe("buildMetrics", () => {
     ).toBe(4);
   });
 
+  it("mapt de mail-intake-retentie-backlog (besliste, verlopen rijen) door als gauge", () => {
+    expect(
+      valueOf({ ...HEALTHY, mailIntakeRetentionBacklog: 22 }, "zzp_mail_intake_retention_backlog"),
+    ).toBe(22);
+  });
+
+  it("klemt een negatieve/gebroken mail-intake-retentie-backlog veilig op een niet-negatief geheel getal", () => {
+    expect(
+      valueOf({ ...HEALTHY, mailIntakeRetentionBacklog: -6 }, "zzp_mail_intake_retention_backlog"),
+    ).toBe(0);
+    expect(
+      valueOf({ ...HEALTHY, mailIntakeRetentionBacklog: 3.7 }, "zzp_mail_intake_retention_backlog"),
+    ).toBe(3);
+  });
+
   it("mapt de ongefactureerde-actieve-ZZP'ers-backlog door als gauge", () => {
     expect(
       valueOf({ ...HEALTHY, membershipUnbilledActive: 17 }, "zzp_membership_unbilled_active"),
@@ -510,6 +526,7 @@ describe("buildMetrics", () => {
       supportTicketsRetentionBacklog: 5,
       webhookEventsRetentionBacklog: 6,
       routingCacheRetentionBacklog: 14,
+      mailIntakeRetentionBacklog: 21,
       membershipUnbilledActive: 20,
       mailDeliveryOk: false,
       mailDeliveryConsecutiveFailures: 4,
@@ -600,6 +617,7 @@ describe("buildMetrics", () => {
     expect(valueOf(input, "zzp_support_tickets_retention_backlog")).toBe(5);
     expect(valueOf(input, "zzp_webhook_events_retention_backlog")).toBe(6);
     expect(valueOf(input, "zzp_routing_cache_retention_backlog")).toBe(14);
+    expect(valueOf(input, "zzp_mail_intake_retention_backlog")).toBe(21);
     expect(valueOf(input, "zzp_membership_unbilled_active")).toBe(20);
     expect(valueOf(input, "zzp_cron_heartbeat_ok")).toBe(0);
     expect(valueOf(input, "zzp_cron_heartbeat_stale")).toBe(1);
@@ -672,6 +690,7 @@ describe("buildMetrics", () => {
       "zzp_support_tickets_retention_backlog",
       "zzp_webhook_events_retention_backlog",
       "zzp_routing_cache_retention_backlog",
+      "zzp_mail_intake_retention_backlog",
       "zzp_membership_unbilled_active",
       "zzp_mail_delivery_ok",
       "zzp_mail_consecutive_failures",
