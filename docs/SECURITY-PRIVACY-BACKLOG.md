@@ -4,6 +4,84 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-08-31b (basis: `main` @ 8cd60f30) — MIDDEL OPGELOST: auditlog-retentie faalde OPEN (onbeperkt bewaren tenzij een operator een env-var zette) terwijl het verwerkingsregister 12 maanden belooft — AVG art. 5(1)(e) opslagbeperking + art. 5(2) verantwoordingsplicht
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(A: broken access control/IDOR op álle server actions + niet-document API-routes · B: cross-tenant isolatie +
+document/PDF/media-serving + upload/SSRF + injectie (SQL/XSS/CSV) + secrets · C: privacy/AVG — erasure/
+anonimisering-dekking, dataminimalisatie, PII-in-logs, k-anonimiteit, retentie, derden-doorgifte). Elke audit
+traceerde zelf zijn oppervlak (niet louter de backlog-claim). `npm audit --omit=dev` = **0**; Next 15.5.24
+(voorbij CVE-2025-29927 middleware-bypass); geen hardcoded secrets in `git ls-files`. Runtime: `npm run build`
+(exit 0).
+
+**OPGELOST — [MIDDEL · AVG art. 5(1)(e) opslagbeperking + art. 5(2) verantwoordingsplicht] auditlog-retentie
+stond standaard UIT (onbeperkt bewaren) terwijl het art. 30-verwerkingsregister 12 maanden belooft.**
+`parseAuditRetentionDays` (`src/lib/config.ts`) gaf bij een lege/ongeconfigureerde `AUDIT_LOG_RETENTION_DAYS`
+`0` terug = géén wissen. De `AuditLog`-rijen dragen PII (IP-adres + user-agent), en het verwerkingsregister
+(`src/lib/compliance/processing-register.ts`, entry "beveiliging-auditlog-misbruikpreventie":
+"Auditlogboek: 12 maanden") belooft de betrokkene expliciet een bewaartermijn van 12 maanden. De code hield
+ze zonder operator-actie echter onbeperkt bewaard — een gat tussen het gepubliceerde beleid en de
+afdwinging. Elke zuster-retentie die PII draagt én in het register beloofd is faalt juist **safe** naar het
+beloofde venster (`LEAD_RETENTION_DEFAULT_DAYS=365`, `NOTIFICATION=180`, `APPLICATION=28`,
+`HEALTH_INCIDENT_IP=90`) — alleen de auditlog (en de webhook-ledger, maar die draagt géén PII → terecht opt-in)
+faalde open. De eigen code-commentaar bij de leads stelt het principe al vast: "prospect-PII onbeperkt bewaren
+ís de overtreding … daarom standaard AAN op het beloofde venster". De auditlog voldeed aan exact dezelfde
+criteria maar week af. **Repro:** deploy zonder `AUDIT_LOG_RETENTION_DAYS` → een betrokkene leest in het
+register "12 maanden" → in werkelijkheid worden auditregels met zijn IP/user-agent onbeperkt bewaard (de
+`audit-retention`-sweep is een no-op). **Fix:** `parseAuditRetentionDays` faalt nu safe naar
+`AUDIT_LOG_RETENTION_DEFAULT_DAYS=365` (= het beloofde venster) bij leeg/ongeconfigureerd én bij een
+niet-numerieke (corrupte) waarde, exact zoals `parseLeadRetentionDays`; een **expliciete** `0`/negatieve waarde
+blijft de operator-override "retentie uit" (bv. bij een lopende forensische/juridische bewaarplicht), en de
+minimumvloer (30 dagen) beschermt tegen een typefout die vrijwel het hele beveiligingslogboek zou wissen.
+Downstream consistent bijgewerkt: `system-status` markeert een expliciete 0-override nu als "aandacht" (de
+beloofde termijn wordt dan niet gehandhaafd), `.env.example`/`env.ts`/de taak-header/de metrics-help
+beschrijven de nieuwe fail-safe-default. Regressietests rood→groen: `audit-retention.test.ts` (leeg/onzin →
+365 i.p.v. 0; expliciete 0 → uit), `audit-retention-task.test.ts` (ontbrekende env snoeit nu → pruned; alleen
+expliciete 0 is een no-op), `system-status.test.ts` (ontbrekend = 365/ok; 0-override = onbeperkt/aandacht).
+Geverifieerd: vóór de fix gaven de nieuwe leeg-/NaN-tests `0` (rood), groen erna.
+**Operationele noot (mens):** na deploy snoeit de geplande `audit-retention`-sweep in productie auditregels
+ouder dan 365 dagen — dit is de register-conforme werking. Wil de operator (nog) niet snoeien wegens een
+forensische/juridische bewaarplicht, zet dan expliciet `AUDIT_LOG_RETENTION_DAYS=0`.
+
+**Bevinding A (broken access control/IDOR — álle server actions + niet-document API-routes):** CLEAN. De
+mutatieketen (auth→rol→ownership→Zod→actie→audit) is intact over een brede verse steekproef (admin/gebruikers,
+bewaking, verificaties, facturatie, shift-overnames; franchise/zzpers, diensten; samenwerkingen no-show/
+shift-handoff/review; berichten; push/subscribe; agenda; account/export; alle `/api/tasks/*` +
+billing/mail-intake-webhooks). Anti-existence-oracle (CWE-203) en TOCTOU-veilige `updateMany`-statusguards
+consistent; geen rol-/ownerId-/tenantId-mass-assignment (de twee `freelancerId`-invoeren worden server-side
+tegen de tenant-roster geverifieerd); cron/webhooks timing-safe secret-gated, fail-closed 503. (Informatief,
+géén fix: `admin/bewaking/actions.ts::setStatus` gebruikt read-then-write i.p.v. atomair `updateMany` — ADMIN-
+only, geen cross-user-implicatie, geen security-relevante TOCTOU.)
+
+**Bevinding B (cross-tenant + document/PDF/media + upload/SSRF + injectie + secrets):** CLEAN. `tenantScopeWhere`/
+`assertSameTenant`/`ownsViaTenant` falen gesloten; alle franchise-lijsten/-exports/-dossiers tenant-gescopet;
+document-/PDF-/media-routes checken ownership vóór de stream met identiek 404 (CWE-203) + audit op beide takken;
+storage sniff't magic-bytes, random-UUID-key, path-traversal geblokkeerd, per-doel-allowlist (logo weigert PDF).
+Geen `$queryRaw`-interpolatie; enige `dangerouslySetInnerHTML` is een statisch theme-script; CSV-export
+centraal via `escapeCsvField` (neutraliseert `=+@-`-formule-injectie, CWE-1236); enige egress met dynamische URL
+is Geoapify met hardcoded host (geen SSRF); geen secrets in code/logs/client-bundle.
+
+**Bevinding C (privacy/AVG):** naast de OPGELOSTE retentie-bevinding CLEAN op erasure-schema-coverage-gate
+(88/88), `account-anonymization`/`account-export` (geen secret/2FA/hash-lek, tegenpartij-minimaal), logger-
+redactie (recursief key- + e-mailpatroon, ook op de message), k-anonimiteit (`MARKET_RATE_MIN_SAMPLE=10`, test-
+bewaakt). **Geparkeerd — GEEN autonome codefix (juridische/FG-keuze, MENSENWERK §5):** zie hieronder.
+
+**Geparkeerd (KRITIEK · AVG art. 17 / mogelijk art. 9) — door de TEGENPARTIJ geschreven vrije tekst OVER een
+gewiste betrokkene overleeft `anonymizeUser`.** `Review.comment` wordt alleen geredigeerd bij erasure van de
+**auteur** (`authorId`), niet wanneer de **beoordeelde** (`subjectId`) wordt gewist; idem `NoShowReport.reason`
+(alleen bij de mélder), `Performance.rejectionReason` en `Invoice.rejectionReason` (alleen bij de auteur/
+opdrachtgever). De code doet dit **bewust en gedocumenteerd** (`src/app/(protected)/admin/gebruikers/actions.ts`
+regels ~351-352, ~688-690: "blijft hier bewust [staan] … de auteur wordt gewist via ownRejected…") — de
+afweging is: de tekst kan als geschil-/bewijsgrond nodig zijn, en wordt bij erasure van de schrijver zélf al
+gewist. Of dat onder art. 17 volstaat (redigeren bij subject-erasure vs. een expliciete bewaargrond
+documenteren) is een **juridische/FG-beslissing**, geen unilaterale codewijziging in een autonome routine.
+**Repro:** admin anonimiseert een FREELANCER met een ontvangen review (`Review.subjectId == freelancerId`) of
+een open no-show-melding tégen hem → `User.name`/`email` weg, maar de door de tegenpartij getypte tekst die hem
+beschrijft (mogelijk gedrags-/gezondheidsdetail) blijft verbatim en her-identificeerbaar via de nog-bestaande
+`Collaboration`/job-koppeling. **Aanbevolen (na FG-akkoord):** óf `subjectId`-gescopete redactie van deze vrije-
+tekstvelden bij subject-erasure (symmetrisch met de auteur-kant), óf een gedocumenteerde art. 17(3)(e)-
+bewaargrond met een strikte bewaartermijn. Escalatie naar de mens; niet stil patchen.
+
 ## Ronde 2026-08-31 (basis: `main` @ c67387ab) — MIDDEL OPGELOST: TOTP-code kon binnen zijn ±venster hergebruikt worden (geen replay-preventie) — OWASP A07 / ASVS 2.8.4 / RFC 6238 §5.2
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

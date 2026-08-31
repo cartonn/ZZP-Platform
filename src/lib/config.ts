@@ -195,24 +195,33 @@ export function reviewBlindDays(): number {
 }
 
 // --- Auditlog-retentie (AVG dataminimalisatie, art. 5 lid 1e) ---------------
-// Het verwerkingsregister (RETENTION_SCHEDULE, key "auditlog-beveiligingslogboeken") stelt de
-// bewaartermijn voor auditlog/beveiligingslogboeken op 12 maanden: langer bewaren staat niet in
-// verhouding tot het doel (beveiliging/fraudepreventie). Auditregels bevatten IP-adres + user-agent,
-// dus onbeperkt bewaren is een dataminimalisatie-risico. Deze taak snoeit regels ouder dan het
-// venster. Wissen is ONOMKEERBAAR en staat daarom standaard UIT: alleen actief wanneer de eigenaar
-// AUDIT_LOG_RETENTION_DAYS > 0 zet. 0/leeg = uit (huidig gedrag, geen wissen).
+// Het verwerkingsregister (RETENTION_SCHEDULE, key "auditlog-beveiligingslogboeken") BELOOFT dat
+// auditlog/beveiligingslogboeken 12 maanden bewaard worden: langer bewaren staat niet in verhouding
+// tot het doel (beveiliging/fraudepreventie). Auditregels bevatten IP-adres + user-agent, dus
+// onbeperkt bewaren ís de overtreding (art. 5(1)(e) opslagbeperking) — precies zoals bij de
+// acquisitie-leads hieronder, en anders dan de webhook-ledger (geen PII → opslag-hygiëne, standaard
+// UIT). Daarom staat de sweep standaard AAN op het beloofde venster
+// (AUDIT_LOG_RETENTION_DEFAULT_DAYS) wanneer de env leeg is (fail-safe naar wissen, niet naar
+// bewaren): de betrokkene die het register leest wordt 12 maanden beloofd, dus dat moet de default
+// zijn — niet "onbeperkt tenzij een operator een env-var zet". Wissen is ONOMKEERBAAR, dus een
+// operator kan tunen of via een expliciete 0/negatieve waarde uitzetten (bv. bij een lopende
+// forensische/juridische bewaarplicht); de minimumvloer voorkomt dat een typefout ("3" i.p.v. "365")
+// vrijwel het hele beveiligingslogboek wist.
 export const AUDIT_LOG_RETENTION_MIN_DAYS = 30;
+export const AUDIT_LOG_RETENTION_DEFAULT_DAYS = 365; // 12 maanden — het in het register beloofde venster.
 export function parseAuditRetentionDays(raw: string | undefined): number {
-  if (raw === undefined || raw.trim() === "") return 0;
+  // Leeg/ongeconfigureerd → dwing het beloofde venster af (fail-safe naar wissen, niet naar bewaren).
+  if (raw === undefined || raw.trim() === "") return AUDIT_LOG_RETENTION_DEFAULT_DAYS;
   const n = Number(raw);
-  if (!Number.isFinite(n) || n <= 0) return 0;
+  if (!Number.isFinite(n)) return AUDIT_LOG_RETENTION_DEFAULT_DAYS;
+  if (n <= 0) return 0; // expliciete operator-override: retentie uit (bv. forensische bewaarplicht).
   // Veilige minimumvloer: een te korte termijn (bv. een typefout "3" i.p.v. "365") zou vrijwel het
   // hele beveiligingslogboek wissen. Klem naar boven zodat een misconfiguratie nooit recente
   // security-/fraude-logs weggooit; de bovengrens laten we bewust vrij (langer = operator-keuze).
   return Math.max(AUDIT_LOG_RETENTION_MIN_DAYS, Math.floor(n));
 }
 
-/** Geconfigureerd auditlog-retentievenster in dagen; 0 = uitgeschakeld (geen wissen). */
+/** Geconfigureerd auditlog-retentievenster in dagen; 0 = uitgeschakeld (expliciete override). */
 export function auditLogRetentionDays(): number {
   return parseAuditRetentionDays(process.env.AUDIT_LOG_RETENTION_DAYS);
 }

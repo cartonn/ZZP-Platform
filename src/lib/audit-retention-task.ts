@@ -1,10 +1,11 @@
 // Geplande runner die het auditlogboek snoeit volgens de gedocumenteerde bewaartermijn
 // (RETENTION_SCHEDULE "auditlog-beveiligingslogboeken" = 12 maanden; AVG art. 5 lid 1e
 // dataminimalisatie). Auditregels bevatten IP-adres + user-agent, dus onbeperkt bewaren is een
-// privacyrisico. Staat standaard UIT (AUDIT_LOG_RETENTION_DAYS leeg/0): dan is dit een no-op en
-// verandert er niets. Idempotent: draait de taak nogmaals met dezelfde klok, dan is er niets meer
-// ouder dan de cutoff. Verwijdering is ONOMKEERBAAR — daarom opt-in, met veilige minimumvloer in
-// config (parseAuditRetentionDays).
+// privacyrisico. Staat standaard AAN op het beloofde 12-maandenvenster (env leeg → default): de sweep
+// snoeit regels ouder dan de cutoff. Een expliciete 0/negatieve AUDIT_LOG_RETENTION_DAYS zet 'm uit
+// (bv. bij een lopende forensische/juridische bewaarplicht) → dan is dit een no-op. Idempotent: draait
+// de taak nogmaals met dezelfde klok, dan is er niets meer ouder dan de cutoff. Verwijdering is
+// ONOMKEERBAAR — daarom een veilige minimumvloer in config (parseAuditRetentionDays).
 
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";

@@ -690,7 +690,7 @@ export function buildMetrics(input: MetricsInput): Metric[] {
     },
     {
       name: "zzp_audit_retention_backlog",
-      help: "Aantal auditregels (IP + user-agent) ouder dan het geconfigureerde AUDIT_LOG_RETENTION_DAYS-venster die de audit-retention-cron nog niet snoeide (0 als retentie uit staat — de pilot-default; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → persoonsgegevens bewaard over de wettelijke termijn heen, AVG art. 5(1)(e)).",
+      help: "Aantal auditregels (IP + user-agent) ouder dan het geconfigureerde AUDIT_LOG_RETENTION_DAYS-venster die de audit-retention-cron nog niet snoeide (0 wanneer retentie expliciet uit staat via AUDIT_LOG_RETENTION_DAYS=0; standaard staat het beloofde 12-maandenvenster AAN; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → persoonsgegevens bewaard over de wettelijke termijn heen, AVG art. 5(1)(e)).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.auditRetentionBacklog)),
     },

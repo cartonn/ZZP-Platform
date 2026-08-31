@@ -67,11 +67,23 @@ afterEach(() => {
 });
 
 describe("runAuditRetentionTask", () => {
-  it("is een no-op als retentie uit staat (geen env)", async () => {
+  it("is een no-op alleen bij een EXPLICIETE 0-override", async () => {
+    process.env.AUDIT_LOG_RETENTION_DAYS = "0";
     seed(3, 1000);
     const res = await runAuditRetentionTask({ now: NOW });
     expect(res).toEqual({ enabled: false, pruned: 0, retentionDays: 0, cutoff: null });
     expect(store.auditLogs).toHaveLength(3);
+  });
+
+  it("dwingt bij ontbrekende env fail-safe het beloofde 12-maandenvenster af (regressie art. 5(1)(e))", async () => {
+    // Vóór de fix was een lege env een no-op (onbeperkt bewaren); nu snoeit de default (365 dagen)
+    // regels die ouder zijn dan de gedocumenteerde bewaartermijn.
+    seed(3, 1000); // ~2.7 jaar oud → ouder dan 365 dagen → weg
+    const res = await runAuditRetentionTask({ now: NOW });
+    expect(res.enabled).toBe(true);
+    expect(res.retentionDays).toBe(365);
+    expect(res.pruned).toBe(3);
+    expect(store.auditLogs.filter((r) => r.id.startsWith("old"))).toHaveLength(0);
   });
 
   it("snoeit regels ouder dan het venster en laat recente staan", async () => {

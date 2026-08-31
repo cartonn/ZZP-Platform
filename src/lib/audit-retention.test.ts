@@ -2,22 +2,33 @@
 
 import { describe, it, expect } from "vitest";
 import { auditRetentionCutoff } from "@/lib/audit-retention";
-import { parseAuditRetentionDays, AUDIT_LOG_RETENTION_MIN_DAYS } from "@/lib/config";
+import {
+  parseAuditRetentionDays,
+  AUDIT_LOG_RETENTION_MIN_DAYS,
+  AUDIT_LOG_RETENTION_DEFAULT_DAYS,
+} from "@/lib/config";
 
 const NOW = new Date("2026-07-14T12:00:00.000Z");
 
 describe("parseAuditRetentionDays", () => {
-  it("is standaard UIT (leeg/undefined = 0)", () => {
-    expect(parseAuditRetentionDays(undefined)).toBe(0);
-    expect(parseAuditRetentionDays("")).toBe(0);
-    expect(parseAuditRetentionDays("   ")).toBe(0);
+  it("dwingt bij leeg/undefined fail-safe het beloofde 12-maandenvenster af (art. 5(1)(e))", () => {
+    // Regressie: vóór de fix gaf een lege env 0 (onbeperkt bewaren) terug — het register belooft
+    // 12 maanden, dus de default moet die bewaartermijn afdwingen, niet onbeperkt bewaren.
+    expect(parseAuditRetentionDays(undefined)).toBe(AUDIT_LOG_RETENTION_DEFAULT_DAYS);
+    expect(parseAuditRetentionDays("")).toBe(AUDIT_LOG_RETENTION_DEFAULT_DAYS);
+    expect(parseAuditRetentionDays("   ")).toBe(AUDIT_LOG_RETENTION_DEFAULT_DAYS);
+    expect(AUDIT_LOG_RETENTION_DEFAULT_DAYS).toBe(365);
   });
 
-  it("behandelt 0/negatief/onzin als uit", () => {
+  it("zet retentie alleen uit bij een EXPLICIETE 0/negatieve operator-override", () => {
     expect(parseAuditRetentionDays("0")).toBe(0);
     expect(parseAuditRetentionDays("-5")).toBe(0);
-    expect(parseAuditRetentionDays("abc")).toBe(0);
-    expect(parseAuditRetentionDays("NaN")).toBe(0);
+  });
+
+  it("valt bij onzin (niet-numeriek) terug op het beloofde venster i.p.v. stil uit te zetten", () => {
+    // Een corrupte/typefout-waarde mag de bewaarplicht niet stil uitschakelen → fail-safe naar wissen.
+    expect(parseAuditRetentionDays("abc")).toBe(AUDIT_LOG_RETENTION_DEFAULT_DAYS);
+    expect(parseAuditRetentionDays("NaN")).toBe(AUDIT_LOG_RETENTION_DEFAULT_DAYS);
   });
 
   it("neemt een geldig venster over en kapt op hele dagen af", () => {
