@@ -13,6 +13,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { FILING_STATUS_LABEL, filingStatusVariant } from "@/lib/tax-filing/labels";
 import { FILING_DISCLAIMER, LOGIUS_REVOKE_URL, PARTNER_NAME } from "@/lib/tax-filing/config";
 import { type TaxFilingStatus, type TaxFilingKind } from "@/lib/enums";
+import { buildFilingSchedule } from "@/lib/tax-filing/filing-schedule";
+import { FilingScheduleCard } from "@/components/tax/filing-schedule-card";
 import { StartFilingForm } from "./start-form";
 import { approveAndSubmit, revokeFiling } from "./actions";
 
@@ -65,6 +67,21 @@ export default async function AangiftePage() {
         </Card>
       ) : (
         <>
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold">Aangifte-agenda</h2>
+            <FilingScheduleCard
+              schedule={buildFilingSchedule(
+                requests.map((r) => ({
+                  kind: r.kind as TaxFilingKind,
+                  taxYear: r.taxYear,
+                  quarter: r.quarter,
+                  status: r.status as TaxFilingStatus,
+                })),
+                new Date(),
+              )}
+            />
+          </section>
+
           {requests.length > 0 && (
             <section className="space-y-2">
               <h2 className="text-sm font-semibold">Lopende aangiftes</h2>
