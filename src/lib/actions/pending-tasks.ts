@@ -74,6 +74,7 @@ import {
   availabilityRefreshTask,
   draftJobsTask,
   staleDraftJobTask,
+  idleCapacityTask,
   jobNeedsAttentionTask,
   jobStaffingOverdueTask,
   franchiseCredentialExpiryTask,
@@ -97,6 +98,7 @@ import {
   hoursCriterionTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
+import { getIdleCapacityForProfile } from "@/lib/data/freelancer-idle-capacity";
 import { getReceivedInvitations } from "@/lib/data/received-invitations";
 import { invitationAgeDays } from "@/lib/received-invitations";
 import { daysSince } from "@/lib/concept-invoice-reminders";
@@ -538,6 +540,13 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       );
       if (freshness.status === "expired") tasks.push(availabilityRefreshTask());
     }
+
+    // Onbenutte beschikbaarheid als actie: de open dagen die de ZZP'er als inzetbaar deelde maar
+    // waar (nog) geen samenwerking op loopt. Zelfde bron + poort (findIdleCapacity → hasAny) als de
+    // /beschikbaarheid-kaart "Onbenutte beschikbaarheid", maar als actiegerichte nudge om ze te
+    // vullen via de marktplaats — geen drift met die kaart.
+    const idle = await getIdleCapacityForProfile(profile.id, now);
+    if (idle.hasAny) tasks.push(idleCapacityTask(idle.totalOpenDays));
   }
 
   // Overdue-facturen die hier een eigen, specifieke betaal-taak krijgen, worden niet nóg eens

@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-31 — routine: open-capaciteit als next-action op /acties (ZZP'er)
+
+**Wat:** de "onbenutte beschikbaarheid" (idle-capacity: open dagen die de ZZP'er als inzetbaar deelde
+maar waar nog geen samenwerking op loopt, over de komende ~6 weken) stond alleen als passieve kaart op
+`/beschikbaarheid` — `findIdleCapacity` (`src/lib/availability-gaps.ts`) was nergens in de
+next-action-engine geland. Een ZZP'er die zijn actielijst (`/acties`) overziet zag zijn open agenda
+daar niet; open dagen = gemiste omzet. Nu een actiegerichte next-action "N open dagen in je agenda —
+bekijk de marktplaats" die deep-linkt naar `/opdrachten`. Zelfde bron + gate (`findIdleCapacity` →
+`hasAny`) als de kaart → geen drift; server-side waarheid, read-only, geen schema-/mutatie-/authz-
+oppervlak, geen dode knop.
+
+**Aanpak:** nieuwe loader `getIdleCapacityForProfile(profileId, now)` +
+`getFreelancerIdleCapacity(userId, now)` (`src/lib/data/freelancer-idle-capacity.ts`) spiegelt exact hoe
+`/beschikbaarheid` de invoer bouwt (alle vensters + PROPOSED/ACTIVE-samenwerkingen, standaard-horizon).
+De hot `freelancerTasks`-aanroep gebruikt de profiel-id-variant (profiel is daar al geladen → geen extra
+query, en de bestaande partial-prisma-mocks blijven intact). Nieuwe task-builder `idleCapacityTask`
+(`info`-toon, `resolver:"link"`, `href:"/opdrachten"`) + prioriteit `P.openCapacity = 42` (net boven de
+passieve `availabilityStale` 40, onder de concrete attentie-taken zoals `jobNeedsAttention` 44;
+rol-geïsoleerd voor de ZZP'er).
+
+**Bestanden:** `src/lib/data/freelancer-idle-capacity.ts` (nieuw) + `.test.ts` (nieuw, 4 tests),
+`src/lib/actions/tasks.ts` (union-lid + builder), `src/lib/next-actions.ts` (`P.openCapacity`),
+`src/lib/actions/tasks.test.ts` (+2 tests), `src/lib/actions/pending-tasks.ts` (wiring in
+`freelancerTasks`). **Checks:** typecheck ✓ · lint ✓ · vitest (volledige suite) ✓ · build ✓ · prettier ✓
+· CI-poort → PR #1307.
+
 ## 2026-08-31 — routine: start-urgentie op de eigen-reacties-lijst (ZZP'er)
 
 **Wat:** op `/reacties` (de eigen-reacties-lijst van de ZZP'er) toonde een nog-openstaande reactie het

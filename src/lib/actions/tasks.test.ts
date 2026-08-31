@@ -22,6 +22,7 @@ import {
   proposeCollaborationTask,
   staleApplicationsTask,
   availabilityRefreshTask,
+  idleCapacityTask,
   draftJobsTask,
   staleDraftJobTask,
   jobStaffingOverdueTask,
@@ -562,6 +563,28 @@ describe("task builders", () => {
     // Findability-nudge: lichter dan een nieuwe reactie, zwaarder dan een cosmetisch compleetheidsgat.
     expect(task.priority).toBeLessThan(P.applications);
     expect(task.priority).toBeGreaterThan(P.completeness);
+  });
+
+  it("onbenutte capaciteit is een rustige link-taak naar de marktplaats", () => {
+    const task = idleCapacityTask(3);
+    expect(task).toMatchObject({
+      kind: "idle-capacity",
+      id: "idle-capacity",
+      resolver: "link",
+      href: "/opdrachten",
+      tone: "info",
+      priority: P.openCapacity,
+    });
+    expect(task.title).toContain("3 open dagen");
+    // Zachte inkomstenkans: boven de verlopen-beschikbaarheid-nudge, onder een koud lopende opdracht.
+    expect(P.openCapacity).toBeGreaterThan(P.availabilityStale);
+    expect(P.openCapacity).toBeLessThan(P.jobNeedsAttention);
+  });
+
+  it("onbenutte capaciteit: enkelvoud netjes", () => {
+    const task = idleCapacityTask(1);
+    expect(task.title).toContain("1 open dag");
+    expect(task.title).not.toContain("open dagen");
   });
 
   it("bemiddelaar: roster-certificaat-verloop is een per-ZZP'er link-taak naar het ZZP'er-detail", () => {
