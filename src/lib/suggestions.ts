@@ -23,6 +23,7 @@ import {
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { discoverableFreelancerWhere } from "@/lib/freelancer-visibility";
+import { lockedInJobIds } from "@/lib/data/job-locked-in";
 
 export interface FreelancerSuggestion {
   freelancerId: string;
@@ -270,13 +271,23 @@ export async function suggestedFreelancersForClient(
   });
   if (jobs.length === 0) return [];
 
+  // Reeds-vergeven opdrachten uitsluiten: een opdracht met een vastgelegde kandidaat (ACCEPTED-reactie
+  // in de propose-limbo) óf een niet-geannuleerde samenwerking vraagt niet langer om méér kandidaten.
+  // Zonder deze poort suggereert de opdrachtgever-workspace ZZP'ers (en biedt "Nodig alle uit" aan) voor
+  // een rol die al bezet is — terwijl dezelfde schermen de onbezet-/koud-signalen wél onderdrukken
+  // (`getClientColdJobs`). Eén canonieke bron (`lockedInJobIds`), zodat de poort niet kan driften.
+  const lockedIn = await lockedInJobIds(jobs.map((j) => j.id));
+  const openJobs = jobs.filter((j) => j.status === "PUBLISHED" && !lockedIn.has(j.id));
+  if (openJobs.length === 0) return [];
+
   // De profiel-pool is per opdracht identiek gescopet: `discoverableFreelancerWhere` heeft geen
   // opdracht-specifieke velden en `tenantId` is voor alle opdrachten van dit bedrijf dezelfde (Job.tenantId
   // is gedenormaliseerd uit Company.tenantId). We halen de pool daarom éénmaal per unieke tenantId op —
   // in de praktijk exact één query — i.p.v. dezelfde zware findMany tot 10× te herhalen. Mocht een
   // opdracht toch een afwijkende tenantId hebben (data-drift), dan krijgt die zijn eigen, correct
-  // gescopete pool, zodat de uitkomst identiek blijft en cross-tenant PII nooit lekt.
-  const uniqueTenantIds = Array.from(new Set(jobs.map((j) => j.tenantId)));
+  // gescopete pool, zodat de uitkomst identiek blijft en cross-tenant PII nooit lekt. Alleen tenants
+  // van nog-onvergeven opdrachten scannen — een tenant waarvan élke opdracht al bezet is, kost niets.
+  const uniqueTenantIds = Array.from(new Set(openJobs.map((j) => j.tenantId)));
   const poolByTenant = new Map<string | null, ScorableProfile[]>();
   await Promise.all(
     uniqueTenantIds.map(async (tenantId) => {
@@ -292,8 +303,7 @@ export async function suggestedFreelancersForClient(
 
   const now = Date.now();
   const all: ClientFreelancerSuggestion[] = [];
-  for (const job of jobs) {
-    if (job.status !== "PUBLISHED") continue;
+  for (const job of openJobs) {
     const pool = poolByTenant.get(job.tenantId) ?? [];
     const applied = new Set(job.applications.map((a) => a.freelancerId));
     const suggestions = scoreProfilesForJob(job, pool, applied, limit, now);
@@ -320,6 +330,14 @@ export async function suggestedFreelancersForJob(
     },
   });
   if (!job || job.status !== "PUBLISHED") return [];
+
+  // Reeds-vergeven opdracht: geen suggesties (en dus geen "Nodig alle uit"-uitnodigingen — die actie
+  // gebruikt exact deze lijst als gezaghebbende kandidatenbron). Een opdracht blijft PUBLISHED zolang de
+  // hire loopt (ACCEPTED-reactie in de propose-limbo óf een PROPOSED/ACTIVE-samenwerking), dus de
+  // status-poort alleen laat een vergeven rol nog kandidaten werven — precies de asymmetrie die de
+  // koud-/onbezet-signalen elders al dichten. Eén canonieke bron (`lockedInJobIds`) → geen drift. We
+  // poorten vóór de profiel-scan, zodat een vergeven opdracht die zware findMany niet eens draait.
+  if ((await lockedInJobIds([job.id])).has(job.id)) return [];
 
   const applied = new Set(job.applications.map((a) => a.freelancerId));
   // Gesloten per tenant — óók bij een opengestelde (overflow) dienst. Overflow opent een dienst voor

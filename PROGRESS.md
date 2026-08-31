@@ -3,6 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-31 — opdrachtgever: geen suggesties/uitnodigingen voor een reeds-vergeven opdracht
+
+**Wat:** de opdrachtgever-workspace stelde ZZP'ers voor ("Voorgestelde/Geschikte ZZP'ers" op dashboard,
+`/opdrachten/[id]` en de `CANCELLED`-samenwerking-herstart) — en bood "Nodig alle uit" aan — óók voor een
+opdracht die feitelijk al vergeven is: er ligt een `ACCEPTED`-reactie (propose-limbo) óf een niet-geannuleerde
+samenwerking. Een opdracht blijft `PUBLISHED` zolang de hire loopt, dus de status-poort alleen liet een bezette
+rol nog kandidaten werven. Direct tegenstrijdig met dezelfde schermen, die de onbezet-/koud-signalen (`getClientColdJobs`,
+`getClientOverdueJobs`) juist onderdrukken zodra de rol bezet is. Gevolg: valse verwachtingen bij ZZP'ers (een
+uitnodiging voor een rol die al weg is) en ruis voor de opdrachtgever. Server-side-waarheid-drift (CLAUDE.md regel 1).
+
+**Fix:** de canonieke `lockedInJobIds`-poort (dezelfde bron als de onbezet-signalen — géén nieuw predikaat, geen
+drift) toegevoegd aan béide suggestie-bronnen in `src/lib/suggestions.ts`:
+
+- `suggestedFreelancersForJob(jobId)` → `[]` zodra de opdracht vergeven is; de poort staat vóór de zware profiel-
+  scan, dus een bezette opdracht draait die niet eens. Dit poort meteen óók de `inviteSuggestedFreelancersToJob`
+  ("Nodig alle uit")-mutatie, die exact deze lijst als gezaghebbende kandidatenbron gebruikt — de uitnodiging is
+  daarmee server-side geweigerd, niet enkel UI-verborgen.
+- `suggestedFreelancersForClient(userId)` → vergeven opdrachten uit de aggregatie gefilterd (`openJobs`); alleen
+  tenants van nog-onvergeven opdrachten worden gescand (efficiënter: een bedrijf waarvan élke opdracht bezet is
+  kost geen profiel-query meer).
+
+**Bestanden:**
+
+- `src/lib/suggestions.ts` — import + lockedIn-poort in beide functies; `openJobs`-filter vóór de tenant-scan.
+- `src/lib/suggestions-lockedin.test.ts` — nieuw; 5 prisma-gemockte poort-tests (vergeven → geen suggesties + geen
+  profiel-scan; onvergeven → scant wel; DRAFT-poort blijft; client-aggregatie sluit vergeven opdracht uit).
+
+**Checks:** typecheck ✓ · lint ✓ · vitest (suggestions + lockedIn + job-locked-in, alle groen; volledige suite 7561
+tests, de enige rode was de niet-geïnstalleerde `qrcode-generator`-dep — env-gap, niet deze diff; met dep groen) ·
+prettier ✓ · build → PR #1311 → CI-poort.
+
 ## 2026-08-31 — ZZP'er: vindbaarheid-kaart spiegelt afwezigheid (geen misleidend groen vinkje tijdens vakantie)
 
 **Wat:** de vindbaarheid-kaart op `/profiel/bewerken` toonde "Beschikbaarheid gedeeld ✓ / je bent goed
