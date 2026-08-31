@@ -1,5 +1,72 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-31 (run 103) · **main-commit basis:** `ba33aa18`
+> **Uitkomst:** **2 defecten gevonden én gefixt** — één robuustheidsgat (DOEL 2, geld-invoer → 500) en
+> één zichzelf-tegensprekend scherm (DOEL 1b, cascade-stepper vs status-line — dezelfde bugklasse als
+> run 99–102, nu voor de opdrachtgever-viewer). 3 parallelle adversariële Opus-audits op niet-
+> overlappende oppervlakken (authz/IDOR/tenant op de laatste ~25 commits · next-action-engine ·
+> financiële invoer/cascade-geld). De authz/IDOR/tenant-audit vond **0 nieuwe bereikbare gaten**:
+> `withdrawInvoice` (WITHDRAWN, terminale state die "open geld" ruimt) draagt de volledige keten
+> (issuer-only + anti-oracle 404 + `WITHDRAWN` alleen vanaf DRAFT/SUBMITTED/REJECTED, nooit
+> APPROVED/PAID); franchiser-opdrachtgevers-overzicht `tenantScopeWhere`-gescoped; manueel
+> complete/cancel her-verifieert de open-geld/onbeoordeelde-prestatie-guard binnen de transactie
+> (TOCTOU dicht); 2FA/TOTP-replay atomisch; middleware-redirect + `requireRole` defense-in-depth.
+>
+> - **OPGELOST — must-fix (DOEL 2, CLAUDE.md regel 1 — server-side waarheid, "onzin-bedrag → nette
+>   weigering, nooit 500"): een geldige-per-veld maar samen-te-grote uitgave liet de grootboek-boeking
+>   de `int4`-kolom overschrijden → Postgres-overflow (500) i.p.v. een Zod-veldfout.** `expenseSchema`
+>   (`src/lib/expense.ts`) begrensde `netCents` en `vatCents` elk op `EXPENSE_MAX_CENTS` (2.000.000.000),
+>   maar nooit hun **som**. `planExpensePostings` boekt `net + vat` als `BETAALD`-credit naar
+>   `AdministrationEntry.creditCents` (`Int`/int4, max 2.147.483.647). Netto 2.000.000.000 + btw
+>   150.000.000 = 2.150.000.000 > int4-max → in productie (Postgres) een "value out of range for type
+>   integer" **binnen** de un-caught `$transaction` van `createExpense` → generieke 500 i.p.v. de
+>   `{ error }`-state die de action belooft. De factuur-som wordt wél zo begrensd
+>   (`invoiceCentsWithinInt4`, `src/lib/invoices.ts`); de uitgave-som niet. **Repro (FREELANCER, geen
+>   DB-manipulatie):** `/uitgaven` → netto `€ 20.000.000` + btw `€ 1.500.000` → beide velden passeren het
+>   veld-plafond, `net + vat > 0` ✓ → schema laat door → `$transaction` klapt op de int4-overflow.
+>   (Lokaal op SQLite — 64-bit INTEGER — manifesteert het niet; het treft alléén Postgres-productie,
+>   maar de fix hoort server-side in het schema.) **Fix:** nieuwe `EXPENSE_TOTAL_MAX_CENTS = int4-max`
+>   - een `.refine` op `netCents + vatCents ≤ EXPENSE_TOTAL_MAX_CENTS` in het schema (de bron van
+>     waarheid — vangt ook bulk-import/API-call-sites af), spiegelt `invoiceCentsWithinInt4`. +2
+>     regressietests (`expense.test.ts`: som-boven-int4 → weiger op `netCents`; som precies op int4-max
+>     met elk veld onder het veld-plafond → accepteer). Volledige gate groen.
+> - **OPGELOST — should-fix (DOEL 1b, CLAUDE.md regel 1 — server-side waarheid / "geen zichzelf-
+>   tegensprekende signalen"): de cascade-stepper (`buildChainSteps`) sprak op de opdrachtgever-viewer
+>   de status-line tegen bij een openstaande vorige-cyclus-factuur.** De run-102-fix
+>   (`priorCycleInvoiceOpen`, `src/lib/cascade/chain-steps.ts`) hield een openstaande vorige-cyclus-
+>   factuur zichtbaar in de stepper — maar **viewer-agnostisch**, terwijl de gespiegelde rescue
+>   `priorCycleFreelancerPhase` in `stage.ts` `isFreelancer`-gated is. Voor de **opdrachtgever**-viewer
+>   nult de status-line die factuur en toont de verse-cyclus-prestatiefase ("keur de ingediende uren"),
+>   maar de stepper hield 'm actief → op hetzelfde scherm zag de opdrachtgever "keur de uren" (status-
+>   line) én "Factuur goedgekeurd — wachten op betaling" (stepper). **Repro (CLIENT, geen DB-manipulatie):**
+>   ACTIVE-samenwerking, contract getekend, cyclus-1-prestatie APPROVED + factuur door opdrachtgever
+>   APPROVED (nog niet betaald door de ZZP'er) → ZZP'er dient verse cyclus-2-uren in (nieuwer dan de
+>   factuur) → opdrachtgever opent `/samenwerkingen/[id]` → status-line "keur de uren" vs stepper
+>   "Factuur goedgekeurd / wachten op betaling". **Fix:** `buildChainSteps` krijgt een `viewer`-param;
+>   `priorCycleInvoiceOpen` vuurt alleen voor de FREELANCER-viewer (spiegelt de `isFreelancer`-gate op
+>   `priorCycleFreelancerPhase`); default "FREELANCER" bewaart het bestaande gedrag. De pagina geeft
+>   `isClient ? "CLIENT" : "FREELANCER"` door — exact de expressie waarmee de status-line-viewer wordt
+>   bepaald, zodat beide oppervlakken gegarandeerd samenlopen. +3 regressietests (`chain-steps.test.ts`:
+>   CLIENT nult de vorige factuur, FREELANCER houdt 'm, default==FREELANCER). Volledige gate groen
+>   (typecheck 0 fouten / lint / 7529 unit-tests / build / prettier).
+>
+> **Geparkeerd (gevonden, lagere prioriteit — repro + prioriteit):**
+>
+> - **P3 (next-action, opdrachtgever):** `applicationsReviewTask` / `firstLookOverdueTask`
+>   (`src/lib/actions/pending-tasks.ts:909-913, 942`) tellen NIEUWE-reactie-aantallen over álle
+>   opdrachten van een opdrachtgever en sluiten géén reeds-vergeven (locked-in) opdrachten uit, anders
+>   dan de koud/overdue-signalen (`client-cold-jobs.ts`/`client-overdue-jobs.ts`) die dat wél doen. Een
+>   opdrachtgever die al een kandidaat accepteerde krijgt nog steeds "beoordeel N nieuwe reacties" incl.
+>   reacties op die reeds-bezette rol. Zwakker: aggregatie-nudge, geen per-opdracht-contradictie; en een
+>   rol is in het telmodel niet formeel single-hire. Repro: accepteer kandidaat A op een opdracht met
+>   nieuwe reacties → `/acties` toont nog "N nieuwe reacties". Overweeg `lockedInJobIds`-uitsluiting.
+> - **P3 (matching, ZZP'er):** flexpool-paneel (`src/components/favorites/flexpool-panel.tsx:251,262-279`)
+>   kan een favoriet die "Niet beschikbaar" is tegelijk "Sterke match — nodig uit" tonen als
+>   `scoreJobForFreelancer ≥ 70`. Mild tegenstrijdig, maar beschikbaarheid is een zachte matching-input
+>   by design — mogelijk bewust. Repro: favoriet met beschikbaarheid=onbeschikbaar + hoge match-score.
+>
+> ---
+>
 > **Datum:** 2026-08-30 (run 102) · **main-commit basis:** `14643b2c`
 > **Uitkomst:** **1 defect gevonden én gefixt** (DOEL 1b — zelfde bugklasse als run 99–101: een
 > zichzelf tegensprekend scherm). 4 rollen live doorgeklikt (Playwright/Chromium, qa.db-seed) +

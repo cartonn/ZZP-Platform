@@ -516,7 +516,13 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       {/* Cascade-keten: visuele voortgang van contract t/m betaling */}
       {col.status !== "CANCELLED" &&
         (() => {
-          const steps = buildChainSteps({ ...col, performanceNewerThanInvoice });
+          const steps = buildChainSteps({
+            ...col,
+            performanceNewerThanInvoice,
+            // Exact dezelfde viewer-expressie als de status-line (`cascadeStage`) hierboven, zodat de
+            // stepper de status-line nooit tegenspreekt op een multi-cyclus-samenwerking.
+            viewer: isClient ? "CLIENT" : "FREELANCER",
+          });
           return (
             <Card>
               <CardContent className="py-4">
