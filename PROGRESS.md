@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-31 — routine: aangifte-deadline-agenda op /ontzorgd/aangifte (ZZP'er)
+
+**Wat:** het aangiftescherm (`/ontzorgd/aangifte`) toonde wél de lopende aangiftes, maar niet WANNEER de
+eerstvolgende BTW- én IB-aangifte moet — en, cruciaal, niets in het systeem verbond een naderende deadline met de
+vraag "heb ik voor dát tijdvak al een aangifte gestart?". De deadline-libs (`vat-deadline.ts`/`income-tax-deadline.ts`)
+voedden al de agenda-feed en `/administratie`, maar niet het scherm waar de ZZP'er de aangifte daadwerkelijk start.
+Gevolg: een verzuimboete-risico dat het platform kon signaleren maar niet deed op het juiste beslismoment.
+
+**Aanpak:** nieuwe pure `buildFilingSchedule(requests, now)` (`src/lib/tax-filing/filing-schedule.ts`) die de canonieke
+deadline-logica hergebruikt (`previousQuarter`+`vatFilingDeadline` voor BTW, `summarizeIncomeTaxDeadline` voor IB — geen
+eigen regels, geen drift) en per tijdvak matcht tegen de `TaxFilingRequest`-historie: `existingStatus` (nieuwste,
+niet-`INGETROKKEN` aangifte voor dit tijdvak) + `needsStart` (deadline nabij/verstreken én niets loopt). BTW = het net
+afgesloten kwartaal (kan `overdue`); IB = forward-looking (nooit verstreken). De pagina rekent de agenda uit de reeds
+geladen `requests` (geen extra query) en toont hem als kaart bovenaan de entitled-view. Read-only, geen schema/mutatie/
+authz-oppervlak, geen dode knop, "AI" nergens. Indicatief; geen fiscaal advies.
+
+**Bestanden:** `src/lib/tax-filing/filing-schedule.ts` (nieuw, puur), `src/lib/tax-filing/filing-schedule.test.ts`
+(nieuw, +13), `src/components/tax/filing-schedule-card.tsx` (nieuw, presentationeel),
+`src/app/(protected)/ontzorgd/aangifte/page.tsx` (kaart gewired). Gate: typecheck ✓, lint ✓, test (722 files / 7559)
+✓, build ✓, prettier ✓ · CI-poort → PR #1310.
+
 ## 2026-08-31 — prod: MailIntake-retentie-backlog stille-faal-gauge + alert (AVG art. 5(1)(e))
 
 **Wat:** `MailIntake` was het **enige** PII-dragende model met een retentie-cron

@@ -311,6 +311,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 >   waarheid, geen schema-/mutatie-/authz-oppervlak. +12 tests. Gate: typecheck ✓, lint ✓, test (7233) ✓,
 >   build ✓, prettier ✓ · CI-poort → PR.
 
+> Gedaan (niet opnieuw): **ZZP'er — aangifte-deadline-agenda op /ontzorgd/aangifte (2026-08-31, PR #1310)** —
+> het aangiftescherm toonde de lopende aangiftes maar niet WANNEER de eerstvolgende BTW-/IB-aangifte moet, en niets
+> verbond een naderende deadline met "heb ik voor dat tijdvak al gestart?". Nieuwe pure `buildFilingSchedule(requests, now)`
+> (`src/lib/tax-filing/filing-schedule.ts`) hergebruikt de canonieke deadline-libs (`previousQuarter`+`vatFilingDeadline`,
+> `summarizeIncomeTaxDeadline` — geen eigen regels) en matcht per tijdvak tegen de `TaxFilingRequest`-historie:
+> `existingStatus` (nieuwste, niet-`INGETROKKEN`) + `needsStart` (deadline nabij/verstreken én niets loopt). BTW = net
+> afgesloten kwartaal (kan overdue); IB = forward-looking. Kaart `FilingScheduleCard` bovenaan de entitled-view; de pagina
+> rekent uit de reeds geladen `requests` (geen extra query). Read-only, geen schema/mutatie/authz, geen dode knop. +13 tests.
+> Gate: typecheck ✓, lint ✓, test (7559) ✓, build ✓, prettier ✓ · CI-poort → PR.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — web-push (VAPID) connectiviteits-/config-zelftest + go-live-sweep (2026-08-30, PR #1291)** —
 > het push-kanaal had een aflever-heartbeat + `ZzpPushDeliveryFailing`-alert (storing achteraf), maar als enige
 > gebruikersgerichte kanaal geen connectiviteits-/config-zelftest vóór go-live en stond niet in de sweep. De boot-validatie
