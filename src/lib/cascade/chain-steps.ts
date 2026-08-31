@@ -30,6 +30,18 @@ export function buildChainSteps(col: {
    * Berekend via `isPerformanceNewerThanInvoice` in stage.ts — dezelfde bron als de status-line.
    */
   performanceNewerThanInvoice?: boolean;
+  /**
+   * Vanuit wiens perspectief wordt de stepper gerenderd. De openstaande-vorige-cyclus-factuur-
+   * uitzondering (`priorCycleInvoiceOpen`) spiegelt de rescue `priorCycleFreelancerPhase` in
+   * `stage.ts`, die ALLEEN voor de ZZP'er (FREELANCER) vuurt. De status-line nult voor de
+   * opdrachtgever (CLIENT) de vorige-cyclus-factuur en gaat naar de verse-cyclus-prestatiefase; de
+   * stepper moet dat exact volgen, anders spreekt de stepper de status-line op hetzelfde scherm tegen
+   * (de opdrachtgever zag "keur de uren" in de status-line maar "Factuur goedgekeurd — wachten op
+   * betaling" in de stepper). Default "FREELANCER" (bewaart het single-viewer-gedrag van bestaande
+   * call sites/tests). De pagina geeft `isClient ? "CLIENT" : "FREELANCER"` door — exact de expressie
+   * waarmee de status-line-viewer wordt bepaald, zodat beide oppervlakken gegarandeerd samenlopen.
+   */
+  viewer?: "FREELANCER" | "CLIENT";
 }): ChainStep[] {
   const steps: ChainStep[] = [];
 
@@ -77,7 +89,12 @@ export function buildChainSteps(col: {
   // (PAID/PROCESSED/CREDITED/WITHDRAWN) of op-de-opdrachtgever-wachtende (SUBMITTED) vorige factuur
   // blijft wél genuld — exact de set die `priorCycleFreelancerPhase` als `null` teruggeeft.
   const latestInvoice = col.invoices[0]?.lifecycleStatus ?? null;
+  // Alleen de ZZP'er-viewer houdt de openstaande vorige-cyclus-factuur zichtbaar (spiegelt de
+  // `isFreelancer`-gate op `priorCycleFreelancerPhase` in stage.ts). Voor de opdrachtgever-viewer
+  // nult de status-line die factuur en toont de verse-cyclus-prestatiefase; de stepper volgt dat.
+  const isFreelancerViewer = (col.viewer ?? "FREELANCER") === "FREELANCER";
   const priorCycleInvoiceOpen =
+    isFreelancerViewer &&
     col.performanceNewerThanInvoice === true &&
     (latestInvoice === "DRAFT" ||
       latestInvoice === "REJECTED" ||

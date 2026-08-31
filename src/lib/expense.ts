@@ -48,6 +48,17 @@ export const EXPENSE_DESCRIPTION_MAX = 200;
 /** Plafond per bedrag (int4-veilig, ruim boven elke realistische enkele kostenpost). */
 export const EXPENSE_MAX_CENTS = 2_000_000_000; // ≈ € 20 miljoen
 
+/**
+ * Plafond op de SOM netto + btw. De grootboekregel `BETAALD` boekt `net + vat` (zie
+ * `planExpensePostings`) naar een `int4`-kolom (`AdministrationEntry.creditCents`, max
+ * 2_147_483_647). Elk veld apart blijft onder `EXPENSE_MAX_CENTS`, maar hun som kan `int4`
+ * overschrijden (bv. netto 20M + btw 1,5M → 2.150.000.000 > int4-max) → een Postgres
+ * "value out of range for type integer" in de transactie i.p.v. een nette Zod-weigering. Deze
+ * grens vangt dat af vóór de DB — spiegelt `invoiceCentsWithinInt4` (`src/lib/invoices.ts`) dat
+ * de factuur-som net zo op de int4-kolombreedte begrenst (CLAUDE.md regel 1: server-side waarheid,
+ * geen 500 op absurde invoer). */
+export const EXPENSE_TOTAL_MAX_CENTS = 2_147_483_647; // int4-max
+
 const cents = z
   .number({ invalid_type_error: "Vul een geldig bedrag in." })
   .finite("Vul een geldig bedrag in.")
@@ -81,6 +92,14 @@ export const expenseSchema = z
   })
   .refine((v) => v.netCents + v.vatCents > 0, {
     message: "Vul een bedrag groter dan € 0 in.",
+    path: ["netCents"],
+  })
+  // Som netto + btw moet binnen de int4-kolombreedte blijven: `planExpensePostings` boekt dit totaal
+  // als `BETAALD`-credit naar een int4-grootboekkolom. Zonder deze check passeert een geldig-per-veld
+  // maar samen-te-groot bedrag het schema en klapt de $transaction op een DB-overflow (500) i.p.v.
+  // een nette veldfout — precies zoals de factuur-som via `invoiceCentsWithinInt4` wordt begrensd.
+  .refine((v) => v.netCents + v.vatCents <= EXPENSE_TOTAL_MAX_CENTS, {
+    message: "Bedrag is te hoog.",
     path: ["netCents"],
   })
   // Toekomstige uitgaven horen niet in de administratie: een kostenpost is pas een feit als hij is

@@ -8,6 +8,7 @@ import {
   EXPENSE_CATEGORIES,
   EXPENSE_CATEGORY_LABEL,
   EXPENSE_MAX_CENTS,
+  EXPENSE_TOTAL_MAX_CENTS,
   EXPENSE_DESCRIPTION_MAX,
   EXPENSE_VAT_RATES,
   vatCentsForRate,
@@ -87,6 +88,30 @@ describe("expenseSchema", () => {
     expect(expenseSchema.safeParse({ ...base, netCents: EXPENSE_MAX_CENTS + 1 }).success).toBe(
       false,
     );
+  });
+
+  it("weigert een som netto + btw boven int4 (BETAALD-boeking zou de int4-kolom overschrijden)", () => {
+    // Beide velden apart onder EXPENSE_MAX_CENTS (2_000_000_000), maar hun som (2.150.000.000)
+    // overschrijdt int4-max (2.147.483.647). Zonder de som-check passeerde dit het schema en klapte
+    // de $transaction op een Postgres-overflow (500) i.p.v. een nette veldfout.
+    const res = expenseSchema.safeParse({
+      ...base,
+      netCents: 2_000_000_000,
+      vatCents: 150_000_000,
+    });
+    expect(res.success).toBe(false);
+    if (!res.success) expect(res.error.issues[0]?.path).toContain("netCents");
+  });
+
+  it("accepteert een som netto + btw precies op int4-max (elk veld onder het veld-plafond)", () => {
+    // net + vat == EXPENSE_TOTAL_MAX_CENTS, met beide velden ≤ EXPENSE_MAX_CENTS.
+    const vat = EXPENSE_TOTAL_MAX_CENTS - EXPENSE_MAX_CENTS; // 147_483_647
+    const res = expenseSchema.safeParse({
+      ...base,
+      netCents: EXPENSE_MAX_CENTS,
+      vatCents: vat,
+    });
+    expect(res.success).toBe(true);
   });
 
   it("weigert een nul-uitgave (net + btw = 0)", () => {

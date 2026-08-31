@@ -347,6 +347,47 @@ describe("buildChainSteps — multi-cyclus openstaande vorige-cyclus-factuur (pa
   });
 });
 
+describe("buildChainSteps — viewer-parity opdrachtgever (regressie: stepper spreekt status-line niet tegen)", () => {
+  // Repro (persona-sweep): één ACTIVE-samenwerking, cyclus-1-factuur door de opdrachtgever
+  // goedgekeurd (APPROVED, nog niet betaald door de ZZP'er), daarna dient de ZZP'er verse cyclus-2-uren
+  // in (SUBMITTED, nieuwer dan de factuur). De opdrachtgever-status-line nult de vorige factuur en
+  // vraagt "keur de ingediende uren" (verse cyclus). De stepper voor de opdrachtgever moet dat volgen —
+  // niet de openstaande vorige factuur tonen (dat is de ZZP'er-only rescue `priorCycleFreelancerPhase`).
+  const multiCycleApprovedPrior = {
+    status: "ACTIVE",
+    performances: [{ status: "SUBMITTED" }, { status: "APPROVED" }],
+    invoices: [{ lifecycleStatus: "APPROVED" }],
+    performanceNewerThanInvoice: true,
+  };
+
+  it("opdrachtgever (CLIENT): vorige factuur APPROVED wordt genuld → Prestatie=active, Factuur=waiting", () => {
+    const steps = buildChainSteps({ ...multiCycleApprovedPrior, viewer: "CLIENT" });
+    // Prestatie (verse cyclus-2, SUBMITTED) is de actieve stap — spiegelt de status-line "keur de uren".
+    expect(steps[1]!.status).toBe("active");
+    expect(steps[1]!.detail).toBe("Ter goedkeuring");
+    // Factuur/Betaling vallen terug op de default: er is nog geen factuur voor de verse cyclus.
+    expect(steps[2]!.status).toBe("waiting");
+    expect(steps[2]!.detail).toBe("Volgt na goedkeuring prestatie");
+    expect(steps[3]!.status).toBe("waiting");
+    expect(steps[3]!.detail).toBe("Volgt na factuurgoedkeuring");
+  });
+
+  it("ZZP'er (FREELANCER): dezelfde staat houdt de openstaande vorige factuur wél zichtbaar", () => {
+    const steps = buildChainSteps({ ...multiCycleApprovedPrior, viewer: "FREELANCER" });
+    // De ZZP'er heeft nog een betaal-actie op de vorige factuur → Factuur=active, Betaling=active.
+    expect(steps[2]!.status).toBe("active");
+    expect(steps[2]!.detail).toContain("betaling");
+    expect(steps[3]!.status).toBe("active");
+    expect(steps[3]!.detail).not.toBe("Volgt na factuurgoedkeuring");
+  });
+
+  it("default viewer (weggelaten) gedraagt zich als FREELANCER — bewaart bestaand gedrag", () => {
+    const withViewer = buildChainSteps({ ...multiCycleApprovedPrior, viewer: "FREELANCER" });
+    const withoutViewer = buildChainSteps({ ...multiCycleApprovedPrior });
+    expect(withoutViewer).toEqual(withViewer);
+  });
+});
+
 describe("buildChainSteps — altijd 4 stappen", () => {
   it("geeft precies 4 stappen terug", () => {
     expect(buildChainSteps(col("PROPOSED"))).toHaveLength(4);

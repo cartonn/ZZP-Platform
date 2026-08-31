@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-31 — persona-sweep (run 103): int4-overflow-guard op uitgave-som + viewer-parity cascade-stepper
+
+**Wat:** kritische-gebruiker-sweep (4 rollen, 3 parallelle adversariële Opus-audits op niet-overlappende
+oppervlakken). **2 defecten gevonden én gefixt.**
+
+1. **Robuustheid (DOEL 2, geld-invoer → 500):** `expenseSchema` begrensde `netCents`/`vatCents` elk, maar
+   nooit hun som — terwijl `planExpensePostings` `net + vat` als `BETAALD`-credit naar een int4-grootboek-
+   kolom boekt. Netto 20M + btw 1,5M = 2.150.000.000 > int4-max → Postgres-overflow (500) i.p.v. nette
+   Zod-weigering (SQLite-lokaal onzichtbaar; treft Postgres-productie). Fix: `EXPENSE_TOTAL_MAX_CENTS` +
+   som-`.refine` in het schema (bron van waarheid), spiegelt `invoiceCentsWithinInt4`.
+2. **DOEL 1b (zichzelf-tegensprekend scherm):** de cascade-stepper (`buildChainSteps`) hield een
+   openstaande vorige-cyclus-factuur viewer-agnostisch zichtbaar, terwijl de gespiegelde status-line-rescue
+   `priorCycleFreelancerPhase` `isFreelancer`-gated is → op de **opdrachtgever**-viewer sprak de stepper
+   ("Factuur goedgekeurd — wachten op betaling") de status-line ("keur de ingediende uren") tegen. Fix:
+   `buildChainSteps` krijgt een `viewer`-param; de rescue vuurt alleen voor FREELANCER; de pagina geeft
+   dezelfde `isClient ? "CLIENT" : "FREELANCER"`-expressie door als de status-line.
+
+**Bestanden:** `src/lib/expense.ts` (+`EXPENSE_TOTAL_MAX_CENTS` + som-refine), `src/lib/expense.test.ts` (+2),
+`src/lib/cascade/chain-steps.ts` (+`viewer`-param), `src/lib/cascade/chain-steps.test.ts` (+3),
+`src/app/(protected)/samenwerkingen/[id]/page.tsx` (geeft `viewer` door), `docs/PERSONA-SWEEP-BACKLOG.md`
+(run-103-entry + 2 geparkeerde P3-observaties).
+
+**Checks (lokaal groen):** typecheck 0 fouten ✓ · lint ✓ · vitest **719 files / 7529 tests** ✓ · build ✓ ·
+prettier ✓. authz/IDOR/tenant-audit op de laatste ~25 commits: 0 nieuwe bereikbare gaten. PR → CI-poort.
+
+---
+
 ## 2026-08-31 — prod: security-header hardening (Origin-Agent-Cluster / X-Permitted-Cross-Domain-Policies / upgrade-insecure-requests)
 
 **Wat:** productie-hardening van de statische security-headers (OWASP Secure Headers Project), náást de al
