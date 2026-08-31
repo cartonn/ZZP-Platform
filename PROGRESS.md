@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-31 — prod: security-header hardening (Origin-Agent-Cluster / X-Permitted-Cross-Domain-Policies / upgrade-insecure-requests)
+
+**Wat:** productie-hardening van de statische security-headers (OWASP Secure Headers Project), náást de al
+sterke set (HSTS+preload, X-Frame-Options DENY, nosniff, Referrer-Policy, COOP/CORP, Permissions-Policy) en
+de per-request CSP-nonce. Drie nieuwe defense-in-depth-headers + één CSP-directive, met regressie-tests.
+
+**Bestanden:**
+
+- `next.config.mjs` — `Origin-Agent-Cluster: ?1` (origin-keyed proces-isolatie, complementair aan COOP/CORP),
+  `X-Permitted-Cross-Domain-Policies: none` (geen Adobe cross-domain policy files), `X-DNS-Prefetch-Control: off`
+  (geen speculatieve DNS-prefetch). Alle op de globale `/:path*`-regel.
+- `src/lib/csp.ts` — productie-CSP draagt nu `upgrade-insecure-requests` (alleen `!isDev`; belt-and-suspenders
+  bij HSTS, dev over http ongemoeid).
+- `src/lib/security/next-config-headers.test.ts` — +2 assertions (Origin-Agent-Cluster; XPCDP + DNS-prefetch).
+- `src/lib/csp.test.ts` — +2 tests (upgrade-insecure-requests aanwezig in prod, afwezig in dev).
+- `MENSENWERK.md` §5-header-sectie — code-kant GEDAAN 2026-08-31; resterend mensenwerk: niets (pentest valideert).
+
+**Checks (lokaal groen):** typecheck ✓ · lint ✓ · vitest (csp + next-config-headers, 14 tests) ✓ · prettier ✓ ·
+build (draaide). Geen schema-/mutatie-/authz-oppervlak, geen dode knoppen. PR #1303 → CI-poort.
+
 ## 2026-08-31 — security/privacy: TOTP-replay-preventie op de login (OWASP A07 / ASVS 2.8.4 / RFC 6238 §5.2)
 
 **Wat:** security-/privacy-auditronde (basis `main` @ c67387ab) met de nieuwe #1298 TOTP-2FA als

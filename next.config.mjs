@@ -47,6 +47,20 @@ const securityHeaders = [
   // suspenders) via src/lib/security/resource-headers.ts.
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  // Origin-Agent-Cluster vraagt de browser dit origin in een eigen agent-cluster (proces/geheugen)
+  // te isoleren — defense-in-depth voor een login-gated app met gevoelige documenten, complementair
+  // aan COOP/CORP. `?1` = structured-header boolean true. Moet consistent op élke response van dit
+  // origin staan (de browser beslist het bij de eerste document-load en cachet het per origin),
+  // vandaar de globale /:path*-regel hieronder.
+  { key: "Origin-Agent-Cluster", value: "?1" },
+  // X-Permitted-Cross-Domain-Policies: geen Adobe cross-domain policy files (Flash/Acrobat mogen
+  // geen cross-origin data van dit domein laden). OWASP Secure Headers Project. Dit platform serveert
+  // geen crossdomain.xml; `none` maakt dat expliciet en dicht een legacy-databestemming.
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+  // X-DNS-Prefetch-Control off: geen speculatieve DNS-prefetch van links. Kleine privacy-/lek-
+  // reductie voor een besloten platform (voorkomt dat het bezoek aan een gedeelde/externe host
+  // via DNS zichtbaar wordt vóór de gebruiker er bewust naartoe navigeert).
+  { key: "X-DNS-Prefetch-Control", value: "off" },
 ];
 
 // Zoekmachine-indexering staat standaard UIT (besloten pilot; dit platform is login-gated met

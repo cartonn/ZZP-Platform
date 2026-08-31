@@ -49,6 +49,10 @@ export function buildCsp(opts: { nonce: string; isDev: boolean }): string {
     // nodig om de 'unsafe-inline'-fallback later veilig te laten vallen én om injectie te detecteren.
     `report-to ${CSP_REPORT_GROUP}`,
     `report-uri ${CSP_REPORT_PATH}`,
+    // Belt-and-suspenders bij HSTS (Strict-Transport-Security, preload): upgrade een eventueel
+    // per ongeluk absoluut-http subresource stil naar https i.p.v. een mixed-content-blok. Alleen
+    // in productie — development draait over http en zou anders lokale assets/HMR breken.
+    ...(opts.isDev ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
 }
 
