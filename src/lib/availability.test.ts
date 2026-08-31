@@ -7,6 +7,7 @@ import {
   summarizeAvailabilityFreshness,
   summarizeAway,
   upcomingWindows,
+  usableAvailability,
   type WindowLike,
 } from "@/lib/availability";
 
@@ -174,5 +175,50 @@ describe("summarizeAvailabilityFreshness", () => {
       { startDate: d("2026-06-01"), endDate: d("2026-06-15"), type: "AVAILABLE" },
     ];
     expect(summarizeAvailabilityFreshness(endsToday, now).status).toBe("fresh");
+  });
+});
+
+describe("usableAvailability", () => {
+  it("een inzetbaar venster telt als beschikbaar, geen afwezigheid", () => {
+    // `windows` heeft een AVAILABLE-venster dat `now` dekt.
+    expect(usableAvailability(windows, false, now)).toEqual({
+      hasAvailability: true,
+      awaySummary: null,
+    });
+  });
+
+  it("valt terug op het scalaire veld wanneer er geen venster is", () => {
+    expect(usableAvailability([], true, now)).toEqual({
+      hasAvailability: true,
+      awaySummary: null,
+    });
+    expect(usableAvailability([], false, now)).toEqual({
+      hasAvailability: false,
+      awaySummary: null,
+    });
+  });
+
+  it("onderdrukt de scalar-fallback tijdens een afwezigheid — óók bij 'Direct beschikbaar' (de bug)", () => {
+    // Vakantievenster dekt `now`, geen inzetbaar venster; scalar = AVAILABLE (oud "Direct beschikbaar").
+    const away: WindowLike[] = [
+      { startDate: d("2026-06-10"), endDate: d("2026-06-20"), type: "UNAVAILABLE" },
+    ];
+    // Spiegelt freelancer-search.ts: away → uit "Alleen beschikbaar", ondanks het scalaire veld.
+    expect(usableAvailability(away, true, now)).toEqual({
+      hasAvailability: false,
+      awaySummary: "Afwezig t/m 20 jun 2026",
+    });
+  });
+
+  it("een inzetbaar venster wint van een afwezigheid (geen away-samenvatting)", () => {
+    // AVAILABLE dekt nu én een UNAVAILABLE-venster overlapt niet met `now` → gewoon beschikbaar.
+    const mixed: WindowLike[] = [
+      { startDate: d("2026-06-01"), endDate: d("2026-07-01"), type: "AVAILABLE" },
+      { startDate: d("2026-09-01"), endDate: d("2026-09-10"), type: "UNAVAILABLE" },
+    ];
+    expect(usableAvailability(mixed, false, now)).toEqual({
+      hasAvailability: true,
+      awaySummary: null,
+    });
   });
 });

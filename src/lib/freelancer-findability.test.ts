@@ -106,4 +106,47 @@ describe("summarizeFindability", () => {
     expect(s.level).toBe("hidden");
     expect(s.advisory).toBeNull();
   });
+
+  it("geeft een afwezigheid-bewuste blokkade wanneer de ZZP'er nu weg is (niet 'geef je beschikbaarheid aan')", () => {
+    const s = summarizeFindability({
+      isPublic: true,
+      hasSkills: true,
+      hasAvailability: false,
+      awaySummary: "Afwezig t/m 15 aug 2026",
+    });
+    // Away = uit het "Alleen beschikbaar"-filter (spiegel freelancer-search.ts): niet 'visible'.
+    expect(s.level).toBe("limited");
+    expect(s.href).toBe("/beschikbaarheid");
+    const availability = s.factors.find((f) => f.key === "availability");
+    expect(availability?.done).toBe(false);
+    // De blokkade erkent dat de agenda wél gedeeld is (vakantie), niet dat die ontbreekt.
+    expect(s.blocker).toContain("Afwezig t/m 15 aug 2026");
+    expect(s.blocker).toContain("alleen beschikbaar");
+    expect(s.blocker).not.toContain("Geef je beschikbaarheid aan");
+  });
+
+  it("valt terug op de generieke beschikbaarheid-hint wanneer er geen afwezigheid speelt", () => {
+    const s = summarizeFindability({
+      isPublic: true,
+      hasSkills: true,
+      hasAvailability: false,
+      awaySummary: null,
+    });
+    expect(s.blocker).toContain("Geef je beschikbaarheid aan");
+    expect(s.blocker).not.toContain("Afwezig");
+  });
+
+  it("negeert awaySummary zodra de beschikbaarheid-factor wél gehaald is (geen lekkende afwezigheid-tekst)", () => {
+    // Verdedigend: awaySummary is alleen betekenisvol wanneer hasAvailability false is.
+    const s = summarizeFindability({
+      isPublic: true,
+      hasSkills: true,
+      hasAvailability: true,
+      awaySummary: "Afwezig t/m 15 aug 2026",
+    });
+    expect(s.level).toBe("visible");
+    const availability = s.factors.find((f) => f.key === "availability");
+    expect(availability?.done).toBe(true);
+    expect(availability?.hint).not.toContain("Afwezig");
+  });
 });
