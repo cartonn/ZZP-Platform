@@ -7,7 +7,13 @@
 // gelijke score blijft als secundaire sort.
 
 import { prisma } from "@/lib/db";
-import { type Availability, type CredentialType, type CredentialStatus } from "@/lib/enums";
+import { awayUntil } from "@/lib/availability";
+import {
+  type Availability,
+  type AvailabilityWindowType,
+  type CredentialType,
+  type CredentialStatus,
+} from "@/lib/enums";
 import {
   jobProfileRelatedness,
   scoreJobForFreelancer,
@@ -25,6 +31,14 @@ export interface FreelancerSuggestion {
   compliance: ComplianceStatus;
   trustLevel: TrustLevel;
   availability: Availability;
+  /**
+   * Einddatum van een lopende UNAVAILABLE-periode ("Afwezig t/m X"), of `null` als de ZZP'er nu niet
+   * expliciet afwezig is. Los van `availability`: een lopend UNAVAILABLE-venster maakt de coarse status
+   * misleidend (die kan op AVAILABLE staan of naar een tóékomstig inzetbaar venster wijzen), terwijl de
+   * ZZP'er vandaag niet inzetbaar is. Zo tonen suggesties hetzelfde afwezigheidssignaal als het publieke
+   * profiel (`/zzp/[id]`), `/kandidaten` en `/reacties` i.p.v. een tegensprekend "Beschikbaar".
+   */
+  awayUntil: Date | null;
   /** Korte functietitel/headline van de ZZP'er (bv. "Verpleegkundige (BIG)"). */
   headline: string | null;
   /** Standplaats. */
@@ -145,6 +159,16 @@ export function scoreProfilesForJob(
         compliance: match.compliance.status,
         trustLevel: trust.level,
         availability: match.availability.status,
+        // Afgeleid uit dezelfde vensters die de matchscore voedt; `awayUntil` telt alleen een
+        // UNAVAILABLE-venster dat `now` dekt (niet een toekomstige afwezigheid).
+        awayUntil: awayUntil(
+          p.availabilityWindows.map((w) => ({
+            startDate: w.startDate,
+            endDate: w.endDate,
+            type: w.type as AvailabilityWindowType,
+          })),
+          new Date(now),
+        ),
         headline: p.headline,
         location: p.location,
         rate: p.hourlyRate,

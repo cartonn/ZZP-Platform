@@ -35,6 +35,7 @@ import { formatDeltaPct, earningsDeltaTone } from "@/lib/revenue-delta";
 import { getTranslator } from "@/lib/i18n/server";
 import { avatarAccent } from "@/lib/avatar-accent";
 import { formatEuro } from "@/lib/invoices";
+import { formatDateShortNl } from "@/lib/format-date";
 import { summarizeIncomeGoal, incomeGoalGlance } from "@/lib/income-goal";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -1001,20 +1002,32 @@ export default async function DashboardPage() {
           },
         ]
       : stats.map((st) => ({ icon: Briefcase, label: t(st.label), value: String(st.value) }));
-    const rows = (suggestedFreelancers ?? []).map((fr) => ({
-      id: fr.freelancerId,
-      initials: initials(fr.name),
-      accent: avatarAccent(fr.freelancerId),
-      name: fr.name,
-      verified: fr.trustLevel === "VOLLEDIG",
-      role: fr.headline ?? fr.jobTitle,
-      location: fr.location,
-      rate: fr.rate,
-      match: fr.score,
-      status: AVAILABILITY_LABEL[fr.availability]?.label,
-      statusClass: AVAILABILITY_LABEL[fr.availability]?.cls,
-      href: `/zzp/${fr.freelancerId}`,
-    }));
+    const rows = (suggestedFreelancers ?? []).map((fr) => {
+      // Een lopende afwezigheid ("Afwezig t/m X") gaat vóór de coarse beschikbaarheid: die kan op
+      // "Beschikbaar" staan (of naar een toekomstig venster wijzen) terwijl de ZZP'er vandaag met
+      // vakantie is. Zonder deze carve-out sprak de suggestie het gelinkte publieke profiel (/zzp/[id])
+      // én /kandidaten//reacties tegen, die de afwezigheid wél tonen.
+      const av = fr.awayUntil
+        ? {
+            label: `Afwezig t/m ${formatDateShortNl(fr.awayUntil)}`,
+            cls: "bg-muted text-muted-foreground",
+          }
+        : AVAILABILITY_LABEL[fr.availability];
+      return {
+        id: fr.freelancerId,
+        initials: initials(fr.name),
+        accent: avatarAccent(fr.freelancerId),
+        name: fr.name,
+        verified: fr.trustLevel === "VOLLEDIG",
+        role: fr.headline ?? fr.jobTitle,
+        location: fr.location,
+        rate: fr.rate,
+        match: fr.score,
+        status: av?.label,
+        statusClass: av?.cls,
+        href: `/zzp/${fr.freelancerId}`,
+      };
+    });
     const seal = complianceSnapshot
       ? {
           title: t("Compliance-zegel"),
