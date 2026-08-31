@@ -188,11 +188,12 @@ const schema = z
     DATABASE_CONNECTION_LIMIT: z.string().optional(),
     DATABASE_POOL_TIMEOUT: z.string().optional(),
     DATABASE_PGBOUNCER: z.string().optional(),
-    // Auditlog-retentie (AVG dataminimalisatie, art. 5 lid 1e). Inert-by-default: leeg/0 = geen
-    // wissen (huidig gedrag). Zet een positief aantal dagen (het verwerkingsregister documenteert
-    // 12 maanden = 365) om auditregels ouder dan dat venster te laten snoeien door de geplande taak
-    // audit-retention (run-all). Een te lage waarde wordt veilig geklemd naar minstens 30 dagen zodat
-    // een typefout nooit recente security-/fraude-logs wist. Zie src/lib/config.ts (parseAuditRetentionDays).
+    // Auditlog-retentie (AVG dataminimalisatie, art. 5 lid 1e). Fail-safe-by-default: leeg = het
+    // beloofde venster (het verwerkingsregister documenteert 12 maanden = 365) → de geplande taak
+    // audit-retention (run-all) snoeit auditregels ouder dan dat venster. Een expliciete 0/negatieve
+    // waarde zet retentie uit (onbeperkt bewaren, bv. forensische/juridische bewaarplicht). Een te
+    // lage waarde wordt veilig geklemd naar minstens 30 dagen zodat een typefout nooit recente
+    // security-/fraude-logs wist. Zie src/lib/config.ts (parseAuditRetentionDays).
     AUDIT_LOG_RETENTION_DAYS: z.string().optional(),
   })
   .superRefine((v, ctx) => {

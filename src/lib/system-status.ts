@@ -264,13 +264,15 @@ export function collectSystemStatus(env: Env): SystemStatus {
           key: "audit-retention",
           label: "Auditlog-retentie",
           mode: auditRetentionDays > 0 ? `${auditRetentionDays} dagen` : "onbeperkt bewaren",
-          // Beide toestanden zijn veilig: onbeperkt bewaren is de huidige default (geen wissen),
-          // een gezet venster dwingt de gedocumenteerde AVG-bewaartermijn af. Geen "aandacht".
-          level: auditRetentionDays > 0 ? "ok" : "fallback",
+          // Default is het gedocumenteerde 12-maandenvenster (fail-safe naar wissen); een operator kan
+          // via een expliciete 0 uitzetten. "ok" wanneer een venster wordt afgedwongen; "attention"
+          // wanneer retentie expliciet uit staat, want dan wordt de in het register beloofde
+          // AVG-bewaartermijn niet gehandhaafd (onbeperkt bewaren = potentiële art. 5(1)(e)-overtreding).
+          level: auditRetentionDays > 0 ? "ok" : "attention",
           detail:
             auditRetentionDays > 0
               ? `Auditregels ouder dan ${auditRetentionDays} dagen worden gesnoeid (AVG dataminimalisatie).`
-              : "Auditlog wordt onbeperkt bewaard. Zet AUDIT_LOG_RETENTION_DAYS (bv. 365) om de bewaartermijn af te dwingen.",
+              : "Auditlog-retentie is expliciet uitgezet (AUDIT_LOG_RETENTION_DAYS=0) — de auditlog wordt onbeperkt bewaard. Verwijder de override of zet een venster (bv. 365) om de gedocumenteerde bewaartermijn af te dwingen.",
         },
         {
           key: "search-indexing",

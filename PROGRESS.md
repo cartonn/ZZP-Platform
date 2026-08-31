@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-31 — security/privacy: auditlog-retentie faalde OPEN → nu fail-safe naar het beloofde 12-maandenvenster (AVG art. 5(1)(e)/5(2))
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: A broken-access/IDOR op álle server actions + niet-doc API-routes; B cross-tenant
+
+- document/upload/SSRF/injectie/secrets; C privacy/AVG). A en B **CLEAN**. C vond dat `parseAuditRetentionDays`
+  (`src/lib/config.ts`) bij een lege/ongeconfigureerde `AUDIT_LOG_RETENTION_DAYS` `0` teruggaf = **onbeperkt
+  bewaren**, terwijl het art. 30-verwerkingsregister ("Auditlogboek: 12 maanden") de betrokkene 12 maanden belooft
+  en de `AuditLog`-rijen PII dragen (IP + user-agent). Elke zuster-retentie die PII draagt én in het register beloofd
+  is faalt juist **safe** (leads 365, notificaties 180, reacties 28, health-incident-IP 90); alleen de auditlog
+  faalde open — een gat tussen gepubliceerd beleid en afdwinging (AVG art. 5(1)(e) opslagbeperking + art. 5(2)
+  verantwoordingsplicht).
+
+**Aanpak:** `parseAuditRetentionDays` faalt nu safe naar `AUDIT_LOG_RETENTION_DEFAULT_DAYS=365` bij leeg/onzin
+(exact het `parseLeadRetentionDays`-patroon); een **expliciete** `0`/negatieve waarde blijft de operator-override
+"retentie uit" (forensische/juridische bewaarplicht); de minimumvloer (30d) beschermt tegen een typefout.
+Downstream consistent: `system-status` markeert een 0-override als "aandacht"; `.env.example`/`env.ts`/taak-header/
+metrics-help beschrijven de fail-safe-default.
+
+**Bestanden:** `src/lib/config.ts` (fail-safe + `AUDIT_LOG_RETENTION_DEFAULT_DAYS`), `src/lib/system-status.ts`,
+`src/lib/audit-retention-task.ts`, `src/lib/observability/metrics.ts`, `src/lib/env.ts`, `.env.example` +
+regressietests (`audit-retention.test.ts`, `audit-retention-task.test.ts`, `system-status.test.ts`, rood→groen).
+**Geparkeerd (KRITIEK, FG-beslissing — niet autonoom gepatcht):** door de tegenpartij geschreven vrije tekst
+OVER een gewiste betrokkene (`Review.subjectId`, `NoShowReport`/`Performance`/`Invoice.rejectionReason` bij
+subject-erasure) overleeft `anonymizeUser` — bewust/gedocumenteerd, art. 17-afweging → zie
+`docs/SECURITY-PRIVACY-BACKLOG.md`. **Checks:** typecheck ✓ · lint ✓ · vitest (721 files / 7544) ✓ · build ✓ ·
+prettier ✓ · CI-poort → PR.
+
 ## 2026-08-31 — routine: open-capaciteit als next-action op /acties (ZZP'er)
 
 **Wat:** de "onbenutte beschikbaarheid" (idle-capacity: open dagen die de ZZP'er als inzetbaar deelde

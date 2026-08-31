@@ -330,10 +330,17 @@ describe("collectSystemStatus — auditlog-retentie", () => {
     expect(item.mode).toBe("30 dagen");
     expect(item.level).toBe("ok");
   });
-  it("ontbrekend = fallback (onbeperkt bewaren, geen aandacht)", () => {
+  it("ontbrekend = het beloofde 12-maandenvenster wordt afgedwongen (fail-safe, ok)", () => {
+    // Regressie: vóór de fix was ontbrekend "onbeperkt bewaren"/fallback; nu dwingt de default de
+    // gedocumenteerde AVG-bewaartermijn af (365 dagen).
     const item = itemByKey(makeEnv(), "audit-retention");
+    expect(item.mode).toBe("365 dagen");
+    expect(item.level).toBe("ok");
+  });
+  it("expliciete 0-override = onbeperkt bewaren, gemarkeerd als aandacht", () => {
+    const item = itemByKey(makeEnv({ AUDIT_LOG_RETENTION_DAYS: "0" }), "audit-retention");
     expect(item.mode).toBe("onbeperkt bewaren");
-    expect(item.level).toBe("fallback");
+    expect(item.level).toBe("attention");
   });
 });
 
