@@ -915,8 +915,15 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   // voorgefilterd op exact dezelfde grens (`CANDIDATE_GHOSTING_RISK_DAYS`) die de trechter op /inzicht
   // gebruikt; de pure `summarizeFirstLookOverdue` past daarna de floor-regel toe (één bron, geen drift).
   const firstLookWindow = new Date(Date.now() - CANDIDATE_GHOSTING_RISK_DAYS * 86_400_000);
+  // job.status: "PUBLISHED" — kandidaat-beoordeeltaken horen alleen bij een LIVE opdracht. Sluit de
+  // opdrachtgever de opdracht (PUBLISHED→CLOSED, `changeJobStatus`) of zet hem terug naar concept
+  // (PUBLISHED→DRAFT), dan blijven de open reacties (NEW/VIEWED/SHORTLIST) in de DB staan — het sluiten
+  // stuurt ze alleen een notificatie, transitioneert ze niet. Zonder deze poort bleef "beoordeel de
+  // kandidaten" eeuwig hangen op een gesloten/concept-opdracht, in tegenspraak met de server-side
+  // status (en met de "de opdracht is weg"-melding die die kandidaten al kregen). Spiegelt de
+  // PUBLISHED-scoping van de opdracht-nudges (`getClientColdJobs`/`getClientOverdueJobs`).
   const firstLookWhere = {
-    job: { company: { userId } },
+    job: { company: { userId }, status: "PUBLISHED" as const },
     status: "NEW" as const,
     createdAt: { lte: firstLookWindow },
   };
@@ -948,7 +955,9 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     overdueInvoiceCount("CLIENT", userId),
     paymentDueSoonCount(userId),
     unreadConversations(userId),
-    prisma.application.count({ where: { job: { company: { userId } }, status: "NEW" } }),
+    prisma.application.count({
+      where: { job: { company: { userId }, status: "PUBLISHED" }, status: "NEW" },
+    }),
     // Exacte telling van de onbekeken-oude reacties (ongebonden) — de bron voor de residu-aftrek en de
     // getoonde count, zodat een client met >MAX oude reacties er nooit een deel als "vers" ziet weglekken.
     prisma.application.count({ where: firstLookWhere }),
@@ -966,7 +975,9 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     // unbounded-allow: eigenaar-scoped (job.company.userId) + take-limiet
     prisma.application.findMany({
       where: {
-        job: { company: { userId } },
+        // Zie `firstLookWhere`: alleen LIVE opdrachten — een reeds-bekeken kandidaat op een gesloten/
+        // concept-opdracht is geen openstaande beslissing meer.
+        job: { company: { userId }, status: "PUBLISHED" },
         status: { in: ["VIEWED", "SHORTLIST"] },
         createdAt: { lte: staleWindow },
       },
@@ -978,6 +989,11 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     // (ACCEPTED) maar moet daarna nog `proposeCollaboration` doen; tot dan is er geen collaboration en
     // wacht de ZZP'er. Oudst-eerst zodat de langst-wachtende kandidaat bovenaan de taken komt; de pure
     // `pendingCollaborationProposals` filtert defensief de reeds-voorgestelde eruit.
+    // BEWUST géén `job.status: "PUBLISHED"`-poort (anders dan de beoordeeltaken hierboven): een
+    // ACCEPTED-reactie is een gemaakte hire-toezegging die het sluiten van de opdracht overleeft
+    // (ACCEPTED valt buiten `OPEN_APPLICATION_STATUSES`, dus die kandidaat kreeg géén "de opdracht is
+    // weg"-melding). Sluit de opdrachtgever de listing na acceptatie, dan blijft het voorstel
+    // legitiem verschuldigd — die taak verbergen zou echt werk laten verdwijnen.
     // unbounded-allow: eigenaar-scoped (job.company.userId) + take-limiet
     prisma.application.findMany({
       where: { job: { company: { userId } }, status: "ACCEPTED" },
