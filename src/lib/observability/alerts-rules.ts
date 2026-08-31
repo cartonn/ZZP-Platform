@@ -110,6 +110,7 @@ const SAMPLE_INPUT: MetricsInput = {
   supportTicketsRetentionBacklog: 0,
   webhookEventsRetentionBacklog: 0,
   routingCacheRetentionBacklog: 0,
+  mailIntakeRetentionBacklog: 0,
   membershipUnbilledActive: 0,
   mailDeliveryOk: true,
   mailDeliveryConsecutiveFailures: 0,

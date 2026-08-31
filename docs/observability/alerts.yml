@@ -608,6 +608,23 @@ groups:
           summary: "Routing-cache-retentie-snoei verwerkt niets (AVG-dataminimalisatie)"
           description: "Er staan al > één cron-interval routing-cacherijen (GeocodeCache + TravelRouteCache) wier eigen TTL is verstreken die niet fysiek zijn verwijderd (zzp_routing_cache_retention_backlog). De routing-cache-retention-cron rondt af maar verwijdert niets → platte-tekst locatie-PII (query/fromQuery/toQuery) wordt over de eigen bewaartermijn heen bewaard (AVG art. 5(1)(e)). Controleer de routing-cache-retention-taak."
 
+      - alert: ZzpMailIntakeRetentionBacklog
+        # AVG-dataminimalisatie (art. 5 lid 1e): een mail-intake-rij (MailIntake) draagt DERDE-PARTIJ-PII —
+        # het e-mailadres (fromAddress) van een externe aanvrager die zonder account via het intake-alias
+        # mailt, plus subject en de vrije-tekst textBody. De leeslaag raakt de ruwe mail nooit fysiek; alleen
+        # deze cron dwingt de opslagbeperking af. Een oplopende backlog terwijl de heartbeat "vers" is betekent
+        # dat derde-partij-PII over de beloofde termijn heen bewaard blijft. Alleen besliste intakes
+        # (ACCEPTED/DISMISSED) tellen — een nog te beoordelen intake (NEW) valt buiten de sweep. Anders dan de
+        # meeste config-gevensterde retenties staat mail-intake-retentie ALTIJD aan (fail-safe default 180d,
+        # min. 30 — een lege env wist juist), dus deze alert is out-of-the-box actief en nooit 0-per-definitie.
+        expr: zzp_mail_intake_retention_backlog > 0
+        for: 30h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mail-intake-retentie-snoei verwerkt niets (AVG-dataminimalisatie)"
+          description: "Er staan al > één cron-interval besliste mail-intake-rijen (MailIntake, status ACCEPTED/DISMISSED) ouder dan het geconfigureerde MAIL_INTAKE_RETENTION_DAYS-venster die niet zijn gesnoeid (zzp_mail_intake_retention_backlog). De mail-intake-retention-cron rondt af maar verwijdert niets → derde-partij-PII (fromAddress + subject + textBody) wordt over de beloofde bewaartermijn heen bewaard (AVG art. 5(1)(e)). Controleer de mail-intake-retention-taak."
+
   - name: zzp-platform-verificatie-sla
     rules:
       # Verificatie is de kern-differentiatie. Twee complementaire signalen: te veel wachtenden (diepte)

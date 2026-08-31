@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-08-31 — prod: MailIntake-retentie-backlog stille-faal-gauge + alert (AVG art. 5(1)(e))
+
+**Wat:** `MailIntake` was het **enige** PII-dragende model met een retentie-cron
+(`mail-intake-retention-task.ts`) **zonder** dead-man's-switch backlog-gauge/alert — alle andere retentie-tabellen
+(audit, applications, notifications, leads, health-incident-IP, messages, support-tickets, webhook-events,
+routing-cache) hadden er al één. Een `MailIntake`-rij draagt derde-partij-PII (`fromAddress`, `subject`,
+`textBody`); de cron is de enige die de opslagbeperking afdwingt, dus een vastgelopen snoei-pijplijn bewaarde stil
+PII over het venster heen zonder zichtbaar signaal.
+
+**Aanpak:** nieuwe gauge `zzp_mail_intake_retention_backlog` (aantal besliste — ACCEPTED/DISMISSED — intakes ouder
+dan het `MAIL_INTAKE_RETENTION_DAYS`-venster) die **exact** `prunableMailIntakeWhere(cutoff)` + `mailIntakeRetentionCutoff`
+hergebruikt (dezelfde bron van waarheid als de taak → geen drift) + Prometheus-alert `ZzpMailIntakeRetentionBacklog`
+(`> 0`, `for: 30h`). Retentie staat hier ALTIJD aan (fail-safe default 180d, min. 30), dus nooit `0`-per-definitie;
+NEW-intakes vallen bewust buiten de sweep en de gauge. De drift-gate (`alerts-rules.test.ts`) klinkt de nieuwe gauge
+automatisch aan de alert vast.
+
+**Bestanden:** `src/lib/observability/metrics.ts` (+interface +gauge), `src/app/api/metrics/route.ts` (+collector),
+`docs/observability/alerts.yml` (+alert), `src/lib/observability/alerts-rules.ts` (SAMPLE_INPUT),
+`src/lib/observability/metrics.test.ts` (fixtures + 2 nieuwe tests). Gate: typecheck ✓, lint ✓, 90 unit-tests ✓,
+prettier ✓. Resterend mensenwerk: **niets** — de gauge vult zichzelf; optioneel een monitor op de alert.
+
 ## 2026-08-31 — security/privacy: auditlog-retentie faalde OPEN → nu fail-safe naar het beloofde 12-maandenvenster (AVG art. 5(1)(e)/5(2))
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

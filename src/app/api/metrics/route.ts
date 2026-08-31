@@ -77,6 +77,7 @@ import {
   messageRetentionDays,
   supportTicketRetentionDays,
   webhookEventRetentionDays,
+  mailIntakeRetentionDays,
 } from "@/lib/config";
 import { auditRetentionCutoff } from "@/lib/audit-retention";
 import { applicationRetentionCutoff } from "@/lib/application-retention";
@@ -94,6 +95,8 @@ import { prunableSupportTicketWhere } from "@/lib/support-retention-task";
 import { webhookEventRetentionCutoff } from "@/lib/webhook-event-retention";
 import { prunableWebhookEventWhere } from "@/lib/webhook-event-retention-task";
 import { prunableRoutingCacheWhere } from "@/lib/routing-cache-retention-task";
+import { mailIntakeRetentionCutoff } from "@/lib/mail-intake-retention";
+import { prunableMailIntakeWhere } from "@/lib/mail-intake-retention-task";
 import { overdueReviewRevealWhere } from "@/lib/reviews-reveal-task";
 import { ZZP_MEMBERSHIP, performanceGraceDays, subscriptionPendingStaleHours } from "@/lib/config";
 import {
@@ -164,6 +167,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let supportTicketsRetentionBacklog = 0;
   let webhookEventsRetentionBacklog = 0;
   let routingCacheRetentionBacklog = 0;
+  let mailIntakeRetentionBacklog = 0;
   let membershipUnbilledActive = 0;
   // true zolang de DB-collectie álle backlog-tellingen binnen de deadline afrondt; false zodra de
   // scrape wordt afgekapt (zie de runner onderaan het dbReachable-blok) — dan houden de nog-niet-
@@ -516,6 +520,25 @@ async function collectInput(now: Date): Promise<MetricsInput> {
         await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
       }
     });
+    collectors.push(async () => {
+      try {
+        // Mail-intake-rijen (MailIntake, derde-partij-PII in fromAddress/subject/textBody) met een besliste
+        // status (ACCEPTED/DISMISSED) ouder dan het MAIL_INTAKE_RETENTION_DAYS-venster die de
+        // mail-intake-retention-cron nog niet snoeide: werk dat die cron had moeten doen. Hergebruikt exact
+        // `prunableMailIntakeWhere` (dezelfde bron van waarheid, incl. de besliste-status-guard) als de taak
+        // zelf, zodat de gauge de echte cron-backlog telt en niet kan driften. Anders dan de meeste retenties
+        // staat mail-intake-retentie ALTIJD aan (fail-safe default 180d, min. 30 — een lege env wist juist),
+        // dus de cutoff is nooit null en de gauge is niet 0-per-definitie.
+        const cutoff = mailIntakeRetentionCutoff(mailIntakeRetentionDays(), now);
+        if (cutoff) {
+          mailIntakeRetentionBacklog = await prisma.mailIntake.count({
+            where: prunableMailIntakeWhere(cutoff),
+          });
+        }
+      } catch (error) {
+        await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+      }
+    });
     if (ZZP_MEMBERSHIP.enabled) {
       collectors.push(async () => {
         try {
@@ -672,6 +695,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     supportTicketsRetentionBacklog,
     webhookEventsRetentionBacklog,
     routingCacheRetentionBacklog,
+    mailIntakeRetentionBacklog,
     membershipUnbilledActive,
   };
 }
