@@ -63,6 +63,22 @@ describe("quarterOf", () => {
     expect(quarterOf(new Date("2026-09-30"))).toBe(3);
     expect(quarterOf(new Date("2026-12-31"))).toBe(4);
   });
+
+  it("deelt in op de burgerlijke kalender in NL-tijd, niet in UTC", () => {
+    // 31 dec 23:00 UTC = 1 jan 00:00 Amsterdam → Q1 van het volgende jaar.
+    expect(quarterOf(new Date("2025-12-31T23:00:00.000Z"))).toBe(1);
+    // 31 mrt 22:00 UTC = 1 apr 00:00 Amsterdam (zomertijd) → Q2.
+    expect(quarterOf(new Date("2026-03-31T22:00:00.000Z"))).toBe(2);
+  });
+});
+
+describe("revenueCents — periode-indeling op NL-tijd", () => {
+  it("boekt omzet vlak na middernacht NL-tijd op het NL-jaar/-kwartaal", () => {
+    // 31 dec 2025 23:00 UTC = 1 jan 2026 00:00 Amsterdam → omzet hoort bij 2026 Q1.
+    const entries = entriesFrom(planInvoiceSubmitted(fin), new Date("2025-12-31T23:00:00.000Z"));
+    expect(revenueCents(entries, "FREELANCER", 2026, 1)).toBe(vat.subtotalCents);
+    expect(revenueCents(entries, "FREELANCER", 2025, 4)).toBe(0);
+  });
 });
 
 describe("debiteuren/crediteuren", () => {

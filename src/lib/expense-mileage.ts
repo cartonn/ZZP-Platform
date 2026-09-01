@@ -13,6 +13,7 @@
  * Alle bedragen in hele centen (integers), spiegelt `expense.ts`.
  */
 
+import { fiscalYearOf } from "@/lib/administration/fiscal-calendar";
 import { MILEAGE_RATE_CENTS } from "@/lib/config";
 import { MILEAGE_MAX_KM } from "@/lib/mileage";
 
@@ -88,7 +89,7 @@ function normalizeKm(value: number | null | undefined): number | null {
 }
 
 /**
- * Vat de vastgelegde zakelijke ritten samen (optioneel op kalenderjaar, UTC — spiegelt
+ * Vat de vastgelegde zakelijke ritten samen (optioneel op kalenderjaar in Europe/Amsterdam — spiegelt
  * `summarizeExpenses`). Alleen uitgaven met een geldig km-aantal tellen mee; de km-aftrek wordt per rit
  * canoniek uit het km-aantal afgeleid (`mileageExpenseNetCents`), niet uit een los opgeslagen bedrag,
  * zodat het aftrektotaal niet kan driften. Puur, geen I/O.
@@ -101,7 +102,7 @@ export function summarizeMileage(
   let totalKm = 0;
   let totalNetCents = 0;
   for (const e of expenses) {
-    if (opts.year !== undefined && e.occurredAt.getUTCFullYear() !== opts.year) continue;
+    if (opts.year !== undefined && fiscalYearOf(e.occurredAt) !== opts.year) continue;
     const km = normalizeKm(e.kilometers);
     if (km === null) continue;
     tripCount += 1;
@@ -112,7 +113,7 @@ export function summarizeMileage(
 }
 
 /**
- * Bouwt de rittenlijst (optioneel op kalenderjaar, UTC) — één regel per zakelijke rit met de canonieke
+ * Bouwt de rittenlijst (optioneel op kalenderjaar in Europe/Amsterdam) — één regel per zakelijke rit met de canonieke
  * km-aftrek. Recentste rit eerst (pariteit met de uitgavenlijst); stabiele tiebreak op omschrijving.
  * Puur, geen I/O.
  */
@@ -122,7 +123,7 @@ export function mileageTripLog(
 ): MileageTrip[] {
   const trips: MileageTrip[] = [];
   for (const e of expenses) {
-    if (opts.year !== undefined && e.occurredAt.getUTCFullYear() !== opts.year) continue;
+    if (opts.year !== undefined && fiscalYearOf(e.occurredAt) !== opts.year) continue;
     const km = normalizeKm(e.kilometers);
     if (km === null) continue;
     trips.push({

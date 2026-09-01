@@ -4,6 +4,11 @@
 // indieningsdatum is (Nederlandse regel: einde van de maand ná het kwartaal) en hoe dringend dat is.
 // Geen fiscaal advies, geen geldstroom — puur een signaal bovenop de bestaande vatReturn-berekening.
 
+import {
+  amsterdamCivilDayMs,
+  fiscalYearOf,
+  quarterStartInstant,
+} from "@/lib/administration/fiscal-calendar";
 import { type LedgerParty } from "@/lib/administration/ledger";
 import {
   quarterOf,
@@ -42,8 +47,9 @@ export interface VatDeadlineSummary {
 /** Het kalenderkwartaal (1-4) direct vóór het kwartaal van `d`, met bijbehorend jaar. */
 export function previousQuarter(d: Date): { year: number; quarter: Quarter } {
   const q = quarterOf(d);
-  if (q === 1) return { year: d.getFullYear() - 1, quarter: 4 };
-  return { year: d.getFullYear(), quarter: (q - 1) as Quarter };
+  const year = fiscalYearOf(d);
+  if (q === 1) return { year: year - 1, quarter: 4 };
+  return { year, quarter: (q - 1) as Quarter };
 }
 
 /** Het kalenderkwartaal direct vóór (year, quarter) — rolt in Q1 terug naar Q4 van het vorige jaar. */
@@ -67,9 +73,13 @@ export function vatFilingDeadline(year: number, quarter: Quarter): Date {
   return new Date(Date.UTC(year, monthAfterQuarter + 1, 0));
 }
 
-/** Hele kalenderdagen van `now` tot `deadline` (beide genormaliseerd naar de kalenderdag). */
+/**
+ * Hele kalenderdagen van `now` tot `deadline` (beide genormaliseerd naar de burgerlijke kalenderdag
+ * in Europe/Amsterdam). `now` wordt via de Amsterdamse dag genormaliseerd; de deadline is al op
+ * UTC-middernacht van de betreffende NL-kalenderdag geconstrueerd (`vatFilingDeadline`).
+ */
 function wholeDaysUntil(now: Date, deadline: Date): number {
-  const nowDay = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const nowDay = amsterdamCivilDayMs(now);
   const deadlineDay = Date.UTC(
     deadline.getUTCFullYear(),
     deadline.getUTCMonth(),
@@ -146,16 +156,19 @@ export function summarizeVatDeadlines(
 }
 
 /**
- * Kalendergrens (lokale tijd) van een kwartaal, zodat een query op `occurredAt` tot precies dat
- * kwartaal beperkt kan worden. `end` is exclusief (de eerste dag van het volgende kwartaal). Bewust
- * lokale tijd — spiegelt de filtering in `vatReturn`/`quarterOf` (`getFullYear`/`getMonth`), zodat
- * een op dit venster gescopete set exact dezelfde entries bevat als de pure berekening ziet.
+ * Kalendergrens van een kwartaal als UTC-instanten, zodat een query op `occurredAt` (opgeslagen als
+ * UTC-instant) tot precies dat kwartaal beperkt kan worden. `end` is exclusief (de eerste dag van het
+ * volgende kwartaal). De grenzen vallen op burgerlijke middernacht in Europe/Amsterdam — spiegelt de
+ * filtering in `vatReturn`/`quarterOf` (`fiscalYearOf`/`fiscalQuarterOf`), zodat een op dit venster
+ * gescopete set exact dezelfde entries bevat als de pure berekening ziet.
  */
 export function vatQuarterRange(year: number, quarter: Quarter): { start: Date; end: Date } {
-  const firstMonth = (quarter - 1) * 3; // 0, 3, 6, 9
   return {
-    start: new Date(year, firstMonth, 1),
-    end: new Date(year, firstMonth + 3, 1),
+    start: quarterStartInstant(year, quarter),
+    end:
+      quarter === 4
+        ? quarterStartInstant(year + 1, 1)
+        : quarterStartInstant(year, (quarter + 1) as Quarter),
   };
 }
 

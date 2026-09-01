@@ -96,14 +96,24 @@ describe("summarizeMileage", () => {
     expect(summary.totalNetCents).toBe(10 * MILEAGE_RATE_CENTS);
   });
 
-  it("filtert op kalenderjaar (UTC)", () => {
+  it("filtert op kalenderjaar in Europe/Amsterdam", () => {
     const rows: MileageLike[] = [
       expense({ kilometers: 20, occurredAt: new Date("2026-02-01T00:00:00.000Z") }),
-      expense({ kilometers: 30, occurredAt: new Date("2025-12-31T23:00:00.000Z") }),
+      // 31 dec 23:00 NL (CET, +1) = 31 dec 22:00 UTC → nog 2025.
+      expense({ kilometers: 30, occurredAt: new Date("2025-12-31T22:00:00.000Z") }),
     ];
     const summary = summarizeMileage(rows, { year: 2026 });
     expect(summary.tripCount).toBe(1);
     expect(summary.totalKm).toBe(20);
+  });
+
+  it("rekent een boeking vlak na middernacht NL-tijd tot het NL-kalenderjaar", () => {
+    const rows: MileageLike[] = [
+      // 31 dec 23:00 UTC = 1 jan 00:00 NL → hoort bij fiscaal jaar 2026, niet 2025.
+      expense({ kilometers: 20, occurredAt: new Date("2025-12-31T23:00:00.000Z") }),
+    ];
+    expect(summarizeMileage(rows, { year: 2026 }).tripCount).toBe(1);
+    expect(summarizeMileage(rows, { year: 2025 }).tripCount).toBe(0);
   });
 
   it("levert nulwaarden bij een lege of ritloze lijst", () => {

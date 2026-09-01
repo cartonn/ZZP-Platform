@@ -9,6 +9,7 @@
  */
 
 import { z } from "zod";
+import { fiscalYearOf } from "@/lib/administration/fiscal-calendar";
 import { type Posting, type LedgerAccount } from "@/lib/administration/ledger";
 import { MILEAGE_MAX_KM } from "@/lib/expense-mileage";
 
@@ -202,7 +203,7 @@ export function summarizeExpenses(
   const inScope =
     opts.year === undefined
       ? expenses
-      : expenses.filter((e) => e.occurredAt.getUTCFullYear() === opts.year);
+      : expenses.filter((e) => fiscalYearOf(e.occurredAt) === opts.year);
 
   const perCategory = new Map<ExpenseCategory, number>();
   let netCents = 0;

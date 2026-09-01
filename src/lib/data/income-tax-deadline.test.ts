@@ -53,9 +53,10 @@ describe("getIncomeTaxDeadlineForActor", () => {
 
     const where = entryFindManyMock.mock.calls[0]?.[0]?.where;
     expect(where?.ownerUserId).toBe(USER);
-    // Jaar-gescoopt: 1 jan 2026 (inclusief) t/m 1 jan 2027 (exclusief), lokale tijd.
-    expect(where?.occurredAt?.gte).toEqual(new Date(2026, 0, 1));
-    expect(where?.occurredAt?.lt).toEqual(new Date(2027, 0, 1));
+    // Jaar-gescoopt op de burgerlijke kalender in Europe/Amsterdam: 1 jan 2026 00:00 NL (inclusief)
+    // t/m 1 jan 2027 00:00 NL (exclusief). Wintertijd (+1) → 31 dec 23:00 UTC van het voorgaande jaar.
+    expect(where?.occurredAt?.gte).toEqual(new Date("2025-12-31T23:00:00.000Z"));
+    expect(where?.occurredAt?.lt).toEqual(new Date("2026-12-31T23:00:00.000Z"));
   });
 
   it("negeert kosten-/nul-omzet: alleen netto credit op OMZET telt als activiteit", async () => {

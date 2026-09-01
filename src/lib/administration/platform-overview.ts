@@ -1,6 +1,7 @@
 // Platform-brede kwartaaloverzichten over alle AdministrationEntry-regels (geen ownerUserId-filter).
 // Pure functies; getest en exporteerbaar.
 
+import { fiscalYearOf } from "@/lib/administration/fiscal-calendar";
 import { type LedgerEntry, quarterOf } from "@/lib/administration/overview";
 
 export interface PlatformQuarterRow {
@@ -31,7 +32,7 @@ export function platformQuarterlySummary(entries: readonly LedgerEntry[]): Platf
   >();
 
   for (const entry of entries) {
-    const year = entry.occurredAt.getFullYear();
+    const year = fiscalYearOf(entry.occurredAt);
     const quarter = quarterOf(entry.occurredAt);
     const key: YearQuarterKey = `${year}-${quarter}`;
 

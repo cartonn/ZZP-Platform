@@ -86,9 +86,10 @@ describe("incomeTaxDeadlineNeedsAction", () => {
 });
 
 describe("taxYearRange", () => {
-  it("omsluit precies het kalenderjaar (start inclusief, end exclusief)", () => {
+  it("omsluit precies het kalenderjaar in Europe/Amsterdam (start inclusief, end exclusief)", () => {
     const { start, end } = taxYearRange(2026);
-    expect(start).toEqual(new Date(2026, 0, 1));
-    expect(end).toEqual(new Date(2027, 0, 1));
+    // 1 jan 00:00 Amsterdam (CET, +1) = 31 dec 23:00 UTC van het voorgaande jaar.
+    expect(start).toEqual(new Date("2025-12-31T23:00:00.000Z")); // 1 jan 2026 00:00 NL
+    expect(end).toEqual(new Date("2026-12-31T23:00:00.000Z")); // 1 jan 2027 00:00 NL (exclusief)
   });
 });

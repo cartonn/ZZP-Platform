@@ -111,16 +111,18 @@ describe("summarizeVatDeadline", () => {
 });
 
 describe("vatQuarterRange", () => {
-  it("omsluit precies één kwartaal (start inclusief, end exclusief)", () => {
+  it("omsluit precies één kwartaal in Europe/Amsterdam (start inclusief, end exclusief)", () => {
     const { start, end } = vatQuarterRange(2026, 2);
-    expect(start).toEqual(new Date(2026, 3, 1)); // 1 april
-    expect(end).toEqual(new Date(2026, 6, 1)); // 1 juli (exclusief)
+    // 1 april 00:00 Amsterdam (CEST, +2) = 31 mrt 22:00 UTC; 1 juli 00:00 = 30 jun 22:00 UTC.
+    expect(start).toEqual(new Date("2026-03-31T22:00:00.000Z")); // 1 april 00:00 NL
+    expect(end).toEqual(new Date("2026-06-30T22:00:00.000Z")); // 1 juli 00:00 NL (exclusief)
   });
 
-  it("Q4 loopt door tot 1 januari van het volgende jaar", () => {
+  it("Q4 loopt door tot 1 januari van het volgende jaar (Amsterdam-grenzen)", () => {
     const { start, end } = vatQuarterRange(2026, 4);
-    expect(start).toEqual(new Date(2026, 9, 1)); // 1 oktober
-    expect(end).toEqual(new Date(2027, 0, 1)); // 1 januari volgend jaar
+    // 1 okt 00:00 Amsterdam (CEST, +2) = 30 sep 22:00 UTC; 1 jan 00:00 (CET, +1) = 31 dec 23:00 UTC.
+    expect(start).toEqual(new Date("2026-09-30T22:00:00.000Z")); // 1 oktober 00:00 NL
+    expect(end).toEqual(new Date("2026-12-31T23:00:00.000Z")); // 1 januari 00:00 NL (exclusief)
   });
 });
 

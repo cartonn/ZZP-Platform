@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-09-01 — routine: fiscale periode-indeling consistent in Europe/Amsterdam
+
+**Wat:** de fiscale rapportages (BTW per kwartaal, jaaroverzicht/IB, km-aftrek per jaar, platform-
+kwartaaloverzicht) deelden een boeking (`occurredAt`) in een periode in met een mix van lokale
+`getFullYear()`/`getMonth()` en `getUTCFullYear()` — nooit in Europe/Amsterdam. De Nederlandse fiscale
+kalender loopt op de burgerlijke dag in NL-tijd. Op een UTC-server (Railway) landde een boeking gemaakt
+vlak na middernacht NL-tijd daardoor één dag/periode te vroeg (bv. 1 jan 00:30 Amsterdam = 31 dec 23:30
+UTC → verkeerd BTW-kwartaal/belastingjaar), en de rapportagefamilies konden onderling verschillen. De
+trend-modules (`revenue.ts`, `expense-trend.ts`, …) groepeerden al wél in Europe/Amsterdam; deze familie
+week daarvan af (geparkeerde nit persona-sweep run 104).
+
+**Aanpak:** één bron van waarheid `src/lib/administration/fiscal-calendar.ts` — pure helpers die jaar/
+kwartaal/maand van een `Date` in Europe/Amsterdam bepalen (`fiscalYearOf`/`fiscalQuarterOf`/`fiscalMonthOf`)
+plus query-grenzen als UTC-instant (`quarterStartInstant`/`yearStartInstant`/`amsterdamCivilDayStart`/
+`amsterdamCivilDayMs`, offset-correct over wintertijd +1 én zomertijd +2). Alle periode-indeling
+(`overview.ts`, `platform-overview.ts`, `expense.ts`, `expense-mileage.ts`) en de deadline-modules
+(`vat-deadline.ts`, `income-tax-deadline.ts` — `previousQuarter`/`vatQuarterRange`/`taxYearRange`/
+`wholeDaysUntil`) leunen erop. De pure classifier en de query-grenzen blijven exact consistent, zodat een
+DB-gescopete set precies de entries bevat die de pure berekening ziet (self-consistency-test).
+
+**Bestanden:** `src/lib/administration/fiscal-calendar.ts` (nieuw) + `.test.ts`,
+`src/lib/administration/{overview,platform-overview,vat-deadline,income-tax-deadline}.ts`,
+`src/lib/expense.ts`, `src/lib/expense-mileage.ts`, en de bijbehorende tests (boundary-regressies +
+data-layer-grenzen bijgewerkt naar de Amsterdam-instanten). Backlog-nit → OPGELOST.
+
+**Checks:** typecheck ✓, lint ✓, unit (7600+ groen; +19 nieuwe/aangepaste fiscale-kalender-tests) ✓,
+prettier ✓. Build/CI-poort verifieert.
+
 ## 2026-09-01 — persona-sweep run 104: dienst-overname-beslistaak + nav-badge verdwijnen op een terminale/bevroren inzet
 
 **Wat:** een OPEN dienst-overname-aanvraag (`ShiftHandoff`) bleef eeuwig als beslis-taak (`/acties`

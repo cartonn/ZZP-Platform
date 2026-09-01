@@ -2,6 +2,7 @@
 // debiteuren/crediteuren-saldo, jaaromzet. Pure functies over de grootboekregels
 // (AdministrationEntry). Integer-centen; exporteerbaar/herleidbaar (de UI/exports bouwen hierop).
 
+import { fiscalQuarterOf, fiscalYearOf, type Quarter } from "@/lib/administration/fiscal-calendar";
 import { type LedgerAccount, type LedgerParty } from "@/lib/administration/ledger";
 import { type UserRole } from "@/lib/enums";
 
@@ -28,11 +29,11 @@ export interface LedgerEntry {
   occurredAt: Date;
 }
 
-export type Quarter = 1 | 2 | 3 | 4;
+export type { Quarter };
 
-/** Kwartaal (1–4) van een datum. */
+/** Kwartaal (1–4) van een datum, in Europe/Amsterdam (Nederlandse fiscale kalender). */
 export function quarterOf(d: Date): Quarter {
-  return (Math.floor(d.getMonth() / 3) + 1) as Quarter;
+  return fiscalQuarterOf(d);
 }
 
 /** Normaliseert -0 naar 0 zodat overzichten geen "-0" tonen. */
@@ -76,7 +77,7 @@ export function revenueCents(
     -netDebit(
       entries.filter(
         (e) =>
-          e.occurredAt.getFullYear() === year &&
+          fiscalYearOf(e.occurredAt) === year &&
           (quarter === undefined || quarterOf(e.occurredAt) === quarter),
       ),
       party,
@@ -93,7 +94,7 @@ export function costCents(
 ): number {
   return norm(
     netDebit(
-      entries.filter((e) => e.occurredAt.getFullYear() === year),
+      entries.filter((e) => fiscalYearOf(e.occurredAt) === year),
       party,
       "KOSTEN",
     ),
@@ -117,7 +118,7 @@ export function vatReturn(
   quarter: Quarter,
 ): VatReturn {
   const inPeriod = entries.filter(
-    (e) => e.occurredAt.getFullYear() === year && quarterOf(e.occurredAt) === quarter,
+    (e) => fiscalYearOf(e.occurredAt) === year && quarterOf(e.occurredAt) === quarter,
   );
   const payableCents = norm(-netDebit(inPeriod, party, "BTW_AF_TE_DRAGEN")); // credit-saldo → positief
   const deductibleCents = netDebit(inPeriod, party, "BTW_VOORBELASTING"); // debet-saldo → positief
