@@ -4,6 +4,56 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-01b (basis: `main` @ bccd3fb0) — HOOG OPGELOST: `MENSENWERK.md` verantwoordingsdocument inverteerde de waarheid over welke PII-retentie live is — AVG art. 5(2) verantwoordingsplicht + art. 5(1)(e) opslagbeperking
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(A: broken access control/IDOR + cross-tenant op ÁLLE 41 `/api`-route-handlers, 16 export-routes én 50+
+server actions/`"use server"`-mutaties incl. de cascade-geldengine — CLEAN, alleen 1 niet-exploiteerbare
+LAAG-note: `openNotification` gebruikt `update` i.p.v. `updateMany`, geen actor kan `Notification.userId`
+herschrijven dus geen race; B: PII-over-fetch naar de client, PII/secrets in logs, SSRF op alle server-side
+`fetch` — CLEAN, elke provider-host is hardcoded, logger redact + Sentry `sendDefaultPii:false`; C: erasure-/
+anonimisering-dekking, retentie-fail-open, k-anonimiteit — erasure CLEAN incl. de drie-kopie-PII-patronen).
+Eigen sweep: auth/2FA-replay-guard, shift-overname-authz (tenant-fail-closed 404-pariteit), open-redirect op
+`/.well-known/change-password` (prod `AUTH_URL` gezet → headers genegeerd; same-path redirect), CSV-formule-
+injectie (alle 21 export-routes delegeren naar `escapeCsvField`/`toCsv` — CWE-1236 gedekt), raw SQL (alleen
+`SELECT 1`), `dangerouslySetInnerHTML` (alleen statisch theme-script), mass-assignment (geen `.passthrough()`,
+geen body-spread in Prisma `data`), upload/storage (magic-byte-sniff + per-doel-allowlist + path-traversal-guard),
+k-anonimiteit markttarief (`MARKET_RATE_MIN_SAMPLE = 10`). `npm run typecheck` exit 0.
+
+**OPGELOST — [HOOG · AVG art. 5(2) verantwoordingsplicht + art. 5(1)(e) opslagbeperking] `MENSENWERK.md`
+beschreef fail-safe-AAN retentievensters nog als "standaard UIT / onbeperkt bewaren".** Sinds #1308 (2026-08-31)
+vallen de PII-dragende retentievensters bij een lege env terug op hun **beloofde venster** i.p.v. "onbeperkt
+bewaren": `AUDIT_LOG_RETENTION_DAYS`→365, `LEAD_RETENTION_DAYS`→365, `NOTIFICATION_RETENTION_DAYS`→180,
+`APPLICATION_RETENTION_DAYS`→28, `HEALTH_INCIDENT_IP_RETENTION_DAYS`→90, `SUPPORT_TICKET_RETENTION_DAYS`→365,
+`MAIL_INTAKE_RETENTION_DAYS`→180 (allen `config.ts`; expliciete `0` = operator-override uit). `MENSENWERK.md`
+werd door #1308 niet bijgewerkt (staat niet in de commit-lijst) en bleef op meerdere plekken het tegendeel
+beweren: het auditlog-blok ("staat daarom standaard UIT … leeg/0 = onbeperkt bewaren … Zolang het leeg blijft
+verandert er niets"), de env-var-tabelrij ("default: onbeperkt"), en de backlog-gauge-secties (audit/reactie/
+notificatie/lead: "Staat retentie UIT … de pilot-default"). **Waarom HOOG en niet louter docs-cosmetica:**
+`MENSENWERK.md` is exact het document waarop de eigenaar/FG leunt om te weten wat al live is versus wat nog een
+juridische sign-off vergt (CLAUDE.md: security/AVG-livegang = mensenwerk). Het vertelde de FG "er wordt niets
+gewist tot jij de env-var zet" voor een mechanisme dat in productie **al onomkeerbaar audit-/reactie-/lead-/
+notificatie-PII wist**. Tweezijdig verantwoordingsrisico: de FG kan geloven dat bewijs onbeperkt bewaard blijft
+(geschil/toezichthouder) terwijl het na 365 dagen weg is, óf geloven dat een juridische keuze nog niet technisch
+is doorgevoerd terwijl dat feitelijk wél zo is. Bovendien ontbraken **zes** stil-wissende PII-hefbomen (LEAD/
+NOTIFICATION/APPLICATION/HEALTH_INCIDENT_IP/SUPPORT_TICKET/MAIL_INTAKE) volledig uit de env-var-referentietabel,
+zodat een operator die zijn env's naloopt niet eens wist dat ze bestonden. **Fix:** de vier stale secties
+herschreven naar de fail-safe-AAN-waarheid (met #1308-referentie), de env-tabel gecorrigeerd + de zes ontbrekende
+rijen toegevoegd, en de twee kruisverwijzingen ("net als de auditlog-retentie … UIT") ontkoppeld — berichten/
+webhook blijven correct als de énige bewust default-UIT vensters gedocumenteerd. **Durable regressietest**
+(`src/lib/mensenwerk-retention-docs.test.ts`, rood→groen): importeert de `*_RETENTION_DEFAULT_DAYS`-constanten uit
+`config.ts` en dwingt af dat MENSENWERK.md (a) geen fail-safe-AAN venster als "leeg/0 = onbeperkt bewaren"
+beschrijft, (b) elk zo'n venster in de env-var-tabel noemt, en (c) de auditlog-rij niet "onbeperkt" claimt — zodat
+een toekomstige config-default-flip óf doc-verwatering meteen CI-rood geeft. Geverifieerd: 3 assertions rood vóór,
+alle groen na.
+
+**Bevinding A (broken access control/IDOR + cross-tenant):** CLEAN — zie audit-kop.
+**Bevinding B (injectie + exposure + upload/SSRF + secrets):** CLEAN — zie audit-kop.
+**Bevinding C (privacy/AVG erasure + retentie):** naast de OPGELOSTE doc-inversie CLEAN — geen ánder retentie-
+fail-open (webhook/berichten bewust default-UIT, correct), erasure-transactie volledig incl. drie-kopie-patronen,
+coverage-gate robuust. De geparkeerde KRITIEK (tegenpartij-geschreven vrije tekst over een gewiste betrokkene —
+FG-beslissing) blijft geparkeerd; niets nieuws dat die niet al dekt.
+
 ## Ronde 2026-09-01 (basis: `main` @ d4b30f3a) — HOOG OPGELOST: `twoFactorLastUsedStep` overleefde de accountanonimisering — AVG art. 17 (recht op vergetelheid) + art. 5(1)(c) dataminimalisatie
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-09-01 — security/privacy: MENSENWERK.md inverteerde welke PII-retentie live is (AVG art. 5(2)/5(1)(e))
+
+**Wat:** sinds #1308 (2026-08-31) staan de PII-retentievensters fail-safe AAN (lege env ⇒ actieve
+verwijdering op het beloofde venster: audit 365d, lead 365d, notificatie 180d, reactie 28d, support 365d,
+mail-intake 180d, health-IP 90d). `MENSENWERK.md` — het document waarop de eigenaar/FG leunt om te weten
+wat al live is — werd door #1308 niet bijgewerkt en bleef beweren dat retentie "standaard UIT / onbeperkt
+bewaren" is en "zolang het leeg blijft verandert er niets". Dat inverteert de waarheid over welke
+onomkeerbare PII-verwijdering in productie draait (verantwoordingsplicht, AVG art. 5(2)). Zes stil-wissende
+retentie-env's ontbraken bovendien volledig uit de env-var-tabel.
+
+**Aanpak:** de vier stale secties (auditlog-blok, env-tabelrij, audit-/reactie-/notificatie-/lead-gauges)
+herschreven naar de fail-safe-AAN-waarheid met #1308-referentie; env-tabel gecorrigeerd + 6 ontbrekende
+rijen toegevoegd; de twee kruisverwijzingen die auditlog nog bij "default UIT" schaarden ontkoppeld
+(berichten/webhook blijven correct als de énige bewust default-UIT vensters). Durable regressietest
+`src/lib/mensenwerk-retention-docs.test.ts` klinkt de doc vast aan de `config.ts`-defaults (rood→groen).
+
+**Bestanden:** `MENSENWERK.md`, `docs/SECURITY-PRIVACY-BACKLOG.md`,
+`src/lib/mensenwerk-retention-docs.test.ts` (nieuw, 4 tests). Audit A/B/C-oppervlakken (IDOR/tenant op
+41 api-routes + 50+ server actions, PII/SSRF/logs, erasure/retentie) CLEAN.
+
 ## 2026-09-01 — routine: kilometervergoeding is de enige aftrekpost bij een reiskosten-rit (server-side)
 
 **Wat:** een REISKOSTEN-uitgave kon zowel een handmatig `netCents` (werkelijke autokost) als
