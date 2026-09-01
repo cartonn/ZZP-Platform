@@ -1198,13 +1198,18 @@ adres-/houdergegevens. Resterend mensenwerk: **niets extra** — de kaart/gauges
    dataminimalisatie) dwong nog niets die termijn af — auditregels bleven onbeperkt staan. Er is nu een
    geplande taak **`audit-retention`** (in `/api/tasks/run-all`, pure kern `src/lib/audit-retention.ts` +
    `src/lib/audit-retention-task.ts`) die auditregels ouder dan het geconfigureerde venster gebatcht en
-   idempotent snoeit, met één verantwoordings-auditrecord per snoei-actie (AVG art. 5 lid 2). **Wissen is
-   onomkeerbaar en staat daarom standaard UIT** (`AUDIT_LOG_RETENTION_DAYS` leeg/0 = onbeperkt bewaren,
-   huidig gedrag). Een te lage waarde wordt veilig geklemd naar **minstens 30 dagen** (typefout-bescherming).
-   Zichtbaar op `/admin/systeemstatus` ("Auditlog-retentie"). Resterend mensenwerk: **de bewaartermijnen
-   laten vaststellen door een privacyjurist** (dit blijft jouw juridische keuze) en daarna
-   `AUDIT_LOG_RETENTION_DAYS` zetten (bv. `365` voor de gedocumenteerde 12 maanden). Zolang het leeg blijft
-   verandert er niets.
+   idempotent snoeit, met één verantwoordings-auditrecord per snoei-actie (AVG art. 5 lid 2).
+   **Bijgewerkt (PR #1308, 2026-08-31) — de snoei staat nu fail-safe AAN:** een lege
+   `AUDIT_LOG_RETENTION_DAYS` betekende eerst "onbeperkt bewaren", maar het verwerkingsregister belóóft
+   12 maanden — dus een ongeconfigureerde omgeving schond stil de eigen belofte. Sindsdien valt een lege/
+   ongeldige waarde terug op **365 dagen** (het beloofde venster): auditregels ouder dan een jaar worden
+   standaard, automatisch en **onomkeerbaar** gesnoeid, ook zonder dat iemand de env-var zet. Een te lage
+   waarde wordt veilig geklemd naar **minstens 30 dagen** (typefout-bescherming); alleen een expliciete
+   `AUDIT_LOG_RETENTION_DAYS=0` schakelt de snoei uit (operator-override, bv. een forensische bewaarplicht).
+   Zichtbaar op `/admin/systeemstatus` ("Auditlog-retentie"). Resterend mensenwerk: **de bewaartermijn
+   laten bevestigen door een privacyjurist** (dit blijft jouw juridische keuze) en `AUDIT_LOG_RETENTION_DAYS`
+   desgewenst bijstellen — maar let op: de 12-maands-snoei is nu al de default, dus als je auditbewijs
+   langer wilt bewaren (geschil, toezichthouder) moet je dat **actief** doen (hogere waarde of `0`).
 
    **Code-kant GEDAAN (2026-07-31) — berichten-retentie afdwingbaar:** het verwerkingsregister
    (`RETENTION_SCHEDULE`) beloofde al een bewaartermijn voor **chatberichten** (`Message.body`,
@@ -1213,9 +1218,10 @@ adres-/houdergegevens. Resterend mensenwerk: **niets extra** — de kaart/gauges
    kern `src/lib/message-retention.ts` + `src/lib/message-retention-task.ts`) die berichten ouder dan
    het geconfigureerde venster gebatcht en idempotent snoeit, met één verantwoordings-auditrecord per
    snoei-actie (geen PII in het auditrecord zelf — alleen aantal + cutoff + venster). **Wissen is
-   onomkeerbaar en berichten hebben waarde voor geschillenbeslechting, dus staat dit net als de
-   auditlog-retentie standaard UIT** (`MESSAGE_RETENTION_DAYS` leeg/0 = onbeperkt bewaren, de
-   pilot-default). Een te lage waarde wordt veilig geklemd naar **minstens 30 dagen**
+   onomkeerbaar en berichten hebben waarde voor geschillenbeslechting, dus staat berichten-retentie
+   — anders dan de auditlog-retentie, die sinds #1308 fail-safe AAN staat — bewust standaard UIT**
+   (`MESSAGE_RETENTION_DAYS` leeg/0 = onbeperkt bewaren, de pilot-default; net als
+   `WEBHOOK_EVENT_RETENTION_DAYS`). Een te lage waarde wordt veilig geklemd naar **minstens 30 dagen**
    (typefout-bescherming). Berichten van een gesprek dat aan een **lopende samenwerking** hangt
    (PROPOSED/ACTIVE) worden nooit gesnoeid, ook niet buiten het venster — die kunnen nog nodig zijn
    zolang de samenwerking loopt. Resterend mensenwerk: **de bewaartermijn laten vaststellen door een
@@ -1232,7 +1238,7 @@ adres-/houdergegevens. Resterend mensenwerk: **niets extra** — de kaart/gauges
    gebatcht en idempotent snoeit (verwijdering cascadeert naar de gekoppelde berichten), met één
    verantwoordings-auditrecord per snoei-actie (geen PII — alleen aantal + cutoff + venster). Een nog-open
    ticket (NEW/TRIAGED/AWAITING_USER/REOPENED) of een legacy-ticket zonder afhandelmoment (`resolvedAt`)
-   blijft altijd staan. Anders dan de auditlog-/berichten-retentie (default UIT wegens onomkeerbaarheid/
+   blijft altijd staan. Anders dan de berichten-retentie (default UIT wegens onomkeerbaarheid/
    geschillenwaarde) is support-communicatie operationeel platformverkeer, dus staat deze sweep **standaard
    AAN op 365 dagen** (`SUPPORT_TICKET_RETENTION_DAYS`; min-vloer 30, expliciete `0` = uit). Machine-leesbaar
    op `/api/metrics` (`zzp_support_tickets_retention_backlog`); nieuwe verwerkingsregister-activiteit
@@ -1252,7 +1258,7 @@ adres-/houdergegevens. Resterend mensenwerk: **niets extra** — de kaart/gauges
    verantwoordings-auditrecord per snoei-actie (geen PII — alleen aantal + cutoff + venster). Een **NEW**
    (nog te beoordelen, of heropend uit DISMISSED) intake blijft altijd staan — die vroegtijdig wissen zou
    een openstaande aanvraag laten verdwijnen. Bij ACCEPTED blijft de concept-opdracht (Job) staan; alleen
-   de ruwe mail gaat weg. Anders dan de auditlog-/berichten-retentie (default UIT) heeft inbound
+   de ruwe mail gaat weg. Anders dan de berichten-retentie (default UIT) heeft inbound
    derde-partij-mail na de beoordeling geen zelfstandige bewaargrond, dus staat deze sweep **standaard AAN
    op 180 dagen** (`MAIL_INTAKE_RETENTION_DAYS`; min-vloer 30, expliciete `0` = uit). Resterend mensenwerk:
    **niets** — werkt out-of-the-box; optioneel het venster laten bevestigen door een privacyjurist en
@@ -1418,40 +1424,46 @@ Echte teksten, logo en eventuele huisstijl kun je aanleveren; de agent verwerkt 
 
 Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Zie ook `.env.example`.)
 
-| Instelling                                                                   | Wat het is                                             | Waar haal je het     | Wanneer nodig                                    |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------- | ------------------------------------------------ |
-| `DATABASE_URL`                                                               | Verbindings-URL productie-database                     | Databasedienst (§1b) | Altijd (productie)                               |
-| `AUTH_SECRET`                                                                | Geheim voor veilige inlogsessies (≥32 tekens)          | Zelf genereren (§1e) | Altijd                                           |
-| `AUTH_URL`                                                                   | Je productie-webadres                                  | Je domein (§1d)      | Altijd                                           |
-| `STORAGE_DRIVER=s3`                                                          | Schakelt productie-opslag in                           | —                    | Bij echte uploads                                |
-| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                                    | Bucketnaam + regio                                     | Opslagdienst (§1c)   | Bij echte uploads                                |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                                | Opslag-toegangssleutels                                | Opslagdienst (§1c)   | Bij echte uploads                                |
-| `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                             | Encryptie-at-rest (default AES256; optioneel)          | — (§1c)              | Optioneel (default aan bij s3)                   |
-| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`                      | E-mail via Resend HTTP-API (Railway-proof)             | Resend (§2)          | Voor e-mail                                      |
-| `EMAIL_DRIVER=postmark` + `POSTMARK_SERVER_TOKEN` + `EMAIL_FROM`             | E-mail via Postmark HTTP-API (Railway-proof)           | Postmark (§2)        | Voor e-mail (alternatief voor Resend)            |
-| `EMAIL_DRIVER=ses` + `SES_REGION` + `EMAIL_FROM` (+ SES/AWS-sleutels)        | E-mail via Amazon SES v2 (EU-regio, AVG-vriendelijk)   | AWS SES (§2)         | Voor e-mail (Railway-proof; kies EU-regio)       |
-| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`                          | E-mail via eigen SMTP-relay                            | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
-| `BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`                                 | Betalingen via Mollie                                  | Mollie (§3)          | Voor betalingen (kies één provider)              |
-| `BILLING_PROVIDER=stripe` + `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET`         | Betalingen via Stripe (Checkout + webhook)             | Stripe (§3)          | Voor betalingen (kies één provider)              |
-| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`                        | Echte DUO-controle                                     | DUO (§4a)            | Voor echte diplomacontrole                       |
-| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`                    | Echte BIG-controle                                     | CIBG (§4b)           | Voor echte zorgcontrole                          |
-| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY`            | Echte identiteitscontrole                              | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                   |
-| `VERIFY_HTTP_TIMEOUT_MS` / `VERIFY_HTTP_RETRIES`                             | Time-out/retry externe verificatie (DUO/BIG/iDIN)      | — (§0b)              | Optioneel (default 8000 ms / 2 retries)          |
-| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                                      | Externe error-monitoring (anders alleen logs)          | Sentry (§0b)         | Optioneel (aanbevolen prod)                      |
-| `LOG_LEVEL`                                                                  | Logdrempel (debug/info/warn/error)                     | —                    | Optioneel (default info)                         |
-| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`               | Gedeelde rate-limits over instances                    | Upstash (§0b H-2)    | Bij horizontale schaling                         |
-| `DATABASE_CONNECTION_LIMIT` (+ `DATABASE_POOL_TIMEOUT`/`DATABASE_PGBOUNCER`) | Begrenst de Prisma-pool per instance                   | — (§0b, §1b)         | Bij horizontale schaling                         |
-| `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`                        | Malware-scan van uploads                               | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
-| `PASSWORD_BREACH_CHECK=hibp`                                                 | Gelekt-wachtwoord-controle (HIBP, sleutelloos)         | — (§5d)              | Optioneel (aanbevolen prod; geen secret nodig)   |
-| `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (+ `VAPID_SUBJECT`)                 | PWA-pushmeldingen (in-app meldingen blijven werken)    | Zelf genereren (§2)  | Optioneel (`npx web-push generate-vapid-keys`)   |
-| `ALLOW_INDEXING=true`                                                        | Zoekmachine-indexering aanzetten (default uit)         | — (§0b)              | Optioneel bij go-live (pilot blijft privé)       |
-| `SECURITY_CONTACT`                                                           | Meldpunt in /.well-known/security.txt (RFC 9116)       | — (§0b)              | Optioneel (aanbevolen vóór pentest)              |
-| `AUDIT_LOG_RETENTION_DAYS`                                                   | Bewaartermijn auditlog in dagen (default: onbeperkt)   | — (§5a)              | Optioneel (aanbevolen prod; bv. 365)             |
-| `MESSAGE_RETENTION_DAYS`                                                     | Bewaartermijn berichten in dagen (default: onbeperkt)  | — (§5a)              | Optioneel (aanbevolen prod; bv. 365)             |
-| `WEBHOOK_EVENT_RETENTION_DAYS`                                               | Snoeivenster webhook-ledger in dagen (default: onbep.) | — (§3)               | Optioneel (bij recurring billing; bv. 90)        |
-| `BACKUP_MAX_AGE_HOURS`                                                       | Venster back-up-heartbeat in uren (default 48)         | —                    | Optioneel (aanbevolen prod)                      |
-| `TASK_TIMEOUT_MS`                                                            | Per-taak-deadline run-all-cron (default 120000; 0=uit) | — (§10)              | Optioneel (default aan)                          |
-| `SHUTDOWN_DRAIN_MS` (+ `SHUTDOWN_FORCE_KILL_MS`)                             | Drain-venster/force-kill bij redeploy (zero-downtime)  | — (§0b)              | Optioneel (default 5000/25000 ms in prod)        |
+| Instelling                                                                   | Wat het is                                                   | Waar haal je het     | Wanneer nodig                                    |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------- | ------------------------------------------------ |
+| `DATABASE_URL`                                                               | Verbindings-URL productie-database                           | Databasedienst (§1b) | Altijd (productie)                               |
+| `AUTH_SECRET`                                                                | Geheim voor veilige inlogsessies (≥32 tekens)                | Zelf genereren (§1e) | Altijd                                           |
+| `AUTH_URL`                                                                   | Je productie-webadres                                        | Je domein (§1d)      | Altijd                                           |
+| `STORAGE_DRIVER=s3`                                                          | Schakelt productie-opslag in                                 | —                    | Bij echte uploads                                |
+| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                                    | Bucketnaam + regio                                           | Opslagdienst (§1c)   | Bij echte uploads                                |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                                | Opslag-toegangssleutels                                      | Opslagdienst (§1c)   | Bij echte uploads                                |
+| `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                             | Encryptie-at-rest (default AES256; optioneel)                | — (§1c)              | Optioneel (default aan bij s3)                   |
+| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`                      | E-mail via Resend HTTP-API (Railway-proof)                   | Resend (§2)          | Voor e-mail                                      |
+| `EMAIL_DRIVER=postmark` + `POSTMARK_SERVER_TOKEN` + `EMAIL_FROM`             | E-mail via Postmark HTTP-API (Railway-proof)                 | Postmark (§2)        | Voor e-mail (alternatief voor Resend)            |
+| `EMAIL_DRIVER=ses` + `SES_REGION` + `EMAIL_FROM` (+ SES/AWS-sleutels)        | E-mail via Amazon SES v2 (EU-regio, AVG-vriendelijk)         | AWS SES (§2)         | Voor e-mail (Railway-proof; kies EU-regio)       |
+| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`                          | E-mail via eigen SMTP-relay                                  | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
+| `BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`                                 | Betalingen via Mollie                                        | Mollie (§3)          | Voor betalingen (kies één provider)              |
+| `BILLING_PROVIDER=stripe` + `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET`         | Betalingen via Stripe (Checkout + webhook)                   | Stripe (§3)          | Voor betalingen (kies één provider)              |
+| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`                        | Echte DUO-controle                                           | DUO (§4a)            | Voor echte diplomacontrole                       |
+| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`                    | Echte BIG-controle                                           | CIBG (§4b)           | Voor echte zorgcontrole                          |
+| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY`            | Echte identiteitscontrole                                    | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                   |
+| `VERIFY_HTTP_TIMEOUT_MS` / `VERIFY_HTTP_RETRIES`                             | Time-out/retry externe verificatie (DUO/BIG/iDIN)            | — (§0b)              | Optioneel (default 8000 ms / 2 retries)          |
+| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                                      | Externe error-monitoring (anders alleen logs)                | Sentry (§0b)         | Optioneel (aanbevolen prod)                      |
+| `LOG_LEVEL`                                                                  | Logdrempel (debug/info/warn/error)                           | —                    | Optioneel (default info)                         |
+| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`               | Gedeelde rate-limits over instances                          | Upstash (§0b H-2)    | Bij horizontale schaling                         |
+| `DATABASE_CONNECTION_LIMIT` (+ `DATABASE_POOL_TIMEOUT`/`DATABASE_PGBOUNCER`) | Begrenst de Prisma-pool per instance                         | — (§0b, §1b)         | Bij horizontale schaling                         |
+| `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`                        | Malware-scan van uploads                                     | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
+| `PASSWORD_BREACH_CHECK=hibp`                                                 | Gelekt-wachtwoord-controle (HIBP, sleutelloos)               | — (§5d)              | Optioneel (aanbevolen prod; geen secret nodig)   |
+| `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (+ `VAPID_SUBJECT`)                 | PWA-pushmeldingen (in-app meldingen blijven werken)          | Zelf genereren (§2)  | Optioneel (`npx web-push generate-vapid-keys`)   |
+| `ALLOW_INDEXING=true`                                                        | Zoekmachine-indexering aanzetten (default uit)               | — (§0b)              | Optioneel bij go-live (pilot blijft privé)       |
+| `SECURITY_CONTACT`                                                           | Meldpunt in /.well-known/security.txt (RFC 9116)             | — (§0b)              | Optioneel (aanbevolen vóór pentest)              |
+| `AUDIT_LOG_RETENTION_DAYS`                                                   | Auditlog-snoei in dagen (default 365 AAN; `0`=uit)           | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
+| `LEAD_RETENTION_DAYS`                                                        | Acquisitie-leads-snoei in dagen (default 365 AAN; `0`=uit)   | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
+| `NOTIFICATION_RETENTION_DAYS`                                                | Notificatie-snoei in dagen (default 180 AAN; `0`=uit)        | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
+| `APPLICATION_RETENTION_DAYS`                                                 | Reactie-PII-snoei in dagen (default 28 AAN; `0`=uit)         | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
+| `SUPPORT_TICKET_RETENTION_DAYS`                                              | Support-ticket-snoei in dagen (default 365 AAN; `0`=uit)     | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
+| `MAIL_INTAKE_RETENTION_DAYS`                                                 | Mail-intake-snoei in dagen (default 180 AAN; `0`=uit)        | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
+| `HEALTH_INCIDENT_IP_RETENTION_DAYS`                                          | IP-redactie beveiligingsincidenten (default 90 AAN; `0`=uit) | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
+| `MESSAGE_RETENTION_DAYS`                                                     | Bewaartermijn berichten in dagen (default: onbeperkt)        | — (§5a)              | Optioneel (aanbevolen prod; bv. 365)             |
+| `WEBHOOK_EVENT_RETENTION_DAYS`                                               | Snoeivenster webhook-ledger in dagen (default: onbep.)       | — (§3)               | Optioneel (bij recurring billing; bv. 90)        |
+| `BACKUP_MAX_AGE_HOURS`                                                       | Venster back-up-heartbeat in uren (default 48)               | —                    | Optioneel (aanbevolen prod)                      |
+| `TASK_TIMEOUT_MS`                                                            | Per-taak-deadline run-all-cron (default 120000; 0=uit)       | — (§10)              | Optioneel (default aan)                          |
+| `SHUTDOWN_DRAIN_MS` (+ `SHUTDOWN_FORCE_KILL_MS`)                             | Drain-venster/force-kill bij redeploy (zero-downtime)        | — (§0b)              | Optioneel (default 5000/25000 ms in prod)        |
 
 > Zolang een verificatie-schakelaar **niet** op de echte waarde staat, draait de bijbehorende
 > demo-verifier veilig door (handig voor de pilot).
@@ -1803,12 +1815,13 @@ alleen dát de run afrondde, niet dát 'ie de snoei-pijplijn verwerkte — blijf
 heartbeat "vers" is, dan bewaart de app persoonsgegevens over de wettelijke termijn heen zonder dat iets dat
 toont. De gauge gebruikt exact dezelfde bron van waarheid als de taak zelf
 (`auditRetentionCutoff(auditLogRetentionDays(), now)` → `auditLog.count({ createdAt: { lt: cutoff } })`) → kan
-niet driften. Staat retentie **UIT** (`AUDIT_LOG_RETENTION_DAYS` leeg/0 = onbeperkt bewaren, de pilot-default),
-dan is er per definitie geen achterstand → de gauge is `0` (geen misleidend signaal). Een drop-in
+niet driften. De snoei staat sinds #1308 fail-safe **AAN** (lege env ⇒ 365 dagen), dus deze gauge is nu een
+live veiligheidssignaal: loopt 'ie op terwijl de heartbeat vers is, dan hapert de snoei en blijft PII over de
+termijn heen staan. Alleen een expliciete `AUDIT_LOG_RETENTION_DAYS=0` (operator-override) zet de snoei uit →
+dan is er per definitie geen achterstand en is de gauge `0` (geen misleidend signaal). Een drop-in
 Prometheus-alert (`ZzpAuditRetentionBacklog`, `> 0` met `for: 30h` > één cron-interval) staat in
 `docs/observability/alerts.yml` en is vastgeklonken aan de drift-gate. Faalt veilig (nooit een 500), bevat geen
-PII. Resterend mensenwerk: **niets extra** — de gauge is er standaard; hij wordt pas van-nul zodra je
-`AUDIT_LOG_RETENTION_DAYS` zet (§5a) en de snoei stilvalt.
+PII. Resterend mensenwerk: **niets extra** — de gauge is er standaard en actief.
 **Code-kant GEDAAN (2026-07-28) — reactie-retentie-backlog stille-faal-gauge:** `zzp_applications_retention_backlog`
 (aantal terminale reacties — `Application`, status REJECTED/WITHDRAWN, zónder samenwerking — ouder dan het
 geconfigureerde `APPLICATION_RETENTION_DAYS`-venster die de `application-retention`-cron nog niet snoeide). Dezelfde
@@ -1818,8 +1831,9 @@ selectieprocedure" (AVG art. 5 lid 1e opslagbeperking). De cron-heartbeat bewijs
 'ie de snoei-pijplijn verwerkte — blijft dit getal oplopen terwijl de heartbeat "vers" is, dan bewaart de app
 reactie-PII over de beloofde termijn heen zonder dat iets dat toont. De gauge hergebruikt **exact** dezelfde bron van
 waarheid als de taak zelf (`prunableApplicationWhere(applicationRetentionCutoff(applicationRetentionDays(), now))`,
-inclusief de cascade-veilige `collaboration: { is: null }`-guard) → kan niet driften. Staat retentie **UIT**
-(`APPLICATION_RETENTION_DAYS` leeg/0 = onbeperkt bewaren), dan is er per definitie geen achterstand → de gauge is `0`.
+inclusief de cascade-veilige `collaboration: { is: null }`-guard) → kan niet driften. De snoei staat fail-safe
+**AAN** (lege env ⇒ 28 dagen); alleen een expliciete `APPLICATION_RETENTION_DAYS=0` (operator-override) zet 'm
+uit, en dan is er per definitie geen achterstand → de gauge is `0`.
 Een drop-in Prometheus-alert (`ZzpApplicationsRetentionBacklog`, `> 0` met `for: 30h` > één cron-interval) staat in
 `docs/observability/alerts.yml` en is vastgeklonken aan de drift-gate. Faalt veilig (nooit een 500), bevat geen PII.
 Resterend mensenwerk: **niets extra**.
@@ -1835,9 +1849,10 @@ oplopen terwijl de heartbeat "vers" is, dan bewaart de app persoonsgegevens over
 zonder dat iets dat toont (AVG art. 5 lid 1e: notificatiehistorie max. 6 maanden; leads tot klant/afvalt + 12
 maanden). Beide gauges hergebruiken **exact** dezelfde bron van waarheid als de taken zelf (`notificationRetentionCutoff`
 
-- dezelfde where; `prunableLeadWhere` — geëxporteerd uit `lead-retention-task.ts`) → kunnen niet driften. Staat
-  retentie **UIT** (venster leeg/0 = onbeperkt bewaren, de pilot-default), dan is er per definitie geen achterstand →
-  de gauge is `0`. Drop-in Prometheus-alerts (`ZzpNotificationsRetentionBacklog`/`ZzpLeadsRetentionBacklog`, `> 0` met
+- dezelfde where; `prunableLeadWhere` — geëxporteerd uit `lead-retention-task.ts`) → kunnen niet driften. Beide
+  snoeien staan fail-safe **AAN** (lege env ⇒ 180 dagen notificaties / 365 dagen leads); alleen een expliciete
+  `NOTIFICATION_RETENTION_DAYS=0` resp. `LEAD_RETENTION_DAYS=0` (operator-override) zet ze uit, en dan is er per
+  definitie geen achterstand → de gauge is `0`. Drop-in Prometheus-alerts (`ZzpNotificationsRetentionBacklog`/`ZzpLeadsRetentionBacklog`, `> 0` met
   `for: 30h`) staan in `docs/observability/alerts.yml` en zijn vastgeklonken aan de drift-gate. Falen veilig (nooit een
   500), bevatten geen PII. Resterend mensenwerk: **niets extra**.
   **Code-kant GEDAAN (2026-08-02) — routing-cache-retentie-backlog stille-faal-gauge:**
