@@ -1456,9 +1456,17 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     prisma.company.count({ where: { tenantId, jobs: { none: { status: "PUBLISHED" } } } }),
     // Open dienst-overname-aanvragen binnen de eigen tenant — exact dezelfde scoping als de
     // nav-badge (`openHandoffs`, signals.ts): via de opdracht van de samenwerking. De bemiddelaar
-    // (tenant-eigenaar) is aan zet om te beoordelen (goedkeuren/afwijzen).
+    // (tenant-eigenaar) is aan zet om te beoordelen (goedkeuren/afwijzen). Scope óók op de
+    // samenwerking zelf (`status: "ACTIVE", disputedAt: null`) — een overname kan alleen op een
+    // ACTIEVE inzet worden geopend (`canRequestHandoff`), maar niets sluit de OPEN-aanvraag als de
+    // samenwerking daarna terminaal wordt (annuleren/afronden) of in dispuut gaat (werkproces
+    // bevroren). Zonder deze scope bleef de beslis-taak eeuwig hangen op een dode/bevroren inzet —
+    // recht tegen de server-side status in (spiegelt de run-103 job.status-fix voor de kandidaat-taken).
     prisma.shiftHandoff.findMany({
-      where: { status: "OPEN", collaboration: { job: { tenantId } } },
+      where: {
+        status: "OPEN",
+        collaboration: { status: "ACTIVE", disputedAt: null, job: { tenantId } },
+      },
       select: {
         id: true,
         collaboration: {
@@ -1790,8 +1798,12 @@ async function adminTasks(): Promise<PendingTask[]> {
     }),
     // Open dienst-overname-aanvragen, platform-breed — exact dezelfde scoping als de nav-badge
     // (`openAdminHandoffs`, signals.ts). De admin beoordeelt ze allemaal (goedkeuren/afwijzen).
+    // Scope óók op de samenwerking zelf (`status: "ACTIVE", disputedAt: null`): een OPEN-aanvraag op
+    // een terminale (geannuleerd/afgerond) of bevroren (dispuut) samenwerking is moot — de
+    // herplaatsing/annulering is dan al gebeurd, en beslissen tijdens een dispuut doorbreekt de
+    // werkproces-freeze. Zonder deze scope bleef de beslis-taak + badge eeuwig hangen.
     prisma.shiftHandoff.findMany({
-      where: { status: "OPEN" },
+      where: { status: "OPEN", collaboration: { status: "ACTIVE", disputedAt: null } },
       select: {
         id: true,
         collaboration: {

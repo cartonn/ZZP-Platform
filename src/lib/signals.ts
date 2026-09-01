@@ -847,8 +847,14 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         },
       }),
       // Open shift-overname-aanvragen binnen de eigen tenant (via de opdracht van de samenwerking).
+      // Scope óók op de samenwerking zelf (ACTIVE + niet in dispuut): een OPEN-aanvraag op een
+      // terminale of bevroren inzet is geen openstaande governance-beslissing meer — spiegelt exact
+      // de /acties-bron (`pendingTasks`) zodat badge en actiecentrum niet uiteenlopen.
       prisma.shiftHandoff.count({
-        where: { status: "OPEN", collaboration: { job: { tenantId } } },
+        where: {
+          status: "OPEN",
+          collaboration: { status: "ACTIVE", disputedAt: null, job: { tenantId } },
+        },
       }),
       // /franchise/zzpers — kandidaat-profielen met een (bijna-)verlopend geverifieerd certificaat van
       // tenant-ZZP'ers (venster gte now / lte soon), exact de eerste-stap-scope van de /acties-bron
@@ -1071,8 +1077,12 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       _count: { _all: true },
       having: { freelancerProfileId: { _count: { gte: NO_SHOW_LIMIT } } },
     }),
-    // Open dienst-overname-aanvragen, platform-breed (admin ziet ze allemaal).
-    prisma.shiftHandoff.count({ where: { status: "OPEN" } }),
+    // Open dienst-overname-aanvragen, platform-breed (admin ziet ze allemaal). Scope óók op de
+    // samenwerking zelf (ACTIVE + niet in dispuut) — spiegelt de /acties-bron (`pendingTasks`) zodat
+    // de nav-badge geen aanvragen telt op een terminale of bevroren inzet.
+    prisma.shiftHandoff.count({
+      where: { status: "OPEN", collaboration: { status: "ACTIVE", disputedAt: null } },
+    }),
     // Gebruikers-wachtrij (nav /admin/gebruikersbeheer). Exact dezelfde predicaten als /acties
     // (pending-tasks.ts adminTasks): (1) accounts die op goedkeuring wachten, (2) openstaande
     // AVG-verwijderverzoeken. Zonder deze tellingen was de Gebruikers-nav stil terwijl /acties + de
