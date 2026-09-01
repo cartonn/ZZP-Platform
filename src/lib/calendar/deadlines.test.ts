@@ -9,6 +9,7 @@ const empty: AdministrativeDeadlines = {
   invoices: [],
   vat: [],
   incomeTax: null,
+  placementStarts: [],
   collaborations: [],
 };
 
@@ -109,7 +110,42 @@ describe("administrativeDeadlineEvents", () => {
     expect(event!.description).toContain("verlenging");
   });
 
-  it("bewaart de categorievolgorde: certificaten, facturen, BTW, IB, dan plaatsingen", () => {
+  it("mapt een aanstaande plaatsing-startdatum naar een gehele-dag-event met stabiele UID — perspectief ZZP'er", () => {
+    const startDate = new Date("2026-08-01T00:00:00Z");
+    const [event] = administrativeDeadlineEvents({
+      ...empty,
+      placementStarts: [
+        { id: "col-1", startDate, counterpartyName: "Zorggroep De Linde", asClient: false },
+      ],
+    });
+    expect(event!.uid).toBe("placement-start-col-1@zzp-platform");
+    expect(event!.summary).toBe("Start plaatsing: Zorggroep De Linde");
+    expect(event!.allDay).toBe(true);
+    expect(event!.start).toBe(startDate);
+    // Geen herhaling: de start is een enkel event (het werkrooster levert de terugkerende werkdagen).
+    expect(event!.recurrenceDays).toBeUndefined();
+    // ZZP'er-perspectief: "je plaatsing … zorg dat je klaarstaat".
+    expect(event!.description).toContain("Je plaatsing");
+    // Aanloop-alarmen: een week vooraf en de dag ervóór.
+    expect(event!.alarms?.map((a) => a.daysBefore)).toEqual([7, 1]);
+  });
+
+  it("onderscheidt het opdrachtgever-perspectief op een plaatsing-startdatum", () => {
+    const startDate = new Date("2026-08-01T00:00:00Z");
+    const [event] = administrativeDeadlineEvents({
+      ...empty,
+      placementStarts: [
+        { id: "col-2", startDate, counterpartyName: "Sanne de Vries", asClient: true },
+      ],
+    });
+    expect(event!.summary).toBe("Start plaatsing: Sanne de Vries");
+    expect(event!.description).toContain("De plaatsing van Sanne de Vries begint");
+    // Privacy: geen euro-bedrag in de publieke feed.
+    expect(event!.summary).not.toContain("€");
+    expect(event!.description).not.toContain("€");
+  });
+
+  it("bewaart de categorievolgorde: certificaten, facturen, BTW, IB, plaatsing-start, dan plaatsing-einde", () => {
     const d = new Date("2026-06-01T00:00:00Z");
     const ibDeadline = new Date("2027-05-01T00:00:00Z");
     const events = administrativeDeadlineEvents({
@@ -117,6 +153,9 @@ describe("administrativeDeadlineEvents", () => {
       invoices: [{ id: "i1", number: "F-1", dueAt: d, payable: true }],
       vat: [{ year: 2026, quarter: 2, deadline: d }],
       incomeTax: { taxYear: 2026, deadline: ibDeadline },
+      placementStarts: [
+        { id: "col-2", startDate: d, counterpartyName: "Nieuwe klant", asClient: false },
+      ],
       collaborations: [{ id: "col-1", endDate: d, counterpartyName: "De Linde", asClient: false }],
     });
     expect(events.map((e) => e.uid)).toEqual([
@@ -124,6 +163,7 @@ describe("administrativeDeadlineEvents", () => {
       "invoice-due-i1@zzp-platform",
       "vat-return-2026-Q2@zzp-platform",
       "income-tax-2026@zzp-platform",
+      "placement-start-col-2@zzp-platform",
       "collab-end-col-1@zzp-platform",
     ]);
   });

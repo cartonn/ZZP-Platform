@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-09-01 — routine: agenda toont ook de startdatum van een plaatsing (met herinnering vooraf)
+
+**Wat:** de abonneerbare agenda-feed (`/api/agenda` + `/api/agenda/feed.ics`) toonde wél het **einde** van
+een plaatsing ("Einde plaatsing", 14 dagen vooraf) maar nooit de **start**. Een weekpatroon-plaatsing
+verankert haar start impliciet via het terugkerende werkrooster-event, maar een project-/periode-plaatsing
+(vaste start+eind, géén weekdagen) gaf de ZZP'er én de opdrachtgever geen enkel start-signaal of herinnering
+vooraf — je zag alleen wanneer het afliep, niet wanneer het begon.
+
+**Aanpak:** symmetrisch met het bestaande "Einde plaatsing"-event een **"Start plaatsing: {tegenpartij}"**
+gehele-dag-event toegevoegd met aanloop-alarmen (7 dagen én 1 dag vooraf), perspectief-bewust (ZZP'er vs
+opdrachtgever), zonder bedragen (privacy-parity met de rest van de feed). De loader
+(`loadUserAdministrativeDeadlines`) verbreedt de bestaande plaatsing-query naar één `OR` van "toekomstige
+start" óf "nog niet verstreken einde" (één query, niet twee) en splitst in JS met een her-toets `>= now` per
+datum, zodat een rij die alléén op de start matcht geen verstreken einde-event oplevert (en omgekeerd).
+Server-side waarheid, read-only, geen schema-/mutatie-/authz-oppervlak; stroomt automatisch door beide
+agenda-routes (sessie-export + publieke feed).
+
+**Bestanden:** `src/lib/calendar/deadlines.ts` (+ `.test.ts`, +3 tests), `src/lib/calendar/user-deadlines.ts`
+(+ `.test.ts`, +2 tests, where-assertie bijgewerkt), `src/app/api/agenda/feed.ics/route.test.ts` +
+`src/app/api/agenda/feed-liveness.test.ts` (mock-return `placementStarts: []`).
+
+**Checks:** typecheck ✓, lint ✓, unit (calendar 27 + agenda 13 groen; +5 nieuw) ✓, build ✓, prettier ✓.
+CI-poort verifieert (PR #1323).
+
 ## 2026-09-01 — security/privacy: MENSENWERK.md inverteerde welke PII-retentie live is (AVG art. 5(2)/5(1)(e))
 
 **Wat:** sinds #1308 (2026-08-31) staan de PII-retentievensters fail-safe AAN (lege env ⇒ actieve
