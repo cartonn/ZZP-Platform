@@ -4,6 +4,66 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-01 (basis: `main` @ d4b30f3a) — HOOG OPGELOST: `twoFactorLastUsedStep` overleefde de accountanonimisering — AVG art. 17 (recht op vergetelheid) + art. 5(1)(c) dataminimalisatie
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(A: broken access control/IDOR + cross-tenant/franchise-isolatie op álle server actions, route handlers en
+/api-routes · B: injectie (SQL/XSS/CSV/XML) + data-exposure/over-fetching + upload/SSRF + secrets, incl. de
+nieuwe UBL-e-factuur-export · C: privacy/AVG — erasure-/anonimisering-dekking, dataminimalisatie, k-anonimiteit,
+PII-in-logs, retentie, derden-doorgifte). Focus op de delta sinds de vorige ronde (`8cd60f30..d4b30f3a`, incl.
+#1308 auditlog-retentie-failsafe, #1309 MailIntake-retentie-gauge, de tax/KOR- en vindbaarheid-schermen).
+`npm audit --omit=dev` = **0**; Next **15.5.24** (voorbij CVE-2025-29927 middleware-bypass); geen gecommitte
+`.env`/`NEXT_PUBLIC`-secrets. Runtime: `npm run build` (exit 0).
+
+**OPGELOST — [HOOG · AVG art. 17 (recht op vergetelheid) + art. 5(1)(c) dataminimalisatie] `User.twoFactorLastUsedStep`
+overleefde `anonymizeUser`.** De TOTP-replay-guard (#1302) introduceerde `User.twoFactorLastUsedStep Int?` — de
+hoogst-verbruikte TOTP-tijdteller, `floor(unixtime/30)` van de laatste **geslaagde** 2FA-login: een
+gedragsmetadatum met ~30-seconde-resolutie. `userAnonymizationData` (`src/lib/account-anonymization.ts`) zette
+`twoFactorSecret`→null en `twoFactorEnabledAt`→null (met expliciete art. 17-rationale), maar liet
+`twoFactorLastUsedStep` staan. De **enige** User-write in de erasure-transactie (`src/app/(protected)/admin/
+gebruikers/actions.ts:516`: `prisma.user.update({ data: userAnonymizationData(userId, now) })`) loopt via die
+helper, dus het veld werd nergens gewist. De self-service `disableTwoFactor` (`account/tweestapsverificatie/
+actions.ts:208`) zét het al op null — de erasure-tak was daarmee inconsistent met het platform-eigen
+disable-pad. Dezelfde art. 17-klasse die de code al afdwingt voor `lastLoginAt`/`previousLoginAt` (spiegel van
+`ConversationParticipant.lastReadAt`, #1097), maar **preciezer**: via `step * 30` reconstrueerbaar tot het
+exacte inlogmoment, toewijsbaar aan de behouden (alleen hernoemde) `User.id`. Niet gevangen door de
+schema-coverage-gate: die dekt model-niveau + een `Application`/`Performance`-veldallowlist, maar `User`-veld-niveau
+leunt volledig op de (incomplete) returntype van `userAnonymizationData`. **Repro:** admin keurt het
+verwijderverzoek van een 2FA-ZZP'er goed → `User.email`/`name`/`twoFactorSecret`/`twoFactorEnabledAt` weg, maar
+`User.twoFactorLastUsedStep` houdt de tijdteller van zijn laatste echte login vast, joinbaar aan de behouden
+`User.id`. **Fix:** `twoFactorLastUsedStep: null` toegevoegd aan de returntype én het object van
+`userAnonymizationData` (spiegel-consistent met `disableTwoFactor`). Regressietest rood→groen in
+`src/lib/account-anonymization.test.ts` (vóór de fix `undefined`, erna `null`). Geverifieerd: rood vóór, groen na.
+**Aanbevolen follow-up (geparkeerd, LAAG):** de anonymize-coverage-gate (`anonymize-schema-coverage.test.ts`)
+op `User`-veld-niveau uitbreiden zodat een toekomstige nieuwe `User`-PII-kolom niet stil hetzelfde patroon
+herhaalt (nu vangt alleen de returntype van `userAnonymizationData` dit af, en niets kruis-checkt dat tegen het
+schema).
+
+**Bevinding A (broken access control/IDOR + cross-tenant):** CLEAN. Verse adversariële steekproef over de
+franchise/tenant-oppervlakken (leads-lifecycle, diensten/voordracht, opdrachtgevers/afdeling-wizard,
+roster-dossier + dienst-suggesties met per-subquery `tenantScopeWhere`), shift-handoff-governance,
+document/dossier/PDF-download-routes (ownership-of-admin, identiek 404 voor onbekend én verboden, storage-key
+DB-resolved → geen path-traversal), cron/metrics/ICS-feed (secret-gated fail-closed / HMAC bound aan `userId`
+met live-status-hercheck), 2FA-acties (self-scoped, disable vereist wachtwoord), cascade-geldacties (ownership
+her-afgeleid uit de rij, TOCTOU-veilige compound-guards), flexpool/favorites (`companyId` altijd server-side uit
+`actor.id`). Geen ownership-gat, geen client-only check, geen rol-/ownerId-/tenantId-/status-mass-assignment,
+geen SUSPENDED-bypass (`requireActor` herleest live DB-status/tenant-status/password-generation per request).
+
+**Bevinding B (injectie + exposure + upload/SSRF + secrets):** CLEAN op het gecontroleerde oppervlak. De nieuwe
+UBL-e-factuur-export (`src/lib/invoice-ubl.ts` + `src/app/api/facturen/[id]/ubl/route.ts`) escapet elk
+user/DB-gestuurd veld via `xmlEscape` (test-bewaakt op `&`/`<`/`>`/`"`); numerieke velden zijn server-afgeleid;
+de download-route spiegelt de PDF-route byte-voor-byte (`auth → rate-limit → ownership met 404-maskering →
+DENIED/ACCESSED-audit → `privateFileHeaders`), selecteert alleen de nodige velden (geen over-fetch),
+betaalmiddel-blok alleen op een nog-openstaande factuur. Geen secret gelogd, geen nieuwe env, server-only.
+
+**Bevinding C (privacy/AVG):** naast de OPGELOSTE `twoFactorLastUsedStep`-bevinding CLEAN op de
+erasure-transactie (grondige multi-ronde-dekking: Message/Notification-kopieën, Application, Review, Invoice/
+Performance-rejectionReason, NoShowReport, dispute-events/audit-metadata, Idea, LeadContact, ShiftHandoff,
+credential-audit-metadata, IP/user-agent-scrub, TwoFactorRecoveryCode), de nieuwe tax/KOR/vindbaarheid-mappers
+(puur, alleen eigen data → geen k-anonimiteit-/minimalisatie-exposure), en geen nieuw retentie-gat naast het
+al-gefixte auditlog (#1308). De reeds-geëscaleerde geparkeerde KRITIEK (tegenpartij-geschreven vrije tekst over
+een gewiste betrokkene — juridische/FG-keuze, MENSENWERK §5) blijft open en is bewust **niet** her-gerapporteerd.
+
 ## Ronde 2026-08-31b (basis: `main` @ 8cd60f30) — MIDDEL OPGELOST: auditlog-retentie faalde OPEN (onbeperkt bewaren tenzij een operator een env-var zette) terwijl het verwerkingsregister 12 maanden belooft — AVG art. 5(1)(e) opslagbeperking + art. 5(2) verantwoordingsplicht
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
