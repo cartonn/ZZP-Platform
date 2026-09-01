@@ -227,9 +227,26 @@ npm run db:restore -- --target "postgres://..." --dry-run backups/zzp-backup-XXX
 Onder water: `pg_restore --no-owner --no-privileges --clean --if-exists --dbname="$TARGET_DATABASE_URL" <bestand>`.
 Beide vereisen de PostgreSQL-client (`pg_dump`/`pg_restore`) op het systeem.
 
-**Herstel-oefening (aanbevolen vóór go-live):** herstel een back-up naar een **wegwerp-database**,
-zet `DATABASE_URL` daarheen in een staging-omgeving, en verifieer met `/api/readiness` +
-een steekproef. Een onbeproefde back-up is geen back-up.
+**Herstel-drill (geautomatiseerd — bewijst dat een back-up ÉCHT herstelbaar is):** de
+integriteitsverificatie hierboven leest alléén de inhoudsopgave (`pg_restore --list`, TOC). Dat
+bewijst dat de kop leesbaar is, niet dat de dump volledig te herstellen is — een corrupte data-block
+of afgekapte object-data kan de TOC-check passeren en pas op een echt herstel falen. De drill
+(`scripts/backup-restore-drill.ts`, pure kern in `src/lib/ops/db-backup.ts` — getest) sluit dat gat:
+hij herstelt de **nieuwste** back-up in een **wegwerp scratch-database** en leest daarna het schema
+(aantal `public`-tabellen) + de data (rijen in een verificatietabel) terug.
+
+```bash
+DRILL_DATABASE_URL="postgres://.../drill" npm run db:restore-drill        # nieuwste back-up in ./backups
+npm run db:restore-drill -- --target "postgres://.../drill" --file backups/zzp-backup-XXXX.dump
+npm run db:restore-drill -- --table Job          # andere verificatietabel (default "User")
+npm run db:restore-drill -- --dry-run --target "postgres://.../drill"     # toon plan, herstel niets
+```
+
+Veilig: het doel is **uitsluitend** `DRILL_DATABASE_URL`/`--target` en de drill weigert hard als dat
+gelijk is aan de bron-`DATABASE_URL` — een drill kent bewust **geen `--force`** (een drill die de
+productie kan raken is geen drill). Draai dit periodiek (bv. maandelijks) en na een schema-migratie.
+Alternatief handmatig: herstel naar een wegwerp-database, zet `DATABASE_URL` daarheen in staging en
+verifieer met `/api/readiness` + een steekproef. Een onbeproefde back-up is geen back-up.
 
 **Back-up-heartbeat / dead-man's-switch:** laat de externe back-up-job (pg_dump/databasedienst) na
 elke geslaagde dump pingen naar `POST /api/backups/heartbeat` met

@@ -21,6 +21,7 @@
     "db:seed": "prisma db seed",
     "db:backup": "tsx scripts/backup-db.ts",
     "db:restore": "tsx scripts/restore-db.ts",
+    "db:restore-drill": "tsx scripts/backup-restore-drill.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
