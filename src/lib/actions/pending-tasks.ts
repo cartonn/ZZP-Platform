@@ -51,6 +51,7 @@ import {
   messageReplyTask,
   profilePrivateTask,
   profileCompletenessTask,
+  billingProfileTask,
   identityVerifyTask,
   companyCompletenessTask,
   credentialFixTask,
@@ -99,6 +100,7 @@ import {
   type PendingTask,
 } from "@/lib/actions/tasks";
 import { getIdleCapacityForProfile } from "@/lib/data/freelancer-idle-capacity";
+import { getBillingReadiness } from "@/lib/data/freelancer-billing-readiness";
 import { getReceivedInvitations } from "@/lib/data/received-invitations";
 import { invitationAgeDays } from "@/lib/received-invitations";
 import { daysSince } from "@/lib/concept-invoice-reminders";
@@ -400,6 +402,18 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
           missing.map((m) => m.label),
         ),
       );
+
+    // Proactieve facturatie-gereedheid: zodra de ZZP'er dáádwerkelijk factureert maar zijn profiel een
+    // hard facturatie-gegeven mist (btw-id/IBAN), gaat élke uitgaande (auto-)factuur juridisch
+    // onvolledig (art. 35a Wet OB) of onbetaalbaar de deur uit. Evidence-based (leunt op de echte
+    // uitgeschreven facturen → geen valse KOR-melding); dedupt niet met de per-factuur-compliancekaart
+    // (die toetst één bestaande factuur, dit stuurt vooruit op het profiel).
+    const billing = await getBillingReadiness({
+      userId,
+      btwNumber: profile.btwNumber,
+      iban: profile.iban,
+    });
+    if (!billing.ready) tasks.push(billingProfileTask(billing.gaps));
 
     // Eén query voor álle certificaten: de fix-taken (afgewezen/verloopt) én de verplichte-
     // documentenstatus (VOG/verzekering) worden in-memory afgeleid — zelfde bron als de

@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-09-01 — routine: proactieve facturatie-gereedheid-next-action (ZZP'er)
+
+**Wat:** de wettelijke factuur-compliancekaart (`invoice-legal.ts` → `InvoiceComplianceCard`) toetste alleen
+één reeds-geopende factuur (reactief). Een ZZP'er wiens profiel het btw-id of de IBAN mist, ontdekte dat pas
+per factuur — terwijl in de cascade elke goedgekeurde prestatie automatisch een factuur wordt. Zonder btw-id
+gaat élke uitgaande factuur juridisch onvolledig (art. 35a Wet OB) de deur uit; zonder IBAN kan de opdrachtgever
+niet betalen. Er was geen proactieve, profiel-brede nudge.
+
+**Aanpak:** nieuwe pure `assessBillingReadiness` (`src/lib/billing-readiness.ts`) leunt op
+`assessInvoiceCompliance` als énige bron van waarheid voor de btw-eis (synthetische factuur met alle niet-
+profielvelden voldaan; alleen het profiel-herstelbare, verplichte btw-punt telt) en voegt IBAN toe (betaalbaarheid,
+regime-onafhankelijk). Loader `getBillingReadiness` (`src/lib/data/freelancer-billing-readiness.ts`) is
+**evidence-based**: één eigenaar-gescopete query over de dáádwerkelijk uitgeschreven facturen (`issuerUserId` +
+`issuedAt` gezet) bepaalt of er wordt gefactureerd én of er btw wordt geheven — een KOR/EXEMPT-ondernemer krijgt
+zo nooit een valse art. 35a-melding, en wie nog niet factureert geen ruis. Gewired als next-action
+`billingProfileTask` (`P.billingProfileIncomplete = 47`: onder het acute geld-/deadline-cluster, boven relatie-/
+compleetheidsnudges) in de ZZP'er-tak van `pendingTasks`; deep-link (`resolver: "link"`) naar `/profiel/bewerken`.
+`getCompletenessProfile` laadt nu ook `btwNumber`/`iban` (gedeelde request-cache, geen extra query voor het profiel).
+
+**Bestanden:** `src/lib/billing-readiness.ts` (+ `.test.ts`, 8), `src/lib/data/freelancer-billing-readiness.ts`
+(+ `.test.ts`, 8), `src/lib/actions/tasks.ts` (`billingProfileTask` + union), `src/lib/actions/tasks.billing-profile.test.ts`
+(4), `src/lib/next-actions.ts` (prioriteit), `src/lib/actions/pending-tasks.ts` (emit),
+`src/lib/data/freelancer-profile.ts` (selects). Read-only afgeleid, geen schema-/mutatie-/authz-oppervlak, geen dode knop.
+
+**Checks:** typecheck ✓, lint ✓, unit (732 files / 7659 groen; +20 nieuw) ✓, build ✓, prettier ✓. CI-poort verifieert.
+
 ## 2026-09-01 — security/privacy: MENSENWERK.md inverteerde welke PII-retentie live is (AVG art. 5(2)/5(1)(e))
 
 **Wat:** sinds #1308 (2026-08-31) staan de PII-retentievensters fail-safe AAN (lege env ⇒ actieve
