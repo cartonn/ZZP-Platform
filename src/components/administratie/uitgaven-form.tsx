@@ -76,6 +76,10 @@ export function UitgavenForm() {
 
   const kmValue = parseExpenseKilometers(km);
   const kmNetCents = kmValue === null ? 0 : mileageExpenseNetCents(kmValue);
+  // Bij een vastgelegde rit is de vaste kilometervergoeding de aftrekpost; het netto/btw wordt daaruit
+  // afgeleid (server-side de bron van waarheid). Zet de bedragvelden dan op alleen-lezen zodat het niet
+  // lijkt alsof je er náást de km-aftrek nog een werkelijk bedrag bij kunt zetten (dat wordt genegeerd).
+  const kmDrivesAmount = kmValue !== null;
 
   // Herbereken het btw-bedrag uit een netto en een tarief; "custom" laat de ZZP'er het zelf typen.
   function recomputeVat(nextNet: string, nextRate: ExpenseVatRateKey) {
@@ -197,6 +201,9 @@ export function UitgavenForm() {
             placeholder="0,00"
             value={net}
             onChange={(e) => onNetChange(e.target.value)}
+            readOnly={kmDrivesAmount}
+            aria-readonly={kmDrivesAmount}
+            className={kmDrivesAmount ? "bg-muted/50 text-muted-foreground" : undefined}
           />
         </div>
 
@@ -208,7 +215,9 @@ export function UitgavenForm() {
             id="expense-vat-rate"
             value={rate}
             onChange={(e) => onRateChange(e.target.value as ExpenseVatRateKey)}
-            className="focus-ring h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
+            disabled={kmDrivesAmount}
+            aria-disabled={kmDrivesAmount}
+            className="focus-ring h-10 w-full rounded-lg border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
           >
             {EXPENSE_VAT_RATES.map((r) => (
               <option key={r.key} value={r.key}>
@@ -235,12 +244,24 @@ export function UitgavenForm() {
               setVat(e.target.value);
               setRate("custom");
             }}
+            readOnly={kmDrivesAmount}
+            aria-readonly={kmDrivesAmount}
+            className={kmDrivesAmount ? "bg-muted/50 text-muted-foreground" : undefined}
           />
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
-        Btw (voorbelasting) volgt automatisch uit het tarief. Kies “Handmatig” om het btw-deel zelf
-        in te vullen — bv. een bon met gemengde tarieven.
+        {kmDrivesAmount ? (
+          <>
+            Het bedrag volgt uit de kilometervergoeding (0% btw); die vervangt de werkelijke
+            autokosten. Laat het km-veld leeg om in plaats daarvan een bonbedrag in te voeren.
+          </>
+        ) : (
+          <>
+            Btw (voorbelasting) volgt automatisch uit het tarief. Kies “Handmatig” om het btw-deel
+            zelf in te vullen — bv. een bon met gemengde tarieven.
+          </>
+        )}
       </p>
 
       {state?.error && (

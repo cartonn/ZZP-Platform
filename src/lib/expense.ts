@@ -11,7 +11,7 @@
 import { z } from "zod";
 import { fiscalYearOf } from "@/lib/administration/fiscal-calendar";
 import { type Posting, type LedgerAccount } from "@/lib/administration/ledger";
-import { MILEAGE_MAX_KM } from "@/lib/expense-mileage";
+import { MILEAGE_MAX_KM, mileageExpenseNetCents } from "@/lib/expense-mileage";
 
 /** Aftrekbare-kosten-categorieën (string-enum, portable — geen native db-enum). */
 export const EXPENSE_CATEGORIES = [
@@ -80,6 +80,19 @@ export const expenseSchema = z
       .max(MILEAGE_MAX_KM, "Aantal kilometers is te hoog.")
       .nullish(),
   })
+  // Wederzijds uitsluiten: bij een reiskosten-rit met vastgelegde km ís de vaste kilometervergoeding
+  // (€ 0,23/km, 0% btw) de aftrekpost — die vervangt de werkelijke autokosten, ze stapelen niet. Zo
+  // kan een handmatig ingevuld netto/btw nooit náást de km-aftrek blijven staan en de rittenregistratie
+  // (`summarizeMileage`, canoniek uit km afgeleid) tegenspreken; het geboekte bedrag en de km-aftrek
+  // lopen per constructie samen. Dit hoort in het schema (de bron van waarheid), niet alleen bij één
+  // call site — zo normaliseert elk pad (formulier, toekomstige import/API) dezelfde uitgave. De
+  // transform staat vóór de "> € 0"-refine, zodat een km-rit met een leeg nettoveld het afgeleide
+  // bedrag krijgt en de refine haalt.
+  .transform((v) =>
+    v.category === "REISKOSTEN" && v.kilometers != null
+      ? { ...v, netCents: mileageExpenseNetCents(v.kilometers), vatCents: 0 }
+      : v,
+  )
   .refine((v) => v.netCents + v.vatCents > 0, {
     message: "Vul een bedrag groter dan € 0 in.",
     path: ["netCents"],

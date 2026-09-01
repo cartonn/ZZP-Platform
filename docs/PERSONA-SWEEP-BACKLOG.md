@@ -97,15 +97,19 @@ platform-overview,vat-deadline,income-tax-deadline}.ts` + `src/lib/expense{,-mil
 >   die kandidaat kreeg géén "de opdracht is weg"-melding; het voorstel blijft legitiem verschuldigd).
 >   +3 regressietests (`pending-tasks-client-closed-job.test.ts`, rood→groen: 3 rood zonder fix).
 >   Volledige gate groen (typecheck/lint/unit/build/prettier).
-> - **GEPARKEERD — low nit (DOEL 2, financiële invoer): mileage + werkelijke autokosten stapelbaar op
->   één REISKOSTEN-uitgave.** Een REISKOSTEN-uitgave slaat zowel een handmatige `netCents` (werkelijke
->   autokost) als `kilometers` op; de vaste km-vergoeding (€0,23/km) hoort de werkelijke kosten te
->   _vervangen_, niet te stapelen. **Nu niet dubbel-geteld in de fiscale cijfers** (de winst/IB-schatting
->   gebruikt alléén `summarizeExpenses().netCents`; `summarizeMileage()` is display-only), dus geen live
->   bug — maar een latente data-integriteitsval als ooit een "totale aftrek"-scherm beide sommeert.
->   Fix-richting: bij REISKOSTEN met `kilometers > 0` de losse `netCents` server-side weigeren of nullen
->   (wederzijds uitsluiten). Prioriteit: laag. Bestand: `src/app/(protected)/uitgaven/actions.ts` +
->   `src/lib/expense-mileage.ts`.
+> - **OPGELOST (2026-09-01, PR #1319) — low nit (DOEL 2, financiële invoer): mileage + werkelijke autokosten
+>   stapelbaar op één REISKOSTEN-uitgave.** Een REISKOSTEN-uitgave sloeg zowel een handmatige `netCents`
+>   (werkelijke autokost) als `kilometers` op; de vaste km-vergoeding (€0,23/km) hoort de werkelijke kosten te
+>   _vervangen_, niet te stapelen (fiscaal kies je één methode). De UI leidde het bedrag al uit de km af, maar
+>   de server — de bron van waarheid — dwong dit niet af: via een bewerkt net-veld/bulk/API kon het geboekte
+>   bedrag (winst/IB) de rittenregistratie/km-aftrek voor dezelfde rit tegenspreken. **Fix:** één `.transform`
+>   in `expenseSchema` (`src/lib/expense.ts`, bron van waarheid → elk call-punt normaliseert gelijk) maakt km
+>   gezaghebbend — bij REISKOSTEN met vastgelegde km wordt `netCents = mileageExpenseNetCents(km)` en
+>   `vatCents = 0`, vóór de "> € 0"-refine (km-rit met leeg netto haalt de refine). `createExpense` consumeert
+>   de genormaliseerde output ongewijzigd → grootboek/audit boeken het afgeleide bedrag, per constructie samen
+>   met `summarizeMileage`. De UI (`uitgaven-form.tsx`) zet netto/btw/tarief op alleen-lezen zodra een rit is
+>   ingevuld, met uitleg (zichtbare wederzijdse uitsluiting). +5 tests (4 schema, 1 action-regressie).
+>   Volledige gate groen (typecheck/lint/unit/build/prettier).
 > - **OPGELOST (2026-09-01, PR #1316) — low nit (DOEL 2, security-hygiëne): `disableTwoFactor`
 >   her-authenticeerde alleen met wachtwoord, niet met een geldige TOTP/herstelcode.** Het uitschakelen
 >   van 2FA (secret + alle herstelcodes in één transactie gewist) vereiste alleen het accountwachtwoord,
