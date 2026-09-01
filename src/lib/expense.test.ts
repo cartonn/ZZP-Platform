@@ -13,6 +13,7 @@ import {
   vatCentsForRate,
   centsToEuroInput,
 } from "./expense";
+import { mileageExpenseNetCents } from "./expense-mileage";
 
 describe("EXPENSE_CATEGORY_LABEL", () => {
   it("heeft een NL label voor elke categorie", () => {
@@ -108,6 +109,59 @@ describe("expenseSchema", () => {
 
   it("accepteert de datum van vandaag", () => {
     expect(expenseSchema.safeParse({ ...base, occurredAt: new Date() }).success).toBe(true);
+  });
+
+  describe("kilometervergoeding vervangt de werkelijke autokosten (wederzijds uitsluiten)", () => {
+    it("leidt netto af uit de km en zet btw op 0, óók bij een handmatig ingevuld bedrag", () => {
+      // km = 100 → 100 × € 0,23 = € 23,00. Het handmatige net (€ 25,00) + btw (€ 5,25) worden vervangen,
+      // niet gestapeld: de vaste vergoeding ís de aftrekpost.
+      const res = expenseSchema.safeParse({
+        ...base,
+        netCents: 2500,
+        vatCents: 525,
+        kilometers: 100,
+      });
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.netCents).toBe(mileageExpenseNetCents(100));
+        expect(res.data.netCents).toBe(2300);
+        expect(res.data.vatCents).toBe(0);
+        expect(res.data.kilometers).toBe(100);
+      }
+    });
+
+    it("accepteert een km-rit met een leeg nettoveld (transform vult vóór de > € 0-refine)", () => {
+      const res = expenseSchema.safeParse({ ...base, netCents: 0, vatCents: 0, kilometers: 42 });
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.netCents).toBe(mileageExpenseNetCents(42));
+        expect(res.data.vatCents).toBe(0);
+      }
+    });
+
+    it("laat km buiten de reiskosten-categorie het bedrag ongemoeid (geen aftrek-override)", () => {
+      const res = expenseSchema.safeParse({
+        ...base,
+        category: "SOFTWARE" as const,
+        netCents: 2500,
+        vatCents: 525,
+        kilometers: 100,
+      });
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.netCents).toBe(2500);
+        expect(res.data.vatCents).toBe(525);
+      }
+    });
+
+    it("laat een reiskosten-uitgave zónder km het handmatige bedrag behouden (werkelijke kosten)", () => {
+      const res = expenseSchema.safeParse({ ...base, netCents: 2500, vatCents: 525 });
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.netCents).toBe(2500);
+        expect(res.data.vatCents).toBe(525);
+      }
+    });
   });
 });
 

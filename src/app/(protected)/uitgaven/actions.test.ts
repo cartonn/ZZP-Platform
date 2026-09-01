@@ -152,6 +152,29 @@ describe("createExpense", () => {
     expect(JSON.parse(audit.data.metadata).kilometers).toBe(42);
   });
 
+  it("boekt bij een km-rit het afgeleide bedrag (km-vergoeding vervangt het handmatige net/btw)", async () => {
+    // Handmatig net € 25,00 + btw € 5,25 náást 100 km: de vaste vergoeding (100 × € 0,23 = € 23,00,
+    // 0% btw) is de aftrekpost en vervangt het handmatige bedrag — het grootboek boekt € 23,00, niet
+    // het opgetelde € 30,25. Zo spreekt de boeking de rittenregistratie (km-aftrek) niet tegen.
+    const res = await createExpense(
+      undefined,
+      form({ ...validFields, netAmount: "25,00", vatAmount: "5,25", kilometers: "100" }),
+    );
+    expect(res).toEqual({ ok: true });
+    const created = tx.expenseCreate.mock.calls[0]![0] as { data: Record<string, unknown> };
+    expect(created.data.netCents).toBe(2300);
+    expect(created.data.vatCents).toBe(0);
+    expect(created.data.kilometers).toBe(100);
+
+    // Grootboek: alleen KOSTEN (€ 23,00) + BETAALD (€ 23,00), geen btw-voorbelastingregel.
+    const entries = (tx.entriesCreateMany.mock.calls[0]![0] as { data: Record<string, unknown>[] })
+      .data;
+    const debit = entries.reduce((s, e) => s + (e.debitCents as number), 0);
+    const credit = entries.reduce((s, e) => s + (e.creditCents as number), 0);
+    expect(debit).toBe(2300);
+    expect(credit).toBe(2300);
+  });
+
   it("negeert kilometers buiten de reiskosten-categorie (geen rittenregistratie)", async () => {
     const res = await createExpense(
       undefined,

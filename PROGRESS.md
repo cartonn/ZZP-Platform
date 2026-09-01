@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-09-01 — routine: kilometervergoeding is de enige aftrekpost bij een reiskosten-rit (server-side)
+
+**Wat:** een REISKOSTEN-uitgave kon zowel een handmatig `netCents` (werkelijke autokost) als
+`kilometers` opslaan. De vaste kilometervergoeding (€ 0,23/km, 0% btw) hóórt de werkelijke autokosten te
+_vervangen_, niet te stapelen (fiscaal kies je één methode). De UI leidde het bedrag al uit de km af,
+maar de server — de bron van waarheid — dwong dit niet af: via een bewerkt net-veld, bulk of API kon
+het geboekte bedrag (winst/IB) de rittenregistratie/km-aftrek voor dezelfde rit tegenspreken.
+(Geparkeerde nit persona-sweep run 103.)
+
+**Aanpak:** één `.transform` in `expenseSchema` (`src/lib/expense.ts`, de bron van waarheid → elk
+call-punt normaliseert gelijk) maakt km gezaghebbend: bij `category === "REISKOSTEN"` met vastgelegde
+`kilometers` wordt `netCents = mileageExpenseNetCents(km)` en `vatCents = 0`. De transform staat vóór de
+"> € 0"-refine, zodat een km-rit met een leeg nettoveld het afgeleide bedrag krijgt en de refine haalt.
+`createExpense` consumeert de genormaliseerde schema-output ongewijzigd → grootboek + audit boeken het
+afgeleide bedrag, dat per constructie samenloopt met `summarizeMileage` (canoniek uit km). De UI
+(`uitgaven-form.tsx`) zet netto/btw/tarief op alleen-lezen zodra een rit is ingevuld, met een uitleg,
+zodat de wederzijdse uitsluiting zichtbaar is (geen "getypt bedrag verdwijnt"-verrassing).
+
+**Bestanden:** `src/lib/expense.ts` (+ `.test.ts`, +4 schema-tests),
+`src/components/administratie/uitgaven-form.tsx`,
+`src/app/(protected)/uitgaven/actions.test.ts` (+1 action-regressietest). Backlog-nit → OPGELOST.
+
+**Checks:** typecheck ✓, lint ✓, unit (7600+ groen; +5 nieuwe) ✓, build ✓, prettier ✓. CI-poort verifieert.
+
 ## 2026-09-01 — routine: fiscale periode-indeling consistent in Europe/Amsterdam
 
 **Wat:** de fiscale rapportages (BTW per kwartaal, jaaroverzicht/IB, km-aftrek per jaar, platform-
