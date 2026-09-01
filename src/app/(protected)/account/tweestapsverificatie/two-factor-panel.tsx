@@ -184,6 +184,14 @@ function OnPanel() {
           Je bestaande herstelcodes vervallen dan.
         </p>
         <form action={formAction} className="space-y-4">
+          {/* Eén foutmelding op formulierniveau: de action geeft één `error` terug voor zowel een
+              fout wachtwoord als een foute/ontbrekende factor, dus koppel 'm niet aan één veld
+              (anders staat "Wachtwoord klopt niet." onder het codeveld). */}
+          {state?.error && (
+            <p role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+              {state.error}
+            </p>
+          )}
           <Field label="Wachtwoord" htmlFor="password" required>
             <Input
               id="password"
@@ -196,7 +204,6 @@ function OnPanel() {
           <Field
             label="Verificatiecode"
             htmlFor="token"
-            error={state?.error}
             hint="De actuele code uit je authenticator-app, of een ongebruikte herstelcode."
             required
           >
