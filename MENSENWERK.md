@@ -456,6 +456,17 @@ nodig met back-ups en beveiligde opslag.
 1. Maak een **managed PostgreSQL**-database aan (bijv. Neon, Supabase, of de databasedienst van je
    host). Kies een EU-regio (AVG).
 2. Zet **automatische back-ups** aan.
+   **Code-kant GEDAAN (2026-09-01) — herstel-drill (bewijst dat een back-up ÉCHT herstelbaar is):**
+   de back-up-helper verifieerde tot nu toe alléén de inhoudsopgave (`pg_restore --list`, de TOC) —
+   dat bewijst dat de kop leesbaar is, niet dat de dump volledig te herstellen valt (corrupte
+   data-block/afgekapte object-data kan die check passeren en pas op een echt herstel falen). Er is nu
+   een `db:restore-drill` (`scripts/backup-restore-drill.ts`, pure kern in `src/lib/ops/db-backup.ts`
+   — getest) die de **nieuwste** back-up herstelt in een **wegwerp scratch-database** en daarna schema
+   (aantal `public`-tabellen) + data (rijen in een verificatietabel, default `User`) teruglees als
+   bewijs. Veilig: het herstelt UITSLUITEND naar `DRILL_DATABASE_URL`/`--target` en weigert hard als
+   dat de bron-`DATABASE_URL` is (een drill kent bewust géén `--force`). Resterend mensenwerk: een
+   (lege) wegwerp-Postgres beschikbaar hebben en `DRILL_DATABASE_URL` zetten; draai de drill periodiek
+   (bv. maandelijks) + na een schema-migratie. Zie RUNBOOK §5.
 3. Kopieer de **verbindings-URL** (begint met `postgresql://...`). Dit is een geheim.
    **Opleveren:** de verbindings-URL → in de secrets als `DATABASE_URL` (§7). Geef je ontwikkela/agent
    het seintje "Postgres staat klaar"; die zet de databaseprovider om naar PostgreSQL en draait de

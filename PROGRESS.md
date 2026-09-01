@@ -23,6 +23,25 @@ rijen toegevoegd; de twee kruisverwijzingen die auditlog nog bij "default UIT" s
 `src/lib/mensenwerk-retention-docs.test.ts` (nieuw, 4 tests). Audit A/B/C-oppervlakken (IDOR/tenant op
 41 api-routes + 50+ server actions, PII/SSRF/logs, erasure/retentie) CLEAN.
 
+## 2026-09-01 — prod: back-up herstel-drill (bewijst dat een dump écht herstelbaar is)
+
+**Wat:** de back-up (`scripts/backup-db.ts`) verifieerde alléén de inhoudsopgave (`pg_restore --list`,
+TOC) — dat bewijst een leesbare kop, niet een volledig herstelbare dump (corrupte/afgekapte object-data
+passeert de TOC-check en faalt pas op een echt herstel). "Een onbeproefde back-up is geen back-up" was
+zo half ingevuld.
+
+**Aanpak:** nieuw `db:restore-drill` (`scripts/backup-restore-drill.ts`) herstelt de nieuwste back-up in
+een **wegwerp scratch-database** (`DRILL_DATABASE_URL`) en leest daarna schema (`public`-tabellen) + data
+(rijen in een verificatietabel, default `User`) terug. Pure kern in `src/lib/ops/db-backup.ts`:
+`selectLatestBackup`, `assertDrillTarget` (weigert hard het bron-doel — géén `--force`-ontsnapping),
+`assertSafeIdentifier` (injectie-veilige tabelnaam), `buildPublicTableCountArgs`/`buildRowCountArgs`,
+`parsePsqlCount`, `interpretDrill`. Inert lokaal/zonder scratch-DB (heldere fout, raakt niets).
+
+**Bestanden:** `src/lib/ops/db-backup.ts` (+ `.test.ts`, +9 nieuwe testblokken → 47 tests groen),
+`scripts/backup-restore-drill.ts`, `package.json` (script), `.env.example` (`DRILL_DATABASE_URL`/
+`DRILL_VERIFY_TABLE`), `docs/RUNBOOK.md` §5, `MENSENWERK.md` §1b. Resterend mensenwerk: een lege
+wegwerp-Postgres + `DRILL_DATABASE_URL` zetten; periodiek draaien.
+
 ## 2026-09-01 — routine: kilometervergoeding is de enige aftrekpost bij een reiskosten-rit (server-side)
 
 **Wat:** een REISKOSTEN-uitgave kon zowel een handmatig `netCents` (werkelijke autokost) als

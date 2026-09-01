@@ -1,18 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertDrillTarget,
   assertPostgresUrl,
+  assertSafeIdentifier,
   assertSafeRestoreTarget,
   buildBackupFilename,
   buildPgDumpArgs,
   buildPgRestoreArgs,
   buildPgRestoreListArgs,
+  buildPublicTableCountArgs,
+  buildRowCountArgs,
+  interpretDrill,
   isBackupFilename,
   isPostgresUrl,
   isValidArchiveListing,
   parseKeepCount,
+  parsePsqlCount,
   redactDatabaseUrl,
   selectBackupsToPrune,
+  selectLatestBackup,
   shouldVerifyBackup,
+  UnsafeIdentifierError,
   UnsafeRestoreTargetError,
   UnsupportedDatabaseError,
 } from "@/lib/ops/db-backup";
@@ -251,5 +259,148 @@ describe("parseKeepCount", () => {
     expect(parseKeepCount("-3", 14)).toBe(14);
     expect(parseKeepCount("3.5", 14)).toBe(14);
     expect(parseKeepCount("abc", 14)).toBe(14);
+  });
+});
+
+describe("selectLatestBackup", () => {
+  it("kiest de nieuwste geldige back-up (chronologisch via UTC-naam)", () => {
+    expect(
+      selectLatestBackup([
+        "zzp-backup-20260101-000000.dump",
+        "zzp-backup-20260901-150000.dump",
+        "zzp-backup-20260301-120000.dump",
+      ]),
+    ).toBe("zzp-backup-20260901-150000.dump");
+  });
+
+  it("negeert vreemde bestanden en geeft undefined als er geen geldige back-up is", () => {
+    expect(selectLatestBackup(["random.txt", "notes.md"])).toBeUndefined();
+    expect(selectLatestBackup([])).toBeUndefined();
+    expect(selectLatestBackup(["dump.sql", "zzp-backup-20260901-150000.dump", "backup.tar"])).toBe(
+      "zzp-backup-20260901-150000.dump",
+    );
+  });
+});
+
+describe("assertDrillTarget", () => {
+  it("accepteert een postgres-doel dat verschilt van de bron", () => {
+    expect(
+      assertDrillTarget({
+        target: "postgres://u:p@scratch:5432/drill",
+        source: "postgres://u:p@prod:5432/app",
+      }),
+    ).toBe("postgres://u:p@scratch:5432/drill");
+  });
+
+  it("weigert hard als het doel gelijk is aan de bron (geen force-ontsnapping)", () => {
+    const url = "postgres://u:p@prod:5432/app";
+    expect(() => assertDrillTarget({ target: url, source: url })).toThrow(UnsafeRestoreTargetError);
+    // Ook wanneer alleen het wachtwoord/params verschilt maar host/db/user gelijk zijn.
+    expect(() =>
+      assertDrillTarget({
+        target: "postgres://u:other@prod:5432/app?sslmode=require",
+        source: "postgres://u:p@prod:5432/app",
+      }),
+    ).toThrow(/productie/i);
+  });
+
+  it("werpt bij een ontbrekend of niet-postgres doel", () => {
+    expect(() => assertDrillTarget({ target: undefined, source: "postgres://h/db" })).toThrow(
+      UnsupportedDatabaseError,
+    );
+    expect(() => assertDrillTarget({ target: "file:./dev.db", source: null })).toThrow(
+      UnsupportedDatabaseError,
+    );
+  });
+});
+
+describe("assertSafeIdentifier", () => {
+  it("accepteert PascalCase-modeltabellen", () => {
+    expect(assertSafeIdentifier("User")).toBe("User");
+    expect(assertSafeIdentifier("  Job  ")).toBe("Job");
+    expect(assertSafeIdentifier("_Audit_Log2")).toBe("_Audit_Log2");
+  });
+
+  it("weigert injectie-/onveilige identifiers", () => {
+    for (const bad of [
+      'User"; DROP TABLE x;--',
+      "public.User",
+      "1User",
+      "",
+      "  ",
+      "a b",
+      undefined,
+    ]) {
+      expect(() => assertSafeIdentifier(bad as string)).toThrow(UnsafeIdentifierError);
+    }
+  });
+});
+
+describe("buildPublicTableCountArgs / buildRowCountArgs", () => {
+  it("bouwt een kale (tuples-only) schema-tellingsquery met de URL via -d", () => {
+    const args = buildPublicTableCountArgs("postgres://h/db");
+    expect(args).toContain("-tA");
+    expect(args[args.indexOf("-d") + 1]).toBe("postgres://h/db");
+    expect(args.join(" ")).toMatch(/information_schema\.tables/);
+  });
+
+  it("haalt de (gevalideerde) tabelnaam dubbel aan in de rij-tellingsquery", () => {
+    const args = buildRowCountArgs("postgres://h/db", "Job");
+    expect(args.join(" ")).toContain('SELECT count(*) FROM "Job";');
+  });
+
+  it("weigert een onveilige tabelnaam vóór het bouwen van de query", () => {
+    expect(() => buildRowCountArgs("postgres://h/db", 'x"; DROP TABLE y;--')).toThrow(
+      UnsafeIdentifierError,
+    );
+  });
+});
+
+describe("parsePsqlCount", () => {
+  it("leest een niet-negatief geheel getal uit tuples-only-uitvoer", () => {
+    expect(parsePsqlCount("42\n")).toBe(42);
+    expect(parsePsqlCount("  7  \n")).toBe(7);
+    expect(parsePsqlCount("0")).toBe(0);
+    // Leidende lege regels worden overgeslagen.
+    expect(parsePsqlCount("\n\n13\n")).toBe(13);
+  });
+
+  it("geeft null bij lege/onparseerbare uitvoer", () => {
+    expect(parsePsqlCount("")).toBeNull();
+    expect(parsePsqlCount("   \n")).toBeNull();
+    expect(parsePsqlCount("ERROR: relation does not exist")).toBeNull();
+    expect(parsePsqlCount("-1")).toBeNull();
+    expect(parsePsqlCount(undefined)).toBeNull();
+    expect(parsePsqlCount(null)).toBeNull();
+  });
+});
+
+describe("interpretDrill", () => {
+  it("faalt als het schema niet is hersteld (geen/onleesbare tabellen)", () => {
+    expect(interpretDrill({ publicTableCount: null, rowCount: 5, verifyTable: "User" }).ok).toBe(
+      false,
+    );
+    expect(interpretDrill({ publicTableCount: 0, rowCount: null, verifyTable: "User" })).toEqual({
+      ok: false,
+      detail: expect.stringMatching(/geen tabellen/),
+    });
+  });
+
+  it("faalt als de verificatietabel niet te bevragen is na herstel", () => {
+    const v = interpretDrill({ publicTableCount: 30, rowCount: null, verifyTable: "User" });
+    expect(v.ok).toBe(false);
+    expect(v.detail).toContain("User");
+  });
+
+  it("slaagt (met waarschuwing) bij een lege verificatietabel", () => {
+    const v = interpretDrill({ publicTableCount: 30, rowCount: 0, verifyTable: "User" });
+    expect(v.ok).toBe(true);
+    expect(v.detail).toMatch(/leeg/);
+  });
+
+  it("slaagt bij hersteld schema + teruglezbare data", () => {
+    const v = interpretDrill({ publicTableCount: 30, rowCount: 7, verifyTable: "User" });
+    expect(v.ok).toBe(true);
+    expect(v.detail).toContain("7");
   });
 });
