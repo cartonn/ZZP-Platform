@@ -27,6 +27,26 @@ zodat de wederzijdse uitsluiting zichtbaar is (geen "getypt bedrag verdwijnt"-ve
 
 **Checks:** typecheck ✓, lint ✓, unit (7600+ groen; +5 nieuwe) ✓, build ✓, prettier ✓. CI-poort verifieert.
 
+## 2026-09-01 — persona-sweep run 105: KOR-meter jaarwisseling-regressie (jaar én kwartaal uit dezelfde Amsterdamse instant)
+
+**Wat:** het "ontzorgd"-dashboard van de ZZP'er (voedt de KOR-omzetgrensmeter) bepaalde het fiscale
+jaar met `getUTCFullYear()` terwijl het kwartaal Amsterdams (`fiscalQuarterOf`) werd bepaald — een
+regressie t.o.v. de vandaag gemergde fiscale-kalender-consolidatie (#1318). Op een UTC-server viel rond
+de jaarwisseling (`31 dec 23:00–24:00 UTC` = `1 jan 00:00–01:00` Amsterdam) het jaar niet meer samen met
+het Amsterdamse kwartaal; `annualSummary`/`vatReturn` filteren intern op `fiscalYearOf` → de meter laadde
+de omzet van het oude jaar en kon een vals "KOR-grens genaderd"-alarm geven op nieuwjaarsochtend. Zelfde
+root cause in `ontzorgd-panel.tsx`: de urencriterium-aggregatie gebruikte UTC-kalenderjaargrenzen.
+
+**Aanpak:** `year = fiscalYearOf(input.now)` in `ontzorg-overview.ts` (jaar én kwartaal uit dezelfde
+Amsterdamse instant); de panel-urenaggregaties op de halfopen `[yearStartInstant(fy), yearStartInstant(fy+1))`-
+grenzen (spiegelt `taxYearRange`/`annualSummary`). Gevonden door de adversariële financiële-audit; de
+authz/IDOR/tenant- én next-action-audits vonden 0 bereikbare gaten in de nieuwste oppervlakken.
+
+**Bestanden:** `src/lib/tax/ontzorg-overview.ts` (+ `.test.ts`, +1 regressietest rood→groen),
+`src/components/administratie/ontzorgd-panel.tsx`, `docs/PERSONA-SWEEP-BACKLOG.md`.
+
+**Checks:** prettier ✓, typecheck/lint/unit/build verifieert (CI-poort leidend).
+
 ## 2026-09-01 — routine: fiscale periode-indeling consistent in Europe/Amsterdam
 
 **Wat:** de fiscale rapportages (BTW per kwartaal, jaaroverzicht/IB, km-aftrek per jaar, platform-

@@ -1,5 +1,48 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-01 (run 105) · **main-commit basis:** `02bd035d`
+> **Uitkomst:** **1 defect gevonden én gefixt** (DOEL 2 — correctheid/tijdzone; een regressie t.o.v.
+> de vandaag gemergde fiscale-kalender-consolidatie #1318). 3 adversariële Opus-audits op
+> niet-overlappende oppervlakken (authz/IDOR/tenant op de nieuwste ~25 commits · next-action-engine op
+> de 7 nieuwste signalen/next-actions · financiële math + malicieuze invoer). De **authz/IDOR/tenant-audit
+> vond 0 bereikbare gaten**: 2FA opt-in/disable (huidig wachtwoord + verse tweede factor, replay-safe),
+> wachtwoordwijziging (invalideert andere sessies), shift-overname approve/reject (`ownsViaTenant`
+> fail-closed, geen existence-oracle, atomaire dubbel-beslis-guard), uitgaven/km (owner-scoped,
+> Zod-gevalideerd), `/api/metrics` (`CRON_SECRET` fail-closed), anonimisering (mens-getriggerd, guard),
+> mail-intake-webhook (inert zonder secret, timing-safe, idempotent) — allemaal `auth → rol →
+ownership/tenant → Zod → actie → audit`. De **next-action-audit vond 0 tegenspraken**: de 7 nieuwste
+> signalen (KOR-meter, vindbaarheid/afwezigheid, aangifte-agenda, open-capaciteit, start-urgentie,
+> "afwezig t/m X", concept-opdracht-nudge) delen hun status-/parent-bron met de bijbehorende
+> hoofdschermen (geen driftbare tweede query) en verdwijnen correct. De **financiële-audit** bevestigde de
+> geldmath diep gehard (int-cent `computeVat`/`creditVat` exacte negatie, KM-plafond, CSV-formule-guard,
+> negatief/0/toekomst geweigerd) op één regressie na (zie onder).
+>
+> - **OPGELOST — should-fix (DOEL 2, CLAUDE.md regel 1 — server-side waarheid / geen periode-drift;
+>   regressie t.o.v. #1318): het "ontzorgd"-dashboard van de ZZP'er (dat de KOR-omzetgrensmeter voedt)
+>   deelde het fiscale jaar met `getUTCFullYear()` terwijl het kwartaal Amsterdams (`fiscalQuarterOf`)
+>   werd bepaald.** Op een UTC-server (Railway) viel rond de jaarwisseling — `31 dec 23:00–24:00 UTC`
+>   = `1 jan 00:00–01:00` Amsterdam (CET, +1u; venster bestaat elk jaar) — het jaar (bv. 2026) niet meer
+>   samen met het Amsterdamse kwartaal (Q1 2027). `annualSummary`/`vatReturn` filteren intern op
+>   `fiscalYearOf(occurredAt) === year`, dus met de combinatie (2026, Q1) laadde de meter de **omzet van
+>   het oude jaar** i.p.v. het net-gestarte nieuwe jaar (nog €0). **Gevolg:** een ZZP'er die net een nieuw
+>   fiscaal jaar instapt kon op nieuwjaarsochtend een **vals "KOR-grens genaderd"-alarm** (`korApproaching`
+>   / `KOR_THRESHOLD`-actie) zien, gebaseerd op de vorige jaaromzet. **Zelfde root cause (should-fix,
+>   meegenomen):** `ontzorgd-panel.tsx` bouwde de urencriterium-aggregatiegrenzen (uren-zelfstandigenaftrek)
+>   met UTC-kalenderjaargrenzen (`Date.UTC(year, …)`) i.p.v. Amsterdamse — hetzelfde smalle jaarwisseling-
+>   venster liet uren in het verkeerde jaar tellen. **Fix:** `year = fiscalYearOf(input.now)` in
+>   `ontzorg-overview.ts` (jaar én kwartaal uit dezelfde Amsterdamse instant); de panel-aggregaties op de
+>   halfopen `[yearStartInstant(fy), yearStartInstant(fy+1))`-grenzen (spiegelt `taxYearRange`/`annualSummary`).
+>   +1 regressietest (`ontzorg-overview.test.ts`: `2026-12-31T23:30Z` → jaar 2027/Q1, omzet €0,
+>   `korApproaching:false`; rood→groen geverifieerd). Bestanden: `src/lib/tax/ontzorg-overview.ts`,
+>   `src/components/administratie/ontzorgd-panel.tsx`.
+> - **Geparkeerd — nit (geen defect): asymmetrische gating van `idleCapacityTask`.** In
+>   `pending-tasks.ts` (~L528-549) wordt `availabilityRefreshTask` onderdrukt bij `visibility: "PRIVATE"`,
+>   maar `idleCapacityTask` wordt onvoorwaardelijk berekend. Zeer waarschijnlijk bedoeld (open capaciteit
+>   gaat over zelf-reageren, niet over vindbaar-zijn). Aanbevolen: één toelichtende comment in de stijl van
+>   L528-530 zodat een volgende pass de asymmetrie niet voor een omissie aanziet.
+>
+> ---
+
 > **Datum:** 2026-09-01 (run 104) · **main-commit basis:** `e697068a`
 > **Uitkomst:** **1 defect gevonden én gefixt** (DOEL 1b — dezelfde terugkerende bugklasse als run
 > 99–103: een next-action + nav-badge die zichzelf tegenspreekt en niet verdwijnt). 3 adversariële

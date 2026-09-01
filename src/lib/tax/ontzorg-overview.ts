@@ -9,6 +9,7 @@ import {
   type LedgerEntry,
   type Quarter,
 } from "@/lib/administration/overview";
+import { fiscalYearOf } from "@/lib/administration/fiscal-calendar";
 import {
   estimateIncomeTax,
   marginalIncomeTaxRateBps,
@@ -61,7 +62,12 @@ export interface OntzorgOverview {
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 export function buildOntzorgOverview(input: OntzorgInput): OntzorgOverview {
-  const year = input.now.getUTCFullYear();
+  // Jaar én kwartaal moeten uit dezelfde Amsterdamse instant komen (fiscal-calendar #1318): met
+  // `getUTCFullYear()` viel op een UTC-server rond de jaarwisseling (bv. 1 jan 00:30 Amsterdam =
+  // 31 dec 23:30 UTC) het jaar (2026) niet meer samen met het Amsterdamse kwartaal (Q1 2027), zodat
+  // `annualSummary`/`vatReturn` (die intern op `fiscalYearOf` filteren) de omzet van het oude jaar
+  // laadden en de KOR-grensmeter een verkeerde "grens genaderd"-waarschuwing op nieuwjaarsochtend gaf.
+  const year = fiscalYearOf(input.now);
   const quarter = quarterOf(input.now);
   const summary = annualSummary(input.entries, "FREELANCER", year);
   const profitCents = Math.max(0, summary.revenueCents - summary.costCents);

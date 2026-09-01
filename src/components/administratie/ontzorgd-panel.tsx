@@ -5,6 +5,7 @@ import { userHasEntitlement } from "@/lib/entitlement-guard";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { type LedgerEntry } from "@/lib/administration/overview";
+import { fiscalYearOf, yearStartInstant } from "@/lib/administration/fiscal-calendar";
 import { type LedgerParty } from "@/lib/administration/ledger";
 import { buildOntzorgOverview, type OntzorgAction } from "@/lib/tax/ontzorg-overview";
 import { TAX_DISCLAIMER } from "@/lib/tax/config";
@@ -52,7 +53,13 @@ export async function OntzorgdPanel({ actor }: { actor: Actor }) {
   }
 
   const now = new Date();
-  const year = now.getUTCFullYear();
+  // Urencriterium telt op de burgerlijke dag in Europe/Amsterdam, net als de ledger-jaarindeling
+  // (fiscal-calendar #1318). Met UTC-kalenderjaargrenzen (`Date.UTC(year, …)`) telde een op een
+  // UTC-server rond de jaarwisseling geboekt uur in het verkeerde jaar; halfopen [start, volgend jaar)
+  // spiegelt `taxYearRange`/`annualSummary`, zodat urenaggregatie en ledger-jaar consistent zijn.
+  const fiscalYear = fiscalYearOf(now);
+  const yearStart = yearStartInstant(fiscalYear);
+  const nextYearStart = yearStartInstant(fiscalYear + 1);
 
   const [rows, hoursAgg, indirectAgg] = await Promise.all([
     prisma.administrationEntry.findMany({ where: { ownerUserId: actor.id } }),
@@ -63,8 +70,8 @@ export async function OntzorgdPanel({ actor }: { actor: Actor }) {
         type: "HOURS",
         collaboration: { freelancer: { userId: actor.id } },
         approvedAt: {
-          gte: new Date(Date.UTC(year, 0, 1)),
-          lte: new Date(Date.UTC(year, 11, 31, 23, 59, 59)),
+          gte: yearStart,
+          lt: nextYearStart,
         },
       },
     }),
@@ -73,8 +80,8 @@ export async function OntzorgdPanel({ actor }: { actor: Actor }) {
       where: {
         userId: actor.id,
         workedOn: {
-          gte: new Date(Date.UTC(year, 0, 1)),
-          lte: new Date(Date.UTC(year, 11, 31, 23, 59, 59)),
+          gte: yearStart,
+          lt: nextYearStart,
         },
       },
     }),
@@ -226,7 +233,7 @@ export async function OntzorgdPanel({ actor }: { actor: Actor }) {
 
       {/* IB-schatting */}
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold">Inkomstenbelasting {year} (schatting)</h2>
+        <h2 className="text-sm font-semibold">Inkomstenbelasting {o.year} (schatting)</h2>
         <Card>
           <CardContent className="space-y-1 py-3 text-sm">
             <Row label="Winst vóór aftrek" value={formatEuro(o.incomeTax.profitCents)} />
