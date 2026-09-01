@@ -10,9 +10,7 @@ import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { loginRateLimiter } from "@/lib/rate-limit";
 import { loginBlockedByMaintenance } from "@/lib/maintenance";
-import { verifyTotpStep } from "@/lib/two-factor/totp";
-import { decryptTwoFactorSecret } from "@/lib/two-factor/secret-crypto";
-import { verifyRecoveryCode } from "@/lib/two-factor/recovery-codes";
+import { verifySecondFactor } from "@/lib/two-factor/verify-second-factor";
 import { type UserRole } from "@/lib/enums";
 
 // Geldige cost-10-bcrypt-hash van een constante — nooit een echt wachtwoord. Dient als vergelijkings-
@@ -34,109 +32,6 @@ const credentialsSchema = z.object({
   // accounts met 2FA aan is een geldige TOTP-code (6 cijfers) of een ongebruikte herstelcode vereist.
   token: z.string().trim().optional(),
 });
-
-/**
- * Tweede-factor-poort voor een account met 2FA ingeschakeld. Draait NA de geslaagde wachtwoordcheck
- * als een EXTRA horde: retourneert alleen `true` bij een geldige TOTP-code of een ongebruikte
- * herstelcode. Elke mislukking wordt geaudit (nooit de code/het geheim zelf in de metadata).
- */
-async function verifySecondFactor(
-  user: { id: string; twoFactorSecret: string | null; twoFactorLastUsedStep: number | null },
-  token: string | undefined,
-  email: string,
-  meta: { ipAddress: string | null; userAgent: string | null },
-): Promise<boolean> {
-  const provided = token?.trim();
-  if (!provided) {
-    await audit({
-      actorId: user.id,
-      action: "TWO_FACTOR_CHALLENGE_FAILED",
-      entityType: "User",
-      entityId: user.id,
-      metadata: { email, reason: "missing" },
-      ...meta,
-    });
-    return false;
-  }
-
-  // TOTP-pad: exact zes cijfers én een opgeslagen geheim. Decrypt-fout (bv. gemanipuleerde/roterende
-  // sleutel) telt als een mislukte factor, niet als een crash.
-  if (/^\d{6}$/.test(provided) && user.twoFactorSecret) {
-    let step: number | null = null;
-    try {
-      step = verifyTotpStep(decryptTwoFactorSecret(user.twoFactorSecret), provided);
-    } catch {
-      step = null;
-    }
-    if (step !== null) {
-      // Replay-preventie (RFC 6238 §5.2 / OWASP ASVS 2.8.4). Een geldige TOTP-code blijft ~30–90 s
-      // geldig (±1 venster); zonder deze poort kan een afgekeken/gephishte/gerelayede code binnen dat
-      // venster een tweede login opzetten. We onthouden de hoogst-verbruikte step per account en
-      // accepteren alleen een strikt nieuwere. De check-and-set is één atomaire, voorwaardelijke
-      // `updateMany` (TOCTOU-veilig): twee parallelle logins met dezelfde code → maar één wint
-      // (count===1); de ander telt als replay.
-      const claimed = await prisma.user.updateMany({
-        where: {
-          id: user.id,
-          OR: [{ twoFactorLastUsedStep: null }, { twoFactorLastUsedStep: { lt: step } }],
-        },
-        data: { twoFactorLastUsedStep: step },
-      });
-      if (claimed.count === 1) return true;
-      await audit({
-        actorId: user.id,
-        action: "TWO_FACTOR_CHALLENGE_FAILED",
-        entityType: "User",
-        entityId: user.id,
-        metadata: { email, reason: "replay" },
-        ...meta,
-      });
-      return false;
-    }
-    await audit({
-      actorId: user.id,
-      action: "TWO_FACTOR_CHALLENGE_FAILED",
-      entityType: "User",
-      entityId: user.id,
-      metadata: { email, reason: "totp" },
-      ...meta,
-    });
-    return false;
-  }
-
-  // Herstelcode-pad: vergelijk tegen elke ongebruikte hash; bij een match markeer die code als
-  // verbruikt (eenmalig) en audit het gebruik.
-  const codes = await prisma.twoFactorRecoveryCode.findMany({
-    where: { userId: user.id, usedAt: null },
-  });
-  for (const code of codes) {
-    if (await verifyRecoveryCode(provided, code.codeHash)) {
-      await prisma.twoFactorRecoveryCode.update({
-        where: { id: code.id },
-        data: { usedAt: new Date() },
-      });
-      await audit({
-        actorId: user.id,
-        action: "TWO_FACTOR_RECOVERY_CODE_USED",
-        entityType: "User",
-        entityId: user.id,
-        metadata: { email },
-        ...meta,
-      });
-      return true;
-    }
-  }
-
-  await audit({
-    actorId: user.id,
-    action: "TWO_FACTOR_CHALLENGE_FAILED",
-    entityType: "User",
-    entityId: user.id,
-    metadata: { email, reason: "recovery" },
-    ...meta,
-  });
-  return false;
-}
 
 export interface AuthorizedUser {
   id: string;
@@ -220,7 +115,7 @@ export async function authorizeCredentials(
   // (`twoFactorEnabledAt` gezet). Accounts zónder 2FA lopen exact het bestaande pad — geen
   // gedragswijziging. De wachtwoordcheck is al geslaagd; een ontbrekende/foute tweede factor
   // weigert de login stil (audit binnen verifySecondFactor), zonder de rate-limitteller te resetten.
-  if (user.twoFactorEnabledAt && !(await verifySecondFactor(user, token, email, meta))) {
+  if (user.twoFactorEnabledAt && !(await verifySecondFactor(user, token, meta, { email }))) {
     return null;
   }
 

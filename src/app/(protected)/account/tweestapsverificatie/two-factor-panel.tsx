@@ -180,16 +180,33 @@ function OnPanel() {
           <p>Tweestapsverificatie staat aan.</p>
         </div>
         <p className="text-sm text-muted-foreground">
-          Wil je tweestapsverificatie uitzetten? Bevestig met je wachtwoord. Je bestaande
-          herstelcodes vervallen dan.
+          Wil je tweestapsverificatie uitzetten? Bevestig met je wachtwoord én een verificatiecode.
+          Je bestaande herstelcodes vervallen dan.
         </p>
         <form action={formAction} className="space-y-4">
-          <Field label="Wachtwoord" htmlFor="password" error={state?.error} required>
+          <Field label="Wachtwoord" htmlFor="password" required>
             <Input
               id="password"
               name="password"
               type="password"
               autoComplete="current-password"
+              required
+            />
+          </Field>
+          <Field
+            label="Verificatiecode"
+            htmlFor="token"
+            error={state?.error}
+            hint="De actuele code uit je authenticator-app, of een ongebruikte herstelcode."
+            required
+          >
+            <Input
+              id="token"
+              name="token"
+              type="text"
+              inputMode="text"
+              autoComplete="one-time-code"
+              placeholder="123456"
               required
             />
           </Field>

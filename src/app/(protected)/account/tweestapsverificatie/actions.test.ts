@@ -10,6 +10,7 @@ interface FakeUser {
   passwordHash: string;
   twoFactorSecret: string | null;
   twoFactorEnabledAt: Date | null;
+  twoFactorLastUsedStep?: number | null;
 }
 
 const store = {
@@ -29,6 +30,10 @@ const transaction = vi.hoisted(() => vi.fn(async (ops: Promise<unknown>[]) => Pr
 const auditMock = vi.hoisted(() => vi.fn(async () => undefined));
 const revalidateMock = vi.hoisted(() => vi.fn());
 const bcryptCompare = vi.hoisted(() => vi.fn(async () => true));
+// De gedeelde tweede-factor-poort wordt apart getest (verify-second-factor.test.ts); hier mocken we
+// 'm zodat de disable-action-tests het GEDRAG toetsen: wordt de factor geëist en geraadpleegd, en
+// gate't een mislukte factor de uitschakeling vóór enige schrijfactie.
+const verifySecondFactorMock = vi.hoisted(() => vi.fn(async () => true));
 
 vi.mock("@/lib/authz", () => ({
   requireActor: vi.fn(async () => store.actor),
@@ -64,6 +69,9 @@ vi.mock("@/lib/two-factor/secret-crypto", () => ({
 vi.mock("@/lib/two-factor/recovery-codes", () => ({
   generateRecoveryCodes: vi.fn(() => Array.from({ length: 10 }, (_, i) => `CODE-${i}`)),
   hashRecoveryCode: vi.fn(async (code: string) => `hash:${code}`),
+}));
+vi.mock("@/lib/two-factor/verify-second-factor", () => ({
+  verifySecondFactor: verifySecondFactorMock,
 }));
 
 import {
@@ -218,25 +226,50 @@ describe("disableTwoFactor", () => {
       passwordHash: "pw-hash",
       twoFactorSecret: "enc:X",
       twoFactorEnabledAt: new Date(),
+      twoFactorLastUsedStep: null,
     };
+    verifySecondFactorMock.mockReset();
+    verifySecondFactorMock.mockResolvedValue(true);
   });
 
-  it("weigert bij een fout wachtwoord", async () => {
+  it("weigert bij een fout wachtwoord — zonder de factor te raadplegen", async () => {
     bcryptCompare.mockImplementation(async () => false);
-    const res = await disableTwoFactor(undefined, form({ password: "fout" }));
+    const res = await disableTwoFactor(undefined, form({ password: "fout", token: "123456" }));
     expect(res.error).toBeTruthy();
+    expect(verifySecondFactorMock).not.toHaveBeenCalled();
     expect(userUpdate).not.toHaveBeenCalled();
     expect(rcDeleteMany).not.toHaveBeenCalled();
   });
 
-  it("schakelt 2FA uit bij een juist wachtwoord en verwijdert alle herstelcodes", async () => {
+  it("weigert wanneer de tweede factor mislukt — geen schrijfactie, geen DISABLED-audit", async () => {
     bcryptCompare.mockImplementation(async () => true);
-    const res = await disableTwoFactor(undefined, form({ password: "geheim123" }));
+    verifySecondFactorMock.mockResolvedValue(false);
+    const res = await disableTwoFactor(undefined, form({ password: "geheim123", token: "000000" }));
+    expect(res.error).toBeTruthy();
+    expect(userUpdate).not.toHaveBeenCalled();
+    expect(rcDeleteMany).not.toHaveBeenCalled();
+    expect(auditMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: "TWO_FACTOR_DISABLED" }),
+    );
+  });
+
+  it("schakelt 2FA uit bij juist wachtwoord + geldige factor en verwijdert alle herstelcodes", async () => {
+    bcryptCompare.mockImplementation(async () => true);
+    const res = await disableTwoFactor(undefined, form({ password: "geheim123", token: "123456" }));
     expect(res).toEqual({ done: true });
+
+    // De factor is met exact de ingevoerde code geraadpleegd (disable-context).
+    expect(verifySecondFactorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ twoFactorSecret: "enc:X", twoFactorLastUsedStep: null }),
+      "123456",
+      expect.anything(),
+      expect.objectContaining({ context: "disable" }),
+    );
 
     const data = userUpdate.mock.calls[0]?.[0]?.data as Record<string, unknown>;
     expect(data.twoFactorSecret).toBeNull();
     expect(data.twoFactorEnabledAt).toBeNull();
+    expect(data.twoFactorLastUsedStep).toBeNull();
     expect(rcDeleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({ action: "TWO_FACTOR_DISABLED" }),
