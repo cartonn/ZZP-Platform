@@ -29,7 +29,12 @@ async function loadDecidableHandoff(handoffId: string, actor: Actor) {
       status: true,
       requestedByUserId: true,
       collaboration: {
-        select: { id: true, job: { select: { title: true, tenantId: true } } },
+        select: {
+          id: true,
+          status: true,
+          disputedAt: true,
+          job: { select: { title: true, tenantId: true } },
+        },
       },
     },
   });
@@ -43,6 +48,19 @@ async function loadDecidableHandoff(handoffId: string, actor: Actor) {
     throw new Error("Overname-aanvraag niet gevonden.");
   }
   if (handoff.status !== "OPEN") throw new Error("Dit verzoek is al beoordeeld.");
+  // Server-side waarheid (CLAUDE.md regel 1): een OPEN-aanvraag op een terminale (CANCELLED/COMPLETED)
+  // of bevroren (dispuut) samenwerking is geen te-nemen beslissing meer en wordt hard geweigerd — niet
+  // enkel uit de lijst gefilterd. De aanvraag kon alleen op een ACTIEVE inzet worden geopend
+  // (`canRequestHandoff`), maar de inzet kan daarna via annuleren/afronden/dispuut van status
+  // veranderen zonder de aanvraag te sluiten. Goedkeuren regelt de herplaatsing via de annuleer-/
+  // vervang-stap (moot na annulering/afronding); beslissen tijdens een dispuut doorbreekt de
+  // werkproces-freeze. Komt ná de tenant-poort zodat een cross-tenant-status nooit lekt (CWE-203).
+  if (handoff.collaboration.disputedAt) {
+    throw new Error("Deze samenwerking staat in dispuut; het werkproces is bevroren.");
+  }
+  if (handoff.collaboration.status !== "ACTIVE") {
+    throw new Error("Deze samenwerking is afgerond of geannuleerd; de aanvraag vervalt.");
+  }
   return handoff;
 }
 

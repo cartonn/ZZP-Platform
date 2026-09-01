@@ -31,9 +31,15 @@
 >   → een partij annuleert de samenwerking (of de laatste factuur wordt betaald → auto-afronding, of er
 >   wordt een dispuut geopend) → bemiddelaar/admin `/acties` + nav-badge tonen nog steeds "beoordeel de
 >   dienst-overname". **Fix:** `collaboration: { status: "ACTIVE", disputedAt: null, … }` toegevoegd aan
->   alle vier de queries. +7 regressietests (`pending-tasks.shift-handoff.test.ts` uitgebreid met
->   CANCELLED/COMPLETED/dispuut-cases, rood→groen; nieuw `signals.shift-handoff-collab-scope.test.ts` voor
->   de badge-pariteit). Volledige gate groen (typecheck/lint/unit/build/prettier).
+>   alle vier de queries. **Derde surface meegenomen na een agent-review-BLOCK:** de nav-badge + `/acties`-taak
+>   linken naar het gedeelde governance-scherm (`ShiftHandoffGovernanceScreen`), dat OPEN-handoffs óók ongescoped
+>   ophaalde — de moot-aanvraag bleef daar zichtbaar mét werkende approve/reject-formulieren. Dezelfde collab-scope
+>   toegevoegd aan `governance-screen.tsx`, plus een **server-side guard** in `loadDecidableHandoff`
+>   (`approve/rejectShiftHandoff`) die een beslissing op een terminale/bevroren inzet hard weigert (server-side
+>   waarheid, niet enkel uit de lijst gefilterd; ná de tenant-poort → geen CWE-203-oracle). +12 regressietests
+>   totaal (`pending-tasks.shift-handoff.test.ts` CANCELLED/COMPLETED/dispuut, rood→groen; nieuw
+>   `signals.shift-handoff-collab-scope.test.ts` badge-pariteit; `governance-screen.test.tsx` lijst-scope;
+>   `oracle.test.ts` guard weigert moot/bevroren beslissing). Volledige gate groen (typecheck/lint/unit/build/prettier).
 > - **GEPARKEERD — low nit (DOEL 2, correctheid/latent): tijdzone-basis inconsistent tussen twee
 >   rapportagefamilies.** `administration/overview.ts` (BTW-aangifte, jaaroverzicht, omzet/kosten) + `quarterOf`
 >   gebruiken lokale `getFullYear()`/`getMonth()`; `expense.ts:205` + `expense-mileage.ts:104,125` gebruiken

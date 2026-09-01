@@ -14,7 +14,12 @@ const dbState = vi.hoisted(() => ({
     id: string;
     status: string;
     requestedByUserId: string;
-    collaboration: { id: string; job: { title: string; tenantId: string } };
+    collaboration: {
+      id: string;
+      status: string;
+      disputedAt: Date | null;
+      job: { title: string; tenantId: string };
+    };
   } | null,
 }));
 
@@ -85,7 +90,12 @@ describe("shift-overname existence-oracle (CWE-203)", () => {
       id: "h-x",
       status: "OPEN",
       requestedByUserId: "zzp-9",
-      collaboration: { id: "c-9", job: { title: "Dienst", tenantId: "tenant-B" } },
+      collaboration: {
+        id: "c-9",
+        status: "ACTIVE",
+        disputedAt: null,
+        job: { title: "Dienst", tenantId: "tenant-B" },
+      },
     };
     const res = await approveShiftHandoff("h-x", undefined);
     // Cross-tenant mag NIET onderscheidbaar zijn van onbekend.
@@ -99,7 +109,12 @@ describe("shift-overname existence-oracle (CWE-203)", () => {
       id: "h-y",
       status: "OPEN",
       requestedByUserId: "zzp-9",
-      collaboration: { id: "c-9", job: { title: "Dienst", tenantId: "tenant-B" } },
+      collaboration: {
+        id: "c-9",
+        status: "ACTIVE",
+        disputedAt: null,
+        job: { title: "Dienst", tenantId: "tenant-B" },
+      },
     };
     const res = await rejectShiftHandoff("h-y", undefined, rejectForm());
     expect(res).toEqual({ error: NOT_FOUND });
@@ -111,10 +126,69 @@ describe("shift-overname existence-oracle (CWE-203)", () => {
       id: "h-own",
       status: "OPEN",
       requestedByUserId: "zzp-1",
-      collaboration: { id: "c-1", job: { title: "Dienst", tenantId: "tenant-A" } },
+      collaboration: {
+        id: "c-1",
+        status: "ACTIVE",
+        disputedAt: null,
+        job: { title: "Dienst", tenantId: "tenant-A" },
+      },
     };
     const res = await approveShiftHandoff("h-own", undefined);
     expect(res).toEqual({ ok: true });
     expect(db.handoffUpdateMany).toHaveBeenCalledOnce();
+  });
+});
+
+// Server-side waarheid (CLAUDE.md regel 1): een OPEN-aanvraag op een terminale/bevroren samenwerking
+// mag niet alleen uit de lijst gefilterd worden maar moet ook hard geweigerd worden door de mutatie —
+// anders blijft de "eeuwig hangende beslissing" server-side beslisbaar (agent-review BLOCK, run 104).
+describe("shift-overname — beslissing geweigerd op een terminale/bevroren samenwerking", () => {
+  beforeEach(() => {
+    dbState.handoff = null;
+    db.handoffUpdateMany.mockClear();
+    db.notificationCreate.mockClear();
+    db.auditCreate.mockClear();
+  });
+
+  for (const status of ["CANCELLED", "COMPLETED"] as const) {
+    it(`approve: eigen-tenant OPEN handoff op een ${status} inzet → geweigerd, geen mutatie/audit`, async () => {
+      dbState.handoff = {
+        id: "h-term",
+        status: "OPEN",
+        requestedByUserId: "zzp-1",
+        collaboration: {
+          id: "c-1",
+          status,
+          disputedAt: null,
+          job: { title: "Dienst", tenantId: "tenant-A" },
+        },
+      };
+      const res = await approveShiftHandoff("h-term", undefined);
+      expect(res).toEqual({
+        error: "Deze samenwerking is afgerond of geannuleerd; de aanvraag vervalt.",
+      });
+      expect(db.handoffUpdateMany).not.toHaveBeenCalled();
+      expect(db.auditCreate).not.toHaveBeenCalled();
+    });
+  }
+
+  it("reject: eigen-tenant OPEN handoff op een inzet in dispuut → geweigerd (freeze), geen mutatie", async () => {
+    dbState.handoff = {
+      id: "h-disp",
+      status: "OPEN",
+      requestedByUserId: "zzp-1",
+      collaboration: {
+        id: "c-1",
+        status: "ACTIVE",
+        disputedAt: new Date("2026-08-01"),
+        job: { title: "Dienst", tenantId: "tenant-A" },
+      },
+    };
+    const res = await rejectShiftHandoff("h-disp", undefined, rejectForm());
+    expect(res).toEqual({
+      error: "Deze samenwerking staat in dispuut; het werkproces is bevroren.",
+    });
+    expect(db.handoffUpdateMany).not.toHaveBeenCalled();
+    expect(db.auditCreate).not.toHaveBeenCalled();
   });
 });
