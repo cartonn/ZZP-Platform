@@ -233,7 +233,7 @@ export async function OntzorgdPanel({ actor }: { actor: Actor }) {
 
       {/* IB-schatting */}
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold">Inkomstenbelasting {year} (schatting)</h2>
+        <h2 className="text-sm font-semibold">Inkomstenbelasting {o.year} (schatting)</h2>
         <Card>
           <CardContent className="space-y-1 py-3 text-sm">
             <Row label="Winst vóór aftrek" value={formatEuro(o.incomeTax.profitCents)} />
