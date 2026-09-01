@@ -110,4 +110,24 @@ describe("buildOntzorgOverview", () => {
     const sorted = [...urgencies].sort((a, b) => order[a] - order[b]);
     expect(urgencies).toEqual(sorted);
   });
+
+  it("jaar en kwartaal komen op de jaarwisseling uit dezelfde Amsterdamse instant (geen KOR-vals-alarm)", () => {
+    // 2026-12-31T23:30Z = 1 jan 2027 00:30 Amsterdam (CET, +1u). Het fiscale jaar is dan 2027/Q1.
+    // Regressie: met `getUTCFullYear()` viel het jaar (2026) niet samen met het Amsterdamse kwartaal
+    // (Q1), zodat `annualSummary` de omzet van het oude jaar (2026) laadde en de KOR-grensmeter een
+    // vals "grens genaderd"-alarm gaf terwijl het nieuwe jaar nog op €0 staat.
+    const now = new Date("2026-12-31T23:30:00Z");
+    const entries: LedgerEntry[] = [
+      // €17.000 omzet (>80% van de €20.000-KOR-grens) geboekt in 2026 — hoort bij fiscaal jaar 2026.
+      entry("OMZET", 0, 1700000, "2026-12-20T10:00:00Z"),
+    ];
+    const o = buildOntzorgOverview({ entries, directHours: 0, indirectHours: 0, now });
+
+    // Na de fix: jaar 2027, kwartaal Q1 — consistent, en de omzet van het nieuwe jaar is €0.
+    expect(o.year).toBe(2027);
+    expect(o.quarter).toBe(1);
+    expect(o.revenueCents).toBe(0);
+    expect(o.korApproaching).toBe(false);
+    expect(o.actions.find((a) => a.code === "KOR_THRESHOLD")).toBeUndefined();
+  });
 });
