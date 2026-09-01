@@ -35,7 +35,19 @@ export async function ShiftHandoffGovernanceScreen({ actor }: { actor: Actor }) 
   const open = await prisma.shiftHandoff.findMany({
     where: {
       status: "OPEN",
-      collaboration: { job: { is: scope.tenantId ? { tenantId: scope.tenantId } : {} } },
+      // Scope óók op de samenwerking zelf (ACTIVE + niet in dispuut) — spiegelt exact de nav-badge
+      // (`openHandoffs`/`openAdminHandoffs`, signals.ts) en het actiecentrum (`shift-handoff-decide`,
+      // pending-tasks.ts) die hiér naartoe linken. Een OPEN-aanvraag op een terminale (CANCELLED/
+      // COMPLETED) of bevroren (dispuut) inzet is geen openstaande governance-beslissing meer: de
+      // herplaatsing/annulering is al gebeurd en beslissen tijdens een dispuut doorbreekt de
+      // werkproces-freeze. Zonder deze scope bleef de moot-aanvraag hier — mét werkende approve/reject-
+      // formulieren — zichtbaar terwijl badge en taak al verdwenen waren (cross-surface-tegenspraak).
+      // De server-side guard (`loadDecidableHandoff`) weigert zo'n beslissing bovendien hard.
+      collaboration: {
+        status: "ACTIVE",
+        disputedAt: null,
+        job: { is: scope.tenantId ? { tenantId: scope.tenantId } : {} },
+      },
     },
     orderBy: { createdAt: "asc" },
     take: 100,

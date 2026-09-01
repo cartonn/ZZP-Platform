@@ -1,5 +1,56 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-01 (run 104) · **main-commit basis:** `e697068a`
+> **Uitkomst:** **1 defect gevonden én gefixt** (DOEL 1b — dezelfde terugkerende bugklasse als run
+> 99–103: een next-action + nav-badge die zichzelf tegenspreekt en niet verdwijnt). 3 adversariële
+> Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant op de laatste ~40 commits ·
+> next-action-engine/cross-surface-pariteit · financiële/cascade-correctheid + malicieuze invoer). De
+> authz/IDOR/tenant- én de financiële-audit vonden **0 nieuwe bereikbare gaten**: alle recente
+> server-actions/routes scopen `auth → rol → ownership/tenant → Zod → actie → audit` (CSV-export
+> `userId`-scoped, `/api/metrics` fail-closed `CRON_SECRET`, cascade-commands eigenaar-gescoped,
+> franchise via `tenantScopeWhere`); de cascade-geldmath (int-cents `computeVat`, creditfactuur-negatie,
+> int4-plafonds, resubmit-no-rebook) en de transition-guards (`assertCollaborationNotTerminal`,
+> `collaborationTerminableGuard`/`CompletableGuard`, `invoiceLifecycleMachine`) zijn TOCTOU-safe en
+> weigeren i.p.v. no-op. Eén low-severity latent nit geparkeerd (zie onder).
+>
+> - **OPGELOST — should-fix (DOEL 1b, CLAUDE.md regel 1 — server-side waarheid / "afgehandelde acties
+>   verdwijnen vanzelf" / cross-surface-pariteit): een OPEN dienst-overname-aanvraag (`ShiftHandoff`)
+>   bleef eeuwig als beslis-taak (`/acties` bemiddelaar + admin, dashboard-rail, sidebar-badge) én
+>   nav-badge hangen nadat de bijbehorende samenwerking terminaal (CANCELLED/COMPLETED) of bevroren
+>   (dispuut) werd.** Vier displayqueries (`pending-tasks.ts` franchiser + admin; `signals.ts`
+>   `openHandoffs` + `openAdminHandoffs`) scoopten alleen op `ShiftHandoff.status: "OPEN"`, niet op de
+>   parent-`collaboration.status`. `canRequestHandoff` staat openen enkel op een ACTIEVE inzet toe, maar
+>   niets sluit de OPEN-aanvraag als de samenwerking daarna via `cancelCollaboration`, auto-completion
+>   (Event E) of `openDispute` van status verandert — geen enkele `shiftHandoff.update/deleteMany` hangt
+>   aan die transities. **Asymmetrie die het een bug maakt (geen beleid):** de sibling-queries in
+>   dezelfde `Promise.all` (`endingCollabs` ACTIVE+`disputedAt:null`, `openDiensten`/`staleDiensten`
+>   `job.status:"PUBLISHED"`) scopen wél op de parent-status; alleen de handoff-queries niet — exact de
+>   klasse van de run-103 `job.status`-fix voor de kandidaat-taken. Beslissen op een dode inzet is bovendien
+>   moot (de herplaatsing/annulering is al gebeurd) en beslissen tijdens een dispuut doorbreekt de
+>   werkproces-freeze. **Repro (geen DB-manipulatie):** ZZP'er opent op een ACTIEVE inzet een dienst-overname
+>   → een partij annuleert de samenwerking (of de laatste factuur wordt betaald → auto-afronding, of er
+>   wordt een dispuut geopend) → bemiddelaar/admin `/acties` + nav-badge tonen nog steeds "beoordeel de
+>   dienst-overname". **Fix:** `collaboration: { status: "ACTIVE", disputedAt: null, … }` toegevoegd aan
+>   alle vier de queries. **Derde surface meegenomen na een agent-review-BLOCK:** de nav-badge + `/acties`-taak
+>   linken naar het gedeelde governance-scherm (`ShiftHandoffGovernanceScreen`), dat OPEN-handoffs óók ongescoped
+>   ophaalde — de moot-aanvraag bleef daar zichtbaar mét werkende approve/reject-formulieren. Dezelfde collab-scope
+>   toegevoegd aan `governance-screen.tsx`, plus een **server-side guard** in `loadDecidableHandoff`
+>   (`approve/rejectShiftHandoff`) die een beslissing op een terminale/bevroren inzet hard weigert (server-side
+>   waarheid, niet enkel uit de lijst gefilterd; ná de tenant-poort → geen CWE-203-oracle). +12 regressietests
+>   totaal (`pending-tasks.shift-handoff.test.ts` CANCELLED/COMPLETED/dispuut, rood→groen; nieuw
+>   `signals.shift-handoff-collab-scope.test.ts` badge-pariteit; `governance-screen.test.tsx` lijst-scope;
+>   `oracle.test.ts` guard weigert moot/bevroren beslissing). Volledige gate groen (typecheck/lint/unit/build/prettier).
+> - **GEPARKEERD — low nit (DOEL 2, correctheid/latent): tijdzone-basis inconsistent tussen twee
+>   rapportagefamilies.** `administration/overview.ts` (BTW-aangifte, jaaroverzicht, omzet/kosten) + `quarterOf`
+>   gebruiken lokale `getFullYear()`/`getMonth()`; `expense.ts:205` + `expense-mileage.ts:104,125` gebruiken
+>   `getUTCFullYear()`. `occurredAt` default = `new Date()`. Op een niet-UTC-server kan een boeking vlak bij een
+>   jaar-/kwartaalgrens in een ander kwartaal/jaar vallen in de ledger-BTW-view dan dezelfde uitgave in het
+>   uitgaven-overzicht. Op Railway (UTC) inert → latent, geen live bug. Fix-richting: één tijdzone-basis kiezen
+>   (UTC) over beide families. Prioriteit: laag. Bestanden: `src/lib/administration/overview.ts` +
+>   `src/lib/expense.ts` + `src/lib/expense-mileage.ts`.
+>
+> ---
+
 > **Datum:** 2026-08-31 (run 103) · **main-commit basis:** `cfbeaa0e`
 > **Uitkomst:** **1 defect gevonden én gefixt** (DOEL 1b — dezelfde terugkerende bugklasse als run
 > 99–102: een next-action die zichzelf tegenspreekt en niet verdwijnt). 4 rollen live doorgeklikt

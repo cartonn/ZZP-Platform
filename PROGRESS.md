@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-09-01 — persona-sweep run 104: dienst-overname-beslistaak + nav-badge verdwijnen op een terminale/bevroren inzet
+
+**Wat:** een OPEN dienst-overname-aanvraag (`ShiftHandoff`) bleef eeuwig als beslis-taak (`/acties`
+bemiddelaar + admin, dashboard-rail, sidebar-badge) én nav-badge hangen nadat de bijbehorende samenwerking
+terminaal (CANCELLED/COMPLETED) of bevroren (dispuut) werd — recht tegen de server-side status in en
+cross-surface inconsistent. Zelfde bugklasse als run 103 (`job.status`-scope op de kandidaat-taken).
+
+**Aanpak:** displayqueries scoopten alleen op `ShiftHandoff.status: "OPEN"`, niet op de
+parent-`collaboration.status`, terwijl niets de OPEN-aanvraag sluit bij een collab-transitie
+(`cancelCollaboration`/auto-completion/`openDispute`). `collaboration: { status: "ACTIVE", disputedAt: null }`
+toegevoegd aan `pending-tasks.ts` (franchiser + admin) en `signals.ts` (`openHandoffs` + `openAdminHandoffs`),
+spiegelt de sibling-queries (`endingCollabs`, `openDiensten`) die al parent-gescoped waren. Na een
+**agent-review-BLOCK** ook de derde surface meegenomen: het gedeelde governance-scherm
+(`ShiftHandoffGovernanceScreen`) waar badge/taak náár linken haalde OPEN-handoffs óók ongescoped op
+(moot-aanvraag zichtbaar mét werkende approve/reject-formulieren). Zelfde collab-scope op
+`governance-screen.tsx` + een **server-side guard** in `loadDecidableHandoff` die een beslissing op een
+terminale/bevroren inzet hard weigert (ná de tenant-poort → geen CWE-203-oracle).
+
+**Bestanden:** `src/lib/actions/pending-tasks.ts`, `src/lib/signals.ts`,
+`src/components/shift-overname/governance-screen.tsx`, `src/app/(protected)/admin/shift-overnames/actions.ts`,
+
+- tests (`pending-tasks.shift-handoff.test.ts`, `signals.shift-handoff-collab-scope.test.ts` [nieuw],
+  `governance-screen.test.tsx`, `oracle.test.ts` — samen +12, rood→groen). Backlog bijgewerkt
+  (1 latente tijdzone-nit geparkeerd). Gate groen (typecheck/lint/unit/build/prettier).
+
 ## 2026-09-01 — security: tweede-factor-challenge vereist om 2FA uit te zetten (OWASP ASVS 2.8)
 
 **Wat:** `disableTwoFactor` her-authenticeerde alleen met het accountwachtwoord — het uitschakelen van

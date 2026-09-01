@@ -19,6 +19,11 @@ const state = vi.hoisted(() => ({
     status: string;
     jobTitle: string;
     freelancerName: string | null;
+    // Status + dispuut-vlag van de bijbehorende samenwerking: alleen een ACTIEVE, niet-bevroren
+    // inzet levert een openstaande governance-beslissing op. Default ACTIVE/niet-in-dispuut zodat
+    // bestaande cases zich als voorheen gedragen.
+    collaborationStatus?: string;
+    collaborationDisputed?: boolean;
   }[],
 }));
 
@@ -60,13 +65,29 @@ vi.mock("@/lib/db", () => ({
     shiftHandoff: {
       findMany: vi.fn(
         async (args: {
-          where?: { status?: string; collaboration?: { job?: { tenantId?: string } } };
+          where?: {
+            status?: string;
+            collaboration?: {
+              status?: string;
+              disputedAt?: null | { not: null };
+              job?: { tenantId?: string };
+            };
+          };
         }) => {
           const where = args?.where ?? {};
           const tenantFilter = where.collaboration?.job?.tenantId;
+          const collabStatusFilter = where.collaboration?.status;
+          // `disputedAt: null` in het filter betekent: alleen niet-bevroren samenwerkingen.
+          const requireNotDisputed = where.collaboration?.disputedAt === null;
           return state.handoffs
             .filter((h) => (where.status ? h.status === where.status : true))
             .filter((h) => (tenantFilter ? h.tenantId === tenantFilter : true))
+            .filter((h) =>
+              collabStatusFilter
+                ? (h.collaborationStatus ?? "ACTIVE") === collabStatusFilter
+                : true,
+            )
+            .filter((h) => (requireNotDisputed ? !(h.collaborationDisputed ?? false) : true))
             .map((h) => ({
               id: h.id,
               collaboration: {
@@ -157,6 +178,47 @@ describe("dienst-overname — cross-surface-consistentie met de nav-badge (DOEL 
         status: "APPROVED",
         jobTitle: "Nachtdienst IC",
         freelancerName: "Sanne de Vries",
+      },
+    ];
+    const franchiserTasks = await pendingTasks(FRANCHISER);
+    const adminTasks = await pendingTasks(ADMIN);
+    expect(franchiserTasks.some((t) => t.kind === "shift-handoff-decide")).toBe(false);
+    expect(adminTasks.some((t) => t.kind === "shift-handoff-decide")).toBe(false);
+  });
+
+  // DOEL 1b — de kernbug: een OPEN-aanvraag wordt door niets gesloten als de samenwerking daarna
+  // terminaal wordt (annuleren/afronden). `canRequestHandoff` staat openen alleen op ACTIVE toe,
+  // maar de collab kan zonder de handoff aan te raken naar CANCELLED/COMPLETED transitioneren →
+  // zonder collab-status-scope bleef de beslis-taak eeuwig hangen op een dode inzet.
+  for (const terminal of ["CANCELLED", "COMPLETED"] as const) {
+    it(`laat de OPEN beslis-taak verdwijnen zodra de samenwerking ${terminal} is — bemiddelaar én admin`, async () => {
+      state.handoffs = [
+        {
+          id: "handoff-1",
+          tenantId: "tenant-1",
+          status: "OPEN",
+          jobTitle: "Nachtdienst IC",
+          freelancerName: "Sanne de Vries",
+          collaborationStatus: terminal,
+        },
+      ];
+      const franchiserTasks = await pendingTasks(FRANCHISER);
+      const adminTasks = await pendingTasks(ADMIN);
+      expect(franchiserTasks.some((t) => t.kind === "shift-handoff-decide")).toBe(false);
+      expect(adminTasks.some((t) => t.kind === "shift-handoff-decide")).toBe(false);
+    });
+  }
+
+  it("laat de OPEN beslis-taak verdwijnen zodra de samenwerking in dispuut staat (werkproces bevroren) — bemiddelaar én admin", async () => {
+    state.handoffs = [
+      {
+        id: "handoff-1",
+        tenantId: "tenant-1",
+        status: "OPEN",
+        jobTitle: "Nachtdienst IC",
+        freelancerName: "Sanne de Vries",
+        collaborationStatus: "ACTIVE",
+        collaborationDisputed: true,
       },
     ];
     const franchiserTasks = await pendingTasks(FRANCHISER);
