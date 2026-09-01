@@ -20,6 +20,9 @@ export const getCompletenessProfile = cache((userId: string) =>
       availability: true,
       languages: true,
       monthlyIncomeGoalCents: true,
+      // Harde facturatie-gegevens (voeden de proactieve facturatie-gereedheid-taak in pendingTasks).
+      btwNumber: true,
+      iban: true,
       skills: { select: { skillId: true } },
       industries: { select: { industryId: true } },
     },

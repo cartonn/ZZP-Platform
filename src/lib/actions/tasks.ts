@@ -13,6 +13,7 @@ import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType } from "@/lib/enums";
 import { type CredentialAlert } from "@/lib/collaboration-alerts";
 import { type CollaborationRenewalPhase } from "@/lib/collaboration-renewal";
+import { type BillingGap } from "@/lib/billing-readiness";
 import { type VatDeadlineSummary } from "@/lib/administration/vat-deadline";
 import { type IncomeTaxDeadlineSummary } from "@/lib/administration/income-tax-deadline";
 import { type HoursCriterionSummary } from "@/lib/tax/hours-criterion-summary";
@@ -78,6 +79,7 @@ export type PendingTask =
       missing?: string[];
     })
   | (TaskBase & { kind: "company-complete"; missing?: string[] })
+  | (TaskBase & { kind: "billing-profile"; gaps: BillingGap[] })
   | (TaskBase & {
       kind: "credential-fix";
       credId: string;
@@ -382,6 +384,22 @@ export function identityVerifyTask(): PendingTask {
     resolver: "drawer",
     href: "/account",
     section: "identity",
+  };
+}
+
+export function billingProfileTask(gaps: BillingGap[]): PendingTask {
+  const labels = gaps.map((g) => g.label);
+  return {
+    kind: "billing-profile",
+    id: "billing-profile:fields",
+    title: "Vul je facturatiegegevens aan zodat je facturen kloppen",
+    subtitle: labels.length ? `Ontbreekt: ${labels.join(", ")}` : undefined,
+    tone: "attention",
+    priority: P.billingProfileIncomplete,
+    // Meerstaps (profielvelden invullen) → naar de bewerkpagina; geen één-klik-mutatie.
+    resolver: "link",
+    href: "/profiel/bewerken",
+    gaps,
   };
 }
 
