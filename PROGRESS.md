@@ -26,6 +26,7 @@ zodat de wederzijdse uitsluiting zichtbaar is (geen "getypt bedrag verdwijnt"-ve
 `src/app/(protected)/uitgaven/actions.test.ts` (+1 action-regressietest). Backlog-nit → OPGELOST.
 
 **Checks:** typecheck ✓, lint ✓, unit (7600+ groen; +5 nieuwe) ✓, build ✓, prettier ✓. CI-poort verifieert.
+
 ## 2026-09-01 — persona-sweep run 105: KOR-meter jaarwisseling-regressie (jaar én kwartaal uit dezelfde Amsterdamse instant)
 
 **Wat:** het "ontzorgd"-dashboard van de ZZP'er (voedt de KOR-omzetgrensmeter) bepaalde het fiscale
