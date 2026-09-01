@@ -10,6 +10,7 @@ import { requestMeta } from "@/lib/request-meta";
 import { generateTotpSecret, otpauthUri, verifyTotpStep } from "@/lib/two-factor/totp";
 import { encryptTwoFactorSecret, decryptTwoFactorSecret } from "@/lib/two-factor/secret-crypto";
 import { generateRecoveryCodes, hashRecoveryCode } from "@/lib/two-factor/recovery-codes";
+import { verifySecondFactor } from "@/lib/two-factor/verify-second-factor";
 
 // De uitgever die authenticator-apps tonen (otpauth-issuer). Merknaam van het platform.
 const ISSUER = "Handslag";
@@ -175,30 +176,63 @@ export interface DisableState {
 
 const disableSchema = z.object({
   password: z.string().min(1),
+  // Optionele tweede factor bij de aanvraag. Voor een account met 2FA aan (het enige geval waarin
+  // uitschakelen betekenis heeft) is een geldige TOTP-code of ongebruikte herstelcode server-side
+  // verplicht; het schema houdt 'm optioneel zodat de action zelf de nette foutmelding kan geven.
+  token: z.string().trim().optional(),
 });
 
 /**
- * Schakelt 2FA uit. Vereist bevestiging via het HUIDIGE wachtwoord (server-side waarheid, bcrypt).
- * Bij succes worden het geheim en alle herstelcodes in één transactie verwijderd en wordt de actie
- * geaudit.
+ * Schakelt 2FA uit. Vereist bevestiging via het HUIDIGE wachtwoord (server-side waarheid, bcrypt) ÉN
+ * — zolang 2FA aan staat — een geldige tweede factor (TOTP-code of ongebruikte herstelcode). Het
+ * verwijderen van de factor verdient een factor-challenge: een uitgelekt/hergebruikt wachtwoord mag
+ * de beveiligingslaag niet alléén kunnen strippen (best practice GitHub/Google; OWASP ASVS 2.8). De
+ * verificatie loopt via dezelfde replay-veilige poort als de login (`verifySecondFactor`). Bij succes
+ * worden het geheim en alle herstelcodes in één transactie verwijderd en wordt de actie geaudit.
  */
 export async function disableTwoFactor(
   _prev: DisableState | undefined,
   formData: FormData,
 ): Promise<DisableState> {
   const actor = await requireActor();
-  const parsed = disableSchema.safeParse({ password: formData.get("password") });
+  const parsed = disableSchema.safeParse({
+    password: formData.get("password"),
+    token: formData.get("token"),
+  });
   if (!parsed.success) {
     return { error: "Vul je huidige wachtwoord in." };
   }
 
   const user = await prisma.user.findUnique({
     where: { id: actor.id },
-    select: { passwordHash: true, twoFactorEnabledAt: true },
+    select: {
+      id: true,
+      passwordHash: true,
+      twoFactorEnabledAt: true,
+      twoFactorSecret: true,
+      twoFactorLastUsedStep: true,
+    },
   });
   if (!user) return { error: "Account niet gevonden." };
   if (!(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
     return { error: "Wachtwoord klopt niet." };
+  }
+
+  const meta = await requestMeta();
+
+  // Tweede-factor-challenge: alleen betekenisvol wanneer 2FA daadwerkelijk aan staat. Zo niet, dan is
+  // er niets te strippen en blijft het gedrag onveranderd. Faalt de factor, dan weigeren we vóór enige
+  // schrijfactie (de audit-mislukking zit in verifySecondFactor).
+  if (
+    user.twoFactorEnabledAt &&
+    !(await verifySecondFactor(user, parsed.data.token, meta, {
+      context: "disable",
+    }))
+  ) {
+    return {
+      error:
+        "De verificatiecode klopt niet of is verlopen. Vul de actuele code uit je authenticator-app of een ongebruikte herstelcode in.",
+    };
   }
 
   await prisma.$transaction([
@@ -209,7 +243,6 @@ export async function disableTwoFactor(
     }),
   ]);
 
-  const meta = await requestMeta();
   await audit({
     actorId: actor.id,
     action: "TWO_FACTOR_DISABLED",

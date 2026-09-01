@@ -48,13 +48,16 @@
 >   Fix-richting: bij REISKOSTEN met `kilometers > 0` de losse `netCents` server-side weigeren of nullen
 >   (wederzijds uitsluiten). Prioriteit: laag. Bestand: `src/app/(protected)/uitgaven/actions.ts` +
 >   `src/lib/expense-mileage.ts`.
-> - **GEPARKEERD — low nit (DOEL 2, security-hygiëne): `disableTwoFactor` her-authenticeert alleen met
->   wachtwoord, niet met een geldige TOTP/herstelcode.** Het uitschakelen van 2FA (secret + alle
->   herstelcodes in één transactie gewist) vereist alleen het accountwachtwoord, geen tweede-factor-
->   challenge. Aanvaller-model smal (levende sessie + bcrypt-gecheckt wachtwoord, geaudit als
->   `TWO_FACTOR_DISABLED`) en matcht gangbare praktijk (wachtwoord-om-2FA-uit), dus verdedigbaar — maar
->   het verwijderen van de factor verdient aantoonbaar een factor-challenge. Prioriteit: laag.
->   Bestand: `src/app/(protected)/account/tweestapsverificatie/actions.ts:185-223`.
+> - **OPGELOST (2026-09-01, PR #1316) — low nit (DOEL 2, security-hygiëne): `disableTwoFactor`
+>   her-authenticeerde alleen met wachtwoord, niet met een geldige TOTP/herstelcode.** Het uitschakelen
+>   van 2FA (secret + alle herstelcodes in één transactie gewist) vereiste alleen het accountwachtwoord,
+>   geen tweede-factor-challenge — een uitgelekt/hergebruikt wachtwoord kon de beveiligingslaag alléén
+>   strippen. **Fix:** een account met 2FA aan moet nu náást het wachtwoord een geldige TOTP-code of
+>   ongebruikte herstelcode invoeren om 2FA uit te zetten, via dezelfde replay-veilige poort als de login
+>   (`verifySecondFactor` geëxtraheerd naar `src/lib/two-factor/verify-second-factor.ts`, één bron van
+>   waarheid; login rewired als pure import-swap). Best practice GitHub/Google; OWASP ASVS 2.8. +8 tests
+>   op de gedeelde poort + disable-gate-tests. Bestand:
+>   `src/app/(protected)/account/tweestapsverificatie/actions.ts`.
 >
 > ---
 
