@@ -298,6 +298,16 @@ export function collectSystemStatus(env: Env): SystemStatus {
             : "security.txt valt terug op mailto:security@<host>. Zet SECURITY_CONTACT naar een bewaakte mailbox vóór de pentest.",
         },
         {
+          key: "change-password-url",
+          label: "Wachtwoord-wijzigen-vindpunt (well-known)",
+          // Altijd actief, geen config: /.well-known/change-password verwijst een wachtwoordmanager
+          // door naar /account/wachtwoord (W3C-standaard). Geen misconfiguratie mogelijk → altijd ok.
+          mode: "actief",
+          level: "ok",
+          detail:
+            "/.well-known/change-password verwijst wachtwoordmanagers door naar de wachtwoord-wijzigen-pagina (complementair aan de gelekt-wachtwoord-controle).",
+        },
+        {
           key: "password-breach",
           label: "Gelekt-wachtwoord-controle",
           mode: env.PASSWORD_BREACH_CHECK,

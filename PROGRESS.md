@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-09-01 — prod: `/.well-known/change-password`-vindpunt (W3C well-known URL)
+
+**Wat:** wachtwoordmanagers (Safari/iCloud-sleutelhanger, Chrome, 1Password, Bitwarden) tonen een "Wijzig
+wachtwoord"-knop zodra ze een zwak of gelekt wachtwoord detecteren en navigeren die naar
+`<origin>/.well-known/change-password`. Dat pad bestond nog niet; de manager gokte (vaak de homepage) i.p.v.
+de gebruiker op de echte pagina te zetten — zeker omdat die op het niet-voor-de-hand-liggende Nederlandse
+pad `/account/wachtwoord` staat. Nu verwijst het vindpunt (303 See Other) door naar die pagina. Natuurlijke
+tegenhanger van de al ingebouwde HIBP gelekt-wachtwoord-controle (deep-link naar het herstelpad bij een
+gedetecteerd datalek-wachtwoord).
+
+**Aanpak:** pure bron van waarheid `buildChangePasswordRedirect(origin)` (`src/lib/change-password-url.ts`) —
+absolute Location op de **vertrouwde** publieke origin (`resolvePublicOrigin`/`AUTH_URL`, nooit uit een
+client-header → geen host-header-poisoning, OWASP A01). Route
+`src/app/.well-known/change-password/route.ts` mirrort de `security.txt`-route (force-dynamic, nooit
+gecachet). Valt (via de punt in `.well-known`) buiten de middleware-matcher, dus publiek bereikbaar zonder
+login-redirect — precies zoals `/.well-known/security.txt` en `/robots.txt`. Posture-item
+"Wachtwoord-wijzigen-vindpunt (well-known)" op `/admin/systeemstatus` (altijd `ok`, geen config).
+
+**Bestanden:**
+
+- `src/lib/change-password-url.ts` — pure builder + constanten (`CHANGE_PASSWORD_PATH`, status 303).
+- `src/lib/change-password-url.test.ts` — 5 tests (redirect, trailing-slash-normalisatie, dev-origin, sync).
+- `src/app/.well-known/change-password/route.ts` — GET-handler (303 → `/account/wachtwoord`).
+- `src/lib/system-status.ts` + `.test.ts` — posture-item + test.
+- `MENSENWERK.md` §5d — code-kant GEDAAN + geen resterend mensenwerk.
+
+**Checks:** typecheck ✓, unit (change-password-url 5/5 + system-status groen) ✓, prettier ✓. Resterend
+mensenwerk: **niets** — werkt out-of-the-box.
+
 ## 2026-09-01 — security/privacy: `twoFactorLastUsedStep` overleefde de accountanonimisering (AVG art. 17 / art. 5(1)(c))
 
 **Wat:** de TOTP-replay-guard (#1302) voegde `User.twoFactorLastUsedStep` toe — de hoogst-verbruikte

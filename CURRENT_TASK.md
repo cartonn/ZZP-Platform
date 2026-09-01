@@ -268,6 +268,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — `/.well-known/change-password`-vindpunt (W3C well-known URL)
+> (2026-09-01).** Wachtwoordmanagers (Safari/Chrome/1Password/Bitwarden) deep-linken hierheen bij een
+> gedetecteerd zwak/gelekt wachtwoord; het vindpunt verwijst (303) door naar `/account/wachtwoord`.
+> Tegenhanger van de HIBP gelekt-wachtwoord-controle. Bron `src/lib/change-password-url.ts`, route
+> `src/app/.well-known/change-password/route.ts`, posture-item op `/admin/systeemstatus`. Redirect
+> absoluut op de vertrouwde origin (`AUTH_URL`, geen host-header-poisoning), valt buiten de
+> middleware-matcher (punt in `.well-known`) net als `security.txt`.
+
 > Gedaan (niet opnieuw): **Beveiliging — opt-in tweestapsverificatie (TOTP 2FA) (2026-08-30).** Per gebruiker
 > aan te zetten via `/account/tweestapsverificatie` (sleutel + otpauth-URI koppelen, 6-cijferige bevestiging,
 > eenmalige herstelcodes); login-formulier vraagt optioneel om de code; env `TWOFA_ENC_KEY` (AES-256-GCM,
