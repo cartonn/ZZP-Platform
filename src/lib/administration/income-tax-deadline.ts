@@ -9,6 +9,12 @@
 // deadline die nog niet is verstreken; het venster flipt precies op 2 mei naar het volgende
 // belastingjaar. Geen fiscaal advies, geen geldstroom — puur een agenderingssignaal.
 
+import {
+  amsterdamCivilDayMs,
+  fiscalYearOf,
+  yearStartInstant,
+} from "@/lib/administration/fiscal-calendar";
+
 /** De deadline wordt "binnenkort" zodra hij binnen dit aantal dagen valt (ruimer dan BTW: jaarlijks,
  * meer voorbereiding). */
 export const INCOME_TAX_DEADLINE_SOON_DAYS = 30;
@@ -35,9 +41,13 @@ export function incomeTaxFilingDeadline(taxYear: number): Date {
   return new Date(Date.UTC(taxYear + 1, 4, 1));
 }
 
-/** Hele kalenderdagen van `now` tot `deadline` (beide genormaliseerd naar de kalenderdag, UTC). */
+/**
+ * Hele kalenderdagen van `now` tot `deadline` (beide genormaliseerd naar de burgerlijke kalenderdag in
+ * Europe/Amsterdam). `now` via de Amsterdamse dag; de deadline is al op UTC-middernacht van de NL-
+ * kalenderdag geconstrueerd (`incomeTaxFilingDeadline`).
+ */
 function wholeDaysUntil(now: Date, deadline: Date): number {
-  const nowDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const nowDay = amsterdamCivilDayMs(now);
   const deadlineDay = Date.UTC(
     deadline.getUTCFullYear(),
     deadline.getUTCMonth(),
@@ -52,7 +62,7 @@ function wholeDaysUntil(now: Date, deadline: Date): number {
  * vanaf 2 mei → belastingjaar Y (het lopende jaar). Puur — `now` wordt geïnjecteerd.
  */
 export function nextIncomeTaxYear(now: Date): number {
-  const year = now.getUTCFullYear();
+  const year = fiscalYearOf(now);
   // Deadline over jaar Y-1 valt op 1 mei Y. Nog niet verstreken (deadline-dag ≥ vandaag) → kies Y-1.
   return wholeDaysUntil(now, incomeTaxFilingDeadline(year - 1)) >= 0 ? year - 1 : year;
 }
@@ -85,11 +95,12 @@ export function incomeTaxDeadlineNeedsAction(summary: IncomeTaxDeadlineSummary):
 }
 
 /**
- * Kalendergrens (lokale tijd) van een belastingjaar, zodat een query op `occurredAt` tot precies dat
- * jaar beperkt kan worden. `end` is exclusief (1 januari van het volgende jaar). Bewust lokale tijd —
- * spiegelt de filtering in `annualSummary`/`revenueCents` (`getFullYear`), zodat een op dit venster
- * gescopete set exact dezelfde entries bevat als de pure omzetberekening ziet.
+ * Kalendergrens van een belastingjaar als UTC-instanten, zodat een query op `occurredAt` (opgeslagen
+ * als UTC-instant) tot precies dat jaar beperkt kan worden. `end` is exclusief (1 januari van het
+ * volgende jaar). De grenzen vallen op burgerlijke middernacht in Europe/Amsterdam — spiegelt de
+ * filtering in `annualSummary`/`revenueCents` (`fiscalYearOf`), zodat een op dit venster gescopete set
+ * exact dezelfde entries bevat als de pure omzetberekening ziet.
  */
 export function taxYearRange(taxYear: number): { start: Date; end: Date } {
-  return { start: new Date(taxYear, 0, 1), end: new Date(taxYear + 1, 0, 1) };
+  return { start: yearStartInstant(taxYear), end: yearStartInstant(taxYear + 1) };
 }

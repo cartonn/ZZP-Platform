@@ -40,14 +40,21 @@
 >   totaal (`pending-tasks.shift-handoff.test.ts` CANCELLED/COMPLETED/dispuut, rood→groen; nieuw
 >   `signals.shift-handoff-collab-scope.test.ts` badge-pariteit; `governance-screen.test.tsx` lijst-scope;
 >   `oracle.test.ts` guard weigert moot/bevroren beslissing). Volledige gate groen (typecheck/lint/unit/build/prettier).
-> - **GEPARKEERD — low nit (DOEL 2, correctheid/latent): tijdzone-basis inconsistent tussen twee
->   rapportagefamilies.** `administration/overview.ts` (BTW-aangifte, jaaroverzicht, omzet/kosten) + `quarterOf`
->   gebruiken lokale `getFullYear()`/`getMonth()`; `expense.ts:205` + `expense-mileage.ts:104,125` gebruiken
->   `getUTCFullYear()`. `occurredAt` default = `new Date()`. Op een niet-UTC-server kan een boeking vlak bij een
->   jaar-/kwartaalgrens in een ander kwartaal/jaar vallen in de ledger-BTW-view dan dezelfde uitgave in het
->   uitgaven-overzicht. Op Railway (UTC) inert → latent, geen live bug. Fix-richting: één tijdzone-basis kiezen
->   (UTC) over beide families. Prioriteit: laag. Bestanden: `src/lib/administration/overview.ts` +
->   `src/lib/expense.ts` + `src/lib/expense-mileage.ts`.
+> - **OPGELOST (2026-09-01, PR #1318) — low nit (DOEL 2, correctheid/latent): tijdzone-basis inconsistent
+>   tussen de rapportagefamilies.** `administration/overview.ts` (BTW-aangifte, jaaroverzicht, omzet/kosten) +
+>   `quarterOf` gebruikten lokale `getFullYear()`/`getMonth()`; `expense.ts` + `expense-mileage.ts` + de
+>   deadline-modules `getUTCFullYear()`/lokale mix. Geen van beide is de Nederlandse fiscale kalender: die
+>   loopt op de burgerlijke dag in **Europe/Amsterdam**. Op een UTC-server (Railway) landde een boeking vlak
+>   na middernacht NL-tijd één dag/periode te vroeg (bv. 1 jan 00:30 Amsterdam = 31 dec 23:30 UTC → verkeerd
+>   BTW-kwartaal/belastingjaar) — en de twee families konden onderling verschillen. De trend-modules
+>   (`revenue.ts`, `expense-trend.ts`, …) groepeerden al wél in Europe/Amsterdam; deze familie week af.
+>   **Fix:** één bron van waarheid `src/lib/administration/fiscal-calendar.ts` (`fiscalYearOf`/`fiscalQuarterOf`/
+>   `fiscalMonthOf` + UTC-instant-grenzen `quarterStartInstant`/`yearStartInstant`/`amsterdamCivilDayMs`),
+>   alle periode-indeling + query-grenzen (`vatQuarterRange`/`taxYearRange`) erop gebaseerd. De pure classifier
+>   en de query-grenzen blijven exact consistent (self-consistency-test). +19 tests (nieuw
+>   `fiscal-calendar.test.ts` incl. DST-grenzen +1/+2; boundary-regressies in overview/expense-mileage;
+>   data-layer-grenzen bijgewerkt). Bestanden: `src/lib/administration/{fiscal-calendar,overview,
+platform-overview,vat-deadline,income-tax-deadline}.ts` + `src/lib/expense{,-mileage}.ts`.
 >
 > ---
 
