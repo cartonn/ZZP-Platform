@@ -1,5 +1,63 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-08-31 (run 103) · **main-commit basis:** `cfbeaa0e`
+> **Uitkomst:** **1 defect gevonden én gefixt** (DOEL 1b — dezelfde terugkerende bugklasse als run
+> 99–102: een next-action die zichzelf tegenspreekt en niet verdwijnt). 4 rollen live doorgeklikt
+> (Playwright/Chromium, qa.db-seed) + 3 adversariële Opus-audits op niet-overlappende oppervlakken
+> (authz/IDOR/tenant op de laatste ~25 commits · next-action-engine · financiële/malicieuze invoer).
+> De authz/IDOR/tenant- én de financiële-invoer-audit vonden **0 nieuwe bereikbare gaten**:
+> privilege-escalatie (ZZP'er/opdrachtgever/franchiser → `/admin/*`, `/franchise/*`) → **307-redirect
+> naar /dashboard**; ~4 onzin-/gegokte-id's op samenwerking/factuur/opdracht/bericht (oningelogd) →
+> **307**, nergens een 500; alle echte hoofdschermen per rol laden 200 zonder page-errors. TOTP-2FA +
+> replay-preventie (atomaire high-water-mark `updateMany`, TOCTOU-safe), AES-256-GCM 2FA-secret,
+> mileage/km-aftrek (int-cents + plafond + anti-oracle delete), AVG-anonimisering (ADMIN-scoped,
+> per-subject), reactiesnelheid-badge (`companyId`-scoped), CSV-injectie-guard (`= + @ \t \r`) op álle
+> exports, upload-magic-byte-sniff + 10MB-cap: allemaal opnieuw diep-gehard bevonden. Twee low-nits
+> geparkeerd (zie onder).
+>
+> - **OPGELOST — should-fix (DOEL 1b, CLAUDE.md regel 1 — server-side waarheid / "afgehandelde acties
+>   verdwijnen vanzelf" / geen zichzelf-tegensprekend scherm): de kandidaat-BEOORDEELtaken van de
+>   opdrachtgever ("nieuwe reacties · beoordeel de kandidaten", de eerste-reactie-SLA en de
+>   reeds-bekeken-wachtende kandidaat) bleven eeuwig hangen op een GESLOTEN of naar-concept-teruggezette
+>   opdracht.** De drie queries in `clientTasks` (`src/lib/actions/pending-tasks.ts`) filterden op
+>   `job.company.userId` + reactiestatus, maar **niet op `job.status`**. Sluit de opdrachtgever een
+>   opdracht (`changeJobStatus` PUBLISHED→CLOSED, `opdrachten/actions.ts:420`), dan blijven de open
+>   reacties (NEW/VIEWED/SHORTLIST) in de DB staan — het sluiten stuurt ze alleen een "de opdracht is
+>   weg"-notificatie, het transitioneert ze niet. Gevolg: `/acties`, de sidebar-badge én de
+>   dashboard-rail bleven "beoordeel de kandidaten" tonen voor een opdracht die de opdrachtgever al had
+>   gesloten (en waarvan de kandidaten al hoorden dat hij weg was) — recht tegen de server-side status
+>   in, en de badge liep permanent op. Dezelfde bug via PUBLISHED→DRAFT ("Terug naar concept"): een
+>   onzichtbaar concept genereerde nog steeds "reageer voor ze afhaken". **Asymmetrie die het een bug
+>   maakt (geen beleid):** de opdracht-nudges voor hetzelfde scherm (`getClientColdJobs`/
+>   `getClientOverdueJobs`) scopen wél correct op `status: "PUBLISHED"` en verdwijnen bij sluiten;
+>   alleen de kandidaat-queries niet. **Repro (opdrachtgever, geen DB-manipulatie):** plaats opdracht →
+>   ontvang reacties (NEW/VIEWED/SHORTLIST) → sluit de opdracht (of zet 'm terug naar concept) → /acties
+>   toont nog steeds "nieuwe reacties — beoordeel de kandidaten". **Fix:** `status: "PUBLISHED"`
+>   toegevoegd aan de `job`-filter van `firstLookWhere`, de generieke NEW-telling en de
+>   `staleCandidates`-query. De ACCEPTED→samenwerkingsvoorstel-taak blijft **bewust** ongescoopt (een
+>   hire-toezegging die het sluiten overleeft — ACCEPTED valt buiten `OPEN_APPLICATION_STATUSES`, dus
+>   die kandidaat kreeg géén "de opdracht is weg"-melding; het voorstel blijft legitiem verschuldigd).
+>   +3 regressietests (`pending-tasks-client-closed-job.test.ts`, rood→groen: 3 rood zonder fix).
+>   Volledige gate groen (typecheck/lint/unit/build/prettier).
+> - **GEPARKEERD — low nit (DOEL 2, financiële invoer): mileage + werkelijke autokosten stapelbaar op
+>   één REISKOSTEN-uitgave.** Een REISKOSTEN-uitgave slaat zowel een handmatige `netCents` (werkelijke
+>   autokost) als `kilometers` op; de vaste km-vergoeding (€0,23/km) hoort de werkelijke kosten te
+>   _vervangen_, niet te stapelen. **Nu niet dubbel-geteld in de fiscale cijfers** (de winst/IB-schatting
+>   gebruikt alléén `summarizeExpenses().netCents`; `summarizeMileage()` is display-only), dus geen live
+>   bug — maar een latente data-integriteitsval als ooit een "totale aftrek"-scherm beide sommeert.
+>   Fix-richting: bij REISKOSTEN met `kilometers > 0` de losse `netCents` server-side weigeren of nullen
+>   (wederzijds uitsluiten). Prioriteit: laag. Bestand: `src/app/(protected)/uitgaven/actions.ts` +
+>   `src/lib/expense-mileage.ts`.
+> - **GEPARKEERD — low nit (DOEL 2, security-hygiëne): `disableTwoFactor` her-authenticeert alleen met
+>   wachtwoord, niet met een geldige TOTP/herstelcode.** Het uitschakelen van 2FA (secret + alle
+>   herstelcodes in één transactie gewist) vereist alleen het accountwachtwoord, geen tweede-factor-
+>   challenge. Aanvaller-model smal (levende sessie + bcrypt-gecheckt wachtwoord, geaudit als
+>   `TWO_FACTOR_DISABLED`) en matcht gangbare praktijk (wachtwoord-om-2FA-uit), dus verdedigbaar — maar
+>   het verwijderen van de factor verdient aantoonbaar een factor-challenge. Prioriteit: laag.
+>   Bestand: `src/app/(protected)/account/tweestapsverificatie/actions.ts:185-223`.
+>
+> ---
+
 > **Datum:** 2026-08-30 (run 102) · **main-commit basis:** `14643b2c`
 > **Uitkomst:** **1 defect gevonden én gefixt** (DOEL 1b — zelfde bugklasse als run 99–101: een
 > zichzelf tegensprekend scherm). 4 rollen live doorgeklikt (Playwright/Chromium, qa.db-seed) +

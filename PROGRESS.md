@@ -163,6 +163,33 @@ rol-geïsoleerd voor de ZZP'er).
 `freelancerTasks`). **Checks:** typecheck ✓ · lint ✓ · vitest (volledige suite) ✓ · build ✓ · prettier ✓
 · CI-poort → PR #1307.
 
+## 2026-08-31 — persona-sweep run 103: kandidaat-beoordeeltaken verdwijnen op een gesloten opdracht
+
+**Wat:** de kandidaat-BEOORDEELtaken van de opdrachtgever in de next-action-engine — "nieuwe reacties ·
+beoordeel de kandidaten" (`applications-review`), de eerste-reactie-SLA (`first-look-overdue`) en de
+reeds-bekeken-wachtende kandidaat (`stale-applications`) — bleven eeuwig hangen op een **gesloten**
+(PUBLISHED→CLOSED) of naar-**concept**-teruggezette opdracht. Het sluiten van een opdracht laat de open
+reacties (NEW/VIEWED/SHORTLIST) in de DB staan (alleen een "de opdracht is weg"-notificatie, geen
+transitie), en de drie queries in `clientTasks` filterden op `job.company.userId` + reactiestatus maar
+**niet op `job.status`**. Gevolg: `/acties`, de sidebar-badge en de dashboard-rail toonden "beoordeel de
+kandidaten" voor een opdracht die de opdrachtgever al had gesloten — tegen de server-side status in, en
+de badge liep permanent op. Terugkerende bugklasse (run 99–102): een next-action die zichzelf tegenspreekt
+en niet verdwijnt.
+
+**Aanpak:** `status: "PUBLISHED"` toegevoegd aan de `job`-filter van `firstLookWhere`, de generieke
+NEW-telling en de `staleCandidates`-query — spiegelt de al-bestaande PUBLISHED-scoping van de
+opdracht-nudges (`getClientColdJobs`/`getClientOverdueJobs`). De ACCEPTED→samenwerkingsvoorstel-taak
+blijft bewust ongescoopt (een hire-toezegging die het sluiten overleeft; ACCEPTED valt buiten
+`OPEN_APPLICATION_STATUSES`). Gevonden via een adversariële Opus-audit op de next-action-engine; de
+authz/IDOR/tenant- en financiële-invoer-audits + de live 4-rollen-matrix vonden 0 nieuwe gaten.
+
+**Bestanden:** `src/lib/actions/pending-tasks.ts`, `src/lib/actions/pending-tasks-client-closed-job.test.ts`
+(nieuw, +3 rood→groen). Backlog + 2 low-nits (mileage-stapeling, 2FA-disable-stepup) gelogd in
+`docs/PERSONA-SWEEP-BACKLOG.md`.
+
+**Checks:** typecheck + lint + unit (rood→groen geverifieerd) + build + prettier groen. Volgende stap:
+volgende backlog-item / persona-sweep-run.
+
 ## 2026-08-31 — routine: start-urgentie op de eigen-reacties-lijst (ZZP'er)
 
 **Wat:** op `/reacties` (de eigen-reacties-lijst van de ZZP'er) toonde een nog-openstaande reactie het
