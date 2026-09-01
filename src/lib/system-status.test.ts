@@ -306,6 +306,14 @@ describe("collectSystemStatus — beveiligingscontact (security.txt)", () => {
   });
 });
 
+describe("collectSystemStatus — wachtwoord-wijzigen-vindpunt (well-known)", () => {
+  it("is altijd actief en ok (geen config nodig)", () => {
+    const item = itemByKey(makeEnv(), "change-password-url");
+    expect(item.mode).toBe("actief");
+    expect(item.level).toBe("ok");
+  });
+});
+
 describe("collectSystemStatus — gelekt-wachtwoord-controle", () => {
   it("standaard (noop) = fallback met mode noop", () => {
     const item = itemByKey(makeEnv({ PASSWORD_BREACH_CHECK: "noop" }), "password-breach");

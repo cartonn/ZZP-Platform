@@ -1359,6 +1359,19 @@ besloten platform). Daarnaast draagt de **productie**-CSP nu **`upgrade-insecure
 alleen buiten dev): belt-and-suspenders bij HSTS — een per ongeluk absoluut-`http` subresource wordt stil naar
 `https` geüpgraded i.p.v. een mixed-content-blok; in development bewust weggelaten zodat lokale http-assets/HMR
 blijven werken. Resterend mensenwerk: **niets** — de headers staan out-of-the-box aan; de pentest valideert ze.
+**Code-kant GEDAAN (2026-09-01) — `/.well-known/change-password`-vindpunt (W3C "A Well-Known URL for
+Changing Passwords"):** wachtwoordmanagers (Safari/iCloud-sleutelhanger, Chrome, 1Password, Bitwarden)
+tonen een "Wijzig wachtwoord"-knop zodra ze een zwak of in een datalek voorkomend wachtwoord detecteren en
+navigeren die naar `<origin>/.well-known/change-password`. Dat vindpunt verwijst nu (303 See Other) door
+naar de echte wachtwoord-wijzigen-pagina (`/account/wachtwoord`) — bron van waarheid
+`src/lib/change-password-url.ts`, route `src/app/.well-known/change-password/route.ts`, zichtbaar op
+`/admin/systeemstatus`. Dit is de natuurlijke tegenhanger van de al ingebouwde HIBP gelekt-wachtwoord-
+controle: detecteert een manager een gecompromitteerd wachtwoord, dan deep-linkt dit vindpunt de gebruiker
+rechtstreeks naar het herstelpad (dat op het niet-voor-de-hand-liggende Nederlandse pad staat). De redirect
+is absoluut op de vertrouwde publieke origin (`AUTH_URL`, nooit uit een client-header — geen
+host-header-poisoning) en wordt nooit gecachet. Valt (via de punt in `.well-known`) net als
+`/.well-known/security.txt` buiten de middleware-matcher, dus publiek bereikbaar zonder login-redirect.
+Resterend mensenwerk: **niets** — werkt out-of-the-box.
 
 ---
 
