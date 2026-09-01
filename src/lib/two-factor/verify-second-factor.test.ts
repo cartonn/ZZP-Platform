@@ -7,7 +7,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const userUpdateMany = vi.hoisted(() => vi.fn(async () => ({ count: 1 })));
 const rcFindMany = vi.hoisted(() => vi.fn(async () => [] as { id: string; codeHash: string }[]));
 const rcUpdate = vi.hoisted(() => vi.fn(async () => ({})));
-const auditMock = vi.hoisted(() => vi.fn(async () => undefined));
+// Typeer de audit-parameter zodat `.mock.calls[..][0]` een echt object is (geen lege tuple) — anders
+// faalt tsc op `.at(-1)?.[0]` (TS2493) bij het uitlezen van de metadata in de asserts.
+const auditMock = vi.hoisted(() =>
+  vi.fn(async (_entry: { metadata?: Record<string, string> }) => undefined),
+);
 const verifyTotpStepMock = vi.hoisted(() => vi.fn((): number | null => null));
 const decryptSecretMock = vi.hoisted(() => vi.fn((s: string) => s.replace(/^enc:/, "")));
 const verifyRecoveryMock = vi.hoisted(() => vi.fn(async () => false));
@@ -33,8 +37,7 @@ const USER = {
 };
 
 function lastAuditReason(): string | undefined {
-  const call = auditMock.mock.calls.at(-1)?.[0] as { metadata?: { reason?: string } } | undefined;
-  return call?.metadata?.reason;
+  return auditMock.mock.calls.at(-1)?.[0]?.metadata?.reason;
 }
 
 describe("verifySecondFactor", () => {
@@ -109,7 +112,7 @@ describe("verifySecondFactor", () => {
 
   it("verrijkt de audit-metadata met de meegegeven context", async () => {
     await verifySecondFactor(USER, "", META, { context: "disable" });
-    const call = auditMock.mock.calls.at(-1)?.[0] as { metadata?: Record<string, string> };
-    expect(call.metadata).toMatchObject({ context: "disable", reason: "missing" });
+    const entry = auditMock.mock.calls.at(-1)?.[0];
+    expect(entry?.metadata).toMatchObject({ context: "disable", reason: "missing" });
   });
 });
