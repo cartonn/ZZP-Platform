@@ -10,6 +10,7 @@ import { buildOntzorgOverview, type OntzorgAction } from "@/lib/tax/ontzorg-over
 import { TAX_DISCLAIMER } from "@/lib/tax/config";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { KorThresholdCard } from "@/components/tax/kor-threshold-card";
 
 const URGENCY_STYLE: Record<OntzorgAction["urgency"], string> = {
   now: "border-danger/40 bg-danger/5",
@@ -219,6 +220,9 @@ export async function OntzorgdPanel({ actor }: { actor: Actor }) {
           </CardContent>
         </Card>
       </section>
+
+      {/* KOR-omzetgrens */}
+      <KorThresholdCard projection={o.korProjection} approaching={o.korApproaching} />
 
       {/* IB-schatting */}
       <section className="space-y-2">
