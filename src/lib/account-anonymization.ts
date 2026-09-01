@@ -155,6 +155,14 @@ export function userAnonymizationData(
   // passwordHash en kan nooit meer inloggen, dus er gaat niets nuttigs verloren.
   twoFactorSecret: null;
   twoFactorEnabledAt: null;
+  // `twoFactorLastUsedStep` is de hoogst-verbruikte TOTP-tijdteller: `floor(unixtime/30)` van de
+  // laatste geslaagde 2FA-login — een gedragsmetadatum met ~30s-resolutie dat via `step * 30`
+  // herleidbaar is tot het exacte inlogmoment van de betrokkene en aan de (hernoemde, maar behouden)
+  // `User.id` toewijsbaar blijft. Precies dezelfde art. 17-klasse als lastLoginAt/previousLoginAt en
+  // ConversationParticipant.lastReadAt (#1097); de self-service `disableTwoFactor` zet dit veld al op
+  // null. Hoort dus bij de erasure (spiegel-consistentie voorkomt dat de replay-guard-metadata een
+  // vergetelheidsverzoek overleeft).
+  twoFactorLastUsedStep: null;
 } {
   return {
     name: ANONYMIZED_NAME,
@@ -171,6 +179,7 @@ export function userAnonymizationData(
     previousLoginAt: null,
     twoFactorSecret: null,
     twoFactorEnabledAt: null,
+    twoFactorLastUsedStep: null,
   };
 }
 

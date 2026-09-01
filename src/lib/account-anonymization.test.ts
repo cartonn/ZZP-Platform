@@ -254,6 +254,15 @@ describe("userAnonymizationData", () => {
     expect(data.twoFactorSecret).toBeNull();
     expect(data.twoFactorEnabledAt).toBeNull();
   });
+
+  it("wist de laatst-verbruikte TOTP-tijdteller (twoFactorLastUsedStep) — art. 17 / art. 5(1)(c)", () => {
+    // De hoogst-verbruikte TOTP-step is `floor(unixtime/30)` van de laatste geslaagde 2FA-login: een
+    // gedragsmetadatum met ~30s-resolutie dat aan de (hernoemde, maar behouden) `User.id` toewijsbaar
+    // blijft. Spiegel van lastLoginAt/previousLoginAt (#1097) én van de self-service `disableTwoFactor`,
+    // die dit veld al op null zet. Blijft het staan, dan overleeft het exacte inlogmoment een
+    // vergetelheidsverzoek — herleidbaar tot de persoon via `step * 30`.
+    expect(data.twoFactorLastUsedStep).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-09-01 — security/privacy: `twoFactorLastUsedStep` overleefde de accountanonimisering (AVG art. 17 / art. 5(1)(c))
+
+**Wat:** de TOTP-replay-guard (#1302) voegde `User.twoFactorLastUsedStep` toe — de hoogst-verbruikte
+TOTP-tijdteller, `floor(unixtime/30)` van de laatste geslaagde 2FA-login. `userAnonymizationData` zette
+wél `twoFactorSecret`/`twoFactorEnabledAt` op null, maar liet dit veld staan. De enige User-write in
+`anonymizeUser` (`admin/gebruikers/actions.ts:516`) loopt via die helper, dus na een
+vergetelheidsverzoek bleef een gedragsmetadatum met ~30s-resolutie — via `step * 30` herleidbaar tot het
+exacte inlogmoment — toewijsbaar aan de behouden (alleen hernoemde) `User.id`. Precies dezelfde art. 17-klasse
+als het al-geërase `lastLoginAt`/`previousLoginAt` (spiegel van `ConversationParticipant.lastReadAt`, #1097),
+en inconsistent met de self-service `disableTwoFactor`, die dit veld al op null zette.
+
+**Fix:** `twoFactorLastUsedStep: null` toegevoegd aan de returntype én het object van `userAnonymizationData`
+(`src/lib/account-anonymization.ts`). Regressietest rood→groen in `account-anonymization.test.ts` (vóór de fix:
+`undefined`, erna: `null`). Geverifieerd via 3 parallelle adversariële Opus-audits op niet-overlappende
+oppervlakken (authz/IDOR/cross-tenant · injectie/exposure/export · privacy/AVG): de eerste twee CLEAN, deze
+bevinding uit de derde. `npm audit --omit=dev` = 0; Next 15.5.24 (voorbij CVE-2025-29927); geen gecommitte
+`.env`/`NEXT_PUBLIC`-secrets.
+
+**Bestanden:**
+
+- `src/lib/account-anonymization.ts` — veld + rationale-comment in `userAnonymizationData`.
+- `src/lib/account-anonymization.test.ts` — +1 regressietest (art. 17-erasure van `twoFactorLastUsedStep`).
+- `docs/SECURITY-PRIVACY-BACKLOG.md` — ronde-notitie + OPGELOST.
+
+**Checks:** typecheck ✓, unit (account-anonymization 44/44 groen) ✓, build (baseline exit 0) ✓, lint/prettier ✓.
+
 ## 2026-09-01 — ZZP'er: KOR-omzetgrensmeter op het ontzorgd-dashboard
 
 **Wat:** de €20.000-omzetgrens van de kleineondernemersregeling (KOR) werd server-side geprojecteerd
