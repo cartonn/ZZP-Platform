@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-09-01 — ZZP'er: KOR-omzetgrensmeter op het ontzorgd-dashboard
+
+**Wat:** de €20.000-omzetgrens van de kleineondernemersregeling (KOR) werd server-side geprojecteerd
+(`korThresholdProjection` → `buildOntzorgOverview.korProjection`) maar bereikte de ZZP'er alleen als losse
+next-action-tekst wanneer hij de grens al naderde. Een ZZP'er die ruim onder de grens zit kreeg géén zicht
+op zijn resterende ruimte. Een visuele meter maakt de grens altijd zichtbaar (benchmark: Moneybird/Tellow
+tonen omzetdrempel-voortgang), zodat de ZZP'er de BTW-gevolgen tijdig kan inplannen i.p.v. ze achteraf te
+merken.
+
+**Fix:** nieuwe pure presentatie-mapper `korThresholdView(projection, approaching)` (toon-kleur, meterstand,
+statusbadge, kop + toelichting per status: under/approaching/projected_over/over) + een `KorThresholdCard` die
+omzet-tot-nu vs €20.000, resterende ruimte en (indien geprojecteerd) de kruis-maand toont. Ingehangen tussen
+Urencriterium en IB-schatting in het ontzorgd-paneel. Read-only, server-side waarheid; dezelfde `approaching`-
+drempel als de next-actions (één bron van waarheid). Meter kapt op 100% zodra de grens gepasseerd is.
+
+**Bestanden:**
+
+- `src/lib/tax/kor-threshold-view.ts` — nieuwe pure mapper `korThresholdView` + `KorThresholdView`/`KorThresholdTone`.
+- `src/lib/tax/kor-threshold-view.test.ts` — +5 tests (alle 4 statussen, meter-cap op 100%, projected_over-fallback).
+- `src/components/tax/kor-threshold-card.tsx` — nieuwe presentatie-kaart met meterbalk (`role="progressbar"`).
+- `src/components/administratie/ontzorgd-panel.tsx` — hangt de kaart in.
+
+**Checks:** typecheck ✓, lint ✓, unit (nieuw 5/5, suite 7561 tests groen; enige rode suite = pre-existing
+lokaal ontbrekende dep `qrcode-generator`, staat in package.json → CI `npm ci` dekt het), prettier ✓, build (CI).
+
 ## 2026-08-31 — ZZP'er: vindbaarheid-kaart spiegelt afwezigheid (geen misleidend groen vinkje tijdens vakantie)
 
 **Wat:** de vindbaarheid-kaart op `/profiel/bewerken` toonde "Beschikbaarheid gedeeld ✓ / je bent goed
