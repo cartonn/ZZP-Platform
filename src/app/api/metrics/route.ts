@@ -97,6 +97,7 @@ import { prunableWebhookEventWhere } from "@/lib/webhook-event-retention-task";
 import { prunableRoutingCacheWhere } from "@/lib/routing-cache-retention-task";
 import { mailIntakeRetentionCutoff } from "@/lib/mail-intake-retention";
 import { prunableMailIntakeWhere } from "@/lib/mail-intake-retention-task";
+import { openOrphanedStorageWhere } from "@/lib/services/storage-orphans";
 import { overdueReviewRevealWhere } from "@/lib/reviews-reveal-task";
 import { ZZP_MEMBERSHIP, performanceGraceDays, subscriptionPendingStaleHours } from "@/lib/config";
 import {
@@ -168,6 +169,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   let webhookEventsRetentionBacklog = 0;
   let routingCacheRetentionBacklog = 0;
   let mailIntakeRetentionBacklog = 0;
+  let orphanedStorageObjectsPending = 0;
   let membershipUnbilledActive = 0;
   // true zolang de DB-collectie álle backlog-tellingen binnen de deadline afrondt; false zodra de
   // scrape wordt afgekapt (zie de runner onderaan het dbReachable-blok) — dan houden de nog-niet-
@@ -539,6 +541,22 @@ async function collectInput(now: Date): Promise<MetricsInput> {
         await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
       }
     });
+    collectors.push(async () => {
+      try {
+        // Nog-openstaande weesblobs (OrphanedStorageObject, reclaimedAt=null): een best-effort
+        // storage.delete faalde en de storage-orphan-reconcile-cron kon de blob nog niet alsnog
+        // verwijderen. Hergebruikt exact `openOrphanedStorageWhere()` (dezelfde bron van waarheid als de
+        // reconciliatietaak) zodat de gauge de echte achterstand telt en niet kan driften. Geen instelvenster
+        // en geen uit-stand: een openstaande wees is per definitie een nog-uit-te-voeren opruiming. Bij het
+        // AVG-erasure-pad is de Document-rij al weg → een openstaande wees = sensitieve PII die de erasure
+        // overleeft (AVG art. 17). 0 is de gezonde toestand.
+        orphanedStorageObjectsPending = await prisma.orphanedStorageObject.count({
+          where: openOrphanedStorageWhere(),
+        });
+      } catch (error) {
+        await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+      }
+    });
     if (ZZP_MEMBERSHIP.enabled) {
       collectors.push(async () => {
         try {
@@ -696,6 +714,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     webhookEventsRetentionBacklog,
     routingCacheRetentionBacklog,
     mailIntakeRetentionBacklog,
+    orphanedStorageObjectsPending,
     membershipUnbilledActive,
   };
 }

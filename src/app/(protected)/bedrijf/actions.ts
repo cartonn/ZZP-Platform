@@ -14,7 +14,7 @@ import {
 } from "@/lib/services/storage";
 import { assertUploadClean } from "@/lib/services/upload-scanner";
 import { companyProfileSchema } from "@/lib/validation";
-import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
+import { recordStorageCleanupFailure } from "@/lib/services/storage-orphans";
 
 export type CompanyState =
   | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
@@ -90,7 +90,7 @@ export async function updateCompanyProfile(
     if (previous)
       await getStorage()
         .delete(previous)
-        .catch((err) => logStorageCleanupFailure("[bedrijf]", previous, err));
+        .catch((err) => recordStorageCleanupFailure("logo-replace", previous, err));
   }
 
   await prisma.company.update({

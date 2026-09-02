@@ -14,7 +14,7 @@ import {
 import { assertUploadClean } from "@/lib/services/upload-scanner";
 import { uploadRateLimiter } from "@/lib/rate-limit";
 import { documentSchema } from "@/lib/validation";
-import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
+import { recordStorageCleanupFailure } from "@/lib/services/storage-orphans";
 
 export type DocumentState =
   | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
@@ -109,7 +109,7 @@ export async function deleteDocument(documentId: string): Promise<void> {
   await prisma.document.delete({ where: { id: documentId } });
   await getStorage()
     .delete(doc.storageKey)
-    .catch((err) => logStorageCleanupFailure("[documenten]", doc.storageKey, err));
+    .catch((err) => recordStorageCleanupFailure("document-delete", doc.storageKey, err));
   await audit({
     actorId: actor.id,
     action: "DOCUMENT_DELETED",

@@ -1773,3 +1773,28 @@ model ProcessedWebhookEvent {
   @@unique([provider, eventKey])
   @@index([createdAt]) // retentie-snoei / opruimen van oude ledger-rijen
 }
+
+// Persistent grootboek van storagesleutels waarvan de best-effort opruiming (`storage.delete(...)`)
+// mislukte. Op meerdere plekken (AVG-anonimisering, document-verwijdering, certificaat-verwijdering,
+// logo-vervanging) verwijderen we een blob uit de opslag NADAT de DB-rij al is weggehaald/vervangen; die
+// delete zit in een `.catch(...)` en werd tot nu toe ALLEEN gelogd (`logStorageCleanupFailure`). Faalt hij
+// door een transiënte opslagstoring (S3-blip, netwerk, time-out), dan bleef de sleutel enkel in een
+// vluchtige hostlogregel staan. Bij de AVG-erasure verdwijnt de `Document`-rij VÓÓR de blob-delete, dus een
+// gefaalde delete liet het gevoelige bewijsstuk (VOG/diploma/ID) VOORGOED als weesblob in de opslag achter
+// — zonder spoor om het terug te vinden of te herproberen (AVG art. 17 / art. 5(1)(c)). Deze rij bewaart de
+// opaque storagesleutel + herkomst zodat de reconciliatietaak (`storage-orphan-reconcile`) de delete
+// herhaalt tot hij slaagt; `reclaimedAt` markeert een geslaagde opruiming (de rij blijft als bewijs staan
+// tot de retentie-snoei 'm opruimt). Bevat GEEN persoonsgegevens — `storageKey` is een opaque pad, `source`
+// een vast herkomst-label, `lastError` een tot naam/boodschap gereduceerde, PII-veilige foutbeschrijving.
+model OrphanedStorageObject {
+  id            String    @id @default(cuid())
+  storageKey    String    @unique // opaque opslagpad; uniek zodat herhaald falen dezelfde rij bijwerkt (idempotent)
+  source        String // herkomst-label: "avg-erasure" | "document-delete" | "certificate-delete" | "logo-replace"
+  attempts      Int       @default(1)
+  firstFailedAt DateTime  @default(now())
+  lastAttemptAt DateTime  @default(now())
+  reclaimedAt   DateTime? // gezet zodra de blob alsnog verwijderd is; null = nog openstaand
+  lastError     String? // PII-veilige, gereduceerde foutbeschrijving van de laatste poging
+
+  @@index([reclaimedAt]) // reconciliatie + backlog-gauge selecteren op reclaimedAt = null
+}

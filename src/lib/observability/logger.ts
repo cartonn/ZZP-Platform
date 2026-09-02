@@ -103,8 +103,10 @@ function isSensitiveKey(key: string): boolean {
   return REDACT_KEY_SUBSTRINGS.some((needle) => lower.includes(needle));
 }
 
-/** Maskeert het lokale deel van elk e-mailadres in een string: "jan@firma.nl" → "j***@firma.nl". */
-function maskEmails(value: string): string {
+/** Maskeert het lokale deel van elk e-mailadres in een string: "jan@firma.nl" → "j***@firma.nl".
+ *  Geëxporteerd zodat een caller die een string in een PERSISTENTE sink (DB-veld) schrijft — buiten de
+ *  logger om — dezelfde e-mailmaskering kan toepassen (bv. `OrphanedStorageObject.lastError`). */
+export function maskEmails(value: string): string {
   return value.replace(EMAIL_PATTERN, (match) => {
     const at = match.indexOf("@");
     const local = match.slice(0, at);

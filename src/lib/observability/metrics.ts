@@ -331,6 +331,19 @@ export interface MetricsInput {
    */
   mailIntakeRetentionBacklog: number;
   /**
+   * Aantal nog-openstaande weesblobs (`OrphanedStorageObject` met `reclaimedAt = null`): storagesleutels
+   * waarvan de best-effort opruiming (`storage.delete(...)`) faalde en de `storage-orphan-reconcile`-cron
+   * nog niet alsnog kon verwijderen. De gevoeligste variant is het AVG-erasure-pad: daar is de
+   * `Document`-rij al weg vóór de blob-delete, dus een openstaande wees betekent dat een gevoelig
+   * bewijsstuk (VOG/diploma/ID) nog fysiek in de opslag staat na een vergetelheidsverzoek (AVG art. 17 /
+   * art. 5(1)(c)). Zelfde stille-best-effort-faalklasse als de aflever-heartbeats: het grootboek legt de
+   * gefaalde delete vast, maar zonder deze gauge blijft die achterstand onzichtbaar tot een admin op
+   * `/admin/systeemstatus` kijkt. `0` is de gezonde toestand (elke opruiming slaagde meteen); een klein,
+   * dalend getal is normaal na een korte opslagstoring (de volgende cron ruimt het op). Blijft het getal
+   * staan/oplopen, dan lukt de reconciliatie structureel niet en overleeft sensitieve PII de erasure.
+   */
+  orphanedStorageObjectsPending: number;
+  /**
    * Aantal actieve ZZP'ers in de LOPENDE maand (≥1 goedgekeurde prestatie wier maand op deze periode
    * valt) die nog GEEN `ZzpMembershipCharge` voor die maand hebben — werk dat de `zzp-membership`-cron
    * had moeten registreren (de kern-ZZP-monetisatie: een maandbijdrage per actieve ZZP'er, PIDZ-model).
@@ -763,6 +776,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal mail-intake-rijen (MailIntake, derde-partij-PII in fromAddress/subject/textBody) met een besliste status (ACCEPTED/DISMISSED) ouder dan het geconfigureerde MAIL_INTAKE_RETENTION_DAYS-venster die de mail-intake-retention-cron nog niet snoeide (deze retentie staat ALTIJD aan — fail-safe default 180 dagen, min. 30, geen uit-stand; een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen snoei-pijplijn → derde-partij-PII bewaard over de beloofde termijn heen, AVG art. 5(1)(e)).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.mailIntakeRetentionBacklog)),
+    },
+    {
+      name: "zzp_orphaned_storage_objects_pending",
+      help: "Aantal nog-openstaande weesblobs (OrphanedStorageObject, reclaimedAt=null, geen PII — opaque storagesleutel + herkomst-label): een best-effort storage.delete faalde en de storage-orphan-reconcile-cron kon de blob nog niet alsnog verwijderen. 0 is gezond (elke opruiming slaagde meteen); een klein, dalend getal is normaal na een korte opslagstoring (de volgende cron ruimt het op). Aanhoudend/oplopend betekent dat de reconciliatie structureel faalt → bij het AVG-erasure-pad staat de Document-rij al weg, dus een gevoelig bewijsstuk (VOG/diploma/ID) blijft fysiek in de opslag na een vergetelheidsverzoek (AVG art. 17 / art. 5(1)(c)).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.orphanedStorageObjectsPending)),
     },
     {
       name: "zzp_membership_unbilled_active",
