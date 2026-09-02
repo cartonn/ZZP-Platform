@@ -22,13 +22,13 @@ test("ZZP'er ziet z'n persoonlijke match per opdracht in de lijst", async ({ pag
 
   await page.goto("/opdrachten/nieuw");
   await page.fill("#title", title);
-  await page.fill("#description", "Remote project voor een ervaren ontwikkelaar.");
+  await page.fill("#description", "Tijdelijke inzet voor een ervaren verpleegkundige.");
   await page.selectOption("#workMode", "REMOTE");
   await page.fill("#rateMin", "70");
   await page.fill("#rateMax", "95");
   await page
     .locator("fieldset", { hasText: "Vereiste skills" })
-    .getByText("TypeScript", { exact: true })
+    .getByText("Wondzorg", { exact: true })
     .click();
   await page.getByRole("button", { name: "Opslaan als concept" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
@@ -49,7 +49,7 @@ test("ZZP'er ziet z'n persoonlijke match per opdracht in de lijst", async ({ pag
   await fp.selectOption("#workMode", "REMOTE");
   await fp
     .locator("fieldset", { hasText: "Skills" })
-    .getByText("TypeScript", { exact: true })
+    .getByText("Wondzorg", { exact: true })
     .click();
   await fp.getByRole("button", { name: "Profiel opslaan" }).click();
   await expect(fp.getByText(/opgeslagen|bijgewerkt/i).first()).toBeVisible({ timeout: 15000 });

@@ -111,6 +111,43 @@ async function sweepLivecheckJobs() {
   if (removed > 0) console.log(`[seed] ${removed} livecheck-opdracht(en) opgeruimd.`);
 }
 
+/**
+ * Ruimt referentiedata op van vóór de zorg-focus (ICT/bouw/logistiek-branches en -vaardigheden).
+ * Alleen rijen die nergens meer aan hangen worden verwijderd, zodat een database met echte data
+ * nooit gegevens verliest: hangt er nog een profiel, bedrijf of opdracht aan, dan blijft de rij
+ * staan. Draait ná het reconcileren van de demo-data, want dán zijn de oude koppelingen weg.
+ */
+async function pruneLegacyReferenceData() {
+  const legacySkillSlugs = [
+    "react",
+    "typescript",
+    "nodejs",
+    "python",
+    "aws",
+    "scrum",
+    "projectmanagement",
+    "elektrotechniek",
+    "vca",
+  ];
+  const legacyIndustrySlugs = ["ict", "bouw", "logistiek", "zorg"];
+  const { count: skillCount } = await prisma.skill.deleteMany({
+    where: { slug: { in: legacySkillSlugs }, freelancers: { none: {} }, jobs: { none: {} } },
+  });
+  const { count: industryCount } = await prisma.industry.deleteMany({
+    where: {
+      slug: { in: legacyIndustrySlugs },
+      freelancers: { none: {} },
+      companies: { none: {} },
+      jobs: { none: {} },
+    },
+  });
+  if (skillCount > 0 || industryCount > 0) {
+    console.log(
+      `[seed] ${skillCount} verouderde vaardighe(i)d(en) en ${industryCount} verouderde branche(s) opgeruimd.`,
+    );
+  }
+}
+
 async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
@@ -132,12 +169,18 @@ async function main() {
     await prisma.plan.upsert({ where: { key: plan.key }, update: plan, create: plan });
   }
 
-  // --- Referentiedata: branches & skills ---
+  // --- Referentiedata: branches & vaardigheden ---
+  // Handslag is een zorgplatform: de branches zijn zorgsectoren en de vaardigheden zijn
+  // zorghandelingen. Slugs zijn stabiel en Nederlands; de UI toont uitsluitend het label.
   const industries = [
-    { name: "ICT", slug: "ict" },
-    { name: "Bouw", slug: "bouw" },
-    { name: "Zorg", slug: "zorg" },
-    { name: "Logistiek", slug: "logistiek" },
+    { name: "VVT", slug: "vvt" },
+    { name: "Wijkverpleging", slug: "wijkverpleging" },
+    { name: "GGZ", slug: "ggz" },
+    { name: "Gehandicaptenzorg", slug: "ghz" },
+    { name: "Jeugdzorg", slug: "jeugdzorg" },
+    { name: "Ziekenhuiszorg", slug: "ziekenhuis" },
+    { name: "Kraamzorg", slug: "kraamzorg" },
+    { name: "Huisartsenzorg", slug: "huisartsenzorg" },
   ];
   for (const ind of industries) {
     await prisma.industry.upsert({
@@ -147,16 +190,23 @@ async function main() {
     });
   }
   const skills: [string, string][] = [
-    ["React", "react"],
-    ["TypeScript", "typescript"],
-    ["Node.js", "nodejs"],
-    ["Python", "python"],
-    ["AWS", "aws"],
-    ["Scrum", "scrum"],
-    ["Projectmanagement", "projectmanagement"],
-    ["Elektrotechniek", "elektrotechniek"],
-    ["VCA", "vca"],
     ["Verpleegkunde", "verpleegkunde"],
+    ["Wondzorg", "wondzorg"],
+    ["Medicatieverstrekking", "medicatieverstrekking"],
+    ["Palliatieve zorg", "palliatieve-zorg"],
+    ["Dementiezorg", "dementiezorg"],
+    ["Insulinetoediening", "insulinetoediening"],
+    ["Katheteriseren", "katheteriseren"],
+    ["Infuustherapie", "infuustherapie"],
+    ["Crisisinterventie", "crisisinterventie"],
+    ["Kinderverpleegkunde", "kinderverpleegkunde"],
+    ["Spoedeisende hulp", "spoedeisende-hulp"],
+    ["Reanimatie (BLS)", "reanimatie"],
+    ["OK-assistentie", "ok-assistentie"],
+    ["Begeleiding gehandicaptenzorg", "begeleiding-ghz"],
+    ["Jeugdhulpverlening", "jeugdhulpverlening"],
+    ["Kraamzorg", "kraamzorg"],
+    ["Geriatrische revalidatie", "geriatrische-revalidatie"],
   ];
   for (const [name, slug] of skills) {
     await prisma.skill.upsert({ where: { slug }, update: { name }, create: { name, slug } });
@@ -180,6 +230,7 @@ async function main() {
   await sweepLivecheckJobs();
 
   if (!SEED_DEMO) {
+    await pruneLegacyReferenceData();
     await bootstrapAdminIfConfigured();
     console.log(
       "[seed] Referentiedata geseed; demo-data overgeslagen (zet SEED_DEMO=true voor de demo-/testfase).",
@@ -243,8 +294,8 @@ async function main() {
       availability: "AVAILABLE",
       location: "Amsterdam",
       workMode: "ONSITE",
-      industry: "zorg",
-      skills: ["verpleegkunde"],
+      industry: "vvt",
+      skills: ["verpleegkunde", "wondzorg", "palliatieve-zorg"],
       identityVerified: true,
       completeness: 100,
       iban: "NL91ABNA0417164300",
@@ -272,18 +323,18 @@ async function main() {
       key: "youssef",
       email: "youssef@zzp-platform.local",
       name: "Youssef Bakker",
-      headline: "Backend Developer (Node.js)",
-      bio: "Bouwt schaalbare API's en integraties. Per direct beschikbaar.",
-      rate: 78,
+      headline: "GGZ-verpleegkundige (BIG)",
+      bio: "Werkt op opname- en crisisafdelingen; rustig en methodisch bij escalaties. Per direct beschikbaar.",
+      rate: 62,
       availability: "AVAILABLE",
       location: "Utrecht",
-      workMode: "REMOTE",
-      industry: "ict",
-      skills: ["nodejs", "typescript", "aws"],
+      workMode: "ONSITE",
+      industry: "ggz",
+      skills: ["crisisinterventie", "medicatieverstrekking", "verpleegkunde"],
       identityVerified: true,
       completeness: 100,
       iban: "NL44RABO0123456789",
-      website: "https://youssefbakker.dev",
+      website: "https://youssefbakker.nl",
       creds: [
         {
           type: "VOG",
@@ -294,8 +345,8 @@ async function main() {
         },
         {
           type: "DIPLOMA",
-          title: "WO Informatica",
-          issuer: "Universiteit Utrecht",
+          title: "HBO-V Verpleegkunde (GGZ-differentiatie)",
+          issuer: "Hogeschool Utrecht",
           status: "VERIFIED",
         },
       ],
@@ -304,21 +355,21 @@ async function main() {
       key: "lisa",
       email: "lisa@zzp-platform.local",
       name: "Lisa Smit",
-      headline: "Projectmanager ICT",
-      bio: "Leidt multidisciplinaire teams; PMP-gecertificeerd.",
-      rate: 95,
+      headline: "Praktijkondersteuner (POH-S)",
+      bio: "Draait zelfstandig spreekuren voor chronische zorg; ervaren in ketenzorg diabetes en COPD.",
+      rate: 58,
       availability: "LIMITED",
       location: "Rotterdam",
-      workMode: "HYBRID",
-      industry: "ict",
-      skills: ["projectmanagement", "scrum"],
+      workMode: "ONSITE",
+      industry: "huisartsenzorg",
+      skills: ["medicatieverstrekking", "insulinetoediening", "wondzorg"],
       identityVerified: false,
       completeness: 90,
       creds: [
         {
           type: "CERTIFICATE",
-          title: "PMP — Project Management Professional",
-          issuer: "PMI",
+          title: "Praktijkondersteuner Somatiek (POH-S)",
+          issuer: "Hogeschool Rotterdam",
           status: "VERIFIED",
           expiresInDays: 600,
         },
@@ -335,21 +386,21 @@ async function main() {
       key: "daan",
       email: "daan@zzp-platform.local",
       name: "Daan Visser",
-      headline: "Elektromonteur",
-      bio: "Allround monteur, VCA-VOL, werkt veilig en snel.",
-      rate: 55,
+      headline: "Ambulanceverpleegkundige",
+      bio: "Acute zorg en crisissituaties; gewend om snel te schakelen en zelfstandig te handelen.",
+      rate: 72,
       availability: "AVAILABLE",
       location: "Eindhoven",
       workMode: "ONSITE",
-      industry: "bouw",
-      skills: ["elektrotechniek", "vca"],
+      industry: "ziekenhuis",
+      skills: ["spoedeisende-hulp", "reanimatie", "crisisinterventie"],
       identityVerified: true,
       completeness: 100,
       creds: [
         {
           type: "CERTIFICATE",
-          title: "VCA VOL",
-          issuer: "VCA Infra",
+          title: "Ambulanceverpleegkundige",
+          issuer: "Academie voor Ambulancezorg",
           status: "VERIFIED",
           expiresInDays: 700,
         },
@@ -368,12 +419,12 @@ async function main() {
       name: "Fatima El Amrani",
       headline: "Verpleegkundige (BIG)",
       bio: "Gediplomeerd verpleegkundige, BIG-geregistreerd. Flexibel inzetbaar.",
-      rate: 52,
+      rate: 55,
       availability: "AVAILABLE",
       location: "Den Haag",
       workMode: "ONSITE",
-      industry: "zorg",
-      skills: ["verpleegkunde"],
+      industry: "ziekenhuis",
+      skills: ["verpleegkunde", "infuustherapie", "wondzorg"],
       identityVerified: true,
       completeness: 100,
       creds: [
@@ -403,14 +454,14 @@ async function main() {
       key: "peter",
       email: "peter@zzp-platform.local",
       name: "Peter Jansen",
-      headline: "Logistiek planner",
-      bio: "Plant en optimaliseert transport- en magazijnstromen.",
-      rate: 60,
+      headline: "Doktersassistent",
+      bio: "Triage aan de balie en telefoon, uitstrijkjes en kleine verrichtingen.",
+      rate: 38,
       availability: "UNAVAILABLE",
       location: "Tilburg",
-      workMode: "HYBRID",
-      industry: "logistiek",
-      skills: ["projectmanagement"],
+      workMode: "ONSITE",
+      industry: "huisartsenzorg",
+      skills: ["medicatieverstrekking"],
       identityVerified: false,
       completeness: 80,
       creds: [
@@ -426,36 +477,36 @@ async function main() {
       key: "anna",
       email: "anna@zzp-platform.local",
       name: "Anna Mulder",
-      headline: "Frontend Developer",
-      bio: "React-specialist met oog voor design en performance.",
-      rate: 72,
+      headline: "Jeugdzorgwerker (SKJ)",
+      bio: "Ambulante gezinsbegeleiding en crisisplaatsingen; SKJ-geregistreerd.",
+      rate: 48,
       availability: "AVAILABLE",
       location: "Amsterdam",
-      workMode: "REMOTE",
-      industry: "ict",
-      skills: ["react", "typescript"],
+      workMode: "ONSITE",
+      industry: "jeugdzorg",
+      skills: ["jeugdhulpverlening", "crisisinterventie"],
       identityVerified: false,
       completeness: 95,
       creds: [
         {
           type: "DIPLOMA",
-          title: "HBO Communication & Multimedia Design",
+          title: "HBO Social Work",
           issuer: "Hogeschool Rotterdam",
           status: "SUBMITTED",
         },
       ],
     },
     // --- Extra ZZP'ers (breedte) ---
-    { key: "kevin", email: "kevin@zzp-platform.local", name: "Kevin Mol", headline: "Python Developer / Data", bio: "Bouwt data-pipelines en ML-features.", rate: 82, availability: "AVAILABLE", location: "Amsterdam", workMode: "REMOTE", industry: "ict", skills: ["python", "aws"], identityVerified: true, completeness: 100, creds: [{ type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 250 }] }, // prettier-ignore
-    { key: "nadia", email: "nadia@zzp-platform.local", name: "Nadia Haddad", headline: "Scrum Master", bio: "Faciliteert teams; gecertificeerd PSM II.", rate: 88, availability: "LIMITED", location: "Rotterdam", workMode: "HYBRID", industry: "ict", skills: ["scrum", "projectmanagement"], identityVerified: false, completeness: 85, creds: [{ type: "CERTIFICATE", title: "PSM II", issuer: "Scrum.org", status: "SUBMITTED" }, { type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 20 }] }, // prettier-ignore
-    { key: "tom", email: "tom@zzp-platform.local", name: "Tom Bakhuis", headline: "Fullstack Developer", bio: "React + Node, end-to-end features.", rate: 80, availability: "AVAILABLE", location: "Eindhoven", workMode: "REMOTE", industry: "ict", skills: ["react", "nodejs", "typescript"], identityVerified: true, completeness: 95, creds: [{ type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 500 }, { type: "DIPLOMA", title: "WO Technische Informatica", issuer: "TU Eindhoven", status: "VERIFIED" }] }, // prettier-ignore
-    { key: "emma", email: "emma@zzp-platform.local", name: "Emma de Boer", headline: "Verpleegkundige (IC)", bio: "IC-verpleegkundige, BIG-geregistreerd, nachtdiensten.", rate: 56, availability: "AVAILABLE", location: "Groningen", workMode: "ONSITE", maxTravelMinutes: 30, industry: "zorg", skills: ["verpleegkunde"], identityVerified: true, completeness: 100, creds: [{ type: "LICENSE", title: "BIG-registratie Verpleegkundige", issuer: "CIBG", status: "VERIFIED", expiresInDays: 800 }, { type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 200 }] }, // prettier-ignore
-    { key: "ahmed", email: "ahmed@zzp-platform.local", name: "Ahmed Yilmaz", headline: "Installatiemonteur", bio: "Werktuigbouw + elektra, VCA-VOL.", rate: 58, availability: "AVAILABLE", location: "Tilburg", workMode: "ONSITE", maxTravelMinutes: 75, industry: "bouw", skills: ["elektrotechniek", "vca"], identityVerified: false, completeness: 80, creds: [{ type: "CERTIFICATE", title: "VCA VOL", issuer: "VCA Infra", status: "VERIFIED", expiresInDays: 400 }, { type: "VOG", title: "VOG", issuer: "Justis", status: "REJECTED", reason: "Document onleesbaar — upload opnieuw." }] }, // prettier-ignore
-    { key: "julia", email: "julia@zzp-platform.local", name: "Julia Vermeer", headline: "Logistiek consultant", bio: "Optimaliseert warehouse- en transportprocessen.", rate: 72, availability: "LIMITED", location: "Venlo", workMode: "HYBRID", industry: "logistiek", skills: ["projectmanagement"], identityVerified: true, completeness: 90, creds: [{ type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 350 }] }, // prettier-ignore
-    { key: "bram", email: "bram@zzp-platform.local", name: "Bram Koster", headline: "DevOps Engineer", bio: "Kubernetes, CI/CD, observability.", rate: 95, availability: "AVAILABLE", location: "Utrecht", workMode: "REMOTE", industry: "ict", skills: ["aws", "nodejs"], identityVerified: true, completeness: 100, creds: [{ type: "CERTIFICATE", title: "AWS Solutions Architect", issuer: "AWS", status: "VERIFIED", expiresInDays: 600 }, { type: "VOG", title: "VOG", issuer: "Justis", status: "SUBMITTED" }] }, // prettier-ignore
-    { key: "sofie", email: "sofie@zzp-platform.local", name: "Sofie Willems", headline: "Frontend Developer", bio: "Toegankelijke UI's met React + design-systemen.", rate: 76, availability: "AVAILABLE", location: "Den Bosch", workMode: "HYBRID", industry: "ict", skills: ["react", "typescript"], identityVerified: false, completeness: 75, creds: [{ type: "DIPLOMA", title: "HBO Software Engineering", issuer: "Fontys", status: "SUBMITTED" }] }, // prettier-ignore
-    { key: "rik", email: "rik@zzp-platform.local", name: "Rik Plomp", headline: "Projectmanager Bouw", bio: "Leidt bouwprojecten van ontwerp tot oplevering.", rate: 90, availability: "UNAVAILABLE", location: "Zwolle", workMode: "ONSITE", industry: "bouw", skills: ["projectmanagement"], identityVerified: true, completeness: 95, creds: [{ type: "CERTIFICATE", title: "VCA VOL", issuer: "VCA Infra", status: "EXPIRED" }, { type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 120 }] }, // prettier-ignore
-    { key: "iris", email: "iris@zzp-platform.local", name: "Iris Hendriks", headline: "Verzorgende IG", bio: "Thuiszorg en VVT, flexibel inzetbaar.", rate: 42, availability: "AVAILABLE", location: "Arnhem", workMode: "ONSITE", maxTravelMinutes: 25, industry: "zorg", skills: ["verpleegkunde"], identityVerified: true, completeness: 100, creds: [{ type: "DIPLOMA", title: "MBO Verzorgende IG", issuer: "Rijn IJssel", status: "VERIFIED" }, { type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 280 }] }, // prettier-ignore
+    { key: "kevin", email: "kevin@zzp-platform.local", name: "Kevin Mol", headline: "Begeleider gehandicaptenzorg", bio: "Woonbegeleiding en dagbesteding voor cliënten met een verstandelijke beperking.", rate: 44, availability: "AVAILABLE", location: "Amsterdam", workMode: "ONSITE", industry: "ghz", skills: ["begeleiding-ghz", "medicatieverstrekking"], identityVerified: true, completeness: 100, creds: [{ type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 250 }] }, // prettier-ignore
+    { key: "nadia", email: "nadia@zzp-platform.local", name: "Nadia Haddad", headline: "GGZ-verpleegkundige (crisisdienst)", bio: "Draait crisisdiensten en beoordelingen; ervaren met agressieregulatie.", rate: 66, availability: "LIMITED", location: "Rotterdam", workMode: "ONSITE", industry: "ggz", skills: ["crisisinterventie", "medicatieverstrekking"], identityVerified: false, completeness: 85, creds: [{ type: "CERTIFICATE", title: "Crisisinterventie GGZ", issuer: "GGZ Academie", status: "SUBMITTED" }, { type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 20 }] }, // prettier-ignore
+    { key: "tom", email: "tom@zzp-platform.local", name: "Tom Bakhuis", headline: "Operatieassistent", bio: "Instrumenteren en omlopen op OK; orthopedie en algemene chirurgie.", rate: 70, availability: "AVAILABLE", location: "Eindhoven", workMode: "ONSITE", industry: "ziekenhuis", skills: ["ok-assistentie", "reanimatie"], identityVerified: true, completeness: 95, creds: [{ type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 500 }, { type: "DIPLOMA", title: "Operatieassistent (niveau 4)", issuer: "Catharina Ziekenhuis Opleidingen", status: "VERIFIED" }] }, // prettier-ignore
+    { key: "emma", email: "emma@zzp-platform.local", name: "Emma de Boer", headline: "Verpleegkundige (IC)", bio: "IC-verpleegkundige, BIG-geregistreerd, draait ook nachtdiensten.", rate: 70, availability: "AVAILABLE", location: "Groningen", workMode: "ONSITE", maxTravelMinutes: 30, industry: "ziekenhuis", skills: ["verpleegkunde", "infuustherapie", "reanimatie"], identityVerified: true, completeness: 100, creds: [{ type: "LICENSE", title: "BIG-registratie Verpleegkundige", issuer: "CIBG", status: "VERIFIED", expiresInDays: 800 }, { type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 200 }] }, // prettier-ignore
+    { key: "ahmed", email: "ahmed@zzp-platform.local", name: "Ahmed Yilmaz", headline: "Verzorgende IG (nachtdienst)", bio: "Nachtdiensten in de VVT en beschermd wonen; rustig en zorgvuldig.", rate: 45, availability: "AVAILABLE", location: "Tilburg", workMode: "ONSITE", maxTravelMinutes: 75, industry: "vvt", skills: ["dementiezorg", "medicatieverstrekking"], identityVerified: false, completeness: 80, creds: [{ type: "CERTIFICATE", title: "Voorbehouden handelingen & medicatieveiligheid", issuer: "Zorgacademie Brabant", status: "VERIFIED", expiresInDays: 400 }, { type: "VOG", title: "VOG", issuer: "Justis", status: "REJECTED", reason: "Document onleesbaar — upload opnieuw." }] }, // prettier-ignore
+    { key: "julia", email: "julia@zzp-platform.local", name: "Julia Vermeer", headline: "Kraamverzorgende", bio: "Begeleidt gezinnen tijdens de kraamweek; ervaren met borstvoedingsbegeleiding.", rate: 44, availability: "LIMITED", location: "Venlo", workMode: "ONSITE", industry: "kraamzorg", skills: ["kraamzorg"], identityVerified: true, completeness: 90, creds: [{ type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 350 }] }, // prettier-ignore
+    { key: "bram", email: "bram@zzp-platform.local", name: "Bram Koster", headline: "Wijkverpleegkundige", bio: "Eigen caseload in de wijk, inclusief indicatiestelling en complexe wondzorg.", rate: 62, availability: "AVAILABLE", location: "Utrecht", workMode: "ONSITE", industry: "wijkverpleging", skills: ["wondzorg", "katheteriseren", "insulinetoediening"], identityVerified: true, completeness: 100, creds: [{ type: "CERTIFICATE", title: "Indicatiestelling wijkverpleging", issuer: "V&VN", status: "VERIFIED", expiresInDays: 600 }, { type: "VOG", title: "VOG", issuer: "Justis", status: "SUBMITTED" }] }, // prettier-ignore
+    { key: "sofie", email: "sofie@zzp-platform.local", name: "Sofie Willems", headline: "Verzorgende IG", bio: "VVT en kleinschalig wonen; veel ervaring met dementiezorg.", rate: 44, availability: "AVAILABLE", location: "Den Bosch", workMode: "ONSITE", industry: "vvt", skills: ["dementiezorg", "wondzorg"], identityVerified: false, completeness: 75, creds: [{ type: "DIPLOMA", title: "MBO Verzorgende IG", issuer: "Koning Willem I College", status: "SUBMITTED" }] }, // prettier-ignore
+    { key: "rik", email: "rik@zzp-platform.local", name: "Rik Plomp", headline: "Fysiotherapeut (geriatrie)", bio: "Geriatrische revalidatie en valpreventie in verpleeghuizen.", rate: 65, availability: "UNAVAILABLE", location: "Zwolle", workMode: "ONSITE", industry: "vvt", skills: ["geriatrische-revalidatie"], identityVerified: true, completeness: 95, creds: [{ type: "CERTIFICATE", title: "Kwaliteitsregister Fysiotherapie NL (KRF)", issuer: "KNGF", status: "EXPIRED" }, { type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 120 }] }, // prettier-ignore
+    { key: "iris", email: "iris@zzp-platform.local", name: "Iris Hendriks", headline: "Verzorgende IG", bio: "Thuiszorg en VVT, flexibel inzetbaar.", rate: 42, availability: "AVAILABLE", location: "Arnhem", workMode: "ONSITE", maxTravelMinutes: 25, industry: "vvt", skills: ["dementiezorg", "medicatieverstrekking"], identityVerified: true, completeness: 100, creds: [{ type: "DIPLOMA", title: "MBO Verzorgende IG", issuer: "Rijn IJssel", status: "VERIFIED" }, { type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 280 }] }, // prettier-ignore
   ];
 
   const pid: Record<string, string> = {};
@@ -505,15 +556,36 @@ async function main() {
     const profileId = user.freelancerProfile!.id;
     pid[f.key] = profileId;
     uid[f.key] = user.id;
-    for (const slug of f.skills) {
+    // Reconcileer de beschrijvende velden zodat een bestaande demo-database (die nog de oude,
+    // niet-zorg profielteksten en tarieven bevat) terugkomt op de bedoelde inhoud. Toestanden die
+    // tijdens testen bewust wijzigen (beschikbaarheid, zichtbaarheid, compleetheid) blijven staan.
+    await prisma.freelancerProfile.update({
+      where: { id: profileId },
+      data: {
+        headline: f.headline,
+        bio: f.bio,
+        hourlyRate: f.rate,
+        location: f.location,
+        workMode: f.workMode,
+        maxTravelMinutes: f.maxTravelMinutes ?? null,
+      },
+    });
+    // Vaardigheden/branche reconcileren i.p.v. alleen aanvullen: een demo-database die nog de
+    // oude (niet-zorg) koppelingen heeft, komt zo terug op precies de bedoelde set.
+    const wantedSkillIds = f.skills.map((slug) => skillId[slug]!);
+    await prisma.freelancerSkill.deleteMany({
+      where: { freelancerProfileId: profileId, skillId: { notIn: wantedSkillIds } },
+    });
+    for (const sid of wantedSkillIds) {
       await prisma.freelancerSkill.upsert({
-        where: {
-          freelancerProfileId_skillId: { freelancerProfileId: profileId, skillId: skillId[slug]! },
-        },
+        where: { freelancerProfileId_skillId: { freelancerProfileId: profileId, skillId: sid } },
         update: {},
-        create: { freelancerProfileId: profileId, skillId: skillId[slug]! },
+        create: { freelancerProfileId: profileId, skillId: sid },
       });
     }
+    await prisma.freelancerIndustry.deleteMany({
+      where: { freelancerProfileId: profileId, industryId: { not: industryId[f.industry]! } },
+    });
     await prisma.freelancerIndustry.upsert({
       where: {
         freelancerProfileId_industryId: {
@@ -528,9 +600,9 @@ async function main() {
       const id = `cred-${f.key}-${c.type}`;
       await prisma.credential.upsert({
         where: { id },
-        // Titel/zichtbaarheid mogen convergeren naar de seed-definitie (puur referentie-display);
+        // Titel/uitgever mogen convergeren naar de seed-definitie (puur referentie-display);
         // status/datums blijven met rust zodat runtime-eindtoestanden niet worden overschreven.
-        update: { title: c.title },
+        update: { title: c.title, issuer: c.issuer },
         create: {
           id,
           freelancerProfileId: profileId,
@@ -586,12 +658,15 @@ async function main() {
   }
 
   // --- Opdrachtgevers + bedrijven (meerdere) ---
+  // Vijf zorginstellingen over de belangrijkste sectoren. De e-mails van de zorg-vreemde
+  // demo-bedrijven van vroeger (bouwpartners@/logiflow@/datic@) zijn hernoemd; alleen
+  // opdrachtgever@ is een testafhankelijkheid en blijft ongewijzigd.
   const companySpecs = [
-    { key: "jansen", email: "opdrachtgever@zzp-platform.local", contact: "Mark Jansen", company: "Zorgcentrum Jansen", industry: "zorg", website: "https://zorgcentrumjansen.nl", location: "Utrecht", description: "Zorginstelling voor somatische zorg en wijkverpleging." }, // prettier-ignore
-    { key: "zorggroep", email: "zorggroep@zzp-platform.local", contact: "Petra Mulder", company: "ZorgGroep Midden B.V.", industry: "zorg", website: "https://zorggroepmidden.nl", location: "Amersfoort", description: "Aanbieder van wijkverpleging en VVT-zorg." }, // prettier-ignore
-    { key: "bouwpartners", email: "bouwpartners@zzp-platform.local", contact: "Henk de Wit", company: "BouwPartners Nederland", industry: "bouw", website: "https://bouwpartners.nl", location: "Zwolle", description: "Aannemer voor utiliteits- en woningbouw." }, // prettier-ignore
-    { key: "logiflow", email: "logiflow@zzp-platform.local", contact: "Sandra Vos", company: "LogiFlow Logistics", industry: "logistiek", website: "https://logiflow.nl", location: "Venlo", description: "Warehousing en transportoptimalisatie." }, // prettier-ignore
-    { key: "datic", email: "datic@zzp-platform.local", contact: "Erik Brand", company: "Datic Solutions", industry: "ict", website: "https://datic.nl", location: "Eindhoven", description: "Data- en cloudconsultancy." }, // prettier-ignore
+    { key: "jansen", email: "opdrachtgever@zzp-platform.local", contact: "Mark Jansen", company: "Zorgcentrum Jansen", industry: "vvt", website: "https://zorgcentrumjansen.nl", location: "Utrecht", description: "Verpleeghuiszorg en kleinschalig wonen voor somatiek en psychogeriatrie." }, // prettier-ignore
+    { key: "zorggroep", email: "zorggroep@zzp-platform.local", contact: "Petra Mulder", company: "ZorgGroep Midden B.V.", industry: "wijkverpleging", website: "https://zorggroepmidden.nl", location: "Amersfoort", description: "Wijkverpleging, VVT en kraamzorg in de regio Midden-Nederland." }, // prettier-ignore
+    { key: "ggz", email: "ggz@zzp-platform.local", contact: "Henk de Wit", company: "GGZ Meander", industry: "ggz", website: "https://ggzmeander.nl", location: "Zwolle", description: "Klinische en ambulante geestelijke gezondheidszorg, inclusief crisisdienst." }, // prettier-ignore
+    { key: "ghz", email: "ghz@zzp-platform.local", contact: "Sandra Vos", company: "Stichting De Wingerd", industry: "ghz", website: "https://dewingerd-zorg.nl", location: "Venlo", description: "Woonlocaties en dagbesteding in de gehandicaptenzorg en jeugdhulp." }, // prettier-ignore
+    { key: "ziekenhuis", email: "ziekenhuis@zzp-platform.local", contact: "Erik Brand", company: "Sint Elisabeth Ziekenhuis", industry: "ziekenhuis", website: "https://sintelisabeth.nl", location: "Eindhoven", description: "Algemeen ziekenhuis met IC, OK, spoedeisende hulp en poliklinieken." }, // prettier-ignore
   ];
   const clientUserIdByKey: Record<string, string> = {};
   const companyIdByKey: Record<string, string> = {};
@@ -620,6 +695,18 @@ async function main() {
     });
     clientUserIdByKey[c.key] = u.id;
     companyIdByKey[c.key] = u.company!.id;
+    // Reconcileer het bedrijfsprofiel, zodat een bestaande demo-database niet op de oude
+    // (niet-zorg) naam, branche en omschrijving blijft staan.
+    await prisma.company.update({
+      where: { id: u.company!.id },
+      data: {
+        name: c.company,
+        industryId: industryId[c.industry]!,
+        description: c.description,
+        website: c.website,
+        location: c.location,
+      },
+    });
   }
 
   // --- Opdrachten ---
@@ -642,7 +729,7 @@ async function main() {
   const jobs: Job[] = [
     {
       id: "job-1",
-      title: "Verpleegkundige (somatiek)",
+      title: "Verpleegkundige somatiek (dag- en avonddienst)",
       description:
         "Inzet op een somatische afdeling; dag- en avonddiensten. BIG-registratie en VOG vereist.",
       status: "PUBLISHED",
@@ -650,37 +737,42 @@ async function main() {
       rateMin: 45,
       rateMax: 62,
       location: "Utrecht",
-      industry: "zorg",
+      industry: "vvt",
       req: ["verpleegkunde"],
+      opt: ["wondzorg"],
       reqCreds: ["VOG"],
       dbaRisk: "LAAG",
     },
     {
       id: "job-2",
-      title: "Node.js Backend Developer",
-      description: "Ontwerp en bouw robuuste API's en integraties voor een langlopend project.",
+      title: "GGZ-verpleegkundige — opnameafdeling (PAAZ)",
+      description:
+        "Verpleegkundige zorg op de psychiatrische afdeling van het ziekenhuis; dag- en avonddiensten in een vast team.",
       status: "PUBLISHED",
-      workMode: "REMOTE",
-      rateMin: 75,
-      rateMax: 100,
-      industry: "ict",
-      req: ["nodejs"],
-      opt: ["typescript", "aws"],
-      company: "datic",
+      workMode: "ONSITE",
+      rateMin: 55,
+      rateMax: 75,
+      location: "Eindhoven",
+      industry: "ggz",
+      req: ["crisisinterventie"],
+      opt: ["medicatieverstrekking"],
+      company: "ziekenhuis",
     },
     {
       id: "job-3",
-      title: "Projectmanager ICT",
-      description: "Leid een multidisciplinair team voor een overheidsopdracht.",
+      title: "Verpleegkundig specialist (polikliniek)",
+      description:
+        "Zelfstandige spreekuren op de polikliniek interne geneeskunde; regie op chronische zorgtrajecten.",
       status: "PUBLISHED",
       workMode: "ONSITE",
-      rateMin: 90,
-      rateMax: 120,
+      rateMin: 60,
+      rateMax: 80,
       location: "Den Haag",
-      industry: "ict",
-      req: ["projectmanagement"],
+      industry: "ziekenhuis",
+      req: ["medicatieverstrekking"],
+      opt: ["wondzorg"],
       dbaRisk: "MIDDEN",
-      company: "datic",
+      company: "ziekenhuis",
     },
     {
       id: "job-4",
@@ -691,64 +783,67 @@ async function main() {
       rateMin: 45,
       rateMax: 65,
       location: "Den Haag",
-      industry: "zorg",
+      industry: "vvt",
       req: ["verpleegkunde"],
+      opt: ["palliatieve-zorg"],
       reqCreds: ["LICENSE", "VOG"],
       dbaRisk: "MIDDEN",
     },
     {
       id: "job-5",
-      title: "Elektromonteur",
-      description: "Installatie- en onderhoudswerk op locatie. VCA vereist.",
+      title: "GGZ-crisisdienst verpleegkundige",
+      description:
+        "Beoordelingen en crisisinterventies binnen de 24-uurs crisisdienst; avond-, nacht- en weekenddiensten.",
       status: "PUBLISHED",
       workMode: "ONSITE",
-      rateMin: 50,
-      rateMax: 70,
-      location: "Eindhoven",
-      industry: "bouw",
-      req: ["elektrotechniek"],
+      rateMin: 55,
+      rateMax: 75,
+      location: "Zwolle",
+      industry: "ggz",
+      req: ["crisisinterventie"],
       reqCreds: ["VOG"],
-      company: "bouwpartners",
+      company: "ggz",
     },
     {
       id: "job-6",
-      title: "DevOps Engineer",
-      description: "Beheer en automatiseer onze cloudinfrastructuur (AWS).",
+      title: "Operatieassistent (OK)",
+      description: "Instrumenteren en omlopen op het OK-complex; orthopedie en algemene chirurgie.",
       status: "PUBLISHED",
-      workMode: "REMOTE",
-      rateMin: 85,
-      rateMax: 115,
-      industry: "ict",
-      req: ["aws"],
-      opt: ["python", "nodejs"],
-      company: "datic",
+      workMode: "ONSITE",
+      rateMin: 60,
+      rateMax: 80,
+      location: "Eindhoven",
+      industry: "ziekenhuis",
+      req: ["ok-assistentie"],
+      opt: ["reanimatie"],
+      company: "ziekenhuis",
     },
     {
       id: "job-7",
-      title: "Frontend Developer",
+      title: "Kinderverpleegkundige",
       description: "Concept-opdracht — nog niet gepubliceerd.",
       status: "DRAFT",
-      workMode: "HYBRID",
-      rateMin: 70,
-      rateMax: 95,
-      location: "Utrecht",
-      industry: "ict",
-      req: ["react"],
-      company: "datic",
+      workMode: "ONSITE",
+      rateMin: 55,
+      rateMax: 75,
+      location: "Eindhoven",
+      industry: "ziekenhuis",
+      req: ["kinderverpleegkunde"],
+      company: "ziekenhuis",
     },
-    // --- Extra opdrachten, verdeeld over de bedrijven (breedte) ---
-    { id: "job-8", title: "Wijkverpleegkundige", description: "Wijkverpleging in de regio Amersfoort; flexibele diensten.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 45, rateMax: 62, location: "Amersfoort", industry: "zorg", req: ["verpleegkunde"], reqCreds: ["LICENSE", "VOG"], dbaRisk: "MIDDEN", company: "zorggroep" }, // prettier-ignore
-    { id: "job-9", title: "Verzorgende IG (VVT)", description: "VVT-zorg met avond- en nachtdiensten (ORT van toepassing).", status: "PUBLISHED", workMode: "ONSITE", rateMin: 38, rateMax: 50, location: "Amersfoort", industry: "zorg", req: ["verpleegkunde"], reqCreds: ["VOG"], company: "zorggroep" }, // prettier-ignore
-    { id: "job-10", title: "Elektromonteur utiliteit", description: "Installatiewerk in utiliteitsbouw; VCA vereist.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 48, rateMax: 68, location: "Zwolle", industry: "bouw", req: ["elektrotechniek", "vca"], reqCreds: ["VOG"], company: "bouwpartners" }, // prettier-ignore
-    { id: "job-11", title: "Projectleider Bouw", description: "Leid bouwprojecten van ontwerp tot oplevering.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 80, rateMax: 110, location: "Zwolle", industry: "bouw", req: ["projectmanagement"], dbaRisk: "MIDDEN", company: "bouwpartners" }, // prettier-ignore
-    { id: "job-12", title: "Logistiek Planner", description: "Plan transport- en magazijnstromen voor een groeiend netwerk.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 55, rateMax: 80, location: "Venlo", industry: "logistiek", req: ["projectmanagement"], company: "logiflow" }, // prettier-ignore
-    { id: "job-13", title: "Supply Chain Analist", description: "Data-analyse van de keten; Python + dashboards.", status: "PUBLISHED", workMode: "REMOTE", rateMin: 65, rateMax: 90, industry: "logistiek", req: ["python"], opt: ["aws"], company: "logiflow" }, // prettier-ignore
-    { id: "job-14", title: "Data Engineer", description: "Bouw data-pipelines op AWS voor onze klanten.", status: "PUBLISHED", workMode: "REMOTE", rateMin: 80, rateMax: 110, industry: "ict", req: ["python", "aws"], reqCreds: ["VOG"], company: "datic" }, // prettier-ignore
-    { id: "job-15", title: "Cloud Engineer", description: "Beheer en automatiseer cloudinfrastructuur (AWS/Node).", status: "PUBLISHED", workMode: "REMOTE", rateMin: 85, rateMax: 115, industry: "ict", req: ["aws", "nodejs"], company: "datic" }, // prettier-ignore
-    { id: "job-16", title: "Fullstack Developer", description: "End-to-end features in React en Node voor ons platform.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 75, rateMax: 100, location: "Utrecht", industry: "ict", req: ["react", "nodejs"], opt: ["typescript"], reqCreds: ["VOG"], company: "datic" }, // prettier-ignore
-    { id: "job-17", title: "Scrum Master", description: "Faciliteer twee teams; verbeter het ontwikkelproces.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 80, rateMax: 100, location: "Utrecht", industry: "ict", req: ["scrum"], company: "datic" }, // prettier-ignore
-    { id: "job-18", title: "Frontend Developer", description: "Toegankelijke UI's met een design-systeem.", status: "PUBLISHED", workMode: "REMOTE", rateMin: 70, rateMax: 95, industry: "ict", req: ["react", "typescript"], company: "datic" }, // prettier-ignore
-    { id: "job-19", title: "Installatiemonteur", description: "Werktuigbouw en elektra op locatie; VCA vereist.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 46, rateMax: 64, location: "Tilburg", industry: "bouw", req: ["elektrotechniek"], reqCreds: ["VOG"], company: "bouwpartners" }, // prettier-ignore
+    // --- Extra diensten, verdeeld over de zorginstellingen (breedte) ---
+    { id: "job-8", title: "Wijkverpleegkundige — avondroute", description: "Avondroute in de regio Amersfoort; eigen caseload en overdracht met het wijkteam.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 45, rateMax: 62, location: "Amersfoort", industry: "wijkverpleging", req: ["verpleegkunde"], opt: ["katheteriseren"], reqCreds: ["LICENSE", "VOG"], dbaRisk: "MIDDEN", company: "zorggroep" }, // prettier-ignore
+    { id: "job-9", title: "Verzorgende IG (VVT)", description: "VVT-zorg met avond- en nachtdiensten (ORT van toepassing).", status: "PUBLISHED", workMode: "ONSITE", rateMin: 38, rateMax: 50, location: "Amersfoort", industry: "vvt", req: ["dementiezorg"], opt: ["medicatieverstrekking"], reqCreds: ["VOG"], company: "zorggroep" }, // prettier-ignore
+    { id: "job-10", title: "Verzorgende IG — nachtdienst beschermd wonen", description: "Nachtdiensten op een beschermd-wonenlocatie; toezicht, medicatie en rapportage.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 38, rateMax: 52, location: "Zwolle", industry: "ggz", req: ["medicatieverstrekking"], opt: ["dementiezorg"], reqCreds: ["VOG"], company: "ggz" }, // prettier-ignore
+    { id: "job-11", title: "Fysiotherapeut — geriatrische revalidatie", description: "Revalidatie en valpreventie op de GRZ-afdeling; multidisciplinair overleg.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 55, rateMax: 75, location: "Utrecht", industry: "vvt", req: ["geriatrische-revalidatie"], dbaRisk: "MIDDEN", company: "jansen" }, // prettier-ignore
+    { id: "job-12", title: "Begeleider gehandicaptenzorg (woonlocatie)", description: "Woonbegeleiding voor cliënten met een verstandelijke beperking; dag- en avonddiensten.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 38, rateMax: 52, location: "Venlo", industry: "ghz", req: ["begeleiding-ghz"], opt: ["medicatieverstrekking"], company: "ghz" }, // prettier-ignore
+    { id: "job-13", title: "Kraamverzorgende — kraamweek", description: "Volledige kraamweken bij gezinnen in de regio; verzorging, voorlichting en signalering.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 38, rateMax: 50, location: "Amersfoort", industry: "kraamzorg", req: ["kraamzorg"], reqCreds: ["VOG"], company: "zorggroep" }, // prettier-ignore
+    { id: "job-14", title: "Verzorgende IG — nachtdienst geriatrie", description: "Nachtdiensten op de psychogeriatrische afdeling; ORT van toepassing.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 40, rateMax: 55, location: "Utrecht", industry: "vvt", req: ["dementiezorg"], opt: ["palliatieve-zorg"], reqCreds: ["VOG"], company: "jansen" }, // prettier-ignore
+    { id: "job-15", title: "IC-verpleegkundige — dagdienst", description: "Dagdiensten op de intensive care; beademing, infuustherapie en bewaking.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 60, rateMax: 85, location: "Eindhoven", industry: "ziekenhuis", req: ["verpleegkunde"], opt: ["infuustherapie", "reanimatie"], company: "ziekenhuis" }, // prettier-ignore
+    { id: "job-16", title: "Jeugdzorgwerker (ambulant, SKJ)", description: "Ambulante gezinsbegeleiding en crisisplaatsingen; SKJ-registratie en VOG vereist.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 45, rateMax: 62, location: "Venlo", industry: "jeugdzorg", req: ["jeugdhulpverlening"], opt: ["crisisinterventie"], reqCreds: ["VOG"], company: "ghz" }, // prettier-ignore
+    { id: "job-17", title: "Wijkverpleegkundige — indicatiestelling", description: "Indicatiestelling en complexe wondzorg in de wijk; werkt nauw samen met de huisarts.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 50, rateMax: 70, location: "Amersfoort", industry: "wijkverpleging", req: ["wondzorg"], opt: ["insulinetoediening"], company: "zorggroep" }, // prettier-ignore
+    { id: "job-18", title: "GGZ-verpleegkundige — ambulante zorg", description: "Ambulante begeleiding van cliënten thuis; medicatiebegeleiding en signalering.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 55, rateMax: 75, location: "Zwolle", industry: "ggz", req: ["crisisinterventie"], opt: ["medicatieverstrekking"], company: "ggz" }, // prettier-ignore
+    { id: "job-19", title: "Ambulanceverpleegkundige — meldkamerdienst", description: "Acute zorg vanuit de ambulancepost; wisselende dag-, avond- en nachtdiensten.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 60, rateMax: 85, location: "Tilburg", industry: "ziekenhuis", req: ["spoedeisende-hulp"], opt: ["reanimatie"], reqCreds: ["VOG"], company: "ziekenhuis" }, // prettier-ignore
   ];
   const now = new Date();
   for (const j of jobs) {
@@ -767,6 +862,10 @@ async function main() {
         title: j.title,
         description: j.description,
         status: j.status,
+        workMode: j.workMode,
+        rateMin: j.rateMin,
+        rateMax: j.rateMax,
+        location: j.location ?? null,
         publishedAt: j.status === "PUBLISHED" ? now : null,
         companyId: companyIdByKey[j.company ?? "jansen"]!,
         industryId: industryId[j.industry]!,
@@ -791,6 +890,29 @@ async function main() {
         },
       },
     });
+    // Vereiste/gewenste vaardigheden reconcileren: een bestaande demo-database die nog de oude
+    // (niet-zorg) vaardigheden aan deze dienst heeft hangen, komt terug op de bedoelde set.
+    await prisma.jobSkill.deleteMany({
+      where: { jobId: j.id, skillId: { notIn: jobSkills.map((s) => s.skillId) } },
+    });
+    for (const s of jobSkills) {
+      await prisma.jobSkill.upsert({
+        where: { jobId_skillId: { jobId: j.id, skillId: s.skillId } },
+        update: { required: s.required },
+        create: { jobId: j.id, skillId: s.skillId, required: s.required },
+      });
+    }
+    // Certificaateisen idem: alleen de in de seed gedefinieerde eisen blijven staan.
+    await prisma.jobCredentialRequirement.deleteMany({
+      where: { jobId: j.id, credentialType: { notIn: j.reqCreds ?? [] } },
+    });
+    for (const c of j.reqCreds ?? []) {
+      await prisma.jobCredentialRequirement.upsert({
+        where: { jobId_credentialType: { jobId: j.id, credentialType: c } },
+        update: { required: true },
+        create: { jobId: j.id, credentialType: c, required: true },
+      });
+    }
   }
 
   // --- Reacties (alle statussen) ---
@@ -824,8 +946,9 @@ async function main() {
       job: "job-16",
       fk: "anna",
       status: "SHORTLIST",
-      motivation: "React-specialist; help graag de frontend-architectuur opzetten.",
-      rate: 80,
+      motivation:
+        "SKJ-geregistreerd; ervaren met ambulante gezinsbegeleiding en crisisplaatsingen.",
+      rate: 55,
       score: 76,
       compliance: snap("NON_COMPLIANT", [], ["VOG"]),
     },
@@ -837,8 +960,8 @@ async function main() {
       // Geaccepteerd, maar nog geen samenwerkingsvoorstel: ligt al 6 dagen (> PROPOSAL_STALL_DAYS) →
       // toont de geëscaleerde "wacht op voorstel"-taak op /acties bij de opdrachtgever.
       acceptedAt: daysFromNow(-6),
-      motivation: "Ervaren met schaalbare Node.js-API's en AWS.",
-      rate: 90,
+      motivation: "Ervaren GGZ-verpleegkundige; vertrouwd met opname- en crisissituaties.",
+      rate: 68,
       score: 90,
       compliance: snap("COMPLIANT"),
     },
@@ -847,8 +970,8 @@ async function main() {
       job: "job-3",
       fk: "lisa",
       status: "NEW",
-      motivation: "PMP-gecertificeerd; ruime ervaring met overheidsprojecten.",
-      rate: 110,
+      motivation: "POH-S met ruime ervaring in poliklinische en chronische zorg.",
+      rate: 72,
       score: 88,
       compliance: snap("COMPLIANT"),
     },
@@ -877,8 +1000,8 @@ async function main() {
       job: "job-5",
       fk: "daan",
       status: "NEW",
-      motivation: "VCA-VOL, allround monteur, per direct beschikbaar.",
-      rate: 60,
+      motivation: "Ervaren in acute zorg en crisissituaties; per direct beschikbaar.",
+      rate: 68,
       score: 91,
       compliance: snap("COMPLIANT", ["VOG"]),
     },
@@ -887,8 +1010,8 @@ async function main() {
       job: "job-3",
       fk: "peter",
       status: "REJECTED",
-      motivation: "Ervaren planner, wil graag de overstap naar ICT-projecten maken.",
-      rate: 85,
+      motivation: "Doktersassistent; wil graag de stap naar de polikliniek maken.",
+      rate: 50,
       score: 58,
       compliance: snap("COMPLIANT"),
       reason: "EXPERIENCE_MISMATCH",
@@ -943,7 +1066,7 @@ async function main() {
   }
 
   // Openstaande uitnodiging voor de ZZP'er-kant: ZorgGroep nodigde Sanne uit voor de
-  // Wijkverpleegkundige-opdracht (job-8, PUBLISHED, zorg) waarop ze nog niet reageerde — zo toont de
+  // Wijkverpleegkundige-dienst (job-8, PUBLISHED) waarop ze nog niet reageerde — zo toont de
   // "Je bent uitgenodigd"-band op /opdrachten een echte open lead. (job-1/job-9 vallen weg: daar
   // reageerde Sanne al op.)
   const zorggroepUserId = clientUserIdByKey["zorggroep"];
@@ -963,9 +1086,9 @@ async function main() {
   }
 
   // --- Bewaarde opdrachten (Sanne) — bookmarks om er later op terug te komen ---
-  // Twee open opdrachten waar ze nog niet op reageerde + één DRAFT (job-7) zodat het
+  // Twee open diensten waar ze nog niet op reageerde + één DRAFT (job-7) zodat het
   // overzicht óók de "niet meer beschikbaar"-sectie demonstreert.
-  for (const jobId of ["job-13", "job-18", "job-7"]) {
+  for (const jobId of ["job-15", "job-17", "job-7"]) {
     await prisma.savedJob.upsert({
       where: { freelancerProfileId_jobId: { freelancerProfileId: pid["sanne"]!, jobId } },
       update: {},
@@ -1066,18 +1189,18 @@ async function main() {
         ort: true,
         endInDays: 10,
       },
-      { fk: "emma", job: "job-8", rate: 56, target: "PAID", ort: true },
+      { fk: "emma", job: "job-15", rate: 70, target: "PAID", ort: true },
       { fk: "iris", job: "job-9", rate: 42, target: "INVOICE_APPROVED", ort: true },
-      { fk: "ahmed", job: "job-10", rate: 58, target: "PAID" },
-      { fk: "rik", job: "job-11", rate: 90, target: "ACTIVE", endInDays: 14 },
-      { fk: "julia", job: "job-12", rate: 72, target: "INVOICE_SUBMITTED" },
-      { fk: "kevin", job: "job-13", rate: 82, target: "PERF_APPROVED" },
-      { fk: "bram", job: "job-14", rate: 95, target: "PAID" },
-      { fk: "tom", job: "job-15", rate: 88, target: "PERF_SUBMITTED" },
-      { fk: "sofie", job: "job-16", rate: 76, target: "PERF_REJECTED" },
-      { fk: "nadia", job: "job-17", rate: 88, target: "ACTIVE" },
-      { fk: "youssef", job: "job-18", rate: 90, target: "PROPOSED" },
-      { fk: "daan", job: "job-19", rate: 60, target: "PERF_APPROVED" },
+      { fk: "ahmed", job: "job-10", rate: 45, target: "PAID" },
+      { fk: "rik", job: "job-11", rate: 65, target: "ACTIVE", endInDays: 14 },
+      { fk: "julia", job: "job-13", rate: 44, target: "INVOICE_SUBMITTED" },
+      { fk: "kevin", job: "job-12", rate: 46, target: "PERF_APPROVED" },
+      { fk: "bram", job: "job-17", rate: 62, target: "PAID" },
+      { fk: "tom", job: "job-6", rate: 70, target: "PERF_SUBMITTED" },
+      { fk: "sofie", job: "job-14", rate: 44, target: "PERF_REJECTED" },
+      { fk: "nadia", job: "job-5", rate: 66, target: "ACTIVE" },
+      { fk: "youssef", job: "job-18", rate: 68, target: "PROPOSED" },
+      { fk: "daan", job: "job-19", rate: 72, target: "PERF_APPROVED" },
     ];
 
     let i = 0;
@@ -1118,8 +1241,8 @@ async function main() {
         await signContract(cActor, collab.id);
       } catch (e) {
         // Inzetbaarheid-gate (ADR-0006, C-hybride): voldoet de ZZP'er niet aan de harde
-        // certificaateisen, dan kan de samenwerking niet starten. Laat 'm als PROPOSED staan —
-        // dat demonstreert juist de plaatsing-gate (bv. ahmed met een afgewezen VOG).
+        // certificaateisen, dan kan de plaatsing niet starten. Laat 'm als PROPOSED staan —
+        // dat demonstreert juist de plaatsing-gate (bv. Ahmed met een afgewezen VOG op job-10).
         if (e instanceof CascadeError) continue;
         throw e;
       }
@@ -1138,7 +1261,9 @@ async function main() {
           : null,
         periodStart: daysFromNow(-21 + i),
         periodEnd: daysFromNow(-14 + i),
-        description: s.ort ? "Avond/nachtdiensten somatische afdeling" : "Werkzaamheden sprint",
+        description: s.ort
+          ? "Avond- en nachtdiensten somatische afdeling"
+          : "Gewerkte diensten deze periode",
       });
       await submitPerformance(fActor, perfId);
 
@@ -1146,7 +1271,7 @@ async function main() {
         await rejectPerformance(
           cActor,
           perfId,
-          "Graag de uren per dag specificeren en opnieuw indienen.",
+          "Graag de uren per dienst specificeren en opnieuw indienen.",
         );
         continue;
       }
@@ -1403,7 +1528,7 @@ async function main() {
   const weekdayDemo: { where: object; days: string }[] = [
     { where: { id: "collab-1" }, days: '["MON","TUE","WED"]' }, // Sanne ↔ Jansen (anker)
     { where: { jobId: "job-11" }, days: '["MON","TUE","WED","THU"]' }, // Rik — actief
-    { where: { jobId: "job-17" }, days: '["WED","THU","FRI"]' }, // Nadia — actief
+    { where: { jobId: "job-5" }, days: '["WED","THU","FRI"]' }, // Nadia — actief
     { where: { jobId: "job-18" }, days: '["MON","WED","FRI"]' }, // Youssef — voorgesteld
   ];
   for (const w of weekdayDemo) {
@@ -1635,9 +1760,9 @@ async function main() {
     const subSpecs: { email: string; plan: string }[] = [
       { email: "opdrachtgever@zzp-platform.local", plan: "BUSINESS" },
       { email: "zorggroep@zzp-platform.local", plan: "BUSINESS" },
-      { email: "bouwpartners@zzp-platform.local", plan: "PRO" },
-      { email: "logiflow@zzp-platform.local", plan: "PRO" },
-      { email: "datic@zzp-platform.local", plan: "PRO" },
+      { email: "ggz@zzp-platform.local", plan: "PRO" },
+      { email: "ghz@zzp-platform.local", plan: "PRO" },
+      { email: "ziekenhuis@zzp-platform.local", plan: "PRO" },
       { email: "zzp@zzp-platform.local", plan: "PRO" },
     ];
     for (const s of subSpecs) {
@@ -1660,6 +1785,10 @@ async function main() {
       });
     }
   }
+
+  // Nu alle demo-koppelingen naar de zorg-referentiedata zijn gereconcileerd, kunnen de
+  // achtergebleven ICT-/bouw-/logistiekrijen weg (alleen als er niets meer aan hangt).
+  await pruneLegacyReferenceData();
 
   const [
     collabCount,

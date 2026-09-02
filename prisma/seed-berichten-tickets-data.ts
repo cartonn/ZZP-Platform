@@ -1,6 +1,10 @@
-// AUTO-GEGENEREERDE demo-content: realistische NL gespreks- en support-ticket-threads voor de seed.
-// Pure data, geen logica. prisma/seed.ts maakt hieruit Conversations/Messages en SupportTickets aan
-// (idempotent op id). Inhoud is met de hand nagelezen; bevat bewust geen verwijzing naar automatisering.
+// Demo-content: realistische NL gespreks- en support-ticket-threads voor de seed. Pure data, geen
+// logica. prisma/seed.ts maakt hieruit Conversations/Messages en SupportTickets aan (idempotent op
+// id). Inhoud is met de hand nagelezen; bevat bewust geen verwijzing naar automatisering.
+//
+// De ids zijn bewust stabiel gehouden (ook waar de oude naam nog naar een niet-zorg onderwerp
+// verwijst), zodat een bestaande demo-database geen dubbele threads krijgt. Alleen de inhoud,
+// de opdrachtgever-sleutel (ck/owner) en de gekoppelde dienst (jobId) zijn zorg geworden.
 
 export interface SeedConvMessage {
   from: "freelancer" | "client";
@@ -45,7 +49,7 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "client",
         daysAgo: 6,
-        body: "Hoi Sanne, bedankt voor je reactie op de opdracht Verpleegkundige (somatiek)! Je profiel sluit goed aan, vooral je ervaring op somatische afdelingen. Heb je deze week even tijd voor een korte kennismaking?",
+        body: "Hoi Sanne, bedankt voor je reactie op de dienst Verpleegkundige somatiek! Je profiel sluit goed aan, vooral je ervaring op somatische afdelingen. Heb je deze week even tijd voor een korte kennismaking?",
       },
       {
         from: "freelancer",
@@ -77,53 +81,53 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
   {
     id: "c-anna-react",
     fk: "anna",
-    ck: "datic",
+    ck: "ghz",
     jobId: "job-16",
     badge: true,
     messages: [
       {
         from: "client",
         daysAgo: 5,
-        body: "Hoi Anna! Leuk dat je op de shortlist staat voor de Fullstack Developer-rol. We willen graag door, maar voor de zekerheid: hoe staat het met je VOG-aanvraag?",
+        body: "Hoi Anna! Leuk dat je op de shortlist staat voor de ambulante jeugdzorgrol. We willen graag door, maar voor de zekerheid: hoe staat het met je VOG-aanvraag?",
       },
       {
         from: "freelancer",
         daysAgo: 5,
-        body: "Hoi Erik, dank je! Goed nieuws. Ik heb de VOG vorige week aangevraagd en de status is inmiddels 'in behandeling'.",
+        body: "Hoi Sandra, dank je! Goed nieuws. Ik heb de VOG vorige week aangevraagd en de status is inmiddels 'in behandeling'.",
       },
       {
         from: "freelancer",
         daysAgo: 5,
-        body: "Doorgaans duurt het zo'n 1 tot 2 weken. Ik verwacht 'm dus begin volgende week binnen te hebben.",
+        body: "Doorgaans duurt het zo'n 1 tot 2 weken. Ik verwacht 'm dus begin volgende week binnen te hebben. Mijn SKJ-registratie is trouwens actueel.",
       },
       {
         from: "client",
         daysAgo: 4,
-        body: "Top, dat past mooi. We willen graag starten bij sprint 12, die begint maandag de 8e. Lukt het je om de VOG voor die tijd aan te leveren?",
+        body: "Top, dat past mooi. We willen je graag laten starten in de week van maandag de 8e. Lukt het je om de VOG voor die tijd aan te leveren? Zonder goedgekeurde VOG mogen we je niet bij gezinnen inzetten.",
       },
       {
         from: "client",
         daysAgo: 4,
-        body: "En zou je het tarief van 95 euro per uur kunnen bevestigen, met betaaltermijn van 30 dagen?",
+        body: "En zou je het tarief van 55 euro per uur kunnen bevestigen, met een betaaltermijn van 30 dagen?",
       },
       {
         from: "freelancer",
         daysAgo: 2,
-        body: "De 8e moet prima lukken, ik houd je op de hoogte zodra de VOG binnen is. En ja, 95 euro per uur en 30 dagen betaaltermijn kloppen helemaal. Ik kijk uit naar de start!",
+        body: "De 8e moet prima lukken, ik houd je op de hoogte zodra de VOG binnen is. En ja, 55 euro per uur en 30 dagen betaaltermijn kloppen helemaal. Ik kijk uit naar de start!",
       },
     ],
   },
   {
     id: "c-lisa-pm",
     fk: "lisa",
-    ck: "datic",
+    ck: "ziekenhuis",
     jobId: "job-3",
     badge: true,
     messages: [
       {
         from: "client",
         daysAgo: 9,
-        body: "Hoi Lisa, ik zag je profiel langskomen voor de rol van Projectmanager ICT bij ons. Lijkt me goed om even kennis te maken. Heb je deze week ergens ruimte?",
+        body: "Hoi Lisa, ik zag je profiel langskomen voor de spreekuren op onze polikliniek. Lijkt me goed om even kennis te maken. Heb je deze week ergens ruimte?",
       },
       {
         from: "freelancer",
@@ -138,7 +142,7 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "freelancer",
         daysAgo: 8,
-        body: "Zeker. Ik werk meestal op basis van 95 euro per uur excl. btw, met een betaaltermijn van 14 dagen. Ik ben beschikbaar voor 32 uur per week en kan in principe starten vanaf de eerste sprint na onze kennismaking.",
+        body: "Zeker. Ik werk meestal op basis van 72 euro per uur excl. btw, met een betaaltermijn van 14 dagen. Ik ben beschikbaar voor 32 uur per week en kan in principe starten zodra het spreekuurrooster rond is.",
       },
       {
         from: "freelancer",
@@ -148,21 +152,21 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "client",
         daysAgo: 7,
-        body: "Helder, dat tarief en die uren werken prima voor ons. Fijn dat de VOG al rond is. Dan spreken we elkaar donderdag en kijken we of we de start kunnen koppelen aan sprint 12, die begint op maandag 8 juni. Tot dan!",
+        body: "Helder, dat tarief en die uren werken prima voor ons. Fijn dat de VOG al rond is. Dan spreken we elkaar donderdag en kijken we of je kunt starten in de week van maandag 8 juni. Tot dan!",
       },
     ],
   },
   {
     id: "c-youssef-node",
     fk: "youssef",
-    ck: "datic",
+    ck: "ziekenhuis",
     jobId: "job-2",
     badge: true,
     messages: [
       {
         from: "client",
         daysAgo: 9,
-        body: "Hi Youssef, leuk dat je aan boord komt voor de Node.js backend! We willen graag snel starten. Schikt een kickoff komende dinsdag 10:00 via een videocall?",
+        body: "Hi Youssef, leuk dat je aan boord komt op de PAAZ! We willen graag snel starten. Schikt een kennismaking op de afdeling komende dinsdag 10:00?",
       },
       {
         from: "freelancer",
@@ -172,66 +176,66 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "freelancer",
         daysAgo: 8,
-        body: "Voor de zekerheid: het afgesproken tarief is 85 euro per uur excl. btw en jullie hanteren 14 dagen betaaltermijn, klopt dat?",
+        body: "Voor de zekerheid: het afgesproken tarief is 68 euro per uur excl. btw en jullie hanteren 14 dagen betaaltermijn, klopt dat?",
       },
       {
         from: "client",
         daysAgo: 8,
-        body: "Klopt helemaal, 85 euro en 14 dagen. We werken in sprints van twee weken; sprint 1 start meteen na de kickoff. Kun je voor toegang je VOG aanleveren? Dan zet ik je vast klaar in onze repo en op de servers.",
+        body: "Klopt helemaal, 68 euro en 14 dagen. We roosteren in blokken van twee weken; je eerste blok start meteen na de kennismaking. Kun je je VOG en BIG-registratie aanleveren? Dan zet ik de toegang tot het dossiersysteem en je toegangspas vast klaar.",
       },
       {
         from: "freelancer",
         daysAgo: 6,
-        body: "Mijn VOG is geldig, ik mail je vandaag de scan. Kun jij dan een GitHub-uitnodiging en VPN-toegang regelen, plus de staging-omgeving? Dan kan ik dinsdag direct meedraaien.",
+        body: "Mijn VOG is geldig en mijn BIG-registratie staat in mijn dossier; ik deel ze vandaag met jullie. Kun jij dan de pas en een inwerkdienst met een vaste collega regelen? Dan kan ik dinsdag direct meedraaien.",
       },
       {
         from: "client",
         daysAgo: 5,
-        body: "Top, VOG ontvangen, dank! GitHub-invite en VPN-creds staan voor je klaar, staging volgt morgen. Tot dinsdag!",
+        body: "Top, beide ontvangen, dank! Je pas ligt klaar bij de receptie en je draait dinsdag mee met Marieke van het vaste team. Tot dinsdag!",
       },
       {
         from: "freelancer",
         daysAgo: 4,
-        body: "Perfect, alles binnen en getest. Ik heb de backlog voor sprint 1 alvast doorgenomen, dus dinsdag kunnen we vol gas. Tot dan, Erik!",
+        body: "Perfect, alles binnen. Ik heb het afdelingsprotocol en de dienstenroulatie alvast doorgenomen, dus dinsdag kunnen we los. Tot dan, Erik!",
       },
     ],
   },
   {
     id: "c-daan-monteur",
     fk: "daan",
-    ck: "bouwpartners",
-    jobId: "job-19",
+    ck: "ggz",
+    jobId: "job-5",
     badge: true,
     messages: [
       {
         from: "client",
         daysAgo: 6,
-        body: "Hoi Daan, bedankt voor je reactie op de opdracht Installatiemonteur! Je profiel ziet er goed uit. We hebben iemand nodig voor een aantal woningprojecten in de regio Utrecht. Heb je momenteel ruimte?",
+        body: "Hoi Daan, bedankt voor je reactie op de dienst bij de crisisdienst! Je profiel ziet er goed uit, vooral je ervaring in de acute zorg. We zoeken versterking voor de avond- en nachtdiensten in de regio Zwolle. Heb je momenteel ruimte?",
       },
       {
         from: "freelancer",
         daysAgo: 6,
-        body: "Hi Henk, leuk dat je reageert. Ja, ik heb vanaf volgende week ruimte. Wat hebben jullie qua uren voor ogen?",
+        body: "Hi Henk, leuk dat je reageert. Ja, ik heb vanaf volgende week ruimte. Wat hebben jullie qua diensten voor ogen?",
       },
       {
         from: "client",
         daysAgo: 5,
-        body: "We zoeken iemand voor 4 a 5 dagen per week, voorlopig voor zo'n 2 maanden. Eén ding nog: VCA is bij ons verplicht op de bouw. Heb jij die op zak?",
+        body: "We zoeken iemand voor 3 a 4 diensten per week, voorlopig voor zo'n 2 maanden. Eén ding nog: een geldige VOG is bij ons verplicht voordat je meedraait. Heb jij die op zak?",
       },
       {
         from: "freelancer",
         daysAgo: 5,
-        body: "Ja hoor, VCA Basis heb ik en die is nog ruim een jaar geldig. Ik kan het certificaat meteen aanleveren als dat handig is.",
+        body: "Ja hoor, mijn VOG is nog ruim een jaar geldig en staat in mijn dossier. Ik kan hem meteen met jullie delen als dat handig is.",
       },
       {
         from: "freelancer",
         daysAgo: 4,
-        body: "Qua tarief zit ik op 52,50 per uur excl. btw. Wat mij betreft kan ik maandag al starten.",
+        body: "Qua tarief zit ik op 68 euro per uur excl. btw, met de gebruikelijke onregelmatigheidstoeslag op de nachtdiensten. Wat mij betreft kan ik maandag al starten.",
       },
       {
         from: "client",
         daysAgo: 3,
-        body: "Top, dat tarief is prima. Laten we maandag 09:00 op de locatie in Leidsche Rijn afspreken, dan loop ik je even mee. Stuur je je VCA-certificaat en KvK-nummer vast door? Onze betaaltermijn is 14 dagen. Tot maandag!",
+        body: "Top, dat tarief is prima. Laten we maandag 09:00 op de locatie afspreken, dan loop ik je mee met de dienstdoend psychiater. Deel je je VOG en KvK-nummer vast? Onze betaaltermijn is 14 dagen. Tot maandag!",
       },
     ],
   },
@@ -277,44 +281,44 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
   {
     id: "c-rik-bouw",
     fk: "rik",
-    ck: "bouwpartners",
+    ck: "jansen",
     jobId: "job-11",
     badge: true,
     messages: [
       {
         from: "client",
         daysAgo: 9,
-        body: "Hoi Rik, even afstemmen voor de komende weken. Volgende week starten we sprint 4 op het project in Zwolle. Kun jij maandag op de bouwplaats zijn voor de start?",
+        body: "Hoi Rik, even afstemmen voor de komende weken. Volgende week start het nieuwe behandelblok op de revalidatieafdeling. Kun jij maandag aanwezig zijn voor de start?",
       },
       {
         from: "freelancer",
         daysAgo: 9,
-        body: "Hoi Henk, ja maandag werkt prima. Ik kan er om 7:30 zijn voor de toolbox met de ploeg. Werkt dat?",
+        body: "Hoi Mark, ja maandag werkt prima. Ik kan er om 7:30 zijn voor de overdracht met het behandelteam. Werkt dat?",
       },
       {
         from: "freelancer",
         daysAgo: 9,
-        body: "Klein puntje: mijn VCA-VOL loopt eind volgende maand af. Ik ben het verlengen al aan het regelen, dus dat komt op tijd in orde.",
+        body: "Klein puntje: mijn registratie in het Kwaliteitsregister Fysiotherapie loopt eind volgende maand af. Ik ben de verlenging al aan het regelen, dus dat komt op tijd in orde.",
       },
       {
         from: "client",
         daysAgo: 8,
-        body: "Top, 7:30 is prima. En goed dat je het zelf aangeeft van die VCA, stuur het nieuwe certificaat even door zodra je het binnen hebt.",
+        body: "Top, 7:30 is prima. En goed dat je het zelf aangeeft van die registratie; deel het nieuwe bewijs even zodra je het binnen hebt, anders loopt je inzetbaarheid vast.",
       },
       {
         from: "freelancer",
         daysAgo: 6,
-        body: "Doe ik. Voor de planning: ik reken in week 3 even op de woensdag erbij voor de oplevering aan de hoofdaannemer, dan ben ik 4 dagen die week. Tarief blijft de afgesproken 78 per uur.",
+        body: "Doe ik. Voor de planning: in week 3 kom ik de woensdag erbij voor het multidisciplinair overleg, dan ben ik 4 dagen die week. Tarief blijft de afgesproken 65 per uur.",
       },
       {
         from: "client",
         daysAgo: 5,
-        body: "Akkoord met die extra woensdag, prima. Stuur je de uren per twee weken via het platform? Dan houden we de betaaltermijn van 14 dagen aan.",
+        body: "Akkoord met die extra woensdag, prima. Dien je de uren per twee weken in via het platform? Dan houden we de betaaltermijn van 14 dagen aan.",
       },
       {
         from: "freelancer",
         daysAgo: 5,
-        body: "Helder, per twee weken indienen. Dan zie ik je maandag op de bouwplaats.",
+        body: "Helder, per twee weken indienen. Dan zie ik je maandag op de afdeling.",
       },
       {
         from: "client",
@@ -326,8 +330,8 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
   {
     id: "c-sofie-fullstack",
     fk: "sofie",
-    ck: "datic",
-    jobId: "job-16",
+    ck: "jansen",
+    jobId: "job-14",
     badge: true,
     messages: [
       {
@@ -338,17 +342,17 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "client",
         daysAgo: 5,
-        body: "Op donderdag staan er 9 uur, maar volgens onze planning was je die dag maar tot 15:00 ingepland (dus 6 uur). En de uren voor de sprint-refinement van dinsdag horen op het ticket 'Sprint 14', niet op 'algemeen'.",
+        body: "Op donderdag staan er 9 uur, maar volgens het rooster liep je dienst tot 23:00 (dus 7,5 uur). En de uren van dinsdag staan als dagdienst geboekt, terwijl het een nachtdienst was — daar hoort de onregelmatigheidstoeslag bij.",
       },
       {
         from: "freelancer",
         daysAgo: 4,
-        body: "Hoi Erik, dank voor het meekijken! Je hebt gelijk over donderdag, ik was die middag eerder weg. Ik pas 'm aan naar 6 uur.",
+        body: "Hoi Mark, dank voor het meekijken! Je hebt gelijk over donderdag, ik ben die avond eerder weggegaan. Ik pas 'm aan naar 7,5 uur.",
       },
       {
         from: "freelancer",
         daysAgo: 4,
-        body: "De refinement zet ik op Sprint 14. Klopt het dat de woensdag (5,5 uur backend-werk) wel goed stond? Dan dien ik 'm vanmiddag opnieuw in.",
+        body: "De dinsdag zet ik om naar een nachtdienst met ORT. Klopt het dat de woensdag (5,5 uur avonddienst) wel goed stond? Dan dien ik 'm vanmiddag opnieuw in.",
       },
       {
         from: "client",
@@ -360,68 +364,68 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
   {
     id: "c-nadia-scrum",
     fk: "nadia",
-    ck: "datic",
-    jobId: "job-17",
+    ck: "ggz",
+    jobId: "job-5",
     badge: true,
     messages: [
       {
         from: "client",
         daysAgo: 9,
-        body: "Hoi Nadia, welkom bij het team! Fijn dat je als Scrum Master aan de slag gaat. Zullen we de eerste sprint en de ceremonies even afstemmen?",
+        body: "Hoi Nadia, welkom bij het team! Fijn dat je de crisisdienst komt versterken. Zullen we je eerste dienstenblok en de overdrachten even afstemmen?",
       },
       {
         from: "freelancer",
         daysAgo: 9,
-        body: "Hoi Erik, dank je! Helemaal goed. Ik stel sprints van twee weken voor, met de planning op maandagochtend en de review en retro op vrijdagmiddag. Werkt dat ritme voor jullie?",
+        body: "Hoi Henk, dank je! Helemaal goed. Ik stel blokken van twee weken voor, met de roosterafstemming op maandagochtend en een evaluatie op vrijdagmiddag. Werkt dat ritme voor jullie?",
       },
       {
         from: "client",
         daysAgo: 8,
-        body: "Dat klinkt prima. De meeste developers zijn 's ochtends het scherpst, dus planning op maandag 9:30 zou top zijn.",
+        body: "Dat klinkt prima. De overdracht met de dienstdoend psychiater is standaard om 9:30, dus die maandagochtend past goed.",
       },
       {
         from: "freelancer",
         daysAgo: 8,
-        body: "Top, dan zet ik de sprintplanning op maandag 9:30 en de daily op 9:15. Review vrijdag om 14:00, retro aansluitend om 15:00.",
+        body: "Top, dan zet ik de roosterafstemming op maandag 9:30 en sluit ik aan bij de dagelijkse overdracht om 9:15. Evaluatie vrijdag om 14:00.",
       },
       {
         from: "freelancer",
         daysAgo: 8,
-        body: "Even voor de administratie: mijn tarief is 85 euro per uur excl. btw, betaaltermijn 14 dagen. Mijn VOG heb ik al aangevraagd, die stuur ik je zodra hij binnen is.",
+        body: "Even voor de administratie: mijn tarief is 66 euro per uur excl. btw, betaaltermijn 14 dagen. Mijn VOG loopt binnenkort af; de nieuwe heb ik al aangevraagd en die deel ik zodra hij binnen is.",
       },
       {
         from: "client",
         daysAgo: 7,
-        body: "Helder, akkoord met het tarief en de termijn. De VOG ontvang ik graag zodra je hem hebt. Dan zie ik je maandag bij de eerste planning!",
+        body: "Helder, akkoord met het tarief en de termijn. De nieuwe VOG ontvang ik graag zodra je hem hebt, anders blokkeert het systeem je inzet. Dan zie ik je maandag bij de eerste overdracht!",
       },
       {
         from: "freelancer",
         daysAgo: 6,
-        body: "Perfect, ik blok de ceremonies vast in de agenda en zorg dat het bord is ingericht voor sprint 1. Tot maandag!",
+        body: "Perfect, ik zet de overdrachten vast in mijn agenda en neem de crisisprotocollen alvast door. Tot maandag!",
       },
     ],
   },
   {
     id: "c-kevin-supply",
     fk: "kevin",
-    ck: "logiflow",
-    jobId: "job-13",
+    ck: "ghz",
+    jobId: "job-12",
     badge: true,
     messages: [
       {
         from: "freelancer",
         daysAgo: 6,
-        body: "Hoi Sandra, ik zag dat je mijn uren van sprint 7 hebt goedgekeurd, top! Dank daarvoor.",
+        body: "Hoi Sandra, ik zag dat je mijn uren van de afgelopen periode hebt goedgekeurd, top! Dank daarvoor.",
       },
       {
         from: "client",
         daysAgo: 6,
-        body: "Hi Kevin, graag gedaan. Het waren mooie analyses op de doorlooptijden, daar kunnen we echt mee verder.",
+        body: "Hi Kevin, graag gedaan. Het team is erg te spreken over hoe je de dagbesteding hebt opgepakt, daar kunnen we echt mee verder.",
       },
       {
         from: "freelancer",
         daysAgo: 5,
-        body: "Fijn om te horen. Ik ga dan de factuur indienen voor die 38 uur tegen het afgesproken tarief van 85 euro.",
+        body: "Fijn om te horen. Ik ga dan de factuur indienen voor die 38 uur tegen het afgesproken tarief van 46 euro.",
       },
       {
         from: "freelancer",
@@ -431,75 +435,75 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "client",
         daysAgo: 4,
-        body: "Ja dat klopt, 30 dagen netto. Kun je hem op naam zetten van LogiFlow B.V. en mij in de cc zetten? Dan houdt onze administratie hem ook in de gaten.",
+        body: "Ja dat klopt, 30 dagen netto. Kun je hem op naam zetten van Stichting De Wingerd en mij in de cc zetten? Dan houdt onze administratie hem ook in de gaten.",
       },
       {
         from: "freelancer",
         daysAgo: 3,
-        body: "Helemaal goed, doe ik. Factuur staat op naam van LogiFlow B.V. en je hebt hem net binnengekregen. Ik plan komende dinsdag alvast even in om sprint 8 met je door te nemen.",
+        body: "Helemaal goed, doe ik. Factuur staat op naam van Stichting De Wingerd en je hebt hem net binnengekregen. Ik plan komende dinsdag alvast even in om het rooster van de volgende periode door te nemen.",
       },
     ],
   },
   {
     id: "c-bram-data",
     fk: "bram",
-    ck: "datic",
-    jobId: "job-14",
+    ck: "zorggroep",
+    jobId: "job-17",
     badge: true,
     messages: [
       {
         from: "client",
         daysAgo: 9,
-        body: "Hi Bram, de laatste factuur is gisteren betaald, ruim binnen de 14 dagen. Bedankt voor het strakke werk op de data pipeline!",
+        body: "Hi Bram, de laatste factuur is gisteren betaald, ruim binnen de 14 dagen. Bedankt voor het zorgvuldige werk op de indicatiestellingen!",
       },
       {
         from: "client",
         daysAgo: 9,
-        body: "We zijn echt tevreden. Ik wil je graag een referentie geven op je profiel als je dat fijn vindt.",
+        body: "We zijn echt tevreden. Ik wil je graag een beoordeling geven op je profiel als je dat fijn vindt.",
       },
       {
         from: "freelancer",
         daysAgo: 9,
-        body: "Top dat de betaling rond is, dank! En ja heel graag, een referentie zou ik erg waarderen.",
+        body: "Top dat de betaling rond is, dank! En ja heel graag, een beoordeling zou ik erg waarderen.",
       },
       {
         from: "freelancer",
         daysAgo: 8,
-        body: "Fijn om te horen dat het goed bevallen is. Het was een mooie klus om de Airflow-dags eindelijk stabiel te krijgen.",
+        body: "Fijn om te horen dat het goed bevallen is. Het was mooi om de wachtlijst voor de herindicaties eindelijk weggewerkt te krijgen.",
       },
       {
         from: "client",
         daysAgo: 6,
-        body: "Referentie staat erop. We hebben trouwens vanaf volgende sprint capaciteit nodig voor het uitbreiden van het datawarehouse, ongeveer 2 dagen per week. Zou je daar interesse in hebben?",
+        body: "De beoordeling staat erop. We hebben trouwens vanaf volgende maand capaciteit nodig voor de complexe wondzorg in de wijk, ongeveer 2 dagen per week. Zou je daar interesse in hebben?",
       },
       {
         from: "freelancer",
         daysAgo: 5,
-        body: "Zeker interesse! 2 dagen per week past goed. Mijn tarief is 95 per uur, en ik kan vanaf de week van 9 juni starten. Zullen we volgende week even bellen om de scope door te nemen?",
+        body: "Zeker interesse! 2 dagen per week past goed. Mijn tarief is 62 per uur, en ik kan vanaf de week van 9 juni starten. Zullen we volgende week even bellen om de caseload door te nemen?",
       },
       {
         from: "client",
         daysAgo: 4,
-        body: "Helemaal goed, tarief is prima. Ik prik donderdag 10:00 voor een belletje, dan loop ik de backlog met je door. Tot dan!",
+        body: "Helemaal goed, tarief is prima. Ik prik donderdag 10:00 voor een belletje, dan loop ik de routes met je door. Tot dan!",
       },
     ],
   },
   {
     id: "c-ahmed-elektro",
     fk: "ahmed",
-    ck: "bouwpartners",
+    ck: "ggz",
     jobId: "job-10",
     badge: false,
     messages: [
       {
         from: "client",
         daysAgo: 6,
-        body: "Ahmed, de oplevering van vandaag zag er top uit. Verdeelkast netjes afgemonteerd en alles getest. Bedankt voor je inzet deze sprint!",
+        body: "Ahmed, de nachtdiensten van afgelopen weken zijn goed verlopen. Het team is te spreken over je rapportages en de rust die je meebrengt op de locatie. Bedankt voor je inzet!",
       },
       {
         from: "freelancer",
         daysAgo: 6,
-        body: "Dank je Henk, fijn om te horen. Was een mooie klus. De meetrapporten heb ik bij de oplevermap gevoegd.",
+        body: "Dank je Henk, fijn om te horen. Was een mooie periode. De overdrachten heb ik allemaal in het cliëntdossier bijgewerkt.",
       },
       {
         from: "client",
@@ -514,31 +518,31 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "freelancer",
         daysAgo: 1,
-        body: "Top, hij staat erop. Bedankt voor de prettige samenwerking en de duidelijke aansturing op de bouw.",
+        body: "Top, hij staat erop. Bedankt voor de prettige samenwerking en de duidelijke begeleiding vanuit het team.",
       },
       {
         from: "freelancer",
         daysAgo: 1,
-        body: "Mocht er weer een utiliteitsklus aankomen, hoor ik het graag. Mijn VCA is nog ruim een jaar geldig, dus ik kan zo aanhaken.",
+        body: "Mocht er weer een nachtdienstenblok aankomen, hoor ik het graag. Ik dien deze week een nieuwe VOG in, dan is mijn dossier weer compleet.",
       },
     ],
   },
   {
     id: "c-tom-cloud",
     fk: "tom",
-    ck: "datic",
-    jobId: "job-15",
+    ck: "ziekenhuis",
+    jobId: "job-6",
     badge: true,
     messages: [
       {
         from: "freelancer",
         daysAgo: 5,
-        body: "Hoi Erik, ik heb net mijn uren van afgelopen sprint ingediend. Wilde even kort checken of alles zo duidelijk is voor jullie.",
+        body: "Hoi Erik, ik heb net mijn uren van afgelopen periode ingediend. Wilde even kort checken of alles zo duidelijk is voor jullie.",
       },
       {
         from: "freelancer",
         daysAgo: 5,
-        body: "Stond op 32 uur deze week, voornamelijk de migratie van de Kubernetes-cluster naar de nieuwe omgeving.",
+        body: "Stond op 32 uur deze week, voornamelijk instrumenteren bij het orthopedieprogramma op OK 3.",
       },
       {
         from: "client",
@@ -548,12 +552,12 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "client",
         daysAgo: 4,
-        body: "Eén ding: kun je bij de migratie-uren nog kort het ticketnummer erbij zetten? Dan kan finance het makkelijker matchen. Betaaltermijn blijft 30 dagen na akkoord.",
+        body: "Eén ding: kun je bij de uren nog kort het OK-nummer erbij zetten? Dan kan de administratie het makkelijker matchen. Betaaltermijn blijft 30 dagen na akkoord.",
       },
       {
         from: "freelancer",
         daysAgo: 3,
-        body: "Helemaal goed, ik vul de ticketnummers vanmiddag nog aan. Voor de volgende indiening neem ik ze meteen mee.",
+        body: "Helemaal goed, ik vul de OK-nummers vanmiddag nog aan. Voor de volgende indiening neem ik ze meteen mee.",
       },
       {
         from: "client",
@@ -625,7 +629,7 @@ export const SEED_TICKETS: SeedTicket[] = [
       {
         authorKind: "USER",
         daysAgo: 3,
-        body: "Hoi,\n\nGisteren heb ik gereageerd op een opdracht (interim administratief medewerker bij een zorginstelling). Vlak na het versturen kreeg ik via een andere weg een opdracht aangeboden die qua planning beter uitkomt, dus ik twijfel nu of ik mijn reactie wel had moeten plaatsen.\n\nMijn vraag: kan ik mijn reactie op die eerste opdracht nog intrekken voordat de opdrachtgever hem heeft beoordeeld? En zo ja, waar vind ik die optie precies? Ik wil voorkomen dat ik straks bij twee opdrachten tegelijk vastzit.\n\nDe opdrachtgever heeft voor zover ik kan zien nog niet gereageerd. Alvast bedankt voor het meedenken.\n\nGroet,\nSanne",
+        body: "Hoi,\n\nGisteren heb ik gereageerd op een dienst (avonddienst verzorgende IG bij een zorginstelling). Vlak na het versturen kreeg ik via een andere weg een opdracht aangeboden die qua planning beter uitkomt, dus ik twijfel nu of ik mijn reactie wel had moeten plaatsen.\n\nMijn vraag: kan ik mijn reactie op die eerste opdracht nog intrekken voordat de opdrachtgever hem heeft beoordeeld? En zo ja, waar vind ik die optie precies? Ik wil voorkomen dat ik straks bij twee opdrachten tegelijk vastzit.\n\nDe opdrachtgever heeft voor zover ik kan zien nog niet gereageerd. Alvast bedankt voor het meedenken.\n\nGroet,\nSanne",
       },
     ],
   },
@@ -640,7 +644,7 @@ export const SEED_TICKETS: SeedTicket[] = [
       {
         authorKind: "USER",
         daysAgo: 6,
-        body: "Hoi, ik heb een vraag over mijn factuur (nummer 2026-0148) aan opdrachtgever Bouwbedrijf Veenstra. De factuur is sinds afgelopen vrijdag goedgekeurd, dat zie ik ook netjes met een groen vinkje in mijn overzicht. Maar de status staat nog steeds op 'goedgekeurd' en niet op 'betaald'. Het gaat om 1.815 euro inclusief btw. Kunnen jullie me vertellen wanneer dit als betaald verwerkt wordt? Ik wil graag weten of ik het bedrag al kan verwachten of dat er nog iets van mij nodig is. Alvast bedankt!",
+        body: "Hoi, ik heb een vraag over mijn factuur (nummer 2026-0148) aan opdrachtgever Sint Elisabeth Ziekenhuis. De factuur is sinds afgelopen vrijdag goedgekeurd, dat zie ik ook netjes met een groen vinkje in mijn overzicht. Maar de status staat nog steeds op 'goedgekeurd' en niet op 'betaald'. Het gaat om 1.815 euro inclusief btw. Kunnen jullie me vertellen wanneer dit als betaald verwerkt wordt? Ik wil graag weten of ik het bedrag al kan verwachten of dat er nog iets van mij nodig is. Alvast bedankt!",
       },
       {
         authorKind: "ASSISTANT",
@@ -650,7 +654,7 @@ export const SEED_TICKETS: SeedTicket[] = [
       {
         authorKind: "AGENT",
         daysAgo: 4,
-        body: "Hallo Emma, je spreekt met Daan van Support. Ik heb je ticket opgepakt en factuur 2026-0148 erbij gepakt. Ik zie inderdaad dat de factuur op vrijdag 23 mei is goedgekeurd door Bouwbedrijf Veenstra, met een betaaltermijn van 14 dagen. De uitbetaling staat dus nog binnen de termijn gepland en is nog niet bijgeschreven, daarom blijft de status op 'goedgekeurd' staan. Ik ben op dit moment aan het navragen bij ons betaalteam of de overboeking al klaarstaat en wat de verwachte verwerkingsdatum is. Zodra ik daar uitsluitsel over heb, kom ik bij je terug met een concrete datum. Heb je nog even geduld, dan laat ik het je zo snel mogelijk weten.",
+        body: "Hallo Emma, je spreekt met Daan van Support. Ik heb je ticket opgepakt en factuur 2026-0148 erbij gepakt. Ik zie inderdaad dat de factuur op vrijdag 23 mei is goedgekeurd door Sint Elisabeth Ziekenhuis, met een betaaltermijn van 14 dagen. De uitbetaling staat dus nog binnen de termijn gepland en is nog niet bijgeschreven, daarom blijft de status op 'goedgekeurd' staan. Ik ben op dit moment aan het navragen bij ons betaalteam of de overboeking al klaarstaat en wat de verwachte verwerkingsdatum is. Zodra ik daar uitsluitsel over heb, kom ik bij je terug met een concrete datum. Heb je nog even geduld, dan laat ik het je zo snel mogelijk weten.",
       },
     ],
   },
@@ -735,7 +739,7 @@ export const SEED_TICKETS: SeedTicket[] = [
       {
         authorKind: "USER",
         daysAgo: 3,
-        body: "Beste Support,\n\nIk heb vorige week een opdracht geplaatst voor een interim-boekhouder via het platform. De opdracht staat nu live en ik heb al een paar reacties van zelfstandigen binnengekregen, waarvoor dank.\n\nIk loop nu tegen twee dingen aan en kom er in mijn omgeving niet helemaal uit:\n\n1. De reactietermijn loopt over een paar dagen af, maar ik heb nog niet de juiste kandidaat gevonden. Kan ik de looptijd van een gepubliceerde opdracht verlengen, en zo ja, waar doe ik dat precies? Ik zie bij de opdracht wel een knop 'Bewerken', maar het is mij niet duidelijk of ik daarmee ook de einddatum kan aanpassen zonder dat de opdracht opnieuw moet worden goedgekeurd.\n\n2. Stel dat ik wel iemand vind: hoe sluit ik de opdracht dan netjes af, zodat hij niet meer zichtbaar is voor nieuwe reacties? Krijgen de zelfstandigen die al hebben gereageerd dan automatisch bericht dat de opdracht is gesloten, of moet ik dat zelf doen?\n\nAlvast bedankt voor de uitleg.\n\nMet vriendelijke groet,\nMark Jansen",
+        body: "Beste Support,\n\nIk heb vorige week een dienst uitgezet voor een wijkverpleegkundige via het platform. De opdracht staat nu live en ik heb al een paar reacties van zelfstandigen binnengekregen, waarvoor dank.\n\nIk loop nu tegen twee dingen aan en kom er in mijn omgeving niet helemaal uit:\n\n1. De reactietermijn loopt over een paar dagen af, maar ik heb nog niet de juiste kandidaat gevonden. Kan ik de looptijd van een gepubliceerde opdracht verlengen, en zo ja, waar doe ik dat precies? Ik zie bij de opdracht wel een knop 'Bewerken', maar het is mij niet duidelijk of ik daarmee ook de einddatum kan aanpassen zonder dat de opdracht opnieuw moet worden goedgekeurd.\n\n2. Stel dat ik wel iemand vind: hoe sluit ik de opdracht dan netjes af, zodat hij niet meer zichtbaar is voor nieuwe reacties? Krijgen de zelfstandigen die al hebben gereageerd dan automatisch bericht dat de opdracht is gesloten, of moet ik dat zelf doen?\n\nAlvast bedankt voor de uitleg.\n\nMet vriendelijke groet,\nMark Jansen",
       },
     ],
   },
@@ -766,7 +770,7 @@ export const SEED_TICKETS: SeedTicket[] = [
   },
   {
     id: "t-bouwpartners-account",
-    owner: "bouwpartners",
+    owner: "ggz",
     role: "client",
     category: "ACCOUNT",
     status: "AUTO_ANSWERED",
@@ -786,7 +790,7 @@ export const SEED_TICKETS: SeedTicket[] = [
   },
   {
     id: "t-logiflow-tech",
-    owner: "logiflow",
+    owner: "ghz",
     role: "client",
     category: "TECHNICAL",
     status: "RESOLVED",
@@ -821,7 +825,7 @@ export const SEED_TICKETS: SeedTicket[] = [
   },
   {
     id: "t-datic-privacy",
-    owner: "datic",
+    owner: "ziekenhuis",
     role: "client",
     category: "PRIVACY",
     status: "ESCALATED",

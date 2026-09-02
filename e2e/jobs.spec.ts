@@ -57,7 +57,7 @@ test("opdrachtgever maakt, publiceert en ZZP'er vindt de opdracht", async ({ pag
   await page.fill("#location", "Amsterdam");
   await page
     .locator("fieldset", { hasText: "Vereiste skills" })
-    .getByText("TypeScript", { exact: true })
+    .getByText("Wondzorg", { exact: true })
     .click();
   await page
     .locator("fieldset", { hasText: "Vereiste certificaten" })
