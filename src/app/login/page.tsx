@@ -6,7 +6,6 @@ import { auth } from "@/auth";
 import { getPublicTrustStats } from "@/lib/public-trust";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { TrustStrip } from "@/components/marketing/trust-strip";
-import { LanguageToggle } from "@/components/i18n/language-toggle";
 import { getTranslator } from "@/lib/i18n/server";
 import { LoginForm } from "./login-form";
 
@@ -22,7 +21,7 @@ export default async function LoginPage({
     redirect("/dashboard");
   }
   const changed = (await searchParams).changed === "1";
-  const [trustStats, { locale, t }] = await Promise.all([getPublicTrustStats(), getTranslator()]);
+  const [trustStats, { t }] = await Promise.all([getPublicTrustStats(), getTranslator()]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
@@ -31,7 +30,6 @@ export default async function LoginPage({
           <BrandMark size={32} />
           <span className="font-display text-base font-semibold">Handslag</span>
           <div className="ml-auto flex items-center gap-2">
-            <LanguageToggle current={locale} label={t("Taal")} />
             <ThemeToggle
               toDarkLabel={t("Schakel naar donkere modus")}
               toLightLabel={t("Schakel naar lichte modus")}

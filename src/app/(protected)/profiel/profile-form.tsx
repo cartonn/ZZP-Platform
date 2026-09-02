@@ -74,7 +74,7 @@ export function ProfileForm({
             label="Functietitel"
             htmlFor="headline"
             error={fe.headline}
-            hint="Bijv. Senior Frontend Developer"
+            hint="Bijv. Wijkverpleegkundige niveau 4"
           >
             <Input id="headline" name="headline" defaultValue={initial.headline} maxLength={120} />
           </Field>

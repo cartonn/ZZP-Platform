@@ -54,7 +54,8 @@ describe("describeActiveJobFilters", () => {
 
   it("toont 'Mijn vakgebied' als mine true is zonder industryId", () => {
     const chips = describeActiveJobFilters(makeFilters({ mine: true }), emptyLookups);
-    expect(chips).toEqual([{ id: "mine", label: "Mijn vakgebied", param: "mine" }]);
+    // `offValue` maakt het wissen expliciet: de param weghalen zou de standaardstand (aan) teruggeven.
+    expect(chips).toEqual([{ id: "mine", label: "Mijn vakgebied", param: "mine", offValue: "0" }]);
   });
 
   it("toont de 'Zonder mijn reacties'-chip als hideApplied true is", () => {

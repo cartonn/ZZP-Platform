@@ -59,7 +59,11 @@ export interface JobFilters {
   q: string;
   skillIds: string[];
   industryId?: string;
-  /** ZZP-quickfilter: beperk tot de eigen profielbranches. Een expliciete `industryId` wint. */
+  /**
+   * ZZP-quickfilter: beperk tot de eigen profielbranches. Een expliciete `industryId` wint. Staat
+   * standaard AAN zodra de ZZP'er branches op zijn profiel heeft (zie `JobFilterDefaults.mine`);
+   * `mine=0` in de URL is de bewaarde "uit"-keuze van de gebruiker.
+   */
   mine: boolean;
   /** ZZP-quickfilter: verberg opdrachten waarop de ZZP'er al (niet-ingetrokken) heeft gereageerd. */
   hideApplied: boolean;
@@ -93,8 +97,32 @@ function toPositiveInt(v: string | undefined): number | undefined {
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined;
 }
 
+/**
+ * Tri-state van de "Mijn vakgebied"-quickfilter in de URL: `"1"` = expliciet aan, `"0"` = expliciet
+ * uit, alles anders (incl. afwezig) = geen keuze gemaakt. Zo kan de pagina een standaardstand kiezen
+ * zonder de bewuste keuze van de ZZP'er te overschrijven.
+ */
+export function parseMineParam(raw: string | string[] | undefined): boolean | undefined {
+  const value = first(raw);
+  if (value === "1") return true;
+  if (value === "0") return false;
+  return undefined;
+}
+
+export interface JobFilterDefaults {
+  /**
+   * Stand van "Mijn vakgebied" zonder expliciete keuze in de URL. De marktplaats zet dit op `true`
+   * zodra de ZZP'er branches op zijn profiel heeft: dan opent de lijst meteen op zijn eigen
+   * vakgebied in plaats van op alles.
+   */
+  mine?: boolean;
+}
+
 /** Parse + valideer ruwe searchParams naar veilige filters. Onbekende waarden vallen weg. */
-export function normalizeJobFilters(params: RawParams): JobFilters {
+export function normalizeJobFilters(
+  params: RawParams,
+  defaults: JobFilterDefaults = {},
+): JobFilters {
   const workModeRaw = first(params.workMode);
   const workMode = WORK_MODES.includes(workModeRaw as WorkMode)
     ? (workModeRaw as WorkMode)
@@ -128,7 +156,7 @@ export function normalizeJobFilters(params: RawParams): JobFilters {
       ),
     ],
     industryId,
-    mine: first(params.mine) === "1",
+    mine: parseMineParam(params.mine) ?? defaults.mine ?? false,
     hideApplied: first(params.hideApplied) === "1",
     onlyEligible: first(params.onlyEligible) === "1",
     location,

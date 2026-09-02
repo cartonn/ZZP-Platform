@@ -5,6 +5,7 @@ import {
   canTransitionJob,
   JobTransitionError,
   normalizeJobFilters,
+  parseMineParam,
 } from "@/lib/jobs";
 
 describe("job-statusovergangen", () => {
@@ -117,6 +118,23 @@ describe("normalizeJobFilters", () => {
     expect(normalizeJobFilters({ mine: "true" }).mine).toBe(false);
     // Bij een herhaalde param telt de eerste waarde.
     expect(normalizeJobFilters({ mine: ["1", "0"] }).mine).toBe(true);
+  });
+
+  it("'Mijn vakgebied' volgt de meegegeven standaard zolang de gebruiker niets koos", () => {
+    // Geen param = geen keuze → de standaard van de pagina (ZZP'er mét profielbranches) telt.
+    expect(normalizeJobFilters({}, { mine: true }).mine).toBe(true);
+    expect(normalizeJobFilters({ mine: "true" }, { mine: true }).mine).toBe(true);
+    // Een expliciete keuze wint altijd van de standaard — in beide richtingen.
+    expect(normalizeJobFilters({ mine: "0" }, { mine: true }).mine).toBe(false);
+    expect(normalizeJobFilters({ mine: "1" }, { mine: false }).mine).toBe(true);
+  });
+
+  it("parseMineParam is een tri-state: aan, uit, of geen keuze", () => {
+    expect(parseMineParam("1")).toBe(true);
+    expect(parseMineParam("0")).toBe(false);
+    expect(parseMineParam(undefined)).toBeUndefined();
+    expect(parseMineParam("ja")).toBeUndefined();
+    expect(parseMineParam(["0", "1"])).toBe(false);
   });
 
   it("parseert de 'verberg waar ik op reageerde'-quickfilter alleen bij exact '1'", () => {

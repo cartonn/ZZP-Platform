@@ -259,7 +259,7 @@ export function JobForm({
           defaultValue={initial.title}
           required
           maxLength={160}
-          placeholder="Bijv. Frontend Developer (React)"
+          placeholder="Bijv. Wijkverpleegkundige (VVT), regio Utrecht"
         />
       </Field>
 

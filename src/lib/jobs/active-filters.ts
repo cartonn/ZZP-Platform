@@ -24,6 +24,12 @@ export interface ActiveJobFilterChip {
   param: string;
   /** Voor multi-value params (skillIds): de specifieke waarde die verwijderd moet worden. Undefined = verwijder de hele param. */
   value?: string;
+  /**
+   * Voor filters die standaard AAN staan (nu alleen "Mijn vakgebied"): de waarde die de param
+   * krijgt bij wissen. Zonder deze waarde zou de param weghalen de standaardstand weer aanzetten
+   * en zou de chip meteen terugkomen — een dode knop.
+   */
+  offValue?: string;
 }
 
 export interface JobFilterLookups {
@@ -70,7 +76,7 @@ export function describeActiveJobFilters(
       param: "industryId",
     });
   } else if (filters.mine) {
-    chips.push({ id: "mine", label: "Mijn vakgebied", param: "mine" });
+    chips.push({ id: "mine", label: "Mijn vakgebied", param: "mine", offValue: "0" });
   }
 
   // 2b. "Verberg opdrachten waarop ik al reageerde"-quickfilter.

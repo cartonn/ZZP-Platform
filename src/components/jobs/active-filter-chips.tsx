@@ -26,6 +26,9 @@ export function ActiveFilterChips({ chips }: { chips: ActiveJobFilterChip[] }) {
       const remaining = next.getAll(chip.param).filter((v) => v !== chip.value);
       next.delete(chip.param);
       for (const v of remaining) next.append(chip.param, v);
+    } else if (chip.offValue !== undefined) {
+      // Standaard-aan-filter: expliciet uitzetten, anders zet de standaardstand 'm meteen terug.
+      next.set(chip.param, chip.offValue);
     } else {
       next.delete(chip.param);
     }
@@ -34,10 +37,14 @@ export function ActiveFilterChips({ chips }: { chips: ActiveJobFilterChip[] }) {
   };
 
   const clearAll = () => {
-    // Verse params: behoud alleen de sortering, alle filters + page verdwijnen.
+    // Verse params: behoud alleen de sortering, alle filters + page verdwijnen. Filters die
+    // standaard AAN staan worden expliciet uitgezet — anders blijft hun chip na "Wis alles" staan.
     const next = new URLSearchParams();
     const sort = params.get("sort");
     if (sort) next.set("sort", sort);
+    for (const chip of chips) {
+      if (chip.offValue !== undefined) next.set(chip.param, chip.offValue);
+    }
     router.push(`${pathname}?${next.toString()}`);
   };
 
