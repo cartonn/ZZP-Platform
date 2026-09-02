@@ -40,6 +40,12 @@ const daysFromNow = (n: number) => new Date(Date.now() + n * DAY);
  *  database leeg en komt de echte data via de CSV-import. */
 const SEED_DEMO = process.env.SEED_DEMO === "true";
 
+/** Tweede sleutel voor de DESTRUCTIEVE opschoning van de cascade-demo (facturen, prestaties,
+ *  samenwerkingen, events). Die opschoning wist tabellen leeg en zou op een demo-URL waar per
+ *  ongeluk echte data staat onherstelbaar toeslaan. Alleen met SEED_DEMO=true ÉN
+ *  SEED_DEMO_RESET=true wordt er iets verwijderd; zonder deze vlag blijft bestaande data staan. */
+const SEED_DEMO_RESET = process.env.SEED_DEMO_RESET === "true";
+
 /**
  * Maakt bij go-live een échte beheerder aan uit env (geen demo-wachtwoord), maar alleen als die
  * via BOOTSTRAP_ADMIN_EMAIL/PASSWORD is geconfigureerd én er nog geen ADMIN bestaat. mustChangePassword
@@ -977,7 +983,25 @@ async function main() {
   // Run-once: alleen genereren als de rijke set er nog niet is, zodat testwijzigingen behouden
   // blijven bij een herstart; de eerste keer wordt oude cascade-demo opgeruimd. SEED_DEMO-only.
   const RICH_COLLAB_TARGET = 13;
-  if ((await prisma.collaboration.count()) < RICH_COLLAB_TARGET) {
+  // VEILIGHEIDSPOORT vóór de destructieve opschoning hieronder. Die wist samenwerkingen, prestaties,
+  // facturen, grootboekregels en events LEEG. Op een lege database is dat een no-op, maar op een
+  // (demo-)URL waar inmiddels echte data staat, is het onherstelbaar dataverlies. Daarom wordt er
+  // alleen iets verwijderd als er niets te verliezen valt (alle betrokken tabellen leeg) óf als de
+  // reset expliciet is bewapend met SEED_DEMO_RESET=true.
+  const [collaborationCount, existingInvoiceCount, existingPerformanceCount] = await Promise.all([
+    prisma.collaboration.count(),
+    prisma.invoice.count(),
+    prisma.performance.count(),
+  ]);
+  const hasExistingCascadeData =
+    collaborationCount > 0 || existingInvoiceCount > 0 || existingPerformanceCount > 0;
+
+  if (collaborationCount < RICH_COLLAB_TARGET && hasExistingCascadeData && !SEED_DEMO_RESET) {
+    console.log(
+      "[seed] Cascade-demo overgeslagen: er staat al werkproces-data in de database en het opnieuw " +
+        "opbouwen zou die wissen. Zet SEED_DEMO_RESET=true om de demo-set bewust opnieuw op te bouwen.",
+    );
+  } else if (collaborationCount < RICH_COLLAB_TARGET) {
     // Oude/onvolledige cascade-demo opruimen in FK-veilige volgorde (children eerst).
     // BELANGRIJK: ook de cascade-applicaties weg, anders botst een herhaalde regeneratie op de
     // unique (jobId, freelancerId) bij het opnieuw aanmaken (de samenwerking wordt verwijderd, maar

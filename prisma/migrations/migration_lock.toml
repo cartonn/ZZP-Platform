@@ -1,0 +1,3 @@
+# Prisma Migrate draait uitsluitend tegen PostgreSQL (de productie-engine op Railway).
+# Lokaal en in CI blijft SQLite op `prisma db push` — zie prisma/manual-migrations/README.md.
+provider = "postgresql"

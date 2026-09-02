@@ -1,15 +1,31 @@
 // Productie-start (Railway). Idempotent en veilig bij elke (her)start:
 //  1. zorg dat de Prisma-provider past bij DATABASE_URL;
-//  2. zet het schema op de database (db push — additief; GEEN --accept-data-loss, zodat een
-//     destructieve schemawijziging de boot veilig laat falen i.p.v. productiedata te droppen);
+//  2. breng het schema op de database — zie het BESLUIT hieronder;
 //  3. start de Next.js-server op de door Railway aangereikte PORT;
 //  4. seed referentie- en eventueel demo-data asynchroon nadat /api/readiness echt gezond is,
 //     zodat Railway-healthchecks nooit wachten op een seed.
+//
+// BESLUIT (schema-bootstrap): PostgreSQL draait op **Prisma Migrate**, SQLite op `db push`.
+//   - Waarom: `db push` bij elke boot gaf geen migratiehistorie, geen rollback-pad, vereiste
+//     permanente DDL-rechten voor de runtime-user en liet bij meerdere replica's gelijktijdig DDL
+//     lopen. `prisma migrate deploy` past uitsluitend gereviewde, versiebeheerde migraties toe,
+//     houdt de historie bij in `_prisma_migrations` en serialiseert replica's via een
+//     advisory lock.
+//   - Baseline: de bestaande productiedatabase is met `db push` opgebouwd en heeft nog geen
+//     migratiehistorie. Staat het schema er al (tabel "User") zonder `_prisma_migrations`, dan
+//     markeren we `0_baseline` eenmalig als toegepast. Op een lege database draait
+//     `migrate deploy` de baseline gewoon zelf.
+//   - GEEN stille terugval naar `db push` als `migrate deploy` faalt: dat zou de historie corrupt
+//     maken en het verschil tussen "toegepast" en "toevallig bij" wegpoetsen. Falen = boot stopt.
+//   - SQLite (lokaal/CI) blijft `db push`: de migraties zijn Postgres-SQL, en die databases zijn
+//     wegwerpbaar zonder productiedata.
+//   De pure beslislogica staat in scripts/db-bootstrap-plan.mjs (unit-getest).
 import { execSync, spawn } from "node:child_process";
 import http from "node:http";
 import { createRequire } from "node:module";
 import { resolveDrainMs, resolveForceKillMs } from "./shutdown-config.mjs";
-import { syncSchema } from "./db-sync.mjs";
+import { backoffDelayMs, resolveDbSyncRetry, syncSchema } from "./db-sync.mjs";
+import { planDbBootstrap, resolveDbProvider } from "./db-bootstrap-plan.mjs";
 
 const require = createRequire(import.meta.url);
 
@@ -29,18 +45,87 @@ if (process.env.NODE_ENV === "production") {
 }
 
 run("node scripts/use-db-provider.mjs");
-// Schema idempotent op de database zetten met begrensde retry op TRANSIËNTE onbereikbaarheid
-// (Railway-redeploy / DB-failover / kort-nog-opstartende Postgres), zodat een deploy niet spurious
-// faalt op een database die enkele seconden later wél bereikbaar is. Het onderliggende commando
-// draait bewust ZONDER --accept-data-loss: additieve wijzigingen (nieuwe kolommen/indexes) gaan door,
-// maar een destructieve wijziging faalt zichtbaar i.p.v. stilzwijgend data te wissen — en zo'n fatale
-// weigering wordt NOOIT geretryd (alleen herkende connectiefouten), zodat de retry nooit een echt
-// schema-/dataverlies-probleem maskeert.
-await syncSchema({ log: console });
-
-const seedDemo = process.env.SEED_DEMO === "true";
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Kijk in de Postgres-catalogus of de migratiehistorie (`_prisma_migrations`) en het schema zelf
+ * (tabel "User") al bestaan. Dat bepaalt of de baseline eenmalig gemarkeerd moet worden.
+ *
+ * Begrensde retry met dezelfde parameters als de schema-sync: tijdens een Railway-redeploy is de
+ * database soms enkele seconden onbereikbaar en dat mag de boot niet spurious laten falen. Gebruikt
+ * de al aanwezige Prisma-client (geen extra dependency); `current_schemas(false)` respecteert de
+ * search_path die Prisma uit de `?schema=`-parameter van DATABASE_URL zet.
+ * @returns {Promise<{ hasMigrationsTable: boolean, hasUserTable: boolean }>}
+ */
+async function inspectPostgresSchema() {
+  const { maxRetries, baseDelayMs, maxDelayMs } = resolveDbSyncRetry(process.env);
+  const { PrismaClient } = await import("@prisma/client");
+  const client = new PrismaClient();
+  try {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        /** @type {{ table_name: string }[]} */
+        const rows = await client.$queryRaw`
+          SELECT table_name
+          FROM information_schema.tables
+          WHERE table_schema = ANY (current_schemas(false))
+            AND table_name IN ('_prisma_migrations', 'User')
+        `;
+        const present = new Set(rows.map((row) => row.table_name));
+        return {
+          hasMigrationsTable: present.has("_prisma_migrations"),
+          hasUserTable: present.has("User"),
+        };
+      } catch (error) {
+        if (attempt >= maxRetries) throw error;
+        const delay = backoffDelayMs(attempt + 1, baseDelayMs, maxDelayMs);
+        console.warn(
+          `[db] databasestatus nog niet op te vragen — poging ${attempt + 1}/${maxRetries} over ${delay}ms opnieuw`,
+        );
+        await wait(delay);
+      }
+    }
+  } finally {
+    await client.$disconnect().catch(() => {});
+  }
+}
+
+/**
+ * Voer het bootstrapplan uit. Elk commando draait via `syncSchema`, dat begrensde retry doet op
+ * TRANSIËNTE onbereikbaarheid en METEEN faalt op een fatale fout (destructieve wijziging, mislukte
+ * migratie) — zodat een retry nooit een echt schema-/dataprobleem maskeert.
+ */
+async function bootstrapDatabase() {
+  const provider = resolveDbProvider(process.env.DATABASE_URL);
+  const inspection =
+    provider === "postgresql"
+      ? await inspectPostgresSchema()
+      : { hasMigrationsTable: false, hasUserTable: false };
+  const steps = planDbBootstrap({ provider, ...inspection });
+
+  for (const { step, command, reason } of steps) {
+    console.log(`[db] ${step}: ${reason}`);
+    if (step === "resolve-baseline") {
+      // Best-effort: bij twee gelijktijdig opstartende replica's markeert er één de baseline en
+      // krijgt de ander "already recorded as applied". Dat is geen fout. Ging het écht mis, dan
+      // faalt `migrate deploy` hierna alsnog hard op de al bestaande tabellen — dat is de poort.
+      try {
+        run(command);
+      } catch {
+        console.warn(
+          "[db] baseline-markering ging niet door (mogelijk al gezet door een andere instance) — migrate deploy is de poort",
+        );
+      }
+      continue;
+    }
+    await syncSchema({ log: console, command });
+  }
+}
+
+await bootstrapDatabase();
+
+const seedDemo = process.env.SEED_DEMO === "true";
 
 async function waitForLocalReadiness(port, attempts = 90) {
   const url = `http://127.0.0.1:${port}/api/readiness`;

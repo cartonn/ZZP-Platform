@@ -1,0 +1,46 @@
+name: Migrations
+
+# Drift-poort: prisma/migrations en prisma/schema.prisma moeten hetzelfde PostgreSQL-schema
+# beschrijven. Zonder deze check kan een schemawijziging zonder migratie ongemerkt mergen en pas bij
+# de productie-deploy stuk gaan (migrate deploy maakt de kolom dan niet aan).
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: migrations-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migrations:
+    name: migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: shadow
+          POSTGRES_DB: shadow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Wegwerp-shadowdatabase: prisma migrate diff speelt de migraties hierop af en gooit 'm leeg
+      # achter. Bevat nooit echte gegevens.
+      SHADOW_DATABASE_URL: "postgresql://postgres:shadow@localhost:5432/shadow?schema=public"
+      DATABASE_URL: "postgresql://postgres:shadow@localhost:5432/shadow?schema=public"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Migraties en schema moeten hetzelfde beschrijven
+        run: npm run db:check-migrations
