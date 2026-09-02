@@ -4,6 +4,7 @@
 // zelfde drempels als het dashboard). De UI toont alleen wat hier wordt geteld.
 
 import { Prisma } from "@prisma/client";
+import { cache } from "react";
 
 import { pendingCollaborationProposals } from "@/lib/accepted-proposal";
 import { collaborationBlocksProposal } from "@/lib/collaboration-reproposal";
@@ -430,7 +431,16 @@ async function countClientSignableProposals(userId: string, now: Date): Promise<
   return count;
 }
 
-export async function navBadges(role: UserRole, userId: string): Promise<NavBadges> {
+/**
+ * Nav-badges per rol. Request-gecachet (React `cache`), zoals `computeTasks` in pending-tasks.ts: de
+ * app-shell rendert op élke beschermde pagina en een pagina mag dezelfde badges opvragen; binnen één
+ * request wordt de (query-zware) berekening zo hooguit één keer gedaan. Buiten een request-scope valt
+ * `cache` terug op een gewone aanroep, dus unit-tests zien onveranderd gedrag.
+ */
+export const navBadges = cache(async function navBadges(
+  role: UserRole,
+  userId: string,
+): Promise<NavBadges> {
   if (role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({
       where: { userId },
@@ -1126,4 +1136,4 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     };
   }
   return badges;
-}
+});

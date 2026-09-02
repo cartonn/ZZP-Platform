@@ -1314,10 +1314,14 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     tasks.push(jobNeedsAttentionTask(cold.jobId, cold.title, cold.headline));
   }
 
-  // BTW-aangifte-deadline (zie freelancerTasks) — ook de opdrachtgever heeft een eigen grootboek.
-  for (const vatDeadline of await getVatDeadlinesForActor(userId, "CLIENT")) {
-    tasks.push(vatDeadlineTask(vatDeadline));
-  }
+  // Bewust GEEN BTW-aangifte-taak voor de opdrachtgever (die staat alleen in `freelancerTasks`).
+  // Een zorginstelling is meestal btw-vrijgesteld (art. 11 lid 1 sub c/g Wet OB) en laat haar
+  // aangifte hoe dan ook door een accountant doen — het platform-grootboek is voor haar een
+  // registratie van inkoop, geen aangifteplicht die wij kunnen overzien. Een deadline-taak op onze
+  // deelverzameling van haar administratie was daardoor structureel onjuist: hij toont een saldo dat
+  // niet haar aangifte is, en hij is niet afvinkbaar. Wél weggehaald, niet stilgezet: de
+  // BTW-overzichten op /financien blijven bestaan voor wie ze wil zien. Scheelt bovendien één query
+  // per shell-render voor elke opdrachtgever (zie query-budget.test.ts).
 
   // Afgeronde samenwerkingen die nog beoordeeld kunnen worden (blind venster open) — reputatie-nudge.
   tasks.push(...(await reviewLeaveTasks(userId, "CLIENT", new Date())));
