@@ -12,8 +12,13 @@
   (deterministische build, geen Nixpacks). Elke merge naar `main` → nieuwe deploy.
 - **Runtime-start:** `scripts/start.mjs` (idempotent bij elke (her)start):
   1. Prisma-provider afstemmen op `DATABASE_URL` (`scripts/use-db-provider.mjs`).
-  2. `prisma db push --skip-generate` — **additief, bewust ZONDER `--accept-data-loss`**: een
-     destructieve schemawijziging laat de boot zichtbaar falen i.p.v. productiedata te wissen.
+  2. Schema bijwerken — **PostgreSQL draait op Prisma Migrate**: `prisma migrate deploy` past
+     uitsluitend de gereviewde migraties uit `prisma/migrations/` toe en houdt de historie bij in
+     `_prisma_migrations`. Staat het schema er al zonder die tabel (de database is ooit met
+     `db push` opgebouwd), dan wordt `0_baseline` eenmalig als toegepast gemarkeerd. Faalt de
+     migratie, dan stopt de boot zichtbaar — **er is bewust geen terugval op `db push`**. SQLite
+     (lokaal/CI) blijft `prisma db push --skip-generate`, zonder `--accept-data-loss`. Beslislogica:
+     `scripts/db-bootstrap-plan.mjs`; nieuwe migratie maken: `prisma/manual-migrations/README.md`.
   3. Next.js-server starten op de door Railway aangereikte `PORT`.
   4. Referentie- (en met `SEED_DEMO=true` ook demo-)data **asynchroon** seeden, pas nadat
      `/api/readiness` lokaal 200 geeft — healthchecks wachten dus nooit op een seed.
@@ -176,9 +181,13 @@ kapotte deploy:
 2. **Via git (duurzaam):** `git revert <slechte-merge-commit>` op een branch → PR → merge naar
    `main`. Railway bouwt de teruggedraaide staat. Gebruik dit als de fout in de code zit en je de
    herstelde staat wilt vastleggen.
-3. **Schema:** een teruggedraaide deploy draait opnieuw `prisma db push` (additief). Kolommen die
-   een vorige deploy toevoegde blijven staan (onschadelijk). **Draai nooit een handmatige
-   destructieve migratie terug op productie** zonder een geverifieerde back-up (§5).
+3. **Schema:** een teruggedraaide deploy draait `prisma migrate deploy` opnieuw. Migraties die al
+   toegepast zijn, worden overgeslagen — een rollback van de code draait het schema dus **niet**
+   terug. Kolommen die een vorige deploy toevoegde blijven staan (onschadelijk). Moet een migratie
+   echt terug, schrijf dan een nieuwe, vooruit-gerichte migratie; **draai nooit een handmatige
+   destructieve migratie terug op productie** zonder een geverifieerde back-up (§5). Daarom horen
+   dataraakende wijzigingen gesplitst te worden in expand → migreer → contract, zodat oude en nieuwe
+   code tijdens een rolling deploy naast elkaar kunnen draaien.
 
 > **Let op:** rollback herstelt de **code**, niet de **data**. Data-corruptie herstel je uit een
 > back-up (§5), niet met een deploy-rollback.

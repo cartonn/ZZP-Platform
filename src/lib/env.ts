@@ -160,6 +160,10 @@ const schema = z
     ALLOW_MOCK_VERIFICATION: z.string().optional(),
     // Demo-dataset-vlag (prisma/seed.ts). In productie mét demo-data mag de mock-verifier draaien.
     SEED_DEMO: z.string().optional(),
+    // Tweede sleutel voor de DESTRUCTIEVE demo-reset in prisma/seed.ts: alleen met SEED_DEMO=true
+    // ÉN SEED_DEMO_RESET=true mag de seed bestaande samenwerkingen/prestaties/facturen wissen om de
+    // demo-set opnieuw op te bouwen. Zonder deze vlag blijft bestaande data staan.
+    SEED_DEMO_RESET: z.string().optional(),
     // Zoekmachine-indexering. Standaard afgeschermd (besloten pilot; login-gated dienst met
     // gevoelige documenten): /robots.txt disallowt alles + globale X-Robots-Tag noindex. Zet op
     // "true" om bij go-live te indexeren. Zie src/lib/indexing.ts.
@@ -308,6 +312,14 @@ export function envWarnings(env: Env): string[] {
     // bewust op).
     warnings.push(
       "SEED_DEMO=true in productie — de demo-dataset wordt geseed met vaste accounts, waaronder de beheerder admin@zzp-platform.local met het publiek bekende wachtwoord demo1234, en de verificatie-waarschuwingen worden onderdrukt. Alleen bedoeld voor een demo-/test-URL. Zet SEED_DEMO uit, maak de productie-database schoon en zet de eerste beheerder via BOOTSTRAP_ADMIN_EMAIL/PASSWORD vóór livegang met echte gegevens.",
+    );
+  }
+  if (env.SEED_DEMO_RESET === "true") {
+    // De demo-reset wist bij de eerstvolgende seed samenwerkingen, prestaties, facturen,
+    // grootboekregels en events leeg om de demo-set opnieuw op te bouwen. Onomkeerbaar — dus nooit
+    // stil laten staan in een draaiende omgeving.
+    warnings.push(
+      "SEED_DEMO_RESET=true — de eerstvolgende seed WIST bestaande samenwerkingen, prestaties, facturen, grootboekregels en events om de demo-set opnieuw op te bouwen. Zet deze vlag weer uit zodra de demo-data staat.",
     );
   }
   if (env.STORAGE_DRIVER === "local") {

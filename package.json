@@ -18,6 +18,7 @@
     "check:env": "node scripts/check-env-docs.mjs",
     "preflight": "tsx scripts/preflight.ts",
     "db:push": "prisma db push",
+    "db:check-migrations": "node scripts/check-migrations.mjs",
     "db:seed": "prisma db seed",
     "db:backup": "tsx scripts/backup-db.ts",
     "db:restore": "tsx scripts/restore-db.ts",

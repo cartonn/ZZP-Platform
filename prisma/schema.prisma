@@ -1078,6 +1078,9 @@ model Notification {
   // Notificatielijst: per gebruiker, nieuwste eerst. userId blijft leidend, dus dit dekt
   // ook userId-only filters (bv. de ongelezen-badge).
   @@index([userId, createdAt])
+  // Ongelezen-teller (badge) draait op élke request: count where userId + readAt IS NULL. Zonder
+  // deze index moet Postgres alle notificaties van de gebruiker lezen om de nulls te tellen.
+  @@index([userId, readAt])
   // Push-delivery-sweep: nog-niet-gepushte notificaties, nieuwste eerst.
   @@index([pushedAt, createdAt])
 }
@@ -1197,6 +1200,11 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@index([action])
+  // Retentie-opschoning scant puur op ouderdom (createdAt < grens) en zou zonder index de hele
+  // audittabel moeten lezen — die groeit onbegrensd mee met het platform.
+  @@index([createdAt])
+  // "Wat heeft deze actor gedaan" (beheerdersonderzoek, AVG-inzageverzoek) filtert op actorId.
+  @@index([actorId])
 }
 
 // ---------------------------------------------------------------------------
