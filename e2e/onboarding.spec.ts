@@ -44,13 +44,13 @@ test("freelancer registreert, vult profiel en publiceert het", async ({ page, br
   await page.goto("/profiel/bewerken");
   await expect(page.getByRole("heading", { name: "Profiel bewerken" })).toBeVisible();
 
-  await page.fill("#headline", "Senior Frontend Developer");
-  await page.fill("#bio", "Tien jaar ervaring met React en TypeScript.");
+  await page.fill("#headline", "Senior Wijkverpleegkundige");
+  await page.fill("#bio", "Tien jaar ervaring in de wijkverpleging en complexe wondzorg.");
   await page.fill("#hourlyRate", "85");
   await page.fill("#location", "Amsterdam");
   await page.selectOption("#availability", "AVAILABLE");
   await page.fill("#languages", "nl, en");
-  await page.locator("#vaardigheden").getByText("TypeScript", { exact: true }).click();
+  await page.locator("#vaardigheden").getByText("Wondzorg", { exact: true }).click();
   await page.getByRole("radio", { name: /Openbaar/ }).check();
   await page.getByRole("button", { name: "Profiel opslaan" }).click();
 
@@ -71,7 +71,7 @@ test("freelancer registreert, vult profiel en publiceert het", async ({ page, br
   const anonPage = await anon.newPage();
   await anonPage.goto(href!);
   await expect(anonPage.getByRole("heading", { name: "Test Freelancer" })).toBeVisible();
-  await expect(anonPage.getByText("Senior Frontend Developer").first()).toBeVisible();
+  await expect(anonPage.getByText("Senior Wijkverpleegkundige").first()).toBeVisible();
   await shot(anonPage, "08-public-profile");
 
   // PRIVATE: zichtbaarheid server-side afgedwongen -> anoniem krijgt 404.
@@ -96,8 +96,8 @@ test("opdrachtgever registreert en bewerkt bedrijfsprofiel", async ({ page }) =>
   await expect(page.locator("#name")).toHaveValue("Testbedrijf B.V.");
 
   await page.fill("#location", "Utrecht");
-  await page.fill("#description", "Wij bouwen web- en mobiele applicaties.");
-  await page.selectOption("#industryId", { label: "ICT" });
+  await page.fill("#description", "Wij leveren wijkverpleging en VVT-zorg in de regio.");
+  await page.selectOption("#industryId", { label: "VVT" });
   await page.getByRole("button", { name: "Bedrijfsprofiel opslaan" }).click();
   await expect(page.getByText("Opgeslagen.")).toBeVisible();
 
