@@ -34,6 +34,8 @@ import {
 } from "@/lib/verification-filter";
 import { credentialTypeDemand, demandLevel } from "@/lib/verification-impact";
 import { getOpenJobCredentialRequirements } from "@/lib/data/verification-impact";
+import { activePlacementImpact } from "@/lib/verification-placement-impact";
+import { getActivePlacementImpactData } from "@/lib/data/verification-placement-impact";
 import { submittedExpiryLabel, summarizeSubmittedExpiry } from "@/lib/verification-expiry";
 import {
   countResubmissions,
@@ -86,6 +88,24 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
   const demand =
     queue.length > 0 ? credentialTypeDemand(await getOpenJobCredentialRequirements()) : {};
 
+  // Lopende-inzet-impact: welke inzendingen deblokkeren een draaiende (ACTIVE) inzet waarvan een
+  // vereist certificaattype nog niet geldig geverifieerd is? Dat is een live compliance-gat en dus
+  // urgenter dan open-opdracht-vraag. Gescoped op de ZZP'ers die nú in de wachtrij staan.
+  const placementData =
+    queue.length > 0
+      ? await getActivePlacementImpactData(queue.map((c) => c.freelancerProfileId))
+      : { placements: [], covered: [] };
+  const placementImpact = activePlacementImpact(
+    queue.map((c) => ({
+      id: c.id,
+      freelancerProfileId: c.freelancerProfileId,
+      type: c.type as CredentialType,
+    })),
+    placementData.placements,
+    placementData.covered,
+  );
+  const blockingCount = placementImpact.size;
+
   const filter = parseVerificationFilter(sp);
   const typeCounts = countByType(
     queue.map<FilterableCredential>((c) => ({
@@ -119,6 +139,7 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
             {health.staleCount > 0
               ? ` · ${health.staleCount} langer dan ${VERIFICATION_STALE_DAYS} dagen`
               : ""}
+            {blockingCount > 0 ? ` · ${blockingCount} blokkeren een lopende inzet` : ""}
             {expiry.expiredCount > 0 ? ` · ${expiry.expiredCount} reeds verlopen` : ""}
             {resubmitCount > 0
               ? ` · ${plural(resubmitCount, "herindiening", "herindieningen")}`
@@ -193,6 +214,20 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
                                 variant={days >= VERIFICATION_STALE_DAYS ? "warning" : "muted"}
                               >
                                 {waitingLabel(days)}
+                              </Badge>
+                            );
+                          })()}
+                          {(() => {
+                            // Hoogste urgentie: deze inzending goedkeuren dicht een openstaand
+                            // compliance-gat op een draaiende inzet.
+                            const blocking = placementImpact.get(c.id) ?? 0;
+                            if (blocking === 0) return null;
+                            return (
+                              <Badge
+                                variant="danger"
+                                title="Deze ZZP'er zit nu op een lopende inzet die dit certificaattype verplicht vereist, maar het is nog niet geldig geverifieerd — goedkeuren dicht dat gat direct."
+                              >
+                                Blokkeert lopende inzet · {plural(blocking, "inzet", "inzetten")}
                               </Badge>
                             );
                           })()}
