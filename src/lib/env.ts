@@ -236,6 +236,17 @@ const schema = z
     DATABASE_CONNECTION_LIMIT: z.string().optional(),
     DATABASE_POOL_TIMEOUT: z.string().optional(),
     DATABASE_PGBOUNCER: z.string().optional(),
+    // EENMALIGE transitie-noodrem (incident 2-9-2026, vervolg op de Redis-driver/drift-fix hierboven):
+    // de eerste Migrate-boot op een bestaande, met db push opgebouwde database (schema staat er, geen
+    // _prisma_migrations) draait `prisma db push --skip-generate` om drift te dichten — bewust ZONDER
+    // --accept-data-loss (zie scripts/db-sync.mjs). Prisma classificeert ook een onschuldige wijziging
+    // (bv. een NIEUWE unique constraint op een kolom zonder bestaande duplicaten) als "mogelijk
+    // dataverlies" en weigert dan zonder de vlag. Zet DB_TRANSITION_ACCEPT_DATA_LOSS=true om ALLEEN in
+    // die ene transitie-stap een tweede poging MET --accept-data-loss toe te staan — nooit bij gewone
+    // boots, en pas nadat de eerste (veilige) poging expliciet de waarschuwingen heeft gelogd. Zie
+    // scripts/db-bootstrap-plan.mjs + docs/RUNBOOK.md. Verwijder deze variabele weer zodra de
+    // transitie geslaagd is (envWarnings hieronder herinnert daaraan zolang hij aan staat).
+    DB_TRANSITION_ACCEPT_DATA_LOSS: z.string().optional(),
     // Auditlog-retentie (AVG dataminimalisatie, art. 5 lid 1e). Fail-safe-by-default: leeg = het
     // beloofde venster (het verwerkingsregister documenteert 12 maanden = 365) → de geplande taak
     // audit-retention (run-all) snoeit auditregels ouder dan dat venster. Een expliciete 0/negatieve
@@ -379,6 +390,15 @@ export function envWarnings(
     // stil laten staan in een draaiende omgeving.
     warnings.push(
       "SEED_DEMO_RESET=true — de eerstvolgende seed WIST bestaande samenwerkingen, prestaties, facturen, grootboekregels en events om de demo-set opnieuw op te bouwen. Zet deze vlag weer uit zodra de demo-data staat.",
+    );
+  }
+  if (env.DB_TRANSITION_ACCEPT_DATA_LOSS === "true") {
+    // Eenmalige transitie-noodrem (incident 2-9-2026, vervolg): staat aan zolang de eerste
+    // Migrate-boot een db-push-weigering (mogelijk dataverlies) mag overrulen met
+    // --accept-data-loss. Onomkeerbaar-in-effect op de volgende boot — dus nooit stil laten
+    // staan in een draaiende omgeving.
+    warnings.push(
+      "DB_TRANSITION_ACCEPT_DATA_LOSS=true — staat aan: de eerste Migrate-boot mag `prisma db push` bij een dataverlies-weigering herhalen MET --accept-data-loss (alleen in de eenmalige DB-transitie-stap, nooit bij gewone boots). Verwijder deze variabele weer zodra de transitie geslaagd is.",
     );
   }
   if (env.STORAGE_DRIVER === "local") {

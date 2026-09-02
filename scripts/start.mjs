@@ -28,7 +28,12 @@ import { readdirSync, readFileSync } from "node:fs";
 import http from "node:http";
 import { createRequire } from "node:module";
 import { resolveDrainMs, resolveForceKillMs } from "./shutdown-config.mjs";
-import { backoffDelayMs, resolveDbSyncRetry, syncSchema } from "./db-sync.mjs";
+import {
+  backoffDelayMs,
+  resolveDbSyncRetry,
+  syncSchema,
+  syncTransitionSchema,
+} from "./db-sync.mjs";
 import { planDbBootstrap, resolveDbProvider } from "./db-bootstrap-plan.mjs";
 
 const require = createRequire(import.meta.url);
@@ -150,7 +155,7 @@ async function bootstrapDatabase() {
     ...(migrationNames && migrationNames.length > 0 ? { migrationNames } : {}),
   });
 
-  for (const { step, command, reason } of steps) {
+  for (const { step, command, reason, transition } of steps) {
     console.log(`[db] ${step}: ${reason}`);
     if (step === "resolve-migration") {
       // Best-effort: bij twee gelijktijdig opstartende replica's markeert er één een migratiemap en
@@ -163,6 +168,13 @@ async function bootstrapDatabase() {
           "[db] migratie-markering ging niet door (mogelijk al gezet door een andere instance) — migrate deploy is de poort",
         );
       }
+      continue;
+    }
+    if (step === "push" && transition) {
+      // De ENE plek waar DB_TRANSITION_ACCEPT_DATA_LOSS mag gelden — uitsluitend deze eenmalige
+      // transitie-push (marker gezet in db-bootstrap-plan.mjs), nooit de gewone SQLite-push
+      // hieronder. Zie scripts/db-sync.mjs (syncTransitionSchema) voor het volledige gedrag.
+      await syncTransitionSchema({ log: console, command });
       continue;
     }
     await syncSchema({ log: console, command });
