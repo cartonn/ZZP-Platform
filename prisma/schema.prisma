@@ -1557,204 +1557,31 @@ model BackupHeartbeat {
   updatedAt DateTime @updatedAt
 }
 
-// Mail-aflever-heartbeat / dead-man's-switch voor het e-mailkanaal (één singleton-rij, channel = PK).
-// Anders dan de cron-/back-up-heartbeat is e-mail NIET schema-gedreven maar event-gedreven: er wordt
-// alleen verzonden wanneer er iets te melden valt. Daarom slaan we niet op "hoe lang geleden de
-// laatste verzending was" (dat zou tijdens een rustige periode vals alarm geven) maar de UITKOMST van
-// de laatste échte verzending: is het kanaal momenteel aan het afwijzen? Elke verzending via een echte
-// driver (smtp/resend/postmark/ses) registreert hier haar uitkomst; de noop-driver (geen kanaal) doet
-// dat bewust niet. Een systematisch afwijzend kanaal (verlopen sleutel, gede-verifieerd domein,
-// account geschorst) laat élke notificatie/reset/herinnering stil mislukken — de verzendcode vangt de
-// fout PII-veilig af en gaat door, dus zonder deze detector merkt niemand het tot een gebruiker klaagt.
-// Bevat geen persoonsgegevens — alleen tijdstippen, of de laatste verzending slaagde, het aantal
-// opeenvolgende mislukkingen en de driver-modus (config, geen PII — nooit adres/onderwerp/foutinhoud).
-model MailDeliveryHeartbeat {
-  channel             String    @id // bv. "outbound"
+// Aflever-heartbeat (dead-man's-switch) van ELK uitgaand kanaal - een rij per kanaal, `channel` = PK.
+// Vervangt de tien identieke `*DeliveryHeartbeat`-modellen (mail, web-push, object-opslag, betaalprovider,
+// de drie verificatieregisters, rate-limit-store, gelekt-wachtwoord-controle, error-monitoring, upload-scan
+// en routing): hun velden waren woord voor woord hetzelfde, alleen de tabelnaam verschilde. De enige echte
+// variatie zat in `driver` - het web-push-kanaal kent geen driver-begrip - en die kolom is daarom nullable.
+// Bewust GEEN Json-blob voor kanaalspecifieke velden: alle bewaakte kanalen delen dezelfde vier vragen
+// (wanneer was de laatste poging, slaagde die, wanneer was het laatste succes/de laatste mislukking, hoeveel
+// mislukkingen op rij), en een kolom blijft in SQL vindbaar, indexeerbaar en typegecontroleerd.
+//
+// Anders dan de cron-/back-up-heartbeat (schema-gedreven: de LEEFTIJD van de laatste run telt) zijn deze
+// kanalen event-gedreven: er wordt alleen iets afgeleverd wanneer er iets af te leveren valt, dus telt de
+// UITKOMST van de laatste echte operatie. Elke uitgaande operatie via een echte driver registreert hier haar
+// uitkomst (mock-/noop-drivers registreren bewust niets - geen productiekanaal). De opslag/DB-kant zit in
+// src/lib/observability/delivery-heartbeat.ts; het per-kanaal-oordeel in de `*-delivery-freshness.ts`-modules.
+//
+// Bevat geen persoonsgegevens, sleutels, endpoints of foutinhoud - alleen tijdstippen, de uitkomst, het
+// aantal opeenvolgende mislukkingen en de driver-modus (configuratie).
+model DeliveryHeartbeat {
+  channel             String    @id // bv. "outbound" | "web-push" | "object-storage" | "verification-big"
   lastAttemptAt       DateTime
   lastOk              Boolean
   lastSuccessAt       DateTime?
   lastFailureAt       DateTime?
   consecutiveFailures Int       @default(0)
-  driver              String // EMAIL_DRIVER-modus bij de laatste poging: "smtp" | "resend" | "postmark" | "ses"
-  updatedAt           DateTime  @updatedAt
-}
-
-// Dead-man's-switch voor het uitgaande web-push-kanaal (VAPID/PWA-pushmeldingen). Web-push is — net als
-// e-mail — een gebruikersgericht afleverkanaal, maar had geen doorlopend afleversignaal: een systematisch
-// afwijzend kanaal (geroteerde/verlopen VAPID-sleutels, provider-storing) laat élke push stil mislukken.
-// De push-delivery-taak registreert de uitkomst van elke afleverronde die aan echte (niet-verlopen)
-// endpoints probeerde af te leveren; verlopen abonnementen (churn) tellen niet als mislukking. Singleton-rij
-// per kanaal. Bevat geen persoonsgegevens — alleen tijdstippen, of de laatste ronde slaagde en de teller
-// (nooit endpoints/payloads/foutinhoud).
-model PushDeliveryHeartbeat {
-  channel             String    @id // bv. "web-push"
-  lastAttemptAt       DateTime
-  lastOk              Boolean
-  lastSuccessAt       DateTime?
-  lastFailureAt       DateTime?
-  consecutiveFailures Int       @default(0)
-  updatedAt           DateTime  @updatedAt
-}
-
-// Dead-man's-switch voor het object-opslagkanaal (S3/S3-compatibel, STORAGE_DRIVER=s3). Document-opslag
-// is een productie-kernkanaal (VOG/diploma/verzekering upload+download), maar had — anders dan mail/push —
-// geen doorlopend afleversignaal: een systematisch falende backend (verlopen AWS-sleutel, ingetrokken IAM,
-// verwijderde/verkeerde bucket, regio-storing) laat élke put/get/delete/exists stil mislukken. De
-// upload-code vangt de fout af en toont een generieke melding; zonder deze detector merkt niemand een
-// AANHOUDENDE storing tot een gebruiker klaagt. Elke opslag-operatie via de echte driver registreert hier
-// haar uitkomst (via de RecordingStorageDriver-decorator); de lokale disk-driver (dev-fallback) doet dat
-// bewust niet. Singleton-rij per kanaal. Bevat geen persoonsgegevens — alleen tijdstippen, of de laatste
-// operatie slaagde, het aantal opeenvolgende mislukkingen en de driver-modus (nooit keys/paden/foutinhoud).
-model StorageDeliveryHeartbeat {
-  channel             String    @id // bv. "object-storage"
-  lastAttemptAt       DateTime
-  lastOk              Boolean
-  lastSuccessAt       DateTime?
-  lastFailureAt       DateTime?
-  consecutiveFailures Int       @default(0)
-  driver              String // STORAGE_DRIVER-modus bij de laatste poging: "s3"
-  updatedAt           DateTime  @updatedAt
-}
-
-// Dead-man's-switch voor het uitgaande betaalprovider-kanaal (Stripe/Mollie, BILLING_PROVIDER=stripe|mollie).
-// De betaalprovider is een productie-kernkanaal (abonnement-checkout + statuscontrole), maar had — anders dan
-// storage/mail/push — geen doorlopend afleversignaal: een systematisch falende backend (verlopen/ingetrokken
-// API-sleutel, geschorst account, provider-storing) laat élke startCheckout/paymentStatus stil mislukken; een
-// checkout blijft dan voor altijd op PENDING hangen. Elke uitgaande operatie via de échte provider registreert
-// hier haar uitkomst (via de RecordingPaymentProvider-decorator); de no-op-provider (mock/gratis default) doet
-// dat bewust niet. Singleton-rij per kanaal. Bevat geen persoonsgegevens — alleen tijdstippen, of de laatste
-// operatie slaagde, het aantal opeenvolgende mislukkingen en de driver-modus (nooit sleutels/endpoints/foutinhoud).
-model BillingDeliveryHeartbeat {
-  channel             String    @id // bv. "payment-provider"
-  lastAttemptAt       DateTime
-  lastOk              Boolean
-  lastSuccessAt       DateTime?
-  lastFailureAt       DateTime?
-  consecutiveFailures Int       @default(0)
-  driver              String // BILLING_PROVIDER-modus bij de laatste poging: "mollie" | "stripe"
-  updatedAt           DateTime  @updatedAt
-}
-
-// Dead-man's-switch voor de uitgaande externe verificatie-registers (DUO-diploma's, BIG-register,
-// iDIN-identiteit; DIPLOMA_VERIFIER=duo / BIG_VERIFIER=bigregister / IDENTITY_VERIFIER=idin). Verificatie
-// is de KERN-differentiator van het platform, maar was — anders dan storage/mail/push/billing — het enige
-// productie-kernkanaal met een uitgaande externe call zonder doorlopend afleversignaal: een verlopen/
-// ingetrokken sleutel, een geschorst register-account of een register-storing laat élke verify() stil
-// mislukken; de ZZP'er kan zijn bewijsstuk dan niet laten verifiëren. Elke uitgaande operatie via een
-// écht register registreert hier haar uitkomst (via de Recording*Verifier-decorators); de mock-verifiers
-// (dev/demo default) doen dat bewust niet. Eén singleton-rij per register (channel). Bevat geen
-// persoonsgegevens — alleen tijdstippen, of de laatste operatie slaagde, het aantal opeenvolgende
-// mislukkingen en de driver-modus (nooit sleutels/endpoints/foutinhoud/gegevens van de houder).
-model VerificationDeliveryHeartbeat {
-  channel             String    @id // "verification-diploma" | "verification-big" | "verification-identity"
-  lastAttemptAt       DateTime
-  lastOk              Boolean
-  lastSuccessAt       DateTime?
-  lastFailureAt       DateTime?
-  consecutiveFailures Int       @default(0)
-  driver              String // register-driver bij de laatste poging: "duo" | "bigregister" | "idin"
-  updatedAt           DateTime  @updatedAt
-}
-
-// Dead-man's-switch voor de gedeelde rate-limit-store (Upstash Redis REST, RATE_LIMIT_STORE=upstash). De
-// rate-limiter beschermt login/registratie/wachtwoordherstel tegen brute-force en misbruik; bij horizontale
-// schaling moet die telling gedeeld zijn. De Upstash-store is bewust FAIL-OPEN: valt de Redis-call uit, dan
-// laat consume() het verzoek toe (beschikbaarheid boven een tijdelijk zwakkere limiet). Dat is de juiste keuze
-// voor één blip, maar een AANHOUDENDE storing (verlopen/ingetrokken REST-token, verwijderde database, verkeerde
-// URL, regio-storing) zet de rate-limiting dan STIL uit over alle instances — de brute-force-bescherming valt
-// weg zonder dat iets dat toont. Anders dan storage/mail/push/billing/verification had dit fail-open kanaal geen
-// doorlopend afleversignaal. Elke uitgaande consume() via de échte Upstash-store registreert hier haar uitkomst
-// (de in-memory default — pilot/dev — registreert bewust niets, geen productie-kanaal). Geslaagde operaties worden
-// bewust GECOALESCEERD (max één schrijf per venster) zodat de auth-hot-path geen DB-write per verzoek krijgt;
-// mislukkingen worden altijd direct vastgelegd zodat een monitor op een aanhoudende storing scherp blijft.
-// Singleton-rij per kanaal. Bevat geen persoonsgegevens — alleen tijdstippen, of de laatste operatie slaagde,
-// het aantal opeenvolgende mislukkingen en de driver-modus (nooit keys/endpoints/foutinhoud/rate-limit-keys).
-model RateLimitDeliveryHeartbeat {
-  channel             String    @id // bv. "rate-limit-store"
-  lastAttemptAt       DateTime
-  lastOk              Boolean
-  lastSuccessAt       DateTime?
-  lastFailureAt       DateTime?
-  consecutiveFailures Int       @default(0)
-  driver              String // RATE_LIMIT_STORE-modus bij de laatste poging: "upstash"
-  updatedAt           DateTime  @updatedAt
-}
-
-// Aflever-heartbeat (dead-man's-switch) voor de gelekt-wachtwoord-controle (HIBP,
-// PASSWORD_BREACH_CHECK=hibp). De controle is bewust FAIL-OPEN — een storing (netwerk/time-out/
-// niet-ok/parsefout) laat het wachtwoord toe zodat registratie/wachtwoordherstel nooit door een
-// externe blip wordt geblokkeerd. Een AANHOUDENDE storing (HIBP-outage, verkeerde base-URL, DNS)
-// zet de credential-stuffing-bescherming dan STIL uit zonder dat iets dat toont. Elke échte check
-// via de HIBP-adapter registreert hier haar uitkomst (de noop-default registreert bewust niets —
-// geen productie-kanaal). Event-gedreven oordeel op de laatste operatie (never/ok/failing + teller).
-// Bevat geen persoonsgegevens — alleen tijdstippen, de teller en de driver-modus.
-model PasswordBreachDeliveryHeartbeat {
-  channel             String    @id // "password-breach"
-  lastAttemptAt       DateTime
-  lastOk              Boolean
-  lastSuccessAt       DateTime?
-  lastFailureAt       DateTime?
-  consecutiveFailures Int       @default(0)
-  driver              String // PASSWORD_BREACH_CHECK-modus bij de laatste poging: "hibp"
-  updatedAt           DateTime  @updatedAt
-}
-
-// Aflever-heartbeat (dead-man's-switch) voor de externe error-monitoring (Sentry, SENTRY_DSN gezet).
-// De error-reporter is bewust FAIL-OPEN — kan een fout niet naar de externe monitor worden gestuurd
-// (pakket @sentry/nextjs niet geïnstalleerd, of captureException/init werpt), dan valt 'ie STIL terug
-// op console-loggen zodat het rapporteren zelf nooit een request laat falen. Juist voor één blip, maar
-// een AANHOUDENDE storing (verwijderd/niet-geïnstalleerd pakket, kapotte DSN, geblokkeerde uitgaande
-// route) laat élke server-/taakfout de externe monitoring STIL missen — precies de faalmodus die de
-// point-in-time-zelftest (menselijke klik) niet doorlopend afvangt. Elke échte capture via de
-// Sentry-reporter registreert hier haar uitkomst (de console-default zónder DSN registreert bewust niets —
-// geen extern kanaal). Event-gedreven oordeel op de laatste operatie (never/ok/failing + teller);
-// geslaagde captures worden gecoalesceerd (de reporter zit op de fout-hot-path bij een fout-storm).
-// Bevat geen persoonsgegevens, geen DSN en geen foutinhoud — alleen tijdstippen, de teller en de driver.
-model ErrorMonitoringDeliveryHeartbeat {
-  channel             String    @id // "error-monitoring"
-  lastAttemptAt       DateTime
-  lastOk              Boolean
-  lastSuccessAt       DateTime?
-  lastFailureAt       DateTime?
-  consecutiveFailures Int       @default(0)
-  driver              String // error-monitoring-modus bij de laatste poging: "sentry"
-  updatedAt           DateTime  @updatedAt
-}
-
-// Aflever-heartbeat (dead-man's-switch) van de malware-scan van geüploade bewijsstukken. De scan-grens
-// (assertUploadClean) stuurt elk bestand vóór opslag langs een ClamAV-daemon (UPLOAD_SCANNER=clamav) en
-// is standaard FAIL-CLOSED (weiger bij storing), maar met UPLOAD_SCAN_FAIL_OPEN=true STIL fail-open: dan
-// gaan bestanden ongescand naar de opslag zonder dat iets dat toont. Elke échte scan registreert hier
-// haar uitkomst; event-gedreven oordeel op de laatste operatie. De Noop-scanner (geen kanaal) registreert
-// niet. Geslaagde scans worden gecoalesceerd (de scan zit op het upload-pad). Bevat geen persoonsgegevens,
-// geen host/poort en geen bestandsinhoud — alleen tijdstippen, de teller en de driver.
-model UploadScanDeliveryHeartbeat {
-  channel             String    @id // "upload-scan"
-  lastAttemptAt       DateTime
-  lastOk              Boolean
-  lastSuccessAt       DateTime?
-  lastFailureAt       DateTime?
-  consecutiveFailures Int       @default(0)
-  driver              String // scanner-modus bij de laatste poging: "clamav"
-  updatedAt           DateTime  @updatedAt
-}
-
-// Aflever-heartbeat / dead-man's-switch op de externe routing-provider (ROUTING_PROVIDER=geoapify).
-// De reistijd-routing valt bij ELKE storing STIL terug op de offline haversine-schatting
-// (estimateTravelMinutesWithRouting → .catch → estimateTravelMinutes). Een verlopen/ingetrokken/
-// verkeerde GEOAPIFY_API_KEY of een register-storing laat zo élke lookup stil degraderen — de
-// match-reistijd wordt onnauwkeuriger zonder dat iets dat toont. Deze singleton-rij legt de uitkomst
-// van de laatste échte provider-round-trip vast (geocode of route). Bevat nooit de API-sleutel, de
-// aanroep-URL of adres-/houdergegevens — alleen tijdstip, teller en de driver-modus ("geoapify").
-// De offline provider registreert bewust NIETS (geen extern kanaal).
-model RoutingDeliveryHeartbeat {
-  channel             String    @id // "routing"
-  lastAttemptAt       DateTime
-  lastOk              Boolean
-  lastSuccessAt       DateTime?
-  lastFailureAt       DateTime?
-  consecutiveFailures Int       @default(0)
-  driver              String // routing-provider bij de laatste poging: "geoapify"
+  driver              String? // driver-/providermodus bij de laatste poging; null zonder driver-begrip
   updatedAt           DateTime  @updatedAt
 }
 

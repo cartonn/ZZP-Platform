@@ -8,7 +8,7 @@ const upsert = vi.hoisted(() => vi.fn(async () => ({})));
 const loggerError = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/db", () => ({
-  prisma: { uploadScanDeliveryHeartbeat: { findUnique, upsert } },
+  prisma: { deliveryHeartbeat: { findUnique, upsert } },
 }));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { error: loggerError, warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
