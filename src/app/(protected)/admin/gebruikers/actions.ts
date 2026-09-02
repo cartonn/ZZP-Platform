@@ -71,7 +71,7 @@ export async function setUserStatus(userId: string, target: string): Promise<voi
       }),
     }),
   ]);
-  revalidatePath("/admin/gebruikers");
+  revalidatePath("/admin/gebruikersbeheer");
   revalidatePath("/acties");
   revalidatePath("/dashboard");
 }
@@ -1125,5 +1125,5 @@ export async function anonymizeUser(userId: string): Promise<void> {
     );
   }
 
-  revalidatePath("/admin/gebruikers");
+  revalidatePath("/admin/gebruikersbeheer");
 }

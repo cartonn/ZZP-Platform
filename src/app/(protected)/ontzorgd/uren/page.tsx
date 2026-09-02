@@ -24,7 +24,7 @@ export default async function IndirectUrenPage() {
   const actor = await requireActor();
 
   // Alleen voor ZZP'ers.
-  if (actor.role !== "FREELANCER") redirect("/administratie");
+  if (actor.role !== "FREELANCER") redirect("/financien");
 
   // Betaalde feature: IB_VOORBEREIDING-entitlement vereist.
   if (!(await userHasEntitlement(actor.id, "IB_VOORBEREIDING"))) {
@@ -71,7 +71,7 @@ export default async function IndirectUrenPage() {
     <div className="space-y-6">
       {/* Terug-link */}
       <Link
-        href="/ontzorgd"
+        href="/financien?tab=ontzorgd"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-3.5" aria-hidden />

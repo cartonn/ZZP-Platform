@@ -17,8 +17,12 @@ async function login(page: Page, email: string) {
 test.describe("QA: Ontzorgd-dashboard", () => {
   test("ZZP'er ziet het Ontzorgd-scherm met disclaimer", async ({ page }) => {
     await login(page, "zzp@zzp-platform.local");
+    // /ontzorgd leidt permanent om naar de Ontzorgd-tab van de Administratie-hub (/financien).
     await page.goto("/ontzorgd");
-    await expect(page.getByRole("heading", { name: "Ontzorgd" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Ontzorgd" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     // De fiscale disclaimer moet altijd aanwezig zijn (geen fiscaal advies).
     await expect(page.getByText(/indicatieve berekening/i)).toBeVisible();
     await shot(page, "ontzorgd-freelancer");

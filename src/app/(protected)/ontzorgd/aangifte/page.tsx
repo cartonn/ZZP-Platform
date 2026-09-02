@@ -24,7 +24,7 @@ const KIND_LABEL: Record<TaxFilingKind, string> = { IB: "Inkomstenbelasting", BT
 
 export default async function AangiftePage() {
   const actor = await requireActor();
-  if (actor.role !== "FREELANCER") redirect("/administratie");
+  if (actor.role !== "FREELANCER") redirect("/financien");
 
   const [entitled, requests] = await Promise.all([
     // Canonieke entitlement-poort (isSubscriptionActive): een verlopen betaalde periode telt als FREE,

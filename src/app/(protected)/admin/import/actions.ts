@@ -366,6 +366,6 @@ export async function commitImport(formData: FormData): Promise<ImportCommitResu
     }),
   });
 
-  revalidatePath("/admin/gebruikers");
+  revalidatePath("/admin/gebruikersbeheer");
   return result;
 }

@@ -1,32 +1,14 @@
-import { type Metadata } from "next";
-import { redirect } from "next/navigation";
-import { Sparkles } from "lucide-react";
-import { requireActor } from "@/lib/authz";
-import { OntzorgdPanel } from "@/components/administratie/ontzorgd-panel";
+import { permanentRedirect } from "next/navigation";
+import { hubRedirectTarget, type RouteSearchParams } from "@/lib/hub-redirect";
 
-export const metadata: Metadata = { title: "Ontzorgd · Handslag" };
-
-export default async function OntzorgdPage() {
-  const actor = await requireActor();
-  // Alleen voor ZZP'ers; opdrachtgever/admin hebben een eigen administratie.
-  if (actor.role !== "FREELANCER") redirect("/administratie");
-
-  return (
-    <div className="space-y-6">
-      <header className="space-y-1">
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
-          Administratie
-        </p>
-        <div className="flex items-center gap-2">
-          <Sparkles className="size-5 text-primary" aria-hidden />
-          <h1 className="font-display text-2xl font-semibold tracking-tight">Ontzorgd</h1>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Jouw administratie en belasting in één beeld. Wij rekenen voor, jij hoeft alleen te
-          werken.
-        </p>
-      </header>
-      <OntzorgdPanel actor={actor} />
-    </div>
-  );
+// Ontzorgd is een tab van de Administratie-hub op /financien. Deze losse route blijft als
+// permanente omleiding bestaan zodat oude deeplinks — o.a. de urencriterium-notificatie en de
+// factuur-reservekaart — blijven werken. De subroutes /ontzorgd/uren en /ontzorgd/aangifte
+// blijven eigen pagina's; alleen dit overzicht was dubbel.
+export default async function OntzorgdPage({
+  searchParams,
+}: {
+  searchParams: Promise<RouteSearchParams>;
+}) {
+  permanentRedirect(hubRedirectTarget("/financien", "ontzorgd", await searchParams));
 }

@@ -769,7 +769,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
   return {
     stats: [
       { label: "Openstaande verificaties", value: pending, href: "/admin/verificaties" },
-      { label: "Gebruikers", value: users, href: "/admin/gebruikers" },
+      { label: "Gebruikers", value: users, href: "/admin/gebruikersbeheer" },
       { label: "Opdrachten", value: jobs, href: "/admin/opdrachten" },
     ],
     running,

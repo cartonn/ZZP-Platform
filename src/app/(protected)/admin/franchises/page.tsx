@@ -1,23 +1,14 @@
-import { type Metadata } from "next";
-import { requireRole } from "@/lib/authz";
-import { PageHeader } from "@/components/ui/page-header";
-import { BemiddelaarsPanel } from "@/components/admin/gebruikersbeheer/bemiddelaars-panel";
-import { PendingActivationsPanel } from "./pending-activations-panel";
+import { permanentRedirect } from "next/navigation";
+import { hubRedirectTarget, type RouteSearchParams } from "@/lib/hub-redirect";
 
-export const metadata: Metadata = { title: "Bemiddelingen · Handslag" };
-
-export default async function FranchisesPage() {
-  await requireRole("ADMIN");
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Gebruikersbeheer"
-        title="Bemiddelingen"
-        description="Bemiddelaars (tenant-admins) en hun tenants. Een bemiddelaar brengt eigen opdrachtgevers en ZZP'ers in het platform."
-      />
-      <PendingActivationsPanel />
-      <BemiddelaarsPanel />
-    </div>
+// Bemiddelaars is een tab van de Gebruikersbeheer-hub. Deze losse route blijft als permanente
+// omleiding bestaan zodat oude deeplinks blijven werken.
+export default async function AdminFranchisesPage({
+  searchParams,
+}: {
+  searchParams: Promise<RouteSearchParams>;
+}) {
+  permanentRedirect(
+    hubRedirectTarget("/admin/gebruikersbeheer", "bemiddelaars", await searchParams),
   );
 }

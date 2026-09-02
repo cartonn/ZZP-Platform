@@ -106,7 +106,7 @@ async function notifyAdmins(f: Finding): Promise<number> {
       type: "HEALTH_INCIDENT",
       title: "Platform-bewaking: kritiek signaal",
       body: f.summary,
-      link: "/admin/bewaking",
+      link: "/admin/toezicht?tab=bewaking",
     })),
   });
   return admins.length;

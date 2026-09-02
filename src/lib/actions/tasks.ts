@@ -1260,7 +1260,7 @@ export function vatDeadlineTask(summary: VatDeadlineSummary): PendingTask {
     tone: "attention",
     priority: summary.status === "overdue" ? P.vatDeadlineOverdue : P.vatDeadlineDueSoon,
     resolver: "link", // aangifte doe je bij de Belastingdienst; hier de boekhouding met de cijfers
-    href: "/administratie",
+    href: "/financien?tab=boekhouding",
     year: summary.year,
     quarter: summary.quarter,
   };

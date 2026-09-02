@@ -15,7 +15,7 @@ export default async function VerplichtingenPage() {
   const actor = await requireActor();
 
   if (actor.role !== "CLIENT") {
-    redirect("/administratie");
+    redirect("/financien");
   }
 
   const [items, ownPaymentBehavior] = await Promise.all([

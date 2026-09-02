@@ -33,7 +33,7 @@ async function setStatus(incidentId: string, to: IncidentStatus, action: string)
     entityType: "HealthIncident",
     entityId: incidentId,
   });
-  revalidatePath("/admin/bewaking");
+  revalidatePath("/admin/toezicht");
 }
 
 export async function acknowledgeIncident(incidentId: string): Promise<void> {

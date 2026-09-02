@@ -73,7 +73,7 @@ export async function createFranchise(
     auditMetadata: { owner: franchiserEmail },
   });
 
-  revalidatePath("/admin/franchises");
+  revalidatePath("/admin/gebruikersbeheer");
   return { ok: true, email: franchiserEmail, tempPassword, tenantName };
 }
 

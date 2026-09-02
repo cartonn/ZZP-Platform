@@ -67,7 +67,7 @@ export async function runVatReminderTask(opts: {
           type: r.notificationType,
           title: r.title,
           body: r.body,
-          link: "/administratie",
+          link: "/financien?tab=boekhouding",
         },
       }),
       prisma.auditLog.create({

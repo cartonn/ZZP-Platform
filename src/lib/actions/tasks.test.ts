@@ -733,7 +733,7 @@ describe("vatDeadlineTask", () => {
       kind: "vat-deadline",
       id: "vat-deadline:2026-Q2",
       resolver: "link",
-      href: "/administratie",
+      href: "/financien?tab=boekhouding",
       tone: "attention",
       priority: P.vatDeadlineDueSoon,
       year: 2026,

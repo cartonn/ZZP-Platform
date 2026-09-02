@@ -85,7 +85,7 @@ export default async function InzichtPage() {
   const role = actor.role as UserRole;
 
   // Admins hebben hun eigen platform-brede statistieken.
-  if (role === "ADMIN") redirect("/admin/statistieken");
+  if (role === "ADMIN") redirect("/admin/toezicht");
 
   const description =
     role === "FRANCHISER"
@@ -180,7 +180,7 @@ function WinstPerMaandCard({ trend }: { trend: ProfitTrend }) {
       title="Winst per maand"
       action={
         <Link
-          href="/ontzorgd"
+          href="/financien?tab=ontzorgd"
           className="focus-ring inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:underline"
         >
           Naar ontzorgd
