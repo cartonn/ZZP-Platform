@@ -244,7 +244,14 @@ npm run db:restore-drill -- --dry-run --target "postgres://.../drill"     # toon
 
 Veilig: het doel is **uitsluitend** `DRILL_DATABASE_URL`/`--target` en de drill weigert hard als dat
 gelijk is aan de bron-`DATABASE_URL` — een drill kent bewust **geen `--force`** (een drill die de
-productie kan raken is geen drill). Draai dit periodiek (bv. maandelijks) en na een schema-migratie.
+productie kan raken is geen drill). **Privacy:** de drill herstelt een volledige productie-back-up
+(namen, e-mail, IBAN/KvK/btw, VOG/BIG/diploma-metadata) en **ruimt de scratch-database daarom ná de
+verificatie ALTIJD op** (drop `public`-schema, ook wanneer de drill faalt) zodat er geen langlevende
+PII-schaduwkopie achterblijft (AVG art. 5(1)(c)/5(1)(e)/32). Lukt het opruimen niet, dan waarschuwt de
+drill luid — ruim de scratch-database dan handmatig op. **Mensenwerk (blijft):** wijs `DRILL_DATABASE_URL`
+naar een **lege wegwerp-Postgres met dezelfde beveiliging als productie** (encryptie-at-rest,
+netwerk-isolatie, toegangscontrole) — de drill dicht het retentievenster in code, maar de vertrouwelijkheid
+van het scratch-doel zelf is een infra-keuze. Draai dit periodiek (bv. maandelijks) en na een schema-migratie.
 Alternatief handmatig: herstel naar een wegwerp-database, zet `DATABASE_URL` daarheen in staging en
 verifieer met `/api/readiness` + een steekproef. Een onbeproefde back-up is geen back-up.
 

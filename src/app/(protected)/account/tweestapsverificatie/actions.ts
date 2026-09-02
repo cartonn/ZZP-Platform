@@ -7,6 +7,7 @@ import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import { reauthRateLimiter } from "@/lib/rate-limit";
 import { generateTotpSecret, otpauthUri, verifyTotpStep } from "@/lib/two-factor/totp";
 import { encryptTwoFactorSecret, decryptTwoFactorSecret } from "@/lib/two-factor/secret-crypto";
 import { generateRecoveryCodes, hashRecoveryCode } from "@/lib/two-factor/recovery-codes";
@@ -203,6 +204,28 @@ export async function disableTwoFactor(
     return { error: "Vul je huidige wachtwoord in." };
   }
 
+  const meta = await requestMeta();
+
+  // Brute-force-rem op de her-authenticatie (CWE-307 / OWASP A07): begrens het aantal disable-pogingen
+  // per account. Een aanvaller met een geldige (gestolen) sessie mag noch het huidige wachtwoord noch
+  // de 6-cijferige TOTP ongelimiteerd kunnen raden om zo de tweede factor te strippen. Gekeyd op
+  // actor.id (de aanvaller bezit de sessie al → IP-rotatie omzeilt de rem niet). Alleen een VOLLEDIG
+  // geslaagde uitschakeling reset de teller, zodat ook mislukte factor-pogingen blijven meetellen en
+  // de TOTP-ruimte niet ongelimiteerd afgezocht kan worden.
+  if (!(await reauthRateLimiter.check(actor.id)).allowed) {
+    await audit({
+      actorId: actor.id,
+      action: "AUTH_RATE_LIMITED",
+      entityType: "User",
+      entityId: actor.id,
+      metadata: { context: "disable-2fa" },
+      ...meta,
+    });
+    return {
+      error: "Te veel pogingen. Wacht een paar minuten en probeer het daarna opnieuw.",
+    };
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: actor.id },
     select: {
@@ -218,8 +241,6 @@ export async function disableTwoFactor(
     return { error: "Wachtwoord klopt niet." };
   }
 
-  const meta = await requestMeta();
-
   // Tweede-factor-challenge: alleen betekenisvol wanneer 2FA daadwerkelijk aan staat. Zo niet, dan is
   // er niets te strippen en blijft het gedrag onveranderd. Faalt de factor, dan weigeren we vóór enige
   // schrijfactie (de audit-mislukking zit in verifySecondFactor).
@@ -234,6 +255,9 @@ export async function disableTwoFactor(
         "De verificatiecode klopt niet of is verlopen. Vul de actuele code uit je authenticator-app of een ongebruikte herstelcode in.",
     };
   }
+
+  // Volledig geslaagde her-authenticatie (wachtwoord + tweede factor): reset de rem.
+  await reauthRateLimiter.reset(actor.id);
 
   await prisma.$transaction([
     prisma.twoFactorRecoveryCode.deleteMany({ where: { userId: actor.id } }),

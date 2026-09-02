@@ -321,6 +321,29 @@ export function parsePsqlCount(output: string | undefined | null): number | null
   return Number(first);
 }
 
+/**
+ * psql-argumenten die de zojuist herstelde data weer VOLLEDIG uit de scratch-database wissen: drop het
+ * hele `public`-schema (met alle herstelde tabellen/PII) en maak het leeg opnieuw aan. De drill herstelt
+ * een volledige productie-back-up — inclusief namen, e-mails, IBAN/KvK/btw en VOG/BIG/diploma-metadata —
+ * in een wegwerp-database; zónder opruimen blijft die gevoelige kopie tot de vólgende drill (dagen/weken)
+ * querybaar in een tweede, minder-bewaakte omgeving staan. Dat is een onnodige, langlevende PII-kopie
+ * (AVG art. 5(1)(c) minimalisatie / art. 5(1)(e) opslagbeperking / art. 32 vertrouwelijkheid). Deze
+ * teardown draait daarom ALTIJD ná de teruglees-verificatie — of die nu slaagt of faalt — zodat de drill
+ * bewijst dat de back-up herstelbaar is zónder een blijvende schaduwkopie achter te laten. `ON_ERROR_STOP`
+ * zorgt dat een mislukte drop een niet-nul exitcode geeft (zodat de caller kan waarschuwen i.p.v. stil PII
+ * te laten staan). Puur, zodat de commando-opbouw deterministisch te testen is.
+ */
+export function buildScratchTeardownArgs(url: string): string[] {
+  return [
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-c",
+    "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;",
+    "-d",
+    url,
+  ];
+}
+
 /** Uitkomst van een herstel-drill-beoordeling. */
 export interface DrillVerdict {
   ok: boolean;

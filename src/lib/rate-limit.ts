@@ -320,6 +320,23 @@ export const loginRateLimiter = new RateLimiter(
   "login:",
 );
 
+/**
+ * Maximaal REAUTH_RATE_LIMIT (default 5) her-authenticatiepogingen per account per 15 minuten. Naast
+ * de login zijn `changePassword` en `disableTwoFactor` de énige oppervlakken die het live wachtwoord
+ * opnieuw via `bcrypt.compare` toetsen. Zonder rem kan een aanvaller die al een geldige (gestolen/
+ * gedeelde) sessie bezit het huidige wachtwoord — en bij het uitschakelen van 2FA óók de 6-cijferige
+ * TOTP — ongelimiteerd brute-forcen, richting volledige account-overname of het strippen van de
+ * tweede factor (CWE-307 / OWASP A07). Gekeyd op `actor.id`, niet op IP: de aanvaller heeft de sessie
+ * al, dus een strikt per-account-plafond is de juiste grens (IP-rotatie omzeilt 'm niet). Parity met
+ * `loginRateLimiter` (5 / 15 min); een geslaagde her-authenticatie reset de teller.
+ */
+export const reauthRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("REAUTH_RATE_LIMIT", 5),
+  15 * 60_000,
+  "reauth:",
+);
+
 /** Maximaal REGISTER_RATE_LIMIT (default 5) registraties per IP per uur. */
 export const registerRateLimiter = new RateLimiter(
   createRateLimitStore(),

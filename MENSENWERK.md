@@ -464,9 +464,14 @@ nodig met back-ups en beveiligde opslag.
    — getest) die de **nieuwste** back-up herstelt in een **wegwerp scratch-database** en daarna schema
    (aantal `public`-tabellen) + data (rijen in een verificatietabel, default `User`) teruglees als
    bewijs. Veilig: het herstelt UITSLUITEND naar `DRILL_DATABASE_URL`/`--target` en weigert hard als
-   dat de bron-`DATABASE_URL` is (een drill kent bewust géén `--force`). Resterend mensenwerk: een
-   (lege) wegwerp-Postgres beschikbaar hebben en `DRILL_DATABASE_URL` zetten; draai de drill periodiek
-   (bv. maandelijks) + na een schema-migratie. Zie RUNBOOK §5.
+   dat de bron-`DATABASE_URL` is (een drill kent bewust géén `--force`). **Privacy (code-kant GEDAAN
+   2026-09-02):** de drill ruimt de scratch-database ná de verificatie **altijd** op (drop `public`-
+   schema, ook bij falen), zodat de herstelde productie-PII (namen, e-mail, IBAN/KvK, VOG/BIG/diploma-
+   metadata) geen langlevende schaduwkopie achterlaat (AVG art. 5(1)(c)/5(1)(e)/32). Resterend
+   mensenwerk: wijs `DRILL_DATABASE_URL` naar een (lege) wegwerp-Postgres **met dezelfde beveiliging als
+   productie** (encryptie-at-rest, netwerk-isolatie, toegangscontrole) — het retentievenster is nu in
+   code gedicht, maar de vertrouwelijkheid van het scratch-doel blijft een infra-keuze. Draai de drill
+   periodiek (bv. maandelijks) + na een schema-migratie. Zie RUNBOOK §5.
 3. Kopieer de **verbindings-URL** (begint met `postgresql://...`). Dit is een geheim.
    **Opleveren:** de verbindings-URL → in de secrets als `DATABASE_URL` (§7). Geef je ontwikkela/agent
    het seintje "Postgres staat klaar"; die zet de databaseprovider om naar PostgreSQL en draait de

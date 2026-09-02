@@ -10,6 +10,7 @@ import {
   buildPgRestoreListArgs,
   buildPublicTableCountArgs,
   buildRowCountArgs,
+  buildScratchTeardownArgs,
   interpretDrill,
   isBackupFilename,
   isPostgresUrl,
@@ -353,6 +354,20 @@ describe("buildPublicTableCountArgs / buildRowCountArgs", () => {
     expect(() => buildRowCountArgs("postgres://h/db", 'x"; DROP TABLE y;--')).toThrow(
       UnsafeIdentifierError,
     );
+  });
+});
+
+describe("buildScratchTeardownArgs", () => {
+  it("dropt en herbouwt het public-schema tegen de doel-URL (wist herstelde PII)", () => {
+    const args = buildScratchTeardownArgs("postgres://h/scratch");
+    expect(args.join(" ")).toContain("DROP SCHEMA IF EXISTS public CASCADE");
+    expect(args.join(" ")).toContain("CREATE SCHEMA public");
+    expect(args[args.indexOf("-d") + 1]).toBe("postgres://h/scratch");
+  });
+
+  it("stopt bij een fout (ON_ERROR_STOP) zodat een mislukte opruiming zichtbaar wordt", () => {
+    const args = buildScratchTeardownArgs("postgres://h/scratch");
+    expect(args).toContain("ON_ERROR_STOP=1");
   });
 });
 
