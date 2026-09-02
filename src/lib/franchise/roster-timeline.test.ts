@@ -33,7 +33,7 @@ const member = (
 // De horizon vanaf NOW: 2026-03-02 t/m 2026-03-15 (14 dagen).
 const cellState = (m: TimelineMemberInput, iso: string, now = NOW): string | undefined => {
   const { rows } = buildRosterTimeline([m], now);
-  return rows[0].cells.find((c) => c.iso === iso)?.state;
+  return rows[0]!.cells.find((c) => c.iso === iso)?.state;
 };
 
 describe("buildRosterTimeline — horizon", () => {
@@ -50,7 +50,7 @@ describe("buildRosterTimeline — horizon", () => {
 
   it("start op de UTC-dag van now (inclusief vandaag) met opeenvolgende dagen", () => {
     const { days } = buildRosterTimeline([], NOW);
-    expect(days[0].iso).toBe("2026-03-02");
+    expect(days[0]!.iso).toBe("2026-03-02");
     const expected = [
       "2026-03-02",
       "2026-03-03",
@@ -104,7 +104,7 @@ describe("buildRosterTimeline — leeg roster", () => {
 describe("buildRosterTimeline — beschikbaarheid zonder signalen", () => {
   it("zonder vensters en zonder plaatsingen is elke cel AVAILABLE", () => {
     const { rows } = buildRosterTimeline([member("m1", "Anna")], NOW);
-    const row = rows[0];
+    const row = rows[0]!;
     expect(row.cells).toHaveLength(14);
     expect(row.cells.every((c) => c.state === "AVAILABLE")).toBe(true);
     expect(row.availableDays).toBe(14);
@@ -115,7 +115,7 @@ describe("buildRosterTimeline — plaatsingen", () => {
   it("open einde (null) bezet de hele horizon → alle cellen PLACED", () => {
     const m = member("m1", "Anna", { placementEnds: [null] });
     const { rows } = buildRosterTimeline([m], NOW);
-    const row = rows[0];
+    const row = rows[0]!;
     expect(row.cells.every((c) => c.state === "PLACED")).toBe(true);
     expect(row.availableDays).toBe(0);
   });
@@ -126,14 +126,14 @@ describe("buildRosterTimeline — plaatsingen", () => {
     expect(cellState(m, "2026-03-05")).toBe("PLACED"); // inclusief einddag
     expect(cellState(m, "2026-03-06")).toBe("AVAILABLE");
     const { rows } = buildRosterTimeline([m], NOW);
-    expect(rows[0].availableDays).toBe(14 - 4); // 03-02..03-05 bezet
+    expect(rows[0]!.availableDays).toBe(14 - 4); // 03-02..03-05 bezet
   });
 
   it("een einddatum in het verleden bezet geen enkele horizon-dag", () => {
     const m = member("m1", "Anna", { placementEnds: [d("2026-02-20")] });
     const { rows } = buildRosterTimeline([m], NOW);
-    expect(rows[0].cells.every((c) => c.state === "AVAILABLE")).toBe(true);
-    expect(rows[0].availableDays).toBe(14);
+    expect(rows[0]!.cells.every((c) => c.state === "AVAILABLE")).toBe(true);
+    expect(rows[0]!.availableDays).toBe(14);
   });
 });
 
@@ -162,14 +162,14 @@ describe("buildRosterTimeline — vensters", () => {
     });
     for (const m of [past, future]) {
       const { rows } = buildRosterTimeline([m], NOW);
-      expect(rows[0].cells.every((c) => c.state === "AVAILABLE")).toBe(true);
+      expect(rows[0]!.cells.every((c) => c.state === "AVAILABLE")).toBe(true);
     }
   });
 
   it("een AVAILABLE-type venster laat de cellen AVAILABLE", () => {
     const m = member("m1", "Anna", { windows: [win("2026-03-03", "2026-03-05", "AVAILABLE")] });
     const { rows } = buildRosterTimeline([m], NOW);
-    expect(rows[0].cells.every((c) => c.state === "AVAILABLE")).toBe(true);
+    expect(rows[0]!.cells.every((c) => c.state === "AVAILABLE")).toBe(true);
   });
 });
 
@@ -198,13 +198,13 @@ describe("buildRosterTimeline — precedentie", () => {
   it("een venster met einde < begin wordt genegeerd", () => {
     const m = member("m1", "Anna", { windows: [win("2026-03-08", "2026-03-03", "UNAVAILABLE")] });
     const { rows } = buildRosterTimeline([m], NOW);
-    expect(rows[0].cells.every((c) => c.state === "AVAILABLE")).toBe(true);
+    expect(rows[0]!.cells.every((c) => c.state === "AVAILABLE")).toBe(true);
   });
 
   it("een onbekend venster-type wordt genegeerd (blijft beschikbaar)", () => {
     const m = member("m1", "Anna", { windows: [win("2026-03-03", "2026-03-05", "ONZIN")] });
     const { rows } = buildRosterTimeline([m], NOW);
-    expect(rows[0].cells.every((c) => c.state === "AVAILABLE")).toBe(true);
+    expect(rows[0]!.cells.every((c) => c.state === "AVAILABLE")).toBe(true);
   });
 });
 
@@ -250,11 +250,11 @@ describe("buildRosterTimeline — sortering", () => {
     expect(rows.map((r) => r.id)).toEqual(["a", "b1", "b2", "z"]);
     // availableDays niet-stijgend
     for (let i = 1; i < rows.length; i++) {
-      expect(rows[i - 1].availableDays).toBeGreaterThanOrEqual(rows[i].availableDays);
+      expect(rows[i - 1]!.availableDays).toBeGreaterThanOrEqual(rows[i]!.availableDays);
     }
     // Anna volledig vrij, Zeb nul
-    expect(rows[0].availableDays).toBe(14);
-    expect(rows[3].availableDays).toBe(0);
+    expect(rows[0]!.availableDays).toBe(14);
+    expect(rows[3]!.availableDays).toBe(0);
   });
 
   it("bij gelijke availableDays beslist de naam (nl) vóór het id", () => {
