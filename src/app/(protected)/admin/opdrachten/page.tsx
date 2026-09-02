@@ -4,6 +4,7 @@ import { AlertTriangle, Briefcase } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { ciContains } from "@/lib/db/text-search";
 import { type JobStatus } from "@/lib/enums";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,7 +34,7 @@ export default async function AdminOpdrachtenPage({
   const status = first(sp.status);
 
   const where: Prisma.JobWhereInput = {};
-  if (q) where.title = { contains: q };
+  if (q) where.title = ciContains(q);
   if (status) where.status = status;
 
   const [jobs, draftJobs] = await Promise.all([

@@ -99,3 +99,104 @@ jobs:
         env:
           SHARD_RESULT: ${{ needs.e2e-shard.result }}
         run: test "$SHARD_RESULT" = "success"
+
+  # WAAROM DEZE JOB BESTAAT — SQLite/PostgreSQL-divergentie.
+  # De poort hierboven draait volledig op SQLite (`file:./ci.db`), terwijl productie (Railway) op
+  # PostgreSQL draait. Dat verschil is niet cosmetisch: LIKE is op SQLite voor ASCII
+  # hoofdletterongevoelig en op PostgreSQL niet, lege-string/NULL-sortering verschilt, en
+  # unieke-constraint- en transactiefouten komen anders terug. Een zoekfunctie die lokaal groen is
+  # kan in productie stil niets vinden. Deze job draait daarom een representatieve doorsnede van de
+  # e2e-suite tegen een echte Postgres 16 en maakt zulke afwijkingen zichtbaar vóór de deploy.
+  #
+  # Bewust GEEN vereiste check in branch protection: hij is een vroegtijdig signaal, geen
+  # merge-blokkade. Wordt hij structureel rood, dan is dat een echte productiebug — fix de app.
+  #
+  # Lokaal reproduceren:
+  #   docker run --rm -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16
+  #   export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres"
+  #   node scripts/use-db-provider.mjs postgresql
+  #   npx prisma generate && npx prisma db push --skip-generate && npx prisma db seed
+  #   npm run build && npx playwright test --project=ci e2e/smoke.spec.ts
+  #   # let op: `scripts/use-db-provider.mjs` wijzigt prisma/schema.prisma — daarna terugzetten met
+  #   # `node scripts/use-db-provider.mjs sqlite` (of `git checkout prisma/schema.prisma`).
+  e2e-postgres:
+    name: e2e-postgres (niet-blokkerend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: zzp_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Enige afwijking t.o.v. e2e-shard: een echte Postgres in plaats van `file:./ci.db`.
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/zzp_ci"
+      AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
+      STORAGE_DRIVER: "local"
+      SHARE_TOKEN_SECRET: "ci-dummy-share-token-secret-minstens-16"
+      AUTH_URL: "http://localhost:3000"
+      CI: "true"
+      DEPLOYMENT_STAGE: "demo"
+      SEED_DEMO: "true"
+      LOGIN_RATE_LIMIT: "100000"
+      REAUTH_RATE_LIMIT: "100000"
+      REGISTER_RATE_LIMIT: "100000"
+      LIST_PAGE_SIZE: "5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # `npm ci` draait postinstall (`prisma generate`) nog met de SQLite-datasource uit het
+      # schema; de provider-switch + een tweede generate leveren de PostgreSQL-client op.
+      - name: Datasource op PostgreSQL zetten
+        run: node scripts/use-db-provider.mjs postgresql
+      - name: Schema en seed naar PostgreSQL
+        run: |
+          npx prisma generate
+          if [ -d prisma/migrations ]; then
+            npx prisma migrate deploy
+          else
+            npx prisma db push --skip-generate
+          fi
+          npx prisma db seed
+      # Integratietests draaien tegen deze echte Postgres. Op SQLite (job `check`) slaan ze
+      # zichzelf over; hier bewijzen ze o.a. dat hoofdletterongevoelig zoeken echt werkt.
+      - name: Integratietests op PostgreSQL
+        run: npx vitest run ".integration.test.ts"
+      - run: npx playwright install chromium --with-deps
+      - run: npm run build
+      # Representatieve doorsnede: inloggen/dashboard, opdrachten + marktplaatszoek, kandidaten,
+      # cascade/samenwerking, admin-zoek/audit, ideeën-zoek en paginatie. Workers=1 houdt de
+      # muterende reizen deterministisch, net als in de shards.
+      - name: e2e-doorsnede op PostgreSQL
+        run: |
+          npx playwright test --project=ci --reporter=list --workers=1 \
+            e2e/smoke.spec.ts \
+            e2e/jobs.spec.ts \
+            e2e/browse-match.spec.ts \
+            e2e/applications.spec.ts \
+            e2e/cascade.spec.ts \
+            e2e/collaboration.spec.ts \
+            e2e/admin.spec.ts \
+            e2e/ideeen.spec.ts \
+            e2e/paginatie.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-postgres-report
+          path: |
+            e2e/screenshots/
+            playwright-report/
+          retention-days: 7

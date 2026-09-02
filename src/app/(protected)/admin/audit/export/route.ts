@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 import { AuthorizationError, requireRole } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { ciContains } from "@/lib/db/text-search";
 import { normalizeAuditFilters } from "@/lib/admin";
 import { auditExportCsv } from "@/lib/audit-export";
 import { exportRateLimiter } from "@/lib/rate-limit";
@@ -33,8 +34,8 @@ export async function GET(request: Request): Promise<Response> {
 
   // Identiek aan AuditPanel: contains-filter op actie/entiteit (page wordt voor de export genegeerd).
   const where: Prisma.AuditLogWhereInput = {};
-  if (filters.action) where.action = { contains: filters.action };
-  if (filters.entityType) where.entityType = { contains: filters.entityType };
+  if (filters.action) where.action = ciContains(filters.action);
+  if (filters.entityType) where.entityType = ciContains(filters.entityType);
 
   const entries = await prisma.auditLog.findMany({
     where,
