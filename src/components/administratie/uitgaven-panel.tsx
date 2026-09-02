@@ -48,6 +48,7 @@ export async function UitgavenPanel({ actor }: { actor: Actor }) {
   const trendFloor = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (EXPENSE_TREND_MONTHS - 1), 1),
   );
+  // unbounded-allow: venster- én owner-gescoopte uitgaven; afkappen zou de maandtotalen vervalsen
   const trendExpenses = await prisma.expense.findMany({
     where: { userId: actor.id, occurredAt: { gte: trendFloor } },
     select: { occurredAt: true, netCents: true },
@@ -62,6 +63,7 @@ export async function UitgavenPanel({ actor }: { actor: Actor }) {
   // jaartotaal en de aftrek kloppen. Owner-gescoopt, alleen de km-rijen van dit jaar (kleine subset),
   // en enkel de velden die de registratie nodig heeft.
   const yearFloor = new Date(Date.UTC(year, 0, 1));
+  // unbounded-allow: jaar- én owner-gescoopte km-rijen; afkappen zou het jaartotaal vervalsen
   const mileageRows = await prisma.expense.findMany({
     where: { userId: actor.id, kilometers: { not: null }, occurredAt: { gte: yearFloor } },
     select: { occurredAt: true, description: true, kilometers: true },

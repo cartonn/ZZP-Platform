@@ -75,6 +75,7 @@ export async function getClientColdJobs(
   if (candidates.length === 0) return [];
 
   // Reactie-tijdstempels voor de kandidaat-set in één query (elk ≤ VACANCY_COLD_MAX_APPLICATIONS rijen).
+  // unbounded-allow: ≤ scan-cap opdrachten × ≤ VACANCY_COLD_MAX_APPLICATIONS reacties
   const apps = await prisma.application.findMany({
     where: { jobId: { in: candidates.map((j) => j.id) }, status: { not: "WITHDRAWN" } },
     select: { jobId: true, createdAt: true },

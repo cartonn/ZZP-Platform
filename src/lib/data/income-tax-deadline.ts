@@ -31,7 +31,7 @@ export async function getIncomeTaxDeadlineForActor(
   const summary = summarizeIncomeTaxDeadline(now);
   const { start, end } = taxYearRange(summary.taxYear);
 
-  // jaar-gescoopte, owner-gescoopte query: begrensd tot het te agenderen belastingjaar.
+  // unbounded-allow: jaar- én owner-gescoopte grootboekregels; afkappen zou het jaartotaal vervalsen
   const rows = await prisma.administrationEntry.findMany({
     where: { ownerUserId: userId, occurredAt: { gte: start, lt: end } },
     select: {

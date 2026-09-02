@@ -69,6 +69,7 @@ export async function BoekhoudingPanel({ actor }: { actor: Actor }) {
   const now = new Date();
   const year = now.getFullYear();
 
+  // unbounded-allow: eigen grootboeksaldi over alle jaren; afkappen zou de balans vervalsen
   const rows = await prisma.administrationEntry.findMany({ where: { ownerUserId: actor.id } });
   const entries: LedgerEntry[] = rows.map((r) => ({
     party: r.party as LedgerEntry["party"],

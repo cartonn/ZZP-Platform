@@ -62,6 +62,7 @@ export async function OntzorgdPanel({ actor }: { actor: Actor }) {
   const nextYearStart = yearStartInstant(fiscalYear + 1);
 
   const [rows, hoursAgg, indirectAgg] = await Promise.all([
+    // unbounded-allow: eigen grootboeksaldi over alle jaren; afkappen zou de bedragen vervalsen
     prisma.administrationEntry.findMany({ where: { ownerUserId: actor.id } }),
     prisma.performance.aggregate({
       _sum: { hours: true },

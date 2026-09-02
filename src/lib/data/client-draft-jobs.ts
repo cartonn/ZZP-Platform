@@ -20,7 +20,6 @@ export async function getClientDraftJobs(
   userId: string,
   limit: number = DRAFT_JOB_SCAN_LIMIT,
 ): Promise<DraftJobInput[]> {
-  // unbounded-allow: eigenaar-scoped (company.userId) + take-limiet.
   const jobs = await prisma.job.findMany({
     where: { company: { userId }, status: "DRAFT" },
     select: { id: true, title: true, updatedAt: true },

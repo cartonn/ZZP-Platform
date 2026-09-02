@@ -59,11 +59,13 @@ export async function getReceivedInvitations(
 
   // 2. Alleen nog-gepubliceerde opdrachten zijn oppakbaar. Ontbreken = gesloten/verwijderd → weg.
   const [jobRows, reactedRows] = await Promise.all([
+    // unbounded-allow: id-set-query over de op MAX_JOBS begrensde jobIds
     prisma.job.findMany({
       where: { id: { in: jobIds }, status: "PUBLISHED" },
       select: { id: true, title: true, company: { select: { name: true } } },
     }),
     // 3. Eigen niet-ingetrokken reacties op deze opdrachten — die tellen als "al beantwoord".
+    // unbounded-allow: eigen reacties op de op MAX_JOBS begrensde jobIds (≤ MAX_JOBS rijen)
     prisma.application.findMany({
       where: {
         freelancerId: freelancerProfileId,

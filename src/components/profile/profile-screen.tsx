@@ -356,6 +356,7 @@ export async function ProfileScreen({
   // Daarom een eigenaar-scoped query op de échte statussen van de verplichte documenttypes.
   let employability: ReturnType<typeof employabilitySummary> | null = null;
   if (isOwner) {
+    // unbounded-allow: verplichte documenttypes van één profiel (natuurlijke grens, enkele rijen)
     const mandatoryCreds = await prisma.credential.findMany({
       where: { freelancerProfileId: id, type: { in: [...MANDATORY_CREDENTIAL_TYPES] } },
       select: { type: true, status: true, expiresAt: true },

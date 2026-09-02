@@ -10,6 +10,7 @@ import { prisma } from "@/lib/db";
  */
 export async function lockedInJobIds(jobIds: string[]): Promise<Set<string>> {
   if (jobIds.length === 0) return new Set();
+  // unbounded-allow: id-set-query over de door de caller aangeleverde (zichtbare) jobIds
   const rows = await prisma.job.findMany({
     where: {
       id: { in: jobIds },

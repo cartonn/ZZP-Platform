@@ -101,6 +101,7 @@ async function buildOpenJobMatches(
 
   // Opdrachten waarop de favoriet al reageerde vallen af — geen dubbel signaal.
   const freelancerIds = rows.map((r) => r.freelancerProfileId);
+  // unbounded-allow: id-paren over twee reeds op 100 begrensde sets (opdrachten × favorieten)
   const applied = await prisma.application.findMany({
     where: { jobId: { in: jobs.map((j) => j.id) }, freelancerId: { in: freelancerIds } },
     select: { jobId: true, freelancerId: true },

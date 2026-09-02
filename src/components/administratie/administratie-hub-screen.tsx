@@ -52,6 +52,7 @@ async function headlineStats(actor: Actor): Promise<{ openCents: number; paidCen
     ? { collaboration: { freelancer: { userId: actor.id } } }
     : { collaboration: { company: { userId: actor.id } } };
 
+  // unbounded-allow: eigen factuur-saldi (openstaand/betaald); afkappen zou de bedragen vervalsen
   const invoices = await prisma.invoice.findMany({
     where,
     select: { status: true, lifecycleStatus: true, totalCents: true, dueAt: true },

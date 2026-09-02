@@ -75,6 +75,7 @@ export async function getCandidateInviteResponsiveness(
   // Scope op de kijkende opdrachtgever: houd enkel de uitnodigingen over op opdrachten van déze
   // `companyId`. Zo tellen uitnodigingen van andere opdrachtgevers/tenants nooit mee in de X/Y die de
   // badge-tooltip toont (geen cross-partij/cross-tenant lek).
+  // unbounded-allow: id-set-query over de reeds begrensde uitnodigings-jobIds
   const ownJobs = await prisma.job.findMany({
     where: { id: { in: [...jobIds] }, companyId },
     select: { id: true },
@@ -83,6 +84,7 @@ export async function getCandidateInviteResponsiveness(
   const scopedInvites = invites.filter((inv) => ownJobIds.has(inv.jobId));
   if (scopedInvites.length === 0) return new Map();
 
+  // unbounded-allow: doorsnede van twee begrensde id-sets (kandidaten × eigen opdrachten)
   const applications = await prisma.application.findMany({
     where: {
       freelancerId: { in: unique },

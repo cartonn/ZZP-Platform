@@ -47,6 +47,7 @@ export async function summarizeRosterExpiringSoon(
   const candidateProfileIds = [...new Set(expiringCreds.map((c) => c.freelancerProfileId))];
   if (candidateProfileIds.length === 0) return { profiles: 0, certs: 0 };
 
+  // unbounded-allow: certificaten van de reeds op ROSTER_EXPIRY_SCAN_LIMIT begrensde profielset
   const coverCreds = await prisma.credential.findMany({
     where: { status: "VERIFIED", freelancerProfileId: { in: candidateProfileIds } },
     select: { id: true, type: true, expiresAt: true, freelancerProfileId: true },
