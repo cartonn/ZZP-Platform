@@ -6,6 +6,8 @@ export interface HealthPayload {
   status: "ok" | "degraded";
   db: boolean;
   commit: string;
+  /** Build-tijdstip (ISO), of "onbekend" zonder Docker-build (lokaal/dev). Zie scripts/start.mjs. */
+  builtAt: string;
   time: string;
 }
 
@@ -15,16 +17,30 @@ export function shortCommit(sha: string | undefined | null): string {
   return trimmed ? trimmed.slice(0, 7) : "dev";
 }
 
+/**
+ * Normaliseert de build-tijd: alleen een geldige ISO-tijdstempel wordt overgenomen, anders
+ * "onbekend" — nooit een rauwe/onvertrouwde string in het health-antwoord (defense-in-depth, ook al
+ * komt de waarde uit het eigen Docker-image, niet van buitenaf).
+ */
+export function normalizeBuiltAt(raw: string | undefined | null): string {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return "onbekend";
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? "onbekend" : parsed.toISOString();
+}
+
 /** Bouwt het health-antwoord. `db` = kon de DB-ping slagen; `now` = huidige tijd (injecteerbaar). */
 export function buildHealthPayload(input: {
   db: boolean;
   commit: string | undefined | null;
+  builtAt?: string | undefined | null;
   now: Date;
 }): HealthPayload {
   return {
     status: input.db ? "ok" : "degraded",
     db: input.db,
     commit: shortCommit(input.commit),
+    builtAt: normalizeBuiltAt(input.builtAt),
     time: input.now.toISOString(),
   };
 }

@@ -29,6 +29,14 @@ RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholde
   AUTH_SECRET="build-time-placeholder-secret-32chars-min" \
   npm run build
 
+# Build-tijd voor /api/health (builtAt) — zichtbaar naast de commit-SHA zodat een verouderde deploy
+# opvalt (incident 2-9-2026: productie draaide drie weken op een oude build, "status: ok" alleen
+# zei niets). ARG BUILD_TIME wint als Railway 'm meegeeft (--build-arg BUILD_TIME=...); anders de
+# builddatum als fallback, zodat dit ALTIJD een waarde oplevert zonder extra Railway-configuratie
+# nodig te hebben (deterministisch build-gedrag: geen stille lege waarde).
+ARG BUILD_TIME
+RUN echo "${BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" > /app/BUILD_TIME
+
 # --- Production stage ---
 FROM node:22-slim
 
@@ -44,6 +52,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # --chown zodat de non-root runtime-user in .next/cache en Prisma-temp mag schrijven.
 COPY --from=builder --chown=nodejs:nodejs /app/package.json /app/package-lock.json* ./
+COPY --from=builder --chown=nodejs:nodejs /app/BUILD_TIME ./BUILD_TIME
 # public/ bevat de service worker (sw.js) en offline.html; zonder deze kopie 404'en die
 # bestanden in productie en faalt de SW-registratie in de browserconsole.
 COPY --from=builder --chown=nodejs:nodejs /app/public ./public/

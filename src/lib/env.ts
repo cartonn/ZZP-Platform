@@ -18,6 +18,32 @@ import { z } from "zod";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { isValidVapidSubject, resolveWebPushConfigState } from "@/lib/push/config";
 
+/**
+ * Geldige RATE_LIMIT_STORE-drivers. `redis` is toegevoegd 2-9-2026 (incident: productie had een
+ * Railway-Redis-service + RATE_LIMIT_STORE=redis staan terwijl de code alleen memory/upstash kende —
+ * de boot-preflight faalde daardoor drie weken hard NO-GO, zie CLAUDE.md §8 en MENSENWERK §0b H-2).
+ */
+const RATE_LIMIT_STORE_VALUES = ["memory", "upstash", "redis"] as const;
+const KNOWN_RATE_LIMIT_STORES = new Set<string>(RATE_LIMIT_STORE_VALUES);
+
+/**
+ * Leest RATE_LIMIT_STORE rechtstreeks uit env (vóór de zod-normalisatie hieronder) en meldt of de
+ * ruwe waarde ONBEKEND is — een typefout, of een driver die de code (nog) niet kent. Puur (leest
+ * alleen de meegegeven env, default process.env); gedeeld door validateEnv (envWarnings) én de
+ * systeemstatus-posture zodat beide dezelfde diagnose tonen zonder dat system-status.ts zelf
+ * process.env hoeft aan te raken (die module blijft bewust puur/testbaar).
+ *
+ * BELANGRIJK (regel 8 CLAUDE.md): een onbekende waarde van deze niet-kritieke keuzevariabele mag de
+ * boot nooit hard laten falen — de zod-preprocessing hieronder valt altijd terug op "memory"; dit
+ * hier is uitsluitend voor de zichtbare waarschuwing/posture, nooit voor de boot-beslissing zelf.
+ */
+export function rateLimitStoreDiagnostics(raw: string | undefined = process.env.RATE_LIMIT_STORE): {
+  invalidValue: string | null;
+} {
+  if (!raw || KNOWN_RATE_LIMIT_STORES.has(raw)) return { invalidValue: null };
+  return { invalidValue: raw };
+}
+
 const schema = z
   .object({
     DATABASE_URL: z.string().min(1, "DATABASE_URL is verplicht."),
@@ -56,11 +82,22 @@ const schema = z
     GEOAPIFY_API_KEY: z.string().optional(),
     // Semantische matching: local (default, in-memory) of pgvector (productie).
     SEMANTIC_MATCHER: z.enum(["local", "pgvector"]).default("local"),
-    // Rate-limit-store: in-memory per proces (default) of gedeeld via Upstash Redis REST
-    // (horizontale schaling, MENSENWERK §0b H-2). Bij "upstash" zijn URL + token verplicht.
-    RATE_LIMIT_STORE: z.enum(["memory", "upstash"]).default("memory"),
+    // Rate-limit-store: in-memory per proces (default), gedeeld via Upstash Redis REST, of gedeeld
+    // via een eigen Redis (bv. Railway-Redis op het private network) — horizontale schaling,
+    // MENSENWERK §0b H-2. Bij "upstash" zijn URL + token verplicht; bij "redis" is REDIS_URL
+    // verplicht. Een ONBEKENDE waarde crasht de boot NIET (zie rateLimitStoreDiagnostics hierboven
+    // + het incident van 2-9-2026) — de preprocessing valt in dat geval veilig terug op "memory";
+    // envWarnings()/system-status.ts melden dat apart en luid.
+    RATE_LIMIT_STORE: z.preprocess(
+      (val) => (typeof val === "string" && KNOWN_RATE_LIMIT_STORES.has(val) ? val : "memory"),
+      z.enum(RATE_LIMIT_STORE_VALUES),
+    ),
     UPSTASH_REDIS_REST_URL: z.string().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+    // Eigen Redis voor de gedeelde rate-limit-store (RATE_LIMIT_STORE=redis). Accepteert redis:// en
+    // rediss:// (TLS). Verplicht zodra de driver op "redis" staat (superRefine hieronder) — een
+    // gekozen driver zonder URL is een halve activering en blijft wél een harde boot-fout.
+    REDIS_URL: z.string().optional(),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     // Expliciete releasefase. Veilig default = production: scripts/start.mjs draait dan in
     // NODE_ENV=production de strict preflight en weigert een onvolledig bekabelde deploy.
@@ -259,6 +296,9 @@ const schema = z
       require(!!v.UPSTASH_REDIS_REST_URL, "UPSTASH_REDIS_REST_URL", "Verplicht bij RATE_LIMIT_STORE=upstash.");
       require(!!v.UPSTASH_REDIS_REST_TOKEN, "UPSTASH_REDIS_REST_TOKEN", "Verplicht bij RATE_LIMIT_STORE=upstash.");
     }
+    if (v.RATE_LIMIT_STORE === "redis") {
+      require(!!v.REDIS_URL, "REDIS_URL", "Verplicht bij RATE_LIMIT_STORE=redis.");
+    }
     if (v.DIPLOMA_VERIFIER === "duo") {
       require(!!v.DUO_API_BASE, "DUO_API_BASE", "Verplicht bij DIPLOMA_VERIFIER=duo.");
       require(!!v.DUO_API_KEY, "DUO_API_KEY", "Verplicht bij DIPLOMA_VERIFIER=duo.");
@@ -295,9 +335,17 @@ export type Env = z.infer<typeof schema>;
  * Niet-fatale waarschuwingen voor productie: integraties die op een veilige fallback draaien
  * maar die je in productie waarschijnlijk wilt activeren. Puur (testbaar); validateEnv logt ze.
  */
-export function envWarnings(env: Env): string[] {
+export function envWarnings(
+  env: Env,
+  diagnostics: { invalidValue: string | null } = { invalidValue: null },
+): string[] {
   if (env.NODE_ENV !== "production") return [];
   const warnings: string[] = [];
+  if (diagnostics.invalidValue) {
+    warnings.push(
+      `RATE_LIMIT_STORE="${diagnostics.invalidValue}" is geen geldige driver (memory/upstash/redis) — de boot viel veilig terug op memory in plaats van te crashen (incident 2-9-2026: een onbekende waarde liet de preflight drie weken hard NO-GO'en, zie CLAUDE.md §8). Zet RATE_LIMIT_STORE op memory, upstash of redis.`,
+    );
+  }
   if (env.DEPLOYMENT_STAGE === "demo") {
     warnings.push(
       "DEPLOYMENT_STAGE=demo — de automatische boot-preflight is adviserend. Gebruik deze omgeving uitsluitend voor fictieve testdata; zet DEPLOYMENT_STAGE=production vóór echte livegang.",
@@ -383,7 +431,7 @@ export function envWarnings(env: Env): string[] {
   }
   if (env.RATE_LIMIT_STORE === "memory") {
     warnings.push(
-      "RATE_LIMIT_STORE=memory — rate-limits gelden per proces; bij meerdere instances zijn de limieten per instance. Zet RATE_LIMIT_STORE=upstash (met UPSTASH_REDIS_REST_URL/TOKEN) vóór horizontale schaling.",
+      "RATE_LIMIT_STORE=memory — rate-limits gelden per proces; bij meerdere instances zijn de limieten per instance. Zet RATE_LIMIT_STORE=upstash (met UPSTASH_REDIS_REST_URL/TOKEN) of redis (met REDIS_URL) vóór horizontale schaling.",
     );
   }
   if (env.SEMANTIC_MATCHER === "pgvector") {
@@ -441,7 +489,7 @@ export function validateEnv(): Env {
       .join("\n");
     throw new Error(`Ongeldige omgevingsvariabelen:\n${details}`);
   }
-  for (const warning of envWarnings(result.data)) {
+  for (const warning of envWarnings(result.data, rateLimitStoreDiagnostics())) {
     console.warn(`[env] waarschuwing: ${warning}`);
   }
   return result.data;

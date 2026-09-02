@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { envWarnings, validateEnv, type Env } from "@/lib/env";
+import { envWarnings, rateLimitStoreDiagnostics, validateEnv, type Env } from "@/lib/env";
 
 const ORIGINAL = process.env;
 
@@ -34,6 +34,7 @@ const INTEGRATION_VARS = [
   "IDENTITY_API_KEY",
   "UPSTASH_REDIS_REST_URL",
   "UPSTASH_REDIS_REST_TOKEN",
+  "REDIS_URL",
   "CLAMAV_HOST",
   "CLAMAV_PORT",
   "SHARE_TOKEN_SECRET",
@@ -268,6 +269,33 @@ describe("validateEnv", () => {
     expect(() => validateEnv()).not.toThrow();
   });
 
+  it("vereist REDIS_URL bij RATE_LIMIT_STORE=redis (halve activering blijft een harde fout)", () => {
+    baseValid();
+    process.env.RATE_LIMIT_STORE = "redis";
+    expect(() => validateEnv()).toThrow(/REDIS_URL/);
+  });
+
+  it("accepteert RATE_LIMIT_STORE=redis mét REDIS_URL", () => {
+    baseValid();
+    process.env.RATE_LIMIT_STORE = "redis";
+    process.env.REDIS_URL = "redis://localhost:6379";
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it("accepteert een rediss:// (TLS) REDIS_URL", () => {
+    baseValid();
+    process.env.RATE_LIMIT_STORE = "redis";
+    process.env.REDIS_URL = "rediss://default:pw@host:6380";
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it("crasht de boot NOOIT op een onbekende RATE_LIMIT_STORE-waarde — valt terug op memory (incident 2-9-2026)", () => {
+    baseValid();
+    process.env.RATE_LIMIT_STORE = "geen-bestaande-driver";
+    const env = validateEnv();
+    expect(env.RATE_LIMIT_STORE).toBe("memory");
+  });
+
   it("blijft inert (geen fout) zolang een integratie niet is ingeschakeld", () => {
     baseValid();
     // Alle integratie-secrets ontbreken, maar de flags staan op de veilige default.
@@ -311,6 +339,21 @@ describe("validateEnv", () => {
       expect(() => validateEnv()).not.toThrow();
       const w = envWarnings(validateEnv());
       expect(w.some((m) => /SHARE_TOKEN_SECRET|AUTH_URL|AUTH_SECRET/.test(m))).toBe(false);
+    });
+  });
+});
+
+describe("rateLimitStoreDiagnostics", () => {
+  it("meldt geen invalidValue voor een bekende waarde of een ontbrekende variabele", () => {
+    expect(rateLimitStoreDiagnostics("memory")).toEqual({ invalidValue: null });
+    expect(rateLimitStoreDiagnostics("upstash")).toEqual({ invalidValue: null });
+    expect(rateLimitStoreDiagnostics("redis")).toEqual({ invalidValue: null });
+    expect(rateLimitStoreDiagnostics(undefined)).toEqual({ invalidValue: null });
+  });
+
+  it("meldt de ruwe waarde terug bij een onbekende driver", () => {
+    expect(rateLimitStoreDiagnostics("geen-bestaande-driver")).toEqual({
+      invalidValue: "geen-bestaande-driver",
     });
   });
 });
@@ -366,6 +409,23 @@ describe("envWarnings", () => {
   it("waarschuwt voor de in-memory rate-limit-store in productie", () => {
     const w = envWarnings(prod({ RATE_LIMIT_STORE: "memory" }));
     expect(w.some((m) => /RATE_LIMIT_STORE=memory/.test(m))).toBe(true);
+  });
+
+  it("zwijgt over de rate-limit-store bij RATE_LIMIT_STORE=redis", () => {
+    const w = envWarnings(prod({ RATE_LIMIT_STORE: "redis", REDIS_URL: "redis://localhost:6379" }));
+    expect(w.some((m) => /RATE_LIMIT_STORE=memory/.test(m))).toBe(false);
+  });
+
+  it("waarschuwt luid + benoemt de ruwe waarde wanneer RATE_LIMIT_STORE onbekend was en terugviel op memory (incident 2-9-2026)", () => {
+    const w = envWarnings(prod({ RATE_LIMIT_STORE: "memory" }), { invalidValue: "redis-oud" });
+    expect(w.some((m) => m.includes('RATE_LIMIT_STORE="redis-oud"') && /memory/.test(m))).toBe(
+      true,
+    );
+  });
+
+  it("zwijgt over de onbekende-waarde-waarschuwing wanneer er geen diagnose is (default)", () => {
+    const w = envWarnings(prod({ RATE_LIMIT_STORE: "memory" }));
+    expect(w.some((m) => m.includes("is geen geldige driver"))).toBe(false);
   });
 
   it("waarschuwt voor SEMANTIC_MATCHER=pgvector in productie (nog niet operationeel, lokale fallback)", () => {

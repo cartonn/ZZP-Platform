@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RateLimitSelfTestReport } from "@/lib/services/ratelimit-selftest";
 
-// Admin-only connectiviteitszelftest voor de gedeelde rate-limit-store (Upstash Redis). Draait op
-// verzoek (geen per-request-I/O op de pagina) een echte round-trip tegen de geconfigureerde store en
+// Admin-only connectiviteitszelftest voor de gedeelde rate-limit-store (Upstash Redis of een eigen
+// Redis). Draait op verzoek (geen per-request-I/O op de pagina) een echte round-trip tegen de geconfigureerde store en
 // toont het resultaat per stap. Server-side waarheid: de knop triggert alleen de server-actie, die de
 // authz-keten + rate-limit + audit afhandelt. Op RATE_LIMIT_STORE=memory is er niets gedeelds om te
 // testen; dat wordt eerlijk gemeld (geen vals groen vinkje).
@@ -39,9 +39,10 @@ export function RateLimitSelfTest({ storeMode }: { storeMode: string }) {
           <CardTitle>Rate-limit-zelftest</CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
             Doet een round-trip (tellen, TTL zetten, opruimen) tegen de gedeelde rate-limit-store
-            (store <span className="font-mono text-xs">{storeMode}</span>) om te bevestigen dat een
-            geconfigureerde Upstash Redis echt bereikbaar is. De store is fail-open, dus een
-            verkeerde sleutel faalt anders stil. Voer dit uit na het instellen van de secrets.
+            (store <span className="font-mono text-xs">{storeMode}</span>) om te bevestigen dat de
+            geconfigureerde Upstash Redis of eigen Redis echt bereikbaar is. De store is fail-open,
+            dus een verkeerde sleutel/URL faalt anders stil. Voer dit uit na het instellen van de
+            secrets.
           </p>
         </div>
         <Button variant="secondary" size="sm" onClick={run} disabled={pending}>
@@ -68,8 +69,9 @@ export function RateLimitSelfTest({ storeMode }: { storeMode: string }) {
               Geen gedeelde store actief (store{" "}
               <span className="font-mono text-xs">{report.storeMode}</span>) — rate-limits gelden
               per proces, er is niets getest. Zet{" "}
-              <span className="font-mono text-xs">RATE_LIMIT_STORE=upstash</span> met de
-              Upstash-secrets vóór horizontale schaling.
+              <span className="font-mono text-xs">RATE_LIMIT_STORE=upstash</span> (met de
+              Upstash-secrets) of <span className="font-mono text-xs">RATE_LIMIT_STORE=redis</span>{" "}
+              (met REDIS_URL) vóór horizontale schaling.
             </p>
           ) : (
             <div className="space-y-3">

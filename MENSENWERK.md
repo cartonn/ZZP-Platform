@@ -94,6 +94,30 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   in de onderhouds-inhibitie. Bevat nooit keys/endpoints/foutinhoud/rate-limit-keys. Resterend mensenwerk:
   **niets extra** — de kaart/gauges vullen zichzelf zodra `RATE_LIMIT_STORE=upstash` staat en de eerste
   check draait. Optioneel: richt een monitor op `ZzpRateLimitStoreDeliveryFailing`.
+  **Code-kant GEDAAN (2026-09-02) — Redis-driver + incident-herstel:** productie had drie weken géén
+  geslaagde deploy (commit 66dba72 van 12-8 bleef live, `main` liep 248 commits verder) doordat de
+  Railway-omgeving `RATE_LIMIT_STORE=redis` + een eigen Redis-service (private netwerk) had staan
+  terwijl de code alleen `memory`/`upstash` kende — `npm run preflight --strict` faalde daardoor
+  hard bij elke boot, vóórdat er ooit een schema-sync draaide. Twee onafhankelijke fixes:
+  (1) een derde driver **`RedisRateLimitStore`** (`ioredis`, MULTI/EXEC voor dezelfde
+  INCR/PEXPIRE NX/PTTL-fixed-window, fail-open, eigen connectiviteitszelftest — precies de
+  Upstash-store hierboven maar tegen een eigen Redis i.p.v. de Upstash-REST-API). Activeer met
+  `RATE_LIMIT_STORE=redis` + `REDIS_URL` (`redis://`/`rediss://`). (2) een ONBEKENDE
+  `RATE_LIMIT_STORE`-waarde crasht de boot niet langer (CLAUDE.md §8): de env-validatie valt veilig
+  terug op `memory` en meldt dat luid als waarschuwing + "aandacht"-posture op
+  `/admin/systeemstatus`, in plaats van de héle deploy drie weken NO-GO te laten gaan. Resterend
+  mensenwerk: **niets extra** als `RATE_LIMIT_STORE` op een geldige waarde staat (`memory`/
+  `upstash`/`redis`); staat de Railway-variabele nog op een andere/foute waarde, zet 'm op één van
+  die drie.
+  **Code-kant GEDAAN (2026-09-02) — deploy-lag-watchdog + build-tijd:** de kernoorzaak dat de
+  stilstand drie weken onopgemerkt bleef, was dat `/api/health` "status: ok" bleef melden op de
+  OUDE build (de liveness-probe test alleen de DB, niet of de gedraaide code actueel is). `/api/health`
+  geeft nu ook `builtAt` (build-tijdstip) terug naast `commit`, en
+  `.github/workflows/monitor.yml` (job `deploy-lag-watchdog`, elke 10 min) vergelijkt de
+  productie-commit met `origin/main` en opent/sluit automatisch een issue (label `deploy-lag`) zodra
+  productie 3+ uur achterloopt. Resterend mensenwerk: **niets extra** — optioneel een repo-variabele
+  `PRODUCTION_HEALTH_URL` zetten bij een toekomstige domeinwissel (de job heeft een werkende
+  hardcoded default).
 - **Tweestapsverificatie (opt-in TOTP 2FA) — code-kant GEDAAN (2026-08-30):** gebruikers kunnen zelf
   tweestapsverificatie aanzetten via `/account/tweestapsverificatie` (authenticator-app koppelen +
   eenmalige herstelcodes); het login-formulier vraagt optioneel om de code. Het TOTP-geheim wordt
@@ -1440,46 +1464,47 @@ Echte teksten, logo en eventuele huisstijl kun je aanleveren; de agent verwerkt 
 
 Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Zie ook `.env.example`.)
 
-| Instelling                                                                   | Wat het is                                                   | Waar haal je het     | Wanneer nodig                                    |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------- | ------------------------------------------------ |
-| `DATABASE_URL`                                                               | Verbindings-URL productie-database                           | Databasedienst (§1b) | Altijd (productie)                               |
-| `AUTH_SECRET`                                                                | Geheim voor veilige inlogsessies (≥32 tekens)                | Zelf genereren (§1e) | Altijd                                           |
-| `AUTH_URL`                                                                   | Je productie-webadres                                        | Je domein (§1d)      | Altijd                                           |
-| `STORAGE_DRIVER=s3`                                                          | Schakelt productie-opslag in                                 | —                    | Bij echte uploads                                |
-| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                                    | Bucketnaam + regio                                           | Opslagdienst (§1c)   | Bij echte uploads                                |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                                | Opslag-toegangssleutels                                      | Opslagdienst (§1c)   | Bij echte uploads                                |
-| `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                             | Encryptie-at-rest (default AES256; optioneel)                | — (§1c)              | Optioneel (default aan bij s3)                   |
-| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`                      | E-mail via Resend HTTP-API (Railway-proof)                   | Resend (§2)          | Voor e-mail                                      |
-| `EMAIL_DRIVER=postmark` + `POSTMARK_SERVER_TOKEN` + `EMAIL_FROM`             | E-mail via Postmark HTTP-API (Railway-proof)                 | Postmark (§2)        | Voor e-mail (alternatief voor Resend)            |
-| `EMAIL_DRIVER=ses` + `SES_REGION` + `EMAIL_FROM` (+ SES/AWS-sleutels)        | E-mail via Amazon SES v2 (EU-regio, AVG-vriendelijk)         | AWS SES (§2)         | Voor e-mail (Railway-proof; kies EU-regio)       |
-| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`                          | E-mail via eigen SMTP-relay                                  | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
-| `BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`                                 | Betalingen via Mollie                                        | Mollie (§3)          | Voor betalingen (kies één provider)              |
-| `BILLING_PROVIDER=stripe` + `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET`         | Betalingen via Stripe (Checkout + webhook)                   | Stripe (§3)          | Voor betalingen (kies één provider)              |
-| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`                        | Echte DUO-controle                                           | DUO (§4a)            | Voor echte diplomacontrole                       |
-| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`                    | Echte BIG-controle                                           | CIBG (§4b)           | Voor echte zorgcontrole                          |
-| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY`            | Echte identiteitscontrole                                    | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                   |
-| `VERIFY_HTTP_TIMEOUT_MS` / `VERIFY_HTTP_RETRIES`                             | Time-out/retry externe verificatie (DUO/BIG/iDIN)            | — (§0b)              | Optioneel (default 8000 ms / 2 retries)          |
-| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                                      | Externe error-monitoring (anders alleen logs)                | Sentry (§0b)         | Optioneel (aanbevolen prod)                      |
-| `LOG_LEVEL`                                                                  | Logdrempel (debug/info/warn/error)                           | —                    | Optioneel (default info)                         |
-| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`               | Gedeelde rate-limits over instances                          | Upstash (§0b H-2)    | Bij horizontale schaling                         |
-| `DATABASE_CONNECTION_LIMIT` (+ `DATABASE_POOL_TIMEOUT`/`DATABASE_PGBOUNCER`) | Begrenst de Prisma-pool per instance                         | — (§0b, §1b)         | Bij horizontale schaling                         |
-| `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`                        | Malware-scan van uploads                                     | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
-| `PASSWORD_BREACH_CHECK=hibp`                                                 | Gelekt-wachtwoord-controle (HIBP, sleutelloos)               | — (§5d)              | Optioneel (aanbevolen prod; geen secret nodig)   |
-| `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (+ `VAPID_SUBJECT`)                 | PWA-pushmeldingen (in-app meldingen blijven werken)          | Zelf genereren (§2)  | Optioneel (`npx web-push generate-vapid-keys`)   |
-| `ALLOW_INDEXING=true`                                                        | Zoekmachine-indexering aanzetten (default uit)               | — (§0b)              | Optioneel bij go-live (pilot blijft privé)       |
-| `SECURITY_CONTACT`                                                           | Meldpunt in /.well-known/security.txt (RFC 9116)             | — (§0b)              | Optioneel (aanbevolen vóór pentest)              |
-| `AUDIT_LOG_RETENTION_DAYS`                                                   | Auditlog-snoei in dagen (default 365 AAN; `0`=uit)           | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
-| `LEAD_RETENTION_DAYS`                                                        | Acquisitie-leads-snoei in dagen (default 365 AAN; `0`=uit)   | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
-| `NOTIFICATION_RETENTION_DAYS`                                                | Notificatie-snoei in dagen (default 180 AAN; `0`=uit)        | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
-| `APPLICATION_RETENTION_DAYS`                                                 | Reactie-PII-snoei in dagen (default 28 AAN; `0`=uit)         | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
-| `SUPPORT_TICKET_RETENTION_DAYS`                                              | Support-ticket-snoei in dagen (default 365 AAN; `0`=uit)     | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
-| `MAIL_INTAKE_RETENTION_DAYS`                                                 | Mail-intake-snoei in dagen (default 180 AAN; `0`=uit)        | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
-| `HEALTH_INCIDENT_IP_RETENTION_DAYS`                                          | IP-redactie beveiligingsincidenten (default 90 AAN; `0`=uit) | — (§5a)              | Actief bij lege env — bijstellen optioneel       |
-| `MESSAGE_RETENTION_DAYS`                                                     | Bewaartermijn berichten in dagen (default: onbeperkt)        | — (§5a)              | Optioneel (aanbevolen prod; bv. 365)             |
-| `WEBHOOK_EVENT_RETENTION_DAYS`                                               | Snoeivenster webhook-ledger in dagen (default: onbep.)       | — (§3)               | Optioneel (bij recurring billing; bv. 90)        |
-| `BACKUP_MAX_AGE_HOURS`                                                       | Venster back-up-heartbeat in uren (default 48)               | —                    | Optioneel (aanbevolen prod)                      |
-| `TASK_TIMEOUT_MS`                                                            | Per-taak-deadline run-all-cron (default 120000; 0=uit)       | — (§10)              | Optioneel (default aan)                          |
-| `SHUTDOWN_DRAIN_MS` (+ `SHUTDOWN_FORCE_KILL_MS`)                             | Drain-venster/force-kill bij redeploy (zero-downtime)        | — (§0b)              | Optioneel (default 5000/25000 ms in prod)        |
+| Instelling                                                                   | Wat het is                                                   | Waar haal je het     | Wanneer nodig                                     |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------- | ------------------------------------------------- |
+| `DATABASE_URL`                                                               | Verbindings-URL productie-database                           | Databasedienst (§1b) | Altijd (productie)                                |
+| `AUTH_SECRET`                                                                | Geheim voor veilige inlogsessies (≥32 tekens)                | Zelf genereren (§1e) | Altijd                                            |
+| `AUTH_URL`                                                                   | Je productie-webadres                                        | Je domein (§1d)      | Altijd                                            |
+| `STORAGE_DRIVER=s3`                                                          | Schakelt productie-opslag in                                 | —                    | Bij echte uploads                                 |
+| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                                    | Bucketnaam + regio                                           | Opslagdienst (§1c)   | Bij echte uploads                                 |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                                | Opslag-toegangssleutels                                      | Opslagdienst (§1c)   | Bij echte uploads                                 |
+| `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                             | Encryptie-at-rest (default AES256; optioneel)                | — (§1c)              | Optioneel (default aan bij s3)                    |
+| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`                      | E-mail via Resend HTTP-API (Railway-proof)                   | Resend (§2)          | Voor e-mail                                       |
+| `EMAIL_DRIVER=postmark` + `POSTMARK_SERVER_TOKEN` + `EMAIL_FROM`             | E-mail via Postmark HTTP-API (Railway-proof)                 | Postmark (§2)        | Voor e-mail (alternatief voor Resend)             |
+| `EMAIL_DRIVER=ses` + `SES_REGION` + `EMAIL_FROM` (+ SES/AWS-sleutels)        | E-mail via Amazon SES v2 (EU-regio, AVG-vriendelijk)         | AWS SES (§2)         | Voor e-mail (Railway-proof; kies EU-regio)        |
+| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`                          | E-mail via eigen SMTP-relay                                  | Mailprovider (§2)    | Voor e-mail (niet op Railway)                     |
+| `BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`                                 | Betalingen via Mollie                                        | Mollie (§3)          | Voor betalingen (kies één provider)               |
+| `BILLING_PROVIDER=stripe` + `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET`         | Betalingen via Stripe (Checkout + webhook)                   | Stripe (§3)          | Voor betalingen (kies één provider)               |
+| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`                        | Echte DUO-controle                                           | DUO (§4a)            | Voor echte diplomacontrole                        |
+| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`                    | Echte BIG-controle                                           | CIBG (§4b)           | Voor echte zorgcontrole                           |
+| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY`            | Echte identiteitscontrole                                    | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                    |
+| `VERIFY_HTTP_TIMEOUT_MS` / `VERIFY_HTTP_RETRIES`                             | Time-out/retry externe verificatie (DUO/BIG/iDIN)            | — (§0b)              | Optioneel (default 8000 ms / 2 retries)           |
+| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                                      | Externe error-monitoring (anders alleen logs)                | Sentry (§0b)         | Optioneel (aanbevolen prod)                       |
+| `LOG_LEVEL`                                                                  | Logdrempel (debug/info/warn/error)                           | —                    | Optioneel (default info)                          |
+| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`               | Gedeelde rate-limits over instances                          | Upstash (§0b H-2)    | Bij horizontale schaling                          |
+| `RATE_LIMIT_STORE=redis` + `REDIS_URL`                                       | Gedeelde rate-limits over instances (eigen Redis-server)     | Redis (§0b H-2)      | Alternatief voor Upstash bij horizontale schaling |
+| `DATABASE_CONNECTION_LIMIT` (+ `DATABASE_POOL_TIMEOUT`/`DATABASE_PGBOUNCER`) | Begrenst de Prisma-pool per instance                         | — (§0b, §1b)         | Bij horizontale schaling                          |
+| `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`                        | Malware-scan van uploads                                     | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten)  |
+| `PASSWORD_BREACH_CHECK=hibp`                                                 | Gelekt-wachtwoord-controle (HIBP, sleutelloos)               | — (§5d)              | Optioneel (aanbevolen prod; geen secret nodig)    |
+| `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (+ `VAPID_SUBJECT`)                 | PWA-pushmeldingen (in-app meldingen blijven werken)          | Zelf genereren (§2)  | Optioneel (`npx web-push generate-vapid-keys`)    |
+| `ALLOW_INDEXING=true`                                                        | Zoekmachine-indexering aanzetten (default uit)               | — (§0b)              | Optioneel bij go-live (pilot blijft privé)        |
+| `SECURITY_CONTACT`                                                           | Meldpunt in /.well-known/security.txt (RFC 9116)             | — (§0b)              | Optioneel (aanbevolen vóór pentest)               |
+| `AUDIT_LOG_RETENTION_DAYS`                                                   | Auditlog-snoei in dagen (default 365 AAN; `0`=uit)           | — (§5a)              | Actief bij lege env — bijstellen optioneel        |
+| `LEAD_RETENTION_DAYS`                                                        | Acquisitie-leads-snoei in dagen (default 365 AAN; `0`=uit)   | — (§5a)              | Actief bij lege env — bijstellen optioneel        |
+| `NOTIFICATION_RETENTION_DAYS`                                                | Notificatie-snoei in dagen (default 180 AAN; `0`=uit)        | — (§5a)              | Actief bij lege env — bijstellen optioneel        |
+| `APPLICATION_RETENTION_DAYS`                                                 | Reactie-PII-snoei in dagen (default 28 AAN; `0`=uit)         | — (§5a)              | Actief bij lege env — bijstellen optioneel        |
+| `SUPPORT_TICKET_RETENTION_DAYS`                                              | Support-ticket-snoei in dagen (default 365 AAN; `0`=uit)     | — (§5a)              | Actief bij lege env — bijstellen optioneel        |
+| `MAIL_INTAKE_RETENTION_DAYS`                                                 | Mail-intake-snoei in dagen (default 180 AAN; `0`=uit)        | — (§5a)              | Actief bij lege env — bijstellen optioneel        |
+| `HEALTH_INCIDENT_IP_RETENTION_DAYS`                                          | IP-redactie beveiligingsincidenten (default 90 AAN; `0`=uit) | — (§5a)              | Actief bij lege env — bijstellen optioneel        |
+| `MESSAGE_RETENTION_DAYS`                                                     | Bewaartermijn berichten in dagen (default: onbeperkt)        | — (§5a)              | Optioneel (aanbevolen prod; bv. 365)              |
+| `WEBHOOK_EVENT_RETENTION_DAYS`                                               | Snoeivenster webhook-ledger in dagen (default: onbep.)       | — (§3)               | Optioneel (bij recurring billing; bv. 90)         |
+| `BACKUP_MAX_AGE_HOURS`                                                       | Venster back-up-heartbeat in uren (default 48)               | —                    | Optioneel (aanbevolen prod)                       |
+| `TASK_TIMEOUT_MS`                                                            | Per-taak-deadline run-all-cron (default 120000; 0=uit)       | — (§10)              | Optioneel (default aan)                           |
+| `SHUTDOWN_DRAIN_MS` (+ `SHUTDOWN_FORCE_KILL_MS`)                             | Drain-venster/force-kill bij redeploy (zero-downtime)        | — (§0b)              | Optioneel (default 5000/25000 ms in prod)         |
 
 > Zolang een verificatie-schakelaar **niet** op de echte waarde staat, draait de bijbehorende
 > demo-verifier veilig door (handig voor de pilot).
