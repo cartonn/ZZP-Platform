@@ -195,6 +195,10 @@ const schema = z
     // lage waarde wordt veilig geklemd naar minstens 30 dagen zodat een typefout nooit recente
     // security-/fraude-logs wist. Zie src/lib/config.ts (parseAuditRetentionDays).
     AUDIT_LOG_RETENTION_DAYS: z.string().optional(),
+    // Intern ontwerp-lab (/ontwerp, /ontwerp-lab): een concept-galerij met fictieve mock-content.
+    // ADMIN-only (route-guards) én in productie standaard DICHT — zet DESIGN_LAB_ENABLED=true om
+    // het lab op een draaiende omgeving te openen. Zie src/lib/design-lab.ts.
+    DESIGN_LAB_ENABLED: z.string().optional(),
   })
   .superRefine((v, ctx) => {
     const require = (cond: boolean, path: string, message: string) => {

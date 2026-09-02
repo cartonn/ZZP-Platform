@@ -62,6 +62,14 @@ COPY --from=builder --chown=nodejs:nodejs /app/prisma.config.ts ./
 COPY --from=builder --chown=nodejs:nodejs /app/src ./src/
 COPY --from=builder --chown=nodejs:nodejs /app/tsconfig.json ./
 
+# Het interne ontwerp-lab (concept-galerij met fictieve mock-content) is verreweg de grootste map in
+# src/ en heeft in de runtime-image niets te zoeken: `next start` draait uit .next (daar staan de
+# gebouwde chunks van deze routes al), en de enige reden dat src/ hierboven meekomt is de demo-seed
+# die via tsx app-code importeert — die raakt het lab nergens (geverifieerd: geen enkele import van
+# @/components/ontwerp in prisma/ of scripts/). Weggooien scheelt tientallen MB's image en houdt
+# lab-bronnen buiten de productie-container.
+RUN rm -rf ./src/components/ontwerp ./src/app/ontwerp ./src/app/ontwerp-lab
+
 # De lokale storage-driver schrijft geüploade documenten/bewijsstukken naar /app/storage. /app is
 # root-eigendom, dus de non-root runtime-user kan die map niet zelf aanmaken → maak 'm aan en geef
 # 'm aan nodejs. Zonder dit faalt elke document-write (EACCES): échte uploads én de demo-seed van de

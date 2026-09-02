@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { CONCEPTS } from "@/components/ontwerp/concepts/registry";
+import { requireRole } from "@/lib/authz";
+import { isDesignLabEnabled } from "@/lib/design-lab";
 import { ConceptHost } from "./concept-host";
 
 // Het ontwerp-lab is een INTERN concept-lab. De concepten renderen ON-DEMAND: deze route staat op
@@ -26,6 +28,10 @@ export async function generateMetadata({
 }
 
 export default async function ConceptPage({ params }: { params: Promise<{ id: string }> }) {
+  // Het lab is ADMIN-only en staat in productie standaard dicht (src/lib/design-lab.ts).
+  if (!isDesignLabEnabled(process.env.DESIGN_LAB_ENABLED)) notFound();
+  await requireRole("ADMIN");
+
   const { id } = await params;
   const meta = CONCEPTS.find((c) => c.id === id);
   // Alleen volledig uitgewerkte concepten hebben een pagina; de rest valt terug op notFound().

@@ -1,8 +1,17 @@
 import { type Metadata } from "next";
+import { notFound } from "next/navigation";
 import { DesignShowcase } from "@/components/ontwerp/design-showcase";
+import { requireRole } from "@/lib/authz";
+import { isDesignLabEnabled } from "@/lib/design-lab";
 import "./themes.css";
 
-export const metadata: Metadata = { title: "Ontwerp-lab · 10 richtingen" };
+export const metadata: Metadata = {
+  title: "Ontwerp-lab · 10 richtingen",
+  robots: { index: false, follow: false },
+};
+
+// De omgevingsvlag wordt per request gelezen; prerenderen zou 'm op bouwtijd vastzetten.
+export const dynamic = "force-dynamic";
 
 // 10 design-richtingen (uit de workflow). Elke sectie zet data-ontwerp; themes.css overschrijft
 // de tokens + fonts voor die subtree, zodat dezelfde mock 10x anders rendert.
@@ -68,7 +77,11 @@ const DIRECTIONS = [
   },
 ];
 
-export default function OntwerpLabPage() {
+export default async function OntwerpLabPage() {
+  // Het lab is ADMIN-only en staat in productie standaard dicht (src/lib/design-lab.ts).
+  if (!isDesignLabEnabled(process.env.DESIGN_LAB_ENABLED)) notFound();
+  await requireRole("ADMIN");
+
   return (
     <div className="min-h-screen bg-neutral-100 p-6 dark:bg-neutral-900">
       <div className="mx-auto max-w-[1200px] space-y-10">

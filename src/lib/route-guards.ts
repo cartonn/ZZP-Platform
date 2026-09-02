@@ -26,7 +26,8 @@ export function isPublicPath(pathname: string): boolean {
     pathname === "/api/metrics" || // operationeel-monitoring-endpoint: eigen CRON_SECRET-guard, geen sessie
     pathname.startsWith("/zzp/") ||
     pathname.startsWith("/vertrouwen/") || // publiek vertrouwensdossier (token-beveiligd, geen sessie)
-    // /ontwerp en /ontwerp-lab zijn NIET publiek: het is een intern design-lab (inloggen vereist).
+    // /ontwerp en /ontwerp-lab zijn NIET publiek: het is een intern design-lab — inloggen vereist
+    // én ADMIN-only (zie roleForPath hieronder).
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/tasks/") || // eigen token-guard (CRON_SECRET), geen sessie
     // CSP-violatie-ontvanger: de browser POST't hier zonder (of ná verlies van) een sessie, óók
@@ -108,8 +109,13 @@ export function roleForPath(pathname: string): UserRole | null {
     return "CLIENT";
   }
 
-  // ADMIN-only buiten /admin: alleen academie-beheer (het overzicht + een les bekijken is gedeeld)
+  // ADMIN-only buiten /admin: academie-beheer (het overzicht + een les bekijken is gedeeld) en het
+  // interne ontwerp-lab. Dat lab is een concept-galerij met fictieve mock-content — gereedschap voor
+  // het team, geen productonderdeel — dus zien alleen admins het. In productie sluit
+  // DESIGN_LAB_ENABLED het bovendien standaard helemaal af (zie src/lib/design-lab.ts).
   if (
+    onSegment(path, "/ontwerp") ||
+    onSegment(path, "/ontwerp-lab") ||
     path === "/academie/nieuw" ||
     /^\/academie\/[^/]+\/bewerken$/.test(path) ||
     /^\/academie\/[^/]+\/lessen\/nieuw$/.test(path) ||

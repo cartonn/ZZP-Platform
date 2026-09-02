@@ -1,14 +1,23 @@
 import { type Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ArrowRight, Lock } from "lucide-react";
 import { CONCEPTS, BUILT } from "@/components/ontwerp/concepts/registry";
+import { requireRole } from "@/lib/authz";
+import { isDesignLabEnabled } from "@/lib/design-lab";
 
 export const metadata: Metadata = {
   title: "Ontwerp-lab — redesign-concepten",
   robots: { index: false, follow: false },
 };
 
-export default function OntwerpIndexPage() {
+// De omgevingsvlag wordt per request gelezen; prerenderen zou 'm op bouwtijd vastzetten.
+export const dynamic = "force-dynamic";
+
+export default async function OntwerpIndexPage() {
+  if (!isDesignLabEnabled(process.env.DESIGN_LAB_ENABLED)) notFound();
+  await requireRole("ADMIN");
+
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900">
       <div className="mx-auto max-w-[1180px] px-6 py-14">
