@@ -102,6 +102,10 @@ werkt volgens dit contract:
   na groen, via **`gh pr merge <nr> --squash --auto`** (GitHub merget zodra alle 6 checks groen zijn).
   Zet `agent-review` BLOCK of een rode check: lees de review-comment/het falende logboek, fix élke
   blocker, push (auto-merge her-evalueert) — max 2 pogingen, anders PR open laten met de blocker.
+  **Onderscheid inhoudelijk vs. onafgerond (2-9-2026):** `agent-review` heeft turn-budget 90 en
+  schrijft naast `PASS`/`BLOCK` ook `INCOMPLETE` (review niet klaargekomen binnen budget — géén
+  inhoudelijke blocker) als eigen PR-comment met herstart-advies (`gh workflow run pr-review.yml
+-f pr=<nr>`), zodat je niet blind naar niet-bestaande blockers zoekt bij een lege review.
   Nooit vóór groen. Dit verruimt de eerdere "agents mergen nooit zelf"-regel (de eigenaar wil
   autonome, doorlopende verbetering zonder zelf te hoeven mergen). Bij parallelle dict/docs-conflicten:
   **UNION-resolutie** (beide kanten behouden + dedup), nooit `--ours`.
