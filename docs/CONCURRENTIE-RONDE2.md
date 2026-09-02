@@ -120,6 +120,14 @@ Eerlijk vastgelegd om dubbel werk (slop) te voorkomen.
   deep-link-chip "Sterke match voor je opdracht «titel» · %". Read-only, geen nieuwe rekenlogica, geen
   geldstroom; opdrachten waarop de favoriet al reageerde vallen af. `src/lib/favorites/open-job-match.ts`.
 
+- **Roosterbezetting-tijdlijn voor de bemiddelaar** _(M, Temper/Zorgwerk/Pidz)_ — **GEBOUWD (2026-09-02)**.
+  Temper/Zorgwerk/Pidz leiden met een rooster-/shiftplanning-raster. Het capaciteitsoverzicht toonde
+  al "wie kan ik NU inzetten?" en de vooruitblik "wie komt binnenkort vrij?", maar niet de dag-precieze
+  cross-roster vraag "wie is WANNEER beschikbaar?". Nieuw scherm `/franchise/planning`: een read-only
+  raster (rosterrijen × 14 dagkolommen) met per cel ingezet/afwezig/beperkt/vrij, afgeleid uit de
+  `AvailabilityWindow`-vensters + lopende ACTIVE-plaatsingen. Pure kern `roster-timeline.ts`, read-only,
+  geen nieuwe rekenlogica, geen geldstroom. Zet kaart-voor-kaart raden om in één oogopslag.
+
 ### PARKEREN (eigenaars-/strategiebeslissing — niet autonoom bouwen)
 
 7. **Externe roostersysteem-integratie** _(L, Zorgwerk + Bendy)_ — ingest van flex-aanvragen uit

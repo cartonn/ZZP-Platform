@@ -116,6 +116,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Opdrachtgevers", href: "/franchise/opdrachtgevers", icon: "building", section: "Bemiddeling", enabled: true }, // prettier-ignore
     { label: "ZZP'ers", href: "/franchise/zzpers", icon: "users", section: "Bemiddeling", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.shift, href: "/franchise/diensten", icon: "clock", section: "Bemiddeling", enabled: true }, // prettier-ignore
+    { label: "Roosterbezetting", href: "/franchise/planning", icon: "calendar", section: "Bemiddeling", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.collaboration, href: "/franchise/samenwerkingen", icon: "handshake", section: "Bemiddeling", enabled: true }, // prettier-ignore
     { label: "Dienst-overnames", href: "/franchise/shift-overnames", icon: "handshake", section: "Bemiddeling", enabled: true }, // prettier-ignore
     { label: "Inzicht", href: "/inzicht", icon: "barChart", section: "Bemiddeling", enabled: true }, // prettier-ignore
