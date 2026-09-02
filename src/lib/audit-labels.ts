@@ -148,6 +148,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   CREDENTIAL_EXPIRED: "Certificaat verlopen",
   CREDENTIALS_EXPIRED: "Certificaten verlopen",
   CREDENTIALS_EXPIRING_REMINDED: "Herinnering verlopende certificaten",
+  CREDENTIAL_EVIDENCE_REMOVED: "Bewijsstuk verwijderd na beoordeling",
   CREDENTIAL_SHARING_CHANGED: "Certificaat-deling gewijzigd",
   CREDENTIAL_VISIBILITY_CHANGED: "Certificaat-zichtbaarheid gewijzigd",
   DOCUMENT_UPLOADED: "Document geüpload",

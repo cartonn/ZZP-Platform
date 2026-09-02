@@ -7,9 +7,11 @@ import { prisma } from "@/lib/db";
 import { credentialEditPath, statusForDecision, TransitionError } from "@/lib/credentials";
 import { toSafeActionError } from "@/lib/safe-action-error";
 import { runExpiryTask } from "@/lib/expiry-task";
-import { type CredentialStatus } from "@/lib/enums";
+import { type CredentialStatus, type CredentialType } from "@/lib/enums";
 import { type ResolveState } from "@/lib/actions/resolve-state";
 import { boundReason } from "@/lib/text-bounds";
+import { shouldRemoveEvidenceAfterReview } from "@/lib/credential-evidence-policy";
+import { removeCredentialEvidence } from "@/lib/credential-evidence";
 
 async function loadCredentialForDecision(credentialId: string) {
   const credential = await prisma.credential.findUnique({
@@ -18,6 +20,17 @@ async function loadCredentialForDecision(credentialId: string) {
   });
   if (!credential) throw new Error("Credential niet gevonden.");
   return credential;
+}
+
+/**
+ * Extra velden op de beslissings-update wanneer het bewijsstuk onder het metadata-beleid valt
+ * (VOG: "gezien + datum"). Atomair met de statuswijziging: wie het bewijsstuk zag en wanneer is
+ * ook waar als de opruiming van het bestand hierna mislukt. Levert `{}` voor types die hun
+ * bewijsstuk houden. Zie `credential-evidence-policy.ts`.
+ */
+function evidenceSeenPatch(type: CredentialType, actorId: string, now: Date) {
+  if (!shouldRemoveEvidenceAfterReview(type)) return {};
+  return { evidenceSeenAt: now, evidenceSeenById: actorId };
 }
 
 /** Goedkeuren: SUBMITTED -> VERIFIED. Verificatieflow stap 3 (audit + notificatie). */
@@ -34,12 +47,18 @@ export async function verifyCredential(credentialId: string): Promise<void> {
     throw e;
   }
 
+  const now = new Date();
   await prisma.$transaction(async (tx) => {
     // Status-guard binnen de transactie: alleen verwerken als de credential nog in `from` staat.
     // Een gelijktijdige tweede beslissing matcht 0 rijen en breekt af — geen dubbele audit/notificatie.
     const res = await tx.credential.updateMany({
       where: { id: credentialId, status: from },
-      data: { status: next, verifiedAt: new Date(), rejectionReason: null },
+      data: {
+        status: next,
+        verifiedAt: now,
+        rejectionReason: null,
+        ...evidenceSeenPatch(credential.type as CredentialType, actor.id, now),
+      },
     });
     if (res.count === 0) throw new Error("Deze aanvraag is al beoordeeld.");
     await tx.credentialVerification.create({
@@ -69,9 +88,30 @@ export async function verifyCredential(credentialId: string): Promise<void> {
     });
   });
 
+  await applyEvidenceRetention(actor.id, credential);
+
   revalidatePath("/admin/verificaties");
   revalidatePath("/acties");
   revalidatePath("/dashboard");
+}
+
+/**
+ * Voert het bewaarbeleid uit ná de beslissingstransactie: bij het metadata-beleid (VOG) verdwijnt
+ * het bestand en blijft alleen "gezien op <datum>, door <beoordelaar>" staan. Buiten de transactie
+ * omdat er opslag-I/O aan te pas komt; mislukt die, dan blijft de beslissing staan en pakt de
+ * opruimtaak het later op (`evidenceRemovedAt` blijft leeg).
+ */
+async function applyEvidenceRetention(
+  actorId: string,
+  credential: { id: string; type: string; documentId: string | null },
+): Promise<void> {
+  if (!shouldRemoveEvidenceAfterReview(credential.type as CredentialType)) return;
+  await removeCredentialEvidence({
+    actorId,
+    credentialId: credential.id,
+    documentId: credential.documentId,
+    source: "[verificaties]",
+  });
 }
 
 /** Afwijzen: SUBMITTED -> REJECTED. Reden verplicht (server-side, verificatieflow stap 4). */
@@ -89,10 +129,16 @@ export async function rejectCredential(credentialId: string, formData: FormData)
     throw e; // "Een afwijzing vereist een reden."
   }
 
+  const now = new Date();
   await prisma.$transaction(async (tx) => {
     const res = await tx.credential.updateMany({
       where: { id: credentialId, status: from },
-      data: { status: next, rejectionReason: reason, verifiedAt: null },
+      data: {
+        status: next,
+        rejectionReason: reason,
+        verifiedAt: null,
+        ...evidenceSeenPatch(credential.type as CredentialType, actor.id, now),
+      },
     });
     if (res.count === 0) throw new Error("Deze aanvraag is al beoordeeld.");
     await tx.credentialVerification.create({
@@ -121,6 +167,8 @@ export async function rejectCredential(credentialId: string, formData: FormData)
       }),
     });
   });
+
+  await applyEvidenceRetention(actor.id, credential);
 
   revalidatePath("/admin/verificaties");
   revalidatePath("/acties");

@@ -720,6 +720,13 @@ model Credential {
   verifiedAt          DateTime?
   rejectionReason     String?
   expiryReminderFor   DateTime? // vervaldatum waarvoor al een "verloopt binnenkort"-herinnering is verstuurd (dedup, idempotent)
+  // Bewijsstuk-retentie ("gezien + datum"). De AP-lijn voor een VOG is dat de werk-/opdrachtgever
+  // vaststelt dát hij is gezien en wanneer; een kopie bewaren vraagt aparte noodzaak. Bij het
+  // metadata-beleid (zie credential-evidence-policy.ts) verdwijnt het bestand na de beoordeling en
+  // blijven alleen deze drie velden over als bewijs van de controle.
+  evidenceSeenAt      DateTime? // moment waarop de beoordelaar het bewijsstuk heeft gezien
+  evidenceSeenById    String? //   gebruikers-ID van de beoordelaar (geen relatie: blijft leesbaar als het account later verdwijnt)
+  evidenceRemovedAt   DateTime? // moment waarop het bestand daadwerkelijk uit de opslag is verwijderd; leeg = opruiming nog openstaand
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 

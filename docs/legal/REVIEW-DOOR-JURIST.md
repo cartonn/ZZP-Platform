@@ -81,6 +81,7 @@ Zes platformen onderzocht: PIDZ, Bendy, Zorgwerk (zorg-ZZP) en Malt, Temper, Dee
 - **VOG-metadata-modus:** na verificatie het bestand kunnen wissen met behoud van
   verificatie-metadata (geverifieerd op datum X door Y) — AP-lijn, en Bendy's
   ID-verwijderpatroon bewijst dat het product-technisch kan.
+  _Gebouwd op 2-9-2026 (standaard aan; bestand verwijderd na goedkeuren én afwijzen), ter toetsing._
 - **Downloadbare AV-PDF + versie-archief** (art. 6:227b BW: opslaanbaar; nu alleen
   printbare pagina + "eerdere versies op verzoek").
 - **Akkoord-logging bij registratie** (welke AV-versie gold bij acceptatie).

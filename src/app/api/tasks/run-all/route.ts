@@ -37,6 +37,7 @@ import { runApplicationRetentionTask } from "@/lib/application-retention-task";
 import { runMessageRetentionTask } from "@/lib/message-retention-task";
 import { runSupportTicketRetentionTask } from "@/lib/support-retention-task";
 import { runMailIntakeRetentionTask } from "@/lib/mail-intake-retention-task";
+import { runCredentialEvidenceCleanupTask } from "@/lib/credential-evidence-cleanup-task";
 import { runScheduledTasks, resolveTaskTimeoutMs, type ScheduledTask } from "@/lib/scheduled-tasks";
 import { reportBackgroundFailure } from "@/lib/observability/report";
 import { recordCronHeartbeat, RUN_ALL_HEARTBEAT } from "@/lib/observability/cron-heartbeat";
@@ -127,6 +128,7 @@ export async function POST(request: Request): Promise<Response> {
       name: "mail-intake-retention",
       fn: () => runMailIntakeRetentionTask({ actorId: null }),
     },
+    { name: "credential-evidence-cleanup", fn: () => runCredentialEvidenceCleanupTask() },
     { name: "monitor", fn: () => runMonitorTask({}) },
   ];
 
