@@ -1,5 +1,13 @@
 # PRIJSADVIES — verdienmodel ZZP Platform
 
+> **Herzieningsvoorstel 2-9-2026 — zie [ADR 0011](decisions/0011-focus-en-wig.md).** Voorstel:
+> **lijn 2 (uurfee opdrachtgever)** en **lijn 4 (factoring / "direct betaald")** schrappen — de
+> uurfee versterkt het bemiddelaars-beeld dat juridisch juist getoetst moet worden (Temper-arrest
+> Hof Amsterdam, 16-6-2026) en factoring vergt werkkapitaal, debiteurenrisico, KYC én herziening
+> van Besluit 1. **Lijn 3 wordt een vast tenant-tarief per bureau per maand** in plaats van per
+> actieve flexwerker. Alles hieronder blijft ongewijzigd tot de eigenaar over ADR 0011 beslist;
+> de omzetscenario's gaan nog uit van het oude model.
+
 > Vastgesteld na concurrentie-onderzoek juni 2026 (verdienmodellen + jaaromzetten, zie de
 > onderzoekssamenvatting onderaan). Status: **advies — activeren van billing is een
 > eigenaarsbesluit** (billing staat bewust UIT; de modellen bestaan al in code:

@@ -1,8 +1,55 @@
 # ARCHITECTURE.md — ZZP Platform
 
-> Status: levend document. Beschrijft de **huidige** situatie (wat er staat) en de
-> **doel**-architectuur uit `prompts/PLATFORM_OVERHAUL.md` (event-driven, cascade).
-> Werk dit bij aan het eind van elke fase.
+> Status: levend document. **§0 Modulekaart** is de kaart voor wie nu instapt: waar staat wat.
+> §1–§5 beschrijven de historische uitgangssituatie en de doelarchitectuur uit
+> `prompts/PLATFORM_OVERHAUL.md` (event-driven, cascade) — die verbouwing is inmiddels gebouwd
+> (§5). Werk dit bij aan het eind van elke fase.
+
+---
+
+## 0. Modulekaart (huidig, 2-9-2026)
+
+`src/lib` is de domeinlaag: **375 platte modules** naast 382 co-locatie-testbestanden, plus 25
+submappen. Pure logica en I/O zijn gescheiden — een module zonder `prisma`-import is een pure kern
+met unit-tests ernaast; de laders staan in `src/lib/data/` en de submappen. Hieronder per domein
+wat het doet en waar je begint.
+
+| Domein                         | Wat het doet                                                                                                                                                          | Kernbestanden                                                                                                                 |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Authz & tenancy**            | De mutatieketen auth → rol → ownership (pure predicaten + async wrappers) en de franchise-isolatie: één `tenantId` per bemiddelaar, ADMIN ziet alles.                 | `authz.ts`, `tenancy.ts`, `entitlements.ts` / `entitlement-guard.ts`                                                          |
+| **Opdrachten & matching**      | Marktplaats-filters, opgeslagen zoekopdrachten, en de **uitlegbare** matchscore (troeven/minpunten als `reasons`) inclusief beschikbaarheid en compliance.            | `matching.ts`, `jobs.ts`, `jobs/marketplace-where.ts`, `jobs/saved-search.ts`, `semantic.ts`                                  |
+| **Reacties (applications)**    | Reageren, intrekken, filteren, wachttijd-/concurrentie-signalen en de retentie-sweep op afgewezen reacties.                                                           | `applications.ts`, `applications-create.ts`, `application-wait.ts`, `application-retention.ts`                                |
+| **Certificaten & verificatie** | `CREDENTIAL_TRANSITIONS` + `assertTransition`, verval (alleen VERIFIED kan verlopen), de admin-wachtrij en de externe verifiers achter een servicegrens.              | `credentials.ts`, `expiry.ts` / `expiry-task.ts`, `verification-queue.ts`, `services/{diploma,big,identity}-verifier.ts`      |
+| **Cascade & administratie**    | De hoofdcascade als pure planners (contract → urenstaat → goedkeuring → factuur → betaling) + atomaire applier; daarna BTW, nummering per partij en dubbel grootboek. | `cascade/{handlers,apply,commands}.ts`, `administration/{ledger,vat,numbering,overview}.ts`, `event-bus.ts`, `lifecycles.ts`  |
+| **ORT (zorg)**                 | Onregelmatigheidstoeslagen per tijdcategorie in integer-centen, configureerbaar per CAO/sector, met automatische segmentatie uit diensttijden.                        | `ort.ts`, `ort-breakdown.ts`, `shift.ts`, `config.ts` (`ORT_SECTOR_PROFILES`)                                                 |
+| **Next actions & signalen**    | Eén deterministische "wat moet ik nu?"-rangschikking, de nav-badges per rol, en het actiecentrum dat de concrete items ophaalt met dezelfde drempels.                 | `next-actions.ts`, `signals.ts`, `actions/pending-tasks.ts`, `actions/tasks.ts`                                               |
+| **Notificaties & reminders**   | Presentatie (type → categorie/toon), voorkeuren per categorie, digest, en de plan/apply-reminderrunners achter `/api/tasks/*`.                                        | `notifications.ts`, `notification-preferences.ts`, `payment-reminders-task.ts`, `performance-approval-reminders-task.ts`      |
+| **Franchise (bemiddelaar)**    | De tenant-cockpit: roster-capaciteit/-tijdlijn, voordracht en opvolging, diensten, leads, klantgezondheid en tenant-facturatie.                                       | `franchise/{roster-capacity,roster-timeline,dienst-voordracht,leads,client-health}.ts`, `tenant-billing/*`                    |
+| **Billing (inert)**            | Abonnementen + platformfacturatie achter een providerinterface; default `noop`, niets wordt geïncasseerd, facturen blijven DRAFT.                                     | `billing/provider.ts`, `billing/webhook-idempotency.ts`, `platform-billing/billing-run.ts`, `tenant-billing/tenant-plan.ts`   |
+| **Fiscaal / ontzorgd**         | Indicatieve BTW-stand, reservering, urencriterium en IB-schatting voor de ZZP'er; de aangifte-partner is een inerte seam (het platform is geen gemachtigde).          | `tax/ontzorg-overview.ts`, `tax/{hours-criterion,reservation,income-tax}.ts`, `tax-filing/partner.ts`                         |
+| **DBA & compliance**           | Doorlopende, configureerbare risicosignalering over de contractlooptijd — signaleert en documenteert, geeft nooit juridisch advies; plus het audit-dossier.           | `dba-monitor.ts`, `dba-audit.ts` / `dba-audit-pdf.ts`, `compliance/{dossier,processing-register}.ts`                          |
+| **Observability & ops**        | Health/readiness, gestructureerde logging met PII-redactie, metrics, en per extern kanaal een zelftest + aflever-heartbeat (dead-man's-switch).                       | `observability/{health,readiness,logger,metrics}.ts`, `observability/*-delivery-heartbeat.ts`, `ops/{preflight,db-backup}.ts` |
+| **Storage & documenten**       | Documenten zijn standaard privé: één storage-abstractie (lokaal → S3), validatie op type/grootte, malware-scan-seam, toegang altijd geaudit.                          | `services/storage.ts`, `services/upload-scanner.ts`, `documents.ts`, `security/access-audit.ts`                               |
+
+**Waar de rest staat:** `src/lib/data/` = Prisma-laders per scherm (bulk-queries, N+1-veilig) ·
+`src/lib/services/` = externe koppelingen achter een interface met veilige default · `src/app/` =
+Next.js App Router (route groups per rol) · `prisma/schema.prisma` = het volledige datamodel.
+
+### Bekende structurele schuld
+
+- **Vlakke lib zonder importgrenzen.** 375 modules op één niveau in `src/lib`; niets belet een
+  UI-component om rechtstreeks een cascade-interne te importeren. Er is geen laag-/mapgrens die
+  dit afdwingt (geen lint-regel op importpaden).
+- **`Invoice` heeft twee statusvelden.** `status` (`DRAFT|SENT|PAID|OVERDUE|CANCELLED`, legacy) én
+  `lifecycleStatus` (cascade: concept → ingediend → goedgekeurd → betaald → verwerkt). Beide zijn
+  in gebruik; queries moeten weten welke de waarheid is voor hun geval.
+- **Twaalf losse heartbeat-modellen.** `CronHeartbeat`, `BackupHeartbeat` en tien
+  `*DeliveryHeartbeat`-modellen (mail, push, storage, billing, verificatie, rate-limit,
+  password-breach, error-monitoring, upload-scan, routing) met vrijwel identieke vorm — een
+  gedeeld model met een `channel`-discriminator zou tien modellen + tien freshness-modules schelen.
+- **i18n-laag met minimale dekking.** `src/lib/i18n/` bestaat (NL default, EN optioneel), maar
+  slechts ±39 van de ruim 1.000 componenten/pagina's raken die laag. Het spoor is per instructie
+  afgesloten; de laag blijft als dode-kapitaal-schuld staan.
 
 ---
 

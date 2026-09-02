@@ -22,6 +22,11 @@ parallelle runs hetzelfde item niet óók oppakken. Linear wordt niet gebruikt.
 Let op: de **modeltoewijzing** (Opus 4.8 orchestrator + builder/tester-subagents) staat in de
 routine-_config_ op claude.ai (apart veld), niet in deze prompttekst.
 
+**Scope-restrictie (2-9-2026, hard).** De routines bouwden zonder klantsignaal een boekhoudpakket
+naast het zorgplatform (omzetgrensmeter, aangifte-agenda, kilometervergoeding). Daarom staat de
+scope-paragraaf nu ook in het prompt-blok hieronder én in CLAUDE.md ("Scope-restrictie routines").
+Wijzig ze samen, anders drift de routine weer.
+
 ---
 
 ```
@@ -34,8 +39,21 @@ bestanden — zie SWARM.md. Vraag nooit om goedkeuring; stop alleen bij een echt
      git reset --hard
      git checkout -b "feat/auto-$(date +%Y%m%d-%H%M%S)-$RANDOM" origin/main
 
-1. Lees CLAUDE.md, SWARM.md, CURRENT_TASK.md, PROGRESS.md, docs/PERSONA-SWEEP-BACKLOG.md en
-   docs/CONCURRENTIE-RONDE2.md.
+1. Lees CLAUDE.md, SWARM.md, CURRENT_TASK.md, de BOVENSTE 100 REGELS van PROGRESS.md,
+   ARCHITECTURE.md §0 Modulekaart, docs/PERSONA-SWEEP-BACKLOG.md en docs/CONCURRENTIE-RONDE2.md.
+   Oudere voortgang staat in docs/progress/ — lees die alleen gericht (git grep), nooit integraal.
+
+1b. SCOPE — HARD. Je bouwt alleen binnen DE KERN of aan ROBUUSTHEID.
+   KERN = certificaat-dossier + verificatie + verloop · de cascade uren -> ORT -> prestatie ->
+   factuur · de next-action-engine · de DBA-monitor · de tenant-cockpit voor bemiddelaars.
+   ROBUUSTHEID = bugs, security, privacy/AVG, performance, betrouwbaarheid, toegankelijkheid.
+   UITGESLOTEN (bouw dit NIET, ook niet "even klein"): ontzorgd/aangifte/KOR en overige fiscale
+   features; academie; ideeenbus; design-lab / ontwerp-galerij; nieuwe rollen; nieuwe prijslijnen;
+   i18n/vertaalwerk.
+   Stel jezelf per kandidaat-item eerst de vraag: "WELKE KLANT (bureau / instelling / ZZP'er)
+   vraagt hierom, en WAAR STAAT DAT?" (persona-sweep-backlog, support-ticket, klantnotitie,
+   CURRENT_TASK-item met bron). Kun je die bron niet aanwijzen -> bouw het NIET; pak dan alleen
+   bugs/robuustheid. Noteer het antwoord in de PR-body.
 
 2. KIES WERK (in deze prioriteit):
    a. een HOOG-gat uit docs/PERSONA-SWEEP-BACKLOG.md (beveiliging/robuustheid eerst);
@@ -68,6 +86,8 @@ bestanden — zie SWARM.md. Vraag nooit om goedkeuring; stop alleen bij een echt
    tail verbergt een failure). E2e (Playwright) NIET als blokkade — geen browser-channel; CI draait e2e.
 
 6. Werk PROGRESS.md + de backlog bij (markeer het item GEDAAN). Commit met een duidelijke message.
+   PROGRESS.md blijft <= 400 regels en CURRENT_TASK.md <= 300 regels: staat je entry erboven,
+   verhuis de oudste entries naar docs/progress/<jaar-maand>.md (niets weggooien).
 
 7. ROND DE PR AF (een run zonder afgeronde PR is mislukt):
      git fetch origin && git rebase origin/main
@@ -76,6 +96,6 @@ bestanden — zie SWARM.md. Vraag nooit om goedkeuring; stop alleen bij een echt
    Verifieer de CI-poort met `gh pr checks <nr>` en citeer de uitkomst. Merge niet zelf.
 
 Regels: geen "AI" in UI/teksten/comments/commits; deterministisch, server-side waarheid; geen dode
-knoppen; geen scope-creep; geen self-merge; stop na 2 mislukte herstelpogingen en meld de blocker in
-de PR-body.
+knoppen; geen scope-creep (zie 1b — buiten de kern bouw je niets); geen self-merge; stop na 2
+mislukte herstelpogingen en meld de blocker in de PR-body.
 ```

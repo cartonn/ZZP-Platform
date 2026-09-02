@@ -3,9 +3,10 @@
 Dit bestand is de **persistente context** voor Claude Code. Lees dit aan het begin
 van elke sessie. Het beschrijft wat we bouwen, hoe, en welke regels niet-onderhandelbaar zijn.
 
-> Werkwijze: lees ook altijd `CURRENT_TASK.md` (wat we NU doen) en `PROGRESS.md`
-> (wat al af is). Update beide aan het einde van elke sessie. Dit voorkomt
-> context-overflow en drift over grote sessies.
+> Werkwijze: lees ook altijd `CURRENT_TASK.md` (wat we NU doen), de **bovenste 100 regels** van
+> `PROGRESS.md` (wat al af is) en `ARCHITECTURE.md §Modulekaart` (waar de code staat). Update
+> `PROGRESS.md` + `CURRENT_TASK.md` aan het einde van elke sessie. Dit voorkomt context-overflow
+> en drift over grote sessies.
 
 ---
 
@@ -70,9 +71,13 @@ werkt volgens dit contract:
    "ziet er goed uit" of "git status is schoon" — een PR is pas af als de CI-poort groen is.
 5. **Productiekwaliteit, geen slop.** Deterministisch, server-side waarheid. Geen dode
    knoppen. **Het woord "AI" komt nergens in de UI, teksten, comments of docs voor.**
-6. **Houd het geheugen actueel.** Werk `PROGRESS.md` (wat af is) en `CURRENT_TASK.md`
-   (huidige taak + backlog) bij na elke increment, zodat de volgende sessie/agent
-   naadloos verderkan.
+6. **Houd het geheugen actueel — en klein.** Werk `PROGRESS.md` (wat af is) en `CURRENT_TASK.md`
+   (huidige taak + backlog) bij na elke increment, zodat de volgende sessie/agent naadloos
+   verderkan. **`PROGRESS.md` blijft ≤ 400 regels en `CURRENT_TASK.md` ≤ 300 regels**; oudere
+   entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md` (en afgeronde
+   fase-verslagen/checklists naar `docs/progress/current-task-archive-<jaar-maand>.md`). Er gaat
+   niets verloren — het archief blijft doorzoekbaar met `git grep`. Reden: de verplichte leeslast
+   per sessie liep op tot ±260.000 tokens, waardoor elke sessie met een vol contextvenster begon.
 
 > Echt 24/7 draaien gebeurt via de scheduler/automation van de eigenaar (bv. de
 > "Swarm Coordinator" of `/loop`); een enkele sessie is eindig. Dit contract zorgt dat
@@ -101,10 +106,18 @@ werkt volgens dit contract:
   autonome, doorlopende verbetering zonder zelf te hoeven mergen). Bij parallelle dict/docs-conflicten:
   **UNION-resolutie** (beide kanten behouden + dedup), nooit `--ours`.
 - **Routine-missie & scope (24-6-2026):** de "ZZP auto-build"-routine (elke 4u) verbetert het
-  platform **in alle aspecten** met als enige maatstaf: **maak het leven van ZZP'er, opdrachtgever
-  en bemiddelaar aantoonbaar makkelijker** — benchmark tegen concurrenten (Pidz/Bendy/Zorgwerk/
-  Malt/Temper/Deel; Linear/Stripe/Vercel voor UX) en wees beter. **Géén i18n/vertaalwerk meer** in
-  de routines (dat spoor is afgesloten).
+  platform met als enige maatstaf: **maak het leven van ZZP'er, opdrachtgever en bemiddelaar
+  aantoonbaar makkelijker** — benchmark tegen concurrenten (Pidz/Bendy/Zorgwerk/Malt/Temper/Deel;
+  Linear/Stripe/Vercel voor UX) en wees beter.
+- **Scope-restrictie routines (2-9-2026) — hard.** Routines bouwen alleen nog binnen **de kern**
+  (certificaat-dossier/verificatie/verloop · cascade uren → ORT → prestatie → factuur ·
+  next-action-engine · DBA-monitor · tenant-cockpit voor bemiddelaars) én **robuustheid, security
+  en bugs**. Expliciet UITGESLOTEN: ontzorgd/aangifte/KOR en overige fiscale features, academie,
+  ideeënbus, design-lab/ontwerp-galerij, nieuwe rollen, nieuwe prijslijnen, i18n/vertaalwerk.
+  Elke routine-run begint met de vraag **"welke klant (bureau/instelling/ZZP'er) vraagt hierom, en
+  waar staat dat?"** — is er geen vindbaar antwoord, dan alleen bugs/robuustheid. Aanleiding: de
+  routines bouwden zonder klantsignaal een boekhoudpakket erbij (omzetgrensmeter, aangifte-agenda,
+  kilometervergoeding) in plaats van een zorgplatform. Spiegel: `docs/ROUTINE-PROMPT.md`.
 - **Veiligheidsregels (hard):** nooit naar `main` pushen zonder toestemming; geen secrets in
   git/log/code; auth nooit uitschakelen; **geen automatische productie-deploy** (zie
   `docs/decisions/0001-deploy-gating.md`); **stop na 2 mislukte herstelpogingen** en meld de blocker.
@@ -235,7 +248,11 @@ Draai de checks én verifieer de CI-poort.
 
 ## Sessie-discipline (voorkomt context-overflow)
 
-- Begin elke sessie: lees CLAUDE.md + CURRENT_TASK.md + PROGRESS.md.
+- Begin elke sessie: lees CLAUDE.md, CURRENT_TASK.md, de **bovenste 100 regels** van PROGRESS.md en
+  **ARCHITECTURE.md §Modulekaart**. Oudere voortgang staat in `docs/progress/` — lees die alleen
+  gericht (`git grep`), nooit integraal.
+- **`PROGRESS.md` blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar
+  `docs/progress/<jaar-maand>.md`.** `CURRENT_TASK.md` blijft ≤ 300 regels.
 - Werk aan één taak uit de bouwvolgorde. Niet vooruitlopen.
 - Schrijf tests naast de code, niet achteraf.
 - Eind van de sessie: update PROGRESS.md en CURRENT_TASK.md, commit met duidelijke message.
