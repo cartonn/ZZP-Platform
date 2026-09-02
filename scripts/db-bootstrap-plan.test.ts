@@ -30,6 +30,11 @@ describe("planDbBootstrap", () => {
     expect(steps[0]!.command).toBe(PUSH_COMMAND);
   });
 
+  it("markeert de SQLite-push NOOIT als transitie (DB_TRANSITION_ACCEPT_DATA_LOSS mag hier nooit gelden)", () => {
+    const steps = planDbBootstrap({ provider: "sqlite" });
+    expect(steps[0]!.transition).toBeUndefined();
+  });
+
   it("draait op een lege Postgres alleen migrate deploy (die past de baseline zelf toe)", () => {
     const steps = planDbBootstrap({
       provider: "postgresql",
@@ -51,6 +56,20 @@ describe("planDbBootstrap", () => {
     expect(steps[0]!.command).toBe(PUSH_COMMAND);
     expect(steps[1]!.command).toBe(RESOLVE_BASELINE_COMMAND);
     expect(steps[1]!.command).toContain(BASELINE_MIGRATION);
+  });
+
+  it("markeert de drift-herstel-push als 'transition' — de enige plek waar DB_TRANSITION_ACCEPT_DATA_LOSS mag gelden", () => {
+    const steps = planDbBootstrap({
+      provider: "postgresql",
+      hasMigrationsTable: false,
+      hasUserTable: true,
+    });
+    const push = steps.find((s) => s.step === "push")!;
+    expect(push.transition).toBe(true);
+    // Geen enkele andere stap (resolve-migration, migrate-deploy) draagt de marker.
+    for (const s of steps) {
+      if (s.step !== "push") expect(s.transition).toBeUndefined();
+    }
   });
 
   it("markeert ELKE migratiemap als toegepast, in de meegegeven volgorde, ná de db push", () => {

@@ -92,6 +92,7 @@ export function collectSystemStatus(
                 ? "SQLite — vluchtig bij redeploy; gebruik managed PostgreSQL (EU-regio) in productie."
                 : "Onbekende databank-URL — controleer DATABASE_URL.",
         },
+        dbTransitionAcceptDataLossItem(env),
         {
           key: "storage",
           label: "Documentopslag",
@@ -488,6 +489,35 @@ function maintenanceItem(env: Env): StatusItem {
     detail: adminBypass
       ? "Bezoekers krijgen een 503-onderhoudspagina; ingelogde admins mogen erdoor. Zet MAINTENANCE_MODE uit na het onderhoud."
       : "Bezoekers én admins krijgen een 503-onderhoudspagina (MAINTENANCE_ALLOW_ADMIN=false). Zet MAINTENANCE_MODE uit na het onderhoud.",
+  };
+}
+
+/**
+ * Bouwt een status-item voor de eenmalige DB-transitie-noodrem (incident 2-9-2026, vervolg):
+ * DB_TRANSITION_ACCEPT_DATA_LOSS=true staat de EERSTE Migrate-boot toe om een db-push-weigering
+ * (mogelijk dataverlies) te herhalen MET --accept-data-loss, uitsluitend in die ene transitie-stap
+ * (scripts/db-sync.mjs syncTransitionSchema). Aandacht zolang de vlag aanstaat — hij hoort na een
+ * geslaagde transitie weer uit te gaan (envWarnings herinnert daar ook aan).
+ */
+function dbTransitionAcceptDataLossItem(env: Env): StatusItem {
+  const enabled = env.DB_TRANSITION_ACCEPT_DATA_LOSS === "true";
+  if (!enabled) {
+    return {
+      key: "db-transition-accept-data-loss",
+      label: "DB-transitie-noodrem",
+      mode: "uit",
+      level: "ok",
+      detail:
+        "Normale, veilige db-push-weigering blijft van kracht bij dataverlies. Zet DB_TRANSITION_ACCEPT_DATA_LOSS=true alleen tijdelijk, tijdens de eenmalige overgang naar Prisma Migrate.",
+    };
+  }
+  return {
+    key: "db-transition-accept-data-loss",
+    label: "DB-transitie-noodrem",
+    mode: "aan",
+    level: "attention",
+    detail:
+      "DB_TRANSITION_ACCEPT_DATA_LOSS=true — de eerste Migrate-boot mag db push bij een dataverlies-weigering herhalen MET --accept-data-loss. Verwijder deze variabele weer zodra de transitie geslaagd is.",
   };
 }
 

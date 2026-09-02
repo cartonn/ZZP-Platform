@@ -84,7 +84,7 @@ export function resolveDbProvider(databaseUrl) {
  * @param {string[]} [input.migrationNames] - namen van de mappen in `prisma/migrations`, in
  *   oplopende volgorde (start.mjs leest deze uit de map — nooit hardcoden). Alleen gebruikt in het
  *   drift-herstelpad hieronder; default `[BASELINE_MIGRATION]` voor bestaande call-sites/tests.
- * @returns {{ step: "push" | "resolve-migration" | "migrate-deploy", command: string, reason: string }[]}
+ * @returns {{ step: "push" | "resolve-migration" | "migrate-deploy", command: string, reason: string, transition?: boolean }[]}
  */
 export function planDbBootstrap({
   provider,
@@ -102,7 +102,7 @@ export function planDbBootstrap({
     ];
   }
 
-  /** @type {{ step: "push" | "resolve-migration" | "migrate-deploy", command: string, reason: string }[]} */
+  /** @type {{ step: "push" | "resolve-migration" | "migrate-deploy", command: string, reason: string, transition?: boolean }[]} */
   const steps = [];
 
   // Alleen het drift-herstelpad als het schema er al staat zónder migratiehistorie. Op een lege
@@ -111,12 +111,17 @@ export function planDbBootstrap({
   // database mét historie is er niets te herstellen.
   if (!hasMigrationsTable && hasUserTable) {
     // 1. Schema daadwerkelijk bijwerken (dicht drift sinds db push stopte werken — incident
-    //    2-9-2026). Loopt via syncSchema() in start.mjs (zelfde "push"-stap als SQLite hierboven),
-    //    dus met dezelfde begrensde retry op transiënte fouten en een harde, zichtbare boot-stop op
-    //    een DESTRUCTIEVE wijziging (geen --accept-data-loss).
+    //    2-9-2026). Loopt via syncTransitionSchema() in start.mjs — NIET de gewone syncSchema()
+    //    die de SQLite-"push"-stap hierboven gebruikt. `transition: true` is de marker die start.mjs
+    //    laat weten dat dit de ENE toegestane plek is waar --accept-data-loss mag (uitsluitend met
+    //    DB_TRANSITION_ACCEPT_DATA_LOSS=true, en pas na het luid loggen van de Prisma-waarschuwingen
+    //    — zie scripts/db-sync.mjs syncTransitionSchema). Zonder die vlag gedraagt dit zich exact als
+    //    de gewone syncSchema(): begrensde retry op transiënte fouten, harde/zichtbare boot-stop op
+    //    een destructieve wijziging.
     steps.push({
       step: "push",
       command: PUSH_COMMAND,
+      transition: true,
       reason:
         "bestaand schema zonder migratiehistorie, mogelijk met drift sinds db push stopte werken — schema eerst daadwerkelijk bijwerken vóór de migraties als toegepast gemarkeerd worden",
     });

@@ -1,9 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   classifySchemaSyncFailure,
+  isDataLossFailure,
   resolveDbSyncRetry,
   backoffDelayMs,
   syncSchema,
+  syncTransitionSchema,
+  TRANSITION_ACCEPT_DATA_LOSS_COMMAND,
+  SCHEMA_SYNC_COMMAND,
 } from "./db-sync.mjs";
 
 describe("classifySchemaSyncFailure", () => {
@@ -43,6 +47,23 @@ describe("classifySchemaSyncFailure", () => {
   it("behandelt een onbekende fout fail-fast als fataal", () => {
     expect(classifySchemaSyncFailure("iets onverwachts ging mis")).toBe("fatal");
     expect(classifySchemaSyncFailure("")).toBe("fatal");
+  });
+});
+
+describe("isDataLossFailure", () => {
+  it("herkent Prisma's dataverlies-weigering", () => {
+    expect(
+      isDataLossFailure(
+        "⚠️ There might be data loss when applying the changes:\n\n  • A unique constraint covering the columns [kvkNumber] on the table Tenant will be added. If there are existing duplicate values, this will fail.\n\nUse the --accept-data-loss flag to ignore the data loss warnings like this:",
+      ),
+    ).toBe(true);
+  });
+
+  it("herkent geen andere fatale fout als dataverlies", () => {
+    expect(isDataLossFailure("P1000 Authentication failed against database server")).toBe(false);
+    expect(isDataLossFailure("P1003 Database `zzp` does not exist")).toBe(false);
+    expect(isDataLossFailure("")).toBe(false);
+    expect(isDataLossFailure(undefined)).toBe(false);
   });
 });
 
@@ -143,5 +164,120 @@ describe("syncSchema", () => {
     ).rejects.toThrow(/na 0 retries/);
     expect(runCapture).toHaveBeenCalledTimes(1);
     expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it("hangt de rauwe Prisma-uitvoer aan de fout bij een fatale fout (voor syncTransitionSchema)", async () => {
+    const output = "possible data loss: unique constraint on kvkNumber";
+    const runCapture = vi.fn().mockReturnValue({ code: 1, output });
+    const sleep = vi.fn();
+    await expect(syncSchema({ runCapture, sleep, env: {}, log: silentLog })).rejects.toMatchObject({
+      rawOutput: output,
+    });
+  });
+});
+
+describe("syncTransitionSchema", () => {
+  const silentLog = { log: () => {}, warn: () => {}, error: () => {} };
+  const dataLossOutput =
+    "⚠️ There might be data loss when applying the changes:\n\n  • A unique constraint covering the columns [kvkNumber] on the table Tenant will be added. If there are existing duplicate values, this will fail.\n\nUse the --accept-data-loss flag to ignore the data loss warnings like this:";
+
+  it("gedraagt zich als syncSchema bij succes op de eerste (veilige) poging", async () => {
+    const runCapture = vi.fn().mockReturnValue({ code: 0, output: "" });
+    const sleep = vi.fn();
+    await expect(
+      syncTransitionSchema({ runCapture, sleep, env: {}, log: silentLog }),
+    ).resolves.toBeUndefined();
+    expect(runCapture).toHaveBeenCalledTimes(1);
+    expect(runCapture).toHaveBeenCalledWith(SCHEMA_SYNC_COMMAND);
+  });
+
+  it("gooit meteen door bij een dataverlies-weigering ZONDER de vlag (geen bypass)", async () => {
+    const runCapture = vi.fn().mockReturnValue({ code: 1, output: dataLossOutput });
+    const sleep = vi.fn();
+    await expect(
+      syncTransitionSchema({ runCapture, sleep, env: {}, log: silentLog }),
+    ).rejects.toThrow(/niet-transiënte fout/);
+    // Geen tweede poging (geen --accept-data-loss-commando aangeroepen).
+    expect(runCapture).toHaveBeenCalledTimes(1);
+  });
+
+  it("gooit meteen door bij een ANDERE fatale fout, ook mét de vlag aan (geen generieke bypass)", async () => {
+    const runCapture = vi
+      .fn()
+      .mockReturnValue({ code: 1, output: "P1000 Authentication failed against database server" });
+    const sleep = vi.fn();
+    await expect(
+      syncTransitionSchema({
+        runCapture,
+        sleep,
+        env: { DB_TRANSITION_ACCEPT_DATA_LOSS: "true" },
+        log: silentLog,
+      }),
+    ).rejects.toThrow(/niet-transiënte fout/);
+    expect(runCapture).toHaveBeenCalledTimes(1);
+    expect(runCapture).toHaveBeenCalledWith(SCHEMA_SYNC_COMMAND);
+  });
+
+  it("logt de Prisma-waarschuwingen en herprobeert MET --accept-data-loss wanneer de vlag aan staat", async () => {
+    const runCapture = vi
+      .fn()
+      .mockReturnValueOnce({ code: 1, output: dataLossOutput })
+      .mockReturnValueOnce({ code: 0, output: "" });
+    const sleep = vi.fn();
+    const warn = vi.fn();
+    await expect(
+      syncTransitionSchema({
+        runCapture,
+        sleep,
+        env: { DB_TRANSITION_ACCEPT_DATA_LOSS: "true" },
+        log: { ...silentLog, warn },
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(runCapture).toHaveBeenCalledTimes(2);
+    expect(runCapture).toHaveBeenNthCalledWith(1, SCHEMA_SYNC_COMMAND);
+    expect(runCapture).toHaveBeenNthCalledWith(2, TRANSITION_ACCEPT_DATA_LOSS_COMMAND);
+    // De waarschuwingen worden vóór de herpoging luid gelogd — inclusief de exacte Prisma-tekst.
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toContain("kvkNumber");
+    expect(warn.mock.calls[0]![0]).toContain("DB_TRANSITION_ACCEPT_DATA_LOSS=true");
+  });
+
+  it("laat de herpoging alsnog falen als --accept-data-loss zelf ook fataal faalt", async () => {
+    const runCapture = vi
+      .fn()
+      .mockReturnValueOnce({ code: 1, output: dataLossOutput })
+      .mockReturnValueOnce({ code: 1, output: "P1003 Database `zzp` does not exist" });
+    const sleep = vi.fn();
+    await expect(
+      syncTransitionSchema({
+        runCapture,
+        sleep,
+        env: { DB_TRANSITION_ACCEPT_DATA_LOSS: "true" },
+        log: silentLog,
+      }),
+    ).rejects.toThrow(/niet-transiënte fout/);
+    expect(runCapture).toHaveBeenCalledTimes(2);
+  });
+
+  it("gebruikt custom command/acceptDataLossCommand-parameters wanneer meegegeven", async () => {
+    const runCapture = vi
+      .fn()
+      .mockReturnValueOnce({ code: 1, output: dataLossOutput })
+      .mockReturnValueOnce({ code: 0, output: "" });
+    const sleep = vi.fn();
+    await syncTransitionSchema({
+      runCapture,
+      sleep,
+      env: { DB_TRANSITION_ACCEPT_DATA_LOSS: "true" },
+      log: silentLog,
+      command: "npx prisma db push --skip-generate --custom",
+      acceptDataLossCommand: "npx prisma db push --skip-generate --custom --accept-data-loss",
+    });
+    expect(runCapture).toHaveBeenNthCalledWith(1, "npx prisma db push --skip-generate --custom");
+    expect(runCapture).toHaveBeenNthCalledWith(
+      2,
+      "npx prisma db push --skip-generate --custom --accept-data-loss",
+    );
   });
 });

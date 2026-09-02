@@ -309,6 +309,42 @@ Secrets staan uitsluitend in de Railway-secrets-kluis (nooit in code/git/logs). 
   faalt de boot helder als een **ingeschakelde** integratie zijn sleutel mist — halve activering
   wordt bewust geweigerd.
 
+## 8. Eenmalige DB-transitie (`DB_TRANSITION_ACCEPT_DATA_LOSS`)
+
+Vervolg op het drift-herstelpad in §1: de allereerste `prisma migrate`-boot op een bestaande, met
+`db push` opgebouwde database (schema staat er, geen `_prisma_migrations`) draait eerst
+`prisma db push --skip-generate` om drift te dichten — bewust **zonder** `--accept-data-loss`
+(zie `prisma/manual-migrations/README.md` en `scripts/db-bootstrap-plan.mjs`).
+
+**Wanneer je dit nodig hebt.** Prisma classificeert sommige onschuldige wijzigingen tóch als
+"mogelijk dataverlies" — bijvoorbeeld een NIEUWE `UNIQUE`-constraint op een kolom zonder bestaande
+duplicaten. De push weigert dan met een melding als:
+
+> A unique constraint covering the columns `[kvkNumber]` on the table `Tenant` will be added. If
+> there are existing duplicate values, this will fail.
+
+Dat is geen dataverlies, maar Prisma weet dat pas na de poging. Als je hebt geverifieerd dat de
+gemelde wijzigingen veilig zijn (geen bestaande duplicaten op de genoemde kolommen), zet dan
+tijdelijk `DB_TRANSITION_ACCEPT_DATA_LOSS=true` in de Railway-omgeving en trigger een nieuwe deploy.
+
+**Wat de boot dan doet (`scripts/db-sync.mjs`, `syncTransitionSchema`) — uitsluitend in déze ene
+transitie-stap, nooit bij een gewone boot:**
+
+1. Draait de normale, veilige `db push` (identiek aan elke andere boot).
+2. Weigert Prisma die specifiek vanwege dataverlies-classificatie, dan wordt de **volledige**
+   Prisma-waarschuwing eerst **luid gelogd** (zichtbaar in het Railway-deploy-log) — vóór er iets
+   met `--accept-data-loss` gebeurt.
+3. Pas dán herprobeert de push, nu MET `--accept-data-loss`.
+
+Elke ANDERE fatale fout (authenticatie, een niet-uitvoerbare migratie, …) — of de vlag staat uit —
+gedraagt zich exact als een gewone boot: gooit meteen, geen enkele retry met `--accept-data-loss`.
+De vlag is dus nooit een generieke bypass, alleen voor déze herkende classificatie.
+
+**Na een geslaagde transitie:** verwijder `DB_TRANSITION_ACCEPT_DATA_LOSS` weer uit de
+Railway-variabelen. Zolang hij aanstaat, herinnert `/admin/systeemstatus` (kaart
+"DB-transitie-noodrem", "aandacht") + een boot-waarschuwing (`envWarnings`) daaraan — de vlag is
+bedoeld als eenmalig, niet als permanente instelling.
+
 ## 9. Onderhoudsmodus (het platform tijdelijk offline halen)
 
 Een operationele noodrem voor een geplande migratie, een database-herstel (§5) of een incident (§6):

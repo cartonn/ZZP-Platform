@@ -35,6 +35,7 @@ const INTEGRATION_VARS = [
   "UPSTASH_REDIS_REST_URL",
   "UPSTASH_REDIS_REST_TOKEN",
   "REDIS_URL",
+  "DB_TRANSITION_ACCEPT_DATA_LOSS",
   "CLAMAV_HOST",
   "CLAMAV_PORT",
   "SHARE_TOKEN_SECRET",
@@ -426,6 +427,18 @@ describe("envWarnings", () => {
   it("zwijgt over de onbekende-waarde-waarschuwing wanneer er geen diagnose is (default)", () => {
     const w = envWarnings(prod({ RATE_LIMIT_STORE: "memory" }));
     expect(w.some((m) => m.includes("is geen geldige driver"))).toBe(false);
+  });
+
+  it("waarschuwt luid wanneer DB_TRANSITION_ACCEPT_DATA_LOSS=true staat (eenmalige noodrem)", () => {
+    const w = envWarnings(prod({ DB_TRANSITION_ACCEPT_DATA_LOSS: "true" }));
+    expect(
+      w.some((m) => m.includes("DB_TRANSITION_ACCEPT_DATA_LOSS=true") && /verwijder/i.test(m)),
+    ).toBe(true);
+  });
+
+  it("zwijgt over DB_TRANSITION_ACCEPT_DATA_LOSS zonder de vlag (normale staat)", () => {
+    const w = envWarnings(prod({ DB_TRANSITION_ACCEPT_DATA_LOSS: undefined }));
+    expect(w.some((m) => m.includes("DB_TRANSITION_ACCEPT_DATA_LOSS"))).toBe(false);
   });
 
   it("waarschuwt voor SEMANTIC_MATCHER=pgvector in productie (nog niet operationeel, lokale fallback)", () => {

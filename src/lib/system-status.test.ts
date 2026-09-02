@@ -321,6 +321,29 @@ describe("collectSystemStatus — onderhoudsmodus", () => {
   });
 });
 
+describe("collectSystemStatus — DB-transitie-noodrem (DB_TRANSITION_ACCEPT_DATA_LOSS)", () => {
+  it("uit (default) = ok", () => {
+    const item = itemByKey(makeEnv(), "db-transition-accept-data-loss");
+    expect(item.mode).toBe("uit");
+    expect(item.level).toBe("ok");
+  });
+
+  it("aan = aandacht, benoemt de eenmalige noodrem", () => {
+    const item = itemByKey(
+      makeEnv({ DB_TRANSITION_ACCEPT_DATA_LOSS: "true" }),
+      "db-transition-accept-data-loss",
+    );
+    expect(item.mode).toBe("aan");
+    expect(item.level).toBe("attention");
+    expect(item.detail).toMatch(/accept-data-loss/i);
+  });
+
+  it("aan in productie levert een boot-waarschuwing", () => {
+    const status = collectSystemStatus(makeEnv({ DB_TRANSITION_ACCEPT_DATA_LOSS: "true" }));
+    expect(status.warnings.some((m) => /DB_TRANSITION_ACCEPT_DATA_LOSS/.test(m))).toBe(true);
+  });
+});
+
 describe("collectSystemStatus — beveiligingscontact (security.txt)", () => {
   it("SECURITY_CONTACT gezet = ok", () => {
     const item = itemByKey(

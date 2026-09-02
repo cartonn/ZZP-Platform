@@ -81,6 +81,19 @@ export function classifySchemaSyncFailure(output) {
 }
 
 /**
+ * Specifiek: is deze mislukking Prisma's data-loss-weigering (i.p.v. een andere fatale fout zoals
+ * een authenticatiefout of een niet-uitvoerbare migratie)? Gebruikt door de EENMALIGE
+ * transitie-stap (syncTransitionSchema hieronder) om `--accept-data-loss` uitsluitend voor dít
+ * geval toe te staan — nooit als generieke bypass voor elke fatale fout.
+ * @param {string | undefined} output
+ * @returns {boolean}
+ */
+export function isDataLossFailure(output) {
+  const haystack = (output ?? "").toLowerCase();
+  return haystack.includes("data loss") || haystack.includes("accept-data-loss");
+}
+
+/**
  * Resolve de retry-parameters uit env, veilig geklemd zodat een verkeerd geplakte waarde de boot
  * nooit oneindig laat retryen of de backoff tot nul terugbrengt.
  *  - DB_SYNC_MAX_RETRIES  (default 5,     geklemd [0, 10])
@@ -120,6 +133,9 @@ function defaultRunCapture(command) {
   return { code, output: `${stdout}${stderr}${result.error ? `\n${result.error.message}` : ""}` };
 }
 
+/** Standaard sleep-implementatie (echte timer); tests injecteren een eigen `sleep`. */
+const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
  * Zet het schema op de database met begrensde retry op transiënte connectiefouten.
  * Faalt METEEN (gooit) bij een fatale/onbekende fout of zodra de retries uitgeput zijn. Bij succes
@@ -135,7 +151,7 @@ function defaultRunCapture(command) {
  */
 export async function syncSchema({
   runCapture = defaultRunCapture,
-  sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  sleep = defaultSleep,
   env = process.env,
   log = console,
   command = SCHEMA_SYNC_COMMAND,
@@ -149,11 +165,16 @@ export async function syncSchema({
 
     const kind = classifySchemaSyncFailure(output);
     if (kind === "fatal") {
-      throw new Error(
+      // rawOutput blijft beschikbaar voor callers die zelf willen beslissen (zie
+      // syncTransitionSchema hieronder) — de generieke boodschap/gedrag voor bestaande callers
+      // verandert niet.
+      const err = new Error(
         "[db] schema-sync faalde met een niet-transiënte fout (geen retry). Controleer de uitvoer " +
           "hierboven — een destructieve schemawijziging faalt bewust zonder --accept-data-loss om " +
           "productiedata te beschermen.",
       );
+      err.rawOutput = output;
+      throw err;
     }
 
     if (attempt >= maxRetries) {
@@ -169,5 +190,65 @@ export async function syncSchema({
         `over ${delay}ms opnieuw`,
     );
     await sleep(delay);
+  }
+}
+
+/** Het commando voor de eenmalige transitie-herpoging: dezelfde push, MET --accept-data-loss. */
+export const TRANSITION_ACCEPT_DATA_LOSS_COMMAND = `${SCHEMA_SYNC_COMMAND} --accept-data-loss`;
+
+/**
+ * Wrapper rond `syncSchema`, UITSLUITEND voor de eenmalige DB-transitie-stap (zie
+ * scripts/db-bootstrap-plan.mjs — "postgres, User-tabel aanwezig, geen _prisma_migrations"). Draait
+ * eerst de normale, veilige push (identiek aan syncSchema). Weigert Prisma die specifiek omdat hij
+ * het (mogelijk onterecht) als dataverlies classificeert — bv. een NIEUWE unique constraint op een
+ * kolom zonder bestaande duplicaten, zoals `kvkNumber` op `Tenant` — dan gebeurt er ALLEEN iets
+ * anders wanneer de operator dat expliciet heeft aangezet via `DB_TRANSITION_ACCEPT_DATA_LOSS=true`
+ * (env.ts documenteert de vlag + waarschuwt zolang hij aanstaat):
+ *   1. de volledige Prisma-waarschuwing wordt eerst LUID gelogd (zodat die niet onopgemerkt in een
+ *      retry verdwijnt);
+ *   2. dezelfde push draait opnieuw, nu MET --accept-data-loss.
+ * Elke ANDERE fatale fout (auth, niet-uitvoerbare migratie, ...) — of de vlag staat uit — gedraagt
+ * zich exact als syncSchema: gooit meteen, geen enkele retry met --accept-data-loss. De vlag is dus
+ * nooit een generieke bypass voor "elke fatale fout", alleen voor déze specifieke, herkende
+ * classificatie, en alleen in déze ene stap (nooit bij een gewone boot — zie db-bootstrap-plan.mjs).
+ *
+ * @param {object} [deps]
+ * @param {(command: string) => { code: number, output: string }} [deps.runCapture]
+ * @param {(ms: number) => Promise<void>} [deps.sleep]
+ * @param {Record<string, string | undefined>} [deps.env]
+ * @param {{ log?: Function, warn?: Function, error?: Function }} [deps.log]
+ * @param {string} [deps.command]
+ * @param {string} [deps.acceptDataLossCommand]
+ * @returns {Promise<void>}
+ */
+export async function syncTransitionSchema({
+  runCapture = defaultRunCapture,
+  sleep = defaultSleep,
+  env = process.env,
+  log = console,
+  command = SCHEMA_SYNC_COMMAND,
+  acceptDataLossCommand = TRANSITION_ACCEPT_DATA_LOSS_COMMAND,
+} = {}) {
+  const warn = (msg) => (log.warn ?? log.error ?? (() => {}))(msg);
+
+  try {
+    await syncSchema({ runCapture, sleep, env, log, command });
+    return; // Geen drift die als dataverlies werd gezien — niets bijzonders nodig.
+  } catch (err) {
+    const rawOutput = err && typeof err === "object" ? err.rawOutput : undefined;
+    const acceptFlag = env.DB_TRANSITION_ACCEPT_DATA_LOSS === "true";
+    if (!isDataLossFailure(rawOutput) || !acceptFlag) {
+      // Niet ons geval (andere fatale fout / transiënte-retries al uitgeput), of de operator heeft
+      // niet expliciet geaccepteerd — laat exact hetzelfde falen als syncSchema.
+      throw err;
+    }
+
+    warn(
+      "[db] transitie: db push weigerde vanwege mogelijk dataverlies. " +
+        "DB_TRANSITION_ACCEPT_DATA_LOSS=true staat aan — de push draait opnieuw MET " +
+        "--accept-data-loss. Waarschuwingen die hiermee worden geaccepteerd:\n" +
+        `${rawOutput}`,
+    );
+    await syncSchema({ runCapture, sleep, env, log, command: acceptDataLossCommand });
   }
 }
