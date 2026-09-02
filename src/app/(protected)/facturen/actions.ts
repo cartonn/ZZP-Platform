@@ -22,6 +22,7 @@ import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { invoiceLineSchema } from "@/lib/validation";
 import { canSendPaymentReminder } from "@/lib/manual-payment-reminder";
 import { invoiceCreateRateLimiter } from "@/lib/rate-limit";
+import { fiscalYearOf } from "@/lib/administration/fiscal-calendar";
 import { plural } from "@/lib/plural";
 
 export type InvoiceState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
@@ -176,7 +177,10 @@ export async function createInvoice(
   const dueAt = dueRaw ? new Date(`${dueRaw}T23:59:59`) : null;
   if (dueAt && Number.isNaN(dueAt.getTime())) return { fieldErrors: { dueAt: "Ongeldige datum." } };
 
-  const year = new Date().getFullYear();
+  // Jaarprefix van het factuurnummer in Amsterdamse burgerlijke tijd, niet server-UTC: op de
+  // UTC-server (Railway) valt 31 dec 23:15 UTC binnen 1 jan Amsterdam; het nummer moet dan met het
+  // nieuwe Amsterdamse jaar meelopen (reeks reset naar 0001), niet het oude jaarprefix voortzetten.
+  const year = fiscalYearOf(new Date());
   const lineData = lines.map((l) => ({
     description: l.description,
     quantity: l.quantity,

@@ -396,6 +396,28 @@ describe("createInvoice — per-actor rate-limiter", () => {
   });
 });
 
+// Jaarwissel-nummering (persona-sweep DOEL 2, correctheid): het jaarprefix van een (juridisch)
+// factuurnummer moet met de Amsterdamse burgerlijke kalender meelopen, niet met server-UTC. Op de
+// UTC-server (Railway) valt 31 dec 23:15 UTC binnen 1 jan Amsterdam; de eerste nieuwjaarsfactuur
+// kreeg met `new Date().getFullYear()` nog het oude jaarprefix (reeks liep door i.p.v. reset naar 0001).
+describe("createInvoice — jaarprefix volgt de Amsterdamse kalender op de jaarwissel", () => {
+  const goodLines = [{ description: "Werk", quantity: "1", unit: "100" }];
+
+  it("nummert een factuur op 31 dec 23:15 UTC (= 1 jan Amsterdam) onder het nieuwe jaar", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-12-31T23:15:00Z"));
+    try {
+      createState.invoiceCount = 0; // eerste factuur van het (Amsterdamse) nieuwe jaar
+      const res = await createInvoice("collab-1", undefined, invoiceFormData(goodLines));
+      expect(res).toBeUndefined();
+      const arg = db.invoiceCreate.mock.calls[0]![0] as unknown as { data: { number: string } };
+      expect(arg.data.number).toBe("2027-0001");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 // Dispuut-bevriezing op de geldstroom-acties (persona-sweep DOEL 2, MED): elke andere geld-mutatie in
 // de cascade-laag blokkeert al op `disputedAt` (assertNotDisputed); de legacy factuuracties deden dat niet.
 describe("sendInvoice/markInvoicePaid/cancelInvoice — bevroren bij een open dispuut", () => {

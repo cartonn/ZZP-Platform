@@ -25,6 +25,7 @@ import {
   collabLink,
 } from "@/lib/cascade/commands-shared";
 import { boundReason } from "@/lib/text-bounds";
+import { fiscalYearOf } from "@/lib/administration/fiscal-calendar";
 import { recordTenantFeeForCollaboration } from "@/lib/tenant-billing/record-fee";
 
 // --- Event C — Factuur indienen --------------------------------------------
@@ -85,7 +86,11 @@ export async function submitInvoice(actor: Actor, invoiceId: string): Promise<vo
     // Alleen bij de eerste indiening een nummer alloceren; heraanbieding hergebruikt het bestaande.
     isResubmit
       ? undefined
-      : { allocate: { issuerKey: inv.issuerKey, year: new Date().getFullYear(), invoiceId } },
+      : // Jaar in Amsterdamse burgerlijke tijd, niet server-UTC: op de UTC-server (Railway) valt
+        // 31 dec 23:15 UTC binnen 1 jan Amsterdam — het jaarprefix van het (juridische) factuurnummer
+        // moet dan met het Amsterdamse afgiftejaar meelopen, niet met UTC (zelfde patroon als
+        // ontzorg-overview.ts). Anders krijgt de eerste nieuwjaarsfactuur nog het oude jaarprefix.
+        { allocate: { issuerKey: inv.issuerKey, year: fiscalYearOf(new Date()), invoiceId } },
   );
 
   // Best-effort e-mail naar de opdrachtgever.
