@@ -128,6 +128,14 @@ Eerlijk vastgelegd om dubbel werk (slop) te voorkomen.
   `AvailabilityWindow`-vensters + lopende ACTIVE-plaatsingen. Pure kern `roster-timeline.ts`, read-only,
   geen nieuwe rekenlogica, geen geldstroom. Zet kaart-voor-kaart raden om in één oogopslag.
 
+- **Certificaat-verval tijdens de plaatsing (opdrachtgever)** _(S, Pidz/Zorgwerk — compliance-borging)_ —
+  **GEBOUWD (2026-09-02)**. Zorg-ZZP-platformen bewaken dat een ingezette kracht gedurende de héle
+  opdracht bevoegd blijft. Onze opdrachtgever-certificaat-alert keek alleen 30 dagen vooruit en negeerde
+  de einddatum van de samenwerking, dus een certificaat dat ná die 30 dagen maar vóór het einde van een
+  langere plaatsing verloopt, gaf geen signaal. Additieve WARNING "verloopt vóór het einde van de opdracht"
+  (`expiringDuringPlacement`), einddatum-verankerd; bestaand venster-gedrag ongewijzigd. Read-only afgeleid,
+  geen geldstroom. `src/lib/collaboration-alerts.ts`.
+
 ### PARKEREN (eigenaars-/strategiebeslissing — niet autonoom bouwen)
 
 7. **Externe roostersysteem-integratie** _(L, Zorgwerk + Bendy)_ — ingest van flex-aanvragen uit

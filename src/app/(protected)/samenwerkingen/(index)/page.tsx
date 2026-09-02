@@ -291,7 +291,13 @@ export default async function SamenwerkingenPage({
                   requiredTypes.length > 0 &&
                   (status === "ACTIVE" || status === "PROPOSED") &&
                   c.disputedAt === null
-                    ? assessCollaborationCredentials(requiredTypes, credentials)
+                    ? assessCollaborationCredentials(
+                        requiredTypes,
+                        credentials,
+                        undefined,
+                        undefined,
+                        c.endDate,
+                      )
                     : null;
                 const showAlert = alert && alert.status !== "COMPLIANT";
                 const urgent = alert?.status === "NON_COMPLIANT";

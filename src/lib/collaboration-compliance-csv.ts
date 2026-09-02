@@ -46,6 +46,7 @@ export function complianceCsv(alerts: readonly ClientCredentialAlert[]): string 
     "Ontbrekend",
     "Verlopen",
     "Verloopt binnenkort",
+    "Verloopt tijdens opdracht",
     "In beoordeling",
   ];
   const body = alerts.map((a) => [
@@ -55,6 +56,7 @@ export function complianceCsv(alerts: readonly ClientCredentialAlert[]): string 
     types(a.alert.missing),
     types(a.alert.expired),
     types(a.alert.expiringSoon),
+    types(a.alert.expiringDuringPlacement),
     types(a.alert.inReview),
   ]);
   return toCsv([header, ...body]);

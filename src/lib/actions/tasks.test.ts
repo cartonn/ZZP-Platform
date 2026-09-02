@@ -863,6 +863,7 @@ describe("clientComplianceTask", () => {
     missing: [],
     expired: [],
     expiringSoon: [],
+    expiringDuringPlacement: [],
     inReview: [],
   };
 
@@ -912,6 +913,18 @@ describe("clientComplianceTask", () => {
     });
     expect(t.title).toBe("Certificaat van Youssef in beoordeling (Certificaat)");
     expect(t.priority).toBe(P.credentialExpiring);
+  });
+
+  it("verloopt tijdens de opdracht = waarschuwing: einddatum-verankerde titel, expiring-band", () => {
+    const t = clientComplianceTask("c5", "Nadia", "Langlopend project", {
+      ...emptyAlert,
+      status: "WARNING",
+      expiringDuringPlacement: ["VOG"],
+    });
+    expect(t.title).toBe("Certificaat van Nadia verloopt vóór het einde van de opdracht (VOG)");
+    expect(t.subtitle).toContain("vóór het certificaat vervalt");
+    expect(t.priority).toBe(P.credentialExpiring);
+    expect(t.priority).toBeLessThan(P.complianceRipple);
   });
 
   it("gap (ontbrekend) rangschikt vóór warning (verlopend) via rankTasks", () => {

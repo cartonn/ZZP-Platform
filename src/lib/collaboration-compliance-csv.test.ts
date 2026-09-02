@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { complianceCsv } from "@/lib/collaboration-compliance-csv";
 import { type ClientCredentialAlert } from "@/lib/collaboration-alerts";
 
-const HEADER = "ZZP'er;Opdracht;Status;Ontbrekend;Verlopen;Verloopt binnenkort;In beoordeling";
+const HEADER =
+  "ZZP'er;Opdracht;Status;Ontbrekend;Verlopen;Verloopt binnenkort;Verloopt tijdens opdracht;In beoordeling";
 
 function alert(over: Partial<ClientCredentialAlert> = {}): ClientCredentialAlert {
   return {
@@ -15,6 +16,7 @@ function alert(over: Partial<ClientCredentialAlert> = {}): ClientCredentialAlert
       missing: [],
       expired: [],
       expiringSoon: [],
+      expiringDuringPlacement: [],
       inReview: [],
     },
     ...over,
@@ -38,12 +40,13 @@ describe("complianceCsv", () => {
           missing: ["VOG", "DIPLOMA"],
           expired: [],
           expiringSoon: [],
+          expiringDuringPlacement: [],
           inReview: [],
         },
       }),
     ];
     const lines = complianceCsv(rows).split("\r\n");
-    expect(lines[1]).toBe("Sanne de Vries;Nachtdienst VVT;Actie vereist;VOG, Diploma;;;");
+    expect(lines[1]).toBe("Sanne de Vries;Nachtdienst VVT;Actie vereist;VOG, Diploma;;;;");
     expect(lines).toHaveLength(2);
   });
 
@@ -56,13 +59,33 @@ describe("complianceCsv", () => {
           missing: [],
           expired: [],
           expiringSoon: ["CERTIFICATE"],
+          expiringDuringPlacement: [],
           inReview: ["INSURANCE"],
         },
       }),
     ];
     const lines = complianceCsv(rows).split("\r\n");
     // Kolommen: Ontbrekend en Verlopen leeg; Verloopt binnenkort = Certificaat; In beoordeling = Verzekering.
-    expect(lines[1]).toBe("Job Bakker;Nachtdienst VVT;Let op;;;Certificaat;Verzekering");
+    expect(lines[1]).toBe("Job Bakker;Nachtdienst VVT;Let op;;;Certificaat;;Verzekering");
+  });
+
+  it("vult de 'Verloopt tijdens opdracht'-kolom (einddatum-verankerd verval)", () => {
+    const rows = [
+      alert({
+        freelancerName: "Piet Jansen",
+        alert: {
+          status: "WARNING",
+          missing: [],
+          expired: [],
+          expiringSoon: [],
+          expiringDuringPlacement: ["VOG"],
+          inReview: [],
+        },
+      }),
+    ];
+    const lines = complianceCsv(rows).split("\r\n");
+    // Alleen de nieuwe, één-na-laatste kolom is gevuld.
+    expect(lines[1]).toBe("Piet Jansen;Nachtdienst VVT;Let op;;;;VOG;");
   });
 
   it("behoudt de aangeleverde volgorde (de route sorteert al op triage)", () => {
@@ -82,12 +105,13 @@ describe("complianceCsv", () => {
           missing: ["VOG"],
           expired: [],
           expiringSoon: [],
+          expiringDuringPlacement: [],
           inReview: [],
         },
       }),
     ];
     const lines = complianceCsv(rows).split("\r\n");
     // Cel die met '=' begint krijgt een voorloopse apostrof; geen scheidingsteken/quote/newline erin.
-    expect(lines[1]).toBe("'=WEBSERVICE(1);Reguliere dienst;Actie vereist;VOG;;;");
+    expect(lines[1]).toBe("'=WEBSERVICE(1);Reguliere dienst;Actie vereist;VOG;;;;");
   });
 });

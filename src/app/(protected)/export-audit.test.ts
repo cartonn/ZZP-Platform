@@ -100,6 +100,7 @@ vi.mock("@/lib/collaboration-alerts", () => ({
         missing: ["VOG"],
         expired: [],
         expiringSoon: [],
+        expiringDuringPlacement: [],
         inReview: [],
       },
     },

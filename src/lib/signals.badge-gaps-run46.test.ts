@@ -27,6 +27,7 @@ type Alert = {
   missing: string[];
   expired: string[];
   expiringSoon: string[];
+  expiringDuringPlacement: string[];
   inReview: string[];
 };
 const clientCredentialAlertsMock = vi.fn(
@@ -125,6 +126,7 @@ describe("navBadges CLIENT — compliance-ripple in de cascade-badge (DOEL 1b)",
           missing: [],
           expired: ["VOG"],
           expiringSoon: [],
+          expiringDuringPlacement: [],
           inReview: [],
         },
       },
@@ -138,7 +140,14 @@ describe("navBadges CLIENT — compliance-ripple in de cascade-badge (DOEL 1b)",
     clientCredentialAlertsMock.mockResolvedValue([
       {
         collaborationId: "collab-1",
-        alert: { status: "WARNING", missing: [], expired: [], expiringSoon: [], inReview: ["VOG"] },
+        alert: {
+          status: "WARNING",
+          missing: [],
+          expired: [],
+          expiringSoon: [],
+          expiringDuringPlacement: [],
+          inReview: ["VOG"],
+        },
       },
     ]);
     const badges = await navBadges("CLIENT", "u-1");
@@ -155,6 +164,7 @@ describe("navBadges CLIENT — compliance-ripple in de cascade-badge (DOEL 1b)",
           missing: ["VOG", "INSURANCE"],
           expired: [],
           expiringSoon: [],
+          expiringDuringPlacement: [],
           inReview: [],
         },
       },
