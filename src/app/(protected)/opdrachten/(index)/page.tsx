@@ -483,20 +483,9 @@ async function BrowseJobs({
   searchParams: Record<string, string | string[] | undefined>;
   actor: Actor;
 }) {
-  const f = normalizeJobFilters(searchParams);
-
-  // "recent" én "match" vallen op publishedAt-desc: bij match-sortering scant dit de nieuwste
-  // opdrachten binnen de cap, die daarna in het geheugen op matchscore worden herrangschikt.
-  const orderBy: Prisma.JobOrderByWithRelationInput =
-    f.sort === "rate_desc"
-      ? { rateMax: "desc" }
-      : f.sort === "rate_asc"
-        ? { rateMin: "asc" }
-        : { publishedAt: "desc" };
-
   // Profiel eerst apart: het is de enige `where`-afhankelijkheid van de bewaarde-opdrachten-query,
   // waardoor die daarna in dezelfde parallelle batch als de opdrachten kan meedraaien i.p.v. een
-  // extra seriële roundtrip achteraf.
+  // extra seriële roundtrip achteraf. Het bepaalt bovendien de standaardstand van "Mijn vakgebied".
   const profile =
     actor.role === "FREELANCER"
       ? await prisma.freelancerProfile.findUnique({
@@ -512,6 +501,24 @@ async function BrowseJobs({
         })
       : null;
 
+  // Eigen profielbranches: voeden de "Mijn vakgebied"-quickfilter in de gedeelde where-builder.
+  const myIndustryIds = profile ? profile.industries.map((i) => i.industryId) : [];
+
+  // "Mijn vakgebied" staat standaard AAN zodra de ZZP'er branches op zijn profiel heeft: de
+  // marktplaats opent dan op zijn eigen vakgebied in plaats van op alles. De server bepaalt die
+  // standaard (waarheid server-side); een expliciete keuze in de URL (`mine=1`/`mine=0`) wint en
+  // blijft bewaard zoals elke andere filterkeuze.
+  const f = normalizeJobFilters(searchParams, { mine: myIndustryIds.length > 0 });
+
+  // "recent" én "match" vallen op publishedAt-desc: bij match-sortering scant dit de nieuwste
+  // opdrachten binnen de cap, die daarna in het geheugen op matchscore worden herrangschikt.
+  const orderBy: Prisma.JobOrderByWithRelationInput =
+    f.sort === "rate_desc"
+      ? { rateMax: "desc" }
+      : f.sort === "rate_asc"
+        ? { rateMin: "asc" }
+        : { publishedAt: "desc" };
+
   // Match-sortering is alleen zinvol met een profiel om tegen te scoren (ADMIN heeft er geen). Zonder
   // profiel valt de weergave terug op de DB-sortering (publishedAt-desc) en tonen we geen matchbadges.
   const effectiveMatchSort = f.sort === "match" && profile != null;
@@ -525,9 +532,6 @@ async function BrowseJobs({
   // profiel is er niets om compliance tegen te berekenen → de vlag doet niets.
   const onlyEligible = f.onlyEligible && profile != null;
   const scanAndRank = effectiveMatchSort || startSort || onlyEligible;
-
-  // Eigen profielbranches: voeden de "Mijn vakgebied"-quickfilter in de gedeelde where-builder.
-  const myIndustryIds = profile ? profile.industries.map((i) => i.industryId) : [];
 
   // Gedeelde where-builder: één bron van waarheid voor de zichtbare, gepubliceerde-opdrachten-where
   // (tenant-zichtbaarheid + overflow, tariefgrenzen, tekstzoek/locatie/werkvorm/vaardigheden/
@@ -886,6 +890,7 @@ async function BrowseJobs({
         industries={industries}
         skills={skills}
         myIndustryCount={myIndustryIds.length}
+        mySkillIds={profile ? profile.skills.map((s) => s.skillId) : []}
         canSortByMatch={profile != null}
         canHideApplied={profile != null}
         canFilterEligible={profile != null}

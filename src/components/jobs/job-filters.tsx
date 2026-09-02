@@ -1,11 +1,39 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useT } from "@/components/i18n/locale-provider";
+import { splitSkillChips } from "@/lib/skill-categories";
 import { cn } from "@/lib/utils";
+
+/** Eén vaardigheids-chip in het filterpaneel (dezelfde pill-vorm als de quickfilters). */
+function SkillChip({
+  id,
+  name,
+  selected,
+  onToggle,
+}: {
+  id: string;
+  name: string;
+  selected: boolean;
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(id)}
+      aria-pressed={selected}
+      className={cn(
+        "focus-ring rounded-full border px-3 py-1 text-sm transition-colors",
+        selected ? "border-primary bg-accent" : "border-border hover:bg-muted",
+      )}
+    >
+      {name}
+    </button>
+  );
+}
 
 const CREDENTIALS = [
   ["", "Alle certificaten"],
@@ -20,14 +48,20 @@ export function JobFilters({
   industries,
   skills,
   myIndustryCount = 0,
+  mySkillIds = [],
   canSortByMatch = false,
   canHideApplied = false,
   canFilterEligible = false,
 }: {
   industries: { id: string; name: string }[];
   skills: { id: string; name: string }[];
-  /** Aantal profielbranches van de ZZP'er; >0 toont de "Mijn vakgebied"-quickfilter. */
+  /**
+   * Aantal profielbranches van de ZZP'er; >0 toont de "Mijn vakgebied"-quickfilter én zet die
+   * standaard aan (dezelfde standaard die de server hanteert — de client beslist niets).
+   */
   myIndustryCount?: number;
+  /** Vaardigheden van het eigen profiel: die chips staan vooraan, de rest achter "Meer vaardigheden". */
+  mySkillIds?: string[];
   /** Toont "Beste match eerst" als sorteeroptie (alleen zinvol voor een ZZP'er mét profiel). */
   canSortByMatch?: boolean;
   /** Toont de "Verberg opdrachten waarop ik al reageerde"-quickfilter (ZZP'er mét profiel). */
@@ -74,14 +108,30 @@ export function JobFilters({
       else p.delete(key);
     });
 
-  const mineActive = params.get("mine") === "1";
+  // "Mijn vakgebied" staat standaard aan zodra de ZZP'er branches op zijn profiel heeft: hij opent
+  // de marktplaats dan op zijn eigen vakgebied. Een expliciete keuze in de URL (1/0) wint altijd en
+  // blijft bewaard; uitzetten schrijft dus `mine=0` in plaats van de param te wissen.
+  const mineParam = params.get("mine");
+  const mineActive = mineParam === "1" || (mineParam !== "0" && myIndustryCount > 0);
   const toggleMine = () =>
     push((p) => {
       if (mineActive) {
-        p.delete("mine");
+        p.set("mine", "0");
       } else {
         p.set("mine", "1");
         p.delete("industryId"); // "Mijn vakgebied" overkoepelt de expliciete branchekeuze
+      }
+    });
+
+  // Een expliciet gekozen branche overkoepelt "Mijn vakgebied" (zelfde regel als de where-builder),
+  // dus zetten we de quickfilter dan uit in plaats van de keuzelijst te blokkeren.
+  const setIndustry = (value: string) =>
+    push((p) => {
+      if (value) {
+        p.set("industryId", value);
+        p.set("mine", "0");
+      } else {
+        p.delete("industryId");
       }
     });
 
@@ -100,6 +150,25 @@ export function JobFilters({
     });
 
   const selectedSkills = new Set(params.getAll("skillIds"));
+  // Vaardigheids-chips: eerst wat voor déze ZZP'er telt (eigen profielvaardigheden + wat al
+  // gefilterd is), de rest ingeklapt achter "Meer vaardigheden". Zo begint een verpleegkundige niet
+  // bij AWS en Node.js. Zonder profiel valt de volgorde terug op de categorie-volgorde (zorg eerst).
+  const [showAllSkills, setShowAllSkills] = useState(false);
+  const relevantSkillIds = useMemo(
+    () => [...new Set([...mySkillIds, ...selectedSkills])],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mySkillIds.join(","), [...selectedSkills].join(",")],
+  );
+  const { primary: primarySkills, more: moreSkills } = useMemo(
+    () =>
+      splitSkillChips(
+        skills.map((s) => ({ value: s.id, label: s.name })),
+        relevantSkillIds,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [skills, relevantSkillIds],
+  );
+
   const toggleSkill = (id: string) =>
     push((p) => {
       const current = new Set(p.getAll("skillIds"));
@@ -175,9 +244,8 @@ export function JobFilters({
         />
         <Select
           aria-label={translate("Branche")}
-          value={mineActive ? "" : (params.get("industryId") ?? "")}
-          disabled={mineActive}
-          onChange={(e) => set("industryId", e.target.value)}
+          value={params.get("industryId") ?? ""}
+          onChange={(e) => setIndustry(e.target.value)}
         >
           <option value="">{translate("Alle branches")}</option>
           {industries.map((i) => (
@@ -243,22 +311,45 @@ export function JobFilters({
       </div>
 
       {skills.length > 0 && (
-        <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-          {skills.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => toggleSkill(s.id)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-sm transition-colors",
-                selectedSkills.has(s.id)
-                  ? "border-primary bg-accent"
-                  : "border-border hover:bg-muted",
+        <div className="space-y-2 border-t border-border pt-3">
+          <div className="flex flex-wrap gap-2">
+            {primarySkills.map((s) => (
+              <SkillChip
+                key={s.value}
+                id={s.value}
+                name={s.label}
+                selected={selectedSkills.has(s.value)}
+                onToggle={toggleSkill}
+              />
+            ))}
+          </div>
+          {moreSkills.length > 0 && (
+            <>
+              {showAllSkills && (
+                <div className="flex flex-wrap gap-2">
+                  {moreSkills.map((s) => (
+                    <SkillChip
+                      key={s.value}
+                      id={s.value}
+                      name={s.label}
+                      selected={selectedSkills.has(s.value)}
+                      onToggle={toggleSkill}
+                    />
+                  ))}
+                </div>
               )}
-            >
-              {s.name}
-            </button>
-          ))}
+              <button
+                type="button"
+                onClick={() => setShowAllSkills((v) => !v)}
+                aria-expanded={showAllSkills}
+                className="focus-ring rounded-md text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+              >
+                {showAllSkills
+                  ? translate("Minder vaardigheden")
+                  : `${translate("Meer vaardigheden")} (${moreSkills.length})`}
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

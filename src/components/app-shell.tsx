@@ -14,8 +14,8 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SkipLink } from "@/components/ui/skip-link";
 import { SearchTrigger } from "@/components/search/search-trigger";
 import { CommandPalette } from "@/components/search/command-palette";
-import { navForRole, ROLE_LABEL } from "@/lib/nav";
-import { LanguageToggle } from "@/components/i18n/language-toggle";
+import { navForRole, splitNavItems, ROLE_LABEL } from "@/lib/nav";
+import { NavMoreMenu } from "@/components/nav-more-menu";
 import { getTranslator } from "@/lib/i18n/server";
 import { navBadges, withActionCenterBadge } from "@/lib/signals";
 import { pendingTaskCount } from "@/lib/actions/pending-tasks";
@@ -34,7 +34,7 @@ export async function AppShell({
   children: React.ReactNode;
 }) {
   const role = user.role as UserRole;
-  const [unread, rawBadges, actionCount, branding, { locale, t }] = await Promise.all([
+  const [unread, rawBadges, actionCount, branding, { t }] = await Promise.all([
     user.id
       ? prisma.notification.count({ where: { userId: user.id, readAt: null } })
       : Promise.resolve(0),
@@ -50,6 +50,10 @@ export async function AppShell({
     label: t(item.label),
     section: item.section ? t(item.section) : item.section,
   }));
+  // Zijbalk = de dagelijkse werkstroom (max. 11 items); de secundaire items staan in het
+  // "Meer"-menu in de bovenbalk. De snelzoeker houdt de volledige lijst, zodat een verplaatst
+  // item vindbaar blijft.
+  const { sidebar: sidebarItems, overflow: moreItems } = splitNavItems(navItems);
   // De /acties-badge telt exact de openstaande taken (zoals de pagina ze toont).
   const badges = withActionCenterBadge(rawBadges, actionCount);
   const initials = (user.name ?? user.email ?? "?")
@@ -99,7 +103,7 @@ export async function AppShell({
             <Brand branding={branding} collapsible />
           </div>
           <div className="flex-1 overflow-y-auto p-3">
-            <SidebarNav items={navItems} badges={badges} collapsible />
+            <SidebarNav items={sidebarItems} badges={badges} collapsible />
           </div>
           <div className="border-t border-border p-3">
             <SidebarToggle state={sidebarState} />
@@ -144,12 +148,12 @@ export async function AppShell({
       <div className="flex min-h-screen flex-col">
         <header className="flex h-14 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
           <div className="flex items-center gap-2 md:hidden">
-            <MobileNav items={navItems} badges={badges} />
+            <MobileNav items={sidebarItems} badges={badges} />
             <Brand branding={branding} />
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <LanguageToggle current={locale} label={t("Taal")} />
             <SearchTrigger label={t("Zoeken…")} ariaLabel={t("Snelzoeker openen (Ctrl K)")} />
+            <NavMoreMenu items={moreItems} badges={badges} label={t("Meer")} />
             <ThemeToggle
               toDarkLabel={t("Schakel naar donkere modus")}
               toLightLabel={t("Schakel naar lichte modus")}

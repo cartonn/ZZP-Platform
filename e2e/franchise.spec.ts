@@ -43,9 +43,11 @@ test("franchise kan diensten openstellen voor directe ZZP'ers (en weer sluiten)"
 
   // Gesloten per tenant: de tenant-dienst is onzichtbaar — detail (notFound) én browse-lijst.
   // De browse-lijst checken we via de zoekfilter zodat het niet van paginering/volume afhangt.
+  // `mine=0` zet de "Mijn vakgebied"-quickfilter uit (die staat standaard aan zodra de ZZP'er
+  // branches op zijn profiel heeft): deze test gaat over tenant-zichtbaarheid, niet over branche.
   await zpage.goto(`/opdrachten/${DIENST_ID}`);
   await expect(zpage.getByRole("heading", { name: DIENST_TITEL })).toHaveCount(0);
-  await zpage.goto("/opdrachten?q=verpleegkundige");
+  await zpage.goto("/opdrachten?q=verpleegkundige&mine=0");
   await expect(zpage.getByText(DIENST_TITEL)).toHaveCount(0);
   await shot(zpage, "franchise-overflow-dicht");
 
@@ -56,7 +58,7 @@ test("franchise kan diensten openstellen voor directe ZZP'ers (en weer sluiten)"
   // Dezelfde dienst wordt nu wél zichtbaar voor de directe ZZP'er — detail én lijst.
   await zpage.goto(`/opdrachten/${DIENST_ID}`);
   await expect(zpage.getByRole("heading", { name: DIENST_TITEL })).toBeVisible();
-  await zpage.goto("/opdrachten?q=verpleegkundige");
+  await zpage.goto("/opdrachten?q=verpleegkundige&mine=0");
   await expect(zpage.getByText(DIENST_TITEL).first()).toBeVisible();
   await shot(zpage, "franchise-overflow-open");
 

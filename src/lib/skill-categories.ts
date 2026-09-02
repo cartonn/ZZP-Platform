@@ -5,10 +5,13 @@
 // deterministisch op skillnaam via een kleine, pure mapping met "Overig"-fallback. Makkelijk
 // uitbreidbaar: voeg een naam toe aan de juiste categorie hieronder (case-insensitief).
 
-/** Vaste, gesorteerde volgorde waarin categorieën in de UI verschijnen. */
+/**
+ * Vaste, gesorteerde volgorde waarin categorieën in de UI verschijnen. Zorg & Welzijn staat
+ * vooraan: dat is de kernmarkt, en een verpleegkundige hoort niet eerst AWS en Node.js te zien.
+ */
 export const SKILL_CATEGORY_ORDER = [
-  "IT & Software",
   "Zorg & Welzijn",
+  "IT & Software",
   "Bouw & Techniek",
   "Logistiek",
   "Management & Advies",
@@ -60,6 +63,33 @@ export interface SkillCategoryGroup {
  * categorieën worden weggelaten. Binnen een categorie blijft de meegegeven volgorde behouden
  * (de aanroeper sorteert al alfabetisch), zodat de UI stabiel en voorspelbaar is.
  */
+export interface SkillChipSplit {
+  /** Chips die meteen zichtbaar zijn. */
+  primary: SkillOption[];
+  /** De rest, ingeklapt achter "Meer vaardigheden". */
+  more: SkillOption[];
+}
+
+/**
+ * Splitst vaardigheids-chips in een korte voorhoede en een ingeklapte rest. `relevantIds` (de eigen
+ * profielvaardigheden plus wat al gefilterd is) staan altijd vooraan en raken dus nooit verstopt;
+ * daarna vult de voorhoede aan in categorie-volgorde (Zorg & Welzijn eerst) tot `limit`. Pure
+ * functie — dezelfde invoer geeft altijd exact dezelfde volgorde.
+ */
+export function splitSkillChips(
+  options: SkillOption[],
+  relevantIds: readonly string[],
+  limit = 12,
+): SkillChipSplit {
+  const relevant = new Set(relevantIds);
+  const upfront = options.filter((o) => relevant.has(o.value));
+  const rest = groupSkillsByCategory(options.filter((o) => !relevant.has(o.value))).flatMap(
+    (g) => g.options,
+  );
+  const fill = Math.max(0, limit - upfront.length);
+  return { primary: [...upfront, ...rest.slice(0, fill)], more: rest.slice(fill) };
+}
+
 export function groupSkillsByCategory(options: SkillOption[]): SkillCategoryGroup[] {
   const buckets = new Map<SkillCategory, SkillOption[]>();
   for (const option of options) {

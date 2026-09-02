@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { groupNavItems, navForRole, type NavItem } from "./nav";
+import { MAX_SIDEBAR_ITEMS, groupNavItems, navForRole, splitNavItems, type NavItem } from "./nav";
+
+const ROLES = ["FREELANCER", "CLIENT", "ADMIN", "FRANCHISER"] as const;
 
 const item = (label: string, section?: string): NavItem => ({
   label,
@@ -37,9 +39,54 @@ describe("groupNavItems", () => {
   });
 
   it("elk nav-item van elke rol heeft een sectie (geen naamloze rail meer)", () => {
-    for (const role of ["FREELANCER", "CLIENT", "ADMIN", "FRANCHISER"] as const) {
+    for (const role of ROLES) {
       for (const navItem of navForRole(role)) {
         expect(navItem.section, `${role} > ${navItem.label}`).toBeTruthy();
+      }
+    }
+  });
+});
+
+describe("splitNavItems", () => {
+  it("scheidt zijbalk en 'Meer'-menu en behoudt de bronvolgorde", () => {
+    const a = item("A", "Werk");
+    const b = { ...item("B", "Meer"), overflow: true };
+    const c = item("C", "Werk");
+    const split = splitNavItems([a, b, c]);
+    expect(split.sidebar.map((i) => i.label)).toEqual(["A", "C"]);
+    expect(split.overflow.map((i) => i.label)).toEqual(["B"]);
+  });
+
+  it("zonder overflow-items blijft het 'Meer'-menu leeg", () => {
+    const split = splitNavItems([item("A", "Werk")]);
+    expect(split.overflow).toEqual([]);
+    expect(split.sidebar).toHaveLength(1);
+  });
+
+  it(`elke rol houdt hoogstens ${MAX_SIDEBAR_ITEMS} items in de zijbalk`, () => {
+    for (const role of ROLES) {
+      const { sidebar } = splitNavItems(navForRole(role));
+      expect(
+        sidebar.length,
+        `${role}: ${sidebar.map((i) => i.label).join(", ")}`,
+      ).toBeLessThanOrEqual(MAX_SIDEBAR_ITEMS);
+    }
+  });
+
+  it("verplaatste items blijven bereikbaar: elk item staat in precies één van beide lijsten", () => {
+    for (const role of ROLES) {
+      const all = navForRole(role);
+      const { sidebar, overflow } = splitNavItems(all);
+      expect(sidebar.length + overflow.length).toBe(all.length);
+      const hrefs = new Set([...sidebar, ...overflow].map((i) => i.href));
+      expect(hrefs.size).toBe(all.length);
+    }
+  });
+
+  it("elk 'Meer'-item valt onder de sectie 'Meer' (rustige kop in het menu)", () => {
+    for (const role of ROLES) {
+      for (const navItem of splitNavItems(navForRole(role)).overflow) {
+        expect(navItem.section, `${role} > ${navItem.label}`).toBe("Meer");
       }
     }
   });
