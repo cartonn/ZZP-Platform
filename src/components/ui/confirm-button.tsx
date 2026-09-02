@@ -73,6 +73,7 @@ export function ConfirmButton({
         className={className}
         aria-label={ariaLabel}
         aria-haspopup="dialog"
+        aria-expanded={open}
         onClick={() => setOpen(true)}
       >
         {children}
