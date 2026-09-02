@@ -255,6 +255,34 @@ van het scratch-doel zelf is een infra-keuze. Draai dit periodiek (bv. maandelij
 Alternatief handmatig: herstel naar een wegwerp-database, zet `DATABASE_URL` daarheen in staging en
 verifieer met `/api/readiness` + een steekproef. Een onbeproefde back-up is geen back-up.
 
+**Versleuteling at-rest (opt-in):** een dump bevat volledige productie-PII (namen, e-mail,
+IBAN/KvK/btw, VOG/BIG/diploma-metadata) — versleuteling at-rest beperkt het risico als het
+back-up-bestand zelf lekt (AVG art. 32). Zet `BACKUP_ENCRYPTION_KEY` (base64, exact 32 bytes;
+genereer met `openssl rand -base64 32`) en `npm run db:backup` versleutelt de klaar-gedumpte
+`.dump` met **AES-256-GCM** (Node's ingebouwde `crypto`, geen nieuwe dependency) tot
+`zzp-backup-YYYYMMDD-HHMMSS.dump.enc`; de plaintext `.dump` wordt daarna verwijderd. Zonder de
+variabele blijft een back-up ongewijzigd plaintext `.dump`. Een gezette maar ongeldige sleutel
+(verkeerde lengte/encoding) laat de run hard falen (exit 2) in plaats van stil plaintext te
+schrijven (CLAUDE.md §8 — halve activering is gevaarlijker dan geen). De integriteitsverificatie
+hierboven (`pg_restore --list`) draait **vóór** de versleuteling, op de plaintext-dump — een
+corrupte dump wordt dus nog steeds gevangen en snoeit nooit goede back-ups weg.
+
+Bestandsformaat: `magic "ZBK1" (4 bytes) | iv (12) | GCM-auth-tag (16) | ciphertext`.
+
+`npm run db:restore` en `npm run db:restore-drill` herkennen een versleuteld archief automatisch
+aan deze magic-header (onafhankelijk van de bestandsextensie) en ontsleutelen transparant naar
+een tijdelijk bestand (rechten 0600), dat na afloop altijd wordt verwijderd. Beide vereisen
+**dezelfde** `BACKUP_ENCRYPTION_KEY` als bij het maken van de back-up; ontbreekt die bij een
+versleuteld archief, dan faalt het commando met een duidelijke melding in plaats van kale
+ontsleutelingsfouten. Retentie/snoei telt zowel `.dump` als `.dump.enc` mee.
+
+**Operationeel let op:** de sleutel is niet te herstellen — **kwijtraken van
+`BACKUP_ENCRYPTION_KEY` maakt alle versleutelde back-ups tot dan onherstelbaar.** Bewaar hem
+minstens zo duurzaam als de back-ups zelf (aparte secrets-vault, nooit alleen lokaal/in git).
+Bij sleutelrotatie: oudere `.dump.enc`-bestanden blijven de **oude** sleutel vereisen tot ze
+buiten de retentie vallen — bewaar de vorige sleutel dus mee zolang de bijbehorende back-ups
+nog bestaan.
+
 **Back-up-heartbeat / dead-man's-switch:** laat de externe back-up-job (pg_dump/databasedienst) na
 elke geslaagde dump pingen naar `POST /api/backups/heartbeat` met
 `Authorization: Bearer $CRON_SECRET` (optioneel `{ "ok": false }` bij een mislukte run). Zo toont

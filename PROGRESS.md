@@ -3,6 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-09-02 — prod: versleutelde database-back-ups (AES-256-GCM, opt-in)
+
+**Wat:** database-back-ups (`scripts/backup-db.ts`, `npm run db:backup`) kunnen nu optioneel
+at-rest versleuteld worden. Is `BACKUP_ENCRYPTION_KEY` gezet (base64, exact 32 bytes; genereren
+met `openssl rand -base64 32`), dan versleutelt de helper de klaar-gedumpte `pg_dump` met
+**AES-256-GCM** (Node's ingebouwde `crypto` — geen nieuwe dependency) tot
+`zzp-backup-YYYYMMDD-HHMMSS.dump.enc` en verwijdert de plaintext `.dump`; zonder de variabele
+blijft een back-up ongewijzigd plaintext (pilot ongemoeid). Een gezette maar ongeldige sleutel
+laat `npm run db:backup` hard falen (exit 2) i.p.v. stil plaintext te schrijven (CLAUDE.md §8).
+De bestaande integriteitsverificatie (`pg_restore --list`) draait nog steeds vóór de
+versleuteling op de plaintext-dump, dus een corrupte dump wordt nog altijd gevangen vóórdat de
+retentie snoeit. `scripts/restore-db.ts` (`npm run db:restore`) en
+`scripts/backup-restore-drill.ts` (`npm run db:restore-drill`) herkennen een versleuteld archief
+automatisch aan een magic-header (`"ZBK1" | iv(12) | GCM-tag(16) | ciphertext`, onafhankelijk van
+de bestandsextensie) en ontsleutelen transparant naar een tijdelijk 0600-bestand dat altijd wordt
+opgeruimd; beide vereisen dezelfde sleutel. Retentie/snoei telt zowel `.dump` als `.dump.enc`.
+De herstel-drill geeft hiermee end-to-end bewijs dat een versleuteld archief ook écht weer
+herstelbaar is, niet alleen dat het te ontsleutelen valt.
+
+**Bestanden:** `src/lib/ops/db-backup.ts` (+ `db-backup.test.ts`), `scripts/backup-db.ts`,
+`scripts/restore-db.ts`, `scripts/backup-restore-drill.ts`, `.env.example`, `docs/RUNBOOK.md`
+(§5), `MENSENWERK.md` (§1b).
+
+**Tests:** `db-backup.test.ts` uitgebreid met de encrypt/decrypt-kern (magic-header-detectie,
+sleutel-validatie, foutpaden bij ontbrekende/ongeldige sleutel) — rood→groen op de nieuwe logica;
+typecheck/lint/test/prettier groen.
+
+**Mensenwerk (optioneel):** sleutel genereren (`openssl rand -base64 32`) en
+`BACKUP_ENCRYPTION_KEY` in de Railway-secrets zetten als versleutelde back-ups gewenst zijn; zie
+MENSENWERK.md §1b.
+
 ## 2026-09-02 — security/privacy: brute-force-rem op her-authenticatie + herstel-drill PII-teardown
 
 **Wat:** security-/privacy-auditronde (orchestrator + 3 parallelle adversariële Opus-audits op niet-

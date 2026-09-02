@@ -2711,6 +2711,8 @@ in-browser-verificatie (interactieve sessie).
      over ≤200 profielen met 4 includes — pool één keer fetchen en in-memory scoren.
    - `savedJobIds`-query op /opdrachten (index) in de bestaande `Promise.all` vouwen.
    - ~~Denial-audit op factuur-/urenstaat-PDF-routes~~ — af (PR #554, 2-7).
+5. ~~Versleutelde database-back-ups (AES-256-GCM, opt-in via `BACKUP_ENCRYPTION_KEY`)~~ —
+   **GEDAAN (2026-09-02).** Zie PROGRESS.md 2026-09-02, RUNBOOK §5, MENSENWERK §1b.
 
 Gereed (pre-overhaul): bedrijfsprofiel-compleetheid · admin gebruikers "vraagt aandacht" ·
 nieuwe-reactie-notificatie · uitlegbare matching (match-reasons) · next-action-engine
