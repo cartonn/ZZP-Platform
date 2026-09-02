@@ -27,6 +27,8 @@ function makeRow(id: string, level: DbaSignalLevel, durationMonths: number | nul
     companyName: `Bedrijf ${id}`,
     freelancerName: `ZZP'er ${id}`,
     startDate: null,
+    relationshipStartDate: null,
+    bridgedPriorPlacements: 0,
     assessment: makeAssessment(level, durationMonths),
   };
 }
