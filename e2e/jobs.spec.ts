@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { fillForUrl } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -89,8 +90,9 @@ test("opdrachtgever maakt, publiceert en ZZP'er vindt de opdracht", async ({ pag
   const fp = await ctx.newPage();
   await registerFreelancer(fp, `jobfree-${uniq()}@test.local`);
   await fp.goto("/opdrachten");
-  await fp.getByLabel("Zoeken").fill(title);
-  await fp.waitForURL(/[?&]q=/); // wacht tot de debounced zoekopdracht is toegepast
+  // fillForUrl i.p.v. fill + waitForURL: het zoekveld is een controlled client-component, dus een
+  // invoer vóór hydratatie gaat verloren en de debounced router-push blijft uit (zie e2e/_robust.ts).
+  await fillForUrl(fp, fp.getByLabel("Zoeken"), title, /[?&]q=/);
   const card = fp.getByRole("link", {
     name: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
   });

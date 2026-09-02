@@ -1,5 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Poort uit de omgeving, zodat parallelle worktrees elkaars dev-server niet claimen
+// (`reuseExistingServer` zou anders de server van een ándere checkout aanspreken).
+const PORT = process.env.PORT ?? "3000";
+const BASE_URL = `http://localhost:${PORT}`;
+
 export default defineConfig({
   testDir: "./e2e",
   // De persona-sweep (e2e/personas/*) draait apart via playwright.personas.config.ts tegen een
@@ -15,7 +20,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 1,
   reporter: "list",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: BASE_URL,
     trace: "on-first-retry",
   },
   projects: [
@@ -27,7 +32,7 @@ export default defineConfig({
   ],
   webServer: {
     command: process.env.CI ? "npm run start" : "npm run dev",
-    url: "http://localhost:3000",
+    url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

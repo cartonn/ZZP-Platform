@@ -15,6 +15,18 @@ describe("EmptyState", () => {
     expect(html).not.toContain("border-border");
   });
 
+  it("zet de titel als kop, zodat een lege pagina een oriëntatiepunt heeft", () => {
+    const html = renderToStaticMarkup(<EmptyState title="Nog geen facturen" />);
+    expect(html).toContain("<h2");
+    expect(html).toMatch(/<h2[^>]*>Nog geen facturen<\/h2>/);
+  });
+
+  it("laat het kopniveau kiezen voor een lege staat binnen een sectie met eigen kop", () => {
+    const html = renderToStaticMarkup(<EmptyState title="Nog geen facturen" as="h3" />);
+    expect(html).toMatch(/<h3[^>]*>Nog geen facturen<\/h3>/);
+    expect(html).not.toContain("<h2");
+  });
+
   it("toont de optionele uitleg onder de titel", () => {
     const html = renderToStaticMarkup(
       <EmptyState title="Nog geen facturen" description="Facturen verschijnen na goedkeuring." />,
