@@ -1,6 +1,6 @@
 # PROGRESS.md — Voortgang
 
-> Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
+> Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
 ## Staat van het product (2-9-2026)
 
@@ -9,6 +9,23 @@
 - **Bewust UIT (env-gestuurd, inert):** billing (`noop`), e-mail (`noop`), documentopslag (`local`, geen S3), verificatie-koppelingen DUO/BIG/iDIN (`mock`), gedeelde rate-limit-store (`memory`), web-push (geen VAPID-sleutels), aangifte-partner. Elk kanaal heeft een zelftest + aflever-heartbeat op `/admin/systeemstatus`.
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
+
+## 2026-09-02 — security/privacy-audit: geen nieuwe gaten (basis `main` @ c238580d)
+
+**Wat:** volledige adversariële security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits
+op niet-overlappende oppervlakken), met de opdracht de eerdere "CLEAN"-claims op de áctuele HEAD te wéérleggen —
+plus een gerichte review van de delta `f793358a..c238580d` (reauth-rem, roostertijdlijn, `/franchise/planning`,
+`ciContains`-zoeken, Prisma-baseline/seed-reset-guard, ontwerp-lab-hardening). **Uitkomst: geen nieuwe bevinding.**
+Alle sensitieve primitieven her-geverifieerd: `documents/[id]`/PDF-/dossier-routes leiden ownership server-side af
+en auditen (anti-oracle 404); `media/[...key]` serveert alleen bekende `logoKey`s; alle cron/webhook-guards zijn
+fail-closed (503 bij leeg `CRON_SECRET`); cross-tenant-scoping via `tenantScopeWhere`/`ownsViaTenant` overal
+fail-closed; geen `.passthrough()`/overposting; `anonymizeUser` volledig met CI-coverage-gate;
+`escapeCsvField`/`escapeIcsText` op alle exports; `npm audit --omit=dev` = 0. De nieuwe `SEED_DEMO_RESET`-wisvlag is
+fail-closed (vereist óók `SEED_DEMO=true`). Gedekt: OWASP A01–A10 + AVG art. 5/17/25/32. Details + dekkingsmatrix in
+`docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-09-02b). Geparkeerde infra-/mensenwerkpunten uit eerdere rondes
+ongewijzigd.
+
+**Bestanden:** `docs/SECURITY-PRIVACY-BACKLOG.md`, `PROGRESS.md` (docs-only; geen codewijziging — er was niets te fixen).
 
 ## 2026-09-02 — routine: certificaat-verval tijdens de plaatsing (opdrachtgever)
 
@@ -346,54 +363,3 @@ login-redirect — precies zoals `/.well-known/security.txt` en `/robots.txt`. P
 
 **Checks:** typecheck ✓, unit (change-password-url 5/5 + system-status groen) ✓, prettier ✓. Resterend
 mensenwerk: **niets** — werkt out-of-the-box.
-
-## 2026-09-01 — security/privacy: `twoFactorLastUsedStep` overleefde de accountanonimisering (AVG art. 17 / art. 5(1)(c))
-
-**Wat:** de TOTP-replay-guard (#1302) voegde `User.twoFactorLastUsedStep` toe — de hoogst-verbruikte
-TOTP-tijdteller, `floor(unixtime/30)` van de laatste geslaagde 2FA-login. `userAnonymizationData` zette
-wél `twoFactorSecret`/`twoFactorEnabledAt` op null, maar liet dit veld staan. De enige User-write in
-`anonymizeUser` (`admin/gebruikers/actions.ts:516`) loopt via die helper, dus na een
-vergetelheidsverzoek bleef een gedragsmetadatum met ~30s-resolutie — via `step * 30` herleidbaar tot het
-exacte inlogmoment — toewijsbaar aan de behouden (alleen hernoemde) `User.id`. Precies dezelfde art. 17-klasse
-als het al-geërase `lastLoginAt`/`previousLoginAt` (spiegel van `ConversationParticipant.lastReadAt`, #1097),
-en inconsistent met de self-service `disableTwoFactor`, die dit veld al op null zette.
-
-**Fix:** `twoFactorLastUsedStep: null` toegevoegd aan de returntype én het object van `userAnonymizationData`
-(`src/lib/account-anonymization.ts`). Regressietest rood→groen in `account-anonymization.test.ts` (vóór de fix:
-`undefined`, erna: `null`). Geverifieerd via 3 parallelle adversariële Opus-audits op niet-overlappende
-oppervlakken (authz/IDOR/cross-tenant · injectie/exposure/export · privacy/AVG): de eerste twee CLEAN, deze
-bevinding uit de derde. `npm audit --omit=dev` = 0; Next 15.5.24 (voorbij CVE-2025-29927); geen gecommitte
-`.env`/`NEXT_PUBLIC`-secrets.
-
-**Bestanden:**
-
-- `src/lib/account-anonymization.ts` — veld + rationale-comment in `userAnonymizationData`.
-- `src/lib/account-anonymization.test.ts` — +1 regressietest (art. 17-erasure van `twoFactorLastUsedStep`).
-- `docs/SECURITY-PRIVACY-BACKLOG.md` — ronde-notitie + OPGELOST.
-
-**Checks:** typecheck ✓, unit (account-anonymization 44/44 groen) ✓, build (baseline exit 0) ✓, lint/prettier ✓.
-
-## 2026-09-01 — ZZP'er: KOR-omzetgrensmeter op het ontzorgd-dashboard
-
-**Wat:** de €20.000-omzetgrens van de kleineondernemersregeling (KOR) werd server-side geprojecteerd
-(`korThresholdProjection` → `buildOntzorgOverview.korProjection`) maar bereikte de ZZP'er alleen als losse
-next-action-tekst wanneer hij de grens al naderde. Een ZZP'er die ruim onder de grens zit kreeg géén zicht
-op zijn resterende ruimte. Een visuele meter maakt de grens altijd zichtbaar (benchmark: Moneybird/Tellow
-tonen omzetdrempel-voortgang), zodat de ZZP'er de BTW-gevolgen tijdig kan inplannen i.p.v. ze achteraf te
-merken.
-
-**Fix:** nieuwe pure presentatie-mapper `korThresholdView(projection, approaching)` (toon-kleur, meterstand,
-statusbadge, kop + toelichting per status: under/approaching/projected_over/over) + een `KorThresholdCard` die
-omzet-tot-nu vs €20.000, resterende ruimte en (indien geprojecteerd) de kruis-maand toont. Ingehangen tussen
-Urencriterium en IB-schatting in het ontzorgd-paneel. Read-only, server-side waarheid; dezelfde `approaching`-
-drempel als de next-actions (één bron van waarheid). Meter kapt op 100% zodra de grens gepasseerd is.
-
-**Bestanden:**
-
-- `src/lib/tax/kor-threshold-view.ts` — nieuwe pure mapper `korThresholdView` + `KorThresholdView`/`KorThresholdTone`.
-- `src/lib/tax/kor-threshold-view.test.ts` — +5 tests (alle 4 statussen, meter-cap op 100%, projected_over-fallback).
-- `src/components/tax/kor-threshold-card.tsx` — nieuwe presentatie-kaart met meterbalk (`role="progressbar"`).
-- `src/components/administratie/ontzorgd-panel.tsx` — hangt de kaart in.
-
-**Checks:** typecheck ✓, lint ✓, unit (nieuw 5/5, suite 7561 tests groen; enige rode suite = pre-existing
-lokaal ontbrekende dep `qrcode-generator`, staat in package.json → CI `npm ci` dekt het), prettier ✓, build (CI).

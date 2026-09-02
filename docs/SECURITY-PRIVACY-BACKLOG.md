@@ -4,6 +4,57 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-02b (basis: `main` @ c238580d) — GEEN NIEUWE GATEN. Volledige adversariële sweep + de delta `f793358a..c238580d` (8 PR's: #1326 reauth-rem/drill-teardown, #1328 roostertijdlijn, #1329 facturatie-nudge/jaarwissel, #1330 certificaat-verval, #1331 docs, #1332 CI+ciContains, #1334 Prisma-baseline/seed-guard, #1335 ontwerp-lab-hardening) opnieuw langs OWASP Top 10 / ASVS + AVG.
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht de eerdere "CLEAN"-claims op de áctuele HEAD te wéérleggen (niet te bevestigen):
+
+- **A — object-/functie-authz + IDOR (OWASP A01):** álle ~42 `/api`-route-handlers, de cron-/webhook-guards
+  en de share-token-flow. **CLEAN.** Elke `[id]`-route her-leidt de eigenaar server-side uit de DB en
+  vergelijkt (`documents/[id]` → `canAccessDocument(actor, doc.ownerId)`; factuur-/prestatie-/dossier-PDF's
+  → `collaboration.company.userId`/`freelancer.userId`/`issuerUserId`; geen client-veld vertrouwd).
+  Geweigerd én niet-gevonden geven een ononderscheidbare 404 mét audit (anti-oracle CWE-203/CWE-208).
+  `media/[...key]` serveert alléén een key die exact een bekende `Company.logoKey` matcht → een `../`-key
+  matcht geen rij (404) vóór storage, plus de path-traversal-guard in `LocalStorageDriver.resolve()`. Alle
+  16 `tasks/*`-routes + metrics + backup-heartbeat zijn **fail-closed**: 503 als `CRON_SECRET` leeg is
+  (lege string is falsy → geen bypass), `timingSafeEqual` met lengte-precheck. Share-/agenda-tokens:
+  HMAC-SHA256 + `timingSafeEqual`, `false` bij leeg secret, liveness + PUBLIC-visibility + tenant her-getoetst
+  per request. Twee gedocumenteerde LAAG/by-design-noten (niet-herroepbare HMAC-deellink v1; logo's zichtbaar
+  voor elke ingelogde gebruiker — bewust, allowlist-gepoort) — geen authz-defect.
+- **B — cross-tenant/franchise-isolatie + mass-assignment + statusovergangen:** álle FRANCHISER-bereikbare
+  pages/actions/exports incl. de níeuwe `/franchise/planning` + `roster-timeline.ts`. **CLEAN.** `actor.tenantId`
+  wordt vers uit de DB geladen (`authz.ts:88-94`, nooit uit een client-editbare claim); elke detail-loader/
+  mutatie/export scoopt via `tenantScopeWhere`/`assertSameTenant`/`ownsViaTenant` en faalt closed voor een
+  tenantloze actor. Het `Job.tenantId`↔`Company.tenantId`-invariant blijft niet-exploiteerbaar
+  (`franchise/dienst.ts` bewijst dept.company-tenant == actor-tenant vóór create). Geen `.passthrough()`;
+  geen Prisma-`data:`-spread van een request-body (de énige spreads zijn audit-`metadata` en het
+  literal-`courseData`-object met vaste sleutels + server-constanten `authorId`/`status:"DRAFT"` in
+  academie — geverifieerd geen overposting). Statusovergangen via de expliciete maps
+  (`assertJobTransition`/`assertHandoffTransition`/`canLeadTransition`) — geen DRAFT→VERIFIED-bypass.
+- **C — privacy/AVG + injectie:** erasure/anonimisering, PII-over-fetch, PII-in-logs, k-anonimiteit, retentie,
+  derden-doorgifte, CSV/ICS/XSS/SSRF/open-redirect, `npm audit`. **CLEAN.** `anonymizeUser` dekt élke
+  PII-tabel (User/FreelancerProfile-IBAN/KvK/BTW/Company+logo/Credential/Document-bestand+rij/Message/
+  Application/AuditLog-PII+vrije-tekst/Notification/reviews/tickets/leads/2FA-secret+recovery/gedrag), met een
+  CI-coverage-gate (`anonymize-schema-coverage.test.ts`) die faalt op een níeuwe PII-kolom; `account-export.ts`
+  spiegelt de scoping en toont nooit méér (alleen third-party-ids). Logger redact recursief (iban/bsn/phone/
+  e-mail), Sentry `sendDefaultPii:false` + `beforeSend`-scrub. `MARKET_RATE_MIN_SAMPLE=10` afgedwongen;
+  `PAYMENT_MIN_SAMPLE_SIZE=3` is bewust géén k-anon-vloer (eigen betaalhistorie, alleen aggregaat). Retentie
+  faalt richting verwijderen (fail-safe), niet fail-open. Geoapify-host hardcoded + NL-gefilterd, provider
+  default-uit → geen SSRF. `escapeCsvField` (CWE-1236: `=+-@\t\r`) op álle exports via `toCsv`; `escapeIcsText`
+  (RFC 5545); enige `dangerouslySetInnerHTML` = het statische nonce-theme-script; `signIn/out` met hardcoded
+  `redirectTo` → geen open-redirect. **`npm audit --omit=dev` = 0 kwetsbaarheden** (Next.js 15.5.24 / Auth.js v5 /
+  Prisma 6.19.3 — geen bekende openstaande CVE geraakt).
+
+**Dekking (OWASP Top 10 / ASVS + AVG):** A01 (object-/functie-authz + IDOR + multi-tenant), A02 (secret-/PII-
+exfiltratie via logging/monitoring), A03 (SQL/`$queryRaw`, XSS/`dangerouslySetInnerHTML`, CSV-/formule- + ICS-
+injectie), A04 (insecure design: fail-closed cron, rate-limits, anti-oracle), A05 (CSP-nonce/headers), A07
+(auth/sessie/2FA/reauth-rem/token-flow), A08 (mass-assignment/overposting + statusovergangen), A09 (audit-
+logging van gevoelige toegang), A10 (SSRF). AVG: art. 5(1)(c) minimalisatie, 5(1)(e) opslagbeperking/retentie,
+art. 17 vergetelheid/erasure, art. 25 privacy-by-default (documenten privé), art. 32 vertrouwelijkheid.
+**Uitkomst: geen nieuwe bevinding — niets gefixt, niets nieuw geparkeerd.** De geparkeerde infra-/mensenwerk-
+punten uit eerdere rondes (scratch-doel-beveiliging bij de herstel-drill; tegenpartij-vrije-tekst over een
+gewiste betrokkene) blijven staan; deze ronde bracht niets dat die niet al dekt.
+
 ## Ronde 2026-09-02 (basis: `main` @ f793358a) — 2× HOOG OPGELOST: (1) ontbrekende brute-force-rem op de her-authenticatie (CWE-307 / OWASP A07) + (2) herstel-drill liet een volledige PII-schaduwkopie in de scratch-database staan (AVG art. 5(1)(c)/5(1)(e)/32)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
