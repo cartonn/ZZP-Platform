@@ -193,6 +193,22 @@ export const SUBSCRIPTION_TRANSITIONS: Record<SubscriptionStatus, readonly Subsc
 // --- Tenant-billing (franchise-monetisatie, 3+1 hybride: abonnement per vestiging + transactie-fee
 // per gevulde samenwerking). De prijzen/percentages zijn mensenwerk (zie MENSENWERK.md); hier staan
 // alleen de sleutels + statussen. Standaard staat de facturatie UIT (zie config TENANT_BILLING).
+// Levensloop van een bemiddeling (tenant). Een bureau dat zich zélf aanmeldt start op PENDING en
+// heeft dan géén toegang tot de werkplek (fail-closed via tenantAccessBlocked in authz.ts); pas een
+// platform-admin zet hem op ACTIVE of REJECTED. SUSPENDED = achteraf stilgezet (wanbetaling/fraude).
+export const TENANT_STATUSES = ["PENDING", "ACTIVE", "SUSPENDED", "REJECTED"] as const;
+export type TenantStatus = (typeof TENANT_STATUSES)[number];
+export const tenantStatusSchema = z.enum(TENANT_STATUSES);
+
+// Enige toegestane overgangen (CLAUDE.md regel 3). Een afgewezen aanmelding is eindstation: het
+// bureau meldt zich desgewenst opnieuw aan, we heropenen nooit stilzwijgend een afgewezen dossier.
+export const TENANT_TRANSITIONS: Record<TenantStatus, readonly TenantStatus[]> = {
+  PENDING: ["ACTIVE", "REJECTED"],
+  ACTIVE: ["SUSPENDED"],
+  SUSPENDED: ["ACTIVE"],
+  REJECTED: [],
+};
+
 export const TENANT_PLAN_KEYS = ["FREE", "GROEI", "PRO"] as const;
 export type TenantPlanKey = (typeof TENANT_PLAN_KEYS)[number];
 export const tenantPlanKeySchema = z.enum(TENANT_PLAN_KEYS);

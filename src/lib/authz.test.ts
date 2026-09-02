@@ -143,6 +143,14 @@ describe("tenantAccessBlocked (fail-closed tenant-suspend, OWASP A01)", () => {
     expect(tenantAccessBlocked("tenant_1", "ACTIVE")).toBe(false);
   });
 
+  it("blokkeert een bemiddeling die nog op activatie wacht of is afgewezen", () => {
+    // Zelfaanmelding van een bureau: de tenant start op PENDING. De bemiddelaar kan wél inloggen
+    // (zijn account is ACTIVE) maar currentActor() geeft null, dus élke server action en elke
+    // data-lezende pagina weigert fail-closed. Alleen de wachtpagina (/aanmelding) is bereikbaar.
+    expect(tenantAccessBlocked("tenant_1", "PENDING")).toBe(true);
+    expect(tenantAccessBlocked("tenant_1", "REJECTED")).toBe(true);
+  });
+
   it("raakt een platformgebruiker zónder tenant nooit", () => {
     expect(tenantAccessBlocked(null, null)).toBe(false);
     expect(tenantAccessBlocked(undefined, undefined)).toBe(false);

@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/ui/page-header";
 import { BemiddelaarsPanel } from "@/components/admin/gebruikersbeheer/bemiddelaars-panel";
+import { PendingActivationsPanel } from "./pending-activations-panel";
 
 export const metadata: Metadata = { title: "Bemiddelingen · Handslag" };
 
@@ -15,6 +16,7 @@ export default async function FranchisesPage() {
         title="Bemiddelingen"
         description="Bemiddelaars (tenant-admins) en hun tenants. Een bemiddelaar brengt eigen opdrachtgevers en ZZP'ers in het platform."
       />
+      <PendingActivationsPanel />
       <BemiddelaarsPanel />
     </div>
   );

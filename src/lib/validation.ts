@@ -113,6 +113,28 @@ export const registerSchema = z
   });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
+// --- Zelfaanmelding bemiddelingsbureau (rol FRANCHISER; de tenant start op PENDING) ---
+// Zelfde wachtwoordbeleid en e-mailnormalisatie als registerSchema; het KvK-nummer is verplicht
+// (8 cijfers) zodat een aanmelding herleidbaar is naar een echt ingeschreven bureau.
+export const bureauRegisterSchema = z.object({
+  bureauName: trimmed(120).min(2, "Bureaunaam is te kort."),
+  kvkNumber: z
+    .string()
+    .trim()
+    .superRefine((v, ctx) => {
+      if (!isValidKvk(v)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Ongeldig KvK-nummer (8 cijfers)." });
+      }
+    })
+    .transform((v) => normalizeKvk(v)),
+  name: trimmed(120).min(2, "Naam is te kort."),
+  email: z.string().trim().toLowerCase().email("Ongeldig e-mailadres."),
+  password: z.string().min(8, "Wachtwoord moet minstens 8 tekens zijn.").max(200),
+  phone: optionalText(40),
+  region: optionalText(120),
+});
+export type BureauRegisterInput = z.infer<typeof bureauRegisterSchema>;
+
 // --- Freelancerprofiel ---
 export const freelancerProfileSchema = z.object({
   headline: optionalText(120),
