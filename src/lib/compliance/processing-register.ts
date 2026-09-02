@@ -640,6 +640,14 @@ export const RETENTION_SCHEDULE: readonly RetentionRule[] = [
       "Dataminimalisatiebeginsel (art. 5 lid 1e AVG); bijzondere en strafrechtelijke gegevens vereisen extra terughoudendheid",
   },
   {
+    key: "vog-bewijsstuk",
+    category: "VOG-bestand",
+    period:
+      "VOG-bestand: verwijderd direct na beoordeling; metadata gezien/datum: zolang het profiel bestaat",
+    rationale:
+      "Lijn van de Autoriteit Persoonsgegevens: vastleggen dát de VOG is gezien en op welke datum volstaat; een kopie bewaren vereist een eigen noodzaak. Een VOG is bovendien een strafrechtelijk gegeven (art. 10 AVG). Het bestand wordt daarom direct na de beoordeling (goedgekeurd of afgewezen) uit de opslag verwijderd; alleen de beoordelaar, het moment van inzage en het moment van verwijdering blijven als controlespoor bewaard",
+  },
+  {
     key: "auditlog-beveiligingslogboeken",
     category: "Auditlog & beveiligingslogboeken",
     period:

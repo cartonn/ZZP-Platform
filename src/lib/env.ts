@@ -116,6 +116,13 @@ const schema = z
     CLAMAV_HOST: z.string().optional(),
     CLAMAV_PORT: z.string().optional(),
 
+    // Bewaarbeleid voor het VOG-bewijsstuk. Default (leeg) = "metadata": het bestand wordt direct na
+    // de beoordeling verwijderd en alleen "gezien + datum + beoordelaar" blijft staan — de lijn van de
+    // Autoriteit Persoonsgegevens. Zet dit ALLEEN op "file" bij een uitzonderlijke, aantoonbare
+    // contractuele bewaarnoodzaak; dat is een bewuste juridische keuze, geen technische. Zie
+    // src/lib/credential-evidence-policy.ts.
+    CREDENTIAL_EVIDENCE_RETENTION_VOG: z.enum(["metadata", "file"]).optional(),
+
     // Gelekt-wachtwoord-controle (NIST 800-63B / OWASP): noop (default, geen controle, huidig gedrag)
     // of "hibp" — Have I Been Pwned "Pwned Passwords" k-anonieme range-API (sleutelloos, gratis). Geen
     // extra secret nodig; fail-open bij een storing. Zie src/lib/services/password-breach.ts.
@@ -334,6 +341,11 @@ export function envWarnings(env: Env): string[] {
   if (env.STORAGE_DRIVER === "s3" && env.STORAGE_S3_SSE === "none") {
     warnings.push(
       "STORAGE_S3_SSE=none — uploads worden zonder expliciete server-side-encryptie-header opgeslagen; gevoelige documenten leunen dan enkel op de bucket-default-encryptie. Zet STORAGE_S3_SSE=AES256 (of aws:kms) tenzij je opslag de header niet accepteert.",
+    );
+  }
+  if (env.CREDENTIAL_EVIDENCE_RETENTION_VOG === "file") {
+    warnings.push(
+      "CREDENTIAL_EVIDENCE_RETENTION_VOG=file — VOG-bestanden worden ná de beoordeling BEWAARD in plaats van verwijderd. Dat wijkt af van de lijn van de Autoriteit Persoonsgegevens (alleen vastleggen dát de VOG is gezien en wanneer) en vraagt een eigen, aantoonbare bewaargrondslag. Haal deze variabele weg zodra die grondslag vervalt.",
     );
   }
   if (env.EMAIL_DRIVER === "noop") {

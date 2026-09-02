@@ -332,6 +332,25 @@ export default async function CertificatenPage() {
                     )}
                   </div>
 
+                  {/* Bewaarbeleid VOG ("gezien + datum"): ná de beoordeling is er geen bestand meer
+                      om te downloaden — toon in plaats daarvan wat het platform nog wél bewaart.
+                      Vóór de beoordeling legt de regel daaronder uit wat er straks gebeurt. */}
+                  {c.evidenceSeenAt ? (
+                    <p className="text-xs text-muted-foreground">
+                      Bewijsstuk gezien op {fmt(c.evidenceSeenAt)}
+                      {c.evidenceRemovedAt
+                        ? " · bestand verwijderd, we bewaren alleen deze registratie"
+                        : ""}
+                    </p>
+                  ) : (
+                    c.type === "VOG" && (
+                      <p className="text-xs text-muted-foreground">
+                        Je VOG wordt na de controle verwijderd. We bewaren alleen dat hij is gezien,
+                        door wie en op welke datum.
+                      </p>
+                    )
+                  )}
+
                   {status === "REJECTED" && c.rejectionReason && (
                     <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
                       Afgewezen: {c.rejectionReason}

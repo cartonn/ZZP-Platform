@@ -141,6 +141,15 @@ export function CredentialForm({
         hint="PDF, PNG, JPEG of WEBP, max 10 MB. Documenten zijn privé."
       >
         <div className="space-y-2">
+          {/* Bewaarbeleid vooraf benoemen: bij een VOG verdwijnt het bestand na de controle en
+              blijft alleen "gezien + datum" staan. Server-side afgedwongen (credential-evidence-
+              policy.ts); deze tekst legt uit wat er gebeurt, hij beslist niets. */}
+          {type === "VOG" && (
+            <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+              Je VOG wordt na de controle verwijderd. We bewaren alleen dat hij is gezien, door wie
+              en op welke datum.
+            </p>
+          )}
           {isEdit && initial.hasDocument && initial.documentId && (
             <a
               href={`/api/documents/${initial.documentId}`}
