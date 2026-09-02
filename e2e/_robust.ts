@@ -50,7 +50,14 @@ export async function clickUntilGone(button: Locator, gone: Locator, timeout = 2
 }
 
 /** Klik `button` tot de URL `urlGlob` matcht (navigatie-resultaat). Klikt alleen zolang de knop
- *  nog zichtbaar is — na de navigatie is hij weg, dus geen dubbele submit op create-acties. */
+ *  nog zichtbaar is — na de navigatie is hij weg, dus geen dubbele submit op create-acties.
+ *
+ *  `waitUntil: "commit"` is hier essentieel: de standaard ("load") wacht op het load-event van de
+ *  doelpagina, en dat blijft uit zolang een server-action-/RSC-response hangt (issue #329). De
+ *  navigatie is dan wél gebeurd — de URL klopt, de pagina staat in zijn laadskelet — maar
+ *  `waitForURL` liep alsnog af. Dat maakte elke clickForUrl een tijdbom (bekende flake op
+ *  franchise-roster-dossier). Het aankomst-criterium blijft ongewijzigd: de URL moet matchen; de
+ *  asserties ná deze helper wachten zelf op de inhoud. */
 export async function clickForUrl(
   button: Locator,
   page: Page,
@@ -61,7 +68,7 @@ export async function clickForUrl(
     if (await button.isVisible().catch(() => false)) {
       await button.click({ timeout: 3000 }).catch(() => {});
     }
-    await page.waitForURL(urlGlob, { timeout: 3000 });
+    await page.waitForURL(urlGlob, { timeout: 3000, waitUntil: "commit" });
   }).toPass({ timeout });
 }
 
