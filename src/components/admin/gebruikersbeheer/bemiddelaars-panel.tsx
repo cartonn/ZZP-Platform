@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import { FranchiseForm } from "@/app/(protected)/admin/franchises/franchise-form";
+import { ADMIN_PANEL_SCAN_LIMIT } from "@/lib/scan-limits";
 
 /**
  * Bemiddelaars-paneel: bemiddelaars (tenant-admins) en hun tenants, plus het aanmaakformulier voor
@@ -22,6 +23,7 @@ export async function BemiddelaarsPanel() {
 
   const tenants = await prisma.tenant.findMany({
     orderBy: { createdAt: "desc" },
+    take: ADMIN_PANEL_SCAN_LIMIT,
     include: {
       owner: { select: { name: true, email: true } },
       _count: { select: { companies: true, freelancers: true, jobs: true } },

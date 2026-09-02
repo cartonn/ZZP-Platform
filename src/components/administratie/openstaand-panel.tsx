@@ -47,6 +47,8 @@ async function fetchOpenInvoices(
   // Voor de ZZP'er ook de eigen betaalde facturen laden: daaruit leiden we het betaalgedrag per
   // opdrachtgever af en projecteren we de realistische betaaldatum (privacy — enkel eigen historie).
   const [invoices, paidRows] = await Promise.all([
+    // unbounded-allow: eigen facturen — voedt het volledige openstaand-saldo, afkappen zou dat
+    // bedrag vervalsen
     prisma.invoice.findMany({
       where,
       include: {
@@ -125,6 +127,7 @@ async function fetchOpenInvoices(
   let reminderEligibility = new Map<string, ManualReminderEligibility>();
   if (isFreelancer && outstanding.length > 0) {
     const ids = outstanding.map((inv) => inv.id);
+    // unbounded-allow: herinnerlogs voor de openstaande facturen van één gebruiker (id-set-query)
     const reminderLogs = await prisma.auditLog.findMany({
       where: { action: "INVOICE_REMINDER_SENT", entityType: "Invoice", entityId: { in: ids } },
       orderBy: { createdAt: "desc" },

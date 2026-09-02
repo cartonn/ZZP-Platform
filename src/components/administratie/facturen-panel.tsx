@@ -74,6 +74,8 @@ export async function FacturenPanel({
     ? { collaboration: { freelancer: { userId: actor.id } } }
     : { collaboration: { company: { userId: actor.id } } };
 
+  // unbounded-allow: eigen facturen — dezelfde lijst voedt de omzet-/openstaand-saldi, afkappen zou
+  // die bedragen vervalsen
   const invoices = await prisma.invoice.findMany({
     where,
     orderBy: { createdAt: "desc" },

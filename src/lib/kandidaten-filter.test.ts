@@ -2,18 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   KANDIDATEN_FILTER_LABELS,
   buildKandidatenHref,
-  countApplicationsByStatus,
-  filterApplicationsByStatus,
   isApplicationStatus,
+  kandidatenStatusWhere,
   normalizeKandidatenFilter,
+  statusCountsFromGroups,
+  totalFromStatusGroups,
 } from "./kandidaten-filter";
 
-const apps = [
-  { id: "a", status: "NEW" },
-  { id: "b", status: "NEW" },
-  { id: "c", status: "SHORTLIST" },
-  { id: "d", status: "REJECTED" },
-  { id: "e", status: "WITHDRAWN" },
+/** Zoals `prisma.application.groupBy({ by: ["status"], _count: { _all: true } })` het teruggeeft. */
+const groups = [
+  { status: "NEW", _count: { _all: 2 } },
+  { status: "SHORTLIST", _count: { _all: 1 } },
+  { status: "REJECTED", _count: { _all: 1 } },
+  { status: "WITHDRAWN", _count: { _all: 1 } },
 ];
 
 describe("isApplicationStatus", () => {
@@ -38,26 +39,25 @@ describe("normalizeKandidatenFilter", () => {
   });
 });
 
-describe("filterApplicationsByStatus", () => {
-  it("laat alles staan bij '' (en kopieert)", () => {
-    const result = filterApplicationsByStatus(apps, "");
-    expect(result).toHaveLength(5);
-    expect(result).not.toBe(apps);
+describe("kandidatenStatusWhere", () => {
+  it("levert een leeg fragment bij 'alle'", () => {
+    expect(kandidatenStatusWhere("")).toEqual({});
   });
-  it("filtert op één status", () => {
-    expect(filterApplicationsByStatus(apps, "NEW").map((a) => a.id)).toEqual(["a", "b"]);
-    expect(filterApplicationsByStatus(apps, "ACCEPTED")).toEqual([]);
+  it("filtert server-side op één status", () => {
+    expect(kandidatenStatusWhere("SHORTLIST")).toEqual({ status: "SHORTLIST" });
   });
-  it("muteert de invoer niet", () => {
-    const copy = [...apps];
-    filterApplicationsByStatus(apps, "NEW");
-    expect(apps).toEqual(copy);
+  it("blijft samen te voegen met een eigenaar-scope zonder die te overschrijven", () => {
+    const owner = { job: { company: { userId: "u1" } } };
+    expect({ ...owner, ...kandidatenStatusWhere("NEW") }).toEqual({
+      job: { company: { userId: "u1" } },
+      status: "NEW",
+    });
   });
 });
 
-describe("countApplicationsByStatus", () => {
+describe("statusCountsFromGroups", () => {
   it("telt per status, alle statussen geïnitialiseerd op 0", () => {
-    const counts = countApplicationsByStatus(apps);
+    const counts = statusCountsFromGroups(groups);
     expect(counts.NEW).toBe(2);
     expect(counts.SHORTLIST).toBe(1);
     expect(counts.REJECTED).toBe(1);
@@ -65,13 +65,33 @@ describe("countApplicationsByStatus", () => {
     expect(counts.VIEWED).toBe(0);
     expect(counts.ACCEPTED).toBe(0);
   });
-  it("levert nullen bij een lege lijst", () => {
-    const counts = countApplicationsByStatus([]);
+  it("levert nullen bij een leeg groupBy-resultaat", () => {
+    const counts = statusCountsFromGroups([]);
     expect(Object.values(counts).every((n) => n === 0)).toBe(true);
   });
-  it("negeert onbekende statuswaarden", () => {
-    const counts = countApplicationsByStatus([{ status: "BOGUS" }, { status: "NEW" }]);
+  it("negeert onbekende statuswaarden uit de database", () => {
+    const counts = statusCountsFromGroups([
+      { status: "BOGUS", _count: { _all: 9 } },
+      { status: "NEW", _count: { _all: 1 } },
+    ]);
     expect(counts.NEW).toBe(1);
+  });
+  it("telt dubbele groepen voor dezelfde status op", () => {
+    const counts = statusCountsFromGroups([
+      { status: "NEW", _count: { _all: 2 } },
+      { status: "NEW", _count: { _all: 3 } },
+    ]);
+    expect(counts.NEW).toBe(5);
+  });
+});
+
+describe("totalFromStatusGroups", () => {
+  it("telt alle statussen op — ook onbekende, want die bestaan wél", () => {
+    expect(totalFromStatusGroups(groups)).toBe(5);
+    expect(totalFromStatusGroups([{ status: "BOGUS", _count: { _all: 4 } }])).toBe(4);
+  });
+  it("levert 0 bij een lege lijst (de 'nog geen reacties'-poort)", () => {
+    expect(totalFromStatusGroups([])).toBe(0);
   });
 });
 
@@ -93,6 +113,15 @@ describe("buildKandidatenHref", () => {
   });
   it("codeert bijzondere tekens in de opdracht-id", () => {
     expect(buildKandidatenHref({ job: "a b&c" })).toBe("/kandidaten?job=a+b%26c");
+  });
+  it("neemt de paginatie-cursor mee met filter én scope ('Meer laden')", () => {
+    expect(buildKandidatenHref({ status: "NEW", job: "job-1", cursor: "app-9" })).toBe(
+      "/kandidaten?status=NEW&job=job-1&cursor=app-9",
+    );
+  });
+  it("laat een lege cursor weg, zodat een tab-href bij pagina 1 begint", () => {
+    expect(buildKandidatenHref({ status: "NEW", cursor: null })).toBe("/kandidaten?status=NEW");
+    expect(buildKandidatenHref({ status: "NEW", cursor: "" })).toBe("/kandidaten?status=NEW");
   });
 });
 

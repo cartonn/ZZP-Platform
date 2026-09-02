@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatEuro } from "@/lib/invoices";
 import { platformQuarterlySummary } from "@/lib/administration/platform-overview";
 import { formatDateShortNl } from "@/lib/format-date";
+import { ADMIN_PANEL_SCAN_LIMIT } from "@/lib/scan-limits";
 
 const QUARTER_LABEL: Record<number, string> = {
   1: "Q1",
@@ -36,10 +37,14 @@ function lifecycleLabel(status: string | null | undefined): string {
  */
 export async function AdminAdministratiePanel() {
   const [adminEntries, collaborations] = await Promise.all([
+    // unbounded-allow: kwartaalsaldi over álle grootboekregels; afkappen zou de totalen vervalsen
     prisma.administrationEntry.findMany({
       orderBy: { occurredAt: "asc" },
     }),
     prisma.collaboration.findMany({
+      // Openstaande-betalingen is een lijst, geen saldo: begrensd op de paneelcap, nieuwste eerst.
+      orderBy: { createdAt: "desc" },
+      take: ADMIN_PANEL_SCAN_LIMIT,
       where: {
         status: { in: ["ACTIVE", "COMPLETED"] },
         invoices: {

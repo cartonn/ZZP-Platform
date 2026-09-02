@@ -109,6 +109,7 @@ export async function getFreelancerCascadeWorkCount(userId: string, now: Date): 
     }),
     prisma.performance.count({ where: rejectedPerfWhere(userId) }),
     prisma.invoice.count({ where: openInvoiceWhere(userId) }),
+    // unbounded-allow: certificaten van één ZZP'er (natuurlijke grens, enkele tientallen)
     prisma.credential.findMany({
       where: { freelancerProfile: { userId } },
       select: { type: true, status: true, expiresAt: true },

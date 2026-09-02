@@ -38,7 +38,7 @@ export async function getVatDeadlinesForActor(
   }
   const { start } = vatQuarterRange(oldest.year, oldest.quarter);
 
-  // venster-gescoopte, owner-gescoopte query: begrensd tot het scanvenster van BTW-tijdvakken.
+  // unbounded-allow: venster- én owner-gescoopte grootboekregels; afkappen zou het BTW-saldo vervalsen
   const rows = await prisma.administrationEntry.findMany({
     where: { ownerUserId: userId, occurredAt: { gte: start, lt: end } },
     select: {

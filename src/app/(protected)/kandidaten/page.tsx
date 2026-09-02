@@ -1,5 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
+import { Prisma } from "@prisma/client";
 import { Users, Check, TriangleAlert, GitCompare, Clock } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getTranslator } from "@/lib/i18n/server";
@@ -8,10 +9,17 @@ import { APPLICATION_TRANSITIONS } from "@/lib/applications";
 import {
   KANDIDATEN_FILTER_LABELS,
   buildKandidatenHref,
-  countApplicationsByStatus,
-  filterApplicationsByStatus,
+  kandidatenStatusWhere,
   normalizeKandidatenFilter,
+  statusCountsFromGroups,
+  totalFromStatusGroups,
 } from "@/lib/kandidaten-filter";
+import { pageArgs, splitPage } from "@/lib/pagination";
+import {
+  CANDIDATE_COMPARE_JOBS_LIMIT,
+  CANDIDATE_MULTI_APPLY_SCAN_LIMIT,
+  CANDIDATE_SIGNAL_SCAN_LIMIT,
+} from "@/lib/scan-limits";
 import { computeCompliance, scoreJobForFreelancer, topPositiveReason } from "@/lib/matching";
 import { computeClientResponsiveness } from "@/lib/client-responsiveness";
 import { buildCollaborationProposalPrefill } from "@/lib/collaboration-proposal-prefill";
@@ -79,6 +87,64 @@ import { isReproposableCancelledProposal } from "@/lib/collaboration-reproposal"
 
 export const metadata: Metadata = { title: "Kandidaten · Handslag" };
 
+/**
+ * Alles wat één kandidaatrij nodig heeft om volledig te renderen: de match-onderbouwing, de live
+ * compliance, de agenda en de stand van een eventuele samenwerking. Bewust zwaar — en daarom
+ * uitsluitend toegepast op de zichtbare pagina (en op de ene "beste match"-rij), nooit op de hele
+ * reactielijst van de opdrachtgever.
+ */
+const CANDIDATE_INCLUDE = Prisma.validator<Prisma.ApplicationInclude>()({
+  job: {
+    select: {
+      id: true,
+      title: true,
+      // description voedt (met de headline/bio van de kandidaat) de inhoudelijke aansluiting
+      // in de matchscore, zodat de kandidatenlijst dezelfde score toont als de overige schermen.
+      description: true,
+      startDate: true,
+      rateMin: true,
+      rateMax: true,
+      workMode: true,
+      location: true,
+      industryId: true,
+      skills: { select: { skillId: true, required: true } },
+      credentialRequirements: { select: { credentialType: true, required: true } },
+    },
+  },
+  freelancer: {
+    select: {
+      id: true,
+      headline: true,
+      bio: true,
+      visibility: true,
+      hourlyRate: true,
+      workMode: true,
+      location: true,
+      maxTravelMinutes: true,
+      availability: true,
+      user: { select: { id: true, name: true, identityVerifiedAt: true } },
+      skills: { select: { skillId: true } },
+      industries: { select: { industryId: true } },
+      availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
+      credentials: { select: { type: true, status: true, expiresAt: true } },
+    },
+  },
+  collaboration: {
+    // Naast de id ook de velden waaruit blijkt of een bestaande collaboration een herbruikbaar,
+    // geannuleerd voorstel is (nooit getekend/actief, geen artefacten). Dan mag de opdrachtgever
+    // opnieuw voorstellen en tonen we het formulier i.p.v. een dode "bekijk samenwerking"-knop.
+    select: {
+      id: true,
+      status: true,
+      contractStatus: true,
+      agreementClientSignedAt: true,
+      agreementFreelancerSignedAt: true,
+      completedAt: true,
+      _count: { select: { invoices: true, performances: true } },
+    },
+  },
+});
+
 const ACTION_LABEL: Record<ApplicationStatus, string> = {
   NEW: "Terug naar nieuw",
   VIEWED: "Markeer als bekeken",
@@ -144,148 +210,204 @@ export default async function KandidatenPage({
     ariaStatus: t("Nieuwe status"),
   };
 
-  // unbounded-allow: kandidaten-matching; volume beperkt door filter
-  const applications = await prisma.application.findMany({
-    where: {
-      job: { company: { userId: actor.id } },
-      ...(jobScope ? { jobId: jobScope } : {}),
-    },
-    // Beste match eerst; de werkstroom-volgorde (NEW vóór afgehandelde) zetten we in-memory, want
-    // `status` is een string-kolom — DB-`asc` zou lexicografisch sorteren (ACCEPTED bovenaan).
-    orderBy: { matchScore: "desc" },
-    include: {
-      job: {
-        select: {
-          id: true,
-          title: true,
-          // description voedt (met de headline/bio van de kandidaat) de inhoudelijke aansluiting
-          // in de matchscore, zodat de kandidatenlijst dezelfde score toont als de overige schermen.
-          description: true,
-          startDate: true,
-          rateMin: true,
-          rateMax: true,
-          workMode: true,
-          location: true,
-          industryId: true,
-          skills: { select: { skillId: true, required: true } },
-          credentialRequirements: { select: { credentialType: true, required: true } },
-        },
-      },
-      freelancer: {
-        select: {
-          id: true,
-          headline: true,
-          bio: true,
-          visibility: true,
-          hourlyRate: true,
-          workMode: true,
-          location: true,
-          maxTravelMinutes: true,
-          availability: true,
-          user: { select: { id: true, name: true, identityVerifiedAt: true } },
-          skills: { select: { skillId: true } },
-          industries: { select: { industryId: true } },
-          availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
-          credentials: { select: { type: true, status: true, expiresAt: true } },
-        },
-      },
-      collaboration: {
-        // Naast de id ook de velden waaruit blijkt of een bestaande collaboration een herbruikbaar,
-        // geannuleerd voorstel is (nooit getekend/actief, geen artefacten). Dan mag de opdrachtgever
-        // opnieuw voorstellen en tonen we het formulier i.p.v. een dode "bekijk samenwerking"-knop.
-        select: {
-          id: true,
-          status: true,
-          contractStatus: true,
-          agreementClientSignedAt: true,
-          agreementFreelancerSignedAt: true,
-          completedAt: true,
-          _count: { select: { invoices: true, performances: true } },
-        },
-      },
-    },
+  // Eigenaar-scope: uitsluitend reacties op opdrachten van déze opdrachtgever. Eén keer gedefinieerd
+  // en door élke query hieronder hergebruikt, zodat geen enkel pad zonder ownership-filter bestaat.
+  const ownerWhere = { job: { company: { userId: actor.id } } };
+  const scopedWhere = { ...ownerWhere, ...(jobScope ? { jobId: jobScope } : {}) };
+  const listWhere = { ...scopedWhere, ...kandidatenStatusWhere(filterStatus) };
+  const cursor = params.cursor || null;
+
+  const [statusGroups, jobGroups] = await Promise.all([
+    // Tab-tellingen: de database telt per status. Vroeger werd hiervoor de héle reactielijst geladen.
+    prisma.application.groupBy({
+      by: ["status"],
+      where: scopedWhere,
+      _count: { _all: true },
+    }),
+    // Vergelijk-instap: opdrachten met ≥2 nog-actieve reacties, drukste eerst en begrensd op de
+    // constante. Ook dit is een telling, geen lijst — geen enkele reactie hoeft ervoor in het geheugen.
+    prisma.application.groupBy({
+      by: ["jobId"],
+      where: { ...scopedWhere, status: { notIn: ["REJECTED", "WITHDRAWN"] } },
+      _count: { jobId: true },
+      orderBy: { _count: { jobId: "desc" } },
+      take: CANDIDATE_COMPARE_JOBS_LIMIT,
+    }),
+  ]);
+  const counts = statusCountsFromGroups(statusGroups);
+  const totalApplications = totalFromStatusGroups(statusGroups);
+
+  const comparableJobIds = jobGroups.filter((g) => g._count.jobId >= 2).map((g) => g.jobId);
+  const comparableTitles =
+    comparableJobIds.length > 0
+      ? await prisma.job.findMany({
+          where: { id: { in: comparableJobIds } },
+          select: { id: true, title: true },
+          take: CANDIDATE_COMPARE_JOBS_LIMIT,
+        })
+      : [];
+  const titleByJobId = new Map(comparableTitles.map((j) => [j.id, j.title]));
+  const comparableJobs = jobGroups
+    .filter((g) => g._count.jobId >= 2 && titleByJobId.has(g.jobId))
+    .map((g) => ({ id: g.jobId, title: titleByJobId.get(g.jobId)!, count: g._count.jobId }));
+
+  // Eén pagina reacties, met de volledige rij-inhoud. Beste match eerst; `id` als tweede sleutel maakt
+  // de volgorde deterministisch — voorwaarde voor een betrouwbare cursor. De werkstroom-volgorde
+  // (NEW vóór afgehandelde) zetten we hierna in-memory binnen de pagina, want `status` is een
+  // string-kolom: DB-`asc` zou lexicografisch sorteren (ACCEPTED bovenaan).
+  const pageRows = await prisma.application.findMany({
+    where: listWhere,
+    orderBy: [{ matchScore: "desc" }, { id: "desc" }],
+    ...pageArgs(cursor),
+    include: CANDIDATE_INCLUDE,
   });
+  const { items: applications, nextCursor } = splitPage(pageRows);
 
-  // Leverbetrouwbaarheid per kandidaat: spiegel van de opdrachtgever-signalen die de ZZP'er op de
-  // opdracht ziet. Eén gebatchte fetch over alle reagerende profielen (geen N+1).
-  const profileIds = applications.map((a) => a.freelancer.id);
-  // Reputatie-rating: gemiddelde opdrachtgever-beoordeling per ZZP'er (op user-id, want een Review
-  // hangt aan de gebruiker, niet aan het profiel). Alleen PUBLISHED CLIENT_ON_FREELANCER.
-  const freelancerUserIds = applications.map((a) => a.freelancer.user.id);
-  const [deliveryByProfile, historyByProfile, ratingByUser, experienceByProfile] =
-    await Promise.all([
-      getDeliveryQualityForProfiles(profileIds),
-      // "Eerder samengewerkt": afgeronde samenwerkingen tussen déze opdrachtgever en de kandidaat —
-      // een sterk vertrouwenssignaal bij de beslissing. Per opdrachtgever gescoopt, geen N+1.
-      getSharedHistoryForCandidates(actor.id, profileIds),
-      getReviewRatingsForCandidates(freelancerUserIds),
-      // Platform-brede staat van dienst: afgeronde klussen over álle opdrachtgevers heen. Vult het
-      // ervaringssignaal voor een kandidaat die nieuw is voor déze opdrachtgever (geen gedeelde historie).
-      getCompletedCollaborationCounts(profileIds),
-    ]);
+  // Deeplink-garantie ("Kies X" vanuit /kandidaten/vergelijk, of een gedeelde link): de aangewezen
+  // reactie moet zichtbaar zijn, ook als hij buiten deze pagina valt. Ownership blijft server-side
+  // afgedwongen — een id van een andere opdrachtgever levert simpelweg niets op.
+  const openRow =
+    openId && !applications.some((a) => a.id === openId)
+      ? await prisma.application.findFirst({
+          where: { ...scopedWhere, id: openId },
+          include: CANDIDATE_INCLUDE,
+        })
+      : null;
+  if (openRow) applications.unshift(openRow);
 
-  // Werkstroom-volgorde: NEW → VIEWED → SHORTLIST → REJECTED → ACCEPTED (actie-vragend eerst,
-  // afgehandeld onderaan). Stabiel, dus binnen één status blijft de match-volgorde (hoogste eerst) staan.
+  // Werkstroom-volgorde binnen de pagina: NEW → VIEWED → SHORTLIST → REJECTED → ACCEPTED
+  // (actie-vragend eerst). Stabiel, dus binnen één status blijft de match-volgorde staan.
   applications.sort(
     (a, b) =>
       APPLICATION_STATUSES.indexOf(a.status as ApplicationStatus) -
       APPLICATION_STATUSES.indexOf(b.status as ApplicationStatus),
   );
 
-  // "Beste match": hoogste matchscore onder de reacties die nog een beslissing vragen — bovenaan
-  // etaleren met de belangrijkste reden, want geen enkele concurrent toont leesbare match-redenen aan
-  // de beslisser. Reacties die al zijn afgehandeld (ACCEPTED/REJECTED/WITHDRAWN) horen hier niet: de
-  // band "beste match" naar een al-geaccepteerde kandidaat wijzen is misleidend.
-  const OPEN_STATUSES = new Set(["NEW", "VIEWED", "SHORTLIST"]);
-  const best =
-    [...applications]
-      .filter((a) => OPEN_STATUSES.has(a.status) && a.matchScore != null)
-      .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))[0] ?? null;
+  // Leverbetrouwbaarheid per kandidaat: spiegel van de opdrachtgever-signalen die de ZZP'er op de
+  // opdracht ziet. Eén gebatchte fetch over de profielen op deze pagina (geen N+1).
+  const profileIds = applications.map((a) => a.freelancer.id);
+  // Reputatie-rating: gemiddelde opdrachtgever-beoordeling per ZZP'er (op user-id, want een Review
+  // hangt aan de gebruiker, niet aan het profiel). Alleen PUBLISHED CLIENT_ON_FREELANCER.
+  const freelancerUserIds = applications.map((a) => a.freelancer.user.id);
+  // Eén tijdstempel per request (patroon van /reacties en /kandidaten/vergelijk), niet per rij.
+  const now = new Date();
+  const nowMs = now.getTime();
+
+  const [
+    deliveryByProfile,
+    historyByProfile,
+    ratingByUser,
+    experienceByProfile,
+    best,
+    multiApplyRows,
+    signalRows,
+  ] = await Promise.all([
+    getDeliveryQualityForProfiles(profileIds),
+    // "Eerder samengewerkt": afgeronde samenwerkingen tussen déze opdrachtgever en de kandidaat —
+    // een sterk vertrouwenssignaal bij de beslissing. Per opdrachtgever gescoopt, geen N+1.
+    getSharedHistoryForCandidates(actor.id, profileIds),
+    getReviewRatingsForCandidates(freelancerUserIds),
+    // Platform-brede staat van dienst: afgeronde klussen over álle opdrachtgevers heen. Vult het
+    // ervaringssignaal voor een kandidaat die nieuw is voor déze opdrachtgever (geen gedeelde historie).
+    getCompletedCollaborationCounts(profileIds),
+    // "Beste match": hoogste matchscore onder de reacties die nog een beslissing vragen — over de
+    // HELE set, niet alleen de geladen pagina, want de band moet de beste kandidaat etaleren. Eén rij
+    // via de database-sortering (`findFirst` = take 1), geen scan. Reacties die al zijn afgehandeld
+    // (ACCEPTED/REJECTED/WITHDRAWN) horen hier niet: die band zou misleiden.
+    filterStatus
+      ? Promise.resolve(null)
+      : prisma.application.findFirst({
+          where: {
+            ...scopedWhere,
+            status: { in: ["NEW", "VIEWED", "SHORTLIST"] },
+            matchScore: { not: null },
+          },
+          orderBy: [{ matchScore: "desc" }, { id: "desc" }],
+          include: CANDIDATE_INCLUDE,
+        }),
+    // Breedte-signaal: op hoeveel van je opdrachten dingt één zichtbare kandidaat nog mee? Alleen voor
+    // de profielen op deze pagina en bewust ZONDER opdracht-scope — anders zou de gescoopte weergave
+    // nooit een "reageerde ook op"-signaal kunnen tonen. Afgewezen/ingetrokken tellen niet mee.
+    profileIds.length > 0
+      ? prisma.application.findMany({
+          where: {
+            ...ownerWhere,
+            freelancerId: { in: profileIds },
+            status: { notIn: ["REJECTED", "WITHDRAWN"] },
+          },
+          select: { freelancerId: true, status: true, job: { select: { id: true, title: true } } },
+          take: CANDIDATE_MULTI_APPLY_SCAN_LIMIT,
+        })
+      : Promise.resolve([]),
+    // Paginabrede signalen (reactiebereidheid + beslis-achterstand) over de meest recente reacties.
+    // Lichte select — alleen de velden die de twee pure functies nodig hebben — en expliciet begrensd,
+    // zodat dit ook bij duizenden reacties een goedkope query blijft.
+    prisma.application.findMany({
+      where: scopedWhere,
+      orderBy: { createdAt: "desc" },
+      take: CANDIDATE_SIGNAL_SCAN_LIMIT,
+      select: {
+        status: true,
+        createdAt: true,
+        matchScore: true,
+        collaboration: { select: { id: true } },
+        job: {
+          select: {
+            credentialRequirements: { where: { required: true }, select: { credentialType: true } },
+          },
+        },
+        freelancer: {
+          select: { credentials: { select: { type: true, status: true, expiresAt: true } } },
+        },
+      },
+    }),
+  ]);
+
   const bestReason = best
     ? topPositiveReason(scoreJobForFreelancer(best.job, best.freelancer).reasons)
     : null;
 
-  // Statusfilter (pill-tabs met tellingen) — zelfde idioom als /prestaties en /diensten.
-  const counts = countApplicationsByStatus(applications);
-  const visible = filterApplicationsByStatus(applications, filterStatus);
-
-  // Eén tijdstempel per request (patroon van /reacties en /kandidaten/vergelijk), niet per rij.
-  const nowMs = Date.now();
-
-  // Vergelijk-instap: per opdracht met ≥2 actieve reacties (nog in de race) een link naar de
-  // side-by-side vergelijking. Afgewezen/ingetrokken reacties tellen niet mee. Geen extra query —
-  // afgeleid uit de reeds opgehaalde lijst.
-  const comparableByJob = new Map<string, { title: string; count: number }>();
-  for (const a of applications) {
-    if (a.status === "REJECTED" || a.status === "WITHDRAWN") continue;
-    const entry = comparableByJob.get(a.job.id) ?? { title: a.job.title, count: 0 };
-    entry.count += 1;
-    comparableByJob.set(a.job.id, entry);
-  }
-  const comparableJobs = [...comparableByJob.entries()]
-    .filter(([, v]) => v.count >= 2)
-    .map(([id, v]) => ({ id, title: v.title, count: v.count }));
-
-  // Breedte-signaal per kandidaat: op hoeveel van je opdrachten reageerde één ZZP'er (nog in de race)?
-  // Afgeleid uit dezelfde reeds opgehaalde lijst (geen extra query); afgewezen/ingetrokken tellen niet
-  // mee (spiegelt de vergelijk-instap hierboven). Alleen kandidaten met ≥ 2 opdrachten komen terug.
+  // Alleen kandidaten met ≥ 2 opdrachten komen terug uit de samenvatting.
   const multiApplyByFreelancer = summarizeMultiApply(
-    applications.map((a) => ({
-      freelancerId: a.freelancer.id,
+    multiApplyRows.map((a) => ({
+      freelancerId: a.freelancerId,
       jobId: a.job.id,
       jobTitle: a.job.title,
       status: a.status,
     })),
   );
 
-  // Beslis-nu-signaal: hoeveel nog-onbesliste reacties liggen langer dan past bij hun matchkwaliteit?
-  // Sterke kandidaten raken elders aan de slag als je te lang wacht — afgeleid uit de reeds opgehaalde
-  // lijst (geen extra query). Eén `now` zodat strip- en kaart-signaal consistent zijn.
-  const now = new Date();
+  // Reactiereputatie-spiegel: hetzelfde reactiebereidheid-signaal dat ZZP'ers over deze opdrachtgever
+  // zien ("Pakt reacties op" / "Laat reacties liggen"), terug naar hemzelf als zelfverbeter-nudge.
+  const responsivenessReputation = computeClientResponsiveness(signalRows, now);
 
-  // Live compliance één keer per reactie berekenen en hergebruiken — zowel de paginabrede band als de
-  // rij moeten dezelfde compliance-blokkade zien, anders telt de band een niet-inzetbare kandidaat als
-  // "sterke match die je elders kunt verliezen" terwijl de rij "eerst compliance oplossen" toont.
+  // Beslis-nu-signaal: hoeveel nog-onbesliste reacties liggen langer dan past bij hun matchkwaliteit?
+  // Sterke kandidaten raken elders aan de slag als je te lang wacht. Compliance-geblokkeerde reacties
+  // tellen niet mee — die krijgen een eigen, rij-specifieke boodschap.
+  const decisionSummary = summarizeCandidatesAwaitingDecision(
+    signalRows.map((a) => ({
+      status: a.status,
+      matchScore: a.matchScore,
+      createdAt: a.createdAt,
+      hasCollaboration: !!a.collaboration,
+      complianceBlocked:
+        computeCompliance(
+          a.job.credentialRequirements.map((r) => r.credentialType as CredentialType),
+          a.freelancer.credentials.map((c) => ({
+            type: c.type as CredentialType,
+            status: c.status as CredentialStatus,
+            expiresAt: c.expiresAt,
+          })),
+          now,
+        ).status === "NON_COMPLIANT",
+    })),
+    now,
+  );
+
+  // Live compliance één keer per zichtbare reactie berekenen en hergebruiken — zowel de paginabrede
+  // band als de rij moeten dezelfde compliance-blokkade zien, anders telt de band een niet-inzetbare
+  // kandidaat als "sterke match die je elders kunt verliezen" terwijl de rij "eerst compliance
+  // oplossen" toont.
   const complianceByApp = new Map(
     applications.map((a) => {
       const requiredTypes = a.job.credentialRequirements
@@ -330,25 +452,6 @@ export default async function KandidatenPage({
     }),
   );
 
-  // Reactiereputatie-spiegel: hetzelfde reactiebereidheid-signaal dat ZZP'ers over deze opdrachtgever
-  // zien ("Pakt reacties op" / "Laat reacties liggen"), terug naar hemzelf als zelfverbeter-nudge.
-  // Afgeleid uit de reeds opgehaalde reacties (geen extra query); dezelfde `now` als de overige signalen.
-  const responsivenessReputation = computeClientResponsiveness(
-    applications.map((a) => ({ status: a.status, createdAt: a.createdAt })),
-    now,
-  );
-
-  const decisionSummary = summarizeCandidatesAwaitingDecision(
-    applications.map((a) => ({
-      status: a.status,
-      matchScore: a.matchScore,
-      createdAt: a.createdAt,
-      hasCollaboration: !!a.collaboration,
-      complianceBlocked: complianceByApp.get(a.id)?.status === "NON_COMPLIANT",
-    })),
-    now,
-  );
-
   return (
     <div className="space-y-6 pb-24">
       <PageHeader
@@ -379,7 +482,7 @@ export default async function KandidatenPage({
         </Card>
       )}
 
-      {applications.length === 0 ? (
+      {totalApplications === 0 ? (
         <Card>
           <EmptyState
             icon={Users}
@@ -403,7 +506,7 @@ export default async function KandidatenPage({
                 status: val as "" | ApplicationStatus,
                 job: jobScope,
               });
-              const count = val === "" ? applications.length : counts[val as ApplicationStatus];
+              const count = val === "" ? totalApplications : counts[val as ApplicationStatus];
               return (
                 <Link
                   key={val}
@@ -487,17 +590,21 @@ export default async function KandidatenPage({
               </CardContent>
             </Card>
           )}
-          {visible.length === 0 ? (
+          {applications.length === 0 ? (
             <EmptyState
               icon={Users}
-              title={t("Geen reacties met deze status")}
-              description={t("Er zijn geen reacties in deze categorie. Pas het filter aan.")}
+              title={cursor ? t("Geen verdere kandidaten") : t("Geen reacties met deze status")}
+              description={
+                cursor
+                  ? t("Je hebt alle kandidaten in deze categorie bekeken.")
+                  : t("Er zijn geen reacties in deze categorie. Pas het filter aan.")
+              }
             />
           ) : (
             (() => {
               // Bouw per zichtbare kandidaat een compacte kop + uitklapbare inhoud. Geaccepteerde
               // kandidaten gaan naar een aparte, ingeklapte sectie onderaan (de samenwerking loopt al).
-              const rendered = visible.map((app) => {
+              const rendered = applications.map((app) => {
                 const status = app.status as ApplicationStatus;
                 // Is de (eventuele) bestaande collaboration een herbruikbaar, geannuleerd voorstel?
                 // Zo ja, dan is de reactie ná annulering opnieuw voorstelbaar: toon het formulier weer
@@ -993,6 +1100,22 @@ export default async function KandidatenPage({
                 </>
               );
             })()
+          )}
+
+          {nextCursor && (
+            <div className="flex justify-center">
+              <Button asChild variant="secondary">
+                <Link
+                  href={buildKandidatenHref({
+                    status: filterStatus,
+                    job: jobScope,
+                    cursor: nextCursor,
+                  })}
+                >
+                  {t("Meer laden")}
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
       )}

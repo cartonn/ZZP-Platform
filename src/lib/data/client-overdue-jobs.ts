@@ -63,17 +63,20 @@ export async function getClientOverdueJobs(
   });
   if (jobs.length === 0) return [];
 
-  // Reactie-standen voor de `action`-afleiding (shortlist vs. losse reacties) in één query.
-  const apps = await prisma.application.findMany({
+  // Reactie-standen voor de `action`-afleiding (shortlist vs. losse reacties): de database telt per
+  // (opdracht, status). Een `groupBy` raakt geen enkele reactierij aan — een opdracht met duizend
+  // reacties kost hier evenveel als een opdracht met tien.
+  const appGroups = await prisma.application.groupBy({
+    by: ["jobId", "status"],
     where: { jobId: { in: jobs.map((j) => j.id) }, status: { not: "WITHDRAWN" } },
-    select: { jobId: true, status: true },
+    _count: { _all: true },
   });
   const applicantByJob = new Map<string, number>();
   const shortlistByJob = new Map<string, number>();
-  for (const a of apps) {
-    applicantByJob.set(a.jobId, (applicantByJob.get(a.jobId) ?? 0) + 1);
-    if (a.status === "SHORTLIST") {
-      shortlistByJob.set(a.jobId, (shortlistByJob.get(a.jobId) ?? 0) + 1);
+  for (const g of appGroups) {
+    applicantByJob.set(g.jobId, (applicantByJob.get(g.jobId) ?? 0) + g._count._all);
+    if (g.status === "SHORTLIST") {
+      shortlistByJob.set(g.jobId, (shortlistByJob.get(g.jobId) ?? 0) + g._count._all);
     }
   }
 

@@ -25,15 +25,25 @@ const state = vi.hoisted(() => ({
 const jobFindMany = vi.fn(async () =>
   state.jobs.map((j) => ({ id: j.id, title: j.title, startDate: j.startDate })),
 );
-const appFindMany = vi.fn(async (args: { where?: { jobId?: { in?: string[] } } }) => {
+// Spiegelt `prisma.application.groupBy({ by: ["jobId", "status"], _count: { _all: true } })`:
+// de reactiestand wordt door de database geteld, niet rij-voor-rij geladen.
+const appGroupBy = vi.fn(async (args: { where?: { jobId?: { in?: string[] } } }) => {
   const ids = args?.where?.jobId?.in ?? [];
-  return state.apps.filter((a) => ids.includes(a.jobId));
+  const counts = new Map<string, { jobId: string; status: string; _count: { _all: number } }>();
+  for (const a of state.apps) {
+    if (!ids.includes(a.jobId)) continue;
+    const key = `${a.jobId}::${a.status}`;
+    const row = counts.get(key) ?? { jobId: a.jobId, status: a.status, _count: { _all: 0 } };
+    row._count._all += 1;
+    counts.set(key, row);
+  }
+  return [...counts.values()];
 });
 
 vi.mock("@/lib/db", () => ({
   prisma: {
     job: { findMany: (...a: unknown[]) => jobFindMany(...(a as [])) },
-    application: { findMany: (a: unknown) => appFindMany(a as never) },
+    application: { groupBy: (a: unknown) => appGroupBy(a as never) },
   },
 }));
 
@@ -43,7 +53,7 @@ beforeEach(() => {
   state.jobs = [];
   state.apps = [];
   jobFindMany.mockClear();
-  appFindMany.mockClear();
+  appGroupBy.mockClear();
 });
 
 describe("getClientOverdueJobs", () => {
@@ -75,7 +85,7 @@ describe("getClientOverdueJobs", () => {
       { jobId: "job-3", title: "Weekend", daysUntilStart: -5, action: "widen_reach" },
     ]);
     // Reactie-query wordt altijd één keer gedaan zolang er kandidaat-opdrachten zijn.
-    expect(appFindMany).toHaveBeenCalledTimes(1);
+    expect(appGroupBy).toHaveBeenCalledTimes(1);
   });
 
   it("negeert reeds-ingetrokken reacties bij de actie-afleiding", async () => {
@@ -112,6 +122,6 @@ describe("getClientOverdueJobs", () => {
   it("doet geen reactie-query zonder kandidaat-opdrachten", async () => {
     const overdue = await getClientOverdueJobs("u-1", NOW);
     expect(overdue).toEqual([]);
-    expect(appFindMany).not.toHaveBeenCalled();
+    expect(appGroupBy).not.toHaveBeenCalled();
   });
 });
