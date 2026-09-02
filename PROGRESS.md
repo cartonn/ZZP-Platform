@@ -10,6 +10,31 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-02 — routine: verificatiewachtrij markeert certificaten die een lopende inzet blokkeren (admin)
+
+**Wat:** de admin-verificatiewachtrij (`/admin/verificaties`) toonde vraag vanuit **open opdrachten**
+(`verification-impact.ts`), maar niet de urgentste dimensie: welke ingediende (SUBMITTED) certificaten
+blokkeren een **lopende (ACTIVE) inzet**? Als een ZZP'er nú op een opdracht zit die een certificaattype
+verplicht stelt en dat type is nog niet geldig-geverifieerd, draait die plaatsing met een openstaand
+compliance-gat — de opdrachtgever loopt live risico (vertrouwen/verificatie is de kerndifferentiatie).
+Nu een **danger-badge** "Blokkeert lopende inzet · N" op zulke inzendingen + een teller in de header
+("N blokkeren een lopende inzet"). FIFO-volgorde (eerlijkheid) blijft ongewijzigd; het is een tweede
+prioriteitsdimensie naast open-vraag, verlopen-inzending en herindiening.
+
+**Aanpak:** pure, deterministische kern `src/lib/verification-placement-impact.ts`
+(`activePlacementImpact`): per wachtrij-inzending het aantal distinct ACTIVE-inzetten dat haar type
+verplicht vereist én waar het type nog niet gedekt is door een geldig VERIFIED-certificaat (zelfde
+"geldig geverifieerd"-semantiek als `assessCollaborationCredentials`; al-gedekte types geven geen valse
+urgentie). Data-laag `src/lib/data/verification-placement-impact.ts` scoopt op de ZZP'ers die nú in de
+wachtrij staan (structureel klein), platform-breed (admin ziet alle tenants, spiegelt de open-vraag-helper):
+ACTIVE-collaboraties + verplichte job-eisen, en de VERIFIED-certificaten (geldigheid server-side bepaald).
+Read-only afgeleid; geen schema-/mutatie-/authz-oppervlak, geen dode knop.
+
+**Bestanden:** `src/lib/verification-placement-impact.ts` (+ `.test.ts`, 9 tests),
+`src/lib/data/verification-placement-impact.ts`, `src/app/(protected)/admin/verificaties/page.tsx`.
+
+**Checks:** typecheck / lint / unit / build / prettier groen; CI-poort verifieert.
+
 ## 2026-09-02 — security/privacy-audit: geen nieuwe gaten (basis `main` @ c238580d)
 
 **Wat:** volledige adversariële security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits

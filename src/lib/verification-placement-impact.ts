@@ -1,0 +1,84 @@
+// Impactsignaal #2 voor de admin-verificatiewachtrij (`/admin/verificaties`). Naast de
+// open-opdracht-vraag (`verification-impact.ts`) mist de admin de urgentste dimensie: welke ingediende
+// certificaten blokkeren een **lopende** (ACTIVE) inzet? Als een ZZP'er nú op een opdracht zit die een
+// certificaattype verplicht stelt en dat type is nog niet geldig-geverifieerd (alleen SUBMITTED), dan
+// draait die plaatsing met een openstaand compliance-gat — de opdrachtgever loopt live risico. Zo'n
+// inzending goedkeuren dicht dat gat direct; ze verdient voorrang boven een certificaattype dat nergens
+// loopt. Spiegelbeeld van de `inReview`-tak in `assessCollaborationCredentials` (compliance-ripple), nu
+// vanuit de admin-bril: welke inzending op mijn bureau zet een draaiende inzet weer compliant?
+//
+// Puur en deterministisch; geen server-only imports (geen db/auth). De aanroeper levert de
+// wachtrij-verwijzingen, de eisen van de lopende inzetten en de al-geldige geverifieerde typen aan.
+// Server-side is de waarheid (CLAUDE.md regel 1): de client toont het signaal, berekent het nooit zelf.
+
+import { type CredentialType } from "@/lib/enums";
+
+/** Eén ingediend (SUBMITTED) certificaat in de wachtrij, herleidbaar tot zijn ZZP'er en type. */
+export interface QueuedCredentialRef {
+  id: string;
+  freelancerProfileId: string;
+  type: CredentialType;
+}
+
+/** Eén lopende (ACTIVE) inzet: van welke ZZP'er en welke certificaattypen die verplicht vereist. */
+export interface ActivePlacementRequirement {
+  freelancerProfileId: string;
+  requiredTypes: readonly CredentialType[];
+}
+
+/** Eén certificaattype dat een ZZP'er nú geldig-geverifieerd heeft (VERIFIED én niet verlopen). */
+export interface CoveredCredentialType {
+  freelancerProfileId: string;
+  type: CredentialType;
+}
+
+/**
+ * Sleutel voor de (freelancer, type)-maps. Een profiel-id (cuid: `[a-z0-9]`) en een certificaattype
+ * (hoofdletter-enum) bevatten geen `|`, dus het scheidingsteken is ondubbelzinnig.
+ */
+function keyOf(freelancerProfileId: string, type: CredentialType): string {
+  return `${freelancerProfileId}|${type}`;
+}
+
+/**
+ * Bepaal per wachtrij-inzending hoeveel **distinct lopende inzetten** ze zou deblokkeren.
+ *
+ * Een inzending telt mee wanneer, voor dezelfde ZZP'er, minstens één ACTIVE inzet haar
+ * certificaattype verplicht vereist én dat type nog **niet** gedekt is door een geldig geverifieerd
+ * certificaat. Is het type al gedekt (bv. een tweede, geldig exemplaar), dan is er geen gat en telt
+ * de inzending niet — geen valse urgentie.
+ *
+ * Retourneert alleen de inzendingen met telling ≥ 1 (map credentialId → aantal geblokkeerde inzetten),
+ * zodat de aanroeper met `.get(id) ?? 0` kan lezen. Pure functie, muteert de invoer niet.
+ */
+export function activePlacementImpact(
+  queue: readonly QueuedCredentialRef[],
+  placements: readonly ActivePlacementRequirement[],
+  covered: readonly CoveredCredentialType[],
+): Map<string, number> {
+  // Al-gedekte (freelancer, type)-combinaties.
+  const coveredSet = new Set<string>();
+  for (const c of covered) coveredSet.add(keyOf(c.freelancerProfileId, c.type));
+
+  // Tel per (freelancer, type) het aantal distinct lopende inzetten dat dit type verplicht vereist en
+  // waarvoor het type nog niet gedekt is. Elke placement is één inzet; requiredTypes wordt per inzet
+  // ge-dedupt zodat een dubbel vermelde eis niet dubbel telt.
+  const gapDemand = new Map<string, number>();
+  for (const p of placements) {
+    const seen = new Set<CredentialType>();
+    for (const type of p.requiredTypes) {
+      if (seen.has(type)) continue;
+      seen.add(type);
+      const key = keyOf(p.freelancerProfileId, type);
+      if (coveredSet.has(key)) continue; // geen gat: al geldig gedekt
+      gapDemand.set(key, (gapDemand.get(key) ?? 0) + 1);
+    }
+  }
+
+  const impact = new Map<string, number>();
+  for (const q of queue) {
+    const count = gapDemand.get(keyOf(q.freelancerProfileId, q.type)) ?? 0;
+    if (count > 0) impact.set(q.id, count);
+  }
+  return impact;
+}

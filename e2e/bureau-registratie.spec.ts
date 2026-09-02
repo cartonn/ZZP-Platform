@@ -80,8 +80,10 @@ test("admin ziet de wachtrij, moet een reden opgeven bij afwijzen en kan activer
   await row.getByRole("button", { name: "Annuleren" }).click();
 
   // Activeren haalt de aanmelding uit de wachtrij (de lijst toont alleen PENDING-tenants).
+  // De rij verdwijnt pas na de server-action + revalidatePath-render; onder CI-belasting kan die
+  // round-trip het standaard 5s-venster overschrijden, dus een ruimer venster (de test is `slow`).
   await row.getByRole("button", { name: "Activeren" }).click();
-  await expect(row).toHaveCount(0);
+  await expect(row).toHaveCount(0, { timeout: 15000 });
 
   // Na activatie opent de werkplek voor de bemiddelaar (live gelezen, geen nieuwe sessie nodig).
   const bureauNa = await browser.newPage();
