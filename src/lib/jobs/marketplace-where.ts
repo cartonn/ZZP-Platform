@@ -11,6 +11,7 @@
 
 import type { Prisma } from "@prisma/client";
 import type { Actor } from "@/lib/authz";
+import { ciContains } from "@/lib/db/text-search";
 import { visibleJobsWhere } from "@/lib/tenancy";
 import type { JobFilters } from "@/lib/jobs";
 
@@ -56,9 +57,9 @@ export function buildJobMarketplaceWhere(
   // AND-clausule zodat de tekstzoek-OR hieronder de zichtbaarheids-OR niet overschrijft.
   const where: Prisma.JobWhereInput = { status: "PUBLISHED", AND: and };
   if (filters.q) {
-    where.OR = [{ title: { contains: filters.q } }, { description: { contains: filters.q } }];
+    where.OR = [{ title: ciContains(filters.q) }, { description: ciContains(filters.q) }];
   }
-  if (filters.location) where.location = { contains: filters.location };
+  if (filters.location) where.location = ciContains(filters.location);
   if (filters.workMode) where.workMode = filters.workMode;
   if (filters.skillIds.length) where.skills = { some: { skillId: { in: [...filters.skillIds] } } };
   if (filters.requiredCredential) {

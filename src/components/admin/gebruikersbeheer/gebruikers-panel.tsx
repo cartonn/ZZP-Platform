@@ -3,6 +3,7 @@ import { AlertTriangle, Users } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { type Actor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { ciContains } from "@/lib/db/text-search";
 import { ROLE_LABEL } from "@/lib/nav";
 import { type UserRole, type UserStatus } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
@@ -49,7 +50,7 @@ export async function GebruikersPanel({
   const deletion = first(searchParams.deletion);
 
   const where: Prisma.UserWhereInput = {};
-  if (q) where.OR = [{ name: { contains: q } }, { email: { contains: q } }];
+  if (q) where.OR = [{ name: ciContains(q) }, { email: ciContains(q) }];
   if (role) where.role = role;
   if (status) where.status = status;
   if (deletion === "1") where.deletionRequestedAt = { not: null };

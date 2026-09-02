@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import { Lightbulb, Search } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { ciContains } from "@/lib/db/text-search";
 import {
   sortIdeas,
   parseIdeaSort,
@@ -62,7 +63,7 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
       ...(statusFilter ? { status: statusFilter } : {}),
       ...(audienceFilter ? { audience: audienceFilter } : {}),
       ...(themeFilter ? { theme: themeFilter } : {}),
-      ...(q ? { OR: [{ title: { contains: q } }, { description: { contains: q } }] } : {}),
+      ...(q ? { OR: [{ title: ciContains(q) }, { description: ciContains(q) }] } : {}),
     },
     include: {
       author: { select: { name: true } },

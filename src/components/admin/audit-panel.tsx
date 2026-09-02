@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ScrollText } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { ciContains } from "@/lib/db/text-search";
 import { AUDIT_PAGE_SIZE, type AuditFilters } from "@/lib/admin";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,8 +19,8 @@ import { withParams } from "@/components/admin/base-path";
  */
 export async function countAuditEntries(filters: AuditFilters): Promise<number> {
   const where: Prisma.AuditLogWhereInput = {};
-  if (filters.action) where.action = { contains: filters.action };
-  if (filters.entityType) where.entityType = { contains: filters.entityType };
+  if (filters.action) where.action = ciContains(filters.action);
+  if (filters.entityType) where.entityType = ciContains(filters.entityType);
   return prisma.auditLog.count({ where });
 }
 
@@ -40,8 +41,8 @@ export async function AuditPanel({
   basePath: string;
 }) {
   const where: Prisma.AuditLogWhereInput = {};
-  if (filters.action) where.action = { contains: filters.action };
-  if (filters.entityType) where.entityType = { contains: filters.entityType };
+  if (filters.action) where.action = ciContains(filters.action);
+  if (filters.entityType) where.entityType = ciContains(filters.entityType);
 
   const [total, entries] = await Promise.all([
     prisma.auditLog.count({ where }),
