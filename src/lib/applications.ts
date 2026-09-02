@@ -39,7 +39,8 @@ export function assertApplicationTransition(from: ApplicationStatus, to: Applica
 
 /**
  * Mag een freelancer nog reageren binnen zijn plan? `maxApplications === -1` = onbeperkt.
- * Server-side afgedwongen (CLAUDE.md regel 1).
+ * Server-side afgedwongen (CLAUDE.md regel 1). `currentCount` is het verbruik in de lopende
+ * kalendermaand (zie `application-quota.ts`), niet het aantal reacties ooit.
  */
 export function canApply(maxApplications: number, currentCount: number): boolean {
   if (maxApplications < 0) return true;

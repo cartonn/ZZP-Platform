@@ -5,6 +5,8 @@ import { applicationRateLimiter } from "@/lib/rate-limit";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { canApply } from "@/lib/applications";
+import { applicationLimitMessage, applicationPeriodEnd } from "@/lib/application-quota";
+import { applicationQuotaWhere, loadApplicationQuota } from "@/lib/data/application-quota";
 import { scoreJobForFreelancer } from "@/lib/matching";
 import { estimateTravelMinutesWithRouting } from "@/lib/services/routing";
 import { canViewJob } from "@/lib/tenancy";
@@ -15,7 +17,10 @@ import { type Actor } from "@/lib/authz";
  *  (TOCTOU-race verloren). Buiten de transactie vertaald naar dezelfde nette gebruikersfout als de
  *  pre-transactionele fast-fail, zodat de bewoording niet drift. */
 class ApplicationPlanLimitError extends Error {
-  constructor(readonly maxApplications: number) {
+  constructor(
+    readonly maxApplicationsPerMonth: number,
+    readonly resetsAt: Date,
+  ) {
     super("application-plan-limit-reached");
     this.name = "ApplicationPlanLimitError";
   }
@@ -44,7 +49,13 @@ export type ApplicationRawInput = {
 
 export type CreateApplicationResult =
   | { ok: true; applicationId: string }
-  | { ok: false; error: string; fieldErrors?: Record<string, string> };
+  | {
+      ok: false;
+      error: string;
+      fieldErrors?: Record<string, string>;
+      /** Vervolgactie bij een blokkade die met een ander plan verdwijnt (reactielimiet). */
+      upgradeHref?: string;
+    };
 
 /**
  * Eén bron van waarheid voor het aanmaken van een reactie (Application) op een opdracht.
@@ -110,22 +121,22 @@ export async function createApplicationForJob(
   // dezelfde `count` en omzeilen ze de limiet (TOCTOU/monetisatie-bypass, OWASP A04). Deze
   // pre-transactionele lees is de fast-fail (bespaart de dure matchscore-berekening); de her-telling
   // binnen de transactie is de echte grendel.
-  let maxApplications = -1; // -1 = onbeperkt (canApply-conventie); niet gebruikt bij een bestaande rij
+  //
+  // De limiet is een MAANDQUOTUM, geen levenslange teller: alleen reacties die deze kalendermaand
+  // (Europe/Amsterdam) zijn aangemaakt en niet zijn ingetrokken verbruiken een slot. Volgende maand
+  // begint iedereen weer op nul.
+  const now = new Date();
+  const quotaWhere = applicationQuotaWhere(profile.id, now);
+  const periodEnd = applicationPeriodEnd(now);
+  let maxPerMonth = -1; // -1 = onbeperkt (canApply-conventie); niet gebruikt bij een bestaande rij
   if (!existing) {
-    // Zonder abonnement geldt het FREE-plan.
-    const [count, subscription, freePlan] = await Promise.all([
-      prisma.application.count({ where: { freelancerId: profile.id } }),
-      prisma.subscription.findUnique({ where: { userId: actor.id }, include: { plan: true } }),
-      prisma.plan.findUnique({ where: { key: "FREE" } }),
-    ]);
-    // Alleen een ACTIEF abonnement telt; anders geldt het FREE-plan (CLAUDE.md regel 1).
-    const activePlanMax =
-      subscription?.status === "ACTIVE" ? subscription.plan.maxApplications : undefined;
-    maxApplications = activePlanMax ?? freePlan?.maxApplications ?? 5;
-    if (!canApply(maxApplications, count)) {
+    const quota = await loadApplicationQuota(actor.id, profile.id, now);
+    maxPerMonth = quota.limit;
+    if (quota.reached) {
       return {
         ok: false,
-        error: `Je hebt het maximum aantal reacties (${maxApplications}) van je plan bereikt. Upgrade je abonnement voor meer reacties.`,
+        error: applicationLimitMessage(quota.limit, quota.resetsAt),
+        upgradeHref: "/abonnement",
       };
     }
   }
@@ -183,9 +194,9 @@ export async function createApplicationForJob(
       for (let attempt = 0; attempt < APPLICATION_MAX_ATTEMPTS; attempt++) {
         try {
           created = await prisma.$transaction(async (tx) => {
-            const count = await tx.application.count({ where: { freelancerId: profile.id } });
-            if (!canApply(maxApplications, count))
-              throw new ApplicationPlanLimitError(maxApplications);
+            const count = await tx.application.count({ where: quotaWhere });
+            if (!canApply(maxPerMonth, count))
+              throw new ApplicationPlanLimitError(maxPerMonth, periodEnd);
             return tx.application.create({
               data: { jobId, freelancerId: profile.id, ...applicationData },
               select: { id: true },
@@ -211,7 +222,8 @@ export async function createApplicationForJob(
       if (e instanceof ApplicationPlanLimitError) {
         return {
           ok: false,
-          error: `Je hebt het maximum aantal reacties (${e.maxApplications}) van je plan bereikt. Upgrade je abonnement voor meer reacties.`,
+          error: applicationLimitMessage(e.maxApplicationsPerMonth, e.resetsAt),
+          upgradeHref: "/abonnement",
         };
       }
       throw e;

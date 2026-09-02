@@ -456,7 +456,14 @@ export async function changeJobStatus(
   redirect(`/opdrachten/${jobId}`);
 }
 
-export type ApplyState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
+export type ApplyState =
+  | {
+      error?: string;
+      fieldErrors?: Record<string, string>;
+      /** Vervolglink bij een plan-blokkade (reactielimiet) — de UI toont hem naast de melding. */
+      upgradeHref?: string;
+    }
+  | undefined;
 
 export async function createApplication(
   jobId: string,
@@ -476,7 +483,12 @@ export async function createApplication(
     proposedRate: formData.get("proposedRate") ?? "",
     availability: formData.get("availability") || undefined,
   });
-  if (!result.ok) return { error: result.error, fieldErrors: result.fieldErrors };
+  if (!result.ok)
+    return {
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+      upgradeHref: result.upgradeHref,
+    };
 
   revalidatePath("/reacties");
   revalidatePath(`/opdrachten/${jobId}`);

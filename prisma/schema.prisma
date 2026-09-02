@@ -1118,7 +1118,10 @@ model Plan {
   id              String @id @default(cuid())
   key             String @unique // PlanKey: FREE | PRO | BUSINESS
   name            String
-  maxApplications Int //                -1 = onbeperkt
+  // Maximum aantal nieuwe reacties PER KALENDERMAAND (Europe/Amsterdam); -1 = onbeperkt. De
+  // kolomnaam is historisch (ooit een levenslange teller) en blijft ongewijzigd om een migratie +
+  // seed-impact te vermijden; de betekenis staat in src/lib/application-quota.ts.
+  maxApplications Int
   maxJobs         Int
   priceCents      Int    @default(0)
 

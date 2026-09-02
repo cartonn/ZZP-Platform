@@ -70,7 +70,8 @@ test("van dienst tot fee: de bemiddelaar ziet de opbrengst van een eigen plaatsi
     /\/reacties/,
     45000,
   );
-  await expect(fp.getByText(/maximum aantal reacties/)).toHaveCount(0);
+  // Geen plan-blokkade: de reactielimiet is een maandquotum, dus deze reactie hoort door te gaan.
+  await expect(fp.getByText(/het maximum van \d+ reacties bereikt/)).toHaveCount(0);
 
   // 3. De opdrachtgever accepteert en stelt de samenwerking voor.
   const cctx = await browser.newContext();
