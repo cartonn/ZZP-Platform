@@ -7,11 +7,15 @@ import {
   assessCollaborationDba,
   jobDbaIndicators,
   revenueConcentrationPct,
+  effectiveRelationshipStart,
+  bridgedPriorPlacementCount,
   type DbaAssessment,
   type DbaSignalLevel,
   DBA_SIGNAL_LEVELS,
 } from "@/lib/dba-monitor";
+import { loadRelationshipSpans, relationshipPairKey } from "@/lib/data/dba-relationship-spans";
 import { getDbaThresholds } from "@/lib/platform-config";
+import { DBA_RELATIONSHIP_GAP_BRIDGE_DAYS } from "@/lib/config";
 
 export interface DbaOverviewRow {
   collaborationId: string;
@@ -19,6 +23,10 @@ export interface DbaOverviewRow {
   companyName: string;
   freelancerName: string;
   startDate: Date | null;
+  /** Start van de dóórlopende relatie (aaneengesloten inzetten overbrugd); voedt de duurmeter. */
+  relationshipStartDate: Date | null;
+  /** Aantal eerdere aaneengesloten inzetten dat in de relatieduur is opgenomen (0 = geen). */
+  bridgedPriorPlacements: number;
   assessment: DbaAssessment;
 }
 
@@ -75,6 +83,8 @@ export async function loadDbaOverview(now: Date = new Date()): Promise<DbaOvervi
     select: {
       id: true,
       startDate: true,
+      freelancerId: true,
+      companyId: true,
       freelancer: {
         select: {
           userId: true,
@@ -130,13 +140,29 @@ export async function loadDbaOverview(now: Date = new Date()): Promise<DbaOvervi
 
   const thresholds = await getDbaThresholds();
 
+  // Dóórlopende relatieduur: overbrug terug-op-terug inzetten bij hetzelfde paar (Wet DBA).
+  const spansByPair = await loadRelationshipSpans(
+    collaborations.map((c) => ({ freelancerId: c.freelancerId, companyId: c.companyId })),
+  );
+
   const rows: DbaOverviewRow[] = collaborations.map((c) => {
     const fid = c.freelancer.userId;
     const clientUserId = c.company.userId;
+    const spans = spansByPair.get(relationshipPairKey(c.freelancerId, c.companyId)) ?? [
+      { start: c.startDate, end: null },
+    ];
+    const relationshipStartDate = effectiveRelationshipStart(
+      spans,
+      c.startDate,
+      now,
+      DBA_RELATIONSHIP_GAP_BRIDGE_DAYS,
+    );
+    const bridgedPriorPlacements = bridgedPriorPlacementCount(spans, relationshipStartDate);
     const assessment = assessCollaborationDba(
       {
         collaborationId: c.id,
-        startDate: c.startDate,
+        startDate: relationshipStartDate,
+        bridgedPriorPlacements,
         revenueConcentrationPct: revenueConcentrationPct(
           revenueByFreelancer.get(fid) ?? {},
           clientUserId,
@@ -152,6 +178,8 @@ export async function loadDbaOverview(now: Date = new Date()): Promise<DbaOvervi
       companyName: c.company.name,
       freelancerName: c.freelancer.user.name,
       startDate: c.startDate,
+      relationshipStartDate,
+      bridgedPriorPlacements,
       assessment,
     };
   });

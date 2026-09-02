@@ -592,6 +592,12 @@ export const DBA_THRESHOLDS = {
   revenueConcentrationPct: 80, //     >80% omzet bij één opdrachtgever
 } as const;
 
+// Substance-over-form (Wet DBA): terug-op-terug plaatsingen bij dezelfde opdrachtgever vormen één
+// doorlopende relatie. Een tussenpoos tot en met dit aantal dagen wordt overbrugd bij het meten van
+// de relatieduur; een langere onderbreking reset de klok. ~5 weken dekt een korte pauze/vakantie
+// tussen contracten zonder een echte, langere onderbreking te maskeren.
+export const DBA_RELATIONSHIP_GAP_BRIDGE_DAYS = 35;
+
 /** Vaste disclaimer bij elk DBA-signaal (Besluit 2 — geen juridisch advies/garantie). */
 export const DBA_DISCLAIMER =
   "Dit is een signaal ter informatie en geen juridisch advies; het platform beoordeelt niet of " +

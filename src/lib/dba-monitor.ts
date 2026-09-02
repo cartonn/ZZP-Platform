@@ -25,6 +25,18 @@ export interface DbaMonitorInput {
   sameFunctionAsEmployees?: boolean;
   fixedSchedule?: boolean;
   directionAndSupervision?: boolean;
+  /**
+   * Aantal eerdere, aaneengesloten inzetten bij dezelfde opdrachtgever dat in `startDate` is
+   * verdisconteerd (via `effectiveRelationshipStart`). Alleen voor de tekst van het duursignaal —
+   * 0/afwezig laat de bestaande melding ongewijzigd.
+   */
+  bridgedPriorPlacements?: number;
+}
+
+/** Eén plaatsings-venster voor het overbruggen van aaneengesloten inzetten. `end = null` = lopend. */
+export interface PlacementSpan {
+  start: Date | null;
+  end: Date | null;
 }
 
 export interface DbaSignal {
@@ -82,6 +94,70 @@ export function monthsBetween(start: Date, now: Date): number {
   return Math.max(0, months);
 }
 
+/**
+ * De effectieve startdatum van de doorlopende relatie: de vroegste start van de aaneengesloten
+ * keten van plaatsingen die tot de lopende inzet reikt. Tussenpozen ≤ `gapBridgeDays` worden
+ * overbrugd; een langere onderbreking reset de klok. Substance-over-form (Wet DBA): de
+ * Belastingdienst kijkt naar de feitelijke continuïteit van de relatie, niet naar de
+ * contractgrenzen — een nieuw contract mag de duurmeter niet stiekem resetten.
+ *
+ * `spans` moet álle relevante plaatsingen (lopend + afgerond) van hetzelfde
+ * ZZP'er/opdrachtgever-paar bevatten, inclusief de lopende inzet zelf. Een lopende inzet
+ * (`end = null`) telt tot `now`. Spans zonder start tellen niet mee. Retourneert `fallback`
+ * (typisch de eigen startdatum) als er geen bruikbare span is. Deterministisch, geen I/O.
+ */
+export function effectiveRelationshipStart(
+  spans: readonly PlacementSpan[],
+  fallback: Date | null,
+  now: Date,
+  gapBridgeDays: number,
+): Date | null {
+  const gapMs = Math.max(0, gapBridgeDays) * 24 * 60 * 60 * 1000;
+  const nowMs = now.getTime();
+  const norm = spans
+    .filter((s): s is { start: Date; end: Date | null } => s.start != null)
+    .map((s) => {
+      const start = s.start.getTime();
+      const end = s.end ? s.end.getTime() : nowMs;
+      // Defensief tegen vuile data: een einddatum vóór de start telt als een punt op de start.
+      return { start, end: Math.max(end, start) };
+    })
+    .sort((a, b) => a.start - b.start);
+  const [first, ...rest] = norm;
+  if (!first) return fallback;
+
+  // Voeg aaneengesloten intervallen samen (tussenpoos ≤ gapMs overbruggen). Het láátste
+  // samengevoegde interval bevat de lopende inzet (die tot `now` reikt) en is dus de huidige relatie.
+  let mergedStart = first.start;
+  let mergedEnd = first.end;
+  for (const s of rest) {
+    if (s.start <= mergedEnd + gapMs) {
+      mergedEnd = Math.max(mergedEnd, s.end);
+    } else {
+      mergedStart = s.start;
+      mergedEnd = s.end;
+    }
+  }
+  return new Date(mergedStart);
+}
+
+/**
+ * Aantal eerdere plaatsingen (naast de lopende inzet) dat in de doorlopende relatie is opgenomen,
+ * d.w.z. dat op of ná de effectieve relatiestart begon. Voedt de tekst van het duursignaal.
+ */
+export function bridgedPriorPlacementCount(
+  spans: readonly PlacementSpan[],
+  effectiveStart: Date | null,
+): number {
+  if (!effectiveStart) return 0;
+  const startMs = effectiveStart.getTime();
+  // −1 om de lopende inzet zelf niet mee te tellen; nooit negatief.
+  return Math.max(
+    0,
+    spans.filter((s) => s.start != null && s.start.getTime() >= startMs).length - 1,
+  );
+}
+
 /** Hoogste niveau uit een lijst signalen (HOOG > VERHOOGD > LAAG). */
 function highestLevel(signals: readonly DbaSignal[]): DbaSignalLevel {
   if (signals.some((s) => s.level === "HOOG")) return "HOOG";
@@ -105,17 +181,24 @@ export function assessCollaborationDba(
 
   if (input.startDate) {
     durationMonths = monthsBetween(input.startDate, now);
+    const bridged = input.bridgedPriorPlacements ?? 0;
+    // Bij overbrugde eerdere inzetten meet de duur de dóórlopende relatie, niet één contract.
+    const subject = bridged > 0 ? "Deze samenwerking" : "Deze opdracht";
+    const bridgeNote =
+      bridged > 0
+        ? ` (inclusief ${bridged} eerdere aaneengesloten ${bridged === 1 ? "inzet" : "inzetten"} bij deze opdrachtgever)`
+        : "";
     if (durationMonths >= t.durationStrongSignalMonths) {
       signals.push({
         key: "duration-12m",
         level: "HOOG",
-        message: `Deze opdracht loopt inmiddels ${durationMonths} maanden. Langdurige onafgebroken inzet kan een verhoogd risico op schijnzelfstandigheid opleveren. Overweeg een interne beoordeling.`,
+        message: `${subject} loopt inmiddels ${durationMonths} maanden${bridgeNote}. Langdurige onafgebroken inzet kan een verhoogd risico op schijnzelfstandigheid opleveren. Overweeg een interne beoordeling.`,
       });
     } else if (durationMonths >= t.durationSignalMonths) {
       signals.push({
         key: "duration-6m",
         level: "VERHOOGD",
-        message: `Deze opdracht loopt inmiddels ${durationMonths} maanden. Houd de continuïteit van de inzet in de gaten.`,
+        message: `${subject} loopt inmiddels ${durationMonths} maanden${bridgeNote}. Houd de continuïteit van de inzet in de gaten.`,
       });
     }
   }

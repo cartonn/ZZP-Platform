@@ -99,6 +99,13 @@ export async function DbaPanel({ niveau, basePath }: { niveau: string; basePath:
                   {row.assessment.durationMonths != null && (
                     <span> · {row.assessment.durationMonths} maanden</span>
                   )}
+                  {row.bridgedPriorPlacements > 0 && (
+                    <span>
+                      {" "}
+                      · relatie loopt door via {row.bridgedPriorPlacements} eerdere{" "}
+                      {row.bridgedPriorPlacements === 1 ? "inzet" : "inzetten"}
+                    </span>
+                  )}
                 </p>
                 {row.assessment.signals.length > 0 ? (
                   <ul className="space-y-1">

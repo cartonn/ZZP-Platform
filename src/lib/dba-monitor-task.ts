@@ -9,10 +9,13 @@ import {
   planDbaMonitorRun,
   jobDbaIndicators,
   revenueConcentrationPct,
+  effectiveRelationshipStart,
+  bridgedPriorPlacementCount,
   type DbaMonitorCandidate,
   DBA_LEVEL_LABEL,
 } from "@/lib/dba-monitor";
-import { DBA_DISCLAIMER } from "@/lib/config";
+import { loadRelationshipSpans, relationshipPairKey } from "@/lib/data/dba-relationship-spans";
+import { DBA_DISCLAIMER, DBA_RELATIONSHIP_GAP_BRIDGE_DAYS } from "@/lib/config";
 import { getDbaThresholds } from "@/lib/platform-config";
 import { getMailSender } from "@/lib/services/mail-sender";
 import { buildDbaSignalEmail } from "@/lib/services/reminder-emails";
@@ -35,11 +38,18 @@ export async function runDbaMonitorTask(opts: {
     select: {
       id: true,
       startDate: true,
+      freelancerId: true,
+      companyId: true,
       freelancer: { select: { userId: true } },
       company: { select: { userId: true } },
       job: { select: { dbaDirectSupervision: true, dbaEmbedded: true, dbaFixedSchedule: true } },
     },
   });
+
+  // Dóórlopende relatieduur: overbrug terug-op-terug inzetten bij hetzelfde paar (Wet DBA).
+  const spansByPair = await loadRelationshipSpans(
+    collaborations.map((c) => ({ freelancerId: c.freelancerId, companyId: c.companyId })),
+  );
 
   // Omzet per ZZP'er gesplitst per opdrachtgever, uit de gerealiseerde OMZET-boekingen.
   const freelancerIds = [...new Set(collaborations.map((c) => c.freelancer.userId))];
@@ -70,17 +80,29 @@ export async function runDbaMonitorTask(opts: {
     revenueByFreelancer.set(fid, map);
   }
 
-  const candidates: DbaMonitorCandidate[] = collaborations.map((c) => ({
-    collaborationId: c.id,
-    startDate: c.startDate,
-    freelancerUserId: c.freelancer.userId,
-    clientUserId: c.company.userId,
-    revenueConcentrationPct: revenueConcentrationPct(
-      revenueByFreelancer.get(c.freelancer.userId) ?? {},
-      c.company.userId,
-    ),
-    ...jobDbaIndicators(c.job),
-  }));
+  const candidates: DbaMonitorCandidate[] = collaborations.map((c) => {
+    const spans = spansByPair.get(relationshipPairKey(c.freelancerId, c.companyId)) ?? [
+      { start: c.startDate, end: null },
+    ];
+    const relationStart = effectiveRelationshipStart(
+      spans,
+      c.startDate,
+      now,
+      DBA_RELATIONSHIP_GAP_BRIDGE_DAYS,
+    );
+    return {
+      collaborationId: c.id,
+      startDate: relationStart,
+      bridgedPriorPlacements: bridgedPriorPlacementCount(spans, relationStart),
+      freelancerUserId: c.freelancer.userId,
+      clientUserId: c.company.userId,
+      revenueConcentrationPct: revenueConcentrationPct(
+        revenueByFreelancer.get(c.freelancer.userId) ?? {},
+        c.company.userId,
+      ),
+      ...jobDbaIndicators(c.job),
+    };
+  });
 
   const thresholds = await getDbaThresholds();
   const plan = planDbaMonitorRun(candidates, now, thresholds);

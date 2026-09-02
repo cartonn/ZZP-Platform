@@ -10,6 +10,36 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-02 — routine: DBA-duursignaal telt aaneengesloten inzetten bij dezelfde opdrachtgever
+
+**Wat:** de DBA-monitor mat de looptijd van één contract (`Collaboration.startDate`). Terug-op-terug
+plaatsingen bij dezelfde opdrachtgever resetten daarmee de duurmeter: een afgeronde inzet van 8 maanden
+gevolgd door een nieuw contract liet de klok bij nul beginnen, terwijl de Belastingdienst juist naar de
+feitelijke, dóórlopende relatie kijkt (substance over form — een nieuw contractje mag het duursignaal
+niet stiekem verbergen). Nu meet het duursignaal de aaneengesloten relatie: korte tussenpozen (t/m 35
+dagen, een pauze/vakantie tussen contracten) worden overbrugd, een langere onderbreking reset de klok
+wél. Bij overbrugde inzetten meldt het signaal "Deze samenwerking loopt inmiddels N maanden (inclusief
+X eerdere aaneengesloten inzetten bij deze opdrachtgever)" en toont de admin-DBA-cockpit "relatie loopt
+door via X eerdere inzetten". Zowel de ZZP'er als de opdrachtgever krijgen zo een eerlijk beeld; helpt
+beide rollen risico op schijnzelfstandigheid tijdig te zien.
+
+**Aanpak:** pure kern `effectiveRelationshipStart(spans, fallback, now, gapBridgeDays)` in
+`dba-monitor.ts` — sorteert de plaatsings-vensters, voegt intervallen met een tussenpoos ≤ drempel samen
+(lopende inzet telt tot `now`), en geeft de vroegste start van de keten die tot nu reikt; plus
+`bridgedPriorPlacementCount`. `assessCollaborationDba` kreeg een optionele `bridgedPriorPlacements` die
+alleen de meldingstekst verrijkt (0/afwezig = ongewijzigd gedrag). Data-laag
+`src/lib/data/dba-relationship-spans.ts` haalt per (ZZP'er, opdrachtgever)-paar de ACTIVE+COMPLETED
+plaatsingen op (PROPOSED/CANCELLED tellen niet), gescoped op de paren uit de lopende samenwerkingen.
+De monitor-taak (notificaties/e-mail) en de admin-cockpit (`dba-overview.ts` → `dba-panel.tsx`) voeden
+nu de effectieve relatiestart in. `dedupeKey` blijft `dba-<id>-<key>` → idempotentie ongewijzigd.
+Server-side waarheid, geen schema-/mutatie-/authz-oppervlak, geen dode knop.
+
+**Bestanden:** `src/lib/dba-monitor.ts` (+ `.test.ts`, +14 tests), `src/lib/data/dba-relationship-spans.ts`,
+`src/lib/dba-monitor-task.ts`, `src/lib/dba-overview.ts`, `src/components/admin/dba-panel.tsx`,
+`src/lib/config.ts` (`DBA_RELATIONSHIP_GAP_BRIDGE_DAYS`).
+
+**Checks:** typecheck / lint / unit (8021) / build / prettier groen; CI-poort verifieert.
+
 ## 2026-09-02 — routine: verificatiewachtrij markeert certificaten die een lopende inzet blokkeren (admin)
 
 **Wat:** de admin-verificatiewachtrij (`/admin/verificaties`) toonde vraag vanuit **open opdrachten**
