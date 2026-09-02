@@ -3,6 +3,18 @@ import { cn } from "@/lib/utils";
 
 export type CascadeStepStatus = "done" | "active" | "waiting" | "error";
 
+/**
+ * De status van een stap is visueel alleen af te lezen aan kleur en icoon (het bolletje is
+ * `aria-hidden`). Deze woorden geven diezelfde status aan screenreaders — anders klinken een
+ * afgeronde en een mislukte stap identiek (WCAG 1.4.1, niet-kleurafhankelijk).
+ */
+const STATUS_LABEL: Record<CascadeStepStatus, string> = {
+  done: "afgerond",
+  active: "aan zet",
+  waiting: "wacht",
+  error: "fout",
+};
+
 export interface CascadeStep {
   label: string;
   status: CascadeStepStatus;
@@ -64,6 +76,7 @@ export function CascadeStepper({ steps, className }: { steps: CascadeStep[]; cla
               )}
             >
               {step.label}
+              <span className="sr-only"> — {STATUS_LABEL[step.status]}</span>
             </span>
             {step.detail && (
               <span className="block text-[11px] text-muted-foreground sm:mt-0.5">
