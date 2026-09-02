@@ -19,40 +19,81 @@ export interface CredentialAlert {
   missing: CredentialType[];
   expired: CredentialType[];
   expiringSoon: CredentialType[];
+  /**
+   * Nog geldig én buiten het 30-daagse "verloopt binnenkort"-venster, maar élk geldig certificaat
+   * van dit type vervalt vóór de **einddatum van de plaatsing** — het certificaat lapt dus mid-inzet.
+   * Alleen gevuld als de caller een `placementEnd` meegeeft (bv. `Collaboration.endDate`); anders leeg.
+   * Bewust gescheiden van `expiringSoon`: de melding is einddatum-verankerd ("verloopt vóór het einde
+   * van de opdracht"), niet kalender-nabij, en vangt precies de langere plaatsingen die het vaste
+   * 30-daagse venster stil oversloeg.
+   */
+  expiringDuringPlacement: CredentialType[];
   inReview: CredentialType[];
 }
 
 /**
  * Beoordeelt de vereiste certificaten van een lopende samenwerking.
  * - missing/expired  -> NON_COMPLIANT (er is nú een gat)
- * - expiringSoon/inReview -> WARNING (handel vóór het vervalt)
+ * - expiringSoon/expiringDuringPlacement/inReview -> WARNING (handel vóór het vervalt)
  * Pure functie, testbaar zonder DB.
+ *
+ * `placementEnd` (optioneel, meestal `Collaboration.endDate`): is die gezet, dan waarschuwt de functie
+ * óók wanneer een certificaat ná het 30-daagse venster maar vóór de einddatum van de plaatsing verloopt.
+ * Zonder `placementEnd` (open-einde-inzet of caller zonder datum) blijft alleen het klassieke venster gelden.
  */
 export function assessCollaborationCredentials(
   requiredTypes: readonly CredentialType[],
   credentials: readonly FreelancerCredential[],
   now: Date = new Date(),
   withinDays: number = EXPIRY_WINDOW_DAYS,
+  placementEnd: Date | null = null,
 ): CredentialAlert {
   const base = computeCompliance(requiredTypes, credentials, now);
 
+  const validFor = (type: CredentialType) =>
+    credentials.filter((c) => c.type === type && c.status === "VERIFIED" && !isExpired(c, now));
+
   // Een type dreigt te vervallen als al z'n geldige certificaten binnenkort verlopen.
   const expiringSoon = base.satisfied.filter((type) => {
-    const valid = credentials.filter(
-      (c) => c.type === type && c.status === "VERIFIED" && !isExpired(c, now),
-    );
+    const valid = validFor(type);
     return valid.length > 0 && valid.every((c) => isExpiringSoon(c, withinDays, now));
   });
 
+  // Einddatum-verankerd: nog niet "binnenkort" (buiten het venster), maar géén enkel geldig certificaat
+  // dekt de plaatsing tot het einde (elk vervalt vóór `placementEnd`). Reeds-in-`expiringSoon` types
+  // worden niet dubbel geteld. Een certificaat zonder vervaldatum (`expiresAt === null`) dekt altijd door.
+  // Zit `placementEnd` in het verleden, dan is er per definitie geen geldig-maar-vóór-eind-vervallend
+  // certificaat (geldig ⇒ `expiresAt > now ≥ placementEnd`), dus blijft de lijst leeg — geen ruis op een
+  // reeds-verstreken inzet.
+  const expiringDuringPlacement =
+    placementEnd != null
+      ? base.satisfied.filter((type) => {
+          if (expiringSoon.includes(type)) return false;
+          const valid = validFor(type);
+          return (
+            valid.length > 0 &&
+            valid.every(
+              (c) => c.expiresAt != null && c.expiresAt.getTime() < placementEnd.getTime(),
+            )
+          );
+        })
+      : [];
+
   let status: ComplianceStatus = "COMPLIANT";
   if (base.missing.length > 0 || base.expired.length > 0) status = "NON_COMPLIANT";
-  else if (base.inReview.length > 0 || expiringSoon.length > 0) status = "WARNING";
+  else if (
+    base.inReview.length > 0 ||
+    expiringSoon.length > 0 ||
+    expiringDuringPlacement.length > 0
+  )
+    status = "WARNING";
 
   return {
     status,
     missing: base.missing,
     expired: base.expired,
     expiringSoon,
+    expiringDuringPlacement,
     inReview: base.inReview,
   };
 }
@@ -72,7 +113,12 @@ export function assessCollaborationCredentials(
  * Pure functie (geen I/O); één bron voor de emissie-gate in de item-engine.
  */
 export function clientHasComplianceAction(alert: CredentialAlert): boolean {
-  return alert.missing.length > 0 || alert.expired.length > 0 || alert.expiringSoon.length > 0;
+  return (
+    alert.missing.length > 0 ||
+    alert.expired.length > 0 ||
+    alert.expiringSoon.length > 0 ||
+    alert.expiringDuringPlacement.length > 0
+  );
 }
 
 /** Zeer korte melding zonder naam/opdracht — voor compacte plekken (bv. een samenwerkingskaart). */
@@ -82,6 +128,8 @@ export function shortCredentialAlert(alert: CredentialAlert): string {
   if (alert.expired.length > 0) return `Certificaat verlopen (${types(alert.expired)})`;
   if (alert.expiringSoon.length > 0)
     return `Certificaat verloopt binnenkort (${types(alert.expiringSoon)})`;
+  if (alert.expiringDuringPlacement.length > 0)
+    return `Certificaat verloopt tijdens de opdracht (${types(alert.expiringDuringPlacement)})`;
   return `Certificaat in beoordeling (${types(alert.inReview)})`;
 }
 
@@ -98,6 +146,8 @@ export function describeCredentialAlert(
     return `Certificaat van ${name} is verlopen (${types(alert.expired)}) — ${jobTitle}`;
   if (alert.expiringSoon.length > 0)
     return `Certificaat van ${name} verloopt binnenkort (${types(alert.expiringSoon)}) — ${jobTitle}`;
+  if (alert.expiringDuringPlacement.length > 0)
+    return `Certificaat van ${name} verloopt vóór het einde van de opdracht (${types(alert.expiringDuringPlacement)}) — ${jobTitle}`;
   return `Certificaat van ${name} in beoordeling (${types(alert.inReview)}) — ${jobTitle}`;
 }
 
@@ -122,6 +172,8 @@ export interface ClientComplianceSnapshot {
   expired: number;
   /** Som van binnenkort verlopende certificaten. */
   expiringSoon: number;
+  /** Som van certificaten die vóór het einde van hun plaatsing verlopen (einddatum-verankerd). */
+  expiringDuringPlacement: number;
   /** Som van certificaten in beoordeling. */
   inReview: number;
 }
@@ -139,6 +191,7 @@ export function summarizeClientCompliance(
   let missing = 0;
   let expired = 0;
   let expiringSoon = 0;
+  let expiringDuringPlacement = 0;
   let inReview = 0;
 
   for (const a of alerts) {
@@ -147,6 +200,7 @@ export function summarizeClientCompliance(
     missing += a.alert.missing.length;
     expired += a.alert.expired.length;
     expiringSoon += a.alert.expiringSoon.length;
+    expiringDuringPlacement += a.alert.expiringDuringPlacement.length;
     inReview += a.alert.inReview.length;
   }
 
@@ -157,6 +211,7 @@ export function summarizeClientCompliance(
     missing,
     expired,
     expiringSoon,
+    expiringDuringPlacement,
     inReview,
   };
 }
@@ -176,6 +231,11 @@ export interface CollaborationAlertRow {
    * overige opdrachtgever-taken (pending-tasks.ts) en signalen (signals.ts).
    */
   disputedAt: Date | null;
+  /**
+   * Einddatum van de plaatsing (open-einde = `null`). Verankert de "verloopt vóór het einde van de
+   * opdracht"-waarschuwing; met `include` levert Prisma dit scalar-veld vanzelf, dus geen extra query.
+   */
+  endDate: Date | null;
   job: {
     id: string;
     title: string;
@@ -228,7 +288,13 @@ export function clientCredentialAlertsFromRows(
       status: cr.status as FreelancerCredential["status"],
       expiresAt: cr.expiresAt,
     }));
-    const alert = assessCollaborationCredentials(requiredTypes, credentials, now);
+    const alert = assessCollaborationCredentials(
+      requiredTypes,
+      credentials,
+      now,
+      EXPIRY_WINDOW_DAYS,
+      c.endDate,
+    );
     if (alert.status !== "COMPLIANT") {
       alerts.push({
         collaborationId: c.id,

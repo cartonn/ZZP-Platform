@@ -22,6 +22,13 @@ export function ComplianceSnapshotCard({ snapshot }: { snapshot: ClientComplianc
       count: snapshot.expiringSoon,
       label: snapshot.expiringSoon === 1 ? "verloopt binnenkort" : "verlopen binnenkort",
     },
+    {
+      count: snapshot.expiringDuringPlacement,
+      label:
+        snapshot.expiringDuringPlacement === 1
+          ? "verloopt tijdens de opdracht"
+          : "verlopen tijdens de opdracht",
+    },
     { count: snapshot.inReview, label: "in beoordeling" },
   ].filter((c) => c.count > 0);
 

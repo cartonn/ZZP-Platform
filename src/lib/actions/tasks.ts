@@ -925,6 +925,8 @@ export function clientComplianceTask(
     title = `Certificaat van ${freelancerName} is verlopen (${label(alert.expired)})`;
   else if (alert.expiringSoon.length > 0)
     title = `Certificaat van ${freelancerName} verloopt binnenkort (${label(alert.expiringSoon)})`;
+  else if (alert.expiringDuringPlacement.length > 0)
+    title = `Certificaat van ${freelancerName} verloopt vóór het einde van de opdracht (${label(alert.expiringDuringPlacement)})`;
   else title = `Certificaat van ${freelancerName} in beoordeling (${label(alert.inReview)})`;
   return {
     kind: "client-compliance",
