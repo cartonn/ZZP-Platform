@@ -19,9 +19,11 @@ const shot = (page: Page, name: string) =>
 const INZETBARE_ZZPER_EMAIL = "zzp-noord-1@zzp-platform.local";
 // Buiten de bemiddeling: platform-opdracht (tenantId null) + platform-opdrachtgever/ZZP'er.
 const VREEMDE_DIENST_ID = "job-1";
-const VREEMDE_DIENST_TITEL = "Verpleegkundige (somatiek)";
+const VREEMDE_DIENST_TITEL = "Verpleegkundige somatiek (dag- en avonddienst)";
 const VREEMDE_OPDRACHTGEVER = "Zorgcentrum Jansen";
 const VREEMDE_ZZPER = "Sanne";
+// Eigenaar van job-1 in de seed — dient als positieve controle op de constanten hierboven.
+const VREEMDE_CLIENT_EMAIL = "opdrachtgever@zzp-platform.local";
 
 /**
  * De kernbelofte aan het bureau: zie wat dreigt onbezet te blijven, zet een dienst uit bij een eigen
@@ -98,7 +100,18 @@ test("bemiddelaar ziet wat onbezet dreigt, zet een dienst uit en draagt uit eige
  * vreemde dienst geeft de niet-gevonden-pagina — geen serverfout, geen data, en geen onderscheidbaar
  * "bestaat wel maar mag niet" (dat zou een existence-oracle zijn).
  */
-test("bemiddelaar ziet niets van buiten de eigen bemiddeling", async ({ page }) => {
+test("bemiddelaar ziet niets van buiten de eigen bemiddeling", async ({ page, browser }) => {
+  // Positieve controle vóór alle afwezigheidsasserties. Een `toHaveCount(0)` op een titel die in de
+  // seed hernoemd is slaagt namelijk vacuüm: de test wordt dan stil groen zonder nog iets te bewijzen.
+  // (Precies dat gebeurde toen #1341 job-1 hernoemde.) Daarom eerst aantonen dat de vreemde dienst
+  // écht bestaat en zichtbaar is voor wie er wél bij mag — de eigenaar op het platform.
+  const octx = await browser.newContext();
+  const opage = await octx.newPage();
+  await login(opage, VREEMDE_CLIENT_EMAIL);
+  await opage.goto(`/opdrachten/${VREEMDE_DIENST_ID}`);
+  await expect(opage.getByRole("heading", { name: VREEMDE_DIENST_TITEL })).toBeVisible();
+  await octx.close();
+
   await login(page, FRANCHISER_EMAIL);
 
   // Diensten: alleen tenant-diensten. De platform-opdracht job-1 hoort er niet bij.
