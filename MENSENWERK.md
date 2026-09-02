@@ -472,6 +472,14 @@ nodig met back-ups en beveiligde opslag.
    productie** (encryptie-at-rest, netwerk-isolatie, toegangscontrole) — het retentievenster is nu in
    code gedicht, maar de vertrouwelijkheid van het scratch-doel blijft een infra-keuze. Draai de drill
    periodiek (bv. maandelijks) + na een schema-migratie. Zie RUNBOOK §5.
+   **Code-kant GEDAAN (2026-09-02) — at-rest-versleuteling van back-ups:** dumps kunnen nu
+   at-rest versleuteld worden opgeslagen (AES-256-GCM via Node's ingebouwde `crypto`, géén nieuwe
+   dependency) door `BACKUP_ENCRYPTION_KEY` te zetten; herstel én de herstel-drill ontsleutelen
+   het archief transparant met dezelfde sleutel. Zonder de variabele blijven back-ups ongewijzigd
+   plaintext (de pilot draait onveranderd verder). Resterend mensenwerk: genereer een sleutel
+   (`openssl rand -base64 32`) en zet `BACKUP_ENCRYPTION_KEY` in de Railway-secrets als je
+   versleutelde back-ups wilt — bewaar die sleutel net zo duurzaam als de back-ups zelf (sleutel
+   kwijt = versleutelde back-up onherstelbaar). Zie RUNBOOK §5.
 3. Kopieer de **verbindings-URL** (begint met `postgresql://...`). Dit is een geheim.
    **Opleveren:** de verbindings-URL → in de secrets als `DATABASE_URL` (§7). Geef je ontwikkela/agent
    het seintje "Postgres staat klaar"; die zet de databaseprovider om naar PostgreSQL en draait de

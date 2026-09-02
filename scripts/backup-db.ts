@@ -21,16 +21,28 @@
  * (SQLite): faalt dan met een heldere melding i.p.v. iets te overschrijven.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import {
   assertPostgresUrl,
+  BackupEncryptionError,
   buildBackupFilename,
   buildPgDumpArgs,
   buildPgRestoreListArgs,
+  encryptBackup,
+  encryptedBackupName,
   isValidArchiveListing,
   parseKeepCount,
   redactDatabaseUrl,
+  resolveBackupEncryptionKey,
   selectBackupsToPrune,
   shouldVerifyBackup,
   UnsupportedDatabaseError,
@@ -50,6 +62,19 @@ function main(): void {
     noVerifyFlag: argv.includes("--no-verify"),
     skipVerifyEnv: process.env.BACKUP_SKIP_VERIFY,
   });
+
+  // Los de versleutelsleutel VROEG op (vóór pg_dump): een gezette-maar-ongeldige sleutel moet
+  // fail-fast falen zónder eerst een plaintext dump te produceren.
+  let encKey: Buffer | null;
+  try {
+    encKey = resolveBackupEncryptionKey(process.env.BACKUP_ENCRYPTION_KEY);
+  } catch (error) {
+    if (error instanceof BackupEncryptionError) {
+      console.error(`[backup] ${error.message}`);
+      process.exit(2);
+    }
+    throw error;
+  }
 
   let url: string;
   try {
@@ -73,10 +98,17 @@ function main(): void {
   console.log(
     `[backup] verificatie: ${verify ? "pg_restore --list vóór snoei" : "uit (--no-verify)"}`,
   );
+  console.log(
+    `[backup] versleuteling: ${encKey ? "AES-256-GCM (BACKUP_ENCRYPTION_KEY gezet)" : "uit (geen BACKUP_ENCRYPTION_KEY — plaintext)"}`,
+  );
 
   if (dryRun) {
     console.log(`[backup] (dry-run) zou uitvoeren: ${redactedCmd}`);
     if (verify) console.log(`[backup] (dry-run) zou verifiëren: pg_restore --list ${outFile}`);
+    if (encKey)
+      console.log(
+        `[backup] (dry-run) zou versleutelen naar ${join(dir, encryptedBackupName(filename))} en de plaintext dump verwijderen`,
+      );
     const existing = existsSync(dir) ? readdirSync(dir) : [];
     const toPrune = selectBackupsToPrune([...existing, filename], keep);
     if (toPrune.length) console.log(`[backup] (dry-run) zou snoeien: ${toPrune.join(", ")}`);
@@ -126,6 +158,16 @@ function main(): void {
       process.exit(1);
     }
     console.log("[backup] geverifieerd: geldig archief (pg_restore --list).");
+  }
+
+  // Versleutel ná de verificatie (die op de plaintext dump draait): schrijf het versleutelde
+  // archief en verwijder de plaintext, zodat alleen het versleutelde bestand at-rest achterblijft.
+  if (encKey) {
+    const plaintext = readFileSync(outFile);
+    const encFile = join(dir, encryptedBackupName(filename));
+    writeFileSync(encFile, encryptBackup(plaintext, encKey), { mode: 0o600 });
+    unlinkSync(outFile); // verwijder de plaintext dump — alleen het versleutelde archief blijft achter
+    console.log(`[backup] versleuteld (AES-256-GCM): ${encFile} — plaintext verwijderd.`);
   }
 
   const toPrune = selectBackupsToPrune(readdirSync(dir), keep);

@@ -1,9 +1,11 @@
+import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   assertDrillTarget,
   assertPostgresUrl,
   assertSafeIdentifier,
   assertSafeRestoreTarget,
+  BackupEncryptionError,
   buildBackupFilename,
   buildPgDumpArgs,
   buildPgRestoreArgs,
@@ -11,13 +13,20 @@ import {
   buildPublicTableCountArgs,
   buildRowCountArgs,
   buildScratchTeardownArgs,
+  decryptBackup,
+  encryptBackup,
+  encryptedBackupName,
   interpretDrill,
   isBackupFilename,
+  isEncryptedBackupFilename,
+  isManagedBackupFilename,
   isPostgresUrl,
   isValidArchiveListing,
+  looksEncryptedBackup,
   parseKeepCount,
   parsePsqlCount,
   redactDatabaseUrl,
+  resolveBackupEncryptionKey,
   selectBackupsToPrune,
   selectLatestBackup,
   shouldVerifyBackup,
@@ -417,5 +426,157 @@ describe("interpretDrill", () => {
     const v = interpretDrill({ publicTableCount: 30, rowCount: 7, verifyTable: "User" });
     expect(v.ok).toBe(true);
     expect(v.detail).toContain("7");
+  });
+});
+
+describe("resolveBackupEncryptionKey", () => {
+  it("geeft null bij leeg/ontbrekend (versleuteling uit)", () => {
+    expect(resolveBackupEncryptionKey(undefined)).toBeNull();
+    expect(resolveBackupEncryptionKey(null)).toBeNull();
+    expect(resolveBackupEncryptionKey("")).toBeNull();
+    expect(resolveBackupEncryptionKey("   ")).toBeNull();
+  });
+
+  it("leest een geldige 32-byte base64-sleutel als Buffer van 32 bytes", () => {
+    const raw = randomBytes(32).toString("base64");
+    const key = resolveBackupEncryptionKey(raw);
+    expect(key).toBeInstanceOf(Buffer);
+    expect(key).not.toBeNull();
+    expect(key!.length).toBe(32);
+  });
+
+  it("werpt bij een base64 met de verkeerde lengte (geen 32 bytes)", () => {
+    const raw = randomBytes(16).toString("base64");
+    expect(() => resolveBackupEncryptionKey(raw)).toThrow(BackupEncryptionError);
+    expect(() => resolveBackupEncryptionKey(raw)).toThrow(/32 bytes/);
+  });
+
+  it("werpt bij een niet-base64-string", () => {
+    expect(() => resolveBackupEncryptionKey("not valid base64!!!")).toThrow(BackupEncryptionError);
+    expect(() => resolveBackupEncryptionKey("not valid base64!!!")).toThrow(/geldige base64/);
+  });
+});
+
+describe("encryptBackup / decryptBackup", () => {
+  const key = () => resolveBackupEncryptionKey(randomBytes(32).toString("base64"))!;
+
+  it("round-trip: ontsleutelde inhoud is gelijk aan het origineel (realistische payload)", () => {
+    const k = key();
+    const plaintext = Buffer.from("PGDMP fake dump   binary", "utf8");
+    const encrypted = encryptBackup(plaintext, k);
+    expect(decryptBackup(encrypted, k)).toEqual(plaintext);
+  });
+
+  it("round-trip: lege buffer", () => {
+    const k = key();
+    const plaintext = Buffer.alloc(0);
+    const encrypted = encryptBackup(plaintext, k);
+    expect(decryptBackup(encrypted, k)).toEqual(plaintext);
+  });
+
+  it("round-trip: grotere random buffer (5000 bytes)", () => {
+    const k = key();
+    const plaintext = randomBytes(5000);
+    const encrypted = encryptBackup(plaintext, k);
+    expect(decryptBackup(encrypted, k)).toEqual(plaintext);
+  });
+
+  it("de versleutelde uitvoer verschilt van de plaintext en draagt het magic-header", () => {
+    const k = key();
+    const plaintext = Buffer.from("PGDMP fake dump   binary", "utf8");
+    const encrypted = encryptBackup(plaintext, k);
+    expect(encrypted.equals(plaintext)).toBe(false);
+    expect(looksEncryptedBackup(encrypted)).toBe(true);
+    expect(looksEncryptedBackup(plaintext)).toBe(false);
+  });
+
+  it("twee versleutelingen van dezelfde plaintext+sleutel verschillen (random IV) maar ontsleutelen beide terug", () => {
+    const k = key();
+    const plaintext = Buffer.from("PGDMP fake dump   binary", "utf8");
+    const a = encryptBackup(plaintext, k);
+    const b = encryptBackup(plaintext, k);
+    expect(a.equals(b)).toBe(false);
+    expect(decryptBackup(a, k)).toEqual(plaintext);
+    expect(decryptBackup(b, k)).toEqual(plaintext);
+  });
+});
+
+describe("decryptBackup — tamper/wrong-key-detectie", () => {
+  it("werpt bij ontsleutelen met een andere 32-byte sleutel", () => {
+    const k = resolveBackupEncryptionKey(randomBytes(32).toString("base64"))!;
+    const other = resolveBackupEncryptionKey(randomBytes(32).toString("base64"))!;
+    const encrypted = encryptBackup(Buffer.from("PGDMP fake dump   binary", "utf8"), k);
+    expect(() => decryptBackup(encrypted, other)).toThrow(BackupEncryptionError);
+  });
+
+  it("werpt wanneer één byte in de ciphertext is omgeklapt (GCM-auth-tag)", () => {
+    const k = resolveBackupEncryptionKey(randomBytes(32).toString("base64"))!;
+    const encrypted = encryptBackup(Buffer.from("PGDMP fake dump   binary", "utf8"), k);
+    const tampered = Buffer.from(encrypted);
+    const last = tampered.length - 1;
+    tampered[last] = (tampered[last] ?? 0) ^ 0xff;
+    expect(() => decryptBackup(tampered, k)).toThrow(BackupEncryptionError);
+  });
+
+  it("werpt bij een afgekapt archief (te kort voor iv + auth-tag)", () => {
+    const k = resolveBackupEncryptionKey(randomBytes(32).toString("base64"))!;
+    const encrypted = encryptBackup(Buffer.from("PGDMP fake dump   binary", "utf8"), k);
+    expect(() => decryptBackup(encrypted.subarray(0, 10), k)).toThrow(BackupEncryptionError);
+  });
+
+  it("werpt bij een buffer zonder magic-header (plaintext)", () => {
+    const k = resolveBackupEncryptionKey(randomBytes(32).toString("base64"))!;
+    const plaintext = Buffer.from("PGDMP fake dump   binary", "utf8");
+    expect(() => decryptBackup(plaintext, k)).toThrow(BackupEncryptionError);
+  });
+});
+
+describe("encryptedBackupName / isEncryptedBackupFilename / isManagedBackupFilename", () => {
+  const plain = "zzp-backup-20260101-000000.dump";
+  const enc = "zzp-backup-20260101-000000.dump.enc";
+
+  it("voegt .enc toe aan een plaintext-back-upnaam", () => {
+    expect(encryptedBackupName(plain)).toBe(enc);
+  });
+
+  it("isEncryptedBackupFilename herkent alleen versleutelde namen", () => {
+    expect(isEncryptedBackupFilename(enc)).toBe(true);
+    expect(isEncryptedBackupFilename(plain)).toBe(false);
+    expect(isEncryptedBackupFilename("random.txt")).toBe(false);
+    expect(isEncryptedBackupFilename("zzp-backup-20260101.dump.enc")).toBe(false);
+  });
+
+  it("isManagedBackupFilename dekt zowel plaintext als versleutelde namen", () => {
+    expect(isManagedBackupFilename(plain)).toBe(true);
+    expect(isManagedBackupFilename(enc)).toBe(true);
+    expect(isManagedBackupFilename("notes.txt")).toBe(false);
+    expect(isManagedBackupFilename("backup.dump")).toBe(false);
+  });
+});
+
+describe("retentie over gemengde .dump/.dump.enc-lijsten", () => {
+  const mixed = [
+    "zzp-backup-20260708-090000.dump",
+    "zzp-backup-20260709-120000.dump.enc",
+    "zzp-backup-20260710-150248.dump",
+    "zzp-backup-20260711-030000.dump.enc",
+    "notes.txt", // vreemd bestand: telt niet mee
+  ];
+
+  it("selectLatestBackup kiest de nieuwste over beide extensies heen", () => {
+    expect(selectLatestBackup(mixed)).toBe("zzp-backup-20260711-030000.dump.enc");
+  });
+
+  it("selectBackupsToPrune telt beide extensies chronologisch en snoeit de oudste", () => {
+    expect(selectBackupsToPrune(mixed, 2)).toEqual([
+      "zzp-backup-20260708-090000.dump",
+      "zzp-backup-20260709-120000.dump.enc",
+    ]);
+  });
+
+  it("snoeit niets wanneer keep de gemengde lijst dekt en raakt vreemde bestanden nooit", () => {
+    expect(selectBackupsToPrune(mixed, 4)).toEqual([]);
+    expect(selectBackupsToPrune(mixed, 0)).not.toContain("notes.txt");
+    expect(selectBackupsToPrune(mixed, 0)).toHaveLength(4);
   });
 });

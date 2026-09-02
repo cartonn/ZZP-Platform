@@ -8,6 +8,13 @@
 // risicovolle actie. Deze helper formaliseert dat tot één veilig, herhaalbaar hulpmiddel:
 // weigert een niet-PostgreSQL-URL (SQLite kent geen pg_dump), redigeert wachtwoorden in logs,
 // weigert blind over de bron-database te herstellen, en snoeit oude back-ups op basis van retentie.
+//
+// Vertrouwelijkheid: een back-up bevat alle gevoelige PII (namen, e-mail, IBAN/KvK/btw, VOG/BIG/
+// diploma-metadata, auditlog, berichten). Optioneel worden dumps at-rest versleuteld met AES-256-GCM
+// (opt-in via `BACKUP_ENCRYPTION_KEY`) — de buffer-crypto zit hieronder als pure, testbare kern; de
+// scripts doen de bestand-I/O (RUNBOOK §5, AVG art. 32).
+
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 /** Bron-database is geen PostgreSQL — pg_dump/pg_restore werken dan niet. */
 export class UnsupportedDatabaseError extends Error {
@@ -85,21 +92,50 @@ export function buildBackupFilename(now: Date): string {
   return `${BACKUP_PREFIX}${stamp}${BACKUP_EXT}`;
 }
 
-const BACKUP_NAME_PATTERN = new RegExp(`^${BACKUP_PREFIX}\\d{8}-\\d{6}\\${BACKUP_EXT}$`);
+/** Extensie-achtervoegsel van een versleutelde back-up: `zzp-backup-…-….dump.enc`. */
+const BACKUP_ENC_EXT = ".enc";
 
-/** True als `name` een door deze helper gegenereerde back-upbestandsnaam is. */
+const BACKUP_NAME_PATTERN = new RegExp(`^${BACKUP_PREFIX}\\d{8}-\\d{6}\\${BACKUP_EXT}$`);
+const BACKUP_ENC_NAME_PATTERN = new RegExp(
+  `^${BACKUP_PREFIX}\\d{8}-\\d{6}\\${BACKUP_EXT}\\${BACKUP_ENC_EXT}$`,
+);
+
+/** True als `name` een plaintext (`.dump`) back-upbestandsnaam van deze helper is. */
 export function isBackupFilename(name: string): boolean {
   return BACKUP_NAME_PATTERN.test(name);
 }
 
+/** True als `name` een versleutelde (`.dump.enc`) back-upbestandsnaam van deze helper is. */
+export function isEncryptedBackupFilename(name: string): boolean {
+  return BACKUP_ENC_NAME_PATTERN.test(name);
+}
+
 /**
- * Kiest de te verwijderen back-ups zodat er `keep` nieuwste overblijven. Alleen bestanden met het
- * eigen naampatroon tellen mee (vreemde bestanden worden nooit gesnoeid). Retourneert de oudste
- * boven `keep`, oplopend op leeftijd (oudste eerst). `keep < 0` → niets snoeien.
+ * True als `name` een door deze helper beheerde back-up is — plaintext óf versleuteld. Retentie
+ * (snoei/nieuwste) moet beide vormen meenemen, zodat het aanzetten van versleuteling de
+ * retentie-boekhouding niet stilletjes splitst.
+ */
+export function isManagedBackupFilename(name: string): boolean {
+  return isBackupFilename(name) || isEncryptedBackupFilename(name);
+}
+
+/**
+ * Geeft de versleutelde bestandsnaam voor een plaintext back-up: `<naam>.dump` → `<naam>.dump.enc`.
+ * De timestamp-prefix blijft intact, zodat lexicografisch sorteren chronologisch blijft.
+ */
+export function encryptedBackupName(name: string): string {
+  return `${name}${BACKUP_ENC_EXT}`;
+}
+
+/**
+ * Kiest de te verwijderen back-ups zodat er `keep` nieuwste overblijven. Alleen door deze helper
+ * beheerde bestanden (plaintext óf versleuteld) tellen mee (vreemde bestanden worden nooit
+ * gesnoeid). Retourneert de oudste boven `keep`, oplopend op leeftijd (oudste eerst). `keep < 0` →
+ * niets snoeien.
  */
 export function selectBackupsToPrune(files: string[], keep: number): string[] {
   if (keep < 0) return [];
-  const backups = files.filter(isBackupFilename).sort(); // lexicografisch = chronologisch (UTC)
+  const backups = files.filter(isManagedBackupFilename).sort(); // lexicografisch = chronologisch (UTC)
   if (backups.length <= keep) return [];
   // Nieuwste = laatste; behoud de laatste `keep`, snoei de rest (oudste eerst).
   return backups.slice(0, backups.length - keep);
@@ -228,7 +264,7 @@ export function parseKeepCount(value: string | undefined | null, fallback: numbe
  * gebaseerd, dus lexicografisch sorteren = chronologisch. Geen geldige back-up → `undefined`.
  */
 export function selectLatestBackup(files: string[]): string | undefined {
-  const backups = files.filter(isBackupFilename).sort();
+  const backups = files.filter(isManagedBackupFilename).sort();
   return backups.length ? backups[backups.length - 1] : undefined;
 }
 
@@ -392,4 +428,116 @@ export function interpretDrill(params: {
     ok: true,
     detail: `${publicTableCount} tabel(len) hersteld; "${verifyTable}" bevat ${rowCount} rij(en).`,
   };
+}
+
+// ── At-rest-versleuteling van back-ups (AES-256-GCM) ─────────────────────────────────────────────
+// Een back-up bevat alle gevoelige PII van het platform. De opslag versleutelt die at-rest zodra
+// `BACKUP_ENCRYPTION_KEY` gezet is — symmetrisch, met Node's ingebouwde `crypto` (GEEN extra
+// dependency). AES-256-GCM levert vertrouwelijkheid én integriteit (de auth-tag detecteert elke
+// wijziging/beschadiging). De pure buffer-crypto hieronder is deterministisch testbaar; de scripts
+// doen de bestand-I/O (lezen/schrijven/tijdelijk-ontsleutelen). Ontwerp bewust conservatief:
+// een gezette-maar-ongeldige sleutel is een HARDE fout (nooit stil terugvallen op plaintext —
+// "halve activering is gevaarlijker dan geen", CLAUDE.md §8); een afwezige sleutel = plaintext
+// (huidig gedrag, pilot ongewijzigd).
+
+/** Sleutel-/versleutelingsfout (ontbrekende/ongeldige sleutel, of een onontsleutelbaar archief). */
+export class BackupEncryptionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BackupEncryptionError";
+  }
+}
+
+// Bestandsformaat van een versleutelde back-up (bytes, in volgorde):
+//   magic "ZBK1" (4) | iv (12) | auth-tag (16) | ciphertext (rest)
+// Het magic-header maakt auto-detectie triviaal (restore/drill herkennen een versleuteld archief
+// zonder op de bestandsextensie te hoeven vertrouwen).
+const ENC_MAGIC = Buffer.from("ZBK1", "ascii");
+const ENC_IV_BYTES = 12; // 96-bit nonce — de aanbevolen GCM-IV-lengte.
+const ENC_TAG_BYTES = 16; // 128-bit GCM auth-tag.
+const ENC_KEY_BYTES = 32; // AES-256.
+const ENC_HEADER_BYTES = ENC_MAGIC.length + ENC_IV_BYTES + ENC_TAG_BYTES;
+
+/**
+ * Leest de back-up-versleutelingssleutel uit een ruwe env-waarde. Verwacht **base64** die exact
+ * 32 bytes decodeert (AES-256), bv. `openssl rand -base64 32`.
+ *
+ * - leeg/ontbrekend → `null`: versleuteling staat uit, de back-up blijft plaintext (huidig gedrag).
+ * - gezet maar geen geldige 32-byte base64 → **werpt** `BackupEncryptionError`: een operator die een
+ *   sleutel zet, verwacht versleuteling; stil plaintext schrijven zou gevaarlijker zijn dan geen
+ *   sleutel (CLAUDE.md §8). De caller hoort dit hard te laten falen.
+ */
+export function resolveBackupEncryptionKey(raw: string | undefined | null): Buffer | null {
+  const trimmed = raw?.trim();
+  if (!trimmed) return null;
+  // Strikte base64: alleen base64-alfabet + optionele padding, lengte veelvoud van 4.
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(trimmed) || trimmed.length % 4 !== 0) {
+    throw new BackupEncryptionError(
+      "BACKUP_ENCRYPTION_KEY is geen geldige base64. Genereer een sleutel met " +
+        "`openssl rand -base64 32` en zet die in de secrets.",
+    );
+  }
+  const key = Buffer.from(trimmed, "base64");
+  if (key.length !== ENC_KEY_BYTES) {
+    throw new BackupEncryptionError(
+      `BACKUP_ENCRYPTION_KEY moet exact ${ENC_KEY_BYTES} bytes (base64) zijn voor AES-256, maar is ` +
+        `${key.length} byte(s). Genereer een sleutel met \`openssl rand -base64 32\`.`,
+    );
+  }
+  return key;
+}
+
+/** True als `blob` het magic-header van een door deze helper versleutelde back-up draagt. */
+export function looksEncryptedBackup(blob: Buffer): boolean {
+  return blob.length >= ENC_MAGIC.length && blob.subarray(0, ENC_MAGIC.length).equals(ENC_MAGIC);
+}
+
+/**
+ * Versleutelt een plaintext back-up-buffer met AES-256-GCM. Retourneert het complete archief
+ * (magic | iv | auth-tag | ciphertext). Elke aanroep gebruikt een verse, willekeurige IV.
+ */
+export function encryptBackup(plaintext: Buffer, key: Buffer): Buffer {
+  if (key.length !== ENC_KEY_BYTES) {
+    throw new BackupEncryptionError(`Versleutelsleutel moet ${ENC_KEY_BYTES} bytes zijn.`);
+  }
+  const iv = randomBytes(ENC_IV_BYTES);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([ENC_MAGIC, iv, tag, ciphertext]);
+}
+
+/**
+ * Ontsleutelt een archief dat door {@link encryptBackup} is gemaakt. Werpt `BackupEncryptionError`
+ * bij een verkeerd magic-header, een te kort/afgekapt archief, of een mislukte auth-tag-check
+ * (verkeerde sleutel óf beschadigde/gemanipuleerde inhoud — GCM maakt die twee niet los).
+ */
+export function decryptBackup(blob: Buffer, key: Buffer): Buffer {
+  if (key.length !== ENC_KEY_BYTES) {
+    throw new BackupEncryptionError(`Ontsleutelsleutel moet ${ENC_KEY_BYTES} bytes zijn.`);
+  }
+  if (!looksEncryptedBackup(blob)) {
+    throw new BackupEncryptionError(
+      "Dit is geen versleutelde back-up (onbekend/ontbrekend header). Herstel het als plaintext " +
+        "of controleer of je het juiste bestand opgeeft.",
+    );
+  }
+  if (blob.length < ENC_HEADER_BYTES) {
+    throw new BackupEncryptionError(
+      "Versleutelde back-up is afgekapt (te kort voor iv + auth-tag).",
+    );
+  }
+  const iv = blob.subarray(ENC_MAGIC.length, ENC_MAGIC.length + ENC_IV_BYTES);
+  const tag = blob.subarray(ENC_MAGIC.length + ENC_IV_BYTES, ENC_HEADER_BYTES);
+  const ciphertext = blob.subarray(ENC_HEADER_BYTES);
+  const decipher = createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAuthTag(tag);
+  try {
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  } catch {
+    throw new BackupEncryptionError(
+      "Kon de back-up niet ontsleutelen: verkeerde BACKUP_ENCRYPTION_KEY of een beschadigd/" +
+        "gemanipuleerd archief (de auth-tag klopt niet).",
+    );
+  }
 }
