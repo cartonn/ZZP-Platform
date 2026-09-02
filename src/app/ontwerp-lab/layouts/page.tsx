@@ -1,5 +1,8 @@
 import { type Metadata } from "next";
+import { notFound } from "next/navigation";
 import "../themes.css";
+import { requireRole } from "@/lib/authz";
+import { isDesignLabEnabled } from "@/lib/design-lab";
 import OntwerpBento from "@/components/ontwerp/layouts/ontwerp-1";
 import OntwerpCommandCenter from "@/components/ontwerp/layouts/ontwerp-2";
 import OntwerpDataTable from "@/components/ontwerp/layouts/ontwerp-3";
@@ -11,7 +14,13 @@ import OntwerpKanban from "@/components/ontwerp/layouts/ontwerp-8";
 import OntwerpThreeColumn from "@/components/ontwerp/layouts/ontwerp-9";
 import OntwerpEditorial from "@/components/ontwerp/layouts/ontwerp-10";
 
-export const metadata: Metadata = { title: "Ontwerp-lab · 10 layouts" };
+export const metadata: Metadata = {
+  title: "Ontwerp-lab · 10 layouts",
+  robots: { index: false, follow: false },
+};
+
+// De omgevingsvlag wordt per request gelezen; prerenderen zou 'm op bouwtijd vastzetten.
+export const dynamic = "force-dynamic";
 
 // 10 structureel verschillende layouts (uit de workflow), elk gekoppeld aan een ander palet
 // (data-ontwerp 1-10 uit themes.css) zodat ze in zowel structuur als kleur verschillen.
@@ -88,7 +97,11 @@ const LAYOUTS = [
   },
 ];
 
-export default function OntwerpLayoutsPage() {
+export default async function OntwerpLayoutsPage() {
+  // Het lab is ADMIN-only en staat in productie standaard dicht (src/lib/design-lab.ts).
+  if (!isDesignLabEnabled(process.env.DESIGN_LAB_ENABLED)) notFound();
+  await requireRole("ADMIN");
+
   return (
     <div className="min-h-screen bg-neutral-100 p-6 dark:bg-neutral-900">
       <div className="mx-auto max-w-[1200px] space-y-10">

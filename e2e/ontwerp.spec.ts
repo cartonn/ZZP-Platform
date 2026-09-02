@@ -17,6 +17,16 @@ test("intern: /ontwerp redirect een niet-ingelogde bezoeker naar login", async (
   await expect(page).toHaveURL(/\/login/);
 });
 
+test("intern: een ingelogde ZZP'er komt niet in het lab", async ({ page }) => {
+  await page.goto("/login");
+  await page.fill("#email", "zzp@zzp-platform.local");
+  await page.fill("#password", "demo1234");
+  await page.getByRole("button", { name: "Inloggen" }).click();
+  await page.waitForURL("**/dashboard");
+  await page.goto("/ontwerp");
+  await expect(page).toHaveURL(/\/dashboard$/);
+});
+
 test("intern: admin opent de galerij", async ({ page }) => {
   await loginAdmin(page);
   await page.goto("/ontwerp");

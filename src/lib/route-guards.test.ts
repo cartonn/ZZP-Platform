@@ -133,6 +133,18 @@ describe("roleForPath", () => {
     }
   });
 
+  it("ADMIN-only ontwerp-lab (intern gereedschap, geen productonderdeel)", () => {
+    for (const p of [
+      "/ontwerp",
+      "/ontwerp/01",
+      "/ontwerp/144",
+      "/ontwerp-lab",
+      "/ontwerp-lab/layouts",
+    ]) {
+      expect(roleForPath(p), p).toBe("ADMIN");
+    }
+  });
+
   it("gedeelde ouders zijn NIET gated (null) — geen over-blokkade", () => {
     for (const p of [
       "/opdrachten", //          lijst — gedeeld (ZZP'er bladert ook)
@@ -162,5 +174,6 @@ describe("roleForPath", () => {
   it("matcht niet op een toevallige prefix zonder segmentgrens", () => {
     expect(roleForPath("/bedrijfsnaam")).toBeNull();
     expect(roleForPath("/profielfoto")).toBeNull();
+    expect(roleForPath("/ontwerpbureau")).toBeNull();
   });
 });

@@ -64,6 +64,9 @@ jobs:
       REGISTER_RATE_LIMIT: "100000"
       # Kleine paginagrootte zodat "Meer laden" testbaar is met de seed-data.
       LIST_PAGE_SIZE: "5"
+      # Het interne ontwerp-lab is in productiemodus standaard dicht (404). De e2e-server draait in
+      # die modus, dus expliciet aanzetten zodat e2e/ontwerp.spec.ts de ADMIN-toegang kan toetsen.
+      DESIGN_LAB_ENABLED: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
