@@ -7,7 +7,8 @@ import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { requestMeta } from "@/lib/request-meta";
 import { registerRateLimiter } from "@/lib/rate-limit";
-import { registerSchema } from "@/lib/validation";
+import { bureauRegisterSchema, registerSchema } from "@/lib/validation";
+import { createTenantWithOwner } from "@/lib/franchise/create-tenant";
 import {
   getPasswordBreachChecker,
   BREACHED_PASSWORD_MESSAGE,
@@ -17,7 +18,28 @@ export type RegisterState =
   | { error?: string; success?: string; fieldErrors?: Record<string, string> }
   | undefined;
 
+/**
+ * Begrens massale account-aanmaak per IP (server-side waarheid). Bij overschrijding weigeren +
+ * auditregel; geen enumeratie-informatie in de respons. Geldt voor élke registratievorm.
+ */
+async function rateLimitBlocked(email: string): Promise<RegisterState | null> {
+  const meta = await requestMeta();
+  const limitKey = meta.ipAddress ?? "unknown";
+  if ((await registerRateLimiter.check(limitKey)).allowed) return null;
+  await audit({
+    action: "REGISTER_RATE_LIMITED",
+    entityType: "User",
+    entityId: "unknown",
+    metadata: { email },
+    ...meta,
+  });
+  return { error: "Te veel registratiepogingen. Probeer het later opnieuw." };
+}
+
 export async function register(_prev: RegisterState, formData: FormData): Promise<RegisterState> {
+  // Bemiddelingsbureau: eigen schema + eigen flow (tenant op PENDING, geen auto-login).
+  if (formData.get("role") === "FRANCHISER") return registerBureau(formData);
+
   const parsed = registerSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -37,20 +59,8 @@ export async function register(_prev: RegisterState, formData: FormData): Promis
 
   const { name, email, password, role, companyName } = parsed.data;
 
-  // Begrens massale account-aanmaak per IP (server-side waarheid). Bij overschrijding
-  // weigeren + auditregel; geen enumeratie-informatie in de respons.
-  const meta = await requestMeta();
-  const limitKey = meta.ipAddress ?? "unknown";
-  if (!(await registerRateLimiter.check(limitKey)).allowed) {
-    await audit({
-      action: "REGISTER_RATE_LIMITED",
-      entityType: "User",
-      entityId: "unknown",
-      metadata: { email },
-      ...meta,
-    });
-    return { error: "Te veel registratiepogingen. Probeer het later opnieuw." };
-  }
+  const limited = await rateLimitBlocked(email);
+  if (limited) return limited;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -97,4 +107,87 @@ export async function register(_prev: RegisterState, formData: FormData): Promis
     throw error;
   }
   return undefined;
+}
+
+const BUREAU_SUBMITTED =
+  "Aanmelding ontvangen. We beoordelen je bureau en nemen binnen 2 werkdagen contact met je op.";
+
+/**
+ * Zelfaanmelding van een bemiddelingsbureau. Volgt dezelfde keten als de gewone registratie
+ * (Zod → rate-limit → dubbele-account-check → gelekt-wachtwoord → aanmaken → audit), met drie
+ * verschillen:
+ *  - de tenant start op PENDING, dus de bemiddelaar heeft nog GEEN toegang tot de werkplek
+ *    (fail-closed via tenantAccessBlocked in authz.ts) en ziet na inloggen de wachtpagina;
+ *  - er is geen auto-login: de bevestiging is de succesmelding op het formulier;
+ *  - het KvK-nummer is uniek, zodat hetzelfde bureau zich niet twee keer aanmeldt.
+ * Bij een al bestaand e-mailadres of KvK-nummer geven we exact dezelfde generieke bevestiging
+ * terug (geen enumeratie van bestaande bureaus/accounts).
+ */
+async function registerBureau(formData: FormData): Promise<RegisterState> {
+  const parsed = bureauRegisterSchema.safeParse({
+    bureauName: formData.get("bureauName"),
+    kvkNumber: formData.get("kvkNumber"),
+    name: formData.get("name"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+    phone: formData.get("phone") || undefined,
+    region: formData.get("region") || undefined,
+  });
+  if (!parsed.success) {
+    const flat = parsed.error.flatten().fieldErrors;
+    const fieldErrors: Record<string, string> = {};
+    for (const [k, v] of Object.entries(flat)) {
+      if (v && v[0]) fieldErrors[k] = v[0];
+    }
+    return { error: "Controleer de ingevoerde gegevens.", fieldErrors };
+  }
+  const { bureauName, kvkNumber, name, email, password, phone, region } = parsed.data;
+
+  const limited = await rateLimitBlocked(email);
+  if (limited) return limited;
+
+  if ((await getPasswordBreachChecker().check(password)).breached) {
+    return { fieldErrors: { password: BREACHED_PASSWORD_MESSAGE } };
+  }
+
+  // Bestaat het e-mailadres of KvK-nummer al? Dan stil stoppen met dezelfde bevestiging — één
+  // aanmelding per bureau, en geen signaal of dit account/bureau al bekend is.
+  const [existingUser, existingTenant] = await Promise.all([
+    prisma.user.findUnique({ where: { email }, select: { id: true } }),
+    prisma.tenant.findUnique({ where: { kvkNumber }, select: { id: true } }),
+  ]);
+  if (existingUser || existingTenant) return { success: BUREAU_SUBMITTED };
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const meta = await requestMeta();
+  try {
+    await createTenantWithOwner({
+      tenantName: bureauName,
+      ownerName: name,
+      ownerEmail: email,
+      passwordHash,
+      status: "PENDING",
+      kvkNumber,
+      region: region ?? null,
+      contactPhone: phone ?? null,
+      auditAction: "FRANCHISE_SELF_REGISTERED",
+      auditMetadata: { kvkNumber },
+      ...meta,
+    });
+  } catch (error) {
+    // Twee gelijktijdige aanmeldingen met hetzelfde e-mailadres of KvK-nummer: de unieke index in
+    // de database is de laatste waarheid. De verliezer krijgt dezelfde generieke bevestiging als
+    // de check hierboven — geen 500, en nog steeds geen enumeratie.
+    if (isUniqueConstraintError(error)) return { success: BUREAU_SUBMITTED };
+    throw error;
+  }
+
+  return { success: BUREAU_SUBMITTED };
+}
+
+/** Prisma P2002 = unieke constraint geschonden. Los gehouden zodat de check leesbaar blijft. */
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    typeof error === "object" && error !== null && (error as { code?: unknown }).code === "P2002"
+  );
 }

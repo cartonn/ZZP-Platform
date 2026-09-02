@@ -109,7 +109,11 @@ model Tenant {
   name         String
   slug         String   @unique
   ownerUserId  String   @unique //          de Franchiser die deze tenant beheert
-  status       String   @default("ACTIVE") // TenantStatus: ACTIVE | SUSPENDED
+  status       String   @default("ACTIVE") // TenantStatus: PENDING | ACTIVE | SUSPENDED | REJECTED
+  kvkNumber    String?  @unique //          KvK-nummer (8 cijfers, genormaliseerd) uit de zelfaanmelding; uniek zodat één bureau zich niet dubbel aanmeldt
+  region       String? //                   werkgebied/regio, opgegeven bij zelfregistratie
+  contactPhone String? //                   telefoonnummer van de contactpersoon (optioneel, uit de aanmelding)
+  activationNote String? //                 reden bij afwijzing van de aanmelding (getoond aan de bemiddelaar)
   brandColor   String? //                   white-label accentkleur (hex), getoond in de werkplek-header
   feePercent   Float    @default(0) //       bemiddelaars-fee als % van doorgezet volume (0–50, één decimaal); getoond op /inzicht als "Jouw fee"
   openOverflow Boolean  @default(false) //  true = niet-gevulde diensten vallen terug naar het hele platform (v2)
