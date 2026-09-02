@@ -70,7 +70,6 @@ export default async function PrestatiesPage({
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="Het observatorium · prestaties"
           title="Uren goedkeuren"
           description="Het overzicht van in te dienen uren en opleveringen is er voor opdrachtgevers."
         />
@@ -132,9 +131,6 @@ export default async function PrestatiesPage({
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
-            Het observatorium · prestaties
-          </p>
           <h1 className="font-display text-2xl font-semibold tracking-tight">Uren goedkeuren</h1>
           <p className="text-sm text-muted-foreground">
             Urenstaten en opleveringen van jouw ZZP&apos;ers — overzicht over alle samenwerkingen.

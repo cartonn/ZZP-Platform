@@ -26,7 +26,6 @@ export default async function ActiesPage() {
       {/* De paginakop noemt de eigen telling ("X acties open") zodat dit scherm zijn getal uitlegt —
           los van de meldingen-bel (die de gelezen/ongelezen historie telt, een ander soort teller). */}
       <PageHeader
-        eyebrow="De werklijst"
         title="Acties"
         description={
           tasks.length > 0

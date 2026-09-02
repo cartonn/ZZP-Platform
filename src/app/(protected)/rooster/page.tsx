@@ -198,7 +198,6 @@ export default async function RoosterPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Het weefsel · jouw week"
         title="Rooster"
         description="Jouw geplande diensten en open kansen — per dag."
         action={showAgendaSubscribe ? <AgendaSubscribe feedPath={feedPath} /> : undefined}

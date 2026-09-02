@@ -21,7 +21,6 @@ export default async function FreelancersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="De etalage · vakmensen"
         title="ZZP'ers"
         description="Zoek beschikbare zelfstandigen voor uw opdrachten en bekijk hun profiel."
       />

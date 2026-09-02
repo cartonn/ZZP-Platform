@@ -12,7 +12,7 @@ export default async function BewakingPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="De controlekamer · bewaking"
+        eyebrow="Toezicht"
         title="Platform-bewaking"
         description={
           <>

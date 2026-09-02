@@ -18,7 +18,7 @@ export default async function AdminSamenwerkingenPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="De controlekamer · samenwerkingen"
+        eyebrow="Beheer"
         title="Samenwerkingen"
         description="Overzicht van alle samenwerkingen — contract tot betaling. Filter op status of DBA-niveau, of zoek op opdracht, opdrachtgever en ZZP'er. Klik om naar de samenwerking te gaan."
       />

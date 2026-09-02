@@ -79,7 +79,7 @@ export default async function MailIntakePage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="Opdrachten · mail-intake"
+          eyebrow="Opdrachten"
           title="Mail-intake"
           description="Dienstaanvragen die per e-mail binnenkomen, klaar om te beoordelen."
         />
@@ -136,7 +136,7 @@ export default async function MailIntakePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Opdrachten · mail-intake"
+        eyebrow="Opdrachten"
         title="Mail-intake"
         description="Aanvragen die per e-mail binnenkomen staan hier klaar — beoordelen, overnemen als concept-opdracht en publiceren via de gewone flow. Geen overtypen meer."
       />

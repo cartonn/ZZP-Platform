@@ -13,7 +13,7 @@ export default async function OpenstaandPage() {
     <div className="space-y-6">
       <header className="space-y-1">
         <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
-          De werklijst · openstaand
+          Administratie
         </p>
         <h1 className="font-display text-2xl font-semibold tracking-tight">Openstaande posten</h1>
         {!isAdmin && (

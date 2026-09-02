@@ -15,7 +15,7 @@ export default async function FacturenPage({ searchParams }: { searchParams: Sea
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Het grootboek · facturen"
+        eyebrow="Administratie"
         title="Facturen"
         description={
           isFreelancer

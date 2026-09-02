@@ -94,7 +94,7 @@ export default async function InzichtPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Het observatorium" title="Inzicht" description={description} />
+      <PageHeader title="Inzicht" description={description} />
       {role === "FREELANCER" ? (
         <FreelancerInzicht userId={actor.id} />
       ) : role === "CLIENT" ? (

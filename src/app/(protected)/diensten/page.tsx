@@ -98,9 +98,6 @@ export default async function DienstenPage({
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
-            Het weefsel · gewerkte uren
-          </p>
           <h1 className="font-display text-2xl font-semibold tracking-tight">Urenstaten</h1>
           <p className="text-sm text-muted-foreground">
             Alle urenstaten en opleveringen die je hebt ingediend of in concept hebt staan.

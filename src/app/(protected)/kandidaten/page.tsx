@@ -455,7 +455,6 @@ export default async function KandidatenPage({
   return (
     <div className="space-y-6 pb-24">
       <PageHeader
-        eyebrow="De etalage · kandidaten"
         title={t("Kandidaten")}
         description={t("Reacties op je opdrachten, met match en compliance.")}
       />

@@ -12,7 +12,7 @@ export default async function FranchisesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="De controlekamer · franchises"
+        eyebrow="Gebruikersbeheer"
         title="Bemiddelingen"
         description="Bemiddelaars (tenant-admins) en hun tenants. Een bemiddelaar brengt eigen opdrachtgevers en ZZP'ers in het platform."
       />

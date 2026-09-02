@@ -119,11 +119,11 @@ export async function CompanyProfileScreen({
 
   return (
     <div className="space-y-6">
-      {/* Bedrijfskop — het paspoort, prototype-stijl: kaart op het papier, geen kleurvlak. */}
+      {/* Bedrijfskop, prototype-stijl: kaart op het papier, geen kleurvlak. */}
       <Card>
         <CardContent className="space-y-4 p-6 sm:p-8">
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
-            Het paspoort · bedrijf
+            Bedrijfsprofiel
           </p>
           <div className="flex flex-wrap items-start gap-5">
             <div

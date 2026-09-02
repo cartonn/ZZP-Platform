@@ -35,7 +35,6 @@ export default async function AccountPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Het paspoort · account"
         title="Account & privacy"
         description="Je accountgegevens en je rechten onder de AVG."
       />

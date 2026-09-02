@@ -41,7 +41,7 @@ export default async function AangiftePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Het grootboek · aangifte"
+        eyebrow="Administratie"
         title="Wij doen je aangifte"
         description={
           <>

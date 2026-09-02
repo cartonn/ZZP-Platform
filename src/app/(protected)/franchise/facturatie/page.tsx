@@ -28,7 +28,7 @@ export default async function FranchiseFacturatiePage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="De cockpit · facturatie"
+          eyebrow="Bemiddeling"
           title="Facturatie"
           description="Het abonnement en de fees van je bemiddeling."
         />

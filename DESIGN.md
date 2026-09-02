@@ -28,9 +28,12 @@ decoratieve gradients, geen kaart-in-kaart, geen templategevoel. Scanbare rijen 
 kaarten voor collecties.
 
 **Kern-taal + pagina-signatuur.** De tokens/typografie/primitives hieronder lopen overal door;
-daarbovenop krijgt elk paginacluster één eigen motief + held-element (verificatie = het zegel,
-facturen = het grootboek, inzicht = het observatorium, …) — nooit 1-op-1 hetzelfde scherm.
-De volledige cluster-mapping staat in `docs/ontwerpen/UITROLPLAN.md` §2.
+daarbovenop krijgt elk paginacluster één eigen held-element (verificatie = het zegel, …) — nooit
+1-op-1 hetzelfde scherm. De volledige cluster-mapping staat in `docs/ontwerpen/UITROLPLAN.md` §2.
+**De `eyebrow` boven een `PageHeader` is echter nooit een motief** ("De etalage · jouw aanbod"):
+het is de gewone naam van de sectie waar de pagina onder valt ("Administratie", "Mijn profiel"),
+of hij ontbreekt wanneer de h1 hetzelfde al zegt. Een wijkverpleegkundige die om 22:00 uren
+indient moet in één blik weten wáár ze is; een metafoor kost haar tijd.
 
 **Dark mode** is een gebruikerskeuze (ThemeToggle), geen geforceerde dark-first. Light is standaard.
 Tailwind `darkMode: "class"`, donkere tokenwaarden in `.dark { … }`, no-flash-script in

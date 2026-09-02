@@ -103,7 +103,6 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Het loket · ideeën"
         title="Ideeën"
         description="Stel verbeteringen voor en stem op de ideeën van anderen. De meest gewenste staan bovenaan."
       />

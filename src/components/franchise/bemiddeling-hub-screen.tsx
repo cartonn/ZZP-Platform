@@ -86,11 +86,11 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
 
   return (
     <div className="space-y-6">
-      {/* Bureaukop — de cockpit, prototype-stijl: kaart op het papier, geen kleurvlak. */}
+      {/* Bureaukop, prototype-stijl: kaart op het papier, geen kleurvlak. */}
       <Card>
         <CardContent className="space-y-4 p-6 sm:p-8">
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
-            De cockpit
+            Mijn bemiddeling
           </p>
           <div className="flex flex-wrap items-start gap-5">
             <div

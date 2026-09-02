@@ -107,7 +107,7 @@ export default async function FranchiseLeadsPage({ searchParams }: { searchParam
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="De cockpit · leads"
+        eyebrow="Bemiddeling"
         title="Leads"
         description="Je acquisitie-pijplijn: organisaties die je nog wilt binnenhalen, met hun contactgeschiedenis."
       />
