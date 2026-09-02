@@ -70,9 +70,19 @@ function resolvePlaintextBackup(
   logPrefix: string,
 ): { path: string; cleanup: () => void } {
   // Sniff alléén de eerste bytes (magic-header): een plaintext dump kan vele GB's zijn en gaat
-  // rechtstreeks als pad naar pg_restore — nooit onnodig volledig in het geheugen laden.
+  // rechtstreeks als pad naar pg_restore — nooit onnodig volledig in het geheugen laden. Open direct
+  // (geen voorafgaande existsSync-check → geen TOCTOU-race); ENOENT wordt hier helder afgehandeld.
   const head = Buffer.alloc(4);
-  const fd = openSync(file, "r");
+  let fd: number;
+  try {
+    fd = openSync(file, "r");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      console.error(`${logPrefix} back-upbestand niet gevonden: ${file}`);
+      process.exit(2);
+    }
+    throw error;
+  }
   let headLen: number;
   try {
     headLen = readSync(fd, head, 0, 4, 0);
@@ -214,10 +224,8 @@ function main(): void {
     }
     file = join(dir, latest);
   }
-  if (!existsSync(file)) {
-    console.error(`[drill] back-upbestand niet gevonden: ${file}`);
-    process.exit(2);
-  }
+  // Bestaanscontrole gebeurt bij het daadwerkelijk openen (resolvePlaintextBackup), niet met een
+  // aparte existsSync-check vooraf — dat zou een TOCTOU-race introduceren.
 
   console.log(`[drill] doel:       ${redactDatabaseUrl(target)} (wegwerp scratch-database)`);
   console.log(`[drill] back-up:    ${file}`);

@@ -513,7 +513,8 @@ describe("decryptBackup — tamper/wrong-key-detectie", () => {
     const k = resolveBackupEncryptionKey(randomBytes(32).toString("base64"))!;
     const encrypted = encryptBackup(Buffer.from("PGDMP fake dump   binary", "utf8"), k);
     const tampered = Buffer.from(encrypted);
-    tampered[tampered.length - 1] ^= 0xff;
+    const last = tampered.length - 1;
+    tampered[last] = (tampered[last] ?? 0) ^ 0xff;
     expect(() => decryptBackup(tampered, k)).toThrow(BackupEncryptionError);
   });
 

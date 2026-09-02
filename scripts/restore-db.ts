@@ -17,7 +17,6 @@
 import { spawnSync } from "node:child_process";
 import {
   closeSync,
-  existsSync,
   mkdtempSync,
   openSync,
   readFileSync,
@@ -52,8 +51,19 @@ function resolvePlaintextBackup(
 ): { path: string; cleanup: () => void } {
   // Sniff alléén de eerste bytes (magic-header): een plaintext dump kan vele GB's zijn en gaat
   // rechtstreeks als pad naar pg_restore — nooit onnodig volledig in het geheugen laden.
+  // Open het bestand direct (geen voorafgaande existsSync-check → geen TOCTOU-race): een ontbrekend
+  // bestand werpt ENOENT, dat we hier als heldere "niet gevonden"-melding afhandelen.
   const head = Buffer.alloc(4);
-  const fd = openSync(file, "r");
+  let fd: number;
+  try {
+    fd = openSync(file, "r");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      console.error(`${logPrefix} back-upbestand niet gevonden: ${file}`);
+      process.exit(2);
+    }
+    throw error;
+  }
   let headLen: number;
   try {
     headLen = readSync(fd, head, 0, 4, 0);
@@ -127,10 +137,8 @@ function main(): void {
     console.error("[restore] geef het back-upbestand op: npm run db:restore -- <bestand.dump>");
     process.exit(2);
   }
-  if (!existsSync(file)) {
-    console.error(`[restore] back-upbestand niet gevonden: ${file}`);
-    process.exit(2);
-  }
+  // Bestaanscontrole gebeurt bewust bij het daadwerkelijk openen (resolvePlaintextBackup), niet met
+  // een aparte existsSync-check vooraf — dat zou een TOCTOU-race introduceren.
 
   let target: string;
   try {
