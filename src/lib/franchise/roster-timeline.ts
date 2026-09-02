@@ -173,15 +173,15 @@ export function buildRosterTimeline(
   const perDayAvailable = new Array<number>(days.length).fill(0);
 
   const rows: TimelineRow[] = members.map((member) => {
-    const cells: TimelineCell[] = [];
     let availableDays = 0;
-    days.forEach((day, i) => {
+    const cells: TimelineCell[] = days.map((day, i) => {
       const state = cellStateForDay(member, day.iso);
-      cells.push({ iso: day.iso, state });
       if (state === "AVAILABLE") {
         availableDays++;
-        perDayAvailable[i]++;
+        // `?? 0` narrowt de index-toegang (noUncheckedIndexedAccess); `i` blijft binnen bereik.
+        perDayAvailable[i] = (perDayAvailable[i] ?? 0) + 1;
       }
+      return { iso: day.iso, state };
     });
     return { id: member.id, name: member.name, cells, availableDays };
   });
