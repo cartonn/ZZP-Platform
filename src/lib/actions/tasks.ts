@@ -98,6 +98,7 @@ export type PendingTask =
   | (TaskBase & { kind: "admin-support-ticket"; ticketId: string })
   | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" })
   | (TaskBase & { kind: "client-overdue-payment"; invId: string; collabId: string })
+  | (TaskBase & { kind: "client-payment-due-soon"; invId: string; collabId: string })
   | (TaskBase & { kind: "payment-due-soon" })
   | (TaskBase & { kind: "vat-deadline"; year: number; quarter: number })
   | (TaskBase & { kind: "income-tax-deadline"; taxYear: number })
@@ -768,6 +769,34 @@ export function clientCascadeOverduePaymentTask(
     subtitle: `${jobTitle} · over de vervaldatum — betaal 'm of laat de betaling bevestigen`,
     tone: "attention",
     priority: P.clientCascadeOverduePayment,
+    resolver: "link",
+    href: collabHref(collabId),
+    invId,
+    collabId,
+  };
+}
+
+/**
+ * Pre-due spiegel van `clientCascadeOverduePaymentTask`: in de cascade betaalt de opdrachtgever
+ * rechtstreeks (out-of-band) via het samenwerkingsdetail (waar de betaal-QR staat). Deze read-only
+ * next-action wijst hem daarheen zodat hij een binnenkort-vervallende, goedgekeurde factuur op tijd
+ * betaalt vóórdat die OVERDUE wordt. Géén nieuwe betaal-mutatie (het out-of-band-model blijft
+ * ongewijzigd). De taak verdwijnt zodra de ZZP'er de betaling registreert (→ PAID) of de cron de
+ * factuur OVERDUE maakt (→ dan neemt `clientCascadeOverduePaymentTask` het over).
+ */
+export function clientCascadePaymentDueSoonTask(
+  invId: string,
+  collabId: string,
+  jobTitle: string,
+  freelancerName: string,
+): PendingTask {
+  return {
+    kind: "client-payment-due-soon",
+    id: `client-payment-due-soon:${invId}`,
+    title: `Betaling aan ${freelancerName} vervalt binnenkort`,
+    subtitle: `${jobTitle} · betaal op tijd — dat houdt je betaalreputatie sterk`,
+    tone: "info",
+    priority: P.clientCascadePaymentDueSoon,
     resolver: "link",
     href: collabHref(collabId),
     invId,

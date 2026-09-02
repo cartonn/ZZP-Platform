@@ -141,6 +141,33 @@ CLEAN). Twee HOOG-bevindingen gedicht:
 gelijkwaardige beveiliging wijzen (het retentievenster is in code gedicht; de scratch-vertrouwelijkheid is
 infra). Zie backlog + RUNBOOK §5.
 
+## 2026-09-02 — routine: pre-due cascade betaal-nudge voor de opdrachtgever
+
+**Wat:** in de cascade is de opdrachtgever de betalende partij (betaalt out-of-band via het
+samenwerkingsdetail, waar de betaal-QR staat; de ZZP'er registreert de betaling). Tot nu toe kreeg hij
+pas een next-action zodra een cascade-factuur al OVER de vervaldatum stond (`clientCascadeOverduePaymentTask`,
+`P.clientCascadeOverduePayment = 59`). Dat is te laat — zijn zichtbare betaalreputatie
+(`client-payment-reputation.ts`) is dan al geraakt en de cashflow van de ZZP'er stokt. De pre-due
+tegenhanger ontbrak (de legacy `paymentDueSoonWhere` is bewust legacy-only: `lifecycleStatus: null`).
+
+**Aanpak:** nieuwe pure `cascadePaymentDueSoonWhere(userId, now, windowDays)` (`src/lib/payment-due-soon.ts`)
+scoopt op `lifecycleStatus: "APPROVED"` (goedgekeurd, nog niet OVERDUE) + `dueAt` in `[now, now+venster]` +
+niet-bevroren samenwerking — disjunct van de OVERDUE-query (andere lifecycleStatus + `dueAt>=now`), dus één
+factuur voedt nooit beide taken. De cron `payment-reminders-task.ts` flipt APPROVED→OVERDUE op de
+vervaldatum, dus dit is exact het pre-due venster. Nieuwe task-builder `clientCascadePaymentDueSoonTask`
+(`tasks.ts`, kind `client-payment-due-soon`, tone `info`, `P.clientCascadePaymentDueSoon = 56`, deep-link naar
+het samenwerkingsdetail) gewired in `clientTasks` (per-factuur emissie, take-begrensd, `createdAt asc` →
+geen flikker). Badge-pariteit: `countClientCascadeWork` telt de pre-due nudges mee zodat de /samenwerkingen-
+badge niet stiller is dan /acties. Read-only, geen schema-/mutatie-/authz-oppervlak, geen dode knop, geen
+nieuwe betaal-mutatie (het out-of-band-model blijft ongewijzigd).
+
+**Bestanden:** `src/lib/payment-due-soon.ts` (+ `.test.ts`, +4), `src/lib/actions/tasks.ts` (kind-union +
+builder) (+ `tasks.test.ts`), `src/lib/next-actions.ts` (`P.clientCascadePaymentDueSoon = 56`),
+`src/lib/actions/pending-tasks.ts` (loader + emit), `src/lib/actions/pending-tasks-client-due-soon-payment.test.ts`
+(nieuw, +5), `src/lib/signals.ts` (badge-count) (+ `signals.test.ts`, +1).
+
+**Checks:** typecheck ✓, lint ✓, targeted unit (133 groen) ✓, prettier ✓, build (CI-poort). PR #1325.
+
 ## 2026-09-01 — routine: proactieve facturatie-gereedheid-next-action (ZZP'er)
 
 **Wat:** de wettelijke factuur-compliancekaart (`invoice-legal.ts` → `InvoiceComplianceCard`) toetste alleen

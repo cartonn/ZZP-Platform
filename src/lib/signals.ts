@@ -39,7 +39,7 @@ import { buildClientActivityInputs, summarizeClientHealth } from "@/lib/franchis
 import { MANDATORY_CREDENTIAL_TYPES, mandatoryDocumentAlertCount } from "@/lib/mandatory-documents";
 import { type FreelancerCredential } from "@/lib/matching";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
-import { paymentDueSoonWhere } from "@/lib/payment-due-soon";
+import { cascadePaymentDueSoonWhere, paymentDueSoonWhere } from "@/lib/payment-due-soon";
 import { summarizeStaleClientApplications } from "@/lib/stale-applications";
 import { getClientColdJobs } from "@/lib/data/client-cold-jobs";
 import { SUPPORT_OPEN_STATUSES } from "@/lib/support/labels";
@@ -229,6 +229,7 @@ export function countClientCascadeWork(input: {
   submittedInvoices: number;
   complianceActions: number;
   overduePaymentNudges: number;
+  dueSoonPaymentNudges: number;
 }): number {
   return (
     input.proposedCollaborations +
@@ -241,7 +242,11 @@ export function countClientCascadeWork(input: {
     // "signaal op één oppervlak"-anti-patroon). Eén nudge per OVERDUE-cascadefactuur, gelijk aan de
     // item-engine (die per factuur één taak emit). De generieke overdue-roll-up sluit deze cascade-
     // facturen bewust uit voor de opdrachtgever (geen betaalknop), dus geen dubbeltelling.
-    input.overduePaymentNudges
+    input.overduePaymentNudges +
+    // Pre-due tegenhanger: goedgekeurde cascade-facturen die binnenkort vervallen (`clientCascade-
+    // PaymentDueSoonTask` op /acties + de dashboard-rail). Disjunct van de OVERDUE-telling (andere
+    // lifecycleStatus + dueAt>=now), dus geen dubbeltelling; badge-pariteit met /acties.
+    input.dueSoonPaymentNudges
   );
 }
 
@@ -636,6 +641,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       cascadePerf,
       cascadeInv,
       cascadeOverduePayments,
+      cascadeDueSoonPayments,
       complianceAlerts,
       staleCandidates,
       acceptedCandidates,
@@ -687,6 +693,12 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
           collaboration: { disputedAt: null },
         },
       }),
+      // cascade: goedgekeurde facturen die BINNENKORT vervallen (nog niet te laat) waar de opdrachtgever
+      // de betalende partij is — voedt de pre-due `clientCascadePaymentDueSoonTask` op /acties + de
+      // dashboard-rail. Zelfde scoping als die item-taak (`cascadePaymentDueSoonWhere`, disjunct van de
+      // OVERDUE-telling hierboven: andere lifecycleStatus + dueAt>=now) zodat de badge nooit driften kan;
+      // idem bevroren deals uitsluiten.
+      prisma.invoice.count({ where: cascadePaymentDueSoonWhere(userId, now) }),
       // cascade: compliance-ripple — lopende (ACTIVE, niet-bevroren) samenwerkingen waarvan de ZZP'er
       // een vereist certificaat mist/verlopen/binnenkort-verlopend heeft. Zelfde eigenaar-gescoopte
       // loader als /acties (pending-tasks.ts `clientCredentialAlerts`); zonder deze telling was de
@@ -761,6 +773,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         submittedInvoices: cascadeInv,
         complianceActions,
         overduePaymentNudges: cascadeOverduePayments,
+        dueSoonPaymentNudges: cascadeDueSoonPayments,
       }) + renewalWork;
     // /kandidaten-badge = alle acties op dat oppervlak (item-engine-pariteit). De drie predicaten
     // zijn niet-overlappend (statussen NEW / VIEWED+SHORTLIST / ACCEPTED), dus een simpele som is

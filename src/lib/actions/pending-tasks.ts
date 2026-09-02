@@ -33,6 +33,7 @@ import {
   submitCollabWhere,
 } from "@/lib/data/freelancer-cascade-work";
 import { overdueInvoiceBreakdown, overdueInvoiceCount, paymentDueSoonCount } from "@/lib/signals";
+import { cascadePaymentDueSoonWhere } from "@/lib/payment-due-soon";
 import { summarizeAvailabilityFreshness } from "@/lib/availability";
 import { type AvailabilityWindowType } from "@/lib/enums";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
@@ -91,6 +92,7 @@ import {
   shiftHandoffTask,
   clientComplianceTask,
   clientCascadeOverduePaymentTask,
+  clientCascadePaymentDueSoonTask,
   reviewLeaveTask,
   collaborationRenewalTask,
   respondInvitationTask,
@@ -919,6 +921,7 @@ async function invitationTasks(freelancerProfileId: string, now: Date): Promise<
 
 async function clientTasks(userId: string): Promise<PendingTask[]> {
   const tasks: PendingTask[] = [];
+  const now = new Date();
 
   // Reeds-bekeken kandidaten die al langer dan gebruikelijk op een beslissing wachten. DB-side
   // voorgefilterd op de kortste drempel (VIEWED = 14 dagen) zodat alleen echt-oude reacties terugkomen;
@@ -955,6 +958,7 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     acceptedCandidates,
     complianceAlerts,
     cascadeOverduePayments,
+    cascadeDueSoonPayments,
   ] = await Promise.all([
     prisma.company.findUnique({
       where: { userId },
@@ -1068,6 +1072,28 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
       // de betaal-nudge flikkert dan tussen requests (verschijnt/verdwijnt), tegen de badge-telling in.
       // `createdAt asc` (oudste blijft staan → self-healing) volgt de conventie van de andere gewindowde
       // queries in dit bestand (openInvoices, credentialCollabs).
+      orderBy: { createdAt: "asc" },
+      take: MAX,
+    }),
+    // Cascade-facturen die BINNENKORT vervallen (goedgekeurd, nog niet OVERDUE) waarvan deze opdrachtgever
+    // de betalende partij is — de pre-due tegenhanger van de OVERDUE-query hierboven. Scoping in
+    // `cascadePaymentDueSoonWhere` (lifecycleStatus APPROVED + dueAt in [now, now+venster] + niet-bevroren);
+    // disjunct van OVERDUE (andere lifecycleStatus + dueAt>=now), dus één factuur voedt nooit beide taken.
+    // Index-backed via @@index([counterpartyUserId, lifecycleStatus]). Zelfde deterministische ordering
+    // (`createdAt asc`) + take-limiet als de OVERDUE-query zodat de nudge niet flikkert tussen requests.
+    // unbounded-allow: eigenaar-scoped (counterpartyUserId) + take-limiet
+    prisma.invoice.findMany({
+      where: cascadePaymentDueSoonWhere(userId, now),
+      select: {
+        id: true,
+        collaboration: {
+          select: {
+            id: true,
+            job: { select: { title: true } },
+            freelancer: { select: { user: { select: { name: true } } } },
+          },
+        },
+      },
       orderBy: { createdAt: "asc" },
       take: MAX,
     }),
@@ -1219,8 +1245,26 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
       ),
     );
   }
-  // Pre-due: facturen die binnenkort vervallen (nog niet te laat) — betaal op tijd. Vensters van
-  // overdue (< now) en due-soon (>= now) raken elkaar niet, dus geen dubbele next-action.
+  // Pre-due cascade: goedgekeurde cascade-facturen die binnenkort vervallen (nog niet OVERDUE) — de
+  // opdrachtgever betaalt out-of-band via het samenwerkingsdetail (waar de betaal-QR staat), dus wijs 'm
+  // daarheen zodat hij op tijd betaalt vóórdat de factuur OVERDUE wordt (dan neemt de post-due
+  // clientCascadeOverduePaymentTask het over). Disjunct van de OVERDUE-emissie hierboven (andere
+  // lifecycleStatus + dueAt>=now), dus geen dubbele next-action per factuur.
+  for (const inv of cascadeDueSoonPayments) {
+    const col = inv.collaboration;
+    if (!col) continue;
+    tasks.push(
+      clientCascadePaymentDueSoonTask(
+        inv.id,
+        col.id,
+        col.job.title,
+        col.freelancer.user.name ?? "de ZZP'er",
+      ),
+    );
+  }
+  // Pre-due (legacy): losse handmatige facturen die binnenkort vervallen (nog niet te laat) — betaal op
+  // tijd. Vensters van overdue (< now) en due-soon (>= now) raken elkaar niet, dus geen dubbele
+  // next-action.
   if (dueSoon > 0) tasks.push(paymentDueSoonTask(dueSoon));
   // Onbekeken NEW-reacties voorbij de ghosting-drempel krijgen een eigen, urgentere eerste-reactie-taak;
   // trek ze af van de generieke "nieuwe reacties"-telling zodat dezelfde kandidaat niet in beide taken

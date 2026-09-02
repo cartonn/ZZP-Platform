@@ -183,6 +183,7 @@ describe("countClientCascadeWork", () => {
         submittedInvoices: 0,
         complianceActions: 0,
         overduePaymentNudges: 0,
+        dueSoonPaymentNudges: 0,
       }),
     ).toBe(1);
   });
@@ -195,6 +196,7 @@ describe("countClientCascadeWork", () => {
         submittedInvoices: 1,
         complianceActions: 2,
         overduePaymentNudges: 0,
+        dueSoonPaymentNudges: 0,
       }),
     ).toBe(8);
   });
@@ -209,6 +211,7 @@ describe("countClientCascadeWork", () => {
         submittedInvoices: 0,
         complianceActions: 1,
         overduePaymentNudges: 0,
+        dueSoonPaymentNudges: 0,
       }),
     ).toBe(1);
   });
@@ -221,6 +224,7 @@ describe("countClientCascadeWork", () => {
         submittedInvoices: 0,
         complianceActions: 0,
         overduePaymentNudges: 0,
+        dueSoonPaymentNudges: 0,
       }),
     ).toBe(0);
   });
@@ -236,8 +240,26 @@ describe("countClientCascadeWork", () => {
         submittedInvoices: 0,
         complianceActions: 0,
         overduePaymentNudges: 2,
+        dueSoonPaymentNudges: 0,
       }),
     ).toBe(2);
+  });
+
+  it("telt een binnenkort-vervallende cascade-factuur (pre-due betaal-nudge) mee — badge-pariteit met /acties", () => {
+    // Nieuw: de opdrachtgever ziet op /acties + de dashboard-rail de pre-due
+    // clientCascadePaymentDueSoonTask (goedgekeurde cascade-factuur die binnenkort vervalt), dus moet
+    // de /samenwerkingen-badge die actie ook tellen. Disjunct van de OVERDUE-telling (andere
+    // lifecycleStatus + dueAt>=now), dus geen dubbeltelling wanneer beide voorkomen.
+    expect(
+      countClientCascadeWork({
+        proposedCollaborations: 0,
+        submittedPerformances: 0,
+        submittedInvoices: 0,
+        complianceActions: 0,
+        overduePaymentNudges: 1,
+        dueSoonPaymentNudges: 3,
+      }),
+    ).toBe(4);
   });
 });
 
