@@ -60,6 +60,7 @@ jobs:
       # De héle e2e-suite draait vanaf één IP met dezelfde seed-accounts; de strenge
       # productie-defaults (5) zouden de login/registratie onterecht blokkeren.
       LOGIN_RATE_LIMIT: "100000"
+      REAUTH_RATE_LIMIT: "100000"
       REGISTER_RATE_LIMIT: "100000"
       # Kleine paginagrootte zodat "Meer laden" testbaar is met de seed-data.
       LIST_PAGE_SIZE: "5"

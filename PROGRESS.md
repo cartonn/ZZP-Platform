@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-09-02 — security/privacy: brute-force-rem op her-authenticatie + herstel-drill PII-teardown
+
+**Wat:** security-/privacy-auditronde (orchestrator + 3 parallelle adversariële Opus-audits op niet-
+overlappende oppervlakken; cross-tenant/franchise, document-privacy/erasure en injectie/SSRF/secrets alle
+CLEAN). Twee HOOG-bevindingen gedicht:
+
+1. **Ontbrekende rate-limit op her-authenticatie (CWE-307 / OWASP A07).** `changePassword` en
+   `disableTwoFactor` toetsten het live wachtwoord via `bcrypt.compare` zonder rem (login heeft er wél één).
+   Een aanvaller met een geldige (gestolen) sessie kon het wachtwoord — en bij disable de 6-cijferige TOTP —
+   ongelimiteerd raden → account-overname / 2FA strippen. **Fix:** nieuwe `reauthRateLimiter` (default 5/15
+   min, gekeyd op `actor.id`) in beide acties vóór de bcrypt-check; audit `AUTH_RATE_LIMITED` bij trip; reset
+   op (volledig) succes. `REAUTH_RATE_LIMIT` toegevoegd aan CI + `.env.example`.
+2. **Herstel-drill (#1322) liet een volledige PII-schaduwkopie staan (AVG art. 5(1)(c)/5(1)(e)/32).** De drill
+   herstelde een volledige productie-back-up in een wegwerp-DB en ruimde die nooit op. **Fix:** pure
+   `buildScratchTeardownArgs` + `tearDownScratch()` die ná de verificatie **altijd** het `public`-schema dropt.
+
+**Bestanden:** `src/lib/rate-limit.ts`, `src/app/(protected)/account/wachtwoord/actions.ts` (+ nieuw
+`actions.test.ts`), `src/app/(protected)/account/tweestapsverificatie/actions.ts` (+ test),
+`src/lib/ops/db-backup.ts` (+ test), `scripts/backup-restore-drill.ts`, 3× `.github/workflows/*.yml`,
+`.env.example`, `docs/RUNBOOK.md`, `MENSENWERK.md`, `docs/SECURITY-PRIVACY-BACKLOG.md`.
+
+**Tests:** `account/wachtwoord/actions.test.ts` + `account/tweestapsverificatie/actions.test.ts` (17 groen),
+`db-backup.test.ts` (49 groen) — alle rood→groen op de nieuwe logica. typecheck/lint/test/prettier groen.
+
+**Geparkeerd (mensenwerk, infra):** `DRILL_DATABASE_URL` moet naar een wegwerp-Postgres met productie-
+gelijkwaardige beveiliging wijzen (het retentievenster is in code gedicht; de scratch-vertrouwelijkheid is
+infra). Zie backlog + RUNBOOK §5.
+
 ## 2026-09-01 — routine: proactieve facturatie-gereedheid-next-action (ZZP'er)
 
 **Wat:** de wettelijke factuur-compliancekaart (`invoice-legal.ts` → `InvoiceComplianceCard`) toetste alleen

@@ -8,6 +8,7 @@ import { logoutRedirect } from "@/lib/security/clear-site-data";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import { reauthRateLimiter } from "@/lib/rate-limit";
 import {
   getPasswordBreachChecker,
   BREACHED_PASSWORD_MESSAGE,
@@ -17,6 +18,10 @@ export interface ChangePasswordState {
   error?: string;
   fieldErrors?: Record<string, string>;
 }
+
+/** Nette melding wanneer de her-authenticatie-rem afgaat (geen throttle-details lekken). */
+const REAUTH_RATE_LIMITED_MESSAGE =
+  "Te veel pogingen. Wacht een paar minuten en probeer het daarna opnieuw.";
 
 const schema = z
   .object({
@@ -55,6 +60,24 @@ export async function changePassword(
     return { fieldErrors };
   }
 
+  const meta = await requestMeta();
+
+  // Brute-force-rem op de her-authenticatie (CWE-307 / OWASP A07): begrens het aantal
+  // huidig-wachtwoord-checks per account. Een aanvaller met een geldige (gestolen) sessie mag het
+  // wachtwoord niet ongelimiteerd kunnen raden en zo — via deze eigen-wachtwoord-poort — de account
+  // overnemen. Gekeyd op actor.id: de aanvaller bezit de sessie al, dus IP-rotatie omzeilt de rem niet.
+  if (!(await reauthRateLimiter.check(actor.id)).allowed) {
+    await audit({
+      actorId: actor.id,
+      action: "AUTH_RATE_LIMITED",
+      entityType: "User",
+      entityId: actor.id,
+      metadata: { context: "change-password" },
+      ...meta,
+    });
+    return { error: REAUTH_RATE_LIMITED_MESSAGE };
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: actor.id },
     select: { passwordHash: true },
@@ -63,6 +86,10 @@ export async function changePassword(
   if (!(await bcrypt.compare(parsed.data.currentPassword, user.passwordHash))) {
     return { fieldErrors: { currentPassword: "Huidig wachtwoord klopt niet." } };
   }
+
+  // Juist wachtwoord bewezen: reset de rem zodat een legitieme gebruiker na eerdere misfires niet
+  // onterecht geblokkeerd blijft (parity met de login-reset na een geslaagde inlog).
+  await reauthRateLimiter.reset(actor.id);
 
   // Gelekt-wachtwoord-controle (NIST 800-63B); inert tenzij PASSWORD_BREACH_CHECK=hibp, fail-open.
   if ((await getPasswordBreachChecker().check(parsed.data.newPassword)).breached) {
@@ -77,7 +104,6 @@ export async function changePassword(
     data: { passwordHash, mustChangePassword: false, passwordChangedAt: new Date() },
   });
 
-  const meta = await requestMeta();
   await audit({
     actorId: actor.id,
     action: "PASSWORD_CHANGED",

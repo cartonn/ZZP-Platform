@@ -4,6 +4,63 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-02 (basis: `main` @ f793358a) — 2× HOOG OPGELOST: (1) ontbrekende brute-force-rem op de her-authenticatie (CWE-307 / OWASP A07) + (2) herstel-drill liet een volledige PII-schaduwkopie in de scratch-database staan (AVG art. 5(1)(c)/5(1)(e)/32)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(A: cross-tenant/franchise-isolatie op álle FRANCHISER-bereikbare server actions/route handlers/exports +
+`authz.ts`/`tenancy.ts` — **CLEAN**, elke mutatie her-leidt `tenantId` server-side en vergelijkt met
+`actor.tenantId`; het `Job.tenantId`↔`Company.tenantId`-invariant geverifieerd niet-exploiteerbaar. B:
+document-privacy + audit-logging + erasure/anonimisering — storage-abstractie, `/api/documents/[id]`,
+`/api/media/[...key]`, share-token-flow én de anonimisering-transactie **CLEAN** (elke documentinzage
+ge-audit incl. denied/not-found anti-oracle; erasure dekt alle drie-kopie-PII-patronen). C: injectie/XSS/
+CSV/SSRF/open-redirect/secrets/auth — **CLEAN** op alles behalve de HOOG hieronder; e-mail-templates
+escapen elke user-veld, 21+ exports delegeren aan `toCsv`, elke user-fetch host is hardcoded). `npm audit
+--omit=dev`: 0 kwetsbaarheden.
+
+**OPGELOST — [HOOG · CWE-307 brute-force / OWASP A07 Identification & Authentication Failures] `changePassword`
+en `disableTwoFactor` toetsten het live wachtwoord via `bcrypt.compare` ZONDER enige rate-limit.** De login
+(`authorize-credentials.ts`) beschermt zijn `bcrypt.compare` met `loginRateLimiter` (5/15 min), en er zijn ~25
+doelgerichte limiters — maar de énige twéé andere plekken die het live wachtwoord her-verifiëren
+(`src/app/(protected)/account/wachtwoord/actions.ts`, `.../tweestapsverificatie/actions.ts`) hadden er geen.
+**Repro:** een aanvaller met een geldige (gestolen/gedeelde/na-8u-JWT nog open) sessie roept `changePassword`
+herhaaldelijk aan met wisselende `currentPassword` → ongelimiteerd raden → bij een treffer volledige
+account-overname (het nieuwe wachtwoord bumpt `passwordChangedAt` en logt álle andere sessies uit, incl. de
+echte eigenaar) óf via `disableTwoFactor` het permanent strippen van 2FA (met ook ongelimiteerd raden van de
+6-cijferige TOTP). **Fix:** nieuwe `reauthRateLimiter` (default `REAUTH_RATE_LIMIT`=5 / 15 min, gekeyd op
+`actor.id` — de aanvaller bezit de sessie al, dus IP-rotatie omzeilt de rem niet), gecheckt ná `requireActor`
+
+- Zod en vóór `bcrypt.compare` in beide acties; een overschrijding audit `AUTH_RATE_LIMITED` (met `context`).
+  `changePassword` reset de teller zodra het wachtwoord klopt; `disableTwoFactor` reset **alleen bij volledige
+  succes** (wachtwoord + tweede factor), zodat mislukte factor-pogingen blijven meetellen en de TOTP-ruimte
+  niet af te zoeken is. `REAUTH_RATE_LIMIT="100000"` toegevoegd aan de drie CI-workflows (parity met
+  `LOGIN_RATE_LIMIT`) + `.env.example`. **Durable tests (rood→groen):** `account/wachtwoord/actions.test.ts`
+  (nieuw) + uitbreiding van `account/tweestapsverificatie/actions.test.ts` — rem-trip weigert vóór bcrypt/factor
+  met audit, fout wachtwoord/mislukte factor resetten niet, volledig succes reset. 17 tests groen.
+
+**OPGELOST — [HOOG · AVG art. 5(1)(c) minimalisatie + art. 5(1)(e) opslagbeperking + art. 32 vertrouwelijkheid]
+De herstel-drill (`scripts/backup-restore-drill.ts`, #1322) herstelde een volledige productie-back-up in een
+wegwerp-scratch-database en ruimde die NOOIT op.** `pg_restore --clean` zette elke tabel terug — `User`
+(naam/e-mail), `FreelancerProfile` (IBAN/KvK/btw), `Credential`/`Document` (VOG/BIG/diploma/verzekering-
+metadata) — waarna het script bij succes simpelweg `return`de en bij falen `exit(1)`. De herstelde PII bleef
+zo tot de vólgende drill (dagen/weken; docs zeggen "maandelijks") querybaar in een tweede, minder-bewaakte
+omgeving; alleen de vólgende drill overschreef 'm (niet: verwijderde). **Fix:** nieuwe pure
+`buildScratchTeardownArgs(url)` in `src/lib/ops/db-backup.ts` (drop + herbouw `public`-schema,
+`ON_ERROR_STOP=1`) + `tearDownScratch()` in het script dat **altijd** ná de verificatie draait — of de drill
+nu slaagt of faalt — met een luide waarschuwing als opruimen niet lukt (nooit stil een PII-kopie laten
+staan). RUNBOOK §5 + MENSENWERK bijgewerkt. **Durable test (rood→groen):** `db-backup.test.ts` toetst dat de
+teardown het `public`-schema dropt+herbouwt tegen de doel-URL en `ON_ERROR_STOP` zet. 49 tests groen.
+
+**GEPARKEERD (mensenwerk — infra, GEEN agent-taak) — [HOOG-in-context · AVG art. 32]** het retentievenster is
+nu in code gedicht, maar de **vertrouwelijkheid van het scratch-doel zelf** blijft een infra-keuze: wijs
+`DRILL_DATABASE_URL` naar een lege wegwerp-Postgres **met dezelfde beveiliging als productie** (encryptie-at-
+rest, netwerk-isolatie, toegangscontrole). Controleer of een eerdere drill al tegen echte data draaide en het
+scratch-doel toen niet gelijkwaardig beveiligd was → behandel die instance tot bevestigde vernietiging als een
+live secundaire PII-store. Zie RUNBOOK §5 / MENSENWERK.
+
+**Bevinding A (cross-tenant/franchise-isolatie):** CLEAN — zie audit-kop.
+**Bevinding B (document-privacy + erasure):** CLEAN behalve de OPGELOSTE drill-PII-kopie.
+**Bevinding C (injectie/SSRF/secrets/auth):** CLEAN behalve de OPGELOSTE her-authenticatie-rem.
+
 ## Ronde 2026-09-01b (basis: `main` @ bccd3fb0) — HOOG OPGELOST: `MENSENWERK.md` verantwoordingsdocument inverteerde de waarheid over welke PII-retentie live is — AVG art. 5(2) verantwoordingsplicht + art. 5(1)(e) opslagbeperking
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken

@@ -5,7 +5,10 @@
  * back-up (`scripts/backup-db.ts`) verifieert vandaag met `pg_restore --list` (leest alléén de TOC);
  * een corrupte data-block of afgekapte object-data kan die check passeren en pas op een echt herstel
  * falen. Deze drill herstelt de (nieuwste) back-up in een WEGWERP scratch-database en leest daarna het
- * schema + de data terug. "Een onbeproefde back-up is geen back-up", nu volledig.
+ * schema + de data terug. "Een onbeproefde back-up is geen back-up", nu volledig. Ná de verificatie
+ * ruimt de drill de scratch-database ALTIJD op (drop `public`-schema), zodat de herstelde productie-PII
+ * (namen, e-mail, IBAN/KvK, VOG/BIG/diploma-metadata) geen langlevende schaduwkopie achterlaat in een
+ * tweede omgeving (AVG art. 5(1)(c)/5(1)(e)/32).
  *
  * Veilig: herstelt UITSLUITEND naar `DRILL_DATABASE_URL` (of `--target`) en weigert hard als dat de
  * bron-/productie-`DATABASE_URL` is — een drill kent bewust GEEN --force. Logt nooit het wachtwoord.
@@ -30,6 +33,7 @@ import {
   buildPgRestoreArgs,
   buildPublicTableCountArgs,
   buildRowCountArgs,
+  buildScratchTeardownArgs,
   interpretDrill,
   parsePsqlCount,
   redactDatabaseUrl,
@@ -42,6 +46,33 @@ import {
 function flagValue(argv: string[], name: string): string | undefined {
   const idx = argv.indexOf(name);
   return idx >= 0 ? argv[idx + 1] : undefined;
+}
+
+/**
+ * Wist de herstelde data weer volledig uit de scratch-database (drop + recreate `public`-schema), zodat
+ * de drill geen langlevende PII-schaduwkopie achterlaat (AVG art. 5(1)(c)/5(1)(e)/32). Draait ALTIJD ná
+ * de verificatie, ongeacht de uitkomst. Best-effort met een luide waarschuwing wanneer het niet lukt: de
+ * operator moet dan zelf de scratch-database opruimen — we verzwijgen een blijvende PII-kopie nooit.
+ */
+function tearDownScratch(target: string): void {
+  const result = spawnSync("psql", buildScratchTeardownArgs(target), { encoding: "utf8" });
+  if (result.error) {
+    console.error(
+      `[drill] LET OP: kon de scratch-database niet opruimen (${result.error.message}). De herstelde ` +
+        "PRODUCTIE-DATA staat er mogelijk NOG in — ruim de scratch-database handmatig op.",
+    );
+    return;
+  }
+  if (result.status !== 0) {
+    console.error(
+      `[drill] LET OP: opruimen van de scratch-database eindigde met exitcode ${result.status}. De ` +
+        "herstelde PRODUCTIE-DATA staat er mogelijk NOG in — controleer en ruim handmatig op.",
+    );
+    return;
+  }
+  console.log(
+    "[drill] scratch-database opgeruimd (public-schema gedropt) — geen PII-kopie achtergelaten.",
+  );
 }
 
 /** Draait een psql-count en geeft het getal (of null bij onbereikbaar/onparseerbaar). */
@@ -117,6 +148,9 @@ function main(): void {
     const redacted = buildPgRestoreArgs({ url: redactDatabaseUrl(target), file });
     console.log(`[drill] (dry-run) zou herstellen: pg_restore ${redacted.join(" ")}`);
     console.log(`[drill] (dry-run) zou daarna schema + "${verifyTable}" teruglezen via psql.`);
+    console.log(
+      "[drill] (dry-run) zou tot slot de scratch-database opruimen (public-schema droppen) — geen PII-kopie.",
+    );
     return;
   }
 
@@ -149,6 +183,12 @@ function main(): void {
       : null;
 
   const verdict = interpretDrill({ publicTableCount, rowCount, verifyTable });
+
+  // Privacy: ruim de herstelde productie-data ALTIJD op vóór we het resultaat melden — of de drill nu
+  // slaagt of faalt. Zo blijft er nooit een langlevende PII-kopie in de wegwerp-database staan
+  // (AVG art. 5(1)(c) minimalisatie / art. 5(1)(e) opslagbeperking / art. 32 vertrouwelijkheid).
+  tearDownScratch(target);
+
   if (verdict.ok) {
     console.log(`[drill] GESLAAGD: ${verdict.detail}`);
     console.log("[drill] klaar. De back-up is aantoonbaar herstelbaar én teruglezbaar.");

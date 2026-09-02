@@ -121,6 +121,7 @@ jobs:
       # Eén IP + gedeelde seed-accounts voor de héle suite; verhoog de strenge
       # productie-rate-limits zodat login/registratie niet onterecht wordt geblokkeerd.
       LOGIN_RATE_LIMIT: "100000"
+      REAUTH_RATE_LIMIT: "100000"
       REGISTER_RATE_LIMIT: "100000"
     steps:
       - uses: actions/checkout@v4

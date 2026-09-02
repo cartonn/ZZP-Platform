@@ -34,7 +34,15 @@ const bcryptCompare = vi.hoisted(() => vi.fn(async () => true));
 // 'm zodat de disable-action-tests het GEDRAG toetsen: wordt de factor geëist en geraadpleegd, en
 // gate't een mislukte factor de uitschakeling vóór enige schrijfactie.
 const verifySecondFactorMock = vi.hoisted(() => vi.fn(async () => true));
+// Her-authenticatie-rem (brute-force-bescherming). Default: toestaan; tests overschrijven `check`.
+const reauthCheck = vi.hoisted(() =>
+  vi.fn(async () => ({ allowed: true, remaining: 4, retryAfterMs: 0 })),
+);
+const reauthReset = vi.hoisted(() => vi.fn(async () => undefined));
 
+vi.mock("@/lib/rate-limit", () => ({
+  reauthRateLimiter: { check: reauthCheck, reset: reauthReset },
+}));
 vi.mock("@/lib/authz", () => ({
   requireActor: vi.fn(async () => store.actor),
 }));
@@ -230,6 +238,43 @@ describe("disableTwoFactor", () => {
     };
     verifySecondFactorMock.mockReset();
     verifySecondFactorMock.mockResolvedValue(true);
+    reauthCheck.mockReset();
+    reauthCheck.mockResolvedValue({ allowed: true, remaining: 4, retryAfterMs: 0 });
+    reauthReset.mockReset();
+    reauthReset.mockResolvedValue(undefined);
+  });
+
+  it("weigert bij overschrijding van de her-authenticatie-rem — vóór wachtwoord/factor, met audit", async () => {
+    reauthCheck.mockResolvedValue({ allowed: false, remaining: 0, retryAfterMs: 60_000 });
+    const res = await disableTwoFactor(undefined, form({ password: "geheim123", token: "123456" }));
+    expect(res.error).toMatch(/te veel pogingen/i);
+    // De rem gaat vóór de wachtwoord-check en vóór de factor: geen bcrypt, geen factor, geen schrijf.
+    expect(bcryptCompare).not.toHaveBeenCalled();
+    expect(verifySecondFactorMock).not.toHaveBeenCalled();
+    expect(userUpdate).not.toHaveBeenCalled();
+    expect(rcDeleteMany).not.toHaveBeenCalled();
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "AUTH_RATE_LIMITED",
+        metadata: { context: "disable-2fa" },
+      }),
+    );
+    // Geen reset bij een geblokkeerde poging.
+    expect(reauthReset).not.toHaveBeenCalled();
+  });
+
+  it("een mislukte factor reset de rem NIET (TOTP-brute-force blijft meetellen)", async () => {
+    bcryptCompare.mockImplementation(async () => true);
+    verifySecondFactorMock.mockResolvedValue(false);
+    const res = await disableTwoFactor(undefined, form({ password: "geheim123", token: "000000" }));
+    expect(res.error).toBeTruthy();
+    expect(reauthReset).not.toHaveBeenCalled();
+  });
+
+  it("een fout wachtwoord reset de rem NIET", async () => {
+    bcryptCompare.mockImplementation(async () => false);
+    await disableTwoFactor(undefined, form({ password: "fout", token: "123456" }));
+    expect(reauthReset).not.toHaveBeenCalled();
   });
 
   it("weigert bij een fout wachtwoord — zonder de factor te raadplegen", async () => {
@@ -274,5 +319,7 @@ describe("disableTwoFactor", () => {
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({ action: "TWO_FACTOR_DISABLED" }),
     );
+    // Volledig geslaagd → de her-authenticatie-rem is gereset.
+    expect(reauthReset).toHaveBeenCalledWith("user-1");
   });
 });
