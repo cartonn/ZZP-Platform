@@ -26,8 +26,14 @@ test("franchise-roster-dossier: ZZP'er-detail toont tabs en wisselt van onderdee
   // klikdoel en de anchor bevat de naam niet.
   await page.goto("/franchise/zzpers?q=Lars");
   // Sluit de CSV-export-link (/franchise/zzpers/export) uit — die downloadt en navigeert niet.
-  await page.locator('a[href^="/franchise/zzpers/"]:not([href*="/zzpers/export"])').first().click();
-  await page.waitForURL("**/franchise/zzpers/**");
+  // Robuust klikken (zoals de tab-kliks hieronder): een klik vlak na `goto` kan in de hydratie-race
+  // verloren gaan, waardoor de kale `waitForURL` hier afliep — bekende flake op deze regel.
+  await clickForUrl(
+    page.locator('a[href^="/franchise/zzpers/"]:not([href*="/zzpers/export"])').first(),
+    page,
+    /\/franchise\/zzpers\/[a-z0-9]+/,
+    45000,
+  );
 
   // Het dossier toont de tab-navigatie; Profiel is standaard actief.
   await expect(page.getByRole("link", { name: "Profiel" })).toBeVisible();
