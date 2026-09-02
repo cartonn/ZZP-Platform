@@ -43,7 +43,7 @@ export default async function OpgeslagenPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="De etalage · bewaard"
+          eyebrow="Opdrachten"
           title={t("Opgeslagen")}
           description={t("Opdrachten die je hebt bewaard.")}
         />

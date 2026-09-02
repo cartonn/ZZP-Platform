@@ -13,7 +13,7 @@ export default async function ConfiguratiePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="De controlekamer · configuratie"
+        eyebrow="Beheer"
         title="Configuratie"
         description="Pas de drempelwaarden voor de DBA-monitor aan. Wijzigingen worden direct van kracht."
       />

@@ -17,8 +17,9 @@ export async function PageHeader({
   title: ReactNode;
   description?: ReactNode;
   action?: ReactNode;
-  /** Signatuur-regel boven de titel: het motief van het paginacluster (UITROLPLAN §2),
-      bv. "De werklijst" op /acties of "Het zegel" op /certificaten. Mono, kapitaal, merk-groen. */
+  /** Sectieregel boven de titel: de gewone naam van de sectie waar deze pagina onder valt,
+      bv. "Administratie" op /facturen of "Mijn profiel" op /certificaten — een breadcrumb, geen
+      motief. Laat 'm weg zodra de h1 hetzelfde al zegt. Mono, kapitaal, merk-groen. */
   eyebrow?: ReactNode;
 }) {
   const { t } = await getTranslator();

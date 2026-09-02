@@ -21,7 +21,7 @@ export default async function FlexpoolPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="De etalage · flexpool"
+          eyebrow="Bedrijfsprofiel"
           title="Flexpool"
           description="Je poule van bewezen ZZP'ers."
         />

@@ -15,7 +15,7 @@ export default async function OntzorgdPage() {
     <div className="space-y-6">
       <header className="space-y-1">
         <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
-          Het grootboek · ontzorgd
+          Administratie
         </p>
         <div className="flex items-center gap-2">
           <Sparkles className="size-5 text-primary" aria-hidden />

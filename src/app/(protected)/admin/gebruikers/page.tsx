@@ -16,7 +16,7 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="De controlekamer · gebruikers"
+        eyebrow="Gebruikersbeheer"
         title="Gebruikers"
         description="Beheer accounts: status, schorsing en anonimisering. De rol staat per account vermeld."
         action={

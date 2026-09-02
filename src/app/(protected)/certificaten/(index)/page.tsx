@@ -184,7 +184,7 @@ export default async function CertificatenPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Het zegel · jouw register"
+        eyebrow="Mijn profiel"
         title="Certificaten"
         description={`Beheer je bewijsstukken en vraag verificatie aan. ${credentials.length > 0 ? `${validCount} van ${credentials.length} geldig geverifieerd.` : ""}`}
         action={

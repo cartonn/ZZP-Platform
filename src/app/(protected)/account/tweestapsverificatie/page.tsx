@@ -13,7 +13,7 @@ export default async function TwoFactorPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Het paspoort · beveiliging"
+        eyebrow="Account"
         title="Tweestapsverificatie"
         description="Voeg een extra beveiligingslaag toe met een eenmalige code uit je authenticator-app."
       />

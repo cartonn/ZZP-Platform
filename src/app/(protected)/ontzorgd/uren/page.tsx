@@ -81,7 +81,7 @@ export default async function IndirectUrenPage() {
       {/* Kop */}
       <header className="space-y-1">
         <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
-          Het grootboek · urencriterium
+          Administratie
         </p>
         <div className="flex items-center gap-2">
           <Clock className="size-5 text-primary" aria-hidden />

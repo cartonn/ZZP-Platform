@@ -22,7 +22,6 @@ export default async function AcademiePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Het leerboek"
         title="Academie"
         description="Korte cursussen over je vak, compliance en administratie — leer in je eigen tempo."
         action={

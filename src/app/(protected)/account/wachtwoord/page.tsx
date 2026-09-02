@@ -13,7 +13,7 @@ export default async function ChangePasswordPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Het paspoort · wachtwoord"
+        eyebrow="Account"
         title="Wachtwoord wijzigen"
         description="Kies een eigen, sterk wachtwoord voor je account."
       />

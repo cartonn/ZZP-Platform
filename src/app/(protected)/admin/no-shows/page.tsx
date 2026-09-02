@@ -77,7 +77,7 @@ export default async function AdminNoShowsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="De controlekamer · no-shows"
+        eyebrow="Beheer"
         title="No-shows"
         description={`Meldingen van niet-verschenen ZZP'ers. Beoordeel of de reden gegrond is — alleen ongegronde no-shows tellen mee; bij ${NO_SHOW_LIMIT} volgt uitschrijving.`}
       />

@@ -14,7 +14,7 @@ export default async function NotificatiesPage() {
     <div className="space-y-6">
       <header>
         <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
-          Het paspoort · voorkeuren
+          Account
         </p>
         <h1 className="font-display text-2xl font-semibold tracking-tight">
           Notificatie-voorkeuren

@@ -392,11 +392,11 @@ export async function ProfileScreen({
 
   return (
     <div className="space-y-6">
-      {/* Profielkop — het paspoort (UITROLPLAN §2), prototype-stijl: kaart op het papier, geen kleurvlak. */}
+      {/* Profielkop, prototype-stijl: kaart op het papier, geen kleurvlak. */}
       <Card>
         <CardContent className="space-y-4 p-6 sm:p-8">
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
-            {t("Het paspoort")}
+            {t("Mijn profiel")}
           </p>
           <div className="flex flex-wrap items-start gap-5">
             <div

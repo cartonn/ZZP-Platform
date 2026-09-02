@@ -11,7 +11,7 @@ export default async function AdminAdministratiePage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="De controlekamer · administratie"
+        eyebrow="Financiën"
         title="Platform Administratie"
         description="Platform-brede kwartaaloverzichten en openstaande betalingen over alle samenwerkingen."
       />

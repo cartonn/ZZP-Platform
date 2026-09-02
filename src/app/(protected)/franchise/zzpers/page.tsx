@@ -396,7 +396,7 @@ export default async function FranchiseZzpersPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="De cockpit · jouw ZZP'ers"
+        eyebrow="Bemiddeling"
         title="ZZP'ers"
         description="De ZZP'ers in je roster — degenen die je in je bemiddeling hebt gebracht."
       />

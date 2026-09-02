@@ -50,7 +50,7 @@ export default async function FranchisePlanningPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="De cockpit · planning"
+        eyebrow="Bemiddeling"
         title="Roosterbezetting"
         description="Wie is wanneer beschikbaar — de bezetting van je roster over de komende twee weken in één oogopslag."
         action={

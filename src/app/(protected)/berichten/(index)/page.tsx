@@ -115,7 +115,6 @@ export default async function BerichtenPage({ searchParams }: { searchParams: Se
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Het gesprek"
         title="Berichten"
         description="Je gesprekken met opdrachtgevers en ZZP'ers."
         action={
