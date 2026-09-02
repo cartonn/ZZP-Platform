@@ -8,8 +8,13 @@ import { assessBillingReadiness, type BillingReadiness } from "@/lib/billing-rea
  * profielgegevens (btw-id, IBAN). Evidence-based: een ZZP'er die nooit factureert of enkel
  * vrijgesteld (KOR/EXEMPT) factureert krijgt géén valse melding.
  *
- * Eén begrensde, eigenaar-gescopete query (`issuerUserId` = de cascade-uitschrijver); we hebben
- * alleen "bestaat er een uitgeschreven factuur" + "bestaat er een btw-heffende" nodig.
+ * Eén begrensde, eigenaar-gescopete query. Scoping via de altijd-gevulde relatie
+ * (`collaboration.freelancer.userId`) én de kolom `issuerUserId`: die kolom wordt alleen door de
+ * cascade-handler gezet (`null` = platform-fee/legacy), dus een legacy loose-factuur van deze ZZP'er
+ * (issuerUserId null, samenwerking wel van hem) zou onder een kolom-only scope onzichtbaar blijven en
+ * de art. 35a-melding ten onrechte onderdrukken. Zelfde patroon als `freelancer-stats.ts` (run 79).
+ * Een platform-fee-factuur (issuerUserId null én geen samenwerking van deze ZZP'er) valt buiten beide
+ * takken. We hebben alleen "bestaat er een uitgeschreven factuur" + "bestaat er een btw-heffende" nodig.
  */
 export async function getBillingReadiness(input: {
   userId: string;
@@ -17,9 +22,17 @@ export async function getBillingReadiness(input: {
   iban?: string | null;
 }): Promise<BillingReadiness> {
   const issued = await prisma.invoice.findMany({
-    where: { issuerUserId: input.userId, issuedAt: { not: null } },
+    where: {
+      issuedAt: { not: null },
+      OR: [
+        { issuerUserId: input.userId },
+        { collaboration: { freelancer: { userId: input.userId } } },
+      ],
+    },
     select: { vatRegime: true },
-    // Begrensd; existence-check, geen aggregatie over de volledige historie nodig.
+    // Begrensd; existence-check, geen aggregatie over de volledige historie nodig. Deterministische
+    // orderBy zodat het venster bij >1000 facturen stabiel is (Prisma garandeert geen rij-volgorde).
+    orderBy: { issuedAt: "desc" },
     take: 1000,
   });
 

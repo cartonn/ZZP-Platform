@@ -1,5 +1,48 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-02 (run 106) · **main-commit basis:** `59d32f48`
+> **Uitkomst:** **2 defecten gevonden én gefixt.** 3 adversariële Opus-audits op niet-overlappende
+> oppervlakken (authz/IDOR/tenant op de nieuwste ~30 commits + shift-overname/franchise/tenant ·
+> next-action-engine + nieuwste ~10 signalen · financiële/cascade-math + malicieuze invoer). De
+> **authz/IDOR/tenant-audit vond 0 bereikbare gaten** (shift-overname approve/reject `ownsViaTenant`
+> fail-closed + atomaire dubbel-beslis-guard + identieke not-found-melding; wachtwoord/2FA re-auth
+> rate-limited; anonimisering mens-getriggerd met TOCTOU-veilige blob-cleanup; `/api/metrics`
+> `CRON_SECRET` timing-safe fail-closed; alle franchise-mutaties via `tenantScopeWhere`, CSV-export
+> roster-gescoped + rate-limited). Twee defecten uit de andere twee audits:
+>
+> - **OPGELOST — should-fix (DOEL 1b, CLAUDE.md regel 1 — server-side waarheid; MISSING next-action):
+>   de facturatie-gereedheid-next-action (`billingProfileTask`, #1324) scoopte zijn bewijs-query op
+>   `issuerUserId: userId` alléén.** `Invoice.issuerUserId` wordt uitsluitend door de cascade-handler
+>   gezet (`null` = platform-fee/legacy), dus een ZZP'er met een **legacy loose-factuur** (issuerUserId
+>   null, maar de samenwerking is wél van hem) zag `hasIssuedInvoice=false` → `assessBillingReadiness`
+>   short-circuit naar `{ ready:true, gaps:[] }` → de art. 35a-btw-id/IBAN-nudge verscheen **nooit** voor
+>   precies de populatie waarvoor de feature is gebouwd. Exact dezelfde kolom-scope-bug die al 3× elders
+>   is gedicht (`freelancer-stats.ts`, run 79). **Fix:** scopen via
+>   `OR: [{ issuerUserId: userId }, { collaboration: { freelancer: { userId } } }]` (altijd-gevulde
+>   relatie), + deterministische `orderBy` op de `take:1000`-query. +2 regressietests (OR-vorm + legacy
+>   loose → btw-gat). Bestand: `src/lib/data/freelancer-billing-readiness.ts` (+ `.test.ts`).
+> - **OPGELOST — should-fix (DOEL 2, CLAUDE.md regel 1 — server-side waarheid / periode-drift; juridisch
+>   factuurnummer): het jaarprefix van een factuurnummer gebruikte `new Date().getFullYear()`
+>   (server-UTC) i.p.v. de Amsterdamse burgerlijke kalender**, op twee bereikbare call-sites: de
+>   cascade-flow (`src/lib/cascade/invoice-commands.ts` — de primaire flow) én de losse-factuur-flow
+>   (`src/app/(protected)/facturen/actions.ts`). Op de UTC-server (Railway) valt `31 dec 23:15 UTC` =
+>   `1 jan 00:15` Amsterdam; de eerste nieuwjaarsfactuur kreeg dan nog het **oude jaarprefix** (reeks
+>   liep door i.p.v. reset naar `-0001`) terwijl haar `issuedAt` in Amsterdamse tijd al 1 januari van het
+>   nieuwe jaar is — een persistent, juridisch factuurnummer waarvan het jaar niet met de afgiftedatum
+>   klopt (breekt de per-kalenderjaar gatenvrije nummering). Dezelfde bugklasse die #1318/#1320 elders
+>   in de fiscale kalender al dichtte. **Fix:** `year: fiscalYearOf(new Date())` op beide call-sites
+>   (Amsterdamse burgerlijke jaar). +1 jaarwissel-regressietest op de losse-factuur-flow
+>   (`31 dec 23:15 UTC → "2027-0001"`); de cascade-flow deelt dezelfde one-liner + `fiscalYearOf`-helper
+>   (zelf al getest). Bestanden: `src/lib/cascade/invoice-commands.ts`,
+>   `src/app/(protected)/facturen/actions.ts` (+ `actions.test.ts`).
+> - **Geparkeerd — nit (geen bereikbaar defect): `kor-projection.ts` (`korThresholdProjection`) rekent
+>   `year`/`dayOfYear`/`crossDate` nog met `getUTCFullYear()`/`getUTCMonth()` i.p.v. `fiscalYearOf`/
+>   `fiscalMonthOf`.** In het ~1u Dec-31-UTC-venster leest `doy` als ~365 i.p.v. ~0, wat de
+>   "te vroeg in het jaar"-guard (`doy < KOR_PROJECTION_MIN_DAY`) verslaat. Gemaskeerd in de UI:
+>   `ontzorg-overview.ts` berekent `korApproaching` onafhankelijk uit `revenueCents`/`threshold` en heeft
+>   voorrang; `projectedAnnualCents` (het meest gecorrumpeerde veld) wordt nergens gerenderd. Aanbevolen:
+>   uitlijnen op `fiscalYearOf`/`fiscalMonthOf` voor consistentie/defense-in-depth (~laag).
+
 > **Datum:** 2026-09-01 (run 105) · **main-commit basis:** `02bd035d`
 > **Uitkomst:** **1 defect gevonden én gefixt** (DOEL 2 — correctheid/tijdzone; een regressie t.o.v.
 > de vandaag gemergde fiscale-kalender-consolidatie #1318). 3 adversariële Opus-audits op

@@ -101,15 +101,34 @@ describe("getBillingReadiness", () => {
     expect(result.gaps).toEqual([]);
   });
 
-  it("bevraagt alleen de uitgeschreven facturen van de eigenaar", async () => {
+  it("scoopt de facturen via zowel de kolom als de altijd-gevulde samenwerkingsrelatie", async () => {
+    // Regressie: een legacy loose-factuur (issuerUserId NULL — nooit door de cascade-handler gezet —
+    // maar de samenwerking is wél van deze ZZP'er) mag niet uit de scope vallen; anders blijft de
+    // art. 35a-melding onterecht weg. Scoping via `collaboration.freelancer.userId` naast de kolom,
+    // zelfde patroon als freelancer-stats.ts. De query is bovendien deterministisch begrensd (orderBy).
     findMany.mockResolvedValue([]);
 
     await getBillingReadiness({ userId: "u1", btwNumber: null, iban: null });
 
     expect(prisma.invoice.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ issuerUserId: "u1", issuedAt: { not: null } }),
+        where: expect.objectContaining({
+          issuedAt: { not: null },
+          OR: [{ issuerUserId: "u1" }, { collaboration: { freelancer: { userId: "u1" } } }],
+        }),
+        orderBy: { issuedAt: "desc" },
       }),
     );
+  });
+
+  it("triggert het btw-gat op een legacy loose-factuur (issuerUserId null, samenwerking van de ZZP'er)", async () => {
+    // De findMany-mock representeert de rijen die de OR-scope oplevert; met de oude kolom-only scope
+    // zou deze legacy loose-factuur niet zijn teruggekomen en bleef de melding onterecht weg.
+    findMany.mockResolvedValue([{ vatRegime: "STANDARD_HIGH" }]);
+
+    const result = await getBillingReadiness({ userId: "u1", btwNumber: null, iban: null });
+
+    expect(result.ready).toBe(false);
+    expect(result.gaps.map((g) => g.key)).toContain("btw");
   });
 });
