@@ -86,7 +86,7 @@ describe("Field", () => {
         <input id="datum" aria-describedby="extern-id" />
       </Field>,
     );
-    const ids = html.match(/aria-describedby="([^"]+)"/)?.[1].split(" ") ?? [];
+    const ids = (html.match(/aria-describedby="([^"]+)"/)?.[1] ?? "").split(" ");
     expect(ids).toContain("datum-error");
     expect(ids).toContain("extern-id");
   });

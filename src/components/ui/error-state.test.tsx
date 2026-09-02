@@ -57,3 +57,38 @@ describe("ErrorState", () => {
     expect(html).not.toContain("kapot");
   });
 });
+
+// Aanvullend op het bovenstaande: de vorm die de foutstaat deelt met de andere primitives —
+// precies één weg vooruit en één weg terug, en geen bijwerking tijdens het renderen.
+describe("ErrorState — vorm en bijwerkingen", () => {
+  it("biedt precies één knop (opnieuw) en één link (terugweg), geen dode knoppen", () => {
+    const html = renderToStaticMarkup(<ErrorState error={err()} reset={noop} />);
+    expect(html.match(/<button/g)).toHaveLength(1);
+    expect(html.match(/<a /g)).toHaveLength(1);
+  });
+
+  it("zet opnieuw-proberen als primaire actie en de terugweg als secundaire", () => {
+    const html = renderToStaticMarkup(<ErrorState error={err()} reset={noop} />);
+    expect(html).toContain("bg-primary");
+    expect(html).toContain("bg-card");
+  });
+
+  it("roept reset niet aan tijdens het renderen (alleen op klik)", () => {
+    let aangeroepen = 0;
+    renderToStaticMarkup(<ErrorState error={err()} reset={() => void aangeroepen++} />);
+    expect(aangeroepen).toBe(0);
+  });
+
+  it("toont het waarschuwingsicoon decoratief in de danger-toon", () => {
+    const html = renderToStaticMarkup(<ErrorState error={err()} reset={noop} />);
+    expect(html).toContain("lucide-triangle-alert");
+    expect(html).toContain("bg-danger/10");
+    expect(html).toContain('aria-hidden="true"');
+  });
+
+  it("blijft binnen een leesbare kolom en accepteert een extra className", () => {
+    const html = renderToStaticMarkup(<ErrorState error={err()} reset={noop} className="py-8" />);
+    expect(html).toContain("max-w-md");
+    expect(html).toContain("py-8");
+  });
+});
