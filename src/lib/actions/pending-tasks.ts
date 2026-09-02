@@ -99,6 +99,11 @@ import {
   hoursCriterionTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
+import {
+  getCredentialDossier,
+  getUnreadConversationState,
+  getUserTenantId,
+} from "@/lib/user-context";
 import { getIdleCapacityForProfile } from "@/lib/data/freelancer-idle-capacity";
 import { getBillingReadiness } from "@/lib/data/freelancer-billing-readiness";
 import { getReceivedInvitations } from "@/lib/data/received-invitations";
@@ -157,26 +162,13 @@ interface UnreadConversation {
 }
 
 async function unreadConversations(userId: string): Promise<UnreadConversation[]> {
-  const participants = await prisma.conversationParticipant.findMany({
-    where: { userId },
-    // Deterministisch ordenen vóór de `.slice(0, MAX)` verderop: Prisma garandeert geen rijvolgorde
-    // zonder orderBy, dus bij >MAX gelijktijdig-ongelezen gesprekken zou wisselen wélke MAX in het
-    // venster landen — de berichttaak flikkert dan tussen requests (verschijnt/verdwijnt). `conversationId
-    // asc` is stabiel en altijd aanwezig → self-healing venster (zelfde conventie als de andere gewindowde
-    // queries hier).
-    orderBy: { conversationId: "asc" },
-    select: { conversationId: true, lastReadAt: true },
-  });
+  // Gedeelde, request-gecachte bron (user-context.ts): de `/berichten`-badge (signals.ts) draaide
+  // dezelfde twee queries binnen dezelfde render. De deterministische `conversationId asc`-ordening
+  // zit in die loader — nodig vóór de `.slice(0, MAX)` verderop: Prisma garandeert geen rijvolgorde
+  // zonder orderBy, dus bij >MAX gelijktijdig-ongelezen gesprekken zou wisselen wélke MAX in het
+  // venster landen en zou de berichttaak tussen requests flikkeren.
+  const { participants, latestForeign: latest } = await getUnreadConversationState(userId);
   if (participants.length === 0) return [];
-  const grouped = await prisma.message.groupBy({
-    by: ["conversationId"],
-    where: {
-      conversationId: { in: participants.map((p) => p.conversationId) },
-      senderId: { not: userId },
-    },
-    _max: { createdAt: true },
-  });
-  const latest = new Map(grouped.map((g) => [g.conversationId, g._max.createdAt]));
   const unreadIds = participants
     .filter((p) => {
       const at = latest.get(p.conversationId);
@@ -419,22 +411,14 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     // documentenstatus (VOG/verzekering) worden in-memory afgeleid — zelfde bron als de
     // inzetbaarheidskaart op het dashboard, zodat beide oppervlakken nooit tegenspreken.
     //
-    // ONBEGRENSD (geen take): de /certificaten-nav-badge (signals.ts) telt ditzelfde dossier
-    // onbegrensd (count REJECTED + het volledige VERIFIED-dossier + de verplichte-doc-rijen) en
-    // claimt gelijkheid met /acties. Een `take: MAX` zou (a) zonder orderBy niet-deterministisch
-    // zijn (Prisma garandeert geen rijvolgorde → welke MAX-van-N rijen /acties toont wisselt per
-    // request) en (b) de badge tegenspreken zodra het dossier > MAX rijen telt: een afgewezen/
-    // verlopend/ontbrekend-verplicht cert of een compliance-blokkerend cert van een lopende
-    // samenwerking dat buiten de slice valt, verschijnt dan wél in de badge maar niet als next-action.
-    // Bovendien heeft de superseded-detectie (`supersededVerifiedCredentialIds`) álle nu-geldige
-    // VERIFIED-exemplaren van een type nodig — een cap zou het superseding-exemplaar kunnen missen.
-    // Zelfde drift-klasse als #1022 (admin-wachtrijen), hier drift-proof gesloten door de badge te
-    // spiegelen i.p.v. te cappen. unbounded-allow: eigenaar-scoped, inherent begrensd tot het
-    // persoonlijke certificaatdossier.
-    const creds = await prisma.credential.findMany({
-      where: { freelancerProfileId: profile.id },
-      select: { id: true, title: true, type: true, status: true, expiresAt: true },
-    });
+    // De query zelf staat nu in de gedeelde, request-gecachte `getCredentialDossier`
+    // (user-context.ts) — exact dezelfde set die de /certificaten-nav-badge (signals.ts) gebruikt,
+    // zodat badge en lijst per definitie op dezelfde rijen redeneren en de shell het dossier nog maar
+    // één keer ophaalt. Dáár staat ook waarom die set ONBEGRENSD is (een cap zou niet-deterministisch
+    // zijn én de badge tegenspreken zodra het dossier groter wordt dan de cap; zelfde drift-klasse als
+    // #1022). Wat hier telt: `creds` bevat gegarandeerd het VOLLEDIGE dossier, zodat de
+    // superseded-detectie hieronder álle nu-geldige VERIFIED-exemplaren van een type ziet.
+    const creds = await getCredentialDossier(profile.id);
     allCreds = creds.map((c) => ({
       id: c.id,
       title: c.title,
@@ -1333,8 +1317,9 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
 }
 
 async function franchiserTasks(userId: string): Promise<PendingTask[]> {
-  const me = await prisma.user.findUnique({ where: { id: userId }, select: { tenantId: true } });
-  const tenantId = me?.tenantId ?? null;
+  // Gedeelde, request-gecachte tenant-lookup (user-context.ts): de bemiddelaar-badges (signals.ts)
+  // beginnen met exact dezelfde query in dezelfde render.
+  const tenantId = await getUserTenantId(userId);
   if (!tenantId) return [];
 
   const tasks: PendingTask[] = [];
