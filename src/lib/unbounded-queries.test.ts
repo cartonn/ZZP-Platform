@@ -27,7 +27,7 @@
  * op en worden dus meteen gevangen.
  */
 
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -199,14 +199,18 @@ function walkSources(): Array<{ rel: string; content: string }> {
   const results: Array<{ rel: string; content: string }> = [];
 
   function walk(dir: string, relBase: string) {
-    for (const entry of readdirSync(dir)) {
-      if (entry === "node_modules" || entry.startsWith(".")) continue;
-      const abs = join(dir, entry);
-      const rel = `${relBase}/${entry}`;
-      if (statSync(abs).isDirectory()) {
-        if ((SKIPPED_DIRS as readonly string[]).includes(entry)) continue;
+    // `withFileTypes` levert het bestandstype uit de directory-entry zelf. Zonder dat zou hier een
+    // aparte `statSync(pad)` vóór de `readFileSync(pad)` staan: twee losse opzoekingen van hetzelfde
+    // pad, waartussen dat pad iets anders kan zijn geworden (CWE-367).
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const name = entry.name;
+      if (name === "node_modules" || name.startsWith(".")) continue;
+      const abs = join(dir, name);
+      const rel = `${relBase}/${name}`;
+      if (entry.isDirectory()) {
+        if ((SKIPPED_DIRS as readonly string[]).includes(name)) continue;
         walk(abs, rel);
-      } else if (/\.(ts|tsx)$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
+      } else if (entry.isFile() && /\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) {
         results.push({ rel, content: readFileSync(abs, "utf8") });
       }
     }
@@ -364,11 +368,17 @@ describe("onbegrensde findMany()-aanroepen", () => {
     const violations: string[] = [];
     for (const rel of SANITATION_BACKLOG) {
       const abs = join(process.cwd(), rel);
-      if (!existsSync(abs)) {
-        violations.push(`${rel} — staat op de backlog maar bestaat niet (meer); verwijder het pad`);
+      // Eén lees-poging in plaats van "bestaat het?" gevolgd door "lees het": twee losse
+      // opzoekingen van hetzelfde pad zijn een check-then-use (CWE-367). Ontbreekt het bestand,
+      // dan zegt de leesfout dat net zo goed.
+      let source: string;
+      try {
+        source = readFileSync(abs, "utf8");
+      } catch {
+        violations.push(`${rel} — staat op de backlog maar is niet leesbaar; verwijder het pad`);
         continue;
       }
-      if (unmarkedUnboundedLines(readFileSync(abs, "utf8")).length === 0) {
+      if (unmarkedUnboundedLines(source).length === 0) {
         violations.push(
           `${rel} — is gesaneerd (geen onbegrensde findMany zonder marker meer); ` +
             `verwijder het pad uit SANITATION_BACKLOG`,
