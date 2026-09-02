@@ -10,6 +10,33 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-02 — prod: weesblob-grootboek + reconciliatie bij gefaalde opslag-opruiming
+
+**Wat:** op meerdere plekken (AVG-anonimisering, document-/certificaat-verwijdering, logo-vervanging)
+verwijderen we een blob uit de opslag NADAT de DB-rij al weg is; die `storage.delete(...)` is
+best-effort (`.catch`) en werd tot nu toe ALLEEN gelogd. Faalde hij door een transiënte opslagstoring,
+dan bleef de sleutel enkel in een vluchtige hostlogregel staan. Bij het **AVG-erasure-pad** verdwijnt de
+`Document`-rij VÓÓR de blob-delete, dus een gefaalde delete liet het gevoelige bewijsstuk (VOG/diploma/ID)
+VOORGOED als weesblob achter — zonder spoor om terug te vinden of te herproberen (AVG art. 17 /
+art. 5(1)(c)). Dit was het laatste stille-best-effort-faalkanaal zonder vangnet in de
+dead-man's-switch-familie.
+
+**Aanpak:** nieuw `OrphanedStorageObject`-grootboek (Prisma-model + vervolgmigratie). Elke gefaalde
+opruiming legt de opaque sleutel + herkomst vast via `recordStorageCleanupFailure`
+(`src/lib/services/storage-orphans.ts`, drop-in vervanger voor `logStorageCleanupFailure` in de 4
+delete-callsites) — **fail-safe** (werpt nooit; een DB-storing mag de al-voltooide erasure niet laten
+crashen). Cron-taak `storage-orphan-reconcile` (in `run-all`) herhaalt de delete in begrensde batches tot
+succes (`reclaimedAt`; gereclaimede rijen na 30d gesnoeid). Gauge `zzp_orphaned_storage_objects_pending`
+(één bron `openOrphanedStorageWhere()`) + alert `ZzpOrphanedStorageObjectsPending` (`>0`, `for:26h`,
+warning, in de onderhouds-inhibitie). `lastError` door dezelfde `maskEmails` als de logger (persistente
+sink). Geen PII, cron-gated, geen dode knop. Onafhankelijke security-review: geen blockers.
+
+**Bestanden:** `prisma/schema.prisma` + migratie, `services/storage-orphans.ts` (+ test),
+`observability/logger.ts` (`maskEmails` export), de 4 delete-callsites, `tasks/run-all/route.ts`,
+`api/metrics/route.ts`, `observability/metrics.ts` (+ test), `alerts.yml` + `alertmanager.yml`,
+`audit-labels.ts`, anonymize-schema-coverage-uitzondering, `MENSENWERK.md`. **Tests:** +13 + drift-gates
+(audit-label, inhibitie, erasure-schema-dekking). typecheck/lint/test/build/prettier groen · CI verifieert.
+
 ## 2026-09-02 — security/privacy-audit: geen nieuwe gaten (basis `main` @ c238580d)
 
 **Wat:** volledige adversariële security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits

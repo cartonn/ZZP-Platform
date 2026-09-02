@@ -455,6 +455,24 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   bij een expliciete logout, niet bij een verlopen sessie. Resterend mensenwerk: **niets** — browsers
   honoreren de header alleen over een veilige (HTTPS) verbinding, dus actief in productie (Railway),
   lokaal over http genegeerd.
+- **Weesblob-grootboek + reconciliatie bij gefaalde opslag-opruiming** (code-kant GEDAAN 2026-09-02):
+  op meerdere plekken (AVG-anonimisering, document-/certificaat-verwijdering, logo-vervanging) verwijderen
+  we een blob uit de opslag NADAT de DB-rij al is weggehaald/vervangen; die `storage.delete(...)` is
+  best-effort (`.catch`) en werd tot nu toe ALLEEN gelogd. Faalde hij door een transiënte opslagstoring
+  (S3-blip, netwerk, time-out), dan bleef de sleutel enkel in een vluchtige hostlogregel staan. Bij het
+  **AVG-erasure-pad** verdwijnt de `Document`-rij VÓÓR de blob-delete, dus een gefaalde delete liet het
+  gevoelige bewijsstuk (VOG/diploma/ID) VOORGOED als weesblob achter — zonder spoor om terug te vinden of
+  te herproberen (AVG art. 17 / art. 5(1)(c)). Dit was het laatste stille-best-effort-faalkanaal zonder
+  vangnet in de dead-man's-switch-familie. Nu legt elke gefaalde opruiming de opaque sleutel + herkomst
+  vast in `OrphanedStorageObject` (`src/lib/services/storage-orphans.ts`, `recordStorageCleanupFailure`),
+  en herhaalt de dagelijkse cron-taak `storage-orphan-reconcile` de delete in begrensde batches tot hij
+  slaagt (`reclaimedAt` markeert een geslaagde opruiming; gereclaimede rijen worden na 30 dagen gesnoeid).
+  Gauge `zzp_orphaned_storage_objects_pending` op `/api/metrics` + alert `ZzpOrphanedStorageObjectsPending`
+  (`> 0`, `for:26h`, warning) in `docs/observability/alerts.yml`. Bevat geen PII (opaque sleutel +
+  herkomst-label + gereduceerde foutbeschrijving). `recordStorageCleanupFailure` is fail-safe (werpt nooit —
+  een DB-storing in het catch-pad mag de al-voltooide erasure niet alsnog laten crashen; de PII-veilige
+  logregel blijft het vangnet). Resterend mensenwerk: **niets** — werkt out-of-the-box; optioneel richt je
+  een monitor op `ZzpOrphanedStorageObjectsPending`.
 
 ## §1. Hosting, database, opslag, domein, geheimen
 

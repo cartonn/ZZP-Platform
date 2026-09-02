@@ -625,6 +625,24 @@ groups:
           summary: "Mail-intake-retentie-snoei verwerkt niets (AVG-dataminimalisatie)"
           description: "Er staan al > één cron-interval besliste mail-intake-rijen (MailIntake, status ACCEPTED/DISMISSED) ouder dan het geconfigureerde MAIL_INTAKE_RETENTION_DAYS-venster die niet zijn gesnoeid (zzp_mail_intake_retention_backlog). De mail-intake-retention-cron rondt af maar verwijdert niets → derde-partij-PII (fromAddress + subject + textBody) wordt over de beloofde bewaartermijn heen bewaard (AVG art. 5(1)(e)). Controleer de mail-intake-retention-taak."
 
+      - alert: ZzpOrphanedStorageObjectsPending
+        # AVG-recht op vergetelheid (art. 17) + dataminimalisatie (art. 5 lid 1c). Op meerdere plekken
+        # (AVG-anonimisering, document-/certificaat-verwijdering, logo-vervanging) wordt een blob uit de
+        # opslag verwijderd NADAT de DB-rij al weg is; die best-effort delete kan door een transiënte
+        # opslagstoring falen. De gefaalde sleutel wordt in OrphanedStorageObject vastgelegd en de
+        # storage-orphan-reconcile-cron herhaalt de delete. Blijft een wees openstaan (reclaimedAt=null)
+        # over meer dan één cron-interval, dan lukt de reconciliatie structureel niet → bij het
+        # AVG-erasure-pad is de Document-rij al verwijderd, dus een gevoelig bewijsstuk (VOG/diploma/ID)
+        # blijft fysiek in de opslag staan na een vergetelheidsverzoek. 0 is de gezonde toestand; een klein,
+        # dalend getal is normaal na een korte opslagstoring (de volgende cron ruimt het op).
+        expr: zzp_orphaned_storage_objects_pending > 0
+        for: 26h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Weesblob-reconciliatie krijgt de opslag niet opgeruimd (AVG recht op vergetelheid)"
+          description: "Er staan al > één cron-interval weesblobs open (zzp_orphaned_storage_objects_pending): een best-effort storage.delete faalde en de storage-orphan-reconcile-cron kon de blob nog niet alsnog verwijderen. Bij het AVG-erasure-pad is de Document-rij al weg → een gevoelig bewijsstuk (VOG/diploma/ID) blijft fysiek in de opslag na een vergetelheidsverzoek (AVG art. 17 / art. 5(1)(c)). Controleer de storage-orphan-reconcile-taak en de opslag-connectiviteit."
+
   - name: zzp-platform-verificatie-sla
     rules:
       # Verificatie is de kern-differentiatie. Twee complementaire signalen: te veel wachtenden (diepte)

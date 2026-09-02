@@ -6,7 +6,7 @@ import { auditData } from "@/lib/audit";
 import { canModerateUser } from "@/lib/admin";
 import { requestMeta } from "@/lib/request-meta";
 import { getStorage } from "@/lib/services/storage";
-import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
+import { recordStorageCleanupFailure } from "@/lib/services/storage-orphans";
 import {
   AUDIT_PII_REDACTED,
   canAnonymizeUser,
@@ -1117,9 +1117,11 @@ export async function anonymizeUser(userId: string): Promise<void> {
     await Promise.all(
       storageKeysToDelete.map((key) =>
         storage.delete(key).catch((err) =>
-          // Opslag-opruiming is best-effort; de DB-anonimisering is al definitief. Wél loggen,
-          // want dit is het AVG-vergetelheidspad — een achtergebleven bestand moet zichtbaar zijn.
-          logStorageCleanupFailure("[gebruikers] AVG", key, err),
+          // Opslag-opruiming is best-effort; de DB-anonimisering is al definitief. Faalt de delete
+          // (transiënte opslagstoring), dan legt dit de sleutel vast in het weesblob-grootboek zodat de
+          // reconciliatietaak 'm alsnog opruimt — anders bleef het gevoelige bewijsstuk (VOG/diploma/ID)
+          // VOORGOED als weesblob achter (AVG art. 17), want de Document-rij is hierboven al verwijderd.
+          recordStorageCleanupFailure("avg-erasure", key, err),
         ),
       ),
     );

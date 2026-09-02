@@ -87,6 +87,8 @@ const ALLOWLIST: Record<string, string> = {
   HealthIncident: "[INFRA] systeem-gezondheidsincident: geen persoonsgegevens.",
   EventHandlerRun: "[INFRA] event-handler-idempotentie: geen PII.",
   ProcessedWebhookEvent: "[INFRA] webhook-idempotentiegrendel: geen PII.",
+  OrphanedStorageObject:
+    "[INFRA] weesblob-grootboek: opaque storagesleutel + herkomst-label, geen PII (en niet aan een gebruiker-id gekoppeld).",
   GeocodeCache: "[INFRA] gedeelde adres→coord-cache, niet aan een gebruiker-id gekoppeld.",
   TravelRouteCache: "[INFRA] gedeelde route-cache tussen postcodes, niet gebruiker-gescoopt.",
   InvoiceSequence: "[INFRA] factuurnummer-teller (issuerKey+jaar), enkel een volgnummer.",

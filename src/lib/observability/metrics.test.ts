@@ -45,6 +45,7 @@ const HEALTHY: MetricsInput = {
   webhookEventsRetentionBacklog: 0,
   routingCacheRetentionBacklog: 0,
   mailIntakeRetentionBacklog: 0,
+  orphanedStorageObjectsPending: 0,
   membershipUnbilledActive: 0,
   mailDeliveryOk: true,
   mailDeliveryConsecutiveFailures: 0,
@@ -447,6 +448,30 @@ describe("buildMetrics", () => {
     ).toBe(3);
   });
 
+  it("mapt de openstaande-weesblobs-achterstand door als gauge", () => {
+    expect(
+      valueOf(
+        { ...HEALTHY, orphanedStorageObjectsPending: 4 },
+        "zzp_orphaned_storage_objects_pending",
+      ),
+    ).toBe(4);
+  });
+
+  it("klemt een negatieve/gebroken weesblob-achterstand veilig op een niet-negatief geheel getal", () => {
+    expect(
+      valueOf(
+        { ...HEALTHY, orphanedStorageObjectsPending: -3 },
+        "zzp_orphaned_storage_objects_pending",
+      ),
+    ).toBe(0);
+    expect(
+      valueOf(
+        { ...HEALTHY, orphanedStorageObjectsPending: 2.9 },
+        "zzp_orphaned_storage_objects_pending",
+      ),
+    ).toBe(2);
+  });
+
   it("mapt de ongefactureerde-actieve-ZZP'ers-backlog door als gauge", () => {
     expect(
       valueOf({ ...HEALTHY, membershipUnbilledActive: 17 }, "zzp_membership_unbilled_active"),
@@ -527,6 +552,7 @@ describe("buildMetrics", () => {
       webhookEventsRetentionBacklog: 6,
       routingCacheRetentionBacklog: 14,
       mailIntakeRetentionBacklog: 21,
+      orphanedStorageObjectsPending: 4,
       membershipUnbilledActive: 20,
       mailDeliveryOk: false,
       mailDeliveryConsecutiveFailures: 4,
@@ -691,6 +717,7 @@ describe("buildMetrics", () => {
       "zzp_webhook_events_retention_backlog",
       "zzp_routing_cache_retention_backlog",
       "zzp_mail_intake_retention_backlog",
+      "zzp_orphaned_storage_objects_pending",
       "zzp_membership_unbilled_active",
       "zzp_mail_delivery_ok",
       "zzp_mail_consecutive_failures",
