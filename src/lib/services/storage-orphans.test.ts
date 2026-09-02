@@ -160,22 +160,22 @@ describe("recordStorageCleanupFailure", () => {
       attempts: 1,
       reclaimedAt: null,
     });
-    expect(store.rows[0].lastError).toContain("S3 timeout");
+    expect(store.rows[0]!.lastError).toContain("S3 timeout");
   });
 
   it("bumpt de teller bij herhaald falen van dezelfde sleutel (idempotent op storageKey)", async () => {
     await recordStorageCleanupFailure("document-delete", "docs/u1/a.pdf", new Error("blip 1"));
     await recordStorageCleanupFailure("document-delete", "docs/u1/a.pdf", new Error("blip 2"));
     expect(store.rows).toHaveLength(1);
-    expect(store.rows[0].attempts).toBe(2);
-    expect(store.rows[0].lastError).toContain("blip 2");
+    expect(store.rows[0]!.attempts).toBe(2);
+    expect(store.rows[0]!.lastError).toContain("blip 2");
   });
 
   it("heropent een eerder gereclaimede rij die opnieuw faalt", async () => {
     await recordStorageCleanupFailure("logo-replace", "logos/x.png", new Error("boom"));
-    store.rows[0].reclaimedAt = new Date("2026-01-01T00:00:00Z");
+    store.rows[0]!.reclaimedAt = new Date("2026-01-01T00:00:00Z");
     await recordStorageCleanupFailure("logo-replace", "logos/x.png", new Error("again"));
-    expect(store.rows[0].reclaimedAt).toBeNull();
+    expect(store.rows[0]!.reclaimedAt).toBeNull();
   });
 
   it("is fail-safe: werpt niet als het grootboek niet te schrijven is (log blijft vangnet)", async () => {
@@ -193,8 +193,8 @@ describe("recordStorageCleanupFailure", () => {
       "docs/u3/vog.pdf",
       new Error("weigering voor jan.jansen@firma.nl"),
     );
-    expect(store.rows[0].lastError).toContain("j***@firma.nl");
-    expect(store.rows[0].lastError).not.toContain("jan.jansen@firma.nl");
+    expect(store.rows[0]!.lastError).toContain("j***@firma.nl");
+    expect(store.rows[0]!.lastError).not.toContain("jan.jansen@firma.nl");
   });
 });
 
@@ -220,8 +220,8 @@ describe("reconcileOrphanedStorageObjects", () => {
     const res = await reconcileOrphanedStorageObjects({ storage: storage as never, now });
     expect(storage.delete).toHaveBeenCalledWith("docs/u1/vog.pdf");
     expect(res).toMatchObject({ attempted: 1, reclaimed: 1, stillFailing: 0 });
-    expect(store.rows[0].reclaimedAt).toEqual(now);
-    expect(store.rows[0].lastError).toBeNull();
+    expect(store.rows[0]!.reclaimedAt).toEqual(now);
+    expect(store.rows[0]!.lastError).toBeNull();
   });
 
   it("laat een weesblob openstaan en bumpt de teller wanneer de delete opnieuw faalt", async () => {
@@ -232,9 +232,9 @@ describe("reconcileOrphanedStorageObjects", () => {
       now: new Date(),
     });
     expect(res).toMatchObject({ reclaimed: 0, stillFailing: 1 });
-    expect(store.rows[0].reclaimedAt).toBeNull();
-    expect(store.rows[0].attempts).toBe(3);
-    expect(store.rows[0].lastError).toContain("still down");
+    expect(store.rows[0]!.reclaimedAt).toBeNull();
+    expect(store.rows[0]!.attempts).toBe(3);
+    expect(store.rows[0]!.lastError).toContain("still down");
   });
 
   it("verwerkt de oudste openstaande weesblob eerst en respecteert de limiet", async () => {
