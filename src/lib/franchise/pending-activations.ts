@@ -21,6 +21,9 @@ export async function countPendingActivations(): Promise<number> {
 
 /** Wachtrij (oudste eerst — first in, first out, zoals de verificatiequeue). */
 export async function listPendingActivations(): Promise<PendingActivation[]> {
+  // unbounded-allow: admin-wachtrij van PENDING-tenants; bewust geen take — de beheerder moet elke
+  // wachtende aanmelding zien (een cap zou er stilletjes overslaan) en de status is per definitie
+  // tijdelijk, dus de rij blijft klein (elke activatie/afwijzing haalt 'm eruit).
   const rows = await prisma.tenant.findMany({
     where: { status: "PENDING" },
     orderBy: { createdAt: "asc" },
