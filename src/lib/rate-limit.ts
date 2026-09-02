@@ -1,12 +1,14 @@
 // Rate-limiter abstractie (fixed-window). Pluggbare store, dezelfde driver-aanpak
 // als storage.ts: lokale MemoryRateLimitStore als default, en een gedeelde/durable
-// store (Upstash Redis REST) achter dezelfde RateLimitStore-interface voor horizontale
-// schaling — net zoals de S3-driver achter StorageDriver zit (MENSENWERK §0b H-2).
+// store (Upstash Redis REST, óf een eigen Redis) achter dezelfde RateLimitStore-interface
+// voor horizontale schaling — net zoals de S3-driver achter StorageDriver zit
+// (MENSENWERK §0b H-2).
 //
-// De store is async: de in-memory variant lost direct op, de Upstash-variant doet een
-// HTTP-round-trip. Alle call-sites draaien al in async-context (server actions, route
+// De store is async: de in-memory variant lost direct op, de Upstash-/Redis-variant doet een
+// netwerk-round-trip. Alle call-sites draaien al in async-context (server actions, route
 // handlers, NextAuth authorize) en awaiten het resultaat.
 
+import Redis from "ioredis";
 import { logger } from "@/lib/observability/logger";
 import { fetchWithTimeout, resolveHttpTimeoutMs } from "@/lib/services/fetch-timeout";
 
@@ -249,10 +251,200 @@ export class UpstashRateLimitStore implements RateLimitStore {
   }
 }
 
+// ─── Gedeelde ioredis-client (RATE_LIMIT_STORE=redis) ──────────────────────────────────────────
+// Eén TCP-verbinding per proces, hergebruikt door élke RedisRateLimitStore-instance. Nodig omdat
+// createRateLimitStore() per limiter wordt aangeroepen (zie de singletons onderaan dit bestand) —
+// zonder hergebruik zou elke limiter zijn eigen Redis-verbinding openen (tientallen per proces).
+let sharedRedisClient: Redis | null = null;
+let redisShutdownHookRegistered = false;
+
+/**
+ * Geeft de proces-gedeelde ioredis-client terug. `lazyConnect: true` betekent dat het aanmaken van
+ * de client GEEN netwerk-round-trip doet — de echte TCP-verbinding opent pas bij het eerste
+ * commando — zodat het instantiëren van de store bij module-load de boot nooit blokkeert, ook niet
+ * als Redis (nog) niet bereikbaar is. Idempotent: latere aanroepen (elke limiter maakt zijn eigen
+ * RedisRateLimitStore) hergebruiken dezelfde verbinding.
+ */
+function getSharedRedisClient(url: string): Redis {
+  if (!sharedRedisClient) {
+    sharedRedisClient = new Redis(url, {
+      lazyConnect: true,
+      // Onbeperkte reconnect-pogingen met begrensde backoff: een Redis-blip mag de store nooit
+      // permanent laten opgeven — consume()/reset() blijven sowieso per-aanroep fail-open, dit
+      // zorgt dat een hersteld Redis vanzelf weer meedoet zonder proces-herstart.
+      retryStrategy: (attempt) => Math.min(attempt * 200, 5000),
+      // Korte command-deadline: rate-limiting mag een verzoek niet lang ophouden (parity met de
+      // Upstash-store se RATE_LIMIT_HTTP_TIMEOUT_MS-deadline, zie UpstashRateLimitStore).
+      commandTimeout: resolveHttpTimeoutMs(process.env.RATE_LIMIT_HTTP_TIMEOUT_MS, 2500),
+      maxRetriesPerRequest: 1,
+    });
+    // Vangnet: een onafgevangen 'error'-event op een ioredis-client crasht het Node-proces.
+    // consume()/reset() vangen hun eigen fouten al af (fail-open); dit dekt alleen ioredis' eigen
+    // achtergrond-reconnect-events. Nooit de URL/credentials loggen (kunnen een wachtwoord bevatten).
+    sharedRedisClient.on("error", (err) => {
+      logger.error("rate-limit: Redis-clientfout (achtergrond)", {
+        scope: "rate-limit",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+    registerRedisShutdownHook();
+  }
+  return sharedRedisClient;
+}
+
+/**
+ * Nette shutdown-hook: sluit de gedeelde Redis-verbinding af zodra het proces een afsluitsignaal
+ * ontvangt, zodat er geen openstaande socket achterblijft bij een Railway-redeploy. Idempotent en
+ * best-effort — `quit()` mag het afsluiten van het proces nooit vertragen of laten falen; de
+ * force-kill-vangnet in scripts/start.mjs blijft de uiteindelijke garantie dat het proces stopt.
+ */
+function registerRedisShutdownHook(): void {
+  if (redisShutdownHookRegistered) return;
+  redisShutdownHookRegistered = true;
+  const close = () => {
+    sharedRedisClient?.quit().catch(() => {
+      // Best-effort: het proces sluit sowieso af (zie start.mjs force-kill-vangnet).
+    });
+  };
+  process.once("SIGTERM", close);
+  process.once("SIGINT", close);
+}
+
+/**
+ * Gedeelde, durable RateLimitStore op basis van een eigen Redis-server (bv. Railway-Redis op het
+ * private netwerk, of elke andere Redis/Redis-compatibele service). Activeer met
+ * RATE_LIMIT_STORE=redis + REDIS_URL (redis:// of rediss:// voor TLS). Alternatief voor de
+ * Upstash-REST-driver hierboven wanneer er al een eigen Redis draait — dezelfde RateLimitStore-
+ * interface, dus limiters/selftest/heartbeat blijven ongewijzigd.
+ *
+ * Client: `ioredis` (gepind, exact — package.json). Gekozen boven `redis` (node-redis) v4/v5 omdat
+ * lazy-connect + automatische reconnect-met-backoff standaard aan staan (geen extra configuratie
+ * nodig om de fail-open-eis hieronder waar te maken: een trage/hangende connect-poging mag de
+ * rate-limit-check niet blokkeren), native rediss://-ondersteuning heeft, en met zes lichte
+ * dependencies ruim onder de bundle-impact van alternatieven blijft (`npm audit --omit=dev`: schoon
+ * bij het pinnen hierboven).
+ *
+ * Fixed-window, atomair via MULTI/EXEC (dezelfde drie commando's als de Upstash-pipeline hierboven):
+ *   INCR key            → teller binnen het venster
+ *   PEXPIRE key ms NX   → zet de TTL alleen bij de eerste hit (venster begint)
+ *   PTTL key            → resterende venstertijd voor retryAfterMs
+ *
+ * Fail-open: valt de Redis-call uit (netwerk/server-storing), dan staan we het verzoek toe en
+ * loggen we de fout — zelfde architectuurprincipe als UpstashRateLimitStore (beschikbaarheid boven
+ * een tijdelijk zwakkere limiet). NOOIT de URL/credentials loggen (kunnen een wachtwoord bevatten).
+ */
+export class RedisRateLimitStore implements RateLimitStore {
+  constructor(private readonly url: string) {}
+
+  private client(): Redis {
+    return getSharedRedisClient(this.url);
+  }
+
+  /** Namespacet de key in Redis zodat hij niet botst met ander gebruik van dezelfde Redis. */
+  private redisKey(key: string): string {
+    return `rl:${key}`;
+  }
+
+  async consume(
+    key: string,
+    limit: number,
+    windowMs: number,
+    _now: number,
+  ): Promise<RateLimitResult> {
+    const rkey = this.redisKey(key);
+    try {
+      const results = await this.client()
+        .multi()
+        .call("INCR", rkey)
+        .call("PEXPIRE", rkey, windowMs, "NX")
+        .call("PTTL", rkey)
+        .exec();
+      if (!results) {
+        throw new Error("Redis: MULTI/EXEC gaf geen resultaat terug (transactie afgebroken).");
+      }
+      const entries = results as [Error | null, unknown][];
+      const [incrErr, count] = entries[0]!;
+      const [pttlErr, ttl] = entries[2]!;
+      if (incrErr) throw incrErr;
+      if (pttlErr) throw pttlErr;
+
+      const used = Number(count);
+      const ttlMs = Number(ttl);
+      const allowed = used <= limit;
+      const remaining = Math.max(0, limit - used);
+      // PTTL geeft -1 (geen TTL) of -2 (geen key) terug; val dan terug op het volledige venster.
+      const retryAfterMs = allowed ? 0 : ttlMs > 0 ? ttlMs : windowMs;
+
+      // Dead-man's-switch: registreer dat het gedeelde kanaal onze operatie accepteerde (gecoalesceerd).
+      await this.recordDelivery(true);
+      return { allowed, remaining, retryAfterMs };
+    } catch (err) {
+      logger.error("rate-limit: Redis consume mislukt — fail-open", {
+        scope: "rate-limit",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      // Dead-man's-switch: registreer de mislukking (altijd) — zie UpstashRateLimitStore.consume.
+      await this.recordDelivery(false);
+      // Fail-open: beschikbaarheid boven een tijdelijk zwakkere limiet.
+      return { allowed: true, remaining: limit, retryAfterMs: 0 };
+    }
+  }
+
+  /** Zie UpstashRateLimitStore.recordDelivery — zelfde heartbeat-kanaal, andere driver-naam. */
+  private async recordDelivery(ok: boolean): Promise<void> {
+    try {
+      const { recordRateLimitDeliverySuccess, recordRateLimitDeliveryFailure } =
+        await import("@/lib/observability/ratelimit-delivery-heartbeat");
+      if (ok) {
+        await recordRateLimitDeliverySuccess("redis");
+      } else {
+        await recordRateLimitDeliveryFailure("redis");
+      }
+    } catch {
+      // Observability mag het kernpad nooit breken.
+    }
+  }
+
+  async reset(key: string): Promise<void> {
+    try {
+      await this.client().del(this.redisKey(key));
+    } catch (err) {
+      logger.error("rate-limit: Redis reset mislukt", {
+        scope: "rate-limit",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /**
+   * Voert een rauwe pipeline uit voor de admin-connectiviteitszelftest (/admin/systeemstatus).
+   * Anders dan `consume`/`reset` **surfacet** dit fouten (geen fail-open) — zelfde contract als
+   * UpstashRateLimitStore.runProbeCommands. Raakt géén echte rate-limit-tellers.
+   */
+  async runProbeCommands(commands: (string | number)[][]): Promise<unknown[]> {
+    const pipeline = this.client().pipeline(commands);
+    const results = await pipeline.exec();
+    if (!results) {
+      throw new Error("Redis: pipeline gaf geen resultaat terug.");
+    }
+    return (results as [Error | null, unknown][]).map(([err, value]) => {
+      if (err) throw err;
+      return value;
+    });
+  }
+}
+
+/** Test-only: reset de proces-gedeelde Redis-client + shutdown-hook-registratie tussen testcases. */
+export function __resetSharedRedisClientForTest(): void {
+  sharedRedisClient = null;
+  redisShutdownHookRegistered = false;
+}
+
 /**
  * Bouwt de geconfigureerde store: Upstash bij RATE_LIMIT_STORE=upstash (met REST-URL + token),
- * anders de veilige in-memory default. De env-validatie (src/lib/env.ts) eist de Upstash-secrets
- * af zodra de driver op "upstash" staat; deze fallback is defensief.
+ * Redis bij RATE_LIMIT_STORE=redis (met REDIS_URL), anders de veilige in-memory default. De
+ * env-validatie (src/lib/env.ts) eist de bijbehorende secrets af zodra een driver gekozen is; deze
+ * fallback is defensief (moet in de praktijk nooit geraakt worden ná een geslaagde boot).
  */
 export function createRateLimitStore(): RateLimitStore {
   if (process.env.RATE_LIMIT_STORE === "upstash") {
@@ -260,6 +452,12 @@ export function createRateLimitStore(): RateLimitStore {
     const token = process.env.UPSTASH_REDIS_REST_TOKEN;
     if (url && token) {
       return new UpstashRateLimitStore(url, token);
+    }
+  }
+  if (process.env.RATE_LIMIT_STORE === "redis") {
+    const url = process.env.REDIS_URL;
+    if (url) {
+      return new RedisRateLimitStore(url);
     }
   }
   return new MemoryRateLimitStore();

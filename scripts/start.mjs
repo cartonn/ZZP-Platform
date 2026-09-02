@@ -11,16 +11,20 @@
 //     lopen. `prisma migrate deploy` past uitsluitend gereviewde, versiebeheerde migraties toe,
 //     houdt de historie bij in `_prisma_migrations` en serialiseert replica's via een
 //     advisory lock.
-//   - Baseline: de bestaande productiedatabase is met `db push` opgebouwd en heeft nog geen
-//     migratiehistorie. Staat het schema er al (tabel "User") zonder `_prisma_migrations`, dan
-//     markeren we `0_baseline` eenmalig als toegepast. Op een lege database draait
-//     `migrate deploy` de baseline gewoon zelf.
-//   - GEEN stille terugval naar `db push` als `migrate deploy` faalt: dat zou de historie corrupt
-//     maken en het verschil tussen "toegepast" en "toevallig bij" wegpoetsen. Falen = boot stopt.
+//   - Eerste Migrate-boot (drift-herstel, incident 2-9-2026): de bestaande productiedatabase is met
+//     `db push` opgebouwd en heeft nog geen migratiehistorie. Staat het schema er al (tabel "User")
+//     zonder `_prisma_migrations`, dan draait de boot eerst `db push` (dicht mogelijke drift sinds
+//     db push stopte werken) en markeert dáárna élke migratiemap in prisma/migrations/ als
+//     toegepast, in volgorde. Op een lege database draait `migrate deploy` alle migraties gewoon
+//     zelf. Zie prisma/manual-migrations/README.md voor het volledige verhaal.
+//   - GEEN stille terugval naar alléén `db push` als `migrate deploy` faalt: dat zou de historie
+//     corrupt maken en het verschil tussen "toegepast" en "toevallig bij" wegpoetsen. Falen = boot
+//     stopt.
 //   - SQLite (lokaal/CI) blijft `db push`: de migraties zijn Postgres-SQL, en die databases zijn
 //     wegwerpbaar zonder productiedata.
 //   De pure beslislogica staat in scripts/db-bootstrap-plan.mjs (unit-getest).
 import { execSync, spawn } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
 import http from "node:http";
 import { createRequire } from "node:module";
 import { resolveDrainMs, resolveForceKillMs } from "./shutdown-config.mjs";
@@ -33,6 +37,23 @@ const run = (cmd, env = process.env) => execSync(cmd, { env, stdio: "inherit" })
 
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = "file:./dev.db";
+}
+
+// Build-tijd voor /api/health (builtAt), zodat een verouderde deploy zichtbaar is naast de
+// commit-SHA (incident 2-9-2026: productie draaide drie weken op een oude build terwijl
+// /api/health braaf "status: ok" bleef melden — de commit-SHA alleen wordt makkelijk over het
+// hoofd gezien, een tijdstip springt meer in het oog). Het Dockerfile schrijft /app/BUILD_TIME
+// bij de build (ARG BUILD_TIME indien Railway 'm meegeeft, anders de builddatum als fallback —
+// altijd een waarde, nooit afhankelijk van extra Railway-configuratie). Best-effort: ontbreekt
+// het bestand (lokaal/dev, geen Docker-build), dan blijft BUILT_AT ongezet en valt de health-route
+// terug op "onbekend".
+if (!process.env.BUILT_AT) {
+  try {
+    const raw = readFileSync(new URL("../BUILD_TIME", import.meta.url), "utf8").trim();
+    if (raw) process.env.BUILT_AT = raw;
+  } catch {
+    // Geen Docker-build (lokaal/dev) — geen build-tijd beschikbaar, geen probleem.
+  }
 }
 
 // Automatische releasepoort vóór ELKE productiestart. Veilig default = strict/productie;
@@ -92,6 +113,26 @@ async function inspectPostgresSchema() {
 }
 
 /**
+ * Leest de migratiemap-namen uit `prisma/migrations`, oplopend gesorteerd (Prisma-migratiemappen
+ * zijn tijdstempel-geprefixed, dus alfabetisch = chronologisch; "0_baseline" begint met een cijfer
+ * kleiner dan elke jaartal-tijdstempel en sorteert dus vanzelf eerst). Sluit `migration_lock.toml`
+ * uit (dat is geen migratiemap). Nooit hardcoden — zie db-bootstrap-plan.mjs.
+ */
+function readMigrationNames() {
+  const dir = new URL("../prisma/migrations/", import.meta.url);
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return entries
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort();
+}
+
+/**
  * Voer het bootstrapplan uit. Elk commando draait via `syncSchema`, dat begrensde retry doet op
  * TRANSIËNTE onbereikbaarheid en METEEN faalt op een fatale fout (destructieve wijziging, mislukte
  * migratie) — zodat een retry nooit een echt schema-/dataprobleem maskeert.
@@ -102,19 +143,24 @@ async function bootstrapDatabase() {
     provider === "postgresql"
       ? await inspectPostgresSchema()
       : { hasMigrationsTable: false, hasUserTable: false };
-  const steps = planDbBootstrap({ provider, ...inspection });
+  const migrationNames = provider === "postgresql" ? readMigrationNames() : undefined;
+  const steps = planDbBootstrap({
+    provider,
+    ...inspection,
+    ...(migrationNames && migrationNames.length > 0 ? { migrationNames } : {}),
+  });
 
   for (const { step, command, reason } of steps) {
     console.log(`[db] ${step}: ${reason}`);
-    if (step === "resolve-baseline") {
-      // Best-effort: bij twee gelijktijdig opstartende replica's markeert er één de baseline en
+    if (step === "resolve-migration") {
+      // Best-effort: bij twee gelijktijdig opstartende replica's markeert er één een migratiemap en
       // krijgt de ander "already recorded as applied". Dat is geen fout. Ging het écht mis, dan
       // faalt `migrate deploy` hierna alsnog hard op de al bestaande tabellen — dat is de poort.
       try {
         run(command);
       } catch {
         console.warn(
-          "[db] baseline-markering ging niet door (mogelijk al gezet door een andere instance) — migrate deploy is de poort",
+          "[db] migratie-markering ging niet door (mogelijk al gezet door een andere instance) — migrate deploy is de poort",
         );
       }
       continue;

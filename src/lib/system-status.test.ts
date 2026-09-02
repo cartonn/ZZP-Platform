@@ -124,6 +124,37 @@ describe("collectSystemStatus — mail-intake-posture", () => {
   });
 });
 
+describe("collectSystemStatus — rate-limit-store-posture", () => {
+  it("toont memory als fallback (geen aandacht) wanneer het een bewuste, geldige keuze is", () => {
+    const status = collectSystemStatus(makeEnv({ RATE_LIMIT_STORE: "memory" }), {
+      invalidValue: null,
+    });
+    const item = status.groups.flatMap((g) => g.items).find((i) => i.key === "rate-limit-store")!;
+    expect(item.level).toBe("fallback");
+    expect(item.mode).toBe("memory");
+  });
+
+  it("toont redis als ok, net als upstash", () => {
+    const status = collectSystemStatus(
+      makeEnv({ RATE_LIMIT_STORE: "redis", REDIS_URL: "redis://localhost:6379" }),
+      { invalidValue: null },
+    );
+    const item = status.groups.flatMap((g) => g.items).find((i) => i.key === "rate-limit-store")!;
+    expect(item.level).toBe("ok");
+    expect(item.detail).toMatch(/Redis/);
+  });
+
+  it("toont aandacht (niet slechts fallback) wanneer de ruwe waarde onbekend was en terugviel op memory", () => {
+    const status = collectSystemStatus(makeEnv({ RATE_LIMIT_STORE: "memory" }), {
+      invalidValue: "redis-oud",
+    });
+    const item = status.groups.flatMap((g) => g.items).find((i) => i.key === "rate-limit-store")!;
+    expect(item.level).toBe("attention");
+    expect(item.mode).toContain("redis-oud");
+    expect(status.counts.attention).toBeGreaterThan(0);
+  });
+});
+
 describe("collectSystemStatus — volledig bekabelde productie", () => {
   const env = makeEnv({
     STORAGE_DRIVER: "s3",

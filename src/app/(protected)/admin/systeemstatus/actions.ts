@@ -21,6 +21,7 @@ import {
   storageSelfTestRateLimiter,
   uploadScannerSelfTestRateLimiter,
   UpstashRateLimitStore,
+  RedisRateLimitStore,
   verifierSelfTestRateLimiter,
 } from "@/lib/rate-limit";
 import {
@@ -313,7 +314,7 @@ export async function runRateLimitSelfTestAction(): Promise<RateLimitSelfTestSta
   const store = createRateLimitStore();
 
   let report: RateLimitSelfTestReport;
-  if (store instanceof UpstashRateLimitStore) {
+  if (store instanceof UpstashRateLimitStore || store instanceof RedisRateLimitStore) {
     // Eigen, duidelijk gemarkeerde probe-key onder het `rl:`-namespace; raakt geen echte tellers.
     const probeKey = `rl:selftest:${randomUUID()}`;
     report = await runRateLimitSelfTest({
@@ -322,7 +323,7 @@ export async function runRateLimitSelfTestAction(): Promise<RateLimitSelfTestSta
       probeKey,
     });
   } else {
-    // Geen gedeelde store actief (memory, of upstash zonder secrets → defensieve fallback).
+    // Geen gedeelde store actief (memory, of upstash/redis zonder secrets → defensieve fallback).
     report = inactiveRateLimitReport(storeMode);
   }
 
@@ -823,7 +824,7 @@ export async function runSelfTestSweepAction(): Promise<SelfTestSweepState> {
         const storeMode = process.env.RATE_LIMIT_STORE ?? "memory";
         const store = createRateLimitStore();
         const result =
-          store instanceof UpstashRateLimitStore
+          store instanceof UpstashRateLimitStore || store instanceof RedisRateLimitStore
             ? await runRateLimitSelfTest({
                 exec: (commands) => store.runProbeCommands(commands),
                 storeMode,

@@ -38,3 +38,91 @@ jobs:
             echo "Platform-bewaking faalde (HTTP $status)."
             exit 1
           fi
+
+  deploy-lag-watchdog:
+    # Incident 2-9-2026: elke deploy sinds 12-8 faalde stil (preflight NO-GO ná commit 66dba72),
+    # terwijl /api/health braaf "status: ok" bleef melden op de OUDE build — niemand merkte het
+    # drie weken. Deze job vergelijkt de commit die productie daadwerkelijk draait (/api/health,
+    # zie src/lib/observability/health.ts) met de laatste commit op origin/main. Loopt productie
+    # 3+ uur achter, dan opent/actualiseert de job één GitHub-issue (idempotent via het label
+    # `deploy-lag`) zodat een stille deploy-storing nooit meer weken onopgemerkt blijft.
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Productie-commit vs. main vergelijken
+        id: check
+        env:
+          # Geen bestaand secret/var voor de health-URL in deze repo (gecontroleerd 2-9-2026) —
+          # hardcoded met een override-mogelijkheid via een repo-variabele, zodat een toekomstige
+          # domeinwissel geen workflow-wijziging vereist (Settings → Secrets and variables →
+          # Actions → Variables → PRODUCTION_HEALTH_URL).
+          HEALTH_URL: ${{ vars.PRODUCTION_HEALTH_URL || 'https://zzp-platform-production-ba07.up.railway.app/api/health' }}
+        run: |
+          set -o pipefail
+          main_sha=$(git rev-parse --short origin/main)
+          main_commit_iso=$(git log -1 --format=%cI origin/main)
+          main_epoch=$(date -d "$main_commit_iso" +%s)
+          now_epoch=$(date +%s)
+          age_hours=$(( (now_epoch - main_epoch) / 3600 ))
+
+          health_json=$(curl -sS --max-time 15 "$HEALTH_URL" || echo '{}')
+          echo "Health-antwoord: $health_json"
+          prod_sha=$(echo "$health_json" | node -e '
+            let raw = "";
+            process.stdin.on("data", (d) => (raw += d));
+            process.stdin.on("end", () => {
+              try {
+                const j = JSON.parse(raw);
+                process.stdout.write(String(j.commit ?? ""));
+              } catch {
+                process.stdout.write("");
+              }
+            });
+          ')
+
+          echo "main_sha=$main_sha" >> "$GITHUB_OUTPUT"
+          echo "prod_sha=$prod_sha" >> "$GITHUB_OUTPUT"
+          echo "age_hours=$age_hours" >> "$GITHUB_OUTPUT"
+          echo "main=$main_sha (${age_hours}u oud) · productie=${prod_sha:-onbekend}"
+
+          if [ -z "$prod_sha" ]; then
+            echo "Geen commit uit /api/health te lezen — endpoint onbereikbaar of onverwacht antwoord. Geen lag-oordeel mogelijk."
+            echo "lag=unknown" >> "$GITHUB_OUTPUT"
+          elif [ "$prod_sha" = "$main_sha" ]; then
+            echo "lag=false" >> "$GITHUB_OUTPUT"
+          elif [ "$age_hours" -ge 3 ]; then
+            echo "lag=true" >> "$GITHUB_OUTPUT"
+          else
+            # Productie loopt (nog) achter, maar de laatste main-commit is jonger dan 3 uur — dat is
+            # een normale deploy-in-uitvoering, geen incident.
+            echo "lag=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Issue openen/bijwerken of sluiten
+        if: steps.check.outputs.lag != 'unknown'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LAG: ${{ steps.check.outputs.lag }}
+          MAIN_SHA: ${{ steps.check.outputs.main_sha }}
+          PROD_SHA: ${{ steps.check.outputs.prod_sha }}
+          AGE_HOURS: ${{ steps.check.outputs.age_hours }}
+          REPO: ${{ github.repository }}
+        run: |
+          existing=$(gh issue list --repo "$REPO" --label deploy-lag --state open --json number --jq '.[0].number // empty')
+
+          if [ "$LAG" = "true" ]; then
+            title="Productie loopt achter op main"
+            body="Productie draait commit \`${PROD_SHA:-onbekend}\` (via /api/health), terwijl \`origin/main\` bij \`${MAIN_SHA}\` staat — dat verschil bestaat al minstens ${AGE_HOURS} uur. Controleer de Railway-deploy-logs op een falende build/preflight (zie CLAUDE.md §8 en scripts/preflight.ts) en herstel de deploy."
+            if [ -n "$existing" ]; then
+              gh issue comment "$existing" --repo "$REPO" --body "$body"
+            else
+              gh issue create --repo "$REPO" --title "$title" --label deploy-lag --body "$body"
+            fi
+          elif [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" --body "Productie loopt weer gelijk met main (commit \`${PROD_SHA}\`) — automatisch gesloten."
+            gh issue close "$existing" --repo "$REPO"
+          fi

@@ -9,6 +9,9 @@ import { withProbeTimeout, resolveProbeTimeoutMs } from "@/lib/observability/pro
 export const dynamic = "force-dynamic";
 
 const commitSha = process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.COMMIT_SHA ?? "dev";
+// Gezet door scripts/start.mjs uit /app/BUILD_TIME (Dockerfile schrijft dat bij de build) — zie
+// src/lib/observability/health.ts voor de normalisatie.
+const builtAt = process.env.BUILT_AT;
 
 export async function GET() {
   let db = true;
@@ -25,6 +28,6 @@ export async function GET() {
     await reportError(error, { source: "health", requestPath: "/api/health" });
   }
 
-  const payload = buildHealthPayload({ db, commit: commitSha, now: new Date() });
+  const payload = buildHealthPayload({ db, commit: commitSha, builtAt, now: new Date() });
   return NextResponse.json(payload, { status: healthHttpStatus(payload) });
 }

@@ -15,10 +15,14 @@
   2. Schema bijwerken — **PostgreSQL draait op Prisma Migrate**: `prisma migrate deploy` past
      uitsluitend de gereviewde migraties uit `prisma/migrations/` toe en houdt de historie bij in
      `_prisma_migrations`. Staat het schema er al zonder die tabel (de database is ooit met
-     `db push` opgebouwd), dan wordt `0_baseline` eenmalig als toegepast gemarkeerd. Faalt de
-     migratie, dan stopt de boot zichtbaar — **er is bewust geen terugval op `db push`**. SQLite
+     `db push` opgebouwd), dan herstelt de boot eerst mogelijke DRIFT (incident 2-9-2026: drie weken
+     mislukte deploys lieten dit pad nooit draaien terwijl `main` doorbouwde) — `prisma db push
+--skip-generate` werkt het schema daadwerkelijk bij, dáárna wordt elke migratiemap in
+     `prisma/migrations/` in volgorde als toegepast gemarkeerd, en `migrate deploy` bevestigt. Faalt
+     een stap, dan stopt de boot zichtbaar — **er is bewust geen stille terugval**. SQLite
      (lokaal/CI) blijft `prisma db push --skip-generate`, zonder `--accept-data-loss`. Beslislogica:
-     `scripts/db-bootstrap-plan.mjs`; nieuwe migratie maken: `prisma/manual-migrations/README.md`.
+     `scripts/db-bootstrap-plan.mjs`; nieuwe migratie maken/details van het herstelpad:
+     `prisma/manual-migrations/README.md`.
   3. Next.js-server starten op de door Railway aangereikte `PORT`.
   4. Referentie- (en met `SEED_DEMO=true` ook demo-)data **asynchroon** seeden, pas nadat
      `/api/readiness` lokaal 200 geeft — healthchecks wachten dus nooit op een seed.
@@ -38,9 +42,16 @@
 | `/api/health`    | Liveness (DB-ping)                | `200`  | `503`    | `force-dynamic` |
 | `/api/readiness` | Readiness (DB + schema + drainen) | `200`  | `503`    | `force-dynamic` |
 
-- Beide zijn **nooit gecachet** en bevatten geen PII/secrets (alleen een korte commit-hash).
+- Beide zijn **nooit gecachet** en bevatten geen PII/secrets (alleen een korte commit-hash + de
+  build-tijd, `builtAt` — ISO of `"onbekend"` zonder Docker-build).
 - Hang een **uptime-monitor** (bv. de Railway-healthcheck + een externe pinger) op `/api/health`.
   Reageert hij met `503`, dan is de DB onbereikbaar → zie §6 (incident).
+- **Deploy-lag-watchdog** (`.github/workflows/monitor.yml`, job `deploy-lag-watchdog`, elke 10 min):
+  vergelijkt `commit` uit `/api/health` met de laatste commit op `origin/main`. Loopt productie 3+
+  uur achter (incident 2-9-2026: dat gebeurde drie weken stil, `/api/health` bleef `status: ok`
+  melden op de OUDE build), dan opent/actualiseert de job automatisch één GitHub-issue met label
+  `deploy-lag` — en sluit het weer zodra productie bijtrekt. Vereist geen secrets (leest de publieke
+  `/api/health`); optioneel een repo-variabele `PRODUCTION_HEALTH_URL` bij een domeinwissel.
 - Een DB-storing op `/api/health` wordt gerapporteerd via de observability-reporter (Sentry-ready
   zodra `SENTRY_DSN` gezet is; anders gestructureerd gelogd).
 - **Harde time-out op de DB-probes:** beide probes doen een DB-round-trip binnen een harde deadline

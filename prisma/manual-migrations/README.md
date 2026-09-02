@@ -13,9 +13,31 @@ SQLite gedraaid.
 
 **Baseline.** `prisma/migrations/0_baseline/` bevat het volledige schema zoals het op het moment van
 invoering in productie stond. De bestaande productiedatabase is met `db push` opgebouwd en had nog
-geen `_prisma_migrations`-tabel; de boot markeert de baseline daarom eenmalig als toegepast
-(`prisma migrate resolve --applied 0_baseline`) zodra het schema er al staat maar de historie
-ontbreekt. Op een lege database draait `migrate deploy` de baseline gewoon zelf.
+geen `_prisma_migrations`-tabel.
+
+**Eerste Migrate-boot met mogelijke drift (incident 2-9-2026).** Blind de baseline als toegepast
+markeren zonder het schema eerst bij te werken, is fout zodra er drift is tussen "schema staat er"
+en "schema is gelijk aan wat de migraties samen zouden opleveren" — precies dat gebeurde toen de
+boot-preflight drie weken NO-GO'de (RATE_LIMIT_STORE=redis, zie `src/lib/env.ts`) terwijl `main`
+intussen doorbouwde: de productie-DB miste bij de eerste geslaagde boot kolommen/tabellen die
+`prisma/schema.prisma` inmiddels wél kende. Daarom draait de boot, alléén wanneer het schema er al
+staat (tabel `User`) maar `_prisma_migrations` ontbreekt, dit herstelpad:
+
+1. `prisma db push --skip-generate` (bewust ZONDER `--accept-data-loss`) werkt het schema
+   daadwerkelijk bij op het huidige `prisma/schema.prisma` — dicht additieve drift. Een
+   DESTRUCTIEVE wijziging laat de boot bewust hard falen (data-bescherming); dat is gewenst, geen
+   bug.
+2. Elke migratiemap in `prisma/migrations/` wordt in oplopende volgorde als toegepast gemarkeerd
+   (`prisma migrate resolve --applied <naam>`) — de mapnamen komen uit de map zelf (nooit
+   hardcoded), en na stap 1 heeft de database precies het schema dat die migraties samen zouden
+   opleveren (de CI-job `migrations` bewaakt die belofte).
+3. `prisma migrate deploy` als bevestiging (no-op zodra alles gemarkeerd staat) — de echte poort:
+   verschilt de historie toch, dan faalt deze stap zichtbaar.
+
+Op een lege database (geen `User`-tabel, geen migratiehistorie) draait `migrate deploy` alle
+migraties gewoon zelf — geen drift mogelijk. Alle volgende boots (migratiehistorie bestaat al):
+alleen `migrate deploy`. Zie `scripts/db-bootstrap-plan.mjs` voor de volledige, unit-geteste
+beslislogica.
 
 ## Een nieuwe migratie maken
 

@@ -6,6 +6,7 @@ import {
   RESOLVE_BASELINE_COMMAND,
   planDbBootstrap,
   resolveDbProvider,
+  resolveMigrationCommand,
 } from "./db-bootstrap-plan.mjs";
 
 describe("resolveDbProvider", () => {
@@ -39,15 +40,44 @@ describe("planDbBootstrap", () => {
     expect(steps[0]!.command).toBe(MIGRATE_DEPLOY_COMMAND);
   });
 
-  it("markeert de baseline eenmalig op een bestaande, met db push opgebouwde database", () => {
+  it("herstelt drift op een bestaande, met db push opgebouwde database: push → resolve baseline → migrate deploy", () => {
     const steps = planDbBootstrap({
       provider: "postgresql",
       hasMigrationsTable: false,
       hasUserTable: true,
     });
-    expect(steps.map((s) => s.step)).toEqual(["resolve-baseline", "migrate-deploy"]);
-    expect(steps[0]!.command).toBe(RESOLVE_BASELINE_COMMAND);
-    expect(steps[0]!.command).toContain(BASELINE_MIGRATION);
+    // Default migrationNames = [BASELINE_MIGRATION] wanneer de caller geen mappen meegeeft.
+    expect(steps.map((s) => s.step)).toEqual(["push", "resolve-migration", "migrate-deploy"]);
+    expect(steps[0]!.command).toBe(PUSH_COMMAND);
+    expect(steps[1]!.command).toBe(RESOLVE_BASELINE_COMMAND);
+    expect(steps[1]!.command).toContain(BASELINE_MIGRATION);
+  });
+
+  it("markeert ELKE migratiemap als toegepast, in de meegegeven volgorde, ná de db push", () => {
+    const steps = planDbBootstrap({
+      provider: "postgresql",
+      hasMigrationsTable: false,
+      hasUserTable: true,
+      migrationNames: ["0_baseline", "20260901120000_add_column"],
+    });
+    expect(steps.map((s) => s.step)).toEqual([
+      "push",
+      "resolve-migration",
+      "resolve-migration",
+      "migrate-deploy",
+    ]);
+    expect(steps[1]!.command).toBe(resolveMigrationCommand("0_baseline"));
+    expect(steps[2]!.command).toBe(resolveMigrationCommand("20260901120000_add_column"));
+  });
+
+  it("draait de db push ZONDER --accept-data-loss (destructieve drift moet de boot luid laten falen)", () => {
+    const steps = planDbBootstrap({
+      provider: "postgresql",
+      hasMigrationsTable: false,
+      hasUserTable: true,
+    });
+    const push = steps.find((s) => s.step === "push");
+    expect(push!.command).not.toContain("--accept-data-loss");
   });
 
   it("baselinet niet opnieuw zodra de migratiehistorie bestaat", () => {
@@ -59,12 +89,19 @@ describe("planDbBootstrap", () => {
     expect(steps.map((s) => s.step)).toEqual(["migrate-deploy"]);
   });
 
-  it("valt op Postgres nooit terug op db push (geen stille bypass van de migratiehistorie)", () => {
+  it("eindigt op Postgres altijd met migrate deploy als poort — nooit stil op alleen db push", () => {
     for (const hasMigrationsTable of [false, true]) {
       for (const hasUserTable of [false, true]) {
         const steps = planDbBootstrap({ provider: "postgresql", hasMigrationsTable, hasUserTable });
-        expect(steps.some((s) => s.step === "push")).toBe(false);
         expect(steps.at(-1)!.step).toBe("migrate-deploy");
+        // Een db-push-stap komt UITSLUITEND voor in het drift-herstelpad (geen migratiehistorie,
+        // schema al aanwezig) en wordt daar altijd gevolgd door resolve-migration-stappen — nooit
+        // als stille vervanging van migrate deploy.
+        if (steps.some((s) => s.step === "push")) {
+          expect(hasMigrationsTable).toBe(false);
+          expect(hasUserTable).toBe(true);
+          expect(steps.some((s) => s.step === "resolve-migration")).toBe(true);
+        }
       }
     }
   });

@@ -6,7 +6,7 @@
 // GEEN geheimen: deze module leest alleen driver-MODI en booleans (aan/uit), nooit sleutelwaarden.
 // De boot-waarschuwingen (envWarnings) noemen env-VARIABELENAMEN, geen waarden.
 
-import { envWarnings, type Env } from "@/lib/env";
+import { envWarnings, rateLimitStoreDiagnostics, type Env } from "@/lib/env";
 import { isIndexingAllowed } from "@/lib/indexing";
 import { parseAuditRetentionDays } from "@/lib/config";
 import { isMaintenanceEnabled, maintenanceAllowsAdmin } from "@/lib/maintenance";
@@ -59,10 +59,17 @@ function fallbackLevel(production: boolean): StatusLevel {
 }
 
 /**
- * Bouwt de volledige systeemstatus uit de omgeving. Puur en deterministisch — geen I/O, geen klok.
- * De live databank-bereikbaarheid komt los binnen (readiness) en wordt in de UI ernaast getoond.
+ * Bouwt de volledige systeemstatus uit de omgeving. Puur en deterministisch — geen I/O, geen klok
+ * — mits `rateLimitStore` wordt meegegeven; zonder tweede argument valt de functie voor het gemak
+ * terug op een live `rateLimitStoreDiagnostics()`-lezing (env.ts) zodat de echte call-sites
+ * (preflight, /admin/systeemstatus) niets extra hoeven door te geven. Tests geven expliciet mee
+ * voor determinisme. De live databank-bereikbaarheid komt los binnen (readiness) en wordt in de UI
+ * ernaast getoond.
  */
-export function collectSystemStatus(env: Env): SystemStatus {
+export function collectSystemStatus(
+  env: Env,
+  rateLimitStore: { invalidValue: string | null } = rateLimitStoreDiagnostics(),
+): SystemStatus {
   const production = env.NODE_ENV === "production";
   const fb = fallbackLevel(production);
 
@@ -327,12 +334,24 @@ export function collectSystemStatus(env: Env): SystemStatus {
         {
           key: "rate-limit-store",
           label: "Rate-limit-store",
-          mode: env.RATE_LIMIT_STORE,
-          level: env.RATE_LIMIT_STORE === "upstash" ? "ok" : "fallback",
-          detail:
-            env.RATE_LIMIT_STORE === "upstash"
-              ? "Gedeeld via Upstash Redis — limieten gelden over alle instances."
-              : "Per-proces in-memory. Zet RATE_LIMIT_STORE=upstash vóór horizontale schaling.",
+          // Een ONBEKENDE ruwe waarde (rateLimitStoreDiagnostics) is altijd "attention": de boot viel
+          // veilig terug op memory, maar dat is een misconfiguratie die actie vraagt (incident
+          // 2-9-2026) — anders dan een bewuste, geldige memory-keuze (die blijft "fallback").
+          mode: rateLimitStore.invalidValue
+            ? `${env.RATE_LIMIT_STORE} (onbekend: "${rateLimitStore.invalidValue}")`
+            : env.RATE_LIMIT_STORE,
+          level: rateLimitStore.invalidValue
+            ? "attention"
+            : env.RATE_LIMIT_STORE === "memory"
+              ? "fallback"
+              : "ok",
+          detail: rateLimitStore.invalidValue
+            ? `RATE_LIMIT_STORE="${rateLimitStore.invalidValue}" is geen geldige driver (memory/upstash/redis) — teruggevallen op memory. Zet een geldige waarde.`
+            : env.RATE_LIMIT_STORE === "redis"
+              ? "Gedeeld via Redis — limieten gelden over alle instances."
+              : env.RATE_LIMIT_STORE === "upstash"
+                ? "Gedeeld via Upstash Redis — limieten gelden over alle instances."
+                : "Per-proces in-memory. Zet RATE_LIMIT_STORE=upstash of redis vóór horizontale schaling.",
         },
         {
           key: "semantic-matcher",

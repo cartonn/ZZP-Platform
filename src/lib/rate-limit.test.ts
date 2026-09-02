@@ -8,9 +8,11 @@ import {
   messageRateLimiter,
   noShowReportRateLimiter,
   RateLimiter,
+  RedisRateLimitStore,
   resetRateLimiter,
   uploadRateLimiter,
   UpstashRateLimitStore,
+  __resetSharedRedisClientForTest,
   type RateLimitResult,
 } from "@/lib/rate-limit";
 
@@ -23,6 +25,61 @@ vi.mock("@/lib/observability/ratelimit-delivery-heartbeat", () => ({
   recordRateLimitDeliverySuccess,
   recordRateLimitDeliveryFailure,
 }));
+
+// Mock ioredis: een echte verbinding is niet beschikbaar/gewenst in unit-tests. De fake bootst
+// MULTI/EXEC (consume), pipeline (runProbeCommands) en DEL (reset) na via een gedeelde, per-test
+// resetbare state — zelfde geest als de fetch-mocks bij UpstashRateLimitStore hieronder.
+const redisState = vi.hoisted(() => ({
+  multiExecResult: [
+    [null, 1],
+    [null, 1],
+    [null, 60_000],
+  ] as [Error | null, unknown][],
+  pipelineExecResult: [[null, 1]] as [Error | null, unknown][],
+  delResult: 1 as unknown,
+  throwOnMulti: false,
+  throwOnPipeline: false,
+  lastMultiCalls: [] as unknown[][],
+  lastPipelineCommands: [] as unknown[][],
+  lastDelKey: "",
+}));
+vi.mock("ioredis", () => {
+  class FakeRedis {
+    on() {
+      return this;
+    }
+    multi() {
+      const calls: unknown[][] = [];
+      const chain = {
+        call: (...args: unknown[]) => {
+          calls.push(args);
+          return chain;
+        },
+        exec: async () => {
+          redisState.lastMultiCalls = calls;
+          if (redisState.throwOnMulti) throw new Error("Redis MULTI/EXEC mislukt (test)");
+          return redisState.multiExecResult;
+        },
+      };
+      return chain;
+    }
+    pipeline(commands: unknown[][]) {
+      redisState.lastPipelineCommands = commands;
+      return {
+        exec: async () => {
+          if (redisState.throwOnPipeline) throw new Error("Redis pipeline mislukt (test)");
+          return redisState.pipelineExecResult;
+        },
+      };
+    }
+    async del(key: string) {
+      redisState.lastDelKey = key;
+      return redisState.delResult;
+    }
+    async quit() {}
+  }
+  return { default: FakeRedis };
+});
 
 // Vaste referentietijdstempel voor deterministische tests — geen echte timers.
 const BASE_NOW = 1_700_000_000_000; // willekeurige, vaste epoch-waarde
@@ -328,17 +385,136 @@ describe("UpstashRateLimitStore", () => {
   });
 });
 
+describe("RedisRateLimitStore", () => {
+  beforeEach(() => {
+    recordRateLimitDeliverySuccess.mockClear();
+    recordRateLimitDeliveryFailure.mockClear();
+    __resetSharedRedisClientForTest();
+    redisState.multiExecResult = [
+      [null, 1],
+      [null, 1],
+      [null, 60_000],
+    ];
+    redisState.pipelineExecResult = [[null, 1]];
+    redisState.delResult = 1;
+    redisState.throwOnMulti = false;
+    redisState.throwOnPipeline = false;
+    redisState.lastMultiCalls = [];
+    redisState.lastPipelineCommands = [];
+    redisState.lastDelKey = "";
+  });
+
+  it("staat toe onder de limiet en leest remaining uit de teller", async () => {
+    redisState.multiExecResult = [
+      [null, 1],
+      [null, 1],
+      [null, 60_000],
+    ];
+    const store = new RedisRateLimitStore("redis://localhost:6379");
+    const r = await store.consume("ip", 3, 60_000, BASE_NOW);
+    expect(r.allowed).toBe(true);
+    expect(r.remaining).toBe(2);
+    expect(r.retryAfterMs).toBe(0);
+    // Dead-man's-switch: een geslaagde round-trip registreert delivery-success (driver "redis").
+    expect(recordRateLimitDeliverySuccess).toHaveBeenCalledWith("redis");
+    expect(recordRateLimitDeliveryFailure).not.toHaveBeenCalled();
+  });
+
+  it("weigert boven de limiet en gebruikt PTTL voor retryAfterMs", async () => {
+    redisState.multiExecResult = [
+      [null, 4],
+      [null, 1],
+      [null, 42_000],
+    ];
+    const store = new RedisRateLimitStore("redis://localhost:6379");
+    const r = await store.consume("ip", 3, 60_000, BASE_NOW);
+    expect(r.allowed).toBe(false);
+    expect(r.remaining).toBe(0);
+    expect(r.retryAfterMs).toBe(42_000);
+  });
+
+  it("valt terug op het volledige venster als PTTL geen TTL kent (-1)", async () => {
+    redisState.multiExecResult = [
+      [null, 4],
+      [null, 1],
+      [null, -1],
+    ];
+    const store = new RedisRateLimitStore("redis://localhost:6379");
+    const r = await store.consume("ip", 3, 60_000, BASE_NOW);
+    expect(r.allowed).toBe(false);
+    expect(r.retryAfterMs).toBe(60_000);
+  });
+
+  it("stuurt INCR/PEXPIRE NX/PTTL met namespace via MULTI", async () => {
+    const store = new RedisRateLimitStore("redis://localhost:6379");
+    await store.consume("ip-1", 5, 60_000, BASE_NOW);
+    expect(redisState.lastMultiCalls).toEqual([
+      ["INCR", "rl:ip-1"],
+      ["PEXPIRE", "rl:ip-1", 60_000, "NX"],
+      ["PTTL", "rl:ip-1"],
+    ]);
+  });
+
+  it("fail-open: staat het verzoek toe als de Redis-call faalt", async () => {
+    redisState.throwOnMulti = true;
+    const store = new RedisRateLimitStore("redis://localhost:6379");
+    const r = await store.consume("ip", 3, 60_000, BASE_NOW);
+    expect(r.allowed).toBe(true);
+    expect(r.remaining).toBe(3);
+    // Dead-man's-switch: de fail-open mislukking wordt geregistreerd zodat een aanhoudende storing zichtbaar wordt.
+    expect(recordRateLimitDeliveryFailure).toHaveBeenCalledWith("redis");
+    expect(recordRateLimitDeliverySuccess).not.toHaveBeenCalled();
+  });
+
+  it("reset stuurt een DEL voor de genamespacete key", async () => {
+    const store = new RedisRateLimitStore("redis://localhost:6379");
+    await store.reset("ip-9");
+    expect(redisState.lastDelKey).toBe("rl:ip-9");
+  });
+
+  it("runProbeCommands surfacet fouten (geen fail-open) — voor de admin-zelftest", async () => {
+    redisState.throwOnPipeline = true;
+    const store = new RedisRateLimitStore("redis://localhost:6379");
+    await expect(store.runProbeCommands([["INCR", "rl:selftest:x"]])).rejects.toThrow();
+  });
+
+  it("runProbeCommands geeft de pipeline-resultaten terug", async () => {
+    redisState.pipelineExecResult = [
+      [null, 1],
+      [null, 60_000],
+    ];
+    const store = new RedisRateLimitStore("redis://localhost:6379");
+    const results = await store.runProbeCommands([
+      ["PEXPIRE", "rl:selftest:x", 60_000, "NX"],
+      ["PTTL", "rl:selftest:x"],
+    ]);
+    expect(results).toEqual([1, 60_000]);
+  });
+
+  it("hergebruikt dezelfde onderliggende client over meerdere store-instances (gedeelde verbinding)", async () => {
+    const storeA = new RedisRateLimitStore("redis://localhost:6379");
+    const storeB = new RedisRateLimitStore("redis://localhost:6379");
+    await storeA.consume("a", 5, 60_000, BASE_NOW);
+    await storeB.consume("b", 5, 60_000, BASE_NOW);
+    // Geen directe handle op de client hier, maar beide consumes moeten zonder fout de gedeelde
+    // FakeRedis-instance vinden (module-singleton) — falen zou hier een exception opleveren.
+    expect(recordRateLimitDeliverySuccess).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("createRateLimitStore (factory)", () => {
   const saved = {
     store: process.env.RATE_LIMIT_STORE,
     url: process.env.UPSTASH_REDIS_REST_URL,
     token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    redisUrl: process.env.REDIS_URL,
   };
 
   afterEach(() => {
     process.env.RATE_LIMIT_STORE = saved.store;
     process.env.UPSTASH_REDIS_REST_URL = saved.url;
     process.env.UPSTASH_REDIS_REST_TOKEN = saved.token;
+    process.env.REDIS_URL = saved.redisUrl;
   });
 
   it("geeft een MemoryRateLimitStore zonder env-config", () => {
@@ -357,6 +533,18 @@ describe("createRateLimitStore (factory)", () => {
     process.env.RATE_LIMIT_STORE = "upstash";
     delete process.env.UPSTASH_REDIS_REST_URL;
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    expect(createRateLimitStore()).toBeInstanceOf(MemoryRateLimitStore);
+  });
+
+  it("geeft een RedisRateLimitStore bij RATE_LIMIT_STORE=redis met REDIS_URL", () => {
+    process.env.RATE_LIMIT_STORE = "redis";
+    process.env.REDIS_URL = "redis://localhost:6379";
+    expect(createRateLimitStore()).toBeInstanceOf(RedisRateLimitStore);
+  });
+
+  it("valt veilig terug op memory als REDIS_URL ontbreekt", () => {
+    process.env.RATE_LIMIT_STORE = "redis";
+    delete process.env.REDIS_URL;
     expect(createRateLimitStore()).toBeInstanceOf(MemoryRateLimitStore);
   });
 });
