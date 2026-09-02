@@ -40,6 +40,7 @@ import {
   incomeTaxDeadlineTask,
   hoursCriterionTask,
   paymentDueSoonTask,
+  clientCascadePaymentDueSoonTask,
   overdueInvoiceTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
@@ -953,6 +954,29 @@ describe("paymentDueSoonTask", () => {
 
   it("rangschikt onder de post-due roll-up (zachter dan te laat)", () => {
     expect(P.paymentDueSoon).toBeLessThan(P.overdueInvoice);
+  });
+});
+
+describe("clientCascadePaymentDueSoonTask", () => {
+  it("pre-due cascade-nudge: info-toon, per-factuur deep-link naar de samenwerking", () => {
+    const t = clientCascadePaymentDueSoonTask(
+      "inv-1",
+      "collab-9",
+      "Nachtdienst ZH",
+      "Sanne de Vries",
+    );
+    expect(t.kind).toBe("client-payment-due-soon");
+    expect(t.id).toBe("client-payment-due-soon:inv-1");
+    expect(t.tone).toBe("info");
+    expect(t.priority).toBe(P.clientCascadePaymentDueSoon);
+    expect(t.resolver).toBe("link");
+    expect(t.href).toBe("/samenwerkingen/collab-9");
+    expect(t.title).toContain("Sanne de Vries");
+    expect(t.subtitle).toContain("Nachtdienst ZH");
+  });
+
+  it("post-due neemt het over: cascade OVERDUE staat strikt boven deze pre-due nudge", () => {
+    expect(P.clientCascadePaymentDueSoon).toBeLessThan(P.clientCascadeOverduePayment);
   });
 });
 

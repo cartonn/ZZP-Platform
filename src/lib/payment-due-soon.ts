@@ -41,3 +41,40 @@ export function paymentDueSoonWhere(
     dueAt: { gte: now, lte: windowEnd },
   };
 }
+
+/**
+ * Prisma-`where` voor de CASCADE-tegenhanger van bovenstaande pre-due nudge — de facturen waarvoor
+ * de opdrachtgever bij een cascade-samenwerking een pre-due betaal-nudge hoort te krijgen. Dit is
+ * de tegenhanger van de OVERDUE cascade-betaaltaak (`clientCascadeOverduePaymentTask` in
+ * `src/lib/actions/tasks.ts`): in de cascade is de opdrachtgever de betalende partij
+ * (`counterpartyUserId`) en betaalt hij out-of-band via het samenwerkingsdetail. Tot nu toe kreeg
+ * hij pas een next-action zódra de factuur al OVER de vervaldatum stond; deze helper dekt het
+ * pre-due venster zodat hij op tijd kan betalen. Scoping (spiegelt bewust de OVERDUE-taak zodat de
+ * twee nudges elkaar nooit overlappen of tegenspreken):
+ *
+ * - **Payer = de opdrachtgever** (`counterpartyUserId: userId`): in de cascade betaalt de
+ *   opdrachtgever als tegenpartij; hij ziet en voldoet de factuur via het samenwerkingsdetail.
+ * - **Goedgekeurd maar nog niet betaald én nog niet OVERDUE** (`lifecycleStatus: "APPROVED"`). De
+ *   cron `payment-reminders-task.ts` flipt APPROVED→OVERDUE op de vervaldatum, dus APPROVED + een
+ *   `dueAt` in de toekomst is exact het pre-due venster. Disjunct van de OVERDUE-taak (die op een
+ *   andere lifecycleStatus scopet) → één factuur voedt nooit beide taken, dus nooit dubbeltelling.
+ * - **Nog niet te laat** (`dueAt >= now`): `gte: now` sluit de post-due OVERDUE-taak af zodat de
+ *   twee nudges disjunct blijven, ook precies op de vervaldatum.
+ * - **Binnen het venster** (`dueAt <= now + window`): daarbuiten is er nog geen reden tot actie.
+ * - **Niet in dispuut** (`collaboration: { disputedAt: null }`): een dispuut bevriest het
+ *   werkproces; een betaal-nudge zou het "werkproces bevroren"-scherm tegenspreken (consistent met
+ *   de OVERDUE-taak).
+ */
+export function cascadePaymentDueSoonWhere(
+  userId: string,
+  now: Date,
+  windowDays: number = PAYMENT_DUE_SOON_WINDOW_DAYS,
+): Prisma.InvoiceWhereInput {
+  const windowEnd = new Date(now.getTime() + windowDays * 86_400_000);
+  return {
+    counterpartyUserId: userId,
+    lifecycleStatus: "APPROVED",
+    collaboration: { disputedAt: null },
+    dueAt: { gte: now, lte: windowEnd },
+  };
+}
