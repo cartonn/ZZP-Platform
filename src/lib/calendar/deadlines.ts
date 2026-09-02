@@ -55,6 +55,16 @@ export interface CollaborationDeadline {
   asClient: boolean;
 }
 
+/** De aanstaande start van een plaatsing (samenwerking met een nog niet aangebroken startdatum). */
+export interface PlacementStartDeadline {
+  id: string;
+  startDate: Date;
+  /** De naam van de tegenpartij vanuit het perspectief van deze gebruiker. */
+  counterpartyName: string;
+  /** true = de gebruiker is de opdrachtgever (tegenpartij = ZZP'er); false = de gebruiker is de ZZP'er. */
+  asClient: boolean;
+}
+
 /** De volledige set administratieve deadlines van één gebruiker. */
 export interface AdministrativeDeadlines {
   credentials: CredentialDeadline[];
@@ -62,6 +72,8 @@ export interface AdministrativeDeadlines {
   vat: VatDeadline[];
   /** Eerstvolgende IB-aangifte-deadline (alleen ZZP'er met omzet), of `null`. */
   incomeTax: IncomeTaxDeadline | null;
+  /** Aanstaande startdatums van plaatsingen (samenwerkingen) waarbij de gebruiker partij is. */
+  placementStarts: PlacementStartDeadline[];
   /** Einddatums van lopende plaatsingen (samenwerkingen) waarbij de gebruiker partij is. */
   collaborations: CollaborationDeadline[];
 }
@@ -73,8 +85,8 @@ export interface AdministrativeDeadlines {
 /**
  * Zet administratieve deadlines om naar losse gehele-dag-IcsEvents (geen herhaling). Bewaart de
  * invoervolgorde binnen elke categorie; certificaten, dan facturen, dan BTW, dan de IB-aangifte, dan
- * de plaatsing-einddatums. De UID's zijn stabiel en uniek binnen de per-gebruiker-feed, zodat
- * agenda-apps events bijwerken i.p.v. dupliceren.
+ * de plaatsing-startdatums, dan de plaatsing-einddatums. De UID's zijn stabiel en uniek binnen de
+ * per-gebruiker-feed, zodat agenda-apps events bijwerken i.p.v. dupliceren.
  */
 export function administrativeDeadlineEvents(input: AdministrativeDeadlines): IcsEvent[] {
   const events: IcsEvent[] = [];
@@ -139,6 +151,34 @@ export function administrativeDeadlineEvents(input: AdministrativeDeadlines): Ic
         {
           daysBefore: 14,
           description: `Aangifte inkomstenbelasting ${input.incomeTax.taxYear} over 14 dagen.`,
+        },
+      ],
+    });
+  }
+
+  for (const start of input.placementStarts) {
+    events.push({
+      uid: `placement-start-${start.id}@zzp-platform`,
+      summary: `Start plaatsing: ${start.counterpartyName}`,
+      start: start.startDate,
+      allDay: true,
+      description: start.asClient
+        ? `De plaatsing van ${start.counterpartyName} begint. Zorg dat alles klaarstaat voor de start.`
+        : `Je plaatsing bij ${start.counterpartyName} begint. Zorg dat je klaarstaat voor de start.`,
+      // Een aanstaande plaatsing verdient een aanloop (afspraken, toegang, planning); waarschuw een
+      // week vooraf en nog een keer de dag ervóór.
+      alarms: [
+        {
+          daysBefore: 7,
+          description: start.asClient
+            ? `Plaatsing van ${start.counterpartyName} begint over 7 dagen.`
+            : `Je plaatsing bij ${start.counterpartyName} begint over 7 dagen.`,
+        },
+        {
+          daysBefore: 1,
+          description: start.asClient
+            ? `Plaatsing van ${start.counterpartyName} begint morgen.`
+            : `Je plaatsing bij ${start.counterpartyName} begint morgen.`,
         },
       ],
     });

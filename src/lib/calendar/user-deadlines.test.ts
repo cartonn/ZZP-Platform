@@ -159,6 +159,7 @@ describe("loadUserAdministrativeDeadlines", () => {
     collaborationFindManyMock.mockResolvedValue([
       {
         id: "col-1",
+        startDate: new Date("2026-05-01T00:00:00Z"), // verstreken → geen start-event
         endDate: new Date("2026-10-01T00:00:00Z"),
         freelancer: { userId: USER, user: { name: "Sanne de Vries" } },
         company: { userId: "other-client", name: "Zorggroep De Linde" },
@@ -173,12 +174,78 @@ describe("loadUserAdministrativeDeadlines", () => {
         asClient: false,
       },
     ]);
-    // Scoping: alleen ACTIVE, niet-betwiste, nog-niet-verstreken plaatsingen van de eigen gebruiker.
+    // Een reeds aangebroken start levert geen start-event (her-toets `>= now` in JS).
+    expect(result.placementStarts).toEqual([]);
+    // Scoping: alleen ACTIVE, niet-betwiste plaatsingen van de eigen gebruiker, met een nog niet
+    // aangebroken start óf een nog niet verstreken einde.
     const where = collaborationFindManyMock.mock.calls[0]?.[0]?.where;
     expect(where!.status).toBe("ACTIVE");
     expect(where!.disputedAt).toBeNull();
-    expect(where!.endDate).toEqual({ not: null, gte: NOW });
-    expect(where!.OR).toEqual([{ freelancer: { userId: USER } }, { company: { userId: USER } }]);
+    const partyClause = (where!.AND ?? []).find(
+      (c) => Array.isArray(c.OR) && c.OR.some((o) => "freelancer" in o),
+    );
+    expect(partyClause?.OR).toEqual([
+      { freelancer: { userId: USER } },
+      { company: { userId: USER } },
+    ]);
+    const dateClause = (where!.AND ?? []).find(
+      (c) => Array.isArray(c.OR) && c.OR.some((o) => "endDate" in o || "startDate" in o),
+    );
+    expect(dateClause?.OR).toContainEqual({ endDate: { not: null, gte: NOW } });
+    expect(dateClause?.OR).toContainEqual({ startDate: { not: null, gte: NOW } });
+  });
+
+  it("ZZP'er: een aanstaande startdatum levert een placementStart (opdrachtgever als tegenpartij)", async () => {
+    collaborationFindManyMock.mockResolvedValue([
+      {
+        id: "col-3",
+        startDate: new Date("2026-08-15T00:00:00Z"), // toekomst → start-event
+        endDate: null, // geen einddatum → geen einde-event
+        freelancer: { userId: USER, user: { name: "Sanne de Vries" } },
+        company: { userId: "other-client", name: "Zorggroep De Linde" },
+      },
+    ]);
+    const result = await loadUserAdministrativeDeadlines(USER, "FREELANCER", NOW);
+    expect(result.placementStarts).toEqual([
+      {
+        id: "col-3",
+        startDate: new Date("2026-08-15T00:00:00Z"),
+        counterpartyName: "Zorggroep De Linde",
+        asClient: false,
+      },
+    ]);
+    // Geen einddatum → geen einde-event (de rij matchte via de start).
+    expect(result.collaborations).toEqual([]);
+  });
+
+  it("opdrachtgever: een aanstaande startdatum toont de ZZP'er als tegenpartij (asClient)", async () => {
+    collaborationFindManyMock.mockResolvedValue([
+      {
+        id: "col-4",
+        startDate: new Date("2026-09-01T00:00:00Z"),
+        endDate: new Date("2026-12-01T00:00:00Z"),
+        freelancer: { userId: "other-zzp", user: { name: "Sanne de Vries" } },
+        company: { userId: USER, name: "Mijn Bedrijf BV" },
+      },
+    ]);
+    const result = await loadUserAdministrativeDeadlines(USER, "CLIENT", NOW);
+    // Toekomstige start én toekomstig einde → beide events, dezelfde tegenpartij/asClient.
+    expect(result.placementStarts).toEqual([
+      {
+        id: "col-4",
+        startDate: new Date("2026-09-01T00:00:00Z"),
+        counterpartyName: "Sanne de Vries",
+        asClient: true,
+      },
+    ]);
+    expect(result.collaborations).toEqual([
+      {
+        id: "col-4",
+        endDate: new Date("2026-12-01T00:00:00Z"),
+        counterpartyName: "Sanne de Vries",
+        asClient: true,
+      },
+    ]);
   });
 
   it("opdrachtgever: toont de ZZP'er als tegenpartij (asClient) op de plaatsing-einddatum", async () => {

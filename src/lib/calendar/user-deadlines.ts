@@ -23,9 +23,10 @@ import { type AdministrativeDeadlines } from "@/lib/calendar/deadlines";
  * - BTW: gedelegeerd aan de bestaande deadline-engine (leeg voor rollen zonder eigen grootboek).
  * - Inkomstenbelasting: de eerstvolgende IB-aangifte-deadline (1 mei ná het belastingjaar), alleen
  *   voor een ZZP'er met omzet in dat jaar; anders `null`.
- * - Plaatsingen: lopende (ACTIVE, niet-betwiste) samenwerkingen met een vastgelegde einddatum die nog
- *   niet is verstreken, waarbij de gebruiker de ZZP'er óf de opdrachtgever is. Alleen ZZP'er/
- *   opdrachtgever hebben eigen plaatsingen; bemiddelaar/admin krijgen niets (agenda = eigen data).
+ * - Plaatsingen: lopende (ACTIVE, niet-betwiste) samenwerkingen waarbij de gebruiker de ZZP'er óf de
+ *   opdrachtgever is, met een nog niet aangebroken startdatum (→ `placementStarts`) en/of een nog niet
+ *   verstreken einddatum (→ `collaborations`). Alleen ZZP'er/opdrachtgever hebben eigen plaatsingen;
+ *   bemiddelaar/admin krijgen niets (agenda = eigen data).
  *
  * BTW-reikwijdte (bewust smaller dan certificaten/facturen): `getVatDeadlinesForActor` levert alleen
  * kwartalen die nú actie verdienen — deadline binnen ~14 dagen óf verstreken, én een niet-nul saldo.
@@ -71,12 +72,24 @@ export async function loadUserAdministrativeDeadlines(
             where: {
               status: "ACTIVE",
               disputedAt: null,
-              endDate: { not: null, gte: now },
-              OR: [{ freelancer: { userId } }, { company: { userId } }],
+              // Een plaatsing verdient een agenda-anker aan beide kanten: een nog niet aangebroken
+              // start én een nog niet verstreken einde. Eén query levert beide (efficiënter dan twee);
+              // de flatMaps hieronder splitsen per datum en her-toetsen `>= now` zodat een rij die
+              // alléén op de start matcht geen (verstreken) einde-event oplevert, en vice versa.
+              AND: [
+                { OR: [{ freelancer: { userId } }, { company: { userId } }] },
+                {
+                  OR: [
+                    { endDate: { not: null, gte: now } },
+                    { startDate: { not: null, gte: now } },
+                  ],
+                },
+              ],
             },
-            orderBy: { endDate: "asc" },
+            orderBy: { startDate: "asc" },
             select: {
               id: true,
+              startDate: true,
               endDate: true,
               freelancer: { select: { userId: true, user: { select: { name: true } } } },
               company: { select: { userId: true, name: true } },
@@ -106,9 +119,23 @@ export async function loadUserAdministrativeDeadlines(
     ),
     vat: vatSummaries.map((v) => ({ year: v.year, quarter: v.quarter, deadline: v.deadline })),
     incomeTax: incomeTax ? { taxYear: incomeTax.taxYear, deadline: incomeTax.deadline } : null,
-    // endDate is door de where-clausule gegarandeerd non-null; de guard maakt dat typebreed expliciet.
+    // De query matcht een plaatsing zodra hetzij de start hetzij het einde nog in de toekomst ligt;
+    // her-toets hier per datum (`>= now`) zodat een rij die alléén op de start matcht geen verstreken
+    // einde-event oplevert — en omgekeerd. `< now` valt weg; een null-datum eveneens.
+    placementStarts: collaborationRows.flatMap((c) => {
+      if (c.startDate == null || c.startDate < now) return [];
+      const asClient = c.company.userId === userId;
+      return [
+        {
+          id: c.id,
+          startDate: c.startDate,
+          counterpartyName: asClient ? c.freelancer.user.name : c.company.name,
+          asClient,
+        },
+      ];
+    }),
     collaborations: collaborationRows.flatMap((c) => {
-      if (c.endDate == null) return [];
+      if (c.endDate == null || c.endDate < now) return [];
       const asClient = c.company.userId === userId;
       return [
         {
