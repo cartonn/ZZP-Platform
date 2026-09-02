@@ -17,9 +17,9 @@
 import { spawnSync } from "node:child_process";
 import {
   closeSync,
+  fstatSync,
   mkdtempSync,
   openSync,
-  readFileSync,
   readSync,
   rmSync,
   writeFileSync,
@@ -49,11 +49,9 @@ function resolvePlaintextBackup(
   file: string,
   logPrefix: string,
 ): { path: string; cleanup: () => void } {
-  // Sniff alléén de eerste bytes (magic-header): een plaintext dump kan vele GB's zijn en gaat
-  // rechtstreeks als pad naar pg_restore — nooit onnodig volledig in het geheugen laden.
-  // Open het bestand direct (geen voorafgaande existsSync-check → geen TOCTOU-race): een ontbrekend
-  // bestand werpt ENOENT, dat we hier als heldere "niet gevonden"-melding afhandelen.
-  const head = Buffer.alloc(4);
+  // Open het bestand één keer als file descriptor en doe ALLE reads op die fd — nooit een tweede
+  // pad-gebaseerde toegang (dat zou een TOCTOU-race zijn, CodeQL js/file-system-race). Een ontbrekend
+  // bestand werpt ENOENT, hier afgehandeld als heldere "niet gevonden"-melding.
   let fd: number;
   try {
     fd = openSync(file, "r");
@@ -64,41 +62,56 @@ function resolvePlaintextBackup(
     }
     throw error;
   }
-  let headLen: number;
-  try {
-    headLen = readSync(fd, head, 0, 4, 0);
-  } finally {
-    closeSync(fd);
-  }
-  if (!looksEncryptedBackup(head.subarray(0, headLen))) {
-    return { path: file, cleanup: () => {} };
-  }
-  let key: Buffer | null;
-  try {
-    key = resolveBackupEncryptionKey(process.env.BACKUP_ENCRYPTION_KEY);
-  } catch (error) {
-    if (error instanceof BackupEncryptionError) {
-      console.error(`${logPrefix} ${error.message}`);
-      process.exit(2);
-    }
-    throw error;
-  }
-  if (!key) {
-    console.error(
-      `${logPrefix} het back-upbestand is versleuteld maar BACKUP_ENCRYPTION_KEY is niet gezet. ` +
-        "Zet dezelfde sleutel als waarmee de back-up is gemaakt.",
-    );
-    process.exit(2);
-  }
+
   let plaintext: Buffer;
   try {
-    plaintext = decryptBackup(readFileSync(file), key);
-  } catch (error) {
-    if (error instanceof BackupEncryptionError) {
-      console.error(`${logPrefix} ${error.message}`);
+    // Sniff alléén de eerste bytes (magic-header): een plaintext dump kan vele GB's zijn en gaat
+    // rechtstreeks als pad naar pg_restore — nooit onnodig volledig in het geheugen laden.
+    const head = Buffer.alloc(4);
+    const headLen = readSync(fd, head, 0, 4, 0);
+    if (!looksEncryptedBackup(head.subarray(0, headLen))) {
+      return { path: file, cleanup: () => {} };
+    }
+
+    // Versleuteld: eerst de sleutel (voorkom dat we een groot archief inlezen om daarna op een
+    // ontbrekende sleutel te falen), dan het VOLLEDIGE archief van dezelfde fd lezen + ontsleutelen.
+    let key: Buffer | null;
+    try {
+      key = resolveBackupEncryptionKey(process.env.BACKUP_ENCRYPTION_KEY);
+    } catch (error) {
+      if (error instanceof BackupEncryptionError) {
+        console.error(`${logPrefix} ${error.message}`);
+        process.exit(2);
+      }
+      throw error;
+    }
+    if (!key) {
+      console.error(
+        `${logPrefix} het back-upbestand is versleuteld maar BACKUP_ENCRYPTION_KEY is niet gezet. ` +
+          "Zet dezelfde sleutel als waarmee de back-up is gemaakt.",
+      );
       process.exit(2);
     }
-    throw error;
+
+    const size = fstatSync(fd).size;
+    const raw = Buffer.alloc(size);
+    let read = 0;
+    while (read < size) {
+      const n = readSync(fd, raw, read, size - read, read);
+      if (n === 0) break;
+      read += n;
+    }
+    try {
+      plaintext = decryptBackup(read < size ? raw.subarray(0, read) : raw, key);
+    } catch (error) {
+      if (error instanceof BackupEncryptionError) {
+        console.error(`${logPrefix} ${error.message}`);
+        process.exit(2);
+      }
+      throw error;
+    }
+  } finally {
+    closeSync(fd);
   }
   const dir = mkdtempSync(join(tmpdir(), "zzp-restore-"));
   const tmpFile = join(dir, "backup.dump");
