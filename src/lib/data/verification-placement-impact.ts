@@ -33,6 +33,7 @@ export async function getActivePlacementImpactData(
 
   const [collaborations, credentials] = await Promise.all([
     // Lopende inzetten van deze ZZP'ers, met de verplichte certificaateisen van de bijbehorende opdracht.
+    // unbounded-allow: gescoped op de ZZP'ers in de (structureel kleine) verificatiewachtrij
     prisma.collaboration.findMany({
       where: { status: "ACTIVE", freelancerId: { in: ids } },
       select: {
@@ -45,6 +46,7 @@ export async function getActivePlacementImpactData(
       },
     }),
     // Alle geverifieerde certificaten van deze ZZP'ers (geldigheid wordt hieronder server-side bepaald).
+    // unbounded-allow: gescoped op de ZZP'ers in de (structureel kleine) verificatiewachtrij
     prisma.credential.findMany({
       where: { status: "VERIFIED", freelancerProfileId: { in: ids } },
       select: { freelancerProfileId: true, type: true, status: true, expiresAt: true },
