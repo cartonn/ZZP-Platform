@@ -78,12 +78,18 @@ test("admin ziet de wachtrij, moet een reden opgeven bij afwijzen en kan activer
   await row.getByRole("button", { name: "Afwijzen" }).click();
   await expect(row.getByRole("button", { name: "Afwijzen bevestigen" })).toBeVisible();
   await row.getByRole("button", { name: "Annuleren" }).click();
+  // Wacht tot het bevestig-venster echt is ingeklapt vóór we activeren: anders kan de Activeren-klik
+  // in het her-render-venster van het annuleren vallen en niet registreren — dan blijft de rij staan
+  // en faalt de assertie hieronder (waargenomen CI-flake, geen productdefect).
+  await expect(row.getByRole("button", { name: "Afwijzen bevestigen" })).toBeHidden();
 
   // Activeren haalt de aanmelding uit de wachtrij (de lijst toont alleen PENDING-tenants).
   // De rij verdwijnt pas na de server-action + revalidatePath-render; onder CI-belasting kan die
   // round-trip het standaard 5s-venster overschrijden, dus een ruimer venster (de test is `slow`).
-  await row.getByRole("button", { name: "Activeren" }).click();
-  await expect(row).toHaveCount(0, { timeout: 15000 });
+  const activeren = row.getByRole("button", { name: "Activeren" });
+  await expect(activeren).toBeEnabled();
+  await activeren.click();
+  await expect(row).toHaveCount(0, { timeout: 30000 });
 
   // Na activatie opent de werkplek voor de bemiddelaar (live gelezen, geen nieuwe sessie nodig).
   const bureauNa = await browser.newPage();
