@@ -44,6 +44,12 @@ import { paymentDueSoonWhere } from "@/lib/payment-due-soon";
 import { summarizeStaleClientApplications } from "@/lib/stale-applications";
 import { getClientColdJobs } from "@/lib/data/client-cold-jobs";
 import { SUPPORT_OPEN_STATUSES } from "@/lib/support/labels";
+import {
+  getCredentialDossier,
+  getUnreadConversationState,
+  getUserCompanyId,
+  getUserTenantId,
+} from "@/lib/user-context";
 
 export type BadgeTone = "attention" | "info";
 
@@ -371,25 +377,13 @@ export async function paymentDueSoonCount(userId: string, now: Date = new Date()
   return prisma.invoice.count({ where: paymentDueSoonWhere(userId, now) });
 }
 
-/** Twee begrensde queries (geen N+1): deelnemerschap + laatste vreemde bericht per gesprek. */
+/**
+ * Twee begrensde queries (geen N+1): deelnemerschap + laatste vreemde bericht per gesprek. De queries
+ * zelf staan in de gedeelde, request-gecachte `getUnreadConversationState` (user-context.ts), zodat de
+ * badge en het actiecentrum ze binnen één request delen in plaats van ieder hun eigen kopie te draaien.
+ */
 export async function unreadConversationCount(userId: string): Promise<number> {
-  const participants = await prisma.conversationParticipant.findMany({
-    where: { userId },
-    select: { conversationId: true, lastReadAt: true },
-  });
-  if (participants.length === 0) return 0;
-
-  const grouped = await prisma.message.groupBy({
-    by: ["conversationId"],
-    where: {
-      conversationId: { in: participants.map((p) => p.conversationId) },
-      senderId: { not: userId },
-    },
-    _max: { createdAt: true },
-  });
-  const latestForeign = new Map<string, Date | null>(
-    grouped.map((g) => [g.conversationId, g._max.createdAt]),
-  );
+  const { participants, latestForeign } = await getUnreadConversationState(userId);
   return countUnreadConversations(participants, latestForeign);
 }
 
@@ -450,36 +444,22 @@ export const navBadges = cache(async function navBadges(
     const now = new Date();
     const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
     const [
-      rejected,
-      verifiedCreds,
-      mandatoryCreds,
+      dossier,
       unreadMessages,
       overdueInvoices,
       credentialCollabRows,
       savedJobs,
       renewalWork,
-      placementCreds,
       cascadeWorkCount,
     ] = await Promise.all([
-      prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
-      // Het volledige VERIFIED-dossier (niet enkel de in-venster verlopende rijen): superseded-
-      // detectie heeft alle nu-geldige VERIFIED-certs van hetzelfde type nodig om te bepalen of het
-      // verval van een exemplaar er nog toe doet. Zie de in-memory telling van `expiring` hieronder.
-      prisma.credential.findMany({
-        where: { freelancerProfileId: profile.id, status: "VERIFIED" },
-        select: { id: true, type: true, status: true, expiresAt: true },
-      }),
-      // Verplichte-document-rijen (VOG/verzekering) om ontbrekend/verlopen te classificeren. Zonder
-      // deze telling was de /certificaten-badge stil terwijl /acties + de dashboard-rail wél een
-      // "Verplicht document ontbreekt"-taak toonden (bv. een verse ZZP'er zonder certificaten) —
-      // het "signaal op één oppervlak"-anti-patroon. Zelfde bron als pending-tasks.ts.
-      prisma.credential.findMany({
-        where: {
-          freelancerProfileId: profile.id,
-          type: { in: [...MANDATORY_CREDENTIAL_TYPES] },
-        },
-        select: { type: true, status: true, expiresAt: true },
-      }),
+      // ÉÉN query voor élke certificaatvraag van deze badge. Dit waren vier aparte queries op dezelfde
+      // rijen: het aantal afgewezen certs (count), het volledige VERIFIED-dossier (superseded-detectie
+      // heeft alle nu-geldige exemplaren van een type nodig), de verplichte-documentrijen
+      // (VOG/verzekering) en nogmaals álle rijen voor de plaatsings-/gatencheck. Alle vier zijn
+      // deelverzamelingen van het volledige dossier, dus ze worden hieronder in-memory afgeleid —
+      // zelfde uitkomst, drie queries minder, en dezelfde gedeelde bron als /acties (pending-tasks.ts
+      // laadt hetzelfde dossier via dezelfde gecachte loader) zodat badge en lijst niet kunnen driften.
+      getCredentialDossier(profile.id),
       unreadConversationCount(userId),
       overdueInvoiceCount("FREELANCER", userId),
       // Lopende/voorgestelde samenwerkingen met een VERPLICHT certificaat-vereiste — de bron voor de
@@ -509,21 +489,22 @@ export const navBadges = cache(async function navBadges(
       // vervolgsignaal ("plan een vervolg"): exact de collaborationRenewalTask-emissie op /acties + de
       // dashboard-rail, zodat de /samenwerkingen-badge die actie meetelt (niet stiller dan /acties).
       renewalAttentionBadgeCount({ freelancer: { userId } }, now),
-      // Volledige certificaatset (alle statussen) om per PROPOSED-samenwerking de plaatsings-blokkade
-      // te bepalen én de collab-vereist-certificaat-gaten (verlopen/ontbrekend) te tellen — zelfde bron
-      // als `allCreds` in pending-tasks.ts, zodat de badge-onderdrukking/-telling niet van de list-
-      // onderdrukking/-telling kan driften. `id`/`title` nodig voor de gaten-helper (groepering per
-      // certificaat).
-      prisma.credential.findMany({
-        where: { freelancerProfileId: profile.id },
-        select: { id: true, title: true, type: true, status: true, expiresAt: true },
-      }),
       // Cascade-"aan zet"-telling (contract ondertekenen / uren indienen / afgekeurde prestatie
       // herindienen / openstaande factuur) uit dezelfde gedeelde, status-gefilterde, self-healing
       // queries als de /acties-emitters (pending-tasks.ts `freelancerTasks`) → badge↔/acties-pariteit,
       // geen `updatedAt`-venster dat een ouder-getekende samenwerking met openstaand werk laat vallen.
       getFreelancerCascadeWorkCount(userId, now),
     ]);
+    // In-memory afleidingen uit het ene dossier — precies de vier deelverzamelingen die hier eerder
+    // ieder hun eigen query hadden. `placementCreds` is het volledige dossier (plaatsings-blokkade +
+    // gaten-helper); `verifiedCreds` het VERIFIED-deel (superseded-detectie); `mandatoryCreds` de
+    // verplichte typen (VOG/verzekering); `rejected` het aantal afgewezen certificaten.
+    const placementCreds = dossier;
+    const verifiedCreds = dossier.filter((c) => c.status === "VERIFIED");
+    const mandatoryCreds = dossier.filter((c) =>
+      MANDATORY_CREDENTIAL_TYPES.includes(c.type as (typeof MANDATORY_CREDENTIAL_TYPES)[number]),
+    );
+    const rejected = dossier.filter((c) => c.status === "REJECTED").length;
     // Superseded-aware verval-telling voor de /certificaten-badge. `/acties` + de dashboard-rail
     // (pending-tasks.ts `freelancerTasks` → `supersededVerifiedCredentialIds`) sluiten een ouder,
     // bijna-verlopend VERIFIED-cert uit zodra een nieuwer, nu-geldig exemplaar van hetzelfde type de
@@ -626,8 +607,11 @@ export const navBadges = cache(async function navBadges(
   }
 
   if (role === "CLIENT") {
-    const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
-    if (!company) return {};
+    // Gedeelde, request-gecachte bedrijfs-lookup (user-context.ts): dezelfde query stond ook in
+    // `clientCredentialAlerts` (collaboration-alerts.ts), die hieronder in dezelfde Promise.all draait,
+    // en in `clientTasks` (pending-tasks.ts). Nu één keer per request in plaats van drie keer.
+    const companyId = await getUserCompanyId(userId);
+    if (!companyId) return {};
     // De /kandidaten-nav telt niet alleen NEW: `proposeCollaborationTask` (geaccepteerd, nog geen
     // voorstel) en `staleApplicationsTask` (VIEWED/SHORTLIST te lang onbeslist) verschijnen óók op
     // /acties + de dashboard-rail met href /kandidaten. Zonder ze mee te tellen was de nav-badge
@@ -652,8 +636,8 @@ export const navBadges = cache(async function navBadges(
       renewalWork,
       coldJobs,
     ] = await Promise.all([
-      prisma.application.count({ where: { job: { companyId: company.id }, status: "NEW" } }),
-      prisma.job.count({ where: { companyId: company.id, status: "DRAFT" } }),
+      prisma.application.count({ where: { job: { companyId }, status: "NEW" } }),
+      prisma.job.count({ where: { companyId, status: "DRAFT" } }),
       unreadConversationCount(userId),
       overdueInvoiceCount("CLIENT", userId),
       // cascade: contract ondertekenen — elke PROPOSED (niet-bevroren) samenwerking van deze
@@ -707,7 +691,7 @@ export const navBadges = cache(async function navBadges(
       // pending-tasks.ts (`staleApplicationsTask`). Eigenaar-gescoopt + take-begrensd.
       prisma.application.findMany({
         where: {
-          job: { companyId: company.id },
+          job: { companyId },
           status: { in: ["VIEWED", "SHORTLIST"] },
           createdAt: { lte: staleWindow },
         },
@@ -721,7 +705,7 @@ export const navBadges = cache(async function navBadges(
       // geaccepteerde reacties die nog een samenwerkingsvoorstel missen — exact het predicaat uit
       // pending-tasks.ts (`proposeCollaborationTask`). Reeds-voorgestelde (met collaboration) vallen af.
       prisma.application.findMany({
-        where: { job: { companyId: company.id }, status: "ACCEPTED" },
+        where: { job: { companyId }, status: "ACCEPTED" },
         // acceptedAt/updatedAt voeden de leeftijd-klok in `pendingCollaborationProposals`; de badge
         // gebruikt alleen het aantal (niet de aging), maar de helper vereist een niet-null klok.
         select: {
@@ -827,12 +811,10 @@ export const navBadges = cache(async function navBadges(
   if (role === "FRANCHISER") {
     // Tenant-gescopete actiesignalen. Zonder franchise (tenantId) zijn er geen tenant-lijsten,
     // dus geen badges. Ongelezen berichten lopen al via de notificatiebel (geen /berichten-nav).
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { tenantId: true },
-    });
-    if (!user?.tenantId) return {};
-    const tenantId = user.tenantId;
+    // Gedeelde, request-gecachte tenant-lookup (user-context.ts): `franchiserTasks`
+    // (pending-tasks.ts) begint met exact dezelfde query in dezelfde render.
+    const tenantId = await getUserTenantId(userId);
+    if (!tenantId) return {};
     const now = new Date();
     const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
     const staleThreshold = new Date(now.getTime() - STALE_DIENST_DAYS * 86_400_000);

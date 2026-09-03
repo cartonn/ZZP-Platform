@@ -47,7 +47,7 @@ const ROLES: readonly Role[] = ["FREELANCER", "CLIENT", "ADMIN", "FRANCHISER"];
  * bovenaan.
  */
 const BASELINE: Record<Role, number> = {
-  FREELANCER: 47,
+  FREELANCER: 44,
   CLIENT: 41,
   ADMIN: 18,
   FRANCHISER: 46,
@@ -60,7 +60,7 @@ const BASELINE: Record<Role, number> = {
  * zonder expliciete onderbouwing in de PR.
  */
 const BUDGET: Record<Role, number> = {
-  FREELANCER: 50,
+  FREELANCER: 47,
   CLIENT: 44,
   ADMIN: 21,
   FRANCHISER: 49,
