@@ -76,6 +76,12 @@ const schema = z
     // of none (bewust uit, voor S3-compatibele opslag zonder SSE-header). Zie resolveSseParams().
     STORAGE_S3_SSE: z.enum(["AES256", "aws:kms", "none"]).optional(),
     STORAGE_S3_SSE_KMS_KEY_ID: z.string().optional(),
+    // Harde deadlines (ms) voor de S3-client zodat een hangende backend een upload/download niet
+    // onbeperkt laat blokkeren. Optioneel; ongeldig/leeg valt terug op de default en wordt geklemd:
+    // request [1000, 120000] default 20000, connection [500, 60000] default 3000. Zie
+    // resolveS3TimeoutConfig() in src/lib/services/storage.ts.
+    STORAGE_S3_REQUEST_TIMEOUT_MS: z.string().optional(),
+    STORAGE_S3_CONNECTION_TIMEOUT_MS: z.string().optional(),
 
     // Echte reistijd-routing: offline fallback (default) of Geoapify met API-key.
     ROUTING_PROVIDER: z.enum(["offline", "geoapify"]).default("offline"),

@@ -10,8 +10,15 @@ import {
   IMAGE_MIME_TYPES,
   MAX_UPLOAD_BYTES,
   resolveExpectedSse,
+  resolveS3TimeoutConfig,
   resolveSignedUrlTtl,
   resolveSseParams,
+  S3_CONNECTION_TIMEOUT_MS_DEFAULT,
+  S3_CONNECTION_TIMEOUT_MS_MAX,
+  S3_CONNECTION_TIMEOUT_MS_MIN,
+  S3_REQUEST_TIMEOUT_MS_DEFAULT,
+  S3_REQUEST_TIMEOUT_MS_MAX,
+  S3_REQUEST_TIMEOUT_MS_MIN,
   SIGNED_URL_TTL_DEFAULT,
   SIGNED_URL_TTL_MAX,
   SIGNED_URL_TTL_MIN,
@@ -175,6 +182,65 @@ describe("resolveSignedUrlTtl", () => {
     expect(resolveSignedUrlTtl(10)).toBe(SIGNED_URL_TTL_MIN);
     expect(resolveSignedUrlTtl(99999)).toBe(SIGNED_URL_TTL_MAX);
     expect(resolveSignedUrlTtl(120)).toBe(120);
+  });
+});
+
+describe("resolveS3TimeoutConfig", () => {
+  const originalReq = process.env.STORAGE_S3_REQUEST_TIMEOUT_MS;
+  const originalConn = process.env.STORAGE_S3_CONNECTION_TIMEOUT_MS;
+  afterAll(() => {
+    if (originalReq === undefined) delete process.env.STORAGE_S3_REQUEST_TIMEOUT_MS;
+    else process.env.STORAGE_S3_REQUEST_TIMEOUT_MS = originalReq;
+    if (originalConn === undefined) delete process.env.STORAGE_S3_CONNECTION_TIMEOUT_MS;
+    else process.env.STORAGE_S3_CONNECTION_TIMEOUT_MS = originalConn;
+  });
+
+  it("gebruikt de defaults zonder env", () => {
+    delete process.env.STORAGE_S3_REQUEST_TIMEOUT_MS;
+    delete process.env.STORAGE_S3_CONNECTION_TIMEOUT_MS;
+    expect(resolveS3TimeoutConfig()).toEqual({
+      requestTimeout: S3_REQUEST_TIMEOUT_MS_DEFAULT,
+      connectionTimeout: S3_CONNECTION_TIMEOUT_MS_DEFAULT,
+    });
+  });
+
+  it("leest geldige env-waarden", () => {
+    process.env.STORAGE_S3_REQUEST_TIMEOUT_MS = "30000";
+    process.env.STORAGE_S3_CONNECTION_TIMEOUT_MS = "5000";
+    expect(resolveS3TimeoutConfig()).toEqual({
+      requestTimeout: 30000,
+      connectionTimeout: 5000,
+    });
+  });
+
+  it("valt bij een ongeldige/lege env-waarde terug op de defaults", () => {
+    process.env.STORAGE_S3_REQUEST_TIMEOUT_MS = "niet-een-getal";
+    process.env.STORAGE_S3_CONNECTION_TIMEOUT_MS = "";
+    expect(resolveS3TimeoutConfig()).toEqual({
+      requestTimeout: S3_REQUEST_TIMEOUT_MS_DEFAULT,
+      connectionTimeout: S3_CONNECTION_TIMEOUT_MS_DEFAULT,
+    });
+  });
+
+  it("klemt op de veilige boven- en ondergrenzen", () => {
+    process.env.STORAGE_S3_REQUEST_TIMEOUT_MS = "1";
+    process.env.STORAGE_S3_CONNECTION_TIMEOUT_MS = "1";
+    expect(resolveS3TimeoutConfig()).toEqual({
+      requestTimeout: S3_REQUEST_TIMEOUT_MS_MIN,
+      connectionTimeout: S3_CONNECTION_TIMEOUT_MS_MIN,
+    });
+    process.env.STORAGE_S3_REQUEST_TIMEOUT_MS = "999999999";
+    process.env.STORAGE_S3_CONNECTION_TIMEOUT_MS = "999999999";
+    expect(resolveS3TimeoutConfig()).toEqual({
+      requestTimeout: S3_REQUEST_TIMEOUT_MS_MAX,
+      connectionTimeout: S3_CONNECTION_TIMEOUT_MS_MAX,
+    });
+  });
+
+  it("weigert een negatieve waarde en valt terug op de default", () => {
+    process.env.STORAGE_S3_REQUEST_TIMEOUT_MS = "-5000";
+    delete process.env.STORAGE_S3_CONNECTION_TIMEOUT_MS;
+    expect(resolveS3TimeoutConfig().requestTimeout).toBe(S3_REQUEST_TIMEOUT_MS_DEFAULT);
   });
 });
 

@@ -267,6 +267,16 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   rate-limit 2,5 s en **fail-open** zodat login/registratie niet blokkeert bij een Redis-storing).
   Resterend mensenwerk: **niets** — optioneel bij te stellen via `BILLING_HTTP_TIMEOUT_MS`,
   `EMAIL_HTTP_TIMEOUT_MS`, `RATE_LIMIT_HTTP_TIMEOUT_MS` (ms, geklemd op 1000–60000).
+  **Code-kant GEDAAN (2026-09-03) — harde time-out op de S3-opslag-client:** objectopslag (S3,
+  `STORAGE_DRIVER=s3`) was het enige externe productie-**kern**kanaal zonder harde deadline — de AWS-SDK
+  opent zijn eigen HTTP-verbindingen (buiten `fetch-timeout.ts` om) en hing zonder config onbeperkt bij
+  een backend die de socket openhoudt maar niet meer antwoordt (netwerk-partitie/pool-uitputting/
+  regio-storing). De `S3Client` draagt nu een `connectionTimeout` én `requestTimeout`
+  (`resolveS3TimeoutConfig` in `src/lib/services/storage.ts`); een hangende put/get/delete/head van een
+  VOG/diploma/verzekering blokkeert de gebruikers-request dus niet meer onbeperkt. Defaults veilig
+  (request 20 s, geklemd 1000–120000 — ruimer omdat een put/get tot 10 MB verplaatst; connection 3 s,
+  geklemd 500–60000). Resterend mensenwerk: **niets** — werkt out-of-the-box zodra `STORAGE_DRIVER=s3`
+  staat; optioneel bij te stellen via `STORAGE_S3_REQUEST_TIMEOUT_MS`/`STORAGE_S3_CONNECTION_TIMEOUT_MS`.
 
 - **Retry + env-time-out op de externe verificatie-koppelingen (DUO/BIG/iDIN)** (laag, code-kant GEDAAN
   2026-08-13): de gedeelde verificatie-HTTP-helper (`src/lib/services/http-verify.ts`, gebruikt door de
