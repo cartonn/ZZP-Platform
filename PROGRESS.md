@@ -10,6 +10,40 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-03 — routine: opdrachtgever-actie "keur uren goed" escaleert met wachttijd + admin-escalatielink
+
+**Wat:** next-action-pariteit op de prestatie-goedkeuring (de cascade-stap die de facturatie én de
+cashflow van de ZZP'er deblokkeert). De opdrachtgever-taak "Keur de ingediende uren/oplevering" in het
+actiecentrum (`/acties` + sidebar-badge + dashboard-rail) was **vlak**: vaste prioriteit 65 en een kale
+subtitel, óók als de urenstaat al 10+ dagen op goedkeuring wachtte. Tegelijk escaleerden de andere
+oppervlakken wél — `/prestaties` toont "Wacht al X dagen op goedkeuring" (`performance-wait.ts`,
+drempel 7) en de dag-3/7-herinnering + admin-escalatie porren de opdrachtgever al. Klassieke
+zelftegenspraak-bug (DOEL 1b): het actiecentrum bleef stil terwijl detailscherm én e-mail alarmeerden.
+Nu escaleert de taak zodra de urenstaat ≥ `PERFORMANCE_WAIT_ATTENTION_DAYS` (7) wacht: de subtitel maakt
+de wachttijd expliciet ("· wacht al X dagen op goedkeuring") en de prioriteit klimt naar een nieuwe
+overdue-band (67), boven een verse te-keuren indiening (65) en onder het af-te-ronden-hire-cluster (68).
+Tweede, klein bug-onderdeel: de admin-escalatiemelding ("Urenstaat blijft ongekeurd liggen") linkte naar
+`/admin/disputen` — maar een stille goedkeuring is géén dispuut en de betrokken samenwerking staat daar
+niet eens; die link wijst nu naar `/admin/samenwerkingen`.
+
+**Aanpak:** één bron van waarheid — dezelfde `summarizePerformanceWait`/`PERFORMANCE_WAIT_ATTENTION_DAYS`
+uit `performance-wait.ts` die `/prestaties` voedt, zodat de banden nooit driften. `performanceApproveTask`
+kreeg een optionele `daysWaiting?`-parameter (undefined = gedragsbehoudend, blijft de vlakke approve-band);
+de client-enumerator selecteert nu `Performance.submittedAt` en leidt de wachttijd server-side af. Puur/
+deterministisch, geen schema-/mutatie-/authz-oppervlak, geen dode knop, geen i18n. Nieuwe prioriteitsband
+`performanceApprovalOverdue: 67` (rol-geïsoleerd, CLIENT). Klant-bron: terugkerende next-action-pariteit-
+klasse in de persona-sweep + de bestaande escalatiecadans die zonder actiecentrum-spiegel half bleef.
+
+**Follow-ups (genoteerd in de backlog, deze run bewust buiten scope om de badge-pariteit klein te houden):**
+een dúúrzame admin-next-action voor een vastzittende goedkeuring (i.p.v. alleen de fire-once-melding), en
+een factuur-goedkeuring-herinneringscascade (de enige un-genudgede opdrachtgever-poort in de cascade).
+
+**Bestanden:** `src/lib/next-actions.ts` (nieuwe band), `src/lib/actions/tasks.ts` (+ `tasks.test.ts`),
+`src/lib/actions/pending-tasks.ts` (+ `pending-tasks-outer-window.test.ts`),
+`src/lib/performance-approval-reminders-task.ts` (+ `.test.ts` link-assertie).
+
+**Checks:** typecheck / lint / unit (87 in de geraakte suites groen, +4 nieuw) / build / prettier; CI-poort verifieert.
+
 ## 2026-09-03 — routine: re-engagement-suggesties óók na een gesloten/vervulde opdracht (ZZP'er)
 
 **Wat:** het "Soortgelijke open opdrachten"-blok op `/reacties` verankerde alleen op een expliciete
@@ -349,60 +383,3 @@ data-layer-grenzen bijgewerkt naar de Amsterdam-instanten). Backlog-nit → OPGE
 
 **Checks:** typecheck ✓, lint ✓, unit (7600+ groen; +19 nieuwe/aangepaste fiscale-kalender-tests) ✓,
 prettier ✓. Build/CI-poort verifieert.
-
-## 2026-09-01 — persona-sweep run 104: dienst-overname-beslistaak + nav-badge verdwijnen op een terminale/bevroren inzet
-
-**Wat:** een OPEN dienst-overname-aanvraag (`ShiftHandoff`) bleef eeuwig als beslis-taak (`/acties`
-bemiddelaar + admin, dashboard-rail, sidebar-badge) én nav-badge hangen nadat de bijbehorende samenwerking
-terminaal (CANCELLED/COMPLETED) of bevroren (dispuut) werd — recht tegen de server-side status in en
-cross-surface inconsistent. Zelfde bugklasse als run 103 (`job.status`-scope op de kandidaat-taken).
-
-**Aanpak:** displayqueries scoopten alleen op `ShiftHandoff.status: "OPEN"`, niet op de
-parent-`collaboration.status`, terwijl niets de OPEN-aanvraag sluit bij een collab-transitie
-(`cancelCollaboration`/auto-completion/`openDispute`). `collaboration: { status: "ACTIVE", disputedAt: null }`
-toegevoegd aan `pending-tasks.ts` (franchiser + admin) en `signals.ts` (`openHandoffs` + `openAdminHandoffs`),
-spiegelt de sibling-queries (`endingCollabs`, `openDiensten`) die al parent-gescoped waren. Na een
-**agent-review-BLOCK** ook de derde surface meegenomen: het gedeelde governance-scherm
-(`ShiftHandoffGovernanceScreen`) waar badge/taak náár linken haalde OPEN-handoffs óók ongescoped op
-(moot-aanvraag zichtbaar mét werkende approve/reject-formulieren). Zelfde collab-scope op
-`governance-screen.tsx` + een **server-side guard** in `loadDecidableHandoff` die een beslissing op een
-terminale/bevroren inzet hard weigert (ná de tenant-poort → geen CWE-203-oracle).
-
-**Bestanden:** `src/lib/actions/pending-tasks.ts`, `src/lib/signals.ts`,
-`src/components/shift-overname/governance-screen.tsx`, `src/app/(protected)/admin/shift-overnames/actions.ts`,
-
-- tests (`pending-tasks.shift-handoff.test.ts`, `signals.shift-handoff-collab-scope.test.ts` [nieuw],
-  `governance-screen.test.tsx`, `oracle.test.ts` — samen +12, rood→groen). Backlog bijgewerkt
-  (1 latente tijdzone-nit geparkeerd). Gate groen (typecheck/lint/unit/build/prettier).
-
-## 2026-09-01 — security: tweede-factor-challenge vereist om 2FA uit te zetten (OWASP ASVS 2.8)
-
-**Wat:** `disableTwoFactor` her-authenticeerde alleen met het accountwachtwoord — het uitschakelen van
-2FA (secret + álle herstelcodes in één transactie gewist) vereiste géén tweede-factor-challenge. Een
-uitgelekt/hergebruikt/gephisht wachtwoord kon dus in z'n eentje de beveiligingslaag strippen, precies de
-laag die het account beschermt als het wachtwoord uitlekt. Best practice bij GitHub/Google is een
-factor-challenge vóór het verwijderen van de factor. (Geparkeerde security-nit uit persona-sweep run 103.)
-
-**Fix:** een account met 2FA aan moet nu — náást het wachtwoord — een geldige TOTP-code of ongebruikte
-herstelcode invoeren om 2FA uit te zetten. De verificatie loopt via **dezelfde replay-veilige poort als
-de login**: de module-private `verifySecondFactor` uit `authorize-credentials.ts` is verbatim geëxtraheerd
-naar `src/lib/two-factor/verify-second-factor.ts` (één bron van waarheid; login rewired als pure
-import-swap, gedrag ongewijzigd). Zo erft de disable-challenge exact de TOTP-replay-preventie (atomaire
-high-water-mark `updateMany`, TOCTOU-safe), het eenmalige herstelcode-verbruik en de audit-reden. De
-factor wordt geverifieerd vóór enige schrijfactie; faalt hij, dan blijft 2FA aan.
-
-**Bestanden:**
-
-- `src/lib/two-factor/verify-second-factor.ts` — nieuwe gedeelde poort (`verifySecondFactor`, met
-  optionele `context`-audit-metadata) + `verify-second-factor.test.ts` (8 tests: TOTP/replay/decrypt-fout/
-  herstelcode/context).
-- `src/lib/authorize-credentials.ts` — lokale functie verwijderd; import + call rewired (behoud van gedrag).
-- `src/app/(protected)/account/tweestapsverificatie/actions.ts` — disable-schema `token`, findUnique-select
-  uitgebreid, factor-gate vóór de transactie.
-- `src/app/(protected)/account/tweestapsverificatie/two-factor-panel.tsx` — verificatiecode-veld op OnPanel.
-- `src/app/(protected)/account/tweestapsverificatie/actions.test.ts` — disable-tests: factor geëist,
-  mislukte factor gate't uitschakeling, geen DISABLED-audit bij mislukking.
-- `docs/PERSONA-SWEEP-BACKLOG.md` — geparkeerde nit → OPGELOST.
-
-**Checks:** typecheck ✓, unit (verify-second-factor 8/8 + tweestapsverificatie-actions + authorize-credentials
-groen) ✓, lint ✓, build ✓, prettier ✓. CI-poort verifieert.

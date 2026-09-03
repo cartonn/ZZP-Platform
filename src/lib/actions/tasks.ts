@@ -26,6 +26,7 @@ import {
 import { type FirstLookOverdueSummary } from "@/lib/client-first-look";
 import { INVITATION_AGING_DAYS, invitationAgeLabel } from "@/lib/received-invitations";
 import { UNBILLED_AGING_DAYS } from "@/lib/unbilled-invoices";
+import { PERFORMANCE_WAIT_ATTENTION_DAYS } from "@/lib/performance-wait";
 import { PROPOSAL_STALL_DAYS } from "@/lib/accepted-proposal";
 import {
   acuteFillabilityHeadline,
@@ -217,14 +218,29 @@ export function performanceApproveTask(
   collabId: string,
   jobTitle: string,
   freelancerName: string,
+  /**
+   * Hele dagen dat de ingediende urenstaat/oplevering al op goedkeuring wacht. Zodra dit ≥
+   * PERFORMANCE_WAIT_ATTENTION_DAYS (7) komt, escaleert de taak: de subtitel maakt de wachttijd
+   * expliciet en de prioriteit klimt naar de overdue-band — exact zoals /prestaties "Wacht al X
+   * dagen op goedkeuring" toont en de dag-3/7-herinnering de opdrachtgever port. Zo blijft /acties
+   * (+ badge + rail) niet vlak op de approve-band hangen terwijl detailscherm én e-mail al
+   * alarmeren. `undefined` = geen leeftijdsbesef (gedragsbehoudend, blijft de vlakke approve-band).
+   */
+  daysWaiting?: number,
 ): PendingTask {
+  const overdue = daysWaiting !== undefined && daysWaiting >= PERFORMANCE_WAIT_ATTENTION_DAYS;
   return {
     kind: "performance-approve",
     id: `performance-approve:${perfId}`,
     title: "Keur de ingediende uren/oplevering",
-    subtitle: `${jobTitle} · ${freelancerName}`,
+    subtitle: overdue
+      ? `${jobTitle} · ${freelancerName} · wacht al ${plural(daysWaiting ?? 0, "dag", "dagen")} op goedkeuring`
+      : `${jobTitle} · ${freelancerName}`,
     tone: "attention",
-    priority: P.complianceRipple - 20, // = approve-band (65): goedkeuring vragen is urgenter dan eigen indienen
+    // Vers (65 = approve-band): goedkeuring vragen is urgenter dan eigen indienen. Voorbij de
+    // herinner-/escalatiecadans (≥7 dagen) klimt hij naar de overdue-band (67) zodat de langst-
+    // stille goedkeuring binnen het cluster voorop komt.
+    priority: overdue ? P.performanceApprovalOverdue : P.complianceRipple - 20,
     resolver: "drawer", // inspecteer-dan-beslis: details inzien, dan goedkeuren/afwijzen
     href: collabHref(collabId),
     perfId,

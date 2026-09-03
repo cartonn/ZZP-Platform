@@ -113,7 +113,7 @@ describe("runPerformanceApprovalReminderTask", () => {
     expect(store.notifications.every((n) => n.type === "PERFORMANCE_APPROVAL_ESCALATION")).toBe(
       true,
     );
-    expect(store.notifications[0]?.link).toBe("/admin/disputen");
+    expect(store.notifications[0]?.link).toBe("/admin/samenwerkingen");
     expect(store.auditLogs[0]?.action).toBe("PERFORMANCE_APPROVAL_ESCALATED");
   });
 

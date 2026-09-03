@@ -105,6 +105,7 @@ import { getReceivedInvitations } from "@/lib/data/received-invitations";
 import { invitationAgeDays } from "@/lib/received-invitations";
 import { daysSince } from "@/lib/concept-invoice-reminders";
 import { reviewPromptForCollaboration } from "@/lib/collaboration-review-prompt";
+import { summarizePerformanceWait } from "@/lib/performance-wait";
 import {
   summarizeCollaborationRenewal,
   RENEWAL_WINDOW_DAYS,
@@ -1166,6 +1167,9 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     select: {
       id: true,
       collaborationId: true,
+      // Onveranderlijk gezet bij → SUBMITTED; voedt het wachttijd-signaal zodat de te-keuren-taak
+      // net als /prestaties en de dag-3/7-e-mail escaleert i.p.v. vlak op de approve-band te blijven.
+      submittedAt: true,
       collaboration: {
         select: {
           job: { select: { title: true } },
@@ -1178,7 +1182,19 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   });
   for (const p of approvePerformances) {
     const name = p.collaboration.freelancer.user.name ?? "ZZP'er";
-    tasks.push(performanceApproveTask(p.id, p.collaborationId, p.collaboration.job.title, name));
+    // Dezelfde bron van waarheid als /prestaties (`summarizePerformanceWait`): SUBMITTED-only,
+    // toekomstige submittedAt → 0 dagen. De where-scope garandeert SUBMITTED, dus `wait` is niet
+    // null; blijft het onverhoopt null, dan valt de taak terug op de vlakke approve-band.
+    const wait = summarizePerformanceWait({ status: "SUBMITTED", submittedAt: p.submittedAt });
+    tasks.push(
+      performanceApproveTask(
+        p.id,
+        p.collaborationId,
+        p.collaboration.job.title,
+        name,
+        wait?.daysWaiting,
+      ),
+    );
   }
 
   const approveInvoices = await prisma.invoice.findMany({
