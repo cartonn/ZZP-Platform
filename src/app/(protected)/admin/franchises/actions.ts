@@ -184,7 +184,7 @@ export async function decideActivation(
       .catch((err: unknown) => logMailFailure("[franchise-activation]", err));
   }
 
-  revalidatePath("/admin/franchises");
+  revalidatePath("/admin/gebruikersbeheer");
   return {
     ok: true,
     message:
