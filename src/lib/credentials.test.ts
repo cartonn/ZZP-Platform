@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   activeVerifiedCount,
+  assertEvidenceVerifiable,
   assertTransition,
   canTransition,
   credentialEditPath,
   credentialRecoveryNotice,
   daysUntilExpiry,
   expiryTransition,
+  ExpiredEvidenceError,
   isExpired,
+  isExpiredDate,
   isExpiringSoon,
   rosterExpiringByProfile,
   rosterExpiredByProfile,
@@ -59,6 +62,53 @@ describe("statusForDecision", () => {
 
   it("weigert beslissen vanuit een ongeldige status", () => {
     expect(() => statusForDecision("DRAFT", "VERIFIED")).toThrow(TransitionError);
+  });
+
+  it("weigert VERIFIED op een reeds-verlopen bewijsstuk", () => {
+    const now = new Date("2026-05-25T12:00:00Z");
+    const past = new Date("2026-01-01T00:00:00Z");
+    expect(() => statusForDecision("SUBMITTED", "VERIFIED", null, past, now)).toThrow(
+      ExpiredEvidenceError,
+    );
+  });
+
+  it("staat VERIFIED toe op een nog-geldig of vervaldatumloos bewijsstuk", () => {
+    const now = new Date("2026-05-25T12:00:00Z");
+    const future = new Date("2026-12-31T00:00:00Z");
+    expect(statusForDecision("SUBMITTED", "VERIFIED", null, future, now)).toBe("VERIFIED");
+    expect(statusForDecision("SUBMITTED", "VERIFIED", null, null, now)).toBe("VERIFIED");
+  });
+
+  it("de verloop-poort raakt afwijzingen niet (een verlopen document blijft afwijsbaar)", () => {
+    const now = new Date("2026-05-25T12:00:00Z");
+    const past = new Date("2026-01-01T00:00:00Z");
+    expect(statusForDecision("SUBMITTED", "REJECTED", "Verlopen document", past, now)).toBe(
+      "REJECTED",
+    );
+  });
+});
+
+describe("isExpiredDate / assertEvidenceVerifiable", () => {
+  const now = new Date("2026-05-25T12:00:00Z");
+  const past = new Date("2026-01-01T00:00:00Z");
+  const future = new Date("2026-12-31T00:00:00Z");
+
+  it("isExpiredDate is status-agnostisch (geen VERIFIED-poort)", () => {
+    expect(isExpiredDate(past, now)).toBe(true);
+    expect(isExpiredDate(future, now)).toBe(false);
+    expect(isExpiredDate(null, now)).toBe(false);
+    expect(isExpiredDate(undefined, now)).toBe(false);
+  });
+
+  it("de grens is inclusief: expiresAt == now telt als verlopen", () => {
+    expect(isExpiredDate(new Date(now.getTime()), now)).toBe(true);
+    expect(isExpiredDate(new Date(now.getTime() + 1), now)).toBe(false);
+  });
+
+  it("assertEvidenceVerifiable werpt alleen op een verlopen datum", () => {
+    expect(() => assertEvidenceVerifiable(past, now)).toThrow(ExpiredEvidenceError);
+    expect(() => assertEvidenceVerifiable(future, now)).not.toThrow();
+    expect(() => assertEvidenceVerifiable(null, now)).not.toThrow();
   });
 });
 

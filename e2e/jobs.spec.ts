@@ -89,6 +89,10 @@ test("opdrachtgever maakt, publiceert en ZZP'er vindt de opdracht", async ({ pag
   const fp = await ctx.newPage();
   await registerFreelancer(fp, `jobfree-${uniq()}@test.local`);
   await fp.goto("/opdrachten");
+  // Wacht op hydratie vóór het typen: de zoekbalk-onChange (die de debounced ?q= in de URL zet) is
+  // pas ná hydratie aangehecht. Vullen vóór hydratie verliest de invoer → waitForURL hieronder verloopt
+  // (flaky op een trage CI-runner). Spiegelt de hydrated()-poort die de andere e2e-specs al gebruiken.
+  await fp.waitForSelector('html[data-hydrated="/opdrachten"]', { timeout: 10000 });
   await fp.getByLabel("Zoeken").fill(title);
   await fp.waitForURL(/[?&]q=/); // wacht tot de debounced zoekopdracht is toegepast
   const card = fp.getByRole("link", {

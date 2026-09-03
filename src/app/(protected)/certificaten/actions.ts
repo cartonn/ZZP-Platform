@@ -6,7 +6,12 @@ import { AuthorizationError, requireRole } from "@/lib/authz";
 import { audit, auditData } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { prisma } from "@/lib/db";
-import { assertTransition, TransitionError } from "@/lib/credentials";
+import {
+  assertTransition,
+  assertEvidenceVerifiable,
+  ExpiredEvidenceError,
+  TransitionError,
+} from "@/lib/credentials";
 import { toSafeActionError } from "@/lib/safe-action-error";
 import { documentKindForCredential } from "@/lib/documents";
 import { getDiplomaVerifier } from "@/lib/services/diploma-verifier";
@@ -444,14 +449,20 @@ async function applyExternalVerification(opts: {
   actorId: string;
   credentialId: string;
   fromStatus: CredentialStatus;
+  expiresAt: Date | null;
   source: "DUO" | "BIG";
   reason: string;
 }): Promise<ExternalVerifyState> {
   try {
     if (opts.fromStatus !== "SUBMITTED") assertTransition(opts.fromStatus, "SUBMITTED");
     assertTransition("SUBMITTED", "VERIFIED");
+    // Server-side poort (CLAUDE.md regel 1): ook de zelf-verificatie (DUO/BIG) mag een al-verlopen
+    // bewijsstuk niet direct VERIFIED zetten — anders klapt de eerstvolgende expiry-taak het meteen naar
+    // EXPIRED. Dit pad kent geen admin-badge, dus de poort is hier de enige rem.
+    assertEvidenceVerifiable(opts.expiresAt);
   } catch (e) {
     if (e instanceof TransitionError) return { error: e.message };
+    if (e instanceof ExpiredEvidenceError) return { error: e.message };
     throw e;
   }
   const meta = await requestMeta();
@@ -549,6 +560,7 @@ export async function verifyCredentialViaDuo(
     actorId: actor.id,
     credentialId,
     fromStatus: status,
+    expiresAt: credential.expiresAt,
     source: "DUO",
     reason: `DUO-verificatie (${result.source}): ${result.message}`,
   });
@@ -599,6 +611,7 @@ export async function verifyCredentialViaBig(
     actorId: actor.id,
     credentialId,
     fromStatus: status,
+    expiresAt: credential.expiresAt,
     source: "BIG",
     reason: `BIG-registerverificatie (${result.source}): ${result.message}`,
   });

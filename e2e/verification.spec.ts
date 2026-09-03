@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
-import { clickUntil, clickUntilGone, freshen, reloadUntilVisible } from "./_robust";
+import { clickUntil, clickUntilGone, freshen } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -146,7 +146,10 @@ test("niet-admin krijgt geen toegang tot /admin (route-gate)", async ({ page }) 
   await expect(page.getByText("Beoordeel ingediende certificaten")).toHaveCount(0);
 });
 
-test("verlopen VERIFIED-certificaat wordt server-side EXPIRED", async ({ page, browser }) => {
+test("verlopen bewijsstuk kan niet goedgekeurd worden (server-side poort)", async ({
+  page,
+  browser,
+}) => {
   const title = `Oud Cert ${uniq()}`;
   await registerFreelancer(page, `expiry-${uniq()}@test.local`);
   // Reeds verstreken vervaldatum.
@@ -162,24 +165,17 @@ test("verlopen VERIFIED-certificaat wordt server-side EXPIRED", async ({ page, b
   await login(admin, "admin@zzp-platform.local");
   await admin.goto("/admin/verificaties");
   await hydrated(admin); // hydratie afwachten vóór server-action-kliks
-  await clickUntilGone(
-    admin.locator("div.bg-card", { hasText: title }).getByRole("button", { name: "Goedkeuren" }),
-    admin.getByText(title),
-  );
 
-  // Expiry-actie zet de (verlopen) VERIFIED-credential op EXPIRED. Niet op de flash-melding
-  // leunen (#329/hydratie-race: die kan uitblijven of na een refresh weg zijn) — het echte bewijs
-  // is de EXPIRED-status op het certificaat van de ZZP'er hieronder.
-  await admin.getByRole("button", { name: "Verlopen certificaten verwerken" }).click();
-  await admin
-    .getByText(/op verlopen gezet/)
-    .waitFor({ timeout: 5000 })
-    .catch(() => {});
+  const card = admin.locator("div.bg-card", { hasText: title });
+  // De wachtrij markeert de inzending als reeds verlopen (kwaliteits-triage).
+  await expect(card.getByText("Reeds verlopen")).toBeVisible();
+
+  // Goedkeuren wordt server-side geweigerd: het zou een direct-ongeldige VERIFIED-credential opleveren
+  // die de expiry-taak meteen naar EXPIRED klapt. De UI toont de weigering inline en de inzending blijft
+  // in de wachtrij staan (wordt niet VERIFIED) — server-side is de waarheid (CLAUDE.md regel 1).
+  await card.getByRole("button", { name: "Goedkeuren" }).click();
+  await expect(card.getByRole("alert")).toContainText(/verlopen/i);
+  await expect(admin.getByText(title)).toBeVisible();
+
   await adminCtx.close();
-
-  await page.goto("/certificaten");
-  await reloadUntilVisible(
-    page,
-    page.locator("div.bg-card", { hasText: title }).getByText("Verlopen", { exact: true }),
-  );
 });

@@ -42,16 +42,53 @@ export function assertTransition(from: CredentialStatus, to: CredentialStatus): 
 }
 
 /**
+ * Werp `ExpiredEvidenceError` wanneer een bewijsstuk dat al verlopen is als VERIFIED beoordeeld
+ * dreigt te worden. Zie `assertEvidenceVerifiable`.
+ */
+export class ExpiredEvidenceError extends Error {
+  constructor() {
+    super(
+      "Het bewijsstuk is al verlopen. Er is een vernieuwd, geldig document nodig voordat het geverifieerd kan worden.",
+    );
+    this.name = "ExpiredEvidenceError";
+  }
+}
+
+/**
+ * Server-side verificatiepoort (CLAUDE.md regel 1): weiger een VERIFIED-beslissing op een bewijsstuk
+ * waarvan de vervaldatum al is verstreken. Zonder deze poort wordt de credential *direct* ongeldig —
+ * de eerstvolgende `runExpiryTask` klapt hem meteen naar EXPIRED — wat een compliance-gat en een paar
+ * tegenstrijdige notificaties ("goedgekeurd" → "verlopen") oplevert. De admin-wachtrij toont dit al
+ * als danger-badge; deze poort dwingt het ook server-side af (UI mag tonen, nooit beslissen). Puur.
+ * Werpt `ExpiredEvidenceError`; een SUBMITTED-inzending zonder `expiresAt` verloopt nooit → toegestaan.
+ */
+export function assertEvidenceVerifiable(
+  expiresAt: Date | null | undefined,
+  now: Date = new Date(),
+): void {
+  if (isExpiredDate(expiresAt, now)) {
+    throw new ExpiredEvidenceError();
+  }
+}
+
+/**
  * Bepaalt de te zetten status bij een verificatiebeslissing.
  * REJECTED vereist een (niet-lege) reden — server-side afgedwongen (CLAUDE.md verificatieflow stap 4).
+ * VERIFIED op een al-verlopen bewijsstuk wordt geweigerd (`assertEvidenceVerifiable`); geef `expiresAt`
+ * mee zodat de beslissingsfunctie zichzelf beschermt. Zonder `expiresAt` (default) verandert er niets.
  */
 export function statusForDecision(
   current: CredentialStatus,
   decision: VerificationDecision,
   reason?: string | null,
+  expiresAt?: Date | null,
+  now: Date = new Date(),
 ): CredentialStatus {
   if (decision === "REJECTED" && !reason?.trim()) {
     throw new Error("Een afwijzing vereist een reden.");
+  }
+  if (decision === "VERIFIED") {
+    assertEvidenceVerifiable(expiresAt, now);
   }
   const next: CredentialStatus = decision === "VERIFIED" ? "VERIFIED" : "REJECTED";
   assertTransition(current, next);
@@ -108,8 +145,17 @@ export interface ExpiryInput {
  */
 export function isExpired(credential: ExpiryInput, now: Date = new Date()): boolean {
   if (credential.status !== "VERIFIED") return false;
-  if (!credential.expiresAt) return false;
-  return credential.expiresAt.getTime() <= now.getTime();
+  return isExpiredDate(credential.expiresAt, now);
+}
+
+/**
+ * Status-agnostisch: ligt deze vervaldatum op of vóór `now`? Bewust géén VERIFIED-poort zoals
+ * `isExpired`, zodat de verificatiepoort (`assertEvidenceVerifiable`) een nog-SUBMITTED inzending kan
+ * beoordelen. `expiresAt <= now` — exact dezelfde grens als `isExpired`. Geen vervaldatum = nooit verlopen.
+ */
+export function isExpiredDate(expiresAt: Date | null | undefined, now: Date = new Date()): boolean {
+  if (!expiresAt) return false;
+  return expiresAt.getTime() <= now.getTime();
 }
 
 /** Aantal hele dagen tot expiry; `null` als er geen vervaldatum is. Negatief = verlopen. */

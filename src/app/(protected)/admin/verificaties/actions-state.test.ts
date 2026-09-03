@@ -34,7 +34,10 @@ vi.mock("@/lib/authz", async (orig) => {
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
+import { prisma } from "@/lib/db";
 import { rejectCredentialState, verifyCredentialState } from "./actions";
+
+const findUnique = prisma.credential.findUnique as unknown as ReturnType<typeof vi.fn>;
 
 function form(reason?: string): FormData {
   const fd = new FormData();
@@ -78,5 +81,21 @@ describe("verifyCredentialState — al-beoordeeld-race i.p.v. 500", () => {
     const result = await verifyCredentialState("cred-1", undefined, new FormData());
     expect(result && "error" in result).toBe(true);
     if (result && "error" in result) expect(result.error).toMatch(/al beoordeeld/i);
+  });
+
+  it("weigert een reeds-verlopen bewijsstuk goed te keuren en muteert de DB niet", async () => {
+    tx.mockClear(); // gedeelde mock: wis calls van eerdere tests vóór de "niet-gemuteerd"-assertie
+    findUnique.mockImplementationOnce(async () => ({
+      id: "cred-1",
+      title: "VOG",
+      status: "SUBMITTED",
+      type: "VOG",
+      expiresAt: new Date("2020-01-01T00:00:00Z"), // ruim in het verleden
+      freelancerProfile: { userId: "owner-1" },
+    }));
+    const result = await verifyCredentialState("cred-1", undefined, new FormData());
+    expect(result && "error" in result).toBe(true);
+    if (result && "error" in result) expect(result.error).toMatch(/verlopen/i);
+    expect(tx).not.toHaveBeenCalled();
   });
 });
