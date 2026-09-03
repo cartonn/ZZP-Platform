@@ -4,6 +4,117 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-03b (basis: `main` @ bff7ffa5) — 2× HOOG OPGELOST na upgrade van eerder geparkeerde MIDDEL: (1) timing-enumeratie op registratie (CWE-208 / OWASP A07), (2) permanent-onerasbare aanmelding-PII van een afgewezen bureau (AVG art. 17)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
+A: de nieuwe re-engagement-keten (#1362) + `relatedJobsForFreelancer`/`applicationJobAvailability`;
+B: **hertoetsing** van drie geparkeerde MIDDEL uit ronde 2026-09-03 (timing-enum bureau, REJECTED-tenant-erasure,
+fail-open rate-limit) + verse sweep op share-tokens, bulk-import-onboarding, 2FA-disable en de cascade-geldengine;
+C: IDOR-/storage-/audit-integriteitsherbeoordeling van álle `/api/*/[id]`-routes, share/agenda-tokens,
+mutatie-actions met client-`id`, cross-tenant-aggregaties, CSV/ICS-injectie, `$queryRaw`/`dangerouslySetInnerHTML`.
+Elk met de opdracht de "CLEAN"-claim actief te wéérleggen. `npm audit --omit=dev`: **0 kwetsbaarheden**.
+
+**OPGELOST — [HOOG (upgrade van MIDDEL) · CWE-208 / OWASP A07 (Identification & Authentication Failures) /
+AVG art. 5(1)(f)] Timing-enumeratie op `register` én `registerBureau` (`src/app/register/actions.ts`).**
+Het "nieuw account/bureau"-pad draait `bcrypt.hash(password, 10)` (~90 ms gemeten); het "bestaat al"-pad
+keerde vroeg terug na twee indexed reads (~1-5 ms) zonder bcrypt-kost. Deze delta is met één sample per
+e-mailadres/KvK-nummer waarneembaar — ver boven normale netwerkjitter — en `registerRateLimiter` (5/uur/IP)
+weegt daar niet tegenop bij IP-rotatie. Netto: enumeratie van bestaande accounts/bureaus in het trust-dossier,
+precies wat de anti-enumeratie-ontwerpcomment op `registerBureau` (regel 115-125) claimde te voorkomen.
+**Wéérlegging van MIDDEL:** dezelfde bugklasse is al door dit team ernstig genoeg bevonden om te fixen voor
+`authorize-credentials.ts` (login, `TIMING_EQUALIZER_HASH`, expliciet CWE-208 in de comment); registratie
+werd overgeslagen. Business/PII-enumeratie op schaal tegen een platform waarvan het trust-dossier van
+VOG/diploma-houders het onderscheidende product is → HOOG. **Fix:** `TIMING_EQUALIZER_HASH` uit
+`authorize-credentials.ts` geëxporteerd en hergebruikt; op beide vroege-return-takken draait nu
+`await bcrypt.compare(password, TIMING_EQUALIZER_HASH)` vóór de `return` — resultaat wordt bewust genegeerd,
+enkel de rekentijd telt, exact het equalizer-patroon van de login. **Durable test (rood→groen):**
+`src/app/register/actions.test.ts` (nieuw) — 5 tests: mock `bcryptjs`, verifieer structureel dat
+`bcrypt.compare` op zowel "bestaat wél" (register + registerBureau met bestaande user én bestaande tenant)
+als "bestaat niet" (implicaat: `bcrypt.hash` op create) is aangeroepen. Wandkloktoetsen bewust vermeden
+(fragiel); 3 van 5 tests falen zonder de fix, alle 5 slagen ermee. **Vervolg-backlog (geen agent-fix):** de
+explicit-oracle-veldfout `"Er bestaat al een account met dit e-mailadres."` in `register()` blijft bewust
+staan als UX-affordance en moet met de opdrachtgever besproken worden — een silent-fail zonder werkende
+mail-provider is UX-hostile, en de industry-standaardoplossing ("verzend altijd een e-mail; toon geen
+veldfout") vereist een productie-SMTP-koppeling (MENSENWERK §2). Deze PR dicht enkel het TIMING-lek.
+Gewijzigd: `src/app/register/actions.ts`, `src/lib/authorize-credentials.ts` (`TIMING_EQUALIZER_HASH`
+`export`-baar gemaakt, gedrag onveranderd).
+
+**OPGELOST — [HOOG (upgrade van MIDDEL) · AVG art. 17 (recht op vergetelheid) + art. 5(1)(e) (opslagbeperking)
+/ OWASP A01 (Broken Access Control — ontbrekende capability)] De aanmelding-PII van een afgewezen bureau
+(REJECTED-tenant) was permanent onerasbaar via elk code-pad dat vandaag bestaat.** Bevestigd end-to-end:
+`registerBureau` maakt vóór admin-review een volledige `User` (naam/e-mail) én `Tenant` (KvK-nummer, regio,
+telefoon, `activationNote`) aan. Bij afwijzing zet de admin `Tenant.status="REJECTED"` — en
+`TENANT_TRANSITIONS.REJECTED=[]` heeft **nul** legale uitgaande overgangen; geen enkele admin-actie in de
+repo (`git grep tenant.delete`/`transferTenant`/`closeTenant` = leeg) kan de tenant sluiten of over te dragen.
+Vraagt de betrokkene vervolgens erasure via `requestAccountDeletion` (self-service voor élke geauthenticeerde
+gebruiker, incl. de afgewezen FRANCHISER), dan blokkeert `canAnonymizeUser` fail-closed op `ownsTenant` — en
+verwijst naar een overdracht/sluiting die niet bestaat. Netto: de aanmelding-PII was structureel onerasbaar,
+niet hypothetisch. **Wéérlegging van MIDDEL:** geparkeerd als "verifieer of…"; deze ronde bewijst dat het pad
+end-to-end nu al bereikbaar is via de bestaande self-service erasure — en dat de anonimisering-transactie de
+`Tenant`-rij nergens aanraakt, dus zelfs een de-block-only-fix (audit-optie a) zou tenant-PII laten staan →
+half-voltooide erasure. **Fix (AVG-compleet — de-block + PII-wipe in dezelfde transactie):**
+`AnonymizationTarget.ownsTenant` → `ownsActiveTenant` (semantisch: bezit een OPERATIONELE tenant —
+PENDING/ACTIVE/SUSPENDED). REJECTED-tenanten passeren de guard bewust (de eigenaar heeft nooit toegang gehad
+via `tenantAccessBlocked`, dus geen leden/opdrachten/subscription/fees hangen eraan). In dezelfde
+`prisma.$transaction` van `anonymizeUser`: scoped `prisma.tenant.update` (`name`→"[Verwijderde vestiging]",
+`slug`→`verwijderd-<id>` (deterministisch uniek), `kvkNumber`/`region`/`contactPhone`/`activationNote`→`null`)
+
+- aparte `auditLog.create` (`ACCOUNT_ANONYMIZED` op `entityType:"Tenant"`, hergebruikt het bestaande NL-label
+  zonder audit-labels-drift-gate te breken). De `Tenant`-rij zelf blijft staan als verantwoordingsspoor
+  (een `tenant.delete` zou via `onDelete:Cascade` op `owner` het net-geanonimiseerde User-account weer
+  verwijderen). **Durable tests (rood→groen):** `src/lib/account-anonymization.test.ts` — 2 nieuwe:
+  (a) `ownsActiveTenant:false`/`undefined` staat anonimisering toe (AVG art. 17 red→green voor een REJECTED-
+  bureau), (b) `ownsActiveTenant:true` blijft fail-closed blokkeren met `/actieve/i` in de melding.
+  De model-drift-gate `anonymize-schema-coverage.test.ts` haalt `Tenant` uit de allowlist (nu daadwerkelijk
+  gedekt door `prisma.tenant.update`) — de gate zou anders correct falen op zijn eigen invariant. Gewijzigd:
+  `src/lib/account-anonymization.ts`, `src/app/(protected)/admin/gebruikers/actions.ts`,
+  `src/lib/account-anonymization.test.ts`, `src/app/(protected)/admin/gebruikers/anonymize-schema-coverage.test.ts`.
+
+**GEPARKEERD deze ronde (hertoetsing bevestigt MIDDEL — geen upgrade):**
+
+- **[MIDDEL (blijft) · OWASP A07 — fail-open rate-limiting bij Redis-storing]** (`src/lib/rate-limit.ts:196-209, 378-390`):
+  hertoetsing bevestigt de bewuste availability-keuze; de dead-man's-switch-heartbeat wordt synchroon
+  binnen `consume()` vóór de fail-open-return awaited (geen exploiteerbare latency-race gevonden). De
+  reële-blast-radius (`loginRateLimiter`/`reauthRateLimiter` = login+`changePassword`+`disableTwoFactor`
+  fail-open) is bekend en per-outage-duur begrensd; `disableTwoFactor` vereist ná fail-open nog steeds
+  wachtwoord+TOTP (bounded 6-cijferige TOTP-ruimte). **MENSENWERK-escalatie:** bevestig dat productie-
+  paging daadwerkelijk aan `ZzpRateLimitStoreDeliveryFailing` / `/admin/systeemstatus` hangt (niet alleen
+  passieve poll). Kan niet uit de repo geverifieerd worden — zie MENSENWERK.md §5.
+
+**CLEAN geverifieerd deze ronde (adversarieel geprobeerd te wéérleggen, niet gelukt — niet speculatief):**
+
+- **Re-engagement-keten (#1362) + `relatedJobsForFreelancer`/`applicationJobAvailability`:** ownership van
+  `jobId` structureel afgedwongen door de reacties-query zelf (`freelancerId: profile.id`, `profile` uit
+  sessie); geen IDOR-pad. `relatedJobsForFreelancer` scope't strikt op `status:"PUBLISHED"` +
+  `visibleJobsWhereForTenant(profile.tenantId)`; DRAFT/CLOSED/cross-tenant uitgesloten. `companyName` was al
+  zichtbaar voor deze doelgroep — geen nieuwe PII-blootstelling. `pickReengagementAnchor` heeft een
+  defensieve dubbele guard tegen `jobDead` op besliste reacties (getest). Geen `dangerouslySetInnerHTML`,
+  geen `$queryRaw` in het oppervlak.
+- **IDOR / storage / audit-integriteit (rondesweep over alle `/api/*/[id]`, media/documents, share-/agenda-
+  tokens, alle server actions met client-`id`):** elke gevoelige route leidt eigenaar server-side af,
+  geeft identieke 404 op "niet gevonden" vs "geen toegang" (anti-oracle CWE-203/208) inclusief
+  `auditDeniedAccess`. `/api/media/[...key]` matcht enkel bekende `Company.logoKey`-UUIDs (geen
+  enumeratie/traversal). Share-/agenda-tokens: HMAC-SHA256 + `timingSafeEqual` + lengte-precheck +
+  liveness/tenant/PUBLIC-visibility-herverificatie per request. Cross-tenant/franchise-scoping via
+  `tenantScopeWhere`/`ownsViaTenant`/`visibleJobsWhereForTenant` overal fail-closed. Geen `.passthrough()`,
+  geen mass-assignment/overposting-patroon (`grep` op `data: { ...body }` in Prisma.create/update = 0).
+  Statusovergangen via de expliciete transitiemaps (`assertJobTransition`/`assertHandoffTransition` etc.).
+  CSV/ICS-injectie: `toCsv/escapeCsvField` (`=+-@\t\r`) + `escapeIcsText` op alle exports. `$queryRaw` =
+  alleen statische `SELECT 1`-markers. `dangerouslySetInnerHTML` = 1 plek (statisch nonce-theme-script,
+  CSP-genonced). Cron/webhook-guards fail-closed (503 bij leeg `CRON_SECRET`, `timingSafeEqual`).
+- **Rehertoetste MIDDEL — bulk-import temp-passwords / 2FA disable / cascade-geldengine:** temp-password uit
+  `node:crypto.randomInt` (12+ chars), `mustChangePassword`-middleware blokkeert álle routes behalve
+  `/account/wachtwoord` en `/api/auth/*` — een malicieuze admin die de temp-code kent kan niet doorstoten
+  naar data-pagina's; `disableTwoFactor` blijft na een fail-open-outage nog steeds wachtwoord+TOTP vereisen;
+  in de cascade-geldengine wordt `rateCents` server-side uit `Collaboration.rate` gelezen (nooit client),
+  `hours`/`amount` client-input is bounded + goedkeuring-vereist, geen `...body`-spread in Prisma.
+- **Kleine forensische note (LAAG, geen data-lek — niet geblokkeerd, niet in dit run gefixt):**
+  `franchise/opdrachtgevers/actions.ts` `removeDepartment` weigert cross-tenant `departmentId` correct
+  (`!dept || !ownsViaTenant(...)` → stille no-op) maar schrijft géén `FRANCHISE_DEPARTMENT_REMOVE_DENIED`-
+  audit zoals alle andere IDOR-gevoelige mutaties in de repo (`SHIFT_HANDOFF_CANCEL_DENIED`,
+  `DOCUMENT_DELETE_DENIED`, `*_ACCESS_DENIED`). Forensisch gat, geen exploiteerbaar defect — spiegel-fix
+  op te pakken in een volgende docs-only-ronde.
+
 ## Ronde 2026-09-03 (basis: `main` @ 5f9bf1ab) — 1× KRITIEK + 1× HOOG OPGELOST op de níeuwe VOG-metadata-modus (#1338): (1) herindienen liet het vangnet onder de VOG-verwijdering blind, (2) een verloren race schreef een spook-audit
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken van
@@ -50,19 +161,13 @@ ongewijzigd (happy-path). `src/lib/credential-evidence.ts`.
 
 **GEPARKEERD deze ronde (repro + severity; geen agent-blocker):**
 
-- **[MIDDEL · CWE-208/OWASP A07 — timing-enumeratie] `registerBureau`** (`src/app/register/actions.ts:146-183`):
-  de respons is identiek bij een bestaand vs. nieuw e-mailadres/KvK, maar de timing niet — het bestaand-pad
-  retourneert direct na twee indexed reads, het nieuw-pad doet `bcrypt.hash` + een 4-writes-transactie. Een
-  aanvaller kan bureaus/accounts enumereren op latentie, precies wat het "geen enumeratie"-ontwerp wil
-  voorkomen. `registerRateLimiter` verhoogt de kosten maar dicht het orakel niet. **Fix:** de dure stap
-  (bcrypt of een dummy met gelijke kosten) onvoorwaardelijk vóór de existentie-tak, of het snelle pad padden.
-- **[MIDDEL · AVG art. 17/5(1)(e) — geen erasure-pad voor een afgewezen bureau]** (`src/lib/enums.ts`
-  `TENANT_TRANSITIONS.REJECTED: []`, `src/lib/account-anonymization.ts` `canAnonymizeUser` blokkeert bij
-  `ownsTenant`). Een REJECTED-tenant is terminal; de FRANCHISER-eigenaar blijft ACTIVE, en anonimiseren wordt
-  geblokkeerd zolang hij een tenant bezit — maar er is geen admin-actie om een tenant te sluiten/over te dragen.
-  KvK/telefoon/regio/contact-PII van een afgewezen aanmelding heeft dus geen bereikbaar wispad. **MENSENWERK
-  §5** — bouw een minimale "tenant sluiten"-adminactie (terminale gesloten-status die `canAnonymizeUser`
-  deblokkeert) óf een retentie-sweep voor REJECTED-tenants (spiegelt `application-retention`/`lead-retention`).
+- **~~[MIDDEL · CWE-208/OWASP A07 — timing-enumeratie] `registerBureau`~~** — **OPGELOST in ronde 2026-09-03b**
+  (upgrade naar HOOG na hertoetsing; ook `register()` bleek getroffen). `TIMING_EQUALIZER_HASH` hergebruikt op
+  beide vroege-returns.
+- **~~[MIDDEL · AVG art. 17/5(1)(e) — geen erasure-pad voor een afgewezen bureau]~~** — **OPGELOST in ronde
+  2026-09-03b** (upgrade naar HOOG; het pad bleek al bereikbaar via bestaande self-service erasure).
+  `ownsActiveTenant` scheidt operationeel van REJECTED; tenant-PII wordt nu in dezelfde
+  `anonymizeUser`-transactie gewist + geaudit.
 - **[MIDDEL · OWASP A07 — fail-open rate-limiting bij Redis-storing]** (`src/lib/rate-limit.ts:207-208, 388-389`):
   bewuste availability-keuze (met dead-man's-switch-heartbeat), maar het venster is reëel exploiteerbaar.
   **MENSENWERK** — bevestig dat de heartbeat-alert (`ZzpRateLimitStoreDeliveryFailing`) daadwerkelijk aan een

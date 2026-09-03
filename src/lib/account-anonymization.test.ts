@@ -183,19 +183,51 @@ describe("canAnonymizeUser — afwijzingen", () => {
     if (!result.ok) expect(result.reason.length).toBeGreaterThan(0);
   });
 
-  it("weigert wanneer de betrokkene nog een vestiging bezit (ownsTenant) — anders blijft de tenant-PII/owner staan", () => {
+  it("weigert wanneer de betrokkene nog een operationele vestiging bezit (ownsActiveTenant) — anders blijft de tenant-PII/owner staan", () => {
     const result = canAnonymizeUser(
       adminActor,
-      validTarget({ role: "FRANCHISER", ownsTenant: true }),
+      validTarget({ role: "FRANCHISER", ownsActiveTenant: true }),
     );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toMatch(/vestiging/i);
   });
 
-  it("staat wél toe wanneer de vestiging is overgedragen/gesloten (ownsTenant false)", () => {
+  it("staat wél toe wanneer de vestiging is overgedragen/gesloten (ownsActiveTenant false)", () => {
     expect(
-      canAnonymizeUser(adminActor, validTarget({ role: "FRANCHISER", ownsTenant: false })),
+      canAnonymizeUser(adminActor, validTarget({ role: "FRANCHISER", ownsActiveTenant: false })),
     ).toEqual({ ok: true });
+  });
+
+  it("staat wél toe wanneer de eigen tenant REJECTED is en dus als niet-operationeel (ownsActiveTenant false/undefined) wordt aangeboden — AVG art. 17 recht op vergetelheid voor een afgewezen bureau", () => {
+    // Rood→groen. Vóór de scheiding tussen "eigenaar-van-tenant" en "eigenaar-van-OPERATIONELE-tenant"
+    // blokkeerde de guard fail-closed zolang er een `Tenant.ownerUserId`-verwijzing bestond. Dat verwoest
+    // het erasure-pad voor een afgewezen aanmelding: `TENANT_TRANSITIONS.REJECTED` is leeg (geen enkele
+    // admin-actie kan de tenant sluiten of overdragen), dus aanmeldings-PII van een REJECTED-bureau bleef
+    // permanent onerasbaar — een direct art. 17-lek. De aanroeper (admin-actions) berekent
+    // `ownsActiveTenant` nu expliciet als `ownedTenant !== null && ownedTenant.status !== "REJECTED"`,
+    // zodat een REJECTED-tenant hier niet meer blokkeert (en in de erasure-transactie meegepakt kan
+    // worden). `undefined` telt óók als niet-operationeel — spiegel voor bestaande aanroepers.
+    expect(
+      canAnonymizeUser(adminActor, validTarget({ role: "FRANCHISER", ownsActiveTenant: false })),
+    ).toEqual({ ok: true });
+    expect(
+      canAnonymizeUser(adminActor, validTarget({ role: "FRANCHISER" })), // ownsActiveTenant undefined
+    ).toEqual({ ok: true });
+  });
+
+  it("gebruikt niet-actieve-tenant-vergissing niet als ontsnappingsluik: `ownsActiveTenant: true` blijft blokkeren", () => {
+    // Vangnet: als een aanroeper per abuis een operationele tenant als REJECTED zou markeren en de guard
+    // stilzwijgend zou deblokkeren, verdwijnt de PII/owner-verwijzing van een doordraaiende vestiging.
+    // De guard weigert dus altijd wanneer de aanroeper zelf de tenant als actief flagt.
+    const result = canAnonymizeUser(
+      adminActor,
+      validTarget({ role: "FRANCHISER", ownsActiveTenant: true }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toMatch(/vestiging/i);
+      expect(result.reason).toMatch(/actieve/i);
+    }
   });
 });
 

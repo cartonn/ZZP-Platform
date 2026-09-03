@@ -13,6 +13,7 @@ import {
   getPasswordBreachChecker,
   BREACHED_PASSWORD_MESSAGE,
 } from "@/lib/services/password-breach";
+import { TIMING_EQUALIZER_HASH } from "@/lib/authorize-credentials";
 
 export type RegisterState =
   | { error?: string; success?: string; fieldErrors?: Record<string, string> }
@@ -64,6 +65,14 @@ export async function register(_prev: RegisterState, formData: FormData): Promis
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
+    // Timing-egalisatie (CWE-208): het "nieuw account"-pad hieronder draait `bcrypt.hash(..., 10)`
+    // (~90 ms). Zonder dezelfde bcrypt-kost op de vroege return zou een bestaand e-mailadres
+    // meetbaar sneller antwoorden en enumereerbaar worden. Zie het equalizer-patroon in
+    // `src/lib/authorize-credentials.ts`. Het resultaat wordt bewust genegeerd — enkel de
+    // rekentijd telt. NB: de expliciete oracle-veldfout hieronder blijft bewust staan als
+    // UX-affordance en moet met de opdrachtgever besproken worden (login/reset-flow zonder
+    // werkende mail is nu problematisch); staat op de backlog. Deze PR dicht enkel het timing-lek.
+    await bcrypt.compare(password, TIMING_EQUALIZER_HASH);
     return { fieldErrors: { email: "Er bestaat al een account met dit e-mailadres." } };
   }
 
@@ -156,7 +165,15 @@ async function registerBureau(formData: FormData): Promise<RegisterState> {
     prisma.user.findUnique({ where: { email }, select: { id: true } }),
     prisma.tenant.findUnique({ where: { kvkNumber }, select: { id: true } }),
   ]);
-  if (existingUser || existingTenant) return { success: BUREAU_SUBMITTED };
+  if (existingUser || existingTenant) {
+    // Timing-egalisatie (CWE-208): zonder deze compare zou de vroege return meetbaar sneller
+    // zijn dan het "nieuwe tenant"-pad (dat `bcrypt.hash(..., 10)` draait) en zo verklappen
+    // dat het e-mailadres/KvK-nummer al bekend is — enumeratie van bureaus in het
+    // trust-dossier. Zelfde patroon als `src/lib/authorize-credentials.ts`. Het resultaat
+    // wordt bewust genegeerd; enkel de rekentijd telt.
+    await bcrypt.compare(password, TIMING_EQUALIZER_HASH);
+    return { success: BUREAU_SUBMITTED };
+  }
 
   const passwordHash = await bcrypt.hash(password, 10);
   const meta = await requestMeta();

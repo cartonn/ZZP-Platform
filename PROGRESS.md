@@ -10,6 +10,47 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-03 — security/privacy: 2× HOOG opgelost na hertoetsing van geparkeerde MIDDEL (audit-ronde 2)
+
+**Wat:** adversariële security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle Opus-audits) met als doel
+géparkeerde MIDDEL-bevindingen actief te wéérleggen — twee daarvan escaleerden naar HOOG en zijn opgelost:
+
+1. **HOOG (upgrade van MIDDEL) · CWE-208 / OWASP A07 / AVG art. 5(1)(f):** timing-enumeratie op zowel
+   `register()` als `registerBureau()`. Het "nieuw account/bureau"-pad draait `bcrypt.hash(password, 10)`
+   (~90 ms gemeten); het "bestaat al"-pad keerde direct terug zonder bcrypt-kost → één sample per e-mailadres
+   volstond voor enumeratie (competitor-intel op wie in het trust-dossier zit). `registerRateLimiter` weegt
+   niet op tegen IP-rotatie. Dezelfde bug is al door dit team ernstig genoeg bevonden om te fixen voor login
+   (`TIMING_EQUALIZER_HASH` in `authorize-credentials.ts`); registratie werd overgeslagen. **Fix:** die
+   constante geëxporteerd en op beide vroege-return-takken (`if (existing)` in `register()`, `if (existingUser
+|| existingTenant)` in `registerBureau()`) draait nu `await bcrypt.compare(password, TIMING_EQUALIZER_HASH)`
+   vóór de `return` — resultaat genegeerd, enkel de rekentijd telt. De expliciete oracle-veldfout in
+   `register()` blijft bewust staan (UX-affordance zonder werkende mail-provider — MENSENWERK §2 in de
+   backlog).
+2. **HOOG (upgrade van MIDDEL) · AVG art. 17 recht op vergetelheid + art. 5(1)(e) opslagbeperking / OWASP A01:**
+   aanmelding-PII van een afgewezen bureau was permanent onerasbaar. `registerBureau` maakt vóór admin-review
+   een `User` + `Tenant` (naam/KvK/regio/telefoon/activationNote); admin-rejection zet `Tenant.status=REJECTED`
+   en `TENANT_TRANSITIONS.REJECTED=[]` (nul uitgaande overgangen, geen `transferTenant`/`closeTenant`-actie).
+   Vraagt de betrokkene erasure aan → `canAnonymizeUser` blokkeerde fail-closed op `ownsTenant` en verwees naar
+   een sluit-actie die niet bestaat. Bovendien raakt de `anonymizeUser`-transactie de `Tenant`-rij nergens
+   aan — zelfs de-block-only zou tenant-PII laten staan. **Fix (AVG-compleet — de-block + PII-wipe atomair):**
+   `ownsTenant` → `ownsActiveTenant` (semantisch: PENDING/ACTIVE/SUSPENDED — REJECTED valt bewust buiten de
+   guard omdat de eigenaar nooit toegang had via `tenantAccessBlocked`, dus geen downstream-data). Binnen
+   dezelfde `prisma.$transaction`: scoped `prisma.tenant.update` (`name`→"[Verwijderde vestiging]",
+   `slug`→`verwijderd-<id>` deterministisch uniek, `kvkNumber`/`region`/`contactPhone`/`activationNote`→`null`)
+   - `auditLog.create` (`ACCOUNT_ANONYMIZED` op `entityType:"Tenant"`, hergebruikt bestaand NL-label). Rij zelf
+     blijft staan als verantwoordingsspoor (een `tenant.delete` zou via de owner-cascade het net-geanonimiseerde
+     account weer verwijderen). De schema-coverage-drift-gate haalt `Tenant` uit de allowlist (nu daadwerkelijk
+     gedekt).
+
+**Bestanden:** `src/app/register/actions.ts`, `src/lib/authorize-credentials.ts`, `src/lib/account-anonymization.ts`,
+`src/app/(protected)/admin/gebruikers/actions.ts`,
+`src/app/(protected)/admin/gebruikers/anonymize-schema-coverage.test.ts`. **Tests (rood→groen):**
+`src/app/register/actions.test.ts` (nieuw, 5 tests — structurele bcrypt.compare-toetsen, geen wandklok) +
+`src/lib/account-anonymization.test.ts` (2 nieuwe: REJECTED-pad ok, operationele tenant blijft blokkeren + de
+melding meldt "actieve"). Full gate: typecheck / lint / 8024 tests / prettier / build groen. `npm audit`: 0.
+Overige oppervlakken (re-engagement-keten, IDOR/storage/audit-integriteit): CLEAN — geen wéérlegging gevonden.
+Fail-open rate-limit-MIDDEL blijft geparkeerd (MENSENWERK — verifieer productie-paging).
+
 ## 2026-09-03 — routine: re-engagement-suggesties óók na een gesloten/vervulde opdracht (ZZP'er)
 
 **Wat:** het "Soortgelijke open opdrachten"-blok op `/reacties` verankerde alleen op een expliciete
@@ -301,108 +342,3 @@ zodat de wederzijdse uitsluiting zichtbaar is (geen "getypt bedrag verdwijnt"-ve
 `src/app/(protected)/uitgaven/actions.test.ts` (+1 action-regressietest). Backlog-nit → OPGELOST.
 
 **Checks:** typecheck ✓, lint ✓, unit (7600+ groen; +5 nieuwe) ✓, build ✓, prettier ✓. CI-poort verifieert.
-
-## 2026-09-01 — persona-sweep run 105: KOR-meter jaarwisseling-regressie (jaar én kwartaal uit dezelfde Amsterdamse instant)
-
-**Wat:** het "ontzorgd"-dashboard van de ZZP'er (voedt de KOR-omzetgrensmeter) bepaalde het fiscale
-jaar met `getUTCFullYear()` terwijl het kwartaal Amsterdams (`fiscalQuarterOf`) werd bepaald — een
-regressie t.o.v. de vandaag gemergde fiscale-kalender-consolidatie (#1318). Op een UTC-server viel rond
-de jaarwisseling (`31 dec 23:00–24:00 UTC` = `1 jan 00:00–01:00` Amsterdam) het jaar niet meer samen met
-het Amsterdamse kwartaal; `annualSummary`/`vatReturn` filteren intern op `fiscalYearOf` → de meter laadde
-de omzet van het oude jaar en kon een vals "KOR-grens genaderd"-alarm geven op nieuwjaarsochtend. Zelfde
-root cause in `ontzorgd-panel.tsx`: de urencriterium-aggregatie gebruikte UTC-kalenderjaargrenzen.
-
-**Aanpak:** `year = fiscalYearOf(input.now)` in `ontzorg-overview.ts` (jaar én kwartaal uit dezelfde
-Amsterdamse instant); de panel-urenaggregaties op de halfopen `[yearStartInstant(fy), yearStartInstant(fy+1))`-
-grenzen (spiegelt `taxYearRange`/`annualSummary`). Gevonden door de adversariële financiële-audit; de
-authz/IDOR/tenant- én next-action-audits vonden 0 bereikbare gaten in de nieuwste oppervlakken.
-
-**Bestanden:** `src/lib/tax/ontzorg-overview.ts` (+ `.test.ts`, +1 regressietest rood→groen),
-`src/components/administratie/ontzorgd-panel.tsx`, `docs/PERSONA-SWEEP-BACKLOG.md`.
-
-**Checks:** prettier ✓, typecheck/lint/unit/build verifieert (CI-poort leidend).
-
-## 2026-09-01 — routine: fiscale periode-indeling consistent in Europe/Amsterdam
-
-**Wat:** de fiscale rapportages (BTW per kwartaal, jaaroverzicht/IB, km-aftrek per jaar, platform-
-kwartaaloverzicht) deelden een boeking (`occurredAt`) in een periode in met een mix van lokale
-`getFullYear()`/`getMonth()` en `getUTCFullYear()` — nooit in Europe/Amsterdam. De Nederlandse fiscale
-kalender loopt op de burgerlijke dag in NL-tijd. Op een UTC-server (Railway) landde een boeking gemaakt
-vlak na middernacht NL-tijd daardoor één dag/periode te vroeg (bv. 1 jan 00:30 Amsterdam = 31 dec 23:30
-UTC → verkeerd BTW-kwartaal/belastingjaar), en de rapportagefamilies konden onderling verschillen. De
-trend-modules (`revenue.ts`, `expense-trend.ts`, …) groepeerden al wél in Europe/Amsterdam; deze familie
-week daarvan af (geparkeerde nit persona-sweep run 104).
-
-**Aanpak:** één bron van waarheid `src/lib/administration/fiscal-calendar.ts` — pure helpers die jaar/
-kwartaal/maand van een `Date` in Europe/Amsterdam bepalen (`fiscalYearOf`/`fiscalQuarterOf`/`fiscalMonthOf`)
-plus query-grenzen als UTC-instant (`quarterStartInstant`/`yearStartInstant`/`amsterdamCivilDayStart`/
-`amsterdamCivilDayMs`, offset-correct over wintertijd +1 én zomertijd +2). Alle periode-indeling
-(`overview.ts`, `platform-overview.ts`, `expense.ts`, `expense-mileage.ts`) en de deadline-modules
-(`vat-deadline.ts`, `income-tax-deadline.ts` — `previousQuarter`/`vatQuarterRange`/`taxYearRange`/
-`wholeDaysUntil`) leunen erop. De pure classifier en de query-grenzen blijven exact consistent, zodat een
-DB-gescopete set precies de entries bevat die de pure berekening ziet (self-consistency-test).
-
-**Bestanden:** `src/lib/administration/fiscal-calendar.ts` (nieuw) + `.test.ts`,
-`src/lib/administration/{overview,platform-overview,vat-deadline,income-tax-deadline}.ts`,
-`src/lib/expense.ts`, `src/lib/expense-mileage.ts`, en de bijbehorende tests (boundary-regressies +
-data-layer-grenzen bijgewerkt naar de Amsterdam-instanten). Backlog-nit → OPGELOST.
-
-**Checks:** typecheck ✓, lint ✓, unit (7600+ groen; +19 nieuwe/aangepaste fiscale-kalender-tests) ✓,
-prettier ✓. Build/CI-poort verifieert.
-
-## 2026-09-01 — persona-sweep run 104: dienst-overname-beslistaak + nav-badge verdwijnen op een terminale/bevroren inzet
-
-**Wat:** een OPEN dienst-overname-aanvraag (`ShiftHandoff`) bleef eeuwig als beslis-taak (`/acties`
-bemiddelaar + admin, dashboard-rail, sidebar-badge) én nav-badge hangen nadat de bijbehorende samenwerking
-terminaal (CANCELLED/COMPLETED) of bevroren (dispuut) werd — recht tegen de server-side status in en
-cross-surface inconsistent. Zelfde bugklasse als run 103 (`job.status`-scope op de kandidaat-taken).
-
-**Aanpak:** displayqueries scoopten alleen op `ShiftHandoff.status: "OPEN"`, niet op de
-parent-`collaboration.status`, terwijl niets de OPEN-aanvraag sluit bij een collab-transitie
-(`cancelCollaboration`/auto-completion/`openDispute`). `collaboration: { status: "ACTIVE", disputedAt: null }`
-toegevoegd aan `pending-tasks.ts` (franchiser + admin) en `signals.ts` (`openHandoffs` + `openAdminHandoffs`),
-spiegelt de sibling-queries (`endingCollabs`, `openDiensten`) die al parent-gescoped waren. Na een
-**agent-review-BLOCK** ook de derde surface meegenomen: het gedeelde governance-scherm
-(`ShiftHandoffGovernanceScreen`) waar badge/taak náár linken haalde OPEN-handoffs óók ongescoped op
-(moot-aanvraag zichtbaar mét werkende approve/reject-formulieren). Zelfde collab-scope op
-`governance-screen.tsx` + een **server-side guard** in `loadDecidableHandoff` die een beslissing op een
-terminale/bevroren inzet hard weigert (ná de tenant-poort → geen CWE-203-oracle).
-
-**Bestanden:** `src/lib/actions/pending-tasks.ts`, `src/lib/signals.ts`,
-`src/components/shift-overname/governance-screen.tsx`, `src/app/(protected)/admin/shift-overnames/actions.ts`,
-
-- tests (`pending-tasks.shift-handoff.test.ts`, `signals.shift-handoff-collab-scope.test.ts` [nieuw],
-  `governance-screen.test.tsx`, `oracle.test.ts` — samen +12, rood→groen). Backlog bijgewerkt
-  (1 latente tijdzone-nit geparkeerd). Gate groen (typecheck/lint/unit/build/prettier).
-
-## 2026-09-01 — security: tweede-factor-challenge vereist om 2FA uit te zetten (OWASP ASVS 2.8)
-
-**Wat:** `disableTwoFactor` her-authenticeerde alleen met het accountwachtwoord — het uitschakelen van
-2FA (secret + álle herstelcodes in één transactie gewist) vereiste géén tweede-factor-challenge. Een
-uitgelekt/hergebruikt/gephisht wachtwoord kon dus in z'n eentje de beveiligingslaag strippen, precies de
-laag die het account beschermt als het wachtwoord uitlekt. Best practice bij GitHub/Google is een
-factor-challenge vóór het verwijderen van de factor. (Geparkeerde security-nit uit persona-sweep run 103.)
-
-**Fix:** een account met 2FA aan moet nu — náást het wachtwoord — een geldige TOTP-code of ongebruikte
-herstelcode invoeren om 2FA uit te zetten. De verificatie loopt via **dezelfde replay-veilige poort als
-de login**: de module-private `verifySecondFactor` uit `authorize-credentials.ts` is verbatim geëxtraheerd
-naar `src/lib/two-factor/verify-second-factor.ts` (één bron van waarheid; login rewired als pure
-import-swap, gedrag ongewijzigd). Zo erft de disable-challenge exact de TOTP-replay-preventie (atomaire
-high-water-mark `updateMany`, TOCTOU-safe), het eenmalige herstelcode-verbruik en de audit-reden. De
-factor wordt geverifieerd vóór enige schrijfactie; faalt hij, dan blijft 2FA aan.
-
-**Bestanden:**
-
-- `src/lib/two-factor/verify-second-factor.ts` — nieuwe gedeelde poort (`verifySecondFactor`, met
-  optionele `context`-audit-metadata) + `verify-second-factor.test.ts` (8 tests: TOTP/replay/decrypt-fout/
-  herstelcode/context).
-- `src/lib/authorize-credentials.ts` — lokale functie verwijderd; import + call rewired (behoud van gedrag).
-- `src/app/(protected)/account/tweestapsverificatie/actions.ts` — disable-schema `token`, findUnique-select
-  uitgebreid, factor-gate vóór de transactie.
-- `src/app/(protected)/account/tweestapsverificatie/two-factor-panel.tsx` — verificatiecode-veld op OnPanel.
-- `src/app/(protected)/account/tweestapsverificatie/actions.test.ts` — disable-tests: factor geëist,
-  mislukte factor gate't uitschakeling, geen DISABLED-audit bij mislukking.
-- `docs/PERSONA-SWEEP-BACKLOG.md` — geparkeerde nit → OPGELOST.
-
-**Checks:** typecheck ✓, unit (verify-second-factor 8/8 + tweestapsverificatie-actions + authorize-credentials
-groen) ✓, lint ✓, build ✓, prettier ✓. CI-poort verifieert.
