@@ -49,6 +49,18 @@ export interface FreelancerSuggestion {
   relatedness?: number;
   /** Sluit inhoudelijk sterk aan (boven de drempel) — voor de verklaring in de UI. */
   related?: boolean;
+  /**
+   * Vereiste certificaattypes waarvoor de ZZP'er (nog) géén bruikbaar bewijs heeft. Zo ziet de
+   * opdrachtgever direct wélke eis een suggestie niet dekt i.p.v. alleen een generieke compliance-badge —
+   * en wat er nodig is om de match te sluiten. Afgeleid uit dezelfde `computeCompliance` als `compliance`
+   * (geen tweede waarheid); leeg als er niets ontbreekt.
+   */
+  missingCredentials: CredentialType[];
+  /**
+   * Vereiste certificaattypes met een verlopen bewijs (waren geldig, nu niet meer). Los van
+   * `missingCredentials`: verlopen vraagt om vernieuwen (bijna in orde), ontbrekend is verder weg.
+   */
+  expiredCredentials: CredentialType[];
 }
 
 /** Drempel waaronder een ZZP'er niet relevant genoeg is om voor te stellen. */
@@ -174,6 +186,9 @@ export function scoreProfilesForJob(
         rate: p.hourlyRate,
         relatedness,
         related: relatedness >= SEMANTIC_HIGHLIGHT_THRESHOLD,
+        // Uit dezelfde compliance-berekening als `compliance.status` — één bron, geen drift.
+        missingCredentials: match.compliance.missing,
+        expiredCredentials: match.compliance.expired,
       };
     });
 

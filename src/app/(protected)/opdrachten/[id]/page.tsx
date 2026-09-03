@@ -44,6 +44,7 @@ import {
   type MatchResult,
 } from "@/lib/matching";
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
+import { summarizeCredentialGap, hasCredentialGap } from "@/lib/suggestion-credential-gap";
 import { getCandidateInviteResponsiveness } from "@/lib/data/candidate-invite-responsiveness";
 import { CandidateResponsivenessBadge } from "@/components/jobs/candidate-responsiveness-badge";
 import { getJobReach } from "@/lib/data/job-reach";
@@ -909,53 +910,75 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             )}
           </div>
           <ul className="divide-y divide-border">
-            {suggestions.map((f) => (
-              <li
-                key={f.freelancerId}
-                className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
-              >
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <Link
-                    href={`/zzp/${f.freelancerId}`}
-                    target="_blank"
-                    className="font-medium underline-offset-4 hover:underline"
-                  >
-                    {f.name}
-                  </Link>
-                  <TrustBadge level={f.trustLevel} />
-                  <CandidateResponsivenessBadge
-                    responsiveness={candidateResponsiveness?.get(f.freelancerId)}
-                  />
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-3">
-                  {/* Rustig: badges alleen als ze iets signaleren — beschikbaar/compliant is de norm. */}
-                  {f.availability !== "AVAILABLE" && <AvailabilityBadge status={f.availability} />}
-                  {f.compliance !== "COMPLIANT" && <ComplianceBadge status={f.compliance} />}
-                  <span className="flex flex-col items-end gap-1">
-                    <span className="font-mono text-sm font-semibold tracking-tight text-primary">
-                      {f.score}%
+            {suggestions.map((f) => {
+              const credGap = summarizeCredentialGap(f.expiredCredentials, f.missingCredentials);
+              return (
+                <li
+                  key={f.freelancerId}
+                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
+                >
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <Link
+                      href={`/zzp/${f.freelancerId}`}
+                      target="_blank"
+                      className="font-medium underline-offset-4 hover:underline"
+                    >
+                      {f.name}
+                    </Link>
+                    <TrustBadge level={f.trustLevel} />
+                    <CandidateResponsivenessBadge
+                      responsiveness={candidateResponsiveness?.get(f.freelancerId)}
+                    />
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center gap-3">
+                    {/* Rustig: badges alleen als ze iets signaleren — beschikbaar/compliant is de norm. */}
+                    {f.availability !== "AVAILABLE" && (
+                      <AvailabilityBadge status={f.availability} />
+                    )}
+                    {f.compliance !== "COMPLIANT" && <ComplianceBadge status={f.compliance} />}
+                    <span className="flex flex-col items-end gap-1">
+                      <span className="font-mono text-sm font-semibold tracking-tight text-primary">
+                        {f.score}%
+                      </span>
+                      <MatchMeter score={f.score} />
                     </span>
-                    <MatchMeter score={f.score} />
-                  </span>
-                  {invitedFreelancerIds.has(f.freelancerId) ? (
-                    <span className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/5 px-2 py-1 text-xs font-medium text-success">
-                      <Check className="size-3.5" aria-hidden /> Uitgenodigd
-                    </span>
-                  ) : (
-                    <form action={inviteFreelancerToJob.bind(null, job.id, f.freelancerId)}>
-                      <Button type="submit" variant="secondary" size="sm">
-                        Nodig uit
+                    {invitedFreelancerIds.has(f.freelancerId) ? (
+                      <span className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/5 px-2 py-1 text-xs font-medium text-success">
+                        <Check className="size-3.5" aria-hidden /> Uitgenodigd
+                      </span>
+                    ) : (
+                      <form action={inviteFreelancerToJob.bind(null, job.id, f.freelancerId)}>
+                        <Button type="submit" variant="secondary" size="sm">
+                          Nodig uit
+                        </Button>
+                      </form>
+                    )}
+                    <form
+                      action={startConversationWithFreelancer.bind(null, job.id, f.freelancerId)}
+                    >
+                      <Button type="submit" variant="ghost" size="sm">
+                        Bericht sturen
                       </Button>
                     </form>
+                  </div>
+                  {/* Wélk vereist certificaat de match nog niet dekt — zodat de opdrachtgever direct ziet
+                    wat er nodig is i.p.v. alleen een generieke "niet compliant". */}
+                  {hasCredentialGap(credGap) && (
+                    <p className="w-full text-xs text-muted-foreground">
+                      {credGap.expired.length > 0 && (
+                        <span>Verlopen: {credGap.expired.join(" · ")}</span>
+                      )}
+                      {credGap.expired.length > 0 && credGap.missing.length > 0 && (
+                        <span className="px-1.5 text-border">·</span>
+                      )}
+                      {credGap.missing.length > 0 && (
+                        <span>Ontbreekt: {credGap.missing.join(" · ")}</span>
+                      )}
+                    </p>
                   )}
-                  <form action={startConversationWithFreelancer.bind(null, job.id, f.freelancerId)}>
-                    <Button type="submit" variant="ghost" size="sm">
-                      Bericht sturen
-                    </Button>
-                  </form>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
