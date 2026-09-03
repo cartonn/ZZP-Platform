@@ -4,12 +4,45 @@
 
 ## Staat van het product (2-9-2026)
 
-- **Live:** `main` is bron van waarheid én deploy-branch; Railway deployt elke gemergde PR. Poort: 6 vereiste checks, `enforce_admins` AAN.
+- **Live:** `main` is bron van waarheid én deploy-branch; Railway deployt elke gemergde PR. Poort: 6 vereiste checks + `migrations`-driftcheck, `enforce_admins` AAN. Boot draait `prisma migrate deploy` (geen `db push` meer in productie); `monitor.yml` bewaakt deploy-lag (issue-label `deploy-lag`).
 - **Werkt end-to-end:** opdracht → match → reactie → samenwerking → contract → urenstaat (incl. ORT) → goedkeuring → factuur → betaalregistratie → administratie/BTW. Plus certificaat-dossier met verificatie/verval, next-action-engine, DBA-monitor en tenant-cockpit voor bemiddelaars.
-- **Bewust UIT (env-gestuurd, inert):** billing (`noop`), e-mail (`noop`), documentopslag (`local`, geen S3), verificatie-koppelingen DUO/BIG/iDIN (`mock`), gedeelde rate-limit-store (`memory`), web-push (geen VAPID-sleutels), aangifte-partner. Elk kanaal heeft een zelftest + aflever-heartbeat op `/admin/systeemstatus`.
+- **Bewust UIT (env-gestuurd, inert):** billing (`noop`), e-mail (`noop`), documentopslag (`local`, geen S3), verificatie-koppelingen DUO/BIG/iDIN (`mock`),  web-push (geen VAPID-sleutels), aangifte-partner. Rate-limit-store draait op Redis (`RATE_LIMIT_STORE=redis`). Elk kanaal heeft een zelftest + aflever-heartbeat op `/admin/systeemstatus`.
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-02/03 — bouwprogramma na de Fable-review: 24 PR's in drie golven (orchestrator + parallelle builders)
+
+**Aanleiding:** onafhankelijke totaalreview van 2-9 (rapport "Handslag onder de loep"): engineering sterk,
+productfocus zwak, en productie bleek al sinds 12-8 stil te staan. Drie golven van parallelle builders in
+eigen worktrees, elk pakket één PR met de volledige poort, alles zelf gemerged via `--auto`.
+
+**Productie hersteld (#1345, #1351):** elke Railway-deploy faalde sinds 12-8 op de preflight
+(`RATE_LIMIT_STORE=redis` was onbekend) — Redis-driver gebouwd, onbekende keuzewaarden zijn voortaan een
+waarschuwing met fallback i.p.v. NO-GO, eenmalige DB-transitie db push → resolve → deploy, deploy-lag-
+watchdog in `monitor.yml`, `builtAt` in `/api/health`. Los daarvan wees `DATABASE_URL` naar een Postgres met
+vreemde data; de eigenaar-sessie koppelde een nieuwe service (Postgres-uro6, EU West). Live = main sinds 3-9.
+
+**Robuustheid:** Prisma Migrate-baseline + `migrations`-driftcheck + AuditLog/Notification-indexen + seed-
+reset-guard (#1334); Postgres-e2e-job in CI en `ciContains()` — bewees dat élke zoekfunctie op Postgres
+hoofdlettergevoelig kapot was (#1332); querybudget-integratietest (eerste echte DB-test) + request-gecachte
+gebruikerscontext (#1333, #1349; shell 44/41/18/46 queries per rol — ≤ 20 vergt een signaal-snapshot, zie
+backlog); /kandidaten begrensd + vangrail over lib/components (#1342); 136 contracttests op de UI-primitives
++ 2 a11y-fixes (#1339); e2e bemiddelaar-flow + tenant-isolatie met positieve controle (#1347, #1350);
+`fillForUrl` tegen hydratatie-flakes + EmptyState-kop (#1354); 12 heartbeat-modellen → 1 (#1355);
+review-workflow 90 turns + 'INCOMPLEET'-verdict + herstart per PR (#1352).
+
+**Product/focus:** design-lab ADMIN-only + uit de Docker-image, foutgrenzen per deelgebied (#1335); 12
+dubbele routes → redirects (#1340, in de poort); zijbalk ≤ 11 items, taalwissel weg, zorg-focus (#1336);
+61 motief-labels → gewone sectienamen (#1346); zorg-only seed (#1341); VOG-metadata-modus (#1338, gehard in
+#1358); bureau-zelfregistratie met PENDING-tenant en admin-activatie (#1343); reactielimiet per kalendermaand
+i.p.v. levenslang (#1353, in de poort); BTW-taak weg bij de opdrachtgever (#1333).
+
+**Geheugen/proces:** PROGRESS ≤ 400 regels + archief, CURRENT_TASK ≤ 300, modulekaart, routine-scope-
+restrictie, ADR 0011 focus & wig (voorstel) (#1331). Loopjemee is een los project met eigen loop (zie dat repo).
+
+**Open uit het programma (backlog):** signaal-snapshot per gebruiker via de event-bus (shell → 1 query);
+factuur-cutover `status`→`lifecycleStatus`; de 3 verrijkte routes (/admin/audit, /prognose, /verplichtingen)
+naar hun hub-tab; `notFound()` onder `loading.tsx` geeft 200; e2e-shard-flakes blijven de traagste poort.
 ## 2026-09-04 — persona-sweep: geen ORT-drift op de ZZP'er-view /diensten (spiegel van #1373)
 
 **Wat:** persona-sweep-ronde (orchestrator Opus 4.8 + live Playwright-sweep over alle vier de rollen +

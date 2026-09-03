@@ -13,9 +13,10 @@
   merge automatisch (Dockerfile → PostgreSQL). Test-URL
   `zzp-platform-production-ba07.up.railway.app`. Demo-accounts (wachtwoord `demo1234`):
   `opdrachtgever@`, `zzp@` (Sanne), `admin@zzp-platform.local`.
-- **Boot:** `scripts/start.mjs` doet bij elke boot `prisma db push` + **idempotente seed** → de
-  demo-inhoud staat er altijd (ZZP'ers met certificaten, opdrachten, reacties in alle statussen,
-  samenwerkingen, facturen incl. verlopen).
+- **Boot:** `scripts/start.mjs` draait preflight → `prisma migrate deploy` (zelf-baselinend; eenmalige
+  transitie db push → resolve → deploy, zie RUNBOOK §8) → idempotente seed (alleen bij `SEED_DEMO=true`;
+  destructieve reset alleen met `SEED_DEMO_RESET=true`). Geen `db push` meer in productie. Schemawijziging
+  = migratie in `prisma/migrations/` (CI-job `migrations` bewaakt drift).
 - **Workflow:** korte branch (`feat/`, `fix/`, `docs/`) → **PR naar `main`** → **6 vereiste
   statuschecks** (`check`, `e2e`, `audit`, `secret-scan`, `CodeQL`, `agent-review`) groen →
   `gh pr merge <nr> --squash --auto`. `enforce_admins` staat AAN; niets omzeilt de poort. Altijd
@@ -31,10 +32,12 @@
   prijslijnen en i18n zijn **uitgesloten**. Zie `docs/ROUTINE-PROMPT.md` en CLAUDE.md.
 - **Uit / niet operationeel (bewust, env-gestuurd):** billing (`BILLING_PROVIDER=noop`), e-mail
   (`EMAIL_DRIVER=noop`), documentopslag (`STORAGE_DRIVER=local`), echte verificatie-koppelingen
-  (`DIPLOMA_VERIFIER`/`BIG_VERIFIER`/`IDENTITY_VERIFIER` = `mock`), gedeelde rate-limit-store
-  (`RATE_LIMIT_STORE=memory`), web-push (geen VAPID-sleutels), aangifte-partner
+  (`DIPLOMA_VERIFIER`/`BIG_VERIFIER`/`IDENTITY_VERIFIER` = `mock`), web-push (geen VAPID-sleutels), aangifte-partner
   (`TAX_PARTNER_DRIVER` inert). Elke koppeling heeft een zelftest + aflever-heartbeat op
-  `/admin/systeemstatus`.
+  `/admin/systeemstatus`. Rate-limit-store draait op Redis (`RATE_LIMIT_STORE=redis`, Railway-Redis).
+- **Productie-bewaking:** `/api/health` geeft `commit` + `builtAt`; `monitor.yml` vergelijkt elke 10 min
+  met `origin/main` en opent een issue met label `deploy-lag` bij achterstand. Les 12-8 t/m 2-9: drie
+  weken geen geslaagde deploy zonder dat iemand het zag.
 - **Vóór échte productie (mensenwerk, zie MENSENWERK.md §0):** juridisch/AVG-review (blokkeert
   livegang met echte gevoelige documenten), productie-secrets, betalingen, echte verificatie-API's,
   e-mail, S3, eigen domein. Het juridische pakket staat als **concept v1.0**
@@ -43,24 +46,26 @@
 
 ---
 
-## NU — in uitvoering (2-9-2026): pakketten A–F
+## NU — bouwprogramma 2/3-9 afgerond (24 PR's, zie PROGRESS.md bovenaan)
 
-Zes parallelle builders op niet-overlappende bestanden. **Niet dubbel bouwen**; check `gh pr list`
-vóór je iets uit deze lijst oppakt.
+Golf 1 (A–F), golf 2 (G, I, M, N, O, Q) en golf 3 (T, U, V, W) zijn gemerged; #1340 (route-dedup) en
+#1353 (reactielimiet per maand) staan in de poort. Productie loopt gelijk met `main`. Volgende
+increments komen uit de backlog hieronder; **niet dubbel bouwen** — check `gh pr list` eerst.
 
-- **A — Prisma Migrate-baseline:** weg van `prisma db push` bij elke boot; baseline-migratie,
-  ontbrekende indexen en een seed-guard zodat productie niet per ongeluk geseed wordt.
-- **B — Querybudget:** budget/telling op shell + dashboard, eerste echte DB-integratietest, en de
-  BTW-taak weg bij de opdrachtgever (hoort niet bij die rol).
-- **C — CI + zoeken:** Postgres-e2e-job in CI (naast SQLite) en hoofdletterongevoelig zoeken.
-- **D — Navigatie/IA:** taalwissel weg, zijbalk ≤ 11 items, functionele paginalabels i.p.v.
-  motieven, zorg-focus in de marktplaats.
-- **E — Routes/robuustheid:** design-lab ADMIN-only én uit de Docker-image, 17 dubbele routes →
-  redirects, error boundaries per segment.
-- **F — Documentatie/geheugen (dit pakket):** PROGRESS.md ≤ 400 regels + maandarchief,
-  CURRENT_TASK.md ≤ 300 regels, modulekaart in ARCHITECTURE.md, routine-scope, ADR 0011.
+### Open uit het programma (hoogste waarde eerst)
 
----
+1. **Signaal-snapshot per gebruiker** via de bestaande event-bus (handlers werken per-rol tellers bij,
+   reconciliatie-taak als vangnet) zodat de app-shell met één query toe kan (nu 44/41/18/46 per rol; de
+   losse vensters in `signals.ts`/`pending-tasks.ts` bestaan bewust — zie de commentaren bij runs 79/82,
+   #1022, #1026 — dus niet "samenvoegen" maar vervangen door een snapshot).
+2. **Factuur-cutover:** `Invoice.status` afleiden uit `lifecycleStatus`, legacy-takken uit
+   `signals.ts`/`pending-tasks.ts` weg; `Account`/`Session`/`VerificationToken`/`CredentialVerification`/
+   `VerificationRequest` droppen (0 referenties).
+3. **Drie verrijkte routes naar hun hub-tab** (/admin/audit CSV-export, /prognose kaarten,
+   /verplichtingen reputatiekaart) — pas daarna omleiden (pakket E liet ze staan om functieverlies te
+   voorkomen).
+4. `notFound()` onder een `loading.tsx` geeft HTTP 200; overweeg `notFound()` vóór de streaming-shell.
+5. Rooster-begrip scherp definiëren (dashboard-weekstrip, /rooster, samenwerking-looptijd) — review-bevinding.
 
 ## Openstaande backlog (bovenste eerst; pak er één, lever DoD-groen, push)
 
