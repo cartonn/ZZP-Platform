@@ -1,5 +1,49 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-03 (run 107) · **main-commit basis:** `bff7ffa5`
+> **Uitkomst:** **3 defecten gevonden én gefixt.** 3 adversariële Opus-audits op niet-overlappende
+> oppervlakken (authz/IDOR/tenant op de laatste ~30 commits · next-action-engine + laatste ~15
+> signalen · financiële/cascade + malicieuze invoer op de laatste ~20 commits). De **authz/IDOR/
+> tenant-audit vond 0 bereikbare gaten** (VOG-flow met `loadOwnedCredential`+compound-guards, bureau
+> zelfregistratie met PENDING-tenant fail-closed via `tenantAccessBlocked`, `/api/documents/[id]`
+> anti-oracle 404 op forbidden én not-found, `/api/tasks/run-all` timing-safe `CRON_SECRET`
+> fail-closed 503, alle franchise-mutaties via `tenantScopeWhere`/`ownsViaTenant`, cascade-commands
+> eigenaar-gescoped, wachtwoord/2FA re-auth rate-limited met sessie-invalidatie). Drie defecten:
+>
+> - **OPGELOST — should-fix (DOEL 2, CLAUDE.md regel 1 — server-side waarheid / periode-drift):
+>   `/api/administratie/btw` gebruikte `new Date().getFullYear()` (server-UTC) i.p.v.
+>   `fiscalYearOf`.** Op de UTC-server (Railway) valt `31 dec 23:15 UTC` = `1 jan 00:15` Amsterdam;
+>   `vatYear`/`vatReturn` filteren intern op `fiscalYearOf(occurredAt) === year`, dus met UTC-jaar
+>   `year=2026` én Amsterdams `fiscalYearOf`-filter kreeg de eerste nieuwjaarsochtend een
+>   `btw-2026.csv` met (0 of) verkeerde kwartalen i.p.v. `btw-2027.csv`. Zelfde bugklasse als #1329
+>   (factuurnummering), bij die sweep gemist. **Fix:** `year = fiscalYearOf(new Date())` + audit-
+>   metadata volgt automatisch mee. +2 regressietests (NYE-UTC → `btw-2027.csv` & audit-jaar 2027;
+>   mid-jaar geen drift). Bestanden: `src/app/api/administratie/btw/route.ts` (+ `route.test.ts`).
+> - **OPGELOST — should-fix (DOEL 2, zelfde bugklasse — intern tegenstrijdig scherm):
+>   `boekhouding-panel.tsx` gebruikte `now.getFullYear()` voor omzet/BTW-totaal/jaaroverzicht,
+>   terwijl de BTW-deadline-kaart op hetzelfde paneel via `summarizeVatDeadline` al `fiscalYearOf`
+>   gebruikte.** In het ~1u NYE-UTC-venster liep het omzet/BTW-blok en de deadline-kaart uiteen op
+>   één en hetzelfde scherm (visueel merkbaar; niet alleen exportlabel). **Fix:**
+>   `year = fiscalYearOf(now)`. Bestand: `src/components/administratie/boekhouding-panel.tsx`.
+> - **OPGELOST — should-fix (DOEL 1b, CLAUDE.md regel 1 — cross-surface pariteit / één waarheid):
+>   de agenda-/`.ics`-export van de opdrachtgever bevatte alsnog BTW-aangifte-deadlines**, terwijl
+>   die taak sinds #1333 bewust uit `/acties` is verwijderd (structureel onjuist voor een meestal
+>   btw-vrijgestelde zorginstelling — een aangifte-deadline op onze deelverzameling van haar
+>   administratie is niet afvinkbaar, en de gedelegeerde accountant regelt de aangifte). De
+>   agenda-loader `loadUserAdministrativeDeadlines` riep `getVatDeadlinesForActor` onvoorwaardelijk
+>   aan met de live `role`, waardoor `/api/agenda` en de publieke `/api/agenda/feed.ics` een
+>   deadline lieten zien die de `/acties`-lijst bewust stil houdt — twee surfaces met een
+>   directe tegenspraak. **Fix:** `role === "FREELANCER" ? getVatDeadlinesForActor(...) :
+Promise.resolve([])` (zelfde scoping als `pending-tasks.ts` L863). +1 regressietest die de mock
+>   niet-aangeroepen én `result.vat = []` voor CLIENT verifieert. Bestanden:
+>   `src/lib/calendar/user-deadlines.ts` (+ `.test.ts`).
+> - **Geparkeerd — nit (DOEL 2, laag): `uitgaven-form.tsx:31` gebruikt `now.getFullYear()` als
+>   default-jaarwaarde in een client-component.** Dit is de browserklok (voor NL-gebruikers
+>   Amsterdam) — geen server-drift, dus geen bug. Alleen genoteerd zodat een volgende
+>   grep-and-replace-sweep hem niet ten onrechte als dezelfde bugklasse aanpakt.
+>
+> ---
+
 > **Datum:** 2026-09-02 (run 106) · **main-commit basis:** `59d32f48`
 > **Uitkomst:** **2 defecten gevonden én gefixt.** 3 adversariële Opus-audits op niet-overlappende
 > oppervlakken (authz/IDOR/tenant op de nieuwste ~30 commits + shift-overname/franchise/tenant ·

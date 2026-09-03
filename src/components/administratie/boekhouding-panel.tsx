@@ -13,6 +13,7 @@ import {
   type LedgerEntry,
 } from "@/lib/administration/overview";
 import { summarizeVatDeadline } from "@/lib/administration/vat-deadline";
+import { fiscalYearOf } from "@/lib/administration/fiscal-calendar";
 import { buildVatDeclaration } from "@/lib/administration/vat-declaration";
 import { Card, CardContent } from "@/components/ui/card";
 import { VatDeadlineCard } from "@/components/administratie/vat-deadline-card";
@@ -67,7 +68,12 @@ export async function BoekhoudingPanel({ actor }: { actor: Actor }) {
   }
 
   const now = new Date();
-  const year = now.getFullYear();
+  // Het boekjaar volgt de Amsterdamse burgerlijke kalender (zoals `revenueCents`/`vatYear`/
+  // `annualSummary` intern filteren via `fiscalYearOf`), niet server-UTC. `summarizeVatDeadline`
+  // gebruikt hieronder al `fiscalYearOf`; met `now.getFullYear()` liep het jaar op een UTC-server
+  // rond de jaarwisseling uiteen (omzet/btw-blok toonde het oude jaar terwijl de deadline-kaart al
+  // het nieuwe jaar toonde — een intern tegenstrijdig scherm). Zelfde bugklasse als #1329.
+  const year = fiscalYearOf(now);
 
   // unbounded-allow: eigen grootboeksaldi over alle jaren; afkappen zou de balans vervalsen
   const rows = await prisma.administrationEntry.findMany({ where: { ownerUserId: actor.id } });
