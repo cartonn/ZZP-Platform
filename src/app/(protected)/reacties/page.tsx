@@ -254,7 +254,9 @@ export default async function ReactiesPage({
           {quota.reached
             ? `${t("Je hebt deze maand al je reacties gebruikt")} (${quota.limit}).`
             : `${t("Nog")} ${quota.remaining} ${quota.remaining === 1 ? t("reactie") : t("reacties")} ${t("deze maand")} (${quota.used}/${quota.limit}).`}{" "}
-          {t("Nieuwe periode op")} {formatDateShortNl(quota.resetsAt)}.{" "}
+          {/* Bewust zonder het woord "nieuw": de statusbadge "Nieuw" staat op dezelfde pagina en
+              een substring-treffer maakt tekstselectors (UI én e2e) dubbelzinnig. */}
+          {t("Volgende periode start op")} {formatDateShortNl(quota.resetsAt)}.{" "}
           <Link href="/abonnement" className="focus-ring font-medium underline underline-offset-2">
             {t("Bekijk abonnementen")}
           </Link>
