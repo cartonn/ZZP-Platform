@@ -85,7 +85,7 @@ export default async function InzichtPage() {
   const role = actor.role as UserRole;
 
   // Admins hebben hun eigen platform-brede statistieken.
-  if (role === "ADMIN") redirect("/admin/toezicht");
+  if (role === "ADMIN") redirect("/admin/statistieken");
 
   const description =
     role === "FRANCHISER"

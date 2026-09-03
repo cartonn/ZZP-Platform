@@ -73,7 +73,7 @@ export async function createFranchise(
     auditMetadata: { owner: franchiserEmail },
   });
 
-  revalidatePath("/admin/gebruikersbeheer");
+  revalidatePath("/admin/franchises");
   return { ok: true, email: franchiserEmail, tempPassword, tenantName };
 }
 
@@ -184,7 +184,7 @@ export async function decideActivation(
       .catch((err: unknown) => logMailFailure("[franchise-activation]", err));
   }
 
-  revalidatePath("/admin/gebruikersbeheer");
+  revalidatePath("/admin/franchises");
   return {
     ok: true,
     message:
