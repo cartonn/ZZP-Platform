@@ -210,6 +210,15 @@ export default async function ReactiesPage({
     typed.map((app) => ({
       status: app.status,
       hasCollaboration: app.collaboration != null,
+      // Ging de opdracht dood terwijl deze reactie nog openstond (gesloten of vermoedelijk vervuld)?
+      // Zelfde server-side afleiding als de per-rij-melding hieronder — geen tweede waarheid.
+      jobDead:
+        applicationJobAvailability({
+          applicationStatus: app.status,
+          hasCollaboration: app.collaboration != null,
+          jobStatus: app.job.status as JobStatus,
+          activeCollaborations: app.job._count.collaborations,
+        }) != null,
       jobId: app.job.id,
       jobTitle: app.job.title,
     })),
@@ -233,7 +242,11 @@ export default async function ReactiesPage({
         <RelatedJobsSection
           jobs={reengagementJobs}
           title={t("Soortgelijke open opdrachten")}
-          description={`${t("Niet geselecteerd voor")} "${reengagementAnchor.jobTitle}"? ${t("Deze open opdrachten passen bij je.")}`}
+          description={
+            reengagementAnchor.reason === "JOB_ENDED"
+              ? `"${reengagementAnchor.jobTitle}" ${t("is niet meer beschikbaar.")} ${t("Deze open opdrachten passen bij je.")}`
+              : `${t("Niet geselecteerd voor")} "${reengagementAnchor.jobTitle}"? ${t("Deze open opdrachten passen bij je.")}`
+          }
         />
       )}
 
