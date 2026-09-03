@@ -6,7 +6,7 @@
 
 - **Live:** `main` is bron van waarheid én deploy-branch; Railway deployt elke gemergde PR. Poort: 6 vereiste checks + `migrations`-driftcheck, `enforce_admins` AAN. Boot draait `prisma migrate deploy` (geen `db push` meer in productie); `monitor.yml` bewaakt deploy-lag (issue-label `deploy-lag`).
 - **Werkt end-to-end:** opdracht → match → reactie → samenwerking → contract → urenstaat (incl. ORT) → goedkeuring → factuur → betaalregistratie → administratie/BTW. Plus certificaat-dossier met verificatie/verval, next-action-engine, DBA-monitor en tenant-cockpit voor bemiddelaars.
-- **Bewust UIT (env-gestuurd, inert):** billing (`noop`), e-mail (`noop`), documentopslag (`local`, geen S3), verificatie-koppelingen DUO/BIG/iDIN (`mock`),  web-push (geen VAPID-sleutels), aangifte-partner. Rate-limit-store draait op Redis (`RATE_LIMIT_STORE=redis`). Elk kanaal heeft een zelftest + aflever-heartbeat op `/admin/systeemstatus`.
+- **Bewust UIT (env-gestuurd, inert):** billing (`noop`), e-mail (`noop`), documentopslag (`local`, geen S3), verificatie-koppelingen DUO/BIG/iDIN (`mock`), web-push (geen VAPID-sleutels), aangifte-partner. Rate-limit-store draait op Redis (`RATE_LIMIT_STORE=redis`). Elk kanaal heeft een zelftest + aflever-heartbeat op `/admin/systeemstatus`.
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
@@ -27,9 +27,10 @@ reset-guard (#1334); Postgres-e2e-job in CI en `ciContains()` — bewees dat él
 hoofdlettergevoelig kapot was (#1332); querybudget-integratietest (eerste echte DB-test) + request-gecachte
 gebruikerscontext (#1333, #1349; shell 44/41/18/46 queries per rol — ≤ 20 vergt een signaal-snapshot, zie
 backlog); /kandidaten begrensd + vangrail over lib/components (#1342); 136 contracttests op de UI-primitives
-+ 2 a11y-fixes (#1339); e2e bemiddelaar-flow + tenant-isolatie met positieve controle (#1347, #1350);
-`fillForUrl` tegen hydratatie-flakes + EmptyState-kop (#1354); 12 heartbeat-modellen → 1 (#1355);
-review-workflow 90 turns + 'INCOMPLEET'-verdict + herstart per PR (#1352).
+
+- 2 a11y-fixes (#1339); e2e bemiddelaar-flow + tenant-isolatie met positieve controle (#1347, #1350);
+  `fillForUrl` tegen hydratatie-flakes + EmptyState-kop (#1354); 12 heartbeat-modellen → 1 (#1355);
+  review-workflow 90 turns + 'INCOMPLEET'-verdict + herstart per PR (#1352).
 
 **Product/focus:** design-lab ADMIN-only + uit de Docker-image, foutgrenzen per deelgebied (#1335); 12
 dubbele routes → redirects (#1340, in de poort); zijbalk ≤ 11 items, taalwissel weg, zorg-focus (#1336);
