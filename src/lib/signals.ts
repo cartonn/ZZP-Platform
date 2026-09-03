@@ -9,7 +9,12 @@ import { cache } from "react";
 import { pendingCollaborationProposals } from "@/lib/accepted-proposal";
 import { collaborationBlocksProposal } from "@/lib/collaboration-reproposal";
 import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
-import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
+import {
+  clientCredentialAlerts,
+  clientCredentialAlertsFromRows,
+  clientHasComplianceAction,
+  COLLABORATION_ALERT_INCLUDE,
+} from "@/lib/collaboration-alerts";
 import {
   countAttentionRenewals,
   RENEWAL_OVERDUE_GRACE_DAYS,
@@ -844,6 +849,7 @@ export const navBadges = cache(async function navBadges(
       openDiensten,
       staleDiensten,
       franchiseRenewals,
+      complianceCollabs,
       attentionClientRows,
       attentionPublishedJobs,
       attentionCollabActivity,
@@ -943,6 +949,22 @@ export const navBadges = cache(async function navBadges(
       // telling was `/franchise/samenwerkingen` het enige franchiser-navitem met een /acties-taak maar
       // zonder badge (het "signaal op één oppervlak"-anti-patroon; spiegelt de partij-fix #1034).
       renewalAttentionBadgeCount({ job: { tenantId } }, now),
+      // /franchise/samenwerkingen — plaatsing-niveau certificaat-compliance. Exact dezelfde bron/scope als
+      // de /acties-taak (`franchiseComplianceRippleTask`, pending-tasks.ts): lopende (ACTIVE, niet-bevroren)
+      // tenant-plaatsingen met een verplicht-vereiste, waarna de pure `clientCredentialAlertsFromRows` +
+      // `clientHasComplianceAction` per rij bepaalt of er een actie is. Zonder deze telling was de
+      // /franchise/samenwerkingen-badge stiller dan /acties + de dashboard-rail op een niet-compliant
+      // plaatsing (het "signaal op één oppervlak"-anti-patroon; spiegelt de opdrachtgever-fix #1030).
+      prisma.collaboration.findMany({
+        where: {
+          job: { tenantId, credentialRequirements: { some: { required: true } } },
+          status: "ACTIVE",
+          disputedAt: null,
+        },
+        orderBy: { createdAt: "asc" },
+        take: CASCADE_SCAN_LIMIT,
+        include: COLLABORATION_ALERT_INCLUDE,
+      }),
       // /franchise/opdrachtgevers — relatiegezondheid-bron voor de re-engagement-badge: alle
       // tenant-opdrachtgevers + hun actieve samenwerkingen. Exact de scope/definitie van de
       // klantenlijst-pagina én de /acties-taak (`franchiseClientReengagementTask`, pending-tasks.ts):
@@ -1051,12 +1073,22 @@ export const navBadges = cache(async function navBadges(
       staleTaskCount,
     });
 
+    // /franchise/samenwerkingen-badge = aflopende plaatsingen (vervolg plannen) + plaatsingen met een
+    // certificaat-compliance-actie. Beide taken deep-linken naar dit navitem en de opdrachtgever-badge
+    // combineert renewal + compliance net zo (in `cascadeWork` → /samenwerkingen); één taak per plaatsing
+    // (`clientHasComplianceAction`-gate, gelijk aan de item-engine), geen dedup tussen de twee dimensies —
+    // een plaatsing kan tegelijk aflopen én een compliance-gat hebben, precies zoals `franchiserTasks` beide
+    // pusht. Zo telt de badge exact de losse /acties-taken en kan niet driften.
+    const complianceRipple = clientCredentialAlertsFromRows(complianceCollabs, now).filter((a) =>
+      clientHasComplianceAction(a.alert),
+    ).length;
+
     return buildBadges({
       overdueLeads,
       openHandoffs,
       rosterAlerts,
       openDienstAlerts,
-      franchiseRenewals,
+      franchiseRenewals: franchiseRenewals + complianceRipple,
       attentionClients,
     });
   }

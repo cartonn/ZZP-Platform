@@ -50,7 +50,10 @@ const BASELINE: Record<Role, number> = {
   FREELANCER: 47,
   CLIENT: 41,
   ADMIN: 18,
-  FRANCHISER: 46,
+  // 46 → 48: het plaatsing-niveau compliance-signaal voegt één query toe aan de nav-badges
+  // (signals.ts) én één aan pendingTaskCount (franchiserTasks) — elk een tenant-gescopete
+  // collaboration.findMany met COLLABORATION_ALERT_INCLUDE, gedeelde pure bron met de opdrachtgever-taak.
+  FRANCHISER: 48,
 };
 
 /**

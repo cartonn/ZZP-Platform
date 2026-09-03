@@ -45,6 +45,20 @@ const state = vi.hoisted(() => ({
     freelancer: { user: { name: string | null } };
   }[],
   lastRenewalWhere: undefined as unknown,
+  // Plaatsing-compliance-fixtures (COLLABORATION_ALERT_INCLUDE-vorm): lopende plaatsingen met een
+  // verplicht-vereiste + de certificaten van de ZZP'er, waaruit de compliance-taak wordt afgeleid.
+  complianceCollabs: [] as {
+    id: string;
+    disputedAt: Date | null;
+    endDate: Date | null;
+    job: { id: string; title: string; credentialRequirements: { credentialType: string }[] };
+    company: { name: string | null };
+    freelancer: {
+      user: { name: string | null };
+      credentials: { type: string; status: string; expiresAt: Date | null }[];
+    };
+  }[],
+  lastComplianceWhere: undefined as unknown,
   // Relatiegezondheid-fixtures voor de re-engagement-taak (stilgevallen opdrachtgever).
   reengageCompanies: [] as {
     id: string;
@@ -155,10 +169,16 @@ vi.mock("@/lib/db", () => ({
     // Open dienst-overnames (aparte tak) — hier leeg, zodat deze tests op de andere tenant-taken
     // gefocust blijven. De dedicated regressietest staat in pending-tasks.shift-handoff.test.ts.
     shiftHandoff: { findMany: vi.fn(async () => []) },
-    // Aflopende plaatsingen (vervolgsignaal). Legt de where-args vast zodat de tenant-scope +
-    // vensterbegrenzing getest kan worden; serveert de fixture-rijen.
+    // collaboration.findMany wordt twee keer aangeroepen: (1) het vervolgsignaal (aflopende plaatsingen)
+    // en (2) de plaatsing-compliance-query (verplicht-vereiste + include). Onderscheid ze aan het
+    // `credentialRequirements`-filter op `where.job`, zodat elke query zijn eigen fixture + where-opname
+    // krijgt en de renewal-scope-assertie niet door de compliance-where wordt overschreven.
     collaboration: {
-      findMany: vi.fn(async (args: { where?: unknown }) => {
+      findMany: vi.fn(async (args: { where?: { job?: { credentialRequirements?: unknown } } }) => {
+        if (args?.where?.job?.credentialRequirements) {
+          state.lastComplianceWhere = args?.where;
+          return state.complianceCollabs;
+        }
         state.lastRenewalWhere = args?.where;
         return state.endingCollabs;
       }),
@@ -174,6 +194,7 @@ vi.mock("@/lib/franchise/dienst-fill-signal", () => ({
 }));
 
 import { pendingTasks } from "@/lib/actions/pending-tasks";
+import { P } from "@/lib/next-actions";
 import { RENEWAL_WINDOW_DAYS, RENEWAL_OVERDUE_GRACE_DAYS } from "@/lib/collaboration-renewal";
 
 const ACTOR = { id: "user-franchiser", role: "FRANCHISER", status: "ACTIVE" } as const;
@@ -207,6 +228,8 @@ beforeEach(() => {
   state.rosterQuery = null;
   state.endingCollabs = [];
   state.lastRenewalWhere = undefined;
+  state.complianceCollabs = [];
+  state.lastComplianceWhere = undefined;
   state.reengageCompanies = [];
   state.reengagePublishedJobs = [];
   state.reengageCollabActivity = [];
@@ -614,6 +637,97 @@ describe("bemiddelaar next-actions — vervolgsignaal aflopende plaatsing (franc
     const tasks = await pendingTasks(ACTOR);
     const t = tasks.find((x) => x.kind === "franchise-collaboration-renewal");
     expect(t?.title).toBe("Plan een vervolg: de ZZP'er bij de opdrachtgever");
+  });
+});
+
+// Cross-surface-gat gedicht (deze PR): de opdrachtgever kreeg al de `clientComplianceTask` voor een
+// lopende plaatsing met een certificaat-gat; de bemiddelaar — die de plaatsing brokerde en de ZZP'er om
+// vernieuwing vraagt — zag alléén roster-persoon-niveau verval (`franchise-credential-*`), nooit welke
+// LOPENDE plaatsing niet-compliant draait. Deze test borgt dat de item-engine de plaatsing-compliance-taak
+// nu ook voor de FRANCHISER emitteert (zelfde pure `assessCollaborationCredentials`-bron als de
+// opdrachtgever-taak), met tenant-scope, id/toon/prioriteit/deep-link, en dat een enkel in-beoordeling-
+// signaal (admin is aan zet) geen taak geeft.
+describe("bemiddelaar next-actions — plaatsing-compliance (franchise-compliance)", () => {
+  const placement = (
+    id: string,
+    reqType: string,
+    credentials: { type: string; status: string; expiresAt: Date | null }[],
+    companyName = "ZorgGroep Midden",
+    freelancerName = "Sanne",
+    jobTitle = "Nachtdienst",
+  ) => ({
+    id,
+    disputedAt: null as Date | null,
+    endDate: null as Date | null,
+    job: {
+      id: `job-${id}`,
+      title: jobTitle,
+      credentialRequirements: [{ credentialType: reqType }],
+    },
+    company: { name: companyName },
+    freelancer: { user: { name: freelancerName }, credentials },
+  });
+
+  it("query gescoopt op tenant (job.tenantId), verplicht-vereiste, ACTIEF en niet-bevroren", async () => {
+    await pendingTasks(ACTOR);
+    const where = state.lastComplianceWhere as Record<string, unknown>;
+    expect(where.job).toEqual({
+      tenantId: "tenant-1",
+      credentialRequirements: { some: { required: true } },
+    });
+    expect(where.status).toBe("ACTIVE");
+    expect(where.disputedAt).toBeNull();
+  });
+
+  it("ontbrekend vereist certificaat → één franchise-compliance-taak, hoogste band, deep-link + subtitle", async () => {
+    // Plaatsing vereist VOG; de ZZP'er heeft geen VOG → NON_COMPLIANT (gap).
+    state.complianceCollabs = [placement("collab-gap", "VOG", [])];
+    const tasks = await pendingTasks(ACTOR);
+    const t = tasks.find((x) => x.kind === "franchise-compliance");
+    expect(t).toBeDefined();
+    expect(t!.id).toBe("franchise-compliance:collab-gap");
+    expect(t!.href).toBe("/franchise/samenwerkingen");
+    expect(t!.tone).toBe("attention");
+    expect(t!.title).toContain("Sanne mist een vereist certificaat");
+    expect(t!.subtitle).toContain("ZorgGroep Midden");
+    expect(t!.priority).toBe(P.franchiserComplianceRipple);
+    // De scherpste bemiddelaar-actie: geen enkele andere tenant-taak weegt zwaarder dan 86.
+    expect(tasks[0]).toBe(t);
+  });
+
+  it("meerdere plaatsingen → één taak per plaatsing (gap vóór warning)", async () => {
+    const future = new Date(now.getTime() + 10 * 86_400_000); // binnen het verloop-venster
+    state.complianceCollabs = [
+      // WARNING: VOG geldig maar verloopt binnenkort.
+      placement("c-warn", "VOG", [{ type: "VOG", status: "VERIFIED", expiresAt: future }]),
+      // NON_COMPLIANT: INSURANCE ontbreekt.
+      placement("c-gap", "INSURANCE", []),
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    const compliance = tasks.filter((t) => t.kind === "franchise-compliance");
+    expect(compliance.map((t) => t.id)).toEqual([
+      "franchise-compliance:c-gap",
+      "franchise-compliance:c-warn",
+    ]);
+    const warn = compliance.find((t) => t.id === "franchise-compliance:c-warn");
+    expect(warn!.priority).toBe(P.franchiserComplianceWarning);
+  });
+
+  it("alleen in-beoordeling (verse indiening) → géén franchise-compliance-taak (admin is aan zet)", async () => {
+    state.complianceCollabs = [
+      placement("c-review", "VOG", [{ type: "VOG", status: "SUBMITTED", expiresAt: null }]),
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.kind === "franchise-compliance")).toBe(false);
+  });
+
+  it("compliant plaatsing (vereiste gedekt) → geen taak", async () => {
+    const future = new Date(now.getTime() + 400 * 86_400_000);
+    state.complianceCollabs = [
+      placement("c-ok", "VOG", [{ type: "VOG", status: "VERIFIED", expiresAt: future }]),
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.kind === "franchise-compliance")).toBe(false);
   });
 });
 

@@ -13,6 +13,13 @@ import {
 } from "@/lib/collaboration-filter";
 import { summarizeCollaborationRenewal } from "@/lib/collaboration-renewal";
 import {
+  clientCredentialAlertsFromRows,
+  clientHasComplianceAction,
+  shortCredentialAlert,
+  type CollaborationAlertRow,
+  type CredentialAlert,
+} from "@/lib/collaboration-alerts";
+import {
   renewalRowBadge,
   summarizeFranchiseCollaborations,
 } from "@/lib/franchise/collaboration-oversight";
@@ -56,6 +63,8 @@ type Row = FilterableCollaboration & {
   cancelledAt: Date | null;
   cancelledById: string | null;
   cancellationChargeable: boolean;
+  /** Certificaat-compliance-melding op plaatsingsniveau — alleen gevuld voor ACTIVE rijen met een openstaande actie. */
+  complianceAlert?: CredentialAlert;
 };
 
 export default async function FranchiseSamenwerkingenPage({
@@ -72,12 +81,60 @@ export default async function FranchiseSamenwerkingenPage({
         orderBy: { updatedAt: "desc" },
         take: 100,
         include: {
-          job: { select: { title: true, department: { select: { name: true } } } },
+          // Merge van het bestaande afdeling-select met wat COLLABORATION_ALERT_INCLUDE nodig heeft
+          // (vereiste certificaten van de opdracht + de certificaten van de ZZP'er) zodat de per-rij
+          // certificaat-compliance uit dezelfde pure bron komt als /acties en de zijbalk-badge.
+          job: {
+            select: {
+              id: true,
+              title: true,
+              department: { select: { name: true } },
+              credentialRequirements: {
+                where: { required: true },
+                select: { credentialType: true },
+              },
+            },
+          },
           company: { select: { name: true, userId: true } },
-          freelancer: { select: { user: { select: { name: true } } } },
+          freelancer: {
+            select: {
+              user: { select: { name: true } },
+              credentials: { select: { type: true, status: true, expiresAt: true } },
+            },
+          },
         },
       })
     : [];
+
+  const now = new Date();
+
+  // Certificaat-compliance op plaatsingsniveau, uit dezelfde pure bron als de /acties-taak en de
+  // zijbalk-badge → geen drift. Bewust dezelfde scope als taak/badge (`status: "ACTIVE"`): alleen
+  // lopende samenwerkingen leveren een compliance-actie op. De pure functie slaat disputen en
+  // opdrachten zonder verplichte certificaten al over; `clientHasComplianceAction` weert
+  // in-beoordeling-only-meldingen (de admin is dan aan zet, niet de bemiddelaar/opdrachtgever).
+  const activeAlertRows: CollaborationAlertRow[] = collabs
+    .filter((c) => c.status === "ACTIVE")
+    .map((c) => ({
+      id: c.id,
+      disputedAt: c.disputedAt,
+      endDate: c.endDate,
+      job: {
+        id: c.job.id,
+        title: c.job.title,
+        credentialRequirements: c.job.credentialRequirements,
+      },
+      freelancer: {
+        user: { name: c.freelancer.user.name },
+        credentials: c.freelancer.credentials,
+      },
+    }));
+  const complianceByCollaboration = new Map<string, CredentialAlert>();
+  for (const a of clientCredentialAlertsFromRows(activeAlertRows, now)) {
+    if (clientHasComplianceAction(a.alert)) {
+      complianceByCollaboration.set(a.collaborationId, a.alert);
+    }
+  }
 
   const rows: Row[] = collabs.map((c) => ({
     id: c.id,
@@ -97,6 +154,7 @@ export default async function FranchiseSamenwerkingenPage({
     cancelledAt: c.cancelledAt,
     cancelledById: c.cancelledById,
     cancellationChargeable: c.cancellationChargeable,
+    complianceAlert: complianceByCollaboration.get(c.id),
   }));
 
   // Filter de DBA-dimensie bewust niet (die hoort bij het admin-overzicht); status + zoeken volstaat
@@ -107,7 +165,6 @@ export default async function FranchiseSamenwerkingenPage({
 
   // Vervolgsignaal-overzicht over de volledige set (spiegelt de andere franchise-cockpits) + het
   // per-rij vervolgsignaal, uit dezelfde pure bron als de bemiddelaar-next-action → geen drift.
-  const now = new Date();
   const oversight = summarizeFranchiseCollaborations(rows, now);
   const visible = filterCollaborations(rows, filter)
     .map((row) => ({
@@ -212,7 +269,17 @@ export default async function FranchiseSamenwerkingenPage({
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          {c.complianceAlert && (
+                            <Badge
+                              variant={
+                                c.complianceAlert.status === "NON_COMPLIANT" ? "danger" : "warning"
+                              }
+                              title={shortCredentialAlert(c.complianceAlert)}
+                            >
+                              {shortCredentialAlert(c.complianceAlert)}
+                            </Badge>
+                          )}
                           {renewalBadge && (
                             <Badge variant={renewalBadge.tone}>{renewalBadge.label}</Badge>
                           )}
