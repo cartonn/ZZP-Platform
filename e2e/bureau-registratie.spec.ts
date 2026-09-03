@@ -78,11 +78,29 @@ test("admin ziet de wachtrij, moet een reden opgeven bij afwijzen en kan activer
   await row.getByRole("button", { name: "Afwijzen" }).click();
   await expect(row.getByRole("button", { name: "Afwijzen bevestigen" })).toBeVisible();
   await row.getByRole("button", { name: "Annuleren" }).click();
+  // Wacht tot het bevestig-venster echt is ingeklapt vóór we activeren: anders kan de Activeren-klik
+  // in het her-render-venster van het annuleren vallen en niet registreren — dan blijft de rij staan
+  // en faalt de assertie hieronder (waargenomen CI-flake, geen productdefect).
+  await expect(row.getByRole("button", { name: "Afwijzen bevestigen" })).toBeHidden();
 
   // Activeren haalt de aanmelding uit de wachtrij (de lijst toont alleen PENDING-tenants).
-  // De rij verdwijnt pas na de server-action + revalidatePath-render; onder CI-belasting kan die
-  // round-trip het standaard 5s-venster overschrijden, dus een ruimer venster (de test is `slow`).
-  await row.getByRole("button", { name: "Activeren" }).click();
+  const activeren = row.getByRole("button", { name: "Activeren" });
+  await expect(activeren).toBeEnabled();
+  await activeren.click();
+  // Wacht tot de server-action is verwerkt: óf de rij is al weg (revalidatePath ververste de RSC),
+  // óf de succesmelding "… is geactiveerd" verscheen (RSC nog niet ververst). Zo weten we dat de
+  // activatie server-side is geland vóór we herladen — een directe reload zou de lopende POST kunnen
+  // afbreken. Niet herladen tijdens deze poll.
+  await expect
+    .poll(
+      async () => (await row.count()) === 0 || (await row.getByText(/is geactiveerd/).count()) > 0,
+      { timeout: 30000 },
+    )
+    .toBe(true);
+  // Server-waarheid afdwingen, onafhankelijk van de timing waarmee revalidatePath de openstaande
+  // pagina ververst (bron van de eerdere CI-flake): na een herlaad staat alleen PENDING nog in de
+  // wachtrij, dus de zojuist geactiveerde tenant is weg.
+  await page.reload();
   await expect(row).toHaveCount(0, { timeout: 15000 });
 
   // Na activatie opent de werkplek voor de bemiddelaar (live gelezen, geen nieuwe sessie nodig).

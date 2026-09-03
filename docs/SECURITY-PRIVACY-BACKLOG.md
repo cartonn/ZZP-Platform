@@ -4,6 +4,83 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-03 (basis: `main` @ 5f9bf1ab) — 1× KRITIEK + 1× HOOG OPGELOST op de níeuwe VOG-metadata-modus (#1338): (1) herindienen liet het vangnet onder de VOG-verwijdering blind, (2) een verloren race schreef een spook-audit
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken van
+de delta sinds `c238580d` (14 PR's), elk met de opdracht de "CLEAN"-claim te wéérleggen: A — de níeuwe
+bureau-zelfaanmelding + franchise-activatie (#1343) + DB-transitie-noodrem (#1351); B — de níeuwe
+VOG-metadata-modus / bewijsstuk-verwijdering (#1338) + cron/opruimtaak + storage; C — Redis-rate-limit-driver
+(#1345), zoeken/marktplaats (#1336), `/kandidaten` (#1342), verificatiewachtrij-markering (#1348), seed (#1341).
+`npm audit --omit=dev`: **0 kwetsbaarheden** (Next.js 15 / Auth.js v5 / Prisma).
+
+**OPGELOST — [KRITIEK · AVG art. 5(1)(e) opslagbeperking + art. 10 (strafrechtelijke gegevens) · CLAUDE.md
+regel 4/5] Herindienen van een reeds beoordeelde VOG maakte de opruim-vangnet-taak blind — een nieuw
+strafrechtelijk gegeven kon bij een opslagstoring permanent achterblijven.** De VOG-metadata-modus verwijdert
+het bewijsstuk ná de beoordeling en bewaart alleen "gezien + datum"; lukt de opslag-verwijdering niet (S3-blip),
+dan blijft `evidenceRemovedAt` bewust leeg zodat `runCredentialEvidenceCleanupTask` het later hervat (die taak
+selecteert uitsluitend `evidenceSeenAt != null, evidenceRemovedAt: null, documentId != null`). **Repro:** een
+ZZP'er dient na een eerdere beoordeling een níeuw VOG-bestand in (`persistCredential`, VERIFIED/REJECTED →
+SUBMITTED — een expliciet toegestane overgang). De resubmit-`updateMany` zette wél `documentId` + `status`, maar
+liet `evidenceSeenAt`/`evidenceSeenById`/`evidenceRemovedAt` van de vórige cyclus staan (niet-leeg). Bij de
+tweede beoordeling schreef `removeCredentialEvidence` `evidenceRemovedAt` alleen bij een geslaagde
+storage-delete; faalde die, dan bleef de stale, niet-lege waarde staan → de opruimtaak pakt de rij nooit meer op
+(hij eist `evidenceRemovedAt: null`) → het nieuwe VOG-bestand blijft ongemerkt en zonder alarm in de opslag.
+Bijkomend (MIDDEL, AVG art. 5(1)(d) juistheid): de certificatenpagina toonde "gezien op <oude datum> · bestand
+verwijderd" voor het nog-ongeziene nieuwe bewijsstuk. **Fix:** een gedeelde `EVIDENCE_REVIEW_RESET`
+(`evidenceSeenAt/evidenceSeenById/evidenceRemovedAt = null`) wordt nu in beide her-beoordelingspaden
+(herindienen mét nieuw bestand én her-verifiëren na gewijzigde feiten) mee-geschreven, zodat het invariant
+"SUBMITTED = deze cyclus nog niet beoordeeld" overal waar is — de opruimtaak ziet een mislukte verwijdering
+weer, en de weergave klopt. **Durable test (rood→groen):** `certificaten/evidence-resubmit-reset.test.ts`
+(nieuw) — VERIFIED→SUBMITTED zet de drie velden op `null`. Gewijzigd:
+`src/app/(protected)/certificaten/actions.ts` (de weergave in `(index)/page.tsx` klopt nu vanzelf omdat ze
+diezelfde velden leest — geen viewwijziging nodig).
+
+**OPGELOST — [HOOG · CLAUDE.md regel 5 (audit = werkelijkheid)] `removeCredentialEvidence` schreef een
+CREDENTIAL_EVIDENCE_REMOVED-audit ook wanneer de compound-guard 0 rijen matchte.** De functie draait vanuit twee
+bronnen zónder lock (verificatiequeue + cron-opruimtaak; de cron heeft geen advisory lock, dus twee ticks of
+queue+cron kunnen overlappen). **Repro:** twee gelijktijdige aanroepen voor hetzelfde credential/document —
+beide lezen de Document-rij, beide doen de (idempotente) storage-delete, beide gaan de transactie in. De eerste
+ontkoppelt (`updateMany count:1`), verwijdert de Document-rij en schrijft de audit. De tweede matcht 0 rijen
+(`documentId` al `null`), maar liep tóch door naar `document.deleteMany` (0 rijen) én
+`auditLog.create` → een **tweede, valse** "bewijsstuk verwijderd"-auditregel + `{removed:true}` (opgeteld in de
+opruimteller). **Fix:** de transactie gate't nu op `res.count`; bij 0 wordt niets meer gewist en géén audit
+geschreven, en de functie geeft `{removed:false, skipped:"no-document"}` terug. **Durable test (rood→groen):**
+`src/lib/credential-evidence.test.ts` (nieuw) — count:0 ⇒ geen doc-delete, geen audit; count:1 blijft
+ongewijzigd (happy-path). `src/lib/credential-evidence.ts`.
+
+**GEPARKEERD deze ronde (repro + severity; geen agent-blocker):**
+
+- **[MIDDEL · CWE-208/OWASP A07 — timing-enumeratie] `registerBureau`** (`src/app/register/actions.ts:146-183`):
+  de respons is identiek bij een bestaand vs. nieuw e-mailadres/KvK, maar de timing niet — het bestaand-pad
+  retourneert direct na twee indexed reads, het nieuw-pad doet `bcrypt.hash` + een 4-writes-transactie. Een
+  aanvaller kan bureaus/accounts enumereren op latentie, precies wat het "geen enumeratie"-ontwerp wil
+  voorkomen. `registerRateLimiter` verhoogt de kosten maar dicht het orakel niet. **Fix:** de dure stap
+  (bcrypt of een dummy met gelijke kosten) onvoorwaardelijk vóór de existentie-tak, of het snelle pad padden.
+- **[MIDDEL · AVG art. 17/5(1)(e) — geen erasure-pad voor een afgewezen bureau]** (`src/lib/enums.ts`
+  `TENANT_TRANSITIONS.REJECTED: []`, `src/lib/account-anonymization.ts` `canAnonymizeUser` blokkeert bij
+  `ownsTenant`). Een REJECTED-tenant is terminal; de FRANCHISER-eigenaar blijft ACTIVE, en anonimiseren wordt
+  geblokkeerd zolang hij een tenant bezit — maar er is geen admin-actie om een tenant te sluiten/over te dragen.
+  KvK/telefoon/regio/contact-PII van een afgewezen aanmelding heeft dus geen bereikbaar wispad. **MENSENWERK
+  §5** — bouw een minimale "tenant sluiten"-adminactie (terminale gesloten-status die `canAnonymizeUser`
+  deblokkeert) óf een retentie-sweep voor REJECTED-tenants (spiegelt `application-retention`/`lead-retention`).
+- **[MIDDEL · OWASP A07 — fail-open rate-limiting bij Redis-storing]** (`src/lib/rate-limit.ts:207-208, 388-389`):
+  bewuste availability-keuze (met dead-man's-switch-heartbeat), maar het venster is reëel exploiteerbaar.
+  **MENSENWERK** — bevestig dat de heartbeat-alert (`ZzpRateLimitStoreDeliveryFailing`) daadwerkelijk aan een
+  paging-kanaal hangt, niet alleen op `/admin/systeemstatus` staat.
+- **[LAAG/mensenwerk · AVG art. 32]** productie-schema-drift-herstel (`prisma db push` + migratie-markering) bij
+  boot draait onbeheerd tegen een DB met echte PII zolang `_prisma_migrations` ontbreekt — verifieer dat de
+  transitie in productie is voltooid zodat dit pad stopt (zie `DB_TRANSITION_ACCEPT_DATA_LOSS`, MENSENWERK).
+
+**CLEAN geverifieerd (niet speculatief):** tenant-gating is fail-closed via `currentActor()`/`tenantAccessBlocked`
+(JWT draagt géén tenantId/-status; elke `franchise/*` route/action doet eigen `requireRole`); geen
+mass-assignment (rol hard `FRANCHISER`/`PENDING`, `registerSchema.role` enum FREELANCER/CLIENT); `decideActivation`
+ADMIN-gated + `updateMany`-race-veilig + transitiemap; activatie-e-mail HTML-escaped, geen header-injectie;
+storage-delete gaat echt (bestand + rij) + audit; path-traversal-guard intact; cron fail-closed op leeg
+`CRON_SECRET` + `timingSafeEqual`; `/kandidaten` eigen-scoped (geen IDOR); zoeken via `mode:"insensitive"` (geen
+raw SQL); seed-guard intact (geen prod-seed, geen hardcoded prod-secret); geen `dangerouslySetInnerHTML`/
+`$queryRaw`-interpolatie/`.passthrough()`/open-redirect in de delta; `env.ts` faalt de boot niet op een
+ontbrekende go-live-secret (regel 8).
+
 ## Ronde 2026-09-02b (basis: `main` @ c238580d) — GEEN NIEUWE GATEN. Volledige adversariële sweep + de delta `f793358a..c238580d` (8 PR's: #1326 reauth-rem/drill-teardown, #1328 roostertijdlijn, #1329 facturatie-nudge/jaarwissel, #1330 certificaat-verval, #1331 docs, #1332 CI+ciContains, #1334 Prisma-baseline/seed-guard, #1335 ontwerp-lab-hardening) opnieuw langs OWASP Top 10 / ASVS + AVG.
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,

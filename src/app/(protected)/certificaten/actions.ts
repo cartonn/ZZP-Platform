@@ -105,6 +105,25 @@ async function deleteDocumentById(actorId: string, documentId: string | null) {
 /** Sentinel: de credential is tussen de snapshot en de write van status veranderd (race verloren). */
 class StaleCredentialError extends Error {}
 
+/**
+ * Een certificaat gaat terug naar SUBMITTED voor een níeuwe beoordelingscyclus (nieuw bewijsstuk, of
+ * gewijzigde verificatie-feiten). De "gezien/verwijderd"-registratie van de vórige cyclus beschrijft
+ * dan niet langer de huidige inzending en moet leeg. Zonder deze reset:
+ *  1. houdt een VOG na herindienen een stale, niet-lege `evidenceRemovedAt`; de opruimtaak
+ *     (`runCredentialEvidenceCleanupTask`, die uitsluitend rijen met `evidenceRemovedAt: null` oppakt)
+ *     hervat een later mislukte opslag-verwijdering dan nooit, waardoor het níeuwe strafrechtelijk
+ *     gegeven bij een storing permanent in de opslag achterblijft (AVG art. 5(1)(e)/art. 10);
+ *  2. toont de certificatenpagina onterecht "gezien op <oude datum> · bestand verwijderd" voor een
+ *     nog-ongezien nieuw bewijsstuk (AVG art. 5(1)(d), juistheid).
+ * Het invariant dat de opruimtaak én de weergave veronderstellen — "SUBMITTED = deze cyclus nog niet
+ * beoordeeld" — blijft zo overal waar.
+ */
+const EVIDENCE_REVIEW_RESET = {
+  evidenceSeenAt: null,
+  evidenceSeenById: null,
+  evidenceRemovedAt: null,
+} as const;
+
 const STALE_CREDENTIAL_MESSAGE =
   "Dit certificaat is inmiddels beoordeeld. Ververs de pagina en probeer het opnieuw.";
 
@@ -181,7 +200,12 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
               ...fields,
               documentId: doc.id,
               ...(resubmit
-                ? { status: "SUBMITTED", rejectionReason: null, submittedAt: new Date() }
+                ? {
+                    status: "SUBMITTED",
+                    rejectionReason: null,
+                    submittedAt: new Date(),
+                    ...EVIDENCE_REVIEW_RESET,
+                  }
                 : {}),
             },
           });
@@ -218,6 +242,7 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
                 status: "SUBMITTED",
                 rejectionReason: null,
                 submittedAt: new Date(),
+                ...EVIDENCE_REVIEW_RESET,
               },
             });
             if (res.count === 0) throw new StaleCredentialError();
