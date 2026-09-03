@@ -10,6 +10,28 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-03 — security/privacy: VOG-verwijdering gehard tegen herindienen + race (audit-ronde)
+
+**Wat:** adversariële security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle Opus-audits) op de delta
+sinds `c238580d` (14 PR's). Twee gaten op de níeuwe VOG-metadata-modus (#1338) gedicht:
+
+1. **KRITIEK (AVG art. 5(1)(e)/art. 10):** herindienen van een reeds beoordeelde VOG (VERIFIED/REJECTED →
+   SUBMITTED) liet `evidenceSeenAt/evidenceSeenById/evidenceRemovedAt` van de vorige cyclus staan. Een stale,
+   niet-lege `evidenceRemovedAt` maakte de opruim-vangnet-taak (die alleen `evidenceRemovedAt: null` oppakt)
+   blind → bij een opslagstoring op de tweede beoordeling bleef het nieuwe strafrechtelijk gegeven permanent en
+   zonder alarm in de opslag. Ook: de certificatenpagina toonde onterecht "gezien · bestand verwijderd". Fix:
+   gedeelde `EVIDENCE_REVIEW_RESET` in beide her-beoordelingspaden — invariant "SUBMITTED = deze cyclus nog niet
+   beoordeeld" is weer overal waar.
+2. **HOOG (audit-integriteit):** `removeCredentialEvidence` schreef een `CREDENTIAL_EVIDENCE_REMOVED`-audit ook
+   als de compound-guard 0 rijen matchte (verloren race tussen queue en cron, geen lock) → spook-auditregel +
+   overtelling. Fix: transactie gate't nu op `res.count`; bij 0 niets wissen, geen audit, `{removed:false}`.
+
+**Bestanden:** `src/app/(protected)/certificaten/actions.ts`, `src/lib/credential-evidence.ts`. **Tests
+(rood→groen):** `certificaten/evidence-resubmit-reset.test.ts` (nieuw), `src/lib/credential-evidence.test.ts`
+(nieuw) — beide falen zonder de fix, slagen ermee. Overige bevindingen (timing-enumeratie op bureau-aanmelding,
+geen erasure-pad voor afgewezen bureau, fail-open rate-limit, DB-transitie) geparkeerd in
+`docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-09-03). `npm audit --omit=dev`: 0 kwetsbaarheden.
+
 ## 2026-09-02 — routine: verificatiewachtrij markeert certificaten die een lopende inzet blokkeren (admin)
 
 **Wat:** de admin-verificatiewachtrij (`/admin/verificaties`) toonde vraag vanuit **open opdrachten**
@@ -359,32 +381,3 @@ factor wordt geverifieerd vóór enige schrijfactie; faalt hij, dan blijft 2FA a
 
 **Checks:** typecheck ✓, unit (verify-second-factor 8/8 + tweestapsverificatie-actions + authorize-credentials
 groen) ✓, lint ✓, build ✓, prettier ✓. CI-poort verifieert.
-
-## 2026-09-01 — prod: `/.well-known/change-password`-vindpunt (W3C well-known URL)
-
-**Wat:** wachtwoordmanagers (Safari/iCloud-sleutelhanger, Chrome, 1Password, Bitwarden) tonen een "Wijzig
-wachtwoord"-knop zodra ze een zwak of gelekt wachtwoord detecteren en navigeren die naar
-`<origin>/.well-known/change-password`. Dat pad bestond nog niet; de manager gokte (vaak de homepage) i.p.v.
-de gebruiker op de echte pagina te zetten — zeker omdat die op het niet-voor-de-hand-liggende Nederlandse
-pad `/account/wachtwoord` staat. Nu verwijst het vindpunt (303 See Other) door naar die pagina. Natuurlijke
-tegenhanger van de al ingebouwde HIBP gelekt-wachtwoord-controle (deep-link naar het herstelpad bij een
-gedetecteerd datalek-wachtwoord).
-
-**Aanpak:** pure bron van waarheid `buildChangePasswordRedirect(origin)` (`src/lib/change-password-url.ts`) —
-absolute Location op de **vertrouwde** publieke origin (`resolvePublicOrigin`/`AUTH_URL`, nooit uit een
-client-header → geen host-header-poisoning, OWASP A01). Route
-`src/app/.well-known/change-password/route.ts` mirrort de `security.txt`-route (force-dynamic, nooit
-gecachet). Valt (via de punt in `.well-known`) buiten de middleware-matcher, dus publiek bereikbaar zonder
-login-redirect — precies zoals `/.well-known/security.txt` en `/robots.txt`. Posture-item
-"Wachtwoord-wijzigen-vindpunt (well-known)" op `/admin/systeemstatus` (altijd `ok`, geen config).
-
-**Bestanden:**
-
-- `src/lib/change-password-url.ts` — pure builder + constanten (`CHANGE_PASSWORD_PATH`, status 303).
-- `src/lib/change-password-url.test.ts` — 5 tests (redirect, trailing-slash-normalisatie, dev-origin, sync).
-- `src/app/.well-known/change-password/route.ts` — GET-handler (303 → `/account/wachtwoord`).
-- `src/lib/system-status.ts` + `.test.ts` — posture-item + test.
-- `MENSENWERK.md` §5d — code-kant GEDAAN + geen resterend mensenwerk.
-
-**Checks:** typecheck ✓, unit (change-password-url 5/5 + system-status groen) ✓, prettier ✓. Resterend
-mensenwerk: **niets** — werkt out-of-the-box.

@@ -73,14 +73,21 @@ export async function removeCredentialEvidence(opts: {
   }
 
   const now = new Date();
-  await prisma.$transaction(async (tx) => {
+  const unlinked = await prisma.$transaction(async (tx) => {
     // Compound-guard: alleen ontkoppelen zolang de credential nog naar exact dít bewijsstuk wijst.
     // Uploadde de ZZP'er intussen een nieuw bewijsstuk (herindienen), dan matcht dit 0 rijen en
     // laten we die nieuwe koppeling met rust.
-    await tx.credential.updateMany({
+    const res = await tx.credential.updateMany({
       where: { id: opts.credentialId, documentId },
       data: { documentId: null, evidenceRemovedAt: now },
     });
+    // Matcht 0 rijen → de credential wijst niet meer naar dít bewijsstuk: een gelijktijdige
+    // herindiening of een parallelle opruimloop (queue + cron, of twee cron-ticks — geen lock) was
+    // ons voor. Dan niets meer wissen en — cruciaal — GEEN CREDENTIAL_EVIDENCE_REMOVED-audit schrijven
+    // voor een verwijdering die déze aanroep niet uitvoerde. Anders staat er een spookregel in het
+    // audittrail (dubbele "verwijderd"-gebeurtenis) en telt de opruimtaak een niet-uitgevoerde
+    // verwijdering mee (CLAUDE.md regel 5 — audit moet de werkelijkheid weerspiegelen).
+    if (res.count === 0) return false;
     await tx.document.deleteMany({ where: { id: documentId } });
     await tx.auditLog.create({
       data: auditData({
@@ -91,7 +98,12 @@ export async function removeCredentialEvidence(opts: {
         metadata: { reason: EVIDENCE_REMOVAL_REASON },
       }),
     });
+    return true;
   });
+
+  // De opslag-verwijdering is idempotent al gedaan; alleen de DB-ontkoppeling verloor de race. Meld
+  // dit als "no-document" (er viel voor deze credential niets meer te ontkoppelen), niet als succes.
+  if (!unlinked) return { removed: false, skipped: "no-document" };
 
   return { removed: true, skipped: null };
 }
