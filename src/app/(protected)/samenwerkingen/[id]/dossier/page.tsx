@@ -12,6 +12,7 @@ import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import { inzetvormSignaal } from "@/lib/inzetvorm-signaal";
 import { type DbaRisk } from "@/lib/dba";
+import { type CredentialType } from "@/lib/enums";
 
 export const metadata: Metadata = { title: "Compliance-dossier · Handslag" };
 
@@ -32,7 +33,17 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
   const col = await prisma.collaboration.findUnique({
     where: { id },
     include: {
-      job: { select: { title: true, dbaRisk: true, dbaReasons: true, modelAgreementType: true } },
+      job: {
+        select: {
+          title: true,
+          dbaRisk: true,
+          dbaReasons: true,
+          modelAgreementType: true,
+          // Vereiste certificaattypes: de verificatiesectie wordt hiertegen beoordeeld (mirrort
+          // pending-tasks.ts), zodat ze de opdrachtgever-next-action nooit tegenspreekt.
+          credentialRequirements: { where: { required: true }, select: { credentialType: true } },
+        },
+      },
       company: { select: { name: true, userId: true } },
       freelancer: {
         select: {
@@ -42,7 +53,7 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
           // in-behandeling-pogingen via het totaaltal. Consistent met de dossier-API-route.
           credentials: {
             where: { status: { in: ["VERIFIED", "EXPIRED"] } },
-            select: { type: true, title: true, status: true, verifiedAt: true },
+            select: { type: true, title: true, status: true, verifiedAt: true, expiresAt: true },
           },
         },
       },
@@ -66,6 +77,9 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
     dbaRisk: col.job.dbaRisk,
     dbaReasons: parseReasons(col.job.dbaReasons),
     modelAgreementType: col.job.modelAgreementType,
+    requiredCredentialTypes: (col.job.credentialRequirements ?? []).map(
+      (r) => r.credentialType as CredentialType,
+    ),
     credentials: col.freelancer.credentials,
     performances: col.performances,
     invoices: col.invoices.map((i) => ({
@@ -75,6 +89,7 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
       submittedAt: i.issuedAt,
     })),
     startDate: col.startDate,
+    endDate: col.endDate,
     createdAt: col.createdAt,
   };
   const dossier = buildComplianceDossier(input);

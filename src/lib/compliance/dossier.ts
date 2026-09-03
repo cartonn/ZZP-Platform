@@ -4,12 +4,23 @@
 // Geen oordeel/garantie (Besluit 2): toont feiten + signalen; de werkelijke werkwijze is bepalend.
 
 import { plural } from "@/lib/plural";
+import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
+import { type CredentialType } from "@/lib/enums";
+import { type FreelancerCredential } from "@/lib/matching";
+import {
+  assessCollaborationCredentials,
+  clientHasComplianceAction,
+} from "@/lib/collaboration-alerts";
+
+const EXPIRY_WINDOW_DAYS = 30;
 
 export interface DossierCredential {
   type: string;
   title: string;
   status: string; //        CredentialStatus
   verifiedAt: Date | null;
+  /** Vervaldatum — nodig om verloop-vóór-einde en binnenkort-verlopend te beoordelen. `null` = doorlopend. */
+  expiresAt: Date | null;
 }
 
 export interface DossierPerformance {
@@ -33,10 +44,18 @@ export interface DossierInput {
   dbaRisk: string | null; //          LAAG | MIDDEN | HOOG
   dbaReasons: readonly string[];
   modelAgreementType: string | null;
+  /**
+   * De door de opdracht VERPLICHT gestelde certificaattypes. De verificatiesectie wordt hiertegen
+   * beoordeeld — niet tegen álle certificaten van de ZZP'er — zodat ze nooit de hoogste
+   * opdrachtgever-next-action (`clientComplianceTask`) tegenspreekt. Leeg = geen vereisten.
+   */
+  requiredCredentialTypes: readonly CredentialType[];
   credentials: readonly DossierCredential[];
   performances: readonly DossierPerformance[];
   invoices: readonly DossierInvoice[];
   startDate: Date | null;
+  /** Einddatum van de plaatsing (open-einde = `null`); verankert "verloopt vóór het einde van de opdracht". */
+  endDate: Date | null;
   createdAt: Date;
 }
 
@@ -67,7 +86,10 @@ export interface ComplianceDossier {
 const VERIFIED = "VERIFIED";
 
 /** Bouwt het dossier deterministisch uit de aangeleverde feiten. */
-export function buildComplianceDossier(input: DossierInput): ComplianceDossier {
+export function buildComplianceDossier(
+  input: DossierInput,
+  now: Date = new Date(),
+): ComplianceDossier {
   const sections: DossierSection[] = [];
 
   // 1. DBA-beoordeling.
@@ -101,14 +123,59 @@ export function buildComplianceDossier(input: DossierInput): ComplianceDossier {
     attention: !signed,
   });
 
-  // 4. Verificatie van de ZZP'er.
+  // 4. Verificatie van de ZZP'er — beoordeeld tegen de VERPLICHTE certificaattypes van de opdracht.
+  // Zelfde bron (`assessCollaborationCredentials`) als de hoogste opdrachtgever-next-action
+  // (`clientComplianceTask`), zodat het dossier die taak nooit tegenspreekt: een ZZP'er die de
+  // vereiste VOG mist maar een ongerelateerd VERIFIED certificaat heeft, telt hier niet als "compleet".
   const verified = input.credentials.filter((c) => c.status === VERIFIED);
-  const expired = input.credentials.filter((c) => c.status === "EXPIRED");
+  const assessmentCredentials: FreelancerCredential[] = input.credentials.map((c) => ({
+    type: c.type as CredentialType,
+    status: c.status as FreelancerCredential["status"],
+    expiresAt: c.expiresAt,
+  }));
+  const credentialAlert = assessCollaborationCredentials(
+    input.requiredCredentialTypes,
+    assessmentCredentials,
+    now,
+    EXPIRY_WINDOW_DAYS,
+    input.endDate,
+  );
+  const labelTypes = (list: readonly CredentialType[]) =>
+    list.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ");
+  const requiredCount = input.requiredCredentialTypes.length;
+  let verificatieSummary: string;
+  if (requiredCount === 0) {
+    verificatieSummary = "Geen vereiste certificaten voor deze opdracht.";
+  } else {
+    const gaps: string[] = [];
+    if (credentialAlert.missing.length)
+      gaps.push(`${labelTypes(credentialAlert.missing)} ontbreekt`);
+    if (credentialAlert.expired.length)
+      gaps.push(`${labelTypes(credentialAlert.expired)} verlopen`);
+    if (credentialAlert.expiringSoon.length)
+      gaps.push(`${labelTypes(credentialAlert.expiringSoon)} verloopt binnenkort`);
+    if (credentialAlert.expiringDuringPlacement.length)
+      gaps.push(
+        `${labelTypes(credentialAlert.expiringDuringPlacement)} verloopt vóór het einde van de opdracht`,
+      );
+    // Geldig geverifieerd = vereiste types zonder gat of nog-in-beoordeling-status.
+    const validCount =
+      requiredCount -
+      credentialAlert.missing.length -
+      credentialAlert.expired.length -
+      credentialAlert.inReview.length;
+    verificatieSummary =
+      `${validCount} van ${plural(requiredCount, "vereist certificaat", "vereiste certificaten")} geldig geverifieerd` +
+      (gaps.length ? ` · ${gaps.join("; ")}` : "") +
+      ".";
+  }
   sections.push({
     key: "verificatie",
     title: "Verificatie ZZP'er",
-    summary: `${verified.length} geverifieerd${expired.length ? `, ${expired.length} verlopen` : ""} van ${plural(input.credentials.length, "certificaat", "certificaten")}.`,
-    attention: expired.length > 0 || verified.length === 0,
+    summary: verificatieSummary,
+    // Aandacht precies wanneer de opdrachtgever-next-action zou afvuren (ontbrekend/verlopen/
+    // binnenkort/vóór-einde) — nooit los daarvan.
+    attention: clientHasComplianceAction(credentialAlert),
   });
 
   // 5. Prestaties.

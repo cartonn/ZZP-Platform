@@ -8,6 +8,7 @@ import { requestMeta } from "@/lib/request-meta";
 import { auditDeniedAccess } from "@/lib/security/access-audit";
 import { prisma } from "@/lib/db";
 import { buildComplianceDossier, type DossierInput } from "@/lib/compliance/dossier";
+import { type CredentialType } from "@/lib/enums";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
@@ -44,7 +45,17 @@ export async function GET(
   const col = await prisma.collaboration.findUnique({
     where: { id },
     include: {
-      job: { select: { title: true, dbaRisk: true, dbaReasons: true, modelAgreementType: true } },
+      job: {
+        select: {
+          title: true,
+          dbaRisk: true,
+          dbaReasons: true,
+          modelAgreementType: true,
+          // Vereiste certificaattypes: de verificatiesectie wordt hiertegen beoordeeld (mirrort
+          // pending-tasks.ts), zodat ze de opdrachtgever-next-action nooit tegenspreekt.
+          credentialRequirements: { where: { required: true }, select: { credentialType: true } },
+        },
+      },
       company: { select: { name: true, userId: true } },
       freelancer: {
         select: {
@@ -55,7 +66,7 @@ export async function GET(
           // via het totaaltal ("X van N"). De verificatiesectie gebruikt enkel VERIFIED + EXPIRED.
           credentials: {
             where: { status: { in: ["VERIFIED", "EXPIRED"] } },
-            select: { type: true, title: true, status: true, verifiedAt: true },
+            select: { type: true, title: true, status: true, verifiedAt: true, expiresAt: true },
           },
         },
       },
@@ -108,6 +119,9 @@ export async function GET(
     dbaRisk: col.job.dbaRisk,
     dbaReasons: parseReasons(col.job.dbaReasons),
     modelAgreementType: col.job.modelAgreementType,
+    requiredCredentialTypes: (col.job.credentialRequirements ?? []).map(
+      (r) => r.credentialType as CredentialType,
+    ),
     credentials: col.freelancer.credentials,
     performances: col.performances,
     invoices: col.invoices.map((i) => ({
@@ -117,6 +131,7 @@ export async function GET(
       submittedAt: i.issuedAt,
     })),
     startDate: col.startDate,
+    endDate: col.endDate,
     createdAt: col.createdAt,
   };
   const dossier = buildComplianceDossier(input);

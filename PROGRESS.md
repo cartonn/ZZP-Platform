@@ -10,6 +10,31 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-03 — persona-sweep (run 107): 2 next-action-defecten gefixt (dossier-tegenspraak + verval-symmetrie)
+
+**Wat:** kritische-gebruiker-sweep over alle vier rollen (orchestrator Opus 4.8 + 3 parallelle Opus-audits:
+authz/IDOR/tenant · cascade-geldmath/statusovergangen · next-action-engine) + live Playwright-smoke. Live:
+alle rollen loggen in → `/dashboard` zonder page-error, `/acties` laadt; adversarieel geweigerd (ZZP'er →
+`/admin/*` en `/franchise/*` redirect naar eigen dashboard, onzin-id → 404 niet 500). Authz-audit: 0
+bereikbare gaten over het volledige mutatie-oppervlak. Twee **next-action**-defecten (DOEL 1b) gefixt:
+
+1. **Dossier sprak de hoogste opdrachtgever-next-action tegen.** `clientComplianceTask` ("X mist vereist
+   certificaat (VOG)") linkte naar een compliance-dossier waarvan de sectie "Verificatie ZZP'er" ÁLLE
+   VERIFIED/EXPIRED certificaten telde i.p.v. de vereiste types → een ongerelateerd VERIFIED certificaat gaf
+   "Compleet" naast de acute actie. Nu beoordeeld tegen `job.credentialRequirements` via dezelfde bron
+   (`assessCollaborationCredentials`/`clientHasComplianceAction`, incl. `placementEnd`) → kan niet meer driften.
+2. **Verval-vóór-einddatum-signaal bereikte alleen de opdrachtgever.** Het nieuwe `expiringDuringPlacement`
+   (vereist certificaat dat ná 30 dagen maar vóór `endDate` verloopt) voedde wél `clientComplianceTask`, maar
+   de ZZP'er-spiegel `collaborationCredentialExpiryConcerns` hanteerde een vast 30-daags venster → de partij
+   die kán vernieuwen zag niets. Nu per-samenwerking-cutoff `max(now+30d, endDate)` (backward-compatible).
+
+**Bestanden:** `src/lib/compliance/dossier.ts` (+ `.test.ts`, 4 nieuwe cases), `src/app/(protected)/samenwerkingen/[id]/dossier/page.tsx`,
+`src/app/api/samenwerkingen/[id]/dossier/route.ts` (+ `dossier-routes-audit.test.ts`-mock), `src/lib/collaboration-credential-expiry.ts`
+(+ `.test.ts`, 4 nieuwe cases), `src/lib/actions/pending-tasks.ts`. **Geparkeerd (escalatie-naar-mens, MENSENWERK §5):**
+losse-factuur-flow nummert platform-breed i.p.v. per uitschrijvende partij (schema-wijziging + besluit over reeds
+uitgegeven nummers) — repro + aanbevolen fix in `docs/PERSONA-SWEEP-BACKLOG.md` (run 107). **Checks:** typecheck /
+lint / unit (8020 groen) / build / prettier groen; CI-poort verifieert.
+
 ## 2026-09-03 — security/privacy: VOG-verwijdering gehard tegen herindienen + race (audit-ronde)
 
 **Wat:** adversariële security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle Opus-audits) op de delta
@@ -349,35 +374,3 @@ terminale/bevroren inzet hard weigert (ná de tenant-poort → geen CWE-203-orac
 - tests (`pending-tasks.shift-handoff.test.ts`, `signals.shift-handoff-collab-scope.test.ts` [nieuw],
   `governance-screen.test.tsx`, `oracle.test.ts` — samen +12, rood→groen). Backlog bijgewerkt
   (1 latente tijdzone-nit geparkeerd). Gate groen (typecheck/lint/unit/build/prettier).
-
-## 2026-09-01 — security: tweede-factor-challenge vereist om 2FA uit te zetten (OWASP ASVS 2.8)
-
-**Wat:** `disableTwoFactor` her-authenticeerde alleen met het accountwachtwoord — het uitschakelen van
-2FA (secret + álle herstelcodes in één transactie gewist) vereiste géén tweede-factor-challenge. Een
-uitgelekt/hergebruikt/gephisht wachtwoord kon dus in z'n eentje de beveiligingslaag strippen, precies de
-laag die het account beschermt als het wachtwoord uitlekt. Best practice bij GitHub/Google is een
-factor-challenge vóór het verwijderen van de factor. (Geparkeerde security-nit uit persona-sweep run 103.)
-
-**Fix:** een account met 2FA aan moet nu — náást het wachtwoord — een geldige TOTP-code of ongebruikte
-herstelcode invoeren om 2FA uit te zetten. De verificatie loopt via **dezelfde replay-veilige poort als
-de login**: de module-private `verifySecondFactor` uit `authorize-credentials.ts` is verbatim geëxtraheerd
-naar `src/lib/two-factor/verify-second-factor.ts` (één bron van waarheid; login rewired als pure
-import-swap, gedrag ongewijzigd). Zo erft de disable-challenge exact de TOTP-replay-preventie (atomaire
-high-water-mark `updateMany`, TOCTOU-safe), het eenmalige herstelcode-verbruik en de audit-reden. De
-factor wordt geverifieerd vóór enige schrijfactie; faalt hij, dan blijft 2FA aan.
-
-**Bestanden:**
-
-- `src/lib/two-factor/verify-second-factor.ts` — nieuwe gedeelde poort (`verifySecondFactor`, met
-  optionele `context`-audit-metadata) + `verify-second-factor.test.ts` (8 tests: TOTP/replay/decrypt-fout/
-  herstelcode/context).
-- `src/lib/authorize-credentials.ts` — lokale functie verwijderd; import + call rewired (behoud van gedrag).
-- `src/app/(protected)/account/tweestapsverificatie/actions.ts` — disable-schema `token`, findUnique-select
-  uitgebreid, factor-gate vóór de transactie.
-- `src/app/(protected)/account/tweestapsverificatie/two-factor-panel.tsx` — verificatiecode-veld op OnPanel.
-- `src/app/(protected)/account/tweestapsverificatie/actions.test.ts` — disable-tests: factor geëist,
-  mislukte factor gate't uitschakeling, geen DISABLED-audit bij mislukking.
-- `docs/PERSONA-SWEEP-BACKLOG.md` — geparkeerde nit → OPGELOST.
-
-**Checks:** typecheck ✓, unit (verify-second-factor 8/8 + tweestapsverificatie-actions + authorize-credentials
-groen) ✓, lint ✓, build ✓, prettier ✓. CI-poort verifieert.
