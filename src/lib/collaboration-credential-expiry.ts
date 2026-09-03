@@ -29,15 +29,14 @@ export interface CollabRequirementInput {
   jobTitle: string;
   requiredTypes: readonly CredentialType[];
   /**
-   * Einddatum van de plaatsing (open-einde = `null`/afwezig). Is die gezet, dan telt een vereist
-   * certificaat óók als zorg wanneer het ná het 30-daagse venster maar vóór deze einddatum verloopt —
-   * het lapt dan mid-inzet. Zonder einddatum blijft alleen het klassieke venster gelden. Dit is de
-   * ZZP'er-spiegel van de einddatum-verankerde opdrachtgever-waarschuwing (`expiringDuringPlacement`
-   * in `collaboration-alerts.ts`): de ZZP'er is de enige die het certificaat kan vernieuwen, dus
-   * zonder deze uitbreiding zag de opdrachtgever "verloopt vóór het einde van de opdracht" terwijl de
-   * ZZP'ers eigen actielijst pas binnen 30 dagen iets toonde (asymmetrie; persona-sweep 6-9-2026).
+   * Einddatum van de plaatsing (open-einde = `null`/afwezig). Verankert de "verloopt vóór het einde
+   * van de opdracht"-waarschuwing: een certificaat dat ná het 30-daagse venster maar vóór deze
+   * einddatum verloopt, lapt mid-inzet en is dus tóch een zorg voor déze samenwerking. Spiegelt
+   * `placementEnd` op de opdrachtgever-alert (`assessCollaborationCredentials` → `expiringDuringPlacement`),
+   * zodat de ZZP'er — de enige die kan vernieuwen — hetzelfde, eerdere signaal krijgt als de
+   * opdrachtgever die er slechts om kan vragen. Afwezig → alleen het klassieke 30-daagse venster geldt.
    */
-  placementEnd?: Date | null;
+  endDate?: Date | null;
 }
 
 export interface AffectedCollaboration {
@@ -66,7 +65,8 @@ export interface CollabCredentialExpiryConcern {
 
 /**
  * Bepaalt per certificaat of het door minstens één lopende/voorgestelde samenwerking wordt vereist
- * én binnen het venster (`windowDays`, standaard 30 dagen) verloopt. Alleen op dit moment geldige,
+ * én binnen het venster (`windowDays`, standaard 30 dagen) — óf, per samenwerking, vóór de einddatum
+ * van díe plaatsing (`CollabRequirementInput.endDate`, als die verder ligt) — verloopt. Alleen op dit moment geldige,
  * geverifieerde certificaten tellen (VERIFIED, mét vervaldatum, nog niet verlopen) — een reeds
  * verlopen of ontbrekend vereist certificaat is een acuut compliance-gat dat elders wordt
  * afgehandeld (verplicht-document-taak / compliance-ripple), niet dit vooruitkijkende signaal.
@@ -89,7 +89,15 @@ export function collaborationCredentialExpiryConcerns(input: {
 }): CollabCredentialExpiryConcern[] {
   const nowMs = input.now.getTime();
   const windowMs = (input.windowDays ?? COLLAB_CREDENTIAL_EXPIRY_WINDOW_DAYS) * MS_PER_DAY;
-  const cutoffMs = nowMs + windowMs;
+  const windowCutoffMs = nowMs + windowMs;
+
+  // Per-samenwerking-anker: het certificaat is een zorg voor déze samenwerking zodra het verloopt op/
+  // vóór de effectieve grens. Die grens is het klassieke 30-daagse venster, verruimd tot de einddatum
+  // van de plaatsing wanneer die verder in de toekomst ligt — zo vangt de ZZP'er óók het certificaat dat
+  // pas ná het venster maar nog vóór het einde van zijn opdracht lapt (spiegel van de opdrachtgever-
+  // alert `expiringDuringPlacement`). Zonder einddatum (open-einde-inzet) valt 'ie terug op het venster.
+  const effectiveCutoffMs = (collab: CollabRequirementInput) =>
+    Math.max(windowCutoffMs, collab.endDate?.getTime() ?? -Infinity);
 
   // Per type: het laatst-vervallende, nu-geldige geverifieerde certificaat (waar de compliance op leunt).
   const latestByType = new Map<CredentialType, CollabCredentialInput>();
@@ -128,15 +136,9 @@ export function collaborationCredentialExpiryConcerns(input: {
       if (permanentlyCoveredTypes.has(type)) continue; // doorlopend geldig cert dekt dit type → geen zorg
       const cred = latestByType.get(type);
       if (!cred || !cred.expiresAt) continue;
-      const expiresMs = cred.expiresAt.getTime();
-      // Binnen het 30-daagse venster → altijd een zorg. Daarbuiten alleen wanneer het certificaat vóór
-      // de einddatum van déze plaatsing verloopt (einddatum-verankerd, ZZP'er-spiegel van de
-      // opdrachtgever-waarschuwing). Zit `placementEnd` in het verleden, dan geldt `expiresMs > cutoffMs`
-      // ⇒ nooit `< placementEnd` (geldig ⇒ verval > now ≥ placementEnd): geen ruis op een verstreken inzet.
-      const withinWindow = expiresMs <= cutoffMs;
-      const duringPlacement =
-        collab.placementEnd != null && expiresMs < collab.placementEnd.getTime();
-      if (!withinWindow && !duringPlacement) continue; // buiten venster én dekt deze plaatsing → geen zorg
+      // Per-samenwerking beoordeeld: verloopt het certificaat ná de effectieve grens van déze
+      // samenwerking (venster, of einddatum als die verder ligt), dan is het geen zorg voor deze rij.
+      if (cred.expiresAt.getTime() > effectiveCutoffMs(collab)) continue;
 
       let entry = byCredential.get(cred.id);
       if (!entry) {
