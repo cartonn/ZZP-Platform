@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { clickUntilGone } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -84,24 +85,23 @@ test("admin ziet de wachtrij, moet een reden opgeven bij afwijzen en kan activer
   await expect(row.getByRole("button", { name: "Afwijzen bevestigen" })).toBeHidden();
 
   // Activeren haalt de aanmelding uit de wachtrij (de lijst toont alleen PENDING-tenants).
-  const activeren = row.getByRole("button", { name: "Activeren" });
-  await expect(activeren).toBeEnabled();
-  await activeren.click();
-  // Wacht tot de server-action is verwerkt: óf de rij is al weg (revalidatePath ververste de RSC),
-  // óf de succesmelding "… is geactiveerd" verscheen (RSC nog niet ververst). Zo weten we dat de
-  // activatie server-side is geland vóór we herladen — een directe reload zou de lopende POST kunnen
-  // afbreken. Niet herladen tijdens deze poll.
-  await expect
-    .poll(
-      async () => (await row.count()) === 0 || (await row.getByText(/is geactiveerd/).count()) > 0,
-      { timeout: 30000 },
-    )
-    .toBe(true);
-  // Server-waarheid afdwingen, onafhankelijk van de timing waarmee revalidatePath de openstaande
-  // pagina ververst (bron van de eerdere CI-flake): na een herlaad staat alleen PENDING nog in de
-  // wachtrij, dus de zojuist geactiveerde tenant is weg.
-  await page.reload();
-  await expect(row).toHaveCount(0, { timeout: 15000 });
+  // Wachten-zonder-herladen wérkt hier niet, en dat is gemeten, niet vermoed: in een
+  // productiebuild (`npm run start`, zoals e2e-shard draait) geeft de activatie-POST binnen ~70ms
+  // status 200 en landt de mutatie server-side — maar de response-body komt nooit (Playwright:
+  // "No data found for resource with given identifier"). De action-stream blijft open en leeg, dus
+  // `useActionState` blijft op pending ("Bezig…") en de `revalidatePath` bereikt de client nooit.
+  // Gevolg: noch "rij weg" noch "… is geactiveerd" verschijnt ooit, en een poll die bewust niet
+  // herlaadt loopt gegarandeerd af. Dat is issue #329, en in de productiebuild deterministisch —
+  // vandaar dat dit lokaal in dev groen is en in e2e-shard 3× op rij rood.
+  //
+  // De remedie is de bestaande `clickUntilGone`: die kapt de hangende response af (window.stop) en
+  // haalt met een verse GET de serverwaarheid op. Herladen is hier aantoonbaar veilig — de mutatie
+  // is al geland vóór de reload (gemeten: rij weg na reload), dus er wordt geen lopende POST
+  // afgebroken. Er wordt alleen herklikt zolang de rij er ná die verse GET nog staat, dus geen
+  // dubbele activatie; en mocht dat toch gebeuren, dan weigert `updateMany where status PENDING`
+  // de tweede beslissing sowieso.
+  await clickUntilGone(row.getByRole("button", { name: "Activeren" }), row, 30000);
+  await expect(row).toHaveCount(0);
 
   // Na activatie opent de werkplek voor de bemiddelaar (live gelezen, geen nieuwe sessie nodig).
   const bureauNa = await browser.newPage();

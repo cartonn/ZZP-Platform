@@ -72,6 +72,44 @@ export async function clickForUrl(
   }).toPass({ timeout });
 }
 
+/** Vul `input` tot de URL `urlPattern` matcht (debounced filter-/zoekvelden die de router pushen).
+ *
+ *  Waarom dit nodig is: een zoekveld is een *controlled* client-component (`value={q}` +
+ *  `onChange` → debounce → `router.push`). `fill()` zet de waarde in de DOM en vuurt een
+ *  input-event, maar zolang React de route nog niet heeft gehydrateerd luistert er niemand: de
+ *  onChange komt nooit aan, en de hydratatie zet het veld daarna terug op de servertoestand
+ *  (leeg). De typoefening is dan spoorloos verdwenen en `waitForURL(/[?&]q=/)` loopt af — de
+ *  bewezen flake in jobs/browse-match (zelfde SHA 1× pass, 1× fail in `e2e-postgres`). Een echte
+ *  gebruiker raakt dit niet; die typt niet binnen milliseconden na navigatie.
+ *
+ *  Aanpak, gelijk aan `clickForUrl`: herhaal de invoer tot het verwachte effect (de URL) er is.
+ *  We wissen eerst en vullen dan opnieuw, zodat een herhaling gegarandeerd een échte
+ *  waardewijziging — en dus een nieuwe debounce-push — oplevert, ook als de React-state door een
+ *  eerdere poging al op `value` zou staan. Staat de URL al goed, dan raken we het veld niet meer
+ *  aan (geen overbodige extra push). `waitUntil: "commit"` om dezelfde reden als in
+ *  `clickForUrl`: de navigatie telt zodra de URL er is; een hangende RSC-response (issue #329)
+ *  mag het aankomst-signaal niet gijzelen. */
+export async function fillForUrl(
+  page: Page,
+  input: Locator,
+  value: string,
+  urlPattern: string | RegExp,
+  timeout = 20000,
+) {
+  const matches = () =>
+    typeof urlPattern === "string" ? page.url().includes(urlPattern) : urlPattern.test(page.url());
+  await input.waitFor({ state: "visible", timeout: 10000 });
+  await expect(async () => {
+    if (!matches()) {
+      await input.fill("", { timeout: 3000 }).catch(() => {});
+      await input.fill(value, { timeout: 3000 });
+    }
+    // Ruim boven de debounce (350ms) plus een render-tik, zodat een poging niet vroegtijdig faalt.
+    await page.waitForURL(urlPattern, { timeout: 4000, waitUntil: "commit" });
+  }).toPass({ timeout });
+  await expect(input).toHaveValue(value);
+}
+
 /**
  * Op /kandidaten (rij al uitgeklapt): accepteer de kandidaat en verstuur een samenwerkingsvoorstel.
  * Robuust tegen de #329-response-hang en tegen het open-blijven van de rij na de statuswijziging.
