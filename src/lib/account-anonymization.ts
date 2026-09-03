@@ -75,14 +75,26 @@ export interface AnonymizationTarget {
   role: string;
   deletionRequestedAt: Date | null;
   anonymizedAt: Date | null;
-  /** True wanneer de betrokkene nog eigenaar (`Tenant.ownerUserId`) is van een vestiging/tenant.
-   *  Een franchise draagt zijn eigen naam (`Tenant.name`/`slug`, vaak persoonsafgeleid, bv.
-   *  "Bemiddeling Jansen") én blijft na anonimisering doordraaien met andere leden, bedrijven en
-   *  freelancers eronder. De anonimiseringstransactie raakt de tenant niet, dus zowel de
-   *  (mogelijk persoons-)naam als de `ownerUserId`-verwijzing naar het nu-geanonimiseerde account
-   *  zouden blijven bestaan — een half-voltooide AVG-verwijdering. Optioneel zodat bestaande
-   *  aanroepers/tests niet breken; `undefined` telt als "bezit geen tenant". */
-  ownsTenant?: boolean;
+  /** True wanneer de betrokkene nog eigenaar (`Tenant.ownerUserId`) is van een tenant die nog
+   *  operationeel is — status PENDING, ACTIVE of SUSPENDED. Zo'n vestiging draagt zijn eigen naam
+   *  (`Tenant.name`/`slug`, vaak persoonsafgeleid, bv. "Bemiddeling Jansen") én blijft na
+   *  anonimisering doordraaien met andere leden, bedrijven en freelancers eronder: zonder een
+   *  overdracht/sluiting zouden zowel de (mogelijk persoons-)naam als de `ownerUserId`-verwijzing
+   *  naar het nu-geanonimiseerde account blijven bestaan — een half-voltooide AVG-verwijdering.
+   *
+   *  Een REJECTED-tenant blokkeert hier bewust NIET: de aanmelding is afgewezen (fail-closed via
+   *  `tenantAccessBlocked` — de eigenaar heeft nooit toegang gehad, dus er zijn geen leden,
+   *  bedrijven, opdrachten, subscription of fees op die tenant), en `TENANT_TRANSITIONS.REJECTED`
+   *  is leeg (er is geen legale of admin-actie om zo'n dossier alsnog te sluiten of over te
+   *  dragen). De aanmeldings-PII (naam/KvK/regio/telefoon/activationNote) moet dan meepakbaar zijn
+   *  in dezelfde erasure-transactie in `anonymizeUser`; anders is er geen bereikbaar wispad voor
+   *  een afgewezen bureau dat om vergetelheid vraagt (AVG art. 17 — voorheen permanent
+   *  onerasbaar). De scheiding met de brede oude `ownsTenant`-boolean is bewust: die zou de
+   *  REJECTED-tak stilzwijgend blijven blokkeren.
+   *
+   *  Optioneel zodat bestaande aanroepers/tests niet breken; `undefined` telt als "bezit geen
+   *  operationele tenant". */
+  ownsActiveTenant?: boolean;
 }
 
 export type AnonymizationCheck = { ok: true } | { ok: false; reason: string };
@@ -110,15 +122,19 @@ export function canAnonymizeUser(
   if (!target.deletionRequestedAt) {
     return { ok: false, reason: "Er is geen openstaand verwijderverzoek voor dit account." };
   }
-  if (target.ownsTenant) {
-    // Fail-closed: de anonimiseringstransactie schoont de eigen tenant niet op. Zou anders de
-    // (mogelijk persoonsafgeleide) tenant-naam én de `ownerUserId`-verwijzing achterblijven op een
-    // doordraaiende vestiging → half-voltooide verwijdering (AVG art. 17). Beheer moet de vestiging
-    // eerst overdragen aan een andere beheerder of sluiten vóór het account kan worden verwijderd.
+  if (target.ownsActiveTenant) {
+    // Fail-closed: een OPERATIONELE eigen tenant (PENDING/ACTIVE/SUSPENDED) draagt leden,
+    // bedrijven, opdrachten en fees en blijft na anonimisering doordraaien. De
+    // anonimiseringstransactie schoont zo'n vestiging niet op — anders zouden de (mogelijk
+    // persoonsafgeleide) tenant-naam én de `ownerUserId`-verwijzing achterblijven op een
+    // doordraaiende vestiging → half-voltooide verwijdering (AVG art. 17). Beheer moet de
+    // vestiging eerst overdragen aan een andere beheerder of sluiten vóór het account kan worden
+    // verwijderd. Een REJECTED-tenant valt hier bewust NIET onder (zie de docstring op
+    // `ownsActiveTenant`): die wordt in dezelfde erasure-transactie meegepakt.
     return {
       ok: false,
       reason:
-        "Deze bemiddelaar beheert nog een vestiging. Draag de vestiging eerst over aan een andere beheerder of sluit haar, vóór het account wordt verwijderd.",
+        "Deze bemiddelaar beheert nog een actieve vestiging. Draag de vestiging eerst over aan een andere beheerder of sluit haar, vóór het account wordt verwijderd.",
     };
   }
   return { ok: true };
