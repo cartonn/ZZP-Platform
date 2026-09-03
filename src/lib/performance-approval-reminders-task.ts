@@ -143,7 +143,9 @@ export async function runPerformanceApprovalReminderTask(opts: {
               type: "PERFORMANCE_APPROVAL_ESCALATION",
               title: "Urenstaat blijft ongekeurd liggen",
               body: `${e.label} wacht al ${e.daysSince} dagen op goedkeuring door de opdrachtgever. De facturatie staat stil.`,
-              link: "/admin/disputen",
+              // Een stille goedkeuring is géén dispuut: de admin hoort in de samenwerkingen-cockpit,
+              // niet in de disputenlijst (waar de betrokken samenwerking niet eens staat).
+              link: "/admin/samenwerkingen",
             },
           }),
         ),

@@ -196,6 +196,20 @@ describe("task builders", () => {
     expect(t.resolver).toBe("drawer");
     expect(t.priority).toBe(65);
     expect(t.id).toBe("performance-approve:p1");
+    expect(t.subtitle).toBe("Job · Sanne");
+  });
+
+  it("performance-approve: blijft vlak (65, geen wachttekst) onder de aandachtsdrempel", () => {
+    const t = performanceApproveTask("p1", "c1", "Job", "Sanne", 6); // < 7 (PERFORMANCE_WAIT_ATTENTION_DAYS)
+    expect(t.priority).toBe(65);
+    expect(t.subtitle).toBe("Job · Sanne");
+  });
+
+  it("performance-approve: escaleert naar de overdue-band (67) met wachttekst zodra ≥ de drempel", () => {
+    const t = performanceApproveTask("p1", "c1", "Job", "Sanne", 9); // ≥ 7
+    expect(t.priority).toBe(67);
+    expect(t.priority).toBeGreaterThan(performanceApproveTask("p1", "c1", "Job", "Sanne").priority);
+    expect(t.subtitle).toBe("Job · Sanne · wacht al 9 dagen op goedkeuring");
   });
 
   it("job-staffing-overdue: link-resolver, boven een koud lopende opdracht en boven een verse reactie", () => {
