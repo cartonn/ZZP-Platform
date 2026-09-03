@@ -86,6 +86,7 @@ import {
   franchiseStaleDienstTask,
   franchiseStaleDienstRollupTask,
   franchiseCollaborationRenewalTask,
+  franchiseComplianceRippleTask,
   franchiseClientReengagementTask,
   franchiseGuidedSetupTasks,
   shiftHandoffTask,
@@ -122,7 +123,12 @@ import {
   getHoursCriterionSummary,
   hoursCriterionNeedsAction,
 } from "@/lib/tax/hours-criterion-summary";
-import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
+import {
+  clientCredentialAlerts,
+  clientCredentialAlertsFromRows,
+  clientHasComplianceAction,
+  COLLABORATION_ALERT_INCLUDE,
+} from "@/lib/collaboration-alerts";
 import { collaborationPlacementBlocked } from "@/lib/collaborations";
 import {
   collaborationCredentialExpiryConcerns,
@@ -1356,6 +1362,7 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     companiesWithoutDiensten,
     openHandoffs,
     endingCollabs,
+    complianceCollabs,
     reengageCompanies,
     reengagePublishedJobs,
     reengageCollabActivity,
@@ -1521,6 +1528,25 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
       },
       orderBy: { endDate: "asc" },
       take: MAX,
+    }),
+    // Plaatsing-niveau certificaat-compliance: lopende (ACTIVE, niet-bevroren) tenant-plaatsingen waarvan
+    // de opdracht een verplicht certificaat eist. De pure `clientCredentialAlertsFromRows` bepaalt hierna
+    // per rij of er een compliance-gat/-waarschuwing is. Tenant-scope via `job.tenantId` (spiegelt de
+    // shift-handoff/renewal-scope); alleen opdrachten met een verplicht-vereiste (`some.required`) kunnen
+    // een alert opleveren, dus we filteren ze hier al weg zodat ze geen MAX-slot vullen. `orderBy
+    // createdAt asc` maakt het venster deterministisch/self-healing (zelfde conventie als
+    // `clientCredentialAlerts`). `company.name` erbij voor de taak-subtitle (de bemiddelaar overziet
+    // meerdere opdrachtgevers). Bevroren (in dispuut) plaatsingen vallen af — de pure functie guardt
+    // nogmaals op `disputedAt` (defense-in-depth), consistent met de overige bemiddelaar-taken.
+    prisma.collaboration.findMany({
+      where: {
+        job: { tenantId, credentialRequirements: { some: { required: true } } },
+        status: "ACTIVE",
+        disputedAt: null,
+      },
+      orderBy: { createdAt: "asc" },
+      take: MAX,
+      include: { ...COLLABORATION_ALERT_INCLUDE, company: { select: { name: true } } },
     }),
     // Relatiegezondheid-bron voor de re-engagement-taak: alle tenant-opdrachtgevers + hun actieve
     // samenwerkingen. `unbounded-allow`: exact de scope/definitie van /franchise/opdrachtgevers
@@ -1715,6 +1741,28 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
         c.job.title,
         renewal.phase,
         renewal.daysRemaining,
+      ),
+    );
+  }
+
+  // Plaatsing-niveau certificaat-compliance — de bemiddelaar-tegenhanger van `clientComplianceTask`.
+  // Eén taak per lopende plaatsing met een compliance-gat/-waarschuwing. Zelfde pure bron
+  // (`clientCredentialAlertsFromRows` + `assessCollaborationCredentials`) en `clientHasComplianceAction`-
+  // gate als de opdrachtgever-taak en de nav-badge, zodat de drie oppervlakken (/acties, de rail, de
+  // /franchise/samenwerkingen-badge) niet driften. De gate sluit enkel-`inReview`-meldingen uit (de
+  // ADMIN verifieert; geen bemiddelaar-actie). `company.name` uit de row voor de subtitle.
+  const complianceCompanyById = new Map<string, string>();
+  for (const c of complianceCollabs)
+    complianceCompanyById.set(c.id, c.company.name ?? "de opdrachtgever");
+  for (const a of clientCredentialAlertsFromRows(complianceCollabs, now)) {
+    if (!clientHasComplianceAction(a.alert)) continue;
+    tasks.push(
+      franchiseComplianceRippleTask(
+        a.collaborationId,
+        a.freelancerName,
+        a.jobTitle,
+        complianceCompanyById.get(a.collaborationId) ?? "de opdrachtgever",
+        a.alert,
       ),
     );
   }

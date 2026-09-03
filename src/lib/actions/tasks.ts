@@ -124,6 +124,7 @@ export type PendingTask =
   | (TaskBase & { kind: "franchise-stale-service"; jobId: string })
   | (TaskBase & { kind: "franchise-stale-service-rollup" })
   | (TaskBase & { kind: "franchise-collaboration-renewal"; collabId: string })
+  | (TaskBase & { kind: "franchise-compliance"; collabId: string })
   | (TaskBase & { kind: "franchise-client-reengagement"; companyId: string })
   | (TaskBase & { kind: "franchise-guided-setup"; step: string })
   | (TaskBase & {
@@ -1223,6 +1224,56 @@ export function franchiseCredentialExpiredTask(
     resolver: "link",
     href: `/franchise/zzpers/${profileId}`,
     profileId,
+  };
+}
+
+/**
+ * Plaatsing-niveau certificaat-compliance voor de bemiddelaar. De franchise-roster-taken
+ * (`franchiseCredentialExpiryTask`/`Expired`) tellen certificaten per ZZP'er los van of een lopende
+ * plaatsing ze verplicht stelt — roster-hygiëne. Deze taak is de bemiddelaar-tegenhanger van de
+ * opdrachtgever-`clientComplianceTask`: één taak per LOPENDE (ACTIVE) plaatsing binnen de tenant waar
+ * de geplaatste ZZP'er een vereist certificaat mist/verlopen heeft (NON_COMPLIANT: er is NÚ een gat op
+ * lopend werk — de opdrachtgever loopt risico) of dreigt te vervallen (WARNING: binnenkort/vóór het
+ * einde van de plaatsing verlopend, of in beoordeling). De bemiddelaar bemiddelt de plaatsing en is de
+ * partij die de ZZP'er om vernieuwing vraagt of vervanging regelt vóór de inzet niet-compliant draait —
+ * een risico dat vandaag onzichtbaar was in de cockpit. Deep-link naar het samenwerkingen-toezicht, waar
+ * de compliance-status per rij staat. Zelfde pure `assessCollaborationCredentials`-bron als de
+ * opdrachtgever-taak en de nav-badge, dus de drie oppervlakken driften niet.
+ */
+export function franchiseComplianceRippleTask(
+  collabId: string,
+  freelancerName: string,
+  jobTitle: string,
+  companyName: string,
+  alert: CredentialAlert,
+): PendingTask {
+  const label = (list: readonly CredentialType[]) =>
+    list.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ");
+  const gap = alert.missing.length > 0 || alert.expired.length > 0;
+  let title: string;
+  if (alert.missing.length > 0)
+    title = `${freelancerName} mist een vereist certificaat (${label(alert.missing)})`;
+  else if (alert.expired.length > 0)
+    title = `Certificaat van ${freelancerName} is verlopen (${label(alert.expired)})`;
+  else if (alert.expiringSoon.length > 0)
+    title = `Certificaat van ${freelancerName} verloopt binnenkort (${label(alert.expiringSoon)})`;
+  else if (alert.expiringDuringPlacement.length > 0)
+    title = `Certificaat van ${freelancerName} verloopt vóór het einde van de plaatsing (${label(alert.expiringDuringPlacement)})`;
+  else title = `Certificaat van ${freelancerName} in beoordeling (${label(alert.inReview)})`;
+  return {
+    kind: "franchise-compliance",
+    id: `franchise-compliance:${collabId}`,
+    title,
+    subtitle: gap
+      ? `${companyName} · ${jobTitle} · vraag de ZZP'er om te vernieuwen of regel vervanging`
+      : `${companyName} · ${jobTitle} · handel vóór het certificaat vervalt`,
+    tone: "attention",
+    // NON_COMPLIANT = acuut gat op een lopende plaatsing (86, de scherpste bemiddelaar-actie);
+    // WARNING = handel vóór het vervalt (71, plaatsing-verankerd, boven de generieke roster-verloop-nudge).
+    priority: gap ? P.franchiserComplianceRipple : P.franchiserComplianceWarning,
+    resolver: "link",
+    href: "/franchise/samenwerkingen",
+    collabId,
   };
 }
 

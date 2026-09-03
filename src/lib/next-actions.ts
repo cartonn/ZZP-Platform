@@ -96,6 +96,8 @@ export const P = {
   franchiserRoster: 70, // nog geen ZZP'ers in het roster
   franchiserClientsWithoutService: 40, // opdrachtgever(s) zonder diensten (doorlopende nudge)
   // Franchiser-operationeel: doorlopende tenant-taken zodra de franchise draait (item-niveau).
+  franchiserComplianceRipple: 86, // lopende (ACTIVE) plaatsing draait met een certificaat-gat (vereist certificaat ontbreekt/verlopen) — de opdrachtgever loopt NU risico; de scherpste bemiddelaar-actie, boven roster-inzetbaarheid (een gat op lopend werk is acuter dan een blokkade vóór plaatsing). Spiegelt de opdrachtgever-`complianceRipple` (85); franchise-bank is rol-geïsoleerd
+  franchiserComplianceWarning: 71, // vereist certificaat van een geplaatste ZZP'er verloopt binnenkort / vóór het einde van de plaatsing / is in beoordeling — handel vóór het gat ontstaat. Boven de generieke roster-verloop-nudge (70): plaatsing-verankerd, dus concreter risico, maar onder een reeds-actief gat
   franchiserRosterNotEngageable: 84, // roster-ZZP'er niet inzetbaar (ontbrekend doc/verificatie) — blokkeert plaatsing
   franchiserServiceAcute: 78, // open dienst dreigt onbezet (start deze week/verstreken/geen datum) — vullen kan niet wachten
   franchiserCredentialExpired: 72, // roster-certificaat van een tenant-ZZP'er is REEDS verlopen — urgenter dan "verloopt binnenkort" (de compliance-gap is nu actief), maar onder een acuut onbezette dienst

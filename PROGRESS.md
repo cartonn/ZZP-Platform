@@ -10,6 +10,38 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-03 — routine: bemiddelaar ziet plaatsing-niveau certificaat-compliance (franchise)
+
+**Wat:** de bemiddelaar (FRANCHISER) zag tot nu toe alleen **roster-persoon-niveau** certificaat-verval
+(`franchiseCredentialExpiryTask`/`Expired` → `/franchise/zzpers`), dat certificaten per ZZP'er telt
+ongeacht of een lopende plaatsing ze verplicht stelt (roster-hygiëne). Wat ontbrak was de urgentste
+dimensie: welke **lopende (ACTIVE) plaatsing** draait met een compliance-gat — de geplaatste ZZP'er mist
+of heeft een verlopen vereist certificaat, of het dreigt te vervallen? De opdrachtgever kreeg dit al
+(`clientComplianceTask`), maar de bemiddelaar — die de plaatsing brokerde en de ZZP'er om vernieuwing
+vraagt of vervanging regelt — zag dat risico nergens. Nu een `franchiseComplianceRippleTask` (de
+bemiddelaar-tegenhanger): één taak per lopende plaatsing met een gat (NON_COMPLIANT, band 86 — de
+scherpste bemiddelaar-actie) of waarschuwing (WARNING, band 71). Verschijnt op `/acties`, de dashboard-
+rail, de zijbalk-badge (via `pendingTaskCount`) én als per-rij compliance-badge op
+`/franchise/samenwerkingen`; de nav-badge op dat item combineert nu vervolg- én compliance-acties
+(spiegelt hoe de opdrachtgever-badge renewal + compliance in `cascadeWork` optelt).
+
+**Aanpak:** 100% hergebruik van de al-geteste pure `assessCollaborationCredentials` via
+`clientCredentialAlertsFromRows` + `clientHasComplianceAction` — dezelfde bron/scope als de
+opdrachtgever-taak en -badge, dus de vier oppervlakken (taak/rail/badge/pagina) driften niet. Query
+tenant-gescoopt (`job.tenantId` + `credentialRequirements.some.required`, `status:ACTIVE`,
+`disputedAt:null`) in `franchiserTasks` (pending-tasks.ts) én de franchiser-nav-badge-tak (signals.ts).
+`inReview`-only meldingen weren (admin is aan zet). Server-side waarheid, geen mutatie/schema/authz, geen
+dode knop.
+
+**Bestanden:** `src/lib/next-actions.ts` (2 prioriteitsbanden), `src/lib/actions/tasks.ts`
+(`franchiseComplianceRippleTask` + kind), `src/lib/actions/pending-tasks.ts` (query + emissie),
+`src/lib/signals.ts` (badge-pariteit), `src/app/(protected)/franchise/samenwerkingen/page.tsx` (per-rij
+badge). Tests: `franchise-compliance-task.test.ts` (nieuw, 6 pure builder-tests),
+`pending-tasks-franchiser.test.ts` (+5 integratie), `signals.badge-gaps-run71.test.ts` (+4 badge-pariteit),
+`query-budget.test.ts` (FRANCHISER-baseline 46 → 48; +1 nav-badge, +1 /acties, ≤ budget 49).
+
+**Checks:** typecheck / lint / unit / build / prettier groen; CI-poort verifieert.
+
 ## 2026-09-02 — routine: verificatiewachtrij markeert certificaten die een lopende inzet blokkeren (admin)
 
 **Wat:** de admin-verificatiewachtrij (`/admin/verificaties`) toonde vraag vanuit **open opdrachten**
@@ -327,64 +359,3 @@ terminale/bevroren inzet hard weigert (ná de tenant-poort → geen CWE-203-orac
 - tests (`pending-tasks.shift-handoff.test.ts`, `signals.shift-handoff-collab-scope.test.ts` [nieuw],
   `governance-screen.test.tsx`, `oracle.test.ts` — samen +12, rood→groen). Backlog bijgewerkt
   (1 latente tijdzone-nit geparkeerd). Gate groen (typecheck/lint/unit/build/prettier).
-
-## 2026-09-01 — security: tweede-factor-challenge vereist om 2FA uit te zetten (OWASP ASVS 2.8)
-
-**Wat:** `disableTwoFactor` her-authenticeerde alleen met het accountwachtwoord — het uitschakelen van
-2FA (secret + álle herstelcodes in één transactie gewist) vereiste géén tweede-factor-challenge. Een
-uitgelekt/hergebruikt/gephisht wachtwoord kon dus in z'n eentje de beveiligingslaag strippen, precies de
-laag die het account beschermt als het wachtwoord uitlekt. Best practice bij GitHub/Google is een
-factor-challenge vóór het verwijderen van de factor. (Geparkeerde security-nit uit persona-sweep run 103.)
-
-**Fix:** een account met 2FA aan moet nu — náást het wachtwoord — een geldige TOTP-code of ongebruikte
-herstelcode invoeren om 2FA uit te zetten. De verificatie loopt via **dezelfde replay-veilige poort als
-de login**: de module-private `verifySecondFactor` uit `authorize-credentials.ts` is verbatim geëxtraheerd
-naar `src/lib/two-factor/verify-second-factor.ts` (één bron van waarheid; login rewired als pure
-import-swap, gedrag ongewijzigd). Zo erft de disable-challenge exact de TOTP-replay-preventie (atomaire
-high-water-mark `updateMany`, TOCTOU-safe), het eenmalige herstelcode-verbruik en de audit-reden. De
-factor wordt geverifieerd vóór enige schrijfactie; faalt hij, dan blijft 2FA aan.
-
-**Bestanden:**
-
-- `src/lib/two-factor/verify-second-factor.ts` — nieuwe gedeelde poort (`verifySecondFactor`, met
-  optionele `context`-audit-metadata) + `verify-second-factor.test.ts` (8 tests: TOTP/replay/decrypt-fout/
-  herstelcode/context).
-- `src/lib/authorize-credentials.ts` — lokale functie verwijderd; import + call rewired (behoud van gedrag).
-- `src/app/(protected)/account/tweestapsverificatie/actions.ts` — disable-schema `token`, findUnique-select
-  uitgebreid, factor-gate vóór de transactie.
-- `src/app/(protected)/account/tweestapsverificatie/two-factor-panel.tsx` — verificatiecode-veld op OnPanel.
-- `src/app/(protected)/account/tweestapsverificatie/actions.test.ts` — disable-tests: factor geëist,
-  mislukte factor gate't uitschakeling, geen DISABLED-audit bij mislukking.
-- `docs/PERSONA-SWEEP-BACKLOG.md` — geparkeerde nit → OPGELOST.
-
-**Checks:** typecheck ✓, unit (verify-second-factor 8/8 + tweestapsverificatie-actions + authorize-credentials
-groen) ✓, lint ✓, build ✓, prettier ✓. CI-poort verifieert.
-
-## 2026-09-01 — prod: `/.well-known/change-password`-vindpunt (W3C well-known URL)
-
-**Wat:** wachtwoordmanagers (Safari/iCloud-sleutelhanger, Chrome, 1Password, Bitwarden) tonen een "Wijzig
-wachtwoord"-knop zodra ze een zwak of gelekt wachtwoord detecteren en navigeren die naar
-`<origin>/.well-known/change-password`. Dat pad bestond nog niet; de manager gokte (vaak de homepage) i.p.v.
-de gebruiker op de echte pagina te zetten — zeker omdat die op het niet-voor-de-hand-liggende Nederlandse
-pad `/account/wachtwoord` staat. Nu verwijst het vindpunt (303 See Other) door naar die pagina. Natuurlijke
-tegenhanger van de al ingebouwde HIBP gelekt-wachtwoord-controle (deep-link naar het herstelpad bij een
-gedetecteerd datalek-wachtwoord).
-
-**Aanpak:** pure bron van waarheid `buildChangePasswordRedirect(origin)` (`src/lib/change-password-url.ts`) —
-absolute Location op de **vertrouwde** publieke origin (`resolvePublicOrigin`/`AUTH_URL`, nooit uit een
-client-header → geen host-header-poisoning, OWASP A01). Route
-`src/app/.well-known/change-password/route.ts` mirrort de `security.txt`-route (force-dynamic, nooit
-gecachet). Valt (via de punt in `.well-known`) buiten de middleware-matcher, dus publiek bereikbaar zonder
-login-redirect — precies zoals `/.well-known/security.txt` en `/robots.txt`. Posture-item
-"Wachtwoord-wijzigen-vindpunt (well-known)" op `/admin/systeemstatus` (altijd `ok`, geen config).
-
-**Bestanden:**
-
-- `src/lib/change-password-url.ts` — pure builder + constanten (`CHANGE_PASSWORD_PATH`, status 303).
-- `src/lib/change-password-url.test.ts` — 5 tests (redirect, trailing-slash-normalisatie, dev-origin, sync).
-- `src/app/.well-known/change-password/route.ts` — GET-handler (303 → `/account/wachtwoord`).
-- `src/lib/system-status.ts` + `.test.ts` — posture-item + test.
-- `MENSENWERK.md` §5d — code-kant GEDAAN + geen resterend mensenwerk.
-
-**Checks:** typecheck ✓, unit (change-password-url 5/5 + system-status groen) ✓, prettier ✓. Resterend
-mensenwerk: **niets** — werkt out-of-the-box.

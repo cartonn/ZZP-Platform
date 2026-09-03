@@ -16,9 +16,42 @@ const inDays = (d: number) => new Date(NOW.getTime() + d * 86_400_000);
 // Eén aflopende, niet-gedisputeerde ACTIEVE plaatsing die binnen het aandacht-venster valt.
 const endingSoon = { endDate: inDays(2) };
 
-const state = { renewals: [] as { endDate: Date | null }[] };
+// Rij voor de plaatsing-compliance-query (COLLABORATION_ALERT_INCLUDE-vorm): een ACTIEVE plaatsing die
+// VOG verplicht stelt terwijl de ZZP'er geen (geldig) VOG heeft → NON_COMPLIANT-gat → compliance-actie.
+type ComplianceRow = {
+  id: string;
+  disputedAt: Date | null;
+  endDate: Date | null;
+  job: { id: string; title: string; credentialRequirements: { credentialType: string }[] };
+  freelancer: {
+    user: { name: string | null };
+    credentials: { type: string; status: string; expiresAt: Date | null }[];
+  };
+};
+const nonCompliantPlacement: ComplianceRow = {
+  id: "collab-gap",
+  disputedAt: null,
+  endDate: null,
+  job: { id: "job-1", title: "Nachtdienst", credentialRequirements: [{ credentialType: "VOG" }] },
+  freelancer: { user: { name: "Sanne" }, credentials: [] },
+};
 
-const collaborationFindMany = vi.fn((_a: Args) => Promise.resolve(state.renewals));
+const state = {
+  renewals: [] as { endDate: Date | null }[],
+  compliance: [] as ComplianceRow[],
+};
+
+// De franchiser-tak roept collaboration.findMany twee keer aan: (1) het vervolgsignaal
+// (`renewalAttentionBadgeCount`, select endDate) en (2) de plaatsing-compliance-query (include met
+// job.credentialRequirements). Onderscheid ze aan het `credentialRequirements`-filter, zodat elke query
+// zijn eigen fixture krijgt en de compliance-rijen niet als renewal-rijen worden misgelezen (en omgekeerd).
+const collaborationFindMany = vi.fn((a: Args) =>
+  Promise.resolve(
+    (a?.where?.job as { credentialRequirements?: unknown } | undefined)?.credentialRequirements
+      ? state.compliance
+      : state.renewals,
+  ),
+);
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -41,6 +74,7 @@ import { navBadges } from "./signals";
 beforeEach(() => {
   collaborationFindMany.mockClear();
   state.renewals = [];
+  state.compliance = [];
 });
 
 describe("FRANCHISER /franchise/samenwerkingen-badge — vervolgsignaal telt mee (run 71)", () => {
@@ -66,5 +100,62 @@ describe("FRANCHISER /franchise/samenwerkingen-badge — vervolgsignaal telt mee
     expect(where?.job?.tenantId).toBe("t-1");
     expect(where?.status).toBe("ACTIVE");
     expect(where?.disputedAt).toBeNull();
+  });
+});
+
+// Pariteit voor het plaatsing-niveau compliance-signaal (deze PR): de bemiddelaar krijgt op /acties de
+// `franchiseComplianceRippleTask` voor een lopende plaatsing met een certificaat-gat, die naar
+// /franchise/samenwerkingen linkt. De badge op datzelfde navitem moet die actie meetellen — anders
+// opnieuw een /acties-taak zonder badge. De telling deelt exact de pure bron (`assessCollaborationCredentials`
+// via `clientCredentialAlertsFromRows`) + de `clientHasComplianceAction`-gate met /acties, dus geen drift.
+describe("FRANCHISER /franchise/samenwerkingen-badge — plaatsing-compliance telt mee", () => {
+  it("toont de badge voor een plaatsing met een certificaat-gat (pariteit met /acties)", async () => {
+    state.compliance = [nonCompliantPlacement];
+    const badges = await navBadges("FRANCHISER", "u-1");
+    expect(badges["/franchise/samenwerkingen"]).toEqual({ count: 1, tone: "attention" });
+  });
+
+  it("combineert vervolg- en compliance-acties in één telling (geen dedup tussen de dimensies)", async () => {
+    state.renewals = [endingSoon];
+    state.compliance = [nonCompliantPlacement];
+    const badges = await navBadges("FRANCHISER", "u-1");
+    expect(badges["/franchise/samenwerkingen"]).toEqual({ count: 2, tone: "attention" });
+  });
+
+  it("scoopt de compliance-query op de eigen tenant + verplicht-vereiste, ACTIEF en niet-bevroren", async () => {
+    state.compliance = [nonCompliantPlacement];
+    await navBadges("FRANCHISER", "u-1");
+    const complianceCall = collaborationFindMany.mock.calls.find(
+      (c) =>
+        (c[0]?.where?.job as { credentialRequirements?: unknown } | undefined)
+          ?.credentialRequirements,
+    );
+    const where = complianceCall?.[0]?.where as
+      | {
+          job?: { tenantId?: string; credentialRequirements?: unknown };
+          status?: string;
+          disputedAt?: null;
+        }
+      | undefined;
+    expect(where?.job?.tenantId).toBe("t-1");
+    expect(where?.job?.credentialRequirements).toEqual({ some: { required: true } });
+    expect(where?.status).toBe("ACTIVE");
+    expect(where?.disputedAt).toBeNull();
+  });
+
+  it("een enkel in-beoordeling-signaal geeft geen badge (admin is aan zet, geen bemiddelaar-actie)", async () => {
+    state.compliance = [
+      {
+        ...nonCompliantPlacement,
+        id: "collab-review",
+        // VOG in beoordeling (SUBMITTED) dekt de vereiste nog niet, maar vraagt geen bemiddelaar-actie.
+        freelancer: {
+          user: { name: "Sanne" },
+          credentials: [{ type: "VOG", status: "SUBMITTED", expiresAt: null }],
+        },
+      },
+    ];
+    const badges = await navBadges("FRANCHISER", "u-1");
+    expect(badges["/franchise/samenwerkingen"]).toBeUndefined();
   });
 });
