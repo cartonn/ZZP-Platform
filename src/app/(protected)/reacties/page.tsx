@@ -33,6 +33,8 @@ import {
   summarizeApplicationGroups,
 } from "@/lib/application-filter";
 import { canWithdrawApplication } from "@/lib/applications";
+import { loadApplicationQuota } from "@/lib/data/application-quota";
+import { formatDateShortNl } from "@/lib/format-date";
 import { rejectionReasonFeedback } from "@/lib/rejection-reason";
 import { summarizeRejectionPattern } from "@/lib/rejection-pattern";
 import { RejectionPatternNote } from "@/components/applications/rejection-pattern-note";
@@ -227,6 +229,10 @@ export default async function ReactiesPage({
     ? await relatedJobsForFreelancer(actor.id, reengagementAnchor.jobId, 3)
     : [];
 
+  // Reactieruimte van deze kalendermaand (server-side bepaald; dezelfde bron als de gating bij het
+  // reageren). Alleen tonen bij een eindig plan — een onbeperkt plan hoeft geen teller te zien.
+  const quota = profile ? await loadApplicationQuota(actor.id, profile.id, now) : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -235,6 +241,27 @@ export default async function ReactiesPage({
       />
 
       <OutcomesSummary outcomes={outcomes} />
+
+      {quota && quota.remaining !== null && (
+        <p
+          className={cn(
+            "rounded-md border px-3 py-2 text-sm",
+            quota.reached
+              ? "border-warning/30 bg-warning/5 text-warning"
+              : "border-border bg-muted/40 text-muted-foreground",
+          )}
+        >
+          {quota.reached
+            ? `${t("Je hebt deze maand al je reacties gebruikt")} (${quota.limit}).`
+            : `${t("Nog")} ${quota.remaining} ${quota.remaining === 1 ? t("reactie") : t("reacties")} ${t("deze maand")} (${quota.used}/${quota.limit}).`}{" "}
+          {/* Bewust zonder het woord "nieuw": de statusbadge "Nieuw" staat op dezelfde pagina en
+              een substring-treffer maakt tekstselectors (UI én e2e) dubbelzinnig. */}
+          {t("Volgende periode start op")} {formatDateShortNl(quota.resetsAt)}.{" "}
+          <Link href="/abonnement" className="focus-ring font-medium underline underline-offset-2">
+            {t("Bekijk abonnementen")}
+          </Link>
+        </p>
+      )}
 
       <RejectionPatternNote pattern={rejectionPattern} t={t} />
 
