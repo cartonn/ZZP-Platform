@@ -127,8 +127,12 @@ const ALLOWLIST: Record<string, string> = {
     "[AUTH] kortlevend reset-token; inert na erasure (lege passwordHash) en verloopt.",
   // [APART]
   Lead: "[APART] derde-partij lead-PII (aparte betrokkene, tenant-eigen); aparte verwerkings-/bewaargrond dan de account-houder. LeadContact.body (eigen notitie) wordt wél geredact.",
-  Tenant:
-    "[APART] franchise-vestiging; canAnonymizeUser blokkeert fail-closed het anonimiseren van een tenant-eigenaar tot de vestiging is overgedragen/gesloten.",
+  // Tenant staat NIET langer op deze lijst: sinds de REJECTED-erasure (AVG art. 17 — een afgewezen
+  // aanmelding moet ook wispbaar zijn) redact `anonymizeUser` de tenant-aanmelding-PII (name/slug/
+  // kvkNumber/region/contactPhone/activationNote) van een REJECTED-tenant binnen dezelfde transactie.
+  // De guard blokkeert nog steeds op een OPERATIONELE (PENDING/ACTIVE/SUSPENDED) tenant via
+  // `ownsActiveTenant` — dat is een guard-eigenschap, geen schema-uitzondering. De model-drift-gate
+  // (`isErased`) telt de `prisma.tenant.update`-aanroep nu correct als dekking.
   Conversation:
     "[APART] gesprekscontainer zonder eigen PII; berichten worden geredact en ConversationParticipant.lastReadAt gewist.",
 };

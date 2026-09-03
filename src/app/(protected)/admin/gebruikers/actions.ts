@@ -93,15 +93,27 @@ export async function anonymizeUser(userId: string): Promise<void> {
       deletionRequestedAt: true,
       anonymizedAt: true,
       // Bezit de betrokkene nog een vestiging (Tenant.ownerUserId)? De anonimiseringstransactie
-      // raakt de tenant niet; anonimiseren met een levende eigen tenant zou de (mogelijk
-      // persoonsafgeleide) tenant-naam + owner-verwijzing laten staan (AVG art. 17). De guard
-      // weigert dan fail-closed tot de vestiging is overgedragen/gesloten.
-      ownedTenant: { select: { id: true } },
+      // raakt een OPERATIONELE tenant (PENDING/ACTIVE/SUSPENDED) niet; anonimiseren met een
+      // levende eigen tenant zou de (mogelijk persoonsafgeleide) tenant-naam + owner-verwijzing
+      // laten staan (AVG art. 17). De guard weigert dan fail-closed tot de vestiging is
+      // overgedragen/gesloten.
+      //
+      // Een REJECTED-tenant valt hier BEWUST niet onder — anders zou een afgewezen aanmelding
+      // permanent onerasbaar zijn (`TENANT_TRANSITIONS.REJECTED` is leeg; er is geen admin-actie
+      // om zo'n dossier alsnog te sluiten of over te dragen, en de bureau-eigenaar heeft nooit
+      // toegang gehad omdat `tenantAccessBlocked` op alles behalve ACTIVE fail-closed staat, dus
+      // de tenant draagt geen leden/opdrachten/subscription/fees). Voor REJECTED wordt de
+      // aanmeldings-PII (naam/KvK/regio/telefoon/activationNote) in dezelfde erasure-transactie
+      // gewist. Status/naam/slug worden meegeladen om die wipe te scopen en te auditen.
+      ownedTenant: { select: { id: true, status: true, name: true, slug: true } },
     },
   });
   if (!user) throw new Error("Gebruiker niet gevonden.");
 
-  const check = canAnonymizeUser(actor, { ...user, ownsTenant: user.ownedTenant !== null });
+  // Alleen een operationele tenant (PENDING/ACTIVE/SUSPENDED) blokkeert — een REJECTED-tenant
+  // moet meepakbaar zijn zodat een afgewezen bureau alsnog erasbaar is (art. 17).
+  const ownsActiveTenant = user.ownedTenant !== null && user.ownedTenant.status !== "REJECTED";
+  const check = canAnonymizeUser(actor, { ...user, ownsActiveTenant });
   if (!check.ok) throw new Error(check.reason);
 
   // Aantal documenten vóór de transactie — enkel voor de audit-metadata (intentiegetal). De
@@ -514,6 +526,53 @@ export async function anonymizeUser(userId: string): Promise<void> {
         ]
       : []),
     prisma.user.update({ where: { id: userId }, data: userAnonymizationData(userId, now) }),
+    // AVG art. 17 — Tenant-aanmelding-PII van een AFGEWEZEN bureau (REJECTED). Bij een
+    // zelfaanmelding (`registerBureau`) wordt een Tenant-rij aangemaakt met naam, KvK-nummer,
+    // regio, telefoon en `activationNote` — allemaal aanmeldings-PII van de indienende
+    // FRANCHISER. Wijst de admin de aanmelding af, dan is `TENANT_TRANSITIONS.REJECTED` leeg
+    // (geen legale of admin-actie om de tenant alsnog te sluiten of over te dragen), en de
+    // bureau-eigenaar heeft nooit toegang gehad (fail-closed via `tenantAccessBlocked`) — dus
+    // de tenant draagt geen leden/opdrachten/subscription/fees. Zonder deze wipe blokkeerde de
+    // guard voorheen fail-closed op de aanwezigheid van een tenant en zou de aanmeldings-PII
+    // van een REJECTED-bureau permanent onerasbaar zijn: art. 17-lek. `ownsActiveTenant` staat
+    // hier al op false (guard is gepasseerd), dus we scopen strikt op REJECTED zodat we geen
+    // operationele tenant per abuis leegtrekken. De rij zelf blijft staan als
+    // beheers-/verantwoordingsspoor (audit-log verwijst ernaar en `Tenant.slug` is unique — een
+    // rij-verwijdering zou bovendien de owner-cascade op `User` triggeren en ons anonimiseer-
+    // account weer verwijderen). Slug wordt gescopet naar een deterministisch, per-tenant-uniek
+    // `verwijderd-<id>` (raakt geen andere rij) zodat de unique-constraint niet botst op andere
+    // afgewezen dossiers.
+    ...(user.ownedTenant && user.ownedTenant.status === "REJECTED"
+      ? [
+          prisma.tenant.update({
+            where: { id: user.ownedTenant.id },
+            data: {
+              name: "[Verwijderde vestiging]",
+              slug: `verwijderd-${user.ownedTenant.id}`,
+              kvkNumber: null,
+              region: null,
+              contactPhone: null,
+              activationNote: null,
+            },
+          }),
+          // Aparte auditregel: de erasure van de tenant-aanmeldings-PII is een eigen
+          // verantwoordingsspoor (spiegel `ACCOUNT_ANONYMIZED` op de User-rij). Zelfde
+          // machine-actie, ander `entityType` — `TENANT_ANONYMIZED` zou een nieuw NL-label in
+          // `audit-labels.ts` vereisen (buiten de scope van deze fix); hergebruik van
+          // `ACCOUNT_ANONYMIZED` valt onder het bestaande label "Account geanonimiseerd" en
+          // volgt het conventionele patroon (één actie, meerdere `entityType`s voor de fanout).
+          prisma.auditLog.create({
+            data: auditData({
+              actorId: actor.id,
+              action: "ACCOUNT_ANONYMIZED",
+              entityType: "Tenant",
+              entityId: user.ownedTenant.id,
+              metadata: { status: "REJECTED" },
+              ...meta,
+            }),
+          }),
+        ]
+      : []),
     prisma.freelancerProfile.updateMany({
       where: { userId },
       data: freelancerProfileAnonymizationData(),
