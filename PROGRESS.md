@@ -10,6 +10,31 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-03 — routine: uren-uitschieter-attentie óók op de goedkeur-plek (opdrachtgever)
+
+**Wat:** het uren-uitschieter-signaal ("≈X% meer uren dan gebruikelijk … controleer even") waarschuwde de
+opdrachtgever alleen op de lijst `/prestaties`. Maar goedkeuren gebeurt op `/samenwerkingen/[id]` (de
+"Keuren →"-bestemming van diezelfde lijst); dáár ontbrak de attentie precies op het beslismoment — de
+opdrachtgever stempelt een opvallend hoge urenstaat af zonder de "controleer even"-context. Nu toont de
+samenwerkingspagina hetzelfde, server-side berekende signaal op de SUBMITTED-urenstaatkaart, vlak boven de
+knoppen Goedkeuren/Afkeuren. Zelfde deterministische detector (`detectHoursAnomalies`), baseline = mediaan
+van de eerder goedgekeurde urenstaten van déze samenwerking (≥3 samples). Het signaal beslist niets;
+goedkeuren loopt onveranderd via `approvePerformanceAction` (auth→rol→ownership→transitie→audit). Alleen
+zichtbaar voor de opdrachtgever (`isClient`), geen lek naar de ZZP'er.
+
+**Aanpak:** de copy verhuisde naar één gedeelde pure formatter `formatHoursAnomalyNotice(HoursAnomaly)` in
+`src/lib/performance-hours-anomaly.ts` — één bron van waarheid, zodat de tekst op beide plekken nooit driftt.
+`/prestaties` gebruikt nu diezelfde formatter (inline JSX vervangen, identieke rendered tekst). Op de
+samenwerking wordt de detector op `col.performances` gedraaid (expliciete row-mapping id/collaborationId/
+type/status/hours) en per SUBMITTED-kaart opgezocht. Geen schema-/mutatie-/authz-oppervlak, geen dode knop,
+geen i18n-woordenboekwijziging.
+
+**Bestanden:** `src/lib/performance-hours-anomaly.ts` (+ `.test.ts`, 3 nieuwe formatter-tests: exacte copy,
+nl-komma-decimaal, consistentie met de detector), `src/app/(protected)/samenwerkingen/[id]/page.tsx`,
+`src/app/(protected)/prestaties/page.tsx`.
+
+**Checks:** typecheck / lint / unit (8020 groen) / build / prettier groen; CI-poort verifieert.
+
 ## 2026-09-03 — routine: re-engagement-suggesties óók na een gesloten/vervulde opdracht (ZZP'er)
 
 **Wat:** het "Soortgelijke open opdrachten"-blok op `/reacties` verankerde alleen op een expliciete

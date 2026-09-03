@@ -24,6 +24,7 @@ import { resolveAgreementType } from "@/lib/contract-agreement";
 import { ModelAgreementCard } from "./model-agreement-card";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { parseOrtSegments } from "@/lib/ort";
+import { detectHoursAnomalies, formatHoursAnomalyNotice } from "@/lib/performance-hours-anomaly";
 import { ORT_SECTORS, ORT_SECTOR_LABEL, reviewBlindDays } from "@/lib/config";
 import { buildChainSteps } from "@/lib/cascade/chain-steps";
 import { collaborationStatusLine } from "@/lib/collaboration-status-line";
@@ -173,6 +174,21 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const isClient = col.company.userId === actor.id;
   const isFreelancer = col.freelancer.userId === actor.id;
   if (!isClient && !isFreelancer && actor.role !== "ADMIN") notFound();
+
+  // Uren-uitschieter-attentie op de goedkeur-plek: dezelfde server-side, deterministische detector
+  // als op `/prestaties`, nu op de samenwerking zelf berekend (de baseline = mediaan van de eerder
+  // goedgekeurde urenstaten van déze samenwerking). Zo mist de opdrachtgever het "controleer even"-
+  // signaal niet op het moment dat hij een ingediende urenstaat afstempelt. Het signaal beslist niets;
+  // goedkeuren loopt onveranderd via `approvePerformanceAction`.
+  const hoursAnomalies = detectHoursAnomalies(
+    col.performances.map((p) => ({
+      id: p.id,
+      collaborationId: p.collaborationId,
+      type: p.type as "HOURS" | "MILESTONE",
+      status: p.status,
+      hours: p.hours,
+    })),
+  );
   // Dispuut-freeze (§4): de server weigert elke cascade-actie tijdens een dispuut; de UI hoort
   // die acties dan ook niet aan te bieden (anders klikt men tegen een kale foutpagina aan).
   const frozen = Boolean(col.disputedAt);
@@ -877,6 +893,16 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                         </div>
                       </details>
                     )}
+                    {isClient &&
+                      p.status === "SUBMITTED" &&
+                      (() => {
+                        const anomaly = hoursAnomalies.get(p.id);
+                        return anomaly ? (
+                          <p className="mt-2 text-xs font-medium text-warning">
+                            {formatHoursAnomalyNotice(anomaly)}
+                          </p>
+                        ) : null;
+                      })()}
                     {isClient && p.status === "SUBMITTED" && !actionsLocked && (
                       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
                         <form action={approvePerformanceAction.bind(null, p.id, col.id)}>
