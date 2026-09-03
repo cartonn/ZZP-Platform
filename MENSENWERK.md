@@ -1454,6 +1454,18 @@ incidenten (er ligt een incident-logsjabloon klaar als startpunt).
    mensenwerk: bij livegang met echte gegevens **`SEED_DEMO` uitzetten**, de productie-database schoonmaken
    en de eerste beheerder via `BOOTSTRAP_ADMIN_*` zetten — de test-/demo-URL mag er bewust op blijven draaien.
 
+   **Code-kant GEDAAN (2026-09-03) — bootstrap-beheerder gevalideerd (geen stille halve activering,
+   wachtwoordsterkte):** `BOOTSTRAP_ADMIN_EMAIL`/`BOOTSTRAP_ADMIN_PASSWORD` is de enige weg naar een
+   eerste échte ADMIN op een verse database, maar werd nergens gecontroleerd. Vanaf nu (`src/lib/bootstrap-admin.ts`,
+   gewired in `src/lib/env.ts` + `prisma/seed.ts` + `src/lib/system-status.ts`): (1) precies één van de twee
+   gezet (halve activering) maakte STIL géén beheerder aan — nu een **harde boot-fout** én een luide seed-fout
+   i.p.v. een lege database waar niemand kan inloggen; (2) een **ongeldig e-mailadres** of een **wachtwoord < 12
+   tekens** op dit hoogst-geprivilegieerde account is nu óók een harde boot-fout (verwerpt en passant het
+   demo-wachtwoord `demo1234`); (3) `/admin/systeemstatus` + `npm run preflight` tonen een posture-rij
+   **"Bootstrap-beheerder"**. Zelfde "geen halve activering"-lijn als S3/SMTP/Stripe/VAPID. Resterend
+   mensenwerk: onveranderd — bij een verse productie-database beide variabelen zetten (min. 12 tekens), inloggen,
+   het afgedwongen nieuwe wachtwoord kiezen en beide variabelen daarna weer verwijderen.
+
 ### 6d. Inhoud & huisstijl (optioneel)
 
 Echte teksten, logo en eventuele huisstijl kun je aanleveren; de agent verwerkt ze.

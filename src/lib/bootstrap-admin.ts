@@ -103,17 +103,3 @@ export function resolveBootstrapAdminConfig(input: {
 
   return { state: "ready", email: normalizedEmail, errors: [] };
 }
-
-/**
- * Leest de bootstrap-admin-configuratie uit een env-achtig object (default process.env). Dunne
- * wrapper rond resolveBootstrapAdminConfig zodat env-validatie, systeemstatus en seed dezelfde bron
- * delen zonder elk process.env aan te raken.
- */
-export function bootstrapAdminConfigFromEnv(
-  env: { BOOTSTRAP_ADMIN_EMAIL?: string; BOOTSTRAP_ADMIN_PASSWORD?: string } = process.env,
-): BootstrapAdminConfig {
-  return resolveBootstrapAdminConfig({
-    email: env.BOOTSTRAP_ADMIN_EMAIL,
-    password: env.BOOTSTRAP_ADMIN_PASSWORD,
-  });
-}

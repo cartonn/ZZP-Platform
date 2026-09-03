@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   BOOTSTRAP_ADMIN_MAX_PASSWORD_LENGTH,
   BOOTSTRAP_ADMIN_MIN_PASSWORD_LENGTH,
-  bootstrapAdminConfigFromEnv,
   resolveBootstrapAdminConfig,
 } from "@/lib/bootstrap-admin";
 
@@ -94,20 +93,5 @@ describe("resolveBootstrapAdminConfig", () => {
     const secret = "SuperGeheimWachtwoordXYZ";
     const c = resolveBootstrapAdminConfig({ email: "fout-adres", password: secret });
     expect(c.errors.join(" ")).not.toContain(secret);
-  });
-});
-
-describe("bootstrapAdminConfigFromEnv", () => {
-  it("leest uit een env-achtig object", () => {
-    const c = bootstrapAdminConfigFromEnv({
-      BOOTSTRAP_ADMIN_EMAIL: "beheer@example.nl",
-      BOOTSTRAP_ADMIN_PASSWORD: strongPassword,
-    });
-    expect(c.state).toBe("ready");
-    expect(c.email).toBe("beheer@example.nl");
-  });
-
-  it("leeg env-object → unset", () => {
-    expect(bootstrapAdminConfigFromEnv({}).state).toBe("unset");
   });
 });
