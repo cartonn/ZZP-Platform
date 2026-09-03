@@ -166,6 +166,16 @@ uren`/`ORT-uren`) in beide export-suites. Geld ongemoeid.
    canonieke try/catch-parser `parseOrtSegments` (stille `[]`-terugval); test: één corrupte rij →
    geen throw, `hasOrt=false`, terugval op uren×tarief.
 
+6. **Prestatie-goedkeuring — twee escalatie-follow-ups** (kern, next-action-engine; bron: audit
+   3-9-2026, zelfde stall-thema als de wachttijd-bewuste keur-taak van 3-9). (a) De admin-escalatie
+   is nu nog een fire-once-melding; maak er een **duurzame, zelfhelende admin-next-action** van in
+   `adminTasks()` (SUBMITTED-prestatie ouder dan de escalatiedrempel op een ACTIVE, niet-bevroren
+   inzet) — let op de nav-badge-pariteit (`signals.ts`), anders ondertelt de badge het actiecentrum.
+   (b) De **factuur-goedkeuring** (opdrachtgever, SUBMITTED cascade-factuur) heeft — anders dan de
+   prestatie-goedkeuring — géén dag-3/7-herinnering + admin-escalatie; spiegel
+   `performance-approval-reminders(.ts/-task.ts)` naar een `invoice-approval-reminders`-paar en hang
+   het in `api/tasks/run-all`. Sluit de enige un-genudgede opdrachtgever-poort in de cascade.
+
 ### Wacht op een eigenaarsbesluit (niet zelf oppakken)
 
 > Voorstel voor de strategische keuzes: **ADR 0011 — focus & wig**
