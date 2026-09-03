@@ -38,16 +38,19 @@ export async function verifyCredential(credentialId: string): Promise<void> {
   const actor = await requireRole("ADMIN");
   const credential = await loadCredentialForDecision(credentialId);
   const from = credential.status as CredentialStatus;
+  const now = new Date();
 
   let next: CredentialStatus;
   try {
-    next = statusForDecision(from, "VERIFIED");
+    // Geef `expiresAt` mee: een reeds-verlopen bewijsstuk mag niet VERIFIED worden (server-side poort,
+    // spiegelt de "Reeds verlopen"-badge in de wachtrij). Werpt `ExpiredEvidenceError` → nette weigering
+    // via `verifyCredentialState` (drawer/queue), i.p.v. een direct-ongeldige VERIFIED-credential.
+    next = statusForDecision(from, "VERIFIED", null, credential.expiresAt, now);
   } catch (e) {
     if (e instanceof TransitionError) throw new Error(e.message);
     throw e;
   }
 
-  const now = new Date();
   await prisma.$transaction(async (tx) => {
     // Status-guard binnen de transactie: alleen verwerken als de credential nog in `from` staat.
     // Een gelijktijdige tweede beslissing matcht 0 rijen en breekt af — geen dubbele audit/notificatie.

@@ -10,6 +10,32 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-03 — routine: verificatie weigert een reeds-verlopen bewijsstuk (server-side poort)
+
+**Wat:** de admin-verificatiewachtrij toonde al een "Reeds verlopen"-danger-badge, maar de server keurde
+zo'n SUBMITTED-inzending gewoon goed. Twee verificatiepaden misten de poort: de admin-goedkeuring
+(`verifyCredential`) én de zelf-verificatie DUO/BIG (`applyExternalVerification`). Gevolg: een certificaat
+met een verstreken `expiresAt` werd VERIFIED → _direct_ ongeldig, en de eerstvolgende `runExpiryTask`
+klapte het meteen naar EXPIRED — verspilde beoordeling, een compliance-gat en een paar tegenstrijdige
+notificaties ("goedgekeurd" → "verlopen"). De UI waarschuwde, de server besliste niet mee — tegen
+CLAUDE.md regel 1 (server-side is de waarheid; client mag tonen, nooit beslissen). Correcte uitkomst:
+afwijzen en een vernieuwd document vragen.
+
+**Aanpak:** gedeelde pure poort in `src/lib/credentials.ts`. `isExpiredDate(expiresAt, now)` is de
+status-agnostische primitief (bewust géén VERIFIED-poort zoals `isExpired`, zodat een nog-SUBMITTED
+inzending beoordeeld kan worden; grens `expiresAt <= now`, identiek aan `isExpired`). `assertEvidenceVerifiable`
+werpt `ExpiredEvidenceError` op een verlopen datum; `statusForDecision` roept 'm aan bij een VERIFIED-beslissing
+(optionele `expiresAt`/`now` — zonder waarde verandert er niets, dus reject-pad en bestaande callers
+ongemoeid). Beide write-paden geven `expiresAt` mee: het admin-pad via `statusForDecision` (nette weigering
+via `verifyCredentialState`), het DUO/BIG-pad via een expliciete `assertEvidenceVerifiable` vóór de transactie
+(geen admin-badge daar → de poort is de enige rem). Geen VERIFIED-write, geen verificatie-record, geen audit,
+geen notificatie bij een verlopen inzending. Puur/deterministisch, geen schema-/authz-oppervlak.
+
+**Bestanden:** `src/lib/credentials.ts` (+ `.test.ts`, poort- en grens-tests),
+`src/app/(protected)/admin/verificaties/actions.ts` (+ `actions-state.test.ts`),
+`src/app/(protected)/certificaten/actions.ts` (+ `verify-toctou.test.ts`). **Checks:** typecheck / lint /
+unit (8020 groen) / build / prettier groen; CI-poort verifieert.
+
 ## 2026-09-03 — security/privacy: VOG-verwijdering gehard tegen herindienen + race (audit-ronde)
 
 **Wat:** adversariële security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle Opus-audits) op de delta
@@ -349,35 +375,3 @@ terminale/bevroren inzet hard weigert (ná de tenant-poort → geen CWE-203-orac
 - tests (`pending-tasks.shift-handoff.test.ts`, `signals.shift-handoff-collab-scope.test.ts` [nieuw],
   `governance-screen.test.tsx`, `oracle.test.ts` — samen +12, rood→groen). Backlog bijgewerkt
   (1 latente tijdzone-nit geparkeerd). Gate groen (typecheck/lint/unit/build/prettier).
-
-## 2026-09-01 — security: tweede-factor-challenge vereist om 2FA uit te zetten (OWASP ASVS 2.8)
-
-**Wat:** `disableTwoFactor` her-authenticeerde alleen met het accountwachtwoord — het uitschakelen van
-2FA (secret + álle herstelcodes in één transactie gewist) vereiste géén tweede-factor-challenge. Een
-uitgelekt/hergebruikt/gephisht wachtwoord kon dus in z'n eentje de beveiligingslaag strippen, precies de
-laag die het account beschermt als het wachtwoord uitlekt. Best practice bij GitHub/Google is een
-factor-challenge vóór het verwijderen van de factor. (Geparkeerde security-nit uit persona-sweep run 103.)
-
-**Fix:** een account met 2FA aan moet nu — náást het wachtwoord — een geldige TOTP-code of ongebruikte
-herstelcode invoeren om 2FA uit te zetten. De verificatie loopt via **dezelfde replay-veilige poort als
-de login**: de module-private `verifySecondFactor` uit `authorize-credentials.ts` is verbatim geëxtraheerd
-naar `src/lib/two-factor/verify-second-factor.ts` (één bron van waarheid; login rewired als pure
-import-swap, gedrag ongewijzigd). Zo erft de disable-challenge exact de TOTP-replay-preventie (atomaire
-high-water-mark `updateMany`, TOCTOU-safe), het eenmalige herstelcode-verbruik en de audit-reden. De
-factor wordt geverifieerd vóór enige schrijfactie; faalt hij, dan blijft 2FA aan.
-
-**Bestanden:**
-
-- `src/lib/two-factor/verify-second-factor.ts` — nieuwe gedeelde poort (`verifySecondFactor`, met
-  optionele `context`-audit-metadata) + `verify-second-factor.test.ts` (8 tests: TOTP/replay/decrypt-fout/
-  herstelcode/context).
-- `src/lib/authorize-credentials.ts` — lokale functie verwijderd; import + call rewired (behoud van gedrag).
-- `src/app/(protected)/account/tweestapsverificatie/actions.ts` — disable-schema `token`, findUnique-select
-  uitgebreid, factor-gate vóór de transactie.
-- `src/app/(protected)/account/tweestapsverificatie/two-factor-panel.tsx` — verificatiecode-veld op OnPanel.
-- `src/app/(protected)/account/tweestapsverificatie/actions.test.ts` — disable-tests: factor geëist,
-  mislukte factor gate't uitschakeling, geen DISABLED-audit bij mislukking.
-- `docs/PERSONA-SWEEP-BACKLOG.md` — geparkeerde nit → OPGELOST.
-
-**Checks:** typecheck ✓, unit (verify-second-factor 8/8 + tweestapsverificatie-actions + authorize-credentials
-groen) ✓, lint ✓, build ✓, prettier ✓. CI-poort verifieert.

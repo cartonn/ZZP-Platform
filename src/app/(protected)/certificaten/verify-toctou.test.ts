@@ -60,7 +60,10 @@ vi.mock("@/lib/rate-limit", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
+import { prisma } from "@/lib/db";
 import { verifyCredentialViaBig } from "./actions";
+
+const credFindUnique = prisma.credential.findUnique as unknown as ReturnType<typeof vi.fn>;
 
 function form(bigNumber: string): FormData {
   const fd = new FormData();
@@ -105,5 +108,23 @@ describe("verifyCredentialViaBig — TOCTOU status-guard", () => {
     );
     expect(verificationCreateMock).toHaveBeenCalledTimes(1);
     expect(auditCreateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("weigert een reeds-verlopen bewijsstuk (geen VERIFIED-write, nette fout)", async () => {
+    // Zelf-verificatie kent geen admin-badge; de server-side poort is hier de enige rem.
+    credFindUnique.mockResolvedValueOnce({
+      id: "cred-1",
+      freelancerProfileId: "prof-1",
+      status: "SUBMITTED",
+      type: "LICENSE",
+      expiresAt: new Date("2020-01-01T00:00:00Z"), // ruim verlopen
+    });
+    const res = await verifyCredentialViaBig("cred-1", undefined, form(VALID_BIG));
+
+    expect(res).toEqual({ error: expect.stringMatching(/verlopen/i) });
+    // De poort valt vóór de transactie: geen write, geen verificatie-record, geen audit.
+    expect(updateManyMock).not.toHaveBeenCalled();
+    expect(verificationCreateMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
   });
 });
