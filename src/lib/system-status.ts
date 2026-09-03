@@ -6,6 +6,7 @@
 // GEEN geheimen: deze module leest alleen driver-MODI en booleans (aan/uit), nooit sleutelwaarden.
 // De boot-waarschuwingen (envWarnings) noemen env-VARIABELENAMEN, geen waarden.
 
+import { resolveBootstrapAdminConfig } from "@/lib/bootstrap-admin";
 import { envWarnings, rateLimitStoreDiagnostics, type Env } from "@/lib/env";
 import { isIndexingAllowed } from "@/lib/indexing";
 import { parseAuditRetentionDays } from "@/lib/config";
@@ -56,6 +57,49 @@ export function databaseKind(databaseUrl: string): "PostgreSQL" | "SQLite" | "on
  */
 function fallbackLevel(production: boolean): StatusLevel {
   return production ? "attention" : "fallback";
+}
+
+/** Leesbare modus voor de bootstrap-beheerder-posture (nooit het e-mailadres/wachtwoord tonen). */
+function bootstrapAdminMode(env: Env): string {
+  const state = resolveBootstrapAdminConfig({
+    email: env.BOOTSTRAP_ADMIN_EMAIL,
+    password: env.BOOTSTRAP_ADMIN_PASSWORD,
+  }).state;
+  if (state === "ready") return "geconfigureerd";
+  if (state === "unset") return "ongebruikt";
+  return "ongeldig"; // partial/invalid: onbereikbaar op een gebooted systeem (harde env-fout).
+}
+
+/**
+ * Niveau van de bootstrap-beheerder. "unset" is een geldige eindtoestand — dit scherm is PUUR
+ * env-afgeleid en kan niet in de database kijken of er al een ADMIN bestaat; ná de eerste bootstrap
+ * hoort de operator de secret juist weer te verwijderen (envWarnings herinnert daaraan). "unset" dus
+ * nooit als aandacht flaggen (dat zou een correct-opgeruimde productie onterecht nagen). "ready" =
+ * ok. "partial"/"invalid" bereiken dit scherm niet (harde env-boot-fout) maar zijn defensief aandacht.
+ */
+function bootstrapAdminLevel(env: Env): StatusLevel {
+  const { state } = resolveBootstrapAdminConfig({
+    email: env.BOOTSTRAP_ADMIN_EMAIL,
+    password: env.BOOTSTRAP_ADMIN_PASSWORD,
+  });
+  return state === "ready" || state === "unset" ? "ok" : "attention";
+}
+
+/** Toelichting bij de bootstrap-beheerder-posture. */
+function bootstrapAdminDetail(env: Env): string {
+  const { state } = resolveBootstrapAdminConfig({
+    email: env.BOOTSTRAP_ADMIN_EMAIL,
+    password: env.BOOTSTRAP_ADMIN_PASSWORD,
+  });
+  if (state === "ready") {
+    return "BOOTSTRAP_ADMIN_EMAIL/PASSWORD gezet — de seed maakt eenmalig een ADMIN aan (wachtwoordwijziging afgedwongen) zolang er nog geen beheerder is.";
+  }
+  if (state === "unset") {
+    return env.SEED_DEMO === "true"
+      ? "Geen bootstrap-beheerder; de demo-dataset levert een beheerder. Zet BOOTSTRAP_ADMIN_EMAIL/PASSWORD (min. 12 tekens) vóór livegang met echte gegevens (en zet SEED_DEMO uit)."
+      : "Geen bootstrap-beheerder geconfigureerd. Op een verse database zonder beheerder: zet BOOTSTRAP_ADMIN_EMAIL/PASSWORD (min. 12 tekens) om er eenmalig één aan te maken. Al een beheerder? Dan is dit terecht leeg.";
+  }
+  return "Bootstrap-beheerder onjuist geconfigureerd (halve activering of zwak wachtwoord/ongeldig e-mailadres) — de boot-validatie blokkeert dit; corrigeer BOOTSTRAP_ADMIN_EMAIL/PASSWORD.";
 }
 
 /**
@@ -230,6 +274,17 @@ export function collectSystemStatus(
             env.SEED_DEMO === "true"
               ? "SEED_DEMO=true — vaste demo-accounts (waaronder admin@zzp-platform.local met het bekende wachtwoord demo1234) worden geseed en de verificatie-waarschuwingen zijn onderdrukt. Alleen voor een demo-/test-URL; zet SEED_DEMO uit + maak de database schoon en zet de eerste beheerder via BOOTSTRAP_ADMIN_* vóór livegang met echte gegevens."
               : "Geen demo-dataset — alleen referentiedata wordt geseed. De eerste beheerder komt via BOOTSTRAP_ADMIN_EMAIL/PASSWORD.",
+        },
+        {
+          key: "bootstrap-admin",
+          label: "Bootstrap-beheerder",
+          mode: bootstrapAdminMode(env),
+          // De enige veilige weg naar een eerste ADMIN op een verse database is BOOTSTRAP_ADMIN_*.
+          // Een geldige config is ok; "ongebruikt" is óók ok (demo levert een admin, of de admin is
+          // al aangemaakt en de secret verwijderd). Een ongeldige/halve config bereikt dit scherm niet
+          // (harde boot-fout in env-validatie).
+          level: bootstrapAdminLevel(env),
+          detail: bootstrapAdminDetail(env),
         },
         {
           key: "share-token-secret",
