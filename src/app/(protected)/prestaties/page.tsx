@@ -26,7 +26,7 @@ import {
 } from "@/lib/client-delivery-reliability";
 import { insufficientSampleNotice } from "@/lib/sample-size";
 import { groupSubmittedForBulkApproval } from "@/lib/prestaties-bulk";
-import { detectHoursAnomalies, formatHoursNl } from "@/lib/performance-hours-anomaly";
+import { detectHoursAnomalies, formatHoursAnomalyNotice } from "@/lib/performance-hours-anomaly";
 import { BulkApprovePanel } from "./bulk-approve-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -306,9 +306,7 @@ export default async function PrestatiesPage({
                     const anomaly = p.status === "SUBMITTED" ? hoursAnomalies.get(p.id) : undefined;
                     return anomaly ? (
                       <p className="mt-0.5 text-xs font-medium text-warning">
-                        ≈{anomaly.deltaPct}% meer uren dan gebruikelijk (
-                        {formatHoursNl(anomaly.hours)} u vs. mediaan{" "}
-                        {formatHoursNl(anomaly.baselineHours)} u) — controleer even.
+                        {formatHoursAnomalyNotice(anomaly)}
                       </p>
                     ) : null;
                   })()}

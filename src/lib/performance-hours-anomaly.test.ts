@@ -4,6 +4,8 @@ import {
   HOURS_ANOMALY_THRESHOLD_PCT,
   detectHoursAnomalies,
   formatHoursNl,
+  formatHoursAnomalyNotice,
+  type HoursAnomaly,
   type PerformanceHoursRow,
 } from "./performance-hours-anomaly";
 
@@ -176,5 +178,37 @@ describe("formatHoursNl", () => {
 
   it("toont maximaal één decimaal met nl-komma", () => {
     expect(formatHoursNl(37.5)).toBe("37,5");
+  });
+});
+
+describe("formatHoursAnomalyNotice", () => {
+  const anomaly: HoursAnomaly = {
+    performanceId: "sub",
+    hours: 50,
+    baselineHours: 10,
+    deltaPct: 400,
+    sampleSize: 3,
+  };
+
+  it("bouwt één rustige controleer-even-zin met percentage, uren en mediaan", () => {
+    expect(formatHoursAnomalyNotice(anomaly)).toBe(
+      "≈400% meer uren dan gebruikelijk (50 u vs. mediaan 10 u) — controleer even.",
+    );
+  });
+
+  it("gebruikt de nl-uren-notatie (komma-decimaal) voor niet-hele uren", () => {
+    expect(formatHoursAnomalyNotice({ ...anomaly, hours: 37.5, baselineHours: 22.5 })).toBe(
+      "≈400% meer uren dan gebruikelijk (37,5 u vs. mediaan 22,5 u) — controleer even.",
+    );
+  });
+
+  it("blijft consistent met de detector (dezelfde tekst voor een gedetecteerde uitschieter)", () => {
+    const rows = [
+      ...approved("c1", 10, HOURS_ANOMALY_MIN_SAMPLE),
+      row({ id: "sub", collaborationId: "c1", status: "SUBMITTED", hours: 50 }),
+    ];
+    const detected = detectHoursAnomalies(rows).get("sub");
+    expect(detected).toBeDefined();
+    expect(formatHoursAnomalyNotice(detected!)).toContain("controleer even.");
   });
 });
