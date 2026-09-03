@@ -41,6 +41,11 @@ async function waitForRedirectingServerAction(page: Page, expectedPath: string) 
 }
 
 test("opdrachtgever maakt, publiceert en ZZP'er vindt de opdracht", async ({ page, browser }) => {
+  // Lange end-to-end flow (client registreren → opdracht maken → publiceren → freelancer registreren →
+  // zoeken). Onder CI-runnerbelasting overschreed het geheel het standaard 30s-budget bij de debounced
+  // zoek-navigatie (`waitForURL(/[?&]q=/)` op regel ~93) — een timing-flake, geen productdefect. `slow`
+  // verdrievoudigt het budget zodat de debounce + RSC-navigatie ruim binnen de deadline valt.
+  test.slow();
   const title = `E2E Opdracht ${uniq()}`;
   await registerClient(page, `jobclient-${uniq()}@test.local`);
 
