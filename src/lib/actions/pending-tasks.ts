@@ -725,6 +725,10 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     where: credentialCollabWhere(userId),
     select: {
       id: true,
+      // Einddatum van de plaatsing verankert de "verloopt vóór het einde van de opdracht"-zorg: een
+      // certificaat dat ná het 30-daagse venster maar vóór deze datum verloopt, lapt mid-inzet en geeft
+      // de ZZP'er hetzelfde, eerdere signaal als de opdrachtgever (spiegel van expiringDuringPlacement).
+      endDate: true,
       job: {
         select: {
           title: true,
@@ -740,6 +744,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     collaborationId: c.id,
     companyName: c.company.name,
     jobTitle: c.job.title,
+    endDate: c.endDate,
     requiredTypes: c.job.credentialRequirements.map(
       (r) => r.credentialType as CollabCredentialInput["type"],
     ),

@@ -148,6 +148,45 @@ describe("collaborationCredentialExpiryConcerns", () => {
     });
     expect(result[0]!.daysUntilExpiry).toBe(0);
   });
+
+  it("markeert een certificaat dat ná het venster maar vóór de einddatum van de plaatsing verloopt", () => {
+    const result = collaborationCredentialExpiryConcerns({
+      collaborations: [collab({ endDate: inDays(200) })],
+      credentials: [cred({ expiresAt: inDays(60) })], // 60 > 30-daagse venster, maar vóór einddatum (200)
+      now: NOW,
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.credentialId).toBe("cred-vog");
+    expect(result[0]!.daysUntilExpiry).toBe(60);
+  });
+
+  it("zonder einddatum blijft alleen het klassieke 30-daagse venster gelden (60 dagen → geen zorg)", () => {
+    const result = collaborationCredentialExpiryConcerns({
+      collaborations: [collab({ endDate: null })],
+      credentials: [cred({ expiresAt: inDays(60) })],
+      now: NOW,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it("het 30-daagse venster blijft gelden ongeacht een korte einddatum", () => {
+    const result = collaborationCredentialExpiryConcerns({
+      collaborations: [collab({ endDate: inDays(10) })],
+      credentials: [cred({ expiresAt: inDays(20) })], // binnen venster, ook al ligt einddatum eerder
+      now: NOW,
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.credentialId).toBe("cred-vog");
+  });
+
+  it("negeert een certificaat dat pas ná de einddatum én ná het venster verloopt", () => {
+    const result = collaborationCredentialExpiryConcerns({
+      collaborations: [collab({ endDate: inDays(200) })],
+      credentials: [cred({ expiresAt: inDays(250) })], // verloopt ná einddatum (200) én ná venster
+      now: NOW,
+    });
+    expect(result).toEqual([]);
+  });
 });
 
 describe("collaborationExpiredRequiredCredentials", () => {

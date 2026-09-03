@@ -1,5 +1,62 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-03 (run 107) · **main-commit basis:** `3dd675fc`
+> **Uitkomst:** **2 defecten gevonden én gefixt** (DOEL 1b — next-action-engine correctheid/symmetrie).
+> 3 adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant op de nieuwste ~30
+> commits + franchise/tenant · cascade-geldmath + statusovergangen + malicieuze invoer · next-action-
+> engine). Live smoke via Playwright over alle vier rollen (zzp/opdrachtgever/franchise/admin): alle
+> loggen in en landen op `/dashboard` zonder page-error, `/acties` laadt per rol. Adversarieel live:
+> ZZP'er → `/admin/verificaties`, `/admin/gebruikers`, `/franchise/diensten` allemaal geweigerd
+> (redirect naar eigen dashboard, géén admin-inhoud); onzin-id op `/samenwerkingen/*` en `/facturen/*`
+> → 404, geen 500. De **authz/IDOR/tenant-audit vond 0 bereikbare gaten** (volledige mutatie-oppervlak:
+> samenwerking/cascade, facturen, documenten/media, franchise-tenant-isolatie, opdrachten, prestaties,
+> uitgaven, support, admin-import, abonnement/account — allemaal `auth → rol → ownership/tenant → Zod →
+actie → audit`, anti-oracle 404, TOCTOU-veilige compound-guards).
+>
+> - **OPGELOST — should-fix (DOEL 1b, CLAUDE.md regel 1 — server-side waarheid; next-action spreekt zijn
+>   eigen doel-pagina tegen): de hoogste opdrachtgever-next-action (`clientComplianceTask`, "X mist een
+>   vereist certificaat (VOG)") linkte naar een compliance-dossier dat "Compleet" toonde.** De
+>   dossier-sectie "Verificatie ZZP'er" (`compliance/dossier.ts`) telde ÁLLE VERIFIED/EXPIRED
+>   certificaten van de ZZP'er i.p.v. de door de opdracht VERPLICHTE types — een ZZP'er die de vereiste
+>   VOG mist maar één ongerelateerd VERIFIED certificaat heeft, gaf "1 geverifieerd van 1 · Compleet"
+>   (attention=false), lijnrecht tegenover de acute next-action. **Fix:** de sectie beoordeelt nu tegen
+>   `job.credentialRequirements` via dezelfde bron als de next-action (`assessCollaborationCredentials` +
+>   `clientHasComplianceAction`, incl. `placementEnd`=`endDate`), zodat ze nooit meer tegenspreekt;
+>   samenvatting toont "N van M vereiste certificaten geldig geverifieerd · <gaten>". Beide dossier-bronnen
+>   (`dossier/page.tsx` + `api/.../dossier/route.ts`) selecteren nu de vereiste types (defensief `?? []`).
+>   +4 regressietests (`compliance/dossier.test.ts`: ontbrekende vereiste VOG + ongerelateerd VERIFIED →
+>   attention; geldige VOG → geen attention; geen vereisten → geen attention; verval-vóór-einddatum →
+>   attention) + mock bijgewerkt in `dossier-routes-audit.test.ts`. Bestanden:
+>   `src/lib/compliance/dossier.ts` (+ `.test.ts`), `src/app/(protected)/samenwerkingen/[id]/dossier/page.tsx`,
+>   `src/app/api/samenwerkingen/[id]/dossier/route.ts`, `src/app/api/dossier-routes-audit.test.ts`.
+> - **OPGELOST — should-fix (DOEL 1b — ontbrekende next-action bij de partij die kan handelen; asymmetrie):
+>   het nieuwe `expiringDuringPlacement`-signaal (een vereist, nog geldig certificaat dat ná het 30-daagse
+>   venster maar vóór `Collaboration.endDate` verloopt) bereikte alléén de opdrachtgever, nooit de ZZP'er.**
+>   De opdrachtgever kreeg "certificaat verloopt vóór het einde van de opdracht — vraag om vernieuwing",
+>   terwijl de ZZP'er — de enige die kán vernieuwen — niets in `/acties` zag (zijn spiegel
+>   `collaborationCredentialExpiryConcerns` hanteerde een vast 30-daags venster zonder einddatum). Repro:
+>   inzet met `endDate` 200 dagen weg, VOG VERIFIED verloopt over 60 dagen → opdrachtgever ziet de nudge,
+>   ZZP'er niets. **Fix:** per-samenwerking-cutoff = `max(now+30d, endDate)` in de pure helper (`endDate`
+>   optioneel op `CollabRequirementInput`, doorgegeven vanuit `pending-tasks.ts`); backward-compatible
+>   (zonder einddatum blijft het klassieke venster). De taaktekst ("verloopt tijdens je opdracht ·
+>   Verloopt over N dagen") leest al correct voor een langere horizon. +4 regressietests
+>   (`collaboration-credential-expiry.test.ts`). Bestanden: `src/lib/collaboration-credential-expiry.ts`
+>   (+ `.test.ts`), `src/lib/actions/pending-tasks.ts`.
+> - **GEPARKEERD — blocker/escalatie-naar-mens (DOEL 2 — juridische factuurnummering; MENSENWERK §5): de
+>   losse-factuur-flow (`facturen/actions.ts` `createInvoice`) nummert PLATFORM-BREED i.p.v. per
+>   uitschrijvende partij.** `seq = prisma.invoice.count({ where: { number: { startsWith: "2026-" } } }) + 1`
+>   telt álle facturen op het hele platform; `Invoice.number` is globaal `@unique`. Twee ZZP'ers die elk
+>   hun éérste losse factuur maken krijgen `2026-0001` en `2026-0002` i.p.v. beiden `2026-0001` — de
+>   per-kalenderjaar doorlopende, gatenvrije reeks per ondernemer (Wet OB art. 35a) is verbroken; de
+>   cascade-flow doet het wél goed via `allocateInvoiceNumber(tx, issuerKey, year)` op `InvoiceSequence`.
+>   **Waarom geparkeerd:** de juiste fix vergt een schema-/datamodel-wijziging (globale `@unique` op
+>   `number` laten vallen → per-issuer-nummer in `partyInvoiceNumber`) én een besluit over reeds
+>   uitgegeven productie-nummers (mogelijk al niet-sequentieel). Dat raakt bestaande fiscale data →
+>   mensbesluit + migratie, geen autonome agent-fix. **Repro:** rol FREELANCER, 2 ZZP'ers, elk een
+>   niet-cascade samenwerking, elk `/facturen/nieuw` → `createInvoice`; vergelijk de toegewezen nummers.
+>   Aanbevolen fix (bij mensbesluit): `createInvoice` op dezelfde `allocateInvoiceNumber`-allocator met
+>   `issuerKey = actor.id`, opgeslagen in `partyInvoiceNumber`.
+
 > **Datum:** 2026-09-02 (run 106) · **main-commit basis:** `59d32f48`
 > **Uitkomst:** **2 defecten gevonden én gefixt.** 3 adversariële Opus-audits op niet-overlappende
 > oppervlakken (authz/IDOR/tenant op de nieuwste ~30 commits + shift-overname/franchise/tenant ·
