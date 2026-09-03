@@ -234,8 +234,15 @@ export function resolveSseParams(): {
 // cron). Objectopslag is een productie-KERNkanaal (VOG/diploma/verzekering upload+download); een
 // hangende operatie blokkeert de server-request van de gebruiker zonder deadline. We zetten daarom op
 // de S3-client een `connectionTimeout` (tijd om de verbinding op te zetten) én een `requestTimeout`
-// (socket-inactiviteit tijdens de response). Bij overschrijding werpt de SDK zelf een fout, die de
-// aflever-heartbeat als mislukking registreert en de oproeper afhandelt.
+// (deadline op de response-fase).
+//
+// KRITIEK — `throwOnRequestTimeout: true` is verplicht. Geverifieerd tegen
+// @smithy/node-http-handler@4.7.4 (`setRequestTimeout`): bij een `requestTimeout`-breach ZONDER die vlag
+// wordt alléén een `console.warn` geëmit — er is geen `req.destroy()` en geen `reject()`, dus de request
+// blijft alsnog onbeperkt hangen. Precies het hoofdscenario (backend houdt de socket open maar antwoordt
+// niet meer) blijft dan onbeschermd. Met de vlag maakt de SDK er een echte `TimeoutError` van
+// (`req.destroy(error)` + `reject`), die de aflever-heartbeat als mislukking registreert en de oproeper
+// afhandelt. `connectionTimeout` breekt de verbindings-opbouw sowieso af (los van deze vlag).
 export const S3_REQUEST_TIMEOUT_MS_MIN = 1_000;
 // Ruimer dan de 60s-bovengrens van `fetchWithTimeout`: een put/get verplaatst tot MAX_UPLOAD_BYTES
 // (10 MB) aan documentdata, dus de request-deadline moet meer speling hebben dan een kale API-call.
@@ -258,14 +265,16 @@ function resolveClampedTimeout(
 }
 
 /**
- * Bepaalt de request-/connection-deadlines (ms) voor de S3-client. Puur/testbaar: leest env en klemt
- * elke waarde in het veilige bereik. Het resultaat wordt als `requestHandler`-config aan de `S3Client`
- * meegegeven (NodeHttpHandlerOptions). Instelbaar via `STORAGE_S3_REQUEST_TIMEOUT_MS` /
- * `STORAGE_S3_CONNECTION_TIMEOUT_MS`.
+ * Bepaalt de `requestHandler`-config (NodeHttpHandlerOptions) voor de S3-client. Puur/testbaar: leest env
+ * en klemt elke deadline in het veilige bereik. `throwOnRequestTimeout: true` is essentieel — zonder die
+ * vlag maakt de SDK van een `requestTimeout`-breach alléén een waarschuwing i.p.v. de request af te breken
+ * (zie het blok hierboven), waardoor een hangende response alsnog onbeperkt blijft staan. Instelbaar via
+ * `STORAGE_S3_REQUEST_TIMEOUT_MS` / `STORAGE_S3_CONNECTION_TIMEOUT_MS`.
  */
 export function resolveS3TimeoutConfig(): {
   requestTimeout: number;
   connectionTimeout: number;
+  throwOnRequestTimeout: true;
 } {
   return {
     requestTimeout: resolveClampedTimeout(
@@ -280,6 +289,9 @@ export function resolveS3TimeoutConfig(): {
       S3_CONNECTION_TIMEOUT_MS_MIN,
       S3_CONNECTION_TIMEOUT_MS_MAX,
     ),
+    // Verplicht: maakt van een requestTimeout-breach een echte fout (req.destroy + reject) i.p.v. een
+    // stille console.warn. Zonder deze vlag beschermt requestTimeout de response-fase NIET.
+    throwOnRequestTimeout: true,
   };
 }
 

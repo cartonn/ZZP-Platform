@@ -47,10 +47,12 @@ werpt de SDK, de aflever-heartbeat registreert de mislukking en de oproeper hand
 
 **Aanpak:** pure/testbare `resolveS3TimeoutConfig()` (`src/lib/services/storage.ts`) leest env en klemt:
 request [1000, 120000] default 20000 (ruimer dan de 60s-fetch-grens — een put/get verplaatst tot 10 MB
-documentdata), connection [500, 60000] default 3000. Meegegeven als `requestHandler`-config
-(NodeHttpHandlerOptions) aan de client; ongeldig/leeg valt veilig terug op de default. Alleen de
-S3-driver; de lokale disk-fallback blijft ongemoeid. Geen nieuwe dependency, geen gedragswijziging bij
-succes.
+documentdata), connection [500, 60000] default 3000, plus **`throwOnRequestTimeout: true`** (essentieel:
+zonder die vlag emit `@smithy/node-http-handler` bij een requestTimeout-breach alléén een `console.warn`
+zonder `req.destroy`/`reject` — dan hangt de response-fase alsnog; mét de vlag wordt het een echte
+`TimeoutError`). Meegegeven als `requestHandler`-config (NodeHttpHandlerOptions) aan de client; ongeldig/
+leeg valt veilig terug op de default. Alleen de S3-driver; de lokale disk-fallback blijft ongemoeid. Geen
+nieuwe dependency, geen gedragswijziging bij succes.
 
 **Bestanden:** `src/lib/services/storage.ts` (+ `.test.ts`, 5 nieuwe tests), `src/lib/env.ts`
 (`STORAGE_S3_REQUEST_TIMEOUT_MS`/`STORAGE_S3_CONNECTION_TIMEOUT_MS`), `.env.example`, `MENSENWERK.md`.

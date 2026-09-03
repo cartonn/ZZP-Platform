@@ -201,6 +201,7 @@ describe("resolveS3TimeoutConfig", () => {
     expect(resolveS3TimeoutConfig()).toEqual({
       requestTimeout: S3_REQUEST_TIMEOUT_MS_DEFAULT,
       connectionTimeout: S3_CONNECTION_TIMEOUT_MS_DEFAULT,
+      throwOnRequestTimeout: true,
     });
   });
 
@@ -210,6 +211,7 @@ describe("resolveS3TimeoutConfig", () => {
     expect(resolveS3TimeoutConfig()).toEqual({
       requestTimeout: 30000,
       connectionTimeout: 5000,
+      throwOnRequestTimeout: true,
     });
   });
 
@@ -219,6 +221,7 @@ describe("resolveS3TimeoutConfig", () => {
     expect(resolveS3TimeoutConfig()).toEqual({
       requestTimeout: S3_REQUEST_TIMEOUT_MS_DEFAULT,
       connectionTimeout: S3_CONNECTION_TIMEOUT_MS_DEFAULT,
+      throwOnRequestTimeout: true,
     });
   });
 
@@ -228,12 +231,14 @@ describe("resolveS3TimeoutConfig", () => {
     expect(resolveS3TimeoutConfig()).toEqual({
       requestTimeout: S3_REQUEST_TIMEOUT_MS_MIN,
       connectionTimeout: S3_CONNECTION_TIMEOUT_MS_MIN,
+      throwOnRequestTimeout: true,
     });
     process.env.STORAGE_S3_REQUEST_TIMEOUT_MS = "999999999";
     process.env.STORAGE_S3_CONNECTION_TIMEOUT_MS = "999999999";
     expect(resolveS3TimeoutConfig()).toEqual({
       requestTimeout: S3_REQUEST_TIMEOUT_MS_MAX,
       connectionTimeout: S3_CONNECTION_TIMEOUT_MS_MAX,
+      throwOnRequestTimeout: true,
     });
   });
 
@@ -241,6 +246,14 @@ describe("resolveS3TimeoutConfig", () => {
     process.env.STORAGE_S3_REQUEST_TIMEOUT_MS = "-5000";
     delete process.env.STORAGE_S3_CONNECTION_TIMEOUT_MS;
     expect(resolveS3TimeoutConfig().requestTimeout).toBe(S3_REQUEST_TIMEOUT_MS_DEFAULT);
+  });
+
+  it("zet throwOnRequestTimeout zodat een requestTimeout-breach de request écht afbreekt", () => {
+    // Zonder deze vlag emit @smithy/node-http-handler alleen een console.warn bij een requestTimeout-breach
+    // (geen req.destroy/reject) — dan hangt de response-fase alsnog onbeperkt. Regressiebescherming.
+    delete process.env.STORAGE_S3_REQUEST_TIMEOUT_MS;
+    delete process.env.STORAGE_S3_CONNECTION_TIMEOUT_MS;
+    expect(resolveS3TimeoutConfig().throwOnRequestTimeout).toBe(true);
   });
 });
 
