@@ -27,6 +27,8 @@ const s = (freelancerId: string, score: number): FreelancerSuggestion => ({
   headline: null,
   location: null,
   rate: null,
+  missingCredentials: [],
+  expiredCredentials: [],
 });
 
 const cs = (
@@ -45,6 +47,8 @@ const cs = (
   headline: null,
   location: null,
   rate: null,
+  missingCredentials: [],
+  expiredCredentials: [],
   jobId,
   jobTitle: `Opdracht ${jobId}`,
   ...(relatedness !== undefined ? { relatedness } : {}),
@@ -204,6 +208,8 @@ function legacyScore(
         rate: p.hourlyRate,
         relatedness,
         related: relatedness >= SEMANTIC_HIGHLIGHT_THRESHOLD,
+        missingCredentials: match.compliance.missing,
+        expiredCredentials: match.compliance.expired,
       };
     });
   return scored
@@ -386,6 +392,80 @@ describe("scoreProfilesForJob — parity met de oude per-opdracht scoring", () =
     // Strikt hoger: de inhoudelijke aansluiting tilt de score echt op, niet slechts als tiebreaker.
     expect(aligned!.relatedness ?? 0).toBeGreaterThan(blank!.relatedness ?? 0);
     expect(aligned!.score).toBeGreaterThan(blank!.score);
+  });
+});
+
+describe("scoreProfilesForJob — vereiste-certificaat-gaten voor de opdrachtgever", () => {
+  const now = Date.UTC(2026, 5, 1);
+  const past = new Date(Date.UTC(2020, 0, 1));
+  const future = new Date(Date.UTC(2030, 0, 1));
+
+  // Sterke inhoudelijke match (skills/tarief/werkwijze/locatie/branche), zodat de suggestie ondanks
+  // een compliance-gat boven de drempel blijft en de opdrachtgever de kandidaat écht ziet.
+  const job: FixtureJob = {
+    id: "job-cred",
+    title: "Verpleegkundige IC",
+    description: "Ervaren IC-verpleegkundige gezocht voor nachtdiensten",
+    industryId: "ind-zorg",
+    rateMin: 40,
+    rateMax: 70,
+    workMode: "ONSITE",
+    location: "Amsterdam",
+    skills: [
+      { skillId: "sk-ic", required: true, skill: { name: "Intensive care" } },
+      { skillId: "sk-nacht", required: false, skill: { name: "Nachtdienst" } },
+    ],
+    credentialRequirements: [
+      { credentialType: "VOG", required: true },
+      { credentialType: "LICENSE", required: true },
+    ],
+  };
+
+  const base: FixtureProfile = {
+    id: "prof-gap",
+    headline: "IC-verpleegkundige",
+    bio: "Ruime ervaring op de intensive care en nachtdiensten",
+    location: "Amsterdam",
+    hourlyRate: 55,
+    workMode: "ONSITE",
+    availability: "AVAILABLE",
+    maxTravelMinutes: null,
+    user: { name: "Dana", identityVerifiedAt: future },
+    skills: [
+      { skillId: "sk-ic", skill: { name: "Intensive care" } },
+      { skillId: "sk-nacht", skill: { name: "Nachtdienst" } },
+    ],
+    credentials: [],
+    industries: [{ industryId: "ind-zorg" }],
+    availabilityWindows: [],
+  };
+
+  it("scheidt verlopen van ontbrekende vereiste certificaten", () => {
+    // VOG was geldig maar verlopen; LICENSE ontbreekt volledig.
+    const profile: FixtureProfile = {
+      ...base,
+      credentials: [{ type: "VOG", status: "VERIFIED", expiresAt: past }],
+    };
+    const out = scoreProfilesForJob(job, [profile], new Set(), 4, now);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.compliance).toBe("NON_COMPLIANT");
+    expect(out[0]?.expiredCredentials).toEqual(["VOG"]);
+    expect(out[0]?.missingCredentials).toEqual(["LICENSE"]);
+  });
+
+  it("laat de gaten leeg voor een volledig gedekte kandidaat", () => {
+    const profile: FixtureProfile = {
+      ...base,
+      credentials: [
+        { type: "VOG", status: "VERIFIED", expiresAt: future },
+        { type: "LICENSE", status: "VERIFIED", expiresAt: future },
+      ],
+    };
+    const out = scoreProfilesForJob(job, [profile], new Set(), 4, now);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.compliance).toBe("COMPLIANT");
+    expect(out[0]?.expiredCredentials).toEqual([]);
+    expect(out[0]?.missingCredentials).toEqual([]);
   });
 });
 
