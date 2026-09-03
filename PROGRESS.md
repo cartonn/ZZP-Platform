@@ -10,6 +10,31 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-03 — routine: re-engagement-suggesties óók na een gesloten/vervulde opdracht (ZZP'er)
+
+**Wat:** het "Soortgelijke open opdrachten"-blok op `/reacties` verankerde alleen op een expliciete
+**afwijzing** (`pickReengagementAnchor` → `REJECTED`). Een even doodlopend, maar demotiverender geval
+kreeg géén suggesties: een nog-openstaande reactie (NEW/VIEWED/SHORTLIST) waarvan de opdracht dood
+ging — gesloten of vermoedelijk vervuld door een ander — terwijl de ZZP'er nog wachtte (het
+"ghosted"-geval). Die kreeg alleen de statische per-rij-link "Bekijk andere opdrachten". Nu verankert
+het blok op het **meest recente doodlopende spoor**: een afwijzing (reason `REJECTED`) óf een dode
+opdracht op een nog-openstaande reactie (reason `JOB_ENDED`), met copy die zich aanpast
+("… is niet meer beschikbaar." i.p.v. "Niet geselecteerd voor …"). Dezelfde verklaarbare matchmotor
+(`relatedJobsForFreelancer`), één begrensde read, alleen wanneer er echt iets doodliep.
+
+**Aanpak:** `ReengagementReaction` kreeg een `jobDead`-veld (server-side afgeleid uit dezelfde
+`applicationJobAvailability(...) != null` als de per-rij-melding — geen tweede waarheid);
+`ReengagementAnchor` kreeg `reason: "REJECTED" | "JOB_ENDED"`. `pickReengagementAnchor` loopt
+nieuw→oud en pakt de eerste treffer (afwijzing of dode opdracht), collab/WITHDRAWN uitgesloten; de
+`jobDead`-tak is defensief begrensd tot open statussen zodat een inconsistente aanroeper nooit een
+besliste reactie als "opdracht liep dood" verankert. Puur/deterministisch, geen mutatie/schema/authz,
+geen dode knop, geen i18n-woordenboekwijziging (`t()` valt terug op de NL-brontekst).
+
+**Bestanden:** `src/lib/reengagement.ts` (+ `.test.ts`, 11 tests — 5 nieuw voor het JOB_ENDED-spoor,
+recentheid-voorrang en de defensieve guard), `src/app/(protected)/reacties/page.tsx`.
+
+**Checks:** typecheck / lint / unit / build / prettier groen; CI-poort verifieert.
+
 ## 2026-09-03 — security/privacy: VOG-verwijdering gehard tegen herindienen + race (audit-ronde)
 
 **Wat:** adversariële security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle Opus-audits) op de delta
