@@ -91,20 +91,9 @@ test("admin ziet de wachtrij, moet een reden opgeven bij afwijzen en kan activer
   // óf de succesmelding "… is geactiveerd" verscheen (RSC nog niet ververst). Zo weten we dat de
   // activatie server-side is geland vóór we herladen — een directe reload zou de lopende POST kunnen
   // afbreken. Niet herladen tijdens deze poll.
-  //
-  // Eén geval dekt "wachten" alleen niet: `toBeEnabled` bewijst niet dat React de route al heeft
-  // gehydrateerd, dus de eerste klik op deze server-action-knop kan spoorloos verloren gaan en dan
-  // komt er nooit een effect om op te wachten. Daarom herklikken we binnen de poll — alleen zolang
-  // de knop er nog staat én geen van beide effecten zichtbaar is, dus zonder dubbele activatie.
   await expect
     .poll(
-      async () => {
-        if ((await row.count()) === 0 || (await row.getByText(/is geactiveerd/).count()) > 0) {
-          return true;
-        }
-        await activeren.click({ timeout: 3000 }).catch(() => {});
-        return (await row.count()) === 0 || (await row.getByText(/is geactiveerd/).count()) > 0;
-      },
+      async () => (await row.count()) === 0 || (await row.getByText(/is geactiveerd/).count()) > 0,
       { timeout: 30000 },
     )
     .toBe(true);
