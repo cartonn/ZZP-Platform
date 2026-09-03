@@ -94,7 +94,9 @@ test("admin ziet de wachtrij, moet een reden opgeven bij afwijzen en kan activer
   await expect
     .poll(
       async () => (await row.count()) === 0 || (await row.getByText(/is geactiveerd/).count()) > 0,
-      { timeout: 30000 },
+      // 60s i.p.v. 30s: op een zwaar belaste CI-runner haalt de activatie-server-action (tenant-
+      // creatie + revalidatePath) de 30s-grens soms net niet; test.slow() geeft ruim budget (3×).
+      { timeout: 60000 },
     )
     .toBe(true);
   // Server-waarheid afdwingen, onafhankelijk van de timing waarmee revalidatePath de openstaande
