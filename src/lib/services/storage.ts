@@ -225,6 +225,76 @@ export function resolveSseParams(): {
   return { ServerSideEncryption: "AES256" };
 }
 
+// Harde deadlines voor de S3-client. PROBLEEM: de AWS-SDK opent zijn eigen HTTP-verbindingen (geen
+// `fetch`, dus buiten `fetchWithTimeout` om) en heeft zónder configuratie GEEN request-deadline. Een
+// backend die de socket openhoudt maar niet meer antwoordt (netwerk-partitie, connection-pool-uitputting,
+// regio-storing) laat een put/get/delete/head-operatie dan ONBEPERKT hangen — precies de stille
+// faalmodus die de codebase voor álle andere uitgaande koppelingen al afvangt (`fetchWithTimeout` voor
+// billing/e-mail/rate-limit/verify, `withProbeTimeout` voor de health-probes, `withTaskTimeout` voor
+// cron). Objectopslag is een productie-KERNkanaal (VOG/diploma/verzekering upload+download); een
+// hangende operatie blokkeert de server-request van de gebruiker zonder deadline. We zetten daarom op
+// de S3-client een `connectionTimeout` (tijd om de verbinding op te zetten) én een `requestTimeout`
+// (deadline op de response-fase).
+//
+// KRITIEK — `throwOnRequestTimeout: true` is verplicht. Geverifieerd tegen
+// @smithy/node-http-handler@4.7.4 (`setRequestTimeout`): bij een `requestTimeout`-breach ZONDER die vlag
+// wordt alléén een `console.warn` geëmit — er is geen `req.destroy()` en geen `reject()`, dus de request
+// blijft alsnog onbeperkt hangen. Precies het hoofdscenario (backend houdt de socket open maar antwoordt
+// niet meer) blijft dan onbeschermd. Met de vlag maakt de SDK er een echte `TimeoutError` van
+// (`req.destroy(error)` + `reject`), die de aflever-heartbeat als mislukking registreert en de oproeper
+// afhandelt. `connectionTimeout` breekt de verbindings-opbouw sowieso af (los van deze vlag).
+export const S3_REQUEST_TIMEOUT_MS_MIN = 1_000;
+// Ruimer dan de 60s-bovengrens van `fetchWithTimeout`: een put/get verplaatst tot MAX_UPLOAD_BYTES
+// (10 MB) aan documentdata, dus de request-deadline moet meer speling hebben dan een kale API-call.
+export const S3_REQUEST_TIMEOUT_MS_MAX = 120_000;
+export const S3_REQUEST_TIMEOUT_MS_DEFAULT = 20_000;
+export const S3_CONNECTION_TIMEOUT_MS_MIN = 500;
+export const S3_CONNECTION_TIMEOUT_MS_MAX = 60_000;
+export const S3_CONNECTION_TIMEOUT_MS_DEFAULT = 3_000;
+
+/** Leest een timeout uit een env-variabele en klemt hem op [min, max]. Ongeldig/leeg → `fallback`. */
+function resolveClampedTimeout(
+  raw: string | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  const parsed = raw !== undefined ? Number(raw) : Number.NaN;
+  const base = Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  return Math.min(max, Math.max(min, Math.round(base)));
+}
+
+/**
+ * Bepaalt de `requestHandler`-config (NodeHttpHandlerOptions) voor de S3-client. Puur/testbaar: leest env
+ * en klemt elke deadline in het veilige bereik. `throwOnRequestTimeout: true` is essentieel — zonder die
+ * vlag maakt de SDK van een `requestTimeout`-breach alléén een waarschuwing i.p.v. de request af te breken
+ * (zie het blok hierboven), waardoor een hangende response alsnog onbeperkt blijft staan. Instelbaar via
+ * `STORAGE_S3_REQUEST_TIMEOUT_MS` / `STORAGE_S3_CONNECTION_TIMEOUT_MS`.
+ */
+export function resolveS3TimeoutConfig(): {
+  requestTimeout: number;
+  connectionTimeout: number;
+  throwOnRequestTimeout: true;
+} {
+  return {
+    requestTimeout: resolveClampedTimeout(
+      process.env.STORAGE_S3_REQUEST_TIMEOUT_MS,
+      S3_REQUEST_TIMEOUT_MS_DEFAULT,
+      S3_REQUEST_TIMEOUT_MS_MIN,
+      S3_REQUEST_TIMEOUT_MS_MAX,
+    ),
+    connectionTimeout: resolveClampedTimeout(
+      process.env.STORAGE_S3_CONNECTION_TIMEOUT_MS,
+      S3_CONNECTION_TIMEOUT_MS_DEFAULT,
+      S3_CONNECTION_TIMEOUT_MS_MIN,
+      S3_CONNECTION_TIMEOUT_MS_MAX,
+    ),
+    // Verplicht: maakt van een requestTimeout-breach een echte fout (req.destroy + reject) i.p.v. een
+    // stille console.warn. Zonder deze vlag beschermt requestTimeout de response-fase NIET.
+    throwOnRequestTimeout: true,
+  };
+}
+
 /** De server-side-encryptie-modus die we verwachten terug te zien op een opgeslagen object. */
 export type ExpectedSse = "AES256" | "aws:kms" | "none";
 
@@ -328,6 +398,10 @@ class S3StorageDriver implements StorageDriver {
         if (!bucket) throw new Error("STORAGE_S3_BUCKET ontbreekt voor S3-storage.");
         const client = new lib.S3Client({
           region: process.env.STORAGE_S3_REGION,
+          // Harde deadlines zodat een hangende backend de upload/download-request niet onbeperkt
+          // blokkeert (zie resolveS3TimeoutConfig). NodeHttpHandlerOptions-vorm: de SDK bouwt hier
+          // zelf de default NodeHttpHandler mee op.
+          requestHandler: resolveS3TimeoutConfig(),
           ...(process.env.STORAGE_S3_ENDPOINT
             ? { endpoint: process.env.STORAGE_S3_ENDPOINT, forcePathStyle: true }
             : {}),

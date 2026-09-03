@@ -32,6 +32,35 @@ sinds `c238580d` (14 PR's). Twee gaten op de níeuwe VOG-metadata-modus (#1338) 
 geen erasure-pad voor afgewezen bureau, fail-open rate-limit, DB-transitie) geparkeerd in
 `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-09-03). `npm audit --omit=dev`: 0 kwetsbaarheden.
 
+## 2026-09-03 — prod: harde time-out op de S3-opslag-client (silent-hang-vangnet objectopslag)
+
+**Wat:** objectopslag (S3, `STORAGE_DRIVER=s3`) was het enige externe productie-**kern**kanaal zónder
+harde deadline. De AWS-SDK opent zijn eigen HTTP-verbindingen (geen `fetch`, dus buiten
+`fetchWithTimeout` om) en had zonder config géén request-deadline: een backend die de socket openhoudt
+maar niet meer antwoordt (netwerk-partitie, connection-pool-uitputting, regio-storing) liet een
+put/get/delete/head **onbeperkt** hangen — precies de stille faalmodus die de codebase overal al
+afvangt (`fetchWithTimeout` billing/e-mail/rate-limit/verify, `withProbeTimeout` health-probes,
+`withTaskTimeout` cron). Objectopslag is de VOG/diploma/verzekering upload+download-hot-path; een
+hangende operatie blokkeerde de gebruikers-request zonder deadline. Nu draagt de `S3Client` een
+`connectionTimeout` (verbinding opzetten) én `requestTimeout` (socket-inactiviteit) — bij overschrijding
+werpt de SDK, de aflever-heartbeat registreert de mislukking en de oproeper handelt af.
+
+**Aanpak:** pure/testbare `resolveS3TimeoutConfig()` (`src/lib/services/storage.ts`) leest env en klemt:
+request [1000, 120000] default 20000 (ruimer dan de 60s-fetch-grens — een put/get verplaatst tot 10 MB
+documentdata), connection [500, 60000] default 3000, plus **`throwOnRequestTimeout: true`** (essentieel:
+zonder die vlag emit `@smithy/node-http-handler` bij een requestTimeout-breach alléén een `console.warn`
+zonder `req.destroy`/`reject` — dan hangt de response-fase alsnog; mét de vlag wordt het een echte
+`TimeoutError`). Meegegeven als `requestHandler`-config (NodeHttpHandlerOptions) aan de client; ongeldig/
+leeg valt veilig terug op de default. Alleen de S3-driver; de lokale disk-fallback blijft ongemoeid. Geen
+nieuwe dependency, geen gedragswijziging bij succes.
+
+**Bestanden:** `src/lib/services/storage.ts` (+ `.test.ts`, 5 nieuwe tests), `src/lib/env.ts`
+(`STORAGE_S3_REQUEST_TIMEOUT_MS`/`STORAGE_S3_CONNECTION_TIMEOUT_MS`), `.env.example`, `MENSENWERK.md`.
+
+**Checks:** typecheck / lint / unit (storage 32/32) / build / prettier groen; CI-poort verifieert.
+Resterend mensenwerk: **niets** — werkt out-of-the-box zodra `STORAGE_DRIVER=s3` staat; optioneel de
+twee env-knoppen bijstellen.
+
 ## 2026-09-02 — routine: verificatiewachtrij markeert certificaten die een lopende inzet blokkeren (admin)
 
 **Wat:** de admin-verificatiewachtrij (`/admin/verificaties`) toonde vraag vanuit **open opdrachten**
@@ -349,35 +378,3 @@ terminale/bevroren inzet hard weigert (ná de tenant-poort → geen CWE-203-orac
 - tests (`pending-tasks.shift-handoff.test.ts`, `signals.shift-handoff-collab-scope.test.ts` [nieuw],
   `governance-screen.test.tsx`, `oracle.test.ts` — samen +12, rood→groen). Backlog bijgewerkt
   (1 latente tijdzone-nit geparkeerd). Gate groen (typecheck/lint/unit/build/prettier).
-
-## 2026-09-01 — security: tweede-factor-challenge vereist om 2FA uit te zetten (OWASP ASVS 2.8)
-
-**Wat:** `disableTwoFactor` her-authenticeerde alleen met het accountwachtwoord — het uitschakelen van
-2FA (secret + álle herstelcodes in één transactie gewist) vereiste géén tweede-factor-challenge. Een
-uitgelekt/hergebruikt/gephisht wachtwoord kon dus in z'n eentje de beveiligingslaag strippen, precies de
-laag die het account beschermt als het wachtwoord uitlekt. Best practice bij GitHub/Google is een
-factor-challenge vóór het verwijderen van de factor. (Geparkeerde security-nit uit persona-sweep run 103.)
-
-**Fix:** een account met 2FA aan moet nu — náást het wachtwoord — een geldige TOTP-code of ongebruikte
-herstelcode invoeren om 2FA uit te zetten. De verificatie loopt via **dezelfde replay-veilige poort als
-de login**: de module-private `verifySecondFactor` uit `authorize-credentials.ts` is verbatim geëxtraheerd
-naar `src/lib/two-factor/verify-second-factor.ts` (één bron van waarheid; login rewired als pure
-import-swap, gedrag ongewijzigd). Zo erft de disable-challenge exact de TOTP-replay-preventie (atomaire
-high-water-mark `updateMany`, TOCTOU-safe), het eenmalige herstelcode-verbruik en de audit-reden. De
-factor wordt geverifieerd vóór enige schrijfactie; faalt hij, dan blijft 2FA aan.
-
-**Bestanden:**
-
-- `src/lib/two-factor/verify-second-factor.ts` — nieuwe gedeelde poort (`verifySecondFactor`, met
-  optionele `context`-audit-metadata) + `verify-second-factor.test.ts` (8 tests: TOTP/replay/decrypt-fout/
-  herstelcode/context).
-- `src/lib/authorize-credentials.ts` — lokale functie verwijderd; import + call rewired (behoud van gedrag).
-- `src/app/(protected)/account/tweestapsverificatie/actions.ts` — disable-schema `token`, findUnique-select
-  uitgebreid, factor-gate vóór de transactie.
-- `src/app/(protected)/account/tweestapsverificatie/two-factor-panel.tsx` — verificatiecode-veld op OnPanel.
-- `src/app/(protected)/account/tweestapsverificatie/actions.test.ts` — disable-tests: factor geëist,
-  mislukte factor gate't uitschakeling, geen DISABLED-audit bij mislukking.
-- `docs/PERSONA-SWEEP-BACKLOG.md` — geparkeerde nit → OPGELOST.
-
-**Checks:** typecheck ✓, unit (verify-second-factor 8/8 + tweestapsverificatie-actions + authorize-credentials
-groen) ✓, lint ✓, build ✓, prettier ✓. CI-poort verifieert.
