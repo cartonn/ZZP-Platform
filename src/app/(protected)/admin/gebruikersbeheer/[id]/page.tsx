@@ -169,7 +169,10 @@ export default async function AdminGebruikerDetailPage({ params }: { params: Par
                       {c.expiresAt ? ` · verloopt ${formatDateNl(c.expiresAt)}` : ""}
                     </p>
                   </div>
-                  <CredentialStatusBadge status={c.status as CredentialStatus} />
+                  <CredentialStatusBadge
+                    status={c.status as CredentialStatus}
+                    expiresAt={c.expiresAt}
+                  />
                 </div>
               ))}
             </div>

@@ -10,6 +10,37 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-04 — routine: badge/telling toont een server-verlopen VERIFIED-certificaat als verlopen (#1380)
+
+**Wat:** twee adversariële Opus-audits op niet-overlappende kern-oppervlakken (certificaat-/
+verificatie-lifecycle · ORT/cascade-math + reminders). De cascade-audit bevond de geld-paden schoon
+(reconcile, segmentatie, nummering, VAT, reminder-idempotentie — alleen een LAAG reminder-jitter-nootje,
+onder de lat). De lifecycle-audit vond één bereikbaar server-side-waarheid-defect (CLAUDE.md regel 1).
+
+**Defect:** de hele app behandelt een `VERIFIED`-certificaat met een gepasseerde `expiresAt` als
+verlopen — óók vóór de expiry-cron (`runExpiryTask`) de status naar `EXPIRED` flipt (`isExpired`,
+`computeCompliance`, verval-danger-band, `/acties`). De **statusbadge** was de enige plek die de ruwe
+DB-status toonde: `VERIFIED` → groene "Geverifieerd", zonder naar `expiresAt` te kijken. Op de
+bemiddelaar-cockpit `/franchise/zzpers/[id]` toonde één scherm zo tegelijk de rode danger-band "1
+certificaat verlopen" én een groene "Geverifieerd"-badge voor hetzelfde certificaat — een
+cross-surface tegenspraak op precies het vertrouwenssignaal dat het platform onderscheidt. Ook op
+`/certificaten` (ZZP'er, badge vs. "(verlopen)"-tekst) en `/admin/gebruikersbeheer/[id]`. Dezelfde
+wortel-oorzaak in het DBA-dossier-PDF: `verifiedCount` (→ `trustLevel`) telde een server-verlopen
+certificaat mee als geverifieerd (de route selecteerde `expiresAt` niet eens).
+
+**Fix:** `CredentialStatusBadge` accepteert nu `expiresAt` en loopt door dezelfde `isExpired`-regel
+(`VERIFIED` + gepasseerde `expiresAt` → toont "Verlopen"); de drie call-sites geven `expiresAt` mee
+(ze selecteerden het al). `buildDbaAuditData` sluit server-verlopen certificaten uit van
+`verifiedCount`; de dba-dossier-route selecteert + geeft `expiresAt` mee. Server-side blijft de
+waarheid — de badge/telling toont, beslist niet.
+
+**Bestanden:** `src/components/credentials/credential-status-badge.tsx` (+ `.test.tsx`, 6 cases),
+`src/app/(protected)/{franchise/zzpers/[id],certificaten/(index),admin/gebruikersbeheer/[id]}/page.tsx`,
+`src/lib/dba-audit.ts` (+ `.test.ts`, +3 cases: verlopen-VERIFIED → BASIS, toekomst → DEELS, gemengd),
+`src/app/api/samenwerkingen/[id]/dba-dossier/route.ts`, `docs/PERSONA-SWEEP-BACKLOG.md`.
+
+**Checks:** typecheck ✓ · lint ✓ · unit 8143 ✓ (2 skip) · prettier --check ✓ · build ✓; CI-poort verifieert.
+
 ## 2026-09-02/03 — bouwprogramma na de Fable-review: 24 PR's in drie golven (orchestrator + parallelle builders)
 
 **Aanleiding:** onafhankelijke totaalreview van 2-9 (rapport "Handslag onder de loep"): engineering sterk,
@@ -354,30 +385,3 @@ schema-/mutatie-/authz-oppervlak, geen dode knop. Nav-item toegevoegd voor de FR
 `src/components/franchise/roster-timeline-grid.tsx` (+ `.test.tsx`), `src/lib/nav.ts`.
 
 **Checks:** typecheck / lint / unit / build / prettier groen; CI-poort verifieert.
-
-## 2026-09-02 — persona-sweep run 106: legacy-loose facturatie-nudge + jaarwissel-factuurnummer
-
-**Wat:** kritische-gebruiker-sweep (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
-niet-overlappende oppervlakken: authz/IDOR/tenant · next-action-engine · financiële/cascade-math). De
-authz/IDOR/tenant-audit vond **0 bereikbare gaten**. Twee defecten gedicht:
-
-1. **DOEL 1b — MISSING next-action (server-side waarheid):** `getBillingReadiness` (facturatie-
-   gereedheid-nudge, #1324) scoopte zijn bewijs-query op `issuerUserId: userId` alléén. Die kolom zet
-   alleen de cascade-handler (`null` = platform-fee/legacy), dus een ZZP'er met een legacy loose-factuur
-   (issuerUserId null, samenwerking wél van hem) kreeg de art. 35a-btw-id/IBAN-nudge **nooit** — precies
-   zijn doelpopulatie. Zelfde kolom-scope-bug als al 3× elders gedicht (`freelancer-stats.ts`, run 79).
-   **Fix:** `OR: [{ issuerUserId }, { collaboration: { freelancer: { userId } } }]` + deterministische
-   `orderBy`. +2 regressietests.
-2. **DOEL 2 — jaarwissel-factuurnummer (juridisch nummer):** het jaarprefix gebruikte
-   `new Date().getFullYear()` (server-UTC) i.p.v. de Amsterdamse burgerlijke kalender, op de cascade- én
-   losse-factuur-flow. Op de UTC-server valt 31 dec 23:15 UTC = 1 jan Amsterdam → de eerste
-   nieuwjaarsfactuur kreeg het oude jaarprefix terwijl haar `issuedAt` al het nieuwe jaar is. **Fix:**
-   `fiscalYearOf(new Date())` op beide call-sites. +1 jaarwissel-regressietest (`→ "2027-0001"`).
-
-**Bestanden:** `src/lib/data/freelancer-billing-readiness.ts` (+ `.test.ts`),
-`src/lib/cascade/invoice-commands.ts`, `src/app/(protected)/facturen/actions.ts` (+ `actions.test.ts`),
-`docs/PERSONA-SWEEP-BACKLOG.md`.
-
-**Tests:** billing-readiness (9) + facturen/actions (34) groen — rood→groen op de nieuwe logica.
-typecheck/lint/test/build/prettier groen. **Geparkeerd (nit):** `kor-projection.ts` rekent intern nog
-UTC i.p.v. `fiscalYearOf` — gemaskeerd in de UI (zie backlog).

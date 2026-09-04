@@ -1,5 +1,36 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-04 (auto-build routine, #1380) · **main-commit basis:** `2492745e`
+> **Uitkomst:** **1 defect gevonden én gefixt.** Twee parallelle adversariële Opus-audits op
+> niet-overlappende kern-oppervlakken (certificaat-/verificatie-lifecycle · ORT/cascade-math +
+> reminders). De **cascade/geld-audit vond 0 bereikbare defecten** (reconcileSubtotalWithInvoice
+> correct — `baseCents` is rate-profiel-onafhankelijk en `Performance` is immutabel na APPROVED;
+> segmentatie DST/middernacht zelf-consistent; nummering gapless in-tx met `fiscalYearOf`;
+> ledger/VAT lezen bevroren bedragen; reminder-idempotentie compound-guarded. Enige nootje: LAAG —
+> discrete-dag-gelijkheid in de pre-due reminder-vensters kan bij cron-jitter >24u één nudge
+> overslaan; onder de high-value-lat, niet opgepakt).
+>
+> - **OPGELOST — should-fix (CLAUDE.md regel 1 — server-side waarheid / cross-surface tegenspraak op
+>   vertrouwen): de certificaat-statusbadge toonde een server-verlopen VERIFIED-certificaat als groene
+>   "Geverifieerd".** De hele app behandelt een `VERIFIED`-credential met gepasseerde `expiresAt` als
+>   verlopen — óók vóór de expiry-cron flipt (`isExpired`, `computeCompliance`, verval-danger-band,
+>   `/acties`). `CredentialStatusBadge` mapte echter de ruwe DB-status, dus op één en hetzelfde scherm
+>   (bemiddelaar `/franchise/zzpers/[id]`, ZZP'er `/certificaten`, admin `/admin/gebruikersbeheer/[id]`)
+>   stonden de rode "verlopen"-band én de groene "Geverifieerd"-badge voor hetzelfde certificaat. Repro:
+>   VOG `status=VERIFIED`, `expiresAt=gisteren`, cron nog niet gedraaid → badge groen, band rood.
+>   Zelfde wortel-oorzaak in het DBA-dossier-PDF: `verifiedCount`/`trustLevel` (`dba-audit.ts`) telde een
+>   server-verlopen certificaat mee als geverifieerd (route selecteerde `expiresAt` niet eens). **Fix:**
+>   `CredentialStatusBadge` accepteert `expiresAt` en loopt door dezelfde `isExpired`-regel; 3 call-sites
+>   geven `expiresAt` mee; `buildDbaAuditData` sluit server-verlopen certificaten uit; dba-dossier-route
+>   selecteert + geeft `expiresAt` mee. +6 badge-cases, +3 dba-audit-cases (rood→groen). Bestanden:
+>   `src/components/credentials/credential-status-badge.tsx` (+ `.test.tsx`), de 3 page.tsx call-sites,
+>   `src/lib/dba-audit.ts` (+ `.test.ts`), `src/app/api/samenwerkingen/[id]/dba-dossier/route.ts`.
+> - **Reeds gedekt (niet mijn wijziging):** `compliance/dossier.ts` (run 108/#1361) en de overige
+>   verval-oppervlakken gebruiken `isExpired` al correct; deze fix sluit de laatste twee ruwe-status-
+>   weergaven (badge + DBA-telling) van deze bugklasse.
+>
+> ---
+
 > **Datum:** 2026-09-04 (run 108) · **main-commit basis:** `d89942be`
 > **Uitkomst:** **1 defect gevonden én gefixt.** Orchestrator (Opus 4.8) + live Playwright-sweep
 > over alle vier de rollen (login + doorklik naar dashboard/`/acties` en de rol-schermen) + 3
