@@ -51,6 +51,11 @@ const schema = z
     // Productie-webadres (NextAuth + deelbare dossier-links). In productie verplicht; lokaal optioneel.
     AUTH_URL: z.string().url("AUTH_URL moet een geldige URL zijn.").optional(),
     NEXTAUTH_URL: z.string().url("NEXTAUTH_URL moet een geldige URL zijn.").optional(),
+    // Extra vertrouwde host(s) voor de Server-Action-CSRF-poort van Next.js 15 (komma-gescheiden;
+    // host of volledige URL). Puur additief bovenop de default same-origin-check en bovenop de host
+    // uit AUTH_URL/NEXTAUTH_URL. Alleen nodig bij multi-domein (apex + www, of migratie tussen het
+    // Railway-domein en een eigen domein). Zie scripts/server-actions-origins.mjs + next.config.mjs.
+    SERVER_ACTIONS_ALLOWED_ORIGINS: z.string().optional(),
     // Eigen sleutel voor deelbare dossier-links (security-review H-1). Valt lokaal terug op
     // AUTH_SECRET; in productie verplicht zodat rotatie van het één niet het ander breekt.
     SHARE_TOKEN_SECRET: z

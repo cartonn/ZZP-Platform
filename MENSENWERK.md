@@ -456,6 +456,22 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   honoreren de header alleen over een veilige (HTTPS) verbinding, dus actief in productie (Railway),
   lokaal over http genegeerd.
 
+- **Server-Action-origin-allowlist (Next.js 15 CSRF-poort achter proxy)** (laag, code-kant GEDAAN
+  2026-09-04): Next.js 15 controleert bij élke Server Action de `Origin`-header tegen de
+  (`X-Forwarded-`)`Host` als CSRF-mitigatie. Achter Railway's reverse proxy of bij een eigen domein
+  kan die vergelijking mismatchen — dan faalt **élke mutatie** (documentupload, cascade, alle server
+  actions) stil met een 403 "Invalid Server Actions request", terwijl niets in de UI verklaart
+  waarom. `experimental.serverActions.allowedOrigins` (`next.config.mjs`, afgeleid via de pure,
+  geteste `scripts/server-actions-origins.mjs`) staat nu de canonieke publieke host(s) expliciet toe.
+  De host wordt afgeleid uit de **al benodigde** `AUTH_URL`/`NEXTAUTH_URL` (zelfde bron van waarheid
+  als `public-url.ts`), dus zodra die voor de login-callbacks is gezet, is deze poort automatisch
+  goed. Puur **additief**: de default same-origin-check blijft gelden — het verzwakt niets, het staat
+  alleen extra vertrouwde hosts toe. Leeg (lokaal/dev of niets geconfigureerd) → default gedrag
+  ongewijzigd (inert, CLAUDE.md §8). Resterend mensenwerk: **niets extra** bij één domein (volgt uit
+  `AUTH_URL`). Bij **multi-domein** (apex + www, of een migratie tussen het Railway-domein en een
+  eigen domein): zet de extra host(s) in `SERVER_ACTIONS_ALLOWED_ORIGINS` (komma-gescheiden; host of
+  volledige URL).
+
 ## §1. Hosting, database, opslag, domein, geheimen
 
 **Wat:** de plek waar de website draait, waar gegevens worden bewaard en waar documenten veilig

@@ -40,6 +40,23 @@ wekelijkse scheduled run). Onverwachte uitvoer faalt fail-safe. Durable test
 
 **Checks:** typecheck / lint / unit / build / prettier groen; CI-poort verifieert.
 
+## 2026-09-04 — prod: server-action origin-allowlist (Next.js 15 CSRF-poort achter proxy)
+
+**Wat:** Next.js 15 controleert bij élke Server Action de `Origin`-header tegen de (`X-Forwarded-`)
+`Host` als CSRF-mitigatie. Achter Railway's reverse proxy of bij een eigen domein kan die
+vergelijking mismatchen → élke mutatie (documentupload, cascade, alle server actions) faalt dan stil
+met een 403. `experimental.serverActions.allowedOrigins` (`next.config.mjs`) staat nu de canonieke
+publieke host(s) expliciet toe, afgeleid uit `AUTH_URL`/`NEXTAUTH_URL` (+ optionele
+`SERVER_ACTIONS_ALLOWED_ORIGINS` voor multi-domein) via de pure, geteste
+`scripts/server-actions-origins.mjs`. Puur additief (default same-origin-check blijft), inert zonder
+config (leeg → default gedrag, CLAUDE.md §8). Zelfde `.mjs`-helper-patroon als `shutdown-config.mjs`.
+
+**Bestanden:** `scripts/server-actions-origins.mjs` + `.test.ts` (13 cases), `next.config.mjs`
+(import + conditionele `allowedOrigins`), `src/lib/env.ts` (`SERVER_ACTIONS_ALLOWED_ORIGINS` in
+schema), MENSENWERK.md §0b. **Gate:** typecheck ✓ · lint ✓ · test 8072 ✓ · prettier --check ✓ ·
+build ✓. **Mensenwerk:** niets extra bij één domein (volgt uit `AUTH_URL`); bij multi-domein
+`SERVER_ACTIONS_ALLOWED_ORIGINS` zetten.
+
 ## 2026-09-03 — persona-sweep: BTW-jaar volgt Amsterdamse kalender + agenda lekt geen CLIENT-BTW-deadline
 
 **Wat:** persona-sweep-ronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits op niet-overlappende
@@ -369,132 +386,3 @@ een **wegwerp scratch-database** (`DRILL_DATABASE_URL`) en leest daarna schema (
 `scripts/backup-restore-drill.ts`, `package.json` (script), `.env.example` (`DRILL_DATABASE_URL`/
 `DRILL_VERIFY_TABLE`), `docs/RUNBOOK.md` §5, `MENSENWERK.md` §1b. Resterend mensenwerk: een lege
 wegwerp-Postgres + `DRILL_DATABASE_URL` zetten; periodiek draaien.
-
-## 2026-09-01 — routine: kilometervergoeding is de enige aftrekpost bij een reiskosten-rit (server-side)
-
-**Wat:** een REISKOSTEN-uitgave kon zowel een handmatig `netCents` (werkelijke autokost) als
-`kilometers` opslaan. De vaste kilometervergoeding (€ 0,23/km, 0% btw) hóórt de werkelijke autokosten te
-_vervangen_, niet te stapelen (fiscaal kies je één methode). De UI leidde het bedrag al uit de km af,
-maar de server — de bron van waarheid — dwong dit niet af: via een bewerkt net-veld, bulk of API kon
-het geboekte bedrag (winst/IB) de rittenregistratie/km-aftrek voor dezelfde rit tegenspreken.
-(Geparkeerde nit persona-sweep run 103.)
-
-**Aanpak:** één `.transform` in `expenseSchema` (`src/lib/expense.ts`, de bron van waarheid → elk
-call-punt normaliseert gelijk) maakt km gezaghebbend: bij `category === "REISKOSTEN"` met vastgelegde
-`kilometers` wordt `netCents = mileageExpenseNetCents(km)` en `vatCents = 0`. De transform staat vóór de
-"> € 0"-refine, zodat een km-rit met een leeg nettoveld het afgeleide bedrag krijgt en de refine haalt.
-`createExpense` consumeert de genormaliseerde schema-output ongewijzigd → grootboek + audit boeken het
-afgeleide bedrag, dat per constructie samenloopt met `summarizeMileage` (canoniek uit km). De UI
-(`uitgaven-form.tsx`) zet netto/btw/tarief op alleen-lezen zodra een rit is ingevuld, met een uitleg,
-zodat de wederzijdse uitsluiting zichtbaar is (geen "getypt bedrag verdwijnt"-verrassing).
-
-**Bestanden:** `src/lib/expense.ts` (+ `.test.ts`, +4 schema-tests),
-`src/components/administratie/uitgaven-form.tsx`,
-`src/app/(protected)/uitgaven/actions.test.ts` (+1 action-regressietest). Backlog-nit → OPGELOST.
-
-**Checks:** typecheck ✓, lint ✓, unit (7600+ groen; +5 nieuwe) ✓, build ✓, prettier ✓. CI-poort verifieert.
-
-## 2026-09-01 — persona-sweep run 105: KOR-meter jaarwisseling-regressie (jaar én kwartaal uit dezelfde Amsterdamse instant)
-
-**Wat:** het "ontzorgd"-dashboard van de ZZP'er (voedt de KOR-omzetgrensmeter) bepaalde het fiscale
-jaar met `getUTCFullYear()` terwijl het kwartaal Amsterdams (`fiscalQuarterOf`) werd bepaald — een
-regressie t.o.v. de vandaag gemergde fiscale-kalender-consolidatie (#1318). Op een UTC-server viel rond
-de jaarwisseling (`31 dec 23:00–24:00 UTC` = `1 jan 00:00–01:00` Amsterdam) het jaar niet meer samen met
-het Amsterdamse kwartaal; `annualSummary`/`vatReturn` filteren intern op `fiscalYearOf` → de meter laadde
-de omzet van het oude jaar en kon een vals "KOR-grens genaderd"-alarm geven op nieuwjaarsochtend. Zelfde
-root cause in `ontzorgd-panel.tsx`: de urencriterium-aggregatie gebruikte UTC-kalenderjaargrenzen.
-
-**Aanpak:** `year = fiscalYearOf(input.now)` in `ontzorg-overview.ts` (jaar én kwartaal uit dezelfde
-Amsterdamse instant); de panel-urenaggregaties op de halfopen `[yearStartInstant(fy), yearStartInstant(fy+1))`-
-grenzen (spiegelt `taxYearRange`/`annualSummary`). Gevonden door de adversariële financiële-audit; de
-authz/IDOR/tenant- én next-action-audits vonden 0 bereikbare gaten in de nieuwste oppervlakken.
-
-**Bestanden:** `src/lib/tax/ontzorg-overview.ts` (+ `.test.ts`, +1 regressietest rood→groen),
-`src/components/administratie/ontzorgd-panel.tsx`, `docs/PERSONA-SWEEP-BACKLOG.md`.
-
-**Checks:** prettier ✓, typecheck/lint/unit/build verifieert (CI-poort leidend).
-
-## 2026-09-01 — routine: fiscale periode-indeling consistent in Europe/Amsterdam
-
-**Wat:** de fiscale rapportages (BTW per kwartaal, jaaroverzicht/IB, km-aftrek per jaar, platform-
-kwartaaloverzicht) deelden een boeking (`occurredAt`) in een periode in met een mix van lokale
-`getFullYear()`/`getMonth()` en `getUTCFullYear()` — nooit in Europe/Amsterdam. De Nederlandse fiscale
-kalender loopt op de burgerlijke dag in NL-tijd. Op een UTC-server (Railway) landde een boeking gemaakt
-vlak na middernacht NL-tijd daardoor één dag/periode te vroeg (bv. 1 jan 00:30 Amsterdam = 31 dec 23:30
-UTC → verkeerd BTW-kwartaal/belastingjaar), en de rapportagefamilies konden onderling verschillen. De
-trend-modules (`revenue.ts`, `expense-trend.ts`, …) groepeerden al wél in Europe/Amsterdam; deze familie
-week daarvan af (geparkeerde nit persona-sweep run 104).
-
-**Aanpak:** één bron van waarheid `src/lib/administration/fiscal-calendar.ts` — pure helpers die jaar/
-kwartaal/maand van een `Date` in Europe/Amsterdam bepalen (`fiscalYearOf`/`fiscalQuarterOf`/`fiscalMonthOf`)
-plus query-grenzen als UTC-instant (`quarterStartInstant`/`yearStartInstant`/`amsterdamCivilDayStart`/
-`amsterdamCivilDayMs`, offset-correct over wintertijd +1 én zomertijd +2). Alle periode-indeling
-(`overview.ts`, `platform-overview.ts`, `expense.ts`, `expense-mileage.ts`) en de deadline-modules
-(`vat-deadline.ts`, `income-tax-deadline.ts` — `previousQuarter`/`vatQuarterRange`/`taxYearRange`/
-`wholeDaysUntil`) leunen erop. De pure classifier en de query-grenzen blijven exact consistent, zodat een
-DB-gescopete set precies de entries bevat die de pure berekening ziet (self-consistency-test).
-
-**Bestanden:** `src/lib/administration/fiscal-calendar.ts` (nieuw) + `.test.ts`,
-`src/lib/administration/{overview,platform-overview,vat-deadline,income-tax-deadline}.ts`,
-`src/lib/expense.ts`, `src/lib/expense-mileage.ts`, en de bijbehorende tests (boundary-regressies +
-data-layer-grenzen bijgewerkt naar de Amsterdam-instanten). Backlog-nit → OPGELOST.
-
-**Checks:** typecheck ✓, lint ✓, unit (7600+ groen; +19 nieuwe/aangepaste fiscale-kalender-tests) ✓,
-prettier ✓. Build/CI-poort verifieert.
-
-## 2026-09-01 — persona-sweep run 104: dienst-overname-beslistaak + nav-badge verdwijnen op een terminale/bevroren inzet
-
-**Wat:** een OPEN dienst-overname-aanvraag (`ShiftHandoff`) bleef eeuwig als beslis-taak (`/acties`
-bemiddelaar + admin, dashboard-rail, sidebar-badge) én nav-badge hangen nadat de bijbehorende samenwerking
-terminaal (CANCELLED/COMPLETED) of bevroren (dispuut) werd — recht tegen de server-side status in en
-cross-surface inconsistent. Zelfde bugklasse als run 103 (`job.status`-scope op de kandidaat-taken).
-
-**Aanpak:** displayqueries scoopten alleen op `ShiftHandoff.status: "OPEN"`, niet op de
-parent-`collaboration.status`, terwijl niets de OPEN-aanvraag sluit bij een collab-transitie
-(`cancelCollaboration`/auto-completion/`openDispute`). `collaboration: { status: "ACTIVE", disputedAt: null }`
-toegevoegd aan `pending-tasks.ts` (franchiser + admin) en `signals.ts` (`openHandoffs` + `openAdminHandoffs`),
-spiegelt de sibling-queries (`endingCollabs`, `openDiensten`) die al parent-gescoped waren. Na een
-**agent-review-BLOCK** ook de derde surface meegenomen: het gedeelde governance-scherm
-(`ShiftHandoffGovernanceScreen`) waar badge/taak náár linken haalde OPEN-handoffs óók ongescoped op
-(moot-aanvraag zichtbaar mét werkende approve/reject-formulieren). Zelfde collab-scope op
-`governance-screen.tsx` + een **server-side guard** in `loadDecidableHandoff` die een beslissing op een
-terminale/bevroren inzet hard weigert (ná de tenant-poort → geen CWE-203-oracle).
-
-**Bestanden:** `src/lib/actions/pending-tasks.ts`, `src/lib/signals.ts`,
-`src/components/shift-overname/governance-screen.tsx`, `src/app/(protected)/admin/shift-overnames/actions.ts`,
-
-- tests (`pending-tasks.shift-handoff.test.ts`, `signals.shift-handoff-collab-scope.test.ts` [nieuw],
-  `governance-screen.test.tsx`, `oracle.test.ts` — samen +12, rood→groen). Backlog bijgewerkt
-  (1 latente tijdzone-nit geparkeerd). Gate groen (typecheck/lint/unit/build/prettier).
-
-## 2026-09-01 — security: tweede-factor-challenge vereist om 2FA uit te zetten (OWASP ASVS 2.8)
-
-**Wat:** `disableTwoFactor` her-authenticeerde alleen met het accountwachtwoord — het uitschakelen van
-2FA (secret + álle herstelcodes in één transactie gewist) vereiste géén tweede-factor-challenge. Een
-uitgelekt/hergebruikt/gephisht wachtwoord kon dus in z'n eentje de beveiligingslaag strippen, precies de
-laag die het account beschermt als het wachtwoord uitlekt. Best practice bij GitHub/Google is een
-factor-challenge vóór het verwijderen van de factor. (Geparkeerde security-nit uit persona-sweep run 103.)
-
-**Fix:** een account met 2FA aan moet nu — náást het wachtwoord — een geldige TOTP-code of ongebruikte
-herstelcode invoeren om 2FA uit te zetten. De verificatie loopt via **dezelfde replay-veilige poort als
-de login**: de module-private `verifySecondFactor` uit `authorize-credentials.ts` is verbatim geëxtraheerd
-naar `src/lib/two-factor/verify-second-factor.ts` (één bron van waarheid; login rewired als pure
-import-swap, gedrag ongewijzigd). Zo erft de disable-challenge exact de TOTP-replay-preventie (atomaire
-high-water-mark `updateMany`, TOCTOU-safe), het eenmalige herstelcode-verbruik en de audit-reden. De
-factor wordt geverifieerd vóór enige schrijfactie; faalt hij, dan blijft 2FA aan.
-
-**Bestanden:**
-
-- `src/lib/two-factor/verify-second-factor.ts` — nieuwe gedeelde poort (`verifySecondFactor`, met
-  optionele `context`-audit-metadata) + `verify-second-factor.test.ts` (8 tests: TOTP/replay/decrypt-fout/
-  herstelcode/context).
-- `src/lib/authorize-credentials.ts` — lokale functie verwijderd; import + call rewired (behoud van gedrag).
-- `src/app/(protected)/account/tweestapsverificatie/actions.ts` — disable-schema `token`, findUnique-select
-  uitgebreid, factor-gate vóór de transactie.
-- `src/app/(protected)/account/tweestapsverificatie/two-factor-panel.tsx` — verificatiecode-veld op OnPanel.
-- `src/app/(protected)/account/tweestapsverificatie/actions.test.ts` — disable-tests: factor geëist,
-  mislukte factor gate't uitschakeling, geen DISABLED-audit bij mislukking.
-- `docs/PERSONA-SWEEP-BACKLOG.md` — geparkeerde nit → OPGELOST.
-
-**Checks:** typecheck ✓, unit (verify-second-factor 8/8 + tweestapsverificatie-actions + authorize-credentials
-groen) ✓, lint ✓, build ✓, prettier ✓. CI-poort verifieert.
