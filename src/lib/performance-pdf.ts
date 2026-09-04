@@ -14,7 +14,7 @@ import {
   makeWriter,
   winAnsiSafe,
 } from "@/lib/pdf-common";
-import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
+import { computeOrt, resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 
 export interface PerformancePdfData {
@@ -32,6 +32,8 @@ export interface PerformancePdfData {
   ortSegments: string | null;
   ortProfile: string | null;
   ortCustomRates: string | null;
+  /** Bij goedkeuring bevroren ORT-toeslagen; wint van de live samenwerkings-tarieven. */
+  ortRatesSnapshot: string | null;
   submittedAt: string; // "yyyy-mm-dd" of ""
 }
 
@@ -99,7 +101,11 @@ export async function buildPerformancePdf(data: PerformancePdfData): Promise<Uin
       const result = computeOrt(
         segments,
         data.rateCents,
-        resolveOrtRates({ ortProfile: data.ortProfile, ortCustomRates: data.ortCustomRates }),
+        resolveEffectiveOrtRates({
+          ortRatesSnapshot: data.ortRatesSnapshot,
+          ortProfile: data.ortProfile,
+          ortCustomRates: data.ortCustomRates,
+        }),
       );
       const cHours = 330;
       const cSur = 440;

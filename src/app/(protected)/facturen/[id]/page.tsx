@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
-import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
+import { computeOrt, resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
 import { currentDunningStage } from "@/lib/payment-reminders";
 import { buildAanmaningData } from "@/lib/aanmaning";
 import { AanmaningSection } from "@/components/invoices/aanmaning-section";
@@ -86,6 +86,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           submittedAt: true,
           status: true,
           ortSegments: true,
+          ortRatesSnapshot: true,
         },
       },
       collaboration: {
@@ -488,7 +489,8 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
                       const ort = computeOrt(
                         segs,
                         invoice.performance.rateCents,
-                        resolveOrtRates({
+                        resolveEffectiveOrtRates({
+                          ortRatesSnapshot: invoice.performance.ortRatesSnapshot,
                           ortProfile: invoice.collaboration.ortProfile,
                           ortCustomRates: invoice.collaboration.ortCustomRates,
                         }),

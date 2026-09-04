@@ -3,7 +3,7 @@
 // onder elke ureninvoer die segmenten bevat.
 
 import { CheckCircle2 } from "lucide-react";
-import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
+import { computeOrt, resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { formatEuro } from "@/lib/invoices";
 
@@ -12,6 +12,8 @@ interface OrtBreakdownProps {
   rateCents: number;
   ortProfile?: string | null;
   ortCustomRates?: string | null;
+  /** Bij goedkeuring bevroren toeslagen; is deze gezet, dan wint hij van de live samenwerkings-tarieven. */
+  ortRatesSnapshot?: string | null;
 }
 
 export function OrtBreakdown({
@@ -19,11 +21,12 @@ export function OrtBreakdown({
   rateCents,
   ortProfile,
   ortCustomRates,
+  ortRatesSnapshot,
 }: OrtBreakdownProps) {
   const result = computeOrt(
     ortSegments,
     rateCents,
-    resolveOrtRates({ ortProfile, ortCustomRates }),
+    resolveEffectiveOrtRates({ ortRatesSnapshot, ortProfile, ortCustomRates }),
   );
   if (result.lines.length === 0) return null;
   return (
