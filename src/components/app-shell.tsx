@@ -17,11 +17,10 @@ import { CommandPalette } from "@/components/search/command-palette";
 import { navForRole, splitNavItems, ROLE_LABEL } from "@/lib/nav";
 import { NavMoreMenu } from "@/components/nav-more-menu";
 import { getTranslator } from "@/lib/i18n/server";
-import { navBadges, withActionCenterBadge } from "@/lib/signals";
-import { pendingTaskCount } from "@/lib/actions/pending-tasks";
+import { withActionCenterBadge } from "@/lib/signals";
+import { readSignalSnapshot } from "@/lib/signals/snapshot";
 import { getTenantBranding } from "@/lib/franchise/branding";
 import { Brand } from "@/components/franchise/brand";
-import { prisma } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { avatarAccent } from "@/lib/avatar-accent";
 import { type UserRole } from "@/lib/enums";
@@ -34,15 +33,19 @@ export async function AppShell({
   children: React.ReactNode;
 }) {
   const role = user.role as UserRole;
-  const [unread, rawBadges, actionCount, branding, { t }] = await Promise.all([
+  // Alle drie de signalen (nav-badges, de /acties-teller en de bel-teller) komen uit één
+  // gebruikers-snapshot in plaats van uit drie losse, query-zware berekeningen. De snapshot is een
+  // cache van de UITKOMST van diezelfde berekeningen: is hij er niet, hoort hij bij een andere rol of
+  // is hij verlopen, dan herberekent `readSignalSnapshot` synchroon — hetzelfde resultaat, alleen
+  // duurder. Zie src/lib/signals/snapshot.ts voor de verssheids- en invalidatiegaranties.
+  const [signals, branding, { t }] = await Promise.all([
     user.id
-      ? prisma.notification.count({ where: { userId: user.id, readAt: null } })
-      : Promise.resolve(0),
-    user.id ? navBadges(role, user.id) : Promise.resolve({}),
-    user.id ? pendingTaskCount(user.id, role) : Promise.resolve(0),
+      ? readSignalSnapshot(user.id, role)
+      : Promise.resolve({ badges: {}, pendingTaskCount: 0, unreadNotifications: 0 }),
     user.id ? getTenantBranding(user.id) : Promise.resolve(null),
     getTranslator(),
   ]);
+  const unread = signals.unreadNotifications;
   // Navigatie + sectiekoppen vertaald op het render-moment (nav.ts blijft ongemoeid); de client-nav
   // krijgt al-vertaalde labels en blijft taal-onbewust.
   const navItems = navForRole(role).map((item) => ({
@@ -54,8 +57,9 @@ export async function AppShell({
   // "Meer"-menu in de bovenbalk. De snelzoeker houdt de volledige lijst, zodat een verplaatst
   // item vindbaar blijft.
   const { sidebar: sidebarItems, overflow: moreItems } = splitNavItems(navItems);
-  // De /acties-badge telt exact de openstaande taken (zoals de pagina ze toont).
-  const badges = withActionCenterBadge(rawBadges, actionCount);
+  // De /acties-badge telt exact de openstaande taken (zoals de pagina ze toont). Blijft een
+  // na-bewerking op de badges, precies zoals hiervoor — de snapshot bewaart de rauwe badges.
+  const badges = withActionCenterBadge({ ...signals.badges }, signals.pendingTaskCount);
   const initials = (user.name ?? user.email ?? "?")
     .split(" ")
     .map((p) => p[0])

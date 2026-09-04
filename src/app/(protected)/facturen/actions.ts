@@ -24,6 +24,7 @@ import { canSendPaymentReminder } from "@/lib/manual-payment-reminder";
 import { invoiceCreateRateLimiter } from "@/lib/rate-limit";
 import { fiscalYearOf } from "@/lib/administration/fiscal-calendar";
 import { plural } from "@/lib/plural";
+import { invalidateSignals } from "@/lib/signals/invalidate";
 
 export type InvoiceState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -332,6 +333,10 @@ export async function sendInvoice(invoiceId: string): Promise<void> {
       }),
     });
   });
+  // Beide partijen zien deze factuur terug in hun tellingen (de ZZP'er als openstaand/te laat, de
+  // opdrachtgever als te betalen + een nieuwe melding): snapshot direct laten vervallen in plaats van
+  // op de TTL wachten.
+  await invalidateSignals([actor.id, invoice.collaboration?.company.userId]);
   revalidatePath("/facturen");
   revalidatePath(`/facturen/${invoiceId}`);
 }
@@ -389,6 +394,8 @@ export async function markInvoicePaid(invoiceId: string): Promise<void> {
       }),
     });
   });
+  // Betaald = bij beide partijen een openstaande/te-late factuur minder (en een melding erbij).
+  await invalidateSignals([actor.id, invoice.collaboration?.freelancer.userId]);
   revalidatePath("/facturen");
   revalidatePath(`/facturen/${invoiceId}`);
 }
@@ -518,6 +525,8 @@ export async function cancelInvoice(invoiceId: string): Promise<void> {
       }),
     });
   });
+  // Geannuleerd = de factuur verdwijnt uit de openstaande/te-late tellingen van beide partijen.
+  await invalidateSignals([actor.id, invoice.collaboration?.company.userId]);
   revalidatePath("/facturen");
   revalidatePath(`/facturen/${invoiceId}`);
 }

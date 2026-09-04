@@ -41,10 +41,10 @@ type Role = "FREELANCER" | "CLIENT" | "ADMIN" | "FRANCHISER";
 const ROLES: readonly Role[] = ["FREELANCER", "CLIENT", "ADMIN", "FRANCHISER"];
 
 /**
- * Gemeten queries per rol voor de volledige app-shell (navBadges + pendingTaskCount +
- * meldingenteller + tenant-branding) op het moment dat dit budget werd vastgelegd. Puur
- * documentatie — de assertion gebruikt `BUDGET`. Reproduceerbaar over runs; zie het determinisme-blok
- * bovenaan.
+ * Gemeten queries per rol voor de KOUDE app-shell — de volledige berekening (navBadges +
+ * pendingTaskCount + meldingenteller + tenant-branding) zoals hij draait wanneer er geen bruikbare
+ * signaal-snapshot is. Puur documentatie — de assertion gebruikt `BUDGET`. Reproduceerbaar over runs;
+ * zie het determinisme-blok bovenaan.
  */
 const BASELINE: Record<Role, number> = {
   FREELANCER: 44,
@@ -66,6 +66,22 @@ const BUDGET: Record<Role, number> = {
   FRANCHISER: 49,
 };
 
+/**
+ * Hard plafond voor de WARME app-shell: de shell leest zijn signalen uit de gebruikers-snapshot
+ * (`readSignalSnapshot`) in plaats van ze opnieuw te berekenen. Dat is het pad dat een gebruiker in
+ * de praktijk vrijwel altijd raakt — de koude berekening draait alleen bij de eerste render na een
+ * mutatie of na het verlopen van de snapshot-TTL.
+ *
+ * Wat er dan nog gebeurt (gemeten, exact deze vier query-vormen):
+ *   1. `UserSignalSnapshot` — de rij zelf (badges-tellers + /acties- en bel-teller),
+ *   2. `UserSignalBadge`    — de badge-rijen van diezelfde snapshot (Prisma's relatie-lezing),
+ *   3. `User`               — tenantId opzoeken voor de white-label-merknaam,
+ *   4. `Tenant`             — de merknaam/kleur zelf.
+ * Nummer 3 en 4 zijn de tenant-branding, niet de signalen; een gebruiker zonder tenant (ADMIN) komt
+ * daarom op 3 uit. Boven dit getal is er een losse query bijgekomen — precies wat dit budget bewaakt.
+ */
+const WARM_BUDGET = 4;
+
 /** De client is via een dynamische import geladen; `$on("query")` bestaat alleen met PRISMA_QUERY_LOG=1. */
 type QueryLoggingClient = PrismaClient & {
   $on: (event: "query", cb: (e: { query: string; params: string }) => void) => void;
@@ -79,6 +95,7 @@ describe("query-budget: de app-shell per rol", () => {
   let queries: string[] = [];
   const fixtures = new Map<Role, string>();
   let shell: (role: Role, userId: string) => Promise<void>;
+  let warmShell: (role: Role, userId: string) => Promise<void>;
   let drainQueryEvents: () => Promise<void>;
   const previousUrl = process.env.DATABASE_URL;
   const previousLog = process.env.PRISMA_QUERY_LOG;
@@ -101,6 +118,7 @@ describe("query-budget: de app-shell per rol", () => {
     const signals = await import("@/lib/signals");
     const pending = await import("@/lib/actions/pending-tasks");
     const branding = await import("@/lib/franchise/branding");
+    const snapshot = await import("@/lib/signals/snapshot");
 
     // Sentinel-afhandeling: het event van de drain-query telt zelf niet mee en lost de wachtende
     // belofte op. Alle overige events landen in `queries`.
@@ -157,6 +175,17 @@ describe("query-budget: de app-shell per rol", () => {
       // stream leeg is, anders telt de meter er willekeurig een paar te weinig.
       await drainQueryEvents();
     };
+
+    // De WARME shell: exact wat `AppShell` doet sinds de signalen uit de snapshot komen — één
+    // `readSignalSnapshot` (die de badges, de /acties-teller én de bel-teller draagt) plus de
+    // tenant-branding.
+    warmShell = async (role, userId) => {
+      await Promise.all([
+        snapshot.readSignalSnapshot(userId, role),
+        branding.getTenantBranding(userId),
+      ]);
+      await drainQueryEvents();
+    };
   }, 120_000);
 
   afterAll(async () => {
@@ -196,7 +225,20 @@ describe("query-budget: de app-shell per rol", () => {
   }, 60_000);
 
   for (const role of ROLES) {
-    it(`houdt de app-shell voor ${role} binnen ${BUDGET[role]} queries`, async () => {
+    it(`houdt de WARME app-shell (via de snapshot) voor ${role} binnen ${WARM_BUDGET} queries`, async () => {
+      const userId = fixtures.get(role);
+      expect(userId, `fixture voor ${role} ontbreekt`).toBeDefined();
+      // Eerst één keer koud draaien: dat schrijft de snapshot. Die aanroep meten we niet — het is de
+      // eerste render na een mutatie, en die kost per definitie de volledige berekening.
+      await warmShell(role, userId!);
+      queries = [];
+      await warmShell(role, userId!);
+      const count = queries.length;
+      console.info(`[query-budget] ${role} (warm): ${count} queries`);
+      expect(count).toBeLessThanOrEqual(WARM_BUDGET);
+    }, 60_000);
+
+    it(`houdt de KOUDE app-shell voor ${role} binnen ${BUDGET[role]} queries`, async () => {
       const userId = fixtures.get(role);
       expect(userId, `fixture voor ${role} ontbreekt`).toBeDefined();
       queries = [];

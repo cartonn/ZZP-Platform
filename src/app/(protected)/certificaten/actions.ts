@@ -26,6 +26,7 @@ import {
 import { assertUploadClean } from "@/lib/services/upload-scanner";
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { credentialSchema } from "@/lib/validation";
+import { invalidateSignals } from "@/lib/signals/invalidate";
 import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
 
 export type CredentialState =
@@ -354,6 +355,9 @@ export async function requestVerification(credentialId: string): Promise<void> {
     entityId: credentialId,
     metadata: { from: status, to: "SUBMITTED" },
   });
+  // Een afgewezen certificaat dat opnieuw wordt ingediend verdwijnt uit de /certificaten-badge; laat
+  // de snapshot van de indiener daarom direct vervallen (de beheerders-wachtrij volgt via de TTL).
+  await invalidateSignals([actor.id]);
   revalidatePath("/certificaten");
 }
 

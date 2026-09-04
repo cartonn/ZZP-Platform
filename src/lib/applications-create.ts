@@ -12,6 +12,7 @@ import { estimateTravelMinutesWithRouting } from "@/lib/services/routing";
 import { canViewJob } from "@/lib/tenancy";
 import { applicationSchema } from "@/lib/validation";
 import { type Actor } from "@/lib/authz";
+import { invalidateSignals } from "@/lib/signals/invalidate";
 
 /** Sentinel: de plan-limiet was bij de atomische her-telling BÍNNEN de create-transactie alsnog bereikt
  *  (TOCTOU-race verloren). Buiten de transactie vertaald naar dezelfde nette gebruikersfout als de
@@ -248,6 +249,10 @@ export async function createApplicationForJob(
       link: "/kandidaten",
     },
   });
+
+  // De opdrachtgever heeft nu een nieuwe reactie (/kandidaten-badge + de bel) en de ZZP'er een
+  // reactie minder in zijn quotum; hun signaal-snapshot vervalt direct in plaats van na de TTL.
+  await invalidateSignals([job.company.userId, actor.id]);
 
   return { ok: true, applicationId: application.id };
 }
