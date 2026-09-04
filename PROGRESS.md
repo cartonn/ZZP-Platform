@@ -10,6 +10,31 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-04 — certificaat-vervalkalender → abonneer op je agenda (ZZP'er)
+
+**Wat:** de ZZP'er ziet op `/certificaten` de **vervalkalender** (`ExpiryOverviewCard`) met wat er
+(bijna) verloopt, maar kon die verval-deadlines nergens in zijn eigen agenda-app zetten — terwijl de
+agenda-`.ics`-feed (`/api/agenda` + `/api/agenda/feed.ics`) élk certificaat-verval al meestuurt, mét
+herinneringen 30 en 7 dagen vooraf. De "abonneer op je agenda"-affordance (`AgendaSubscribe`) stond
+alleen op `/samenwerkingen` en `/rooster`. Deze increment verbindt de urgentie (waar de ZZP'er 'm
+voelt) met de oplossing: één klik → verval-reminders in Google/Apple Agenda, zo mist hij geen
+vernieuwing.
+
+**Hoe (klein + additief):** `AgendaSubscribe` kreeg optionele copy-props (`description`,
+`privacyNote`, `downloadName`) met defaults = de huidige rooster-copy, dus de bestaande call-sites
+wijzigen byte-identiek niet. `ExpiryOverviewCard` kreeg een optionele `feedPath`-prop en toont de
+affordance in de kaart-header met certificaat-copy; de certificaten-pagina geeft `agendaFeedPath(actor.id)`
+door (feed uit → nette download-fallback). De alarm-doorlooptijden zijn ontdubbeld naar één bron
+(`CREDENTIAL_EXPIRY_ALARM_DAYS = [30, 7]` in `deadlines.ts`): de `.ics`-mapper hangt exact die alarmen
+aan, en de UI-copy leest dezelfde constante via `formatDayLeadTimes` → feed en belofte lopen nooit uiteen.
+
+**Bestanden:** `src/lib/calendar/deadlines.ts` (constant + `formatDayLeadTimes` + gebruik in mapper),
+`src/lib/calendar/deadlines.test.ts` (+6 cases: invariant feed↔constante, `formatDayLeadTimes`),
+`src/components/agenda/agenda-subscribe.tsx` (copy-props), `src/components/credentials/expiry-overview-card.tsx`
+(`feedPath`-prop + affordance), `src/app/(protected)/certificaten/(index)/page.tsx` (wiring).
+
+**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (calendar/deadlines: 19 passed) ✓ · build (CI-poort verifieert).
+
 ## 2026-09-04 — dedup: /admin/audit consolideert in de toezicht-hub (met CSV-export)
 
 **Wat:** het audit-log was de laatste losse toezicht-route die náást de toezicht-hub bleef bestaan
