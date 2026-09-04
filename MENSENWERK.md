@@ -281,6 +281,23 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   herhaling. Inert zolang een demo-verifier draait (raakt alleen de echte adapters). Resterend
   mensenwerk: **niets** — optioneel bij te stellen via `VERIFY_HTTP_TIMEOUT_MS`/`VERIFY_HTTP_RETRIES`.
 
+- **Time-out + retry op de reistijd-routing-provider (Geoapify) hot-path** (laag, code-kant GEDAAN
+  2026-09-04): de échte geocode-/route-fetches (`src/lib/services/routing.ts`, `fetchJson`) liepen op de
+  match-hot-path maar gebruikten als **enige** uitgaande productie-integratie een **kale `fetch`** —
+  zonder deadline en zonder retry — terwijl de routing-connectiviteitszelftest (én billing/e-mail/
+  rate-limit/verify) al `fetchWithTimeout` gebruikte. Een trage/hangende provider blokkeerde zo de
+  match-request onbeperkt (silent-hang/resource-exhaustion onder last), en één transiënte 5xx/429/
+  netwerk-blip liet de lookup onnodig terugvallen op de haversine-schatting **én** trip de routing
+  dead-man's-switch-heartbeat (valse page). De fetch deelt nu de gehardende `fetchWithTimeout` (env
+  `ROUTING_HTTP_TIMEOUT_MS`, geklemd 1000–60000) en doet een **begrensde retry-met-exponentiële-backoff**
+  bij transiënte fouten (netwerkfout, time-out, 5xx, 429) — instelbaar via `ROUTING_HTTP_RETRIES`
+  (geklemd 0–5, default 2). Geocode/route zijn **read-only GETs**, dus retry is idempotent-veilig; een
+  4xx (verkeerde sleutel) of onleesbare JSON faalt **meteen** zonder herhaling. De heartbeat registreert
+  alleen de einduitkomst (één succes of één mislukking na uitputte retries), zodat een blip die op de
+  retry herstelt de mislukkingen-teller niet onnodig oplopen laat. Inert bij `ROUTING_PROVIDER=offline`
+  (de pilot-default — geen provider actief, geen gedragsverandering). Resterend mensenwerk: **niets** —
+  optioneel bij te stellen via `ROUTING_HTTP_TIMEOUT_MS`/`ROUTING_HTTP_RETRIES`.
+
 - **Verificatie-adapter aflever-heartbeat (dead-man's-switch)** (code-kant GEDAAN 2026-08-23): completeert
   de dead-man's-switch-familie. Opslag/mail/push/billing (uitgaand + webhook-inkomend)/cron/back-up hadden
   al een doorlopend afleversignaal; de externe verificatie-registers (DUO-diploma's, BIG-register,

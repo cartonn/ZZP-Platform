@@ -10,6 +10,30 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-04 — prod: routing-provider hot-path time-out + transiënte retry (silent-hang-vangnet) (#1384)
+
+**Wat:** de échte Geoapify geocode-/route-fetches (`src/lib/services/routing.ts`, `fetchJson`) op de
+match-hot-path gebruikten als **enige** uitgaande productie-integratie een **kale `fetch`** — zonder
+deadline en zonder retry — terwijl de routing-connectiviteitszelftest (én billing/e-mail/rate-limit/
+verify) al `fetchWithTimeout` gebruikte. Een trage/hangende provider blokkeerde zo de match-request
+onbeperkt (silent-hang/resource-exhaustion onder last); één transiënte 5xx/429/netwerk-blip liet de
+lookup onnodig terugvallen op de haversine-schatting **én** trip de routing dead-man's-switch-heartbeat
+(valse page).
+
+**Fix (spiegelt `http-verify.ts`):** `fetchJson` deelt nu de gehardende `fetchWithTimeout` (env
+`ROUTING_HTTP_TIMEOUT_MS`, al door de zelftest gebruikt, geklemd 1000–60000) en doet een **begrensde
+retry-met-exponentiële-backoff** bij transiënte fouten (netwerk/time-out/5xx/429), instelbaar via
+`ROUTING_HTTP_RETRIES` (geklemd 0–5, default 2). Geocode/route zijn read-only GETs → retry
+idempotent-veilig; een 4xx (verkeerde sleutel) of onleesbare JSON faalt meteen. De heartbeat registreert
+alleen de **einduitkomst** (één succes, of één mislukking na uitputte retries) — een blip die op de retry
+herstelt laat de mislukkingen-teller niet onnodig oplopen. Inert bij `ROUTING_PROVIDER=offline` (de
+pilot-default): geen provider actief, geen gedragsverandering. Server-side; geen schema/migratie/authz.
+
+**Bestanden:** `src/lib/services/routing.ts` (+ `.test.ts`: 20 tests, incl. retry-herstel op 503,
+niet-transiënte 401 zonder retry, uitgeputte 429 = één mislukking, `resolveRoutingRetries`/backoff-klem).
+
+**Checks:** typecheck ✓ · lint ✓ · prettier --check . ✓ · unit (routing) ✓ · build (CI-poort verifieert).
+
 ## 2026-09-04 — security/privacy-audit: CSRF-origin-allowlist weigert een catch-all wildcard (fail-closed + zichtbaar)
 
 **Wat:** volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële
