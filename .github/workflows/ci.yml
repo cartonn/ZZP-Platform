@@ -1,15 +1,19 @@
 name: CI
 
 on:
+  # Eén run per PR-push: de push-trigger alleen nog op main (post-merge-bevestiging), PR-branches
+  # lopen uitsluitend via pull_request. Voorheen ("**" + pull_request) draaide élke PR-push twee
+  # volledige runs (2× vier e2e-shards); dat verdubbelde de CI-kosten én hield auto-merge op tot
+  # de dubbele run klaar was (gezien op #1340, #1354, #1332).
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 # Per git-ref hoogstens één CI-run tegelijk: een nieuwe push op dezelfde branch (of PR-synchronize)
 # annuleert de vorige, nog lopende run. Zonder dit stapelen snel opeenvolgende pushes meerdere volledige
 # runs op elkaar; die concurreren om de (begrensde) GitHub-runnerpool, waardoor e2e-shards de 25-min
 # job-timeout raken en als "cancelled" falen (gezien op #1154). Push- en pull_request-triggers houden een
-# eigen groep (verschillende github.ref), dus de reguliere twee runs per head blijven bestaan.
+# eigen groep (verschillende github.ref); sinds de push-trigger alleen op main staat is er per PR-push één run.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
