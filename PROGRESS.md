@@ -10,6 +10,31 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-04 — routine: /prestaties toont het bevroren factuursubtotaal (geen ORT-drift)
+
+**Wat:** `getPrestatiesForClient` (`src/lib/prestaties.ts`) herberekende voor élke prestatie — óók
+reeds goedgekeurde/gefactureerde — het subtotaal uit de **live** ORT-toeslagen van de samenwerking.
+Die toeslagen mogen ná goedkeuring nog wijzigen (`setOrtProfileAction` blokkeert alleen zolang er een
+SUBMITTED-urenstaat wacht), terwijl het factuurbedrag bij goedkeuren wordt bevroren
+(`Invoice.subtotalCents`, `performanceId @unique`, via `planPerformanceApproved` → `computeVat`, die
+het subtotaal ongewijzigd doorgeeft). Gevolg: het `/prestaties`-overzicht én de CSV-export konden
+gaan afwijken van de onveranderlijke factuur die de opdrachtgever daadwerkelijk kreeg/betaalde — de
+reconciliatie-oppervlakte die de payer tegen betalingen/loonstrook legt. Tegenspraak met de
+"één-bron-van-waarheid"-conventie.
+
+**Fix (server-side waarheid):** mapping-logica losgetrokken naar de pure, los-testbare
+`toPrestatieOverzicht(row)`; `getPrestatiesForClient` neemt de afgeleide factuur mee
+(`invoice: { subtotalCents }`) en toont, zodra die bestaat, háár bevroren subtotaal i.p.v. de
+live-herberekening. De ORT-toeslag reconciliëert tegen dat bevroren subtotaal
+(`toeslag = factuursubtotaal − basis`; de basis is snapshot-stabiel via het gesnapshotte uurtarief).
+Zonder factuur (DRAFT/SUBMITTED/REJECTED) blijven de live toeslagen legitiem de bron.
+
+**Bestanden:** `src/lib/prestaties.ts` (pure `toPrestatieOverzicht` + `PrestatieRow`, invoice in query),
+`src/lib/prestaties.test.ts` (+6 asserties: drift zonder factuur bewezen, bevroren mét factuur,
+non-ORT-uren, milestone, SUBMITTED-fallback).
+
+**Checks:** typecheck ✓ · lint ✓ · unit 8087 ✓ · build ✓ · prettier ✓; CI-poort verifieert.
+
 ## 2026-09-04 — security/privacy: timing-enumeratie bij bureau-aanmelding gedicht (CWE-208/A07)
 
 **Wat:** de zelfaanmelding van een bemiddelingsbureau (`registerBureau`) belooft "geen enumeratie" — een al
@@ -321,68 +346,3 @@ CLEAN). Twee HOOG-bevindingen gedicht:
 **Geparkeerd (mensenwerk, infra):** `DRILL_DATABASE_URL` moet naar een wegwerp-Postgres met productie-
 gelijkwaardige beveiliging wijzen (het retentievenster is in code gedicht; de scratch-vertrouwelijkheid is
 infra). Zie backlog + RUNBOOK §5.
-
-## 2026-09-01 — routine: proactieve facturatie-gereedheid-next-action (ZZP'er)
-
-**Wat:** de wettelijke factuur-compliancekaart (`invoice-legal.ts` → `InvoiceComplianceCard`) toetste alleen
-één reeds-geopende factuur (reactief). Een ZZP'er wiens profiel het btw-id of de IBAN mist, ontdekte dat pas
-per factuur — terwijl in de cascade elke goedgekeurde prestatie automatisch een factuur wordt. Zonder btw-id
-gaat élke uitgaande factuur juridisch onvolledig (art. 35a Wet OB) de deur uit; zonder IBAN kan de opdrachtgever
-niet betalen. Er was geen proactieve, profiel-brede nudge.
-
-**Aanpak:** nieuwe pure `assessBillingReadiness` (`src/lib/billing-readiness.ts`) leunt op
-`assessInvoiceCompliance` als énige bron van waarheid voor de btw-eis (synthetische factuur met alle niet-
-profielvelden voldaan; alleen het profiel-herstelbare, verplichte btw-punt telt) en voegt IBAN toe (betaalbaarheid,
-regime-onafhankelijk). Loader `getBillingReadiness` (`src/lib/data/freelancer-billing-readiness.ts`) is
-**evidence-based**: één eigenaar-gescopete query over de dáádwerkelijk uitgeschreven facturen (`issuerUserId` +
-`issuedAt` gezet) bepaalt of er wordt gefactureerd én of er btw wordt geheven — een KOR/EXEMPT-ondernemer krijgt
-zo nooit een valse art. 35a-melding, en wie nog niet factureert geen ruis. Gewired als next-action
-`billingProfileTask` (`P.billingProfileIncomplete = 47`: onder het acute geld-/deadline-cluster, boven relatie-/
-compleetheidsnudges) in de ZZP'er-tak van `pendingTasks`; deep-link (`resolver: "link"`) naar `/profiel/bewerken`.
-`getCompletenessProfile` laadt nu ook `btwNumber`/`iban` (gedeelde request-cache, geen extra query voor het profiel).
-
-**Bestanden:** `src/lib/billing-readiness.ts` (+ `.test.ts`, 8), `src/lib/data/freelancer-billing-readiness.ts`
-(+ `.test.ts`, 8), `src/lib/actions/tasks.ts` (`billingProfileTask` + union), `src/lib/actions/tasks.billing-profile.test.ts`
-(4), `src/lib/next-actions.ts` (prioriteit), `src/lib/actions/pending-tasks.ts` (emit),
-`src/lib/data/freelancer-profile.ts` (selects). Read-only afgeleid, geen schema-/mutatie-/authz-oppervlak, geen dode knop.
-
-**Checks:** typecheck ✓, lint ✓, unit (732 files / 7659 groen; +20 nieuw) ✓, build ✓, prettier ✓. CI-poort verifieert.
-
-## 2026-09-01 — security/privacy: MENSENWERK.md inverteerde welke PII-retentie live is (AVG art. 5(2)/5(1)(e))
-
-**Wat:** sinds #1308 (2026-08-31) staan de PII-retentievensters fail-safe AAN (lege env ⇒ actieve
-verwijdering op het beloofde venster: audit 365d, lead 365d, notificatie 180d, reactie 28d, support 365d,
-mail-intake 180d, health-IP 90d). `MENSENWERK.md` — het document waarop de eigenaar/FG leunt om te weten
-wat al live is — werd door #1308 niet bijgewerkt en bleef beweren dat retentie "standaard UIT / onbeperkt
-bewaren" is en "zolang het leeg blijft verandert er niets". Dat inverteert de waarheid over welke
-onomkeerbare PII-verwijdering in productie draait (verantwoordingsplicht, AVG art. 5(2)). Zes stil-wissende
-retentie-env's ontbraken bovendien volledig uit de env-var-tabel.
-
-**Aanpak:** de vier stale secties (auditlog-blok, env-tabelrij, audit-/reactie-/notificatie-/lead-gauges)
-herschreven naar de fail-safe-AAN-waarheid met #1308-referentie; env-tabel gecorrigeerd + 6 ontbrekende
-rijen toegevoegd; de twee kruisverwijzingen die auditlog nog bij "default UIT" schaarden ontkoppeld
-(berichten/webhook blijven correct als de énige bewust default-UIT vensters). Durable regressietest
-`src/lib/mensenwerk-retention-docs.test.ts` klinkt de doc vast aan de `config.ts`-defaults (rood→groen).
-
-**Bestanden:** `MENSENWERK.md`, `docs/SECURITY-PRIVACY-BACKLOG.md`,
-`src/lib/mensenwerk-retention-docs.test.ts` (nieuw, 4 tests). Audit A/B/C-oppervlakken (IDOR/tenant op
-41 api-routes + 50+ server actions, PII/SSRF/logs, erasure/retentie) CLEAN.
-
-## 2026-09-01 — prod: back-up herstel-drill (bewijst dat een dump écht herstelbaar is)
-
-**Wat:** de back-up (`scripts/backup-db.ts`) verifieerde alléén de inhoudsopgave (`pg_restore --list`,
-TOC) — dat bewijst een leesbare kop, niet een volledig herstelbare dump (corrupte/afgekapte object-data
-passeert de TOC-check en faalt pas op een echt herstel). "Een onbeproefde back-up is geen back-up" was
-zo half ingevuld.
-
-**Aanpak:** nieuw `db:restore-drill` (`scripts/backup-restore-drill.ts`) herstelt de nieuwste back-up in
-een **wegwerp scratch-database** (`DRILL_DATABASE_URL`) en leest daarna schema (`public`-tabellen) + data
-(rijen in een verificatietabel, default `User`) terug. Pure kern in `src/lib/ops/db-backup.ts`:
-`selectLatestBackup`, `assertDrillTarget` (weigert hard het bron-doel — géén `--force`-ontsnapping),
-`assertSafeIdentifier` (injectie-veilige tabelnaam), `buildPublicTableCountArgs`/`buildRowCountArgs`,
-`parsePsqlCount`, `interpretDrill`. Inert lokaal/zonder scratch-DB (heldere fout, raakt niets).
-
-**Bestanden:** `src/lib/ops/db-backup.ts` (+ `.test.ts`, +9 nieuwe testblokken → 47 tests groen),
-`scripts/backup-restore-drill.ts`, `package.json` (script), `.env.example` (`DRILL_DATABASE_URL`/
-`DRILL_VERIFY_TABLE`), `docs/RUNBOOK.md` §5, `MENSENWERK.md` §1b. Resterend mensenwerk: een lege
-wegwerp-Postgres + `DRILL_DATABASE_URL` zetten; periodiek draaien.

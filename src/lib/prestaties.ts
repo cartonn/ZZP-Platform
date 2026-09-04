@@ -37,6 +37,111 @@ export interface PrestatieOverzicht {
   disputed: boolean;
 }
 
+/**
+ * De rauwe prestatie-rij die {@link toPrestatieOverzicht} nodig heeft. Bewust een expliciete
+ * interface (i.p.v. het Prisma-rijtype) zodat de mapping-logica — inclusief de factuur-drift-
+ * bescherming — puur en zonder database te testen valt. De `findMany`-selectie hieronder levert
+ * exact deze vorm.
+ */
+export interface PrestatieRow {
+  id: string;
+  type: string;
+  status: string;
+  rateCents: number | null;
+  hours: number | null;
+  ortSegments: string | null;
+  amountCents: number | null;
+  periodStart: Date | null;
+  periodEnd: Date | null;
+  description: string;
+  submittedAt: Date | null;
+  approvedAt: Date | null;
+  rejectedAt: Date | null;
+  rejectionReason: string | null;
+  collaboration: {
+    id: string;
+    ortProfile: string | null;
+    ortCustomRates: string | null;
+    disputedAt: Date | null;
+    job: { title: string };
+    freelancer: { user: { name: string | null } };
+  };
+  /** De afgeleide concept-factuur (na goedkeuring). `null` zolang er nog geen factuur is. */
+  invoice: { subtotalCents: number | null } | null;
+}
+
+/**
+ * Zet één prestatie-rij om naar de overzichtsvorm. Puur (geen I/O) en daarom los testbaar.
+ *
+ * **Server-side waarheid (CLAUDE.md regel 1) — geen ORT-drift:** het subtotaal van een prestatie
+ * wordt uit de ACTUELE ORT-toeslagen van de samenwerking afgeleid op het moment van goedkeuren en
+ * dan bevroren in de factuur (`Invoice.subtotalCents`, `performanceId @unique`). Die toeslagen
+ * mogen ná goedkeuring nog wijzigen — `setOrtProfileAction` blokkeert alleen zolang er nog een
+ * SUBMITTED-urenstaat op goedkeuring wacht. Een live-herberekening zou dan gaan afwijken van de
+ * onveranderlijke factuur die de opdrachtgever daadwerkelijk kreeg/betaalde. Daarom: zodra een
+ * factuur is afgeleid, is HAAR subtotaal de getoonde waarheid. De ORT-toeslag reconciliëert tegen
+ * dat bevroren subtotaal (de basis is snapshot-stabiel — uren × het gesnapshotte uurtarief —, dus
+ * `toeslag = factuursubtotaal − basis` levert het bevroren toeslagbedrag). Zonder factuur
+ * (DRAFT/SUBMITTED/REJECTED) blijven de live toeslagen legitiem de bron.
+ */
+export function toPrestatieOverzicht(p: PrestatieRow): PrestatieOverzicht {
+  const col = p.collaboration;
+  const ortSegs = p.ortSegments ? (JSON.parse(p.ortSegments) as OrtSegment[]) : null;
+  const rates = resolveOrtRates({
+    ortProfile: col.ortProfile,
+    ortCustomRates: col.ortCustomRates,
+  });
+  const hasOrt = !!(ortSegs && ortSegs.length > 0);
+
+  let subtotalCents: number | null = null;
+  if (p.type === "HOURS" && p.rateCents != null) {
+    if (hasOrt) {
+      subtotalCents = ortSubtotalCents(ortSegs, p.rateCents, rates);
+    } else if (p.hours != null) {
+      subtotalCents = Math.round(p.hours * p.rateCents);
+    }
+  } else if (p.type === "MILESTONE" && p.amountCents != null) {
+    subtotalCents = p.amountCents;
+  }
+
+  let ortBreakdown = summarizeOrtBreakdown({
+    segments: ortSegs,
+    hours: p.hours,
+    rateCents: p.type === "HOURS" ? p.rateCents : null,
+    rates,
+  });
+
+  // Zie functie-docstring: de bevroren factuur wint van de live-herberekening.
+  const invoicedSubtotal = p.invoice?.subtotalCents;
+  if (invoicedSubtotal != null) {
+    subtotalCents = invoicedSubtotal;
+    if (hasOrt) {
+      ortBreakdown = { ...ortBreakdown, surchargeCents: invoicedSubtotal - ortBreakdown.baseCents };
+    }
+  }
+
+  return {
+    id: p.id,
+    collaborationId: col.id,
+    jobTitle: col.job.title,
+    freelancerName: col.freelancer.user.name ?? "Onbekend",
+    type: p.type as "HOURS" | "MILESTONE",
+    status: p.status,
+    periodStart: p.periodStart,
+    periodEnd: p.periodEnd,
+    hours: p.hours,
+    subtotalCents,
+    hasOrt,
+    ortBreakdown,
+    description: p.description,
+    submittedAt: p.submittedAt,
+    approvedAt: p.approvedAt,
+    rejectedAt: p.rejectedAt,
+    rejectionReason: p.rejectionReason,
+    disputed: col.disputedAt != null,
+  };
+}
+
 /** Haalt alle prestaties op van ZZP'ers over alle samenwerkingen van de opdrachtgever. */
 export async function getPrestatiesForClient(userId: string): Promise<PrestatieOverzicht[]> {
   const rows = await prisma.performance.findMany({
@@ -46,6 +151,9 @@ export async function getPrestatiesForClient(userId: string): Promise<PrestatieO
       },
     },
     include: {
+      // De afgeleide factuur (na goedkeuring) draagt het bevroren subtotaal; toon dat i.p.v. een
+      // live-herberekening die van de toeslagen kan driften. Zie `toPrestatieOverzicht`.
+      invoice: { select: { subtotalCents: true } },
       collaboration: {
         select: {
           id: true,
@@ -63,51 +171,7 @@ export async function getPrestatiesForClient(userId: string): Promise<PrestatieO
     take: 500,
   });
 
-  return rows.map((p) => {
-    const col = p.collaboration;
-    const ortSegs = p.ortSegments ? (JSON.parse(p.ortSegments) as OrtSegment[]) : null;
-    const rates = resolveOrtRates({
-      ortProfile: col.ortProfile,
-      ortCustomRates: col.ortCustomRates,
-    });
-
-    let subtotalCents: number | null = null;
-    if (p.type === "HOURS" && p.rateCents != null) {
-      if (ortSegs && ortSegs.length > 0) {
-        subtotalCents = ortSubtotalCents(ortSegs, p.rateCents, rates);
-      } else if (p.hours != null) {
-        subtotalCents = Math.round(p.hours * p.rateCents);
-      }
-    } else if (p.type === "MILESTONE" && p.amountCents != null) {
-      subtotalCents = p.amountCents;
-    }
-
-    return {
-      id: p.id,
-      collaborationId: col.id,
-      jobTitle: col.job.title,
-      freelancerName: col.freelancer.user.name ?? "Onbekend",
-      type: p.type as "HOURS" | "MILESTONE",
-      status: p.status,
-      periodStart: p.periodStart,
-      periodEnd: p.periodEnd,
-      hours: p.hours,
-      subtotalCents,
-      hasOrt: !!(ortSegs && ortSegs.length > 0),
-      ortBreakdown: summarizeOrtBreakdown({
-        segments: ortSegs,
-        hours: p.hours,
-        rateCents: p.type === "HOURS" ? p.rateCents : null,
-        rates,
-      }),
-      description: p.description,
-      submittedAt: p.submittedAt,
-      approvedAt: p.approvedAt,
-      rejectedAt: p.rejectedAt,
-      rejectionReason: p.rejectionReason,
-      disputed: col.disputedAt != null,
-    };
-  });
+  return rows.map(toPrestatieOverzicht);
 }
 
 /**
