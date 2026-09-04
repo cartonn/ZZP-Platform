@@ -3,7 +3,11 @@
 
 import { prisma } from "@/lib/db";
 import { type OrtSegment, ortSubtotalCents, resolveOrtRates } from "@/lib/ort";
-import { type OrtBreakdown, summarizeOrtBreakdown } from "@/lib/ort-breakdown";
+import {
+  type OrtBreakdown,
+  reconcileSubtotalWithInvoice,
+  summarizeOrtBreakdown,
+} from "@/lib/ort-breakdown";
 import { parseCsvRecords, escapeCsvField } from "@/lib/csv";
 import { MAX_SHIFT_HOURS } from "@/lib/shift";
 
@@ -37,6 +41,11 @@ export async function getDienstenForFreelancer(userId: string): Promise<DienstSu
       },
     },
     include: {
+      // De afgeleide factuur (na goedkeuring) draagt het bevroren subtotaal; toon dat i.p.v. een
+      // live-herberekening die van de toeslagen kan driften. Zie `reconcileSubtotalWithInvoice` —
+      // gelijk aan de opdrachtgever-view (`/prestaties`), zodat beide overzichten voor dezelfde
+      // (reeds gefactureerde) prestatie hetzelfde bedrag tonen.
+      invoice: { select: { subtotalCents: true } },
       collaboration: {
         select: {
           id: true,
@@ -58,16 +67,35 @@ export async function getDienstenForFreelancer(userId: string): Promise<DienstSu
       ortCustomRates: col.ortCustomRates,
     });
 
-    let subtotalCents: number | null = null;
+    const hasOrt = !!(ortSegs && ortSegs.length > 0);
+
+    let liveSubtotalCents: number | null = null;
     if (p.type === "HOURS" && p.rateCents != null) {
-      if (ortSegs && ortSegs.length > 0) {
-        subtotalCents = ortSubtotalCents(ortSegs, p.rateCents, rates);
+      if (hasOrt) {
+        liveSubtotalCents = ortSubtotalCents(ortSegs, p.rateCents, rates);
       } else if (p.hours != null) {
-        subtotalCents = Math.round(p.hours * p.rateCents);
+        liveSubtotalCents = Math.round(p.hours * p.rateCents);
       }
     } else if (p.type === "MILESTONE" && p.amountCents != null) {
-      subtotalCents = p.amountCents;
+      liveSubtotalCents = p.amountCents;
     }
+
+    const liveOrtBreakdown = summarizeOrtBreakdown({
+      segments: ortSegs,
+      hours: p.hours,
+      rateCents: p.type === "HOURS" ? p.rateCents : null,
+      rates,
+    });
+
+    // De bevroren factuur wint van de live-herberekening (geen ORT-drift). Zelfde bron als
+    // `/prestaties` (opdrachtgever), zodat de ZZP'er en de opdrachtgever nooit een verschillend
+    // bedrag zien voor dezelfde reeds gefactureerde prestatie.
+    const { subtotalCents, ortBreakdown } = reconcileSubtotalWithInvoice({
+      subtotalCents: liveSubtotalCents,
+      ortBreakdown: liveOrtBreakdown,
+      hasOrt,
+      invoicedSubtotalCents: p.invoice?.subtotalCents,
+    });
 
     return {
       id: p.id,
@@ -80,13 +108,8 @@ export async function getDienstenForFreelancer(userId: string): Promise<DienstSu
       periodEnd: p.periodEnd,
       hours: p.hours,
       subtotalCents,
-      hasOrt: !!(ortSegs && ortSegs.length > 0),
-      ortBreakdown: summarizeOrtBreakdown({
-        segments: ortSegs,
-        hours: p.hours,
-        rateCents: p.type === "HOURS" ? p.rateCents : null,
-        rates,
-      }),
+      hasOrt,
+      ortBreakdown,
       description: p.description,
       submittedAt: p.submittedAt,
       approvedAt: p.approvedAt,

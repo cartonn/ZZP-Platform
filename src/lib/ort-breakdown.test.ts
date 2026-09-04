@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { computeOrt, type OrtSegment } from "@/lib/ort";
-import { summarizeOrtBreakdown, EMPTY_ORT_BREAKDOWN } from "@/lib/ort-breakdown";
+import {
+  type OrtBreakdown,
+  summarizeOrtBreakdown,
+  reconcileSubtotalWithInvoice,
+  EMPTY_ORT_BREAKDOWN,
+} from "@/lib/ort-breakdown";
 
 describe("summarizeOrtBreakdown", () => {
   it("splitst reguliere en ORT-uren en spiegelt de bedragen van computeOrt", () => {
@@ -59,5 +64,68 @@ describe("summarizeOrtBreakdown", () => {
     expect(summarizeOrtBreakdown({ segments: null, hours: null, rateCents: 5000 })).toEqual(
       EMPTY_ORT_BREAKDOWN,
     );
+  });
+});
+
+describe("reconcileSubtotalWithInvoice — bevroren factuur wint (geen ORT-drift)", () => {
+  // Snapshot-stabiele basis (uren × gesnapshot uurtarief); de toeslag mocht live driften.
+  const liveBreakdown: OrtBreakdown = {
+    normalHours: 8,
+    ortHours: 4,
+    baseCents: 400_00,
+    surchargeCents: 98_00,
+  };
+
+  it("zonder factuur: laat de live waarden ongemoeid (DRAFT/SUBMITTED/REJECTED)", () => {
+    const res = reconcileSubtotalWithInvoice({
+      subtotalCents: 498_00,
+      ortBreakdown: liveBreakdown,
+      hasOrt: true,
+      invoicedSubtotalCents: null,
+    });
+    expect(res.subtotalCents).toBe(498_00);
+    expect(res.ortBreakdown).toEqual(liveBreakdown);
+  });
+
+  it("met factuur: toont het bevroren subtotaal, niet de (gedrifte) live-herberekening", () => {
+    // De samenwerking-toeslagen zijn ná facturatie verlaagd → live zou 440_00 tonen; de factuur
+    // bevroor echter 498_00 (wat de opdrachtgever kreeg/betaalde). De factuur wint.
+    const res = reconcileSubtotalWithInvoice({
+      subtotalCents: 440_00, // gedrifte live-waarde
+      ortBreakdown: { ...liveBreakdown, surchargeCents: 40_00 },
+      hasOrt: true,
+      invoicedSubtotalCents: 498_00,
+    });
+    expect(res.subtotalCents).toBe(498_00);
+    // Toeslag reconciliëert tegen het bevroren subtotaal: 498_00 − basis 400_00 = 98_00.
+    expect(res.ortBreakdown.surchargeCents).toBe(98_00);
+    expect(res.ortBreakdown.baseCents).toBe(400_00);
+  });
+
+  it("met factuur zonder ORT: neemt het bevroren subtotaal over, toeslag blijft 0", () => {
+    const flat: OrtBreakdown = {
+      normalHours: 10,
+      ortHours: 0,
+      baseCents: 500_00,
+      surchargeCents: 0,
+    };
+    const res = reconcileSubtotalWithInvoice({
+      subtotalCents: 480_00,
+      ortBreakdown: flat,
+      hasOrt: false,
+      invoicedSubtotalCents: 500_00,
+    });
+    expect(res.subtotalCents).toBe(500_00);
+    expect(res.ortBreakdown).toEqual(flat); // ongewijzigd: geen toeslag om te reconciliëren
+  });
+
+  it("een factuursubtotaal van 0 telt óók als bevroren (niet als 'geen factuur')", () => {
+    const res = reconcileSubtotalWithInvoice({
+      subtotalCents: 120_00,
+      ortBreakdown: liveBreakdown,
+      hasOrt: true,
+      invoicedSubtotalCents: 0,
+    });
+    expect(res.subtotalCents).toBe(0);
   });
 });

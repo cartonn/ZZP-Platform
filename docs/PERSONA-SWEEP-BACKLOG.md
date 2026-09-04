@@ -1,5 +1,43 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-04 (run 108) · **main-commit basis:** `d89942be`
+> **Uitkomst:** **1 defect gevonden én gefixt.** Orchestrator (Opus 4.8) + live Playwright-sweep
+> over alle vier de rollen (login + doorklik naar dashboard/`/acties` en de rol-schermen) + 3
+> parallelle adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant ·
+> next-action-engine · financieel/cascade + malicieuze invoer).
+>
+> - **Live-sweep:** geen 500's, geen console-fouten, geen dode nav-links; alle cross-rol
+>   verboden routes (`/admin/*`, `/franchise/*`) worden server-side geweigerd (redirect → dashboard)
+>   voor ZZP'er/opdrachtgever/bemiddelaar. (De 404's in de eerste ruwe probe — `/agenda`,
+>   `/zzp-zoeken`, `/admin`, `/franchise` als index — waren verkeerde probe-paden, geen nav-links:
+>   de echte hrefs zijn `/financien`, `/freelancers`, `/admin/toezicht`, `/franchise/leads` enz.)
+> - **authz/IDOR/tenant-audit:** 0 bereikbare gaten (`/api/documents/[id]` anti-oracle 404,
+>   `/api/tasks/run-all` timing-safe fail-closed, bureau-zelfregistratie PENDING fail-closed,
+>   alle franchise-mutaties `tenantScopeWhere`/`ownsViaTenant`, middleware segment-matched).
+> - **next-action-engine-audit:** 0 gaten; de twee engines zijn al geconsolideerd
+>   (`franchiserNextActions` voedt alleen de guided-setup binnen de ene `pendingTasks()`-pijplijn,
+>   dashboard én `/acties` consumeren dezelfde array), rol-isolatie fail-closed op onbekende rol.
+> - **OPGELOST — KRITIEK-klasse (DOEL 2, CLAUDE.md regel 1 — server-side waarheid / ORT-drift):
+>   de ZZP'er-view `/diensten` (`getDienstenForFreelancer`) én de CSV-export herberekenden het
+>   subtotaal van élke prestatie — óók reeds goedgekeurde/gefactureerde — uit de LIVE ORT-toeslagen
+>   van de samenwerking.** PR #1373 fixte exact deze bugklasse aan de opdrachtgever-kant
+>   (`/prestaties`, `getPrestatiesForClient`) maar liet de spiegelende ZZP'er-kant ongemoeid. De
+>   toeslagen mogen ná goedkeuring nog wijzigen (`setOrtProfileAction` blokkeert alleen zolang een
+>   SUBMITTED-urenstaat wacht), terwijl het factuurbedrag bij goedkeuren bevriest
+>   (`Invoice.subtotalCents`, `performanceId @unique`). Repro: ZZP'er dient uren met ORT in →
+>   opdrachtgever keurt goed (subtotaal bevriest op bv. €1200) → opdrachtgever wijzigt daarna het
+>   ORT-profiel → ZZP'er opent `/diensten`/CSV: het bedrag dreef mee naar bv. €1000, in tegenspraak
+>   met de factuur die betaald is én met de (na #1373 correcte) `/prestaties`-view van de
+>   opdrachtgever. **Fix:** de "bevroren factuur wint"-reconciliatie losgetrokken naar één gedeelde
+>   pure helper `reconcileSubtotalWithInvoice` (`src/lib/ort-breakdown.ts`), gebruikt door zowel
+>   `prestaties.ts` als `diensten.ts` (elimineert de drievoudige duplicatie die de asymmetrie liet
+>   ontstaan). `diensten.ts` haalt nu `invoice.subtotalCents` mee. +5 rood→groen-asserties op de
+>   helper; de bestaande `/prestaties`-drift-tests routen nu door de helper en blijven groen.
+>   Bestanden: `src/lib/ort-breakdown.ts` (+ `.test.ts`), `src/lib/diensten.ts`,
+>   `src/lib/prestaties.ts`.
+>
+> ---
+
 > **Datum:** 2026-09-03 (run 107) · **main-commit basis:** `bff7ffa5`
 > **Uitkomst:** **3 defecten gevonden én gefixt.** 3 adversariële Opus-audits op niet-overlappende
 > oppervlakken (authz/IDOR/tenant op de laatste ~30 commits · next-action-engine + laatste ~15
