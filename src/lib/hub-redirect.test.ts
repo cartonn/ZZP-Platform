@@ -31,6 +31,16 @@ describe("hubRedirectTarget", () => {
     );
   });
 
+  it("leidt /admin/audit om naar de audit-tab met behoud van de audit-filters", () => {
+    expect(
+      hubRedirectTarget("/admin/toezicht", "audit", {
+        action: "INVOICE_PAID",
+        entityType: "Invoice",
+        page: "2",
+      }),
+    ).toBe("/admin/toezicht?tab=audit&action=INVOICE_PAID&entityType=Invoice&page=2");
+  });
+
   it("slaat lege (undefined) parameters over", () => {
     expect(hubRedirectTarget("/financien", "boekhouding", { q: undefined })).toBe(
       "/financien?tab=boekhouding",

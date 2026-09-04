@@ -10,6 +10,30 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-04 — dedup: /admin/audit consolideert in de toezicht-hub (met CSV-export)
+
+**Wat:** het audit-log was de laatste losse toezicht-route die náást de toezicht-hub bleef bestaan
+(`/admin/dba`, `/admin/avg`, `/admin/bewaking` leiden al permanent om naar `/admin/toezicht?tab=…`).
+`/admin/audit` bleef staan omdat de standalone-pagina een **CSV-export** had die de hub-audit-tab miste
+(pakket E liet 'm daarom staan om functieverlies te voorkomen). Voor de ADMIN betekende dat twee plekken
+voor hetzelfde paneel — en de export zat op de verkeerde.
+
+**Fix (mirror van dba/avg):** de CSV-export + de "N gebeurtenis(sen)"-telling verhuizen naar het gedeelde
+`AuditPanel` (nieuwe pure helper `auditExportHref` in `admin.ts` bouwt één canoniek exportpad
+`/admin/audit/export`, negeert de paginering, url-encodeert de filters). Daardoor krijgt de hub-audit-tab
+de export vanzelf — geen functieverlies. `/admin/audit/page.tsx` wordt nu een `permanentRedirect` via
+`hubRedirectTarget("/admin/toezicht", "audit", …)` die de actie-/entiteit-/pagina-filters meeneemt, zodat
+oude deeplinks/bladwijzers blijven werken. De export-route (`/admin/audit/export`, ADMIN-only) blijft; de
+overbodige `loading.tsx` van de redirect-route is verwijderd. Dode `countAuditEntries` (alleen de oude
+pagina gebruikte 'm; `AuditPanel` telt zelf) opgeruimd. Server-side rol-poort ongewijzigd (`requireRole`
+draait vóór de redirect).
+
+**Bestanden:** `src/lib/admin.ts` (+ `.test.ts`: +3 cases), `src/lib/hub-redirect.test.ts` (+1 case),
+`src/components/admin/audit-panel.tsx`, `src/app/(protected)/admin/audit/page.tsx` (nu redirect),
+`src/app/(protected)/admin/audit/loading.tsx` (verwijderd).
+
+**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (admin + hub-redirect: 14 passed) ✓ · build (CI-poort verifieert).
+
 ## 2026-09-04 — prod: routing-provider hot-path time-out + transiënte retry (silent-hang-vangnet) (#1384)
 
 **Wat:** de échte Geoapify geocode-/route-fetches (`src/lib/services/routing.ts`, `fetchJson`) op de
