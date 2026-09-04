@@ -870,6 +870,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                                 rateCents={p.rateCents}
                                 ortProfile={col.ortProfile}
                                 ortCustomRates={col.ortCustomRates}
+                                ortRatesSnapshot={p.ortRatesSnapshot}
                               />
                             ) : null;
                           })()}

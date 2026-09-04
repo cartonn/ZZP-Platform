@@ -149,6 +149,31 @@ export function resolveOrtRates(opts: {
 }
 
 /**
+ * De ORT-tarieven zoals ze golden op het moment van goedkeuren, voor overzichten die een reeds
+ * goedgekeurde/gefactureerde prestatie tonen. Bij goedkeuren bevriest de cascade zowel het
+ * factuursubtotaal (`Invoice.subtotalCents`) als deze toeslagen (`Performance.ortRatesSnapshot`),
+ * terwijl `Collaboration.ortProfile/ortCustomRates` daarna nog mag wijzigen. Zonder deze bevriezing
+ * zou een herberekening uit de live samenwerkings-tarieven wegdrijven van de bevroren factuur — een
+ * zelf-tegensprekend document (CLAUDE.md regel 1, server-side waarheid). De snapshot is gezaghebbend
+ * zodra hij bestaat en geldig is; oudere prestaties zonder snapshot vallen terug op de live tarieven.
+ */
+export function resolveEffectiveOrtRates(opts: {
+  ortRatesSnapshot?: string | null;
+  ortProfile?: string | null;
+  ortCustomRates?: string | null;
+}): Record<OrtCategory, number> {
+  return (
+    parseOrtCustomRates(opts.ortRatesSnapshot) ??
+    resolveOrtRates({ ortProfile: opts.ortProfile, ortCustomRates: opts.ortCustomRates })
+  );
+}
+
+/** Serialiseert resolved ORT-tarieven naar de opslagvorm van `Performance.ortRatesSnapshot`. */
+export function serializeOrtRates(rates: Record<OrtCategory, number>): string {
+  return JSON.stringify(rates);
+}
+
+/**
  * Parse een JSON-string naar een array van OrtSegment-objecten. Bij lege/ongeldige invoer wordt
  * een lege array teruggegeven (nooit null/undefined, zodat de aanroeper altijd een array krijgt).
  */

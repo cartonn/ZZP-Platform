@@ -939,6 +939,7 @@ model Performance {
   hours           Float? //                        gewerkte uren (mag kwartieren), bij HOURS
   rateCents       Int? //                          snapshot uurtarief in centen, bij HOURS
   ortSegments     String? //                        JSON-string: ORT-segmenten [{category,hours}] (zorg)
+  ortRatesSnapshot String? //                       JSON-string: de bij goedkeuring bevroren ORT-toeslagen (bps per categorie), zodat overzichten niet driften als de samenwerking haar profiel later wijzigt
   shifts          String? //                        JSON-array [{start,end}] ISO: ruwe diensttijden voor inline-correctie (ADR-0005)
   milestoneTitle  String? //                       bij MILESTONE
   amountCents     Int? //                          milestonebedrag in centen, bij MILESTONE

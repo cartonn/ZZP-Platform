@@ -10,6 +10,43 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-04 — persona-sweep: ORT-toeslagen bevriezen bij goedkeuren (factuur/werkproces/PDF driften niet meer)
+
+**Wat:** kritische-gebruiker-sweep over alle vier de rollen (live Playwright-smoke: geen 500's, geen
+console-fouten, alle cross-rol verboden routes server-side geweigerd) + 3 parallelle adversariële
+Opus-audits op niet-overlappende oppervlakken. Twee audits (messaging/reacties-authz · documenten/
+samenwerking-authz) vonden **0 bereikbare gaten** (IDOR/anti-oracle 404, tenant-scope, forbidden
+transitions, stored-XSS — alles al gehard). De cascade/next-action-audit vond **1 bereikbaar defect**.
+
+**Defect (DOEL 2, CLAUDE.md regel 1 — server-side waarheid / zelf-tegensprekend document):** drie
+overzichten herberekenden het ORT-subtotaal van een reeds **goedgekeurde/gefactureerde** prestatie uit
+de **live** `Collaboration.ortProfile/ortCustomRates` i.p.v. de bevroren factuur. PR #1373/#1380 fixten
+deze bugklasse aan de aggregaat-kant (`/prestaties`, `/diensten` via `reconcileSubtotalWithInvoice`),
+maar deze drie bleven staan: de factuurpagina (`/facturen/[id]` — het "Herleidingsbewijs → ORT-
+uitsplitsing" toonde een ándere "Subtotaal excl. btw" dan de factuur zelf), de werkproces-pagina
+(`/samenwerkingen/[id]`, `<OrtBreakdown>` voor elke prestatie) en de urenstaat-PDF. Repro: ORT-uren
+goedgekeurd → factuur bevriest op bv. €1200 → opdrachtgever wijzigt daarna het ORT-profiel (mag zolang
+er geen SUBMITTED-urenstaat wacht) → de factuurpagina toonde bv. €1000 in het herleidingsbewijs náást
+€1200 in de totalen: één en dezelfde factuur sprak zichzelf tegen.
+
+**Fix (bron i.p.v. weergave-pleister):** de cascade bevriest bij goedkeuren nu naast het
+factuursubtotaal óók de resolved ORT-toeslagen op de prestatie (`Performance.ortRatesSnapshot`, een
+additieve nullable kolom met migratie) — net zoals `rateCents` het uurtarief al bevriest. Nieuwe
+gedeelde helper `resolveEffectiveOrtRates` (snapshot wint van live; oude prestaties zonder snapshot
+vallen terug op live). De drie overzichten lezen nu uit de snapshot; omdat
+`ortSubtotalCents === computeOrt().subtotalCents` en de snapshot exact de goedkeur-tarieven zijn,
+foot de per-categorie-tabel weer precies op het factuursubtotaal. `/prestaties` en `/diensten` blijven
+ongewijzigd (hun aggregaat-reconciliatie was al correct). Server-side waarheid; client toont, beslist
+niet.
+
+**Bestanden:** `prisma/schema.prisma` + migratie `202609041530_performance_ort_rates_snapshot`,
+`src/lib/ort.ts` (+ `.test.ts`: 4 helper-cases), `src/lib/cascade/handlers.ts` (+ `.test.ts`: 2
+snapshot-cases), `src/components/collaborations/ort-breakdown.tsx`,
+`src/app/(protected)/facturen/[id]/page.tsx`, `src/app/(protected)/samenwerkingen/[id]/page.tsx`,
+`src/lib/performance-pdf.ts`, `src/app/api/prestaties/[id]/pdf/route.ts`.
+
+**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit + build (CI-poort verifieert).
+
 ## 2026-09-04 — routine: bemiddelaar-vervalsignaal escaleert binnen de vernieuwings-doorlooptijd (#1381)
 
 **Wat:** op de bemiddelaar-roster (`/franchise/zzpers` + de CSV-export) escaleert het per-ZZP'er

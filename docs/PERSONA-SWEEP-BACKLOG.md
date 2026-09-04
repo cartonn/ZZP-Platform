@@ -1,5 +1,49 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-04 (persona-sweep) · **main-commit basis:** `e9f54f62`
+> **Uitkomst:** **1 defect gevonden én gefixt.** Live Playwright-smoke over alle vier de rollen
+> (login → dashboard/`/acties` + rol-schermen + cross-rol verboden routes): **geen 500's, geen
+> console-fouten, geen dode nav-links**; `/admin/*` en `/franchise/*` server-side geweigerd (redirect →
+> dashboard) voor de verkeerde rol; `/prestaties` voor een niet-CLIENT toont een nette "alleen voor
+> opdrachtgevers"-empty-state (geen datalek, geen redirect — correcte rol-poort). 3 parallelle
+> adversariële Opus-audits op niet-overlappende oppervlakken:
+>
+> - **messaging/reacties-authz-audit:** 0 bereikbare gaten (send/read-IDOR via participant-check +
+>   `notFound()`, withdraw/accept via `loadOwnedApplication`/ownership met anti-oracle "niet gevonden",
+>   `APPLICATION_TRANSITIONS` + compound-guarded `updateMany` tegen TOCTOU, message-body via
+>   JSX-escaping — geen `dangerouslySetInnerHTML` op user-data, Zod-grenzen server-side).
+> - **documenten/samenwerking-authz-audit:** 0 bereikbare gaten (`/api/documents/[id]` anti-oracle 404
+>   op forbidden én not-found + denied-audit, server-gegenereerde storage-keys + traversal-guard,
+>   `validateUpload`+magic-byte-sniff+malware-scan, DBA-dossier/dossier/modelovereenkomst party-only
+>   met identieke 404 — franchiser krijgt geen tenant-leespad, lifecycle-transities via
+>   `COLLABORATION_TRANSITIONS` + in-tx money/dispute-guards, contract-stap niet overslaanbaar).
+> - **cascade/next-action-audit:** de geld-paden schoon (computeOrt/computeVat rejecten
+>   negatief/niet-integer, `assertPerformanceWithinLimits` dekt overflow/absurd, lifecycle-machine
+>   verbiedt de gevaarlijke transities, dedupe-idempotent, TOCTOU dicht; next-actions per rol/aan-zet
+>   kloppen en verdwijnen bij afhandeling). **1 bereikbaar defect** → OPGELOST:
+> - **OPGELOST — should-fix (DOEL 2, CLAUDE.md regel 1 — server-side waarheid / zelf-tegensprekend
+>   document): ORT-drift op reeds goedgekeurde/gefactureerde prestaties op drie overzichten.** De
+>   factuurpagina (`/facturen/[id]`), de werkproces-pagina (`/samenwerkingen/[id]`, `<OrtBreakdown>`)
+>   en de urenstaat-PDF herberekenden het ORT-subtotaal uit de **live** `Collaboration.ortProfile/
+ortCustomRates` i.p.v. de bevroren factuur. PR #1373/#1380 fixten deze bugklasse aan de
+>   aggregaat-kant (`/prestaties`, `/diensten`) maar lieten deze drie staan. Repro: ORT-uren
+>   goedgekeurd → factuur bevriest (bv. €1200) → opdrachtgever wijzigt het ORT-profiel (toegestaan
+>   zolang geen SUBMITTED-urenstaat wacht) → de factuurpagina toonde in het "Herleidingsbewijs"
+>   een ánder subtotaal (bv. €1000) dan de factuur-totalen (€1200): één document sprak zichzelf tegen.
+>   **Fix (bron):** de cascade bevriest bij goedkeuren nu de resolved ORT-toeslagen op de prestatie
+>   (`Performance.ortRatesSnapshot`, nullable kolom + additieve migratie), net als `rateCents` het
+>   uurtarief al bevriest. Gedeelde helper `resolveEffectiveOrtRates` (snapshot wint van live; legacy
+>   zonder snapshot → live-fallback). De drie overzichten lezen uit de snapshot; per-categorie-tabel
+>   foot weer exact op het factuursubtotaal (`ortSubtotalCents === computeOrt().subtotalCents`). +4
+>   helper-cases, +2 handler-snapshot-cases. Bestanden: `prisma/schema.prisma` + migratie, `ort.ts`
+>   (+ `.test.ts`), `cascade/handlers.ts` (+ `.test.ts`), `ort-breakdown.tsx`, `facturen/[id]/page.tsx`,
+>   `samenwerkingen/[id]/page.tsx`, `performance-pdf.ts`, `prestaties/[id]/pdf/route.ts`.
+> - **Restrisico (genoteerd):** prestaties die vóór deze migratie zijn goedgekeurd hebben geen snapshot
+>   → vallen terug op de live tarieven; alleen als hun samenwerking het ORT-profiel al had gewijzigd
+>   toont zo'n oude factuur nog de (onherleidbare) drift. Nieuwe goedkeuringen driften nooit meer.
+>
+> ---
+
 > **GEDAAN (auto-build #1381, 2026-09-04):** bemiddelaar-vervalsignaal escaleert binnen de externe
 > vernieuwings-doorlooptijd. De doorlooptijd-kennis (`RENEWAL_LEAD_TIMES`) stond alleen op
 > ZZP'er-schermen; op `/franchise/zzpers` (+ CSV) gaf het per-ZZP'er vervalsignaal één milde `warning`
