@@ -1,8 +1,12 @@
 name: Security
 
 on:
+  # Eén run per PR-push: de push-trigger alleen nog op main (post-merge-bevestiging), PR-branches
+  # lopen uitsluitend via pull_request. Voorheen ("**" + pull_request) draaide élke PR-push twee
+  # volledige runs (2× vier e2e-shards); dat verdubbelde de CI-kosten én hield auto-merge op tot
+  # de dubbele run klaar was (gezien op #1340, #1354, #1332).
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   schedule:
     - cron: "0 6 * * 1" # wekelijks, maandagochtend
