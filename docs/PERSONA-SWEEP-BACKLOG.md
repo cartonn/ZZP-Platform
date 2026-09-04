@@ -1,5 +1,14 @@
 # Persona-sweep — gaten-backlog
 
+> **GEDAAN (auto-build #1381, 2026-09-04):** bemiddelaar-vervalsignaal escaleert binnen de externe
+> vernieuwings-doorlooptijd. De doorlooptijd-kennis (`RENEWAL_LEAD_TIMES`) stond alleen op
+> ZZP'er-schermen; op `/franchise/zzpers` (+ CSV) gaf het per-ZZP'er vervalsignaal één milde `warning`
+> voor élk niet-verlopen venster, dus een VOG op 50 d zag er identiek uit als een diploma op 50 d —
+> terwijl alleen de VOG feitelijk al te laat is om schoon te vernieuwen (Justis tot 56 d). `summarizeExpiryAlert`
+> toetst het soonest certificaat nu tegen dezelfde `start_now`-regel → `renewalUrgent`; tone escaleert naar
+> danger en het label krijgt "· vraag nu aan". Niet meer opnieuw voorstellen. Bestanden:
+> `src/lib/franchise/credential-alerts.ts` (+ `.test.ts`).
+
 > **Datum:** 2026-09-04 (auto-build routine, #1380) · **main-commit basis:** `2492745e`
 > **Uitkomst:** **1 defect gevonden én gefixt.** Twee parallelle adversariële Opus-audits op
 > niet-overlappende kern-oppervlakken (certificaat-/verificatie-lifecycle · ORT/cascade-math +
