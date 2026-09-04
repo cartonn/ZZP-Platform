@@ -16,6 +16,7 @@ const hours: PerformancePdfData = {
   ortSegments: null,
   ortProfile: null,
   ortCustomRates: null,
+  ortRatesSnapshot: null,
   submittedAt: "2026-01-11",
 };
 
@@ -48,6 +49,25 @@ describe("buildPerformancePdf", () => {
         { category: "EVENING", hours: 6 },
         { category: "SUNDAY", hours: 2 },
       ]),
+    });
+    expect(pdfHeader(b)).toBe("%PDF-");
+  });
+
+  it("bevroren ORT-snapshot → geldige PDF (snapshot wint van live profiel)", async () => {
+    const b = await buildPerformancePdf({
+      ...hours,
+      ortSegments: JSON.stringify([
+        { category: "NORMAL", hours: 6 },
+        { category: "NIGHT", hours: 2 },
+      ]),
+      ortProfile: "GHZ", // ander profiel dan de snapshot → zou driften zonder snapshot
+      ortRatesSnapshot: JSON.stringify({
+        EVENING: 2200,
+        NIGHT: 4900,
+        SATURDAY: 3000,
+        SUNDAY: 6000,
+        HOLIDAY: 10000,
+      }),
     });
     expect(pdfHeader(b)).toBe("%PDF-");
   });
