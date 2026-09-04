@@ -69,9 +69,12 @@ vóór je iets uit deze lijst oppakt.
 
 ### Product / kern
 
-1. **Rooster-marktplaats — publiceer-/claim-kant.** De discovery-kalender (`roster-market.ts`
-   `buildRosterCalendar`, read-only `/rooster`) staat. Open: de opdrachtgever dateert losse
-   diensten en de ZZP'er claimt er direct één vanuit de kalender.
+1. **Rooster-marktplaats — publiceerkant (opdrachtgever).** De discovery-kalender
+   (`roster-market.ts` `buildRosterCalendar`, `/rooster`) staat, de ZZP'er claimt er direct één
+   vanuit de kalender (`claimShift`/`ClaimShift`, hergebruikt de bestaande applicatieketen) en
+   krijgt sinds 4-9 een dubbele-boeking-waarschuwing (`agendaDayBookingConflict`) op een dag waarop
+   hij al is ingepland. **Nog open:** de opdrachtgever dateert/publiceert losse diensten (de
+   claim-kant is dus af; alleen het publiceren van individuele diensten door de opdrachtgever rest).
 2. **Lege-, laad- en fouttoestanden naar de Vakwerk-stijl** (PLAN-WERELDKLASSE Fase 2, restpunt).
 3. **Mail-intake fase 3:** e2e-test webhook → reviewqueue → concept-opdracht. (Fase 1 + 2 en de
    meetlus zijn gebouwd; inbound-provider + MX/DNS is mensenwerk, MENSENWERK §2b.)
