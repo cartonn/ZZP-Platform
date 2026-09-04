@@ -142,25 +142,27 @@ async function computeSignals(
 }
 
 /**
- * Herbereken en schrijf de snapshot weg. De write is BEST-EFFORT: faalt hij (bv. een gebruiker die
- * intussen is verwijderd), dan krijgt de aanroeper alsnog de verse waarden — een cache mag een
- * paginarender nooit omverhalen.
+ * Gebruikers waarvoor op dit moment al een snapshot-write loopt (per proces). Zonder deze grendel
+ * levert één navigatie een handvol gelijktijdige writes op: Next rendert de shell ook voor élke
+ * prefetch, en die missen allemaal dezelfde koude cache. Op PostgreSQL is dat verspilling; op SQLite
+ * (lokaal + CI) is het schadelijk — een schrijftransactie houdt daar een exclusieve grendel op het
+ * hele bestand en laat gelijktijdige LEZERS wachten, waardoor de hele app trager wordt.
  */
-export async function recomputeSignalSnapshot(
+const writesInFlight = new Set<string>();
+
+/** De write zelf, best-effort: een cache mag een paginarender nooit omverhalen. */
+async function writeSnapshot(
   userId: string,
-  role: UserRole,
-  now: Date = new Date(),
-): Promise<SignalSnapshot> {
-  const computed = await computeSignals(userId, role);
-  const staleAfter = new Date(now.getTime() + SIGNAL_SNAPSHOT_TTL_MS);
-  const base = {
-    role,
-    pendingTaskCount: computed.pendingTaskCount,
-    unreadNotifications: computed.unreadNotifications,
-    version: SIGNAL_SNAPSHOT_VERSION,
-    computedAt: now,
-    staleAfter,
-  };
+  base: {
+    role: string;
+    pendingTaskCount: number;
+    unreadNotifications: number;
+    version: number;
+    computedAt: Date;
+    staleAfter: Date;
+  },
+  badges: NavBadges,
+): Promise<void> {
   try {
     await prisma.$transaction([
       prisma.userSignalSnapshot.upsert({
@@ -170,10 +172,65 @@ export async function recomputeSignalSnapshot(
       }),
       // Vervangen, niet mergen: een badge die op 0 kwam moet verdwijnen, niet blijven staan.
       prisma.userSignalBadge.deleteMany({ where: { userId } }),
-      prisma.userSignalBadge.createMany({ data: toBadgeRows(userId, computed.badges) }),
+      prisma.userSignalBadge.createMany({ data: toBadgeRows(userId, badges) }),
     ]);
   } catch (err) {
     logger.warn("signal-snapshot: wegschrijven mislukt", { userId, err: String(err) });
+  }
+}
+
+/**
+ * Herbereken en schrijf de snapshot weg (en wácht op die write). Dit is het pad voor de
+ * reconciliatietaak, die deterministisch moet zijn. De renderkant gebruikt bewust
+ * `recomputeSignalSnapshotDeferred`.
+ */
+export async function recomputeSignalSnapshot(
+  userId: string,
+  role: UserRole,
+  now: Date = new Date(),
+): Promise<SignalSnapshot> {
+  const computed = await computeSignals(userId, role);
+  await writeSnapshot(userId, snapshotBase(role, computed, now), computed.badges);
+  return { ...computed, computedAt: now, recomputed: true };
+}
+
+function snapshotBase(
+  role: UserRole,
+  computed: Pick<SignalSnapshot, "pendingTaskCount" | "unreadNotifications">,
+  now: Date,
+) {
+  return {
+    role,
+    pendingTaskCount: computed.pendingTaskCount,
+    unreadNotifications: computed.unreadNotifications,
+    version: SIGNAL_SNAPSHOT_VERSION,
+    computedAt: now,
+    staleAfter: new Date(now.getTime() + SIGNAL_SNAPSHOT_TTL_MS),
+  };
+}
+
+/**
+ * Herbereken en vul de cache op de ACHTERGROND: de aanroeper krijgt de verse waarden zodra de
+ * berekening klaar is en wacht niet op de write.
+ *
+ * Waarom niet gewoon wachten: het vullen van een cache is geen werk waar een paginarender op hoort
+ * te wachten, en op SQLite blokkeert die write ook nog eens elke gelijktijdige lezer. Gemeten in de
+ * e2e-suite (CI): met een gewachte write werd élke test 2–3× trager (bv. het actiecentrum 4,0 s →
+ * 13,9 s); zonder is de latency van de render gelijk aan de oude berekening. De grendel
+ * (`writesInFlight`) zorgt dat één koude gebruiker hooguit één write tegelijk veroorzaakt, hoeveel
+ * gelijktijdige renders/prefetches er ook binnenkomen.
+ */
+async function recomputeSignalSnapshotDeferred(
+  userId: string,
+  role: UserRole,
+  now: Date,
+): Promise<SignalSnapshot> {
+  const computed = await computeSignals(userId, role);
+  if (!writesInFlight.has(userId)) {
+    writesInFlight.add(userId);
+    void writeSnapshot(userId, snapshotBase(role, computed, now), computed.badges).finally(() => {
+      writesInFlight.delete(userId);
+    });
   }
   return { ...computed, computedAt: now, recomputed: true };
 }
@@ -181,7 +238,8 @@ export async function recomputeSignalSnapshot(
 /**
  * De lezer voor de app-shell: één `findUnique` (met de badge-rijen). Is de rij bruikbaar, dan is dit
  * de hele kost van de shell-signalen; anders herberekent hij synchroon — het huidige gedrag als
- * fallback, dus nooit een lege of achterlopende shell.
+ * fallback, dus nooit een lege of achterlopende shell. Het terugschrijven van die herberekening
+ * gebeurt op de achtergrond, zodat de render nooit op een cache-vulling wacht.
  *
  * Request-gecachet (React `cache`), net als `navBadges` en `computeTasks`: dezelfde render mag dit
  * meerdere keren vragen zonder een tweede lezing.
@@ -223,5 +281,5 @@ export const readSignalSnapshot = cache(async function readSignalSnapshot(
       recomputed: false,
     };
   }
-  return recomputeSignalSnapshot(userId, role, now);
+  return recomputeSignalSnapshotDeferred(userId, role, now);
 });
