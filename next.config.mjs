@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 
+import { resolveAllowedOrigins } from "./scripts/server-actions-origins.mjs";
+
 // De Content-Security-Policy staat NIET meer hier: de middleware bouwt hem per request met een
 // nonce (src/middleware.ts + src/lib/csp.ts), zodat 'unsafe-inline' voor scripts in productie
 // vervalt. De overige security-headers blijven statisch en horen hier.
@@ -84,12 +86,23 @@ const noindexHeaders =
 // src/lib/services/upload-body-limit.test.ts bewaakt de drift tussen beide.
 const SERVER_ACTION_BODY_SIZE_LIMIT = "12mb";
 
+// Next.js 15 vergelijkt bij elke Server Action de `Origin`-header met de (X-Forwarded-)Host als
+// CSRF-mitigatie. Achter Railway's proxy of bij een eigen domein kan die vergelijking mismatchen →
+// élke mutatie (documentupload, cascade, alle server actions) faalt dan met 403. We voegen de
+// canonieke publieke host(s) expliciet toe aan de allowlist (puur additief; de default same-origin-
+// check blijft gelden). Afgeleid van AUTH_URL/NEXTAUTH_URL + optionele SERVER_ACTIONS_ALLOWED_ORIGINS
+// (zie scripts/server-actions-origins.mjs). Leeg (lokaal/dev of niet geconfigureerd) → default gedrag.
+const serverActionAllowedOrigins = resolveAllowedOrigins(process.env);
+
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   experimental: {
     serverActions: {
       bodySizeLimit: SERVER_ACTION_BODY_SIZE_LIMIT,
+      ...(serverActionAllowedOrigins.length > 0
+        ? { allowedOrigins: serverActionAllowedOrigins }
+        : {}),
     },
   },
   async headers() {
