@@ -4,6 +4,39 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-04 (basis: `main` @ cdefe218) — 1× MIDDEL OPGELOST (timing-enumeratie bureau-aanmelding); 3 adversariële audits verder CLEAN
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken, elk
+met de opdracht een gat te bewíjzen. **A — Object-/functie-niveau autorisatie (IDOR):** volledige sweep van de
+document-/PDF-/dossier-download-routes, de cascade-command-laag (uren→ORT→prestatie→factuur), samenwerking/
+reactie/certificaat/verificatie-acties, messaging, franchise/tenant-acties, profiel/account, admin-governance
+incl. de AVG-wis-transactie → **geen bevestigde IDOR**. Consistente hardening: anti-oracle (identieke 404 voor
+onbekend-vs-andermans id), TOCTOU-veilige `updateMany` met compound `where {id,status}`, `canAccessDocument` +
+audit op élke documenttoegang (ook bij weigering). **B — Cross-tenant + PII-minimalisatie:** `tenancy.ts`,
+`market-rate.ts` (k-anon ≥10, test-geborgd), `freelancer-search` (overfetch-test borgt dat vrije-tekst-`note`
+nooit de kaart bereikt), `passwordHash` nergens naar de client geserialiseerd, franchise-isolatie via
+`actor.tenantId` (nooit client-input) → **geen bevestigd lek**. **C — Injectie/upload/SSRF/open-redirect/
+fout-lek + delta sinds `5f9bf1ab`:** één `dangerouslySetInnerHTML` (statisch thema-script, nonce-gated), geen
+raw-SQL-interpolatie, CSV/formula-injectie overal via `escapeCsvField`/`needsFormulaGuard`, upload met
+MIME-allowlist + magic-byte-sniff + path-traversal-guard + niet-raadbare keys, SSRF alleen naar een hardcoded
+Geoapify-host (user-input enkel in query), geen open redirect, Prisma-fouten nooit naar de client
+(`safe-action-error.ts`). De **request-gecachte gebruikerscontext** (#1349) is expliciet veilig bevonden:
+React `cache()` is per-request en elke loader is gekeyd op de sessie-afgeleide eigen id → geen cross-user
+cache-poisoning. `npm audit --omit=dev`: **0 kwetsbaarheden**.
+
+**OPGELOST — [MIDDEL · CWE-208 / OWASP A07 — timing-enumeratie] `registerBureau`** (`src/app/register/actions.ts`):
+de bureau-zelfaanmelding belooft "geen enumeratie" (een bestaand e-mailadres/KvK-nummer geeft exact dezelfde
+generieke bevestiging als een nieuwe aanmelding), maar de responstijd verraadde het tóch: `bcrypt.hash`
+(cost 10, ~60ms — de grootste vaste rekenstap) draaide alleen op het nieuw-pad, ná de existentie-check. Het
+bestaand-pad retourneerde direct na twee indexed reads; een aanvaller kan bureaus/accounts enumereren op
+latentie — precies wat het ontwerp wil voorkomen; `registerRateLimiter` verhoogt de kosten maar dicht het
+orakel niet. **Fix:** de `bcrypt.hash` draait nu **onvoorwaardelijk vóór** de existentie-check, zodat bestaand-
+en nieuw-pad dezelfde vaste kosten dragen. **Durable test (rood→groen):**
+`src/app/register/bureau-timing-enumeratie.test.ts` (nieuw) — bewijst dat de hash óók op het bestaand-pad
+(bestaand e-mailadres én bestaand KvK-nummer) wordt aangeroepen en vóór de DB-lookups draait; met de oude
+volgorde falen alle drie de asserties. Gewijzigd: `src/app/register/actions.ts` (PR #<zie git>). Hiermee is de
+parked-bevinding uit ronde 2026-09-03 gedicht.
+
 ## Ronde 2026-09-03 (basis: `main` @ 5f9bf1ab) — 1× KRITIEK + 1× HOOG OPGELOST op de níeuwe VOG-metadata-modus (#1338): (1) herindienen liet het vangnet onder de VOG-verwijdering blind, (2) een verloren race schreef een spook-audit
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken van
@@ -50,12 +83,9 @@ ongewijzigd (happy-path). `src/lib/credential-evidence.ts`.
 
 **GEPARKEERD deze ronde (repro + severity; geen agent-blocker):**
 
-- **[MIDDEL · CWE-208/OWASP A07 — timing-enumeratie] `registerBureau`** (`src/app/register/actions.ts:146-183`):
-  de respons is identiek bij een bestaand vs. nieuw e-mailadres/KvK, maar de timing niet — het bestaand-pad
-  retourneert direct na twee indexed reads, het nieuw-pad doet `bcrypt.hash` + een 4-writes-transactie. Een
-  aanvaller kan bureaus/accounts enumereren op latentie, precies wat het "geen enumeratie"-ontwerp wil
-  voorkomen. `registerRateLimiter` verhoogt de kosten maar dicht het orakel niet. **Fix:** de dure stap
-  (bcrypt of een dummy met gelijke kosten) onvoorwaardelijk vóór de existentie-tak, of het snelle pad padden.
+- ~~**[MIDDEL · CWE-208/OWASP A07 — timing-enumeratie] `registerBureau`**~~ → **OPGELOST in ronde 2026-09-04**
+  (bcrypt.hash draait nu onvoorwaardelijk vóór de existentie-check; zie de ronde-2026-09-04-entry bovenaan +
+  `src/app/register/bureau-timing-enumeratie.test.ts`).
 - **[MIDDEL · AVG art. 17/5(1)(e) — geen erasure-pad voor een afgewezen bureau]** (`src/lib/enums.ts`
   `TENANT_TRANSITIONS.REJECTED: []`, `src/lib/account-anonymization.ts` `canAnonymizeUser` blokkeert bij
   `ownsTenant`). Een REJECTED-tenant is terminal; de FRANCHISER-eigenaar blijft ACTIVE, en anonimiseren wordt
