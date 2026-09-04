@@ -1,21 +1,12 @@
-import { type Metadata } from "next";
-import { requireRole } from "@/lib/authz";
-import { PageHeader } from "@/components/ui/page-header";
-import { AdminAdministratiePanel } from "@/components/admin/financien/administratie-panel";
+import { permanentRedirect } from "next/navigation";
+import { hubRedirectTarget, type RouteSearchParams } from "@/lib/hub-redirect";
 
-export const metadata: Metadata = { title: "Platform Administratie · Handslag" };
-
-export default async function AdminAdministratiePage() {
-  await requireRole("ADMIN");
-
-  return (
-    <div className="space-y-8">
-      <PageHeader
-        eyebrow="Financiën"
-        title="Platform Administratie"
-        description="Platform-brede kwartaaloverzichten en openstaande betalingen over alle samenwerkingen."
-      />
-      <AdminAdministratiePanel />
-    </div>
-  );
+// Administratie is de eerste tab van de Financiën-hub. Deze losse route blijft als permanente
+// omleiding bestaan zodat oude deeplinks — o.a. de betaalherinnering-notificatie — blijven werken.
+export default async function AdminAdministratiePage({
+  searchParams,
+}: {
+  searchParams: Promise<RouteSearchParams>;
+}) {
+  permanentRedirect(hubRedirectTarget("/admin/financien", null, await searchParams));
 }

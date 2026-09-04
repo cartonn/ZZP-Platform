@@ -1,21 +1,12 @@
-import { type Metadata } from "next";
-import { requireActor } from "@/lib/authz";
-import { PageHeader } from "@/components/ui/page-header";
-import { BoekhoudingPanel } from "@/components/administratie/boekhouding-panel";
+import { permanentRedirect } from "next/navigation";
+import { hubRedirectTarget, type RouteSearchParams } from "@/lib/hub-redirect";
 
-export const metadata: Metadata = { title: "Boekhouding · Handslag" };
-
-export default async function AdministratiePage() {
-  const actor = await requireActor();
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Administratie"
-        title="Boekhouding"
-        description="Automatisch afgeleid uit goedgekeurde prestaties en facturen. Betaling verloopt rechtstreeks; het platform houdt alleen de status bij."
-      />
-      <BoekhoudingPanel actor={actor} />
-    </div>
-  );
+// Boekhouding is een tab van de Administratie-hub op /financien. Deze losse route blijft als
+// permanente omleiding bestaan zodat oude deeplinks — o.a. de takenlijst-actie — blijven werken.
+export default async function AdministratiePage({
+  searchParams,
+}: {
+  searchParams: Promise<RouteSearchParams>;
+}) {
+  permanentRedirect(hubRedirectTarget("/financien", "boekhouding", await searchParams));
 }

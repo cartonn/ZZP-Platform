@@ -66,7 +66,7 @@ export async function addIndirectHours(
   });
 
   revalidatePath("/ontzorgd/uren");
-  revalidatePath("/ontzorgd");
+  revalidatePath("/financien");
   return undefined;
 }
 
@@ -107,5 +107,5 @@ export async function deleteIndirectHours(id: string): Promise<void> {
   ]);
 
   revalidatePath("/ontzorgd/uren");
-  revalidatePath("/ontzorgd");
+  revalidatePath("/financien");
 }

@@ -59,7 +59,7 @@ export async function BoekhoudingPanel({ actor }: { actor: Actor }) {
           }
           action={
             isAdmin
-              ? { label: "Naar platform-administratie", href: "/admin/administratie" }
+              ? { label: "Naar platform-administratie", href: "/admin/financien" }
               : { label: "Naar dashboard", href: "/dashboard" }
           }
         />

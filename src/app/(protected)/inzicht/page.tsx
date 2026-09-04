@@ -180,7 +180,7 @@ function WinstPerMaandCard({ trend }: { trend: ProfitTrend }) {
       title="Winst per maand"
       action={
         <Link
-          href="/ontzorgd"
+          href="/financien?tab=ontzorgd"
           className="focus-ring inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:underline"
         >
           Naar ontzorgd

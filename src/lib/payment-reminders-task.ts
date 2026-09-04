@@ -246,7 +246,7 @@ export async function runPaymentReminderTask(opts: {
             type: "PAYMENT_OVERDUE",
             title: "Te late betaling vraagt aandacht",
             body: `Factuur ${e.partyInvoiceNumber ?? "(concept)"} staat ${e.daysOverdue} dagen open (laatste aanmaning).`,
-            link: "/admin/administratie",
+            link: "/admin/financien",
           },
         }),
       );

@@ -39,13 +39,18 @@ export function StatsPanel({ stats }: { stats: PlatformStats }) {
       {/* Gebruikers */}
       <BiSection icon={Users} title="Gebruikers">
         <div className="grid gap-4 lg:grid-cols-3">
-          <KpiTile icon={Users} label="Totaal" value={stats.users.total} href="/admin/gebruikers" />
+          <KpiTile
+            icon={Users}
+            label="Totaal"
+            value={stats.users.total}
+            href="/admin/gebruikersbeheer"
+          />
           <KpiTile
             label="Geschorst"
             value={stats.users.suspended}
             tone={stats.users.suspended > 0 ? "warning" : "default"}
             sub={stats.users.suspended === 0 ? "Niemand geschorst" : "Toegang ingetrokken"}
-            href="/admin/gebruikers"
+            href="/admin/gebruikersbeheer"
           />
           <Card>
             <CardContent className="space-y-3">

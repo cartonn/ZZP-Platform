@@ -94,7 +94,7 @@ export async function requestAccountDeletion(): Promise<void> {
           type: "ACCOUNT_DELETION_REQUESTED",
           title: "Verwijderverzoek",
           body: "Een gebruiker heeft accountverwijdering aangevraagd.",
-          link: "/admin/gebruikers",
+          link: "/admin/gebruikersbeheer",
         },
       }),
     ),
