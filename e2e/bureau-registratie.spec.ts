@@ -1,6 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
-import { clickUntilGone } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -84,24 +83,19 @@ test("admin ziet de wachtrij, moet een reden opgeven bij afwijzen en kan activer
   // en faalt de assertie hieronder (waargenomen CI-flake, geen productdefect).
   await expect(row.getByRole("button", { name: "Afwijzen bevestigen" })).toBeHidden();
 
-  // Activeren haalt de aanmelding uit de wachtrij (de lijst toont alleen PENDING-tenants).
-  // Wachten-zonder-herladen wérkt hier niet, en dat is gemeten, niet vermoed: in een
-  // productiebuild (`npm run start`, zoals e2e-shard draait) geeft de activatie-POST binnen ~70ms
-  // status 200 en landt de mutatie server-side — maar de response-body komt nooit (Playwright:
-  // "No data found for resource with given identifier"). De action-stream blijft open en leeg, dus
-  // `useActionState` blijft op pending ("Bezig…") en de `revalidatePath` bereikt de client nooit.
-  // Gevolg: noch "rij weg" noch "… is geactiveerd" verschijnt ooit, en een poll die bewust niet
-  // herlaadt loopt gegarandeerd af. Dat is issue #329, en in de productiebuild deterministisch —
-  // vandaar dat dit lokaal in dev groen is en in e2e-shard 3× op rij rood.
+  // REGRESSIETEST voor issue #329. Activeren haalt de aanmelding uit de wachtrij (de lijst toont
+  // alleen PENDING-tenants) en dat moet ZONDER herladen zichtbaar worden — één klik, geen
+  // window.stop()-omweg, geen verse GET. Precies dát ging in een productiebuild (`npm run start`,
+  // zoals de e2e-shard draait) mis: de mutatie landde, de volledige action-respons kwam aan, maar
+  // React commit de transitie niet, dus de knop bleef eeuwig op "Bezig…" staan en de rij bleef
+  // staan. Zie src/lib/client/action-replay.ts voor de gemeten oorzaak en de remedie.
   //
-  // De remedie is de bestaande `clickUntilGone`: die kapt de hangende response af (window.stop) en
-  // haalt met een verse GET de serverwaarheid op. Herladen is hier aantoonbaar veilig — de mutatie
-  // is al geland vóór de reload (gemeten: rij weg na reload), dus er wordt geen lopende POST
-  // afgebroken. Er wordt alleen herklikt zolang de rij er ná die verse GET nog staat, dus geen
-  // dubbele activatie; en mocht dat toch gebeuren, dan weigert `updateMany where status PENDING`
-  // de tweede beslissing sowieso.
-  await clickUntilGone(row.getByRole("button", { name: "Activeren" }), row, 30000);
-  await expect(row).toHaveCount(0);
+  // We wachten eerst tot de route gehydrateerd is (data-hydrated), zodat de klik niet in de
+  // hydratatie-race verdwijnt — dat is een testartefact, geen productdefect, en mag deze
+  // assertie niet vertroebelen.
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "/admin/franchises");
+  await row.getByRole("button", { name: "Activeren" }).click();
+  await expect(row).toHaveCount(0, { timeout: 15000 });
 
   // Na activatie opent de werkplek voor de bemiddelaar (live gelezen, geen nieuwe sessie nodig).
   const bureauNa = await browser.newPage();
