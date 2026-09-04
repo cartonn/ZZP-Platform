@@ -109,6 +109,8 @@ const ALLOWLIST: Record<string, string> = {
     "[CASCADE] onDelete:Cascade vanaf Credential; Credential wordt hard verwijderd in de erasure.",
   VerificationRequest:
     "[CASCADE] onDelete:Cascade vanaf Credential; verdwijnt met de credential-verwijdering.",
+  UserSignalBadge:
+    "[CASCADE] onDelete:Cascade vanaf UserSignalSnapshot; die snapshot wordt in de erasure hard verwijderd.",
   // [AUTH]
   Account:
     "[AUTH] Auth.js OAuth-adaptertabel; credentials+JWT-platform (niet gevuld). Erasure maakt het account inert.",

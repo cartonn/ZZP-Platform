@@ -81,6 +81,7 @@ model User {
   indirectHoursEntries    IndirectHoursEntry[]
   expenses                Expense[]
   twoFactorRecoveryCodes  TwoFactorRecoveryCode[]
+  signalSnapshot          UserSignalSnapshot?
 
   @@index([role])
   @@index([status])
@@ -1244,6 +1245,7 @@ model DomainEvent {
   @@index([type])
   @@index([subjectType, subjectId])
   @@index([correlationId])
+  @@index([occurredAt]) // de signaal-reconciliatie leest "events sinds <tijdstip>" — zonder index een full scan
 }
 
 // Idempotentie-marker: een handler draait per event hooguit één keer.
@@ -1602,4 +1604,46 @@ model ProcessedWebhookEvent {
 
   @@unique([provider, eventKey])
   @@index([createdAt]) // retentie-snoei / opruimen van oude ledger-rijen
+}
+
+// Signaal-snapshot per gebruiker — een CACHE VAN DE UITKOMST van `navBadges` (signals.ts),
+// `pendingTaskCount` (actions/pending-tasks.ts) en de ongelezen-meldingenteller. Géén tweede
+// berekening: de schrijver (`recomputeSignalSnapshot`) roept exact die drie bestaande bronnen aan, de
+// vensters blijven gescheiden (#1022/#1026) en de waarheid blijft één. Zonder deze rij kost de
+// app-shell op élke beschermde pagina 18–46 queries vóór de pagina zelf iets doet; mét de rij is dat
+// één lezing plus, hooguit, een herberekening.
+//
+// `staleAfter` is de bodemgarantie: de snapshot vervalt sowieso na een korte TTL, dus élke mutatie —
+// ook de tientallen serveracties die buiten de event-laag rechtstreeks schrijven — is uiterlijk na
+// die TTL zichtbaar. Expliciete invalidatie (`invalidateSignals`) versnelt dat; de TTL vangt wat de
+// invalidatie mist. `version` verwerpt rijen die met een oudere berekening zijn gemaakt.
+model UserSignalSnapshot {
+  userId              String   @id
+  role                String //   rol waarvoor de badges zijn berekend; wijkt die af, dan is de rij ongeldig
+  pendingTaskCount    Int      @default(0) // exact wat /acties toont (de /acties-badge)
+  unreadNotifications Int      @default(0) // de bel-teller in de bovenbalk
+  version             Int      @default(1) //  SIGNAL_SNAPSHOT_VERSION op het moment van berekenen
+  computedAt          DateTime @default(now())
+  staleAfter          DateTime //  vervalmoment; ≤ nu betekent herberekenen
+
+  user   User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badges UserSignalBadge[]
+
+  @@index([staleAfter])
+}
+
+// Eén nav-badge binnen een snapshot. Bewust genormaliseerd in plaats van een kolom per badge-sleutel:
+// de badge-sleutels (nav-hrefs) veranderen mee met de navigatie, en een kolom per sleutel zou elke
+// nieuwe badge een schemamigratie kosten én de toon (`tone`) dupliceren die signals.ts al bepaalt.
+// Geen Json-scalar (architectuurregel 6): platte kolommen, één rij per badge, draait op SQLite én
+// Postgres.
+model UserSignalBadge {
+  userId String
+  href   String //  nav-href waaraan de badge hangt (bv. "/certificaten")
+  count  Int //     aantal openstaande items, exact zoals navBadges het teruggaf
+  tone   String //  BadgeTone: attention | info — overgenomen uit de berekening, nooit hier afgeleid
+
+  snapshot UserSignalSnapshot @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@id([userId, href])
 }

@@ -912,6 +912,12 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // `onDelete: Cascade` niet (de User-rij wordt geüpdatet, niet verwijderd) → expliciet hard
     // verwijderen zodat een geanonimiseerd account geen bruikbaar authenticatiemateriaal achterlaat.
     prisma.twoFactorRecoveryCode.deleteMany({ where: { userId } }),
+    // AVG art. 17 — de signaal-snapshot: een afgeleide cache (tellingen per nav-item, de /acties- en
+    // bel-teller) die aan zíjn `userId` hangt. Geen vrije tekst, maar wel een tot de persoon
+    // herleidbaar profiel van openstaande zaken; na anonimisering is het bovendien betekenisloos.
+    // Een `user.update` triggert de `onDelete: Cascade` niet → expliciet hard verwijderen (de
+    // `UserSignalBadge`-kindrijen gaan mee via hun eigen cascade).
+    prisma.userSignalSnapshot.deleteMany({ where: { userId } }),
     // AVG art. 17 (zie de `ownCreditedInvoices`-toelichting hierboven): de zelf-geschreven creditreden
     // in zijn drie kopieën. (1) De reden op de eigen credit-facturen wissen.
     ...(ownCreditedInvoiceIds.length
