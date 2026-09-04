@@ -206,6 +206,39 @@ describe("readSignalSnapshot", () => {
     expect(result.recomputed).toBe(true);
     expect(result.pendingTaskCount).toBe(3);
   });
+
+  it("wacht niet op het terugschrijven van de cache", async () => {
+    // De render mag nooit op een cache-vulling wachten (op SQLite blokkeert zo'n write ook nog eens
+    // gelijktijdige lezers). De lezer keert dus terug vóórdat de write klaar is.
+    let releaseWrite: (() => void) | undefined;
+    transaction.mockReturnValue(
+      new Promise<unknown[]>((resolve) => {
+        releaseWrite = () => resolve([]);
+      }),
+    );
+    const result = await readSignalSnapshot("u7", "FREELANCER");
+    expect(result.recomputed).toBe(true);
+    expect(result.pendingTaskCount).toBe(3);
+    releaseWrite?.();
+  });
+
+  it("schrijft hooguit één keer tegelijk per gebruiker (prefetch-storm)", async () => {
+    // Next rendert de shell ook voor élke prefetch; die missen allemaal dezelfde koude cache. Zonder
+    // grendel levert één navigatie een handvol gelijktijdige writes op.
+    let releaseWrite: (() => void) | undefined;
+    transaction.mockReturnValue(
+      new Promise<unknown[]>((resolve) => {
+        releaseWrite = () => resolve([]);
+      }),
+    );
+    await Promise.all([
+      readSignalSnapshot("u8", "FREELANCER"),
+      readSignalSnapshot("u8", "FREELANCER"),
+      readSignalSnapshot("u8", "FREELANCER"),
+    ]);
+    expect(transaction).toHaveBeenCalledTimes(1);
+    releaseWrite?.();
+  });
 });
 
 describe("recomputeSignalSnapshot", () => {

@@ -96,6 +96,7 @@ describe("query-budget: de app-shell per rol", () => {
   const fixtures = new Map<Role, string>();
   let shell: (role: Role, userId: string) => Promise<void>;
   let warmShell: (role: Role, userId: string) => Promise<void>;
+  let primeSnapshot: (role: Role, userId: string) => Promise<void>;
   let drainQueryEvents: () => Promise<void>;
   const previousUrl = process.env.DATABASE_URL;
   const previousLog = process.env.PRISMA_QUERY_LOG;
@@ -176,6 +177,11 @@ describe("query-budget: de app-shell per rol", () => {
       await drainQueryEvents();
     };
 
+    primeSnapshot = async (role, userId) => {
+      await snapshot.recomputeSignalSnapshot(userId, role);
+      await drainQueryEvents();
+    };
+
     // De WARME shell: exact wat `AppShell` doet sinds de signalen uit de snapshot komen — één
     // `readSignalSnapshot` (die de badges, de /acties-teller én de bel-teller draagt) plus de
     // tenant-branding.
@@ -228,9 +234,10 @@ describe("query-budget: de app-shell per rol", () => {
     it(`houdt de WARME app-shell (via de snapshot) voor ${role} binnen ${WARM_BUDGET} queries`, async () => {
       const userId = fixtures.get(role);
       expect(userId, `fixture voor ${role} ontbreekt`).toBeDefined();
-      // Eerst één keer koud draaien: dat schrijft de snapshot. Die aanroep meten we niet — het is de
-      // eerste render na een mutatie, en die kost per definitie de volledige berekening.
-      await warmShell(role, userId!);
+      // Eerst de snapshot vullen. Bewust via `recomputeSignalSnapshot` (die WÉL op de write wacht)
+      // en niet via een koude render: de renderkant schrijft op de achtergrond, dus die geeft geen
+      // garantie dat de rij er al staat op het moment dat we meten.
+      await primeSnapshot(role, userId!);
       queries = [];
       await warmShell(role, userId!);
       const count = queries.length;
