@@ -150,6 +150,13 @@ async function registerBureau(formData: FormData): Promise<RegisterState> {
     return { fieldErrors: { password: BREACHED_PASSWORD_MESSAGE } };
   }
 
+  // Hash het wachtwoord ONVOORWAARDELIJK vóór de existentie-check. De bcrypt-kosten (cost 10, ~60ms)
+  // zijn de grootste vaste rekenstap; draaien we die alleen op het nieuw-pad, dan verraadt de
+  // responstijd of dit e-mailadres/KvK-nummer al bestaat — een timing-enumeratie-orakel
+  // (CWE-208 / OWASP A07) dat exact het "geen enumeratie"-ontwerp van deze flow ondermijnt. Door de
+  // hash op beide paden te betalen dragen bestaand- en nieuw-pad dezelfde vaste kosten.
+  const passwordHash = await bcrypt.hash(password, 10);
+
   // Bestaat het e-mailadres of KvK-nummer al? Dan stil stoppen met dezelfde bevestiging — één
   // aanmelding per bureau, en geen signaal of dit account/bureau al bekend is.
   const [existingUser, existingTenant] = await Promise.all([
@@ -158,7 +165,6 @@ async function registerBureau(formData: FormData): Promise<RegisterState> {
   ]);
   if (existingUser || existingTenant) return { success: BUREAU_SUBMITTED };
 
-  const passwordHash = await bcrypt.hash(password, 10);
   const meta = await requestMeta();
   try {
     await createTenantWithOwner({

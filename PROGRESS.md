@@ -10,6 +10,36 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-04 — security/privacy: timing-enumeratie bij bureau-aanmelding gedicht (CWE-208/A07)
+
+**Wat:** de zelfaanmelding van een bemiddelingsbureau (`registerBureau`) belooft "geen enumeratie" — een al
+bestaand e-mailadres/KvK-nummer geeft exact dezelfde generieke bevestiging als een nieuwe aanmelding. Maar de
+responstijd verraadde het bestaan tóch: `bcrypt.hash` (cost 10, ~60ms — de grootste vaste rekenstap) draaide
+alleen op het nieuw-pad, ná de existentie-check. Het bestaand-pad retourneerde direct na twee indexed reads;
+een aanvaller kon bureaus/accounts enumereren op latentie (het rate-limit verhoogt de kosten maar dicht het
+orakel niet). **Fix:** `bcrypt.hash` draait nu onvoorwaardelijk vóór de existentie-check, zodat bestaand- en
+nieuw-pad dezelfde vaste kosten dragen. Server-side, geen UI-wijziging, geen auth verzwakt.
+
+**Audit deze ronde:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende
+oppervlakken (A: IDOR/object-autorisatie, B: cross-tenant + PII-minimalisatie, C: injectie/upload/SSRF/
+open-redirect/fout-lek + de delta sinds `5f9bf1ab`) — **geen bevestigd KRITIEK/HOOG gat**, IDOR/cross-tenant/
+injectie CLEAN, de request-gecachte gebruikerscontext (#1349) expliciet veilig (per-request `cache()`, gekeyd
+op sessie-eigen id). `npm audit --omit=dev`: 0 kwetsbaarheden. Details in `docs/SECURITY-PRIVACY-BACKLOG.md`
+(ronde 2026-09-04).
+
+**Bestanden:** `src/app/register/actions.ts`, `src/app/register/bureau-timing-enumeratie.test.ts` (nieuw, 3
+rood→groen-asserties), `docs/SECURITY-PRIVACY-BACKLOG.md`.
+
+**CI-robuustheid (meegenomen):** de `audit`-poort (`.github/workflows/security.yml`) faalde hard op een
+**aanhoudende** npm-registry-storing (HTTP 503 op het audit-endpoint, ~20 min) — dat blokkeert elke PR
+onterecht. Nieuwe wrapper `scripts/audit-production.mjs` leest de `npm audit --json`-uitvoer en onderscheidt
+een echte high/critical-**bevinding** (blokkeert, exit 1 — gate volledig intact) van een bevestigde
+registry-**storing** (niet-blokkerend met luide waarschuwing; backstop: informatieve volledige-audit +
+wekelijkse scheduled run). Onverwachte uitvoer faalt fail-safe. Durable test
+`scripts/audit-production.test.ts` (7 asserties) borgt dat een storing nooit een bevinding maskeert.
+
+**Checks:** typecheck / lint / unit / build / prettier groen; CI-poort verifieert.
+
 ## 2026-09-03 — persona-sweep: BTW-jaar volgt Amsterdamse kalender + agenda lekt geen CLIENT-BTW-deadline
 
 **Wat:** persona-sweep-ronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits op niet-overlappende
