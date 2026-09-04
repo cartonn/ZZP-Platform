@@ -5,6 +5,7 @@ import "./globals.css";
 import { getLocale } from "@/lib/i18n/server";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { HydrationFlag } from "@/components/system/hydration-flag";
+import { ActionReplay } from "@/components/system/action-replay";
 import { PwaRegister } from "@/components/system/pwa-register";
 import { InstallPrompt } from "@/components/system/install-prompt";
 
@@ -72,6 +73,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="min-h-screen antialiased">
         <LocaleProvider locale={locale}>
+          <ActionReplay />
           <HydrationFlag />
           <PwaRegister />
           <InstallPrompt />
