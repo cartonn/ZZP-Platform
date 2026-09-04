@@ -9,15 +9,22 @@ vi.mock("@/lib/observability/routing-delivery-heartbeat", () => ({
 
 import {
   checkRoutingConnectivity,
+  DEFAULT_ROUTING_RETRIES,
   estimateTravelMinutesWithRouting,
   geocodeCacheKey,
+  geocodePlace,
   geoapifyGeocodeUrl,
   geoapifyRoutingUrl,
+  MAX_ROUTING_RETRIES,
   normalizeRoutingPlace,
   parseGeoapifyGeocodeResponse,
   parseGeoapifyRoutingResponse,
+  resolveRoutingRetries,
+  ROUTING_RETRY_BASE_DELAY_MS,
+  ROUTING_RETRY_MAX_DELAY_MS,
   RoutingConnectivityError,
   routeCacheKey,
+  routingRetryDelayMs,
   type GeoPoint,
   type RoutingCache,
   type RoutingMode,
@@ -223,9 +230,11 @@ describe("routing delivery heartbeat", () => {
       cache: new MemoryRoutingCache(),
       fetchImpl,
       now,
+      sleepImpl: async () => {},
     });
 
     expect(recordRoutingSuccess).not.toHaveBeenCalled();
+    // Alleen de einduitkomst telt: één mislukking nadat de retries op het 503-route-endpoint uitputten.
     expect(recordRoutingFailure).toHaveBeenCalledTimes(1);
     expect(recordRoutingFailure).toHaveBeenCalledWith(now);
     // Terugval op de deterministische offline schatter.
@@ -262,11 +271,111 @@ describe("routing delivery heartbeat", () => {
       cache: new MemoryRoutingCache(),
       fetchImpl,
       now,
+      sleepImpl: async () => {},
     });
 
     expect(recordRoutingFailure).toHaveBeenCalledWith(now);
     expect(recordRoutingSuccess).not.toHaveBeenCalled();
     expect(minutes).toBeGreaterThan(0);
+  });
+});
+
+describe("routing provider time-out + transiënte retry (hot-path hardening)", () => {
+  const now = new Date("2026-09-04T12:00:00.000Z");
+
+  function geocodeOk(): Response {
+    return jsonResponse({
+      features: [{ properties: { lat: 52.3676, lon: 4.9041, formatted: "Amsterdam" } }],
+    });
+  }
+  function routeOk(): Response {
+    return jsonResponse({ features: [{ properties: { distance: 60000, time: 3600 } }] });
+  }
+
+  it("herstelt op een retry na een transiënte 503 op het route-endpoint (succes, geen mislukking)", async () => {
+    let routeCalls = 0;
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      const href = String(url);
+      if (href.includes("/geocode/")) return geocodeOk();
+      routeCalls += 1;
+      // Eerste route-poging faalt transiënt (503), de retry slaagt.
+      return routeCalls === 1 ? new Response("upstream", { status: 503 }) : routeOk();
+    }) as unknown as typeof fetch;
+
+    const minutes = await estimateTravelMinutesWithRouting("Amsterdam", "Rotterdam", {
+      provider: "geoapify",
+      apiKey: "test-key",
+      cache: new MemoryRoutingCache(),
+      fetchImpl,
+      now,
+      retries: 2,
+      sleepImpl: async () => {},
+    });
+
+    expect(routeCalls).toBe(2); // één faal + één geslaagde retry
+    expect(minutes).toBe(60); // 3600 s / 60 → uit de provider, niet de haversine-fallback
+    expect(recordRoutingSuccess).toHaveBeenCalledTimes(1);
+    expect(recordRoutingSuccess).toHaveBeenCalledWith(now);
+    expect(recordRoutingFailure).not.toHaveBeenCalled();
+  });
+
+  it("herhaalt een niet-transiënte 401 NIET (verkeerde sleutel faalt meteen)", async () => {
+    const fetchImpl = vi.fn(
+      async () => new Response("unauthorized", { status: 401 }),
+    ) as unknown as typeof fetch;
+
+    await geocodePlace("Amsterdam", {
+      provider: "geoapify",
+      apiKey: "bad-key",
+      cache: new MemoryRoutingCache(),
+      fetchImpl,
+      now,
+      retries: 3,
+      sleepImpl: async () => {},
+    });
+
+    // De geocode faalt niet-transiënt (401) → geen retry → precies één poging.
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(recordRoutingFailure).toHaveBeenCalledWith(now);
+    expect(recordRoutingSuccess).not.toHaveBeenCalled();
+  });
+
+  it("registreert bij uitgeputte retries op een aanhoudende 429 precies één mislukking", async () => {
+    const fetchImpl = vi.fn(
+      async () => new Response("rate limited", { status: 429 }),
+    ) as unknown as typeof fetch;
+
+    await geocodePlace("Amsterdam", {
+      provider: "geoapify",
+      apiKey: "test-key",
+      cache: new MemoryRoutingCache(),
+      fetchImpl,
+      now,
+      retries: 2,
+      sleepImpl: async () => {},
+    });
+
+    // Eén initiële poging + twee retries = drie fetch-calls; slechts één heartbeat-mislukking (einduitkomst).
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(recordRoutingFailure).toHaveBeenCalledTimes(1);
+    expect(recordRoutingSuccess).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveRoutingRetries", () => {
+  it("klemt op [0, MAX] en valt terug bij onleesbare invoer", () => {
+    expect(resolveRoutingRetries(undefined)).toBe(DEFAULT_ROUTING_RETRIES);
+    expect(resolveRoutingRetries("0")).toBe(0);
+    expect(resolveRoutingRetries("-3")).toBe(0);
+    expect(resolveRoutingRetries("99")).toBe(MAX_ROUTING_RETRIES);
+    expect(resolveRoutingRetries("2")).toBe(2);
+    expect(resolveRoutingRetries("nonsense")).toBe(DEFAULT_ROUTING_RETRIES);
+  });
+
+  it("berekent een begrensde exponentiële backoff", () => {
+    expect(routingRetryDelayMs(0)).toBe(ROUTING_RETRY_BASE_DELAY_MS);
+    expect(routingRetryDelayMs(1)).toBe(ROUTING_RETRY_BASE_DELAY_MS * 2);
+    expect(routingRetryDelayMs(10)).toBe(ROUTING_RETRY_MAX_DELAY_MS);
   });
 });
 
