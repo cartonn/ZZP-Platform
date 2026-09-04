@@ -344,3 +344,47 @@ export function filterRosterByMinMatch(calendar: RosterCalendar, min: number): R
 
   return { days, total, beyondHorizon: calendar.beyondHorizon };
 }
+
+/** Context bij een dubbele-boeking-conflict op één agendadag. */
+export interface AgendaDayBookingConflict {
+  /** Aantal reeds geplande diensten op deze dag. */
+  bookedCount: number;
+  /** Ontdubbelde opdrachtgevers waar de ZZP'er die dag al staat, alfabetisch gesorteerd. */
+  clientNames: string[];
+}
+
+/**
+ * Dubbele-boeking-signaal: een open kans op een dag waarop de ZZP'er al is ingepland. Puur
+ * afgeleid uit één agendadag — er is alleen een conflict als beide zijden (`booked` én `open`)
+ * niet-leeg zijn. Geeft de context terug (hoeveel diensten, bij welke opdrachtgevers) zodat de UI
+ * kan waarschuwen vóór het claimen. `null` = geen conflict (niets geboekt óf niets open die dag).
+ * Muteert de invoer niet.
+ */
+export function agendaDayBookingConflict(day: AgendaDay): AgendaDayBookingConflict | null {
+  if (day.booked.length === 0 || day.open.length === 0) return null;
+  const clientNames = Array.from(new Set(day.booked.map((b) => b.clientName))).sort((a, b) =>
+    a.localeCompare(b),
+  );
+  return { bookedCount: day.booked.length, clientNames };
+}
+
+/**
+ * Eén bron van waarheid voor de waarschuwingstekst bij een dubbele-boeking-conflict, zodat de
+ * dag-banner en het claim-formulier op `/rooster` nooit uiteenlopen. Noemt de opdrachtgever(s)
+ * waar de ZZP'er die dag al staat; bij meer dan twee wordt afgekapt met "en meer" zodat de zin
+ * kort blijft (geen afkorting met punt, die zou botsen met de zin-punt).
+ */
+export function formatBookingConflictNotice(conflict: AgendaDayBookingConflict): string {
+  const names = conflict.clientNames;
+  let who: string;
+  if (names.length <= 1) {
+    // clientNames is nooit leeg wanneer er een conflict is (bookedCount ≥ 1), maar val defensief
+    // terug op een generieke formulering als een aanroeper toch een lege lijst doorgeeft.
+    who = names[0] ?? "een andere opdrachtgever";
+  } else if (names.length === 2) {
+    who = `${names[0]} en ${names[1]}`;
+  } else {
+    who = `${names[0]}, ${names[1]} en meer`;
+  }
+  return `Je bent deze dag al ingepland bij ${who}. Controleer of een extra dienst past.`;
+}
