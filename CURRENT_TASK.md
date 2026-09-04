@@ -65,7 +65,12 @@ increments komen uit de backlog hieronder; **niet dubbel bouwen** — check `gh 
    /verplichtingen reputatiekaart) — pas daarna omleiden (pakket E liet ze staan om functieverlies te
    voorkomen).
 4. `notFound()` onder een `loading.tsx` geeft HTTP 200; overweeg `notFound()` vóór de streaming-shell.
-5. Rooster-begrip scherp definiëren (dashboard-weekstrip, /rooster, samenwerking-looptijd) — review-bevinding.
+5. **Server-action-respons blijft hangen (productiebug, bewezen in #1354):** de activatie-POST op
+   /admin/franchises landt server-side (200 in ~70 ms) maar de RSC-stream levert nooit een body, dus
+   `useActionState` blijft op "Bezig…" en `revalidatePath` bereikt de client niet. Zelfde klasse als
+   issue #329. Vermoedelijk raakt dit meer server actions in productiebuild; onderzoek de streaming-
+   respons (Next 15.5 + `redirect`/`revalidatePath` in dezelfde action) en fix app-breed.
+6. Rooster-begrip scherp definiëren (dashboard-weekstrip, /rooster, samenwerking-looptijd) — review-bevinding.
 
 ## Openstaande backlog (bovenste eerst; pak er één, lever DoD-groen, push)
 
