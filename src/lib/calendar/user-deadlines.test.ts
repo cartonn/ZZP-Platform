@@ -134,6 +134,25 @@ describe("loadUserAdministrativeDeadlines", () => {
     ]);
   });
 
+  it("opdrachtgever: géén BTW-aangifte-deadline in de agenda (#1333 — niet in de actie-rail, dus ook niet hier)", async () => {
+    getVatDeadlinesMock.mockResolvedValue([
+      {
+        year: 2026,
+        quarter: 2,
+        deadline: new Date("2026-07-31T00:00:00Z"),
+        daysUntil: 10,
+        status: "DUE_SOON",
+        balanceCents: 12100,
+        party: "CLIENT",
+      },
+    ]);
+    const result = await loadUserAdministrativeDeadlines(USER, "CLIENT", NOW);
+    // De agenda mag de engine niet eens raadplegen voor een opdrachtgever; anders lekt een
+    // aangifte-deadline in de .ics die de actie-rail bewust stil houdt.
+    expect(getVatDeadlinesMock).not.toHaveBeenCalled();
+    expect(result.vat).toEqual([]);
+  });
+
   it("delegeert de IB-deadline aan de engine en mapt belastingjaar/deadline door", async () => {
     getIncomeTaxDeadlineMock.mockResolvedValue({
       taxYear: 2026,

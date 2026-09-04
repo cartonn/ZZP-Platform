@@ -20,7 +20,9 @@ import { type AdministrativeDeadlines } from "@/lib/calendar/deadlines";
  * - Certificaten: alleen ZZP'ers hebben een eigen dossier — VERIFIED credentials met een verloopdatum.
  * - Facturen: openstaand (canonieke where) waarin de gebruiker uitschrijver (ZZP'er) óf tegenpartij
  *   (opdrachtgever) is, met een gezette `dueAt`.
- * - BTW: gedelegeerd aan de bestaande deadline-engine (leeg voor rollen zonder eigen grootboek).
+ * - BTW: alleen voor de ZZP'er, gedelegeerd aan de bestaande deadline-engine. Voor de opdrachtgever
+ *   bewust leeg (#1333): die aangifte-deadline is structureel onjuist voor die rol en staat ook niet
+ *   in de actie-rail; hem in de agenda tonen zou die twee surfaces laten tegenspreken.
  * - Inkomstenbelasting: de eerstvolgende IB-aangifte-deadline (1 mei ná het belastingjaar), alleen
  *   voor een ZZP'er met omzet in dat jaar; anders `null`.
  * - Plaatsingen: lopende (ACTIVE, niet-betwiste) samenwerkingen met een vastgelegde einddatum die nog
@@ -64,7 +66,13 @@ export async function loadUserAdministrativeDeadlines(
         orderBy: { dueAt: "asc" },
         select: { id: true, number: true, dueAt: true, counterpartyUserId: true },
       }),
-      getVatDeadlinesForActor(userId, role, now),
+      // Alleen de ZZP'er krijgt BTW-aangifte-deadlines in de agenda. De BTW-aangiftetaak is voor de
+      // opdrachtgever bewust uit de actie-rail gehaald (#1333, pending-tasks.ts): een zorginstelling
+      // is meestal btw-vrijgesteld en laat haar aangifte door een accountant doen — een
+      // aangifte-deadline op onze deelverzameling van haar administratie is structureel onjuist.
+      // Diezelfde deadline hoort dan ook niet in haar agenda-/.ics-export terecht te komen, anders
+      // spreekt de agenda de actie-rail tegen (één waarheid). De BTW-overzichten op /financien blijven.
+      role === "FREELANCER" ? getVatDeadlinesForActor(userId, role, now) : Promise.resolve([]),
       getIncomeTaxDeadlineForActor(userId, role, now),
       role === "FREELANCER" || role === "CLIENT"
         ? prisma.collaboration.findMany({
