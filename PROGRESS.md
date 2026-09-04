@@ -10,6 +10,24 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-04 — security/privacy-audit: CSRF-origin-allowlist weigert een catch-all wildcard (fail-closed + zichtbaar)
+
+**Wat:** volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële
+Opus-audits op niet-overlappende verse oppervlakken + eigen statische sweep). **Geen KRITIEK/HOOG/MIDDEL
+gevonden** — de signaal-snapshot-datalaag (#1375/#1378), de delta sinds `cdefe218` (route-dedup #1340,
+server-action-origin-allowlist #1372, React-transitie-fix #1377, CI-trigger #1376) én het AVG-recht-op-
+vergetelheid-pad (60 modellen model-voor-model) zijn schoon bevonden. Dit spiegelt de reeks CLEAN-rondes;
+het platform is op deze oppervlakken hard.
+
+**Gefixt (LAAG · OWASP A01/CSRF · CLAUDE.md §8):** `resolveAllowedOrigins` (`scripts/server-actions-origins.mjs`)
+liet een te-brede wildcard (`*`, `*.com`, `*.local`) uit `SERVER_ACTIONS_ALLOWED_ORIGINS` ongefilterd de
+Next.js-`allowedOrigins` in — dat schakelt de anti-CSRF-origin-check voor álle Server Actions **stil** uit.
+Nieuwe pure guard `isOverbroadOriginPattern` weigert zulke waarden fail-closed + logt een zichtbare
+waarschuwing (boot breekt niet, §8). Een begrensde `*.<domein>.<tld>` en concrete hosts passeren.
+Rood→groen: `scripts/server-actions-origins.test.ts` (+8 cases). Twee latente LAAG-notities (sessie-rol-
+verversing bij een toekomstige admin-rolwissel; dode kolom `Application.attachmentId`) staan geparkeerd in
+`docs/SECURITY-PRIVACY-BACKLOG.md`. Checks: typecheck ✓ · lint ✓ · prettier ✓ · unit groen (CI-poort verifieert).
+
 ## 2026-09-04 — persona-sweep: ORT-toeslagen bevriezen bij goedkeuren (factuur/werkproces/PDF driften niet meer)
 
 **Wat:** kritische-gebruiker-sweep over alle vier de rollen (live Playwright-smoke: geen 500's, geen

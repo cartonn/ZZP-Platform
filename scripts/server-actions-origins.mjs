@@ -44,11 +44,41 @@ export function normalizeOrigin(raw) {
 }
 
 /**
+ * Is dit host-patroon zó breed dat het de CSRF-origin-check feitelijk uitschakelt? `allowedOrigins`
+ * is bedoeld als een korte lijst concrete, vertrouwde hosts (evt. één begrensde `*.<domein>.<tld>`-
+ * wildcard). Een kale `*` of een wildcard op een heel TLD (`*.com`, `*.local`) laat Next élke
+ * cross-origin Server Action door — dat verzet de anti-CSRF-poort voor de héle app (documentupload,
+ * cascade, alle mutaties). Zulke waarden mogen nooit stil vertrouwd worden. OWASP A01 (Broken Access
+ * Control / CSRF); spiegelt CLAUDE.md §8: een gevaarlijke config faalt zichtbaar i.p.v. stil-gevaarlijk.
+ *
+ * Bewust conservatief: we eisen minstens twee labels ná de `*.` (dus `*.example.com` mag, `*.com`
+ * niet). Publieke suffixen met twee labels (`*.co.uk`) laten we passeren — die volledig afvangen
+ * vergt de Public Suffix List; de catastrofale gevallen (kale `*`, heel-TLD) zijn hiermee gedekt.
+ *
+ * @param {string | null | undefined} host  al genormaliseerd (zie normalizeOrigin)
+ * @returns {boolean}
+ */
+export function isOverbroadOriginPattern(host) {
+  if (!host) return false;
+  const hostOnly = host.split(":")[0]; // poort telt niet mee voor de patroonbreedte
+  if (hostOnly === "*") return true; // kale catch-all: vertrouwt élke origin
+  if (!hostOnly.includes("*")) return false; // concrete host: prima
+  if (!hostOnly.startsWith("*.")) return true; // wildcard alleen geldig als leidend `*.`-label
+  const rest = hostOnly.slice(2);
+  if (rest.includes("*")) return true; // meer dan één wildcard-label
+  const labels = rest.split(".").filter(Boolean);
+  return labels.length < 2; // `*.com` / `*.local` / `*.` → te breed
+}
+
+/**
  * Bepaalt de lijst vertrouwde host-origins waarvandaan Server Actions mogen worden aangeroepen.
  * Combineert `AUTH_URL`/`NEXTAUTH_URL` (canonieke publieke origin) met de expliciete, komma-
  * gescheiden `SERVER_ACTIONS_ALLOWED_ORIGINS`. Genormaliseerd naar kale hosts, ontdubbeld en
  * gesorteerd (deterministisch). Leeg wanneer niets is geconfigureerd — dan blijft Next's default
  * same-origin-gedrag ongewijzigd.
+ *
+ * Te brede patronen (kale `*`, heel-TLD-wildcard) worden fail-closed geweigerd én zichtbaar gelogd:
+ * een misconfig schakelt zo niet stil de anti-CSRF-poort uit, maar breekt ook de boot niet (§8).
  *
  * @param {Record<string, string | undefined>} [env]
  * @returns {string[]}
@@ -57,7 +87,17 @@ export function resolveAllowedOrigins(env = process.env) {
   const hosts = new Set();
   const add = (value) => {
     const host = normalizeOrigin(value);
-    if (host) hosts.add(host);
+    if (!host) return;
+    if (isOverbroadOriginPattern(host)) {
+      // eslint-disable-next-line no-console -- config draait vóór de logger bestaat (next.config.mjs)
+      console.warn(
+        `[server-actions] origin-patroon "${host}" genegeerd: te breed — dit zou de CSRF-origin-` +
+          `check voor álle Server Actions uitschakelen. Gebruik een concrete host of ` +
+          `"*.<jouwdomein>.<tld>".`,
+      );
+      return;
+    }
+    hosts.add(host);
   };
 
   add(env.AUTH_URL);

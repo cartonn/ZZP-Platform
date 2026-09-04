@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { normalizeOrigin, resolveAllowedOrigins } from "./server-actions-origins.mjs";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  isOverbroadOriginPattern,
+  normalizeOrigin,
+  resolveAllowedOrigins,
+} from "./server-actions-origins.mjs";
 
 describe("normalizeOrigin", () => {
   it("pelt scheme en pad van een volledige URL tot een kale host", () => {
@@ -68,5 +72,50 @@ describe("resolveAllowedOrigins", () => {
         SERVER_ACTIONS_ALLOWED_ORIGINS: "app.example.com",
       }),
     ).toEqual(["app.example.com"]);
+  });
+
+  it("weigert een kale wildcard `*` (zou de CSRF-origin-check volledig uitschakelen)", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    // Zonder de guard normaliseert "*" naar "*" en zou het als vertrouwde origin doorlekken.
+    expect(resolveAllowedOrigins({ SERVER_ACTIONS_ALLOWED_ORIGINS: "*" })).toEqual([]);
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it("weigert een heel-TLD-wildcard maar behoudt een begrensde `*.domein.tld`", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(
+      resolveAllowedOrigins({
+        AUTH_URL: "https://app.example.com",
+        SERVER_ACTIONS_ALLOWED_ORIGINS: "*, *.com, *.example.com",
+      }),
+    ).toEqual(["*.example.com", "app.example.com"]);
+  });
+});
+
+describe("isOverbroadOriginPattern", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("markeert een kale catch-all", () => {
+    expect(isOverbroadOriginPattern("*")).toBe(true);
+    expect(isOverbroadOriginPattern("*:443")).toBe(true);
+  });
+
+  it("markeert een wildcard op een heel TLD of enkel label", () => {
+    expect(isOverbroadOriginPattern("*.com")).toBe(true);
+    expect(isOverbroadOriginPattern("*.local")).toBe(true);
+    expect(isOverbroadOriginPattern("*.")).toBe(true);
+  });
+
+  it("markeert een misvormd of niet-leidend wildcard-patroon", () => {
+    expect(isOverbroadOriginPattern("foo.*.com")).toBe(true);
+    expect(isOverbroadOriginPattern("*foo.com")).toBe(true);
+    expect(isOverbroadOriginPattern("*.a.*.com")).toBe(true);
+  });
+
+  it("laat een concrete host en een begrensde wildcard passeren", () => {
+    expect(isOverbroadOriginPattern("app.example.com")).toBe(false);
+    expect(isOverbroadOriginPattern("*.example.com")).toBe(false);
+    expect(isOverbroadOriginPattern("localhost:3000")).toBe(false);
+    expect(isOverbroadOriginPattern(null)).toBe(false);
   });
 });

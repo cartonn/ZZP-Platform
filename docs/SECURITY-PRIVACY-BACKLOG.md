@@ -4,6 +4,65 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-04b (basis: `main` @ c3afae34) — 1× LAAG OPGELOST (CSRF-origin-allowlist accepteerde een catch-all wildcard); 3 adversariële audits + eigen sweep verder CLEAN
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende, verse
+oppervlakken (elk met de opdracht een gat te _bewijzen_, niet te bevestigen), plus een eigen statische
+sweep. **A — de nieuwe signaal-snapshot-datalaag (#1375/#1378)** (`signals/snapshot.ts`, `invalidate.ts`,
+`invalidation.ts`, `signal-snapshot-reconcile-task.ts`, `app-shell.tsx`): geen cross-user-lek (de reader
+is per-`userId`+`role` gekeyd, `React.cache()` is per-request via AsyncLocalStorage, `writesInFlight` is
+race-vrij en per-`userId`), geen cross-tenant-datalek (de reconcile-taak _invalideert_ hooguit extra
+gebruikers — `staleAfter`-stempel — en onthult nooit andermans berekende waarden; recompute leest
+`userId`+`role` uit dezelfde rij), snapshot + badges worden hard verwijderd in `anonymizeUser`
+(FK-cascade + expliciete `deleteMany`), en de opgeslagen `tone`/`href` bereiken de DOM nooit als
+attribuut/HTML (whitelist → `attention|info`; `href` enkel als lookup-key tegen de statische nav).
+**B — de delta sinds `cdefe218` (15 PR's):** route-dedup (#1340, `hub-redirect.ts`) heeft géén open
+redirect (hub/tab zijn literals; user-input enkel via `URLSearchParams.append` → query-only, same-origin)
+en dropt geen authz (middleware + hub-pagina her-checken); de server-action-origin-allowlist (#1372) is
+puur additief en leest **alleen** `process.env`, nooit request-headers; de React-transitie-fix (#1377,
+`action-replay.tsx`) her-submit geen mutatie (passieve capture-listeners → lokale state-nudge, geen
+netwerk); de CI-triggerwijziging (#1376) schakelt geen vereiste poort uit (`pull_request` blijft op alle
+checks). **C — AVG recht-op-vergetelheid:** model-voor-model (60 modellen) tegen `anonymizeUser` gelegd;
+documenten worden ná de transactie (SUSPENDED + hash gewist) hard verwijderd uit **storage én DB**
+(TOCTOU-veilig), berichten + de gespiegelde `Notification.body`-kopie worden geredigeerd, audit-PII
+(email/naam + vrije-tekst `reason`-velden) wordt gescrubd, fiscale retentie is een gedocumenteerde art.
+17(3)(b)-uitzondering, en twee zelf-afdwingende CI-gates (`anonymize-schema-coverage.test.ts`) breken de
+build bij een niet-gedekt model of een nieuw PII-vrije-tekstveld. `npm run test`: groen.
+
+**OPGELOST — [LAAG · OWASP A01 (CSRF) · CLAUDE.md §8 — gevaarlijke config moet zichtbaar falen]
+`resolveAllowedOrigins` accepteerde een te-brede wildcard in `SERVER_ACTIONS_ALLOWED_ORIGINS`.**
+De Next.js 15 anti-CSRF-poort vergelijkt bij élke Server Action de `Origin` met de host; `allowedOrigins`
+staat extra vertrouwde hosts toe. `normalizeOrigin("*")` gaf `"*"` terug en dat lekte ongefilterd de
+allowlist in — een operator die per ongeluk `SERVER_ACTIONS_ALLOWED_ORIGINS=*` (of `*.com`, `*.local`)
+zet, schakelt zo **stil** de origin-check voor álle mutaties uit (documentupload, cascade, elke server
+action) → cross-site request forgery. Operator-getriggerd (geen request-pad voert aanvallersdata in),
+maar de blast-radius is de hele app en de faal is onzichtbaar — precies het "halve/gevaarlijke config
+faalt stil"-patroon dat §8 wil voorkomen. **Fix:** nieuwe pure predicaat `isOverbroadOriginPattern`
+(kale `*`, heel-TLD-wildcard `*.com`/`*.local`, misvormde/niet-leidende wildcards) → `resolveAllowedOrigins`
+weigert zulke waarden **fail-closed** (nooit vertrouwd) én logt een zichtbare `console.warn`, zonder de
+boot te breken (§8: niet-fataal). Een begrensde `*.<domein>.<tld>` en concrete hosts passeren ongewijzigd.
+**Durable test (rood→groen):** `scripts/server-actions-origins.test.ts` (+8 cases) — zonder de guard geeft
+`resolveAllowedOrigins({SERVER_ACTIONS_ALLOWED_ORIGINS:"*"})` `["*"]` i.p.v. `[]`, en de
+`isOverbroadOriginPattern`-import bestaat niet. Gewijzigd: `scripts/server-actions-origins.mjs`.
+
+**GEPARKEERD deze ronde (latent; repro + severity; geen agent-blocker):**
+
+- **[LAAG · latent · OWASP A07 — sessie-rolverversing]** `app-shell.tsx:35` leest `user.role` uit de JWT
+  (gezet bij login, niet ververst op de stille 1u-rotatie; tot 8u `maxAge` stale). `isSnapshotUsable`
+  toetst `row.role !== role` correct, dus geen _nieuwe_ vertrouwensgrens — het persisteert (≤60s TTL)
+  dezelfde rol-gedreven berekening die `navForRole(role)` nu al direct uit diezelfde stale sessiewaarde
+  rendert. **Niet reachable vandaag:** er is geen in-app actie die een live sessie van rol wisselt
+  (`admin/gebruikers/actions.ts` heeft geen `role:`-update; enige `role:`-write is self-service profiel).
+  **Fix wanneer een admin-rolwijziging landt:** roep `invalidateSignals([userId])` aan én forceer
+  her-uitgifte van de sessie.
+- **[LAAG · latent · AVG art. 17/5(1)(c)] `Application.attachmentId`** (`prisma/schema.prisma:629`) is een
+  dode/onbedrade kolom (0 referenties in `src/`). Geen gat vandaag (niets schrijft/leest 'm), maar wordt
+  hij later aan een `Document.id` gekoppeld (bv. CV-bijlage) zónder regel in `anonymizeUser`, dan vangt de
+  zelf-afdwingende `anonymize-schema-coverage.test.ts` dat **niet** (het model telt al als "erasure-touched";
+  `attachmentId` staat niet in `REQUIRED_FIELDS`). **Fix bij bedrading:** null 'm in de
+  `application.updateMany`-blok + voeg 'm toe aan `REQUIRED_FIELDS.Application`; óf verwijder de kolom.
+- **[LAAG · informational] bare `*` in `SERVER_ACTIONS_ALLOWED_ORIGINS`** — nu gedekt door de fix hierboven.
+
 ## Ronde 2026-09-04 (basis: `main` @ cdefe218) — 1× MIDDEL OPGELOST (timing-enumeratie bureau-aanmelding); 3 adversariële audits verder CLEAN
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken, elk
