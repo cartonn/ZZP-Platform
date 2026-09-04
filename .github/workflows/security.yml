@@ -20,8 +20,26 @@ jobs:
       # Hard-gate op de PRODUCTIE-dependencies: alleen wat daadwerkelijk meedraait mag een deploy
       # blokkeren. Dev-tooling (vitest/vite/esbuild) draait nooit in productie; advisories daarin
       # (bv. de Vitest-UI-fileread) horen de build niet rood te maken.
-      - name: npm audit productie-deps (faalt op high/critical)
-        run: npm audit --audit-level=high --omit=dev
+      #
+      # `npm audit` geeft exit != 0 bij (a) een high/critical-bevinding ÓF (b) een onbereikbaar
+      # audit-endpoint (bv. registry HTTP 503 "Service Unavailable"). Die twee zijn in de exitcode
+      # niet te onderscheiden, dus retryen we met backoff: een transiënte registry-storing herstelt
+      # binnen dit venster, terwijl een echte bevinding bij élke poging faalt en de stap dus rood
+      # blijft. De gate wordt hierdoor NIET zwakker — alleen robuuster tegen een netwerkblip die
+      # anders elke PR onterecht blokkeert.
+      - name: npm audit productie-deps (faalt op high/critical; retry bij registry-storing)
+        run: |
+          for attempt in 1 2; do
+            if npm audit --audit-level=high --omit=dev; then
+              exit 0
+            fi
+            echo "npm audit poging ${attempt} mislukt; opnieuw over $((attempt * 15))s..."
+            sleep $((attempt * 15))
+          done
+          # Laatste poging: de exitcode hiervan bepaalt de uitkomst. Faalt hij door een echte
+          # high/critical-bevinding, dan blijft de stap terecht rood; is de registry het hele
+          # venster onbereikbaar, dan is rood ook correct (we laten geen ongecontroleerde deploy toe).
+          npm audit --audit-level=high --omit=dev
       # Volledige audit (incl. dev) puur ter info — blokkeert niet.
       - name: npm audit volledig (informatief)
         run: npm audit --audit-level=high || true
