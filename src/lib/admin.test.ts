@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { canModerateUser, normalizeAuditFilters, toggleSuspension } from "@/lib/admin";
+import {
+  auditExportHref,
+  canModerateUser,
+  normalizeAuditFilters,
+  toggleSuspension,
+} from "@/lib/admin";
 
 describe("canModerateUser", () => {
   it("staat moderatie van anderen toe, niet van zichzelf", () => {
@@ -32,5 +37,23 @@ describe("normalizeAuditFilters", () => {
     });
     expect(normalizeAuditFilters({ page: "0" }).page).toBe(1);
     expect(normalizeAuditFilters({ page: "x" }).page).toBe(1);
+  });
+});
+
+describe("auditExportHref", () => {
+  it("exporteert zonder filters naar het kale exportpad", () => {
+    expect(auditExportHref({ page: 1 })).toBe("/admin/audit/export");
+  });
+
+  it("neemt actie- en entiteit-filter mee, maar nooit de paginering", () => {
+    expect(auditExportHref({ action: "INVOICE_PAID", entityType: "Invoice", page: 4 })).toBe(
+      "/admin/audit/export?action=INVOICE_PAID&entityType=Invoice",
+    );
+  });
+
+  it("url-encodeert filterwaarden", () => {
+    expect(auditExportHref({ action: "ROLE CHANGED", page: 1 })).toBe(
+      "/admin/audit/export?action=ROLE+CHANGED",
+    );
   });
 });

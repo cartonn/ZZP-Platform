@@ -61,9 +61,9 @@ increments komen uit de backlog hieronder; **niet dubbel bouwen** — check `gh 
 2. **Factuur-cutover:** `Invoice.status` afleiden uit `lifecycleStatus`, legacy-takken uit
    `signals.ts`/`pending-tasks.ts` weg; `Account`/`Session`/`VerificationToken`/`CredentialVerification`/
    `VerificationRequest` droppen (0 referenties).
-3. **Drie verrijkte routes naar hun hub-tab** (/admin/audit CSV-export, /prognose kaarten,
-   /verplichtingen reputatiekaart) — pas daarna omleiden (pakket E liet ze staan om functieverlies te
-   voorkomen).
+3. **Verrijkte routes naar hun hub-tab** — `/admin/audit` GEDAAN (CSV-export + telling in `AuditPanel`,
+   route leidt nu permanent om naar `/admin/toezicht?tab=audit`). Rest: `/prognose` en `/verplichtingen`
+   zijn FREELANCER-pagina's (geen admin-hub-tab); alleen oppakken als er een passende hub-tab voor komt.
 4. `notFound()` onder een `loading.tsx` geeft HTTP 200; overweeg `notFound()` vóór de streaming-shell.
 5. **React-transitie commit niet na een server action (productiebuild)** — oorzaak gevonden in #1377:
    vendored React-canary in Next 15.5.x; workaround `src/components/system/action-replay.tsx` (eindige
