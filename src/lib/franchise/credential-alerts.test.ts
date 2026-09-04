@@ -29,6 +29,7 @@ describe("summarizeExpiryAlert", () => {
       window: null,
       count: 0,
       soonestType: null,
+      renewalUrgent: false,
     });
   });
 
@@ -85,7 +86,13 @@ describe("summarizeExpiryAlert", () => {
       ],
       NOW,
     );
-    expect(alert).toEqual({ soonestDays: null, window: null, count: 0, soonestType: null });
+    expect(alert).toEqual({
+      soonestDays: null,
+      window: null,
+      count: 0,
+      soonestType: null,
+      renewalUrgent: false,
+    });
   });
 
   it("ignores VERIFIED credentials without an expiry date", () => {
@@ -128,12 +135,22 @@ describe("expiryAlertLabel", () => {
     expect(expiryAlertLabel(summarizeExpiryAlert([], NOW))).toBeNull();
   });
 
-  it("labels a single upcoming expiry by type and days", () => {
+  it("labels a single upcoming expiry by type and days (no lead-time type stays plain)", () => {
+    // Diploma kent geen vernieuwings-doorlooptijd → geen "vraag nu aan"-escalatie.
     const alert = summarizeExpiryAlert(
-      [cred({ id: "1", type: "VOG", expiresAt: inDays(12) })],
+      [cred({ id: "1", type: "DIPLOMA", expiresAt: inDays(12) })],
       NOW,
     );
-    expect(expiryAlertLabel(alert)).toBe("VOG verloopt over 12 d");
+    expect(expiryAlertLabel(alert)).toBe("Diploma verloopt over 12 d");
+  });
+
+  it("appends 'vraag nu aan' when the soonest is within its renewal lead-time", () => {
+    // VOG-doorlooptijd loopt tot 56 d; 50 d valt er binnen → nu aanvragen.
+    const alert = summarizeExpiryAlert(
+      [cred({ id: "1", type: "VOG", expiresAt: inDays(50) })],
+      NOW,
+    );
+    expect(expiryAlertLabel(alert)).toBe("VOG verloopt over 50 d · vraag nu aan");
   });
 
   it("labels a single expired credential by type", () => {
@@ -153,6 +170,18 @@ describe("expiryAlertLabel", () => {
   });
 
   it("adds a +n suffix when more upcoming credentials follow the soonest", () => {
+    // Diploma soonest (geen doorlooptijd) → plain label mét +n-suffix.
+    const alert = summarizeExpiryAlert(
+      [
+        cred({ id: "1", type: "DIPLOMA", expiresAt: inDays(10) }),
+        cred({ id: "2", type: "INSURANCE", expiresAt: inDays(40) }),
+      ],
+      NOW,
+    );
+    expect(expiryAlertLabel(alert)).toBe("Diploma verloopt over 10 d +1");
+  });
+
+  it("keeps the 'vraag nu aan' escalation before the +n suffix", () => {
     const alert = summarizeExpiryAlert(
       [
         cred({ id: "1", type: "VOG", expiresAt: inDays(10) }),
@@ -160,7 +189,7 @@ describe("expiryAlertLabel", () => {
       ],
       NOW,
     );
-    expect(expiryAlertLabel(alert)).toBe("VOG verloopt over 10 d +1");
+    expect(expiryAlertLabel(alert)).toBe("VOG verloopt over 10 d · vraag nu aan +1");
   });
 });
 
@@ -174,8 +203,72 @@ describe("expiryAlertTone", () => {
     expect(expiryAlertTone(alert)).toBe("danger");
   });
 
-  it("is warning for upcoming", () => {
-    const alert = summarizeExpiryAlert([cred({ id: "1", expiresAt: inDays(20) })], NOW);
+  it("is warning for an upcoming expiry outside the renewal lead-time", () => {
+    // Diploma kent geen doorlooptijd → nooit escalatie, blijft warning.
+    const alert = summarizeExpiryAlert(
+      [cred({ id: "1", type: "DIPLOMA", expiresAt: inDays(20) })],
+      NOW,
+    );
     expect(expiryAlertTone(alert)).toBe("warning");
+  });
+
+  it("is danger when the soonest is within its renewal lead-time", () => {
+    const alert = summarizeExpiryAlert(
+      [cred({ id: "1", type: "VOG", expiresAt: inDays(50) })],
+      NOW,
+    );
+    expect(expiryAlertTone(alert)).toBe("danger");
+  });
+});
+
+describe("renewalUrgent (lead-time escalation)", () => {
+  it("flags a VOG within its 56-day lead-time as urgent", () => {
+    const alert = summarizeExpiryAlert(
+      [cred({ id: "1", type: "VOG", expiresAt: inDays(50) })],
+      NOW,
+    );
+    expect(alert.renewalUrgent).toBe(true);
+    expect(alert.window).toBe("WITHIN_60");
+  });
+
+  it("does not flag a VOG comfortably beyond its lead-time", () => {
+    // 80 d > 56 d bovengrens → nog geen escalatie (rustig plannen kan later).
+    const alert = summarizeExpiryAlert(
+      [cred({ id: "1", type: "VOG", expiresAt: inDays(80) })],
+      NOW,
+    );
+    expect(alert.renewalUrgent).toBe(false);
+    expect(expiryAlertTone(alert)).toBe("warning");
+  });
+
+  it("does not flag a type without a known lead-time (diploma at the same days)", () => {
+    const alert = summarizeExpiryAlert(
+      [cred({ id: "1", type: "DIPLOMA", expiresAt: inDays(30) })],
+      NOW,
+    );
+    expect(alert.renewalUrgent).toBe(false);
+  });
+
+  it("flags a certificate within its 42-day lead-time but not just outside it", () => {
+    const inside = summarizeExpiryAlert(
+      [cred({ id: "1", type: "CERTIFICATE", expiresAt: inDays(30) })],
+      NOW,
+    );
+    expect(inside.renewalUrgent).toBe(true);
+    const outside = summarizeExpiryAlert(
+      [cred({ id: "1", type: "CERTIFICATE", expiresAt: inDays(50) })],
+      NOW,
+    );
+    expect(outside.renewalUrgent).toBe(false);
+  });
+
+  it("leaves renewalUrgent false for an already-expired soonest (already danger)", () => {
+    const alert = summarizeExpiryAlert(
+      [cred({ id: "1", type: "VOG", expiresAt: inDays(-2) })],
+      NOW,
+    );
+    expect(alert.window).toBe("EXPIRED");
+    expect(alert.renewalUrgent).toBe(false);
+    expect(expiryAlertTone(alert)).toBe("danger");
   });
 });

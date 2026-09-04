@@ -10,6 +10,29 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-04 — routine: bemiddelaar-vervalsignaal escaleert binnen de vernieuwings-doorlooptijd (#1381)
+
+**Wat:** op de bemiddelaar-roster (`/franchise/zzpers` + de CSV-export) escaleert het per-ZZP'er
+vervalsignaal naar danger met "· vraag nu aan" zodra het soonest verlopende certificaat binnen zijn
+_externe vernieuwings-doorlooptijd_ valt (bv. VOG over 50 d — Justis duurt tot 56 d). Tot nu toe
+gaf `expiryAlertTone` één milde `warning` voor élk niet-verlopen venster: een VOG op 50 d en een
+diploma op 50 d zagen er identiek uit, terwijl alleen de VOG feitelijk al niet meer op tijd
+schoon te vernieuwen is. De bemiddelaar ziet nu wélke ZZP'er hij nú moet aansporen om de plaatsing-
+compliance niet te verliezen.
+
+**Aanpak:** de doorlooptijd-kennis (`RENEWAL_LEAD_TIMES`/`renewalNudge`, `credential-renewal-leadtime.ts`)
+stond alleen op ZZP'er-schermen. `summarizeExpiryAlert` toetst het soonest (nog niet verlopen, dus
+VERIFIED) certificaat nu tegen exact dezelfde `start_now`-regel — geen eigen drempel, geen duplicatie.
+Nieuw veld `renewalUrgent` op `ExpiryAlert`; `expiryAlertTone` → danger bij urgent, `expiryAlertLabel`
+voegt "· vraag nu aan" toe (vóór het +n-suffix). De twee consumers (`/franchise/zzpers/page.tsx` en
+`export/route.ts`) gaan al door deze functies, dus de escalatie stroomt door zonder eigen wijziging.
+Server-side afgeleid, client toont alleen (CLAUDE.md regel 1); geen schema/migratie/mutatie/authz.
+
+**Bestanden:** `src/lib/franchise/credential-alerts.ts` (+ `.test.ts`, 27 cases: +escalatie VOG/
+CERTIFICATE binnen doorlooptijd, DIPLOMA/venster-buiten blijft warning, EXPIRED blijft danger).
+
+**Checks:** typecheck ✓ · lint ✓ · prettier --check ✓ · unit + build (CI-poort verifieert).
+
 ## 2026-09-04 — routine: badge/telling toont een server-verlopen VERIFIED-certificaat als verlopen (#1380)
 
 **Wat:** twee adversariële Opus-audits op niet-overlappende kern-oppervlakken (certificaat-/
@@ -360,28 +383,3 @@ dode knop.
 
 **Tests:** +12 (7 op de nieuwe assess-logica, +fromRows-einddatum/open-einde, +CSV-kolom, +clientCompliance-
 task, +clientHasComplianceAction). typecheck/lint/test/build/prettier groen · CI-poort verifieert.
-
-## 2026-09-02 — routine: roosterbezetting-tijdlijn voor de bemiddelaar (wie is wanneer beschikbaar)
-
-**Wat:** de bemiddelaar (FRANCHISER) kon "wie kan ik NU inzetten?" (`roster-capacity.ts`) en "wie komt
-binnenkort vrij?" (`roster-availability-forecast.ts`) zien, maar er was geen dag-precieze
-cross-roster planvraag: "wie is WANNEER beschikbaar?". Bij het vooruit plannen van de komende twee
-weken moest hij elke ZZP'er-kaart apart openen. Benchmark: de rooster-/shiftplanning waarmee Temper/
-Zorgwerk/Pidz leiden. Nieuw scherm `/franchise/planning` ("Roosterbezetting"): een read-only raster
-van rosterrijen × 14 dagkolommen, elke cel afgeleid uit de zelf-opgegeven `AvailabilityWindow`-vensters
-én de lopende (ACTIVE) plaatsingen — ingezet / afwezig / beperkt / vrij, in één oogopslag.
-
-**Aanpak:** pure, deterministische kern `src/lib/franchise/roster-timeline.ts` (`buildRosterTimeline`):
-UTC-dag-granulaire sleutels (consistent met `roster-unavailability.ts`), precedentie
-PLACED > UNAVAILABLE > LIMITED > AVAILABLE, ongeldige vensterranges/onbekende typen genegeerd, rijen
-gesorteerd op meest-inzetbaar eerst + `perDayAvailable` per dag (dunne dagen zichtbaar). Server-component
-`page.tsx` haalt de tenant-roster tenant-gescoopt op (`tenantScopeWhere`, spiegelt de zzpers-query) en
-mapt naar de pure invoer; presentatie in `RosterTimelineGrid` (horizontaal scrollbaar, licht/donker,
-weekend-markering, deep-links naar `/franchise/zzpers` + de `.ics`-agenda). Read-only afgeleid, geen
-schema-/mutatie-/authz-oppervlak, geen dode knop. Nav-item toegevoegd voor de FRANCHISER.
-
-**Bestanden:** `src/lib/franchise/roster-timeline.ts` (+ `.test.ts`),
-`src/app/(protected)/franchise/planning/{page,loading}.tsx`,
-`src/components/franchise/roster-timeline-grid.tsx` (+ `.test.tsx`), `src/lib/nav.ts`.
-
-**Checks:** typecheck / lint / unit / build / prettier groen; CI-poort verifieert.

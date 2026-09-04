@@ -9,6 +9,7 @@ import {
   summarizeExpiry,
 } from "@/lib/credential-expiry-overview";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
+import { renewalNudge } from "@/lib/credential-renewal-leadtime";
 
 export type { ExpiryWindow };
 
@@ -21,10 +22,23 @@ export interface ExpiryAlert {
   count: number;
   /** Type van het meest urgente certificaat (voor een compacte chip-tekst), of `null`. */
   soonestType: ExpiryCredentialInput["type"] | null;
+  /**
+   * `true` wanneer het soonest verlopende (nog niet verlopen) certificaat al binnen zijn externe
+   * vernieuwings-doorlooptijd valt (bv. VOG binnen ~8 weken vóór verval — Justis haalt dat niet meer
+   * betrouwbaar). Dan is "nu aanvragen" de enige manier om een compliance-gat in de plaatsing te
+   * voorkomen; de chip escaleert naar danger. Hergebruikt de `start_now`-regel van de ZZP'er-nudge.
+   */
+  renewalUrgent: boolean;
 }
 
 /** Leeg signaal: niets dat aandacht vraagt. */
-const EMPTY: ExpiryAlert = { soonestDays: null, window: null, count: 0, soonestType: null };
+const EMPTY: ExpiryAlert = {
+  soonestDays: null,
+  window: null,
+  count: 0,
+  soonestType: null,
+  renewalUrgent: false,
+};
 
 /**
  * Vat de certificaten van één ZZP'er samen tot het meest urgente aankomende vervalsignaal.
@@ -40,11 +54,19 @@ export function summarizeExpiryAlert(
   // summarizeExpiry sorteert al op meest urgent eerst (kleinste/negatiefste dagen).
   const soonest = overview.items[0];
   if (!soonest) return EMPTY;
+  // Een nog-niet-verlopen soonest is per definitie VERIFIED (windowFor laat alleen VERIFIED/EXPIRED
+  // toe). Toets het tegen de externe doorlooptijd via exact dezelfde regel als de ZZP'er-nudge:
+  // `start_now` betekent dat het binnen de doorlooptijd valt en nu aangevraagd moet worden.
+  const renewalUrgent =
+    soonest.window !== "EXPIRED" &&
+    renewalNudge({ type: soonest.type, status: "VERIFIED", daysUntilExpiry: soonest.days })
+      ?.urgency === "start_now";
   return {
     soonestDays: soonest.days,
     window: soonest.window,
     count: overview.total,
     soonestType: soonest.type,
+    renewalUrgent,
   };
 }
 
@@ -61,15 +83,21 @@ export function expiryAlertLabel(alert: ExpiryAlert): string | null {
     return alert.count > 1 ? `${alert.count} certificaten verlopen` : `${typeLabel} verlopen`;
   }
 
-  // Aankomend verloop: benoem het soonest verlopende certificaat met de resterende dagen.
+  // Aankomend verloop: benoem het soonest verlopende certificaat met de resterende dagen. Valt het al
+  // binnen de externe doorlooptijd, dan de expliciete oproep om nu aan te vragen.
   const days = Math.max(alert.soonestDays, 0);
   const dayPart = days === 0 ? "vandaag" : `over ${days} d`;
+  const urgentPart = alert.renewalUrgent ? " · vraag nu aan" : "";
   const suffix = alert.count > 1 ? ` +${alert.count - 1}` : "";
-  return `${typeLabel} verloopt ${dayPart}${suffix}`;
+  return `${typeLabel} verloopt ${dayPart}${urgentPart}${suffix}`;
 }
 
-/** Tone voor de Badge: verlopen = danger, aankomend = warning, niets = null. */
+/**
+ * Tone voor de Badge: verlopen óf binnen de vernieuwings-doorlooptijd = danger, overig aankomend =
+ * warning, niets = null.
+ */
 export function expiryAlertTone(alert: ExpiryAlert): "danger" | "warning" | null {
   if (alert.window === null) return null;
-  return alert.window === "EXPIRED" ? "danger" : "warning";
+  if (alert.window === "EXPIRED" || alert.renewalUrgent) return "danger";
+  return "warning";
 }
