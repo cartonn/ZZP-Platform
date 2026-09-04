@@ -4,7 +4,11 @@
 
 import { prisma } from "@/lib/db";
 import { type OrtSegment, ortSubtotalCents, resolveOrtRates } from "@/lib/ort";
-import { type OrtBreakdown, summarizeOrtBreakdown } from "@/lib/ort-breakdown";
+import {
+  type OrtBreakdown,
+  reconcileSubtotalWithInvoice,
+  summarizeOrtBreakdown,
+} from "@/lib/ort-breakdown";
 import { toCsv } from "@/lib/csv";
 
 export interface PrestatieOverzicht {
@@ -104,7 +108,7 @@ export function toPrestatieOverzicht(p: PrestatieRow): PrestatieOverzicht {
     subtotalCents = p.amountCents;
   }
 
-  let ortBreakdown = summarizeOrtBreakdown({
+  const liveOrtBreakdown = summarizeOrtBreakdown({
     segments: ortSegs,
     hours: p.hours,
     rateCents: p.type === "HOURS" ? p.rateCents : null,
@@ -112,13 +116,14 @@ export function toPrestatieOverzicht(p: PrestatieRow): PrestatieOverzicht {
   });
 
   // Zie functie-docstring: de bevroren factuur wint van de live-herberekening.
-  const invoicedSubtotal = p.invoice?.subtotalCents;
-  if (invoicedSubtotal != null) {
-    subtotalCents = invoicedSubtotal;
-    if (hasOrt) {
-      ortBreakdown = { ...ortBreakdown, surchargeCents: invoicedSubtotal - ortBreakdown.baseCents };
-    }
-  }
+  const reconciled = reconcileSubtotalWithInvoice({
+    subtotalCents,
+    ortBreakdown: liveOrtBreakdown,
+    hasOrt,
+    invoicedSubtotalCents: p.invoice?.subtotalCents,
+  });
+  subtotalCents = reconciled.subtotalCents;
+  const ortBreakdown = reconciled.ortBreakdown;
 
   return {
     id: p.id,

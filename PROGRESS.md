@@ -10,6 +10,34 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-04 — persona-sweep: geen ORT-drift op de ZZP'er-view /diensten (spiegel van #1373)
+
+**Wat:** persona-sweep-ronde (orchestrator Opus 4.8 + live Playwright-sweep over alle vier de rollen +
+3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken: authz/IDOR/tenant ·
+next-action-engine · financieel/cascade + malicieuze invoer). Live-sweep: geen 500's, geen
+console-fouten, geen dode nav-links, cross-rol verboden routes server-side geweigerd. authz/IDOR/
+tenant én next-action-engine: **0 bereikbare gaten**. Eén KRITIEK-klasse defect gevonden én gefixt:
+
+**PR #1373 fixte de ORT-drift alleen aan de opdrachtgever-kant (`/prestaties`); de spiegelende
+ZZP'er-view `/diensten` (`getDienstenForFreelancer`) + CSV-export bleven live-herberekenen.** Na
+goedkeuring bevriest het factuurbedrag (`Invoice.subtotalCents`, `performanceId @unique`), maar de
+samenwerking-ORT-toeslagen mogen daarna nog wijzigen (`setOrtProfileAction` blokkeert alleen bij een
+wachtende SUBMITTED-urenstaat). De ZZP'er zag daardoor voor een reeds gefactureerde/betaalde prestatie
+een bedrag dat kon afwijken van zowel de factuur als de (na #1373 correcte) opdrachtgever-view — een
+directe cross-surface tegenspraak op geld (CLAUDE.md regel 1). **Fix:** de "bevroren factuur wint"-
+reconciliatie losgetrokken naar één gedeelde pure helper `reconcileSubtotalWithInvoice`
+(`src/lib/ort-breakdown.ts`), nu gebruikt door zowel `prestaties.ts` als `diensten.ts` — dit
+elimineert de drievoudige duplicatie die de asymmetrie überhaupt liet ontstaan. `diensten.ts` haalt
+`invoice.subtotalCents` mee en toont het bevroren subtotaal (toeslag = subtotaal − snapshot-stabiele
+basis). +5 rood→groen-asserties op de helper; de bestaande `/prestaties`-drift-tests routen nu door
+de helper en blijven groen.
+
+**Bestanden:** `src/lib/ort-breakdown.ts` (+ `.test.ts`), `src/lib/diensten.ts`,
+`src/lib/prestaties.ts`, `docs/PERSONA-SWEEP-BACKLOG.md`.
+
+**Checks:** typecheck / lint / unit (773 files, 8091 tests) / build / prettier --check groen; CI-poort
+verifieert.
+
 ## 2026-09-04 — routine: /prestaties toont het bevroren factuursubtotaal (geen ORT-drift)
 
 **Wat:** `getPrestatiesForClient` (`src/lib/prestaties.ts`) herberekende voor élke prestatie — óók

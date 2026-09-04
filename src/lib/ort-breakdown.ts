@@ -68,3 +68,33 @@ export function summarizeOrtBreakdown(opts: {
 
   return EMPTY_ORT_BREAKDOWN;
 }
+
+/**
+ * De bevroren factuur wint van de live-herberekening — **geen ORT-drift** (CLAUDE.md regel 1,
+ * server-side waarheid). Het subtotaal van een prestatie wordt uit de ACTUELE ORT-toeslagen van de
+ * samenwerking afgeleid op het moment van goedkeuren en dan bevroren in de factuur
+ * (`Invoice.subtotalCents`, `performanceId @unique`). Die toeslagen mogen ná goedkeuring nog
+ * wijzigen (`setOrtProfileAction` blokkeert alleen zolang een SUBMITTED-urenstaat wacht), terwijl de
+ * factuur onveranderlijk is. Zodra een factuur is afgeleid is HAAR subtotaal de getoonde waarheid;
+ * de ORT-toeslag reconciliëert daartegen (de basis is snapshot-stabiel — uren × het gesnapshotte
+ * uurtarief —, dus `toeslag = factuursubtotaal − basis`). Zonder factuur blijven de live waarden de
+ * bron. Puur; gedeeld door de opdrachtgever- (`/prestaties`) én ZZP'er-view (`/diensten`) zodat de
+ * twee overzichten niet uiteen kunnen lopen op één en dezelfde prestatie.
+ */
+export function reconcileSubtotalWithInvoice(opts: {
+  subtotalCents: number | null;
+  ortBreakdown: OrtBreakdown;
+  hasOrt: boolean;
+  invoicedSubtotalCents: number | null | undefined;
+}): { subtotalCents: number | null; ortBreakdown: OrtBreakdown } {
+  const { subtotalCents, ortBreakdown, hasOrt, invoicedSubtotalCents } = opts;
+  if (invoicedSubtotalCents == null) {
+    return { subtotalCents, ortBreakdown };
+  }
+  return {
+    subtotalCents: invoicedSubtotalCents,
+    ortBreakdown: hasOrt
+      ? { ...ortBreakdown, surchargeCents: invoicedSubtotalCents - ortBreakdown.baseCents }
+      : ortBreakdown,
+  };
+}
