@@ -62,7 +62,7 @@ export async function GET(
             // Alleen beoordeelde certificaten (VERIFIED/EXPIRED) — geen concept-/afgewezen-pogingen
             // lekken naar de opdrachtgever via het totaaltal (zelfde keuze als dossier-route).
             where: { status: { in: ["VERIFIED", "EXPIRED"] } },
-            select: { type: true, title: true, status: true, verifiedAt: true },
+            select: { type: true, title: true, status: true, verifiedAt: true, expiresAt: true },
           },
         },
       },
@@ -138,6 +138,7 @@ export async function GET(
       title: c.title,
       status: c.status,
       verifiedAt: c.verifiedAt,
+      expiresAt: c.expiresAt,
     })),
     now,
   );

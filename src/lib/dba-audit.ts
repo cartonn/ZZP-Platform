@@ -18,6 +18,7 @@ export interface DbaAuditCredential {
   title: string;
   status: string;
   verifiedAt: Date | null;
+  expiresAt: Date | null;
 }
 
 export interface DbaAuditJobFlags {
@@ -243,7 +244,14 @@ export function buildDbaAuditData(
   };
 
   // --- Ondernemerschap-signalen ---
-  const verifiedCount = credentials.filter((c) => c.status === "VERIFIED").length;
+  // Server-side waarheid (CLAUDE.md regel 1): een VERIFIED-certificaat waarvan `expiresAt` is
+  // gepasseerd is verlopen — óók vóór de expiry-cron de status flipt — en telt dus niet mee als
+  // geverifieerd bewijs in het dossier. Anders zou het dossier een hoger vertrouwensniveau tonen
+  // dan de compliance-/verval-oppervlakken van de app.
+  const verifiedCount = credentials.filter(
+    (c) =>
+      c.status === "VERIFIED" && (c.expiresAt == null || c.expiresAt.getTime() > now.getTime()),
+  ).length;
   const trustLevel = verifiedCount > 0 ? "DEELS" : "BASIS";
 
   return {
