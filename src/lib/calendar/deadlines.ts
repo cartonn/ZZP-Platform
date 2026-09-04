@@ -67,6 +67,32 @@ export interface AdministrativeDeadlines {
 }
 
 // ---------------------------------------------------------------------------
+// Herinnerings-doorlooptijden
+// ---------------------------------------------------------------------------
+
+/**
+ * Hoeveel hele dagen vóór het verlopen van een certificaat de agenda-feed een herinnering laat
+ * afgaan. Eén bron van waarheid: de .ics-mapper hieronder hangt exact deze alarmen aan élk
+ * certificaat-verval-event, én de UI (de "abonneer op je agenda"-affordance op de vervalkalender)
+ * belooft dezelfde doorlooptijden. Verlengen van een VOG/diploma/verzekering kost weken, dus we
+ * waarschuwen ruim vooraf met een tweede nudge kort ervóór. Aflopend gesorteerd (grootste eerst).
+ */
+export const CREDENTIAL_EXPIRY_ALARM_DAYS = [30, 7] as const;
+
+/**
+ * Formatteert een reeks dagen-vooraf naar een leesbare Nederlandse opsomming, bijv. `[30, 7]`
+ * → "30 en 7 dagen", `[7]` → "7 dagen", `[]` → "". Puur en deterministisch; deelt de doorlooptijd
+ * tussen de feed en de UI-copy zodat ze nooit uit elkaar lopen.
+ */
+export function formatDayLeadTimes(days: readonly number[]): string {
+  if (days.length === 0) return "";
+  if (days.length === 1) return `${days[0]} dagen`;
+  const head = days.slice(0, -1).join(", ");
+  const tail = days[days.length - 1];
+  return `${head} en ${tail} dagen`;
+}
+
+// ---------------------------------------------------------------------------
 // Mapper
 // ---------------------------------------------------------------------------
 
@@ -86,12 +112,12 @@ export function administrativeDeadlineEvents(input: AdministrativeDeadlines): Ic
       start: c.expiresAt,
       allDay: true,
       description: "Verleng dit document op tijd zodat je inzetbaar blijft.",
-      // Verlengen van een VOG/diploma/verzekering kost weken: waarschuw ruim vooraf, met een
-      // tweede nudge kort ervóór.
-      alarms: [
-        { daysBefore: 30, description: `Certificaat verloopt over 30 dagen: ${c.title}` },
-        { daysBefore: 7, description: `Certificaat verloopt over 7 dagen: ${c.title}` },
-      ],
+      // Herinneringen op de gedeelde doorlooptijden (CREDENTIAL_EXPIRY_ALARM_DAYS) zodat de feed
+      // en de UI-belofte niet uit elkaar lopen.
+      alarms: CREDENTIAL_EXPIRY_ALARM_DAYS.map((daysBefore) => ({
+        daysBefore,
+        description: `Certificaat verloopt over ${daysBefore} dagen: ${c.title}`,
+      })),
     });
   }
 

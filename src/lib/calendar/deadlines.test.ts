@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   administrativeDeadlineEvents,
+  CREDENTIAL_EXPIRY_ALARM_DAYS,
+  formatDayLeadTimes,
   type AdministrativeDeadlines,
 } from "@/lib/calendar/deadlines";
 
@@ -137,6 +139,16 @@ describe("administrativeDeadlineEvents", () => {
     expect(event!.alarms?.[0]!.description).toContain("VOG");
   });
 
+  it("de certificaat-alarmen volgen exact de gedeelde doorlooptijden (feed ↔ UI-belofte)", () => {
+    const [event] = administrativeDeadlineEvents({
+      ...empty,
+      credentials: [{ id: "c1", title: "Diploma", expiresAt: new Date("2026-09-01T00:00:00Z") }],
+    });
+    // Eén bron: de feed hangt exact CREDENTIAL_EXPIRY_ALARM_DAYS aan, zodat de UI die dezelfde
+    // constante toont nooit een andere doorlooptijd belooft dan de .ics daadwerkelijk levert.
+    expect(event!.alarms?.map((a) => a.daysBefore)).toEqual([...CREDENTIAL_EXPIRY_ALARM_DAYS]);
+  });
+
   it("hangt één alarm (3 dagen vooraf) aan een factuur-deadline, betaal-bewust van tekst", () => {
     const [payable] = administrativeDeadlineEvents({
       ...empty,
@@ -198,5 +210,27 @@ describe("administrativeDeadlineEvents", () => {
       ],
     });
     expect(asClient!.alarms?.[0]!.description).toContain("vervanger");
+  });
+});
+
+describe("formatDayLeadTimes", () => {
+  it("verbindt twee doorlooptijden met 'en'", () => {
+    expect(formatDayLeadTimes([30, 7])).toBe("30 en 7 dagen");
+  });
+
+  it("toont één doorlooptijd zonder opsomming", () => {
+    expect(formatDayLeadTimes([7])).toBe("7 dagen");
+  });
+
+  it("gebruikt komma's plus een afsluitende 'en' bij drie of meer", () => {
+    expect(formatDayLeadTimes([30, 14, 7])).toBe("30, 14 en 7 dagen");
+  });
+
+  it("geeft een lege string bij geen doorlooptijden", () => {
+    expect(formatDayLeadTimes([])).toBe("");
+  });
+
+  it("blijft in sync met de gedeelde certificaat-doorlooptijden", () => {
+    expect(formatDayLeadTimes([...CREDENTIAL_EXPIRY_ALARM_DAYS])).toBe("30 en 7 dagen");
   });
 });

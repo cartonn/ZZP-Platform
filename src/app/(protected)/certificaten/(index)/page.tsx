@@ -36,6 +36,7 @@ import { plural } from "@/lib/plural";
 import { TrustExplanation } from "@/components/trust/trust-explanation";
 import { MandatoryDocuments } from "@/components/credentials/mandatory-documents";
 import { ExpiryOverviewCard } from "@/components/credentials/expiry-overview-card";
+import { agendaFeedPath } from "@/lib/calendar/feed-token";
 import { InzetImpactCard } from "@/components/credentials/inzet-impact-card";
 import { CredentialDemandCard } from "@/components/credentials/credential-demand-card";
 import { VerificationTurnaroundCard } from "@/components/credentials/verification-turnaround-card";
@@ -247,7 +248,7 @@ export default async function CertificatenPage() {
 
       <MandatoryDocuments items={mandatory.items} allSatisfied={mandatory.allSatisfied} />
 
-      <ExpiryOverviewCard overview={expiryOverview} />
+      <ExpiryOverviewCard overview={expiryOverview} feedPath={agendaFeedPath(actor.id)} />
 
       <InzetImpactCard impact={inzetImpact} />
 
