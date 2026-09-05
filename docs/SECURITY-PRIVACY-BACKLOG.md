@@ -61,11 +61,19 @@ risicoklasse, geen leakable capability. PR #<zie git>.
   rooster serveren. **Fix:** per-user roteerbare salt/versie in het token (bumpbaar vanuit instellingen) of
   een `AgendaFeedToken`-rij met `revokedAt`. Vergt schema + UI; groter dan één increment. **Mens-poort
   (MENSENWERK §5):** raakt levende feeds; laat product/juridisch de bewaar-/intrek-keuze tekenen.
-- **[MIDDEL · AVG art. 5(2) verantwoordingsplicht — stille truncatie audit-CSV-export]**
-  `admin/audit/export/route.ts` capt op `AUDIT_EXPORT_CAP = 10000` (`take`) zónder enige indicatie in het
-  bestand dat er getrunceerd is. Een admin die de CSV als volledig audit-bewijs presenteert bij een
-  AVG-inspectie kan onbewust een onvolledig register tonen. Geen security-breach. **Fix:** een `total`-vs-
-  `exported`-telling als sluit-rij/in de bestandsnaam, óf weiger/dwing een smaller filter af boven de cap.
+- **OPGELOST (#1390) — [MIDDEL · AVG art. 5(2) verantwoordingsplicht — stille truncatie audit-CSV-export]**
+  `admin/audit/export/route.ts` capte op `AUDIT_EXPORT_CAP = 10000` (`take`) zónder enige indicatie in het
+  bestand dat er getrunceerd was. Een admin die de CSV als volledig audit-bewijs presenteert bij een
+  AVG-inspectie kon onbewust een onvolledig register tonen. **Fix (drie lagen, allemaal server-side
+  waarheid):** de route telt nu het `total` naast de gecapte rijen (`Promise.all(count, findMany)`); bij
+  `total > exported` (a) voegt `auditExportCsv` een expliciete **sluit-rij** toe die het geëxporteerde,
+  totale én resterende aantal noemt en aanraadt het filter te verfijnen, (b) markeert `auditExportFilename`
+  de bestandsnaam met `-getrunceerd`, en (c) draagt de `AUDIT_LOG_EXPORTED`-auditregel `total`+`truncated`.
+  Het audit-paneel toont bovendien een vooraf-waarschuwing bij de exportknop zodra het totaal de cap
+  overstijgt. Pure helpers (`isAuditExportTruncated`/`auditExportTruncationRow`/`auditExportFilename`,
+  cap verhuisd naar `audit-export.ts` als gedeelde bron) + tests; melding CSV-injectie-veilig (geen leidend
+  formule-teken). Byte-identiek bij een volledig register. **Bestanden:** `src/lib/audit-export.ts`
+  (+ `.test.ts`), `src/app/(protected)/admin/audit/export/route.ts`, `src/components/admin/audit-panel.tsx`.
 - **[LAAG · OWASP A01 (CSRF-adjacent) — GET-getriggerde neveneffect-export]** dezelfde export is een `GET`
   zonder CSRF-token met een neveneffect (schrijft `AUDIT_LOG_EXPORTED`, verbruikt 1/5 rate-slot). `SameSite=
 Lax` stuurt de cookie mee op top-level cross-site navigatie; de aanvaller leest de respons niet (geen CORS),

@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ciContains } from "@/lib/db/text-search";
 import { AUDIT_PAGE_SIZE, auditExportHref, type AuditFilters } from "@/lib/admin";
+import { AUDIT_EXPORT_CAP } from "@/lib/audit-export";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -63,12 +64,22 @@ export async function AuditPanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">{total} gebeurtenis(sen). Alleen-lezen.</p>
         {total > 0 && (
-          <Button asChild variant="secondary" size="sm">
-            <Link href={auditExportHref(filters)} prefetch={false}>
-              <Download className="size-4" aria-hidden />
-              Exporteer (CSV)
-            </Link>
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button asChild variant="secondary" size="sm">
+              <Link href={auditExportHref(filters)} prefetch={false}>
+                <Download className="size-4" aria-hidden />
+                Exporteer (CSV)
+              </Link>
+            </Button>
+            {/* Eerlijke vooraf-waarschuwing: boven de cap wordt de export getrunceerd. De admin weet
+                dit vóór het downloaden en kan het filter verfijnen voor een volledig register. */}
+            {total > AUDIT_EXPORT_CAP && (
+              <p className="text-xs text-warning">
+                Export bevat de {AUDIT_EXPORT_CAP.toLocaleString("nl-NL")} meest recente; verfijn
+                het filter voor de rest.
+              </p>
+            )}
+          </div>
         )}
       </div>
 
