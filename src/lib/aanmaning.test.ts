@@ -154,3 +154,76 @@ describe("aanmaning — wettelijke rente + incassokosten", () => {
     expect(d.interestRatePctFormatted).toBe("12");
   });
 });
+
+// De brief volgt de aanmaningsladder (DUNNING_STAGES): REMINDER@0 → FIRST_NOTICE@14 →
+// SECOND_NOTICE@30 → FINAL_NOTICE@45 dagen na de vervaldag. Due = 2026-04-15.
+describe("aanmaning — stage-bewust (volgt DUNNING_STAGES)", () => {
+  it("REMINDER (<14 dagen te laat): vriendelijke betalingsherinnering, GEEN kosten", () => {
+    // 5 dagen te laat → REMINDER, ook al is de factuur technisch verlopen.
+    const d = buildAanmaningData({ ...BASE, now: new Date("2026-04-20") });
+    expect(d.level).toBe("REMINDER");
+    expect(d.stageLabel).toBe("Betalingsherinnering");
+    // Cruciale gedragsverandering: een eerste vriendelijke herinnering dreigt nog niet met kosten.
+    expect(d.hasCharges).toBe(false);
+    const letter = buildAanmaningLetter(d);
+    expect(letter).toContain("Betreft: Betalingsherinnering");
+    expect(letter).toContain("herinneren wij u vriendelijk");
+    expect(letter).not.toContain("wettelijke handelsrente");
+    expect(letter).not.toContain("in gebreke");
+    expect(letter).not.toContain("ter incasso uit handen");
+    // Dagen-te-laat blijft feitelijk vermeld.
+    expect(letter).toContain("5 dagen");
+  });
+
+  it("FIRST_NOTICE (14–29 dagen): eerste aanmaning met kosten-alinea", () => {
+    // BASE = 16 dagen te laat.
+    const d = buildAanmaningData(BASE);
+    expect(d.level).toBe("FIRST_NOTICE");
+    expect(d.stageLabel).toBe("Eerste aanmaning");
+    expect(d.hasCharges).toBe(true);
+    const letter = buildAanmaningLetter(d);
+    expect(letter).toContain("Betreft: Eerste aanmaning");
+    expect(letter).toContain("Ondanks onze eerdere betalingsherinnering");
+    expect(letter).toContain("wettelijke handelsrente");
+    expect(letter).not.toContain("ter incasso uit handen");
+  });
+
+  it("SECOND_NOTICE (30–44 dagen): tweede aanmaning, sommatie", () => {
+    // 31 dagen te laat.
+    const d = buildAanmaningData({ ...BASE, now: new Date("2026-05-16") });
+    expect(d.level).toBe("SECOND_NOTICE");
+    expect(d.stageLabel).toBe("Tweede aanmaning");
+    expect(d.hasCharges).toBe(true);
+    const letter = buildAanmaningLetter(d);
+    expect(letter).toContain("Betreft: Tweede aanmaning");
+    expect(letter).toContain("meermaals verzocht");
+    expect(letter).toContain("sommeren u");
+    expect(letter).not.toContain("ter incasso uit handen");
+  });
+
+  it("FINAL_NOTICE (≥45 dagen): laatste aanmaning, ingebrekestelling + incasso-waarschuwing", () => {
+    // 46 dagen te laat.
+    const d = buildAanmaningData({ ...BASE, now: new Date("2026-05-31") });
+    expect(d.level).toBe("FINAL_NOTICE");
+    expect(d.stageLabel).toBe("Laatste aanmaning");
+    expect(d.hasCharges).toBe(true);
+    const letter = buildAanmaningLetter(d);
+    expect(letter).toContain("Betreft: Laatste aanmaning");
+    expect(letter).toContain("laatste aanmaning");
+    expect(letter).toContain("formeel in gebreke");
+    expect(letter).toContain("ter incasso uit handen");
+  });
+
+  it("niet verlopen factuur → REMINDER-niveau, geen kosten", () => {
+    const d = buildAanmaningData({ ...BASE, now: new Date("2026-04-10") });
+    expect(d.level).toBe("REMINDER");
+    expect(d.hasCharges).toBe(false);
+  });
+
+  it("null dueAt → REMINDER-niveau (niets te manen), geen kosten", () => {
+    const d = buildAanmaningData({ ...BASE, dueAt: null });
+    expect(d.level).toBe("REMINDER");
+    expect(d.stageLabel).toBe("Betalingsherinnering");
+    expect(d.hasCharges).toBe(false);
+  });
+});

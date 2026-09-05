@@ -32,7 +32,7 @@ export function AanmaningSection({ data }: { data: AanmaningData }) {
         >
           <span className="flex items-center gap-2 text-sm font-medium">
             <AlertTriangle className="size-4 text-warning" aria-hidden />
-            Aanmaning opstellen
+            {data.stageLabel} opstellen
           </span>
           {open ? (
             <ChevronUp className="size-4 text-muted-foreground" aria-hidden />

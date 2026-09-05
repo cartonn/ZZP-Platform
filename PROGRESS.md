@@ -10,6 +10,30 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-05 — routine: stage-bewuste aanmaningsbrief (volgt de aanmaningsladder) (ZZP'er)
+
+**Wat:** de aanmaningsbrief-generator (`aanmaning.ts`, kopieerbaar sjabloon op `/facturen/[id]`)
+produceerde **één** brief: altijd getiteld "Betalingsherinnering" én die vanaf dag 1 na de vervaldag
+wettelijke handelsrente + incassokosten aankondigde. Het platform escaleert elders al netjes via de
+aanmaningsladder (`DUNNING_STAGES`: Betalingsherinnering@0 → Eerste aanmaning@14 → Tweede aanmaning@30
+→ Laatste aanmaning@45 dagen) — de notificaties en het debiteurenoverzicht (`currentDunningStage`)
+gebruikten die al, alleen de brief liep achter. **Waarom:** (1) **helderheid/vertrouwen** — een factuur
+die elders "Laatste aanmaning" heet mag geen brief opleveren die zichzelf "Betalingsherinnering" noemt
+(zelfde zelf-tegensprekend-document-klasse als de persona-sweep-fixes); (2) **toon/juridisch** — een
+eerste vriendelijke herinnering hoort nog niet met rente/incassokosten te dreigen; die horen bij de
+geëscaleerde aanmaningen (ingebrekestelling). Administratie-ontzorging: de ZZP'er kopieert de juiste
+brief zonder handmatig te herschrijven. **Hoe (server-side waarheid, DRY):** `buildAanmaningData` leidt
+het niveau nu af via de bestaande `currentDunningStage(dueAt, now)` — één bron met de rest van het
+platform, geen dubbele drempel-logica. Nieuwe velden `level`/`stageLabel`; `hasCharges` is gated
+(`level !== "REMINDER" && charges.hasCharges`), zodat de kosten-alinea pas vanaf de Eerste aanmaning
+verschijnt. `buildAanmaningLetter` past subject, openingszin (vriendelijk → feitelijk-dringend →
+sommatie → verzuim), betaalverzoek en een slot-incassowaarschuwing (alleen FINAL) per niveau aan. UI:
+de sectiekop toont het niveau ("Laatste aanmaning opstellen"). **Bestanden:** `src/lib/aanmaning.ts`
+(+ `.test.ts`, +12 cases: 4 niveaus × subject/toon/kosten-gating + REMINDER-met-overdue-zonder-kosten +
+null-dueAt), `src/components/invoices/aanmaning-section.tsx` (kop). Geen paginawijziging nodig (de
+module leidt zijn eigen niveau af uit `dueAt`). **Checks:** aanmaning 26/26 ✓ · typecheck/lint/build/
+prettier via CI-poort. **PR #1399.**
+
 ## 2026-09-05 — routine: bereik-check vóór publicatie in het opdracht-formulier (opdrachtgever)
 
 **Wat:** de bereikmotor (`getJobReach` + de pure `job-reach.ts`/`job-reach-bottleneck.ts`) toonde de
