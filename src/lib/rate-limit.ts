@@ -544,6 +544,19 @@ export const registerRateLimiter = new RateLimiter(
 );
 
 /**
+ * Maximaal REACH_ESTIMATE_RATE_LIMIT (default 60) bereik-checks per opdrachtgever per 5 minuten. De
+ * bereik-check vóór publicatie scant (begrensd) de vindbare pool bij elke gedebouncede
+ * formulierwijziging; een royaal per-account-plafond houdt dat read-only oppervlak bounded zonder
+ * normaal bewerken te hinderen. Gekeyd op `actor.id` (de aanroeper heeft al een CLIENT-sessie).
+ */
+export const reachEstimateRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("REACH_ESTIMATE_RATE_LIMIT", 60),
+  5 * 60_000,
+  "reach-estimate:",
+);
+
+/**
  * Maximaal RESET_RATE_LIMIT (default 3) wachtwoord-reset-aanvragen per sleutel (IP én e-mail) per
  * uur. Beperkt mail-bombing en CPU-amplificatie (token-hashing) zonder de enumeratiebescherming
  * (uniforme respons) te doorbreken.
