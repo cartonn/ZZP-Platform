@@ -9,6 +9,7 @@ const txOps = vi.hoisted(() => ({
   supportMessageCreate: vi.fn(),
   notificationCreate: vi.fn(),
   supportTicketUpdate: vi.fn(),
+  supportTicketUpdateMany: vi.fn(async () => ({ count: 1 })),
 }));
 
 const ticketState = vi.hoisted(() => ({
@@ -33,7 +34,10 @@ vi.mock("@/lib/db", () => ({
       cb({
         supportMessage: { create: txOps.supportMessageCreate },
         notification: { create: txOps.notificationCreate },
-        supportTicket: { update: txOps.supportTicketUpdate },
+        supportTicket: {
+          update: txOps.supportTicketUpdate,
+          updateMany: txOps.supportTicketUpdateMany,
+        },
       }),
     ),
   },
@@ -82,8 +86,10 @@ describe("adminReply — atomaire writes + volledige audit (A09)", () => {
       where: { id: "t-1" },
       data: { assignedToId: "admin-1" },
     });
-    expect(txOps.supportTicketUpdate).toHaveBeenCalledWith({
-      where: { id: "t-1" },
+    // De statusovergang is compound-guarded (TOCTOU): alleen flippen als het ticket nog in
+    // de gelezen status staat, anders zou een stale flip een intussen-heropend ticket wegzetten.
+    expect(txOps.supportTicketUpdateMany).toHaveBeenCalledWith({
+      where: { id: "t-1", status: "ESCALATED" },
       data: { status: "AWAITING_USER" },
     });
 
@@ -110,8 +116,8 @@ describe("adminReply — atomaire writes + volledige audit (A09)", () => {
       where: { id: "t-2" },
       data: { assignedToId: expect.anything() },
     });
-    expect(txOps.supportTicketUpdate).toHaveBeenCalledWith({
-      where: { id: "t-2" },
+    expect(txOps.supportTicketUpdateMany).toHaveBeenCalledWith({
+      where: { id: "t-2", status: "ESCALATED" },
       data: { status: "AWAITING_USER" },
     });
 
@@ -149,5 +155,28 @@ describe("adminReply — atomaire writes + volledige audit (A09)", () => {
 
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(audit).not.toHaveBeenCalled();
+  });
+
+  // TOCTOU: de aanvrager reageerde vlak vóór onze write (ticket staat niet meer op de gelezen
+  // status) → de guarded updateMany raakt niets (count 0). De reactie zelf (bericht + notificatie)
+  // blijft geldig en wordt vastgelegd; alleen de stale statusflip wordt niet doorgezet.
+  it("(e) statusflip verliest de race (updateMany count 0): bericht + audit blijven, geen resurrectie", async () => {
+    ticketState.current = {
+      id: "t-5",
+      userId: "user-9",
+      assignedToId: "admin-7",
+      status: "ESCALATED",
+    };
+    txOps.supportTicketUpdateMany.mockResolvedValueOnce({ count: 0 });
+
+    await adminReply("t-5", form("Reactie."));
+
+    expect(txOps.supportMessageCreate).toHaveBeenCalledTimes(1);
+    expect(txOps.notificationCreate).toHaveBeenCalledTimes(1);
+    expect(txOps.supportTicketUpdateMany).toHaveBeenCalledWith({
+      where: { id: "t-5", status: "ESCALATED" },
+      data: { status: "AWAITING_USER" },
+    });
+    expect(audit).toHaveBeenCalledTimes(1);
   });
 });

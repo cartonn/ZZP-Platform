@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/authz";
-import { audit } from "@/lib/audit";
+import { audit, auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { assertSupportTransition, canSupportTransition } from "@/lib/support/state";
 import { type SupportTicketStatus } from "@/lib/enums";
@@ -23,8 +23,9 @@ export async function adminReply(ticketId: string, formData: FormData): Promise<
 
   // Bepaal de neveneffecten vóór de writes, zodat ze atomair in één transactie meegaan én
   // verifieerbaar in het auditlogboek terechtkomen.
+  const fromStatus = ticket.status as SupportTicketStatus;
   const assignNow = !ticket.assignedToId;
-  const statusChanged = canSupportTransition(ticket.status as SupportTicketStatus, "AWAITING_USER");
+  const statusChanged = canSupportTransition(fromStatus, "AWAITING_USER");
 
   // Alle vier de mutaties atomair: óf alles slaagt, óf niets — geen halve reactie zonder
   // notificatie/assignment/statuswijziging (A09 audit-volledigheid).
@@ -55,8 +56,11 @@ export async function adminReply(ticketId: string, formData: FormData): Promise<
     // Voorheen bleef het ticket ESCALATED en dus eeuwig in de helpdesk-wachtrij staan na een antwoord.
     // Een reactie van de aanvrager zet het via replyToTicket terug op ESCALATED (terug in de wachtrij).
     if (statusChanged) {
-      await tx.supportTicket.update({
-        where: { id: ticketId },
+      // Compound-guard `status: fromStatus`: als de aanvrager ondertussen zelf reageerde
+      // (replyToTicket zet het ticket terug op ESCALATED) mag deze stale flip het niet alsnog
+      // op AWAITING_USER (uit de wachtrij) zetten — dan zou een wachtend ticket verdwijnen.
+      await tx.supportTicket.updateMany({
+        where: { id: ticketId, status: fromStatus },
         data: { status: "AWAITING_USER" },
       });
     }
@@ -76,17 +80,27 @@ export async function adminResolve(ticketId: string): Promise<void> {
   const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId } });
   if (!ticket) return;
 
-  assertSupportTransition(ticket.status as SupportTicketStatus, "RESOLVED");
-  await prisma.supportTicket.update({
-    where: { id: ticketId },
-    data: { status: "RESOLVED", resolvedAt: new Date() },
-  });
-  await audit({
-    actorId: actor.id,
-    action: "SUPPORT_TICKET_RESOLVED",
-    entityType: "SupportTicket",
-    entityId: ticketId,
-    metadata: { by: "agent" },
+  const from = ticket.status as SupportTicketStatus;
+  assertSupportTransition(from, "RESOLVED");
+  await prisma.$transaction(async (tx) => {
+    // Compound-guard `status: from`: twee gelijktijdige admins die hetzelfde ticket afronden
+    // passeren beide de vóór-lees. updateMany met de statusguard laat alleen de eerste committen;
+    // de tweede matcht niet meer (count 0) → geen dubbele SUPPORT_TICKET_RESOLVED-auditregel
+    // (spiegelt admin/no-shows/actions.ts).
+    const res = await tx.supportTicket.updateMany({
+      where: { id: ticketId, status: from },
+      data: { status: "RESOLVED", resolvedAt: new Date() },
+    });
+    if (res.count === 0) return;
+    await tx.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: "SUPPORT_TICKET_RESOLVED",
+        entityType: "SupportTicket",
+        entityId: ticketId,
+        metadata: { by: "agent" },
+      }),
+    });
   });
   revalidatePath(`/admin/support`);
 }
