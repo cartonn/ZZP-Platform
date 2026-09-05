@@ -1,0 +1,103 @@
+name: Restore drill
+
+# WAAROM DEZE WORKFLOW BESTAAT — "een onbeproefde back-up is geen back-up".
+# scripts/backup-db.ts (pg_dump) en scripts/backup-restore-drill.ts (pg_restore in een wegwerp
+# scratch-database + teruglezen) zijn getest op unit-niveau, maar de VOLLEDIGE keten
+# back-up → herstel → teruglezen werd op geen enkel schema geoefend. Deze job draait die keten
+# end-to-end tegen een echte Postgres 16, volledig zelfstandig (geen productie-secret nodig): hij
+# seedt een bron-database, maakt er een back-up van met de echte `npm run db:backup`, herstelt die
+# in een aparte scratch-database met de echte `npm run db:restore-drill` en leest het schema + de
+# rijen terug. Faalt de restore of het teruglezen — bv. een pg_dump/pg_restore-regressie, een
+# schema dat niet herstelbaar dumpt, of een corrupt archief — dan wordt dat hier zichtbaar in
+# plaats van pas tijdens een echt incident.
+#
+# Bewust GEEN vereiste check in branch protection: het is een doorlopend betrouwbaarheidssignaal,
+# geen merge-blokkade. De maandelijkse cron bewijst dat de herstelketen blijft werken naarmate het
+# schema/afhankelijkheden wijzigen; de pull_request-trigger (op de back-up-/herstelcode zelf) vangt
+# een regressie al in de PR die 'm introduceert.
+#
+# Mensenwerk (blijft, RUNBOOK §5): deze drill bewijst de herstel-CODE. Een periodieke drill tegen
+# een ECHTE productie-back-up (DRILL_DATABASE_URL naar een echte scratch-database) blijft een
+# aanbevolen extra zekerheid — de code daarvoor is precies dezelfde `npm run db:restore-drill`.
+
+on:
+  schedule:
+    # Maandelijks, de 1e om 03:17 UTC (rustig venster, buiten de dagelijkse 05:00-cron).
+    - cron: "17 3 1 * *"
+  workflow_dispatch:
+  pull_request:
+    # Oefen de keten meteen in elke PR die de back-up-/herstelcode raakt.
+    paths:
+      - "scripts/backup-db.ts"
+      - "scripts/backup-restore-drill.ts"
+      - "src/lib/ops/db-backup.ts"
+      - ".github/workflows/restore-drill.yml"
+
+concurrency:
+  group: restore-drill-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  restore-drill:
+    name: back-up → herstel-drill (Postgres 16)
+    # Vastgepind op 24.04 zodat de apt-`postgresql-client-16` exact matcht met de service (pg_dump/
+    # pg_restore weigeren een dump van een nieuwere server-major dan de client).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: zzp_source
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Bron-database die we back-uppen. Aparte scratch-database (zelfde server) waarin de drill
+      # herstelt — de drill weigert hard als doel en bron gelijk zijn, dus twee namen.
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/zzp_source"
+      DRILL_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/zzp_drill"
+      AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
+      STORAGE_DRIVER: "local"
+      # Seed de bron met de demo-dataset zodat de back-up echte rijen bevat om terug te lezen.
+      DEPLOYMENT_STAGE: "demo"
+      SEED_DEMO: "true"
+      # Voor de kale psql-aanroep die de scratch-database aanmaakt.
+      PGPASSWORD: "postgres"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: PostgreSQL 16-client (pg_dump/pg_restore/psql — exact de serverversie)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+          pg_dump --version
+      - run: npm ci
+      # `npm ci` draaide postinstall (`prisma generate`) nog met de SQLite-datasource; de
+      # provider-switch + een tweede generate leveren de PostgreSQL-client op (zoals in ci.yml).
+      - name: Datasource op PostgreSQL zetten
+        run: node scripts/use-db-provider.mjs postgresql
+      - name: Schema + seed op de bron-database
+        run: |
+          npx prisma generate
+          if [ -d prisma/migrations ]; then
+            npx prisma migrate deploy
+          else
+            npx prisma db push --skip-generate
+          fi
+          npx prisma db seed
+      - name: Lege wegwerp scratch-database aanmaken
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE zzp_drill;'
+      - name: Back-up maken (pg_dump + integriteitscheck)
+        run: npm run db:backup
+      - name: Herstel-drill (restore in scratch → teruglezen → scratch opruimen)
+        run: npm run db:restore-drill
