@@ -7,6 +7,13 @@
 // bearer-URL (token in de querystring); een kalender-herinnering hoeft alleen te zeggen WAT er speelt
 // en WANNEER — het bedrag opent de gebruiker in de app. Zo groeit de gevoeligheid van de feed niet
 // mee met deze uitbreiding (parity met het rooster, dat alleen jobtitel + tegenpartij toont).
+//
+// Datominimalisatie certificaat-type (AVG art. 5(1)(c), aangescherpt 2026-09-05): een certificaat-verval
+// noemt bewust NIET het type/de vrije-tekst-titel (bv. "VOG", "BIG"). Dat zijn bijzondere/gevoelige
+// gegevens (VOG = justitieel screeningsbewijs, BIG = beroepsregister zorg) die niet thuishoren in een
+// niet-intrekbare bearer-feed die naar Google/Apple-agenda-infra synct. De herinnering zegt "een
+// certificaat verloopt" + WANNEER; wélk certificaat opent de ZZP'er in het (geauthenticeerde) dossier.
+// Daarom draagt CredentialDeadline geen titel meer en selecteert de loader die niet.
 
 import { type IcsEvent } from "@/lib/calendar/ics";
 
@@ -14,10 +21,12 @@ import { type IcsEvent } from "@/lib/calendar/ics";
 // Types — minimale projecties, reeds server-side gescoopt en gefilterd
 // ---------------------------------------------------------------------------
 
-/** Een geverifieerd certificaat/diploma met een verloopdatum. */
+/**
+ * Een geverifieerd certificaat/diploma met een verloopdatum. Bewust ZONDER titel/type: dat is
+ * gevoelige data die niet in de bearer-feed hoort (zie de datominimalisatie-noot bovenaan dit bestand).
+ */
 export interface CredentialDeadline {
   id: string;
-  title: string;
   expiresAt: Date;
 }
 
@@ -108,15 +117,19 @@ export function administrativeDeadlineEvents(input: AdministrativeDeadlines): Ic
   for (const c of input.credentials) {
     events.push({
       uid: `cred-expiry-${c.id}@zzp-platform`,
-      summary: `Certificaat verloopt: ${c.title}`,
+      // Bewust generiek: géén certificaat-type/titel in de bearer-feed (AVG art. 5(1)(c) — zie de
+      // datominimalisatie-noot bovenaan). "Certificaat verloopt" + de datum zegt genoeg om te
+      // agenderen; wélk certificaat opent de ZZP'er in het geauthenticeerde dossier.
+      summary: "Certificaat verloopt",
       start: c.expiresAt,
       allDay: true,
-      description: "Verleng dit document op tijd zodat je inzetbaar blijft.",
+      description:
+        "Verleng je certificaat op tijd zodat je inzetbaar blijft. Details staan in je dossier.",
       // Herinneringen op de gedeelde doorlooptijden (CREDENTIAL_EXPIRY_ALARM_DAYS) zodat de feed
-      // en de UI-belofte niet uit elkaar lopen.
+      // en de UI-belofte niet uit elkaar lopen — óók zonder het type te noemen.
       alarms: CREDENTIAL_EXPIRY_ALARM_DAYS.map((daysBefore) => ({
         daysBefore,
-        description: `Certificaat verloopt over ${daysBefore} dagen: ${c.title}`,
+        description: `Een certificaat verloopt over ${daysBefore} dagen — verleng het op tijd.`,
       })),
     });
   }

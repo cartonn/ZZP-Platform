@@ -4,6 +4,77 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-05 (basis: `main` @ 4c4a3862) — 1× HOOG OPGELOST (certificaat-type/titel lekte via de niet-intrekbare publieke agenda-feed); 3 adversariële audits verder CLEAN
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende, verse
+oppervlakken van de delta sinds `c3afae34` (5 PR's: #1383–#1387), elk met de opdracht een gat te
+_bewijzen_. **A — de publieke abonneerbare ICS-agenda-feed** (`feed.ics/route.ts`, `feed-token.ts`,
+`user-schedule.ts`, `user-deadlines.ts`, `deadlines.ts`, `ics.ts`, `feed-audit.ts`): ICS/CRLF-injectie
+veilig (`escapeIcsText` dekt `\`,`;`,`,` + CRLF-folding, RFC 5545-volgorde, test-geborgd; enige onge-
+escapete veld `UID` is server-gegenereerd), token strikt aan `u`/userId gebonden via HMAC +
+`timingSafeEqual` (geen IDOR/forgery), loaders strikt op `userId` gescoopt (geen cross-tenant), liveness
+snijdt geschorst/geanonimiseerd account af — **maar het certificaat-verval-event droeg de vrije-tekst
+titel/het type** (zie OPGELOST). **B — de job-lege-staat-relaxatie (#1387)** (`empty-state-relaxations.ts`,
+`empty-state-suggestions.tsx`, `opdrachten/page.tsx`): puur read-only `count` op `buildJobMarketplaceWhere`,
+die `status:"PUBLISHED"` + `visibleJobsWhere(actor)` hard-baked houdt onafhankelijk van de filters —
+relaxatie raakt alleen zachte voorkeuren (afstand/tarief/skills), nooit een status/tenant/ownership-poort;
+geen PII-overfetch (alleen een integer + statische labels), geen injectie/XSS, geen mutatie/IDOR. **CLEAN.**
+**C — het admin-audit-log + CSV-export in de toezicht-hub (#1385)** (`audit/export/route.ts`, `csv.ts`,
+`audit-export.ts`, `admin.ts`, `hub-redirect.ts`, `text-search.ts`): formula-injectie overal gedekt
+(`escapeCsvField` per cel, `= + @ \t \r` + niet-numeriek leidend `-`), `requireRole("ADMIN")` vóór elke
+DB-read + middleware-defense-in-depth, export gecapt op 10.000 + rate-limited (5/u), `ciContains` volledig
+geparametriseerd (geen SQL/ReDoS), PII-minimalisatie correct (geen ip/ua in de export). **CLEAN** op de 5
+gevraagde vectoren; 2 lagere observaties geparkeerd hieronder.
+
+**OPGELOST — [HOOG · AVG art. 5(1)(c) dataminimalisatie (+ art. 9/10-adjacent) · OWASP A01 · CLAUDE.md
+"documenten/gevoelige status standaard privé, server-side waarheid"] Het certificaat-verval-event lekte
+het type/de vrije-tekst-titel (bv. "VOG", "BIG") in de niet-intrekbare publieke bearer-agenda-feed.**
+PR #1386 voegde certificaat-verval-events toe aan de persoonlijke agenda-feed. De feed is een **publieke,
+niet-intrekbare bearer-URL** (`/api/agenda/feed.ics?u=<id>&t=<hmac>`) die externe agenda-apps (Google/Apple)
+periodiek pollen en die daarmee in hun infra persisteert. Het event droeg `summary: "Certificaat verloopt:
+${c.title}"` en alarm-teksten met dezelfde titel; `c.title` is vrije tekst met een default zoals "VOG 2026"
+(`credential-form.tsx`). VOG (justitieel screeningsbewijs, AVG art. 10) en BIG (zorg-beroepsregister, art. 9)
+zijn bijzondere/gevoelige gegevens: dat een bij naam bekende persoon zo'n certificaat houdt, hoort niet in
+een kanaal met zwakkere levenscyclus-controls dan het private dossier dat het dupliceert — één keer gelekt/
+gedeeld/gecachet blijft het onbeperkt zichtbaar (geen per-token-intrekking vandaag). De feed-mapper hield
+zich elders al aan "WAT + WANNEER, details in de app" (facturen dragen bewust géén bedrag), maar het
+certificaat-type brak dat principe. **Fix (echte minimalisatie op twee lagen):** (1) `deadlines.ts` — het
+event is nu generiek `summary: "Certificaat verloopt"` + generieke alarm-/omschrijving-tekst, zónder type/
+titel; `CredentialDeadline` draagt geen `title` meer. (2) `user-deadlines.ts` — de loader selecteert de
+`title` niet eens meer uit de DB (`select: { id, expiresAt }`) — de gevoelige waarde verlaat de query niet.
+Wélk certificaat verloopt, opent de ZZP'er in het geauthenticeerde dossier (de vervalkalender). **Durable
+tests (rood→groen):** `deadlines.test.ts` — nieuwe guard "noemt het certificaat-type/de titel NERGENS in de
+bearer-feed" faalt op de oude `summary` ("Certificaat verloopt: VOG zorg" matcht `/VOG/` én `/verloopt:\s*\S/`);
+`user-deadlines.test.ts` borgt `select` = `{id, expiresAt}` zonder `title`. **Bewust NIET aangepast:** de
+bemiddelaar-agenda (`franchise/agenda.ts`) noemt wél type + ZZP'er-naam — maar dat is een **sessie-gebonden,
+ge-auditede, tenant-gescoopte** download (géén bearer-feed, `requireActor()` + `FRANCHISER`-check +
+`FRANCHISE_AGENDA_EXPORTED`-audit) met een legitiem need-to-know (compliance-bewaking = kern-cockpit); andere
+risicoklasse, geen leakable capability. PR #<zie git>.
+
+**GEPARKEERD deze ronde (latent/lager; repro + severity; geen agent-blocker):**
+
+- **[HOOG · latent · AVG art. 5(1)(c) / OWASP A01 — geen per-token-intrekking op de agenda-feed]**
+  `feed-token.ts` is een stateless HMAC over `"agenda-feed:"+userId`; een gelekte feed-URL blijft geldig
+  tot een **globale** `SHARE_TOKEN_SECRET`-rotatie (raakt álle gebruikers) of tot het account
+  geschorst/geanonimiseerd is (de nieuwe liveness-poort). Een individuele gebruiker kan een gelekte link
+  niet zelf intrekken. **Repro:** deel de webcal-URL → roteer niets → link blijft het (nu geminimaliseerde)
+  rooster serveren. **Fix:** per-user roteerbare salt/versie in het token (bumpbaar vanuit instellingen) of
+  een `AgendaFeedToken`-rij met `revokedAt`. Vergt schema + UI; groter dan één increment. **Mens-poort
+  (MENSENWERK §5):** raakt levende feeds; laat product/juridisch de bewaar-/intrek-keuze tekenen.
+- **[MIDDEL · AVG art. 5(2) verantwoordingsplicht — stille truncatie audit-CSV-export]**
+  `admin/audit/export/route.ts` capt op `AUDIT_EXPORT_CAP = 10000` (`take`) zónder enige indicatie in het
+  bestand dat er getrunceerd is. Een admin die de CSV als volledig audit-bewijs presenteert bij een
+  AVG-inspectie kan onbewust een onvolledig register tonen. Geen security-breach. **Fix:** een `total`-vs-
+  `exported`-telling als sluit-rij/in de bestandsnaam, óf weiger/dwing een smaller filter af boven de cap.
+- **[LAAG · OWASP A01 (CSRF-adjacent) — GET-getriggerde neveneffect-export]** dezelfde export is een `GET`
+  zonder CSRF-token met een neveneffect (schrijft `AUDIT_LOG_EXPORTED`, verbruikt 1/5 rate-slot). `SameSite=
+Lax` stuurt de cookie mee op top-level cross-site navigatie; de aanvaller leest de respons niet (geen CORS),
+  maar kan de audit-log vervuilen of het export-budget uitputten. Systemisch over alle export-routes (spiegelt
+  ze). **Fix:** `SameSite=Strict` op de sessie-cookie of een same-origin fetch + blob-download.
+- **[LAAG · AVG art. 5(1)(b)/(c) / art. 14 — derde-partij-PII in een langlopend abonnement]** de agenda-feed
+  toont de tegenpartij-naam van lopende plaatsingen; functioneel gelijk aan de bestaande eenmalige export,
+  maar het abonnement-karakter verlengt de blootstelling. Bedrijfs-/compliance-afweging, geen code-bug.
+
 ## Ronde 2026-09-04b (basis: `main` @ c3afae34) — 1× LAAG OPGELOST (CSRF-origin-allowlist accepteerde een catch-all wildcard); 3 adversariële audits + eigen sweep verder CLEAN
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende, verse
