@@ -10,6 +10,25 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-05 — security/privacy: certificaat-type lekte niet meer via de publieke agenda-feed
+
+**Wat:** een security-/privacy-auditronde (orchestrator + 3 adversariële Opus-audits op de delta sinds
+`c3afae34`) vond dat PR #1386 het certificaat-**type/de vrije-tekst-titel** (bv. "VOG", "BIG") in de
+**niet-intrekbare publieke bearer-agenda-feed** (`/api/agenda/feed.ics`) zette. VOG (justitieel, AVG art. 10)
+en BIG (zorg, art. 9) zijn bijzondere gegevens; dat een bij naam bekende persoon zo'n certificaat houdt hoort
+niet in een kanaal dat naar Google/Apple-agenda-infra synct en niet per-token in te trekken is (AVG art.
+5(1)(c) dataminimalisatie · OWASP A01). **Fix (twee lagen):** het verval-event is nu generiek "Certificaat
+verloopt" + generieke alarmen zónder type/titel (`deadlines.ts`), en de loader selecteert de titel niet eens
+meer uit de DB (`user-deadlines.ts`, `select: {id, expiresAt}`). Wélk certificaat verloopt, opent de ZZP'er in
+het geauthenticeerde dossier. **Bewust ongemoeid:** de bemiddelaar-agenda (`franchise/agenda.ts`) — sessie-
+gebonden, ge-auditede, tenant-gescoopte download met legitiem need-to-know, géén bearer-feed.
+
+**Bestanden:** `src/lib/calendar/deadlines.ts`, `src/lib/calendar/user-deadlines.ts` (+ hun tests).
+**Tests:** nieuwe rood→groen-guard "noemt het certificaat-type NERGENS in de bearer-feed" + `select`-borg;
+`npm run test` 8195 groen, typecheck/lint/prettier/build groen. **Rest geparkeerd** in
+`docs/SECURITY-PRIVACY-BACKLOG.md` (per-token-intrekking HOOG-latent, stille CSV-truncatie MIDDEL, CSRF-adjacent
+GET-export LAAG). **Volgende stap:** per-token-intrekking van de agenda-feed (schema + instellingen-UI), mens-poort.
+
 ## 2026-09-05 — slimme lege staat op /opdrachten → verbreed je zoekopdracht (ZZP'er)
 
 **Wat:** filterde de ZZP'er de opdrachten-marktplaats op zijn eigen vakgebied (standaard AAN zodra

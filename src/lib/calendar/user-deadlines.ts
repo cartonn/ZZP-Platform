@@ -52,7 +52,9 @@ export async function loadUserAdministrativeDeadlines(
               freelancerProfile: { userId },
             },
             orderBy: { expiresAt: "asc" },
-            select: { id: true, title: true, expiresAt: true },
+            // Datominimalisatie (AVG art. 5(1)(c)): de titel/het type wordt NIET geselecteerd — het
+            // hoort niet in de agenda-feed (zie deadlines.ts). Alleen id + verloopdatum zijn nodig.
+            select: { id: true, expiresAt: true },
           })
         : Promise.resolve([]),
       prisma.invoice.findMany({
@@ -97,7 +99,7 @@ export async function loadUserAdministrativeDeadlines(
     // expiresAt/dueAt zijn door de where-clausules gegarandeerd non-null; de `== null`-guard in de
     // flatMap maakt dat typebreed expliciet (narrowing) zonder een non-null-assertion.
     credentials: credentialRows.flatMap((c) =>
-      c.expiresAt == null ? [] : [{ id: c.id, title: c.title, expiresAt: c.expiresAt }],
+      c.expiresAt == null ? [] : [{ id: c.id, expiresAt: c.expiresAt }],
     ),
     invoices: invoiceRows.flatMap((i) =>
       i.dueAt == null

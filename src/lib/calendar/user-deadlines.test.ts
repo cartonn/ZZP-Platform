@@ -13,6 +13,7 @@ interface FindArgs {
     AND?: Array<{ OR?: Array<Record<string, unknown>> }>;
     OR?: Array<Record<string, unknown>>;
   };
+  select?: Record<string, unknown>;
 }
 
 const credentialFindManyMock = vi.hoisted(() =>
@@ -58,15 +59,17 @@ beforeEach(() => {
 });
 
 describe("loadUserAdministrativeDeadlines", () => {
-  it("ZZP'er: laadt VERIFIED certificaten met verloopdatum, gescoopt op de eigen userId", async () => {
+  it("ZZP'er: laadt VERIFIED certificaten met verloopdatum, gescoopt op de eigen userId — zonder titel/type", async () => {
     credentialFindManyMock.mockResolvedValue([
-      { id: "c1", title: "VOG", expiresAt: new Date("2026-09-01T00:00:00Z") },
+      { id: "c1", expiresAt: new Date("2026-09-01T00:00:00Z") },
     ]);
     const result = await loadUserAdministrativeDeadlines(USER, "FREELANCER", NOW);
 
-    expect(result.credentials).toEqual([
-      { id: "c1", title: "VOG", expiresAt: new Date("2026-09-01T00:00:00Z") },
-    ]);
+    // Datominimalisatie: alleen id + verloopdatum verlaten de loader; het type/de titel niet.
+    expect(result.credentials).toEqual([{ id: "c1", expiresAt: new Date("2026-09-01T00:00:00Z") }]);
+    const select = credentialFindManyMock.mock.calls[0]?.[0]?.select;
+    expect(select).toEqual({ id: true, expiresAt: true });
+    expect(select).not.toHaveProperty("title");
     const where = credentialFindManyMock.mock.calls[0]?.[0]?.where;
     expect(where).toBeDefined();
     expect(where!.status).toBe("VERIFIED");
