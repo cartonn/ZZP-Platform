@@ -19,6 +19,7 @@ import { canViewJob } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
 import { JOB_TRANSITIONS } from "@/lib/jobs";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
+import { credentialFixAction } from "@/lib/credential-fix-action";
 import {
   type CredentialType,
   type CredentialStatus,
@@ -1090,6 +1091,10 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                       const type = c.credentialType as CredentialType;
                       const state = credState(type, myFit!.compliance);
                       const urgent = state === "missing" || state === "expired";
+                      // Herstelactie hangt af van de staat: een verlopen certificaat bestaat al →
+                      // "Vernieuwen" naar het dossier; een ontbrekend → "Toevoegen" naar het
+                      // nieuw-formulier. Zo landt de ZZP'er exact waar de actie thuishoort.
+                      const fix = credentialFixAction(state);
                       return (
                         <li key={c.id} className="flex flex-wrap items-center gap-2">
                           {state === "satisfied" ? (
@@ -1104,12 +1109,12 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                           <span className="text-xs text-muted-foreground">
                             {t(CRED_STATE_LABEL[state])}
                           </span>
-                          {urgent && (
+                          {fix && (
                             <Link
-                              href="/certificaten"
+                              href={fix.href}
                               className="text-xs font-medium underline underline-offset-2"
                             >
-                              {t("Toevoegen")}
+                              {t(fix.label)}
                             </Link>
                           )}
                         </li>
