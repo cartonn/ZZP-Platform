@@ -158,7 +158,9 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   // en wat er nog ontbreekt (typisch een btw-id/KvK op het profiel). Server-side afgeleid.
   const compliance = isFreelancerOwner
     ? assessInvoiceCompliance({
-        invoiceNumber: cascade ? invoice.partyInvoiceNumber : invoice.number,
+        invoiceNumber: cascade
+          ? invoice.partyInvoiceNumber
+          : (invoice.partyInvoiceNumber ?? invoice.number),
         issuedAt: invoice.issuedAt,
         clientName: invoice.collaboration.company.name,
         hasDescription:
@@ -178,7 +180,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   // betaalgegevens van de crediteur zolang de factuur nog openstaat, zodat de opdrachtgever correct
   // + op tijd kan betalen. Beide partijen zien hetzelfde blok. Vereist een IBAN op het ZZP-profiel.
   const issuerIban = invoice.collaboration.freelancer.iban;
-  const invoiceNumber = cascade ? (invoice.partyInvoiceNumber ?? invoice.number) : invoice.number;
+  const invoiceNumber = invoice.partyInvoiceNumber ?? invoice.number;
   const showPaymentDetails = !!issuerIban && isInvoicePaymentPending(status, lifecycle);
   const paymentReference = `Factuur ${invoiceNumber}`;
 
@@ -280,7 +282,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className="text-lg font-semibold tabular-nums tracking-tight">
-                Factuur {cascade ? (invoice.partyInvoiceNumber ?? "(concept)") : invoice.number}
+                Factuur {invoice.partyInvoiceNumber ?? (cascade ? "(concept)" : invoice.number)}
               </h1>
               <p className="text-sm text-muted-foreground">{invoice.collaboration.job.title}</p>
             </div>

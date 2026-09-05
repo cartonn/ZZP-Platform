@@ -66,7 +66,7 @@ async function fetchOpenInvoices(
 
   const open = outstanding.map((inv) => {
     const isCascade = inv.lifecycleStatus != null;
-    const number = isCascade ? (inv.partyInvoiceNumber ?? inv.number) : inv.number;
+    const number = inv.partyInvoiceNumber ?? inv.number;
     const counterpartyName = isFreelancer
       ? (inv.collaboration?.company.name ?? "—")
       : (inv.collaboration?.freelancer.user.name ?? "—");

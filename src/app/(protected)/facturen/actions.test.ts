@@ -80,6 +80,10 @@ vi.mock("@/lib/rate-limit", () => ({
   },
 }));
 
+// Per-partij factuurnummer-reeks (allocateInvoiceNumber): een test kan `lastSeq` zetten om het
+// toegekende volgnummer te sturen. De allocator formatteert dit tot `2026-0001` etc.
+const sequenceState = vi.hoisted(() => ({ lastSeq: 1 }));
+
 const tx = vi.hoisted(() => ({
   invoiceUpdateMany: vi.fn(async (_args: { where: Record<string, unknown> }) => ({
     count: invoiceState.updateCount,
@@ -91,13 +95,18 @@ const tx = vi.hoisted(() => ({
   invoiceCascadeCount: vi.fn(async () => createState.txInvoiceCascadeCount),
   // In-transactie herlezing van de samenwerkingsstatus (factureerbaarheids-grendel).
   collaborationFindUnique: vi.fn(async () => createState.txCollaboration),
+  // Atomaire per-partij nummer-toewijzing (allocateInvoiceNumber → invoiceSequence.upsert).
+  invoiceSequenceUpsert: vi.fn(async () => ({ lastSeq: sequenceState.lastSeq })),
 }));
 
 const db = vi.hoisted(() => ({
-  invoiceCreate: vi.fn(async (_args: { data: { totalCents: number } }) => ({
-    id: "inv-new",
-    number: "2026-0002",
-  })),
+  invoiceCreate: vi.fn(
+    async (args: { data: { number?: string; partyInvoiceNumber?: string } }) => ({
+      id: "inv-new",
+      number: args.data.number ?? "user-1:2026-0001",
+      partyInvoiceNumber: args.data.partyInvoiceNumber ?? "2026-0001",
+    }),
+  ),
   auditCreate: vi.fn(async () => ({})),
 }));
 
@@ -114,6 +123,7 @@ vi.mock("@/lib/db", () => ({
         collaboration: { findUnique: tx.collaborationFindUnique },
         notification: { create: tx.notificationCreate },
         auditLog: { create: tx.auditCreate },
+        invoiceSequence: { upsert: tx.invoiceSequenceUpsert },
       }),
     ),
     collaboration: {
@@ -160,6 +170,7 @@ beforeEach(() => {
   createState.txPerformanceCount = 0;
   createState.txInvoiceCascadeCount = 0;
   createState.txCollaboration = { status: "ACTIVE", disputedAt: null };
+  sequenceState.lastSeq = 1;
 });
 
 // Bouwt de FormData zoals het factuurformulier die post (parallelle regelvelden).
@@ -407,11 +418,46 @@ describe("createInvoice — jaarprefix volgt de Amsterdamse kalender op de jaarw
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-12-31T23:15:00Z"));
     try {
-      createState.invoiceCount = 0; // eerste factuur van het (Amsterdamse) nieuwe jaar
+      sequenceState.lastSeq = 1; // eerste factuur van het (Amsterdamse) nieuwe jaar
       const res = await createInvoice("collab-1", undefined, invoiceFormData(goodLines));
       expect(res).toBeUndefined();
-      const arg = db.invoiceCreate.mock.calls[0]![0] as unknown as { data: { number: string } };
-      expect(arg.data.number).toBe("2027-0001");
+      const arg = db.invoiceCreate.mock.calls[0]![0] as unknown as {
+        data: { number: string; partyInvoiceNumber: string };
+      };
+      // Het (juridische) partij-nummer draagt het Amsterdamse jaarprefix; het globale nummer blijft
+      // uniek via de `issuerKey:`-prefix.
+      expect(arg.data.partyInvoiceNumber).toBe("2027-0001");
+      expect(arg.data.number).toBe("user-1:2027-0001");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+// Gatenvrije nummering PER UITSCHRIJVENDE PARTIJ (persona-sweep DOEL 1/2 — server-side waarheid, Wet
+// OB art. 35a). Regressie-grendel: de losse-factuur-actie mag NIET meer platform-breed tellen
+// (`invoice.count({ number: { startsWith } })`) — dat gaf elke ZZP'er gaten in zijn eigen reeks zodra
+// een ander platform-lid factureerde. Ze deelt nu exact dezelfde per-partij-allocator als de cascade.
+describe("createInvoice — gatenvrije factuurnummering per ZZP'er (geen platform-brede teller)", () => {
+  const goodLines = [{ description: "Werk", quantity: "1", unit: "100" }];
+
+  it("kent het nummer toe uit de eigen partij-reeks (issuerKey = de ZZP'er), niet platform-breed", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-15T12:00:00Z"));
+    try {
+      sequenceState.lastSeq = 7; // het 7e nummer in de eigen reeks van deze ZZP'er
+      const res = await createInvoice("collab-1", undefined, invoiceFormData(goodLines));
+      expect(res).toBeUndefined();
+      const arg = db.invoiceCreate.mock.calls[0]![0] as unknown as {
+        data: { number: string; partyInvoiceNumber: string; issuerKey: string };
+      };
+      // Partij-nummer uit de atomaire per-partij-allocator; globaal `number` uniek via issuerKey-prefix.
+      expect(arg.data.partyInvoiceNumber).toBe("2026-0007");
+      expect(arg.data.issuerKey).toBe("user-1");
+      expect(arg.data.number).toBe("user-1:2026-0007");
+      // De reeks wordt via de atomaire upsert-allocator toegewezen, niet via een platform-brede telling.
+      expect(tx.invoiceSequenceUpsert).toHaveBeenCalledTimes(1);
+      expect(db.invoiceCreate).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }

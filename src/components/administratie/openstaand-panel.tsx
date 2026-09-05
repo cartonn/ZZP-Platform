@@ -83,7 +83,9 @@ async function fetchOpenInvoices(
 
   const open = outstanding.map((inv) => {
     const isCascade = inv.lifecycleStatus != null;
-    const number = isCascade ? (inv.partyInvoiceNumber ?? inv.number) : inv.number;
+    // Partij-nummer als dat is toegekend (elke losse factuur + cascade ná indienen); anders het
+    // globale nummer (oude losse factuur van vóór de partij-nummering).
+    const number = inv.partyInvoiceNumber ?? inv.number;
     const counterpartyName = isFreelancer
       ? (inv.collaboration?.company.name ?? "—")
       : (inv.collaboration?.freelancer.user.name ?? "—");

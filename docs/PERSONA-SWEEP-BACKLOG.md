@@ -1,5 +1,46 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-05 (persona-sweep) · **main-commit basis:** `1aa49d15`
+> **Uitkomst:** **1 defect gevonden én gefixt.** Live Playwright-smoke over alle vier de rollen
+> (login → dashboard/`/acties` + rol-schermen; cross-rol verboden routes; IDOR met onzin-ids):
+> **geen 500's, geen dode schermen**; `/admin/*` en `/franchise/*` server-side geweigerd (redirect →
+> dashboard) voor de verkeerde rol; onzin-ids op `/samenwerkingen|/facturen|/opdrachten|/prestaties`
+> → nette `404` (nooit 500). 2 parallelle adversariële Opus-audits op niet-overlappende oppervlakken:
+>
+> - **franchise/tenant-isolatie-audit:** 0 bereikbare gaten (elke franchise-query scoopt op `tenantId`
+>   via `tenantScopeWhere`/`ownsViaTenant`; cross-tenant id → identieke anti-oracle "niet gevonden";
+>   `/franchise/**` drievoudig gepoort — middleware + `requireRole("FRANCHISER")` + DB-scope;
+>   tenant-provisioning is ADMIN-only; alle CSV/ICS-exports rol-gepoort + tenant-gescoopt + geaudit).
+> - **facturen/cascade/administratie-audit:** de geld-mutaties schoon (elk cascade-command
+>   auth→partij→dispuut/terminal-guard→Zod/bounds→actie→audit; élke statusovergang TOCTOU-veilig via
+>   compound `updateMany`; `computeOrt/computeVat` rejecten negatief/niet-integer; CSV-injectie-guard op
+>   alle exports; per-partij nummering server-afgeleid). **1 bereikbaar defect** → OPGELOST:
+> - **OPGELOST — should-fix (CLAUDE.md regel 1/3 — server-side waarheid + expliciete reeks; Wet OB
+>   art. 35a): de losse-factuur-actie nummerde PLATFORM-BREED i.p.v. gatenvrij per ZZP'er.**
+>   `createInvoice` (`/facturen/nieuw`, reachable UI) berekende het factuurnummer via
+>   `prisma.invoice.count({ where: { number: { startsWith: `${year}-` } } }) + 1` — een telling over
+>   álle losse facturen van álle ZZP'ers. Gevolg: (1) de wettelijk vereiste gatenvrije reeks **per
+>   uitschrijvende partij** brak zodra een ánder platform-lid een losse factuur aanmaakte (ZZP'er A:
+>   `2026-0001`, dan B: `2026-0002`, dan A weer: `2026-0003` → A's eigen reeks heeft een gat op
+>   `0002`); (2) alle ZZP'ers vochten om dezelfde `number @unique`-teller → P2002-retries (max 5) onder
+>   gelijktijdigheid, met kans op uitputting. De cascade-flow deed dit al goed via de per-partij
+>   allocator (`allocateInvoiceNumber`, `numbering.ts`: "geen platform-brede nummering"). **Fix:** de
+>   losse factuur deelt nu exact diezelfde atomaire per-partij-allocator (sleutel = de ZZP'er,
+>   `issuerKey = actor.id`), toegewezen bínnen de create-transactie; `partyInvoiceNumber` draagt het
+>   getoonde/wettelijke nummer (`2026-0007`), `number` blijft globaal uniek via de `issuerKey:`-prefix
+>   (zelfde conventie als `commands-shared.ts`). De ZZP'er botst nu alleen met zijn eigen
+>   (bijna-)gelijktijdige facturen — geen platform-brede contentie, geen gaten. Vier weergave-plekken
+>   die het nummer op de cascade-vlag poortten tonen nu voor élke factuur met een toegekend
+>   partij-nummer dat nummer (i.p.v. het ruwe globale `number`). +2 tests (rood→groen: gatenvrije
+>   per-partij-toewijzing + jaarprefix). Bestanden: `src/app/(protected)/facturen/actions.ts`
+>   (+ `.test.ts`), `.../facturen/[id]/page.tsx`, `src/components/administratie/{facturen,openstaand}-panel.tsx`,
+>   `src/app/api/administratie/openstaand/route.ts`.
+> - **Restrisico (genoteerd):** losse facturen die vóór deze fix zijn aangemaakt houden hun oude
+>   platform-brede `2026-XXXX`-nummer en hebben geen `partyInvoiceNumber`; ze vallen in de weergave terug
+>   op het globale nummer (ongewijzigd). Alleen nieuwe losse facturen lopen in de gatenvrije partij-reeks.
+>
+> ---
+
 > **Datum:** 2026-09-04 (persona-sweep) · **main-commit basis:** `e9f54f62`
 > **Uitkomst:** **1 defect gevonden én gefixt.** Live Playwright-smoke over alle vier de rollen
 > (login → dashboard/`/acties` + rol-schermen + cross-rol verboden routes): **geen 500's, geen
