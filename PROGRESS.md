@@ -10,6 +10,23 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-05 — prod/observability: `zzp_build_info`-gauge op /api/metrics (deploy-correlatie)
+
+**Wat:** de Prometheus `*_build_info`-conventie toegevoegd — een constante `1`-gauge
+`zzp_build_info{commit,built_at}` op `GET /api/metrics`. **Waarom:** `/api/health` toont commit +
+built_at al als JSON, maar dat is niet scrape-baar naast de andere gauges; zonder deze gauge kan een
+dashboard/alert een regressie of metriek-verschuiving niet correleren met de exacte draaiende deploy, en
+detecteert Prometheus zélf geen redeploy (`changes(zzp_build_info[…])`). Tot nu toe kende alleen de
+GitHub-deploy-lag-watchdog (`monitor.yml`) de draaiende commit. **Hoe:** `buildCommit`/`buildAt` in
+`MetricsInput` (pure `buildMetrics` emit een gelabelde 1-gauge via de bestaande escape-laag); de route
+leest de build-metadata uit dezelfde env + normalisatie als `/api/health` (`shortCommit`/`normalizeBuiltAt`),
+module-constant per proces (geen DB-read). `zzp_build_info` in `INFO_ONLY_METRICS` (bewust geen
+drempel-alert) zodat de alerts-drift-gate 'm kent. Labels dragen alleen statische build-metadata — geen
+PII/secret. **Bestanden:** `src/lib/observability/metrics.ts`, `.../alerts-rules.ts`,
+`src/app/api/metrics/route.ts` (+ tests), `docs/RUNBOOK.md §2a`. **Tests:** labels + fallback
+(`dev`/`onbekend`) + Prometheus-render (gesorteerde labels) + volledige gauge-lijst; metrics + alerts-rules
+70 groen, typecheck/lint/prettier groen. **PR #1389.**
+
 ## 2026-09-05 — security/privacy: certificaat-type lekte niet meer via de publieke agenda-feed
 
 **Wat:** een security-/privacy-auditronde (orchestrator + 3 adversariële Opus-audits op de delta sinds
