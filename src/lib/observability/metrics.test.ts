@@ -581,6 +581,8 @@ describe("buildMetrics", () => {
       routingDeliveryOk: false,
       routingDeliveryConsecutiveFailures: 14,
       routingDeliveryLastFailureAgeSeconds: 3300,
+      buildCommit: "def5678",
+      buildAt: "2026-02-02T00:00:00.000Z",
     };
     expect(valueOf(input, "zzp_db_reachable")).toBe(0);
     expect(valueOf(input, "zzp_metrics_collection_complete")).toBe(0);
