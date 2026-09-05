@@ -13,6 +13,7 @@ const invoiceState = vi.hoisted(() => ({
     id: string;
     status: string;
     number: string;
+    partyInvoiceNumber: string | null;
     dueAt: Date | null;
     collaboration: {
       freelancer: { userId: string };
@@ -88,7 +89,7 @@ const tx = vi.hoisted(() => ({
   invoiceUpdateMany: vi.fn(async (_args: { where: Record<string, unknown> }) => ({
     count: invoiceState.updateCount,
   })),
-  notificationCreate: vi.fn(async () => ({})),
+  notificationCreate: vi.fn(async (_args: { data: { body: string } }) => ({})),
   auditCreate: vi.fn(async () => ({})),
   // In-transactie herverificatie van de dubbele-facturatie-gate (usesCascadeFlow op de tx-client).
   performanceCount: vi.fn(async () => createState.txPerformanceCount),
@@ -151,7 +152,10 @@ beforeEach(() => {
   invoiceState.found = {
     id: "inv-1",
     status: "SENT",
-    number: "2026-0001",
+    // Post-migratie: `number` draagt de globaal-unieke `issuerKey:`-prefix; `partyInvoiceNumber` is
+    // het getoonde/wettelijke nummer. Geen enkele notificatie/audit/export mag het rauwe `number` lekken.
+    number: "user-1:2026-0007",
+    partyInvoiceNumber: "2026-0007",
     dueAt: new Date("2026-08-01T00:00:00Z"),
     collaboration: {
       freelancer: { userId: "user-1" },
@@ -293,6 +297,29 @@ describe("cancelInvoice — compound-guard", () => {
     invoiceState.updateCount = 0;
     await cancelInvoice("inv-1");
     expect(tx.auditCreate).not.toHaveBeenCalled();
+  });
+});
+
+// Regressie-grendel (agent-review BLOCK op #1391): sinds de per-partij-nummering draagt het globale
+// `Invoice.number` een `issuerKey:`-prefix met het interne user-id. Geen enkele geldstroom-notificatie
+// of auditregel mag dat rauwe nummer tonen — altijd het partij-nummer (`partyInvoiceNumber`).
+describe("sendInvoice/markInvoicePaid — body toont het partij-nummer, niet het rauwe `number`", () => {
+  it("sendInvoice: de INVOICE_SENT-notificatiebody bevat het partij-nummer, niet het user-id", async () => {
+    invoiceState.found!.status = "DRAFT"; // DRAFT -> SENT
+    invoiceState.updateCount = 1;
+    await sendInvoice("inv-1");
+    const arg = tx.notificationCreate.mock.calls[0]![0];
+    expect(arg.data.body).toContain("2026-0007");
+    expect(arg.data.body).not.toContain("user-1:");
+  });
+
+  it("markInvoicePaid: de INVOICE_PAID-notificatiebody bevat het partij-nummer, niet het user-id", async () => {
+    roleState.role = "CLIENT";
+    invoiceState.updateCount = 1;
+    await markInvoicePaid("inv-1");
+    const arg = tx.notificationCreate.mock.calls[0]![0];
+    expect(arg.data.body).toContain("2026-0007");
+    expect(arg.data.body).not.toContain("user-1:");
   });
 });
 

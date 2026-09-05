@@ -13,6 +13,7 @@ import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
 import { getIncomeTaxDeadlineForActor } from "@/lib/data/income-tax-deadline";
 import { type UserRole } from "@/lib/enums";
 import { type AdministrativeDeadlines } from "@/lib/calendar/deadlines";
+import { displayInvoiceNumber } from "@/lib/invoice-number";
 
 /**
  * Laadt de administratieve deadlines van `userId` (met rol `role`). Puur read-only; geen mutatie.
@@ -66,7 +67,13 @@ export async function loadUserAdministrativeDeadlines(
           ],
         },
         orderBy: { dueAt: "asc" },
-        select: { id: true, number: true, dueAt: true, counterpartyUserId: true },
+        select: {
+          id: true,
+          number: true,
+          partyInvoiceNumber: true,
+          dueAt: true,
+          counterpartyUserId: true,
+        },
       }),
       // Alleen de ZZP'er krijgt BTW-aangifte-deadlines in de agenda. De BTW-aangiftetaak is voor de
       // opdrachtgever bewust uit de actie-rail gehaald (#1333, pending-tasks.ts): een zorginstelling
@@ -107,7 +114,7 @@ export async function loadUserAdministrativeDeadlines(
         : [
             {
               id: i.id,
-              number: i.number,
+              number: displayInvoiceNumber(i),
               dueAt: i.dueAt,
               // De opdrachtgever (tegenpartij) betaalt; de uitschrijver (ZZP'er) ontvangt.
               payable: i.counterpartyUserId === userId,

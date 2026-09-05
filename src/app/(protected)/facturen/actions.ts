@@ -22,6 +22,7 @@ import { canSendPaymentReminder } from "@/lib/manual-payment-reminder";
 import { invoiceCreateRateLimiter } from "@/lib/rate-limit";
 import { fiscalYearOf } from "@/lib/administration/fiscal-calendar";
 import { allocateInvoiceNumber } from "@/lib/administration/persist";
+import { displayInvoiceNumber } from "@/lib/invoice-number";
 import { plural } from "@/lib/plural";
 import { invalidateSignals } from "@/lib/signals/invalidate";
 
@@ -253,7 +254,7 @@ export async function createInvoice(
       action: "INVOICE_CREATED",
       entityType: "Invoice",
       entityId: invoice.id,
-      metadata: { number: invoice.partyInvoiceNumber ?? invoice.number },
+      metadata: { number: displayInvoiceNumber(invoice) },
     }),
   });
 
@@ -318,7 +319,7 @@ export async function sendInvoice(invoiceId: string): Promise<void> {
         userId: invoice.collaboration!.company.userId,
         type: "INVOICE_SENT",
         title: "Nieuwe factuur ontvangen",
-        body: `Factuur ${invoice.number}.`,
+        body: `Factuur ${displayInvoiceNumber(invoice)}.`,
         link: "/facturen",
       },
     });
@@ -379,7 +380,7 @@ export async function markInvoicePaid(invoiceId: string): Promise<void> {
         userId: invoice.collaboration!.freelancer.userId,
         type: "INVOICE_PAID",
         title: "Factuur betaald",
-        body: `Factuur ${invoice.number} is als betaald gemarkeerd.`,
+        body: `Factuur ${displayInvoiceNumber(invoice)} is als betaald gemarkeerd.`,
         link: "/facturen",
       },
     });

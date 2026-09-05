@@ -21,11 +21,16 @@ maakte (A `2026-0001`, B `2026-0002`, A weer `2026-0003` → A's reeks mist `000
 om dezelfde `number @unique`-teller (P2002-retries onder gelijktijdigheid). De cascade-flow deed dit al goed.
 **Hoe:** de losse factuur deelt nu exact dezelfde atomaire per-partij-allocator als de cascade
 (`allocateInvoiceNumber`, sleutel = de ZZP'er, bínnen de create-transactie); `partyInvoiceNumber` draagt het
-getoonde/wettelijke nummer, `number` blijft globaal uniek via de `issuerKey:`-prefix. Vier weergave-plekken
-tonen nu voor élke factuur met een toegekend partij-nummer dat nummer i.p.v. het ruwe globale `number`.
-**Bestanden:** `src/app/(protected)/facturen/actions.ts` (+ `.test.ts`, +2 rood→groen: gatenvrije
-per-partij-toewijzing + jaarprefix), `.../facturen/[id]/page.tsx`,
-`src/components/administratie/{facturen,openstaand}-panel.tsx`, `src/app/api/administratie/openstaand/route.ts`.
+getoonde/wettelijke nummer, `number` blijft globaal uniek via de `issuerKey:`-prefix. Omdat `number` sinds de per-partij-nummering
+een `issuerKey:`-prefix (met het interne user-id) draagt, mag geen enkel scherm/notificatie/export het
+rauwe `number` tonen; alle plekken lezen nu het partij-nummer via één centrale helper
+`displayInvoiceNumber` (`src/lib/invoice-number.ts`). Dit dekt óók een pre-existent lek: cascade-facturen
+droegen dit prefix al, dus enkele surfaces lekten het user-id al vóór deze PR.
+**Bestanden:** `src/lib/invoice-number.ts` (nieuw), `src/app/(protected)/facturen/actions.ts` (+ `.test.ts`,
++4 rood→groen: gatenvrije per-partij-toewijzing, jaarprefix, send/markPaid-notificatiebody geen user-id-lek),
+`.../facturen/[id]/page.tsx`, `.../facturen/export/route.ts`, `.../search/actions.ts`,
+`src/lib/calendar/user-deadlines.ts`, `src/lib/franchise/roster-dossier.ts`, de twee `samenwerkingen/[id]/dossier`-
+laders, `src/components/administratie/{facturen,openstaand}-panel.tsx`, `src/app/api/administratie/openstaand/route.ts`.
 **Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (8208 passed) ✓ · build (CI-poort verifieert). Backlog
 bijgewerkt. **Restrisico:** oude losse facturen houden hun platform-brede `2026-XXXX` (geen `partyInvoiceNumber`),
 weergave valt terug op het globale nummer; alleen nieuwe losse facturen lopen in de gatenvrije partij-reeks.

@@ -8,6 +8,7 @@ import { requestMeta } from "@/lib/request-meta";
 import { auditDeniedAccess } from "@/lib/security/access-audit";
 import { prisma } from "@/lib/db";
 import { buildComplianceDossier, type DossierInput } from "@/lib/compliance/dossier";
+import { displayInvoiceNumber } from "@/lib/invoice-number";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
@@ -61,7 +62,13 @@ export async function GET(
       },
       performances: { select: { description: true, status: true, approvedAt: true } },
       invoices: {
-        select: { number: true, lifecycleStatus: true, totalCents: true, issuedAt: true },
+        select: {
+          number: true,
+          partyInvoiceNumber: true,
+          lifecycleStatus: true,
+          totalCents: true,
+          issuedAt: true,
+        },
       },
     },
   });
@@ -111,7 +118,7 @@ export async function GET(
     credentials: col.freelancer.credentials,
     performances: col.performances,
     invoices: col.invoices.map((i) => ({
-      number: i.number,
+      number: displayInvoiceNumber(i),
       lifecycleStatus: i.lifecycleStatus,
       totalCents: i.totalCents,
       submittedAt: i.issuedAt,

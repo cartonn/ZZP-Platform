@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { currentActor } from "@/lib/authz";
 import { visibleJobsWhere } from "@/lib/tenancy";
+import { displayInvoiceNumber } from "@/lib/invoice-number";
 import {
   type SearchResult,
   normalizeSearchQuery,
@@ -114,12 +115,13 @@ export async function searchPlatform(rawQuery: string): Promise<SearchResult[]> 
       }
 
       for (const invoice of invoices) {
-        const score = bestFieldScore([invoice.number], q);
+        const displayNumber = displayInvoiceNumber(invoice);
+        const score = bestFieldScore([displayNumber], q);
         if (score > 0) {
           results.push({
             type: "factuur",
             id: invoice.id,
-            title: invoice.number,
+            title: displayNumber,
             href: `/facturen/${invoice.id}`,
             score,
           });
@@ -195,12 +197,13 @@ export async function searchPlatform(rawQuery: string): Promise<SearchResult[]> 
       }
 
       for (const invoice of invoices) {
-        const score = bestFieldScore([invoice.number], q);
+        const displayNumber = displayInvoiceNumber(invoice);
+        const score = bestFieldScore([displayNumber], q);
         if (score > 0) {
           results.push({
             type: "factuur",
             id: invoice.id,
-            title: invoice.number,
+            title: displayNumber,
             href: `/facturen/${invoice.id}`,
             score,
           });
