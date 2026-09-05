@@ -28,6 +28,22 @@ verwijderd — anders zou de e2e-regressietest een wegvallende patch niet meer k
 PR): `_robust.ts` terugbrengen tot herklik-zonder-reload en de 5 s-watchdog in `PendingSubmitButton`
 laten vervallen.
 
+## 2026-09-05 — routine: job-detail wijst de ZZP'er de juiste herstelactie per vereist certificaat
+
+**Wat:** op de opdracht-detailpagina (`/opdrachten/[id]`) toonde de "Jouw aansluiting"-checklist bij een
+**verlopen** vereist certificaat de actie "Toevoegen" met een link naar de certificatenlijst — terwijl de
+ZZP'er dat certificaat al bezit. "Toevoegen" suggereert een tweede exemplaar aanmaken; de juiste actie bij
+verval is **vernieuwen** (nieuw bewijsstuk uploaden / opnieuw verificatie aanvragen op het bestaande
+certificaat). Een écht ontbrekend certificaat landde bovendien op de lijst i.p.v. direct op het
+nieuw-formulier. **Waarom:** noord-ster "wat moet ik nu doen?" — de herstelactie moet kloppen én de ZZP'er
+in één klik op de plek zetten waar de actie thuishoort. **Hoe:** nieuwe pure helper `credentialFixAction`
+(`src/lib/credential-fix-action.ts`) mapt de certificaat-staat op de juiste actie: `missing` → "Toevoegen"
+naar `/certificaten/nieuw`, `expired` → "Vernieuwen" naar `/certificaten`, `satisfied`/`inReview` → geen
+actie. De job-detailpagina gebruikt de helper i.p.v. de inline "Toevoegen"-link. **Bestanden:**
+`src/lib/credential-fix-action.ts` (nieuw) + `.test.ts` (5 cases, incl. regressie "verlopen ≠ Toevoegen"),
+`src/app/(protected)/opdrachten/[id]/page.tsx`. **Checks:** typecheck · lint · prettier · unit groen; build
+via CI-poort. **PR #1393.**
+
 ## 2026-09-05 — persona-sweep: losse factuur nummert gatenvrij per ZZP'er (Wet OB art. 35a)
 
 **Wat:** de persona-sweep (live Playwright-smoke over 4 rollen + 2 adversariële Opus-audits op
