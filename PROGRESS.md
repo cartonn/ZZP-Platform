@@ -10,6 +10,24 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-05 — security/privacy: audit-CSV-export meldt truncatie (AVG art. 5(2) verantwoording)
+
+**Wat:** de admin-audit-CSV-export (`/admin/audit/export`) capte op `AUDIT_EXPORT_CAP = 10.000` rijen
+**zonder enige indicatie** dat er getrunceerd was. Een admin die de CSV als volledig audit-bewijs
+presenteert bij een AVG-inspectie kon onbewust een onvolledig register tonen (art. 5(2)
+verantwoordingsplicht). **Waarom nu:** geparkeerd MIDDEL uit de security-/privacy-auditronde van 5-9;
+geen security-breach maar wél een compliance-valkuil in de kern-toezicht-hub. **Hoe (server-side
+waarheid, drie lagen):** de route telt het `total` naast de gecapte rijen (`Promise.all(count,
+findMany)`); bij `total > exported` (1) voegt `auditExportCsv` een expliciete **sluit-rij** toe die het
+geëxporteerde, totale én resterende aantal noemt en aanraadt het filter te verfijnen, (2) markeert
+`auditExportFilename` de bestandsnaam met `-getrunceerd`, (3) draagt de `AUDIT_LOG_EXPORTED`-auditregel
+`total`+`truncated`. Het audit-paneel toont daarnaast een vooraf-waarschuwing bij de exportknop zodra het
+totaal de cap overstijgt (cap verhuisd naar `audit-export.ts` als gedeelde bron — geen drift). De melding
+is CSV-injectie-veilig (geen leidend formule-teken) en de export blijft byte-identiek bij een volledig
+register. **Bestanden:** `src/lib/audit-export.ts` (+ `.test.ts`, +9 cases),
+`src/app/(protected)/admin/audit/export/route.ts`, `src/components/admin/audit-panel.tsx`. **Checks:**
+typecheck ✓ · lint ✓ · prettier ✓ · unit (audit-export: 17 passed) ✓ · build (CI-poort verifieert). **PR #1390.**
+
 ## 2026-09-05 — prod/observability: `zzp_build_info`-gauge op /api/metrics (deploy-correlatie)
 
 **Wat:** de Prometheus `*_build_info`-conventie toegevoegd — een constante `1`-gauge
