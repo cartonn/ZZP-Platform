@@ -278,6 +278,18 @@ van het scratch-doel zelf is een infra-keuze. Draai dit periodiek (bv. maandelij
 Alternatief handmatig: herstel naar een wegwerp-database, zet `DATABASE_URL` daarheen in staging en
 verifieer met `/api/readiness` + een steekproef. Een onbeproefde back-up is geen back-up.
 
+**Geautomatiseerd in CI (`.github/workflows/restore-drill.yml`):** de volledige keten
+back-up → herstel → teruglezen draait zelfstandig tegen een echte Postgres 16 (service-container,
+**geen productie-secret nodig**): de job seedt een bron-database, maakt er een back-up van met
+`npm run db:backup`, herstelt die in een aparte wegwerp scratch-database met `npm run db:restore-drill`
+en leest schema + rijen terug. Triggers: **maandelijkse cron** (1e om 03:17 UTC — bewijst dat de
+herstelketen blijft werken naarmate schema/afhankelijkheden wijzigen), **`workflow_dispatch`** en een
+**`pull_request`**-trigger op de back-up-/herstelcode (een regressie is zo al zichtbaar in de PR die 'm
+introduceert). Bewust **geen** vereiste branch-protection-check — een doorlopend betrouwbaarheidssignaal,
+geen merge-blokkade (zoals `e2e-postgres`/`monitor`). Dit bewijst de herstel-**code**; de periodieke
+drill tegen een **echte productie-back-up** hierboven (`DRILL_DATABASE_URL` → een echte, gelijk-beveiligde
+scratch-database) blijft de aanbevolen extra zekerheid.
+
 **Back-up-heartbeat / dead-man's-switch:** laat de externe back-up-job (pg_dump/databasedienst) na
 elke geslaagde dump pingen naar `POST /api/backups/heartbeat` met
 `Authorization: Bearer $CRON_SECRET` (optioneel `{ "ok": false }` bij een mislukte run). Zo toont
