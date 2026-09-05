@@ -67,6 +67,12 @@ import {
 } from "@/lib/jobs/saved-search-counts";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SaveJobButton } from "@/components/jobs/save-job-button";
+import { EmptyStateSuggestions } from "@/components/jobs/empty-state-suggestions";
+import {
+  buildRelaxationCandidates,
+  rankRelaxations,
+  type RelaxationSuggestion,
+} from "@/lib/jobs/empty-state-relaxations";
 import { JobPipelineStrip } from "@/components/jobs/job-pipeline-strip";
 import { ReceivedInvitationsBand } from "@/components/jobs/received-invitations-band";
 import { getReceivedInvitations } from "@/lib/data/received-invitations";
@@ -864,6 +870,37 @@ async function BrowseJobs({
   const paginationTotal = scanAndRank ? scannedJobs.length : total;
   const foundTotal = onlyEligible ? scannedJobs.length : total;
   const totalPages = Math.max(1, Math.ceil(paginationTotal / JOBS_PER_PAGE));
+
+  // Slimme lege staat (alleen ZZP'er): levert de gefilterde markt niets op, bied dan één klik om de
+  // zoekopdracht te verbreden — met het exacte aantal opdrachten dat elke versoepeling oplevert. Elke
+  // telling is een DB-count over dezelfde gedeelde `buildJobMarketplaceWhere`, dus precies wat de
+  // ZZP'er ná de klik ziet (geen screen↔teller-drift). Alleen bij écht nul treffers (`foundTotal`,
+  // volgt de inzetbaarheidsfilter) en alleen wanneer er een zinvolle versoepeling bestaat — dus geen
+  // extra queries op een gevulde lijst.
+  let relaxationSuggestions: RelaxationSuggestion[] = [];
+  if (profile && foundTotal === 0) {
+    const candidates = buildRelaxationCandidates(f);
+    if (candidates.length > 0) {
+      const counted = await Promise.all(
+        candidates.map(async (c) => {
+          const qs = jobFiltersToQueryString(c.filters);
+          return {
+            kind: c.kind,
+            label: c.label,
+            count: await prisma.job.count({
+              where: buildJobMarketplaceWhere(c.filters, {
+                actor,
+                myIndustryIds,
+                profileId: profile.id,
+              }),
+            }),
+            href: qs ? `/opdrachten?${qs}` : "/opdrachten",
+          };
+        }),
+      );
+      relaxationSuggestions = rankRelaxations(counted);
+    }
+  }
   const mkPageHref = (page: number) => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(searchParams)) {
@@ -912,7 +949,9 @@ async function BrowseJobs({
                 ? { label: t("Wis alle filters"), href: clearFiltersHref }
                 : undefined
             }
-          />
+          >
+            <EmptyStateSuggestions suggestions={relaxationSuggestions} />
+          </EmptyState>
         </Card>
       ) : (
         <>
