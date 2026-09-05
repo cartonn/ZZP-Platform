@@ -10,6 +10,34 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-05 — slimme lege staat op /opdrachten → verbreed je zoekopdracht (ZZP'er)
+
+**Wat:** filterde de ZZP'er de opdrachten-marktplaats op zijn eigen vakgebied (standaard AAN zodra
+hij branches heeft) of op andere filters en leverde dat níks op, dan bood de lege staat alleen "Wis
+alle filters" — alles-of-niets. De nuttigste zet is meestal "verbreed één ding": zijn niche is
+vandaag leeg terwijl er wél ander werk is. Nu toont de lege staat tot twee één-klik-verbredingen,
+elk met het exacte aantal opdrachten dat die versoepeling oplevert (bv. "Zoek in alle vakgebieden ·
+12 opdrachten"). Benchmark: LinkedIn/Malt "broaden your search", maar met een echte teller vooraf.
+
+**Hoe (server-side waarheid, geen drift):** nieuwe pure helper `buildRelaxationCandidates(f)` leidt
+uit de genormaliseerde filters de zinvolle één-filter-versoepelingen af (vakgebied, certificaat-eis,
+vaardigheden, werkvorm, tarief, locatie, hideApplied, zoekterm), elk als een reeds-versoepelde
+`JobFilters` die precies één dimensie loslaat en de overige filters intact houdt. `rankRelaxations`
+houdt alleen versoepelingen mét treffers, sorteert op meeste kansen eerst (tie-break op vaste
+voorkeursvolgorde) en kapt op 2. De pagina telt elke variant met dezelfde gedeelde
+`buildJobMarketplaceWhere` → het getoonde aantal is exact wat de ZZP'er ná de klik ziet. Alleen bij
+écht nul treffers (`foundTotal`, volgt de inzetbaarheidsfilter) en met profiel — geen extra queries
+op een gevulde lijst. `onlyEligible` (in-memory compliance, niet in de DB-where) is de uitzondering:
+staat die aan, dan bieden we uitsluitend het versoepelen van `onlyEligible` zelf aan, zodat elke
+telling exact blijft (de overige zouden niet-inzetbare opdrachten meetellen).
+
+**Bestanden:** `src/lib/jobs/empty-state-relaxations.ts` (+ `.test.ts`: 15 cases — kandidaat-opbouw,
+één-dimensie-relaxatie, page-reset, onlyEligible-uitzondering, rangschikking/kap),
+`src/components/jobs/empty-state-suggestions.tsx` (presentatie, rendert niets zonder suggesties),
+`src/app/(protected)/opdrachten/(index)/page.tsx` (wiring in de lege-staat-tak).
+
+**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (empty-state-relaxations: 15 passed) ✓ · build ✓ (CI-poort verifieert).
+
 ## 2026-09-04 — certificaat-vervalkalender → abonneer op je agenda (ZZP'er)
 
 **Wat:** de ZZP'er ziet op `/certificaten` de **vervalkalender** (`ExpiryOverviewCard`) met wat er
