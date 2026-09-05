@@ -5,9 +5,16 @@
 // ontbreekt, zodat er geen dubbele submit gebeurt.
 import { expect, type Locator, type Page } from "@playwright/test";
 
+// Stand 5-9-2026 (issue #329): de "hangende action-response" is bij de wortel gefixt — het was een
+// verloren render-fase-ping in de door Next gebundelde React-canary, teruggezet via
+// patches/next+15.5.24.patch (zie docs/decisions/0012). De herlaad-vangnetten hieronder zijn daar
+// dus niet meer voor nodig; e2e/bureau-registratie.spec.ts bewijst dat met één gewone klik in de
+// productiebuild. Ze blijven staan voor de losstaande pre-hydratatie-klikrace (herklik) en kunnen in
+// een vervolg worden teruggebracht tot "herklik zonder reload".
+
 /** Verse GET van de huidige pagina, ook als er nog een (hangende) navigatie/POST openstaat:
  *  eerst window.stop() (kapt de hangende response af), dan een reload met korte timeout.
- *  Zie issue #329 — de action-response kan in productie blijven hangen na een geslaagde mutatie. */
+ *  Historisch vangnet voor issue #329 (zie kop van dit bestand). */
 export async function freshen(page: Page) {
   await page.evaluate(() => window.stop()).catch(() => {});
   await page.reload({ waitUntil: "domcontentloaded", timeout: 8000 }).catch(() => {});

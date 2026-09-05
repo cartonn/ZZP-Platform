@@ -10,6 +10,24 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-05 — issue #329 bij de wortel gefixt: verloren render-fase-ping in de gebundelde React
+
+**Symptoom:** in een productiebuild bleef na een server action de knop op "Bezig…" staan terwijl de
+mutatie allang was geland; het project werkte er sinds juni omheen (`e2e/_robust.ts`, watchdog in
+`PendingSubmitButton`). **Diagnose (gemeten met tee op de fetch, React-root-lanes en breakpoints in de
+gebundelde React):** de RSC-body komt volledig binnen, maar React's `pingSuspendedRoot` laat een ping
+vallen die tijdens de render-fase binnenkomt (flight-chunk in `resolved_model` lost zijn `then`
+synchroon op) terwijl de root op `RootSuspendedWithDelay` staat; de lane eindigt "suspended + warm"
+zonder listener en zonder geplande render. Upstream gefixt in React `19.3.0-canary-…-20260731`
+(Next 16.3); Next 15.5.24/15.5.25 bundelen nog de oude canary. **Fix:** eenregelige backport via
+`patch-package` (`patches/next+15.5.24.patch`, postinstall) — gemeten 5/5 direct door, voorheen 5/6 hang.
+**Borging:** `src/lib/system/react-render-phase-ping.test.ts` (bundel bevat fix, buggy pad afwezig) +
+`e2e/bureau-registratie.spec.ts` activeert nu met één gewone klik in de productiebuild. ADR
+[0012](docs/decisions/0012-react-render-phase-ping-backport.md). De client-side nudge-workaround uit #1377 (`ActionReplay`, `action-replay.ts`) is hiermee overbodig en
+verwijderd — anders zou de e2e-regressietest een wegvallende patch niet meer kunnen zien. Vervolg (aparte
+PR): `_robust.ts` terugbrengen tot herklik-zonder-reload en de 5 s-watchdog in `PendingSubmitButton`
+laten vervallen.
+
 ## 2026-09-05 — persona-sweep: losse factuur nummert gatenvrij per ZZP'er (Wet OB art. 35a)
 
 **Wat:** de persona-sweep (live Playwright-smoke over 4 rollen + 2 adversariële Opus-audits op

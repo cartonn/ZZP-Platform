@@ -52,6 +52,10 @@ Golf 1 (A–F), golf 2 (G, I, M, N, O, Q) en golf 3 (T, U, V, W) zijn gemerged; 
 #1353 (reactielimiet per maand) staan in de poort. Productie loopt gelijk met `main`. Volgende
 increments komen uit de backlog hieronder; **niet dubbel bouwen** — check `gh pr list` eerst.
 
+**5-9:** issue #329 (hangende action-respons in productie) bij de wortel gefixt — React-backport via
+`patches/next+15.5.24.patch` + regressietests (zie PROGRESS.md bovenaan, ADR 0012); vervolg staat bij
+punt 5 hieronder.
+
 ### Open uit het programma (hoogste waarde eerst)
 
 1. **Signaal-snapshot per gebruiker** via de bestaande event-bus (handlers werken per-rol tellers bij,
@@ -65,11 +69,11 @@ increments komen uit de backlog hieronder; **niet dubbel bouwen** — check `gh 
    route leidt nu permanent om naar `/admin/toezicht?tab=audit`). Rest: `/prognose` en `/verplichtingen`
    zijn FREELANCER-pagina's (geen admin-hub-tab); alleen oppakken als er een passende hub-tab voor komt.
 4. `notFound()` onder een `loading.tsx` geeft HTTP 200; overweeg `notFound()` vóór de streaming-shell.
-5. **React-transitie commit niet na een server action (productiebuild)** — oorzaak gevonden in #1377:
-   vendored React-canary in Next 15.5.x; workaround `src/components/system/action-replay.tsx` (eindige
-   reeks state-nudges na submit/click). Verwijderen zodra Next een gefixte React-build meelevert; daarna
-   de `clickUntilGone`/`window.stop()`-omwegen uit `e2e/_robust.ts` halen (~20 specs, één voor één op
-   een productiebuild groen houden). Zie issue #329.
+5. **React-transitie commit niet na een server action (productiebuild)** — GEDAAN (5-9): wortel gevonden
+   én gefixt via de React-backport `patches/next+15.5.24.patch` (ADR 0012); de nudge-workaround
+   `action-replay.tsx` uit #1377 is verwijderd. Rest: de `clickUntilGone`/`window.stop()`-omwegen uit
+   `e2e/_robust.ts` halen (~20 specs, één voor één op een productiebuild groen houden) en de 5 s-watchdog
+   in `PendingSubmitButton` laten vervallen. Zie issue #329.
 6. Rooster-begrip scherp definiëren (dashboard-weekstrip, /rooster, samenwerking-looptijd) — review-bevinding.
 
 ## Openstaande backlog (bovenste eerst; pak er één, lever DoD-groen, push)
