@@ -24,7 +24,13 @@ import {
   planBulkJobInvites,
 } from "@/lib/job-invite";
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
-import { inviteRateLimiter } from "@/lib/rate-limit";
+import { computeReachForMatchSource, type JobReach } from "@/lib/data/job-reach";
+import {
+  parseReachSpecFromForm,
+  toJobMatchSource,
+  hasDiscriminatingRequirements,
+} from "@/lib/jobs/reach-spec";
+import { inviteRateLimiter, reachEstimateRateLimiter } from "@/lib/rate-limit";
 
 export type JobFormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -223,6 +229,48 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
 
   revalidatePath("/opdrachten");
   redirect(`/opdrachten/${savedId}`);
+}
+
+/**
+ * Bereik-check vóór publicatie: geeft de opdrachtgever, terwijl die de opdracht opstelt, een
+ * indicatie van hoeveel passende ZZP'ers de concept-opdracht zou bereiken + het grootste knelpunt —
+ * zodat eisen/tarief/werkvorm bijgestuurd kunnen worden vóór publicatie. Read-only: geen mutatie,
+ * geen audit. Server-side blijft de waarheid — de client toont het resultaat, berekent het nooit
+ * zelf, en krijgt nooit per-ZZP'er-gegevens terug (alleen geaggregeerde tellingen).
+ *
+ * auth → rol (CLIENT) → tenant-scope (bedrijf) → Zod-spec → begrensde pool-scan + score. De pool
+ * wordt op `company.tenantId` gescoped (identiek aan `saveJob`/`getJobReach`), dus cross-tenant lekt
+ * nooit. Een per-account-rem (`reachEstimateRateLimiter`) houdt het scan-oppervlak bounded.
+ */
+export type JobReachEstimate =
+  | { ok: true; reach: JobReach }
+  | { ok: false; reason: "insufficient" | "unauthorized" };
+
+export async function estimateJobReach(formData: FormData): Promise<JobReachEstimate> {
+  let actor;
+  try {
+    actor = await requireRole("CLIENT");
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { ok: false, reason: "unauthorized" };
+    throw e;
+  }
+
+  if (!(await reachEstimateRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, reason: "insufficient" };
+  }
+
+  const company = await prisma.company.findUnique({
+    where: { userId: actor.id },
+    select: { tenantId: true },
+  });
+  if (!company) return { ok: false, reason: "unauthorized" };
+
+  const spec = parseReachSpecFromForm(formData);
+  // Zonder onderscheidende eisen zou "bereik" de hele vindbare pool zijn — misleidend. Toon niets.
+  if (!hasDiscriminatingRequirements(spec)) return { ok: false, reason: "insufficient" };
+
+  const reach = await computeReachForMatchSource(toJobMatchSource(spec), company.tenantId);
+  return { ok: true, reach };
 }
 
 export type JobStatusState = { error?: string } | undefined;

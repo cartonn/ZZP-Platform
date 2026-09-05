@@ -19,12 +19,13 @@ import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden"
 import { groupSkillsByCategory, type SkillOption } from "@/lib/skill-categories";
 import { JobRateBandCard } from "@/components/jobs/job-rate-band-card";
 import { JobQualityMeter } from "@/components/jobs/job-quality-meter";
+import { JobReachPreview } from "@/components/jobs/job-reach-preview";
 import { assessJobQuality, type JobQuality } from "@/lib/job-quality";
 import { type MarketBand } from "@/lib/market-rate";
 import { type CredentialType } from "@/lib/enums";
 import { recommendedCredentialsForIndustry } from "@/lib/jobs/credential-recommendations";
 import { cn } from "@/lib/utils";
-import { saveJob, type JobFormState } from "./actions";
+import { saveJob, estimateJobReach, type JobFormState, type JobReachEstimate } from "./actions";
 
 // Elke DBA-indicator als gewone-mensen-vraag met een voorbeeldzin eronder. De koppeling met de
 // bestaande dba-velden (namen) en de risicologica in @/lib/dba blijft ongewijzigd; alleen de
@@ -194,6 +195,50 @@ export function JobForm({
     );
   }, [rateBands, platformRateBand]);
 
+  // Bereik-check vóór publicatie: hoeveel passende ZZP'ers deze concept-opdracht zou bereiken en
+  // het grootste knelpunt. Server-side berekend (estimateJobReach) — de client toont alleen. De
+  // aanroep is gedebounced zodat we niet bij elke toetsaanslag scannen; een oplopend seq-id negeert
+  // verouderde antwoorden (een laat antwoord mag een nieuwer nooit overschrijven).
+  const [reachEstimate, setReachEstimate] = useState<JobReachEstimate | null>(null);
+  const [reachLoading, setReachLoading] = useState(false);
+  const reachTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reachSeq = useRef(0);
+
+  const recomputeReach = useCallback(() => {
+    const form = formRef.current;
+    if (!form) return;
+    const fd = new FormData(form);
+    if (reachTimer.current) clearTimeout(reachTimer.current);
+    reachTimer.current = setTimeout(() => {
+      const seq = ++reachSeq.current;
+      setReachLoading(true);
+      estimateJobReach(fd)
+        .then((result) => {
+          if (seq !== reachSeq.current) return; // verouderd antwoord — negeren
+          setReachEstimate(result);
+          setReachLoading(false);
+        })
+        .catch(() => {
+          if (seq !== reachSeq.current) return;
+          setReachEstimate(null);
+          setReachLoading(false);
+        });
+    }, 600);
+  }, []);
+
+  // Debounce-timer opruimen bij unmount zodat er geen setState op een verdwenen component gebeurt.
+  useEffect(() => {
+    return () => {
+      if (reachTimer.current) clearTimeout(reachTimer.current);
+    };
+  }, []);
+
+  // Eén onChange-handler die zowel de live kwaliteitsmeter als de bereik-check herberekent.
+  const handleFormChange = useCallback(() => {
+    recomputeQuality();
+    recomputeReach();
+  }, [recomputeQuality, recomputeReach]);
+
   // Live rechtsvermoeden-drempelcheck op het minimumtarief (pure functie, centen).
   const rateMinCents = rateMin !== "" ? Number(rateMin) * 100 : null;
   const rateThreshold = assessRateThreshold(rateMinCents);
@@ -239,7 +284,7 @@ export function JobForm({
     <form
       ref={formRef}
       action={formAction}
-      onChange={recomputeQuality}
+      onChange={handleFormChange}
       noValidate
       className="space-y-6"
     >
@@ -391,6 +436,9 @@ export function JobForm({
         options={Object.entries(CREDENTIAL_LABELS).map(([value, label]) => ({ value, label }))}
         selected={initial.optionalCredentialTypes}
       />
+
+      {/* Bereik-check onder de eisen-pickers: eerst eisen invullen → dan het bereik zien. */}
+      <JobReachPreview estimate={reachEstimate} loading={reachLoading} />
 
       <div className="space-y-1 border-b border-border pb-2 pt-2">
         <h2 className="text-sm font-semibold tracking-tight">Compliance &amp; overeenkomst</h2>

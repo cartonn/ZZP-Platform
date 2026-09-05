@@ -10,6 +10,34 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-05 — routine: bereik-check vóór publicatie in het opdracht-formulier (opdrachtgever)
+
+**Wat:** de bereikmotor (`getJobReach` + de pure `job-reach.ts`/`job-reach-bottleneck.ts`) toonde de
+opdrachtgever pas **ná** publicatie hoeveel passende, vindbare ZZP'ers een opdracht bereikt en wat het
+grootste knelpunt is. De `job-reach.ts`-module benoemt zelf al de bedoeling "bereik vooraf verklaarbaar
+… zodat de opdrachtgever tarief of eisen kan bijsturen vóór de opdracht koud wordt" — maar dat signaal
+verscheen nog niet in het formulier. **Waarom:** een opdrachtgever die pas na publicatie ziet dat zijn
+eisen bijna niemand bereiken, verliest tijd (opdracht koud, herpublicatie). Vooraf sturen op eisen/
+tarief/werkvorm vult sneller — benchmark: LinkedIn/Indeed/Temper tonen een kandidaat-indicatie tijdens
+het opstellen. **Hoe (server-side waarheid, DRY):** de pool-scan+score-kern uit `getJobReach` is
+geëxtraheerd naar `computeReachForMatchSource(source, tenantId, appliedIds?)` in `data/job-reach.ts`;
+`getJobReach` roept die nu aan (gedrag ongewijzigd). Nieuwe pure `src/lib/jobs/reach-spec.ts`
+(`jobReachSpecSchema` + `toJobMatchSource` + `hasDiscriminatingRequirements` + `parseReachSpecFromForm`)
+vertaalt een concept-formulier naar een `JobMatchSource`. Nieuwe read-only server-action
+`estimateJobReach(formData)` (`opdrachten/actions.ts`): auth → rol CLIENT → tenant-scope (bedrijf) →
+Zod-spec → begrensde pool-scan (≤200, op `company.tenantId`) → geaggregeerd `JobReach` terug (nooit
+per-ZZP'er-gegevens). Zonder onderscheidende eis (geen vereiste skill/certificaat, branche of
+minimumtarief) → `insufficient`, geen kaart (anders zou "bereik" de hele pool zijn). Rem:
+`reachEstimateRateLimiter` (default 60/5 min per actor). UI: `JobReachPreview` (client, spiegelt
+`JobReachCard`) in `job-form.tsx`, gedebouncet (600 ms) op `<form onChange>`, verouderde antwoorden
+genegeerd via seq-id, loading/insufficient/gevuld-states. **Server bepaalt, client toont** (CLAUDE.md
+regel 1). **Bestanden:** `src/lib/jobs/reach-spec.ts` (+ `.test.ts`, 16 cases), `src/lib/data/job-reach.ts`
+(refactor), `src/lib/rate-limit.ts` (limiter), `opdrachten/actions.ts` (action), nieuwe
+`src/components/jobs/job-reach-preview.tsx`, `opdrachten/job-form.tsx` (wiring). **Checks:** typecheck ✓ ·
+lint ✓ · prettier ✓ · build ✓ · unit (reach-spec 16/16; volledige suite 8245 passed — de 2 rode
+`react-render-phase-ping`-cases waren de patch-package-installstaat van de verse clone, groen na
+`npx patch-package` zoals CI's `npm ci` doet). **PR #1398.**
+
 ## 2026-09-05 — prod: geautomatiseerde back-up-herstel-drill in CI (end-to-end DR-garantie)
 
 **Wat:** de herstel-drill (`scripts/backup-restore-drill.ts`, `npm run db:restore-drill`) was volledig
@@ -364,57 +392,3 @@ snapshot-cases), `src/components/collaborations/ort-breakdown.tsx`,
 `src/lib/performance-pdf.ts`, `src/app/api/prestaties/[id]/pdf/route.ts`.
 
 **Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit + build (CI-poort verifieert).
-
-## 2026-09-04 — routine: bemiddelaar-vervalsignaal escaleert binnen de vernieuwings-doorlooptijd (#1381)
-
-**Wat:** op de bemiddelaar-roster (`/franchise/zzpers` + de CSV-export) escaleert het per-ZZP'er
-vervalsignaal naar danger met "· vraag nu aan" zodra het soonest verlopende certificaat binnen zijn
-_externe vernieuwings-doorlooptijd_ valt (bv. VOG over 50 d — Justis duurt tot 56 d). Tot nu toe
-gaf `expiryAlertTone` één milde `warning` voor élk niet-verlopen venster: een VOG op 50 d en een
-diploma op 50 d zagen er identiek uit, terwijl alleen de VOG feitelijk al niet meer op tijd
-schoon te vernieuwen is. De bemiddelaar ziet nu wélke ZZP'er hij nú moet aansporen om de plaatsing-
-compliance niet te verliezen.
-
-**Aanpak:** de doorlooptijd-kennis (`RENEWAL_LEAD_TIMES`/`renewalNudge`, `credential-renewal-leadtime.ts`)
-stond alleen op ZZP'er-schermen. `summarizeExpiryAlert` toetst het soonest (nog niet verlopen, dus
-VERIFIED) certificaat nu tegen exact dezelfde `start_now`-regel — geen eigen drempel, geen duplicatie.
-Nieuw veld `renewalUrgent` op `ExpiryAlert`; `expiryAlertTone` → danger bij urgent, `expiryAlertLabel`
-voegt "· vraag nu aan" toe (vóór het +n-suffix). De twee consumers (`/franchise/zzpers/page.tsx` en
-`export/route.ts`) gaan al door deze functies, dus de escalatie stroomt door zonder eigen wijziging.
-Server-side afgeleid, client toont alleen (CLAUDE.md regel 1); geen schema/migratie/mutatie/authz.
-
-**Bestanden:** `src/lib/franchise/credential-alerts.ts` (+ `.test.ts`, 27 cases: +escalatie VOG/
-CERTIFICATE binnen doorlooptijd, DIPLOMA/venster-buiten blijft warning, EXPIRED blijft danger).
-
-**Checks:** typecheck ✓ · lint ✓ · prettier --check ✓ · unit + build (CI-poort verifieert).
-
-## 2026-09-04 — routine: badge/telling toont een server-verlopen VERIFIED-certificaat als verlopen (#1380)
-
-**Wat:** twee adversariële Opus-audits op niet-overlappende kern-oppervlakken (certificaat-/
-verificatie-lifecycle · ORT/cascade-math + reminders). De cascade-audit bevond de geld-paden schoon
-(reconcile, segmentatie, nummering, VAT, reminder-idempotentie — alleen een LAAG reminder-jitter-nootje,
-onder de lat). De lifecycle-audit vond één bereikbaar server-side-waarheid-defect (CLAUDE.md regel 1).
-
-**Defect:** de hele app behandelt een `VERIFIED`-certificaat met een gepasseerde `expiresAt` als
-verlopen — óók vóór de expiry-cron (`runExpiryTask`) de status naar `EXPIRED` flipt (`isExpired`,
-`computeCompliance`, verval-danger-band, `/acties`). De **statusbadge** was de enige plek die de ruwe
-DB-status toonde: `VERIFIED` → groene "Geverifieerd", zonder naar `expiresAt` te kijken. Op de
-bemiddelaar-cockpit `/franchise/zzpers/[id]` toonde één scherm zo tegelijk de rode danger-band "1
-certificaat verlopen" én een groene "Geverifieerd"-badge voor hetzelfde certificaat — een
-cross-surface tegenspraak op precies het vertrouwenssignaal dat het platform onderscheidt. Ook op
-`/certificaten` (ZZP'er, badge vs. "(verlopen)"-tekst) en `/admin/gebruikersbeheer/[id]`. Dezelfde
-wortel-oorzaak in het DBA-dossier-PDF: `verifiedCount` (→ `trustLevel`) telde een server-verlopen
-certificaat mee als geverifieerd (de route selecteerde `expiresAt` niet eens).
-
-**Fix:** `CredentialStatusBadge` accepteert nu `expiresAt` en loopt door dezelfde `isExpired`-regel
-(`VERIFIED` + gepasseerde `expiresAt` → toont "Verlopen"); de drie call-sites geven `expiresAt` mee
-(ze selecteerden het al). `buildDbaAuditData` sluit server-verlopen certificaten uit van
-`verifiedCount`; de dba-dossier-route selecteert + geeft `expiresAt` mee. Server-side blijft de
-waarheid — de badge/telling toont, beslist niet.
-
-**Bestanden:** `src/components/credentials/credential-status-badge.tsx` (+ `.test.tsx`, 6 cases),
-`src/app/(protected)/{franchise/zzpers/[id],certificaten/(index),admin/gebruikersbeheer/[id]}/page.tsx`,
-`src/lib/dba-audit.ts` (+ `.test.ts`, +3 cases: verlopen-VERIFIED → BASIS, toekomst → DEELS, gemengd),
-`src/app/api/samenwerkingen/[id]/dba-dossier/route.ts`, `docs/PERSONA-SWEEP-BACKLOG.md`.
-
-**Checks:** typecheck ✓ · lint ✓ · unit 8143 ✓ (2 skip) · prettier --check ✓ · build ✓; CI-poort verifieert.
