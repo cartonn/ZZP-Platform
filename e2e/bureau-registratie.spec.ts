@@ -83,12 +83,17 @@ test("admin ziet de wachtrij, moet een reden opgeven bij afwijzen en kan activer
   // en faalt de assertie hieronder (waargenomen CI-flake, geen productdefect).
   await expect(row.getByRole("button", { name: "Afwijzen bevestigen" })).toBeHidden();
 
-  // REGRESSIETEST voor issue #329. Activeren haalt de aanmelding uit de wachtrij (de lijst toont
-  // alleen PENDING-tenants) en dat moet ZONDER herladen zichtbaar worden — één klik, geen
-  // window.stop()-omweg, geen verse GET. Precies dát ging in een productiebuild (`npm run start`,
-  // zoals de e2e-shard draait) mis: de mutatie landde, de volledige action-respons kwam aan, maar
-  // React commit de transitie niet, dus de knop bleef eeuwig op "Bezig…" staan en de rij bleef
-  // staan. Zie src/lib/client/action-replay.ts voor de gemeten oorzaak en de remedie.
+  // Activeren haalt de aanmelding uit de wachtrij (de lijst toont alleen PENDING-tenants).
+  //
+  // REGRESSIETEST voor issue #329 — bewust één gewone klik, zonder herlaad-vangnet (`clickUntilGone`)
+  // en zonder `freshen()`. In een productiebuild (`next start`, zoals CI draait) kwam de action-
+  // response wél volledig binnen, maar React verwerkte 'm niet: een ping die tijdens de render-fase
+  // binnenkwam viel in de gebundelde React-canary weg, waardoor de transitie eeuwig "suspended"
+  // bleef — `useActionState` op "Bezig…", `revalidatePath` onzichtbaar. De wortel zit in React
+  // (`pingSuspendedRoot`) en is als patch teruggezet: patches/next+15.5.24.patch + de unit-test
+  // src/lib/system/react-render-phase-ping.test.ts. Valt die patch weg, dan hangt deze stap weer
+  // (gemeten: 5 van 6 keer) en faalt deze assertie zonder omweg — er is geen client-side nudge
+  // meer die dat maskeert (de ActionReplay-workaround uit #1377 is met de wortel-fix verwijderd).
   //
   // We wachten eerst tot de route gehydrateerd is (data-hydrated), zodat de klik niet in de
   // hydratatie-race verdwijnt — dat is een testartefact, geen productdefect, en mag deze
@@ -96,6 +101,8 @@ test("admin ziet de wachtrij, moet een reden opgeven bij afwijzen en kan activer
   await expect(page.locator("html")).toHaveAttribute("data-hydrated", "/admin/franchises");
   await row.getByRole("button", { name: "Activeren" }).click();
   await expect(row).toHaveCount(0, { timeout: 15000 });
+  // Geen knop mag op de pending-tekst blijven staan: de action-state is daadwerkelijk afgerond.
+  await expect(page.getByRole("button", { name: "Bezig…" })).toHaveCount(0);
 
   // Na activatie opent de werkplek voor de bemiddelaar (live gelezen, geen nieuwe sessie nodig).
   const bureauNa = await browser.newPage();

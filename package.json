@@ -26,7 +26,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "postinstall": "prisma generate"
+    "postinstall": "patch-package && prisma generate"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs}": [
@@ -51,6 +51,7 @@
     "next": "15.5.24",
     "next-auth": "^5.0.0-beta.32",
     "nodemailer": "^9.0.1",
+    "patch-package": "^8.0.1",
     "pdf-lib": "^1.17.1",
     "qrcode-generator": "^1.5.0",
     "react": "^19.0.0",
