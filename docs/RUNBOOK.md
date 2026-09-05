@@ -85,7 +85,10 @@ Naast de liveness-probe exposeert `GET /api/metrics` machine-leesbare gauges (Pr
 → 503, verkeerd token → 401), nooit gecachet, en de uitvoer bevat **geen** PII/secrets. Gauges o.a.:
 `zzp_db_reachable`, `zzp_cron_heartbeat_stale`/`_ok`, `zzp_backup_heartbeat_stale`/`_ok`,
 `zzp_verification_queue` + `_oldest_age_seconds`, `zzp_credentials_overdue_expiry`,
-`zzp_subscriptions_overdue_expiry`, `zzp_invoices_overdue_unflipped`, `zzp_maintenance_mode`.
+`zzp_subscriptions_overdue_expiry`, `zzp_invoices_overdue_unflipped`, `zzp_maintenance_mode`, en
+`zzp_build_info` (constante `1` met labels `commit`/`built_at` — de Prometheus `*_build_info`-conventie:
+correleer een regressie/metriek-verschuiving met de exacte draaiende deploy en detecteer een redeploy via
+`changes(zzp_build_info[…])`, zonder de GitHub-deploy-lag-watchdog af te wachten; info-gauge, geen alert).
 
 - **Complete drop-in bundle:** de map [`docs/observability/`](observability/) bevat drie samenhangende
   bestanden die een operator ongewijzigd kan inladen:

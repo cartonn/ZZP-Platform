@@ -68,6 +68,10 @@ export const INFO_ONLY_METRICS: ReadonlySet<string> = new Set([
   // Rauwe leeftijd van de laatste routing-lookup-mislukking; de alarmeerbare conditie zit in
   // zzp_routing_consecutive_failures / zzp_routing_delivery_ok (event-gedreven, geen staleness-op-leeftijd).
   "zzp_routing_last_failure_age_seconds",
+  // Deploy-identiteit (commit/built_at als labels), waarde altijd 1 — de Prometheus *_build_info-conventie.
+  // Draagt context voor deploy-correlatie, geen page-conditie op zich (je paget niet op "er draait een
+  // build"). Een redeploy detecteer je desgewenst met changes(zzp_build_info[…]), geen drempel-alert.
+  "zzp_build_info",
 ]);
 
 /**
@@ -145,6 +149,8 @@ const SAMPLE_INPUT: MetricsInput = {
   routingDeliveryOk: true,
   routingDeliveryConsecutiveFailures: 0,
   routingDeliveryLastFailureAgeSeconds: null,
+  buildCommit: "abc1234",
+  buildAt: "2026-01-01T00:00:00.000Z",
 };
 
 /** De canonieke set gauge-namen die /api/metrics daadwerkelijk exposeert (uit `buildMetrics`). */

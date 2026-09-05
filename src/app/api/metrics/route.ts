@@ -38,7 +38,9 @@
 // die de heartbeat niet vangt — en zzp_mail_delivery_ok / zzp_mail_consecutive_failures /
 // zzp_mail_last_failure_age_seconds (mail-aflever-heartbeat: levert het e-mailkanaal nog af, of wijst een
 // systematisch afwijzende provider élke notificatie/reset/herinnering stil af — event-gedreven, geen
-// staleness-op-leeftijd).
+// staleness-op-leeftijd) — en zzp_build_info (constante 1-gauge met labels commit/built_at: de Prometheus
+// *_build_info-conventie, zodat een dashboard/alert een regressie met de exacte draaiende deploy kan
+// correleren en changes(zzp_build_info[…]) een redeploy detecteert; geen gezondheidssignaal).
 //
 // Beveiliging: dezelfde Bearer CRON_SECRET als de taak-/heartbeat-routes, fail-closed — geen
 // CRON_SECRET → 503, verkeerd token → 401. De uitvoer bevat NOOIT persoonsgegevens of secrets, alleen
@@ -126,8 +128,15 @@ import {
   renderPrometheus,
   type MetricsInput,
 } from "@/lib/observability/metrics";
+import { shortCommit, normalizeBuiltAt } from "@/lib/observability/health";
 
 export const dynamic = "force-dynamic";
+
+// Deploy-identiteit voor de zzp_build_info-gauge, gezet door scripts/start.mjs/de Dockerfile — zelfde
+// bron als /api/health. Op module-niveau (constant per proces/build): een build wisselt niet tijdens
+// de levensduur van een instance, dus dit hoeft niet per scrape opnieuw uit process.env gelezen.
+const buildCommitSha = process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.COMMIT_SHA ?? "dev";
+const buildAtRaw = process.env.BUILT_AT;
 
 /** Leeftijd in seconden uit een heartbeat-freshness (null als er nog nooit een run/melding was). */
 function ageSeconds(freshness: CronFreshness, now: Date): number | null {
@@ -697,6 +706,11 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     routingCacheRetentionBacklog,
     mailIntakeRetentionBacklog,
     membershipUnbilledActive,
+    // Deploy-identiteit voor de zzp_build_info-gauge — zelfde bron én normalisatie als /api/health
+    // (shortCommit/normalizeBuiltAt), zodat de scrape-bare gauge en het health-antwoord dezelfde
+    // commit/built_at tonen. Statische build-metadata, geen DB-read.
+    buildCommit: shortCommit(buildCommitSha),
+    buildAt: normalizeBuiltAt(buildAtRaw),
   };
 }
 

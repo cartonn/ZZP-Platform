@@ -79,6 +79,8 @@ const HEALTHY: MetricsInput = {
   routingDeliveryOk: true,
   routingDeliveryConsecutiveFailures: 0,
   routingDeliveryLastFailureAgeSeconds: null,
+  buildCommit: "abc1234",
+  buildAt: "2026-01-01T00:00:00.000Z",
 };
 
 function valueOf(input: MetricsInput, name: string): number {
@@ -137,6 +139,24 @@ describe("buildMetrics", () => {
     const names = buildMetrics(HEALTHY).map((m) => m.name);
     const dbIdx = names.indexOf("zzp_db_reachable");
     expect(names[dbIdx + 1]).toBe("zzp_metrics_collection_complete");
+  });
+
+  it("exposeert zzp_build_info als constante 1-gauge met commit/built_at als labels", () => {
+    const metric = buildMetrics({
+      ...HEALTHY,
+      buildCommit: "abc1234",
+      buildAt: "2026-01-01T00:00:00.000Z",
+    }).find((m) => m.name === "zzp_build_info");
+    expect(metric).toBeDefined();
+    expect(metric?.value).toBe(1);
+    expect(metric?.labels).toEqual({ commit: "abc1234", built_at: "2026-01-01T00:00:00.000Z" });
+  });
+
+  it("valt terug op 'dev'/'onbekend' als de build-metadata leeg is", () => {
+    const metric = buildMetrics({ ...HEALTHY, buildCommit: "", buildAt: "" }).find(
+      (m) => m.name === "zzp_build_info",
+    );
+    expect(metric?.labels).toEqual({ commit: "dev", built_at: "onbekend" });
   });
 
   it("mapt de open-beveiligingsincidenten (CRITICAL/WARN) door als aparte gauges", () => {
@@ -725,6 +745,7 @@ describe("buildMetrics", () => {
       "zzp_routing_delivery_ok",
       "zzp_routing_consecutive_failures",
       "zzp_routing_last_failure_age_seconds",
+      "zzp_build_info",
     ]);
   });
 });
@@ -736,6 +757,15 @@ describe("renderPrometheus", () => {
     expect(text).toMatch(/# TYPE zzp_up gauge/);
     expect(text).toMatch(/\nzzp_up 1\n/);
     expect(text.endsWith("\n")).toBe(true);
+  });
+
+  it("rendert zzp_build_info met alfabetisch gesorteerde labels (built_at vóór commit)", () => {
+    const text = renderPrometheus(
+      buildMetrics({ ...HEALTHY, buildCommit: "abc1234", buildAt: "2026-01-01T00:00:00.000Z" }),
+    );
+    expect(text).toContain(
+      'zzp_build_info{built_at="2026-01-01T00:00:00.000Z",commit="abc1234"} 1',
+    );
   });
 
   it("valt niet-eindige waarden veilig terug op 0", () => {
