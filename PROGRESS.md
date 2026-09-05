@@ -10,6 +10,28 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-05 — routine: certificaat-in-beoordeling meldt eerlijk wanneer het langer duurt dan gebruikelijk
+
+**Wat:** de "In beoordeling"-kaart op `/certificaten` (`VerificationTurnaroundCard`) zei
+**onvoorwaardelijk** "Je hoeft zelf niets te doen" — ook wanneer de langst-wachtende ingediende
+aanvraag de gebruikelijke doorlooptijd (p90) al had overschreden. Die geruststelling wordt oneerlijk
+zodra een beoordeling vastloopt en ondermijnt de noord-ster "Kan ik dit vertrouwen?". **Waarom:**
+verificatie is de kerndifferentiatie; de ZZP'er moet kunnen vertrouwen op wat het scherm zegt. De
+admin-kant flagt lang-wachtende aanvragen al vanaf `VERIFICATION_STALE_DAYS` (5), dus de lus is
+platform-breed gesloten — alleen de ZZP'er-melding liep achter. **Hoe (server-side waarheid, pure
+logica):** nieuwe pure classifier `classifyVerificationWait(oldestWaitingDays, turnaround)` in
+`src/lib/verification-turnaround.ts` → `on_track` | `slower_than_usual`. Zonder betrouwbaar
+doorlooptijd-aggregaat (te weinig historie) altijd `on_track` (geen valse alarmering); anders
+`slower_than_usual` zodra de wachttijd de p90 **strikt** overschrijdt (exact op p90 = nog binnen).
+De kaart toont bij `slower_than_usual` een rustige `warning`-toon (icoon + "langst wachtend"-regel)
+en vervangt de onvoorwaardelijke geruststelling door een eerlijke melding ("wacht langer dan
+gebruikelijk — de beoordelaar ziet ’m in de wachtrij; je hoeft zelf niets te doen"). Geen dode knop:
+de ZZP'er hoeft nog steeds niets in te dienen. **Bestanden:** `src/lib/verification-turnaround.ts`
+(+ `.test.ts`, +5 cases: geen aggregaat, binnen, exact-p90-grens, boven-p90), nieuwe
+`src/components/credentials/verification-turnaround-card.tsx` + `.test.tsx` (4 render-cases).
+**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (2 files, 15 passed) ✓ · build (CI-poort
+verifieert). **PR #1394.**
+
 ## 2026-09-05 — issue #329 bij de wortel gefixt: verloren render-fase-ping in de gebundelde React
 
 **Symptoom:** in een productiebuild bleef na een server action de knop op "Bezig…" staan terwijl de
