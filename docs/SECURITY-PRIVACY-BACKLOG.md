@@ -4,6 +4,67 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-05 (2e, basis: `main` @ d8f165be) — 3 parallelle adversariële audits + orchestrator-verificatie: GEEN nieuwe gaten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht een gat te _bewijzen_ (file:line + repro). Basis `main` @ d8f165be (delta sinds de
+vorige ronde `4c4a3862`: #1383–#1395 — o.a. TOCTOU-hardening admin-statusovergangen, per-partij gatenvrije
+factuurnummering, agenda-feed-minimalisatie, audit-CSV-truncatiemelding, `zzp_build_info`-metric,
+render-fase-ping-fix). App gebouwd + geseed (`SEED_DEMO=true`, qa.db, `STORAGE_DRIVER=local`).
+
+**A — Object-/functie-niveau autorisatie & IDOR (alle ~60 server actions + ~65 route handlers).** De
+mutatieketen (auth→rol→ownership→Zod→actie→audit) wordt systematisch gevolgd: `loadOwned*`-helpers +
+`ownsViaTenant`/`assertOwnership` gaten elke `findUnique`/`update`/`delete` op een client-id vóór de
+mutatie; anti-oracle-discipline (identieke 404 voor onbekend én cross-party id, incl. timing-parity op
+`/api/documents/[id]` en de dossier-route) sluit IDOR-enumeratie; TOCTOU-hardening via
+`updateMany({ id, status: from })` binnen transacties; gevoelige-document-routes (documents, media, PDF's,
+dossier-export) auth+ownership+rate-limit+audit (allowed én denied); RBAC dubbel afgedwongen (middleware +
+`requireRole` per pagina/action); mass-assignment overal via gesloten Zod-enums (geen rauwe field-spread op
+`role`/`status`/`verifiedAt`). **CLEAN — geen bevinding.** OWASP A01.
+
+**B — Cross-tenant isolatie (FRANCHISER/multi-tenant).** Elke id-gescoopte franchiser-read draait met
+`{ id, ...tenantScopeWhere(actor) }` óf checkt `entity.tenantId !== actor.tenantId` vóór teruggave; geneste
+queries scopen via `job: { is: tenantScopeWhere(actor) }` (roster-dossier lekt geen overflow-werk bij een
+andere franchise); cross-tenant messaging server-side geblokkeerd (`startFranchiseConversation` herleest
+`recipient.tenantId`); `tenantScopeWhere` geeft alleen voor ADMIN `{}` (alle tenants); middleware gate op
+`/admin` vs `/franchise`. **CLEAN — geen bevinding.** OWASP A01 / tenant-isolatie.
+
+**C — Privacy/AVG + injectie/SSRF/logs.** (a) **Erasure-volledigheid:** `anonymizeUser` +
+`account-anonymization.ts` redacten/verwijderen élk PII-dragend model/veld (User/FreelancerProfile/Company/
+Job/Message/Notification-kopieën/Application/SupportTicket/Credential→cascade/Document+blob/2FA/IBAN/
+audit-metadata via `scrubAuditMetadataPii`), CI-geborgd door de schema-coverage-gate
+(`anonymize-schema-coverage.test.ts`) die faalt op elk nieuw ongedekt model; fiscale retentie (Invoice/
+Expense/TaxFilingRequest) gedocumenteerd onder AVG art. 17(3)(b), vrije-tekst-subvelden alsnog geredact.
+(b) **PII-overfetch:** publieke share-dossier/profielpagina's + roster/CSV met expliciete `select` (geen
+email/telefoon/IBAN naar publiek of cross-party; `AvailabilityWindow.note` bewust uitgesloten). (c) **XSS:**
+enige `dangerouslySetInnerHTML` = statisch nonce-gated thema-bootscript (geen user-input). (d) **CSV-/
+formule-injectie:** álle exports via de canonieke `csv.ts`/`escapeCsvField` (CWE-1236-guard). (e) **SSRF:**
+enige uitgaande fetch = Geoapify met hardcoded host (user-input alleen queryparam), website-velden alleen als
+`<a href>` gerenderd, nooit server-side gefetcht. (f) **Logs:** redacting structured logger, CI-geborgd. **CLEAN — geen bevinding.**
+
+**Orchestrator-verificatie (eigen probes):** (1) de per-partij-nummering zet nu een `<userId>:`-prefix in
+`Invoice.number` — elke client-facing pad (search, roster-dossier, openstaand-route, aging/obligations/
+income-forecast-CSV's, PDF's) maskeert die via `displayInvoiceNumber`/`partyInvoiceNumber`; geen enkel pad
+lekt het rauwe `number` (en daarmee een userId). Geverifieerd over alle 38 `.number`-referenties.
+(2) `PlatformInvoice.number` (billing-data.ts) draagt geen userId-prefix — geen lek. (3) `npm audit`: 0
+productie-dep-vulns (de CI-`audit`-gate is productie-only, `scripts/audit-production.mjs`); 7 dev-/
+build-tooling-advisories geparkeerd hieronder (niet runtime-bereikbaar).
+
+**GEPARKEERD deze ronde (latent/lager; geen agent-blocker):**
+
+- **[LAAG · dev-/build-tooling DoS — niet runtime-bereikbaar]** `npm audit` (volledig, incl. dev) meldt 7
+  advisories in build-/testketen-transitieven: `brace-expansion` (GHSA-3jxr-9vmj-r5cp / -mh99 / -rgw5, ReDoS/
+  OOM in glob-expansie), `js-yaml` 4.0–4.3 (GHSA-h67p / -52cp / -5p4m, quadratische DoS in merge-keys/omap),
+  `postcss-selector-parser` 6.1.0–6.1.2 (GHSA-w9m9, AST-recursie-DoS), `esbuild` 0.27.3–0.28.0 (GHSA-g7r4,
+  arbitrary file read via dev-server, **Windows-only**), en `deepmerge-ts`/`@prisma/config`/`prisma` (CLI,
+  stack-exhaustion). **Repro:** `npm audit --audit-level=high`. **Waarom LAAG:** geen enkele draait in de
+  productie-runtime of komt in de client-bundle; `npm audit --production` = 0 (de hard-gate is groen). De
+  brace-expansion/js-yaml/postcss/esbuild-set is oplosbaar met een niet-brekende `npm audit fix`; de
+  prisma-keten vereist `--force` (breaking downgrade naar 6.12.0) en hoort in een aparte, geverifieerde
+  dependency-increment (niet meeliften op een security-audit-PR). **Geschonden regel:** geen (defensief,
+  supply-chain-hygiëne / OWASP A06 Vulnerable & Outdated Components). **Aanbevolen fix:** losse PR met
+  `npm audit fix` (non-force) + volle DoD-gate; de prisma-downgrade apart afwegen.
+
 ## Ronde 2026-09-05 (basis: `main` @ 4c4a3862) — 1× HOOG OPGELOST (certificaat-type/titel lekte via de niet-intrekbare publieke agenda-feed); 3 adversariële audits verder CLEAN
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende, verse
