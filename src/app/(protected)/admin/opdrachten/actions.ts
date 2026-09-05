@@ -21,9 +21,16 @@ export async function adminCloseJob(jobId: string): Promise<void> {
     throw e;
   }
 
-  await prisma.$transaction([
-    prisma.job.update({ where: { id: jobId }, data: { status: "CLOSED" } }),
-    prisma.auditLog.create({
+  await prisma.$transaction(async (tx) => {
+    // Compound-guard `status: from`: twee gelijktijdige admin-klikken passeren beide de vóór-lees.
+    // updateMany met de statusguard laat alleen de eerste committen; de tweede matcht niet meer
+    // (count 0) → geen dubbele JOB_CLOSED_BY_ADMIN-auditregel (spiegelt admin/no-shows/actions.ts).
+    const res = await tx.job.updateMany({
+      where: { id: jobId, status: from },
+      data: { status: "CLOSED" },
+    });
+    if (res.count === 0) return;
+    await tx.auditLog.create({
       data: auditData({
         actorId: actor.id,
         action: "JOB_CLOSED_BY_ADMIN",
@@ -31,8 +38,8 @@ export async function adminCloseJob(jobId: string): Promise<void> {
         entityId: jobId,
         metadata: { from },
       }),
-    }),
-  ]);
+    });
+  });
   revalidatePath("/admin/opdrachten");
   revalidatePath(`/opdrachten/${jobId}`);
 }

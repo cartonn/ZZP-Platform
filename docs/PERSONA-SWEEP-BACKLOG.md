@@ -1,5 +1,37 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-05 (persona-sweep, run 2) · **main-commit basis:** `bcc90f27`
+> **Uitkomst:** **3 defecten gevonden én gefixt (dezelfde TOCTOU-klasse).** 3 parallelle adversariële
+> Opus-audits op niet-overlappende oppervlakken:
+>
+> - **API-routes-audit** (`src/app/api/**/route.ts`, 39 handlers): **0 bereikbare gaten** — elke
+>   resource-route `requireActor()`/`requireRole()` (live rol/status uit DB, fail-closed op suspended/
+>   stale-sessie), anti-oracle 404 op forbidden-én-not-found met denied-audit, ownership-scope op elke
+>   `[id]`-route, CSV-formule-injectie-guard uniform, cron-routes timing-safe bearer, webhooks
+>   byte-capped + idempotent + default-inert. Eén niet-defect notitie: `admin/export/invoices` is een
+>   ongebonden platform-brede dump (bewust, admin-only, rate-limited/geaudit) — houd in de gaten bij
+>   datagroei.
+> - **roster/notificaties/profiel/reacties-audit:** **0 bereikbare gaten** — claim-dienst via
+>   `@@unique([jobId, freelancerId])` + Serializable-tx-quota (TOCTOU-veilig), profiel-/notificatie-
+>   mutaties her-afgeleid uit `actor.id` met anti-oracle "niet gevonden", withdraw compound-guarded,
+>   reactielimiet atomair binnen de tx, AVG-erasure scrubt notificatie-/berichtbodies + job-PII.
+> - **admin-oppervlak-audit:** verificatie/no-show/dispuut/franchise/facturatie/shift-overname/erasure/
+>   import allemaal schoon (rol-poort + expliciete transitiemap + compound-guarded write + in-tx audit).
+>   **3 bereikbare defecten (TOCTOU / audit-integriteit)** → alle OPGELOST:
+> - **OPGELOST — should-fix (CLAUDE.md regel 2/3 — authz-keten + expliciete statusovergangen; A09
+>   audit-volledigheid): drie ADMIN-statusovergangen deden een kale `update({ where: { id } })` na een
+>   vóór-lees i.p.v. de compound-guarded `updateMany({ where: { id, status: from } })` van de rest van
+>   het platform.** (1) `admin/bewaking/actions.ts` `setStatus` (incident acknowledge/resolve — hoogste:
+>   `INCIDENT_TRANSITIONS` staat terug naar `OPEN`, dus wederzijdse overschrijving mogelijk); (2)
+>   `admin/opdrachten/actions.ts` `adminCloseJob` (dubbele `JOB_CLOSED_BY_ADMIN`-audit bij race); (3)
+>   `admin/support/actions.ts` `adminResolve` + de statusflip in `adminReply` (stale flip kon een
+>   heropend ticket uit de wachtrij zetten). **Fix:** alle drie nu compound-guarded `updateMany`
+>   bínnen een `$transaction`, audit ná geslaagde claim (`count===0` → geen audit/stale write); de
+>   `adminReply`-flip guardt op de gelezen status. +3 nieuwe testbestanden (rood→groen) + `admin-reply.test.ts`
+>   bijgewerkt. Bestanden: `admin/{bewaking,opdrachten,support}/actions.ts` + 4 tests.
+>
+> ---
+
 > **Datum:** 2026-09-05 (persona-sweep) · **main-commit basis:** `1aa49d15`
 > **Uitkomst:** **1 defect gevonden én gefixt.** Live Playwright-smoke over alle vier de rollen
 > (login → dashboard/`/acties` + rol-schermen; cross-rol verboden routes; IDOR met onzin-ids):

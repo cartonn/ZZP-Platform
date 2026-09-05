@@ -32,6 +32,35 @@ de ZZP'er hoeft nog steeds niets in te dienen. **Bestanden:** `src/lib/verificat
 **Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (2 files, 15 passed) ✓ · build (CI-poort
 verifieert). **PR #1394.**
 
+## 2026-09-05 — persona-sweep: TOCTOU-hardening op drie admin-statusovergangen
+
+**Wat:** de persona-sweep (3 parallelle adversariële Opus-audits — API-routes, roster/notificaties/
+profiel, admin-oppervlak — plus live smoke) vond dat drie ADMIN-statusovergangen nog een kale
+`prisma.<model>.update({ where: { id } })` deden na een vóór-lees + `assertTransition`, i.p.v. de
+compound-guarded `updateMany({ where: { id, status: from } })` die de rest van het platform hanteert
+(verificatie, no-show, dispuut, shift-overname, tenant-activatie, platform-billing). Twee gelijktijdige
+admin-klikken passeerden beide de vóór-lees → een dubbele auditregel en/of een stale-overschrijving.
+De API-route- en roster/notificatie/profiel-oppervlakken kwamen schoon uit de audit (0 bereikbare gaten).
+**Bevindingen (alle drie OPGELOST):**
+
+1. **`admin/bewaking/actions.ts` `setStatus`** (acknowledge/resolve incident) — HOOGSTE: `INCIDENT_TRANSITIONS`
+   staat terug-overgangen naar `OPEN` toe, dus een acknowledge en een resolve konden elkaar overschrijven,
+   elk met eigen auditregel.
+2. **`admin/opdrachten/actions.ts` `adminCloseJob`** — kale `update` in een array-`$transaction`; race gaf
+   een dubbele `JOB_CLOSED_BY_ADMIN`-auditregel.
+3. **`admin/support/actions.ts` `adminResolve` + de statusflip in `adminReply`** — read-then-write zonder
+   guard; `adminReply` kon bovendien een intussen door de aanvrager heropend ticket (terug op `ESCALATED`)
+   met een stale flip alsnog uit de wachtrij op `AWAITING_USER` zetten.
+
+**Hoe:** alle drie nu compound-guarded `updateMany({ where: { id, status: from } })` bínnen een
+`$transaction`, met de auditregel (`auditData` + `tx.auditLog.create`) ná een geslaagde claim
+(`count === 0` → geen audit, geen stale write); de `adminReply`-statusflip guardt op de gelezen status.
+Spiegelt exact `admin/no-shows/actions.ts`. **Tests (rood→groen):** `admin/bewaking/actions.test.ts` (nieuw),
+`admin/opdrachten/close-toctou.test.ts` (nieuw), `admin/support/resolve-toctou.test.ts` (nieuw) +
+`admin/support/admin-reply.test.ts` (bijgewerkt naar de guarded flip + nieuwe race-case). **Bestanden:**
+`admin/bewaking/actions.ts`, `admin/opdrachten/actions.ts`, `admin/support/actions.ts` + de 4 tests.
+**Checks:** typecheck · lint · prettier · unit groen; build via CI-poort.
+
 ## 2026-09-05 — issue #329 bij de wortel gefixt: verloren render-fase-ping in de gebundelde React
 
 **Symptoom:** in een productiebuild bleef na een server action de knop op "Bezig…" staan terwijl de
