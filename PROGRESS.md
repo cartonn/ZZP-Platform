@@ -10,6 +10,21 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-05 — security/privacy-auditronde (2e): geen nieuwe gaten
+
+**Wat:** volledige adversariële security-/privacy-audit op `main` @ d8f165be — orchestrator (Opus 4.8) +
+3 parallelle Opus-audits op niet-overlappende oppervlakken (elk met bewijsopdracht file:line + repro).
+Dekking: (A) object-/functie-autorisatie & IDOR over álle ~60 server actions + ~65 route handlers
+(auth→rol→ownership→Zod→actie→audit, anti-oracle-404, TOCTOU-`updateMany`, document-routes, RBAC,
+mass-assignment); (B) cross-tenant isolatie (FRANCHISER/multi-tenant, `tenantScopeWhere`); (C) AVG:
+erasure-volledigheid (`anonymizeUser` + CI schema-coverage-gate), PII-overfetch, XSS, CSV-/formule-
+injectie, SSRF, PII-in-logs. Plus orchestrator-probes: rauwe `Invoice.number` (userId-prefix) wordt op
+élk client-pad gemaskeerd via `displayInvoiceNumber` (38 refs geverifieerd); `npm audit --production` = 0.
+**Uitkomst:** GEEN nieuwe security-/privacy-gaten. 7 dev-/build-tooling-DoS-advisories (niet
+runtime-bereikbaar; CI-`audit`-gate is productie-only) geparkeerd als LAAG in de backlog.
+**Bestanden:** `docs/SECURITY-PRIVACY-BACKLOG.md` (nieuwe ronde-entry + coverage). **Volgende:** losse
+niet-brekende `npm audit fix`-PR (dev-deps) als aparte dependency-increment.
+
 ## 2026-09-05 — routine: certificaat-in-beoordeling meldt eerlijk wanneer het langer duurt dan gebruikelijk
 
 **Wat:** de "In beoordeling"-kaart op `/certificaten` (`VerificationTurnaroundCard`) zei
