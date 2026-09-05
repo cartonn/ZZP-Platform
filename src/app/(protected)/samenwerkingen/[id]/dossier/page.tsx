@@ -8,6 +8,7 @@ import { DBA_DISCLAIMER } from "@/lib/config";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { buildComplianceDossier, type DossierInput } from "@/lib/compliance/dossier";
+import { displayInvoiceNumber } from "@/lib/invoice-number";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import { inzetvormSignaal } from "@/lib/inzetvorm-signaal";
@@ -48,7 +49,13 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
       },
       performances: { select: { description: true, status: true, approvedAt: true } },
       invoices: {
-        select: { number: true, lifecycleStatus: true, totalCents: true, issuedAt: true },
+        select: {
+          number: true,
+          partyInvoiceNumber: true,
+          lifecycleStatus: true,
+          totalCents: true,
+          issuedAt: true,
+        },
       },
     },
   });
@@ -69,7 +76,7 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
     credentials: col.freelancer.credentials,
     performances: col.performances,
     invoices: col.invoices.map((i) => ({
-      number: i.number,
+      number: displayInvoiceNumber(i),
       lifecycleStatus: i.lifecycleStatus,
       totalCents: i.totalCents,
       submittedAt: i.issuedAt,

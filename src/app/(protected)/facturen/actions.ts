@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma } from "@prisma/client";
 import { AuthorizationError, requireRole } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
@@ -11,7 +10,6 @@ import {
   collaborationBillableForLegacyInvoice,
   DISPUTE_FROZEN_INVOICE_MESSAGE,
   eurosToCents,
-  formatInvoiceNumber,
   InvoiceTransitionError,
   invoiceCentsWithinInt4,
   invoiceTotalCents,
@@ -23,6 +21,8 @@ import { invoiceLineSchema } from "@/lib/validation";
 import { canSendPaymentReminder } from "@/lib/manual-payment-reminder";
 import { invoiceCreateRateLimiter } from "@/lib/rate-limit";
 import { fiscalYearOf } from "@/lib/administration/fiscal-calendar";
+import { allocateInvoiceNumber } from "@/lib/administration/persist";
+import { displayInvoiceNumber } from "@/lib/invoice-number";
 import { plural } from "@/lib/plural";
 import { invalidateSignals } from "@/lib/signals/invalidate";
 
@@ -190,54 +190,53 @@ export async function createInvoice(
   }));
   const totalCents = invoiceTotalCents(lines);
 
-  // Factuurnummer is @unique; bij gelijktijdig aanmaken kan het botsen -> retry met hertelling.
-  let invoice: { id: string; number: string } | null = null;
+  let invoice: { id: string; number: string; partyInvoiceNumber: string | null } | null = null;
   try {
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const seq =
-        (await prisma.invoice.count({ where: { number: { startsWith: `${year}-` } } })) + 1;
-      const number = formatInvoiceNumber(year, seq);
-      try {
-        invoice = await prisma.$transaction(async (tx) => {
-          // TOCTOU-grendel (anti-dubbelfacturatie): her-verifieer BÍNNEN de create-transactie dat er
-          // sinds de pre-transactionele lees geen cascade-flow is ontstaan. Tussen de fast-fail-check
-          // hierboven en deze write zit parse-/validatiewerk; in dat venster kan een (bijna-)gelijktijdige
-          // `createPerformance`/cascade-factuur op dezelfde samenwerking committen — beide requests zagen
-          // in de pre-check nog "geen cascade" en zouden anders zowel een losse factuur als de cascade-flow
-          // laten bestaan (dubbele facturatie van dezelfde opdrachtgever). Zelfde telling (gedeelde
-          // `usesCascadeFlow`) → geen drift; bij overlap rolt de transactie terug. Spiegelt de in-transactie
-          // overlap-guard van de cascade-laag (commands-shared.ts).
-          if (await usesCascadeFlow(tx, collaborationId)) throw new CascadeFlowRaceError();
-          // TOCTOU-grendel (factureerbaarheid): her-verifieer BÍNNEN de transactie dat de samenwerking
-          // nog lopend/afgerond én niet-gedisputeerd is. In het venster tussen de pre-check en deze write
-          // kan de opdrachtgever de samenwerking annuleren of een dispuut openen; zonder deze hercheck
-          // zou een losse factuur alsnog op een inmiddels-dode/bevroren deal landen. Zelfde bron
-          // (`collaborationBillableForLegacyInvoice`) → geen drift; bij mismatch rolt de transactie terug.
-          const fresh = await tx.collaboration.findUnique({
-            where: { id: collaborationId },
-            select: { status: true, disputedAt: true },
-          });
-          if (!fresh || !collaborationBillableForLegacyInvoice(fresh))
-            throw new NotBillableRaceError();
-          return tx.invoice.create({
-            data: {
-              collaborationId,
-              number,
-              status: "DRAFT",
-              dueAt,
-              totalCents,
-              lines: { create: lineData },
-            },
-            select: { id: true, number: true },
-          });
-        });
-        break;
-      } catch (e) {
-        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002" && attempt < 4)
-          continue;
-        throw e;
-      }
-    }
+    invoice = await prisma.$transaction(async (tx) => {
+      // TOCTOU-grendel (anti-dubbelfacturatie): her-verifieer BÍNNEN de create-transactie dat er
+      // sinds de pre-transactionele lees geen cascade-flow is ontstaan. Tussen de fast-fail-check
+      // hierboven en deze write zit parse-/validatiewerk; in dat venster kan een (bijna-)gelijktijdige
+      // `createPerformance`/cascade-factuur op dezelfde samenwerking committen — beide requests zagen
+      // in de pre-check nog "geen cascade" en zouden anders zowel een losse factuur als de cascade-flow
+      // laten bestaan (dubbele facturatie van dezelfde opdrachtgever). Zelfde telling (gedeelde
+      // `usesCascadeFlow`) → geen drift; bij overlap rolt de transactie terug. Spiegelt de in-transactie
+      // overlap-guard van de cascade-laag (commands-shared.ts).
+      if (await usesCascadeFlow(tx, collaborationId)) throw new CascadeFlowRaceError();
+      // TOCTOU-grendel (factureerbaarheid): her-verifieer BÍNNEN de transactie dat de samenwerking
+      // nog lopend/afgerond én niet-gedisputeerd is. In het venster tussen de pre-check en deze write
+      // kan de opdrachtgever de samenwerking annuleren of een dispuut openen; zonder deze hercheck
+      // zou een losse factuur alsnog op een inmiddels-dode/bevroren deal landen. Zelfde bron
+      // (`collaborationBillableForLegacyInvoice`) → geen drift; bij mismatch rolt de transactie terug.
+      const fresh = await tx.collaboration.findUnique({
+        where: { id: collaborationId },
+        select: { status: true, disputedAt: true },
+      });
+      if (!fresh || !collaborationBillableForLegacyInvoice(fresh)) throw new NotBillableRaceError();
+      // Gatenvrije factuurnummering PER UITSCHRIJVENDE PARTIJ (numbering.ts / Wet OB art. 35a): elke
+      // ZZP'er heeft één doorlopende, gatenvrije reeks. Vroeger telde deze losse-factuur-actie
+      // platform-breed (`invoice.count({ number: { startsWith: `${year}-` } })`) — dan kreeg de reeks
+      // van elke individuele ZZP'er gaten zodra een ánder platform-lid een losse factuur aanmaakte, en
+      // vochten alle ZZP'ers om dezelfde `number @unique`-teller (P2002-retries onder gelijktijdigheid).
+      // Nu deelt de losse factuur exact dezelfde per-partij-allocator als de cascade-flow
+      // (`allocateInvoiceNumber`, sleutel = de ZZP'er): atomair, gatenvrij, en de ZZP'er botst alleen
+      // met zijn eigen (bijna-)gelijktijdige facturen — niet met de rest van het platform. Het
+      // partij-nummer (`2026-0007`) is het getoonde/wettelijke nummer; `number` blijft globaal uniek
+      // via de `issuerKey:`-prefix (zelfde conventie als commands-shared.ts).
+      const { number: partyInvoiceNumber } = await allocateInvoiceNumber(tx, actor.id, year);
+      return tx.invoice.create({
+        data: {
+          collaborationId,
+          number: `${actor.id}:${partyInvoiceNumber}`,
+          partyInvoiceNumber,
+          issuerKey: actor.id,
+          status: "DRAFT",
+          dueAt,
+          totalCents,
+          lines: { create: lineData },
+        },
+        select: { id: true, number: true, partyInvoiceNumber: true },
+      });
+    });
   } catch (e) {
     // De in-transactie-grendel sloeg aan: een cascade-flow is intussen ontstaan. Geef exact dezelfde
     // gebruikersmelding als de pre-transactionele gate (geen 500, geen id-lek).
@@ -255,7 +254,7 @@ export async function createInvoice(
       action: "INVOICE_CREATED",
       entityType: "Invoice",
       entityId: invoice.id,
-      metadata: { number: invoice.number },
+      metadata: { number: displayInvoiceNumber(invoice) },
     }),
   });
 
@@ -320,7 +319,7 @@ export async function sendInvoice(invoiceId: string): Promise<void> {
         userId: invoice.collaboration!.company.userId,
         type: "INVOICE_SENT",
         title: "Nieuwe factuur ontvangen",
-        body: `Factuur ${invoice.number}.`,
+        body: `Factuur ${displayInvoiceNumber(invoice)}.`,
         link: "/facturen",
       },
     });
@@ -381,7 +380,7 @@ export async function markInvoicePaid(invoiceId: string): Promise<void> {
         userId: invoice.collaboration!.freelancer.userId,
         type: "INVOICE_PAID",
         title: "Factuur betaald",
-        body: `Factuur ${invoice.number} is als betaald gemarkeerd.`,
+        body: `Factuur ${displayInvoiceNumber(invoice)} is als betaald gemarkeerd.`,
         link: "/facturen",
       },
     });

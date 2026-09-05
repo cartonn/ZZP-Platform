@@ -384,9 +384,11 @@ export async function FacturenPanel({
                 const cascadeMeta = cascade
                   ? CASCADE_LABEL[inv.lifecycleStatus as InvoiceLifecycleState]
                   : null;
-                const displayNumber = cascade
-                  ? (inv.partyInvoiceNumber ?? t("Concept-factuur"))
-                  : inv.number;
+                // Toon altijd het partij-nummer als dat is toegekend (elke losse factuur, en een
+                // cascade-factuur ná indienen); een cascade-concept toont het conceptlabel, een oude
+                // losse factuur van vóór de partij-nummering valt terug op het globale nummer.
+                const displayNumber =
+                  inv.partyInvoiceNumber ?? (cascade ? t("Concept-factuur") : inv.number);
                 // Real-time vervaldatum-aftelling voor een openstaande factuur; alleen tonen wanneer ze
                 // aandacht vraagt (binnenkort verschuldigd of te laat), om de lijst rustig te houden.
                 const outstanding = isInvoiceOutstanding(inv);
