@@ -529,6 +529,16 @@ nodig met back-ups en beveiligde opslag.
    productie** (encryptie-at-rest, netwerk-isolatie, toegangscontrole) — het retentievenster is nu in
    code gedicht, maar de vertrouwelijkheid van het scratch-doel blijft een infra-keuze. Draai de drill
    periodiek (bv. maandelijks) + na een schema-migratie. Zie RUNBOOK §5.
+   **Code-kant GEDAAN (2026-09-05) — de drill draait nu doorlopend in CI:** de drill wás gebouwd en
+   unit-getest, maar niets oefende de **volledige keten** (back-up → herstel → teruglezen) ooit op een
+   schema — de belofte "een onbeproefde back-up is geen back-up" was zelf onbeproefd. `.github/workflows/
+restore-drill.yml` sluit dat gat: een **zelfstandige** job (Postgres 16 service-container, **geen
+   productie-secret nodig**) seedt een bron-database, maakt er met `npm run db:backup` een back-up van,
+   herstelt die met `npm run db:restore-drill` in een aparte wegwerp scratch-database en leest schema +
+   rijen terug. Draait **maandelijks** (cron), op **`workflow_dispatch`** en bij elke **PR** die de
+   back-up-/herstelcode raakt — een regressie is zo meteen zichtbaar. Resterend mensenwerk: **niets extra**
+   voor de code-garantie; de periodieke drill tegen een **echte productie-back-up** (`DRILL_DATABASE_URL`
+   naar een gelijk-beveiligde wegwerp-Postgres) blijft de aanbevolen extra zekerheid.
 3. Kopieer de **verbindings-URL** (begint met `postgresql://...`). Dit is een geheim.
    **Opleveren:** de verbindings-URL → in de secrets als `DATABASE_URL` (§7). Geef je ontwikkela/agent
    het seintje "Postgres staat klaar"; die zet de databaseprovider om naar PostgreSQL en draait de

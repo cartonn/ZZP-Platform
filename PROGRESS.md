@@ -10,6 +10,26 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-05 — prod: geautomatiseerde back-up-herstel-drill in CI (end-to-end DR-garantie)
+
+**Wat:** de herstel-drill (`scripts/backup-restore-drill.ts`, `npm run db:restore-drill`) was volledig
+gebouwd én unit-getest, maar **niets draaide 'm ooit op een schema** — geen enkele workflow/cron riep
+`db:backup`/`db:restore-drill` aan. De belofte "een onbeproefde back-up is geen back-up" was daarmee
+zelf onbeproefd. **Waarom:** productie-rijpheid — een DR-script dat nooit draait, bewijst niets; een
+pg_dump/pg_restore-regressie of een schema dat niet herstelbaar dumpt zou pas tijdens een echt incident
+blijken. **Hoe:** nieuwe `.github/workflows/restore-drill.yml` — een **zelfstandige** job (Postgres 16
+service-container, **geen productie-secret nodig**) die de volledige keten end-to-end oefent: seedt een
+bron-database (`SEED_DEMO`), maakt er met de echte `npm run db:backup` een back-up van (pg_dump +
+integriteitscheck), herstelt die met de echte `npm run db:restore-drill` in een aparte wegwerp
+scratch-database en leest schema + rijen terug (scratch daarna opgeruimd — geen PII-kopie). Mirrort exact
+het bestaande `e2e-postgres`-patroon (`use-db-provider.mjs` → `prisma migrate deploy`/`db push` → seed).
+Triggers: **maandelijkse cron** (1e, 03:17 UTC), **`workflow_dispatch`** en **`pull_request`** op de
+back-up-/herstelcode. Bewust **geen** vereiste branch-protection-check (betrouwbaarheidssignaal, geen
+merge-blokkade). **Bestanden:** `.github/workflows/restore-drill.yml` (nieuw) + RUNBOOK §5 / MENSENWERK
+bijgewerkt (code-kant continu-gedrild GEDAAN; periodieke drill tegen een echte productie-back-up blijft
+aanbevolen extra zekerheid). **Checks:** config-/docs-increment (geen app-code); `prettier --check .`
+groen; de nieuwe workflow draait op deze PR (paths-trigger) als end-to-end-bewijs. **PR #1397.**
+
 ## 2026-09-05 — security/privacy-auditronde (2e): geen nieuwe gaten
 
 **Wat:** volledige adversariële security-/privacy-audit op `main` @ d8f165be — orchestrator (Opus 4.8) +
