@@ -5,6 +5,7 @@ import {
   MAX_MILESTONE_CENTS,
   MAX_PERFORMANCE_RATE_CENTS,
 } from "@/lib/validation";
+import { MAX_ORT_CUSTOM_BPS, VAT_RATE_BPS } from "@/lib/config";
 import { assertPerformanceWithinLimits } from "@/lib/cascade/performance-commands";
 
 // Server-side ondergrens (regel 1): assertPerformanceWithinLimits is de bron van waarheid voor élk
@@ -170,6 +171,24 @@ describe("assertPerformanceWithinLimits — bovengrens uurtarief (HOURS)", () =>
     const maxSubtotalCents = MAX_PERFORMANCE_HOURS * MAX_PERFORMANCE_RATE_CENTS;
     expect(maxSubtotalCents).toBe(200_000_000); // €2 mln
     expect(maxSubtotalCents).toBeLessThan(2_147_483_647);
+  });
+
+  // De vorige assertie borgt alleen het KALE subtotaal (uren × tarief). Maar de int4-kolom `totalCents`
+  // draagt óók de ORT-toeslag en de BTW; het worst case is uren-cap × tarief-cap, volledig opgehoogd met
+  // de maximaal toegestane ORT-maatwerktoeslag (MAX_ORT_CUSTOM_BPS) én het hoogste BTW-tarief. Deze test
+  // rekent dat werkelijke maximum uit vanuit de bron-constanten, zodat een toekomstige verhoging van één
+  // van die drie caps (uren/tarief/ORT-bps) of van het BTW-tarief een int4-overflow → 500 op de
+  // Int-kolom `totalCents` hard laat falen op de build i.p.v. stil in productie. Server-side waarheid.
+  it("borgt dat uren-cap × tarief-cap × max ORT-toeslag × hoogste BTW onder int4 blijft", () => {
+    const baseSubtotalCents = MAX_PERFORMANCE_HOURS * MAX_PERFORMANCE_RATE_CENTS;
+    // Worst case ORT: alle uren in de duurste maatwerkcategorie op MAX_ORT_CUSTOM_BPS → subtotaal × (1 + bps/10000).
+    const worstOrtSubtotalCents = baseSubtotalCents * (1 + MAX_ORT_CUSTOM_BPS / 10_000);
+    expect(Number.isInteger(worstOrtSubtotalCents)).toBe(true); // integer centen behouden
+    // Hoogste BTW-tarief over alle regimes; commerciële afronding zoals computeVat.
+    const maxVatBps = Math.max(...Object.values(VAT_RATE_BPS));
+    const worstTotalCents =
+      worstOrtSubtotalCents + Math.round((worstOrtSubtotalCents * maxVatBps) / 10_000);
+    expect(worstTotalCents).toBeLessThan(2_147_483_647);
   });
 });
 

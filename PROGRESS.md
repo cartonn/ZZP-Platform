@@ -2,6 +2,27 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-06 — persona-sweep (run 4): twee robuustheidsgaten gedicht (int4-vangnet + zoekterm-cap)
+
+**Wat:** persona-sweep run 4 (3 parallelle adversariële Opus-audits: cascade-geldpad · cross-tenant/IDOR/
+document-privacy · malicieuze invoer/Zod). Alle drie de oppervlakken **0 bereikbare blockers**; twee
+robuustheidsgaten gedicht. **Live Playwright-doorklik niet uitvoerbaar in deze sandbox:** de productiebuild
+hangt op `next/font/google` → `fonts.gstatic.com` (netwerkbeleid blokkeert de font-fetch, connection reset
+mid-exchange). CI heeft wél netwerk → e2e draait daar; omgevingsbeperking, geen defect.
+**(1) int4-overflow-vangnet op `Invoice.totalCents`:** de bestaande grens-test claimde dekking "óók met kop
+voor ORT-toeslag + BTW" maar assertte alléén het kale subtotaal (uren-cap × tarief-cap = €2 mln). Het echte
+worst case is dat subtotaal × max ORT-maatwerktoeslag (`MAX_ORT_CUSTOM_BPS`, ×6) × hoogste BTW (2100 bps)
+≈ €14,52 mln — veilig onder int4, maar de ~32% marge werd niet bewaakt. Een toekomstige cap-/BTW-verhoging
+zou stil tot een int4-overflow → 500 kunnen leiden. **Fix:** de test rekent het maximum nu uit de bron-
+constanten en faalt de build zodra de combinatie int4 nadert. **(2) ongebonden zoekterm-invoer:**
+`searchPlatform` is een direct aanroepbare server-actie; `normalizeSearchQuery` verwerkte een ongebonden
+string zonder lengte-cap. **Fix:** `MAX_QUERY_LENGTH = 100`; de ruwe invoer wordt begrensd vóór élke
+stringbewerking (defense-in-depth tegen een flood). **Bestanden:** `src/lib/search.ts`, `src/lib/search.test.ts`
+(+2, rood→groen), `src/lib/cascade/performance-commands.test.ts` (+1). **Geparkeerd (LOW):** kvk/btw/iban `.max()`,
+onboarding-import-tarief-cap vs UI-cap, `confirmPayment` payer-callable (design-afweging). Zie
+`docs/PERSONA-SWEEP-BACKLOG.md` (run 4). **Checks:** typecheck ✓ · lint ✓ · prettier ✓ · gerichte tests 54/54 ✓ ·
+full test + build via CI-poort.
+
 ## 2026-09-06 — routine: anti-brute-force rem op identiteitsverificatie (parity met DUO/BIG)
 
 **Wat:** `account/actions.ts verifyIdentity` — de zelf-verificatie die bij succes `identityVerifiedAt`
