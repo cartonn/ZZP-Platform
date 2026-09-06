@@ -44,6 +44,11 @@ opdrachten/berichten/notificaties/favorieten/ideeen/support/academie` + minder-b
 >   bemiddelaar toch een compliance-taak. Mogelijk product-intentie (roster-brede compliance), maar
 >   code en docstring spreken elkaar tegen → of de gate toevoegen, of de docstring bijstellen. Repro:
 >   roster-ZZP'er met verlopen niet-vereist beroepscertificaat → `/acties`-taak bij de franchiser.
+> - **GEDAAN (2026-09-06, PR #1405): twee verlopen certificaten van hetzelfde type gaven dubbele
+>   vernieuw-taken op twee banden.** De generieke expired-tak dedupt nu per type (meest recent verlopen
+>   exemplaar als vernieuw-kandidaat, zelfde keuze als de verplicht-document- en collab-tak) en slaat een
+>   type over dat al een collab-taak kreeg. Eén geldig VERIFIED-cert van een type dekt de hele
+>   type-compliance, dus één vernieuwing volstaat — de tweede rij was ruis. Zie oorspronkelijke notitie:
 > - **GEPARKEERD — LOW (mogelijk by-design): twee verlopen certificaten van hetzelfde vereiste type
 >   geven dubbele vernieuw-taken op twee banden.** De collab-tak kiest per type het laatst-vervallende
 >   certificaat (`credentialCollabExpiredTask`, band 82), maar de generieke expired-lus (`pending-tasks.ts`)

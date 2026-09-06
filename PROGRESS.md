@@ -2,6 +2,24 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-06 — routine: verlopen-certificaat-taken deduppen per type (ZZP'er /acties — rust boven ruis)
+
+**Wat:** de generieke verlopen-certificaat-tak in `pending-tasks.ts` gaf één `credentialFixTask("expired")`
+per verlopen niet-verplicht certificaat, zónder per-type-dedup — anders dan de verplicht-document-tak
+(`expiredCredIdByType`) en de collab-tak (`credentialCollabExpiredTask`), die per type wél één kandidaat
+kiezen. Gevolg: twee verlopen certificaten van hetzelfde type (bv. een oud én een nieuwer verlopen diploma)
+gaven de ZZP'er twee vernieuw-taken naar twee `/certificaten/{id}/bewerken`-pagina's. **Waarom:** de
+compliance van een type leunt op één geldig VERIFIED-certificaat (`coveredTypes`), dus één vernieuwing laat
+béíde taken verdwijnen — de tweede rij is ruis. Noord-ster: het systeem toont alleen wat actie vraagt (rust
+boven ruis). Parked LOW uit persona-sweep run 3 (`docs/PERSONA-SWEEP-BACKLOG.md`). **Hoe (server-side
+waarheid, geen nieuwe rekenlogica):** `expiredNonMandatoryCreds` draagt nu ook `type`+`expiresAt`; de emissie
+kiest per type het meest recent verlopen exemplaar (dezelfde keuze als de andere twee takken) en slaat een
+type over dat al een hogere-band collab-taak kreeg (per-type i.p.v. de oude per-id collab-dedup — strikter,
+want collab-taken worden per type ge-emit). Verschillende types blijven aparte taken (geen over-dedup).
+**Bestanden:** `src/lib/actions/pending-tasks.ts`, `src/lib/actions/pending-tasks-expired-credential.test.ts`
+(+2 cases rood→groen: zelfde type → 1 taak (laatst-verlopen); verschillende types → 2 taken). **Checks:**
+typecheck ✓ · lint ✓ · gerichte credential-tests 13/13 ✓ · prettier ✓ · full test + build via CI-poort. **PR #1405.**
+
 ## 2026-09-06 — persona-sweep: ZZP'er ziet nu ook een mid-plaatsing-certificaatverval (asymmetrie gedicht)
 
 **Wat:** de opdrachtgever kreeg al een einddatum-verankerde waarschuwing als een vereist certificaat ná
