@@ -2,6 +2,28 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-06 — security/privacy (audit 2e): k-anonimiteit-accountability-gate op de anonimiseringsvloeren
+
+**Wat:** volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: **A** alle 53 server actions · **B** alle ~45 API-routes + tenant-isolatie +
+storage + injectie + SSRF + webhook-auth · **C** privacy/AVG erasure/export/PII/retentie/k-anonimiteit). Alle drie
+de oppervlakken **0 exploiteerbare gaten** (auth→rol→ownership→Zod→audit-keten overal, TOCTOU-safe compound-writes,
+CWE-203 anti-oracle, geen path-traversal/SSRF/injectie, erasure CI-schema-gated). Orchestrator-sweep los: `npm audit`
+0 productie-vulns, geen raw-SQL-sinks, geen tracked secrets/documenten. **Live Playwright-doorklik niet uitvoerbaar
+in deze sandbox** (build draait wél groen; runtime-probe leunt op statisch+gerichte tests, zoals de vorige rondes).
+**Eén accountability-gat gedicht (MIDDEL):** het platform toont op ≥6 plekken geaggregeerde persoonsgegevens
+(markttarief, beoordelingen, betaalgedrag, betrouwbaarheid, reactiebereidheid, leverbetrouwbaarheid), elk met een
+k-anonimiteitsvloer. Anders dan bij de erasure was er **geen geautomatiseerde poort** die (a) een stille verlaging
+van een vloer tegenhield, noch (b) de art. 30-register-prosa aan de code bond — het register citeerde de markttarief-
+vloer als hard-gecodeerde "10", ontkoppeld van `MARKET_RATE_MIN_SAMPLE`. **Fix:** nieuwe gate
+`src/lib/compliance/k-anonymity-floors.test.ts` (7 tests, rood→groen bewezen door de constante tijdelijk naar 5 te
+zetten): `MARKET_RATE_MIN_SAMPLE >= 10`, de vijf in-app-vloeren `>= 3`, en de register-prosa moet de werkelijke
+constante citeren (doc↔code-binding). **Geschonden:** AVG art. 5(2)/art. 30 + art. 5(1)(f)/25. **Geen source-
+wijziging van het register** — de prosa blijft mens-leesbaar, de test bindt haar. **Geparkeerd:** in-app review-
+aggregatie-vloer (owner-gated UX, MENSENWERK §5), register↔Prisma-schema-coverage-gate (LAAG, grotere diff),
+mail-intake-From-spoofing (LAAG), liveness-probe-SHA (LAAG) — zie `docs/SECURITY-PRIVACY-BACKLOG.md`. **Checks:**
+typecheck ✓ · lint ✓ · prettier (hele repo) ✓ · gerichte tests 130/130 ✓ · build ✓ · full test + CI-poort.
+
 ## 2026-09-06 — persona-sweep (run 4): twee robuustheidsgaten gedicht (int4-vangnet + zoekterm-cap)
 
 **Wat:** persona-sweep run 4 (3 parallelle adversariële Opus-audits: cascade-geldpad · cross-tenant/IDOR/
@@ -352,110 +374,3 @@ actie. De job-detailpagina gebruikt de helper i.p.v. de inline "Toevoegen"-link.
 `src/lib/credential-fix-action.ts` (nieuw) + `.test.ts` (5 cases, incl. regressie "verlopen ≠ Toevoegen"),
 `src/app/(protected)/opdrachten/[id]/page.tsx`. **Checks:** typecheck · lint · prettier · unit groen; build
 via CI-poort. **PR #1393.**
-
-## 2026-09-05 — persona-sweep: losse factuur nummert gatenvrij per ZZP'er (Wet OB art. 35a)
-
-**Wat:** de persona-sweep (live Playwright-smoke over 4 rollen + 2 adversariële Opus-audits op
-franchise/tenant-isolatie en facturen/cascade/administratie — 0 bereikbare authz-gaten daar) vond dat de
-losse-factuur-actie `createInvoice` (`/facturen/nieuw`, bereikbare UI) het factuurnummer **platform-breed**
-telde: `prisma.invoice.count({ where: { number: { startsWith: `${year}-` } } }) + 1`. Gevolg: de wettelijk
-vereiste **gatenvrije reeks per uitschrijvende partij** brak zodra een ánder platform-lid een losse factuur
-maakte (A `2026-0001`, B `2026-0002`, A weer `2026-0003` → A's reeks mist `0002`), en alle ZZP'ers vochten
-om dezelfde `number @unique`-teller (P2002-retries onder gelijktijdigheid). De cascade-flow deed dit al goed.
-**Hoe:** de losse factuur deelt nu exact dezelfde atomaire per-partij-allocator als de cascade
-(`allocateInvoiceNumber`, sleutel = de ZZP'er, bínnen de create-transactie); `partyInvoiceNumber` draagt het
-getoonde/wettelijke nummer, `number` blijft globaal uniek via de `issuerKey:`-prefix. Omdat `number` sinds de per-partij-nummering
-een `issuerKey:`-prefix (met het interne user-id) draagt, mag geen enkel scherm/notificatie/export het
-rauwe `number` tonen; alle plekken lezen nu het partij-nummer via één centrale helper
-`displayInvoiceNumber` (`src/lib/invoice-number.ts`). Dit dekt óók een pre-existent lek: cascade-facturen
-droegen dit prefix al, dus enkele surfaces lekten het user-id al vóór deze PR.
-**Bestanden:** `src/lib/invoice-number.ts` (nieuw), `src/app/(protected)/facturen/actions.ts` (+ `.test.ts`,
-+4 rood→groen: gatenvrije per-partij-toewijzing, jaarprefix, send/markPaid-notificatiebody geen user-id-lek),
-`.../facturen/[id]/page.tsx`, `.../facturen/export/route.ts`, `.../search/actions.ts`,
-`src/lib/calendar/user-deadlines.ts`, `src/lib/franchise/roster-dossier.ts`, de twee `samenwerkingen/[id]/dossier`-
-laders, `src/components/administratie/{facturen,openstaand}-panel.tsx`, `src/app/api/administratie/openstaand/route.ts`.
-**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (8208 passed) ✓ · build (CI-poort verifieert). Backlog
-bijgewerkt. **Restrisico:** oude losse facturen houden hun platform-brede `2026-XXXX` (geen `partyInvoiceNumber`),
-weergave valt terug op het globale nummer; alleen nieuwe losse facturen lopen in de gatenvrije partij-reeks.
-
-## 2026-09-05 — security/privacy: audit-CSV-export meldt truncatie (AVG art. 5(2) verantwoording)
-
-**Wat:** de admin-audit-CSV-export (`/admin/audit/export`) capte op `AUDIT_EXPORT_CAP = 10.000` rijen
-**zonder enige indicatie** dat er getrunceerd was. Een admin die de CSV als volledig audit-bewijs
-presenteert bij een AVG-inspectie kon onbewust een onvolledig register tonen (art. 5(2)
-verantwoordingsplicht). **Waarom nu:** geparkeerd MIDDEL uit de security-/privacy-auditronde van 5-9;
-geen security-breach maar wél een compliance-valkuil in de kern-toezicht-hub. **Hoe (server-side
-waarheid, drie lagen):** de route telt het `total` naast de gecapte rijen (`Promise.all(count,
-findMany)`); bij `total > exported` (1) voegt `auditExportCsv` een expliciete **sluit-rij** toe die het
-geëxporteerde, totale én resterende aantal noemt en aanraadt het filter te verfijnen, (2) markeert
-`auditExportFilename` de bestandsnaam met `-getrunceerd`, (3) draagt de `AUDIT_LOG_EXPORTED`-auditregel
-`total`+`truncated`. Het audit-paneel toont daarnaast een vooraf-waarschuwing bij de exportknop zodra het
-totaal de cap overstijgt (cap verhuisd naar `audit-export.ts` als gedeelde bron — geen drift). De melding
-is CSV-injectie-veilig (geen leidend formule-teken) en de export blijft byte-identiek bij een volledig
-register. **Bestanden:** `src/lib/audit-export.ts` (+ `.test.ts`, +9 cases),
-`src/app/(protected)/admin/audit/export/route.ts`, `src/components/admin/audit-panel.tsx`. **Checks:**
-typecheck ✓ · lint ✓ · prettier ✓ · unit (audit-export: 17 passed) ✓ · build (CI-poort verifieert). **PR #1390.**
-
-## 2026-09-05 — prod/observability: `zzp_build_info`-gauge op /api/metrics (deploy-correlatie)
-
-**Wat:** de Prometheus `*_build_info`-conventie toegevoegd — een constante `1`-gauge
-`zzp_build_info{commit,built_at}` op `GET /api/metrics`. **Waarom:** `/api/health` toont commit +
-built_at al als JSON, maar dat is niet scrape-baar naast de andere gauges; zonder deze gauge kan een
-dashboard/alert een regressie of metriek-verschuiving niet correleren met de exacte draaiende deploy, en
-detecteert Prometheus zélf geen redeploy (`changes(zzp_build_info[…])`). Tot nu toe kende alleen de
-GitHub-deploy-lag-watchdog (`monitor.yml`) de draaiende commit. **Hoe:** `buildCommit`/`buildAt` in
-`MetricsInput` (pure `buildMetrics` emit een gelabelde 1-gauge via de bestaande escape-laag); de route
-leest de build-metadata uit dezelfde env + normalisatie als `/api/health` (`shortCommit`/`normalizeBuiltAt`),
-module-constant per proces (geen DB-read). `zzp_build_info` in `INFO_ONLY_METRICS` (bewust geen
-drempel-alert) zodat de alerts-drift-gate 'm kent. Labels dragen alleen statische build-metadata — geen
-PII/secret. **Bestanden:** `src/lib/observability/metrics.ts`, `.../alerts-rules.ts`,
-`src/app/api/metrics/route.ts` (+ tests), `docs/RUNBOOK.md §2a`. **Tests:** labels + fallback
-(`dev`/`onbekend`) + Prometheus-render (gesorteerde labels) + volledige gauge-lijst; metrics + alerts-rules
-70 groen, typecheck/lint/prettier groen. **PR #1389.**
-
-## 2026-09-05 — security/privacy: certificaat-type lekte niet meer via de publieke agenda-feed
-
-**Wat:** een security-/privacy-auditronde (orchestrator + 3 adversariële Opus-audits op de delta sinds
-`c3afae34`) vond dat PR #1386 het certificaat-**type/de vrije-tekst-titel** (bv. "VOG", "BIG") in de
-**niet-intrekbare publieke bearer-agenda-feed** (`/api/agenda/feed.ics`) zette. VOG (justitieel, AVG art. 10)
-en BIG (zorg, art. 9) zijn bijzondere gegevens; dat een bij naam bekende persoon zo'n certificaat houdt hoort
-niet in een kanaal dat naar Google/Apple-agenda-infra synct en niet per-token in te trekken is (AVG art.
-5(1)(c) dataminimalisatie · OWASP A01). **Fix (twee lagen):** het verval-event is nu generiek "Certificaat
-verloopt" + generieke alarmen zónder type/titel (`deadlines.ts`), en de loader selecteert de titel niet eens
-meer uit de DB (`user-deadlines.ts`, `select: {id, expiresAt}`). Wélk certificaat verloopt, opent de ZZP'er in
-het geauthenticeerde dossier. **Bewust ongemoeid:** de bemiddelaar-agenda (`franchise/agenda.ts`) — sessie-
-gebonden, ge-auditede, tenant-gescoopte download met legitiem need-to-know, géén bearer-feed.
-
-**Bestanden:** `src/lib/calendar/deadlines.ts`, `src/lib/calendar/user-deadlines.ts` (+ hun tests).
-**Tests:** nieuwe rood→groen-guard "noemt het certificaat-type NERGENS in de bearer-feed" + `select`-borg;
-`npm run test` 8195 groen, typecheck/lint/prettier/build groen. **Rest geparkeerd** in
-`docs/SECURITY-PRIVACY-BACKLOG.md` (per-token-intrekking HOOG-latent, stille CSV-truncatie MIDDEL, CSRF-adjacent
-GET-export LAAG). **Volgende stap:** per-token-intrekking van de agenda-feed (schema + instellingen-UI), mens-poort.
-
-## 2026-09-05 — slimme lege staat op /opdrachten → verbreed je zoekopdracht (ZZP'er)
-
-**Wat:** filterde de ZZP'er de opdrachten-marktplaats op zijn eigen vakgebied (standaard AAN zodra
-hij branches heeft) of op andere filters en leverde dat níks op, dan bood de lege staat alleen "Wis
-alle filters" — alles-of-niets. De nuttigste zet is meestal "verbreed één ding": zijn niche is
-vandaag leeg terwijl er wél ander werk is. Nu toont de lege staat tot twee één-klik-verbredingen,
-elk met het exacte aantal opdrachten dat die versoepeling oplevert (bv. "Zoek in alle vakgebieden ·
-12 opdrachten"). Benchmark: LinkedIn/Malt "broaden your search", maar met een echte teller vooraf.
-
-**Hoe (server-side waarheid, geen drift):** nieuwe pure helper `buildRelaxationCandidates(f)` leidt
-uit de genormaliseerde filters de zinvolle één-filter-versoepelingen af (vakgebied, certificaat-eis,
-vaardigheden, werkvorm, tarief, locatie, hideApplied, zoekterm), elk als een reeds-versoepelde
-`JobFilters` die precies één dimensie loslaat en de overige filters intact houdt. `rankRelaxations`
-houdt alleen versoepelingen mét treffers, sorteert op meeste kansen eerst (tie-break op vaste
-voorkeursvolgorde) en kapt op 2. De pagina telt elke variant met dezelfde gedeelde
-`buildJobMarketplaceWhere` → het getoonde aantal is exact wat de ZZP'er ná de klik ziet. Alleen bij
-écht nul treffers (`foundTotal`, volgt de inzetbaarheidsfilter) en met profiel — geen extra queries
-op een gevulde lijst. `onlyEligible` (in-memory compliance, niet in de DB-where) is de uitzondering:
-staat die aan, dan bieden we uitsluitend het versoepelen van `onlyEligible` zelf aan, zodat elke
-telling exact blijft (de overige zouden niet-inzetbare opdrachten meetellen).
-
-**Bestanden:** `src/lib/jobs/empty-state-relaxations.ts` (+ `.test.ts`: 15 cases — kandidaat-opbouw,
-één-dimensie-relaxatie, page-reset, onlyEligible-uitzondering, rangschikking/kap),
-`src/components/jobs/empty-state-suggestions.tsx` (presentatie, rendert niets zonder suggesties),
-`src/app/(protected)/opdrachten/(index)/page.tsx` (wiring in de lege-staat-tak).
-
-**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (empty-state-relaxations: 15 passed) ✓ · build ✓ (CI-poort verifieert).
