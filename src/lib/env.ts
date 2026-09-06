@@ -15,6 +15,7 @@
 
 import { z } from "zod";
 
+import { resolveBootstrapAdminConfig } from "@/lib/bootstrap-admin";
 import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { isValidVapidSubject, resolveWebPushConfigState } from "@/lib/push/config";
 
@@ -263,6 +264,14 @@ const schema = z
     // ADMIN-only (route-guards) én in productie standaard DICHT — zet DESIGN_LAB_ENABLED=true om
     // het lab op een draaiende omgeving te openen. Zie src/lib/design-lab.ts.
     DESIGN_LAB_ENABLED: z.string().optional(),
+    // Go-live bootstrap-beheerder: de ENIGE weg naar een eerste échte ADMIN op een verse
+    // productie-database zonder demo-data (MENSENWERK §6). De seed maakt er precies één keer een
+    // beheerder mee aan (mustChangePassword). Beide óf geen — één van de twee is een stille halve
+    // activering (geen admin), en een ongeldig e-mailadres/zwak wachtwoord op het hoogst-
+    // geprivilegieerde account is een reëel risico → beide gevallen zijn een harde boot-fout
+    // (superRefine hieronder). Zie src/lib/bootstrap-admin.ts.
+    BOOTSTRAP_ADMIN_EMAIL: z.string().optional(),
+    BOOTSTRAP_ADMIN_PASSWORD: z.string().optional(),
   })
   .superRefine((v, ctx) => {
     const require = (cond: boolean, path: string, message: string) => {
@@ -345,6 +354,22 @@ const schema = z
     require(isValidVapidSubject(
       v.VAPID_SUBJECT,
     ), "VAPID_SUBJECT", "Moet een mailto:- of https:-contact zijn (RFC 8292), bv. mailto:support@jouwdomein.nl.");
+
+    // Go-live bootstrap-beheerder (het hoogst-geprivilegieerde account): een half gezette config
+    // maakt stil géén admin, en een ongeldig e-mailadres/zwak wachtwoord is een reëel risico. Zelfde
+    // "geen halve activering, geen zwakke geheimen"-lijn als de integraties hierboven → harde
+    // boot-fout op partial/invalid. Beide ongezet = veilig (geen bootstrap-admin), geen fout.
+    const bootstrapAdmin = resolveBootstrapAdminConfig({
+      email: v.BOOTSTRAP_ADMIN_EMAIL,
+      password: v.BOOTSTRAP_ADMIN_PASSWORD,
+    });
+    for (const error of bootstrapAdmin.errors) {
+      const path =
+        bootstrapAdmin.state === "partial" || /E-?MAIL/i.test(error)
+          ? "BOOTSTRAP_ADMIN_EMAIL"
+          : "BOOTSTRAP_ADMIN_PASSWORD";
+      require(false, path, error);
+    }
 
     // Productie-aanbevelingen (sterke AUTH_SECRET, SHARE_TOKEN_SECRET, AUTH_URL) zijn bewust GEEN
     // harde boot-eisen: ze hebben een veilige fallback (SHARE_TOKEN_SECRET valt terug op AUTH_SECRET,
