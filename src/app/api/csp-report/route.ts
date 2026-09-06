@@ -10,6 +10,7 @@
 //   - altijd 204 (de browser verwacht geen body en mag niet gaan herproberen).
 
 import { cspReportRateLimiter } from "@/lib/rate-limit";
+import { readLimitedText } from "@/lib/http/read-limited-text";
 import { logger } from "@/lib/observability/logger";
 import { parseCspReport } from "@/lib/observability/csp-report";
 import { clientIpFromRequest } from "@/lib/client-ip";
@@ -27,13 +28,11 @@ export async function POST(request: Request): Promise<Response> {
   const rl = await cspReportRateLimiter.check(clientIpFromRequest(request));
   if (!rl.allowed) return new Response(null, { status: 429 });
 
-  let raw: string;
-  try {
-    raw = await request.text();
-  } catch {
-    return noContent;
-  }
-  if (!raw || raw.length > MAX_BODY_BYTES) return noContent;
+  // Gestreamde body-limiet: kapt de body af zodra hij de grens overschrijdt, óók bij een chunked
+  // request zónder Content-Length (`request.text()` zou dan alles eerst bufferen). null = te groot
+  // of onleesbaar; een lege body heeft niets te loggen.
+  const raw = await readLimitedText(request, MAX_BODY_BYTES);
+  if (!raw) return noContent;
 
   let payload: unknown;
   try {
