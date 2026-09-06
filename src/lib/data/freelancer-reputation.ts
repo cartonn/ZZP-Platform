@@ -15,7 +15,9 @@ const MAX_ROWS = 4000;
  *
  * Alleen PUBLISHED telt mee: een nog-blinde PENDING_REVEAL-beoordeling mag niet lekken vóór de
  * simultane onthulling. `subjectId` is de `User.id` van de ZZP'er (de beoordeelde tegenpartij).
- * `null` als de ZZP'er nog geen gepubliceerde beoordeling heeft — dan tonen we niets.
+ * `null` — en dus geen sectie op de publieke pagina — zolang er minder dan
+ * REVIEW_AGGREGATE_MIN_SAMPLE gepubliceerde beoordelingen zijn: onder die k-anonimiteitsvloer is het
+ * "gemiddelde" individueel herleidbaar (zie freelancer-reputation.ts).
  */
 export async function getFreelancerReputation(userId: string): Promise<ReviewAggregate | null> {
   const rows = await prisma.review.findMany({

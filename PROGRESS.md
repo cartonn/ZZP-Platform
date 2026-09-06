@@ -10,6 +10,23 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-06 — security/privacy: k-anonimiteitsvloer op publieke beoordelingsaggregatie (vertrouwensdossier)
+
+**Wat:** het deelbare, publieke, **onauthentieke** vertrouwensdossier (`/vertrouwen/[profileId]/[token]`) toonde
+een "geaggregeerd" beoordelingscijfer óók bij één beoordeling ("Gemiddeld cijfer over **1** beoordeling: 2,0 ★") —
+dat is niet geaggregeerd maar het exacte, individueel-herleidbare cijfer van één opdrachtgever, gelekt aan het hele
+internet; bij twee beoordelingen is de ander herleidbaar (ander = 2·gemiddelde − eigen). **Waarom:** AVG art. 5(1)(f)
+en art. 25 (privacy by design) en de eigen privacyregel ("alleen geaggregeerd … nooit individuele beoordelingen") —
+dezelfde faalklasse die het platform al dichtte voor marktbanden (`MARKET_RATE_MIN_SAMPLE = 10`), maar bij
+beoordelingen gemist. Adversariële auditronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits). **Fix:** nieuwe
+vloer `REVIEW_AGGREGATE_MIN_SAMPLE = 3` (`src/lib/config.ts`); `freelancerReputationFromReviews` geeft `null` onder de
+vloer → de publieke pagina laat de beoordelingssectie weg. Server-side waarheid; enige consument is het gedeelde pad.
+**Bestanden:** `src/lib/config.ts`, `src/lib/freelancer-reputation.ts` (met `.test.ts` rood→groen: n=1/n=2 → null,
+≥3 → getoond), `src/lib/data/freelancer-reputation.ts` (doc), `src/app/vertrouwen/[profileId]/[token]/page.tsx`
+(comment). **Geparkeerd** (backlog): in-app spiegelfuncties `company-reputation`/`candidate-reviews` (zelfde vloer,
+lagere severity — geauthenticeerde tegenpartij), spoofbare `From`-fallback in mail-intake (MIDDEL), commit-SHA op
+liveness-probes (LAAG). **Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit + build (CI-poort verifieert).
+
 ## 2026-09-06 — routine: notFound()-routes onder een loading.tsx geven weer 404 i.p.v. 200 (alle rollen; bemiddelaar-detail)
 
 **Wat:** zes detail-/bewerk-routes die `notFound()` aanroepen streamden onder een voorouder-`loading.tsx`
@@ -381,58 +398,3 @@ pilot-default): geen provider actief, geen gedragsverandering. Server-side; geen
 niet-transiënte 401 zonder retry, uitgeputte 429 = één mislukking, `resolveRoutingRetries`/backoff-klem).
 
 **Checks:** typecheck ✓ · lint ✓ · prettier --check . ✓ · unit (routing) ✓ · build (CI-poort verifieert).
-
-## 2026-09-04 — security/privacy-audit: CSRF-origin-allowlist weigert een catch-all wildcard (fail-closed + zichtbaar)
-
-**Wat:** volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële
-Opus-audits op niet-overlappende verse oppervlakken + eigen statische sweep). **Geen KRITIEK/HOOG/MIDDEL
-gevonden** — de signaal-snapshot-datalaag (#1375/#1378), de delta sinds `cdefe218` (route-dedup #1340,
-server-action-origin-allowlist #1372, React-transitie-fix #1377, CI-trigger #1376) én het AVG-recht-op-
-vergetelheid-pad (60 modellen model-voor-model) zijn schoon bevonden. Dit spiegelt de reeks CLEAN-rondes;
-het platform is op deze oppervlakken hard.
-
-**Gefixt (LAAG · OWASP A01/CSRF · CLAUDE.md §8):** `resolveAllowedOrigins` (`scripts/server-actions-origins.mjs`)
-liet een te-brede wildcard (`*`, `*.com`, `*.local`) uit `SERVER_ACTIONS_ALLOWED_ORIGINS` ongefilterd de
-Next.js-`allowedOrigins` in — dat schakelt de anti-CSRF-origin-check voor álle Server Actions **stil** uit.
-Nieuwe pure guard `isOverbroadOriginPattern` weigert zulke waarden fail-closed + logt een zichtbare
-waarschuwing (boot breekt niet, §8). Een begrensde `*.<domein>.<tld>` en concrete hosts passeren.
-Rood→groen: `scripts/server-actions-origins.test.ts` (+8 cases). Twee latente LAAG-notities (sessie-rol-
-verversing bij een toekomstige admin-rolwissel; dode kolom `Application.attachmentId`) staan geparkeerd in
-`docs/SECURITY-PRIVACY-BACKLOG.md`. Checks: typecheck ✓ · lint ✓ · prettier ✓ · unit groen (CI-poort verifieert).
-
-## 2026-09-04 — persona-sweep: ORT-toeslagen bevriezen bij goedkeuren (factuur/werkproces/PDF driften niet meer)
-
-**Wat:** kritische-gebruiker-sweep over alle vier de rollen (live Playwright-smoke: geen 500's, geen
-console-fouten, alle cross-rol verboden routes server-side geweigerd) + 3 parallelle adversariële
-Opus-audits op niet-overlappende oppervlakken. Twee audits (messaging/reacties-authz · documenten/
-samenwerking-authz) vonden **0 bereikbare gaten** (IDOR/anti-oracle 404, tenant-scope, forbidden
-transitions, stored-XSS — alles al gehard). De cascade/next-action-audit vond **1 bereikbaar defect**.
-
-**Defect (DOEL 2, CLAUDE.md regel 1 — server-side waarheid / zelf-tegensprekend document):** drie
-overzichten herberekenden het ORT-subtotaal van een reeds **goedgekeurde/gefactureerde** prestatie uit
-de **live** `Collaboration.ortProfile/ortCustomRates` i.p.v. de bevroren factuur. PR #1373/#1380 fixten
-deze bugklasse aan de aggregaat-kant (`/prestaties`, `/diensten` via `reconcileSubtotalWithInvoice`),
-maar deze drie bleven staan: de factuurpagina (`/facturen/[id]` — het "Herleidingsbewijs → ORT-
-uitsplitsing" toonde een ándere "Subtotaal excl. btw" dan de factuur zelf), de werkproces-pagina
-(`/samenwerkingen/[id]`, `<OrtBreakdown>` voor elke prestatie) en de urenstaat-PDF. Repro: ORT-uren
-goedgekeurd → factuur bevriest op bv. €1200 → opdrachtgever wijzigt daarna het ORT-profiel (mag zolang
-er geen SUBMITTED-urenstaat wacht) → de factuurpagina toonde bv. €1000 in het herleidingsbewijs náást
-€1200 in de totalen: één en dezelfde factuur sprak zichzelf tegen.
-
-**Fix (bron i.p.v. weergave-pleister):** de cascade bevriest bij goedkeuren nu naast het
-factuursubtotaal óók de resolved ORT-toeslagen op de prestatie (`Performance.ortRatesSnapshot`, een
-additieve nullable kolom met migratie) — net zoals `rateCents` het uurtarief al bevriest. Nieuwe
-gedeelde helper `resolveEffectiveOrtRates` (snapshot wint van live; oude prestaties zonder snapshot
-vallen terug op live). De drie overzichten lezen nu uit de snapshot; omdat
-`ortSubtotalCents === computeOrt().subtotalCents` en de snapshot exact de goedkeur-tarieven zijn,
-foot de per-categorie-tabel weer precies op het factuursubtotaal. `/prestaties` en `/diensten` blijven
-ongewijzigd (hun aggregaat-reconciliatie was al correct). Server-side waarheid; client toont, beslist
-niet.
-
-**Bestanden:** `prisma/schema.prisma` + migratie `202609041530_performance_ort_rates_snapshot`,
-`src/lib/ort.ts` (+ `.test.ts`: 4 helper-cases), `src/lib/cascade/handlers.ts` (+ `.test.ts`: 2
-snapshot-cases), `src/components/collaborations/ort-breakdown.tsx`,
-`src/app/(protected)/facturen/[id]/page.tsx`, `src/app/(protected)/samenwerkingen/[id]/page.tsx`,
-`src/lib/performance-pdf.ts`, `src/app/api/prestaties/[id]/pdf/route.ts`.
-
-**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit + build (CI-poort verifieert).
