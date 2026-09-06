@@ -4,6 +4,7 @@ import {
   DEFAULT_SEARCH_LIMIT,
   groupResultsByType,
   isSearchableQuery,
+  MAX_QUERY_LENGTH,
   MIN_QUERY_LENGTH,
   normalizeSearchQuery,
   rankResults,
@@ -18,6 +19,24 @@ describe("normalizeSearchQuery", () => {
   });
   it("lege invoer → lege string", () => {
     expect(normalizeSearchQuery("   ")).toBe("");
+  });
+  it("begrenst een ongebonden invoer tot MAX_QUERY_LENGTH (geen ongebegrensd werk per aanroep)", () => {
+    const huge = "a".repeat(10_000);
+    const normalized = normalizeSearchQuery(huge);
+    // Zonder de cap zou dit 10.000 tekens teruggeven; met de cap nooit meer dan MAX_QUERY_LENGTH.
+    expect(normalized.length).toBeLessThanOrEqual(MAX_QUERY_LENGTH);
+    expect(normalized).toBe("a".repeat(MAX_QUERY_LENGTH));
+  });
+  it("laat een normale zoekterm ongemoeid (cap raakt alleen extreme invoer)", () => {
+    expect(normalizeSearchQuery("elektricien rotterdam")).toBe("elektricien rotterdam");
+  });
+});
+
+describe("isSearchableQuery — begrenzing", () => {
+  it("blijft een lange (maar begrensde) invoer als zoekbaar behandelen", () => {
+    // Een lange term is nog steeds betekenisvol; de begrenzing mag niet stilletjes tot "niet
+    // zoekbaar" leiden (dat zou een geldige zoekopdracht laten verdwijnen).
+    expect(isSearchableQuery("x".repeat(10_000))).toBe(true);
   });
 });
 

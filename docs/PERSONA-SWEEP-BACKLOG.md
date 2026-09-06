@@ -1,5 +1,62 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-06 (persona-sweep, run 4) · **main-commit basis:** `89d34d1`
+> **Uitkomst:** **2 robuustheidsgaten gedicht; 3 items geparkeerd (LOW).** De live Playwright-doorklik
+> was in deze sandbox **niet uit te voeren**: de productiebuild blijft hangen op het ophalen van de
+> Google-fonts via `next/font/google` (`fonts.gstatic.com` wordt door het netwerkbeleid van de sandbox
+> geblokkeerd — connection reset mid-exchange, oneindige retry). CI heeft wél netwerk en bouwt/draait e2e
+> normaal, dus dit is een omgevingsbeperking, geen defect. De sweep is daarom gedreven door **3 parallelle
+> adversariële Opus-audits** op niet-overlappende oppervlakken (cascade-geldpad · cross-tenant/IDOR/
+> document-privacy · malicieuze invoer/Zod). Alle drie de oppervlakken: **0 bereikbare blockers.**
+>
+> - **Cascade-geldpad (uren→ORT→prestatie→factuur→betaling + disputen/no-show) — schoon.** Verboden
+>   overgangen via expliciete state-machines (`lifecycles.ts`/`collaborations.ts`) + compound-guarded
+>   `updateMany` in `apply.ts`; afronden/annuleren met open geld of onbeoordeeld werk atomair geblokkeerd
+>   (`collaborationCompletableGuard`/`TerminableGuard`); dispuut-freeze TOCTOU-dicht; BTW/ORT integer-cent,
+>   weigert negatief/NaN/absurd; `rateCents` altijd server-afgeleid (geen IDOR via eigen afgewezen prestatie);
+>   idempotentie via `DomainEvent.dedupeKey`.
+> - **GEDAAN — robuustheid (int4-overflow-vangnet op `Invoice.totalCents`).** De bestaande grens-test
+>   (`performance-commands.test.ts`) claimde in haar commentaar dekking "óók met kop voor ORT-toeslag + BTW",
+>   maar assertte alléén het kale subtotaal (uren-cap × tarief-cap = €2 mln). Het werkelijke worst case op
+>   de int4-kolom `totalCents` is dat subtotaal × max ORT-maatwerktoeslag (`MAX_ORT_CUSTOM_BPS`, ×6) × hoogste
+>   BTW-tarief (2100 bps) ≈ €14,52 mln (1.452.000.000 cent) — veilig onder int4 (2.147.483.647), maar de ~32%
+>   marge werd door geen enkele test bewaakt. Een toekomstige verhoging van uren-/tarief-/ORT-cap of BTW zou
+>   stil tot een int4-overflow → 500 op `totalCents` kunnen leiden i.p.v. een nette weigering. **Fix:** de
+>   test rekent nu het echte maximum uit de bron-constanten (`MAX_PERFORMANCE_HOURS`,
+>   `MAX_PERFORMANCE_RATE_CENTS`, `MAX_ORT_CUSTOM_BPS`, `VAT_RATE_BPS`) en faalt de build zodra die combinatie
+>   int4 nadert. **Bestand:** `src/lib/cascade/performance-commands.test.ts` (+1 case).
+> - **Cross-tenant/IDOR/document-privacy (franchiser-oppervlak) — schoon.** `tenancy.ts`
+>   (`tenantScopeWhere`/`ownsViaTenant`/`assertSameTenant`) consistent als één bron; élke by-id-fetch
+>   her-verifieert `tenantId` server-side met anti-oracle "niet gevonden"; geneste relaties (collab/factuur
+>   van een roster-ZZP'er) opnieuw ge-scope't tegen cross-tenant-lek; documenten alleen owner/ADMIN
+>   (`canAccessDocument`), franchise-UI toont enkel de bestandsnaam (geen download-link); exports rol-gepoort +
+>   tenant-scoped + geaudit; `/api/media/[...key]` beperkt tot `Company.logoKey` (niet-gevoelig).
+> - **Malicieuze invoer/Zod — schoon.** CSV-formule-injectie centraal in `csv.ts` (élke producer routeert
+>   er doorheen); enige `dangerouslySetInnerHTML` is de genonce'de hardcoded theme-toggle (geen user-input);
+>   HTML-mails escapen elke geïnterpoleerde waarde; upload valideert MIME-allowlist + magic-bytes + grootte +
+>   UUID-key + path-traversal-guard; numerieke velden weigeren NaN/Infinity/negatief/overflow; geen
+>   `$queryRawUnsafe`; mail-intake byte-capped + timing-safe + human-review-gate.
+> - **GEDAAN — robuustheid (ongebonden zoekterm-invoer).** `searchPlatform` is een direct aanroepbare
+>   server-actie; `normalizeSearchQuery`/`isSearchableQuery` verwerkten een **ongebonden** string (trim/
+>   regex-replace/lowercase + per-kandidaat scoren) zonder lengte-cap — een scripted aanroeper kon per call
+>   een willekeurig grote string laten verwerken (goedkope maar ongebegrensde CPU per aanroep). **Fix:**
+>   `MAX_QUERY_LENGTH = 100`; `normalizeSearchQuery` begrenst de ruwe invoer vóór élke stringbewerking. Een
+>   betekenisvolle zoekterm is kort en langer voegt niets toe aan de score. **Bestanden:** `src/lib/search.ts`,
+>   `src/lib/search.test.ts` (+2 cases, rood→groen: 10.000-teken-invoer → ≤100; lange term blijft zoekbaar).
+> - **GEPARKEERD — LOW: kvk/btw/iban-velden missen `.max()` vóór de format-check** (`validation.ts:154-192`,
+>   `z.union([z.literal(""), z.string().trim()])`). Niet exploiteerbaar (ankered regex, geen ReDoS; oversized
+>   input wordt geweigerd, niet opgeslagen), maar inconsistent met de rest van het schema dat wél capt. Fix:
+>   `.max(50)` voor consistentie/defense-in-depth.
+> - **GEPARKEERD — LOW: onboarding-import-uurtarief-cap (€10.000) wijkt af van de handmatige profiel-cap
+>   (€2.000)** (`onboarding/import.ts:187` vs `validation.ts:143`). Geen security-defect (eindige, sane
+>   grens, geen overflow), maar een bulk-geïmporteerd profiel kan een 5× hoger tarief dragen dan de UI ooit
+>   toelaat. Uitlijnen — mogelijk product-intentie (specialisten-import), dus eigenaars-/import-besluit.
+> - **GEPARKEERD — LOW (design-afweging, geen bug): `confirmPayment` is óók door de opdrachtgever/admin
+>   aanroepbaar** (`payment-commands.ts`, bewust — Besluit 1 houdt geld off-platform). Een CLIENT kan
+>   unilateraal `PAID` markeren en (bij de laatste open post) de samenwerking auto-afronden; ná COMPLETED is
+>   `openDispute` geblokkeerd (by design), dus de ZZP'ers verhaal loopt dan via een mens/admin-kanaal. Consistent
+>   met de gedocumenteerde Besluit 1-afweging; bij échte facturen een rest-vertrouwensrisico voor de eigenaar.
+
 > **Datum:** 2026-09-06 (persona-sweep, run 3) · **main-commit basis:** `3ba08b9b`
 > **Uitkomst:** **1 defect (MED) gevonden én gefixt; 3 items geparkeerd (LOW).** Live Playwright-sweep
 > over alle vier de rollen (login → dashboard/`/acties` + rol-schermen; privilege-escalatie; IDOR met
