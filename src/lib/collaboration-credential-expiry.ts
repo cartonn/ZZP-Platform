@@ -28,6 +28,16 @@ export interface CollabRequirementInput {
   companyName: string;
   jobTitle: string;
   requiredTypes: readonly CredentialType[];
+  /**
+   * Einddatum van de plaatsing (open-einde = `null`/afwezig). Is die gezet, dan telt een vereist
+   * certificaat óók als zorg wanneer het ná het 30-daagse venster maar vóór deze einddatum verloopt —
+   * het lapt dan mid-inzet. Zonder einddatum blijft alleen het klassieke venster gelden. Dit is de
+   * ZZP'er-spiegel van de einddatum-verankerde opdrachtgever-waarschuwing (`expiringDuringPlacement`
+   * in `collaboration-alerts.ts`): de ZZP'er is de enige die het certificaat kan vernieuwen, dus
+   * zonder deze uitbreiding zag de opdrachtgever "verloopt vóór het einde van de opdracht" terwijl de
+   * ZZP'ers eigen actielijst pas binnen 30 dagen iets toonde (asymmetrie; persona-sweep 6-9-2026).
+   */
+  placementEnd?: Date | null;
 }
 
 export interface AffectedCollaboration {
@@ -43,6 +53,13 @@ export interface CollabCredentialExpiryConcern {
   expiresAt: Date;
   /** Hele dagen van `now` tot verval (≥ 0). */
   daysUntilExpiry: number;
+  /**
+   * `true` wanneer dit certificaat pas ná het 30-daagse venster verloopt en dus uitsluitend als zorg
+   * geldt omdat het vóór de einddatum van minstens één vereisende plaatsing lapt (einddatum-verankerd,
+   * niet kalender-nabij). `false` = het verloopt binnen het klassieke venster. Bepaalt de urgentieband
+   * van de afgeleide taak (binnen-venster is imminenter dan mid-plaatsing-ver-weg).
+   */
+  duringPlacementOnly: boolean;
   /** De samenwerking(en) die dit certificaat vereisen, in stabiele invoervolgorde (≥ 1). */
   collaborations: AffectedCollaboration[];
 }
@@ -57,6 +74,12 @@ export interface CollabCredentialExpiryConcern {
  * Per type leunt de compliance op het laatst-vervallende geverifieerde certificaat — dat bepaalt
  * de vervaldatum. Eén resultaat per certificaat (gegroepeerd over samenwerkingen); gesorteerd op
  * de vroegste vervaldatum eerst.
+ *
+ * Geeft een samenwerking een `placementEnd` mee, dan telt een certificaat óók als zorg wanneer het ná
+ * het venster maar vóór díe einddatum verloopt (`duringPlacementOnly: true`) — de ZZP'er-spiegel van
+ * de opdrachtgever-waarschuwing `expiringDuringPlacement` (collaboration-alerts.ts). Alleen de
+ * samenwerkingen waarvoor het certificaat daadwerkelijk vóór het einde lapt, komen in de bijbehorende
+ * `collaborations`-lijst (een langere plaatsing die het wél dekt, telt niet mee).
  */
 export function collaborationCredentialExpiryConcerns(input: {
   collaborations: readonly CollabRequirementInput[];
@@ -92,7 +115,15 @@ export function collaborationCredentialExpiryConcerns(input: {
     for (const type of new Set(collab.requiredTypes)) {
       const cred = latestByType.get(type);
       if (!cred || !cred.expiresAt) continue;
-      if (cred.expiresAt.getTime() > cutoffMs) continue; // verloopt buiten het venster → geen zorg
+      const expiresMs = cred.expiresAt.getTime();
+      // Binnen het 30-daagse venster → altijd een zorg. Daarbuiten alleen wanneer het certificaat vóór
+      // de einddatum van déze plaatsing verloopt (einddatum-verankerd, ZZP'er-spiegel van de
+      // opdrachtgever-waarschuwing). Zit `placementEnd` in het verleden, dan geldt `expiresMs > cutoffMs`
+      // ⇒ nooit `< placementEnd` (geldig ⇒ verval > now ≥ placementEnd): geen ruis op een verstreken inzet.
+      const withinWindow = expiresMs <= cutoffMs;
+      const duringPlacement =
+        collab.placementEnd != null && expiresMs < collab.placementEnd.getTime();
+      if (!withinWindow && !duringPlacement) continue; // buiten venster én dekt deze plaatsing → geen zorg
 
       let entry = byCredential.get(cred.id);
       if (!entry) {
@@ -118,6 +149,9 @@ export function collaborationCredentialExpiryConcerns(input: {
       type: credential.type,
       expiresAt,
       daysUntilExpiry: Math.max(0, Math.floor((expiresAt.getTime() - nowMs) / MS_PER_DAY)),
+      // Een certificaat kan alleen in `byCredential` staan via het venster óf via een plaatsing-einddatum;
+      // valt het buiten het venster, dan is het per definitie een mid-plaatsing-zorg (`duringPlacementOnly`).
+      duringPlacementOnly: expiresAt.getTime() > cutoffMs,
       collaborations,
     });
   }

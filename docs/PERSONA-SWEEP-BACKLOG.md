@@ -1,5 +1,59 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-06 (persona-sweep, run 3) · **main-commit basis:** `3ba08b9b`
+> **Uitkomst:** **1 defect (MED) gevonden én gefixt; 3 items geparkeerd (LOW).** Live Playwright-sweep
+> over alle vier de rollen (login → dashboard/`/acties` + rol-schermen; privilege-escalatie; IDOR met
+> onzin-ids) + 2 parallelle adversariële Opus-audits (mutatie-authz-keten · next-action-correctheid).
+>
+> - **Live sweep — schoon:** alle vier logins OK; élke verkeerde-rol-poging op `/admin/*` en
+>   `/franchise/*` server-side geweigerd (redirect → `/dashboard`), voor ZZP'er, opdrachtgever én
+>   (kruislings) franchiser/admin; élke IDOR/onzin-id op `/samenwerkingen|/facturen|/opdrachten|
+/prestaties|/certificaten|/berichten|/franchise/*` → nette **404** of role-redirect, **nooit 500**,
+>   geen soft-404-oracle (geen 200-met-inhoud op een gegokt resource-id). De enige console-errors zijn
+>   benigne (Next 404-resource-melding op de testpagina's + de `/franchise/agenda`-ICS-download).
+> - **Mutatie-authz-audit** (`account/profiel/bedrijf/beschikbaarheid/certificaten/documenten/reacties/
+opdrachten/berichten/notificaties/favorieten/ideeen/support/academie` + minder-belopen admin): **0
+>   bereikbare gaten** — élke mutatie volgt auth→rol→ownership→Zod→actie→audit met anti-oracle "niet
+>   gevonden", compound-guarded transities en gebonde Zod. Eén niet-security-notitie geparkeerd
+>   (`account/actions.ts` `verifyIdentity` mist de rate-limiter die de credential-verify-paden wél
+>   hebben — niet exploiteerbaar: mock is prod-geblokkeerd, echte iDIN is out-of-band).
+> - **Next-action-correctheid-audit** (`pending-tasks.ts`/`tasks.ts`/`next-actions.ts`/`cascade/*` +
+>   summarizers): prioriteitsbanden, hrefs, dedup, drempel-math, stale-guards en cascade-stage/
+>   completion allemaal geverifieerd sound. **1 defect (MED) → OPGELOST**, 2 items geparkeerd (LOW).
+> - **OPGELOST — MED (DOEL 1b — juiste partij "aan zet"; CLAUDE.md regel 1 server-side waarheid):
+>   de ZZP'er was blind voor een vereist certificaat dat mid-plaatsing verloopt, terwijl de
+>   opdrachtgever er wél op werd geattendeerd.** De opdrachtgever-alert `expiringDuringPlacement`
+>   (`collaboration-alerts.ts`) waarschuwt einddatum-verankerd: een vereist certificaat dat ná het
+>   30-daagse venster maar vóór de `Collaboration.endDate` verloopt. De ZZP'er-tegenhanger
+>   (`collaborationCredentialExpiryConcerns`) ankerde uitsluitend op `now + 30 dagen` en gaf géén
+>   `/acties`-taak tot het verval binnen 30 dagen viel — terwijl de ZZP'er de énige is die kan
+>   vernieuwen. Gevolg: bij een plaatsing > 30 dagen zag de opdrachtgever "verloopt vóór het einde van
+>   de opdracht" terwijl de ZZP'ers eigen actielijst leeg bleef (zelfde asymmetrie-klasse als
+>   persona-sweep run 56/57, daar voor missing/expired al gedicht). **Fix:** `CollabRequirementInput`
+>   krijgt een optionele `placementEnd`; de pure helper telt een certificaat óók als zorg wanneer het
+>   vóór díe einddatum lapt (`duringPlacementOnly: true`), en neemt alleen de plaatsingen mee waarvoor
+>   het daadwerkelijk vóór het einde verloopt. De `/acties`-enumerator selecteert nu `endDate` en geeft
+>   het door; de mid-plaatsing-taak krijgt een eigen, lagere band `credentialExpiringDuringPlacement`
+>   (71: boven generiek verlopend 70, onder contractSign 72 én de binnen-venster-variant
+>   credentialExpiringForCollab 73). **Bestanden:** `collaboration-credential-expiry.ts`(+`.test.ts`,
+>   +8 cases rood→groen), `actions/tasks.ts`(+`.test.ts`), `actions/pending-tasks.ts`, `next-actions.ts`.
+> - **GEPARKEERD — LOW: franchiser-roster-certificaat-taken vuren ongeacht een dienst-vereiste.**
+>   `franchiseCredentialExpired/ExpiryTask` heten "job-vereist" in de docstring, maar `pending-tasks.ts`
+>   filtert alleen op `tenantId`+status+niet-verplicht type (geen `credentialRequirements`-gate). Een
+>   roster-ZZP'er met een verlopen niet-verplicht certificaat dat géén dienst vereist, geeft de
+>   bemiddelaar toch een compliance-taak. Mogelijk product-intentie (roster-brede compliance), maar
+>   code en docstring spreken elkaar tegen → of de gate toevoegen, of de docstring bijstellen. Repro:
+>   roster-ZZP'er met verlopen niet-vereist beroepscertificaat → `/acties`-taak bij de franchiser.
+> - **GEPARKEERD — LOW (mogelijk by-design): twee verlopen certificaten van hetzelfde vereiste type
+>   geven dubbele vernieuw-taken op twee banden.** De collab-tak kiest per type het laatst-vervallende
+>   certificaat (`credentialCollabExpiredTask`, band 82), maar de generieke expired-lus (`pending-tasks.ts`)
+>   emit per verlopen certificaat één `credentialFixTask("expired")` (band 69) zonder per-type-dedup —
+>   anders dan de verplichte-document-tak die wél per type dedupt. Bij ≥2 verlopen certificaten van één
+>   vereist type: twee taken naar twee `/certificaten/{id}/bewerken`. Elk certificaat is los vernieuwbaar
+>   (dus mogelijk bedoeld); de inconsistentie met de verplichte-tak is de reden voor de notitie.
+>
+> ---
+
 > **Datum:** 2026-09-05 (persona-sweep, run 2) · **main-commit basis:** `bcc90f27`
 > **Uitkomst:** **3 defecten gevonden én gefixt (dezelfde TOCTOU-klasse).** 3 parallelle adversariële
 > Opus-audits op niet-overlappende oppervlakken:

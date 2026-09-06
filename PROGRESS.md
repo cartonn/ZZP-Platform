@@ -2,6 +2,30 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-06 — persona-sweep: ZZP'er ziet nu ook een mid-plaatsing-certificaatverval (asymmetrie gedicht)
+
+**Wat:** de opdrachtgever kreeg al een einddatum-verankerde waarschuwing als een vereist certificaat ná
+het 30-daagse venster maar vóór de `Collaboration.endDate` verloopt (`expiringDuringPlacement`,
+`collaboration-alerts.ts`), maar de ZZP'er-tegenhanger (`collaborationCredentialExpiryConcerns`) ankerde
+uitsluitend op `now + 30 dagen` en gaf géén `/acties`-taak tot het verval binnen 30 dagen viel — terwijl
+de ZZP'er de énige is die het certificaat kan vernieuwen. Bij een plaatsing > 30 dagen zag de
+opdrachtgever dus "verloopt vóór het einde van de opdracht" terwijl de ZZP'ers eigen actielijst leeg
+bleef. **Waarom:** DOEL 1b (juiste partij "aan zet") + CLAUDE.md regel 1 (server-side waarheid); zelfde
+asymmetrie-klasse die persona-sweep run 56/57 al dichtte voor missing/expired. **Hoe (pure spiegel, geen
+nieuwe UI):** `CollabRequirementInput` krijgt een optionele `placementEnd`; de pure helper telt een
+certificaat óók als zorg wanneer het vóór díe einddatum lapt (`duringPlacementOnly: true`) en neemt
+alléén de plaatsingen mee waarvoor het daadwerkelijk vóór het einde verloopt (een langere plaatsing die
+het wél dekt telt niet mee). De `/acties`-enumerator selecteert nu `Collaboration.endDate` en geeft het
+door; de mid-plaatsing-taak hergebruikt dezelfde `credentialCollabExpiryTask`-verwoording ("verloopt
+tijdens je opdracht") maar op een eigen, lagere band `credentialExpiringDuringPlacement` (71: boven
+generiek verlopend 70, onder contractSign 72 én de binnen-venster-variant credentialExpiringForCollab
+73). **Sweep verder schoon:** live Playwright over alle vier rollen (0× 500, geen privilege-escalatie,
+geen soft-404-oracle) + 2 adversariële Opus-audits (mutatie-authz-keten · next-action-correctheid): 0
+verdere bereikbare gaten; 3 LOW-items geparkeerd in `docs/PERSONA-SWEEP-BACKLOG.md`. **Bestanden:**
+`src/lib/collaboration-credential-expiry.ts` (+`.test.ts`, +8 cases rood→groen), `src/lib/actions/tasks.ts`
+(+`.test.ts`), `src/lib/actions/pending-tasks.ts`, `src/lib/next-actions.ts`. **Checks:** typecheck ✓ ·
+lint ✓ · next-action/actions-tests 233/233 ✓ · prettier ✓ · full test + build via CI-poort.
+
 ## Staat van het product (2-9-2026)
 
 - **Live:** `main` is bron van waarheid én deploy-branch; Railway deployt elke gemergde PR. Poort: 6 vereiste checks + `migrations`-driftcheck, `enforce_admins` AAN. Boot draait `prisma migrate deploy` (geen `db push` meer in productie); `monitor.yml` bewaakt deploy-lag (issue-label `deploy-lag`).
@@ -374,76 +398,3 @@ telling exact blijft (de overige zouden niet-inzetbare opdrachten meetellen).
 `src/app/(protected)/opdrachten/(index)/page.tsx` (wiring in de lege-staat-tak).
 
 **Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (empty-state-relaxations: 15 passed) ✓ · build ✓ (CI-poort verifieert).
-
-## 2026-09-04 — certificaat-vervalkalender → abonneer op je agenda (ZZP'er)
-
-**Wat:** de ZZP'er ziet op `/certificaten` de **vervalkalender** (`ExpiryOverviewCard`) met wat er
-(bijna) verloopt, maar kon die verval-deadlines nergens in zijn eigen agenda-app zetten — terwijl de
-agenda-`.ics`-feed (`/api/agenda` + `/api/agenda/feed.ics`) élk certificaat-verval al meestuurt, mét
-herinneringen 30 en 7 dagen vooraf. De "abonneer op je agenda"-affordance (`AgendaSubscribe`) stond
-alleen op `/samenwerkingen` en `/rooster`. Deze increment verbindt de urgentie (waar de ZZP'er 'm
-voelt) met de oplossing: één klik → verval-reminders in Google/Apple Agenda, zo mist hij geen
-vernieuwing.
-
-**Hoe (klein + additief):** `AgendaSubscribe` kreeg optionele copy-props (`description`,
-`privacyNote`, `downloadName`) met defaults = de huidige rooster-copy, dus de bestaande call-sites
-wijzigen byte-identiek niet. `ExpiryOverviewCard` kreeg een optionele `feedPath`-prop en toont de
-affordance in de kaart-header met certificaat-copy; de certificaten-pagina geeft `agendaFeedPath(actor.id)`
-door (feed uit → nette download-fallback). De alarm-doorlooptijden zijn ontdubbeld naar één bron
-(`CREDENTIAL_EXPIRY_ALARM_DAYS = [30, 7]` in `deadlines.ts`): de `.ics`-mapper hangt exact die alarmen
-aan, en de UI-copy leest dezelfde constante via `formatDayLeadTimes` → feed en belofte lopen nooit uiteen.
-
-**Bestanden:** `src/lib/calendar/deadlines.ts` (constant + `formatDayLeadTimes` + gebruik in mapper),
-`src/lib/calendar/deadlines.test.ts` (+6 cases: invariant feed↔constante, `formatDayLeadTimes`),
-`src/components/agenda/agenda-subscribe.tsx` (copy-props), `src/components/credentials/expiry-overview-card.tsx`
-(`feedPath`-prop + affordance), `src/app/(protected)/certificaten/(index)/page.tsx` (wiring).
-
-**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (calendar/deadlines: 19 passed) ✓ · build (CI-poort verifieert).
-
-## 2026-09-04 — dedup: /admin/audit consolideert in de toezicht-hub (met CSV-export)
-
-**Wat:** het audit-log was de laatste losse toezicht-route die náást de toezicht-hub bleef bestaan
-(`/admin/dba`, `/admin/avg`, `/admin/bewaking` leiden al permanent om naar `/admin/toezicht?tab=…`).
-`/admin/audit` bleef staan omdat de standalone-pagina een **CSV-export** had die de hub-audit-tab miste
-(pakket E liet 'm daarom staan om functieverlies te voorkomen). Voor de ADMIN betekende dat twee plekken
-voor hetzelfde paneel — en de export zat op de verkeerde.
-
-**Fix (mirror van dba/avg):** de CSV-export + de "N gebeurtenis(sen)"-telling verhuizen naar het gedeelde
-`AuditPanel` (nieuwe pure helper `auditExportHref` in `admin.ts` bouwt één canoniek exportpad
-`/admin/audit/export`, negeert de paginering, url-encodeert de filters). Daardoor krijgt de hub-audit-tab
-de export vanzelf — geen functieverlies. `/admin/audit/page.tsx` wordt nu een `permanentRedirect` via
-`hubRedirectTarget("/admin/toezicht", "audit", …)` die de actie-/entiteit-/pagina-filters meeneemt, zodat
-oude deeplinks/bladwijzers blijven werken. De export-route (`/admin/audit/export`, ADMIN-only) blijft; de
-overbodige `loading.tsx` van de redirect-route is verwijderd. Dode `countAuditEntries` (alleen de oude
-pagina gebruikte 'm; `AuditPanel` telt zelf) opgeruimd. Server-side rol-poort ongewijzigd (`requireRole`
-draait vóór de redirect).
-
-**Bestanden:** `src/lib/admin.ts` (+ `.test.ts`: +3 cases), `src/lib/hub-redirect.test.ts` (+1 case),
-`src/components/admin/audit-panel.tsx`, `src/app/(protected)/admin/audit/page.tsx` (nu redirect),
-`src/app/(protected)/admin/audit/loading.tsx` (verwijderd).
-
-**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (admin + hub-redirect: 14 passed) ✓ · build (CI-poort verifieert).
-
-## 2026-09-04 — prod: routing-provider hot-path time-out + transiënte retry (silent-hang-vangnet) (#1384)
-
-**Wat:** de échte Geoapify geocode-/route-fetches (`src/lib/services/routing.ts`, `fetchJson`) op de
-match-hot-path gebruikten als **enige** uitgaande productie-integratie een **kale `fetch`** — zonder
-deadline en zonder retry — terwijl de routing-connectiviteitszelftest (én billing/e-mail/rate-limit/
-verify) al `fetchWithTimeout` gebruikte. Een trage/hangende provider blokkeerde zo de match-request
-onbeperkt (silent-hang/resource-exhaustion onder last); één transiënte 5xx/429/netwerk-blip liet de
-lookup onnodig terugvallen op de haversine-schatting **én** trip de routing dead-man's-switch-heartbeat
-(valse page).
-
-**Fix (spiegelt `http-verify.ts`):** `fetchJson` deelt nu de gehardende `fetchWithTimeout` (env
-`ROUTING_HTTP_TIMEOUT_MS`, al door de zelftest gebruikt, geklemd 1000–60000) en doet een **begrensde
-retry-met-exponentiële-backoff** bij transiënte fouten (netwerk/time-out/5xx/429), instelbaar via
-`ROUTING_HTTP_RETRIES` (geklemd 0–5, default 2). Geocode/route zijn read-only GETs → retry
-idempotent-veilig; een 4xx (verkeerde sleutel) of onleesbare JSON faalt meteen. De heartbeat registreert
-alleen de **einduitkomst** (één succes, of één mislukking na uitputte retries) — een blip die op de retry
-herstelt laat de mislukkingen-teller niet onnodig oplopen. Inert bij `ROUTING_PROVIDER=offline` (de
-pilot-default): geen provider actief, geen gedragsverandering. Server-side; geen schema/migratie/authz.
-
-**Bestanden:** `src/lib/services/routing.ts` (+ `.test.ts`: 20 tests, incl. retry-herstel op 503,
-niet-transiënte 401 zonder retry, uitgeputte 429 = één mislukking, `resolveRoutingRetries`/backoff-klem).
-
-**Checks:** typecheck ✓ · lint ✓ · prettier --check . ✓ · unit (routing) ✓ · build (CI-poort verifieert).
