@@ -15,6 +15,8 @@ const state = vi.hoisted(() => ({
     availability: string;
     user: { name: string | null; identityVerifiedAt: Date | null; lastLoginAt: Date | null };
     credentials: { type: string; status: string; expiresAt: Date | null }[];
+    // Lopende (ACTIVE) samenwerkingen — voedt het bench-/re-engagement-signaal (dormancy).
+    _count: { collaborations: number };
   }[],
   stale: [] as { id: string; title: string; createdAt: Date }[],
   // Open (gepubliceerde) diensten voor de acute-aggregaattaak: id + startdatum + actieve-collab-telling.
@@ -179,6 +181,7 @@ import { RENEWAL_WINDOW_DAYS, RENEWAL_OVERDUE_GRACE_DAYS } from "@/lib/collabora
 const ACTOR = { id: "user-franchiser", role: "FRANCHISER", status: "ACTIVE" } as const;
 
 const now = new Date();
+const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000);
 const engaged = {
   id: "prof-actief",
   completeness: 100,
@@ -188,6 +191,7 @@ const engaged = {
     { type: "VOG", status: "VERIFIED", expiresAt: null },
     { type: "INSURANCE", status: "VERIFIED", expiresAt: null },
   ],
+  _count: { collaborations: 0 },
 };
 const notEngaged = {
   id: "prof-inactief",
@@ -196,6 +200,20 @@ const notEngaged = {
   // Geen VOG/verzekering → verplichte documenten ontbreken → computeEngageability = INACTIEF.
   user: { name: "Niet-inzetbare ZZP'er", identityVerifiedAt: null, lastLoginAt: now },
   credentials: [] as { type: string; status: string; expiresAt: Date | null }[],
+  _count: { collaborations: 0 },
+};
+// Inzetbaar (VOG/verzekering geverifieerd), op de bench (geen ACTIVE-collab) én lang niet ingelogd →
+// stilgevallen: een re-engagement-doel.
+const dormantBench = {
+  id: "prof-bench",
+  completeness: 100,
+  availability: "AVAILABLE",
+  user: { name: "Bench ZZP'er", identityVerifiedAt: now, lastLoginAt: daysAgo(75) },
+  credentials: [
+    { type: "VOG", status: "VERIFIED", expiresAt: null },
+    { type: "INSURANCE", status: "VERIFIED", expiresAt: null },
+  ],
+  _count: { collaborations: 0 },
 };
 
 beforeEach(() => {
@@ -269,6 +287,47 @@ describe("bemiddelaar next-actions — niet-inzetbare ZZP'er telt op /acties + b
     const notEng = tasks.filter((t) => t.kind === "franchise-not-engageable");
     expect(notEng).toHaveLength(1);
     expect(notEng[0]?.id).toBe("franchise-not-engageable:prof-inactief");
+  });
+});
+
+describe("bemiddelaar next-actions — stilgevallen bench-ZZP'er (franchise-roster-reengagement)", () => {
+  it("emitteert een re-engagement-taak voor een inzetbare, benched, lang-niet-ingelogde ZZP'er", async () => {
+    state.roster = [dormantBench];
+    const tasks = await pendingTasks(ACTOR);
+    const t = tasks.find((x) => x.kind === "franchise-roster-reengagement");
+    expect(t).toBeDefined();
+    expect(t?.id).toBe("franchise-roster-reengagement:prof-bench");
+    expect(t?.tone).toBe("attention");
+    expect(t?.href).toBe("/franchise/zzpers/prof-bench");
+    expect(t?.title).toContain("Bench ZZP'er");
+    expect(t?.subtitle).toContain("75");
+  });
+
+  it("géén re-engagement-taak voor een recent-ingelogde of een ingezette (ACTIVE-collab) ZZP'er", async () => {
+    // engaged = recent ingelogd; dazedButPlaced = lang niet ingelogd maar mét een lopende opdracht →
+    // engaged via het werk, geen re-engagement-doel.
+    const dazedButPlaced = {
+      ...dormantBench,
+      id: "prof-geplaatst",
+      _count: { collaborations: 1 },
+    };
+    state.roster = [engaged, dazedButPlaced];
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.kind === "franchise-roster-reengagement")).toBe(false);
+  });
+
+  it("een niet-inzetbaar bench-lid krijgt de blokkerende taak, niet óók de re-engagement-nudge", async () => {
+    // Zelfde bench-conditie (oud login, geen collab), maar niet inzetbaar → de plaatsing-blokkerende
+    // taak surfacet de persoon al; geen tweede, lager-geprioriteerde re-engagement-rij (rust boven ruis).
+    const notEngagedBench = {
+      ...notEngaged,
+      id: "prof-inactief-bench",
+      user: { name: "Bench niet-inzetbaar", identityVerifiedAt: null, lastLoginAt: daysAgo(80) },
+    };
+    state.roster = [notEngagedBench];
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.kind === "franchise-roster-reengagement")).toBe(false);
+    expect(tasks.some((t) => t.kind === "franchise-not-engageable")).toBe(true);
   });
 });
 

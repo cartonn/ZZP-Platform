@@ -125,6 +125,7 @@ export type PendingTask =
   | (TaskBase & { kind: "franchise-stale-service-rollup" })
   | (TaskBase & { kind: "franchise-collaboration-renewal"; collabId: string })
   | (TaskBase & { kind: "franchise-client-reengagement"; companyId: string })
+  | (TaskBase & { kind: "franchise-roster-reengagement"; profileId: string })
   | (TaskBase & { kind: "franchise-guided-setup"; step: string })
   | (TaskBase & {
       kind: "shift-handoff-decide";
@@ -1489,6 +1490,34 @@ export function franchiseClientReengagementTask(
     resolver: "link",
     href: `/franchise/opdrachtgevers/${companyId}`,
     companyId,
+  };
+}
+
+/**
+ * Een roster-ZZP'er is stilgevallen: hij zit op de bench (geen lopende samenwerking) én logde
+ * ≥ `DORMANT_IDLE_DAYS` niet meer in. De aanbod-spiegel van {@link franchiseClientReengagementTask}:
+ * precies de vakmens die de bemiddelaar proactief moet benaderen vóór hij afkoelt en stil naar een
+ * concurrent wegdrijft (benchmark: staffing-platformen bewaken werker-engagement). Het signaal stond
+ * al op de roster-lijst (`/franchise/zzpers`) via `classifyRosterDormancy`, maar niet op /acties of in
+ * een badge — hetzelfde "signaal op één oppervlak"-anti-patroon dat de codebase herhaaldelijk dicht.
+ * Zelfde pure classificatie (`classifyRosterDormancy`) als die roster-lijst, dus de oppervlakken
+ * driften niet. Deep-link naar het ZZP'er-dossier waar de bemiddelaar de relatie kan opvolgen.
+ */
+export function franchiseRosterReengagementTask(
+  profileId: string,
+  freelancerName: string,
+  daysIdle: number,
+): PendingTask {
+  return {
+    kind: "franchise-roster-reengagement",
+    id: `franchise-roster-reengagement:${profileId}`,
+    title: `${freelancerName} is stilgevallen — benader voor hij afhaakt`,
+    subtitle: `Op de bench, geen lopende opdracht · ${plural(daysIdle, "dag", "dagen")} niet ingelogd`,
+    tone: "attention",
+    priority: P.franchiserRosterReengagement,
+    resolver: "link",
+    href: `/franchise/zzpers/${profileId}`,
+    profileId,
   };
 }
 

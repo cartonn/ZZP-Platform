@@ -10,6 +10,33 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-06 — routine: stilgevallen bench-ZZP'er als /acties-taak voor de bemiddelaar (re-engagement)
+
+**Wat:** het roster-dormancy-signaal (`classifyRosterDormancy`, `roster-dormancy.ts`: een inzetbare
+vakmens die op de bench zit — geen lopende opdracht — én ≥`DORMANT_IDLE_DAYS` (60) niet inlogde) leefde
+op **één** oppervlak: de roster-lijst `/franchise/zzpers`. Het verscheen niet op `/acties`, in de
+zijbalk-badge of op de dashboard-rail — precies het "signaal op één oppervlak"-anti-patroon dat de
+codebase herhaaldelijk dicht. **Waarom:** een afgekoelde, niet-ingezette vakmens drijft stil weg naar een
+concurrent; dit is dé proactieve re-engagement-actie van de bemiddelaar (benchmark: staffing-platformen
+bewaken werker-engagement). Aanbod-spiegel van de reeds gemergde `franchiseClientReengagementTask`
+(stilgevallen opdrachtgever), die exact dezelfde single-surface-fout voor de vraag-kant dichtte. **Hoe
+(server-side waarheid, DRY):** nieuwe item-taak `franchiseRosterReengagementTask` (`actions/tasks.ts`,
+kind `franchise-roster-reengagement`, `resolver: "link"` → deep-link naar het ZZP'er-dossier
+`/franchise/zzpers/[id]`), gewired in `franchiserTasks` (`actions/pending-tasks.ts`) via **dezelfde pure
+`classifyRosterDormancy`** als de roster-lijst — geen herberekening die kan driften. De roster-query
+kreeg de bench-telling `_count.collaborations (ACTIVE)` erbij (zelfde definitie als de lijst). Alleen de
+`dormant`-tier levert een taak; `cooling` blijft een zacht lijst-only signaal (rust boven ruis). Een
+**niet-inzetbaar** bench-lid krijgt alleen de hoger-geprioriteerde blokkerende `franchise-not-engageable`-
+taak, niet óók de re-engagement-nudge (geen dubbele rij voor één persoon). Prioriteit
+`P.franchiserRosterReengagement = 54`: onder de klant-re-engagement (55 — een hele vraag-relatie), boven
+koude lead-opvolging (50 — bestaande relatie > koude acquisitie); rol-geïsoleerd (franchiser-only).
+**Bestanden:** `src/lib/next-actions.ts` (P-band), `src/lib/actions/tasks.ts` (union + builder),
+`src/lib/actions/pending-tasks.ts` (import + roster-`_count` + emit), `src/lib/actions/tasks.test.ts`
+(builder-vorm/rangschikking), `src/lib/actions/pending-tasks-franchiser.test.ts` (+3 emit-cases: dormant
+→ taak; recent/ingezet → geen taak; niet-inzetbaar bench → alleen de blokkerende taak). **Checks:**
+typecheck ✓ · lint ✓ · prettier ✓ · unit 8271 passed (incl. de nieuwe cases) · build (CI-poort
+verifieert). **PR #1403.**
+
 ## 2026-09-06 — prod: Grafana-dashboard voor /api/metrics (observability-triade compleet)
 
 **Wat:** de observability-bundle had de gauges (`/api/metrics`, ~70 stuks via `buildMetrics`) en de
