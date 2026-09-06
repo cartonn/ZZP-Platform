@@ -14,9 +14,11 @@
 > - **Mutatie-authz-audit** (`account/profiel/bedrijf/beschikbaarheid/certificaten/documenten/reacties/
 opdrachten/berichten/notificaties/favorieten/ideeen/support/academie` + minder-belopen admin): **0
 >   bereikbare gaten** — élke mutatie volgt auth→rol→ownership→Zod→actie→audit met anti-oracle "niet
->   gevonden", compound-guarded transities en gebonde Zod. Eén niet-security-notitie geparkeerd
->   (`account/actions.ts` `verifyIdentity` mist de rate-limiter die de credential-verify-paden wél
->   hebben — niet exploiteerbaar: mock is prod-geblokkeerd, echte iDIN is out-of-band).
+>   gevonden", compound-guarded transities en gebonde Zod. Eén niet-security-notitie
+>   **GEDAAN (2026-09-06, PR #1406)**: `account/actions.ts` `verifyIdentity` miste de rate-limiter die
+>   de credential-verify-paden wél hebben — niet exploiteerbaar (mock is prod-geblokkeerd, echte iDIN is
+>   out-of-band), maar een robuustheids-/consistentie-gat. Gefixt met `identityVerifyRateLimiter`
+>   (10/uur per actor, parity met `credentialVerifyRateLimiter`), gecheckt direct ná `requireActor()`.
 > - **Next-action-correctheid-audit** (`pending-tasks.ts`/`tasks.ts`/`next-actions.ts`/`cascade/*` +
 >   summarizers): prioriteitsbanden, hrefs, dedup, drempel-math, stale-guards en cascade-stage/
 >   completion allemaal geverifieerd sound. **1 defect (MED) → OPGELOST**, 2 items geparkeerd (LOW).

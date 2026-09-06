@@ -5,6 +5,7 @@ import { requireActor } from "@/lib/authz";
 import { toSafeActionError } from "@/lib/safe-action-error";
 import { auditData } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import { identityVerifyRateLimiter } from "@/lib/rate-limit";
 import { getIdentityVerifier } from "@/lib/services/identity-verifier";
 import {
   mockVerificationBlocked,
@@ -21,6 +22,13 @@ export async function verifyIdentity(
   formData: FormData,
 ): Promise<IdentityState> {
   const actor = await requireActor();
+  // Anti-brute-force: de zelf-verificatie legt bij succes de geverifieerde juridische naam vast en zet
+  // `identityVerifiedAt` (basis voor het vertrouwensniveau) zonder admin — begrens de directe aanroepen
+  // per gebruiker per uur (parity met de DUO/BIG-credential-zelfverificatie). Vóór de user-lookup én de
+  // uitgaande iDIN-round-trip, zodat een flood geen provider-calls of audit-schrijf uitlokt.
+  if (!(await identityVerifyRateLimiter.check(`verify:${actor.id}`)).allowed) {
+    return { error: "Te veel verificatiepogingen. Probeer het later opnieuw." };
+  }
   const user = await prisma.user.findUnique({
     where: { id: actor.id },
     select: { name: true, identityVerifiedAt: true },

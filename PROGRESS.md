@@ -2,6 +2,28 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-06 — routine: anti-brute-force rem op identiteitsverificatie (parity met DUO/BIG)
+
+**Wat:** `account/actions.ts verifyIdentity` — de zelf-verificatie die bij succes `identityVerifiedAt`
+
+- de geverifieerde juridische naam vastlegt (dé basis voor het vertrouwensniveau en de naamcontrole bij
+  credentials) **zonder admin-tussenkomst** — miste als enige zelf-verificatie-oppervlak de anti-brute-force
+  rate-limiter die de DUO/BIG-credential-zelfverificatie (`verifyCredentialViaDuo/Big`,
+  `credentialVerifyRateLimiter`) wél heeft. **Waarom:** defense-in-depth/consistentie (geparkeerde LOW-notitie
+  uit persona-sweep run 3, `docs/PERSONA-SWEEP-BACKLOG.md`). De actie is direct aanroepbaar; zonder rem is ze
+  geautomatiseerd te bombarderen — in productie doet elke poging een uitgaande iDIN-round-trip (kosten-/
+  oracle-amplificatie richting de provider) en een geweigerde poging schrijft een auditregel. Niet acuut
+  exploiteerbaar (mock is prod-geblokkeerd, echte iDIN is out-of-band), maar het gat is een robuustheids-/
+  consistentie-defect. **Hoe (server-side, DRY):** nieuwe singleton `identityVerifyRateLimiter` (10/uur per
+  `actor.id`, env `IDENTITY_VERIFY_RATE_LIMIT`, parity met `credentialVerifyRateLimiter`) in `rate-limit.ts`;
+  `verifyIdentity` checkt de rem **direct ná `requireActor()`**, vóór de user-lookup én de provider-call, en
+  geeft bij overschrijding `{ error: "Te veel verificatiepogingen…" }` — exact het patroon van de credential-
+  verify-paden. **Bestanden:** `src/lib/rate-limit.ts` (+singleton), `src/app/(protected)/account/actions.ts`
+  (import + check), `.env.example` (doc-regel), `src/app/(protected)/account/verify-identity-ratelimit.test.ts`
+  (nieuw, 3 cases: overschreden rem → afkap vóór verifier/schrijf; key op `verify:<actor.id>`; toegestaan →
+  doorloop). **Checks:** typecheck ✓ · lint ✓ · gerichte test 3/3 ✓ · prettier ✓ · full test + build via
+  CI-poort. **PR #1406.**
+
 ## 2026-09-06 — routine: verlopen-certificaat-taken deduppen per type (ZZP'er /acties — rust boven ruis)
 
 **Wat:** de generieke verlopen-certificaat-tak in `pending-tasks.ts` gaf één `credentialFixTask("expired")`

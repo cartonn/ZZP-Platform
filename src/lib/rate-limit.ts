@@ -581,6 +581,23 @@ export const credentialVerifyRateLimiter = new RateLimiter(
 );
 
 /**
+ * Maximaal IDENTITY_VERIFY_RATE_LIMIT (default 10) identiteitsverificatiepogingen (iDIN/eIDAS) per
+ * gebruiker per uur. De zelf-verificatie (`account/actions.ts verifyIdentity`) legt bij succes de
+ * geverifieerde juridische naam vast en zet `identityVerifiedAt` — dé basis voor het vertrouwensniveau
+ * en de naamcontrole bij credentials — zónder admin-tussenkomst, precies zoals de DUO/BIG-zelf-
+ * verificatie. Zonder rem is de directe-aanroepbare actie geautomatiseerd te bombarderen: elke poging
+ * doet in productie een uitgaande iDIN-round-trip (kosten-/oracle-amplificatie richting de provider) en
+ * een geweigerde poging schrijft een auditregel. Gekeyd op `actor.id` (de aanroeper heeft al een
+ * sessie); parity met `credentialVerifyRateLimiter` (10 / uur) — defense-in-depth naast de auth-poort.
+ */
+export const identityVerifyRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("IDENTITY_VERIFY_RATE_LIMIT", 10),
+  60 * 60_000,
+  "identityverify:",
+);
+
+/**
  * Maximaal MESSAGE_RATE_LIMIT (default 30) berichten per gebruiker per 5 minuten. Spam-rem op
  * het 1-op-1-kanaal; ruim boven normaal gebruik, maar stopt scripts en plak-loops.
  */
