@@ -78,7 +78,7 @@ import { Select } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { EngageabilityBadge } from "@/components/engageability-badge";
 import { plural } from "@/lib/plural";
-import { ZzperForm } from "./zzper-form";
+import { ZzperForm } from "../zzper-form";
 
 export const metadata: Metadata = { title: "ZZP'ers · Bemiddeling" };
 
