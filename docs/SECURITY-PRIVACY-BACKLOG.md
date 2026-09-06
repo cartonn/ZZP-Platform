@@ -4,6 +4,64 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-06 (basis: `main` @ d1357106) — 3 parallelle adversariële audits + orchestrator-verificatie: 1 gat gefixt, 3 geparkeerd
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(A — webhooks/publieke API-routes; B — cross-tenant + de delta sinds `d8f165be`; C — privacy/AVG, erasure,
+exports/PDF/dossier, k-anonimiteit, PII-in-logs). Orchestrator-sweep los: middleware/RBAC, security-headers/CSP,
+`npm audit` (0 productie-vulns), reset-token-/2FA-crypto, storage-key/path-traversal, SSRF-oppervlak. App gebouwd
+
+- geseed (`SEED_DEMO=true`, qa.db, `STORAGE_DRIVER=local`).
+
+**GEFIXT deze ronde:**
+
+- **[MIDDEL-HOOG · k-anonimiteit — publiek vertrouwensdossier] — OPGELOST (deze PR).** Het deelbare, publieke,
+  **onauthentieke** vertrouwensdossier (`/vertrouwen/[profileId]/[token]`) toonde een "geaggregeerd"
+  beoordelingscijfer óók bij één beoordeling: "Gemiddeld cijfer over **1** beoordeling: 2,0 ★" — dat is niet
+  geaggregeerd maar het exacte, individueel-herleidbare cijfer van één opdrachtgever, gelekt aan het hele
+  internet. Bij twee beoordelingen kan een beoordelaar het cijfer van de ander herleiden (ander = 2·gemiddelde −
+  eigen). **Geschonden:** AVG art. 5(1)(f) + art. 25 (privacy by design) én de eigen, elders al vastgelegde
+  privacyregel (PROGRESS.md 16-8: "alleen geaggregeerd … nooit individuele beoordelingen") — dezelfde faalklasse
+  die het platform al erkende en dichtte voor marktbanden (`MARKET_RATE_MIN_SAMPLE = 10`), maar bij beoordelingen
+  gemist. **Repro:** ZZP'er rondt precies één samenwerking af en krijgt één `PUBLISHED CLIENT_ON_FREELANCER`-review
+  (eenzijdige reveal is toegestaan); iedereen met de bearer-URL ziet dan dat ene cijfer. **Fix:** nieuwe
+  k-anonimiteitsvloer `REVIEW_AGGREGATE_MIN_SAMPLE = 3` (`src/lib/config.ts`); `freelancerReputationFromReviews`
+  (`src/lib/freelancer-reputation.ts`) geeft `null` onder de vloer → de publieke pagina laat de sectie weg.
+  Test rood→groen: `src/lib/freelancer-reputation.test.ts` (n=1 en n=2 → null; ≥3 → getoond).
+
+**GEPARKEERD deze ronde (met repro; geen agent-blocker):**
+
+- **[MIDDEL · beoordelingsaggregatie — in-app spiegelfuncties]** `src/lib/data/company-reputation.ts` (cijfer dat
+  een prospect-ZZP'er over een opdrachtgever ziet op de opdracht-detailpagina) en `src/lib/candidate-reviews.ts`
+  (cijfer dat een opdrachtgever over een ZZP'er ziet op `/kandidaten`) gaten óók alleen op `count > 0`, niet op de
+  nieuwe vloer. **Lagere severity:** de kijker is een geauthenticeerde tegenpartij met gerechtvaardigd belang, geen
+  publiek internet. Toch dezelfde herleidbaarheid bij n=1/n=2. **Aanbevolen fix:** dezelfde
+  `REVIEW_AGGREGATE_MIN_SAMPLE`-vloer toepassen op beide, mits de eigenaar akkoord is met de in-app-UX-consequentie
+  (een tegenpartij ziet dan pas vanaf 3 beoordelingen een cijfer). **Geschonden:** AVG art. 25, consistentie met de
+  zojuist gefixte publieke variant.
+- **[MIDDEL · spoofbare afzender — mail-intake-fallback]** `src/app/api/mail-intake/webhook/route.ts:110-118` +
+  `src/lib/mail-intake.ts:90-97`. De webhook is transport-geauthenticeerd (gedeeld secret), maar de tweede
+  match-tak koppelt een binnengekomen mail aan een echt CLIENT-account puur op het **`From`-adres** (spoofbaar) —
+  zonder SPF/DKIM/DMARC-controle (de payload-schema draagt die auth-resultaten niet eens). **Repro:** wie het
+  account-e-mailadres van een opdrachtgever kent (vaak zichtbaar op profielen/opdrachten) stuurt een mail met
+  vervalste `From:` naar het intake-adres; die belandt als NEW-aanvraag in de review-queue van het slachtoffer, met
+  volledig door de aanvaller bepaalde inhoud, en lijkt zelf-gegenereerd. **Gemitigeerd** door de verplichte
+  menselijke review vóór publicatie (geen directe state-change op een live opdracht), vandaar MIDDEL. **Aanbevolen
+  fix:** de afzender-e-mail-fallback achter een expliciete opt-in-env zetten (default UIT, conform CLAUDE.md regel 8
+  "integraties default inert") en alleen op de alias-capability-token-tak vertrouwen; óf de fallback pas vertrouwen
+  bij een positief SPF/DKIM/DMARC-resultaat (schema uitbreiden). Trust-model-keuze → mensenwerk (MENSENWERK.md §5).
+- **[LAAG · info-disclosure — liveness-probes]** `/api/health` + `/api/readiness` geven de commit-SHA (7 tekens) aan
+  onauthentieke callers. Geen secret/PII; bewuste, gangbare praktijk voor infra-probes. **Aanbevolen (optioneel):**
+  `commit`/`builtAt` achter `CRON_SECRET` zetten (zoals `/api/metrics`), en anoniem alleen `{status, db}` teruggeven.
+
+**CLEAN bevonden deze ronde (geen bevinding):** cross-tenant FRANCHISER-isolatie (3e ronde clean; geen logica-delta),
+de reach-preview-delta (`estimateJobReach` — geaggregeerd, tenant-gescoopt, rate-limited), aanmaning-generator
+(pure template, `<pre>`-render), erasure-volledigheid (`account-anonymization.ts` + schema-coverage-gate), alle
+export/PDF/dossier-routes (auth→rol→ownership→audit, anti-oracle-404, CSV via `escapeCsvField`), PII-redactie in
+logs, marktband-k-anonimiteit, billing-/mail-intake-transport-auth (HMAC/idempotentie), push-SSRF-allowlist,
+agenda-ICS-escaping, media-path-traversal (DB-gematchte key), cron-auth (timing-safe), reset-token-/2FA-crypto,
+security-headers/CSP-nonce.
+
 ## Ronde 2026-09-05 (2e, basis: `main` @ d8f165be) — 3 parallelle adversariële audits + orchestrator-verificatie: GEEN nieuwe gaten
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
