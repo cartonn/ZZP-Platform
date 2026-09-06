@@ -2,6 +2,26 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-06 — bemiddelaar: churn-risico-tiering + "bel de koudste eerst" op de klantenlijst
+
+**Wat:** de bemiddelaar-cockpit `/franchise/opdrachtgevers` toonde stilgevallen klanten (`attention`) als
+één ongesorteerde hoop met een generieke "Stilgevallen"-chip — bij een pool van tientallen klanten geen
+antwoord op "wie bel ik het eerst?". Elke bemiddeling/CRM (benchmark Bullhorn/PIDZ-regiokantoor) tiert
+koude accounts op verval-risico. **Nu:** (a) stilgevallen klanten worden getierd op koude-duur —
+`watch` (30–59 dagen) vs. `high` (≥ `CLIENT_CHURN_RISK_DAYS` = 60), (b) de rij-chip draagt de concrete
+duur + escalerende toon ("Stilgevallen · 34 dagen" warning → "Lang stil · 72 dagen" danger), (c) de
+klantenlijst sorteert op `clientOutreachRank` — stilgevallen (koudste eerst) → plaatst nu → rustig, zodat
+wat actie vraagt bovenaan komt (Noord-ster), en (d) strip + headline lichten het hoog-risico-aantal eruit
+("… 2 al langer dan 60 dagen: bel die eerst."). Pure, server-side afgeleide presentatie (geen mutatie/
+schema/authz-oppervlak); de sortering is stabiel (V8) dus gelijke rang behoudt de createdAt-desc-volgorde.
+**Hoe:** nieuwe pure exports in `src/lib/franchise/client-health.ts` — `CLIENT_CHURN_RISK_DAYS`,
+`clientChurnRisk`, `clientOutreachRank`, `clientAttentionChip` + `ClientHealthSummary.attentionHigh`
+(deelverzameling van `attention`); `summarizeClientHealth`/`clientHealthHeadline` verrijkt. Geen drift met
+`signals.ts` (leest nog `.attention`). **Bestanden:** `client-health.ts` (+ `.test.ts`, 34 tests, +18),
+`components/franchise/client-health-strip.tsx`, `app/(protected)/franchise/opdrachtgevers/(index)/page.tsx`.
+**Checks:** typecheck ✓ · lint ✓ · prettier (hele repo) ✓ · unit 8322 ✓ (de 2 `react-render-phase-ping`
+env-only, groen na `npx patch-package` — CI draait dit) · build ✓ · CI-poort verifieert.
+
 ## 2026-09-06 — robuustheid: lengte-cap op identiteits-/betaalvelden (KvK/BTW/IBAN) vóór de format-check
 
 **Wat:** vier vrije-tekstvelden in de Zod-schema's die directe server-actions voeden — de KvK bij de
