@@ -148,6 +148,87 @@ describe("collaborationCredentialExpiryConcerns", () => {
     });
     expect(result[0]!.daysUntilExpiry).toBe(0);
   });
+
+  it("markeert een binnen-venster-verval als duringPlacementOnly=false", () => {
+    const result = collaborationCredentialExpiryConcerns({
+      collaborations: [collab()],
+      credentials: [cred({ expiresAt: inDays(10) })],
+      now: NOW,
+    });
+    expect(result[0]!.duringPlacementOnly).toBe(false);
+  });
+
+  it("markeert een certificaat dat ná het venster maar vóór de einddatum van de plaatsing verloopt", () => {
+    const result = collaborationCredentialExpiryConcerns({
+      collaborations: [
+        collab({ placementEnd: inDays(90) }), // plaatsing loopt tot dag 90
+      ],
+      credentials: [
+        cred({ expiresAt: inDays(60) }), // buiten het 30-daagse venster, maar vóór dag 90
+      ],
+      now: NOW,
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.credentialId).toBe("cred-vog");
+    expect(result[0]!.daysUntilExpiry).toBe(60);
+    expect(result[0]!.duringPlacementOnly).toBe(true);
+  });
+
+  it("negeert een certificaat dat buiten het venster verloopt én de hele plaatsing dekt", () => {
+    const result = collaborationCredentialExpiryConcerns({
+      collaborations: [
+        collab({ placementEnd: inDays(40) }), // plaatsing loopt tot dag 40
+      ],
+      credentials: [
+        cred({ expiresAt: inDays(60) }), // verloopt ná de einddatum → dekt de plaatsing volledig
+      ],
+      now: NOW,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it("negeert een certificaat dat ná het venster verloopt bij een open-einde-plaatsing (geen placementEnd)", () => {
+    const result = collaborationCredentialExpiryConcerns({
+      collaborations: [collab({ placementEnd: null })],
+      credentials: [cred({ expiresAt: inDays(60) })],
+      now: NOW,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it("negeert een plaatsing met een verstreken einddatum (geen ruis op een reeds-verlopen inzet)", () => {
+    const result = collaborationCredentialExpiryConcerns({
+      collaborations: [collab({ placementEnd: inDays(-5) })],
+      credentials: [cred({ expiresAt: inDays(60) })],
+      now: NOW,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it("neemt alleen de plaatsingen mee waarvoor het certificaat vóór het einde lapt (mix)", () => {
+    const result = collaborationCredentialExpiryConcerns({
+      collaborations: [
+        collab({ collaborationId: "lang", placementEnd: inDays(90) }), // lapt vóór einde → mee
+        collab({ collaborationId: "kort", placementEnd: inDays(40) }), // certificaat dekt hele plaatsing → niet
+      ],
+      credentials: [cred({ expiresAt: inDays(60) })],
+      now: NOW,
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.duringPlacementOnly).toBe(true);
+    expect(result[0]!.collaborations.map((c) => c.collaborationId)).toEqual(["lang"]);
+  });
+
+  it("blijft een binnen-venster-verval markeren ongeacht de einddatum van de plaatsing", () => {
+    const result = collaborationCredentialExpiryConcerns({
+      collaborations: [collab({ placementEnd: inDays(5) })], // korte plaatsing
+      credentials: [cred({ expiresAt: inDays(10) })], // binnen venster, maar ná de einddatum
+      now: NOW,
+    });
+    // Binnen het venster is en blijft het een zorg (imminent verval), los van de plaatsing-einddatum.
+    expect(result).toHaveLength(1);
+    expect(result[0]!.duringPlacementOnly).toBe(false);
+  });
 });
 
 describe("collaborationExpiredRequiredCredentials", () => {

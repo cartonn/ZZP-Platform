@@ -711,6 +711,9 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     where: credentialCollabWhere(userId),
     select: {
       id: true,
+      // Einddatum verankert de mid-plaatsing-verval-waarschuwing (spiegel van de opdrachtgever-alert):
+      // een vereist certificaat dat ná het venster maar vóór de einddatum lapt, is ook een zorg.
+      endDate: true,
       job: {
         select: {
           title: true,
@@ -726,6 +729,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     collaborationId: c.id,
     companyName: c.company.name,
     jobTitle: c.job.title,
+    placementEnd: c.endDate,
     requiredTypes: c.job.credentialRequirements.map(
       (r) => r.credentialType as CollabCredentialInput["type"],
     ),
@@ -753,6 +757,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         companyName: primary.companyName,
         jobTitle: primary.jobTitle,
         extraCollabCount: rest.length,
+        duringPlacementOnly: concern.duringPlacementOnly,
       }),
     );
   }

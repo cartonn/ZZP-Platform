@@ -466,6 +466,14 @@ export function credentialCollabExpiryTask(input: {
   companyName: string;
   jobTitle: string;
   extraCollabCount: number;
+  /**
+   * `true` = het certificaat verloopt pas ná het 30-daagse venster, maar vóór de einddatum van de
+   * plaatsing (einddatum-verankerd; `duringPlacementOnly` uit `collaborationCredentialExpiryConcerns`).
+   * Minder imminent dan een binnen-venster-verval, dus een lagere band (credentialExpiringDuringPlacement
+   * 71 i.p.v. credentialExpiringForCollab 73). De verwoording is identiek ("verloopt tijdens je opdracht"):
+   * het venster-onderscheid is puur een urgentie-, geen boodschapsverschil.
+   */
+  duringPlacementOnly?: boolean;
 }): PendingTask {
   const { daysUntilExpiry, companyName, jobTitle, extraCollabCount } = input;
   const when =
@@ -481,7 +489,9 @@ export function credentialCollabExpiryTask(input: {
     title: `${input.credentialTitle} verloopt tijdens je opdracht`,
     subtitle: `${when} · vernieuw het voor je opdracht bij ${companyName} (${jobTitle})${extra}`,
     tone: "attention",
-    priority: P.credentialExpiringForCollab,
+    priority: input.duringPlacementOnly
+      ? P.credentialExpiringDuringPlacement
+      : P.credentialExpiringForCollab,
     resolver: "link",
     href: `/certificaten/${input.credId}/bewerken`,
     credId: input.credId,

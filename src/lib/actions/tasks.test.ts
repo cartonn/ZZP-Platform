@@ -1038,6 +1038,22 @@ describe("credentialCollabExpiryTask", () => {
     const t = credentialCollabExpiryTask({ ...base, daysUntilExpiry: 7, extraCollabCount: 2 });
     expect(t.subtitle).toContain("(+2 andere)");
   });
+
+  it("een mid-plaatsing-verval (buiten venster) krijgt een lagere band dan een binnen-venster-verval", () => {
+    const during = credentialCollabExpiryTask({
+      ...base,
+      daysUntilExpiry: 60,
+      duringPlacementOnly: true,
+    });
+    expect(during.priority).toBe(P.credentialExpiringDuringPlacement);
+    // Plaatsing-gebonden, dus boven een generiek verlopend certificaat, maar onder de binnen-venster-
+    // variant én onder een contract-ter-ondertekening (minder imminent dan beide).
+    expect(during.priority).toBeGreaterThan(P.credentialExpiring);
+    expect(during.priority).toBeLessThan(P.credentialExpiringForCollab);
+    expect(during.priority).toBeLessThan(P.contractSign);
+    // De verwoording is identiek — het venster-onderscheid is puur urgentie, geen boodschap.
+    expect(during.title).toBe("VOG verloopt tijdens je opdracht");
+  });
 });
 
 describe("overdueInvoiceTask", () => {
