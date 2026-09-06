@@ -2,6 +2,25 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-06 — prod: gestreamde body-limiet op publieke endpoints (CWE-400)
+
+**Wat:** de vier publieke, ongeauthenticeerde body-lezende endpoints (`/api/client-error`,
+`/api/csp-report`, `/api/billing/webhook`, `/api/mail-intake/webhook`) bufferden de body via
+`request.text()` — dat leest de VOLLEDIGE stream in het geheugen vóór de byte-check. Een
+`Content-Length`-pre-check (bij twee van de vier aanwezig) dekt alleen een eerlijke header; een
+chunked request (Transfer-Encoding: chunked, géén Content-Length) omzeilde de pre-check en werd
+onbegrensd gebufferd (CWE-400 geheugen-DoS, alleen begrensd door de per-IP count-rate-limit).
+**Fix:** één geteste, drift-vaste helper `src/lib/http/read-limited-text.ts` (`readLimitedText`)
+die (a) de `Content-Length`-header pre-checkt (afwijzen zónder lezen) én (b) de body **gestreamd**
+leest en de reader cancelt zodra de lopende byte-som de grens overschrijdt — nooit méér dan de
+grens (+ één chunk) in het geheugen, óók zonder Content-Length. Byte-nauwkeurig (UTF-8-bytes, niet
+`string.length`/code-units) en byte-identiek aan `request.text()` (cruciaal voor Stripe-
+handtekeningverificatie). Vier kopieën van het read-then-check-patroon vervangen door één bron.
+**Bestanden:** `src/lib/http/read-limited-text.ts` (+ `.test.ts`, 10 tests) + de vier routes.
+**Checks:** typecheck ✓ · lint ✓ · prettier (hele repo) ✓ · gerichte tests 51/51 ✓ · build ✓ ·
+full test 8305 ✓ (de 2 `react-render-phase-ping`-fails waren env-only: `patch-package`-postinstall
+niet gedraaid in de sandbox; na `npx patch-package` groen — CI draait dit bij `npm install`).
+
 ## 2026-09-06 — security/privacy (audit 2e): k-anonimiteit-accountability-gate op de anonimiseringsvloeren
 
 **Wat:** volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

@@ -502,6 +502,23 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   eigen domein): zet de extra host(s) in `SERVER_ACTIONS_ALLOWED_ORIGINS` (komma-gescheiden; host of
   volledige URL).
 
+- **Gestreamde body-limiet op de publieke endpoints (geheugen-DoS-vangnet)** (laag, code-kant GEDAAN
+  2026-09-06): de vier publieke, ongeauthenticeerde body-lezende endpoints (`/api/client-error`,
+  `/api/csp-report`, `/api/billing/webhook`, `/api/mail-intake/webhook`) lazen de body via
+  `request.text()` — dat buffert de **volledige** stream in het geheugen vóór de byte-grens wordt
+  gecontroleerd. Een `Content-Length`-header-pre-check (bij twee van de vier aanwezig) dekt alleen een
+  eerlijke header af; een **chunked** request (`Transfer-Encoding: chunked`, dus géén Content-Length)
+  omzeilde de pre-check en werd onbegrensd gebufferd — binnen de per-IP count-rate-limit alsnog een
+  geheugen-DoS-oppervlak (CWE-400). Er is nu één gedeelde, geteste helper
+  (`src/lib/http/read-limited-text.ts`, `readLimitedText`) die (a) de Content-Length-header pre-checkt
+  (afwijzen zónder ook maar één byte te lezen) én (b) de body **gestreamd** leest en de stream afkapt
+  zodra de lopende byte-som de grens overschrijdt — er wordt nooit méér dan de grens (+ één laatste
+  chunk) in het geheugen gehouden, óók zonder Content-Length. Byte-nauwkeurig (werkelijke UTF-8-bytes,
+  niet `string.length`/code-units) en byte-identiek aan `request.text()` — cruciaal voor de endpoints
+  die de rauwe body nodig hebben voor handtekeningverificatie (Stripe). Vervangt vier kopieën van het
+  read-then-check-patroon door één bron van waarheid. Resterend mensenwerk: **niets** — werkt
+  out-of-the-box.
+
 ## §1. Hosting, database, opslag, domein, geheimen
 
 **Wat:** de plek waar de website draait, waar gegevens worden bewaard en waar documenten veilig
