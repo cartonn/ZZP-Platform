@@ -2,6 +2,28 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-06 — robuustheid: lengte-cap op identiteits-/betaalvelden (KvK/BTW/IBAN) vóór de format-check
+
+**Wat:** vier vrije-tekstvelden in de Zod-schema's die directe server-actions voeden — de KvK bij de
+bureau-zelfaanmelding (`bureauRegisterSchema`) en KvK/BTW-id/IBAN op het freelancerprofiel
+(`freelancerProfileSchema`) — misten als enige een expliciete lengte-cap (`.max()`). Anders dan de rest
+van `validation.ts` (`optionalText`/`trimmed`/`languages` cappen wél) liep een ongebonden string per
+aanroep volledig door de regex-validatie (`isValidKvk`/`isValidBtwId`/`isValidIban`) en de
+normalisatie (`normalizeKvk`/`normalizeBtwId`/`normalizeIban`, elk een `.replace`/`.toUpperCase` over de
+hele string) voordat de format-check hem afkeurde. Niet exploiteerbaar (ankered regex, geen ReDoS; de
+body-limiet cap de request al), maar een inconsistentie/defense-in-depth-gat: een scripted aanroeper kon
+per call onnodig werk laten verzetten. Geparkeerde LOW uit persona-sweep run 4
+(`docs/PERSONA-SWEEP-BACKLOG.md`). **Hoe (één bron, drift-vast):** nieuwe helper
+`optionalIdentityField({ max, isValid, message, normalize })` in `validation.ts` die de drie identieke
+optionele velden produceert met de cap **in de union-string-tak** (`z.string().trim().max(...)`), zodat
+een te lange invoer met een `too_big`-issue afvalt vóór de format-check draait; de verplichte bureau-KvK
+kreeg `.max(32)`. Caps ruim boven elke geldige waarde (langste toegestane IBAN = 28 tekens), dus geen
+echte invoer wordt geweigerd. **Bestanden:** `src/lib/validation.ts` (helper + 4 velden),
+`src/lib/validation.test.ts` (+4 cases: geldige genormaliseerde in-/output; lege velden → undefined;
+absurd lange invoer → `too_big` op alle vier de velden — rood→groen bewijs dat de cap vuurt, want zónder
+`.max()` levert alleen de format-check een `custom`-issue). **Checks:** typecheck ✓ · lint ✓ · prettier
+(gerichte bestanden) ✓ · gerichte tests 62/62 ✓ · build + full test + CI-poort.
+
 ## 2026-09-06 — prod: gestreamde body-limiet op publieke endpoints (CWE-400)
 
 **Wat:** de vier publieke, ongeauthenticeerde body-lezende endpoints (`/api/client-error`,

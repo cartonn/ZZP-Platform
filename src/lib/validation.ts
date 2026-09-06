@@ -96,6 +96,29 @@ const optionalText = (max: number) =>
     .optional()
     .transform((v) => (v ? v : undefined));
 
+// Optioneel identiteits-/betaalveld (KvK, BTW-id, IBAN): lege string = niet ingevuld, anders een
+// format-gevalideerde + genormaliseerde waarde. De ruwe invoer wordt met een expliciete lengte-cap
+// begrensd vóór de format-check draait — deze schema's voeden direct aanroepbare server-actions, dus
+// een ongebonden string zou anders per aanroep ongelimiteerd door de regex/normalisatie lopen
+// (defense-in-depth, consistent met de rest van het schema, dat elk vrij-tekstveld capt). De cap ligt
+// ruim boven elke geldige waarde (langste toegestane IBAN = 28 tekens), dus geen echte invoer wordt
+// hierdoor geweigerd — een te lange invoer valt met dezelfde format-melding af.
+const optionalIdentityField = (opts: {
+  max: number;
+  isValid: (v: string) => boolean;
+  message: string;
+  normalize: (v: string) => string;
+}) =>
+  z
+    .union([z.literal(""), z.string().trim().max(opts.max, opts.message)])
+    .optional()
+    .superRefine((v, ctx) => {
+      if (v && !opts.isValid(v)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: opts.message });
+      }
+    })
+    .transform((v) => (v ? opts.normalize(v) : undefined));
+
 // --- Registratie (alleen FREELANCER/CLIENT; ADMIN wordt nooit zelf aangemaakt) ---
 export const registerSchema = z
   .object({
@@ -121,6 +144,7 @@ export const bureauRegisterSchema = z.object({
   kvkNumber: z
     .string()
     .trim()
+    .max(32, "Ongeldig KvK-nummer (8 cijfers).")
     .superRefine((v, ctx) => {
       if (!isValidKvk(v)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Ongeldig KvK-nummer (8 cijfers)." });
@@ -151,45 +175,27 @@ export const freelancerProfileSchema = z.object({
     .optional()
     .transform((v) => (v === "" || v === undefined ? undefined : Number(v))),
   languages: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
-  kvkNumber: z
-    .union([z.literal(""), z.string().trim()])
-    .optional()
-    .superRefine((v, ctx) => {
-      if (v && !isValidKvk(v)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Ongeldig KvK-nummer (8 cijfers).",
-        });
-      }
-    })
-    .transform((v) => (v ? normalizeKvk(v) : undefined)),
-  btwNumber: z
-    .union([z.literal(""), z.string().trim()])
-    .optional()
-    .superRefine((v, ctx) => {
-      if (v && !isValidBtwId(v)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Ongeldig BTW-id (bijv. NL123456789B01).",
-        });
-      }
-    })
-    .transform((v) => (v ? normalizeBtwId(v) : undefined)),
+  kvkNumber: optionalIdentityField({
+    max: 32,
+    isValid: isValidKvk,
+    message: "Ongeldig KvK-nummer (8 cijfers).",
+    normalize: normalizeKvk,
+  }),
+  btwNumber: optionalIdentityField({
+    max: 32,
+    isValid: isValidBtwId,
+    message: "Ongeldig BTW-id (bijv. NL123456789B01).",
+    normalize: normalizeBtwId,
+  }),
   // Betaalrekening (SEPA-IBAN). Betaling verloopt rechtstreeks (off-platform), dus dit voedt de
   // betaalinstructie op de factuur voor de opdrachtgever + de aanmaning-prefill. Mod-97-gevalideerd,
   // lege string = geen rekening opgeslagen.
-  iban: z
-    .union([z.literal(""), z.string().trim()])
-    .optional()
-    .superRefine((v, ctx) => {
-      if (v && !isValidIban(v)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Ongeldig IBAN (controleer de landcode en het rekeningnummer).",
-        });
-      }
-    })
-    .transform((v) => (v ? normalizeIban(v) : undefined)),
+  iban: optionalIdentityField({
+    max: 64,
+    isValid: isValidIban,
+    message: "Ongeldig IBAN (controleer de landcode en het rekeningnummer).",
+    normalize: normalizeIban,
+  }),
   // Portfolio-/websitelink — publiek zichtbaar op het profiel. Spiegelt het bedrijfsprofiel
   // (companyProfileSchema.website): http(s) afgedwongen (httpUrl weigert javascript:/data: e.d.),
   // lege string = geen link.
