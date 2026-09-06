@@ -16,7 +16,9 @@ import { ClientHealthStrip } from "@/components/franchise/client-health-strip";
 import {
   buildClientActivityInputs,
   classifyClientHealth,
+  clientAttentionChip,
   clientHealthLabel,
+  clientOutreachRank,
   summarizeClientHealth,
   type ClientHealth,
 } from "@/lib/franchise/client-health";
@@ -172,6 +174,10 @@ export default async function FranchiseOpdrachtgeversPage({
       return {
         company: c,
         health: classifyClientHealth(activity, now),
+        // Stilgevallen-chip met de concrete koude-duur + escalerende toon (null voor niet-stilgevallen).
+        attentionChip: clientAttentionChip(activity, now),
+        // Sorteersleutel: wat actie vraagt bovenaan, de koudste relatie eerst (bel die eerst).
+        outreachRank: clientOutreachRank(activity, now),
         lastActivityAt: activity.lastActivityAt,
         // Alleen de beslis-relevante uitersten (op tijd / vaak laat); neutraal/onbekend → null → geen
         // chip, zodat de lijst rustig blijft (dezelfde afspraak als de ZZP'er-opdrachtenlijst).
@@ -179,7 +185,10 @@ export default async function FranchiseOpdrachtgeversPage({
         outstanding: outstandingByCompany.get(c.id) ?? null,
       };
     })
-    .filter((r) => (activeFilter ? r.health === activeFilter : true));
+    .filter((r) => (activeFilter ? r.health === activeFilter : true))
+    // Toon wat actie vraagt eerst: stilgevallen (koudste eerst) → plaatst nu → rustig. Stabiele sort
+    // (V8), dus gelijke rang behoudt de createdAt-desc-volgorde uit de query.
+    .sort((a, b) => b.outreachRank - a.outreachRank);
 
   return (
     <div className="space-y-6">
@@ -283,51 +292,65 @@ export default async function FranchiseOpdrachtgeversPage({
             </Card>
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-              {rows.map(({ company: c, health, lastActivityAt, paymentChip, outstanding }) => {
-                const badge = clientHealthLabel(health);
-                return (
-                  <Link
-                    key={c.id}
-                    href={`/franchise/opdrachtgevers/${c.id}`}
-                    className="card-interactive flex items-start justify-between gap-3 p-4"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate font-medium">{c.name}</p>
-                        <Badge variant={badge.tone}>{badge.label}</Badge>
-                        {paymentChip && (
-                          <Badge variant={paymentTrustChipBadgeVariant(paymentChip)}>
-                            {paymentChip.label}
-                          </Badge>
-                        )}
-                        {outstanding && outstanding.overdueCount > 0 && (
-                          <Badge variant={bucketVariant(outstanding.worstBucket)}>
-                            {formatEuro(outstanding.overdueCents)} te laat
-                          </Badge>
-                        )}
+              {rows.map(
+                ({
+                  company: c,
+                  health,
+                  attentionChip,
+                  lastActivityAt,
+                  paymentChip,
+                  outstanding,
+                }) => {
+                  const badge = clientHealthLabel(health);
+                  return (
+                    <Link
+                      key={c.id}
+                      href={`/franchise/opdrachtgevers/${c.id}`}
+                      className="card-interactive flex items-start justify-between gap-3 p-4"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate font-medium">{c.name}</p>
+                          {/* Stilgevallen: de churn-chip met concrete koude-duur; anders de gewone status. */}
+                          {attentionChip ? (
+                            <Badge variant={attentionChip.tone}>{attentionChip.label}</Badge>
+                          ) : (
+                            <Badge variant={badge.tone}>{badge.label}</Badge>
+                          )}
+                          {paymentChip && (
+                            <Badge variant={paymentTrustChipBadgeVariant(paymentChip)}>
+                              {paymentChip.label}
+                            </Badge>
+                          )}
+                          {outstanding && outstanding.overdueCount > 0 && (
+                            <Badge variant={bucketVariant(outstanding.worstBucket)}>
+                              {formatEuro(outstanding.overdueCents)} te laat
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="truncate text-sm text-muted-foreground">{c.user.email}</p>
                       </div>
-                      <p className="truncate text-sm text-muted-foreground">{c.user.email}</p>
-                    </div>
-                    <p className="shrink-0 text-right text-xs text-muted-foreground">
-                      {outstanding ? (
-                        <>
-                          <span className="font-medium tabular-nums text-foreground">
-                            {formatEuro(outstanding.totalOpenCents)}
-                          </span>{" "}
-                          openstaand
-                          <br />
-                        </>
-                      ) : null}
-                      {plural(c._count.departments, "afdeling", "afdelingen")} ·{" "}
-                      {plural(c._count.jobs, "dienst", "diensten")}
-                      <br />
-                      {lastActivityAt
-                        ? `laatst actief ${formatDateShortNl(lastActivityAt)}`
-                        : `sinds ${formatDateShortNl(c.createdAt)}`}
-                    </p>
-                  </Link>
-                );
-              })}
+                      <p className="shrink-0 text-right text-xs text-muted-foreground">
+                        {outstanding ? (
+                          <>
+                            <span className="font-medium tabular-nums text-foreground">
+                              {formatEuro(outstanding.totalOpenCents)}
+                            </span>{" "}
+                            openstaand
+                            <br />
+                          </>
+                        ) : null}
+                        {plural(c._count.departments, "afdeling", "afdelingen")} ·{" "}
+                        {plural(c._count.jobs, "dienst", "diensten")}
+                        <br />
+                        {lastActivityAt
+                          ? `laatst actief ${formatDateShortNl(lastActivityAt)}`
+                          : `sinds ${formatDateShortNl(c.createdAt)}`}
+                      </p>
+                    </Link>
+                  );
+                },
+              )}
             </div>
           )}
         </>

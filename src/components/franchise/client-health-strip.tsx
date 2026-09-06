@@ -1,4 +1,8 @@
-import { clientHealthHeadline, type ClientHealthSummary } from "@/lib/franchise/client-health";
+import {
+  CLIENT_CHURN_RISK_DAYS,
+  clientHealthHeadline,
+  type ClientHealthSummary,
+} from "@/lib/franchise/client-health";
 import { StatCard } from "@/components/ui/stat-card";
 
 /**
@@ -19,8 +23,14 @@ export function ClientHealthStrip({ summary }: { summary: ClientHealthSummary })
         <StatCard
           label="Stilgevallen"
           value={summary.attention}
-          sub="benader voor vervolg"
-          tone={summary.attention > 0 ? "warning" : "default"}
+          sub={
+            summary.attentionHigh > 0
+              ? `${summary.attentionHigh} langer dan ${CLIENT_CHURN_RISK_DAYS} dagen`
+              : "benader voor vervolg"
+          }
+          tone={
+            summary.attentionHigh > 0 ? "danger" : summary.attention > 0 ? "warning" : "default"
+          }
           href={summary.attention > 0 ? "/franchise/opdrachtgevers?status=aandacht" : undefined}
         />
         <StatCard

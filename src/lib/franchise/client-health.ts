@@ -12,6 +12,14 @@ import { plural } from "@/lib/plural";
 /** Dagen zonder activiteit waarna een niet-plaatsende klant om aandacht vraagt (re-engagement). */
 export const CLIENT_IDLE_DAYS = 30;
 
+/**
+ * Dagen zonder activiteit waarna een stilgevallen klant een verhóógd churn-risico draagt: hoe langer
+ * een relatie koud staat, hoe kleiner de kans op een vervolgopdracht. Elke bemiddeling/CRM tiert
+ * stilgevallen accounts zo (benchmark Bullhorn/PIDZ-regiokantoor) — een klant die 2+ maanden niets
+ * deed verdient een belletje vóór de klant die net over de aandachtsdrempel schoof. > `CLIENT_IDLE_DAYS`.
+ */
+export const CLIENT_CHURN_RISK_DAYS = 60;
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Hele kalenderdagen tussen twee momenten (UTC-dag, TZ-robuust). */
@@ -56,6 +64,52 @@ export function classifyClientHealth(input: ClientActivityInput, now: Date): Cli
  */
 export function clientIdleDays(input: ClientActivityInput, now: Date): number {
   return wholeDaysBetween(input.lastActivityAt ?? input.createdAt, now);
+}
+
+/**
+ * Churn-risico van een klant — alleen betekenisvol voor een stilgevallen (`attention`) klant:
+ * - `none`  — plaatst nu werk of is nog rustig-recent (geen re-engagement nodig).
+ * - `watch` — stilgevallen, maar korter dan `CLIENT_CHURN_RISK_DAYS`: benaderen, nog te redden.
+ * - `high`  — stilgevallen ≥ `CLIENT_CHURN_RISK_DAYS`: verhoogd verlies-risico, bel deze eerst.
+ * Leunt op dezelfde referentiekeuze als `classifyClientHealth`/`clientIdleDays`, dus de tiering
+ * spreekt de gezondheidsstatus nooit tegen.
+ */
+export type ClientChurnRisk = "none" | "watch" | "high";
+
+export function clientChurnRisk(input: ClientActivityInput, now: Date): ClientChurnRisk {
+  if (classifyClientHealth(input, now) !== "attention") return "none";
+  return clientIdleDays(input, now) >= CLIENT_CHURN_RISK_DAYS ? "high" : "watch";
+}
+
+/**
+ * Rangschikkingsscore voor de klantenlijst: wat nu actie vraagt komt bovenaan (Noord-ster — toon wat
+ * telt). Hoger = urgenter = eerst. Stilgevallen klanten winnen van alles en worden onderling op
+ * idle-duur gesorteerd (de koudste relatie eerst); daarna wie nu werk plaatst; onderaan de rustige,
+ * recente klanten. Deterministisch; gelijke scores behouden hun invoervolgorde via een stabiele sort.
+ */
+export function clientOutreachRank(input: ClientActivityInput, now: Date): number {
+  const health = classifyClientHealth(input, now);
+  if (health === "attention") return 2_000_000 + clientIdleDays(input, now);
+  if (health === "active") return 1_000_000;
+  return 0;
+}
+
+/**
+ * Compacte chip voor een stilgevallen klant-rij: benoemt de tier én de concrete koude-duur
+ * ("Stilgevallen · 34 dagen" / "Lang stil · 72 dagen"), zodat de bemiddelaar in één blik ziet wie
+ * het langst stil is. `null` voor niet-stilgevallen klanten (dan draagt de rij de gewone
+ * gezondheids-chip). Woord + duur + toon samen — kleur alleen is niet toegankelijk.
+ */
+export function clientAttentionChip(
+  input: ClientActivityInput,
+  now: Date,
+): { label: string; tone: "warning" | "danger" } | null {
+  const risk = clientChurnRisk(input, now);
+  if (risk === "none") return null;
+  const days = plural(clientIdleDays(input, now), "dag", "dagen");
+  return risk === "high"
+    ? { label: `Lang stil · ${days}`, tone: "danger" }
+    : { label: `Stilgevallen · ${days}`, tone: "warning" };
 }
 
 /** Prisma `job.groupBy({ by: ["companyId"], _count: { _all }, _max: { createdAt } })`-vorm. */
@@ -121,19 +175,29 @@ export interface ClientHealthSummary {
   attention: number;
   /** Recent, plaatst (nog) niets — geen actie nodig. */
   quiet: number;
+  /** Deelverzameling van `attention`: stilgevallen ≥ `CLIENT_CHURN_RISK_DAYS` — verhoogd verlies-risico. */
+  attentionHigh: number;
 }
 
 /**
  * Partitioneert de klantenlijst in drie elkaar uitsluitende buckets die samen exact `total` vormen.
  * "Plaatst nu" wint van alle andere signalen; de resterende klanten splitsen op recentheid.
+ * `attentionHigh` telt (als deelverzameling van `attention`) de klanten met een hoog churn-risico.
  */
 export function summarizeClientHealth(
   items: readonly ClientActivityInput[],
   now: Date,
 ): ClientHealthSummary {
-  const summary: ClientHealthSummary = { total: items.length, active: 0, attention: 0, quiet: 0 };
+  const summary: ClientHealthSummary = {
+    total: items.length,
+    active: 0,
+    attention: 0,
+    quiet: 0,
+    attentionHigh: 0,
+  };
   for (const c of items) {
     summary[classifyClientHealth(c, now)] += 1;
+    if (clientChurnRisk(c, now) === "high") summary.attentionHigh += 1;
   }
   return summary;
 }
@@ -145,7 +209,11 @@ export function summarizeClientHealth(
 export function clientHealthHeadline(summary: ClientHealthSummary): string | null {
   if (summary.total === 0) return null;
   if (summary.attention > 0) {
-    return `${summary.attention} ${summary.attention === 1 ? "klant is" : "klanten zijn"} stilgevallen — benader ze voor een vervolgopdracht.`;
+    const base = `${summary.attention} ${summary.attention === 1 ? "klant is" : "klanten zijn"} stilgevallen — benader ze voor een vervolgopdracht.`;
+    if (summary.attentionHigh > 0) {
+      return `${base} ${summary.attentionHigh} al langer dan ${CLIENT_CHURN_RISK_DAYS} dagen: bel die eerst.`;
+    }
+    return base;
   }
   if (summary.active > 0) {
     return `${plural(summary.active, "klant plaatst", "klanten plaatsen")} nu werk; geen stilgevallen relaties.`;
