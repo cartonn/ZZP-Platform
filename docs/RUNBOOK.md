@@ -99,6 +99,14 @@ correleer een regressie/metriek-verschuiving met de exacte draaiende deploy en d
     (`credentials_file`, secret buiten git) scraped en `alerts.yml` via `rule_files` laadt.
   - [`alertmanager.yml`](observability/alertmanager.yml) — routing-skelet (severity → receiver) +
     `inhibit_rules`.
+  - [`grafana-dashboard.json`](observability/grafana-dashboard.json) — een Grafana-dashboard dat **alle**
+    gauges visualiseert (import via Dashboards → Import → JSON, kies de Prometheus-datasource). Rijen:
+    beschikbaarheid/modus, dead-man's-switch (cron/back-up), aflever-kanalen (ok-status +
+    opeenvolgende-mislukkingen + leeftijd-laatste-mislukking per kanaal), verificatie-wachtrij (SLA),
+    vastgelopen-pijplijn-backlogs, beveiligingsincidenten en AVG-retentie-backlogs. Zo ziet een operator
+    de productiegezondheid in één oogopslag zonder op `/admin/systeemstatus` in te loggen. **Enige bron
+    van waarheid = de generator** `scripts/grafana-dashboard.mjs`; regenereer met
+    `node scripts/grafana-dashboard.mjs --write && npx prettier --write docs/observability/grafana-dashboard.json`.
 - **Scrape-deadman (totale storing):** alle waarde-alerts evalueren over de gescrapete gauges. Valt de
   scrape zélf weg (app down, endpoint 503, geroteerde `CRON_SECRET`, netwerk/TLS), dan is er geen data en
   vuurt geen van die alerts. `ZzpTargetDown` (`up == 0`, scrape faalt) en `ZzpMetricsAbsent`
@@ -115,7 +123,10 @@ correleer een regressie/metriek-verschuiving met de exacte draaiende deploy en d
   moet naar `/api/metrics` wijzen en `alerts.yml` laden, elke door `alertmanager.yml` gerefereerde alert
   moet écht bestaan, en de onderhouds-inhibitie moet **elke** operationele alert dekken — een nieuwe alert
   in `alerts.yml` die niet aan de inhibitie wordt toegevoegd breekt de poort (zodat 'ie niet stil door de
-  onderhouds-demping heen paget).
+  onderhouds-demping heen paget). `grafana-dashboard.test.ts` klinkt het dashboard aan dezelfde bron vast:
+  de gecommitte JSON moet inhoudelijk gelijk zijn aan de generator-uitvoer, en elke geëxposeerde gauge
+  moet in minstens één paneel voorkomen — een nieuwe gauge zonder paneel (of een dood paneel naar een
+  hernoemde gauge) breekt de poort, zodat het dashboard niet stil achterloopt op de gauges.
 - **Scrape-hardening (bounded-parallel + deadline):** de scrape verzamelt ~18 onafhankelijke
   backlog-tellingen. Die lopen **bounded-parallel** (env `METRICS_COLLECT_CONCURRENCY`, default 4 — laag
   genoeg om de Prisma-connectiepool niet te monopoliseren) achter een **harde deadline**

@@ -440,6 +440,19 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   severity. Resterend mensenwerk: **niets extra** — de gauges vullen zichzelf; optioneel richt je een
   monitor op `ZzpSecurityIncidentCritical`/`ZzpSecurityIncidentWarn`.
 
+- **Grafana-dashboard voor `/api/metrics`** (laag, code-kant GEDAAN 2026-09-06): de observability-bundle
+  had de gauges (`/api/metrics`) en de alerts (`alerts.yml`) al, maar **geen dashboard** om de ~70
+  productie-gauges te visualiseren — een operator kon de dead-man's-switch-heartbeats, aflever-kanalen,
+  cron-backlogs en AVG-retentie alleen via losse PromQL of via `/admin/systeemstatus` (admin-login)
+  bekijken. Er is nu een kant-en-klaar Grafana-dashboard (`docs/observability/grafana-dashboard.json`,
+  gegenereerd + vastgeklonken door `scripts/grafana-dashboard.mjs` en de drift-test
+  `grafana-dashboard.test.ts` — elke geëxposeerde gauge moet een paneel hebben, geen dood paneel). Rijen:
+  beschikbaarheid/modus, cron/back-up-heartbeat, aflever-kanalen (ok + opeenvolgende-mislukkingen +
+  leeftijd-laatste-mislukking), verificatie-wachtrij (SLA), vastgelopen-pijplijn-backlogs,
+  beveiligingsincidenten en AVG-retentie. Bevat nooit PII/secrets (alleen gauge-namen + labels).
+  Resterend mensenwerk: **importeer het bestand één keer** in je Grafana (Dashboards → Import → upload
+  JSON, kies de Prometheus-datasource die `/api/metrics` scraped). Zie RUNBOOK §2a.
+
 - **Semantische matching (pgvector): stille-degradatie-gat gedicht** (laag, code-kant GEDAAN
   2026-08-16): `SEMANTIC_MATCHER=pgvector` was de enige env-selecteerbare driver die de "halve
   activering is gevaarlijker dan geen"-regel (CLAUDE.md §8) ontweek — de pgvector-matcher gooit
