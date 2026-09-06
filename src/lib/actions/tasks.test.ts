@@ -33,6 +33,7 @@ import {
   franchiseStaleDienstRollupTask,
   franchiseLeadFollowupTask,
   franchiseClientReengagementTask,
+  franchiseRosterReengagementTask,
   clientComplianceTask,
   reviewLeaveTask,
   respondInvitationTask,
@@ -668,6 +669,24 @@ describe("task builders", () => {
     // Warmer dan koude lead-acquisitie, maar onder een aflopende plaatsing (daar loopt nog omzet).
     expect(t.priority).toBeGreaterThan(franchiseLeadFollowupTask(1).priority);
     expect(t.priority).toBeLessThan(P.franchiserCollaborationRenewal);
+  });
+
+  it("bemiddelaar: stilgevallen bench-ZZP'er is een link-taak naar het ZZP'er-dossier", () => {
+    const t = franchiseRosterReengagementTask("p-9", "Sanne de Vries", 72);
+    expect(t).toMatchObject({
+      kind: "franchise-roster-reengagement",
+      id: "franchise-roster-reengagement:p-9",
+      profileId: "p-9",
+      resolver: "link",
+      href: "/franchise/zzpers/p-9",
+      tone: "attention",
+    });
+    expect(t.priority).toBe(P.franchiserRosterReengagement);
+    expect(t.title).toContain("Sanne de Vries");
+    expect(t.subtitle).toContain("72");
+    // Warmer dan koude lead-acquisitie, maar onder de klant-re-engagement (een hele vraag-relatie).
+    expect(t.priority).toBeGreaterThan(franchiseLeadFollowupTask(1).priority);
+    expect(t.priority).toBeLessThan(P.franchiserClientReengagement);
   });
 
   it("bemiddelaar: acute-onbezet is een aggregaat link-taak naar /franchise/diensten", () => {

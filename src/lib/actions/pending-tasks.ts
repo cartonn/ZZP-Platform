@@ -87,6 +87,7 @@ import {
   franchiseStaleDienstRollupTask,
   franchiseCollaborationRenewalTask,
   franchiseClientReengagementTask,
+  franchiseRosterReengagementTask,
   franchiseGuidedSetupTasks,
   shiftHandoffTask,
   clientComplianceTask,
@@ -147,6 +148,7 @@ import {
   classifyClientHealth,
   clientIdleDays,
 } from "@/lib/franchise/client-health";
+import { classifyRosterDormancy } from "@/lib/franchise/roster-dormancy";
 
 /** Harde bovengrens per kind (voorkomt N+1/zware lijsten op /acties); "+N meer" buiten beschouwing. */
 const MAX = 50;
@@ -1435,7 +1437,14 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     // losse taken. Per tenant een beheerbaar aantal profielen (spiegelt de ongelimiteerde tenant-scans).
     prisma.freelancerProfile.findMany({
       where: { tenantId },
-      select: ROSTER_ENGAGEABILITY_SELECT,
+      // De inzetbaarheidsvelden (gedeeld met de nav-badge) + de bench-telling voor het
+      // re-engagement-signaal: een ZZP'er met een lopende (ACTIVE) samenwerking is engaged via het
+      // werk en telt nooit als stilgevallen (`classifyRosterDormancy`). Zelfde `_count`-definitie als de
+      // /franchise/zzpers-lijst, zodat de dormancy-tier tussen de oppervlakken niet kan driften.
+      select: {
+        ...ROSTER_ENGAGEABILITY_SELECT,
+        _count: { select: { collaborations: { where: { status: "ACTIVE" } } } },
+      },
       orderBy: { id: "asc" },
     }),
     // Ongedekte diensten die te lang open staan (gepubliceerd, geen actieve samenwerking, ouder dan de
@@ -1648,11 +1657,29 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
   // dashboard, zodat de oppervlakken elkaar nooit tegenspreken.
   for (const f of roster) {
     const eng = evaluateRosterEngageability(f, now);
-    if (eng.status !== "INACTIEF") continue;
-    const reason = eng.blockers.length
-      ? formatMissing(eng.blockers)
-      : "verificatie nog niet compleet";
-    tasks.push(franchiseNotEngageableTask(f.id, f.user.name ?? "ZZP'er", reason));
+    if (eng.status === "INACTIEF") {
+      // Niet-inzetbaar (verplicht document ontbreekt/verlopen of verificatie incompleet) — een
+      // plaatsing-blokkerende actie die deze ZZP'er al met hoge prioriteit oppervlakt. Geen tweede
+      // (lager-geprioriteerde) re-engagement-nudge voor dezelfde persoon: rust boven ruis, en
+      // "benaderen" heeft weinig zin zolang de inzetbaarheid nog blokkeert.
+      const reason = eng.blockers.length
+        ? formatMissing(eng.blockers)
+        : "verificatie nog niet compleet";
+      tasks.push(franchiseNotEngageableTask(f.id, f.user.name ?? "ZZP'er", reason));
+      continue;
+    }
+    // Inzetbaar, maar op de bench (geen lopende opdracht) én afgekoeld (≥ DORMANT_IDLE_DAYS niet
+    // ingelogd) → re-engagement: benader de vakmens vóór hij afhaakt. Aanbod-spiegel van de klant-
+    // variant hieronder; zelfde pure `classifyRosterDormancy` als de /franchise/zzpers-lijst, dus de
+    // oppervlakken driften niet. Alleen de `dormant`-tier levert een taak — de `cooling`-tier blijft
+    // een zacht lijst-only signaal (geen /acties-ruis).
+    const dormancy = classifyRosterDormancy(
+      { lastActiveAt: f.user.lastLoginAt, activeCollaborations: f._count.collaborations },
+      now,
+    );
+    if (dormancy.tier === "dormant" && dormancy.daysIdle != null) {
+      tasks.push(franchiseRosterReengagementTask(f.id, f.user.name ?? "ZZP'er", dormancy.daysIdle));
+    }
   }
 
   // Ongedekte diensten die te lang open staan — oudste eerst, max 3 als aparte rij (rustige lijst; de
