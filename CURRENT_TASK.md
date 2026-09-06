@@ -68,7 +68,9 @@ punt 5 hieronder.
 3. **Verrijkte routes naar hun hub-tab** — `/admin/audit` GEDAAN (CSV-export + telling in `AuditPanel`,
    route leidt nu permanent om naar `/admin/toezicht?tab=audit`). Rest: `/prognose` en `/verplichtingen`
    zijn FREELANCER-pagina's (geen admin-hub-tab); alleen oppakken als er een passende hub-tab voor komt.
-4. `notFound()` onder een `loading.tsx` geeft HTTP 200; overweeg `notFound()` vóór de streaming-shell.
+4. `notFound()` onder een `loading.tsx` geeft HTTP 200 — GEDAAN (6-9, #1400): de maskerende loading-grenzen
+   verwijderd/gescoopt naar `(index)`-route-groups voor de zes getroffen routes (4× `/franchise/*/[id]`,
+   `certificaten/[id]/bewerken`, `kandidaten/vergelijk`); drift-vaste test `notfound-loading-masking.test.ts`.
 5. **React-transitie commit niet na een server action (productiebuild)** — GEDAAN (5-9): wortel gevonden
    én gefixt via de React-backport `patches/next+15.5.24.patch` (ADR 0012); de nudge-workaround
    `action-replay.tsx` uit #1377 is verwijderd. Rest: de `clickUntilGone`/`window.stop()`-omwegen uit

@@ -10,6 +10,26 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-06 — routine: notFound()-routes onder een loading.tsx geven weer 404 i.p.v. 200 (alle rollen; bemiddelaar-detail)
+
+**Wat:** zes detail-/bewerk-routes die `notFound()` aanroepen streamden onder een voorouder-`loading.tsx`
+en committeerden daardoor HTTP **200** vóór de throw — een zachte-404 op een gevoelige resource-op-id-route.
+Betrof de vier bemiddelaar-detailroutes `/franchise/{diensten,leads,opdrachtgevers,zzpers}/[id]` (gemaskeerd
+door de grootouder `franchise/loading.tsx`), `certificaten/[id]/bewerken` (gemaskeerd door de resterende
+`certificaten/loading.tsx`) en `kandidaten/vergelijk` (gemaskeerd door `kandidaten/loading.tsx`). **Waarom:**
+(1) **correctheid** — een ontbrekende/niet-eigen resource hoort een echte 404 te geven, geen 200; (2)
+**bestaans-oracle/IDOR** — 200-vs-404 op een id-route lekt bestaan (de repo behandelt dit elders al zo,
+`5b11dd10` + `pdf-routes-audit.test.ts`). Dit was CURRENT_TASK-item #4. **Hoe (repo-conventie, sweeps
+`459f49c1`/`43b9d6b2`):** de maskerende loading-grenzen weg; lijstroutes met een `[id]`-broer kregen hun
+skeleton via een gescoopte `(index)`-route-group (loading lekt niet meer naar de broer), routes zonder
+`[id]`-broer een eigen `loading.tsx`; `certificaten/[id]/bewerken` verliest zijn form-skeleton bewust —
+correctheid (404) wint van de skeleton-nicety. **Drift-vast:** nieuwe statische test loopt `src/app` af en
+faalt zodra een `notFound()`-pagina weer een actieve loading-grens boven zich krijgt. **Bestanden:** verwijderd
+`franchise/loading.tsx`, `certificaten/loading.tsx`; verplaatst naar `(index)/` (page+loading) voor
+`franchise/{diensten,opdrachtgevers,zzpers}` en `kandidaten`; nieuw `franchise/{facturatie,instellingen,
+shift-overnames}/loading.tsx` + `src/app/notfound-loading-masking.test.ts`. **Checks:** typecheck ✓ · lint ✓ ·
+test 8255 passed (incl. de nieuwe test) · build ✓ · prettier ✓. **PR #1400.**
+
 ## 2026-09-05 — routine: stage-bewuste aanmaningsbrief (volgt de aanmaningsladder) (ZZP'er)
 
 **Wat:** de aanmaningsbrief-generator (`aanmaning.ts`, kopieerbaar sjabloon op `/facturen/[id]`)

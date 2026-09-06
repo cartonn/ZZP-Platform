@@ -74,14 +74,14 @@ import { CandidateExperienceBadge } from "@/components/freelancer/candidate-expe
 import { CandidateMultiApplyBadge } from "@/components/freelancer/candidate-multi-apply-badge";
 import { summarizeMultiApply, otherAppliedJobs } from "@/lib/candidate-multi-apply";
 import { getReviewRatingsForCandidates } from "@/lib/data/candidate-reviews";
-import { changeApplicationStatus } from "./actions";
-import { ApplicationNoteForm } from "./application-note-form";
-import { RejectApplicationDialog } from "./reject-application-dialog";
-import { BulkTriageBar } from "./bulk-triage-bar";
+import { changeApplicationStatus } from "../actions";
+import { ApplicationNoteForm } from "../application-note-form";
+import { RejectApplicationDialog } from "../reject-application-dialog";
+import { BulkTriageBar } from "../bulk-triage-bar";
 import { startConversationForApplication } from "@/app/(protected)/berichten/actions";
-import { ProposeCollaboration } from "./propose-collaboration";
-import { TriageList, type TriageItem } from "./triage-list";
-import { AcceptedSection } from "./accepted-section";
+import { ProposeCollaboration } from "../propose-collaboration";
+import { TriageList, type TriageItem } from "../triage-list";
+import { AcceptedSection } from "../accepted-section";
 import { partitionTriage } from "@/lib/kandidaten-triage";
 import { isReproposableCancelledProposal } from "@/lib/collaboration-reproposal";
 
