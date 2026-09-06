@@ -4,6 +4,65 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-06 (2e, basis: `main` @ 34a58f80) — 3 parallelle adversariële audits + orchestrator-verificatie: 0 exploiteerbare gaten, 1 accountability-gate gedicht
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht een gat te _bewijzen_ (file:line + repro). **A** — alle 53 server actions
+(auth→rol→ownership→Zod→actie→audit-keten, IDOR, mass-assignment, statusovergangen, rate-limiting). **B** —
+alle ~45 API-route-handlers + tenant-isolatie (`tenancy.ts`) + storage/path-traversal + injectie (SQL/XSS/
+CSV/ICS) + SSRF + webhook-auth + foutafhandeling + open-redirect. **C** — privacy/AVG: erasure-volledigheid
+(`account-anonymization.ts` + schema-coverage-gate), export/inzage, data-minimalisatie, PII-in-logs, retentie,
+data-naar-derden, k-anonimiteit. Orchestrator-sweep los: `npm audit` (0 productie-vulns), raw-SQL-sinks
+(alleen `SELECT 1`-probes), SSRF (routing-fetch op vaste geoapify-host, alleen URL-geëncodeerde params),
+`dangerouslySetInnerHTML` (alleen statisch thema-script), tracked secrets/documenten (`.env`/`/storage/`/`*.db`
+correct in `.gitignore`, `git ls-files` leeg). **Live Playwright-doorklik niet uitvoerbaar in deze sandbox**
+(productiebuild draait wél groen; runtime-probe leunt op statisch+gerichte tests, zoals de vorige rondes).
+
+**GEFIXT deze ronde:**
+
+- **[MIDDEL · k-anonimiteit-accountability — geen gate op de anonimiseringsvloeren] — OPGELOST (deze PR).**
+  Het platform toont op ≥6 plekken GEAGGREGEERDE persoonsgegevens (markttariefband, beoordelings-, betaalgedrag-,
+  betrouwbaarheids-, reactiebereidheid- en leverbetrouwbaarheidssignalen); elk leunt op een minimale-steekproef-
+  vloer (k-anonimiteit) zodat een individueel cijfer niet herleidbaar is. Anders dan bij de erasure
+  (`anonymize-schema-coverage.test.ts`) bestond er **geen geautomatiseerde poort** die (a) een stille verlaging
+  van een vloer onder zijn herleidbaarheids-ondergrens tegenhield, noch (b) de art. 30-register-prosa aan de code
+  bond — het verwerkingsregister citeerde de markttarief-vloer als een **hard-gecodeerde prosa-"10"**, volledig
+  ontkoppeld van `MARKET_RATE_MIN_SAMPLE`. **Repro:** verlaag `MARKET_RATE_MIN_SAMPLE` (config.ts) van 10 naar 5 →
+  de publieke/tegenpartij-markttariefband lekt weer individuele tarieven uit p25/mediaan/p75 bij een kleine
+  steekproef, én het register claimt onterecht nog "minimaal 10 profielen" — beide ongemerkt, geen test faalt.
+  **Geschonden:** AVG art. 5(2) verantwoordingsplicht + art. 30 (register accuraat/actueel) + art. 5(1)(f)/25
+  (privacy by design) — dezelfde faalklasse die het platform al erkende voor de publieke beoordelingsaggregatie
+  (#1401). **Fix:** nieuwe accountability-gate `src/lib/compliance/k-anonymity-floors.test.ts` (7 tests,
+  rood→groen bewezen door de constante tijdelijk naar 5 te zetten): `MARKET_RATE_MIN_SAMPLE >= 10` (strengere
+  financiële-PII-vloer), de vijf in-app-signaalvloeren (`REVIEW_AGGREGATE_MIN_SAMPLE`, `PAYMENT_MIN_SAMPLE_SIZE`,
+  `RELIABILITY_MIN_SAMPLE_SIZE`, `RESPONSIVENESS_MIN_SAMPLE_SIZE`, `DELIVERY_MIN_SAMPLE`) `>= 3` (herleidbaarheids-
+  ondergrens), en de register-prosa moet de **werkelijke** `MARKET_RATE_MIN_SAMPLE` citeren (doc↔code-binding).
+  Geen register-source-wijziging nodig — de prosa blijft mens-leesbaar, de test bindt haar aan de code.
+
+**GEPARKEERD (met repro; geen agent-blocker):**
+
+- **[MIDDEL · beoordelingsaggregatie — in-app spiegelfuncties]** (herhaald uit vorige ronde) `company-reputation.ts`
+  en `candidate-reviews.ts` gaten nog op `count > 0` i.p.v. de `REVIEW_AGGREGATE_MIN_SAMPLE`-vloer. Kijker is een
+  geauthenticeerde tegenpartij met gerechtvaardigd belang; toch dezelfde herleidbaarheid bij n=1/n=2. **Owner-gated
+  (MENSENWERK §5):** de fix betekent dat een tegenpartij pas vanaf 3 beoordelingen een cijfer ziet — een in-app-UX-
+  keuze die de eigenaar moet bevestigen. Niet unilateraal gefixt.
+- **[LAAG · verwerkingsregister ↔ Prisma-schema]** (nieuw, agent C) er is geen coverage-test die elk PII-dragend
+  Prisma-model dwingt tot een register-activiteit óf een gemotiveerde allowlist (zoals de erasure die wél heeft).
+  Een toekomstig nieuw model met externe ontvanger kan ongemerkt buiten het art. 30-register vallen. **Aanbevolen:**
+  een model↔register-coverage-gate analoog aan `anonymize-schema-coverage.test.ts` (grotere diff — aparte run).
+- **[LAAG · spoofbare afzender — mail-intake-fallback]** (herhaald) `mail-intake` koppelt op `From`-adres zonder
+  SPF/DKIM/DMARC; gemitigeerd door verplichte menselijke review. Trust-model-keuze → MENSENWERK §5.
+- **[LAAG · info-disclosure — liveness-probes]** (herhaald) `/api/health` + `/api/readiness` geven de commit-SHA
+  aan onauthentieke callers. Bewuste, gangbare infra-praktijk; optioneel achter `CRON_SECRET`.
+
+**CLEAN bevonden deze ronde (geen bevinding):** alle 53 server actions (IDOR/authz/mass-assignment/status-
+overgangen/rate-limiting — TOCTOU-safe compound-writes + CWE-203 anti-oracle boven de minimumlat), alle ~45
+API-routes (ownership+anti-oracle+audit, geen path-traversal/SSRF/injectie/open-redirect, webhook-auth timing-safe),
+cross-tenant FRANCHISER-isolatie (4e ronde clean), erasure-volledigheid (30+ tabellen + CI-schema-coverage-gate,
+race-vrije document-blob-delete), export/inzage (eigen-`actorId`, geen IDOR, rate-limited, ge-audit), PII-in-logs
+(productie logt geen adres/sleutel), retentie-sweeps (run-all → 8 retentie-taken), data-naar-derden (geoapify/e-mail
+geminimaliseerd + SCC-notitie in register). `npm audit`: 0 productie-vulns.
+
 ## Ronde 2026-09-06 (basis: `main` @ d1357106) — 3 parallelle adversariële audits + orchestrator-verificatie: 1 gat gefixt, 3 geparkeerd
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
