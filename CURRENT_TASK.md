@@ -37,7 +37,9 @@
   `/admin/systeemstatus`. Rate-limit-store draait op Redis (`RATE_LIMIT_STORE=redis`, Railway-Redis).
 - **Productie-bewaking:** `/api/health` geeft `commit` + `builtAt`; `monitor.yml` vergelijkt elke 10 min
   met `origin/main` en opent een issue met label `deploy-lag` bij achterstand. Les 12-8 t/m 2-9: drie
-  weken geen geslaagde deploy zonder dat iemand het zag.
+  weken geen geslaagde deploy zonder dat iemand het zag. Observability-bundle compleet (6-9):
+  `/api/metrics` (gauges) + `alerts.yml`/`prometheus.yml`/`alertmanager.yml` + `grafana-dashboard.json`
+  (import-klaar, gegenereerd door `scripts/grafana-dashboard.mjs`, drift-gated). Zie RUNBOOK §2a.
 - **Vóór échte productie (mensenwerk, zie MENSENWERK.md §0):** juridisch/AVG-review (blokkeert
   livegang met echte gevoelige documenten), productie-secrets, betalingen, echte verificatie-API's,
   e-mail, S3, eigen domein. Het juridische pakket staat als **concept v1.0**

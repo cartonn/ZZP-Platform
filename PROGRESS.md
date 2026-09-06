@@ -10,6 +10,28 @@
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
 
+## 2026-09-06 — prod: Grafana-dashboard voor /api/metrics (observability-triade compleet)
+
+**Wat:** de observability-bundle had de gauges (`/api/metrics`, ~70 stuks via `buildMetrics`) en de
+alerts (`docs/observability/alerts.yml`) al, maar **geen dashboard**. Een operator kon de
+dead-man's-switch-heartbeats, aflever-kanalen, cron-backlogs en AVG-retentie alleen via losse PromQL of
+via `/admin/systeemstatus` (admin-login) zien. **Waarom:** productie-rijpheid/robuustheid — een
+kant-en-klaar dashboard maakt de bestaande gauges in één oogopslag bruikbaar zonder login; completeert de
+triade metrics → alerts → **dashboard**. **Hoe:** een **generator als enige bron van waarheid**
+(`scripts/grafana-dashboard.mjs`, puur/DB-vrij) bouwt uit een declaratieve secties-spec een Grafana-
+dashboard-object → `docs/observability/grafana-dashboard.json` (import-klaar, portable Prometheus-
+datasource-variabele). Rijen: beschikbaarheid/modus, cron/back-up-heartbeat, aflever-kanalen (ok +
+opeenvolgende-mislukkingen + leeftijd-laatste-mislukking per kanaal), verificatie-wachtrij (SLA),
+vastgelopen-pijplijn-backlogs, beveiligingsincidenten, AVG-retentie. **Drift-gate**
+(`src/lib/observability/grafana-dashboard.test.ts`, zelfde patroon als `alerts-rules.test.ts`): de
+gecommitte JSON is inhoudelijk (geparsed) gelijk aan de generator-uitvoer én elke door `buildMetrics`
+geëxposeerde gauge komt in minstens één paneel voor — een nieuwe gauge zonder paneel of een dood paneel
+breekt de CI-poort. Formatting is bewust van Prettier (aparte poort), niet byte-vastgeklonken in de test.
+Geen runtime-wijziging, geen PII/secrets. **Bestanden:** `scripts/grafana-dashboard.mjs` (nieuw),
+`docs/observability/grafana-dashboard.json` (nieuw, gegenereerd), `grafana-dashboard.test.ts` (nieuw, 8
+tests), RUNBOOK §2a + MENSENWERK bijgewerkt. **Resterend mensenwerk:** het bestand één keer in Grafana
+importeren. **Checks:** dashboard-test 8/8 ✓ · prettier ✓ · typecheck/lint/build via CI-poort. **PR #1402.**
+
 ## 2026-09-06 — security/privacy: k-anonimiteitsvloer op publieke beoordelingsaggregatie (vertrouwensdossier)
 
 **Wat:** het deelbare, publieke, **onauthentieke** vertrouwensdossier (`/vertrouwen/[profileId]/[token]`) toonde
