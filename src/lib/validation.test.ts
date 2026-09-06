@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applicationSchema,
+  bureauRegisterSchema,
   collaborationProposalSchema,
   companyProfileSchema,
   credentialSchema,
@@ -160,6 +161,70 @@ describe("freelancerProfileSchema", () => {
           website,
         }).success,
       ).toBe(false);
+    }
+  });
+});
+
+describe("identiteits-/betaalvelden — lengte-cap vóór format-check (robuustheid)", () => {
+  const base = { availability: "AVAILABLE", workMode: "HYBRID", visibility: "PUBLIC" } as const;
+
+  it("accepteert en normaliseert geldige KvK/BTW/IBAN (met witruimte/hoofdletters)", () => {
+    const r = freelancerProfileSchema.safeParse({
+      ...base,
+      kvkNumber: "1234 5678",
+      btwNumber: "nl123456789b01",
+      iban: "NL91 ABNA 0417 1643 00",
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.kvkNumber).toBe("12345678");
+      expect(r.data.btwNumber).toBe("NL123456789B01");
+      expect(r.data.iban).toBe("NL91ABNA0417164300");
+    }
+  });
+
+  it("behandelt lege identiteits-/betaalvelden als undefined", () => {
+    const r = freelancerProfileSchema.safeParse({
+      ...base,
+      kvkNumber: "",
+      btwNumber: "",
+      iban: "",
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.kvkNumber).toBeUndefined();
+      expect(r.data.btwNumber).toBeUndefined();
+      expect(r.data.iban).toBeUndefined();
+    }
+  });
+
+  // Deze schema's voeden direct aanroepbare server-actions: een ongebonden string zou anders per
+  // aanroep ongelimiteerd door de regex/normalisatie lopen. De cap weigert de invoer vóór de
+  // format-check ooit draait (defense-in-depth, consistent met de rest van het schema).
+  it("weigert een absurd lange invoer via de lengte-cap (too_big), niet pas na de format-check", () => {
+    const huge = "1".repeat(10_000);
+    for (const field of ["kvkNumber", "btwNumber", "iban"] as const) {
+      const r = freelancerProfileSchema.safeParse({ ...base, [field]: huge });
+      expect(r.success).toBe(false);
+      // De cap moet de invoer afkeuren (too_big); zónder cap zou alleen de format-check (custom)
+      // vuren en de volledige string ongebonden door regex/normalisatie lopen. Dit bindt de cap.
+      if (!r.success) {
+        expect(r.error.issues.some((i) => i.code === "too_big")).toBe(true);
+      }
+    }
+  });
+
+  it("weigert een absurd lang KvK-nummer bij de bureau-zelfaanmelding via de lengte-cap", () => {
+    const r = bureauRegisterSchema.safeParse({
+      bureauName: "Zorgbureau BV",
+      kvkNumber: "1".repeat(10_000),
+      name: "Jan Bemiddelaar",
+      email: "jan@bureau.nl",
+      password: "geheim1234",
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.code === "too_big")).toBe(true);
     }
   });
 });

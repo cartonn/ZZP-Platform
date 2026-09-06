@@ -43,10 +43,13 @@
 >   `MAX_QUERY_LENGTH = 100`; `normalizeSearchQuery` begrenst de ruwe invoer vóór élke stringbewerking. Een
 >   betekenisvolle zoekterm is kort en langer voegt niets toe aan de score. **Bestanden:** `src/lib/search.ts`,
 >   `src/lib/search.test.ts` (+2 cases, rood→groen: 10.000-teken-invoer → ≤100; lange term blijft zoekbaar).
-> - **GEPARKEERD — LOW: kvk/btw/iban-velden missen `.max()` vóór de format-check** (`validation.ts:154-192`,
+> - **GEDAAN (2026-09-06): kvk/btw/iban-velden missen `.max()` vóór de format-check** (`validation.ts`,
 >   `z.union([z.literal(""), z.string().trim()])`). Niet exploiteerbaar (ankered regex, geen ReDoS; oversized
->   input wordt geweigerd, niet opgeslagen), maar inconsistent met de rest van het schema dat wél capt. Fix:
->   `.max(50)` voor consistentie/defense-in-depth.
+>   input wordt geweigerd, niet opgeslagen), maar inconsistent met de rest van het schema dat wél capt.
+>   **Fix:** één drift-vaste helper `optionalIdentityField` capt KvK/BTW/IBAN op het freelancerprofiel in de
+>   union-string-tak (`.max(32/32/64)`); de verplichte bureau-KvK kreeg `.max(32)`. Een te lange invoer valt
+>   nu met een `too_big`-issue af vóór de regex/normalisatie draait. Test bindt de cap (rood→groen via de
+>   `too_big`-assert). Zie PROGRESS.md 2026-09-06.
 > - **GEPARKEERD — LOW: onboarding-import-uurtarief-cap (€10.000) wijkt af van de handmatige profiel-cap
 >   (€2.000)** (`onboarding/import.ts:187` vs `validation.ts:143`). Geen security-defect (eindige, sane
 >   grens, geen overflow), maar een bulk-geïmporteerd profiel kan een 5× hoger tarief dragen dan de UI ooit
