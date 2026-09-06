@@ -364,8 +364,15 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // worden gedekt, zodat hetzelfde certificaat niet dubbel verschijnt).
   let allCreds: CollabCredentialInput[] = [];
   const expiringCreds: { id: string; title: string }[] = [];
-  // Uitgesteld: pas emitten na de collab-gap-check (dedup tegen credentialCollabExpiredTask).
-  const expiredNonMandatoryCreds: { id: string; title: string }[] = [];
+  // Uitgesteld: pas emitten na de collab-gap-check (dedup tegen credentialCollabExpiredTask) én per
+  // type (meerdere verlopen exemplaren van één type = één vernieuw-actie). `type`/`expiresAt` dragen
+  // de per-type-keuze van het meest recent verlopen exemplaar.
+  const expiredNonMandatoryCreds: {
+    id: string;
+    title: string;
+    type: string;
+    expiresAt: Date | null;
+  }[] = [];
 
   const [profile, account, overdue, unread] = await Promise.all([
     // Gedeelde, request-gecachte profiel-load (zie getCompletenessProfile): op het dashboard
@@ -468,7 +475,12 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         // Uitgesteld: een door een samenwerking vereist verlopen certificaat krijgt hieronder de
         // hogere-band credentialCollabExpiredTask — de expired-fix-taak dedupt daar dan tegen,
         // net zoals expiringCreds dedupten tegen coveredExpiringCredIds.
-        expiredNonMandatoryCreds.push({ id: c.id, title: c.title });
+        expiredNonMandatoryCreds.push({
+          id: c.id,
+          title: c.title,
+          type: c.type,
+          expiresAt: c.expiresAt,
+        });
     }
     // Ontbrekend/verlopen verplicht document = taak (blokkeert inzetbaarheid). In beoordeling
     // = geen taak: daar is de admin aan zet, niet de ZZP'er.
@@ -808,14 +820,28 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     );
   }
 
-  // Verlopen niet-verplichte certificaten: dedup tegen de collab-gedekte set — een cert dat al een
-  // credentialCollabExpiredTask kreeg (hogere band, samenwerking-context) moet geen tweede,
-  // lagere-band credentialFixTask opleveren naar hetzelfde /certificaten/{id}/bewerken.
-  const coveredExpiredCredIds = new Set(expiredRequired.map((c) => c.credentialId));
+  // Verlopen niet-verplichte certificaten → hooguit één vernieuw-taak per type. Meerdere verlopen
+  // exemplaren van hetzelfde type zijn geen losse gaten: de compliance van een type leunt op één geldig
+  // VERIFIED-certificaat (zie `coveredTypes`), dus één vernieuwing laat álle verlopen taken van dat type
+  // verdwijnen — twee rijen naar twee /certificaten/{id}/bewerken zou dus ruis zijn (rust boven ruis).
+  // Kies per type het meest recent verlopen exemplaar als vernieuw-kandidaat — dezelfde keuze als de
+  // verplicht-document-tak (`expiredCredIdByType`) en de collab-tak (`credentialCollabExpiredTask`).
+  // Sla een type over dat al een hogere-band collab-taak kreeg: die verwoordt de vernieuwing al
+  // (samenwerking-context) en dekt na vernieuwing hetzelfde type — een tweede, lagere-band rij is dubbel.
+  const collabCoveredExpiredTypes = new Set<string>(expiredRequired.map((c) => c.type));
+  const expiredNonMandatoryByType = new Map<string, { id: string; title: string }>();
+  const expiredCandidateExpiry = new Map<string, number>();
   for (const ec of expiredNonMandatoryCreds) {
-    if (coveredExpiredCredIds.has(ec.id)) continue;
-    tasks.push(credentialFixTask(ec.id, ec.title, "expired"));
+    if (collabCoveredExpiredTypes.has(ec.type)) continue;
+    const exp = ec.expiresAt?.getTime() ?? -Infinity;
+    const prevExp = expiredCandidateExpiry.get(ec.type);
+    if (prevExp === undefined || exp > prevExp) {
+      expiredNonMandatoryByType.set(ec.type, { id: ec.id, title: ec.title });
+      expiredCandidateExpiry.set(ec.type, exp);
+    }
   }
+  for (const ec of expiredNonMandatoryByType.values())
+    tasks.push(credentialFixTask(ec.id, ec.title, "expired"));
 
   // Generieke "certificaat verloopt binnenkort"-taken voor de certificaten die géén lopende
   // samenwerking dekt (anders zou hetzelfde certificaat dubbel verschijnen).
