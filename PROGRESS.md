@@ -2,6 +2,23 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — geld-integriteit: dubbel-afronden in `segmentShifts` weg (ORT-factuursubtotaal)
+
+**Wat:** `segmentShift` (`src/lib/shift.ts`) rondde de uren per dienst al op 2 decimalen af; `segmentShifts`
+telde díe reeds-afgeronde waarden op en rondde de som nóg eens → `round(Σ round(minᵢ/60))` i.p.v.
+`round(Σ minᵢ/60)`. Bij een meerdaagse urenstaat met veel diensten op hetzelfde sub-uur-patroon (bv. elke
+dienst eindigt op :00 na een niet-uitgelijnde start) accumuleert de per-dienst-afrondingsbias één kant op →
+structureel te hoog/te laag factuursubtotaal (`planPerformanceApproved` → `ortSubtotalCents` →
+`Invoice.subtotalCents`). Reachable via de dienstmodus van de urenstaat (`samenwerkingen/[id]/actions.ts`
+roept `segmentShifts(shifts, …)` met álle diensten). CSV-import ontsnapte al (roept `segmentShifts([shift])`
+per dienst). **Fix:** de minuten-doorloop + validatie uit `segmentShift` gedeeld in helper
+`accumulateShiftMinutes` die de RUWE minuten-per-categorie teruggeeft; `segmentShift` én `segmentShifts`
+aggregeren ruwe minuten en ronden precies één keer via `segmentsFromMinutes`. Publieke API's ongewijzigd;
+`segmentShift`-gedrag per losse dienst identiek. **Bestanden:** `src/lib/shift.ts`, `src/lib/shift.test.ts`
+(+3 tests: 10× 21:50–22:00 → 1,67u avond i.p.v. 1,70u onder dubbel-afronden; 3× 5 nachtmin → 0,25u i.p.v.
+0,24u; losse dienst blijft 0,17u). **Checks:** prettier ✓ · gerichte tests 72/72 ✓ · typecheck/lint/build +
+CI-poort verifiëren.
+
 ## 2026-09-07 — bestaande versleutelde backupjob herstellen
 
 `db:backup:remote` ontbrak op main; gericht hersteld vanuit `c8b096b2` met verplichte AES-256-GCM, S3-readback/checksum vóór succes-heartbeat, time-outs en behoud van alle bestaande back-ups. Dedicated pg18-image + `railway.backup.json` (cron 02:15 UTC, geen HTTP-healthcheck/seed/migraties). Exacte heartbeatroute passeert sessiemiddleware; CRON_SECRET-guard blijft. Configuratie, grenzen en herstelpad: [RUNBOOK §5](docs/RUNBOOK.md#5-back-up--herstel-database).
