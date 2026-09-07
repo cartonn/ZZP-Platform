@@ -20,13 +20,23 @@ vi.mock("@/lib/services/password-breach", () => ({
   BREACHED_PASSWORD_MESSAGE: "Dit wachtwoord staat in een bekend datalek en is daardoor onveilig.",
 }));
 vi.mock("@/auth", () => ({ signIn: signInMock }));
-vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => undefined) }));
+vi.mock("@/lib/audit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/audit")>()),
+  audit: vi.fn(async () => undefined),
+}));
 vi.mock("@/lib/request-meta", () => ({
   requestMeta: vi.fn(async () => ({ ipAddress: "1.2.3.4" })),
 }));
 vi.mock("@/lib/rate-limit", () => ({ registerRateLimiter: { check: rateCheck } }));
 vi.mock("@/lib/db", () => ({
-  prisma: { user: { findUnique: userFindUnique, create: userCreate } },
+  prisma: {
+    user: { findUnique: userFindUnique },
+    $transaction: async (run: (tx: unknown) => unknown) =>
+      run({
+        user: { create: userCreate },
+        auditLog: { create: vi.fn(async () => undefined) },
+      }),
+  },
 }));
 
 import { register } from "@/app/register/actions";

@@ -1,5 +1,5 @@
 import { ShieldCheck } from "lucide-react";
-import { requireActor } from "@/lib/authz";
+import { requirePasswordChangeActor } from "@/lib/authz";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ChangePasswordForm } from "./change-password-form";
@@ -7,7 +7,7 @@ import { ChangePasswordForm } from "./change-password-form";
 export const metadata = { title: "Wachtwoord wijzigen" };
 
 export default async function ChangePasswordPage() {
-  const actor = await requireActor();
+  const actor = await requirePasswordChangeActor();
   const forced = actor.mustChangePassword;
 
   return (

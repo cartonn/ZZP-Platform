@@ -89,6 +89,18 @@ test("admin importeert ZZP'er + opdrachtgever via CSV en ziet controle-overzicht
   await expect(userPage.getByRole("heading", { name: "Wachtwoord wijzigen" })).toBeVisible();
   await shot(userPage, "22-forced-password-change");
 
+  // An authenticated client must not clear the forced-change security claim via session.update.
+  const csrfResponse = await ctx.request.get("/api/auth/csrf");
+  const { csrfToken } = await csrfResponse.json();
+  const updateResponse = await ctx.request.post("/api/auth/session", {
+    data: { csrfToken, data: { mustChangePassword: false } },
+  });
+  expect(updateResponse.ok()).toBe(true);
+  const updatedSession = await updateResponse.json();
+  expect(updatedSession.user.mustChangePassword).toBe(true);
+  await userPage.goto("/dashboard");
+  await expect(userPage).toHaveURL(/\/account\/wachtwoord/);
+
   // Eigen wachtwoord instellen → uitgelogd → opnieuw inloggen werkt.
   const newPassword = "EigenWachtwoord!9";
   await userPage.fill("#currentPassword", tempPassword);

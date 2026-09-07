@@ -87,10 +87,23 @@ export async function verifySecondFactor(
   });
   for (const code of codes) {
     if (await verifyRecoveryCode(provided, code.codeHash)) {
-      await prisma.twoFactorRecoveryCode.update({
-        where: { id: code.id },
+      // De voorafgaande lookup is een snapshot: twee challenges kunnen dezelfde ongebruikte code
+      // vinden. Claim daarom conditioneel; alleen de winnaar mag de tweede factor accepteren.
+      const claimed = await prisma.twoFactorRecoveryCode.updateMany({
+        where: { id: code.id, userId: user.id, usedAt: null },
         data: { usedAt: new Date() },
       });
+      if (claimed.count !== 1) {
+        await audit({
+          actorId: user.id,
+          action: "TWO_FACTOR_CHALLENGE_FAILED",
+          entityType: "User",
+          entityId: user.id,
+          metadata: { ...audit_metadata, reason: "replay" },
+          ...meta,
+        });
+        return false;
+      }
       await audit({
         actorId: user.id,
         action: "TWO_FACTOR_RECOVERY_CODE_USED",
