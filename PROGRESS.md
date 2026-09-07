@@ -2,6 +2,22 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — prod: RFC 6266 UTF-8-bestandsnamen voor document-/factuur-/media-downloads
+
+**Wat:** downloads verloren diacritische tekens en spaties in de bestandsnaam (`André.pdf → Andr_.pdf`,
+`mijn diploma.pdf → mijn_diploma.pdf`) omdat géén Content-Disposition-producer de RFC 6266
+`filename*=UTF-8''…`-parameter zette — alleen de gesaneerde ASCII-`filename=`. Op een NL-platform met veel
+geüploade certificaten/facturen (André/Renée/Zoë/Müller) een echte fidelity-degradatie. **Fix:** gedeelde
+drift-vaste helper `src/lib/http/content-disposition.ts` die náást de injectie-proof ASCII-fallback óók
+`filename*` toevoegt — alleen wanneer de percent-codering écht iets toevoegt (≥1 `%XX`: spatie/diakritiek),
+dus een na-sanering-puur-ASCII-naam (gestripte traversal) krijgt géén overbodige `filename*`. `filename=`
+= `[\w.-]` (geen `"`/`;`/CR/LF); `filename*` RFC 5987 percent-gecodeerd → óók injectie-proof; unicode-variant
+strippt control-/pad-/reserved-tekens. Centrale helpers `inlineDisposition`/`sanitizeAttachmentFilename`
+(`resource-headers.ts` → documents/facturen-PDF) en `buildContentDisposition` (`storage.ts` → presigned
+S3-URLs/media) routeren er nu doorheen. **Bestanden:** `content-disposition.ts` (+ `.test.ts`, 20 tests),
+`resource-headers.ts`, `storage.ts` (+3 test-cases). **Checks:** typecheck · lint · prettier · gerichte
+tests 58/58 ✓ · build + CI-poort verifieert.
+
 ## 2026-09-07 — security/privacy (audit): CWE-770-volume-rem op de support-hub (laatste ongeremde UGC-mutatie)
 
 **Wat:** volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

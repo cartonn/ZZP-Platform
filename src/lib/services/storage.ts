@@ -6,6 +6,8 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+import { contentDispositionValue } from "@/lib/http/content-disposition";
+
 // Upload-ceiling. Bron van waarheid voor zowel validateUpload als de server-action-body-limiet in
 // next.config.mjs (experimental.serverActions.bodySizeLimit). Blijven die twee uit de pas lopen —
 // bodySizeLimit lager dan deze waarde — dan weigert Next.js een grote upload stil vóór validateUpload
@@ -182,16 +184,16 @@ export function resolveSignedUrlTtl(explicit?: number): number {
 }
 
 /**
- * Bouwt een veilige `Content-Disposition`-headerwaarde. De bestandsnaam wordt ontdaan van tekens
- * die de header (of een traversal) kunnen breken; ontbreekt een naam, dan alleen het type.
+ * Bouwt een veilige `Content-Disposition`-headerwaarde volgens RFC 6266 (gedeelde bron van waarheid,
+ * src/lib/http/content-disposition.ts): ASCII-`filename=`-fallback (injectie-proof) plus
+ * `filename*=UTF-8''…` zodra de naam diakritische tekens/spaties bevat, zodat de browser de echte
+ * naam behoudt. Ontbreekt een naam, dan alleen het type.
  */
 export function buildContentDisposition(disposition: {
   type: "inline" | "attachment";
   filename?: string;
 }): string {
-  if (!disposition.filename) return disposition.type;
-  const safe = disposition.filename.replace(/[^\w.\-]+/g, "_").slice(0, 200) || "bestand";
-  return `${disposition.type}; filename="${safe}"`;
+  return contentDispositionValue(disposition.type, disposition.filename);
 }
 
 /**
