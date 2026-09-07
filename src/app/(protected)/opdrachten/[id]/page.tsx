@@ -81,7 +81,8 @@ import {
   type ApplicationStatus,
 } from "@/lib/enums";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
-import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
+import { DbaMitigationCard } from "@/components/dba/dba-mitigation-plan";
+import { dbaAdvice, dbaMitigations, type DbaReason, type DbaRisk } from "@/lib/dba";
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
 import { buildFreelancerComplianceSignal } from "@/lib/job-dba-freelancer";
 import { FreelancerComplianceBlock } from "@/components/jobs/freelancer-compliance-block";
@@ -811,6 +812,17 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
               ))}
             </ul>
           )}
+          <DbaMitigationCard
+            plan={dbaMitigations({
+              directSupervision: job.dbaDirectSupervision,
+              embedded: job.dbaEmbedded,
+              fixedSchedule: job.dbaFixedSchedule,
+              noSubstitution: job.dbaNoSubstitution,
+              exclusive: job.dbaExclusive,
+              weakEntrepreneurship: job.dbaWeakEntrepreneurship,
+              durationMonths: job.dbaDurationMonths,
+            })}
+          />
           {(() => {
             const modelRec = recommendModelAgreement({
               directSupervision: job.dbaDirectSupervision,

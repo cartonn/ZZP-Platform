@@ -2,6 +2,21 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — DBA-monitor: risico-verlaagstappen ook op de opgeslagen opdracht-detailpagina
+
+**Wat:** de concrete "next best action" van de DBA-monitor (`dbaMitigations`, #1427 — de kleinste set
+indicator-wijzigingen die het risico één niveau verlaagt) stond alleen **live op het opdracht-formulier**.
+Op de opgeslagen opdracht-detailpagina (`opdrachten/[id]`) zag de opdrachtgever wél het risiconiveau, de
+redenen en de modelovereenkomst-aanbeveling, maar niet de "zo verlaag je het risico"-stappen — een
+asymmetrie precies daar waar de opdrachtgever ná publicatie terugkeert. Nieuw gedeeld presentatiecomponent
+`DbaMitigationCard` (`src/components/dba/dba-mitigation-plan.tsx`) toont het plan; op de detailpagina wordt
+het plan **server-side herberekend** uit de opgeslagen indicatoren (`job.dba*`) — dezelfde pure functie,
+consistent met de al server-side herberekende modelovereenkomst-aanbeveling ernaast. Server-side waarheid;
+geen nieuwe logica. Het formulier gebruikt nu hetzelfde component (inline blok verwijderd, DRY).
+**Bestanden:** `src/components/dba/dba-mitigation-plan.tsx` (+ `.test.tsx`, 3 tests via `renderToStaticMarkup`),
+`src/app/(protected)/opdrachten/job-form.tsx` (blok → component), `src/app/(protected)/opdrachten/[id]/page.tsx`.
+**Checks:** gerichte tests groen · typecheck/lint/prettier/build + CI-poort verifiëren. PR #1430.
+
 ## 2026-09-07 — DBA-monitor: concreet, uitlegbaar risico-verlaagadvies op het opdrachtformulier
 
 **Wat:** de DBA-monitor gaf tot nu toe een verdict (LAAG/MIDDEN/HOOG) + generiek advies, maar niet

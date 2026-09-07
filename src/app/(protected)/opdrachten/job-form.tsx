@@ -9,6 +9,7 @@ import { DateInput } from "@/components/ui/date-input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
+import { DbaMitigationCard } from "@/components/dba/dba-mitigation-plan";
 import { assessDbaRisk, dbaAdvice, dbaMitigations } from "@/lib/dba";
 import {
   recommendModelAgreement,
@@ -494,18 +495,7 @@ export function JobForm({
                 ))}
               </ul>
             )}
-            {dbaMitigation && (
-              <div className="mt-2 rounded-md border border-border bg-background p-2.5">
-                <p className="text-xs font-medium">
-                  Zo verlaag je het risico naar {dbaMitigation.targetLevel}:
-                </p>
-                <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-                  {dbaMitigation.changes.map((c) => (
-                    <li key={c.factor}>{c.action}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <DbaMitigationCard plan={dbaMitigation} className="mt-2" />
           </div>
         )}
 
