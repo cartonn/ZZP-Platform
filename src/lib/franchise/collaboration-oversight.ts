@@ -37,6 +37,14 @@ export interface FranchiseCollabOversight {
   endingSoon: number;
   /** ACTIVE-inzet voorbij de einddatum, nog binnen de grace (vraagt aandacht). */
   overdue: number;
+  /**
+   * Lopende inzet (PROPOSED of ACTIVE) die door een open dispuut bevroren is — het cascade-werkproces
+   * (uren → goedkeuring → factuur) staat stil tot het dispuut is opgelost. `openDispute` staat een
+   * dispuut op zowel een PROPOSED als een ACTIVE samenwerking toe; `resolveDispute` zet `disputedAt`
+   * weer op `null`, dus `disputedAt !== null` = een openstaand dispuut. Geen deelverzameling van
+   * `active`/`proposed`-tellers hierboven maar een eigen, urgentere aandachtsklasse.
+   */
+  disputed: number;
 }
 
 /**
@@ -55,8 +63,14 @@ export function summarizeFranchiseCollaborations(
     stalledProposals: 0,
     endingSoon: 0,
     overdue: 0,
+    disputed: 0,
   };
   for (const row of rows) {
+    // Bevroren door een open dispuut heeft voorrang op elk vervolg-/voorstelsignaal (het werkproces
+    // staat stil). Beperk tot de lopende statussen — een afgeronde/geannuleerde inzet is geen actie.
+    if (row.disputedAt !== null && (row.status === "ACTIVE" || row.status === "PROPOSED")) {
+      summary.disputed += 1;
+    }
     if (row.status === "PROPOSED") {
       summary.proposed += 1;
       // Voorstel-ouderdom uit dezelfde pure bron als de samenwerkingenlijst → geen drift.
@@ -97,6 +111,15 @@ export function franchiseCollabHeadline(summary: FranchiseCollabOversight): stri
 
   const sentences: string[] = [];
 
+  // Dispuut eerst: een bevroren plaatsing legt het werkproces (en daarmee de facturatie) stil — dat is
+  // urgenter dan een aflopende of stilstaande inzet.
+  if (summary.disputed > 0) {
+    const n = summary.disputed;
+    sentences.push(
+      `${n} ${n === 1 ? "plaatsing is" : "plaatsingen zijn"} bevroren door een open dispuut — het werkproces staat stil tot dit is opgelost.`,
+    );
+  }
+
   // Vervolgsignaal (ACTIVE-inzet die afloopt of voorbij de einddatum is).
   if (franchiseCollabAttention(summary) > 0) {
     const parts: string[] = [];
@@ -124,6 +147,21 @@ export function franchiseCollabHeadline(summary: FranchiseCollabOversight): stri
   }
 
   return sentences.length > 0 ? sentences.join(" ") : null;
+}
+
+/**
+ * Compacte per-rij-chip voor een lopende inzet die door een open dispuut bevroren is. `null` als de rij
+ * geen open dispuut heeft of niet meer loopt (afgerond/geannuleerd) — dan is er geen actie. Presentatie
+ * uit dezelfde bron als de teller (`summarizeFranchiseCollaborations`) → geen drift tussen strip en lijst.
+ */
+export function collaborationFrozenRowBadge(
+  disputedAt: Date | null,
+  status: string,
+): { label: string; tone: "danger" } | null {
+  if (disputedAt !== null && (status === "ACTIVE" || status === "PROPOSED")) {
+    return { label: "Bevroren · dispuut", tone: "danger" };
+  }
+  return null;
 }
 
 /**

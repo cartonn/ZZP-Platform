@@ -2,6 +2,28 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — bemiddelaar: open disputen zichtbaar op de samenwerkingen-cockpit (bevroren plaatsing = eigen aandachtsklasse)
+
+**Wat:** een open dispuut bevriest een plaatsing — het cascade-werkproces (uren → goedkeuring → factuur)
+staat stil tot het is opgelost — maar de bemiddelaar-cockpit `/franchise/samenwerkingen` telde en toonde
+disputen nergens. `disputedAt` werd uitsluitend gebruikt om ándere signalen te ónderdrukken
+(vervolg-nudge in `collaboration-renewal.ts`, voorstel-ouderdom, roster-dossier), waardoor een bevroren
+inzet volledig onzichtbaar viel: geen strip-tegel, geen kop, geen rij-markering, en in de lijst-sortering
+zakte hij naar rang 2 (renewal-fase `none`). De bemiddelaar die de plaatsing regelde had zo geen enkel
+zicht op stilstaand werk. **Nu:** (a) `FranchiseCollabOversight` krijgt een eigen `disputed`-teller —
+lopende inzet (ACTIVE óf PROPOSED; `openDispute` staat een dispuut op beide toe) met `disputedAt !== null`,
+terminale statussen tellen niet mee, (b) de strip toont een danger-tegel "Bevroren dispuut · werkproces
+staat stil" (alleen bij > 0, DESIGN.md: toon alleen wat telt), (c) de kop noemt het dispuut-signaal
+**vóór** het vervolg-/voorstelsignaal (bevroren = urgenter dan aflopend), (d) de lijst sorteert bevroren
+inzet naar de top (rang −1, boven overdue) en draagt een rij-chip "Bevroren · dispuut". Pure, server-side
+afgeleide presentatie — geen mutatie/schema/authz-oppervlak; één bron (`collaborationFrozenRowBadge` +
+`summarizeFranchiseCollaborations`) voor strip én lijst, dus geen drift. **Hoe:** `disputed`-veld +
+`collaborationFrozenRowBadge` in `src/lib/franchise/collaboration-oversight.ts`; danger-tegel +
+dynamische kolomtelling (3–5) in de strip; import + sort-rang + rij-chip in de pagina. **Bestanden:**
+`collaboration-oversight.ts` (+ `.test.ts`, +5 tests → 20), `components/franchise/collaboration-oversight-strip.tsx`,
+`app/(protected)/franchise/samenwerkingen/page.tsx`. **Checks:** typecheck · lint · prettier · unit ·
+build · CI-poort verifieert.
+
 ## 2026-09-06 — bemiddelaar: churn-risico-tiering + "bel de koudste eerst" op de klantenlijst
 
 **Wat:** de bemiddelaar-cockpit `/franchise/opdrachtgevers` toonde stilgevallen klanten (`attention`) als
