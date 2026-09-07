@@ -13,7 +13,7 @@
 // uitvoer: een fout wordt teruggebracht tot de error-NAAM (nooit het bericht — dat kan een
 // endpoint/connection-string bevatten), net als de readiness-probe.
 
-import type { ExpectedSse, StorageDriver } from "@/lib/services/storage";
+import type { BucketEncryptionInfo, ExpectedSse, StorageDriver } from "@/lib/services/storage";
 
 /** Eén stap in de round-trip. `ok:false` + `detail` bij een fout of een niet-gehaalde verwachting. */
 export interface SelfTestStep {
@@ -38,7 +38,7 @@ export interface StorageSelfTestReport {
 /** De opslag-operaties die de zelftest nodig heeft (subset van `StorageDriver`, injecteerbaar). */
 export type SelfTestDriver = Pick<
   StorageDriver,
-  "put" | "exists" | "get" | "delete" | "describeEncryption"
+  "put" | "exists" | "get" | "delete" | "describeEncryption" | "describeBucketEncryption"
 >;
 
 /** Prefix waaronder alle probe-objecten leven; scheidt ze van echte documenten (`YYYY/<uuid>`). */
@@ -144,24 +144,49 @@ export async function runStorageSelfTest(opts: {
       try {
         const info = await driver.describeEncryption(probeKey);
         if (!info.serverSideEncryption) {
+          // De opslag meldt geen per-object SSE-header terug. Dat is niet per se onversleuteld: veel
+          // S3-compatibele stores versleutelen transparant-at-rest en echoën de header niet op
+          // HeadObject. Val daarom terug op POSITIEF bucket-breed bewijs (GetBucketEncryption): staat
+          // er een default-encryptie-regel op de bucket, dan versleutelt de opslag élk object
+          // aantoonbaar op schijf en is de beveiligingseigenschap gehaald. Ontbreekt dat bewijs (geen
+          // regel, of de call werpt/wordt niet ondersteund), dan blijft dit de AVG-faalmodus.
+          let bucketDefault: BucketEncryptionInfo["defaultEncryption"] = null;
+          if (driver.describeBucketEncryption) {
+            try {
+              bucketDefault = (await driver.describeBucketEncryption()).defaultEncryption;
+            } catch {
+              // Geen positief bewijs (auth/onbereikbaar/niet-ondersteund) → val door naar de faal-tak.
+              bucketDefault = null;
+            }
+          }
+          if (bucketDefault) {
+            record(
+              "encrypt",
+              true,
+              `Per-object SSE-header afwezig; bucket-default-encryptie is geconfigureerd (${bucketDefault}, geverifieerd via bucket-policy) — objecten staan versleuteld op schijf.`,
+            );
+          } else {
+            record(
+              "encrypt",
+              false,
+              "Object kwam ONVERSLEUTELD terug — de opslag negeert de ingestelde server-side-encryptie (AVG-risico).",
+            );
+            return { ok: false, driverMode, probeKey, steps };
+          }
+          // Bewijs geleverd via de bucket-fallback: door naar de verval-stappen.
+        } else {
+          // Aanwezigheid van een SSE-algoritme is de beveiligingseigenschap die telt. Wijkt het
+          // gerapporteerde algoritme af van de verwachting, dan blijft de stap groen maar noemen we
+          // beide zodat een beheerder een onbedoelde KMS/AES-mismatch ziet.
+          const reported = info.serverSideEncryption;
           record(
             "encrypt",
-            false,
-            "Object kwam ONVERSLEUTELD terug — de opslag negeert de ingestelde server-side-encryptie (AVG-risico).",
+            true,
+            reported === expectedSse
+              ? `Versleuteld op schijf (${reported}).`
+              : `Versleuteld op schijf (${reported}); verwacht ${expectedSse}.`,
           );
-          return { ok: false, driverMode, probeKey, steps };
         }
-        // Aanwezigheid van een SSE-algoritme is de beveiligingseigenschap die telt. Wijkt het
-        // gerapporteerde algoritme af van de verwachting, dan blijft de stap groen maar noemen we
-        // beide zodat een beheerder een onbedoelde KMS/AES-mismatch ziet.
-        const reported = info.serverSideEncryption;
-        record(
-          "encrypt",
-          true,
-          reported === expectedSse
-            ? `Versleuteld op schijf (${reported}).`
-            : `Versleuteld op schijf (${reported}); verwacht ${expectedSse}.`,
-        );
       } catch (error) {
         record("encrypt", false, safeDetail(error));
         return { ok: false, driverMode, probeKey, steps };

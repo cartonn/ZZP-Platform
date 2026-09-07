@@ -44,7 +44,9 @@
   (`TAX_PARTNER_DRIVER` inert). Elke koppeling heeft een zelftest + aflever-heartbeat op
   `/admin/systeemstatus`. Rate-limit-store draait op Redis (`RATE_LIMIT_STORE=redis`, Railway-Redis).
   Live opslag is S3; private put/get/delete-selftest en ClamAV-detectietest slagen. VAPID is ingesteld.
-  De opslagprovider ondersteunt de vereiste SSE-metadata niet; de strikte productiecontrole slaagt nog niet.
+  De opslagprovider echoot geen per-object SSE-header; de encryptie-zelftest valt nu terug op
+  bucket-default-encryptie-bewijs (`GetBucketEncryption`, #1426). Resterend: zet default-encryptie op
+  de bucket aan (AWS S3: sinds jan-2023 verplicht aan), dan haalt de strikte productiecontrole groen.
 - **Productie-bewaking:** `/api/health` geeft `commit` + `builtAt`; `monitor.yml` vergelijkt elke 10 min
   met `origin/main` en opent een issue met label `deploy-lag` bij achterstand. Les 12-8 t/m 2-9: drie
   weken geen geslaagde deploy zonder dat iemand het zag. Observability-bundle compleet (6-9):

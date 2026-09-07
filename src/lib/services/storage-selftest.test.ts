@@ -259,6 +259,116 @@ describe("runStorageSelfTest", () => {
     expect(driver.store.size).toBe(0);
   });
 
+  it("slaagt via de bucket-default-encryptie-fallback wanneer de per-object SSE-header afwezig is", async () => {
+    // S3-compatibele store die transparant-at-rest versleutelt maar de per-object header niet echoot,
+    // met een geconfigureerde bucket-default-encryptie-regel → positief bewijs → groen.
+    const driver = memoryDriver();
+    driver.describeEncryption = vi.fn(async () => ({ serverSideEncryption: null }));
+    driver.describeBucketEncryption = vi.fn(async () => ({ defaultEncryption: "AES256" as const }));
+
+    const report = await runStorageSelfTest({
+      driver,
+      driverMode: "s3",
+      probeKey: KEY,
+      expectedSse: "AES256",
+    });
+
+    expect(report.ok).toBe(true);
+    expect(report.steps.map((s) => s.key)).toEqual([
+      "write",
+      "exists",
+      "read",
+      "encrypt",
+      "delete",
+      "cleanup",
+    ]);
+    const encrypt = report.steps.find((s) => s.key === "encrypt");
+    expect(encrypt?.ok).toBe(true);
+    expect(encrypt?.detail).toContain("bucket-default-encryptie");
+    expect(encrypt?.detail).toContain("AES256");
+    expect(driver.describeBucketEncryption).toHaveBeenCalledTimes(1);
+    expect(driver.store.size).toBe(0);
+  });
+
+  it("faalt (AVG) wanneer de per-object header afwezig is én de bucket geen default-encryptie heeft", async () => {
+    const driver = memoryDriver();
+    driver.describeEncryption = vi.fn(async () => ({ serverSideEncryption: null }));
+    driver.describeBucketEncryption = vi.fn(async () => ({ defaultEncryption: null }));
+
+    const report = await runStorageSelfTest({
+      driver,
+      driverMode: "s3",
+      probeKey: KEY,
+      expectedSse: "AES256",
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.steps.map((s) => s.key)).toEqual(["write", "exists", "read", "encrypt"]);
+    expect(report.steps.at(-1)).toMatchObject({ key: "encrypt", ok: false });
+    expect(report.steps.at(-1)?.detail).toContain("ONVERSLEUTELD");
+    expect(driver.store.size).toBe(0);
+  });
+
+  it("faalt (AVG) wanneer de bucket-encryptie-fallback zelf werpt — geen vals groen", async () => {
+    const driver = memoryDriver();
+    driver.describeEncryption = vi.fn(async () => ({ serverSideEncryption: null }));
+    driver.describeBucketEncryption = vi.fn(async () => {
+      throw Object.assign(new Error("GetBucketEncryption 403 for https://minio.internal"), {
+        name: "AccessDenied",
+      });
+    });
+
+    const report = await runStorageSelfTest({
+      driver,
+      driverMode: "s3",
+      probeKey: KEY,
+      expectedSse: "AES256",
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.steps.at(-1)).toMatchObject({ key: "encrypt", ok: false });
+    expect(report.steps.at(-1)?.detail).toContain("ONVERSLEUTELD");
+    // De fout-inhoud (endpoint) lekt niet in de detail.
+    expect(report.steps.at(-1)?.detail).not.toContain("minio.internal");
+    expect(driver.store.size).toBe(0);
+  });
+
+  it("faalt (AVG) wanneer de per-object header afwezig is en er geen bucket-fallback beschikbaar is", async () => {
+    // Driver zonder describeBucketEncryption (bestaand gedrag ongewijzigd): geen fallback-bewijs → fail.
+    const driver = memoryDriver();
+    driver.describeEncryption = vi.fn(async () => ({ serverSideEncryption: null }));
+
+    const report = await runStorageSelfTest({
+      driver,
+      driverMode: "s3",
+      probeKey: KEY,
+      expectedSse: "AES256",
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.steps.at(-1)).toMatchObject({ key: "encrypt", ok: false });
+    expect(report.steps.at(-1)?.detail).toContain("ONVERSLEUTELD");
+  });
+
+  it("gebruikt de bucket-fallback NIET wanneer de per-object header al aanwezig is", async () => {
+    const driver = memoryDriver();
+    driver.describeEncryption = vi.fn(async () => ({ serverSideEncryption: "AES256" }));
+    driver.describeBucketEncryption = vi.fn(async () => ({ defaultEncryption: "AES256" as const }));
+
+    const report = await runStorageSelfTest({
+      driver,
+      driverMode: "s3",
+      probeKey: KEY,
+      expectedSse: "AES256",
+    });
+
+    expect(report.ok).toBe(true);
+    const encrypt = report.steps.find((s) => s.key === "encrypt");
+    expect(encrypt?.detail).toContain("Versleuteld op schijf (AES256)");
+    // Per-object bewijs volstond → de bucket-fallback wordt niet aangeroepen.
+    expect(driver.describeBucketEncryption).not.toHaveBeenCalled();
+  });
+
   it("probePayload is deterministisch en gebonden aan de key", () => {
     expect(probePayload(KEY).equals(probePayload(KEY))).toBe(true);
     expect(probePayload(KEY).equals(probePayload(`${SELFTEST_PREFIX}other.txt`))).toBe(false);
