@@ -637,7 +637,15 @@ export const navBadges = cache(async function navBadges(
       renewalWork,
       coldJobs,
     ] = await Promise.all([
-      prisma.application.count({ where: { job: { companyId }, status: "NEW" } }),
+      // job.status: "PUBLISHED" — kandidaat-beoordeelsignalen horen alleen bij een LIVE opdracht.
+      // Sluit de opdrachtgever de opdracht (PUBLISHED→CLOSED) of zet hem terug naar concept
+      // (PUBLISHED→DRAFT), dan blijven de open reacties (NEW/VIEWED/SHORTLIST) in de DB staan —
+      // `changeJobStatus` stuurt ze alleen een notificatie, transitioneert ze niet. Zonder deze poort
+      // bleef de /kandidaten-badge zo'n reactie eeuwig meetellen terwijl /acties de beoordeeltaak juist
+      // niet meer toont (pending-tasks.ts scopet wél op PUBLISHED) — precies het badge↔lijst-driftgat.
+      prisma.application.count({
+        where: { job: { companyId, status: "PUBLISHED" }, status: "NEW" },
+      }),
       prisma.job.count({ where: { companyId, status: "DRAFT" } }),
       unreadConversationCount(userId),
       overdueInvoiceCount("CLIENT", userId),
@@ -690,10 +698,13 @@ export const navBadges = cache(async function navBadges(
       // `clientComplianceTask` tonen) — het "signaal op één oppervlak"-anti-patroon.
       clientCredentialAlerts(userId),
       // stale kandidaten (VIEWED/SHORTLIST te lang onbeslist) — exact het predicaat uit
-      // pending-tasks.ts (`staleApplicationsTask`). Eigenaar-gescoopt + take-begrensd.
+      // pending-tasks.ts (`staleApplicationsTask`). Eigenaar-gescoopt + take-begrensd. Zie de
+      // `newApplications`-telling hierboven: alleen LIVE opdrachten (`job.status: "PUBLISHED"`) — een
+      // reeds-bekeken kandidaat op een gesloten/concept-opdracht is geen openstaande beslissing meer,
+      // en zonder deze poort dreef de badge van /acties af.
       prisma.application.findMany({
         where: {
-          job: { companyId },
+          job: { companyId, status: "PUBLISHED" },
           status: { in: ["VIEWED", "SHORTLIST"] },
           createdAt: { lte: staleWindow },
         },

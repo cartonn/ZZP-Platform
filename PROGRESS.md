@@ -2,6 +2,26 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — persona-sweep (run 6): /kandidaten-nav-badge dreef af van /acties op een gesloten opdracht
+
+**Wat:** volledige kritische-gebruiker-sweep (4 rollen) via 3 parallelle adversariële Opus-audits op niet-
+overlappende oppervlakken. **DOEL 2 schoon:** security/IDOR/cross-tenant/document-privacy **0 bereikbare gaten**
+(`currentActor()` herlaadt rol/tenant live uit de DB, `tenantScopeWhere` als één bron, anti-oracle-404 op elke
+by-id-fetch, cascade-commands her-afleiden partij i.p.v. client-id); invoer/Zod/geld **0 gaten** (int4-overflow
+gedekt, NaN/Infinity/negatief geweigerd, CSV-injectie centraal, upload magic-byte-sniff).
+
+**Gefixt (DOEL 1b — badge↔lijst-pariteit):** `navBadges` (`src/lib/signals.ts`) telde de CLIENT-`/kandidaten`-
+badge (NEW-reactie-telling `:640` + stale VIEWED/SHORTLIST-`findMany` `:696`) alleen op `companyId`, zónder de
+`job.status: "PUBLISHED"`-poort die run 103 aan de item-engine (`pending-tasks.ts`) toevoegde. Sluit de
+opdrachtgever een opdracht zonder de reactie te beoordelen (PUBLISHED→CLOSED/DRAFT), dan blijft de reactie NEW
+in de DB (`changeJobStatus` transitioneert reacties niet) → de beoordeeltaak verdwijnt van /acties, maar de
+badge bleef 'm eeuwig meetellen: een fantoom-`attention`-badge die nooit op nul komt (het "signaal op één
+oppervlak"-anti-patroon). **Fix:** `job.status: "PUBLISHED"` toegevoegd aan beide queries → badge==lijst.
+**Bestanden:** `src/lib/signals.ts`, `src/lib/signals-client-closed-job-badge.test.ts` (+1 test, rood→groen
+bewezen door de fix te stashen: badge `{count:5, tone:"attention"}` → undefined). **Geparkeerd (LOW):** DST-uur
+mis-attributie in ORT-segmentatie (`shift.ts`), twee dagen/jaar, klein factuur-effect — zie PERSONA-SWEEP-BACKLOG.
+**Checks:** prettier ✓ · gerichte tests (signals 134/134 + nieuwe 1/1) ✓ · typecheck/lint/build + CI-poort verifiëren.
+
 ## 2026-09-07 — geld-integriteit: dubbel-afronden in `segmentShifts` weg (ORT-factuursubtotaal)
 
 **Wat:** `segmentShift` (`src/lib/shift.ts`) rondde de uren per dienst al op 2 decimalen af; `segmentShifts`
