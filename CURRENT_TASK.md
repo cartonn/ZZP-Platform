@@ -120,17 +120,12 @@ punt 5 hieronder.
 
 ### Robuustheid / techniek
 
-0. **[GELD — HOOG] Dubbel-afronden in `segmentShifts` (`src/lib/shift.ts`) buigt het ORT-factuursubtotaal.**
-   `segmentShift` rondt per dienst elke categorie-uren al af op 2 decimalen (regel 138); `segmentShifts`
-   telt díe reeds-afgeronde waarden op (regel 162) en rondt de som nóg eens (regel 169) → `round(Σ round(min_i/60))`
-   i.p.v. `round(Σ min_i/60)`. Bij een meerdaagse urenstaat met veel diensten op hetzelfde sub-uur-patroon
-   (bv. elke dienst eindigt op :50) accumuleert de afrondingsbias één kant op → structureel te hoog/te laag
-   factuursubtotaal (`planPerformanceApproved` → `ortSubtotalCents` → `Invoice.subtotalCents`). Repro: 10×
-   dienst 21:50–22:00 (10 min avond), €50/u → 1,70u geboekt i.p.v. 1,67u (≈ €1,83 te veel op die staat,
-   groeit met het aantal diensten). CSV-import ontsnapt (roept `segmentShifts([shift])` per dienst). **Fix:**
-   aggregeer op minuut-resolutie over alle diensten en rond één keer aan het eind — deel de minuten-lus uit
-   `segmentShift` in een helper die de ruwe `minutesByCat` teruggeeft; `segmentShifts` merget die maps en
-   rondt één keer. Publieke API's ongewijzigd. Test met een meerdienst-staat die rood is onder dubbel-afronden.
+0. **[GELD — HOOG] Dubbel-afronden in `segmentShifts` (`src/lib/shift.ts`) — GEDAAN (7-9, PR volgt).**
+   De minuten-doorloop + validatie zijn uit `segmentShift` gedeeld in helper `accumulateShiftMinutes` die de
+   RUWE `minutesByCat` teruggeeft; `segmentShift` én `segmentShifts` aggregeren ruwe minuten en ronden precies
+   één keer via `segmentsFromMinutes` (`round(Σ minᵢ/60)` i.p.v. `round(Σ round(minᵢ/60))`). Publieke API's
+   ongewijzigd; per-losse-dienst-gedrag identiek. Regressietests: 10× 21:50–22:00 → 1,67u (was 1,70u),
+   3× 5 nachtmin → 0,25u (was 0,24u). Zie PROGRESS.md bovenaan.
 
 1. **Twee resterende flaky e2e-tests** (slagen op retry, `retries: 2` absorbeert ze — geen
    blocker): `critical-personas.spec.ts:111` (franchise onbestaand-id → 404, soms 200 op de eerste

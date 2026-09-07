@@ -557,6 +557,30 @@ describe("segmentShifts — meerdere diensten aggregeren", () => {
     const segs = segmentShifts(shifts);
     expect(totalHours(segs)).toBeCloseTo(10, 2);
   });
+
+  it("rondt de som van alle diensten één keer af (geen accumulerende per-dienst-bias)", () => {
+    // Regressie: `segmentShift` rondt elke dienst al op 2 decimalen; als `segmentShifts` díe
+    // reeds-afgeronde uren optelt en nóg eens afrondt (`round(Σ round(minᵢ/60))`) buigt het
+    // subtotaal. 10× dienst 21:50–22:00 = 10 min avond per dienst = 100 min = 1,6667u avond.
+    // Correct: round(100/60) = 1,67u. Fout (dubbel-afronden): round(10/60)=0,17u ×10 = 1,70u.
+    const shift = { start: new Date(2026, 0, 12, 21, 50), end: new Date(2026, 0, 12, 22, 0) };
+    const shifts = Array.from({ length: 10 }, () => shift);
+    const segs = segmentShifts(shifts);
+    expect(hoursFor(segs, "EVENING")).toBeCloseTo(1.67, 2);
+    // Elke dienst afzonderlijk gesegmenteerd blijft 0,17u avond (round één keer, ongewijzigd gedrag).
+    expect(hoursFor(segmentShift(shift.start, shift.end), "EVENING")).toBeCloseTo(0.17, 2);
+  });
+
+  it("aggregeert ruwe minuten over categorieën heen zonder tussentijdse afronding", () => {
+    // 3× dienst met 5 nachtminuten (21:55–22:00) en 5 avondminuten elders zou onder dubbel-afronden
+    // 3× round(5/60)=0,08 → 0,24u geven; correct is round(15/60)=0,25u.
+    const shifts = Array.from({ length: 3 }, () => ({
+      start: new Date(2026, 0, 12, 22, 0),
+      end: new Date(2026, 0, 12, 22, 5),
+    }));
+    const segs = segmentShifts(shifts);
+    expect(hoursFor(segs, "NIGHT")).toBeCloseTo(0.25, 2);
+  });
 });
 
 // ---------------------------------------------------------------------------
