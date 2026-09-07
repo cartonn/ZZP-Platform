@@ -107,10 +107,26 @@ export function segmentShift(start: Date, end: Date, opts: SegmentShiftOptions =
   const stepMs = step * 60_000;
 
   const minutesByCat = new Map<OrtSegmentCategory, number>();
-  for (let t = start.getTime(); t < end.getTime(); t += stepMs) {
-    const sliceMs = Math.min(stepMs, end.getTime() - t);
-    const cat = classify(new Date(t), rates, holidays);
-    minutesByCat.set(cat, (minutesByCat.get(cat) ?? 0) + sliceMs / 60_000);
+  // Elke slice krijgt de categorie van zijn START-instant. ORT-categorieën wisselen uitsluitend op
+  // hele-uur-grenzen (18:00/22:00/06:00 én middernacht voor weekdag-/feestdagwissels), dus klemmen we
+  // elke slice op de eerstvolgende hele-uur-grens: valt er een grens binnen een stap, dan wordt de
+  // slice daar afgekapt zodat de minuten aan de overkant niet op het verkeerde toeslagtarief belanden.
+  // Zonder deze klem worden bij niet-uitgelijnde diensttijden (bv. 21:50–22:20) hele stap-minuten
+  // aan de verkeerde kant van de grens geboekt → verkeerde ORT-toeslag voor de zorgverlener.
+  const endMs = end.getTime();
+  for (let t = start.getTime(); t < endMs; ) {
+    const d = new Date(t);
+    const nextHourMs = new Date(
+      d.getFullYear(),
+      d.getMonth(),
+      d.getDate(),
+      d.getHours() + 1,
+    ).getTime();
+    // nextHourMs ligt altijd strikt ná t (t valt binnen het lopende uur), dus de lus vordert altijd.
+    const sliceEnd = Math.min(t + stepMs, nextHourMs, endMs);
+    const cat = classify(d, rates, holidays);
+    minutesByCat.set(cat, (minutesByCat.get(cat) ?? 0) + (sliceEnd - t) / 60_000);
+    t = sliceEnd;
   }
 
   // Vaste volgorde: NORMAL eerst, daarna de toeslagcategorieën in configvolgorde.
