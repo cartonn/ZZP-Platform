@@ -9,6 +9,9 @@
 
 ## HANDOFF — operationele stand (lees dit eerst)
 
+- **Accountrelease live (7-9):** PR #1418 alle CI-poorten groen, gemerged; health/readiness 200
+  op commit `34f658e`. Demo-fase blijft actief; dit bewijst nog geen productiegeschiktheid.
+
 - **Backupreparatie 7-9, nog te publiceren/bewijzen:** remote backupcommando en aparte pg18-image
   hersteld; exacte heartbeatroute bereikt de eigen CRON_SECRET-guard. Geen retentie-snoei.
   Configureer alleen database-backup naar `/railway.backup.json` en dezelfde Postgres-uro6 als de
@@ -36,10 +39,12 @@
   aangifte/KOR/fiscale uitbreidingen, academie, ideeën, design-lab, nieuwe rollen, nieuwe
   prijslijnen en i18n zijn **uitgesloten**. Zie `docs/ROUTINE-PROMPT.md` en CLAUDE.md.
 - **Uit / niet operationeel (bewust, env-gestuurd):** billing (`BILLING_PROVIDER=noop`), e-mail
-  (`EMAIL_DRIVER=noop`), documentopslag (`STORAGE_DRIVER=local`), echte verificatie-koppelingen
-  (`DIPLOMA_VERIFIER`/`BIG_VERIFIER`/`IDENTITY_VERIFIER` = `mock`), web-push (geen VAPID-sleutels), aangifte-partner
+  (`EMAIL_DRIVER=noop`), echte verificatie-koppelingen
+  (`DIPLOMA_VERIFIER`/`BIG_VERIFIER`/`IDENTITY_VERIFIER` = `mock`), aangifte-partner
   (`TAX_PARTNER_DRIVER` inert). Elke koppeling heeft een zelftest + aflever-heartbeat op
   `/admin/systeemstatus`. Rate-limit-store draait op Redis (`RATE_LIMIT_STORE=redis`, Railway-Redis).
+  Live opslag is S3; private put/get/delete-selftest en ClamAV-detectietest slagen. VAPID is ingesteld.
+  De opslagprovider ondersteunt de vereiste SSE-metadata niet; de strikte productiecontrole slaagt nog niet.
 - **Productie-bewaking:** `/api/health` geeft `commit` + `builtAt`; `monitor.yml` vergelijkt elke 10 min
   met `origin/main` en opent een issue met label `deploy-lag` bij achterstand. Les 12-8 t/m 2-9: drie
   weken geen geslaagde deploy zonder dat iemand het zag. Observability-bundle compleet (6-9):
@@ -59,6 +64,9 @@
 De actuele Railway-configuratie is leidend boven de oudere handoff: documentopslag staat op S3,
 releasefase op demo en demo-seeding aan; e-maildriver is niet ingesteld. Eerst de
 accountbeveiligingsfixes door de CI-poort en de operationele productiestappen bewijzen.
+
+Publieke marketing is feitelijk gemaakt; demo-seeding onderdrukt vertrouwenscijfers. De copyfix
+staat klaar voor PR/CI; definitieve livecontrole volgt na de deploy.
 
 ## NU — bouwprogramma 2/3-9 afgerond (24 PR's, zie PROGRESS.md bovenaan)
 

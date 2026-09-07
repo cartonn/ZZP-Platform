@@ -84,8 +84,8 @@ const EN: Record<string, string> = {
   Wachtwoord: "Password",
   Inloggen: "Sign in",
   "Bezig met inloggen…": "Signing in…",
-  "Vind en beheer zorgopdrachten — geverifieerd, Wet-DBA-proof en zonder papierwerk.":
-    "Find and manage healthcare assignments — verified, compliant with Dutch labour law and paperwork-free.",
+  "Vind zorgopdrachten en beheer je dossier, afspraken en uren op één plek.":
+    "Find healthcare assignments and manage your documents, agreements and hours in one place.",
   "Je wachtwoord is gewijzigd. Log in met je nieuwe wachtwoord.":
     "Your password has been changed. Sign in with your new password.",
   "Wachtwoord vergeten?": "Forgot your password?",
@@ -152,12 +152,12 @@ const EN: Record<string, string> = {
 
   // --- Login: vertrouwens-strip (marketing) ---
   "Waarom Handslag": "Why Handslag",
-  "Certificaten één keer uploaden, overal geldig": "Upload credentials once, valid everywhere",
-  "VOG, diploma's en BIG-registratie worden handmatig gecontroleerd — daarna staan ze klaar bij elke opdracht.":
-    "Police certificates, diplomas and professional registrations are checked manually — then ready for every assignment.",
-  "Modelovereenkomst bij elke opdracht": "A model agreement with every assignment",
-  "Standaard Wet-DBA-proof, zodat je geen gedoe hebt met schijnzelfstandigheid.":
-    "Compliant with Dutch labour law by default, so bogus self-employment is never a worry.",
+  "Certificaten beheren in één dossier": "Manage credentials in one place",
+  "Upload je VOG, diploma's en BIG-registratie en volg hun verificatiestatus en vervaldatum.":
+    "Upload your police certificate, diplomas and professional registration and track their verification status and expiry dates.",
+  "Afspraken vastleggen in een overeenkomst": "Record your arrangements in an agreement",
+  "Leg afspraken vast en bekijk signalen rond de Wet DBA. Die signalen zijn geen juridisch oordeel.":
+    "Record your agreements and view indicators related to Dutch employment law. These indicators are not a legal assessment.",
   "Je ziet waarom een opdracht bij je past": "You see why an assignment fits you",
   "Bij elke opdracht laten we de reden van de match zien — geen giswerk.":
     "For every assignment we show the reason for the match — no guesswork.",

@@ -5,13 +5,13 @@ import { getTranslator } from "@/lib/i18n/server";
 const PILLARS = [
   {
     icon: ShieldCheck,
-    title: "Certificaten één keer uploaden, overal geldig",
-    desc: "VOG, diploma's en BIG-registratie worden handmatig gecontroleerd — daarna staan ze klaar bij elke opdracht.",
+    title: "Certificaten beheren in één dossier",
+    desc: "Upload je VOG, diploma's en BIG-registratie en volg hun verificatiestatus en vervaldatum.",
   },
   {
     icon: ScrollText,
-    title: "Modelovereenkomst bij elke opdracht",
-    desc: "Standaard Wet-DBA-proof, zodat je geen gedoe hebt met schijnzelfstandigheid.",
+    title: "Afspraken vastleggen in een overeenkomst",
+    desc: "Leg afspraken vast en bekijk signalen rond de Wet DBA. Die signalen zijn geen juridisch oordeel.",
   },
   {
     icon: Target,
@@ -34,9 +34,8 @@ const PILLARS = [
 const KEURMERK = ["VOG", "Diploma", "BIG", "Verzekering"] as const;
 
 /**
- * Compacte vertrouwens-strip onder het inlog-/registratieformulier: kwalitatieve garanties die
- * altijd waar zijn over hoe het platform werkt, een verificatie-keurmerk-rij, en — alleen wanneer
- * betekenisvol — echte platformcijfers. Etaleert de bestaande sterktes vroeg in de funnel.
+ * Compact login/registration trust strip: existing product features, supported document types,
+ * and platform counts only when meaningful and outside demo mode.
  */
 export async function TrustStrip({ stats }: { stats: PublicTrustStats }) {
   const highlights = trustHighlights(stats);
