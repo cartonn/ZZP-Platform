@@ -36,6 +36,13 @@ payment.test.ts` (+1 test, rood→groen bewezen).
 >   terwijl de detail-statuslijn alleen B's fase toont (`performances[0]`). Beide zijn open verplichtingen (A is
 >   los herindienbaar), het item-engine-superset-van-de-stage is gedocumenteerd design → notitie, geen bug.
 >   Repro: ZZP'er dient uren in → opdrachtgever wijst af (A=REJECTED) → ZZP'er begint nieuwe urenstaat (B=DRAFT).
+> - **GEDAAN (2026-09-07): reeds-verlopen roster-cert telde niet mee in de /franchise/zzpers-badge (badge↔lijst-drift).**
+>   De nav-badge (`rosterAlerts`, `signals.ts`) telde alleen (bijna-)verlopende + niet-inzetbare profielen; de
+>   /acties-bron toont daarnaast `franchiseCredentialExpiredTask` voor een reeds verlopen, niet-verplicht cert. Zodra
+>   een cert de vervaldatum passeerde verdween het uit de badge maar niet uit /acties → onder-rapportage precies toen
+>   de compliance-gap actief werd. **Fix:** `signals.ts` telt nu `expiredProfiles` mee via dezelfde twee-staps-aanpak
+>   (`rosterExpiredByProfile`) als `pending-tasks.ts` — gedeelde pure helper, kan niet driften. **Bestanden:**
+>   `src/lib/signals.ts`, `src/lib/signals.roster-expired-badge.test.ts` (+2 tests, rood zonder de term).
 
 > **Datum:** 2026-09-06 (persona-sweep, run 4) · **main-commit basis:** `89d34d1`
 > **Uitkomst:** **2 robuustheidsgaten gedicht; 3 items geparkeerd (LOW).** De live Playwright-doorklik

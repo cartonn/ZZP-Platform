@@ -2,6 +2,28 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — bemiddelaar: reeds-verlopen roster-cert telt mee in de /franchise/zzpers-badge (badge↔lijst-drift gedicht)
+
+**Wat:** de nav-badge op `/franchise/zzpers` (`navBadges` → `rosterAlerts`, `signals.ts`) telde alléén de
+(bijna-)verlopende (`expiringProfiles`) + niet-inzetbare (`notEngageable`) roster-profielen — er was géén
+query en geen term voor de **reeds verlopen, niet-verplichte** certificaten. De autoritaire /acties-bron
+(`franchiserTasks`, `pending-tasks.ts`) toont daarvoor wél een `franchiseCredentialExpiredTask`
+(`expiredRosterCreds` + `rosterExpiredByProfile`). Gevolg: zodra een niet-verplicht certificaat de
+vervaldatum passeerde viel het uit het `(now, soon]`-verloopvenster en verdween het uit de badge, terwijl
+`/acties` de "verlopen — vernieuwing nodig"-taak juist dán toont. De bemiddelaar zag geen zijbalk-signaal
+terwijl er een actieve, niet-verdwijnende compliance-taak openstond — precies het "signaal op één
+oppervlak"-anti-patroon dat elders al is gedicht (de VERIFIED-expiring-tak, de ZZP-`/certificaten`-badge).
+`notEngageable` dekt het gat niet: `rosterExpiredByProfile` sluit juist de verplichte typen (VOG/verzekering)
+uit die de engageability-tak afhandelt. **Fix:** `signals.ts` draait nu voor de verlopen-tak dezelfde
+twee-staps-aanpak als `pending-tasks.ts` (kandidaat-query met de server-berekende verval-scope `status =
+EXPIRED` óf `VERIFIED && expiresAt < now`, verplichte typen uitgesloten → gescopet volledig VERIFIED/EXPIRED-
+dossier → `rosterExpiredByProfile` mét dekkings-/superseded-uitsluiting) en telt `expiredProfiles` mee in
+`rosterAlerts`. Badge en actielijst delen dezelfde pure helper → kunnen niet driften. **Bestanden:**
+`src/lib/signals.ts` (import + query + telling), `src/lib/signals.roster-expired-badge.test.ts` (+2 tests:
+verlopen roster-cert → badge count 1; kandidaat-query heeft de juiste verval-scope + verplicht-type-
+uitsluiting). **Checks:** prettier ✓ · typecheck ✓ · gerichte tests 2/2 ✓ · lint + full test + build + CI-poort
+verifiëren.
+
 ## 2026-09-07 — persona-sweep (run 5): live doorklik hersteld + cascade-overdue-query op ACTIVE gescoopt
 
 **Wat:** volledige kritische-gebruiker-sweep over alle vier de rollen (zzp@/opdrachtgever@/franchise@/
