@@ -2,6 +2,18 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — bestaande versleutelde backupjob herstellen
+
+`db:backup:remote` ontbrak op main; gericht hersteld vanuit `c8b096b2` met verplichte AES-256-GCM, S3-readback/checksum vóór succes-heartbeat, time-outs en behoud van alle bestaande back-ups. Dedicated pg18-image + `railway.backup.json` (cron 02:15 UTC, geen HTTP-healthcheck/seed/migraties). Exacte heartbeatroute passeert sessiemiddleware; CRON_SECRET-guard blijft. Configuratie, grenzen en herstelpad: [RUNBOOK §5](docs/RUNBOOK.md#5-back-up--herstel-database).
+
+Lokaal vóór rebase: typecheck, lint, formatting, env-check en 88 gerichte tests groen. Brede suite strandde alleen in bestaande query-budget-setup (`prisma db push`/Schema engine error); geen Docker-daemon voor image-build. CI en live bewijs nog nodig: juiste appdatabase-reference, backup-config activeren, job/S3/heartbeat en scratch-herstel controleren. CodeQL vond een path-stat/read-race; descriptor met O_NOFOLLOW en begrensde read herstelt die zonder suppressie (66 gerichte tests en typecheck groen). Live backupbewijs volgt na de nieuwe CI-run.
+
+## 2026-09-07 — publieke marketing zonder garanties of democijfers
+
+Loginintro en gedeelde vertrouwensstrip beschrijven productfuncties; juridische garanties en
+universele certificaatgeldigheid verwijderd, bestaande Engelse teksten gelijkgetrokken.
+SEED_DEMO=true onderdrukt publieke tellingen. Tests: 24 groen; gerichte lint/formatting groen. CI volgt.
+
 ## 2026-09-07 — launch review: accounttoegang en registratie gehard
 
 Op actuele main en live health/readiness gecontroleerd. Railway staat nog op demo met seeding;
@@ -15,7 +27,8 @@ Accountaanmaak en audit zijn transactioneel; dubbele registratie geeft een veldm
 Gerichte regressietests toegevoegd. Lokaal: 8.389 tests groen (2 bestaande skips), typecheck, lint,
 productiebuild, volledige formatting, env/workflow-checks en secretscan groen. Vier Playwright-tests
 groen op de productiebuild, inclusief de sessie-update-aanval tijdens onboarding. Onafhankelijke
-review PASS. CI-uitkomst volgt bij de PR; niet gemerged of uitgerold.
+review PASS. PR #1418 heeft alle verplichte CI-controles doorstaan en is gemerged; live health en
+readiness bevestigen commit `34f658e` op 7 september om 10:18 UTC.
 
 ## 2026-09-07 — bemiddelaar: reeds-verlopen roster-cert telt mee in de /franchise/zzpers-badge (badge↔lijst-drift gedicht)
 
@@ -375,20 +388,3 @@ Geen runtime-wijziging, geen PII/secrets. **Bestanden:** `scripts/grafana-dashbo
 `docs/observability/grafana-dashboard.json` (nieuw, gegenereerd), `grafana-dashboard.test.ts` (nieuw, 8
 tests), RUNBOOK §2a + MENSENWERK bijgewerkt. **Resterend mensenwerk:** het bestand één keer in Grafana
 importeren. **Checks:** dashboard-test 8/8 ✓ · prettier ✓ · typecheck/lint/build via CI-poort. **PR #1402.**
-
-## 2026-09-06 — security/privacy: k-anonimiteitsvloer op publieke beoordelingsaggregatie (vertrouwensdossier)
-
-**Wat:** het deelbare, publieke, **onauthentieke** vertrouwensdossier (`/vertrouwen/[profileId]/[token]`) toonde
-een "geaggregeerd" beoordelingscijfer óók bij één beoordeling ("Gemiddeld cijfer over **1** beoordeling: 2,0 ★") —
-dat is niet geaggregeerd maar het exacte, individueel-herleidbare cijfer van één opdrachtgever, gelekt aan het hele
-internet; bij twee beoordelingen is de ander herleidbaar (ander = 2·gemiddelde − eigen). **Waarom:** AVG art. 5(1)(f)
-en art. 25 (privacy by design) en de eigen privacyregel ("alleen geaggregeerd … nooit individuele beoordelingen") —
-dezelfde faalklasse die het platform al dichtte voor marktbanden (`MARKET_RATE_MIN_SAMPLE = 10`), maar bij
-beoordelingen gemist. Adversariële auditronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits). **Fix:** nieuwe
-vloer `REVIEW_AGGREGATE_MIN_SAMPLE = 3` (`src/lib/config.ts`); `freelancerReputationFromReviews` geeft `null` onder de
-vloer → de publieke pagina laat de beoordelingssectie weg. Server-side waarheid; enige consument is het gedeelde pad.
-**Bestanden:** `src/lib/config.ts`, `src/lib/freelancer-reputation.ts` (met `.test.ts` rood→groen: n=1/n=2 → null,
-≥3 → getoond), `src/lib/data/freelancer-reputation.ts` (doc), `src/app/vertrouwen/[profileId]/[token]/page.tsx`
-(comment). **Geparkeerd** (backlog): in-app spiegelfuncties `company-reputation`/`candidate-reviews` (zelfde vloer,
-lagere severity — geauthenticeerde tegenpartij), spoofbare `From`-fallback in mail-intake (MIDDEL), commit-SHA op
-liveness-probes (LAAG). **Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit + build (CI-poort verifieert).
