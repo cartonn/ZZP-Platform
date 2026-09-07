@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { isAdminPath, isPublicPath, roleForPath } from "@/lib/route-guards";
 
 describe("isPublicPath", () => {
+  it("opens the marketing homepage without exposing application routes", () => {
+    expect(isPublicPath("/")).toBe(true);
+    expect(isPublicPath("/dashboard")).toBe(false);
+    expect(isPublicPath("/documenten")).toBe(false);
+    expect(isPublicPath("/admin")).toBe(false);
+    expect(isPublicPath("/unknown")).toBe(false);
+  });
+
   it("staat de health- en readinessprobes inlogvrij toe (anders redirect de probe naar /login)", () => {
     expect(isPublicPath("/api/health")).toBe(true);
     expect(isPublicPath("/api/readiness")).toBe(true);
