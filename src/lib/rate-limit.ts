@@ -422,7 +422,11 @@ export class RedisRateLimitStore implements RateLimitStore {
    * UpstashRateLimitStore.runProbeCommands. Raakt géén echte rate-limit-tellers.
    */
   async runProbeCommands(commands: (string | number)[][]): Promise<unknown[]> {
-    const pipeline = this.client().pipeline(commands);
+    // ioredis resolves batch commands as case-sensitive method names.
+    // Normalize only the command; keys and arguments must retain their case.
+    const pipeline = this.client().pipeline(
+      commands.map(([command, ...args]) => [String(command).toLowerCase(), ...args]),
+    );
     const results = await pipeline.exec();
     if (!results) {
       throw new Error("Redis: pipeline gaf geen resultaat terug.");
