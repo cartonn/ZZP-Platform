@@ -155,9 +155,9 @@ export default function HomePage() {
           <div className={styles.sectionIntro}>
             <p className={styles.kicker}>01 / Vind jouw plek</p>
             <h2 id="audience-title">
-              Goed werk begint
+              Wat brengt je
               <br />
-              bij <em>wat jij nodig hebt.</em>
+              <em>bij Handslag?</em>
             </h2>
           </div>
           <div className={styles.audienceRows}>
