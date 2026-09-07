@@ -190,7 +190,14 @@ describe("buildContentDisposition", () => {
     );
     const value = buildContentDisposition({ type: "inline", filename: '../e"vil\r\n.pdf' });
     expect(value).not.toMatch(/[\r\n]/); // geen header-splitsing
-    expect(value).toBe('inline; filename=".._e_vil_.pdf"'); // ingesloten quote/CRLF/slash gesaneerd
+    // Na sanering puur ASCII → geen overbodige filename*; ingesloten quote/CRLF/slash gesaneerd.
+    expect(value).toBe('inline; filename=".._e_vil_.pdf"');
+  });
+
+  it("behoudt diakritische tekens/spaties via RFC 6266 filename*", () => {
+    expect(buildContentDisposition({ type: "attachment", filename: "Diploma André.pdf" })).toBe(
+      "attachment; filename=\"Diploma_Andr_.pdf\"; filename*=UTF-8''Diploma%20Andr%C3%A9.pdf",
+    );
   });
 });
 
