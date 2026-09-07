@@ -164,6 +164,13 @@ Je kunt cookies in je browser verwijderen of blokkeren. Daardoor kun je worden u
 
 Er wordt geen ongeverifieerde claim opgenomen dat alle gegevens altijd uitsluitend in de browser blijven of dat nooit een derde betrokken is. Voeg alleen werkelijk aangetroffen opslag toe aan de definitieve tabel.
 
+**Bevestigd in broncode op 7 september 2026:**
+
+- De cookie `sidebar` bewaart de keuze tussen uitgeklapte en ingeklapte navigatie gedurende maximaal 365 dagen. `src/lib/sidebar.ts` definieert de naam en termijn; `src/lib/sidebar-actions.ts` schrijft hem met pad `/` en `SameSite=Lax`.
+- `src/lib/i18n/config.ts` definieert de naam `locale`, maar vermeldt dat de huidige interface alleen Nederlands aanbiedt en geen taalschakelaar heeft. De aanwezigheid van een configuratieconstante bewijst niet dat iedere bezoeker deze cookie ontvangt. De schrijftoegang en termijn zijn nog te controleren.
+- De authenticatieconfiguratie heeft een sessieduur van acht uur en verversing na één uur. Dit moet naast het gedrag op het uiteindelijke domein worden gecontroleerd.
+- De GitHub-inhoudszoeker meldde dat de repository opnieuw werd geïndexeerd. Een lege zoekuitslag is daarom niet gebruikt als bewijs dat er geen andere cookies of lokale opslag zijn.
+
 ## 4. Verwerkersovereenkomst — nieuwe concepttekst
 
 ### 4.1 Partijen, scope en duur
