@@ -26,11 +26,13 @@ describe("backup descriptor reads", () => {
   it("reads the opened archive even if its pathname is replaced", () => {
     const dir = mkdtempSync(join(tmpdir(), "backup-descriptor-test-"));
     const file = join(dir, "archive.dump");
-    writeFileSync(file, plaintext);
+    const replacement = join(dir, "replacement.dump");
+    writeFileSync(file, plaintext, { flag: "wx" });
+    writeFileSync(replacement, "replacement must never be uploaded", { flag: "wx" });
     const fd = openSync(file, "r");
     try {
       renameSync(file, join(dir, "original.dump"));
-      writeFileSync(file, "replacement must never be uploaded");
+      renameSync(replacement, file);
       expect(readBackupDescriptor(fd, 1024)).toEqual(plaintext);
       const header = Buffer.alloc(5);
       readSync(fd, header, 0, header.length, null);
