@@ -29,11 +29,13 @@
 >   "signaal op één oppervlak"-anti-patroon. **Fix:** `job.status: "PUBLISHED"` toegevoegd aan beide queries
 >   (`signals.ts:640` NEW-telling + `:696` stale-`findMany`) → badge==lijst. **Bestanden:** `src/lib/signals.ts`,
 >   `src/lib/signals-client-closed-job-badge.test.ts` (+1 test, rood→groen bewezen: badge `{count:5}` → undefined).
-> - **GEPARKEERD — LOW (correctheid, twee dagen/jaar): DST-uur mis-attributie in ORT-segmentatie.**
->   `src/lib/shift.ts` (`classify`/`accumulateShiftMinutes`) rekent met wandklok-uren; op de Nederlandse DST-wissel
->   (laatste zondag maart/oktober) kan ~1 uur aan minuten in de verkeerde ORT-categorie (dag/avond/nacht) vallen
->   voor een dienst die exact de wissel-uren overspant. Geen crash/exploit; klein factuur-effect, alleen bij een
->   dienst over de wissel. Repro: dienst 01:30–03:30 op de laatste zondag van oktober. Prioriteit LOW.
+> - **~~GEPARKEERD — LOW (correctheid, twee dagen/jaar): DST-uur mis-attributie in ORT-segmentatie.~~
+>   AFGESLOTEN 7-9 (non-bug, empirisch weerlegd).** De Nederlandse DST-wissels (03:00↔02:00) liggen volledig
+>   binnen NIGHT; de ORT-categoriegrenzen liggen op 06:00/18:00/22:00 → categorie is uniform over de wissel.
+>   `accumulateShiftMinutes` loopt in echte-ms-slices die [start,end) exact partitioneren, dus totaalminuten
+>   blijven behouden. Geverifieerd met `TZ=Europe/Amsterdam`: dienst 01:30–03:30 op 2026-10-25 (fall-back) →
+>   180 min NIGHT (3 echte uren); op 2026-03-29 (spring) → 60 min NIGHT (1 echt uur). Geen misattributie bij de
+>   standaard-ORT-vensters. (Een custom sectorprofiel met een categoriegrens op 02:00/03:00 zou dit heropenen.)
 >
 > ---
 >

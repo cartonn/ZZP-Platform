@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assessDbaRisk, dbaAdvice, type DbaInput } from "@/lib/dba";
+import { assessDbaRisk, dbaAdvice, dbaMitigations, type DbaInput, type DbaRisk } from "@/lib/dba";
 
 const base: DbaInput = {
   directSupervision: false,
@@ -75,6 +75,86 @@ describe("DBA golden cases", () => {
   });
   it("DBA-004 zwak ondernemerschap (laag tarief) → MIDDEN (review)", () => {
     expect(assessDbaRisk({ ...base, weakEntrepreneurship: true }).level).toBe("MIDDEN");
+  });
+});
+
+describe("dbaMitigations", () => {
+  const RANK: Record<DbaRisk, number> = { LAAG: 0, MIDDEN: 1, HOOG: 2 };
+  // Past de voorgestelde wijzigingen toe (zet de indicatoren uit) en geeft het nieuwe niveau.
+  const applied = (input: DbaInput): DbaRisk | null => {
+    const plan = dbaMitigations(input);
+    if (!plan) return null;
+    const next = { ...input };
+    for (const c of plan.changes) next[c.factor] = false;
+    return assessDbaRisk(next).level;
+  };
+
+  it("geeft null bij een LAAG-inschatting (niets te verlagen)", () => {
+    expect(dbaMitigations(base)).toBeNull();
+    expect(dbaMitigations({ ...base, exclusive: true })).toBeNull();
+  });
+
+  it("HOOG → MIDDEN met de minste, meest-fundamentele wijziging", () => {
+    const plan = dbaMitigations({ ...base, directSupervision: true, embedded: true });
+    expect(plan).not.toBeNull();
+    expect(plan!.targetLevel).toBe("MIDDEN");
+    expect(plan!.changes.map((c) => c.factor)).toEqual(["directSupervision"]);
+    expect((plan!.changes[0]?.action.length ?? 0) > 0).toBe(true);
+    expect(applied({ ...base, directSupervision: true, embedded: true })).toBe("MIDDEN");
+  });
+
+  it("MIDDEN → LAAG", () => {
+    const input = { ...base, noSubstitution: true };
+    const plan = dbaMitigations(input);
+    expect(plan!.targetLevel).toBe("LAAG");
+    expect(plan!.changes.map((c) => c.factor)).toEqual(["noSubstitution"]);
+    expect(applied(input)).toBe("LAAG");
+  });
+
+  it("kiest de minst-verstorende enkele hefboom als die volstaat", () => {
+    // fixedSchedule(2)+weakEntrepreneurship(2)+exclusive(1) = 5 (HOOG); één punt eraf volstaat.
+    const input = {
+      ...base,
+      fixedSchedule: true,
+      weakEntrepreneurship: true,
+      exclusive: true,
+    };
+    const plan = dbaMitigations(input);
+    expect(plan!.changes.map((c) => c.factor)).toEqual(["exclusive"]);
+    expect(applied(input)).toBe("MIDDEN");
+  });
+
+  it("combineert hefbomen wanneer één niet genoeg is (minste totale verlaging)", () => {
+    // noSubstitution+fixedSchedule+weakEntrepreneurship(elk 2)+exclusive(1) = 7 (HOOG); -3 nodig.
+    const input = {
+      ...base,
+      noSubstitution: true,
+      fixedSchedule: true,
+      weakEntrepreneurship: true,
+      exclusive: true,
+    };
+    const plan = dbaMitigations(input);
+    expect(plan!.changes).toHaveLength(2);
+    expect(plan!.changes.map((c) => c.factor)).toEqual(["noSubstitution", "exclusive"]);
+    expect(applied(input)).toBe("MIDDEN");
+  });
+
+  it("null wanneer de indicatoren de vereiste verlaging niet dekken (duur-gedreven)", () => {
+    // durationMonths 13 = score 2 (MIDDEN) zonder actieve indicator-hefboom.
+    expect(dbaMitigations({ ...base, durationMonths: 13 })).toBeNull();
+  });
+
+  it("laat het niveau altijd dalen wanneer een plan bestaat", () => {
+    const cases: DbaInput[] = [
+      { ...base, directSupervision: true, embedded: true, fixedSchedule: true },
+      { ...base, embedded: true, noSubstitution: true, durationMonths: 8 },
+      { ...base, directSupervision: true, weakEntrepreneurship: true, exclusive: true },
+    ];
+    for (const c of cases) {
+      const before = assessDbaRisk(c).level;
+      const after = applied(c);
+      if (after !== null) expect(RANK[after]).toBeLessThan(RANK[before]);
+    }
   });
 });
 
