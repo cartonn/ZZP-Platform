@@ -118,21 +118,18 @@ export default function HomePage() {
               <em>handslag.</em>
             </h1>
             <p className={styles.intro}>
-              Voor mensen die zorgen. En de mensen die hen nodig hebben. Vind
-              elkaar en houd grip op alles wat daarna komt.
+              Voor mensen die zorgen. En de mensen die hen nodig hebben. Vind elkaar en houd grip op
+              alles wat daarna komt.
             </p>
             <div className={styles.actions}>
               <a className={styles.primary} href="#voor-jou">
-                Ontdek jouw mogelijkheden{" "}
-                <ArrowUpRight size={19} aria-hidden="true" />
+                Ontdek jouw mogelijkheden <ArrowUpRight size={19} aria-hidden="true" />
               </a>
               <a className={styles.textLink} href="#zo-werkt-het">
                 Zo werkt Handslag <ArrowDown size={16} aria-hidden="true" />
               </a>
             </div>
-            <p className={styles.heroNote}>
-              Opdrachten · Afspraken · Administratie
-            </p>
+            <p className={styles.heroNote}>Opdrachten · Afspraken · Administratie</p>
           </div>
           <figure
             className={styles.heroVisual}
@@ -221,11 +218,7 @@ export default function HomePage() {
           </span>
         </div>
 
-        <section
-          id="voor-jou"
-          className={styles.audience}
-          aria-labelledby="audience-title"
-        >
+        <section id="voor-jou" className={styles.audience} aria-labelledby="audience-title">
           <div className={styles.sectionHeading}>
             <p className={styles.eyebrow}>Twee kanten. Eén handslag.</p>
             <h2 id="audience-title">
@@ -233,10 +226,7 @@ export default function HomePage() {
               <br />
               <em>Jullie samenwerking.</em>
             </h2>
-            <p>
-              Een goede samenwerking begint bij wat je nodig hebt. Kies jouw
-              kant van Handslag.
-            </p>
+            <p>Een goede samenwerking begint bij wat je nodig hebt. Kies jouw kant van Handslag.</p>
           </div>
           <div className={styles.audienceGrid}>
             <article className={styles.professional}>
@@ -250,26 +240,22 @@ export default function HomePage() {
                 je goed in bent.
               </h3>
               <p>
-                Vind opdrachten die aansluiten bij jouw vak en beschikbaarheid.
-                Met je profiel, documenten en administratie op één plek.
+                Vind opdrachten die aansluiten bij jouw vak en beschikbaarheid. Met je profiel,
+                documenten en administratie op één plek.
               </p>
               <ul>
                 <li>
-                  <Check size={16} aria-hidden="true" /> Laat zien wat je
-                  meebrengt
+                  <Check size={16} aria-hidden="true" /> Laat zien wat je meebrengt
                 </li>
                 <li>
-                  <Check size={16} aria-hidden="true" /> Maak rechtstreeks
-                  afspraken
+                  <Check size={16} aria-hidden="true" /> Maak rechtstreeks afspraken
                 </li>
                 <li>
-                  <Check size={16} aria-hidden="true" /> Houd je uren en
-                  facturen bij
+                  <Check size={16} aria-hidden="true" /> Houd je uren en facturen bij
                 </li>
               </ul>
               <Link href="/register" className={styles.primary}>
-                Start als zorgprofessional{" "}
-                <ArrowUpRight size={19} aria-hidden="true" />
+                Start als zorgprofessional <ArrowUpRight size={19} aria-hidden="true" />
               </Link>
               <span className={styles.audienceDecoration} aria-hidden="true">
                 jij.
@@ -286,26 +272,22 @@ export default function HomePage() {
                 Een helder overzicht.
               </h3>
               <p>
-                Breng je vraag en de juiste expertise samen. Volg reacties,
-                gemaakte afspraken en gewerkte uren vanuit één werkplek.
+                Breng je vraag en de juiste expertise samen. Volg reacties, gemaakte afspraken en
+                gewerkte uren vanuit één werkplek.
               </p>
               <ul>
                 <li>
-                  <Check size={16} aria-hidden="true" /> Maak je opdracht
-                  concreet
+                  <Check size={16} aria-hidden="true" /> Maak je opdracht concreet
                 </li>
                 <li>
-                  <Check size={16} aria-hidden="true" /> Bekijk profielen en
-                  documentstatussen
+                  <Check size={16} aria-hidden="true" /> Bekijk profielen en documentstatussen
                 </li>
                 <li>
-                  <Check size={16} aria-hidden="true" /> Beoordeel uren en volg
-                  de factuur
+                  <Check size={16} aria-hidden="true" /> Beoordeel uren en volg de factuur
                 </li>
               </ul>
               <Link href="/register" className={styles.secondary}>
-                Start als opdrachtgever{" "}
-                <ArrowUpRight size={19} aria-hidden="true" />
+                Start als opdrachtgever <ArrowUpRight size={19} aria-hidden="true" />
               </Link>
               <span className={styles.audienceDecoration} aria-hidden="true">
                 samen.
@@ -314,11 +296,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section
-          id="zo-werkt-het"
-          className={styles.process}
-          aria-labelledby="process-title"
-        >
+        <section id="zo-werkt-het" className={styles.process} aria-labelledby="process-title">
           <div className={styles.processHeading}>
             <p className={styles.eyebrow}>Van kennismaking tot afronding</p>
             <h2 id="process-title">
@@ -338,11 +316,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section
-          id="overzicht"
-          className={styles.overview}
-          aria-labelledby="overview-title"
-        >
+        <section id="overzicht" className={styles.overview} aria-labelledby="overview-title">
           <div className={styles.overviewVisual}>
             <div className={styles.workspace}>
               <div className={styles.workspaceHeader}>
@@ -407,17 +381,15 @@ export default function HomePage() {
               <em>Overzicht in de rest.</em>
             </h2>
             <p>
-              Een afspraak hier. Een document daar. Uren in een losse mail.
-              Handslag brengt de stappen van een samenwerking bij elkaar, zodat
-              je weet wat er is geregeld en wat nog aandacht vraagt.
+              Een afspraak hier. Een document daar. Uren in een losse mail. Handslag brengt de
+              stappen van een samenwerking bij elkaar, zodat je weet wat er is geregeld en wat nog
+              aandacht vraagt.
             </p>
             <div className={styles.featureRow}>
               <FileCheck2 size={23} aria-hidden="true" />
               <div>
                 <h3>Documenten met een status</h3>
-                <p>
-                  Zie wat is aangeleverd, beoordeeld of aan vernieuwing toe is.
-                </p>
+                <p>Zie wat is aangeleverd, beoordeeld of aan vernieuwing toe is.</p>
               </div>
             </div>
             <div className={styles.featureRow}>
@@ -428,16 +400,12 @@ export default function HomePage() {
               </div>
             </div>
             <Link href="/register" className={styles.textLink}>
-              Maak kennis met het platform{" "}
-              <ArrowUpRight size={18} aria-hidden="true" />
+              Maak kennis met het platform <ArrowUpRight size={18} aria-hidden="true" />
             </Link>
           </div>
         </section>
 
-        <section
-          className={styles.manifesto}
-          aria-label="Waar Handslag voor staat"
-        >
+        <section className={styles.manifesto} aria-label="Waar Handslag voor staat">
           <span aria-hidden="true">“</span>
           <p>
             Goed samenwerken
@@ -484,8 +452,7 @@ export default function HomePage() {
             met <em>elkaar.</em>
           </h2>
           <a className={styles.primary} href="#voor-jou">
-            Vind jouw plek bij Handslag{" "}
-            <ArrowUpRight size={19} aria-hidden="true" />
+            Vind jouw plek bij Handslag <ArrowUpRight size={19} aria-hidden="true" />
           </a>
           <p>Voor zorgprofessionals en opdrachtgevers.</p>
           <div className={styles.closingRing} aria-hidden="true" />
