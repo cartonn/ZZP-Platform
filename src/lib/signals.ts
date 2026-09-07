@@ -673,12 +673,13 @@ export const navBadges = cache(async function navBadges(
       }),
       // cascade: facturen over de vervaldatum waar de opdrachtgever de betalende partij is — voedt de
       // `clientCascadeOverduePaymentTask` op /acties + de dashboard-rail. Zelfde scope als die item-taak
-      // (pending-tasks.ts) zodat de badge nooit driften kan; idem bevroren deals uitsluiten.
+      // (pending-tasks.ts), inclusief `status: "ACTIVE"`, zodat de badge nooit van /acties kan driften;
+      // idem bevroren deals uitsluiten.
       prisma.invoice.count({
         where: {
           counterpartyUserId: userId,
           lifecycleStatus: "OVERDUE",
-          collaboration: { disputedAt: null },
+          collaboration: { status: "ACTIVE", disputedAt: null },
         },
       }),
       // cascade: compliance-ripple — lopende (ACTIVE, niet-bevroren) samenwerkingen waarvan de ZZP'er

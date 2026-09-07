@@ -2,6 +2,38 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — persona-sweep (run 5): live doorklik hersteld + cascade-overdue-query op ACTIVE gescoopt
+
+**Wat:** volledige kritische-gebruiker-sweep over alle vier de rollen (zzp@/opdrachtgever@/franchise@/
+admin@). **Doorbraak:** de live Playwright-doorklik die de vorige 4 runs niet konden draaien (build hing
+op `next/font/google`-fetch → ECONNRESET) is nu wél uitgevoerd — de font-download reset onder de
+parallelle build-fetch, dus lokaal (alléén lokaal, niet gecommit) de fonts gestubd → offline
+productiebuild → server → sweep. **DOEL 2 (adversarieel) schoon:** 63 probes, **0 bereikbare gaten, 0
+500's** (alle status 200/404). Privilege-escalatie (zzp'er/opdrachtgever/franchiser → `/admin/*` en
+`/franchise/*`) → redirect naar `/dashboard`; IDOR/onzin-id op samenwerkingen/facturen/opdrachten/
+certificaten/berichten → **404** (nooit 500, geen soft-404-lek); **cross-tenant** (franchiser →
+`/samenwerkingen/collab-1` + `/api/samenwerkingen/collab-1/dossier|dba-dossier` van een andere tenant)
+→ 404. Sluit aan op 3 parallelle adversariële Opus-audits (security/IDOR/tenant · malicieuze invoer/Zod ·
+next-action-correctheid): security + validatie **0 gaten**; next-actions 2× LOW (defense-in-depth), waarvan
+#1 gefixt.
+
+**Gefixt (DOEL 1b — server-side waarheid / juiste partij aan zet):** de opdrachtgever-taak
+`clientCascadeOverduePaymentTask` (`pending-tasks.ts`) en zijn badge-mirror (`signals.ts`) scoopten de
+OVERDUE-cascadefactuur-query op `collaboration: { disputedAt: null }` **zonder** `status: "ACTIVE"` — terwijl
+de ZZP-tegenhanger (`openInvoiceWhere`) én de SUBMITTED-factuur-sibling in dezelfde bestanden dat wél doen.
+Alleen de ZZP'er kan de betaling registreren (→ PAID), en die actie bestaat enkel op een ACTIVE
+samenwerking. De terminale-status-guards (`collaborationTerminableGuard`) houden een OVERDUE-factuur vandaag
+al binnen ACTIVE (dus latent, geen bereikbaar gat nu), maar de `payment-reminders`-cron zet APPROVED→OVERDUE
+**zonder** collab-status-filter: zou een toekomstige regressie in die guards een deal met open factuur laten
+afronden/annuleren, dan kreeg de opdrachtgever een niet-afhandelbare, nooit-verdwijnende betaal-taak (de
+ZZP-tegenhanger toont 'm terecht níet). **Fix:** `status: "ACTIVE"` toegevoegd aan beide queries — badge en
+lijst blijven identiek gescoopt. **Bestanden:** `src/lib/actions/pending-tasks.ts`, `src/lib/signals.ts`,
+`src/lib/actions/pending-tasks-client-overdue-payment.test.ts` (+1 test, rood→groen bewezen door de fix te
+stashen: `expected { disputedAt: null } to match { status: "ACTIVE", disputedAt: null }`). **Checks:**
+typecheck ✓ · lint ✓ · prettier ✓ · gerichte tests 6/6 ✓ · full test + CI-poort verifieert. Geparkeerd in
+de sweep-backlog: het 2e LOW next-action-item + de journeys-spec `networkidle`-timeout (test-infra, geen
+product-defect; sluit aan op CURRENT_TASK.md punt 5).
+
 ## 2026-09-07 — robuustheid (ORT/geld-integriteit): segmentatie klemt de uur-grens binnen één stap
 
 **Wat:** `segmentShift` (`src/lib/shift.ts`) — de motor die een gewerkte dienst automatisch in ORT-uren

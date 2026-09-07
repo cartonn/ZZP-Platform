@@ -1,5 +1,42 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-07 (persona-sweep, run 5) · **main-commit basis:** `6f373f66`
+> **Uitkomst:** **1 defect gefixt (LOW/latent — DOEL 1b); 2 items geparkeerd.** De live Playwright-doorklik
+> die de vorige 4 runs niet konden draaien is nu **wél uitgevoerd**: de build hing op de `next/font/google`-
+> download (ECONNRESET onder de parallelle build-fetch — losse font-fetches lukken wél, de concurrency reset).
+> Workaround (alléén lokaal, niet gecommit): fonts gestubd → offline productiebuild → `npm run start` → sweep.
+>
+> - **DOEL 2 (adversarieel) — schoon: 63 probes, 0 bereikbare gaten, 0 500's** (alle status 200/404). Privilege-
+>   escalatie (zzp'er/opdrachtgever/franchiser → `/admin/*` en `/franchise/*`) → redirect naar `/dashboard`;
+>   IDOR/onzin-id op `/samenwerkingen|/facturen|/opdrachten|/certificaten|/berichten|/franchise/*` → **404**
+>   (nooit 500, geen soft-404-lek); **cross-tenant** (franchiser → `/samenwerkingen/collab-1` van een andere
+>   tenant + `/api/samenwerkingen/collab-1/dossier|dba-dossier`) → 404; admin op onzin-id → 404 (geen 500).
+> - **DOEL 1 (functioneel) — pagina's renderen** (alle routes 200 in de adversariële probe). De
+>   `journeys.spec.ts`-doorklik liep in de zzper-reis in de 6-min-testtimeout op `page.waitForLoadState(
+"networkidle")` — **test-infra-fragiliteit** (achtergrond-polling settelt nooit), geen product-defect;
+>   sluit aan op CURRENT_TASK.md punt 5 (`networkidle`/`clickUntilGone`-omwegen uit `e2e/_robust.ts` halen).
+> - **3 parallelle adversariële Opus-audits:** security/IDOR/tenant/document-privacy **0 gaten** (mutatie-keten
+>   auth→rol→ownership→Zod→audit overal intact; anti-oracle-404; tenant-scoped by-id-fetches); malicieuze
+>   invoer/Zod **0 gaten** (NaN/Infinity/negatief/absurd server-geweigerd, CSV-injectie/upload-magic-bytes/
+>   HTML-mail-escape gedekt); next-action-correctheid **2× LOW**, waarvan #1 gefixt.
+> - **GEDAAN — LOW/latent (DOEL 1b): cascade-overdue-query miste `status: "ACTIVE"`.** De opdrachtgever-taak
+>   `clientCascadeOverduePaymentTask` (`pending-tasks.ts`) + badge-mirror (`signals.ts`) scoopten de OVERDUE-
+>   cascadefactuur op `collaboration: { disputedAt: null }` zónder `status: "ACTIVE"` — terwijl de ZZP-
+>   tegenhanger `openInvoiceWhere` (`freelancer-cascade-work.ts`) én de SUBMITTED-factuur-sibling dat wél doen.
+>   Alleen de ZZP'er registreert de betaling (→ PAID), enkel op een ACTIVE deal. Terminale-guards houden een
+>   OVERDUE-factuur vandaag binnen ACTIVE (dus latent), maar de `payment-reminders`-cron zet APPROVED→OVERDUE
+>   zónder collab-status-filter: een toekomstige guard-regressie zou de opdrachtgever een niet-afhandelbare,
+>   nooit-verdwijnende betaal-taak op een afgeronde/geannuleerde deal geven. **Fix:** `status: "ACTIVE"` in beide
+>   queries (badge==lijst). **Bestanden:** `pending-tasks.ts`, `signals.ts`, `pending-tasks-client-overdue-
+payment.test.ts` (+1 test, rood→groen bewezen).
+> - **GEPARKEERD — LOW (by-design tension): elke REJECTED-prestatie geeft een herindien-taak, maar de cascade-
+>   stage is latest-performance-only.** Maakt een ZZP'er een nieuwe DRAFT-prestatie B terwijl een oudere
+>   prestatie A nog REJECTED is (`createPerformance` blokkeert dit niet), dan toont `/acties` zowel
+>   `performanceResubmitTask` (A, band 62) als `performanceSubmitTask` (B, band 55) voor dezelfde samenwerking,
+>   terwijl de detail-statuslijn alleen B's fase toont (`performances[0]`). Beide zijn open verplichtingen (A is
+>   los herindienbaar), het item-engine-superset-van-de-stage is gedocumenteerd design → notitie, geen bug.
+>   Repro: ZZP'er dient uren in → opdrachtgever wijst af (A=REJECTED) → ZZP'er begint nieuwe urenstaat (B=DRAFT).
+
 > **Datum:** 2026-09-06 (persona-sweep, run 4) · **main-commit basis:** `89d34d1`
 > **Uitkomst:** **2 robuustheidsgaten gedicht; 3 items geparkeerd (LOW).** De live Playwright-doorklik
 > was in deze sandbox **niet uit te voeren**: de productiebuild blijft hangen op het ophalen van de
