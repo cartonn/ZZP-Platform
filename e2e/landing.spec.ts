@@ -6,7 +6,7 @@ test("public landing connects visitors to registration and keeps the app protect
   page,
 }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Goed werk");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Zorg is je vak.");
   await expect(page).toHaveURL(/\/$/);
   await page.getByRole("link", { name: "Start als zorgprofessional", exact: true }).click();
   await expect(page).toHaveURL(/\/register$/);
