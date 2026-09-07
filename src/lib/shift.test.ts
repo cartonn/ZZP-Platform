@@ -420,6 +420,63 @@ describe("segmentShift — grensovergangen", () => {
 });
 
 // ---------------------------------------------------------------------------
+// segmentShift — uur-grens binnen één stap (niet-uitgelijnde diensttijden)
+// ---------------------------------------------------------------------------
+
+describe("segmentShift — uur-grens binnen één stap", () => {
+  it("kruist de avond→nacht-grens binnen één stap correct (21:50–22:20)", () => {
+    // Ma 12 jan 2026. 21:50–22:00 = 10 min EVENING, 22:00–22:20 = 20 min NIGHT.
+    // Zonder klem zou de eerste 15-min-slice (21:50–22:05) volledig EVENING worden en de tweede
+    // (22:05–22:20) volledig NIGHT → 0,25/0,25 i.p.v. 0,17/0,33.
+    const segs = segmentShift(new Date(2026, 0, 12, 21, 50), new Date(2026, 0, 12, 22, 20));
+    expect(hoursFor(segs, "EVENING")).toBeCloseTo(10 / 60, 2); // 0,17 — niet 0,25
+    expect(hoursFor(segs, "NIGHT")).toBeCloseTo(20 / 60, 2); // 0,33 — niet 0,25
+    expect(totalHours(segs)).toBeCloseTo(0.5, 2);
+  });
+
+  it("kruist de nacht→NORMAL-grens binnen één stap correct (05:52–06:08)", () => {
+    // 05:52–06:00 = 8 min NIGHT, 06:00–06:08 = 8 min NORMAL.
+    const segs = segmentShift(new Date(2026, 0, 12, 5, 52), new Date(2026, 0, 12, 6, 8));
+    expect(hoursFor(segs, "NIGHT")).toBeCloseTo(8 / 60, 2);
+    expect(hoursFor(segs, "NORMAL")).toBeCloseTo(8 / 60, 2);
+    // Elke categorie rondt los af op 2 decimalen (8 min → 0,13), dus het totaal is ~0,26 (precisie 1).
+    expect(totalHours(segs)).toBeCloseTo(16 / 60, 1);
+  });
+
+  it("kruist de NORMAL→avond-grens binnen één stap correct (17:53–18:07)", () => {
+    // 17:53–18:00 = 7 min NORMAL, 18:00–18:07 = 7 min EVENING.
+    const segs = segmentShift(new Date(2026, 0, 12, 17, 53), new Date(2026, 0, 12, 18, 7));
+    expect(hoursFor(segs, "NORMAL")).toBeCloseTo(7 / 60, 2);
+    expect(hoursFor(segs, "EVENING")).toBeCloseTo(7 / 60, 2);
+    expect(totalHours(segs)).toBeCloseTo(14 / 60, 1);
+  });
+
+  it("kruist middernacht zaterdag→zondag binnen één stap correct (za 23:50–zo 00:10)", () => {
+    // Za 10 jan 2026 23:50–00:00 = 10 min SATURDAY, zo 11 jan 00:00–00:10 = 10 min SUNDAY.
+    const segs = segmentShift(new Date(2026, 0, 10, 23, 50), new Date(2026, 0, 11, 0, 10));
+    expect(hoursFor(segs, "SATURDAY")).toBeCloseTo(10 / 60, 2);
+    expect(hoursFor(segs, "SUNDAY")).toBeCloseTo(10 / 60, 2);
+    expect(totalHours(segs)).toBeCloseTo(20 / 60, 1);
+  });
+
+  it("stapgrootte beïnvloedt de verdeling niet meer bij een niet-uitgelijnde dienst", () => {
+    // Ma 12 jan 2026 21:50–22:20: default (15 min) moet exact gelijk zijn aan 1-min-resolutie.
+    const start = new Date(2026, 0, 12, 21, 50);
+    const end = new Date(2026, 0, 12, 22, 20);
+    const segsDefault = segmentShift(start, end);
+    const segs1 = segmentShift(start, end, { stepMinutes: 1 });
+    expect(hoursFor(segsDefault, "EVENING")).toBeCloseTo(hoursFor(segs1, "EVENING"), 2);
+    expect(hoursFor(segsDefault, "NIGHT")).toBeCloseTo(hoursFor(segs1, "NIGHT"), 2);
+  });
+
+  it("som van segment-uren blijft de dienstduur, ook niet-uitgelijnd over meerdere grenzen", () => {
+    // Ma 12 jan 2026 17:37 → Di 13 jan 06:23 = 12 u 46 min, over NORMAL→EVENING→NIGHT→NORMAL.
+    const segs = segmentShift(new Date(2026, 0, 12, 17, 37), new Date(2026, 0, 13, 6, 23));
+    expect(totalHours(segs)).toBeCloseTo((12 * 60 + 46) / 60, 2);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // segmentShift — stapgrootte (stepMinutes)
 // ---------------------------------------------------------------------------
 
@@ -430,6 +487,16 @@ describe("segmentShift — aangepaste stapgrootte", () => {
     const segs15 = segmentShift(start, end);
     const segs1 = segmentShift(start, end, { stepMinutes: 1 });
     expect(totalHours(segs15)).toBeCloseTo(totalHours(segs1), 1);
+  });
+
+  it("grote stapgrootte (60 min) mist geen enkele uur-grens meer", () => {
+    // Bij een stap ≥ 60 min zou een niet-geklemde lus hele uren overslaan. De klem kapt elke slice
+    // op de eerstvolgende hele-uur-grens, dus ook stapMinutes 60 verdeelt 21:00–23:00 correct.
+    const segs = segmentShift(new Date(2026, 0, 12, 21), new Date(2026, 0, 12, 23), {
+      stepMinutes: 60,
+    });
+    expect(hoursFor(segs, "EVENING")).toBeCloseTo(1, 2);
+    expect(hoursFor(segs, "NIGHT")).toBeCloseTo(1, 2);
   });
 });
 

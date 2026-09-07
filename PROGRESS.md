@@ -2,6 +2,28 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — robuustheid (ORT/geld-integriteit): segmentatie klemt de uur-grens binnen één stap
+
+**Wat:** `segmentShift` (`src/lib/shift.ts`) — de motor die een gewerkte dienst automatisch in ORT-uren
+per categorie splitst (avond/nacht/weekend/feestdag) — liep de dienst in vaste stappen van 15 min door en
+klasseerde **elke slice volledig op zijn start-instant**. ORT-categorieën wisselen alleen op hele-uur-grenzen
+(18:00 EVENING, 22:00 NIGHT, 06:00 terug NORMAL, en middernacht voor weekdag-/feestdagwissels). Zodra zo'n
+grens **binnen** een stap viel — wat gebeurt bij elke niet-op-het-kwartier-uitgelijnde diensttijd (bv. een
+nachtdienst die om 21:50/22:10/07:37 begint) — werden de minuten aan de overkant van de grens op het
+**verkeerde toeslagtarief** geboekt. Concreet: `21:50–22:20` gaf `EVENING 0,25u / NIGHT 0,25u` i.p.v.
+`0,17u / 0,33u` — 5 nachtminuten (+49%) als avond (+22%) geboekt, dus structurele onderbetaling van de
+zorgverlener (bij €30/u ~€0,64 op die slice). Reachable via de gewone UI: de urenstaat-datumvelden
+(`performance-form.tsx`, `<input type="datetime-local">` zonder `step`) accepteren minuut-precisie en niets
+downstream lijnt uit; de mis-geboekte uren bevriezen in `Invoice.subtotalCents` bij goedkeuring. Geen enkele
+bestaande test ving dit — ze gebruikten allemaal op het kwartier uitgelijnde tijden. **Fix:** de doorloop-lus
+klemt nu elke slice op de eerstvolgende hele-uur-grens (`new Date(y,m,d,h+1)`), zodat de start-instant-
+classificatie exact wordt; totale duur en de O(duur)-DoS-grens (`MAX_SHIFT_HOURS`) blijven behouden, en de
+lus vordert altijd (nextHour ligt strikt ná t). **Bestanden:** `src/lib/shift.ts` (segmentatie-lus),
+`src/lib/shift.test.ts` (+7 tests: 4 grens-binnen-een-stap-cases avond→nacht/nacht→NORMAL/NORMAL→avond/
+middernacht za→zo, stap-onafhankelijkheid, duur-behoud over meerdere grenzen, 60-min-stap). **Checks:**
+typecheck ✓ · lint ✓ · prettier ✓ · gerichte tests 70/70 (5 nieuw rood→groen bewezen door de fix te
+stashen) · volledige suite 8359 ✓ · build ✓ · CI-poort verifieert.
+
 ## 2026-09-07 — prod: RFC 6266 UTF-8-bestandsnamen voor document-/factuur-/media-downloads
 
 **Wat:** downloads verloren diacritische tekens en spaties in de bestandsnaam (`André.pdf → Andr_.pdf`,
