@@ -1,0 +1,24 @@
+# Dedicated Railway backup image: no application build, migrations, seed or HTTP server.
+# PostgreSQL 18 client matches the live server; Debian's default client may be older.
+FROM node:22-bookworm-slim
+
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends ca-certificates curl \
+  && install -d /usr/share/postgresql-common/pgdg \
+  && curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+       -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+  && echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main' \
+       > /etc/apt/sources.list.d/pgdg.list \
+  && apt-get update -y \
+  && apt-get install -y --no-install-recommends postgresql-client-18 \
+  && rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/usr/lib/postgresql/18/bin:${PATH}"
+WORKDIR /app
+COPY package.json package-lock.json ./
+# Backup uses no Prisma/Next runtime. Skip application installation hooks and generation.
+RUN npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+COPY scripts/backup-db-remote.ts ./scripts/backup-db-remote.ts
+COPY src/lib/ops/db-backup.ts src/lib/ops/db-backup-remote.ts ./src/lib/ops/
+USER node
+CMD ["npm", "run", "db:backup:remote"]

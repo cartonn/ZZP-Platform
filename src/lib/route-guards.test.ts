@@ -13,6 +13,13 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/api/metrics")).toBe(true);
   });
 
+  it("lets a sessionless backup job reach its own CRON_SECRET guard", () => {
+    expect(isPublicPath("/api/backups/heartbeat")).toBe(true);
+    expect(isPublicPath("/api/backups")).toBe(false);
+    expect(isPublicPath("/api/backups/heartbeat/extra")).toBe(false);
+    expect(isPublicPath("/api/backups/heartbeat-extra")).toBe(false);
+  });
+
   it("staat de betaal-webhook inlogvrij toe (provider pingt zonder sessie; verifieert zelf via provider)", () => {
     // Regressie: stond achter de inlogmuur → een live Mollie-ping werd naar /login geredirect,
     // waardoor een betaald abonnement nooit activeerde (SUBSCRIPTION_ACTIVATED bleef uit).

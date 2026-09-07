@@ -2,6 +2,12 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — bestaande off-site backupjob herstellen
+
+`db:backup:remote` ontbrak op main; gericht hersteld vanuit `c8b096b2` met verplichte AES-256-GCM, S3-readback/checksum vóór succes-heartbeat, time-outs en behoud van alle bestaande back-ups. Dedicated pg18-image + `railway.backup.json` (cron 02:15 UTC, geen HTTP-healthcheck/seed/migraties). Exacte heartbeatroute passeert sessiemiddleware; CRON_SECRET-guard blijft. Configuratie, grenzen en herstelpad: [RUNBOOK §5](docs/RUNBOOK.md#5-back-up--herstel-database).
+
+Lokaal vóór rebase: typecheck, lint, formatting, env-check en 88 gerichte tests groen. Brede suite strandde alleen in bestaande query-budget-setup (`prisma db push`/Schema engine error); geen Docker-daemon voor image-build. CI en live bewijs nog nodig: juiste appdatabase-reference, backup-config activeren, job/S3/heartbeat en scratch-herstel controleren. Nog geen deploymentclaim.
+
 ## 2026-09-07 — launch review: accounttoegang en registratie gehard
 
 Op actuele main en live health/readiness gecontroleerd. Railway staat nog op demo met seeding;

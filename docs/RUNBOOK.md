@@ -219,6 +219,27 @@ kapotte deploy:
 
 ## 5. Back-up & herstel (database)
 
+**Railway off-site job:** wijs de bestaande database-backupservice naar `/railway.backup.json`
+als configuratiepad (zodat de app-config het backupcommando niet overschrijft). Dit kiest
+`Dockerfile.backup` en `npm run db:backup:remote`, behoudt de cron `15 2 * * *` (02:15 UTC),
+schakelt HTTP-healthchecks uit en start geen pre-deploy-commando. Deze aparte image bevat PostgreSQL
+18-clients en start geen applicatie, migraties of seed. Stel de bestaande `BACKUP_S3_*`,
+`BACKUP_ENCRYPTION_KEY`, `BACKUP_HEARTBEAT_URL`, `CRON_SECRET` en `DATABASE_URL` in. Zie `.env.example`.
+De job maakt een custom-format dump, controleert de inhoudsopgave, versleutelt met AES-256-GCM,
+uploadt en leest hetzelfde object terug. Pas na geldige authenticatie en gelijke SHA-256 volgt een
+succes-heartbeat. De dump mag maximaal 128 MiB zijn; elke database-/S3-stap heeft een time-out van
+120 seconden en de heartbeat 15 seconden. Falen geeft exitcode 1 zonder geheimen in logs.
+
+Remote retentie is voorlopig uit: ook met `BACKUP_RETENTION_DAYS` blijven alle bestaande objecten
+behouden. Elk nieuw object heeft een UUID zodat gelijktijdige runs niets overschrijven. Bewaar de
+backupsleutel apart van de database. Het archiefformaat blijft compatibel met de oorspronkelijke
+job (`ZZPENC01`-header). Een herstelprocedure moet het opgehaalde object eerst met
+`decryptRemoteBackup` uit `src/lib/ops/db-backup-remote.ts` ontsleutelen naar een tijdelijk bestand
+binnen een private map (0700), dan de bestaande herstel-drill hieronder uitvoeren en het tijdelijke
+bestand altijd verwijderen. De bestaande restore-scripts verwachten een ontsleutelde `.dump`.
+Een geslaagde roundtrip/heartbeat bewijst object-integriteit; de scratch-herstel-drill levert het
+afzonderlijke bewijs dat schema en gegevens daadwerkelijk herstelbaar zijn.
+
 **De databaseback-ups zijn de verantwoordelijkheid van de databasedienst** (managed Postgres:
 Neon/Supabase/Railway Postgres). Dit is mensenwerk om aan te zetten — de app kan het niet.
 

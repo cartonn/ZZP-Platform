@@ -9,6 +9,11 @@
 
 ## HANDOFF — operationele stand (lees dit eerst)
 
+- **Backupreparatie 7-9, nog te publiceren/bewijzen:** remote backupcommando en aparte pg18-image
+  hersteld; exacte heartbeatroute bereikt de eigen CRON_SECRET-guard. Geen retentie-snoei.
+  Configureer alleen database-backup naar `/railway.backup.json` en dezelfde Postgres-uro6 als de
+  app (de job wees naar Postgres). Controleer na CI/merge job, object-readback, heartbeat en
+  scratch-herstel; een geslaagde object-roundtrip bewijst nog geen databaseherstel. Zie RUNBOOK §5.
 - **Live:** `main` is de bron van waarheid **én** de deploy-branch; Railway bouwt/deployt elke
   merge automatisch (Dockerfile → PostgreSQL). Test-URL
   `zzp-platform-production-ba07.up.railway.app`. Demo-accounts (wachtwoord `demo1234`):
