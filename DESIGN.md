@@ -238,21 +238,23 @@ geen decoratieve gradients / kaart-in-kaart / templategevoel · **NOOIT het woor
 
 ## 11. Publieke Handslag-landingspagina (7 september 2026)
 
-Op expliciet verzoek van de eigenaar krijgt Handslag een zelfstandige publieke
-landingspagina op `/`. Dit vervangt de vroegere homepage-redirect. Het ingelogde
-platform blijft dashboard-first op `/dashboard`; de overige toegangsregels wijzigen niet.
+Op expliciet verzoek van de eigenaar heeft Handslag een zelfstandige publieke
+landingspagina op /. Het ingelogde platform blijft dashboard-first op /dashboard;
+de overige toegangsregels wijzigen niet.
 
-De marketingpagina gebruikt dezelfde semantische kleurvariabelen en lettertypen,
-met een eigen compositie in `src/app/landing.module.css`: royale typografie,
-gelaagde illustraties, een brede inhoudskolom en twee duidelijke doelgroepen.
+De pagina gebruikt de bestaande kleurvariabelen, Figtree, Fraunces en BrandMark.
+De eigen compositie in `src/app/landing.module.css` is redactioneel: een echte foto,
+royale typografie, dunne scheidingslijnen en inhoudelijke rijen voor de twee doelgroepen.
 Dit is de bewuste uitzondering op de compacte platformlayouts uit paragrafen 1 en 5.
-De bestaande BrandMark blijft behouden. De overige platformcomponenten wijzigen niet.
+Een doorlopende, uitklapbare uitleg verbindt opdracht, afspraken, uren en factuur.
 
-De illustraties zijn expliciet voorbeelden. Geen verzonnen klantlogo’s, aantallen,
-reviews, certificeringen of betaalgaranties. De FAQ legt rechtstreekse betaling uit.
-Native links en details werken zonder extra clientscript; focus blijft zichtbaar,
-het ontwerp schaalt naar mobiel en respecteert verminderde beweging.
+Fotografie: [Dulcey Lima, Mom's hands with mine](https://unsplash.com/photos/9MTqeBaAOlU),
+[Unsplash License](https://unsplash.com/license), gecontroleerd op 7 september 2026.
+De foto is illustratief; zij toont geen klant of endorsement van Handslag.
+Next Image optimaliseert uitsluitend deze toegestane fotobron en serveert de afbeelding
+via de eigen origin. De bronvermelding staat bij de foto. Geen externe fonts of scripts.
 
-Inspiratieonderzoek: de grote merkvlakken en doelgroepindeling op
-[Bendy](https://bendy.nl/) zijn vertaald naar een eigen Handslag-compositie.
-Teksten, illustraties en layout zijn voor Handslag geschreven.
+Geen verzonnen klantlogo’s, aantallen, reviews, certificeringen of betaalgaranties.
+De uitleg vermeldt rechtstreekse betaling en de gefaseerde ingebruikname.
+Native links en details werken zonder extra clientscript. Zichtbare focus, ruime
+klikvlakken, mobiele navigatie en verminderde beweging blijven onderdeel van het ontwerp.
