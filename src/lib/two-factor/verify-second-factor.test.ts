@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const userUpdateMany = vi.hoisted(() => vi.fn(async () => ({ count: 1 })));
 const rcFindMany = vi.hoisted(() => vi.fn(async () => [] as { id: string; codeHash: string }[]));
-const rcUpdate = vi.hoisted(() => vi.fn(async () => ({})));
+const rcUpdateMany = vi.hoisted(() => vi.fn(async () => ({ count: 1 })));
 // Typeer de audit-parameter zodat `.mock.calls[..][0]` een echt object is (geen lege tuple) — anders
 // faalt tsc op `.at(-1)?.[0]` (TS2493) bij het uitlezen van de metadata in de asserts.
 const auditMock = vi.hoisted(() =>
@@ -19,7 +19,7 @@ const verifyRecoveryMock = vi.hoisted(() => vi.fn(async () => false));
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { updateMany: userUpdateMany },
-    twoFactorRecoveryCode: { findMany: rcFindMany, update: rcUpdate },
+    twoFactorRecoveryCode: { findMany: rcFindMany, updateMany: rcUpdateMany },
   },
 }));
 vi.mock("@/lib/audit", () => ({ audit: auditMock }));
@@ -46,7 +46,8 @@ describe("verifySecondFactor", () => {
     userUpdateMany.mockResolvedValue({ count: 1 });
     rcFindMany.mockReset();
     rcFindMany.mockResolvedValue([]);
-    rcUpdate.mockReset();
+    rcUpdateMany.mockReset();
+    rcUpdateMany.mockResolvedValue({ count: 1 });
     auditMock.mockClear();
     verifyTotpStepMock.mockReset();
     verifyTotpStepMock.mockReturnValue(null);
@@ -96,9 +97,59 @@ describe("verifySecondFactor", () => {
     rcFindMany.mockResolvedValue([{ id: "rc-1", codeHash: "hash" }]);
     verifyRecoveryMock.mockResolvedValue(true);
     expect(await verifySecondFactor(USER, "ABCD-EFGH", META)).toBe(true);
-    expect(rcUpdate).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "rc-1" } }));
+    expect(rcUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "rc-1", userId: USER.id, usedAt: null } }),
+    );
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({ action: "TWO_FACTOR_RECOVERY_CODE_USED" }),
+    );
+  });
+
+  it("weigert een herstelcode die na de lookup al is verbruikt", async () => {
+    rcFindMany.mockResolvedValue([{ id: "rc-1", codeHash: "hash" }]);
+    verifyRecoveryMock.mockResolvedValue(true);
+    rcUpdateMany.mockResolvedValue({ count: 0 });
+
+    expect(await verifySecondFactor(USER, "ABCD-EFGH", META, { context: "disable" })).toBe(false);
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "TWO_FACTOR_CHALLENGE_FAILED",
+        metadata: { context: "disable", reason: "replay" },
+      }),
+    );
+    expect(auditMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: "TWO_FACTOR_RECOVERY_CODE_USED" }),
+    );
+  });
+
+  it("accepteert dezelfde herstelcode bij twee parallelle challenges precies eenmaal", async () => {
+    // Beide requests zien dezelfde ongebruikte rij, zoals bij overlappende database-lookups.
+    rcFindMany.mockResolvedValue([{ id: "rc-1", codeHash: "hash" }]);
+    verifyRecoveryMock.mockResolvedValue(true);
+    let consumed = false;
+    rcUpdateMany.mockImplementation(async () => {
+      if (consumed) return { count: 0 };
+      consumed = true;
+      return { count: 1 };
+    });
+
+    const results = await Promise.all([
+      verifySecondFactor(USER, "ABCD-EFGH", META),
+      verifySecondFactor(USER, "ABCD-EFGH", META),
+    ]);
+
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(rcFindMany).toHaveBeenCalledTimes(2);
+    expect(rcUpdateMany).toHaveBeenCalledTimes(2);
+    expect(auditMock).toHaveBeenCalledTimes(2);
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "TWO_FACTOR_RECOVERY_CODE_USED" }),
+    );
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "TWO_FACTOR_CHALLENGE_FAILED",
+        metadata: { reason: "replay" },
+      }),
     );
   });
 
@@ -107,7 +158,7 @@ describe("verifySecondFactor", () => {
     verifyRecoveryMock.mockResolvedValue(false);
     expect(await verifySecondFactor(USER, "ZZZZ-ZZZZ", META)).toBe(false);
     expect(lastAuditReason()).toBe("recovery");
-    expect(rcUpdate).not.toHaveBeenCalled();
+    expect(rcUpdateMany).not.toHaveBeenCalled();
   });
 
   it("verrijkt de audit-metadata met de meegegeven context", async () => {

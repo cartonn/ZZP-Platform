@@ -3,7 +3,7 @@
 import { AuthError } from "next-auth";
 import bcrypt from "bcryptjs";
 import { signIn } from "@/auth";
-import { audit } from "@/lib/audit";
+import { audit, auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { requestMeta } from "@/lib/request-meta";
 import { registerRateLimiter } from "@/lib/rate-limit";
@@ -74,26 +74,38 @@ export async function register(_prev: RegisterState, formData: FormData): Promis
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({
-    data: {
-      name,
-      email,
-      passwordHash,
-      role,
-      status: "ACTIVE",
-      ...(role === "FREELANCER"
-        ? { freelancerProfile: { create: {} } }
-        : { company: { create: { name: companyName! } } }),
-    },
-  });
-
-  await audit({
-    actorId: user.id,
-    action: "USER_REGISTERED",
-    entityType: "User",
-    entityId: user.id,
-    metadata: { role },
-  });
+  // Account, role profile and audit must commit together. The unique index arbitrates
+  // concurrent submissions; a losing request must never sign in to the winning account.
+  try {
+    await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name,
+          email,
+          passwordHash,
+          role,
+          status: "ACTIVE",
+          ...(role === "FREELANCER"
+            ? { freelancerProfile: { create: {} } }
+            : { company: { create: { name: companyName! } } }),
+        },
+      });
+      await tx.auditLog.create({
+        data: auditData({
+          actorId: user.id,
+          action: "USER_REGISTERED",
+          entityType: "User",
+          entityId: user.id,
+          metadata: { role },
+        }),
+      });
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return { fieldErrors: { email: "Er bestaat al een account met dit e-mailadres." } };
+    }
+    throw error;
+  }
 
   try {
     await signIn("credentials", { email, password, redirectTo: "/dashboard" });

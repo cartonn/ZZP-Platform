@@ -48,6 +48,13 @@
 
 ---
 
+## Launch review — 7 september 2026
+
+[Besluit, live-configuratie en pilotvolgorde](docs/LAUNCH-REVIEW-2026-09-07.md).
+De actuele Railway-configuratie is leidend boven de oudere handoff: documentopslag staat op S3,
+releasefase op demo en demo-seeding aan; e-maildriver is niet ingesteld. Eerst de
+accountbeveiligingsfixes door de CI-poort en de operationele productiestappen bewijzen.
+
 ## NU — bouwprogramma 2/3-9 afgerond (24 PR's, zie PROGRESS.md bovenaan)
 
 Golf 1 (A–F), golf 2 (G, I, M, N, O, Q) en golf 3 (T, U, V, W) zijn gemerged; #1340 (route-dedup) en

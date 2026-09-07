@@ -2,7 +2,7 @@
 
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { requireActor } from "@/lib/authz";
+import { requirePasswordChangeActor } from "@/lib/authz";
 import { signOut } from "@/auth";
 import { logoutRedirect } from "@/lib/security/clear-site-data";
 import { prisma } from "@/lib/db";
@@ -47,7 +47,7 @@ export async function changePassword(
   _prev: ChangePasswordState | undefined,
   formData: FormData,
 ): Promise<ChangePasswordState> {
-  const actor = await requireActor();
+  const actor = await requirePasswordChangeActor();
   const parsed = schema.safeParse({
     currentPassword: formData.get("currentPassword"),
     newPassword: formData.get("newPassword"),

@@ -2,6 +2,21 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — launch review: accounttoegang en registratie gehard
+
+Op actuele main en live health/readiness gecontroleerd. Railway staat nog op demo met seeding;
+S3 en Redis zijn ingesteld, e-mail is noop. Besluit en concrete pilotvolgorde:
+[launch review](docs/LAUNCH-REVIEW-2026-09-07.md).
+
+Deze branch sluit parallel hergebruik van een tweestaps-herstelcode en een client-bypass van de
+verplichte wachtwoordwijziging. Normale servertoegang controleert de actuele wachtwoordvlag;
+de wijzigpagina houdt een beperkte uitzondering met alle overige identiteitscontroles.
+Accountaanmaak en audit zijn transactioneel; dubbele registratie geeft een veldmelding.
+Gerichte regressietests toegevoegd. Lokaal: 8.389 tests groen (2 bestaande skips), typecheck, lint,
+productiebuild, volledige formatting, env/workflow-checks en secretscan groen. Vier Playwright-tests
+groen op de productiebuild, inclusief de sessie-update-aanval tijdens onboarding. Onafhankelijke
+review PASS. CI-uitkomst volgt bij de PR; niet gemerged of uitgerold.
+
 ## 2026-09-07 — bemiddelaar: reeds-verlopen roster-cert telt mee in de /franchise/zzpers-badge (badge↔lijst-drift gedicht)
 
 **Wat:** de nav-badge op `/franchise/zzpers` (`navBadges` → `rosterAlerts`, `signals.ts`) telde alléén de
@@ -377,195 +392,3 @@ vloer → de publieke pagina laat de beoordelingssectie weg. Server-side waarhei
 (comment). **Geparkeerd** (backlog): in-app spiegelfuncties `company-reputation`/`candidate-reviews` (zelfde vloer,
 lagere severity — geauthenticeerde tegenpartij), spoofbare `From`-fallback in mail-intake (MIDDEL), commit-SHA op
 liveness-probes (LAAG). **Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit + build (CI-poort verifieert).
-
-## 2026-09-06 — routine: notFound()-routes onder een loading.tsx geven weer 404 i.p.v. 200 (alle rollen; bemiddelaar-detail)
-
-**Wat:** zes detail-/bewerk-routes die `notFound()` aanroepen streamden onder een voorouder-`loading.tsx`
-en committeerden daardoor HTTP **200** vóór de throw — een zachte-404 op een gevoelige resource-op-id-route.
-Betrof de vier bemiddelaar-detailroutes `/franchise/{diensten,leads,opdrachtgevers,zzpers}/[id]` (gemaskeerd
-door de grootouder `franchise/loading.tsx`), `certificaten/[id]/bewerken` (gemaskeerd door de resterende
-`certificaten/loading.tsx`) en `kandidaten/vergelijk` (gemaskeerd door `kandidaten/loading.tsx`). **Waarom:**
-(1) **correctheid** — een ontbrekende/niet-eigen resource hoort een echte 404 te geven, geen 200; (2)
-**bestaans-oracle/IDOR** — 200-vs-404 op een id-route lekt bestaan (de repo behandelt dit elders al zo,
-`5b11dd10` + `pdf-routes-audit.test.ts`). Dit was CURRENT_TASK-item #4. **Hoe (repo-conventie, sweeps
-`459f49c1`/`43b9d6b2`):** de maskerende loading-grenzen weg; lijstroutes met een `[id]`-broer kregen hun
-skeleton via een gescoopte `(index)`-route-group (loading lekt niet meer naar de broer), routes zonder
-`[id]`-broer een eigen `loading.tsx`; `certificaten/[id]/bewerken` verliest zijn form-skeleton bewust —
-correctheid (404) wint van de skeleton-nicety. **Drift-vast:** nieuwe statische test loopt `src/app` af en
-faalt zodra een `notFound()`-pagina weer een actieve loading-grens boven zich krijgt. **Bestanden:** verwijderd
-`franchise/loading.tsx`, `certificaten/loading.tsx`; verplaatst naar `(index)/` (page+loading) voor
-`franchise/{diensten,opdrachtgevers,zzpers}` en `kandidaten`; nieuw `franchise/{facturatie,instellingen,
-shift-overnames}/loading.tsx` + `src/app/notfound-loading-masking.test.ts`. **Checks:** typecheck ✓ · lint ✓ ·
-test 8255 passed (incl. de nieuwe test) · build ✓ · prettier ✓. **PR #1400.**
-
-## 2026-09-05 — routine: stage-bewuste aanmaningsbrief (volgt de aanmaningsladder) (ZZP'er)
-
-**Wat:** de aanmaningsbrief-generator (`aanmaning.ts`, kopieerbaar sjabloon op `/facturen/[id]`)
-produceerde **één** brief: altijd getiteld "Betalingsherinnering" én die vanaf dag 1 na de vervaldag
-wettelijke handelsrente + incassokosten aankondigde. Het platform escaleert elders al netjes via de
-aanmaningsladder (`DUNNING_STAGES`: Betalingsherinnering@0 → Eerste aanmaning@14 → Tweede aanmaning@30
-→ Laatste aanmaning@45 dagen) — de notificaties en het debiteurenoverzicht (`currentDunningStage`)
-gebruikten die al, alleen de brief liep achter. **Waarom:** (1) **helderheid/vertrouwen** — een factuur
-die elders "Laatste aanmaning" heet mag geen brief opleveren die zichzelf "Betalingsherinnering" noemt
-(zelfde zelf-tegensprekend-document-klasse als de persona-sweep-fixes); (2) **toon/juridisch** — een
-eerste vriendelijke herinnering hoort nog niet met rente/incassokosten te dreigen; die horen bij de
-geëscaleerde aanmaningen (ingebrekestelling). Administratie-ontzorging: de ZZP'er kopieert de juiste
-brief zonder handmatig te herschrijven. **Hoe (server-side waarheid, DRY):** `buildAanmaningData` leidt
-het niveau nu af via de bestaande `currentDunningStage(dueAt, now)` — één bron met de rest van het
-platform, geen dubbele drempel-logica. Nieuwe velden `level`/`stageLabel`; `hasCharges` is gated
-(`level !== "REMINDER" && charges.hasCharges`), zodat de kosten-alinea pas vanaf de Eerste aanmaning
-verschijnt. `buildAanmaningLetter` past subject, openingszin (vriendelijk → feitelijk-dringend →
-sommatie → verzuim), betaalverzoek en een slot-incassowaarschuwing (alleen FINAL) per niveau aan. UI:
-de sectiekop toont het niveau ("Laatste aanmaning opstellen"). **Bestanden:** `src/lib/aanmaning.ts`
-(+ `.test.ts`, +12 cases: 4 niveaus × subject/toon/kosten-gating + REMINDER-met-overdue-zonder-kosten +
-null-dueAt), `src/components/invoices/aanmaning-section.tsx` (kop). Geen paginawijziging nodig (de
-module leidt zijn eigen niveau af uit `dueAt`). **Checks:** aanmaning 26/26 ✓ · typecheck/lint/build/
-prettier via CI-poort. **PR #1399.**
-
-## 2026-09-05 — routine: bereik-check vóór publicatie in het opdracht-formulier (opdrachtgever)
-
-**Wat:** de bereikmotor (`getJobReach` + de pure `job-reach.ts`/`job-reach-bottleneck.ts`) toonde de
-opdrachtgever pas **ná** publicatie hoeveel passende, vindbare ZZP'ers een opdracht bereikt en wat het
-grootste knelpunt is. De `job-reach.ts`-module benoemt zelf al de bedoeling "bereik vooraf verklaarbaar
-… zodat de opdrachtgever tarief of eisen kan bijsturen vóór de opdracht koud wordt" — maar dat signaal
-verscheen nog niet in het formulier. **Waarom:** een opdrachtgever die pas na publicatie ziet dat zijn
-eisen bijna niemand bereiken, verliest tijd (opdracht koud, herpublicatie). Vooraf sturen op eisen/
-tarief/werkvorm vult sneller — benchmark: LinkedIn/Indeed/Temper tonen een kandidaat-indicatie tijdens
-het opstellen. **Hoe (server-side waarheid, DRY):** de pool-scan+score-kern uit `getJobReach` is
-geëxtraheerd naar `computeReachForMatchSource(source, tenantId, appliedIds?)` in `data/job-reach.ts`;
-`getJobReach` roept die nu aan (gedrag ongewijzigd). Nieuwe pure `src/lib/jobs/reach-spec.ts`
-(`jobReachSpecSchema` + `toJobMatchSource` + `hasDiscriminatingRequirements` + `parseReachSpecFromForm`)
-vertaalt een concept-formulier naar een `JobMatchSource`. Nieuwe read-only server-action
-`estimateJobReach(formData)` (`opdrachten/actions.ts`): auth → rol CLIENT → tenant-scope (bedrijf) →
-Zod-spec → begrensde pool-scan (≤200, op `company.tenantId`) → geaggregeerd `JobReach` terug (nooit
-per-ZZP'er-gegevens). Zonder onderscheidende eis (geen vereiste skill/certificaat, branche of
-minimumtarief) → `insufficient`, geen kaart (anders zou "bereik" de hele pool zijn). Rem:
-`reachEstimateRateLimiter` (default 60/5 min per actor). UI: `JobReachPreview` (client, spiegelt
-`JobReachCard`) in `job-form.tsx`, gedebouncet (600 ms) op `<form onChange>`, verouderde antwoorden
-genegeerd via seq-id, loading/insufficient/gevuld-states. **Server bepaalt, client toont** (CLAUDE.md
-regel 1). **Bestanden:** `src/lib/jobs/reach-spec.ts` (+ `.test.ts`, 16 cases), `src/lib/data/job-reach.ts`
-(refactor), `src/lib/rate-limit.ts` (limiter), `opdrachten/actions.ts` (action), nieuwe
-`src/components/jobs/job-reach-preview.tsx`, `opdrachten/job-form.tsx` (wiring). **Checks:** typecheck ✓ ·
-lint ✓ · prettier ✓ · build ✓ · unit (reach-spec 16/16; volledige suite 8245 passed — de 2 rode
-`react-render-phase-ping`-cases waren de patch-package-installstaat van de verse clone, groen na
-`npx patch-package` zoals CI's `npm ci` doet). **PR #1398.**
-
-## 2026-09-05 — prod: geautomatiseerde back-up-herstel-drill in CI (end-to-end DR-garantie)
-
-**Wat:** de herstel-drill (`scripts/backup-restore-drill.ts`, `npm run db:restore-drill`) was volledig
-gebouwd én unit-getest, maar **niets draaide 'm ooit op een schema** — geen enkele workflow/cron riep
-`db:backup`/`db:restore-drill` aan. De belofte "een onbeproefde back-up is geen back-up" was daarmee
-zelf onbeproefd. **Waarom:** productie-rijpheid — een DR-script dat nooit draait, bewijst niets; een
-pg_dump/pg_restore-regressie of een schema dat niet herstelbaar dumpt zou pas tijdens een echt incident
-blijken. **Hoe:** nieuwe `.github/workflows/restore-drill.yml` — een **zelfstandige** job (Postgres 16
-service-container, **geen productie-secret nodig**) die de volledige keten end-to-end oefent: seedt een
-bron-database (`SEED_DEMO`), maakt er met de echte `npm run db:backup` een back-up van (pg_dump +
-integriteitscheck), herstelt die met de echte `npm run db:restore-drill` in een aparte wegwerp
-scratch-database en leest schema + rijen terug (scratch daarna opgeruimd — geen PII-kopie). Mirrort exact
-het bestaande `e2e-postgres`-patroon (`use-db-provider.mjs` → `prisma migrate deploy`/`db push` → seed).
-Triggers: **maandelijkse cron** (1e, 03:17 UTC), **`workflow_dispatch`** en **`pull_request`** op de
-back-up-/herstelcode. Bewust **geen** vereiste branch-protection-check (betrouwbaarheidssignaal, geen
-merge-blokkade). **Bestanden:** `.github/workflows/restore-drill.yml` (nieuw) + RUNBOOK §5 / MENSENWERK
-bijgewerkt (code-kant continu-gedrild GEDAAN; periodieke drill tegen een echte productie-back-up blijft
-aanbevolen extra zekerheid). **Checks:** config-/docs-increment (geen app-code); `prettier --check .`
-groen; de nieuwe workflow draait op deze PR (paths-trigger) als end-to-end-bewijs. **PR #1397.**
-
-## 2026-09-05 — security/privacy-auditronde (2e): geen nieuwe gaten
-
-**Wat:** volledige adversariële security-/privacy-audit op `main` @ d8f165be — orchestrator (Opus 4.8) +
-3 parallelle Opus-audits op niet-overlappende oppervlakken (elk met bewijsopdracht file:line + repro).
-Dekking: (A) object-/functie-autorisatie & IDOR over álle ~60 server actions + ~65 route handlers
-(auth→rol→ownership→Zod→actie→audit, anti-oracle-404, TOCTOU-`updateMany`, document-routes, RBAC,
-mass-assignment); (B) cross-tenant isolatie (FRANCHISER/multi-tenant, `tenantScopeWhere`); (C) AVG:
-erasure-volledigheid (`anonymizeUser` + CI schema-coverage-gate), PII-overfetch, XSS, CSV-/formule-
-injectie, SSRF, PII-in-logs. Plus orchestrator-probes: rauwe `Invoice.number` (userId-prefix) wordt op
-élk client-pad gemaskeerd via `displayInvoiceNumber` (38 refs geverifieerd); `npm audit --production` = 0.
-**Uitkomst:** GEEN nieuwe security-/privacy-gaten. 7 dev-/build-tooling-DoS-advisories (niet
-runtime-bereikbaar; CI-`audit`-gate is productie-only) geparkeerd als LAAG in de backlog.
-**Bestanden:** `docs/SECURITY-PRIVACY-BACKLOG.md` (nieuwe ronde-entry + coverage). **Volgende:** losse
-niet-brekende `npm audit fix`-PR (dev-deps) als aparte dependency-increment.
-
-## 2026-09-05 — routine: certificaat-in-beoordeling meldt eerlijk wanneer het langer duurt dan gebruikelijk
-
-**Wat:** de "In beoordeling"-kaart op `/certificaten` (`VerificationTurnaroundCard`) zei
-**onvoorwaardelijk** "Je hoeft zelf niets te doen" — ook wanneer de langst-wachtende ingediende
-aanvraag de gebruikelijke doorlooptijd (p90) al had overschreden. Die geruststelling wordt oneerlijk
-zodra een beoordeling vastloopt en ondermijnt de noord-ster "Kan ik dit vertrouwen?". **Waarom:**
-verificatie is de kerndifferentiatie; de ZZP'er moet kunnen vertrouwen op wat het scherm zegt. De
-admin-kant flagt lang-wachtende aanvragen al vanaf `VERIFICATION_STALE_DAYS` (5), dus de lus is
-platform-breed gesloten — alleen de ZZP'er-melding liep achter. **Hoe (server-side waarheid, pure
-logica):** nieuwe pure classifier `classifyVerificationWait(oldestWaitingDays, turnaround)` in
-`src/lib/verification-turnaround.ts` → `on_track` | `slower_than_usual`. Zonder betrouwbaar
-doorlooptijd-aggregaat (te weinig historie) altijd `on_track` (geen valse alarmering); anders
-`slower_than_usual` zodra de wachttijd de p90 **strikt** overschrijdt (exact op p90 = nog binnen).
-De kaart toont bij `slower_than_usual` een rustige `warning`-toon (icoon + "langst wachtend"-regel)
-en vervangt de onvoorwaardelijke geruststelling door een eerlijke melding ("wacht langer dan
-gebruikelijk — de beoordelaar ziet ’m in de wachtrij; je hoeft zelf niets te doen"). Geen dode knop:
-de ZZP'er hoeft nog steeds niets in te dienen. **Bestanden:** `src/lib/verification-turnaround.ts`
-(+ `.test.ts`, +5 cases: geen aggregaat, binnen, exact-p90-grens, boven-p90), nieuwe
-`src/components/credentials/verification-turnaround-card.tsx` + `.test.tsx` (4 render-cases).
-**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (2 files, 15 passed) ✓ · build (CI-poort
-verifieert). **PR #1394.**
-
-## 2026-09-05 — persona-sweep: TOCTOU-hardening op drie admin-statusovergangen
-
-**Wat:** de persona-sweep (3 parallelle adversariële Opus-audits — API-routes, roster/notificaties/
-profiel, admin-oppervlak — plus live smoke) vond dat drie ADMIN-statusovergangen nog een kale
-`prisma.<model>.update({ where: { id } })` deden na een vóór-lees + `assertTransition`, i.p.v. de
-compound-guarded `updateMany({ where: { id, status: from } })` die de rest van het platform hanteert
-(verificatie, no-show, dispuut, shift-overname, tenant-activatie, platform-billing). Twee gelijktijdige
-admin-klikken passeerden beide de vóór-lees → een dubbele auditregel en/of een stale-overschrijving.
-De API-route- en roster/notificatie/profiel-oppervlakken kwamen schoon uit de audit (0 bereikbare gaten).
-**Bevindingen (alle drie OPGELOST):**
-
-1. **`admin/bewaking/actions.ts` `setStatus`** (acknowledge/resolve incident) — HOOGSTE: `INCIDENT_TRANSITIONS`
-   staat terug-overgangen naar `OPEN` toe, dus een acknowledge en een resolve konden elkaar overschrijven,
-   elk met eigen auditregel.
-2. **`admin/opdrachten/actions.ts` `adminCloseJob`** — kale `update` in een array-`$transaction`; race gaf
-   een dubbele `JOB_CLOSED_BY_ADMIN`-auditregel.
-3. **`admin/support/actions.ts` `adminResolve` + de statusflip in `adminReply`** — read-then-write zonder
-   guard; `adminReply` kon bovendien een intussen door de aanvrager heropend ticket (terug op `ESCALATED`)
-   met een stale flip alsnog uit de wachtrij op `AWAITING_USER` zetten.
-
-**Hoe:** alle drie nu compound-guarded `updateMany({ where: { id, status: from } })` bínnen een
-`$transaction`, met de auditregel (`auditData` + `tx.auditLog.create`) ná een geslaagde claim
-(`count === 0` → geen audit, geen stale write); de `adminReply`-statusflip guardt op de gelezen status.
-Spiegelt exact `admin/no-shows/actions.ts`. **Tests (rood→groen):** `admin/bewaking/actions.test.ts` (nieuw),
-`admin/opdrachten/close-toctou.test.ts` (nieuw), `admin/support/resolve-toctou.test.ts` (nieuw) +
-`admin/support/admin-reply.test.ts` (bijgewerkt naar de guarded flip + nieuwe race-case). **Bestanden:**
-`admin/bewaking/actions.ts`, `admin/opdrachten/actions.ts`, `admin/support/actions.ts` + de 4 tests.
-**Checks:** typecheck · lint · prettier · unit groen; build via CI-poort.
-
-## 2026-09-05 — issue #329 bij de wortel gefixt: verloren render-fase-ping in de gebundelde React
-
-**Symptoom:** in een productiebuild bleef na een server action de knop op "Bezig…" staan terwijl de
-mutatie allang was geland; het project werkte er sinds juni omheen (`e2e/_robust.ts`, watchdog in
-`PendingSubmitButton`). **Diagnose (gemeten met tee op de fetch, React-root-lanes en breakpoints in de
-gebundelde React):** de RSC-body komt volledig binnen, maar React's `pingSuspendedRoot` laat een ping
-vallen die tijdens de render-fase binnenkomt (flight-chunk in `resolved_model` lost zijn `then`
-synchroon op) terwijl de root op `RootSuspendedWithDelay` staat; de lane eindigt "suspended + warm"
-zonder listener en zonder geplande render. Upstream gefixt in React `19.3.0-canary-…-20260731`
-(Next 16.3); Next 15.5.24/15.5.25 bundelen nog de oude canary. **Fix:** eenregelige backport via
-`patch-package` (`patches/next+15.5.24.patch`, postinstall) — gemeten 5/5 direct door, voorheen 5/6 hang.
-**Borging:** `src/lib/system/react-render-phase-ping.test.ts` (bundel bevat fix, buggy pad afwezig) +
-`e2e/bureau-registratie.spec.ts` activeert nu met één gewone klik in de productiebuild. ADR
-[0012](docs/decisions/0012-react-render-phase-ping-backport.md). De client-side nudge-workaround uit #1377 (`ActionReplay`, `action-replay.ts`) is hiermee overbodig en
-verwijderd — anders zou de e2e-regressietest een wegvallende patch niet meer kunnen zien. Vervolg (aparte
-PR): `_robust.ts` terugbrengen tot herklik-zonder-reload en de 5 s-watchdog in `PendingSubmitButton`
-laten vervallen.
-
-## 2026-09-05 — routine: job-detail wijst de ZZP'er de juiste herstelactie per vereist certificaat
-
-**Wat:** op de opdracht-detailpagina (`/opdrachten/[id]`) toonde de "Jouw aansluiting"-checklist bij een
-**verlopen** vereist certificaat de actie "Toevoegen" met een link naar de certificatenlijst — terwijl de
-ZZP'er dat certificaat al bezit. "Toevoegen" suggereert een tweede exemplaar aanmaken; de juiste actie bij
-verval is **vernieuwen** (nieuw bewijsstuk uploaden / opnieuw verificatie aanvragen op het bestaande
-certificaat). Een écht ontbrekend certificaat landde bovendien op de lijst i.p.v. direct op het
-nieuw-formulier. **Waarom:** noord-ster "wat moet ik nu doen?" — de herstelactie moet kloppen én de ZZP'er
-in één klik op de plek zetten waar de actie thuishoort. **Hoe:** nieuwe pure helper `credentialFixAction`
-(`src/lib/credential-fix-action.ts`) mapt de certificaat-staat op de juiste actie: `missing` → "Toevoegen"
-naar `/certificaten/nieuw`, `expired` → "Vernieuwen" naar `/certificaten`, `satisfied`/`inReview` → geen
-actie. De job-detailpagina gebruikt de helper i.p.v. de inline "Toevoegen"-link. **Bestanden:**
-`src/lib/credential-fix-action.ts` (nieuw) + `.test.ts` (5 cases, incl. regressie "verlopen ≠ Toevoegen"),
-`src/app/(protected)/opdrachten/[id]/page.tsx`. **Checks:** typecheck · lint · prettier · unit groen; build
-via CI-poort. **PR #1393.**

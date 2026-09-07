@@ -12,7 +12,7 @@ export const authConfig = {
   useSecureCookies: process.env.NODE_ENV === "production",
   trustHost: true,
   callbacks: {
-    jwt({ token, user, trigger, session }) {
+    jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;
         token.role = user.role;
@@ -24,14 +24,8 @@ export const authConfig = {
         // (met de oude stempel) vervalt. OWASP A07 (session-invalidatie bij credentialwijziging).
         token.passwordChangedAt = user.passwordChangedAt;
       }
-      // Na een geslaagde wachtwoordwijziging vraagt de client een session-update aan; dan vervalt
-      // de geforceerde wijziging (anders blijft de JWT stale tot de volgende login).
-      if (
-        trigger === "update" &&
-        (session as { mustChangePassword?: boolean } | null)?.mustChangePassword === false
-      ) {
-        token.mustChangePassword = false;
-      }
+      // Session updates contain untrusted client input. Security claims only change on login;
+      // changePassword signs out after persisting the new password and clearing the database flag.
       return token;
     },
     session({ session, token }) {
