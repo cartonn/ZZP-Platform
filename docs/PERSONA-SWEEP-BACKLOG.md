@@ -1,5 +1,42 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-07 (persona-sweep, run 6) · **main-commit basis:** `353141aa`
+> **Uitkomst:** **1 defect gefixt (badge↔lijst-drift, DOEL 1b); 1 item geparkeerd (LOW).** Drie parallelle
+> adversariële Opus-audits op niet-overlappende oppervlakken (security/IDOR/cross-tenant/document-privacy ·
+> malicieuze invoer/Zod/geld-integriteit · next-action/badge-correctheid). De live productiebuild draaide dit
+> keer wél verder (fonts bereikbaar via de proxy) maar bleef traag in de static-generation/type-check-fase; de
+> sweep is daarom primair audit-gedreven, met de build als DoD-poort.
+>
+> - **DOEL 2 (adversarieel) — schoon.** Security/IDOR/cross-tenant/document-privacy: **0 bereikbare gaten**.
+>   `currentActor()` herlaadt rol/status/tenant live uit de DB (niet uit de JWT); `tenantScopeWhere`/
+>   `assertSameTenant`/`ownsViaTenant` consistent als één bron; élke by-id-fetch her-verifieert ownership/tenant
+>   server-side met anti-oracle `notFound()`; documenten owner/ADMIN-only met matched-timing 404; cascade-
+>   commands her-afleiden partij-lidmaatschap i.p.v. client-`collaborationId` te vertrouwen
+>   (`editAndResubmitPerformanceAction` hardt expliciet tegen rate-IDOR); `/admin/*` server-side `requireRole`.
+> - **DOEL 2 (invoer/Zod/geld) — schoon.** int4-`totalCents`-overflow gedekt (som-van-capped-regels expliciet
+>   herchecked, `MAX_INVOICE_CENTS`); `computeVat`/`assertPerformanceWithinLimits` weigeren NaN/Infinity/negatief/
+>   niet-integer; `shift.ts` weigert omgekeerde/absurde/`>MAX_SHIFT_HOURS`-diensten; CSV-formule-injectie centraal
+>   (alle 15 producers via `toCsv`/`escapeCsvField`); HTML-mail escapet elke geïnterpoleerde waarde + CRLF-strip;
+>   upload magic-byte-sniff onafhankelijk van Content-Type; enige `dangerouslySetInnerHTML` is het statische
+>   nonce-gated theme-script.
+> - **GEDAAN (DOEL 1b) — /kandidaten-nav-badge dreef af van /acties op een gesloten/concept-opdracht.**
+>   `navBadges` (`signals.ts`) telde de NEW-reactie-telling én de stale VIEWED/SHORTLIST-`findMany` alleen op
+>   `companyId`, zónder de `job.status: "PUBLISHED"`-poort die run 103 aan de item-engine (`pending-tasks.ts`,
+>   regressietest `pending-tasks-client-closed-job.test.ts`) toevoegde. Sluit de opdrachtgever een opdracht zonder
+>   de reactie te beoordelen (PUBLISHED→CLOSED/DRAFT), dan blijft de reactie NEW in de DB staan
+>   (`changeJobStatus` transitioneert reacties niet) → de beoordeeltaak verdwijnt van /acties, maar de
+>   /kandidaten-badge bleef 'm eeuwig meetellen: een fantoom-`attention`-badge die nooit op nul komt, precies het
+>   "signaal op één oppervlak"-anti-patroon. **Fix:** `job.status: "PUBLISHED"` toegevoegd aan beide queries
+>   (`signals.ts:640` NEW-telling + `:696` stale-`findMany`) → badge==lijst. **Bestanden:** `src/lib/signals.ts`,
+>   `src/lib/signals-client-closed-job-badge.test.ts` (+1 test, rood→groen bewezen: badge `{count:5}` → undefined).
+> - **GEPARKEERD — LOW (correctheid, twee dagen/jaar): DST-uur mis-attributie in ORT-segmentatie.**
+>   `src/lib/shift.ts` (`classify`/`accumulateShiftMinutes`) rekent met wandklok-uren; op de Nederlandse DST-wissel
+>   (laatste zondag maart/oktober) kan ~1 uur aan minuten in de verkeerde ORT-categorie (dag/avond/nacht) vallen
+>   voor een dienst die exact de wissel-uren overspant. Geen crash/exploit; klein factuur-effect, alleen bij een
+>   dienst over de wissel. Repro: dienst 01:30–03:30 op de laatste zondag van oktober. Prioriteit LOW.
+>
+> ---
+>
 > **Datum:** 2026-09-07 (persona-sweep, run 5) · **main-commit basis:** `6f373f66`
 > **Uitkomst:** **1 defect gefixt (LOW/latent — DOEL 1b); 2 items geparkeerd.** De live Playwright-doorklik
 > die de vorige 4 runs niet konden draaien is nu **wél uitgevoerd**: de build hing op de `next/font/google`-
