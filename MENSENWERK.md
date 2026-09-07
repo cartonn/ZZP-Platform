@@ -655,6 +655,22 @@ restore-drill.yml` sluit dat gat: een **zelfstandige** job (Postgres 16 service-
    wordt de stap eerlijk overgeslagen (`describeEncryption` in `src/lib/services/storage.ts`,
    `resolveExpectedSse` + de `encrypt`-stap in `src/lib/services/storage-selftest.ts`). Resterend
    mensenwerk: **niets extra**.
+   **Code-kant GEDAAN (2026-09-07) — bucket-default-encryptie als fallback-bewijs:** de per-object
+   `HeadObject`-controle hierboven was **te streng voor S3-compatibele opslag**: sommige providers
+   versleutelen elk object transparant-at-rest maar **echoën de `x-amz-server-side-encryption`-header
+   niet** op HeadObject. De zelftest markeerde zulke (wél versleutelde) opslag dan ONVERSLEUTELD →
+   de strikte go-live-poort (`npm run preflight -- --strict` / de go-live-sweep) haalde geen groen op
+   de echte productie-opslag (LAUNCH-REVIEW §1-blocker). De `encrypt`-stap valt nu, wanneer de
+   per-object-header afwezig is, terug op **positief bucket-breed bewijs**: `GetBucketEncryption`
+   (`describeBucketEncryption` in `src/lib/services/storage.ts`). Staat er een default-encryptie-regel
+   op de bucket, dan versleutelt de opslag élk object aantoonbaar op schijf (S3 dwingt de default af
+   ongeacht de PutObject-parameters) en is de beveiligingseigenschap gehaald — de stap wordt groen met
+   de eerlijke toelichting "per-object SSE-header afwezig; bucket-default-encryptie geconfigureerd,
+   geverifieerd via bucket-policy". **Verzwakt niets:** de fallback voegt alleen een PASS-pad toe waar
+   ONAFHANKELIJK positief bewijs bestaat; ontbreekt dat (geen regel, of de call werpt/wordt niet
+   ondersteund), dan blijft dit de bestaande AVG-faalmodus (nooit vals groen). Resterend mensenwerk:
+   **niets extra** — voor AWS S3 staat bucket-default-encryptie sinds jan-2023 verplicht aan; voor een
+   S3-compatibele store: zet default-encryptie op de bucket aan.
    **Code-kant GEDAAN (2026-07-24) — server-action body-limiet gelijkgetrokken met de upload-ceiling:**
    uploads (documenten/certificaten/bedrijfslogo) lopen via Next.js server actions, die de request-body
    **standaard op 1 MB** afkappen — kleiner dan onze 10 MB-ceiling (`MAX_UPLOAD_BYTES`). Een reëel

@@ -13,6 +13,7 @@ import {
   type StorageDriver,
   type StoredObject,
   type StorageEncryptionInfo,
+  type BucketEncryptionInfo,
 } from "./storage";
 
 /** Minimale in-memory driver zonder describeEncryption (zoals de lokale disk-driver). */
@@ -40,10 +41,13 @@ class FakeDriver implements StorageDriver {
   }
 }
 
-/** Driver mét describeEncryption (zoals de S3-driver). */
+/** Driver mét describeEncryption + describeBucketEncryption (zoals de S3-driver). */
 class FakeS3Driver extends FakeDriver {
   async describeEncryption(): Promise<StorageEncryptionInfo> {
     return { serverSideEncryption: "AES256" };
+  }
+  async describeBucketEncryption(): Promise<BucketEncryptionInfo> {
+    return { defaultEncryption: "AES256" };
   }
 }
 
@@ -92,6 +96,18 @@ describe("RecordingStorageDriver — aflever-heartbeat-registratie", () => {
     expect(typeof s3.describeEncryption).toBe("function");
     const info = await s3.describeEncryption!("k");
     expect(info.serverSideEncryption).toBe("AES256");
+    expect(recordSuccess).toHaveBeenCalledWith("s3");
+  });
+
+  it("exposeert describeBucketEncryption alleen als de inner-driver 'm heeft en registreert 'm dan", async () => {
+    const plain = new RecordingStorageDriver(new FakeDriver(), "s3");
+    expect(typeof plain.describeBucketEncryption).toBe("undefined");
+
+    const s3 = new RecordingStorageDriver(new FakeS3Driver(), "s3");
+    expect(typeof s3.describeBucketEncryption).toBe("function");
+    const info = await s3.describeBucketEncryption!();
+    expect(info.defaultEncryption).toBe("AES256");
+    // GetBucketEncryption is een echte backend-round-trip → telt mee in de aflever-heartbeat.
     expect(recordSuccess).toHaveBeenCalledWith("s3");
   });
 });

@@ -248,6 +248,17 @@ export interface StorageEncryptionInfo {
   serverSideEncryption: string | null;
 }
 
+/** Rapport over de bucket-BREDE default-server-side-encryptie-configuratie (voor de zelftest-fallback). */
+export interface BucketEncryptionInfo {
+  /**
+   * Het door de bucket-policy geconfigureerde default-SSE-algoritme (`AES256`/`aws:kms`), of `null`
+   * wanneer de bucket geen server-side-encryptie-by-default heeft. Een geconfigureerde regel is het
+   * positieve bewijs dat de opslag élk object (ook zonder expliciete per-request-header) versleuteld
+   * op schijf zet — S3 (en compatibele stores) dwingt zo'n default af, ongeacht de PutObject-parameters.
+   */
+  defaultEncryption: "AES256" | "aws:kms" | null;
+}
+
 export interface StorageDriver {
   put(key: string, data: Buffer, mimeType: string): Promise<StoredObject>;
   get(key: string): Promise<Buffer>;
@@ -267,6 +278,15 @@ export interface StorageDriver {
    * op schijf staan i.p.v. te vertrouwen dat de opslag de SSE-instelling honoreert.
    */
   describeEncryption?(key: string): Promise<StorageEncryptionInfo>;
+  /**
+   * Optioneel: rapporteert de bucket-BREDE default-server-side-encryptie-configuratie (S3
+   * `GetBucketEncryption`). Gebruikt door de opslag-zelftest als **fallback-bewijs** wanneer een
+   * S3-compatibele store de per-object-SSE-header niet terugmeldt op HeadObject (`describeEncryption`
+   * geeft dan `null`) terwijl de bucket objecten wél transparant versleutelt: een geconfigureerde
+   * default-encryptie-regel is het positieve bewijs dat álle objecten versleuteld op schijf staan.
+   * Lokale opslag ondersteunt dit niet (methode ontbreekt).
+   */
+  describeBucketEncryption?(): Promise<BucketEncryptionInfo>;
 }
 
 class LocalStorageDriver implements StorageDriver {
@@ -388,6 +408,33 @@ class S3StorageDriver implements StorageDriver {
     return { serverSideEncryption: res.ServerSideEncryption ?? null };
   }
 
+  async describeBucketEncryption(): Promise<BucketEncryptionInfo> {
+    const { client, bucket, lib } = await this.svc();
+    try {
+      const res = await client.send(new lib.GetBucketEncryptionCommand({ Bucket: bucket }));
+      // Neem de eerste geconfigureerde default-encryptie-regel; S3 (en compatibele stores) dwingt die
+      // op élk object af, ongeacht de per-request-header. KMS (incl. de dual-layer DSSE-variant) telt
+      // als aws:kms; SSE-S3 als AES256.
+      const rules = res.ServerSideEncryptionConfiguration?.Rules ?? [];
+      for (const rule of rules) {
+        const alg = rule.ApplyServerSideEncryptionByDefault?.SSEAlgorithm;
+        if (alg === "aws:kms" || alg === "aws:kms:dsse") return { defaultEncryption: "aws:kms" };
+        if (alg === "AES256") return { defaultEncryption: "AES256" };
+      }
+      return { defaultEncryption: null };
+    } catch (e: unknown) {
+      // Geen default-encryptie geconfigureerd → S3 werpt ServerSideEncryptionConfigurationNotFoundError:
+      // dat is een geldig "nee" (geen bucket-brede garantie), geen storing → null. Elke ándere fout
+      // (auth ontbeert s3:GetEncryptionConfiguration, onbereikbaar, provider ondersteunt de command niet)
+      // is géén positief bewijs → gooi door, zodat de zelftest terugvalt op de faal-tak (nooit vals groen).
+      const err = e as { name?: string };
+      if (err?.name === "ServerSideEncryptionConfigurationNotFoundError") {
+        return { defaultEncryption: null };
+      }
+      throw e;
+    }
+  }
+
   async getSignedDownloadUrl(key: string, opts?: SignedUrlOptions): Promise<string | null> {
     const { client, bucket, lib } = await this.svc();
     // Lazy import zoals @aws-sdk/client-s3: houdt de bundel licht als S3 niet wordt gebruikt.
@@ -430,6 +477,12 @@ export class RecordingStorageDriver implements StorageDriver {
       this.describeEncryption = (key: string) =>
         this.record(() => this.inner.describeEncryption!(key));
     }
+    // Idem voor de bucket-brede default-encryptie-fallback (GetBucketEncryption): óók een echte
+    // backend-round-trip, dus registreren én alleen doorgeven als de inner-driver 'm heeft.
+    if (typeof inner.describeBucketEncryption === "function") {
+      this.describeBucketEncryption = () =>
+        this.record(() => this.inner.describeBucketEncryption!());
+    }
   }
 
   private async record<T>(op: () => Promise<T>): Promise<T> {
@@ -470,6 +523,7 @@ export class RecordingStorageDriver implements StorageDriver {
 
   // Voorwaardelijk gezet in de constructor (alleen als de inner-driver 'm heeft).
   describeEncryption?: (key: string) => Promise<StorageEncryptionInfo>;
+  describeBucketEncryption?: () => Promise<BucketEncryptionInfo>;
 }
 
 let cached: StorageDriver | null = null;

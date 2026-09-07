@@ -2,6 +2,25 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — prod: bucket-default-encryptie-fallback in de opslag-encryptie-zelftest (go-live-poort op S3-compatibele opslag)
+
+**Wat:** de go-live-blocker uit LAUNCH-REVIEW §1 / CURRENT_TASK-handoff opgelost — "De opslagprovider
+ondersteunt de vereiste SSE-metadata niet; de strikte productiecontrole slaagt nog niet." De
+`encrypt`-stap van de opslag-zelftest deed alleen een per-object `HeadObject` en faalde ONVERSLEUTELD
+zodra een S3-compatibele store de `x-amz-server-side-encryption`-header niet echoot — óók als de bucket
+elk object transparant-at-rest versleutelt. De stap valt nu, bij een afwezige per-object-header, terug
+op **positief bucket-breed bewijs**: `GetBucketEncryption` (`describeBucketEncryption` op de
+S3-driver). Een geconfigureerde default-encryptie-regel bewijst dat S3 élk object op schijf versleutelt
+(default afgedwongen ongeacht de PutObject-parameters) → stap groen met eerlijke bucket-policy-toelichting.
+**Verzwakt niets:** de fallback voegt alleen een PASS-pad toe waar ONAFHANKELIJK positief bewijs bestaat;
+ontbreekt dat (geen regel, of de call werpt/wordt niet ondersteund → doorgegooid, nooit stil geslikt),
+dan blijft de bestaande AVG-faalmodus (nooit vals groen). `GetBucketEncryption` is een echte
+backend-round-trip → geregistreerd in de opslag-aflever-heartbeat (RecordingStorageDriver).
+**Bestanden:** `src/lib/services/storage.ts` (`BucketEncryptionInfo`, interface-methode, S3-impl,
+RecordingStorageDriver-forwarding), `src/lib/services/storage-selftest.ts` (fallback in de `encrypt`-stap),
+`+7 tests` (`storage-selftest.test.ts`, `recording-storage-driver.test.ts`), `MENSENWERK.md`.
+**Checks:** gerichte tests 53/53 ✓ · typecheck/lint/build/prettier + CI-poort verifiëren. PR #1426.
+
 ## 2026-09-07 — security/privacy-audit (2e ronde): 3 parallelle adversariële Opus-audits, 0 exploiteerbare gaten, 1 privacy/product-afweging geparkeerd
 
 **Wat:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken +
