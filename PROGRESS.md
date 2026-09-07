@@ -2,6 +2,32 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — DBA-monitor: concreet, uitlegbaar risico-verlaagadvies op het opdrachtformulier
+
+**Wat:** de DBA-monitor gaf tot nu toe een verdict (LAAG/MIDDEN/HOOG) + generiek advies, maar niet
+_welke_ concrete wijziging het risico daadwerkelijk verlaagt. Nieuwe pure functie `dbaMitigations`
+(`src/lib/dba.ts`) berekent het **kleinste, meest-uitlegbare setje indicator-wijzigingen** dat het
+risico naar het eerstvolgende lagere niveau brengt — de "next best action" van de DBA-monitor.
+Alleen de gezag-/inbeddings-indicatoren zijn hefbomen (de verwachte duur is een eerlijke inschatting,
+geen af te vinken knop: telt mee in de score maar niet als voorstel). Deterministisch: kiest de
+deelverzameling actieve indicatoren met (1) minste wijzigingen → (2) minste overbodige verlaging →
+(3) stabiele indicator-volgorde (brute-force over ≤2⁶ deelverzamelingen). `null` als er niets te
+verlagen valt (al LAAG) of als de indicatoren de vereiste verlaging niet dekken (duur-gedreven).
+Live getoond op het opdrachtformulier (`opdrachten/job-form.tsx`): terwijl de opdrachtgever de
+kenmerken aanvinkt, verschijnt "Zo verlaag je het risico naar MIDDEN/LAAG:" met concrete stappen
+(bv. "Sta vrije vervanging toe."). Server-side blijft `assessDbaRisk` de waarheid; dit is een
+uitlegbare hint bovenop dezelfde pure functie. **Bestanden:** `src/lib/dba.ts`,
+`src/lib/dba.test.ts` (+7 tests, 18/18), `src/app/(protected)/opdrachten/job-form.tsx` (kleine
+refactor: gedeeld `dbaInput`-object). **Checks:** test 18/18 ✓ · typecheck/lint/prettier/build ✓ ·
+CI-poort verifiëren. PR #1427.
+
+**Nevenbevinding (geen wijziging):** het geparkeerde LOW-item "DST-uur mis-attributie in
+`segmentShifts`" is empirisch weerlegd — de Nederlandse DST-wissels (03:00↔02:00) liggen volledig
+binnen NIGHT, terwijl de ORT-categoriegrenzen op 06:00/18:00/22:00 liggen; de segmentatie loopt in
+echte-ms-slices die [start,end) exact partitioneren, dus de totaalminuten blijven behouden en de
+categorie is uniform over de wissel (fall-back → 3u NIGHT, spring → 1u NIGHT). Non-bug bij de
+standaard-ORT-vensters; backlog-item als zodanig gemarkeerd.
+
 ## 2026-09-07 — prod: bucket-default-encryptie-fallback in de opslag-encryptie-zelftest (go-live-poort op S3-compatibele opslag)
 
 **Wat:** de go-live-blocker uit LAUNCH-REVIEW §1 / CURRENT_TASK-handoff opgelost — "De opslagprovider

@@ -9,7 +9,7 @@ import { DateInput } from "@/components/ui/date-input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
-import { assessDbaRisk, dbaAdvice } from "@/lib/dba";
+import { assessDbaRisk, dbaAdvice, dbaMitigations } from "@/lib/dba";
 import {
   recommendModelAgreement,
   MODEL_AGREEMENT_LABELS,
@@ -260,7 +260,7 @@ export function JobForm({
     dba.dbaDurationMonths.trim() !== "";
 
   // Live, deterministische DBA-inschatting (zelfde pure functie als de server gebruikt).
-  const dbaResult = assessDbaRisk({
+  const dbaInput = {
     directSupervision: dba.dbaDirectSupervision,
     embedded: dba.dbaEmbedded,
     fixedSchedule: dba.dbaFixedSchedule,
@@ -268,17 +268,10 @@ export function JobForm({
     exclusive: dba.dbaExclusive,
     weakEntrepreneurship: dba.dbaWeakEntrepreneurship,
     durationMonths: dba.dbaDurationMonths ? Number(dba.dbaDurationMonths) : null,
-  });
-
-  const modelRec = recommendModelAgreement({
-    directSupervision: dba.dbaDirectSupervision,
-    embedded: dba.dbaEmbedded,
-    fixedSchedule: dba.dbaFixedSchedule,
-    noSubstitution: dba.dbaNoSubstitution,
-    exclusive: dba.dbaExclusive,
-    weakEntrepreneurship: dba.dbaWeakEntrepreneurship,
-    durationMonths: dba.dbaDurationMonths ? Number(dba.dbaDurationMonths) : null,
-  });
+  };
+  const dbaResult = assessDbaRisk(dbaInput);
+  const dbaMitigation = dbaMitigations(dbaInput);
+  const modelRec = recommendModelAgreement(dbaInput);
 
   return (
     <form
@@ -500,6 +493,18 @@ export function JobForm({
                   <li key={r.factor}>{r.message}</li>
                 ))}
               </ul>
+            )}
+            {dbaMitigation && (
+              <div className="mt-2 rounded-md border border-border bg-background p-2.5">
+                <p className="text-xs font-medium">
+                  Zo verlaag je het risico naar {dbaMitigation.targetLevel}:
+                </p>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                  {dbaMitigation.changes.map((c) => (
+                    <li key={c.factor}>{c.action}</li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         )}
