@@ -100,12 +100,24 @@ punt 5 hieronder.
 
 ### Robuustheid / techniek
 
-5. **Twee resterende flaky e2e-tests** (slagen op retry, `retries: 2` absorbeert ze — geen
+0. **[GELD — HOOG] Dubbel-afronden in `segmentShifts` (`src/lib/shift.ts`) buigt het ORT-factuursubtotaal.**
+   `segmentShift` rondt per dienst elke categorie-uren al af op 2 decimalen (regel 138); `segmentShifts`
+   telt díe reeds-afgeronde waarden op (regel 162) en rondt de som nóg eens (regel 169) → `round(Σ round(min_i/60))`
+   i.p.v. `round(Σ min_i/60)`. Bij een meerdaagse urenstaat met veel diensten op hetzelfde sub-uur-patroon
+   (bv. elke dienst eindigt op :50) accumuleert de afrondingsbias één kant op → structureel te hoog/te laag
+   factuursubtotaal (`planPerformanceApproved` → `ortSubtotalCents` → `Invoice.subtotalCents`). Repro: 10×
+   dienst 21:50–22:00 (10 min avond), €50/u → 1,70u geboekt i.p.v. 1,67u (≈ €1,83 te veel op die staat,
+   groeit met het aantal diensten). CSV-import ontsnapt (roept `segmentShifts([shift])` per dienst). **Fix:**
+   aggregeer op minuut-resolutie over alle diensten en rond één keer aan het eind — deel de minuten-lus uit
+   `segmentShift` in een helper die de ruwe `minutesByCat` teruggeeft; `segmentShifts` merget die maps en
+   rondt één keer. Publieke API's ongewijzigd. Test met een meerdienst-staat die rood is onder dubbel-afronden.
+
+1. **Twee resterende flaky e2e-tests** (slagen op retry, `retries: 2` absorbeert ze — geen
    blocker): `critical-personas.spec.ts:111` (franchise onbestaand-id → 404, soms 200 op de eerste
    poging) en `support.spec.ts:53` (admin-helpdesk, login-timing).
-6. **Componenttest `ExpiryOverviewCard`** (review-should-fix #371) — vergt jsdom/testing-library
+2. **Componenttest `ExpiryOverviewCard`** (review-should-fix #371) — vergt jsdom/testing-library
    naast de Vitest-`node`-omgeving; alleen oppakken als die infra er toch komt.
-7. **Perf-refactors (risky, apart oppakken):** `clientCredentialAlerts` overload met voorgefetchte
+3. **Perf-refactors (risky, apart oppakken):** `clientCredentialAlerts` overload met voorgefetchte
    rijen (2 queries minder per CLIENT-dashboard); `suggestedFreelancersForClient` fan-out (pool
    één keer fetchen, in-memory scoren); `savedJobIds`-query op `/opdrachten` in de bestaande
    `Promise.all` vouwen.

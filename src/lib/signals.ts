@@ -24,6 +24,7 @@ import {
 } from "@/lib/collaboration-credential-expiry";
 import {
   rosterExpiringByProfile,
+  rosterExpiredByProfile,
   supersededVerifiedCredentialIds,
   coveredCredentialTypes,
 } from "@/lib/credentials";
@@ -76,7 +77,7 @@ interface SignalCounts {
   savedJobs?: number; // FREELANCER: bewaarde opdrachten die nog open staan (PUBLISHED)
   overdueLeads?: number; // FRANCHISER: actieve leads met een verstreken opvolgdatum
   openHandoffs?: number; // FRANCHISER: open shift-overname-aanvragen binnen de tenant
-  rosterAlerts?: number; // FRANCHISER: niet-inzetbare roster-ZZP'ers + (bijna-)verlopende certificaten
+  rosterAlerts?: number; // FRANCHISER: niet-inzetbare roster-ZZP'ers + (bijna-)verlopende + reeds-verlopen certificaten
   openDienstAlerts?: number; // FRANCHISER: acute + te-lang-open (stale) tenant-diensten
   franchiseRenewals?: number; // FRANCHISER: aflopende plaatsingen die om een vervolg vragen (spiegelt /acties)
   attentionClients?: number; // FRANCHISER: stilgevallen opdrachtgevers die om re-engagement vragen (spiegelt /acties)
@@ -823,6 +824,7 @@ export const navBadges = cache(async function navBadges(
       overdueLeads,
       openHandoffs,
       expiringCreds,
+      expiredCreds,
       roster,
       openDiensten,
       staleDiensten,
@@ -866,6 +868,30 @@ export const navBadges = cache(async function navBadges(
         // beide cappen op 50 (CASCADE_SCAN_LIMIT === MAX), dus zonder identieke ordering pakken de
         // twee queries boven 50 verlopende certificaten binnen één tenant een ándere 50-rij-subset →
         // een ander distinct-profiel-aantal → de /franchise/zzpers-badge divergeert van /acties.
+        orderBy: { expiresAt: "asc" },
+        take: CASCADE_SCAN_LIMIT,
+      }),
+      // /franchise/zzpers — kandidaat-profielen met een REEDS verlopen, NIET-verplicht certificaat van
+      // tenant-ZZP'ers, exact de eerste-stap-scope van de /acties-bron (`expiredRosterCreds` in
+      // pending-tasks.ts → `franchiseCredentialExpiredTask`). Zonder deze telling verdween het
+      // compliance-signaal uit de badge zodra een cert de vervaldatum passeerde (het valt uit het
+      // `(now, soon]`-verloop-venster), terwijl /acties de "verlopen"-taak wél toont — precies het
+      // "signaal op één oppervlak"-anti-patroon dat deze codebase elders al dichtte (de VERIFIED-
+      // expiring-tak hierboven). Verval is server-berekend: `status = EXPIRED` (batch-geflipt) óf een
+      // VERIFIED-cert waarvan `expiresAt < now` (computed, tussen de expiry-cron-runs door). Verplichte
+      // typen (VOG/verzekering) blijven buiten scope: die dekt de engageability-tak (`notEngageable`)
+      // al. Nog NIET het eindaantal: dekkende (nu-geldige) certs van hetzelfde type sluiten hieronder
+      // via `rosterExpiredByProfile` uit. Alleen `freelancerProfileId` nodig om de kandidaten te bepalen.
+      prisma.credential.findMany({
+        where: {
+          freelancerProfile: { tenantId },
+          type: { notIn: [...MANDATORY_CREDENTIAL_TYPES] },
+          OR: [{ status: "EXPIRED" }, { status: "VERIFIED", expiresAt: { lt: now } }],
+        },
+        select: { freelancerProfileId: true },
+        // Zelfde `orderBy` + cap als de /acties-bron (`expiredRosterCreds`, pending-tasks.ts): beide
+        // cappen op CASCADE_SCAN_LIMIT === MAX, dus zonder identieke ordering pakken de twee queries
+        // boven de cap een ándere subset → een ander distinct-profiel-aantal → de badge divergeert.
         orderBy: { expiresAt: "asc" },
         take: CASCADE_SCAN_LIMIT,
       }),
@@ -973,10 +999,11 @@ export const navBadges = cache(async function navBadges(
       now,
     ).attention;
 
-    // /franchise/zzpers-badge = distinct profielen met (bijna-)verlopende certificaten + niet-inzetbare
-    // roster-ZZP'ers, exact de som van de losse item-taken. Géén dedup op profiel: één ZZP'er kan zowel
-    // een verloop-taak (VERIFIED, verloopt binnenkort) ÁLS een niet-inzetbaar-taak (verplicht document
-    // ontbreekt/verlopen) tonen — precies zoals `franchiserTasks` beide pusht.
+    // /franchise/zzpers-badge = distinct profielen met (bijna-)verlopende certificaten + reeds-verlopen
+    // niet-verplichte certificaten + niet-inzetbare roster-ZZP'ers, exact de som van de losse item-taken.
+    // Géén dedup op profiel: één ZZP'er kan tegelijk een verloop-taak (VERIFIED, verloopt binnenkort),
+    // een verlopen-taak (niet-verplicht cert al voorbij de vervaldatum) ÁLS een niet-inzetbaar-taak
+    // (verplicht document ontbreekt/verlopen) tonen — precies zoals `franchiserTasks` alle drie pusht.
     //
     // Superseded exemplaren (een nieuwer, nu-geldig cert van hetzelfde type dekt de compliance al) tellen
     // NIET mee: anders divergeert de badge van /acties, dat via `rosterExpiringByProfile` superseded al
@@ -1003,11 +1030,39 @@ export const navBadges = cache(async function navBadges(
         soon,
       ).length;
     }
+    // Reeds-verlopen niet-verplichte roster-certs — de tegenhanger van `expiringProfiles`, exact het
+    // aantal `franchiseCredentialExpiredTask`-taken op /acties. Dezelfde twee-staps-aanpak
+    // (kandidaten → gescopet volledig VERIFIED/EXPIRED-dossier) en dezelfde pure helper
+    // (`rosterExpiredByProfile`, mét dekkings- + verplicht-type-uitsluiting) als pending-tasks.ts, zodat
+    // badge en actielijst niet kunnen driften. Superseded/gedekte typen tellen niet mee.
+    const expiredCandidateIds = [...new Set(expiredCreds.map((c) => c.freelancerProfileId))];
+    let expiredProfiles = 0;
+    if (expiredCandidateIds.length > 0) {
+      const expiredCoverCreds = await prisma.credential.findMany({
+        where: {
+          status: { in: ["VERIFIED", "EXPIRED"] },
+          freelancerProfileId: { in: expiredCandidateIds },
+        },
+        select: { id: true, type: true, status: true, expiresAt: true, freelancerProfileId: true },
+      });
+      expiredProfiles = rosterExpiredByProfile(
+        expiredCoverCreds.map((c) => ({
+          id: c.id,
+          type: c.type,
+          status: c.status as CredentialStatus,
+          expiresAt: c.expiresAt,
+          freelancerProfileId: c.freelancerProfileId,
+          freelancerName: "",
+        })),
+        now,
+        MANDATORY_CREDENTIAL_TYPES,
+      ).length;
+    }
     let notEngageable = 0;
     for (const f of roster) {
       if (evaluateRosterEngageability(f, now).status === "INACTIEF") notEngageable += 1;
     }
-    const rosterAlerts = expiringProfiles + notEngageable;
+    const rosterAlerts = expiringProfiles + expiredProfiles + notEngageable;
 
     // /franchise/diensten-badge = acuut-onbezet-aggregaat (max 1) + getoonde stale-rijen + rollup. De acute
     // diensten worden uit de stale-lijst gefilterd (ze zitten al in het aggregaat) — exact dezelfde
