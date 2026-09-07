@@ -12,6 +12,7 @@ import { type UserRole } from "@/lib/enums";
  */
 export function isPublicPath(pathname: string): boolean {
   return (
+    pathname === "/" || // Public Handslag landing page; application routes stay protected.
     pathname === "/login" ||
     pathname === "/register" ||
     pathname === "/wachtwoord-vergeten" ||
