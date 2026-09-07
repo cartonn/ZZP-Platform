@@ -2,6 +2,29 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — security/privacy-audit (2e ronde): 3 parallelle adversariële Opus-audits, 0 exploiteerbare gaten, 1 privacy/product-afweging geparkeerd
+
+**Wat:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken +
+orchestrator-sweep. **A** — delta `0d69ce32..364396bc` (10 commits) + `mustChangePassword`-invariant + register-
+atomiciteit + 2FA-replay. **B** — IDOR/authz over alle server actions + ~45 API-routes, cross-tenant, injectie,
+upload, SSRF. **C** — privacy/AVG: minimalisatie/overfetch, erasure, PII-in-logs, k-anonimiteit, audit, derden.
+Sweep: `npm audit` (0 vulns), raw-SQL (alleen `SELECT 1`), CSV-builders (alle via `escapeCsvField`, ook de
+handgerolde `diensten.ts`-export), tracked secrets (leeg), CSP/middleware server-side. Productiebuild groen.
+
+**Bevinding (geparkeerd, eigenaar-gated — MENSENWERK §5 + §0-poort 4):** publiek profiel `/zzp/[id]` toont anoniem
+de **individuele** beoordelingen (naam opdrachtgever + woordelijke tekst + score, n=1) én het aggregaat zonder de
+`REVIEW_AGGREGATE_MIN_SAMPLE = 3`-vloer die het `/vertrouwen`-dossier voor exact deze dataset wél afdwingt
+(`profile-screen.tsx:258-281`, `review-list.tsx`; vgl. `freelancer-reputation.ts` + `config.ts:599`). AVG art.
+5(1)(f)/25/5(2); in zorg-context kan de vrije tekst bijzondere persoonsgegevens bevatten. **Niet unilateraal
+gefixt:** publieke toegeschreven reviews zijn een product-/juridische afweging (kern-vertrouwensmechanisme via de
+double-blind reveal, zoals Malt/Temper/Werkspot) — de eigenaar kiest (a) aggregaat-only `>= 3` voor anonieme
+kijkers of (b) expliciete, geteste uitzondering in de accountability-gate. **Blokkeert go-live met echte
+beoordelingen** (nu demo-seed → geen actueel datalek). Repro + fixopties: `docs/SECURITY-PRIVACY-BACKLOG.md`.
+
+**Geen nieuw exploiteerbaar security-gat** in de 10 delta-commits of het IDOR/tenant/injectie/SSRF-oppervlak;
+erasure/minimalisatie/k-anonimiteit/audit/derden clean. **Bestanden:** `docs/SECURITY-PRIVACY-BACKLOG.md`,
+`PROGRESS.md` (docs-only PR).
+
 ## 2026-09-07 — persona-sweep (run 6): /kandidaten-nav-badge dreef af van /acties op een gesloten opdracht
 
 **Wat:** volledige kritische-gebruiker-sweep (4 rollen) via 3 parallelle adversariële Opus-audits op niet-
@@ -376,52 +399,3 @@ lint ✓ · next-action/actions-tests 233/233 ✓ · prettier ✓ · full test +
 - **Bewust UIT (env-gestuurd, inert):** billing (`noop`), e-mail (`noop`), documentopslag (`local`, geen S3), verificatie-koppelingen DUO/BIG/iDIN (`mock`), web-push (geen VAPID-sleutels), aangifte-partner. Rate-limit-store draait op Redis (`RATE_LIMIT_STORE=redis`). Elk kanaal heeft een zelftest + aflever-heartbeat op `/admin/systeemstatus`.
 - **Mensenwerk vóór livegang** (MENSENWERK.md §0): jurist-/AVG-review met echte gevoelige documenten, productie-secrets, betaalprovider, echte verificatie-API's, mailprovider, S3, eigen domein.
 - **Open strategische keuze:** focus & wig — voorstel in [ADR 0011](docs/decisions/0011-focus-en-wig.md) (status: voorgesteld, eigenaarsbesluit).
-
-## 2026-09-06 — routine: stilgevallen bench-ZZP'er als /acties-taak voor de bemiddelaar (re-engagement)
-
-**Wat:** het roster-dormancy-signaal (`classifyRosterDormancy`, `roster-dormancy.ts`: een inzetbare
-vakmens die op de bench zit — geen lopende opdracht — én ≥`DORMANT_IDLE_DAYS` (60) niet inlogde) leefde
-op **één** oppervlak: de roster-lijst `/franchise/zzpers`. Het verscheen niet op `/acties`, in de
-zijbalk-badge of op de dashboard-rail — precies het "signaal op één oppervlak"-anti-patroon dat de
-codebase herhaaldelijk dicht. **Waarom:** een afgekoelde, niet-ingezette vakmens drijft stil weg naar een
-concurrent; dit is dé proactieve re-engagement-actie van de bemiddelaar (benchmark: staffing-platformen
-bewaken werker-engagement). Aanbod-spiegel van de reeds gemergde `franchiseClientReengagementTask`
-(stilgevallen opdrachtgever), die exact dezelfde single-surface-fout voor de vraag-kant dichtte. **Hoe
-(server-side waarheid, DRY):** nieuwe item-taak `franchiseRosterReengagementTask` (`actions/tasks.ts`,
-kind `franchise-roster-reengagement`, `resolver: "link"` → deep-link naar het ZZP'er-dossier
-`/franchise/zzpers/[id]`), gewired in `franchiserTasks` (`actions/pending-tasks.ts`) via **dezelfde pure
-`classifyRosterDormancy`** als de roster-lijst — geen herberekening die kan driften. De roster-query
-kreeg de bench-telling `_count.collaborations (ACTIVE)` erbij (zelfde definitie als de lijst). Alleen de
-`dormant`-tier levert een taak; `cooling` blijft een zacht lijst-only signaal (rust boven ruis). Een
-**niet-inzetbaar** bench-lid krijgt alleen de hoger-geprioriteerde blokkerende `franchise-not-engageable`-
-taak, niet óók de re-engagement-nudge (geen dubbele rij voor één persoon). Prioriteit
-`P.franchiserRosterReengagement = 54`: onder de klant-re-engagement (55 — een hele vraag-relatie), boven
-koude lead-opvolging (50 — bestaande relatie > koude acquisitie); rol-geïsoleerd (franchiser-only).
-**Bestanden:** `src/lib/next-actions.ts` (P-band), `src/lib/actions/tasks.ts` (union + builder),
-`src/lib/actions/pending-tasks.ts` (import + roster-`_count` + emit), `src/lib/actions/tasks.test.ts`
-(builder-vorm/rangschikking), `src/lib/actions/pending-tasks-franchiser.test.ts` (+3 emit-cases: dormant
-→ taak; recent/ingezet → geen taak; niet-inzetbaar bench → alleen de blokkerende taak). **Checks:**
-typecheck ✓ · lint ✓ · prettier ✓ · unit 8271 passed (incl. de nieuwe cases) · build (CI-poort
-verifieert). **PR #1403.**
-
-## 2026-09-06 — prod: Grafana-dashboard voor /api/metrics (observability-triade compleet)
-
-**Wat:** de observability-bundle had de gauges (`/api/metrics`, ~70 stuks via `buildMetrics`) en de
-alerts (`docs/observability/alerts.yml`) al, maar **geen dashboard**. Een operator kon de
-dead-man's-switch-heartbeats, aflever-kanalen, cron-backlogs en AVG-retentie alleen via losse PromQL of
-via `/admin/systeemstatus` (admin-login) zien. **Waarom:** productie-rijpheid/robuustheid — een
-kant-en-klaar dashboard maakt de bestaande gauges in één oogopslag bruikbaar zonder login; completeert de
-triade metrics → alerts → **dashboard**. **Hoe:** een **generator als enige bron van waarheid**
-(`scripts/grafana-dashboard.mjs`, puur/DB-vrij) bouwt uit een declaratieve secties-spec een Grafana-
-dashboard-object → `docs/observability/grafana-dashboard.json` (import-klaar, portable Prometheus-
-datasource-variabele). Rijen: beschikbaarheid/modus, cron/back-up-heartbeat, aflever-kanalen (ok +
-opeenvolgende-mislukkingen + leeftijd-laatste-mislukking per kanaal), verificatie-wachtrij (SLA),
-vastgelopen-pijplijn-backlogs, beveiligingsincidenten, AVG-retentie. **Drift-gate**
-(`src/lib/observability/grafana-dashboard.test.ts`, zelfde patroon als `alerts-rules.test.ts`): de
-gecommitte JSON is inhoudelijk (geparsed) gelijk aan de generator-uitvoer én elke door `buildMetrics`
-geëxposeerde gauge komt in minstens één paneel voor — een nieuwe gauge zonder paneel of een dood paneel
-breekt de CI-poort. Formatting is bewust van Prettier (aparte poort), niet byte-vastgeklonken in de test.
-Geen runtime-wijziging, geen PII/secrets. **Bestanden:** `scripts/grafana-dashboard.mjs` (nieuw),
-`docs/observability/grafana-dashboard.json` (nieuw, gegenereerd), `grafana-dashboard.test.ts` (nieuw, 8
-tests), RUNBOOK §2a + MENSENWERK bijgewerkt. **Resterend mensenwerk:** het bestand één keer in Grafana
-importeren. **Checks:** dashboard-test 8/8 ✓ · prettier ✓ · typecheck/lint/build via CI-poort. **PR #1402.**
