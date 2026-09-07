@@ -4,6 +4,79 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-07 (2e, basis: `main` @ 364396bc) — 3 parallelle adversariële audits + orchestrator-sweep: 0 exploiteerbare security-gaten, 1 privacy/product-afweging geparkeerd (eigenaar-gated)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht een gat te _bewijzen_ (file:line + repro). **A** — de 10 commits sinds de vorige ronde
+(`0d69ce32..364396bc`) + de `mustChangePassword`-invariant (`authz.ts`) + register-atomiciteit + 2FA
+recovery-code-replay. **B** — IDOR/objectniveau-authz over alle server actions + ~45 API-routes,
+cross-tenant FRANCHISER-isolatie (`tenancy.ts`), injectie (SQL/XSS/CSV/formule/ICS), upload/path-traversal,
+SSRF. **C** — privacy/AVG: data-minimalisatie/PII-overfetch naar de tegenpartij, erasure-volledigheid
+(`account-anonymization.ts`), PII-in-logs, k-anonimiteitsvloeren, audit-logging, data-naar-derden.
+Orchestrator-sweep los: `npm audit` (0 productie-vulns), raw-SQL-sinks (alleen getagde `SELECT 1`-probes),
+`dangerouslySetInnerHTML` (alleen statisch thema-script), CSV-builders (alle via `escapeCsvField`; ook de
+handgerolde `diensten.ts`-export escaped elk dataveld), tracked secrets/documenten (`git ls-files` op
+`.env`/`.db`/`.key`/`.pem`/`/storage/` leeg), CSP/middleware (nonce + `strict-dynamic` in productie,
+`mustChangePassword`/suspended/role-guards server-side). Productiebuild groen. **Live Playwright-doorklik
+niet uitvoerbaar in deze sandbox** (runtime-probe leunt op statisch + gerichte tests, zoals de vorige rondes).
+
+**GEEN nieuw exploiteerbaar security-gat.** Alle drie de audits + de sweep bevestigen: het delta introduceert
+geen bug/authz-bypass/money-fout/leak; IDOR/tenant/injectie/SSRF-oppervlak consistent gehard (ownership vóór
+byte-uitgifte, anti-oracle-404 CWE-203, TOCTOU-safe compound-writes, query-niveau tenant-scoping); erasure/
+minimalisatie/k-anonimiteitsvloeren/audit/derden clean. Bevestiging van de gehardheid: veel code draagt
+comments die naar eerdere fixes voor exact deze bugklassen verwijzen.
+
+**GEPARKEERD — nieuw (eigenaar-gated, MENSENWERK §5 + §0-poort 4):**
+
+- **[HOOG · publiek profiel `/zzp/[id]` toont individuele, herleidbare beoordelingen onder de eigen
+  k-anonimiteitsvloer] — GEPARKEERD (product-/FG-afweging; niet unilateraal gefixt).**
+  Het publieke, **niet-geauthenticeerde** ZZP-profiel (`FreelancerProfile.visibility` default `PUBLIC`,
+  `src/app/zzp/[id]/page.tsx` → `viewer = currentActor()` mág `null` zijn) rendert de **individuele**
+  `Review`-rijen (`CLIENT_ON_FREELANCER`, `PUBLISHED`) inclusief **naam van de beoordelende opdrachtgever +
+  woordelijke vrije tekst + exacte 1–5-score + datum** (`src/components/profile/profile-screen.tsx:258-281`,
+  render `src/components/reviews/review-list.tsx:31,47`), plus het gemiddelde+aantal zodra `count > 0` (`:433-440`)
+  — **zonder enige minimale-steekproefvloer**. Diezelfde dataset erkent het platform elders wél als
+  herleidbaar: `/vertrouwen`-dossier gate't aggregaat-only op `REVIEW_AGGREGATE_MIN_SAMPLE = 3`
+  (`src/lib/freelancer-reputation.ts`, `src/lib/config.ts:599`), met de gedocumenteerde reden _"een
+  'geaggregeerd' cijfer over één (of twee) beoordeling(en) is individueel herleidbaar"_ en _"geen individuele
+  beoordelingsdata verlaat deze laag (privacy by design)"_; de accountability-gate
+  `src/lib/compliance/k-anonymity-floors.test.ts` bewaakt die vloer. **Repro:** ZZP'er met precies één
+  `PUBLISHED` beoordeling → `https://…/zzp/<id>` toont anoniem de naam + woordelijke opmerking + score van de
+  beoordelaar (n=1, ver onder de eigen k=3-vloer). In een **zorg-context** kan die vrije tekst bovendien
+  bijzondere persoonsgegevens bevatten (gezondheids-/gedragsopmerkingen over de ZZP'er). Geen enkele test dekt
+  dit: `profile-overfetch.test.ts` toetst alleen de `freelancerProfile`-select, niet de losse
+  `review.findMany`/`aggregate`. **Geschonden:** AVG art. 5(1)(f) integriteit/vertrouwelijkheid + art. 25
+  privacy-by-design (afwijking van het eigen dreigingsmodel voor exact deze dataklasse) + art. 5(2)
+  verantwoordingsplicht (stille divergentie, niet vastgelegd). **Waarom geparkeerd i.p.v. gefixt:** individuele,
+  toegeschreven beoordelingen op een publiek profiel zijn óf een bewuste marktplaats-productkeuze (Malt/Temper/
+  Werkspot tonen ze ook, als kern-vertrouwensmechanisme via de double-blind reveal) óf een AVG-fout — dat is een
+  **product-/juridische afweging** die de eigenaar maakt (het bijna-identieke tegenpartij-aggregaat staat al
+  eigenaar-gated geparkeerd, zie hieronder). De auditagent concludeerde zelf "escalate to human vóór go-live met
+  echte beoordelingen". **Aanbevolen fix (eigenaar kiest):** (a) route de review-sectie van `/zzp/[id]` voor
+  anonieme/niet-tegenpartij-kijkers via `getFreelancerReputation` (aggregaat-only, `>= REVIEW_AGGREGATE_MIN_SAMPLE`)
+  en laat de individuele lijst weg — consistent met `/vertrouwen`; óf (b) als publieke toegeschreven reviews een
+  bewuste productkeuze zijn: leg dat expliciet vast als gemotiveerde uitzondering in
+  `k-anonymity-floors.test.ts`/`processing-register.ts` (verantwoordingsplicht) + voeg een overfetch-regressietest
+  toe die de blootgestelde reviewer-PII-velden pint tegen stille verbreding. **Blokkeert go-live met echte
+  beoordelingen** (nu demo-seed, geen echte review-PII → geen actueel datalek).
+
+**CLEAN bevonden deze ronde (geen bevinding):** de 10 delta-commits (auth-hardening #1418 — `currentActor`
+blokkeert `mustChangePassword`, `requirePasswordChangeActor` alleen in login-routing + wachtwoordwijziging;
+register-atomiciteit via `$transaction` + P2002-arbitrage; 2FA recovery-code atomische claim `updateMany(...usedAt:null)`;
+RFC-6266 content-disposition injectie-proof; support-rate-limit; ORT-afronding/segmentatie money-correct; badge-scoping
+tenant/owner-gated), alle server actions + ~45 API-routes (ownership+anti-oracle-404+audit, geen path-traversal/SSRF/
+injectie/open-redirect, webhook-/cron-auth timing-safe, upload magic-byte-sniff + UUID-keys + baseDir-guard),
+cross-tenant FRANCHISER-isolatie (query-niveau), erasure-volledigheid (schema-coverage-gate, race-vrije blob-delete,
+TOCTOU-safe ordening), export/inzage (eigen-`actorId`, rate-limited, ge-audit), PII-in-logs (redactie + coverage),
+k-anonimiteitsvloeren (`market-rate` >=10, signalen >=3, register-drift-gate), document-toegang (grant+deny ge-audit,
+timing-pariteit), data-naar-derden (geoapify/e-mail geminimaliseerd, sleutel nooit gelogd). `npm audit`: 0 productie-vulns.
+
+**GEPARKEERD (herhaald uit vorige rondes, geen nieuwe agent-blocker):** in-app tegenpartij-beoordelingsaggregatie-
+vloer (`company-reputation.ts`/`candidate-reviews.ts`, `count > 0` i.p.v. `REVIEW_AGGREGATE_MIN_SAMPLE`, owner-gated
+MENSENWERK §5 — dezelfde faalklasse als het nieuwe publieke-profiel-item hierboven), publieke KvK-zichtbaarheid op
+`/zzp/[id]` (product/FG-afweging), model↔register-coverage-gate (grotere diff — aparte run), spoofbare mail-intake-
+afzender (trust-model → mensenwerk), liveness-probe commit-SHA (bewuste infra-praktijk).
+
 ## Ronde 2026-09-07 (basis: `main` @ 0d69ce32) — 3 parallelle adversariële audits + orchestrator-verificatie: 0 exploiteerbare gaten, 1 CWE-770-rem gedicht
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
