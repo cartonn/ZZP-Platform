@@ -36,6 +36,7 @@
 }
 .landing em {
   font-weight: 400;
+  font-style: italic;
 }
 .landing svg {
   flex-shrink: 0;
