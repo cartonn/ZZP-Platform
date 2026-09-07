@@ -1,8 +1,7 @@
 import { prisma } from "@/lib/db";
 
 /**
- * Publieke vertrouwenscijfers voor de inlog-/registratieschermen. Uitsluitend ECHTE,
- * server-side getelde platformdata — nooit verzonnen of opgeblazen getallen.
+ * Public platform counts for login/registration. Demo data never becomes public social proof.
  */
 export interface PublicTrustStats {
   /** Aantal geverifieerde certificaten (VOG, diploma's, BIG, verzekering, …). */
@@ -14,6 +13,9 @@ export interface PublicTrustStats {
 }
 
 export async function getPublicTrustStats(): Promise<PublicTrustStats> {
+  if (process.env.SEED_DEMO === "true") {
+    return { verifiedCredentials: 0, verifiedFreelancers: 0, completedCollaborations: 0 };
+  }
   const [verifiedCredentials, verifiedFreelancers, completedCollaborations] = await Promise.all([
     prisma.credential.count({ where: { status: "VERIFIED" } }),
     prisma.freelancerProfile.count({ where: { credentials: { some: { status: "VERIFIED" } } } }),
@@ -33,7 +35,7 @@ export interface TrustHighlight {
  * Bepaalt welke numerieke vertrouwens-hoogtepunten getoond worden. Een getal verschijnt pas
  * boven een betekenis-drempel, zodat een net-gelanceerd of klein platform nooit met magere
  * cijfers ("1 geverifieerd certificaat") pronkt. Onder de drempel dragen de kwalitatieve
- * garanties (handmatige verificatie, Wet-DBA-modelovereenkomst, verklaarbare match) het vertrouwen.
+ * productfuncties (verificatie, overeenkomsten, verklaarbare match) het vertrouwen.
  * Pure functie → unit-testbaar zonder database.
  */
 export function trustHighlights(stats: PublicTrustStats): TrustHighlight[] {

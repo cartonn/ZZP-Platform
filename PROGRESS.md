@@ -2,6 +2,12 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — publieke marketing zonder garanties of democijfers
+
+Loginintro en gedeelde vertrouwensstrip beschrijven productfuncties; juridische garanties en
+universele certificaatgeldigheid verwijderd, bestaande Engelse teksten gelijkgetrokken.
+SEED_DEMO=true onderdrukt publieke tellingen. Tests: 24 groen; gerichte lint/formatting groen. CI volgt.
+
 ## 2026-09-07 — launch review: accounttoegang en registratie gehard
 
 Op actuele main en live health/readiness gecontroleerd. Railway staat nog op demo met seeding;

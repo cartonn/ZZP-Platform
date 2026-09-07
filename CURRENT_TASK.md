@@ -55,6 +55,9 @@ De actuele Railway-configuratie is leidend boven de oudere handoff: documentopsl
 releasefase op demo en demo-seeding aan; e-maildriver is niet ingesteld. Eerst de
 accountbeveiligingsfixes door de CI-poort en de operationele productiestappen bewijzen.
 
+Publieke marketing is feitelijk gemaakt; demo-seeding onderdrukt vertrouwenscijfers. De copyfix
+staat klaar voor PR/CI; definitieve livecontrole volgt na de deploy.
+
 ## NU — bouwprogramma 2/3-9 afgerond (24 PR's, zie PROGRESS.md bovenaan)
 
 Golf 1 (A–F), golf 2 (G, I, M, N, O, Q) en golf 3 (T, U, V, W) zijn gemerged; #1340 (route-dedup) en

@@ -1,5 +1,47 @@
-import { describe, expect, it } from "vitest";
-import { trustHighlights } from "./public-trust";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const { credentials, freelancers, collaborations } = vi.hoisted(() => ({
+  credentials: vi.fn(),
+  freelancers: vi.fn(),
+  collaborations: vi.fn(),
+}));
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    credential: { count: credentials },
+    freelancerProfile: { count: freelancers },
+    collaboration: { count: collaborations },
+  },
+}));
+
+import { getPublicTrustStats, trustHighlights } from "./public-trust";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  credentials.mockResolvedValue(24);
+  freelancers.mockResolvedValue(15);
+  collaborations.mockResolvedValue(7);
+});
+afterEach(() => vi.unstubAllEnvs());
+
+describe("public counts", () => {
+  it("omits demo counts without querying the demo dataset", async () => {
+    vi.stubEnv("SEED_DEMO", "true");
+    const stats = await getPublicTrustStats();
+    expect(trustHighlights(stats)).toEqual([]);
+    expect(credentials).not.toHaveBeenCalled();
+    expect(freelancers).not.toHaveBeenCalled();
+    expect(collaborations).not.toHaveBeenCalled();
+  });
+
+  it("uses database counts when demo seeding is disabled", async () => {
+    vi.stubEnv("SEED_DEMO", "false");
+    expect(await getPublicTrustStats()).toEqual({
+      verifiedCredentials: 24,
+      verifiedFreelancers: 15,
+      completedCollaborations: 7,
+    });
+  });
+});
 
 describe("trustHighlights", () => {
   it("toont niets onder de betekenis-drempels", () => {
