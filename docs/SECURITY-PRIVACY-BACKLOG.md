@@ -4,6 +4,55 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-07 (basis: `main` @ 0d69ce32) — 3 parallelle adversariële audits + orchestrator-verificatie: 0 exploiteerbare gaten, 1 CWE-770-rem gedicht
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht een gat te _bewijzen_ (file:line + repro). **A** — alle server actions
+(auth→rol→ownership→Zod→actie→audit-keten, IDOR, mass-assignment, statusovergangen, rate-limiting).
+**B** — alle ~45 API-route-handlers + middleware + cross-tenant-isolatie (`tenancy.ts`) + storage/
+path-traversal + injectie (SQL/XSS/CSV/ICS) + SSRF + webhook-/cron-auth + foutafhandeling + open-redirect.
+**C** — privacy/AVG: erasure-volledigheid (`account-anonymization.ts` + schema-coverage-gate), export/
+inzage, data-minimalisatie, PII-in-logs, retentie, data-naar-derden, k-anonimiteit. Orchestrator-sweep
+los: `npm audit` (0 productie-vulns), raw-SQL-sinks (alleen `SELECT 1`-probes via getagde template),
+`dangerouslySetInnerHTML` (alleen statisch thema-script), SSRF-routing (vaste geoapify-host, alleen
+URL-geëncodeerde query-params), tracked secrets/documenten (alleen `.env.example`; `git ls-files` op
+`.env`/`.db`/`/storage/`/`.key`/`.pem` leeg). **Live Playwright-doorklik niet uitvoerbaar in deze sandbox**
+(productiebuild draait wél groen; runtime-probe leunt op statisch + gerichte tests, zoals de vorige rondes).
+
+**GEFIXT deze ronde:**
+
+- **[MIDDEL · CWE-770 ongecontroleerde resource-consumptie — support-hub zonder volume-rem] — OPGELOST (deze PR).**
+  De support-hub was het **enige** authenticated UGC-mutatie-oppervlak zónder per-gebruiker-rem.
+  `createTicket` (`src/app/(protected)/support/actions.ts:52`) en `replyToTicket` (`:142`) staan open voor
+  élke ingelogde gebruiker (FREELANCER/CLIENT/FRANCHISER), schrijven vrije tekst naar een TEXT-kolom,
+  draaien de triage-scan en doen notificatie-/audit-fan-out naar de helpdesk-wachtrij — maar hadden, anders
+  dan message/application/invite/noshow/idea/upload/invoice (die allemaal een `RateLimiter` dragen), géén
+  volume-rem. **Repro:** een geauthenticeerd of gecompromitteerd account scriptet een POST-loop op
+  `createTicket`/`replyToTicket` → onbegrensd `SupportTicket`/`SupportMessage`-rijen (DB-/storage-bloat) +
+  helpdesk-notificatie-flood; geen enkele poort stopt het. **Geschonden:** OWASP A04 (Insecure Design —
+  ontbrekende rate-limiting op een abusable mutatie) / CWE-770; inconsistent met het eigen, elders overal
+  toegepaste UGC-mutatie-rem-patroon. **Fix:** nieuwe `supportTicketRateLimiter` (`src/lib/rate-limit.ts`,
+  default 20/uur per gebruiker via `SUPPORT_TICKET_RATE_LIMIT`, gedeelde bucket over beide acties, ruim
+  boven normaal gebruik), toegepast vóór de triage-scan/ownership-lookup + de write; `createTicket` geeft
+  een nette `{ error }` terug, `replyToTicket` (void) werpt — parity met de sibling-acties. Test rood→groen:
+  `src/app/(protected)/support/rate-limit.test.ts` (4 tests; zónder de rem-check schrijft `createTicket`/
+  `replyToTicket` óók bij een uitgeputte bucket — dan falen de "geen write"-asserties).
+
+**CLEAN bevonden deze ronde (geen bevinding):** alle server actions (IDOR/authz/mass-assignment/status-
+overgangen — TOCTOU-safe compound-writes + CWE-203 anti-oracle; money-cascade her-derivt party-ids uit de
+DB), alle ~45 API-routes (ownership+anti-oracle-404+audit, geen path-traversal/SSRF/injectie/open-redirect,
+webhook-/cron-auth timing-safe, upload magic-byte-sniff + UUID-keys + baseDir-guard), cross-tenant
+FRANCHISER-isolatie (query-niveau, niet alleen UI), erasure-volledigheid (schema-coverage-gate, race-vrije
+blob-delete), export/inzage (eigen-`actorId`, rate-limited, ge-audit), PII-in-logs (redactie + coverage-test),
+retentie-sweeps (run-all → 8+ taken), data-naar-derden (geoapify/e-mail geminimaliseerd). `npm audit`: 0
+productie-vulns. De sinds de vorige ronde gemergede commits (#1405–#1412) introduceren geen nieuw
+PII-/authz-oppervlak (presentatie-/derivatie-code).
+
+**GEPARKEERD (herhaald, geen nieuwe agent-blocker):** in-app beoordelingsaggregatie-vloer
+(`company-reputation.ts`/`candidate-reviews.ts`, owner-gated MENSENWERK §5), publieke KvK-zichtbaarheid op
+`/zzp/[id]` (product/FG-afweging), model↔register-coverage-gate (grotere diff — aparte run), spoofbare
+mail-intake-afzender (trust-model → mensenwerk), liveness-probe commit-SHA (bewuste infra-praktijk).
+
 ## Ronde 2026-09-06 (2e, basis: `main` @ 34a58f80) — 3 parallelle adversariële audits + orchestrator-verificatie: 0 exploiteerbare gaten, 1 accountability-gate gedicht
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
