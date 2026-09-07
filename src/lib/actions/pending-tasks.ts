@@ -1061,14 +1061,20 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     // Cascade-facturen die OVER de vervaldatum staan waarvan deze opdrachtgever de betalende partij is
     // (counterpartyUserId). In de cascade betaalt de opdrachtgever rechtstreeks; wordt de factuur OVERDUE
     // dan zag hij tot nu toe niets (de generieke overdue-roll-up sluit cascade uit, want geen betaalknop).
-    // Bevroren (dispuut) samenwerkingen uitgesloten — symmetrisch met de andere cascade-tellingen.
+    // Bevroren (dispuut) samenwerkingen uitgesloten. `status: "ACTIVE"` sluit aan op de ZZP-tegenhanger
+    // (`openInvoiceWhere` in freelancer-cascade-work.ts) én de SUBMITTED-factuur-sibling in signals.ts:
+    // alleen de ZZP'er kan de betaling registreren (→ PAID), en die actie bestaat enkel op een ACTIVE
+    // samenwerking. De terminale-status-guards (`collaborationTerminableGuard`) houden een OVERDUE-factuur
+    // vandaag al binnen ACTIVE, maar zonder deze eis zou een toekomstige regressie in die guards de
+    // opdrachtgever een niet-afhandelbare betaal-taak op een afgeronde/geannuleerde deal tonen — een taak
+    // die nooit verdwijnt (de ZZP-tegenhanger toont 'm terecht niet). Defense-in-depth; DOEL 1b.
     // Index-backed via @@index([counterpartyUserId, lifecycleStatus]).
     // unbounded-allow: eigenaar-scoped (counterpartyUserId) + take-limiet
     prisma.invoice.findMany({
       where: {
         counterpartyUserId: userId,
         lifecycleStatus: "OVERDUE",
-        collaboration: { disputedAt: null },
+        collaboration: { status: "ACTIVE", disputedAt: null },
       },
       select: {
         id: true,
