@@ -3,7 +3,7 @@
  * Logs contain fixed stages only, never provider errors, child output or secret values.
  */
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { closeSync, constants, mkdtempSync, openSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -12,11 +12,11 @@ import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3
 import {
   assertPostgresUrl,
   buildBackupFilename,
-  buildPgRestoreListArgs,
   isValidArchiveListing,
 } from "../src/lib/ops/db-backup";
 import {
   remoteBackupEncryptionKey,
+  readBackupDescriptor,
   uploadVerifiedRemoteBackup,
 } from "../src/lib/ops/db-backup-remote";
 
@@ -30,11 +30,11 @@ function required(name: string): string {
   return value;
 }
 
-function run(command: string, args: string[], env = process.env): string {
+function run(command: string, args: string[], env = process.env, stdinFd?: number): string {
   const result = spawnSync(command, args, {
     env,
     encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: [stdinFd ?? "ignore", "pipe", "pipe"],
     timeout: TIMEOUT_MS,
     killSignal: "SIGKILL",
     maxBuffer: 16 * 1024 * 1024,
@@ -86,12 +86,20 @@ async function main(): Promise<void> {
     stage = "database-dump";
     run("pg_dump", ["--no-owner", "--no-privileges", "--format=custom", "--file", file], childEnv);
     stage = "archiefcontrole";
-    const bytes = statSync(file).size;
-    if (bytes === 0 || bytes > MAX_DUMP_BYTES) throw new Error("Back-upgrootte buiten limiet.");
-    if (!isValidArchiveListing(run("pg_restore", buildPgRestoreListArgs(file))))
-      throw new Error("Ongeldig archief.");
+    const fd = openSync(file, constants.O_RDONLY | constants.O_NOFOLLOW);
+    let plaintext: Buffer;
+    try {
+      plaintext = readBackupDescriptor(fd, MAX_DUMP_BYTES);
+      // Positional reads above leave the descriptor at offset zero. Give pg_restore this same
+      // inode, not a pathname that could be replaced. A descriptor also avoids EPIPE when --list
+      // exits after reading the TOC without consuming the complete archive on a buffered pipe.
+      if (!isValidArchiveListing(run("pg_restore", ["--list"], process.env, fd)))
+        throw new Error("Ongeldig archief.");
+    } finally {
+      closeSync(fd);
+    }
     await uploadVerifiedRemoteBackup({
-      plaintext: readFileSync(file),
+      plaintext,
       encryptionKey,
       objectKey,
       store: {

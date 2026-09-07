@@ -1,14 +1,54 @@
 import { createCipheriv } from "node:crypto";
+import { closeSync, mkdtempSync, openSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   decryptRemoteBackup,
   encryptRemoteBackup,
   remoteBackupEncryptionKey,
+  readBackupDescriptor,
   uploadVerifiedRemoteBackup,
 } from "./db-backup-remote";
 
 const key = Buffer.alloc(32, 7);
 const plaintext = Buffer.from("PGDMP synthetic test archive");
+
+describe("backup descriptor reads", () => {
+  it("reads the opened archive even if its pathname is replaced", () => {
+    const dir = mkdtempSync(join(tmpdir(), "backup-descriptor-test-"));
+    const file = join(dir, "archive.dump");
+    writeFileSync(file, plaintext);
+    const fd = openSync(file, "r");
+    try {
+      renameSync(file, join(dir, "original.dump"));
+      writeFileSync(file, "replacement must never be uploaded");
+      expect(readBackupDescriptor(fd, 1024)).toEqual(plaintext);
+      const header = Buffer.alloc(5);
+      readSync(fd, header, 0, header.length, null);
+      expect(header.toString()).toBe("PGDMP"); // pg_restore inherits this descriptor at offset zero.
+    } finally {
+      closeSync(fd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it.each([Buffer.alloc(0), Buffer.alloc(33)])(
+    "rejects empty and oversized files before reading",
+    (data) => {
+      const dir = mkdtempSync(join(tmpdir(), "backup-descriptor-test-"));
+      const file = join(dir, "archive.dump");
+      writeFileSync(file, data);
+      const fd = openSync(file, "r");
+      try {
+        expect(() => readBackupDescriptor(fd, 32)).toThrow(/buiten limiet/);
+      } finally {
+        closeSync(fd);
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
+});
 
 describe("remote backup encryption", () => {
   it.each([undefined, "", "secret", Buffer.alloc(31).toString("base64"), "!".repeat(44)])(

@@ -1,10 +1,29 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { fstatSync, readSync } from "node:fs";
 
 // Preserve the original remote-backup format from c8b096b2. Independent of document storage.
 const MAGIC = Buffer.from("ZZPENC01", "ascii");
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
 const HEADER_BYTES = MAGIC.length + IV_BYTES + TAG_BYTES;
+
+/** Read only the opened inode, with a fixed allocation even if the file grows during reading. */
+export function readBackupDescriptor(fd: number, maxBytes: number): Buffer {
+  const stat = fstatSync(fd);
+  if (!stat.isFile() || stat.size === 0 || stat.size > maxBytes) {
+    throw new Error("Back-upgrootte buiten limiet of geen regulier bestand.");
+  }
+  // One extra byte detects growth without allocating an unbounded readFileSync result.
+  const buffer = Buffer.alloc(stat.size + 1);
+  let bytes = 0;
+  while (bytes < buffer.length) {
+    const read = readSync(fd, buffer, bytes, buffer.length - bytes, bytes);
+    if (read === 0) break;
+    bytes += read;
+  }
+  if (bytes !== stat.size) throw new Error("Back-upbestand veranderde tijdens het lezen.");
+  return buffer.subarray(0, bytes);
+}
 
 export function remoteBackupEncryptionKey(raw: string | undefined): Buffer {
   const value = raw?.trim();
