@@ -2,6 +2,26 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-07 — security/privacy (audit): CWE-770-volume-rem op de support-hub (laatste ongeremde UGC-mutatie)
+
+**Wat:** volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: **A** alle server actions, **B** alle ~45 API-routes plus middleware, tenant-isolatie,
+storage, injectie, SSRF en webhook-/cron-auth, **C** privacy/AVG erasure/export/PII/retentie/k-anonimiteit).
+Alle drie de oppervlakken **0 exploiteerbare gaten** (auth→rol→ownership→Zod→audit-keten overal, TOCTOU-safe
+compound-writes, CWE-203 anti-oracle-404, geen path-traversal/SSRF/injectie, erasure CI-schema-gated,
+cross-tenant query-niveau geïsoleerd). Orchestrator-sweep los: `npm audit` 0 productie-vulns, geen raw-SQL-sinks,
+geen tracked secrets/documenten, geoapify-SSRF-oppervlak vaste host. **Live Playwright-doorklik niet uitvoerbaar in
+deze sandbox** (build draait wél groen). **Eén gat gedicht (MIDDEL, CWE-770):** de support-hub was het enige
+authenticated UGC-mutatie-oppervlak zónder per-gebruiker-rate-limit — `createTicket`/`replyToTicket` staan open
+voor élke ingelogde gebruiker, schrijven vrije tekst plus triage-scan plus notificatie-/audit-fan-out, maar hadden
+geen volume-rem (message/application/invite/noshow/idea/upload/invoice hebben die wél). Een scripted account kon zo
+onbegrensd `SupportTicket`/`SupportMessage`-rijen aanmaken (DB-/storage-bloat + helpdesk-flood). **Fix:** nieuwe
+`supportTicketRateLimiter` (default 20/uur, gedeelde bucket over beide acties) vóór de scan/lookup en write;
+`createTicket` geeft `{ error }`, `replyToTicket` werpt — parity met de sibling-remmen. **Bestanden:**
+`src/lib/rate-limit.ts` (nieuwe limiter), `src/app/(protected)/support/actions.ts` (2 checks),
+`src/app/(protected)/support/rate-limit.test.ts` (+4 tests, rood→groen bewezen). **Checks:** typecheck ✓, lint ✓,
+prettier ✓, gerichte tests 8/8 ✓, build ✓, full test + CI-poort verifieert. Backlog bijgewerkt.
+
 ## 2026-09-07 — bemiddelaar: open disputen zichtbaar op de samenwerkingen-cockpit (bevroren plaatsing = eigen aandachtsklasse)
 
 **Wat:** een open dispuut bevriest een plaatsing — het cascade-werkproces (uren → goedkeuring → factuur)

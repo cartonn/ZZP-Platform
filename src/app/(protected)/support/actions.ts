@@ -6,6 +6,7 @@ import { z } from "zod";
 import { AuthorizationError, requireActor } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { supportTicketRateLimiter } from "@/lib/rate-limit";
 import { classifyTicket, triageDecision } from "@/lib/support/triage";
 import { knowledgeAnswer } from "@/lib/support/knowledge-base";
 import { assertSupportTransition } from "@/lib/support/state";
@@ -56,6 +57,12 @@ export async function createTicket(_prev: TicketState, formData: FormData): Prom
   } catch (e) {
     if (e instanceof AuthorizationError) return { error: e.message };
     throw e;
+  }
+
+  // Spam-/flood-rem per gebruiker vóór de triage-scan + de write (parity met de andere
+  // UGC-mutatie-remmen; defense-in-depth naast de auth-/Zod-poort — CWE-770).
+  if (!(await supportTicketRateLimiter.check(actor.id)).allowed) {
+    return { error: "Te veel support-verzoeken kort achter elkaar. Probeer het later opnieuw." };
   }
 
   const parsed = ticketSchema.safeParse({
@@ -141,6 +148,13 @@ const replySchema = z.object({
 
 export async function replyToTicket(ticketId: string, formData: FormData): Promise<void> {
   const actor = await requireActor();
+
+  // Spam-/flood-rem per gebruiker vóór de ownership-lookup + de write (parity met de andere
+  // UGC-mutatie-remmen; defense-in-depth naast de auth-/ownership-poort — CWE-770).
+  if (!(await supportTicketRateLimiter.check(actor.id)).allowed) {
+    throw new Error("Te veel support-verzoeken kort achter elkaar. Probeer het later opnieuw.");
+  }
+
   const ticket = await loadOwnedTicket(ticketId, actor.id, "reply");
 
   const parsed = replySchema.safeParse({ body: formData.get("body") });
