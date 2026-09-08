@@ -192,7 +192,7 @@ describe("HibpPasswordBreachChecker — retry-op-transiënte-fout", () => {
   function scriptedFetch(steps: Array<Error | { ok?: boolean; status?: number; body?: string }>) {
     let i = 0;
     const impl = vi.fn(async () => {
-      const step = steps[Math.min(i, steps.length - 1)];
+      const step = steps[Math.min(i, steps.length - 1)] ?? {};
       i += 1;
       if (step instanceof Error) throw step;
       return {
