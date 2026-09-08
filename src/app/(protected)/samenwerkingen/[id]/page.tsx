@@ -40,6 +40,7 @@ import { isPerformanceNewerThanInvoice } from "@/lib/cascade/stage";
 import { CascadeStepper } from "@/components/ui/cascade-stepper";
 import { TurnBanner } from "@/components/ui/turn-banner";
 import { OrtBreakdown } from "@/components/collaborations/ort-breakdown";
+import { previewPerformanceInvoice } from "@/lib/performance-invoice-preview";
 import { ReplacementPanel } from "@/components/collaborations/replacement-panel";
 import { NoShowReportForm } from "@/components/collaborations/no-show-form";
 import { ShiftHandoffForm } from "@/components/collaborations/shift-handoff-form";
@@ -872,6 +873,30 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                                 ortCustomRates={col.ortCustomRates}
                                 ortRatesSnapshot={p.ortRatesSnapshot}
                               />
+                            ) : null;
+                          })()}
+                        {/* Factuurvoorspelling voor prestaties zonder ORT-tabel (gewone uren of een
+                            oplevering) die nog niet zijn goedgekeurd — zodat de opdrachtgever vóór
+                            het goedkeuren ziet wat de conceptfactuur wordt (incl. btw). ORT-uren
+                            tonen hun totaal al in OrtBreakdown; na goedkeuring staat de factuur
+                            met de definitieve bedragen eronder. */}
+                        {p.status !== "APPROVED" &&
+                          (p.type !== "HOURS" || parseOrtSegments(p.ortSegments).length === 0) &&
+                          (() => {
+                            const preview = previewPerformanceInvoice({
+                              type: p.type,
+                              hours: p.hours,
+                              rateCents: p.rateCents,
+                              amountCents: p.amountCents,
+                            });
+                            return preview ? (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Conceptfactuur: {formatEuro(preview.subtotalCents)} excl. +{" "}
+                                {formatEuro(preview.vatCents)} btw ={" "}
+                                <span className="font-medium text-foreground">
+                                  {formatEuro(preview.totalCents)} incl.
+                                </span>
+                              </p>
                             ) : null;
                           })()}
                       </div>
