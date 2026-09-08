@@ -409,6 +409,21 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   instelbaar via `HEALTH_PROBE_TIMEOUT_MS` (`0` = bewust uit). Zie RUNBOOK §monitoring. Resterend
   mensenwerk: **niets** — werkt out-of-the-box.
 
+- **Single-flight coalescing op de gezondheids-probes (pool-uitputting-amplificatie)** (laag, code-kant
+  GEDAAN 2026-09-08): `/api/health` (liveness) en `/api/readiness` (readiness) zijn publiek +
+  ongeauthenticeerd (de load balancer/orchestrator pollt ze zonder sessie) en doen elk een echte
+  DB-round-trip (`SELECT 1`, readiness ook een kerntabel-`count()`). Anders dan élk ander werk-doend
+  publiek endpoint hadden ze geen rem op gelijktijdigheid: een ongeauthenticeerde burst startte N
+  gelijktijdige DB-queries en kon de **bewust-begrensde Prisma-pool** (`DATABASE_CONNECTION_LIMIT`)
+  uitputten → connection-timeouts voor de héle app (login, documentdownload, verificatiequeue) — een
+  self-inflicted DoS, volledig pre-auth. Opgelost met **single-flight** (`coalesceProbe`,
+  `src/lib/observability/probe-coalesce.ts`): gelijktijdige aanroepers delen één in-flight probe, dus
+  hoogstens één DB-query per probe-duur per endpoint, ongeacht de burst. **Bewust geen per-IP rate-limit**
+  op deze endpoints — een 429 op een healthcheck zou de orchestrator een gezonde instance laten killen
+  (readiness-flap), precies de outage die we voorkomen. De `draining`-staat blijft per-request vers (buiten
+  de coalescing). Geen caching van de uitkomst: readiness/health nooit ouder dan één probe-duur, fail-closed
+  blijft fail-closed. Resterend mensenwerk: **niets** — werkt out-of-the-box.
+
 - **`/api/metrics`-scrape gehard (bounded-parallel + harde deadline)** (laag, code-kant GEDAAN
   2026-08-21): de Prometheus-scrape verzamelt ~18 onafhankelijke backlog-tellingen. Die liepen tot nu toe
   **strikt serieel en zónder deadline** — anders dan de health/readiness-probes (die kregen al
