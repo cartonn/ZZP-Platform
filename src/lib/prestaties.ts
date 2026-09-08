@@ -4,6 +4,7 @@
 
 import { prisma } from "@/lib/db";
 import { type OrtSegment, ortSubtotalCents, resolveOrtRates } from "@/lib/ort";
+import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
 import {
   type OrtBreakdown,
   reconcileSubtotalWithInvoice,
@@ -102,7 +103,7 @@ export function toPrestatieOverzicht(p: PrestatieRow): PrestatieOverzicht {
     if (hasOrt) {
       subtotalCents = ortSubtotalCents(ortSegs, p.rateCents, rates);
     } else if (p.hours != null) {
-      subtotalCents = Math.round(p.hours * p.rateCents);
+      subtotalCents = hoursTimesRateCents(p.hours, p.rateCents);
     }
   } else if (p.type === "MILESTONE" && p.amountCents != null) {
     subtotalCents = p.amountCents;

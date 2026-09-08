@@ -5,6 +5,7 @@
 
 import { computeOrt, type OrtSegment } from "@/lib/ort";
 import { type OrtCategory } from "@/lib/config";
+import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
 
 export interface OrtBreakdown {
   /** Uren tegen het basistarief (NORMAL-segmenten, of alle uren als er geen ORT-segmenten zijn). */
@@ -61,7 +62,7 @@ export function summarizeOrtBreakdown(opts: {
     return {
       normalHours: hours,
       ortHours: 0,
-      baseCents: Math.round(hours * rateCents),
+      baseCents: hoursTimesRateCents(hours, rateCents),
       surchargeCents: 0,
     };
   }
