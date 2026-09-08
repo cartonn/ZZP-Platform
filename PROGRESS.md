@@ -2,6 +2,29 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-08 — persona-sweep: FREELANCER /certificaten-badge volgt /acties op verval (3× badge↔lijst-drift)
+
+**Wat:** persona-sweep run 7 (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op niet-
+overlappende oppervlakken). Security/IDOR/cross-tenant/document-privacy en malicieuze-invoer/Zod/geld
+**schoon (0 bereikbare gaten)**. **Drie DOEL-1b-defecten gefixt**, alle op de FREELANCER /certificaten-
+nav-badge (`navBadges`, `signals.ts`), die de certificaat-verval-filters herimplementeerde in plaats van
+de gedeelde helpers van de item-engine (`pending-tasks.ts`) te gebruiken — het "signaal op één
+oppervlak"-anti-patroon: (1) **mid-plaatsing-verval** (cert verloopt ná het 30-daagse venster maar vóór
+de plaatsings-einddatum) stond wél op /acties (`credentialCollabExpiryTask`) maar niet in de badge
+(onder-telling); (2) **computed-expired** (VERIFIED-cert met verstreken `expiresAt` vóór de expiry-cron
+flipt) kreeg op /acties een verleng-taak maar de badge keek alleen naar `status === "EXPIRED"` (onder-
+telling tussen cron-runs door); (3) **per-credential i.p.v. per-type** telde twee verlopen exemplaren van
+hetzelfde type als 2 terwijl /acties er één toont (over-telling/fantoom).
+
+**Aanpak (structurele drift-preventie):** de badge-tak deelt nu dezelfde inputset (mét `placementEnd`)
+en dezelfde pure helpers als de item-engine — `collaborationCredentialExpiryConcerns` (duringPlacement-
+concerns die nog niet in `expiring` zitten), de computed-expired-check `EXPIRED || (VERIFIED &&
+expiresAt <= now)`, en per-type-dedup met type-uitsluiting (`collabCoveredExpiredTypes`) identiek aan
+`expiredNonMandatoryByType`. **Bestanden:** `src/lib/signals.ts`,
+`src/lib/signals.badge-gaps-credential-expiry.test.ts` (+3 tests, rood→groen bewezen: 0→1, 0→1, 2→1),
+`docs/PERSONA-SWEEP-BACKLOG.md`. **Checks:** typecheck ✓ · lint ✓ · unit (signals+pending-tasks+expiry
+303/303) ✓ · prettier ✓ · full unit + build + CI-poort verifiëren.
+
 ## 2026-09-08 — cascade: factuurvoorspelling (btw + totaal incl.) bij goedkeuring van uren/oplevering
 
 **Wat:** de opdrachtgever keurt een prestatie goed zonder te zien wat hij daadwerkelijk gaat
@@ -336,48 +359,6 @@ strippt control-/pad-/reserved-tekens. Centrale helpers `inlineDisposition`/`san
 S3-URLs/media) routeren er nu doorheen. **Bestanden:** `content-disposition.ts` (+ `.test.ts`, 20 tests),
 `resource-headers.ts`, `storage.ts` (+3 test-cases). **Checks:** typecheck · lint · prettier · gerichte
 tests 58/58 ✓ · build + CI-poort verifieert.
-
-## 2026-09-07 — security/privacy (audit): CWE-770-volume-rem op de support-hub (laatste ongeremde UGC-mutatie)
-
-**Wat:** volledige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
-niet-overlappende oppervlakken: **A** alle server actions, **B** alle ~45 API-routes plus middleware, tenant-isolatie,
-storage, injectie, SSRF en webhook-/cron-auth, **C** privacy/AVG erasure/export/PII/retentie/k-anonimiteit).
-Alle drie de oppervlakken **0 exploiteerbare gaten** (auth→rol→ownership→Zod→audit-keten overal, TOCTOU-safe
-compound-writes, CWE-203 anti-oracle-404, geen path-traversal/SSRF/injectie, erasure CI-schema-gated,
-cross-tenant query-niveau geïsoleerd). Orchestrator-sweep los: `npm audit` 0 productie-vulns, geen raw-SQL-sinks,
-geen tracked secrets/documenten, geoapify-SSRF-oppervlak vaste host. **Live Playwright-doorklik niet uitvoerbaar in
-deze sandbox** (build draait wél groen). **Eén gat gedicht (MIDDEL, CWE-770):** de support-hub was het enige
-authenticated UGC-mutatie-oppervlak zónder per-gebruiker-rate-limit — `createTicket`/`replyToTicket` staan open
-voor élke ingelogde gebruiker, schrijven vrije tekst plus triage-scan plus notificatie-/audit-fan-out, maar hadden
-geen volume-rem (message/application/invite/noshow/idea/upload/invoice hebben die wél). Een scripted account kon zo
-onbegrensd `SupportTicket`/`SupportMessage`-rijen aanmaken (DB-/storage-bloat + helpdesk-flood). **Fix:** nieuwe
-`supportTicketRateLimiter` (default 20/uur, gedeelde bucket over beide acties) vóór de scan/lookup en write;
-`createTicket` geeft `{ error }`, `replyToTicket` werpt — parity met de sibling-remmen. **Bestanden:**
-`src/lib/rate-limit.ts` (nieuwe limiter), `src/app/(protected)/support/actions.ts` (2 checks),
-`src/app/(protected)/support/rate-limit.test.ts` (+4 tests, rood→groen bewezen). **Checks:** typecheck ✓, lint ✓,
-prettier ✓, gerichte tests 8/8 ✓, build ✓, full test + CI-poort verifieert. Backlog bijgewerkt.
-
-## 2026-09-07 — bemiddelaar: open disputen zichtbaar op de samenwerkingen-cockpit (bevroren plaatsing = eigen aandachtsklasse)
-
-**Wat:** een open dispuut bevriest een plaatsing — het cascade-werkproces (uren → goedkeuring → factuur)
-staat stil tot het is opgelost — maar de bemiddelaar-cockpit `/franchise/samenwerkingen` telde en toonde
-disputen nergens. `disputedAt` werd uitsluitend gebruikt om ándere signalen te ónderdrukken
-(vervolg-nudge in `collaboration-renewal.ts`, voorstel-ouderdom, roster-dossier), waardoor een bevroren
-inzet volledig onzichtbaar viel: geen strip-tegel, geen kop, geen rij-markering, en in de lijst-sortering
-zakte hij naar rang 2 (renewal-fase `none`). De bemiddelaar die de plaatsing regelde had zo geen enkel
-zicht op stilstaand werk. **Nu:** (a) `FranchiseCollabOversight` krijgt een eigen `disputed`-teller —
-lopende inzet (ACTIVE óf PROPOSED; `openDispute` staat een dispuut op beide toe) met `disputedAt !== null`,
-terminale statussen tellen niet mee, (b) de strip toont een danger-tegel "Bevroren dispuut · werkproces
-staat stil" (alleen bij > 0, DESIGN.md: toon alleen wat telt), (c) de kop noemt het dispuut-signaal
-**vóór** het vervolg-/voorstelsignaal (bevroren = urgenter dan aflopend), (d) de lijst sorteert bevroren
-inzet naar de top (rang −1, boven overdue) en draagt een rij-chip "Bevroren · dispuut". Pure, server-side
-afgeleide presentatie — geen mutatie/schema/authz-oppervlak; één bron (`collaborationFrozenRowBadge` +
-`summarizeFranchiseCollaborations`) voor strip én lijst, dus geen drift. **Hoe:** `disputed`-veld +
-`collaborationFrozenRowBadge` in `src/lib/franchise/collaboration-oversight.ts`; danger-tegel +
-dynamische kolomtelling (3–5) in de strip; import + sort-rang + rij-chip in de pagina. **Bestanden:**
-`collaboration-oversight.ts` (+ `.test.ts`, +5 tests → 20), `components/franchise/collaboration-oversight-strip.tsx`,
-`app/(protected)/franchise/samenwerkingen/page.tsx`. **Checks:** typecheck · lint · prettier · unit ·
-build · CI-poort verifieert.
 
 ## Staat van het product (2-9-2026)
 

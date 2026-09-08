@@ -20,7 +20,9 @@ import { type CredentialStatus, type CredentialType, type UserRole } from "@/lib
 import { collaborationPlacementBlocked } from "@/lib/collaborations";
 import {
   collaborationRequiredCredentialGaps,
+  collaborationCredentialExpiryConcerns,
   type CollabCredentialInput,
+  type CollabRequirementInput,
 } from "@/lib/collaboration-credential-expiry";
 import {
   rosterExpiringByProfile,
@@ -471,6 +473,11 @@ export const navBadges = cache(async function navBadges(
       prisma.collaboration.findMany({
         where: credentialCollabWhere(userId),
         select: {
+          id: true,
+          // Einddatum verankert de mid-plaatsing-verval-waarschuwing (spiegel van /acties'
+          // `collaborationCredentialExpiryConcerns`): een vereist certificaat dat ná het 30-daagse
+          // venster maar vóór de einddatum van déze plaatsing verloopt, is óók een zorg.
+          endDate: true,
           job: {
             select: {
               credentialRequirements: {
@@ -522,13 +529,18 @@ export const navBadges = cache(async function navBadges(
       })),
       now,
     );
-    const expiring = verifiedCreds.filter(
-      (c) =>
-        c.expiresAt !== null &&
-        c.expiresAt > now &&
-        c.expiresAt <= soon &&
-        !supersededExpiringIds.has(c.id),
-    ).length;
+    const expiringIds = new Set(
+      verifiedCreds
+        .filter(
+          (c) =>
+            c.expiresAt !== null &&
+            c.expiresAt > now &&
+            c.expiresAt <= soon &&
+            !supersededExpiringIds.has(c.id),
+        )
+        .map((c) => c.id),
+    );
+    const expiring = expiringIds.size;
     // De cascade-taaktelling komt uit de gedeelde `getFreelancerCascadeWorkCount` (zelfde queries als
     // /acties); het vervolgsignaal (`renewalWork`, aparte `endDate`-gebonden telling) telt daar bovenop.
     const cascadeWork = cascadeWorkCount + renewalWork;
@@ -559,23 +571,41 @@ export const navBadges = cache(async function navBadges(
       status: c.status as CredentialStatus,
       expiresAt: c.expiresAt,
     }));
+    // Eén gedeelde inputset (mét `placementEnd`), identiek aan `credentialCollabInputs` in
+    // pending-tasks.ts, gevoed aan bóth helpers → de badge kan niet driften van /acties.
+    const credentialCollabInputs: CollabRequirementInput[] = credentialCollabRows.map((c) => ({
+      collaborationId: c.id,
+      companyName: "",
+      jobTitle: "",
+      placementEnd: c.endDate,
+      requiredTypes: c.job.credentialRequirements.map((r) => r.credentialType as CredentialType),
+    }));
     const collabCredGaps = collaborationRequiredCredentialGaps({
-      collaborations: credentialCollabRows.map((c, i) => ({
-        collaborationId: String(i),
-        companyName: "",
-        jobTitle: "",
-        requiredTypes: c.job.credentialRequirements.map((r) => r.credentialType as CredentialType),
-      })),
+      collaborations: credentialCollabInputs,
       credentials: collabCredList,
       mandatoryTypes: MANDATORY_CREDENTIAL_TYPES,
       now,
     });
     const collabCredentialAlerts = collabCredGaps.expired.length + collabCredGaps.missing.length;
+    // Mid-plaatsing-verval: een vereist, nu-geldig VERIFIED-cert dat ná het 30-daagse venster maar
+    // vóór de plaatsings-einddatum verloopt. /acties (pending-tasks.ts) toont hiervoor een
+    // credentialCollabExpiryTask, maar `expiring` (binnen-venster) dekt zo'n cert niet → de badge
+    // was hiervoor stiller dan /acties. Alleen de `duringPlacementOnly`-tak telt hier extra mee; de
+    // binnen-venster-concerns vallen al onder `expiring` (dedup op credential-id tegen dubbeltelling).
+    const collabDuringPlacementAlerts = collaborationCredentialExpiryConcerns({
+      collaborations: credentialCollabInputs,
+      credentials: collabCredList,
+      now,
+    }).filter((c) => c.duringPlacementOnly && !expiringIds.has(c.credentialId)).length;
     // Standalone verlopen niet-verplichte certs die géén samenwerking vereist: /acties toont hiervoor
     // de nieuwe credentialFixTask("expired"), maar `collabCredentialAlerts` telt ze niet mee (dat
     // zijn alleen collab-vereiste gaten). Zelfde filter als de dedup in pending-tasks.ts → badge kan
     // niet driften van /acties.
-    const collabExpiredCredIds = new Set(collabCredGaps.expired.map((c) => c.credentialId));
+    // Een type dat al een hogere-band collab-verlopen-taak kreeg (`collabCredGaps.expired`) telt /acties
+    // niet nóg eens als losse verleng-taak — de uitsluiting is per TYPE (pending-tasks.ts
+    // `collabCoveredExpiredTypes`), niet per credential-id: anders zou een tweede verlopen exemplaar van
+    // hetzelfde type als fantoom in de badge blijven staan terwijl /acties het type al dekt.
+    const collabCoveredExpiredTypes = new Set<string>(collabCredGaps.expired.map((c) => c.type));
     // Dekkings-uitsluiting (spiegelt pending-tasks.ts `freelancerTasks`): een verlopen cert waarvan
     // het type al door een nu-geldig VERIFIED-cert wordt gedragen, is geen actueel gat → geen
     // valse badge die /acties (dat het óók uitsluit) tegenspreekt. Zelfde gedeelde pure helper.
@@ -588,18 +618,35 @@ export const navBadges = cache(async function navBadges(
       })),
       now,
     );
-    const standaloneExpiredAlerts = placementCreds.filter(
-      (c) =>
-        c.status === "EXPIRED" &&
+    // Hooguit één verleng-taak per verlopen niet-verplicht type (pending-tasks.ts
+    // `expiredNonMandatoryByType`): twee verlopen exemplaren van hetzelfde type zijn geen twee gaten,
+    // en de verval-check is server-berekend (`EXPIRED` óf een VERIFIED-cert met een verstreken
+    // `expiresAt`) zodat een cert tussen de expiry-cron-runs door niet stil uit de badge valt — exact
+    // de computed-check die /acties gebruikt. Per-type + per-type-uitsluiting ⇒ badge==lijst.
+    const standaloneExpiredTypes = new Set<string>();
+    for (const c of placementCreds) {
+      const computedExpired =
+        c.status === "EXPIRED" ||
+        (c.status === "VERIFIED" && c.expiresAt !== null && c.expiresAt <= now);
+      if (
+        computedExpired &&
         !MANDATORY_CREDENTIAL_TYPES.includes(
           c.type as (typeof MANDATORY_CREDENTIAL_TYPES)[number],
         ) &&
-        !collabExpiredCredIds.has(c.id) &&
-        !coveredTypes.has(c.type),
-    ).length;
+        !collabCoveredExpiredTypes.has(c.type) &&
+        !coveredTypes.has(c.type)
+      )
+        standaloneExpiredTypes.add(c.type);
+    }
+    const standaloneExpiredAlerts = standaloneExpiredTypes.size;
     return buildBadges({
       credentialAlerts:
-        rejected + expiring + mandatoryAlerts + collabCredentialAlerts + standaloneExpiredAlerts,
+        rejected +
+        expiring +
+        mandatoryAlerts +
+        collabCredentialAlerts +
+        collabDuringPlacementAlerts +
+        standaloneExpiredAlerts,
       unreadMessages,
       overdueInvoices,
       cascadeWork,

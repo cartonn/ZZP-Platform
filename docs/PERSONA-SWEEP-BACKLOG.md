@@ -1,5 +1,40 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-08 (persona-sweep, run 7) · **main-commit basis:** `1a71216d`
+> **Uitkomst:** **3 defecten gefixt (badge↔lijst-drift, DOEL 1b), 0 geparkeerd.** Orchestrator Opus 4.8 +
+> drie parallelle adversariële Opus-audits op niet-overlappende oppervlakken (security/IDOR/cross-tenant/
+> document-privacy · malicieuze invoer/Zod/geld-integriteit · next-action/badge-correctheid).
+>
+> - **DOEL 2 (adversarieel) — schoon.** Security/IDOR/cross-tenant/document-privacy **0 bereikbare gaten**
+>   (`currentActor()` herlaadt rol/status/tenant live uit de DB; élke by-id-fetch her-verifieert
+>   ownership/tenant met anti-oracle-404; document/dossier/PDF-routes owner/counterparty/ADMIN-only;
+>   `admin-route-authz-coverage.test.ts` dwingt `requireRole("ADMIN")` statisch af; registratie-Zod laat
+>   alleen FREELANCER/CLIENT toe). Invoer/Zod/geld **0 bereikbare gaten** (`computeOrt`/`computeVat`/
+>   `assertPerformanceWithinLimits` weigeren NaN/Infinity/negatief/niet-integer; int4-overflow onbereikbaar
+>   onder `MAX_INVOICE_CENTS`; `shift.ts` rondt ruwe minuten precies één keer af; CSV/HTML-mail/ICS-escape
+>   en upload-magic-byte-sniff gedekt; enige `dangerouslySetInnerHTML` is het statische theme-script).
+> - **GEDAAN (DOEL 1b) — FREELANCER /certificaten-nav-badge dreef op DRIE punten af van /acties.** De
+>   badge-bron (`navBadges`, `signals.ts`) herimplementeerde de certificaat-verval-filters in plaats van
+>   dezelfde gedeelde helpers als de item-engine (`pending-tasks.ts`), met drie divergenties:
+>   1. **Mid-plaatsing-verval niet geteld (onder-telling).** Een vereist, nu-geldig VERIFIED-cert dat ná
+>      het 30-daagse venster maar vóór de plaatsings-einddatum verloopt kreeg op /acties een
+>      `credentialCollabExpiryTask` (`duringPlacementOnly`), maar de badge kende alleen het binnen-venster-
+>      `expiring`. **Fix:** `collaborationCredentialExpiryConcerns` (mét `placementEnd`) in de badge, tel de
+>      `duringPlacementOnly`-concerns die nog niet in `expiring` zitten.
+>   2. **Computed-expired genegeerd (onder-telling in het cron-gat).** Een VERIFIED-cert met verstreken
+>      `expiresAt` dat de expiry-cron nog niet naar EXPIRED flipte kreeg op /acties een verleng-taak
+>      (server-berekende verval-check), maar de badge keek alleen naar `status === "EXPIRED"`. **Fix:**
+>      dezelfde computed-check `EXPIRED || (VERIFIED && expiresAt <= now)`.
+>   3. **Per-credential i.p.v. per-type (over-telling/fantoom).** Twee verlopen exemplaren van hetzelfde
+>      niet-verplichte type telden als 2 in de badge terwijl /acties er hooguit één verleng-taak per type
+>      toont (en types met een collab-verlopen-taak per TYPE uitsluit, niet per credential-id). **Fix:**
+>      per-type-dedup + type-uitsluiting, identiek aan `expiredNonMandatoryByType`/`collabCoveredExpiredTypes`.
+>      **Bestanden:** `src/lib/signals.ts` (FREELANCER-tak gebruikt nu dezelfde gedeelde inputset/helpers als
+>      de item-engine → kan structureel niet driften), `src/lib/signals.badge-gaps-credential-expiry.test.ts`
+>      (+3 tests, rood→groen bewezen: 0→1, 0→1, 2→1).
+>
+> ---
+>
 > **Datum:** 2026-09-07 (persona-sweep, run 6) · **main-commit basis:** `353141aa`
 > **Uitkomst:** **1 defect gefixt (badge↔lijst-drift, DOEL 1b); 1 item geparkeerd (LOW).** Drie parallelle
 > adversariële Opus-audits op niet-overlappende oppervlakken (security/IDOR/cross-tenant/document-privacy ·
