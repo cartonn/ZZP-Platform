@@ -2,6 +2,28 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-08 — prod: retry-op-transiënte-fout op de HIBP gelekt-wachtwoord-controle (fail-open-gat gedicht)
+
+**Wat:** de HIBP gelekt-wachtwoord-lookup (`src/lib/services/password-breach.ts`) gebruikte al
+`fetchWithTimeout` (deadline) maar was — als **enige** read-only-GET uitgaande productie-integratie —
+zónder retry, terwijl de siblings `http-verify.ts` (DUO/BIG/iDIN) en `routing.ts` (Geoapify) een
+begrensde retry-met-backoff hebben. Omdat de controle **fail-open** is, liet één transiënte 5xx/**429**
+(HIBP rate-limit't)/netwerk-blip de lek-check stil overslaan — een mogelijk gelekt wachtwoord toegelaten
+op de registratie-/wachtwoordwijzig-hot-path (NIST 800-63B) — én tripte het onnodig de aflever-heartbeat
+(valse page). De lookup is een idempotente read-only GET, dus een begrensde retry-met-exponentiële-backoff
+is veilig.
+
+**Aanpak (spiegelt routing.ts/http-verify.ts):** `attemptOnce` doet één GET en werpt een
+`HibpFetchError{transient}` (fetch-throw/5xx/429 → transiënt; 4xx → niet-transiënt); de `check()`-lus
+herhaalt alleen transiënte fouten met backoff (`passwordBreachRetryDelayMs`, 250 ms → 4 s cap) tot
+`resolvePasswordBreachRetries(PASSWORD_BREACH_HTTP_RETRIES)` (geklemd [0,5], default 2). De
+aflever-heartbeat registreert **alléén de einduitkomst** (één succes, of één mislukking na uitputte
+retries), zodat een blip die herstelt de mislukkingen-teller niet oploopt. Injecteerbare `sleepImpl` +
+`retries` → tests draaien zonder echte vertraging. K-anonimiteit/Add-Padding/fail-open-semantiek
+ongewijzigd. **Bestanden:** `src/lib/services/password-breach.ts`, `src/lib/services/password-breach.test.ts`
+(26 tests, +7 retry), `src/lib/env.ts` (`PASSWORD_BREACH_HTTP_RETRIES`), `.env.example`, `MENSENWERK.md`.
+**Checks:** password-breach 26/26 ✓ · typecheck/lint/prettier/build + CI-poort verifiëren. PR #1433.
+
 ## 2026-09-08 — security/privacy: k-anonimiteitsvloer op ALLE beoordelingsaggregaten (HOOG, gedicht)
 
 **Wat:** 3e adversariële security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits op

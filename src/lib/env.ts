@@ -170,6 +170,10 @@ const schema = z
     // extra secret nodig; fail-open bij een storing. Zie src/lib/services/password-breach.ts.
     PASSWORD_BREACH_CHECK: z.enum(["noop", "hibp"]).default("noop"),
     PASSWORD_BREACH_HTTP_TIMEOUT_MS: z.string().optional(),
+    // Aantal retries bij een transiënte HIBP-storing (netwerk/time-out/5xx/429), geklemd [0,5],
+    // default 2. De lookup is een read-only GET (idempotent), dus retry is veilig; parity met
+    // VERIFY_HTTP_RETRIES/ROUTING_HTTP_RETRIES. Zie src/lib/services/password-breach.ts.
+    PASSWORD_BREACH_HTTP_RETRIES: z.string().optional(),
 
     // Web-push (PWA-pushmeldingen, src/lib/push/web-push.ts). Beide VAPID-sleutels sámen zetten push
     // AAN; precies één van de twee is een halve activering (push staat dan STIL uit) → boot-fout in de
