@@ -18,6 +18,8 @@ import {
   type ContractStatus,
 } from "@/lib/enums";
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
+import { forecastDbaDurationCrossing } from "@/lib/dba-duration-forecast";
+import { DbaDurationForecastNote } from "@/components/collaborations/dba-duration-forecast-note";
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
 import { recommendModelAgreement } from "@/lib/model-agreement";
 import { resolveAgreementType } from "@/lib/contract-agreement";
@@ -265,10 +267,14 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const sharedCredentials = isClient ? await getSharedCredentialsForClient(col.id, actor.id) : [];
 
   // DBA-monitoring (§6): rustig signaleren, mét disclaimer; geen juridisch oordeel (Besluit 2).
+  const dbaNow = new Date();
   const dba = assessCollaborationDba(
     { collaborationId: col.id, startDate: col.startDate, ...jobDbaIndicators(col.job) },
-    new Date(),
+    dbaNow,
   );
+  // Vooruitblik: nadert deze inzet binnenkort een duurdrempel (verhoogd/hoog)? Dezelfde klok en
+  // startdatum als de reactieve assessment hierboven → vooruitblik en signaal blijven consistent.
+  const dbaForecast = forecastDbaDurationCrossing(col.startDate, dbaNow);
 
   // Modelovereenkomst (Wet DBA): aanbevolen vorm + de op samenwerking/opdracht vastgelegde keuze.
   const agreementRecommendation = recommendModelAgreement({
@@ -627,6 +633,11 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
             <p className="text-xs text-muted-foreground">{dba.disclaimer}</p>
           </CardContent>
         </Card>
+      )}
+
+      {/* DBA-duurdrempel-vooruitblik — waarschuw vóór de kruising, zodat er tijdig gehandeld kan worden */}
+      {active && dbaForecast && (
+        <DbaDurationForecastNote forecast={dbaForecast} disclaimer={dba.disclaimer} />
       )}
 
       {/* Rechtsvermoeden werknemerschap — tarief-drempelwaarschuwing (rustig, niet-blokkerend) */}
