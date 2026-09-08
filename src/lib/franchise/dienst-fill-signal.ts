@@ -14,6 +14,8 @@ import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { type JobMatchSource, scoreJobForFreelancer } from "@/lib/matching";
 import { plural } from "@/lib/plural";
+import { awayUntil } from "@/lib/availability";
+import { type AvailabilityWindowType } from "@/lib/enums";
 import { isIdleReady } from "@/lib/franchise/roster-capacity";
 import {
   type RosterFreelancerSource,
@@ -55,6 +57,19 @@ export function computeDienstFill(
       engageabilityStatus: eng.status,
       availability: f.availability,
       activeCollaborations: f.activeCollaborations.length,
+      // Pariteit met de roster-capaciteitstegel (`/franchise/zzpers`): een lopend UNAVAILABLE-venster
+      // (vakantie/verlof) dekt nu → geen vrije capaciteit, ook al staat de grove availability op
+      // beschikbaar. Zonder deze check dreef dit lijst-signaal af van de tegel en beloofde het een
+      // vakmens "vrij" die het voordracht-scherm meteen als afwezig markeert (verspilde ronde).
+      unavailableNow:
+        awayUntil(
+          f.availabilityWindows as {
+            startDate: Date;
+            endDate: Date;
+            type: AvailabilityWindowType;
+          }[],
+          now,
+        ) != null,
     });
     if (!idle) continue;
     idleReady += 1;
