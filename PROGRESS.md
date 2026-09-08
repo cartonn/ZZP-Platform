@@ -2,6 +2,32 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-08 — prod: single-flight coalescing op de gezondheids-probes (/api/health + /api/readiness, pool-uitputting-amplificatie)
+
+**Wat:** de twee publieke, ongeauthenticeerde gezondheids-endpoints (`/api/health` liveness, `/api/readiness`
+readiness) doen elk een echte DB-round-trip (`SELECT 1`, en readiness ook `prisma.user.count()`). Ze zijn
+bewust ongeauth (`route-guards`) zodat de load balancer/orchestrator ze zonder sessie kan pollen, maar ze
+hadden — anders dan élk ander werk-doend publiek endpoint — geen rem op gelijktijdigheid: een
+ongeauthenticeerde burst startte N gelijktijdige DB-queries en kon zo de **bewust-begrensde Prisma-pool**
+(`DATABASE_CONNECTION_LIMIT`, `db-connection.ts`) uitputten → connection-timeouts voor de héle app (login,
+documentdownload, verificatiequeue) — een self-inflicted DoS, volledig pre-auth. Precies de pool-uitputting
+die `probe-timeout.ts` al als hang-risico noemt, maar dan als amplificatie.
+
+**Aanpak (geen 429 op een healthcheck — dat zou de orchestrator een gezonde instance laten killen):**
+single-flight. Nieuwe pure helper `coalesceProbe(key, fn)` (`src/lib/observability/probe-coalesce.ts`):
+gelijktijdige aanroepers met dezelfde sleutel delen één in-flight probe; pas na settelen (succes én fout)
+start de eerstvolgende aanroeper een verse. De probe kost zo hoogstens één DB-query per probe-duur per
+endpoint, ongeacht de burst. Bewust géén caching van de uitkomst (readiness/health nooit ouder dan één
+probe-duur; herstel/degradatie meteen zichtbaar; fail-closed blijft fail-closed). In `/api/readiness` blijft
+de `draining`-check **buiten** de coalescing — per-request en goedkoop, en een afsluitende instance moet altijd
+de verse drain-staat zien; de DB-gebonden checks (database + schema) worden gecoalesceerd, de shutdown-check
+daarna per request toegevoegd. Publieke JSON-vorm + statuscodes ongewijzigd (`{ready,checks:[database,schema,
+shutdown],draining,commit,time}` / 200/503). **Bestanden:** `src/lib/observability/probe-coalesce.ts`
+(+ `.test.ts`, 5 tests: één fn-call bij gelijktijdige joiners, verse probe na settelen, fout-propagatie +
+sleutel-vrijgave, onafhankelijke sleutels, geen lek bij synchrone worp), `src/app/api/readiness/route.ts`,
+`src/app/api/health/route.ts`. **Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (nieuw + readiness/health)
+✓ · full unit + build + CI-poort verifiëren. MENSENWERK.md §0b bijgewerkt.
+
 ## 2026-09-08 — security/privacy: k-anonimiteitsvloer-poort scant recursief (submap-blindvlek gedicht, HOOG)
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
