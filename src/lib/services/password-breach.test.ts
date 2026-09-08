@@ -5,6 +5,8 @@ import {
   NoopPasswordBreachChecker,
   createPasswordBreachChecker,
   matchSuffixCount,
+  passwordBreachRetryDelayMs,
+  resolvePasswordBreachRetries,
   sha1Hex,
 } from "./password-breach";
 
@@ -155,6 +157,125 @@ describe("HibpPasswordBreachChecker", () => {
         count: 42,
       });
     });
+  });
+});
+
+describe("resolvePasswordBreachRetries", () => {
+  it("valt terug op default (2) bij onleesbare/ontbrekende invoer", () => {
+    expect(resolvePasswordBreachRetries(undefined)).toBe(2);
+    expect(resolvePasswordBreachRetries("niet-een-getal")).toBe(2);
+  });
+  it("klemt op [0, 5]", () => {
+    expect(resolvePasswordBreachRetries("0")).toBe(0);
+    expect(resolvePasswordBreachRetries("-3")).toBe(0);
+    expect(resolvePasswordBreachRetries("5")).toBe(5);
+    expect(resolvePasswordBreachRetries("99")).toBe(5);
+    expect(resolvePasswordBreachRetries("3")).toBe(3);
+  });
+});
+
+describe("passwordBreachRetryDelayMs", () => {
+  it("groeit exponentieel vanaf de basis en wordt geklemd op het maximum", () => {
+    expect(passwordBreachRetryDelayMs(0)).toBe(250);
+    expect(passwordBreachRetryDelayMs(1)).toBe(500);
+    expect(passwordBreachRetryDelayMs(2)).toBe(1000);
+    // 250 * 2^5 = 8000, geklemd op 4000.
+    expect(passwordBreachRetryDelayMs(5)).toBe(4000);
+  });
+});
+
+describe("HibpPasswordBreachChecker — retry-op-transiënte-fout", () => {
+  const suffix = PASSWORD_HASH.slice(5);
+  const noSleep = async () => {};
+
+  /** Fake fetch die een reeks uitkomsten afspeelt (Error → werp; anders {ok,status,text}). */
+  function scriptedFetch(steps: Array<Error | { ok?: boolean; status?: number; body?: string }>) {
+    let i = 0;
+    const impl = vi.fn(async () => {
+      const step = steps[Math.min(i, steps.length - 1)] ?? {};
+      i += 1;
+      if (step instanceof Error) throw step;
+      return {
+        ok: step.ok ?? true,
+        status: step.status ?? 200,
+        text: async () => step.body ?? "",
+      } as unknown as Response;
+    }) as unknown as typeof fetch;
+    return { impl, attempts: () => i };
+  }
+
+  it("herstelt na een transiënte 5xx en levert het uiteindelijke resultaat", async () => {
+    const { impl, attempts } = scriptedFetch([
+      { ok: false, status: 503 },
+      { ok: true, body: `${suffix}:42` },
+    ]);
+    const onDelivery = vi.fn();
+    const checker = new HibpPasswordBreachChecker({
+      fetchImpl: impl,
+      retries: 2,
+      sleepImpl: noSleep,
+      onDelivery,
+    });
+    expect(await checker.check("password")).toEqual({ breached: true, skipped: false, count: 42 });
+    expect(attempts()).toBe(2);
+    // Alléén de einduitkomst wordt geregistreerd: één succes, geen tussentijdse mislukking.
+    expect(onDelivery).toHaveBeenCalledTimes(1);
+    expect(onDelivery).toHaveBeenCalledWith(true);
+  });
+
+  it("herhaalt een netwerkfout tot de retries op zijn en faalt dan open (één mislukking geregistreerd)", async () => {
+    const { impl, attempts } = scriptedFetch([new Error("network down")]);
+    const onDelivery = vi.fn();
+    const checker = new HibpPasswordBreachChecker({
+      fetchImpl: impl,
+      retries: 2,
+      sleepImpl: noSleep,
+      onDelivery,
+    });
+    expect(await checker.check("password")).toEqual({ breached: false, skipped: true, count: 0 });
+    // 1 initiële poging + 2 retries = 3 aanroepen.
+    expect(attempts()).toBe(3);
+    expect(onDelivery).toHaveBeenCalledTimes(1);
+    expect(onDelivery).toHaveBeenCalledWith(false);
+  });
+
+  it("herhaalt een 429 (rate-limit) net als een 5xx", async () => {
+    const { impl, attempts } = scriptedFetch([
+      { ok: false, status: 429 },
+      { ok: true, body: `${suffix}:7` },
+    ]);
+    const checker = new HibpPasswordBreachChecker({
+      fetchImpl: impl,
+      retries: 2,
+      sleepImpl: noSleep,
+    });
+    expect(await checker.check("password")).toEqual({ breached: true, skipped: false, count: 7 });
+    expect(attempts()).toBe(2);
+  });
+
+  it("herhaalt een niet-transiënte 4xx NIET (faalt meteen open)", async () => {
+    const { impl, attempts } = scriptedFetch([{ ok: false, status: 400 }]);
+    const onDelivery = vi.fn();
+    const checker = new HibpPasswordBreachChecker({
+      fetchImpl: impl,
+      retries: 3,
+      sleepImpl: noSleep,
+      onDelivery,
+    });
+    expect(await checker.check("password")).toEqual({ breached: false, skipped: true, count: 0 });
+    expect(attempts()).toBe(1);
+    expect(onDelivery).toHaveBeenCalledWith(false);
+  });
+
+  it("doet geen enkele retry bij retries=0", async () => {
+    const { impl, attempts } = scriptedFetch([{ ok: false, status: 503 }]);
+    const checker = new HibpPasswordBreachChecker({
+      fetchImpl: impl,
+      retries: 0,
+      sleepImpl: noSleep,
+    });
+    expect(await checker.check("password")).toEqual({ breached: false, skipped: true, count: 0 });
+    expect(attempts()).toBe(1);
   });
 });
 

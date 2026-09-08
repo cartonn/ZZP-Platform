@@ -1472,6 +1472,18 @@ vastgeklonken aan de drift-gate. De heartbeat is zelf fail-open (een DB-storing 
 laten falen) en bevat nooit het wachtwoord/de hash/de foutinhoud — alleen tijdstip, teller en driver-modus.
 Resterend mensenwerk: **niets extra** — de kaart/gauges vullen zichzelf zodra `PASSWORD_BREACH_CHECK=hibp`
 staat en de eerste controle draait. Optioneel: richt een monitor op `ZzpPasswordBreachCheckDeliveryFailing`.
+**Code-kant GEDAAN (2026-09-08) — retry-op-transiënte-fout:** de HIBP-lookup gebruikte al
+`fetchWithTimeout` (deadline) maar was — als **enige** read-only-GET uitgaande productie-integratie —
+zónder retry, terwijl `http-verify.ts` (DUO/BIG/iDIN) en `routing.ts` (Geoapify) een begrensde
+retry-met-backoff hebben. Omdat de controle **fail-open** is, liet één transiënte 5xx/**429**
+(HIBP rate-limit't)/netwerk-blip de lek-check stil overslaan — een mogelijk gelekt wachtwoord toegelaten
+op de registratie-/wachtwoordwijzig-hot-path — én tripte het onnodig de aflever-heartbeat (valse page).
+De lookup is een idempotente read-only GET, dus retry is veilig: alleen transiënte fouten
+(netwerk/time-out/5xx/429) worden herhaald met exponentiële backoff (250 ms → 4 s cap), een niet-transiënte
+4xx faalt meteen, en de heartbeat registreert alléén de einduitkomst (één succes, of één mislukking na
+uitputte retries) zodat een blip die herstelt de mislukkingen-teller niet oploopt. Instelbaar via
+`PASSWORD_BREACH_HTTP_RETRIES` (geklemd [0,5], default 2). Resterend mensenwerk: **niets** — optioneel
+bij te stellen via `PASSWORD_BREACH_HTTP_RETRIES`/`PASSWORD_BREACH_HTTP_TIMEOUT_MS`.
 
 **Code-kant GEDAAN (2026-07-22) — cross-origin-isolatie + Permissions-Policy-hardening:** naast de al
 sterke statische headers (HSTS+preload, `X-Frame-Options: DENY`, nosniff, `Referrer-Policy`) en de
