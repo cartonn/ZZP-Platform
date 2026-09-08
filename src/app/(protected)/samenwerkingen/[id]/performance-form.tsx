@@ -6,16 +6,90 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DateInput } from "@/components/ui/date-input";
 import { segmentShifts, dutchHolidays, type Shift } from "@/lib/shift";
-import { computeOrt, resolveOrtRates } from "@/lib/ort";
+import { computeOrt, resolveOrtRates, type OrtSegment, type OrtResult } from "@/lib/ort";
+import { MANUAL_ORT_FIELDS, manualOrtSegments } from "@/lib/manual-ort";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { formatEuro } from "@/lib/invoices";
 import { logAndSubmitPerformanceAction } from "./actions";
-import { type ManualOrtField, type PerformanceFormDefaults } from "@/lib/performance-form";
+import { type PerformanceFormDefaults } from "@/lib/performance-form";
 
 interface ShiftRow {
   id: number;
   start: string;
   end: string;
+}
+
+/**
+ * Presentatie van de ORT-voorbeeldberekening (gedeeld door dienstenmodus en handmatige modus).
+ * Toont uren per categorie; met een geldig uurtarief ook toeslag + bedrag. `ort === null` →
+ * enkel de uren-kolom. Richtbedrag: de opdrachtgever keurt de definitieve berekening goed.
+ */
+function OrtPreviewTable({ segments, ort }: { segments: OrtSegment[]; ort: OrtResult | null }) {
+  const totaalUren = (
+    Math.round(segments.reduce((acc, s) => acc + s.hours, 0) * 100) / 100
+  ).toLocaleString("nl-NL", { maximumFractionDigits: 2 });
+  return (
+    <>
+      <p className="text-xs font-medium text-muted-foreground">Berekende ORT (voorbeeld)</p>
+      <table className="mt-1 w-full text-xs">
+        <tbody>
+          {(
+            ort?.lines ??
+            segments.map((s) => ({
+              category: s.category,
+              hours: s.hours,
+              surchargeBps: 0,
+              baseCents: 0,
+              surchargeCents: 0,
+              totalCents: 0,
+            }))
+          ).map((line, i) => (
+            <tr key={i} className="border-t border-border/40">
+              <td className="py-0.5">
+                {line.category === "NORMAL"
+                  ? "Regulier"
+                  : ORT_CATEGORY_LABEL[line.category as OrtCategory]}
+              </td>
+              <td className="py-0.5 text-right tabular-nums">{line.hours} u</td>
+              {ort && (
+                <>
+                  <td className="py-0.5 text-right tabular-nums text-muted-foreground">
+                    {line.surchargeCents > 0
+                      ? `+${formatEuro(line.surchargeCents)} (${Math.round(line.surchargeBps / 100)}%)`
+                      : "—"}
+                  </td>
+                  <td className="py-0.5 text-right font-medium tabular-nums">
+                    {formatEuro(line.totalCents)}
+                  </td>
+                </>
+              )}
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="border-t border-border">
+            <td className="py-0.5 font-medium">Totaal uren</td>
+            <td className="py-0.5 text-right font-medium tabular-nums">{totaalUren} u</td>
+            {ort && <td colSpan={2} />}
+          </tr>
+          {ort && (
+            <tr className="border-t border-border/40">
+              <td colSpan={3} className="py-0.5 font-medium">
+                Subtotaal excl. btw
+              </td>
+              <td className="py-0.5 text-right font-semibold tabular-nums">
+                {formatEuro(ort.subtotalCents)}
+              </td>
+            </tr>
+          )}
+        </tfoot>
+      </table>
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        Richtbedrag op basis van het ingestelde profiel; de opdrachtgever keurt de definitieve
+        berekening goed.
+      </p>
+    </>
+  );
 }
 
 export function PerformanceForm({
@@ -87,6 +161,30 @@ export function PerformanceForm({
     const ort = rateCents != null ? computeOrt(segments, rateCents, rates) : null;
     return { segments, ort };
   }, [rows, rateCents, ortProfile, ortCustomRates]);
+
+  // Handmatige urenverdeling (per categorie) — gecontroleerd, zodat er een live voorbeeld is.
+  const [manualHours, setManualHours] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const f of MANUAL_ORT_FIELDS) init[f.field] = defaults?.manualOrt[f.field] ?? "";
+    return init;
+  });
+
+  // Preview voor de handmatige modus. Diensten hebben voorrang (server: shifts > handmatig),
+  // dus toon dit voorbeeld niet zolang er geldige dienstrijen zijn.
+  const manualPreview = useMemo(() => {
+    if (preview) return null;
+    const hoursByCategory = Object.fromEntries(
+      MANUAL_ORT_FIELDS.map((f) => [f.category, Number(manualHours[f.field] ?? "")]),
+    );
+    const segments = manualOrtSegments(hoursByCategory);
+    if (segments.length === 0) return null;
+    const rates = resolveOrtRates({ ortProfile, ortCustomRates });
+    const ort =
+      rateCents != null && Number.isInteger(rateCents)
+        ? computeOrt(segments, rateCents, rates)
+        : null;
+    return { segments, ort };
+  }, [preview, manualHours, rateCents, ortProfile, ortCustomRates]);
 
   return (
     <Card>
@@ -211,61 +309,7 @@ export function PerformanceForm({
 
             {preview && (
               <div className="mt-3 rounded-md border border-border bg-muted/30 p-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Berekende ORT (voorbeeld)
-                </p>
-                <table className="mt-1 w-full text-xs">
-                  <tbody>
-                    {(
-                      preview.ort?.lines ??
-                      preview.segments.map((s) => ({
-                        category: s.category,
-                        hours: s.hours,
-                        surchargeBps: 0,
-                        baseCents: 0,
-                        surchargeCents: 0,
-                        totalCents: 0,
-                      }))
-                    ).map((line, i) => (
-                      <tr key={i} className="border-t border-border/40">
-                        <td className="py-0.5">
-                          {line.category === "NORMAL"
-                            ? "Regulier"
-                            : ORT_CATEGORY_LABEL[line.category as OrtCategory]}
-                        </td>
-                        <td className="py-0.5 text-right tabular-nums">{line.hours} u</td>
-                        {preview.ort && (
-                          <>
-                            <td className="py-0.5 text-right tabular-nums text-muted-foreground">
-                              {line.surchargeCents > 0
-                                ? `+${formatEuro(line.surchargeCents)} (${Math.round(line.surchargeBps / 100)}%)`
-                                : "—"}
-                            </td>
-                            <td className="py-0.5 text-right font-medium tabular-nums">
-                              {formatEuro(line.totalCents)}
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                  {preview.ort && (
-                    <tfoot>
-                      <tr className="border-t border-border">
-                        <td colSpan={3} className="py-0.5 font-medium">
-                          Subtotaal excl. btw
-                        </td>
-                        <td className="py-0.5 text-right font-semibold tabular-nums">
-                          {formatEuro(preview.ort.subtotalCents)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Richtbedrag op basis van het ingestelde profiel; de opdrachtgever keurt de
-                  definitieve berekening goed.
-                </p>
+                <OrtPreviewTable segments={preview.segments} ort={preview.ort} />
               </div>
             )}
           </details>
@@ -278,28 +322,27 @@ export function PerformanceForm({
               leeg als je hierboven al een dienst hebt ingevuld of als alles regulier is.
             </p>
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
-              {[
-                ["ort_normal", "Regulier"],
-                ["ort_evening", "Avond"],
-                ["ort_night", "Nacht"],
-                ["ort_saturday", "Zaterdag"],
-                ["ort_sunday", "Zondag"],
-                ["ort_holiday", "Feestdag"],
-              ].map(([name, label]) => (
-                <label key={name} className="text-xs">
-                  <span className="mb-1 block text-muted-foreground">{label}</span>
+              {MANUAL_ORT_FIELDS.map((f) => (
+                <label key={f.field} className="text-xs">
+                  <span className="mb-1 block text-muted-foreground">{f.label}</span>
                   <input
-                    name={name}
+                    name={f.field}
                     type="number"
                     step="0.25"
                     min="0"
                     placeholder="0"
-                    defaultValue={defaults?.manualOrt[name as ManualOrtField]}
+                    value={manualHours[f.field]}
+                    onChange={(e) => setManualHours((h) => ({ ...h, [f.field]: e.target.value }))}
                     className="focus-ring w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
                   />
                 </label>
               ))}
             </div>
+            {manualPreview && (
+              <div className="mt-3 rounded-md border border-border bg-muted/30 p-3">
+                <OrtPreviewTable segments={manualPreview.segments} ort={manualPreview.ort} />
+              </div>
+            )}
           </details>
           <label className="block text-sm">
             <span className="mb-1 block text-muted-foreground">Omschrijving</span>
