@@ -2,6 +2,29 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-08 — security/privacy: k-anonimiteitsvloer op ALLE beoordelingsaggregaten (HOOG, gedicht)
+
+**Wat:** 3e adversariële security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits op
+niet-overlappende oppervlakken: authz/IDOR/tenant · injectie/upload/headers/auth · privacy/AVG). **Eén nieuw
+HOOG privacy-gat gevonden én gedicht**, 0 exploiteerbare security-gaten. De k-anonimiteitsvloer
+`REVIEW_AGGREGATE_MIN_SAMPLE = 3` was correct in `freelancerReputationFromReviews` (publiek dossier) maar
+**stil weggelaten** in de twee spiegelfuncties `companyReputationFromReviews` (opdracht-detailpagina, elke
+ZZP'er) en `groupCandidateRatings` (`/kandidaten` + kandidaat-ranking, elke opdrachtgever): beide toonden een
+**individueel herleidbaar** cijfer bij n=1/n=2 (AVG art. 5(1)(f)/25). Beide poorten nu op
+`>= REVIEW_AGGREGATE_MIN_SAMPLE`, identiek aan de referentie; onder de vloer `null`/weggelaten (geen
+render-aanpassing, retourtype ongewijzigd; ook geen ranking-invloed van één opinie).
+
+**Root cause gedicht:** de bestaande `k-anonymity-floors.test.ts` bewaakte alleen de **waarde** van de
+constante, niet de **toepassing** ervan per call-site. Nieuwe afdwing-poort
+`src/lib/compliance/review-aggregate-floor-coverage.test.ts` pint alle drie de spiegelfuncties gedrag-matig
+(onder/op de vloer) én dwingt statisch af dat elke `aggregateReviews`-consument in `src/lib` de constante noemt
+(parity met `anonymize-schema-coverage.test.ts` voor erasure) — een 4e call-site kan de vloer niet stil weglaten.
+**Bestanden:** `src/lib/company-reputation.ts`, `src/lib/candidate-reviews.ts`,
+`src/lib/company-reputation.test.ts`, `src/lib/candidate-reviews.test.ts`,
+`src/lib/compliance/review-aggregate-floor-coverage.test.ts` (nieuw), `docs/SECURITY-PRIVACY-BACKLOG.md`.
+**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (affected suites 29/29 + downstream 83/83) ✓ · build + volledige
+CI-poort verifiëren.
+
 ## 2026-09-08 — cascade: ORT-verdienpreview ook in de handmatige urenmodus (ZZP'er)
 
 **Wat:** de ZZP'er zag bij het indienen van een urenstaat een live ORT-verdienpreview (uren per

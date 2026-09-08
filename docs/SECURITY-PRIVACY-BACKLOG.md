@@ -4,6 +4,52 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-08 (3e, basis: `main` @ f6a1863c) — 3 parallelle adversariële audits + orchestrator-sweep: 1 nieuw HOOG privacy-gat GEVONDEN & GEDICHT, 0 exploiteerbare security-gaten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.
+**A** — object-/functieniveau-authz over alle 53 server-action-bestanden + 43 API-routes, cross-tenant
+FRANCHISER-isolatie, mass-assignment, cron/webhook-auth. **B** — injectie (XSS/CSV-formule/ICS/PDF), upload-
+veiligheid/path-traversal, CSP/headers, error-lekkage, auth/sessie/rate-limiting, `npm audit`. **C** —
+privacy/AVG: data-minimalisatie/PII-overfetch, erasure-volledigheid, PII-in-logs, k-anonimiteitsvloeren,
+audit-logging, data-naar-derden. Orchestrator-sweep los: `npm audit --omit=dev` (0 vulns), raw-SQL (geen
+`$queryRaw`/`$executeRaw`), `dangerouslySetInnerHTML` (alleen statisch thema-script, nonce-gated), SSRF (geen
+server-side fetch met user-URL), cron-auth (`authorizeCron` Bearer-only + `timingSafeEqual`), document-route
+(`/api/documents/[id]` ownership + anti-oracle-404 + timing-side-channel-pariteit + rate-limit + audit + sandbox-
+headers), media-route (key beperkt tot bekende `Company.logoKey`), PDF-bouwers (`pdf-lib` drawText, geen HTML→PDF-
+pijplijn → geen template-injectie), logger-redactie (CI-gate `logger.pii-name-coverage.test.ts`), tracked secrets
+(`git ls-files` op `.env`/`.db`/`.key`/`.pem`/`/storage/` leeg). Productiebuild + typecheck + lint + unit groen.
+
+**OPGELOST — [HOOG · k-anonimiteitsvloer op beoordelingsaggregaten stil weggelaten in 2 van de 3 spiegelfuncties]
+(deze PR).** De vloer `REVIEW_AGGREGATE_MIN_SAMPLE = 3` (`src/lib/config.ts`) was correct toegepast in
+`freelancerReputationFromReviews` (publiek vertrouwensdossier), maar **stil weggelaten** in de twee
+spiegelfuncties die exact dezelfde `Review`-tabel aggregeren voor de tegenpartij: `companyReputationFromReviews`
+(`src/lib/company-reputation.ts` — opdracht-detailpagina, zichtbaar voor elke ingelogde ZZP'er) en
+`groupCandidateRatings` (`src/lib/candidate-reviews.ts` — `/kandidaten` + kandidaat-**ranking**, zichtbaar voor
+elke opdrachtgever). Beide poortten enkel op `count > 0` en toonden zo een **individueel herleidbaar** cijfer bij
+n=1/n=2 — terwijl de code-comments daar juist claimden _"alleen geaggregeerd — nooit individuele beoordelingen"_.
+**Repro:** één `CLIENT_ON_FREELANCER` PUBLISHED review (rating 2) voor ZZP'er X → X solliciteert bij een ándere
+opdrachtgever Y → Y ziet op `/kandidaten` "2,0 (1)" (het exacte cijfer van een specifieke andere opdrachtgever);
+spiegel: één `FREELANCER_ON_CLIENT` review → elke ZZP'er ziet op `/opdrachten/[id]` "Op basis van 1 beoordeling"
+met het exacte cijfer. **Geschonden:** AVG art. 5(1)(f) integriteit/vertrouwelijkheid + art. 25 privacy-by-design
+(afwijking van het eigen dreigingsmodel voor exact deze dataklasse). Onderscheid met het geparkeerde
+`/zzp/[id]`-item hieronder: dát gaat over individuele, tóégeschreven reviews (bewuste marktplaats-productkeuze);
+dít is een **stille inconsistentie tegen de platform-eigen, gedocumenteerde, geteste aggregaat-invariant** — het
+dichten voegt de al-besliste bescherming toe (verstrengt privacy, verwijdert niets), geen nieuwe productkeuze.
+**Fix:** beide functies poorten nu op `>= REVIEW_AGGREGATE_MIN_SAMPLE`, identiek aan de referentie. Onder de vloer:
+`null`/weggelaten (zelfde codepad als "geen beoordelingen"), dus ook geen ranking-invloed van één enkele opinie.
+Retourtypes ongewijzigd → geen render-aanpassing nodig. **Rood→groen tests:** `candidate-reviews.test.ts` +
+`company-reputation.test.ts` (n=1/n=2 → weggelaten/null) en de nieuwe **afdwing-poort**
+`src/lib/compliance/review-aggregate-floor-coverage.test.ts` — die (a) alle drie de spiegelfuncties gedrag-pint op
+onder/op de vloer én (b) statisch elke `aggregateReviews`-consument in `src/lib` dwingt de constante te noemen,
+zodat een toekomstige 4e call-site de vloer niet stil kan weglaten (parity met `anonymize-schema-coverage.test.ts`
+voor erasure). Root cause van het gat: de bestaande `k-anonymity-floors.test.ts` bewaakte alleen de **waarde** van
+de constante, niet of elke consument hem **toepast**.
+
+**GEEN nieuw exploiteerbaar security-gat** (authz/IDOR/tenant/injectie/upload/SSRF/headers/error/auth) — alle drie
+de audits + de sweep bevestigen de gehardheid van de eerdere rondes (ownership vóór byte-uitgifte, anti-oracle-404
+CWE-203, timing-safe secret-vergelijkingen, single-use reset-tokens, SUSPENDED op twee lagen, CSP nonce+strict-
+dynamic, alle CSV via `escapeCsvField` CWE-1236). Het geparkeerde `/zzp/[id]`-item hieronder blijft eigenaar-gated.
+
 ## Ronde 2026-09-07 (2e, basis: `main` @ 364396bc) — 3 parallelle adversariële audits + orchestrator-sweep: 0 exploiteerbare security-gaten, 1 privacy/product-afweging geparkeerd (eigenaar-gated)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,

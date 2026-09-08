@@ -10,6 +10,14 @@ describe("companyReputationFromReviews", () => {
     expect(companyReputationFromReviews([{ rating: 0 }, { rating: 6 }])).toBeNull();
   });
 
+  it("k-anonimiteitsvloer: geeft null bij 1 of 2 beoordelingen (individueel herleidbaar)", () => {
+    // Onder REVIEW_AGGREGATE_MIN_SAMPLE (=3) ís het "aggregaat" één opdrachtgever-opinie: bij twee
+    // kan één beoordelaar het exacte cijfer van de ander uit gemiddelde + aantal herleiden. Niet tonen.
+    // Regressie voor security-review 8-9-2026 (AVG art. 5(1)(f)/25).
+    expect(companyReputationFromReviews([{ rating: 2 }])).toBeNull();
+    expect(companyReputationFromReviews([{ rating: 2 }, { rating: 4 }])).toBeNull();
+  });
+
   it("aggregeert geldige beoordelingen tot gemiddelde + aantal", () => {
     const result = companyReputationFromReviews([{ rating: 5 }, { rating: 4 }, { rating: 5 }]);
     expect(result).not.toBeNull();
@@ -20,9 +28,15 @@ describe("companyReputationFromReviews", () => {
     expect(result?.distribution[4]).toBe(1);
   });
 
-  it("telt alleen de geldige cijfers wanneer er ongeldige tussen zitten", () => {
-    const result = companyReputationFromReviews([{ rating: 3 }, { rating: 99 }]);
-    expect(result?.count).toBe(1);
+  it("telt alleen de geldige cijfers wanneer er ongeldige tussen zitten (op de vloer)", () => {
+    // Drie geldige cijfers (op de vloer) + één ongeldig: het ongeldige telt niet mee, de rest wél.
+    const result = companyReputationFromReviews([
+      { rating: 3 },
+      { rating: 3 },
+      { rating: 3 },
+      { rating: 99 },
+    ]);
+    expect(result?.count).toBe(3);
     expect(result?.average).toBe(3);
   });
 });

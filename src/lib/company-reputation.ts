@@ -7,15 +7,25 @@
 // (geen gepubliceerde beoordeling => niets tonen i.p.v. een misleidende "0,0 (0)"), zodat de
 // data-fetcher dun blijft en de beslisregel testbaar is zonder database.
 
+import { REVIEW_AGGREGATE_MIN_SAMPLE } from "@/lib/config";
 import { aggregateReviews, type ReviewAggregate } from "@/lib/reviews";
 
 /**
  * Aggregeer de ruwe beoordelingsrijen (alleen het `rating`-veld nodig) tot één reputatiecijfer,
- * of `null` als er geen enkele geldige beoordeling is. `aggregateReviews` negeert cijfers buiten
- * 1..5; een set die daardoor op count 0 uitkomt hoort niet als reputatie getoond te worden — een
- * nieuwkomer zonder beoordelingen mag niet onterecht zwak lijken (het vertrouwensniveau draagt daar).
+ * of `null` als er te weinig geldige beoordelingen zijn. `aggregateReviews` negeert cijfers buiten
+ * 1..5; een set die daardoor onder de drempel uitkomt hoort niet als reputatie getoond te worden —
+ * een nieuwkomer zonder (genoeg) beoordelingen mag niet onterecht zwak lijken (het vertrouwensniveau
+ * draagt daar).
+ *
+ * k-anonimiteitsvloer (REVIEW_AGGREGATE_MIN_SAMPLE, security-review 8-9-2026): dit cijfer wordt op de
+ * opdracht-detailpagina aan elke ingelogde ZZP'er getoond. Een "geaggregeerd" cijfer over één (of
+ * twee) FREELANCER_ON_CLIENT-beoordeling(en) ís individueel herleidbaar — bij twee kan één beoordelaar
+ * het exacte cijfer van de ander uit gemiddelde + aantal afleiden. Onder de vloer tonen we daarom
+ * niets i.p.v. een herleidbaar cijfer. Identieke vloer als de spiegelfuncties
+ * `freelancerReputationFromReviews` (publiek dossier) en `groupCandidateRatings` (/kandidaten); de
+ * afdwing-poort `review-aggregate-floor-coverage.test.ts` bewaakt dat elke consument dit toepast.
  */
 export function companyReputationFromReviews(rows: { rating: number }[]): ReviewAggregate | null {
   const aggregate = aggregateReviews(rows);
-  return aggregate.count > 0 ? aggregate : null;
+  return aggregate.count >= REVIEW_AGGREGATE_MIN_SAMPLE ? aggregate : null;
 }
