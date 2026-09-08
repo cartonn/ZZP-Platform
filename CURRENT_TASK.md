@@ -138,6 +138,17 @@ punt 5 hieronder.
    rijen (2 queries minder per CLIENT-dashboard); `suggestedFreelancersForClient` fan-out (pool
    één keer fetchen, in-memory scoren); `savedJobIds`-query op `/opdrachten` in de bestaande
    `Promise.all` vouwen.
+4. **CSV-uren tonen float-artefact in de CAO-afstem-export** (auditbevinding 8-9). `fmtHours` in
+   `src/lib/prestaties.ts` (~:243) én `src/lib/diensten.ts` (~:137) rendert uren met kale
+   `Number.toString()`; een som van ≥2 ORT-categorie-uren (bv. `4,1 + 2,2 = 6,300000000000001`)
+   lekt de IEEE-754-expansie in de "Uren"-kolom van de export die juist bedoeld is om tegen een
+   loonstrook af te stemmen (scherm toont wél netjes via `toLocaleString`). **Geld ongemoeid** (de
+   factuur rondt per segment in integer-centen). Fix: `(Math.round(hours*100)/100).toString()` of
+   `toLocaleString("nl-NL",{maximumFractionDigits:2})` in beide formatters. Klein, geïsoleerd.
+5. **Ongeguard `JSON.parse(p.ortSegments)`** in `diensten.ts:~65` en `prestaties.ts:~94` (elke andere
+   lezer van die kolom gebruikt een try/catch-parser: `ort.ts` `parseOrtSegments`, `performance-pdf.ts`
+   `parseSegments`). Eén corrupte rij laat de héle `/prestaties`/`/diensten`-pagina crashen i.p.v.
+   één rij. Alleen via out-of-band/corrupte data bereikbaar — LAAG, defensief.
 
 ### Wacht op een eigenaarsbesluit (niet zelf oppakken)
 

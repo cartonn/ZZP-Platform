@@ -11,8 +11,9 @@ const store = {
   credentialUpdates: [] as Array<{ id: string; data: Record<string, unknown> }>,
 };
 
-// Faithful mock: filters honour zowel het id-in-filter als een optioneel
-// `status`-guard, zodat de compound-guarded writes (VERIFIED-only) getest worden.
+// Faithful mock: filters honour het id-in-filter, een optionele `status`-guard én een
+// `freelancerProfileId`-filter (`{ in: [...] }` of een platte string), zodat de compound-
+// guarded writes (VERIFIED-only) én de per-profiel-gescopte dekkings-query getest worden.
 function matchesWhere(cred: Record<string, unknown>, where: Record<string, unknown>): boolean {
   const idFilter = where.id as { in?: string[] } | string | undefined;
   if (typeof idFilter === "string") {
@@ -21,6 +22,12 @@ function matchesWhere(cred: Record<string, unknown>, where: Record<string, unkno
     return false;
   }
   if (typeof where.status === "string" && cred.status !== where.status) return false;
+  const profileFilter = where.freelancerProfileId as { in?: string[] } | string | undefined;
+  if (typeof profileFilter === "string") {
+    if (cred.freelancerProfileId !== profileFilter) return false;
+  } else if (profileFilter?.in && !profileFilter.in.includes(cred.freelancerProfileId as string)) {
+    return false;
+  }
   return true;
 }
 
@@ -83,13 +90,17 @@ function makeCredential(
   expiresAt: Date | null,
   expiryReminderFor: Date | null = null,
   userId = "user-1",
+  type = "VOG",
+  freelancerProfileId = `profile-${userId}`,
 ) {
   return {
     id,
     status: "VERIFIED",
+    type,
     expiresAt,
     expiryReminderFor,
     title: `Certificaat ${id}`,
+    freelancerProfileId,
     freelancerProfile: { userId },
   };
 }
@@ -189,9 +200,11 @@ describe("runExpiryTask", () => {
       {
         id: "cred-race",
         status: "SUBMITTED", // huidige (transactie-tijd) staat: al opnieuw ingediend
+        type: "VOG",
         expiresAt: expiredAt,
         expiryReminderFor: null,
         title: "Certificaat cred-race",
+        freelancerProfileId: "profile-user-1",
         freelancerProfile: { userId: "user-1" },
       },
     ];
@@ -206,9 +219,11 @@ describe("runExpiryTask", () => {
       {
         id: "cred-race",
         status: "VERIFIED",
+        type: "VOG",
         expiresAt: expiredAt,
         expiryReminderFor: null,
         title: "Certificaat cred-race",
+        freelancerProfileId: "profile-user-1",
         freelancerProfile: { userId: "user-1" },
       },
     ]);
@@ -233,9 +248,11 @@ describe("runExpiryTask", () => {
       {
         id: "cred-remind-race",
         status: "SUBMITTED", // transactie-tijd: al opnieuw ingediend
+        type: "VOG",
         expiresAt: soonAt,
         expiryReminderFor: null,
         title: "Certificaat cred-remind-race",
+        freelancerProfileId: "profile-user-1",
         freelancerProfile: { userId: "user-1" },
       },
     ];
@@ -250,9 +267,11 @@ describe("runExpiryTask", () => {
       {
         id: "cred-remind-race",
         status: "VERIFIED",
+        type: "VOG",
         expiresAt: soonAt,
         expiryReminderFor: null,
         title: "Certificaat cred-remind-race",
+        freelancerProfileId: "profile-user-1",
         freelancerProfile: { userId: "user-1" },
       },
     ]);
@@ -265,5 +284,93 @@ describe("runExpiryTask", () => {
     expect(store.auditLogs).toHaveLength(0);
     // Geen dedup-markering geschreven op een niet-VERIFIED credential.
     expect(store.credentialUpdates).toHaveLength(0);
+  });
+
+  it("superseded — ouder cert verloopt binnenkort maar een later cert van hetzelfde type dekt → GEEN herinnering", async () => {
+    const soonAt = new Date("2026-06-29T00:00:00.000Z"); // 20 dagen (binnen venster)
+    const laterAt = new Date("2027-07-14T00:00:00.000Z"); // ~400 dagen (buiten venster)
+    // VOG #A (bijna verlopen) én VOG #B (veel later) — zelfde profiel, zelfde type.
+    store.credentials = [
+      makeCredential("vog-a", soonAt, null, "user-1", "VOG"),
+      makeCredential("vog-b", laterAt, null, "user-1", "VOG"),
+    ];
+
+    const { runExpiryTask } = await import("@/lib/expiry-task");
+    const result = await runExpiryTask({ actorId: null, now: NOW });
+
+    // #A is superseded door #B → geen "verloopt binnenkort"-nudge.
+    expect(result.reminded).toBe(0);
+    expect(result.expired).toBe(0);
+    expect(store.notifications.filter((n) => n.type === "CREDENTIAL_EXPIRING")).toHaveLength(0);
+    // Geen dedup-markering op #A geschreven.
+    expect(store.credentialUpdates).toHaveLength(0);
+  });
+
+  it("niet-superseded — twee VERSCHILLENDE types, één verloopt binnenkort → WEL herinnering", async () => {
+    const soonAt = new Date("2026-06-29T00:00:00.000Z"); // binnen venster
+    const laterAt = new Date("2027-07-14T00:00:00.000Z"); // buiten venster
+    // VOG #A (bijna verlopen) + DIPLOMA #B (later) — verschillend type → geen supersede.
+    store.credentials = [
+      makeCredential("vog-a", soonAt, null, "user-1", "VOG"),
+      makeCredential("dip-b", laterAt, null, "user-1", "DIPLOMA"),
+    ];
+
+    const { runExpiryTask } = await import("@/lib/expiry-task");
+    const result = await runExpiryTask({ actorId: null, now: NOW });
+
+    expect(result.reminded).toBe(1);
+    expect(store.notifications.filter((n) => n.type === "CREDENTIAL_EXPIRING")).toHaveLength(1);
+  });
+
+  it("cross-profiel geen valse dekking — zelfde type bij twee verschillende ZZP'ers dekt elkaar NIET", async () => {
+    const soonAt = new Date("2026-06-29T00:00:00.000Z"); // binnen venster
+    const laterAt = new Date("2027-07-14T00:00:00.000Z"); // buiten venster
+    // profiel-1: VOG bijna verlopen · profiel-2: VOG veel later — verschillende ZZP'ers.
+    store.credentials = [
+      makeCredential("vog-p1", soonAt, null, "user-1", "VOG"),
+      makeCredential("vog-p2", laterAt, null, "user-2", "VOG"),
+    ];
+
+    const { runExpiryTask } = await import("@/lib/expiry-task");
+    const result = await runExpiryTask({ actorId: null, now: NOW });
+
+    // Per-profiel-groepering: het cert van profiel-1 wordt NIET gedekt door dat van profiel-2.
+    expect(result.reminded).toBe(1);
+    const reminders = store.notifications.filter((n) => n.type === "CREDENTIAL_EXPIRING");
+    expect(reminders).toHaveLength(1);
+    expect(store.credentialUpdates.some((u) => u.id === "vog-p1")).toBe(true);
+  });
+
+  it("verlopen + gedekt type → WEL EXPIRED-flip, GEEN 'verlopen'-notificatie", async () => {
+    const expiredAt = new Date("2026-06-08T00:00:00.000Z"); // gisteren
+    const laterAt = new Date("2027-07-14T00:00:00.000Z"); // geldig, later, zelfde type
+    // VOG #A verlopen + VOG #B nog geldig — zelfde profiel/type: type is gedekt.
+    store.credentials = [
+      makeCredential("vog-a", expiredAt, null, "user-1", "VOG"),
+      makeCredential("vog-b", laterAt, null, "user-1", "VOG"),
+    ];
+
+    const { runExpiryTask } = await import("@/lib/expiry-task");
+    const result = await runExpiryTask({ actorId: null, now: NOW });
+
+    // De flip gebeurt echt (server-side waarheid), maar de valse "verlopen"-nudge blijft uit.
+    expect(result.expired).toBe(1);
+    const flipped = store.credentials.find((c) => c.id === "vog-a");
+    expect(flipped?.status).toBe("EXPIRED");
+    expect(store.notifications.filter((n) => n.type === "CREDENTIAL_EXPIRED")).toHaveLength(0);
+    // De audit-flip is er wel (volledige geflipte set).
+    expect(store.auditLogs.filter((a) => a.action === "CREDENTIALS_EXPIRED")).toHaveLength(1);
+  });
+
+  it("verlopen + ongedekt type → WEL 'verlopen'-notificatie", async () => {
+    const expiredAt = new Date("2026-06-08T00:00:00.000Z"); // gisteren, geen dekker
+    store.credentials = [makeCredential("vog-solo", expiredAt, null, "user-1", "VOG")];
+
+    const { runExpiryTask } = await import("@/lib/expiry-task");
+    const result = await runExpiryTask({ actorId: null, now: NOW });
+
+    // Geen dekking → de melding moet er wél zijn (geen over-onderdrukking).
+    expect(result.expired).toBe(1);
+    expect(store.notifications.filter((n) => n.type === "CREDENTIAL_EXPIRED")).toHaveLength(1);
   });
 });

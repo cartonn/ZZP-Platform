@@ -2,6 +2,34 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-08 — verval-cron onderdrukt valse "vernieuw"-nudge op gedekte/superseded certificaten
+
+**Wat:** de nachtelijke verval-cron (`runExpiryTask`, `src/lib/expiry-task.ts`) laadde enkel VERIFIED-
+certificaten die binnen 30 dagen verlopen en was — anders dan élk lees-oppervlak — **niet
+dekking-/superseded-bewust**. Elke lezer (de `/certificaten`-badge `signals.ts`, `/acties`
+`pending-tasks.ts`, de roster `rosterExpiringByProfile`) onderdrukt bewust een "vernieuw dit
+certificaat"-nudge zodra het type al gedekt wordt door een ander nu-geldig VERIFIED-certificaat
+(zie `supersededVerifiedCredentialIds`/`coveredCredentialTypes` in `credentials.ts`). De cron sprak
+die surfaces tegen: een ZZP'er met bv. VOG #A (verloopt over 12 dagen) én VOG #B (geldig tot 2027)
+kreeg een "verloopt binnenkort — vernieuw het op tijd"-notificatie op #A, precies de valse melding die
+de rest van het platform juist wegfiltert. De cron kón #B niet eens zien (het valt buiten het
+30-dagen-scanvenster). Server-side-waarheid dus intern tegenstrijdig (CLAUDE.md regel 1).
+
+**Aanpak (hergebruik, geen duplicatie):** twee-staps-load die exact `summarizeRosterExpiringSoon`
+(`data/roster-expiry.ts`) spiegelt — na de kandidaat-scan het VOLLEDIGE VERIFIED-dossier van de
+kandidaat-profielen laden (óók langer-geldige/onbeperkte dekkers buiten het venster) en **per profiel**
+(cross-profiel dekt niet) `supersededVerifiedCredentialIds` + `coveredCredentialTypes` berekenen.
+Herinnerings-pad: superseded ids op plan-niveau uit `toRemind` gefilterd (de bestaande VERIFIED-
+herlezing/TOCTOU, dedup-marker en `reminded`-telling volgen vanzelf). Verloop-pad: de EXPIRED-flip +
+audit blijven de volledige geflipte set (de overgang gebeurt echt; badges leunen op de status), alleen
+de "verlopen, vernieuw het"-**notificatie** wordt onderdrukt als het type al gedekt is — consistent met
+`coveredCredentialTypes`. Geen wijziging aan de pure `planExpiryRun` of `credentials.ts`. **Bestanden:**
+`src/lib/expiry-task.ts`, `src/lib/expiry-task.test.ts` (+5 tests: superseded → geen herinnering,
+verschillende types → wél, cross-profiel geen valse dekking, verlopen+gedekt → flip zonder melding,
+verlopen+ongedekt → wél melding; harness leest nu `type`/`freelancerProfileId` en honoreert het
+`freelancerProfileId`-filter). **Checks:** typecheck ✓ · lint ✓ · unit (full 8484) ✓ · build + CI-poort
+verifiëren · prettier ✓.
+
 ## 2026-09-08 — prod: single-flight coalescing op de gezondheids-probes (/api/health + /api/readiness, pool-uitputting-amplificatie)
 
 **Wat:** de twee publieke, ongeauthenticeerde gezondheids-endpoints (`/api/health` liveness, `/api/readiness`
