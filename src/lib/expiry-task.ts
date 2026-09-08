@@ -5,7 +5,12 @@
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { planExpiryRun, EXPIRY_REMINDER_WINDOW_DAYS, type ExpiryCandidate } from "@/lib/expiry";
-import { credentialEditPath } from "@/lib/credentials";
+import {
+  credentialEditPath,
+  supersededVerifiedCredentialIds,
+  coveredCredentialTypes,
+  type SupersedeInput,
+} from "@/lib/credentials";
 import { type CredentialStatus } from "@/lib/enums";
 import { plural } from "@/lib/plural";
 
@@ -64,7 +69,59 @@ export async function runExpiryTask(opts: {
     userId: c.freelancerProfile.userId,
   }));
 
+  // Dekkings-context. De leesoppervlakken — badge (signals.ts), /acties (pending-tasks.ts),
+  // roster (rosterExpiringByProfile) — onderdrukken bewust een "vernieuw dit certificaat"-nudge
+  // zodra het type al gedekt wordt door een ander nu-geldig VERIFIED-certificaat. Deze cron mag
+  // die surfaces niet tegenspreken. We laden daarom het VOLLEDIGE VERIFIED-dossier van de
+  // kandidaat-profielen — óók langer-geldige/onbeperkte dekkers die buiten het 30-dagen-venster
+  // vallen — en berekenen per profiel de superseded-ids en gedekte types. Twee-staps-patroon en
+  // per-profiel-scoping spiegelen summarizeRosterExpiringSoon (data/roster-expiry.ts).
+  const candidateProfileIds = [...new Set(rows.map((c) => c.freelancerProfileId))];
+
+  const coverRows =
+    candidateProfileIds.length > 0
+      ? await prisma.credential.findMany({
+          where: { status: "VERIFIED", freelancerProfileId: { in: candidateProfileIds } },
+          select: { id: true, type: true, expiresAt: true, freelancerProfileId: true },
+        })
+      : [];
+
+  // Groepeer per profiel: supersede/dekking MOET binnen één profiel gebeuren, anders botsen
+  // gelijke types tussen verschillende ZZP'ers en dekt een cert van de één dat van de ander.
+  const coverByProfile = new Map<string, SupersedeInput[]>();
+  for (const c of coverRows) {
+    const input: SupersedeInput = {
+      id: c.id,
+      type: c.type,
+      status: "VERIFIED" as const,
+      expiresAt: c.expiresAt,
+    };
+    const list = coverByProfile.get(c.freelancerProfileId);
+    if (list) list.push(input);
+    else coverByProfile.set(c.freelancerProfileId, [input]);
+  }
+
+  const supersededIds = new Set<string>();
+  const coveredTypesByProfile = new Map<string, Set<string>>();
+  for (const [profileId, list] of coverByProfile) {
+    for (const id of supersededVerifiedCredentialIds(list, now)) supersededIds.add(id);
+    coveredTypesByProfile.set(profileId, coveredCredentialTypes(list, now));
+  }
+
+  // Kandidaat-id → profiel + type, voor de dekkings-gate op het verloop-notificatiepad.
+  const credMetaById = new Map<string, { profileId: string; type: string }>();
+  for (const c of rows) {
+    credMetaById.set(c.id, { profileId: c.freelancerProfileId, type: c.type });
+  }
+
   const plan = planExpiryRun(candidates, now);
+
+  // Herinnerings-pad: laat superseded certificaten vallen. Een ouder cert waarvan een nieuwer,
+  // nu-geldig cert van hetzelfde type de compliance al draagt, hoeft niet vernieuwd te worden —
+  // een "verloopt binnenkort"-nudge daarop is een valse melding (consistent met de surfaces).
+  // Op plan-niveau gefilterd zodat de bestaande VERIFIED-herlezing (TOCTOU), de dedup-marker en
+  // de `reminded`-telling vanzelf de gefilterde set volgen.
+  plan.toRemind = plan.toRemind.filter((r) => !supersededIds.has(r.id));
 
   // Niets te doen: geen transactie, geen lege auditregels.
   if (plan.toExpire.length === 0 && plan.toRemind.length === 0) {
@@ -108,6 +165,18 @@ export async function runExpiryTask(opts: {
       if (expired > 0) {
         // Eén notificatie per daadwerkelijk verlopen credential.
         for (const item of expiredItems) {
+          // Dekkings-gate op de MELDING (niet op de flip). Is het type van dit verlopen
+          // certificaat al gedekt door een ander nu-geldig VERIFIED-certificaat van hetzelfde
+          // profiel, dan sturen we GEEN "verlopen, vernieuw het"-notificatie — dat zou een valse
+          // nudge zijn die de leesoppervlakken (coveredCredentialTypes) juist onderdrukken.
+          // De EXPIRED-flip, de `expired`-telling en de audit-ids blijven de volledige geflipte
+          // set (de overgang gebeurde echt; badges leunen op de server-side status).
+          const meta = credMetaById.get(item.id);
+          const covered = meta
+            ? (coveredTypesByProfile.get(meta.profileId)?.has(meta.type) ?? false)
+            : false;
+          if (covered) continue; // gedekt type: geen valse "vernieuw"-nudge
+
           await tx.notification.create({
             data: {
               userId: item.userId,
