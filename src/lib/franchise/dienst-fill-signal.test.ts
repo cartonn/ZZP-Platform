@@ -90,6 +90,40 @@ describe("computeDienstFill", () => {
     expect(signal.readyMatches).toBe(0);
   });
 
+  it("telt een vrij-inzetbare vakmens die NU op vakantie is (lopend UNAVAILABLE-venster) niet mee", () => {
+    // Grove availability = AVAILABLE, maar een UNAVAILABLE-venster dekt NOW (2026-07-15) → afwezig.
+    // Pariteit met de roster-capaciteitstegel, die deze vakmens ook uitsluit (verspilde voordracht).
+    const onLeave: RosterFreelancerSource = {
+      ...strongIdleFreelancer("v"),
+      availabilityWindows: [
+        {
+          startDate: new Date("2026-07-10T00:00:00Z"),
+          endDate: new Date("2026-07-20T00:00:00Z"),
+          type: "UNAVAILABLE",
+        },
+      ],
+    };
+    const signal = computeDienstFill(JOB, [onLeave], NOW);
+    expect(signal.idleReady).toBe(0);
+    expect(signal.readyMatches).toBe(0);
+  });
+
+  it("telt dezelfde vakmens wél mee zodra het vakantie-venster voorbij is", () => {
+    const afterLeave: RosterFreelancerSource = {
+      ...strongIdleFreelancer("w"),
+      availabilityWindows: [
+        {
+          startDate: new Date("2026-06-01T00:00:00Z"),
+          endDate: new Date("2026-06-10T00:00:00Z"),
+          type: "UNAVAILABLE",
+        },
+      ],
+    };
+    const signal = computeDienstFill(JOB, [afterLeave], NOW);
+    expect(signal.idleReady).toBe(1);
+    expect(signal.readyMatches).toBe(1);
+  });
+
   it("telt een niet-inzetbare ZZP'er (ontbrekend verplicht bewijs) niet als vrije capaciteit", () => {
     // Geen VOG → engageability AANDACHT/INACTIEF → niet vrij-inzetbaar.
     const noVog: RosterFreelancerSource = {
