@@ -48,7 +48,7 @@ describe("buildRosterTimeline — horizon", () => {
     expect(days).toHaveLength(7);
   });
 
-  it("start op de UTC-dag van now (inclusief vandaag) met opeenvolgende dagen", () => {
+  it("start op de NL-kalenderdag van now (inclusief vandaag) met opeenvolgende dagen", () => {
     const { days } = buildRosterTimeline([], NOW);
     expect(days[0]!.iso).toBe("2026-03-02");
     const expected = [
@@ -261,6 +261,45 @@ describe("buildRosterTimeline — sortering", () => {
     const members = [member("id-1", "Bram"), member("id-2", "Anna")];
     const { rows } = buildRosterTimeline(members, NOW);
     expect(rows.map((r) => r.name)).toEqual(["Anna", "Bram"]);
+  });
+});
+
+// De productieserver (Railway) draait in UTC. De horizon moet verankeren op de Amsterdamse
+// burgerlijke dag van `now`, niet op de UTC-dag — anders ziet een bemiddelaar die 's avonds laat
+// (NL-tijd) `/franchise/planning` opent "vandaag" als gisteren en verschuift het hele raster.
+describe("buildRosterTimeline — horizon-anker op de NL-kalenderdag (UTC-server)", () => {
+  it("zomertijd: 23:00Z (= 01:00 NL, al de volgende dag) verankert op de NL-dag", () => {
+    // 2026-09-07T23:00Z = 2026-09-08 01:00 CEST (UTC+2) → al dinsdag 8 sep in NL.
+    const now = new Date("2026-09-07T23:00:00Z");
+    const { days } = buildRosterTimeline([], now);
+    expect(days[0]!.iso).toBe("2026-09-08");
+    expect(days).toHaveLength(14);
+    // Het hele venster schuift mee: laatste dag = anker + 13.
+    expect(days[13]!.iso).toBe("2026-09-21");
+  });
+
+  it("wintertijd: 23:30Z (= 00:30 NL, al de volgende dag) verankert op de NL-dag", () => {
+    // 2026-01-15T23:30Z = 2026-01-16 00:30 CET (UTC+1) → al 16 jan in NL.
+    const now = new Date("2026-01-15T23:30:00Z");
+    const { days } = buildRosterTimeline([], now);
+    expect(days[0]!.iso).toBe("2026-01-16");
+  });
+
+  it("vóór middernacht NL blijft het dezelfde kalenderdag (geen over-correctie)", () => {
+    // 2026-09-07T21:30Z = 2026-09-07 23:30 CEST → nog steeds 7 sep in NL.
+    const now = new Date("2026-09-07T21:30:00Z");
+    const { days } = buildRosterTimeline([], now);
+    expect(days[0]!.iso).toBe("2026-09-07");
+  });
+
+  it("een plaatsing die gisteren (NL) eindigde bezet 'vandaag' niet meer", () => {
+    // now = 2026-09-08 01:00 NL; plaatsing eindigde 2026-09-07 (gisteren NL).
+    const now = new Date("2026-09-07T23:00:00Z");
+    const m = member("m1", "Anna", { placementEnds: [d("2026-09-07")] });
+    const { rows, days } = buildRosterTimeline([m], now);
+    expect(days[0]!.iso).toBe("2026-09-08");
+    // Vandaag (de eerste horizon-dag) is niet meer bezet door de afgelopen plaatsing.
+    expect(rows[0]!.cells[0]!.state).not.toBe("PLACED");
   });
 });
 

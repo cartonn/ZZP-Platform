@@ -2,6 +2,26 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-08 — robuustheid: roosterbezetting-tijdlijn anchort 'vandaag' op de NL-kalenderdag (UTC-server-drift)
+
+**Wat:** de bemiddelaar-roosterbezetting (`/franchise/planning`, `buildRosterTimeline`) verankerde de
+14-daagse horizon op de **UTC-dag** van `now` (`utcMidnight`). De productieserver (Railway) draait in UTC,
+dus tussen middernacht NL en middernacht UTC (bv. 23:00Z = 01:00 NL in de zomer, of 23:30Z = 00:30 NL in de
+winter) is het hier al de volgende burgerlijke dag. Gevolg: een bemiddelaar die 's avonds laat het rooster
+opende zag **"vandaag" als gisteren**, het hele raster schoof één dag achter, en de laatste horizon-dag viel
+weg — precies wanneer de avond-/nachtplanning telt. Deterministisch elke avond reproduceerbaar.
+
+**Aanpak (hergebruik, geen duplicatie):** `buildDays` verankert nu op `amsterdamCivilDayMs(now)` — dezelfde
+Europe/Amsterdam-burgerlijke-dag-bron als de fiscale kalender (`src/lib/administration/fiscal-calendar.ts`),
+die exact dit faalpad (UTC-server, boeking vlak na middernacht NL) al elders afdekt. Het verder stappen in
+UTC-dagen houdt de iso-dagsleutels uitgelijnd op de UTC-middernacht-sentinels van `AvailabilityWindow`/
+`endDate`, dus alle cel-/plaatsing-/venster-logica blijft ongewijzigd; alleen de ankerdag klopt nu. Pure,
+deterministische helper — geen I/O, geen status-/geldstroommutatie. **Bestanden:** `src/lib/franchise/
+roster-timeline.ts`, `src/lib/franchise/roster-timeline.test.ts` (+4 tests, rood→groen: zomer 23:00Z→8 sep,
+winter 23:30Z→16 jan, vóór-middernacht-NL geen over-correctie, afgelopen plaatsing bezet 'vandaag' niet meer).
+**Checks:** typecheck ✓ · lint ✓ · unit 8467/8469 (2 skipped) ✓ · build ✓ · prettier ✓ · CI-poort verifiëren.
+PR #1437.
+
 ## 2026-09-08 — persona-sweep: FREELANCER /certificaten-badge volgt /acties op verval (3× badge↔lijst-drift)
 
 **Wat:** persona-sweep run 7 (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op niet-

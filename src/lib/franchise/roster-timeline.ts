@@ -10,6 +10,8 @@
 // Beschikbaarheid is een advies-signaal, geen harde poort — de ZZP'er beslist zelf bij het accepteren;
 // deze helper toont alleen (CLAUDE.md regel 1, server-side blijft de waarheid).
 
+import { amsterdamCivilDayMs } from "@/lib/administration/fiscal-calendar";
+
 /** Planhorizon: twee weken vooruit — ver genoeg om te plannen, dichtbij genoeg om actie te zijn. */
 export const TIMELINE_HORIZON_DAYS = 14;
 
@@ -98,14 +100,18 @@ function toDayKey(d: Date): string | null {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
-/** UTC-middernacht van de dag waarin `d` valt. */
-function utcMidnight(d: Date): Date {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-}
-
-/** Bouwt de horizon: `horizon` opeenvolgende dagen vanaf de UTC-dag van `now` (inclusief vandaag). */
+/**
+ * Bouwt de horizon: `horizon` opeenvolgende dagen vanaf de **Amsterdamse burgerlijke dag** van `now`
+ * (inclusief vandaag). De productieserver (Railway) draait in UTC, dus `now` mag niet op de UTC-dag
+ * verankerd worden: tussen middernacht NL en middernacht UTC (bv. 23:00Z = 01:00 NL in de zomer) is
+ * het al de volgende burgerlijke dag hier. Zonder correctie zag een bemiddelaar die 's avonds laat
+ * `/franchise/planning` opent "vandaag" als gisteren, schoof het hele 14-daagse raster één dag achter
+ * en verdween de laatste horizon-dag. `amsterdamCivilDayMs` (zelfde bron als de fiscale kalender)
+ * geeft de UTC-middernacht-epoch van de NL-kalenderdag; het verder in UTC-dagen stappen houdt de
+ * iso-sleutels uitgelijnd op de UTC-middernacht-sentinels van `AvailabilityWindow`/`endDate`.
+ */
 function buildDays(now: Date, horizon: number): TimelineDay[] {
-  const start = utcMidnight(now).getTime();
+  const start = amsterdamCivilDayMs(now);
   const days: TimelineDay[] = [];
   for (let i = 0; i < horizon; i++) {
     const date = new Date(start + i * DAY_MS);
