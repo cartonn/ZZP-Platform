@@ -6,6 +6,7 @@ import { CheckCircle2 } from "lucide-react";
 import { computeOrt, resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { formatEuro } from "@/lib/invoices";
+import { computeInvoicePreview } from "@/lib/performance-invoice-preview";
 
 interface OrtBreakdownProps {
   ortSegments: OrtSegment[];
@@ -29,6 +30,9 @@ export function OrtBreakdown({
     resolveEffectiveOrtRates({ ortRatesSnapshot, ortProfile, ortCustomRates }),
   );
   if (result.lines.length === 0) return null;
+  // Conceptfactuur-uitkomst: dezelfde BTW-berekening als de cascade bij goedkeuring vastlegt,
+  // zodat "totaal incl. btw" hier gelijk is aan de latere Invoice.totalCents.
+  const preview = computeInvoicePreview(result.subtotalCents);
   return (
     <div className="mt-2 space-y-1">
       <p className="text-xs font-medium text-muted-foreground">ORT-uitsplitsing</p>
@@ -76,6 +80,26 @@ export function OrtBreakdown({
               {formatEuro(result.subtotalCents)}
             </td>
           </tr>
+          {preview && (
+            <>
+              <tr>
+                <td colSpan={4} className="py-0.5 text-muted-foreground">
+                  Btw ({Math.round(preview.vatRateBps / 100)}%)
+                </td>
+                <td className="py-0.5 text-right tabular-nums text-muted-foreground">
+                  {formatEuro(preview.vatCents)}
+                </td>
+              </tr>
+              <tr className="border-t border-border/40">
+                <td colSpan={4} className="py-0.5 font-medium">
+                  Totaal incl. btw
+                </td>
+                <td className="py-0.5 text-right font-semibold tabular-nums">
+                  {formatEuro(preview.totalCents)}
+                </td>
+              </tr>
+            </>
+          )}
         </tfoot>
       </table>
     </div>
