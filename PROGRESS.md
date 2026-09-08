@@ -2,6 +2,30 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-08 — DBA: duurdrempel-vooruitblik (waarschuw vóór verhoogd/hoog risico) op de samenwerking-detailpagina
+
+**Wat:** de DBA-duursignalering (`dba-monitor.ts`) is reactief — ze verschijnt pas zodra een inzet de
+6-maanden- (verhoogd) of 12-maanden-drempel (hoog risico) al gepasseerd heeft. Schijnzelfstandigheid
+is echter vooral proactief te beheersen. Nieuw: een rustige **vooruitblik-kaart** op de samenwerking-
+detailpagina die opdrachtgever/ZZP'er/bemiddelaar waarschuwt _voordat_ de inzet een duurdrempel kruist
+("Deze samenwerking bereikt over 2 weken de grens van 12 maanden onafgebroken inzet — overweeg nu een
+interne beoordeling"), zodat er tijdig een evaluatie gepland kan worden i.p.v. pas ná de kruising te
+signaleren. Draagt dezelfde disclaimer (Besluit 2 — signalering ter informatie, geen juridisch oordeel).
+
+**Aanpak (pure kern, consistent met het reactieve signaal):** nieuwe pure module
+`src/lib/dba-duration-forecast.ts` — `forecastDbaDurationCrossing(startDate, now, thresholds?, leadDays?)`
+kiest de eerstvolgende nog-niet-gepasseerde drempel (verhoogd vóór hoog), berekent de exacte kruisdatum
+via `dbaThresholdCrossingDate` (dag-correctie identiek aan `monthsBetween`: 31e → 1e van de volgende maand
+wanneer de doelmaand die dag niet heeft) en meldt alleen wanneer de kruising binnen `leadDays` (default 30)
+valt. Gebruikt exact dezelfde `startDate` + klok als de reactieve `assessCollaborationDba` op dezelfde
+pagina → vooruitblik en signaal kunnen niet uit elkaar lopen. Alle drempels gepasseerd of geen startdatum
+→ `null` (het reactieve signaal dekt dat). Display-only server-component `DbaDurationForecastNote`; geen
+schema-/mutatie-/authz-oppervlak, geen dode knop. **Bestanden:** `src/lib/dba-duration-forecast.ts`
+(+ `.test.ts`, 15 tests: kruisdatum incl. maand-overflow, leadtijd-formattering, venstergrens `<=`,
+aangepaste drempels/venster, dedup gelijke drempels), `src/components/collaborations/dba-duration-forecast-note.tsx`,
+`src/app/(protected)/samenwerkingen/[id]/page.tsx`. **Checks:** typecheck ✓ · lint ✓ · prettier ✓ ·
+unit (forecast 15/15) ✓ · volledige unit + build + CI-poort verifiëren. PR #1436.
+
 ## 2026-09-08 — persona-sweep: FREELANCER /certificaten-badge volgt /acties op verval (3× badge↔lijst-drift)
 
 **Wat:** persona-sweep run 7 (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op niet-
