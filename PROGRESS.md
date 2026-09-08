@@ -2,6 +2,31 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-08 — security/privacy: k-anonimiteitsvloer-poort scant recursief (submap-blindvlek gedicht, HOOG)
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: A authz/IDOR/cross-tenant, B injectie/upload/error-lek/CSP/SSRF, C
+privacy/AVG). **0 nieuwe exploiteerbare security-gaten** — alle drie de audits + `npm audit --omit=dev`
+(0 vulns) bevestigen de gehardheid (ownership vóór byte-uitgifte, anti-oracle-404, timing-safe secrets,
+alle CSV via `escapeCsvField`, storage-keys `randomUUID`, SSRF alleen vaste hosts, één nonce-gated
+`dangerouslySetInnerHTML`). **1 HOOG privacy-defect GEVONDEN & GEDICHT** (twee audits kwamen er
+onafhankelijk op uit): de afdwing-poort voor de k-anonimiteitsvloer op beoordelingsaggregaten
+(`review-aggregate-floor-coverage.test.ts`, gisteren toegevoegd bij #1432) scande `src/lib` **niet-
+recursief** (`readdirSync` zonder `recursive`). De ~27 submappen (`data/`, `franchise/`, `compliance/`, …)
+vielen buiten bereik — precies waar een nieuwe `aggregateReviews`-consument organisch landt — terwijl de
+test-naam/commentaar een volledige garantie claimden. Een toekomstige call-site in een submap kon zo de
+vloer `REVIEW_AGGREGATE_MIN_SAMPLE` stil weglaten (individueel herleidbaar cijfer bij n=1/n=2) zónder dat
+de build faalde. Geen actief lek vandaag (de drie huidige consumenten passen de vloer toe), maar een vals
+gevoel van dekking. **Geschonden:** AVG art. 5(1)(f)/25 (privacy-by-design) + art. 5(2)
+(verantwoordingsplicht).
+
+**Aanpak:** recursieve walker `findFloorlessAggregateConsumers(root, exempt)` (POSIX-relatieve paden,
+stabiel cross-platform) vervangt de platte scan; regressietest plaatst een floorless consument in een
+submap-fixture en pint dat de poort hem nú detecteert (rood→groen tegen de oude niet-recursieve scan) én
+een correcte consument mét vloer negeert. **Bestanden:** `src/lib/compliance/review-aggregate-floor-
+coverage.test.ts` (5 tests groen). **Checks:** typecheck ✓ · lint ✓ · unit ✓ · build ✓ · prettier ✓ ·
+CI-poort verifiëren. Backlog: `docs/SECURITY-PRIVACY-BACKLOG.md` bijgewerkt.
+
 ## 2026-09-08 — robuustheid: roosterbezetting-tijdlijn anchort 'vandaag' op de NL-kalenderdag (UTC-server-drift)
 
 **Wat:** de bemiddelaar-roosterbezetting (`/franchise/planning`, `buildRosterTimeline`) verankerde de

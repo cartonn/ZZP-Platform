@@ -4,6 +4,46 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-08 (4e, basis: `main` @ 37728a2c) — 3 parallelle adversariële audits + orchestrator-sweep: 1 HOOG privacy-defect GEVONDEN & GEDICHT, 0 exploiteerbare security-gaten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.
+**A** — object-/functieniveau-authz + IDOR + cross-tenant (FRANCHISER) over de delta `f6a1863c..HEAD` +
+de nieuwste features (#1427–#1437: DBA-risico, factuurvoorspelling, roster-timeline, Handslag-landing).
+**B** — injectie (CSV/formule/XSS/ICS/PDF), upload-veiligheid/path-traversal, error-lekkage, CSP/headers,
+SSRF, `npm audit`. **C** — privacy/AVG: data-minimalisatie/PII-overfetch, erasure-volledigheid,
+k-anonimiteitsvloeren, audit-logging, PII-in-logs, data-naar-derden.
+
+**OPGELOST — [HOOG · k-anonimiteits-afdwing-poort scant niet-recursief; submap-blindvlek] (deze PR).**
+Twee van de drie audits kwamen er onafhankelijk op uit. De poort
+`src/lib/compliance/review-aggregate-floor-coverage.test.ts` (toegevoegd 8-9 bij #1432) moet garanderen dat
+**élke** `aggregateReviews`-consument onder `src/lib` de vloer `REVIEW_AGGREGATE_MIN_SAMPLE` toepast, maar
+scande met `readdirSync(LIB_DIR, …)` **zonder `recursive`** — dus alleen bestanden direct in `src/lib`, niet
+de ~27 submappen (`data/`, `franchise/`, `compliance/`, …). **Repro:** `printf 'import {aggregateReviews}
+from "@/lib/reviews"; export const x = aggregateReviews([{rating:5}]);' > src/lib/data/x.ts && npx vitest run
+src/lib/compliance/review-aggregate-floor-coverage.test.ts` → **groen** ondanks de floorless n=1-consument.
+**Impact:** geen actief lek vandaag (de drie huidige consumenten passen de vloer toe; de `src/lib/data/*`-
+wrappers delegeren ernaar), maar een vals gevoel van AVG-dekking; een toekomstige call-site in een submap kon
+het n=1/n=2-individueel-herleidbare-cijfer-lek stil herintroduceren. **Geschonden:** AVG art. 5(1)(f)/25
+(privacy-by-design) + art. 5(2) (verantwoordingsplicht). **Fix:** recursieve walker
+`findFloorlessAggregateConsumers` + regressietest die een floorless consument in een submap-fixture detecteert
+(rood→groen) en een correcte consument mét vloer negeert. 5 tests groen.
+
+**GEEN nieuw exploiteerbaar security-gat.** Bevestigd clean (met file:line-bewijs per audit): (a) IDOR/authz —
+de delta raakt géén `src/lib/actions/` of `src/app/api/**/route.ts` (geen nieuwe mutaties); nieuwe reads
+(factuurvoorspelling, DBA-mitigatie) zijn pure functies op reeds-ownership-gescopete objecten; `/franchise/
+planning` scopet op query-niveau (`tenantScopeWhere`); `candidate-compare-data.ts` gate't `job … company:{
+userId }`. (b) Injectie — alle CSV via `escapeCsvField` (CWE-1236), één nonce-gated
+`dangerouslySetInnerHTML` (thema-script), ICS-velden ge-escaped + UID's uit DB-id's, PDF via `pdf-lib`
+drawText. (c) Upload — allowlist-MIME + magic-byte-sniff, `randomUUID`-keys (geen path-traversal), media-route
+whitelist op `Company.logoKey`, document-route ownership + anti-oracle-404 + audit, scanner fail-closed. (d)
+SSRF — alle server-fetch naar vaste hosts (Geoapify/Mollie/Resend/HIBP/Upstash), geen user-URL. (e) Error —
+`safe-action-error.ts` scheidt curated van technische fouten; cron-taken generieke NL-melding. (f) Headers/CSP
+— nonce+`strict-dynamic` in prod, volledige security-header-set. (g) `npm audit --omit=dev` → **0 vulns**.
+Publieke Handslag-landing (`src/app/page.tsx`) — geen DB/mutatie/PII. FYI (geen blocker): de middleware-matcher
+slaat auth/CSP over voor paden met een letterlijke punt (bewust, gedocumenteerd mechanisme voor `/api/agenda/
+feed.ics`); geen beschermde route met punt-segment lekt erdoor — waard om te bewaken bij toekomstige dynamische
+segmenten.
+
 ## Ronde 2026-09-08 (3e, basis: `main` @ f6a1863c) — 3 parallelle adversariële audits + orchestrator-sweep: 1 nieuw HOOG privacy-gat GEVONDEN & GEDICHT, 0 exploiteerbare security-gaten
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.
