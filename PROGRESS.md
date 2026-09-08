@@ -2,6 +2,29 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-08 — cascade: ORT-verdienpreview ook in de handmatige urenmodus (ZZP'er)
+
+**Wat:** de ZZP'er zag bij het indienen van een urenstaat een live ORT-verdienpreview (uren per
+categorie + subtotaal excl. btw) **alleen in de dienstenmodus** (begin/eind-tijden). Wie de
+onregelmatige uren **handmatig per categorie** invulde (avond/nacht/weekend/feestdag), zag geen
+enkele berekening — die persoon diende blind in en wist pas ná goedkeuring wat de opdracht opleverde.
+Nu toont het formulier in béíde modi hetzelfde voorbeeld, plus een nieuwe **"Totaal uren"**-regel.
+De dienstenmodus houdt voorrang (server: shifts > handmatig), dus het handmatige voorbeeld verschijnt
+alleen als er geen geldige dienstrijen staan — consistent met wat de server indient. Server-side
+blijft de waarheid: het voorbeeld is een richtbedrag, de opdrachtgever keurt de definitieve
+berekening goed.
+
+**Aanpak (DRY + pariteit):** één gedeelde, pure bron `src/lib/manual-ort.ts` (`MANUAL_ORT_FIELDS`
+= veldnaam↔categorie↔label in canonieke volgorde, en `manualOrtSegments()` die uren>0 in vaste
+volgorde tot segmenten bouwt). Zowel de server-actie (`parsePerformanceInput`) als het formulier
+lezen hieruit, zodat de precedentie/volgorde tussen wat de ZZP'er ziet en wat de server berekent
+niet kan driften. Het formulier deelt nu één `OrtPreviewTable`-component tussen beide modi.
+**Bestanden:** `src/lib/manual-ort.ts` (+ `.test.ts`, 6 tests), `src/app/(protected)/samenwerkingen/[id]/actions.ts`
+(inline `ortFields`-blok → gedeelde helper, gedrag identiek), `src/app/(protected)/samenwerkingen/[id]/performance-form.tsx`
+(gedeeld preview-component + gecontroleerde handmatige velden + handmatig voorbeeld + totaal-uren).
+**Checks:** typecheck ✓ · lint ✓ · unit 170/170 (relevante suites) incl. manual-ort 6/6 ✓ · build ✓
+(109/109 static pages) · prettier ✓ · CI-poort verifiëren. PR #1431.
+
 ## 2026-09-07 — DBA-monitor: risico-verlaagstappen ook op de opgeslagen opdracht-detailpagina
 
 **Wat:** de concrete "next best action" van de DBA-monitor (`dbaMitigations`, #1427 — de kleinste set
