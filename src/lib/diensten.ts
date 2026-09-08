@@ -3,6 +3,7 @@
 
 import { prisma } from "@/lib/db";
 import { type OrtSegment, ortSubtotalCents, resolveOrtRates } from "@/lib/ort";
+import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
 import {
   type OrtBreakdown,
   reconcileSubtotalWithInvoice,
@@ -74,7 +75,7 @@ export async function getDienstenForFreelancer(userId: string): Promise<DienstSu
       if (hasOrt) {
         liveSubtotalCents = ortSubtotalCents(ortSegs, p.rateCents, rates);
       } else if (p.hours != null) {
-        liveSubtotalCents = Math.round(p.hours * p.rateCents);
+        liveSubtotalCents = hoursTimesRateCents(p.hours, p.rateCents);
       }
     } else if (p.type === "MILESTONE" && p.amountCents != null) {
       liveSubtotalCents = p.amountCents;

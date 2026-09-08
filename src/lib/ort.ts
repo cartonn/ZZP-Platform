@@ -13,6 +13,7 @@ import {
   ORT_CATEGORIES,
   MAX_ORT_CUSTOM_BPS,
 } from "@/lib/config";
+import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
 
 /** Een gewerkte categorie; "NORMAL" = geen toeslag. */
 export type OrtSegmentCategory = OrtCategory | "NORMAL";
@@ -71,7 +72,8 @@ export function computeOrt(
     if (!VALID_SEGMENT_CATEGORIES.has(seg.category)) {
       throw new Error(`Onbekende ORT-categorie: ${seg.category}`);
     }
-    const base = Math.round(seg.hours * hourlyRateCents);
+    // Exacte commerciële afronding in integer-ruimte (geen IEEE-754-halvecent-drift). Zie hourly-cents.ts.
+    const base = hoursTimesRateCents(seg.hours, hourlyRateCents);
     const surchargeBps = seg.category === "NORMAL" ? 0 : rates[seg.category];
     const surcharge = Math.round((base * surchargeBps) / 10000);
     lines.push({

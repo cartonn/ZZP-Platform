@@ -3,6 +3,7 @@
 // Verschillende tarieven + verlegd/vrijgesteld als configuratie-optie (zie config.ts).
 
 import { VAT_RATE_BPS, regimeChargesVat, type VatRegime } from "@/lib/config";
+import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
 
 export interface VatBreakdown {
   subtotalCents: number; //  bedrag exclusief BTW
@@ -34,8 +35,8 @@ export function computeVat(subtotalCents: number, regime: VatRegime): VatBreakdo
 /** Subtotaal voor uurtarief: uren × uurtarief (beide bron-eenheden, resultaat in centen). */
 export function hourlySubtotalCents(hours: number, hourlyRateCents: number): number {
   if (hours < 0 || hourlyRateCents < 0) throw new Error("Uren en tarief mogen niet negatief zijn.");
-  // Uren mogen kwartieren zijn (bv. 7,25) → centen blijven integer via afronding op hele cent.
-  return Math.round(hours * hourlyRateCents);
+  // Exacte commerciële afronding in integer-ruimte (geen IEEE-754-halvecent-drift). Zie hourly-cents.ts.
+  return hoursTimesRateCents(hours, hourlyRateCents);
 }
 
 /** Een creditregel is de tegenboeking: zelfde regime, negatief subtotaal. */

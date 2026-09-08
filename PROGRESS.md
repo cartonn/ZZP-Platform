@@ -28,6 +28,36 @@ sleutel-vrijgave, onafhankelijke sleutels, geen lek bij synchrone worp), `src/ap
 `src/app/api/health/route.ts`. **Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (nieuw + readiness/health)
 ✓ · full unit + build + CI-poort verifiëren. MENSENWERK.md §0b bijgewerkt.
 
+## 2026-09-08 — geld: exacte commerciële afronding op "uren × tarief" (IEEE-754-halvecent-onderbetaling gedicht)
+
+**Wat:** de factuurbasis `uren × uurtarief` werd op zes plekken berekend met `Math.round(hours *
+hourlyRateCents)` — met IEEE-754-drijvers. Kwartier-uren (0,25/0,5/0,75) zijn exact in float, maar een
+uren-waarde met **sub-kwartier-decimalen** (bv. 0,29 of 4,14 — die `validatePerformanceForm` toelaat: het
+eist finite/`>0`/max, géén kwartier-stap; de `step="0.25"` is client-only) kan het exacte product op een
+halve-cent-grens laten landen terwijl de float-representatie er net ONDER zit: `0,29 × 1750 =
+507,4999…994` i.p.v. `507,5`, `4,14 × 25 = 103,4999…999` i.p.v. `103,5`. `Math.round` rondde dan naar
+BENEDEN (507/103 i.p.v. 508/104), waardoor de ZZP'er **systematisch één cent te weinig** werd
+gefactureerd — in strijd met de gedocumenteerde afronding ("halve cent omhoog"). Het defect raakte de
+**persistente** factuur (`Invoice.subtotalCents` via `performanceSubtotalCents` → `hourlySubtotalCents` /
+`computeOrt`) én elke preview/PDF die hetzelfde product toonde. De zuster-afronding voor toeslag/BTW
+(`Math.round(intCent × bps / 10000)`) is bewezen correct — de teller is dáár een echt geheel getal — en
+is ongemoeid gelaten.
+
+**Aanpak (server-side waarheid, geen drift):** één pure bron `hoursTimesRateCents(hours, rateCents)`
+(`src/lib/administration/hourly-cents.ts`) rekent in integer-ruimte: uren dragen per datamodel max 2
+decimalen (handmatig 2-decimaal; `segmentsFromMinutes` rondt shift-uren af op honderdsten), dus
+`Math.round(hours*100)` herstelt exact de bedoelde waarde, `hoursHundredths × rateCents` is een exact
+geheel getal in honderdsten-cent, en `(… + 50)/100` (geïntegereerd) doet een **exacte round-half-up**.
+Voor elke geldige 2-decimale invoer identiek aan de oude uitkomst, behalve precies op de eerder
+verkeerd-afgeronde halve-cent-grenzen. Alle zes call-sites lopen nu door deze helper (geen preview↔factuur-
+drift). **Bestanden:** `src/lib/administration/hourly-cents.ts` (+ `.test.ts`, 6 tests: gemelde
+defect-cases 508/104, parity op kwartier-/2-decimale uren, brede honderdsten-sweep die float-drift
+aantoont + corrigeert en nooit onderbetaalt, safe-integer bij de maxima), `src/lib/administration/vat.ts`
+(`hourlySubtotalCents`), `src/lib/ort.ts` (`computeOrt`-basis), `src/lib/diensten.ts`,
+`src/lib/prestaties.ts`, `src/lib/ort-breakdown.ts`, `src/lib/performance-pdf.ts`. **Checks:** typecheck ✓
+· lint ✓ · prettier ✓ · unit (nieuw + vat/ort/ort-breakdown/cascade) ✓ · full unit + build + CI-poort
+verifiëren.
+
 ## 2026-09-08 — security/privacy: k-anonimiteitsvloer-poort scant recursief (submap-blindvlek gedicht, HOOG)
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op

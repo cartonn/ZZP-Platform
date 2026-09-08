@@ -16,6 +16,7 @@ import {
 } from "@/lib/pdf-common";
 import { computeOrt, resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
+import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
 
 export interface PerformancePdfData {
   perfType: string; // "HOURS" | "MILESTONE"
@@ -145,7 +146,9 @@ export async function buildPerformancePdf(data: PerformancePdfData): Promise<Uin
     } else {
       // Geen ORT: losse uren × tarief.
       const hours = data.hours ?? 0;
-      const total = data.rateCents ? Math.round(hours * data.rateCents) : (data.amountCents ?? 0);
+      const total = data.rateCents
+        ? hoursTimesRateCents(hours, data.rateCents)
+        : (data.amountCents ?? 0);
       draw(`${hours} uur${data.rateCents ? ` × ${euro(data.rateCents)}` : ""}`, M, y, { size: 10 });
       drawRight(euro(total), right, y, { size: 11, f: bold });
       y -= 22;
