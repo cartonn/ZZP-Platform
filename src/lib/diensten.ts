@@ -2,12 +2,10 @@
 // "Dienst" = één Performance-record (urenstaat of oplevering) binnen een samenwerking.
 
 import { prisma } from "@/lib/db";
-import { ortSubtotalCents, parseOrtSegments, resolveOrtRates } from "@/lib/ort";
-import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
 import {
   type OrtBreakdown,
+  computePerformanceOrt,
   reconcileSubtotalWithInvoice,
-  summarizeOrtBreakdown,
 } from "@/lib/ort-breakdown";
 import { parseCsvRecords, escapeCsvField } from "@/lib/csv";
 import { MAX_SHIFT_HOURS } from "@/lib/shift";
@@ -62,32 +60,20 @@ export async function getDienstenForFreelancer(userId: string): Promise<DienstSu
 
   return rows.map((p) => {
     const col = p.collaboration;
-    // Defensief parsen: één corrupte rij mag niet de héle pagina laten crashen
-    // (dezelfde try/catch-bron als elke andere lezer van deze kolom).
-    const ortSegs = parseOrtSegments(p.ortSegments);
-    const rates = resolveOrtRates({
+    // Eén gedeelde, defensieve bron (computePerformanceOrt) met /prestaties: een corrupte ORT-rij
+    // degradeert per rij i.p.v. de héle pagina te laten crashen (zie de helper-docstring).
+    const {
+      subtotalCents: liveSubtotalCents,
+      hasOrt,
+      ortBreakdown: liveOrtBreakdown,
+    } = computePerformanceOrt({
+      type: p.type,
+      rateCents: p.rateCents,
+      hours: p.hours,
+      amountCents: p.amountCents,
+      ortSegments: p.ortSegments,
       ortProfile: col.ortProfile,
       ortCustomRates: col.ortCustomRates,
-    });
-
-    const hasOrt = !!(ortSegs && ortSegs.length > 0);
-
-    let liveSubtotalCents: number | null = null;
-    if (p.type === "HOURS" && p.rateCents != null) {
-      if (hasOrt) {
-        liveSubtotalCents = ortSubtotalCents(ortSegs, p.rateCents, rates);
-      } else if (p.hours != null) {
-        liveSubtotalCents = hoursTimesRateCents(p.hours, p.rateCents);
-      }
-    } else if (p.type === "MILESTONE" && p.amountCents != null) {
-      liveSubtotalCents = p.amountCents;
-    }
-
-    const liveOrtBreakdown = summarizeOrtBreakdown({
-      segments: ortSegs,
-      hours: p.hours,
-      rateCents: p.type === "HOURS" ? p.rateCents : null,
-      rates,
     });
 
     // De bevroren factuur wint van de live-herberekening (geen ORT-drift). Zelfde bron als

@@ -3,7 +3,13 @@
 // Puur — bouwt uitsluitend op de canonieke `computeOrt`-motor (geen eigen rekenregels),
 // dus kan het niet driften van het factuursubtotaal.
 
-import { computeOrt, type OrtSegment } from "@/lib/ort";
+import {
+  computeOrt,
+  ortSubtotalCents,
+  parseOrtSegments,
+  resolveOrtRates,
+  type OrtSegment,
+} from "@/lib/ort";
 import { type OrtCategory } from "@/lib/config";
 import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
 
@@ -98,4 +104,96 @@ export function reconcileSubtotalWithInvoice(opts: {
       ? { ...ortBreakdown, surchargeCents: invoicedSubtotalCents - ortBreakdown.baseCents }
       : ortBreakdown,
   };
+}
+
+/** De rauwe prestatie-velden die {@link computePerformanceOrt} nodig heeft om het live-subtotaal +
+ * ORT-uitsplitsing af te leiden. Bewust los van het Prisma-rijtype zodat de mapping puur en zonder
+ * database te testen valt. */
+export interface PerformanceOrtRow {
+  type: string;
+  rateCents: number | null | undefined;
+  hours: number | null | undefined;
+  amountCents: number | null | undefined;
+  /** Rauwe JSON-string uit `Performance.ortSegments` (wordt intern defensief geparsed). */
+  ortSegments: string | null | undefined;
+  ortProfile: string | null | undefined;
+  ortCustomRates: string | null | undefined;
+}
+
+export interface PerformanceOrtComputation {
+  /** Live-herberekend subtotaal (excl. BTW), of `null` zonder berekenbare basis. */
+  subtotalCents: number | null;
+  /** Heeft deze prestatie een geldige ORT-uitsplitsing (segmenten die de motor accepteert)? */
+  hasOrt: boolean;
+  ortBreakdown: OrtBreakdown;
+}
+
+/**
+ * Leidt het live-subtotaal + de ORT-uitsplitsing van één prestatie-rij af — de gedeelde bron voor de
+ * ZZP'er- (`/diensten`) én opdrachtgever-view (`/prestaties`), zodat beide overzichten voor dezelfde
+ * prestatie niet uiteen kunnen lopen (geen duplicatie van de reken-takken).
+ *
+ * **Defensief (robuustheid):** `parseOrtSegments` vangt alleen een JSON-syntaxfout af; een JSON-geldig
+ * maar semantisch corrupt segment (onbekende categorie, negatieve/niet-eindige uren) passeert de parse
+ * en laat `computeOrt` alsnog throwen (`ort.ts` weigert dat — terecht: de geldmotor mag nooit stil een
+ * NaN of negatief bedrag doorlaten). In de overzicht-mappers draaien deze mappers over álle rijen van
+ * een gebruiker; zónder deze guard zou één corrupte rij (alleen bereikbaar via directe DB-corruptie —
+ * elke schrijver grid-checkt via `assertPerformanceWithinLimits`) de héle `/diensten`/`/prestaties`-
+ * pagina + CSV-export 500'en i.p.v. per rij te degraderen. Deze functie vangt dat per rij en valt terug
+ * op de basis (uren × tarief), gemarkeerd als geen-ORT — precies wat de belendende "één corrupte rij mag
+ * niet de héle pagina laten crashen"-comment belooft. De schrijf-/cascade-paden roepen `computeOrt`/
+ * `ortSubtotalCents` rechtstreeks aan en blijven bewust fail-closed (weigeren corrupte invoer bij
+ * persistentie).
+ */
+export function computePerformanceOrt(row: PerformanceOrtRow): PerformanceOrtComputation {
+  const rates = resolveOrtRates({ ortProfile: row.ortProfile, ortCustomRates: row.ortCustomRates });
+  const segments = parseOrtSegments(row.ortSegments);
+  const hasOrtSegments = segments.length > 0;
+
+  // De ORT-motor wordt alleen geraakt bij een HOURS-prestatie mét tarief én segmenten.
+  if (row.type === "HOURS" && row.rateCents != null && hasOrtSegments) {
+    try {
+      const subtotalCents = ortSubtotalCents(segments, row.rateCents, rates);
+      const ortBreakdown = summarizeOrtBreakdown({
+        segments,
+        hours: row.hours,
+        rateCents: row.rateCents,
+        rates,
+      });
+      return { subtotalCents, hasOrt: true, ortBreakdown };
+    } catch {
+      // Corrupt segment: degradeer naar de basis (uren × tarief) i.p.v. de pagina te laten crashen.
+      const fallbackBase = row.hours != null ? hoursTimesRateCents(row.hours, row.rateCents) : null;
+      return {
+        subtotalCents: fallbackBase,
+        hasOrt: false,
+        ortBreakdown:
+          fallbackBase != null
+            ? {
+                normalHours: row.hours as number,
+                ortHours: 0,
+                baseCents: fallbackBase,
+                surchargeCents: 0,
+              }
+            : EMPTY_ORT_BREAKDOWN,
+      };
+    }
+  }
+
+  // Geen ORT-segmenten of geen HOURS-tarief: throw-vrije paden, ongewijzigd gedrag.
+  let subtotalCents: number | null = null;
+  if (row.type === "HOURS" && row.rateCents != null) {
+    if (row.hours != null) subtotalCents = hoursTimesRateCents(row.hours, row.rateCents);
+  } else if (row.type === "MILESTONE" && row.amountCents != null) {
+    subtotalCents = row.amountCents;
+  }
+
+  const ortBreakdown = summarizeOrtBreakdown({
+    segments,
+    hours: row.hours,
+    rateCents: row.type === "HOURS" ? row.rateCents : null,
+    rates,
+  });
+
+  return { subtotalCents, hasOrt: hasOrtSegments, ortBreakdown };
 }
