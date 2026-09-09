@@ -158,6 +158,32 @@ describe("exportPrestatiesCsv", () => {
     expect(lines[1]).toContain("Fatima Ouahabi");
     expect(lines[2]).toContain("Jan de Vries");
   });
+
+  it("lekt geen IEEE-754-float-artefact in de uren-kolommen (afstemmen tegen loonstrook)", () => {
+    // Een som van sub-kwartier-uren expandeert in float: 4,1 + 2,2 = 6,300000000000001,
+    // 0,1 + 0,2 = 0,30000000000000004. Kaal toString() zou die staart in de "Uren"-kolom
+    // van een export lekken die juist tegen een loonstrook moet worden afgestemd.
+    const p: PrestatieOverzicht = {
+      ...base,
+      hours: 4.1 + 2.2,
+      ortBreakdown: {
+        normalHours: 4.1 + 2.2,
+        ortHours: 0.1 + 0.2,
+        baseCents: 14000_00,
+        surchargeCents: 2000_00,
+      },
+    };
+    const csv = exportPrestatiesCsv([p]);
+    const lines = csv.split("\r\n");
+    const header = lines[0]!.split(";");
+    const rowCells = lines[1]!.split(";");
+    const col = (name: string) => rowCells[header.indexOf(name)];
+    expect(col("Uren")).toBe("6,3");
+    expect(col("Reguliere uren")).toBe("6,3");
+    expect(col("ORT-uren")).toBe("0,3");
+    expect(csv).not.toContain("6,300000000000001");
+    expect(csv).not.toContain("0,30000000000000004");
+  });
 });
 
 describe("approvablePerformances — wat de opdrachtgever écht kan keuren", () => {
@@ -348,5 +374,18 @@ describe("toPrestatieOverzicht — factuur is de bevroren waarheid (geen ORT-dri
   it("valt terug op live-berekening als er (nog) geen factuur is (bv. SUBMITTED)", () => {
     const res = toPrestatieOverzicht(row({ status: "SUBMITTED", invoice: null }));
     expect(res.subtotalCents).toBe(BASE_CENTS + 98000);
+  });
+
+  it("laat één corrupte ortSegments-rij de pagina niet crashen (defensieve parse)", () => {
+    // Out-of-band/corrupte data in de kolom mag niet de héle /prestaties-pagina onderuit
+    // halen; net als elke andere lezer valt de parse stil terug op 'geen ORT'.
+    expect(() =>
+      toPrestatieOverzicht(row({ ortSegments: "{ niet-geldige json", invoice: null })),
+    ).not.toThrow();
+    const res = toPrestatieOverzicht(row({ ortSegments: "{ niet-geldige json", invoice: null }));
+    expect(res.hasOrt).toBe(false);
+    // Zonder ORT-segmenten valt de uurbasis terug op hours × rate: 80u × €50 = 400000.
+    expect(res.subtotalCents).toBe(BASE_CENTS);
+    expect(res.ortBreakdown.surchargeCents).toBe(0);
   });
 });
