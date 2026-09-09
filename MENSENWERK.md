@@ -253,11 +253,19 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   EICAR-Upload-scanner-zelftest. Bevat nooit host/poort, secrets, PII of de bestandsinhoud. Resterend
   mensenwerk: **niets extra** — de kaart/gauges vullen zichzelf zodra `UPLOAD_SCANNER=clamav` staat en de
   eerste scan draait. Optioneel: richt een monitor op `ZzpUploadScanDeliveryFailing`.
-- **Dependency graph + Dependabot aanzetten** (laag, web-toggle): de `dependency-review`-poort
-  vereist GitHub's Dependency graph. Zet die (en Dependabot security updates) aan op
-  github.com/cartonn/ZZP-Platform/settings/security_analysis. De supply-chain-CVE-check draait
-  nu al via `npm audit` (de `audit`-poort); dependency-review is een extra laag (licenties +
-  PR-diff) die je daarna kunt terugzetten als vereiste check.
+- **Dependency graph + Dependabot aanzetten** (laag, web-toggle; **code-kant GEDAAN 2026-09-09**):
+  de `dependency-review`-poort vereist GitHub's Dependency graph. Zet die (en Dependabot security
+  updates) aan op github.com/cartonn/ZZP-Platform/settings/security_analysis. De supply-chain-CVE-check
+  draait nu al via `npm audit` (de `audit`-poort); dependency-review is een extra laag (licenties +
+  PR-diff) die je daarna kunt terugzetten als vereiste check. **Code-kant GEDAAN:** de volledige
+  Dependabot-configuratie staat nu in `.github/dependabot.yml` — wekelijkse, **gegroepeerde**
+  update-PR's voor twee ecosystemen (`npm` productie- én dev-buckets, `github-actions`) in de
+  Europe/Amsterdam-tijdzone, met begrensde PR-flux (10/5) zodat de reviewqueue niet dichtslibt.
+  Waar `npm audit` een CVE alleen **detecteert** (en de merge blokkeert), opent Dependabot zelf de
+  **herstel-PR** — elk door dezelfde 6 vereiste statuschecks, dus nooit een automatische merge zonder
+  groene poort. Drift-bewaakt door `scripts/dependabot-config.test.ts`. Resterend mensenwerk: **alleen
+  de web-toggle** hierboven aanzetten — daarna verwerkt GitHub `dependabot.yml` en beginnen de PR's
+  (security-updates komen dan out-of-band binnen).
 
 - **Uitgaande HTTP-timeouts voor externe koppelingen** (laag, code-kant GEDAAN 9-7-2026): elke
   uitgaande call naar een externe dienst (Mollie/Stripe voor betalingen, Resend voor e-mail, Upstash
