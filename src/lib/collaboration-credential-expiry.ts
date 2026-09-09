@@ -93,8 +93,20 @@ export function collaborationCredentialExpiryConcerns(input: {
 
   // Per type: het laatst-vervallende, nu-geldige geverifieerde certificaat (waar de compliance op leunt).
   const latestByType = new Map<CredentialType, CollabCredentialInput>();
+  // Types met een nu-geldig, DOORLOPEND (nooit vervallend) geverifieerd certificaat. Zo'n certificaat
+  // draagt de vereiste permanent, dus een parallel gedateerd exemplaar van hetzelfde type is nooit een
+  // verval-zorg — een "vernieuw op tijd"-nudge daarop is een valse melding die nooit nuttig verdwijnt.
+  // Dit spiegelt `supersededVerifiedCredentialIds` (credentials.ts), dat een gedateerd cert als superseded
+  // markeert zodra een doorlopend (of later-vervallend) exemplaar bestaat — en dáár al de generieke
+  // verval-nudge onderdrukt. `latestByType` ving de later-vervallende-dateerde variant impliciet (het
+  // kiest het laatst-vervallende), maar sloeg doorlopende certs (`expiresAt == null`) stil over.
+  const permanentlyCoveredTypes = new Set<CredentialType>();
   for (const c of input.credentials) {
-    if (c.status !== "VERIFIED" || !c.expiresAt) continue;
+    if (c.status !== "VERIFIED") continue;
+    if (c.expiresAt == null) {
+      permanentlyCoveredTypes.add(c.type);
+      continue;
+    }
     if (c.expiresAt.getTime() <= nowMs) continue; // al verlopen → elders afgehandeld
     const cur = latestByType.get(c.type);
     if (!cur || c.expiresAt.getTime() > (cur.expiresAt as Date).getTime())
@@ -113,6 +125,7 @@ export function collaborationCredentialExpiryConcerns(input: {
 
   for (const collab of input.collaborations) {
     for (const type of new Set(collab.requiredTypes)) {
+      if (permanentlyCoveredTypes.has(type)) continue; // doorlopend geldig cert dekt dit type → geen zorg
       const cred = latestByType.get(type);
       if (!cred || !cred.expiresAt) continue;
       const expiresMs = cred.expiresAt.getTime();

@@ -2,6 +2,30 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-09 — robuustheid: doorlopend cert onderdrukt valse collab-verval-nudge (ZZP'er) + badge↔lijst-pariteit
+
+**Wat:** `collaborationCredentialExpiryConcerns` (`src/lib/collaboration-credential-expiry.ts`) — de bron
+achter zowel de ZZP'er-taak `credentialCollabExpiryTask` (`pending-tasks.ts`) als de /certificaten-nav-badge
+(`signals.ts` `collabDuringPlacementAlerts`) — bouwde `latestByType` uit uitsluitend gedáteerde VERIFIED-certs
+(`if (c.status !== "VERIFIED" || !c.expiresAt) continue`) en sloeg een **doorlopend** (nooit vervallend,
+`expiresAt == null`) VERIFIED-cert stil over. Had een ZZP'er voor een vereist type twéé geldige certs — één dat
+binnenkort verloopt én één doorlopend exemplaar — dan bleef de binnenkort-vervallende de "vernieuw je certificaat
+voor samenwerking X"-taak/badge voeden, terwijl het doorlopende cert de vereiste al permanent dekt. Een valse,
+onoplosbare verval-nudge die nooit op nul komt — precies het "signaal dat nooit nuttig verdwijnt"-anti-patroon.
+
+**Aanpak (hergebruik, geen duplicatie):** de fix spiegelt de al bestaande regel in
+`supersededVerifiedCredentialIds` (`credentials.ts`) — dat een gedateerd cert als _superseded_ markeert zodra
+een doorlopend (of later-vervallend) exemplaar bestaat, en dáár al de generíeke verval-nudge onderdrukt (de
+collab-anker-helper deed dat als enige niet, terwijl de superseded-doc-comment 'm expliciet noemt). `latestByType`
+ving de later-vervallende-gedateerde variant al impliciet (het kiest het laatst-vervallende); nu wordt een type met
+een doorlopend geldig VERIFIED-cert opgenomen in `permanentlyCoveredTypes` en overgeslagen bij het afleiden van
+zorgen. Zowel de taak als de badge lezen uit dezelfde pure helper → geen badge↔lijst-drift. Andere types (het
+doorlopende cert is een ánder type) en niet-geverifieerde doorlopende certs blijven de zorg terecht staan.
+**Bestanden:** `src/lib/collaboration-credential-expiry.ts` (+ `.test.ts`: 4 tests — doorlopend cert onderdrukt
+binnen-venster- én mid-plaatsing-zorg, ander type onderdrukt niet, niet-geverifieerd doorlopend cert dekt niet).
+**Checks:** typecheck ✓ · lint ✓ · unit (helper+signals+credentials 82/82) ✓ · prettier ✓ · full unit + build +
+CI-poort verifiëren (PR volgt).
+
 ## 2026-09-09 — geld/robuustheid: uren-invoer op de cent-grid afgedwongen (getoonde uren == gefactureerde uren)
 
 **Wat:** de open MED-kandidaat uit de 8-9-notitie hieronder gedicht. De factuurmotor
@@ -358,66 +382,6 @@ niet kan driften. Het formulier deelt nu één `OrtPreviewTable`-component tusse
 (gedeeld preview-component + gecontroleerde handmatige velden + handmatig voorbeeld + totaal-uren).
 **Checks:** typecheck ✓ · lint ✓ · unit 170/170 (relevante suites) incl. manual-ort 6/6 ✓ · build ✓
 (109/109 static pages) · prettier ✓ · CI-poort verifiëren. PR #1431.
-
-## 2026-09-07 — DBA-monitor: risico-verlaagstappen ook op de opgeslagen opdracht-detailpagina
-
-**Wat:** de concrete "next best action" van de DBA-monitor (`dbaMitigations`, #1427 — de kleinste set
-indicator-wijzigingen die het risico één niveau verlaagt) stond alleen **live op het opdracht-formulier**.
-Op de opgeslagen opdracht-detailpagina (`opdrachten/[id]`) zag de opdrachtgever wél het risiconiveau, de
-redenen en de modelovereenkomst-aanbeveling, maar niet de "zo verlaag je het risico"-stappen — een
-asymmetrie precies daar waar de opdrachtgever ná publicatie terugkeert. Nieuw gedeeld presentatiecomponent
-`DbaMitigationCard` (`src/components/dba/dba-mitigation-plan.tsx`) toont het plan; op de detailpagina wordt
-het plan **server-side herberekend** uit de opgeslagen indicatoren (`job.dba*`) — dezelfde pure functie,
-consistent met de al server-side herberekende modelovereenkomst-aanbeveling ernaast. Server-side waarheid;
-geen nieuwe logica. Het formulier gebruikt nu hetzelfde component (inline blok verwijderd, DRY).
-**Bestanden:** `src/components/dba/dba-mitigation-plan.tsx` (+ `.test.tsx`, 3 tests via `renderToStaticMarkup`),
-`src/app/(protected)/opdrachten/job-form.tsx` (blok → component), `src/app/(protected)/opdrachten/[id]/page.tsx`.
-**Checks:** gerichte tests groen · typecheck/lint/prettier/build + CI-poort verifiëren. PR #1430.
-
-## 2026-09-07 — DBA-monitor: concreet, uitlegbaar risico-verlaagadvies op het opdrachtformulier
-
-**Wat:** de DBA-monitor gaf tot nu toe een verdict (LAAG/MIDDEN/HOOG) + generiek advies, maar niet
-_welke_ concrete wijziging het risico daadwerkelijk verlaagt. Nieuwe pure functie `dbaMitigations`
-(`src/lib/dba.ts`) berekent het **kleinste, meest-uitlegbare setje indicator-wijzigingen** dat het
-risico naar het eerstvolgende lagere niveau brengt — de "next best action" van de DBA-monitor.
-Alleen de gezag-/inbeddings-indicatoren zijn hefbomen (de verwachte duur is een eerlijke inschatting,
-geen af te vinken knop: telt mee in de score maar niet als voorstel). Deterministisch: kiest de
-deelverzameling actieve indicatoren met (1) minste wijzigingen → (2) minste overbodige verlaging →
-(3) stabiele indicator-volgorde (brute-force over ≤2⁶ deelverzamelingen). `null` als er niets te
-verlagen valt (al LAAG) of als de indicatoren de vereiste verlaging niet dekken (duur-gedreven).
-Live getoond op het opdrachtformulier (`opdrachten/job-form.tsx`): terwijl de opdrachtgever de
-kenmerken aanvinkt, verschijnt "Zo verlaag je het risico naar MIDDEN/LAAG:" met concrete stappen
-(bv. "Sta vrije vervanging toe."). Server-side blijft `assessDbaRisk` de waarheid; dit is een
-uitlegbare hint bovenop dezelfde pure functie. **Bestanden:** `src/lib/dba.ts`,
-`src/lib/dba.test.ts` (+7 tests, 18/18), `src/app/(protected)/opdrachten/job-form.tsx` (kleine
-refactor: gedeeld `dbaInput`-object). **Checks:** test 18/18 ✓ · typecheck/lint/prettier/build ✓ ·
-CI-poort verifiëren. PR #1427.
-
-**Nevenbevinding (geen wijziging):** het geparkeerde LOW-item "DST-uur mis-attributie in
-`segmentShifts`" is empirisch weerlegd — de Nederlandse DST-wissels (03:00↔02:00) liggen volledig
-binnen NIGHT, terwijl de ORT-categoriegrenzen op 06:00/18:00/22:00 liggen; de segmentatie loopt in
-echte-ms-slices die [start,end) exact partitioneren, dus de totaalminuten blijven behouden en de
-categorie is uniform over de wissel (fall-back → 3u NIGHT, spring → 1u NIGHT). Non-bug bij de
-standaard-ORT-vensters; backlog-item als zodanig gemarkeerd.
-
-## 2026-09-07 — prod: bucket-default-encryptie-fallback in de opslag-encryptie-zelftest (go-live-poort op S3-compatibele opslag)
-
-**Wat:** de go-live-blocker uit LAUNCH-REVIEW §1 / CURRENT_TASK-handoff opgelost — "De opslagprovider
-ondersteunt de vereiste SSE-metadata niet; de strikte productiecontrole slaagt nog niet." De
-`encrypt`-stap van de opslag-zelftest deed alleen een per-object `HeadObject` en faalde ONVERSLEUTELD
-zodra een S3-compatibele store de `x-amz-server-side-encryption`-header niet echoot — óók als de bucket
-elk object transparant-at-rest versleutelt. De stap valt nu, bij een afwezige per-object-header, terug
-op **positief bucket-breed bewijs**: `GetBucketEncryption` (`describeBucketEncryption` op de
-S3-driver). Een geconfigureerde default-encryptie-regel bewijst dat S3 élk object op schijf versleutelt
-(default afgedwongen ongeacht de PutObject-parameters) → stap groen met eerlijke bucket-policy-toelichting.
-**Verzwakt niets:** de fallback voegt alleen een PASS-pad toe waar ONAFHANKELIJK positief bewijs bestaat;
-ontbreekt dat (geen regel, of de call werpt/wordt niet ondersteund → doorgegooid, nooit stil geslikt),
-dan blijft de bestaande AVG-faalmodus (nooit vals groen). `GetBucketEncryption` is een echte
-backend-round-trip → geregistreerd in de opslag-aflever-heartbeat (RecordingStorageDriver).
-**Bestanden:** `src/lib/services/storage.ts` (`BucketEncryptionInfo`, interface-methode, S3-impl,
-RecordingStorageDriver-forwarding), `src/lib/services/storage-selftest.ts` (fallback in de `encrypt`-stap),
-`+7 tests` (`storage-selftest.test.ts`, `recording-storage-driver.test.ts`), `MENSENWERK.md`.
-**Checks:** gerichte tests 53/53 ✓ · typecheck/lint/build/prettier + CI-poort verifiëren. PR #1426.
 
 ## Staat van het product (2-9-2026)
 
