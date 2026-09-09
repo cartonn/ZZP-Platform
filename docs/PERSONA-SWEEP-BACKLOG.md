@@ -1,5 +1,47 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-09 (persona-sweep, run 9) · **main-commit basis:** `a800b208`
+> **Uitkomst:** **1 defect gefixt (badge↔lijst-drift, DOEL 1b); 1 LOW-robustness-item geparkeerd.**
+> Orchestrator Opus 4.8 + drie parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+> (next-action/badge-correctheid · IDOR/authz/cross-tenant/document-privacy · malicieuze invoer/geld/
+> robuustheid). De live productiebuild draait offline via de font-stub-workaround (netwerkpolicy blokt
+> `next/font/google`, zoals runs 5-8).
+>
+> - **DOEL 2 (adversarieel) — schoon.** Authz/IDOR/cross-tenant/document-privacy **0 bereikbare gaten**
+>   (elke by-id-fetch her-verifieert ownership/tenant met anti-oracle-404; cascade-commands her-afleiden
+>   de partij-zijde binnen de write-transactie; `admin-route-authz-coverage.test.ts` grendelt
+>   `requireRole("ADMIN")` statisch; byte/PDF/dossier-routes checken ownership vóór uitgifte). Invoer/
+>   Zod/geld/robuustheid **0 nieuwe bereikbare gaten** (de delta sinds ronde 5 — #1440–#1449 — dichtte de
+>   geld/parse-gaten: half-cent-onderbetaling, cent-grid op uren/euro's, `parseOrtSegments`-guard,
+>   `readLimitedJson`; `assertPerformanceWithinLimits` blijft het enige choke point).
+> - **GEDAAN (DOEL 1b) — CLIENT /samenwerkingen-badge ordende de onderteken-bare PROPOSED-query anders dan
+>   /acties (outer-window-drift).** `countClientSignableProposals` (`signals.ts`) ordende `updatedAt desc`
+>   terwijl de list-bron `proposedCollabs` (`pending-tasks.ts:1149`) in run 81 bewust naar `createdAt asc`
+>   is omgezet. `Collaboration.updatedAt` staat voor een PROPOSED-rij effectief bevroren op het
+>   aanmaakmoment; met beide gecapt op `CASCADE_SCAN_LIMIT` (=50) pakte de badge dus de NIEUWSTE 50
+>   voorstellen en /acties de OUDSTE 50 → bij >50 gelijktijdige PROPOSED-samenwerkingen voor één
+>   opdrachtgever undercountte de badge precies de langst-wachtende (oudste) teken-taken die /acties wél
+>   toont. Exact de outer-window-blindheid die de list-kant al dichtte, achtergebleven in de badge; de
+>   badge-doc-comment claimde bovendien ten onrechte pariteit ("op dezelfde rijen redeneren"). **Fix:**
+>   badge ordent nu identiek `createdAt asc`. **Repro:** opdrachtgever met >50 PROPOSED (niet-disputed,
+>   niet-geblokkeerde) samenwerkingen → /acties toont de oudste 50 teken-taken, de /samenwerkingen-badge
+>   telde de nieuwste 50 → afwijkende telling. **Bestanden:** `src/lib/signals.ts`,
+>   `src/lib/signals.badge-signable-proposals-order.test.ts` (+1, rood→groen bewezen).
+> - **GEPARKEERD — LOW (robuustheid, niet bereikbaar via een schrijfpad): `computeOrt` buiten de
+>   per-rij-guard in de overzicht-mappers.** `getDienstenForFreelancer` (`src/lib/diensten.ts:78,86`) en
+>   `toPrestatieOverzicht` (`src/lib/prestaties.ts:106,114`) roepen `ortSubtotalCents`→`computeOrt` en
+>   `summarizeOrtBreakdown`→`computeOrt` aan buiten enig try/catch. De belendende comment ("één corrupte
+>   rij mag niet de héle pagina laten crashen", #1443) dekt alléén de `parseOrtSegments`-JSON-parse; een
+>   JSON-geldig maar semantisch corrupt segment (onbekende categorie, negatieve/niet-eindige uren) laat
+>   `computeOrt` throwen en zou de héle /diensten|/prestaties-pagina + CSV-export 500'en i.p.v. per rij
+>   degraderen. **Niet bereikbaar** vandaag: elke schrijver genereert categorieën server-side (`classify`/
+>   `MANUAL_ORT_FIELDS`) en grid-checkt `seg.hours` via `assertPerformanceWithinLimits`, dus alleen directe
+>   DB-corruptie bereikt het. **Repro (theoretisch):** corrupte `Performance.ortSegments`-rij
+>   `[{"category":"BOGUS","hours":-5}]` op een HOURS-prestatie → paginacrash. **Voorstel:** gedeelde
+>   safe-wrapper (co-locatie in `ort-breakdown.ts`) die de ORT-berekening per rij vangt en degradeert naar
+>   `subtotalCents:null` + `EMPTY_ORT_BREAKDOWN` + `hasOrt:false` (terugval op uren×tarief), zodat de comment-
+>   belofte klopt. Prioriteit LOW (defense-in-depth).
+
 > **Datum:** 2026-09-08 (persona-sweep, run 7) · **main-commit basis:** `1a71216d`
 > **Uitkomst:** **3 defecten gefixt (badge↔lijst-drift, DOEL 1b), 0 geparkeerd.** Orchestrator Opus 4.8 +
 > drie parallelle adversariële Opus-audits op niet-overlappende oppervlakken (security/IDOR/cross-tenant/
