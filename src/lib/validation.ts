@@ -21,6 +21,7 @@ import {
   normalizeKvk,
 } from "@/lib/fiscal";
 import { MAX_INVOICE_CENTS } from "@/lib/invoices";
+import { isCentAccurateHours } from "@/lib/administration/hourly-cents";
 
 /**
  * URL-veld dat uitsluitend het http(s)-schema toestaat. `z.string().url()` keurt óók
@@ -440,11 +441,16 @@ export function validatePerformanceForm(data: PerformanceFormData): string | nul
         return "Vul minstens één uur in bij de ORT-categorieën.";
       if (data.ortTotal > MAX_PERFORMANCE_HOURS)
         return `Het totaal aantal uren is onrealistisch hoog (maximaal ${MAX_PERFORMANCE_HOURS} uur per urenstaat).`;
+      // Cent-grid (zie `isCentAccurateHours`): de factuurmotor kwantiseert uren naar honderdsten, dus
+      // >2 decimalen laten de getoonde uren van de gefactureerde afwijken. De autoritatieve check zit
+      // per segment in `assertPerformanceWithinLimits`; hier een vriendelijke formulierfout op het totaal.
+      if (!isCentAccurateHours(data.ortTotal)) return "Vul de uren in met maximaal twee decimalen.";
     } else {
       if (!Number.isFinite(data.hours) || data.hours <= 0)
         return "Vul het aantal uren in (minimaal 0,25 uur).";
       if (data.hours > MAX_PERFORMANCE_HOURS)
         return `Het aantal uren is onrealistisch hoog (maximaal ${MAX_PERFORMANCE_HOURS} uur per urenstaat).`;
+      if (!isCentAccurateHours(data.hours)) return "Vul de uren in met maximaal twee decimalen.";
     }
     // Een losse ongeldige datum (bv. `periodStart=onzin` uit een geknutselde POST) moet netjes
     // worden geweigerd vóór persistentie — anders stroomt een `Invalid Date` door naar Prisma en

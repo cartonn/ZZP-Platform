@@ -20,6 +20,7 @@ import {
   MAX_MILESTONE_CENTS,
   MAX_PERFORMANCE_RATE_CENTS,
 } from "@/lib/validation";
+import { isCentAccurateHours } from "@/lib/administration/hourly-cents";
 import {
   CascadeError,
   OVERLAPPING_PERFORMANCE_MESSAGE,
@@ -113,6 +114,13 @@ export function assertPerformanceWithinLimits(input: {
         `Het aantal uren is onrealistisch hoog (maximaal ${MAX_PERFORMANCE_HOURS} uur per urenstaat).`,
       );
     }
+    // Cent-grid: de factuurmotor (`hoursTimesRateCents`) herkwantiseert uren stil naar honderdsten
+    // (`Math.round(hours * 100)`). Uren met méér dan twee decimalen (bv. 4,149 uit een geknutselde POST
+    // of een CSV-import) laten de GETOONDE uren op de urenstaat/PDF/CSV afwijken van de GEFACTUREERDE
+    // hoeveelheid — weiger ze vóór persistentie zodat getoonde uren altijd één-op-één de factuur voeden.
+    if (input.hours != null && !isCentAccurateHours(input.hours)) {
+      throw new CascadeError("Vul de uren in met maximaal twee decimalen.");
+    }
     // ORT-dimensie (zorg): zodra segmenten het factuursubtotaal bepalen loopt de bovengrens NIET via
     // `hours` maar via de som van de segment-uren (performanceSubtotalCents → ortSubtotalCents → uren ×
     // basistarief + toeslag). De grens hierboven op `hours` is dan blind voor de werkelijke factuurbasis:
@@ -129,6 +137,12 @@ export function assertPerformanceWithinLimits(input: {
         }
         if (seg.hours < 0) {
           throw new CascadeError("Het aantal uren moet groter dan 0 zijn.");
+        }
+        // Cent-grid per segment: `ortSubtotalCents` factureert elk ORT-segment los via
+        // `hoursTimesRateCents` (honderdsten-kwantisatie), dus een segment met >2 decimalen zou dezelfde
+        // getoond↔gefactureerd-drift geven als het losse `hours`-veld. Weiger per segment.
+        if (!isCentAccurateHours(seg.hours)) {
+          throw new CascadeError("Vul de uren in met maximaal twee decimalen.");
         }
         segmentHoursSum += seg.hours;
       }

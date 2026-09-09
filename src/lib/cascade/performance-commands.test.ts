@@ -277,6 +277,56 @@ describe("assertPerformanceWithinLimits — bovengrens ORT-segmenten (HOURS)", (
   });
 });
 
+// ─── assertPerformanceWithinLimits — cent-grid uren (getoond == gefactureerd) ──
+// Server-side waarheid (regel 1): de factuurmotor (`hoursTimesRateCents`) kwantiseert uren naar
+// honderdsten (`Math.round(hours * 100)`). Uren met >2 decimalen (bv. 4,149 uit een geknutselde POST
+// of een CSV-import) worden dan stil naar 4,15 herrekend → de getoonde uren op de urenstaat/PDF/CSV
+// wijken af van de gefactureerde hoeveelheid. Deze guard weigert zulke invoer vóór persistentie.
+describe("assertPerformanceWithinLimits — cent-grid uren (HOURS)", () => {
+  it("weigert `hours` met meer dan twee decimalen", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({ type: "HOURS", hours: 4.149, rateCents: 7500 }),
+    ).toThrow(CascadeError);
+    expect(() =>
+      assertPerformanceWithinLimits({ type: "HOURS", hours: 4.149, rateCents: 7500 }),
+    ).toThrow("Vul de uren in met maximaal twee decimalen.");
+  });
+
+  it("accepteert een geldige 2-decimale (ook float-noisy zoals 1,67) en kwartier-uren", () => {
+    for (const hours of [1.67, 8.85, 4.14, 0.25, 8, 999.99]) {
+      expect(() =>
+        assertPerformanceWithinLimits({ type: "HOURS", hours, rateCents: 7500 }),
+      ).not.toThrow();
+    }
+  });
+
+  it("weigert een ORT-segment met meer dan twee decimalen", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({
+        type: "HOURS",
+        rateCents: 7500,
+        ortSegments: [
+          { category: "NORMAL", hours: 6 },
+          { category: "NIGHT", hours: 2.333 },
+        ],
+      }),
+    ).toThrow("Vul de uren in met maximaal twee decimalen.");
+  });
+
+  it("accepteert cent-accurate ORT-segmenten (som blijft op de grid)", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({
+        type: "HOURS",
+        rateCents: 7500,
+        ortSegments: [
+          { category: "NORMAL", hours: 1.67 },
+          { category: "NIGHT", hours: 2.25 },
+        ],
+      }),
+    ).not.toThrow();
+  });
+});
+
 // ─── submitPerformance — anti-dubbelfacturatie (overlap-guard) ──────────────
 // Server-side backstop (regel 1): het indienen van een urenstaat waarvan de periode overlapt met een
 // reeds in de cascade levende urenstaat (SUBMITTED/APPROVED) op dezelfde samenwerking wordt geweigerd —
