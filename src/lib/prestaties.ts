@@ -3,12 +3,10 @@
 // in een samenwerking van de opdrachtgever.
 
 import { prisma } from "@/lib/db";
-import { ortSubtotalCents, parseOrtSegments, resolveOrtRates } from "@/lib/ort";
-import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
 import {
   type OrtBreakdown,
+  computePerformanceOrt,
   reconcileSubtotalWithInvoice,
-  summarizeOrtBreakdown,
 } from "@/lib/ort-breakdown";
 import { toCsv } from "@/lib/csv";
 
@@ -91,41 +89,30 @@ export interface PrestatieRow {
  */
 export function toPrestatieOverzicht(p: PrestatieRow): PrestatieOverzicht {
   const col = p.collaboration;
-  // Defensief parsen: één corrupte rij mag niet de héle pagina laten crashen
-  // (dezelfde try/catch-bron als elke andere lezer van deze kolom).
-  const ortSegs = parseOrtSegments(p.ortSegments);
-  const rates = resolveOrtRates({
+  // Eén gedeelde, defensieve bron (computePerformanceOrt) met /diensten: een corrupte ORT-rij
+  // degradeert per rij i.p.v. de héle pagina te laten crashen (zie de helper-docstring).
+  const {
+    subtotalCents: liveSubtotalCents,
+    hasOrt,
+    ortBreakdown: liveOrtBreakdown,
+  } = computePerformanceOrt({
+    type: p.type,
+    rateCents: p.rateCents,
+    hours: p.hours,
+    amountCents: p.amountCents,
+    ortSegments: p.ortSegments,
     ortProfile: col.ortProfile,
     ortCustomRates: col.ortCustomRates,
-  });
-  const hasOrt = !!(ortSegs && ortSegs.length > 0);
-
-  let subtotalCents: number | null = null;
-  if (p.type === "HOURS" && p.rateCents != null) {
-    if (hasOrt) {
-      subtotalCents = ortSubtotalCents(ortSegs, p.rateCents, rates);
-    } else if (p.hours != null) {
-      subtotalCents = hoursTimesRateCents(p.hours, p.rateCents);
-    }
-  } else if (p.type === "MILESTONE" && p.amountCents != null) {
-    subtotalCents = p.amountCents;
-  }
-
-  const liveOrtBreakdown = summarizeOrtBreakdown({
-    segments: ortSegs,
-    hours: p.hours,
-    rateCents: p.type === "HOURS" ? p.rateCents : null,
-    rates,
   });
 
   // Zie functie-docstring: de bevroren factuur wint van de live-herberekening.
   const reconciled = reconcileSubtotalWithInvoice({
-    subtotalCents,
+    subtotalCents: liveSubtotalCents,
     ortBreakdown: liveOrtBreakdown,
     hasOrt,
     invoicedSubtotalCents: p.invoice?.subtotalCents,
   });
-  subtotalCents = reconciled.subtotalCents;
+  const subtotalCents = reconciled.subtotalCents;
   const ortBreakdown = reconciled.ortBreakdown;
 
   return {

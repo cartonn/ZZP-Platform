@@ -2,6 +2,34 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-09 — robuustheid: per-rij ORT-guard op /diensten + /prestaties (corrupte segment-rij 500't de pagina niet meer)
+
+**Wat:** de overzicht-mappers `getDienstenForFreelancer` (`src/lib/diensten.ts`, ZZP'er-`/diensten`) en
+`toPrestatieOverzicht` (`src/lib/prestaties.ts`, opdrachtgever-`/prestaties`) — plus hun CSV-exports —
+riepen `ortSubtotalCents`/`summarizeOrtBreakdown` (→ `computeOrt`) aan **buiten** enige try/catch.
+`parseOrtSegments` vangt alléén een JSON-syntaxfout af; een JSON-geldig maar **semantisch** corrupt
+segment (onbekende categorie, negatieve uren) passeert de parse en laat `computeOrt` alsnog throwen
+(`ort.ts` weigert dat terecht — de geldmotor mag nooit stil een NaN/negatief bedrag doorlaten). Omdat de
+mappers over **álle** prestatie-rijen van een gebruiker draaien, zou één zulke rij de héle pagina + CSV
+500'en i.p.v. per rij te degraderen — precies wat de belendende comment ("één corrupte rij mag niet de
+héle pagina laten crashen", #1443) al beloofde, maar alleen voor de parse-stap waarmaakte. Bereikbaar
+alleen via directe DB-corruptie (elke schrijver grid-checkt via `assertPerformanceWithinLimits`), dus
+defense-in-depth (LOW), geparkeerd in de persona-sweep-backlog run 9.
+
+**Aanpak (hergebruik, geen duplicatie):** nieuwe gedeelde pure bron `computePerformanceOrt`
+(`src/lib/ort-breakdown.ts`) leidt subtotaal + ORT-uitsplitsing + `hasOrt` van één rij af en vangt de
+ORT-motor-throw per rij op → degradeert naar de basis (uren × tarief), gemarkeerd als geen-ORT. Beide
+mappers gebruiken nu die ene bron (de identieke reken-blokken zijn ontdubbeld → kan structureel niet
+meer driften tussen de ZZP'er- en opdrachtgever-view). Schrijf-/cascade-paden
+(`cascade/handlers.ts`, `performance-commands.ts`, `performance-invoice-preview.ts`) roepen
+`computeOrt`/`ortSubtotalCents` bewust rechtstreeks aan en blijven **fail-closed** (weigeren corrupte
+invoer bij persistentie) — de guard is uitsluitend read-path.
+
+**Bestanden:** `src/lib/ort-breakdown.ts` (+`computePerformanceOrt`), `src/lib/diensten.ts`,
+`src/lib/prestaties.ts`, `src/lib/ort-breakdown.test.ts` (+7 tests: geldig=canoniek/geen drift,
+corrupte categorie/negatieve uren → degradatie, corrupt zonder terugval-uren → null/leeg, geen-segmenten,
+milestone, geen-tarief). **Checks:** typecheck ✓ · lint · unit · build · prettier ✓ · CI-poort verifiëren (PR #1465).
+
 ## 2026-09-09 — prod: Dependabot supply-chain-automatisering (npm + github-actions)
 
 **Wat:** `.github/dependabot.yml` toegevoegd — de code-kant van het MENSENWERK "Dependency graph +

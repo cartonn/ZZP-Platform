@@ -27,8 +27,12 @@
 >   niet-geblokkeerde) samenwerkingen → /acties toont de oudste 50 teken-taken, de /samenwerkingen-badge
 >   telde de nieuwste 50 → afwijkende telling. **Bestanden:** `src/lib/signals.ts`,
 >   `src/lib/signals.badge-signable-proposals-order.test.ts` (+1, rood→groen bewezen).
-> - **GEPARKEERD — LOW (robuustheid, niet bereikbaar via een schrijfpad): `computeOrt` buiten de
->   per-rij-guard in de overzicht-mappers.** `getDienstenForFreelancer` (`src/lib/diensten.ts:78,86`) en
+> - **GEDAAN (9-9, PR #1465) — LOW (robuustheid): `computeOrt` buiten de per-rij-guard in de overzicht-
+>   mappers.** Gefixt met de gedeelde pure bron `computePerformanceOrt` (`ort-breakdown.ts`): de
+>   ORT-motor-throw wordt nu per rij gevangen en degradeert naar de basis (uren×tarief, geen-ORT); beide
+>   mappers gebruiken die ene bron (reken-blokken ontdubbeld → geen ZZP'er↔opdrachtgever-drift). Schrijf-/
+>   cascade-paden blijven fail-closed (guard is read-path only). +7 tests. Oorspronkelijke bevinding:
+>   `getDienstenForFreelancer` (`src/lib/diensten.ts:78,86`) en
 >   `toPrestatieOverzicht` (`src/lib/prestaties.ts:106,114`) roepen `ortSubtotalCents`→`computeOrt` en
 >   `summarizeOrtBreakdown`→`computeOrt` aan buiten enig try/catch. De belendende comment ("één corrupte
 >   rij mag niet de héle pagina laten crashen", #1443) dekt alléén de `parseOrtSegments`-JSON-parse; een

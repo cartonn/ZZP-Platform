@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { computeOrt, type OrtSegment } from "@/lib/ort";
+import { computeOrt, ortSubtotalCents, type OrtSegment } from "@/lib/ort";
 import {
   type OrtBreakdown,
+  computePerformanceOrt,
   summarizeOrtBreakdown,
   reconcileSubtotalWithInvoice,
   EMPTY_ORT_BREAKDOWN,
@@ -127,5 +128,134 @@ describe("reconcileSubtotalWithInvoice — bevroren factuur wint (geen ORT-drift
       invoicedSubtotalCents: 0,
     });
     expect(res.subtotalCents).toBe(0);
+  });
+});
+
+describe("computePerformanceOrt — gedeelde, defensieve per-rij-bron", () => {
+  const validSegmentsJson = JSON.stringify([
+    { category: "NORMAL", hours: 6 },
+    { category: "EVENING", hours: 2 },
+    { category: "SATURDAY", hours: 4 },
+  ]);
+
+  it("geldige ORT-segmenten: spiegelt exact de canonieke computeOrt/summarize (geen drift)", () => {
+    const rateCents = 5000;
+    const res = computePerformanceOrt({
+      type: "HOURS",
+      rateCents,
+      hours: 12,
+      amountCents: null,
+      ortSegments: validSegmentsJson,
+      ortProfile: null,
+      ortCustomRates: null,
+    });
+
+    const segs = JSON.parse(validSegmentsJson) as OrtSegment[];
+    expect(res.hasOrt).toBe(true);
+    expect(res.subtotalCents).toBe(ortSubtotalCents(segs, rateCents));
+    expect(res.ortBreakdown).toEqual(
+      summarizeOrtBreakdown({ segments: segs, hours: 12, rateCents }),
+    );
+    // Basis + toeslag = het factuursubtotaal.
+    expect(res.ortBreakdown.baseCents + res.ortBreakdown.surchargeCents).toBe(
+      computeOrt(segs, rateCents).subtotalCents,
+    );
+  });
+
+  it("corrupte categorie (JSON-geldig, semantisch fout): degradeert i.p.v. te throwen", () => {
+    const res = computePerformanceOrt({
+      type: "HOURS",
+      rateCents: 5000,
+      hours: 8,
+      amountCents: null,
+      // computeOrt throwt op deze onbekende categorie; parseOrtSegments laat 'm door.
+      ortSegments: JSON.stringify([{ category: "BOGUS", hours: 8 }]),
+      ortProfile: null,
+      ortCustomRates: null,
+    });
+
+    // Terugval op de basis (uren × tarief), gemarkeerd als geen-ORT.
+    expect(res.hasOrt).toBe(false);
+    expect(res.subtotalCents).toBe(8 * 5000);
+    expect(res.ortBreakdown).toEqual({
+      normalHours: 8,
+      ortHours: 0,
+      baseCents: 8 * 5000,
+      surchargeCents: 0,
+    });
+  });
+
+  it("corrupt segment met negatieve uren: degradeert eveneens", () => {
+    const res = computePerformanceOrt({
+      type: "HOURS",
+      rateCents: 4000,
+      hours: 5,
+      amountCents: null,
+      ortSegments: JSON.stringify([{ category: "NIGHT", hours: -5 }]),
+      ortProfile: null,
+      ortCustomRates: null,
+    });
+    expect(res.hasOrt).toBe(false);
+    expect(res.subtotalCents).toBe(5 * 4000);
+  });
+
+  it("corrupt segment zonder terugval-uren: leeg + null i.p.v. crash", () => {
+    const res = computePerformanceOrt({
+      type: "HOURS",
+      rateCents: 4000,
+      hours: null,
+      amountCents: null,
+      ortSegments: JSON.stringify([{ category: "BOGUS", hours: 3 }]),
+      ortProfile: null,
+      ortCustomRates: null,
+    });
+    expect(res.hasOrt).toBe(false);
+    expect(res.subtotalCents).toBeNull();
+    expect(res.ortBreakdown).toEqual(EMPTY_ORT_BREAKDOWN);
+  });
+
+  it("HOURS zonder ORT-segmenten: platte uren × tarief, geen ORT", () => {
+    const res = computePerformanceOrt({
+      type: "HOURS",
+      rateCents: 3000,
+      hours: 40,
+      amountCents: null,
+      ortSegments: null,
+      ortProfile: null,
+      ortCustomRates: null,
+    });
+    expect(res.hasOrt).toBe(false);
+    expect(res.subtotalCents).toBe(40 * 3000);
+    expect(res.ortBreakdown.normalHours).toBe(40);
+    expect(res.ortBreakdown.surchargeCents).toBe(0);
+  });
+
+  it("MILESTONE: neemt het milestonebedrag, geen ORT", () => {
+    const res = computePerformanceOrt({
+      type: "MILESTONE",
+      rateCents: null,
+      hours: null,
+      amountCents: 250_00,
+      ortSegments: null,
+      ortProfile: null,
+      ortCustomRates: null,
+    });
+    expect(res.hasOrt).toBe(false);
+    expect(res.subtotalCents).toBe(250_00);
+    expect(res.ortBreakdown).toEqual(EMPTY_ORT_BREAKDOWN);
+  });
+
+  it("HOURS zonder uurtarief: geen bedrag, geen crash", () => {
+    const res = computePerformanceOrt({
+      type: "HOURS",
+      rateCents: null,
+      hours: 8,
+      amountCents: null,
+      ortSegments: validSegmentsJson,
+      ortProfile: null,
+      ortCustomRates: null,
+    });
+    expect(res.subtotalCents).toBeNull();
+    expect(res.ortBreakdown).toEqual(EMPTY_ORT_BREAKDOWN);
   });
 });
