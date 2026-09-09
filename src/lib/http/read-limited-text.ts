@@ -81,6 +81,29 @@ export async function readLimitedText(request: Request, maxBytes: number): Promi
   return new TextDecoder("utf-8").decode(merged);
 }
 
+/**
+ * Lees de request-body als JSON, hard begrensd op `maxBytes` UTF-8-bytes (via `readLimitedText`).
+ *
+ * Consolideert het `readLimitedText` + `JSON.parse`-patroon dat de body-lezende endpoints delen,
+ * zodat elk endpoint dezelfde gestreamde grens toepast vóór het parsen — een onbegrensd
+ * `request.json()` buffert anders de VOLLEDIGE stream (ook chunked, zónder Content-Length) in het
+ * geheugen vóór er een grens geldt (CWE-400, geheugen-DoS).
+ *
+ * @returns de geparste waarde bij succes, of `null` als de body te groot, onleesbaar, leeg of geen
+ *   geldige JSON is. De aanroeper mapt `null` op zijn eigen faalbeleid (400 / 204 / veilige default).
+ *   Let op: een body die letterlijk `null` bevat, levert óók `null` — voor deze aanroepers (die op
+ *   `null` altijd naar hun faalpad gaan) is dat gelijkwaardig aan een ongeldige body.
+ */
+export async function readLimitedJson(request: Request, maxBytes: number): Promise<unknown | null> {
+  const raw = await readLimitedText(request, maxBytes);
+  if (!raw) return null; // te groot, onleesbaar, of leeg — niets te parsen
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null; // onparseerbaar
+  }
+}
+
 /** Aantal UTF-8-bytes van een string (zonder de hele buffer te bewaren). */
 function utf8ByteLength(text: string): number {
   return new TextEncoder().encode(text).byteLength;

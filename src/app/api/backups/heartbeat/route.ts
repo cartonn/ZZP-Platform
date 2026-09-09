@@ -9,21 +9,23 @@
 
 import { NextResponse } from "next/server";
 import { authorizeCron } from "@/lib/cron-auth";
+import { readLimitedJson } from "@/lib/http/read-limited-text";
 import { recordBackupHeartbeat } from "@/lib/observability/backup-heartbeat";
 
 export const dynamic = "force-dynamic";
 
+// Body-grens: de body is hooguit `{ "ok": boolean }`. Een grotere payload wijzen we af vóór parsen
+// en valt (als een ontbrekende body) terug op een geslaagde ping — geen onbegrensd bufferen (CWE-400).
+const MAX_BODY_BYTES = 1024;
+
 /** Leest een optionele `{ ok }` uit de body; valt bij ontbreken/ongeldig terug op true (geslaagd). */
 async function readOk(request: Request): Promise<boolean> {
-  try {
-    const body: unknown = await request.json();
-    if (body && typeof body === "object" && "ok" in body) {
-      const value = (body as { ok: unknown }).ok;
-      if (typeof value === "boolean") return value;
-    }
-  } catch {
-    // Geen/ongeldige body → een kale ping betekent een geslaagde back-up.
+  const body = await readLimitedJson(request, MAX_BODY_BYTES);
+  if (body && typeof body === "object" && "ok" in body) {
+    const value = (body as { ok: unknown }).ok;
+    if (typeof value === "boolean") return value;
   }
+  // Geen/ongeldige/te grote body → een kale ping betekent een geslaagde back-up.
   return true;
 }
 

@@ -2,6 +2,26 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-09 — prod: request-body begrensd op de resterende body-lezende API-endpoints (CWE-400)
+
+**Wat:** `readLimitedText` (gestreamde body-grens) sloot het onbegrensd-bufferen op de vier publieke
+body-lezende endpoints (`/api/client-error`, `/api/csp-report`, `/api/billing/webhook`,
+`/api/mail-intake/webhook`). Drie andere body-lezende endpoints lazen de body nog via een onbegrensd
+`request.json()`, dat de VOLLEDIGE stream (óók chunked, zónder Content-Length) in het geheugen buffert
+vóór er een grens geldt: `push/subscribe` + `push/unsubscribe` (sessie-auth, **geen rate-limit** → een
+ingelogde actor kon arbitrair grote bodies loopen) en `backups/heartbeat` (Bearer CRON_SECRET). CWE-400.
+
+**Aanpak (hergebruik, geen duplicatie):** één gedeelde helper `readLimitedJson(request, maxBytes)` in
+`src/lib/http/read-limited-text.ts` (leunt op `readLimitedText` + `JSON.parse`, retourneert de geparste
+waarde of `null` bij te groot/onleesbaar/leeg/onparseerbaar). De drie endpoints lezen nu via die helper met
+een eigen krappe grens (subscribe 8 KB, unsubscribe 4 KB, heartbeat 1 KB); gedrag bij een geldige body
+identiek (`null` mapt op het bestaande faalpad: 400 bij push, "kale ping = geslaagd" bij de heartbeat).
+**Bestanden:** `src/lib/http/read-limited-text.ts` (+ `.test.ts`: 5 nieuwe `readLimitedJson`-tests — geldige
+JSON, leeg→null, onparseerbaar→null, byte-grens vóór parsen, chunked-oversize zonder Content-Length),
+`src/app/api/push/subscribe/route.ts`, `src/app/api/push/unsubscribe/route.ts`,
+`src/app/api/backups/heartbeat/route.ts`. **Checks:** typecheck ✓ · lint ✓ · unit (15/15 helper) ✓ ·
+prettier ✓ · build + CI-poort verifiëren (PR #1446).
+
 ## 2026-09-09 — security/privacy: auditronde 5 — 0 nieuwe exploiteerbare gaten, 0 privacy-defecten (basis @ 271ea20c)
 
 **Wat:** 5e volledige security-/privacy-auditronde. Orchestrator (Opus 4.8) + 3 parallelle adversariële
