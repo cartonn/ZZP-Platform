@@ -4,6 +4,65 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-09 (6e, basis: `main` @ 12d5b36c) — 3 parallelle adversariële audits + orchestrator-sweep: 1 MIDDEL TOCTOU-statusovergang GEDICHT, 0 exploiteerbare authz/IDOR/cross-tenant-gaten, privacy-HOOG heropend voor eigenaar/FG-besluit
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht een gat te _bewijzen_ (file:line + repro), sceptisch t.o.v. de eerdere "gehard"-claims.
+**A** — object-/functieniveau-authz + IDOR + cross-tenant over álle `src/app/api/**/route.ts` + `src/lib/tenancy.ts`
+
+- de auth-keten (`authz.ts`/`auth.ts`/`middleware.ts`) + cron/webhooks. **B** — server-action-mutatieoppervlak
+  (auth→rol→ownership→Zod→actie→audit, mass-assignment, statusovergang-bypass, TOCTOU) over de
+  `(protected)/**/actions.ts` + `src/lib/actions/**` + de gedeelde guardlagen. **C** — privacy/AVG
+  (data-minimalisatie/PII-overfetch, erasure-volledigheid, PII-in-logs, k-anonimiteitsvloeren, data-naar-derden)
+- injectie (CSV/XSS/ICS/SQL/SSRF).
+
+**OPGELOST — [MIDDEL · TOCTOU statusovergang-bypass op support-tickets; kale `update` zonder compound-guard] (deze PR).**
+De gebruiker-zijde support-acties `replyToTicket` (`src/app/(protected)/support/actions.ts:172,176`) en
+`markResolved` (`:193`) toetsten de statusovergang met `assertSupportTransition(ticket.status, …)` tegen een
+**vóór-transactionele snapshot** en schreven daarna met een **kale** `prisma.supportTicket.update({ where: { id } })`
+— zónder de compound-guard `where: { id, status: from }` die élk ander statuswijzigend oppervlak in de repo
+gebruikt (`admin/support`, `admin/no-shows`, `facturen`, `certificaten`). **Repro:** ticket staat `AWAITING_USER`;
+de aanvrager roept `replyToTicket` (snapshot legaal: `AWAITING_USER→ESCALATED`), gelijktijdig rondt een ADMIN het
+ticket af via de compound-guarded `adminResolve` → `RESOLVED` (commit eerst). De kale user-write zet daarna blind
+`ESCALATED`, ook al is `RESOLVED→ESCALATED` **niet** in `SUPPORT_TICKET_TRANSITIONS` → de transitie-map-invariant
+wordt puur via timing omzeild en het admin-besluit stil teruggedraaid. **Geschonden:** CLAUDE.md regel 3
+(statusovergangen via de expliciete map; ongeldige overgang moet worden geweigerd) + regel 5 (audit alles wat telt —
+de `SUPPORT_TICKET_REPLY`-audit droeg geen `{from,to}`) · OWASP A04 (Insecure Design / race condition, CWE-367 TOCTOU).
+**Fix:** beide acties gebruiken nu `updateMany({ where: { id, status: from }, data })` (de flip telt alleen zolang de
+status écht nog `from` is; verliest de race → count 0, geen write, geen fantoom-audit) en de audit draagt de
+`{from,to}`-overgang. Rood→groen: `src/app/(protected)/support/toctou-transition.test.ts` (4 tests — 3 falen op de
+oude kale `update`, alle groen met de guard). Spiegelt `admin/support/actions.ts` adminResolve/adminReply exact.
+
+**GEEN nieuw exploiteerbaar authz/IDOR/cross-tenant-gat.** Audit A bevestigde clean met file:line-bewijs: élke
+object-geadresseerde route haalt owner/relatie op en gate't vóór byte-uitgifte (documents/facturen/prestaties/
+dossier/media/agenda-feed), identieke anti-oracle-404; tenant-isolatie via `tenancy.ts` op alle ~49 call-sites;
+`currentActor()` leest rol/status live uit de DB (stale JWT kan geen toegang behouden); alle cron/webhooks
+fail-closed zonder `CRON_SECRET` (timing-safe). Audit B bevestigde de vólledige mutatie-keten overal behalve de
+support-vein hierboven; geen `.passthrough()`/raw-spread van user-objecten; alle andere status-entiteiten via de
+expliciete map + compound-guard. Injectie clean: geen `$queryRawUnsafe`, alle CSV via `escapeCsvField`, ICS
+RFC-5545-escaped, enige `dangerouslySetInnerHTML` = statisch nonce-gated thema-script, SSRF niet mogelijk
+(alle uitgaande fetches naar vaste provider-hosts). `npm audit --omit=dev` → 0 vulns; geen getrackte secrets/docs.
+
+**HEROPEND (geen code-wijziging deze ronde — eigenaar/FG-besluit vereist) — [HOOG · publiek `/zzp/[id]` toont
+individueel herleidbare reviews zonder k-anonimiteitsvloer].** Audit C bevestigde dat de bevinding uit de
+eerdere rondes (hieronder al geparkeerd) **nog steeds live** is: `src/components/profile/profile-screen.tsx:258-281`
+(query) + `:433-436`/`:627-638` (render) draaien een eigen `prisma.review.aggregate`/`findMany` en tonen — voor
+een PUBLIC-profiel, bereikbaar zónder login — de reviewer-naam, exacte rating en verbatim vrije-tekst-comment,
+**zonder** de `REVIEW_AGGREGATE_MIN_SAMPLE`-vloer die élk ander reputatie-oppervlak wél toepast, en zonder
+rate-limit/audit (contrast met `/vertrouwen`). Bij n=1 review is de reviewer individueel herleidbaar; in een
+zorgcontext kan de comment bijzondere categorie-data dragen. **Geschonden:** AVG art. 5(1)(f) + art. 25
+(privacy-by-design). **Zusje (zelfde patroon, lager):** `src/components/company/company-profile-screen.tsx:71-98`
+(ingelogd, `bedrijf`-pagina) én de publieke **KvK-weergave** `profile-screen.tsx:159,556` (LAAG — KvK is los
+publiek opvraagbaar). **Waarom niet unilateraal gefixt:** dit is expliciet een eigenaar-/product-/FG-afweging
+(MENSENWERK §5) — óf de vloer + attributie-onderdrukking toepassen, óf een gedocumenteerd product-besluit dat
+benoemde publieke reviews bedoeld zijn (zoals sommige marktplaatsen) en dat vastleggen in
+`src/lib/compliance/processing-register.ts`. Buiten de agent-scope (juridische keuze). **Actie eigenaar:** neem
+een besluit vóór livegang met echte gevoelige documenten; dit blokkeert geen demo maar wél de go-live.
+
+**FYI clean-bevestigingen (geen blocker):** erasure (`account-anonymization.ts`) uitzonderlijk grondig (redigeert
+vrije tekst over alle PII-dragende modellen incl. audit-metadata + domain-events, hard-delete van race-vrije
+document-blobs); PII-in-logs afgedekt (`observability/logger.ts` redigeert per sleutel + maskeert e-mails).
+
 ## Ronde 2026-09-09 (5e, basis: `main` @ 271ea20c) — 3 parallelle adversariële audits + orchestrator-sweep: 0 nieuwe exploiteerbare security-gaten, 0 privacy-defecten
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
