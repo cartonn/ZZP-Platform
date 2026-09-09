@@ -22,6 +22,7 @@ interface RosterRow {
   availability: string;
   user: { identityVerifiedAt: Date | null; lastLoginAt: Date | null };
   credentials: { type: string; status: string; expiresAt: Date | null }[];
+  _count: { collaborations: number };
 }
 interface DienstRow {
   id: string;
