@@ -122,6 +122,12 @@ punt 5 hieronder.
 
 ### Robuustheid / techniek
 
+0b. **Request-body begrensd op de resterende body-lezende API-endpoints (CWE-400) — GEDAAN (9-9, PR
+#1446).** `readLimitedJson`-helper (`src/lib/http/read-limited-text.ts`) trekt de gestreamde
+body-grens door naar `push/subscribe` (8 KB), `push/unsubscribe` (4 KB) — beide sessie-auth zónder
+rate-limit — en `backups/heartbeat` (1 KB, Bearer). Onbegrensd `request.json()` bufferde de volledige
+chunked stream vóór parsen. Gedrag bij geldige body ongewijzigd. Tests: 5× `readLimitedJson`.
+
 0. **[GELD — HOOG] Dubbel-afronden in `segmentShifts` (`src/lib/shift.ts`) — GEDAAN (7-9, PR volgt).**
    De minuten-doorloop + validatie zijn uit `segmentShift` gedeeld in helper `accumulateShiftMinutes` die de
    RUWE `minutesByCat` teruggeeft; `segmentShift` én `segmentShifts` aggregeren ruwe minuten en ronden precies

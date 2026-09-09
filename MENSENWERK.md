@@ -533,6 +533,16 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   die de rauwe body nodig hebben voor handtekeningverificatie (Stripe). Vervangt vier kopieën van het
   read-then-check-patroon door één bron van waarheid. Resterend mensenwerk: **niets** — werkt
   out-of-the-box.
+  **Code-kant GEDAAN (2026-09-09) — doorgetrokken naar de resterende body-lezende endpoints:** drie
+  andere body-lezende endpoints lazen de body nog via een onbegrensd `request.json()` (zelfde
+  volledig-bufferen-vóór-grens-probleem): `push/subscribe` + `push/unsubscribe` (sessie-auth, maar
+  **zonder** rate-limit — een ingelogde actor kon arbitrair grote, chunked bodies loopen) en
+  `backups/heartbeat` (Bearer CRON_SECRET). Er is nu een gedeelde helper `readLimitedJson(request,
+maxBytes)` (leunt op `readLimitedText` + `JSON.parse`, retourneert de geparste waarde of `null` bij
+  te groot/onleesbaar/leeg/onparseerbaar); de drie endpoints lezen via die helper met een krappe grens
+  (subscribe 8 KB, unsubscribe 4 KB, heartbeat 1 KB). Gedrag bij een geldige body ongewijzigd (`null`
+  mapt op het bestaande faalpad: 400 bij push, "kale ping = geslaagd" bij de heartbeat). Resterend
+  mensenwerk: **niets** — werkt out-of-the-box.
 
 ## §1. Hosting, database, opslag, domein, geheimen
 

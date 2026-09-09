@@ -8,8 +8,14 @@ import { currentActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { isAllowedPushEndpoint } from "@/lib/push/endpoints";
+import { readLimitedJson } from "@/lib/http/read-limited-text";
 
 export const dynamic = "force-dynamic";
+
+// Body-grens: een push-abonnement is klein (endpoint ≤2048 + 2×sleutel ≤512 + JSON-overhead). Een
+// grotere payload wijzen we af vóór parsen — deze route heeft geen rate-limit, dus een onbegrensd
+// `request.json()` zou een ingelogde actor een arbitrair grote (chunked) body laten bufferen (CWE-400).
+const MAX_BODY_BYTES = 8 * 1024;
 
 const subscriptionSchema = z.object({
   endpoint: z.string().url().max(2048),
@@ -23,7 +29,7 @@ export async function POST(request: Request): Promise<Response> {
   const actor = await currentActor();
   if (!actor) return NextResponse.json({ error: "Niet geautoriseerd." }, { status: 401 });
 
-  const parsed = subscriptionSchema.safeParse(await request.json().catch(() => null));
+  const parsed = subscriptionSchema.safeParse(await readLimitedJson(request, MAX_BODY_BYTES));
   if (!parsed.success) {
     return NextResponse.json({ error: "Ongeldig abonnement." }, { status: 400 });
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readLimitedText } from "./read-limited-text";
+import { readLimitedText, readLimitedJson } from "./read-limited-text";
 
 /** Bouw een Request met een gestreamde body (chunked — géén Content-Length). */
 function streamingRequest(chunks: Uint8Array[], headers?: Record<string, string>): Request {
@@ -115,5 +115,51 @@ describe("readLimitedText", () => {
       duplex: "half",
     });
     expect(await readLimitedText(req, 1024)).toBeNull();
+  });
+});
+
+describe("readLimitedJson", () => {
+  const jsonRequest = (body: string) =>
+    new Request("https://example.test/api/x", { method: "POST", body });
+
+  it("parseert een geldige JSON-body binnen de grens", async () => {
+    const req = jsonRequest(JSON.stringify({ ok: false, extra: "x" }));
+    expect(await readLimitedJson(req, 1024)).toEqual({ ok: false, extra: "x" });
+  });
+
+  it("geeft null voor een lege body", async () => {
+    expect(await readLimitedJson(jsonRequest(""), 1024)).toBeNull();
+  });
+
+  it("geeft null voor onparseerbare JSON", async () => {
+    expect(await readLimitedJson(jsonRequest("{niet: geldig"), 1024)).toBeNull();
+  });
+
+  it("wijst een body af die de byte-grens overschrijdt (vóór parsen)", async () => {
+    // Geldige JSON, maar ruim boven de grens: null zonder te parsen.
+    const big = JSON.stringify({ endpoint: "x".repeat(500) });
+    expect(await readLimitedJson(jsonRequest(big), 64)).toBeNull();
+  });
+
+  it("wijst een chunked oversize body ZONDER Content-Length af", async () => {
+    let enqueued = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (enqueued >= 4) {
+          controller.close();
+          return;
+        }
+        enqueued += 1;
+        controller.enqueue(enc('{"a":"0123456789"}'));
+      },
+    });
+    const req = new Request("https://example.test/api/x", {
+      method: "POST",
+      body: stream,
+      // @ts-expect-error duplex ontbreekt in de lib-typing.
+      duplex: "half",
+    });
+    expect(await readLimitedJson(req, 25)).toBeNull();
+    expect(enqueued).toBeLessThan(4);
   });
 });
