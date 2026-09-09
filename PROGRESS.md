@@ -2,6 +2,27 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-09 — robuustheid: CSV-uren zonder float-artefact + ongeguarde ortSegments-parse gehard (/prestaties + /diensten)
+
+**Wat:** twee geïsoleerde robuustheidsfixes in de export/query van `/prestaties` (bemiddelaar/admin) en
+`/diensten` (ZZP'er). (1) De CSV-"Uren"-kolommen (`Uren`, `Reguliere uren`, `ORT-uren`) renderden uren met
+een kale `Number.toString()`: een som van sub-kwartier-uren expandeert in IEEE-754 (`4,1 + 2,2 =
+6,300000000000001`, `0,1 + 0,2 = 0,30000000000000004`) en lekte die staart in een export die juist tegen
+een loonstrook wordt afgestemd (het scherm toont wél netjes via `toLocaleString`). **Geld ongemoeid** — de
+factuur rondt per segment in integer-centen. (2) `JSON.parse(p.ortSegments)` stond ongeguard in beide
+lezers, terwijl élke andere lezer van die kolom (`ort.ts` `parseOrtSegments`, `performance-pdf.ts`) een
+try/catch-parser gebruikt: één corrupte rij liet de héle `/prestaties`/`/diensten`-pagina crashen i.p.v.
+alleen die ene rij.
+
+**Aanpak (hergebruik, geen duplicatie):** `fmtHours` rondt nu op honderdsten af
+(`(Math.round(hours*100)/100).toString().replace(".", ",")`) en de kale "Uren"-kolom (`X.hours.toString()`)
+loopt door diezelfde `fmtHours`; de ongeguarde parse is vervangen door de canonieke `parseOrtSegments`
+(stille `[]`-terugval — downstream `hasOrt`/`summarizeOrtBreakdown` handelen `[]` al correct af). Ongebruikte
+`OrtSegment`-import verwijderd. **Bestanden:** `src/lib/prestaties.ts`, `src/lib/diensten.ts` (+ beide
+`.test.ts`: float-artefact-regressie op alle drie de uren-kolommen; corrupte-rij → geen throw, `hasOrt=false`,
+terugval op uren×tarief). **Checks:** typecheck ✓ · lint ✓ · unit (prestaties+diensten 54) ✓ · full unit +
+build + prettier + CI-poort verifiëren.
+
 ## 2026-09-08 — bemiddelaar: /franchise/diensten-vulbaarsignaal telt vakantie-afwezige vakmens niet meer als "vrij" (drift met capaciteitstegel)
 
 **Wat:** `computeDienstFill` (`src/lib/franchise/dienst-fill-signal.ts`) — het "vrij inzetbaar"-vulbaarsignaal

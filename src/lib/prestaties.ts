@@ -3,7 +3,7 @@
 // in een samenwerking van de opdrachtgever.
 
 import { prisma } from "@/lib/db";
-import { type OrtSegment, ortSubtotalCents, resolveOrtRates } from "@/lib/ort";
+import { ortSubtotalCents, parseOrtSegments, resolveOrtRates } from "@/lib/ort";
 import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
 import {
   type OrtBreakdown,
@@ -91,7 +91,9 @@ export interface PrestatieRow {
  */
 export function toPrestatieOverzicht(p: PrestatieRow): PrestatieOverzicht {
   const col = p.collaboration;
-  const ortSegs = p.ortSegments ? (JSON.parse(p.ortSegments) as OrtSegment[]) : null;
+  // Defensief parsen: één corrupte rij mag niet de héle pagina laten crashen
+  // (dezelfde try/catch-bron als elke andere lezer van deze kolom).
+  const ortSegs = parseOrtSegments(p.ortSegments);
   const rates = resolveOrtRates({
     ortProfile: col.ortProfile,
     ortCustomRates: col.ortCustomRates,
@@ -241,7 +243,10 @@ function fmtEur(cents: number | null): string {
 }
 
 function fmtHours(hours: number): string {
-  return hours.toString().replace(".", ",");
+  // Rond op honderdsten af zodat de "Uren"-kolom geen IEEE-754-expansie lekt
+  // (bv. 4,1 + 2,2 = 6,300000000000001) in een export die tegen een loonstrook
+  // wordt afgestemd. Het scherm toont al netjes via toLocaleString.
+  return (Math.round(hours * 100) / 100).toString().replace(".", ",");
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -286,7 +291,7 @@ export function exportPrestatiesCsv(prestaties: PrestatieOverzicht[]): string {
     STATUS_LABEL[p.status] ?? p.status,
     fmtDate(p.periodStart),
     fmtDate(p.periodEnd),
-    p.hours != null ? p.hours.toString().replace(".", ",") : "",
+    p.hours != null ? fmtHours(p.hours) : "",
     p.hasOrt ? "Ja" : "Nee",
     p.type === "HOURS" ? fmtHours(p.ortBreakdown.normalHours) : "",
     p.type === "HOURS" ? fmtHours(p.ortBreakdown.ortHours) : "",
