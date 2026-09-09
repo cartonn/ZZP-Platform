@@ -16,9 +16,8 @@ minor/patch, majors bewust als losse PR's) en `github-actions` (root; alle actio
 (maandag 06:00 Europe/Amsterdam), begrensde PR-flux (10 resp. 5) zodat de reviewqueue/CI-poort niet
 dichtslibt, `chore`-commit-prefix met scope, label `dependencies`. Elke Dependabot-PR loopt door dezelfde
 6 vereiste statuschecks (check/e2e/audit/secret-scan/CodeQL/agent-review) — nooit een automatische merge
-zonder groene poort. Security-updates komen out-of-band binnen zodra de repo-web-toggle "Dependency graph
-
-- Dependabot security updates" aanstaat (enige resterende menselijke stap).
+zonder groene poort. Security-updates komen out-of-band binnen zodra de repo-web-toggle voor Dependency
+graph en Dependabot security updates aanstaat (enige resterende menselijke stap).
 
 **Drift-bewaking:** `scripts/dependabot-config.test.ts` (7 tests) — Dependabot draait niet in CI, dus
 zonder deze test kan de config stil verweken (verdwenen ecosysteem/groepering) zonder dat een poort dat
