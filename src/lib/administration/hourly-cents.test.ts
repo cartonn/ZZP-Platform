@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hoursTimesRateCents } from "./hourly-cents";
+import { hoursTimesRateCents, isCentAccurateHours } from "./hourly-cents";
 
 /**
  * Exacte referentie: round-half-up van `uren × tarief` in centen, berekend in integer-ruimte vanuit de
@@ -63,5 +63,36 @@ describe("hoursTimesRateCents", () => {
     // MAX_PERFORMANCE_HOURS × MAX_PERFORMANCE_RATE_CENTS = 100.000 honderdsten × 200.000 = 2·10¹⁰.
     expect(hoursTimesRateCents(1000, 200_000)).toBe(200_000_000); // €2.000.000
     expect(Number.isSafeInteger(hoursTimesRateCents(1000, 200_000))).toBe(true);
+  });
+});
+
+describe("isCentAccurateHours", () => {
+  it("accepteert waarden op de cent-grid (≤2 decimalen), inclusief float-noisy 2-decimalen", () => {
+    for (const v of [0, 0.25, 0.5, 0.75, 1, 4.14, 4.15, 1.67, 8, 999.99, 1000, 0.01, 0.29]) {
+      expect(isCentAccurateHours(v)).toBe(true);
+    }
+    // Enkele 2-decimalen zijn niet exact in float na ×100 (bv. 4,15·100 = 415,0000…0006) — de
+    // tolerantie vangt die ruis, zodat geldige invoer niet ten onrechte wordt geweigerd.
+    expect(4.15 * 100).not.toBe(415);
+    expect(isCentAccurateHours(1.67)).toBe(true);
+    expect(isCentAccurateHours(8.85)).toBe(true);
+  });
+
+  it("weigert waarden met méér dan twee decimalen (die de factuurmotor stil zou herkwantiseren)", () => {
+    for (const v of [4.149, 4.141, 4.145, 0.001, 0.125, 2.333, 7.7777, 1.001]) {
+      expect(isCentAccurateHours(v)).toBe(false);
+    }
+    // 4,149 → factuurmotor rekent met round(4,149·100)=415 → 4,15: precies de getoond↔gefactureerd-drift.
+    expect(Math.round(4.149 * 100)).toBe(415);
+  });
+
+  it("is consistent met de kwantisatie van hoursTimesRateCents (accepteert ⇔ geen herkwantisatie-verlies)", () => {
+    // Een cent-accurate waarde valt op de honderdsten-grid, dus round(v·100) verliest niets.
+    for (let hh = 0; hh <= 1000; hh++) {
+      const v = hh / 100; // exact een honderdste-stap
+      expect(isCentAccurateHours(v)).toBe(true);
+      // Een halve-honderdste ertussen (3e decimaal) valt er buiten.
+      if (hh < 1000) expect(isCentAccurateHours(v + 0.005)).toBe(false);
+    }
   });
 });

@@ -31,3 +31,21 @@ export function hoursTimesRateCents(hours: number, hourlyRateCents: number): num
   const hoursHundredths = Math.round(hours * 100);
   return Math.floor((hoursHundredths * hourlyRateCents + 50) / 100);
 }
+
+/**
+ * Toetst of een uren-waarde exact op de cent-grid (honderdsten-uur) valt — de resolutie waarmee
+ * `hoursTimesRateCents` de factuurbasis berekent (`Math.round(hours * 100)`). Uren met méér dan twee
+ * decimalen (bv. 4,149 uit een geknutselde POST of een CSV-import) worden door de factuurmotor stil
+ * geherkwantiseerd (4,149 → 4,15), waardoor de GETOONDE uren op de urenstaat/PDF/CSV afwijken van de
+ * GEFACTUREERDE hoeveelheid. Met dit predikaat weigeren de aanroepers zulke invoer vóór persistentie,
+ * zodat wat de ZZP'er/opdrachtgever ziet altijd één-op-één de factuur voedt (server-side waarheid).
+ *
+ * Float-veilig: een geldige 2-decimale waarde die als IEEE-754 nét onder/boven ligt (1,67 = 1,6699…997)
+ * heeft `|hours·100 − round(hours·100)| ≈ 3·10⁻¹⁴`, ruim binnen de tolerantie; een derde decimaal geeft
+ * een afstand van minimaal 0,1 in geschaalde ruimte en valt er ruim buiten. Verwacht een reeds-eindige,
+ * niet-negatieve waarde (aanroepers checken finite/≥0 apart).
+ */
+export function isCentAccurateHours(hours: number): boolean {
+  const scaled = hours * 100;
+  return Math.abs(scaled - Math.round(scaled)) <= 1e-6;
+}

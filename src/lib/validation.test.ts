@@ -504,6 +504,29 @@ describe("validatePerformanceForm", () => {
     ).toBeNull();
   });
 
+  it("HOURS: uren met >2 decimalen geeft een fout (getoond == gefactureerd)", () => {
+    // 4,149 zou de factuurmotor stil herkwantiseren naar 4,15 → getoonde uren ≠ gefactureerde uren.
+    const result = validatePerformanceForm({ ...hoursBase, hours: 4.149 });
+    expect(result).not.toBeNull();
+    expect(result).toContain("twee decimalen");
+  });
+
+  it("HOURS: float-noisy 2-decimale uren (1,67) blijven geldig", () => {
+    // 1,67·100 = 166,9999…997 in float; de cent-grid-check mag deze geldige invoer niet weigeren.
+    expect(validatePerformanceForm({ ...hoursBase, hours: 1.67 })).toBeNull();
+  });
+
+  it("HOURS ORT: ortTotal met >2 decimalen geeft een fout", () => {
+    const result = validatePerformanceForm({
+      ...hoursBase,
+      hasOrt: true,
+      ortTotal: 4.149,
+      hours: 4.149,
+    });
+    expect(result).not.toBeNull();
+    expect(result).toContain("twee decimalen");
+  });
+
   it("HOURS: periodStart > periodEnd geeft een fout", () => {
     const result = validatePerformanceForm({
       ...hoursBase,
