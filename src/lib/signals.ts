@@ -394,8 +394,16 @@ export async function unreadConversationCount(userId: string): Promise<number> {
  * Aantal PROPOSED samenwerkingen van deze opdrachtgever waar het contract nog ondertekend kan worden.
  * Sluit — net als /acties (pending-tasks.ts `contractSignTask`) — de door een certificaat-gat
  * geblokkeerde plaatsingen uit: signContract weigert die server-side, dus de "Onderteken"-taak
- * verschijnt daar niet en de badge moet 'm ook niet tellen (badge↔lijst-pariteit). Gecapt op
- * CASCADE_SCAN_LIMIT, gelijk aan de list-slice, zodat beide op dezelfde rijen redeneren.
+ * verschijnt daar niet en de badge moet 'm ook niet tellen (badge↔lijst-pariteit).
+ *
+ * Ordening `createdAt asc` — IDENTIEK aan de list-bron (`proposedCollabs`, pending-tasks.ts) — zodat
+ * beide bij >CASCADE_SCAN_LIMIT gelijktijdige PROPOSED-samenwerkingen op DEZELFDE rijen redeneren.
+ * De list is in run 81 bewust van `updatedAt desc` naar `createdAt asc` omgezet: `Collaboration.updatedAt`
+ * is een @updatedAt-kolom die bij een PROPOSED-rij effectief op het aanmaakmoment bevroren staat, dus
+ * `updatedAt desc` capte de NIEUWSTE voorstellen en liet de OUDSTE — precies de langst-wachtende hires
+ * die om ondertekening vragen — buiten het venster vallen (outer-window-blindheid). De badge droeg die
+ * bug nog: hij pakte de nieuwste 50 terwijl /acties de oudste 50 toont → de badge undercountte de
+ * gestrande, oudste voorstellen. `createdAt asc` sluit die divergentie definitief.
  */
 async function countClientSignableProposals(userId: string, now: Date): Promise<number> {
   const proposed = await prisma.collaboration.findMany({
@@ -410,7 +418,7 @@ async function countClientSignableProposals(userId: string, now: Date): Promise<
         select: { credentials: { select: { type: true, status: true, expiresAt: true } } },
       },
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { createdAt: "asc" },
     take: CASCADE_SCAN_LIMIT,
   });
   let count = 0;
