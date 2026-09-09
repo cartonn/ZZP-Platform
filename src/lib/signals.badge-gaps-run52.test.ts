@@ -132,6 +132,8 @@ function engageableRow(id: string): RosterRow {
       { type: "VOG", status: "VERIFIED", expiresAt: future },
       { type: "INSURANCE", status: "VERIFIED", expiresAt: future },
     ],
+    // Recente login + geen bench-telling → `classifyRosterDormancy` tier `active` (geen dormancy-signaal).
+    _count: { collaborations: 0 },
   };
 }
 
@@ -148,6 +150,7 @@ function notEngageableRow(id: string): RosterRow {
       { type: "VOG", status: "VERIFIED", expiresAt: past }, // verlopen → INACTIEF
       { type: "INSURANCE", status: "VERIFIED", expiresAt: future },
     ],
+    _count: { collaborations: 0 },
   };
 }
 
