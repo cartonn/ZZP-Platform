@@ -2,6 +2,33 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-09 — robuustheid: vervalkalender onderdrukt superseded/gedekte certificaten (geen valse vernieuw-nudge)
+
+**Wat:** de vervalkalender `summarizeExpiry` (`src/lib/credential-expiry-overview.ts`) — getoond aan de
+ZZP'er op `/certificaten` (ExpiryOverviewCard) én aan de bemiddelaar op `/franchise/zzpers/[id]` (en via
+`summarizeExpiryAlert` op `/franchise/zzpers` + de export) — was het énige verval-oppervlak dat de canonieke
+superseded-/gedekte-onderdrukking níét toepaste. Élk ander oppervlak sluit een cert dat door een
+nieuwer/onbeperkt exemplaar van hetzelfde type gedekt is al uit (`supersededVerifiedCredentialIds`/
+`coveredCredentialTypes`): de ZZP-nav-badge (`signals.ts`), de next-actions (`pending-tasks.ts`), de
+verval-cron (`expiry-task.ts`) en de bemiddelaar-roostertelling (`rosterExpiringByProfile`). Had een ZZP'er
+voor een type twee VERIFIED-certs — één dat binnenkort verloopt én één doorlopend/later-vervallend exemplaar —
+dan bleef de kalender "verloopt binnenkort — vernieuw" tonen, terwijl de vereiste al permanent gedekt was: een
+valse nudge die nooit op nul komt, plus drift t.o.v. de roostertelling die de bemiddelaar ziet.
+
+**Aanpak (hergebruik, geen duplicatie):** `summarizeExpiry` krijgt de vólledige certificatenlijst binnen, dus
+het berekent nu intern `supersededVerifiedCredentialIds` + `coveredCredentialTypes` en slaat twee gevallen over:
+(1) een nu-geldig VERIFIED-cert dat superseded is door een nieuwer/onbeperkt exemplaar van hetzelfde type;
+(2) een verlopen exemplaar (EXPIRED of computed-expired VERIFIED) van een type dat een ánder nu-geldig
+VERIFIED-cert al dekt — exact het geval dat de `coveredCredentialTypes`-docstring benoemt. Verloopt élk exemplaar
+van een type, dan valt het type buiten de dekking en blijft de verlopen-melding terecht staan. Het nu-geldige
+cover-cert zelf wordt nooit onderdrukt (dat moet de ZZP'er wél vernieuwen vóór het lapst). Geen caller-wijziging;
+`summarizeExpiryAlert` (franchise) erft de fix → agreert nu met `rosterExpiringByProfile`.
+**Bestanden:** `src/lib/credential-expiry-overview.ts` (+ `.test.ts`: 6 tests — onbeperkt cover onderdrukt,
+eerder-vervallend onderdrukt maar later-cover blijft, verlopen-van-gedekt-type onderdrukt, alles-verlopen blijft
+zichtbaar, solo-cover blijft zichtbaar, typegrens onderdrukt niet; 2 bestaande fixtures kregen distincte typen
+zodat ze windowing/sortering testen i.p.v. incidenteel superseded te triggeren).
+**Checks:** typecheck ✓ · lint ✓ · unit (8514/8514, +6) ✓ · build ✓ · prettier ✓ · CI-poort verifiëren (PR #1450).
+
 ## 2026-09-09 — robuustheid: doorlopend cert onderdrukt valse collab-verval-nudge (ZZP'er) + badge↔lijst-pariteit
 
 **Wat:** `collaborationCredentialExpiryConcerns` (`src/lib/collaboration-credential-expiry.ts`) — de bron
@@ -336,52 +363,6 @@ retries), zodat een blip die herstelt de mislukkingen-teller niet oploopt. Injec
 ongewijzigd. **Bestanden:** `src/lib/services/password-breach.ts`, `src/lib/services/password-breach.test.ts`
 (26 tests, +7 retry), `src/lib/env.ts` (`PASSWORD_BREACH_HTTP_RETRIES`), `.env.example`, `MENSENWERK.md`.
 **Checks:** password-breach 26/26 ✓ · typecheck/lint/prettier/build + CI-poort verifiëren. PR #1433.
-
-## 2026-09-08 — security/privacy: k-anonimiteitsvloer op ALLE beoordelingsaggregaten (HOOG, gedicht)
-
-**Wat:** 3e adversariële security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits op
-niet-overlappende oppervlakken: authz/IDOR/tenant · injectie/upload/headers/auth · privacy/AVG). **Eén nieuw
-HOOG privacy-gat gevonden én gedicht**, 0 exploiteerbare security-gaten. De k-anonimiteitsvloer
-`REVIEW_AGGREGATE_MIN_SAMPLE = 3` was correct in `freelancerReputationFromReviews` (publiek dossier) maar
-**stil weggelaten** in de twee spiegelfuncties `companyReputationFromReviews` (opdracht-detailpagina, elke
-ZZP'er) en `groupCandidateRatings` (`/kandidaten` + kandidaat-ranking, elke opdrachtgever): beide toonden een
-**individueel herleidbaar** cijfer bij n=1/n=2 (AVG art. 5(1)(f)/25). Beide poorten nu op
-`>= REVIEW_AGGREGATE_MIN_SAMPLE`, identiek aan de referentie; onder de vloer `null`/weggelaten (geen
-render-aanpassing, retourtype ongewijzigd; ook geen ranking-invloed van één opinie).
-
-**Root cause gedicht:** de bestaande `k-anonymity-floors.test.ts` bewaakte alleen de **waarde** van de
-constante, niet de **toepassing** ervan per call-site. Nieuwe afdwing-poort
-`src/lib/compliance/review-aggregate-floor-coverage.test.ts` pint alle drie de spiegelfuncties gedrag-matig
-(onder/op de vloer) én dwingt statisch af dat elke `aggregateReviews`-consument in `src/lib` de constante noemt
-(parity met `anonymize-schema-coverage.test.ts` voor erasure) — een 4e call-site kan de vloer niet stil weglaten.
-**Bestanden:** `src/lib/company-reputation.ts`, `src/lib/candidate-reviews.ts`,
-`src/lib/company-reputation.test.ts`, `src/lib/candidate-reviews.test.ts`,
-`src/lib/compliance/review-aggregate-floor-coverage.test.ts` (nieuw), `docs/SECURITY-PRIVACY-BACKLOG.md`.
-**Checks:** typecheck ✓ · lint ✓ · prettier ✓ · unit (affected suites 29/29 + downstream 83/83) ✓ · build + volledige
-CI-poort verifiëren.
-
-## 2026-09-08 — cascade: ORT-verdienpreview ook in de handmatige urenmodus (ZZP'er)
-
-**Wat:** de ZZP'er zag bij het indienen van een urenstaat een live ORT-verdienpreview (uren per
-categorie + subtotaal excl. btw) **alleen in de dienstenmodus** (begin/eind-tijden). Wie de
-onregelmatige uren **handmatig per categorie** invulde (avond/nacht/weekend/feestdag), zag geen
-enkele berekening — die persoon diende blind in en wist pas ná goedkeuring wat de opdracht opleverde.
-Nu toont het formulier in béíde modi hetzelfde voorbeeld, plus een nieuwe **"Totaal uren"**-regel.
-De dienstenmodus houdt voorrang (server: shifts > handmatig), dus het handmatige voorbeeld verschijnt
-alleen als er geen geldige dienstrijen staan — consistent met wat de server indient. Server-side
-blijft de waarheid: het voorbeeld is een richtbedrag, de opdrachtgever keurt de definitieve
-berekening goed.
-
-**Aanpak (DRY + pariteit):** één gedeelde, pure bron `src/lib/manual-ort.ts` (`MANUAL_ORT_FIELDS`
-= veldnaam↔categorie↔label in canonieke volgorde, en `manualOrtSegments()` die uren>0 in vaste
-volgorde tot segmenten bouwt). Zowel de server-actie (`parsePerformanceInput`) als het formulier
-lezen hieruit, zodat de precedentie/volgorde tussen wat de ZZP'er ziet en wat de server berekent
-niet kan driften. Het formulier deelt nu één `OrtPreviewTable`-component tussen beide modi.
-**Bestanden:** `src/lib/manual-ort.ts` (+ `.test.ts`, 6 tests), `src/app/(protected)/samenwerkingen/[id]/actions.ts`
-(inline `ortFields`-blok → gedeelde helper, gedrag identiek), `src/app/(protected)/samenwerkingen/[id]/performance-form.tsx`
-(gedeeld preview-component + gecontroleerde handmatige velden + handmatig voorbeeld + totaal-uren).
-**Checks:** typecheck ✓ · lint ✓ · unit 170/170 (relevante suites) incl. manual-ort 6/6 ✓ · build ✓
-(109/109 static pages) · prettier ✓ · CI-poort verifiëren. PR #1431.
 
 ## Staat van het product (2-9-2026)
 
