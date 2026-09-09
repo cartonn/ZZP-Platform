@@ -2,6 +2,31 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-09 — geld/robuustheid: uren-invoer op de cent-grid afgedwongen (getoonde uren == gefactureerde uren)
+
+**Wat:** de open MED-kandidaat uit de 8-9-notitie hieronder gedicht. De factuurmotor
+`hoursTimesRateCents` (`src/lib/administration/hourly-cents.ts`) kwantiseert uren stil naar honderdsten
+(`Math.round(hours * 100)`). Uren met méér dan twee decimalen passeerden de validatie (`validatePerformanceForm`/
+`assertPerformanceWithinLimits` checkten alleen finite/positief/max, geen 2-decimaal-stap) en werden bij
+factuurafleiding geherkwantiseerd — bv. een geknutselde POST of CSV-import met `4,149` uur factureert als
+`4,15` uur, terwijl de urenstaat/PDF/CSV `4,149` blijft tonen. Getoonde ≠ gefactureerde hoeveelheid, precies op
+het administratie-vertrouwensvlak. **Geld ongemoeid** — de beschermde motor (`hourly-cents.ts`, #1440) is niet
+aangeraakt; de fix zit puur op de invoer-grens zodat de kwantisatie een no-op wordt.
+
+**Aanpak (hergebruik, geen duplicatie):** één float-veilig predikaat `isCentAccurateHours(hours)` in
+`hourly-cents.ts` (co-locatie met de kwantisatie die het spiegelt): `|hours·100 − round(hours·100)| ≤ 1e-6`
+accepteert geldige 2-decimalen inclusief IEEE-754-ruis (1,67 → 166,999…997; 4,15 → 415,000…006) en weigert elke
+3e+ decimaal (afstand ≥ 0,1 in geschaalde ruimte). `assertPerformanceWithinLimits` — het choke point voor
+formulier, CSV-import (`diensten/importeer`) én admin — weigert nu `hours` en elk ORT-`seg.hours` buiten de grid
+(`"Vul de uren in met maximaal twee decimalen."`); `validatePerformanceForm` geeft dezelfde vriendelijke
+formulierfout op `hours`/`ortTotal`. Shift-/CSV-afgeleide uren (al op honderdsten via `segmentsFromMinutes`)
+blijven geldig; een malformede CSV-rij degradeert tot een per-rij-skip (bestaande `toSafeActionError`-catch).
+**Bestanden:** `src/lib/administration/hourly-cents.ts` (+ `.test.ts`: 3 tests — grid-acceptatie incl. float-ruis,
+weigering >2 decimalen, consistentie met de kwantisatie), `src/lib/cascade/performance-commands.ts` (+ `.test.ts`:
+4 tests — `hours` en `seg.hours` grid-guards), `src/lib/validation.ts` (+ `.test.ts`: 3 tests — `hours`/`ortTotal`
+grid + float-noisy 1,67 blijft geldig). **Checks:** typecheck ✓ · lint ✓ · unit (affected 115/115) ✓ · prettier ✓ ·
+full unit + build + CI-poort verifiëren (PR #1447).
+
 ## 2026-09-09 — prod: request-body begrensd op de resterende body-lezende API-endpoints (CWE-400)
 
 **Wat:** `readLimitedText` (gestreamde body-grens) sloot het onbegrensd-bufferen op de vier publieke
@@ -80,12 +105,12 @@ NU vullen"), geen scope-creep richting dienst-startdatum. **Bestanden:** `src/li
 venster voorbij → idle 1/ready 1). **Checks:** typecheck ✓ · lint ✓ · unit (full 8486) ✓ · build ✓ ·
 prettier ✓ · CI-poort verifiëren.
 
-> **Genoteerd voor een aparte run (niet in deze PR):** een cascade-audit vond een MED-kandidaat — uren met
-> meer dan twee decimalen passeren `validatePerformanceForm`/`assertPerformanceWithinLimits` (alleen
-> finite/positief/max, geen 2-decimaal-stap) en worden in `hoursTimesRateCents` op honderdsten
-> geherkwantiseerd, wat de gefactureerde hoeveelheid met een cent kan laten afwijken van de getoonde uren.
-> Raakt de beschermde administratie-motor (`hourly-cents.ts`, grenst aan #1440) → aparte,
-> mensenwerk-review-waardige fix.
+> **Genoteerd voor een aparte run — GEDAAN 9-9 (PR #1447, zie bovenaan).** Een cascade-audit vond een
+> MED-kandidaat — uren met meer dan twee decimalen passeren `validatePerformanceForm`/
+> `assertPerformanceWithinLimits` (alleen finite/positief/max, geen 2-decimaal-stap) en worden in
+> `hoursTimesRateCents` op honderdsten geherkwantiseerd, wat de gefactureerde hoeveelheid met een cent kan
+> laten afwijken van de getoonde uren. Gedicht op de invoer-grens (`isCentAccurateHours`); de beschermde
+> administratie-motor (`hourly-cents.ts`, #1440) is niet aangeraakt.
 
 ## 2026-09-08 — verval-cron onderdrukt valse "vernieuw"-nudge op gedekte/superseded certificaten
 
