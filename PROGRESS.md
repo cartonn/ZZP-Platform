@@ -2,6 +2,32 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-09 — security/privacy auditronde 6: TOCTOU statusovergang-bypass op support-tickets gedicht (CLAUDE.md regel 3)
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: A authz/IDOR/cross-tenant over álle API-routes + auth-keten + cron/webhooks ·
+B server-action-mutaties + guardlagen · C privacy/AVG + injectie). Basis `main` @ 12d5b36c. **Eén MIDDEL
+gedicht, één HOOG privacy-item heropend voor eigenaar/FG-besluit**, rest clean met file:line-bewijs.
+
+De gebruiker-zijde support-acties `replyToTicket`/`markResolved` (`src/app/(protected)/support/actions.ts`)
+toetsten hun statusovergang tegen een vóór-transactionele snapshot en schreven daarna met een **kale**
+`prisma.supportTicket.update({ where: { id } })` — zónder de compound-guard `where: { id, status: from }` die
+élk ander statuswijzigend oppervlak in de repo gebruikt. Daardoor kon een race (aanvrager reageert terwijl een
+ADMIN het ticket afrondt) de live status blind overschrijven en een overgang forceren die
+`SUPPORT_TICKET_TRANSITIONS` verbiedt (bv. `RESOLVED→ESCALATED`): de transitie-map-invariant omzeild via timing,
+het admin-besluit stil teruggedraaid. **Fix:** beide acties gebruiken nu `updateMany` mét de statusguard (flip
+telt alleen zolang de status écht nog `from` is; verliest de race → count 0, geen write, geen fantoom-audit) en de
+audit draagt de `{from,to}`-overgang. Spiegelt `admin/support/actions.ts` exact. **Bestanden:**
+`src/app/(protected)/support/actions.ts` + `src/app/(protected)/support/toctou-transition.test.ts` (4 tests,
+rood→groen bewezen: 3 falen op de oude kale `update`, alle groen met de guard).
+
+**Heropend (geen code-wijziging — eigenaar/FG-besluit):** publiek `/zzp/[id]` toont individueel herleidbare
+reviews (naam + rating + verbatim comment) zonder k-anonimiteitsvloer (HOOG, AVG art. 5(1)(f)/25). Al eerder
+geparkeerd; audit C bevestigde dat het live blijft. Product-/juridische afweging (MENSENWERK §5), buiten
+agent-scope — besluit vereist vóór go-live met echte documenten. Zie `docs/SECURITY-PRIVACY-BACKLOG.md` ronde 6.
+
+**Checks:** typecheck ✓ · lint ✓ · unit (8519 passed, 2 skipped) ✓ · build ✓ · prettier ✓ · CI-poort verifiëren (PR volgt).
+
 ## 2026-09-09 — persona-sweep run 9: CLIENT signable-PROPOSED-badge ordende anders dan /acties (outer-window-drift, DOEL 1b)
 
 **Wat:** kritische-gebruiker-sweep over de vier rollen (orchestrator Opus 4.8 + 3 parallelle adversariële
@@ -340,55 +366,6 @@ expiresAt <= now)`, en per-type-dedup met type-uitsluiting (`collabCoveredExpire
 `src/lib/signals.badge-gaps-credential-expiry.test.ts` (+3 tests, rood→groen bewezen: 0→1, 0→1, 2→1),
 `docs/PERSONA-SWEEP-BACKLOG.md`. **Checks:** typecheck ✓ · lint ✓ · unit (signals+pending-tasks+expiry
 303/303) ✓ · prettier ✓ · full unit + build + CI-poort verifiëren.
-
-## 2026-09-08 — cascade: factuurvoorspelling (btw + totaal incl.) bij goedkeuring van uren/oplevering
-
-**Wat:** de opdrachtgever keurt een prestatie goed zonder te zien wat hij daadwerkelijk gaat
-betalen. `OrtBreakdown` (werkproces-pagina) stopte bij **"subtotaal excl. btw"**, en gewone uren
-(uren × tarief) en opleveringen toonden helemaal géén bedrag — pas ná goedkeuring verscheen de
-conceptfactuur mét btw. Nu toont elke prestatie vóór goedkeuring de volledige conceptfactuur-
-uitkomst: **subtotaal excl. → btw (21%) → totaal incl. btw**. ORT-uren krijgen twee extra
-regels in de bestaande uitsplitsingstabel; gewone uren/opleveringen een compacte
-"Conceptfactuur: … excl. + … btw = … incl."-regel (alleen zolang er nog geen factuur is, d.w.z.
-niet-goedgekeurd; ná goedkeuring staat de definitieve factuur er al onder). Helpt zowel de
-opdrachtgever ("wat ga ik betalen") als de ZZP'er ("wat ontvang ik incl. btw") bij een ingediende/
-afgekeurde urenstaat.
-
-**Aanpak (server-side waarheid, geen drift):** één pure bron `src/lib/performance-invoice-preview.ts`
-(`computeInvoicePreview(subtotaal)` = canonieke `computeVat(subtotaal, DEFAULT_VAT_REGIME)`, en
-`previewPerformanceInvoice(prestatie)` die het subtotaal langs exact dezelfde takken als de cascade
-afleidt — ORT-uren → basis + toeslagen · gewone uren → uren × tarief · oplevering → milestonebedrag).
-De invoice-VAT bij goedkeuring is `DEFAULT_VAT_REGIME` (STANDARD_HIGH, 21%), een constante — dus de
-preview is per definitie gelijk aan de latere `Invoice.totalCents`. Een parity-regressietest bindt
-`previewPerformanceInvoice` aan `computeVat(performanceSubtotalCents(...), DEFAULT_VAT_REGIME)` zodat
-de UI-voorspelling niet van de cascade-bron kan wegdrijven. Ongeldige/onvolledige invoer → `null`
-(geen throw; presentatie toont niets). **Bestanden:** `src/lib/performance-invoice-preview.ts`
-(+ `.test.ts`, 11 tests), `src/components/collaborations/ort-breakdown.tsx` (btw + totaal-regels in
-de tfoot), `src/app/(protected)/samenwerkingen/[id]/page.tsx` (non-ORT preview-regel).
-**Checks:** typecheck ✓ · lint ✓ · unit 76/76 (affected suites) ✓ · prettier ✓ · build + CI-poort
-verifiëren. PR #1434.
-
-## 2026-09-08 — prod: retry-op-transiënte-fout op de HIBP gelekt-wachtwoord-controle (fail-open-gat gedicht)
-
-**Wat:** de HIBP gelekt-wachtwoord-lookup (`src/lib/services/password-breach.ts`) gebruikte al
-`fetchWithTimeout` (deadline) maar was — als **enige** read-only-GET uitgaande productie-integratie —
-zónder retry, terwijl de siblings `http-verify.ts` (DUO/BIG/iDIN) en `routing.ts` (Geoapify) een
-begrensde retry-met-backoff hebben. Omdat de controle **fail-open** is, liet één transiënte 5xx/**429**
-(HIBP rate-limit't)/netwerk-blip de lek-check stil overslaan — een mogelijk gelekt wachtwoord toegelaten
-op de registratie-/wachtwoordwijzig-hot-path (NIST 800-63B) — én tripte het onnodig de aflever-heartbeat
-(valse page). De lookup is een idempotente read-only GET, dus een begrensde retry-met-exponentiële-backoff
-is veilig.
-
-**Aanpak (spiegelt routing.ts/http-verify.ts):** `attemptOnce` doet één GET en werpt een
-`HibpFetchError{transient}` (fetch-throw/5xx/429 → transiënt; 4xx → niet-transiënt); de `check()`-lus
-herhaalt alleen transiënte fouten met backoff (`passwordBreachRetryDelayMs`, 250 ms → 4 s cap) tot
-`resolvePasswordBreachRetries(PASSWORD_BREACH_HTTP_RETRIES)` (geklemd [0,5], default 2). De
-aflever-heartbeat registreert **alléén de einduitkomst** (één succes, of één mislukking na uitputte
-retries), zodat een blip die herstelt de mislukkingen-teller niet oploopt. Injecteerbare `sleepImpl` +
-`retries` → tests draaien zonder echte vertraging. K-anonimiteit/Add-Padding/fail-open-semantiek
-ongewijzigd. **Bestanden:** `src/lib/services/password-breach.ts`, `src/lib/services/password-breach.test.ts`
-(26 tests, +7 retry), `src/lib/env.ts` (`PASSWORD_BREACH_HTTP_RETRIES`), `.env.example`, `MENSENWERK.md`.
-**Checks:** password-breach 26/26 ✓ · typecheck/lint/prettier/build + CI-poort verifiëren. PR #1433.
 
 ## Staat van het product (2-9-2026)
 
