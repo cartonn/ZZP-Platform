@@ -1,0 +1,73 @@
+# Dependabot — geautomatiseerde, gegroepeerde dependency-onderhoudsupdates.
+#
+# Waarom (productie-rijpheid, supply-chain): dit platform verwerkt gevoelige documenten
+# (VOG, diploma's, ID). De `audit`-CI-poort (scripts/audit-production.mjs) DETECTEERT vandaag
+# high/critical-advisories in de productie-deps en blokkeert de merge — maar niets HERSTELT ze
+# automatisch; een bump gebeurt pas als een mens/agent het opmerkt en handmatig een PR opent
+# (zie #1444, #01c05fc7). Dependabot sluit dat gat: het opent zelf PR's voor beveiligings- en
+# versie-updates, zodat het venster tussen een bekend CVE en de fix zo klein mogelijk is en de
+# ge-pinde GitHub Actions-versies actueel blijven. Elke Dependabot-PR loopt door dezelfde 6
+# vereiste statuschecks (check/e2e/audit/secret-scan/CodeQL/agent-review) als elke andere PR —
+# er wordt niets automatisch gemerged zonder groene poort.
+#
+# Security-updates (out-of-band PR's voor bekende advisories) staan default AAN zodra de
+# repo-instelling "Dependency graph" + "Dependabot security updates" aanstaan
+# (github.com/cartonn/ZZP-Platform/settings/security_analysis) — dát is de enige resterende
+# menselijke stap; dit bestand levert de volledige configuratie. Zie MENSENWERK.md.
+#
+# Drift-bewaakt door scripts/dependabot-config.test.ts.
+version: 2
+
+updates:
+  # --- npm (de applicatie zelf) -------------------------------------------------------------
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    # Begrens het aantal gelijktijdige versie-PR's zodat de reviewqueue (en de CI-poort) niet
+    # dichtslibt; security-PR's tellen hier niet in mee en komen altijd door.
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    commit-message:
+      # Sluit aan op de repo-conventie (chore:/prod:/security:) + Conventional-Commits-scope.
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    # Bundel routinematige minor/patch-updates in één PR per doelgroep i.p.v. tientallen losse
+    # PR's; major-updates komen bewust als aparte PR's (breaking → verdienen eigen review).
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # --- GitHub Actions (de CI/CD-workflows) --------------------------------------------------
+  # De workflows pinnen actie-versies (actions/checkout@v4, setup-node@v4, codeql-action, …).
+  # Zonder onderhoud verouderen die stil en missen ze beveiligingsfixes in de runner-toolchain.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

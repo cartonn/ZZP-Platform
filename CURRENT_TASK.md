@@ -128,6 +128,12 @@ body-grens door naar `push/subscribe` (8 KB), `push/unsubscribe` (4 KB) — beid
 rate-limit — en `backups/heartbeat` (1 KB, Bearer). Onbegrensd `request.json()` bufferde de volledige
 chunked stream vóór parsen. Gedrag bij geldige body ongewijzigd. Tests: 5× `readLimitedJson`.
 
+0c. **Dependabot supply-chain-automatisering — GEDAAN (9-9, PR #1453).** `.github/dependabot.yml`
+(npm productie/dev-groepen + github-actions, wekelijks Europe/Amsterdam, begrensde PR-flux) opent
+zelf de herstel-/versie-PR's die de `audit`-poort alleen detecteerde; drift-test
+`scripts/dependabot-config.test.ts` (7). Resterend mensenwerk: alleen de web-toggle "Dependency
+graph + Dependabot security updates" aanzetten (MENSENWERK). Elke Dependabot-PR loopt door de 6 poorten.
+
 0. **[GELD — HOOG] Dubbel-afronden in `segmentShifts` (`src/lib/shift.ts`) — GEDAAN (7-9, PR volgt).**
    De minuten-doorloop + validatie zijn uit `segmentShift` gedeeld in helper `accumulateShiftMinutes` die de
    RUWE `minutesByCat` teruggeeft; `segmentShift` én `segmentShifts` aggregeren ruwe minuten en ronden precies

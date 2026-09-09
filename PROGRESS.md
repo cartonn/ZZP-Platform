@@ -2,6 +2,30 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-09 — prod: Dependabot supply-chain-automatisering (npm + github-actions)
+
+**Wat:** `.github/dependabot.yml` toegevoegd — de code-kant van het MENSENWERK "Dependency graph +
+Dependabot"-item. De `audit`-CI-poort (`scripts/audit-production.mjs`) **detecteert** high/critical-
+advisories in de productie-deps en blokkeert de merge, maar niets **herstelde** ze automatisch: een
+bump gebeurde pas als een mens/agent het opmerkte (zie #1444, #01c05fc7). Dependabot sluit dat gat en
+opent zelf de herstel-/versie-PR's, zodat het venster tussen een bekend CVE en de fix minimaal is en de
+ge-pinde GitHub Actions-versies actueel blijven.
+
+**Config:** twee ecosystemen — `npm` (root; **gegroepeerd** in productie- én dev-buckets voor
+minor/patch, majors bewust als losse PR's) en `github-actions` (root; alle actions gegroepeerd). Wekelijks
+(maandag 06:00 Europe/Amsterdam), begrensde PR-flux (10 resp. 5) zodat de reviewqueue/CI-poort niet
+dichtslibt, `chore`-commit-prefix met scope, label `dependencies`. Elke Dependabot-PR loopt door dezelfde
+6 vereiste statuschecks (check/e2e/audit/secret-scan/CodeQL/agent-review) — nooit een automatische merge
+zonder groene poort. Security-updates komen out-of-band binnen zodra de repo-web-toggle voor Dependency
+graph en Dependabot security updates aanstaat (enige resterende menselijke stap).
+
+**Drift-bewaking:** `scripts/dependabot-config.test.ts` (7 tests) — Dependabot draait niet in CI, dus
+zonder deze test kan de config stil verweken (verdwenen ecosysteem/groepering) zonder dat een poort dat
+opmerkt. Assert: versie 2, npm + github-actions aanwezig, wekelijks + Europe/Amsterdam, begrensde PR-flux,
+npm-productie/dev-groepen, actions-groepering, root-directory.
+
+**Checks:** typecheck ✓ · lint ✓ · unit ✓ · build ✓ · prettier ✓ · CI-poort verifiëren (PR #1453).
+
 ## 2026-09-09 — security/privacy auditronde 6: TOCTOU statusovergang-bypass op support-tickets gedicht (CLAUDE.md regel 3)
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
