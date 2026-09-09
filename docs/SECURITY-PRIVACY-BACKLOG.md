@@ -4,6 +4,55 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-09 (5e, basis: `main` @ 271ea20c) — 3 parallelle adversariële audits + orchestrator-sweep: 0 nieuwe exploiteerbare security-gaten, 0 privacy-defecten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht een gat te _bewijzen_ (file:line + repro), sceptisch t.o.v. de eerdere "gehard"-claims.
+**A** — object-/functieniveau-authz + IDOR + cross-tenant (FRANCHISER) over álle API-routehandlers
+(`src/app/api/**/route.ts`): document-/factuur-/prestatie-/dossier-/media-routes, admin-export, cron/webhooks,
+agenda-feed. **B** — server-action-mutatieoppervlak (auth→rol→ownership→Zod→actie→audit, mass-assignment/
+overposting, statusovergang-bypass, cross-tenant writes) over de `(protected)/**/actions.ts`-set + de gedeelde
+guardlagen (`authz.ts`, `tenancy.ts`, `enums.ts`, `cascade/*`, `middleware.ts`). **C** — privacy/AVG
+(data-minimalisatie/PII-overfetch, erasure-volledigheid, PII-in-logs, k-anonimiteitsvloeren, data-naar-derden)
+
+- injectie (CSV-formule/XSS/ICS/PDF/SQL).
+
+**GEEN nieuw exploiteerbaar security-gat en GEEN nieuw privacy-defect.** De delta sinds de vorige ronde
+(`37728a2c..271ea20c`: #1438–#1444) is puur robuustheid/geld-correctheid (exacte commerciële afronding in
+integer-ruimte, defensieve `parseOrtSegments`, CSV-uren zonder IEEE-754-artefact, single-flight health-probes,
+verval-cron-nudge-onderdrukking, dep-bumps nodemailer/sharp) — géén nieuwe mutatie, authz-pad of PII-oppervlak.
+Bevestigd clean, met file:line-bewijs per audit:
+
+- **IDOR/authz (A):** élke object-geadresseerde route haalt eerst `ownerId`/relatie op en gate't
+  vóór byte-uitgifte (`documents/[id]` → `canAccessDocument`; `facturen`/`prestaties`/`admin/facturatie` PDF →
+  issuer/counterparty/company/freelancer userId of ADMIN; `samenwerkingen/[id]/{dossier,dba-dossier,
+modelovereenkomst}` → company/freelancer userId of ADMIN), met identieke anti-oracle-404 (CWE-203) + audit op
+  élke weigering. `media/[...key]` resolvet via `Company.logoKey`-DB-match + `LocalStorageDriver.resolve()`
+  canonicalisatie (path-traversal dubbel geblokkeerd).
+- **Cron/webhook (A):** alle 15 `tasks/*` + `run-all` + `backups/heartbeat` + `metrics` → 503 zonder
+  `CRON_SECRET` (fail-closed default-uit), anders `authorizeCron` (Bearer-only + length-checked `timingSafeEqual`).
+  Billing-webhook her-fetcht autoritatieve status (vertrouwt body niet), Stripe-signatuur timing-safe met
+  replay-window; mail-intake 404 zonder secret. Agenda-`feed.ics` her-toetst live user-status ná HMAC-token
+  (stale-capability-lek dicht).
+- **Server actions (B):** volledige keten overal; geen `.passthrough()`/raw-spread in `prisma.data`; gevoelige
+  velden (`role`/`status`/`ownerId`/`tenantId`/`verifiedAt`/tarief) server-afgeleid; statusovergangen via de
+  expliciete maps (`CREDENTIAL/COLLABORATION/JOB/SHIFT_HANDOFF/TENANT`); TOCTOU-safe `updateMany` met compound
+  `where:{id,status:from}` in transacties; FRANCHISER-scoping via `tenancy.ts` (`ownsViaTenant`/`assertSameTenant`).
+- **Privacy/injectie (C):** alle CSV via `escapeCsvField` (CWE-1236, óók vrije-tekstvelden `description`/
+  `rejectionReason`), ICS-velden RFC-5545-escaped, `NoopMailSender` logt geen PII in productie, geen
+  `$queryRawUnsafe`/geïnterpoleerde raw-SQL (alleen parameterloze `SELECT 1`-probes), enige
+  `dangerouslySetInnerHTML` = statisch nonce-gated thema-script. Erasure-dekkingspoort
+  `anonymize-schema-coverage.test.ts` 5/5 groen (verifieert dat élk PII-dragend model in `scrubAuditMetadataPii`/
+  anonimisering wordt geraakt).
+- **Orchestrator-sweep:** `npm audit --omit=dev` → **0 vulns**; `git ls-files` op `.env`/`.db`/`.key`/`.pem`/
+  `/storage/` leeg (geen getrackte secrets/documenten).
+
+**FYI (geen blocker, functioneel):** `approveSubmittedPerformancesAction` (`prestaties/actions.ts:44-49`) scopet
+zijn bulk-query onvoorwaardelijk op `collaboration.company.userId === actor.id`, óók voor ADMIN (die normaal geen
+`Company` bezit) → fail-**closed** (admin keurt 0 rijen goed, geen bypass). Mogelijk product-gat, geen security-gat;
+niet unilateraal gewijzigd (buiten security-scope). Het geparkeerde `/zzp/[id]`-item (publiek profiel, individuele
+reviews onder de k-anonimiteitsvloer) blijft een eigenaar-/FG-productafweging (MENSENWERK §5) — ongewijzigd.
+
 ## Ronde 2026-09-08 (4e, basis: `main` @ 37728a2c) — 3 parallelle adversariële audits + orchestrator-sweep: 1 HOOG privacy-defect GEVONDEN & GEDICHT, 0 exploiteerbare security-gaten
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.

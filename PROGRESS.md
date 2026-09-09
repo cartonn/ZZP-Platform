@@ -2,6 +2,23 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-09 — security/privacy: auditronde 5 — 0 nieuwe exploiteerbare gaten, 0 privacy-defecten (basis @ 271ea20c)
+
+**Wat:** 5e volledige security-/privacy-auditronde. Orchestrator (Opus 4.8) + 3 parallelle adversariële
+Opus-audits op niet-overlappende oppervlakken: **A** API-routehandlers (IDOR/authz/cross-tenant/cron/webhook/
+agenda-feed), **B** server-action-mutaties (auth→rol→ownership→Zod→audit, mass-assignment, statusovergangen,
+cross-tenant writes), **C** privacy/AVG (minimalisatie/erasure/PII-in-logs/k-anon/derden) + injectie (CSV/XSS/
+ICS/PDF/SQL). Orchestrator-sweep: `npm audit --omit=dev` (0 vulns), getrackte secrets (leeg), raw-SQL (alleen
+parameterloze probes), `dangerouslySetInnerHTML` (1× nonce-gated thema-script), erasure-dekkingspoort 5/5 groen.
+
+**Resultaat:** GEEN nieuw exploiteerbaar security-gat en GEEN nieuw privacy-defect — de delta sinds ronde 4
+(#1438–#1444) is puur robuustheid/geld-correctheid, geen nieuwe mutatie/authz-pad/PII-oppervlak. Alle eerder
+geharde patronen bevestigd met file:line-bewijs (ownership vóór byte-uitgifte, anti-oracle-404 CWE-203,
+timing-safe cron/webhook, TOCTOU-safe compound-writes, tenant-scoping, `escapeCsvField` overal). FYI-note
+(geen blocker): `approveSubmittedPerformancesAction` scopet fail-**closed** ook voor ADMIN — mogelijk product-
+gat, geen security-gat. **Bestanden:** `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde-5-entry), `PROGRESS.md`.
+**Checks:** typecheck ✓ · lint ✓ · unit ✓ · build ✓ · prettier ✓ · CI-poort verifiëren (docs-only PR).
+
 ## 2026-09-09 — robuustheid: CSV-uren zonder float-artefact + ongeguarde ortSegments-parse gehard (/prestaties + /diensten)
 
 **Wat:** twee geïsoleerde robuustheidsfixes in de export/query van `/prestaties` (bemiddelaar/admin) en
@@ -356,49 +373,6 @@ backend-round-trip → geregistreerd in de opslag-aflever-heartbeat (RecordingSt
 RecordingStorageDriver-forwarding), `src/lib/services/storage-selftest.ts` (fallback in de `encrypt`-stap),
 `+7 tests` (`storage-selftest.test.ts`, `recording-storage-driver.test.ts`), `MENSENWERK.md`.
 **Checks:** gerichte tests 53/53 ✓ · typecheck/lint/build/prettier + CI-poort verifiëren. PR #1426.
-
-## 2026-09-07 — security/privacy-audit (2e ronde): 3 parallelle adversariële Opus-audits, 0 exploiteerbare gaten, 1 privacy/product-afweging geparkeerd
-
-**Wat:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken +
-orchestrator-sweep. **A** — delta `0d69ce32..364396bc` (10 commits) + `mustChangePassword`-invariant + register-
-atomiciteit + 2FA-replay. **B** — IDOR/authz over alle server actions + ~45 API-routes, cross-tenant, injectie,
-upload, SSRF. **C** — privacy/AVG: minimalisatie/overfetch, erasure, PII-in-logs, k-anonimiteit, audit, derden.
-Sweep: `npm audit` (0 vulns), raw-SQL (alleen `SELECT 1`), CSV-builders (alle via `escapeCsvField`, ook de
-handgerolde `diensten.ts`-export), tracked secrets (leeg), CSP/middleware server-side. Productiebuild groen.
-
-**Bevinding (geparkeerd, eigenaar-gated — MENSENWERK §5 + §0-poort 4):** publiek profiel `/zzp/[id]` toont anoniem
-de **individuele** beoordelingen (naam opdrachtgever + woordelijke tekst + score, n=1) én het aggregaat zonder de
-`REVIEW_AGGREGATE_MIN_SAMPLE = 3`-vloer die het `/vertrouwen`-dossier voor exact deze dataset wél afdwingt
-(`profile-screen.tsx:258-281`, `review-list.tsx`; vgl. `freelancer-reputation.ts` + `config.ts:599`). AVG art.
-5(1)(f)/25/5(2); in zorg-context kan de vrije tekst bijzondere persoonsgegevens bevatten. **Niet unilateraal
-gefixt:** publieke toegeschreven reviews zijn een product-/juridische afweging (kern-vertrouwensmechanisme via de
-double-blind reveal, zoals Malt/Temper/Werkspot) — de eigenaar kiest (a) aggregaat-only `>= 3` voor anonieme
-kijkers of (b) expliciete, geteste uitzondering in de accountability-gate. **Blokkeert go-live met echte
-beoordelingen** (nu demo-seed → geen actueel datalek). Repro + fixopties: `docs/SECURITY-PRIVACY-BACKLOG.md`.
-
-**Geen nieuw exploiteerbaar security-gat** in de 10 delta-commits of het IDOR/tenant/injectie/SSRF-oppervlak;
-erasure/minimalisatie/k-anonimiteit/audit/derden clean. **Bestanden:** `docs/SECURITY-PRIVACY-BACKLOG.md`,
-`PROGRESS.md` (docs-only PR).
-
-## 2026-09-07 — persona-sweep (run 6): /kandidaten-nav-badge dreef af van /acties op een gesloten opdracht
-
-**Wat:** volledige kritische-gebruiker-sweep (4 rollen) via 3 parallelle adversariële Opus-audits op niet-
-overlappende oppervlakken. **DOEL 2 schoon:** security/IDOR/cross-tenant/document-privacy **0 bereikbare gaten**
-(`currentActor()` herlaadt rol/tenant live uit de DB, `tenantScopeWhere` als één bron, anti-oracle-404 op elke
-by-id-fetch, cascade-commands her-afleiden partij i.p.v. client-id); invoer/Zod/geld **0 gaten** (int4-overflow
-gedekt, NaN/Infinity/negatief geweigerd, CSV-injectie centraal, upload magic-byte-sniff).
-
-**Gefixt (DOEL 1b — badge↔lijst-pariteit):** `navBadges` (`src/lib/signals.ts`) telde de CLIENT-`/kandidaten`-
-badge (NEW-reactie-telling `:640` + stale VIEWED/SHORTLIST-`findMany` `:696`) alleen op `companyId`, zónder de
-`job.status: "PUBLISHED"`-poort die run 103 aan de item-engine (`pending-tasks.ts`) toevoegde. Sluit de
-opdrachtgever een opdracht zonder de reactie te beoordelen (PUBLISHED→CLOSED/DRAFT), dan blijft de reactie NEW
-in de DB (`changeJobStatus` transitioneert reacties niet) → de beoordeeltaak verdwijnt van /acties, maar de
-badge bleef 'm eeuwig meetellen: een fantoom-`attention`-badge die nooit op nul komt (het "signaal op één
-oppervlak"-anti-patroon). **Fix:** `job.status: "PUBLISHED"` toegevoegd aan beide queries → badge==lijst.
-**Bestanden:** `src/lib/signals.ts`, `src/lib/signals-client-closed-job-badge.test.ts` (+1 test, rood→groen
-bewezen door de fix te stashen: badge `{count:5, tone:"attention"}` → undefined). **Geparkeerd (LOW):** DST-uur
-mis-attributie in ORT-segmentatie (`shift.ts`), twee dagen/jaar, klein factuur-effect — zie PERSONA-SWEEP-BACKLOG.
-**Checks:** prettier ✓ · gerichte tests (signals 134/134 + nieuwe 1/1) ✓ · typecheck/lint/build + CI-poort verifiëren.
 
 ## Staat van het product (2-9-2026)
 
