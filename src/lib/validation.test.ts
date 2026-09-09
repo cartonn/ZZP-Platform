@@ -591,6 +591,20 @@ describe("validatePerformanceForm", () => {
     expect(result).toContain("onrealistisch hoog");
   });
 
+  it("MILESTONE: bedrag met >2 decimalen wordt geweigerd (cent-grid — anders round-half-up-drift)", () => {
+    // 100,005 → eurosToCents = round(100,005·100) = round(10000,5) = 10001 → €100,01: gefactureerd wijkt
+    // af van het ingevoerde bedrag. De grid-poort weigert dat vóór persistentie (spiegelt de uren-grid).
+    const result = validatePerformanceForm({ ...milestoneBase, amount: 100.005 });
+    expect(result).not.toBeNull();
+    expect(result).toContain("twee decimalen");
+  });
+
+  it("MILESTONE: een geldig bedrag op de cent-grid (incl. IEEE-754-ruis) blijft geldig", () => {
+    for (const amount of [100.01, 2500, 0.01, 100.15, 8.85]) {
+      expect(validatePerformanceForm({ ...milestoneBase, amount })).toBeNull();
+    }
+  });
+
   it("HOURS ORT: geldige ORT + periodedata geeft null", () => {
     expect(
       validatePerformanceForm({

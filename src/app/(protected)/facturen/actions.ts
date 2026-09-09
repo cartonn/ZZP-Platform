@@ -21,6 +21,7 @@ import { invoiceLineSchema } from "@/lib/validation";
 import { canSendPaymentReminder } from "@/lib/manual-payment-reminder";
 import { invoiceCreateRateLimiter } from "@/lib/rate-limit";
 import { fiscalYearOf } from "@/lib/administration/fiscal-calendar";
+import { isCentAccurateEuros } from "@/lib/administration/hourly-cents";
 import { allocateInvoiceNumber } from "@/lib/administration/persist";
 import { displayInvoiceNumber } from "@/lib/invoice-number";
 import { plural } from "@/lib/plural";
@@ -56,6 +57,12 @@ function parseLines(formData: FormData): { lines: ParsedLine[]; error?: string }
   for (let i = 0; i < descriptions.length; i++) {
     if (!descriptions[i]?.trim()) continue; // lege regel overslaan
     const unitEuros = Number(units[i]);
+    // Cent-grid: `eurosToCents` (`Math.round(unitEuros * 100)`) kwantiseert een eenheidsprijs met >2
+    // decimalen stil naar hele centen (100,005 → €100,01) → het gefactureerde bedrag wijkt af van het
+    // ingevoerde. Weiger dat vóór de afronding (server-side waarheid), net als de mijlpaal-cent-grid en
+    // de uren-grid-poort (#1447). Een niet-eindige waarde valt door de bestaande `NaN`-tak hieronder.
+    if (Number.isFinite(unitEuros) && !isCentAccurateEuros(unitEuros))
+      return { lines: [], error: `Controleer regel ${i + 1}: bedrag met maximaal twee decimalen.` };
     const parsed = invoiceLineSchema.safeParse({
       description: descriptions[i],
       quantity: quantities[i],

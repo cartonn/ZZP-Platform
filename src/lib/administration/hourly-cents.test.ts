@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hoursTimesRateCents, isCentAccurateHours } from "./hourly-cents";
+import { hoursTimesRateCents, isCentAccurateHours, isCentAccurateEuros } from "./hourly-cents";
 
 /**
  * Exacte referentie: round-half-up van `uren × tarief` in centen, berekend in integer-ruimte vanuit de
@@ -93,6 +93,32 @@ describe("isCentAccurateHours", () => {
       expect(isCentAccurateHours(v)).toBe(true);
       // Een halve-honderdste ertussen (3e decimaal) valt er buiten.
       if (hh < 1000) expect(isCentAccurateHours(v + 0.005)).toBe(false);
+    }
+  });
+});
+
+describe("isCentAccurateEuros", () => {
+  it("accepteert bedragen op de cent-grid, inclusief IEEE-754-ruis na ×100", () => {
+    for (const v of [0, 0.01, 100.01, 2500, 100.15, 8.85, 1_000_000]) {
+      expect(isCentAccurateEuros(v)).toBe(true);
+    }
+    // 4,15·100 = 414,9999… — een 2-decimaal bedrag dat als IEEE-754 nét naast het gehele getal ligt;
+    // de tolerantie vangt die ruis zodat geldige invoer niet ten onrechte wordt geweigerd.
+    expect(4.15 * 100).not.toBe(415);
+    expect(isCentAccurateEuros(4.15)).toBe(true);
+  });
+
+  it("weigert bedragen met méér dan twee decimalen (die eurosToCents stil zou herkwantiseren)", () => {
+    for (const v of [100.005, 0.001, 100.011, 2.333, 99.999]) {
+      expect(isCentAccurateEuros(v)).toBe(false);
+    }
+    // 100,005 → round(100,005·100) = 10001 → €100,01: precies de ingevoerd↔gefactureerd-drift.
+    expect(Math.round(100.005 * 100)).toBe(10001);
+  });
+
+  it("is hetzelfde predikaat als isCentAccurateHours (gedeelde honderdsten-grid)", () => {
+    for (const v of [100.005, 100.01, 0.001, 2500, 4.149, 8.85]) {
+      expect(isCentAccurateEuros(v)).toBe(isCentAccurateHours(v));
     }
   });
 });

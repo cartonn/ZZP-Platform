@@ -38,6 +38,7 @@ import {
   ROSTER_ENGAGEABILITY_SELECT,
   evaluateRosterEngageability,
 } from "@/lib/data/roster-engageability";
+import { classifyRosterDormancy } from "@/lib/franchise/roster-dormancy";
 import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
 import { buildClientActivityInputs, summarizeClientHealth } from "@/lib/franchise/client-health";
 import { classifyRosterDormancy } from "@/lib/franchise/roster-dormancy";
@@ -80,7 +81,7 @@ interface SignalCounts {
   savedJobs?: number; // FREELANCER: bewaarde opdrachten die nog open staan (PUBLISHED)
   overdueLeads?: number; // FRANCHISER: actieve leads met een verstreken opvolgdatum
   openHandoffs?: number; // FRANCHISER: open shift-overname-aanvragen binnen de tenant
-  rosterAlerts?: number; // FRANCHISER: niet-inzetbare roster-ZZP'ers + (bijna-)verlopende + reeds-verlopen certificaten
+  rosterAlerts?: number; // FRANCHISER: niet-inzetbare + stilgevallen-op-de-bench roster-ZZP'ers + (bijna-)verlopende + reeds-verlopen certificaten
   openDienstAlerts?: number; // FRANCHISER: acute + te-lang-open (stale) tenant-diensten
   franchiseRenewals?: number; // FRANCHISER: aflopende plaatsingen die om een vervolg vragen (spiegelt /acties)
   attentionClients?: number; // FRANCHISER: stilgevallen opdrachtgevers die om re-engagement vragen (spiegelt /acties)
@@ -976,6 +977,9 @@ export const navBadges = cache(async function navBadges(
       // /acties-bron (pending-tasks.ts) én de /franchise/zzpers-lijst, zodat de tier niet kan driften.
       prisma.freelancerProfile.findMany({
         where: { tenantId },
+        // De inzetbaarheidsvelden (gedeeld met /acties) + de bench-telling voor het re-engagement-
+        // signaal: exact dezelfde `_count`-definitie als de /franchise/zzpers-lijst en `franchiserTasks`
+        // (pending-tasks.ts), zodat de dormancy-tier tussen badge en /acties niet kan driften.
         select: {
           ...ROSTER_ENGAGEABILITY_SELECT,
           _count: { select: { collaborations: { where: { status: "ACTIVE" } } } },
@@ -1136,6 +1140,13 @@ export const navBadges = cache(async function navBadges(
         MANDATORY_CREDENTIAL_TYPES,
       ).length;
     }
+    // Niet-inzetbare (INACTIEF, plaatsing-blokkerend) én stilgevallen-op-de-bench roster-ZZP'ers — exact
+    // dezelfde twee tak-structuur als `franchiserTasks` (pending-tasks.ts): een INACTIEF-lid krijgt de
+    // niet-inzetbaar-taak en géén tweede re-engagement-nudge (rust boven ruis); een inzetbaar lid dat op
+    // de bench zit én is afgekoeld (`classifyRosterDormancy` tier `dormant`) krijgt de re-engagement-taak
+    // (`franchiseRosterReengagementTask`, deeplink /franchise/zzpers). Zonder de dormancy-term telde de
+    // badge dat laatste signaal niet mee terwijl /acties het wél toont — het "signaal op één oppervlak"-
+    // anti-patroon (spiegelt de klant-kant, waar `attentionClients` de stilgevallen-opdrachtgever al telt).
     let notEngageable = 0;
     let dormantReengagement = 0;
     for (const f of roster) {
