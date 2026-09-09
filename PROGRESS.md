@@ -2,6 +2,31 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-09 — robuustheid: ORT-render-guard op factuurdetail + urenstaat-PDF (corrupte segment-rij 500't die niet meer)
+
+**Wat:** vervolg op #1465. Die hardde de overzicht-mappers `/diensten` + `/prestaties` tegen een
+JSON-geldig maar **semantisch** corrupt ORT-segment (onbekende categorie, negatieve uren) via de gedeelde
+per-rij-bron `computePerformanceOrt`. Twee andere render-oppervlakken halen de opgeslagen `ortSegments`
+echter óók **rechtstreeks** door `computeOrt` — buiten enige try/catch — om de optionele
+ORT-uitsplitsing te tonen: het **factuurdetail** (`src/app/(protected)/facturen/[id]/page.tsx:491`, door
+beide rollen bekeken) en de **urenstaat-PDF** (`src/lib/performance-pdf.ts:102`, download door beide
+rollen). Eén corrupte rij zou daar de héle pagina/PDF 500'en i.p.v. de uitsplitsing over te slaan —
+exact de crash-klasse die #1465 op de eerste twee oppervlakken al dichtte, achtergebleven op deze twee.
+
+**Aanpak (hergebruik, geen nieuwe rekenlogica):** nieuwe throw-veilige wrapper `safeComputeOrt`
+(`src/lib/ort-breakdown.ts`) — `try { computeOrt(...) } catch { return null }`. Factuurdetail: bij `null`
+`return null` (de optionele ORT-uitsplitsing wordt overgeslagen; het bevroren factuurbedrag rendert al los
+erboven als uren × tarief = bedrag). PDF: bij `null` valt de generatie terug op de bestaande losse
+"uren × tarief"-regel (else-tak). De schrijf-/cascade-paden roepen `computeOrt`/`ortSubtotalCents` bewust
+rechtstreeks aan en blijven **fail-closed** (weigeren corrupte invoer bij persistentie) — de guard is
+uitsluitend read-path. Bereikbaar alleen via directe DB-corruptie (elke schrijver grid-checkt via
+`assertPerformanceWithinLimits`), dus defense-in-depth (LOW).
+
+**Bestanden:** `src/lib/ort-breakdown.ts` (+`safeComputeOrt`), `src/app/(protected)/facturen/[id]/page.tsx`,
+`src/lib/performance-pdf.ts`, `src/lib/ort-breakdown.test.ts` (+4 tests: geldig = canoniek/geen drift,
+onbekende categorie → null, negatieve uren → null, niet-integer tarief → null). **Checks:** typecheck ✓ ·
+lint ✓ · unit (8537 passed, 2 skipped) ✓ · build · prettier ✓ · CI-poort verifiëren (PR #1466).
+
 ## 2026-09-09 — robuustheid: per-rij ORT-guard op /diensten + /prestaties (corrupte segment-rij 500't de pagina niet meer)
 
 **Wat:** de overzicht-mappers `getDienstenForFreelancer` (`src/lib/diensten.ts`, ZZP'er-`/diensten`) en

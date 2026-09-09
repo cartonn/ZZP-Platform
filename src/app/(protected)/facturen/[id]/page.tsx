@@ -7,7 +7,8 @@ import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
-import { computeOrt, resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
+import { resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
+import { safeComputeOrt } from "@/lib/ort-breakdown";
 import { currentDunningStage } from "@/lib/payment-reminders";
 import { buildAanmaningData } from "@/lib/aanmaning";
 import { AanmaningSection } from "@/components/invoices/aanmaning-section";
@@ -488,7 +489,10 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
                     {(() => {
                       const segs = parseOrtSegments(invoice.performance?.ortSegments);
                       if (segs.length === 0 || !invoice.performance?.rateCents) return null;
-                      const ort = computeOrt(
+                      // Corrupt segment (onbekende categorie / negatieve uren) → sla de optionele
+                      // ORT-uitsplitsing over i.p.v. de héle factuurpagina te 500'en; het bevroren
+                      // factuurbedrag staat al los hierboven (uren × tarief = bedrag).
+                      const ort = safeComputeOrt(
                         segs,
                         invoice.performance.rateCents,
                         resolveEffectiveOrtRates({
@@ -497,6 +501,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
                           ortCustomRates: invoice.collaboration.ortCustomRates,
                         }),
                       );
+                      if (!ort) return null;
                       return (
                         <div className="mt-2 space-y-1">
                           <p className="text-xs font-medium text-muted-foreground">

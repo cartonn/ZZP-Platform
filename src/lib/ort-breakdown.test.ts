@@ -3,6 +3,7 @@ import { computeOrt, ortSubtotalCents, type OrtSegment } from "@/lib/ort";
 import {
   type OrtBreakdown,
   computePerformanceOrt,
+  safeComputeOrt,
   summarizeOrtBreakdown,
   reconcileSubtotalWithInvoice,
   EMPTY_ORT_BREAKDOWN,
@@ -257,5 +258,35 @@ describe("computePerformanceOrt — gedeelde, defensieve per-rij-bron", () => {
     });
     expect(res.subtotalCents).toBeNull();
     expect(res.ortBreakdown).toEqual(EMPTY_ORT_BREAKDOWN);
+  });
+});
+
+describe("safeComputeOrt — throw-veilige wrapper voor de read-/weergavepaden", () => {
+  const rateCents = 5000; // €50/u
+
+  it("geeft exact hetzelfde resultaat als computeOrt bij geldige segmenten (geen drift)", () => {
+    const segments: OrtSegment[] = [
+      { category: "NORMAL", hours: 6 },
+      { category: "EVENING", hours: 2 },
+    ];
+    expect(safeComputeOrt(segments, rateCents)).toEqual(computeOrt(segments, rateCents));
+  });
+
+  it("geeft null i.p.v. te throwen bij een onbekende categorie (500-preventie)", () => {
+    // JSON-geldig maar semantisch corrupt: passeert parseOrtSegments, maar computeOrt weigert het.
+    const corrupt = [{ category: "BOGUS", hours: 4 }] as unknown as OrtSegment[];
+    expect(() => computeOrt(corrupt, rateCents)).toThrow();
+    expect(safeComputeOrt(corrupt, rateCents)).toBeNull();
+  });
+
+  it("geeft null i.p.v. te throwen bij negatieve uren", () => {
+    const corrupt: OrtSegment[] = [{ category: "NORMAL", hours: -5 }];
+    expect(() => computeOrt(corrupt, rateCents)).toThrow();
+    expect(safeComputeOrt(corrupt, rateCents)).toBeNull();
+  });
+
+  it("geeft null bij een niet-integer uurtarief (motor weigert het)", () => {
+    const segments: OrtSegment[] = [{ category: "NORMAL", hours: 8 }];
+    expect(safeComputeOrt(segments, 50.5)).toBeNull();
   });
 });

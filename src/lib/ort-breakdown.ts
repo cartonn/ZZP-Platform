@@ -8,6 +8,7 @@ import {
   ortSubtotalCents,
   parseOrtSegments,
   resolveOrtRates,
+  type OrtResult,
   type OrtSegment,
 } from "@/lib/ort";
 import { type OrtCategory } from "@/lib/config";
@@ -104,6 +105,33 @@ export function reconcileSubtotalWithInvoice(opts: {
       ? { ...ortBreakdown, surchargeCents: invoicedSubtotalCents - ortBreakdown.baseCents }
       : ortBreakdown,
   };
+}
+
+/**
+ * Throw-veilige wrapper om {@link computeOrt} voor de READ-/weergavepaden (factuurdetail-pagina,
+ * urenstaat-PDF) die de OPGESLAGEN `ortSegments` rechtstreeks door de motor halen om de optionele
+ * ORT-uitsplitsing te tonen. `parseOrtSegments` vangt alleen een JSON-syntaxfout af; een JSON-geldig
+ * maar semantisch corrupt segment (onbekende categorie, negatieve/niet-eindige uren) passeert de parse
+ * en laat `computeOrt` alsnog throwen (`ort.ts` weigert dat — terecht: de geldmotor mag nooit stil een
+ * NaN/negatief bedrag doorlaten). Op een read-oppervlak mag die ene corrupte rij niet de héle pagina of
+ * PDF 500'en; deze wrapper geeft dan `null`, zodat de aanroeper de ORT-uitsplitsing overslaat en
+ * terugvalt op de basisweergave (het bevroren factuurbedrag / uren × tarief die al los gerenderd worden).
+ *
+ * Alleen bereikbaar via directe DB-corruptie — elke schrijver genereert categorieën server-side en
+ * grid-checkt de uren via `assertPerformanceWithinLimits` — dus defense-in-depth, spiegelt de per-rij-
+ * guard die {@link computePerformanceOrt} al aan `/diensten`/`/prestaties` gaf (#1465). De schrijf-/
+ * cascade-paden roepen `computeOrt`/`ortSubtotalCents` bewust rechtstreeks aan en blijven fail-closed.
+ */
+export function safeComputeOrt(
+  segments: readonly OrtSegment[],
+  hourlyRateCents: number,
+  rates?: Record<OrtCategory, number>,
+): OrtResult | null {
+  try {
+    return computeOrt(segments, hourlyRateCents, rates);
+  } catch {
+    return null;
+  }
 }
 
 /** De rauwe prestatie-velden die {@link computePerformanceOrt} nodig heeft om het live-subtotaal +
