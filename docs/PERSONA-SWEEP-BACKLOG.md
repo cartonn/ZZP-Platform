@@ -45,6 +45,14 @@
 >   safe-wrapper (co-locatie in `ort-breakdown.ts`) die de ORT-berekening per rij vangt en degradeert naar
 >   `subtotalCents:null` + `EMPTY_ORT_BREAKDOWN` + `hasOrt:false` (terugval op uren×tarief), zodat de comment-
 >   belofte klopt. Prioriteit LOW (defense-in-depth).
+> - **GEDAAN (9-9, PR #1466) — LOW (robuustheid): dezelfde `computeOrt`-crash-klasse op de twee resterende
+>   render-oppervlakken.** #1465 dichtte `/diensten` + `/prestaties`; het **factuurdetail**
+>   (`facturen/[id]/page.tsx:491`) en de **urenstaat-PDF** (`performance-pdf.ts:102`) haalden de opgeslagen
+>   `ortSegments` echter óók rechtstreeks door `computeOrt` buiten enige try/catch → één semantisch corrupte
+>   rij (onbekende categorie / negatieve uren) 500'de de héle factuurpagina resp. de PDF-download voor beide
+>   rollen. **Fix:** gedeelde throw-veilige wrapper `safeComputeOrt` (`ort-breakdown.ts`); factuurdetail slaat
+>   de optionele ORT-uitsplitsing over (bevroren bedrag rendert al los), PDF valt terug op de losse
+>   "uren × tarief"-regel. Schrijf-/cascade-paden blijven fail-closed (read-path-only guard). +4 tests.
 
 > **Datum:** 2026-09-08 (persona-sweep, run 7) · **main-commit basis:** `1a71216d`
 > **Uitkomst:** **3 defecten gefixt (badge↔lijst-drift, DOEL 1b), 0 geparkeerd.** Orchestrator Opus 4.8 +

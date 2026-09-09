@@ -14,7 +14,8 @@ import {
   makeWriter,
   winAnsiSafe,
 } from "@/lib/pdf-common";
-import { computeOrt, resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
+import { resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
+import { safeComputeOrt } from "@/lib/ort-breakdown";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
 
@@ -97,17 +98,22 @@ export async function buildPerformancePdf(data: PerformancePdfData): Promise<Uin
     y -= 20;
 
     const segments = parseSegments(data.ortSegments);
-    if (data.rateCents && segments.length > 0) {
+    // Corrupt segment (onbekende categorie / negatieve uren) → `safeComputeOrt` geeft `null`, dan valt
+    // de PDF terug op de losse "uren × tarief"-regel (else-tak) i.p.v. de generatie te laten 500'en.
+    const result =
+      data.rateCents && segments.length > 0
+        ? safeComputeOrt(
+            segments,
+            data.rateCents,
+            resolveEffectiveOrtRates({
+              ortRatesSnapshot: data.ortRatesSnapshot,
+              ortProfile: data.ortProfile,
+              ortCustomRates: data.ortCustomRates,
+            }),
+          )
+        : null;
+    if (result) {
       // ORT-uitsplitsing
-      const result = computeOrt(
-        segments,
-        data.rateCents,
-        resolveEffectiveOrtRates({
-          ortRatesSnapshot: data.ortRatesSnapshot,
-          ortProfile: data.ortProfile,
-          ortCustomRates: data.ortCustomRates,
-        }),
-      );
       const cHours = 330;
       const cSur = 440;
       hr(y);
