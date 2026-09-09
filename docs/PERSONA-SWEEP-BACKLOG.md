@@ -1,5 +1,54 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-09 (persona-sweep, run 8) · **main-commit basis:** `6c71c9ed`
+> **Uitkomst:** **2 defecten gefixt, 3 items geparkeerd (LOW / eigenaar-besluit).** Orchestrator Opus 4.8 +
+> drie parallelle adversariële Opus-audits (next-action/badge · IDOR/authz/cross-tenant · malicieuze invoer/
+> geld). De live productiebuild bleef lokaal geblokkeerd op de `next/font/google`-download (netwerkpolicy,
+> zoals runs 5-7) → audit-gedreven sweep, build-poort via CI.
+>
+> - **DOEL 2 (adversarieel) — schoon.** Security/IDOR/cross-tenant/document-privacy **0 bereikbare gaten**
+>   (`currentActor()` herlaadt rol/status/tenant live uit de DB; élke by-id-fetch her-verifieert
+>   ownership/tenant met anti-oracle-404; cascade-commands dwingen de juiste partij-zijde af binnen de
+>   write-transactie; nieuw toegevoegde endpoints push/heartbeat/mail-intake fail-closed). Invoer/Zod/geld
+>   **0 hoog-severe gaten** (int4-overflow onbereikbaar onder de caps; NaN/Infinity/negatief/niet-integer
+>   geweigerd; CSV/ICS/HTML-mail/PDF-escape + upload magic-byte-sniff gedekt).
+> - **OPGELOST (DOEL 1b) — /franchise/zzpers-nav-badge telde de stilgevallen-bench-ZZP'er niet mee.**
+>   `franchiserTasks` (`pending-tasks.ts`) toont voor een inzetbare, op-de-bench (0 ACTIVE), afgekoelde
+>   (≥ `DORMANT_IDLE_DAYS`=60) roster-ZZP'er een `franchiseRosterReengagementTask` (deeplink
+>   /franchise/zzpers), maar `navBadges` (`signals.ts` → `rosterAlerts`) telde alléén (bijna-)verlopende +
+>   reeds-verlopen certs + niet-inzetbare (INACTIEF) profielen — géén dormancy-term. Repro: tenant-ZZP'er met
+>   geldige verplichte docs (niet INACTIEF), 0 ACTIVE-samenwerkingen, `lastLoginAt` ≥60 dagen geleden →
+>   /acties toont "…is stilgevallen — benader voor hij afhaakt" (+ `pendingTaskCount` telt 'm), de
+>   /franchise/zzpers-badge bleef 0. **Fix:** roster-query laadt nu dezelfde `_count`-bench-telling en de
+>   badge draait dezelfde pure `classifyRosterDormancy` als de item-engine (kan structureel niet driften).
+>   `src/lib/signals.ts`, `signals.badge-dormant-roster.test.ts` (+2, rood→groen), `signals.badge-gaps-run52.test.ts`.
+> - **OPGELOST (GELD/ROBUUSTHEID) — euro-bedragen met >2 decimalen stil round-half-up i.p.v. geweigerd (twin
+>   van #1447).** `eurosToCents` (`Math.round(euros·100)`) kwantiseert een mijlpaalbedrag
+>   (`samenwerkingen/[id]/actions.ts`) én een factuurregel-eenheidsprijs (`facturen/actions.ts`) met >2
+>   decimalen stil naar hele centen. Repro: `type=MILESTONE, amount=100.005` → `validatePerformanceForm`
+>   liet 't door → `eurosToCents(100.005)=10001` → factuur €100,01 voor een als €100,005 ingevoerd bedrag
+>   (idem factuurregel `unitEuros=100.005`). **Fix:** gedeeld `isCentAccurateEuros` (`hourly-cents.ts`), beide
+>   euro-invoergrenzen weigeren >2 decimalen vóór afronding. **Bestanden:** `src/lib/administration/hourly-cents.ts`
+>   (+`.test.ts`), `src/lib/validation.ts` (+`.test.ts`), `src/app/(protected)/facturen/actions.ts`.
+> - **GEPARKEERD — eigenaar-besluit (config/scope): billing-noop-fallback laat gratis paid-tier-activatie toe.**
+>   `getPaymentProvider()` (`src/lib/billing/provider.ts`) valt terug op `NoopPaymentProvider` als
+>   `BILLING_PROVIDER` niet is gezet; `changeSubscription` (`abonnement/actions.ts`) neemt dan de `activate()`-tak
+>   en zet elk betaald plan (incl. `VOLLEDIG_ONTZORGD`) direct ACTIVE zónder betaling. Blast-radius:
+>   ontzorgd/aangifte-features (extern, onomkeerbaar) worden gratis ontgrendeld. Config/ops-afhankelijk (in prod
+>   staat `BILLING_PROVIDER=noop` bewust), en `VOLLEDIG_ONTZORGD`/ontzorgd valt buiten de routine-bouwscope
+>   (2-9-2026). **Prioriteit: MIDDEL — verifiëren tegen de live-env + eventueel de noop-fallback in
+>   productie fail-closed maken.** Geen code-authz-bug; eigenaarsbesluit vereist.
+> - **GEPARKEERD — LOW (product-besluit): `confirmPayment` laat de begunstigde zelf betaling bevestigen.**
+>   `payment-commands.ts` staat "elke partij (issuer/counterparty/admin)" toe → de ZZP'er/issuer kan zijn eigen
+>   factuur op betaald zetten (→ COMPLETED + omzet-als-betaald-boekingen + tenant-fee). Bewuste
+>   handmatige-reconciliatie-trust (geen echte betaalrails); geaudit met de echte actor. Geen IDOR. Overweeg een
+>   expliciete comment/product-keuze of de begunstigde dit mag.
+> - **GEPARKEERD — LOW (onbereikbaar): `countClientSignableProposals` vs. de /acties-lijst orderen tegengesteld
+>   boven de 50-cap.** Badge (`signals.ts`, `updatedAt desc`) en `proposedCollabs` (`pending-tasks.ts`,
+>   `createdAt asc`) cappen beide op 50 met tegengestelde ordering → een klant met >50 PROPOSED-samenwerkingen
+>   kan een andere signable-subset in badge vs /acties krijgen. Realistisch onbereikbaar (>50 gelijktijdige
+>   voorstellen). Alleen oppakken als de cap-ordering elders toch een probleem wordt.
+
 > **Datum:** 2026-09-08 (persona-sweep, run 7) · **main-commit basis:** `1a71216d`
 > **Uitkomst:** **3 defecten gefixt (badge↔lijst-drift, DOEL 1b), 0 geparkeerd.** Orchestrator Opus 4.8 +
 > drie parallelle adversariële Opus-audits op niet-overlappende oppervlakken (security/IDOR/cross-tenant/

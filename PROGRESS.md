@@ -2,6 +2,40 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-09 — persona-sweep (run 8): franchise-badge volgt stilgevallen-bench + euro-bedragen op cent-grid
+
+**Wat:** kritische-gebruiker-sweep over de vier rollen (orchestrator Opus 4.8 + 3 parallelle adversariële
+Opus-audits: next-action/badge-correctheid · IDOR/authz/cross-tenant · malicieuze invoer/geld). **DOEL 2
+(security + geld/authz) schoon** — 0 nieuw bereikbare gaten (currentActor herlaadt rol/status/tenant live;
+by-id-fetches her-verifiëren met anti-oracle-404; cascade-commands dwingen de juiste partij-zijde af;
+int4/NaN/negatief afgedekt). **2 defecten gefixt:**
+
+1. **DOEL 1b — /franchise/zzpers-nav-badge telde de stilgevallen-bench-ZZP'er niet mee (badge↔lijst-drift).**
+   `franchiserTasks` (`pending-tasks.ts`) toont voor een inzetbare, op-de-bench (0 ACTIVE), afgekoelde
+   (≥ `DORMANT_IDLE_DAYS`) roster-ZZP'er een `franchiseRosterReengagementTask` (deeplink /franchise/zzpers),
+   maar `navBadges` (`signals.ts` → `rosterAlerts`) telde alleen (bijna-)verlopende + reeds-verlopen certs +
+   niet-inzetbare (INACTIEF) profielen — géén dormancy-term. Het signaal stond dus op /acties (en in
+   `pendingTaskCount`) maar de nav-badge bleef 0: het "signaal op één oppervlak"-anti-patroon, terwijl de
+   klant-kant (`attentionClients`) de spiegel-taak al telt. **Fix:** de roster-query laadt nu dezelfde
+   `_count`-bench-telling en de badge draait dezelfde pure `classifyRosterDormancy` als de item-engine
+   (kan structureel niet driften). **Bestanden:** `src/lib/signals.ts`,
+   `src/lib/signals.badge-dormant-roster.test.ts` (+2), `src/lib/signals.badge-gaps-run52.test.ts` (mock
+   `_count` bijgewerkt op de query-vorm).
+
+2. **[GELD/ROBUUSTHEID] Euro-bedragen met >2 decimalen stil round-half-up i.p.v. geweigerd (twin van #1447).**
+   `eurosToCents` (`Math.round(euros·100)`) kwantiseert een mijlpaalbedrag (`samenwerkingen/[id]/actions.ts`) én
+   een factuurregel-eenheidsprijs (`facturen/actions.ts`) met >2 decimalen stil naar hele centen (100,005 →
+   €100,01): het gefactureerde bedrag wijkt af van het ingevoerde. `validatePerformanceForm` (MILESTONE-tak) en
+   `parseLines` misten de cent-grid-check die de uren-tak in #1447 kreeg. **Fix:** gedeeld predikaat
+   `isCentAccurateEuros` (`hourly-cents.ts`, deelt de honderdsten-grid-kern met `isCentAccurateHours`); beide
+   euro-invoergrenzen weigeren >2 decimalen vóór `eurosToCents` afrondt. **Geld ongemoeid** — puur invoer-grens.
+   **Bestanden:** `src/lib/administration/hourly-cents.ts` (+`.test.ts` +3), `src/lib/validation.ts`
+   (+`.test.ts` +2), `src/app/(protected)/facturen/actions.ts`.
+
+**Checks:** typecheck ✓ · lint ✓ · unit (8511 pass / 2 skip) ✓ · prettier --check . ✓ · build lokaal geblokkeerd
+op de `next/font/google`-download (netwerkpolicy, zoals runs 5-7) → CI-poort verifieert de build. Backlog:
+`docs/PERSONA-SWEEP-BACKLOG.md` (run 8, geparkeerde items met repro).
+
 ## 2026-09-09 — geld/robuustheid: uren-invoer op de cent-grid afgedwongen (getoonde uren == gefactureerde uren)
 
 **Wat:** de open MED-kandidaat uit de 8-9-notitie hieronder gedicht. De factuurmotor
