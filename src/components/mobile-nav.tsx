@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { BrandMark } from "@/components/ui/brand-mark";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -12,6 +13,7 @@ import { useFocusTrap } from "@/lib/use-focus-trap";
 /** Mobiel navigatiemenu (drawer). Sluit automatisch bij routewissel en op Escape. */
 export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBadges }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   useFocusTrap(dialogRef, open);
@@ -22,14 +24,24 @@ export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBad
 
   useEffect(() => {
     if (!open) return;
+    const trigger = triggerRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const firstLink = dialogRef.current?.querySelector<HTMLAnchorElement>("a[href]");
+    firstLink?.focus();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+      trigger?.focus();
+    };
   }, [open]);
 
   return (
     <div className="md:hidden">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Menu openen"
@@ -39,41 +51,43 @@ export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBad
         <Menu className="size-5" aria-hidden />
       </button>
 
-      {open && (
-        <div
-          ref={dialogRef}
-          className="fixed inset-0 z-50"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Navigatie"
-        >
-          <button
-            type="button"
-            aria-label="Menu sluiten"
-            onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-black/40"
-          />
-          <div className="absolute inset-y-0 left-0 flex w-64 max-w-[80%] flex-col bg-background shadow-xl">
-            <div className="flex h-14 items-center justify-between border-b border-border px-4">
-              <div className="flex items-center gap-2">
-                <BrandMark size={28} />
-                <span className="font-display text-sm font-semibold">Handslag</span>
+      {open &&
+        createPortal(
+          <div
+            ref={dialogRef}
+            className="fixed inset-0 z-50"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigatie"
+          >
+            <button
+              type="button"
+              aria-label="Menu sluiten"
+              onClick={() => setOpen(false)}
+              className="absolute inset-0 bg-black/40"
+            />
+            <div className="absolute inset-y-0 left-0 flex w-72 max-w-[88%] flex-col rounded-r-3xl border-r border-border bg-card shadow-xl">
+              <div className="flex h-14 items-center justify-between border-b border-border px-4">
+                <div className="flex items-center gap-2">
+                  <BrandMark size={28} />
+                  <span className="font-display text-sm font-semibold">Handslag</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  aria-label="Menu sluiten"
+                  className="focus-ring rounded-md p-1.5 hover:bg-muted"
+                >
+                  <X className="size-5" aria-hidden />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Menu sluiten"
-                className="focus-ring rounded-md p-1.5 hover:bg-muted"
-              >
-                <X className="size-5" aria-hidden />
-              </button>
+              <div className="flex-1 overflow-y-auto overscroll-contain p-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <SidebarNav items={items} badges={badges} />
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-3">
-              <SidebarNav items={items} badges={badges} />
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

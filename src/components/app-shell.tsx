@@ -9,6 +9,7 @@ import { SidebarNav } from "@/components/sidebar-nav";
 import { SidebarRail } from "@/components/sidebar-rail";
 import { SidebarToggle } from "@/components/sidebar-toggle";
 import { SIDEBAR_COOKIE, parseSidebarState } from "@/lib/sidebar";
+import { MobileDock } from "@/components/mobile-dock";
 import { MobileNav } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SkipLink } from "@/components/ui/skip-link";
@@ -73,7 +74,7 @@ export async function AppShell({
 
   // Elke pagina vult de breedte; de symmetrische main-padding geeft een kleine, gelijke marge
   // tegen beide schermranden (geen max-w-klem, dus geen grote lege banen op brede schermen). De
-  // werkruimte (#19, /dashboard) is "flush": volle hoogte met eigen scroll per kolom, zelfde marges.
+  // dashboard keeps its own content layout while sharing the natural document scroll.
   const pathname = (await headers()).get("x-pathname") ?? "";
   const flush = pathname === "/dashboard";
 
@@ -93,7 +94,7 @@ export async function AppShell({
   const topAction = flush ? DASH_ACTION[role] : undefined;
 
   return (
-    <div className={cn("relative min-h-screen", sidebarExpanded ? "md:pl-64" : "md:pl-16")}>
+    <div className={cn("hs-app relative min-h-screen", sidebarExpanded ? "md:pl-64" : "md:pl-16")}>
       {/* Skip-link: eerste focusbare element, springt naar de hoofdinhoud (toetsenbord/screenreader). */}
       <SkipLink />
       {/* Vakwerk-shell: de zijbalk staat standaard uitgeklapt (16rem) met zichtbare labels +
@@ -150,12 +151,12 @@ export async function AppShell({
       </SidebarRail>
 
       <div className="flex min-h-screen flex-col">
-        <header className="flex h-14 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
+        <header className="hs-app-header flex h-14 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
           <div className="flex items-center gap-2 md:hidden">
             <MobileNav items={sidebarItems} badges={badges} />
             <Brand branding={branding} />
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="hs-header-tools ml-auto flex items-center gap-2">
             <SearchTrigger label={t("Zoeken…")} ariaLabel={t("Snelzoeker openen (Ctrl K)")} />
             <NavMoreMenu items={moreItems} badges={badges} label={t("Meer")} />
             <ThemeToggle
@@ -184,6 +185,8 @@ export async function AppShell({
             {topAction && (
               <Link
                 href={topAction.href}
+                aria-label={t(topAction.label)}
+                data-hs-button="primary"
                 className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
               >
                 <Plus className="size-4" aria-hidden />
@@ -198,13 +201,10 @@ export async function AppShell({
         <main
           id="hoofdinhoud"
           tabIndex={-1}
-          className={cn(
-            "flex-1 outline-none",
-            flush ? "flex flex-col overflow-hidden p-4 md:p-6" : "overflow-y-auto p-4 md:p-6",
-          )}
+          className={cn("hs-app-main flex-1 outline-none", "p-4 md:p-6")}
         >
           {flush ? (
-            // Werkruimte: volle hoogte met eigen scroll per kolom. Vult de breedte; de symmetrische
+            // Workspace: natural document scroll. The symmetric
             // main-padding geeft een kleine, gelijke marge links én rechts (geen eigen breedte-klem).
             <div className="flex min-h-0 w-full flex-1 flex-col">{children}</div>
           ) : (
@@ -214,6 +214,7 @@ export async function AppShell({
           )}
         </main>
       </div>
+      <MobileDock items={sidebarItems} badges={badges} />
       <CommandPalette navItems={navItems} />
     </div>
   );
