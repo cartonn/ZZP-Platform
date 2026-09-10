@@ -122,6 +122,8 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   INVOICE_WITHDRAWN: "Factuur ingetrokken",
   INVOICE_DRAFT_REMINDER: "Herinnering conceptfactuur",
   INVOICE_DRAFT_ESCALATED: "Conceptfactuur geëscaleerd",
+  INVOICE_APPROVAL_REMINDER: "Herinnering factuur goedkeuren",
+  INVOICE_APPROVAL_ESCALATED: "Factuur-goedkeuring geëscaleerd",
   INVOICE_PDF_ACCESSED: "Factuur-PDF ingezien",
   INVOICE_PDF_ACCESS_DENIED: "Factuur-PDF-toegang geweigerd",
   PERFORMANCE_PDF_ACCESSED: "Urenstaat/oplevering ingezien",

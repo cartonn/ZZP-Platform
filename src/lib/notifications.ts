@@ -34,6 +34,8 @@ const META: Record<string, NotificationMeta> = {
   INVOICE_DRAFT_READY: { category: "invoice", tone: "attention" },
   INVOICE_SUBMITTED: { category: "invoice", tone: "attention" },
   INVOICE_APPROVED: { category: "invoice", tone: "success" },
+  INVOICE_APPROVAL_REMINDER: { category: "invoice", tone: "attention" },
+  INVOICE_APPROVAL_ESCALATION: { category: "invoice", tone: "attention" },
   INVOICE_REJECTED: { category: "invoice", tone: "attention" },
   INVOICE_CREDITED: { category: "invoice", tone: "info" },
   INVOICE_WITHDRAWN: { category: "invoice", tone: "info" },
