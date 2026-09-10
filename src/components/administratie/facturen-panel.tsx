@@ -1,3 +1,4 @@
+import { approvalMark } from "@/lib/approval-mark";
 import Link from "next/link";
 import { getTranslator } from "@/lib/i18n/server";
 import { Download, Plus, Receipt } from "lucide-react";
@@ -471,7 +472,12 @@ export async function FacturenPanel({
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium tabular-nums">{displayNumber}</p>
                         {cascadeMeta ? (
-                          <Badge variant={cascadeMeta.variant}>{t(cascadeMeta.label)}</Badge>
+                          <Badge
+                            variant={cascadeMeta.variant}
+                            approval={approvalMark(inv.lifecycleStatus)}
+                          >
+                            {t(cascadeMeta.label)}
+                          </Badge>
                         ) : (
                           <InvoiceStatusBadge
                             status={inv.status as InvoiceStatus}

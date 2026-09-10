@@ -1,4 +1,5 @@
-import { CheckCircle2, Circle, FileSignature, Download } from "lucide-react";
+import { FileSignature, Download } from "lucide-react";
+import { Seal } from "@/components/ui/seal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,7 +37,7 @@ export function ModelAgreementCard({
   canSign,
   canChooseType,
 }: Props) {
-  const bothSigned = rows.every((r) => r.signedAt);
+  const bothSigned = rows.length > 0 && rows.every((r) => r.signedAt);
 
   return (
     <Card>
@@ -46,7 +47,10 @@ export function ModelAgreementCard({
             <FileSignature className="size-4 text-muted-foreground" />
             Modelovereenkomst
           </span>
-          <Badge variant={bothSigned ? "success" : "muted"}>
+          <Badge
+            variant={bothSigned ? "success" : "muted"}
+            approval={bothSigned ? "approved" : "pending"}
+          >
             {bothSigned ? "Ondertekend" : MODEL_AGREEMENT_LABELS[agreementType]}
           </Badge>
         </div>
@@ -85,11 +89,7 @@ export function ModelAgreementCard({
         <ul className="space-y-1.5">
           {rows.map((r) => (
             <li key={r.role} className="flex items-center gap-2 text-sm">
-              {r.signedAt ? (
-                <CheckCircle2 className="size-4 shrink-0 text-success" />
-              ) : (
-                <Circle className="size-4 shrink-0 text-muted-foreground" />
-              )}
+              <Seal tone={r.signedAt ? "verified" : "pending"} size="sm" />
               <span className="font-medium">{r.role}</span>
               <span className="text-muted-foreground">
                 {r.signedAt

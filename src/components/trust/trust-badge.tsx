@@ -17,8 +17,12 @@ export async function TrustBadge({ level, className }: { level: TrustLevel; clas
   const s = MAP[level];
   const { t } = await getTranslator();
   return (
-    <Badge variant={s.variant} className={className}>
-      <ShieldCheck className="mr-1 size-3" aria-hidden /> {t(s.label)}
+    <Badge
+      variant={s.variant}
+      approval={level === "VOLLEDIG" ? "approved" : undefined}
+      className={className}
+    >
+      {level !== "VOLLEDIG" && <ShieldCheck className="mr-1 size-3" aria-hidden />} {t(s.label)}
     </Badge>
   );
 }

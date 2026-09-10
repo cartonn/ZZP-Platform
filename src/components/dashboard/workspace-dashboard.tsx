@@ -1,3 +1,6 @@
+import { Seal } from "@/components/ui/seal";
+import { Badge } from "@/components/ui/badge";
+import { type ApprovalMark } from "@/lib/approval-mark";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { getTranslator } from "@/lib/i18n/server";
@@ -40,6 +43,7 @@ export interface WsRow {
   match?: number;
   status?: string;
   statusClass?: string;
+  approval?: ApprovalMark;
   href: string;
 }
 
@@ -84,7 +88,13 @@ export interface WorkspaceDashboardProps {
   list: { title: string; href?: string; rows: WsRow[]; empty?: string };
   nextActions: WsAction[];
   week?: { title: string; count: string; days: WsWeekDay[] };
-  seal?: { title: string; subtitle: string; items: WsSealItem[]; reportHref?: string };
+  seal?: {
+    title: string;
+    subtitle: string;
+    items: WsSealItem[];
+    reportHref?: string;
+    approval?: ApprovalMark;
+  };
   notice?: WsNotice | null;
   /** Optionele extra rail-inhoud, gerenderd na 'Volgende acties' (rendert zichzelf of null). */
   spotlight?: ReactNode;
@@ -232,10 +242,7 @@ export async function WorkspaceDashboard({
                           <div className="flex items-center gap-1.5">
                             <p className="truncate text-sm font-medium">{row.name}</p>
                             {row.verified && (
-                              <ShieldCheck
-                                className="h-3.5 w-3.5 shrink-0 text-success"
-                                aria-hidden
-                              />
+                              <Seal tone="verified" size="sm" label={t("Geverifieerd")} />
                             )}
                           </div>
                           <p className="truncate text-xs text-muted-foreground">
@@ -266,11 +273,12 @@ export async function WorkspaceDashboard({
                           </div>
                         )}
                         {row.status && (
-                          <span
-                            className={`hs-row-status shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${row.statusClass ?? "bg-muted text-muted-foreground"}`}
+                          <Badge
+                            approval={row.approval}
+                            className={`hs-row-status ${row.approval ? "" : (row.statusClass ?? "bg-muted text-muted-foreground")}`}
                           >
                             {row.status}
-                          </span>
+                          </Badge>
                         )}
                         <ArrowUpRight
                           className="h-4 w-4 shrink-0 text-muted-foreground"
@@ -364,8 +372,19 @@ export async function WorkspaceDashboard({
           {seal && (
             <section className="rounded-xl border border-border bg-card p-4 shadow-sm ring-1 ring-success/15">
               <div className="flex items-center gap-2">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-success/10 text-success">
-                  <ShieldCheck className="h-5 w-5" aria-hidden />
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-full ${seal.approval ? "" : "bg-success/10 text-success"}`}
+                >
+                  <>
+                    {seal.approval ? (
+                      <Seal
+                        tone={seal.approval === "approved" ? "verified" : "pending"}
+                        size="lg"
+                      />
+                    ) : (
+                      <ShieldCheck className="h-5 w-5" aria-hidden />
+                    )}
+                  </>
                 </span>
                 <div>
                   <p className="font-display text-sm font-semibold">{seal.title}</p>
@@ -383,7 +402,16 @@ export async function WorkspaceDashboard({
                   >
                     <dt className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
                       {item.ok ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" aria-hidden />
+                        <>
+                          {seal.approval === "approved" ? (
+                            <Seal tone="verified" size="sm" />
+                          ) : (
+                            <CheckCircle2
+                              className="h-3.5 w-3.5 shrink-0 text-success"
+                              aria-hidden
+                            />
+                          )}
+                        </>
                       ) : (
                         <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
                       )}

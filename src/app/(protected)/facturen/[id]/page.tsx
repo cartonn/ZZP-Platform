@@ -1,3 +1,4 @@
+import { approvalMark } from "@/lib/approval-mark";
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -289,7 +290,12 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
             </div>
             <div className="flex flex-col items-end gap-1">
               {cascadeMeta ? (
-                <Badge variant={cascadeMeta.variant}>{cascadeMeta.label}</Badge>
+                <Badge
+                  variant={cascadeMeta.variant}
+                  approval={approvalMark(invoice.lifecycleStatus)}
+                >
+                  {cascadeMeta.label}
+                </Badge>
               ) : (
                 <InvoiceStatusBadge status={status} dueAt={invoice.dueAt} />
               )}

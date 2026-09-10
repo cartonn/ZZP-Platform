@@ -226,3 +226,14 @@ Geen verzonnen klantlogo’s, aantallen, reviews, certificeringen of betaalgaran
 De uitleg vermeldt rechtstreekse betaling en de gefaseerde ingebruikname.
 Native links en details werken zonder extra clientscript. Zichtbare focus, ruime
 klikvlakken, mobiele navigatie en verminderde beweging blijven onderdeel van het ontwerp.
+
+## Goedkeuring — eigenaarsspecificatie 10-9-2026
+
+Het originele tweehandslogo is zwart zolang een item op beoordeling of ondertekening wacht.
+Na goedkeuring, verificatie of ondertekening wordt het oranje, met een dubbele zegelring.
+`Badge approval="pending" | "approved"` koppelt het teken aan het bestaande statuslabel.
+Gebruik `approvalMark` met de effectieve serverstatus, nooit op basis van tekst of alleen
+success/warning-kleuren. Verlopen, afgewezen, betwiste of ingetrokken items krijgen geen
+oranje goedkeuringszegel. Algemeen actief, gepubliceerd, betaald en technische gezondheid
+zijn op zichzelf geen goedkeuring. Zwart blijft ook in donkere modus zwart op een licht
+ondervlak. Oranje is het merkaccent van het zegel; kleine statuslabels blijven leesbaar.

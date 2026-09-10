@@ -1,3 +1,4 @@
+import { approvalMark } from "@/lib/approval-mark";
 import { type Metadata } from "next";
 import Link from "next/link";
 import { Clock, Download, Upload } from "lucide-react";
@@ -227,7 +228,9 @@ export default async function DienstenPage({
                   )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                  <Badge variant={statusInfo.variant} approval={approvalMark(d.status)}>
+                    {statusInfo.label}
+                  </Badge>
                   <Link
                     href={`/samenwerkingen/${d.collaborationId}`}
                     className="text-[11px] text-muted-foreground underline-offset-2 hover:underline"

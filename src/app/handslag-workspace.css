@@ -367,3 +367,20 @@ html {
     display: block;
   }
 }
+
+/* Black means awaiting a decision; the orange double-ring mark records approval. */
+.hs-seal-pending {
+  color: hsl(0 0% 4%);
+}
+.hs-seal-approved {
+  color: hsl(var(--brand-hand));
+}
+.hs-approval-badge[data-approval] {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+.hs-approval-badge[data-approval="approved"] {
+  background: hsl(var(--brand-hand) / 0.1);
+  border-color: hsl(var(--brand-hand) / 0.35);
+}
