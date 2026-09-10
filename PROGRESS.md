@@ -2,6 +2,32 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-10 — UX: rol-bewust tegenpartij-filter op de facturenlijst (opdrachtgever/ZZP'er)
+
+**Wat:** de facturenlijst (`/facturen`, ook de Administratie-hub-tab) filterde alleen op status.
+Toegevoegd: een rol-bewust filter op **tegenpartij** — de ZZP'er filtert op opdrachtgever, de
+opdrachtgever op ZZP'er — zodat "alles wat ik factureerde aan/van partij X" (betaald + openstaand,
+elk concept) in één klik zichtbaar is. Stripe-/Malt-pariteit; de meest gevraagde navigatie-affordance
+op een factuurregister die nog ontbrak. Geen extra query: partij-id/naam zaten al in de reeds geladen
+lijst (alleen `freelancer.id` aan de `select` toegevoegd).
+
+**Aanpak (hergebruik, pure kern):** nieuwe pure module `src/lib/invoice-party-filter.ts` naar het
+model van `invoice-filter.ts` — `invoiceParty` (rol-bewuste tegenpartij), `filterInvoicesByParty`,
+`summarizeInvoiceParties` (distinct + tellingen, nl-gesorteerd), `parsePartyFilter` (anti-oracle:
+onbekend id → "alles"). De partij-scope wordt **vóór** het statusfilter toegepast, zodat de
+status-pill-tellingen eerlijk hertellen binnen de gekozen partij (en identiek blijven zodra geen
+partij is gekozen). De KPI-kaarten en het debiteuren-overzicht blijven bewust portefeuille-breed —
+net als het statusfilter raken ze de saldi niet. Beide filters zijn orthogonaal: elk behoudt de
+selectie van het ander in de URL (server bouwt de hrefs via `withParams`). Nieuw client-component
+`invoice-party-select.tsx` is een domme navigator (controlled native `<select>`, `router.push` op de
+server-gebouwde href; URL = bron van waarheid). Het partij-filter verschijnt pas vanaf 2 distinct
+partijen. Geen dictionary-wijziging: nieuwe labels lopen door `t()` als NL-brontekst.
+
+**Bestanden:** `src/lib/invoice-party-filter.ts` (+`.test.ts`, 12 tests), `src/components/administratie/
+invoice-party-select.tsx`, `src/components/administratie/facturen-panel.tsx` (wiring + `freelancer.id`
+in de query + partij-behoud in de status-pills). **Checks:** typecheck ✓ · lint ✓ · unit (8549 passed,
+2 skipped) ✓ · build ✓ · prettier ✓ · CI-poort verifiëren (PR #1467).
+
 ## 2026-09-09 — robuustheid: ORT-render-guard op factuurdetail + urenstaat-PDF (corrupte segment-rij 500't die niet meer)
 
 **Wat:** vervolg op #1465. Die hardde de overzicht-mappers `/diensten` + `/prestaties` tegen een

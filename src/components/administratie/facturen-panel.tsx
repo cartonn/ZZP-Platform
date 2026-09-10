@@ -31,6 +31,12 @@ import {
   parseInvoiceFilter,
   summarizeInvoiceGroups,
 } from "@/lib/invoice-filter";
+import {
+  filterInvoicesByParty,
+  parsePartyFilter,
+  summarizeInvoiceParties,
+} from "@/lib/invoice-party-filter";
+import { InvoicePartySelect } from "@/components/administratie/invoice-party-select";
 import { sortInvoicesByUrgency, outstandingOverdueCents } from "@/lib/invoice-urgency";
 
 const CASCADE_LABEL: Record<
@@ -84,7 +90,7 @@ export async function FacturenPanel({
         select: {
           job: { select: { title: true } },
           company: { select: { id: true, name: true } },
-          freelancer: { select: { user: { select: { name: true } } } },
+          freelancer: { select: { id: true, user: { select: { name: true } } } },
           disputedAt: true,
         },
       },
@@ -133,12 +139,42 @@ export async function FacturenPanel({
     isFreelancer &&
     (await prisma.collaboration.count({ where: invoiceableCollaborationsWhere(actor.id) })) > 0;
 
-  // Tellingen over de volledige lijst (voor de pill-labels); gefilterde lijst voor de weergave.
-  const groupCounts = summarizeInvoiceGroups(invoices);
+  // Tegenpartij-filter (rol-bewust): de ZZP'er filtert op opdrachtgever, de opdrachtgever op ZZP'er.
+  // Geen extra query — partij-id/naam zitten al in de reeds geladen factuurlijst. De partij-scope
+  // wordt VÓÓR het statusfilter toegepast, zodat de status-pill-tellingen eerlijk hertellen binnen de
+  // gekozen partij (en identiek blijven aan vandaag zodra geen partij is gekozen). De KPI-kaarten en
+  // het debiteuren-overzicht blijven bewust portefeuille-breed — net als het statusfilter raken ze de
+  // saldi niet.
+  const activeParty = parsePartyFilter(first(searchParams.partij), invoices, isFreelancer);
+  const partyScoped = filterInvoicesByParty(invoices, activeParty, isFreelancer);
+  const partyOptions = summarizeInvoiceParties(invoices, isFreelancer);
+
+  // Tellingen over de partij-scope (voor de pill-labels); gefilterde lijst voor de weergave.
+  const groupCounts = summarizeInvoiceGroups(partyScoped);
   // Filteren op de gekozen groep, daarna op urgentie ordenen: te laat bovenaan (langst te laat
   // eerst), dan wat binnenkort vervalt. De DB levert `createdAt desc`, waardoor de meest te-late
   // factuur anders onderaan kan belanden.
-  const filtered = sortInvoicesByUrgency(filterInvoices(invoices, activeFilter));
+  const filtered = sortInvoicesByUrgency(filterInvoices(partyScoped, activeFilter));
+
+  // Href-bouw voor het partij-filter — behoud het actieve statusfilter bij het wisselen van partij
+  // (en andersom), zodat de twee filters orthogonaal samenwerken. De server rekent de hrefs uit; het
+  // client-select is een domme navigator.
+  const statusParam: Record<string, string> =
+    activeFilter !== "all" ? { status: activeFilter } : {};
+  const allPartiesHref = withParams(basePath, statusParam);
+  const partySelectValue = activeParty
+    ? withParams(basePath, { ...statusParam, partij: activeParty })
+    : allPartiesHref;
+  const partySelectOptions = [
+    {
+      href: allPartiesHref,
+      label: `${t(isFreelancer ? "Alle opdrachtgevers" : "Alle zzp'ers")} (${invoices.length})`,
+    },
+    ...partyOptions.map((p) => ({
+      href: withParams(basePath, { ...statusParam, partij: p.id }),
+      label: `${p.name || t("Onbekend")} (${p.count})`,
+    })),
+  ];
 
   // Verwachte-betaaldatum (alleen ZZP'er): per opdrachtgever het betaalgedrag uit de eigen
   // betaalde facturen afleiden (privacy — nooit data van andere ZZP'ers), zodat we per openstaande
@@ -346,14 +382,30 @@ export async function FacturenPanel({
         </Card>
       ) : (
         <div className="space-y-3">
-          {/* Statusfilter — pills wijzen naar basePath zodat ze binnen de hub-tab blijven. */}
+          {/* Tegenpartij-filter — alleen zinvol vanaf 2 distinct partijen; behoudt het statusfilter. */}
+          {partyOptions.length >= 2 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <InvoicePartySelect
+                options={partySelectOptions}
+                value={partySelectValue}
+                label={t(isFreelancer ? "Filter op opdrachtgever" : "Filter op zzp'er")}
+              />
+            </div>
+          )}
+          {/* Statusfilter — pills wijzen naar basePath zodat ze binnen de hub-tab blijven; het actieve
+              partij-filter blijft behouden bij het wisselen van status. */}
           <div className="flex flex-wrap gap-1.5">
             {INVOICE_FILTER_ORDER.map((group) => {
               const active = activeFilter === group;
+              const partyParam: Record<string, string> = activeParty ? { partij: activeParty } : {};
               return (
                 <Link
                   key={group}
-                  href={group === "all" ? basePath : withParams(basePath, { status: group })}
+                  href={
+                    group === "all"
+                      ? withParams(basePath, partyParam)
+                      : withParams(basePath, { status: group, ...partyParam })
+                  }
                   aria-current={active ? "page" : undefined}
                   className={[
                     "focus-ring inline-flex items-center rounded-md border px-3 py-1 text-sm transition-colors",
@@ -371,7 +423,7 @@ export async function FacturenPanel({
           {filtered.length === 0 ? (
             <Card>
               <CardContent className="py-6 text-center text-sm text-muted-foreground">
-                {t("Geen facturen met deze status.")}
+                {t("Geen facturen voor deze selectie.")}
               </CardContent>
             </Card>
           ) : (
