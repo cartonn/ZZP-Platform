@@ -25,6 +25,9 @@ export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBad
   useEffect(() => {
     if (!open) return;
     const trigger = triggerRef.current;
+    const app = trigger?.closest<HTMLElement>(".hs-app");
+    const previousInert = app?.inert ?? false;
+    if (app) app.inert = true;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const firstLink = dialogRef.current?.querySelector<HTMLAnchorElement>("a[href]");
@@ -34,6 +37,7 @@ export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBad
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = previousOverflow;
+      if (app) app.inert = previousInert;
       trigger?.focus();
     };
   }, [open]);

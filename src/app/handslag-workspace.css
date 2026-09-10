@@ -319,6 +319,15 @@ html {
     min-height: 2.75rem;
   }
 }
+/* Keep the install suggestion and the software keyboard clear of the mobile dock. */
+@media (max-width: 767px) {
+  body:has(.hs-mobile-dock) .hs-install-prompt {
+    bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+  .hs-app:has(input:focus, textarea:focus, select:focus) .hs-mobile-dock {
+    visibility: hidden;
+  }
+}
 @media (hover: hover) and (pointer: fine) {
   [data-hs-button]:hover:not(:disabled):not([aria-disabled="true"]) {
     transform: translateY(-2px);
