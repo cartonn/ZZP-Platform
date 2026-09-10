@@ -4,7 +4,8 @@
 // timing-safe én controleren de timestamp-tolerantie tegen replay. Puur en deterministisch (klok
 // injecteerbaar via `now`), zodat het volledig getest kan worden.
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac } from "node:crypto";
+import { constantTimeEqual } from "@/lib/security/constant-time-equal";
 
 export interface StripeSignatureOptions {
   /** Maximale leeftijd (seconden) van de webhook-timestamp tegen replay. Default 300 (Stripe-advies). */
@@ -58,10 +59,6 @@ export function verifyStripeSignature(
   const expected = createHmac("sha256", secret)
     .update(`${parsed.timestamp}.${raw}`, "utf8")
     .digest("hex");
-  const expectedBuf = Buffer.from(expected, "utf8");
 
-  return parsed.signatures.some((candidate) => {
-    const candidateBuf = Buffer.from(candidate, "utf8");
-    return candidateBuf.length === expectedBuf.length && timingSafeEqual(candidateBuf, expectedBuf);
-  });
+  return parsed.signatures.some((candidate) => constantTimeEqual(candidate, expected));
 }

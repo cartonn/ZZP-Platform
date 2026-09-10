@@ -122,6 +122,14 @@ punt 5 hieronder.
 
 ### Robuustheid / techniek
 
+0a. **Gedeelde constant-time secret-vergelijking — GEDAAN (10-9, PR #1469).** Eén audited primitive
+`constantTimeEqual` (`src/lib/security/constant-time-equal.ts`, HMAC-random-key → 32-byte digests →
+`timingSafeEqual`) ontdubbelt het 6× herhaalde `timingSafeEqual`+lengte-check-patroon en dicht de
+secret-length-leak op `authorizeCron` + mail-intake (vroege lengte-return op een niet-publiek secret).
+Refactor van 6 call-sites (cron/mail-intake/stripe-sig/totp/share-token/feed-token), gedrag behouden;
+
+- ontbrekende `cron-auth`-test (7). Geen menselijke reststap.
+
 0b. **Request-body begrensd op de resterende body-lezende API-endpoints (CWE-400) — GEDAAN (9-9, PR
 #1446).** `readLimitedJson`-helper (`src/lib/http/read-limited-text.ts`) trekt de gestreamde
 body-grens door naar `push/subscribe` (8 KB), `push/unsubscribe` (4 KB) — beide sessie-auth zónder
