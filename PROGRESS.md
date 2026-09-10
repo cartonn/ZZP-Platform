@@ -2,6 +2,15 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-10 — Security/privacy-audit ronde 7 (basis `main` @ 7126491b): clean
+
+3 parallelle adversariële Opus-audits (injectie/export · IDOR/cross-tenant · privacy/AVG) + orchestrator-sweep
+
+- gerichte auth/session/dep-probes → **0 nieuwe exploiteerbare security-gaten, 0 nieuwe privacy-defecten**.
+  `npm audit --omit=dev` = 0 vulns (dev-only ketens via Dependabot #1453). Volledige OWASP/AVG-dekking met
+  file:line-bewijs in `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 7e). Het geparkeerde `/zzp/[id]`-item blijft
+  een eigenaar-/FG-productafweging (MENSENWERK §5). Geen code-wijziging — docs-only PR.
+
 ## 2026-09-10 — UX: rol-bewust tegenpartij-filter op de facturenlijst (opdrachtgever/ZZP'er)
 
 **Wat:** de facturenlijst (`/facturen`, ook de Administratie-hub-tab) filterde alleen op status.
