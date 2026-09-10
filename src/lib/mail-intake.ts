@@ -9,7 +9,8 @@
 // unit-getest zijn. De webhook-route en de server actions leveren de I/O-keten
 // (auth → rol → ownership → Zod → actie → audit, CLAUDE.md regel 2).
 
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes } from "node:crypto";
+import { constantTimeEqual } from "@/lib/security/constant-time-equal";
 import { z } from "zod";
 import { MAIL_INTAKE_TRANSITIONS, type MailIntakeStatus, type WorkMode } from "@/lib/enums";
 
@@ -60,9 +61,8 @@ export function isAuthorizedMailIntakeHeader(header: string | null, secret: stri
     const sep = decoded.indexOf(":");
     provided = sep >= 0 ? decoded.slice(sep + 1) : "";
   }
-  const a = Buffer.from(provided, "utf8");
-  const b = Buffer.from(secret, "utf8");
-  return a.length === b.length && timingSafeEqual(a, b);
+  // Constant-time in inhoud én lengte (geen vroege lengte-return die het niet-publieke secret lekt).
+  return constantTimeEqual(provided, secret);
 }
 
 // ---------------------------------------------------------------------------
