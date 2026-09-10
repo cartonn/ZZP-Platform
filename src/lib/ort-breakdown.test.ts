@@ -289,4 +289,26 @@ describe("safeComputeOrt — throw-veilige wrapper voor de read-/weergavepaden",
     const segments: OrtSegment[] = [{ category: "NORMAL", hours: 8 }];
     expect(safeComputeOrt(segments, 50.5)).toBeNull();
   });
+
+  // De beoordeel-drawer (`review-bodies.tsx`) en de werkproces-uitsplitsing
+  // (`collaborations/ort-breakdown.tsx`) halen de OPGESLAGEN ORT-segmenten óók rechtstreeks door de
+  // motor om de optionele uitsplitsing te tonen. Beide zijn read-oppervlakken: een corrupte rij mag
+  // de drawer/pagina niet 500'en maar de uitsplitsing overslaan (result null → component rendert
+  // niets). Deze cases spiegelen de exacte segment-vormen die die twee surfaces kunnen raken.
+  it("geeft null bij een corrupt ORT-segment op een niet-NORMAL categorie (beoordeel-drawer)", () => {
+    const corrupt = [
+      { category: "NORMAL", hours: 4 },
+      { category: "EVENING", hours: -2 },
+    ] as unknown as OrtSegment[];
+    expect(() => computeOrt(corrupt, rateCents)).toThrow();
+    expect(safeComputeOrt(corrupt, rateCents)).toBeNull();
+  });
+
+  it("geeft null bij niet-eindige uren (werkproces-uitsplitsing)", () => {
+    const corrupt = [
+      { category: "NIGHT", hours: Number.POSITIVE_INFINITY },
+    ] as unknown as OrtSegment[];
+    expect(() => computeOrt(corrupt, rateCents)).toThrow();
+    expect(safeComputeOrt(corrupt, rateCents)).toBeNull();
+  });
 });

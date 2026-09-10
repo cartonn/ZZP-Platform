@@ -9,7 +9,8 @@ import { useActionState, useEffect } from "react";
 import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatEuro } from "@/lib/invoices";
-import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
+import { resolveOrtRates, type OrtSegment } from "@/lib/ort";
+import { safeComputeOrt } from "@/lib/ort-breakdown";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { type ResolveState } from "@/lib/actions/resolve-state";
 import { type DrawerData, type ReviewDocument } from "@/lib/actions/drawer-data";
@@ -223,8 +224,15 @@ function OrtBreakdown({
   ortProfile: string | null;
   ortCustomRates: string | null;
 }) {
-  const result = computeOrt(segments, rateCents, resolveOrtRates({ ortProfile, ortCustomRates }));
-  if (result.lines.length === 0) return null;
+  // Read-oppervlak: een semantisch corrupt segment (onbekende categorie / negatieve uren) mag deze
+  // beoordeel-drawer niet laten crashen. `safeComputeOrt` geeft dan `null` → sla de uitsplitsing over
+  // (de urenregels + bedragen renderen al los). Spiegelt de guard op factuurdetail/PDF (#1466).
+  const result = safeComputeOrt(
+    segments,
+    rateCents,
+    resolveOrtRates({ ortProfile, ortCustomRates }),
+  );
+  if (!result || result.lines.length === 0) return null;
   return (
     <div className="space-y-1">
       <p className="text-xs font-medium text-muted-foreground">ORT-uitsplitsing</p>

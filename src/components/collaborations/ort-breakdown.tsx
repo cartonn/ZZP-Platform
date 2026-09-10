@@ -3,7 +3,8 @@
 // onder elke ureninvoer die segmenten bevat.
 
 import { CheckCircle2 } from "lucide-react";
-import { computeOrt, resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
+import { resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
+import { safeComputeOrt } from "@/lib/ort-breakdown";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { formatEuro } from "@/lib/invoices";
 import { computeInvoicePreview } from "@/lib/performance-invoice-preview";
@@ -24,12 +25,15 @@ export function OrtBreakdown({
   ortCustomRates,
   ortRatesSnapshot,
 }: OrtBreakdownProps) {
-  const result = computeOrt(
+  // Read-oppervlak (werkproces-pagina): een semantisch corrupt segment (onbekende categorie /
+  // negatieve uren) mag deze uitsplitsing niet de héle pagina laten crashen. `safeComputeOrt` geeft
+  // dan `null` → sla de ORT-uitsplitsing over. Spiegelt de guard op factuurdetail/PDF (#1466).
+  const result = safeComputeOrt(
     ortSegments,
     rateCents,
     resolveEffectiveOrtRates({ ortRatesSnapshot, ortProfile, ortCustomRates }),
   );
-  if (result.lines.length === 0) return null;
+  if (!result || result.lines.length === 0) return null;
   // Conceptfactuur-uitkomst: dezelfde BTW-berekening als de cascade bij goedkeuring vastlegt,
   // zodat "totaal incl. btw" hier gelijk is aan de latere Invoice.totalCents.
   const preview = computeInvoicePreview(result.subtotalCents);
