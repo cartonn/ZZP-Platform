@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, X } from "lucide-react";
+import { Check, CircleAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,16 @@ import { claimShift, type ClaimState } from "./actions";
  * `claimShift`-server-action. Bij succes blijft de ZZP'er op `/rooster`: de revalidatie verwisselt
  * de knop voor de "Gereageerd"-badge en deze bevestiging dekt het korte tussenmoment.
  */
-export function ClaimShift({ jobId, title }: { jobId: string; title: string }) {
+export function ClaimShift({
+  jobId,
+  title,
+  conflictNotice,
+}: {
+  jobId: string;
+  title: string;
+  /** Waarschuwing bij dubbele boeking (ZZP'er is deze dag al ingepland); server-side afgeleid. */
+  conflictNotice?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [state, formAction, isPending] = useActionState<ClaimState, FormData>(
     claimShift.bind(null, jobId),
@@ -55,6 +64,13 @@ export function ClaimShift({ jobId, title }: { jobId: string; title: string }) {
           <X className="size-4" aria-hidden />
         </button>
       </div>
+
+      {conflictNotice && (
+        <p className="flex items-start gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+          <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>{conflictNotice}</span>
+        </p>
+      )}
 
       <Field label="Motivatie" htmlFor={`motivation-${jobId}`} required error={fe.motivation}>
         <Textarea

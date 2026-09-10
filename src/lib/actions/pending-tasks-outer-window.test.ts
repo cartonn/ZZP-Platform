@@ -18,7 +18,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const MAX = 50;
 
-type Perf = { id: string; status: string; createdAt: Date };
+type Perf = { id: string; status: string; createdAt: Date; submittedAt?: Date | null };
 type Inv = {
   id: string;
   lifecycleStatus: string;
@@ -109,6 +109,7 @@ vi.mock("@/lib/db", () => {
                 .map((p) => ({
                   id: p.id,
                   createdAt: p.createdAt,
+                  submittedAt: p.submittedAt ?? null,
                   collaborationId: c.id,
                   collaboration: {
                     job: { title: c.jobTitle },
@@ -325,5 +326,38 @@ describe("clientTasks — outer-window-blindheid (keur-taken op ouder-getekende 
     expect(approveInv).toBeDefined();
     expect(approveInv?.kind).toBe("invoice-approve");
     expect(approveInv?.href).toBe("/samenwerkingen/c-stuck");
+  });
+
+  it("laat de keur-taak escaleren zodra de ingediende urenstaat al lang op goedkeuring wacht", async () => {
+    const CLIENT_ID = "wait-aware-client";
+    state.collabs = [
+      {
+        id: "c-old-submit",
+        party: "CLIENT",
+        status: "ACTIVE",
+        disputedAt: null,
+        updatedAt: recent(1),
+        jobTitle: "Weekenddienst",
+        companyName: "Zorgcentrum Zuid",
+        freelancerName: "Nadia",
+        // Al lang geleden ingediend → voorbij PERFORMANCE_WAIT_ATTENTION_DAYS.
+        performances: [
+          { id: "c-old-perf", status: "SUBMITTED", createdAt: ANCIENT, submittedAt: ANCIENT },
+        ],
+        invoices: [],
+      },
+    ];
+
+    const tasks = await pendingTasks({
+      id: CLIENT_ID,
+      role: "CLIENT",
+      status: "ACTIVE",
+    } as never);
+
+    const approvePerf = tasks.find((t) => t.id === "performance-approve:c-old-perf");
+    expect(approvePerf).toBeDefined();
+    // Spiegelt /prestaties + de dag-3/7-e-mail: overdue-band (67) i.p.v. de vlakke approve-band (65).
+    expect(approvePerf?.priority).toBe(67);
+    expect(approvePerf?.subtitle).toContain("wacht al");
   });
 });

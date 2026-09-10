@@ -46,6 +46,23 @@ export function hoursTimesRateCents(hours: number, hourlyRateCents: number): num
  * niet-negatieve waarde (aanroepers checken finite/≥0 apart).
  */
 export function isCentAccurateHours(hours: number): boolean {
-  const scaled = hours * 100;
+  return isTwoDecimalGrid(hours);
+}
+
+/**
+ * Toetst of een euro-bedrag exact op de cent-grid (twee decimalen = hele centen) valt — hetzelfde
+ * honderdsten-predikaat als {@link isCentAccurateHours}, maar voor geldbedragen. `eurosToCents`
+ * (`Math.round(euros * 100)`) kwantiseert een bedrag met méér dan twee decimalen stil naar hele centen
+ * (100,005 → €100,01), waardoor het GEFACTUREERDE bedrag afwijkt van het INGEVOERDE. De euro-invoer-
+ * grenzen (mijlpaalbedrag, factuurregel-eenheidsprijs) weigeren zulke invoer vóór `eurosToCents` de
+ * afronding stil uitvoert — spiegelt de uren-grid-poort (#1447) op de cent-invoerkant.
+ */
+export function isCentAccurateEuros(euros: number): boolean {
+  return isTwoDecimalGrid(euros);
+}
+
+/** Gedeelde kern: valt `value * 100` (float-ruis-tolerant) exact op een geheel getal? */
+function isTwoDecimalGrid(value: number): boolean {
+  const scaled = value * 100;
   return Math.abs(scaled - Math.round(scaled)) <= 1e-6;
 }

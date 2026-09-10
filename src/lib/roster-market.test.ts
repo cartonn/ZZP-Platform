@@ -3,11 +3,14 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  agendaDayBookingConflict,
   buildAgenda,
   buildRosterCalendar,
   filterRosterByMinMatch,
+  formatBookingConflictNotice,
   ROSTER_STRONG_MATCH_MIN,
   summarizeRosterWeek,
+  type AgendaDay,
   type BookedCollaborationInput,
   type RosterCalendar,
   type RosterShiftInput,
@@ -593,5 +596,90 @@ describe("summarizeRosterWeek", () => {
     );
     const summary = summarizeRosterWeek(agenda.days, NOW);
     expect(summary).toMatchObject({ plannedCount: 0, clientCount: 0, openCount: 0 });
+  });
+});
+
+describe("agendaDayBookingConflict", () => {
+  function makeAgendaDay(overrides: Partial<AgendaDay>): AgendaDay {
+    return {
+      date: new Date(Date.UTC(2026, 5, 12)),
+      weekday: "FRI",
+      isToday: false,
+      booked: [],
+      open: [],
+      ...overrides,
+    };
+  }
+
+  const bookedEntry = (clientName: string, collaborationId: string) => ({
+    collaborationId,
+    jobTitle: "Verpleging",
+    clientName,
+    rate: 45,
+    scheduled: true,
+  });
+
+  it("geen conflict wanneer er niets geboekt is die dag", () => {
+    const day = makeAgendaDay({
+      open: [makeShift({ startDate: new Date(Date.UTC(2026, 5, 12)) })],
+    });
+    expect(agendaDayBookingConflict(day)).toBeNull();
+  });
+
+  it("geen conflict wanneer er geen open kans is die dag", () => {
+    const day = makeAgendaDay({ booked: [bookedEntry("Zorg BV", "c1")] });
+    expect(agendaDayBookingConflict(day)).toBeNull();
+  });
+
+  it("conflict wanneer booked én open beide niet-leeg zijn", () => {
+    const day = makeAgendaDay({
+      booked: [bookedEntry("Zorg BV", "c1")],
+      open: [makeShift({ startDate: new Date(Date.UTC(2026, 5, 12)) })],
+    });
+    expect(agendaDayBookingConflict(day)).toEqual({ bookedCount: 1, clientNames: ["Zorg BV"] });
+  });
+
+  it("ontdubbelt en sorteert opdrachtgevers, telt alle geboekte diensten", () => {
+    const day = makeAgendaDay({
+      booked: [
+        bookedEntry("Zorg BV", "c1"),
+        bookedEntry("Aloha Thuiszorg", "c2"),
+        bookedEntry("Zorg BV", "c3"), // zelfde opdrachtgever, tweede dienst
+      ],
+      open: [makeShift({ startDate: new Date(Date.UTC(2026, 5, 12)) })],
+    });
+    // bookedCount telt diensten (3), clientNames ontdubbeld+alfabetisch (2).
+    expect(agendaDayBookingConflict(day)).toEqual({
+      bookedCount: 3,
+      clientNames: ["Aloha Thuiszorg", "Zorg BV"],
+    });
+  });
+});
+
+describe("formatBookingConflictNotice", () => {
+  it("één opdrachtgever", () => {
+    expect(formatBookingConflictNotice({ bookedCount: 1, clientNames: ["Zorg BV"] })).toBe(
+      "Je bent deze dag al ingepland bij Zorg BV. Controleer of een extra dienst past.",
+    );
+  });
+
+  it("twee opdrachtgevers met «en»", () => {
+    expect(formatBookingConflictNotice({ bookedCount: 2, clientNames: ["Aloha", "Zorg BV"] })).toBe(
+      "Je bent deze dag al ingepland bij Aloha en Zorg BV. Controleer of een extra dienst past.",
+    );
+  });
+
+  it("drie of meer opdrachtgevers kappen af met «en meer»", () => {
+    expect(
+      formatBookingConflictNotice({ bookedCount: 3, clientNames: ["Aloha", "Bright", "Zorg BV"] }),
+    ).toBe(
+      "Je bent deze dag al ingepland bij Aloha, Bright en meer. Controleer of een extra dienst past.",
+    );
+  });
+
+  it("valt defensief terug bij een lege opdrachtgeverslijst", () => {
+    expect(formatBookingConflictNotice({ bookedCount: 1, clientNames: [] })).toBe(
+      "Je bent deze dag al ingepland bij een andere opdrachtgever. Controleer of een extra dienst past.",
+    );
   });
 });

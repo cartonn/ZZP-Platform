@@ -20,7 +20,11 @@ import { type UserRole } from "@/lib/enums";
 // account → dat logt meetbaar sneller in en verraadt via de responstijd of een e-mail bestaat
 // (CWE-208 timing-side-channel → gebruikers-/e-mail-enumeratie, OWASP A07). Cost 10 = gelijk aan de
 // registratie-hash (`bcrypt.hash(..., 10)`), zodat de rekentijd overeenkomt.
-const TIMING_EQUALIZER_HASH = "$2a$10$WXJahW.hkelHJbQ3heO7Ve7udQ0dZ/.iVzUpX1JT7MQZIoCfWI6TC";
+// Hergebruikt door register-paden (`src/app/register/actions.ts`) voor dezelfde timing-egalisatie
+// wanneer een e-mail/KvK-nummer al bekend is: zonder deze compare zou de vroege return meetbaar
+// sneller zijn dan het "nieuw account"-pad (dat bcrypt.hash draait) → enumeratie van bestaande
+// accounts/bureaus.
+export const TIMING_EQUALIZER_HASH = "$2a$10$WXJahW.hkelHJbQ3heO7Ve7udQ0dZ/.iVzUpX1JT7MQZIoCfWI6TC";
 
 const credentialsSchema = z.object({
   // Registratie slaat e-mail genormaliseerd (trim + lowercase) op; de login-lookup MOET hetzelfde

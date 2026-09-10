@@ -21,7 +21,7 @@ import {
   normalizeKvk,
 } from "@/lib/fiscal";
 import { MAX_INVOICE_CENTS } from "@/lib/invoices";
-import { isCentAccurateHours } from "@/lib/administration/hourly-cents";
+import { isCentAccurateHours, isCentAccurateEuros } from "@/lib/administration/hourly-cents";
 
 /**
  * URL-veld dat uitsluitend het http(s)-schema toestaat. `z.string().url()` keurt óók
@@ -469,6 +469,11 @@ export function validatePerformanceForm(data: PerformanceFormData): string | nul
       return "Voer een bedrag in van minimaal €0,01.";
     if (data.amount * 100 > MAX_MILESTONE_CENTS)
       return "Het bedrag is onrealistisch hoog (maximaal € 1.000.000 per oplevering).";
+    // Cent-grid: `eurosToCents` (`Math.round(amount * 100)`) kwantiseert een bedrag met >2 decimalen stil
+    // naar hele centen (100,005 → €100,01) — dán wijkt het gefactureerde bedrag af van het ingevoerde.
+    // Weiger dat vóór persistentie, zodat wat de partij invoert één-op-één de factuur voedt (server-side
+    // waarheid, regel 1). Spiegelt de uren-grid-poort (`isCentAccurateHours`, #1447) op de cent-invoerkant.
+    if (!isCentAccurateEuros(data.amount)) return "Voer het bedrag in met maximaal twee decimalen.";
     if (!data.milestoneTitle.trim()) return "Geef de oplevering een titel.";
   }
   return null;

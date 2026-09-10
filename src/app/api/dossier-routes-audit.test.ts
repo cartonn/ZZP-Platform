@@ -93,6 +93,7 @@ const collab = {
     dbaRisk: "LAAG",
     dbaReasons: null,
     modelAgreementType: "GEEN",
+    credentialRequirements: [],
     dbaDirectSupervision: false,
     dbaEmbedded: false,
     dbaFixedSchedule: false,

@@ -111,6 +111,7 @@ import { getReceivedInvitations } from "@/lib/data/received-invitations";
 import { invitationAgeDays } from "@/lib/received-invitations";
 import { daysSince } from "@/lib/concept-invoice-reminders";
 import { reviewPromptForCollaboration } from "@/lib/collaboration-review-prompt";
+import { summarizePerformanceWait } from "@/lib/performance-wait";
 import {
   summarizeCollaborationRenewal,
   RENEWAL_WINDOW_DAYS,
@@ -723,8 +724,9 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     where: credentialCollabWhere(userId),
     select: {
       id: true,
-      // Einddatum verankert de mid-plaatsing-verval-waarschuwing (spiegel van de opdrachtgever-alert):
-      // een vereist certificaat dat ná het venster maar vóór de einddatum lapt, is ook een zorg.
+      // Einddatum van de plaatsing verankert de "verloopt vóór het einde van de opdracht"-zorg: een
+      // certificaat dat ná het 30-daagse venster maar vóór deze datum verloopt, lapt mid-inzet en geeft
+      // de ZZP'er hetzelfde, eerdere signaal als de opdrachtgever (spiegel van expiringDuringPlacement).
       endDate: true,
       job: {
         select: {
@@ -741,7 +743,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     collaborationId: c.id,
     companyName: c.company.name,
     jobTitle: c.job.title,
-    placementEnd: c.endDate,
+    endDate: c.endDate,
     requiredTypes: c.job.credentialRequirements.map(
       (r) => r.credentialType as CollabCredentialInput["type"],
     ),
@@ -1189,6 +1191,9 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     select: {
       id: true,
       collaborationId: true,
+      // Onveranderlijk gezet bij → SUBMITTED; voedt het wachttijd-signaal zodat de te-keuren-taak
+      // net als /prestaties en de dag-3/7-e-mail escaleert i.p.v. vlak op de approve-band te blijven.
+      submittedAt: true,
       collaboration: {
         select: {
           job: { select: { title: true } },
@@ -1201,7 +1206,19 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   });
   for (const p of approvePerformances) {
     const name = p.collaboration.freelancer.user.name ?? "ZZP'er";
-    tasks.push(performanceApproveTask(p.id, p.collaborationId, p.collaboration.job.title, name));
+    // Dezelfde bron van waarheid als /prestaties (`summarizePerformanceWait`): SUBMITTED-only,
+    // toekomstige submittedAt → 0 dagen. De where-scope garandeert SUBMITTED, dus `wait` is niet
+    // null; blijft het onverhoopt null, dan valt de taak terug op de vlakke approve-band.
+    const wait = summarizePerformanceWait({ status: "SUBMITTED", submittedAt: p.submittedAt });
+    tasks.push(
+      performanceApproveTask(
+        p.id,
+        p.collaborationId,
+        p.collaboration.job.title,
+        name,
+        wait?.daysWaiting,
+      ),
+    );
   }
 
   const approveInvoices = await prisma.invoice.findMany({

@@ -19,8 +19,9 @@ const tenantFindUnique = vi.hoisted(() => vi.fn());
 const rateCheck = vi.hoisted(() => vi.fn(async () => ({ allowed: true })));
 const breachCheck = vi.hoisted(() => vi.fn(async () => ({ breached: false, skipped: false })));
 const bcryptHash = vi.hoisted(() => vi.fn(async () => "hashed"));
+const bcryptCompare = vi.hoisted(() => vi.fn(async () => false));
 
-vi.mock("bcryptjs", () => ({ default: { hash: bcryptHash } }));
+vi.mock("bcryptjs", () => ({ default: { hash: bcryptHash, compare: bcryptCompare } }));
 vi.mock("@/lib/franchise/create-tenant", () => ({ createTenantWithOwner: createTenantMock }));
 vi.mock("@/lib/services/password-breach", () => ({
   getPasswordBreachChecker: () => ({ mode: "off", check: breachCheck }),
@@ -72,6 +73,7 @@ beforeEach(() => {
   rateCheck.mockResolvedValue({ allowed: true });
   breachCheck.mockResolvedValue({ breached: false, skipped: false });
   bcryptHash.mockResolvedValue("hashed");
+  bcryptCompare.mockResolvedValue(false);
   createTenantMock.mockResolvedValue({ tenantId: "t1", userId: "u1", slug: "s" });
 });
 

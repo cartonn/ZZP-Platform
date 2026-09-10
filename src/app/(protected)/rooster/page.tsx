@@ -18,9 +18,11 @@ import { scoreJobForFreelancer, topGapReason, topPositiveReason } from "@/lib/ma
 import { type Weekday, type WorkMode } from "@/lib/enums";
 import { parseWeekdays } from "@/lib/weekdays";
 import {
+  agendaDayBookingConflict,
   buildAgenda,
   buildRosterCalendar,
   filterRosterByMinMatch,
+  formatBookingConflictNotice,
   ROSTER_STRONG_MATCH_MIN,
   summarizeRosterWeek,
   type BookedCollaborationInput,
@@ -285,148 +287,165 @@ export default async function RoosterPage({
             </div>
           )}
 
-          {agenda.days.map((day) => (
-            <section key={day.date.toISOString()} aria-label={WEEKDAY_LABEL[day.weekday]}>
-              {/* Dag-kop */}
-              <div className="mb-3 flex items-center gap-2">
-                <h2 className="text-sm font-semibold tracking-tight">
-                  {WEEKDAY_LABEL[day.weekday]}, {formatDateShortNl(day.date)}
-                </h2>
-                {day.isToday && (
-                  <Badge variant="accent" className="text-xs">
-                    Vandaag
-                  </Badge>
-                )}
-              </div>
+          {agenda.days.map((day) => {
+            // Dubbele-boeking-signaal: open kans op een dag waarop je al bent ingepland.
+            const bookingConflict = agendaDayBookingConflict(day);
+            const conflictNotice = bookingConflict
+              ? formatBookingConflictNotice(bookingConflict)
+              : null;
+            return (
+              <section key={day.date.toISOString()} aria-label={WEEKDAY_LABEL[day.weekday]}>
+                {/* Dag-kop */}
+                <div className="mb-3 flex items-center gap-2">
+                  <h2 className="text-sm font-semibold tracking-tight">
+                    {WEEKDAY_LABEL[day.weekday]}, {formatDateShortNl(day.date)}
+                  </h2>
+                  {day.isToday && (
+                    <Badge variant="accent" className="text-xs">
+                      Vandaag
+                    </Badge>
+                  )}
+                </div>
 
-              <div className="space-y-4">
-                {/* Jouw geplande diensten */}
-                {day.booked.length > 0 && (
-                  <div>
-                    <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Jouw diensten
-                    </p>
-                    <div className="divide-y divide-border overflow-hidden rounded-lg border border-success/30 bg-card shadow-sm">
-                      {day.booked.map((entry) => (
-                        <Link
-                          key={`${entry.collaborationId}-${entry.scheduled}`}
-                          href={`/samenwerkingen/${entry.collaborationId}`}
-                          className="card-interactive flex items-center justify-between gap-4 px-5 py-3.5"
-                        >
-                          <div className="flex min-w-0 items-start gap-3">
-                            <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-success/10 text-success">
-                              <BriefcaseBusiness className="size-4" aria-hidden />
-                            </span>
-                            <div className="min-w-0">
-                              <p className="truncate font-medium">{entry.jobTitle}</p>
-                              <p className="metadata-row mt-0.5">
-                                <span className="font-medium text-foreground/70">
-                                  {entry.clientName}
-                                </span>
-                                {entry.rate != null && (
-                                  <span className="tabular-nums">€ {entry.rate}/uur</span>
-                                )}
-                              </p>
-                              {!entry.scheduled && (
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  volgens looptijd
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex shrink-0 items-center gap-3">
-                            <Badge variant="success">Geboekt</Badge>
-                            <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Open diensten */}
-                {day.open.length > 0 && (
-                  <div>
-                    <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Open diensten
-                    </p>
-                    <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-                      {day.open.map((shift) => (
-                        <div key={shift.jobId} className="px-5 py-3.5">
-                          <div className="flex items-center justify-between gap-4">
-                            <Link
-                              href={`/opdrachten/${shift.jobId}`}
-                              className="focus-ring group -m-1 min-w-0 flex-1 rounded-md p-1"
-                            >
-                              <p className="truncate font-medium group-hover:underline">
-                                {shift.title}
-                              </p>
-                              <p className="metadata-row mt-0.5">
-                                <span className="font-medium text-foreground/70">
-                                  {shift.companyName}
-                                </span>
-                                {shift.location && (
-                                  <span className="inline-flex items-center gap-1">
-                                    <MapPin className="size-3" aria-hidden />
-                                    {shift.location}
+                <div className="space-y-4">
+                  {/* Jouw geplande diensten */}
+                  {day.booked.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Jouw diensten
+                      </p>
+                      <div className="divide-y divide-border overflow-hidden rounded-lg border border-success/30 bg-card shadow-sm">
+                        {day.booked.map((entry) => (
+                          <Link
+                            key={`${entry.collaborationId}-${entry.scheduled}`}
+                            href={`/samenwerkingen/${entry.collaborationId}`}
+                            className="card-interactive flex items-center justify-between gap-4 px-5 py-3.5"
+                          >
+                            <div className="flex min-w-0 items-start gap-3">
+                              <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-success/10 text-success">
+                                <BriefcaseBusiness className="size-4" aria-hidden />
+                              </span>
+                              <div className="min-w-0">
+                                <p className="truncate font-medium">{entry.jobTitle}</p>
+                                <p className="metadata-row mt-0.5">
+                                  <span className="font-medium text-foreground/70">
+                                    {entry.clientName}
                                   </span>
-                                )}
-                                <span>{WORK_MODE_LABEL[shift.workMode as WorkMode]}</span>
-                              </p>
-                              {(shift.topReason || shift.topGap) && (
-                                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
-                                  {shift.topReason && (
-                                    <span className="inline-flex items-center gap-1 text-success">
-                                      <Check className="size-3 shrink-0" aria-hidden />
-                                      {shift.topReason}
-                                    </span>
-                                  )}
-                                  {shift.topGap && (
-                                    <span className="inline-flex items-center gap-1 text-muted-foreground">
-                                      <Minus className="size-3 shrink-0" aria-hidden />
-                                      {shift.topGap}
-                                    </span>
+                                  {entry.rate != null && (
+                                    <span className="tabular-nums">€ {entry.rate}/uur</span>
                                   )}
                                 </p>
-                              )}
-                            </Link>
+                                {!entry.scheduled && (
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    volgens looptijd
+                                  </p>
+                                )}
+                              </div>
+                            </div>
 
                             <div className="flex shrink-0 items-center gap-3">
-                              {(shift.rateMin != null || shift.rateMax != null) && (
-                                <span className="hidden text-sm tabular-nums text-muted-foreground sm:inline">
-                                  € {shift.rateMin ?? "?"}
-                                  {shift.rateMax != null ? `–${shift.rateMax}` : "+"}
-                                  /uur
-                                </span>
-                              )}
-                              {shift.matchScore !== null && (
-                                <Badge variant="accent">Match {shift.matchScore}%</Badge>
-                              )}
-                              {shift.alreadyApplied && <Badge variant="muted">Gereageerd</Badge>}
+                              <Badge variant="success">Geboekt</Badge>
+                              <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Open diensten */}
+                  {day.open.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Open diensten
+                      </p>
+                      {conflictNotice && (
+                        <p className="mb-2 flex items-start gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+                          <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+                          <span>{conflictNotice}</span>
+                        </p>
+                      )}
+                      <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+                        {day.open.map((shift) => (
+                          <div key={shift.jobId} className="px-5 py-3.5">
+                            <div className="flex items-center justify-between gap-4">
                               <Link
                                 href={`/opdrachten/${shift.jobId}`}
-                                aria-label={`Bekijk ${shift.title}`}
-                                className="focus-ring rounded text-muted-foreground hover:text-foreground"
+                                className="focus-ring group -m-1 min-w-0 flex-1 rounded-md p-1"
                               >
-                                <ChevronRight className="size-4" aria-hidden />
+                                <p className="truncate font-medium group-hover:underline">
+                                  {shift.title}
+                                </p>
+                                <p className="metadata-row mt-0.5">
+                                  <span className="font-medium text-foreground/70">
+                                    {shift.companyName}
+                                  </span>
+                                  {shift.location && (
+                                    <span className="inline-flex items-center gap-1">
+                                      <MapPin className="size-3" aria-hidden />
+                                      {shift.location}
+                                    </span>
+                                  )}
+                                  <span>{WORK_MODE_LABEL[shift.workMode as WorkMode]}</span>
+                                </p>
+                                {(shift.topReason || shift.topGap) && (
+                                  <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+                                    {shift.topReason && (
+                                      <span className="inline-flex items-center gap-1 text-success">
+                                        <Check className="size-3 shrink-0" aria-hidden />
+                                        {shift.topReason}
+                                      </span>
+                                    )}
+                                    {shift.topGap && (
+                                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                                        <Minus className="size-3 shrink-0" aria-hidden />
+                                        {shift.topGap}
+                                      </span>
+                                    )}
+                                  </p>
+                                )}
                               </Link>
-                            </div>
-                          </div>
 
-                          {canClaim && !shift.alreadyApplied && (
-                            <div className="mt-3">
-                              <ClaimShift jobId={shift.jobId} title={shift.title} />
+                              <div className="flex shrink-0 items-center gap-3">
+                                {(shift.rateMin != null || shift.rateMax != null) && (
+                                  <span className="hidden text-sm tabular-nums text-muted-foreground sm:inline">
+                                    € {shift.rateMin ?? "?"}
+                                    {shift.rateMax != null ? `–${shift.rateMax}` : "+"}
+                                    /uur
+                                  </span>
+                                )}
+                                {shift.matchScore !== null && (
+                                  <Badge variant="accent">Match {shift.matchScore}%</Badge>
+                                )}
+                                {shift.alreadyApplied && <Badge variant="muted">Gereageerd</Badge>}
+                                <Link
+                                  href={`/opdrachten/${shift.jobId}`}
+                                  aria-label={`Bekijk ${shift.title}`}
+                                  className="focus-ring rounded text-muted-foreground hover:text-foreground"
+                                >
+                                  <ChevronRight className="size-4" aria-hidden />
+                                </Link>
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      ))}
+
+                            {canClaim && !shift.alreadyApplied && (
+                              <div className="mt-3">
+                                <ClaimShift
+                                  jobId={shift.jobId}
+                                  title={shift.title}
+                                  conflictNotice={conflictNotice ?? undefined}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </section>
-          ))}
+                  )}
+                </div>
+              </section>
+            );
+          })}
         </div>
       )}
 
