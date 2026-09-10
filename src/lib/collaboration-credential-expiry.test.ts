@@ -145,7 +145,7 @@ describe("collaborationCredentialExpiryConcerns", () => {
 
   it("negeert óók de mid-plaatsing-zorg wanneer een doorlopend cert van hetzelfde type de vereiste dekt", () => {
     const result = collaborationCredentialExpiryConcerns({
-      collaborations: [collab({ placementEnd: inDays(200) })],
+      collaborations: [collab({ endDate: inDays(200) })],
       credentials: [
         cred({ id: "cred-old", expiresAt: inDays(60) }), // buiten venster, vóór einddatum → normaal duringPlacementOnly
         cred({ id: "cred-perm", expiresAt: null }), // doorlopend geldig → dekt permanent

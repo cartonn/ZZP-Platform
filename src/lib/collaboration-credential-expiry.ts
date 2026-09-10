@@ -166,7 +166,7 @@ export function collaborationCredentialExpiryConcerns(input: {
       daysUntilExpiry: Math.max(0, Math.floor((expiresAt.getTime() - nowMs) / MS_PER_DAY)),
       // Een certificaat kan alleen in `byCredential` staan via het venster óf via een plaatsing-einddatum;
       // valt het buiten het venster, dan is het per definitie een mid-plaatsing-zorg (`duringPlacementOnly`).
-      duringPlacementOnly: expiresAt.getTime() > cutoffMs,
+      duringPlacementOnly: expiresAt.getTime() > windowCutoffMs,
       collaborations,
     });
   }

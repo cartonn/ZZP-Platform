@@ -36,7 +36,10 @@ vi.mock("@/lib/services/password-breach", () => ({
   BREACHED_PASSWORD_MESSAGE: "Dit wachtwoord staat in een bekend datalek en is daardoor onveilig.",
 }));
 vi.mock("@/auth", () => ({ signIn: signInMock }));
-vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => undefined) }));
+vi.mock("@/lib/audit", () => ({
+  audit: vi.fn(async () => undefined),
+  auditData: vi.fn(() => ({})),
+}));
 vi.mock("@/lib/request-meta", () => ({
   requestMeta: vi.fn(async () => ({ ipAddress: "1.2.3.4" })),
 }));
@@ -46,6 +49,13 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: userFindUnique, create: userCreate },
     tenant: { findUnique: tenantFindUnique },
+    auditLog: { create: vi.fn() },
+    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
+      fn({
+        user: { create: userCreate },
+        auditLog: { create: vi.fn() },
+      }),
+    ),
   },
 }));
 
@@ -129,10 +139,12 @@ describe("registerBureau — timing-egalisatie op de vroege return (CWE-208)", (
     // Gedrag ongewijzigd: generieke bevestiging, geen tenant aangemaakt.
     expect(res?.success).toMatch(/2 werkdagen/);
     expect(createTenantMock).not.toHaveBeenCalled();
-    // Kern van de fix.
+    // Kern van de fix: compare draait op de vroege return (extra egalisatie bovenop de hash).
     expect(bcryptCompare).toHaveBeenCalledTimes(1);
     expect(bcryptCompare).toHaveBeenCalledWith(PASSWORD, TIMING_EQUALIZER_HASH);
-    expect(bcryptHash).not.toHaveBeenCalled();
+    // Hash draait altijd vóór de existentie-check (vaste kosten voor beide paden).
+    expect(bcryptHash).toHaveBeenCalledTimes(1);
+    expect(bcryptHash).toHaveBeenCalledWith(PASSWORD, 10);
   });
 
   it("roept bcrypt.compare met TIMING_EQUALIZER_HASH aan bij een bestaand KvK-nummer", async () => {
@@ -145,7 +157,8 @@ describe("registerBureau — timing-egalisatie op de vroege return (CWE-208)", (
     expect(createTenantMock).not.toHaveBeenCalled();
     expect(bcryptCompare).toHaveBeenCalledTimes(1);
     expect(bcryptCompare).toHaveBeenCalledWith(PASSWORD, TIMING_EQUALIZER_HASH);
-    expect(bcryptHash).not.toHaveBeenCalled();
+    expect(bcryptHash).toHaveBeenCalledTimes(1);
+    expect(bcryptHash).toHaveBeenCalledWith(PASSWORD, 10);
   });
 
   it("draait bcrypt.hash op het 'nieuwe tenant'-pad (beide takken gelijkwaardig)", async () => {

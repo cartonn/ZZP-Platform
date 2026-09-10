@@ -41,7 +41,6 @@ import {
 import { classifyRosterDormancy } from "@/lib/franchise/roster-dormancy";
 import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
 import { buildClientActivityInputs, summarizeClientHealth } from "@/lib/franchise/client-health";
-import { classifyRosterDormancy } from "@/lib/franchise/roster-dormancy";
 import { MANDATORY_CREDENTIAL_TYPES, mandatoryDocumentAlertCount } from "@/lib/mandatory-documents";
 import { type FreelancerCredential } from "@/lib/matching";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
@@ -581,13 +580,13 @@ export const navBadges = cache(async function navBadges(
       status: c.status as CredentialStatus,
       expiresAt: c.expiresAt,
     }));
-    // Eén gedeelde inputset (mét `placementEnd`), identiek aan `credentialCollabInputs` in
+    // Eén gedeelde inputset (mét `endDate`), identiek aan `credentialCollabInputs` in
     // pending-tasks.ts, gevoed aan bóth helpers → de badge kan niet driften van /acties.
     const credentialCollabInputs: CollabRequirementInput[] = credentialCollabRows.map((c) => ({
       collaborationId: c.id,
       companyName: "",
       jobTitle: "",
-      placementEnd: c.endDate,
+      endDate: c.endDate,
       requiredTypes: c.job.credentialRequirements.map((r) => r.credentialType as CredentialType),
     }));
     const collabCredGaps = collaborationRequiredCredentialGaps({
