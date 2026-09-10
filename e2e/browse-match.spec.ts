@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { fillForUrl } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -55,8 +56,8 @@ test("ZZP'er ziet z'n persoonlijke match per opdracht in de lijst", async ({ pag
   await expect(fp.getByText(/opgeslagen|bijgewerkt/i).first()).toBeVisible({ timeout: 15000 });
 
   await fp.goto("/opdrachten");
-  await fp.getByLabel("Zoeken").fill(title);
-  await fp.waitForURL(/[?&]q=/);
+  // fillForUrl i.p.v. fill + waitForURL: zie e2e/_robust.ts — invoer vóór hydratatie gaat verloren.
+  await fillForUrl(fp, fp.getByLabel("Zoeken"), title, /[?&]q=/);
   const jobLink = fp.getByRole("link", {
     name: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
   });

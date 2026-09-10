@@ -210,6 +210,7 @@ vi.mock("@/lib/db", () => ({
     savedJobSearch: { deleteMany: op("savedJobSearch.deleteMany") },
     notificationPreference: { deleteMany: op("notificationPreference.deleteMany") },
     twoFactorRecoveryCode: { deleteMany: op("twoFactorRecoveryCode.deleteMany") },
+    userSignalSnapshot: { deleteMany: op("userSignalSnapshot.deleteMany") },
     auditLog: {
       create: op("auditLog.create"),
       update: op("auditLog.update"),
@@ -718,6 +719,16 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     // niet zou vangen; deze assertie dwingt de userId-scope hard af.
     await anonymizeUser("user-42");
     const o = find("twoFactorRecoveryCode.deleteMany") as { args: { where: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ userId: "user-42" });
+  });
+
+  it("verwijdert de signaal-snapshot van de betrokkene (AVG art. 17)", async () => {
+    // De snapshot is een afgeleide cache (tellingen per nav-item + de /acties- en bel-teller) die aan
+    // zíjn userId hangt; een `user.update` cascadeert er niet naartoe. Na anonimisering is hij
+    // betekenisloos én tot de persoon herleidbaar, dus hij wordt gescopet hard verwijderd.
+    await anonymizeUser("user-42");
+    const o = find("userSignalSnapshot.deleteMany") as { args: { where: unknown } };
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ userId: "user-42" });
   });

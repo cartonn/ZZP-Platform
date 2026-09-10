@@ -1,6 +1,10 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { scoreJobForFreelancer, topGapReasonComplianceFirst } from "@/lib/matching";
+import {
+  scoreJobForFreelancer,
+  topGapReasonComplianceFirst,
+  type JobMatchSource,
+} from "@/lib/matching";
 import { discoverableFreelancerWhere } from "@/lib/freelancer-visibility";
 import { summarizeJobReach, type ReachSummary } from "@/lib/job-reach";
 import { summarizeReachBottleneck, type ReachBottleneck } from "@/lib/job-reach-bottleneck";
@@ -9,31 +13,25 @@ import { summarizeReachBottleneck, type ReachBottleneck } from "@/lib/job-reach-
 // kosten op een gepubliceerde opdracht-detail bounded, ook bij een grote tenant-pool.
 const REACH_SCAN_LIMIT = 200;
 
-/**
- * Bereik-indicatie voor de eigenaar van een gepubliceerde opdracht: de publiek-vindbare ZZP'ers
- * binnen dezelfde tenant die nog niet reageerden, gescoord met de verklaarbare matchmotor en
- * samengevat tot een bereik-niveau + sturingstip. Geeft `null` bij een onbekende of
- * niet-gepubliceerde opdracht (geen bereik te tonen). Spiegelt de scope van
- * `suggestedFreelancersForJob`: cross-tenant lekt nooit (altijd op `job.tenantId` gescoped).
- */
 /** Bereik-samenvatting plus het grootste knelpunt (concrete sturingstip) voor de opdrachtgever. */
 export type JobReach = ReachSummary & { bottleneck: ReachBottleneck | null };
 
-export async function getJobReach(jobId: string): Promise<JobReach | null> {
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
-    include: {
-      skills: { select: { skillId: true, required: true } },
-      credentialRequirements: { select: { credentialType: true, required: true } },
-      // Ingetrokken reacties uitsluiten: zo'n ZZP'er telt weer mee als bereik.
-      applications: { where: { status: { not: "WITHDRAWN" } }, select: { freelancerId: true } },
-    },
-  });
-  if (!job || job.status !== "PUBLISHED") return null;
-
-  const applied = new Set(job.applications.map((a) => a.freelancerId));
+/**
+ * Kern van de bereik-indicatie: scant de publiek-vindbare ZZP'ers binnen `tenantId` (begrensd),
+ * scoort ze met de verklaarbare matchmotor tegen `source` en vat het geheel samen tot een
+ * bereik-niveau + grootste knelpunt. `appliedFreelancerIds` sluit ZZP'ers uit die al reageerden
+ * (die tellen niet als "nog te bereiken"). Cross-tenant lekt nooit: altijd op `tenantId` gescoped.
+ *
+ * Gedeeld door de gepubliceerde-opdracht-weergave ({@link getJobReach}) én de bereik-check vóór
+ * publicatie (server-action op de concept-spec), zodat beide identiek scoren — geen cross-view drift.
+ */
+export async function computeReachForMatchSource(
+  source: JobMatchSource,
+  tenantId: string | null,
+  appliedFreelancerIds: ReadonlySet<string> = new Set(),
+): Promise<JobReach> {
   const profiles = await prisma.freelancerProfile.findMany({
-    where: { ...discoverableFreelancerWhere, tenantId: job.tenantId },
+    where: { ...discoverableFreelancerWhere, tenantId },
     orderBy: { updatedAt: "desc" },
     take: REACH_SCAN_LIMIT,
     select: {
@@ -53,11 +51,11 @@ export async function getJobReach(jobId: string): Promise<JobReach | null> {
   });
 
   const candidates = profiles
-    .filter((p) => !applied.has(p.id))
+    .filter((p) => !appliedFreelancerIds.has(p.id))
     .map((p) => {
       // headline/bio + de opdrachttekst voeden de inhoudelijke aansluiting, zodat het bereik-signaal
       // dezelfde score gebruikt als de overige schermen.
-      const match = scoreJobForFreelancer(job, {
+      const match = scoreJobForFreelancer(source, {
         headline: p.headline,
         bio: p.bio,
         skills: p.skills,
@@ -82,4 +80,27 @@ export async function getJobReach(jobId: string): Promise<JobReach | null> {
     ...summarizeJobReach(candidates),
     bottleneck: summarizeReachBottleneck(candidates),
   };
+}
+
+/**
+ * Bereik-indicatie voor de eigenaar van een gepubliceerde opdracht: de publiek-vindbare ZZP'ers
+ * binnen dezelfde tenant die nog niet reageerden, gescoord met de verklaarbare matchmotor en
+ * samengevat tot een bereik-niveau + sturingstip. Geeft `null` bij een onbekende of
+ * niet-gepubliceerde opdracht (geen bereik te tonen). Spiegelt de scope van
+ * `suggestedFreelancersForJob`: cross-tenant lekt nooit (altijd op `job.tenantId` gescoped).
+ */
+export async function getJobReach(jobId: string): Promise<JobReach | null> {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: {
+      skills: { select: { skillId: true, required: true } },
+      credentialRequirements: { select: { credentialType: true, required: true } },
+      // Ingetrokken reacties uitsluiten: zo'n ZZP'er telt weer mee als bereik.
+      applications: { where: { status: { not: "WITHDRAWN" } }, select: { freelancerId: true } },
+    },
+  });
+  if (!job || job.status !== "PUBLISHED") return null;
+
+  const applied = new Set(job.applications.map((a) => a.freelancerId));
+  return computeReachForMatchSource(job, job.tenantId, applied);
 }

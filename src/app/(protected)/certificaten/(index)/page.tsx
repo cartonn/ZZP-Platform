@@ -36,6 +36,7 @@ import { plural } from "@/lib/plural";
 import { TrustExplanation } from "@/components/trust/trust-explanation";
 import { MandatoryDocuments } from "@/components/credentials/mandatory-documents";
 import { ExpiryOverviewCard } from "@/components/credentials/expiry-overview-card";
+import { agendaFeedPath } from "@/lib/calendar/feed-token";
 import { InzetImpactCard } from "@/components/credentials/inzet-impact-card";
 import { CredentialDemandCard } from "@/components/credentials/credential-demand-card";
 import { VerificationTurnaroundCard } from "@/components/credentials/verification-turnaround-card";
@@ -247,7 +248,7 @@ export default async function CertificatenPage() {
 
       <MandatoryDocuments items={mandatory.items} allSatisfied={mandatory.allSatisfied} />
 
-      <ExpiryOverviewCard overview={expiryOverview} />
+      <ExpiryOverviewCard overview={expiryOverview} feedPath={agendaFeedPath(actor.id)} />
 
       <InzetImpactCard impact={inzetImpact} />
 
@@ -297,7 +298,7 @@ export default async function CertificatenPage() {
                         <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
                           {sourceTag(c.type as CredentialType)}
                         </span>
-                        <CredentialStatusBadge status={status} />
+                        <CredentialStatusBadge status={status} expiresAt={c.expiresAt} />
                         <Badge variant="muted">{isPublic ? "Openbaar" : "Privé"}</Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">

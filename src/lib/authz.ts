@@ -148,7 +148,7 @@ export function sessionPredatesPasswordChange(
  * geanonimiseerde gebruiker direct toegang i.p.v. pas bij token-expiry — de stale client-token
  * beslist niets meer.
  */
-export async function currentActor(): Promise<Actor | null> {
+async function loadValidatedActor(): Promise<Actor | null> {
   const { auth } = await import("@/auth");
   const session = await auth();
   const user = session?.user;
@@ -175,6 +175,19 @@ export async function currentActor(): Promise<Actor | null> {
     mustChangePassword: fresh.mustChangePassword,
     tenantId: fresh.tenantId,
   };
+}
+
+/** Normal application access requires completion of the forced password change. */
+export async function currentActor(): Promise<Actor | null> {
+  const actor = await loadValidatedActor();
+  return actor?.mustChangePassword ? null : actor;
+}
+
+/** For password-change actions/pages and login routing; never use for normal application access. */
+export async function requirePasswordChangeActor(): Promise<Actor> {
+  const actor = await loadValidatedActor();
+  assertAuthenticated(actor);
+  return actor;
 }
 
 /** Huidige actor of werpt 401. Eerste stap van elke mutatie. */

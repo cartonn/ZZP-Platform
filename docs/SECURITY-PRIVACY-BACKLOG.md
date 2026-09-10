@@ -4,6 +4,727 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-10 (7e, basis: `main` @ 7126491b) — 3 parallelle adversariële audits + orchestrator-sweep + gerichte auth/session/dep-probes: 0 nieuwe exploiteerbare security-gaten, 0 nieuwe privacy-defecten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht een gat te _bewijzen_ (file:line + repro), sceptisch t.o.v. de eerdere "gehard"-claims.
+Delta sinds de vorige ronde (`12d5b36c..7126491b`, #1452–#1467) is klein en puur robuustheid/render-guard:
+support-TOCTOU-fix (al gedekt in de 6e ronde), per-rij ORT-render-guards op `/diensten`+`/prestaties`+
+factuurdetail+urenstaat-PDF (corrupte segment-rij crasht de pagina niet meer), rolbewust tegenpartij-filter op
+de facturenlijst (#1467), en Dependabot-config (#1453). Geen nieuw mutatie-, authz- of PII-oppervlak.
+
+**GEEN nieuw exploiteerbaar security-gat en GEEN nieuw privacy-defect.** Bevestigd clean, met file:line-bewijs:
+
+- **Injectie/export (A):** alle 28 CSV-producerende routes lopen via `toCsv`/`escapeCsvField`
+  (`src/lib/csv.ts:115-141`, prefixt `= + @ \t \r -` en quote't op delimiter/quote/newline — CWE-1236);
+  getest met een kwaadaardige `actorName` in de audit-export (`audit-export.ts:70-80`) → geneutraliseerd.
+  Alle CSV-bestandsnamen server-gegenereerd (geen header/CRLF-injectie). ICS-velden via `escapeIcsText`
+  (`calendar/ics.ts:65`, RFC-5545). Enige `dangerouslySetInnerHTML` = statisch nonce-gated thema-script
+  (`layout.tsx:67-71`). Geen `$queryRawUnsafe`; alle `$queryRaw` = parameterloze `SELECT 1`-probes. Geen
+  server-side `fetch()` naar user-gestuurde URL (SSRF-oppervlak bestaat niet; integraties inert/default-uit).
+  Tegenpartij-filter (#1467, `invoice-party-filter.ts`) filtert alleen een al server-gescopete lijst
+  (`where: collaboration.freelancer.userId=actor.id` / `company.userId=actor.id`); `parsePartyFilter` accepteert
+  een id alleen als het in díe lijst voorkomt (anti-oracle: vreemd id → "alles", geen bestaanslek), kan nooit
+  verbreden. Geen nieuwe autorisatiegrens.
+- **IDOR/cross-tenant (B):** `src/lib/tenancy.ts` (`tenantScopeWhere`/`assertSameTenant`/`ownsViaTenant`) is de
+  enige bron van waarheid, ~40× consistent toegepast; élke object-geadresseerde route (documents/[id],
+  facturen/[id]/pdf, prestaties/[id]/pdf, samenwerkingen/[id]/{dossier,dba-dossier,modelovereenkomst},
+  media/[...key]) haalt owner/relatie op en gate't vóór byte-uitgifte met identieke anti-oracle-404 (CWE-203) +
+  `auditDeniedAccess`. Franchise-detail-loaders/mutaties scopen op `actor.tenantId`, nooit op een request-param;
+  cross-tenant messaging geblokkeerd via verse DB-read van de ontvanger-`tenantId` (`berichten/actions.ts:234-245`).
+  Alle franchise-exports her-derive scope server-side + auditen.
+- **Privacy/AVG (C):** erasure (`account-anonymization.ts` + `admin/gebruikers/actions.ts` `anonymizeUser`) redigeert
+  vrije tekst over álle PII-dragende modellen (Message/Support/Idea/Review/ShiftHandoff/Expense/InvoiceLine/
+  LeadContact) én secundaire PII-kopieën in `AuditLog.metadata`/`DomainEvent.payload`/cross-user `Notification`;
+  structurele dekkingspoort `anonymize-schema-coverage.test.ts` 5/5 groen (faalt op elk nieuw PII-model/-veld).
+  Publiek `/zzp/[id]` sluit `email/iban/btwNumber` uit de server-`select`; `/vertrouwen`-dossier filtert op
+  `VERIFIED`+`PUBLIC`, checkt liveness+tenant, audit elke view. K-anonimiteitsvloeren (`compliance/
+k-anonymity-floors.test.ts`): markttarief ≥10, review/betaalgedrag/betrouwbaarheid ≥3, overal via gedeelde
+  gegate'de constanten. `observability/logger.ts` redigeert PII per sleutel + maskeert e-mails (incl. de
+  log-message); `mail-sender.ts` onderdrukt e-mailadres-logging in productie.
+- **Gerichte orchestrator-probes (bovenop A/B/C):** wachtwoord-reset (`password-reset.ts` + `wachtwoord-vergeten/
+actions.ts`) is gehard — 256-bit token, sha256-at-rest, 1u-TTL, atomair eenmalig gebruik (`updateMany where
+usedAt:null`), één token per gebruiker, e-mail-enumeratiebescherming (uniforme respons), rate-limit per
+  IP+e-mail, reset-poisoning-defensie via vertrouwde `publicOrigin()` (CWE-640), audit. CSP (`csp.ts`) = nonce +
+  `strict-dynamic` in productie (`unsafe-inline` = genegeerde CSP3-backwards-compat-fallback), `object-src none`,
+  `frame-ancestors none`, `base-uri self`, `form-action self`, `upgrade-insecure-requests`. Middleware fail-closed
+  op status/tenant/mustChangePassword + rol-guards. `currentActor()` leest rol/status live uit de DB.
+
+**Deps:** `npm audit --omit=dev` → **0 vulns** (niets in de productiebundle). `npm audit` (incl. dev) meldt wel
+enkele moderate/high in dev-only ketens (`@vitest/mocker`, `brace-expansion` via `typescript-eslint`, `deepmerge-ts`,
+`esbuild` via `vite`) — deze shippen niet naar productie en zijn niet met untrusted input bereikbaar in runtime;
+Dependabot (#1453) adresseert ze. `git ls-files` op `.env`/`.db`/`.key`/`.pem`/`/storage/` leeg (geen getrackte
+secrets/documenten).
+
+**HEROPEND (ongewijzigd — eigenaar/FG-besluit vereist):** het `/zzp/[id]`-item (publiek profiel toont individueel
+herleidbare reviews onder de k-anonimiteitsvloer, AVG art. 5(1)(f)+25) blijft een product-/FG-afweging (MENSENWERK
+§5), buiten agent-scope. Geen nieuw, distinct privacy-defect gevonden op dit oppervlak in deze ronde.
+
+## Ronde 2026-09-09 (6e, basis: `main` @ 12d5b36c) — 3 parallelle adversariële audits + orchestrator-sweep: 1 MIDDEL TOCTOU-statusovergang GEDICHT, 0 exploiteerbare authz/IDOR/cross-tenant-gaten, privacy-HOOG heropend voor eigenaar/FG-besluit
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht een gat te _bewijzen_ (file:line + repro), sceptisch t.o.v. de eerdere "gehard"-claims.
+**A** — object-/functieniveau-authz + IDOR + cross-tenant over álle `src/app/api/**/route.ts` + `src/lib/tenancy.ts`
+
+- de auth-keten (`authz.ts`/`auth.ts`/`middleware.ts`) + cron/webhooks. **B** — server-action-mutatieoppervlak
+  (auth→rol→ownership→Zod→actie→audit, mass-assignment, statusovergang-bypass, TOCTOU) over de
+  `(protected)/**/actions.ts` + `src/lib/actions/**` + de gedeelde guardlagen. **C** — privacy/AVG
+  (data-minimalisatie/PII-overfetch, erasure-volledigheid, PII-in-logs, k-anonimiteitsvloeren, data-naar-derden)
+- injectie (CSV/XSS/ICS/SQL/SSRF).
+
+**OPGELOST — [MIDDEL · TOCTOU statusovergang-bypass op support-tickets; kale `update` zonder compound-guard] (deze PR).**
+De gebruiker-zijde support-acties `replyToTicket` (`src/app/(protected)/support/actions.ts:172,176`) en
+`markResolved` (`:193`) toetsten de statusovergang met `assertSupportTransition(ticket.status, …)` tegen een
+**vóór-transactionele snapshot** en schreven daarna met een **kale** `prisma.supportTicket.update({ where: { id } })`
+— zónder de compound-guard `where: { id, status: from }` die élk ander statuswijzigend oppervlak in de repo
+gebruikt (`admin/support`, `admin/no-shows`, `facturen`, `certificaten`). **Repro:** ticket staat `AWAITING_USER`;
+de aanvrager roept `replyToTicket` (snapshot legaal: `AWAITING_USER→ESCALATED`), gelijktijdig rondt een ADMIN het
+ticket af via de compound-guarded `adminResolve` → `RESOLVED` (commit eerst). De kale user-write zet daarna blind
+`ESCALATED`, ook al is `RESOLVED→ESCALATED` **niet** in `SUPPORT_TICKET_TRANSITIONS` → de transitie-map-invariant
+wordt puur via timing omzeild en het admin-besluit stil teruggedraaid. **Geschonden:** CLAUDE.md regel 3
+(statusovergangen via de expliciete map; ongeldige overgang moet worden geweigerd) + regel 5 (audit alles wat telt —
+de `SUPPORT_TICKET_REPLY`-audit droeg geen `{from,to}`) · OWASP A04 (Insecure Design / race condition, CWE-367 TOCTOU).
+**Fix:** beide acties gebruiken nu `updateMany({ where: { id, status: from }, data })` (de flip telt alleen zolang de
+status écht nog `from` is; verliest de race → count 0, geen write, geen fantoom-audit) en de audit draagt de
+`{from,to}`-overgang. Rood→groen: `src/app/(protected)/support/toctou-transition.test.ts` (4 tests — 3 falen op de
+oude kale `update`, alle groen met de guard). Spiegelt `admin/support/actions.ts` adminResolve/adminReply exact.
+
+**GEEN nieuw exploiteerbaar authz/IDOR/cross-tenant-gat.** Audit A bevestigde clean met file:line-bewijs: élke
+object-geadresseerde route haalt owner/relatie op en gate't vóór byte-uitgifte (documents/facturen/prestaties/
+dossier/media/agenda-feed), identieke anti-oracle-404; tenant-isolatie via `tenancy.ts` op alle ~49 call-sites;
+`currentActor()` leest rol/status live uit de DB (stale JWT kan geen toegang behouden); alle cron/webhooks
+fail-closed zonder `CRON_SECRET` (timing-safe). Audit B bevestigde de vólledige mutatie-keten overal behalve de
+support-vein hierboven; geen `.passthrough()`/raw-spread van user-objecten; alle andere status-entiteiten via de
+expliciete map + compound-guard. Injectie clean: geen `$queryRawUnsafe`, alle CSV via `escapeCsvField`, ICS
+RFC-5545-escaped, enige `dangerouslySetInnerHTML` = statisch nonce-gated thema-script, SSRF niet mogelijk
+(alle uitgaande fetches naar vaste provider-hosts). `npm audit --omit=dev` → 0 vulns; geen getrackte secrets/docs.
+
+**HEROPEND (geen code-wijziging deze ronde — eigenaar/FG-besluit vereist) — [HOOG · publiek `/zzp/[id]` toont
+individueel herleidbare reviews zonder k-anonimiteitsvloer].** Audit C bevestigde dat de bevinding uit de
+eerdere rondes (hieronder al geparkeerd) **nog steeds live** is: `src/components/profile/profile-screen.tsx:258-281`
+(query) + `:433-436`/`:627-638` (render) draaien een eigen `prisma.review.aggregate`/`findMany` en tonen — voor
+een PUBLIC-profiel, bereikbaar zónder login — de reviewer-naam, exacte rating en verbatim vrije-tekst-comment,
+**zonder** de `REVIEW_AGGREGATE_MIN_SAMPLE`-vloer die élk ander reputatie-oppervlak wél toepast, en zonder
+rate-limit/audit (contrast met `/vertrouwen`). Bij n=1 review is de reviewer individueel herleidbaar; in een
+zorgcontext kan de comment bijzondere categorie-data dragen. **Geschonden:** AVG art. 5(1)(f) + art. 25
+(privacy-by-design). **Zusje (zelfde patroon, lager):** `src/components/company/company-profile-screen.tsx:71-98`
+(ingelogd, `bedrijf`-pagina) én de publieke **KvK-weergave** `profile-screen.tsx:159,556` (LAAG — KvK is los
+publiek opvraagbaar). **Waarom niet unilateraal gefixt:** dit is expliciet een eigenaar-/product-/FG-afweging
+(MENSENWERK §5) — óf de vloer + attributie-onderdrukking toepassen, óf een gedocumenteerd product-besluit dat
+benoemde publieke reviews bedoeld zijn (zoals sommige marktplaatsen) en dat vastleggen in
+`src/lib/compliance/processing-register.ts`. Buiten de agent-scope (juridische keuze). **Actie eigenaar:** neem
+een besluit vóór livegang met echte gevoelige documenten; dit blokkeert geen demo maar wél de go-live.
+
+**FYI clean-bevestigingen (geen blocker):** erasure (`account-anonymization.ts`) uitzonderlijk grondig (redigeert
+vrije tekst over alle PII-dragende modellen incl. audit-metadata + domain-events, hard-delete van race-vrije
+document-blobs); PII-in-logs afgedekt (`observability/logger.ts` redigeert per sleutel + maskeert e-mails).
+
+## Ronde 2026-09-09 (5e, basis: `main` @ 271ea20c) — 3 parallelle adversariële audits + orchestrator-sweep: 0 nieuwe exploiteerbare security-gaten, 0 privacy-defecten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht een gat te _bewijzen_ (file:line + repro), sceptisch t.o.v. de eerdere "gehard"-claims.
+**A** — object-/functieniveau-authz + IDOR + cross-tenant (FRANCHISER) over álle API-routehandlers
+(`src/app/api/**/route.ts`): document-/factuur-/prestatie-/dossier-/media-routes, admin-export, cron/webhooks,
+agenda-feed. **B** — server-action-mutatieoppervlak (auth→rol→ownership→Zod→actie→audit, mass-assignment/
+overposting, statusovergang-bypass, cross-tenant writes) over de `(protected)/**/actions.ts`-set + de gedeelde
+guardlagen (`authz.ts`, `tenancy.ts`, `enums.ts`, `cascade/*`, `middleware.ts`). **C** — privacy/AVG
+(data-minimalisatie/PII-overfetch, erasure-volledigheid, PII-in-logs, k-anonimiteitsvloeren, data-naar-derden)
+
+- injectie (CSV-formule/XSS/ICS/PDF/SQL).
+
+**GEEN nieuw exploiteerbaar security-gat en GEEN nieuw privacy-defect.** De delta sinds de vorige ronde
+(`37728a2c..271ea20c`: #1438–#1444) is puur robuustheid/geld-correctheid (exacte commerciële afronding in
+integer-ruimte, defensieve `parseOrtSegments`, CSV-uren zonder IEEE-754-artefact, single-flight health-probes,
+verval-cron-nudge-onderdrukking, dep-bumps nodemailer/sharp) — géén nieuwe mutatie, authz-pad of PII-oppervlak.
+Bevestigd clean, met file:line-bewijs per audit:
+
+- **IDOR/authz (A):** élke object-geadresseerde route haalt eerst `ownerId`/relatie op en gate't
+  vóór byte-uitgifte (`documents/[id]` → `canAccessDocument`; `facturen`/`prestaties`/`admin/facturatie` PDF →
+  issuer/counterparty/company/freelancer userId of ADMIN; `samenwerkingen/[id]/{dossier,dba-dossier,
+modelovereenkomst}` → company/freelancer userId of ADMIN), met identieke anti-oracle-404 (CWE-203) + audit op
+  élke weigering. `media/[...key]` resolvet via `Company.logoKey`-DB-match + `LocalStorageDriver.resolve()`
+  canonicalisatie (path-traversal dubbel geblokkeerd).
+- **Cron/webhook (A):** alle 15 `tasks/*` + `run-all` + `backups/heartbeat` + `metrics` → 503 zonder
+  `CRON_SECRET` (fail-closed default-uit), anders `authorizeCron` (Bearer-only + length-checked `timingSafeEqual`).
+  Billing-webhook her-fetcht autoritatieve status (vertrouwt body niet), Stripe-signatuur timing-safe met
+  replay-window; mail-intake 404 zonder secret. Agenda-`feed.ics` her-toetst live user-status ná HMAC-token
+  (stale-capability-lek dicht).
+- **Server actions (B):** volledige keten overal; geen `.passthrough()`/raw-spread in `prisma.data`; gevoelige
+  velden (`role`/`status`/`ownerId`/`tenantId`/`verifiedAt`/tarief) server-afgeleid; statusovergangen via de
+  expliciete maps (`CREDENTIAL/COLLABORATION/JOB/SHIFT_HANDOFF/TENANT`); TOCTOU-safe `updateMany` met compound
+  `where:{id,status:from}` in transacties; FRANCHISER-scoping via `tenancy.ts` (`ownsViaTenant`/`assertSameTenant`).
+- **Privacy/injectie (C):** alle CSV via `escapeCsvField` (CWE-1236, óók vrije-tekstvelden `description`/
+  `rejectionReason`), ICS-velden RFC-5545-escaped, `NoopMailSender` logt geen PII in productie, geen
+  `$queryRawUnsafe`/geïnterpoleerde raw-SQL (alleen parameterloze `SELECT 1`-probes), enige
+  `dangerouslySetInnerHTML` = statisch nonce-gated thema-script. Erasure-dekkingspoort
+  `anonymize-schema-coverage.test.ts` 5/5 groen (verifieert dat élk PII-dragend model in `scrubAuditMetadataPii`/
+  anonimisering wordt geraakt).
+- **Orchestrator-sweep:** `npm audit --omit=dev` → **0 vulns**; `git ls-files` op `.env`/`.db`/`.key`/`.pem`/
+  `/storage/` leeg (geen getrackte secrets/documenten).
+
+**FYI (geen blocker, functioneel):** `approveSubmittedPerformancesAction` (`prestaties/actions.ts:44-49`) scopet
+zijn bulk-query onvoorwaardelijk op `collaboration.company.userId === actor.id`, óók voor ADMIN (die normaal geen
+`Company` bezit) → fail-**closed** (admin keurt 0 rijen goed, geen bypass). Mogelijk product-gat, geen security-gat;
+niet unilateraal gewijzigd (buiten security-scope). Het geparkeerde `/zzp/[id]`-item (publiek profiel, individuele
+reviews onder de k-anonimiteitsvloer) blijft een eigenaar-/FG-productafweging (MENSENWERK §5) — ongewijzigd.
+
+## Ronde 2026-09-08 (4e, basis: `main` @ 37728a2c) — 3 parallelle adversariële audits + orchestrator-sweep: 1 HOOG privacy-defect GEVONDEN & GEDICHT, 0 exploiteerbare security-gaten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.
+**A** — object-/functieniveau-authz + IDOR + cross-tenant (FRANCHISER) over de delta `f6a1863c..HEAD` +
+de nieuwste features (#1427–#1437: DBA-risico, factuurvoorspelling, roster-timeline, Handslag-landing).
+**B** — injectie (CSV/formule/XSS/ICS/PDF), upload-veiligheid/path-traversal, error-lekkage, CSP/headers,
+SSRF, `npm audit`. **C** — privacy/AVG: data-minimalisatie/PII-overfetch, erasure-volledigheid,
+k-anonimiteitsvloeren, audit-logging, PII-in-logs, data-naar-derden.
+
+**OPGELOST — [HOOG · k-anonimiteits-afdwing-poort scant niet-recursief; submap-blindvlek] (deze PR).**
+Twee van de drie audits kwamen er onafhankelijk op uit. De poort
+`src/lib/compliance/review-aggregate-floor-coverage.test.ts` (toegevoegd 8-9 bij #1432) moet garanderen dat
+**élke** `aggregateReviews`-consument onder `src/lib` de vloer `REVIEW_AGGREGATE_MIN_SAMPLE` toepast, maar
+scande met `readdirSync(LIB_DIR, …)` **zonder `recursive`** — dus alleen bestanden direct in `src/lib`, niet
+de ~27 submappen (`data/`, `franchise/`, `compliance/`, …). **Repro:** `printf 'import {aggregateReviews}
+from "@/lib/reviews"; export const x = aggregateReviews([{rating:5}]);' > src/lib/data/x.ts && npx vitest run
+src/lib/compliance/review-aggregate-floor-coverage.test.ts` → **groen** ondanks de floorless n=1-consument.
+**Impact:** geen actief lek vandaag (de drie huidige consumenten passen de vloer toe; de `src/lib/data/*`-
+wrappers delegeren ernaar), maar een vals gevoel van AVG-dekking; een toekomstige call-site in een submap kon
+het n=1/n=2-individueel-herleidbare-cijfer-lek stil herintroduceren. **Geschonden:** AVG art. 5(1)(f)/25
+(privacy-by-design) + art. 5(2) (verantwoordingsplicht). **Fix:** recursieve walker
+`findFloorlessAggregateConsumers` + regressietest die een floorless consument in een submap-fixture detecteert
+(rood→groen) en een correcte consument mét vloer negeert. 5 tests groen.
+
+**GEEN nieuw exploiteerbaar security-gat.** Bevestigd clean (met file:line-bewijs per audit): (a) IDOR/authz —
+de delta raakt géén `src/lib/actions/` of `src/app/api/**/route.ts` (geen nieuwe mutaties); nieuwe reads
+(factuurvoorspelling, DBA-mitigatie) zijn pure functies op reeds-ownership-gescopete objecten; `/franchise/
+planning` scopet op query-niveau (`tenantScopeWhere`); `candidate-compare-data.ts` gate't `job … company:{
+userId }`. (b) Injectie — alle CSV via `escapeCsvField` (CWE-1236), één nonce-gated
+`dangerouslySetInnerHTML` (thema-script), ICS-velden ge-escaped + UID's uit DB-id's, PDF via `pdf-lib`
+drawText. (c) Upload — allowlist-MIME + magic-byte-sniff, `randomUUID`-keys (geen path-traversal), media-route
+whitelist op `Company.logoKey`, document-route ownership + anti-oracle-404 + audit, scanner fail-closed. (d)
+SSRF — alle server-fetch naar vaste hosts (Geoapify/Mollie/Resend/HIBP/Upstash), geen user-URL. (e) Error —
+`safe-action-error.ts` scheidt curated van technische fouten; cron-taken generieke NL-melding. (f) Headers/CSP
+— nonce+`strict-dynamic` in prod, volledige security-header-set. (g) `npm audit --omit=dev` → **0 vulns**.
+Publieke Handslag-landing (`src/app/page.tsx`) — geen DB/mutatie/PII. FYI (geen blocker): de middleware-matcher
+slaat auth/CSP over voor paden met een letterlijke punt (bewust, gedocumenteerd mechanisme voor `/api/agenda/
+feed.ics`); geen beschermde route met punt-segment lekt erdoor — waard om te bewaken bij toekomstige dynamische
+segmenten.
+
+## Ronde 2026-09-08 (3e, basis: `main` @ f6a1863c) — 3 parallelle adversariële audits + orchestrator-sweep: 1 nieuw HOOG privacy-gat GEVONDEN & GEDICHT, 0 exploiteerbare security-gaten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken.
+**A** — object-/functieniveau-authz over alle 53 server-action-bestanden + 43 API-routes, cross-tenant
+FRANCHISER-isolatie, mass-assignment, cron/webhook-auth. **B** — injectie (XSS/CSV-formule/ICS/PDF), upload-
+veiligheid/path-traversal, CSP/headers, error-lekkage, auth/sessie/rate-limiting, `npm audit`. **C** —
+privacy/AVG: data-minimalisatie/PII-overfetch, erasure-volledigheid, PII-in-logs, k-anonimiteitsvloeren,
+audit-logging, data-naar-derden. Orchestrator-sweep los: `npm audit --omit=dev` (0 vulns), raw-SQL (geen
+`$queryRaw`/`$executeRaw`), `dangerouslySetInnerHTML` (alleen statisch thema-script, nonce-gated), SSRF (geen
+server-side fetch met user-URL), cron-auth (`authorizeCron` Bearer-only + `timingSafeEqual`), document-route
+(`/api/documents/[id]` ownership + anti-oracle-404 + timing-side-channel-pariteit + rate-limit + audit + sandbox-
+headers), media-route (key beperkt tot bekende `Company.logoKey`), PDF-bouwers (`pdf-lib` drawText, geen HTML→PDF-
+pijplijn → geen template-injectie), logger-redactie (CI-gate `logger.pii-name-coverage.test.ts`), tracked secrets
+(`git ls-files` op `.env`/`.db`/`.key`/`.pem`/`/storage/` leeg). Productiebuild + typecheck + lint + unit groen.
+
+**OPGELOST — [HOOG · k-anonimiteitsvloer op beoordelingsaggregaten stil weggelaten in 2 van de 3 spiegelfuncties]
+(deze PR).** De vloer `REVIEW_AGGREGATE_MIN_SAMPLE = 3` (`src/lib/config.ts`) was correct toegepast in
+`freelancerReputationFromReviews` (publiek vertrouwensdossier), maar **stil weggelaten** in de twee
+spiegelfuncties die exact dezelfde `Review`-tabel aggregeren voor de tegenpartij: `companyReputationFromReviews`
+(`src/lib/company-reputation.ts` — opdracht-detailpagina, zichtbaar voor elke ingelogde ZZP'er) en
+`groupCandidateRatings` (`src/lib/candidate-reviews.ts` — `/kandidaten` + kandidaat-**ranking**, zichtbaar voor
+elke opdrachtgever). Beide poortten enkel op `count > 0` en toonden zo een **individueel herleidbaar** cijfer bij
+n=1/n=2 — terwijl de code-comments daar juist claimden _"alleen geaggregeerd — nooit individuele beoordelingen"_.
+**Repro:** één `CLIENT_ON_FREELANCER` PUBLISHED review (rating 2) voor ZZP'er X → X solliciteert bij een ándere
+opdrachtgever Y → Y ziet op `/kandidaten` "2,0 (1)" (het exacte cijfer van een specifieke andere opdrachtgever);
+spiegel: één `FREELANCER_ON_CLIENT` review → elke ZZP'er ziet op `/opdrachten/[id]` "Op basis van 1 beoordeling"
+met het exacte cijfer. **Geschonden:** AVG art. 5(1)(f) integriteit/vertrouwelijkheid + art. 25 privacy-by-design
+(afwijking van het eigen dreigingsmodel voor exact deze dataklasse). Onderscheid met het geparkeerde
+`/zzp/[id]`-item hieronder: dát gaat over individuele, tóégeschreven reviews (bewuste marktplaats-productkeuze);
+dít is een **stille inconsistentie tegen de platform-eigen, gedocumenteerde, geteste aggregaat-invariant** — het
+dichten voegt de al-besliste bescherming toe (verstrengt privacy, verwijdert niets), geen nieuwe productkeuze.
+**Fix:** beide functies poorten nu op `>= REVIEW_AGGREGATE_MIN_SAMPLE`, identiek aan de referentie. Onder de vloer:
+`null`/weggelaten (zelfde codepad als "geen beoordelingen"), dus ook geen ranking-invloed van één enkele opinie.
+Retourtypes ongewijzigd → geen render-aanpassing nodig. **Rood→groen tests:** `candidate-reviews.test.ts` +
+`company-reputation.test.ts` (n=1/n=2 → weggelaten/null) en de nieuwe **afdwing-poort**
+`src/lib/compliance/review-aggregate-floor-coverage.test.ts` — die (a) alle drie de spiegelfuncties gedrag-pint op
+onder/op de vloer én (b) statisch elke `aggregateReviews`-consument in `src/lib` dwingt de constante te noemen,
+zodat een toekomstige 4e call-site de vloer niet stil kan weglaten (parity met `anonymize-schema-coverage.test.ts`
+voor erasure). Root cause van het gat: de bestaande `k-anonymity-floors.test.ts` bewaakte alleen de **waarde** van
+de constante, niet of elke consument hem **toepast**.
+
+**GEEN nieuw exploiteerbaar security-gat** (authz/IDOR/tenant/injectie/upload/SSRF/headers/error/auth) — alle drie
+de audits + de sweep bevestigen de gehardheid van de eerdere rondes (ownership vóór byte-uitgifte, anti-oracle-404
+CWE-203, timing-safe secret-vergelijkingen, single-use reset-tokens, SUSPENDED op twee lagen, CSP nonce+strict-
+dynamic, alle CSV via `escapeCsvField` CWE-1236). Het geparkeerde `/zzp/[id]`-item hieronder blijft eigenaar-gated.
+
+## Ronde 2026-09-07 (2e, basis: `main` @ 364396bc) — 3 parallelle adversariële audits + orchestrator-sweep: 0 exploiteerbare security-gaten, 1 privacy/product-afweging geparkeerd (eigenaar-gated)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht een gat te _bewijzen_ (file:line + repro). **A** — de 10 commits sinds de vorige ronde
+(`0d69ce32..364396bc`) + de `mustChangePassword`-invariant (`authz.ts`) + register-atomiciteit + 2FA
+recovery-code-replay. **B** — IDOR/objectniveau-authz over alle server actions + ~45 API-routes,
+cross-tenant FRANCHISER-isolatie (`tenancy.ts`), injectie (SQL/XSS/CSV/formule/ICS), upload/path-traversal,
+SSRF. **C** — privacy/AVG: data-minimalisatie/PII-overfetch naar de tegenpartij, erasure-volledigheid
+(`account-anonymization.ts`), PII-in-logs, k-anonimiteitsvloeren, audit-logging, data-naar-derden.
+Orchestrator-sweep los: `npm audit` (0 productie-vulns), raw-SQL-sinks (alleen getagde `SELECT 1`-probes),
+`dangerouslySetInnerHTML` (alleen statisch thema-script), CSV-builders (alle via `escapeCsvField`; ook de
+handgerolde `diensten.ts`-export escaped elk dataveld), tracked secrets/documenten (`git ls-files` op
+`.env`/`.db`/`.key`/`.pem`/`/storage/` leeg), CSP/middleware (nonce + `strict-dynamic` in productie,
+`mustChangePassword`/suspended/role-guards server-side). Productiebuild groen. **Live Playwright-doorklik
+niet uitvoerbaar in deze sandbox** (runtime-probe leunt op statisch + gerichte tests, zoals de vorige rondes).
+
+**GEEN nieuw exploiteerbaar security-gat.** Alle drie de audits + de sweep bevestigen: het delta introduceert
+geen bug/authz-bypass/money-fout/leak; IDOR/tenant/injectie/SSRF-oppervlak consistent gehard (ownership vóór
+byte-uitgifte, anti-oracle-404 CWE-203, TOCTOU-safe compound-writes, query-niveau tenant-scoping); erasure/
+minimalisatie/k-anonimiteitsvloeren/audit/derden clean. Bevestiging van de gehardheid: veel code draagt
+comments die naar eerdere fixes voor exact deze bugklassen verwijzen.
+
+**GEPARKEERD — nieuw (eigenaar-gated, MENSENWERK §5 + §0-poort 4):**
+
+- **[HOOG · publiek profiel `/zzp/[id]` toont individuele, herleidbare beoordelingen onder de eigen
+  k-anonimiteitsvloer] — GEPARKEERD (product-/FG-afweging; niet unilateraal gefixt).**
+  Het publieke, **niet-geauthenticeerde** ZZP-profiel (`FreelancerProfile.visibility` default `PUBLIC`,
+  `src/app/zzp/[id]/page.tsx` → `viewer = currentActor()` mág `null` zijn) rendert de **individuele**
+  `Review`-rijen (`CLIENT_ON_FREELANCER`, `PUBLISHED`) inclusief **naam van de beoordelende opdrachtgever +
+  woordelijke vrije tekst + exacte 1–5-score + datum** (`src/components/profile/profile-screen.tsx:258-281`,
+  render `src/components/reviews/review-list.tsx:31,47`), plus het gemiddelde+aantal zodra `count > 0` (`:433-440`)
+  — **zonder enige minimale-steekproefvloer**. Diezelfde dataset erkent het platform elders wél als
+  herleidbaar: `/vertrouwen`-dossier gate't aggregaat-only op `REVIEW_AGGREGATE_MIN_SAMPLE = 3`
+  (`src/lib/freelancer-reputation.ts`, `src/lib/config.ts:599`), met de gedocumenteerde reden _"een
+  'geaggregeerd' cijfer over één (of twee) beoordeling(en) is individueel herleidbaar"_ en _"geen individuele
+  beoordelingsdata verlaat deze laag (privacy by design)"_; de accountability-gate
+  `src/lib/compliance/k-anonymity-floors.test.ts` bewaakt die vloer. **Repro:** ZZP'er met precies één
+  `PUBLISHED` beoordeling → `https://…/zzp/<id>` toont anoniem de naam + woordelijke opmerking + score van de
+  beoordelaar (n=1, ver onder de eigen k=3-vloer). In een **zorg-context** kan die vrije tekst bovendien
+  bijzondere persoonsgegevens bevatten (gezondheids-/gedragsopmerkingen over de ZZP'er). Geen enkele test dekt
+  dit: `profile-overfetch.test.ts` toetst alleen de `freelancerProfile`-select, niet de losse
+  `review.findMany`/`aggregate`. **Geschonden:** AVG art. 5(1)(f) integriteit/vertrouwelijkheid + art. 25
+  privacy-by-design (afwijking van het eigen dreigingsmodel voor exact deze dataklasse) + art. 5(2)
+  verantwoordingsplicht (stille divergentie, niet vastgelegd). **Waarom geparkeerd i.p.v. gefixt:** individuele,
+  toegeschreven beoordelingen op een publiek profiel zijn óf een bewuste marktplaats-productkeuze (Malt/Temper/
+  Werkspot tonen ze ook, als kern-vertrouwensmechanisme via de double-blind reveal) óf een AVG-fout — dat is een
+  **product-/juridische afweging** die de eigenaar maakt (het bijna-identieke tegenpartij-aggregaat staat al
+  eigenaar-gated geparkeerd, zie hieronder). De auditagent concludeerde zelf "escalate to human vóór go-live met
+  echte beoordelingen". **Aanbevolen fix (eigenaar kiest):** (a) route de review-sectie van `/zzp/[id]` voor
+  anonieme/niet-tegenpartij-kijkers via `getFreelancerReputation` (aggregaat-only, `>= REVIEW_AGGREGATE_MIN_SAMPLE`)
+  en laat de individuele lijst weg — consistent met `/vertrouwen`; óf (b) als publieke toegeschreven reviews een
+  bewuste productkeuze zijn: leg dat expliciet vast als gemotiveerde uitzondering in
+  `k-anonymity-floors.test.ts`/`processing-register.ts` (verantwoordingsplicht) + voeg een overfetch-regressietest
+  toe die de blootgestelde reviewer-PII-velden pint tegen stille verbreding. **Blokkeert go-live met echte
+  beoordelingen** (nu demo-seed, geen echte review-PII → geen actueel datalek).
+
+**CLEAN bevonden deze ronde (geen bevinding):** de 10 delta-commits (auth-hardening #1418 — `currentActor`
+blokkeert `mustChangePassword`, `requirePasswordChangeActor` alleen in login-routing + wachtwoordwijziging;
+register-atomiciteit via `$transaction` + P2002-arbitrage; 2FA recovery-code atomische claim `updateMany(...usedAt:null)`;
+RFC-6266 content-disposition injectie-proof; support-rate-limit; ORT-afronding/segmentatie money-correct; badge-scoping
+tenant/owner-gated), alle server actions + ~45 API-routes (ownership+anti-oracle-404+audit, geen path-traversal/SSRF/
+injectie/open-redirect, webhook-/cron-auth timing-safe, upload magic-byte-sniff + UUID-keys + baseDir-guard),
+cross-tenant FRANCHISER-isolatie (query-niveau), erasure-volledigheid (schema-coverage-gate, race-vrije blob-delete,
+TOCTOU-safe ordening), export/inzage (eigen-`actorId`, rate-limited, ge-audit), PII-in-logs (redactie + coverage),
+k-anonimiteitsvloeren (`market-rate` >=10, signalen >=3, register-drift-gate), document-toegang (grant+deny ge-audit,
+timing-pariteit), data-naar-derden (geoapify/e-mail geminimaliseerd, sleutel nooit gelogd). `npm audit`: 0 productie-vulns.
+
+**GEPARKEERD (herhaald uit vorige rondes, geen nieuwe agent-blocker):** in-app tegenpartij-beoordelingsaggregatie-
+vloer (`company-reputation.ts`/`candidate-reviews.ts`, `count > 0` i.p.v. `REVIEW_AGGREGATE_MIN_SAMPLE`, owner-gated
+MENSENWERK §5 — dezelfde faalklasse als het nieuwe publieke-profiel-item hierboven), publieke KvK-zichtbaarheid op
+`/zzp/[id]` (product/FG-afweging), model↔register-coverage-gate (grotere diff — aparte run), spoofbare mail-intake-
+afzender (trust-model → mensenwerk), liveness-probe commit-SHA (bewuste infra-praktijk).
+
+## Ronde 2026-09-07 (basis: `main` @ 0d69ce32) — 3 parallelle adversariële audits + orchestrator-verificatie: 0 exploiteerbare gaten, 1 CWE-770-rem gedicht
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht een gat te _bewijzen_ (file:line + repro). **A** — alle server actions
+(auth→rol→ownership→Zod→actie→audit-keten, IDOR, mass-assignment, statusovergangen, rate-limiting).
+**B** — alle ~45 API-route-handlers + middleware + cross-tenant-isolatie (`tenancy.ts`) + storage/
+path-traversal + injectie (SQL/XSS/CSV/ICS) + SSRF + webhook-/cron-auth + foutafhandeling + open-redirect.
+**C** — privacy/AVG: erasure-volledigheid (`account-anonymization.ts` + schema-coverage-gate), export/
+inzage, data-minimalisatie, PII-in-logs, retentie, data-naar-derden, k-anonimiteit. Orchestrator-sweep
+los: `npm audit` (0 productie-vulns), raw-SQL-sinks (alleen `SELECT 1`-probes via getagde template),
+`dangerouslySetInnerHTML` (alleen statisch thema-script), SSRF-routing (vaste geoapify-host, alleen
+URL-geëncodeerde query-params), tracked secrets/documenten (alleen `.env.example`; `git ls-files` op
+`.env`/`.db`/`/storage/`/`.key`/`.pem` leeg). **Live Playwright-doorklik niet uitvoerbaar in deze sandbox**
+(productiebuild draait wél groen; runtime-probe leunt op statisch + gerichte tests, zoals de vorige rondes).
+
+**GEFIXT deze ronde:**
+
+- **[MIDDEL · CWE-770 ongecontroleerde resource-consumptie — support-hub zonder volume-rem] — OPGELOST (deze PR).**
+  De support-hub was het **enige** authenticated UGC-mutatie-oppervlak zónder per-gebruiker-rem.
+  `createTicket` (`src/app/(protected)/support/actions.ts:52`) en `replyToTicket` (`:142`) staan open voor
+  élke ingelogde gebruiker (FREELANCER/CLIENT/FRANCHISER), schrijven vrije tekst naar een TEXT-kolom,
+  draaien de triage-scan en doen notificatie-/audit-fan-out naar de helpdesk-wachtrij — maar hadden, anders
+  dan message/application/invite/noshow/idea/upload/invoice (die allemaal een `RateLimiter` dragen), géén
+  volume-rem. **Repro:** een geauthenticeerd of gecompromitteerd account scriptet een POST-loop op
+  `createTicket`/`replyToTicket` → onbegrensd `SupportTicket`/`SupportMessage`-rijen (DB-/storage-bloat) +
+  helpdesk-notificatie-flood; geen enkele poort stopt het. **Geschonden:** OWASP A04 (Insecure Design —
+  ontbrekende rate-limiting op een abusable mutatie) / CWE-770; inconsistent met het eigen, elders overal
+  toegepaste UGC-mutatie-rem-patroon. **Fix:** nieuwe `supportTicketRateLimiter` (`src/lib/rate-limit.ts`,
+  default 20/uur per gebruiker via `SUPPORT_TICKET_RATE_LIMIT`, gedeelde bucket over beide acties, ruim
+  boven normaal gebruik), toegepast vóór de triage-scan/ownership-lookup + de write; `createTicket` geeft
+  een nette `{ error }` terug, `replyToTicket` (void) werpt — parity met de sibling-acties. Test rood→groen:
+  `src/app/(protected)/support/rate-limit.test.ts` (4 tests; zónder de rem-check schrijft `createTicket`/
+  `replyToTicket` óók bij een uitgeputte bucket — dan falen de "geen write"-asserties).
+
+**CLEAN bevonden deze ronde (geen bevinding):** alle server actions (IDOR/authz/mass-assignment/status-
+overgangen — TOCTOU-safe compound-writes + CWE-203 anti-oracle; money-cascade her-derivt party-ids uit de
+DB), alle ~45 API-routes (ownership+anti-oracle-404+audit, geen path-traversal/SSRF/injectie/open-redirect,
+webhook-/cron-auth timing-safe, upload magic-byte-sniff + UUID-keys + baseDir-guard), cross-tenant
+FRANCHISER-isolatie (query-niveau, niet alleen UI), erasure-volledigheid (schema-coverage-gate, race-vrije
+blob-delete), export/inzage (eigen-`actorId`, rate-limited, ge-audit), PII-in-logs (redactie + coverage-test),
+retentie-sweeps (run-all → 8+ taken), data-naar-derden (geoapify/e-mail geminimaliseerd). `npm audit`: 0
+productie-vulns. De sinds de vorige ronde gemergede commits (#1405–#1412) introduceren geen nieuw
+PII-/authz-oppervlak (presentatie-/derivatie-code).
+
+**GEPARKEERD (herhaald, geen nieuwe agent-blocker):** in-app beoordelingsaggregatie-vloer
+(`company-reputation.ts`/`candidate-reviews.ts`, owner-gated MENSENWERK §5), publieke KvK-zichtbaarheid op
+`/zzp/[id]` (product/FG-afweging), model↔register-coverage-gate (grotere diff — aparte run), spoofbare
+mail-intake-afzender (trust-model → mensenwerk), liveness-probe commit-SHA (bewuste infra-praktijk).
+
+## Ronde 2026-09-06 (2e, basis: `main` @ 34a58f80) — 3 parallelle adversariële audits + orchestrator-verificatie: 0 exploiteerbare gaten, 1 accountability-gate gedicht
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht een gat te _bewijzen_ (file:line + repro). **A** — alle 53 server actions
+(auth→rol→ownership→Zod→actie→audit-keten, IDOR, mass-assignment, statusovergangen, rate-limiting). **B** —
+alle ~45 API-route-handlers + tenant-isolatie (`tenancy.ts`) + storage/path-traversal + injectie (SQL/XSS/
+CSV/ICS) + SSRF + webhook-auth + foutafhandeling + open-redirect. **C** — privacy/AVG: erasure-volledigheid
+(`account-anonymization.ts` + schema-coverage-gate), export/inzage, data-minimalisatie, PII-in-logs, retentie,
+data-naar-derden, k-anonimiteit. Orchestrator-sweep los: `npm audit` (0 productie-vulns), raw-SQL-sinks
+(alleen `SELECT 1`-probes), SSRF (routing-fetch op vaste geoapify-host, alleen URL-geëncodeerde params),
+`dangerouslySetInnerHTML` (alleen statisch thema-script), tracked secrets/documenten (`.env`/`/storage/`/`*.db`
+correct in `.gitignore`, `git ls-files` leeg). **Live Playwright-doorklik niet uitvoerbaar in deze sandbox**
+(productiebuild draait wél groen; runtime-probe leunt op statisch+gerichte tests, zoals de vorige rondes).
+
+**GEFIXT deze ronde:**
+
+- **[MIDDEL · k-anonimiteit-accountability — geen gate op de anonimiseringsvloeren] — OPGELOST (deze PR).**
+  Het platform toont op ≥6 plekken GEAGGREGEERDE persoonsgegevens (markttariefband, beoordelings-, betaalgedrag-,
+  betrouwbaarheids-, reactiebereidheid- en leverbetrouwbaarheidssignalen); elk leunt op een minimale-steekproef-
+  vloer (k-anonimiteit) zodat een individueel cijfer niet herleidbaar is. Anders dan bij de erasure
+  (`anonymize-schema-coverage.test.ts`) bestond er **geen geautomatiseerde poort** die (a) een stille verlaging
+  van een vloer onder zijn herleidbaarheids-ondergrens tegenhield, noch (b) de art. 30-register-prosa aan de code
+  bond — het verwerkingsregister citeerde de markttarief-vloer als een **hard-gecodeerde prosa-"10"**, volledig
+  ontkoppeld van `MARKET_RATE_MIN_SAMPLE`. **Repro:** verlaag `MARKET_RATE_MIN_SAMPLE` (config.ts) van 10 naar 5 →
+  de publieke/tegenpartij-markttariefband lekt weer individuele tarieven uit p25/mediaan/p75 bij een kleine
+  steekproef, én het register claimt onterecht nog "minimaal 10 profielen" — beide ongemerkt, geen test faalt.
+  **Geschonden:** AVG art. 5(2) verantwoordingsplicht + art. 30 (register accuraat/actueel) + art. 5(1)(f)/25
+  (privacy by design) — dezelfde faalklasse die het platform al erkende voor de publieke beoordelingsaggregatie
+  (#1401). **Fix:** nieuwe accountability-gate `src/lib/compliance/k-anonymity-floors.test.ts` (7 tests,
+  rood→groen bewezen door de constante tijdelijk naar 5 te zetten): `MARKET_RATE_MIN_SAMPLE >= 10` (strengere
+  financiële-PII-vloer), de vijf in-app-signaalvloeren (`REVIEW_AGGREGATE_MIN_SAMPLE`, `PAYMENT_MIN_SAMPLE_SIZE`,
+  `RELIABILITY_MIN_SAMPLE_SIZE`, `RESPONSIVENESS_MIN_SAMPLE_SIZE`, `DELIVERY_MIN_SAMPLE`) `>= 3` (herleidbaarheids-
+  ondergrens), en de register-prosa moet de **werkelijke** `MARKET_RATE_MIN_SAMPLE` citeren (doc↔code-binding).
+  Geen register-source-wijziging nodig — de prosa blijft mens-leesbaar, de test bindt haar aan de code.
+
+**GEPARKEERD (met repro; geen agent-blocker):**
+
+- **[MIDDEL · beoordelingsaggregatie — in-app spiegelfuncties]** (herhaald uit vorige ronde) `company-reputation.ts`
+  en `candidate-reviews.ts` gaten nog op `count > 0` i.p.v. de `REVIEW_AGGREGATE_MIN_SAMPLE`-vloer. Kijker is een
+  geauthenticeerde tegenpartij met gerechtvaardigd belang; toch dezelfde herleidbaarheid bij n=1/n=2. **Owner-gated
+  (MENSENWERK §5):** de fix betekent dat een tegenpartij pas vanaf 3 beoordelingen een cijfer ziet — een in-app-UX-
+  keuze die de eigenaar moet bevestigen. Niet unilateraal gefixt.
+- **[LAAG · verwerkingsregister ↔ Prisma-schema]** (nieuw, agent C) er is geen coverage-test die elk PII-dragend
+  Prisma-model dwingt tot een register-activiteit óf een gemotiveerde allowlist (zoals de erasure die wél heeft).
+  Een toekomstig nieuw model met externe ontvanger kan ongemerkt buiten het art. 30-register vallen. **Aanbevolen:**
+  een model↔register-coverage-gate analoog aan `anonymize-schema-coverage.test.ts` (grotere diff — aparte run).
+- **[LAAG · spoofbare afzender — mail-intake-fallback]** (herhaald) `mail-intake` koppelt op `From`-adres zonder
+  SPF/DKIM/DMARC; gemitigeerd door verplichte menselijke review. Trust-model-keuze → MENSENWERK §5.
+- **[LAAG · info-disclosure — liveness-probes]** (herhaald) `/api/health` + `/api/readiness` geven de commit-SHA
+  aan onauthentieke callers. Bewuste, gangbare infra-praktijk; optioneel achter `CRON_SECRET`.
+
+**CLEAN bevonden deze ronde (geen bevinding):** alle 53 server actions (IDOR/authz/mass-assignment/status-
+overgangen/rate-limiting — TOCTOU-safe compound-writes + CWE-203 anti-oracle boven de minimumlat), alle ~45
+API-routes (ownership+anti-oracle+audit, geen path-traversal/SSRF/injectie/open-redirect, webhook-auth timing-safe),
+cross-tenant FRANCHISER-isolatie (4e ronde clean), erasure-volledigheid (30+ tabellen + CI-schema-coverage-gate,
+race-vrije document-blob-delete), export/inzage (eigen-`actorId`, geen IDOR, rate-limited, ge-audit), PII-in-logs
+(productie logt geen adres/sleutel), retentie-sweeps (run-all → 8 retentie-taken), data-naar-derden (geoapify/e-mail
+geminimaliseerd + SCC-notitie in register). `npm audit`: 0 productie-vulns.
+
+## Ronde 2026-09-06 (basis: `main` @ d1357106) — 3 parallelle adversariële audits + orchestrator-verificatie: 1 gat gefixt, 3 geparkeerd
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+(A — webhooks/publieke API-routes; B — cross-tenant + de delta sinds `d8f165be`; C — privacy/AVG, erasure,
+exports/PDF/dossier, k-anonimiteit, PII-in-logs). Orchestrator-sweep los: middleware/RBAC, security-headers/CSP,
+`npm audit` (0 productie-vulns), reset-token-/2FA-crypto, storage-key/path-traversal, SSRF-oppervlak. App gebouwd
+
+- geseed (`SEED_DEMO=true`, qa.db, `STORAGE_DRIVER=local`).
+
+**GEFIXT deze ronde:**
+
+- **[MIDDEL-HOOG · k-anonimiteit — publiek vertrouwensdossier] — OPGELOST (deze PR).** Het deelbare, publieke,
+  **onauthentieke** vertrouwensdossier (`/vertrouwen/[profileId]/[token]`) toonde een "geaggregeerd"
+  beoordelingscijfer óók bij één beoordeling: "Gemiddeld cijfer over **1** beoordeling: 2,0 ★" — dat is niet
+  geaggregeerd maar het exacte, individueel-herleidbare cijfer van één opdrachtgever, gelekt aan het hele
+  internet. Bij twee beoordelingen kan een beoordelaar het cijfer van de ander herleiden (ander = 2·gemiddelde −
+  eigen). **Geschonden:** AVG art. 5(1)(f) + art. 25 (privacy by design) én de eigen, elders al vastgelegde
+  privacyregel (PROGRESS.md 16-8: "alleen geaggregeerd … nooit individuele beoordelingen") — dezelfde faalklasse
+  die het platform al erkende en dichtte voor marktbanden (`MARKET_RATE_MIN_SAMPLE = 10`), maar bij beoordelingen
+  gemist. **Repro:** ZZP'er rondt precies één samenwerking af en krijgt één `PUBLISHED CLIENT_ON_FREELANCER`-review
+  (eenzijdige reveal is toegestaan); iedereen met de bearer-URL ziet dan dat ene cijfer. **Fix:** nieuwe
+  k-anonimiteitsvloer `REVIEW_AGGREGATE_MIN_SAMPLE = 3` (`src/lib/config.ts`); `freelancerReputationFromReviews`
+  (`src/lib/freelancer-reputation.ts`) geeft `null` onder de vloer → de publieke pagina laat de sectie weg.
+  Test rood→groen: `src/lib/freelancer-reputation.test.ts` (n=1 en n=2 → null; ≥3 → getoond).
+
+**GEPARKEERD deze ronde (met repro; geen agent-blocker):**
+
+- **[MIDDEL · beoordelingsaggregatie — in-app spiegelfuncties]** `src/lib/data/company-reputation.ts` (cijfer dat
+  een prospect-ZZP'er over een opdrachtgever ziet op de opdracht-detailpagina) en `src/lib/candidate-reviews.ts`
+  (cijfer dat een opdrachtgever over een ZZP'er ziet op `/kandidaten`) gaten óók alleen op `count > 0`, niet op de
+  nieuwe vloer. **Lagere severity:** de kijker is een geauthenticeerde tegenpartij met gerechtvaardigd belang, geen
+  publiek internet. Toch dezelfde herleidbaarheid bij n=1/n=2. **Aanbevolen fix:** dezelfde
+  `REVIEW_AGGREGATE_MIN_SAMPLE`-vloer toepassen op beide, mits de eigenaar akkoord is met de in-app-UX-consequentie
+  (een tegenpartij ziet dan pas vanaf 3 beoordelingen een cijfer). **Geschonden:** AVG art. 25, consistentie met de
+  zojuist gefixte publieke variant.
+- **[MIDDEL · spoofbare afzender — mail-intake-fallback]** `src/app/api/mail-intake/webhook/route.ts:110-118` +
+  `src/lib/mail-intake.ts:90-97`. De webhook is transport-geauthenticeerd (gedeeld secret), maar de tweede
+  match-tak koppelt een binnengekomen mail aan een echt CLIENT-account puur op het **`From`-adres** (spoofbaar) —
+  zonder SPF/DKIM/DMARC-controle (de payload-schema draagt die auth-resultaten niet eens). **Repro:** wie het
+  account-e-mailadres van een opdrachtgever kent (vaak zichtbaar op profielen/opdrachten) stuurt een mail met
+  vervalste `From:` naar het intake-adres; die belandt als NEW-aanvraag in de review-queue van het slachtoffer, met
+  volledig door de aanvaller bepaalde inhoud, en lijkt zelf-gegenereerd. **Gemitigeerd** door de verplichte
+  menselijke review vóór publicatie (geen directe state-change op een live opdracht), vandaar MIDDEL. **Aanbevolen
+  fix:** de afzender-e-mail-fallback achter een expliciete opt-in-env zetten (default UIT, conform CLAUDE.md regel 8
+  "integraties default inert") en alleen op de alias-capability-token-tak vertrouwen; óf de fallback pas vertrouwen
+  bij een positief SPF/DKIM/DMARC-resultaat (schema uitbreiden). Trust-model-keuze → mensenwerk (MENSENWERK.md §5).
+- **[LAAG · info-disclosure — liveness-probes]** `/api/health` + `/api/readiness` geven de commit-SHA (7 tekens) aan
+  onauthentieke callers. Geen secret/PII; bewuste, gangbare praktijk voor infra-probes. **Aanbevolen (optioneel):**
+  `commit`/`builtAt` achter `CRON_SECRET` zetten (zoals `/api/metrics`), en anoniem alleen `{status, db}` teruggeven.
+
+**CLEAN bevonden deze ronde (geen bevinding):** cross-tenant FRANCHISER-isolatie (3e ronde clean; geen logica-delta),
+de reach-preview-delta (`estimateJobReach` — geaggregeerd, tenant-gescoopt, rate-limited), aanmaning-generator
+(pure template, `<pre>`-render), erasure-volledigheid (`account-anonymization.ts` + schema-coverage-gate), alle
+export/PDF/dossier-routes (auth→rol→ownership→audit, anti-oracle-404, CSV via `escapeCsvField`), PII-redactie in
+logs, marktband-k-anonimiteit, billing-/mail-intake-transport-auth (HMAC/idempotentie), push-SSRF-allowlist,
+agenda-ICS-escaping, media-path-traversal (DB-gematchte key), cron-auth (timing-safe), reset-token-/2FA-crypto,
+security-headers/CSP-nonce.
+
+## Ronde 2026-09-05 (2e, basis: `main` @ d8f165be) — 3 parallelle adversariële audits + orchestrator-verificatie: GEEN nieuwe gaten
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,
+elk met de opdracht een gat te _bewijzen_ (file:line + repro). Basis `main` @ d8f165be (delta sinds de
+vorige ronde `4c4a3862`: #1383–#1395 — o.a. TOCTOU-hardening admin-statusovergangen, per-partij gatenvrije
+factuurnummering, agenda-feed-minimalisatie, audit-CSV-truncatiemelding, `zzp_build_info`-metric,
+render-fase-ping-fix). App gebouwd + geseed (`SEED_DEMO=true`, qa.db, `STORAGE_DRIVER=local`).
+
+**A — Object-/functie-niveau autorisatie & IDOR (alle ~60 server actions + ~65 route handlers).** De
+mutatieketen (auth→rol→ownership→Zod→actie→audit) wordt systematisch gevolgd: `loadOwned*`-helpers +
+`ownsViaTenant`/`assertOwnership` gaten elke `findUnique`/`update`/`delete` op een client-id vóór de
+mutatie; anti-oracle-discipline (identieke 404 voor onbekend én cross-party id, incl. timing-parity op
+`/api/documents/[id]` en de dossier-route) sluit IDOR-enumeratie; TOCTOU-hardening via
+`updateMany({ id, status: from })` binnen transacties; gevoelige-document-routes (documents, media, PDF's,
+dossier-export) auth+ownership+rate-limit+audit (allowed én denied); RBAC dubbel afgedwongen (middleware +
+`requireRole` per pagina/action); mass-assignment overal via gesloten Zod-enums (geen rauwe field-spread op
+`role`/`status`/`verifiedAt`). **CLEAN — geen bevinding.** OWASP A01.
+
+**B — Cross-tenant isolatie (FRANCHISER/multi-tenant).** Elke id-gescoopte franchiser-read draait met
+`{ id, ...tenantScopeWhere(actor) }` óf checkt `entity.tenantId !== actor.tenantId` vóór teruggave; geneste
+queries scopen via `job: { is: tenantScopeWhere(actor) }` (roster-dossier lekt geen overflow-werk bij een
+andere franchise); cross-tenant messaging server-side geblokkeerd (`startFranchiseConversation` herleest
+`recipient.tenantId`); `tenantScopeWhere` geeft alleen voor ADMIN `{}` (alle tenants); middleware gate op
+`/admin` vs `/franchise`. **CLEAN — geen bevinding.** OWASP A01 / tenant-isolatie.
+
+**C — Privacy/AVG + injectie/SSRF/logs.** (a) **Erasure-volledigheid:** `anonymizeUser` +
+`account-anonymization.ts` redacten/verwijderen élk PII-dragend model/veld (User/FreelancerProfile/Company/
+Job/Message/Notification-kopieën/Application/SupportTicket/Credential→cascade/Document+blob/2FA/IBAN/
+audit-metadata via `scrubAuditMetadataPii`), CI-geborgd door de schema-coverage-gate
+(`anonymize-schema-coverage.test.ts`) die faalt op elk nieuw ongedekt model; fiscale retentie (Invoice/
+Expense/TaxFilingRequest) gedocumenteerd onder AVG art. 17(3)(b), vrije-tekst-subvelden alsnog geredact.
+(b) **PII-overfetch:** publieke share-dossier/profielpagina's + roster/CSV met expliciete `select` (geen
+email/telefoon/IBAN naar publiek of cross-party; `AvailabilityWindow.note` bewust uitgesloten). (c) **XSS:**
+enige `dangerouslySetInnerHTML` = statisch nonce-gated thema-bootscript (geen user-input). (d) **CSV-/
+formule-injectie:** álle exports via de canonieke `csv.ts`/`escapeCsvField` (CWE-1236-guard). (e) **SSRF:**
+enige uitgaande fetch = Geoapify met hardcoded host (user-input alleen queryparam), website-velden alleen als
+`<a href>` gerenderd, nooit server-side gefetcht. (f) **Logs:** redacting structured logger, CI-geborgd. **CLEAN — geen bevinding.**
+
+**Orchestrator-verificatie (eigen probes):** (1) de per-partij-nummering zet nu een `<userId>:`-prefix in
+`Invoice.number` — elke client-facing pad (search, roster-dossier, openstaand-route, aging/obligations/
+income-forecast-CSV's, PDF's) maskeert die via `displayInvoiceNumber`/`partyInvoiceNumber`; geen enkel pad
+lekt het rauwe `number` (en daarmee een userId). Geverifieerd over alle 38 `.number`-referenties.
+(2) `PlatformInvoice.number` (billing-data.ts) draagt geen userId-prefix — geen lek. (3) `npm audit`: 0
+productie-dep-vulns (de CI-`audit`-gate is productie-only, `scripts/audit-production.mjs`); 7 dev-/
+build-tooling-advisories geparkeerd hieronder (niet runtime-bereikbaar).
+
+**GEPARKEERD deze ronde (latent/lager; geen agent-blocker):**
+
+- **[LAAG · dev-/build-tooling DoS — niet runtime-bereikbaar]** `npm audit` (volledig, incl. dev) meldt 7
+  advisories in build-/testketen-transitieven: `brace-expansion` (GHSA-3jxr-9vmj-r5cp / -mh99 / -rgw5, ReDoS/
+  OOM in glob-expansie), `js-yaml` 4.0–4.3 (GHSA-h67p / -52cp / -5p4m, quadratische DoS in merge-keys/omap),
+  `postcss-selector-parser` 6.1.0–6.1.2 (GHSA-w9m9, AST-recursie-DoS), `esbuild` 0.27.3–0.28.0 (GHSA-g7r4,
+  arbitrary file read via dev-server, **Windows-only**), en `deepmerge-ts`/`@prisma/config`/`prisma` (CLI,
+  stack-exhaustion). **Repro:** `npm audit --audit-level=high`. **Waarom LAAG:** geen enkele draait in de
+  productie-runtime of komt in de client-bundle; `npm audit --production` = 0 (de hard-gate is groen). De
+  brace-expansion/js-yaml/postcss/esbuild-set is oplosbaar met een niet-brekende `npm audit fix`; de
+  prisma-keten vereist `--force` (breaking downgrade naar 6.12.0) en hoort in een aparte, geverifieerde
+  dependency-increment (niet meeliften op een security-audit-PR). **Geschonden regel:** geen (defensief,
+  supply-chain-hygiëne / OWASP A06 Vulnerable & Outdated Components). **Aanbevolen fix:** losse PR met
+  `npm audit fix` (non-force) + volle DoD-gate; de prisma-downgrade apart afwegen.
+
+## Ronde 2026-09-05 (basis: `main` @ 4c4a3862) — 1× HOOG OPGELOST (certificaat-type/titel lekte via de niet-intrekbare publieke agenda-feed); 3 adversariële audits verder CLEAN
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende, verse
+oppervlakken van de delta sinds `c3afae34` (5 PR's: #1383–#1387), elk met de opdracht een gat te
+_bewijzen_. **A — de publieke abonneerbare ICS-agenda-feed** (`feed.ics/route.ts`, `feed-token.ts`,
+`user-schedule.ts`, `user-deadlines.ts`, `deadlines.ts`, `ics.ts`, `feed-audit.ts`): ICS/CRLF-injectie
+veilig (`escapeIcsText` dekt `\`,`;`,`,` + CRLF-folding, RFC 5545-volgorde, test-geborgd; enige onge-
+escapete veld `UID` is server-gegenereerd), token strikt aan `u`/userId gebonden via HMAC +
+`timingSafeEqual` (geen IDOR/forgery), loaders strikt op `userId` gescoopt (geen cross-tenant), liveness
+snijdt geschorst/geanonimiseerd account af — **maar het certificaat-verval-event droeg de vrije-tekst
+titel/het type** (zie OPGELOST). **B — de job-lege-staat-relaxatie (#1387)** (`empty-state-relaxations.ts`,
+`empty-state-suggestions.tsx`, `opdrachten/page.tsx`): puur read-only `count` op `buildJobMarketplaceWhere`,
+die `status:"PUBLISHED"` + `visibleJobsWhere(actor)` hard-baked houdt onafhankelijk van de filters —
+relaxatie raakt alleen zachte voorkeuren (afstand/tarief/skills), nooit een status/tenant/ownership-poort;
+geen PII-overfetch (alleen een integer + statische labels), geen injectie/XSS, geen mutatie/IDOR. **CLEAN.**
+**C — het admin-audit-log + CSV-export in de toezicht-hub (#1385)** (`audit/export/route.ts`, `csv.ts`,
+`audit-export.ts`, `admin.ts`, `hub-redirect.ts`, `text-search.ts`): formula-injectie overal gedekt
+(`escapeCsvField` per cel, `= + @ \t \r` + niet-numeriek leidend `-`), `requireRole("ADMIN")` vóór elke
+DB-read + middleware-defense-in-depth, export gecapt op 10.000 + rate-limited (5/u), `ciContains` volledig
+geparametriseerd (geen SQL/ReDoS), PII-minimalisatie correct (geen ip/ua in de export). **CLEAN** op de 5
+gevraagde vectoren; 2 lagere observaties geparkeerd hieronder.
+
+**OPGELOST — [HOOG · AVG art. 5(1)(c) dataminimalisatie (+ art. 9/10-adjacent) · OWASP A01 · CLAUDE.md
+"documenten/gevoelige status standaard privé, server-side waarheid"] Het certificaat-verval-event lekte
+het type/de vrije-tekst-titel (bv. "VOG", "BIG") in de niet-intrekbare publieke bearer-agenda-feed.**
+PR #1386 voegde certificaat-verval-events toe aan de persoonlijke agenda-feed. De feed is een **publieke,
+niet-intrekbare bearer-URL** (`/api/agenda/feed.ics?u=<id>&t=<hmac>`) die externe agenda-apps (Google/Apple)
+periodiek pollen en die daarmee in hun infra persisteert. Het event droeg `summary: "Certificaat verloopt:
+${c.title}"` en alarm-teksten met dezelfde titel; `c.title` is vrije tekst met een default zoals "VOG 2026"
+(`credential-form.tsx`). VOG (justitieel screeningsbewijs, AVG art. 10) en BIG (zorg-beroepsregister, art. 9)
+zijn bijzondere/gevoelige gegevens: dat een bij naam bekende persoon zo'n certificaat houdt, hoort niet in
+een kanaal met zwakkere levenscyclus-controls dan het private dossier dat het dupliceert — één keer gelekt/
+gedeeld/gecachet blijft het onbeperkt zichtbaar (geen per-token-intrekking vandaag). De feed-mapper hield
+zich elders al aan "WAT + WANNEER, details in de app" (facturen dragen bewust géén bedrag), maar het
+certificaat-type brak dat principe. **Fix (echte minimalisatie op twee lagen):** (1) `deadlines.ts` — het
+event is nu generiek `summary: "Certificaat verloopt"` + generieke alarm-/omschrijving-tekst, zónder type/
+titel; `CredentialDeadline` draagt geen `title` meer. (2) `user-deadlines.ts` — de loader selecteert de
+`title` niet eens meer uit de DB (`select: { id, expiresAt }`) — de gevoelige waarde verlaat de query niet.
+Wélk certificaat verloopt, opent de ZZP'er in het geauthenticeerde dossier (de vervalkalender). **Durable
+tests (rood→groen):** `deadlines.test.ts` — nieuwe guard "noemt het certificaat-type/de titel NERGENS in de
+bearer-feed" faalt op de oude `summary` ("Certificaat verloopt: VOG zorg" matcht `/VOG/` én `/verloopt:\s*\S/`);
+`user-deadlines.test.ts` borgt `select` = `{id, expiresAt}` zonder `title`. **Bewust NIET aangepast:** de
+bemiddelaar-agenda (`franchise/agenda.ts`) noemt wél type + ZZP'er-naam — maar dat is een **sessie-gebonden,
+ge-auditede, tenant-gescoopte** download (géén bearer-feed, `requireActor()` + `FRANCHISER`-check +
+`FRANCHISE_AGENDA_EXPORTED`-audit) met een legitiem need-to-know (compliance-bewaking = kern-cockpit); andere
+risicoklasse, geen leakable capability. PR #<zie git>.
+
+**GEPARKEERD deze ronde (latent/lager; repro + severity; geen agent-blocker):**
+
+- **[HOOG · latent · AVG art. 5(1)(c) / OWASP A01 — geen per-token-intrekking op de agenda-feed]**
+  `feed-token.ts` is een stateless HMAC over `"agenda-feed:"+userId`; een gelekte feed-URL blijft geldig
+  tot een **globale** `SHARE_TOKEN_SECRET`-rotatie (raakt álle gebruikers) of tot het account
+  geschorst/geanonimiseerd is (de nieuwe liveness-poort). Een individuele gebruiker kan een gelekte link
+  niet zelf intrekken. **Repro:** deel de webcal-URL → roteer niets → link blijft het (nu geminimaliseerde)
+  rooster serveren. **Fix:** per-user roteerbare salt/versie in het token (bumpbaar vanuit instellingen) of
+  een `AgendaFeedToken`-rij met `revokedAt`. Vergt schema + UI; groter dan één increment. **Mens-poort
+  (MENSENWERK §5):** raakt levende feeds; laat product/juridisch de bewaar-/intrek-keuze tekenen.
+- **OPGELOST (#1390) — [MIDDEL · AVG art. 5(2) verantwoordingsplicht — stille truncatie audit-CSV-export]**
+  `admin/audit/export/route.ts` capte op `AUDIT_EXPORT_CAP = 10000` (`take`) zónder enige indicatie in het
+  bestand dat er getrunceerd was. Een admin die de CSV als volledig audit-bewijs presenteert bij een
+  AVG-inspectie kon onbewust een onvolledig register tonen. **Fix (drie lagen, allemaal server-side
+  waarheid):** de route telt nu het `total` naast de gecapte rijen (`Promise.all(count, findMany)`); bij
+  `total > exported` (a) voegt `auditExportCsv` een expliciete **sluit-rij** toe die het geëxporteerde,
+  totale én resterende aantal noemt en aanraadt het filter te verfijnen, (b) markeert `auditExportFilename`
+  de bestandsnaam met `-getrunceerd`, en (c) draagt de `AUDIT_LOG_EXPORTED`-auditregel `total`+`truncated`.
+  Het audit-paneel toont bovendien een vooraf-waarschuwing bij de exportknop zodra het totaal de cap
+  overstijgt. Pure helpers (`isAuditExportTruncated`/`auditExportTruncationRow`/`auditExportFilename`,
+  cap verhuisd naar `audit-export.ts` als gedeelde bron) + tests; melding CSV-injectie-veilig (geen leidend
+  formule-teken). Byte-identiek bij een volledig register. **Bestanden:** `src/lib/audit-export.ts`
+  (+ `.test.ts`), `src/app/(protected)/admin/audit/export/route.ts`, `src/components/admin/audit-panel.tsx`.
+- **[LAAG · OWASP A01 (CSRF-adjacent) — GET-getriggerde neveneffect-export]** dezelfde export is een `GET`
+  zonder CSRF-token met een neveneffect (schrijft `AUDIT_LOG_EXPORTED`, verbruikt 1/5 rate-slot). `SameSite=
+Lax` stuurt de cookie mee op top-level cross-site navigatie; de aanvaller leest de respons niet (geen CORS),
+  maar kan de audit-log vervuilen of het export-budget uitputten. Systemisch over alle export-routes (spiegelt
+  ze). **Fix:** `SameSite=Strict` op de sessie-cookie of een same-origin fetch + blob-download.
+- **[LAAG · AVG art. 5(1)(b)/(c) / art. 14 — derde-partij-PII in een langlopend abonnement]** de agenda-feed
+  toont de tegenpartij-naam van lopende plaatsingen; functioneel gelijk aan de bestaande eenmalige export,
+  maar het abonnement-karakter verlengt de blootstelling. Bedrijfs-/compliance-afweging, geen code-bug.
+
+## Ronde 2026-09-04b (basis: `main` @ c3afae34) — 1× LAAG OPGELOST (CSRF-origin-allowlist accepteerde een catch-all wildcard); 3 adversariële audits + eigen sweep verder CLEAN
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende, verse
+oppervlakken (elk met de opdracht een gat te _bewijzen_, niet te bevestigen), plus een eigen statische
+sweep. **A — de nieuwe signaal-snapshot-datalaag (#1375/#1378)** (`signals/snapshot.ts`, `invalidate.ts`,
+`invalidation.ts`, `signal-snapshot-reconcile-task.ts`, `app-shell.tsx`): geen cross-user-lek (de reader
+is per-`userId`+`role` gekeyd, `React.cache()` is per-request via AsyncLocalStorage, `writesInFlight` is
+race-vrij en per-`userId`), geen cross-tenant-datalek (de reconcile-taak _invalideert_ hooguit extra
+gebruikers — `staleAfter`-stempel — en onthult nooit andermans berekende waarden; recompute leest
+`userId`+`role` uit dezelfde rij), snapshot + badges worden hard verwijderd in `anonymizeUser`
+(FK-cascade + expliciete `deleteMany`), en de opgeslagen `tone`/`href` bereiken de DOM nooit als
+attribuut/HTML (whitelist → `attention|info`; `href` enkel als lookup-key tegen de statische nav).
+**B — de delta sinds `cdefe218` (15 PR's):** route-dedup (#1340, `hub-redirect.ts`) heeft géén open
+redirect (hub/tab zijn literals; user-input enkel via `URLSearchParams.append` → query-only, same-origin)
+en dropt geen authz (middleware + hub-pagina her-checken); de server-action-origin-allowlist (#1372) is
+puur additief en leest **alleen** `process.env`, nooit request-headers; de React-transitie-fix (#1377,
+`action-replay.tsx`) her-submit geen mutatie (passieve capture-listeners → lokale state-nudge, geen
+netwerk); de CI-triggerwijziging (#1376) schakelt geen vereiste poort uit (`pull_request` blijft op alle
+checks). **C — AVG recht-op-vergetelheid:** model-voor-model (60 modellen) tegen `anonymizeUser` gelegd;
+documenten worden ná de transactie (SUSPENDED + hash gewist) hard verwijderd uit **storage én DB**
+(TOCTOU-veilig), berichten + de gespiegelde `Notification.body`-kopie worden geredigeerd, audit-PII
+(email/naam + vrije-tekst `reason`-velden) wordt gescrubd, fiscale retentie is een gedocumenteerde art.
+17(3)(b)-uitzondering, en twee zelf-afdwingende CI-gates (`anonymize-schema-coverage.test.ts`) breken de
+build bij een niet-gedekt model of een nieuw PII-vrije-tekstveld. `npm run test`: groen.
+
+**OPGELOST — [LAAG · OWASP A01 (CSRF) · CLAUDE.md §8 — gevaarlijke config moet zichtbaar falen]
+`resolveAllowedOrigins` accepteerde een te-brede wildcard in `SERVER_ACTIONS_ALLOWED_ORIGINS`.**
+De Next.js 15 anti-CSRF-poort vergelijkt bij élke Server Action de `Origin` met de host; `allowedOrigins`
+staat extra vertrouwde hosts toe. `normalizeOrigin("*")` gaf `"*"` terug en dat lekte ongefilterd de
+allowlist in — een operator die per ongeluk `SERVER_ACTIONS_ALLOWED_ORIGINS=*` (of `*.com`, `*.local`)
+zet, schakelt zo **stil** de origin-check voor álle mutaties uit (documentupload, cascade, elke server
+action) → cross-site request forgery. Operator-getriggerd (geen request-pad voert aanvallersdata in),
+maar de blast-radius is de hele app en de faal is onzichtbaar — precies het "halve/gevaarlijke config
+faalt stil"-patroon dat §8 wil voorkomen. **Fix:** nieuwe pure predicaat `isOverbroadOriginPattern`
+(kale `*`, heel-TLD-wildcard `*.com`/`*.local`, misvormde/niet-leidende wildcards) → `resolveAllowedOrigins`
+weigert zulke waarden **fail-closed** (nooit vertrouwd) én logt een zichtbare `console.warn`, zonder de
+boot te breken (§8: niet-fataal). Een begrensde `*.<domein>.<tld>` en concrete hosts passeren ongewijzigd.
+**Durable test (rood→groen):** `scripts/server-actions-origins.test.ts` (+8 cases) — zonder de guard geeft
+`resolveAllowedOrigins({SERVER_ACTIONS_ALLOWED_ORIGINS:"*"})` `["*"]` i.p.v. `[]`, en de
+`isOverbroadOriginPattern`-import bestaat niet. Gewijzigd: `scripts/server-actions-origins.mjs`.
+
+**GEPARKEERD deze ronde (latent; repro + severity; geen agent-blocker):**
+
+- **[LAAG · latent · OWASP A07 — sessie-rolverversing]** `app-shell.tsx:35` leest `user.role` uit de JWT
+  (gezet bij login, niet ververst op de stille 1u-rotatie; tot 8u `maxAge` stale). `isSnapshotUsable`
+  toetst `row.role !== role` correct, dus geen _nieuwe_ vertrouwensgrens — het persisteert (≤60s TTL)
+  dezelfde rol-gedreven berekening die `navForRole(role)` nu al direct uit diezelfde stale sessiewaarde
+  rendert. **Niet reachable vandaag:** er is geen in-app actie die een live sessie van rol wisselt
+  (`admin/gebruikers/actions.ts` heeft geen `role:`-update; enige `role:`-write is self-service profiel).
+  **Fix wanneer een admin-rolwijziging landt:** roep `invalidateSignals([userId])` aan én forceer
+  her-uitgifte van de sessie.
+- **[LAAG · latent · AVG art. 17/5(1)(c)] `Application.attachmentId`** (`prisma/schema.prisma:629`) is een
+  dode/onbedrade kolom (0 referenties in `src/`). Geen gat vandaag (niets schrijft/leest 'm), maar wordt
+  hij later aan een `Document.id` gekoppeld (bv. CV-bijlage) zónder regel in `anonymizeUser`, dan vangt de
+  zelf-afdwingende `anonymize-schema-coverage.test.ts` dat **niet** (het model telt al als "erasure-touched";
+  `attachmentId` staat niet in `REQUIRED_FIELDS`). **Fix bij bedrading:** null 'm in de
+  `application.updateMany`-blok + voeg 'm toe aan `REQUIRED_FIELDS.Application`; óf verwijder de kolom.
+- **[LAAG · informational] bare `*` in `SERVER_ACTIONS_ALLOWED_ORIGINS`** — nu gedekt door de fix hierboven.
+
+## Ronde 2026-09-04 (basis: `main` @ cdefe218) — 1× MIDDEL OPGELOST (timing-enumeratie bureau-aanmelding); 3 adversariële audits verder CLEAN
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken, elk
+met de opdracht een gat te bewíjzen. **A — Object-/functie-niveau autorisatie (IDOR):** volledige sweep van de
+document-/PDF-/dossier-download-routes, de cascade-command-laag (uren→ORT→prestatie→factuur), samenwerking/
+reactie/certificaat/verificatie-acties, messaging, franchise/tenant-acties, profiel/account, admin-governance
+incl. de AVG-wis-transactie → **geen bevestigde IDOR**. Consistente hardening: anti-oracle (identieke 404 voor
+onbekend-vs-andermans id), TOCTOU-veilige `updateMany` met compound `where {id,status}`, `canAccessDocument` +
+audit op élke documenttoegang (ook bij weigering). **B — Cross-tenant + PII-minimalisatie:** `tenancy.ts`,
+`market-rate.ts` (k-anon ≥10, test-geborgd), `freelancer-search` (overfetch-test borgt dat vrije-tekst-`note`
+nooit de kaart bereikt), `passwordHash` nergens naar de client geserialiseerd, franchise-isolatie via
+`actor.tenantId` (nooit client-input) → **geen bevestigd lek**. **C — Injectie/upload/SSRF/open-redirect/
+fout-lek + delta sinds `5f9bf1ab`:** één `dangerouslySetInnerHTML` (statisch thema-script, nonce-gated), geen
+raw-SQL-interpolatie, CSV/formula-injectie overal via `escapeCsvField`/`needsFormulaGuard`, upload met
+MIME-allowlist + magic-byte-sniff + path-traversal-guard + niet-raadbare keys, SSRF alleen naar een hardcoded
+Geoapify-host (user-input enkel in query), geen open redirect, Prisma-fouten nooit naar de client
+(`safe-action-error.ts`). De **request-gecachte gebruikerscontext** (#1349) is expliciet veilig bevonden:
+React `cache()` is per-request en elke loader is gekeyd op de sessie-afgeleide eigen id → geen cross-user
+cache-poisoning. `npm audit --omit=dev`: **0 kwetsbaarheden**.
+
+**OPGELOST — [MIDDEL · CWE-208 / OWASP A07 — timing-enumeratie] `registerBureau`** (`src/app/register/actions.ts`):
+de bureau-zelfaanmelding belooft "geen enumeratie" (een bestaand e-mailadres/KvK-nummer geeft exact dezelfde
+generieke bevestiging als een nieuwe aanmelding), maar de responstijd verraadde het tóch: `bcrypt.hash`
+(cost 10, ~60ms — de grootste vaste rekenstap) draaide alleen op het nieuw-pad, ná de existentie-check. Het
+bestaand-pad retourneerde direct na twee indexed reads; een aanvaller kan bureaus/accounts enumereren op
+latentie — precies wat het ontwerp wil voorkomen; `registerRateLimiter` verhoogt de kosten maar dicht het
+orakel niet. **Fix:** de `bcrypt.hash` draait nu **onvoorwaardelijk vóór** de existentie-check, zodat bestaand-
+en nieuw-pad dezelfde vaste kosten dragen. **Durable test (rood→groen):**
+`src/app/register/bureau-timing-enumeratie.test.ts` (nieuw) — bewijst dat de hash óók op het bestaand-pad
+(bestaand e-mailadres én bestaand KvK-nummer) wordt aangeroepen en vóór de DB-lookups draait; met de oude
+volgorde falen alle drie de asserties. Gewijzigd: `src/app/register/actions.ts` (PR #<zie git>). Hiermee is de
+parked-bevinding uit ronde 2026-09-03 gedicht.
+
 ## Ronde 2026-09-03 (basis: `main` @ 5f9bf1ab) — 1× KRITIEK + 1× HOOG OPGELOST op de níeuwe VOG-metadata-modus (#1338): (1) herindienen liet het vangnet onder de VOG-verwijdering blind, (2) een verloren race schreef een spook-audit
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken van
@@ -50,12 +771,9 @@ ongewijzigd (happy-path). `src/lib/credential-evidence.ts`.
 
 **GEPARKEERD deze ronde (repro + severity; geen agent-blocker):**
 
-- **[MIDDEL · CWE-208/OWASP A07 — timing-enumeratie] `registerBureau`** (`src/app/register/actions.ts:146-183`):
-  de respons is identiek bij een bestaand vs. nieuw e-mailadres/KvK, maar de timing niet — het bestaand-pad
-  retourneert direct na twee indexed reads, het nieuw-pad doet `bcrypt.hash` + een 4-writes-transactie. Een
-  aanvaller kan bureaus/accounts enumereren op latentie, precies wat het "geen enumeratie"-ontwerp wil
-  voorkomen. `registerRateLimiter` verhoogt de kosten maar dicht het orakel niet. **Fix:** de dure stap
-  (bcrypt of een dummy met gelijke kosten) onvoorwaardelijk vóór de existentie-tak, of het snelle pad padden.
+- ~~**[MIDDEL · CWE-208/OWASP A07 — timing-enumeratie] `registerBureau`**~~ → **OPGELOST in ronde 2026-09-04**
+  (bcrypt.hash draait nu onvoorwaardelijk vóór de existentie-check; zie de ronde-2026-09-04-entry bovenaan +
+  `src/app/register/bureau-timing-enumeratie.test.ts`).
 - **[MIDDEL · AVG art. 17/5(1)(e) — geen erasure-pad voor een afgewezen bureau]** (`src/lib/enums.ts`
   `TENANT_TRANSITIONS.REJECTED: []`, `src/lib/account-anonymization.ts` `canAnonymizeUser` blokkeert bij
   `ownsTenant`). Een REJECTED-tenant is terminal; de FRANCHISER-eigenaar blijft ACTIVE, en anonimiseren wordt

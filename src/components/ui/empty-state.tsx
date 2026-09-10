@@ -20,6 +20,7 @@ export function EmptyState({
   action,
   children,
   className,
+  as: Title = "h2",
 }: {
   icon?: LucideIcon;
   title: string;
@@ -28,6 +29,14 @@ export function EmptyState({
   /** Extra actie-slot onder de uitleg, bv. een client-side knop (filters wissen). */
   children?: ReactNode;
   className?: string;
+  /**
+   * Kopniveau van de titel. De lege staat is een echte sectie op de pagina, dus de titel hoort
+   * als kop in de toegankelijkheidsboom te staan — anders navigeert een schermlezer een lege of
+   * niet-gevonden pagina zonder enig oriëntatiepunt. Pagina's hebben altijd een h1, dus `h2` is
+   * de juiste standaard; staat de lege staat binnen een sectie die zélf al een h2-kop heeft,
+   * geef dan `as="h3"` mee zodat de kopvolgorde niet springt.
+   */
+  as?: "h2" | "h3" | "h4";
 }) {
   return (
     <div
@@ -42,7 +51,7 @@ export function EmptyState({
         </div>
       ) : null}
       <div className="space-y-1">
-        <p className="text-sm font-semibold tracking-tight text-foreground">{title}</p>
+        <Title className="text-sm font-semibold tracking-tight text-foreground">{title}</Title>
         {description ? (
           <p className="mx-auto max-w-sm text-sm text-muted-foreground">{description}</p>
         ) : null}

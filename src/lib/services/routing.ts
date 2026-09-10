@@ -143,6 +143,12 @@ export interface RoutingOptions {
   now?: Date;
   geocodeTtlDays?: number;
   routeTtlDays?: number;
+  /** Expliciete per-poging-deadline in ms; overschrijft `ROUTING_HTTP_TIMEOUT_MS`. Geklemd [1000, 60000]. */
+  timeoutMs?: number;
+  /** Aantal extra pogingen bij een transiënte fout; overschrijft `ROUTING_HTTP_RETRIES`. Geklemd [0, 5]. */
+  retries?: number;
+  /** Injecteerbare backoff-wachtfunctie (tests → geen echte vertraging). Default `setTimeout`. */
+  sleepImpl?: (ms: number) => Promise<void>;
   /**
    * Intern: onderdruk het registreren van een GESLAAGDE aflever-heartbeat op deze round-trip. Gezet door
    * `getTravelRoute` op zijn interne geocode-sub-calls, zodat alleen een VOLLEDIG geslaagde reistijd-
@@ -266,48 +272,152 @@ export function parseGeoapifyRoutingResponse(
   };
 }
 
+// HARDENING (2026-09-04): de échte Geoapify geocode-/route-fetches lopen op de match-hot-path, maar
+// gebruikten als enige uitgaande productie-integratie een KALE `fetch` — zónder deadline en zónder
+// retry — terwijl de routing-connectiviteitszelftest (én billing/e-mail/rate-limit/verify) al
+// `fetchWithTimeout` gebruikt. Een trage/hangende provider blokkeerde zo de match-request onbeperkt
+// (silent-hang/resource-exhaustion onder last), en één transiënte 5xx/429/netwerk-blip liet de lookup
+// onnodig terugvallen op de haversine-schatting én trip de routing dead-man's-switch-heartbeat (valse
+// page). Geocode/route zijn read-only GETs (geen zij-effect bij het endpoint), dus een begrensde
+// retry-met-exponentiële-backoff is idempotent-veilig. De per-poging-deadline komt uit de gedeelde
+// `fetchWithTimeout` (env `ROUTING_HTTP_TIMEOUT_MS`, al door de zelftest gebruikt); het aantal retries
+// uit `ROUTING_HTTP_RETRIES`. Alleen transiënte fouten (netwerk, time-out, 5xx, 429) worden herhaald;
+// een niet-transiënte fout (4xx auth/verzoek, onleesbare JSON) faalt meteen. Spiegelt `http-verify.ts`.
+
+/** Retry-grenzen (spiegelt http-verify.ts): veilig maximum zodat een storende bron niet lang blijft hangen. */
+export const DEFAULT_ROUTING_RETRIES = 2;
+export const MAX_ROUTING_RETRIES = 5;
+/** Basis voor de exponentiële backoff (attempt 0 → base, 1 → 2×base, …), begrensd door MAX_DELAY. */
+export const ROUTING_RETRY_BASE_DELAY_MS = 250;
+export const ROUTING_RETRY_MAX_DELAY_MS = 4_000;
+
+/** Leest het aantal retries uit een env-waarde en klemt op [0, MAX_ROUTING_RETRIES]. */
+export function resolveRoutingRetries(
+  raw: string | undefined,
+  fallback: number = DEFAULT_ROUTING_RETRIES,
+): number {
+  const clamp = (n: number) => Math.min(MAX_ROUTING_RETRIES, Math.max(0, n));
+  const parsed = raw !== undefined ? Number(raw) : Number.NaN;
+  // Eindige waarden worden geklemd (een negatief getal → 0); alleen onleesbare invoer valt terug.
+  if (Number.isFinite(parsed)) return clamp(Math.floor(parsed));
+  return clamp(Math.floor(fallback));
+}
+
+/** Deterministische exponentiële backoff-vertraging voor een gegeven (0-geïndexeerde) retry. */
+export function routingRetryDelayMs(attempt: number): number {
+  const delay = ROUTING_RETRY_BASE_DELAY_MS * 2 ** Math.max(0, attempt);
+  return Math.min(ROUTING_RETRY_MAX_DELAY_MS, delay);
+}
+
+/** Een HTTP-status die veilig te herhalen is: server-fouten (5xx) en rate-limiting (429). */
+function isTransientRoutingStatus(status: number): boolean {
+  return status >= 500 || status === 429;
+}
+
+/** Interne foutklasse van één provider-poging; draagt of herhalen zin heeft. */
+class RoutingFetchError extends Error {
+  readonly transient: boolean;
+  constructor(transient: boolean) {
+    super("routing provider fetch mislukt");
+    this.name = "RoutingFetchError";
+    this.transient = transient;
+  }
+}
+
+/** De per-round-trip afgeleide fetch-parameters (deadline + retries + injecteerbare sleep). */
+interface ProviderFetchConfig {
+  fetchImpl: typeof fetch;
+  timeoutMs: number;
+  retries: number;
+  sleep: (ms: number) => Promise<void>;
+  /**
+   * Of een 2xx-succes ook de GESLAAGDE heartbeat schrijft (die de mislukkingen-teller terugzet). Een
+   * MISLUKKING wordt ALTIJD geregistreerd (na uitputte retries); alleen de success-registratie is gated,
+   * zodat `getTravelRoute` een tussentijdse geocode-success kan onderdrukken en pas de volledige lookup
+   * als aflevering telt (zie `suppressSuccessRecord`).
+   */
+  recordSuccessOnDelivery: boolean;
+}
+
+/** Leidt de fetch-parameters af uit de opties + env (één plek, gedeeld door geocode + route). */
+function resolveProviderFetch(
+  opts: RoutingOptions,
+  recordSuccessOnDelivery: boolean,
+): ProviderFetchConfig {
+  return {
+    fetchImpl: opts.fetchImpl ?? fetch,
+    timeoutMs: resolveHttpTimeoutMs(
+      opts.timeoutMs !== undefined ? String(opts.timeoutMs) : process.env.ROUTING_HTTP_TIMEOUT_MS,
+    ),
+    retries:
+      opts.retries !== undefined
+        ? resolveRoutingRetries(String(opts.retries))
+        : resolveRoutingRetries(process.env.ROUTING_HTTP_RETRIES),
+    sleep: opts.sleepImpl ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))),
+    recordSuccessOnDelivery,
+  };
+}
+
 /**
- * Voert de daadwerkelijke uitgaande provider-fetch uit en registreert de aflever-uitkomst in de
- * routing-heartbeat (dead-man's-switch). Aangeroepen ALLEEN op de échte geoapify-provider mét sleutel
- * (de aanroepers gaten daarop). Semantiek van "aflevering":
- * - fetch werpt (netwerk/DNS/time-out) → mislukking → null
- * - `!res.ok` (401/403/429/5xx) → mislukking → null
- * - `res.json()` werpt (onleesbaar) → mislukking → null
- * - 2xx + parseerbare JSON → succes → json (ongeacht of de inhoud een match bevat: de provider
- *   antwoordde gezond; een lege maar geldige body telt als succes)
- * De heartbeat-recorders zijn fail-open (werpen nooit naar buiten), dus geen extra afhandeling.
- *
- * `recordSuccessOnDelivery` bepaalt of een 2xx-succes ook de GESLAAGDE heartbeat schrijft (die de
- * mislukkingen-teller terugzet). Een MISLUKKING wordt ALTIJD geregistreerd; alleen de success-registratie
- * is gated, zodat `getTravelRoute` een tussentijdse geocode-success kan onderdrukken en pas de volledige
- * lookup als aflevering telt (zie `suppressSuccessRecord`).
+ * Eén poging: doet de GET met een harde deadline en valideert het HTTP-antwoord. Werpt een
+ * `RoutingFetchError` met `transient`-vlag zodat de retry-lus weet of herhalen zin heeft.
+ * - fetch werpt (netwerk/DNS/time-out via `fetchWithTimeout`) → transiënt
+ * - `!res.ok` → transiënt bij 5xx/429, anders niet-transiënt (bv. 401/403 verkeerde sleutel)
+ * - `res.json()` werpt (onleesbaar) → niet-transiënt (een herhaling levert dezelfde onleesbare body)
+ * - 2xx + parseerbare JSON → json (ongeacht of de inhoud een match bevat: de provider antwoordde
+ *   gezond; een lege maar geldige body telt als geslaagde aflevering)
  */
-async function fetchJson(
+async function attemptFetchOnce(
   fetchImpl: typeof fetch,
   url: string,
-  now: Date,
-  recordSuccessOnDelivery: boolean,
-): Promise<unknown | null> {
+  timeoutMs: number,
+): Promise<unknown> {
   let res: Response;
   try {
-    res = await fetchImpl(url);
+    res = await fetchWithTimeout(url, {}, { fetchImpl, timeoutMs, label: "routing" });
   } catch {
-    await recordRoutingDeliveryFailure(now);
-    return null;
+    throw new RoutingFetchError(true);
   }
   if (!res.ok) {
-    await recordRoutingDeliveryFailure(now);
-    return null;
+    throw new RoutingFetchError(isTransientRoutingStatus(res.status));
   }
-  let json: unknown;
   try {
-    json = await res.json();
+    return await res.json();
   } catch {
-    await recordRoutingDeliveryFailure(now);
-    return null;
+    throw new RoutingFetchError(false);
   }
-  if (recordSuccessOnDelivery) await recordRoutingDeliverySuccess(now);
-  return json;
+}
+
+/**
+ * Voert de uitgaande provider-fetch uit met een harde per-poging-deadline en begrensde retry-met-backoff
+ * bij transiënte fouten, en registreert ALLEEN de einduitkomst in de routing-heartbeat
+ * (dead-man's-switch): één GESLAAGDE aflevering (bij `recordSuccessOnDelivery`) of één MISLUKKING nadat
+ * de retries zijn uitgeput. Zo laat een enkele blip die op de retry herstelt de mislukkingen-teller niet
+ * onnodig oplopen. De heartbeat-recorders zijn fail-open (werpen nooit naar buiten). Retourneert de
+ * JSON bij succes, of `null` bij een uitgeput/niet-transiënte fout (de aanroeper valt dan terug).
+ */
+async function fetchJson(
+  url: string,
+  now: Date,
+  config: ProviderFetchConfig,
+): Promise<unknown | null> {
+  let attempt = 0;
+  for (;;) {
+    try {
+      const json = await attemptFetchOnce(config.fetchImpl, url, config.timeoutMs);
+      if (config.recordSuccessOnDelivery) await recordRoutingDeliverySuccess(now);
+      return json;
+    } catch (err) {
+      const transient = err instanceof RoutingFetchError && err.transient;
+      if (transient && attempt < config.retries) {
+        await config.sleep(routingRetryDelayMs(attempt));
+        attempt += 1;
+        continue;
+      }
+      await recordRoutingDeliveryFailure(now);
+      return null;
+    }
+  }
 }
 
 export async function geocodePlace(
@@ -329,10 +439,9 @@ export async function geocodePlace(
   if (cached) return cached;
 
   const json = await fetchJson(
-    opts.fetchImpl ?? fetch,
     geoapifyGeocodeUrl(query, apiKey),
     now,
-    !opts.suppressSuccessRecord,
+    resolveProviderFetch(opts, !opts.suppressSuccessRecord),
   );
   const point = parseGeoapifyGeocodeResponse(json);
   if (!point) return null;
@@ -378,10 +487,9 @@ export async function getTravelRoute(
   if (!fromPoint || !toPoint) return null;
 
   const json = await fetchJson(
-    opts.fetchImpl ?? fetch,
     geoapifyRoutingUrl(fromPoint, toPoint, mode, apiKey),
     now,
-    true,
+    resolveProviderFetch(opts, true),
   );
   const route = parseGeoapifyRoutingResponse(json, fromPoint, toPoint);
   if (!route) return null;

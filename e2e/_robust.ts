@@ -5,9 +5,16 @@
 // ontbreekt, zodat er geen dubbele submit gebeurt.
 import { expect, type Locator, type Page } from "@playwright/test";
 
+// Stand 5-9-2026 (issue #329): de "hangende action-response" is bij de wortel gefixt — het was een
+// verloren render-fase-ping in de door Next gebundelde React-canary, teruggezet via
+// patches/next+15.5.24.patch (zie docs/decisions/0012). De herlaad-vangnetten hieronder zijn daar
+// dus niet meer voor nodig; e2e/bureau-registratie.spec.ts bewijst dat met één gewone klik in de
+// productiebuild. Ze blijven staan voor de losstaande pre-hydratatie-klikrace (herklik) en kunnen in
+// een vervolg worden teruggebracht tot "herklik zonder reload".
+
 /** Verse GET van de huidige pagina, ook als er nog een (hangende) navigatie/POST openstaat:
  *  eerst window.stop() (kapt de hangende response af), dan een reload met korte timeout.
- *  Zie issue #329 — de action-response kan in productie blijven hangen na een geslaagde mutatie. */
+ *  Historisch vangnet voor issue #329 (zie kop van dit bestand). */
 export async function freshen(page: Page) {
   await page.evaluate(() => window.stop()).catch(() => {});
   await page.reload({ waitUntil: "domcontentloaded", timeout: 8000 }).catch(() => {});
@@ -70,6 +77,44 @@ export async function clickForUrl(
     }
     await page.waitForURL(urlGlob, { timeout: 3000, waitUntil: "commit" });
   }).toPass({ timeout });
+}
+
+/** Vul `input` tot de URL `urlPattern` matcht (debounced filter-/zoekvelden die de router pushen).
+ *
+ *  Waarom dit nodig is: een zoekveld is een *controlled* client-component (`value={q}` +
+ *  `onChange` → debounce → `router.push`). `fill()` zet de waarde in de DOM en vuurt een
+ *  input-event, maar zolang React de route nog niet heeft gehydrateerd luistert er niemand: de
+ *  onChange komt nooit aan, en de hydratatie zet het veld daarna terug op de servertoestand
+ *  (leeg). De typoefening is dan spoorloos verdwenen en `waitForURL(/[?&]q=/)` loopt af — de
+ *  bewezen flake in jobs/browse-match (zelfde SHA 1× pass, 1× fail in `e2e-postgres`). Een echte
+ *  gebruiker raakt dit niet; die typt niet binnen milliseconden na navigatie.
+ *
+ *  Aanpak, gelijk aan `clickForUrl`: herhaal de invoer tot het verwachte effect (de URL) er is.
+ *  We wissen eerst en vullen dan opnieuw, zodat een herhaling gegarandeerd een échte
+ *  waardewijziging — en dus een nieuwe debounce-push — oplevert, ook als de React-state door een
+ *  eerdere poging al op `value` zou staan. Staat de URL al goed, dan raken we het veld niet meer
+ *  aan (geen overbodige extra push). `waitUntil: "commit"` om dezelfde reden als in
+ *  `clickForUrl`: de navigatie telt zodra de URL er is; een hangende RSC-response (issue #329)
+ *  mag het aankomst-signaal niet gijzelen. */
+export async function fillForUrl(
+  page: Page,
+  input: Locator,
+  value: string,
+  urlPattern: string | RegExp,
+  timeout = 20000,
+) {
+  const matches = () =>
+    typeof urlPattern === "string" ? page.url().includes(urlPattern) : urlPattern.test(page.url());
+  await input.waitFor({ state: "visible", timeout: 10000 });
+  await expect(async () => {
+    if (!matches()) {
+      await input.fill("", { timeout: 3000 }).catch(() => {});
+      await input.fill(value, { timeout: 3000 });
+    }
+    // Ruim boven de debounce (350ms) plus een render-tik, zodat een poging niet vroegtijdig faalt.
+    await page.waitForURL(urlPattern, { timeout: 4000, waitUntil: "commit" });
+  }).toPass({ timeout });
+  await expect(input).toHaveValue(value);
 }
 
 /**

@@ -526,6 +526,19 @@ export interface MetricsInput {
   routingDeliveryConsecutiveFailures: number;
   /** Leeftijd van de meest recente routing-lookup-mislukking in seconden, of null als er nooit één was. */
   routingDeliveryLastFailureAgeSeconds: number | null;
+
+  /**
+   * Korte git-commit-SHA van de dráaiende build (zelfde bron als /api/health: `shortCommit`), of "dev"
+   * lokaal. GEEN gezondheidssignaal — samen met {@link buildAt} vult dit de constante `zzp_build_info`-
+   * gauge (waarde altijd 1) met labels, de Prometheus `*_build_info`-conventie (vgl. `go_build_info`/
+   * `nodejs_version_info`). Statische build-metadata: geen PII, geen secret.
+   */
+  buildCommit: string;
+  /**
+   * Build-tijdstip van de draaiende build (ISO, zelfde normalisatie als /api/health: `normalizeBuiltAt`),
+   * of "onbekend" zonder Docker-build. Label van {@link buildCommit}'s `zzp_build_info`-gauge.
+   */
+  buildAt: string;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -967,6 +980,21 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: `Leeftijd van de meest recente mislukte routing-lookup in seconden (${AGE_NEVER} = nog nooit een mislukking). Rauwe context; de alarmeerbare conditie zit in zzp_routing_consecutive_failures / zzp_routing_delivery_ok.`,
       type: "gauge",
       value: age(input.routingDeliveryLastFailureAgeSeconds),
+    },
+    {
+      // Deploy-identiteit als constante 1-gauge met labels (Prometheus `*_build_info`-conventie, vgl.
+      // go_build_info/nodejs_version_info). GEEN gezondheidssignaal — de waarde is altijd 1; de
+      // informatie zit in de labels. Waarde voor de operator: een dashboard/alert kan een regressie of
+      // metriek-verschuiving correleren met de exacte draaiende build, en `changes(zzp_build_info[…])`
+      // detecteert een redeploy — zonder op /admin/systeemstatus in te loggen of de GitHub-deploy-lag-
+      // watchdog af te wachten. Complementeert /api/health (die dezelfde commit/built_at als JSON toont,
+      // maar niet scrape-baar naast de andere gauges is). Labels dragen alleen statische build-metadata:
+      // geen PII, geen secret. Staat in INFO_ONLY_METRICS (bewust geen waarde-drempel-alert).
+      name: "zzp_build_info",
+      help: 'Deploy-identiteit van de draaiende build als constante 1-gauge; de informatie zit in de labels `commit` (korte git-SHA, of "dev") en `built_at` (ISO-build-tijdstip, of "onbekend"). Prometheus *_build_info-conventie: correleer metrics/alerts met de exacte deploy en detecteer een redeploy via changes(zzp_build_info[…]). Altijd 1 (geen gezondheidssignaal), geen PII/secret.',
+      type: "gauge",
+      labels: { commit: input.buildCommit || "dev", built_at: input.buildAt || "onbekend" },
+      value: 1,
     },
   ];
 }

@@ -2,8 +2,16 @@
 // reageer-formulier (createApplication) als de directe rooster-claim (claimShift). Prisma + de
 // neveneffecten (audit, rate-limit, matching, routing) volledig gemockt.
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { type Actor } from "@/lib/authz";
+
+/** Vaste "nu" voor de maandquotum-tests: 15 juli 2026 (zomertijd). */
+const NOW = new Date("2026-07-15T10:00:00Z");
+
+type CountWhere = {
+  createdAt?: { gte?: Date };
+  status?: { not?: string };
+};
 
 const store = {
   profile: null as Record<string, unknown> | null,
@@ -13,6 +21,9 @@ const store = {
   /** Als gezet: opeenvolgende `application.count`-aanroepen geven deze waarden terug (queue). Zo kan
    *  een test de pre-check-lees en de in-transactie her-telling apart sturen (TOCTOU-simulatie). */
   countQueue: null as number[] | null,
+  /** Als gezet: `application.count` telt deze rijen mét de where-clausule (maandvenster + status),
+   *  zodat de periode-afbakening van het quotum echt wordt getest i.p.v. een vast getal. */
+  rows: null as Array<{ createdAt: Date; status: string }> | null,
   subscription: null as Record<string, unknown> | null,
   freePlan: { maxApplications: 5 } as Record<string, unknown> | null,
   created: [] as Array<Record<string, unknown>>,
@@ -24,11 +35,19 @@ let rateLimitAllowed = true;
 const auditMock = vi.hoisted(() => vi.fn(async () => {}));
 
 vi.mock("@/lib/db", () => {
-  const applicationCount = vi.fn(async () =>
-    store.countQueue && store.countQueue.length
-      ? store.countQueue.shift()!
-      : store.applicationCount,
-  );
+  const applicationCount = vi.fn(async (args?: { where?: CountWhere }) => {
+    if (store.countQueue && store.countQueue.length) return store.countQueue.shift()!;
+    if (store.rows) {
+      const gte = args?.where?.createdAt?.gte;
+      const excluded = args?.where?.status?.not;
+      return store.rows.filter(
+        (r) =>
+          (gte === undefined || r.createdAt.getTime() >= gte.getTime()) &&
+          (excluded === undefined || r.status !== excluded),
+      ).length;
+    }
+    return store.applicationCount;
+  });
   const prisma = {
     freelancerProfile: { findUnique: vi.fn(async () => store.profile) },
     job: { findUnique: vi.fn(async () => store.job) },
@@ -124,6 +143,7 @@ beforeEach(() => {
   store.existing = null;
   store.applicationCount = 0;
   store.countQueue = null;
+  store.rows = null;
   store.subscription = null;
   store.freePlan = { maxApplications: 5 };
   store.created = [];
@@ -189,7 +209,10 @@ describe("createApplicationForJob", () => {
     store.applicationCount = 5; // FREE-plan max
     const res = await createApplicationForJob(ACTOR, "job-1", VALID);
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toContain("maximum aantal reacties");
+    if (!res.ok) {
+      expect(res.error).toContain("deze maand het maximum van 5 reacties bereikt");
+      expect(res.upgradeHref).toBe("/abonnement");
+    }
     expect(store.created).toHaveLength(0);
   });
 
@@ -201,7 +224,7 @@ describe("createApplicationForJob", () => {
     store.countQueue = [4, 5];
     const res = await createApplicationForJob(ACTOR, "job-1", VALID);
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toContain("maximum aantal reacties");
+    if (!res.ok) expect(res.error).toContain("deze maand het maximum van 5 reacties bereikt");
     expect(store.created).toHaveLength(0);
     expect(auditMock).not.toHaveBeenCalled();
     expect(store.notifications).toHaveLength(0);
@@ -213,6 +236,58 @@ describe("createApplicationForJob", () => {
     const res = await createApplicationForJob(ACTOR, "job-1", VALID);
     expect(res).toEqual({ ok: true, applicationId: "app-1" });
     expect(store.created).toHaveLength(1);
+  });
+
+  describe("maandquotum (geen levenslange teller)", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(NOW);
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("weigert bij 5 reacties in de lopende maand", async () => {
+      store.rows = Array.from({ length: 5 }, (_, i) => ({
+        createdAt: new Date(`2026-07-0${i + 1}T09:00:00Z`),
+        status: "NEW",
+      }));
+      const res = await createApplicationForJob(ACTOR, "job-1", VALID);
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.error).toContain("1 aug 2026"); // start van de nieuwe periode
+      expect(store.created).toHaveLength(0);
+    });
+
+    it("staat reageren toe als de 5 reacties van vorige maand zijn", async () => {
+      store.rows = Array.from({ length: 5 }, (_, i) => ({
+        createdAt: new Date(`2026-06-0${i + 1}T09:00:00Z`),
+        status: "NEW",
+      }));
+      const res = await createApplicationForJob(ACTOR, "job-1", VALID);
+      expect(res).toEqual({ ok: true, applicationId: "app-1" });
+    });
+
+    it("telt ingetrokken reacties van deze maand niet mee", async () => {
+      store.rows = [
+        ...Array.from({ length: 4 }, (_, i) => ({
+          createdAt: new Date(`2026-07-0${i + 1}T09:00:00Z`),
+          status: "NEW",
+        })),
+        { createdAt: new Date("2026-07-05T09:00:00Z"), status: "WITHDRAWN" },
+      ];
+      const res = await createApplicationForJob(ACTOR, "job-1", VALID);
+      expect(res).toEqual({ ok: true, applicationId: "app-1" });
+    });
+
+    it("laat een onbeperkt plan altijd door", async () => {
+      store.subscription = { status: "ACTIVE", plan: { maxApplications: -1 } };
+      store.rows = Array.from({ length: 42 }, () => ({
+        createdAt: new Date("2026-07-02T09:00:00Z"),
+        status: "NEW",
+      }));
+      const res = await createApplicationForJob(ACTOR, "job-1", VALID);
+      expect(res).toEqual({ ok: true, applicationId: "app-1" });
+    });
   });
 
   it("geeft een veldfout terug bij een te korte motivatie", async () => {

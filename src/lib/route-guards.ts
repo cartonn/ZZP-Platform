@@ -12,6 +12,7 @@ import { type UserRole } from "@/lib/enums";
  */
 export function isPublicPath(pathname: string): boolean {
   return (
+    pathname === "/" || // Public Handslag landing page; application routes stay protected.
     pathname === "/login" ||
     pathname === "/register" ||
     pathname === "/wachtwoord-vergeten" ||
@@ -24,6 +25,8 @@ export function isPublicPath(pathname: string): boolean {
     pathname === "/api/health" ||
     pathname === "/api/readiness" ||
     pathname === "/api/metrics" || // operationeel-monitoring-endpoint: eigen CRON_SECRET-guard, geen sessie
+    // Backup jobs use Bearer auth only; the handler still enforces CRON_SECRET.
+    pathname === "/api/backups/heartbeat" ||
     pathname.startsWith("/zzp/") ||
     pathname.startsWith("/vertrouwen/") || // publiek vertrouwensdossier (token-beveiligd, geen sessie)
     // /ontwerp en /ontwerp-lab zijn NIET publiek: het is een intern design-lab — inloggen vereist

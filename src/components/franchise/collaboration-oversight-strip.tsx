@@ -15,16 +15,27 @@ export function CollaborationOversightStrip({ summary }: { summary: FranchiseCol
   if (summary.total === 0) return null;
 
   const headline = franchiseCollabHeadline(summary);
-  // Het voorstel-stilstaan-signaal verschijnt alleen als er iets stilstaat — een 0-tegel voor iets
-  // dat doorgaans nul is voegt ruis toe (DESIGN.md: toon alleen wat telt en actie vraagt).
+  // De dispuut- en voorstel-stilstaan-tegels verschijnen alleen als er iets speelt — een 0-tegel voor
+  // iets dat doorgaans nul is voegt ruis toe (DESIGN.md: toon alleen wat telt en actie vraagt).
+  const showDisputed = summary.disputed > 0;
   const showStalled = summary.stalledProposals > 0;
+  // Basis: aflopend, voorbij einddatum, actief (3) + de optionele dispuut-/stilstaand-tegels.
+  const columns = 3 + (showDisputed ? 1 : 0) + (showStalled ? 1 : 0);
+  const gridCols =
+    columns === 5 ? "sm:grid-cols-5" : columns === 4 ? "sm:grid-cols-4" : "sm:grid-cols-3";
 
   return (
     <div className="space-y-3">
       {headline && <p className="text-sm text-muted-foreground">{headline}</p>}
-      <div
-        className={cn("grid grid-cols-2 gap-3", showStalled ? "sm:grid-cols-4" : "sm:grid-cols-3")}
-      >
+      <div className={cn("grid grid-cols-2 gap-3", gridCols)}>
+        {showDisputed && (
+          <StatCard
+            label="Bevroren dispuut"
+            value={summary.disputed}
+            sub="werkproces staat stil"
+            tone="danger"
+          />
+        )}
         {showStalled && (
           <StatCard
             label="Voorstel stilstaand"

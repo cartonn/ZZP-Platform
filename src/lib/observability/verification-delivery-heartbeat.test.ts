@@ -7,7 +7,7 @@ const upsert = vi.hoisted(() => vi.fn(async () => ({})));
 const reportError = vi.hoisted(() => vi.fn(async () => {}));
 
 vi.mock("@/lib/db", () => ({
-  prisma: { verificationDeliveryHeartbeat: { findMany, upsert } },
+  prisma: { deliveryHeartbeat: { findMany, upsert } },
 }));
 vi.mock("@/lib/observability/report", () => ({ reportError }));
 

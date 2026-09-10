@@ -24,6 +24,7 @@ import {
 import { prisma } from "@/lib/db";
 import { eurosToCents } from "@/lib/invoices";
 import { type OrtSegment, resolveOrtRates } from "@/lib/ort";
+import { MANUAL_ORT_FIELDS, manualOrtSegments } from "@/lib/manual-ort";
 import {
   segmentShifts,
   dutchHolidays,
@@ -153,17 +154,14 @@ async function parsePerformanceInput(
     });
     ortSegments = segmentShifts(shifts, { rates, holidays });
   } else {
-    const ortFields: Array<["NORMAL" | OrtCategory, string]> = [
-      ["NORMAL", "ort_normal"],
-      ["EVENING", "ort_evening"],
-      ["NIGHT", "ort_night"],
-      ["SATURDAY", "ort_saturday"],
-      ["SUNDAY", "ort_sunday"],
-      ["HOLIDAY", "ort_holiday"],
-    ];
-    ortSegments = ortFields
-      .map(([category, field]) => ({ category, hours: Number(formData.get(field) ?? 0) }))
-      .filter((s) => s.hours > 0);
+    ortSegments = manualOrtSegments(
+      Object.fromEntries(
+        MANUAL_ORT_FIELDS.map(({ field, category }) => [
+          category,
+          Number(formData.get(field) ?? 0),
+        ]),
+      ),
+    );
   }
   const useOrt = type === "HOURS" && ortSegments.length > 0;
 

@@ -1,5 +1,571 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-10 (persona-sweep, run 10) · **main-commit basis:** `53f745be`
+> **Uitkomst:** **1 defect gefixt (badge↔lijst-drift, DOEL 1b — FRANCHISER); 0 geparkeerd.**
+> Orchestrator Opus 4.8 + drie parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+> (next-action/badge-correctheid · IDOR/authz/cross-tenant/document-privacy · malicieuze invoer/geld/
+> robuustheid). Live productiebuild + seed (SEED_DEMO) draait offline via de font-stub-workaround
+> (netwerkpolicy blokt `next/font/google`, zoals runs 5-9).
+>
+> - **DOEL 2 (adversarieel) — schoon.** Authz/IDOR/cross-tenant/document-privacy **0 bereikbare gaten**:
+>   elke byte-/PDF-/dossier-route gate't op ownership/partij vóór uitgifte met identieke 404 (CWE-203) +
+>   `auditDeniedAccess`; franchise-loaders/-acties scopen via `tenancy.ts` (`ownsViaTenant`/
+>   `tenantScopeWhere`/`assertSameTenant`) → cross-tenant id = uniforme not-found; cascade-commands
+>   dwingen "is partij" én "juiste zijde" af (`assertParty` + richting), TOCTOU-veilig. Invoer/geld/
+>   robuustheid **0 nieuwe gaten**: elke `computeOrt`-renderoppervlak is throw-veilig (safeComputeOrt/
+>   per-rij-try-catch), `assertPerformanceWithinLimits` grendelt niet-eindige/negatieve/cent-grid-invoer,
+>   `hoursTimesRateCents` rondt in integer-cent (geen half-cent-lek), CSV overal via `escapeCsvField`.
+> - **GEDAAN (10-9, DOEL 1b, FRANCHISER) — `/franchise/zzpers`-nav-badge onder-telde de dormant-bench
+>   re-engagement-taak die /acties wél toont.** `franchiserTasks` (`pending-tasks.ts:1717`) pusht per
+>   INZETBARE, op-de-bench (0 ACTIVE-samenwerkingen) én ≥`DORMANT_IDLE_DAYS` (60) niet-ingelogde tenant-
+>   ZZP'er een `franchiseRosterReengagementTask` (deeplink `/franchise/zzpers/{id}`). De nav-badge
+>   (`rosterAlerts`, `signals.ts:1131`) telde alléén `expiringProfiles + expiredProfiles + notEngageable`
+>   — er was geen dormancy-term, en de badge-roster-query (`signals.ts:971`) selecteerde niet eens het
+>   `_count` van ACTIVE-samenwerkingen dat `classifyRosterDormancy` nodig heeft. Gevolg: het "signaal op
+>   één oppervlak"-anti-patroon — /acties (+ dashboard-rail) toont een teken-taak die naar
+>   `/franchise/zzpers` deeplinkt, maar dat nav-item bleef leeg. Asymmetrisch met de klant-spiegel
+>   (`franchiseClientReengagementTask` ↔ `attentionClients`-term op `/franchise/opdrachtgevers`), die de
+>   badge wél meetelt. De doc-comment claimde bovendien ten onrechte "exact de som van de losse item-
+>   taken". **Fix:** de badge-roster-query laadt nu hetzelfde ACTIVE-`_count`; `rosterAlerts` telt een
+>   `dormantReengagement`-term mee, exact de emitter-volgorde spiegelend (INACTIEF `continue`t vóór de
+>   dormancy-check → nooit dubbeltelling). **Repro:** FRANCHISER-tenant met één inzetbare bench-ZZP'er,
+>   0 lopende samenwerkingen, `lastLoginAt` ≥60 dagen terug, geen andere roster-alert → /acties toont de
+>   re-engagement-taak, de `/franchise/zzpers`-badge bleef 0. **Bestanden:** `src/lib/signals.ts`,
+>   `src/lib/signals.roster-reengagement-badge.test.ts` (+2, rood→groen bewezen),
+>   `src/lib/signals.badge-gaps-run52.test.ts` (fixtures voorzien van `_count`).
+
+> **Datum:** 2026-09-09 (persona-sweep, run 9) · **main-commit basis:** `a800b208`
+> **Uitkomst:** **1 defect gefixt (badge↔lijst-drift, DOEL 1b); 1 LOW-robustness-item geparkeerd.**
+> Orchestrator Opus 4.8 + drie parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+> (next-action/badge-correctheid · IDOR/authz/cross-tenant/document-privacy · malicieuze invoer/geld/
+> robuustheid). De live productiebuild draait offline via de font-stub-workaround (netwerkpolicy blokt
+> `next/font/google`, zoals runs 5-8).
+>
+> - **DOEL 2 (adversarieel) — schoon.** Authz/IDOR/cross-tenant/document-privacy **0 bereikbare gaten**
+>   (elke by-id-fetch her-verifieert ownership/tenant met anti-oracle-404; cascade-commands her-afleiden
+>   de partij-zijde binnen de write-transactie; `admin-route-authz-coverage.test.ts` grendelt
+>   `requireRole("ADMIN")` statisch; byte/PDF/dossier-routes checken ownership vóór uitgifte). Invoer/
+>   Zod/geld/robuustheid **0 nieuwe bereikbare gaten** (de delta sinds ronde 5 — #1440–#1449 — dichtte de
+>   geld/parse-gaten: half-cent-onderbetaling, cent-grid op uren/euro's, `parseOrtSegments`-guard,
+>   `readLimitedJson`; `assertPerformanceWithinLimits` blijft het enige choke point).
+> - **GEDAAN (DOEL 1b) — CLIENT /samenwerkingen-badge ordende de onderteken-bare PROPOSED-query anders dan
+>   /acties (outer-window-drift).** `countClientSignableProposals` (`signals.ts`) ordende `updatedAt desc`
+>   terwijl de list-bron `proposedCollabs` (`pending-tasks.ts:1149`) in run 81 bewust naar `createdAt asc`
+>   is omgezet. `Collaboration.updatedAt` staat voor een PROPOSED-rij effectief bevroren op het
+>   aanmaakmoment; met beide gecapt op `CASCADE_SCAN_LIMIT` (=50) pakte de badge dus de NIEUWSTE 50
+>   voorstellen en /acties de OUDSTE 50 → bij >50 gelijktijdige PROPOSED-samenwerkingen voor één
+>   opdrachtgever undercountte de badge precies de langst-wachtende (oudste) teken-taken die /acties wél
+>   toont. Exact de outer-window-blindheid die de list-kant al dichtte, achtergebleven in de badge; de
+>   badge-doc-comment claimde bovendien ten onrechte pariteit ("op dezelfde rijen redeneren"). **Fix:**
+>   badge ordent nu identiek `createdAt asc`. **Repro:** opdrachtgever met >50 PROPOSED (niet-disputed,
+>   niet-geblokkeerde) samenwerkingen → /acties toont de oudste 50 teken-taken, de /samenwerkingen-badge
+>   telde de nieuwste 50 → afwijkende telling. **Bestanden:** `src/lib/signals.ts`,
+>   `src/lib/signals.badge-signable-proposals-order.test.ts` (+1, rood→groen bewezen).
+> - **GEDAAN (9-9, PR #1465) — LOW (robuustheid): `computeOrt` buiten de per-rij-guard in de overzicht-
+>   mappers.** Gefixt met de gedeelde pure bron `computePerformanceOrt` (`ort-breakdown.ts`): de
+>   ORT-motor-throw wordt nu per rij gevangen en degradeert naar de basis (uren×tarief, geen-ORT); beide
+>   mappers gebruiken die ene bron (reken-blokken ontdubbeld → geen ZZP'er↔opdrachtgever-drift). Schrijf-/
+>   cascade-paden blijven fail-closed (guard is read-path only). +7 tests. Oorspronkelijke bevinding:
+>   `getDienstenForFreelancer` (`src/lib/diensten.ts:78,86`) en
+>   `toPrestatieOverzicht` (`src/lib/prestaties.ts:106,114`) roepen `ortSubtotalCents`→`computeOrt` en
+>   `summarizeOrtBreakdown`→`computeOrt` aan buiten enig try/catch. De belendende comment ("één corrupte
+>   rij mag niet de héle pagina laten crashen", #1443) dekt alléén de `parseOrtSegments`-JSON-parse; een
+>   JSON-geldig maar semantisch corrupt segment (onbekende categorie, negatieve/niet-eindige uren) laat
+>   `computeOrt` throwen en zou de héle /diensten|/prestaties-pagina + CSV-export 500'en i.p.v. per rij
+>   degraderen. **Niet bereikbaar** vandaag: elke schrijver genereert categorieën server-side (`classify`/
+>   `MANUAL_ORT_FIELDS`) en grid-checkt `seg.hours` via `assertPerformanceWithinLimits`, dus alleen directe
+>   DB-corruptie bereikt het. **Repro (theoretisch):** corrupte `Performance.ortSegments`-rij
+>   `[{"category":"BOGUS","hours":-5}]` op een HOURS-prestatie → paginacrash. **Voorstel:** gedeelde
+>   safe-wrapper (co-locatie in `ort-breakdown.ts`) die de ORT-berekening per rij vangt en degradeert naar
+>   `subtotalCents:null` + `EMPTY_ORT_BREAKDOWN` + `hasOrt:false` (terugval op uren×tarief), zodat de comment-
+>   belofte klopt. Prioriteit LOW (defense-in-depth).
+> - **GEDAAN (9-9, PR #1466) — LOW (robuustheid): dezelfde `computeOrt`-crash-klasse op de twee resterende
+>   render-oppervlakken.** #1465 dichtte `/diensten` + `/prestaties`; het **factuurdetail**
+>   (`facturen/[id]/page.tsx:491`) en de **urenstaat-PDF** (`performance-pdf.ts:102`) haalden de opgeslagen
+>   `ortSegments` echter óók rechtstreeks door `computeOrt` buiten enige try/catch → één semantisch corrupte
+>   rij (onbekende categorie / negatieve uren) 500'de de héle factuurpagina resp. de PDF-download voor beide
+>   rollen. **Fix:** gedeelde throw-veilige wrapper `safeComputeOrt` (`ort-breakdown.ts`); factuurdetail slaat
+>   de optionele ORT-uitsplitsing over (bevroren bedrag rendert al los), PDF valt terug op de losse
+>   "uren × tarief"-regel. Schrijf-/cascade-paden blijven fail-closed (read-path-only guard). +4 tests.
+
+> **Datum:** 2026-09-08 (persona-sweep, run 7) · **main-commit basis:** `1a71216d`
+> **Uitkomst:** **3 defecten gefixt (badge↔lijst-drift, DOEL 1b), 0 geparkeerd.** Orchestrator Opus 4.8 +
+> drie parallelle adversariële Opus-audits op niet-overlappende oppervlakken (security/IDOR/cross-tenant/
+> document-privacy · malicieuze invoer/Zod/geld-integriteit · next-action/badge-correctheid).
+>
+> - **DOEL 2 (adversarieel) — schoon.** Security/IDOR/cross-tenant/document-privacy **0 bereikbare gaten**
+>   (`currentActor()` herlaadt rol/status/tenant live uit de DB; élke by-id-fetch her-verifieert
+>   ownership/tenant met anti-oracle-404; document/dossier/PDF-routes owner/counterparty/ADMIN-only;
+>   `admin-route-authz-coverage.test.ts` dwingt `requireRole("ADMIN")` statisch af; registratie-Zod laat
+>   alleen FREELANCER/CLIENT toe). Invoer/Zod/geld **0 bereikbare gaten** (`computeOrt`/`computeVat`/
+>   `assertPerformanceWithinLimits` weigeren NaN/Infinity/negatief/niet-integer; int4-overflow onbereikbaar
+>   onder `MAX_INVOICE_CENTS`; `shift.ts` rondt ruwe minuten precies één keer af; CSV/HTML-mail/ICS-escape
+>   en upload-magic-byte-sniff gedekt; enige `dangerouslySetInnerHTML` is het statische theme-script).
+> - **GEDAAN (DOEL 1b) — FREELANCER /certificaten-nav-badge dreef op DRIE punten af van /acties.** De
+>   badge-bron (`navBadges`, `signals.ts`) herimplementeerde de certificaat-verval-filters in plaats van
+>   dezelfde gedeelde helpers als de item-engine (`pending-tasks.ts`), met drie divergenties:
+>   1. **Mid-plaatsing-verval niet geteld (onder-telling).** Een vereist, nu-geldig VERIFIED-cert dat ná
+>      het 30-daagse venster maar vóór de plaatsings-einddatum verloopt kreeg op /acties een
+>      `credentialCollabExpiryTask` (`duringPlacementOnly`), maar de badge kende alleen het binnen-venster-
+>      `expiring`. **Fix:** `collaborationCredentialExpiryConcerns` (mét `placementEnd`) in de badge, tel de
+>      `duringPlacementOnly`-concerns die nog niet in `expiring` zitten.
+>   2. **Computed-expired genegeerd (onder-telling in het cron-gat).** Een VERIFIED-cert met verstreken
+>      `expiresAt` dat de expiry-cron nog niet naar EXPIRED flipte kreeg op /acties een verleng-taak
+>      (server-berekende verval-check), maar de badge keek alleen naar `status === "EXPIRED"`. **Fix:**
+>      dezelfde computed-check `EXPIRED || (VERIFIED && expiresAt <= now)`.
+>   3. **Per-credential i.p.v. per-type (over-telling/fantoom).** Twee verlopen exemplaren van hetzelfde
+>      niet-verplichte type telden als 2 in de badge terwijl /acties er hooguit één verleng-taak per type
+>      toont (en types met een collab-verlopen-taak per TYPE uitsluit, niet per credential-id). **Fix:**
+>      per-type-dedup + type-uitsluiting, identiek aan `expiredNonMandatoryByType`/`collabCoveredExpiredTypes`.
+>      **Bestanden:** `src/lib/signals.ts` (FREELANCER-tak gebruikt nu dezelfde gedeelde inputset/helpers als
+>      de item-engine → kan structureel niet driften), `src/lib/signals.badge-gaps-credential-expiry.test.ts`
+>      (+3 tests, rood→groen bewezen: 0→1, 0→1, 2→1).
+>
+> ---
+>
+> **Datum:** 2026-09-07 (persona-sweep, run 6) · **main-commit basis:** `353141aa`
+> **Uitkomst:** **1 defect gefixt (badge↔lijst-drift, DOEL 1b); 1 item geparkeerd (LOW).** Drie parallelle
+> adversariële Opus-audits op niet-overlappende oppervlakken (security/IDOR/cross-tenant/document-privacy ·
+> malicieuze invoer/Zod/geld-integriteit · next-action/badge-correctheid). De live productiebuild draaide dit
+> keer wél verder (fonts bereikbaar via de proxy) maar bleef traag in de static-generation/type-check-fase; de
+> sweep is daarom primair audit-gedreven, met de build als DoD-poort.
+>
+> - **DOEL 2 (adversarieel) — schoon.** Security/IDOR/cross-tenant/document-privacy: **0 bereikbare gaten**.
+>   `currentActor()` herlaadt rol/status/tenant live uit de DB (niet uit de JWT); `tenantScopeWhere`/
+>   `assertSameTenant`/`ownsViaTenant` consistent als één bron; élke by-id-fetch her-verifieert ownership/tenant
+>   server-side met anti-oracle `notFound()`; documenten owner/ADMIN-only met matched-timing 404; cascade-
+>   commands her-afleiden partij-lidmaatschap i.p.v. client-`collaborationId` te vertrouwen
+>   (`editAndResubmitPerformanceAction` hardt expliciet tegen rate-IDOR); `/admin/*` server-side `requireRole`.
+> - **DOEL 2 (invoer/Zod/geld) — schoon.** int4-`totalCents`-overflow gedekt (som-van-capped-regels expliciet
+>   herchecked, `MAX_INVOICE_CENTS`); `computeVat`/`assertPerformanceWithinLimits` weigeren NaN/Infinity/negatief/
+>   niet-integer; `shift.ts` weigert omgekeerde/absurde/`>MAX_SHIFT_HOURS`-diensten; CSV-formule-injectie centraal
+>   (alle 15 producers via `toCsv`/`escapeCsvField`); HTML-mail escapet elke geïnterpoleerde waarde + CRLF-strip;
+>   upload magic-byte-sniff onafhankelijk van Content-Type; enige `dangerouslySetInnerHTML` is het statische
+>   nonce-gated theme-script.
+> - **GEDAAN (DOEL 1b) — /kandidaten-nav-badge dreef af van /acties op een gesloten/concept-opdracht.**
+>   `navBadges` (`signals.ts`) telde de NEW-reactie-telling én de stale VIEWED/SHORTLIST-`findMany` alleen op
+>   `companyId`, zónder de `job.status: "PUBLISHED"`-poort die run 103 aan de item-engine (`pending-tasks.ts`,
+>   regressietest `pending-tasks-client-closed-job.test.ts`) toevoegde. Sluit de opdrachtgever een opdracht zonder
+>   de reactie te beoordelen (PUBLISHED→CLOSED/DRAFT), dan blijft de reactie NEW in de DB staan
+>   (`changeJobStatus` transitioneert reacties niet) → de beoordeeltaak verdwijnt van /acties, maar de
+>   /kandidaten-badge bleef 'm eeuwig meetellen: een fantoom-`attention`-badge die nooit op nul komt, precies het
+>   "signaal op één oppervlak"-anti-patroon. **Fix:** `job.status: "PUBLISHED"` toegevoegd aan beide queries
+>   (`signals.ts:640` NEW-telling + `:696` stale-`findMany`) → badge==lijst. **Bestanden:** `src/lib/signals.ts`,
+>   `src/lib/signals-client-closed-job-badge.test.ts` (+1 test, rood→groen bewezen: badge `{count:5}` → undefined).
+> - **~~GEPARKEERD — LOW (correctheid, twee dagen/jaar): DST-uur mis-attributie in ORT-segmentatie.~~
+>   AFGESLOTEN 7-9 (non-bug, empirisch weerlegd).** De Nederlandse DST-wissels (03:00↔02:00) liggen volledig
+>   binnen NIGHT; de ORT-categoriegrenzen liggen op 06:00/18:00/22:00 → categorie is uniform over de wissel.
+>   `accumulateShiftMinutes` loopt in echte-ms-slices die [start,end) exact partitioneren, dus totaalminuten
+>   blijven behouden. Geverifieerd met `TZ=Europe/Amsterdam`: dienst 01:30–03:30 op 2026-10-25 (fall-back) →
+>   180 min NIGHT (3 echte uren); op 2026-03-29 (spring) → 60 min NIGHT (1 echt uur). Geen misattributie bij de
+>   standaard-ORT-vensters. (Een custom sectorprofiel met een categoriegrens op 02:00/03:00 zou dit heropenen.)
+>
+> ---
+>
+> **Datum:** 2026-09-07 (persona-sweep, run 5) · **main-commit basis:** `6f373f66`
+> **Uitkomst:** **1 defect gefixt (LOW/latent — DOEL 1b); 2 items geparkeerd.** De live Playwright-doorklik
+> die de vorige 4 runs niet konden draaien is nu **wél uitgevoerd**: de build hing op de `next/font/google`-
+> download (ECONNRESET onder de parallelle build-fetch — losse font-fetches lukken wél, de concurrency reset).
+> Workaround (alléén lokaal, niet gecommit): fonts gestubd → offline productiebuild → `npm run start` → sweep.
+>
+> - **DOEL 2 (adversarieel) — schoon: 63 probes, 0 bereikbare gaten, 0 500's** (alle status 200/404). Privilege-
+>   escalatie (zzp'er/opdrachtgever/franchiser → `/admin/*` en `/franchise/*`) → redirect naar `/dashboard`;
+>   IDOR/onzin-id op `/samenwerkingen|/facturen|/opdrachten|/certificaten|/berichten|/franchise/*` → **404**
+>   (nooit 500, geen soft-404-lek); **cross-tenant** (franchiser → `/samenwerkingen/collab-1` van een andere
+>   tenant + `/api/samenwerkingen/collab-1/dossier|dba-dossier`) → 404; admin op onzin-id → 404 (geen 500).
+> - **DOEL 1 (functioneel) — pagina's renderen** (alle routes 200 in de adversariële probe). De
+>   `journeys.spec.ts`-doorklik liep in de zzper-reis in de 6-min-testtimeout op `page.waitForLoadState(
+"networkidle")` — **test-infra-fragiliteit** (achtergrond-polling settelt nooit), geen product-defect;
+>   sluit aan op CURRENT_TASK.md punt 5 (`networkidle`/`clickUntilGone`-omwegen uit `e2e/_robust.ts` halen).
+> - **3 parallelle adversariële Opus-audits:** security/IDOR/tenant/document-privacy **0 gaten** (mutatie-keten
+>   auth→rol→ownership→Zod→audit overal intact; anti-oracle-404; tenant-scoped by-id-fetches); malicieuze
+>   invoer/Zod **0 gaten** (NaN/Infinity/negatief/absurd server-geweigerd, CSV-injectie/upload-magic-bytes/
+>   HTML-mail-escape gedekt); next-action-correctheid **2× LOW**, waarvan #1 gefixt.
+> - **GEDAAN — LOW/latent (DOEL 1b): cascade-overdue-query miste `status: "ACTIVE"`.** De opdrachtgever-taak
+>   `clientCascadeOverduePaymentTask` (`pending-tasks.ts`) + badge-mirror (`signals.ts`) scoopten de OVERDUE-
+>   cascadefactuur op `collaboration: { disputedAt: null }` zónder `status: "ACTIVE"` — terwijl de ZZP-
+>   tegenhanger `openInvoiceWhere` (`freelancer-cascade-work.ts`) én de SUBMITTED-factuur-sibling dat wél doen.
+>   Alleen de ZZP'er registreert de betaling (→ PAID), enkel op een ACTIVE deal. Terminale-guards houden een
+>   OVERDUE-factuur vandaag binnen ACTIVE (dus latent), maar de `payment-reminders`-cron zet APPROVED→OVERDUE
+>   zónder collab-status-filter: een toekomstige guard-regressie zou de opdrachtgever een niet-afhandelbare,
+>   nooit-verdwijnende betaal-taak op een afgeronde/geannuleerde deal geven. **Fix:** `status: "ACTIVE"` in beide
+>   queries (badge==lijst). **Bestanden:** `pending-tasks.ts`, `signals.ts`, `pending-tasks-client-overdue-
+payment.test.ts` (+1 test, rood→groen bewezen).
+> - **GEPARKEERD — LOW (by-design tension): elke REJECTED-prestatie geeft een herindien-taak, maar de cascade-
+>   stage is latest-performance-only.** Maakt een ZZP'er een nieuwe DRAFT-prestatie B terwijl een oudere
+>   prestatie A nog REJECTED is (`createPerformance` blokkeert dit niet), dan toont `/acties` zowel
+>   `performanceResubmitTask` (A, band 62) als `performanceSubmitTask` (B, band 55) voor dezelfde samenwerking,
+>   terwijl de detail-statuslijn alleen B's fase toont (`performances[0]`). Beide zijn open verplichtingen (A is
+>   los herindienbaar), het item-engine-superset-van-de-stage is gedocumenteerd design → notitie, geen bug.
+>   Repro: ZZP'er dient uren in → opdrachtgever wijst af (A=REJECTED) → ZZP'er begint nieuwe urenstaat (B=DRAFT).
+> - **GEDAAN (2026-09-07): reeds-verlopen roster-cert telde niet mee in de /franchise/zzpers-badge (badge↔lijst-drift).**
+>   De nav-badge (`rosterAlerts`, `signals.ts`) telde alleen (bijna-)verlopende + niet-inzetbare profielen; de
+>   /acties-bron toont daarnaast `franchiseCredentialExpiredTask` voor een reeds verlopen, niet-verplicht cert. Zodra
+>   een cert de vervaldatum passeerde verdween het uit de badge maar niet uit /acties → onder-rapportage precies toen
+>   de compliance-gap actief werd. **Fix:** `signals.ts` telt nu `expiredProfiles` mee via dezelfde twee-staps-aanpak
+>   (`rosterExpiredByProfile`) als `pending-tasks.ts` — gedeelde pure helper, kan niet driften. **Bestanden:**
+>   `src/lib/signals.ts`, `src/lib/signals.roster-expired-badge.test.ts` (+2 tests, rood zonder de term).
+
+> **Datum:** 2026-09-06 (persona-sweep, run 4) · **main-commit basis:** `89d34d1`
+> **Uitkomst:** **2 robuustheidsgaten gedicht; 3 items geparkeerd (LOW).** De live Playwright-doorklik
+> was in deze sandbox **niet uit te voeren**: de productiebuild blijft hangen op het ophalen van de
+> Google-fonts via `next/font/google` (`fonts.gstatic.com` wordt door het netwerkbeleid van de sandbox
+> geblokkeerd — connection reset mid-exchange, oneindige retry). CI heeft wél netwerk en bouwt/draait e2e
+> normaal, dus dit is een omgevingsbeperking, geen defect. De sweep is daarom gedreven door **3 parallelle
+> adversariële Opus-audits** op niet-overlappende oppervlakken (cascade-geldpad · cross-tenant/IDOR/
+> document-privacy · malicieuze invoer/Zod). Alle drie de oppervlakken: **0 bereikbare blockers.**
+>
+> - **Cascade-geldpad (uren→ORT→prestatie→factuur→betaling + disputen/no-show) — schoon.** Verboden
+>   overgangen via expliciete state-machines (`lifecycles.ts`/`collaborations.ts`) + compound-guarded
+>   `updateMany` in `apply.ts`; afronden/annuleren met open geld of onbeoordeeld werk atomair geblokkeerd
+>   (`collaborationCompletableGuard`/`TerminableGuard`); dispuut-freeze TOCTOU-dicht; BTW/ORT integer-cent,
+>   weigert negatief/NaN/absurd; `rateCents` altijd server-afgeleid (geen IDOR via eigen afgewezen prestatie);
+>   idempotentie via `DomainEvent.dedupeKey`.
+> - **GEDAAN — robuustheid (int4-overflow-vangnet op `Invoice.totalCents`).** De bestaande grens-test
+>   (`performance-commands.test.ts`) claimde in haar commentaar dekking "óók met kop voor ORT-toeslag + BTW",
+>   maar assertte alléén het kale subtotaal (uren-cap × tarief-cap = €2 mln). Het werkelijke worst case op
+>   de int4-kolom `totalCents` is dat subtotaal × max ORT-maatwerktoeslag (`MAX_ORT_CUSTOM_BPS`, ×6) × hoogste
+>   BTW-tarief (2100 bps) ≈ €14,52 mln (1.452.000.000 cent) — veilig onder int4 (2.147.483.647), maar de ~32%
+>   marge werd door geen enkele test bewaakt. Een toekomstige verhoging van uren-/tarief-/ORT-cap of BTW zou
+>   stil tot een int4-overflow → 500 op `totalCents` kunnen leiden i.p.v. een nette weigering. **Fix:** de
+>   test rekent nu het echte maximum uit de bron-constanten (`MAX_PERFORMANCE_HOURS`,
+>   `MAX_PERFORMANCE_RATE_CENTS`, `MAX_ORT_CUSTOM_BPS`, `VAT_RATE_BPS`) en faalt de build zodra die combinatie
+>   int4 nadert. **Bestand:** `src/lib/cascade/performance-commands.test.ts` (+1 case).
+> - **Cross-tenant/IDOR/document-privacy (franchiser-oppervlak) — schoon.** `tenancy.ts`
+>   (`tenantScopeWhere`/`ownsViaTenant`/`assertSameTenant`) consistent als één bron; élke by-id-fetch
+>   her-verifieert `tenantId` server-side met anti-oracle "niet gevonden"; geneste relaties (collab/factuur
+>   van een roster-ZZP'er) opnieuw ge-scope't tegen cross-tenant-lek; documenten alleen owner/ADMIN
+>   (`canAccessDocument`), franchise-UI toont enkel de bestandsnaam (geen download-link); exports rol-gepoort +
+>   tenant-scoped + geaudit; `/api/media/[...key]` beperkt tot `Company.logoKey` (niet-gevoelig).
+> - **Malicieuze invoer/Zod — schoon.** CSV-formule-injectie centraal in `csv.ts` (élke producer routeert
+>   er doorheen); enige `dangerouslySetInnerHTML` is de genonce'de hardcoded theme-toggle (geen user-input);
+>   HTML-mails escapen elke geïnterpoleerde waarde; upload valideert MIME-allowlist + magic-bytes + grootte +
+>   UUID-key + path-traversal-guard; numerieke velden weigeren NaN/Infinity/negatief/overflow; geen
+>   `$queryRawUnsafe`; mail-intake byte-capped + timing-safe + human-review-gate.
+> - **GEDAAN — robuustheid (ongebonden zoekterm-invoer).** `searchPlatform` is een direct aanroepbare
+>   server-actie; `normalizeSearchQuery`/`isSearchableQuery` verwerkten een **ongebonden** string (trim/
+>   regex-replace/lowercase + per-kandidaat scoren) zonder lengte-cap — een scripted aanroeper kon per call
+>   een willekeurig grote string laten verwerken (goedkope maar ongebegrensde CPU per aanroep). **Fix:**
+>   `MAX_QUERY_LENGTH = 100`; `normalizeSearchQuery` begrenst de ruwe invoer vóór élke stringbewerking. Een
+>   betekenisvolle zoekterm is kort en langer voegt niets toe aan de score. **Bestanden:** `src/lib/search.ts`,
+>   `src/lib/search.test.ts` (+2 cases, rood→groen: 10.000-teken-invoer → ≤100; lange term blijft zoekbaar).
+> - **GEDAAN (2026-09-06): kvk/btw/iban-velden missen `.max()` vóór de format-check** (`validation.ts`,
+>   `z.union([z.literal(""), z.string().trim()])`). Niet exploiteerbaar (ankered regex, geen ReDoS; oversized
+>   input wordt geweigerd, niet opgeslagen), maar inconsistent met de rest van het schema dat wél capt.
+>   **Fix:** één drift-vaste helper `optionalIdentityField` capt KvK/BTW/IBAN op het freelancerprofiel in de
+>   union-string-tak (`.max(32/32/64)`); de verplichte bureau-KvK kreeg `.max(32)`. Een te lange invoer valt
+>   nu met een `too_big`-issue af vóór de regex/normalisatie draait. Test bindt de cap (rood→groen via de
+>   `too_big`-assert). Zie PROGRESS.md 2026-09-06.
+> - **GEPARKEERD — LOW: onboarding-import-uurtarief-cap (€10.000) wijkt af van de handmatige profiel-cap
+>   (€2.000)** (`onboarding/import.ts:187` vs `validation.ts:143`). Geen security-defect (eindige, sane
+>   grens, geen overflow), maar een bulk-geïmporteerd profiel kan een 5× hoger tarief dragen dan de UI ooit
+>   toelaat. Uitlijnen — mogelijk product-intentie (specialisten-import), dus eigenaars-/import-besluit.
+> - **GEPARKEERD — LOW (design-afweging, geen bug): `confirmPayment` is óók door de opdrachtgever/admin
+>   aanroepbaar** (`payment-commands.ts`, bewust — Besluit 1 houdt geld off-platform). Een CLIENT kan
+>   unilateraal `PAID` markeren en (bij de laatste open post) de samenwerking auto-afronden; ná COMPLETED is
+>   `openDispute` geblokkeerd (by design), dus de ZZP'ers verhaal loopt dan via een mens/admin-kanaal. Consistent
+>   met de gedocumenteerde Besluit 1-afweging; bij échte facturen een rest-vertrouwensrisico voor de eigenaar.
+
+> **Datum:** 2026-09-06 (persona-sweep, run 3) · **main-commit basis:** `3ba08b9b`
+> **Uitkomst:** **1 defect (MED) gevonden én gefixt; 3 items geparkeerd (LOW).** Live Playwright-sweep
+> over alle vier de rollen (login → dashboard/`/acties` + rol-schermen; privilege-escalatie; IDOR met
+> onzin-ids) + 2 parallelle adversariële Opus-audits (mutatie-authz-keten · next-action-correctheid).
+>
+> - **Live sweep — schoon:** alle vier logins OK; élke verkeerde-rol-poging op `/admin/*` en
+>   `/franchise/*` server-side geweigerd (redirect → `/dashboard`), voor ZZP'er, opdrachtgever én
+>   (kruislings) franchiser/admin; élke IDOR/onzin-id op `/samenwerkingen|/facturen|/opdrachten|
+/prestaties|/certificaten|/berichten|/franchise/*` → nette **404** of role-redirect, **nooit 500**,
+>   geen soft-404-oracle (geen 200-met-inhoud op een gegokt resource-id). De enige console-errors zijn
+>   benigne (Next 404-resource-melding op de testpagina's + de `/franchise/agenda`-ICS-download).
+> - **Mutatie-authz-audit** (`account/profiel/bedrijf/beschikbaarheid/certificaten/documenten/reacties/
+opdrachten/berichten/notificaties/favorieten/ideeen/support/academie` + minder-belopen admin): **0
+>   bereikbare gaten** — élke mutatie volgt auth→rol→ownership→Zod→actie→audit met anti-oracle "niet
+>   gevonden", compound-guarded transities en gebonde Zod. Eén niet-security-notitie
+>   **GEDAAN (2026-09-06, PR #1406)**: `account/actions.ts` `verifyIdentity` miste de rate-limiter die
+>   de credential-verify-paden wél hebben — niet exploiteerbaar (mock is prod-geblokkeerd, echte iDIN is
+>   out-of-band), maar een robuustheids-/consistentie-gat. Gefixt met `identityVerifyRateLimiter`
+>   (10/uur per actor, parity met `credentialVerifyRateLimiter`), gecheckt direct ná `requireActor()`.
+> - **Next-action-correctheid-audit** (`pending-tasks.ts`/`tasks.ts`/`next-actions.ts`/`cascade/*` +
+>   summarizers): prioriteitsbanden, hrefs, dedup, drempel-math, stale-guards en cascade-stage/
+>   completion allemaal geverifieerd sound. **1 defect (MED) → OPGELOST**, 2 items geparkeerd (LOW).
+> - **OPGELOST — MED (DOEL 1b — juiste partij "aan zet"; CLAUDE.md regel 1 server-side waarheid):
+>   de ZZP'er was blind voor een vereist certificaat dat mid-plaatsing verloopt, terwijl de
+>   opdrachtgever er wél op werd geattendeerd.** De opdrachtgever-alert `expiringDuringPlacement`
+>   (`collaboration-alerts.ts`) waarschuwt einddatum-verankerd: een vereist certificaat dat ná het
+>   30-daagse venster maar vóór de `Collaboration.endDate` verloopt. De ZZP'er-tegenhanger
+>   (`collaborationCredentialExpiryConcerns`) ankerde uitsluitend op `now + 30 dagen` en gaf géén
+>   `/acties`-taak tot het verval binnen 30 dagen viel — terwijl de ZZP'er de énige is die kan
+>   vernieuwen. Gevolg: bij een plaatsing > 30 dagen zag de opdrachtgever "verloopt vóór het einde van
+>   de opdracht" terwijl de ZZP'ers eigen actielijst leeg bleef (zelfde asymmetrie-klasse als
+>   persona-sweep run 56/57, daar voor missing/expired al gedicht). **Fix:** `CollabRequirementInput`
+>   krijgt een optionele `placementEnd`; de pure helper telt een certificaat óók als zorg wanneer het
+>   vóór díe einddatum lapt (`duringPlacementOnly: true`), en neemt alleen de plaatsingen mee waarvoor
+>   het daadwerkelijk vóór het einde verloopt. De `/acties`-enumerator selecteert nu `endDate` en geeft
+>   het door; de mid-plaatsing-taak krijgt een eigen, lagere band `credentialExpiringDuringPlacement`
+>   (71: boven generiek verlopend 70, onder contractSign 72 én de binnen-venster-variant
+>   credentialExpiringForCollab 73). **Bestanden:** `collaboration-credential-expiry.ts`(+`.test.ts`,
+>   +8 cases rood→groen), `actions/tasks.ts`(+`.test.ts`), `actions/pending-tasks.ts`, `next-actions.ts`.
+> - **GEPARKEERD — LOW: franchiser-roster-certificaat-taken vuren ongeacht een dienst-vereiste.**
+>   `franchiseCredentialExpired/ExpiryTask` heten "job-vereist" in de docstring, maar `pending-tasks.ts`
+>   filtert alleen op `tenantId`+status+niet-verplicht type (geen `credentialRequirements`-gate). Een
+>   roster-ZZP'er met een verlopen niet-verplicht certificaat dat géén dienst vereist, geeft de
+>   bemiddelaar toch een compliance-taak. Mogelijk product-intentie (roster-brede compliance), maar
+>   code en docstring spreken elkaar tegen → of de gate toevoegen, of de docstring bijstellen. Repro:
+>   roster-ZZP'er met verlopen niet-vereist beroepscertificaat → `/acties`-taak bij de franchiser.
+> - **GEDAAN (2026-09-06, PR #1405): twee verlopen certificaten van hetzelfde type gaven dubbele
+>   vernieuw-taken op twee banden.** De generieke expired-tak dedupt nu per type (meest recent verlopen
+>   exemplaar als vernieuw-kandidaat, zelfde keuze als de verplicht-document- en collab-tak) en slaat een
+>   type over dat al een collab-taak kreeg. Eén geldig VERIFIED-cert van een type dekt de hele
+>   type-compliance, dus één vernieuwing volstaat — de tweede rij was ruis. Zie oorspronkelijke notitie:
+> - **GEPARKEERD — LOW (mogelijk by-design): twee verlopen certificaten van hetzelfde vereiste type
+>   geven dubbele vernieuw-taken op twee banden.** De collab-tak kiest per type het laatst-vervallende
+>   certificaat (`credentialCollabExpiredTask`, band 82), maar de generieke expired-lus (`pending-tasks.ts`)
+>   emit per verlopen certificaat één `credentialFixTask("expired")` (band 69) zonder per-type-dedup —
+>   anders dan de verplichte-document-tak die wél per type dedupt. Bij ≥2 verlopen certificaten van één
+>   vereist type: twee taken naar twee `/certificaten/{id}/bewerken`. Elk certificaat is los vernieuwbaar
+>   (dus mogelijk bedoeld); de inconsistentie met de verplichte-tak is de reden voor de notitie.
+>
+> ---
+
+> **Datum:** 2026-09-05 (persona-sweep, run 2) · **main-commit basis:** `bcc90f27`
+> **Uitkomst:** **3 defecten gevonden én gefixt (dezelfde TOCTOU-klasse).** 3 parallelle adversariële
+> Opus-audits op niet-overlappende oppervlakken:
+>
+> - **API-routes-audit** (`src/app/api/**/route.ts`, 39 handlers): **0 bereikbare gaten** — elke
+>   resource-route `requireActor()`/`requireRole()` (live rol/status uit DB, fail-closed op suspended/
+>   stale-sessie), anti-oracle 404 op forbidden-én-not-found met denied-audit, ownership-scope op elke
+>   `[id]`-route, CSV-formule-injectie-guard uniform, cron-routes timing-safe bearer, webhooks
+>   byte-capped + idempotent + default-inert. Eén niet-defect notitie: `admin/export/invoices` is een
+>   ongebonden platform-brede dump (bewust, admin-only, rate-limited/geaudit) — houd in de gaten bij
+>   datagroei.
+> - **roster/notificaties/profiel/reacties-audit:** **0 bereikbare gaten** — claim-dienst via
+>   `@@unique([jobId, freelancerId])` + Serializable-tx-quota (TOCTOU-veilig), profiel-/notificatie-
+>   mutaties her-afgeleid uit `actor.id` met anti-oracle "niet gevonden", withdraw compound-guarded,
+>   reactielimiet atomair binnen de tx, AVG-erasure scrubt notificatie-/berichtbodies + job-PII.
+> - **admin-oppervlak-audit:** verificatie/no-show/dispuut/franchise/facturatie/shift-overname/erasure/
+>   import allemaal schoon (rol-poort + expliciete transitiemap + compound-guarded write + in-tx audit).
+>   **3 bereikbare defecten (TOCTOU / audit-integriteit)** → alle OPGELOST:
+> - **OPGELOST — should-fix (CLAUDE.md regel 2/3 — authz-keten + expliciete statusovergangen; A09
+>   audit-volledigheid): drie ADMIN-statusovergangen deden een kale `update({ where: { id } })` na een
+>   vóór-lees i.p.v. de compound-guarded `updateMany({ where: { id, status: from } })` van de rest van
+>   het platform.** (1) `admin/bewaking/actions.ts` `setStatus` (incident acknowledge/resolve — hoogste:
+>   `INCIDENT_TRANSITIONS` staat terug naar `OPEN`, dus wederzijdse overschrijving mogelijk); (2)
+>   `admin/opdrachten/actions.ts` `adminCloseJob` (dubbele `JOB_CLOSED_BY_ADMIN`-audit bij race); (3)
+>   `admin/support/actions.ts` `adminResolve` + de statusflip in `adminReply` (stale flip kon een
+>   heropend ticket uit de wachtrij zetten). **Fix:** alle drie nu compound-guarded `updateMany`
+>   bínnen een `$transaction`, audit ná geslaagde claim (`count===0` → geen audit/stale write); de
+>   `adminReply`-flip guardt op de gelezen status. +3 nieuwe testbestanden (rood→groen) + `admin-reply.test.ts`
+>   bijgewerkt. Bestanden: `admin/{bewaking,opdrachten,support}/actions.ts` + 4 tests.
+>
+> ---
+
+> **Datum:** 2026-09-05 (persona-sweep) · **main-commit basis:** `1aa49d15`
+> **Uitkomst:** **1 defect gevonden én gefixt.** Live Playwright-smoke over alle vier de rollen
+> (login → dashboard/`/acties` + rol-schermen; cross-rol verboden routes; IDOR met onzin-ids):
+> **geen 500's, geen dode schermen**; `/admin/*` en `/franchise/*` server-side geweigerd (redirect →
+> dashboard) voor de verkeerde rol; onzin-ids op `/samenwerkingen|/facturen|/opdrachten|/prestaties`
+> → nette `404` (nooit 500). 2 parallelle adversariële Opus-audits op niet-overlappende oppervlakken:
+>
+> - **franchise/tenant-isolatie-audit:** 0 bereikbare gaten (elke franchise-query scoopt op `tenantId`
+>   via `tenantScopeWhere`/`ownsViaTenant`; cross-tenant id → identieke anti-oracle "niet gevonden";
+>   `/franchise/**` drievoudig gepoort — middleware + `requireRole("FRANCHISER")` + DB-scope;
+>   tenant-provisioning is ADMIN-only; alle CSV/ICS-exports rol-gepoort + tenant-gescoopt + geaudit).
+> - **facturen/cascade/administratie-audit:** de geld-mutaties schoon (elk cascade-command
+>   auth→partij→dispuut/terminal-guard→Zod/bounds→actie→audit; élke statusovergang TOCTOU-veilig via
+>   compound `updateMany`; `computeOrt/computeVat` rejecten negatief/niet-integer; CSV-injectie-guard op
+>   alle exports; per-partij nummering server-afgeleid). **1 bereikbaar defect** → OPGELOST:
+> - **OPGELOST — should-fix (CLAUDE.md regel 1/3 — server-side waarheid + expliciete reeks; Wet OB
+>   art. 35a): de losse-factuur-actie nummerde PLATFORM-BREED i.p.v. gatenvrij per ZZP'er.**
+>   `createInvoice` (`/facturen/nieuw`, reachable UI) berekende het factuurnummer via
+>   `prisma.invoice.count({ where: { number: { startsWith: `${year}-` } } }) + 1` — een telling over
+>   álle losse facturen van álle ZZP'ers. Gevolg: (1) de wettelijk vereiste gatenvrije reeks **per
+>   uitschrijvende partij** brak zodra een ánder platform-lid een losse factuur aanmaakte (ZZP'er A:
+>   `2026-0001`, dan B: `2026-0002`, dan A weer: `2026-0003` → A's eigen reeks heeft een gat op
+>   `0002`); (2) alle ZZP'ers vochten om dezelfde `number @unique`-teller → P2002-retries (max 5) onder
+>   gelijktijdigheid, met kans op uitputting. De cascade-flow deed dit al goed via de per-partij
+>   allocator (`allocateInvoiceNumber`, `numbering.ts`: "geen platform-brede nummering"). **Fix:** de
+>   losse factuur deelt nu exact diezelfde atomaire per-partij-allocator (sleutel = de ZZP'er,
+>   `issuerKey = actor.id`), toegewezen bínnen de create-transactie; `partyInvoiceNumber` draagt het
+>   getoonde/wettelijke nummer (`2026-0007`), `number` blijft globaal uniek via de `issuerKey:`-prefix
+>   (zelfde conventie als `commands-shared.ts`). De ZZP'er botst nu alleen met zijn eigen
+>   (bijna-)gelijktijdige facturen — geen platform-brede contentie, geen gaten. Vier weergave-plekken
+>   die het nummer op de cascade-vlag poortten tonen nu voor élke factuur met een toegekend
+>   partij-nummer dat nummer (i.p.v. het ruwe globale `number`). +2 tests (rood→groen: gatenvrije
+>   per-partij-toewijzing + jaarprefix). Bestanden: `src/app/(protected)/facturen/actions.ts`
+>   (+ `.test.ts`), `.../facturen/[id]/page.tsx`, `src/components/administratie/{facturen,openstaand}-panel.tsx`,
+>   `src/app/api/administratie/openstaand/route.ts`.
+> - **Restrisico (genoteerd):** losse facturen die vóór deze fix zijn aangemaakt houden hun oude
+>   platform-brede `2026-XXXX`-nummer en hebben geen `partyInvoiceNumber`; ze vallen in de weergave terug
+>   op het globale nummer (ongewijzigd). Alleen nieuwe losse facturen lopen in de gatenvrije partij-reeks.
+>
+> ---
+
+> **Datum:** 2026-09-04 (persona-sweep) · **main-commit basis:** `e9f54f62`
+> **Uitkomst:** **1 defect gevonden én gefixt.** Live Playwright-smoke over alle vier de rollen
+> (login → dashboard/`/acties` + rol-schermen + cross-rol verboden routes): **geen 500's, geen
+> console-fouten, geen dode nav-links**; `/admin/*` en `/franchise/*` server-side geweigerd (redirect →
+> dashboard) voor de verkeerde rol; `/prestaties` voor een niet-CLIENT toont een nette "alleen voor
+> opdrachtgevers"-empty-state (geen datalek, geen redirect — correcte rol-poort). 3 parallelle
+> adversariële Opus-audits op niet-overlappende oppervlakken:
+>
+> - **messaging/reacties-authz-audit:** 0 bereikbare gaten (send/read-IDOR via participant-check +
+>   `notFound()`, withdraw/accept via `loadOwnedApplication`/ownership met anti-oracle "niet gevonden",
+>   `APPLICATION_TRANSITIONS` + compound-guarded `updateMany` tegen TOCTOU, message-body via
+>   JSX-escaping — geen `dangerouslySetInnerHTML` op user-data, Zod-grenzen server-side).
+> - **documenten/samenwerking-authz-audit:** 0 bereikbare gaten (`/api/documents/[id]` anti-oracle 404
+>   op forbidden én not-found + denied-audit, server-gegenereerde storage-keys + traversal-guard,
+>   `validateUpload`+magic-byte-sniff+malware-scan, DBA-dossier/dossier/modelovereenkomst party-only
+>   met identieke 404 — franchiser krijgt geen tenant-leespad, lifecycle-transities via
+>   `COLLABORATION_TRANSITIONS` + in-tx money/dispute-guards, contract-stap niet overslaanbaar).
+> - **cascade/next-action-audit:** de geld-paden schoon (computeOrt/computeVat rejecten
+>   negatief/niet-integer, `assertPerformanceWithinLimits` dekt overflow/absurd, lifecycle-machine
+>   verbiedt de gevaarlijke transities, dedupe-idempotent, TOCTOU dicht; next-actions per rol/aan-zet
+>   kloppen en verdwijnen bij afhandeling). **1 bereikbaar defect** → OPGELOST:
+> - **OPGELOST — should-fix (DOEL 2, CLAUDE.md regel 1 — server-side waarheid / zelf-tegensprekend
+>   document): ORT-drift op reeds goedgekeurde/gefactureerde prestaties op drie overzichten.** De
+>   factuurpagina (`/facturen/[id]`), de werkproces-pagina (`/samenwerkingen/[id]`, `<OrtBreakdown>`)
+>   en de urenstaat-PDF herberekenden het ORT-subtotaal uit de **live** `Collaboration.ortProfile/
+ortCustomRates` i.p.v. de bevroren factuur. PR #1373/#1380 fixten deze bugklasse aan de
+>   aggregaat-kant (`/prestaties`, `/diensten`) maar lieten deze drie staan. Repro: ORT-uren
+>   goedgekeurd → factuur bevriest (bv. €1200) → opdrachtgever wijzigt het ORT-profiel (toegestaan
+>   zolang geen SUBMITTED-urenstaat wacht) → de factuurpagina toonde in het "Herleidingsbewijs"
+>   een ánder subtotaal (bv. €1000) dan de factuur-totalen (€1200): één document sprak zichzelf tegen.
+>   **Fix (bron):** de cascade bevriest bij goedkeuren nu de resolved ORT-toeslagen op de prestatie
+>   (`Performance.ortRatesSnapshot`, nullable kolom + additieve migratie), net als `rateCents` het
+>   uurtarief al bevriest. Gedeelde helper `resolveEffectiveOrtRates` (snapshot wint van live; legacy
+>   zonder snapshot → live-fallback). De drie overzichten lezen uit de snapshot; per-categorie-tabel
+>   foot weer exact op het factuursubtotaal (`ortSubtotalCents === computeOrt().subtotalCents`). +4
+>   helper-cases, +2 handler-snapshot-cases. Bestanden: `prisma/schema.prisma` + migratie, `ort.ts`
+>   (+ `.test.ts`), `cascade/handlers.ts` (+ `.test.ts`), `ort-breakdown.tsx`, `facturen/[id]/page.tsx`,
+>   `samenwerkingen/[id]/page.tsx`, `performance-pdf.ts`, `prestaties/[id]/pdf/route.ts`.
+> - **Restrisico (genoteerd):** prestaties die vóór deze migratie zijn goedgekeurd hebben geen snapshot
+>   → vallen terug op de live tarieven; alleen als hun samenwerking het ORT-profiel al had gewijzigd
+>   toont zo'n oude factuur nog de (onherleidbare) drift. Nieuwe goedkeuringen driften nooit meer.
+>
+> ---
+
+> **GEDAAN (auto-build #1381, 2026-09-04):** bemiddelaar-vervalsignaal escaleert binnen de externe
+> vernieuwings-doorlooptijd. De doorlooptijd-kennis (`RENEWAL_LEAD_TIMES`) stond alleen op
+> ZZP'er-schermen; op `/franchise/zzpers` (+ CSV) gaf het per-ZZP'er vervalsignaal één milde `warning`
+> voor élk niet-verlopen venster, dus een VOG op 50 d zag er identiek uit als een diploma op 50 d —
+> terwijl alleen de VOG feitelijk al te laat is om schoon te vernieuwen (Justis tot 56 d). `summarizeExpiryAlert`
+> toetst het soonest certificaat nu tegen dezelfde `start_now`-regel → `renewalUrgent`; tone escaleert naar
+> danger en het label krijgt "· vraag nu aan". Niet meer opnieuw voorstellen. Bestanden:
+> `src/lib/franchise/credential-alerts.ts` (+ `.test.ts`).
+
+> **Datum:** 2026-09-04 (auto-build routine, #1380) · **main-commit basis:** `2492745e`
+> **Uitkomst:** **1 defect gevonden én gefixt.** Twee parallelle adversariële Opus-audits op
+> niet-overlappende kern-oppervlakken (certificaat-/verificatie-lifecycle · ORT/cascade-math +
+> reminders). De **cascade/geld-audit vond 0 bereikbare defecten** (reconcileSubtotalWithInvoice
+> correct — `baseCents` is rate-profiel-onafhankelijk en `Performance` is immutabel na APPROVED;
+> segmentatie DST/middernacht zelf-consistent; nummering gapless in-tx met `fiscalYearOf`;
+> ledger/VAT lezen bevroren bedragen; reminder-idempotentie compound-guarded. Enige nootje: LAAG —
+> discrete-dag-gelijkheid in de pre-due reminder-vensters kan bij cron-jitter >24u één nudge
+> overslaan; onder de high-value-lat, niet opgepakt).
+>
+> - **OPGELOST — should-fix (CLAUDE.md regel 1 — server-side waarheid / cross-surface tegenspraak op
+>   vertrouwen): de certificaat-statusbadge toonde een server-verlopen VERIFIED-certificaat als groene
+>   "Geverifieerd".** De hele app behandelt een `VERIFIED`-credential met gepasseerde `expiresAt` als
+>   verlopen — óók vóór de expiry-cron flipt (`isExpired`, `computeCompliance`, verval-danger-band,
+>   `/acties`). `CredentialStatusBadge` mapte echter de ruwe DB-status, dus op één en hetzelfde scherm
+>   (bemiddelaar `/franchise/zzpers/[id]`, ZZP'er `/certificaten`, admin `/admin/gebruikersbeheer/[id]`)
+>   stonden de rode "verlopen"-band én de groene "Geverifieerd"-badge voor hetzelfde certificaat. Repro:
+>   VOG `status=VERIFIED`, `expiresAt=gisteren`, cron nog niet gedraaid → badge groen, band rood.
+>   Zelfde wortel-oorzaak in het DBA-dossier-PDF: `verifiedCount`/`trustLevel` (`dba-audit.ts`) telde een
+>   server-verlopen certificaat mee als geverifieerd (route selecteerde `expiresAt` niet eens). **Fix:**
+>   `CredentialStatusBadge` accepteert `expiresAt` en loopt door dezelfde `isExpired`-regel; 3 call-sites
+>   geven `expiresAt` mee; `buildDbaAuditData` sluit server-verlopen certificaten uit; dba-dossier-route
+>   selecteert + geeft `expiresAt` mee. +6 badge-cases, +3 dba-audit-cases (rood→groen). Bestanden:
+>   `src/components/credentials/credential-status-badge.tsx` (+ `.test.tsx`), de 3 page.tsx call-sites,
+>   `src/lib/dba-audit.ts` (+ `.test.ts`), `src/app/api/samenwerkingen/[id]/dba-dossier/route.ts`.
+> - **Reeds gedekt (niet mijn wijziging):** `compliance/dossier.ts` (run 108/#1361) en de overige
+>   verval-oppervlakken gebruiken `isExpired` al correct; deze fix sluit de laatste twee ruwe-status-
+>   weergaven (badge + DBA-telling) van deze bugklasse.
+>
+> ---
+
+> **Datum:** 2026-09-04 (run 108) · **main-commit basis:** `d89942be`
+> **Uitkomst:** **1 defect gevonden én gefixt.** Orchestrator (Opus 4.8) + live Playwright-sweep
+> over alle vier de rollen (login + doorklik naar dashboard/`/acties` en de rol-schermen) + 3
+> parallelle adversariële Opus-audits op niet-overlappende oppervlakken (authz/IDOR/tenant ·
+> next-action-engine · financieel/cascade + malicieuze invoer).
+>
+> - **Live-sweep:** geen 500's, geen console-fouten, geen dode nav-links; alle cross-rol
+>   verboden routes (`/admin/*`, `/franchise/*`) worden server-side geweigerd (redirect → dashboard)
+>   voor ZZP'er/opdrachtgever/bemiddelaar. (De 404's in de eerste ruwe probe — `/agenda`,
+>   `/zzp-zoeken`, `/admin`, `/franchise` als index — waren verkeerde probe-paden, geen nav-links:
+>   de echte hrefs zijn `/financien`, `/freelancers`, `/admin/toezicht`, `/franchise/leads` enz.)
+> - **authz/IDOR/tenant-audit:** 0 bereikbare gaten (`/api/documents/[id]` anti-oracle 404,
+>   `/api/tasks/run-all` timing-safe fail-closed, bureau-zelfregistratie PENDING fail-closed,
+>   alle franchise-mutaties `tenantScopeWhere`/`ownsViaTenant`, middleware segment-matched).
+> - **next-action-engine-audit:** 0 gaten; de twee engines zijn al geconsolideerd
+>   (`franchiserNextActions` voedt alleen de guided-setup binnen de ene `pendingTasks()`-pijplijn,
+>   dashboard én `/acties` consumeren dezelfde array), rol-isolatie fail-closed op onbekende rol.
+> - **OPGELOST — KRITIEK-klasse (DOEL 2, CLAUDE.md regel 1 — server-side waarheid / ORT-drift):
+>   de ZZP'er-view `/diensten` (`getDienstenForFreelancer`) én de CSV-export herberekenden het
+>   subtotaal van élke prestatie — óók reeds goedgekeurde/gefactureerde — uit de LIVE ORT-toeslagen
+>   van de samenwerking.** PR #1373 fixte exact deze bugklasse aan de opdrachtgever-kant
+>   (`/prestaties`, `getPrestatiesForClient`) maar liet de spiegelende ZZP'er-kant ongemoeid. De
+>   toeslagen mogen ná goedkeuring nog wijzigen (`setOrtProfileAction` blokkeert alleen zolang een
+>   SUBMITTED-urenstaat wacht), terwijl het factuurbedrag bij goedkeuren bevriest
+>   (`Invoice.subtotalCents`, `performanceId @unique`). Repro: ZZP'er dient uren met ORT in →
+>   opdrachtgever keurt goed (subtotaal bevriest op bv. €1200) → opdrachtgever wijzigt daarna het
+>   ORT-profiel → ZZP'er opent `/diensten`/CSV: het bedrag dreef mee naar bv. €1000, in tegenspraak
+>   met de factuur die betaald is én met de (na #1373 correcte) `/prestaties`-view van de
+>   opdrachtgever. **Fix:** de "bevroren factuur wint"-reconciliatie losgetrokken naar één gedeelde
+>   pure helper `reconcileSubtotalWithInvoice` (`src/lib/ort-breakdown.ts`), gebruikt door zowel
+>   `prestaties.ts` als `diensten.ts` (elimineert de drievoudige duplicatie die de asymmetrie liet
+>   ontstaan). `diensten.ts` haalt nu `invoice.subtotalCents` mee. +5 rood→groen-asserties op de
+>   helper; de bestaande `/prestaties`-drift-tests routen nu door de helper en blijven groen.
+>   Bestanden: `src/lib/ort-breakdown.ts` (+ `.test.ts`), `src/lib/diensten.ts`,
+>   `src/lib/prestaties.ts`.
+>
+> ---
+
+> **Datum:** 2026-09-03 (run 107) · **main-commit basis:** `bff7ffa5`
+> **Uitkomst:** **3 defecten gevonden én gefixt.** 3 adversariële Opus-audits op niet-overlappende
+> oppervlakken (authz/IDOR/tenant op de laatste ~30 commits · next-action-engine + laatste ~15
+> signalen · financiële/cascade + malicieuze invoer op de laatste ~20 commits). De **authz/IDOR/
+> tenant-audit vond 0 bereikbare gaten** (VOG-flow met `loadOwnedCredential`+compound-guards, bureau
+> zelfregistratie met PENDING-tenant fail-closed via `tenantAccessBlocked`, `/api/documents/[id]`
+> anti-oracle 404 op forbidden én not-found, `/api/tasks/run-all` timing-safe `CRON_SECRET`
+> fail-closed 503, alle franchise-mutaties via `tenantScopeWhere`/`ownsViaTenant`, cascade-commands
+> eigenaar-gescoped, wachtwoord/2FA re-auth rate-limited met sessie-invalidatie). Drie defecten:
+>
+> - **OPGELOST — should-fix (DOEL 2, CLAUDE.md regel 1 — server-side waarheid / periode-drift):
+>   `/api/administratie/btw` gebruikte `new Date().getFullYear()` (server-UTC) i.p.v.
+>   `fiscalYearOf`.** Op de UTC-server (Railway) valt `31 dec 23:15 UTC` = `1 jan 00:15` Amsterdam;
+>   `vatYear`/`vatReturn` filteren intern op `fiscalYearOf(occurredAt) === year`, dus met UTC-jaar
+>   `year=2026` én Amsterdams `fiscalYearOf`-filter kreeg de eerste nieuwjaarsochtend een
+>   `btw-2026.csv` met (0 of) verkeerde kwartalen i.p.v. `btw-2027.csv`. Zelfde bugklasse als #1329
+>   (factuurnummering), bij die sweep gemist. **Fix:** `year = fiscalYearOf(new Date())` + audit-
+>   metadata volgt automatisch mee. +2 regressietests (NYE-UTC → `btw-2027.csv` & audit-jaar 2027;
+>   mid-jaar geen drift). Bestanden: `src/app/api/administratie/btw/route.ts` (+ `route.test.ts`).
+> - **OPGELOST — should-fix (DOEL 2, zelfde bugklasse — intern tegenstrijdig scherm):
+>   `boekhouding-panel.tsx` gebruikte `now.getFullYear()` voor omzet/BTW-totaal/jaaroverzicht,
+>   terwijl de BTW-deadline-kaart op hetzelfde paneel via `summarizeVatDeadline` al `fiscalYearOf`
+>   gebruikte.** In het ~1u NYE-UTC-venster liep het omzet/BTW-blok en de deadline-kaart uiteen op
+>   één en hetzelfde scherm (visueel merkbaar; niet alleen exportlabel). **Fix:**
+>   `year = fiscalYearOf(now)`. Bestand: `src/components/administratie/boekhouding-panel.tsx`.
+> - **OPGELOST — should-fix (DOEL 1b, CLAUDE.md regel 1 — cross-surface pariteit / één waarheid):
+>   de agenda-/`.ics`-export van de opdrachtgever bevatte alsnog BTW-aangifte-deadlines**, terwijl
+>   die taak sinds #1333 bewust uit `/acties` is verwijderd (structureel onjuist voor een meestal
+>   btw-vrijgestelde zorginstelling — een aangifte-deadline op onze deelverzameling van haar
+>   administratie is niet afvinkbaar, en de gedelegeerde accountant regelt de aangifte). De
+>   agenda-loader `loadUserAdministrativeDeadlines` riep `getVatDeadlinesForActor` onvoorwaardelijk
+>   aan met de live `role`, waardoor `/api/agenda` en de publieke `/api/agenda/feed.ics` een
+>   deadline lieten zien die de `/acties`-lijst bewust stil houdt — twee surfaces met een
+>   directe tegenspraak. **Fix:** `role === "FREELANCER" ? getVatDeadlinesForActor(...) :
+Promise.resolve([])` (zelfde scoping als `pending-tasks.ts` L863). +1 regressietest die de mock
+>   niet-aangeroepen én `result.vat = []` voor CLIENT verifieert. Bestanden:
+>   `src/lib/calendar/user-deadlines.ts` (+ `.test.ts`).
+> - **Geparkeerd — nit (DOEL 2, laag): `uitgaven-form.tsx:31` gebruikt `now.getFullYear()` als
+>   default-jaarwaarde in een client-component.** Dit is de browserklok (voor NL-gebruikers
+>   Amsterdam) — geen server-drift, dus geen bug. Alleen genoteerd zodat een volgende
+>   grep-and-replace-sweep hem niet ten onrechte als dezelfde bugklasse aanpakt.
+>
+> ---
+
 > **Datum:** 2026-09-02 (run 106) · **main-commit basis:** `59d32f48`
 > **Uitkomst:** **2 defecten gevonden én gefixt.** 3 adversariële Opus-audits op niet-overlappende
 > oppervlakken (authz/IDOR/tenant op de nieuwste ~30 commits + shift-overname/franchise/tenant ·

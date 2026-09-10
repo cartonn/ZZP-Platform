@@ -2,7 +2,7 @@ import { BrandMark } from "@/components/ui/brand-mark";
 import { type Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { AuthorizationError, currentActor, requirePasswordChangeActor } from "@/lib/authz";
 import { getPublicTrustStats } from "@/lib/public-trust";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { TrustStrip } from "@/components/marketing/trust-strip";
@@ -16,10 +16,19 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ changed?: string }>;
 }) {
-  const session = await auth();
-  if (session?.user) {
+  if (await currentActor()) {
     redirect("/dashboard");
   }
+  // A pending password change is the only authenticated exception to normal application access.
+  // Revalidate it through the password gate; a stale JWT flag must never revive a revoked session.
+  let passwordChangeRequired = false;
+  try {
+    passwordChangeRequired = !!(await requirePasswordChangeActor()).mustChangePassword;
+  } catch (error) {
+    if (!(error instanceof AuthorizationError)) throw error;
+  }
+  if (passwordChangeRequired) redirect("/account/wachtwoord");
+
   const changed = (await searchParams).changed === "1";
   const [trustStats, { t }] = await Promise.all([getPublicTrustStats(), getTranslator()]);
 
@@ -42,7 +51,7 @@ export default async function LoginPage({
         <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
           <h1 className="font-display text-xl font-semibold tracking-tight">{t("Inloggen")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t("Vind en beheer zorgopdrachten — geverifieerd, Wet-DBA-proof en zonder papierwerk.")}
+            {t("Vind zorgopdrachten en beheer je dossier, afspraken en uren op één plek.")}
           </p>
           {changed && (
             <p className="mt-3 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">

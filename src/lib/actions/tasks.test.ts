@@ -33,6 +33,7 @@ import {
   franchiseStaleDienstRollupTask,
   franchiseLeadFollowupTask,
   franchiseClientReengagementTask,
+  franchiseRosterReengagementTask,
   clientComplianceTask,
   reviewLeaveTask,
   respondInvitationTask,
@@ -670,6 +671,24 @@ describe("task builders", () => {
     expect(t.priority).toBeLessThan(P.franchiserCollaborationRenewal);
   });
 
+  it("bemiddelaar: stilgevallen bench-ZZP'er is een link-taak naar het ZZP'er-dossier", () => {
+    const t = franchiseRosterReengagementTask("p-9", "Sanne de Vries", 72);
+    expect(t).toMatchObject({
+      kind: "franchise-roster-reengagement",
+      id: "franchise-roster-reengagement:p-9",
+      profileId: "p-9",
+      resolver: "link",
+      href: "/franchise/zzpers/p-9",
+      tone: "attention",
+    });
+    expect(t.priority).toBe(P.franchiserRosterReengagement);
+    expect(t.title).toContain("Sanne de Vries");
+    expect(t.subtitle).toContain("72");
+    // Warmer dan koude lead-acquisitie, maar onder de klant-re-engagement (een hele vraag-relatie).
+    expect(t.priority).toBeGreaterThan(franchiseLeadFollowupTask(1).priority);
+    expect(t.priority).toBeLessThan(P.franchiserClientReengagement);
+  });
+
   it("bemiddelaar: acute-onbezet is een aggregaat link-taak naar /franchise/diensten", () => {
     const mixed = franchiseAcuteDienstTask({ total: 3, fillableNow: 2, needsRecruiting: 1 });
     expect(mixed).toMatchObject({
@@ -733,7 +752,7 @@ describe("vatDeadlineTask", () => {
       kind: "vat-deadline",
       id: "vat-deadline:2026-Q2",
       resolver: "link",
-      href: "/administratie",
+      href: "/financien?tab=boekhouding",
       tone: "attention",
       priority: P.vatDeadlineDueSoon,
       year: 2026,
@@ -1018,6 +1037,22 @@ describe("credentialCollabExpiryTask", () => {
   it("toont het aantal extra samenwerkingen", () => {
     const t = credentialCollabExpiryTask({ ...base, daysUntilExpiry: 7, extraCollabCount: 2 });
     expect(t.subtitle).toContain("(+2 andere)");
+  });
+
+  it("een mid-plaatsing-verval (buiten venster) krijgt een lagere band dan een binnen-venster-verval", () => {
+    const during = credentialCollabExpiryTask({
+      ...base,
+      daysUntilExpiry: 60,
+      duringPlacementOnly: true,
+    });
+    expect(during.priority).toBe(P.credentialExpiringDuringPlacement);
+    // Plaatsing-gebonden, dus boven een generiek verlopend certificaat, maar onder de binnen-venster-
+    // variant én onder een contract-ter-ondertekening (minder imminent dan beide).
+    expect(during.priority).toBeGreaterThan(P.credentialExpiring);
+    expect(during.priority).toBeLessThan(P.credentialExpiringForCollab);
+    expect(during.priority).toBeLessThan(P.contractSign);
+    // De verwoording is identiek — het venster-onderscheid is puur urgentie, geen boodschap.
+    expect(during.title).toBe("VOG verloopt tijdens je opdracht");
   });
 });
 

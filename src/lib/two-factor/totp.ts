@@ -3,7 +3,8 @@
 // Puur op Node's `crypto`, geen externe dependency. Server-side waarheid: de verificatie draait
 // uitsluitend op de server (`authorizeCredentials`), nooit client-side.
 
-import { createHmac, randomBytes, timingSafeEqual } from "crypto";
+import { createHmac, randomBytes } from "crypto";
+import { constantTimeEqual } from "@/lib/security/constant-time-equal";
 import { base32Decode, base32Encode } from "./base32";
 
 export const TOTP_DIGITS = 6;
@@ -66,13 +67,11 @@ export function verifyTotpStep(
 
   const window = opts.window ?? 1;
   const center = counterForTime(opts.now ?? new Date());
-  const provided = Buffer.from(cleaned);
 
   for (let drift = -window; drift <= window; drift += 1) {
     const step = center + drift;
-    const candidate = Buffer.from(hotp(secretBase32, step));
-    // Lengtes zijn altijd gelijk (beide TOTP_DIGITS), dus timingSafeEqual is veilig te gebruiken.
-    if (candidate.length === provided.length && timingSafeEqual(candidate, provided)) {
+    // Constant-time vergelijking (gedeelde primitive); voorkomt een timing-oracle op de geldige code.
+    if (constantTimeEqual(hotp(secretBase32, step), cleaned)) {
       return step;
     }
   }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { buildHealthPayload, healthHttpStatus } from "@/lib/observability/health";
 import { reportError } from "@/lib/observability/report";
 import { withProbeTimeout, resolveProbeTimeoutMs } from "@/lib/observability/probe-timeout";
+import { coalesceProbe } from "@/lib/observability/probe-coalesce";
 
 // Liveness-probe mag NOOIT gecachet worden: hij moet de actuele staat reflecteren (los van de
 // statische build-optimalisatie van Next.js). Zelfde afspraak als /api/readiness.
@@ -18,10 +19,14 @@ export async function GET() {
   try {
     // Harde deadline om de DB-ping: een hangende (niet foutende) DB mag de liveness-probe niet
     // oneindig laten hangen. Een verlopen ping telt als "degraded" (db:false), nooit als vals groen.
+    // Single-flight om de DB-ping: dit publieke, ongeauthenticeerde endpoint mag bij een burst niet
+    // N gelijktijdige checkouts uit de begrensde Prisma-pool trekken (zie probe-coalesce.ts).
     const timeoutMs = resolveProbeTimeoutMs(process.env.HEALTH_PROBE_TIMEOUT_MS);
-    await withProbeTimeout("health-db", timeoutMs, async () => {
-      await prisma.$queryRaw`SELECT 1`;
-    });
+    await coalesceProbe("health-db", () =>
+      withProbeTimeout("health-db", timeoutMs, async () => {
+        await prisma.$queryRaw`SELECT 1`;
+      }),
+    );
   } catch (error) {
     db = false;
     // De DB-storing zichtbaar maken in de monitoring (Sentry-ready via de reporter); slikt zelf alles.

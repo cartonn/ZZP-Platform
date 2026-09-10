@@ -40,7 +40,7 @@ export async function generateBillingAction(): Promise<void> {
       totalCents: result.totalCents,
     },
   });
-  revalidatePath("/admin/facturatie");
+  revalidatePath("/admin/financien");
   // Zichtbare terugkoppeling: hoeveel facturen er zijn aangemaakt (of 0).
   const made = result.tenantInvoices + result.membershipInvoices;
   redirect(`/admin/facturatie?gegenereerd=${made}`);
@@ -111,7 +111,7 @@ export async function setBillingStatusAction(id: string, to: PlatformBillingStat
         releasedCharges: released.charges,
       },
     });
-    revalidatePath("/admin/facturatie");
+    revalidatePath("/admin/financien");
     return;
   }
 
@@ -134,5 +134,5 @@ export async function setBillingStatusAction(id: string, to: PlatformBillingStat
     entityId: invoiceId,
     metadata: { to: nextStatus },
   });
-  revalidatePath("/admin/facturatie");
+  revalidatePath("/admin/financien");
 }

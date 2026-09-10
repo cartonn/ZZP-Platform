@@ -3,7 +3,7 @@
 import { AuthError } from "next-auth";
 import bcrypt from "bcryptjs";
 import { signIn } from "@/auth";
-import { audit } from "@/lib/audit";
+import { audit, auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { requestMeta } from "@/lib/request-meta";
 import { registerRateLimiter } from "@/lib/rate-limit";
@@ -74,26 +74,38 @@ export async function register(_prev: RegisterState, formData: FormData): Promis
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({
-    data: {
-      name,
-      email,
-      passwordHash,
-      role,
-      status: "ACTIVE",
-      ...(role === "FREELANCER"
-        ? { freelancerProfile: { create: {} } }
-        : { company: { create: { name: companyName! } } }),
-    },
-  });
-
-  await audit({
-    actorId: user.id,
-    action: "USER_REGISTERED",
-    entityType: "User",
-    entityId: user.id,
-    metadata: { role },
-  });
+  // Account, role profile and audit must commit together. The unique index arbitrates
+  // concurrent submissions; a losing request must never sign in to the winning account.
+  try {
+    await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name,
+          email,
+          passwordHash,
+          role,
+          status: "ACTIVE",
+          ...(role === "FREELANCER"
+            ? { freelancerProfile: { create: {} } }
+            : { company: { create: { name: companyName! } } }),
+        },
+      });
+      await tx.auditLog.create({
+        data: auditData({
+          actorId: user.id,
+          action: "USER_REGISTERED",
+          entityType: "User",
+          entityId: user.id,
+          metadata: { role },
+        }),
+      });
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return { fieldErrors: { email: "Er bestaat al een account met dit e-mailadres." } };
+    }
+    throw error;
+  }
 
   try {
     await signIn("credentials", { email, password, redirectTo: "/dashboard" });
@@ -150,6 +162,13 @@ async function registerBureau(formData: FormData): Promise<RegisterState> {
     return { fieldErrors: { password: BREACHED_PASSWORD_MESSAGE } };
   }
 
+  // Hash het wachtwoord ONVOORWAARDELIJK vóór de existentie-check. De bcrypt-kosten (cost 10, ~60ms)
+  // zijn de grootste vaste rekenstap; draaien we die alleen op het nieuw-pad, dan verraadt de
+  // responstijd of dit e-mailadres/KvK-nummer al bestaat — een timing-enumeratie-orakel
+  // (CWE-208 / OWASP A07) dat exact het "geen enumeratie"-ontwerp van deze flow ondermijnt. Door de
+  // hash op beide paden te betalen dragen bestaand- en nieuw-pad dezelfde vaste kosten.
+  const passwordHash = await bcrypt.hash(password, 10);
+
   // Bestaat het e-mailadres of KvK-nummer al? Dan stil stoppen met dezelfde bevestiging — één
   // aanmelding per bureau, en geen signaal of dit account/bureau al bekend is.
   const [existingUser, existingTenant] = await Promise.all([
@@ -158,7 +177,6 @@ async function registerBureau(formData: FormData): Promise<RegisterState> {
   ]);
   if (existingUser || existingTenant) return { success: BUREAU_SUBMITTED };
 
-  const passwordHash = await bcrypt.hash(password, 10);
   const meta = await requestMeta();
   try {
     await createTenantWithOwner({

@@ -9,14 +9,35 @@ import {
   expiryRemaining,
 } from "@/lib/credential-expiry-overview-view";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
+import { CREDENTIAL_EXPIRY_ALARM_DAYS, formatDayLeadTimes } from "@/lib/calendar/deadlines";
+import { AgendaSubscribe } from "@/components/agenda/agenda-subscribe";
 import { plural } from "@/lib/plural";
+
+// Copy voor de "zet in je agenda"-affordance op de vervalkalender. De onderliggende feed levert de
+// herinneringen op de gedeelde doorlooptijden (CREDENTIAL_EXPIRY_ALARM_DAYS), zodat de belofte hier
+// en het alarm in de .ics niet uit elkaar lopen.
+const AGENDA_DESCRIPTION =
+  `Zet je certificaat-deadlines in Google of Apple Agenda. Je krijgt automatisch een herinnering ` +
+  `${formatDayLeadTimes(CREDENTIAL_EXPIRY_ALARM_DAYS)} voordat een certificaat verloopt — zo mis je ` +
+  `geen vernieuwing.`;
+const AGENDA_PRIVACY_NOTE = "Houd deze link privé — wie hem heeft, kan je agenda inzien.";
 
 /**
  * Vervalkalender: een rustige momentopname van wat er aan certificaten vernieuwd moet worden.
  * Verbergt zichzelf zodra er niets binnen de horizon verloopt — geen lege ruis op de pagina.
  * De presentatielogica (chips, labels, lijst-limiet) leeft in credential-expiry-overview-view.ts.
+ *
+ * `feedPath` (optioneel): als de agenda-feed aanstaat, toont de kaart een "abonneer op je agenda"-
+ * affordance zodat de ZZP'er deze verval-deadlines in zijn eigen agenda-app krijgt — precies waar hij
+ * de urgentie voelt. Weglaten (of `null`) → geen affordance, alleen de kalender.
  */
-export function ExpiryOverviewCard({ overview }: { overview: ExpiryOverview }) {
+export function ExpiryOverviewCard({
+  overview,
+  feedPath,
+}: {
+  overview: ExpiryOverview;
+  feedPath?: string | null;
+}) {
   if (expiryCardHidden(overview)) return null;
 
   const chips = expiryChips(overview);
@@ -28,11 +49,21 @@ export function ExpiryOverviewCard({ overview }: { overview: ExpiryOverview }) {
       className="rounded-lg border border-border bg-card p-5"
       data-testid="expiry-overview-card"
     >
-      <div className="flex items-center gap-2">
-        <CalendarClock className="size-4 shrink-0 text-warning" aria-hidden />
-        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Vervalkalender
-        </h2>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <CalendarClock className="size-4 shrink-0 text-warning" aria-hidden />
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Vervalkalender
+          </h2>
+        </div>
+        {feedPath !== undefined && (
+          <AgendaSubscribe
+            feedPath={feedPath}
+            description={AGENDA_DESCRIPTION}
+            privacyNote={AGENDA_PRIVACY_NOTE}
+            downloadName="certificaat-agenda.ics"
+          />
+        )}
       </div>
 
       <p className="mt-3 text-sm text-foreground">

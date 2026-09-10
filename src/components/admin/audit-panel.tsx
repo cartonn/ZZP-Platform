@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ScrollText } from "lucide-react";
+import { Download, ScrollText } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ciContains } from "@/lib/db/text-search";
-import { AUDIT_PAGE_SIZE, type AuditFilters } from "@/lib/admin";
+import { AUDIT_PAGE_SIZE, auditExportHref, type AuditFilters } from "@/lib/admin";
+import { AUDIT_EXPORT_CAP } from "@/lib/audit-export";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -12,17 +13,6 @@ import { formatDateTimeNl } from "@/lib/format-date";
 import { formatAuditMetadata } from "@/lib/audit-metadata";
 import { auditActionLabel, auditEntityLabel } from "@/lib/audit-labels";
 import { withParams } from "@/components/admin/base-path";
-
-/**
- * Telt het totaal aantal audit-gebeurtenissen voor de gegeven filters — voor de subtitel van de
- * route/hub ("N gebeurtenis(sen)"). Lees-only count, geen lijst.
- */
-export async function countAuditEntries(filters: AuditFilters): Promise<number> {
-  const where: Prisma.AuditLogWhereInput = {};
-  if (filters.action) where.action = ciContains(filters.action);
-  if (filters.entityType) where.entityType = ciContains(filters.entityType);
-  return prisma.auditLog.count({ where });
-}
 
 /**
  * Audit-log-paneel: alleen-lezen, gepagineerd en filterbaar op actie/entiteit. Filters + pagina
@@ -71,6 +61,28 @@ export async function AuditPanel({
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">{total} gebeurtenis(sen). Alleen-lezen.</p>
+        {total > 0 && (
+          <div className="flex flex-col items-end gap-1">
+            <Button asChild variant="secondary" size="sm">
+              <Link href={auditExportHref(filters)} prefetch={false}>
+                <Download className="size-4" aria-hidden />
+                Exporteer (CSV)
+              </Link>
+            </Button>
+            {/* Eerlijke vooraf-waarschuwing: boven de cap wordt de export getrunceerd. De admin weet
+                dit vóór het downloaden en kan het filter verfijnen voor een volledig register. */}
+            {total > AUDIT_EXPORT_CAP && (
+              <p className="text-xs text-warning">
+                Export bevat de {AUDIT_EXPORT_CAP.toLocaleString("nl-NL")} meest recente; verfijn
+                het filter voor de rest.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
       <form
         method="get"
         action={formAction}

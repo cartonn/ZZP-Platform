@@ -79,11 +79,20 @@ export interface SegmentShiftOptions {
 }
 
 /**
- * Splitst een dienst [start, end) in ORT-segmenten (uren per categorie). Loopt de dienst in
- * stappen van `stepMinutes` door en telt per categorie op; uren worden op 2 decimalen afgerond.
- * Werpt bij ongeldige invoer (eind ≤ start). Een dienst mag middernacht passeren.
+ * Telt de gewerkte minuten van één dienst [start, end) per ORT-categorie op in `minutesByCat`
+ * (RUW, ONafgerond). Werpt bij ongeldige invoer (eind ≤ start of een absurde duur). Gedeeld door
+ * `segmentShift` en `segmentShifts` zodat de afronding op 2 decimalen precies één keer gebeurt —
+ * aan het eind, ná het optellen over álle diensten. Ronden per dienst en dan de reeds-afgeronde
+ * uren optellen (`round(Σ round(minᵢ/60))`) buigt bij een meerdaagse urenstaat het factuursubtotaal:
+ * de afrondingsbias van elke dienst accumuleert dezelfde kant op. Door hier ruwe minuten te
+ * aggregeren en pas in `segmentsFromMinutes` te ronden, rekent de aggregatie `round(Σ minᵢ/60)`.
  */
-export function segmentShift(start: Date, end: Date, opts: SegmentShiftOptions = {}): OrtSegment[] {
+function accumulateShiftMinutes(
+  start: Date,
+  end: Date,
+  opts: SegmentShiftOptions,
+  minutesByCat: Map<OrtSegmentCategory, number>,
+): void {
   if (
     !(start instanceof Date) ||
     !(end instanceof Date) ||
@@ -106,14 +115,35 @@ export function segmentShift(start: Date, end: Date, opts: SegmentShiftOptions =
   const step = opts.stepMinutes && opts.stepMinutes > 0 ? opts.stepMinutes : 15;
   const stepMs = step * 60_000;
 
-  const minutesByCat = new Map<OrtSegmentCategory, number>();
-  for (let t = start.getTime(); t < end.getTime(); t += stepMs) {
-    const sliceMs = Math.min(stepMs, end.getTime() - t);
-    const cat = classify(new Date(t), rates, holidays);
-    minutesByCat.set(cat, (minutesByCat.get(cat) ?? 0) + sliceMs / 60_000);
+  // Elke slice krijgt de categorie van zijn START-instant. ORT-categorieën wisselen uitsluitend op
+  // hele-uur-grenzen (18:00/22:00/06:00 én middernacht voor weekdag-/feestdagwissels), dus klemmen we
+  // elke slice op de eerstvolgende hele-uur-grens: valt er een grens binnen een stap, dan wordt de
+  // slice daar afgekapt zodat de minuten aan de overkant niet op het verkeerde toeslagtarief belanden.
+  // Zonder deze klem worden bij niet-uitgelijnde diensttijden (bv. 21:50–22:20) hele stap-minuten
+  // aan de verkeerde kant van de grens geboekt → verkeerde ORT-toeslag voor de zorgverlener.
+  const endMs = end.getTime();
+  for (let t = start.getTime(); t < endMs; ) {
+    const d = new Date(t);
+    const nextHourMs = new Date(
+      d.getFullYear(),
+      d.getMonth(),
+      d.getDate(),
+      d.getHours() + 1,
+    ).getTime();
+    // nextHourMs ligt altijd strikt ná t (t valt binnen het lopende uur), dus de lus vordert altijd.
+    const sliceEnd = Math.min(t + stepMs, nextHourMs, endMs);
+    const cat = classify(d, rates, holidays);
+    minutesByCat.set(cat, (minutesByCat.get(cat) ?? 0) + (sliceEnd - t) / 60_000);
+    t = sliceEnd;
   }
+}
 
-  // Vaste volgorde: NORMAL eerst, daarna de toeslagcategorieën in configvolgorde.
+/**
+ * Bouwt de segmentenlijst uit een ruwe minuten-per-categorie-map: vaste volgorde (NORMAL eerst,
+ * daarna de toeslagcategorieën in configvolgorde) en precies één afronding op 2 decimalen per
+ * categorie. Alleen categorieën met > 0 minuten verschijnen.
+ */
+function segmentsFromMinutes(minutesByCat: Map<OrtSegmentCategory, number>): OrtSegment[] {
   const order: OrtSegmentCategory[] = ["NORMAL", ...ORT_CATEGORIES];
   const segments: OrtSegment[] = [];
   for (const cat of order) {
@@ -125,6 +155,17 @@ export function segmentShift(start: Date, end: Date, opts: SegmentShiftOptions =
   return segments;
 }
 
+/**
+ * Splitst een dienst [start, end) in ORT-segmenten (uren per categorie). Loopt de dienst in
+ * stappen van `stepMinutes` door en telt per categorie op; uren worden op 2 decimalen afgerond.
+ * Werpt bij ongeldige invoer (eind ≤ start). Een dienst mag middernacht passeren.
+ */
+export function segmentShift(start: Date, end: Date, opts: SegmentShiftOptions = {}): OrtSegment[] {
+  const minutesByCat = new Map<OrtSegmentCategory, number>();
+  accumulateShiftMinutes(start, end, opts, minutesByCat);
+  return segmentsFromMinutes(minutesByCat);
+}
+
 /** Eén gewerkte dienst (begin/eind). */
 export interface Shift {
   start: Date;
@@ -133,26 +174,19 @@ export interface Shift {
 
 /**
  * Aggregeert meerdere diensten (bv. een week- of maand-urenstaat) tot één set ORT-segmenten.
- * Elke dienst wordt apart gesegmenteerd; gelijke categorieën worden opgeteld. Zo levert een
- * periode met veel diensten één factuur op met de juiste toeslagen — geen handmatige optelling.
+ * De ruwe minuten van elke dienst worden per categorie opgeteld en pas daarna één keer op 2
+ * decimalen afgerond — zo levert een periode met veel diensten één factuur op met het juiste
+ * subtotaal, zonder dat per-dienst-afrondingsbias accumuleert (zie `accumulateShiftMinutes`).
  */
 export function segmentShifts(
   shifts: readonly Shift[],
   opts: SegmentShiftOptions = {},
 ): OrtSegment[] {
-  const hoursByCat = new Map<OrtSegmentCategory, number>();
+  const minutesByCat = new Map<OrtSegmentCategory, number>();
   for (const s of shifts) {
-    for (const seg of segmentShift(s.start, s.end, opts)) {
-      hoursByCat.set(seg.category, (hoursByCat.get(seg.category) ?? 0) + seg.hours);
-    }
+    accumulateShiftMinutes(s.start, s.end, opts, minutesByCat);
   }
-  const order: OrtSegmentCategory[] = ["NORMAL", ...ORT_CATEGORIES];
-  const segments: OrtSegment[] = [];
-  for (const cat of order) {
-    const hours = hoursByCat.get(cat);
-    if (hours && hours > 0) segments.push({ category: cat, hours: Math.round(hours * 100) / 100 });
-  }
-  return segments;
+  return segmentsFromMinutes(minutesByCat);
 }
 
 /**

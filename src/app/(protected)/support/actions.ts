@@ -6,6 +6,7 @@ import { z } from "zod";
 import { AuthorizationError, requireActor } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { supportTicketRateLimiter } from "@/lib/rate-limit";
 import { classifyTicket, triageDecision } from "@/lib/support/triage";
 import { knowledgeAnswer } from "@/lib/support/knowledge-base";
 import { assertSupportTransition } from "@/lib/support/state";
@@ -56,6 +57,12 @@ export async function createTicket(_prev: TicketState, formData: FormData): Prom
   } catch (e) {
     if (e instanceof AuthorizationError) return { error: e.message };
     throw e;
+  }
+
+  // Spam-/flood-rem per gebruiker vóór de triage-scan + de write (parity met de andere
+  // UGC-mutatie-remmen; defense-in-depth naast de auth-/Zod-poort — CWE-770).
+  if (!(await supportTicketRateLimiter.check(actor.id)).allowed) {
+    return { error: "Te veel support-verzoeken kort achter elkaar. Probeer het later opnieuw." };
   }
 
   const parsed = ticketSchema.safeParse({
@@ -141,6 +148,13 @@ const replySchema = z.object({
 
 export async function replyToTicket(ticketId: string, formData: FormData): Promise<void> {
   const actor = await requireActor();
+
+  // Spam-/flood-rem per gebruiker vóór de ownership-lookup + de write (parity met de andere
+  // UGC-mutatie-remmen; defense-in-depth naast de auth-/ownership-poort — CWE-770).
+  if (!(await supportTicketRateLimiter.check(actor.id)).allowed) {
+    throw new Error("Te veel support-verzoeken kort achter elkaar. Probeer het later opnieuw.");
+  }
+
   const ticket = await loadOwnedTicket(ticketId, actor.id, "reply");
 
   const parsed = replySchema.safeParse({ body: formData.get("body") });
@@ -153,13 +167,33 @@ export async function replyToTicket(ticketId: string, formData: FormData): Promi
   // Een reactie op een opgelost OF zelf-beantwoord ticket heropent het, zodat het in de
   // helpdesk-wachtrij komt — AUTO_ANSWERED staat daar anders niet in en het vervolgbericht
   // zou stil verdwijnen.
-  if (ticket.status === "RESOLVED" || ticket.status === "AUTO_ANSWERED") {
-    assertSupportTransition(ticket.status as SupportTicketStatus, "REOPENED");
-    await prisma.supportTicket.update({ where: { id: ticketId }, data: { status: "REOPENED" } });
-  } else if (ticket.status === "AWAITING_USER") {
+  //
+  // Compound-guard `status: from` (TOCTOU-dicht, spiegelt admin/support/actions.ts): de
+  // statusovergang wordt getoetst tegen `ticket.status` uit de vóór-lees, maar tussen die lees
+  // en deze write kan een ADMIN het ticket al hebben verplaatst (adminResolve → RESOLVED,
+  // adminReply → AWAITING_USER). Een kale `update({ where: { id } })` zou die live status blind
+  // overschrijven en zo een overgang forceren die de transitie-map verbiedt wanneer ze tegen de
+  // échte huidige status wordt getoetst (bv. RESOLVED→ESCALATED — niet in SUPPORT_TICKET_TRANSITIONS).
+  // `updateMany` met de statusguard laat de flip alleen toe zolang de status écht nog `from` is;
+  // won een gelijktijdige transitie, dan matcht niets (count 0) en blijft die winnende status staan
+  // (CLAUDE.md regel 3 — geen overgang buiten de expliciete map).
+  const from = ticket.status as SupportTicketStatus;
+  let transition: { from: SupportTicketStatus; to: SupportTicketStatus } | null = null;
+  if (from === "RESOLVED" || from === "AUTO_ANSWERED") {
+    assertSupportTransition(from, "REOPENED");
+    const res = await prisma.supportTicket.updateMany({
+      where: { id: ticketId, status: from },
+      data: { status: "REOPENED" },
+    });
+    if (res.count > 0) transition = { from, to: "REOPENED" };
+  } else if (from === "AWAITING_USER") {
     // De helpdesk wachtte op de aanvrager; diens reactie zet het ticket terug in de wachtrij.
-    assertSupportTransition(ticket.status as SupportTicketStatus, "ESCALATED");
-    await prisma.supportTicket.update({ where: { id: ticketId }, data: { status: "ESCALATED" } });
+    assertSupportTransition(from, "ESCALATED");
+    const res = await prisma.supportTicket.updateMany({
+      where: { id: ticketId, status: from },
+      data: { status: "ESCALATED" },
+    });
+    if (res.count > 0) transition = { from, to: "ESCALATED" };
   }
 
   await audit({
@@ -167,6 +201,9 @@ export async function replyToTicket(ticketId: string, formData: FormData): Promi
     action: "SUPPORT_TICKET_REPLY",
     entityType: "SupportTicket",
     entityId: ticketId,
+    // Leg de statusovergang vast (CLAUDE.md regel 5) zodat een heropening/escalatie ná de reactie
+    // forensisch te volgen is; `null` wanneer de reactie de status niet (meer) wijzigde.
+    metadata: transition ? { from: transition.from, to: transition.to } : undefined,
   });
   revalidatePath(`/support/${ticketId}`);
 }
@@ -175,16 +212,25 @@ export async function markResolved(ticketId: string): Promise<void> {
   const actor = await requireActor();
   const ticket = await loadOwnedTicket(ticketId, actor.id, "resolve");
 
-  assertSupportTransition(ticket.status as SupportTicketStatus, "RESOLVED");
-  await prisma.supportTicket.update({
-    where: { id: ticketId },
+  const from = ticket.status as SupportTicketStatus;
+  assertSupportTransition(from, "RESOLVED");
+  // Compound-guard `status: from` (TOCTOU-dicht, spiegelt admin/support/actions.ts adminResolve):
+  // reageert de aanvrager elders gelijktijdig (replyToTicket → REOPENED/ESCALATED) of rondt een
+  // ADMIN het ticket af, dan mag deze stale markResolved die live status niet blind overschrijven.
+  // Alleen wanneer de status écht nog `from` is telt de resolve; anders (count 0) geen write én geen
+  // audit-fantoomregel (CLAUDE.md regel 3 + 5).
+  const res = await prisma.supportTicket.updateMany({
+    where: { id: ticketId, status: from },
     data: { status: "RESOLVED", resolvedAt: new Date() },
   });
-  await audit({
-    actorId: actor.id,
-    action: "SUPPORT_TICKET_RESOLVED",
-    entityType: "SupportTicket",
-    entityId: ticketId,
-  });
+  if (res.count > 0) {
+    await audit({
+      actorId: actor.id,
+      action: "SUPPORT_TICKET_RESOLVED",
+      entityType: "SupportTicket",
+      entityId: ticketId,
+      metadata: { from, to: "RESOLVED" },
+    });
+  }
   revalidatePath(`/support/${ticketId}`);
 }

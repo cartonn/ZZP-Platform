@@ -18,8 +18,12 @@ test.describe("QA: Platform-bewaking", () => {
   test("admin ziet het bewakingsscherm; lege staat is rustig", async ({ page }) => {
     await login(page, "admin@zzp-platform.local");
     await page.waitForURL("**/dashboard");
+    // /admin/bewaking leidt permanent om naar de Platform-bewaking-tab van de Toezicht-hub.
     await page.goto("/admin/bewaking");
-    await expect(page.getByRole("heading", { name: "Platform-bewaking" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Platform-bewaking" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     await shot(page, "bewaking-overzicht");
   });
 
@@ -28,8 +32,9 @@ test.describe("QA: Platform-bewaking", () => {
     await page.waitForURL("**/dashboard");
     await page.goto("/admin/bewaking");
     await page.waitForLoadState("networkidle");
-    // De freelancer ziet het bewakingsscherm niet (middleware/role-guard stuurt weg).
-    await expect(page.getByRole("heading", { name: "Platform-bewaking" })).toHaveCount(0);
+    // De freelancer ziet de Toezicht-hub niet (middleware/role-guard stuurt weg).
+    await expect(page.getByRole("heading", { name: "Platform-overzicht" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Platform-bewaking" })).toHaveCount(0);
   });
 
   test("brute-force-burst → incident gedetecteerd en zichtbaar voor admin", async ({

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  collaborationFrozenRowBadge,
   franchiseCollabAttention,
   franchiseCollabHeadline,
   renewalRowBadge,
@@ -43,6 +44,22 @@ describe("summarizeFranchiseCollaborations", () => {
     expect(s.stalledProposals).toBe(0); // vers voorstel (createdAt = NOW)
     expect(s.endingSoon).toBe(1);
     expect(s.overdue).toBe(1);
+    expect(s.disputed).toBe(0);
+  });
+
+  it("telt bevroren (open dispuut) inzet los, over ACTIVE én PROPOSED, en negeert terminale statussen", () => {
+    const rows: FranchiseCollabInput[] = [
+      collab({ status: "ACTIVE", endDate: daysFromNow(5), disputedAt: NOW }), // bevroren actief
+      collab({ status: "PROPOSED", createdAt: daysFromNow(-9), disputedAt: NOW }), // bevroren voorstel
+      collab({ status: "ACTIVE", endDate: daysFromNow(5) }), // geen dispuut
+      collab({ status: "COMPLETED", disputedAt: NOW }), // terminaal → telt niet
+      collab({ status: "CANCELLED", disputedAt: NOW }), // terminaal → telt niet
+    ];
+    const s = summarizeFranchiseCollaborations(rows, NOW);
+    expect(s.disputed).toBe(2);
+    // Een bevroren inzet vraagt geen vervolg-/voorstel-aandacht (die signalen zijn onderdrukt).
+    expect(s.endingSoon).toBe(1); // alleen de niet-bevroren ACTIVE
+    expect(s.stalledProposals).toBe(0); // het stilstaande voorstel is bevroren
   });
 
   it("telt een PROPOSED dat te lang op ondertekening wacht als stilstaand", () => {
@@ -81,6 +98,7 @@ describe("summarizeFranchiseCollaborations", () => {
       stalledProposals: 0,
       endingSoon: 0,
       overdue: 0,
+      disputed: 0,
     });
   });
 
@@ -157,6 +175,50 @@ describe("franchiseCollabHeadline", () => {
     const headline = franchiseCollabHeadline(s);
     expect(headline).toContain("1 loopt binnenkort af");
     expect(headline).toContain("2 voorstellen wachten");
+  });
+
+  it("noemt een bevroren dispuut eerst en met enkelvoud", () => {
+    const s = summarizeFranchiseCollaborations(
+      [collab({ status: "ACTIVE", endDate: daysFromNow(5), disputedAt: NOW })],
+      NOW,
+    );
+    const headline = franchiseCollabHeadline(s);
+    expect(headline).toContain("1 plaatsing is bevroren door een open dispuut");
+    expect(headline).toContain("werkproces staat stil");
+  });
+
+  it("plaatst het dispuut-signaal vóór het vervolgsignaal en gebruikt meervoud", () => {
+    const s = summarizeFranchiseCollaborations(
+      [
+        collab({ status: "ACTIVE", endDate: daysFromNow(5), disputedAt: NOW }),
+        collab({ status: "PROPOSED", createdAt: daysFromNow(-9), disputedAt: NOW }),
+        collab({ status: "ACTIVE", endDate: daysFromNow(-2) }), // overdue
+      ],
+      NOW,
+    );
+    const headline = franchiseCollabHeadline(s) ?? "";
+    expect(headline).toContain("2 plaatsingen zijn bevroren");
+    // Het dispuut-signaal staat vóór de vervolg-tak.
+    expect(headline.indexOf("bevroren")).toBeLessThan(headline.indexOf("voorbij de einddatum"));
+  });
+});
+
+describe("collaborationFrozenRowBadge", () => {
+  it("markeert een lopende inzet met een open dispuut", () => {
+    expect(collaborationFrozenRowBadge(NOW, "ACTIVE")).toEqual({
+      label: "Bevroren · dispuut",
+      tone: "danger",
+    });
+    expect(collaborationFrozenRowBadge(NOW, "PROPOSED")).toEqual({
+      label: "Bevroren · dispuut",
+      tone: "danger",
+    });
+  });
+
+  it("toont niets zonder open dispuut of bij een terminale status", () => {
+    expect(collaborationFrozenRowBadge(null, "ACTIVE")).toBeNull();
+    expect(collaborationFrozenRowBadge(NOW, "COMPLETED")).toBeNull();
+    expect(collaborationFrozenRowBadge(NOW, "CANCELLED")).toBeNull();
   });
 });
 

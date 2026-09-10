@@ -73,17 +73,8 @@ function anonymizeUserSource(): string {
 const ALLOWLIST: Record<string, string> = {
   // [INFRA]
   BackupHeartbeat: "[INFRA] aflever-heartbeat: enkel tijdstippen/teller/driver, geen PII.",
-  BillingDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
   CronHeartbeat: "[INFRA] cron-heartbeat: geen PII.",
-  ErrorMonitoringDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
-  MailDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
-  PasswordBreachDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
-  PushDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
-  RateLimitDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
-  RoutingDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
-  StorageDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
-  UploadScanDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
-  VerificationDeliveryHeartbeat: "[INFRA] aflever-heartbeat: geen PII.",
+  DeliveryHeartbeat: "[INFRA] aflever-heartbeat per kanaal: geen PII.",
   HealthIncident: "[INFRA] systeem-gezondheidsincident: geen persoonsgegevens.",
   EventHandlerRun: "[INFRA] event-handler-idempotentie: geen PII.",
   ProcessedWebhookEvent: "[INFRA] webhook-idempotentiegrendel: geen PII.",
@@ -118,6 +109,8 @@ const ALLOWLIST: Record<string, string> = {
     "[CASCADE] onDelete:Cascade vanaf Credential; Credential wordt hard verwijderd in de erasure.",
   VerificationRequest:
     "[CASCADE] onDelete:Cascade vanaf Credential; verdwijnt met de credential-verwijdering.",
+  UserSignalBadge:
+    "[CASCADE] onDelete:Cascade vanaf UserSignalSnapshot; die snapshot wordt in de erasure hard verwijderd.",
   // [AUTH]
   Account:
     "[AUTH] Auth.js OAuth-adaptertabel; credentials+JWT-platform (niet gevuld). Erasure maakt het account inert.",

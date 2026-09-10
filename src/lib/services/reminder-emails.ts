@@ -374,7 +374,7 @@ export function buildVatReminderEmail(input: VatReminderEmailInput): MailMessage
     `De deadline voor de BTW-aangifte van Q${input.quarter} ${input.year} nadert.`,
     "Controleer je administratie en dien de aangifte tijdig in bij de Belastingdienst.",
     "",
-    `Administratie bekijken: ${input.loginUrl}/administratie`,
+    `Administratie bekijken: ${input.loginUrl}/financien?tab=boekhouding`,
     "",
     "Met vriendelijke groet,",
     platform,
@@ -387,7 +387,7 @@ export function buildVatReminderEmail(input: VatReminderEmailInput): MailMessage
       <h1 style="margin:0 0 8px;font-size:18px;">BTW-aangifte Q${input.quarter} ${input.year}</h1>
       <p style="margin:0 0 12px;font-size:14px;color:#52525b;">Hallo ${esc(input.name)},</p>
       <p style="margin:0 0 16px;font-size:14px;">De deadline voor de BTW-aangifte van <strong>Q${input.quarter} ${input.year}</strong> nadert. Controleer je administratie en dien de aangifte tijdig in bij de Belastingdienst.</p>
-      ${btn(`${input.loginUrl}/administratie`, "Administratie bekijken")}
+      ${btn(`${input.loginUrl}/financien?tab=boekhouding`, "Administratie bekijken")}
       <p style="margin:16px 0 0;font-size:12px;color:#71717a;">${esc(platform)}</p>
     `),
   };

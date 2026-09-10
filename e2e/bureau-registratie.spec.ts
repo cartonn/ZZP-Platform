@@ -84,24 +84,25 @@ test("admin ziet de wachtrij, moet een reden opgeven bij afwijzen en kan activer
   await expect(row.getByRole("button", { name: "Afwijzen bevestigen" })).toBeHidden();
 
   // Activeren haalt de aanmelding uit de wachtrij (de lijst toont alleen PENDING-tenants).
-  const activeren = row.getByRole("button", { name: "Activeren" });
-  await expect(activeren).toBeEnabled();
-  await activeren.click();
-  // Wacht tot de server-action is verwerkt: óf de rij is al weg (revalidatePath ververste de RSC),
-  // óf de succesmelding "… is geactiveerd" verscheen (RSC nog niet ververst). Zo weten we dat de
-  // activatie server-side is geland vóór we herladen — een directe reload zou de lopende POST kunnen
-  // afbreken. Niet herladen tijdens deze poll.
-  await expect
-    .poll(
-      async () => (await row.count()) === 0 || (await row.getByText(/is geactiveerd/).count()) > 0,
-      { timeout: 30000 },
-    )
-    .toBe(true);
-  // Server-waarheid afdwingen, onafhankelijk van de timing waarmee revalidatePath de openstaande
-  // pagina ververst (bron van de eerdere CI-flake): na een herlaad staat alleen PENDING nog in de
-  // wachtrij, dus de zojuist geactiveerde tenant is weg.
-  await page.reload();
+  //
+  // REGRESSIETEST voor issue #329 — bewust één gewone klik, zonder herlaad-vangnet (`clickUntilGone`)
+  // en zonder `freshen()`. In een productiebuild (`next start`, zoals CI draait) kwam de action-
+  // response wél volledig binnen, maar React verwerkte 'm niet: een ping die tijdens de render-fase
+  // binnenkwam viel in de gebundelde React-canary weg, waardoor de transitie eeuwig "suspended"
+  // bleef — `useActionState` op "Bezig…", `revalidatePath` onzichtbaar. De wortel zit in React
+  // (`pingSuspendedRoot`) en is als patch teruggezet: patches/next+15.5.24.patch + de unit-test
+  // src/lib/system/react-render-phase-ping.test.ts. Valt die patch weg, dan hangt deze stap weer
+  // (gemeten: 5 van 6 keer) en faalt deze assertie zonder omweg — er is geen client-side nudge
+  // meer die dat maskeert (de ActionReplay-workaround uit #1377 is met de wortel-fix verwijderd).
+  //
+  // We wachten eerst tot de route gehydrateerd is (data-hydrated), zodat de klik niet in de
+  // hydratatie-race verdwijnt — dat is een testartefact, geen productdefect, en mag deze
+  // assertie niet vertroebelen.
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "/admin/franchises");
+  await row.getByRole("button", { name: "Activeren" }).click();
   await expect(row).toHaveCount(0, { timeout: 15000 });
+  // Geen knop mag op de pending-tekst blijven staan: de action-state is daadwerkelijk afgerond.
+  await expect(page.getByRole("button", { name: "Bezig…" })).toHaveCount(0);
 
   // Na activatie opent de werkplek voor de bemiddelaar (live gelezen, geen nieuwe sessie nodig).
   const bureauNa = await browser.newPage();

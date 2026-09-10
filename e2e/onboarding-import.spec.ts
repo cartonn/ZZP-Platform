@@ -34,8 +34,12 @@ test("admin importeert ZZP'er + opdrachtgever via CSV en ziet controle-overzicht
   ].join("\r\n");
 
   await loginAdmin(page);
+  // /admin/import leidt permanent om naar de Importeren-tab van de Gebruikersbeheer-hub.
   await page.goto("/admin/import");
-  await expect(page.getByRole("heading", { name: "Onboarding importeren" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Importeren" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
 
   // Upload in-memory (geen bestand op schijf nodig).
   await page.locator("#csv").setInputFiles({
@@ -84,6 +88,18 @@ test("admin importeert ZZP'er + opdrachtgever via CSV en ziet controle-overzicht
   await expect(userPage).toHaveURL(/\/account\/wachtwoord/);
   await expect(userPage.getByRole("heading", { name: "Wachtwoord wijzigen" })).toBeVisible();
   await shot(userPage, "22-forced-password-change");
+
+  // An authenticated client must not clear the forced-change security claim via session.update.
+  const csrfResponse = await ctx.request.get("/api/auth/csrf");
+  const { csrfToken } = await csrfResponse.json();
+  const updateResponse = await ctx.request.post("/api/auth/session", {
+    data: { csrfToken, data: { mustChangePassword: false } },
+  });
+  expect(updateResponse.ok()).toBe(true);
+  const updatedSession = await updateResponse.json();
+  expect(updatedSession.user.mustChangePassword).toBe(true);
+  await userPage.goto("/dashboard");
+  await expect(userPage).toHaveURL(/\/account\/wachtwoord/);
 
   // Eigen wachtwoord instellen → uitgelogd → opnieuw inloggen werkt.
   const newPassword = "EigenWachtwoord!9";

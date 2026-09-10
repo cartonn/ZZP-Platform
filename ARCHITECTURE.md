@@ -43,10 +43,11 @@ Next.js App Router (route groups per rol) · `prisma/schema.prisma` = het volled
 - **`Invoice` heeft twee statusvelden.** `status` (`DRAFT|SENT|PAID|OVERDUE|CANCELLED`, legacy) én
   `lifecycleStatus` (cascade: concept → ingediend → goedgekeurd → betaald → verwerkt). Beide zijn
   in gebruik; queries moeten weten welke de waarheid is voor hun geval.
-- **Twaalf losse heartbeat-modellen.** `CronHeartbeat`, `BackupHeartbeat` en tien
-  `*DeliveryHeartbeat`-modellen (mail, push, storage, billing, verificatie, rate-limit,
-  password-breach, error-monitoring, upload-scan, routing) met vrijwel identieke vorm — een
-  gedeeld model met een `channel`-discriminator zou tien modellen + tien freshness-modules schelen.
+- **Heartbeat-modellen (grotendeels afgelost).** De tien `*DeliveryHeartbeat`-modellen zijn
+  samengevoegd tot één `DeliveryHeartbeat` met een `channel`-discriminator (registratie +
+  DB-interactie in `observability/delivery-heartbeat.ts`); `CronHeartbeat` en `BackupHeartbeat`
+  blijven apart omdat die schema-gedreven zijn (de LEEFTIJD van de laatste run telt) en andere
+  velden dragen dan de event-gedreven afleverkanalen.
 - **i18n-laag met minimale dekking.** `src/lib/i18n/` bestaat (NL default, EN optioneel), maar
   slechts ±39 van de ruim 1.000 componenten/pagina's raken die laag. Het spoor is per instructie
   afgesloten; de laag blijft als dode-kapitaal-schuld staan.

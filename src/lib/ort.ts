@@ -13,6 +13,7 @@ import {
   ORT_CATEGORIES,
   MAX_ORT_CUSTOM_BPS,
 } from "@/lib/config";
+import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
 
 /** Een gewerkte categorie; "NORMAL" = geen toeslag. */
 export type OrtSegmentCategory = OrtCategory | "NORMAL";
@@ -71,7 +72,8 @@ export function computeOrt(
     if (!VALID_SEGMENT_CATEGORIES.has(seg.category)) {
       throw new Error(`Onbekende ORT-categorie: ${seg.category}`);
     }
-    const base = Math.round(seg.hours * hourlyRateCents);
+    // Exacte commerciële afronding in integer-ruimte (geen IEEE-754-halvecent-drift). Zie hourly-cents.ts.
+    const base = hoursTimesRateCents(seg.hours, hourlyRateCents);
     const surchargeBps = seg.category === "NORMAL" ? 0 : rates[seg.category];
     const surcharge = Math.round((base * surchargeBps) / 10000);
     lines.push({
@@ -146,6 +148,31 @@ export function resolveOrtRates(opts: {
   ortCustomRates?: string | null;
 }): Record<OrtCategory, number> {
   return parseOrtCustomRates(opts.ortCustomRates) ?? ortRatesForSector(opts.ortProfile);
+}
+
+/**
+ * De ORT-tarieven zoals ze golden op het moment van goedkeuren, voor overzichten die een reeds
+ * goedgekeurde/gefactureerde prestatie tonen. Bij goedkeuren bevriest de cascade zowel het
+ * factuursubtotaal (`Invoice.subtotalCents`) als deze toeslagen (`Performance.ortRatesSnapshot`),
+ * terwijl `Collaboration.ortProfile/ortCustomRates` daarna nog mag wijzigen. Zonder deze bevriezing
+ * zou een herberekening uit de live samenwerkings-tarieven wegdrijven van de bevroren factuur — een
+ * zelf-tegensprekend document (CLAUDE.md regel 1, server-side waarheid). De snapshot is gezaghebbend
+ * zodra hij bestaat en geldig is; oudere prestaties zonder snapshot vallen terug op de live tarieven.
+ */
+export function resolveEffectiveOrtRates(opts: {
+  ortRatesSnapshot?: string | null;
+  ortProfile?: string | null;
+  ortCustomRates?: string | null;
+}): Record<OrtCategory, number> {
+  return (
+    parseOrtCustomRates(opts.ortRatesSnapshot) ??
+    resolveOrtRates({ ortProfile: opts.ortProfile, ortCustomRates: opts.ortCustomRates })
+  );
+}
+
+/** Serialiseert resolved ORT-tarieven naar de opslagvorm van `Performance.ortRatesSnapshot`. */
+export function serializeOrtRates(rates: Record<OrtCategory, number>): string {
+  return JSON.stringify(rates);
 }
 
 /**

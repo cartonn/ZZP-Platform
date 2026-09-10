@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { tenantScopeWhere } from "@/lib/tenancy";
+import { displayInvoiceNumber } from "@/lib/invoice-number";
 import {
   type Availability,
   type WorkMode,
@@ -193,6 +194,7 @@ export async function getRosterDossier(
       select: {
         id: true,
         number: true,
+        partyInvoiceNumber: true,
         status: true,
         totalCents: true,
         issuedAt: true,
@@ -282,7 +284,7 @@ export async function getRosterDossier(
     })),
     invoices: invoiceRows.map((i) => ({
       id: i.id,
-      number: i.number,
+      number: displayInvoiceNumber(i),
       status: i.status as InvoiceStatus,
       companyName: i.collaboration?.company.name ?? null,
       totalCents: i.totalCents,

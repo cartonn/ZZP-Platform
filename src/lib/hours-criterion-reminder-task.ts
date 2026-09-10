@@ -105,7 +105,7 @@ export async function runHoursCriterionReminderTask(opts: {
           type: r.notificationType,
           title: r.title,
           body: r.body,
-          link: "/ontzorgd",
+          link: "/financien?tab=ontzorgd",
         },
       }),
       prisma.auditLog.create({

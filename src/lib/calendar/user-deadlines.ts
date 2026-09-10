@@ -13,6 +13,7 @@ import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
 import { getIncomeTaxDeadlineForActor } from "@/lib/data/income-tax-deadline";
 import { type UserRole } from "@/lib/enums";
 import { type AdministrativeDeadlines } from "@/lib/calendar/deadlines";
+import { displayInvoiceNumber } from "@/lib/invoice-number";
 
 /**
  * Laadt de administratieve deadlines van `userId` (met rol `role`). Puur read-only; geen mutatie.
@@ -20,7 +21,9 @@ import { type AdministrativeDeadlines } from "@/lib/calendar/deadlines";
  * - Certificaten: alleen ZZP'ers hebben een eigen dossier — VERIFIED credentials met een verloopdatum.
  * - Facturen: openstaand (canonieke where) waarin de gebruiker uitschrijver (ZZP'er) óf tegenpartij
  *   (opdrachtgever) is, met een gezette `dueAt`.
- * - BTW: gedelegeerd aan de bestaande deadline-engine (leeg voor rollen zonder eigen grootboek).
+ * - BTW: alleen voor de ZZP'er, gedelegeerd aan de bestaande deadline-engine. Voor de opdrachtgever
+ *   bewust leeg (#1333): die aangifte-deadline is structureel onjuist voor die rol en staat ook niet
+ *   in de actie-rail; hem in de agenda tonen zou die twee surfaces laten tegenspreken.
  * - Inkomstenbelasting: de eerstvolgende IB-aangifte-deadline (1 mei ná het belastingjaar), alleen
  *   voor een ZZP'er met omzet in dat jaar; anders `null`.
  * - Plaatsingen: lopende (ACTIVE, niet-betwiste) samenwerkingen met een vastgelegde einddatum die nog
@@ -50,7 +53,9 @@ export async function loadUserAdministrativeDeadlines(
               freelancerProfile: { userId },
             },
             orderBy: { expiresAt: "asc" },
-            select: { id: true, title: true, expiresAt: true },
+            // Datominimalisatie (AVG art. 5(1)(c)): de titel/het type wordt NIET geselecteerd — het
+            // hoort niet in de agenda-feed (zie deadlines.ts). Alleen id + verloopdatum zijn nodig.
+            select: { id: true, expiresAt: true },
           })
         : Promise.resolve([]),
       prisma.invoice.findMany({
@@ -62,9 +67,21 @@ export async function loadUserAdministrativeDeadlines(
           ],
         },
         orderBy: { dueAt: "asc" },
-        select: { id: true, number: true, dueAt: true, counterpartyUserId: true },
+        select: {
+          id: true,
+          number: true,
+          partyInvoiceNumber: true,
+          dueAt: true,
+          counterpartyUserId: true,
+        },
       }),
-      getVatDeadlinesForActor(userId, role, now),
+      // Alleen de ZZP'er krijgt BTW-aangifte-deadlines in de agenda. De BTW-aangiftetaak is voor de
+      // opdrachtgever bewust uit de actie-rail gehaald (#1333, pending-tasks.ts): een zorginstelling
+      // is meestal btw-vrijgesteld en laat haar aangifte door een accountant doen — een
+      // aangifte-deadline op onze deelverzameling van haar administratie is structureel onjuist.
+      // Diezelfde deadline hoort dan ook niet in haar agenda-/.ics-export terecht te komen, anders
+      // spreekt de agenda de actie-rail tegen (één waarheid). De BTW-overzichten op /financien blijven.
+      role === "FREELANCER" ? getVatDeadlinesForActor(userId, role, now) : Promise.resolve([]),
       getIncomeTaxDeadlineForActor(userId, role, now),
       role === "FREELANCER" || role === "CLIENT"
         ? prisma.collaboration.findMany({
@@ -89,7 +106,7 @@ export async function loadUserAdministrativeDeadlines(
     // expiresAt/dueAt zijn door de where-clausules gegarandeerd non-null; de `== null`-guard in de
     // flatMap maakt dat typebreed expliciet (narrowing) zonder een non-null-assertion.
     credentials: credentialRows.flatMap((c) =>
-      c.expiresAt == null ? [] : [{ id: c.id, title: c.title, expiresAt: c.expiresAt }],
+      c.expiresAt == null ? [] : [{ id: c.id, expiresAt: c.expiresAt }],
     ),
     invoices: invoiceRows.flatMap((i) =>
       i.dueAt == null
@@ -97,7 +114,7 @@ export async function loadUserAdministrativeDeadlines(
         : [
             {
               id: i.id,
-              number: i.number,
+              number: displayInvoiceNumber(i),
               dueAt: i.dueAt,
               // De opdrachtgever (tegenpartij) betaalt; de uitschrijver (ZZP'er) ontvangt.
               payable: i.counterpartyUserId === userId,

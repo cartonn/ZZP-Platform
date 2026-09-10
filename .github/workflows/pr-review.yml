@@ -7,28 +7,70 @@ name: agent-review
 # merget nooit; hij plaatst alleen een review-comment en schrijft het oordeel.
 #
 # Draait op Claude Max (OAuth) — geen API-kosten per token.
+#
+# Les (PR #1340, 2-9-2026): een grote diff (56 bestanden) kan het turn-budget opsouperen zonder een
+# echt verdict te schrijven. De fail-safe schreef toen kaal "BLOCK / pending" — onderscheidbaar van
+# een inhoudelijke blocker, maar dat onderscheid ging verloren voor de builder. Daarom nu: hoger
+# budget, een diff-grootte-strategie in de instructies, en een derde, expliciet verdict
+# "REVIEW INCOMPLEET" met een eigen PR-comment en herstart-advies.
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR-nummer om te (her)beoordelen"
+        required: true
+        type: string
 
 permissions:
   contents: read
   pull-requests: write
 
 concurrency:
-  group: agent-review-${{ github.event.pull_request.number }}
+  group: agent-review-${{ github.event.pull_request.number || inputs.pr }}
   cancel-in-progress: true
 
 jobs:
   agent-review:
     name: agent-review
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
+      # Bij pull_request: standaard checkout van de PR-merge-ref (actions/checkout doet dit al goed).
+      # Bij workflow_dispatch (handmatige herstart per PR): geen commit/ref bekend, dus expliciet de
+      # PR-head uitchecken — zonder lege commit, zodat de PR-branch zelf ongewijzigd blijft.
       - uses: actions/checkout@v4
+        if: ${{ github.event_name == 'pull_request' }}
         with:
           fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        with:
+          fetch-depth: 0
+
+      - name: PR-head uitchecken (alleen bij handmatige herstart)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr checkout "${{ inputs.pr }}"
+          echo "PR_NUMBER=${{ inputs.pr }}" >> "$GITHUB_ENV"
+
+      - name: PR-nummer vastleggen (pull_request-event)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> "$GITHUB_ENV"
+
+      - name: Basisref bepalen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BASE_REF=$(gh pr view "$PR_NUMBER" --json baseRefName --jq .baseRefName)
+          echo "BASE_REF=$BASE_REF" >> "$GITHUB_ENV"
+          git fetch origin "$BASE_REF" --depth=1 || git fetch origin "$BASE_REF"
 
       - name: Independent adversarial review
         uses: anthropics/claude-code-action@v1
@@ -48,7 +90,22 @@ jobs:
 
             Lees daarna CLAUDE.md, .claude/agents/reviewer.md en .claude/agents/security.md.
             Bekijk de volledige diff t.o.v. de basis-branch:
-              git diff origin/${{ github.event.pull_request.base.ref }}...HEAD
+              git diff origin/${{ env.BASE_REF }}...HEAD
+
+            DIFF-GROOTTE-STRATEGIE (verplicht bij een grote diff — voorkomt dat het turn-budget
+            opraakt vóór je een verdict schrijft):
+            - Begin altijd met `git diff --stat origin/${{ env.BASE_REF }}...HEAD` om de omvang te zien.
+            - Bij > 25 gewijzigde bestanden: maak eerst een lijst van alle bestanden met één regel
+              risico-inschatting per bestand (hoog/laag), vóórdat je diep in individuele diffs duikt.
+            - Groepeer mechanische/gegenereerde diffs (redirect-stubs, migraties, seed-data,
+              snapshot-tests, gegenereerde lockfiles) en beoordeel ze als groep in plaats van
+              bestand-voor-bestand — controleer alleen dat het patroon consistent is en er geen
+              handmatige uitzondering tussen zit.
+            - Besteed je resterende budget aan de bestanden met echte logica: mutaties, authz, uploads,
+              geldstromen, statusovergangen.
+            - **Schrijf je definitieve verdict (STAP 9) uiterlijk 5 turns vóór het einde van je
+              turn-budget.** Ken je resterende budget in de gaten; rond liever iets vroeger en volledig
+              af dan dat je halverwege een detail blijft hangen.
 
             Review langs deze lenzen en zoek ACTIEF naar problemen (geen "ziet er goed uit"):
             1. Correctheid/regressie: bugs, ontbrekende edge-cases, race-conditions, breekt het bestaand
@@ -64,24 +121,46 @@ jobs:
             de concrete fix. Wijzig GEEN code en merge NIET.
 
             STAP 9 (VERPLICHT, ALLERLAATSTE ACTIE): overschrijf met het Write-tool het bestand
-            `agent-review-verdict.txt` in de repo-root. De ALLEREERSTE regel is exact `PASS` (geen
-            enkele blocker gevonden) of `BLOCK` (ten minste één blocker), gevolgd door een korte
-            motivatie op de volgende regels. Twijfel je of mist bewijs -> laat `BLOCK` staan.
+            `agent-review-verdict.txt` in de repo-root. De ALLEREERSTE regel is exact één van:
+              - `PASS`   (volledige review afgerond, geen enkele blocker gevonden)
+              - `BLOCK`  (volledige review afgerond, ten minste één blocker gevonden)
+              - `INCOMPLETE` (je hebt de review NIET kunnen afronden binnen je turn-/tijdbudget — nog
+                niet alle bestanden beoordeeld, of je moest afbreken vóórdat je een oordeel kon vormen)
+            gevolgd door een korte motivatie op de volgende regels (bij `INCOMPLETE`: wat je nog NIET
+            hebt kunnen beoordelen). Twijfel je tussen PASS en BLOCK op inhoud -> laat `BLOCK` staan.
+            Gebruik `INCOMPLETE` uitsluitend als de review zelf niet af kwam — niet als synoniem voor
+            "twijfel over de inhoud".
           claude_args: |
             --model claude-opus-4-8
-            --max-turns 40
+            --max-turns 90
             --allowedTools Read,Grep,Glob,Bash,Write
 
-      - name: Enforce verdict (blocks merge on BLOCK)
+      - name: Enforce verdict (blocks merge on BLOCK / INCOMPLETE)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ ! -f agent-review-verdict.txt ]; then
             echo "::error::Geen agent-review-verdict.txt geschreven — review onbetrouwbaar, blokkeer (fail-safe)."
+            BODY=$(printf '**agent-review: BLOCK — REVIEW INCOMPLEET (geen verdict geschreven)**\n\nDe review-agent heeft geen `agent-review-verdict.txt` geschreven — geen inhoudelijke beoordeling, puur het fail-safe-vangnet. Dit is geen oordeel over de code.\n\nAdvies: splits de PR in kleinere delen, of herstart de review met `gh workflow run pr-review.yml -f pr=%s`.' "$PR_NUMBER")
+            gh pr comment "$PR_NUMBER" --body "$BODY" || true
             exit 1
           fi
           echo "----- verdict -----"; cat agent-review-verdict.txt; echo "-------------------"
-          if head -1 agent-review-verdict.txt | grep -qx "PASS"; then
+          VERDICT=$(head -1 agent-review-verdict.txt)
+
+          if [ "$VERDICT" = "PASS" ]; then
             echo "agent-review: PASS"
             exit 0
           fi
+
+          if [ "$VERDICT" = "INCOMPLETE" ]; then
+            echo "::error::agent-review kon niet worden afgerond binnen het turn-budget — REVIEW INCOMPLEET."
+            MOTIVATION=$(tail -n +2 agent-review-verdict.txt)
+            BODY=$(printf '**agent-review: BLOCK — REVIEW INCOMPLEET (turn-budget)**\n\nDe review-agent kon deze diff niet volledig beoordelen binnen het turn-budget. Dit is GEEN inhoudelijke blocker — er is geen probleem in de code gevonden, de beoordeling is simpelweg niet klaargekomen. De check blijft rood totdat er wél een volledig verdict staat (veilig by design).\n\nMotivatie van de agent:\n```\n%s\n```\n\nAdvies: splits de PR in kleinere delen, of herstart de review met `gh workflow run pr-review.yml -f pr=%s`.' "$MOTIVATION" "$PR_NUMBER")
+            gh pr comment "$PR_NUMBER" --body "$BODY" || true
+            exit 1
+          fi
+
+          # VERDICT = BLOCK (of onherkenbaar -> fail-safe naar BLOCK)
           echo "::error::agent-review BLOKKEERT deze PR — los de blockers op."
           exit 1

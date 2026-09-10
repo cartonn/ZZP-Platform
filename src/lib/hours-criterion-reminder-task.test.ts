@@ -105,7 +105,7 @@ describe("runHoursCriterionReminderTask", () => {
     expect(store.notifications).toHaveLength(1);
     expect(store.notifications[0]?.userId).toBe("at-risk");
     expect(store.notifications[0]?.type).toBe("HOURS_CRITERION_REMINDER");
-    expect(store.notifications[0]?.link).toBe("/ontzorgd");
+    expect(store.notifications[0]?.link).toBe("/financien?tab=ontzorgd");
     expect(store.domainEvents).toHaveLength(1);
     expect(store.auditLogs[0]?.action).toBe("HOURS_CRITERION_REMINDER_SENT");
   });

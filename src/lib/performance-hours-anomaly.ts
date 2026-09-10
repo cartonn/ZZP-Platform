@@ -105,6 +105,15 @@ export function detectHoursAnomalies(
   return anomalies;
 }
 
+/**
+ * Eén rustige "controleer even"-attentie-zin voor een gedetecteerde uitschieter. Gedeeld door elke
+ * plek die het signaal toont (de urenstaat-lijst én de goedkeur-plek op de samenwerking), zodat de
+ * copy nooit uiteenloopt (één bron van waarheid, geen drift).
+ */
+export function formatHoursAnomalyNotice(a: HoursAnomaly): string {
+  return `≈${a.deltaPct}% meer uren dan gebruikelijk (${formatHoursNl(a.hours)} u vs. mediaan ${formatHoursNl(a.baselineHours)} u) — controleer even.`;
+}
+
 /** Compacte uren-weergave voor de UI: hele getallen zonder decimaal, anders max. 1 decimaal (nl-NL). */
 export function formatHoursNl(hours: number): string {
   return Number.isInteger(hours)

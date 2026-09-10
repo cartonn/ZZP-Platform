@@ -38,14 +38,13 @@ function isCredentialCollabQuery(a: Args): boolean {
 const collaborationFindMany = vi.fn((a: Args) =>
   Promise.resolve(isCredentialCollabQuery(a) && state.collab ? [state.collab] : []),
 );
-const credentialFindMany = vi.fn((a: Args) => {
-  const where = a.where ?? {};
-  if (where.type !== undefined) return Promise.resolve(state.mandatoryCreds); // verplichte-docs-query
-  if (where.status === "VERIFIED") return Promise.resolve([]); // expiry-set (leeg in deze tests)
-  // Volledige certificaatset (geen status-filter): voedt de plaatsings-gate + de gaten-helper.
-  if (where.status === undefined) return Promise.resolve(state.fullCreds);
-  return Promise.resolve([]);
-});
+// De badge haalt het certificaatdossier nog in ÉÉN query op (gedeelde `getCredentialDossier`), waar
+// dit eerder vier queries waren (afgewezen-count, VERIFIED-set, verplichte typen, volledige set) die
+// de mock elk apart voedde. De verplichte documenten horen daarom nu gewoon ín het dossier — de
+// afleidingen (VERIFIED-deel, verplichte typen, afgewezen) gebeuren in-memory op dezelfde rijen.
+const credentialFindMany = vi.fn(() =>
+  Promise.resolve([...state.mandatoryCreds, ...state.fullCreds]),
+);
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -70,7 +69,7 @@ vi.mock("@/lib/db", () => ({
     shiftHandoff: { count: vi.fn(() => Promise.resolve(0)) },
     credential: {
       count: vi.fn(() => Promise.resolve(0)),
-      findMany: (a: Args) => credentialFindMany(a),
+      findMany: () => credentialFindMany(),
     },
     conversationParticipant: { findMany: vi.fn(() => Promise.resolve([])) },
     message: { groupBy: vi.fn(() => Promise.resolve([])) },

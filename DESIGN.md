@@ -235,3 +235,26 @@ geen decoratieve gradients / kaart-in-kaart / templategevoel · **NOOIT het woor
 > collecties het `divide-y` rij-patroon, de match-score als `Badge variant="accent"`, en destructieve
 > acties als `Button variant="destructive"`. Elke view krijgt loading/error/empty. UI in het
 > Nederlands; het woord "AI" nergens.
+
+## 11. Publieke Handslag-landingspagina (7 september 2026)
+
+Op expliciet verzoek van de eigenaar heeft Handslag een zelfstandige publieke
+landingspagina op /. Het ingelogde platform blijft dashboard-first op /dashboard;
+de overige toegangsregels wijzigen niet.
+
+De pagina gebruikt de bestaande kleurvariabelen, Figtree, Fraunces en BrandMark.
+De eigen compositie in `src/app/landing.module.css` is redactioneel: een echte foto,
+royale typografie, dunne scheidingslijnen en inhoudelijke rijen voor de twee doelgroepen.
+Dit is de bewuste uitzondering op de compacte platformlayouts uit paragrafen 1 en 5.
+Een doorlopende, uitklapbare uitleg verbindt opdracht, afspraken, uren en factuur.
+
+Fotografie: [Dulcey Lima, Mom's hands with mine](https://unsplash.com/photos/9MTqeBaAOlU),
+[Unsplash License](https://unsplash.com/license), gecontroleerd op 7 september 2026.
+De foto is illustratief; zij toont geen klant of endorsement van Handslag.
+Next Image optimaliseert uitsluitend deze toegestane fotobron en serveert de afbeelding
+via de eigen origin. De bronvermelding staat bij de foto. Geen externe fonts of scripts.
+
+Geen verzonnen klantlogo’s, aantallen, reviews, certificeringen of betaalgaranties.
+De uitleg vermeldt rechtstreekse betaling en de gefaseerde ingebruikname.
+Native links en details werken zonder extra clientscript. Zichtbare focus, ruime
+klikvlakken, mobiele navigatie en verminderde beweging blijven onderdeel van het ontwerp.

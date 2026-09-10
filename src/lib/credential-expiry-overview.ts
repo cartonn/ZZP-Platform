@@ -3,7 +3,11 @@
 // verloopt en het vertrouwensniveau zakt. Puur, geen I/O; server-side is de waarheid.
 
 import { type CredentialStatus, type CredentialType } from "@/lib/enums";
-import { daysUntilExpiry } from "@/lib/credentials";
+import {
+  coveredCredentialTypes,
+  daysUntilExpiry,
+  supersededVerifiedCredentialIds,
+} from "@/lib/credentials";
 
 /** Tot hoeveel dagen vooruit de vervalkalender certificaten meeneemt. */
 export const EXPIRY_HORIZON_DAYS = 90;
@@ -60,18 +64,41 @@ function windowFor(credential: ExpiryCredentialInput, days: number | null): Expi
 /**
  * Bouwt de vervalkalender uit de certificaten van één ZZP'er. Read-only, deterministisch.
  * Muteert de invoer niet.
+ *
+ * Onderdrukt certificaten die geen vernieuwing (meer) vragen omdat de compliance van dat type al
+ * permanent/langer gedekt is — anders zou de kalender een valse "verloopt binnenkort / verlopen —
+ * vernieuw"-nudge tonen die nooit nuttig verdwijnt. Dit spiegelt exact de canonieke regels die élk
+ * ander verval-oppervlak al gebruikt (`supersededVerifiedCredentialIds`/`coveredCredentialTypes`):
+ * de ZZP-nav-badge (`signals.ts`), de next-actions (`pending-tasks.ts`), de verval-cron
+ * (`expiry-task.ts`) en de bemiddelaar-roostertelling (`rosterExpiringByProfile`). Zo lopen de
+ * vervalkalender op `/certificaten` en `/franchise/zzpers/[id]` niet uit de pas met die telling.
+ *
+ * Twee gevallen worden overgeslagen (de rekenkern krijgt de vólledige certificatenlijst, dus beide
+ * afleidingen kloppen):
+ *  1. Een nu-geldig VERIFIED-cert dat superseded is door een nieuwer/onbeperkt exemplaar van
+ *     hetzelfde type (`supersededVerifiedCredentialIds`).
+ *  2. Een verlopen exemplaar (EXPIRED, of computed-expired VERIFIED) van een type dat een ánder
+ *     nu-geldig VERIFIED-cert al dekt (`coveredCredentialTypes` — de docstring daar noemt dit
+ *     expliciet: "een ánder (verlopen of afgewezen) exemplaar van datzelfde type levert geen actueel
+ *     gat op"). Verloopt élk exemplaar van een type, dan valt het type niet in de dekking en blijft
+ *     de verlopen-melding terecht staan.
  */
 export function summarizeExpiry(
   credentials: readonly ExpiryCredentialInput[],
   now: Date = new Date(),
 ): ExpiryOverview {
   const items: ExpiryItem[] = [];
+  const supersededIds = supersededVerifiedCredentialIds(credentials, now);
+  const coveredTypes = coveredCredentialTypes(credentials, now);
 
   for (const c of credentials) {
     if (!c.expiresAt) continue;
+    if (supersededIds.has(c.id)) continue;
     const days = daysUntilExpiry(c.expiresAt, now);
     const window = windowFor(c, days);
     if (window === null || days === null) continue;
+    // Een verlopen exemplaar van een al-gedekt type vraagt geen vernieuwing meer.
+    if (window === "EXPIRED" && coveredTypes.has(c.type)) continue;
     items.push({
       id: c.id,
       title: c.title,

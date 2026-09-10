@@ -12,6 +12,7 @@ import { type DomainEventInput } from "@/lib/events";
 import { type OrtSegment } from "@/lib/ort";
 import { type InvoiceLifecycleState, type PerformanceState } from "@/lib/lifecycles";
 import { type UserContact } from "@/lib/services/cascade-emails";
+import { invalidateSignals } from "@/lib/signals/invalidate";
 
 export class CascadeError extends Error {
   constructor(message: string) {
@@ -87,7 +88,13 @@ export async function persistEventAndEffects(
   }
 
   try {
-    return await persistInTransaction(eventInput, effects, refs, opts);
+    const result = await persistInTransaction(eventInput, effects, refs, opts);
+    // De cascade is het zwaarste signaalpad: elke stap (tekenen, indienen, goedkeuren, betalen)
+    // verplaatst "wie is aan zet" bij BEIDE partijen. Hier — na de commit, buiten de transactie —
+    // vervalt hun signaal-snapshot direct, zodat de nav-badges niet tot de TTL achterlopen.
+    // Best-effort: `invalidateSignals` slikt zijn eigen fouten, dus dit kan de mutatie niet raken.
+    await invalidateSignals([refs.owners.FREELANCER, refs.owners.CLIENT]);
+    return result;
   } catch (e) {
     // Race: tussen de pre-check en de create kan een concurrente request hetzelfde
     // dedupeKey al hebben weggeschreven. De @unique-constraint op DomainEvent.dedupeKey

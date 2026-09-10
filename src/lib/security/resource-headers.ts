@@ -8,21 +8,27 @@
 // depth voor documentprivacy (CLAUDE.md regel 4) bovenop de auth-/ownership-keten: zelfs een
 // gelekte URL kan een gevoelig document (VOG/diploma/verzekering) niet cross-origin embedden.
 
+import { asciiFallbackFilename, contentDispositionValue } from "@/lib/http/content-disposition";
+
 /** `same-origin` = alleen onze eigen origin mag de resource inladen. */
 export const CROSS_ORIGIN_RESOURCE_POLICY = "same-origin";
 
 /**
  * Saneert een download-bestandsnaam: alleen woordtekens, punt en koppelteken; nooit leeg. Voorkomt
  * header-injectie/aanhalingsteken-breuk in `Content-Disposition` en een misleidende lege naam.
+ * Dit is de ASCII-`filename=`-fallback; de RFC 6266 `filename*`-variant (diakritische tekens/spaties)
+ * komt uit `contentDispositionValue` (src/lib/http/content-disposition.ts).
  */
 export function sanitizeAttachmentFilename(filename: string): string {
-  const cleaned = filename.replace(/[^\w.\-]+/g, "_").replace(/^_+|_+$/g, "");
-  return cleaned.length > 0 ? cleaned : "bestand";
+  return asciiFallbackFilename(filename);
 }
 
-/** `Content-Disposition: inline`-waarde met een gesaneerde bestandsnaam. */
+/**
+ * `Content-Disposition: inline`-waarde (RFC 6266): ASCII-`filename=`-fallback plus `filename*=UTF-8''…`
+ * zodra de naam diakritische tekens/spaties bevat, zodat de browser bv. "Diploma André.pdf" behoudt.
+ */
 export function inlineDisposition(filename: string): string {
-  return `inline; filename="${sanitizeAttachmentFilename(filename)}"`;
+  return contentDispositionValue("inline", filename);
 }
 
 /**

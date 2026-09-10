@@ -53,12 +53,17 @@ test("ongelezen bericht toont een badge op Berichten in de zijbalk", async ({ pa
   await page.getByRole("button", { name: "Versturen" }).click();
   await expect(page.getByText("Hoi, wanneer kun je starten?")).toBeVisible({ timeout: 15000 });
 
-  // ZZP'er ziet vanaf elke pagina dat er een ongelezen bericht wacht.
-  await fp.goto("/dashboard");
+  // ZZP'er ziet vanaf elke pagina dat er een ongelezen bericht wacht. De badge komt uit de
+  // signaal-snapshot (TTL + achtergrond-write, #1375/#1378): direct na het versturen kan een
+  // verse navigatie de snapshot nog stale (0) lezen vóór de invalidatie is verwerkt. Poll daarom
+  // de dashboard-render tot de badge verschijnt i.p.v. één enkele lezing (timing-flake-hardening).
   const berichtenNav = fp
     .locator('nav[aria-label="Hoofdnavigatie"]')
     .getByRole("link", { name: /Berichten/ });
-  await expect(berichtenNav).toContainText("1");
+  await expect(async () => {
+    await fp.goto("/dashboard");
+    await expect(berichtenNav).toContainText("1", { timeout: 2000 });
+  }).toPass({ timeout: 20000 });
   await shot(fp, "27-nav-badge-berichten");
 
   await fctx.close();

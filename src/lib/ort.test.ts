@@ -4,6 +4,8 @@ import {
   ortSubtotalCents,
   ortRatesForSector,
   resolveOrtRates,
+  resolveEffectiveOrtRates,
+  serializeOrtRates,
   parseOrtCustomRates,
   parseOrtSegments,
   type OrtSegment,
@@ -186,6 +188,63 @@ describe("resolveOrtRates — maatwerk vóór sector vóór default", () => {
 
   it("ongeldig maatwerk → val terug op sector/default", () => {
     expect(resolveOrtRates({ ortProfile: null, ortCustomRates: "{" })).toBe(DEFAULT_ORT_RATES_BPS);
+  });
+});
+
+describe("resolveEffectiveOrtRates — bevroren snapshot wint van live tarieven", () => {
+  const snapshot = serializeOrtRates({
+    EVENING: 2200,
+    NIGHT: 4900,
+    SATURDAY: 3000,
+    SUNDAY: 6000,
+    HOLIDAY: 10000,
+  });
+  const liveCustom = JSON.stringify({
+    EVENING: 1000,
+    NIGHT: 1000,
+    SATURDAY: 1000,
+    SUNDAY: 1000,
+    HOLIDAY: 1000,
+  });
+
+  it("een geldige snapshot wint van de live samenwerkings-tarieven (geen drift)", () => {
+    const rates = resolveEffectiveOrtRates({
+      ortRatesSnapshot: snapshot,
+      ortProfile: "VVT",
+      ortCustomRates: liveCustom,
+    });
+    expect(rates.NIGHT).toBe(4900);
+    expect(rates.HOLIDAY).toBe(10000);
+    // De live maatwerk-waarde (1000) wordt genegeerd zolang de snapshot bestaat.
+    expect(rates.EVENING).toBe(2200);
+  });
+
+  it("zonder snapshot → val terug op de live tarieven (maatwerk vóór sector)", () => {
+    const rates = resolveEffectiveOrtRates({
+      ortRatesSnapshot: null,
+      ortProfile: "VVT",
+      ortCustomRates: liveCustom,
+    });
+    expect(rates.NIGHT).toBe(1000);
+  });
+
+  it("een ongeldige/lege snapshot → val terug op de live tarieven", () => {
+    expect(
+      resolveEffectiveOrtRates({ ortRatesSnapshot: "{", ortProfile: "VVT", ortCustomRates: null }),
+    ).toBe(ortRatesForSector("VVT"));
+    expect(
+      resolveEffectiveOrtRates({ ortRatesSnapshot: "", ortProfile: null, ortCustomRates: null }),
+    ).toBe(DEFAULT_ORT_RATES_BPS);
+  });
+
+  it("serializeOrtRates rondritje: de snapshot reproduceert exact dezelfde tarieven", () => {
+    const rates = resolveOrtRates({ ortProfile: "VVT", ortCustomRates: null });
+    const roundTripped = resolveEffectiveOrtRates({
+      ortRatesSnapshot: serializeOrtRates(rates),
+      ortProfile: "GHZ", // ander profiel → zou driften zonder snapshot
+      ortCustomRates: null,
+    });
+    expect(roundTripped).toEqual(rates);
   });
 });
 

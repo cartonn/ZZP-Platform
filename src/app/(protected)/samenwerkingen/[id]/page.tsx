@@ -24,6 +24,7 @@ import { resolveAgreementType } from "@/lib/contract-agreement";
 import { ModelAgreementCard } from "./model-agreement-card";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { parseOrtSegments } from "@/lib/ort";
+import { detectHoursAnomalies, formatHoursAnomalyNotice } from "@/lib/performance-hours-anomaly";
 import { ORT_SECTORS, ORT_SECTOR_LABEL, reviewBlindDays } from "@/lib/config";
 import { buildChainSteps } from "@/lib/cascade/chain-steps";
 import { collaborationStatusLine } from "@/lib/collaboration-status-line";
@@ -39,6 +40,7 @@ import { isPerformanceNewerThanInvoice } from "@/lib/cascade/stage";
 import { CascadeStepper } from "@/components/ui/cascade-stepper";
 import { TurnBanner } from "@/components/ui/turn-banner";
 import { OrtBreakdown } from "@/components/collaborations/ort-breakdown";
+import { previewPerformanceInvoice } from "@/lib/performance-invoice-preview";
 import { ReplacementPanel } from "@/components/collaborations/replacement-panel";
 import { NoShowReportForm } from "@/components/collaborations/no-show-form";
 import { ShiftHandoffForm } from "@/components/collaborations/shift-handoff-form";
@@ -173,6 +175,21 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const isClient = col.company.userId === actor.id;
   const isFreelancer = col.freelancer.userId === actor.id;
   if (!isClient && !isFreelancer && actor.role !== "ADMIN") notFound();
+
+  // Uren-uitschieter-attentie op de goedkeur-plek: dezelfde server-side, deterministische detector
+  // als op `/prestaties`, nu op de samenwerking zelf berekend (de baseline = mediaan van de eerder
+  // goedgekeurde urenstaten van déze samenwerking). Zo mist de opdrachtgever het "controleer even"-
+  // signaal niet op het moment dat hij een ingediende urenstaat afstempelt. Het signaal beslist niets;
+  // goedkeuren loopt onveranderd via `approvePerformanceAction`.
+  const hoursAnomalies = detectHoursAnomalies(
+    col.performances.map((p) => ({
+      id: p.id,
+      collaborationId: p.collaborationId,
+      type: p.type as "HOURS" | "MILESTONE",
+      status: p.status,
+      hours: p.hours,
+    })),
+  );
   // Dispuut-freeze (§4): de server weigert elke cascade-actie tijdens een dispuut; de UI hoort
   // die acties dan ook niet aan te bieden (anders klikt men tegen een kale foutpagina aan).
   const frozen = Boolean(col.disputedAt);
@@ -854,7 +871,32 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                                 rateCents={p.rateCents}
                                 ortProfile={col.ortProfile}
                                 ortCustomRates={col.ortCustomRates}
+                                ortRatesSnapshot={p.ortRatesSnapshot}
                               />
+                            ) : null;
+                          })()}
+                        {/* Factuurvoorspelling voor prestaties zonder ORT-tabel (gewone uren of een
+                            oplevering) die nog niet zijn goedgekeurd — zodat de opdrachtgever vóór
+                            het goedkeuren ziet wat de conceptfactuur wordt (incl. btw). ORT-uren
+                            tonen hun totaal al in OrtBreakdown; na goedkeuring staat de factuur
+                            met de definitieve bedragen eronder. */}
+                        {p.status !== "APPROVED" &&
+                          (p.type !== "HOURS" || parseOrtSegments(p.ortSegments).length === 0) &&
+                          (() => {
+                            const preview = previewPerformanceInvoice({
+                              type: p.type,
+                              hours: p.hours,
+                              rateCents: p.rateCents,
+                              amountCents: p.amountCents,
+                            });
+                            return preview ? (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Conceptfactuur: {formatEuro(preview.subtotalCents)} excl. +{" "}
+                                {formatEuro(preview.vatCents)} btw ={" "}
+                                <span className="font-medium text-foreground">
+                                  {formatEuro(preview.totalCents)} incl.
+                                </span>
+                              </p>
                             ) : null;
                           })()}
                       </div>
@@ -877,6 +919,16 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                         </div>
                       </details>
                     )}
+                    {isClient &&
+                      p.status === "SUBMITTED" &&
+                      (() => {
+                        const anomaly = hoursAnomalies.get(p.id);
+                        return anomaly ? (
+                          <p className="mt-2 text-xs font-medium text-warning">
+                            {formatHoursAnomalyNotice(anomaly)}
+                          </p>
+                        ) : null;
+                      })()}
                     {isClient && p.status === "SUBMITTED" && !actionsLocked && (
                       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
                         <form action={approvePerformanceAction.bind(null, p.id, col.id)}>

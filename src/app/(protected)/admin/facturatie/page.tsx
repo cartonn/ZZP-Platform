@@ -1,24 +1,12 @@
-import { type Metadata } from "next";
-import { requireRole } from "@/lib/authz";
-import { PageHeader } from "@/components/ui/page-header";
-import { FacturatiePanel } from "@/components/admin/financien/facturatie-panel";
+import { permanentRedirect } from "next/navigation";
+import { hubRedirectTarget, type RouteSearchParams } from "@/lib/hub-redirect";
 
-export const metadata: Metadata = { title: "Facturatie · Handslag" };
-
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-export default async function FacturatiePage({ searchParams }: { searchParams: SearchParams }) {
-  await requireRole("ADMIN");
-  const sp = await searchParams;
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Financiën"
-        title="Facturatie"
-        description="De facturen van het platform aan bemiddelingen (transactie-fee) en ZZP'ers (abonnement). Bundel de openstaande bijdragen en beheer de status. Er wordt nog niets automatisch geïncasseerd."
-      />
-      <FacturatiePanel searchParams={sp} basePath="/admin/facturatie" />
-    </div>
-  );
+// Facturatie is een tab van de Financiën-hub. Deze losse route blijft als permanente omleiding
+// bestaan; paginering en filters reizen mee zodat bestaande deeplinks hun selectie houden.
+export default async function AdminFacturatiePage({
+  searchParams,
+}: {
+  searchParams: Promise<RouteSearchParams>;
+}) {
+  permanentRedirect(hubRedirectTarget("/admin/financien", "facturatie", await searchParams));
 }

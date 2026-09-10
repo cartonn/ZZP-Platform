@@ -39,7 +39,7 @@ const { findUnique, rateCheck, rateReset, auditFn } = vi.hoisted(() => ({
 
 const { rcFindMany, rcUpdate, userUpdateMany } = vi.hoisted(() => ({
   rcFindMany: vi.fn(async (): Promise<{ id: string; codeHash: string }[]> => []),
-  rcUpdate: vi.fn(async () => ({})),
+  rcUpdate: vi.fn(async () => ({ count: 1 })),
   // Atomaire, voorwaardelijke claim van de TOTP-step (replay-preventie). Default: succesvol (count 1).
   userUpdateMany: vi.fn(async () => ({ count: 1 })),
 }));
@@ -47,7 +47,7 @@ const { rcFindMany, rcUpdate, userUpdateMany } = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique, updateMany: userUpdateMany },
-    twoFactorRecoveryCode: { findMany: rcFindMany, update: rcUpdate },
+    twoFactorRecoveryCode: { findMany: rcFindMany, updateMany: rcUpdate },
   },
 }));
 
@@ -360,7 +360,9 @@ describe("authorizeCredentials — tweestapsverificatie-poort", () => {
     expect(result).toMatchObject({ id: "user-1" });
     // De TOTP-verificatie mag niet lopen voor een niet-6-cijferige invoer.
     expect(verifyTotpStepMock).not.toHaveBeenCalled();
-    expect(rcUpdate).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "rc-1" } }));
+    expect(rcUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "rc-1", userId: "user-1", usedAt: null } }),
+    );
     expect(auditFn).toHaveBeenCalledWith(
       expect.objectContaining({ action: "TWO_FACTOR_RECOVERY_CODE_USED" }),
     );

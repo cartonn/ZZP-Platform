@@ -3,7 +3,9 @@ import {
   approvablePerformances,
   exportPrestatiesCsv,
   summarizePendingApprovalValue,
+  toPrestatieOverzicht,
   type PrestatieOverzicht,
+  type PrestatieRow,
 } from "./prestaties";
 
 const base: PrestatieOverzicht = {
@@ -156,6 +158,32 @@ describe("exportPrestatiesCsv", () => {
     expect(lines[1]).toContain("Fatima Ouahabi");
     expect(lines[2]).toContain("Jan de Vries");
   });
+
+  it("lekt geen IEEE-754-float-artefact in de uren-kolommen (afstemmen tegen loonstrook)", () => {
+    // Een som van sub-kwartier-uren expandeert in float: 4,1 + 2,2 = 6,300000000000001,
+    // 0,1 + 0,2 = 0,30000000000000004. Kaal toString() zou die staart in de "Uren"-kolom
+    // van een export lekken die juist tegen een loonstrook moet worden afgestemd.
+    const p: PrestatieOverzicht = {
+      ...base,
+      hours: 4.1 + 2.2,
+      ortBreakdown: {
+        normalHours: 4.1 + 2.2,
+        ortHours: 0.1 + 0.2,
+        baseCents: 14000_00,
+        surchargeCents: 2000_00,
+      },
+    };
+    const csv = exportPrestatiesCsv([p]);
+    const lines = csv.split("\r\n");
+    const header = lines[0]!.split(";");
+    const rowCells = lines[1]!.split(";");
+    const col = (name: string) => rowCells[header.indexOf(name)];
+    expect(col("Uren")).toBe("6,3");
+    expect(col("Reguliere uren")).toBe("6,3");
+    expect(col("ORT-uren")).toBe("0,3");
+    expect(csv).not.toContain("6,300000000000001");
+    expect(csv).not.toContain("0,30000000000000004");
+  });
 });
 
 describe("approvablePerformances — wat de opdrachtgever écht kan keuren", () => {
@@ -224,5 +252,140 @@ describe("summarizePendingApprovalValue — €-committed cost wacht op goedkeur
       totalCents: 0,
       withoutAmount: 0,
     });
+  });
+});
+
+// Maatwerk-ORT-percentages (bps); alle categorieën verplicht, anders valt parseOrtCustomRates terug.
+const RATES_NIGHT_49 = JSON.stringify({
+  EVENING: 2200,
+  NIGHT: 4900,
+  SATURDAY: 5200,
+  SUNDAY: 7200,
+  HOLIDAY: 10000,
+});
+const RATES_NIGHT_20 = JSON.stringify({
+  EVENING: 2200,
+  NIGHT: 2000,
+  SATURDAY: 5200,
+  SUNDAY: 7200,
+  HOLIDAY: 10000,
+});
+
+function row(overrides: Partial<PrestatieRow> = {}): PrestatieRow {
+  return {
+    id: "p1",
+    type: "HOURS",
+    status: "APPROVED",
+    rateCents: 5000, // €50/u
+    hours: 80,
+    ortSegments: JSON.stringify([
+      { category: "NORMAL", hours: 40 },
+      { category: "NIGHT", hours: 40 },
+    ]),
+    amountCents: null,
+    periodStart: new Date("2026-01-01"),
+    periodEnd: new Date("2026-01-31"),
+    description: "Januari nachtzorg",
+    submittedAt: new Date("2026-02-01"),
+    approvedAt: new Date("2026-02-02"),
+    rejectedAt: null,
+    rejectionReason: null,
+    collaboration: {
+      id: "c1",
+      ortProfile: null,
+      ortCustomRates: RATES_NIGHT_49,
+      disputedAt: null,
+      job: { title: "Nachtzorg Jansen" },
+      freelancer: { user: { name: "Fatima Ouahabi" } },
+    },
+    invoice: null,
+    ...overrides,
+  };
+}
+
+describe("toPrestatieOverzicht — factuur is de bevroren waarheid (geen ORT-drift)", () => {
+  // Basis is snapshot-stabiel: (40u + 40u) × €50 = €4000 = 400000 cent (onafhankelijk van de toeslag).
+  const BASE_CENTS = 40 * 5000 + 40 * 5000; // 400000
+
+  it("zonder factuur: herberekent live uit de actuele toeslagen (en die driften met de rate)", () => {
+    // NIGHT 40u tegen +49%: toeslag = round(200000 × 4900/10000) = 98000.
+    const at49 = toPrestatieOverzicht(
+      row({ collaboration: { ...row().collaboration, ortCustomRates: RATES_NIGHT_49 } }),
+    );
+    // NIGHT 40u tegen +20%: toeslag = round(200000 × 2000/10000) = 40000.
+    const at20 = toPrestatieOverzicht(
+      row({ collaboration: { ...row().collaboration, ortCustomRates: RATES_NIGHT_20 } }),
+    );
+
+    expect(at49.subtotalCents).toBe(BASE_CENTS + 98000); // 498000
+    expect(at20.subtotalCents).toBe(BASE_CENTS + 40000); // 440000
+    // Bewijst de drift: zonder factuur verschuift het getoonde bedrag met de live toeslagen.
+    expect(at49.subtotalCents).not.toBe(at20.subtotalCents);
+    expect(at49.ortBreakdown.surchargeCents).toBe(98000);
+    expect(at20.ortBreakdown.surchargeCents).toBe(40000);
+  });
+
+  it("met factuur: toont het bevroren factuursubtotaal, ook al zijn de toeslagen daarna gewijzigd", () => {
+    // Factuur is afgeleid bij goedkeuring met +49% (subtotaal 498000). De opdrachtgever wijzigde
+    // de samenwerking daarna naar +20% — een live-herberekening zou nu 440000 tonen en afwijken
+    // van de factuur die daadwerkelijk is verstuurd/betaald.
+    const res = toPrestatieOverzicht(
+      row({
+        collaboration: { ...row().collaboration, ortCustomRates: RATES_NIGHT_20 },
+        invoice: { subtotalCents: 498000 },
+      }),
+    );
+    expect(res.subtotalCents).toBe(498000);
+    // De toeslag reconciliëert tegen het bevroren subtotaal; de basis blijft snapshot-stabiel.
+    expect(res.ortBreakdown.baseCents).toBe(BASE_CENTS);
+    expect(res.ortBreakdown.surchargeCents).toBe(498000 - BASE_CENTS); // 98000, niet 40000
+  });
+
+  it("HOURS zonder ORT-segmenten met factuur: subtotaal = factuur, geen toeslag", () => {
+    const res = toPrestatieOverzicht(
+      row({ ortSegments: null, invoice: { subtotalCents: BASE_CENTS } }),
+    );
+    expect(res.hasOrt).toBe(false);
+    expect(res.subtotalCents).toBe(BASE_CENTS);
+    expect(res.ortBreakdown.surchargeCents).toBe(0);
+  });
+
+  it("MILESTONE met factuur: subtotaal = factuur, lege ORT-uitsplitsing", () => {
+    const res = toPrestatieOverzicht(
+      row({
+        type: "MILESTONE",
+        rateCents: null,
+        hours: null,
+        ortSegments: null,
+        amountCents: 250000,
+        invoice: { subtotalCents: 250000 },
+      }),
+    );
+    expect(res.type).toBe("MILESTONE");
+    expect(res.subtotalCents).toBe(250000);
+    expect(res.ortBreakdown).toEqual({
+      normalHours: 0,
+      ortHours: 0,
+      baseCents: 0,
+      surchargeCents: 0,
+    });
+  });
+
+  it("valt terug op live-berekening als er (nog) geen factuur is (bv. SUBMITTED)", () => {
+    const res = toPrestatieOverzicht(row({ status: "SUBMITTED", invoice: null }));
+    expect(res.subtotalCents).toBe(BASE_CENTS + 98000);
+  });
+
+  it("laat één corrupte ortSegments-rij de pagina niet crashen (defensieve parse)", () => {
+    // Out-of-band/corrupte data in de kolom mag niet de héle /prestaties-pagina onderuit
+    // halen; net als elke andere lezer valt de parse stil terug op 'geen ORT'.
+    expect(() =>
+      toPrestatieOverzicht(row({ ortSegments: "{ niet-geldige json", invoice: null })),
+    ).not.toThrow();
+    const res = toPrestatieOverzicht(row({ ortSegments: "{ niet-geldige json", invoice: null }));
+    expect(res.hasOrt).toBe(false);
+    // Zonder ORT-segmenten valt de uurbasis terug op hours × rate: 80u × €50 = 400000.
+    expect(res.subtotalCents).toBe(BASE_CENTS);
+    expect(res.ortBreakdown.surchargeCents).toBe(0);
   });
 });

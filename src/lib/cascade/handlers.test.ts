@@ -228,6 +228,57 @@ describe("Event B2 — planPerformanceApproved", () => {
     expect(fx.notifications[0]?.userId).toBe("f1");
     expect(fx.postings).toHaveLength(0); // boeking pas bij indienen (Event C)
   });
+
+  it("bevriest de ORT-toeslagen als snapshot zodra er ORT-segmenten zijn (geen drift na profielwijziging)", () => {
+    const ortRates = { EVENING: 2200, NIGHT: 4900, SATURDAY: 3000, SUNDAY: 6000, HOLIDAY: 10000 };
+    const fx = planPerformanceApproved({
+      performance: {
+        id: "p2",
+        status: "SUBMITTED",
+        type: "HOURS",
+        rateCents: 30_00,
+        ortSegments: [
+          { category: "NORMAL", hours: 6 },
+          { category: "NIGHT", hours: 2 },
+        ],
+        ortRates,
+        collaborationId: "col1",
+      },
+      freelancerUserId: "f1",
+      clientUserId: "c1",
+      issuerKey: "f1",
+      vatRegime: "STANDARD_HIGH",
+      correlationId: "corr1",
+      now,
+      actorId: "c1",
+    });
+    const set = fx.statusChanges[0]?.set as { ortRatesSnapshot?: string };
+    expect(set.ortRatesSnapshot).toBeDefined();
+    expect(JSON.parse(set.ortRatesSnapshot!)).toEqual(ortRates);
+  });
+
+  it("zet geen ORT-snapshot voor een prestatie zonder ORT-segmenten", () => {
+    const fx = planPerformanceApproved({
+      performance: {
+        id: "p3",
+        status: "SUBMITTED",
+        type: "HOURS",
+        hours: 8,
+        rateCents: 75_00,
+        ortRates: null,
+        collaborationId: "col1",
+      },
+      freelancerUserId: "f1",
+      clientUserId: "c1",
+      issuerKey: "f1",
+      vatRegime: "STANDARD_HIGH",
+      correlationId: "corr1",
+      now,
+      actorId: "c1",
+    });
+    const set = fx.statusChanges[0]?.set as { ortRatesSnapshot?: string };
+    expect(set.ortRatesSnapshot).toBeUndefined();
+  });
 });
 
 describe("zijpaden B2' en D' vereisen een reden", () => {

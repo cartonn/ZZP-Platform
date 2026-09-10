@@ -232,4 +232,29 @@ describe("exportDienstenCsv", () => {
     expect(lines[1]).toContain("Nachtzorg Jansen");
     expect(lines[2]).toContain("Dagzorg Pietersen");
   });
+
+  it("lekt geen IEEE-754-float-artefact in de uren-kolommen (afstemmen tegen loonstrook)", () => {
+    // 4,1 + 2,2 = 6,300000000000001 en 0,1 + 0,2 = 0,30000000000000004 in float; een kale
+    // toString() zou die staart in de export lekken die tegen een loonstrook wordt afgestemd.
+    const d: DienstSummary = {
+      ...base,
+      hours: 4.1 + 2.2,
+      ortBreakdown: {
+        normalHours: 4.1 + 2.2,
+        ortHours: 0.1 + 0.2,
+        baseCents: 14000_00,
+        surchargeCents: 2000_00,
+      },
+    };
+    const csv = exportDienstenCsv([d]);
+    const lines = csv.split("\r\n");
+    const header = lines[0]!.split(";");
+    const rowCells = lines[1]!.split(";");
+    const col = (name: string) => rowCells[header.indexOf(name)];
+    expect(col("Uren")).toBe("6,3");
+    expect(col("Reguliere uren")).toBe("6,3");
+    expect(col("ORT-uren")).toBe("0,3");
+    expect(csv).not.toContain("6,300000000000001");
+    expect(csv).not.toContain("0,30000000000000004");
+  });
 });

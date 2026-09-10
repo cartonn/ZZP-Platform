@@ -7,7 +7,8 @@ import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
-import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
+import { resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
+import { safeComputeOrt } from "@/lib/ort-breakdown";
 import { currentDunningStage } from "@/lib/payment-reminders";
 import { buildAanmaningData } from "@/lib/aanmaning";
 import { AanmaningSection } from "@/components/invoices/aanmaning-section";
@@ -86,6 +87,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           submittedAt: true,
           status: true,
           ortSegments: true,
+          ortRatesSnapshot: true,
         },
       },
       collaboration: {
@@ -157,7 +159,9 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   // en wat er nog ontbreekt (typisch een btw-id/KvK op het profiel). Server-side afgeleid.
   const compliance = isFreelancerOwner
     ? assessInvoiceCompliance({
-        invoiceNumber: cascade ? invoice.partyInvoiceNumber : invoice.number,
+        invoiceNumber: cascade
+          ? invoice.partyInvoiceNumber
+          : (invoice.partyInvoiceNumber ?? invoice.number),
         issuedAt: invoice.issuedAt,
         clientName: invoice.collaboration.company.name,
         hasDescription:
@@ -177,7 +181,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   // betaalgegevens van de crediteur zolang de factuur nog openstaat, zodat de opdrachtgever correct
   // + op tijd kan betalen. Beide partijen zien hetzelfde blok. Vereist een IBAN op het ZZP-profiel.
   const issuerIban = invoice.collaboration.freelancer.iban;
-  const invoiceNumber = cascade ? (invoice.partyInvoiceNumber ?? invoice.number) : invoice.number;
+  const invoiceNumber = invoice.partyInvoiceNumber ?? invoice.number;
   const showPaymentDetails = !!issuerIban && isInvoicePaymentPending(status, lifecycle);
   const paymentReference = `Factuur ${invoiceNumber}`;
 
@@ -279,7 +283,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className="text-lg font-semibold tabular-nums tracking-tight">
-                Factuur {cascade ? (invoice.partyInvoiceNumber ?? "(concept)") : invoice.number}
+                Factuur {invoice.partyInvoiceNumber ?? (cascade ? "(concept)" : invoice.number)}
               </h1>
               <p className="text-sm text-muted-foreground">{invoice.collaboration.job.title}</p>
             </div>
@@ -485,14 +489,19 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
                     {(() => {
                       const segs = parseOrtSegments(invoice.performance?.ortSegments);
                       if (segs.length === 0 || !invoice.performance?.rateCents) return null;
-                      const ort = computeOrt(
+                      // Corrupt segment (onbekende categorie / negatieve uren) → sla de optionele
+                      // ORT-uitsplitsing over i.p.v. de héle factuurpagina te 500'en; het bevroren
+                      // factuurbedrag staat al los hierboven (uren × tarief = bedrag).
+                      const ort = safeComputeOrt(
                         segs,
                         invoice.performance.rateCents,
-                        resolveOrtRates({
+                        resolveEffectiveOrtRates({
+                          ortRatesSnapshot: invoice.performance.ortRatesSnapshot,
                           ortProfile: invoice.collaboration.ortProfile,
                           ortCustomRates: invoice.collaboration.ortCustomRates,
                         }),
                       );
+                      if (!ort) return null;
                       return (
                         <div className="mt-2 space-y-1">
                           <p className="text-xs font-medium text-muted-foreground">

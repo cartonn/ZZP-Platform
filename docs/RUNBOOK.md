@@ -85,7 +85,10 @@ Naast de liveness-probe exposeert `GET /api/metrics` machine-leesbare gauges (Pr
 → 503, verkeerd token → 401), nooit gecachet, en de uitvoer bevat **geen** PII/secrets. Gauges o.a.:
 `zzp_db_reachable`, `zzp_cron_heartbeat_stale`/`_ok`, `zzp_backup_heartbeat_stale`/`_ok`,
 `zzp_verification_queue` + `_oldest_age_seconds`, `zzp_credentials_overdue_expiry`,
-`zzp_subscriptions_overdue_expiry`, `zzp_invoices_overdue_unflipped`, `zzp_maintenance_mode`.
+`zzp_subscriptions_overdue_expiry`, `zzp_invoices_overdue_unflipped`, `zzp_maintenance_mode`, en
+`zzp_build_info` (constante `1` met labels `commit`/`built_at` — de Prometheus `*_build_info`-conventie:
+correleer een regressie/metriek-verschuiving met de exacte draaiende deploy en detecteer een redeploy via
+`changes(zzp_build_info[…])`, zonder de GitHub-deploy-lag-watchdog af te wachten; info-gauge, geen alert).
 
 - **Complete drop-in bundle:** de map [`docs/observability/`](observability/) bevat drie samenhangende
   bestanden die een operator ongewijzigd kan inladen:
@@ -96,6 +99,14 @@ Naast de liveness-probe exposeert `GET /api/metrics` machine-leesbare gauges (Pr
     (`credentials_file`, secret buiten git) scraped en `alerts.yml` via `rule_files` laadt.
   - [`alertmanager.yml`](observability/alertmanager.yml) — routing-skelet (severity → receiver) +
     `inhibit_rules`.
+  - [`grafana-dashboard.json`](observability/grafana-dashboard.json) — een Grafana-dashboard dat **alle**
+    gauges visualiseert (import via Dashboards → Import → JSON, kies de Prometheus-datasource). Rijen:
+    beschikbaarheid/modus, dead-man's-switch (cron/back-up), aflever-kanalen (ok-status +
+    opeenvolgende-mislukkingen + leeftijd-laatste-mislukking per kanaal), verificatie-wachtrij (SLA),
+    vastgelopen-pijplijn-backlogs, beveiligingsincidenten en AVG-retentie-backlogs. Zo ziet een operator
+    de productiegezondheid in één oogopslag zonder op `/admin/systeemstatus` in te loggen. **Enige bron
+    van waarheid = de generator** `scripts/grafana-dashboard.mjs`; regenereer met
+    `node scripts/grafana-dashboard.mjs --write && npx prettier --write docs/observability/grafana-dashboard.json`.
 - **Scrape-deadman (totale storing):** alle waarde-alerts evalueren over de gescrapete gauges. Valt de
   scrape zélf weg (app down, endpoint 503, geroteerde `CRON_SECRET`, netwerk/TLS), dan is er geen data en
   vuurt geen van die alerts. `ZzpTargetDown` (`up == 0`, scrape faalt) en `ZzpMetricsAbsent`
@@ -112,7 +123,10 @@ Naast de liveness-probe exposeert `GET /api/metrics` machine-leesbare gauges (Pr
   moet naar `/api/metrics` wijzen en `alerts.yml` laden, elke door `alertmanager.yml` gerefereerde alert
   moet écht bestaan, en de onderhouds-inhibitie moet **elke** operationele alert dekken — een nieuwe alert
   in `alerts.yml` die niet aan de inhibitie wordt toegevoegd breekt de poort (zodat 'ie niet stil door de
-  onderhouds-demping heen paget).
+  onderhouds-demping heen paget). `grafana-dashboard.test.ts` klinkt het dashboard aan dezelfde bron vast:
+  de gecommitte JSON moet inhoudelijk gelijk zijn aan de generator-uitvoer, en elke geëxposeerde gauge
+  moet in minstens één paneel voorkomen — een nieuwe gauge zonder paneel (of een dood paneel naar een
+  hernoemde gauge) breekt de poort, zodat het dashboard niet stil achterloopt op de gauges.
 - **Scrape-hardening (bounded-parallel + deadline):** de scrape verzamelt ~18 onafhankelijke
   backlog-tellingen. Die lopen **bounded-parallel** (env `METRICS_COLLECT_CONCURRENCY`, default 4 — laag
   genoeg om de Prisma-connectiepool niet te monopoliseren) achter een **harde deadline**
@@ -205,6 +219,27 @@ kapotte deploy:
 
 ## 5. Back-up & herstel (database)
 
+**Railway off-site job:** wijs de bestaande database-backupservice naar `/railway.backup.json`
+als configuratiepad (zodat de app-config het backupcommando niet overschrijft). Dit kiest
+`Dockerfile.backup` en `npm run db:backup:remote`, behoudt de cron `15 2 * * *` (02:15 UTC),
+schakelt HTTP-healthchecks uit en start geen pre-deploy-commando. Deze aparte image bevat PostgreSQL
+18-clients en start geen applicatie, migraties of seed. Stel de bestaande `BACKUP_S3_*`,
+`BACKUP_ENCRYPTION_KEY`, `BACKUP_HEARTBEAT_URL`, `CRON_SECRET` en `DATABASE_URL` in. Zie `.env.example`.
+De job maakt een custom-format dump, controleert de inhoudsopgave, versleutelt met AES-256-GCM,
+uploadt en leest hetzelfde object terug. Pas na geldige authenticatie en gelijke SHA-256 volgt een
+succes-heartbeat. De dump mag maximaal 128 MiB zijn; elke database-/S3-stap heeft een time-out van
+120 seconden en de heartbeat 15 seconden. Falen geeft exitcode 1 zonder geheimen in logs.
+
+Remote retentie is voorlopig uit: ook met `BACKUP_RETENTION_DAYS` blijven alle bestaande objecten
+behouden. Elk nieuw object heeft een UUID zodat gelijktijdige runs niets overschrijven. Bewaar de
+backupsleutel apart van de database. Het archiefformaat blijft compatibel met de oorspronkelijke
+job (`ZZPENC01`-header). Een herstelprocedure moet het opgehaalde object eerst met
+`decryptRemoteBackup` uit `src/lib/ops/db-backup-remote.ts` ontsleutelen naar een tijdelijk bestand
+binnen een private map (0700), dan de bestaande herstel-drill hieronder uitvoeren en het tijdelijke
+bestand altijd verwijderen. De bestaande restore-scripts verwachten een ontsleutelde `.dump`.
+Een geslaagde roundtrip/heartbeat bewijst object-integriteit; de scratch-herstel-drill levert het
+afzonderlijke bewijs dat schema en gegevens daadwerkelijk herstelbaar zijn.
+
 **De databaseback-ups zijn de verantwoordelijkheid van de databasedienst** (managed Postgres:
 Neon/Supabase/Railway Postgres). Dit is mensenwerk om aan te zetten — de app kan het niet.
 
@@ -274,6 +309,18 @@ netwerk-isolatie, toegangscontrole) — de drill dicht het retentievenster in co
 van het scratch-doel zelf is een infra-keuze. Draai dit periodiek (bv. maandelijks) en na een schema-migratie.
 Alternatief handmatig: herstel naar een wegwerp-database, zet `DATABASE_URL` daarheen in staging en
 verifieer met `/api/readiness` + een steekproef. Een onbeproefde back-up is geen back-up.
+
+**Geautomatiseerd in CI (`.github/workflows/restore-drill.yml`):** de volledige keten
+back-up → herstel → teruglezen draait zelfstandig tegen een echte Postgres 16 (service-container,
+**geen productie-secret nodig**): de job seedt een bron-database, maakt er een back-up van met
+`npm run db:backup`, herstelt die in een aparte wegwerp scratch-database met `npm run db:restore-drill`
+en leest schema + rijen terug. Triggers: **maandelijkse cron** (1e om 03:17 UTC — bewijst dat de
+herstelketen blijft werken naarmate schema/afhankelijkheden wijzigen), **`workflow_dispatch`** en een
+**`pull_request`**-trigger op de back-up-/herstelcode (een regressie is zo al zichtbaar in de PR die 'm
+introduceert). Bewust **geen** vereiste branch-protection-check — een doorlopend betrouwbaarheidssignaal,
+geen merge-blokkade (zoals `e2e-postgres`/`monitor`). Dit bewijst de herstel-**code**; de periodieke
+drill tegen een **echte productie-back-up** hierboven (`DRILL_DATABASE_URL` → een echte, gelijk-beveiligde
+scratch-database) blijft de aanbevolen extra zekerheid.
 
 **Back-up-heartbeat / dead-man's-switch:** laat de externe back-up-job (pg_dump/databasedienst) na
 elke geslaagde dump pingen naar `POST /api/backups/heartbeat` met

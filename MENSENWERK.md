@@ -253,11 +253,19 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   EICAR-Upload-scanner-zelftest. Bevat nooit host/poort, secrets, PII of de bestandsinhoud. Resterend
   mensenwerk: **niets extra** — de kaart/gauges vullen zichzelf zodra `UPLOAD_SCANNER=clamav` staat en de
   eerste scan draait. Optioneel: richt een monitor op `ZzpUploadScanDeliveryFailing`.
-- **Dependency graph + Dependabot aanzetten** (laag, web-toggle): de `dependency-review`-poort
-  vereist GitHub's Dependency graph. Zet die (en Dependabot security updates) aan op
-  github.com/cartonn/ZZP-Platform/settings/security_analysis. De supply-chain-CVE-check draait
-  nu al via `npm audit` (de `audit`-poort); dependency-review is een extra laag (licenties +
-  PR-diff) die je daarna kunt terugzetten als vereiste check.
+- **Dependency graph + Dependabot aanzetten** (laag, web-toggle; **code-kant GEDAAN 2026-09-09**):
+  de `dependency-review`-poort vereist GitHub's Dependency graph. Zet die (en Dependabot security
+  updates) aan op github.com/cartonn/ZZP-Platform/settings/security_analysis. De supply-chain-CVE-check
+  draait nu al via `npm audit` (de `audit`-poort); dependency-review is een extra laag (licenties +
+  PR-diff) die je daarna kunt terugzetten als vereiste check. **Code-kant GEDAAN:** de volledige
+  Dependabot-configuratie staat nu in `.github/dependabot.yml` — wekelijkse, **gegroepeerde**
+  update-PR's voor twee ecosystemen (`npm` productie- én dev-buckets, `github-actions`) in de
+  Europe/Amsterdam-tijdzone, met begrensde PR-flux (10/5) zodat de reviewqueue niet dichtslibt.
+  Waar `npm audit` een CVE alleen **detecteert** (en de merge blokkeert), opent Dependabot zelf de
+  **herstel-PR** — elk door dezelfde 6 vereiste statuschecks, dus nooit een automatische merge zonder
+  groene poort. Drift-bewaakt door `scripts/dependabot-config.test.ts`. Resterend mensenwerk: **alleen
+  de web-toggle** hierboven aanzetten — daarna verwerkt GitHub `dependabot.yml` en beginnen de PR's
+  (security-updates komen dan out-of-band binnen).
 
 - **Uitgaande HTTP-timeouts voor externe koppelingen** (laag, code-kant GEDAAN 9-7-2026): elke
   uitgaande call naar een externe dienst (Mollie/Stripe voor betalingen, Resend voor e-mail, Upstash
@@ -280,6 +288,23 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   (verkeerde auth/verzoek), een niet-JSON-antwoord of een contract-mismatch faalt **meteen** zonder
   herhaling. Inert zolang een demo-verifier draait (raakt alleen de echte adapters). Resterend
   mensenwerk: **niets** — optioneel bij te stellen via `VERIFY_HTTP_TIMEOUT_MS`/`VERIFY_HTTP_RETRIES`.
+
+- **Time-out + retry op de reistijd-routing-provider (Geoapify) hot-path** (laag, code-kant GEDAAN
+  2026-09-04): de échte geocode-/route-fetches (`src/lib/services/routing.ts`, `fetchJson`) liepen op de
+  match-hot-path maar gebruikten als **enige** uitgaande productie-integratie een **kale `fetch`** —
+  zonder deadline en zonder retry — terwijl de routing-connectiviteitszelftest (én billing/e-mail/
+  rate-limit/verify) al `fetchWithTimeout` gebruikte. Een trage/hangende provider blokkeerde zo de
+  match-request onbeperkt (silent-hang/resource-exhaustion onder last), en één transiënte 5xx/429/
+  netwerk-blip liet de lookup onnodig terugvallen op de haversine-schatting **én** trip de routing
+  dead-man's-switch-heartbeat (valse page). De fetch deelt nu de gehardende `fetchWithTimeout` (env
+  `ROUTING_HTTP_TIMEOUT_MS`, geklemd 1000–60000) en doet een **begrensde retry-met-exponentiële-backoff**
+  bij transiënte fouten (netwerkfout, time-out, 5xx, 429) — instelbaar via `ROUTING_HTTP_RETRIES`
+  (geklemd 0–5, default 2). Geocode/route zijn **read-only GETs**, dus retry is idempotent-veilig; een
+  4xx (verkeerde sleutel) of onleesbare JSON faalt **meteen** zonder herhaling. De heartbeat registreert
+  alleen de einduitkomst (één succes of één mislukking na uitputte retries), zodat een blip die op de
+  retry herstelt de mislukkingen-teller niet onnodig oplopen laat. Inert bij `ROUTING_PROVIDER=offline`
+  (de pilot-default — geen provider actief, geen gedragsverandering). Resterend mensenwerk: **niets** —
+  optioneel bij te stellen via `ROUTING_HTTP_TIMEOUT_MS`/`ROUTING_HTTP_RETRIES`.
 
 - **Verificatie-adapter aflever-heartbeat (dead-man's-switch)** (code-kant GEDAAN 2026-08-23): completeert
   de dead-man's-switch-familie. Opslag/mail/push/billing (uitgaand + webhook-inkomend)/cron/back-up hadden
@@ -392,6 +417,21 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   instelbaar via `HEALTH_PROBE_TIMEOUT_MS` (`0` = bewust uit). Zie RUNBOOK §monitoring. Resterend
   mensenwerk: **niets** — werkt out-of-the-box.
 
+- **Single-flight coalescing op de gezondheids-probes (pool-uitputting-amplificatie)** (laag, code-kant
+  GEDAAN 2026-09-08): `/api/health` (liveness) en `/api/readiness` (readiness) zijn publiek +
+  ongeauthenticeerd (de load balancer/orchestrator pollt ze zonder sessie) en doen elk een echte
+  DB-round-trip (`SELECT 1`, readiness ook een kerntabel-`count()`). Anders dan élk ander werk-doend
+  publiek endpoint hadden ze geen rem op gelijktijdigheid: een ongeauthenticeerde burst startte N
+  gelijktijdige DB-queries en kon de **bewust-begrensde Prisma-pool** (`DATABASE_CONNECTION_LIMIT`)
+  uitputten → connection-timeouts voor de héle app (login, documentdownload, verificatiequeue) — een
+  self-inflicted DoS, volledig pre-auth. Opgelost met **single-flight** (`coalesceProbe`,
+  `src/lib/observability/probe-coalesce.ts`): gelijktijdige aanroepers delen één in-flight probe, dus
+  hoogstens één DB-query per probe-duur per endpoint, ongeacht de burst. **Bewust geen per-IP rate-limit**
+  op deze endpoints — een 429 op een healthcheck zou de orchestrator een gezonde instance laten killen
+  (readiness-flap), precies de outage die we voorkomen. De `draining`-staat blijft per-request vers (buiten
+  de coalescing). Geen caching van de uitkomst: readiness/health nooit ouder dan één probe-duur, fail-closed
+  blijft fail-closed. Resterend mensenwerk: **niets** — werkt out-of-the-box.
+
 - **`/api/metrics`-scrape gehard (bounded-parallel + harde deadline)** (laag, code-kant GEDAAN
   2026-08-21): de Prometheus-scrape verzamelt ~18 onafhankelijke backlog-tellingen. Die liepen tot nu toe
   **strikt serieel en zónder deadline** — anders dan de health/readiness-probes (die kregen al
@@ -422,6 +462,19 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   naar 0 zodra een admin het incident ACKNOWLEDGED of RESOLVED. Bevat nooit PII — alleen tellingen per
   severity. Resterend mensenwerk: **niets extra** — de gauges vullen zichzelf; optioneel richt je een
   monitor op `ZzpSecurityIncidentCritical`/`ZzpSecurityIncidentWarn`.
+
+- **Grafana-dashboard voor `/api/metrics`** (laag, code-kant GEDAAN 2026-09-06): de observability-bundle
+  had de gauges (`/api/metrics`) en de alerts (`alerts.yml`) al, maar **geen dashboard** om de ~70
+  productie-gauges te visualiseren — een operator kon de dead-man's-switch-heartbeats, aflever-kanalen,
+  cron-backlogs en AVG-retentie alleen via losse PromQL of via `/admin/systeemstatus` (admin-login)
+  bekijken. Er is nu een kant-en-klaar Grafana-dashboard (`docs/observability/grafana-dashboard.json`,
+  gegenereerd + vastgeklonken door `scripts/grafana-dashboard.mjs` en de drift-test
+  `grafana-dashboard.test.ts` — elke geëxposeerde gauge moet een paneel hebben, geen dood paneel). Rijen:
+  beschikbaarheid/modus, cron/back-up-heartbeat, aflever-kanalen (ok + opeenvolgende-mislukkingen +
+  leeftijd-laatste-mislukking), verificatie-wachtrij (SLA), vastgelopen-pijplijn-backlogs,
+  beveiligingsincidenten en AVG-retentie. Bevat nooit PII/secrets (alleen gauge-namen + labels).
+  Resterend mensenwerk: **importeer het bestand één keer** in je Grafana (Dashboards → Import → upload
+  JSON, kies de Prometheus-datasource die `/api/metrics` scraped). Zie RUNBOOK §2a.
 
 - **Semantische matching (pgvector): stille-degradatie-gat gedicht** (laag, code-kant GEDAAN
   2026-08-16): `SEMANTIC_MATCHER=pgvector` was de enige env-selecteerbare driver die de "halve
@@ -455,6 +508,49 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   bij een expliciete logout, niet bij een verlopen sessie. Resterend mensenwerk: **niets** — browsers
   honoreren de header alleen over een veilige (HTTPS) verbinding, dus actief in productie (Railway),
   lokaal over http genegeerd.
+
+- **Server-Action-origin-allowlist (Next.js 15 CSRF-poort achter proxy)** (laag, code-kant GEDAAN
+  2026-09-04): Next.js 15 controleert bij élke Server Action de `Origin`-header tegen de
+  (`X-Forwarded-`)`Host` als CSRF-mitigatie. Achter Railway's reverse proxy of bij een eigen domein
+  kan die vergelijking mismatchen — dan faalt **élke mutatie** (documentupload, cascade, alle server
+  actions) stil met een 403 "Invalid Server Actions request", terwijl niets in de UI verklaart
+  waarom. `experimental.serverActions.allowedOrigins` (`next.config.mjs`, afgeleid via de pure,
+  geteste `scripts/server-actions-origins.mjs`) staat nu de canonieke publieke host(s) expliciet toe.
+  De host wordt afgeleid uit de **al benodigde** `AUTH_URL`/`NEXTAUTH_URL` (zelfde bron van waarheid
+  als `public-url.ts`), dus zodra die voor de login-callbacks is gezet, is deze poort automatisch
+  goed. Puur **additief**: de default same-origin-check blijft gelden — het verzwakt niets, het staat
+  alleen extra vertrouwde hosts toe. Leeg (lokaal/dev of niets geconfigureerd) → default gedrag
+  ongewijzigd (inert, CLAUDE.md §8). Resterend mensenwerk: **niets extra** bij één domein (volgt uit
+  `AUTH_URL`). Bij **multi-domein** (apex + www, of een migratie tussen het Railway-domein en een
+  eigen domein): zet de extra host(s) in `SERVER_ACTIONS_ALLOWED_ORIGINS` (komma-gescheiden; host of
+  volledige URL).
+
+- **Gestreamde body-limiet op de publieke endpoints (geheugen-DoS-vangnet)** (laag, code-kant GEDAAN
+  2026-09-06): de vier publieke, ongeauthenticeerde body-lezende endpoints (`/api/client-error`,
+  `/api/csp-report`, `/api/billing/webhook`, `/api/mail-intake/webhook`) lazen de body via
+  `request.text()` — dat buffert de **volledige** stream in het geheugen vóór de byte-grens wordt
+  gecontroleerd. Een `Content-Length`-header-pre-check (bij twee van de vier aanwezig) dekt alleen een
+  eerlijke header af; een **chunked** request (`Transfer-Encoding: chunked`, dus géén Content-Length)
+  omzeilde de pre-check en werd onbegrensd gebufferd — binnen de per-IP count-rate-limit alsnog een
+  geheugen-DoS-oppervlak (CWE-400). Er is nu één gedeelde, geteste helper
+  (`src/lib/http/read-limited-text.ts`, `readLimitedText`) die (a) de Content-Length-header pre-checkt
+  (afwijzen zónder ook maar één byte te lezen) én (b) de body **gestreamd** leest en de stream afkapt
+  zodra de lopende byte-som de grens overschrijdt — er wordt nooit méér dan de grens (+ één laatste
+  chunk) in het geheugen gehouden, óók zonder Content-Length. Byte-nauwkeurig (werkelijke UTF-8-bytes,
+  niet `string.length`/code-units) en byte-identiek aan `request.text()` — cruciaal voor de endpoints
+  die de rauwe body nodig hebben voor handtekeningverificatie (Stripe). Vervangt vier kopieën van het
+  read-then-check-patroon door één bron van waarheid. Resterend mensenwerk: **niets** — werkt
+  out-of-the-box.
+  **Code-kant GEDAAN (2026-09-09) — doorgetrokken naar de resterende body-lezende endpoints:** drie
+  andere body-lezende endpoints lazen de body nog via een onbegrensd `request.json()` (zelfde
+  volledig-bufferen-vóór-grens-probleem): `push/subscribe` + `push/unsubscribe` (sessie-auth, maar
+  **zonder** rate-limit — een ingelogde actor kon arbitrair grote, chunked bodies loopen) en
+  `backups/heartbeat` (Bearer CRON_SECRET). Er is nu een gedeelde helper `readLimitedJson(request,
+maxBytes)` (leunt op `readLimitedText` + `JSON.parse`, retourneert de geparste waarde of `null` bij
+  te groot/onleesbaar/leeg/onparseerbaar); de drie endpoints lezen via die helper met een krappe grens
+  (subscribe 8 KB, unsubscribe 4 KB, heartbeat 1 KB). Gedrag bij een geldige body ongewijzigd (`null`
+  mapt op het bestaande faalpad: 400 bij push, "kale ping = geslaagd" bij de heartbeat). Resterend
+  mensenwerk: **niets** — werkt out-of-the-box.
 
 ## §1. Hosting, database, opslag, domein, geheimen
 
@@ -496,6 +592,16 @@ nodig met back-ups en beveiligde opslag.
    productie** (encryptie-at-rest, netwerk-isolatie, toegangscontrole) — het retentievenster is nu in
    code gedicht, maar de vertrouwelijkheid van het scratch-doel blijft een infra-keuze. Draai de drill
    periodiek (bv. maandelijks) + na een schema-migratie. Zie RUNBOOK §5.
+   **Code-kant GEDAAN (2026-09-05) — de drill draait nu doorlopend in CI:** de drill wás gebouwd en
+   unit-getest, maar niets oefende de **volledige keten** (back-up → herstel → teruglezen) ooit op een
+   schema — de belofte "een onbeproefde back-up is geen back-up" was zelf onbeproefd. `.github/workflows/
+restore-drill.yml` sluit dat gat: een **zelfstandige** job (Postgres 16 service-container, **geen
+   productie-secret nodig**) seedt een bron-database, maakt er met `npm run db:backup` een back-up van,
+   herstelt die met `npm run db:restore-drill` in een aparte wegwerp scratch-database en leest schema +
+   rijen terug. Draait **maandelijks** (cron), op **`workflow_dispatch`** en bij elke **PR** die de
+   back-up-/herstelcode raakt — een regressie is zo meteen zichtbaar. Resterend mensenwerk: **niets extra**
+   voor de code-garantie; de periodieke drill tegen een **echte productie-back-up** (`DRILL_DATABASE_URL`
+   naar een gelijk-beveiligde wegwerp-Postgres) blijft de aanbevolen extra zekerheid.
 3. Kopieer de **verbindings-URL** (begint met `postgresql://...`). Dit is een geheim.
    **Opleveren:** de verbindings-URL → in de secrets als `DATABASE_URL` (§7). Geef je ontwikkela/agent
    het seintje "Postgres staat klaar"; die zet de databaseprovider om naar PostgreSQL en draait de
@@ -582,6 +688,22 @@ nodig met back-ups en beveiligde opslag.
    wordt de stap eerlijk overgeslagen (`describeEncryption` in `src/lib/services/storage.ts`,
    `resolveExpectedSse` + de `encrypt`-stap in `src/lib/services/storage-selftest.ts`). Resterend
    mensenwerk: **niets extra**.
+   **Code-kant GEDAAN (2026-09-07) — bucket-default-encryptie als fallback-bewijs:** de per-object
+   `HeadObject`-controle hierboven was **te streng voor S3-compatibele opslag**: sommige providers
+   versleutelen elk object transparant-at-rest maar **echoën de `x-amz-server-side-encryption`-header
+   niet** op HeadObject. De zelftest markeerde zulke (wél versleutelde) opslag dan ONVERSLEUTELD →
+   de strikte go-live-poort (`npm run preflight -- --strict` / de go-live-sweep) haalde geen groen op
+   de echte productie-opslag (LAUNCH-REVIEW §1-blocker). De `encrypt`-stap valt nu, wanneer de
+   per-object-header afwezig is, terug op **positief bucket-breed bewijs**: `GetBucketEncryption`
+   (`describeBucketEncryption` in `src/lib/services/storage.ts`). Staat er een default-encryptie-regel
+   op de bucket, dan versleutelt de opslag élk object aantoonbaar op schijf (S3 dwingt de default af
+   ongeacht de PutObject-parameters) en is de beveiligingseigenschap gehaald — de stap wordt groen met
+   de eerlijke toelichting "per-object SSE-header afwezig; bucket-default-encryptie geconfigureerd,
+   geverifieerd via bucket-policy". **Verzwakt niets:** de fallback voegt alleen een PASS-pad toe waar
+   ONAFHANKELIJK positief bewijs bestaat; ontbreekt dat (geen regel, of de call werpt/wordt niet
+   ondersteund), dan blijft dit de bestaande AVG-faalmodus (nooit vals groen). Resterend mensenwerk:
+   **niets extra** — voor AWS S3 staat bucket-default-encryptie sinds jan-2023 verplicht aan; voor een
+   S3-compatibele store: zet default-encryptie op de bucket aan.
    **Code-kant GEDAAN (2026-07-24) — server-action body-limiet gelijkgetrokken met de upload-ceiling:**
    uploads (documenten/certificaten/bedrijfslogo) lopen via Next.js server actions, die de request-body
    **standaard op 1 MB** afkappen — kleiner dan onze 10 MB-ceiling (`MAX_UPLOAD_BYTES`). Een reëel
@@ -1383,6 +1505,18 @@ vastgeklonken aan de drift-gate. De heartbeat is zelf fail-open (een DB-storing 
 laten falen) en bevat nooit het wachtwoord/de hash/de foutinhoud — alleen tijdstip, teller en driver-modus.
 Resterend mensenwerk: **niets extra** — de kaart/gauges vullen zichzelf zodra `PASSWORD_BREACH_CHECK=hibp`
 staat en de eerste controle draait. Optioneel: richt een monitor op `ZzpPasswordBreachCheckDeliveryFailing`.
+**Code-kant GEDAAN (2026-09-08) — retry-op-transiënte-fout:** de HIBP-lookup gebruikte al
+`fetchWithTimeout` (deadline) maar was — als **enige** read-only-GET uitgaande productie-integratie —
+zónder retry, terwijl `http-verify.ts` (DUO/BIG/iDIN) en `routing.ts` (Geoapify) een begrensde
+retry-met-backoff hebben. Omdat de controle **fail-open** is, liet één transiënte 5xx/**429**
+(HIBP rate-limit't)/netwerk-blip de lek-check stil overslaan — een mogelijk gelekt wachtwoord toegelaten
+op de registratie-/wachtwoordwijzig-hot-path — én tripte het onnodig de aflever-heartbeat (valse page).
+De lookup is een idempotente read-only GET, dus retry is veilig: alleen transiënte fouten
+(netwerk/time-out/5xx/429) worden herhaald met exponentiële backoff (250 ms → 4 s cap), een niet-transiënte
+4xx faalt meteen, en de heartbeat registreert alléén de einduitkomst (één succes, of één mislukking na
+uitputte retries) zodat een blip die herstelt de mislukkingen-teller niet oploopt. Instelbaar via
+`PASSWORD_BREACH_HTTP_RETRIES` (geklemd [0,5], default 2). Resterend mensenwerk: **niets** — optioneel
+bij te stellen via `PASSWORD_BREACH_HTTP_RETRIES`/`PASSWORD_BREACH_HTTP_TIMEOUT_MS`.
 
 **Code-kant GEDAAN (2026-07-22) — cross-origin-isolatie + Permissions-Policy-hardening:** naast de al
 sterke statische headers (HSTS+preload, `X-Frame-Options: DENY`, nosniff, `Referrer-Policy`) en de

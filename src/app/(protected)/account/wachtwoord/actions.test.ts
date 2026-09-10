@@ -25,7 +25,7 @@ const reauthCheck = vi.hoisted(() =>
 );
 const reauthReset = vi.hoisted(() => vi.fn(async () => undefined));
 
-vi.mock("@/lib/authz", () => ({ requireActor: vi.fn(async () => store.actor) }));
+vi.mock("@/lib/authz", () => ({ requirePasswordChangeActor: vi.fn(async () => store.actor) }));
 vi.mock("@/auth", () => ({ signOut: signOutMock }));
 vi.mock("@/lib/security/clear-site-data", () => ({
   logoutRedirect: (to: string) => to,

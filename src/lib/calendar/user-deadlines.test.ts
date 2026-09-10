@@ -13,6 +13,7 @@ interface FindArgs {
     AND?: Array<{ OR?: Array<Record<string, unknown>> }>;
     OR?: Array<Record<string, unknown>>;
   };
+  select?: Record<string, unknown>;
 }
 
 const credentialFindManyMock = vi.hoisted(() =>
@@ -58,15 +59,17 @@ beforeEach(() => {
 });
 
 describe("loadUserAdministrativeDeadlines", () => {
-  it("ZZP'er: laadt VERIFIED certificaten met verloopdatum, gescoopt op de eigen userId", async () => {
+  it("ZZP'er: laadt VERIFIED certificaten met verloopdatum, gescoopt op de eigen userId — zonder titel/type", async () => {
     credentialFindManyMock.mockResolvedValue([
-      { id: "c1", title: "VOG", expiresAt: new Date("2026-09-01T00:00:00Z") },
+      { id: "c1", expiresAt: new Date("2026-09-01T00:00:00Z") },
     ]);
     const result = await loadUserAdministrativeDeadlines(USER, "FREELANCER", NOW);
 
-    expect(result.credentials).toEqual([
-      { id: "c1", title: "VOG", expiresAt: new Date("2026-09-01T00:00:00Z") },
-    ]);
+    // Datominimalisatie: alleen id + verloopdatum verlaten de loader; het type/de titel niet.
+    expect(result.credentials).toEqual([{ id: "c1", expiresAt: new Date("2026-09-01T00:00:00Z") }]);
+    const select = credentialFindManyMock.mock.calls[0]?.[0]?.select;
+    expect(select).toEqual({ id: true, expiresAt: true });
+    expect(select).not.toHaveProperty("title");
     const where = credentialFindManyMock.mock.calls[0]?.[0]?.where;
     expect(where).toBeDefined();
     expect(where!.status).toBe("VERIFIED");
@@ -132,6 +135,25 @@ describe("loadUserAdministrativeDeadlines", () => {
     expect(result.vat).toEqual([
       { year: 2026, quarter: 2, deadline: new Date("2026-07-31T00:00:00Z") },
     ]);
+  });
+
+  it("opdrachtgever: géén BTW-aangifte-deadline in de agenda (#1333 — niet in de actie-rail, dus ook niet hier)", async () => {
+    getVatDeadlinesMock.mockResolvedValue([
+      {
+        year: 2026,
+        quarter: 2,
+        deadline: new Date("2026-07-31T00:00:00Z"),
+        daysUntil: 10,
+        status: "DUE_SOON",
+        balanceCents: 12100,
+        party: "CLIENT",
+      },
+    ]);
+    const result = await loadUserAdministrativeDeadlines(USER, "CLIENT", NOW);
+    // De agenda mag de engine niet eens raadplegen voor een opdrachtgever; anders lekt een
+    // aangifte-deadline in de .ics die de actie-rail bewust stil houdt.
+    expect(getVatDeadlinesMock).not.toHaveBeenCalled();
+    expect(result.vat).toEqual([]);
   });
 
   it("delegeert de IB-deadline aan de engine en mapt belastingjaar/deadline door", async () => {

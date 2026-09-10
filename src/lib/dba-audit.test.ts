@@ -51,6 +51,7 @@ const verifiedCredential: DbaAuditCredential = {
   title: "VOG 2025",
   status: "VERIFIED",
   verifiedAt: new Date("2025-06-01"),
+  expiresAt: null,
 };
 
 const draftCredential: DbaAuditCredential = {
@@ -58,6 +59,17 @@ const draftCredential: DbaAuditCredential = {
   title: "HBO Verpleegkunde",
   status: "DRAFT",
   verifiedAt: null,
+  expiresAt: null,
+};
+
+// VERIFIED in de DB, maar de vervaldatum ligt vóór `now` (2026-06-10) — de expiry-cron heeft de
+// status nog niet naar EXPIRED geflipt. Server-side geldt dit als verlopen.
+const expiredVerifiedCredential: DbaAuditCredential = {
+  type: "VOG",
+  title: "VOG 2024",
+  status: "VERIFIED",
+  verifiedAt: new Date("2024-06-01"),
+  expiresAt: new Date("2026-06-09T12:00:00.000Z"),
 };
 
 describe("buildDbaAuditData — footer & disclaimer", () => {
@@ -197,6 +209,32 @@ describe("buildDbaAuditData — ondernemerschap-signalen", () => {
   it("geen geverifieerde certificaten → count = 0", () => {
     const data = buildDbaAuditData(baseCol, baseParties, [draftCredential], now);
     expect(data.entrepreneurship.verifiedCredentialCount).toBe(0);
+  });
+
+  it("een VERIFIED-certificaat met gepasseerde vervaldatum telt niet mee (server-verlopen)", () => {
+    const data = buildDbaAuditData(baseCol, baseParties, [expiredVerifiedCredential], now);
+    expect(data.entrepreneurship.verifiedCredentialCount).toBe(0);
+    expect(data.entrepreneurship.trustLevel).toBe("BASIS");
+  });
+
+  it("een VERIFIED-certificaat met vervaldatum in de toekomst telt wél mee", () => {
+    const future: DbaAuditCredential = {
+      ...expiredVerifiedCredential,
+      expiresAt: new Date("2027-06-10T12:00:00.000Z"),
+    };
+    const data = buildDbaAuditData(baseCol, baseParties, [future], now);
+    expect(data.entrepreneurship.verifiedCredentialCount).toBe(1);
+    expect(data.entrepreneurship.trustLevel).toBe("DEELS");
+  });
+
+  it("verlopen én geldig gemengd → alleen de geldige telt", () => {
+    const data = buildDbaAuditData(
+      baseCol,
+      baseParties,
+      [expiredVerifiedCredential, verifiedCredential],
+      now,
+    );
+    expect(data.entrepreneurship.verifiedCredentialCount).toBe(1);
   });
 
   it("KvK en BTW aanwezig → hasKvk en hasBtw true", () => {

@@ -70,7 +70,8 @@ test("van dienst tot fee: de bemiddelaar ziet de opbrengst van een eigen plaatsi
     /\/reacties/,
     45000,
   );
-  await expect(fp.getByText(/maximum aantal reacties/)).toHaveCount(0);
+  // Geen plan-blokkade: de reactielimiet is een maandquotum, dus deze reactie hoort door te gaan.
+  await expect(fp.getByText(/het maximum van \d+ reacties bereikt/)).toHaveCount(0);
 
   // 3. De opdrachtgever accepteert en stelt de samenwerking voor.
   const cctx = await browser.newContext();
@@ -160,8 +161,12 @@ test("van dienst tot fee: de bemiddelaar ziet de opbrengst van een eigen plaatsi
 
   // 9. De transactie-fee over deze samenwerking staat in de facturatie van de bemiddelaar. De fee
   //     wordt vastgelegd zodra de factuur betaald is.
+  // /franchise/facturatie leidt permanent om naar de Facturatie-tab van de Bemiddeling-hub.
   await page.goto("/franchise/facturatie");
-  await expect(page.getByRole("heading", { name: "Facturatie" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Facturatie" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
   await expect(page.getByRole("heading", { name: "Fees per samenwerking" })).toBeVisible();
   const feeRij = page.locator("tr").filter({ hasText: dienst });
   await reloadUntilVisible(page, feeRij.first());

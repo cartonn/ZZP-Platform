@@ -32,3 +32,16 @@ export function normalizeAuditFilters(params: RawParams): AuditFilters {
   const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
   return { action, entityType, page };
 }
+
+/**
+ * Bouwt de CSV-export-link voor het audit-log. De export omvat de hele filterselectie, dus de
+ * paginering (`page`) wordt bewust genegeerd — alleen de actieve actie-/entiteit-filters gaan mee.
+ * Eén canoniek exportpad (`/admin/audit/export`) ongeacht waar het paneel wordt gerenderd.
+ */
+export function auditExportHref(filters: AuditFilters): string {
+  const params = new URLSearchParams();
+  if (filters.action) params.set("action", filters.action);
+  if (filters.entityType) params.set("entityType", filters.entityType);
+  const query = params.toString();
+  return `/admin/audit/export${query ? `?${query}` : ""}`;
+}

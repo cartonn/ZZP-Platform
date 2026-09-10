@@ -7,6 +7,7 @@ import { AuthorizationError, requireActor } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { invoiceRegisterCsv, type InvoiceRegisterRow } from "@/lib/invoice-register-csv";
+import { displayInvoiceNumber } from "@/lib/invoice-number";
 import { exportRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
@@ -41,6 +42,7 @@ export async function GET(): Promise<Response> {
     orderBy: { createdAt: "desc" },
     select: {
       number: true,
+      partyInvoiceNumber: true,
       status: true,
       lifecycleStatus: true,
       issuedAt: true,
@@ -60,7 +62,7 @@ export async function GET(): Promise<Response> {
   });
 
   const rows: InvoiceRegisterRow[] = invoices.map((inv) => ({
-    number: inv.number,
+    number: displayInvoiceNumber(inv),
     issuedAt: inv.issuedAt,
     dueAt: inv.dueAt,
     counterpartyName: isFreelancer

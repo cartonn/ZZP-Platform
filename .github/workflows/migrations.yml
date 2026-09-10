@@ -4,8 +4,12 @@ name: Migrations
 # beschrijven. Zonder deze check kan een schemawijziging zonder migratie ongemerkt mergen en pas bij
 # de productie-deploy stuk gaan (migrate deploy maakt de kolom dan niet aan).
 on:
+  # Eén run per PR-push: de push-trigger alleen nog op main (post-merge-bevestiging), PR-branches
+  # lopen uitsluitend via pull_request. Voorheen ("**" + pull_request) draaide élke PR-push twee
+  # volledige runs (2× vier e2e-shards); dat verdubbelde de CI-kosten én hield auto-merge op tot
+  # de dubbele run klaar was (gezien op #1340, #1354, #1332).
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 concurrency:

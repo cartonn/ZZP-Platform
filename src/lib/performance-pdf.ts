@@ -14,8 +14,10 @@ import {
   makeWriter,
   winAnsiSafe,
 } from "@/lib/pdf-common";
-import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
+import { resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
+import { safeComputeOrt } from "@/lib/ort-breakdown";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
+import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
 
 export interface PerformancePdfData {
   perfType: string; // "HOURS" | "MILESTONE"
@@ -32,6 +34,8 @@ export interface PerformancePdfData {
   ortSegments: string | null;
   ortProfile: string | null;
   ortCustomRates: string | null;
+  /** Bij goedkeuring bevroren ORT-toeslagen; wint van de live samenwerkings-tarieven. */
+  ortRatesSnapshot: string | null;
   submittedAt: string; // "yyyy-mm-dd" of ""
 }
 
@@ -94,13 +98,22 @@ export async function buildPerformancePdf(data: PerformancePdfData): Promise<Uin
     y -= 20;
 
     const segments = parseSegments(data.ortSegments);
-    if (data.rateCents && segments.length > 0) {
+    // Corrupt segment (onbekende categorie / negatieve uren) → `safeComputeOrt` geeft `null`, dan valt
+    // de PDF terug op de losse "uren × tarief"-regel (else-tak) i.p.v. de generatie te laten 500'en.
+    const result =
+      data.rateCents && segments.length > 0
+        ? safeComputeOrt(
+            segments,
+            data.rateCents,
+            resolveEffectiveOrtRates({
+              ortRatesSnapshot: data.ortRatesSnapshot,
+              ortProfile: data.ortProfile,
+              ortCustomRates: data.ortCustomRates,
+            }),
+          )
+        : null;
+    if (result) {
       // ORT-uitsplitsing
-      const result = computeOrt(
-        segments,
-        data.rateCents,
-        resolveOrtRates({ ortProfile: data.ortProfile, ortCustomRates: data.ortCustomRates }),
-      );
       const cHours = 330;
       const cSur = 440;
       hr(y);
@@ -139,7 +152,9 @@ export async function buildPerformancePdf(data: PerformancePdfData): Promise<Uin
     } else {
       // Geen ORT: losse uren × tarief.
       const hours = data.hours ?? 0;
-      const total = data.rateCents ? Math.round(hours * data.rateCents) : (data.amountCents ?? 0);
+      const total = data.rateCents
+        ? hoursTimesRateCents(hours, data.rateCents)
+        : (data.amountCents ?? 0);
       draw(`${hours} uur${data.rateCents ? ` × ${euro(data.rateCents)}` : ""}`, M, y, { size: 10 });
       drawRight(euro(total), right, y, { size: 11, f: bold });
       y -= 22;

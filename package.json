@@ -21,12 +21,13 @@
     "db:check-migrations": "node scripts/check-migrations.mjs",
     "db:seed": "prisma db seed",
     "db:backup": "tsx scripts/backup-db.ts",
+    "db:backup:remote": "tsx scripts/backup-db-remote.ts",
     "db:restore": "tsx scripts/restore-db.ts",
     "db:restore-drill": "tsx scripts/backup-restore-drill.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "postinstall": "prisma generate"
+    "postinstall": "patch-package && prisma generate"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs}": [
@@ -51,6 +52,7 @@
     "next": "15.5.24",
     "next-auth": "^5.0.0-beta.32",
     "nodemailer": "^9.0.1",
+    "patch-package": "^8.0.1",
     "pdf-lib": "^1.17.1",
     "qrcode-generator": "^1.5.0",
     "react": "^19.0.0",

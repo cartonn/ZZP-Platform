@@ -20,7 +20,7 @@ import {
   planInvoiceCredited,
 } from "@/lib/administration/ledger";
 import { computeVat, hourlySubtotalCents } from "@/lib/administration/vat";
-import { ortSubtotalCents, type OrtSegment } from "@/lib/ort";
+import { ortSubtotalCents, serializeOrtRates, type OrtSegment } from "@/lib/ort";
 import { PLATFORM_FEE, type VatRegime, type OrtCategory } from "@/lib/config";
 import { type CascadeEffects, emptyEffects } from "@/lib/cascade/types";
 import { CascadeError } from "@/lib/cascade/commands-shared";
@@ -173,7 +173,15 @@ export function planPerformanceApproved(ctx: PerformanceApprovedCtx): CascadeEff
     field: "status",
     from: ctx.performance.status,
     to: "APPROVED",
-    set: { approvedAt: ctx.now },
+    // Bevries naast het factuursubtotaal ook de ORT-toeslagen: overzichten (factuurpagina,
+    // werkproces, urenstaat-PDF) rekenen daarna uit deze snapshot i.p.v. de live samenwerkings-
+    // tarieven, zodat ze niet wegdrijven als de opdrachtgever het profiel later wijzigt.
+    set: {
+      approvedAt: ctx.now,
+      ...(ctx.performance.ortRates
+        ? { ortRatesSnapshot: serializeOrtRates(ctx.performance.ortRates) }
+        : {}),
+    },
   });
   fx.newInvoice = {
     performanceId: ctx.performance.id,

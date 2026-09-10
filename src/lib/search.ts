@@ -45,12 +45,26 @@ export const SEARCH_TYPE_ORDER: readonly SearchType[] = [
 /** Minimale lengte van een betekenisvolle zoekterm. */
 export const MIN_QUERY_LENGTH = 2;
 
+/**
+ * Maximale lengte van een zoekterm die we verwerken. De snelzoeker is een direct aanroepbare
+ * server-actie (`searchPlatform`), dus een scripted aanroeper kan een ongebonden string insturen;
+ * zonder cap zou elke aanroep die volledige string trimmen/lowercasen én per kandidaatveld scoren.
+ * Een betekenisvolle zoekterm is kort en langer dan dit voegt niets toe aan de score (`scoreField`
+ * matcht een term die langer is dan het veld toch nooit). We begrenzen daarom de ruwe invoer vóór
+ * elke stringbewerking — defense-in-depth tegen een flood, server-side (CLAUDE.md regel 1).
+ */
+export const MAX_QUERY_LENGTH = 100;
+
 /** Standaard maximum aantal resultaten dat de snelzoeker toont. */
 export const DEFAULT_SEARCH_LIMIT = 8;
 
-/** Normaliseert een zoekterm: trim, witruimte inklappen, lowercase. */
+/**
+ * Normaliseert een zoekterm: begrens de ruwe lengte, trim, witruimte inklappen, lowercase.
+ * De lengtebegrenzing gebeurt vóór de regex-/case-bewerkingen zodat die nooit over een ongebonden
+ * string lopen (zie {@link MAX_QUERY_LENGTH}).
+ */
 export function normalizeSearchQuery(raw: string): string {
-  return raw.trim().replace(/\s+/g, " ").toLowerCase();
+  return raw.slice(0, MAX_QUERY_LENGTH).trim().replace(/\s+/g, " ").toLowerCase();
 }
 
 /** True als de (ruwe) zoekterm betekenisvol genoeg is om op te zoeken. */

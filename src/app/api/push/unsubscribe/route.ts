@@ -6,8 +6,13 @@ import { z } from "zod";
 import { currentActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
+import { readLimitedJson } from "@/lib/http/read-limited-text";
 
 export const dynamic = "force-dynamic";
+
+// Body-grens: alleen een endpoint-URL (≤2048) + JSON-overhead. Deze route heeft geen rate-limit,
+// dus een grotere payload wijzen we af vóór parsen (onbegrensd bufferen = CWE-400, zie subscribe).
+const MAX_BODY_BYTES = 4 * 1024;
 
 const bodySchema = z.object({ endpoint: z.string().url().max(2048) });
 
@@ -15,7 +20,7 @@ export async function POST(request: Request): Promise<Response> {
   const actor = await currentActor();
   if (!actor) return NextResponse.json({ error: "Niet geautoriseerd." }, { status: 401 });
 
-  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+  const parsed = bodySchema.safeParse(await readLimitedJson(request, MAX_BODY_BYTES));
   if (!parsed.success) {
     return NextResponse.json({ error: "Ongeldig verzoek." }, { status: 400 });
   }

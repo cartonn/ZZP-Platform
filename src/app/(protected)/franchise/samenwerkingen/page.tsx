@@ -13,6 +13,7 @@ import {
 } from "@/lib/collaboration-filter";
 import { summarizeCollaborationRenewal } from "@/lib/collaboration-renewal";
 import {
+  collaborationFrozenRowBadge,
   renewalRowBadge,
   summarizeFranchiseCollaborations,
 } from "@/lib/franchise/collaboration-oversight";
@@ -119,11 +120,19 @@ export default async function FranchiseSamenwerkingenPage({
         now,
       }),
     }))
-    // Aandacht bovenaan: eerst voorbij de einddatum, dan het aflopende venster (meest urgent eerst);
-    // de rest houdt de bijgewerkt-desc-volgorde (stabiele sort).
+    // Aandacht bovenaan: eerst bevroren (open dispuut → werkproces stil), dan voorbij de einddatum, dan
+    // het aflopende venster (meest urgent eerst); de rest houdt de bijgewerkt-desc-volgorde (stabiele sort).
     .sort((a, b) => {
-      const rank = (phase: string) => (phase === "overdue" ? 0 : phase === "ending_soon" ? 1 : 2);
-      const byRank = rank(a.renewal.phase) - rank(b.renewal.phase);
+      const rank = (item: { row: Row; renewal: { phase: string } }) => {
+        if (
+          item.row.disputedAt !== null &&
+          (item.row.status === "ACTIVE" || item.row.status === "PROPOSED")
+        ) {
+          return -1;
+        }
+        return item.renewal.phase === "overdue" ? 0 : item.renewal.phase === "ending_soon" ? 1 : 2;
+      };
+      const byRank = rank(a) - rank(b);
       if (byRank !== 0) return byRank;
       if (a.renewal.attention && b.renewal.attention) {
         return (a.renewal.daysRemaining ?? 0) - (b.renewal.daysRemaining ?? 0);
@@ -200,6 +209,7 @@ export default async function FranchiseSamenwerkingenPage({
             <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
               {visible.map(({ row: c, renewal }) => {
                 const status = STATUS[c.status as CollaborationStatus] ?? STATUS.PROPOSED;
+                const frozenBadge = collaborationFrozenRowBadge(c.disputedAt, c.status);
                 const renewalBadge = renewalRowBadge(renewal.phase, renewal.daysRemaining);
                 return (
                   <div key={c.id} className="space-y-2 p-4">
@@ -213,6 +223,9 @@ export default async function FranchiseSamenwerkingenPage({
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
                         <div className="flex items-center gap-1.5">
+                          {frozenBadge && (
+                            <Badge variant={frozenBadge.tone}>{frozenBadge.label}</Badge>
+                          )}
                           {renewalBadge && (
                             <Badge variant={renewalBadge.tone}>{renewalBadge.label}</Badge>
                           )}

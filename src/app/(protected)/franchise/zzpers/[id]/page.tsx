@@ -465,7 +465,7 @@ function BestandenTab({ dossier }: { dossier: RosterDossier }) {
               {c.expiresAt && ` · verloopt ${formatDateShortNl(c.expiresAt)}`}
             </p>
           </div>
-          <CredentialStatusBadge status={c.status} />
+          <CredentialStatusBadge status={c.status} expiresAt={c.expiresAt} />
         </div>
       ))}
     </div>

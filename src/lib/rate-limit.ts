@@ -422,7 +422,11 @@ export class RedisRateLimitStore implements RateLimitStore {
    * UpstashRateLimitStore.runProbeCommands. Raakt géén echte rate-limit-tellers.
    */
   async runProbeCommands(commands: (string | number)[][]): Promise<unknown[]> {
-    const pipeline = this.client().pipeline(commands);
+    // ioredis resolves batch commands as case-sensitive method names.
+    // Normalize only the command; keys and arguments must retain their case.
+    const pipeline = this.client().pipeline(
+      commands.map(([command, ...args]) => [String(command).toLowerCase(), ...args]),
+    );
     const results = await pipeline.exec();
     if (!results) {
       throw new Error("Redis: pipeline gaf geen resultaat terug.");
@@ -544,6 +548,19 @@ export const registerRateLimiter = new RateLimiter(
 );
 
 /**
+ * Maximaal REACH_ESTIMATE_RATE_LIMIT (default 60) bereik-checks per opdrachtgever per 5 minuten. De
+ * bereik-check vóór publicatie scant (begrensd) de vindbare pool bij elke gedebouncede
+ * formulierwijziging; een royaal per-account-plafond houdt dat read-only oppervlak bounded zonder
+ * normaal bewerken te hinderen. Gekeyd op `actor.id` (de aanroeper heeft al een CLIENT-sessie).
+ */
+export const reachEstimateRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("REACH_ESTIMATE_RATE_LIMIT", 60),
+  5 * 60_000,
+  "reach-estimate:",
+);
+
+/**
  * Maximaal RESET_RATE_LIMIT (default 3) wachtwoord-reset-aanvragen per sleutel (IP én e-mail) per
  * uur. Beperkt mail-bombing en CPU-amplificatie (token-hashing) zonder de enumeratiebescherming
  * (uniforme respons) te doorbreken.
@@ -565,6 +582,23 @@ export const credentialVerifyRateLimiter = new RateLimiter(
   limitFromEnv("CREDENTIAL_VERIFY_RATE_LIMIT", 10),
   60 * 60_000,
   "credverify:",
+);
+
+/**
+ * Maximaal IDENTITY_VERIFY_RATE_LIMIT (default 10) identiteitsverificatiepogingen (iDIN/eIDAS) per
+ * gebruiker per uur. De zelf-verificatie (`account/actions.ts verifyIdentity`) legt bij succes de
+ * geverifieerde juridische naam vast en zet `identityVerifiedAt` — dé basis voor het vertrouwensniveau
+ * en de naamcontrole bij credentials — zónder admin-tussenkomst, precies zoals de DUO/BIG-zelf-
+ * verificatie. Zonder rem is de directe-aanroepbare actie geautomatiseerd te bombarderen: elke poging
+ * doet in productie een uitgaande iDIN-round-trip (kosten-/oracle-amplificatie richting de provider) en
+ * een geweigerde poging schrijft een auditregel. Gekeyd op `actor.id` (de aanroeper heeft al een
+ * sessie); parity met `credentialVerifyRateLimiter` (10 / uur) — defense-in-depth naast de auth-poort.
+ */
+export const identityVerifyRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("IDENTITY_VERIFY_RATE_LIMIT", 10),
+  60 * 60_000,
+  "identityverify:",
 );
 
 /**
@@ -731,6 +765,26 @@ export const ideaEngagementRateLimiter = new RateLimiter(
   limitFromEnv("IDEA_ENGAGEMENT_RATE_LIMIT", 40),
   5 * 60_000,
   "idea:",
+);
+
+/**
+ * Maximaal SUPPORT_TICKET_RATE_LIMIT (default 20) support-mutaties per gebruiker per uur. De
+ * support-hub is een open, authenticated UGC-oppervlak: `createTicket` en `replyToTicket` staan open
+ * voor élke ingelogde gebruiker (FREELANCER/CLIENT/FRANCHISER), schrijven vrije tekst naar een
+ * TEXT-kolom, draaien de triage-scan en doen notificatie-/audit-fan-out naar de helpdesk-wachtrij.
+ * Als enige van de UGC-mutatie-oppervlakken had support géén volume-rem (message/application/invite/
+ * noshow/idea hebben die wél), waardoor een scripted of gecompromitteerd account onbegrensd
+ * SupportTicket/SupportMessage-rijen kon aanmaken (DB-/storage-bloat + helpdesk-notificatie-flood,
+ * CWE-770). Eén gedeelde bucket over beide acties, ruim boven normaal gebruik (niemand opent of
+ * beantwoordt legitiem 20 tickets per uur) maar het stopt een geautomatiseerde flood. De auth-/Zod-/
+ * ownership-poort blijft leidend; dit is een extra volume-rem (defense-in-depth), parity met de
+ * andere UGC-mutatie-remmen.
+ */
+export const supportTicketRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("SUPPORT_TICKET_RATE_LIMIT", 20),
+  60 * 60_000,
+  "support:",
 );
 
 /**

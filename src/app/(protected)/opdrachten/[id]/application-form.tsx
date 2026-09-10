@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -68,9 +69,17 @@ export function ApplicationForm({
       </div>
 
       {state?.error && !Object.keys(fe).length && (
-        <p role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
-          {state.error}
-        </p>
+        <div role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+          <p>{state.error}</p>
+          {state.upgradeHref && (
+            <Link
+              href={state.upgradeHref}
+              className="focus-ring mt-1 inline-block font-medium underline underline-offset-2"
+            >
+              {t("Bekijk abonnementen")}
+            </Link>
+          )}
+        </div>
       )}
 
       <Button type="submit" disabled={isPending}>

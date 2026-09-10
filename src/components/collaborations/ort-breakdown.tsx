@@ -3,15 +3,19 @@
 // onder elke ureninvoer die segmenten bevat.
 
 import { CheckCircle2 } from "lucide-react";
-import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
+import { resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
+import { safeComputeOrt } from "@/lib/ort-breakdown";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { formatEuro } from "@/lib/invoices";
+import { computeInvoicePreview } from "@/lib/performance-invoice-preview";
 
 interface OrtBreakdownProps {
   ortSegments: OrtSegment[];
   rateCents: number;
   ortProfile?: string | null;
   ortCustomRates?: string | null;
+  /** Bij goedkeuring bevroren toeslagen; is deze gezet, dan wint hij van de live samenwerkings-tarieven. */
+  ortRatesSnapshot?: string | null;
 }
 
 export function OrtBreakdown({
@@ -19,13 +23,20 @@ export function OrtBreakdown({
   rateCents,
   ortProfile,
   ortCustomRates,
+  ortRatesSnapshot,
 }: OrtBreakdownProps) {
-  const result = computeOrt(
+  // Read-oppervlak (werkproces-pagina): een semantisch corrupt segment (onbekende categorie /
+  // negatieve uren) mag deze uitsplitsing niet de héle pagina laten crashen. `safeComputeOrt` geeft
+  // dan `null` → sla de ORT-uitsplitsing over. Spiegelt de guard op factuurdetail/PDF (#1466).
+  const result = safeComputeOrt(
     ortSegments,
     rateCents,
-    resolveOrtRates({ ortProfile, ortCustomRates }),
+    resolveEffectiveOrtRates({ ortRatesSnapshot, ortProfile, ortCustomRates }),
   );
-  if (result.lines.length === 0) return null;
+  if (!result || result.lines.length === 0) return null;
+  // Conceptfactuur-uitkomst: dezelfde BTW-berekening als de cascade bij goedkeuring vastlegt,
+  // zodat "totaal incl. btw" hier gelijk is aan de latere Invoice.totalCents.
+  const preview = computeInvoicePreview(result.subtotalCents);
   return (
     <div className="mt-2 space-y-1">
       <p className="text-xs font-medium text-muted-foreground">ORT-uitsplitsing</p>
@@ -73,6 +84,26 @@ export function OrtBreakdown({
               {formatEuro(result.subtotalCents)}
             </td>
           </tr>
+          {preview && (
+            <>
+              <tr>
+                <td colSpan={4} className="py-0.5 text-muted-foreground">
+                  Btw ({Math.round(preview.vatRateBps / 100)}%)
+                </td>
+                <td className="py-0.5 text-right tabular-nums text-muted-foreground">
+                  {formatEuro(preview.vatCents)}
+                </td>
+              </tr>
+              <tr className="border-t border-border/40">
+                <td colSpan={4} className="py-0.5 font-medium">
+                  Totaal incl. btw
+                </td>
+                <td className="py-0.5 text-right font-semibold tabular-nums">
+                  {formatEuro(preview.totalCents)}
+                </td>
+              </tr>
+            </>
+          )}
         </tfoot>
       </table>
     </div>

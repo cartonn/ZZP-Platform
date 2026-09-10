@@ -585,6 +585,19 @@ export const MARKET_RATE_MIN_SAMPLE = 10;
 // steekproef voor een representatieve mediaan/spreiding mét harde geheugengrens.
 export const MARKET_RATE_SAMPLE_CAP = 5000;
 
+// --- Beoordelingsaggregatie — anonimiseringsdrempel -------------------------
+// Minimaal dit aantal gepubliceerde beoordelingen voordat we een geaggregeerd cijfer tonen.
+// k-anonimiteitsvloer = 3 (security-review 6-9-2026): een "geaggregeerd" cijfer over één
+// beoordeling ís die ene beoordeling (individueel herleidbaar), en bij twee kan een van beide
+// beoordelaars het exacte cijfer van de ander uit het getoonde gemiddelde herleiden
+// (ander = 2·gemiddelde − eigen). Pas vanaf drie beoordelingen is geen enkel individueel cijfer
+// nog exact te herleiden uit gemiddelde + aantal. Zonder deze vloer lekte het deelbare, publieke
+// vertrouwensdossier (`/vertrouwen/[profileId]/[token]`) het cijfer van één opdrachtgever aan het
+// hele internet — dezelfde faalklasse als de marktband (AVG art. 5(1)(f)/25, privacy by design).
+// Onder de vloer tonen we niets (null/geen sectie). Drempel = mensenwerk/AVG-keuze; bevestig de
+// waarde vóór livegang met echte gebruikers.
+export const REVIEW_AGGREGATE_MIN_SAMPLE = 3;
+
 // --- DBA-monitoring drempels & teksten (§6, configureerbaar) ----------------
 export const DBA_THRESHOLDS = {
   durationSignalMonths: 6, //        eerste duursignaal

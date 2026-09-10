@@ -19,7 +19,7 @@ export default async function PrognosePage() {
   const actor = await requireActor();
 
   if (actor.role !== "FREELANCER") {
-    redirect("/administratie");
+    redirect("/financien");
   }
 
   const now = new Date();

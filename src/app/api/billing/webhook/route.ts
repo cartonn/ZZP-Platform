@@ -7,6 +7,7 @@
 import { prisma } from "@/lib/db";
 import { getPaymentProvider } from "@/lib/billing/provider";
 import { billingWebhookRateLimiter } from "@/lib/rate-limit";
+import { readLimitedText } from "@/lib/http/read-limited-text";
 import { clientIpFromRequest } from "@/lib/client-ip";
 import { applyResolvedPaymentStatus } from "@/lib/billing/apply-payment-status";
 import { recordWebhookAuthOutcome } from "@/lib/observability/billing-webhook-auth-heartbeat";
@@ -28,24 +29,14 @@ export async function POST(request: Request): Promise<Response> {
   const rl = await billingWebhookRateLimiter.check(clientIpFromRequest(request));
   if (!rl.allowed) return new Response("ok", { status: 200 });
 
-  // Byte-grens vóór het bufferen van de body. De Content-Length-header (indien aanwezig) laat een
-  // overmaatse body afwijzen zónder hem in te lezen; de lengtecheck na het lezen vangt een
-  // ontbrekende/onjuiste header af. Bewust 200 (geen 413), consistent met de rest van deze route.
-  const declaredLength = Number(request.headers.get("content-length"));
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
-    return new Response("ok", { status: 200 });
-  }
-
   const provider = getPaymentProvider();
 
-  // De rauwe body één keer lezen (Stripe-handtekeningverificatie vereist de exacte, ongeparste body).
-  let raw: string;
-  try {
-    raw = await request.text();
-  } catch {
-    return new Response("ok", { status: 200 }); // body onleesbaar
-  }
-  if (raw.length > MAX_BODY_BYTES) return new Response("ok", { status: 200 });
+  // De rauwe body gestreamd lezen (Stripe-handtekeningverificatie vereist de exacte, ongeparste
+  // body — de helper herassembleert byte-identiek). De Content-Length-header wijst een overmaatse
+  // body af zónder lezen; de gestreamde afkap vangt een ontbrekende/onjuiste header (chunked) af
+  // zonder de hele body te bufferen. Bewust 200 (geen 413), consistent met de rest van deze route.
+  const raw = await readLimitedText(request, MAX_BODY_BYTES);
+  if (raw === null) return new Response("ok", { status: 200 }); // te groot of onleesbaar
 
   // Observability-instrumentatie (fail-open, verandert NOOIT de control-flow hieronder): registreer of
   // de webhook-handtekening klopt in de betaal-webhook-handtekening-heartbeat. Zo wordt een systematisch

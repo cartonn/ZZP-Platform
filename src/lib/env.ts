@@ -52,6 +52,11 @@ const schema = z
     // Productie-webadres (NextAuth + deelbare dossier-links). In productie verplicht; lokaal optioneel.
     AUTH_URL: z.string().url("AUTH_URL moet een geldige URL zijn.").optional(),
     NEXTAUTH_URL: z.string().url("NEXTAUTH_URL moet een geldige URL zijn.").optional(),
+    // Extra vertrouwde host(s) voor de Server-Action-CSRF-poort van Next.js 15 (komma-gescheiden;
+    // host of volledige URL). Puur additief bovenop de default same-origin-check en bovenop de host
+    // uit AUTH_URL/NEXTAUTH_URL. Alleen nodig bij multi-domein (apex + www, of migratie tussen het
+    // Railway-domein en een eigen domein). Zie scripts/server-actions-origins.mjs + next.config.mjs.
+    SERVER_ACTIONS_ALLOWED_ORIGINS: z.string().optional(),
     // Eigen sleutel voor deelbare dossier-links (security-review H-1). Valt lokaal terug op
     // AUTH_SECRET; in productie verplicht zodat rotatie van het één niet het ander breekt.
     SHARE_TOKEN_SECRET: z
@@ -166,6 +171,10 @@ const schema = z
     // extra secret nodig; fail-open bij een storing. Zie src/lib/services/password-breach.ts.
     PASSWORD_BREACH_CHECK: z.enum(["noop", "hibp"]).default("noop"),
     PASSWORD_BREACH_HTTP_TIMEOUT_MS: z.string().optional(),
+    // Aantal retries bij een transiënte HIBP-storing (netwerk/time-out/5xx/429), geklemd [0,5],
+    // default 2. De lookup is een read-only GET (idempotent), dus retry is veilig; parity met
+    // VERIFY_HTTP_RETRIES/ROUTING_HTTP_RETRIES. Zie src/lib/services/password-breach.ts.
+    PASSWORD_BREACH_HTTP_RETRIES: z.string().optional(),
 
     // Web-push (PWA-pushmeldingen, src/lib/push/web-push.ts). Beide VAPID-sleutels sámen zetten push
     // AAN; precies één van de twee is een halve activering (push staat dan STIL uit) → boot-fout in de

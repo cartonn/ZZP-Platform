@@ -190,4 +190,55 @@ describe("verlopen niet-verplicht certificaat — blijvende vernieuw-taak", () =
     // Geen tweede, lagere-band credential-fix-rij voor hetzelfde certificaat.
     expect(ids).not.toContain("credential-fix:cred-diploma");
   });
+
+  it("twee verlopen certificaten van HETZELFDE type geven precies één vernieuw-taak (het meest recent verlopen exemplaar)", async () => {
+    // Eén geldig VERIFIED-cert van een type dekt de hele type-compliance (coveredTypes) → één
+    // vernieuwing laat beide taken verdwijnen; twee rijen naar twee bewerk-pagina's zou ruis zijn.
+    // De vernieuw-kandidaat is het meest recent verlopen exemplaar (dezelfde keuze als de
+    // verplicht-document- en collab-tak).
+    state.creds = [
+      {
+        id: "cred-oud",
+        title: "Diploma Verpleegkunde (2018)",
+        type: "DIPLOMA",
+        status: "EXPIRED",
+        expiresAt: new Date("2018-01-01"),
+      },
+      {
+        id: "cred-nieuw",
+        title: "Diploma Verpleegkunde (2021)",
+        type: "DIPLOMA",
+        status: "EXPIRED",
+        expiresAt: new Date("2021-01-01"),
+      },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    const fixIds = tasks.filter((t) => t.id.startsWith("credential-fix:")).map((t) => t.id);
+    expect(fixIds).toEqual(["credential-fix:cred-nieuw"]);
+  });
+
+  it("twee verlopen certificaten van VERSCHILLENDE types geven twee vernieuw-taken (geen over-dedup)", async () => {
+    state.creds = [
+      {
+        id: "cred-diploma",
+        title: "Diploma Verpleegkunde",
+        type: "DIPLOMA",
+        status: "EXPIRED",
+        expiresAt: new Date("2020-01-01"),
+      },
+      {
+        id: "cred-cert",
+        title: "BHV",
+        type: "CERTIFICATE",
+        status: "EXPIRED",
+        expiresAt: new Date("2020-01-01"),
+      },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    const fixIds = tasks
+      .filter((t) => t.id.startsWith("credential-fix:"))
+      .map((t) => t.id)
+      .sort();
+    expect(fixIds).toEqual(["credential-fix:cred-cert", "credential-fix:cred-diploma"]);
+  });
 });

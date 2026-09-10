@@ -67,3 +67,31 @@ export function summarizeVerificationTurnaround(
     p90Days: Math.max(p90Days, typicalDays),
   };
 }
+
+/**
+ * De eerlijkheids-status van een certificaat-in-beoordeling ten opzichte van de gebruikelijke
+ * doorlooptijd. `on_track` betekent: binnen wat de meeste beoordelingen kosten (of geen betrouwbaar
+ * doorlooptijd-aggregaat beschikbaar). `slower_than_usual`: de langst-wachtende aanvraag heeft de
+ * p90-doorlooptijd overschreden — de geruststelling "je hoeft zelf niets te doen" mag dan niet
+ * onvoorwaardelijk blijven staan (noord-ster "Kan ik dit vertrouwen?").
+ */
+export type VerificationWaitStatus = "on_track" | "slower_than_usual";
+
+/**
+ * Bepaalt of de wachttijd van het langst-wachtende ingediende certificaat de gebruikelijke
+ * doorlooptijd overschrijdt. Puur en deterministisch, server-side afgeleid.
+ *
+ * - Zonder `turnaround` (te weinig historische data voor een betrouwbaar aggregaat) kunnen we
+ *   "langer dan gebruikelijk" niet eerlijk vaststellen → altijd `on_track` (geen valse alarmering).
+ * - Anders `slower_than_usual` zodra de wachttijd de p90 ("de meeste beoordelingen binnen X dagen")
+ *   strikt overschrijdt; exact op p90 telt nog als binnen de gebruikelijke doorlooptijd.
+ *
+ * @param oldestWaitingDays Hele dagen dat de langst-wachtende ingediende aanvraag al wacht (>= 0).
+ */
+export function classifyVerificationWait(
+  oldestWaitingDays: number,
+  turnaround: VerificationTurnaround | null,
+): VerificationWaitStatus {
+  if (!turnaround) return "on_track";
+  return oldestWaitingDays > turnaround.p90Days ? "slower_than_usual" : "on_track";
+}

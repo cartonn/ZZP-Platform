@@ -8,14 +8,16 @@ import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { ciContains } from "@/lib/db/text-search";
 import { normalizeAuditFilters } from "@/lib/admin";
-import { auditExportCsv } from "@/lib/audit-export";
+import {
+  AUDIT_EXPORT_CAP,
+  auditExportCsv,
+  auditExportFilename,
+  isAuditExportTruncated,
+} from "@/lib/audit-export";
 import { exportRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
 export const dynamic = "force-dynamic";
-
-// Defensieve bovengrens: een audit-log groeit onbegrensd; we exporteren de meest recente rijen.
-const AUDIT_EXPORT_CAP = 10000;
 
 export async function GET(request: Request): Promise<Response> {
   let actor;
@@ -37,12 +39,19 @@ export async function GET(request: Request): Promise<Response> {
   if (filters.action) where.action = ciContains(filters.action);
   if (filters.entityType) where.entityType = ciContains(filters.entityType);
 
-  const entries = await prisma.auditLog.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: AUDIT_EXPORT_CAP,
-    include: { actor: { select: { name: true } } },
-  });
+  // Totaal (vóór de cap) naast de gecapte rijen: nodig om truncatie eerlijk te melden in de CSV,
+  // de bestandsnaam én de export-auditregel (AVG art. 5(2) verantwoordingsplicht).
+  const [total, entries] = await Promise.all([
+    prisma.auditLog.count({ where }),
+    prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: AUDIT_EXPORT_CAP,
+      include: { actor: { select: { name: true } } },
+    }),
+  ]);
+
+  const summary = { exported: entries.length, total };
 
   const csv = auditExportCsv(
     entries.map((e) => ({
@@ -53,6 +62,7 @@ export async function GET(request: Request): Promise<Response> {
       actorName: e.actor?.name ?? null,
       metadata: e.metadata,
     })),
+    summary,
   );
 
   await prisma.auditLog.create({
@@ -63,13 +73,15 @@ export async function GET(request: Request): Promise<Response> {
       entityId: "all",
       metadata: {
         count: entries.length,
+        total,
+        truncated: isAuditExportTruncated(summary),
         action: filters.action,
         entityType: filters.entityType,
       },
     }),
   });
 
-  const filename = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+  const filename = auditExportFilename(new Date(), summary);
   return new Response(csv, {
     status: 200,
     headers: {

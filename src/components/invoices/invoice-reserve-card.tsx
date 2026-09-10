@@ -44,7 +44,7 @@ export function InvoiceReserveCard({ hint }: InvoiceReserveCardProps) {
         <p className="text-xs text-muted-foreground">
           Een bewust ruime vuistregel over de netto-omzet; je werkelijke kosten verlagen de heffing.
           Bekijk je precieze stand op{" "}
-          <Link href="/ontzorgd" className="font-medium underline underline-offset-4">
+          <Link href="/financien?tab=ontzorgd" className="font-medium underline underline-offset-4">
             Ontzorgd
           </Link>
           . {TAX_DISCLAIMER}

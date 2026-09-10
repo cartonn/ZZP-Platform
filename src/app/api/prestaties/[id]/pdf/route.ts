@@ -42,6 +42,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       periodEnd: true,
       description: true,
       ortSegments: true,
+      ortRatesSnapshot: true,
       submittedAt: true,
       createdAt: true,
       collaboration: {
@@ -116,6 +117,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     ortSegments: perf.ortSegments,
     ortProfile: perf.collaboration?.ortProfile ?? null,
     ortCustomRates: perf.collaboration?.ortCustomRates ?? null,
+    ortRatesSnapshot: perf.ortRatesSnapshot,
     submittedAt: ymd(perf.submittedAt ?? perf.createdAt),
   });
 

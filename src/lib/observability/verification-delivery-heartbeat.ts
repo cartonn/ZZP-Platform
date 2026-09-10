@@ -1,7 +1,6 @@
-// Opslag-kant van de verificatie-aflever-heartbeat (dead-man's-switch). Schrijft/leest de uitkomst van
-// de laatste échte verificatie-operatie per register en levert het oordeel voor /admin/systeemstatus +
-// /api/metrics. De pure beoordeling zit in verification-delivery-freshness.ts; hier alleen de
-// DB-interactie.
+// Opslag-kant van de verificatie-aflever-heartbeat (dead-man's-switch). De DB-interactie zit sinds de
+// consolidatie in delivery-heartbeat.ts (één `DeliveryHeartbeat`-tabel met een `channel`-kolom); hier blijft
+// alleen de kanaalbinding + de vertaling naar het register-oordeel staan.
 //
 // De registratie wordt aangeroepen door de Recording*Verifier-decorators (recording-verifier.ts) rond
 // de uitgaande `verify()`-operatie van de echte DUO-/BIG-/iDIN-verifier. De mock-verifiers (dev/demo
@@ -9,19 +8,24 @@
 // write is fail-open, dus één upsert per operatie mag een geslaagde verificatie nooit alsnog laten
 // falen — noch een echte fout maskeren.
 //
-// Elk register krijgt zijn eigen singleton-rij (channel-id), zodat een aanhoudende storing van één
-// register niet wordt gemaskeerd door een ander dat wél antwoordt.
+// Elk register krijgt zijn eigen rij (channel-id), zodat een aanhoudende storing van één register niet
+// wordt gemaskeerd door een ander dat wél antwoordt. De pure beoordeling zit in
+// verification-delivery-freshness.ts.
 
-import { prisma } from "@/lib/db";
+import {
+  heartbeatChannelSpec,
+  readHeartbeats,
+  recordHeartbeatFailure,
+  recordHeartbeatSuccess,
+} from "@/lib/observability/delivery-heartbeat";
 import {
   aggregateVerificationDelivery,
   evaluateVerificationDeliveryFreshness,
   type VerificationAdapterFreshness,
   type VerificationDeliveryAggregate,
 } from "@/lib/observability/verification-delivery-freshness";
-import { reportError } from "@/lib/observability/report";
 
-/** Canonieke kanaal-ids (singleton-rij per register) + hun Nederlandse label. */
+/** Canonieke kanaal-ids (rij per register) + hun Nederlandse label. */
 export const VERIFICATION_CHANNELS = [
   { key: "diploma", channel: "verification-diploma", label: "DUO — diploma's" },
   { key: "big", channel: "verification-big", label: "BIG-register" },
@@ -33,83 +37,29 @@ type VerificationChannel = (typeof VERIFICATION_CHANNELS)[number]["channel"];
 /**
  * Registreert dat een verificatie-operatie via het echte register zojuist SLAAGDE (het register
  * antwoordde met een geldig contract): markeert het kanaal als operationeel en zet de opeenvolgende-
- * mislukkingen-teller terug op 0.
- *
- * Faalt NOOIT naar buiten: de heartbeat is observability, geen kernpad — een DB-storing hier mag een
- * geslaagde verificatie niet alsnog laten falen. Een schrijffout wordt gestructureerd gerapporteerd en
- * geslikt.
+ * mislukkingen-teller terug op 0. Faalt nooit naar buiten.
  */
 export async function recordVerificationDeliverySuccess(
   channel: VerificationChannel,
   driver: string,
   now: Date = new Date(),
 ): Promise<void> {
-  try {
-    await prisma.verificationDeliveryHeartbeat.upsert({
-      where: { channel },
-      create: {
-        channel,
-        lastAttemptAt: now,
-        lastOk: true,
-        lastSuccessAt: now,
-        consecutiveFailures: 0,
-        driver,
-      },
-      update: {
-        lastAttemptAt: now,
-        lastOk: true,
-        lastSuccessAt: now,
-        consecutiveFailures: 0,
-        driver,
-      },
-    });
-  } catch (error) {
-    await reportError(error, {
-      source: "verification-delivery-heartbeat",
-      requestPath: `/verification/${channel}`,
-    });
-  }
+  await recordHeartbeatSuccess(heartbeatChannelSpec(channel), driver, now, channel);
 }
 
 /**
  * Registreert dat een verificatie-operatie via het echte register zojuist MISLUKTE (de call wierp):
  * markeert het kanaal als afwijzend en telt de opeenvolgende-mislukkingen-teller atomair op (zodat een
  * monitor op een AANHOUDENDE storing kan alarmeren i.p.v. op één transiënte fout). Bewaart nooit de
- * sleutel/het endpoint of de foutinhoud — alleen tijdstip, de teller en de driver-modus.
- *
- * Faalt NOOIT naar buiten (zelfde reden als hierboven): de oproeper heeft de echte operatie-fout al in
- * handen en logt/gooit die; deze registratie is best-effort.
+ * sleutel/het endpoint of de foutinhoud — alleen tijdstip, de teller en de driver-modus. Faalt nooit naar
+ * buiten.
  */
 export async function recordVerificationDeliveryFailure(
   channel: VerificationChannel,
   driver: string,
   now: Date = new Date(),
 ): Promise<void> {
-  try {
-    await prisma.verificationDeliveryHeartbeat.upsert({
-      where: { channel },
-      create: {
-        channel,
-        lastAttemptAt: now,
-        lastOk: false,
-        lastFailureAt: now,
-        consecutiveFailures: 1,
-        driver,
-      },
-      update: {
-        lastAttemptAt: now,
-        lastOk: false,
-        lastFailureAt: now,
-        consecutiveFailures: { increment: 1 },
-        driver,
-      },
-    });
-  } catch (error) {
-    await reportError(error, {
-      source: "verification-delivery-heartbeat",
-      requestPath: `/verification/${channel}`,
-    });
-  }
+  await recordHeartbeatFailure(heartbeatChannelSpec(channel), driver, now, channel);
 }
 
 /**
@@ -122,40 +72,16 @@ export async function getVerificationDeliveryOverview(now: Date = new Date()): P
   adapters: VerificationAdapterFreshness[];
   aggregate: VerificationDeliveryAggregate;
 }> {
-  let rows: Awaited<ReturnType<typeof prisma.verificationDeliveryHeartbeat.findMany>> = [];
-  try {
-    rows = await prisma.verificationDeliveryHeartbeat.findMany({
-      where: { channel: { in: VERIFICATION_CHANNELS.map((c) => c.channel) } },
-    });
-  } catch (error) {
-    await reportError(error, {
-      source: "verification-delivery-heartbeat",
-      requestPath: "/verification/overview",
-    });
-    rows = [];
-  }
+  const byChannel = await readHeartbeats(
+    heartbeatChannelSpec("verification-diploma"),
+    VERIFICATION_CHANNELS.map((spec) => spec.channel),
+  );
 
-  const byChannel = new Map(rows.map((row) => [row.channel, row]));
-  const adapters: VerificationAdapterFreshness[] = VERIFICATION_CHANNELS.map((spec) => {
-    const row = byChannel.get(spec.channel);
-    return {
-      key: spec.key,
-      label: spec.label,
-      freshness: evaluateVerificationDeliveryFreshness(
-        row
-          ? {
-              lastAttemptAt: row.lastAttemptAt,
-              lastOk: row.lastOk,
-              lastSuccessAt: row.lastSuccessAt,
-              lastFailureAt: row.lastFailureAt,
-              consecutiveFailures: row.consecutiveFailures,
-              driver: row.driver,
-            }
-          : null,
-        now,
-      ),
-    };
-  });
+  const adapters: VerificationAdapterFreshness[] = VERIFICATION_CHANNELS.map((spec) => ({
+    key: spec.key,
+    label: spec.label,
+    freshness: evaluateVerificationDeliveryFreshness(byChannel.get(spec.channel) ?? null, now),
+  }));
 
   return { adapters, aggregate: aggregateVerificationDelivery(adapters) };
 }

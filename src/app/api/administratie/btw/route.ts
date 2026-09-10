@@ -5,6 +5,7 @@ import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { type LedgerParty } from "@/lib/administration/ledger";
 import { vatYear, type LedgerEntry } from "@/lib/administration/overview";
+import { fiscalYearOf } from "@/lib/administration/fiscal-calendar";
 import { vatReturnsCsv } from "@/lib/administration/csv";
 import { exportRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
@@ -24,7 +25,11 @@ export async function GET(): Promise<Response> {
   if (limited) return limited;
 
   const party: LedgerParty = actor.role === "CLIENT" ? "CLIENT" : "FREELANCER";
-  const year = new Date().getFullYear();
+  // Het BTW-jaar volgt de Amsterdamse burgerlijke kalender (zoals `vatYear`/`vatReturn` intern
+  // filteren via `fiscalYearOf`), niet server-UTC. Op een UTC-server (Railway) valt 31 dec 23:15 UTC
+  // al binnen 1 jan Amsterdam; met `new Date().getFullYear()` exporteerde die eerste nieuwjaarsochtend
+  // nog het vorige jaar (verkeerd gelabeld bestand + verkeerde kwartalen). Zelfde bugklasse als #1329.
+  const year = fiscalYearOf(new Date());
 
   // unbounded-allow: BTW-aggregatie; volledigheid vereist
   const rows = await prisma.administrationEntry.findMany({

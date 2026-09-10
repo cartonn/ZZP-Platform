@@ -87,6 +87,7 @@ import {
   franchiseStaleDienstRollupTask,
   franchiseCollaborationRenewalTask,
   franchiseClientReengagementTask,
+  franchiseRosterReengagementTask,
   franchiseGuidedSetupTasks,
   shiftHandoffTask,
   clientComplianceTask,
@@ -99,6 +100,11 @@ import {
   hoursCriterionTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
+import {
+  getCredentialDossier,
+  getUnreadConversationState,
+  getUserTenantId,
+} from "@/lib/user-context";
 import { getIdleCapacityForProfile } from "@/lib/data/freelancer-idle-capacity";
 import { getBillingReadiness } from "@/lib/data/freelancer-billing-readiness";
 import { getReceivedInvitations } from "@/lib/data/received-invitations";
@@ -142,6 +148,7 @@ import {
   classifyClientHealth,
   clientIdleDays,
 } from "@/lib/franchise/client-health";
+import { classifyRosterDormancy } from "@/lib/franchise/roster-dormancy";
 
 /** Harde bovengrens per kind (voorkomt N+1/zware lijsten op /acties); "+N meer" buiten beschouwing. */
 const MAX = 50;
@@ -157,26 +164,13 @@ interface UnreadConversation {
 }
 
 async function unreadConversations(userId: string): Promise<UnreadConversation[]> {
-  const participants = await prisma.conversationParticipant.findMany({
-    where: { userId },
-    // Deterministisch ordenen vóór de `.slice(0, MAX)` verderop: Prisma garandeert geen rijvolgorde
-    // zonder orderBy, dus bij >MAX gelijktijdig-ongelezen gesprekken zou wisselen wélke MAX in het
-    // venster landen — de berichttaak flikkert dan tussen requests (verschijnt/verdwijnt). `conversationId
-    // asc` is stabiel en altijd aanwezig → self-healing venster (zelfde conventie als de andere gewindowde
-    // queries hier).
-    orderBy: { conversationId: "asc" },
-    select: { conversationId: true, lastReadAt: true },
-  });
+  // Gedeelde, request-gecachte bron (user-context.ts): de `/berichten`-badge (signals.ts) draaide
+  // dezelfde twee queries binnen dezelfde render. De deterministische `conversationId asc`-ordening
+  // zit in die loader — nodig vóór de `.slice(0, MAX)` verderop: Prisma garandeert geen rijvolgorde
+  // zonder orderBy, dus bij >MAX gelijktijdig-ongelezen gesprekken zou wisselen wélke MAX in het
+  // venster landen en zou de berichttaak tussen requests flikkeren.
+  const { participants, latestForeign: latest } = await getUnreadConversationState(userId);
   if (participants.length === 0) return [];
-  const grouped = await prisma.message.groupBy({
-    by: ["conversationId"],
-    where: {
-      conversationId: { in: participants.map((p) => p.conversationId) },
-      senderId: { not: userId },
-    },
-    _max: { createdAt: true },
-  });
-  const latest = new Map(grouped.map((g) => [g.conversationId, g._max.createdAt]));
   const unreadIds = participants
     .filter((p) => {
       const at = latest.get(p.conversationId);
@@ -370,8 +364,15 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // worden gedekt, zodat hetzelfde certificaat niet dubbel verschijnt).
   let allCreds: CollabCredentialInput[] = [];
   const expiringCreds: { id: string; title: string }[] = [];
-  // Uitgesteld: pas emitten na de collab-gap-check (dedup tegen credentialCollabExpiredTask).
-  const expiredNonMandatoryCreds: { id: string; title: string }[] = [];
+  // Uitgesteld: pas emitten na de collab-gap-check (dedup tegen credentialCollabExpiredTask) én per
+  // type (meerdere verlopen exemplaren van één type = één vernieuw-actie). `type`/`expiresAt` dragen
+  // de per-type-keuze van het meest recent verlopen exemplaar.
+  const expiredNonMandatoryCreds: {
+    id: string;
+    title: string;
+    type: string;
+    expiresAt: Date | null;
+  }[] = [];
 
   const [profile, account, overdue, unread] = await Promise.all([
     // Gedeelde, request-gecachte profiel-load (zie getCompletenessProfile): op het dashboard
@@ -419,22 +420,14 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     // documentenstatus (VOG/verzekering) worden in-memory afgeleid — zelfde bron als de
     // inzetbaarheidskaart op het dashboard, zodat beide oppervlakken nooit tegenspreken.
     //
-    // ONBEGRENSD (geen take): de /certificaten-nav-badge (signals.ts) telt ditzelfde dossier
-    // onbegrensd (count REJECTED + het volledige VERIFIED-dossier + de verplichte-doc-rijen) en
-    // claimt gelijkheid met /acties. Een `take: MAX` zou (a) zonder orderBy niet-deterministisch
-    // zijn (Prisma garandeert geen rijvolgorde → welke MAX-van-N rijen /acties toont wisselt per
-    // request) en (b) de badge tegenspreken zodra het dossier > MAX rijen telt: een afgewezen/
-    // verlopend/ontbrekend-verplicht cert of een compliance-blokkerend cert van een lopende
-    // samenwerking dat buiten de slice valt, verschijnt dan wél in de badge maar niet als next-action.
-    // Bovendien heeft de superseded-detectie (`supersededVerifiedCredentialIds`) álle nu-geldige
-    // VERIFIED-exemplaren van een type nodig — een cap zou het superseding-exemplaar kunnen missen.
-    // Zelfde drift-klasse als #1022 (admin-wachtrijen), hier drift-proof gesloten door de badge te
-    // spiegelen i.p.v. te cappen. unbounded-allow: eigenaar-scoped, inherent begrensd tot het
-    // persoonlijke certificaatdossier.
-    const creds = await prisma.credential.findMany({
-      where: { freelancerProfileId: profile.id },
-      select: { id: true, title: true, type: true, status: true, expiresAt: true },
-    });
+    // De query zelf staat nu in de gedeelde, request-gecachte `getCredentialDossier`
+    // (user-context.ts) — exact dezelfde set die de /certificaten-nav-badge (signals.ts) gebruikt,
+    // zodat badge en lijst per definitie op dezelfde rijen redeneren en de shell het dossier nog maar
+    // één keer ophaalt. Dáár staat ook waarom die set ONBEGRENSD is (een cap zou niet-deterministisch
+    // zijn én de badge tegenspreken zodra het dossier groter wordt dan de cap; zelfde drift-klasse als
+    // #1022). Wat hier telt: `creds` bevat gegarandeerd het VOLLEDIGE dossier, zodat de
+    // superseded-detectie hieronder álle nu-geldige VERIFIED-exemplaren van een type ziet.
+    const creds = await getCredentialDossier(profile.id);
     allCreds = creds.map((c) => ({
       id: c.id,
       title: c.title,
@@ -482,7 +475,12 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         // Uitgesteld: een door een samenwerking vereist verlopen certificaat krijgt hieronder de
         // hogere-band credentialCollabExpiredTask — de expired-fix-taak dedupt daar dan tegen,
         // net zoals expiringCreds dedupten tegen coveredExpiringCredIds.
-        expiredNonMandatoryCreds.push({ id: c.id, title: c.title });
+        expiredNonMandatoryCreds.push({
+          id: c.id,
+          title: c.title,
+          type: c.type,
+          expiresAt: c.expiresAt,
+        });
     }
     // Ontbrekend/verlopen verplicht document = taak (blokkeert inzetbaarheid). In beoordeling
     // = geen taak: daar is de admin aan zet, niet de ZZP'er.
@@ -725,6 +723,9 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     where: credentialCollabWhere(userId),
     select: {
       id: true,
+      // Einddatum verankert de mid-plaatsing-verval-waarschuwing (spiegel van de opdrachtgever-alert):
+      // een vereist certificaat dat ná het venster maar vóór de einddatum lapt, is ook een zorg.
+      endDate: true,
       job: {
         select: {
           title: true,
@@ -740,6 +741,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     collaborationId: c.id,
     companyName: c.company.name,
     jobTitle: c.job.title,
+    placementEnd: c.endDate,
     requiredTypes: c.job.credentialRequirements.map(
       (r) => r.credentialType as CollabCredentialInput["type"],
     ),
@@ -767,6 +769,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         companyName: primary.companyName,
         jobTitle: primary.jobTitle,
         extraCollabCount: rest.length,
+        duringPlacementOnly: concern.duringPlacementOnly,
       }),
     );
   }
@@ -817,14 +820,28 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     );
   }
 
-  // Verlopen niet-verplichte certificaten: dedup tegen de collab-gedekte set — een cert dat al een
-  // credentialCollabExpiredTask kreeg (hogere band, samenwerking-context) moet geen tweede,
-  // lagere-band credentialFixTask opleveren naar hetzelfde /certificaten/{id}/bewerken.
-  const coveredExpiredCredIds = new Set(expiredRequired.map((c) => c.credentialId));
+  // Verlopen niet-verplichte certificaten → hooguit één vernieuw-taak per type. Meerdere verlopen
+  // exemplaren van hetzelfde type zijn geen losse gaten: de compliance van een type leunt op één geldig
+  // VERIFIED-certificaat (zie `coveredTypes`), dus één vernieuwing laat álle verlopen taken van dat type
+  // verdwijnen — twee rijen naar twee /certificaten/{id}/bewerken zou dus ruis zijn (rust boven ruis).
+  // Kies per type het meest recent verlopen exemplaar als vernieuw-kandidaat — dezelfde keuze als de
+  // verplicht-document-tak (`expiredCredIdByType`) en de collab-tak (`credentialCollabExpiredTask`).
+  // Sla een type over dat al een hogere-band collab-taak kreeg: die verwoordt de vernieuwing al
+  // (samenwerking-context) en dekt na vernieuwing hetzelfde type — een tweede, lagere-band rij is dubbel.
+  const collabCoveredExpiredTypes = new Set<string>(expiredRequired.map((c) => c.type));
+  const expiredNonMandatoryByType = new Map<string, { id: string; title: string }>();
+  const expiredCandidateExpiry = new Map<string, number>();
   for (const ec of expiredNonMandatoryCreds) {
-    if (coveredExpiredCredIds.has(ec.id)) continue;
-    tasks.push(credentialFixTask(ec.id, ec.title, "expired"));
+    if (collabCoveredExpiredTypes.has(ec.type)) continue;
+    const exp = ec.expiresAt?.getTime() ?? -Infinity;
+    const prevExp = expiredCandidateExpiry.get(ec.type);
+    if (prevExp === undefined || exp > prevExp) {
+      expiredNonMandatoryByType.set(ec.type, { id: ec.id, title: ec.title });
+      expiredCandidateExpiry.set(ec.type, exp);
+    }
   }
+  for (const ec of expiredNonMandatoryByType.values())
+    tasks.push(credentialFixTask(ec.id, ec.title, "expired"));
 
   // Generieke "certificaat verloopt binnenkort"-taken voor de certificaten die géén lopende
   // samenwerking dekt (anders zou hetzelfde certificaat dubbel verschijnen).
@@ -1044,14 +1061,20 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     // Cascade-facturen die OVER de vervaldatum staan waarvan deze opdrachtgever de betalende partij is
     // (counterpartyUserId). In de cascade betaalt de opdrachtgever rechtstreeks; wordt de factuur OVERDUE
     // dan zag hij tot nu toe niets (de generieke overdue-roll-up sluit cascade uit, want geen betaalknop).
-    // Bevroren (dispuut) samenwerkingen uitgesloten — symmetrisch met de andere cascade-tellingen.
+    // Bevroren (dispuut) samenwerkingen uitgesloten. `status: "ACTIVE"` sluit aan op de ZZP-tegenhanger
+    // (`openInvoiceWhere` in freelancer-cascade-work.ts) én de SUBMITTED-factuur-sibling in signals.ts:
+    // alleen de ZZP'er kan de betaling registreren (→ PAID), en die actie bestaat enkel op een ACTIVE
+    // samenwerking. De terminale-status-guards (`collaborationTerminableGuard`) houden een OVERDUE-factuur
+    // vandaag al binnen ACTIVE, maar zonder deze eis zou een toekomstige regressie in die guards de
+    // opdrachtgever een niet-afhandelbare betaal-taak op een afgeronde/geannuleerde deal tonen — een taak
+    // die nooit verdwijnt (de ZZP-tegenhanger toont 'm terecht niet). Defense-in-depth; DOEL 1b.
     // Index-backed via @@index([counterpartyUserId, lifecycleStatus]).
     // unbounded-allow: eigenaar-scoped (counterpartyUserId) + take-limiet
     prisma.invoice.findMany({
       where: {
         counterpartyUserId: userId,
         lifecycleStatus: "OVERDUE",
-        collaboration: { disputedAt: null },
+        collaboration: { status: "ACTIVE", disputedAt: null },
       },
       select: {
         id: true,
@@ -1333,8 +1356,9 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
 }
 
 async function franchiserTasks(userId: string): Promise<PendingTask[]> {
-  const me = await prisma.user.findUnique({ where: { id: userId }, select: { tenantId: true } });
-  const tenantId = me?.tenantId ?? null;
+  // Gedeelde, request-gecachte tenant-lookup (user-context.ts): de bemiddelaar-badges (signals.ts)
+  // beginnen met exact dezelfde query in dezelfde render.
+  const tenantId = await getUserTenantId(userId);
   if (!tenantId) return [];
 
   const tasks: PendingTask[] = [];
@@ -1450,7 +1474,14 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     // losse taken. Per tenant een beheerbaar aantal profielen (spiegelt de ongelimiteerde tenant-scans).
     prisma.freelancerProfile.findMany({
       where: { tenantId },
-      select: ROSTER_ENGAGEABILITY_SELECT,
+      // De inzetbaarheidsvelden (gedeeld met de nav-badge) + de bench-telling voor het
+      // re-engagement-signaal: een ZZP'er met een lopende (ACTIVE) samenwerking is engaged via het
+      // werk en telt nooit als stilgevallen (`classifyRosterDormancy`). Zelfde `_count`-definitie als de
+      // /franchise/zzpers-lijst, zodat de dormancy-tier tussen de oppervlakken niet kan driften.
+      select: {
+        ...ROSTER_ENGAGEABILITY_SELECT,
+        _count: { select: { collaborations: { where: { status: "ACTIVE" } } } },
+      },
       orderBy: { id: "asc" },
     }),
     // Ongedekte diensten die te lang open staan (gepubliceerd, geen actieve samenwerking, ouder dan de
@@ -1663,11 +1694,29 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
   // dashboard, zodat de oppervlakken elkaar nooit tegenspreken.
   for (const f of roster) {
     const eng = evaluateRosterEngageability(f, now);
-    if (eng.status !== "INACTIEF") continue;
-    const reason = eng.blockers.length
-      ? formatMissing(eng.blockers)
-      : "verificatie nog niet compleet";
-    tasks.push(franchiseNotEngageableTask(f.id, f.user.name ?? "ZZP'er", reason));
+    if (eng.status === "INACTIEF") {
+      // Niet-inzetbaar (verplicht document ontbreekt/verlopen of verificatie incompleet) — een
+      // plaatsing-blokkerende actie die deze ZZP'er al met hoge prioriteit oppervlakt. Geen tweede
+      // (lager-geprioriteerde) re-engagement-nudge voor dezelfde persoon: rust boven ruis, en
+      // "benaderen" heeft weinig zin zolang de inzetbaarheid nog blokkeert.
+      const reason = eng.blockers.length
+        ? formatMissing(eng.blockers)
+        : "verificatie nog niet compleet";
+      tasks.push(franchiseNotEngageableTask(f.id, f.user.name ?? "ZZP'er", reason));
+      continue;
+    }
+    // Inzetbaar, maar op de bench (geen lopende opdracht) én afgekoeld (≥ DORMANT_IDLE_DAYS niet
+    // ingelogd) → re-engagement: benader de vakmens vóór hij afhaakt. Aanbod-spiegel van de klant-
+    // variant hieronder; zelfde pure `classifyRosterDormancy` als de /franchise/zzpers-lijst, dus de
+    // oppervlakken driften niet. Alleen de `dormant`-tier levert een taak — de `cooling`-tier blijft
+    // een zacht lijst-only signaal (geen /acties-ruis).
+    const dormancy = classifyRosterDormancy(
+      { lastActiveAt: f.user.lastLoginAt, activeCollaborations: f._count.collaborations },
+      now,
+    );
+    if (dormancy.tier === "dormant" && dormancy.daysIdle != null) {
+      tasks.push(franchiseRosterReengagementTask(f.id, f.user.name ?? "ZZP'er", dormancy.daysIdle));
+    }
   }
 
   // Ongedekte diensten die te lang open staan — oudste eerst, max 3 als aparte rij (rustige lijst; de

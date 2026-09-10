@@ -119,9 +119,9 @@ describe("reminder-emails", () => {
       expect(msg.text).toContain("Q2 2026");
       expect(msg.html).toContain("Q2 2026");
     });
-    it("link verwijst naar /administratie", () => {
+    it("link verwijst naar de boekhoudingtab van de administratie-hub", () => {
       const msg = buildVatReminderEmail({ ...BASE, quarter: 1, year: 2026 });
-      expect(msg.html).toContain("/administratie");
+      expect(msg.html).toContain("/financien?tab=boekhouding");
     });
     it("to-veld is correct geformateerd", () => {
       const msg = buildVatReminderEmail({ ...BASE, quarter: 3, year: 2026 });

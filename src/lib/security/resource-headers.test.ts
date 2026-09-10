@@ -27,8 +27,17 @@ describe("sanitizeAttachmentFilename", () => {
 });
 
 describe("inlineDisposition", () => {
-  it("bouwt een inline-dispositie met gesaneerde naam", () => {
-    expect(inlineDisposition("VOG scan.pdf")).toBe('inline; filename="VOG_scan.pdf"');
+  it("bouwt een inline-dispositie met gesaneerde ASCII-naam plus RFC 6266 filename*", () => {
+    // De ASCII-fallback vervangt de spatie door _; filename* behoudt de echte naam voor de browser.
+    expect(inlineDisposition("VOG scan.pdf")).toBe(
+      "inline; filename=\"VOG_scan.pdf\"; filename*=UTF-8''VOG%20scan.pdf",
+    );
+  });
+
+  it("behoudt diakritische tekens via filename* (Nederlandse namen)", () => {
+    expect(inlineDisposition("Diploma André.pdf")).toBe(
+      "inline; filename=\"Diploma_Andr_.pdf\"; filename*=UTF-8''Diploma%20Andr%C3%A9.pdf",
+    );
   });
 });
 

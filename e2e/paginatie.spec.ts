@@ -16,6 +16,11 @@
  * Reden voor defensieve aanpak: de seed heeft bewust weinig items per gebruiker
  * (maximale diversiteit over meerdere accounts). Een volwaardige paginatie-test vereist
  * een seed-uitbreiding of een testdatabase-fixture, wat buiten de scope van audit T3 valt.
+ *
+ * De paginakop wordt met `{ exact: true }` opgezocht: de naam-match van getByRole is standaard
+ * een substring, dus "Documenten" matchte óók de kop van de lege staat ("Geen verdere
+ * documenten"). Exact adresseren houdt de assertie scherp op de h1 in plaats van hem te
+ * verslappen tot `.first()`.
  */
 
 import { expect, test, type Page } from "@playwright/test";
@@ -35,7 +40,7 @@ test.describe("paginatie: samenwerkingen", () => {
     await page.waitForLoadState("networkidle");
 
     // Pagina moet laden zonder fout
-    await expect(page.getByRole("heading", { name: "Samenwerkingen" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Samenwerkingen", exact: true })).toBeVisible();
 
     // Er mogen geen JavaScript-fouten zijn (basic smoke)
     const hasError = await page.evaluate(() => {
@@ -49,7 +54,7 @@ test.describe("paginatie: samenwerkingen", () => {
     await page.goto("/samenwerkingen");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByRole("heading", { name: "Samenwerkingen" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Samenwerkingen", exact: true })).toBeVisible();
   });
 
   test("Meer laden verschijnt niet als seed-data binnen één pagina past (LIST_PAGE_SIZE=5)", async ({
@@ -73,7 +78,9 @@ test.describe("paginatie: samenwerkingen", () => {
       // Na klik: cursor in URL
       expect(page.url()).toContain("cursor=");
       // Pagina toont nog steeds de heading
-      await expect(page.getByRole("heading", { name: "Samenwerkingen" })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Samenwerkingen", exact: true }),
+      ).toBeVisible();
     } else {
       // Verwacht scenario met huidige seed: geen "Meer laden"
       expect(count).toBe(0);
@@ -87,7 +94,7 @@ test.describe("paginatie: samenwerkingen", () => {
     await page.goto("/samenwerkingen?cursor=nonexistent-cursor-id");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByRole("heading", { name: "Samenwerkingen" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Samenwerkingen", exact: true })).toBeVisible();
 
     // Bij een niet-bestaande cursor: lege staat of items (afhankelijk van DB)
     const hasError = await page.evaluate(() => {
@@ -103,7 +110,7 @@ test.describe("paginatie: documenten", () => {
     await page.goto("/documenten");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByRole("heading", { name: "Documenten" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Documenten", exact: true })).toBeVisible();
 
     const hasError = await page.evaluate(() => {
       return document.body.innerText.includes("Application error");
@@ -128,7 +135,7 @@ test.describe("paginatie: documenten", () => {
       await meerLaden.click();
       await page.waitForLoadState("networkidle");
       expect(page.url()).toContain("cursor=");
-      await expect(page.getByRole("heading", { name: "Documenten" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Documenten", exact: true })).toBeVisible();
 
       // Het aantal pagina's hangt van de seed af; de geslaagde cursor-navigatie is hier de poort.
     } else {
@@ -141,7 +148,7 @@ test.describe("paginatie: documenten", () => {
     await page.goto("/documenten?cursor=nonexistent-cursor-id");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByRole("heading", { name: "Documenten" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Documenten", exact: true })).toBeVisible();
 
     const hasError = await page.evaluate(() => {
       return document.body.innerText.includes("Application error");

@@ -9,13 +9,22 @@
 
 ## HANDOFF — operationele stand (lees dit eerst)
 
+- **Accountrelease live (7-9):** PR #1418 alle CI-poorten groen, gemerged; health/readiness 200
+  op commit `34f658e`. Demo-fase blijft actief; dit bewijst nog geen productiegeschiktheid.
+
+- **Backupreparatie 7-9, nog te publiceren/bewijzen:** remote backupcommando en aparte pg18-image
+  hersteld; exacte heartbeatroute bereikt de eigen CRON_SECRET-guard. Geen retentie-snoei.
+  Configureer alleen database-backup naar `/railway.backup.json` en dezelfde Postgres-uro6 als de
+  app (de job wees naar Postgres). Controleer na CI/merge job, object-readback, heartbeat en
+  scratch-herstel; een geslaagde object-roundtrip bewijst nog geen databaseherstel. Zie RUNBOOK §5.
 - **Live:** `main` is de bron van waarheid **én** de deploy-branch; Railway bouwt/deployt elke
   merge automatisch (Dockerfile → PostgreSQL). Test-URL
   `zzp-platform-production-ba07.up.railway.app`. Demo-accounts (wachtwoord `demo1234`):
   `opdrachtgever@`, `zzp@` (Sanne), `admin@zzp-platform.local`.
-- **Boot:** `scripts/start.mjs` doet bij elke boot `prisma db push` + **idempotente seed** → de
-  demo-inhoud staat er altijd (ZZP'ers met certificaten, opdrachten, reacties in alle statussen,
-  samenwerkingen, facturen incl. verlopen).
+- **Boot:** `scripts/start.mjs` draait preflight → `prisma migrate deploy` (zelf-baselinend; eenmalige
+  transitie db push → resolve → deploy, zie RUNBOOK §8) → idempotente seed (alleen bij `SEED_DEMO=true`;
+  destructieve reset alleen met `SEED_DEMO_RESET=true`). Geen `db push` meer in productie. Schemawijziging
+  = migratie in `prisma/migrations/` (CI-job `migrations` bewaakt drift).
 - **Workflow:** korte branch (`feat/`, `fix/`, `docs/`) → **PR naar `main`** → **6 vereiste
   statuschecks** (`check`, `e2e`, `audit`, `secret-scan`, `CodeQL`, `agent-review`) groen →
   `gh pr merge <nr> --squash --auto`. `enforce_admins` staat AAN; niets omzeilt de poort. Altijd
@@ -30,11 +39,19 @@
   aangifte/KOR/fiscale uitbreidingen, academie, ideeën, design-lab, nieuwe rollen, nieuwe
   prijslijnen en i18n zijn **uitgesloten**. Zie `docs/ROUTINE-PROMPT.md` en CLAUDE.md.
 - **Uit / niet operationeel (bewust, env-gestuurd):** billing (`BILLING_PROVIDER=noop`), e-mail
-  (`EMAIL_DRIVER=noop`), documentopslag (`STORAGE_DRIVER=local`), echte verificatie-koppelingen
-  (`DIPLOMA_VERIFIER`/`BIG_VERIFIER`/`IDENTITY_VERIFIER` = `mock`), gedeelde rate-limit-store
-  (`RATE_LIMIT_STORE=memory`), web-push (geen VAPID-sleutels), aangifte-partner
+  (`EMAIL_DRIVER=noop`), echte verificatie-koppelingen
+  (`DIPLOMA_VERIFIER`/`BIG_VERIFIER`/`IDENTITY_VERIFIER` = `mock`), aangifte-partner
   (`TAX_PARTNER_DRIVER` inert). Elke koppeling heeft een zelftest + aflever-heartbeat op
-  `/admin/systeemstatus`.
+  `/admin/systeemstatus`. Rate-limit-store draait op Redis (`RATE_LIMIT_STORE=redis`, Railway-Redis).
+  Live opslag is S3; private put/get/delete-selftest en ClamAV-detectietest slagen. VAPID is ingesteld.
+  De opslagprovider echoot geen per-object SSE-header; de encryptie-zelftest valt nu terug op
+  bucket-default-encryptie-bewijs (`GetBucketEncryption`, #1426). Resterend: zet default-encryptie op
+  de bucket aan (AWS S3: sinds jan-2023 verplicht aan), dan haalt de strikte productiecontrole groen.
+- **Productie-bewaking:** `/api/health` geeft `commit` + `builtAt`; `monitor.yml` vergelijkt elke 10 min
+  met `origin/main` en opent een issue met label `deploy-lag` bij achterstand. Les 12-8 t/m 2-9: drie
+  weken geen geslaagde deploy zonder dat iemand het zag. Observability-bundle compleet (6-9):
+  `/api/metrics` (gauges) + `alerts.yml`/`prometheus.yml`/`alertmanager.yml` + `grafana-dashboard.json`
+  (import-klaar, gegenereerd door `scripts/grafana-dashboard.mjs`, drift-gated). Zie RUNBOOK §2a.
 - **Vóór échte productie (mensenwerk, zie MENSENWERK.md §0):** juridisch/AVG-review (blokkeert
   livegang met echte gevoelige documenten), productie-secrets, betalingen, echte verificatie-API's,
   e-mail, S3, eigen domein. Het juridische pakket staat als **concept v1.0**
@@ -43,24 +60,47 @@
 
 ---
 
-## NU — in uitvoering (2-9-2026): pakketten A–F
+## Launch review — 7 september 2026
 
-Zes parallelle builders op niet-overlappende bestanden. **Niet dubbel bouwen**; check `gh pr list`
-vóór je iets uit deze lijst oppakt.
+[Besluit, live-configuratie en pilotvolgorde](docs/LAUNCH-REVIEW-2026-09-07.md).
+De actuele Railway-configuratie is leidend boven de oudere handoff: documentopslag staat op S3,
+releasefase op demo en demo-seeding aan; e-maildriver is niet ingesteld. Eerst de
+accountbeveiligingsfixes door de CI-poort en de operationele productiestappen bewijzen.
 
-- **A — Prisma Migrate-baseline:** weg van `prisma db push` bij elke boot; baseline-migratie,
-  ontbrekende indexen en een seed-guard zodat productie niet per ongeluk geseed wordt.
-- **B — Querybudget:** budget/telling op shell + dashboard, eerste echte DB-integratietest, en de
-  BTW-taak weg bij de opdrachtgever (hoort niet bij die rol).
-- **C — CI + zoeken:** Postgres-e2e-job in CI (naast SQLite) en hoofdletterongevoelig zoeken.
-- **D — Navigatie/IA:** taalwissel weg, zijbalk ≤ 11 items, functionele paginalabels i.p.v.
-  motieven, zorg-focus in de marktplaats.
-- **E — Routes/robuustheid:** design-lab ADMIN-only én uit de Docker-image, 17 dubbele routes →
-  redirects, error boundaries per segment.
-- **F — Documentatie/geheugen (dit pakket):** PROGRESS.md ≤ 400 regels + maandarchief,
-  CURRENT_TASK.md ≤ 300 regels, modulekaart in ARCHITECTURE.md, routine-scope, ADR 0011.
+Publieke marketing is feitelijk gemaakt; demo-seeding onderdrukt vertrouwenscijfers. De copyfix
+staat klaar voor PR/CI; definitieve livecontrole volgt na de deploy.
 
----
+## NU — bouwprogramma 2/3-9 afgerond (24 PR's, zie PROGRESS.md bovenaan)
+
+Golf 1 (A–F), golf 2 (G, I, M, N, O, Q) en golf 3 (T, U, V, W) zijn gemerged; #1340 (route-dedup) en
+#1353 (reactielimiet per maand) staan in de poort. Productie loopt gelijk met `main`. Volgende
+increments komen uit de backlog hieronder; **niet dubbel bouwen** — check `gh pr list` eerst.
+
+**5-9:** issue #329 (hangende action-respons in productie) bij de wortel gefixt — React-backport via
+`patches/next+15.5.24.patch` + regressietests (zie PROGRESS.md bovenaan, ADR 0012); vervolg staat bij
+punt 5 hieronder.
+
+### Open uit het programma (hoogste waarde eerst)
+
+1. **Signaal-snapshot per gebruiker** via de bestaande event-bus (handlers werken per-rol tellers bij,
+   reconciliatie-taak als vangnet) zodat de app-shell met één query toe kan (nu 44/41/18/46 per rol; de
+   losse vensters in `signals.ts`/`pending-tasks.ts` bestaan bewust — zie de commentaren bij runs 79/82,
+   #1022, #1026 — dus niet "samenvoegen" maar vervangen door een snapshot).
+2. **Factuur-cutover:** `Invoice.status` afleiden uit `lifecycleStatus`, legacy-takken uit
+   `signals.ts`/`pending-tasks.ts` weg; `Account`/`Session`/`VerificationToken`/`CredentialVerification`/
+   `VerificationRequest` droppen (0 referenties).
+3. **Verrijkte routes naar hun hub-tab** — `/admin/audit` GEDAAN (CSV-export + telling in `AuditPanel`,
+   route leidt nu permanent om naar `/admin/toezicht?tab=audit`). Rest: `/prognose` en `/verplichtingen`
+   zijn FREELANCER-pagina's (geen admin-hub-tab); alleen oppakken als er een passende hub-tab voor komt.
+4. `notFound()` onder een `loading.tsx` geeft HTTP 200 — GEDAAN (6-9, #1400): de maskerende loading-grenzen
+   verwijderd/gescoopt naar `(index)`-route-groups voor de zes getroffen routes (4× `/franchise/*/[id]`,
+   `certificaten/[id]/bewerken`, `kandidaten/vergelijk`); drift-vaste test `notfound-loading-masking.test.ts`.
+5. **React-transitie commit niet na een server action (productiebuild)** — GEDAAN (5-9): wortel gevonden
+   én gefixt via de React-backport `patches/next+15.5.24.patch` (ADR 0012); de nudge-workaround
+   `action-replay.tsx` uit #1377 is verwijderd. Rest: de `clickUntilGone`/`window.stop()`-omwegen uit
+   `e2e/_robust.ts` halen (~20 specs, één voor één op een productiebuild groen houden) en de 5 s-watchdog
+   in `PendingSubmitButton` laten vervallen. Zie issue #329.
+6. Rooster-begrip scherp definiëren (dashboard-weekstrip, /rooster, samenwerking-looptijd) — review-bevinding.
 
 ## Openstaande backlog (bovenste eerst; pak er één, lever DoD-groen, push)
 
@@ -82,15 +122,49 @@ vóór je iets uit deze lijst oppakt.
 
 ### Robuustheid / techniek
 
-5. **Twee resterende flaky e2e-tests** (slagen op retry, `retries: 2` absorbeert ze — geen
+0a. **Gedeelde constant-time secret-vergelijking — GEDAAN (10-9, PR #1469).** Eén audited primitive
+`constantTimeEqual` (`src/lib/security/constant-time-equal.ts`, HMAC-random-key → 32-byte digests →
+`timingSafeEqual`) ontdubbelt het 6× herhaalde `timingSafeEqual`+lengte-check-patroon en dicht de
+secret-length-leak op `authorizeCron` + mail-intake (vroege lengte-return op een niet-publiek secret).
+Refactor van 6 call-sites (cron/mail-intake/stripe-sig/totp/share-token/feed-token), gedrag behouden;
+
+- ontbrekende `cron-auth`-test (7). Geen menselijke reststap.
+
+0b. **Request-body begrensd op de resterende body-lezende API-endpoints (CWE-400) — GEDAAN (9-9, PR
+#1446).** `readLimitedJson`-helper (`src/lib/http/read-limited-text.ts`) trekt de gestreamde
+body-grens door naar `push/subscribe` (8 KB), `push/unsubscribe` (4 KB) — beide sessie-auth zónder
+rate-limit — en `backups/heartbeat` (1 KB, Bearer). Onbegrensd `request.json()` bufferde de volledige
+chunked stream vóór parsen. Gedrag bij geldige body ongewijzigd. Tests: 5× `readLimitedJson`.
+
+0c. **Dependabot supply-chain-automatisering — GEDAAN (9-9, PR #1453).** `.github/dependabot.yml`
+(npm productie/dev-groepen + github-actions, wekelijks Europe/Amsterdam, begrensde PR-flux) opent
+zelf de herstel-/versie-PR's die de `audit`-poort alleen detecteerde; drift-test
+`scripts/dependabot-config.test.ts` (7). Resterend mensenwerk: alleen de web-toggle "Dependency
+graph + Dependabot security updates" aanzetten (MENSENWERK). Elke Dependabot-PR loopt door de 6 poorten.
+
+0. **[GELD — HOOG] Dubbel-afronden in `segmentShifts` (`src/lib/shift.ts`) — GEDAAN (7-9, PR volgt).**
+   De minuten-doorloop + validatie zijn uit `segmentShift` gedeeld in helper `accumulateShiftMinutes` die de
+   RUWE `minutesByCat` teruggeeft; `segmentShift` én `segmentShifts` aggregeren ruwe minuten en ronden precies
+   één keer via `segmentsFromMinutes` (`round(Σ minᵢ/60)` i.p.v. `round(Σ round(minᵢ/60))`). Publieke API's
+   ongewijzigd; per-losse-dienst-gedrag identiek. Regressietests: 10× 21:50–22:00 → 1,67u (was 1,70u),
+   3× 5 nachtmin → 0,25u (was 0,24u). Zie PROGRESS.md bovenaan.
+
+1. **Twee resterende flaky e2e-tests** (slagen op retry, `retries: 2` absorbeert ze — geen
    blocker): `critical-personas.spec.ts:111` (franchise onbestaand-id → 404, soms 200 op de eerste
    poging) en `support.spec.ts:53` (admin-helpdesk, login-timing).
-6. **Componenttest `ExpiryOverviewCard`** (review-should-fix #371) — vergt jsdom/testing-library
+2. **Componenttest `ExpiryOverviewCard`** (review-should-fix #371) — vergt jsdom/testing-library
    naast de Vitest-`node`-omgeving; alleen oppakken als die infra er toch komt.
-7. **Perf-refactors (risky, apart oppakken):** `clientCredentialAlerts` overload met voorgefetchte
+3. **Perf-refactors (risky, apart oppakken):** `clientCredentialAlerts` overload met voorgefetchte
    rijen (2 queries minder per CLIENT-dashboard); `suggestedFreelancersForClient` fan-out (pool
    één keer fetchen, in-memory scoren); `savedJobIds`-query op `/opdrachten` in de bestaande
    `Promise.all` vouwen.
+4. **CSV-uren tonen float-artefact in de CAO-afstem-export** — GEDAAN (9-9, PR #1443). `fmtHours` in
+   `prestaties.ts`/`diensten.ts` rondt op honderdsten af en de kale "Uren"-kolom (`X.hours.toString()`)
+   loopt door dezelfde formatter; regressietests op alle drie de uren-kolommen (`Uren`/`Reguliere
+uren`/`ORT-uren`) in beide export-suites. Geld ongemoeid.
+5. **Ongeguard `JSON.parse(p.ortSegments)`** — GEDAAN (9-9, PR #1443). Beide lezers gebruiken nu de
+   canonieke try/catch-parser `parseOrtSegments` (stille `[]`-terugval); test: één corrupte rij →
+   geen throw, `hasOrt=false`, terugval op uren×tarief.
 
 ### Wacht op een eigenaarsbesluit (niet zelf oppakken)
 

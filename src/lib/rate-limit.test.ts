@@ -43,7 +43,8 @@ const redisState = vi.hoisted(() => ({
   lastPipelineCommands: [] as unknown[][],
   lastDelKey: "",
 }));
-vi.mock("ioredis", () => {
+vi.mock("ioredis", async (importOriginal) => {
+  const { default: ActualRedis } = await importOriginal<typeof import("ioredis")>();
   class FakeRedis {
     on() {
       return this;
@@ -64,6 +65,13 @@ vi.mock("ioredis", () => {
       return chain;
     }
     pipeline(commands: unknown[][]) {
+      // Exercise the real case-sensitive batch builder without executing it or connecting.
+      const client = new ActualRedis({ lazyConnect: true });
+      try {
+        client.pipeline(commands as (string | number)[][]);
+      } finally {
+        client.disconnect();
+      }
       redisState.lastPipelineCommands = commands;
       return {
         exec: async () => {
@@ -489,6 +497,25 @@ describe("RedisRateLimitStore", () => {
       ["PTTL", "rl:selftest:x"],
     ]);
     expect(results).toEqual([1, 60_000]);
+  });
+
+  it("normalizes probe command names without changing keys or arguments", async () => {
+    redisState.pipelineExecResult = [
+      [null, 1],
+      [null, 60_000],
+    ];
+    const store = new RedisRateLimitStore("redis://localhost:6379");
+    const commands = [
+      ["PEXPIRE", "rl:selftest:CaseSensitive", 60_000, "NX"],
+      ["pTtL", "rl:selftest:CaseSensitive"],
+    ];
+    expect(await store.runProbeCommands(commands)).toEqual([1, 60_000]);
+    expect(redisState.lastPipelineCommands).toEqual([
+      ["pexpire", "rl:selftest:CaseSensitive", 60_000, "NX"],
+      ["pttl", "rl:selftest:CaseSensitive"],
+    ]);
+    expect(commands[0]![0]).toBe("PEXPIRE");
+    expect(commands[1]![0]).toBe("pTtL");
   });
 
   it("hergebruikt dezelfde onderliggende client over meerdere store-instances (gedeelde verbinding)", async () => {

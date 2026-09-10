@@ -2,8 +2,11 @@
 // "Dienst" = één Performance-record (urenstaat of oplevering) binnen een samenwerking.
 
 import { prisma } from "@/lib/db";
-import { type OrtSegment, ortSubtotalCents, resolveOrtRates } from "@/lib/ort";
-import { type OrtBreakdown, summarizeOrtBreakdown } from "@/lib/ort-breakdown";
+import {
+  type OrtBreakdown,
+  computePerformanceOrt,
+  reconcileSubtotalWithInvoice,
+} from "@/lib/ort-breakdown";
 import { parseCsvRecords, escapeCsvField } from "@/lib/csv";
 import { MAX_SHIFT_HOURS } from "@/lib/shift";
 
@@ -37,6 +40,11 @@ export async function getDienstenForFreelancer(userId: string): Promise<DienstSu
       },
     },
     include: {
+      // De afgeleide factuur (na goedkeuring) draagt het bevroren subtotaal; toon dat i.p.v. een
+      // live-herberekening die van de toeslagen kan driften. Zie `reconcileSubtotalWithInvoice` —
+      // gelijk aan de opdrachtgever-view (`/prestaties`), zodat beide overzichten voor dezelfde
+      // (reeds gefactureerde) prestatie hetzelfde bedrag tonen.
+      invoice: { select: { subtotalCents: true } },
       collaboration: {
         select: {
           id: true,
@@ -52,22 +60,31 @@ export async function getDienstenForFreelancer(userId: string): Promise<DienstSu
 
   return rows.map((p) => {
     const col = p.collaboration;
-    const ortSegs = p.ortSegments ? (JSON.parse(p.ortSegments) as OrtSegment[]) : null;
-    const rates = resolveOrtRates({
+    // Eén gedeelde, defensieve bron (computePerformanceOrt) met /prestaties: een corrupte ORT-rij
+    // degradeert per rij i.p.v. de héle pagina te laten crashen (zie de helper-docstring).
+    const {
+      subtotalCents: liveSubtotalCents,
+      hasOrt,
+      ortBreakdown: liveOrtBreakdown,
+    } = computePerformanceOrt({
+      type: p.type,
+      rateCents: p.rateCents,
+      hours: p.hours,
+      amountCents: p.amountCents,
+      ortSegments: p.ortSegments,
       ortProfile: col.ortProfile,
       ortCustomRates: col.ortCustomRates,
     });
 
-    let subtotalCents: number | null = null;
-    if (p.type === "HOURS" && p.rateCents != null) {
-      if (ortSegs && ortSegs.length > 0) {
-        subtotalCents = ortSubtotalCents(ortSegs, p.rateCents, rates);
-      } else if (p.hours != null) {
-        subtotalCents = Math.round(p.hours * p.rateCents);
-      }
-    } else if (p.type === "MILESTONE" && p.amountCents != null) {
-      subtotalCents = p.amountCents;
-    }
+    // De bevroren factuur wint van de live-herberekening (geen ORT-drift). Zelfde bron als
+    // `/prestaties` (opdrachtgever), zodat de ZZP'er en de opdrachtgever nooit een verschillend
+    // bedrag zien voor dezelfde reeds gefactureerde prestatie.
+    const { subtotalCents, ortBreakdown } = reconcileSubtotalWithInvoice({
+      subtotalCents: liveSubtotalCents,
+      ortBreakdown: liveOrtBreakdown,
+      hasOrt,
+      invoicedSubtotalCents: p.invoice?.subtotalCents,
+    });
 
     return {
       id: p.id,
@@ -80,13 +97,8 @@ export async function getDienstenForFreelancer(userId: string): Promise<DienstSu
       periodEnd: p.periodEnd,
       hours: p.hours,
       subtotalCents,
-      hasOrt: !!(ortSegs && ortSegs.length > 0),
-      ortBreakdown: summarizeOrtBreakdown({
-        segments: ortSegs,
-        hours: p.hours,
-        rateCents: p.type === "HOURS" ? p.rateCents : null,
-        rates,
-      }),
+      hasOrt,
+      ortBreakdown,
       description: p.description,
       submittedAt: p.submittedAt,
       approvedAt: p.approvedAt,
@@ -111,7 +123,10 @@ function fmtEur(cents: number | null): string {
 }
 
 function fmtHours(hours: number): string {
-  return hours.toString().replace(".", ",");
+  // Rond op honderdsten af zodat de "Uren"-kolom geen IEEE-754-expansie lekt
+  // (bv. 4,1 + 2,2 = 6,300000000000001) in een export die tegen een loonstrook
+  // wordt afgestemd. Het scherm toont al netjes via toLocaleString.
+  return (Math.round(hours * 100) / 100).toString().replace(".", ",");
 }
 
 const STATUS_LABEL_EXPORT: Record<string, string> = {
@@ -157,7 +172,7 @@ export function exportDienstenCsv(diensten: DienstSummary[]): string {
       STATUS_LABEL_EXPORT[d.status] ?? d.status,
       fmtDate(d.periodStart),
       fmtDate(d.periodEnd),
-      d.hours != null ? d.hours.toString().replace(".", ",") : "",
+      d.hours != null ? fmtHours(d.hours) : "",
       d.hasOrt ? "Ja" : "Nee",
       d.type === "HOURS" ? fmtHours(d.ortBreakdown.normalHours) : "",
       d.type === "HOURS" ? fmtHours(d.ortBreakdown.ortHours) : "",

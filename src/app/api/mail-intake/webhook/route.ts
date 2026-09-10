@@ -16,6 +16,7 @@ import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { clientIpFromRequest } from "@/lib/client-ip";
 import { mailIntakeWebhookRateLimiter } from "@/lib/rate-limit";
+import { readLimitedText } from "@/lib/http/read-limited-text";
 import {
   isAuthorizedMailIntakeHeader,
   mailIntakeRecipientAlias,
@@ -51,17 +52,11 @@ export async function POST(request: Request): Promise<Response> {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  // Byte-grens vóór het bufferen; de na-check vangt een ontbrekende/onjuiste Content-Length.
-  const declaredLength = Number(request.headers.get("content-length"));
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) return ok();
-
-  let raw: string;
-  try {
-    raw = await request.text();
-  } catch {
-    return ok(); // body onleesbaar
-  }
-  if (raw.length > MAX_BODY_BYTES) return ok();
+  // Gestreamde byte-grens: de Content-Length-header wijst een overmaatse body af zónder lezen; de
+  // gestreamde afkap vangt een ontbrekende/onjuiste header (chunked) af zonder de hele body te
+  // bufferen. null = te groot of onleesbaar → bewust 200 (geen retry-storm).
+  const raw = await readLimitedText(request, MAX_BODY_BYTES);
+  if (raw === null) return ok();
 
   let json: unknown;
   try {

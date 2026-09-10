@@ -90,7 +90,6 @@ const SANITATION_BACKLOG: readonly string[] = [
   "src/lib/monitoring/monitor-task.ts",
   "src/lib/notification-digest-task.ts",
   "src/lib/notification-preferences-data.ts",
-  "src/lib/observability/verification-delivery-heartbeat.ts",
   "src/lib/past-due-task.ts",
   "src/lib/payment-reminders-task.ts",
   "src/lib/performance-approval-reminders-task.ts",

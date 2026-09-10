@@ -12,6 +12,7 @@ import { type ResolveState } from "@/lib/actions/resolve-state";
 import { boundReason } from "@/lib/text-bounds";
 import { shouldRemoveEvidenceAfterReview } from "@/lib/credential-evidence-policy";
 import { removeCredentialEvidence } from "@/lib/credential-evidence";
+import { invalidateSignals } from "@/lib/signals/invalidate";
 
 async function loadCredentialForDecision(credentialId: string) {
   const credential = await prisma.credential.findUnique({
@@ -89,10 +90,21 @@ export async function verifyCredential(credentialId: string): Promise<void> {
   });
 
   await applyEvidenceRetention(actor.id, credential);
+  await invalidateDecisionSignals(actor.id, credential.freelancerProfile.userId);
 
   revalidatePath("/admin/verificaties");
   revalidatePath("/acties");
   revalidatePath("/dashboard");
+}
+
+/**
+ * Een verificatiebesluit verandert twee signaalstanden tegelijk: de /certificaten-badge van de ZZP'er
+ * (+ zijn melding) en de verificatie-wachtrij van de beoordelaar. Beide snapshots vervallen daarom
+ * direct. Andere beheerders zien de kortere wachtrij uiterlijk na de snapshot-TTL — een extra query
+ * per besluit om álle beheerders op te zoeken weegt niet op tegen die minuut.
+ */
+async function invalidateDecisionSignals(actorId: string, freelancerUserId: string): Promise<void> {
+  await invalidateSignals([actorId, freelancerUserId]);
 }
 
 /**
@@ -169,6 +181,7 @@ export async function rejectCredential(credentialId: string, formData: FormData)
   });
 
   await applyEvidenceRetention(actor.id, credential);
+  await invalidateDecisionSignals(actor.id, credential.freelancerProfile.userId);
 
   revalidatePath("/admin/verificaties");
   revalidatePath("/acties");

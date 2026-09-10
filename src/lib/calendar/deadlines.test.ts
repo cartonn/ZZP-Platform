@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   administrativeDeadlineEvents,
+  CREDENTIAL_EXPIRY_ALARM_DAYS,
+  formatDayLeadTimes,
   type AdministrativeDeadlines,
 } from "@/lib/calendar/deadlines";
 
@@ -21,14 +23,35 @@ describe("administrativeDeadlineEvents", () => {
     const expiresAt = new Date("2026-09-01T00:00:00Z");
     const [event] = administrativeDeadlineEvents({
       ...empty,
-      credentials: [{ id: "cred-1", title: "VOG zorg", expiresAt }],
+      credentials: [{ id: "cred-1", expiresAt }],
     });
     expect(event!.uid).toBe("cred-expiry-cred-1@zzp-platform");
-    expect(event!.summary).toBe("Certificaat verloopt: VOG zorg");
+    expect(event!.summary).toBe("Certificaat verloopt");
     expect(event!.allDay).toBe(true);
     expect(event!.start).toBe(expiresAt);
     // Geen herhaling: een deadline is een enkel event.
     expect(event!.recurrenceDays).toBeUndefined();
+  });
+
+  it("noemt het certificaat-type/de titel NERGENS in de bearer-feed (AVG art. 5(1)(c) — geen VOG/BIG-lek)", () => {
+    // VOG/BIG zijn justitiële/zorg-gerelateerde bijzondere gegevens; ze mogen niet in de
+    // niet-intrekbare, naar Google/Apple synchroniserende agenda-feed lekken. De .ics-mapper krijgt
+    // geen titel meer aangeleverd (het type staat niet eens in CredentialDeadline), maar deze test
+    // borgt dat geen enkel event-veld (summary/description/alarm-tekst) een type/titel prijsgeeft.
+    const [event] = administrativeDeadlineEvents({
+      ...empty,
+      credentials: [{ id: "c-vog", expiresAt: new Date("2026-09-01T00:00:00Z") }],
+    });
+    const surfaces = [
+      event!.summary,
+      event!.description ?? "",
+      ...(event!.alarms ?? []).map((a) => a.description ?? ""),
+    ];
+    for (const text of surfaces) {
+      expect(text).not.toMatch(/VOG|BIG|diploma|certificaat[- ]?type/i);
+      // Geen "Certificaat verloopt: <titel>"-vorm: de dubbele punt met een specifieke titel is weg.
+      expect(text).not.toMatch(/verloopt:\s*\S/i);
+    }
   });
 
   it("onderscheidt betalen (opdrachtgever) van vervallen (ZZP'er) op een factuur — zonder bedrag", () => {
@@ -113,7 +136,7 @@ describe("administrativeDeadlineEvents", () => {
     const d = new Date("2026-06-01T00:00:00Z");
     const ibDeadline = new Date("2027-05-01T00:00:00Z");
     const events = administrativeDeadlineEvents({
-      credentials: [{ id: "c1", title: "Diploma", expiresAt: d }],
+      credentials: [{ id: "c1", expiresAt: d }],
       invoices: [{ id: "i1", number: "F-1", dueAt: d, payable: true }],
       vat: [{ year: 2026, quarter: 2, deadline: d }],
       incomeTax: { taxYear: 2026, deadline: ibDeadline },
@@ -128,13 +151,25 @@ describe("administrativeDeadlineEvents", () => {
     ]);
   });
 
-  it("hangt herinnerings-alarmen aan een certificaat-verloop: 30 én 7 dagen vooraf", () => {
+  it("hangt herinnerings-alarmen aan een certificaat-verloop: 30 én 7 dagen vooraf — zonder type", () => {
     const [event] = administrativeDeadlineEvents({
       ...empty,
-      credentials: [{ id: "c1", title: "VOG", expiresAt: new Date("2026-09-01T00:00:00Z") }],
+      credentials: [{ id: "c1", expiresAt: new Date("2026-09-01T00:00:00Z") }],
     });
     expect(event!.alarms?.map((a) => a.daysBefore)).toEqual([30, 7]);
-    expect(event!.alarms?.[0]!.description).toContain("VOG");
+    // De alarm-tekst waarschuwt generiek en noemt géén certificaat-type (datominimalisatie).
+    expect(event!.alarms?.[0]!.description).toContain("verloopt over 30 dagen");
+    expect(event!.alarms?.[0]!.description).not.toMatch(/VOG|BIG|diploma/i);
+  });
+
+  it("de certificaat-alarmen volgen exact de gedeelde doorlooptijden (feed ↔ UI-belofte)", () => {
+    const [event] = administrativeDeadlineEvents({
+      ...empty,
+      credentials: [{ id: "c1", expiresAt: new Date("2026-09-01T00:00:00Z") }],
+    });
+    // Eén bron: de feed hangt exact CREDENTIAL_EXPIRY_ALARM_DAYS aan, zodat de UI die dezelfde
+    // constante toont nooit een andere doorlooptijd belooft dan de .ics daadwerkelijk levert.
+    expect(event!.alarms?.map((a) => a.daysBefore)).toEqual([...CREDENTIAL_EXPIRY_ALARM_DAYS]);
   });
 
   it("hangt één alarm (3 dagen vooraf) aan een factuur-deadline, betaal-bewust van tekst", () => {
@@ -198,5 +233,27 @@ describe("administrativeDeadlineEvents", () => {
       ],
     });
     expect(asClient!.alarms?.[0]!.description).toContain("vervanger");
+  });
+});
+
+describe("formatDayLeadTimes", () => {
+  it("verbindt twee doorlooptijden met 'en'", () => {
+    expect(formatDayLeadTimes([30, 7])).toBe("30 en 7 dagen");
+  });
+
+  it("toont één doorlooptijd zonder opsomming", () => {
+    expect(formatDayLeadTimes([7])).toBe("7 dagen");
+  });
+
+  it("gebruikt komma's plus een afsluitende 'en' bij drie of meer", () => {
+    expect(formatDayLeadTimes([30, 14, 7])).toBe("30, 14 en 7 dagen");
+  });
+
+  it("geeft een lege string bij geen doorlooptijden", () => {
+    expect(formatDayLeadTimes([])).toBe("");
+  });
+
+  it("blijft in sync met de gedeelde certificaat-doorlooptijden", () => {
+    expect(formatDayLeadTimes([...CREDENTIAL_EXPIRY_ALARM_DAYS])).toBe("30 en 7 dagen");
   });
 });

@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   summarizeVerificationTurnaround,
+  classifyVerificationWait,
   VERIFICATION_TURNAROUND_MIN_SAMPLE,
+  type VerificationTurnaround,
 } from "./verification-turnaround";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -73,5 +75,28 @@ describe("summarizeVerificationTurnaround", () => {
     const three = Array.from({ length: 3 }, () => sample(DAY_MS));
     expect(summarizeVerificationTurnaround(three, 5)).toBeNull();
     expect(summarizeVerificationTurnaround(three, 3)).not.toBeNull();
+  });
+});
+
+describe("classifyVerificationWait", () => {
+  const turnaround: VerificationTurnaround = { sampleCount: 20, typicalDays: 3, p90Days: 7 };
+
+  it("is on_track without a turnaround aggregate (no false alarm on thin data)", () => {
+    // Zonder betrouwbaar aggregaat kunnen we "langer dan gebruikelijk" niet eerlijk vaststellen.
+    expect(classifyVerificationWait(999, null)).toBe("on_track");
+  });
+
+  it("is on_track when the wait is within the usual turnaround", () => {
+    expect(classifyVerificationWait(0, turnaround)).toBe("on_track");
+    expect(classifyVerificationWait(5, turnaround)).toBe("on_track");
+  });
+
+  it("treats exactly p90 as still within the usual turnaround (boundary is inclusive)", () => {
+    expect(classifyVerificationWait(turnaround.p90Days, turnaround)).toBe("on_track");
+  });
+
+  it("flags slower_than_usual once the wait strictly exceeds p90", () => {
+    expect(classifyVerificationWait(turnaround.p90Days + 1, turnaround)).toBe("slower_than_usual");
+    expect(classifyVerificationWait(30, turnaround)).toBe("slower_than_usual");
   });
 });

@@ -8,6 +8,7 @@ import { hasTenant, visibleFreelancersWhere } from "@/lib/tenancy";
 import { audit } from "@/lib/audit";
 import { isParticipant, messageNotificationBody } from "@/lib/messaging";
 import { messageRateLimiter } from "@/lib/rate-limit";
+import { invalidateSignals } from "@/lib/signals/invalidate";
 import { messageSchema } from "@/lib/validation";
 
 export type MessageState = { ok?: true; error?: string } | undefined;
@@ -75,6 +76,11 @@ export async function sendMessage(
     ),
   ]);
 
+  // De ontvangers hebben nu een ongelezen gesprek én een ongelezen melding: hun signaal-snapshot
+  // moet vervallen, anders toont de zijbalk de /berichten-badge en de bel pas na de TTL. De afzender
+  // hoeft niet: voor hem verandert er niets aan de tellingen.
+  await invalidateSignals(otherIds);
+
   revalidatePath(`/berichten/${conversationId}`);
   revalidatePath("/berichten");
   return { ok: true };
@@ -102,6 +108,9 @@ export async function markConversationRead(conversationId: string): Promise<void
   ]);
   revalidatePath("/berichten");
   revalidatePath("/notificaties");
+  // Gelezen = twee tellingen omlaag (ongelezen gesprekken + de bel); direct laten vervallen zodat de
+  // badge verdwijnt op het moment dat de gebruiker het gesprek opent.
+  await invalidateSignals([actor.id]);
 }
 
 /** CLIENT start (of heropent) een gesprek met de ZZP'er van een reactie. */

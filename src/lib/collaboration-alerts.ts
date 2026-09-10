@@ -3,6 +3,8 @@
 // dat verband en zet het om in één duidelijke "wat-vraagt-actie"-melding. Server-berekend,
 // deterministisch (CLAUDE.md regel 1). Hergebruikt de bestaande compliance- en expiry-logica.
 
+import { cache } from "react";
+
 import { prisma } from "@/lib/db";
 import { isExpired, isExpiringSoon, CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import {
@@ -11,6 +13,7 @@ import {
   type FreelancerCredential,
 } from "@/lib/matching";
 import { type CredentialType } from "@/lib/enums";
+import { getUserCompanyId } from "@/lib/user-context";
 
 const EXPIRY_WINDOW_DAYS = 30;
 
@@ -308,10 +311,24 @@ export function clientCredentialAlertsFromRows(
   return alerts;
 }
 
-/** Lopende samenwerkingen van een opdrachtgever waarvan de certificaat-compliance actie vraagt. */
-export async function clientCredentialAlerts(userId: string): Promise<ClientCredentialAlert[]> {
-  const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
-  if (!company) return [];
+/**
+ * Lopende samenwerkingen van een opdrachtgever waarvan de certificaat-compliance actie vraagt.
+ *
+ * Request-gecachet (React `cache`): drie oppervlakken vragen dit binnen één render op — de
+ * /samenwerkingen-nav-badge (signals.ts), het actiecentrum (pending-tasks.ts) en de
+ * opdrachtgever-statistieken (client-stats.ts). Ze deelden alleen de WHERE-clausules, niet het
+ * resultaat, dus dezelfde twee queries liepen drie keer. De cache maakt er één set van én bevriest
+ * het `now`-moment binnen de render, zodat de drie oppervlakken gegarandeerd dezelfde momentopname
+ * tonen (een certificaat dat tijdens de render verloopt kan de badge en de lijst niet meer laten
+ * tegenspreken). Buiten een request-scope valt `cache` terug op een gewone aanroep.
+ */
+export const clientCredentialAlerts = cache(async function clientCredentialAlerts(
+  userId: string,
+): Promise<ClientCredentialAlert[]> {
+  // Gedeelde, request-gecachte bedrijfs-lookup (user-context.ts): de /samenwerkingen-badge
+  // (signals.ts) en het actiecentrum (pending-tasks.ts) doen dezelfde lookup in dezelfde render.
+  const companyId = await getUserCompanyId(userId);
+  if (!companyId) return [];
 
   const collaborations = await prisma.collaboration.findMany({
     // disputedAt: null → een bevroren (in dispuut zijnde) samenwerking levert geen next-action op,
@@ -326,7 +343,7 @@ export async function clientCredentialAlerts(userId: string): Promise<ClientCred
     // hoogste opdrachtgever-taak (P.complianceRipple=85) tussen page-loads kon flapperen bij >200
     // gelijktijdige ACTIVE-samenwerkingen. Spiegelt de determinisme-conventie elders (run 77/79).
     where: {
-      companyId: company.id,
+      companyId,
       status: "ACTIVE",
       disputedAt: null,
       job: { credentialRequirements: { some: { required: true } } },
@@ -337,4 +354,4 @@ export async function clientCredentialAlerts(userId: string): Promise<ClientCred
   });
 
   return clientCredentialAlertsFromRows(collaborations, new Date());
-}
+});

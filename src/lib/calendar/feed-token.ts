@@ -12,7 +12,8 @@
 // alle bestaande abonnementen. De blootgestelde data is exact het eigen werkrooster (jobtitel,
 // tegenpartij-naam, data/weekdagen) — dezelfde inhoud als de bestaande eenmalige export.
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac } from "node:crypto";
+import { constantTimeEqual } from "@/lib/security/constant-time-equal";
 import { shareTokenSecret } from "@/lib/share-token";
 
 const TOKEN_LENGTH = 32;
@@ -41,12 +42,10 @@ export function verifyAgendaFeedToken(
   secret: string,
 ): boolean {
   if (!secret) return false;
-  if (typeof receivedToken !== "string" || receivedToken.length !== TOKEN_LENGTH) return false;
+  if (typeof receivedToken !== "string") return false;
   const expected = agendaFeedToken(userId, secret);
-  const a = Buffer.from(expected, "utf8");
-  const b = Buffer.from(receivedToken, "utf8");
-  // Beide 32-char strings → gelijke byte-lengte; timingSafeEqual vereist gelijke lengte.
-  return timingSafeEqual(a, b);
+  // Constant-time in inhoud én lengte (gedeelde primitive); geen aparte lengte-voorcheck meer nodig.
+  return constantTimeEqual(expected, receivedToken);
 }
 
 /**

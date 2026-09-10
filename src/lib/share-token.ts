@@ -7,7 +7,8 @@
 // door het profiel op PRIVATE te zetten. Echte per-token revocatie vereist een schema-uitbreiding
 // (revokedTokens-tabel) en is bewust uitgesteld.
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac } from "node:crypto";
+import { constantTimeEqual } from "@/lib/security/constant-time-equal";
 
 const TOKEN_LENGTH = 32;
 
@@ -43,10 +44,7 @@ export function verifyDossierToken(
   secret: string,
 ): boolean {
   if (!secret) return false;
-  if (receivedToken.length !== TOKEN_LENGTH) return false;
   const expected = dossierShareToken(profileId, secret);
-  const a = Buffer.from(expected, "utf8");
-  const b = Buffer.from(receivedToken, "utf8");
-  // Beide 32-char strings → gelijke byte-lengte; timingSafeEqual vereist gelijke lengte.
-  return timingSafeEqual(a, b);
+  // Constant-time in inhoud én lengte (gedeelde primitive); geen aparte lengte-voorcheck meer nodig.
+  return constantTimeEqual(expected, receivedToken);
 }

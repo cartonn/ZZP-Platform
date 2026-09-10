@@ -242,7 +242,9 @@ export default async function TrustDossierPage({
         )}
 
         {/* Gepubliceerde opdrachtgever-reputatie: geaggregeerd cijfer + aantal, nooit individuele
-            beoordelingen. Alleen getoond bij >= 1 gepubliceerde beoordeling (reputation != null). */}
+            beoordelingen. Alleen getoond boven de k-anonimiteitsvloer (REVIEW_AGGREGATE_MIN_SAMPLE):
+            onder die drempel is reputation null en blijft deze sectie weg — een cijfer over één of twee
+            beoordelingen is individueel herleidbaar op deze publieke, deelbare pagina. */}
         {reputation && (
           <section className="space-y-2">
             <h2 className="text-sm font-semibold tracking-tight">Beoordelingen</h2>

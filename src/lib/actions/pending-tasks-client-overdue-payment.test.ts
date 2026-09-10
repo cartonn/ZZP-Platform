@@ -7,6 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { P } from "@/lib/next-actions";
+import { prisma } from "@/lib/db";
 
 type OverdueInvoiceRow = {
   id: string;
@@ -155,5 +156,25 @@ describe("clientTasks — cascade-overdue betaal-nudge", () => {
     state.overdueInvoices = [{ id: "inv-orphan", collaboration: null }];
     const tasks = await pendingTasks(ACTOR);
     expect(tasks.find((t) => t.kind === "client-overdue-payment")).toBeUndefined();
+  });
+
+  // De cascade-overdue-query moet — net als de ZZP-tegenhanger `openInvoiceWhere` en de
+  // SUBMITTED-factuur-sibling — óók op `collaboration.status === "ACTIVE"` scopen. Alleen de ZZP'er kan
+  // de betaling registreren (→ PAID) en die actie bestaat enkel op een ACTIVE samenwerking; zonder de
+  // filter zou een (via een toekomstige guard-regressie) OVERDUE-factuur op een afgeronde/geannuleerde
+  // deal een niet-afhandelbare, nooit-verdwijnende betaal-taak geven. Bindt de scope zodat die niet
+  // stil kan wegdriften.
+  it("scoopt de OVERDUE-query op een ACTIVE, niet-bevroren samenwerking", async () => {
+    await pendingTasks(ACTOR);
+    const call = vi
+      .mocked(prisma.invoice.findMany)
+      .mock.calls.find(
+        (c) =>
+          (c[0] as { where?: { lifecycleStatus?: unknown } } | undefined)?.where
+            ?.lifecycleStatus === "OVERDUE",
+      );
+    expect(call).toBeDefined();
+    const where = (call![0] as { where: { collaboration?: Record<string, unknown> } }).where;
+    expect(where.collaboration).toMatchObject({ status: "ACTIVE", disputedAt: null });
   });
 });
