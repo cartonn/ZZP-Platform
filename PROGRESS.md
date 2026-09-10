@@ -2,6 +2,32 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-10 — kern/cascade: factuur-goedkeuring-reminders (dag 3/7 + admin-escalatie)
+
+**Wat:** sluit de énige un-genudgede opdrachtgever-poort in de facturatie-cascade. Na indienen van een
+concept-factuur (Event C) krijgt die een factuurnummer en gaat de vordering naar de opdrachtgever ter
+goedkeuring (SUBMITTED → APPROVED). Anders dan de prestatie-goedkeuring (die dag-3/7-herinneringen +
+admin-escalatie had via `performance-approval-reminders`) bleef een SUBMITTED cascade-factuur zónder
+enige nudge: geen goedkeuring → geen betaal-registratie → cascade stalt na indiening. CURRENT_TASK
+punt 6(b).
+
+**Aanpak (spiegel van `performance-approval-reminders`):** pure planner
+`planInvoiceApprovalReminders` (`src/lib/invoice-approval-reminders.ts`) plant per SUBMITTED-factuur op
+een niet-geannuleerde, niet-betwiste samenwerking een herinnering naar de opdrachtgever
+(`counterpartyUserId`) op `REMINDERS.invoiceApprovalDays` (=[3,7]) en escaleert ná de laatste dag naar
+de admins. Anker = `Invoice.issuedAt` (gezet bij de SUBMITTED-overgang). Runner
+`runInvoiceApprovalReminderTask` (`-task.ts`) fetcht SUBMITTED-facturen (oudste eerst, cap 500),
+dedupliceert op `DomainEvent.dedupeKey` (idempotent) en schrijft per verse actie domainEvent +
+notification + auditLog in één transactie. Geen geldstroom. Losstaande factuur zonder samenwerking →
+`collabStatus` valt terug op ACTIVE (nooit geannuleerd/betwist).
+
+**Bestanden:** `src/lib/invoice-approval-reminders.ts` (+`.test.ts`, 10), `src/lib/invoice-approval-reminders-task.ts`
+(+`.test.ts`, 7), `src/lib/config.ts` (`invoiceApprovalDays`), `src/lib/notifications.ts`
+(+`.test.ts`: `INVOICE_APPROVAL_REMINDER`/`INVOICE_APPROVAL_ESCALATION` → invoice/attention),
+`src/lib/audit-labels.ts` (2 labels), `src/app/api/tasks/run-all/route.ts` (taak geregistreerd na
+performance-approval-reminders). **Checks:** unit (39 in de vier direct betrokken suites ✓) · typecheck
+· lint · build · prettier · CI-poort verifiëren (PR #1473).
+
 ## 2026-09-10 — persona-sweep run 10 (DOEL 1b, FRANCHISER): `/franchise/zzpers`-badge telt dormant-bench re-engagement mee
 
 **Wat:** kritische-gebruiker-sweep voor alle 4 rollen (live prod-build + seed) + drie parallelle

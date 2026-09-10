@@ -175,6 +175,11 @@ uren`/`ORT-uren`) in beide export-suites. Geld ongemoeid.
    prestatie-goedkeuring — géén dag-3/7-herinnering + admin-escalatie; spiegel
    `performance-approval-reminders(.ts/-task.ts)` naar een `invoice-approval-reminders`-paar en hang
    het in `api/tasks/run-all`. Sluit de enige un-genudgede opdrachtgever-poort in de cascade.
+   **(b) GEDAAN (10-9, PR #1473):** `invoice-approval-reminders(.ts/-task.ts)` gebouwd naar het model van
+   `performance-approval-reminders` — dag-3/7-herinnering naar de opdrachtgever (`counterpartyUserId`) op
+   een SUBMITTED cascade-factuur + admin-escalatie ná de laatste dag; anker `Invoice.issuedAt`, idempotent
+   op `DomainEvent.dedupeKey`, geregistreerd in `run-all`. Rest open: **(a)** de admin-escalatie van de
+   prestatie-goedkeuring omzetten naar een duurzame, zelfhelende admin-next-action in `adminTasks()`.
 
 ### Wacht op een eigenaarsbesluit (niet zelf oppakken)
 

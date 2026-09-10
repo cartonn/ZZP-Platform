@@ -128,6 +128,13 @@ export const REMINDERS = {
    */
   performanceApprovalDays: [3, 7] as const,
   /**
+   * Ingediende (SUBMITTED) cascade-factuur nog niet door de opdrachtgever goedgekeurd (na Event C).
+   * Spiegelbeeld van `performanceApprovalDays`: herinneringsdagen ná indienen, daarna escaleert het
+   * platform naar de admins. Sluit de énige opdrachtgever-poort in de cascade die nog geen nudge had
+   * — zonder herinnering blijft de betaling na indiening hangen.
+   */
+  invoiceApprovalDays: [3, 7] as const,
+  /**
    * Open dispuut (zijpad §4): zolang een dispuut openstaat is de facturatiecascade bevroren.
    * Herinneringsdagen ná het openen van het dispuut naar béíde partijen; na de laatste dag
    * escaleert het platform naar de admins voor bemiddeling. Zonder nudge blijft de cascade
