@@ -22,6 +22,9 @@ interface RosterRow {
   availability: string;
   user: { identityVerifiedAt: Date | null; lastLoginAt: Date | null };
   credentials: { type: string; status: string; expiresAt: Date | null }[];
+  // Lopende (ACTIVE) samenwerkingen — de badge-roster-query laadt dit `_count` nu net als de
+  // /acties-bron, zodat `classifyRosterDormancy` de dormant-bench re-engagement-taak kan meetellen.
+  _count: { collaborations: number };
 }
 interface DienstRow {
   id: string;
@@ -132,6 +135,8 @@ function engageableRow(id: string): RosterRow {
       { type: "VOG", status: "VERIFIED", expiresAt: future },
       { type: "INSURANCE", status: "VERIFIED", expiresAt: future },
     ],
+    // Recente login (`fresh`) → nooit dormant; 0 lopende samenwerkingen. Geen re-engagement-taak.
+    _count: { collaborations: 0 },
   };
 }
 
@@ -148,6 +153,8 @@ function notEngageableRow(id: string): RosterRow {
       { type: "VOG", status: "VERIFIED", expiresAt: past }, // verlopen → INACTIEF
       { type: "INSURANCE", status: "VERIFIED", expiresAt: future },
     ],
+    // INACTIEF → de emitter `continue`t vóór de dormancy-check; 0 lopende samenwerkingen.
+    _count: { collaborations: 0 },
   };
 }
 

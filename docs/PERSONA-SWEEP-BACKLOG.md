@@ -1,5 +1,39 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-09-10 (persona-sweep, run 10) · **main-commit basis:** `53f745be`
+> **Uitkomst:** **1 defect gefixt (badge↔lijst-drift, DOEL 1b — FRANCHISER); 0 geparkeerd.**
+> Orchestrator Opus 4.8 + drie parallelle adversariële Opus-audits op niet-overlappende oppervlakken
+> (next-action/badge-correctheid · IDOR/authz/cross-tenant/document-privacy · malicieuze invoer/geld/
+> robuustheid). Live productiebuild + seed (SEED_DEMO) draait offline via de font-stub-workaround
+> (netwerkpolicy blokt `next/font/google`, zoals runs 5-9).
+>
+> - **DOEL 2 (adversarieel) — schoon.** Authz/IDOR/cross-tenant/document-privacy **0 bereikbare gaten**:
+>   elke byte-/PDF-/dossier-route gate't op ownership/partij vóór uitgifte met identieke 404 (CWE-203) +
+>   `auditDeniedAccess`; franchise-loaders/-acties scopen via `tenancy.ts` (`ownsViaTenant`/
+>   `tenantScopeWhere`/`assertSameTenant`) → cross-tenant id = uniforme not-found; cascade-commands
+>   dwingen "is partij" én "juiste zijde" af (`assertParty` + richting), TOCTOU-veilig. Invoer/geld/
+>   robuustheid **0 nieuwe gaten**: elke `computeOrt`-renderoppervlak is throw-veilig (safeComputeOrt/
+>   per-rij-try-catch), `assertPerformanceWithinLimits` grendelt niet-eindige/negatieve/cent-grid-invoer,
+>   `hoursTimesRateCents` rondt in integer-cent (geen half-cent-lek), CSV overal via `escapeCsvField`.
+> - **GEDAAN (10-9, DOEL 1b, FRANCHISER) — `/franchise/zzpers`-nav-badge onder-telde de dormant-bench
+>   re-engagement-taak die /acties wél toont.** `franchiserTasks` (`pending-tasks.ts:1717`) pusht per
+>   INZETBARE, op-de-bench (0 ACTIVE-samenwerkingen) én ≥`DORMANT_IDLE_DAYS` (60) niet-ingelogde tenant-
+>   ZZP'er een `franchiseRosterReengagementTask` (deeplink `/franchise/zzpers/{id}`). De nav-badge
+>   (`rosterAlerts`, `signals.ts:1131`) telde alléén `expiringProfiles + expiredProfiles + notEngageable`
+>   — er was geen dormancy-term, en de badge-roster-query (`signals.ts:971`) selecteerde niet eens het
+>   `_count` van ACTIVE-samenwerkingen dat `classifyRosterDormancy` nodig heeft. Gevolg: het "signaal op
+>   één oppervlak"-anti-patroon — /acties (+ dashboard-rail) toont een teken-taak die naar
+>   `/franchise/zzpers` deeplinkt, maar dat nav-item bleef leeg. Asymmetrisch met de klant-spiegel
+>   (`franchiseClientReengagementTask` ↔ `attentionClients`-term op `/franchise/opdrachtgevers`), die de
+>   badge wél meetelt. De doc-comment claimde bovendien ten onrechte "exact de som van de losse item-
+>   taken". **Fix:** de badge-roster-query laadt nu hetzelfde ACTIVE-`_count`; `rosterAlerts` telt een
+>   `dormantReengagement`-term mee, exact de emitter-volgorde spiegelend (INACTIEF `continue`t vóór de
+>   dormancy-check → nooit dubbeltelling). **Repro:** FRANCHISER-tenant met één inzetbare bench-ZZP'er,
+>   0 lopende samenwerkingen, `lastLoginAt` ≥60 dagen terug, geen andere roster-alert → /acties toont de
+>   re-engagement-taak, de `/franchise/zzpers`-badge bleef 0. **Bestanden:** `src/lib/signals.ts`,
+>   `src/lib/signals.roster-reengagement-badge.test.ts` (+2, rood→groen bewezen),
+>   `src/lib/signals.badge-gaps-run52.test.ts` (fixtures voorzien van `_count`).
+
 > **Datum:** 2026-09-09 (persona-sweep, run 9) · **main-commit basis:** `a800b208`
 > **Uitkomst:** **1 defect gefixt (badge↔lijst-drift, DOEL 1b); 1 LOW-robustness-item geparkeerd.**
 > Orchestrator Opus 4.8 + drie parallelle adversariële Opus-audits op niet-overlappende oppervlakken

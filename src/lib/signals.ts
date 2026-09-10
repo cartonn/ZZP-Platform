@@ -40,6 +40,7 @@ import {
 } from "@/lib/data/roster-engageability";
 import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
 import { buildClientActivityInputs, summarizeClientHealth } from "@/lib/franchise/client-health";
+import { classifyRosterDormancy } from "@/lib/franchise/roster-dormancy";
 import { MANDATORY_CREDENTIAL_TYPES, mandatoryDocumentAlertCount } from "@/lib/mandatory-documents";
 import { type FreelancerCredential } from "@/lib/matching";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
@@ -968,9 +969,17 @@ export const navBadges = cache(async function navBadges(
       // 50 (`id: asc`), waardoor een niet-inzetbaar roster-lid voorbij de 50e permanent uit de badge én
       // /acties viel (persona-sweep run 81, DOEL 1b). Per tenant een beheerbaar aantal profielen —
       // spiegelt de ongelimiteerde `company.findMany({ tenantId })`-scan verderop in deze berekening.
+      // De `_count` van lopende (ACTIVE) samenwerkingen voedt naast de inzetbaarheid óók de dormancy-
+      // tier (`classifyRosterDormancy`): zonder die telling kon de badge de re-engagement-taak
+      // (`franchiseRosterReengagementTask`, zelfde /franchise/zzpers-href) niet meetellen die /acties
+      // wél toont — het "signaal op één oppervlak"-anti-patroon. Zelfde `_count`-definitie als de
+      // /acties-bron (pending-tasks.ts) én de /franchise/zzpers-lijst, zodat de tier niet kan driften.
       prisma.freelancerProfile.findMany({
         where: { tenantId },
-        select: ROSTER_ENGAGEABILITY_SELECT,
+        select: {
+          ...ROSTER_ENGAGEABILITY_SELECT,
+          _count: { select: { collaborations: { where: { status: "ACTIVE" } } } },
+        },
       }),
       // /franchise/diensten — gepubliceerde, ONGEVULDE tenant-diensten + startdatum, voor het
       // acute-onbezet-aggregaat (`franchiseAcuteDienstTask`). Zelfde definitie én deterministische,
@@ -1066,10 +1075,13 @@ export const navBadges = cache(async function navBadges(
     ).attention;
 
     // /franchise/zzpers-badge = distinct profielen met (bijna-)verlopende certificaten + reeds-verlopen
-    // niet-verplichte certificaten + niet-inzetbare roster-ZZP'ers, exact de som van de losse item-taken.
-    // Géén dedup op profiel: één ZZP'er kan tegelijk een verloop-taak (VERIFIED, verloopt binnenkort),
-    // een verlopen-taak (niet-verplicht cert al voorbij de vervaldatum) ÁLS een niet-inzetbaar-taak
-    // (verplicht document ontbreekt/verlopen) tonen — precies zoals `franchiserTasks` alle drie pusht.
+    // niet-verplichte certificaten + niet-inzetbare roster-ZZP'ers + dormant-bench re-engagement-taken,
+    // exact de som van de losse item-taken die `franchiserTasks` op /franchise/zzpers pusht. Géén dedup
+    // op profiel: één ZZP'er kan tegelijk een verloop-taak (VERIFIED, verloopt binnenkort), een verlopen-
+    // taak (niet-verplicht cert al voorbij de vervaldatum) ÁLS een niet-inzetbaar-taak (verplicht document
+    // ontbreekt/verlopen) tonen — precies zoals `franchiserTasks` alle drie pusht. De re-engagement-taak
+    // (`franchiseRosterReengagementTask`) is rol-uitsluitend op de INZETBARE bench (de emitter `continue`t
+    // op INACTIEF), dus die telt nooit samen met de niet-inzetbaar-taak voor dezelfde persoon.
     //
     // Superseded exemplaren (een nieuwer, nu-geldig cert van hetzelfde type dekt de compliance al) tellen
     // NIET mee: anders divergeert de badge van /acties, dat via `rosterExpiringByProfile` superseded al
@@ -1125,10 +1137,23 @@ export const navBadges = cache(async function navBadges(
       ).length;
     }
     let notEngageable = 0;
+    let dormantReengagement = 0;
     for (const f of roster) {
-      if (evaluateRosterEngageability(f, now).status === "INACTIEF") notEngageable += 1;
+      // Spiegelt exact de emitter-volgorde in `franchiserTasks` (pending-tasks.ts): een niet-inzetbare
+      // (INACTIEF) ZZP'er levert de plaatsing-blokkerende taak en géén tweede re-engagement-nudge
+      // (`continue`), zodat dezelfde persoon nooit dubbel telt. Alleen een inzetbare, dormant-bench
+      // vakmens telt als re-engagement-taak (`franchiseRosterReengagementTask`, href /franchise/zzpers).
+      if (evaluateRosterEngageability(f, now).status === "INACTIEF") {
+        notEngageable += 1;
+        continue;
+      }
+      const dormancy = classifyRosterDormancy(
+        { lastActiveAt: f.user.lastLoginAt, activeCollaborations: f._count.collaborations },
+        now,
+      );
+      if (dormancy.tier === "dormant" && dormancy.daysIdle != null) dormantReengagement += 1;
     }
-    const rosterAlerts = expiringProfiles + expiredProfiles + notEngageable;
+    const rosterAlerts = expiringProfiles + expiredProfiles + notEngageable + dormantReengagement;
 
     // /franchise/diensten-badge = acuut-onbezet-aggregaat (max 1) + getoonde stale-rijen + rollup. De acute
     // diensten worden uit de stale-lijst gefilterd (ze zitten al in het aggregaat) — exact dezelfde
