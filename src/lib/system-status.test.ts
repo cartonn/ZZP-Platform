@@ -59,6 +59,38 @@ describe("collectSystemStatus — web-push-posture", () => {
   });
 });
 
+describe("collectSystemStatus — bootstrap-beheerder-posture", () => {
+  it("toont 'geconfigureerd' (ok) bij een geldige BOOTSTRAP_ADMIN_*", () => {
+    const item = itemByKey(
+      makeEnv({
+        BOOTSTRAP_ADMIN_EMAIL: "beheer@example.nl",
+        BOOTSTRAP_ADMIN_PASSWORD: "z".repeat(16),
+      }),
+      "bootstrap-admin",
+    );
+    expect(item.level).toBe("ok");
+    expect(item.mode).toBe("geconfigureerd");
+  });
+
+  it("toont 'ongebruikt' als ok (geldige eindtoestand, nooit aandacht) — ook in productie", () => {
+    const item = itemByKey(makeEnv({ NODE_ENV: "production" }), "bootstrap-admin");
+    expect(item.level).toBe("ok");
+    expect(item.mode).toBe("ongebruikt");
+  });
+
+  it("noemt nooit een sleutel/wachtwoordwaarde in de toelichting", () => {
+    const item = itemByKey(
+      makeEnv({
+        BOOTSTRAP_ADMIN_EMAIL: "beheer@example.nl",
+        BOOTSTRAP_ADMIN_PASSWORD: "SuperGeheim1234",
+      }),
+      "bootstrap-admin",
+    );
+    expect(item.detail).not.toContain("SuperGeheim1234");
+    expect(item.detail).not.toContain("beheer@example.nl");
+  });
+});
+
 describe("collectSystemStatus — semantische-matching-posture", () => {
   it("toont de lokale matcher als ok (productie-geschikte default)", () => {
     const item = itemByKey(makeEnv({ SEMANTIC_MATCHER: "local" }), "semantic-matcher");

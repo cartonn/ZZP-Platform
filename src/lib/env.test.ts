@@ -45,6 +45,8 @@ const INTEGRATION_VARS = [
   "VAPID_PUBLIC_KEY",
   "VAPID_PRIVATE_KEY",
   "VAPID_SUBJECT",
+  "BOOTSTRAP_ADMIN_EMAIL",
+  "BOOTSTRAP_ADMIN_PASSWORD",
 ];
 
 /** Zet een env-var (omzeilt de readonly-typing van bv. NODE_ENV). */
@@ -340,6 +342,46 @@ describe("validateEnv", () => {
       expect(() => validateEnv()).not.toThrow();
       const w = envWarnings(validateEnv());
       expect(w.some((m) => /SHARE_TOKEN_SECRET|AUTH_URL|AUTH_SECRET/.test(m))).toBe(false);
+    });
+  });
+
+  describe("bootstrap-beheerder", () => {
+    it("accepteert geen enkele BOOTSTRAP_ADMIN_*-variabele (geen bootstrap-admin)", () => {
+      baseValid();
+      expect(() => validateEnv()).not.toThrow();
+    });
+
+    it("weigert alleen BOOTSTRAP_ADMIN_EMAIL (halve activering)", () => {
+      baseValid();
+      setEnv("BOOTSTRAP_ADMIN_EMAIL", "beheer@example.nl");
+      expect(() => validateEnv()).toThrow(/BOOTSTRAP_ADMIN_PASSWORD/);
+    });
+
+    it("weigert alleen BOOTSTRAP_ADMIN_PASSWORD (halve activering)", () => {
+      baseValid();
+      setEnv("BOOTSTRAP_ADMIN_PASSWORD", "z".repeat(16));
+      expect(() => validateEnv()).toThrow(/BOOTSTRAP_ADMIN_EMAIL/);
+    });
+
+    it("weigert een te zwak bootstrap-wachtwoord", () => {
+      baseValid();
+      setEnv("BOOTSTRAP_ADMIN_EMAIL", "beheer@example.nl");
+      setEnv("BOOTSTRAP_ADMIN_PASSWORD", "demo1234");
+      expect(() => validateEnv()).toThrow(/BOOTSTRAP_ADMIN_PASSWORD/);
+    });
+
+    it("weigert een ongeldig bootstrap-e-mailadres", () => {
+      baseValid();
+      setEnv("BOOTSTRAP_ADMIN_EMAIL", "geen-adres");
+      setEnv("BOOTSTRAP_ADMIN_PASSWORD", "z".repeat(16));
+      expect(() => validateEnv()).toThrow(/BOOTSTRAP_ADMIN_EMAIL/);
+    });
+
+    it("accepteert een geldige bootstrap-beheerder (beide gezet, sterk wachtwoord)", () => {
+      baseValid();
+      setEnv("BOOTSTRAP_ADMIN_EMAIL", "beheer@example.nl");
+      setEnv("BOOTSTRAP_ADMIN_PASSWORD", "z".repeat(16));
+      expect(() => validateEnv()).not.toThrow();
     });
   });
 });

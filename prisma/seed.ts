@@ -12,6 +12,7 @@ import {
   CascadeError,
 } from "@/lib/cascade/commands";
 import { getStorage } from "@/lib/services/storage";
+import { resolveBootstrapAdminConfig } from "@/lib/bootstrap-admin";
 import { planExpensePostings } from "@/lib/expense";
 import { documentKindForCredential } from "@/lib/documents";
 import { type CredentialType } from "@/lib/enums";
@@ -53,15 +54,27 @@ const SEED_DEMO_RESET = process.env.SEED_DEMO_RESET === "true";
  * zonder dat er ooit een hardgecodeerd demo-wachtwoord in productie staat.
  */
 async function bootstrapAdminIfConfigured() {
-  const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
-  const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
-  if (!email || !password) return;
+  const config = resolveBootstrapAdminConfig({
+    email: process.env.BOOTSTRAP_ADMIN_EMAIL,
+    password: process.env.BOOTSTRAP_ADMIN_PASSWORD,
+  });
+  // Niets gezet: geen bootstrap-admin (de operator gebruikt de demo-seed of zet 'm later). Veilig.
+  if (config.state === "unset") return;
+  // Half gezet of ongeldig (zwak wachtwoord / fout e-mailadres): NIET stil overslaan — de operator
+  // dénkt een beheerder te zetten. Faal luid zodat de misconfiguratie zichtbaar is (start.mjs logt de
+  // gefaalde achtergrond-seed; de env-validatie/preflight vangt hetzelfde al af vóór de boot).
+  if (config.state !== "ready" || !config.email) {
+    throw new Error(
+      `Bootstrap-beheerder onjuist geconfigureerd — er is GEEN beheerder aangemaakt:\n` +
+        config.errors.map((e) => `  - ${e}`).join("\n"),
+    );
+  }
   const existingAdmin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
   if (existingAdmin) return;
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(process.env.BOOTSTRAP_ADMIN_PASSWORD as string, 10);
   await prisma.user.create({
     data: {
-      email,
+      email: config.email,
       name: "Beheerder",
       role: "ADMIN",
       status: "ACTIVE",
@@ -69,7 +82,10 @@ async function bootstrapAdminIfConfigured() {
       mustChangePassword: true,
     },
   });
-  console.log("[seed] Bootstrap-admin aangemaakt voor %s (wachtwoordwijziging vereist).", email);
+  console.log(
+    "[seed] Bootstrap-admin aangemaakt voor %s (wachtwoordwijziging vereist).",
+    config.email,
+  );
 }
 
 /**
