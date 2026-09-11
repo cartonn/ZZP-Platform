@@ -29,12 +29,18 @@
   statuschecks** (`check`, `e2e`, `audit`, `secret-scan`, `CodeQL`, `agent-review`) groen →
   `gh pr merge <nr> --squash --auto`. `enforce_admins` staat AAN; niets omzeilt de poort. Altijd
   `git fetch` + rebase vóór commit én push. Bij docs-conflicten: **UNION**, nooit `--ours`.
-- **Routines (Claude Code on the web):** "ZZP auto-build" elke 4 uur (canonieke prompt:
-  [`docs/ROUTINE-PROMPT.md`](docs/ROUTINE-PROMPT.md)) en "ZZP persona-sweep" dagelijks 07:00
-  (prompt: [`docs/PERSONA-SWEEP-PROMPT.md`](docs/PERSONA-SWEEP-PROMPT.md), gaten-backlog:
-  `docs/PERSONA-SWEEP-BACKLOG.md`). Beide starten met een **verse branch vanaf `origin/main`**
-  (CLAUDE.md §3a) en eindigen met een PR. Vangnet `auto-pr-claude.yml` opent een PR bij een push
-  naar `claude/**`. Linear wordt niet gebruikt.
+- **Routines overgenomen door Codex (11-9):** vijf Claude-schema's en hun instructies/historie
+  rechtstreeks gelezen en gepauzeerd. Actieve Codex-coördinator: bouwen elke vier uur,
+  persona/security/productierijpheid elk tweemaal per dag, ochtendbriefing om 08:00
+  Europe/Amsterdam. Exacte UTC-schema's, overdracht en prompts staan in
+  [`docs/CODEX-ROUTINE-TAKEOVER.md`](docs/CODEX-ROUTINE-TAKEOVER.md) en `docs/codex/`.
+  Iedere twintig minuten controleert de lokale coördinator verschuldigde rondes;
+  eerste volledige geplande runs moeten nog worden bevestigd. Bouwruns starten geïsoleerd
+  vanaf `origin/main`, met PR en alle zes poorten. De ochtendbriefing blijft uitsluitend
+  lezen en rapporteren. Oude GitHub-bouwers blijven uit.
+  De Codex-reviewintegratie wacht nog op `OPENAI_API_KEY`; zie `.github/codex/README.md`.
+  Geen review of merge als geslaagd melden zolang de verplichte check niet groen is.
+  Linear wordt niet gebruikt.
 - **Scope-restrictie routines (2-9-2026):** alleen kern + robuustheid/security/bugs. Ontzorgd/
   aangifte/KOR/fiscale uitbreidingen, academie, ideeën, design-lab, nieuwe rollen, nieuwe
   prijslijnen en i18n zijn **uitgesloten**. Zie `docs/ROUTINE-PROMPT.md` en CLAUDE.md.
