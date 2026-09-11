@@ -29,10 +29,10 @@
   opacity: 0;
 }
 .handslag-v5 .hs-hero-word-dark {
-  color: #004f73;
+  color: hsl(var(--foreground));
 }
 .handslag-v5 .hs-hero-period {
-  color: #d97757;
+  color: hsl(var(--hs-mark));
 }
 .handslag-v5 .hs-hero-hand {
   display: block;
@@ -40,7 +40,7 @@
   width: var(--hero-hand-size);
   height: auto;
   aspect-ratio: 21 / 18;
-  color: #d97757;
+  color: hsl(var(--hs-mark));
   pointer-events: none;
   overflow: visible;
 }

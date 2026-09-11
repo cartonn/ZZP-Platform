@@ -2,6 +2,7 @@
 import React from "react";
 import { clamp, deckPosition, cardPose, storyMode } from "./handslag-motion.mjs";
 import Image from "next/image";
+import Link from "next/link";
 import HeroQuote from "./hero-quote";
 import LandingFaq from "./landing-faq";
 
@@ -48,7 +49,6 @@ function cssStyle(value) {
 }
 
 export default class HandslagV5 extends React.Component {
-  state = { audience: "professional" };
   _navs = [];
   _sticks = [];
   _stickState = [];
@@ -60,23 +60,9 @@ export default class HandslagV5 extends React.Component {
       "padding:11px clamp(16px,1.8vw,24px);border-radius:999px;font-size:clamp(14px,1.3vw,15px);font-weight:700;line-height:1.2;transition:background 180ms cubic-bezier(0.22,0.61,0.36,1), color 180ms, box-shadow 180ms cubic-bezier(0.22,0.61,0.36,1), transform 180ms cubic-bezier(0.22,0.61,0.36,1);";
     return active
       ? base +
-          "background:#0076A8;border:1.5px solid #0076A8;color:#fff;box-shadow:0 3px 0 #004F73, 0 8px 18px rgba(0,58,84,0.22);"
+          "background:hsl(var(--primary));border:1.5px solid hsl(var(--primary));color:hsl(var(--primary-foreground));box-shadow:0 3px 0 hsl(var(--hs-primary-edge)), 0 8px 18px hsl(var(--hs-shadow) / 0.22);"
       : base +
-          "background:#fff;border:1.5px solid #C7CED6;color:#004F73;box-shadow:0 3px 0 #E1E4E8, 0 6px 14px rgba(0,58,84,0.07);";
-  }
-
-  pick(key) {
-    return (event) => {
-      event?.preventDefault();
-      this.setState({ audience: key }, () => {
-        this.measure();
-        this._roleStory?.scrollIntoView({
-          behavior: this._reduce ? "instant" : "smooth",
-          block: "start",
-        });
-        this.schedule();
-      });
-    };
+          "background:hsl(var(--card));border:1.5px solid hsl(var(--input));color:hsl(var(--foreground));box-shadow:0 3px 0 hsl(var(--border)), 0 6px 14px hsl(var(--hs-shadow) / 0.07);";
   }
 
   schedule = () => {
@@ -177,8 +163,8 @@ export default class HandslagV5 extends React.Component {
       this._nav = nav;
       this._navs.forEach((link, i) => {
         if (!link) return;
-        link.style.color = nav === i ? "#0076A8" : "#004F73";
-        link.style.borderColor = nav === i ? "#D97757" : "transparent";
+        link.style.color = nav === i ? "hsl(var(--hs-link))" : "hsl(var(--foreground))";
+        link.style.borderColor = nav === i ? "hsl(var(--hs-mark))" : "transparent";
         if (nav === i) link.setAttribute("aria-current", "location");
         else link.removeAttribute("aria-current");
       });
@@ -234,8 +220,8 @@ export default class HandslagV5 extends React.Component {
     }
   }
 
-  componentDidUpdate(_previousProps, previousState) {
-    if (previousState.audience !== this.state.audience) this._layoutDirty = true;
+  componentDidUpdate(previousProps) {
+    if (previousProps.audience !== this.props.audience) this._layoutDirty = true;
     this.schedule();
   }
 
@@ -329,19 +315,16 @@ export default class HandslagV5 extends React.Component {
   }
 
   renderVals() {
-    const a = this.state.audience;
+    const a = this.props.audience ?? "professional";
     const accent = this.props.accentBadges ?? true;
     const vals = {
       showPhoto: this.props.showPhoto ?? true,
       showSectionNumbers: this.props.showSectionNumbers ?? true,
-      badgeBg: accent ? "#D97757" : "#D0E7F2",
-      badgeFg: accent ? "#40170B" : "#004F73",
+      badgeBg: accent ? "hsl(var(--hs-mark))" : "hsl(var(--accent))",
+      badgeFg: accent ? "hsl(var(--hs-mark-ink))" : "hsl(var(--foreground))",
       isPro: a === "professional",
       isOrg: a === "organisation",
       isInt: a === "intermediary",
-      pickPro: this.pick("professional"),
-      pickOrg: this.pick("organisation"),
-      pickInt: this.pick("intermediary"),
       barRef: (el) => {
         this._bar = el;
       },
@@ -418,7 +401,7 @@ export default class HandslagV5 extends React.Component {
                   height="26"
                   viewBox="8 11 32 26"
                   fill="none"
-                  stroke="#D97757"
+                  stroke="hsl(var(--hs-mark))"
                   strokeWidth="4"
                   strokeLinecap="round"
                   aria-hidden="true"
@@ -528,12 +511,11 @@ export default class HandslagV5 extends React.Component {
 
             <section className="hv5-32" data-screen-label="Handslag voor">
               <div className="hv5-33">
-                <a
+                <Link
                   className="hv5-34"
                   data-interaction="surface"
                   data-reveal="1"
-                  href="#voor-jou"
-                  onClick={v.pickPro}
+                  href="/?audience=professional#voor-jou"
                 >
                   <small className="hv5-35">{"Handslag voor"}</small>
                   <span className="hv5-36">
@@ -556,13 +538,12 @@ export default class HandslagV5 extends React.Component {
                       </svg>
                     </span>
                   </span>
-                </a>
-                <a
+                </Link>
+                <Link
                   className="hv5-38"
                   data-interaction="surface"
                   data-reveal="2"
-                  href="#voor-jou"
-                  onClick={v.pickOrg}
+                  href="/?audience=organisation#voor-jou"
                 >
                   <small className="hv5-39">{"Handslag voor"}</small>
                   <span className="hv5-40">
@@ -585,13 +566,12 @@ export default class HandslagV5 extends React.Component {
                       </svg>
                     </span>
                   </span>
-                </a>
-                <a
+                </Link>
+                <Link
                   className="hv5-42"
                   data-interaction="surface"
                   data-reveal="3"
-                  href="#voor-jou"
-                  onClick={v.pickInt}
+                  href="/?audience=intermediary#voor-jou"
                 >
                   <small className="hv5-43">{"Handslag voor"}</small>
                   <span className="hv5-44">
@@ -614,7 +594,7 @@ export default class HandslagV5 extends React.Component {
                       </svg>
                     </span>
                   </span>
-                </a>
+                </Link>
               </div>
             </section>
 
@@ -642,36 +622,33 @@ export default class HandslagV5 extends React.Component {
                       <h2 className="hv5-53">{"Drie partijen. Eén plek."}</h2>
                     </div>
                     <div className="hv5-54" role="group" aria-label="Kies je rol">
-                      <button
+                      <Link
                         className="hv5-55"
                         data-interaction="surface"
                         style={cssStyle(v.tabPro)}
-                        type="button"
-                        onClick={v.pickPro}
-                        aria-pressed={v.isPro}
+                        href="/?audience=professional#voor-jou"
+                        aria-current={v.isPro ? "page" : undefined}
                       >
                         {"Zzp’er"}
-                      </button>
-                      <button
+                      </Link>
+                      <Link
                         className="hv5-56"
                         data-interaction="surface"
                         style={cssStyle(v.tabOrg)}
-                        type="button"
-                        onClick={v.pickOrg}
-                        aria-pressed={v.isOrg}
+                        href="/?audience=organisation#voor-jou"
+                        aria-current={v.isOrg ? "page" : undefined}
                       >
                         {"Opdrachtgever"}
-                      </button>
-                      <button
+                      </Link>
+                      <Link
                         className="hv5-57"
                         data-interaction="surface"
                         style={cssStyle(v.tabInt)}
-                        type="button"
-                        onClick={v.pickInt}
-                        aria-pressed={v.isInt}
+                        href="/?audience=intermediary#voor-jou"
+                        aria-current={v.isInt ? "page" : undefined}
                       >
                         {"Bemiddelaar"}
-                      </button>
+                      </Link>
                     </div>
                   </div>
 
@@ -761,7 +738,7 @@ export default class HandslagV5 extends React.Component {
                                   height="19"
                                   viewBox="8 11 32 26"
                                   fill="none"
-                                  stroke="#D97757"
+                                  stroke="hsl(var(--hs-mark))"
                                   strokeWidth="4.5"
                                   strokeLinecap="round"
                                   aria-hidden="true"
@@ -893,7 +870,7 @@ export default class HandslagV5 extends React.Component {
                                   height="19"
                                   viewBox="8 11 32 26"
                                   fill="none"
-                                  stroke="#D97757"
+                                  stroke="hsl(var(--hs-mark))"
                                   strokeWidth="4.5"
                                   strokeLinecap="round"
                                   aria-hidden="true"
@@ -1025,7 +1002,7 @@ export default class HandslagV5 extends React.Component {
                                   height="19"
                                   viewBox="8 11 32 26"
                                   fill="none"
-                                  stroke="#D97757"
+                                  stroke="hsl(var(--hs-mark))"
                                   strokeWidth="4.5"
                                   strokeLinecap="round"
                                   aria-hidden="true"
@@ -1248,6 +1225,8 @@ export default class HandslagV5 extends React.Component {
             ref={v.topBtnRef}
             href="#"
             aria-label="Terug naar boven"
+            tabIndex={-1}
+            aria-hidden="true"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -1275,7 +1254,7 @@ export default class HandslagV5 extends React.Component {
                     height="23"
                     viewBox="8 11 32 26"
                     fill="none"
-                    stroke="#D97757"
+                    stroke="hsl(var(--hs-mark))"
                     strokeWidth="4"
                     strokeLinecap="round"
                     aria-hidden="true"
@@ -1294,7 +1273,7 @@ export default class HandslagV5 extends React.Component {
                 </a>
               </div>
               <div className="hv5-346">
-                <span>{"© 2026 Handslag"}</span>
+                <span>{`© ${this.props.year} Handslag`}</span>
                 <nav className="hs-landing-legal" aria-label="Juridische informatie">
                   <a href="/privacy">Privacy</a>
                   <a href="/voorwaarden">Voorwaarden</a>

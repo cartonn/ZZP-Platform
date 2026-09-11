@@ -18,7 +18,7 @@
   width: auto;
   aspect-ratio: 19.4 / 16.4;
   vertical-align: baseline;
-  color: #d97757;
+  color: hsl(var(--hs-mark));
   overflow: visible;
   pointer-events: none;
 }

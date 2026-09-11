@@ -28,9 +28,9 @@ test("mobile V5 keeps every audience and FAQ usable without horizontal overflow"
   await page.goto("/");
   await expect(page.locator(".hs-hero-quote")).toHaveAttribute("data-quote-state", "complete");
   for (const audience of ["Zzp’er", "Opdrachtgever", "Bemiddelaar"]) {
-    const button = page.getByRole("button", { name: audience, exact: true });
+    const button = page.getByRole("link", { name: audience, exact: true });
     await button.click();
-    await expect(button).toHaveAttribute("aria-pressed", "true");
+    await expect(button).toHaveAttribute("aria-current", "page");
     await expect(page.locator("[data-panel]")).toHaveCount(3);
     const dimensions = await page.evaluate(() => ({
       content: document.documentElement.scrollWidth,
@@ -109,7 +109,49 @@ test("the heading stays readable when JavaScript is disabled", async ({ browser,
       page.getByText(/Handslag biedt geen vooruitbetaling of betalingsgarantie/),
     ).toBeVisible();
     await expect(page.locator(".hs-faq-item")).toHaveCount(5);
+    await expect(page.locator(".hv5-337")).toHaveAttribute("tabindex", "-1");
+    for (const [name, key] of [
+      ["Opdrachtgever", "organisation"],
+      ["Bemiddelaar", "intermediary"],
+      ["Zzp’er", "professional"],
+    ]) {
+      const link = page.getByRole("link", { name, exact: true });
+      await link.focus();
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(new RegExp(`audience=${key}`));
+      await expect(link).toHaveAttribute("aria-current", "page");
+      await expect(page.locator("[data-panel]")).toHaveCount(3);
+      await page.reload();
+      await expect(link).toHaveAttribute("aria-current", "page");
+    }
   } finally {
-    await context.close();
+    await context.close().catch(() => {});
   }
+});
+
+test("V5 respects the saved dark theme and keeps its light identity", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("theme", "dark"));
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  const darkSurface = await page
+    .locator(".hv5-1")
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  const darkText = await page.locator("h1").evaluate((el) => getComputedStyle(el).color);
+  await page.getByRole("link", { name: "Handslag voor Opdrachtgevers", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Opdrachtgever", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await page.goBack();
+  await expect(page.getByRole("link", { name: "Zzp’er", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await page.addInitScript(() => localStorage.setItem("theme", "light"));
+  await page.reload();
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await expect(page.locator(".hv5-1")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(page.locator("h1")).toHaveCSS("color", "rgb(0, 118, 168)");
+  expect(darkSurface).not.toBe("rgb(255, 255, 255)");
+  expect(darkText).not.toBe("rgb(0, 118, 168)");
 });

@@ -1,11 +1,11 @@
 /* Shared tactile feedback. Independent translate/scale preserve scroll transforms. */
 .handslag-v5 [data-interaction] {
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --control-edge: #c7d8e2;
-  --control-hover: #eaf4fa;
-  --control-press: #d0e7f2;
-  --control-ink: #004f73;
-  --control-light: rgba(255, 255, 255, 0.65);
+  --control-edge: hsl(var(--hs-edge));
+  --control-hover: hsl(var(--background));
+  --control-press: hsl(var(--accent));
+  --control-ink: hsl(var(--foreground));
+  --control-light: hsl(var(--hs-highlight) / 0.65);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition:
@@ -18,19 +18,19 @@
     border-color 180ms ease,
     opacity 220ms ease !important;
 }
-.handslag-v5 :is(.hv5-13, .hv5-34, [aria-pressed="true"]) {
-  --control-edge: #004f73;
-  --control-hover: #00669a;
-  --control-press: #005782;
-  --control-ink: #fff;
-  --control-light: rgba(255, 255, 255, 0.18);
+.handslag-v5 :is(.hv5-13, .hv5-34, [aria-current="page"]) {
+  --control-edge: hsl(var(--hs-primary-edge));
+  --control-hover: hsl(var(--hs-primary-hover));
+  --control-press: hsl(var(--hs-primary-press));
+  --control-ink: hsl(var(--hs-highlight));
+  --control-light: hsl(var(--hs-highlight) / 0.18);
 }
 .handslag-v5 .hv5-334 {
-  --control-edge: #a64b2e;
-  --control-hover: #e08363;
-  --control-press: #c25f3f;
-  --control-ink: #40170b;
-  --control-light: rgba(255, 255, 255, 0.26);
+  --control-edge: hsl(var(--hs-mark-edge));
+  --control-hover: hsl(var(--hs-mark-hover));
+  --control-press: hsl(var(--hs-mark-press));
+  --control-ink: hsl(var(--hs-mark-ink));
+  --control-light: hsl(var(--hs-highlight) / 0.26);
 }
 .handslag-v5 [data-interaction="surface"] {
   position: relative;
@@ -69,7 +69,7 @@
   position: absolute;
   inset: auto 0 2px;
   height: 2px;
-  background: #d97757;
+  background: hsl(var(--hs-mark));
   border-radius: 2px;
   scale: 0 1;
   transform-origin: left;
@@ -94,7 +94,7 @@
     border-color: var(--control-edge) !important;
     box-shadow:
       0 5px 0 var(--control-edge),
-      0 12px 26px rgba(0, 58, 84, 0.18) !important;
+      0 12px 26px hsl(var(--hs-shadow) / 0.18) !important;
     translate: 0 -2px;
   }
   .handslag-v5 [data-interaction="surface"]:hover::after {
@@ -114,21 +114,21 @@
     translate: 0 -3px;
   }
   .handslag-v5 [data-interaction="link"]:hover {
-    color: #0076a8;
+    color: hsl(var(--hs-link));
   }
   .handslag-v5 [data-interaction="link"]:hover::after {
     scale: 1;
   }
   .handslag-v5 [data-interaction="faq"]:hover {
-    color: #0076a8 !important;
-    background-color: #f0f7fb !important;
+    color: hsl(var(--hs-link)) !important;
+    background-color: hsl(var(--hs-surface-soft)) !important;
     box-shadow:
-      -10px 0 0 #f0f7fb,
-      10px 0 0 #f0f7fb;
+      -10px 0 0 hsl(var(--hs-surface-soft)),
+      10px 0 0 hsl(var(--hs-surface-soft));
   }
   .handslag-v5 [data-interaction="faq"]:hover > span {
-    background-color: #0076a8;
-    color: #fff;
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
     scale: 1.06;
   }
 }
@@ -143,23 +143,23 @@
   color: var(--control-ink) !important;
   box-shadow:
     0 1px 0 var(--control-edge),
-    0 3px 8px rgba(0, 58, 84, 0.14) !important;
+    0 3px 8px hsl(var(--hs-shadow) / 0.14) !important;
 }
 .handslag-v5 [data-interaction="surface"]:active::after {
   opacity: 0;
 }
 .handslag-v5 [data-interaction="faq"]:active {
-  background-color: #eaf4fa !important;
+  background-color: hsl(var(--background)) !important;
 }
 .handslag-v5 [data-interaction="link"]:active::after {
   scale: 1;
 }
 .handslag-v5 [data-interaction]:focus-visible {
-  outline: 3px solid #0076a8;
+  outline: 3px solid hsl(var(--primary));
   outline-offset: 5px;
 }
 .handslag-v5 .hv5-334:focus-visible {
-  outline-color: #fff;
+  outline-color: hsl(var(--hs-highlight));
 }
 .handslag-v5 [data-interaction]:disabled {
   opacity: 0.5;

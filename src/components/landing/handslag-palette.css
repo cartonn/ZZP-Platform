@@ -1,0 +1,67 @@
+/* Scoped semantic tokens preserve the approved V5 light palette.
+   The app theme class switches surfaces and text without changing logo identity. */
+.handslag-v5 {
+  --foreground: 198.782609 100% 22.54902%;
+  --primary: 197.857143 100% 32.941176%;
+  --primary-foreground: 0 0% 100%;
+  --card: 0 0% 100%;
+  --border: 214.285714 13.207547% 89.607843%;
+  --background: 202.5 61.538462% 94.901961%;
+  --accent: 199.411765 56.666667% 88.235294%;
+  --muted: 210 28.571429% 97.254902%;
+  --input: 212 15.463918% 80.980392%;
+  --hs-mark: 14.769231 63.106796% 59.607843%;
+  --hs-mark-ink: 13.584906 70.666667% 14.705882%;
+  --hs-mark-edge: 14.5 56.603774% 41.568627%;
+  --hs-mark-hover: 15.36 66.84492% 63.333333%;
+  --hs-mark-press: 14.656489 51.778656% 50.392157%;
+  --hs-surface-soft: 201.818182 57.894737% 96.27451%;
+  --hs-surface-softest: 205.714286 53.846154% 97.45098%;
+  --hs-divider: 204 24.590164% 88.039216%;
+  --hs-frame: 202.5 29.62963% 89.411765%;
+  --hs-edge: 202.222222 31.764706% 83.333333%;
+  --hs-primary-glow: 197.591623 100% 37.45098%;
+  --hs-primary-hover: 200.25974 100% 30.196078%;
+  --hs-primary-press: 199.846154 100% 25.490196%;
+  --hs-primary-deep: 197.34375 100% 25.098039%;
+  --hs-primary-deeper: 199.120879 100% 17.843137%;
+  --hs-primary-edge: 198.782609 100% 22.54902%;
+  --hs-shadow: 198.571429 100% 16.470588%;
+  --hs-shadow-deep: 198.947368 100% 7.45098%;
+  --hs-shadow-middle: 199.090909 100% 12.941176%;
+  --hs-highlight: 0 0% 100%;
+  --hs-link: 197.857143 100% 32.941176%;
+  --hs-on-primary-muted: 199.411765 56.666667% 88.235294%;
+  --card-foreground: var(--foreground);
+  --accent-foreground: var(--foreground);
+  --ring: var(--hs-link);
+}
+.dark .handslag-v5 {
+  --foreground: 198 65% 91%;
+  --card: 199 28% 14%;
+  --border: 199 25% 30%;
+  --background: 200 32% 10%;
+  --accent: 199 44% 24%;
+  --muted: 199 25% 17%;
+  --input: 199 24% 36%;
+  --hs-surface-soft: 199 29% 15%;
+  --hs-surface-softest: 199 25% 18%;
+  --hs-divider: 199 25% 30%;
+  --hs-frame: 199 24% 32%;
+  --hs-edge: 199 25% 34%;
+  --hs-link: 195 80% 73%;
+  --hs-shadow: 200 50% 2%;
+  --hs-shadow-deep: 200 50% 1%;
+  --hs-shadow-middle: 200 50% 2%;
+}
+
+/* Keep the optional viewport-gutter enhancement separate: an unsupported
+   :has() must never invalidate the component's palette rules above. */
+html:has(.handslag-v5) {
+  --card: 0 0% 100%;
+  --background: 202.5 61.538462% 94.901961%;
+}
+html.dark:has(.handslag-v5) {
+  --card: 199 28% 14%;
+  --background: 200 32% 10%;
+}

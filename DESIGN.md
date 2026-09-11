@@ -258,3 +258,13 @@ Geen verzonnen klantlogo’s, aantallen, reviews, certificeringen of betaalgaran
 De uitleg vermeldt rechtstreekse betaling en de gefaseerde ingebruikname.
 Native links en details werken zonder extra clientscript. Zichtbare focus, ruime
 klikvlakken, mobiele navigatie en verminderde beweging blijven onderdeel van het ontwerp.
+
+## Public Handslag V5 landing
+
+The approved V5 homepage scopes its semantic HSL palette in
+`src/components/landing/handslag-palette.css`. It preserves the approved white/blue
+light design and switches surfaces and readable text with the existing `.dark`
+preference. Logo accents stay terracotta; action buttons retain light text on blue.
+This scope also covers the landing viewport gutter and is removed on app navigation.
+The protected application keeps its existing palette until its separate design PR.
+Audience choices are server-derived query-parameter links, usable without scripts.

@@ -1,11 +1,11 @@
 /* Three elevation levels: page, raised surfaces, and the document deck. */
 .handslag-v5 {
   --shadow-surface:
-    0 1px 2px rgba(0, 45, 66, 0.07), 0 8px 20px -8px rgba(0, 58, 84, 0.16),
-    0 28px 60px -22px rgba(0, 58, 84, 0.19);
+    0 1px 2px hsl(var(--hs-shadow-middle) / 0.07), 0 8px 20px -8px hsl(var(--hs-shadow) / 0.16),
+    0 28px 60px -22px hsl(var(--hs-shadow) / 0.19);
   --shadow-deck:
-    0 1px 1px rgba(0, 45, 66, 0.09), 0 6px 12px -5px rgba(0, 58, 84, 0.16),
-    0 24px 48px -16px rgba(0, 58, 84, 0.24);
+    0 1px 1px hsl(var(--hs-shadow-middle) / 0.09), 0 6px 12px -5px hsl(var(--hs-shadow) / 0.16),
+    0 24px 48px -16px hsl(var(--hs-shadow) / 0.24);
 }
 .handslag-v5 .hv5-3,
 .handslag-v5 .hv5-279 {
@@ -14,14 +14,14 @@
   transform-origin: left center;
 }
 .handslag-v5 .hv5-4 {
-  background: rgba(255, 255, 255, 0.9);
+  background: hsl(var(--card) / 0.9);
   -webkit-backdrop-filter: saturate(145%) blur(16px);
   backdrop-filter: saturate(145%) blur(16px);
 }
 .handslag-v5 .hv5-4[data-elevated="true"] {
   box-shadow:
-    0 1px 0 rgba(0, 58, 84, 0.04),
-    0 12px 32px -20px rgba(0, 58, 84, 0.32);
+    0 1px 0 hsl(var(--hs-shadow) / 0.04),
+    0 12px 32px -20px hsl(var(--hs-shadow) / 0.32);
 }
 .handslag-v5 .hv5-5 {
   transition: none;
@@ -36,8 +36,8 @@
   inset: 16px -10px 26px 14px;
   z-index: -1;
   border-radius: 32px;
-  background: #d0e7f2;
-  border: 1px solid rgba(0, 118, 168, 0.12);
+  background: hsl(var(--accent));
+  border: 1px solid hsl(var(--primary) / 0.12);
   rotate: 1.4deg;
 }
 .handslag-v5 .hv5-28 {
@@ -48,7 +48,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.36);
+  box-shadow: inset 0 0 0 1px hsl(var(--hs-highlight) / 0.36);
   pointer-events: none;
 }
 .handslag-v5 .hv5-30 {
@@ -58,7 +58,11 @@
   height: auto;
   margin-top: clamp(64px, 8vw, 112px);
   padding-bottom: clamp(56px, 6vw, 88px);
-  background: radial-gradient(ellipse at 78% 48%, #eaf4fa 0, rgba(234, 244, 250, 0) 65%);
+  background: radial-gradient(
+    ellipse at 78% 48%,
+    hsl(var(--background)) 0,
+    hsl(var(--background) / 0) 65%
+  );
 }
 .handslag-v5 .hv5-47 {
   position: static;
@@ -77,8 +81,8 @@
 }
 .handslag-v5 [data-panel] {
   box-shadow: var(--shadow-deck);
-  border-color: #dce6ec;
-  background: linear-gradient(155deg, #fff 65%, #f5f9fc);
+  border-color: hsl(var(--hs-frame));
+  background: linear-gradient(155deg, hsl(var(--card)) 65%, hsl(var(--hs-surface-softest)));
   transform-origin: 50% 0;
 }
 .handslag-v5 [data-panel]::after {
@@ -87,8 +91,8 @@
   inset: 0;
   border-radius: inherit;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -3px 0 rgba(0, 79, 115, 0.035);
+    inset 0 1px 0 hsl(var(--hs-highlight) / 0.95),
+    inset 0 -3px 0 hsl(var(--hs-primary-edge) / 0.035);
   pointer-events: none;
 }
 .handslag-v5 [data-story-mode="pinned"] [data-panel] {
@@ -124,7 +128,7 @@
   transition: color 200ms ease;
 }
 .handslag-v5 [data-step][data-current="true"] {
-  color: #004f73;
+  color: hsl(var(--foreground));
 }
 .handslag-v5 [data-step] [data-dot] {
   opacity: 0.3;
@@ -132,25 +136,30 @@
 .handslag-v5 [data-step][data-current="true"] [data-dot] {
   opacity: 1;
   transform: scale(1.2);
-  box-shadow: 0 0 0 4px rgba(217, 119, 87, 0.13);
+  box-shadow: 0 0 0 4px hsl(var(--hs-mark) / 0.13);
 }
 .handslag-v5 [data-step][data-complete="true"] [data-dot] {
   opacity: 0.75;
 }
 .handslag-v5 .hv5-270 {
-  background: linear-gradient(155deg, #005b80 0%, #004f73 48%, #003e5b 100%);
+  background: linear-gradient(
+    155deg,
+    hsl(var(--hs-primary-deep)) 0%,
+    hsl(var(--hs-primary-edge)) 48%,
+    hsl(var(--hs-primary-deeper)) 100%
+  );
   box-shadow:
-    0 -1px 0 rgba(0, 58, 84, 0.05),
-    0 -20px 48px -28px rgba(0, 45, 66, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 -1px 0 hsl(var(--hs-shadow) / 0.05),
+    0 -20px 48px -28px hsl(var(--hs-shadow-middle) / 0.32),
+    inset 0 1px 0 hsl(var(--hs-highlight) / 0.2);
 }
 .handslag-v5 :is(.hv5-281, .hv5-285, .hv5-289) {
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  background: linear-gradient(150deg, #fff 60%, #f0f7fb);
+  border: 1px solid hsl(var(--hs-highlight) / 0.72);
+  background: linear-gradient(150deg, hsl(var(--card)) 60%, hsl(var(--hs-surface-soft)));
   box-shadow:
-    0 2px 0 rgba(0, 26, 38, 0.12),
-    0 10px 22px -8px rgba(0, 26, 38, 0.24),
-    0 36px 64px -24px rgba(0, 26, 38, 0.36);
+    0 2px 0 hsl(var(--hs-shadow-deep) / 0.12),
+    0 10px 22px -8px hsl(var(--hs-shadow-deep) / 0.24),
+    0 36px 64px -24px hsl(var(--hs-shadow-deep) / 0.36);
 }
 .handslag-v5 .hv5-301 {
   box-shadow: var(--shadow-surface);
