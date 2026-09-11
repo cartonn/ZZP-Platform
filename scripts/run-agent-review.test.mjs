@@ -98,6 +98,7 @@ function fixture(t, responses = [response()], overrides = {}) {
   };
   const options = {
     env,
+    wait: async () => {},
     createReader: async (args) => {
       assert.deepEqual(args, {
         cwd: dir,
@@ -627,4 +628,42 @@ test("real Git source reader integrates with the stateless fake API cycle", asyn
   assert.equal(f.metadata().sourceDelivery.reads.length, 1);
   assert.equal(round, 2);
   assert.equal(JSON.stringify(f.metadata()).includes("export const value"), false);
+});
+
+test("large-context rounds are paced without repeating any POST", async (t) => {
+  let clock = 0;
+  const waits = [];
+  const f = fixture(t, [response([toolCall()]), response()]);
+  f.options.now = () => clock;
+  f.options.wait = async (ms) => {
+    waits.push(ms);
+    clock += ms;
+  };
+  await runReview(f.options);
+  assert.deepEqual(waits, [61000]);
+  assert.equal(f.requests.length, 2);
+});
+
+test("pacing cannot outlive the total review budget or issue another request", async (t) => {
+  const f = fixture(t, [response([toolCall()]), response()]);
+  f.options.now = () => 0;
+  f.options.maxDurationMs = 60000;
+  f.options.wait = async () => assert.fail("must reject an unaffordable wait");
+  await assert.rejects(runReview(f.options), /time_limit/);
+  assert.equal(f.requests.length, 1);
+});
+
+test("slow model turns already satisfy pacing and need no added wait", async (t) => {
+  let clock = 0;
+  const f = fixture(t, [response([toolCall()]), response()]);
+  const fetchImpl = f.options.fetchImpl;
+  f.options.now = () => clock;
+  f.options.fetchImpl = async (...args) => {
+    const response = await fetchImpl(...args);
+    clock += 62000;
+    return response;
+  };
+  f.options.wait = async () => assert.fail("no additional delay expected");
+  await runReview(f.options);
+  assert.equal(f.requests.length, 2);
 });
