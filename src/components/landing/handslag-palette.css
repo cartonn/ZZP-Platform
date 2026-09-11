@@ -1,6 +1,7 @@
 /* Scoped semantic tokens preserve the approved V5 light palette.
-   The app theme class switches surfaces and text without changing logo identity. */
+   The public landing stays light independently of the saved application theme. */
 .handslag-v5 {
+  color-scheme: light;
   --foreground: 198.782609 100% 22.54902%;
   --primary: 197.857143 100% 32.941176%;
   --primary-foreground: 0 0% 100%;
@@ -36,32 +37,22 @@
   --accent-foreground: var(--foreground);
   --ring: var(--hs-link);
 }
-.dark .handslag-v5 {
-  --foreground: 198 65% 91%;
-  --card: 199 28% 14%;
-  --border: 199 25% 30%;
-  --background: 200 32% 10%;
-  --accent: 199 44% 24%;
-  --muted: 199 25% 17%;
-  --input: 199 24% 36%;
-  --hs-surface-soft: 199 29% 15%;
-  --hs-surface-softest: 199 25% 18%;
-  --hs-divider: 199 25% 30%;
-  --hs-frame: 199 24% 32%;
-  --hs-edge: 199 25% 34%;
-  --hs-link: 195 80% 73%;
-  --hs-shadow: 200 50% 2%;
-  --hs-shadow-deep: 200 50% 1%;
-  --hs-shadow-middle: 200 50% 2%;
-}
-
 /* Keep the optional viewport-gutter enhancement separate: an unsupported
    :has() must never invalidate the component's palette rules above. */
-html:has(.handslag-v5) {
+html:has(.handslag-v5),
+html.dark:has(.handslag-v5) {
+  color-scheme: light;
   --card: 0 0% 100%;
   --background: 202.5 61.538462% 94.901961%;
-}
-html.dark:has(.handslag-v5) {
-  --card: 199 28% 14%;
-  --background: 200 32% 10%;
+  /* Global install prompts live outside the landing: keep surface/ink pairs coherent. */
+  --foreground: 198.782609 100% 22.54902%;
+  --card-foreground: var(--foreground);
+  --muted: 210 28.571429% 97.254902%;
+  --muted-foreground: 198.782609 100% 22.54902%;
+  --accent: 199.411765 56.666667% 88.235294%;
+  --accent-foreground: var(--foreground);
+  --primary: 197.857143 100% 32.941176%;
+  --primary-foreground: 0 0% 100%;
+  --border: 214.285714 13.207547% 89.607843%;
+  --ring: var(--primary);
 }

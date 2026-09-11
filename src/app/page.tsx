@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import HandslagV5 from "@/components/landing/handslag-v5";
 import "@/components/landing/handslag-palette.css";
@@ -14,6 +14,8 @@ const landingFont = localFont({
   variable: "--font-handslag-landing",
   display: "swap",
 });
+
+export const viewport: Viewport = { themeColor: "#ffffff", colorScheme: "light" };
 
 export const metadata: Metadata = {
   title: "Handslag — Een goede opdracht begint bij handslag",
