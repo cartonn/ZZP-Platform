@@ -1,166 +1,149 @@
 name: agent-review
 
-# BLOKKERENDE onafhankelijke cross-check vóór merge (functiescheiding): een aparte review-agent —
-# een ander, sterk model dan de bouwende loops, met een adversariële houding — beoordeelt de diff
-# langs meerdere lenzen en zet een PASS/BLOCK-oordeel. Bij BLOCK faalt de job, en omdat `agent-review`
-# een VEREISTE statuscheck is op `main` kan de PR niet auto-mergen. De agent wijzigt nooit code en
-# merget nooit; hij plaatst alleen een review-comment en schrijft het oordeel.
-#
-# Draait op Claude Max (OAuth) — geen API-kosten per token.
-#
-# Les (PR #1340, 2-9-2026): een grote diff (56 bestanden) kan het turn-budget opsouperen zonder een
-# echt verdict te schrijven. De fail-safe schreef toen kaal "BLOCK / pending" — onderscheidbaar van
-# een inhoudelijke blocker, maar dat onderscheid ging verloren voor de builder. Daarom nu: hoger
-# budget, een diff-grootte-strategie in de instructies, en een derde, expliciet verdict
-# "REVIEW INCOMPLEET" met een eigen PR-comment en herstart-advies.
-
+# The required check is explicitly published on the reviewed PR head. Automatic
+# job conclusions belong to the trusted control SHA and have different names.
+# Bootstrap requires an independently reviewed, locked branch AND an external
+# CODEX_REVIEW_BOOTSTRAP_SHA repository variable. Remove that variable after merge.
 on:
-  pull_request:
+  pull_request_target:
+    branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       pr:
-        description: "PR-nummer om te (her)beoordelen"
+        description: "PR-nummer (uitvoeren vanaf beschermde main of vastgezette bootstrap)"
         required: true
         type: string
 
 permissions:
   contents: read
-  pull-requests: write
+
+env:
+  REVIEW_CONTROL_SHA: ${{ github.workflow_sha }}
+  REVIEW_WORKFLOW_REF: ${{ github.workflow_ref }}
+  REVIEW_BOOTSTRAP_SHA: ${{ vars.CODEX_REVIEW_BOOTSTRAP_SHA }}
+  REVIEW_PR: ${{ github.event.pull_request.number || inputs.pr }}
 
 concurrency:
   group: agent-review-${{ github.event.pull_request.number || inputs.pr }}
   cancel-in-progress: true
 
 jobs:
-  agent-review:
-    name: agent-review
+  prepare-review:
     if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: write
+    outputs:
+      head: ${{ steps.prepare.outputs.head }}
+      context: ${{ steps.prepare.outputs.context }}
     steps:
-      # Bij pull_request: standaard checkout van de PR-merge-ref (actions/checkout doet dit al goed).
-      # Bij workflow_dispatch (handmatige herstart per PR): geen commit/ref bekend, dus expliciet de
-      # PR-head uitchecken — zonder lege commit, zodat de PR-branch zelf ongewijzigd blijft.
       - uses: actions/checkout@v4
-        if: ${{ github.event_name == 'pull_request' }}
         with:
-          fetch-depth: 0
+          ref: ${{ github.workflow_sha }}
+          path: review-control
+          persist-credentials: false
+
+      - name: Verify trusted controls, freeze PR context and start its check
+        id: prepare
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEW_EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node review-control/scripts/agent-review-codex.mjs prepare
+
+  codex-review:
+    needs: prepare-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    outputs:
+      report: ${{ steps.codex.outputs.final-message }}
+      authenticated: ${{ steps.auth.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: review-control
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - uses: actions/checkout@v4
-        if: ${{ github.event_name == 'workflow_dispatch' }}
         with:
+          # Pull refs cover forks too. The trusted reader checks the exact
+          # prepared head before any API call, rejecting an intervening update.
+          ref: refs/pull/${{ env.REVIEW_PR }}/head
+          path: review-source
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: PR-head uitchecken (alleen bij handmatige herstart)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+      - name: Check review authentication
+        id: auth
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEW_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          gh pr checkout "${{ inputs.pr }}"
-          echo "PR_NUMBER=${{ inputs.pr }}" >> "$GITHUB_ENV"
-
-      - name: PR-nummer vastleggen (pull_request-event)
-        if: ${{ github.event_name == 'pull_request' }}
-        run: echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> "$GITHUB_ENV"
-
-      - name: Basisref bepalen
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          BASE_REF=$(gh pr view "$PR_NUMBER" --json baseRefName --jq .baseRefName)
-          echo "BASE_REF=$BASE_REF" >> "$GITHUB_ENV"
-          git fetch origin "$BASE_REF" --depth=1 || git fetch origin "$BASE_REF"
-
-      - name: Independent adversarial review
-        uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: |
-            Je bent een ONAFHANKELIJKE, adversariële reviewer — een andere agent dan wie deze PR
-            schreef. Je taak is de merge tegenhouden als er iets mis is. Default naar BLOCK bij twijfel.
-
-            STAP 0 (VERPLICHT, ALLEREERSTE ACTIE): schrijf met het Write-tool het bestand
-            `agent-review-verdict.txt` in de repo-root met als enige inhoud exact:
-              BLOCK
-              pending — review nog niet afgerond
-            Dit is het fail-safe-vangnet: als je crasht of stopt vóór je klaar bent, blokkeert de
-            merge automatisch. Pas in STAP 9 overschrijf je dit met je eindoordeel.
-
-            Lees daarna CLAUDE.md, .claude/agents/reviewer.md en .claude/agents/security.md.
-            Bekijk de volledige diff t.o.v. de basis-branch:
-              git diff origin/${{ env.BASE_REF }}...HEAD
-
-            DIFF-GROOTTE-STRATEGIE (verplicht bij een grote diff — voorkomt dat het turn-budget
-            opraakt vóór je een verdict schrijft):
-            - Begin altijd met `git diff --stat origin/${{ env.BASE_REF }}...HEAD` om de omvang te zien.
-            - Bij > 25 gewijzigde bestanden: maak eerst een lijst van alle bestanden met één regel
-              risico-inschatting per bestand (hoog/laag), vóórdat je diep in individuele diffs duikt.
-            - Groepeer mechanische/gegenereerde diffs (redirect-stubs, migraties, seed-data,
-              snapshot-tests, gegenereerde lockfiles) en beoordeel ze als groep in plaats van
-              bestand-voor-bestand — controleer alleen dat het patroon consistent is en er geen
-              handmatige uitzondering tussen zit.
-            - Besteed je resterende budget aan de bestanden met echte logica: mutaties, authz, uploads,
-              geldstromen, statusovergangen.
-            - **Schrijf je definitieve verdict (STAP 9) uiterlijk 5 turns vóór het einde van je
-              turn-budget.** Ken je resterende budget in de gaten; rond liever iets vroeger en volledig
-              af dan dat je halverwege een detail blijft hangen.
-
-            Review langs deze lenzen en zoek ACTIEF naar problemen (geen "ziet er goed uit"):
-            1. Correctheid/regressie: bugs, ontbrekende edge-cases, race-conditions, breekt het bestaand
-               gedrag? Doet de code wat de PR-titel/body claimt?
-            2. Security/authz: de mutatie-keten auth->rol->ownership->Zod->actie->audit op ELKE mutatie;
-               RBAC op /admin; IDOR/cross-tenant; injectie/XSS; secrets in code/log; veilige uploads.
-            3. Privacy/AVG: documenten prive, dataminimalisatie, geen PII-lek, audit op gevoelige acties.
-            4. Architectuur/kwaliteit: server-side waarheid (client beslist niets kritieks), duplicatie,
-               dode knoppen, loading/empty/error-states, het woord "AI" NERGENS in UI/teksten/comments.
-            5. Tests: dekt nieuwe/gewijzigde logica een test af? Faalt die zonder de wijziging?
-
-            Plaats een beknopte, gegroepeerde review-comment (blocker / should-fix / nit) met file:line en
-            de concrete fix. Wijzig GEEN code en merge NIET.
-
-            STAP 9 (VERPLICHT, ALLERLAATSTE ACTIE): overschrijf met het Write-tool het bestand
-            `agent-review-verdict.txt` in de repo-root. De ALLEREERSTE regel is exact één van:
-              - `PASS`   (volledige review afgerond, geen enkele blocker gevonden)
-              - `BLOCK`  (volledige review afgerond, ten minste één blocker gevonden)
-              - `INCOMPLETE` (je hebt de review NIET kunnen afronden binnen je turn-/tijdbudget — nog
-                niet alle bestanden beoordeeld, of je moest afbreken vóórdat je een oordeel kon vormen)
-            gevolgd door een korte motivatie op de volgende regels (bij `INCOMPLETE`: wat je nog NIET
-            hebt kunnen beoordelen). Twijfel je tussen PASS en BLOCK op inhoud -> laat `BLOCK` staan.
-            Gebruik `INCOMPLETE` uitsluitend als de review zelf niet af kwam — niet als synoniem voor
-            "twijfel over de inhoud".
-          claude_args: |
-            --model claude-opus-4-8
-            --max-turns 90
-            --allowedTools Read,Grep,Glob,Bash,Write
-
-      - name: Enforce verdict (blocks merge on BLOCK / INCOMPLETE)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ ! -f agent-review-verdict.txt ]; then
-            echo "::error::Geen agent-review-verdict.txt geschreven — review onbetrouwbaar, blokkeer (fail-safe)."
-            BODY=$(printf '**agent-review: BLOCK — REVIEW INCOMPLEET (geen verdict geschreven)**\n\nDe review-agent heeft geen `agent-review-verdict.txt` geschreven — geen inhoudelijke beoordeling, puur het fail-safe-vangnet. Dit is geen oordeel over de code.\n\nAdvies: splits de PR in kleinere delen, of herstart de review met `gh workflow run pr-review.yml -f pr=%s`.' "$PR_NUMBER")
-            gh pr comment "$PR_NUMBER" --body "$BODY" || true
+          if [ -z "$REVIEW_API_KEY" ]; then
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo '::error::REVIEW INCOMPLETE: OPENAI_API_KEY ontbreekt.'
             exit 1
           fi
-          echo "----- verdict -----"; cat agent-review-verdict.txt; echo "-------------------"
-          VERDICT=$(head -1 agent-review-verdict.txt)
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
 
-          if [ "$VERDICT" = "PASS" ]; then
-            echo "agent-review: PASS"
-            exit 0
-          fi
+      # The model can only request catalogued Git source objects. It has no
+      # shell, host-file, web or repository-write tools and executes no PR code.
+      - name: Independent adversarial Codex review
+        id: codex
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          REVIEW_CONTEXT: ${{ needs.prepare-review.outputs.context }}
+          REVIEW_SOURCE_DIR: ${{ github.workspace }}/review-source
+        run: node review-control/scripts/run-agent-review.mjs
 
-          if [ "$VERDICT" = "INCOMPLETE" ]; then
-            echo "::error::agent-review kon niet worden afgerond binnen het turn-budget — REVIEW INCOMPLEET."
-            MOTIVATION=$(tail -n +2 agent-review-verdict.txt)
-            BODY=$(printf '**agent-review: BLOCK — REVIEW INCOMPLEET (turn-budget)**\n\nDe review-agent kon deze diff niet volledig beoordelen binnen het turn-budget. Dit is GEEN inhoudelijke blocker — er is geen probleem in de code gevonden, de beoordeling is simpelweg niet klaargekomen. De check blijft rood totdat er wél een volledig verdict staat (veilig by design).\n\nMotivatie van de agent:\n```\n%s\n```\n\nAdvies: splits de PR in kleinere delen, of herstart de review met `gh workflow run pr-review.yml -f pr=%s`.' "$MOTIVATION" "$PR_NUMBER")
-            gh pr comment "$PR_NUMBER" --body "$BODY" || true
-            exit 1
-          fi
+      - name: Preserve raw review output, including unsuccessful runs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-review-raw-${{ env.REVIEW_PR }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/agent-review-codex-*.json
+          if-no-files-found: ignore
+          retention-days: 30
 
-          # VERDICT = BLOCK (of onherkenbaar -> fail-safe naar BLOCK)
-          echo "::error::agent-review BLOKKEERT deze PR — los de blockers op."
-          exit 1
+  publish-review:
+    needs: [prepare-review, codex-review]
+    if: ${{ always() && needs.prepare-review.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: review-control
+          persist-credentials: false
+
+      - name: Revalidate current PR and finish the same check with the genuine verdict
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEW_CONTEXT: ${{ needs.prepare-review.outputs.context }}
+          REVIEW_REPORT: ${{ needs.codex-review.outputs.report }}
+          REVIEW_RUN_RESULT: ${{ needs.codex-review.result }}
+          REVIEW_AUTHENTICATED: ${{ needs.codex-review.outputs.authenticated }}
+        run: node review-control/scripts/agent-review-codex.mjs enforce
+
+      - name: Preserve validated review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-review-${{ env.REVIEW_PR }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/agent-review-codex-*.json
+          if-no-files-found: ignore
+          retention-days: 30

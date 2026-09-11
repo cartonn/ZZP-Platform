@@ -4,6 +4,12 @@ This file orients an automated coding agent to the **ZZP-Platform** codebase so 
 review logic and find bugs effectively. It is written for a fresh agent with no prior
 context. (Claude Code also reads `CLAUDE.md`; the design system lives in `DESIGN.md`.)
 
+**Routine takeover, 11 September 2026:** recurring work now runs in Codex. Read
+[`docs/CODEX-ROUTINE-TAKEOVER.md`](docs/CODEX-ROUTINE-TAKEOVER.md) and the matching
+`docs/codex/` prompt before executing a routine. They preserve the owner's later scope
+and merge decisions and replace the old Claude scheduler instructions. Use clean
+worktrees; preserve all six required checks and independent review.
+
 > **TL;DR for a reviewer:** read §3 (rules/invariants) and §8 (where bugs hide) first,
 > then dive into whichever subsystem in §6 you're auditing. Verify every claim against the
 > real code — do not trust this doc's line numbers blindly; treat it as a map, not a spec.
