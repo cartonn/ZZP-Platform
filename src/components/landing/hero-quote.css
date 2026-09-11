@@ -1,0 +1,74 @@
+.handslag-v5 .hs-hero-quote {
+  /* Scale with the headline cap height, including enlarged text. */
+  --hero-hand-size: 0.6em;
+  --hero-hand-size: 0.84cap;
+  position: relative;
+  box-sizing: border-box;
+  padding: 0.55em 0.06em 0.7em 0.3em;
+  line-height: 1.08;
+  isolation: isolate;
+}
+.handslag-v5 .hs-hero-words {
+  display: block;
+  text-wrap: balance;
+}
+.handslag-v5 .hs-hero-measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  visibility: hidden;
+  pointer-events: none;
+  text-wrap: balance;
+}
+.handslag-v5 .hs-hero-measure-word {
+  display: inline-block;
+}
+.handslag-v5 .hs-hero-word {
+  display: inline-block;
+  opacity: 0;
+}
+.handslag-v5 .hs-hero-word-dark {
+  color: #004f73;
+}
+.handslag-v5 .hs-hero-period {
+  color: #d97757;
+}
+.handslag-v5 .hs-hero-hand {
+  display: block;
+  position: absolute;
+  width: var(--hero-hand-size);
+  height: auto;
+  aspect-ratio: 21 / 18;
+  color: #d97757;
+  pointer-events: none;
+  overflow: visible;
+}
+/* Both original paths share the same scale and origin until the opening begins. */
+.handslag-v5 .hs-hero-hand-upper {
+  left: calc(50% - var(--hero-hand-size) * 0.733333);
+  top: calc(50% - var(--hero-hand-size) * 0.619048);
+}
+.handslag-v5 .hs-hero-hand-lower {
+  left: calc(50% - var(--hero-hand-size) * 0.266667);
+  top: calc(50% - var(--hero-hand-size) * 0.238095);
+}
+.handslag-v5 [data-quote-state="playing"] :is(.hs-hero-hand, .hs-hero-word) {
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .handslag-v5 .hs-hero-word {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+.handslag-v5 [data-quote-state="pending"] .hs-hero-word {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .handslag-v5 .hs-hero-quote:not([data-quote-state]) .hs-hero-hand {
+    visibility: hidden;
+  }
+}

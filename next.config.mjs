@@ -101,6 +101,11 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "handslag-v5-preview-production.up.railway.app",
+        pathname: "/assets/hero-samenwerken.jpg",
+      },
+      {
+        protocol: "https",
         hostname: "images.unsplash.com",
         pathname: "/photo-1589061434060-a05a5335bfbb",
         search:
