@@ -170,6 +170,16 @@ afgewezen of verlopen bewijsstukken. `DESIGN.md` is de gedeelde vormgevingsbron.
 Als geen geschikt item bestaat, registreer een feitelijke no-op-uitkomst in de routine.
 Maak geen lege inhoudelijke PR en bouw niets om alleen aan een productiequotum te voldoen.
 
+### Lokale testomgeving in Codex
+
+Op de overdrachtshost erft de shell `RUST_LOG=warn`. Bij Prisma 6.19.3 maakt dit
+het aanmaken van de tijdelijke SQLite-testdatabase onbetrouwbaar: de CLI verliest
+de foutregel die de database-aanmaak start. Dit is met geïsoleerde wegwerpdatabases
+gereproduceerd. Gebruik hier `env -u RUST_LOG npm run check` voor de volledige
+lokale controle. Laat schema, dependencies en productie-instellingen hiervoor
+ongemoeid. De suite slaagt dan met 8.657 tests en twee bestaande skips; de actuele
+GitHub-controles blijven de mergepoort.
+
 ## Onafhankelijke review bij de overdracht
 
 De naam `agent-review` en de beschermde mergepoort blijven bestaan. De vervangende reviewer

@@ -212,7 +212,7 @@ function inspectOutput(response, tools, callIds, schema) {
       item.type !== "message" ||
       item.role !== "assistant" ||
       item.status !== "completed" ||
-      !["commentary", "final_answer"].includes(item.phase) ||
+      (item.phase != null && !["commentary", "final_answer"].includes(item.phase)) ||
       !Array.isArray(item.content) ||
       !item.content.length
     )
@@ -221,7 +221,20 @@ function inspectOutput(response, tools, callIds, schema) {
     if (item.content.some((part) => part.type !== "output_text" || typeof part.text !== "string"))
       fail("invalid_message_content");
     if (finalText !== undefined) fail("ambiguous_final_answer");
-    if (item.phase === "final_answer") finalText = item.content.map((part) => part.text).join("");
+    const text = item.content.map((part) => part.text).join("");
+    if (item.phase === "final_answer") finalText = text;
+    // The official response message schema permits missing/null phase. Only a
+    // strict report is a final candidate in that case; ordinary tool preambles
+    // remain replayable. Never reinterpret explicit commentary as a verdict.
+    if (item.phase == null && Buffer.byteLength(text) <= MAX_REPORT_BYTES) {
+      let candidate;
+      try {
+        candidate = JSON.parse(text);
+      } catch {
+        // An unphased preamble is not a report.
+      }
+      if (matchesSchema(candidate, schema)) finalText = text;
+    }
   }
   if (calls.length) {
     if (finalText !== undefined) fail("final_answer_with_open_calls");

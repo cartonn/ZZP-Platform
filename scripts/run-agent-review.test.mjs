@@ -220,9 +220,111 @@ test("commentary cannot replace the last final_answer", async (t) => {
   );
 });
 
+const optionalPhaseMessage = (phase, value = report) => {
+  const item = message("final_answer", value);
+  if (phase === undefined) delete item.phase;
+  else item.phase = phase;
+  return item;
+};
+
+for (const phase of [undefined, null]) {
+  test(`accepts a unique strict final JSON with optional phase ${phase}`, async (t) => {
+    const f = fixture(t, [response([optionalPhaseMessage(phase)])]);
+    await runReview(f.options);
+    assert.deepEqual(
+      JSON.parse(readFileSync(join(f.dir, "agent-review-codex-final.json"))),
+      report,
+    );
+    assert.equal(f.metadata().completed, true);
+  });
+
+  test(`replays an unphased ${phase} preamble and toolcall without inventing a phase`, async (t) => {
+    const preamble = {
+      ...optionalPhaseMessage(phase),
+      content: [{ type: "output_text", text: "I will read the changed source." }],
+    };
+    const output = [preamble, toolCall()];
+    const f = fixture(t, [
+      response(output),
+      response([optionalPhaseMessage(phase)], { id: "resp_two" }),
+    ]);
+    await runReview(f.options);
+    const replayed = f.requests[1].body.input.slice(1, 3);
+    assert.deepEqual(replayed, output);
+    assert.equal(Object.hasOwn(replayed[0], "phase"), phase !== undefined);
+    if (phase === null) assert.equal(replayed[0].phase, null);
+  });
+}
+
+test("an unphased preamble before the unique final JSON is not a second verdict", async (t) => {
+  const preamble = {
+    ...optionalPhaseMessage(undefined),
+    content: [{ type: "output_text", text: "Review complete; preparing the report." }],
+  };
+  const f = fixture(t, [response([preamble, optionalPhaseMessage(null)])]);
+  await runReview(f.options);
+  assert.equal(f.metadata().completed, true);
+});
+
+test("explicit commentary containing a full report cannot replace an optional-phase final", async (t) => {
+  const finalReport = {
+    ...report,
+    verdict: "INCOMPLETE",
+    complete: false,
+    summary: "More source context is needed.",
+    reviewedFiles: [],
+  };
+  const f = fixture(t, [
+    response([message("commentary"), optionalPhaseMessage(null, finalReport)]),
+  ]);
+  await runReview(f.options);
+  assert.equal(
+    JSON.parse(readFileSync(join(f.dir, "agent-review-codex-final.json"))).verdict,
+    "INCOMPLETE",
+  );
+});
+
 for (const [name, bad] of [
   ["commentary only", response([message("commentary")])],
-  ["missing phase", response([{ ...message(), phase: undefined }])],
+  ["unknown phase", response([{ ...message(), phase: "progress" }])],
+  ["empty phase", response([{ ...message(), phase: "" }])],
+  ["non-string phase", response([{ ...message(), phase: 1 }])],
+  [
+    "ambiguous optional-phase finals",
+    response([optionalPhaseMessage(undefined), optionalPhaseMessage(null)]),
+  ],
+  ["optional then explicit final", response([optionalPhaseMessage(undefined), message()])],
+  ["explicit then optional final", response([message(), optionalPhaseMessage(null)])],
+  ["optional final plus tool", response([optionalPhaseMessage(undefined), toolCall()])],
+  ["tool plus optional final", response([toolCall(), optionalPhaseMessage(null)])],
+  [
+    "optional final followed by preamble",
+    response([
+      optionalPhaseMessage(null),
+      {
+        ...optionalPhaseMessage(undefined),
+        content: [{ type: "output_text", text: "More work follows." }],
+      },
+    ]),
+  ],
+  [
+    "unphased non-JSON without tool",
+    response([
+      {
+        ...optionalPhaseMessage(undefined),
+        content: [{ type: "output_text", text: "Still reviewing." }],
+      },
+    ]),
+  ],
+  [
+    "unphased wrong-schema JSON",
+    response([optionalPhaseMessage(undefined, { ...report, complete: "true" })]),
+  ],
+  [
+    "null-phase refusal",
+    response([{ ...optionalPhaseMessage(null), content: [{ type: "refusal", refusal: "No" }] }]),
+  ],
+  ["incomplete optional final", response([optionalPhaseMessage(null)], { status: "incomplete" })],
   ["incomplete status", response([message()], { status: "incomplete" })],
   [
     "incomplete details",

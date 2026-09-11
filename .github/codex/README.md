@@ -38,10 +38,24 @@ oversized or timed-out output cannot produce a successful model job. Commentary
 and open function calls are not a final verdict. API metadata and source-delivery
 evidence are retained without credentials or raw reasoning.
 
+Assistant `phase` is supported but optional in the
+[official Responses output type](https://github.com/openai/openai-python/blob/main/src/openai/types/responses/response_output_message.py).
+The client preserves supplied values exactly and never treats explicit commentary
+as final. A completed response without a phase can supply a verdict only when
+there are no open calls and exactly one unambiguous, schema-valid final message.
+Missing phase does not relax authentication, source delivery or report validation.
+
 The separate publisher independently validates the completed runtime outcome,
 strict report schema, exact PR/head/base, current file manifest, full model
 coverage and genuine check identity. An existing result file never supplies a
 successful verdict by itself.
+
+Final head/base/report validation precedes public verdict text. The publisher
+completes and reads back the exact check result before posting the same verdict
+as a PR comment. A comment transport failure records a safe warning and cannot
+leave the confirmed check pending; check publication or read-back failures still
+fail the publisher job. Before merging, verify that job and its complete evidence
+as well as the six required checks.
 
 ## Authentication and integration history
 
@@ -69,6 +83,13 @@ A hash-bound lifecycle patch did not resolve the observed hang. The official
 release used was `86365089eb2b84e0a8fb0717b304f8bdcb13b20e`.
 The direct API client replaces that action and its temporary patch. Historic
 commits and frozen branches remain available as evidence.
+
+The first direct API [run 34587741147](https://github.com/cartonn/ZZP-Platform/actions/runs/34587741147)
+completed seven requests successfully and retained the full 23-file BLOCK report.
+It identified optional-phase compatibility and comment-publication ordering. The
+claim that phase is non-standard conflicts with the official type and model guide;
+its observation that valid output may omit phase is addressed by the strict
+fallback above. A corrected PR head still needs a fresh genuine model review.
 
 Current integration results must be verified from GitHub and the coordinator's
 durable run register. These historical runs do not approve subsequent commits or
@@ -98,6 +119,9 @@ controls are not yet on `main`. Its current bootstrap branch is
    `CODEX_REVIEW_BOOTSTRAP_SHA` to that same control commit.
 3. Dispatch the workflow from that frozen ref for PR #1475. Verify run `head_sha`,
    actual model completion, full report and check-ID/run/attempt/control identity.
+   The frozen controls may review a newer PR head without being changed: the
+   control SHA stays pinned while preparation separately binds the current source
+   head. A prior BLOCK is never changed or reused as approval.
 4. Require all six real checks on the current PR head and verify current base
    again before merge. GitHub's Actions app ID identifies the app, not a workflow;
    the merge coordinator also checks the trusted run and report provenance.

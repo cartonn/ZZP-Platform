@@ -349,8 +349,13 @@ export async function completeReviewCheck(api, ticket, execution, result, summar
     completed_at: new Date().toISOString(),
     output: { title: `agent-review: ${result.verdict}`, summary: clipText(summary) },
   };
-  assertCheck(await api(route, { method: "PATCH", body }), ticket, "completed", conclusion);
-  assertCheck(await api(route), ticket, "completed", conclusion);
+  const assertFinal = (check) => {
+    assertCheck(check, ticket, "completed", conclusion);
+    if (check.output?.title !== body.output.title || check.output?.summary !== body.output.summary)
+      throw new Error("De teruggelezen check bevat niet het definitieve reviewoordeel.");
+  };
+  assertFinal(await api(route, { method: "PATCH", body }));
+  assertFinal(await api(route));
 }
 
 const escapeText = (value) =>
@@ -452,30 +457,45 @@ export async function enforce(env, api = githubApi(env.GH_TOKEN)) {
   };
   let result = await evaluate();
   const runUrl = reviewRunUrl(ticket);
+  const publication = { checkConfirmed: false, comment: "not_attempted", warnings: [] };
   const saveEvidence = () => {
     const summary = reviewSummary(result, ticket, runUrl);
     writeFileSync(
       join(env.RUNNER_TEMP, "agent-review-codex-verdict.json"),
-      JSON.stringify({ ...result, context: ticket, currentContext: context }, null, 2),
+      JSON.stringify({ ...result, context: ticket, currentContext: context, publication }, null, 2),
     );
     return summary;
   };
-  let summary = saveEvidence();
+  saveEvidence();
   writeFileSync(
     join(env.RUNNER_TEMP, "agent-review-codex-report.json"),
     env.REVIEW_REPORT || "null",
   );
-  // A separate job publishes the evidence; the review model never gets this token.
-  await api(`/repos/${ticket.repository}/issues/${ticket.pr}/comments`, {
-    method: "POST",
-    body: { body: clipText(summary) },
-  });
-  // Comment transport can take time. Revalidate head/base/coverage immediately
-  // before completing the check; a stale explanation never makes the gate green.
+  // Establish one final result before any public verdict. The artifact, real
+  // head-bound check and optional explanation must all describe that result.
   result = await evaluate();
-  summary = saveEvidence();
-  appendFileSync(env.GITHUB_STEP_SUMMARY, `${summary}\n`);
+  const summary = saveEvidence();
   await completeReviewCheck(api, ticket, execution, result, summary);
+  publication.checkConfirmed = true;
+  saveEvidence();
+  // Comment delivery is explanatory, not the gate. A POST transport failure is
+  // ambiguous and is not retried; never replace its confirmed check with a new
+  // result or expose an exception/response body in the warning evidence.
+  try {
+    await api(`/repos/${ticket.repository}/issues/${ticket.pr}/comments`, {
+      method: "POST",
+      body: { body: clipText(summary) },
+    });
+    publication.comment = "posted";
+  } catch {
+    publication.comment = "unconfirmed";
+    publication.warnings.push("pr_comment_delivery_unconfirmed");
+  }
+  saveEvidence();
+  const warning = publication.warnings.length
+    ? "\nWaarschuwing: plaatsing van de PR-toelichting is niet bevestigd. De definitieve agent-review-check is wel voltooid en teruggelezen.\n"
+    : "";
+  appendFileSync(env.GITHUB_STEP_SUMMARY, `${summary}\n${warning}`);
   return result;
 }
 

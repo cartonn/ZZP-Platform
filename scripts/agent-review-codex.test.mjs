@@ -365,12 +365,12 @@ test("HTTP transport uses explicit methods, redacts errors, and retries only ide
   await assert.rejects(api("/repos/x/y", { method: "DELETE" }));
 });
 
-function handlerFixture(t, { changeAfterComment = false, files = context.files } = {}) {
+function handlerFixture(t, { changeBeforeFinalEvaluation = false, files = context.files } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "codex-review-test-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const calls = [];
   let value = { ...remoteCheck };
-  let head = context.headSha;
+  let contextReads = 0;
   const env = {
     ...trustedEnv,
     REVIEW_PR: String(context.pr),
@@ -388,16 +388,19 @@ function handlerFixture(t, { changeAfterComment = false, files = context.files }
     if (route === `/repos/${context.repository}`) return { default_branch: "main" };
     if (route.includes("/branches/")) return { protected: true, commit: { sha: controlSha } };
     if (route.includes("/files?")) return files.map((filename) => ({ filename }));
-    if (route === `/repos/${context.repository}/pulls/${context.pr}`)
+    if (route === `/repos/${context.repository}/pulls/${context.pr}`) {
+      contextReads++;
       return {
         state: "open",
         draft: false,
         changed_files: files.length,
-        head: { sha: head },
+        head: {
+          sha: changeBeforeFinalEvaluation && contextReads > 2 ? "d".repeat(40) : context.headSha,
+        },
         base: { sha: context.baseSha },
       };
+    }
     if (route.endsWith("/comments")) {
-      if (changeAfterComment) head = "d".repeat(40);
       return { id: 9 };
     }
     if (route.includes("/check-runs")) {
@@ -437,6 +440,13 @@ test("handlers carry trusted preparation through prompt creation and confirmed p
   assert.equal(evidence.context.checkId, ticket.checkId);
   assert.equal(evidence.context.controlSha, controlSha);
   assert.equal(evidence.context.runAttempt, 1);
+  assert.deepEqual(evidence.publication, { checkConfirmed: true, comment: "posted", warnings: [] });
+  const postIndex = fixture.calls.findIndex(({ route }) => route.endsWith("/comments"));
+  const patchIndex = fixture.calls.findIndex(({ request }) => request?.method === "PATCH");
+  assert.ok(patchIndex >= 0 && postIndex > patchIndex + 1);
+  assert.equal(fixture.calls[patchIndex + 1].route, `/repos/${context.repository}/check-runs/123`);
+  assert.equal(fixture.calls[patchIndex + 1].request, undefined);
+  assert.equal(fixture.calls[postIndex].request.body.body, fixture.check.output.summary);
 });
 
 test("untrusted check IDs cannot write any workflow output", async (t) => {
@@ -505,10 +515,21 @@ test("stale trigger heads never start a check, and invalid publication contexts 
   assert.equal(fixture.calls.filter(({ request }) => request).length, 0);
 });
 
-test("a PR update during evidence publication changes a proposed PASS to a failed check", async (t) => {
-  const fixture = handlerFixture(t, { changeAfterComment: true });
+test("a PR update before final evaluation publishes one consistent INCOMPLETE artifact, check and comment", async (t) => {
+  const fixture = handlerFixture(t, { changeBeforeFinalEvaluation: true });
   assert.equal((await enforce(fixture.env, fixture.api)).verdict, "INCOMPLETE");
   assert.equal(fixture.check.conclusion, "failure");
+  const evidence = JSON.parse(
+    readFileSync(join(fixture.env.RUNNER_TEMP, "agent-review-codex-verdict.json"), "utf8"),
+  );
+  const comment = fixture.calls.find(({ route }) => route.endsWith("/comments")).request.body.body;
+  assert.equal(evidence.verdict, "INCOMPLETE");
+  assert.equal(evidence.currentContext.headSha, "d".repeat(40));
+  assert.equal(evidence.publication.checkConfirmed, true);
+  assert.equal(comment, fixture.check.output.summary);
+  assert.ok(comment.includes("INCOMPLETE"));
+  assert.ok(!comment.includes("agent-review: PASS"));
+  assert.equal(readFileSync(fixture.env.GITHUB_STEP_SUMMARY, "utf8"), `${comment}\n`);
 });
 
 test("raw output artifacts never rescue an unsuccessful action or missing direct report", async (t) => {
@@ -528,16 +549,73 @@ test("raw output artifacts never rescue an unsuccessful action or missing direct
   }
 });
 
-test("failed comment transport does not prematurely complete the protected check", async (t) => {
-  const fixture = handlerFixture(t);
-  await assert.rejects(
-    enforce(fixture.env, async (route, request) => {
-      if (route.endsWith("/comments")) throw new Error("publication unavailable");
+test("failed comment delivery preserves the confirmed final check with a safe durable warning", async (t) => {
+  for (const extra of [{}, { REVIEW_RUN_RESULT: "failure" }]) {
+    const fixture = handlerFixture(t);
+    let commentAttempts = 0;
+    const result = await enforce({ ...fixture.env, ...extra }, async (route, request) => {
+      if (route.endsWith("/comments")) {
+        commentAttempts++;
+        assert.equal(fixture.check.status, "completed");
+        throw new Error("secret-response-body-do-not-publish");
+      }
       return fixture.api(route, request);
-    }),
-  );
-  assert.equal(fixture.check.status, "in_progress");
-  assert.ok(fixture.calls.every(({ request }) => request?.method !== "PATCH"));
+    });
+    assert.equal(commentAttempts, 1);
+    assert.equal(fixture.check.status, "completed");
+    assert.equal(fixture.check.conclusion, result.passed ? "success" : "failure");
+    const artifact = readFileSync(
+      join(fixture.env.RUNNER_TEMP, "agent-review-codex-verdict.json"),
+      "utf8",
+    );
+    const evidence = JSON.parse(artifact);
+    assert.equal(evidence.verdict, result.verdict);
+    assert.deepEqual(evidence.publication, {
+      checkConfirmed: true,
+      comment: "unconfirmed",
+      warnings: ["pr_comment_delivery_unconfirmed"],
+    });
+    const summary = readFileSync(fixture.env.GITHUB_STEP_SUMMARY, "utf8");
+    assert.ok(summary.startsWith(`${fixture.check.output.summary}\n`));
+    assert.match(summary, /Waarschuwing.*niet bevestigd/);
+    assert.doesNotMatch(artifact + summary, /secret-response-body-do-not-publish/);
+  }
+});
+
+test("check PATCH or read-back failure stays a hard failure and never posts an explanation", async (t) => {
+  for (const fault of ["patch", "readback", "wrong-summary", "wrong-title"]) {
+    const fixture = handlerFixture(t);
+    let patched = false;
+    await assert.rejects(
+      enforce(fixture.env, async (route, request) => {
+        if (route.endsWith("/comments"))
+          assert.fail("Unconfirmed check must not publish a comment");
+        if (route.includes("/check-runs") && request?.method === "PATCH") {
+          if (fault === "patch") throw new Error("check update unavailable");
+          patched = true;
+          return fixture.api(route, request);
+        }
+        if (patched && route.includes("/check-runs")) {
+          if (fault === "readback") throw new Error("check readback unavailable");
+          const value = await fixture.api(route, request);
+          return {
+            ...value,
+            output: {
+              ...value.output,
+              [fault === "wrong-summary" ? "summary" : "title"]: "stale verdict",
+            },
+          };
+        }
+        return fixture.api(route, request);
+      }),
+    );
+    const evidence = JSON.parse(
+      readFileSync(join(fixture.env.RUNNER_TEMP, "agent-review-codex-verdict.json"), "utf8"),
+    );
+    assert.equal(evidence.publication.checkConfirmed, false);
+    assert.equal(evidence.publication.comment, "not_attempted");
+    assert.ok(!fixture.calls.some(({ route }) => route.endsWith("/comments")));
+  }
 });
 
 function mockApi({ count = 2, truncate = false, change = false } = {}) {
