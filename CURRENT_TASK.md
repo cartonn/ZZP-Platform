@@ -1,5 +1,9 @@
 # CURRENT_TASK.md — Huidige taak
 
+Herstel 11 september: eigenaar vraagt oorspronkelijke lichte V5-landing, onafhankelijk van
+systeem-/app-darkmode; lokale volledige check en zeven browserreizen groen. GitHub-review
+en release nog te verifiëren. Zie PROGRESS.md.
+
 > Eén taak tegelijk. Lees CLAUDE.md, de bovenste 100 regels van PROGRESS.md en
 > `ARCHITECTURE.md §Modulekaart` voordat je begint. Werk dit bestand bij wanneer je naar de
 > volgende taak gaat. **Doel: ≤ 300 regels** — afgeronde fase-verslagen, cutover-checklists en de

@@ -129,14 +129,16 @@ test("the heading stays readable when JavaScript is disabled", async ({ browser,
   }
 });
 
-test("V5 respects the saved dark theme and keeps its light identity", async ({ page }) => {
+test("V5 keeps the approved light design without overwriting the saved app theme", async ({
+  page,
+}) => {
   await page.addInitScript(() => localStorage.setItem("theme", "dark"));
   await page.goto("/");
   await expect(page.locator("html")).toHaveClass(/dark/);
-  const darkSurface = await page
-    .locator(".hv5-1")
-    .evaluate((el) => getComputedStyle(el).backgroundColor);
-  const darkText = await page.locator("h1").evaluate((el) => getComputedStyle(el).color);
+  await expect(page.locator(".hv5-1")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(page.locator("h1")).toHaveCSS("color", "rgb(0, 118, 168)");
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
+  expect(await page.evaluate(() => localStorage.getItem("theme"))).toBe("dark");
   await page.getByRole("link", { name: "Handslag voor Opdrachtgevers", exact: true }).click();
   await expect(page.getByRole("link", { name: "Opdrachtgever", exact: true })).toHaveAttribute(
     "aria-current",
@@ -152,6 +154,36 @@ test("V5 respects the saved dark theme and keeps its light identity", async ({ p
   await expect(page.locator("html")).not.toHaveClass(/dark/);
   await expect(page.locator(".hv5-1")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await expect(page.locator("h1")).toHaveCSS("color", "rgb(0, 118, 168)");
-  expect(darkSurface).not.toBe("rgb(255, 255, 255)");
-  expect(darkText).not.toBe("rgb(0, 118, 168)");
+});
+
+test("V5 stays light on a dark-mode phone and preserves the app theme on navigation", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "userAgent", {
+      value:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
+    });
+    Object.defineProperty(navigator, "maxTouchPoints", { value: 5 });
+  });
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  await expect(page.locator(".hv5-1")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(page.locator("h1")).toHaveCSS("color", "rgb(0, 118, 168)");
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#ffffff");
+  expect(await page.evaluate(() => localStorage.getItem("theme"))).toBeNull();
+  const install = page.getByRole("dialog", { name: "App installeren" });
+  await expect(install).toBeVisible();
+  await expect(install.locator(".bg-card")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(install.locator("p.text-card-foreground")).toHaveCSS("color", "rgb(0, 79, 115)");
+  await expect(install.locator("p.text-muted-foreground")).toHaveCSS("color", "rgb(0, 79, 115)");
+  await page
+    .getByRole("link", { name: /Inloggen/ })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/login/);
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
 });

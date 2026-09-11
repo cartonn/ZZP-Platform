@@ -2,6 +2,18 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-11 — herstel goedgekeurde lichte V5-landing
+
+Op verzoek van de eigenaar blijft de publieke landing wit/blauw/oranje, ook bij een
+opgeslagen donker thema of donkere iPhone-instelling. Het palet en de browserkleur zijn
+pagina-gebonden; de opgeslagen appkeuze blijft intact. De globale installatiekaart krijgt
+bijpassende leesbare tekstkleuren. Na navigatie vervallen de landing-overrides.
+
+Validatie: volledige lokale check (lint, types, 8.658 tests geslaagd, 2 bestaande skips,
+productiebuild); zeven productie-browserreizen geslaagd zonder retries, inclusief donkere
+systeemvoorkeur, opgeslagen keuze, iPhone-installatiekaart en navigatie naar inloggen.
+Onafhankelijke productreview uitgevoerd; verplichte GitHub-poorten en live-uitrol volgen.
+
 ## 2026-09-10 — kern/cascade: factuur-goedkeuring-reminders (dag 3/7 + admin-escalatie)
 
 **Wat:** sluit de énige un-genudgede opdrachtgever-poort in de facturatie-cascade. Na indienen van een

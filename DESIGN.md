@@ -263,8 +263,8 @@ klikvlakken, mobiele navigatie en verminderde beweging blijven onderdeel van het
 
 The approved V5 homepage scopes its semantic HSL palette in
 `src/components/landing/handslag-palette.css`. It preserves the approved white/blue
-light design and switches surfaces and readable text with the existing `.dark`
-preference. Logo accents stay terracotta; action buttons retain light text on blue.
+light design regardless of the device or saved `.dark` preference, as requested
+by the owner on 11 September 2026. The landing does not overwrite the saved app theme. Logo accents stay terracotta; action buttons retain light text on blue.
 This scope also covers the landing viewport gutter and is removed on app navigation.
 The protected application keeps its existing palette until its separate design PR.
 Audience choices are server-derived query-parameter links, usable without scripts.
