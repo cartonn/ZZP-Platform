@@ -1,5 +1,12 @@
 # CLAUDE.md — ZZP Platform
 
+> **Overname 11-9-2026:** de vijf Claude-routines zijn gepauzeerd en worden door de
+> actieve Codex-coördinator overgenomen. Lees eerst
+> [`docs/CODEX-ROUTINE-TAKEOVER.md`](docs/CODEX-ROUTINE-TAKEOVER.md) en `docs/codex/`.
+> De oorspronkelijke context hieronder blijft als historie bewaard; oude direct-main-,
+> reset- en schedulerinstructies worden vervangen door de actuele overdracht.
+> De zes mergepoorten en onafhankelijke review blijven verplicht.
+
 Dit bestand is de **persistente context** voor Claude Code. Lees dit aan het begin
 van elke sessie. Het beschrijft wat we bouwen, hoe, en welke regels niet-onderhandelbaar zijn.
 
