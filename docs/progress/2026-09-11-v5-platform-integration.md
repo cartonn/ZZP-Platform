@@ -40,3 +40,18 @@ Goedgekeurde zegels volgen effectieve serverstatus; dispuut, afwijzing en verloo
 mogen niet als goedgekeurd worden getoond. De onafhankelijke native review en alle
 zes actuele GitHub-poorten blijven nodig vóór merge; eerdere reviews zijn geen PASS
 voor deze integratie. Livegang moet afzonderlijk uit de werkelijke deployment blijken.
+
+## Native review: historische modelovereenkomst
+
+De eerste native review op `1d5e058f1086fb3320c7fa1ea727760f3bb6dad5` gaf **BLOCK**:
+[bevinding 3993250557](https://github.com/cartonn/ZZP-Platform/pull/1474#discussion_r3993250557).
+Een afgesloten samenwerking zonder beide handtekeningen hield ten onrechte zwarte
+wachtende zegels. Run `34645284534` is volledig afgerond; dit oordeel wordt bewaard.
+De eerste gerichte reparatie geeft de bestaande serverafgeleide `agreementStillOpen`
+aan de kaart door als `signingOpen`. Gesloten ongetekende rijen krijgen geen wachtzegel;
+werkelijke historische handtekeningen en volledig ondertekende akkoorden behouden hun
+oranje zegel. De tekst zegt bij gesloten rijen “niet ondertekend”. De tekenrechten zijn
+ongewijzigd en worden niet gebruikt als vervanging voor de processtatus.
+Vier renderregressies toetsen open/read-only, gesloten/ongetekend, deels en volledig
+historisch ondertekend: vóór de fix twee failures, daarna alle vier geslaagd.
+De nieuwe commit vereist opnieuw alle poorten en een verse native beoordeling.

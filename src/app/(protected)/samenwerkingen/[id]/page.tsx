@@ -699,6 +699,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       {col.status !== "CANCELLED" && (isClient || isFreelancer || actor.role === "ADMIN") && (
         <ModelAgreementCard
           collaborationId={col.id}
+          signingOpen={agreementStillOpen}
           agreementType={agreementType}
           recommendation={agreementRecommendation}
           rows={[

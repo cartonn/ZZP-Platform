@@ -23,6 +23,8 @@ interface Props {
   agreementType: ModelAgreementType;
   recommendation: ModelAgreementRecommendation;
   rows: SignRow[];
+  /** Server-derived lifecycle state, independent of the current viewer's permissions. */
+  signingOpen: boolean;
   /** Mag de inloggende partij nu zelf akkoord geven? (en is dat nog niet gebeurd) */
   canSign: boolean;
   /** Mag de inloggende gebruiker de overeenkomstvorm kiezen? (opdrachtgever/admin, nog niet getekend) */
@@ -34,6 +36,7 @@ export function ModelAgreementCard({
   agreementType,
   recommendation,
   rows,
+  signingOpen,
   canSign,
   canChooseType,
 }: Props) {
@@ -49,7 +52,7 @@ export function ModelAgreementCard({
           </span>
           <Badge
             variant={bothSigned ? "success" : "muted"}
-            approval={bothSigned ? "approved" : "pending"}
+            approval={bothSigned ? "approved" : signingOpen ? "pending" : undefined}
           >
             {bothSigned ? "Ondertekend" : MODEL_AGREEMENT_LABELS[agreementType]}
           </Badge>
@@ -89,12 +92,16 @@ export function ModelAgreementCard({
         <ul className="space-y-1.5">
           {rows.map((r) => (
             <li key={r.role} className="flex items-center gap-2 text-sm">
-              <Seal tone={r.signedAt ? "verified" : "pending"} size="sm" />
+              {(r.signedAt || signingOpen) && (
+                <Seal tone={r.signedAt ? "verified" : "pending"} size="sm" />
+              )}
               <span className="font-medium">{r.role}</span>
               <span className="text-muted-foreground">
                 {r.signedAt
                   ? `akkoord op ${formatDateShortNl(r.signedAt)}`
-                  : "nog niet ondertekend"}
+                  : signingOpen
+                    ? "nog niet ondertekend"
+                    : "niet ondertekend"}
               </span>
             </li>
           ))}
