@@ -1,23 +1,20 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { Figtree, Fraunces, JetBrains_Mono } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
+import "./handslag-workspace.css";
 import { getLocale } from "@/lib/i18n/server";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { HydrationFlag } from "@/components/system/hydration-flag";
 import { PwaRegister } from "@/components/system/pwa-register";
 import { InstallPrompt } from "@/components/system/install-prompt";
 
-// Typografie van het definitieve palet (DESIGN.md §3): Figtree voor UI, Fraunces (serif)
-// voor koppen, JetBrains Mono voor cijfers. Via next/font zelfgehost — geen runtime-request.
-const fontSans = Figtree({
-  subsets: ["latin"],
+// One self-hosted typeface connects the platform to the Handslag V5 landing page.
+const fontSans = localFont({
+  src: "./fonts/open-sans-latin.woff2",
+  weight: "300 800",
   variable: "--font-sans",
-  display: "swap",
-});
-const fontDisplay = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-display",
   display: "swap",
 });
 const fontMono = JetBrains_Mono({
@@ -39,8 +36,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f9f4eb" },
-    { media: "(prefers-color-scheme: dark)", color: "#171c1a" },
+    { media: "(prefers-color-scheme: light)", color: "#edf5f9" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e1e28" },
   ],
 };
 
@@ -58,7 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html
       lang={locale}
       suppressHydrationWarning
-      className={`${fontSans.variable} ${fontDisplay.variable} ${fontMono.variable}`}
+      className={`${fontSans.variable} ${fontMono.variable}`}
     >
       <head>
         {/* suppressHydrationWarning: de browser leegt het nonce-attribuut in de DOM

@@ -69,7 +69,7 @@ export function SidebarRail({
           setHovering(false);
       }}
       className={cn(
-        "group fixed inset-y-0 left-0 z-30 hidden overflow-hidden border-r border-border bg-card transition-[width] duration-200 md:flex",
+        "hs-sidebar group fixed inset-y-0 left-0 z-30 hidden overflow-hidden border-r border-border bg-card transition-[width] duration-200 md:flex",
         expanded ? "w-64" : "w-16",
       )}
     >

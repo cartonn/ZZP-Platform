@@ -47,7 +47,7 @@ export function NavMoreMenu({
   if (items.length === 0) return null;
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className="relative max-md:static">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -63,7 +63,7 @@ export function NavMoreMenu({
         <div
           role="menu"
           aria-label={label}
-          className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-border bg-card p-1 shadow-lg"
+          className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-border bg-card p-1 shadow-lg max-md:left-4 max-md:right-4 max-md:top-full max-md:max-h-[60dvh] max-md:w-auto max-md:overflow-y-auto"
         >
           {items.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");

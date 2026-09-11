@@ -743,7 +743,7 @@ export async function ProfileScreen({
                     label={t("Identiteit")}
                     value={
                       profile.user.identityVerifiedAt ? (
-                        <span className="text-success">{t("Geverifieerd via iDIN")}</span>
+                        <Badge approval="approved">{t("Geverifieerd via iDIN")}</Badge>
                       ) : (
                         <span className="text-muted-foreground">{t("Niet geverifieerd")}</span>
                       )
@@ -850,7 +850,9 @@ export async function ProfileScreen({
                         ) : expiringSoon ? (
                           <Badge variant="warning">{t("Verloopt")}</Badge>
                         ) : (
-                          <Badge variant="success">{t("Geverifieerd")}</Badge>
+                          <Badge variant="success" approval="approved">
+                            {t("Geverifieerd")}
+                          </Badge>
                         )}
                       </div>
                     </li>

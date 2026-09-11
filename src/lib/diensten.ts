@@ -17,6 +17,8 @@ export interface DienstSummary {
   companyName: string;
   type: "HOURS" | "MILESTONE";
   status: string;
+  /** Current server-side freeze; the historical performance status remains intact. */
+  disputed: boolean;
   periodStart: Date | null;
   periodEnd: Date | null;
   hours: number | null;
@@ -50,6 +52,7 @@ export async function getDienstenForFreelancer(userId: string): Promise<DienstSu
           id: true,
           ortProfile: true,
           ortCustomRates: true,
+          disputedAt: true,
           job: { select: { title: true } },
           company: { select: { name: true } },
         },
@@ -93,6 +96,7 @@ export async function getDienstenForFreelancer(userId: string): Promise<DienstSu
       companyName: col.company.name,
       type: p.type as "HOURS" | "MILESTONE",
       status: p.status,
+      disputed: col.disputedAt != null,
       periodStart: p.periodStart,
       periodEnd: p.periodEnd,
       hours: p.hours,

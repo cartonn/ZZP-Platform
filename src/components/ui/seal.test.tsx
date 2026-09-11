@@ -5,26 +5,26 @@ import { Seal } from "./seal";
 // Het zegel is hét vertrouwensteken (DESIGN.md — signatuur). Het mag nooit als naamloos
 // plaatje in de toegankelijkheidsboom belanden, en nooit als naamloze ruis blijven staan
 // wanneer het puur decoratief is.
-const CHECK = "m9.8 15.6 3.4 3.4 7-8";
-const BANG = "M15 9v7M15 20h.01";
+const CHECK = "M10.6 13h7a10 10 0 0 1 10 10v4";
+const BANG = "M24 14v13M24 34h.01";
 
 describe("Seal", () => {
   it("rendert een svg met de dubbele ring", () => {
     const html = renderToStaticMarkup(<Seal />);
     expect(html).toMatch(/^<svg/);
-    expect(html).toContain('viewBox="0 0 30 30"');
+    expect(html).toContain('viewBox="0 0 48 48"');
     // Buitenring + binnenring + vulling = drie cirkels.
     expect(html.match(/<circle/g)).toHaveLength(3);
   });
 
-  it("toont standaard de geverifieerde toon met een vinkje", () => {
+  it("toont standaard de geverifieerde toon met de originele handen", () => {
     const html = renderToStaticMarkup(<Seal />);
-    expect(html).toContain("text-success");
+    expect(html).toContain("hs-seal-approved");
     expect(html).toContain(CHECK);
     expect(html).not.toContain(BANG);
   });
 
-  it("kleurt de merk-toon met de primaire kleur, met hetzelfde vinkje", () => {
+  it("kleurt de merk-toon met de primaire kleur, met dezelfde handen", () => {
     const html = renderToStaticMarkup(<Seal tone="brand" />);
     expect(html).toContain("text-primary");
     expect(html).toContain(CHECK);

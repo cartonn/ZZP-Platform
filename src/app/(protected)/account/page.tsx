@@ -68,7 +68,11 @@ export default async function AccountPage() {
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-medium">Identiteitsverificatie</h2>
-              {user.identityVerifiedAt && <Badge variant="success">Geverifieerd</Badge>}
+              {user.identityVerifiedAt && (
+                <Badge variant="success" approval="approved">
+                  Geverifieerd
+                </Badge>
+              )}
             </div>
             {user.identityVerifiedAt ? (
               <p className="text-sm text-muted-foreground">

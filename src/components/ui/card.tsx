@@ -5,7 +5,7 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   // premium en niet vlak (vervangt de enkele shadow-sm).
   return (
     <div
-      className={cn("rounded-lg border border-border bg-card shadow-card", className)}
+      className={cn("hs-surface rounded-lg border border-border bg-card shadow-card", className)}
       {...props}
     />
   );

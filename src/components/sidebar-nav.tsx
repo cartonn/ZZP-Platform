@@ -63,6 +63,11 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   activity: Activity,
 };
 
+export function SidebarIcon({ name }: { name: NavIcon }) {
+  const Icon = ICONS[name];
+  return <Icon className="size-5" aria-hidden />;
+}
+
 export function SidebarNav({
   items,
   badges,

@@ -135,7 +135,9 @@ export default async function AdminNoShowsPage() {
               <CardContent className="space-y-2 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-medium">{r.freelancer.user.name}</p>
-                  <Badge variant="warning">Te beoordelen</Badge>
+                  <Badge variant="warning" approval="pending">
+                    Te beoordelen
+                  </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {r.collaboration.job.title} · {r.collaboration.company.name} · dienst van{" "}
