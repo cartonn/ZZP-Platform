@@ -9,6 +9,7 @@ const schema = JSON.parse(
 const shaPattern = /^[a-f0-9]{40}$/;
 const repositoryPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const bootstrapRef = "refs/heads/codex/review-bootstrap-20260911-3";
+const subscriptionBootstrapRef = "refs/heads/codex/review-subscription-bootstrap-20260911";
 const actionsAppId = 15368;
 const incomplete = (reason) => ({
   verdict: "INCOMPLETE",
@@ -129,21 +130,31 @@ export function validateVerdict({ rawReport, expected, current, runResult }) {
 }
 
 export function assertTrustedExecution(env) {
-  const bootstrap = env.GITHUB_REF === bootstrapRef;
+  const subscription =
+    env.REVIEW_WORKFLOW_REF ===
+    `${env.GITHUB_REPOSITORY}/.github/workflows/subscription-review.yml@${env.GITHUB_REF}`;
+  const allowedBootstrap = subscription ? subscriptionBootstrapRef : bootstrapRef;
+  const bootstrap = env.GITHUB_REF === allowedBootstrap;
   if (
     !repositoryPattern.test(env.GITHUB_REPOSITORY || "") ||
-    !["pull_request_target", "workflow_dispatch"].includes(env.GITHUB_EVENT_NAME) ||
+    !(
+      subscription
+        ? ["workflow_dispatch", ...(bootstrap ? ["push"] : [])]
+        : ["pull_request_target", "workflow_dispatch"]
+    ).includes(env.GITHUB_EVENT_NAME) ||
     (env.GITHUB_REF !== "refs/heads/main" && !bootstrap) ||
     !/^true$/i.test(env.GITHUB_REF_PROTECTED || "") ||
     !shaPattern.test(env.REVIEW_CONTROL_SHA || "") ||
     env.REVIEW_CONTROL_SHA !== env.GITHUB_SHA ||
     env.REVIEW_WORKFLOW_REF !==
-      `${env.GITHUB_REPOSITORY}/.github/workflows/pr-review.yml@${env.GITHUB_REF}` ||
+      `${env.GITHUB_REPOSITORY}/.github/workflows/${subscription ? "subscription-review.yml" : "pr-review.yml"}@${env.GITHUB_REF}` ||
     !/^[1-9][0-9]*$/.test(env.GITHUB_RUN_ID || "") ||
     !/^[1-9][0-9]*$/.test(env.GITHUB_RUN_ATTEMPT || "") ||
     !Number.isSafeInteger(Number(env.GITHUB_RUN_ATTEMPT)) ||
     (bootstrap &&
-      (env.GITHUB_EVENT_NAME !== "workflow_dispatch" ||
+      (!(subscription ? ["workflow_dispatch", "push"] : ["workflow_dispatch"]).includes(
+        env.GITHUB_EVENT_NAME,
+      ) ||
         env.REVIEW_BOOTSTRAP_SHA !== env.REVIEW_CONTROL_SHA))
   )
     throw new Error(
@@ -276,7 +287,7 @@ function assertTicket(ticket, execution) {
     !Number.isSafeInteger(ticket.checkId) ||
     ticket.checkId < 1 ||
     !shaPattern.test(execution?.controlSha || "") ||
-    !["refs/heads/main", bootstrapRef].includes(execution?.controlRef) ||
+    !["refs/heads/main", bootstrapRef, subscriptionBootstrapRef].includes(execution?.controlRef) ||
     !/^[1-9][0-9]*$/.test(execution?.runId || "") ||
     !Number.isSafeInteger(execution?.runAttempt) ||
     execution.runAttempt < 1 ||

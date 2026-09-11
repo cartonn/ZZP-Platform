@@ -1,5 +1,11 @@
 # Independent Codex review
 
+**Owner decision, 11 September 2026:** further paid API reviews are paused.
+Keep `pr-review.yml` disabled. The replacement subscription route and its separate
+activation/evidence requirements are documented in
+[Native subscription review](subscription-review.md). The API description below
+is retained as implementation history; it is not permission to resume spending.
+
 The required check remains `agent-review`, published by GitHub Actions on the
 reviewed PR head through the Checks API. Three jobs separate trusted context/check
 creation, read-only model review, and validation/publication. Their automatic job
