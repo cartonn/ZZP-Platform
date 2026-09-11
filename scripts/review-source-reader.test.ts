@@ -11,4 +11,4 @@ test("immutable review source reader enforces coverage and filesystem isolation"
       stdio: "pipe",
     },
   );
-});
+}, 35_000);

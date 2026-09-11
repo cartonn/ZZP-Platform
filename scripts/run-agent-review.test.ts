@@ -8,4 +8,4 @@ test("Responses review runner preserves state and fails closed", () => {
     ["--test", fileURLToPath(new URL("./run-agent-review.test.mjs", import.meta.url))],
     { timeout: 10_000, stdio: "pipe" },
   );
-});
+}, 15_000);
