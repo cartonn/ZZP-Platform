@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
-  assertDispatchHead,
+  assertTrustedExecution,
+  readTrustedExecution,
+  createReviewCheck,
+  completeReviewCheck,
+  githubApi,
+  prepare,
+  writePrompt,
+  enforce,
   readCurrentContext,
   reviewSummary,
   validateVerdict,
@@ -110,10 +120,347 @@ test("malformed or pre-seeded output cannot satisfy the gate", () => {
     assert.equal(check(change).passed, false);
 });
 
-test("manual bootstrap must target the same commit as the PR head", () => {
-  assert.doesNotThrow(() => assertDispatchHead({ dispatchSha: context.headSha, context }));
-  assert.throws(() => assertDispatchHead({ dispatchSha: context.baseSha, context }), /head-branch/);
-  assert.throws(() => assertDispatchHead({ eventHead: "c".repeat(40), context }), /trigger-event/);
+const controlSha = "c".repeat(40);
+const trustedEnv = {
+  GITHUB_REPOSITORY: context.repository,
+  GITHUB_EVENT_NAME: "workflow_dispatch",
+  GITHUB_REF: "refs/heads/main",
+  GITHUB_REF_PROTECTED: "true",
+  GITHUB_SHA: controlSha,
+  REVIEW_CONTROL_SHA: controlSha,
+  REVIEW_WORKFLOW_REF: `${context.repository}/.github/workflows/pr-review.yml@refs/heads/main`,
+  GITHUB_RUN_ID: "34576381918",
+  GITHUB_RUN_ATTEMPT: "1",
+};
+const execution = assertTrustedExecution(trustedEnv);
+const ticket = { ...context, ...execution, checkId: 123 };
+const externalId = `${context.repository}:${context.pr}:${context.headSha}:${context.baseSha}:${controlSha}:${execution.runId}:${execution.runAttempt}`;
+const runUrl = `https://github.com/${context.repository}/actions/runs/${execution.runId}/attempts/1`;
+const remoteCheck = {
+  id: ticket.checkId,
+  name: "agent-review",
+  head_sha: context.headSha,
+  external_id: externalId,
+  details_url: runUrl,
+  app: { id: 15368 },
+  status: "in_progress",
+  conclusion: null,
+};
+
+test("only a protected default workflow or externally pinned bootstrap can execute controls", () => {
+  assert.equal(execution.controlSha, controlSha);
+  assert.notEqual(execution.controlSha, context.headSha);
+  assert.equal(
+    assertTrustedExecution({ ...trustedEnv, GITHUB_REF_PROTECTED: "True" }).controlSha,
+    controlSha,
+  );
+  for (const extra of [
+    { GITHUB_REF: "refs/heads/feature/pr" },
+    { GITHUB_REF_PROTECTED: "false" },
+    { GITHUB_REF_PROTECTED: "False" },
+    { GITHUB_REF_PROTECTED: "1" },
+    { GITHUB_EVENT_NAME: "pull_request" },
+    { REVIEW_CONTROL_SHA: context.headSha },
+    { REVIEW_WORKFLOW_REF: `${context.repository}/.github/workflows/other.yml@refs/heads/main` },
+    { GITHUB_RUN_ID: "123/injection" },
+    { GITHUB_RUN_ATTEMPT: "0" },
+  ])
+    assert.throws(() => assertTrustedExecution({ ...trustedEnv, ...extra }));
+  const bootstrap = {
+    ...trustedEnv,
+    GITHUB_REF: "refs/heads/codex/review-bootstrap-20260911",
+    REVIEW_WORKFLOW_REF: `${context.repository}/.github/workflows/pr-review.yml@refs/heads/codex/review-bootstrap-20260911`,
+    REVIEW_BOOTSTRAP_SHA: controlSha,
+  };
+  assert.equal(assertTrustedExecution(bootstrap).controlSha, controlSha);
+  assert.throws(() => assertTrustedExecution({ ...bootstrap, REVIEW_BOOTSTRAP_SHA: "" }));
+  assert.throws(() =>
+    assertTrustedExecution({ ...bootstrap, REVIEW_BOOTSTRAP_SHA: context.headSha }),
+  );
+  assert.throws(() =>
+    assertTrustedExecution({ ...bootstrap, GITHUB_EVENT_NAME: "pull_request_target" }),
+  );
+});
+
+test("live default branch and protected control ref must still match the trusted execution", async () => {
+  const api =
+    (change = {}) =>
+    async (route) =>
+      route.endsWith("/branches/main")
+        ? { name: "main", protected: true, commit: { sha: controlSha }, ...change }
+        : { default_branch: "main" };
+  assert.deepEqual(await readTrustedExecution(api(), trustedEnv), execution);
+  await assert.rejects(readTrustedExecution(api({ protected: false }), trustedEnv));
+  await assert.rejects(readTrustedExecution(api({ commit: { sha: context.headSha } }), trustedEnv));
+  await assert.rejects(readTrustedExecution(async () => ({ default_branch: "other" }), trustedEnv));
+});
+
+test("create starts a genuine check on reviewed head with immutable run, attempt and control identity", async () => {
+  const calls = [];
+  const api = async (route, request) => {
+    calls.push({ route, request });
+    return remoteCheck;
+  };
+  assert.deepEqual(await createReviewCheck(api, context, execution), ticket);
+  assert.equal(calls[0].request.method, "POST");
+  assert.equal(calls[0].request.body.head_sha, context.headSha);
+  assert.equal(calls[0].request.body.status, "in_progress");
+  assert.equal(calls[0].request.body.external_id, externalId);
+  assert.equal(calls[1].route, `/repos/${context.repository}/check-runs/123`);
+  await assert.rejects(createReviewCheck(api, { ...context, files: [] }, execution));
+  for (const extra of [
+    { app: { id: 1 } },
+    { head_sha: controlSha },
+    { id: 0 },
+    { status: "completed" },
+  ])
+    await assert.rejects(
+      createReviewCheck(async () => ({ ...remoteCheck, ...extra }), context, execution),
+    );
+});
+
+test("publication updates and reads back the same check, never another run or head", async () => {
+  const calls = [];
+  let value = { ...remoteCheck };
+  const api = async (route, request) => {
+    calls.push({ route, request });
+    if (request?.method === "PATCH") value = { ...value, ...request.body };
+    return value;
+  };
+  await completeReviewCheck(api, ticket, execution, check(), "summary");
+  assert.equal(value.conclusion, "success");
+  assert.equal(value.status, "completed");
+  assert.ok(calls.every(({ route }) => route === `/repos/${context.repository}/check-runs/123`));
+  assert.equal(calls.filter(({ request }) => request?.method === "PATCH").length, 1);
+  for (const extra of [
+    { head_sha: controlSha },
+    { app: { id: 1 } },
+    { external_id: "another-run" },
+    { details_url: "https://example.com" },
+    { name: "other" },
+    { status: "completed" },
+  ]) {
+    let mutated = false;
+    await assert.rejects(
+      completeReviewCheck(
+        async (_route, request) => {
+          mutated ||= Boolean(request);
+          return { ...remoteCheck, ...extra };
+        },
+        ticket,
+        execution,
+        check(),
+        "summary",
+      ),
+    );
+    assert.equal(mutated, false);
+  }
+  for (const extra of [
+    { runAttempt: 2 },
+    { runId: "2" },
+    { controlSha: context.headSha },
+    { checkId: 0 },
+    { files: [] },
+  ])
+    await assert.rejects(
+      completeReviewCheck(api, { ...ticket, ...extra }, execution, check(), "summary"),
+    );
+});
+
+test("BLOCK and INCOMPLETE publish failure; a missing final read-back never counts as success", async () => {
+  for (const result of [check({ findings: [blocker] }), check({}, { runResult: "cancelled" })]) {
+    let value = { ...remoteCheck };
+    await completeReviewCheck(
+      async (_route, request) => {
+        if (request) value = { ...value, ...request.body };
+        return value;
+      },
+      ticket,
+      execution,
+      result,
+      "summary",
+    );
+    assert.equal(value.conclusion, "failure");
+  }
+  let reads = 0;
+  await assert.rejects(
+    completeReviewCheck(
+      async (_route, request) => {
+        if (request) return { ...remoteCheck, ...request.body };
+        if (++reads > 1) throw new Error("read-back failed");
+        return remoteCheck;
+      },
+      ticket,
+      execution,
+      check(),
+      "summary",
+    ),
+  );
+});
+
+test("HTTP transport uses explicit methods, redacts errors, and retries only idempotent operations", async () => {
+  const calls = [];
+  let requests = 0;
+  const api = githubApi("test-secret", {
+    sleep: async () => {},
+    fetch: async (url, options) => {
+      calls.push({ url, options });
+      if (++requests === 1) return new Response("test-secret", { status: 503 });
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    },
+  });
+  assert.deepEqual(
+    await api("/repos/cartonn/ZZP-Platform/check-runs/123", {
+      method: "PATCH",
+      body: { status: "completed" },
+    }),
+    { ok: true },
+  );
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].options.method, "PATCH");
+  assert.equal(calls[0].options.redirect, "error");
+  assert.deepEqual(JSON.parse(calls[0].options.body), { status: "completed" });
+  let posts = 0;
+  const failing = githubApi("test-secret", {
+    sleep: async () => {},
+    fetch: async () => {
+      posts++;
+      throw new Error("secret test-secret");
+    },
+  });
+  await assert.rejects(
+    failing("/repos/cartonn/ZZP-Platform/check-runs", { method: "POST", body: {} }),
+    (error) => !error.message.includes("test-secret"),
+  );
+  assert.equal(posts, 1);
+  await assert.rejects(api("https://example.com"));
+  await assert.rejects(api("//example.com/path"));
+  await assert.rejects(api("/repos/x/y", { method: "DELETE" }));
+});
+
+function handlerFixture(t, { changeAfterComment = false } = {}) {
+  const directory = mkdtempSync(join(tmpdir(), "codex-review-test-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const calls = [];
+  let value = { ...remoteCheck };
+  let head = context.headSha;
+  const env = {
+    ...trustedEnv,
+    REVIEW_PR: String(context.pr),
+    REVIEW_EVENT_HEAD: context.headSha,
+    GITHUB_OUTPUT: join(directory, "output"),
+    GITHUB_STEP_SUMMARY: join(directory, "summary"),
+    RUNNER_TEMP: directory,
+    REVIEW_CONTEXT: JSON.stringify(ticket),
+    REVIEW_REPORT: JSON.stringify(report),
+    REVIEW_RUN_RESULT: "success",
+    REVIEW_AUTHENTICATED: "true",
+  };
+  const api = async (route, request) => {
+    calls.push({ route, request });
+    if (route === `/repos/${context.repository}`) return { default_branch: "main" };
+    if (route.includes("/branches/")) return { protected: true, commit: { sha: controlSha } };
+    if (route.includes("/files?")) return context.files.map((filename) => ({ filename }));
+    if (route === `/repos/${context.repository}/pulls/${context.pr}`)
+      return {
+        state: "open",
+        draft: false,
+        changed_files: 2,
+        head: { sha: head },
+        base: { sha: context.baseSha },
+      };
+    if (route.endsWith("/comments")) {
+      if (changeAfterComment) head = "d".repeat(40);
+      return { id: 9 };
+    }
+    if (route.includes("/check-runs")) {
+      if (request) value = { ...value, ...request.body };
+      return value;
+    }
+    throw new Error(`Unexpected fixture route ${route}`);
+  };
+  return {
+    env,
+    api,
+    calls,
+    get check() {
+      return value;
+    },
+  };
+}
+
+test("handlers carry trusted preparation through prompt creation and confirmed publication", async (t) => {
+  const fixture = handlerFixture(t);
+  const actual = await prepare(fixture.env, fixture.api);
+  assert.deepEqual(actual, ticket);
+  const output = readFileSync(fixture.env.GITHUB_OUTPUT, "utf8");
+  assert.ok(output.startsWith(`head=${context.headSha}\ncontext=`));
+  assert.equal(JSON.parse(output.split("context=")[1]).checkId, 123);
+  writePrompt(fixture.env);
+  const prompt = readFileSync(
+    join(fixture.env.RUNNER_TEMP, "agent-review-codex-prompt.md"),
+    "utf8",
+  );
+  assert.ok(prompt.includes(JSON.stringify(ticket, null, 2)));
+  assert.equal((await enforce(fixture.env, fixture.api)).passed, true);
+  assert.equal(fixture.check.conclusion, "success");
+  const evidence = JSON.parse(
+    readFileSync(join(fixture.env.RUNNER_TEMP, "agent-review-codex-verdict.json"), "utf8"),
+  );
+  assert.equal(evidence.context.checkId, ticket.checkId);
+  assert.equal(evidence.context.controlSha, controlSha);
+  assert.equal(evidence.context.runAttempt, 1);
+});
+
+test("stale trigger heads never start a check, and invalid publication contexts never mutate", async (t) => {
+  const fixture = handlerFixture(t);
+  await assert.rejects(prepare({ ...fixture.env, REVIEW_EVENT_HEAD: "d".repeat(40) }, fixture.api));
+  for (const raw of [
+    "null",
+    "{",
+    JSON.stringify({ ...ticket, checkId: 0 }),
+    JSON.stringify({ ...ticket, repository: "other/repo" }),
+    JSON.stringify({ ...ticket, runAttempt: 2 }),
+  ]) {
+    await assert.rejects(enforce({ ...fixture.env, REVIEW_CONTEXT: raw }, fixture.api));
+    assert.throws(() => writePrompt({ ...fixture.env, REVIEW_CONTEXT: raw }));
+  }
+  assert.equal(fixture.calls.filter(({ request }) => request).length, 0);
+});
+
+test("a PR update during evidence publication changes a proposed PASS to a failed check", async (t) => {
+  const fixture = handlerFixture(t, { changeAfterComment: true });
+  assert.equal((await enforce(fixture.env, fixture.api)).verdict, "INCOMPLETE");
+  assert.equal(fixture.check.conclusion, "failure");
+});
+
+test("raw output artifacts never rescue an unsuccessful action or missing direct report", async (t) => {
+  for (const extra of [
+    { REVIEW_REPORT: "" },
+    { REVIEW_RUN_RESULT: "cancelled" },
+    { REVIEW_RUN_RESULT: "failure" },
+    { REVIEW_AUTHENTICATED: "" },
+  ]) {
+    const fixture = handlerFixture(t);
+    writeFileSync(
+      join(fixture.env.RUNNER_TEMP, "agent-review-codex-final.json"),
+      JSON.stringify(report),
+    );
+    assert.equal((await enforce({ ...fixture.env, ...extra }, fixture.api)).verdict, "INCOMPLETE");
+    assert.equal(fixture.check.conclusion, "failure");
+  }
+});
+
+test("failed comment transport does not prematurely complete the protected check", async (t) => {
+  const fixture = handlerFixture(t);
+  await assert.rejects(
+    enforce(fixture.env, async (route, request) => {
+      if (route.endsWith("/comments")) throw new Error("publication unavailable");
+      return fixture.api(route, request);
+    }),
+  );
+  assert.equal(fixture.check.status, "in_progress");
+  assert.ok(fixture.calls.every(({ request }) => request?.method !== "PATCH"));
 });
 
 function mockApi({ count = 2, truncate = false, change = false } = {}) {

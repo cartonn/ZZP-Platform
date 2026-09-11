@@ -41,17 +41,22 @@
   Bij de eerste overnamecontrole ontbrak `OPENAI_API_KEY`; op 11 september is dit na
   expliciete gebruikersbevestiging toegevoegd als repositorysecret.
   De Restricted-reviewsleutel heeft alleen List models: Read en Responses: Write en
-  vervalt op 11 oktober 2026. **Actueel resterend: API-billing/tegoed activeren** — de
-  eigenaar vult dit rechtstreeks bij OpenAI aan; betaalgegevens zijn niet ingevuld.
+  vervalt op 11 oktober 2026. **Historie:**
   [Proefrun 34575468042](https://github.com/cartonn/ZZP-Platform/actions/runs/34575468042)
-  op #1475 head `8be0b39` bevestigt dit: Action-start en sleutelcontrole slagen, OpenAI
+  op #1475 head `8be0b39` bevestigde een quotablokkade: Action-start en sleutelcontrole slagen, OpenAI
   meldt geen resterende credits; eindvalidator INCOMPLETE, geen inhoudelijke review.
   Op #1474 head `fb4938b` en #1475 head `8be0b39` zijn alle normale CI-checks groen,
   inclusief e2e; alleen `agent-review` ontbreekt of faalt. Dit is een momentopname op
-  de genoemde SHA's. Een eerste volledig geslaagde
-  API-review en geplande run blijven onbewezen. Coördinatorprompt bijgewerkt: geen
-  herhaalde quotatests tot bevestigde tegoedwijziging; sleutelverval vanaf zeven dagen
-  vooraf in de ochtendbriefing melden. Zie `.github/codex/README.md`.
+  de genoemde SHA's. **Vervolg 11 september:** de eigenaar heeft tegoed toegevoegd;
+  beschikbaarheid is via de interface geverifieerd.
+  [Reviewrun 34576381918](https://github.com/cartonn/ZZP-Platform/actions/runs/34576381918)
+  is gestart op #1475 head `5acadf8`. De modeluitvoer geeft BLOCK op PR-headgestuurde
+  reviewcontroles; de Action was na die uitvoer nog niet afgesloten. De integratie
+  krijgt een vertrouwde workflow, afzonderlijke publisher en bevroren bootstrapbasis.
+  Herbeoordeling en geplande uitvoering zijn apart te verifiëren: lees de actuele GitHub-run/check en het
+  duurzame runregister. Herhaal een nieuwe quotafout niet zonder bevestigde wijziging;
+  meld sleutelverval vanaf zeven dagen vooraf. Publiceer geen saldo of account-/billingdetails.
+  Zie `.github/codex/README.md`.
   Geen review of merge als geslaagd melden zolang de verplichte check niet groen is.
   Linear wordt niet gebruikt.
 - **Scope-restrictie routines (2-9-2026):** alleen kern + robuustheid/security/bugs. Ontzorgd/

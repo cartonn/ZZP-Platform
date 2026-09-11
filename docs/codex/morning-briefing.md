@@ -30,10 +30,12 @@ de actuele repository, GitHub-status en beschikbare uitvoeringsbewijzen:
    Vermeld deploy/readiness uitsluitend wanneer die afzonderlijk zijn geverifieerd.
    Meld het verval van de review-API-sleutel vanaf zeven dagen vooraf: de huidige
    sleutel vervalt op **11 oktober 2026**, dus opnemen vanaf **4 oktober 2026** zolang
-   vernieuwing niet bevestigd is. Meld geen sleutel- of accountgegevens. Het huidige
-   ontbrekende API-tegoed is bewezen in reviewrun 34575468042; herhaal geen quotatest
-   zonder bevestigde tegoedwijziging. De eigenaar vult betaalmethode/tegoed rechtstreeks
-   bij OpenAI aan; betaalgegevens horen niet in de briefing of taak.
+   vernieuwing niet bevestigd is. Meld geen sleutel-, saldo- of accountgegevens.
+   Reviewrun 34575468042 bewijst een historische quotafout; de eigenaar heeft daarna
+   op 11 september tegoed aangevuld en vervolgrun 34576381918 is gestart. Lees de actuele
+   GitHub-run/check en het runregister: meld de oude quotafout niet opnieuw als actuele
+   blokkade. Bij een nieuwe quotafout niet herhaald testen zonder bevestigde wijziging.
+   Betaalgegevens en billinginstellingen horen niet in de briefing of taak.
 5. Lever een korte Nederlandse briefing: afgerond in 24 uur, open PR's en poorten,
    auditbevindingen, menselijke acties en eerstvolgende prioriteit. Bij geen nieuwe
    resultaten zeg je dat feitelijk. Neem geen secrets, persoonsgegevens of private

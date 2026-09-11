@@ -69,20 +69,28 @@ repositorysecret, met Restricted-rechten voor alleen **List models: Read** en
 **Responses: Write**, geldig tot en met **11 oktober 2026**. De sleutelwaarde en
 accountgegevens horen nooit in deze publieke documentatie.
 
-**De actuele externe blokkade is API-tegoed/billing, niet meer een ontbrekend
-repositorysecret.** De eigenaar moet betaalmethode/tegoed rechtstreeks bij OpenAI
-aanvullen; er zijn geen betaalgegevens ingevuld. De blokkade is door uitvoering bewezen:
+**Historie van de eerste proef: ontbrekend API-tegoed.**
 [reviewrun 34575468042](https://github.com/cartonn/ZZP-Platform/actions/runs/34575468042)
 op PR #1475, head `8be0b39ab270d9e826a90bbf2dce14d90d9a6314`, is afgerond. Voorbereiding,
 aanwezigheidscontrole van de sleutel en checkout slagen; de officiële Codex Action
 installeert en start. OpenAI antwoordt: **“You have no credits remaining. Add credits
 to continue using the API”**. De eindvalidator registreert **INCOMPLETE**, met
 `REVIEW_AUTHENTICATED=true`; er is geen inhoudelijke review uitgevoerd. Dit bewijst
-de tegoedblokkade en de foutafhandeling, niet een geslaagde review. Een eerste volledig
-geslaagde review en geplande run blijven onbewezen. De actieve coördinatorprompt is
-bijgewerkt: **geen herhaalde quotatests tot een tegoedwijziging is bevestigd**; meld het
-sleutelverval vanaf zeven dagen vooraf in de ochtendbriefing. Behoud de verplichte
-`agent-review`-poort zonder gefingeerde PASS.
+de toenmalige tegoedblokkade en de foutafhandeling, niet een geslaagde review.
+
+**Vervolg op 11 september:** de eigenaar heeft API-tegoed toegevoegd; beschikbaarheid
+is in de interface geverifieerd. Daarna is
+[reviewrun 34576381918](https://github.com/cartonn/ZZP-Platform/actions/runs/34576381918)
+gestart op #1475 head `5acadf8790f34570db3575f68eaa067aeaf77f64`. De zichtbare modeluitvoer
+geeft BLOCK: bij een dispatch vanaf de PR-head kwamen ook reviewcontroles uit die head.
+Na die uitvoer was de Action nog niet afgesloten; dit is geen geslaagde reviewpublicatie.
+De integratie wordt hersteld met een vertrouwde workflow en afzonderlijk beoordeeld
+PR-bronmateriaal. De actuele herbeoordeling volgt uit de GitHub-run en SHA-gebonden check; geplande runs
+uit het duurzame runregister van de coördinator. Leid geen nieuwe quotablokkade af uit
+de oude proef. Bij een nieuwe quotafout: niet herhaald testen zonder bevestigde wijziging.
+Meld sleutelverval vanaf zeven dagen vooraf in de ochtendbriefing. Behoud de verplichte
+`agent-review`-poort zonder gefingeerde PASS; saldo en account-/billinginstellingen
+worden niet in deze publieke repo vastgelegd.
 De reguliere productietaken, monitor, expiry-check, dependencycontrole en herstel-drill zijn afzonderlijke
 operationele workflows; zet deze niet uit uitsluitend omdat Claude stopt.
 
@@ -172,6 +180,17 @@ oude goedkeuring ongeldig. Een conceptprompt verleent geen statusrecht en bewijs
 dat de vervangende integratie al werkt. Publiceer het oordeel uitsluitend via de daarvoor
 ingerichte, vertrouwde integratie; nooit een gefingeerde groene check plaatsen.
 
+De workflow, validator, schema en prompt komen uit de exacte vertrouwde workflow-SHA.
+Normale reviews draaien via `pull_request_target`; handmatige retries uitsluitend via
+beschermde `main`. Een afzonderlijke bevroren bootstrapbranch maakt de eerste migratie
+mogelijk: volledige controls vooraf onafhankelijk beoordelen, SHA buiten de PR vastleggen
+in `CODEX_REVIEW_BOOTSTRAP_SHA`, updates/deleties zonder bypass blokkeren en de effectieve
+bescherming verifiëren. Deze uitvoeringsbasis is geen PR-goedkeuring. De aparte publisher
+maakt vóór de modelrun een echte `agent-review`-check op de actuele PR-head en werkt
+dezelfde check alleen na volledige validatie bij. Controleer run/attempt, control-SHA,
+check-ID en modelrapport naast de zes poorten. Verwijder de bootstrapvariabele na de
+migratie. De concrete procedure staat in `.github/codex/README.md`.
+
 ## Concrete overdracht: repo-opname 10 september, review aangevuld 11 september
 
 - PR **#1474**, Handslag V5-platform inclusief goedkeuringszegels, staat open op head
@@ -238,8 +257,8 @@ is de afzonderlijke mergepoort. De bestanden zelf activeren geen scheduler.
 
 De oorspronkelijke schedules zijn gelezen, de oude uitvoerders zijn gepauzeerd en één
 Codex-coördinator is geverifieerd actief. Het beperkte `OPENAI_API_KEY`-repositorysecret
-is toegevoegd; API-billing/tegoed moet nog worden geactiveerd. Volledig werkende uitvoering
-vereist daarnaast aantoonbare dispatch met runregister, een geslaagde eerste Codex-run
-per werkstroom en een werkende onafhankelijke review op de actuele PR-head. Noteer per
-onderdeel datum, uitkomst en bewijs; laat
-onbevestigde onderdelen expliciet open.
+is toegevoegd en de eigenaar heeft op 11 september tegoed aangevuld. Volledig werkende
+uitvoering blijkt vervolgens uit aantoonbare dispatch met runregister, een geslaagde
+eerste Codex-run per werkstroom en onafhankelijke review op de actuele PR-head.
+Controleer daarvoor GitHub en het runregister; deze opname bevestigt nog geen eerste
+volledige uitvoering. Noteer per onderdeel datum, uitkomst en bewijs.

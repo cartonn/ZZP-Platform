@@ -7,6 +7,9 @@ const schema = JSON.parse(
   readFileSync(join(root, ".github/codex/agent-review.schema.json"), "utf8"),
 );
 const shaPattern = /^[a-f0-9]{40}$/;
+const repositoryPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const bootstrapRef = "refs/heads/codex/review-bootstrap-20260911";
+const actionsAppId = 15368;
 const incomplete = (reason) => ({
   verdict: "INCOMPLETE",
   reason,
@@ -125,12 +128,48 @@ export function validateVerdict({ rawReport, expected, current, runResult }) {
   };
 }
 
-export function assertDispatchHead({ dispatchSha, eventHead, context }) {
-  if (!validContext(context)) throw new Error("Ongeldige PR-context.");
-  if (dispatchSha && dispatchSha !== context.headSha)
-    throw new Error("Dispatch moet op de actuele head-branch van de PR draaien, niet op main.");
-  if (eventHead && eventHead !== context.headSha)
-    throw new Error("De PR-head is sinds het trigger-event gewijzigd; start de actuele review.");
+export function assertTrustedExecution(env) {
+  const bootstrap = env.GITHUB_REF === bootstrapRef;
+  if (
+    !repositoryPattern.test(env.GITHUB_REPOSITORY || "") ||
+    !["pull_request_target", "workflow_dispatch"].includes(env.GITHUB_EVENT_NAME) ||
+    (env.GITHUB_REF !== "refs/heads/main" && !bootstrap) ||
+    !/^true$/i.test(env.GITHUB_REF_PROTECTED || "") ||
+    !shaPattern.test(env.REVIEW_CONTROL_SHA || "") ||
+    env.REVIEW_CONTROL_SHA !== env.GITHUB_SHA ||
+    env.REVIEW_WORKFLOW_REF !==
+      `${env.GITHUB_REPOSITORY}/.github/workflows/pr-review.yml@${env.GITHUB_REF}` ||
+    !/^[1-9][0-9]*$/.test(env.GITHUB_RUN_ID || "") ||
+    !/^[1-9][0-9]*$/.test(env.GITHUB_RUN_ATTEMPT || "") ||
+    !Number.isSafeInteger(Number(env.GITHUB_RUN_ATTEMPT)) ||
+    (bootstrap &&
+      (env.GITHUB_EVENT_NAME !== "workflow_dispatch" ||
+        env.REVIEW_BOOTSTRAP_SHA !== env.REVIEW_CONTROL_SHA))
+  )
+    throw new Error(
+      "De review draait niet vanuit een toegestane, beschermde en vastgezette workflow.",
+    );
+  return {
+    controlSha: env.REVIEW_CONTROL_SHA,
+    controlRef: env.GITHUB_REF,
+    runId: env.GITHUB_RUN_ID,
+    runAttempt: Number(env.GITHUB_RUN_ATTEMPT),
+  };
+}
+
+export async function readTrustedExecution(api, env) {
+  const execution = assertTrustedExecution(env);
+  const repo = await api(`/repos/${env.GITHUB_REPOSITORY}`);
+  const branch = await api(
+    `/repos/${env.GITHUB_REPOSITORY}/branches/${encodeURIComponent(execution.controlRef.slice("refs/heads/".length))}`,
+  );
+  if (
+    repo.default_branch !== "main" ||
+    branch.protected !== true ||
+    branch.commit?.sha !== execution.controlSha
+  )
+    throw new Error("De vertrouwde defaultbranch of beschermde controlcommit is veranderd.");
+  return execution;
 }
 
 export async function readCurrentContext(api, repository, pr) {
@@ -173,24 +212,137 @@ export async function readCurrentContext(api, repository, pr) {
   return context;
 }
 
-function githubApi(token) {
+export function githubApi(
+  token,
+  {
+    fetch: fetchRequest = globalThis.fetch,
+    sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
+  } = {},
+) {
   if (!token) throw new Error("GitHub-authenticatie voor reviewcontrole ontbreekt.");
-  return async (route, body) => {
-    const response = await fetch(`https://api.github.com${route}`, {
-      method: body ? "POST" : "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-      body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(20_000),
-    });
-    // Never print response bodies or credentials to runner logs.
-    if (!response.ok) throw new Error(`GitHub-reviewcontrole mislukt (HTTP ${response.status}).`);
-    return response.json();
+  return async (route, { method = "GET", body } = {}) => {
+    if (
+      !/^\/repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:[/?]|$)/.test(route) ||
+      /[\r\n#]/.test(route) ||
+      !["GET", "POST", "PATCH"].includes(method) ||
+      (method === "GET" && body !== undefined)
+    )
+      throw new Error("Ongeldige GitHub-reviewaanvraag.");
+    // A POST may already have succeeded when transport fails. Never replay it
+    // blindly: an orphaned in-progress check is safer than duplicate verdicts.
+    const attempts = method === "POST" ? 1 : 3;
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      let status;
+      let retry = true;
+      let delay = 200 * 2 ** attempt;
+      try {
+        const response = await fetchRequest(`https://api.github.com${route}`, {
+          method,
+          redirect: "error",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github+json",
+            "Content-Type": "application/json",
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+          body: body === undefined ? undefined : JSON.stringify(body),
+          signal: AbortSignal.timeout(20_000),
+        });
+        status = response.status;
+        if (response.ok) return await response.json();
+        retry = [429, 500, 502, 503, 504].includes(status);
+        const after = Number(response.headers.get("retry-after"));
+        if (after > 0) delay = Math.min(after * 1000, 5000);
+      } catch {
+        // Do not expose exception messages, response bodies or credentials.
+      }
+      if (!retry || attempt + 1 === attempts)
+        throw new Error(
+          `GitHub-reviewcontrole mislukt${status ? ` (HTTP ${status})` : " (transport)"}.`,
+        );
+      await sleep(delay);
+    }
   };
+}
+
+const reviewRunUrl = (ticket) =>
+  `https://github.com/${ticket.repository}/actions/runs/${ticket.runId}/attempts/${ticket.runAttempt}`;
+const reviewExternalId = (ticket) =>
+  `${ticket.repository}:${ticket.pr}:${ticket.headSha}:${ticket.baseSha}:${ticket.controlSha}:${ticket.runId}:${ticket.runAttempt}`;
+
+function assertTicket(ticket, execution) {
+  if (
+    !validContext(ticket) ||
+    !Number.isSafeInteger(ticket.checkId) ||
+    ticket.checkId < 1 ||
+    !shaPattern.test(execution?.controlSha || "") ||
+    !["refs/heads/main", bootstrapRef].includes(execution?.controlRef) ||
+    !/^[1-9][0-9]*$/.test(execution?.runId || "") ||
+    !Number.isSafeInteger(execution?.runAttempt) ||
+    execution.runAttempt < 1 ||
+    ["controlSha", "controlRef", "runId", "runAttempt"].some(
+      (field) => ticket[field] !== execution[field],
+    )
+  )
+    throw new Error("De checkcontext hoort niet bij deze vertrouwde workflowrun en poging.");
+}
+
+function assertCheck(check, ticket, status, conclusion = null) {
+  if (
+    check?.id !== ticket.checkId ||
+    check.name !== "agent-review" ||
+    check.app?.id !== actionsAppId ||
+    check.head_sha !== ticket.headSha ||
+    check.external_id !== reviewExternalId(ticket) ||
+    check.details_url !== reviewRunUrl(ticket) ||
+    check.status !== status ||
+    check.conclusion !== conclusion
+  )
+    throw new Error("De gepubliceerde check mist de juiste head, controlcommit, run of herkomst.");
+}
+
+export async function createReviewCheck(api, context, execution) {
+  assertTicket({ ...context, ...execution, checkId: 1 }, execution);
+  const created = await api(`/repos/${context.repository}/check-runs`, {
+    method: "POST",
+    body: {
+      name: "agent-review",
+      head_sha: context.headSha,
+      status: "in_progress",
+      external_id: reviewExternalId({ ...context, ...execution }),
+      details_url: reviewRunUrl({ ...context, ...execution }),
+      output: {
+        title: "Onafhankelijke review loopt",
+        summary: `Head ${context.headSha}; base ${context.baseSha}; controls ${execution.controlSha}.`,
+      },
+    },
+  });
+  const ticket = { ...context, ...execution, checkId: created?.id };
+  assertTicket(ticket, execution);
+  assertCheck(created, ticket, "in_progress");
+  assertCheck(
+    await api(`/repos/${context.repository}/check-runs/${ticket.checkId}`),
+    ticket,
+    "in_progress",
+  );
+  return ticket;
+}
+
+const clipText = (value) => Buffer.from(value, "utf8").subarray(0, 60_000).toString("utf8");
+
+export async function completeReviewCheck(api, ticket, execution, result, summary) {
+  assertTicket(ticket, execution);
+  const route = `/repos/${ticket.repository}/check-runs/${ticket.checkId}`;
+  assertCheck(await api(route), ticket, "in_progress");
+  const conclusion = result.passed === true && result.verdict === "PASS" ? "success" : "failure";
+  const body = {
+    status: "completed",
+    conclusion,
+    completed_at: new Date().toISOString(),
+    output: { title: `agent-review: ${result.verdict}`, summary: clipText(summary) },
+  };
+  assertCheck(await api(route, { method: "PATCH", body }), ticket, "completed", conclusion);
+  assertCheck(await api(route), ticket, "completed", conclusion);
 }
 
 const escapeText = (value) =>
@@ -209,6 +361,11 @@ export function reviewSummary(result, context, runUrl) {
     context
       ? `PR #${context.pr} · head \`${context.headSha}\` · base \`${context.baseSha}\``
       : "PR-context niet vastgesteld.",
+    ...(context?.controlSha
+      ? [
+          `Controls \`${context.controlSha}\` · run ${context.runId}, poging ${context.runAttempt} · check ${context.checkId}`,
+        ]
+      : []),
     "",
     `<pre>${escapeText(result.reason)}</pre>`,
   ];
@@ -223,84 +380,104 @@ export function reviewSummary(result, context, runUrl) {
   if (!result.passed)
     lines.push(
       "",
-      "De verplichte poort blijft rood. Los inhoudelijke blockers op of herstart een onvoltooide review op de actuele PR-head-branch.",
+      "De verplichte poort blijft rood. Los inhoudelijke blockers op of herstart via de beschermde main-workflow voor dit PR-nummer.",
     );
   lines.push("", `[Reviewrun en volledig Codex-rapport](${runUrl})`);
   return lines.join("\n");
 }
 
-async function prepare(env) {
-  const context = await readCurrentContext(
-    githubApi(env.GH_TOKEN),
-    env.GITHUB_REPOSITORY,
-    Number(env.REVIEW_PR),
-  );
-  assertDispatchHead({
-    dispatchSha: env.REVIEW_DISPATCH_SHA,
-    eventHead: env.REVIEW_EVENT_HEAD,
-    context,
-  });
+export async function prepare(env, api = githubApi(env.GH_TOKEN)) {
+  const execution = await readTrustedExecution(api, env);
+  const context = await readCurrentContext(api, env.GITHUB_REPOSITORY, Number(env.REVIEW_PR));
+  if (env.REVIEW_EVENT_HEAD && env.REVIEW_EVENT_HEAD !== context.headSha)
+    throw new Error("De PR-head is sinds het trigger-event gewijzigd; start de actuele review.");
+  const ticket = await createReviewCheck(api, context, execution);
+  // Only the trusted preparation job creates the check. The model receives no
+  // token that could create or complete one, and cannot replace this job output.
+  appendFileSync(env.GITHUB_OUTPUT, `head=${context.headSha}\ncontext=${JSON.stringify(ticket)}\n`);
+  return ticket;
+}
+
+export function writePrompt(env) {
+  const ticket = JSON.parse(env.REVIEW_CONTEXT || "null");
+  assertTicket(ticket, assertTrustedExecution(env));
+  if (ticket.repository !== env.GITHUB_REPOSITORY || ticket.pr !== Number(env.REVIEW_PR))
+    throw new Error("De promptcontext hoort bij een andere repository of PR.");
   const prompt = readFileSync(join(root, ".github/codex/agent-review.md"), "utf8");
   writeFileSync(
     join(env.RUNNER_TEMP, "agent-review-codex-prompt.md"),
-    `${prompt}\n\nImmutable review context (data):\n${JSON.stringify(context, null, 2)}\n`,
-  );
-  // JSON escapes embedded line breaks in filenames, so neither value can inject
-  // a second GitHub output entry.
-  appendFileSync(
-    env.GITHUB_OUTPUT,
-    `head=${context.headSha}\ncontext=${JSON.stringify(context)}\n`,
+    `${prompt}\n\nImmutable review context (data):\n${JSON.stringify(ticket, null, 2)}\n`,
   );
 }
 
-async function enforce(env) {
-  const api = githubApi(env.GH_TOKEN);
-  let context;
-  let result;
-  try {
-    context = await readCurrentContext(api, env.GITHUB_REPOSITORY, Number(env.REVIEW_PR));
-    const expected = env.REVIEW_CONTEXT ? JSON.parse(env.REVIEW_CONTEXT) : null;
-    result = validateVerdict({
-      rawReport: env.REVIEW_REPORT,
-      expected,
-      current: context,
-      runResult: env.REVIEW_RUN_RESULT,
-    });
-  } catch {
-    result = incomplete(
-      "De actuele PR-context of het reviewrapport kon niet betrouwbaar worden vastgesteld.",
-    );
-  }
-  if (env.REVIEW_AUTHENTICATED === "false")
-    result = incomplete(
-      "OPENAI_API_KEY ontbreekt. Er is geen Codex-review uitgevoerd; de verplichte poort blijft geblokkeerd.",
-    );
-  const runUrl = `https://github.com/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}`;
-  const summary = reviewSummary(result, context, runUrl);
-  appendFileSync(env.GITHUB_STEP_SUMMARY, `${summary}\n`);
-  writeFileSync(
-    join(env.RUNNER_TEMP, "agent-review-codex-verdict.json"),
-    JSON.stringify({ ...result, context }, null, 2),
+export async function enforce(env, api = githubApi(env.GH_TOKEN)) {
+  const execution = await readTrustedExecution(api, env);
+  const ticket = JSON.parse(env.REVIEW_CONTEXT || "null");
+  assertTicket(ticket, execution);
+  if (ticket.repository !== env.GITHUB_REPOSITORY || ticket.pr !== Number(env.REVIEW_PR))
+    throw new Error("De publicatiecontext hoort bij een andere repository of PR.");
+  // Check provenance before any write, including the optional PR explanation.
+  assertCheck(
+    await api(`/repos/${ticket.repository}/check-runs/${ticket.checkId}`),
+    ticket,
+    "in_progress",
   );
+  let context;
+  const evaluate = async () => {
+    if (env.REVIEW_AUTHENTICATED !== "true")
+      return incomplete(
+        "De reviewauthenticatie is niet bevestigd; er is geen geldige onafhankelijke review.",
+      );
+    try {
+      context = await readCurrentContext(api, env.GITHUB_REPOSITORY, Number(env.REVIEW_PR));
+      return validateVerdict({
+        rawReport: env.REVIEW_REPORT,
+        expected: ticket,
+        current: context,
+        runResult: env.REVIEW_RUN_RESULT,
+      });
+    } catch {
+      return incomplete(
+        "De actuele PR-context of het reviewrapport kon niet betrouwbaar worden vastgesteld.",
+      );
+    }
+  };
+  let result = await evaluate();
+  const runUrl = reviewRunUrl(ticket);
+  const saveEvidence = () => {
+    const summary = reviewSummary(result, ticket, runUrl);
+    writeFileSync(
+      join(env.RUNNER_TEMP, "agent-review-codex-verdict.json"),
+      JSON.stringify({ ...result, context: ticket, currentContext: context }, null, 2),
+    );
+    return summary;
+  };
+  let summary = saveEvidence();
   writeFileSync(
     join(env.RUNNER_TEMP, "agent-review-codex-report.json"),
     env.REVIEW_REPORT || "null",
   );
   // A separate job publishes the evidence; the review model never gets this token.
-  await api(`/repos/${env.GITHUB_REPOSITORY}/issues/${Number(env.REVIEW_PR)}/comments`, {
-    body:
-      summary.length <= 60_000
-        ? summary
-        : `${summary.slice(0, 58_000)}\n\nVolledige bevindingen: ${runUrl}`,
+  await api(`/repos/${ticket.repository}/issues/${ticket.pr}/comments`, {
+    method: "POST",
+    body: { body: clipText(summary) },
   });
-  if (!result.passed) process.exitCode = 1;
+  // Comment transport can take time. Revalidate head/base/coverage immediately
+  // before completing the check; a stale explanation never makes the gate green.
+  result = await evaluate();
+  summary = saveEvidence();
+  appendFileSync(env.GITHUB_STEP_SUMMARY, `${summary}\n`);
+  await completeReviewCheck(api, ticket, execution, result, summary);
+  return result;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   try {
     if (process.argv[2] === "prepare") await prepare(process.env);
-    else if (process.argv[2] === "enforce") await enforce(process.env);
-    else throw new Error("Gebruik prepare of enforce.");
+    else if (process.argv[2] === "prompt") writePrompt(process.env);
+    else if (process.argv[2] === "enforce") {
+      if (!(await enforce(process.env)).passed) process.exitCode = 1;
+    } else throw new Error("Gebruik prepare, prompt of enforce.");
   } catch (error) {
     console.error(`agent-review: INCOMPLETE — ${error.message}`);
     process.exitCode = 1;

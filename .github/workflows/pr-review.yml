@@ -1,56 +1,96 @@
 name: agent-review
 
-# Keep the required GitHub Actions check named agent-review. Only a complete,
-# independent Codex verdict for the current head AND base can pass.
-# OPENAI_API_KEY is required; a missing key leaves the gate INCOMPLETE (red).
-# No ChatGPT subscription credentials are exported to this public repository.
-# Bootstrap: dispatch this existing workflow on the reviewed migration branch:
-# gh workflow run pr-review.yml --ref <pr-head-branch> -f pr=<number>
-# Dispatch on main for another PR is rejected: its check covers the wrong SHA.
-
+# The required check is explicitly published on the reviewed PR head. Automatic
+# job conclusions belong to the trusted control SHA and have different names.
+# Bootstrap requires an independently reviewed, locked branch AND an external
+# CODEX_REVIEW_BOOTSTRAP_SHA repository variable. Remove that variable after merge.
 on:
-  pull_request:
+  pull_request_target:
+    branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       pr:
-        description: "PR-nummer (dispatch op de actuele head-branch van deze PR)"
+        description: "PR-nummer (uitvoeren vanaf beschermde main of vastgezette bootstrap)"
         required: true
         type: string
 
 permissions:
   contents: read
 
+env:
+  REVIEW_CONTROL_SHA: ${{ github.workflow_sha }}
+  REVIEW_WORKFLOW_REF: ${{ github.workflow_ref }}
+  REVIEW_BOOTSTRAP_SHA: ${{ vars.CODEX_REVIEW_BOOTSTRAP_SHA }}
+  REVIEW_PR: ${{ github.event.pull_request.number || inputs.pr }}
+
 concurrency:
   group: agent-review-${{ github.event.pull_request.number || inputs.pr }}
   cancel-in-progress: true
 
 jobs:
-  codex-review:
+  prepare-review:
     if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: write
     outputs:
+      head: ${{ steps.prepare.outputs.head }}
       context: ${{ steps.prepare.outputs.context }}
-      report: ${{ steps.codex.outputs.final-message }}
-      authenticated: ${{ steps.auth.outputs.ready }}
     steps:
-      # Normal PR runs use the trusted base runner, schema and prompt.
-      # Explicit dispatch uses its selected SHA, including the first bootstrap.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          ref: ${{ github.workflow_sha }}
           path: review-control
           persist-credentials: false
 
-      - name: Pin PR head, base and complete changed-file manifest
+      - name: Verify trusted controls, freeze PR context and start its check
         id: prepare
         env:
           GH_TOKEN: ${{ github.token }}
-          REVIEW_PR: ${{ github.event.pull_request.number || inputs.pr }}
           REVIEW_EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
-          REVIEW_DISPATCH_SHA: ${{ github.event_name == 'workflow_dispatch' && github.sha || '' }}
         run: node review-control/scripts/agent-review-codex.mjs prepare
+
+  codex-review:
+    needs: prepare-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    outputs:
+      report: ${{ steps.codex.outputs.final-message }}
+      authenticated: ${{ steps.auth.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: review-control
+          persist-credentials: false
+
+      - name: Build the prompt exclusively from trusted controls
+        env:
+          REVIEW_CONTEXT: ${{ needs.prepare-review.outputs.context }}
+        run: node review-control/scripts/agent-review-codex.mjs prompt
+
+      - uses: actions/checkout@v4
+        with:
+          repository: openai/codex-action
+          ref: 86365089eb2b84e0a8fb0717b304f8bdcb13b20e
+          path: review-action
+          persist-credentials: false
+
+      - name: Apply the verified action process-close repair
+        run: node review-control/scripts/patch-codex-action.mjs review-action
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-review.outputs.head }}
+          path: review-source
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Check review authentication
         id: auth
@@ -59,66 +99,67 @@ jobs:
         run: |
           if [ -z "$REVIEW_API_KEY" ]; then
             echo 'ready=false' >> "$GITHUB_OUTPUT"
-            echo '::error::REVIEW INCOMPLETE: OPENAI_API_KEY ontbreekt. De verplichte review blijft geblokkeerd.'
+            echo '::error::REVIEW INCOMPLETE: OPENAI_API_KEY ontbreekt.'
             exit 1
           fi
           echo 'ready=true' >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.prepare.outputs.head }}
-          path: review-source
-          fetch-depth: 0
-          persist-credentials: false
-
-      # Last step: no repository installers, tests, hooks or scripts execute in
-      # this authenticated job. The reviewer has no repository write token.
+      # PR files are review data. Never run their installers, hooks or actions.
+      # The model has no repository write token. An output file alone never passes.
       - name: Independent adversarial Codex review
         id: codex
-        uses: openai/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e # v1, verified 2026-09-11
+        uses: ./review-action
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           working-directory: ${{ github.workspace }}/review-source
           prompt-file: ${{ runner.temp }}/agent-review-codex-prompt.md
           output-schema-file: ${{ github.workspace }}/review-control/.github/codex/agent-review.schema.json
+          output-file: ${{ runner.temp }}/agent-review-codex-final.json
           permission-profile: ":read-only"
           safety-strategy: drop-sudo
-          # Separate from the GPT-6 Astra orchestrator/building routines.
           model: gpt-5.5
           effort: high
           codex-args: '["--ephemeral"]'
 
-  agent-review:
-    name: agent-review
-    needs: codex-review
-    if: ${{ always() && (github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft) }}
+      - name: Preserve raw review output, including unsuccessful runs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-review-raw-${{ env.REVIEW_PR }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/agent-review-codex-final.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  publish-review:
+    needs: [prepare-review, codex-review]
+    if: ${{ always() && needs.prepare-review.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: write
+      checks: write
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          ref: ${{ github.workflow_sha }}
           path: review-control
           persist-credentials: false
 
-      - name: Validate current SHA, full coverage and verdict (fail closed)
+      - name: Revalidate current PR and finish the same check with the genuine verdict
         env:
           GH_TOKEN: ${{ github.token }}
-          REVIEW_PR: ${{ github.event.pull_request.number || inputs.pr }}
-          REVIEW_CONTEXT: ${{ needs.codex-review.outputs.context }}
+          REVIEW_CONTEXT: ${{ needs.prepare-review.outputs.context }}
           REVIEW_REPORT: ${{ needs.codex-review.outputs.report }}
           REVIEW_RUN_RESULT: ${{ needs.codex-review.result }}
           REVIEW_AUTHENTICATED: ${{ needs.codex-review.outputs.authenticated }}
         run: node review-control/scripts/agent-review-codex.mjs enforce
 
-      - name: Preserve review evidence
+      - name: Preserve validated review evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: codex-review-${{ github.event.pull_request.number || inputs.pr }}
+          name: codex-review-${{ env.REVIEW_PR }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/agent-review-codex-*.json
           if-no-files-found: ignore
           retention-days: 30

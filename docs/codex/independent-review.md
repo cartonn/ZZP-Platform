@@ -5,14 +5,22 @@ reviewintegratie. Bij de eerste overnamecontrole ontbrak de sleutel; inmiddels i
 `OPENAI_API_KEY` als repositorysecret bevestigd. De expliciet geautoriseerde
 Restricted-sleutel heeft alleen List models: Read en Responses: Write,
 en vervalt op 11 oktober 2026. De sleutelwaarde hoort nooit in uitvoer of bestanden.
-De actuele blokkade is ontbrekend API-tegoed; betaalgegevens zijn niet ingevuld.
+Historie van de eerste proef: ontbrekend API-tegoed.
 [Proefrun 34575468042](https://github.com/cartonn/ZZP-Platform/actions/runs/34575468042)
 op #1475 head `8be0b39ab270d9e826a90bbf2dce14d90d9a6314` bevestigt de blokkade:
 voorbereiding, sleutelcontrole en Action-start slagen, maar OpenAI meldt geen resterende
 credits. De eindvalidator geeft INCOMPLETE met `REVIEW_AUTHENTICATED=true`; geen
-inhoudelijke review. Een eerste volledig geslaagde API-review blijft onbewezen.
-Herhaal geen quotatests totdat een tegoedwijziging is bevestigd. De eigenaar vult
-betaalmethode/tegoed rechtstreeks bij OpenAI aan; vraag geen betaalgegevens in de taak.
+inhoudelijke review. De eigenaar heeft daarna op 11 september tegoed toegevoegd;
+beschikbaarheid is in de interface geverifieerd.
+[Vervolgrun 34576381918](https://github.com/cartonn/ZZP-Platform/actions/runs/34576381918)
+is gestart op #1475 head `5acadf8790f34570db3575f68eaa067aeaf77f64`. De zichtbare
+modeluitvoer geeft BLOCK omdat handmatig starten vanaf de PR-head ook de reviewcontrole
+uit die head laadt. De Action was na die uitvoer nog niet afgesloten; dit bewijst geen
+geslaagde publicatie van het oordeel. De integratie wordt hiervoor gescheiden in een
+vertrouwde workflow en PR-bronmateriaal. Lees de actuele GitHub-run/check voor de
+herbeoordeling, niet een oude quotafout of dit historische oordeel. Bij een nieuwe
+quotafout geen herhaalde tests zonder bevestigde wijziging. Leg geen saldo, betaal-
+of accountgegevens vast. Geplande uitvoeringen worden apart in het runregister bewezen.
 Behoud de verplichte `agent-review`-poort; de actieve routinecoördinator,
 secretregistratie en groene normale CI zijn geen vervanging voor deze review.
 
@@ -44,7 +52,12 @@ het bouwmodel. De bouwer mag zijn eigen wijziging niet goedkeuren of jouw verdic
      vermeld het ontbrekende bewijs en gerichte vervolgstap. Dit is geen PASS en ook
      geen inhoudelijk oordeel dat de code fout is.
 6. Publiceer bewijs en verdict uitsluitend via de ingerichte vertrouwde reviewintegratie.
-   Verifieer vóór publicatie dat head-SHA nog gelijk is; anders oude review ongeldig
+   Die draait vanuit beschermde `main` (`pull_request_target` of handmatige dispatch);
+   nooit vanuit de te beoordelen PR-branch. De eenmalige bevroren bootstrapcontrole
+   heeft een vooraf onafhankelijk beoordeelde SHA in `CODEX_REVIEW_BOOTSTRAP_SHA`;
+   verwijder die variabele na de migratie. Zie `.github/codex/README.md` voor de
+   volledige uitvoering en vastlegging. Verifieer check-ID, run/attempt en control-SHA.
+   Verifieer vóór publicatie dat head én base nog gelijk zijn; anders oude review ongeldig
    verklaren en de nieuwe diff beoordelen. Geen check aanmaken die een niet-uitgevoerde
    review suggereert. Alleen werkelijk afgeronde PASS mag de poort groen maken.
 7. Voeg geen reparatiecommits aan deze PR toe tijdens de onafhankelijke beoordeling.
