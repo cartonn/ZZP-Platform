@@ -4,6 +4,49 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-11 (basis: `main` @ e62a7114) — afgebakende delta-audit: timingregressie lokaal hersteld, tenant-auditprivacy OPEN
+
+Vergelijking sinds #1468: `920d4b88..e62a7114`. Onafhankelijke audit van de gewijzigde
+registratie-/tokenpoorten, dossierautorisatie, REJECTED-tenant-erasure, factuurinvoer en
+herinneringen; aangrenzende actor/tenant/documentguards gericht gelezen. Geen volledige
+productiegarantie: geen echte gebruikersgegevens, productieprobes of concurrente DB-tests.
+De 17 gerichte bestaande suites (243 tests) slaagden, maar misten de twee onderstaande gevallen.
+
+**MIDDEL / CWE-208 — bureau-timingregressie, lokaal hersteld in #1480; review/merge nog open.**
+`src/app/register/actions.ts` hashte vóór de bestaanslookups al onvoorwaardelijk (voorheen :179),
+maar een latere cleanup voegde bij bestaand e-mailadres/KvK een extra cost-10-compare toe
+(voorheen :193). Hierdoor betaalde bestaand twee bcrypt-bewerkingen en nieuw één, ondanks
+de identieke bevestiging. Synthetische uitvoering van de echte actie met echte bcrypt,
+geïsoleerde imports en zonder database/netwerk: tien metingen per tak na warmup, mediaan
+56,37 ms nieuw tegen 113,09 ms bestaand. Dit heropende het hieronder op 4 september
+opgeloste bureau-orakel; het is geen productie-latentiemeting.
+
+De extra bureau-compare is verwijderd; de gewone registratietak houdt haar noodzakelijke
+equalizer. Regressies controleren de totale bcrypt-kosten, identieke respons en uitsluitend
+nieuwe tenantaanmaak voor nieuw/bestaand e-mailadres/bestaand KvK. Eerst vier gerichte
+asserties rood (twee bewerkingen in plaats van één), daarna alle elf tests groen.
+Volledige checks en onafhankelijke review worden apart vastgelegd in
+[`2026-09-11-bureau-timing.md`](progress/2026-09-11-bureau-timing.md).
+
+**OPEN — MIDDEL: REJECTED-bureau-erasure laat auditkopieën van aanmeldingsgegevens staan.**
+`admin/gebruikers/actions.ts:545–570` wist de Tenant-velden, maar de auditselectie
+(:174–206) selecteert actor/eigen User/e-mail, geen Tenant-id. De admin-geschreven
+`FRANCHISE_REJECTED`-reden (`admin/franchises/actions.ts:150–157`) zonder e-mailadres
+wordt niet geselecteerd. De eigen registratie-audit wordt wel geselecteerd, maar haar
+KvK en persoonsafgeleide slug (`franchise/create-tenant.ts:97–104`) matchen niet op de
+uitsluitend meegegeven e-mail/naam-scrubwaarden. Er is geen aanvullende Tenant-auditredactie.
+
+Bewijs: de echte pure `scrubAuditMetadataPii` behoudt een synthetisch object met
+`slug: "synthetic-owner-bemiddeling"` en `kvkNumber: "12345678"` exact bij scrubwaarden
+`audit@example.test`/`Synthetic Owner`; een fictieve admin/Tenant-afwijsaudit voldoet aan
+geen van de selectievoorwaarden. Dit is bewezen statische dataflow plus helperuitvoering,
+geen volledige database-erasuretest en geen publieke uitlezing. Aparte aanbevolen fix:
+redact de aanmeldings-/redenvelden van uitsluitend het bijbehorende REJECTED-Tenant-id,
+met behoud van het verantwoordingsspoor en andere tenants. Geen erasurewijziging in #1480.
+
+Het bestaande openbare individuele-reviewprivacy-item blijft open voor eigenaar/FG.
+Deze ronde heropent geen juridische keuzes en verklaart dat item niet opgelost.
+
 ## Ronde 2026-09-10 (7e, basis: `main` @ 7126491b) — 3 parallelle adversariële audits + orchestrator-sweep + gerichte auth/session/dep-probes: 0 nieuwe exploiteerbare security-gaten, 0 nieuwe privacy-defecten
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken,

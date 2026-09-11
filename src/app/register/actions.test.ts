@@ -1,11 +1,7 @@
-// Rood→groen test voor de timing-egalisatie op de registratie-actie (CWE-208 / OWASP A07).
-// Zonder de fix keert `register()` bij een bestaand e-mailadres — en `registerBureau()` bij een
-// bestaand e-mailadres of KvK-nummer — meteen terug, terwijl het "nieuw"-pad `bcrypt.hash` draait.
-// Die tijdsdelta is per e-mail meetbaar → enumeratie van bestaande accounts/bureaus. De fix draait
-// op de vroege return dezelfde compare met een constante equalizer-hash uit
-// `src/lib/authorize-credentials.ts`. We toetsen STRUCTUREEL (mocks) i.p.v. wandkloktijd: de
-// verwachting is dat `bcrypt.compare` op beide takken (bestaat wél / bestaat niet) is aangeroepen
-// met `TIMING_EQUALIZER_HASH`. Wandkloktoetsen zijn hier fragiel en dus bewust vermeden.
+// Timing-egalisatie van de registratie-acties (CWE-208 / OWASP A07). Gewone registratie
+// vergelijkt op de bestaand-tak en hasht op de nieuw-tak. Bureau-registratie hasht al
+// onvoorwaardelijk vóór de lookups en mag daarom geen tweede bcrypt-bewerking toevoegen.
+// We toetsen totale bcrypt-kosten en aanmaakgedrag structureel, zonder fragiele tijdgrenzen.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -129,8 +125,8 @@ describe("register — timing-egalisatie op de vroege return (CWE-208)", () => {
   });
 });
 
-describe("registerBureau — timing-egalisatie op de vroege return (CWE-208)", () => {
-  it("roept bcrypt.compare met TIMING_EQUALIZER_HASH aan bij een bestaand e-mailadres", async () => {
+describe("registerBureau — één bcrypt-bewerking op ieder pad (CWE-208)", () => {
+  it("betaalt alleen de onvoorwaardelijke hash bij een bestaand e-mailadres", async () => {
     userFindUnique.mockResolvedValue({ id: "bestaand" });
     tenantFindUnique.mockResolvedValue(null);
 
@@ -139,15 +135,14 @@ describe("registerBureau — timing-egalisatie op de vroege return (CWE-208)", (
     // Gedrag ongewijzigd: generieke bevestiging, geen tenant aangemaakt.
     expect(res?.success).toMatch(/2 werkdagen/);
     expect(createTenantMock).not.toHaveBeenCalled();
-    // Kern van de fix: compare draait op de vroege return (extra egalisatie bovenop de hash).
-    expect(bcryptCompare).toHaveBeenCalledTimes(1);
-    expect(bcryptCompare).toHaveBeenCalledWith(PASSWORD, TIMING_EQUALIZER_HASH);
+    // Een extra compare zou de bestaand-tak opnieuw via de responstijd onderscheiden.
+    expect(bcryptCompare).not.toHaveBeenCalled();
     // Hash draait altijd vóór de existentie-check (vaste kosten voor beide paden).
     expect(bcryptHash).toHaveBeenCalledTimes(1);
     expect(bcryptHash).toHaveBeenCalledWith(PASSWORD, 10);
   });
 
-  it("roept bcrypt.compare met TIMING_EQUALIZER_HASH aan bij een bestaand KvK-nummer", async () => {
+  it("betaalt alleen de onvoorwaardelijke hash bij een bestaand KvK-nummer", async () => {
     userFindUnique.mockResolvedValue(null);
     tenantFindUnique.mockResolvedValue({ id: "bestaande-tenant" });
 
@@ -155,8 +150,7 @@ describe("registerBureau — timing-egalisatie op de vroege return (CWE-208)", (
 
     expect(res?.success).toMatch(/2 werkdagen/);
     expect(createTenantMock).not.toHaveBeenCalled();
-    expect(bcryptCompare).toHaveBeenCalledTimes(1);
-    expect(bcryptCompare).toHaveBeenCalledWith(PASSWORD, TIMING_EQUALIZER_HASH);
+    expect(bcryptCompare).not.toHaveBeenCalled();
     expect(bcryptHash).toHaveBeenCalledTimes(1);
     expect(bcryptHash).toHaveBeenCalledWith(PASSWORD, 10);
   });
