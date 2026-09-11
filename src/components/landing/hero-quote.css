@@ -26,7 +26,7 @@
 }
 .handslag-v5 .hs-hero-word {
   display: inline-block;
-  opacity: 1;
+  opacity: 0;
 }
 .handslag-v5 .hs-hero-word-dark {
   color: #004f73;
@@ -67,6 +67,8 @@
   opacity: 0;
 }
 
-.handslag-v5 .hs-hero-quote:not([data-quote-state]) .hs-hero-hand {
-  visibility: hidden;
+@media (prefers-reduced-motion: reduce) {
+  .handslag-v5 .hs-hero-quote:not([data-quote-state]) .hs-hero-hand {
+    visibility: hidden;
+  }
 }

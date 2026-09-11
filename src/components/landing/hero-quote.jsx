@@ -225,49 +225,54 @@ export default function HeroQuote() {
   }, []);
 
   return (
-    <h1 ref={root} className="hv5-20 hs-hero-quote" aria-label={QUOTE_WORDS.join(" ") + "."}>
-      <span className="hs-hero-words" aria-hidden="true">
-        {QUOTE_WORDS.map((word, i) => (
-          <React.Fragment key={word}>
-            {i > 0 && " "}
-            <span
-              ref={(node) => {
-                words.current[i] = node;
-              }}
-              className={`hs-hero-word${i >= QUOTE_WORDS.length - 2 ? " hs-hero-word-dark" : ""}`}
-            >
-              {word}
-              {i === QUOTE_WORDS.length - 1 && <span className="hs-hero-period">.</span>}
-            </span>
-          </React.Fragment>
-        ))}
-      </span>
-      <svg
-        ref={lower}
-        className="hs-hero-hand hs-hero-hand-lower"
-        viewBox="18.4 19 21 18"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="5.5"
-        strokeLinecap="round"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <path d="M37.4 35h-7a10 10 0 0 1 -10 -10v-4" />
-      </svg>
-      <svg
-        ref={upper}
-        className="hs-hero-hand hs-hero-hand-upper"
-        viewBox="8.6 11 21 18"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="5.5"
-        strokeLinecap="round"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <path d="M10.6 13h7a10 10 0 0 1 10 10v4" />
-      </svg>
-    </h1>
+    <>
+      <noscript>
+        <style>{`.handslag-v5 .hs-hero-word { opacity: 1 !important; } .handslag-v5 .hs-hero-hand { display: none; }`}</style>
+      </noscript>
+      <h1 ref={root} className="hv5-20 hs-hero-quote" aria-label={QUOTE_WORDS.join(" ") + "."}>
+        <span className="hs-hero-words" aria-hidden="true">
+          {QUOTE_WORDS.map((word, i) => (
+            <React.Fragment key={word}>
+              {i > 0 && " "}
+              <span
+                ref={(node) => {
+                  words.current[i] = node;
+                }}
+                className={`hs-hero-word${i >= QUOTE_WORDS.length - 2 ? " hs-hero-word-dark" : ""}`}
+              >
+                {word}
+                {i === QUOTE_WORDS.length - 1 && <span className="hs-hero-period">.</span>}
+              </span>
+            </React.Fragment>
+          ))}
+        </span>
+        <svg
+          ref={lower}
+          className="hs-hero-hand hs-hero-hand-lower"
+          viewBox="18.4 19 21 18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="5.5"
+          strokeLinecap="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M37.4 35h-7a10 10 0 0 1 -10 -10v-4" />
+        </svg>
+        <svg
+          ref={upper}
+          className="hs-hero-hand hs-hero-hand-upper"
+          viewBox="8.6 11 21 18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="5.5"
+          strokeLinecap="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M10.6 13h7a10 10 0 0 1 10 10v4" />
+        </svg>
+      </h1>
+    </>
   );
 }

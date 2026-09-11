@@ -76,3 +76,30 @@ test("the quote finishes between both hands and survives a mobile resize", async
     )
     .toBe(true);
 });
+
+test("slow JavaScript starts with only the joined hands, without flashing the phrase", async ({
+  page,
+}) => {
+  await page.route("**/_next/static/**/*.js", (route) => route.abort());
+  await page.goto("/");
+  await expect(page.locator(".hs-hero-hand-upper")).toBeVisible();
+  await expect(page.locator(".hs-hero-hand-lower")).toBeVisible();
+  for (const word of await page.locator(".hs-hero-word").all())
+    await expect(word).toHaveCSS("opacity", "0");
+});
+
+test("the heading stays readable when JavaScript is disabled", async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const page = await context.newPage();
+    await page.goto(baseURL!);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Een goede opdracht begint bij handslag." }),
+    ).toBeVisible();
+    for (const word of await page.locator(".hs-hero-word").all())
+      await expect(word).toHaveCSS("opacity", "1");
+    await expect(page.locator(".hs-hero-hand-upper")).toBeHidden();
+  } finally {
+    await context.close();
+  }
+});
