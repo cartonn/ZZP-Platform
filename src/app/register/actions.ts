@@ -184,15 +184,9 @@ async function registerBureau(formData: FormData): Promise<RegisterState> {
     prisma.user.findUnique({ where: { email }, select: { id: true } }),
     prisma.tenant.findUnique({ where: { kvkNumber }, select: { id: true } }),
   ]);
-  if (existingUser || existingTenant) {
-    // Timing-egalisatie (CWE-208): zonder deze compare zou de vroege return meetbaar sneller
-    // zijn dan het "nieuwe tenant"-pad (dat `bcrypt.hash(..., 10)` draait) en zo verklappen
-    // dat het e-mailadres/KvK-nummer al bekend is — enumeratie van bureaus in het
-    // trust-dossier. Zelfde patroon als `src/lib/authorize-credentials.ts`. Het resultaat
-    // wordt bewust genegeerd; enkel de rekentijd telt.
-    await bcrypt.compare(password, TIMING_EQUALIZER_HASH);
-    return { success: BUREAU_SUBMITTED };
-  }
+  // De hash hierboven betaalt de bcrypt-kosten al op beide paden. Een extra compare zou
+  // juist de bestaand-tak duurder maken en het timing-orakel opnieuw openen.
+  if (existingUser || existingTenant) return { success: BUREAU_SUBMITTED };
 
   const meta = await requestMeta();
   try {

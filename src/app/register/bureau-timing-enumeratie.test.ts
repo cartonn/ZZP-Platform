@@ -4,6 +4,7 @@
 // de responstijd of het account/bureau al bestaat. Deze test borgt het invariant server-side:
 //  - bcrypt.hash wordt ONVOORWAARDELIJK aangeroepen, óók wanneer het account/bureau al bestaat;
 //  - en die hash gebeurt VÓÓR de existentie-lookups, zodat beide paden dezelfde vaste kosten dragen.
+//  - het totale aantal bcrypt-bewerkingen is één; een extra compare op de bestaand-tak lekt opnieuw.
 // Vóór de fix (hash pas na de existentie-check, alleen op het nieuw-pad) is de eerste assertie rood.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -78,6 +79,21 @@ beforeEach(() => {
 });
 
 describe("bureau-aanmelding — geen timing-enumeratie", () => {
+  it.each(["nieuw", "bestaand e-mailadres", "bestaand KvK-nummer"])(
+    "%s betaalt exact één bcrypt-bewerking en krijgt dezelfde bevestiging",
+    async (kind) => {
+      if (kind === "bestaand e-mailadres") userFindUnique.mockResolvedValue({ id: "bestaand" });
+      if (kind === "bestaand KvK-nummer") tenantFindUnique.mockResolvedValue({ id: "bestaand" });
+      const res = await register(undefined, form());
+      expect(res).toEqual({
+        success:
+          "Aanmelding ontvangen. We beoordelen je bureau en nemen binnen 2 werkdagen contact met je op.",
+      });
+      expect(bcryptHash.mock.calls.length + bcryptCompare.mock.calls.length).toBe(1);
+      expect(createTenantMock).toHaveBeenCalledTimes(kind === "nieuw" ? 1 : 0);
+    },
+  );
+
   it("hasht het wachtwoord óók wanneer het e-mailadres al bestaat (gelijke vaste kosten)", async () => {
     userFindUnique.mockResolvedValue({ id: "bestaand" });
     const res = await register(undefined, form());
