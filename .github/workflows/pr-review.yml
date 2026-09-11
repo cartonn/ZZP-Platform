@@ -1,165 +1,136 @@
-name: agent-review
+name: offline-diagnostic
 
-# The required check is explicitly published on the reviewed PR head. Automatic
-# job conclusions belong to the trusted control SHA and have different names.
-# Bootstrap requires an independently reviewed, locked branch AND an external
-# CODEX_REVIEW_BOOTSTRAP_SHA repository variable. Remove that variable after merge.
+# Diagnostic branch only. This never reviews a PR or publishes a required check.
+# --help exits during native argument parsing; the dummy key cannot fund a call.
+# A successful short probe does not prove long-running review/runner stability.
 on:
-  pull_request_target:
-    branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
-    inputs:
-      pr:
-        description: "PR-nummer (uitvoeren vanaf beschermde main of vastgezette bootstrap)"
-        required: true
-        type: string
 
 permissions:
   contents: read
 
-env:
-  REVIEW_CONTROL_SHA: ${{ github.workflow_sha }}
-  REVIEW_WORKFLOW_REF: ${{ github.workflow_ref }}
-  REVIEW_BOOTSTRAP_SHA: ${{ vars.CODEX_REVIEW_BOOTSTRAP_SHA }}
-  REVIEW_PR: ${{ github.event.pull_request.number || inputs.pr }}
-
-concurrency:
-  group: agent-review-${{ github.event.pull_request.number || inputs.pr }}
-  cancel-in-progress: true
-
 jobs:
-  prepare-review:
-    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: read
-      checks: write
-    outputs:
-      head: ${{ steps.prepare.outputs.head }}
-      context: ${{ steps.prepare.outputs.context }}
+  offline-diagnostic:
+    name: offline-diagnostic (${{ matrix.safety }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        safety: [drop-sudo, unprivileged-user]
+    env:
+      DIAGNOSTIC_SAFETY: ${{ matrix.safety }}
+      DIAGNOSTIC_USER: ${{ matrix.safety == 'unprivileged-user' && 'codex-diagnostic' || 'runner' }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout the diagnostic controls
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.workflow_sha }}
-          path: review-control
+          path: diagnostic-control
           persist-credentials: false
 
-      - name: Verify trusted controls, freeze PR context and start its check
-        id: prepare
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REVIEW_EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: node review-control/scripts/agent-review-codex.mjs prepare
-
-  codex-review:
-    needs: prepare-review
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    permissions:
-      contents: read
-    outputs:
-      report: ${{ steps.codex.outputs.final-message }}
-      authenticated: ${{ steps.auth.outputs.ready }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.workflow_sha }}
-          path: review-control
-          persist-credentials: false
-
-      - name: Build the prompt exclusively from trusted controls
-        env:
-          REVIEW_CONTEXT: ${{ needs.prepare-review.outputs.context }}
-        run: node review-control/scripts/agent-review-codex.mjs prompt
-
-      - uses: actions/checkout@v4
+      - name: Checkout the exact official action
+        uses: actions/checkout@v4
         with:
           repository: openai/codex-action
           ref: 86365089eb2b84e0a8fb0717b304f8bdcb13b20e
           path: review-action
           persist-credentials: false
 
-      - name: Apply the verified action process-close repair
-        run: node review-control/scripts/patch-codex-action.mjs review-action
+      - name: Apply the already controlled lifecycle patch
+        run: node diagnostic-control/scripts/patch-codex-action.mjs review-action
 
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.prepare-review.outputs.head }}
-          path: review-source
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Check review authentication
-        id: auth
-        env:
-          REVIEW_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Prepare the account, harmless output sentinel and baseline
+        shell: bash
         run: |
-          if [ -z "$REVIEW_API_KEY" ]; then
-            echo 'ready=false' >> "$GITHUB_OUTPUT"
-            echo '::error::REVIEW INCOMPLETE: OPENAI_API_KEY ontbreekt.'
-            exit 1
+          set -euo pipefail
+          DIAGNOSTIC_WORK="$RUNNER_TEMP/offline-codex-work"
+          DIAGNOSTIC_OUTPUT="$RUNNER_TEMP/offline-codex-output/result.txt"
+          if [ "$DIAGNOSTIC_SAFETY" = unprivileged-user ]; then
+            sudo useradd --system --create-home --user-group --shell /usr/sbin/nologin codex-diagnostic
+            expected_group="$(id -g codex-diagnostic)"
+            test "$(id -G codex-diagnostic)" = "$expected_group"
+            if sudo -u codex-diagnostic -- sudo -n true 2>/dev/null; then
+              echo '::error::The diagnostic account unexpectedly has sudo access.'
+              exit 1
+            fi
+            # Traverse only: no runner group membership or broad home/source access.
+            sudo setfacl -m u:codex-diagnostic:--x /home/runner /home/runner/work "$RUNNER_WORKSPACE" "$RUNNER_TEMP"
+            sudo setfacl -m u:runner:--x /home/codex-diagnostic
+            sudo -u codex-diagnostic -- node --version
           fi
-          echo 'ready=true' >> "$GITHUB_OUTPUT"
+          diagnostic_group="$(id -gn "$DIAGNOSTIC_USER")"
+          sudo install -d -m 0755 -o "$DIAGNOSTIC_USER" -g "$diagnostic_group" "$DIAGNOSTIC_WORK" "$(dirname "$DIAGNOSTIC_OUTPUT")"
+          # Help creates no model result. This explicit non-review marker exercises
+          # the official final read/cat/setOutput path after native exit code zero.
+          printf '%s' OFFLINE_HELP_ONLY_NO_REVIEW > "$RUNNER_TEMP/offline-sentinel.txt"
+          sudo install -m 0644 -o "$DIAGNOSTIC_USER" -g "$diagnostic_group" "$RUNNER_TEMP/offline-sentinel.txt" "$DIAGNOSTIC_OUTPUT"
+          {
+            date --utc --iso-8601=seconds
+            printf 'phase=before safety=%s\n' "$DIAGNOSTIC_SAFETY"
+            id
+            id "$DIAGNOSTIC_USER"
+            stat -Lc '%n mode=%a owner=%U:%G' /run/dbus/system_bus_socket /run/systemd/journal/stdout /run/docker.sock || true
+            timeout 5 getent hosts api.github.com || true
+          } | tee "$RUNNER_TEMP/offline-before.txt"
 
-      # PR files are review data. Never run their installers, hooks or actions.
-      # The model has no repository write token. An output file alone never passes.
-      - name: Independent adversarial Codex review
-        id: codex
+      - name: Native help through the real official privilege path
+        id: native_help
+        continue-on-error: true
         uses: ./review-action
         with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          working-directory: ${{ github.workspace }}/review-source
-          prompt-file: ${{ runner.temp }}/agent-review-codex-prompt.md
-          output-schema-file: ${{ github.workspace }}/review-control/.github/codex/agent-review.schema.json
-          output-file: ${{ runner.temp }}/agent-review-codex-final.json
+          openai-api-key: offline-diagnostic-dummy-not-a-real-key
+          codex-version: "0.154.0"
+          working-directory: ${{ runner.temp }}/offline-codex-work
+          output-file: ${{ runner.temp }}/offline-codex-output/result.txt
           permission-profile: ":read-only"
-          safety-strategy: drop-sudo
-          model: gpt-5.5
-          effort: high
-          codex-args: '["--ephemeral"]'
+          safety-strategy: ${{ matrix.safety }}
+          codex-user: ${{ matrix.safety == 'unprivileged-user' && 'codex-diagnostic' || '' }}
+          # Leave codex-home unset: sudo -u does not preserve an arbitrary CODEX_HOME.
+          prompt: "Offline help probe only. No model request, repository review or tools."
+          codex-args: '["--help"]'
 
-      - name: Preserve raw review output, including unsuccessful runs
+      - name: Record native exit, runner transport and DNS after the action
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: codex-review-raw-${{ env.REVIEW_PR }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/agent-review-codex-final.json
-          if-no-files-found: ignore
-          retention-days: 30
-
-  publish-review:
-    needs: [prepare-review, codex-review]
-    if: ${{ always() && needs.prepare-review.result == 'success' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: write
-      checks: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.workflow_sha }}
-          path: review-control
-          persist-credentials: false
-
-      - name: Revalidate current PR and finish the same check with the genuine verdict
+        shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
-          REVIEW_CONTEXT: ${{ needs.prepare-review.outputs.context }}
-          REVIEW_REPORT: ${{ needs.codex-review.outputs.report }}
-          REVIEW_RUN_RESULT: ${{ needs.codex-review.result }}
-          REVIEW_AUTHENTICATED: ${{ needs.codex-review.outputs.authenticated }}
-        run: node review-control/scripts/agent-review-codex.mjs enforce
+          NATIVE_HELP_OUTCOME: ${{ steps.native_help.outcome }}
+          NATIVE_HELP_RESULT: ${{ steps.native_help.outputs.final-message }}
+          DIAGNOSTIC_OUTPUT: ${{ runner.temp }}/offline-codex-output/result.txt
+        run: |
+          set +e
+          {
+            date --utc --iso-8601=seconds
+            printf 'phase=after safety=%s action_outcome=%s\n' "$DIAGNOSTIC_SAFETY" "$NATIVE_HELP_OUTCOME"
+            printf 'POST_ACTION_REACHED\n'
+            node --version
+            codex --version
+            id
+            id "$DIAGNOSTIC_USER"
+            stat -Lc '%n mode=%a owner=%U:%G' /run/dbus/system_bus_socket /run/systemd/journal/stdout /run/docker.sock
+            ps -eo pid,ppid,uid,gid,stat,wchan:24,comm | rg 'PID|codex|node|sudo|Runner|systemd-resolv|dbus|MainThread'
+            timeout 5 getent hosts api.github.com
+            printf 'DNS_EXIT=%s\n' "$?"
+            curl --head --silent --show-error --connect-timeout 3 --max-time 8 https://api.github.com
+            printf 'HTTPS_EXIT=%s\n' "$?"
+            cmp "$RUNNER_TEMP/offline-sentinel.txt" "$DIAGNOSTIC_OUTPUT"
+            printf 'SENTINEL_UNCHANGED_EXIT=%s\n' "$?"
+          } 2>&1 | tee "$RUNNER_TEMP/offline-after.txt"
+          if [ "$NATIVE_HELP_OUTCOME" != success ] || [ "$NATIVE_HELP_RESULT" != OFFLINE_HELP_ONLY_NO_REVIEW ]; then
+            echo '::error::Offline native-help execution did not complete normally. This is no review result.'
+            exit 1
+          fi
+          printf 'OFFLINE_HELP_EXIT_AND_FINALIZATION_OBSERVED\n'
 
-      - name: Preserve validated review evidence
+      - name: Preserve diagnostic evidence only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: codex-review-${{ env.REVIEW_PR }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/agent-review-codex-*.json
-          if-no-files-found: ignore
-          retention-days: 30
+          name: offline-diagnostic-${{ matrix.safety }}-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/offline-before.txt
+            ${{ runner.temp }}/offline-after.txt
+            ${{ runner.temp }}/offline-sentinel.txt
+            ${{ runner.temp }}/offline-codex-output/result.txt
+          if-no-files-found: warn
+          retention-days: 7
