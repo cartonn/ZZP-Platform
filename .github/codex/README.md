@@ -83,7 +83,7 @@ The model job has no repository write token. No PR installers, hooks, scripts or
 local actions execute in the privileged jobs; the PR checkout is review material.
 
 The first migration cannot use controls from `main` until they are merged. Its
-one-time execution basis is a separate `codex/review-bootstrap-20260911` branch:
+one-time execution basis is a separate `codex/review-bootstrap-20260911-2` branch:
 
 1. Independently inspect the complete workflow, validator, schema and prompt.
    Record their full control commit outside the PR before execution.

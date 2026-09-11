@@ -8,7 +8,7 @@ const schema = JSON.parse(
 );
 const shaPattern = /^[a-f0-9]{40}$/;
 const repositoryPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const bootstrapRef = "refs/heads/codex/review-bootstrap-20260911";
+const bootstrapRef = "refs/heads/codex/review-bootstrap-20260911-2";
 const actionsAppId = 15368;
 const incomplete = (reason) => ({
   verdict: "INCOMPLETE",
@@ -288,13 +288,16 @@ function assertTicket(ticket, execution) {
 }
 
 function assertCheck(check, ticket, status, conclusion = null) {
+  // GitHub Actions may replace the requested run URL with the canonical URL of
+  // this check. Accept only these two exact URLs, never a repository-wide prefix.
+  const checkUrl = `https://github.com/${ticket.repository}/runs/${ticket.checkId}`;
   if (
     check?.id !== ticket.checkId ||
     check.name !== "agent-review" ||
     check.app?.id !== actionsAppId ||
     check.head_sha !== ticket.headSha ||
     check.external_id !== reviewExternalId(ticket) ||
-    check.details_url !== reviewRunUrl(ticket) ||
+    (check.details_url !== reviewRunUrl(ticket) && check.details_url !== checkUrl) ||
     check.status !== status ||
     check.conclusion !== conclusion
   )

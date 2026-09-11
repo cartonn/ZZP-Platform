@@ -168,8 +168,8 @@ test("only a protected default workflow or externally pinned bootstrap can execu
     assert.throws(() => assertTrustedExecution({ ...trustedEnv, ...extra }));
   const bootstrap = {
     ...trustedEnv,
-    GITHUB_REF: "refs/heads/codex/review-bootstrap-20260911",
-    REVIEW_WORKFLOW_REF: `${context.repository}/.github/workflows/pr-review.yml@refs/heads/codex/review-bootstrap-20260911`,
+    GITHUB_REF: "refs/heads/codex/review-bootstrap-20260911-2",
+    REVIEW_WORKFLOW_REF: `${context.repository}/.github/workflows/pr-review.yml@refs/heads/codex/review-bootstrap-20260911-2`,
     REVIEW_BOOTSTRAP_SHA: controlSha,
   };
   assert.equal(assertTrustedExecution(bootstrap).controlSha, controlSha);
@@ -179,6 +179,13 @@ test("only a protected default workflow or externally pinned bootstrap can execu
   );
   assert.throws(() =>
     assertTrustedExecution({ ...bootstrap, GITHUB_EVENT_NAME: "pull_request_target" }),
+  );
+  assert.throws(() =>
+    assertTrustedExecution({
+      ...bootstrap,
+      GITHUB_REF: "refs/heads/codex/review-bootstrap-20260911",
+      REVIEW_WORKFLOW_REF: `${context.repository}/.github/workflows/pr-review.yml@refs/heads/codex/review-bootstrap-20260911`,
+    }),
   );
 });
 
@@ -237,6 +244,11 @@ test("publication updates and reads back the same check, never another run or he
     { app: { id: 1 } },
     { external_id: "another-run" },
     { details_url: "https://example.com" },
+    { details_url: `https://github.com/${context.repository}/runs/${ticket.checkId + 1}` },
+    { details_url: `https://github.com/other/repo/runs/${ticket.checkId}` },
+    { details_url: `https://github.com/${context.repository}/runs/${ticket.checkId}?extra=1` },
+    { details_url: `https://github.com/${context.repository}/runs/${ticket.checkId}/` },
+    { details_url: `https://github.com.evil.test/${context.repository}/runs/${ticket.checkId}` },
     { name: "other" },
     { status: "completed" },
   ]) {
@@ -265,6 +277,21 @@ test("publication updates and reads back the same check, never another run or he
     await assert.rejects(
       completeReviewCheck(api, { ...ticket, ...extra }, execution, check(), "summary"),
     );
+});
+
+test("GitHub Actions canonical check URL is accepted for create, update and read-back", async () => {
+  // GitHub rewrote details_url to /runs/<checkId> in check 103205123336.
+  const checkUrl = `https://github.com/${context.repository}/runs/${ticket.checkId}`;
+  let value = { ...remoteCheck, details_url: checkUrl, html_url: checkUrl };
+  const api = async (_route, request) => {
+    if (request?.method === "PATCH") value = { ...value, ...request.body };
+    return value;
+  };
+  assert.deepEqual(await createReviewCheck(api, context, execution), ticket);
+  await completeReviewCheck(api, ticket, execution, check(), "summary");
+  assert.equal(value.conclusion, "success");
+  assert.equal(value.details_url, checkUrl);
+  assert.equal(value.external_id, externalId);
 });
 
 test("BLOCK and INCOMPLETE publish failure; a missing final read-back never counts as success", async () => {
