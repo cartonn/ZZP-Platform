@@ -1,0 +1,184 @@
+/* Shared tactile feedback. Independent translate/scale preserve scroll transforms. */
+.handslag-v5 [data-interaction] {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --control-edge: #c7d8e2;
+  --control-hover: #eaf4fa;
+  --control-press: #d0e7f2;
+  --control-ink: #004f73;
+  --control-light: rgba(255, 255, 255, 0.65);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    transform 240ms var(--ease-out),
+    translate 240ms var(--ease-out),
+    scale 240ms var(--ease-out),
+    box-shadow 240ms var(--ease-out),
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    opacity 220ms ease !important;
+}
+.handslag-v5 :is(.hv5-13, .hv5-34, [aria-pressed="true"]) {
+  --control-edge: #004f73;
+  --control-hover: #00669a;
+  --control-press: #005782;
+  --control-ink: #fff;
+  --control-light: rgba(255, 255, 255, 0.18);
+}
+.handslag-v5 .hv5-334 {
+  --control-edge: #a64b2e;
+  --control-hover: #e08363;
+  --control-press: #c25f3f;
+  --control-ink: #40170b;
+  --control-light: rgba(255, 255, 255, 0.26);
+}
+.handslag-v5 [data-interaction="surface"] {
+  position: relative;
+  isolation: isolate;
+  min-height: 44px;
+}
+/* Keep the return control anchored to the viewport. */
+.handslag-v5 .hv5-337 {
+  position: fixed;
+}
+.handslag-v5 [data-interaction="surface"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(135deg, var(--control-light), transparent 55%);
+  box-shadow: inset 0 1px 0 var(--control-light);
+  opacity: 0;
+  transition: opacity 240ms var(--ease-out);
+}
+.handslag-v5 [data-interaction] svg {
+  transition:
+    translate 240ms var(--ease-out),
+    rotate 240ms var(--ease-out),
+    scale 240ms var(--ease-out);
+}
+.handslag-v5 [data-interaction="link"] {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.handslag-v5 [data-interaction="link"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 2px;
+  height: 2px;
+  background: #d97757;
+  border-radius: 2px;
+  scale: 0 1;
+  transform-origin: left;
+  transition: scale 240ms var(--ease-out);
+}
+.handslag-v5 [data-interaction="faq"] {
+  border-radius: 12px;
+  white-space: normal;
+  height: auto;
+}
+.handslag-v5 [data-interaction="faq"] > span {
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    scale 240ms var(--ease-out);
+}
+/* Hover only when the primary pointer can actually hover: no sticky iPhone state. */
+@media (hover: hover) and (pointer: fine) {
+  .handslag-v5 [data-interaction="surface"]:not(:disabled):hover {
+    background-color: var(--control-hover) !important;
+    color: var(--control-ink) !important;
+    border-color: var(--control-edge) !important;
+    box-shadow:
+      0 5px 0 var(--control-edge),
+      0 12px 26px rgba(0, 58, 84, 0.18) !important;
+    translate: 0 -2px;
+  }
+  .handslag-v5 [data-interaction="surface"]:hover::after {
+    opacity: 0.7;
+  }
+  .handslag-v5 :is(.hv5-34, .hv5-38, .hv5-42):hover svg {
+    translate: 4px 0;
+  }
+  .handslag-v5 .hv5-13:hover svg {
+    translate: 2px -2px;
+  }
+  .handslag-v5 .hv5-334:hover svg {
+    rotate: -7deg;
+    scale: 1.04;
+  }
+  .handslag-v5 .hv5-337:hover svg {
+    translate: 0 -3px;
+  }
+  .handslag-v5 [data-interaction="link"]:hover {
+    color: #0076a8;
+  }
+  .handslag-v5 [data-interaction="link"]:hover::after {
+    scale: 1;
+  }
+  .handslag-v5 [data-interaction="faq"]:hover {
+    color: #0076a8 !important;
+    background-color: #f0f7fb !important;
+    box-shadow:
+      -10px 0 0 #f0f7fb,
+      10px 0 0 #f0f7fb;
+  }
+  .handslag-v5 [data-interaction="faq"]:hover > span {
+    background-color: #0076a8;
+    color: #fff;
+    scale: 1.06;
+  }
+}
+/* A fast press and a softer release, shared by mouse, keyboard and touch. */
+.handslag-v5 [data-interaction]:not(:disabled):active {
+  transition-duration: 70ms !important;
+  translate: 0 2px;
+  scale: 0.985;
+}
+.handslag-v5 [data-interaction="surface"]:not(:disabled):active {
+  background-color: var(--control-press) !important;
+  color: var(--control-ink) !important;
+  box-shadow:
+    0 1px 0 var(--control-edge),
+    0 3px 8px rgba(0, 58, 84, 0.14) !important;
+}
+.handslag-v5 [data-interaction="surface"]:active::after {
+  opacity: 0;
+}
+.handslag-v5 [data-interaction="faq"]:active {
+  background-color: #eaf4fa !important;
+}
+.handslag-v5 [data-interaction="link"]:active::after {
+  scale: 1;
+}
+.handslag-v5 [data-interaction]:focus-visible {
+  outline: 3px solid #0076a8;
+  outline-offset: 5px;
+}
+.handslag-v5 .hv5-334:focus-visible {
+  outline-color: #fff;
+}
+.handslag-v5 [data-interaction]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  .handslag-v5 [data-interaction],
+  .handslag-v5 [data-interaction]::after,
+  .handslag-v5 [data-interaction] svg,
+  .handslag-v5 [data-interaction] > span {
+    transition: none !important;
+    translate: none !important;
+    scale: none !important;
+    rotate: none !important;
+  }
+  .handslag-v5 [data-interaction="link"]::after {
+    opacity: 0;
+  }
+  .handslag-v5 [data-interaction="link"]:is(:hover, :active, :focus-visible)::after {
+    opacity: 1;
+  }
+}
