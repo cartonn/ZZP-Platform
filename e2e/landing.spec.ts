@@ -38,15 +38,15 @@ test("mobile V5 keeps every audience and FAQ usable without horizontal overflow"
     }));
     expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
   }
-  const question = page.getByRole("button", { name: "Hoe verlopen de betalingen?" });
+  const question = page.getByText("Hoe verlopen de betalingen?", { exact: true });
   await question.focus();
   await page.keyboard.press("Enter");
-  await expect(question).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator("details").filter({ has: question })).toHaveAttribute("open", "");
   await expect(
     page.getByText(/De opdrachtgever betaalt de zorgprofessional rechtstreeks/),
   ).toBeVisible();
   await page.keyboard.press("Enter");
-  await expect(question).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("details").filter({ has: question })).not.toHaveAttribute("open", "");
   await expect(page.getByRole("link", { name: "Privacy", exact: true })).toHaveAttribute(
     "href",
     "/privacy",
@@ -99,6 +99,16 @@ test("the heading stays readable when JavaScript is disabled", async ({ browser,
     for (const word of await page.locator(".hs-hero-word").all())
       await expect(word).toHaveCSS("opacity", "1");
     await expect(page.locator(".hs-hero-hand-upper")).toBeHidden();
+    const paymentQuestion = page.getByText("Hoe verlopen de betalingen?", { exact: true });
+    await paymentQuestion.focus();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByText(/De opdrachtgever betaalt de zorgprofessional rechtstreeks/),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/Handslag biedt geen vooruitbetaling of betalingsgarantie/),
+    ).toBeVisible();
+    await expect(page.locator(".hs-faq-item")).toHaveCount(5);
   } finally {
     await context.close();
   }

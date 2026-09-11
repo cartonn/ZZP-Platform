@@ -3,6 +3,7 @@ import React from "react";
 import { clamp, deckPosition, cardPose, storyMode } from "./handslag-motion.mjs";
 import Image from "next/image";
 import HeroQuote from "./hero-quote";
+import LandingFaq from "./landing-faq";
 
 // Fixed cap-height size; stroke matches the 0 stem in Open Sans 700 (307.5/2048 em).
 // Tight bounds keep the visible bottom on the text baseline.
@@ -47,7 +48,7 @@ function cssStyle(value) {
 }
 
 export default class HandslagV5 extends React.Component {
-  state = { audience: "professional", open: null };
+  state = { audience: "professional" };
   _navs = [];
   _sticks = [];
   _stickState = [];
@@ -76,10 +77,6 @@ export default class HandslagV5 extends React.Component {
         this.schedule();
       });
     };
-  }
-
-  toggle(i) {
-    return () => this.setState((s) => ({ open: s.open === i ? null : i }));
   }
 
   schedule = () => {
@@ -333,7 +330,6 @@ export default class HandslagV5 extends React.Component {
 
   renderVals() {
     const a = this.state.audience;
-    const o = this.state.open;
     const accent = this.props.accentBadges ?? true;
     const vals = {
       showPhoto: this.props.showPhoto ?? true,
@@ -389,11 +385,6 @@ export default class HandslagV5 extends React.Component {
     vals.tabPro = this.tab(vals.isPro);
     vals.tabOrg = this.tab(vals.isOrg);
     vals.tabInt = this.tab(vals.isInt);
-    for (let i = 0; i < 5; i++) {
-      vals["q" + i] = o === i;
-      vals["nq" + i] = o !== i;
-      vals["tq" + i] = this.toggle(i);
-    }
     return vals;
   }
 
@@ -506,7 +497,7 @@ export default class HandslagV5 extends React.Component {
                           sizes="(max-width: 760px) 100vw, 48vw"
                           className="hv5-29"
                           ref={v.photoRef}
-                          src="https://handslag-v5-preview-production.up.railway.app/assets/hero-samenwerken.jpg"
+                          src="https://images.unsplash.com/photo-1765896387387-0538bc9f997e?fm=jpg&fit=crop&q=80&w=1800"
                           alt="Twee mensen overleggen samen op een bank"
                         />
                       </div>
@@ -1203,303 +1194,7 @@ export default class HandslagV5 extends React.Component {
                   </p>
                 </div>
 
-                <div className="hv5-301" data-reveal="1">
-                  <div className="hv5-302">
-                    <h3 className="hv5-303">
-                      <button
-                        className="hv5-304"
-                        data-interaction="faq"
-                        type="button"
-                        onClick={v.tq0}
-                        aria-expanded={v.q0}
-                      >
-                        {"Wat is Handslag?"}
-                        <span className="hv5-305">
-                          {v.q0 && (
-                            <>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.6"
-                                strokeLinecap="round"
-                                aria-hidden="true"
-                              >
-                                <path d="M5 12h14"></path>
-                              </svg>
-                            </>
-                          )}
-                          {v.nq0 && (
-                            <>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.6"
-                                strokeLinecap="round"
-                                aria-hidden="true"
-                              >
-                                <path d="M12 5v14"></path>
-                                <path d="M5 12h14"></path>
-                              </svg>
-                            </>
-                          )}
-                        </span>
-                      </button>
-                    </h3>
-                    {v.q0 && (
-                      <>
-                        <p className="hv5-306">
-                          {
-                            "Handslag brengt bemiddelaars, opdrachtgevers en zzp’ers bij elkaar. Zzp’ers kunnen opdrachten vinden, accepteren, uitvoeren en afronden. Het platform helpt om opdrachten, afspraken, uren en facturen op één plek bij te houden."
-                          }
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  <div className="hv5-307">
-                    <h3 className="hv5-308">
-                      <button
-                        className="hv5-309"
-                        data-interaction="faq"
-                        type="button"
-                        onClick={v.tq1}
-                        aria-expanded={v.q1}
-                      >
-                        {"Hoe verlopen de betalingen?"}
-                        <span className="hv5-310">
-                          {v.q1 && (
-                            <>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.6"
-                                strokeLinecap="round"
-                                aria-hidden="true"
-                              >
-                                <path d="M5 12h14"></path>
-                              </svg>
-                            </>
-                          )}
-                          {v.nq1 && (
-                            <>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.6"
-                                strokeLinecap="round"
-                                aria-hidden="true"
-                              >
-                                <path d="M12 5v14"></path>
-                                <path d="M5 12h14"></path>
-                              </svg>
-                            </>
-                          )}
-                        </span>
-                      </button>
-                    </h3>
-                    {v.q1 && (
-                      <>
-                        <p className="hv5-311">
-                          {
-                            "De opdrachtgever betaalt de zorgprofessional rechtstreeks, buiten Handslag om. In het platform houd je facturen en hun status bij. Handslag biedt geen vooruitbetaling of betalingsgarantie. Leg het tarief en de betaaltermijn vooraf samen vast."
-                          }
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  <div className="hv5-312">
-                    <h3 className="hv5-313">
-                      <button
-                        className="hv5-314"
-                        data-interaction="faq"
-                        type="button"
-                        onClick={v.tq2}
-                        aria-expanded={v.q2}
-                      >
-                        {"Wat is de rol van een bemiddelaar?"}
-                        <span className="hv5-315">
-                          {v.q2 && (
-                            <>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.6"
-                                strokeLinecap="round"
-                                aria-hidden="true"
-                              >
-                                <path d="M5 12h14"></path>
-                              </svg>
-                            </>
-                          )}
-                          {v.nq2 && (
-                            <>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.6"
-                                strokeLinecap="round"
-                                aria-hidden="true"
-                              >
-                                <path d="M12 5v14"></path>
-                                <path d="M5 12h14"></path>
-                              </svg>
-                            </>
-                          )}
-                        </span>
-                      </button>
-                    </h3>
-                    {v.q2 && (
-                      <>
-                        <p className="hv5-316">
-                          {
-                            "Een bemiddelaar brengt opdrachten en zzp’ers samen en begeleidt de samenwerking met de opdrachtgever. Handslag biedt de gezamenlijke plek om opdrachten en de afhandeling ervan te organiseren. De afspraken tussen de betrokken partijen bepalen wie welke verantwoordelijkheid heeft."
-                          }
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  <div className="hv5-317">
-                    <h3 className="hv5-318">
-                      <button
-                        className="hv5-319"
-                        data-interaction="faq"
-                        type="button"
-                        onClick={v.tq3}
-                        aria-expanded={v.q3}
-                      >
-                        {"Bepaalt Handslag mijn tarief?"}
-                        <span className="hv5-320">
-                          {v.q3 && (
-                            <>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.6"
-                                strokeLinecap="round"
-                                aria-hidden="true"
-                              >
-                                <path d="M5 12h14"></path>
-                              </svg>
-                            </>
-                          )}
-                          {v.nq3 && (
-                            <>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.6"
-                                strokeLinecap="round"
-                                aria-hidden="true"
-                              >
-                                <path d="M12 5v14"></path>
-                                <path d="M5 12h14"></path>
-                              </svg>
-                            </>
-                          )}
-                        </span>
-                      </button>
-                    </h3>
-                    {v.q3 && (
-                      <>
-                        <p className="hv5-321">
-                          {
-                            "Je maakt als zorgprofessional zelf afspraken met je opdrachtgever over het tarief, de opdracht en de voorwaarden. Bespreek die afspraken voordat je begint."
-                          }
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="hv5-322">
-                      <button
-                        className="hv5-323"
-                        data-interaction="faq"
-                        type="button"
-                        onClick={v.tq4}
-                        aria-expanded={v.q4}
-                      >
-                        {"Kan ik nu al aan de slag?"}
-                        <span className="hv5-324">
-                          {v.q4 && (
-                            <>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.6"
-                                strokeLinecap="round"
-                                aria-hidden="true"
-                              >
-                                <path d="M5 12h14"></path>
-                              </svg>
-                            </>
-                          )}
-                          {v.nq4 && (
-                            <>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.6"
-                                strokeLinecap="round"
-                                aria-hidden="true"
-                              >
-                                <path d="M12 5v14"></path>
-                                <path d="M5 12h14"></path>
-                              </svg>
-                            </>
-                          )}
-                        </span>
-                      </button>
-                    </h3>
-                    {v.q4 && (
-                      <>
-                        <p className="hv5-325">
-                          {
-                            "Handslag wordt gefaseerd in gebruik genomen. Je kunt een account aanmaken om kennis te maken. Controleer vóór een echte samenwerking welke dienstverlening en voorwaarden voor jou beschikbaar zijn."
-                          }
-                        </p>
-                      </>
-                    )}
-                  </div>
-                </div>
+                <LandingFaq />
               </div>
             </section>
 
@@ -1605,7 +1300,13 @@ export default class HandslagV5 extends React.Component {
                   <a href="/voorwaarden">Voorwaarden</a>
                   <a href="/cookies">Cookies</a>
                 </nav>
-                <span>{"Fotografie: Age Cymru / Unsplash"}</span>
+                <a
+                  href="https://unsplash.com/photos/nurse-smiling-with-elderly-patient-in-room-dMhB7w99ju8"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Fotografie: Age Cymru / Unsplash
+                </a>
               </div>
             </div>
           </footer>
