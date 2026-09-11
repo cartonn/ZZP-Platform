@@ -375,11 +375,14 @@ export async function runReview({
     const callIds = new Set();
     let lastRequestAt;
     for (let round = 1; round <= maxRounds; round++) {
-      const pacingWaitMs = lastRequestAt === undefined ? 0 : Math.max(0, REQUEST_INTERVAL_MS - (now() - lastRequestAt));
+      const pacingWaitMs =
+        lastRequestAt === undefined
+          ? 0
+          : Math.max(0, REQUEST_INTERVAL_MS - (now() - lastRequestAt));
       if (pacingWaitMs > 0) {
         // Waiting is part of the existing total budget, never a retry of a POST.
         if (pacingWaitMs >= remaining()) fail("time_limit");
-        await bounded(signal => wait(pacingWaitMs, signal), remaining());
+        await bounded((signal) => wait(pacingWaitMs, signal), remaining());
       }
       const timeout = Math.min(remaining(), requestTimeoutMs);
       const body = JSON.stringify({
