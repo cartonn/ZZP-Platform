@@ -415,6 +415,20 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
   await expect(fp.getByText("Ingediend").first()).toBeVisible({ timeout: 15000 });
 
   // --- Freelancer opent een dispuut ---
+  const handoff = fp.locator(".hs-surface").filter({
+    has: fp.getByText("Overname", { exact: true }),
+  });
+  await handoff.getByRole("button", { name: /bied aan ter overname/ }).click();
+  await handoff
+    .getByLabel("Waarom kun je deze inzet niet voortzetten? (verplicht)")
+    .fill("Deze inzet past niet meer in mijn planning");
+  await clickUntil(
+    handoff.getByRole("button", { name: "Aanvraag indienen", exact: true }),
+    handoff.getByText("In beoordeling", { exact: true }),
+  );
+  await expect(handoff.locator('[data-approval="pending"]')).toBeVisible();
+  await expect(handoff.getByRole("button", { name: "Intrekken", exact: true })).toBeVisible();
+
   // Open het details-element "Probleem melden / dispuut openen"
   await fp.locator("details").filter({ hasText: "Probleem melden" }).click();
   await fp.locator('input[name="reason"]').fill("Factuur klopt niet, bedrag onjuist");
@@ -423,6 +437,8 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
     fp.getByText("Dispuut open — samenwerking bevroren"),
   );
   await shot(fp, "cascade-dispute-frozen");
+  await expect(handoff.locator("[data-approval], [data-seal]")).toHaveCount(0);
+  await expect(handoff.getByRole("button", { name: "Intrekken", exact: true })).toHaveCount(0);
 
   // Goedkeuren/betaling-knoppen zijn geblokkeerd (factuur-actieknoppen verdwenen)
   await page.reload();
@@ -479,6 +495,8 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
   });
   await expect(restoredAgreement.locator('[data-approval="pending"]')).toBeVisible();
   await expect(restoredAgreement.getByRole("button", { name: "Akkoord geven" })).toBeVisible();
+  await expect(handoff.locator('[data-approval="pending"]')).toBeVisible();
+  await expect(handoff.getByRole("button", { name: "Intrekken", exact: true })).toBeVisible();
 
   await actx.close();
   await fctx.close();

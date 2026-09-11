@@ -520,7 +520,12 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                         </span>
                         <Badge
                           variant={badge.variant}
-                          approval={status === "OPEN" ? "pending" : approvalMark(status)}
+                          approval={approvalMark(
+                            status === "OPEN" && active ? "IN_REVIEW" : status,
+                            {
+                              disputed: frozen,
+                            },
+                          )}
                         >
                           {badge.label}
                         </Badge>
@@ -532,6 +537,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                       {status === "OPEN" &&
                         isFreelancer &&
                         h.requestedByUserId === actor.id &&
+                        active &&
                         !frozen && <ShiftHandoffCancelForm handoffId={h.id} />}
                     </li>
                   );

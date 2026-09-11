@@ -78,3 +78,34 @@ Hervalidatie na de dispuutfix: `npm run check` volledig geslaagd (lint, typechec
 geslaagd. De uitgebreide browser-dispuutstroom slaagt op de nieuwe productiebuild,
 zonder retries, inclusief herstel na oplossing. De afzonderlijke reviewer vindt geen
 nieuwe blocker in de gerichte patch; de nieuwe native SHA-beoordeling blijft vereist.
+
+## Afzonderlijke overnamebevinding
+
+Run `34650142568` gaf op `2fc1862635a9f59c4edf1ef2eba53e208fdb6ebc` **BLOCK** voor
+[overnamebevinding 3993609488](https://github.com/cartonn/ZZP-Platform/pull/1474#discussion_r3993609488).
+Dit betreft een andere aanroep: het OPEN-overnameverzoek behield een zwart wachtzegel
+bij een dispuut. De eerdere twee modelovereenkomstbevindingen waren daarmee hersteld.
+De eerste gerichte reparatie voor deze overnameaanroep gebruikt de bestaande
+`approvalMark`-helper met `disputed: frozen`; OPEN telt alleen bij een actieve
+samenwerking als beoordeling. Daardoor is ook een historische OPEN-aanvraag geen
+live goedkeuringssignaal. Bestaande beslissingen blijven buiten dispuut herkenbaar.
+De cascade-regressie maakt nu echt een overnameverzoek vóór het dispuut, controleert
+pending, nul approval-/sealelementen tijdens dispuut en terugkeer na oplossing.
+Vóór de fix faalt de browserassertie met twee elementen waar nul verwacht worden.
+Alle nieuw toegevoegde zegelaanroepen worden daarnaast afzonderlijk nagelopen op hun
+werkelijke serverquery, eindstatus, dispuut en verloop, vóór de volgende bronfreeze.
+
+De overnamehistorie is na afsluiting ook zonder intrekknop; actieve, onbetwiste
+historische goedkeuringen behouden hun feitelijke zegel. De afzonderlijke audit van
+alle toegevoegde zegelaanroepen vond buiten deze overnameaanroep geen extra blocker.
+De handoffpatch is daarna onafhankelijk beoordeeld zonder nieuwe blocker.
+
+Definitieve lokale controle: 8.726 tests geslaagd, twee bestaande skips; lint/typecheck,
+productiebuild en volledige opmaakcontrole geslaagd. Na de aanvullende active-voorwaarde
+voor de intrekknop is de productiebuild opnieuw succesvol gemaakt. De 24 browsercontroles
+zijn op de uiteindelijke productiebuild opnieuw uitgevoerd met een verse synthetische
+database en slagen allemaal zonder retries. Dit omvat ook de uitgebreide overname-/
+dispuutstroom en nieuwe mobiele screenshots. De voorafgaande herhaling op een hergebruikte
+dataset gaf 23/24: de deeltest verwacht de standaard gedeelde VOG, terwijl de eerdere
+uitvoering die zelf had ont-deeld. Dat fixture-resultaat is bewaard; er is geen productcode
+of assertion aangepast om die fout weg te drukken. De oorspronkelijke dataset is behouden.
