@@ -1,0 +1,24 @@
+/* Numbered section labels and the invitation use one baseline-aligned logo hand. */
+.handslag-v5 :is(.hv5-51, .hv5-274, .hv5-297, .hv5-330) {
+  display: block;
+  line-height: 1.5;
+}
+.handslag-v5 :is(.hv5-52, .hv5-275, .hv5-298, .hv5-331) {
+  display: inline;
+  width: auto;
+  height: auto;
+  background: none;
+  margin-inline-end: 0.85em;
+}
+.handslag-v5 .hs-section-hand {
+  display: inline-block;
+  /* Fallback matches Open Sans; cap units follow the actual rendered font. */
+  height: 0.714em;
+  height: 1cap;
+  width: auto;
+  aspect-ratio: 19.4 / 16.4;
+  vertical-align: baseline;
+  color: hsl(var(--hs-mark));
+  overflow: visible;
+  pointer-events: none;
+}

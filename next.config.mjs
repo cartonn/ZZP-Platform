@@ -102,6 +102,12 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "images.unsplash.com",
+        pathname: "/photo-1765896387387-0538bc9f997e",
+        search: "?fm=jpg&fit=crop&q=80&w=1800",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
         pathname: "/photo-1589061434060-a05a5335bfbb",
         search:
           "?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",

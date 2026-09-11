@@ -1,0 +1,113 @@
+name: Native Codex review
+
+# Manual, subscription-backed review. Never re-enable the paid workflow as part
+# of this route. No OpenAI API secret, local login export or PR code execution.
+on:
+  push:
+    branches:
+      - codex/review-subscription-bootstrap-20260911
+      - codex/review-subscription-bootstrap-20260911-2
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number; its source branch must already be frozen"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  REVIEW_CONTROL_SHA: ${{ github.workflow_sha }}
+  REVIEW_WORKFLOW_REF: ${{ github.workflow_ref }}
+  REVIEW_BOOTSTRAP_SHA: ${{ vars.CODEX_SUBSCRIPTION_REVIEW_BOOTSTRAP_SHA }}
+  REVIEW_PR: ${{ inputs.pr || vars.CODEX_SUBSCRIPTION_REVIEW_PR }}
+  REVIEW_SOURCE_POLICY: ${{ vars.CODEX_SUBSCRIPTION_REVIEW_SOURCE_POLICY }}
+
+concurrency:
+  group: subscription-review-${{ inputs.pr || vars.CODEX_SUBSCRIPTION_REVIEW_PR }}
+  cancel-in-progress: false
+
+jobs:
+  prepare-native-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      checks: write
+    outputs:
+      context: ${{ steps.prepare.outputs.context }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Bind immutable source, idle native service and request challenge
+        id: prepare
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/subscription-review.mjs prepare
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: subscription-review-prepare-${{ inputs.pr }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/subscription-review-*.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  await-native-review:
+    needs: prepare-native-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 37
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Observe only the fresh bound Codex GitHub review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEW_CONTEXT: ${{ needs.prepare-native-review.outputs.context }}
+        run: node scripts/subscription-review.mjs wait
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: subscription-review-observed-${{ inputs.pr }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/subscription-review-*.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  publish-native-review:
+    needs: [prepare-native-review, await-native-review]
+    if: ${{ always() && needs.prepare-native-review.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Re-read native evidence and finish the same genuine check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEW_CONTEXT: ${{ needs.prepare-native-review.outputs.context }}
+          REVIEW_WAIT_RESULT: ${{ needs.await-native-review.result }}
+        run: node scripts/subscription-review.mjs publish
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: subscription-review-final-${{ inputs.pr }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/subscription-review-*.json
+          if-no-files-found: ignore
+          retention-days: 30
