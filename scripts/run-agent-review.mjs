@@ -1,12 +1,16 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { setTimeout as pause } from "node:timers/promises";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ENDPOINT = "https://api.openai.com/v1/responses";
 const MODELS = new Set(["gpt-5.5", "gpt-5.5-2026-04-23"]);
 const MAX_DURATION = 35 * 60_000;
 const MAX_ROUNDS = 40;
+// Tier-1 reviews can send over 150k input tokens per turn. Avoid bursting
+// several full-context requests inside a single token-per-minute window.
+const REQUEST_INTERVAL_MS = 61_000;
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 const MAX_REQUEST_BYTES = 16 * 1024 * 1024;
 const MAX_REPORT_BYTES = 500_000;
@@ -264,6 +268,7 @@ export async function runReview({
   fetchImpl = fetch,
   createReader = defaultReader,
   now = () => performance.now(),
+  wait = (ms, signal) => pause(ms, undefined, { signal }),
   maxRounds = MAX_ROUNDS,
   maxDurationMs = MAX_DURATION,
   requestTimeoutMs = 10 * 60_000,
@@ -368,7 +373,14 @@ export async function runReview({
       },
     ];
     const callIds = new Set();
+    let lastRequestAt;
     for (let round = 1; round <= maxRounds; round++) {
+      const pacingWaitMs = lastRequestAt === undefined ? 0 : Math.max(0, REQUEST_INTERVAL_MS - (now() - lastRequestAt));
+      if (pacingWaitMs > 0) {
+        // Waiting is part of the existing total budget, never a retry of a POST.
+        if (pacingWaitMs >= remaining()) fail("time_limit");
+        await bounded(signal => wait(pacingWaitMs, signal), remaining());
+      }
       const timeout = Math.min(remaining(), requestTimeoutMs);
       const body = JSON.stringify({
         model: "gpt-5.5",
@@ -382,7 +394,7 @@ export async function runReview({
         text: { format: { type: "json_schema", name: "agent_review", strict: true, schema } },
       });
       if (Buffer.byteLength(body) > MAX_REQUEST_BYTES) fail("request_size_limit");
-      const record = { round };
+      const record = { round, pacingWaitMs };
       metadata.requests.push(record);
       saveMetadata();
       // One POST per round. Even HTTP 429/5xx or an uncertain connection failure
@@ -390,6 +402,7 @@ export async function runReview({
       const response = await bounded(async (signal) => {
         let http;
         try {
+          lastRequestAt = now();
           http = await fetchImpl(ENDPOINT, {
             method: "POST",
             redirect: "error",
