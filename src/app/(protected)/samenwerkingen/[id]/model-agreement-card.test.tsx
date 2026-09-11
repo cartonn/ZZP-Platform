@@ -7,7 +7,7 @@ vi.mock("./actions", () => ({
   signModelAgreementAction: vi.fn(),
 }));
 
-function render(signingOpen: boolean, signatures: Array<Date | null>) {
+function render(signingOpen: boolean, signatures: Array<Date | null>, disputed = false) {
   return renderToStaticMarkup(
     <ModelAgreementCard
       collaborationId="historical-agreement"
@@ -19,6 +19,7 @@ function render(signingOpen: boolean, signatures: Array<Date | null>) {
         signedAt,
       }))}
       signingOpen={signingOpen}
+      disputed={disputed}
       canSign={false}
       canChooseType={false}
     />,
@@ -56,4 +57,18 @@ describe("model agreement approval marks", () => {
     expect(html).toContain("Ondertekend");
     expect(html).not.toContain("hs-seal-pending");
   });
+
+  it.each([
+    [null, null],
+    [signed, null],
+    [signed, signed],
+  ])(
+    "suppresses all approval marks during a dispute while retaining signature history (%s, %s)",
+    (first, second) => {
+      const html = render(false, [first, second], true);
+      expect(html).not.toContain("data-approval");
+      expect(html).not.toContain("data-seal");
+      if (first) expect(html).toContain("akkoord op");
+    },
+  );
 });

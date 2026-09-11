@@ -25,6 +25,8 @@ interface Props {
   rows: SignRow[];
   /** Server-derived lifecycle state, independent of the current viewer's permissions. */
   signingOpen: boolean;
+  /** Disputes suppress approval marks; actual signature history remains readable. */
+  disputed: boolean;
   /** Mag de inloggende partij nu zelf akkoord geven? (en is dat nog niet gebeurd) */
   canSign: boolean;
   /** Mag de inloggende gebruiker de overeenkomstvorm kiezen? (opdrachtgever/admin, nog niet getekend) */
@@ -37,6 +39,7 @@ export function ModelAgreementCard({
   recommendation,
   rows,
   signingOpen,
+  disputed,
   canSign,
   canChooseType,
 }: Props) {
@@ -52,7 +55,9 @@ export function ModelAgreementCard({
           </span>
           <Badge
             variant={bothSigned ? "success" : "muted"}
-            approval={bothSigned ? "approved" : signingOpen ? "pending" : undefined}
+            approval={
+              disputed ? undefined : bothSigned ? "approved" : signingOpen ? "pending" : undefined
+            }
           >
             {bothSigned ? "Ondertekend" : MODEL_AGREEMENT_LABELS[agreementType]}
           </Badge>
@@ -92,7 +97,7 @@ export function ModelAgreementCard({
         <ul className="space-y-1.5">
           {rows.map((r) => (
             <li key={r.role} className="flex items-center gap-2 text-sm">
-              {(r.signedAt || signingOpen) && (
+              {!disputed && (r.signedAt || signingOpen) && (
                 <Seal tone={r.signedAt ? "verified" : "pending"} size="sm" />
               )}
               <span className="font-medium">{r.role}</span>

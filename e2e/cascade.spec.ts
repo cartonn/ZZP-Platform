@@ -438,6 +438,16 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
   ).not.toBeVisible();
   await shot(page, "cascade-dispute-client-view");
 
+  for (const viewer of [fp, page]) {
+    const agreement = viewer.locator(".hs-surface").filter({
+      has: viewer.getByText("Modelovereenkomst", { exact: true }),
+    });
+    await expect(agreement).toBeVisible();
+    await expect(agreement.locator("[data-approval], [data-seal]")).toHaveCount(0);
+    await expect(agreement.getByRole("button", { name: "Akkoord geven" })).toHaveCount(0);
+    await expect(agreement.getByRole("button", { name: "Vorm vastleggen" })).toHaveCount(0);
+  }
+
   // --- Admin logt in en lost dispuut op ---
   const actx = await browser.newContext();
   const ap = await actx.newPage();
@@ -448,11 +458,8 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
   await ap.waitForURL("**/dashboard");
 
   await ap.goto("/admin/disputen");
-  // Dispuut staat in de lijst; klik door naar de samenwerking
-  await ap
-    .getByRole("link", { name: /Open samenwerking/ })
-    .first()
-    .click();
+  // Resolve this test's dispute, not the first item left by another fixture or worker.
+  await ap.goto(collaborationUrl);
   await ap.waitForURL("**/samenwerkingen/**");
   await expect(ap.getByText("Dispuut open — samenwerking bevroren")).toBeVisible({
     timeout: 15000,
@@ -464,6 +471,14 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
     ap.getByText("Dispuut open — samenwerking bevroren"),
   );
   await shot(ap, "cascade-dispute-resolved");
+
+  await fp.goto(collaborationUrl);
+  await expect(fp.getByText("Dispuut open — samenwerking bevroren")).toHaveCount(0);
+  const restoredAgreement = fp.locator(".hs-surface").filter({
+    has: fp.getByText("Modelovereenkomst", { exact: true }),
+  });
+  await expect(restoredAgreement.locator('[data-approval="pending"]')).toBeVisible();
+  await expect(restoredAgreement.getByRole("button", { name: "Akkoord geven" })).toBeVisible();
 
   await actx.close();
   await fctx.close();

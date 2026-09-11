@@ -55,3 +55,26 @@ ongewijzigd en worden niet gebruikt als vervanging voor de processtatus.
 Vier renderregressies toetsen open/read-only, gesloten/ongetekend, deels en volledig
 historisch ondertekend: vóór de fix twee failures, daarna alle vier geslaagd.
 De nieuwe commit vereist opnieuw alle poorten en een verse native beoordeling.
+
+## Tweede native bevinding: dispuut
+
+Run `34648866845` gaf op `c36a407874779f3b3824686fdad1931ce57b4072` een nieuwe **BLOCK**:
+[bevinding 3993526218](https://github.com/cartonn/ZZP-Platform/pull/1474#discussion_r3993526218).
+De terminale case is hersteld, maar bij een actieve samenwerking met dispuut kon de
+modelovereenkomst nog wachtzegels tonen. De effectieve serverwaarde sluit daarom ook
+`frozen` uit en de kaart krijgt de serverafgeleide dispuutstatus. Alle goedkeuringszegels
+zijn tijdens het dispuut onderdrukt; daadwerkelijke handtekeningen blijven als tekst
+leesbaar. Hetzelfde effectieve criterium verbergt teken- en vormkeuzeknoppen.
+Zeven rendergevallen dekken nu ook ongetekende, deels en volledig getekende disputen.
+Twee nieuwe rendertests faalden vóór de fix; alle zeven slagen na de fix.
+De echte lokale cascade-repro faalde vóór de fix met vier zegel-/approval-elementen
+waar nul verwacht werden. De uitbreiding controleert beide partijen tijdens het dispuut
+én het terugkeren van pending/tekenen na oplossing van exact het testdispuut.
+Het bestaande server-action-hardeningpunt wordt apart opgevolgd; deze UI-reparatie
+claimt geen nieuwe servermutatiebeveiliging. De native BLOCK-bewijzen blijven bewaard.
+
+Hervalidatie na de dispuutfix: `npm run check` volledig geslaagd (lint, typecheck,
+8.726 tests met twee bestaande skips, productiebuild); volledige Prettier-controle
+geslaagd. De uitgebreide browser-dispuutstroom slaagt op de nieuwe productiebuild,
+zonder retries, inclusief herstel na oplossing. De afzonderlijke reviewer vindt geen
+nieuwe blocker in de gerichte patch; de nieuwe native SHA-beoordeling blijft vereist.

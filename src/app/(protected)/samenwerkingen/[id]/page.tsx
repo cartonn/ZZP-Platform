@@ -300,7 +300,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       : null;
   // Tekenen/wijzigen kan alleen zolang de samenwerking nog loopt; bij een afgeronde of geannuleerde
   // samenwerking is de overeenkomst historisch en read-only (geen actieve "Akkoord geven" meer).
-  const agreementStillOpen = col.status === "PROPOSED" || col.status === "ACTIVE";
+  const agreementStillOpen = !frozen && (col.status === "PROPOSED" || col.status === "ACTIVE");
 
   // "Aan zet": wat moet déze rol nu doen? Pure kern in `buildCollaborationTurnItems` (unit-testbaar).
   // De `frozen`-poort zit in die functie: bij een open dispuut is de cascade bevroren, alle echte
@@ -700,6 +700,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         <ModelAgreementCard
           collaborationId={col.id}
           signingOpen={agreementStillOpen}
+          disputed={frozen}
           agreementType={agreementType}
           recommendation={agreementRecommendation}
           rows={[
