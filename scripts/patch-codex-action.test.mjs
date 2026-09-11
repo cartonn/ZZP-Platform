@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -11,6 +11,7 @@ import {
   PATCHED_EXECUTION_BLOCK,
   patchBundle,
   patchCodexAction,
+  replaceExecutionBlock,
 } from "./patch-codex-action.mjs";
 
 const patchScript = fileURLToPath(new URL("./patch-codex-action.mjs", import.meta.url));
@@ -173,6 +174,25 @@ test("exactly one complete lifecycle block is required", () => {
   );
 });
 
+test("binary replacement preserves invalid UTF-8 and line endings outside the execution block", () => {
+  const prefix = Buffer.from([0xff, 0xfe, 0x0d, 0x0a, 0xc3]);
+  const suffix = Buffer.from([0x80, 0xf0, 0x9f, 0x0a, 0x00, 0xff]);
+  const original = Buffer.concat([prefix, Buffer.from(ORIGINAL_EXECUTION_BLOCK), suffix]);
+  assert.equal(Buffer.from(original.toString("utf8")).equals(original), false);
+  const patched = replaceExecutionBlock(original);
+  assert.ok(Buffer.isBuffer(patched));
+  assert.deepEqual(patched.subarray(0, prefix.length), prefix);
+  assert.deepEqual(patched.subarray(-suffix.length), suffix);
+  assert.equal(
+    patched.subarray(prefix.length, patched.length - suffix.length).toString("utf8"),
+    PATCHED_EXECUTION_BLOCK,
+  );
+  assert.deepEqual(original.subarray(0, prefix.length), prefix);
+  assert.deepEqual(original.subarray(-suffix.length), suffix);
+  assert.throws(() => replaceExecutionBlock(Buffer.concat([original, original])), /exactly once/);
+  assert.throws(() => replaceExecutionBlock(Buffer.from([0xff])), /exactly once/);
+});
+
 test("bad bundle hash fails closed before writing, including a convincing matching block", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "codex-action-hash-"));
   const bundlePath = path.join(directory, "dist/main.js");
@@ -194,4 +214,32 @@ test("bad bundle hash fails closed before writing, including a convincing matchi
 
 test("CLI refuses missing arguments", () => {
   assert.throws(() => execFileSync(process.execPath, [patchScript], { stdio: "pipe" }));
+});
+
+test("opening a symlink is refused without reading or modifying its target", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "codex-action-symlink-"));
+  const target = path.join(directory, "protected-target.js");
+  const original = Buffer.from("This file must never be opened through the bundle symlink.");
+  mkdirSync(path.join(directory, "dist"));
+  writeFileSync(target, original);
+  symlinkSync(target, path.join(directory, "dist/main.js"));
+  try {
+    await assert.rejects(patchCodexAction(directory), (error) => error.code === "ELOOP");
+    assert.deepEqual(readFileSync(target), original);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("a directory cannot be used as the action bundle", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "codex-action-directory-"));
+  mkdirSync(path.join(directory, "dist/main.js"), { recursive: true });
+  try {
+    await assert.rejects(
+      patchCodexAction(directory),
+      (error) => error.code === "EISDIR" || /must be a regular file/.test(error.message),
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -338,7 +338,7 @@ test("HTTP transport uses explicit methods, redacts errors, and retries only ide
   await assert.rejects(api("/repos/x/y", { method: "DELETE" }));
 });
 
-function handlerFixture(t, { changeAfterComment = false } = {}) {
+function handlerFixture(t, { changeAfterComment = false, files = context.files } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "codex-review-test-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const calls = [];
@@ -360,12 +360,12 @@ function handlerFixture(t, { changeAfterComment = false } = {}) {
     calls.push({ route, request });
     if (route === `/repos/${context.repository}`) return { default_branch: "main" };
     if (route.includes("/branches/")) return { protected: true, commit: { sha: controlSha } };
-    if (route.includes("/files?")) return context.files.map((filename) => ({ filename }));
+    if (route.includes("/files?")) return files.map((filename) => ({ filename }));
     if (route === `/repos/${context.repository}/pulls/${context.pr}`)
       return {
         state: "open",
         draft: false,
-        changed_files: 2,
+        changed_files: files.length,
         head: { sha: head },
         base: { sha: context.baseSha },
       };
@@ -410,6 +410,56 @@ test("handlers carry trusted preparation through prompt creation and confirmed p
   assert.equal(evidence.context.checkId, ticket.checkId);
   assert.equal(evidence.context.controlSha, controlSha);
   assert.equal(evidence.context.runAttempt, 1);
+});
+
+test("untrusted check IDs cannot write any workflow output", async (t) => {
+  for (const id of [
+    undefined,
+    null,
+    0,
+    -1,
+    1.5,
+    Number.MAX_SAFE_INTEGER + 1,
+    "123",
+    "123\nhead=attacker",
+    [123],
+    { value: 123 },
+  ]) {
+    const fixture = handlerFixture(t);
+    await assert.rejects(
+      prepare(fixture.env, async (route, request) => {
+        if (route.endsWith("/check-runs") && request?.method === "POST")
+          return { ...remoteCheck, id };
+        return fixture.api(route, request);
+      }),
+    );
+    assert.equal(existsSync(fixture.env.GITHUB_OUTPUT), false);
+    assert.ok(fixture.calls.every(({ route }) => !route.includes("/check-runs/")));
+  }
+});
+
+test("API extras are discarded and filenames with control characters remain JSON data", async (t) => {
+  const files = ["ordinary.ts", "line\nhead=attacker\r\ncontext=forged\t☃.ts"];
+  const fixture = handlerFixture(t, { files });
+  const actual = await prepare(fixture.env, async (route, request) => {
+    if (route.endsWith("/check-runs") && request?.method === "POST")
+      return {
+        ...remoteCheck,
+        script: "untrusted-script",
+        context: "forged",
+        output: "\nhead=attacker",
+      };
+    return fixture.api(route, request);
+  });
+  const output = readFileSync(fixture.env.GITHUB_OUTPUT, "utf8");
+  const lines = output.split("\n");
+  assert.equal(lines.length, 3);
+  assert.equal(lines[0], `head=${context.headSha}`);
+  assert.equal(lines[2], "");
+  assert.ok(lines[1].startsWith("context="));
+  assert.deepEqual(JSON.parse(lines[1].slice("context=".length)), { ...ticket, files });
+  assert.deepEqual(actual, { ...ticket, files });
+  assert.equal(output.includes("untrusted-script"), false);
 });
 
 test("stale trigger heads never start a check, and invalid publication contexts never mutate", async (t) => {

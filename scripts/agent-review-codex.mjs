@@ -317,7 +317,12 @@ export async function createReviewCheck(api, context, execution) {
       },
     },
   });
-  const ticket = { ...context, ...execution, checkId: created?.id };
+  // Project the API response to its one required primitive at the network
+  // boundary. A string, object or unsafe number must never become a check ID.
+  const checkId = created?.id;
+  if (typeof checkId !== "number" || !Number.isSafeInteger(checkId) || checkId < 1)
+    throw new Error("GitHub leverde geen positieve, veilige numerieke check-ID.");
+  const ticket = { ...context, ...execution, checkId };
   assertTicket(ticket, execution);
   assertCheck(created, ticket, "in_progress");
   assertCheck(

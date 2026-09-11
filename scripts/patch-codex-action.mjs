@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { lstat, readFile, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { open } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const OFFICIAL_ACTION_SHA = "86365089eb2b84e0a8fb0717b304f8bdcb13b20e";
 export const OFFICIAL_BUNDLE_SHA256 =
-  "feae0cc84b0697c562677c390ede65a85978a61ac43d6de3a37bc5c42e912979";
+  "c0e530e7883cc18e28f854d171f58d83e2387f7decf29f1a8ec3aa682f6601be";
 
 // Only this lifecycle block is replaced. All official privilege isolation,
 // argument validation, authentication and result publication remain unchanged.
@@ -113,9 +114,25 @@ export const PATCHED_EXECUTION_BLOCK = `    await (${runWithIsolatedStdio.toStri
     );`;
 
 export function assertSingleExecutionBlock(source) {
-  if (source.split(ORIGINAL_EXECUTION_BLOCK).length !== 2) {
+  const bytes = Buffer.isBuffer(source) ? source : Buffer.from(source, "utf8");
+  const block = Buffer.from(ORIGINAL_EXECUTION_BLOCK, "utf8");
+  const offset = bytes.indexOf(block);
+  if (offset < 0 || bytes.indexOf(block, offset + 1) >= 0) {
     throw new Error("Official Codex action execution block must match exactly once.");
   }
+  return offset;
+}
+
+export function replaceExecutionBlock(bundle) {
+  if (!Buffer.isBuffer(bundle)) throw new TypeError("Codex action bundle must be a Buffer.");
+  const offset = assertSingleExecutionBlock(bundle);
+  // Preserve unrelated bytes exactly, including any non-UTF-8 content; only
+  // the replacement is UTF-8 encoded.
+  return Buffer.concat([
+    bundle.subarray(0, offset),
+    Buffer.from(PATCHED_EXECUTION_BLOCK, "utf8"),
+    bundle.subarray(offset + Buffer.byteLength(ORIGINAL_EXECUTION_BLOCK, "utf8")),
+  ]);
 }
 
 export function patchBundle(bundle) {
@@ -123,18 +140,29 @@ export function patchBundle(bundle) {
   if (digest !== OFFICIAL_BUNDLE_SHA256) {
     throw new Error(`Refusing Codex action bundle with unexpected SHA-256: ${digest}`);
   }
-  const source = bundle.toString("utf8");
-  assertSingleExecutionBlock(source);
-  return source.replace(ORIGINAL_EXECUTION_BLOCK, () => PATCHED_EXECUTION_BLOCK);
+  return replaceExecutionBlock(bundle);
 }
 
 export async function patchCodexAction(actionDirectory) {
   const bundlePath = path.resolve(actionDirectory, "dist/main.js");
-  if (!(await lstat(bundlePath)).isFile()) {
-    throw new Error("Codex action bundle must be a regular file, not a symlink.");
+  const file = await open(bundlePath, constants.O_RDWR | constants.O_NOFOLLOW);
+  try {
+    if (!(await file.stat()).isFile()) {
+      throw new Error("Codex action bundle must be a regular file.");
+    }
+    const patched = patchBundle(await file.readFile());
+    // Keep the descriptor opened with O_NOFOLLOW throughout verification and
+    // replacement; never resolve the pathname again after checking its target.
+    let offset = 0;
+    while (offset < patched.length) {
+      const { bytesWritten } = await file.write(patched, offset, patched.length - offset, offset);
+      if (bytesWritten === 0) throw new Error("Could not finish writing the Codex action patch.");
+      offset += bytesWritten;
+    }
+    await file.truncate(patched.length);
+  } finally {
+    await file.close();
   }
-  const patched = patchBundle(await readFile(bundlePath));
-  await writeFile(bundlePath, patched, "utf8");
   return bundlePath;
 }
 
