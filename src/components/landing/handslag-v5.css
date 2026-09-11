@@ -27,6 +27,7 @@ html:has(.handslag-v5) {
   outline-offset: 4px;
 }
 .handslag-v5 {
+  --font-sans: var(--font-handslag-landing);
   isolation: isolate;
   font-family: var(--font-sans), "Open Sans", Arial, Helvetica, sans-serif;
   color: #004f73;
