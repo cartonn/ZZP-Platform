@@ -29,12 +29,40 @@
   statuschecks** (`check`, `e2e`, `audit`, `secret-scan`, `CodeQL`, `agent-review`) groen →
   `gh pr merge <nr> --squash --auto`. `enforce_admins` staat AAN; niets omzeilt de poort. Altijd
   `git fetch` + rebase vóór commit én push. Bij docs-conflicten: **UNION**, nooit `--ours`.
-- **Routines (Claude Code on the web):** "ZZP auto-build" elke 4 uur (canonieke prompt:
-  [`docs/ROUTINE-PROMPT.md`](docs/ROUTINE-PROMPT.md)) en "ZZP persona-sweep" dagelijks 07:00
-  (prompt: [`docs/PERSONA-SWEEP-PROMPT.md`](docs/PERSONA-SWEEP-PROMPT.md), gaten-backlog:
-  `docs/PERSONA-SWEEP-BACKLOG.md`). Beide starten met een **verse branch vanaf `origin/main`**
-  (CLAUDE.md §3a) en eindigen met een PR. Vangnet `auto-pr-claude.yml` opent een PR bij een push
-  naar `claude/**`. Linear wordt niet gebruikt.
+- **Routines overgenomen door Codex (11-9):** vijf Claude-schema's en hun instructies/historie
+  rechtstreeks gelezen en gepauzeerd. Actieve Codex-coördinator: bouwen elke vier uur,
+  persona/security/productierijpheid elk tweemaal per dag, ochtendbriefing om 08:00
+  Europe/Amsterdam. Exacte UTC-schema's, overdracht en prompts staan in
+  [`docs/CODEX-ROUTINE-TAKEOVER.md`](docs/CODEX-ROUTINE-TAKEOVER.md) en `docs/codex/`.
+  Iedere twintig minuten controleert de lokale coördinator verschuldigde rondes;
+  eerste volledige geplande runs moeten nog worden bevestigd. Bouwruns starten geïsoleerd
+  vanaf `origin/main`, met PR en alle zes poorten. De ochtendbriefing blijft uitsluitend
+  lezen en rapporteren. Oude GitHub-bouwers blijven uit.
+  Bij de eerste overnamecontrole ontbrak `OPENAI_API_KEY`; op 11 september is dit na
+  expliciete gebruikersbevestiging toegevoegd als repositorysecret.
+  De Restricted-reviewsleutel heeft alleen List models: Read en Responses: Write en
+  vervalt op 11 oktober 2026. **Historie:**
+  [Proefrun 34575468042](https://github.com/cartonn/ZZP-Platform/actions/runs/34575468042)
+  op #1475 head `8be0b39` bevestigde een quotablokkade: Action-start en sleutelcontrole slagen, OpenAI
+  meldt geen resterende credits; eindvalidator INCOMPLETE, geen inhoudelijke review.
+  Op #1474 head `fb4938b` en #1475 head `8be0b39` zijn alle normale CI-checks groen,
+  inclusief e2e; alleen `agent-review` ontbreekt of faalt. Dit is een momentopname op
+  de genoemde SHA's. **Vervolg 11 september:** de eigenaar heeft tegoed toegevoegd;
+  beschikbaarheid is via de interface geverifieerd.
+  [Reviewrun 34576381918](https://github.com/cartonn/ZZP-Platform/actions/runs/34576381918)
+  is gestart op #1475 head `5acadf8`. De modeluitvoer geeft BLOCK op PR-headgestuurde
+  reviewcontroles; de Action was na die uitvoer nog niet afgesloten. De integratie
+  krijgt een vertrouwde workflow, afzonderlijke publisher en bevroren bootstrapbasis.
+  De latere run `34581684896` toonde PASS-tekst maar eindigde door de vastgelopen
+  officiële uitvoerder als INCOMPLETE met een leeg rapport. De modeljob wordt daarom
+  vervangen door directe Responses API-aanroepen met uitsluitend bronleesfuncties;
+  de beschermde reviewpoort blijft intact.
+  Herbeoordeling en geplande uitvoering zijn apart te verifiëren: lees de actuele GitHub-run/check en het
+  duurzame runregister. Herhaal een nieuwe quotafout niet zonder bevestigde wijziging;
+  meld sleutelverval vanaf zeven dagen vooraf. Publiceer geen saldo of account-/billingdetails.
+  Zie `.github/codex/README.md`.
+  Geen review of merge als geslaagd melden zolang de verplichte check niet groen is.
+  Linear wordt niet gebruikt.
 - **Scope-restrictie routines (2-9-2026):** alleen kern + robuustheid/security/bugs. Ontzorgd/
   aangifte/KOR/fiscale uitbreidingen, academie, ideeën, design-lab, nieuwe rollen, nieuwe
   prijslijnen en i18n zijn **uitgesloten**. Zie `docs/ROUTINE-PROMPT.md` en CLAUDE.md.

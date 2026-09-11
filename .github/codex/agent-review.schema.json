@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "repository",
+    "pr",
+    "headSha",
+    "baseSha",
+    "verdict",
+    "complete",
+    "summary",
+    "reviewedFiles",
+    "findings"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "enum": [1] },
+    "repository": { "type": "string" },
+    "pr": { "type": "integer" },
+    "headSha": { "type": "string" },
+    "baseSha": { "type": "string" },
+    "verdict": { "type": "string", "enum": ["PASS", "BLOCK", "INCOMPLETE"] },
+    "complete": { "type": "boolean" },
+    "summary": { "type": "string" },
+    "reviewedFiles": { "type": "array", "items": { "type": "string" } },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "path", "line", "problem", "fix"],
+        "properties": {
+          "severity": { "type": "string", "enum": ["blocker", "should-fix", "nit"] },
+          "path": { "type": "string" },
+          "line": { "type": "integer" },
+          "problem": { "type": "string" },
+          "fix": { "type": "string" }
+        }
+      }
+    }
+  }
+}
