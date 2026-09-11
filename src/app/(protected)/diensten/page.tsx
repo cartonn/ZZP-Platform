@@ -188,7 +188,7 @@ export default async function DienstenPage({
               label: d.status,
               variant: "muted" as const,
             };
-            const wait = summarizePerformanceWait(d);
+            const wait = d.disputed ? null : summarizePerformanceWait(d);
             return (
               <div key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
@@ -228,14 +228,17 @@ export default async function DienstenPage({
                   )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <Badge variant={statusInfo.variant} approval={approvalMark(d.status)}>
-                    {statusInfo.label}
+                  <Badge
+                    variant={d.disputed ? "danger" : statusInfo.variant}
+                    approval={approvalMark(d.status, { disputed: d.disputed })}
+                  >
+                    {d.disputed ? "In dispuut" : statusInfo.label}
                   </Badge>
                   <Link
                     href={`/samenwerkingen/${d.collaborationId}`}
                     className="text-[11px] text-muted-foreground underline-offset-2 hover:underline"
                   >
-                    Naar samenwerking →
+                    {d.disputed ? "Dispuut behandelen →" : "Naar samenwerking →"}
                   </Link>
                 </div>
               </div>

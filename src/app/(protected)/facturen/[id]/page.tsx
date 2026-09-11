@@ -96,6 +96,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           id: true,
           ortProfile: true,
           ortCustomRates: true,
+          disputedAt: true,
           job: { select: { title: true } },
           company: { select: { id: true, name: true, userId: true } },
           freelancer: {
@@ -118,6 +119,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   if (!isFreelancerOwner && !isClient) notFound();
 
   const status = invoice.status as InvoiceStatus;
+  const disputed = invoice.collaboration.disputedAt != null;
   // Cascade-facturen worden via het werkproces afgehandeld; de legacy-acties verbergen we daar.
   const cascade = invoice.lifecycleStatus != null;
   const cascadeMeta = cascade
@@ -291,11 +293,13 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
             <div className="flex flex-col items-end gap-1">
               {cascadeMeta ? (
                 <Badge
-                  variant={cascadeMeta.variant}
-                  approval={approvalMark(invoice.lifecycleStatus)}
+                  variant={disputed ? "danger" : cascadeMeta.variant}
+                  approval={approvalMark(invoice.lifecycleStatus, { disputed })}
                 >
-                  {cascadeMeta.label}
+                  {disputed ? "In dispuut" : cascadeMeta.label}
                 </Badge>
+              ) : disputed ? (
+                <Badge variant="danger">In dispuut</Badge>
               ) : (
                 <InvoiceStatusBadge status={status} dueAt={invoice.dueAt} />
               )}

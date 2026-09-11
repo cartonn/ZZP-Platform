@@ -43,6 +43,11 @@ html {
     var(--depth-contact),
     0 5px 12px -5px hsl(var(--primary) / 0.35);
 }
+/* An outline remains visible when the active item's elevation replaces ring shadows. */
+.hs-sidebar nav a:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+}
 .hs-sidebar nav a[aria-current="page"] > span:last-child:not(:first-of-type) {
   background: hsl(var(--card));
   color: hsl(var(--primary));

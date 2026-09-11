@@ -870,11 +870,11 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                             {p.type === "HOURS" ? "Urenstaat" : p.milestoneTitle || "Oplevering"}
                           </span>
                           <Badge
-                            variant={st.variant}
-                            approval={approvalMark(p.status)}
+                            variant={frozen ? "danger" : st.variant}
+                            approval={approvalMark(p.status, { disputed: frozen })}
                             className="shrink-0"
                           >
-                            {st.label}
+                            {frozen ? "In dispuut" : st.label}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -1016,8 +1016,11 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                           <span className="font-medium">
                             {inv.partyInvoiceNumber ?? "Concept-factuur"}
                           </span>
-                          <Badge variant={st.variant} approval={approvalMark(inv.lifecycleStatus)}>
-                            {st.label}
+                          <Badge
+                            variant={frozen ? "danger" : st.variant}
+                            approval={approvalMark(inv.lifecycleStatus, { disputed: frozen })}
+                          >
+                            {frozen ? "In dispuut" : st.label}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">

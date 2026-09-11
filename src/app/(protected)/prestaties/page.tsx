@@ -318,7 +318,7 @@ export default async function PrestatiesPage({
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <Badge
                     variant={p.disputed ? "danger" : statusInfo.variant}
-                    approval={p.disputed ? undefined : approvalMark(p.status)}
+                    approval={approvalMark(p.status, { disputed: p.disputed })}
                   >
                     {p.disputed ? "In dispuut" : statusInfo.label}
                   </Badge>

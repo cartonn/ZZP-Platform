@@ -431,6 +431,7 @@ export async function FacturenPanel({
             <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
               {filtered.map((inv) => {
                 const cascade = inv.lifecycleStatus != null;
+                const disputed = inv.collaboration?.disputedAt != null;
                 // Een rij in de facturenlijst toont factuurnummer + bedrag; klikken hoort het
                 // factuurdetail te openen (met PDF/print), niet onverwacht naar het werkproces te springen.
                 const href = `/facturen/${inv.id}`;
@@ -473,11 +474,13 @@ export async function FacturenPanel({
                         <p className="text-sm font-medium tabular-nums">{displayNumber}</p>
                         {cascadeMeta ? (
                           <Badge
-                            variant={cascadeMeta.variant}
-                            approval={approvalMark(inv.lifecycleStatus)}
+                            variant={disputed ? "danger" : cascadeMeta.variant}
+                            approval={approvalMark(inv.lifecycleStatus, { disputed })}
                           >
-                            {t(cascadeMeta.label)}
+                            {t(disputed ? "In dispuut" : cascadeMeta.label)}
                           </Badge>
+                        ) : disputed ? (
+                          <Badge variant="danger">{t("In dispuut")}</Badge>
                         ) : (
                           <InvoiceStatusBadge
                             status={inv.status as InvoiceStatus}
