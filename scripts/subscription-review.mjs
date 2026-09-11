@@ -432,8 +432,10 @@ export async function inspectNative(api, ticket, now = Date.now) {
     };
   if (clean.length !== 1) fail("ambiguous_no_findings_comments");
   const confirmation = clean[0];
+  // The provider varies the first line's decorative sign-off. The canonical
+  // positive sentence, commit paragraph and authenticated evidence stay required.
   const match =
-    /^Codex Review: Didn't find any major issues\. :rocket:\n\n\*\*Reviewed commit:\*\* `([a-f0-9]{10,40})`\n\n<details> <summary>ℹ️ About Codex in GitHub<\/summary>\n[\s\S]*\n<\/details>$/.exec(
+    /^Codex Review: Didn't find any major issues\.(?: [^\r\n]{1,240})?\n\n\*\*Reviewed commit:\*\* `([a-f0-9]{10,40})`\n\n<details> <summary>ℹ️ About Codex in GitHub<\/summary>\n[\s\S]*\n<\/details>$/.exec(
       confirmation.body,
     );
   if (

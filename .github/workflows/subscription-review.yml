@@ -4,7 +4,9 @@ name: Native Codex review
 # of this route. No OpenAI API secret, local login export or PR code execution.
 on:
   push:
-    branches: [codex/review-subscription-bootstrap-20260911]
+    branches:
+      - codex/review-subscription-bootstrap-20260911
+      - codex/review-subscription-bootstrap-20260911-2
   workflow_dispatch:
     inputs:
       pr:

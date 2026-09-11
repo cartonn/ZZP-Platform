@@ -69,6 +69,10 @@ trigger, fresh positive signals and frozen-source checks remain mandatory.
 
 The no-findings provider shape was observed directly on PR 1476 on 11 September
 2026: summary 5635366684, clean comment 5635402167 and PR reaction 500970057.
+The provider varies its decorative first-line sign-off (for example, `:rocket:`
+or the wording in comment 5635855144). Only a bounded single-line suffix after
+the exact canonical positive sentence is optional; the reviewed-commit paragraph
+and every authentication, freshness, reaction and source check remain required.
 GitHub serializes the reaction account as `User`, even though app comments use
 `Bot`. Only reaction objects allow those two type values, always with the same
 fixed account ID and login; comments retain the Bot and app-ID requirements.
@@ -98,6 +102,11 @@ repository variable `CODEX_SUBSCRIPTION_REVIEW_SOURCE_POLICY` to:
 Replace each `rule` with the full response of the authenticated owner request
 `GET /repos/cartonn/ZZP-Platform/rulesets/<id>`, including the explicit empty
 `bypass_actors` array. Never construct a supposedly empty array when it was absent.
+**Send `Time-Zone: UTC` when reading every owner ruleset snapshot**, for example
+with `gh api -H 'Time-Zone: UTC' ...`. An owner response may otherwise use `+02:00`
+while the Actions runtime returns `Z`; the deliberately exact fingerprint then
+rejects the policy even when the instants represent the same time. Keep the real
+UTC response intact rather than rewriting its timestamps by hand.
 The source rule targets exactly the source ref; the main rule targets exactly
 `refs/heads/main`. Use the observed ID, original creation/update timestamps,
 conditions and rules. Main history rule **22921021** was created on 11 September
@@ -120,10 +129,12 @@ already are for protected checks and bootstrap controls.
 2. Freeze the final PR source branch, establish the main history rule, inspect
    both effective/full rulesets and set the source policy above.
 3. Before creating the bootstrap branch, create an exact-ref active ruleset for
-   `refs/heads/codex/review-subscription-bootstrap-20260911`, with update/deletion
+   `refs/heads/codex/review-subscription-bootstrap-20260911-2`, with update/deletion
    blocked and no bypass. Pin the independently inspected control commit in
    `CODEX_SUBSCRIPTION_REVIEW_BOOTSTRAP_SHA` and the target PR number in
-   `CODEX_SUBSCRIPTION_REVIEW_PR`.
+   `CODEX_SUBSCRIPTION_REVIEW_PR`. The original bootstrap ref remains immutable;
+   both exact refs are allowed, and each execution must match the external SHA
+   pin. Never edit or repurpose the first bootstrap to install a runtime fix.
 4. Create/push that bootstrap ref at the exact pinned commit. Its narrowly allowed
    push trigger starts the workflow even though the file is not on main yet.
    Arbitrary PR refs, main push events and the paid workflow cannot use this path.

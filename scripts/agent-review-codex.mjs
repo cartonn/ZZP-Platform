@@ -9,7 +9,10 @@ const schema = JSON.parse(
 const shaPattern = /^[a-f0-9]{40}$/;
 const repositoryPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const bootstrapRef = "refs/heads/codex/review-bootstrap-20260911-3";
-const subscriptionBootstrapRef = "refs/heads/codex/review-subscription-bootstrap-20260911";
+const subscriptionBootstrapRefs = [
+  "refs/heads/codex/review-subscription-bootstrap-20260911",
+  "refs/heads/codex/review-subscription-bootstrap-20260911-2",
+];
 const actionsAppId = 15368;
 const incomplete = (reason) => ({
   verdict: "INCOMPLETE",
@@ -133,8 +136,8 @@ export function assertTrustedExecution(env) {
   const subscription =
     env.REVIEW_WORKFLOW_REF ===
     `${env.GITHUB_REPOSITORY}/.github/workflows/subscription-review.yml@${env.GITHUB_REF}`;
-  const allowedBootstrap = subscription ? subscriptionBootstrapRef : bootstrapRef;
-  const bootstrap = env.GITHUB_REF === allowedBootstrap;
+  const allowedBootstraps = subscription ? subscriptionBootstrapRefs : [bootstrapRef];
+  const bootstrap = allowedBootstraps.includes(env.GITHUB_REF);
   if (
     !repositoryPattern.test(env.GITHUB_REPOSITORY || "") ||
     !(
@@ -287,7 +290,9 @@ function assertTicket(ticket, execution) {
     !Number.isSafeInteger(ticket.checkId) ||
     ticket.checkId < 1 ||
     !shaPattern.test(execution?.controlSha || "") ||
-    !["refs/heads/main", bootstrapRef, subscriptionBootstrapRef].includes(execution?.controlRef) ||
+    !["refs/heads/main", bootstrapRef, ...subscriptionBootstrapRefs].includes(
+      execution?.controlRef,
+    ) ||
     !/^[1-9][0-9]*$/.test(execution?.runId || "") ||
     !Number.isSafeInteger(execution?.runAttempt) ||
     execution.runAttempt < 1 ||

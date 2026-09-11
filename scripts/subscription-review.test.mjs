@@ -291,6 +291,52 @@ test("fresh native no-findings review is bound to full frozen source, separately
   assert.deepEqual(f.state.mutations, []);
 });
 
+test("the canonical clean verdict tolerates only a bounded decorative suffix on its first line", async (t) => {
+  for (const suffix of [" More of your lovely PRs please.", "", " 🚀"]) {
+    const f = fixture(t);
+    f.state.comments[2].body = f.state.comments[2].body.replace(" :rocket:", suffix);
+    assert.equal((await inspectNative(f.api, f.ticket, now)).verdict, "PASS");
+  }
+  for (const suffix of ["\nAn extra paragraph.", " " + "x".repeat(241), "\rExtra text"]) {
+    const f = fixture(t);
+    f.state.comments[2].body = f.state.comments[2].body.replace(" :rocket:", suffix);
+    await assert.rejects(inspectNative(f.api, f.ticket, now), /unbound_native_no_findings_comment/);
+  }
+});
+
+test("the second exact pinned bootstrap can publish while nearby refs and wrong workflow cannot", async (t) => {
+  const f = fixture(t);
+  const ref = "refs/heads/codex/review-subscription-bootstrap-20260911-2";
+  f.ticket.controlRef = ref;
+  f.env.GITHUB_REF = ref;
+  f.env.REVIEW_WORKFLOW_REF = `${repository}/.github/workflows/subscription-review.yml@${ref}`;
+  f.env.REVIEW_CONTEXT = JSON.stringify(f.ticket);
+  for (const event of ["push", "workflow_dispatch"]) {
+    f.env.GITHUB_EVENT_NAME = event;
+    assert.equal(assertTrustedExecution(f.env).controlRef, ref);
+  }
+  const result = await publishSubscription(f.env, f.api, now);
+  assert.equal(result.verdict, "PASS");
+  assert.equal(f.state.check.conclusion, "success");
+  assert.equal(f.state.check.app.id, 15368);
+  for (const bad of [ref + "0", ref + "/other", ref.replace(/-2$/, "-3")]) {
+    assert.throws(() =>
+      assertTrustedExecution({
+        ...f.env,
+        GITHUB_REF: bad,
+        REVIEW_WORKFLOW_REF: `${repository}/.github/workflows/subscription-review.yml@${bad}`,
+      }),
+    );
+  }
+  assert.throws(() => assertTrustedExecution({ ...f.env, REVIEW_BOOTSTRAP_SHA: undefined }));
+  assert.throws(() =>
+    assertTrustedExecution({
+      ...f.env,
+      REVIEW_WORKFLOW_REF: `${repository}/.github/workflows/pr-review.yml@${ref}`,
+    }),
+  );
+});
+
 test("an issue thumb requires a new authentic no-findings comment and an idle reaction snapshot", async (t) => {
   for (const change of [
     (f) => {
