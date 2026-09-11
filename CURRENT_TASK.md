@@ -38,7 +38,20 @@
   eerste volledige geplande runs moeten nog worden bevestigd. Bouwruns starten geïsoleerd
   vanaf `origin/main`, met PR en alle zes poorten. De ochtendbriefing blijft uitsluitend
   lezen en rapporteren. Oude GitHub-bouwers blijven uit.
-  De Codex-reviewintegratie wacht nog op `OPENAI_API_KEY`; zie `.github/codex/README.md`.
+  Bij de eerste overnamecontrole ontbrak `OPENAI_API_KEY`; op 11 september is dit na
+  expliciete gebruikersbevestiging toegevoegd als repositorysecret.
+  De Restricted-reviewsleutel heeft alleen List models: Read en Responses: Write en
+  vervalt op 11 oktober 2026. **Actueel resterend: API-billing/tegoed activeren** — de
+  eigenaar vult dit rechtstreeks bij OpenAI aan; betaalgegevens zijn niet ingevuld.
+  [Proefrun 34575468042](https://github.com/cartonn/ZZP-Platform/actions/runs/34575468042)
+  op #1475 head `8be0b39` bevestigt dit: Action-start en sleutelcontrole slagen, OpenAI
+  meldt geen resterende credits; eindvalidator INCOMPLETE, geen inhoudelijke review.
+  Op #1474 head `fb4938b` en #1475 head `8be0b39` zijn alle normale CI-checks groen,
+  inclusief e2e; alleen `agent-review` ontbreekt of faalt. Dit is een momentopname op
+  de genoemde SHA's. Een eerste volledig geslaagde
+  API-review en geplande run blijven onbewezen. Coördinatorprompt bijgewerkt: geen
+  herhaalde quotatests tot bevestigde tegoedwijziging; sleutelverval vanaf zeven dagen
+  vooraf in de ochtendbriefing melden. Zie `.github/codex/README.md`.
   Geen review of merge als geslaagd melden zolang de verplichte check niet groen is.
   Linear wordt niet gebruikt.
 - **Scope-restrictie routines (2-9-2026):** alleen kern + robuustheid/security/bugs. Ontzorgd/

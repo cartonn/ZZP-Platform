@@ -1,9 +1,20 @@
 # Conceptprompt — onafhankelijke Handslag PR-review
 
 Bewijsdatum: 2026-09-11. Deze prompt maakt geen GitHub-check en activeert geen
-reviewintegratie. De workflow wordt naar Codex omgezet, maar de benodigde sleutel
-ontbreekt nog. De vervanger moet de bestaande verplichte `agent-review`-poort behouden;
-de actieve routinecoördinator bewijst niet dat deze afzonderlijke integratie werkt.
+reviewintegratie. Bij de eerste overnamecontrole ontbrak de sleutel; inmiddels is
+`OPENAI_API_KEY` als repositorysecret bevestigd. De expliciet geautoriseerde
+Restricted-sleutel heeft alleen List models: Read en Responses: Write,
+en vervalt op 11 oktober 2026. De sleutelwaarde hoort nooit in uitvoer of bestanden.
+De actuele blokkade is ontbrekend API-tegoed; betaalgegevens zijn niet ingevuld.
+[Proefrun 34575468042](https://github.com/cartonn/ZZP-Platform/actions/runs/34575468042)
+op #1475 head `8be0b39ab270d9e826a90bbf2dce14d90d9a6314` bevestigt de blokkade:
+voorbereiding, sleutelcontrole en Action-start slagen, maar OpenAI meldt geen resterende
+credits. De eindvalidator geeft INCOMPLETE met `REVIEW_AUTHENTICATED=true`; geen
+inhoudelijke review. Een eerste volledig geslaagde API-review blijft onbewezen.
+Herhaal geen quotatests totdat een tegoedwijziging is bevestigd. De eigenaar vult
+betaalmethode/tegoed rechtstreeks bij OpenAI aan; vraag geen betaalgegevens in de taak.
+Behoud de verplichte `agent-review`-poort; de actieve routinecoördinator,
+secretregistratie en groene normale CI zijn geen vervanging voor deze review.
 
 Beoordeel de toegewezen PR onafhankelijk en adversarieel. Je hebt deze wijziging niet
 gebouwd. Gebruik de afgesproken aparte reviewer met een sterk model dat verschilt van
@@ -28,7 +39,8 @@ het bouwmodel. De bouwer mag zijn eigen wijziging niet goedkeuren of jouw verdic
 5. Lever één expliciet oordeel, gekoppeld aan PR/base/head:
    - **PASS:** beoordeling afgerond, geen inhoudelijke mergeblocker aangetoond.
    - **BLOCK:** concrete blocker met ernst, file:line, trigger/repro, impact en vereiste fix.
-   - **INCOMPLETE:** review niet afgerond door omgeving, authenticatie, budget of fout;
+   - **INCOMPLETE:** review niet afgerond door omgeving, authenticatie, API-quota/billing,
+     uitvoeringsbudget of fout;
      vermeld het ontbrekende bewijs en gerichte vervolgstap. Dit is geen PASS en ook
      geen inhoudelijk oordeel dat de code fout is.
 6. Publiceer bewijs en verdict uitsluitend via de ingerichte vertrouwde reviewintegratie.
@@ -47,7 +59,11 @@ niet inhoudelijk. Een daaropvolgende onafhankelijke Codex-review van head
 `edd689a0ef313f216daefee4a24ac2119c0a14c4` gaf wel **BLOCK**: onterechte oranje zegels
 bij dispuut en verborgen toetsenbordfocus van actieve zijbalknavigatie. De reparaties
 zijn daarna onafhankelijk in de werkboom herbeoordeeld: beide blockers hersteld,
-88 gerichte tests groen en focus zichtbaar in Chromium bij licht en donker. Commit,
-actuele PR-head en CI moeten nog worden vastgesteld; de werkboomcontrole is geen
-definitieve SHA-gebonden PASS. Lees de actuele GitHub-status opnieuw en verwar
-provideruitval niet met de eerdere inhoudelijke bevindingen.
+88 gerichte tests groen en focus zichtbaar in Chromium bij licht en donker. Die
+werkboomcontrole is geen definitieve SHA-gebonden PASS. Daarna zijn de reparaties
+op #1474 head `fb4938bf3edbf74cccd6224cb4de22f6bcb5d9b1` vastgelegd en onafhankelijk
+herbeoordeeld zonder nieuwe blocker. Alle normale CI-checks zijn inmiddels groen op
+die head én #1475 head `8be0b39ab270d9e826a90bbf2dce14d90d9a6314`; alleen de verplichte
+`agent-review` ontbreekt of faalt. Dit is een momentopname op de genoemde SHA's.
+Lees de actuele GitHub-status opnieuw en verwar
+tegoed-/provideruitval niet met de eerdere inhoudelijke bevindingen.

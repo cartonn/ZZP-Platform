@@ -63,8 +63,26 @@ Claude-workflow `swarm.yml` is nu uitgeschakeld en teruggelezen als **disabled_m
 Er zijn geen beschermde checks uitgeschakeld.
 
 De onafhankelijke PR-review in `.github/workflows/pr-review.yml` wordt naar Codex
-omgezet. De benodigde sleutel ontbreekt nog; de vervangende reviewintegratie is dus nog
-niet operationeel bewezen. Behoud de verplichte `agent-review`-poort zonder gefingeerde PASS.
+omgezet. **Bij de eerste overnamecontrole ontbrak de API-sleutel. Op 11 september is
+dit na expliciete gebruikersbevestiging hersteld:** `OPENAI_API_KEY` is bevestigd als
+repositorysecret, met Restricted-rechten voor alleen **List models: Read** en
+**Responses: Write**, geldig tot en met **11 oktober 2026**. De sleutelwaarde en
+accountgegevens horen nooit in deze publieke documentatie.
+
+**De actuele externe blokkade is API-tegoed/billing, niet meer een ontbrekend
+repositorysecret.** De eigenaar moet betaalmethode/tegoed rechtstreeks bij OpenAI
+aanvullen; er zijn geen betaalgegevens ingevuld. De blokkade is door uitvoering bewezen:
+[reviewrun 34575468042](https://github.com/cartonn/ZZP-Platform/actions/runs/34575468042)
+op PR #1475, head `8be0b39ab270d9e826a90bbf2dce14d90d9a6314`, is afgerond. Voorbereiding,
+aanwezigheidscontrole van de sleutel en checkout slagen; de officiële Codex Action
+installeert en start. OpenAI antwoordt: **“You have no credits remaining. Add credits
+to continue using the API”**. De eindvalidator registreert **INCOMPLETE**, met
+`REVIEW_AUTHENTICATED=true`; er is geen inhoudelijke review uitgevoerd. Dit bewijst
+de tegoedblokkade en de foutafhandeling, niet een geslaagde review. Een eerste volledig
+geslaagde review en geplande run blijven onbewezen. De actieve coördinatorprompt is
+bijgewerkt: **geen herhaalde quotatests tot een tegoedwijziging is bevestigd**; meld het
+sleutelverval vanaf zeven dagen vooraf in de ochtendbriefing. Behoud de verplichte
+`agent-review`-poort zonder gefingeerde PASS.
 De reguliere productietaken, monitor, expiry-check, dependencycontrole en herstel-drill zijn afzonderlijke
 operationele workflows; zet deze niet uit uitsluitend omdat Claude stopt.
 
@@ -174,7 +192,15 @@ ingerichte, vertrouwde integratie; nooit een gefingeerde groene check plaatsen.
   Prettier-controle. De negen dependency-vrije reviewvalidatietests slagen ook in de
   afzonderlijke overnameworktree. De onafhankelijke reviewer heeft daarna ook de twaalf
   reparatiebestanden op deze exacte commit beoordeeld: beide blockers hersteld, geen
-  nieuwe blocker. Nieuwe GitHub-checks blijven afzonderlijk te verifiëren.
+  nieuwe blocker.
+- **GitHub-checks bevestigd op 11 september:** op #1474 head
+  `fb4938bf3edbf74cccd6224cb4de22f6bcb5d9b1` en #1475 head
+  `8be0b39ab270d9e826a90bbf2dce14d90d9a6314` zijn alle normale CI-checks groen:
+  `check`, `e2e` met vier shards, de PostgreSQL-e2e, `audit`, `secret-scan`, `CodeQL`
+  en `migrations`. Alleen de verplichte `agent-review` ontbreekt of faalt. De
+  hierboven gelinkte proefreview op #1475 eindigde aantoonbaar INCOMPLETE door ontbrekend
+  API-tegoed; normale CI-groen is geen vervanging voor deze onafhankelijke poort.
+  Dit is een momentopname op de genoemde SHA's, geen checkclaim voor volgende commits.
 - #1473 factuurgoedkeuringsherinneringen dag 3/7 + admin-escalatie is gemerged.
   #1471 dormant-bench-badge, #1470 ORT-renderguards, #1469 secretvergelijking,
   #1467 tegenpartijfilter en #1453 Dependabot eveneens. Niet opnieuw bouwen.
@@ -211,8 +237,9 @@ Codex-promptbronnen: [auto-build](codex/auto-build.md), [persona-sweep](codex/pe
 is de afzonderlijke mergepoort. De bestanden zelf activeren geen scheduler.
 
 De oorspronkelijke schedules zijn gelezen, de oude uitvoerders zijn gepauzeerd en één
-Codex-coördinator is geverifieerd actief. Volledig werkende uitvoering vereist nog
-aantoonbare dispatch met runregister, een geslaagde eerste Codex-run per werkstroom en
-een werkende onafhankelijke
-review op de actuele PR-head. Noteer per onderdeel datum, uitkomst en bewijs; laat
+Codex-coördinator is geverifieerd actief. Het beperkte `OPENAI_API_KEY`-repositorysecret
+is toegevoegd; API-billing/tegoed moet nog worden geactiveerd. Volledig werkende uitvoering
+vereist daarnaast aantoonbare dispatch met runregister, een geslaagde eerste Codex-run
+per werkstroom en een werkende onafhankelijke review op de actuele PR-head. Noteer per
+onderdeel datum, uitkomst en bewijs; laat
 onbevestigde onderdelen expliciet open.
