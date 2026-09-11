@@ -70,24 +70,15 @@ jobs:
           path: review-control
           persist-credentials: false
 
-      - name: Build the prompt exclusively from trusted controls
-        env:
-          REVIEW_CONTEXT: ${{ needs.prepare-review.outputs.context }}
-        run: node review-control/scripts/agent-review-codex.mjs prompt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - uses: actions/checkout@v4
         with:
-          repository: openai/codex-action
-          ref: 86365089eb2b84e0a8fb0717b304f8bdcb13b20e
-          path: review-action
-          persist-credentials: false
-
-      - name: Apply the verified action process-close repair
-        run: node review-control/scripts/patch-codex-action.mjs review-action
-
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.prepare-review.outputs.head }}
+          # Pull refs cover forks too. The trusted reader checks the exact
+          # prepared head before any API call, rejecting an intervening update.
+          ref: refs/pull/${{ env.REVIEW_PR }}/head
           path: review-source
           fetch-depth: 0
           persist-credentials: false
@@ -104,29 +95,22 @@ jobs:
           fi
           echo 'ready=true' >> "$GITHUB_OUTPUT"
 
-      # PR files are review data. Never run their installers, hooks or actions.
-      # The model has no repository write token. An output file alone never passes.
+      # The model can only request catalogued Git source objects. It has no
+      # shell, host-file, web or repository-write tools and executes no PR code.
       - name: Independent adversarial Codex review
         id: codex
-        uses: ./review-action
-        with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          working-directory: ${{ github.workspace }}/review-source
-          prompt-file: ${{ runner.temp }}/agent-review-codex-prompt.md
-          output-schema-file: ${{ github.workspace }}/review-control/.github/codex/agent-review.schema.json
-          output-file: ${{ runner.temp }}/agent-review-codex-final.json
-          permission-profile: ":read-only"
-          safety-strategy: drop-sudo
-          model: gpt-5.5
-          effort: high
-          codex-args: '["--ephemeral"]'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          REVIEW_CONTEXT: ${{ needs.prepare-review.outputs.context }}
+          REVIEW_SOURCE_DIR: ${{ github.workspace }}/review-source
+        run: node review-control/scripts/run-agent-review.mjs
 
       - name: Preserve raw review output, including unsuccessful runs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: codex-review-raw-${{ env.REVIEW_PR }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/agent-review-codex-final.json
+          path: ${{ runner.temp }}/agent-review-codex-*.json
           if-no-files-found: ignore
           retention-days: 30
 

@@ -53,6 +53,10 @@
   is gestart op #1475 head `5acadf8`. De modeluitvoer geeft BLOCK op PR-headgestuurde
   reviewcontroles; de Action was na die uitvoer nog niet afgesloten. De integratie
   krijgt een vertrouwde workflow, afzonderlijke publisher en bevroren bootstrapbasis.
+  De latere run `34581684896` toonde PASS-tekst maar eindigde door de vastgelopen
+  officiële uitvoerder als INCOMPLETE met een leeg rapport. De modeljob wordt daarom
+  vervangen door directe Responses API-aanroepen met uitsluitend bronleesfuncties;
+  de beschermde reviewpoort blijft intact.
   Herbeoordeling en geplande uitvoering zijn apart te verifiëren: lees de actuele GitHub-run/check en het
   duurzame runregister. Herhaal een nieuwe quotafout niet zonder bevestigde wijziging;
   meld sleutelverval vanaf zeven dagen vooraf. Publiceer geen saldo of account-/billingdetails.

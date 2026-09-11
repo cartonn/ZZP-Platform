@@ -185,11 +185,18 @@ Normale reviews draaien via `pull_request_target`; handmatige retries uitsluiten
 beschermde `main`. Een afzonderlijke bevroren bootstrapbranch maakt de eerste migratie
 mogelijk: volledige controls vooraf onafhankelijk beoordelen, SHA buiten de PR vastleggen
 in `CODEX_REVIEW_BOOTSTRAP_SHA`, updates/deleties zonder bypass blokkeren en de effectieve
-bescherming verifiëren. Deze uitvoeringsbasis is geen PR-goedkeuring. De aparte publisher
-maakt vóór de modelrun een echte `agent-review`-check op de actuele PR-head en werkt
-dezelfde check alleen na volledige validatie bij. Controleer run/attempt, control-SHA,
+bescherming verifiëren. Deze uitvoeringsbasis is geen PR-goedkeuring. De vertrouwde
+voorbereidingsjob maakt vóór de modelrun een echte `agent-review`-check op de actuele
+PR-head; de publicatiejob werkt dezelfde check alleen na volledige validatie bij. Controleer run/attempt, control-SHA,
 check-ID en modelrapport naast de zes poorten. Verwijder de bootstrapvariabele na de
 migratie. De concrete procedure staat in `.github/codex/README.md`.
+
+De modeljob gebruikt rechtstreeks de officiële Responses API met GPT-5.5/high. Alleen
+bronlezen via vooraf gecatalogiseerde Git-objecten is beschikbaar; het model heeft geen
+shell of schrijfgereedschap. De eerdere officiële CLI/Action bleef na einduitvoer hangen,
+ook met de tijdelijke procespatch. Run `34581684896` toonde PASS-tekst maar publiceerde
+na annulering terecht INCOMPLETE met een leeg rapport. De directe API vervangt die
+uitvoerder; de onafhankelijke review en alle beschermde checks blijven vereist.
 
 ## Concrete overdracht: repo-opname 10 september, review aangevuld 11 september
 

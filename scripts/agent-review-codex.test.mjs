@@ -168,8 +168,8 @@ test("only a protected default workflow or externally pinned bootstrap can execu
     assert.throws(() => assertTrustedExecution({ ...trustedEnv, ...extra }));
   const bootstrap = {
     ...trustedEnv,
-    GITHUB_REF: "refs/heads/codex/review-bootstrap-20260911-2",
-    REVIEW_WORKFLOW_REF: `${context.repository}/.github/workflows/pr-review.yml@refs/heads/codex/review-bootstrap-20260911-2`,
+    GITHUB_REF: "refs/heads/codex/review-bootstrap-20260911-3",
+    REVIEW_WORKFLOW_REF: `${context.repository}/.github/workflows/pr-review.yml@refs/heads/codex/review-bootstrap-20260911-3`,
     REVIEW_BOOTSTRAP_SHA: controlSha,
   };
   assert.equal(assertTrustedExecution(bootstrap).controlSha, controlSha);

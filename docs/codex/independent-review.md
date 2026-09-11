@@ -60,6 +60,10 @@ het bouwmodel. De bouwer mag zijn eigen wijziging niet goedkeuren of jouw verdic
    Verifieer vóór publicatie dat head én base nog gelijk zijn; anders oude review ongeldig
    verklaren en de nieuwe diff beoordelen. Geen check aanmaken die een niet-uitgevoerde
    review suggereert. Alleen werkelijk afgeronde PASS mag de poort groen maken.
+   De modeljob gebruikt de directe Responses API en uitsluitend bronleesfuncties op
+   vaste Git-objecten. Controleer de volledig afgeronde API-uitvoer en het opgeslagen
+   rapport; zichtbaar modeloordeel uit een vastgelopen of geannuleerde uitvoerder is
+   geen goedkeuring. De eerder gebruikte CLI/Action is vervangen.
 7. Voeg geen reparatiecommits aan deze PR toe tijdens de onafhankelijke beoordeling.
    Laat de bouwer blockers oplossen; beoordeel daarna de nieuwe SHA. Geen branchbescherming
    wijzigen, geen admin-bypass en geen reviewvereiste verwijderen wegens provideruitval.
@@ -80,3 +84,5 @@ die head én #1475 head `8be0b39ab270d9e826a90bbf2dce14d90d9a6314`; alleen de ve
 `agent-review` ontbreekt of faalt. Dit is een momentopname op de genoemde SHA's.
 Lees de actuele GitHub-status opnieuw en verwar
 tegoed-/provideruitval niet met de eerdere inhoudelijke bevindingen.
+
+Before requesting the GitHub review, merge current protected `main` into an outdated PR branch. The source reader rejects a head that does not contain the current base commit, before any paid API request.

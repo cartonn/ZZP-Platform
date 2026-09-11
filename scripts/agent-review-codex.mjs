@@ -8,7 +8,7 @@ const schema = JSON.parse(
 );
 const shaPattern = /^[a-f0-9]{40}$/;
 const repositoryPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const bootstrapRef = "refs/heads/codex/review-bootstrap-20260911-2";
+const bootstrapRef = "refs/heads/codex/review-bootstrap-20260911-3";
 const actionsAppId = 15368;
 const incomplete = (reason) => ({
   verdict: "INCOMPLETE",
