@@ -7,7 +7,7 @@
 Op eigenaarverzoek gedeelde drukfeedback voor echte interactieve onderdelen,
 annulering bij scrollen, ruimere mobiele klikvlakken en zichtbare focus in lijsten.
 Hover werkt alleen op geschikte pointers; statuszegels en statische kaarten blijven intact.
-Lint, types en 8.755 tests slagen (2 bestaande skips); browser- en releasecontrole volgen.
+Lint, types, build en 8.755 tests slagen (2 bestaande skips); browser/releasecontrole #1485 volgt.
 Zie [uitvoering](docs/progress/2026-09-12-interactions.md).
 
 ## 2026-09-12 — ingelogd platform krijgt de Handslag V5-identiteit

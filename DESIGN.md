@@ -142,6 +142,10 @@ Knoppen krijgen een voelbare onderrand; hover lift maximaal 2px en alleen bij ee
 pointer met hover. Touch heeft een drukstand. Rijen blijven stabiel en krijgen een achtergrondaccent.
 Alle componenten respecteren `prefers-reduced-motion`. De gedeelde uitwerking staat in
 `src/app/handslag-workspace.css`; breid deze bron uit in plaats van paginavarianten te stapelen.
+Links, klikbare kaarten, rijen, tabs en menu’s delen de druk- en focusfeedback.
+Touchfeedback verdwijnt bij scrollen en annuleren, zonder native scroll of zoom te blokkeren.
+Op aanraakschermen zijn zelfstandige bedieningselementen minimaal 44px en invoervelden
+minimaal 16px tekst. Statische kaarten en statuszegels krijgen geen klikgedrag.
 
 ---
 

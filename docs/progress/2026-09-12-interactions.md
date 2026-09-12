@@ -11,7 +11,13 @@ annuleren, loslaten, routewisseling of focusverlies; native scroll, zoom en
 activering worden niet onderschept. Mobiele menu-overlays delen dezelfde laag.
 Ruime klikvlakken en leesbare invoer gelden ook voor grotere aanraakschermen.
 
-Validatie tot nu toe: lint, types en alle 8.755 bestaande tests slagen, 2 bestaande
-skips. Eerste build kon bestaande Google-lettertypen niet bereiken binnen de sandbox;
-netwerktoegankelijke productiebuild en gerichte browsercontrole volgen.
-Onafhankelijke review, zes GitHub-poorten en uitrol moeten nog worden bevestigd.
+PR #1485. Mobiele navigatie sluit ook bij selectie van de huidige pagina;
+de geselecteerde navigatie behoudt haar kleuren tijdens hover en indrukken.
+Een zichtbare binnenrand blijft ook boven ondoorzichtige inhoud van klikbare kaarten staan.
+
+Validatie: lint, types, alle 8.755 bestaande tests (2 bestaande skips), volledige
+opmaakcontrole en definitieve productiebuild slagen. De eerste beperkte build kon
+bestaande Google-lettertypen niet bereiken; de netwerktoegankelijke herbouw slaagt.
+Onafhankelijke inhoudsreview vindt na twee navigatiecorrecties geen verdere blocker.
+Gerichte Chromium/WebKit-browserproeven, de zes GitHub-poorten en uitrol volgen;
+de eerste browserstart liep vast in de sandbox en is geen producttestbewijs.
