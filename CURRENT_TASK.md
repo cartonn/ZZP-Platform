@@ -1,11 +1,12 @@
 # CURRENT_TASK.md — Huidige taak
 
-Huidige eigenaaropdracht 12 september: het ingelogde platform moet de kleuren en het
-tweehandslogo van de landingspagina krijgen, inclusief oranje en goedkeuringszegels.
-De bestaande V5-implementatie wordt geïntegreerd op actuele main `112e23c` en opnieuw
-gecontroleerd. De eerdere PR #1474 blijft als bewijs bewaard; zijn verlopen,
-onbeantwoorde review geldt niet als goedkeuring van deze nieuwe integratie.
-Zie [platformintegratie](docs/progress/2026-09-12-platform-brand.md).
+Huidige eigenaaropdracht 12 september: consequente hover- en aanraakfeedback voor
+klikbare kaarten, rijen, navigatie en tabs. Scrollen annuleert de drukstand;
+toetsenbordfocus, rustige beweging en mobiele klikvlakken blijven zichtbaar.
+Zie [interacties](docs/progress/2026-09-12-interactions.md).
+De V5-platformidentiteit is met #1483 gemerged als `535df3f` en live geverifieerd
+op 12 september 14:37 UTC, inclusief drie browserproeven op de echte site.
+De eerdere #1474 blijft gesloten als vervangen; verlopen reviewbewijs wordt niet hergebruikt.
 
 PR #1481 is na alle zes groene poorten gemerged als `79c98a7` en live geverifieerd;
 de geplande bewaking van 12 september 09:18 UTC slaagt inclusief incidentafhandeling.

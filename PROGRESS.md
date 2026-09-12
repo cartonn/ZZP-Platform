@@ -2,6 +2,14 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-12 — consequente interacties voor muis, aanraking en toetsenbord
+
+Op eigenaarverzoek gedeelde drukfeedback voor echte interactieve onderdelen,
+annulering bij scrollen, ruimere mobiele klikvlakken en zichtbare focus in lijsten.
+Hover werkt alleen op geschikte pointers; statuszegels en statische kaarten blijven intact.
+Lint, types en 8.755 tests slagen (2 bestaande skips); browser- en releasecontrole volgen.
+Zie [uitvoering](docs/progress/2026-09-12-interactions.md).
+
 ## 2026-09-12 — ingelogd platform krijgt de Handslag V5-identiteit
 
 Op herhaald eigenaarverzoek wordt de bestaande platformvormgeving van #1474
@@ -11,7 +19,8 @@ Zwart markeert wachten op goedkeuring; oranje volgt de effectieve goedgekeurde s
 De verlopen review van #1474 blijft als bewijs bewaard; deze integratie krijgt nieuwe
 controles en onafhankelijke review. Ook installatie-iconen en offlinepagina zijn vernieuwd.
 Lokale volledige check: 8.755 tests groen (2 bestaande skips), lint/types/build/opmaak
-groen; 21 browserproeven zonder retries geslaagd. Releasepoorten volgen.
+groen; 21 browserproeven zonder retries geslaagd. Alle zes releasepoorten groen;
+#1483 gemerged als `535df3f`, live geverifieerd om 14:37 UTC met drie browserproeven.
 Zie [uitvoering](docs/progress/2026-09-12-platform-brand.md).
 
 ## 2026-09-12 — modelovereenkomst: tekenen met actuele status en atomair auditspoor

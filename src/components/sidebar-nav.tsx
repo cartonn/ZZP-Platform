@@ -72,9 +72,11 @@ export function SidebarNav({
   items,
   badges,
   collapsible = false,
+  onNavigate,
 }: {
   items: NavItem[];
   badges?: NavBadges;
+  onNavigate?: () => void;
   /**
    * Inklapbare rail-modus: labels, sectiekoppen en badges vervagen als de rail is ingeklapt en
    * verschijnen bij hover/focus van de rail (de `group`). De iconen blijven altijd zichtbaar.
@@ -117,6 +119,7 @@ export function SidebarNav({
         ) : (
           <Link
             href={item.href}
+            onClick={onNavigate}
             aria-current={isActive ? "page" : undefined}
             className={cn(
               "focus-ring flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",

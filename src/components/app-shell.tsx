@@ -11,6 +11,7 @@ import { SidebarToggle } from "@/components/sidebar-toggle";
 import { SIDEBAR_COOKIE, parseSidebarState } from "@/lib/sidebar";
 import { MobileDock } from "@/components/mobile-dock";
 import { MobileNav } from "@/components/mobile-nav";
+import { WorkspaceFeedback } from "@/components/workspace-feedback";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SkipLink } from "@/components/ui/skip-link";
 import { SearchTrigger } from "@/components/search/search-trigger";
@@ -95,6 +96,7 @@ export async function AppShell({
 
   return (
     <div className={cn("hs-app relative min-h-screen", sidebarExpanded ? "md:pl-64" : "md:pl-16")}>
+      <WorkspaceFeedback />
       {/* Skip-link: eerste focusbare element, springt naar de hoofdinhoud (toetsenbord/screenreader). */}
       <SkipLink />
       {/* Vakwerk-shell: de zijbalk staat standaard uitgeklapt (16rem) met zichtbare labels +

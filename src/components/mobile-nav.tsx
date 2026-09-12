@@ -59,7 +59,7 @@ export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBad
         createPortal(
           <div
             ref={dialogRef}
-            className="fixed inset-0 z-50"
+            className="hs-overlay fixed inset-0 z-50"
             role="dialog"
             aria-modal="true"
             aria-label="Navigatie"
@@ -67,6 +67,7 @@ export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBad
             <button
               type="button"
               aria-label="Menu sluiten"
+              data-hs-feedback="none"
               onClick={() => setOpen(false)}
               className="absolute inset-0 bg-black/40"
             />
@@ -86,7 +87,7 @@ export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBad
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto overscroll-contain p-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                <SidebarNav items={items} badges={badges} />
+                <SidebarNav items={items} badges={badges} onNavigate={() => setOpen(false)} />
               </div>
             </div>
           </div>,

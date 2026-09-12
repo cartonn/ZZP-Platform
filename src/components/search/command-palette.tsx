@@ -179,6 +179,7 @@ export function CommandPalette({ navItems = [] }: { navItems?: NavCommandSource[
       <button
         type="button"
         aria-label="Snelzoeker sluiten"
+        data-hs-feedback="none"
         onClick={close}
         className="absolute inset-0 bg-black/40"
       />
