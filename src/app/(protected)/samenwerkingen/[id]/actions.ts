@@ -44,7 +44,7 @@ import { boundReason, boundText, MAX_TITLE_LEN, MAX_DESCRIPTION_LEN } from "@/li
 import { weekdaySchema, type Weekday } from "@/lib/enums";
 import { serializeWeekdays } from "@/lib/weekdays";
 import { MODEL_AGREEMENT_TYPES, type ModelAgreementType } from "@/lib/model-agreement";
-import { audit } from "@/lib/audit";
+import { audit, auditData } from "@/lib/audit";
 
 /**
  * Vertaalt een gevangen cascade-fout naar een VEILIGE, opborrelende melding voor deze plain
@@ -489,18 +489,41 @@ export async function signModelAgreementAction(collaborationId: string): Promise
     return; // idempotent: al ondertekend
   }
 
-  await prisma.collaboration.update({
-    where: { id: collaborationId },
-    data: isFreelancer
-      ? { agreementFreelancerSignedAt: new Date() }
-      : { agreementClientSignedAt: new Date() },
-  });
-  await audit({
-    actorId: actor.id,
-    action: "MODEL_AGREEMENT_SIGNED",
-    entityType: "Collaboration",
-    entityId: collaborationId,
-    metadata: { party: isFreelancer ? "FREELANCER" : "CLIENT" },
+  const signatureField = isFreelancer ? "agreementFreelancerSignedAt" : "agreementClientSignedAt";
+  const partyWhere = isFreelancer
+    ? { freelancer: { userId: actor.id } }
+    : { company: { userId: actor.id } };
+  // De database toetst de actuele toestand bij de write: een beëindiging, dispuut
+  // of parallel akkoord na de pre-lees mag geen nieuwe/overschreven handtekening geven.
+  // Het auditspoor commit uitsluitend samen met de eerste handtekening.
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.collaboration.updateMany({
+      where: {
+        id: collaborationId,
+        ...partyWhere,
+        status: { in: ["PROPOSED", "ACTIVE"] },
+        disputedAt: null,
+        [signatureField]: null,
+      },
+      data: { [signatureField]: new Date() },
+    });
+    if (count === 0) {
+      const fresh = await tx.collaboration.findFirst({
+        where: { id: collaborationId, ...partyWhere },
+        select: { agreementFreelancerSignedAt: true, agreementClientSignedAt: true },
+      });
+      if (fresh?.[signatureField]) return; // Een parallel akkoord won; niets opnieuw auditen.
+      throw new Error("Je kunt deze modelovereenkomst niet meer ondertekenen.");
+    }
+    await tx.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: "MODEL_AGREEMENT_SIGNED",
+        entityType: "Collaboration",
+        entityId: collaborationId,
+        metadata: { party: isFreelancer ? "FREELANCER" : "CLIENT" },
+      }),
+    });
   });
   refresh(collaborationId);
 }
