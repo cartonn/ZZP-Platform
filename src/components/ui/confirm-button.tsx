@@ -92,6 +92,7 @@ export function ConfirmButton({
             type="button"
             aria-label={`${title} — sluiten`}
             onClick={() => setOpen(false)}
+            data-hs-feedback="none"
             className="absolute inset-0 bg-black/40"
           />
           <div className="relative mx-auto mt-[20vh] w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-xl">

@@ -58,6 +58,7 @@ export function ActionDrawer({
       <button
         type="button"
         aria-label="Sluiten"
+        data-hs-feedback="none"
         onClick={onClose}
         className="absolute inset-0 bg-black/40"
       />
