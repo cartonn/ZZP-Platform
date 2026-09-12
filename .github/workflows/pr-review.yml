@@ -41,7 +41,7 @@ jobs:
       head: ${{ steps.prepare.outputs.head }}
       context: ${{ steps.prepare.outputs.context }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.workflow_sha }}
           path: review-control
@@ -64,17 +64,17 @@ jobs:
       report: ${{ steps.codex.outputs.final-message }}
       authenticated: ${{ steps.auth.outputs.ready }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.workflow_sha }}
           path: review-control
           persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Pull refs cover forks too. The trusted reader checks the exact
           # prepared head before any API call, rejecting an intervening update.
@@ -107,7 +107,7 @@ jobs:
 
       - name: Preserve raw review output, including unsuccessful runs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: codex-review-raw-${{ env.REVIEW_PR }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/agent-review-codex-*.json
@@ -124,7 +124,7 @@ jobs:
       pull-requests: write
       checks: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.workflow_sha }}
           path: review-control
@@ -141,7 +141,7 @@ jobs:
 
       - name: Preserve validated review evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: codex-review-${{ env.REVIEW_PR }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/agent-review-codex-*.json

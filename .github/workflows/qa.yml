@@ -49,9 +49,9 @@ jobs:
       REAUTH_RATE_LIMIT: "100000"
       REGISTER_RATE_LIMIT: "100000"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -70,14 +70,14 @@ jobs:
         # houdt de totale tijd binnen budget; binnen een shard is serieel betrouwbaarder dan snel.
         run: npx playwright test e2e/qa/ --project=ci --reporter=list --shard=${{ matrix.shard }}/4 --workers=1
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: qa-screenshots-${{ matrix.shard }}
           path: e2e/qa/screenshots/
           retention-days: 14
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: qa-report-${{ matrix.shard }}
