@@ -2,6 +2,18 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-12 — ingelogd platform krijgt de Handslag V5-identiteit
+
+Op herhaald eigenaarverzoek wordt de bestaande platformvormgeving van #1474
+geïntegreerd met actuele main112e23c in #1483. Blauw/wit/oranje, originele handen,
+Open Sans, lagen/schaduwen en responsieve navigatie vormen één geheel met de landing.
+Zwart markeert wachten op goedkeuring; oranje volgt de effectieve goedgekeurde status.
+De verlopen review van #1474 blijft als bewijs bewaard; deze integratie krijgt nieuwe
+controles en onafhankelijke review. Ook installatie-iconen en offlinepagina zijn vernieuwd.
+Lokale volledige check: 8.755 tests groen (2 bestaande skips), lint/types/build/opmaak
+groen; 21 browserproeven zonder retries geslaagd. Releasepoorten volgen.
+Zie [uitvoering](docs/progress/2026-09-12-platform-brand.md).
+
 ## 2026-09-12 — modelovereenkomst: tekenen met actuele status en atomair auditspoor
 
 PR #1482: directe proeven met een eigen synthetische SQLite-database bevestigen
@@ -10,7 +22,8 @@ en ontbreken van rollback bij auditfouten. Een conditionele write accepteert nu
 uitsluitend een nieuwe eigen handtekening op PROPOSED/ACTIVE zonder geschil.
 Handtekening en audit committen samen; bestaande akkoorden blijven behouden.
 De 26 gerichte en 8.713 totale tests slagen (2 bestaande skips); lint, types,
-opmaak en productiebuild zijn groen. Definitieve review en release volgen.
+opmaak en productiebuild zijn groen. Na alle zes poorten is #1482 gemerged als
+`112e23c` en op 12 september 13:29 UTC live geverifieerd.
 Zie [bewijs en afbakening](docs/progress/2026-09-12-agreement-signing.md).
 
 ## 2026-09-12 — deploybewaking: ontbrekend incidentlabel
@@ -371,26 +384,6 @@ weigering >2 decimalen, consistentie met de kwantisatie), `src/lib/cascade/perfo
 4 tests — `hours` en `seg.hours` grid-guards), `src/lib/validation.ts` (+ `.test.ts`: 3 tests — `hours`/`ortTotal`
 grid + float-noisy 1,67 blijft geldig). **Checks:** typecheck ✓ · lint ✓ · unit (affected 115/115) ✓ · prettier ✓ ·
 full unit + build + CI-poort verifiëren (PR #1447).
-
-## 2026-09-09 — prod: request-body begrensd op de resterende body-lezende API-endpoints (CWE-400)
-
-**Wat:** `readLimitedText` (gestreamde body-grens) sloot het onbegrensd-bufferen op de vier publieke
-body-lezende endpoints (`/api/client-error`, `/api/csp-report`, `/api/billing/webhook`,
-`/api/mail-intake/webhook`). Drie andere body-lezende endpoints lazen de body nog via een onbegrensd
-`request.json()`, dat de VOLLEDIGE stream (óók chunked, zónder Content-Length) in het geheugen buffert
-vóór er een grens geldt: `push/subscribe` + `push/unsubscribe` (sessie-auth, **geen rate-limit** → een
-ingelogde actor kon arbitrair grote bodies loopen) en `backups/heartbeat` (Bearer CRON_SECRET). CWE-400.
-
-**Aanpak (hergebruik, geen duplicatie):** één gedeelde helper `readLimitedJson(request, maxBytes)` in
-`src/lib/http/read-limited-text.ts` (leunt op `readLimitedText` + `JSON.parse`, retourneert de geparste
-waarde of `null` bij te groot/onleesbaar/leeg/onparseerbaar). De drie endpoints lezen nu via die helper met
-een eigen krappe grens (subscribe 8 KB, unsubscribe 4 KB, heartbeat 1 KB); gedrag bij een geldige body
-identiek (`null` mapt op het bestaande faalpad: 400 bij push, "kale ping = geslaagd" bij de heartbeat).
-**Bestanden:** `src/lib/http/read-limited-text.ts` (+ `.test.ts`: 5 nieuwe `readLimitedJson`-tests — geldige
-JSON, leeg→null, onparseerbaar→null, byte-grens vóór parsen, chunked-oversize zonder Content-Length),
-`src/app/api/push/subscribe/route.ts`, `src/app/api/push/unsubscribe/route.ts`,
-`src/app/api/backups/heartbeat/route.ts`. **Checks:** typecheck ✓ · lint ✓ · unit (15/15 helper) ✓ ·
-prettier ✓ · build + CI-poort verifiëren (PR #1446).
 
 Oudere entries van 8 en 9 september staan ongewijzigd in
 [het voortgangsarchief](docs/progress/2026-09-12-prior-progress.md).

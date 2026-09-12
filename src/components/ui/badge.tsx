@@ -1,3 +1,5 @@
+import { Seal } from "./seal";
+import { type ApprovalMark } from "@/lib/approval-mark";
 import { cn } from "@/lib/utils";
 
 type Variant = "default" | "muted" | "accent" | "success" | "warning" | "danger";
@@ -15,16 +17,23 @@ const variants: Record<Variant, string> = {
 export function Badge({
   variant = "default",
   className,
+  approval,
+  children,
   ...props
-}: React.HTMLAttributes<HTMLSpanElement> & { variant?: Variant }) {
+}: React.HTMLAttributes<HTMLSpanElement> & { variant?: Variant; approval?: ApprovalMark }) {
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
         variants[variant],
+        approval && "hs-approval-badge gap-1.5",
         className,
       )}
       {...props}
-    />
+      data-approval={approval}
+    >
+      {approval && <Seal tone={approval === "approved" ? "verified" : "pending"} size="sm" />}
+      {children}
+    </span>
   );
 }

@@ -16,16 +16,18 @@ describe("CredentialStatusBadge", () => {
     );
     expect(html).toContain("Verlopen");
     expect(html).not.toContain("Geverifieerd");
+    expect(html).not.toContain('data-approval="approved"');
   });
 
-  it("houdt 'Geverifieerd' groen voor een VERIFIED-certificaat met vervaldatum in de toekomst", () => {
+  it("houdt 'Geverifieerd' met oranje zegel voor een VERIFIED-certificaat met vervaldatum in de toekomst", () => {
     const html = renderToStaticMarkup(
       <CredentialStatusBadge status="VERIFIED" expiresAt={new Date(Date.now() + DAY)} />,
     );
     expect(html).toContain("Geverifieerd");
+    expect(html).toContain('data-approval="approved"');
   });
 
-  it("houdt 'Geverifieerd' groen voor een VERIFIED-certificaat zonder vervaldatum", () => {
+  it("houdt 'Geverifieerd' met oranje zegel voor een VERIFIED-certificaat zonder vervaldatum", () => {
     expect(renderToStaticMarkup(<CredentialStatusBadge status="VERIFIED" />)).toContain(
       "Geverifieerd",
     );
@@ -40,6 +42,7 @@ describe("CredentialStatusBadge", () => {
       <CredentialStatusBadge status="SUBMITTED" expiresAt={new Date(Date.now() - DAY)} />,
     );
     expect(submitted).toContain("In beoordeling");
+    expect(submitted).toContain('data-approval="pending"');
     const rejected = renderToStaticMarkup(
       <CredentialStatusBadge status="REJECTED" expiresAt={new Date(Date.now() - DAY)} />,
     );

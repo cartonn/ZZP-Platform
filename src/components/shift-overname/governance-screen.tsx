@@ -153,7 +153,9 @@ export async function ShiftHandoffGovernanceScreen({ actor }: { actor: Actor }) 
                 <CardContent className="space-y-2 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-medium">{h.collaboration.job.title}</p>
-                    <Badge variant="warning">Te beoordelen</Badge>
+                    <Badge variant="warning" approval="pending">
+                      Te beoordelen
+                    </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Huidige ZZP&apos;er: {h.collaboration.freelancer.user.name} · aangevraagd op{" "}

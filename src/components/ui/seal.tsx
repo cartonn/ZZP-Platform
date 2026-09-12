@@ -1,26 +1,17 @@
 import { cn } from "@/lib/utils";
 
-type SealTone = "verified" | "brand" | "expiring";
+type SealTone = "verified" | "pending" | "brand" | "expiring";
 type SealSize = "sm" | "md" | "lg";
-
-const SIZE: Record<SealSize, string> = {
-  sm: "size-5",
-  md: "size-7",
-  lg: "size-9",
-};
-
+const SIZE: Record<SealSize, string> = { sm: "size-5", md: "size-7", lg: "size-9" };
 const TONE: Record<SealTone, string> = {
-  verified: "text-success",
+  verified: "hs-seal-approved",
+  pending: "hs-seal-pending",
   brand: "text-primary",
   expiring: "text-warning",
 };
 
-/**
- * Het zegel — hét vertrouwensteken van het platform (DESIGN.md — Vakwerk-signatuur):
- * cirkel met dubbele ring en een vinkje (of uitroepteken bij `expiring`). Gebruik
- * `verified` voor geverifieerd, `brand` als merkmarkering, `expiring` bij verloop.
- * Decoratief tenzij `label` is gezet (dan met toegankelijke naam).
- */
+/** Original Handslag logo: black while awaiting approval, orange stamp after approval.
+ * Expiry remains a distinct warning, never an approval signal. */
 export function Seal({
   tone = "verified",
   size = "md",
@@ -34,40 +25,44 @@ export function Seal({
 }) {
   return (
     <svg
-      viewBox="0 0 30 30"
+      viewBox="0 0 48 48"
       className={cn(SIZE[size], TONE[tone], "shrink-0", className)}
+      data-seal={tone}
       role={label ? "img" : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
+      focusable="false"
     >
-      <circle cx="15" cy="15" r="14" fill="currentColor" opacity="0.14" />
-      <circle cx="15" cy="15" r="13.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <circle
-        cx="15"
-        cy="15"
-        r="10.4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1"
-        opacity="0.45"
-      />
+      {tone === "pending" ? (
+        <circle cx="24" cy="24" r="23" fill="white" />
+      ) : (
+        <>
+          <circle cx="24" cy="24" r="22" fill="currentColor" opacity=".08" />
+          <circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <circle
+            cx="24"
+            cy="24"
+            r="18.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth=".7"
+            opacity=".45"
+          />
+        </>
+      )}
       {tone === "expiring" ? (
         <path
-          d="M15 9v7M15 20h.01"
+          d="M24 14v13M24 34h.01"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2.4"
+          strokeWidth="3"
           strokeLinecap="round"
         />
       ) : (
-        <path
-          d="m9.8 15.6 3.4 3.4 7-8"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        <g fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round">
+          <path d="M10.6 13h7a10 10 0 0 1 10 10v4" />
+          <path d="M37.4 35h-7a10 10 0 0 1 -10 -10v-4" />
+        </g>
       )}
     </svg>
   );

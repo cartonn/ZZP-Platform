@@ -130,6 +130,7 @@ describe("exportDienstenCsv", () => {
     companyName: "Zorgbureau XYZ",
     type: "HOURS",
     status: "APPROVED",
+    disputed: false,
     periodStart: new Date("2026-01-01"),
     periodEnd: new Date("2026-01-31"),
     hours: 80,

@@ -261,7 +261,9 @@ export default async function MailIntakePage() {
                       Van {intake.fromAddress} · {formatDateTimeNl(intake.receivedAt)}
                     </p>
                   </div>
-                  <Badge variant="warning">Te beoordelen</Badge>
+                  <Badge variant="warning" approval="pending">
+                    Te beoordelen
+                  </Badge>
                 </div>
                 <ParsedChips {...intake} />
                 {intake.textBody ? (

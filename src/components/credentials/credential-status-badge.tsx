@@ -1,3 +1,4 @@
+import { approvalMark } from "@/lib/approval-mark";
 import { Badge } from "@/components/ui/badge";
 import { isExpired } from "@/lib/credentials";
 import { type CredentialStatus } from "@/lib/enums";
@@ -31,5 +32,9 @@ export function CredentialStatusBadge({
 }) {
   const effective: CredentialStatus = isExpired({ status, expiresAt }) ? "EXPIRED" : status;
   const s = MAP[effective];
-  return <Badge variant={s.variant}>{s.label}</Badge>;
+  return (
+    <Badge variant={s.variant} approval={approvalMark(effective)}>
+      {s.label}
+    </Badge>
+  );
 }

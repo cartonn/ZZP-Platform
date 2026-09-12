@@ -1,10 +1,6 @@
-// Het merkteken van Handslag: "De Schakel" — twee ineengehaakte, gewoven ringen (de digitale
-// handdruk: een afspraak die twee kanten bindt). Merkkleuren binnen het sitepalet maar bewust
-// níet het interface-zegelgroen: inkt (volgt --foreground, dus leesbaar in licht én donker) +
-// terracotta #b9603f (de warmte-kleur). De derde arc legt de inkt-ring bovenop bij de bovenste
-// kruising — de over-onder-weving die de schakel sluit.
+// The two original Handslag paths, shared with the V5 landing page.
 export const BRAND_NAME = "Handslag";
-export const BRAND_TERRACOTTA = "#b9603f";
+export const BRAND_TERRACOTTA = "#d97757";
 
 export function BrandMark({
   size = 28,
@@ -19,15 +15,14 @@ export function BrandMark({
     <svg
       width={size}
       height={size}
-      viewBox="-40 -40 80 80"
+      viewBox="6 7 36 34"
       className={className}
       role="img"
       aria-label={title}
     >
-      <g fill="none" strokeLinecap="round" strokeWidth={9}>
-        <circle cx={-11} cy={0} r={17} stroke="hsl(var(--foreground))" />
-        <circle cx={11} cy={0} r={17} stroke={BRAND_TERRACOTTA} />
-        <path d="M 3.7 -8.5 A 17 17 0 0 1 -5.2 -16" stroke="hsl(var(--foreground))" />
+      <g fill="none" stroke="hsl(var(--brand-hand))" strokeLinecap="round" strokeWidth={4}>
+        <path d="M10.6 13h7a10 10 0 0 1 10 10v4" />
+        <path d="M37.4 35h-7a10 10 0 0 1 -10 -10v-4" />
       </g>
     </svg>
   );

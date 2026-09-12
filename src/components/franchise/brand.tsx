@@ -31,12 +31,18 @@ export function Brand({
       )}
       <span
         className={cn(
-          "truncate font-display text-sm font-semibold",
+          "truncate font-display text-lg font-extrabold tracking-tight text-primary",
           collapsible &&
             "opacity-0 transition-opacity duration-150 group-data-[expanded=true]:opacity-100",
         )}
       >
-        {name}
+        {branding?.name ? (
+          name
+        ) : (
+          <>
+            handslag<span className="text-[hsl(var(--brand-hand))]">.</span>
+          </>
+        )}
       </span>
     </>
   );

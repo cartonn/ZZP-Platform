@@ -1,3 +1,6 @@
+import { Seal } from "@/components/ui/seal";
+import { Badge } from "@/components/ui/badge";
+import { type ApprovalMark } from "@/lib/approval-mark";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { getTranslator } from "@/lib/i18n/server";
@@ -40,6 +43,7 @@ export interface WsRow {
   match?: number;
   status?: string;
   statusClass?: string;
+  approval?: ApprovalMark;
   href: string;
 }
 
@@ -84,7 +88,13 @@ export interface WorkspaceDashboardProps {
   list: { title: string; href?: string; rows: WsRow[]; empty?: string };
   nextActions: WsAction[];
   week?: { title: string; count: string; days: WsWeekDay[] };
-  seal?: { title: string; subtitle: string; items: WsSealItem[]; reportHref?: string };
+  seal?: {
+    title: string;
+    subtitle: string;
+    items: WsSealItem[];
+    reportHref?: string;
+    approval?: ApprovalMark;
+  };
   notice?: WsNotice | null;
   /** Optionele extra rail-inhoud, gerenderd na 'Volgende acties' (rendert zichzelf of null). */
   spotlight?: ReactNode;
@@ -113,26 +123,64 @@ export async function WorkspaceDashboard({
 }: WorkspaceDashboardProps) {
   const { t } = await getTranslator();
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
-      {/* Kopregel op het papier (prototype-stijl): eyebrow + serif-groet — geen kleurvlak. */}
-      <header className="border-b border-border px-5 py-5 md:px-6">
+    <div className="hs-workspace">
+      {/* Shared V5 heading surface. */}
+      <header className="hs-workspace-heading">
         <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.13em] text-primary">
           {t("Vandaag")}
         </p>
         <h1 className="font-display text-2xl font-semibold tracking-tight">{header.title}</h1>
         {header.subtitle && <p className="text-sm text-muted-foreground">{header.subtitle}</p>}
       </header>
-      {/* Twee kolommen onder de balk: hoofdkolom + contextrail (elk eigen scroll). */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+      {/* Actions precede content in document order; wide layouts place them beside it. */}
+      <div className="hs-workspace-layout">
+        {/* Volgende acties */}
+        <section className="hs-next-actions" aria-labelledby="hs-next-title">
+          <h2
+            id="hs-next-title"
+            className="mb-2 px-1 font-display text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+          >
+            {t("Volgende acties")}
+          </h2>
+          {nextActions.length === 0 ? (
+            <p className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+              {t("Niets dat nu aandacht vraagt. Goed bezig.")}
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {nextActions.map((action) => (
+                <li key={action.id}>
+                  <Link
+                    href={action.href}
+                    className="hs-action-link focus-ring flex items-start gap-2.5 rounded-lg border border-border bg-card p-3 transition-colors hover:bg-muted/50"
+                  >
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${TONE_SOFT[action.tone]}`}
+                    >
+                      <action.icon className="h-3.5 w-3.5" aria-hidden />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium leading-snug">{action.title}</p>
+                      {action.detail && (
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">{action.detail}</p>
+                      )}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
         {/* Hoofdkolom */}
-        <main className="flex min-w-0 flex-col lg:min-h-0 lg:flex-1">
-          <div className="space-y-5 px-5 py-5 md:px-6 lg:flex-1 lg:overflow-y-auto">
+        <div className="hs-workspace-content">
+          <div className="space-y-6">
             {/* KPI-tegels */}
-            <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <section className="hs-kpis">
               {kpis.map((kpi) => (
                 <div
                   key={kpi.label}
-                  className="rounded-xl border border-border bg-card p-4 shadow-sm ring-1 ring-border/40"
+                  className="hs-kpi rounded-xl border border-border bg-card p-4 shadow-card"
                 >
                   <div className="flex items-center justify-between">
                     <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
@@ -160,7 +208,7 @@ export async function WorkspaceDashboard({
             </section>
 
             {/* Lijst */}
-            <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm ring-1 ring-border/40">
+            <section className="hs-work-list overflow-hidden rounded-xl border border-border bg-card shadow-card">
               <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <h2 className="font-display text-sm font-semibold">{list.title}</h2>
                 {list.href && (
@@ -183,7 +231,7 @@ export async function WorkspaceDashboard({
                     <li key={row.id}>
                       <Link
                         href={row.href}
-                        className="focus-ring flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
+                        className="hs-work-row focus-ring flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
                       >
                         <div
                           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-display text-sm font-semibold ${row.accent}`}
@@ -194,10 +242,7 @@ export async function WorkspaceDashboard({
                           <div className="flex items-center gap-1.5">
                             <p className="truncate text-sm font-medium">{row.name}</p>
                             {row.verified && (
-                              <ShieldCheck
-                                className="h-3.5 w-3.5 shrink-0 text-success"
-                                aria-hidden
-                              />
+                              <Seal tone="verified" size="sm" label={t("Geverifieerd")} />
                             )}
                           </div>
                           <p className="truncate text-xs text-muted-foreground">
@@ -212,7 +257,7 @@ export async function WorkspaceDashboard({
                           </div>
                         )}
                         {row.rate != null && (
-                          <div className="hidden flex-col items-end sm:flex">
+                          <div className="hs-row-rate flex flex-col items-end">
                             <span className="font-mono text-sm font-semibold">€ {row.rate}</span>
                             <span className="text-[10px] text-muted-foreground">
                               {t("per uur")}
@@ -228,11 +273,12 @@ export async function WorkspaceDashboard({
                           </div>
                         )}
                         {row.status && (
-                          <span
-                            className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium lg:inline-block ${row.statusClass ?? "bg-muted text-muted-foreground"}`}
+                          <Badge
+                            approval={row.approval}
+                            className={`hs-row-status ${row.approval ? "" : (row.statusClass ?? "bg-muted text-muted-foreground")}`}
                           >
                             {row.status}
-                          </span>
+                          </Badge>
                         )}
                         <ArrowUpRight
                           className="h-4 w-4 shrink-0 text-muted-foreground"
@@ -245,53 +291,11 @@ export async function WorkspaceDashboard({
               )}
             </section>
           </div>
-        </main>
+        </div>
 
-        {/* Rechter contextrail — op desktop volle hoogte met eigen scroll (zoals #19); op mobiel
-          gestapeld ónder de hoofdkolom (volle breedte, scheidingslijn boven i.p.v. links) zodat
-          'Volgende acties' / week / zegel ook op klein scherm zichtbaar blijven. Zelfde crème vlak
-          als de hoofdkolom; witte kaarten (bg-card) zetten zich erop af. */}
-        <aside className="flex w-full flex-col gap-4 border-t border-border px-4 py-5 lg:w-[22.5rem] lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-t-0">
-          {/* Volgende acties */}
-          <section>
-            <h3 className="mb-2 px-1 font-display text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t("Volgende acties")}
-            </h3>
-            {nextActions.length === 0 ? (
-              <p className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
-                {t("Niets dat nu aandacht vraagt. Goed bezig.")}
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {nextActions.map((action) => (
-                  <li key={action.id}>
-                    <Link
-                      href={action.href}
-                      className="focus-ring flex items-start gap-2.5 rounded-lg border border-border bg-card p-2.5 transition-colors hover:bg-muted/50"
-                    >
-                      <span
-                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${TONE_SOFT[action.tone]}`}
-                      >
-                        <action.icon className="h-3.5 w-3.5" aria-hidden />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium leading-snug">{action.title}</p>
-                        {action.detail && (
-                          <p className="mt-0.5 text-[11px] text-muted-foreground">
-                            {action.detail}
-                          </p>
-                        )}
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          {/* Optionele rail-spotlight (rendert zichzelf of null) */}
+        {/* Supporting context follows the main work on small screens. */}
+        <aside className="hs-workspace-context">
           {spotlight}
-
           {/* Week-strip */}
           {week && (
             <section>
@@ -368,8 +372,19 @@ export async function WorkspaceDashboard({
           {seal && (
             <section className="rounded-xl border border-border bg-card p-4 shadow-sm ring-1 ring-success/15">
               <div className="flex items-center gap-2">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-success/10 text-success">
-                  <ShieldCheck className="h-5 w-5" aria-hidden />
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-full ${seal.approval ? "" : "bg-success/10 text-success"}`}
+                >
+                  <>
+                    {seal.approval ? (
+                      <Seal
+                        tone={seal.approval === "approved" ? "verified" : "pending"}
+                        size="lg"
+                      />
+                    ) : (
+                      <ShieldCheck className="h-5 w-5" aria-hidden />
+                    )}
+                  </>
                 </span>
                 <div>
                   <p className="font-display text-sm font-semibold">{seal.title}</p>
@@ -387,7 +402,16 @@ export async function WorkspaceDashboard({
                   >
                     <dt className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
                       {item.ok ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" aria-hidden />
+                        <>
+                          {seal.approval === "approved" ? (
+                            <Seal tone="verified" size="sm" />
+                          ) : (
+                            <CheckCircle2
+                              className="h-3.5 w-3.5 shrink-0 text-success"
+                              aria-hidden
+                            />
+                          )}
+                        </>
                       ) : (
                         <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
                       )}

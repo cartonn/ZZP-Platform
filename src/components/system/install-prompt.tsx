@@ -101,7 +101,7 @@ export function InstallPrompt() {
     <div
       role="dialog"
       aria-label="App installeren"
-      className="fixed inset-x-0 bottom-4 z-50 mx-auto w-[min(28rem,calc(100%-1.5rem))]"
+      className="hs-install-prompt fixed inset-x-0 bottom-4 z-50 mx-auto w-[min(28rem,calc(100%-1.5rem))]"
     >
       <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-4 shadow-lg">
         <div

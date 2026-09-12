@@ -12,33 +12,21 @@ werk beide bij.
 
 ---
 
-## 1. Visual theme — "Definitief" (510 + 412 + 324)
+## 1. Visual theme — Handslag V5
 
-De eigenaar koos op 29-7-2026 definitief voor de synthese van drie labconcepten (zie
-`docs/ontwerpen/definitief.html`, klikbaar prototype in `docs/ontwerpen/prototype.html` en het
-uitrolplan in `docs/ontwerpen/UITROLPLAN.md`): **510 Waarmerk** levert het verhaal (vertrouwen als
-held: zegelgroen als gezagskleur, vertrouwensring, waarmerk-motieven), **412 Salon** de huid
-(warm ivoorpapier, terracotta als menselijk accent, gastvrije microcopy) en **324 Zephyr** het
-skelet (hoge dichtheid, hairline-discipline, de "wat vraagt nu je aandacht"-lijst). Drie regels
-dragen de taal: het zegel draagt het merk (verificatie = het product), cijfers zijn typografie
-(alles in mono), en eerlijkheid is premium (matchredenen tonen óók de minpunten). Hoge
-informatiedichtheid zonder rommel. **Dashboard-first**: elke pagina beantwoordt direct _wat is de
-status, wat moet ik nu doen, kan ik dit vertrouwen?_ Geen marketinghomepage als hoofdscherm, geen
-decoratieve gradients, geen kaart-in-kaart, geen templategevoel. Scanbare rijen boven sparse
-kaarten voor collecties.
+De eigenaar heeft op 10-9-2026 gevraagd de goedgekeurde V5-landingspagina door te trekken
+naar het platform: helder blauw, witte werkvlakken, het originele terracotta handenlogo,
+Open Sans en voelbare maar rustige diepte. Dit vervangt de eerdere groene/ivoren richting.
+De primaire taak blijft centraal staan: wat vraagt aandacht, wat is de status en waar ga ik verder?
 
-**Kern-taal + pagina-signatuur.** De tokens/typografie/primitives hieronder lopen overal door;
-daarbovenop krijgt elk paginacluster één eigen held-element (verificatie = het zegel, …) — nooit
-1-op-1 hetzelfde scherm. De volledige cluster-mapping staat in `docs/ontwerpen/UITROLPLAN.md` §2.
-**De `eyebrow` boven een `PageHeader` is echter nooit een motief** ("De etalage · jouw aanbod"):
-het is de gewone naam van de sectie waar de pagina onder valt ("Administratie", "Mijn profiel"),
-of hij ontbreekt wanneer de h1 hetzelfde al zegt. Een wijkverpleegkundige die om 22:00 uren
-indient moet in één blik weten wáár ze is; een metafoor kost haar tijd.
+Het canvas ligt onder de werkvlakken; knoppen en de actieve navigatie liggen iets hoger.
+Alleen navigatie en overlays zweven. Geen parallax of scroll-animaties op werkgegevens.
+De hoofdpagina heeft één natuurlijke documentscroll. Op mobiel staan volgende acties vóór
+cijfers en collecties; op breed beeld staan ze ernaast. Een mobiele dock toont uitsluitend
+de eerste vier toegestane, actieve items uit de bestaande rolnavigatie.
 
-**Dark mode** is een gebruikerskeuze (ThemeToggle), geen geforceerde dark-first. Light is standaard.
-Tailwind `darkMode: "class"`, donkere tokenwaarden in `.dark { … }`, no-flash-script in
-`layout.tsx`, pure logica in `src/lib/theme.ts`. Tokens zijn semantisch → componenten werken in beide
-thema's zonder wijziging.
+Donker blijft een gebruikerskeuze, met dezelfde blauwe identiteit en zelfstandige statuskleuren.
+Tenant-branding en de bestaande autorisatie blijven intact.
 
 ---
 
@@ -48,33 +36,15 @@ Alle kleuren zijn **HSL-triples in CSS-variabelen** (`hsl(var(--token))`), zodat
 namen in licht én donker draait. **Nooit hardcoded hex in componenten** — gebruik de
 semantische token via Tailwind (`bg-primary`, `text-muted-foreground`, …).
 
-### Semantische tokens (palet "Definitief", light)
+### Semantische tokens
 
-| Token                                | HSL                           | Rol                                 |
-| ------------------------------------ | ----------------------------- | ----------------------------------- |
-| `--background`                       | `39 55% 95%`                  | warm ivoorpapier (canvas, 412)      |
-| `--foreground`                       | `34 17% 13%`                  | warme inkt (hoofdtekst)             |
-| `--muted`                            | `40 40% 91%`                  | subtiel vlak / hover                |
-| `--muted-foreground`                 | `34 10% 40%`                  | subtekst (AA-veilig)                |
-| `--card`                             | `45 78% 99%`                  | warm-wit vel (kaartvlak)            |
-| `--border` / `--input`               | `40 34% 87%` / `40 28% 79%`   | randen / invoerranden               |
-| `--ring`                             | `161 70% 28%`                 | focus-ring (merkkleur)              |
-| `--primary` / `--primary-foreground` | `161 70% 28%` / `45 60% 98%`  | zegelgroen CTA / tekst erop (510)   |
-| `--hero`                             | `161 55% 33%`                 | naam-hero (AA met witte tekst)      |
-| `--accent` / `--accent-foreground`   | `150 30% 91%` / `161 55% 20%` | merk-tint-vlak / tekst              |
-| `--success`                          | `155 55% 30%`                 | geverifieerd/actief (zegel-familie) |
-| `--warning`                          | `16 55% 40%`                  | terracotta — vraagt aandacht (412)  |
-| `--danger`                           | `4 68% 44%`                   | fout / destructief                  |
-| `--radius`                           | `0.625rem`                    | basis-afronding                     |
-
-### Eén palet, twee modi
-
-Er is **één identiteit** in licht en donker; het vroegere keuzepaletten-systeem
-(bloei / elektrisch-blauw + PaletteSwitcher) is bewust verwijderd — een merk wissel je niet
-per gebruiker (ADR 0007). Donker is een gebruikerskeuze via de ThemeToggle; de donkere
-waarden staan in `.dark { … }` in `globals.css` (groen-getint donker canvas, lichter zegelgroen).
-
-Contrast is **WCAG AA**-geverifieerd (fg/bg, kaart, subtekst, knop, accent, rand).
+De volledige waarden staan in `src/app/globals.css`. Licht: blauwgetint canvas
+(`202.5 61.538462% 94.901961%`), donkerblauwe tekst (`198.782609 100% 22.54902%`),
+witte kaarten, primaire acties (`197.857143 100% 32.941176%`) en terracotta merktekens
+(`14.769231 63.106796% 59.607843%`): exact de lichte landingwaarden. Donker gebruikt hetzelfde
+palet met een donker canvas en lichte blauwe acties. Statuskleuren blijven apart:
+groen voor succes, amber voor wachten, rood voor fouten. Terracotta is een merkaccent,
+geen tekstkleur voor kleine tekst op wit.
 
 ### Regels
 
@@ -87,10 +57,9 @@ Contrast is **WCAG AA**-geverifieerd (fg/bg, kaart, subtekst, knop, accent, rand
 
 ## 3. Typografie
 
-Drie lettertypen via `next/font` (zelfgehost, zie `layout.tsx`): **Figtree** (`--font-sans`, UI),
-**Fraunces** (`--font-display`, serif — koppen en namen) en **JetBrains Mono** (`--font-mono`,
-cijfers). Antialiased, `optimizeLegibility`. Cijfers zijn typografie: tarieven, scores, uren en
-bedragen altijd in mono — dat is de precisie van het grootboek.
+**Open Sans** is lokaal gebundeld (`src/app/fonts/open-sans-latin.woff2`) voor zowel UI
+als koppen. `--font-display` verwijst naar `--font-sans`. Koppen hebben gewicht 800;
+**JetBrains Mono** blijft behouden voor bedragen, uren en andere cijfers.
 
 | Rol                   | Klassen                                                                    |
 | --------------------- | -------------------------------------------------------------------------- |
@@ -133,15 +102,16 @@ Bouw nieuwe UI met deze primitives. Voeg geen ad-hoc varianten per pagina toe �
 
 ### Signatuurcomponenten
 
-- **Seal** (`seal.tsx`) — hét vertrouwensteken: cirkel met dubbele ring + vinkje. Tonen:
-  `verified` (zegelgroen), `brand`, `expiring` (amber, uitroepteken). Eén consistent zegel,
+- **Seal** (`seal.tsx`) — hét vertrouwensteken: het originele handenlogo, bij goedkeuring
+  in een dubbele zegelring. Tonen: `pending` (zwart), `verified` (oranje), `brand`,
+  `expiring` (amber, uitroepteken). Eén consistent zegel,
   geen losse vinkjes verzinnen.
 - **MatchMeter** (`match-meter.tsx`) — 10 segmenten naast het percentage; altijd merk-getint.
   Logica getest in `src/lib/meter.ts`.
 - **Sparkline** (`sparkline.tsx`) — kleine inline-trend in merkkleur (bv. omzet op het dashboard);
   schaal-logica getest in `src/lib/sparkline.ts`.
 - **CascadeStepper** (`cascade-stepper.tsx`) — de keten contract → prestatie → factuur → betaling
-  als horizontale stappen (done = zegelgroen, actief = merk-ring, fout = danger).
+  als horizontale stappen (done = merkblauw, actief = merk-ring, fout = danger).
 - **TurnBanner** (`turn-banner.tsx`) — de "aan zet"-banier: inkt op papier (klapt om in donker),
   pulserend merkpunt, één boodschap, max. één actie. **Maximaal één per pagina.**
 - **Table** (`table.tsx`) — canonieke tabel (`Table/THead/TBody/TR/TH/TD`); cijferkolommen met
@@ -166,12 +136,12 @@ Bouw nieuwe UI met deze primitives. Voeg geen ad-hoc varianten per pagina toe �
 
 ## 6. Diepte & elevatie
 
-**Gelaagde elevatie** (Pastel Elevated): crisp border + `shadow-card` — een fijne contactschaduw
-plus een wijdere, lage-opacity blauw-getinte ambient (zie `.shadow-card` in globals.css). Tilt
-kaarten van het canvas; premium, niet vlak. De `Card`-primitive past `shadow-card` automatisch toe;
-losse tegels (KpiTile/GaugeRing/StatCard) ook. Klikbare rijen/cards (`.card-interactive`) krijgen op
-hover lichte extra elevatie (`hover:shadow-card`) + `bg-muted/40`, geen schaal. Zwaardere niveaus
-(`shadow-lg`/`shadow-xl`) blijven voorbehouden aan overlays (drawer, dialog, command-palette).
+De centrale tokens zijn `--depth-contact`, `--depth-surface`, `--depth-raised` en
+`--depth-floating`, met eigen donkere waarden. `shadow-card` gebruikt de oppervlakteschaduw.
+Knoppen krijgen een voelbare onderrand; hover lift maximaal 2px en alleen bij een fijne
+pointer met hover. Touch heeft een drukstand. Rijen blijven stabiel en krijgen een achtergrondaccent.
+Alle componenten respecteren `prefers-reduced-motion`. De gedeelde uitwerking staat in
+`src/app/handslag-workspace.css`; breid deze bron uit in plaats van paginavarianten te stapelen.
 
 ---
 
@@ -179,12 +149,12 @@ hover lichte extra elevatie (`hover:shadow-card`) + `bg-muted/40`, geen schaal. 
 
 - **"Aan zet"-principe.** Elke rol ziet bovenaan glashelder wat er nú van hém/haar wordt verwacht
   ("2 urenstaten wachten op je goedkeuring"). Gevoed door de next-action-engine. Geen zoeken.
-- **Actie-kleur = merkkleur (diep oranje).** Alles wat een handeling van de gebruiker vraagt draagt de
+- **Actie-kleur = merkkleur (blauw).** Alles wat een handeling van de gebruiker vraagt draagt de
   `primary`-merkkleur: de next-action-engine-toon `attention`, de "Aan zet"-signalen, de
   "vraagt actie"-telbadges in de zijbalk en de actieve cascade-stap. Gebruik `text-primary` /
   `bg-primary/10` (of `Badge variant="accent"` voor een chip). Dit is **niet** hetzelfde als de
   status-`warning` (amber): die beschrijft de **toestand** van een object (ingediend / verloopt), niet
-  een persoonlijke call-to-action. Eén regel: _"jij moet iets doen" → oranje; "dit is de status" → statuskleur._
+  een persoonlijke call-to-action. Eén regel: _"jij moet iets doen" → blauw; "dit is de status" → statuskleur._
 - **Statushelderheid — één badge-taal** over álle objecten (opdracht/contract/urenstaat/factuur/betaling):
 
   | Toestand                                              | Token              |
@@ -266,5 +236,16 @@ The approved V5 homepage scopes its semantic HSL palette in
 light design regardless of the device or saved `.dark` preference, as requested
 by the owner on 11 September 2026. The landing does not overwrite the saved app theme. Logo accents stay terracotta; action buttons retain light text on blue.
 This scope also covers the landing viewport gutter and is removed on app navigation.
-The protected application keeps its existing palette until its separate design PR.
+The protected application uses the V5 workspace palette and retains its saved light/dark preference.
 Audience choices are server-derived query-parameter links, usable without scripts.
+
+## Goedkeuring — eigenaarsspecificatie 10-9-2026
+
+Het originele tweehandslogo is zwart zolang een item op beoordeling of ondertekening wacht.
+Na goedkeuring, verificatie of ondertekening wordt het oranje, met een dubbele zegelring.
+`Badge approval="pending" | "approved"` koppelt het teken aan het bestaande statuslabel.
+Gebruik `approvalMark` met de effectieve serverstatus, nooit op basis van tekst of alleen
+success/warning-kleuren. Verlopen, afgewezen, betwiste of ingetrokken items krijgen geen
+oranje goedkeuringszegel. Algemeen actief, gepubliceerd, betaald en technische gezondheid
+zijn op zichzelf geen goedkeuring. Zwart blijft ook in donkere modus zwart op een licht
+ondervlak. Oranje is het merkaccent van het zegel; kleine statuslabels blijven leesbaar.

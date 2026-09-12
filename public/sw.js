@@ -2,7 +2,7 @@
 // nette offline-pagina. BEWUST conservatief: cache NOOIT geauthenticeerde HTML/data (zou één
 // gebruiker de pagina van een ander kunnen tonen). Alleen de offline-fallback + content-gehashte
 // statische assets worden gecachet.
-const CACHE = "zzp-shell-v3";
+const CACHE = "handslag-shell-v5";
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("install", (event) => {
@@ -72,12 +72,12 @@ self.addEventListener("push", (event) => {
   } catch {
     p = {};
   }
-  const title = p.title || "ZZP Platform";
+  const title = p.title || "Handslag";
   const options = {
     body: p.body || "",
     tag: p.tag || undefined,
-    icon: "/pwa/icon/192.png",
-    badge: "/pwa/icon/192.png",
+    icon: "/pwa/icon/192.png?v=handslag-v5",
+    badge: "/pwa/icon/192.png?v=handslag-v5",
     data: { url: typeof p.url === "string" && p.url.startsWith("/") ? p.url : "/notificaties" },
   };
   event.waitUntil(self.registration.showNotification(title, options));

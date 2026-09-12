@@ -25,4 +25,4 @@ export function applyTheme(theme: Theme, root: ThemeRoot): void {
 }
 
 // Het vroegere palette-systeem (3 kleurschema's) is bewust verwijderd: één
-// identiteit (Vakwerk) in licht en donker — zie ADR 0007.
+// Handslag-identiteit in licht en donker; oude palette-voorkeuren veranderen die niet.
