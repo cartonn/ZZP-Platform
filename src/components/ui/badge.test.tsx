@@ -65,3 +65,24 @@ describe("Badge", () => {
     expect(html).toContain('data-testid="chip"');
   });
 });
+
+// Approval has its own semantics; a general success or warning is not an approval.
+describe("approval badges", () => {
+  it("pairs an orange Handslag seal with the approved label", () => {
+    const html = renderToStaticMarkup(<Badge approval="approved">Goedgekeurd</Badge>);
+    expect(html).toContain('data-seal="verified"');
+    expect(html).toContain("Goedgekeurd");
+  });
+  it("pairs black hands with a pending label", () => {
+    const html = renderToStaticMarkup(<Badge approval="pending">In beoordeling</Badge>);
+    expect(html).toContain('data-seal="pending"');
+    expect(html).not.toContain('data-seal="verified"');
+  });
+  it("does not turn general positive or warning states into approval", () => {
+    for (const variant of ["success", "warning"] as const) {
+      expect(renderToStaticMarkup(<Badge variant={variant}>Status</Badge>)).not.toContain(
+        "data-seal",
+      );
+    }
+  });
+});

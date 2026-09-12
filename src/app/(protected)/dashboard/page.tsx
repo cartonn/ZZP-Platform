@@ -1146,6 +1146,9 @@ export default async function DashboardPage() {
     name: c.jobTitle,
     role: c.counterpartyName,
     status: c.stage.badgeLabel,
+    approval: ["contract-sign", "performance-approve", "invoice-approve"].includes(c.stage.id)
+      ? ("pending" as const)
+      : undefined,
     statusClass: STAGE_STATUS_CLASS[c.stage.tone],
     href: c.stage.cta.href,
   }));

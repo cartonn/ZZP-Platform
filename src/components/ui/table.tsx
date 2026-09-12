@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
  * hairline-scheidingen, cijferkolommen rechts uitgelijnd met `font-mono` via `numeric`.
  */
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
-  return <table className={cn("w-full text-sm", className)} {...props} />;
+  return <table className={cn("hs-table w-full text-sm", className)} {...props} />;
 }
 
 export function THead({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {

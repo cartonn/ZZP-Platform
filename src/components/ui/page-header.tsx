@@ -38,10 +38,10 @@ export async function PageHeader({
     </>
   );
 
-  if (!action) return <header className="space-y-1">{heading}</header>;
+  if (!action) return <header className="hs-page-header space-y-1">{heading}</header>;
 
   return (
-    <header className="flex flex-wrap items-start justify-between gap-3">
+    <header className="hs-page-header flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0 space-y-1">{heading}</div>
       <div className="shrink-0">{action}</div>
     </header>

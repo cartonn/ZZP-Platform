@@ -1,5 +1,15 @@
 # Persona-sweep — gaten-backlog
 
+> **11 september 2026 — V5-integratie in bestaande PR #1474, nog vóór merge.**
+> De eerste Codex-personaronde vond ontbrekende mobiele menufocus bij vier rollen en
+> header-overloop bij de bemiddelaar op 390px. De bestaande platformwijziging herstelt
+> beide; aanvullende browser-QA vond en herstelde het Meer-paneel buiten beeld op 320px.
+> Alle acht rol/thema-combinaties slagen nu op 320/390/1440px, met focusherstel, inert,
+> Tab-begrenzing, rolgefilterde docklinks en zichtbare actieve focus. Samen met landing,
+> privé-documenten, certificaatdeling, autorisatie en cascade: 24 browsertests geslaagd.
+> Dit is lokaal bewijs, geen algemene cleanclaim of mergebewijs. Zie
+> [integratie en controles](progress/2026-09-11-v5-platform-integration.md).
+
 > **Datum:** 2026-09-10 (persona-sweep, run 10) · **main-commit basis:** `53f745be`
 > **Uitkomst:** **1 defect gefixt (badge↔lijst-drift, DOEL 1b — FRANCHISER); 0 geparkeerd.**
 > Orchestrator Opus 4.8 + drie parallelle adversariële Opus-audits op niet-overlappende oppervlakken

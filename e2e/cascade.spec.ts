@@ -415,6 +415,20 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
   await expect(fp.getByText("Ingediend").first()).toBeVisible({ timeout: 15000 });
 
   // --- Freelancer opent een dispuut ---
+  const handoff = fp.locator(".hs-surface").filter({
+    has: fp.getByText("Overname", { exact: true }),
+  });
+  await handoff.getByRole("button", { name: /bied aan ter overname/ }).click();
+  await handoff
+    .getByLabel("Waarom kun je deze inzet niet voortzetten? (verplicht)")
+    .fill("Deze inzet past niet meer in mijn planning");
+  await clickUntil(
+    handoff.getByRole("button", { name: "Aanvraag indienen", exact: true }),
+    handoff.getByText("In beoordeling", { exact: true }),
+  );
+  await expect(handoff.locator('[data-approval="pending"]')).toBeVisible();
+  await expect(handoff.getByRole("button", { name: "Intrekken", exact: true })).toBeVisible();
+
   // Open het details-element "Probleem melden / dispuut openen"
   await fp.locator("details").filter({ hasText: "Probleem melden" }).click();
   await fp.locator('input[name="reason"]').fill("Factuur klopt niet, bedrag onjuist");
@@ -423,6 +437,8 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
     fp.getByText("Dispuut open — samenwerking bevroren"),
   );
   await shot(fp, "cascade-dispute-frozen");
+  await expect(handoff.locator("[data-approval], [data-seal]")).toHaveCount(0);
+  await expect(handoff.getByRole("button", { name: "Intrekken", exact: true })).toHaveCount(0);
 
   // Goedkeuren/betaling-knoppen zijn geblokkeerd (factuur-actieknoppen verdwenen)
   await page.reload();
@@ -438,6 +454,16 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
   ).not.toBeVisible();
   await shot(page, "cascade-dispute-client-view");
 
+  for (const viewer of [fp, page]) {
+    const agreement = viewer.locator(".hs-surface").filter({
+      has: viewer.getByText("Modelovereenkomst", { exact: true }),
+    });
+    await expect(agreement).toBeVisible();
+    await expect(agreement.locator("[data-approval], [data-seal]")).toHaveCount(0);
+    await expect(agreement.getByRole("button", { name: "Akkoord geven" })).toHaveCount(0);
+    await expect(agreement.getByRole("button", { name: "Vorm vastleggen" })).toHaveCount(0);
+  }
+
   // --- Admin logt in en lost dispuut op ---
   const actx = await browser.newContext();
   const ap = await actx.newPage();
@@ -448,11 +474,8 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
   await ap.waitForURL("**/dashboard");
 
   await ap.goto("/admin/disputen");
-  // Dispuut staat in de lijst; klik door naar de samenwerking
-  await ap
-    .getByRole("link", { name: /Open samenwerking/ })
-    .first()
-    .click();
+  // Resolve this test's dispute, not the first item left by another fixture or worker.
+  await ap.goto(collaborationUrl);
   await ap.waitForURL("**/samenwerkingen/**");
   await expect(ap.getByText("Dispuut open — samenwerking bevroren")).toBeVisible({
     timeout: 15000,
@@ -464,6 +487,16 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
     ap.getByText("Dispuut open — samenwerking bevroren"),
   );
   await shot(ap, "cascade-dispute-resolved");
+
+  await fp.goto(collaborationUrl);
+  await expect(fp.getByText("Dispuut open — samenwerking bevroren")).toHaveCount(0);
+  const restoredAgreement = fp.locator(".hs-surface").filter({
+    has: fp.getByText("Modelovereenkomst", { exact: true }),
+  });
+  await expect(restoredAgreement.locator('[data-approval="pending"]')).toBeVisible();
+  await expect(restoredAgreement.getByRole("button", { name: "Akkoord geven" })).toBeVisible();
+  await expect(handoff.locator('[data-approval="pending"]')).toBeVisible();
+  await expect(handoff.getByRole("button", { name: "Intrekken", exact: true })).toBeVisible();
 
   await actx.close();
   await fctx.close();

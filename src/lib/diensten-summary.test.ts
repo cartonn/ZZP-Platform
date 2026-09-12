@@ -10,6 +10,7 @@ function dienst(overrides: Partial<DienstSummary>): DienstSummary {
     companyName: "Zorg BV",
     type: "HOURS",
     status: "SUBMITTED",
+    disputed: false,
     periodStart: new Date("2026-01-01"),
     periodEnd: new Date("2026-01-07"),
     hours: 20,

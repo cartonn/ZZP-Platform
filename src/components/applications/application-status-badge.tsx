@@ -1,3 +1,4 @@
+import { approvalMark } from "@/lib/approval-mark";
 import { Badge } from "@/components/ui/badge";
 import { type ApplicationStatus } from "@/lib/enums";
 import { getTranslator } from "@/lib/i18n/server";
@@ -17,7 +18,14 @@ const MAP: Record<
 export async function ApplicationStatusBadge({ status }: { status: ApplicationStatus }) {
   const s = MAP[status];
   const { t } = await getTranslator();
-  return <Badge variant={s.variant}>{t(s.label)}</Badge>;
+  return (
+    <Badge
+      variant={s.variant}
+      approval={["NEW", "VIEWED", "SHORTLIST"].includes(status) ? "pending" : approvalMark(status)}
+    >
+      {t(s.label)}
+    </Badge>
+  );
 }
 
 export const APPLICATION_STATUS_LABEL: Record<ApplicationStatus, string> = {

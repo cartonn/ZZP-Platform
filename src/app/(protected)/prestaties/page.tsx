@@ -1,3 +1,4 @@
+import { approvalMark } from "@/lib/approval-mark";
 import { type Metadata } from "next";
 import Link from "next/link";
 import { ClipboardList, Download } from "lucide-react";
@@ -315,7 +316,10 @@ export default async function PrestatiesPage({
                   )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <Badge variant={p.disputed ? "danger" : statusInfo.variant}>
+                  <Badge
+                    variant={p.disputed ? "danger" : statusInfo.variant}
+                    approval={approvalMark(p.status, { disputed: p.disputed })}
+                  >
                     {p.disputed ? "In dispuut" : statusInfo.label}
                   </Badge>
                   {/* Een bevroren (disputed) prestatie biedt geen "Keuren →": goedkeuren faalt server-side

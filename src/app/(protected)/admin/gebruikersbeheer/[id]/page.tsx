@@ -105,7 +105,9 @@ export default async function AdminGebruikerDetailPage({ params }: { params: Par
             label="Identiteit"
             value={
               user.identityVerifiedAt ? (
-                <Badge variant="success">Geverifieerd</Badge>
+                <Badge variant="success" approval="approved">
+                  Geverifieerd
+                </Badge>
               ) : (
                 <span className="text-sm text-muted-foreground">Niet geverifieerd</span>
               )

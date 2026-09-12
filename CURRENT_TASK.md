@@ -1,16 +1,16 @@
 # CURRENT_TASK.md — Huidige taak
 
-Huidige bouwronde 12 september, 12:22 UTC: PR #1482 borgt het ondertekenen van
-modelovereenkomsten bij beëindiging/geschil en bewaart handtekening plus audit atomair.
-De directe synthetische databaseproeven zijn rood → groen; 26 gerichte tests slagen.
-Lint/types, 8.713 tests (2 bestaande skips), opmaak en productiebuild slagen.
-Definitieve onafhankelijke review en release volgen. Zie
-[voortgang](docs/progress/2026-09-12-agreement-signing.md).
+Huidige eigenaaropdracht 12 september: het ingelogde platform moet de kleuren en het
+tweehandslogo van de landingspagina krijgen, inclusief oranje en goedkeuringszegels.
+De bestaande V5-implementatie wordt geïntegreerd op actuele main `112e23c` en opnieuw
+gecontroleerd. De eerdere PR #1474 blijft als bewijs bewaard; zijn verlopen,
+onbeantwoorde review geldt niet als goedkeuring van deze nieuwe integratie.
+Zie [platformintegratie](docs/progress/2026-09-12-platform-brand.md).
 
 PR #1481 is na alle zes groene poorten gemerged als `79c98a7` en live geverifieerd;
 de geplande bewaking van 12 september 09:18 UTC slaagt inclusief incidentafhandeling.
-V5-platform PR #1474
-blijft apart open: technische controles groen, native review niet afgerond.
+PR #1482 is na alle zes groene poorten gemerged als `112e23c` en live geverifieerd
+op 12 september 13:29 UTC; modelovereenkomsten hebben statusbewaking en atomair auditspoor.
 De lichte publieke V5 is al live; de onderstaande oudere releaseverificatie is historie.
 
 Herstel 11 september: eigenaar vraagt oorspronkelijke lichte V5-landing, onafhankelijk van

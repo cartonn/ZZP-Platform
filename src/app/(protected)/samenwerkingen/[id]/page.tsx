@@ -1,3 +1,5 @@
+import { Seal } from "@/components/ui/seal";
+import { approvalMark } from "@/lib/approval-mark";
 import { type Metadata } from "next";
 import React from "react";
 import Link from "next/link";
@@ -298,7 +300,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       : null;
   // Tekenen/wijzigen kan alleen zolang de samenwerking nog loopt; bij een afgeronde of geannuleerde
   // samenwerking is de overeenkomst historisch en read-only (geen actieve "Akkoord geven" meer).
-  const agreementStillOpen = col.status === "PROPOSED" || col.status === "ACTIVE";
+  const agreementStillOpen = !frozen && (col.status === "PROPOSED" || col.status === "ACTIVE");
 
   // "Aan zet": wat moet déze rol nu doen? Pure kern in `buildCollaborationTurnItems` (unit-testbaar).
   // De `frozen`-poort zit in die functie: bij een open dispuut is de cascade bevroren, alle echte
@@ -516,7 +518,17 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                         <span className="text-sm font-medium">
                           Aangevraagd op {formatDateShortNl(h.createdAt)}
                         </span>
-                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                        <Badge
+                          variant={badge.variant}
+                          approval={approvalMark(
+                            status === "OPEN" && active ? "IN_REVIEW" : status,
+                            {
+                              disputed: frozen,
+                            },
+                          )}
+                        >
+                          {badge.label}
+                        </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">Reden: {h.reason}</p>
                       {status === "REJECTED" && h.decisionNote && (
@@ -525,6 +537,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                       {status === "OPEN" &&
                         isFreelancer &&
                         h.requestedByUserId === actor.id &&
+                        active &&
                         !frozen && <ShiftHandoffCancelForm handoffId={h.id} />}
                     </li>
                   );
@@ -662,7 +675,10 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Contract
+                <span className="inline-flex items-center gap-2">
+                  <Seal tone="pending" size="sm" />
+                  Contract
+                </span>
               </p>
               <p className="text-sm text-muted-foreground">
                 {placementBlocked
@@ -689,6 +705,8 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       {col.status !== "CANCELLED" && (isClient || isFreelancer || actor.role === "ADMIN") && (
         <ModelAgreementCard
           collaborationId={col.id}
+          signingOpen={agreementStillOpen}
+          disputed={frozen}
           agreementType={agreementType}
           recommendation={agreementRecommendation}
           rows={[
@@ -737,7 +755,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                       {c.verifiedAt && ` · geverifieerd ${formatDateShortNl(c.verifiedAt)}`}
                     </span>
                   </span>
-                  <Badge variant="success">Geverifieerd</Badge>
+                  <Badge variant="success" approval="approved">
+                    Geverifieerd
+                  </Badge>
                 </li>
               ))}
             </ul>
@@ -857,8 +877,12 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                           <span className="min-w-0 truncate font-medium">
                             {p.type === "HOURS" ? "Urenstaat" : p.milestoneTitle || "Oplevering"}
                           </span>
-                          <Badge variant={st.variant} className="shrink-0">
-                            {st.label}
+                          <Badge
+                            variant={frozen ? "danger" : st.variant}
+                            approval={approvalMark(p.status, { disputed: frozen })}
+                            className="shrink-0"
+                          >
+                            {frozen ? "In dispuut" : st.label}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -1000,7 +1024,12 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                           <span className="font-medium">
                             {inv.partyInvoiceNumber ?? "Concept-factuur"}
                           </span>
-                          <Badge variant={st.variant}>{st.label}</Badge>
+                          <Badge
+                            variant={frozen ? "danger" : st.variant}
+                            approval={approvalMark(inv.lifecycleStatus, { disputed: frozen })}
+                          >
+                            {frozen ? "In dispuut" : st.label}
+                          </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {formatEuro(inv.subtotalCents ?? 0)} excl. +{" "}
