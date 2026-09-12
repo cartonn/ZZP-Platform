@@ -1,9 +1,15 @@
 # CURRENT_TASK.md — Huidige taak
 
-Bouwronde 12 september, 00:22 UTC: PR #1481 herstelt de rechtstreeks gereproduceerde
-lege labelzoekuitvoer in de deploybewaking. De 29 gerichte regressietests en 8.690 totale tests slagen (2 bestaande skips),
-lint/types/opmaak en productiebuild zijn groen. Verplichte review/release volgen. Zie
-[voortgang](docs/progress/2026-09-12-monitor-label-json.md). V5-platform PR #1474
+Huidige bouwronde 12 september, 12:22 UTC: PR #1482 borgt het ondertekenen van
+modelovereenkomsten bij beëindiging/geschil en bewaart handtekening plus audit atomair.
+De directe synthetische databaseproeven zijn rood → groen; 26 gerichte tests slagen.
+Lint/types, 8.713 tests (2 bestaande skips), opmaak en productiebuild slagen.
+Definitieve onafhankelijke review en release volgen. Zie
+[voortgang](docs/progress/2026-09-12-agreement-signing.md).
+
+PR #1481 is na alle zes groene poorten gemerged als `79c98a7` en live geverifieerd;
+de geplande bewaking van 12 september 09:18 UTC slaagt inclusief incidentafhandeling.
+V5-platform PR #1474
 blijft apart open: technische controles groen, native review niet afgerond.
 De lichte publieke V5 is al live; de onderstaande oudere releaseverificatie is historie.
 

@@ -2,13 +2,27 @@
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).
 
+## 2026-09-12 — modelovereenkomst: tekenen met actuele status en atomair auditspoor
+
+PR #1482: directe proeven met een eigen synthetische SQLite-database bevestigen
+handtekeningen op beëindigde/betwiste samenwerkingen, overschrijven bij herhaling
+en ontbreken van rollback bij auditfouten. Een conditionele write accepteert nu
+uitsluitend een nieuwe eigen handtekening op PROPOSED/ACTIVE zonder geschil.
+Handtekening en audit committen samen; bestaande akkoorden blijven behouden.
+De 26 gerichte en 8.713 totale tests slagen (2 bestaande skips); lint, types,
+opmaak en productiebuild zijn groen. Definitieve review en release volgen.
+Zie [bewijs en afbakening](docs/progress/2026-09-12-agreement-signing.md).
+
 ## 2026-09-12 — deploybewaking: ontbrekend incidentlabel
 
 De succesvolle labelzoekopdracht van GitHub CLI geeft lege stdout als `deploy-lag`
 ontbreekt. De bewaking behandelt uitsluitend deze uitvoer nu als geen label;
 CLI-fouten, corrupte JSON en lege incident-JSON blijven blokkeren. Twee regressies
 rood → groen; 29 gerichte bewakingstests en 8.690 totale tests geslaagd (2 bestaande
-skips), lint/types/opmaak en productiebuild geslaagd. De zes GitHub-poorten volgen. Bron en bewijs: [voortgang](docs/progress/2026-09-12-monitor-label-json.md).
+skips), lint/types/opmaak en productiebuild geslaagd. Alle zes poorten zijn geslaagd;
+#1481 is gemerged als `79c98a7` en live geverifieerd. De geplande bewaking van
+12 september 09:18 UTC (run 34685491207) slaagt inclusief incidentafhandeling.
+Bron en bewijs: [voortgang](docs/progress/2026-09-12-monitor-label-json.md).
 
 ## 2026-09-11 — herstel goedgekeurde lichte V5-landing
 
