@@ -1,5 +1,9 @@
 # CURRENT_TASK.md — Huidige taak
 
+Nieuw eigenaarverzoek 12 september: begeleid elektronisch ondertekenen en een
+zorgvuldige, mooie bewijsstukbeoordeling. Zie [uitvoering](docs/progress/2026-09-12-signing-verification.md).
+De onderstaande interactieopdracht is met #1485 live op `7fd8b1f` (17:27 UTC).
+
 Huidige eigenaaropdracht 12 september: consequente hover- en aanraakfeedback voor
 klikbare kaarten, rijen, navigatie en tabs. Scrollen annuleert de drukstand;
 toetsenbordfocus, rustige beweging en mobiele klikvlakken blijven zichtbaar.
