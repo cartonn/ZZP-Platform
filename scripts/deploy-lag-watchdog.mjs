@@ -93,10 +93,22 @@ function incident() {
   }
 
   const gh = (...args) => command("gh", [...args, "--repo", repo]);
-  const hasLabel = () =>
-    JSON.parse(
-      gh("label", "list", "--search", "deploy-lag", "--limit", "100", "--json", "name"),
-    ).some((label) => label.name.toLowerCase() === "deploy-lag");
+  const hasLabel = () => {
+    const output = gh(
+      "label",
+      "list",
+      "--search",
+      "deploy-lag",
+      "--limit",
+      "100",
+      "--json",
+      "name",
+    );
+    // A successful gh label search with no matches returns empty stdout, even with --json.
+    // Keep this exception local: command failures and malformed nonempty JSON must still fail.
+    const labels = output === "" ? [] : JSON.parse(output);
+    return labels.some((label) => label.name.toLowerCase() === "deploy-lag");
+  };
   if (!hasLabel()) {
     try {
       gh(

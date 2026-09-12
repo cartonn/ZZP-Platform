@@ -15,3 +15,22 @@ de voortgangsdocumentatie. Behandel de bevestigde lege labelzoekuitvoer als geen
 label; behoud harde fouten voor mislukte CLI-opdrachten en corrupte JSON.
 Bestaande incidentstatus, commitvergelijking, bronbescherming en reviewcontroles
 blijven intact. Implementatie, tests en onafhankelijke review volgen na deze claim.
+
+## Reparatie en gerichte validatie
+
+Alleen een succesvolle lege labelzoekuitvoer wordt in `hasLabel()` als een lege
+labellijst behandeld. Niet-lege uitvoer blijft door JSON.parse gaan; een mislukte
+CLI-opdracht blijft gooien. De incidentzoekopdracht krijgt geen lege-uitvoerfallback.
+De bestaande labelrace wordt nog altijd met een tweede labelzoekopdracht bevestigd.
+
+Regressie bewezen: twee nieuwe lege-labelgevallen (lag=true en lag=false) faalden
+voor de reparatie met dezelfde JSON-fout; na de reparatie slagen alle 29 tests.
+Extra grenzen: mislukte labelread, corrupte of verkeerd gevormde label-JSON en lege
+issue-JSON blijven falen zonder incidentmutatie. Een aparte onafhankelijke reviewer
+bevestigde de afhandeling en draaide de 29 gerichte tests zelf succesvol.
+Volledige lokale validatie: lint en types geslaagd; 8.690 tests geslaagd en twee
+bestaande skips. Opmaakcontrole geslaagd. De eerste build stopte op geblokkeerde
+lettertypeverbindingen; de aparte build met netwerktoegang is volledig geslaagd.
+Review op de definitieve SHA en de zes GitHub-poorten volgen.
+PROGRESS.md is teruggebracht onder 400 regels door oudere entries ongewijzigd
+naar een gelinkt archief te verplaatsen; geen geschiedenis verwijderd.

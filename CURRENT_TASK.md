@@ -1,5 +1,12 @@
 # CURRENT_TASK.md — Huidige taak
 
+Bouwronde 12 september, 00:22 UTC: PR #1481 herstelt de rechtstreeks gereproduceerde
+lege labelzoekuitvoer in de deploybewaking. De 29 gerichte regressietests en 8.690 totale tests slagen (2 bestaande skips),
+lint/types/opmaak en productiebuild zijn groen. Verplichte review/release volgen. Zie
+[voortgang](docs/progress/2026-09-12-monitor-label-json.md). V5-platform PR #1474
+blijft apart open: technische controles groen, native review niet afgerond.
+De lichte publieke V5 is al live; de onderstaande oudere releaseverificatie is historie.
+
 Herstel 11 september: eigenaar vraagt oorspronkelijke lichte V5-landing, onafhankelijk van
 systeem-/app-darkmode; lokale volledige check en zeven browserreizen groen. GitHub-review
 en release nog te verifiëren. Zie PROGRESS.md.
