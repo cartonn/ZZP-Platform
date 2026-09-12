@@ -39,8 +39,9 @@ semantische token via Tailwind (`bg-primary`, `text-muted-foreground`, …).
 ### Semantische tokens
 
 De volledige waarden staan in `src/app/globals.css`. Licht: blauwgetint canvas
-(`200 50% 95%`), donkerblauwe tekst (`199 100% 23%`), witte kaarten, primaire acties
-(`198 100% 33%`) en terracotta merktekens (`15 63% 59%`). Donker gebruikt hetzelfde
+(`202.5 61.538462% 94.901961%`), donkerblauwe tekst (`198.782609 100% 22.54902%`),
+witte kaarten, primaire acties (`197.857143 100% 32.941176%`) en terracotta merktekens
+(`14.769231 63.106796% 59.607843%`): exact de lichte landingwaarden. Donker gebruikt hetzelfde
 palet met een donker canvas en lichte blauwe acties. Statuskleuren blijven apart:
 groen voor succes, amber voor wachten, rood voor fouten. Terracotta is een merkaccent,
 geen tekstkleur voor kleine tekst op wit.

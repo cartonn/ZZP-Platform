@@ -26,4 +26,24 @@ schaduwen, responsieve navigatie, toegankelijke hover/focus en servergestuurde z
 Zwart betekent wachten op goedkeuring; oranje betekent daadwerkelijk goedgekeurd.
 Afwijzing, verloop, intrekking of geschil levert geen onterechte goedkeuring op.
 
-Validatie en release worden hieronder pas als geslaagd vastgelegd na uitvoering.
+Ook browser- en iPhone-installatie-iconen, manifest en offlinepagina gebruiken de
+originele oranje handen. Versiegebonden icoon-URL's en de vernieuwde shellcache
+voorkomen dat oude installatiebestanden het vorige merk blijven tonen. Privépagina's
+blijven uitgesloten van offlineopslag.
+
+## Uitgevoerde validatie
+
+- Volledige lokale check: lint, typecontrole, 8.755 tests geslaagd (2 bestaande
+  skips) en productiebuild geslaagd. Volledige opmaakcontrole geslaagd.
+- 21 browserproeven op een eigen productiebuild en synthetische SQLite-database:
+  alle geslaagd zonder retries. Vier rollen in licht/donker, 320/390/1440 px,
+  toetsenbordfocus, mobiel menu/dock, zeven landingproeven, vier cascadeproeven
+  inclusief geschil en herstel, plus manifest/iconen/offlinepagina.
+- De browser vergelijkt de daadwerkelijk gerenderde basiskleuren en beide
+  logo-paden tussen landing en platform, met een opgeslagen oude groene voorkeur.
+  Desktop- en mobiele screenshots zijn visueel geïnspecteerd.
+- Afzonderlijke sterke review op de volledige integratie en het icoon-addendum:
+  geen blokkerende bevindingen; definitieve headcontrole volgt na commit.
+
+Release via PR #1483: de zes beschermde GitHub-poorten, authentieke native review
+op de bevroren definitieve bron en de uiteindelijke live-uitrol volgen nog.

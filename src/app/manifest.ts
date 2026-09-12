@@ -2,8 +2,7 @@ import { type MetadataRoute } from "next";
 
 // Web-app-manifest: maakt het platform installeerbaar (standalone) op mobiel en desktop. Next
 // serveert dit op /manifest.webmanifest en injecteert de <link rel="manifest"> automatisch.
-// Themakleur = het merk-zegelgroen (--primary, hsl(161 70% 28%) ≈ #15795a) — kleurt de chrome/splash
-// van de geïnstalleerde PWA in de merkkleur. Houd synchroon met globals.css en layout.tsx viewport.
+// De blauwe themakleur volgt de V5-landing. De iconversie vernieuwt ook oude immutable caches.
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Handslag",
@@ -14,13 +13,23 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#f9f4eb",
-    theme_color: "#15795a",
+    background_color: "#eaf4fa",
+    theme_color: "#0076a8",
     icons: [
-      { src: "/pwa/icon/192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/pwa/icon/512.png", sizes: "512x512", type: "image/png", purpose: "any" },
       {
-        src: "/pwa/icon/512-maskable.png",
+        src: "/pwa/icon/192.png?v=handslag-v5",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/pwa/icon/512.png?v=handslag-v5",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/pwa/icon/512-maskable.png?v=handslag-v5",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

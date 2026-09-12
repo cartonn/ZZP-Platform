@@ -8,6 +8,57 @@ const roles = {
   franchiser: "franchise@zzp-platform.local",
 };
 
+test("V5 workspace matches the landing colors and original hands after an old palette preference", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("theme", "light");
+    localStorage.setItem("palette", "forest");
+  });
+  await page.goto("/");
+  const landing = page.locator(".handslag-v5");
+  await expect(landing).toBeVisible();
+  const colors = await landing.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return Object.fromEntries(
+      ["--primary", "--foreground", "--background", "--card", "--hs-mark"].map((name) => [
+        name,
+        style.getPropertyValue(name).trim(),
+      ]),
+    );
+  });
+  const paths = await landing
+    .locator("header svg")
+    .first()
+    .locator("path")
+    .evaluateAll((items) => items.map((item) => item.getAttribute("d")));
+  expect(paths).toHaveLength(2);
+  await login(page, roles.freelancer);
+  await expect(page.locator(".hs-workspace-heading h1")).toBeVisible();
+  const workspaceColors = await page.locator("html").evaluate((el) => {
+    const style = getComputedStyle(el);
+    return Object.fromEntries(
+      ["--primary", "--foreground", "--background", "--card", "--brand-hand"].map((name) => [
+        name,
+        style.getPropertyValue(name).trim(),
+      ]),
+    );
+  });
+  for (const name of ["--primary", "--foreground", "--background", "--card"]) {
+    expect(workspaceColors[name]).toBe(colors[name]);
+  }
+  expect(workspaceColors["--brand-hand"]).toBe(colors["--hs-mark"]);
+  const brand = page.locator('.hs-sidebar svg[aria-label="Handslag"]').first();
+  await expect(brand).toBeVisible();
+  expect(
+    await brand.locator("path").evaluateAll((items) => items.map((item) => item.getAttribute("d"))),
+  ).toEqual(paths);
+  await page.screenshot({
+    path: test.info().outputPath("workspace-landing-brand.png"),
+    fullPage: true,
+  });
+});
+
 for (const [role, email] of Object.entries(roles)) {
   for (const theme of ["light", "dark"] as const) {
     test(`V5 workspace: ${role}, ${theme}, responsive navigation and keyboard`, async ({

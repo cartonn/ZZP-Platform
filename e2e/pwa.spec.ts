@@ -14,10 +14,19 @@ test("pwa: manifest, theme-color en iconen zijn aanwezig", async ({ page, reques
   expect(manifest.name).toBe("Handslag");
   expect(manifest.display).toBe("standalone");
   expect(manifest.start_url).toBe("/");
+  expect(manifest.theme_color).toBe("#0076a8");
+  expect(manifest.background_color).toBe("#eaf4fa");
   expect(Array.isArray(manifest.icons) && manifest.icons.length).toBeGreaterThanOrEqual(2);
+  expect(manifest.icons.every((item: { src: string }) => item.src.includes("v=handslag-v5"))).toBe(
+    true,
+  );
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute(
+    "href",
+    "/pwa/icon/apple.png?v=handslag-v5",
+  );
 
   // De gegenereerde iconen worden als echte PNG geserveerd.
-  const icon = await request.get("/pwa/icon/192.png");
+  const icon = await request.get(manifest.icons[0].src);
   expect(icon.ok()).toBeTruthy();
   expect(icon.headers()["content-type"]).toContain("image/png");
 
@@ -27,4 +36,10 @@ test("pwa: manifest, theme-color en iconen zijn aanwezig", async ({ page, reques
   const offline = await request.get("/offline.html");
   expect(offline.ok()).toBeTruthy();
   expect(await offline.text()).toContain("offline");
+  await page.goto("/offline.html");
+  await expect(page.getByRole("img", { name: "Handslag" })).toBeVisible();
+  const retry = page.getByRole("button", { name: "Opnieuw proberen" });
+  await retry.focus();
+  await expect(retry).toHaveCSS("outline-style", "solid");
+  await page.screenshot({ path: test.info().outputPath("handslag-offline.png") });
 });

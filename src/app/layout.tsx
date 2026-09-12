@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   description: "Opdrachten, geverifieerde certificaten en veilig documentbeheer voor ZZP'ers.",
   applicationName: "Handslag",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Handslag" },
-  icons: { apple: "/pwa/icon/apple.png" },
+  icons: { apple: "/pwa/icon/apple.png?v=handslag-v5" },
 };
 
 // themeColor MOET in de viewport-export staan (Next 15); in metadata wordt het genegeerd.
@@ -36,7 +36,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#edf5f9" },
+    { media: "(prefers-color-scheme: light)", color: "#eaf4fa" },
     { media: "(prefers-color-scheme: dark)", color: "#0e1e28" },
   ],
 };

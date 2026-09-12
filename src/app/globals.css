@@ -5,21 +5,21 @@
 /* Handslag V5: blue workspace, white surfaces, terracotta brand marks.
    Status colors remain semantic; tenant-specific branding remains independent. */
 :root {
-  --background: 200 50% 95%;
-  --foreground: 199 100% 23%;
+  --background: 202.5 61.538462% 94.901961%;
+  --foreground: 198.782609 100% 22.54902%;
   --muted: 200 44% 92%;
   --muted-foreground: 200 24% 37%;
   --card: 0 0% 100%;
-  --card-foreground: 199 100% 23%;
+  --card-foreground: var(--foreground);
   --border: 200 27% 83%;
   --input: 200 24% 63%;
-  --ring: 198 100% 33%;
-  --primary: 198 100% 33%;
+  --ring: var(--primary);
+  --primary: 197.857143 100% 32.941176%;
   --primary-foreground: 0 0% 100%;
-  --hero: 198 100% 33%;
+  --hero: var(--primary);
   --accent: 198 65% 92%;
-  --accent-foreground: 199 100% 23%;
-  --brand-hand: 15 63% 59%;
+  --accent-foreground: var(--foreground);
+  --brand-hand: 14.769231 63.106796% 59.607843%;
   --success: 155 55% 30%;
   --warning: 28 83% 32%;
   --danger: 4 68% 44%;
