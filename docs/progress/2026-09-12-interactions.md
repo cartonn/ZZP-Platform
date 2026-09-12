@@ -21,3 +21,9 @@ bestaande Google-lettertypen niet bereiken; de netwerktoegankelijke herbouw slaa
 Onafhankelijke inhoudsreview vindt na twee navigatiecorrecties geen verdere blocker.
 Gerichte Chromium/WebKit-browserproeven, de zes GitHub-poorten en uitrol volgen;
 de eerste browserstart liep vast in de sandbox en is geen producttestbewijs.
+
+De eerste GitHub-review op `77b72f1` vond twee concrete blockers: de generieke
+binnenrand verbergt focus op de blauwe actieve zijbalk, en mobiele tests werden
+door de desktopprojecten overgeslagen. De zijbalk krijgt zijn specifieke buitenrand
+terug; touchtests krijgen expliciete mobiele contexten binnen de bestaande CI.
+Het eerdere BLOCK blijft bewaard; een nieuwe head wordt opnieuw onafhankelijk beoordeeld.

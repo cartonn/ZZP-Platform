@@ -363,6 +363,11 @@ html {
   outline: 2px solid hsl(var(--ring));
   outline-offset: -2px;
 }
+/* The selected blue sidebar needs its blue focus ring against the outer canvas. */
+.hs-sidebar nav a[aria-current="page"]:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+}
 /* Inset focus stays visible in clipped lists and does not replace selected navigation. */
 :is(.hs-app, .hs-overlay) [data-hs-pressed]:not(:disabled):not([aria-disabled="true"]) {
   outline: 2px solid currentColor;
