@@ -41,13 +41,16 @@ else if (command === 'curl') {
   const calls = JSON.parse(fs.readFileSync(process.env.TEST_CALLS, 'utf8'));
   calls.push(args);
   fs.writeFileSync(process.env.TEST_CALLS, JSON.stringify(calls));
-  if (args[0] === 'label' && args[1] === 'list') out(JSON.stringify(state.label ? [{ name: 'deploy-lag' }] : []));
+  if (args[0] === 'label' && args[1] === 'list') {
+    if (state.labelReadError) fail();
+    out(state.labelBody ?? (state.label ? '[{"name":"deploy-lag"}]' : state.emptyLabelResult ? '' : '[]'));
+  }
   else if (args[0] === 'label' && args[1] === 'create') {
     if (state.labelFailure && !state.labelRace) fail();
     state.label = true;
     fs.writeFileSync(process.env.TEST_STATE, JSON.stringify(state));
     if (state.labelRace) fail();
-  } else if (args[0] === 'issue' && args[1] === 'list') out(args.includes('--jq') ? (state.existing ?? '') : JSON.stringify(state.existing ? [{ number: state.existing }] : []));
+  } else if (args[0] === 'issue' && args[1] === 'list') out(state.issueBody ?? (args.includes('--jq') ? (state.existing ?? '') : JSON.stringify(state.existing ? [{ number: state.existing }] : [])));
   else if (args[0] === 'issue' && args[1] === 'create' && !state.label) fail();
 } else fail();
 `;
@@ -108,6 +111,38 @@ describe("production watchdog workflow", () => {
     );
     expect(createLabel).toBeGreaterThanOrEqual(0);
     expect(createIssue).toBeGreaterThan(createLabel);
+  });
+
+  it.each(["true", "false"])(
+    "accepts GitHub CLI's empty successful label search for lag=%s",
+    (lag) => {
+      const result = runStep("incident", {
+        lag,
+        incidentProd: lag === "false" ? mainSha : oldSha,
+        emptyLabelResult: true,
+      });
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.calls.some((call) => call[0] === "label" && call[1] === "create")).toBe(true);
+      expect(result.calls.some((call) => call[0] === "issue" && call[1] === "create")).toBe(
+        lag === "true",
+      );
+    },
+  );
+
+  it.each([
+    ["failed label read", { labelReadError: true }],
+    ["malformed label JSON", { labelBody: "[" }],
+    ["wrong-shaped label JSON", { labelBody: "{}" }],
+  ])("does not turn %s into a missing label", (_name, fixture) => {
+    const result = runStep("incident", fixture);
+    expect(result.status).toBe(1);
+    expect(result.calls).toHaveLength(1);
+  });
+
+  it("still rejects empty issue JSON without mutating an incident", () => {
+    const result = runStep("incident", { label: true, issueBody: "" });
+    expect(result.status).toBe(1);
+    expect(result.calls.every((call) => call[1] === "list")).toBe(true);
   });
 
   it.each([8, 40])(
