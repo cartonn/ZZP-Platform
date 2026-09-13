@@ -141,7 +141,9 @@ test.describe("Handslag ordinary electronic signatures on mobile", () => {
           // Do not follow the redirect: the public login page legitimately returns 200.
           const anonymous = await request.get(pdfUrl, { maxRedirects: 0 });
           expect(anonymous.status()).toBe(307);
-          expect(new URL(anonymous.headers().location ?? "").pathname).toBe("/login");
+          const loginLocation = anonymous.headers().location;
+          expect(loginLocation).toBeTruthy();
+          expect(new URL(loginLocation!, anonymous.url()).pathname).toBe("/login");
           expect(anonymous.headers()["content-type"] ?? "").not.toContain("application/pdf");
           expect((await anonymous.body()).subarray(0, 5).toString("latin1")).not.toBe("%PDF-");
           await page.screenshot({
