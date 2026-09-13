@@ -10,6 +10,9 @@ import { auditDeniedAccess } from "@/lib/security/access-audit";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
 import { privateFileHeaders } from "@/lib/security/resource-headers";
+import { loadSigningView } from "@/lib/signing-service";
+import { buildSigningEvidencePdf } from "@/lib/signing-evidence-pdf";
+import { SigningEvidenceErasedError } from "@/lib/signing-contract";
 
 export const runtime = "nodejs";
 
@@ -44,6 +47,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       agreementType: true,
       agreementFreelancerSignedAt: true,
       agreementClientSignedAt: true,
+      signing: { select: { collaborationId: true } },
+      signingEvidenceErasedAt: true,
       company: { select: { name: true, userId: true } },
       freelancer: { select: { userId: true, user: { select: { name: true } } } },
       job: {
@@ -105,6 +110,21 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     metadata: { viewerRole: actor.role },
     ...meta,
   });
+
+  if (col.signingEvidenceErasedAt) {
+    return NextResponse.json(
+      { error: new SigningEvidenceErasedError().message },
+      { status: 410, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+  if (col.signing) {
+    const view = await loadSigningView(actor, id);
+    if (!view) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+    const bytes = await buildSigningEvidencePdf(view);
+    return new NextResponse(new Uint8Array(bytes), {
+      headers: privateFileHeaders("application/pdf", `overeenkomst-${id}.pdf`),
+    });
+  }
 
   const recommendation = recommendModelAgreement({
     directSupervision: col.job.dbaDirectSupervision,

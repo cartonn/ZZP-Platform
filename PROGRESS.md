@@ -1,3 +1,19 @@
+## 13 september 2026 — begeleid ondertekenen en bewijsstukbeoordeling (#1486)
+
+Nieuwe eigenaaropdracht: twee partijen tekenen dezelfde vastgelegde overeenkomst met
+naam, expliciete bevestigingen en extra wachtwoordcontrole. De eerste handtekening
+bevriest tekst/PDF; de tweede activeert de samenwerking. Eigen taken en badges wachten
+daarna op de andere partij. Gewone elektronische handtekening, geen gekwalificeerde claim.
+Bewijsdownload bevat originele tekstgegevens als bijlagen. Admincontrole gebruikt passende
+methoden/checklists en werkelijke bronregistratie; VOG-bewaring blijft beperkt. Bij
+accountverwijdering vraagt gezamenlijk bewijs een expliciete beoordeelde beslissing.
+
+Volledige suite: 8.861 geslaagde tests en twee bestaande skips; aanvullend 45 gerichte
+ondertekentests inclusief verliesloze tekstbijlagen groen. Typecheck/lint en PDF-rendercontrole
+groen. Vier mobiele ondertekenproeven en de documentcontroles staan klaar voor de echte CI.
+PR, onafhankelijke review, beschermde poorten en livecontrole zijn nog in uitvoering.
+Zie [uitvoering](docs/progress/2026-09-12-signing-verification.md).
+
 # PROGRESS.md — Voortgang
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).

@@ -38,7 +38,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Progress } from "@/components/ui/progress";
-import { changeCollaborationStatus, signContractFromList } from "../actions";
+import { changeCollaborationStatus } from "../actions";
 import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Samenwerkingen · Handslag" };
@@ -114,6 +114,7 @@ export default async function SamenwerkingenPage({
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     ...pageArgs(cursor),
     include: {
+      signing: { select: { signatures: { select: { actorId: true } } } },
       job: {
         select: {
           id: true,
@@ -378,6 +379,10 @@ export default async function SamenwerkingenPage({
                             collaborationStatus: status,
                             contractStatus: c.contractStatus as ContractStatus,
                             disputed: c.disputedAt !== null,
+                            viewerHasSigned:
+                              c.signing?.signatures.some(
+                                (signature) => signature.actorId === actor.id,
+                              ) ?? false,
                             latestPerformanceStatus: (c.performances[0]?.status ??
                               null) as PerformanceState | null,
                             latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
@@ -489,11 +494,25 @@ export default async function SamenwerkingenPage({
                                   : "Ondertekenen kan pas als je aan de certificaateisen voldoet."}
                               </span>
                             ) : (
-                              <form action={signContractFromList.bind(null, c.id)}>
-                                <Button type="submit" size="sm" variant="primary">
-                                  Contract ondertekenen
-                                </Button>
-                              </form>
+                              <Button
+                                asChild
+                                size="sm"
+                                variant={
+                                  c.signing?.signatures.some(
+                                    (signature) => signature.actorId === actor.id,
+                                  )
+                                    ? "secondary"
+                                    : "primary"
+                                }
+                              >
+                                <Link href={`/samenwerkingen/${c.id}/ondertekenen`}>
+                                  {c.signing?.signatures.some(
+                                    (signature) => signature.actorId === actor.id,
+                                  )
+                                    ? "Bekijk ondertekening"
+                                    : "Contract ondertekenen"}
+                                </Link>
+                              </Button>
                             ))}
                           {COLLABORATION_TRANSITIONS[status]
                             .filter((to) => !(status === "PROPOSED" && to === "ACTIVE"))

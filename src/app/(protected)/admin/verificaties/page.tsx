@@ -12,9 +12,8 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { ExpiryButton } from "./expiry-button";
-import { RejectForm, VerifyForm } from "./reject-form";
+import { CredentialReviewForm } from "@/components/credentials/review-form";
 import { DocumentPreview } from "./document-preview";
-import { rejectCredentialState, verifyCredentialState } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import { CREDENTIAL_TYPES } from "@/lib/enums";
@@ -254,11 +253,17 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
                                 variant={expired ? "danger" : "warning"}
                                 title={
                                   expired
-                                    ? "Het bewijsstuk is al verlopen — goedkeuren levert een direct ongeldige credential op. Wijs af en vraag een vernieuwd document."
+                                    ? c.type === "VOG"
+                                      ? "De afgesproken herbeoordelingsdatum is bereikt. Vraag een actueel bewijsstuk voor nieuwe beoordeling."
+                                      : "Het bewijsstuk is al verlopen. Wijs af en vraag een vernieuwd document."
                                     : "Het bewijsstuk verloopt binnenkort — houd hier rekening mee bij het beoordelen."
                                 }
                               >
-                                {label}
+                                {c.type === "VOG"
+                                  ? expired
+                                    ? "Herbeoordeling nodig"
+                                    : "Binnenkort herbeoordelen"
+                                  : label}
                               </Badge>
                             );
                           })()}
@@ -275,7 +280,9 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
                           {CREDENTIAL_TYPE_LABEL[c.type as CredentialType]}
                           {c.issuer ? ` · ${c.issuer}` : ""}
                           {fmt(c.issuedAt) ? ` · uitgegeven ${fmt(c.issuedAt)}` : ""}
-                          {fmt(c.expiresAt) ? ` · vervalt ${fmt(c.expiresAt)}` : ""}
+                          {fmt(c.expiresAt)
+                            ? ` · ${c.type === "VOG" ? "herbeoordelen op" : "vervalt"} ${fmt(c.expiresAt)}`
+                            : ""}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Ingediend door {c.freelancerProfile.user.name} (
@@ -297,12 +304,13 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
                         />
                       )}
 
-                      <div className="space-y-3 border-t border-border pt-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <VerifyForm action={verifyCredentialState.bind(null, c.id)} />
-                          <RejectForm action={rejectCredentialState.bind(null, c.id)} />
-                        </div>
-                      </div>
+                      <CredentialReviewForm
+                        key={`${c.id}:${c.updatedAt.toISOString()}`}
+                        credentialId={c.id}
+                        type={c.type}
+                        updatedAt={c.updatedAt.toISOString()}
+                        documentId={c.documentId}
+                      />
                     </CardContent>
                   </Card>
                 );

@@ -1,3 +1,4 @@
+import { collaborationFromSigningLink, signBothParties } from "./signing-helpers";
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 import { clickUntil, clickUntilGone } from "./_robust";
@@ -98,12 +99,19 @@ test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notific
     page.getByRole("link", { name: "Bekijk samenwerking" }),
   );
 
-  // ZZP'er ziet de samenwerking en activeert die.
+  // ZZP'er ziet het voorstel; beide partijen ondertekenen hun overeenkomst.
   await fp.goto("/samenwerkingen");
   const collabCard = fp.locator("div.bg-card", { hasText: title });
   await expect(collabCard.getByText("Voorgesteld")).toBeVisible();
   await shot(fp, "23-samenwerkingen");
-  await collabCard.getByRole("button", { name: "Contract ondertekenen" }).click();
+  const collaborationUrl = await collaborationFromSigningLink(
+    collabCard.getByRole("link", { name: "Contract ondertekenen" }),
+  );
+  await signBothParties(page, fp, collaborationUrl, {
+    clientName: "Coll Opdrachtgever",
+    freelancerName: "Coll Freelancer",
+  });
+  await fp.goto("/samenwerkingen");
   await expect(fp.locator("div.bg-card", { hasText: title }).getByText("Actief")).toBeVisible();
 
   // ZZP'er heeft notificaties (bericht + reactie geaccepteerd + samenwerking voorgesteld).

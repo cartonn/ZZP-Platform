@@ -1,6 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import path from "node:path";
-import { clickUntil, clickUntilGone, freshen, reloadUntilVisible } from "./_robust";
+import { clickUntil, clickUntilGone } from "./_robust";
+import { PDFDocument } from "pdf-lib";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -13,11 +14,23 @@ const hydrated = async (p: Page) => {
   const path = new URL(p.url()).pathname;
   await p.waitForSelector(`html[data-hydrated="${path}"]`, { timeout: 10000 });
 };
-const SAMPLE = {
-  name: "bewijs.pdf",
-  mimeType: "application/pdf",
-  buffer: Buffer.from("%PDF-1.4 bewijsstuk"),
-};
+// A renderable synthetic document; these tests never claim an external authority validated it.
+async function sampleDocument() {
+  const document = await PDFDocument.create();
+  document.addPage().drawText("Synthetic browser fixture - not an official certificate");
+  return {
+    name: "bewijs.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from(await document.save()),
+  };
+}
+
+async function confirmReview(card: Locator, method: string) {
+  await card.getByLabel("Controlemethode").selectOption(method);
+  for (const name of ["original", "person", "authenticity", "scope"]) {
+    await card.locator(`input[name="${name}"]`).check();
+  }
+}
 // DateInput is nu een tekstveld met NL-notatie (dd-mm-jjjj); zet ISO om vóór het invullen.
 const nl = (iso: string) => {
   const [y, m, d] = iso.split("-");
@@ -50,7 +63,7 @@ async function addAndSubmitCredential(
   await page.fill("#title", opts.title);
   if (opts.issuedAt) await page.fill("#issuedAt", nl(opts.issuedAt));
   if (opts.expiresAt) await page.fill("#expiresAt", nl(opts.expiresAt));
-  await page.setInputFiles("#document", SAMPLE);
+  await page.setInputFiles("#document", await sampleDocument());
   await page.getByRole("button", { name: "Certificaat toevoegen" }).click();
   await page.waitForURL("**/certificaten");
   // Wacht tot de client gehydrateerd is: een server-action-form werkt pas dan; een klik
@@ -64,7 +77,11 @@ async function addAndSubmitCredential(
   );
 }
 
-test("admin keurt goed en wijst af; ZZP'er ziet de uitkomst", async ({ page, browser }) => {
+test("admin controleert checklist en wijst af via drawer; ZZP'er ziet uitkomst en VOG-retentie", async ({
+  page,
+  browser,
+}) => {
+  test.slow();
   const approveTitle = `VOG ${uniq()}`;
   const rejectTitle = `Diploma ${uniq()}`;
   await registerFreelancer(page, `verif-${uniq()}@test.local`);
@@ -88,52 +105,93 @@ test("admin keurt goed en wijst af; ZZP'er ziet de uitkomst", async ({ page, bro
   await expect(
     admin.locator("div.bg-card", { hasText: approveTitle }).getByText("vandaag ingediend"),
   ).toBeVisible();
-  await shot(admin, "20-admin-queue");
-
-  await clickUntilGone(
-    admin
-      .locator("div.bg-card", { hasText: approveTitle })
-      .getByRole("button", { name: "Goedkeuren" }),
-    admin.getByText(approveTitle), // uit de wachtrij
+  const approveCard = admin.locator("div.bg-card", { hasText: approveTitle });
+  await expect(approveCard.locator('[data-seal="pending"]').first()).toBeVisible();
+  await expect(approveCard.locator('[data-seal="verified"]')).toHaveCount(0);
+  const documentHref = (await approveCard
+    .getByRole("link", { name: "Downloaden" })
+    .getAttribute("href"))!;
+  expect(documentHref).toMatch(/^\/api\/documents\//);
+  const documentResponse = await admin.request.get(documentHref);
+  expect(documentResponse.status()).toBe(200);
+  expect(documentResponse.headers()["content-type"]).toContain("application/pdf");
+  expect((await documentResponse.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  await approveCard.getByRole("button", { name: "Bewijsstuk bekijken" }).click();
+  await expect(approveCard.locator('object[aria-label="Bewijsstuk (PDF)"]')).toHaveAttribute(
+    "data",
+    documentHref,
   );
 
-  // Afwijzen vereist een reden; vul die in en klik tot de kaart de wachtrij verlaat (robuust
-  // tegen de pre-hydratie-race en een re-render door de voorgaande goedkeuring).
-  // Progressive disclosure: eerst "Afwijzen…" (opent het reden-veld), dan reden + "Bevestig
-  // afwijzing". Met freshen-vangnet tegen de #329-response-hang (mutatie geslaagd, UI hangt).
-  const rejectCard = admin.locator("div.bg-card", { hasText: rejectTitle });
-  let rejectClicked = false;
-  await expect(async () => {
-    if ((await admin.getByText(rejectTitle).count()) > 0) {
-      if (rejectClicked) await freshen(admin);
-      if ((await admin.getByText(rejectTitle).count()) > 0) {
-        const reasonField = rejectCard.getByLabel("Reden van afwijzing");
-        if (!(await reasonField.isVisible().catch(() => false))) {
-          await rejectCard
-            .getByRole("button", { name: "Afwijzen…" })
-            .click({ timeout: 3000 })
-            .catch(() => {});
-        }
-        await reasonField
-          .fill("Document is onleesbaar, upload een duidelijke scan.")
-          .catch(() => {});
-        await rejectCard
-          .getByRole("button", { name: "Bevestig afwijzing" })
-          .click({ timeout: 3000 })
-          .catch(() => {});
-        rejectClicked = true;
-      }
-    }
-    await expect(admin.getByText(rejectTitle)).toHaveCount(0, { timeout: 3000 });
-  }).toPass({ timeout: 30000 });
+  // Required controls block an incomplete decision; changing the method invalidates every check.
+  await expect(approveCard.getByRole("checkbox")).toHaveCount(4);
+  for (const checkbox of await approveCard.getByRole("checkbox").all()) {
+    await expect(checkbox).not.toBeChecked();
+    expect(await checkbox.evaluate((input: HTMLInputElement) => input.validity.valueMissing)).toBe(
+      true,
+    );
+  }
+  await confirmReview(approveCard, "DIGITAL_VOG");
+  await approveCard.getByLabel("Controlemethode").selectOption("ORIGINAL_PAPER");
+  for (const checkbox of await approveCard.getByRole("checkbox").all())
+    await expect(checkbox).not.toBeChecked();
+  await expect(
+    approveCard.getByText("Ik heb het fysieke origineel persoonlijk gezien.", { exact: true }),
+  ).toBeVisible();
+  await confirmReview(approveCard, "DIGITAL_VOG");
+  await expect(approveCard.getByRole("link", { name: /Open validatie.nl/ })).toHaveAttribute(
+    "href",
+    "https://www.validatie.nl/",
+  );
+  await shot(admin, "20-admin-queue");
+  await clickUntilGone(
+    approveCard.getByRole("button", { name: "Goedkeuren", exact: true }),
+    admin.getByText(approveTitle),
+  );
+
+  // The action centre renders the same review form in its actual document drawer.
+  await admin.goto("/acties");
+  await hydrated(admin);
+  const rejectTask = admin.locator("li", { hasText: rejectTitle });
+  await expect(rejectTask).toBeVisible();
+  await rejectTask.getByRole("button", { name: "Beoordelen" }).click();
+  const rejectCard = admin.getByRole("dialog");
+  await expect(rejectCard).toBeVisible();
+  const rejectDocument = (await rejectCard
+    .getByRole("link", { name: /Open bewijsstuk/ })
+    .getAttribute("href"))!;
+  expect((await admin.request.get(rejectDocument)).status()).toBe(200);
+  await expect(rejectCard.getByLabel("Controlemethode")).toHaveValue("DUO_EXTRACT");
+  await expect(rejectCard.getByLabel("Reden van afwijzing")).toHaveCount(0);
+  await rejectCard.getByRole("button", { name: "Afwijzen…", exact: true }).click();
+  const reason = rejectCard.getByLabel("Reden van afwijzing");
+  await expect(reason).toBeVisible();
+  expect(await reason.evaluate((input: HTMLTextAreaElement) => input.validity.valueMissing)).toBe(
+    true,
+  );
+  await reason.fill("Document is onleesbaar, upload een duidelijke scan.");
+  await rejectCard.getByRole("button", { name: "Bevestig afwijzing", exact: true }).click();
+  await expect(rejectTask).toHaveCount(0, { timeout: 20000 });
+  await expect(rejectCard).toHaveCount(0);
+  await shot(admin, "20-admin-drawer-beoordeeld");
+  // VOG metadata retention removes the private original after the recorded decision.
+  expect((await admin.request.get(documentHref)).status()).toBe(404);
   await adminCtx.close();
 
   // ZZP'er ziet de uitkomsten.
   await page.goto("/certificaten");
   const approved = page.locator("div.bg-card", { hasText: approveTitle });
   await expect(approved.getByText("Geverifieerd", { exact: true })).toBeVisible();
+  await expect(approved.locator('[data-approval="approved"]')).toBeVisible();
+  await expect(
+    approved.getByText(/bestand verwijderd, we bewaren alleen deze registratie/),
+  ).toBeVisible();
+  await expect(approved.getByRole("link", { name: /Bewijsstuk/ })).toHaveCount(0);
+  await approved.locator("summary", { hasText: "Verificatiehistorie" }).click();
+  await expect(approved.getByText(/Digitale VOG · handmatig gecontroleerd/)).toBeVisible();
+  expect((await page.request.get(documentHref)).status()).toBe(404);
   const rejected = page.locator("div.bg-card", { hasText: rejectTitle });
   await expect(rejected.getByText("Afgewezen", { exact: true })).toBeVisible();
+  await expect(rejected.locator('[data-approval="approved"]')).toHaveCount(0);
   await expect(rejected.getByText(/Document is onleesbaar/).first()).toBeVisible();
   await shot(page, "21-certificaten-beoordeeld");
 });
@@ -146,7 +204,11 @@ test("niet-admin krijgt geen toegang tot /admin (route-gate)", async ({ page }) 
   await expect(page.getByText("Beoordeel ingediende certificaten")).toHaveCount(0);
 });
 
-test("verlopen VERIFIED-certificaat wordt server-side EXPIRED", async ({ page, browser }) => {
+test("verlopen bewijsstuk kan ook met volledige checklist niet worden goedgekeurd", async ({
+  page,
+  browser,
+}) => {
+  test.slow();
   const title = `Oud Cert ${uniq()}`;
   await registerFreelancer(page, `expiry-${uniq()}@test.local`);
   // Reeds verstreken vervaldatum.
@@ -162,24 +224,23 @@ test("verlopen VERIFIED-certificaat wordt server-side EXPIRED", async ({ page, b
   await login(admin, "admin@zzp-platform.local");
   await admin.goto("/admin/verificaties");
   await hydrated(admin); // hydratie afwachten vóór server-action-kliks
-  await clickUntilGone(
-    admin.locator("div.bg-card", { hasText: title }).getByRole("button", { name: "Goedkeuren" }),
-    admin.getByText(title),
-  );
-
-  // Expiry-actie zet de (verlopen) VERIFIED-credential op EXPIRED. Niet op de flash-melding
-  // leunen (#329/hydratie-race: die kan uitblijven of na een refresh weg zijn) — het echte bewijs
-  // is de EXPIRED-status op het certificaat van de ZZP'er hieronder.
-  await admin.getByRole("button", { name: "Verlopen certificaten verwerken" }).click();
-  await admin
-    .getByText(/op verlopen gezet/)
-    .waitFor({ timeout: 5000 })
-    .catch(() => {});
+  const review = admin.locator("div.bg-card", { hasText: title });
+  await confirmReview(review, "ISSUER");
+  await review.getByRole("button", { name: "Goedkeuren", exact: true }).click();
+  await expect(review.getByRole("alert")).toContainText("Dit bewijsstuk is verlopen");
+  await expect(review.locator('[data-seal="pending"]').first()).toBeVisible();
+  await expect(review.locator('[data-seal="verified"]')).toHaveCount(0);
+  await admin.reload();
+  await expect(admin.locator("div.bg-card", { hasText: title })).toBeVisible();
   await adminCtx.close();
 
   await page.goto("/certificaten");
-  await reloadUntilVisible(
-    page,
-    page.locator("div.bg-card", { hasText: title }).getByText("Verlopen", { exact: true }),
-  );
+  const submitted = page.locator("div.bg-card", { hasText: title });
+  await expect(submitted.getByText("In beoordeling", { exact: true })).toBeVisible();
+  await expect(submitted.getByText("Geverifieerd", { exact: true })).toHaveCount(0);
+  await expect(submitted.locator('[data-approval="approved"]')).toHaveCount(0);
+  const retained = (await submitted
+    .getByRole("link", { name: /Bewijsstuk/ })
+    .getAttribute("href"))!;
+  expect((await page.request.get(retained)).status()).toBe(200);
 });

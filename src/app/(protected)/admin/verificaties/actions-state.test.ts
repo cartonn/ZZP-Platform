@@ -16,6 +16,12 @@ vi.mock("@/lib/db", () => ({
       findUnique: vi.fn(async () => ({
         id: "cred-1",
         title: "VOG",
+        type: "VOG",
+        documentId: "doc-1",
+        document: { mimeType: "application/pdf", ownerId: "owner-1" },
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        issuedAt: null,
+        expiresAt: null,
         status: "SUBMITTED",
         freelancerProfile: { userId: "owner-1" },
       })),
@@ -75,7 +81,12 @@ describe("verifyCredentialState — al-beoordeeld-race i.p.v. 500", () => {
         auditLog: { create: vi.fn() },
       }),
     );
-    const result = await verifyCredentialState("cred-1", undefined, new FormData());
+    const fd = new FormData();
+    fd.set("updatedAt", "2026-01-01T00:00:00.000Z");
+    fd.set("documentId", "doc-1");
+    fd.set("reviewMethod", "DIGITAL_VOG");
+    for (const name of ["original", "person", "authenticity", "scope"]) fd.set(name, "on");
+    const result = await verifyCredentialState("cred-1", undefined, fd);
     expect(result && "error" in result).toBe(true);
     if (result && "error" in result) expect(result.error).toMatch(/al beoordeeld/i);
   });

@@ -124,10 +124,14 @@ export function CredentialForm({
           <DateInput id="issuedAt" name="issuedAt" defaultValue={initial.issuedAt} />
         </Field>
         <Field
-          label="Vervaldatum"
+          label={type === "VOG" ? "Opnieuw beoordelen op" : "Vervaldatum"}
           htmlFor="expiresAt"
           error={fe.expiresAt}
-          hint="Leeg = verloopt niet."
+          hint={
+            type === "VOG"
+              ? "Een VOG heeft geen algemene vervaldatum. Vul alleen de herbeoordelingsdatum volgens het beleid van je opdrachtgever in."
+              : "Leeg = verloopt niet."
+          }
         >
           <DateInput id="expiresAt" name="expiresAt" defaultValue={initial.expiresAt} />
         </Field>
@@ -147,7 +151,14 @@ export function CredentialForm({
           {type === "VOG" && (
             <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
               Je VOG wordt na de controle verwijderd. We bewaren alleen dat hij is gezien, door wie
-              en op welke datum.
+              en op welke datum, met de gebruikte controlemethode.
+            </p>
+          )}
+          {(type === "VOG" || type === "DIPLOMA") && (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {type === "VOG"
+                ? "Digitale VOG? Upload het originele PDF-bestand uit je Berichtenbox. Een foto of schermafbeelding kan niet digitaal op echtheid worden gecontroleerd. Bij een papieren VOG moet de beoordelaar ook het fysieke origineel zien."
+                : "Gebruik bij voorkeur een recent, origineel PDF-uittreksel uit Mijn diploma’s van DUO. Een scan of foto krijgt een andere controle door de beoordelaar."}
             </p>
           )}
           {isEdit && initial.hasDocument && initial.documentId && (
@@ -165,7 +176,7 @@ export function CredentialForm({
             name="document"
             accept="application/pdf,image/png,image/jpeg,image/webp"
             required={!isEdit}
-            capture
+            capture={type !== "VOG" && type !== "DIPLOMA"}
           />
           {isEdit && (
             <p className="text-xs text-muted-foreground">

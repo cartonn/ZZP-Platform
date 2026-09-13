@@ -18,7 +18,6 @@ import { type PendingTask, type TaskTone } from "@/lib/actions/tasks";
 import { type DrawerData } from "@/lib/actions/drawer-data";
 import { cn } from "@/lib/utils";
 import {
-  signContractAction,
   submitInvoiceAction,
   confirmPaymentAction,
   resolveDisputeAction,
@@ -90,7 +89,12 @@ function Resolver({
 }) {
   switch (task.kind) {
     case "contract-sign":
-      return <OneClick action={signContractAction.bind(null, task.collabId)} label="Onderteken" />;
+      return (
+        <OpenLink
+          href={`/samenwerkingen/${task.collabId}/ondertekenen`}
+          label="Lezen en ondertekenen"
+        />
+      );
     case "invoice-submit":
       return (
         <OneClick

@@ -13,7 +13,8 @@ import {
   collaborationTerminableGuard,
   completionBlockReason,
 } from "@/lib/cascade/completion";
-import { signContract, CascadeError } from "@/lib/cascade/commands";
+import { redirect } from "next/navigation";
+import { signingPath } from "@/lib/signing-contract";
 import { assessCancellation } from "@/lib/cancellation";
 import { collaborationCancelledNotificationBody } from "@/lib/cascade/notification-bodies";
 import {
@@ -253,8 +254,8 @@ async function applyCollaborationStatusChange(
     throw e;
   }
 
-  // Een samenwerking wordt uitsluitend actief via een ondertekend contract (signContractAction /
-  // signContractFromList), niet via een losse statuswijziging. Dit blokkeert het oude
+  // Een samenwerking wordt uitsluitend actief na beide bewijzen via de begeleide ondertekening,
+  // niet via een losse statuswijziging. Dit blokkeert het oude
   // "Markeer als actief"-pad zodat er nooit een actieve inhuur zonder contract ontstaat.
   if (targetStatus === "ACTIVE") {
     throw new Error("Onderteken eerst het contract om de samenwerking te activeren.");
@@ -478,21 +479,11 @@ async function applyCollaborationStatusChange(
 }
 
 /**
- * Contract ondertekenen vanaf het samenwerkingen-overzicht. Hergebruikt de cascade-command
- * signContract (zet atomair contractStatus=SIGNED + status=ACTIVE). De enige manier om een
- * samenwerking te activeren — vervangt het oude losse "Markeer als actief".
+ * Older form callers enter the guided signing page without mutating the collaboration.
  */
 export async function signContractFromList(collaborationId: string): Promise<void> {
-  const actor = await requireActor();
-  try {
-    await signContract(actor, collaborationId);
-  } catch (e) {
-    if (e instanceof CascadeError) throw new Error(e.message);
-    throw e;
-  }
-  revalidatePath("/samenwerkingen");
-  revalidatePath("/acties");
-  revalidatePath("/dashboard");
+  await requireActor();
+  redirect(signingPath(collaborationId));
 }
 
 const credentialReminderSchema = z.object({

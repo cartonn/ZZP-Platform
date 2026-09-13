@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { collaborationsWithActiveDisputeOpenedBy } from "@/lib/dispute-ownership";
+import { signingEvidenceParticipantWhere } from "@/lib/signing-erasure";
 
 // AVG recht op inzage/dataportabiliteit (art. 15/20): bundelt de eigen persoonsgegevens van de
 // actor tot één JSON-export. Server-side waarheid; uitsluitend de eigen gegevens — geen
@@ -57,6 +58,8 @@ export interface AccountExportPayload {
   // (eigen persoonsgegeven); ze horen in de inzage/portabiliteit — symmetrisch met de erasure die deze
   // rijen nu verwijdert (`anonymizeUser` → `notificationPreference.deleteMany`).
   notificationPreferences: unknown;
+  contractSignatures: unknown;
+  contractSigningEvidence: unknown;
 }
 
 const EXPORT_NOTICE =
@@ -111,6 +114,8 @@ export async function buildAccountExport(
     savedJobs,
     savedJobSearches,
     notificationPreferences,
+    contractSignatures,
+    contractSigningEvidence,
   ] = await Promise.all([
     db.user.findUnique({
       where: { id: actorId },
@@ -150,6 +155,15 @@ export async function buildAccountExport(
             issuedAt: true,
             expiresAt: true,
             visibility: true,
+            verifications: {
+              select: {
+                source: true,
+                decision: true,
+                reviewMethod: true,
+                reviewEvidence: true,
+                createdAt: true,
+              },
+            },
           },
         },
         workExperiences: {
@@ -510,6 +524,24 @@ export async function buildAccountExport(
       where: { userId: actorId },
       select: { category: true, emailEnabled: true, createdAt: true, updatedAt: true },
     }),
+    // Only the actor's own signing declaration, never a counterparty's typed name.
+    db.contractSignature.findMany({
+      where: { actorId },
+      select: {
+        collaborationId: true,
+        party: true,
+        signerName: true,
+        consentVersion: true,
+        authenticationMethod: true,
+        signedAt: true,
+      },
+    }),
+    // Snapshot metadata also belongs to a party who has not signed yet. The shared PDF and JSON
+    // remain outside this own-data export; download rechecks live authorization on every request.
+    db.contractSigning.findMany({
+      where: { collaboration: signingEvidenceParticipantWhere(actorId) },
+      select: { collaborationId: true, documentHash: true, pdfHash: true, createdAt: true },
+    }),
   ]);
 
   // Alleen op de EIGEN uitschrijver-facturen (issuerUserId == actor, óf legacy-loose via de
@@ -566,5 +598,12 @@ export async function buildAccountExport(
     savedJobs,
     savedJobSearches,
     notificationPreferences,
+    contractSignatures,
+    contractSigningEvidence: contractSigningEvidence.map((evidence) => ({
+      ...evidence,
+      privateDownloadPath: `/api/samenwerkingen/${encodeURIComponent(evidence.collaborationId)}/modelovereenkomst`,
+      downloadNotice:
+        "De gezamenlijke overeenkomst en het bewijs bevatten gegevens van beide partijen. Inloggen en actuele toegangsrechten zijn vereist.",
+    })),
   };
 }

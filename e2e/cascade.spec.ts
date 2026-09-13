@@ -1,3 +1,4 @@
+import { signBothParties } from "./signing-helpers";
 import { expect, test, type Page } from "@playwright/test";
 import type { Browser } from "playwright-core";
 import path from "node:path";
@@ -115,12 +116,12 @@ test("cascade A→E happy path (milestone)", async ({ page, browser }) => {
 
   const { collaborationUrl, fp, fctx } = await setupCollaboration(page, browser as Browser);
 
-  // --- Event A: Client ondertekent contract --- (robuust klikken: pre-hydratie-race)
+  // --- Event A: Beide partijen ondertekenen dezelfde documentversie ---
   await expect(page.getByText("Voorgesteld")).toBeVisible({ timeout: 15000 });
-  await clickUntil(
-    page.getByRole("button", { name: "Contract ondertekenen" }),
-    page.getByText("Actief").first(),
-  );
+  await signBothParties(page, fp, collaborationUrl, {
+    clientName: "Cascade Opdrachtgever",
+    freelancerName: "Cascade ZZP'er",
+  });
   await shot(page, "cascade-a-contract-signed");
 
   // --- Event B1: Freelancer dient milestone-prestatie in ---
@@ -253,10 +254,10 @@ test("cascade afkeuren prestatie en opnieuw indienen (uren)", async ({ page, bro
   const { collaborationUrl, fp, fctx } = await setupCollaboration(page, browser as Browser);
 
   // --- Event A: Contract ondertekenen ---
-  await clickUntil(
-    page.getByRole("button", { name: "Contract ondertekenen" }),
-    page.getByText("Actief").first(),
-  );
+  await signBothParties(page, fp, collaborationUrl, {
+    clientName: "Cascade Opdrachtgever",
+    freelancerName: "Cascade ZZP'er",
+  });
 
   // --- Event B1: Freelancer dient uren in ---
   await fp.goto(collaborationUrl);
@@ -349,10 +350,10 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
   const { collaborationUrl, fp, fctx } = await setupCollaboration(page, browser as Browser);
 
   // --- Contract ondertekenen ---
-  await clickUntil(
-    page.getByRole("button", { name: "Contract ondertekenen" }),
-    page.getByText("Actief").first(),
-  );
+  await signBothParties(page, fp, collaborationUrl, {
+    clientName: "Cascade Opdrachtgever",
+    freelancerName: "Cascade ZZP'er",
+  });
 
   // --- Freelancer dient milestone in ---
   await fp.goto(collaborationUrl);
@@ -460,7 +461,7 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
     });
     await expect(agreement).toBeVisible();
     await expect(agreement.locator("[data-approval], [data-seal]")).toHaveCount(0);
-    await expect(agreement.getByRole("button", { name: "Akkoord geven" })).toHaveCount(0);
+    await expect(agreement.getByRole("link", { name: "Lezen en ondertekenen" })).toHaveCount(0);
     await expect(agreement.getByRole("button", { name: "Vorm vastleggen" })).toHaveCount(0);
   }
 
@@ -493,8 +494,13 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
   const restoredAgreement = fp.locator(".hs-surface").filter({
     has: fp.getByText("Modelovereenkomst", { exact: true }),
   });
-  await expect(restoredAgreement.locator('[data-approval="pending"]')).toBeVisible();
-  await expect(restoredAgreement.getByRole("button", { name: "Akkoord geven" })).toBeVisible();
+  await expect(restoredAgreement.locator('[data-approval="approved"]')).toBeVisible();
+  await expect(
+    restoredAgreement.getByRole("link", { name: "Bekijk ondertekenbewijs" }),
+  ).toBeVisible();
+  await expect(restoredAgreement.getByRole("link", { name: "Lezen en ondertekenen" })).toHaveCount(
+    0,
+  );
   await expect(handoff.locator('[data-approval="pending"]')).toBeVisible();
   await expect(handoff.getByRole("button", { name: "Intrekken", exact: true })).toBeVisible();
 
@@ -509,10 +515,10 @@ test("cascade credit-zijpad: betaalde factuur crediteren met reden", async ({ pa
 
   // --- A: contract ---
   await expect(page.getByText("Voorgesteld")).toBeVisible({ timeout: 15000 });
-  await clickUntil(
-    page.getByRole("button", { name: "Contract ondertekenen" }),
-    page.getByText("Actief").first(),
-  );
+  await signBothParties(page, fp, collaborationUrl, {
+    clientName: "Cascade Opdrachtgever",
+    freelancerName: "Cascade ZZP'er",
+  });
 
   // --- B1: milestone indienen (zelfde robuuste loop als de happy path) ---
   await fp.goto(collaborationUrl);

@@ -187,8 +187,8 @@ export function contractSignTask(collabId: string, jobTitle: string, party: stri
     subtitle: `${jobTitle} · ${party}`,
     tone: "attention",
     priority: P.contractSign,
-    resolver: "oneClick",
-    href: collabHref(collabId),
+    resolver: "link",
+    href: `${collabHref(collabId)}/ondertekenen`,
     collabId,
   };
 }

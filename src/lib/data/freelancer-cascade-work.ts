@@ -29,7 +29,13 @@ export const FREELANCER_CASCADE_SCAN_LIMIT = 50;
 
 /** PROPOSED-samenwerkingen van de ZZP'er (contract ondertekenen). Spiegelt `proposedCollabs`. */
 export function proposedCollabWhere(userId: string): Prisma.CollaborationWhereInput {
-  return { freelancer: { userId }, status: "PROPOSED", disputedAt: null };
+  return {
+    freelancer: { userId },
+    status: "PROPOSED",
+    disputedAt: null,
+    signingEvidenceErasedAt: null,
+    OR: [{ signing: null }, { signing: { signatures: { none: { actorId: userId } } } }],
+  };
 }
 
 /**

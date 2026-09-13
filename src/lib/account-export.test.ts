@@ -51,6 +51,8 @@ function fakeDb(rows: Record<string, unknown> = {}) {
     savedJob: { findMany: make("savedJob", "findMany") },
     savedJobSearch: { findMany: make("savedJobSearch", "findMany") },
     notificationPreference: { findMany: make("notificationPreference", "findMany") },
+    contractSignature: { findMany: make("contractSignature", "findMany") },
+    contractSigning: { findMany: make("contractSigning", "findMany") },
   };
   return { db: db as unknown as PrismaClient, calls };
 }
@@ -591,5 +593,55 @@ describe("buildAccountExport", () => {
     expect(payload.indirectHours).toEqual([{ hours: 2.5, category: "ADMIN" }]);
     expect(payload.invoices).toEqual([{ number: "2025-001", totalCents: 12100 }]);
     expect(payload.performances).toEqual([{ hours: 8, description: "Nachtdienst" }]);
+  });
+});
+
+describe("account export — signing evidence privacy", () => {
+  it("includes only the actor's signatures and private snapshot references, including unsigned participation", async () => {
+    const signature = {
+      collaborationId: "col/own",
+      party: "FREELANCER",
+      signerName: "Eigen naam",
+      consentVersion: "handslag-electronic-signature-v1",
+      authenticationMethod: "SESSION_AND_PASSWORD",
+      signedAt: new Date("2026-09-12T17:30:00Z"),
+    };
+    const snapshot = {
+      collaborationId: "col/own",
+      documentHash: "d".repeat(64),
+      pdfHash: "e".repeat(64),
+      createdAt: signature.signedAt,
+    };
+    const { db, calls } = fakeDb({ contractSignature: [signature], contractSigning: [snapshot] });
+    const result = await buildAccountExport(db, "own-user");
+    expect(calls.find((c) => c.table === "contractSignature")?.args).toEqual({
+      where: { actorId: "own-user" },
+      select: {
+        collaborationId: true,
+        party: true,
+        signerName: true,
+        consentVersion: true,
+        authenticationMethod: true,
+        signedAt: true,
+      },
+    });
+    expect(calls.find((c) => c.table === "contractSigning")?.args).toEqual({
+      where: {
+        collaboration: {
+          OR: [{ freelancer: { userId: "own-user" } }, { company: { userId: "own-user" } }],
+        },
+      },
+      select: { collaborationId: true, documentHash: true, pdfHash: true, createdAt: true },
+    });
+    expect(result.contractSignatures).toEqual([signature]);
+    expect(result.contractSigningEvidence).toEqual([
+      {
+        ...snapshot,
+        privateDownloadPath: "/api/samenwerkingen/col%2Fown/modelovereenkomst",
+        downloadNotice: expect.stringContaining("Inloggen"),
+      },
+    ]);
+    expect(JSON.stringify(result)).not.toContain("documentJson");
+    expect(JSON.stringify(result)).not.toContain("documentPdf");
   });
 });

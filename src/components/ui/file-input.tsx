@@ -33,7 +33,10 @@ export function FileInput({ id, name, accept, required, capture, onChange }: Pro
   // de browser `capture` en zou de knop simpelweg een tweede bestandskiezer openen (verwarrend).
   // Post-mount gezet → geen hydratie-mismatch (server rendert 'm niet, de client voegt 'm toe).
   useEffect(() => {
-    if (!capture) return;
+    if (!capture) {
+      setCanScan(false);
+      return;
+    }
     const coarse = window.matchMedia?.("(pointer: coarse)").matches || "ontouchstart" in window;
     setCanScan(Boolean(coarse));
   }, [capture]);

@@ -1,3 +1,4 @@
+import { signBothParties } from "../signing-helpers";
 import { expect, test } from "@playwright/test";
 import type { Browser } from "playwright-core";
 import { clickUntil, clickUntilGone } from "../_robust";
@@ -11,7 +12,7 @@ import { shot, uniq } from "./helpers";
 //   CLIENT plaatst opdracht → publiceert
 //   FREELANCER bladert, solliciteert
 //   CLIENT accepteert, stelt samenwerking voor
-//   FREELANCER tekent contract (cascade Event A: contract actief)
+//   CLIENT + FREELANCER tekenen dezelfde overeenkomst (Event A: contract actief)
 //   FREELANCER dient urenstaat in (cascade Event B1)
 //   CLIENT keurt uren goed (cascade Event B2 → concept-factuur)
 //   FREELANCER dient factuur in (cascade Event C)
@@ -126,12 +127,12 @@ test.describe("QA: Complete lifecycle cascade", () => {
     await page.waitForURL("**/samenwerkingen/**");
 
     // =====================================================================
-    // STAP 4 — CLIENT tekent contract (Event A: contract actief)
+    // STAP 4 — BEIDE PARTIJEN tekenen (Event A: contract actief)
     // =====================================================================
-    await clickUntil(
-      page.getByRole("button", { name: "Contract ondertekenen" }),
-      page.getByText("Actief").first(),
-    );
+    await signBothParties(page, fp, collabUrl, {
+      clientName: "QA Opdrachtgever",
+      freelancerName: "QA Freelancer",
+    });
     await shot(page, "lifecycle-07-contract-signed");
 
     // =====================================================================

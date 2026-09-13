@@ -254,6 +254,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
             id: true,
             status: true,
             contractStatus: true,
+            signing: { select: { signatures: { select: { actorId: true } } } },
             disputedAt: true,
             startDate: true,
             endDate: true,
@@ -318,6 +319,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         collaborationId: c.id,
         collaborationStatus: c.status as CollaborationStatus,
         contractStatus: c.contractStatus as ContractStatus,
+        viewerHasSigned:
+          c.signing?.signatures.some((signature) => signature.actorId === userId) ?? false,
         disputed: c.disputedAt !== null,
         latestPerformanceStatus: (c.performances[0]?.status ?? null) as PerformanceState | null,
         latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
@@ -459,6 +462,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           id: true,
           status: true,
           contractStatus: true,
+          signing: { select: { signatures: { select: { actorId: true } } } },
           disputedAt: true,
           startDate: true,
           endDate: true,
@@ -519,6 +523,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         collaborationId: c.id,
         collaborationStatus: c.status as CollaborationStatus,
         contractStatus: c.contractStatus as ContractStatus,
+        viewerHasSigned:
+          c.signing?.signatures.some((signature) => signature.actorId === userId) ?? false,
         disputed: c.disputedAt !== null,
         latestPerformanceStatus: (c.performances[0]?.status ?? null) as PerformanceState | null,
         latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
@@ -725,6 +731,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         id: true,
         status: true,
         contractStatus: true,
+        signing: { select: { signatures: { select: { actorId: true } } } },
         disputedAt: true,
         job: { select: { title: true } },
         company: { select: { name: true } },
@@ -757,6 +764,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       collaborationId: c.id,
       collaborationStatus: c.status as CollaborationStatus,
       contractStatus: c.contractStatus as ContractStatus,
+      viewerHasSigned:
+        c.signing?.signatures.some((signature) => signature.actorId === userId) ?? false,
       disputed: c.disputedAt !== null,
       latestPerformanceStatus: (c.performances[0]?.status ?? null) as PerformanceState | null,
       latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ?? null) as InvoiceLifecycleState | null,

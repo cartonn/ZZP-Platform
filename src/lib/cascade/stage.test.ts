@@ -69,6 +69,48 @@ describe("cascadeStage — terminaal/overschrijvend", () => {
 });
 
 describe("cascadeStage — keten + viewer-perspectief", () => {
+  it.each(["CLIENT", "FREELANCER"] as const)(
+    "%s wacht na de eigen handtekening, zonder de andere partij stil te zetten",
+    (viewer) => {
+      const input = base({ viewer, collaborationStatus: "PROPOSED", contractStatus: "DRAFT" });
+      const ownSignature = cascadeStage({ ...input, viewerHasSigned: true });
+      const otherParty = cascadeStage({
+        ...input,
+        viewer: viewer === "CLIENT" ? "FREELANCER" : "CLIENT",
+        viewerHasSigned: false,
+      });
+      expect(ownSignature.id).toBe("contract-wait");
+      expect(ownSignature.youAreUp).toBe(false);
+      expect(ownSignature.tone).toBe("info");
+      expect(ownSignature.step).toBe(1);
+      expect(ownSignature.cta.href).toBe("/samenwerkingen/c1/ondertekenen");
+      expect(ownSignature.cta.label).toBe("Bekijk ondertekening");
+      expect(otherParty.id).toBe("contract-sign");
+      expect(otherParty.youAreUp).toBe(true);
+      expect(otherParty.step).toBe(ownSignature.step);
+    },
+  );
+
+  it("de eigen handtekening verhindert geen werk zodra beide partijen hebben getekend", () => {
+    const freelancer = cascadeStage(base({ viewerHasSigned: true }));
+    const client = cascadeStage(base({ viewer: "CLIENT", viewerHasSigned: true }));
+    expect(freelancer.id).toBe("performance-submit");
+    expect(freelancer.youAreUp).toBe(true);
+    expect(client.youAreUp).toBe(false);
+    expect(freelancer.step).toBe(2);
+  });
+
+  it.each([
+    { collaborationStatus: "PROPOSED" as const, disputed: true, id: "disputed" },
+    { collaborationStatus: "CANCELLED" as const, disputed: false, id: "cancelled" },
+    { collaborationStatus: "COMPLETED" as const, disputed: false, id: "completed" },
+  ])("$id overschrijft wachten op de medecontractant", ({ id, ...state }) => {
+    const stage = cascadeStage(base({ ...state, contractStatus: "DRAFT", viewerHasSigned: true }));
+    expect(stage.id).toBe(id);
+    expect(stage.youAreUp).toBe(false);
+    expect(stage.cta.href).toBe("/samenwerkingen/c1");
+  });
+
   it("contract SENT: beide partijen aan zet", () => {
     const fr = cascadeStage(base({ contractStatus: "SENT" }));
     const cl = cascadeStage(base({ contractStatus: "SENT", viewer: "CLIENT" }));

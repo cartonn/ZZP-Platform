@@ -154,6 +154,8 @@ describe("gedeelde WHERE-builders — één bron van waarheid voor /acties én d
       freelancer: { userId: "u-1" },
       status: "PROPOSED",
       disputedAt: null,
+      signingEvidenceErasedAt: null,
+      OR: [{ signing: null }, { signing: { signatures: { none: { actorId: "u-1" } } } }],
     });
   });
 

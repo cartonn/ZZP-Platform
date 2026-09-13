@@ -30,6 +30,13 @@ Tenant-branding en de bestaande autorisatie blijven intact.
 
 ---
 
+De ondertekenpagina laat eerst de volledige afspraken zien en daarna naam,
+wachtwoord en expliciete bevestigingen. Op breed beeld staat het tekenpaneel naast
+de tekst; mobiel staat het eronder. Een zwart handenlogo markeert wachten; oranje
+volgt alleen op vastgelegde bevestiging. Na de eigen handtekening verschuift de
+primaire taak naar wachten op de andere partij. Documentbeoordeling gebruikt dezelfde
+zegeltaal met concrete, documentgebonden controles en een zichtbare methode.
+
 ## 2. Kleur (tokens)
 
 Alle kleuren zijn **HSL-triples in CSS-variabelen** (`hsl(var(--token))`), zodat één set semantische

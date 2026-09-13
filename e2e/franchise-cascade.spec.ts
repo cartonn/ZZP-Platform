@@ -1,3 +1,4 @@
+import { signBothParties } from "./signing-helpers";
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 import {
@@ -99,13 +100,14 @@ test("van dienst tot fee: de bemiddelaar ziet de opbrengst van een eigen plaatsi
   await expect(page.getByText(zzperNaam).first()).toBeVisible();
   await shot(page, "franchise-cascade-samenwerkingen");
 
-  // 5. De ZZP'er tekent het contract → actief, en uren kunnen worden vastgelegd.
+  // 5. Beide partijen tekenen hun overeenkomst → actief, daarna kunnen uren worden vastgelegd.
   await fp.goto(collaborationUrl);
   await hydrated(fp);
-  await clickUntil(
-    fp.getByRole("button", { name: "Contract ondertekenen" }),
-    fp.getByText("Actief").first(),
-  );
+  await signBothParties(cp, fp, collaborationUrl, {
+    clientName: "Verpleeghuis De Noorderbrug",
+    freelancerName: "Lars Bakker",
+    password: "demo1234",
+  });
   await shot(fp, "franchise-cascade-contract-getekend");
 
   // 6. Uren indienen (ZZP'er).

@@ -35,6 +35,15 @@ wat het doet en waar je begint.
 `src/lib/services/` = externe koppelingen achter een interface met veilige default · `src/app/` =
 Next.js App Router (route groups per rol) · `prisma/schema.prisma` = het volledige datamodel.
 
+### Ondertekenen en bewijsstukcontrole (12-9-2026)
+
+`signing-contract.ts` definieert toestemming en documentversie; `signing-service.ts`
+legt beide partijbewijzen transactioneel vast en activeert via de bestaande cascade.
+`signing-evidence-pdf.ts` voegt het bewijs toe aan de onveranderlijke oorspronkelijke PDF.
+`signing-erasure.ts` bewaakt de expliciete gezamenlijke bewijsverwijdering; de
+verwijdermarkering verhindert reconstructie. `credential-review.ts` beschrijft de
+handmatige controlemethoden en versie-/bewijsvoorwaarden van adminbesluiten.
+
 ### Bekende structurele schuld
 
 - **Vlakke lib zonder importgrenzen.** 375 modules op één niveau in `src/lib`; niets belet een

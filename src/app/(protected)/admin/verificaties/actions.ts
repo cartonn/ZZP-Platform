@@ -12,12 +12,16 @@ import { type ResolveState } from "@/lib/actions/resolve-state";
 import { boundReason } from "@/lib/text-bounds";
 import { shouldRemoveEvidenceAfterReview } from "@/lib/credential-evidence-policy";
 import { removeCredentialEvidence } from "@/lib/credential-evidence";
+import { parseCredentialReview, parseCredentialReviewSnapshot } from "@/lib/credential-review";
 import { invalidateSignals } from "@/lib/signals/invalidate";
 
 async function loadCredentialForDecision(credentialId: string) {
   const credential = await prisma.credential.findUnique({
     where: { id: credentialId },
-    include: { freelancerProfile: { select: { userId: true } } },
+    include: {
+      freelancerProfile: { select: { userId: true } },
+      document: { select: { mimeType: true, ownerId: true } },
+    },
   });
   if (!credential) throw new Error("Credential niet gevonden.");
   return credential;
@@ -35,7 +39,7 @@ function evidenceSeenPatch(type: CredentialType, actorId: string, now: Date) {
 }
 
 /** Goedkeuren: SUBMITTED -> VERIFIED. Verificatieflow stap 3 (audit + notificatie). */
-export async function verifyCredential(credentialId: string): Promise<void> {
+export async function verifyCredential(credentialId: string, formData: FormData): Promise<void> {
   const actor = await requireRole("ADMIN");
   const credential = await loadCredentialForDecision(credentialId);
   const from = credential.status as CredentialStatus;
@@ -49,11 +53,18 @@ export async function verifyCredential(credentialId: string): Promise<void> {
   }
 
   const now = new Date();
+  const review = parseCredentialReview(formData, credential, now);
   await prisma.$transaction(async (tx) => {
     // Status-guard binnen de transactie: alleen verwerken als de credential nog in `from` staat.
     // Een gelijktijdige tweede beslissing matcht 0 rijen en breekt af — geen dubbele audit/notificatie.
     const res = await tx.credential.updateMany({
-      where: { id: credentialId, status: from },
+      where: {
+        id: credentialId,
+        status: from,
+        updatedAt: credential.updatedAt,
+        documentId: credential.documentId,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
       data: {
         status: next,
         verifiedAt: now,
@@ -61,9 +72,19 @@ export async function verifyCredential(credentialId: string): Promise<void> {
         ...evidenceSeenPatch(credential.type as CredentialType, actor.id, now),
       },
     });
-    if (res.count === 0) throw new Error("Deze aanvraag is al beoordeeld.");
+    if (res.count === 0)
+      throw new Error(
+        "Deze aanvraag is al beoordeeld of intussen gewijzigd. Open de aanvraag opnieuw.",
+      );
     await tx.credentialVerification.create({
-      data: { credentialId, verifierId: actor.id, decision: "VERIFIED" },
+      data: {
+        credentialId,
+        verifierId: actor.id,
+        source: "ADMIN",
+        decision: "VERIFIED",
+        reviewMethod: review.method,
+        reviewEvidence: JSON.stringify(review.evidence),
+      },
     });
     await tx.verificationRequest.updateMany({
       where: { credentialId, status: "PENDING" },
@@ -84,7 +105,7 @@ export async function verifyCredential(credentialId: string): Promise<void> {
         action: "CREDENTIAL_VERIFIED",
         entityType: "Credential",
         entityId: credentialId,
-        metadata: { from, to: next },
+        metadata: { from, to: next, reviewMethod: review.method },
       }),
     });
   });
@@ -131,6 +152,8 @@ export async function rejectCredential(credentialId: string, formData: FormData)
   const actor = await requireRole("ADMIN");
   const credential = await loadCredentialForDecision(credentialId);
   const from = credential.status as CredentialStatus;
+  if (!(formData instanceof FormData))
+    throw new Error("Open de aanvraag opnieuw voordat je beslist.");
   const reason = boundReason(formData.get("reason"));
 
   let next: CredentialStatus;
@@ -141,10 +164,21 @@ export async function rejectCredential(credentialId: string, formData: FormData)
     throw e; // "Een afwijzing vereist een reden."
   }
 
+  const snapshot = parseCredentialReviewSnapshot(formData);
+  if (
+    snapshot.updatedAt !== credential.updatedAt.toISOString() ||
+    snapshot.documentId !== (credential.documentId ?? "")
+  )
+    throw new Error("De aanvraag is gewijzigd. Open het actuele bewijsstuk en beoordeel opnieuw.");
   const now = new Date();
   await prisma.$transaction(async (tx) => {
     const res = await tx.credential.updateMany({
-      where: { id: credentialId, status: from },
+      where: {
+        id: credentialId,
+        status: from,
+        updatedAt: credential.updatedAt,
+        documentId: credential.documentId,
+      },
       data: {
         status: next,
         rejectionReason: reason,
@@ -152,7 +186,10 @@ export async function rejectCredential(credentialId: string, formData: FormData)
         ...evidenceSeenPatch(credential.type as CredentialType, actor.id, now),
       },
     });
-    if (res.count === 0) throw new Error("Deze aanvraag is al beoordeeld.");
+    if (res.count === 0)
+      throw new Error(
+        "Deze aanvraag is al beoordeeld of intussen gewijzigd. Open de aanvraag opnieuw.",
+      );
     await tx.credentialVerification.create({
       data: { credentialId, verifierId: actor.id, decision: "REJECTED", reason },
     });
@@ -194,10 +231,10 @@ export async function rejectCredential(credentialId: string, formData: FormData)
 export async function verifyCredentialState(
   credentialId: string,
   _prev: ResolveState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<ResolveState> {
   try {
-    await verifyCredential(credentialId);
+    await verifyCredential(credentialId, formData);
   } catch (e) {
     return { error: toSafeActionError(e) };
   }

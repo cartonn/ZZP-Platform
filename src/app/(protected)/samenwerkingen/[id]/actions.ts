@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { signingPath } from "@/lib/signing-contract";
 import { requireActor } from "@/lib/authz";
 import { toSafeActionError, throwSafeActionError } from "@/lib/safe-action-error";
 import { type ResolveState } from "@/lib/actions/resolve-state";
 import {
-  signContract,
   createPerformance,
   updatePerformance,
   submitPerformance,
@@ -44,7 +45,7 @@ import { boundReason, boundText, MAX_TITLE_LEN, MAX_DESCRIPTION_LEN } from "@/li
 import { weekdaySchema, type Weekday } from "@/lib/enums";
 import { serializeWeekdays } from "@/lib/weekdays";
 import { MODEL_AGREEMENT_TYPES, type ModelAgreementType } from "@/lib/model-agreement";
-import { audit, auditData } from "@/lib/audit";
+import { audit } from "@/lib/audit";
 
 /**
  * Vertaalt een gevangen cascade-fout naar een VEILIGE, opborrelende melding voor deze plain
@@ -69,13 +70,8 @@ function refresh(collaborationId: string) {
 }
 
 export async function signContractAction(collaborationId: string): Promise<void> {
-  const actor = await requireActor();
-  try {
-    await signContract(actor, collaborationId);
-  } catch (e) {
-    toMessage(e);
-  }
-  refresh(collaborationId);
+  await requireActor();
+  redirect(signingPath(collaborationId));
 }
 
 /**
@@ -483,49 +479,8 @@ export async function signModelAgreementAction(collaborationId: string): Promise
     throw new Error("Samenwerking niet gevonden.");
   }
 
-  const already = isFreelancer ? col.agreementFreelancerSignedAt : col.agreementClientSignedAt;
-  if (already) {
-    refresh(collaborationId);
-    return; // idempotent: al ondertekend
-  }
-
-  const signatureField = isFreelancer ? "agreementFreelancerSignedAt" : "agreementClientSignedAt";
-  const partyWhere = isFreelancer
-    ? { freelancer: { userId: actor.id } }
-    : { company: { userId: actor.id } };
-  // De database toetst de actuele toestand bij de write: een beëindiging, dispuut
-  // of parallel akkoord na de pre-lees mag geen nieuwe/overschreven handtekening geven.
-  // Het auditspoor commit uitsluitend samen met de eerste handtekening.
-  await prisma.$transaction(async (tx) => {
-    const { count } = await tx.collaboration.updateMany({
-      where: {
-        id: collaborationId,
-        ...partyWhere,
-        status: { in: ["PROPOSED", "ACTIVE"] },
-        disputedAt: null,
-        [signatureField]: null,
-      },
-      data: { [signatureField]: new Date() },
-    });
-    if (count === 0) {
-      const fresh = await tx.collaboration.findFirst({
-        where: { id: collaborationId, ...partyWhere },
-        select: { agreementFreelancerSignedAt: true, agreementClientSignedAt: true },
-      });
-      if (fresh?.[signatureField]) return; // Een parallel akkoord won; niets opnieuw auditen.
-      throw new Error("Je kunt deze modelovereenkomst niet meer ondertekenen.");
-    }
-    await tx.auditLog.create({
-      data: auditData({
-        actorId: actor.id,
-        action: "MODEL_AGREEMENT_SIGNED",
-        entityType: "Collaboration",
-        entityId: collaborationId,
-        metadata: { party: isFreelancer ? "FREELANCER" : "CLIENT" },
-      }),
-    });
-  });
-  refresh(collaborationId);
+  // Oude actie-URL's mogen de document-/instemmings-/wachtwoordstappen niet omzeilen.
+  redirect(signingPath(collaborationId));
 }
 
 export async function approvePerformanceAction(

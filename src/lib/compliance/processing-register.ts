@@ -267,13 +267,16 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
     dataSubjects: ["ZZP'ers", "Opdrachtgevers"],
     dataCategories: [
       "Contractgegevens en -status",
+      "Vastgelegde overeenkomstversie, oorspronkelijke PDF en inhoudskenmerken",
+      "Naam ondertekenaar, accountverwijzing, tijdstip en bevestigingsmethode",
       "Modelovereenkomsttype",
       "DBA-risiconiveau en indicatoren",
       "Start- en einddatum",
     ],
     sensitive: false,
     recipients: ["Betrokken ZZP'er en opdrachtgever", "Intern platformbeheer"],
-    retention: "Duur van de samenwerking + 7 jaar (fiscale bewaarplicht; contractgegevens)",
+    retention:
+      "Contractgegevens volgens de toepasselijke bewaarnoodzaak. Gezamenlijk ondertekenbewijs wordt bij een verwijderverzoek afzonderlijk beoordeeld op resterende noodzaak, rechten van beide partijen en mogelijke aanspraken; het verzoek blijft open tot dat besluit. Na goedgekeurde bewijsverwijdering verdwijnen oorspronkelijke PDF, tekstsnapshot en beide handtekeningen atomair. Een verwijdermarkering voorkomt reconstructie. Geen automatische claim dat ieder ondertekenbewijs zeven jaar wettelijk moet blijven staan.",
     securityMeasures: ["Toegang op rol (RBAC)", "Versleutelde opslag", "Auditlogging"],
   },
 
