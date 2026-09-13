@@ -116,6 +116,15 @@ test.describe("Handslag ordinary electronic signatures on mobile", () => {
         const freelancer = await context.newPage();
         try {
           const collaborationUrl = await propose(page, freelancer);
+          // The loading state must not flush HTTP 200 before ownership/existence denial.
+          // This new account owns neither the seeded agreement nor the missing identifier.
+          for (const deniedId of ["collab-1", "missing-signing-proof"]) {
+            const denied = await page.request.get(`/samenwerkingen/${deniedId}/ondertekenen`);
+            expect(denied.status()).toBe(404);
+            const body = await denied.text();
+            expect(body).not.toContain('aria-label="Volledige overeenkomst"');
+            expect(body).not.toContain('name="documentHash"');
+          }
           const documentHash = await openSigning(page, collaborationUrl);
           await expect(page.getByText("0 van 2", { exact: true })).toBeVisible();
           await expect(page.locator('input[name="consent"]')).not.toBeChecked();

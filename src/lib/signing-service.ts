@@ -143,12 +143,28 @@ function readDocument(col: SigningCollaboration): SigningDocument {
   return document;
 }
 
-function canRead(actor: Actor, col: SigningCollaboration) {
+function canRead(
+  actor: Actor,
+  col: { company: { userId: string }; freelancer: { userId: string } },
+) {
   return (
     actor.role === "ADMIN" ||
     (actor.role === "FREELANCER" && actor.id === col.freelancer.userId) ||
     (actor.role === "CLIENT" && actor.id === col.company.userId)
   );
+}
+
+/** Resolve existence and ownership before a page can commit its streaming loading state. */
+export async function canAccessSigningPage(actor: Actor, id: string): Promise<boolean> {
+  assertAuthenticated(actor);
+  const col = await prisma.collaboration.findUnique({
+    where: { id },
+    select: {
+      company: { select: { userId: true } },
+      freelancer: { select: { userId: true } },
+    },
+  });
+  return !!col && canRead(actor, col);
 }
 
 export async function loadSigningView(actor: Actor, id: string) {

@@ -118,8 +118,11 @@ entityId, metadata })`, ideally inside the same `prisma.$transaction` as the mut
     seed data, or docs. The automated helpers are called "Support-assistent" etc. This is a
     hard brand rule; flag any occurrence (watch false positives inside `email`, `detail`,
     `maintain`, `campaign`).
-13. **Every view has loading / error / empty states.** A data route without a `loading.tsx`,
-    or a list without an `EmptyState`, is a defect.
+13. **Every view has loading / error / empty states.** Lists use scoped `loading.tsx` and
+    `EmptyState`. Resource detail routes must first resolve access/existence and `notFound()`
+    before streaming; use page-local `Suspense` for the remaining authorized data load.
+    Do not put `loading.tsx` above a `notFound()` route: the HTTP-404 regression gate forbids
+    that early HTTP 200. Loading feedback remains required after the access boundary.
 
 ---
 

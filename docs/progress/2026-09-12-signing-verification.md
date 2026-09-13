@@ -74,3 +74,14 @@ streamtype; de browser verwacht de bestaande loginredirect en controleert dat di
 geen PDF levert. De optionele synthetische PDF-testuitvoer is nu gedocumenteerd.
 Volledige lokale suite na herstel: 8.866 geslaagd, twee bestaande skips.
 De nieuwe volledige CI en onafhankelijke beoordeling blijven vereist vóór samenvoegen.
+
+## Laadstatus na toegangsbewaking
+
+Op `339223f4` zijn alle CI-poorten inclusief de vier mobiele ondertekenproeven groen.
+De native review (`34755708749`) vraagt een expliciete laadstatus. De pagina krijgt
+een eigen neutraal skeleton binnen `Suspense`, nadat een beperkte query toegang en
+bestaan heeft gecontroleerd. De volledige leesstap controleert de partijen opnieuw;
+verdwijnt de toegang tussentijds, dan verschijnt geen document of tekenactie.
+Er komt geen `loading.tsx` boven `notFound()`: die zou de bestaande HTTP-404-regressie
+terugbrengen. De browserproeven controleren nu ook een bestaand vreemd en een
+ontbrekend contractadres met echte HTTP 404. Dit herstel krijgt opnieuw alle poorten.

@@ -1,14 +1,16 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Download, FileCheck2, LockKeyhole } from "lucide-react";
-import { requireActor } from "@/lib/authz";
+import { requireActor, type Actor } from "@/lib/authz";
 import { audit } from "@/lib/audit";
-import { loadSigningView } from "@/lib/signing-service";
+import { canAccessSigningPage, loadSigningView } from "@/lib/signing-service";
 import { SIGNING_METHOD_NOTE, SigningEvidenceErasedError } from "@/lib/signing-contract";
 import { SigningForm } from "@/components/contracts/signing-form";
 import { Seal } from "@/components/ui/seal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SigningSkeleton } from "@/components/contracts/signing-skeleton";
 import { signAgreement } from "./actions";
 
 export const metadata = { title: "Overeenkomst ondertekenen · Handslag" };
@@ -16,6 +18,16 @@ export const metadata = { title: "Overeenkomst ondertekenen · Handslag" };
 export default async function SigningPage({ params }: { params: Promise<{ id: string }> }) {
   const actor = await requireActor();
   const { id } = await params;
+  // Keep the HTTP 404 decision outside Suspense: a route loading.tsx would commit a soft 200.
+  if (!(await canAccessSigningPage(actor, id))) notFound();
+  return (
+    <Suspense fallback={<SigningSkeleton />}>
+      <SigningContent actor={actor} id={id} />
+    </Suspense>
+  );
+}
+
+async function SigningContent({ actor, id }: { actor: Actor; id: string }) {
   let view;
   try {
     view = await loadSigningView(actor, id);
@@ -33,7 +45,22 @@ export default async function SigningPage({ params }: { params: Promise<{ id: st
       </Card>
     );
   }
-  if (!view) notFound();
+  // The full read rechecks ownership. A concurrent removal/reassignment reveals no content;
+  // the initially authorized request has already entered its streaming boundary.
+  if (!view)
+    return (
+      <Card className="mx-auto max-w-2xl">
+        <CardContent className="space-y-4 py-6">
+          <h1 className="text-xl font-semibold">Overeenkomst niet meer beschikbaar</h1>
+          <p className="text-sm text-muted-foreground">
+            De beschikbaarheid is intussen gewijzigd. Ga terug naar je samenwerkingen.
+          </p>
+          <Button asChild variant="secondary">
+            <Link href="/samenwerkingen">Terug naar samenwerkingen</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
   const { col, document, documentHash, party } = view;
   await audit({
     actorId: actor.id,
