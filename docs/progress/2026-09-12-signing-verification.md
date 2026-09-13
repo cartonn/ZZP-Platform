@@ -56,3 +56,21 @@ om de eerdere afgebroken toestemming heen gestart.
 Nog in uitvoering: volledige verificatie van de geïntegreerde documentbeoordeling,
 CI-browsers, onafhankelijke review, zes beschermde poorten en releasecontrole.
 Deze tekst is geen bewijs dat deze release al live staat.
+
+## Herstel na de eerste onafhankelijke review en CI
+
+Review van `06aadfdf` vond een achtergebleven aanroep in de demo-seed. De seed
+doorloopt nu met beide synthetische accounts de werkelijke wachtwoord-, toestemmings-
+en documentbewijsketen. Alleen de expliciete compliancecontrole mag een scenario
+voorgesteld laten; andere fouten stoppen de seed. Een afzonderlijke Node-seedconfig
+herkent de servercontext zonder de client-importbeveiliging van de app te wijzigen.
+De lege lokale proefdatabase levert zeven actieve samenwerkingen met elk twee
+handtekeningen, acht prestaties en zeven facturen, waarvan drie betaald.
+
+De eerste CI (`34750938818`) bevestigde de documentcontroles, maar vond ook een
+TypeScript-overloadfout in de PDF-bijlagentest en een onjuiste verwachting in de
+anonieme browsertest. Deze zijn hersteld: de PDF-test controleert het werkelijke
+streamtype; de browser verwacht de bestaande loginredirect en controleert dat die
+geen PDF levert. De optionele synthetische PDF-testuitvoer is nu gedocumenteerd.
+Volledige lokale suite na herstel: 8.866 geslaagd, twee bestaande skips.
+De nieuwe volledige CI en onafhankelijke beoordeling blijven vereist vóór samenvoegen.

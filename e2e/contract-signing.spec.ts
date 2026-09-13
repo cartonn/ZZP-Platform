@@ -137,7 +137,13 @@ test.describe("Handslag ordinary electronic signatures on mobile", () => {
           expect(original.headers()["cache-control"]).toContain("no-store");
           const originalBytes = await original.body();
           expect(originalBytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
-          expect((await request.get(pdfUrl)).status()).toBe(401);
+          // Middleware rejects anonymous access before the private PDF route runs.
+          // Do not follow the redirect: the public login page legitimately returns 200.
+          const anonymous = await request.get(pdfUrl, { maxRedirects: 0 });
+          expect(anonymous.status()).toBe(307);
+          expect(new URL(anonymous.headers().location ?? "").pathname).toBe("/login");
+          expect(anonymous.headers()["content-type"] ?? "").not.toContain("application/pdf");
+          expect((await anonymous.body()).subarray(0, 5).toString("latin1")).not.toBe("%PDF-");
           await page.screenshot({
             path: `e2e/screenshots/handslag-signing-${width}-${theme}-read.png`,
             fullPage: true,

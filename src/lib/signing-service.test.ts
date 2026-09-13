@@ -621,7 +621,8 @@ it("keeps full Unicode declarations in portable PDF attachments", async () => {
   const contents: string[] = [];
   for (let i = 1; i < names.size(); i += 2) {
     const spec = names.lookup(i, PDFDict);
-    const stream = spec.lookup(PDFName.of("EF"), PDFDict).lookup(PDFName.of("F"), PDFRawStream);
+    const stream = spec.lookup(PDFName.of("EF"), PDFDict).lookup(PDFName.of("F"));
+    if (!(stream instanceof PDFRawStream)) throw new Error("Expected an embedded PDF stream");
     contents.push(Buffer.from(decodePDFRawStream(stream).decode()).toString("utf8"));
   }
   expect(contents).toContain(view.col.signing!.documentJson);

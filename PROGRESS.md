@@ -8,10 +8,12 @@ Bewijsdownload bevat originele tekstgegevens als bijlagen. Admincontrole gebruik
 methoden/checklists en werkelijke bronregistratie; VOG-bewaring blijft beperkt. Bij
 accountverwijdering vraagt gezamenlijk bewijs een expliciete beoordeelde beslissing.
 
-Volledige suite: 8.861 geslaagde tests en twee bestaande skips; aanvullend 45 gerichte
-ondertekentests inclusief verliesloze tekstbijlagen groen. Typecheck/lint en PDF-rendercontrole
-groen. Vier mobiele ondertekenproeven en de documentcontroles staan klaar voor de echte CI.
-PR, onafhankelijke review, beschermde poorten en livecontrole zijn nog in uitvoering.
+Volledige suite na herstel: 8.866 geslaagde tests en twee bestaande skips. De eerste
+onafhankelijke review vond de oude seed-aanroep; demo-opbouw gebruikt nu beide echte
+ondertekenstappen en bewijst actieve samenwerkingen, uren en betaalde facturen. De eerste
+CI bevestigde documentbeoordeling; de mobiele ondertekentest controleert nu de werkelijke
+loginredirect zonder die te volgen. Typecheck/lint/opmaak en PDF-rendercontrole groen.
+Nieuwe CI, herbeoordeling, beschermde poorten en livecontrole zijn nog in uitvoering.
 Zie [uitvoering](docs/progress/2026-09-12-signing-verification.md).
 
 # PROGRESS.md — Voortgang

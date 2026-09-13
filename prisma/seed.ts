@@ -1,7 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import {
-  signContract,
   createPerformance,
   submitPerformance,
   approvePerformance,
@@ -9,7 +8,6 @@ import {
   submitInvoice,
   approveInvoice,
   confirmPayment,
-  CascadeError,
 } from "@/lib/cascade/commands";
 import { getStorage } from "@/lib/services/storage";
 import { resolveBootstrapAdminConfig } from "@/lib/bootstrap-admin";
@@ -22,6 +20,7 @@ import { seedFranchise } from "./seed-franchise";
 import { seedAcademy } from "./seed-academy";
 import { runZzpMembershipTask } from "@/lib/zzp-membership-task";
 import { isSweepableLivecheck, LIVECHECK_MIN_AGE_MS } from "@/lib/livecheck-sweep";
+import { signSeedContract } from "./seed-signing";
 
 const prisma = new PrismaClient();
 
@@ -1253,15 +1252,8 @@ async function main() {
       const cActor = actorOf(clientUserIdByKey[compKey]!, "CLIENT");
 
       if (!reaches(s.target, "ACTIVE")) continue;
-      try {
-        await signContract(cActor, collab.id);
-      } catch (e) {
-        // Inzetbaarheid-gate (ADR-0006, C-hybride): voldoet de ZZP'er niet aan de harde
-        // certificaateisen, dan kan de plaatsing niet starten. Laat 'm als PROPOSED staan —
-        // dat demonstreert juist de plaatsing-gate (bv. Ahmed met een afgewezen VOG op job-10).
-        if (e instanceof CascadeError) continue;
-        throw e;
-      }
+      // Alleen de bedoelde complianceblokkade blijft PROPOSED; teken-/runtimefouten zijn fataal.
+      if (!(await signSeedContract(cActor, fActor, collab.id, DEMO_PASSWORD))) continue;
       if (!reaches(s.target, "PERF_SUBMITTED")) continue;
 
       const perfId = await createPerformance(fActor, {
