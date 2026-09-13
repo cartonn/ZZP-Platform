@@ -85,3 +85,20 @@ verdwijnt de toegang tussentijds, dan verschijnt geen document of tekenactie.
 Er komt geen `loading.tsx` boven `notFound()`: die zou de bestaande HTTP-404-regressie
 terugbrengen. De browserproeven controleren nu ook een bestaand vreemd en een
 ontbrekend contractadres met echte HTTP 404. Dit herstel krijgt opnieuw alle poorten.
+
+## Bestaande overeenkomsten zonder oorspronkelijk bewijs
+
+De native review van `67faf6e0` (`34756595878`) vond dat een bestaande actieve of
+getekende samenwerking zonder opgeslagen origineel alsnog actuele, wijzigbare gegevens
+kon laten vastleggen. Een gedeelde bewaking weigert dit vóór documentopbouw en opnieuw
+binnen de ondertekentransactie. Ook voltooide en geannuleerde historische overeenkomsten
+krijgen geen nieuw bewijs. Echte eerder opgeslagen originelen blijven beschikbaar.
+
+De pagina toont een neutrale historische melding zonder tekenformulier of bewijszegel.
+Bewijs- en modeldownloads antwoorden privé met 409; gewist bewijs blijft 410. Een nog
+niet vastgelegd voorbeeld toont geen oude akkoorddatums als ondertekenbewijs. Negentien
+nieuwe regressieproeven behandelen beide partijen, een correct wachtwoord/documenthash,
+een statuswijziging tijdens wachtwoordcontrole, alle downloadformaten en behouden
+originelen. Volledige lokale check: 8.901 geslaagd, twee bestaande skips; lint, types,
+productiebuild, opmaak en env-documentatie slagen. Nieuwe beoordeling en CI blijven
+vereist; dit is nog geen liveverklaring.

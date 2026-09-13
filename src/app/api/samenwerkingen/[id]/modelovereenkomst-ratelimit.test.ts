@@ -49,6 +49,8 @@ beforeEach(() => {
   enforceMock.mockResolvedValue(null);
   actor = { id: "user-1", role: "FREELANCER", status: "ACTIVE", tenantId: null };
   store.collaboration = {
+    status: "PROPOSED",
+    contractStatus: "DRAFT",
     rate: 50,
     startDate: new Date(),
     endDate: new Date(),

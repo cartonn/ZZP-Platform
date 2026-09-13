@@ -8,15 +8,18 @@ Bewijsdownload bevat originele tekstgegevens als bijlagen. Admincontrole gebruik
 methoden/checklists en werkelijke bronregistratie; VOG-bewaring blijft beperkt. Bij
 accountverwijdering vraagt gezamenlijk bewijs een expliciete beoordeelde beslissing.
 
-Volledige suite na herstel: 8.882 geslaagde tests en twee bestaande skips. De eerste
+Volledige suite na herstel: 8.901 geslaagde tests en twee bestaande skips. De eerste
 onafhankelijke review vond de oude seed-aanroep; demo-opbouw gebruikt nu beide echte
 ondertekenstappen en bewijst actieve samenwerkingen, uren en betaalde facturen. De eerste
 CI bevestigde documentbeoordeling; de mobiele ondertekentest controleert nu de werkelijke
 loginredirect zonder die te volgen. Typecheck/lint/opmaak en PDF-rendercontrole groen.
 Op `339223f4` slaagt de volledige CI, inclusief vier mobiele licht/donkerproeven.
 De native review vraagt een laadstatus; die is toegevoegd na de toegangscontrole,
-met zestien extra tests en behoud van echte 404-antwoorden. Nieuwe CI, herbeoordeling,
-beschermde poorten en livecontrole zijn nog in uitvoering.
+met zestien extra tests en behoud van echte 404-antwoorden. De volgende native review
+vond een risico op achteraf opgebouwd bewijs bij oude actieve/getekende contracten.
+Die blijven nu alleen-lezen zonder nieuw origineel; negentien regressieproeven bewaken
+servertransacties, downloads en de pagina. Nieuwe CI, herbeoordeling, beschermde poorten
+en livecontrole zijn nog in uitvoering.
 Zie [uitvoering](docs/progress/2026-09-12-signing-verification.md).
 
 # PROGRESS.md — Voortgang

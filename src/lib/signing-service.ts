@@ -12,6 +12,8 @@ import { recommendModelAgreement } from "@/lib/model-agreement";
 import {
   SIGNING_CONSENT,
   SigningEvidenceErasedError,
+  LegacySigningEvidenceError,
+  hasLegacySigningGap,
   SIGNING_CONSENT_VERSION,
   SIGNING_METHOD_NOTE,
   signingInputSchema,
@@ -122,6 +124,7 @@ export function buildSigningDocument(col: SigningCollaboration): SigningDocument
 
 function readDocument(col: SigningCollaboration): SigningDocument {
   if (col.signingEvidenceErasedAt) throw new SigningEvidenceErasedError();
+  if (hasLegacySigningGap(col)) throw new LegacySigningEvidenceError();
   if (!col.signing) return buildSigningDocument(col);
   if (
     signingHash(col.signing.documentJson) !== col.signing.documentHash ||

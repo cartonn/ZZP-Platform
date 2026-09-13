@@ -2,11 +2,13 @@ import "server-only";
 import { PDFDocument } from "pdf-lib";
 import { buildModelAgreementPdf } from "@/lib/contract-pdf";
 import { buildSigningOriginal, type loadSigningView } from "@/lib/signing-service";
+import { hasLegacySigningGap, LegacySigningEvidenceError } from "@/lib/signing-contract";
 
 type View = NonNullable<Awaited<ReturnType<typeof loadSigningView>>>;
 
 export async function buildSigningEvidencePdf(view: View) {
   const { col, document, documentHash } = view;
+  if (hasLegacySigningGap(col)) throw new LegacySigningEvidenceError();
   if (!col.signing) return buildSigningOriginal(document, documentHash);
   const record = col.signing;
   const evidence = await buildModelAgreementPdf({

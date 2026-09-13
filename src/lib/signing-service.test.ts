@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { PDFDocument, PDFDict, PDFArray, PDFName, PDFRawStream, decodePDFRawStream } from "pdf-lib";
 import { buildSigningEvidencePdf } from "./signing-evidence-pdf";
 import { type Actor } from "@/lib/authz";
+import { LegacySigningEvidenceError } from "./signing-contract";
 
 const fixture = await vi.hoisted(async () => {
   const { mkdtempSync } = await import("node:fs");
@@ -34,6 +35,7 @@ vi.mock("@/lib/services/mail-sender", () => ({
 
 import {
   buildSigningOriginal,
+  buildSigningDocument,
   loadSigningView,
   recordContractSignature,
   signingHash,
@@ -630,4 +632,94 @@ it("keeps full Unicode declarations in portable PDF attachments", async () => {
   expect(evidence.signatures[0].signerName).toBe("Zoë Łukasz 李");
   expect(evidence.documentHash).toBe(view.documentHash);
   expect(evidence.pdfHash).toBe(view.col.signing!.pdfHash);
+});
+
+it.each(["ACTIVE", "COMPLETED", "CANCELLED", "PROPOSED"])(
+  "never manufactures evidence for an already signed legacy agreement in %s",
+  async (status) => {
+    const preview = (await loadSigningView(actor(), "collaboration"))!;
+    const data = await form();
+    // A malicious caller can calculate the current mutable document's hash, too.
+    // Rejection must be based on the missing historical original, not a stale form hash.
+    const changed = {
+      ...preview.col,
+      rate: 120,
+      job: { ...preview.col.job, description: "Later changed scope" },
+    };
+    data.set("documentHash", signingHash(JSON.stringify(buildSigningDocument(changed))));
+    const legacyDate = new Date("2026-02-01T12:00:00Z");
+    await db.job.update({ where: { id: "job" }, data: { description: changed.job.description } });
+    const before = await db.collaboration.update({
+      where: { id: "collaboration" },
+      data: {
+        status,
+        contractStatus: "SIGNED",
+        rate: 120,
+        agreementClientSignedAt: legacyDate,
+        agreementFreelancerSignedAt: legacyDate,
+      },
+    });
+    for (const signer of [actor(), actor("freelancer")]) {
+      await expect(loadSigningView(signer, "collaboration")).rejects.toBeInstanceOf(
+        LegacySigningEvidenceError,
+      );
+      await expect(recordContractSignature(signer, "collaboration", data)).rejects.toBeInstanceOf(
+        LegacySigningEvidenceError,
+      );
+    }
+    expect(await loadSigningView(actor("outsider"), "collaboration")).toBeNull();
+    expect(await loadSigningView(actor("outsider"), "missing")).toBeNull();
+    expect(fixture.compare).not.toHaveBeenCalled();
+    expect(await db.contractSigning.count()).toBe(0);
+    expect(await db.contractSignature.count()).toBe(0);
+    expect(await db.auditLog.count()).toBe(0);
+    expect(await db.domainEvent.count()).toBe(0);
+    expect(await db.notification.count()).toBe(0);
+    expect(await db.collaboration.findUniqueOrThrow({ where: { id: "collaboration" } })).toEqual(
+      before,
+    );
+  },
+);
+
+it("rechecks the legacy gap inside the write transaction even if the version timestamp is unchanged", async () => {
+  const data = await form();
+  const before = await db.collaboration.findUniqueOrThrow({ where: { id: "collaboration" } });
+  fixture.beforePassword = async () => {
+    await db.collaboration.update({
+      where: { id: "collaboration" },
+      data: { status: "ACTIVE", contractStatus: "SIGNED", updatedAt: before.updatedAt },
+    });
+  };
+  await expect(sign("client", data)).rejects.toBeInstanceOf(LegacySigningEvidenceError);
+  expect(await db.contractSigning.count()).toBe(0);
+  expect(await db.contractSignature.count()).toBe(0);
+  expect(await db.auditLog.count()).toBe(0);
+  expect(await db.domainEvent.count()).toBe(0);
+  const after = await db.collaboration.findUniqueOrThrow({ where: { id: "collaboration" } });
+  expect(after.status).toBe("ACTIVE");
+  expect(after.updatedAt).toEqual(before.updatedAt);
+  expect(after.agreementClientSignedAt).toBeNull();
+});
+
+it("the PDF helper refuses a legacy view instead of generating a retrospective original", async () => {
+  const preview = (await loadSigningView(actor(), "collaboration"))!;
+  await expect(
+    buildSigningEvidencePdf({
+      ...preview,
+      col: { ...preview.col, status: "ACTIVE", signing: null },
+    }),
+  ).rejects.toBeInstanceOf(LegacySigningEvidenceError);
+});
+
+it("retains genuinely recorded originals after activation and later mutable edits", async () => {
+  await sign();
+  await sign("freelancer");
+  const original = (await loadSigningView(actor(), "collaboration"))!;
+  await db.collaboration.update({ where: { id: "collaboration" }, data: { rate: 200 } });
+  await db.job.update({ where: { id: "job" }, data: { description: "Later changed scope" } });
+  const current = (await loadSigningView(actor(), "collaboration"))!;
+  expect(current.col.status).toBe("ACTIVE");
+  expect(current.document).toEqual(original.document);
+  expect(current.col.signing).toEqual(original.col.signing);
+  expect(await buildSigningEvidencePdf(current)).toBeInstanceOf(Uint8Array);
 });

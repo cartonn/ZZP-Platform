@@ -25,6 +25,7 @@ vi.mock("@/lib/security/access-audit", () => ({ auditDeniedAccess: state.auditDe
 vi.mock("@/lib/rate-limit", () => ({ documentPdfRateLimiter: { check: state.check } }));
 
 import { AuthorizationError } from "@/lib/authz";
+import { LegacySigningEvidenceError } from "@/lib/signing-contract";
 import { GET } from "./route";
 
 const actor = { id: "owner", role: "CLIENT", status: "ACTIVE" };
@@ -163,3 +164,19 @@ it("does not suppress evidence-integrity failures", async () => {
   expect(state.audit).not.toHaveBeenCalled();
   expect(state.buildSigningEvidencePdf).not.toHaveBeenCalled();
 });
+
+it.each(["", "?original=1", "?format=json"])(
+  "legacy signing without an original denies every proof format: %s",
+  async (query) => {
+    state.loadSigningView.mockRejectedValueOnce(new LegacySigningEvidenceError());
+    const response = await get(query);
+    expect(response.status).toBe(409);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("content-type")).not.toContain("application/pdf");
+    expect(response.headers.has("content-disposition")).toBe(false);
+    expect(await response.json()).toEqual({ error: new LegacySigningEvidenceError().message });
+    expect(state.buildSigningOriginal).not.toHaveBeenCalled();
+    expect(state.buildSigningEvidencePdf).not.toHaveBeenCalled();
+    expect(state.audit).not.toHaveBeenCalled();
+  },
+);

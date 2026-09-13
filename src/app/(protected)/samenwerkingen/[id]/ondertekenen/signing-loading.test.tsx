@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Suspense, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { type Actor } from "@/lib/authz";
-import { SigningEvidenceErasedError } from "@/lib/signing-contract";
+import { SigningEvidenceErasedError, LegacySigningEvidenceError } from "@/lib/signing-contract";
 
 const state = vi.hoisted(() => ({
   actor: vi.fn(),
@@ -113,6 +113,19 @@ describe("signing loading preserves the authorization and HTTP boundary", () => 
     expect(html).toContain("Ondertekenbewijs verwijderd");
     expect(html).not.toContain("Volledige overeenkomst");
     expect(html).not.toContain("<form");
+    expect(state.audit).not.toHaveBeenCalled();
+  });
+
+  it("a legacy completed signing without a retained original is read-only, without reconstructed terms or proof", async () => {
+    state.view.mockRejectedValue(new LegacySigningEvidenceError());
+    const boundary = (await SigningPage({ params })) as Boundary;
+    const html = renderToStaticMarkup(await content(boundary));
+    expect(html).toContain("Historische registratie · alleen lezen");
+    expect(html).toContain("Eerdere overeenkomst");
+    expect(html).not.toContain("Volledige overeenkomst");
+    expect(html).not.toContain("<form");
+    expect(html).not.toContain("data-seal");
+    expect(html).not.toContain('href="/api/');
     expect(state.audit).not.toHaveBeenCalled();
   });
 

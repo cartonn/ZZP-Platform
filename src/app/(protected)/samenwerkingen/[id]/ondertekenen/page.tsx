@@ -5,7 +5,11 @@ import { ArrowLeft, Download, FileCheck2, LockKeyhole } from "lucide-react";
 import { requireActor, type Actor } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { canAccessSigningPage, loadSigningView } from "@/lib/signing-service";
-import { SIGNING_METHOD_NOTE, SigningEvidenceErasedError } from "@/lib/signing-contract";
+import {
+  SIGNING_METHOD_NOTE,
+  SigningEvidenceErasedError,
+  LegacySigningEvidenceError,
+} from "@/lib/signing-contract";
 import { SigningForm } from "@/components/contracts/signing-form";
 import { Seal } from "@/components/ui/seal";
 import { Button } from "@/components/ui/button";
@@ -32,6 +36,21 @@ async function SigningContent({ actor, id }: { actor: Actor; id: string }) {
   try {
     view = await loadSigningView(actor, id);
   } catch (error) {
+    if (error instanceof LegacySigningEvidenceError)
+      return (
+        <Card className="mx-auto max-w-2xl">
+          <CardContent className="space-y-4 py-6">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Historische registratie · alleen lezen
+            </p>
+            <h1 className="text-xl font-semibold">Eerdere overeenkomst</h1>
+            <p className="text-sm leading-relaxed text-muted-foreground">{error.message}</p>
+            <Button asChild variant="secondary">
+              <Link href={`/samenwerkingen/${id}`}>Terug naar de samenwerking</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      );
     if (!(error instanceof SigningEvidenceErasedError)) throw error;
     return (
       <Card className="mx-auto max-w-2xl">

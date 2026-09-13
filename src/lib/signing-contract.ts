@@ -54,6 +54,28 @@ export function signingParty(actorId: string, document: SigningDocument) {
 export function signingPath(id: string) {
   return `/samenwerkingen/${encodeURIComponent(id)}/ondertekenen`;
 }
+
+/** An agreement that already started cannot acquire a retrospective original from mutable data. */
+export function hasLegacySigningGap(col: {
+  status: string;
+  contractStatus?: string;
+  signing?: unknown;
+}) {
+  return (
+    !col.signing &&
+    (["ACTIVE", "COMPLETED", "CANCELLED"].includes(col.status) || col.contractStatus === "SIGNED")
+  );
+}
+
+export class LegacySigningEvidenceError extends Error {
+  constructor() {
+    super(
+      "Ondertekenen is gesloten voor deze bestaande overeenkomst. Er is geen oorspronkelijk document in dit ondertekenproces vastgelegd. Bewaar het eerder overeengekomen contract; Handslag maakt daarvoor achteraf geen nieuw origineel of ondertekenbewijs aan.",
+    );
+    this.name = "LegacySigningEvidenceError";
+  }
+}
+
 export class SigningEvidenceErasedError extends Error {
   constructor() {
     super(

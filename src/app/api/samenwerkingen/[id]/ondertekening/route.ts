@@ -7,7 +7,7 @@ import { auditDeniedAccess } from "@/lib/security/access-audit";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
 import { privateFileHeaders } from "@/lib/security/resource-headers";
-import { SigningEvidenceErasedError } from "@/lib/signing-contract";
+import { SigningEvidenceErasedError, LegacySigningEvidenceError } from "@/lib/signing-contract";
 
 export const runtime = "nodejs";
 
@@ -27,10 +27,17 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   try {
     view = await loadSigningView(actor, id);
   } catch (error) {
-    if (!(error instanceof SigningEvidenceErasedError)) throw error;
+    if (
+      !(error instanceof SigningEvidenceErasedError) &&
+      !(error instanceof LegacySigningEvidenceError)
+    )
+      throw error;
     return NextResponse.json(
       { error: error.message },
-      { status: 410, headers: { "Cache-Control": "private, no-store" } },
+      {
+        status: error instanceof LegacySigningEvidenceError ? 409 : 410,
+        headers: { "Cache-Control": "private, no-store" },
+      },
     );
   }
   if (!view) {
