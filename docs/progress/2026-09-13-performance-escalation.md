@@ -24,4 +24,7 @@ bewijzen tijdgrens, status, geschilherstel, configuratie, sortering en doorschui
 het afhandelen van de oudste vijftig. Drie nieuwe taak-/badgeproeven bewijzen koppeling,
 lege toestand en afscherming voor onbekende rollen. De eerste volledige run vond vijf
 oude mocks zonder de nieuwe query; die zijn aangevuld. De volledige herhaling is groen.
-Onafhankelijke review, CI en liveverificatie volgen.
+De onafhankelijke review vond een ontbrekend verplicht maximumargument in de nieuwe
+dashboardtest (TS2554); hersteld naar vijf. Typecontrole en de drie getroffen tests
+slagen daarna. Lint, opmaak, env-documentatie en productiebuild zijn ook groen.
+Nieuwe review, GitHub-CI en liveverificatie volgen.

@@ -5,7 +5,7 @@ Actiecentrum, dashboard en samenwerkingsbadge delen één actuele, oudste-eerst-
 Alleen ACTIVE zonder geschil; beoordeling haalt de taak uit de wachtrij. Grens: acht
 volle dagen bij de standaardherinneringen. De bestaande snapshot-TTL blijft maximaal 60s.
 8.933 tests slagen (2 bestaande skips), inclusief twaalf geïsoleerde SQLite-proeven.
-Review, overige controles en release volgen; zie [uitvoering](docs/progress/2026-09-13-performance-escalation.md).
+Types, lint, opmaak en build groen; herbeoordeling en release volgen; zie [uitvoering](docs/progress/2026-09-13-performance-escalation.md).
 
 ## 13 september 2026 — intrekken overname-aanvraag (#1484)
 

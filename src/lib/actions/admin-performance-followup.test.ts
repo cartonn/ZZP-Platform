@@ -53,7 +53,7 @@ describe("persistent administrator performance follow-up", () => {
       subtitle: "Wijkzorg · Week 37",
     });
     expect(tasks[1]?.subtitle).toBe("Wijkzorg · Ingediende prestatie");
-    expect(selectDashboardTasks(tasks)).toHaveLength(2);
+    expect(selectDashboardTasks(tasks, 5)).toHaveLength(2);
     const count = await pendingTaskCount("admin", "ADMIN");
     const badges = withActionCenterBadge(await navBadges("ADMIN", "admin"), count);
     expect(badges["/acties"]?.count).toBe(2);
