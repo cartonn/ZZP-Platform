@@ -1,3 +1,7 @@
+vi.mock("@/lib/data/admin-performance-escalations", () => ({
+  getAdminPerformanceEscalations: vi.fn(async () => []),
+}));
+
 // Regressietest voor de next-action-engine (DOEL 1b — cross-surface-consistentie): een OPEN
 // dienst-overname (ShiftHandoff) telde wél in de nav-badge (`openHandoffs` voor de bemiddelaar,
 // `openAdminHandoffs` voor de admin — signals.ts), maar ontbrak volledig in het actiecentrum: /acties,

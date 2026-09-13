@@ -57,7 +57,7 @@ export function daysSince(submitted: Date, now: Date): number {
 
 // Herinneringsdagen >0 uit de config. Escaleren ná de laatste herinnering.
 const REMIND_DAYS = REMINDERS.performanceApprovalDays.filter((d) => d > 0);
-const ESCALATE_AFTER = REMIND_DAYS.length ? Math.max(...REMIND_DAYS) : 7;
+export const PERFORMANCE_ESCALATE_AFTER_DAYS = REMIND_DAYS.length ? Math.max(...REMIND_DAYS) : 7;
 
 /**
  * Plan welke herinneringen/escalaties nodig zijn. Alleen ingediende prestaties op een
@@ -91,7 +91,7 @@ export function planPerformanceApprovalReminders(
       });
     }
 
-    if (d > ESCALATE_AFTER) {
+    if (d > PERFORMANCE_ESCALATE_AFTER_DAYS) {
       escalations.push({
         performanceId: c.performanceId,
         clientUserId: c.clientUserId,

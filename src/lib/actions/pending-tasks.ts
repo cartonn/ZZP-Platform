@@ -13,6 +13,7 @@ import {
   ROSTER_ENGAGEABILITY_SELECT,
   evaluateRosterEngageability,
 } from "@/lib/data/roster-engageability";
+import { getAdminPerformanceEscalations } from "@/lib/data/admin-performance-escalations";
 import { formatMissing } from "@/lib/next-actions";
 import { startOfUtcDay } from "@/lib/signals";
 import { type FreelancerCredential } from "@/lib/matching";
@@ -61,6 +62,7 @@ import {
   mandatoryDocumentTask,
   adminVerifyCredentialTask,
   adminActivateUserTask,
+  adminPerformanceFollowupTask,
   adminResolveDisputeTask,
   adminDeletionRequestTask,
   adminJudgeNoShowTask,
@@ -1824,6 +1826,7 @@ async function adminTasks(): Promise<PendingTask[]> {
     noShowAtLimit,
     supportTickets,
     openHandoffs,
+    escalatedPerformances,
   ] = await Promise.all([
     // Deterministische `orderBy` (oudst eerst) is verplicht náást `take: MAX`: zonder expliciete
     // ordering garandeert Prisma geen rijvolgorde, dus wélke MAX-van-N rijen terugkomen is arbitrair
@@ -1906,7 +1909,17 @@ async function adminTasks(): Promise<PendingTask[]> {
       orderBy: { createdAt: "asc" },
       take: MAX,
     }),
+    getAdminPerformanceEscalations(),
   ]);
+  for (const p of escalatedPerformances)
+    tasks.push(
+      adminPerformanceFollowupTask(
+        p.id,
+        p.collaborationId,
+        p.collaboration.job.title,
+        p.description,
+      ),
+    );
   for (const c of creds)
     tasks.push(
       adminVerifyCredentialTask(c.id, c.title, c.freelancerProfile.user.name ?? "Onbekend"),

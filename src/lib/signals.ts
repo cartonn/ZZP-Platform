@@ -5,6 +5,7 @@
 
 import { Prisma } from "@prisma/client";
 import { cache } from "react";
+import { getAdminPerformanceEscalations } from "@/lib/data/admin-performance-escalations";
 
 import { pendingCollaborationProposals } from "@/lib/accepted-proposal";
 import { collaborationBlocksProposal } from "@/lib/collaboration-reproposal";
@@ -1215,6 +1216,7 @@ export const navBadges = cache(async function navBadges(
     openAdminHandoffs,
     pendingUsers,
     deletionRequests,
+    escalatedPerformances,
   ] = await Promise.all([
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
     prisma.collaboration.count({ where: { disputedAt: { not: null } } }),
@@ -1246,6 +1248,7 @@ export const navBadges = cache(async function navBadges(
     prisma.user.count({
       where: { deletionRequestedAt: { not: null }, anonymizedAt: null, role: { not: "ADMIN" } },
     }),
+    getAdminPerformanceEscalations(),
   ]);
   // Alleen nog-ACTIEVE accounts leveren een uitschrijf-besluit op (een al geschorste ZZP'er niet) —
   // symmetrisch met de ACTIVE-filter in pending-tasks.ts, zodat badge en /acties gelijk tellen.
@@ -1279,6 +1282,9 @@ export const navBadges = cache(async function navBadges(
       count: userQueue,
       tone: deletionRequests > 0 ? "attention" : "info",
     };
+  }
+  if (escalatedPerformances.length > 0) {
+    badges["/admin/samenwerkingen"] = { count: escalatedPerformances.length, tone: "attention" };
   }
   return badges;
 });

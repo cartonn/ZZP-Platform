@@ -1,3 +1,7 @@
+vi.mock("@/lib/data/admin-performance-escalations", () => ({
+  getAdminPerformanceEscalations: vi.fn(async () => []),
+}));
+
 // Security-regressietest (OWASP A01 — Broken Access Control, fail-open default): de rol-dispatch in
 // `computeTasks` (pending-tasks.ts) mag NOOIT via een fallthrough-default de platform-brede admin-taken
 // prijsgeven aan een onbekende rol. `adminTasks()` is bewust ongescoopt en geeft gevoelige PII terug

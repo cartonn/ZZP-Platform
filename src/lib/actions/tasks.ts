@@ -91,6 +91,7 @@ export type PendingTask =
   | (TaskBase & { kind: "credential-collab-missing"; collabId: string })
   | (TaskBase & { kind: "mandatory-document"; docType: string; cause: "missing" | "expired" })
   | (TaskBase & { kind: "admin-verify-credential"; credId: string })
+  | (TaskBase & { kind: "admin-performance-followup"; perfId: string; collabId: string })
   | (TaskBase & { kind: "admin-activate-user"; userId: string })
   | (TaskBase & { kind: "admin-resolve-dispute"; collabId: string })
   | (TaskBase & { kind: "admin-deletion-request"; userId: string })
@@ -635,6 +636,27 @@ export function adminVerifyCredentialTask(
     resolver: "drawer", // inspecteer-dan-beslis: bewijsstuk bekijken, dan goedkeuren/afwijzen
     href: "/admin/verificaties",
     credId,
+  };
+}
+
+/** Follow up with the parties; approval remains the client's decision. */
+export function adminPerformanceFollowupTask(
+  perfId: string,
+  collabId: string,
+  jobTitle: string,
+  description: string,
+): PendingTask {
+  return {
+    kind: "admin-performance-followup",
+    id: `admin-performance-followup:${perfId}`,
+    title: "Volg de uitblijvende prestatiebeoordeling op",
+    subtitle: `${jobTitle} · ${description.trim() || "Ingediende prestatie"}`,
+    tone: "attention",
+    priority: P.performanceApprovalOverdue,
+    resolver: "link",
+    href: `${collabHref(collabId)}#uren`,
+    perfId,
+    collabId,
   };
 }
 

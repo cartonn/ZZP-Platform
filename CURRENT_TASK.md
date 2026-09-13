@@ -1,8 +1,8 @@
 # CURRENT_TASK.md — Huidige taak
 
-Huidige routine 13 september: bestaande security-PR #1484 afronden, met actuele
-samenwerkingsbewaking en atomair auditspoor bij intrekken van een overname-aanvraag.
-Zie [uitvoering](docs/progress/2026-09-12-handoff-cancel.md).
+Huidige routine 13 september 16:22 UTC: blijvende beheertaak voor uitblijvende
+prestatiebeoordeling (#1487). Zie [uitvoering](docs/progress/2026-09-13-performance-escalation.md).
+Security-PR #1484 is gemerged en live geverifieerd op `888734fc` om 15:26 UTC.
 
 Het eigenaarverzoek voor elektronisch ondertekenen en bewijsstukbeoordeling is met
 #1486 gemerged en live geverifieerd op `3b2fde8` (13 september 13:42 UTC).
@@ -233,8 +233,8 @@ uren`/`ORT-uren`) in beide export-suites. Geld ongemoeid.
    **(b) GEDAAN (10-9, PR #1473):** `invoice-approval-reminders(.ts/-task.ts)` gebouwd naar het model van
    `performance-approval-reminders` — dag-3/7-herinnering naar de opdrachtgever (`counterpartyUserId`) op
    een SUBMITTED cascade-factuur + admin-escalatie ná de laatste dag; anker `Invoice.issuedAt`, idempotent
-   op `DomainEvent.dedupeKey`, geregistreerd in `run-all`. Rest open: **(a)** de admin-escalatie van de
-   prestatie-goedkeuring omzetten naar een duurzame, zelfhelende admin-next-action in `adminTasks()`.
+   op `DomainEvent.dedupeKey`, geregistreerd in `run-all`. **(a) Gebouwd in #1487, review/release volgen:** blijvende admin-next-action met
+   gedeelde serverquery voor lijst en badge, oudste 50 eerst en automatische statusbewaking.
 
 ### Wacht op een eigenaarsbesluit (niet zelf oppakken)
 
