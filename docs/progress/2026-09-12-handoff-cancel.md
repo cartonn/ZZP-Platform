@@ -18,3 +18,25 @@ bewaken bij de write; intrekking en audit in één transactie. Bestanden:
 `shift-handoff-actions.ts`, gerichte annulering-/oracletests en voortgang/backlog.
 Aanvragen/goedkeuren, contracten, geld, vormgeving en reviewcontroles blijven buiten
 deze reparatie. Volledige validatie, onafhankelijke review en release volgen nog.
+
+## Hervatting 13 september
+
+De routine van 14:02 UTC controleert eerst bestaande PR #1484. De eerdere claim en
+ongecommitteerde reparatie blijven behouden in hun oorspronkelijke worktree. Een nieuwe
+worktree vanaf actuele main `3b2fde8321625038d104fc697139b9a4faf96b2c` verenigt de
+bestaande claim met main via een gewone merge. De kwetsbare actie is sinds de oude
+basis inhoudelijk ongewijzigd; het eerdere rode bewijs blijft van toepassing.
+
+De intrekking controleert nu na ownership de ACTIVE-status en afwezigheid van een
+geschil. De conditionele write controleert opnieuw aanvraagstatus, aanvrager en dezelfde
+actuele samenwerking. Intrekking en audit staan samen in één transactie. De 17 echte
+SQLite-regressies en zeven oracleproeven slagen op deze basis, inclusief statusraces,
+eigenaarswissel, dubbel intrekken en rollback bij een auditfout. Alle testgegevens zijn
+synthetisch en staan in een eigen tijdelijke database. Volledige check, onafhankelijke
+review, GitHub-poorten en livecontrole volgen; dit is nog geen releaseverklaring.
+
+De volledige suite slaagt met 8.918 tests en twee bestaande skips; typecheck, lint,
+opmaak en env-documentatie zijn groen. De eerste volledige check stopte op een
+indexeringstypefout in een nieuwe test; de assertion is hersteld zonder productwijziging.
+De sandboxbuild kon de bestaande externe lettertypen niet ophalen; de afzonderlijke
+productiebuild met netwerktoegang is vervolgens geslaagd.

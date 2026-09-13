@@ -185,7 +185,13 @@ export async function cancelShiftHandoff(
 
   const handoff = await prisma.shiftHandoff.findUnique({
     where: { id: handoffId },
-    select: { id: true, status: true, requestedByUserId: true, collaborationId: true },
+    select: {
+      id: true,
+      status: true,
+      requestedByUserId: true,
+      collaborationId: true,
+      collaboration: { select: { status: true, disputedAt: true } },
+    },
   });
   // ownership: alleen de ZZP'er die de aanvraag opende mag ze intrekken. Anti-oracle (CWE-203):
   // een ONBEKEND id en een BESTAAND id van iemand anders geven exact dezelfde melding — anders
@@ -206,6 +212,13 @@ export async function cancelShiftHandoff(
     return { error: "Overname-aanvraag niet gevonden." };
   }
 
+  if (handoff.collaboration.status !== "ACTIVE") {
+    return { error: "Alleen een aanvraag op een actieve samenwerking kan worden ingetrokken." };
+  }
+  if (handoff.collaboration.disputedAt) {
+    return { error: "Niet mogelijk tijdens een lopend dispuut." };
+  }
+
   // Transitie via de expliciete map (OPEN → CANCELLED), op basis van de gefetchte status.
   try {
     assertHandoffTransition(handoff.status as ShiftHandoffStatus, "CANCELLED");
@@ -213,22 +226,32 @@ export async function cancelShiftHandoff(
     return { error: "Deze aanvraag is al beoordeeld of ingetrokken." };
   }
 
-  // Atomaire status-guard: alleen een nog-OPEN aanvraag wordt ingetrokken (geen dubbele intrekking).
-  const updated = await prisma.shiftHandoff.updateMany({
-    where: { id: handoffId, status: "OPEN" },
-    data: { status: "CANCELLED" },
+  // Recheck ownership and the current collaboration in the write, not only the
+  // earlier snapshot. Cancellation and its audit must commit or roll back together.
+  const cancelled = await prisma.$transaction(async (tx) => {
+    const updated = await tx.shiftHandoff.updateMany({
+      where: {
+        id: handoffId,
+        status: "OPEN",
+        requestedByUserId: actor.id,
+        collaborationId: handoff.collaborationId,
+        collaboration: { status: "ACTIVE", disputedAt: null },
+      },
+      data: { status: "CANCELLED" },
+    });
+    if (updated.count !== 1) return false;
+    await tx.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: "SHIFT_HANDOFF_CANCELLED",
+        entityType: "ShiftHandoff",
+        entityId: handoffId,
+        metadata: { collaborationId: handoff.collaborationId },
+      }),
+    });
+    return true;
   });
-  if (updated.count !== 1) return { error: "Deze aanvraag is al beoordeeld of ingetrokken." };
-
-  await prisma.auditLog.create({
-    data: auditData({
-      actorId: actor.id,
-      action: "SHIFT_HANDOFF_CANCELLED",
-      entityType: "ShiftHandoff",
-      entityId: handoffId,
-      metadata: { collaborationId: handoff.collaborationId },
-    }),
-  });
+  if (!cancelled) return { error: "Deze aanvraag of samenwerking is inmiddels gewijzigd." };
 
   revalidatePath(`/samenwerkingen/${handoff.collaborationId}`);
   revalidatePath("/admin/shift-overnames");

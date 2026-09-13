@@ -4,6 +4,25 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-13 — bestaande intrekkingsbevinding, herstel in #1484
+
+Basis `3b2fde8321625038d104fc697139b9a4faf96b2c`; begrensde vervolgcontrole van de
+bestaande claim van 12 september. **MIDDEL — status- en auditbewaking bij intrekken
+van een overname-aanvraag.** `cancelShiftHandoff` in
+`src/app/(protected)/samenwerkingen/shift-handoff-actions.ts` accepteerde een eigen
+OPEN-aanvraag ook tijdens een geschil of op een niet-actieve samenwerking. Een
+auditfout liet de intrekking bestaan. De normale verborgen knop voorkwam een directe
+serveraanroep niet. De actie is sinds de oorspronkelijke repro ongewijzigd op main.
+
+De reparatie bewaakt ACTIVE/niet-betwist en ownership in de write en combineert deze
+met het auditspoor. Eerdere repro: 10 rood/7 groen; na herstel alle 17 echte tijdelijke
+SQLite-proeven plus 7 oracleproeven groen. Geen productieprobes of algemene cleanaudit.
+Status: hersteld in werkbranch #1484, volledige review/CI/release nog vereist.
+[Bereikbaarheid en validatie](progress/2026-09-12-handoff-cancel.md).
+
+De bekende auditmetadata bij afgewezen tenants en publieke individuele-reviewprivacy
+blijven afzonderlijke open punten; deze intrekkingsfix verandert geen bewaarbeleid.
+
 ## Ronde 2026-09-11 (basis: `main` @ e62a7114) — afgebakende delta-audit: timingregressie lokaal hersteld, tenant-auditprivacy OPEN
 
 Vergelijking sinds #1468: `920d4b88..e62a7114`. Onafhankelijke audit van de gewijzigde
