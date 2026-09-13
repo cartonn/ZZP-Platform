@@ -1,11 +1,20 @@
+## 13 september 2026 — blijvende opvolging van prestatiebeoordeling (#1487)
+
+Een lang wachtende SUBMITTED-prestatie verschijnt als beheertaak, ook zonder notificatie.
+Actiecentrum, dashboard en samenwerkingsbadge delen één actuele, oudste-eerst-lijst.
+Alleen ACTIVE zonder geschil; beoordeling haalt de taak uit de wachtrij. Grens: acht
+volle dagen bij de standaardherinneringen. De bestaande snapshot-TTL blijft maximaal 60s.
+8.933 tests slagen (2 bestaande skips), inclusief twaalf geïsoleerde SQLite-proeven.
+Review, overige controles en release volgen; zie [uitvoering](docs/progress/2026-09-13-performance-escalation.md).
+
 ## 13 september 2026 — intrekken overname-aanvraag (#1484)
 
 Bestaande beveiligingsclaim hervat vanuit een nieuwe worktree op actuele main `3b2fde8`.
 De aanvrager kan alleen op een actieve, niet-betwiste samenwerking intrekken; de write
 controleert actuele status en ownership opnieuw. Audit en intrekking committen samen.
 De 24 gerichte regressie-/oracleproeven en 8.918 totale tests slagen (2 bestaande skips).
-Types, lint, opmaak en productiebuild zijn groen; onafhankelijke review loopt. Daarna volgen
-alle zes releasepoorten en liveverificatie.
+Alle zes poorten en onafhankelijke reviews slaagden; #1484 is gemerged als `888734fc`
+en op 13 september 15:26 UTC live geverifieerd, inclusief alle CI- en QA-controles.
 Zie [uitvoering](docs/progress/2026-09-12-handoff-cancel.md).
 
 ## 13 september 2026 — begeleid ondertekenen en bewijsstukbeoordeling (#1486)

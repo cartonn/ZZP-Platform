@@ -1,3 +1,7 @@
+vi.mock("@/lib/data/admin-performance-escalations", () => ({
+  getAdminPerformanceEscalations: vi.fn(async () => []),
+}));
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Regressietests voor twee DOEL-1b-bevindingen ("signaal op één oppervlak"): de nav-badge was

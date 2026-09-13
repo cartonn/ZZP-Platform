@@ -1,3 +1,7 @@
+vi.mock("@/lib/data/admin-performance-escalations", () => ({
+  getAdminPerformanceEscalations: vi.fn(async () => []),
+}));
+
 // Regressietest voor de next-action-engine (DOEL 1b — cross-surface-consistentie / determinisme):
 // vier admin-wachtrijen in `adminTasks()` (SUBMITTED-verificaties, PENDING-gebruikers, open disputen,
 // AVG-verwijderverzoeken) worden met `take: MAX` begrensd. Zonder expliciete `orderBy` garandeert

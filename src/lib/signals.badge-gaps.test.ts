@@ -1,3 +1,7 @@
+vi.mock("@/lib/data/admin-performance-escalations", () => ({
+  getAdminPerformanceEscalations: vi.fn(async () => []),
+}));
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Regressietests voor twee persona-sweep-bevindingen (DOEL 1b, "signaal op één oppervlak"): de
