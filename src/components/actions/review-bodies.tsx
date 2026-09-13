@@ -20,10 +20,7 @@ import {
   approveInvoiceState,
   rejectInvoiceState,
 } from "@/app/(protected)/samenwerkingen/[id]/actions";
-import {
-  verifyCredentialState,
-  rejectCredentialState,
-} from "@/app/(protected)/admin/verificaties/actions";
+import { CredentialReviewForm } from "@/components/credentials/review-form";
 
 type StateAction = (prev: ResolveState, formData: FormData) => Promise<ResolveState>;
 
@@ -130,7 +127,10 @@ export function CredentialReviewBody({
         <DetailRow label="Titel" value={data.title} />
         <DetailRow label="Uitgever" value={data.issuer} />
         <DetailRow label="Uitgegeven" value={data.issuedAt} />
-        <DetailRow label="Verloopt" value={data.expiresAt} />
+        <DetailRow
+          label={data.credentialType === "VOG" ? "Herbeoordelen op" : "Verloopt"}
+          value={data.expiresAt}
+        />
         <DetailRow label="Ingediend door" value={data.submittedBy} />
       </div>
       <div>
@@ -139,11 +139,13 @@ export function CredentialReviewBody({
         </p>
         <OpenDocumentButton doc={data.document} />
       </div>
-      <ApproveRejectControls
-        approve={verifyCredentialState.bind(null, data.credId)}
-        reject={rejectCredentialState.bind(null, data.credId)}
+      <CredentialReviewForm
+        key={`${data.credId}:${data.updatedAt}`}
+        credentialId={data.credId}
+        type={data.credentialType}
+        updatedAt={data.updatedAt}
+        documentId={data.document?.id ?? null}
         onResolved={onResolved}
-        approveLabel="Goedkeuren — verifieer certificaat"
       />
     </div>
   );

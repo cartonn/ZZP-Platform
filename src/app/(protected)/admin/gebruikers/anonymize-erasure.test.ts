@@ -46,6 +46,10 @@ vi.mock("@/lib/db", () => ({
       })),
       update: op("user.update"),
     },
+    contractSigning: {
+      count: vi.fn(async () => 0),
+      deleteMany: op("contractSigning.deleteMany"),
+    },
     freelancerProfile: { updateMany: op("freelancerProfile.updateMany") },
     company: {
       updateMany: op("company.updateMany"),
@@ -343,6 +347,8 @@ const findAll = (model: string) => tx.ops.filter((o) => o.model === model);
 beforeEach(() => {
   tx.ops = [];
   storageMock.del.mockClear();
+  vi.mocked(prisma.contractSigning.count).mockResolvedValue(0);
+  vi.mocked(prisma.$transaction).mockClear();
   // Reset naar het standaard-dispuutevent (één eigen, nog-open dispuut op col-7) zodat een test die de
   // domainEvent-mock overschrijft niet naar de volgende lekt.
   (
@@ -1351,5 +1357,82 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
       }),
     });
     expect(o!.args.data.body).toMatch(/verwijderd/i);
+  });
+});
+
+describe("anonymizeUser — shared contract evidence requires a reviewed decision", () => {
+  const decision = () => {
+    const form = new FormData();
+    form.set("eraseContractEvidence", "on");
+    form.set("evidenceErasureReason", "NO_REMAINING_NECESSITY");
+    return form;
+  };
+
+  it("keeps the erasure request pending and performs no writes without an explicit shared-evidence decision", async () => {
+    vi.mocked(prisma.contractSigning.count).mockResolvedValueOnce(2);
+    await expect(anonymizeUser("user-42")).rejects.toThrow("Het verwijderverzoek blijft open");
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(storageMock.del).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unconfirmed or unrecognised decision before any account mutation", async () => {
+    for (const [confirmed, reason] of [
+      ["", "NO_REMAINING_NECESSITY"],
+      ["on", "anything"],
+    ]) {
+      vi.mocked(prisma.contractSigning.count).mockResolvedValueOnce(1);
+      const form = new FormData();
+      form.set("eraseContractEvidence", confirmed!);
+      form.set("evidenceErasureReason", reason!);
+      await expect(anonymizeUser("user-42", form)).rejects.toThrow("Gezamenlijk".toLowerCase());
+    }
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("atomically tombstones and removes both-party proof, scoped to participation even without an own signature", async () => {
+    vi.mocked(prisma.contractSigning.count).mockResolvedValueOnce(2);
+    await anonymizeUser("user-42", decision());
+    const participation = {
+      OR: [{ freelancer: { userId: "user-42" } }, { company: { userId: "user-42" } }],
+    };
+    expect(prisma.contractSigning.count).toHaveBeenLastCalledWith({
+      where: { collaboration: participation },
+    });
+    expect(find("contractSigning.deleteMany")?.args).toEqual({
+      where: { collaboration: participation },
+    });
+    const tombstone = findAll("collaboration.updateMany").find(
+      (operation) =>
+        "signingEvidenceErasedAt" in (operation.args as { data: Record<string, unknown> }).data,
+    );
+    expect(tombstone?.args).toEqual({
+      where: { ...participation, signing: { isNot: null } },
+      data: { signingEvidenceErasedAt: expect.any(Date) },
+    });
+    expect(tx.ops.indexOf(tombstone!)).toBeLessThan(
+      tx.ops.indexOf(find("contractSigning.deleteMany")!),
+    );
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Array), {
+      isolationLevel: "Serializable",
+    });
+    const userUpdate = find("user.update")?.args as { where: Record<string, unknown> };
+    expect(userUpdate.where).toEqual({
+      id: "user-42",
+      role: "FREELANCER",
+      deletionRequestedAt: new Date("2026-05-01"),
+      anonymizedAt: null,
+    });
+    const audit = findAll("auditLog.create").find(
+      (operation) =>
+        (operation.args as { data: { action: string } }).data.action === "ACCOUNT_ANONYMIZED",
+    );
+    expect(JSON.parse((audit!.args as { data: { metadata: string } }).data.metadata)).toMatchObject(
+      { signingEvidenceDeleted: 2, evidenceErasureReason: "NO_REMAINING_NECESSITY" },
+    );
+  });
+
+  it("does not touch another party's proof when this account has no shared evidence", async () => {
+    await anonymizeUser("user-42");
+    expect(find("contractSigning.deleteMany")).toBeUndefined();
   });
 });

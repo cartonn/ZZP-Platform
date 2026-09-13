@@ -18,6 +18,7 @@ export interface CascadeStageInput {
   collaborationStatus: CollaborationStatus;
   contractStatus: ContractStatus;
   disputed: boolean;
+  viewerHasSigned?: boolean;
   /** Status van de meest recente prestatie, of null als er nog geen is. */
   latestPerformanceStatus: PerformanceState | null;
   /** Lifecycle-status van de meest recente cascade-factuur, of null. */
@@ -99,6 +100,17 @@ export function cascadeStage(input: CascadeStageInput): CascadeStage {
   // teken-CTA verborg op precies de schermen die "wat wordt van wie verwacht?" beloven, en die de
   // actiecentrum-taak tegensprak.
   if (input.contractStatus !== "SIGNED") {
+    if (input.viewerHasSigned)
+      return {
+        id: "contract-wait",
+        badgeLabel: "Wacht op handtekening",
+        label: "Je hebt getekend — wacht op de andere partij",
+        step: 1,
+        totalSteps: total,
+        youAreUp: false,
+        tone: "info",
+        cta: { label: "Bekijk ondertekening", href: `${href}/ondertekenen` },
+      };
     return { id: "contract-sign", badgeLabel: "Contract", label: "Contract ter ondertekening", step: 1, totalSteps: total, youAreUp: true, tone: "attention", cta: { label: "Onderteken contract", href } }; // prettier-ignore
   }
 

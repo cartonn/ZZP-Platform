@@ -67,7 +67,7 @@ test("inzetbaarheid-gate: ontbrekend vereist certificaat blokkeert de plaatsing"
   await expect(
     fcard.getByText("Ondertekenen kan pas als je aan de certificaateisen voldoet."),
   ).toBeVisible();
-  await expect(fcard.getByRole("button", { name: "Contract ondertekenen" })).toHaveCount(0);
+  await expect(fcard.getByRole("link", { name: "Contract ondertekenen" })).toHaveCount(0);
   await shot(fp, "25-samenwerking-plaatsing-geblokkeerd");
 
   // Opdrachtgever ziet dezelfde compliance-waarschuwing op de voorgestelde samenwerking.

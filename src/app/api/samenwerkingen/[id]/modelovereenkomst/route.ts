@@ -10,6 +10,13 @@ import { auditDeniedAccess } from "@/lib/security/access-audit";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
 import { privateFileHeaders } from "@/lib/security/resource-headers";
+import { loadSigningView } from "@/lib/signing-service";
+import { buildSigningEvidencePdf } from "@/lib/signing-evidence-pdf";
+import {
+  SigningEvidenceErasedError,
+  LegacySigningEvidenceError,
+  hasLegacySigningGap,
+} from "@/lib/signing-contract";
 
 export const runtime = "nodejs";
 
@@ -38,12 +45,14 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const col = await prisma.collaboration.findUnique({
     where: { id },
     select: {
+      status: true,
+      contractStatus: true,
       rate: true,
       startDate: true,
       endDate: true,
       agreementType: true,
-      agreementFreelancerSignedAt: true,
-      agreementClientSignedAt: true,
+      signing: { select: { collaborationId: true } },
+      signingEvidenceErasedAt: true,
       company: { select: { name: true, userId: true } },
       freelancer: { select: { userId: true, user: { select: { name: true } } } },
       job: {
@@ -106,6 +115,42 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     ...meta,
   });
 
+  if (col.signingEvidenceErasedAt) {
+    return NextResponse.json(
+      { error: new SigningEvidenceErasedError().message },
+      { status: 410, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+  if (hasLegacySigningGap(col))
+    return NextResponse.json(
+      { error: new LegacySigningEvidenceError().message },
+      { status: 409, headers: { "Cache-Control": "private, no-store" } },
+    );
+  if (col.signing) {
+    let view;
+    try {
+      view = await loadSigningView(actor, id);
+    } catch (error) {
+      if (
+        !(error instanceof SigningEvidenceErasedError) &&
+        !(error instanceof LegacySigningEvidenceError)
+      )
+        throw error;
+      return NextResponse.json(
+        { error: error.message },
+        {
+          status: error instanceof LegacySigningEvidenceError ? 409 : 410,
+          headers: { "Cache-Control": "private, no-store" },
+        },
+      );
+    }
+    if (!view) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+    const bytes = await buildSigningEvidencePdf(view);
+    return new NextResponse(new Uint8Array(bytes), {
+      headers: privateFileHeaders("application/pdf", `overeenkomst-${id}.pdf`),
+    });
+  }
+
   const recommendation = recommendModelAgreement({
     directSupervision: col.job.dbaDirectSupervision,
     embedded: col.job.dbaEmbedded,
@@ -140,18 +185,16 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     periodLabel,
   });
 
-  const sig = (signedAt: Date | null) =>
-    signedAt ? `Digitaal akkoord op ${dLong(signedAt)}` : "Nog niet ondertekend";
   const signatories: ModelAgreementSignatory[] = [
     {
       role: "Opdrachtnemer (ZZP'er)",
       name: col.freelancer.user.name ?? "Opdrachtnemer",
-      status: sig(col.agreementFreelancerSignedAt),
+      status: "Voorbeeld op basis van de huidige gegevens; geen ondertekenbewijs.",
     },
     {
       role: "Opdrachtgever",
       name: col.company.name ?? "Opdrachtgever",
-      status: sig(col.agreementClientSignedAt),
+      status: "Voorbeeld op basis van de huidige gegevens; geen ondertekenbewijs.",
     },
   ];
 

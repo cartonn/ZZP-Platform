@@ -68,6 +68,16 @@ export async function GebruikersPanel({
         status: true,
         deletionRequestedAt: true,
         anonymizedAt: true,
+        freelancerProfile: {
+          select: {
+            _count: { select: { collaborations: { where: { signing: { isNot: null } } } } },
+          },
+        },
+        company: {
+          select: {
+            _count: { select: { collaborations: { where: { signing: { isNot: null } } } } },
+          },
+        },
       },
     }),
     prisma.user.count({ where: { deletionRequestedAt: { not: null } } }),
@@ -177,7 +187,13 @@ export async function GebruikersPanel({
                 {!isSelf && !u.anonymizedAt && (
                   <div className="flex items-center gap-2">
                     {u.deletionRequestedAt && u.role !== "ADMIN" && (
-                      <AnonymizeButton action={anonymizeUser.bind(null, u.id)} />
+                      <AnonymizeButton
+                        action={anonymizeUser.bind(null, u.id)}
+                        evidenceCount={
+                          (u.freelancerProfile?._count.collaborations ?? 0) +
+                          (u.company?._count.collaborations ?? 0)
+                        }
+                      />
                     )}
                     {/* PENDING goedkeuren = activeren (PENDING -> ACTIVE). */}
                     {u.status === "PENDING" && (

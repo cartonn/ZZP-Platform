@@ -202,7 +202,7 @@ describe("freelancerTasks — outer-window-blindheid op de teken-/indien-taak (r
     const sign = tasks.find((t) => t.id === "contract-sign:f-sign-stuck");
     expect(sign).toBeDefined();
     expect(sign?.kind).toBe("contract-sign");
-    expect(sign?.href).toBe("/samenwerkingen/f-sign-stuck");
+    expect(sign?.href).toBe("/samenwerkingen/f-sign-stuck/ondertekenen");
   });
 
   it("surfacet de Uren-indienen-taak van een ouder-getekende ACTIVE-samenwerking zonder prestatie", async () => {

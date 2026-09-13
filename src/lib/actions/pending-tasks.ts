@@ -1132,7 +1132,13 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   // query (`createdAt asc`) → self-healing. De te-keuren prestaties/facturen (SUBMITTED) komen apart en
   // ONGEWINDOWD uit `approvePerformances`/`approveInvoices` verderop. Persona-sweep run 81.
   const proposedCollabs = await prisma.collaboration.findMany({
-    where: { company: { userId }, status: "PROPOSED", disputedAt: null },
+    where: {
+      company: { userId },
+      status: "PROPOSED",
+      disputedAt: null,
+      signingEvidenceErasedAt: null,
+      OR: [{ signing: null }, { signing: { signatures: { none: { actorId: userId } } } }],
+    },
     select: {
       id: true,
       job: {

@@ -77,6 +77,10 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
 
   // Samenwerking & werkproces
   COLLABORATION_PROPOSED: "Samenwerking voorgesteld",
+  CONTRACT_SIGNING_VIEWED: "Overeenkomst voor ondertekening gelezen",
+  CONTRACT_SIGNATURE_RECORDED: "Elektronische handtekening vastgelegd",
+  SIGNING_EVIDENCE_ACCESSED: "Ondertekenbewijs geraadpleegd",
+  SIGNING_EVIDENCE_ACCESS_DENIED: "Toegang tot ondertekenbewijs geweigerd",
   COLLABORATION_REPROPOSED: "Samenwerking opnieuw voorgesteld",
   COLLABORATION_STATUS_CHANGED: "Samenwerkingsstatus gewijzigd",
   COLLABORATION_REPLACEMENT_OPENED: "Herplaatsing geopend na uitval",

@@ -164,15 +164,15 @@ describe("selectDashboardTasks", () => {
 });
 
 describe("task builders", () => {
-  it("contract-sign: oneClick, attention, deep-link naar de samenwerking", () => {
+  it("contract-sign: link naar de begeleide ondertekening, geen mutatie met één klik", () => {
     const t = contractSignTask("c1", "Senior Dev", "Acme BV");
     expect(t).toMatchObject({
       kind: "contract-sign",
       id: "contract-sign:c1",
-      resolver: "oneClick",
+      resolver: "link",
       tone: "attention",
       priority: P.contractSign,
-      href: "/samenwerkingen/c1",
+      href: "/samenwerkingen/c1/ondertekenen",
       collabId: "c1",
     });
   });

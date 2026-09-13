@@ -57,6 +57,7 @@ const REDACT_KEY_EXACT = new Set([
   "achternaam",
   "volledigenaam",
   "fullname",
+  "signername",
   "displayname",
   "contactname",
   "contactnaam",

@@ -1,12 +1,19 @@
+import {
+  collaborationPath,
+  fillSigning,
+  openSigning,
+  signBothParties,
+  submitSigning,
+} from "./signing-helpers";
 import { expect, test, type Page } from "@playwright/test";
 import type { Browser } from "playwright-core";
 import path from "node:path";
 import { clickUntil, clickUntilGone, clickForUrl } from "./_robust";
 
-// Verifieert de kernbelofte van het Actiecentrum: op /acties klik je een actie aan, het werk wordt
-// daar meteen gedaan (echte server-actie, geen demo), en de afgehandelde taak verdwijnt vanzelf —
-// auto-advance via revalidate. Getest voor zowel één-klik (contract tekenen) als goedkeuren
-// (ingediende prestatie). Hergebruikt de robuuste klik-helpers (pre-hydratie-race).
+// Verifieert de kernbelofte van het Actiecentrum: op /acties klik je een actie aan, het werk
+// wordt afgehandeld via de passende echte gebruikersflow. Contracten vragen eerst lezen en
+// een expliciete handtekening; ingediende prestaties blijven in de beoordelingsdrawer.
+// De taak verdwijnt zodra deze gebruiker klaar is, ook als de andere partij nog moet tekenen.
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -101,7 +108,7 @@ async function setupCollaboration(
 
 test("actiecentrum: contract tekenen lost de taak op en advanced", async ({ page, browser }) => {
   test.slow();
-  const { collaborationUrl, fctx } = await setupCollaboration(page, browser as Browser);
+  const { collaborationUrl, fp, fctx } = await setupCollaboration(page, browser as Browser);
 
   // Het te-tekenen contract verschijnt als afhandelbare taak in het Actiecentrum.
   await page.goto("/acties");
@@ -110,15 +117,26 @@ test("actiecentrum: contract tekenen lost de taak op en advanced", async ({ page
   await expect(signTask).toBeVisible({ timeout: 15000 });
   await shot(page, "acties-gevuld");
 
-  // Inline ondertekenen → na revalidate verdwijnt de taak (auto-advance, geen navigatie nodig).
-  await clickUntilGone(
-    signTask.getByRole("button", { name: "Onderteken" }),
-    page.locator("li", { hasText: "Contract ondertekenen" }),
-  );
-
-  // De actie deed écht het werk: de samenwerking is nu actief.
+  // De taak opent eerst de lees- en tekenpagina; de link zelf zet geen handtekening.
+  await signTask.getByRole("link", { name: "Lezen en ondertekenen" }).click();
+  await page.waitForURL(`${collaborationPath(collaborationUrl)}/ondertekenen`);
+  await openSigning(page, collaborationUrl);
+  await expect(page.getByText("0 van 2", { exact: true })).toBeVisible();
+  await fillSigning(page, "Acties Opdrachtgever");
+  await submitSigning(page, 1);
+  await page.goto("/acties");
+  await expect(page.locator("li", { hasText: "Contract ondertekenen" })).toHaveCount(0);
   await page.goto(collaborationUrl);
-  await expect(page.getByText("Actief")).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText("Voorgesteld", { exact: true }).first()).toBeVisible();
+
+  // De andere partij heeft nog een eigen taak en bevestigt met het eigen account.
+  await fp.goto("/acties");
+  await expect(fp.locator("li", { hasText: "Contract ondertekenen" })).toBeVisible();
+  await openSigning(fp, collaborationUrl);
+  await fillSigning(fp, "Acties ZZP'er");
+  await submitSigning(fp, 2);
+  await page.goto(collaborationUrl);
+  await expect(page.getByText("Actief", { exact: true }).first()).toBeVisible();
 
   await fctx.close();
 });
@@ -132,10 +150,10 @@ test("actiecentrum: ingediende prestatie beoordelen + goedkeuren via drawer", as
 
   // Voorwaarde: contract actief, daarna dient de freelancer uren in.
   await page.goto(collaborationUrl);
-  await clickUntil(
-    page.getByRole("button", { name: "Contract ondertekenen" }),
-    page.getByText("Actief"),
-  );
+  await signBothParties(page, fp, collaborationUrl, {
+    clientName: "Acties Opdrachtgever",
+    freelancerName: "Acties ZZP'er",
+  });
 
   await fp.goto(collaborationUrl);
   await expect(fp.getByText("Actief")).toBeVisible({ timeout: 15000 });
@@ -206,23 +224,28 @@ test("actiecentrum: identiteit inline verifiëren via de drawer", async ({ page 
   await shot(page, "acties-drawer-identiteit");
 });
 
-test("actiecentrum: dashboard-zone handelt inline af + advanced", async ({ page, browser }) => {
+test("actiecentrum: dashboard-zone opent expliciet ondertekenen en verwerkt eigen taak", async ({
+  page,
+  browser,
+}) => {
   test.slow();
-  await setupCollaboration(page, browser as Browser);
+  const { collaborationUrl, fctx } = await setupCollaboration(page, browser as Browser);
 
-  // Het actiecentrum toont het te-tekenen contract als inline-actie (de dashboard-rail linkt
-  // hiernaartoe; inline-afhandeling leeft op /acties).
+  // De dashboard-rail verwijst naar deze lees- en ondertekentaak in het actiecentrum.
   await page.goto("/acties");
   await hydrated(page);
   const signRow = page.locator("li", { hasText: "Contract ondertekenen" });
   await expect(signRow).toBeVisible({ timeout: 15000 });
   await shot(page, "acties-dashboard-zone");
 
-  // Inline ondertekenen vanaf het dashboard → de taak verdwijnt (auto-advance via revalidate).
-  await clickUntilGone(
-    signRow.getByRole("button", { name: "Onderteken" }),
-    page.locator("li", { hasText: "Contract ondertekenen" }),
-  );
+  await signRow.getByRole("link", { name: "Lezen en ondertekenen" }).click();
+  await page.waitForURL(`${collaborationPath(collaborationUrl)}/ondertekenen`);
+  await openSigning(page, collaborationUrl);
+  await fillSigning(page, "Acties Opdrachtgever");
+  await submitSigning(page, 1);
+  await page.goto("/acties");
+  await expect(page.locator("li", { hasText: "Contract ondertekenen" })).toHaveCount(0);
+  await fctx.close();
 });
 
 test("actiecentrum: factuur beoordelen — PDF openen + goedkeuren", async ({ page, browser }) => {
@@ -231,10 +254,10 @@ test("actiecentrum: factuur beoordelen — PDF openen + goedkeuren", async ({ pa
 
   // Contract actief.
   await page.goto(collaborationUrl);
-  await clickUntil(
-    page.getByRole("button", { name: "Contract ondertekenen" }),
-    page.getByText("Actief"),
-  );
+  await signBothParties(page, fp, collaborationUrl, {
+    clientName: "Acties Opdrachtgever",
+    freelancerName: "Acties ZZP'er",
+  });
 
   // Freelancer dient uren in.
   await fp.goto(collaborationUrl);

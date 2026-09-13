@@ -56,11 +56,9 @@ describe("signContract — dispuut-vries", () => {
     expect(persistMock).not.toHaveBeenCalled();
   });
 
-  it("bedraadt de in-transactie dispuut-grendel (disputeGuardCollaborationId) op het gelukkige pad", async () => {
+  it("weigert ook zonder dispuut een oude aanroep zonder expliciet ondertekenbewijs", async () => {
     const { signContract } = await import("@/lib/cascade/contract-commands");
-    await expect(signContract(FREELANCER, "col-1")).resolves.toBeUndefined();
-    expect(persistMock).toHaveBeenCalledTimes(1);
-    const refs = persistMock.mock.calls[0]?.[2] as { disputeGuardCollaborationId?: string };
-    expect(refs.disputeGuardCollaborationId).toBe("col-1");
+    await expect(signContract(FREELANCER, "col-1")).rejects.toThrow("begeleide ondertekening");
+    expect(persistMock).not.toHaveBeenCalled();
   });
 });

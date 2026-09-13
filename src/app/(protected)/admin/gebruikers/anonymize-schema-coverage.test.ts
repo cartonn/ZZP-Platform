@@ -105,6 +105,8 @@ const ALLOWLIST: Record<string, string> = {
   TenantSubscription: "[FISCAAL] tenant-abonnement (facturatie); geen vrije-tekst-PII.",
   ZzpMembershipCharge: "[FISCAAL] lidmaatschapsheffing (facturatie/bewaargrond).",
   // [CASCADE]
+  ContractSignature:
+    "[CASCADE] onDelete:Cascade from ContractSigning; explicit admin-reviewed erasure deletes the shared snapshot atomically with its tombstone. Missing decision keeps the request pending.",
   CredentialVerification:
     "[CASCADE] onDelete:Cascade vanaf Credential; Credential wordt hard verwijderd in de erasure.",
   VerificationRequest:
@@ -303,4 +305,12 @@ describe("AVG art. 17 — schema-dekking van de erasure (anonymizeUser)", () => 
       `Modellen die nu door de erasure worden gewist maar nog op ALLOWLIST staan (verwijder ze daar): ${redundant.join(", ")}`,
     ).toEqual([]);
   });
+});
+
+it("contract signature erasure really cascades from the explicitly deleted snapshot", () => {
+  const schema = readFileSync(resolve(process.cwd(), "prisma/schema.prisma"), "utf8");
+  const signature = schema.match(/model ContractSignature \{([\s\S]*?)^\}/m)?.[1];
+  expect(signature).toMatch(/ContractSigning[^\n]*onDelete: Cascade/);
+  expect(anonymizeUserSource()).toContain("prisma.contractSigning.deleteMany");
+  expect(anonymizeUserSource()).toContain("signingEvidenceErasedAt");
 });

@@ -408,7 +408,13 @@ export async function unreadConversationCount(userId: string): Promise<number> {
  */
 async function countClientSignableProposals(userId: string, now: Date): Promise<number> {
   const proposed = await prisma.collaboration.findMany({
-    where: { company: { userId }, status: "PROPOSED", disputedAt: null },
+    where: {
+      company: { userId },
+      status: "PROPOSED",
+      disputedAt: null,
+      signingEvidenceErasedAt: null,
+      OR: [{ signing: null }, { signing: { signatures: { none: { actorId: userId } } } }],
+    },
     select: {
       job: {
         select: {

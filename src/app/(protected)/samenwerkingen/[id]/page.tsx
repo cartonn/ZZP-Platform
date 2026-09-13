@@ -58,7 +58,6 @@ import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
-  signContractAction,
   approvePerformanceAction,
   rejectPerformanceAction,
   editAndResubmitPerformanceAction,
@@ -121,6 +120,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const col = await prisma.collaboration.findUnique({
     where: { id },
     include: {
+      signing: { select: { signatures: { select: { actorId: true } } } },
       job: {
         select: {
           id: true,
@@ -683,7 +683,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
               <p className="text-sm text-muted-foreground">
                 {placementBlocked
                   ? `Deze samenwerking kan niet starten: een vereist certificaat ontbreekt of is verlopen (${placementMissing}).`
-                  : "Onderteken om uren of opleveringen te kunnen vastleggen."}
+                  : col.signing?.signatures.some((signature) => signature.actorId === actor.id)
+                    ? "Je hebt getekend. Na de handtekening van de andere partij kan de samenwerking starten."
+                    : "Beide partijen ondertekenen voordat je uren of opleveringen vastlegt."}
               </p>
             </div>
             {placementBlocked ? (
@@ -693,9 +695,13 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                 </Button>
               ) : null
             ) : (
-              <form action={signContractAction.bind(null, col.id)}>
-                <PendingSubmitButton size="sm">Contract ondertekenen</PendingSubmitButton>
-              </form>
+              <Button asChild size="sm">
+                <Link href={`/samenwerkingen/${col.id}/ondertekenen`}>
+                  {col.signing?.signatures.some((signature) => signature.actorId === actor.id)
+                    ? "Bekijk ondertekening"
+                    : "Contract ondertekenen"}
+                </Link>
+              </Button>
             )}
           </CardContent>
         </Card>

@@ -1,3 +1,4 @@
+import { collaborationFromSigningLink, signBothParties } from "./signing-helpers";
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 import { clickUntil, clickUntilGone } from "./_robust";
@@ -76,12 +77,18 @@ test("factuur opstellen, versturen en als betaald markeren", async ({ page, brow
   await page.getByRole("button", { name: /Geaccepteerd/ }).click();
   await expect(page.getByRole("link", { name: "Bekijk samenwerking" })).toBeVisible();
 
-  // Freelancer activeert de samenwerking.
+  // Beide partijen ondertekenen; pas daarna wordt de samenwerking actief.
   await fp.goto("/samenwerkingen");
-  await fp
-    .locator("div.bg-card", { hasText: title })
-    .getByRole("button", { name: "Contract ondertekenen" })
-    .click();
+  const collaborationUrl = await collaborationFromSigningLink(
+    fp
+      .locator("div.bg-card", { hasText: title })
+      .getByRole("link", { name: "Contract ondertekenen" }),
+  );
+  await signBothParties(page, fp, collaborationUrl, {
+    clientName: "Fact Opdrachtgever",
+    freelancerName: "Fact Freelancer",
+  });
+  await fp.goto("/samenwerkingen");
   await expect(fp.locator("div.bg-card", { hasText: title }).getByText("Actief")).toBeVisible();
 
   // Factuur opstellen.

@@ -17,6 +17,7 @@ import {
   userAnonymizationData,
 } from "@/lib/account-anonymization";
 import { prisma } from "@/lib/db";
+import { signingErasureDecision, signingEvidenceParticipantWhere } from "@/lib/signing-erasure";
 import { userStatusSchema } from "@/lib/enums";
 import { DISPUTE_ADMIN_NOTIFICATION_TITLE } from "@/lib/cascade/dispute-commands";
 import { collaborationsWithActiveDisputeOpenedBy } from "@/lib/dispute-ownership";
@@ -81,7 +82,7 @@ export async function setUserStatus(userId: string, target: string): Promise<voi
  *  certificaten en documenten — de gevoeligste PII — worden verwijderd. Facturen blijven bestaan
  *  i.v.m. de fiscale bewaarplicht; berichten/notificaties blijven als gezamenlijke records staan,
  *  maar zijn niet meer naar een persoon herleidbaar. Mutatieketen: auth → rol → guard → actie → audit. */
-export async function anonymizeUser(userId: string): Promise<void> {
+export async function anonymizeUser(userId: string, formData?: FormData): Promise<void> {
   const actor = await requireRole("ADMIN");
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -115,6 +116,15 @@ export async function anonymizeUser(userId: string): Promise<void> {
   const ownsActiveTenant = user.ownedTenant !== null && user.ownedTenant.status !== "REJECTED";
   const check = canAnonymizeUser(actor, { ...user, ownsActiveTenant });
   if (!check.ok) throw new Error(check.reason);
+
+  // Both parties are represented in the immutable snapshot, even if only one has signed.
+  // No blanket retention assumption: a specific admin decision is required before shared proof
+  // is destroyed. Without it the request stays open and no account mutation occurs.
+  const evidenceParticipation = signingEvidenceParticipantWhere(userId);
+  const signingEvidenceCount = await prisma.contractSigning.count({
+    where: { collaboration: evidenceParticipation },
+  });
+  const evidenceErasureReason = signingEvidenceCount > 0 ? signingErasureDecision(formData) : null;
 
   // Aantal documenten vóór de transactie — enkel voor de audit-metadata (intentiegetal). De
   // wérkelijke verwijdering (rij + blob) gebeurt PAS ná de transactie, race-vrij: op dat punt is het
@@ -515,7 +525,7 @@ export async function anonymizeUser(userId: string): Promise<void> {
 
   const now = new Date();
   const meta = await requestMeta();
-  await prisma.$transaction([
+  const erasureWrites = [
     ...auditScrubOps,
     ...(ownCredentialIds.length
       ? [
@@ -525,7 +535,27 @@ export async function anonymizeUser(userId: string): Promise<void> {
           }),
         ]
       : []),
-    prisma.user.update({ where: { id: userId }, data: userAnonymizationData(userId, now) }),
+    prisma.user.update({
+      where: {
+        id: userId,
+        role: user.role,
+        deletionRequestedAt: user.deletionRequestedAt,
+        anonymizedAt: null,
+      },
+      data: userAnonymizationData(userId, now),
+    }),
+    // Tombstone before deleting: a later view must never regenerate this erased original.
+    // The signing path rejects either party's pending erasure request inside its own serializable
+    // transaction, so no further signature can slip between the reviewed decision and this wipe.
+    ...(evidenceErasureReason
+      ? [
+          prisma.collaboration.updateMany({
+            where: { ...evidenceParticipation, signing: { isNot: null } },
+            data: { signingEvidenceErasedAt: now },
+          }),
+          prisma.contractSigning.deleteMany({ where: { collaboration: evidenceParticipation } }),
+        ]
+      : []),
     // AVG art. 17 — Tenant-aanmelding-PII van een AFGEWEZEN bureau (REJECTED). Bij een
     // zelfaanmelding (`registerBureau`) wordt een Tenant-rij aangemaakt met naam, KvK-nummer,
     // regio, telefoon en `activationNote` — allemaal aanmeldings-PII van de indienende
@@ -1147,11 +1177,17 @@ export async function anonymizeUser(userId: string): Promise<void> {
         action: "ACCOUNT_ANONYMIZED",
         entityType: "User",
         entityId: userId,
-        metadata: { documentsDeleted: documentCount },
+        metadata: {
+          documentsDeleted: documentCount,
+          ...(evidenceErasureReason
+            ? { signingEvidenceDeleted: signingEvidenceCount, evidenceErasureReason }
+            : {}),
+        },
         ...meta,
       }),
     }),
-  ]);
+  ];
+  await prisma.$transaction(erasureWrites, { isolationLevel: "Serializable" });
 
   // Documenten (rij + blob) PAS ná de anonimiseringstransactie verwijderen. Op dit punt is het account
   // SUSPENDED, de passwordHash gewist en anonymizedAt gezet (userAnonymizationData) → currentActor()

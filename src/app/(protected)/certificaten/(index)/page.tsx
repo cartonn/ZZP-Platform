@@ -21,6 +21,7 @@ import {
   daysUntilExpiry,
   isExpiringSoon,
 } from "@/lib/credentials";
+import { credentialReviewMethodLabel } from "@/lib/credential-review";
 import { computeTrustLevel } from "@/lib/trust";
 import { summarizeExpiry } from "@/lib/credential-expiry-overview";
 import { linkExpiryToInzet } from "@/lib/freelancer-compliance";
@@ -88,6 +89,7 @@ export default async function CertificatenPage() {
                 decision: true,
                 reason: true,
                 source: true,
+                reviewMethod: true,
                 createdAt: true,
                 verifier: { select: { name: true } },
               },
@@ -128,10 +130,9 @@ export default async function CertificatenPage() {
     mandatoryDocsComplete: mandatory.allSatisfied,
   });
 
-  // Warmte-taal: bron-tag per certificaattype (DUO/BIG/ADMIN) + geldig-teller, zoals op het
-  // publieke profiel.
-  const sourceTag = (type: CredentialType) =>
-    type === "DIPLOMA" ? "DUO" : type === "LICENSE" ? "BIG" : "ADMIN";
+  // Display only the actually recorded source of a current approval.
+  const sourceTag = (source: string | undefined) =>
+    source === "DUO" ? "DUO" : source === "BIG" ? "BIG" : "Beoordelaar";
   const validCount = credentials.filter(
     (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > Date.now()),
   ).length;
@@ -295,9 +296,11 @@ export default async function CertificatenPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{c.title}</span>
-                        <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
-                          {sourceTag(c.type as CredentialType)}
-                        </span>
+                        {status === "VERIFIED" && c.verifications[0]?.decision === "VERIFIED" && (
+                          <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+                            {sourceTag(c.verifications[0]?.source)}
+                          </span>
+                        )}
                         <CredentialStatusBadge status={status} expiresAt={c.expiresAt} />
                         <Badge variant="muted">{isPublic ? "Openbaar" : "Privé"}</Badge>
                       </div>
@@ -321,13 +324,17 @@ export default async function CertificatenPage() {
                           expiringSoon ? "text-warning" : status === "EXPIRED" ? "text-danger" : ""
                         }
                       >
-                        Vervalt {fmt(c.expiresAt)}
+                        {c.type === "VOG" ? "Opnieuw beoordelen op" : "Vervalt"} {fmt(c.expiresAt)}
                         {days != null && days >= 0
                           ? days === 0
-                            ? " (verloopt vandaag)"
+                            ? c.type === "VOG"
+                              ? " (vandaag beoordelen)"
+                              : " (verloopt vandaag)"
                             : ` (over ${plural(days, "dag", "dagen")})`
                           : days != null
-                            ? " (verlopen)"
+                            ? c.type === "VOG"
+                              ? " (beoordeling nodig)"
+                              : " (verlopen)"
                             : ""}
                       </span>
                     )}
@@ -375,6 +382,9 @@ export default async function CertificatenPage() {
                                 : v.verifier?.name
                                   ? ` door ${v.verifier.name}`
                                   : ""}
+                            {v.reviewMethod
+                              ? ` · ${credentialReviewMethodLabel(v.reviewMethod)}`
+                              : ""}
                             {v.reason ? `: ${v.reason}` : ""}
                           </li>
                         ))}

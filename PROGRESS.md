@@ -1,3 +1,27 @@
+## 13 september 2026 — begeleid ondertekenen en bewijsstukbeoordeling (#1486)
+
+Nieuwe eigenaaropdracht: twee partijen tekenen dezelfde vastgelegde overeenkomst met
+naam, expliciete bevestigingen en extra wachtwoordcontrole. De eerste handtekening
+bevriest tekst/PDF; de tweede activeert de samenwerking. Eigen taken en badges wachten
+daarna op de andere partij. Gewone elektronische handtekening, geen gekwalificeerde claim.
+Bewijsdownload bevat originele tekstgegevens als bijlagen. Admincontrole gebruikt passende
+methoden/checklists en werkelijke bronregistratie; VOG-bewaring blijft beperkt. Bij
+accountverwijdering vraagt gezamenlijk bewijs een expliciete beoordeelde beslissing.
+
+Volledige suite na herstel: 8.901 geslaagde tests en twee bestaande skips. De eerste
+onafhankelijke review vond de oude seed-aanroep; demo-opbouw gebruikt nu beide echte
+ondertekenstappen en bewijst actieve samenwerkingen, uren en betaalde facturen. De eerste
+CI bevestigde documentbeoordeling; de mobiele ondertekentest controleert nu de werkelijke
+loginredirect zonder die te volgen. Typecheck/lint/opmaak en PDF-rendercontrole groen.
+Op `339223f4` slaagt de volledige CI, inclusief vier mobiele licht/donkerproeven.
+De native review vraagt een laadstatus; die is toegevoegd na de toegangscontrole,
+met zestien extra tests en behoud van echte 404-antwoorden. De volgende native review
+vond een risico op achteraf opgebouwd bewijs bij oude actieve/getekende contracten.
+Die blijven nu alleen-lezen zonder nieuw origineel; negentien regressieproeven bewaken
+servertransacties, downloads en de pagina. Nieuwe CI, herbeoordeling, beschermde poorten
+en livecontrole zijn nog in uitvoering.
+Zie [uitvoering](docs/progress/2026-09-12-signing-verification.md).
+
 # PROGRESS.md — Voortgang
 
 > Bijwerken aan het eind van elke sessie: wat is af, welke bestanden, welke tests, volgende stap. **Dit bestand blijft ≤ 400 regels; oudere entries verhuizen maandelijks naar `docs/progress/<jaar-maand>.md`** — archief: [sep](docs/progress/2026-09.md) · [aug](docs/progress/2026-08.md) · [jul](docs/progress/2026-07.md) · [jun](docs/progress/2026-06.md).

@@ -50,6 +50,8 @@ export type DrawerData =
   | {
       kind: "admin-verify-credential";
       credId: string;
+      credentialType: string;
+      updatedAt: string;
       typeLabel: string;
       title: string;
       issuer: string;
@@ -326,6 +328,7 @@ export async function loadDrawerData(
           issuedAt: true,
           expiresAt: true,
           document: { select: { id: true, filename: true, mimeType: true } },
+          updatedAt: true,
           freelancerProfile: { select: { user: { select: { name: true } } } },
         },
       });
@@ -337,6 +340,8 @@ export async function loadDrawerData(
         out[t.id] = {
           kind: "admin-verify-credential",
           credId: c.id,
+          credentialType: c.type,
+          updatedAt: c.updatedAt.toISOString(),
           typeLabel: CREDENTIAL_TYPE_LABEL[c.type as CredentialType] ?? c.type,
           title: c.title,
           issuer: c.issuer ?? "",

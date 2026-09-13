@@ -1,4 +1,5 @@
 import { FileSignature, Download } from "lucide-react";
+import Link from "next/link";
 import { Seal } from "@/components/ui/seal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import {
   type ModelAgreementRecommendation,
 } from "@/lib/model-agreement";
 import { formatDateShortNl } from "@/lib/format-date";
-import { setAgreementTypeAction, signModelAgreementAction } from "./actions";
+import { setAgreementTypeAction } from "./actions";
 
 interface SignRow {
   role: string;
@@ -123,13 +124,11 @@ export function ModelAgreementCard({
               Overeenkomst (pdf)
             </a>
           </Button>
-          {canSign && (
-            <form action={signModelAgreementAction.bind(null, collaborationId)}>
-              <Button type="submit" size="sm">
-                Akkoord geven
-              </Button>
-            </form>
-          )}
+          <Button asChild variant={canSign ? "primary" : "secondary"} size="sm">
+            <Link href={`/samenwerkingen/${collaborationId}/ondertekenen`}>
+              {canSign ? "Lezen en ondertekenen" : "Bekijk ondertekenbewijs"}
+            </Link>
+          </Button>
         </div>
 
         <p className="text-xs text-muted-foreground">{recommendation.note}</p>

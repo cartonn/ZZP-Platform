@@ -1,3 +1,4 @@
+import { collaborationFromSigningLink, signBothParties } from "./signing-helpers";
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 import { acceptAndProposeCollaboration, clickUntil } from "./_robust";
@@ -53,12 +54,18 @@ test("verlopen factuur vraagt aandacht op dashboard en zijbalk", async ({ page, 
   await page.getByRole("button", { name: "Toon details" }).click();
   await acceptAndProposeCollaboration(page, "90");
 
-  // ZZP'er activeert samenwerking en stuurt een factuur met een vervaldatum in het verleden.
+  // Beide partijen tekenen; de ZZP'er stuurt daarna een factuur met een vervaldatum in het verleden.
   await fp.goto("/samenwerkingen");
-  await fp
-    .locator("div.bg-card", { hasText: title })
-    .getByRole("button", { name: "Contract ondertekenen" })
-    .click();
+  const collaborationUrl = await collaborationFromSigningLink(
+    fp
+      .locator("div.bg-card", { hasText: title })
+      .getByRole("link", { name: "Contract ondertekenen" }),
+  );
+  await signBothParties(page, fp, collaborationUrl, {
+    clientName: "Overdue Opdrachtgever",
+    freelancerName: "Overdue Freelancer",
+  });
+  await fp.goto("/samenwerkingen");
   await expect(fp.locator("div.bg-card", { hasText: title }).getByText("Actief")).toBeVisible();
 
   await fp.goto("/facturen/nieuw");

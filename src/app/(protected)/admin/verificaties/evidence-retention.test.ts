@@ -81,8 +81,21 @@ function credential(type: string, documentId: string | null = "doc-1") {
     title: "VOG 2026",
     status: "SUBMITTED",
     documentId,
+    document: documentId ? { mimeType: "application/pdf", ownerId: "zzp-1" } : null,
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    issuedAt: null,
+    expiresAt: null,
     freelancerProfile: { userId: "zzp-1" },
   };
+}
+
+function reviewForm(method = "DIGITAL_VOG") {
+  const fd = new FormData();
+  fd.set("updatedAt", "2026-01-01T00:00:00.000Z");
+  fd.set("documentId", "doc-1");
+  fd.set("reviewMethod", method);
+  for (const name of ["original", "person", "authenticity", "scope"]) fd.set(name, "on");
+  return fd;
 }
 
 /** De `data` van de statuswijziging (eerste updateMany in de beslissingstransactie). */
@@ -119,7 +132,7 @@ describe("verifyCredential — VOG (metadata-beleid)", () => {
   it("(a) verwijdert het bestand, wist het Document-record en legt gezien/verwijderd vast", async () => {
     credentialFindUnique.mockResolvedValue(credential("VOG"));
 
-    await verifyCredential("cred-1");
+    await verifyCredential("cred-1", reviewForm());
 
     // Inzage-registratie zit atomair in de statuswijziging.
     const decision = decisionData();
@@ -141,7 +154,7 @@ describe("verifyCredential — VOG (metadata-beleid)", () => {
 
   it("(e) doet hetzelfde bij afwijzen — een afgewezen kopie heeft al helemaal geen grondslag", async () => {
     credentialFindUnique.mockResolvedValue(credential("VOG"));
-    const fd = new FormData();
+    const fd = reviewForm();
     fd.set("reason", "Document onleesbaar.");
 
     await rejectCredential("cred-1", fd);
@@ -156,7 +169,7 @@ describe("verifyCredential — VOG (metadata-beleid)", () => {
     credentialFindUnique.mockResolvedValue(credential("VOG"));
     storageDelete.mockRejectedValue(new Error("S3 onbereikbaar"));
 
-    await expect(verifyCredential("cred-1")).resolves.toBeUndefined();
+    await expect(verifyCredential("cred-1", reviewForm())).resolves.toBeUndefined();
 
     // Status + inzage-registratie zijn geland...
     expect(decisionData().status).toBe("VERIFIED");
@@ -177,7 +190,7 @@ describe("verifyCredential — VOG (metadata-beleid)", () => {
     process.env.CREDENTIAL_EVIDENCE_RETENTION_VOG = "file";
     credentialFindUnique.mockResolvedValue(credential("VOG"));
 
-    await verifyCredential("cred-1");
+    await verifyCredential("cred-1", reviewForm());
 
     expect(decisionData().evidenceSeenAt).toBeUndefined();
     expect(storageDelete).not.toHaveBeenCalled();
@@ -189,7 +202,7 @@ describe("verifyCredential — overige types", () => {
   it("(b) laat het bewijsstuk van een diploma ongemoeid", async () => {
     credentialFindUnique.mockResolvedValue(credential("DIPLOMA"));
 
-    await verifyCredential("cred-1");
+    await verifyCredential("cred-1", reviewForm("DUO_EXTRACT"));
 
     expect(decisionData().status).toBe("VERIFIED");
     expect(decisionData().evidenceSeenAt).toBeUndefined();
@@ -203,9 +216,8 @@ describe("verifyCredential — VOG zonder bestand", () => {
   it("doet geen opslag-aanroep als er niets te verwijderen valt", async () => {
     credentialFindUnique.mockResolvedValue(credential("VOG", null));
 
-    await verifyCredential("cred-1");
-
-    expect(decisionData().evidenceSeenAt).toBeInstanceOf(Date);
+    await expect(verifyCredential("cred-1", reviewForm())).rejects.toThrow(/gewijzigd|bewijsstuk/);
+    expect(credentialUpdateMany).not.toHaveBeenCalled();
     expect(storageDelete).not.toHaveBeenCalled();
   });
 });

@@ -109,7 +109,7 @@ vi.mock("@/lib/cascade/apply", () => ({
   applyCascadeEffects: vi.fn().mockResolvedValue({}),
 }));
 
-describe("signContract — DB-niveau idempotentie via dedupeKey", () => {
+describe("persistEventAndEffects — DB-niveau idempotentie via dedupeKey", () => {
   beforeEach(() => {
     domainEventStore.clear();
     mockTransaction.mockReset();
@@ -138,7 +138,32 @@ describe("signContract — DB-niveau idempotentie via dedupeKey", () => {
   });
 
   it("eerste aanroep voert de transactie uit", async () => {
-    const { signContract } = await import("@/lib/cascade/commands");
+    const { persistEventAndEffects } = await import("@/lib/cascade/commands-shared");
+    const signContract = async (actor: { id: string; role: "CLIENT" }, collaborationId: string) =>
+      persistEventAndEffects(
+        {
+          type: "CONTRACT_SIGNED",
+          actorRole: actor.role,
+          actorId: actor.id,
+          subjectType: "Collaboration",
+          subjectId: collaborationId,
+          correlationId: collaborationId,
+          dedupeKey: `contract-signed-${collaborationId}`,
+        },
+        planContractSigned({
+          collaborationId,
+          status: "PROPOSED",
+          freelancerUserId: "f1",
+          clientUserId: "c1",
+          jobTitle: "Test opdracht",
+          actorId: actor.id,
+        }),
+        {
+          owners: { FREELANCER: "f1", CLIENT: "c1" },
+          correlationId: collaborationId,
+          disputeGuardCollaborationId: collaborationId,
+        },
+      );
     const actor = { id: "c1", role: "CLIENT" as const, name: "Client", status: "ACTIVE" };
     await signContract(actor, "col-abc");
     expect(mockTransaction).toHaveBeenCalledTimes(1);
@@ -151,7 +176,32 @@ describe("signContract — DB-niveau idempotentie via dedupeKey", () => {
       dedupeKey: "contract-signed-col-abc",
     });
 
-    const { signContract } = await import("@/lib/cascade/commands");
+    const { persistEventAndEffects } = await import("@/lib/cascade/commands-shared");
+    const signContract = async (actor: { id: string; role: "CLIENT" }, collaborationId: string) =>
+      persistEventAndEffects(
+        {
+          type: "CONTRACT_SIGNED",
+          actorRole: actor.role,
+          actorId: actor.id,
+          subjectType: "Collaboration",
+          subjectId: collaborationId,
+          correlationId: collaborationId,
+          dedupeKey: `contract-signed-${collaborationId}`,
+        },
+        planContractSigned({
+          collaborationId,
+          status: "PROPOSED",
+          freelancerUserId: "f1",
+          clientUserId: "c1",
+          jobTitle: "Test opdracht",
+          actorId: actor.id,
+        }),
+        {
+          owners: { FREELANCER: "f1", CLIENT: "c1" },
+          correlationId: collaborationId,
+          disputeGuardCollaborationId: collaborationId,
+        },
+      );
     const actor = { id: "c1", role: "CLIENT" as const, name: "Client", status: "ACTIVE" };
     await signContract(actor, "col-abc");
     expect(mockTransaction).not.toHaveBeenCalled();
@@ -167,10 +217,37 @@ describe("signContract — DB-niveau idempotentie via dedupeKey", () => {
         meta: { target: ["dedupeKey"] },
       }),
     );
-    const { signContract } = await import("@/lib/cascade/commands");
+    const { persistEventAndEffects } = await import("@/lib/cascade/commands-shared");
+    const signContract = async (actor: { id: string; role: "CLIENT" }, collaborationId: string) =>
+      persistEventAndEffects(
+        {
+          type: "CONTRACT_SIGNED",
+          actorRole: actor.role,
+          actorId: actor.id,
+          subjectType: "Collaboration",
+          subjectId: collaborationId,
+          correlationId: collaborationId,
+          dedupeKey: `contract-signed-${collaborationId}`,
+        },
+        planContractSigned({
+          collaborationId,
+          status: "PROPOSED",
+          freelancerUserId: "f1",
+          clientUserId: "c1",
+          jobTitle: "Test opdracht",
+          actorId: actor.id,
+        }),
+        {
+          owners: { FREELANCER: "f1", CLIENT: "c1" },
+          correlationId: collaborationId,
+          disputeGuardCollaborationId: collaborationId,
+        },
+      );
     const actor = { id: "c1", role: "CLIENT" as const, name: "Client", status: "ACTIVE" };
     // Resolvet (void) i.p.v. de P2002 te laten doorlekken — dat is de idempotente afhandeling.
-    await expect(signContract(actor, "col-abc")).resolves.toBeUndefined();
+    await expect(signContract(actor, "col-abc")).resolves.toEqual({});
+    expect(mockTransaction).toHaveBeenCalledTimes(1);
+    expect(domainEventStore.size).toBe(0);
   });
 });
 

@@ -1,8 +1,8 @@
-// Server-side modelovereenkomst-PDF (pdf-lib, geen headless browser). On-demand gegenereerd uit de
-// actuele samenwerkings-/opdrachtdata + het akkoord per partij, zodat de PDF altijd actueel is.
+// Server-side modelovereenkomst-PDF (pdf-lib, geen headless browser). De ondertekenflow
+// bewaart het oorspronkelijke bestand onveranderlijk; oudere concepten worden on-demand gemaakt.
 // De route /api/samenwerkingen/[id]/modelovereenkomst doet auth/ownership + serveert dit inline.
 import "server-only";
-import { PDFDocument, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import {
   A4,
   PDF_MARGIN,
@@ -28,6 +28,8 @@ export interface ModelAgreementPdfData {
   reference: string;
   signatories: ModelAgreementSignatory[];
   generatedAtLabel: string;
+  /** Vaste metadata voor een reproduceerbaar origineel in de ondertekenflow. */
+  stableDate?: Date;
 }
 
 const CONTENT_WIDTH = PDF_RIGHT - PDF_MARGIN;
@@ -36,7 +38,22 @@ const TOP = A4[1] - PDF_MARGIN;
 
 /** Breekt tekst af op woordgrenzen zodat een alinea binnen de tekstbreedte past. */
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
-  const words = winAnsiSafe(text).split(/\s+/).filter(Boolean);
+  const words = winAnsiSafe(text)
+    .split(/\s+/)
+    .filter(Boolean)
+    .flatMap((word) => {
+      const parts: string[] = [];
+      let part = "";
+      for (const char of word) {
+        if (part && font.widthOfTextAtSize(part + char, size) > maxWidth) {
+          parts.push(part);
+          part = "";
+        }
+        part += char;
+      }
+      if (part) parts.push(part);
+      return parts;
+    });
   const lines: string[] = [];
   let line = "";
   for (const w of words) {
@@ -54,6 +71,10 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): 
 
 export async function buildModelAgreementPdf(data: ModelAgreementPdfData): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
+  if (data.stableDate) {
+    pdf.setCreationDate(data.stableDate);
+    pdf.setModificationDate(data.stableDate);
+  }
   pdf.setTitle(`${data.content.title} — ${data.content.typeLabel}`);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -81,16 +102,25 @@ export async function buildModelAgreementPdf(data: ModelAgreementPdfData): Promi
   };
 
   // Kop
-  writer.draw(data.content.title, PDF_MARGIN, y, { size: 18, f: bold });
-  y -= 20;
+  const brand = rgb(0, 0.44, 0.58);
+  const orange = rgb(0.83, 0.46, 0.34);
+  page.drawSvgPath("M0 0h7a10 10 0 0 1 10 10v4 M27 22h-7a10 10 0 0 1 -10 -10v-4", {
+    x: PDF_MARGIN,
+    y: y + 4,
+    scale: 0.85,
+    borderColor: orange,
+    borderWidth: 2.6,
+  });
+  writer.draw("handslag.", PDF_MARGIN + 32, y - 10, { size: 19, f: bold, color: brand });
+  y -= 48;
+  paragraph(data.content.title, 18, bold, brand, 23);
   writer.draw(`Overeenkomstvorm: ${data.content.typeLabel}`, PDF_MARGIN, y, {
     size: 10,
     color: PDF_MUTED,
   });
   y -= 13;
   if (data.reference) {
-    writer.draw(data.reference, PDF_MARGIN, y, { size: 9, color: PDF_MUTED });
-    y -= 13;
+    paragraph(data.reference, 9, font, PDF_MUTED, 13);
   }
   y -= 6;
   writer.hr(y);
@@ -102,7 +132,13 @@ export async function buildModelAgreementPdf(data: ModelAgreementPdfData): Promi
 
   // Artikelen
   for (const article of data.content.articles) {
-    ensure(28);
+    const articleHeight =
+      22 +
+      article.body.reduce(
+        (sum, text) => sum + wrapText(text, font, 10, CONTENT_WIDTH).length * 14 + 4,
+        0,
+      );
+    ensure(Math.min(articleHeight, 140));
     writer.draw(article.heading, PDF_MARGIN, y, { size: 11, f: bold });
     y -= 16;
     for (const para of article.body) {
@@ -113,17 +149,18 @@ export async function buildModelAgreementPdf(data: ModelAgreementPdfData): Promi
   }
 
   // Ondertekening — bij elkaar houden
-  ensure(40 + data.signatories.length * 34);
-  y -= 6;
-  writer.hr(y);
-  y -= 18;
-  writer.draw("Ondertekening", PDF_MARGIN, y, { size: 11, f: bold });
-  y -= 18;
+  if (data.signatories.length) {
+    ensure(40 + data.signatories.length * 34);
+    y -= 6;
+    writer.hr(y);
+    y -= 18;
+    writer.draw("Ondertekening", PDF_MARGIN, y, { size: 11, f: bold });
+    y -= 18;
+  }
   for (const s of data.signatories) {
-    writer.draw(`${s.role}: ${s.name}`, PDF_MARGIN, y, { size: 10, f: bold });
-    y -= 13;
-    writer.draw(s.status, PDF_MARGIN, y, { size: 9, color: PDF_MUTED });
-    y -= 21;
+    paragraph(`${s.role}: ${s.name}`, 10, bold, PDF_INK, 13);
+    paragraph(s.status, 9, font, PDF_MUTED, 13);
+    y -= 8;
   }
 
   // Disclaimer + opmaakdatum onderaan
@@ -131,10 +168,21 @@ export async function buildModelAgreementPdf(data: ModelAgreementPdfData): Promi
   y -= 4;
   paragraph(data.content.note, 8, font, PDF_MUTED, 11);
   y -= 4;
-  writer.draw(`Gegenereerd op ${data.generatedAtLabel}.`, PDF_MARGIN, y, {
-    size: 8,
-    color: PDF_MUTED,
-  });
+  if (data.generatedAtLabel)
+    writer.draw(`Gegenereerd op ${data.generatedAtLabel}.`, PDF_MARGIN, y, {
+      size: 8,
+      color: PDF_MUTED,
+    });
 
+  const pages = pdf.getPages();
+  for (const [index, current] of pages.entries()) {
+    const footer = makeWriter(current, font);
+    footer.hr(PDF_MARGIN - 10);
+    footer.draw(data.content.title, PDF_MARGIN, PDF_MARGIN - 24, { size: 7, color: PDF_MUTED });
+    footer.drawRight(`${index + 1} / ${pages.length}`, PDF_RIGHT, PDF_MARGIN - 24, {
+      size: 8,
+      color: PDF_MUTED,
+    });
+  }
   return pdf.save();
 }
