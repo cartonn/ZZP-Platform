@@ -22,6 +22,7 @@ const dbState = vi.hoisted(() => ({
     status: string;
     requestedByUserId: string;
     collaborationId: string;
+    collaboration?: { status: string; disputedAt: Date | null };
   } | null,
 }));
 
@@ -43,7 +44,12 @@ const db = vi.hoisted(() => ({
   tx: vi.fn(async (arg: unknown) =>
     typeof arg === "function"
       ? (arg as (t: unknown) => unknown)({
-          shiftHandoff: { findFirst: db.handoffFindFirst, create: db.handoffCreate },
+          shiftHandoff: {
+            findFirst: db.handoffFindFirst,
+            create: db.handoffCreate,
+            updateMany: db.handoffUpdateMany,
+          },
+          auditLog: { create: db.auditCreate },
         })
       : [],
   ),
@@ -157,6 +163,7 @@ describe("cancelShiftHandoff — existence-oracle (CWE-203)", () => {
       status: "OPEN",
       requestedByUserId: "zzp-1",
       collaborationId: "c-1",
+      collaboration: { status: "ACTIVE", disputedAt: null },
     };
     const res = await cancelShiftHandoff("h-own", undefined);
     expect(res).toEqual({ ok: true });

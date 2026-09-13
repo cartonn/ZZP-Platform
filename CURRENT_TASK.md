@@ -1,7 +1,12 @@
 # CURRENT_TASK.md — Huidige taak
 
-Nieuw eigenaarverzoek 12 september: begeleid elektronisch ondertekenen en een
-zorgvuldige, mooie bewijsstukbeoordeling. Zie [uitvoering](docs/progress/2026-09-12-signing-verification.md).
+Huidige routine 13 september: bestaande security-PR #1484 afronden, met actuele
+samenwerkingsbewaking en atomair auditspoor bij intrekken van een overname-aanvraag.
+Zie [uitvoering](docs/progress/2026-09-12-handoff-cancel.md).
+
+Het eigenaarverzoek voor elektronisch ondertekenen en bewijsstukbeoordeling is met
+#1486 gemerged en live geverifieerd op `3b2fde8` (13 september 13:42 UTC).
+Zie [ondertekenen](docs/progress/2026-09-12-signing-verification.md).
 De onderstaande interactieopdracht is met #1485 live op `7fd8b1f` (17:27 UTC).
 
 Huidige eigenaaropdracht 12 september: consequente hover- en aanraakfeedback voor
