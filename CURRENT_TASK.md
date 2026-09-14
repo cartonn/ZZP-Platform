@@ -1,12 +1,11 @@
 # CURRENT_TASK.md — Huidige taak
 
-Routine 14 september 00:22 UTC: claim voor status-/versiebewaking bij het opslaan van
-certificaatgegevens zonder nieuw bestand. Een gelijktijdige beoordeling mag niet
-worden overschreven met ongecontroleerde feiten. Implementatie en bewijs volgen in
-[uitvoering](docs/progress/2026-09-14-credential-metadata-race.md).
+Routine 14 september 00:22 UTC: #1488 bewaakt certificaatgegevens zonder nieuw bestand
+tegen een gelijktijdige beoordeling of wijziging. Vier regressies rood → groen; volledige
+controles en review volgen. Zie [uitvoering](docs/progress/2026-09-14-credential-metadata-race.md).
 
-Huidige routine 13 september 16:22 UTC: blijvende beheertaak voor uitblijvende
-prestatiebeoordeling (#1487). Zie [uitvoering](docs/progress/2026-09-13-performance-escalation.md).
+Routine 13 september 16:22 UTC: #1487 is gemerged en live geverifieerd op `14be83b6`
+om 20:14 UTC. Zie [uitvoering](docs/progress/2026-09-13-performance-escalation.md).
 Security-PR #1484 is gemerged en live geverifieerd op `888734fc` om 15:26 UTC.
 
 Het eigenaarverzoek voor elektronisch ondertekenen en bewijsstukbeoordeling is met
@@ -238,7 +237,7 @@ uren`/`ORT-uren`) in beide export-suites. Geld ongemoeid.
    **(b) GEDAAN (10-9, PR #1473):** `invoice-approval-reminders(.ts/-task.ts)` gebouwd naar het model van
    `performance-approval-reminders` — dag-3/7-herinnering naar de opdrachtgever (`counterpartyUserId`) op
    een SUBMITTED cascade-factuur + admin-escalatie ná de laatste dag; anker `Invoice.issuedAt`, idempotent
-   op `DomainEvent.dedupeKey`, geregistreerd in `run-all`. **(a) Gebouwd in #1487, review/release volgen:** blijvende admin-next-action met
+   op `DomainEvent.dedupeKey`, geregistreerd in `run-all`. **(a) GEDAAN in #1487, gemerged en live geverifieerd:** blijvende admin-next-action met
    gedeelde serverquery voor lijst en badge, oudste 50 eerst en automatische statusbewaking.
 
 ### Wacht op een eigenaarsbesluit (niet zelf oppakken)
