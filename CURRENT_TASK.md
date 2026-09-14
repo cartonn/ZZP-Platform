@@ -1,5 +1,10 @@
 # CURRENT_TASK.md — Huidige taak
 
+Routine 14 september 00:22 UTC: claim voor status-/versiebewaking bij het opslaan van
+certificaatgegevens zonder nieuw bestand. Een gelijktijdige beoordeling mag niet
+worden overschreven met ongecontroleerde feiten. Implementatie en bewijs volgen in
+[uitvoering](docs/progress/2026-09-14-credential-metadata-race.md).
+
 Huidige routine 13 september 16:22 UTC: blijvende beheertaak voor uitblijvende
 prestatiebeoordeling (#1487). Zie [uitvoering](docs/progress/2026-09-13-performance-escalation.md).
 Security-PR #1484 is gemerged en live geverifieerd op `888734fc` om 15:26 UTC.
