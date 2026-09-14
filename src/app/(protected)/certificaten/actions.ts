@@ -250,7 +250,18 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
             await tx.verificationRequest.create({ data: { credentialId } });
           });
         } else {
-          await prisma.credential.update({ where: { id: credentialId }, data: fields });
+          // The decision to keep the current review applies only to this exact snapshot.
+          // A completed review or a newer edit must not inherit these unreviewed facts.
+          const res = await prisma.credential.updateMany({
+            where: {
+              id: credentialId,
+              freelancerProfileId: profile.id,
+              status,
+              updatedAt: credential.updatedAt,
+            },
+            data: fields,
+          });
+          if (res.count === 0) throw new StaleCredentialError();
         }
       }
       await audit({

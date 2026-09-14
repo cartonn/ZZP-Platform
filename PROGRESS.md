@@ -1,3 +1,10 @@
+## 14 september 2026 — certificaatgegevens behouden na gelijktijdige beoordeling (#1488)
+
+Een save zonder nieuw bestand mag geen nieuwere beoordeling/gegevens overschrijven.
+De fallback controleert actuele status, versie en eigenaar; verouderde saves geven een fout.
+Vier regressies rood → groen; achttien certificaattests groen. Volledige controles en review
+volgen; zie [uitvoering](docs/progress/2026-09-14-credential-metadata-race.md).
+
 ## 13 september 2026 — blijvende opvolging van prestatiebeoordeling (#1487)
 
 Een lang wachtende SUBMITTED-prestatie verschijnt als beheertaak, ook zonder notificatie.
