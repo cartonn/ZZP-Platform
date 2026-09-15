@@ -14,3 +14,13 @@ het wisselen naar de ontvanger. Behoud controles op berichtinhoud, ongelezen-bad
 antwoorden en de volledige samenwerking. Geen extra retries, skips, herlaadlus of
 langere timeout. Geen wijziging van productiegedrag of echte berichten versturen.
 De precieze oorzaak van een productieprobleem is hiermee niet aangetoond.
+
+## Uitvoering
+
+Beide eerste berichten in hun eigen verse browsersessie wachten nu op de bestaande
+`role="status"` met `Bericht verzonden.` binnen het verzendformulier. Die verschijnt
+alleen nadat `sendMessage` zijn transactie en signaalinvalidatie heeft afgerond.
+De berichtinhoud, ongelezenbadge en ondertekenketen blijven afzonderlijk getest;
+geen bestaande assertie is verwijderd of versoepeld. Lokale lint, typecheck, build en
+volledige opmaakcontrole slagen; 8.960 tests groen en twee bestaande skips. Een nieuwe
+onafhankelijke beoordeling en echte PR-CI volgen op de definitieve commit.

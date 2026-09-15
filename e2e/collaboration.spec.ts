@@ -65,6 +65,10 @@ test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notific
     .locator('textarea[name="body"]')
     .fill("Hoi, ik heb interesse in je reactie. Wanneer kun je starten?");
   await page.getByRole("button", { name: "Versturen" }).click();
+  await expect(page.locator('form:has(textarea[name="body"])').getByRole("status")).toHaveText(
+    "Bericht verzonden.",
+    { timeout: 15000 },
+  );
   await expect(page.getByText("Hoi, ik heb interesse")).toBeVisible({ timeout: 15000 });
   await shot(page, "22-berichten");
 
@@ -77,6 +81,10 @@ test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notific
   await expect(fp.getByText("Hoi, ik heb interesse")).toBeVisible({ timeout: 15000 });
   await fp.locator('textarea[name="body"]').fill("Hoi! Ik kan per direct starten.");
   await fp.getByRole("button", { name: "Versturen" }).click();
+  await expect(fp.locator('form:has(textarea[name="body"])').getByRole("status")).toHaveText(
+    "Bericht verzonden.",
+    { timeout: 15000 },
+  );
   await expect(fp.getByText("Ik kan per direct starten")).toBeVisible({ timeout: 15000 });
 
   // Opdrachtgever accepteert de reactie en stelt een samenwerking voor.
