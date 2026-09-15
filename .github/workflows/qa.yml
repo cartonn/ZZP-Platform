@@ -43,6 +43,8 @@ jobs:
       # élke user-flow-test bleef hangen op de login (waitForURL naar /dashboard). De suite logt in
       # als de demo-accounts (zzp@/opdrachtgever@/admin@), dus die moeten bestaan.
       SEED_DEMO: "true"
+      # Seed data alone does not enable demo-only purchase behavior.
+      DEPLOYMENT_STAGE: "demo"
       # Eén IP + gedeelde seed-accounts voor de héle suite; verhoog de strenge
       # productie-rate-limits zodat login/registratie niet onterecht wordt geblokkeerd.
       LOGIN_RATE_LIMIT: "100000"
