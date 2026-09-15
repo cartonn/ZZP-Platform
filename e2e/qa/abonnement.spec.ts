@@ -25,7 +25,7 @@ test.describe("QA: Abonnementstiers", () => {
     await expect(page.getByText("Volledig Ontzorgd", { exact: true })).toBeVisible();
     await expect(page.getByText("Aanbevolen", { exact: true })).toBeVisible();
     // Geen percentage-over-omzet (Besluit 1): expliciet benoemd.
-    await expect(page.getByText(/geen percentage van je omzet/i)).toBeVisible();
+    await expect(page.getByText(/geen percentage over je omzet/i)).toBeVisible();
     await shot(page, "abonnement-freelancer");
   });
 

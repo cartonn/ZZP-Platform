@@ -1,7 +1,7 @@
 ## 15 september 2026 — demo-QA na abonnementsbeveiliging (#1496)
 
-#1495 is gemerged; aanvullende QA miste de expliciete demo-instelling en verwachtte oude tekst.
-Configuratie en verwachtingen hersteld, zonder versoepeling van productieregels of testskips.
+#1495 is gemerged; aanvullende QA miste de expliciete demo-instelling voor betaalde demo-keuzes.
+Configuratie hersteld en demo-uitleg expliciet getest; productieregels en bestaande tekst behouden.
 Volledige QA op herstelbranch en onafhankelijke review volgen. [Bewijs](docs/progress/2026-09-15-launch-qa-demo.md).
 
 ## 15 september 2026 — efficiënte voorbereiding mailretentieproef (#1494)
