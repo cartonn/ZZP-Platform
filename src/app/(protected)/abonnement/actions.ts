@@ -8,11 +8,12 @@ import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { planKeySchema } from "@/lib/enums";
 import { getPaymentProvider } from "@/lib/billing/provider";
+import { subscriptionPurchaseAvailability } from "@/lib/billing/purchase-availability";
 
 /**
  * Plan wijzigen via de betaal-seam. Gratis plannen worden direct geactiveerd. Voor betaalde
- * plannen start de provider een checkout: met de mock-provider (default) is dat instant
- * (geen externe stap); met een echte provider (Mollie) gaat de gebruiker naar de betaalpagina
+ * plannen start de provider een checkout. Alleen een expliciete demo activeert zonder
+ * betaling; met een echte provider gaat de gebruiker naar de betaalpagina
  * en wordt het abonnement pas ACTIVE na de webhook-bevestiging. Geen geld uit het werkproces
  * via het platform (Besluit 1) — dit is de abonnementsfee.
  */
@@ -28,10 +29,12 @@ export async function changeSubscription(planKey: string): Promise<void> {
     select: { id: true, name: true, priceCents: true },
   });
   if (!plan) throw new Error("Plan niet gevonden.");
+  const availability = subscriptionPurchaseAvailability({ key, priceCents: plan.priceCents });
+  if (availability.kind === "unavailable") throw new Error(availability.reason);
 
   let redirectUrl: string | null = null;
 
-  if (plan.priceCents === 0) {
+  if (availability.kind === "free" || availability.kind === "demo") {
     await activate(actor.id, plan.id, key);
   } else {
     // Vertrouwde publieke origin (AUTH_URL), nooit uit de request-headers — anders kan een
@@ -47,9 +50,8 @@ export async function changeSubscription(planKey: string): Promise<void> {
       webhookUrl: `${origin}/api/billing/webhook`,
     });
 
-    if (checkout.redirectUrl === null) {
-      // Mock-provider: direct geactiveerd.
-      await activate(actor.id, plan.id, key);
+    if (!checkout.redirectUrl || !checkout.providerRef) {
+      throw new Error("Betaalpagina niet beschikbaar. Je abonnement is niet gewijzigd.");
     } else {
       // Echte provider: PENDING tot de webhook 'paid' bevestigt.
       await prisma.subscription.upsert({

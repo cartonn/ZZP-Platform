@@ -124,6 +124,8 @@ test("factuur opstellen, versturen en als betaald markeren", async ({ page, brow
 test("abonnement upgraden naar Zelf-doen", async ({ page }) => {
   await registerFreelancer(page, `abo-${uniq()}@test.local`);
   await page.goto("/abonnement");
+  await expect(page.getByText("Je bekijkt de demo", { exact: true })).toBeVisible();
+  await expect(page.getByText(/je sluit geen betaald abonnement af/)).toBeVisible();
   await expect(
     page.locator("div.bg-card", { hasText: "Gratis" }).getByText("Huidig", { exact: true }),
   ).toBeVisible();

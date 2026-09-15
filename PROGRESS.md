@@ -5,6 +5,15 @@ in bulk voorbereid; foutinjectie, 500/1-batchgrens en tijdslimiet blijven behoud
 Claim vóór implementatie; controles en onafhankelijke review volgen.
 Zie [bron en scope](docs/progress/2026-09-15-retention-fixture-bulk-setup.md).
 
+## 2026-09-15 — zelfstandigen eerst: eerlijke abonnementsbeschikbaarheid
+
+Eigenaar vraagt snelle marktintroductie en vergelijking met Bendy. De server weigert
+betaalde activatie zonder provider en onvolledige checkout; de demo doet nooit een
+betaalcall. Niet-operationele dienstverlening wordt buiten de demo niet verkocht.
+Demo-uitleg bij registratie en abonnement; gedeelde serverpolicy voor knop en actie.
+Drie regressies vooraf rood; gerichte controle groen. Review en release volgen.
+Zie [uitvoering](docs/progress/2026-09-15-zzp-launch.md). #1494 is live op `94dad586`.
+
 ## 15 september 2026 — wachten na eigen handtekening (#1493)
 
 Detailaanwijzingen gebruiken nu de opgeslagen eigen handtekening; de andere partij houdt de tekenactie.

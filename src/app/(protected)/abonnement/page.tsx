@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import { changeSubscription } from "./actions";
+import { subscriptionPurchaseAvailability } from "@/lib/billing/purchase-availability";
 
 export const metadata: Metadata = { title: "Abonnement · Handslag" };
 
@@ -27,17 +28,24 @@ export default async function AbonnementPage() {
   plans.sort((a, b) => (ORDER[a.key] ?? 99) - (ORDER[b.key] ?? 99));
 
   const currentKey = subscription?.status === "ACTIVE" ? subscription.plan.key : "FREE";
+  const demo = process.env.DEPLOYMENT_STAGE === "demo";
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Abonnement"
-        description={
-          role === "CLIENT"
-            ? "Van zelf inhuren tot de volledige inhuuradministratie uitbesteden."
-            : "Van zelf je administratie doen tot volledig ontzorgd worden — jij werkt, wij rekenen voor."
-        }
+        description="Bekijk wat je kunt gebruiken en welke pakketten beschikbaar zijn."
       />
+
+      {demo && (
+        <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm">
+          <p className="font-semibold">Je bekijkt de demo</p>
+          <p className="mt-1 text-muted-foreground">
+            De bedragen en dienstverlening zijn voorbeelden. Je kunt pakketten uitproberen zonder
+            betaling; je sluit geen betaald abonnement af. Gebruik uitsluitend fictieve gegevens.
+          </p>
+        </div>
+      )}
 
       <div className="grid items-start gap-4 sm:grid-cols-3">
         {plans.map((plan) => {
@@ -46,6 +54,8 @@ export default async function AbonnementPage() {
           if (!tier) return null;
           const isCurrent = plan.key === currentKey;
           const isFull = key === "BUSINESS";
+          const availability = subscriptionPurchaseAvailability(plan);
+          const unavailable = availability.kind === "unavailable";
 
           return (
             <Card
@@ -56,7 +66,7 @@ export default async function AbonnementPage() {
                 isFull && "border-primary/60",
               )}
             >
-              {tier.highlighted && (
+              {tier.highlighted && !unavailable && (
                 <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-medium text-primary-foreground">
                   Aanbevolen
                 </span>
@@ -70,12 +80,19 @@ export default async function AbonnementPage() {
                   {isCurrent && <Badge variant="success">Huidig</Badge>}
                 </div>
                 <p className="text-2xl font-semibold tabular-nums">
-                  {plan.priceCents === 0 ? "Gratis" : formatEuro(plan.priceCents)}
-                  {plan.priceCents > 0 && (
+                  {unavailable
+                    ? "Nog niet beschikbaar"
+                    : plan.priceCents === 0
+                      ? "Gratis"
+                      : formatEuro(plan.priceCents)}
+                  {!unavailable && plan.priceCents > 0 && (
                     <span className="text-sm font-normal text-muted-foreground">/mnd</span>
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground">{tier.tagline}</p>
+                {unavailable && (
+                  <p className="text-sm text-muted-foreground">{availability.reason}</p>
+                )}
                 <ul className="space-y-1.5 text-sm text-muted-foreground">
                   {tier.features.map((f) => (
                     <li key={f} className="flex items-start gap-2">
@@ -85,7 +102,11 @@ export default async function AbonnementPage() {
                   ))}
                 </ul>
                 <div className="mt-auto pt-2">
-                  {isCurrent ? (
+                  {unavailable ? (
+                    <Button variant="secondary" size="sm" className="w-full" disabled>
+                      Nog niet beschikbaar
+                    </Button>
+                  ) : isCurrent ? (
                     <Button variant="secondary" size="sm" className="w-full" disabled>
                       Huidig plan
                     </Button>
@@ -115,9 +136,9 @@ export default async function AbonnementPage() {
           }
         </p>
         <p>
-          De voorbereiding en indiening van aangiftes in Volledig Ontzorgd is dienstverlening; je
-          blijft zelf eindverantwoordelijk. Een plan wijzigen gaat direct in; je ziet de wijziging
-          meteen terug in je abonnement.
+          Een gratis pakket kun je direct gebruiken. Buiten de demo wordt een betaald pakket pas
+          actief na bevestiging van de betaling. Aanvullende dienstverlening is pas beschikbaar
+          wanneer dit uitdrukkelijk wordt aangeboden en afgesproken.
         </p>
       </div>
     </div>
