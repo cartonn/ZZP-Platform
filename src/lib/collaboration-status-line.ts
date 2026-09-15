@@ -17,6 +17,8 @@ export interface CollaborationStatusLine {
 function phraseForStage(id: string, viewer: "FREELANCER" | "CLIENT", youAreUp: boolean): string {
   const isFreelancer = viewer === "FREELANCER";
   switch (id) {
+    case "contract-wait":
+      return "wacht op de handtekening van de andere partij";
     case "contract-sign":
       return "onderteken het contract om te starten";
     case "performance-submit":
@@ -52,7 +54,9 @@ function phraseForStage(id: string, viewer: "FREELANCER" | "CLIENT", youAreUp: b
  * - Niet aan zet → "Je hoeft nu niets te doen — <fase>."
  * Terminale fasen (afgerond/geannuleerd/dispuut) geven een rustige, feitelijke zin.
  */
-export function collaborationStatusLine(input: CascadeStageInput): CollaborationStatusLine {
+export function collaborationStatusLine(
+  input: CascadeStageInput & { placementBlocked?: boolean },
+): CollaborationStatusLine {
   if (input.collaborationStatus === "COMPLETED")
     return { text: "Deze samenwerking is afgerond.", youAreUp: false };
   if (input.collaborationStatus === "CANCELLED")
@@ -62,6 +66,18 @@ export function collaborationStatusLine(input: CascadeStageInput): Collaboration
       text: "Er loopt een dispuut — het werkproces is bevroren tot dat is opgelost.",
       youAreUp: false,
     };
+
+  // A required credential can expire between signatures; completing it takes priority.
+  if (input.collaborationStatus === "PROPOSED" && input.placementBlocked)
+    return input.viewer === "FREELANCER"
+      ? {
+          text: "Actie nodig: vul het ontbrekende of verlopen certificaat aan.",
+          youAreUp: true,
+        }
+      : {
+          text: "Je hoeft nu niets te doen — wacht tot de ZZP'er het ontbrekende of verlopen certificaat aanvult.",
+          youAreUp: false,
+        };
 
   const stage = cascadeStage(input);
   const phrase = phraseForStage(stage.id, input.viewer, stage.youAreUp);

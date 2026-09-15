@@ -20,6 +20,8 @@ export interface TurnItemsInput {
   frozen: boolean;
   isClient: boolean;
   isFreelancer: boolean;
+  /** Whether the current actor has signed, from persisted contract signatures. */
+  viewerHasSigned?: boolean;
   /** PROPOSED: is de plaatsing geblokkeerd door een ontbrekend/verlopen certificaat? */
   placementBlocked: boolean;
   /** PROPOSED: labels van de ontbrekende/verlopen certificaten (voor de tekst). */
@@ -59,7 +61,7 @@ export function buildCollaborationTurnItems(input: TurnItemsInput): string[] {
           `Vul het ontbrekende of verlopen certificaat aan (${input.placementMissing}) — daarna kan het contract worden ondertekend.`,
         );
       }
-    } else {
+    } else if (!input.viewerHasSigned) {
       todo.push("Onderteken het contract om de opdracht te starten.");
     }
   }

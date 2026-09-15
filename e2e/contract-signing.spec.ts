@@ -185,6 +185,35 @@ test.describe("Handslag ordinary electronic signatures on mobile", () => {
           await page.goto(collaborationUrl);
           await expect(page.getByText("Voorgesteld", { exact: true }).first()).toBeVisible();
 
+          await expect(
+            page.getByText(
+              "Je hoeft nu niets te doen — wacht op de handtekening van de andere partij.",
+              { exact: true },
+            ),
+          ).toBeVisible();
+          await expect(
+            page.getByText("Actie nodig: onderteken het contract om te starten.", { exact: true }),
+          ).toHaveCount(0);
+          await expect(
+            page.getByText("Onderteken het contract om de opdracht te starten.", { exact: true }),
+          ).toHaveCount(0);
+          await expect(
+            page.getByRole("link", { name: "Bekijk ondertekening", exact: true }),
+          ).toBeVisible();
+
+          // The unsigned participant still has a signing action on the same collaboration.
+          await freelancer.goto(collaborationUrl);
+          await expect(
+            freelancer.getByText("Actie nodig: onderteken het contract om te starten.", {
+              exact: true,
+            }),
+          ).toBeVisible();
+          await expect(
+            freelancer.getByText("Onderteken het contract om de opdracht te starten.", {
+              exact: true,
+            }),
+          ).toBeVisible();
+
           // The second account signs precisely the persisted version, independently.
           expect(await openSigning(freelancer, collaborationUrl)).toBe(documentHash);
           await fillSigning(freelancer, freelancerName);

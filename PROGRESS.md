@@ -1,3 +1,8 @@
+## 15 september 2026 — wachten na eigen handtekening (#1493)
+
+Detailaanwijzingen gebruiken nu de opgeslagen eigen handtekening; de andere partij houdt de tekenactie.
+Zes regressies rood → groen, 131 gerichte tests geslaagd; certificaatblokkades houden voorrang. [Bewijs en scope](docs/progress/2026-09-15-signed-detail-guidance.md); review/CI volgen.
+
 ## 15 september 2026 — wachten op mobiel profielformulier (#1492)
 
 De mobiele interactieproef telde soms nul velden vóórdat het formulier was geladen.

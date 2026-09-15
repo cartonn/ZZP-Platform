@@ -248,6 +248,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   // Venster ankert op het afrondingsmoment (fallback createdAt voor legacy). Ná sluiting kan niemand
   // meer beoordelen — dat is de hendel tegen vergelding.
   const isParticipant = isClient || isFreelancer;
+  const viewerHasSigned = Boolean(
+    col.signing?.signatures.some((signature) => signature.actorId === actor.id),
+  );
   const reviewWindowClosesAt = reviewWindowCloses(
     col.completedAt ?? col.createdAt,
     reviewBlindDays(),
@@ -311,6 +314,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
     frozen,
     isClient,
     isFreelancer,
+    viewerHasSigned,
     placementBlocked,
     placementMissing,
     submittedPerformances: col.performances.filter((p) => p.status === "SUBMITTED").length,
@@ -337,6 +341,8 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         collaborationId: col.id,
         collaborationStatus: col.status as CollaborationStatus,
         contractStatus: col.contractStatus as ContractStatus,
+        viewerHasSigned,
+        placementBlocked,
         disputed: frozen,
         latestPerformanceStatus: (col.performances[0]?.status ?? null) as PerformanceState | null,
         latestInvoiceStatus: (col.invoices[0]?.lifecycleStatus ??
@@ -683,7 +689,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
               <p className="text-sm text-muted-foreground">
                 {placementBlocked
                   ? `Deze samenwerking kan niet starten: een vereist certificaat ontbreekt of is verlopen (${placementMissing}).`
-                  : col.signing?.signatures.some((signature) => signature.actorId === actor.id)
+                  : viewerHasSigned
                     ? "Je hebt getekend. Na de handtekening van de andere partij kan de samenwerking starten."
                     : "Beide partijen ondertekenen voordat je uren of opleveringen vastlegt."}
               </p>
@@ -697,9 +703,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
             ) : (
               <Button asChild size="sm">
                 <Link href={`/samenwerkingen/${col.id}/ondertekenen`}>
-                  {col.signing?.signatures.some((signature) => signature.actorId === actor.id)
-                    ? "Bekijk ondertekening"
-                    : "Contract ondertekenen"}
+                  {viewerHasSigned ? "Bekijk ondertekening" : "Contract ondertekenen"}
                 </Link>
               </Button>
             )}

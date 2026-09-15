@@ -1,5 +1,34 @@
 # Persona-sweep — gaten-backlog
 
+## 15 september 2026, 05:00 UTC — eigen handtekening op het detail (#1493)
+
+Basis `e9d6fe387eaef88a4b1df7959d2c784c2a074be5`. CLIENT en FREELANCER krijgen
+na hun eerste contracthandtekening op het detail nog een tekenopdracht, terwijl
+lijst/dashboard en contractkaart op de andere partij wachten. De statusregel en
+Aan-zet-items ontvingen de geladen eigen handtekening niet. Ernst: misleidende
+volgende actie (DOEL 1b); geen onterechte activering of extra handtekening aangetoond.
+Draftclaim #1493 vóór implementatie. Herstel hergebruikt de serverhandtekening en
+verwijdert uitsluitend de afgehandelde tekenactie. Certificaatblokkades blijven staan.
+
+Vier nieuwe regressies falen vóór de fix; daarna slagen alle 26 gerichte tests,
+inclusief beide rollen en certificaatblokkades. De bestaande mobiele tweepartijenproef
+krijgt checks voor de wachtende ondertekenaar en de nog niet getekende tegenpartij.
+De eerste volledige lokale controle slaagt (8.951 tests, twee skips, build en formatting).
+Onafhankelijke review vond daarna dat een tussen handtekeningen verlopen certificaat
+ook de bovenste statusregel moet overrulen. Dat is hersteld: twee aanvullende
+regressies rood → groen, 131 gerichte tests geslaagd. Volledige hercontrole,
+onafhankelijke herreview en echte CI op de nieuwe head volgen.
+
+Werkelijk auditbewijs: huidige-main CI 34930790486, vier browserdelen samen 178 PASS,
+1 bestaande skip; PostgreSQL 24 browserproeven PASS. QA 34930790500: 61 PASS,
+1 skip wegens ontbrekend test-CRON_SECRET. Suites overlappen; niet optellen als unieke
+flows. Geen retries. Drie echte QA-afbeeldingen bekeken: adminverificatie,
+opdrachtgeverdashboard en ZZP-certificaten. Geen nieuw visueel defect vastgesteld.
+Afzonderlijke broninspecties van vier rollen, privébestanden en verificatiegrenzen
+vonden op de onderzochte oppervlakken geen nieuw bereikbaar toegangslek. Geen nieuwe
+lokale browserstart of productieprobes; geen volledige nieuwe visuele persona-cleanclaim.
+Zie [uitvoering](progress/2026-09-15-signed-detail-guidance.md).
+
 > **11 september 2026 — V5-integratie in bestaande PR #1474, nog vóór merge.**
 > De eerste Codex-personaronde vond ontbrekende mobiele menufocus bij vier rollen en
 > header-overloop bij de bemiddelaar op 390px. De bestaande platformwijziging herstelt
