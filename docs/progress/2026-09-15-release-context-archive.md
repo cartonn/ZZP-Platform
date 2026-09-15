@@ -13,3 +13,7 @@ systeem-/app-darkmode; lokale volledige check en zeven browserreizen groen. GitH
 en release nog te verifiëren. Zie PROGRESS.md.
 
 #1490 is gemerged en live op `f7493337` (15 september 01:54 UTC); echte mail blijft uit.
+
+Security 14:00 UTC: #1499 redact aanmelding-/afwijsauditkopieën; [bewijs](docs/progress/2026-09-15-rejected-tenant-audit-erasure.md).
+
+#1499 is gemerged en live geverifieerd op `4dd0b672` om 15:38 UTC; vijf releaseworkflows groen.

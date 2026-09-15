@@ -1,3 +1,9 @@
+## 2026-09-15 — Shortlist met één gewone handeling (#1500)
+
+Bestaande React-#329-backlog: kandidatenproef wacht na één klik op de eigen
+Shortlist-status en verbiedt documentnavigatie tijdens die stap. Het herklik-/reloadvangnet
+vervalt alleen hier; overige ketenchecks blijven behouden. [Uitvoering](docs/progress/2026-09-15-shortlist-single-submit.md).
+
 ## 2026-09-15 — auditkopieën afgewezen bureau opruimen (#1499)
 
 Bestaande privacybevinding met echte erasure-actie bevestigd: drie rood, zes groen.
@@ -365,30 +371,6 @@ invoer bij persistentie) — de guard is uitsluitend read-path.
 `src/lib/prestaties.ts`, `src/lib/ort-breakdown.test.ts` (+7 tests: geldig=canoniek/geen drift,
 corrupte categorie/negatieve uren → degradatie, corrupt zonder terugval-uren → null/leeg, geen-segmenten,
 milestone, geen-tarief). **Checks:** typecheck ✓ · lint · unit · build · prettier ✓ · CI-poort verifiëren (PR #1465).
-
-## 2026-09-09 — prod: Dependabot supply-chain-automatisering (npm + github-actions)
-
-**Wat:** `.github/dependabot.yml` toegevoegd — de code-kant van het MENSENWERK "Dependency graph +
-Dependabot"-item. De `audit`-CI-poort (`scripts/audit-production.mjs`) **detecteert** high/critical-
-advisories in de productie-deps en blokkeert de merge, maar niets **herstelde** ze automatisch: een
-bump gebeurde pas als een mens/agent het opmerkte (zie #1444, #01c05fc7). Dependabot sluit dat gat en
-opent zelf de herstel-/versie-PR's, zodat het venster tussen een bekend CVE en de fix minimaal is en de
-ge-pinde GitHub Actions-versies actueel blijven.
-
-**Config:** twee ecosystemen — `npm` (root; **gegroepeerd** in productie- én dev-buckets voor
-minor/patch, majors bewust als losse PR's) en `github-actions` (root; alle actions gegroepeerd). Wekelijks
-(maandag 06:00 Europe/Amsterdam), begrensde PR-flux (10 resp. 5) zodat de reviewqueue/CI-poort niet
-dichtslibt, `chore`-commit-prefix met scope, label `dependencies`. Elke Dependabot-PR loopt door dezelfde
-6 vereiste statuschecks (check/e2e/audit/secret-scan/CodeQL/agent-review) — nooit een automatische merge
-zonder groene poort. Security-updates komen out-of-band binnen zodra de repo-web-toggle voor Dependency
-graph en Dependabot security updates aanstaat (enige resterende menselijke stap).
-
-**Drift-bewaking:** `scripts/dependabot-config.test.ts` (7 tests) — Dependabot draait niet in CI, dus
-zonder deze test kan de config stil verweken (verdwenen ecosysteem/groepering) zonder dat een poort dat
-opmerkt. Assert: versie 2, npm + github-actions aanwezig, wekelijks + Europe/Amsterdam, begrensde PR-flux,
-npm-productie/dev-groepen, actions-groepering, root-directory.
-
-**Checks:** typecheck ✓ · lint ✓ · unit ✓ · build ✓ · prettier ✓ · CI-poort verifiëren (PR #1453).
 
 Oudere security-voortgang staat ongewijzigd in [het bouwstaartarchief](docs/progress/2026-09-15-build-history-tail.md).
 
