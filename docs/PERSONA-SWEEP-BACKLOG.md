@@ -1,5 +1,14 @@
 # Persona-sweep — gaten-backlog
 
+## 15 september 2026, 13:00 UTC — oudere inzet ontbreekt achter recent venster (#1498)
+
+Basis `3ecbdb4c73b476d69f81280a37e25f514184b678`. FRANCHISER heeft een vervolgstap
+voor een oude ACTIVE-inzet, maar de bestemmingslijst filtert pas na de honderd
+nieuwste rijen van alle statussen. Daardoor missen lijst, zoekfunctie, tellingen en
+aandachtsstrip de inzet. Twee echte tijdelijke SQLite-proeven bevestigen de fout;
+herstel leest dezelfde tenantqueue volledig met alleen benodigde velden. Rolcontrole
+en job-tenantgrens blijven intact. Review/CI volgen; [uitvoering](progress/2026-09-15-franchise-collaboration-window.md).
+
 ## 15 september 2026, 05:00 UTC — eigen handtekening op het detail (#1493)
 
 Basis `e9d6fe387eaef88a4b1df7959d2c784c2a074be5`. CLIENT en FREELANCER krijgen
