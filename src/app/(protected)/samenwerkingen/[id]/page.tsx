@@ -342,6 +342,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         collaborationStatus: col.status as CollaborationStatus,
         contractStatus: col.contractStatus as ContractStatus,
         viewerHasSigned,
+        placementBlocked,
         disputed: frozen,
         latestPerformanceStatus: (col.performances[0]?.status ?? null) as PerformanceState | null,
         latestInvoiceStatus: (col.invoices[0]?.lifecycleStatus ??

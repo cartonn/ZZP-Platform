@@ -13,7 +13,11 @@ verwijdert uitsluitend de afgehandelde tekenactie. Certificaatblokkades blijven 
 Vier nieuwe regressies falen vóór de fix; daarna slagen alle 26 gerichte tests,
 inclusief beide rollen en certificaatblokkades. De bestaande mobiele tweepartijenproef
 krijgt checks voor de wachtende ondertekenaar en de nog niet getekende tegenpartij.
-Volledige controle, onafhankelijke review en echte CI op de nieuwe head volgen.
+De eerste volledige lokale controle slaagt (8.951 tests, twee skips, build en formatting).
+Onafhankelijke review vond daarna dat een tussen handtekeningen verlopen certificaat
+ook de bovenste statusregel moet overrulen. Dat is hersteld: twee aanvullende
+regressies rood → groen, 131 gerichte tests geslaagd. Volledige hercontrole,
+onafhankelijke herreview en echte CI op de nieuwe head volgen.
 
 Werkelijk auditbewijs: huidige-main CI 34930790486, vier browserdelen samen 178 PASS,
 1 bestaande skip; PostgreSQL 24 browserproeven PASS. QA 34930790500: 61 PASS,

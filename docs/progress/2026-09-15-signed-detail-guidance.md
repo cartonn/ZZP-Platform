@@ -38,3 +38,16 @@ rol-/tenant-/privébestandslek op de onderzochte oppervlakken. Geen productiepro
 Volledige lokale lint- en typecontrole slagen; 8.951 unittests slagen met twee
 bestaande skips. Volledige formattingcontrole slaagt. Productiebuild loopt nog;
 onafhankelijke review, actuele GitHub-checks, merge en liveverificatie zijn nog open.
+
+## Afzonderlijke review en gerichte reparatie
+
+De eerste volledige lokale controle eindigde ook met een geslaagde productiebuild.
+De afzonderlijke reviewer blokkeerde head `d78d95b9`: een certificaat kan tussen
+beide handtekeningen verlopen. De bovenste statusregel meldde dan wachten terwijl
+de ZZP'er het certificaat eerst moet herstellen. De review van die oude versie is
+gestopt; geen goedkeuring daarvan overgenomen.
+
+Twee aanvullende rolproeven falen vóór herstel. De detailstatus krijgt nu dezelfde
+plaatsingsblokkade en laat die vóór teken-/wachtadvies gelden, zowel vóór als na
+eigen ondertekening. Geschil en eindstatus houden hun voorrang. Alle 131 gerichte
+tests slagen; volledige hercontrole en onafhankelijke herreview volgen.

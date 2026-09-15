@@ -17,6 +17,39 @@ function base(overrides: Partial<CascadeStageInput> = {}): CascadeStageInput {
 
 describe("collaborationStatusLine", () => {
   it.each(["CLIENT", "FREELANCER"] as const)(
+    "%s sees required credential guidance before signature guidance",
+    (viewer) => {
+      for (const viewerHasSigned of [false, true]) {
+        const input = {
+          ...base({ viewer, collaborationStatus: "PROPOSED", contractStatus: "DRAFT" }),
+          viewerHasSigned,
+          placementBlocked: true,
+        };
+        expect(collaborationStatusLine(input)).toEqual(
+          viewer === "FREELANCER"
+            ? {
+                text: "Actie nodig: vul het ontbrekende of verlopen certificaat aan.",
+                youAreUp: true,
+              }
+            : {
+                text: "Je hoeft nu niets te doen — wacht tot de ZZP'er het ontbrekende of verlopen certificaat aanvult.",
+                youAreUp: false,
+              },
+        );
+        expect(collaborationStatusLine({ ...input, disputed: true }).text).toBe(
+          "Er loopt een dispuut — het werkproces is bevroren tot dat is opgelost.",
+        );
+        expect(collaborationStatusLine({ ...input, collaborationStatus: "CANCELLED" }).text).toBe(
+          "Deze samenwerking is geannuleerd.",
+        );
+        expect(collaborationStatusLine({ ...input, collaborationStatus: "COMPLETED" }).text).toBe(
+          "Deze samenwerking is afgerond.",
+        );
+      }
+    },
+  );
+
+  it.each(["CLIENT", "FREELANCER"] as const)(
     "%s waits for the other signature after signing, while an unsigned viewer still acts",
     (viewer) => {
       const input = base({ viewer, collaborationStatus: "PROPOSED", contractStatus: "DRAFT" });
