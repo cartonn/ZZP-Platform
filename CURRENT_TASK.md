@@ -1,12 +1,12 @@
 # CURRENT_TASK.md — Huidige taak
 
-Routine 15 september 00:22 UTC: claim mail-intake fase 3, een geïsoleerde browserproef
+Routine 15 september 00:22 UTC: #1490 bouwt mail-intake fase 3: geïsoleerde browserproef
 van webhook naar reviewqueue en concept-opdracht, inclusief duplicaten en ownership.
-Alleen testcode/CI-testconfiguratie; echte mailkoppelingen blijven uit.
+Lokaal 1 browserproef en 8.941 unittests groen; review/CI volgt. Echte mail blijft uit.
 
 Routine 14 september 00:22 UTC: #1488 bewaakt certificaatgegevens zonder nieuw bestand
-tegen een gelijktijdige beoordeling of wijziging. Vier regressies rood → groen; volledige
-controles en review volgen. Zie [uitvoering](docs/progress/2026-09-14-credential-metadata-race.md).
+tegen een gelijktijdige beoordeling of wijziging. Gemerged en live op `ac5c33a0`
+(14 september 21:10 UTC), alle controles en onafhankelijke reviews groen. Zie [uitvoering](docs/progress/2026-09-14-credential-metadata-race.md).
 
 Routine 13 september 16:22 UTC: #1487 is gemerged en live geverifieerd op `14be83b6`
 om 20:14 UTC. Zie [uitvoering](docs/progress/2026-09-13-performance-escalation.md).
@@ -25,15 +25,8 @@ De V5-platformidentiteit is met #1483 gemerged als `535df3f` en live geverifieer
 op 12 september 14:37 UTC, inclusief drie browserproeven op de echte site.
 De eerdere #1474 blijft gesloten als vervangen; verlopen reviewbewijs wordt niet hergebruikt.
 
-PR #1481 is na alle zes groene poorten gemerged als `79c98a7` en live geverifieerd;
-de geplande bewaking van 12 september 09:18 UTC slaagt inclusief incidentafhandeling.
-PR #1482 is na alle zes groene poorten gemerged als `112e23c` en live geverifieerd
-op 12 september 13:29 UTC; modelovereenkomsten hebben statusbewaking en atomair auditspoor.
-De lichte publieke V5 is al live; de onderstaande oudere releaseverificatie is historie.
-
-Herstel 11 september: eigenaar vraagt oorspronkelijke lichte V5-landing, onafhankelijk van
-systeem-/app-darkmode; lokale volledige check en zeven browserreizen groen. GitHub-review
-en release nog te verifiëren. Zie PROGRESS.md.
+Eerdere V5-/monitor-/ondertekenreleasecontext staat ongewijzigd in
+[het archief](docs/progress/2026-09-15-release-context-archive.md).
 
 > Eén taak tegelijk. Lees CLAUDE.md, de bovenste 100 regels van PROGRESS.md en
 > `ARCHITECTURE.md §Modulekaart` voordat je begint. Werk dit bestand bij wanneer je naar de
@@ -176,8 +169,8 @@ punt 5 hieronder.
    `buildRosterCalendar`, read-only `/rooster`) staat. Open: de opdrachtgever dateert losse
    diensten en de ZZP'er claimt er direct één vanuit de kalender.
 2. **Lege-, laad- en fouttoestanden naar de Vakwerk-stijl** (PLAN-WERELDKLASSE Fase 2, restpunt).
-3. **Mail-intake fase 3:** e2e-test webhook → reviewqueue → concept-opdracht. (Fase 1 + 2 en de
-   meetlus zijn gebouwd; inbound-provider + MX/DNS is mensenwerk, MENSENWERK §2b.)
+3. **Mail-intake fase 3:** browserproef gebouwd in #1490, lokaal groen; review/CI nog vereist.
+   Webhook → reviewqueue → concept, auth/ownership/duplicaten. Provider/MX/DNS blijft mensenwerk.
 4. **Semantiek als uitlegbare scorecomponent** — fundering staat (`src/lib/semantic.ts` +
    `src/lib/services/semantic-matcher.ts`); pgvector blijft geparkeerd achter de ADR-trigger
    (`docs/decisions/0010-semantische-matching.md`: > ~50k discoverable profielen óf scoring

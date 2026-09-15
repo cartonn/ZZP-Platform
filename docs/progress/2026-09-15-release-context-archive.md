@@ -1,0 +1,13 @@
+# Eerdere releasecontext uit CURRENT_TASK
+
+Historie ongewijzigd bewaard op 15 september; de toenmalige wachtstatus is geen actuele claim.
+
+PR #1481 is na alle zes groene poorten gemerged als `79c98a7` en live geverifieerd;
+de geplande bewaking van 12 september 09:18 UTC slaagt inclusief incidentafhandeling.
+PR #1482 is na alle zes groene poorten gemerged als `112e23c` en live geverifieerd
+op 12 september 13:29 UTC; modelovereenkomsten hebben statusbewaking en atomair auditspoor.
+De lichte publieke V5 is al live; de onderstaande oudere releaseverificatie is historie.
+
+Herstel 11 september: eigenaar vraagt oorspronkelijke lichte V5-landing, onafhankelijk van
+systeem-/app-darkmode; lokale volledige check en zeven browserreizen groen. GitHub-review
+en release nog te verifiëren. Zie PROGRESS.md.
