@@ -5,6 +5,10 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = process.env.PORT ?? "3000";
 const BASE_URL = `http://localhost:${PORT}`;
 
+// Supply the same synthetic credential to test workers and the local web server.
+// Keep an explicit override visible so the fixture guard rejects real credentials.
+process.env.MAIL_INTAKE_WEBHOOK_SECRET ??= "e2e-only-mail-intake-local-fixtures";
+
 export default defineConfig({
   testDir: "./e2e",
   // De persona-sweep (e2e/personas/*) draait apart via playwright.personas.config.ts tegen een
@@ -33,7 +37,8 @@ export default defineConfig({
   webServer: {
     command: process.env.CI ? "npm run start" : "npm run dev",
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    // An already-running dev server may not have the synthetic webhook configuration.
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });

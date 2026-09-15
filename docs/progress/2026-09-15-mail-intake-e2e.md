@@ -8,8 +8,11 @@ beoordelen en als concept overnemen. Parser, webhook en reviewqueue bestonden al
 
 Nieuwe root-e2e gebruikt twee verse opdrachtgeveraccounts en echte lokale HTTP-/serveracties.
 Geen ontbrekende configuratie overslaan: de proef eist de bekende dummy-sleutel en localhost.
-Alleen het geïsoleerde GitHub e2e-jobmilieu krijgt die waarde; geen repositorysecret,
-productieconfiguratie, inbound-provider, DNS of echte mail wordt gewijzigd.
+De gedeelde Playwright-configuratie levert die waarde aan testprocessen en een eigen lokale
+server, zowel voor `npm run e2e` als CI. Een reeds draaiende ontwikkelserver wordt niet
+hergebruikt, omdat die de testinstelling kan missen. Een expliciete andere waarde wordt
+niet overschreven en faalt op de fixturecontrole. Geen repositorysecret, productieconfiguratie,
+inbound-provider, DNS of echte mail wordt gewijzigd.
 
 De proef bewijst geweigerde lege/foute autorisatie; twee afleveringen leveren één aanvraag;
 geparsede locatie/tarieven verschijnen; een andere opdrachtgever ziet de aanvraag niet en
@@ -35,6 +38,11 @@ bewijzen geen productdefect. Geen productcode aangepast om de test groen te krij
 productiebuild PASS. De seed-tool had lokale IPC-toegang nodig; de build gebruikte netwerk
 voor bestaande lettertypen. Er is geen productie-database of echte mailbox benaderd.
 
-Onafhankelijke review en actuele GitHub-poorten volgen; dit document claimt nog geen merge
+De eerste GitHub-review wees terecht op de ontbrekende standaardinstelling bij lokale
+e2e-uitvoering. Die is naar de gedeelde configuratie verplaatst; de CI-specifieke waarde
+is verwijderd. Herbeoordeling op de nieuwe commit en actuele GitHub-poorten volgen.
+De gewone lokale `npm run e2e -- --project=ci`-route slaagt ook met de webhookvariabele
+expliciet uit de omgeving verwijderd: 1 PASS, geen retries, eigen ontwikkelserver en testdatabase.
+Dit document claimt nog geen merge
 of deployment. Geen uitgebreide providercontracttest, externe aflevergarantie of complete
 mail-intake-matrix: dit increment dekt de bestaande afzender-matchroute naar een concept.

@@ -71,8 +71,6 @@ jobs:
       # Het interne ontwerp-lab is in productiemodus standaard dicht (404). De e2e-server draait in
       # die modus, dus expliciet aanzetten zodat e2e/ontwerp.spec.ts de ADMIN-toegang kan toetsen.
       DESIGN_LAB_ENABLED: "true"
-      # Synthetic local webhook coverage only; never a repository or production secret.
-      MAIL_INTAKE_WEBHOOK_SECRET: "e2e-only-mail-intake-local-fixtures"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

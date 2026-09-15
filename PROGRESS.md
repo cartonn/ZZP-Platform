@@ -2,7 +2,7 @@
 
 Bestaande kernbacklog fase 3: webhook → reviewqueue → concept-opdracht. Nieuwe geïsoleerde
 browserproef controleert autorisatie, dubbele aflevering, eigenaargrenzen, menselijke
-acceptatie en behoud van conceptstatus. Alleen testcode en lokale CI-fixtures; geen echte
+acceptatie en behoud van conceptstatus. Alleen testcode en lokale fixtures; geen echte
 mailintegratie. 1 browserproef zonder retries en 8.941 unittests (2 skips) groen; types/lint/
 opmaak/env/build groen. Review/CI volgen. Oudere voortgang is ongewijzigd bewaard in
 [het staartarchief](docs/progress/2026-09-15-progress-tail-archive.md).
