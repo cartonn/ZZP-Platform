@@ -1,6 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Request } from "@playwright/test";
 import path from "node:path";
-import { clickUntilGone } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -91,14 +90,28 @@ test("ZZP'er reageert en opdrachtgever beheert de kandidaat", async ({ page, bro
   await shot(page, "17-nav-badge");
 
   await expect(page.getByText("Voldoet niet")).toBeVisible(); // geen VOG -> non-compliant (in de compacte kop)
-  // Compacte triage: de kandidaat is eerst een rij; klap hem uit om de acties te tonen.
-  await page.getByRole("button", { name: "Toon details" }).click();
-  // Na de statuswijziging herlaadt de pagina en klapt de rij dicht (de actieknop verdwijnt).
-  // Robuust tegen de #329-response-hang; "Shortlist" als tekst is ambigu (filter-pill/option).
-  await clickUntilGone(
-    page.getByRole("button", { name: "Shortlist" }),
-    page.getByRole("button", { name: "Shortlist" }),
-  );
+  const candidate = page.locator('[id^="app-"]').filter({ hasText: "Reactie Freelancer" });
+  await candidate.getByRole("button", { name: "Toon details" }).click();
+  const shortlistButton = candidate.getByRole("button", { name: "Shortlist", exact: true });
+  const shortlistStatus = candidate
+    .locator('[data-approval="pending"]')
+    .filter({ hasText: /^Shortlist$/ });
+  // One normal submission must render the server status without a document reload.
+  let documentNavigations = 0;
+  const recordNavigation = (request: Request) => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+      documentNavigations += 1;
+    }
+  };
+  page.on("request", recordNavigation);
+  try {
+    await shortlistButton.click();
+    await expect(shortlistStatus).toBeVisible();
+    await expect(shortlistButton).toBeHidden();
+    expect(documentNavigations).toBe(0);
+  } finally {
+    page.off("request", recordNavigation);
+  }
   // De rij kan na de statuswijziging open blijven staan (dan is er geen "Toon details" meer);
   // alleen uitklappen als hij dicht is.
   const noteField = page.locator('textarea[name="note"]');

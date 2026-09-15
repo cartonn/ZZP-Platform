@@ -19,3 +19,16 @@ Dedup: openPRs en actuele code gecontroleerd; geen bestaande claim voor dit
 shortlistmoment. De gedeelde helper blijft voor andere proeven staan. Echte
 productiebuild-browsercontrole via CI; geen lokale browser/serverstart.
 Volledige lokale checks en aparte onafhankelijke/native reviews volgen.
+
+## Gebouwd en lokaal gecontroleerd
+
+De proef klikt één keer op de Shortlist-knop in de eigen kandidatenrij en wacht
+op de exacte Shortlist-badge met het zwarte wachtzegel. Documentnavigaties worden
+alleen tijdens deze handeling geteld; de teller moet nul blijven. De listener
+wordt ook bij een mislukte verwachting verwijderd. Alle overige ketenstappen blijven.
+
+Lint, types, 8.969 tests (twee bestaande skips) en volledige opmaakcontrole groen.
+De sandboxbuild kon bestaande Google-fonts niet ophalen; dezelfde code bouwde
+met netwerktoegang succesvol. Er is geen productfix of nieuwe browserbevinding
+geclaimd: dit is afbouw van een bestaand testvangnet uit de backlog.
+Aparte review, echte browser-CI, native review, merge en release zijn nog niet af.
