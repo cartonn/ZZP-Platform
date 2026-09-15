@@ -2,7 +2,7 @@
 
 Eigenaaropdracht 15 september: #1495/#1496 gemerged en live op `ad63fb2a` (12:02 UTC).
 Persona #1498 gemerged en live op `d0756137` (14:46 UTC); vijf releaseworkflows en health/readiness groen.
-Routine 16:22 UTC: #1500 toetst shortlist zonder herklikken/herladen; [uitvoering](docs/progress/2026-09-15-shortlist-single-submit.md).
+Routine 20:22 UTC: #1501 begrenst databasevoorbereiding afzonderlijk; [bewijs](docs/progress/2026-09-15-retention-setup-budget.md).
 
 Security 15 september 02:00 UTC: #1491 maakt mail-intakeverwijdering en auditredactie atomair.
 Twee echte databaseproeven rood → groen; rollback/herstart en batchgrenzen getest. Review/CI volgen.
