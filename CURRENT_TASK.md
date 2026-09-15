@@ -1,8 +1,8 @@
 # CURRENT_TASK.md — Huidige taak
 
-Routine 15 september 00:22 UTC: #1490 bouwt mail-intake fase 3: geïsoleerde browserproef
-van webhook naar reviewqueue en concept-opdracht, inclusief duplicaten en ownership.
-Lokaal 1 browserproef en 8.941 unittests groen; review/CI volgt. Echte mail blijft uit.
+Security 15 september 02:00 UTC: #1491 maakt mail-intakeverwijdering en auditredactie atomair.
+Twee echte databaseproeven rood → groen; rollback/herstart en batchgrenzen getest. Review/CI volgen.
+#1490 is gemerged en live op `f7493337` (15 september 01:54 UTC); echte mail blijft uit.
 
 Routine 14 september 00:22 UTC: #1488 bewaakt certificaatgegevens zonder nieuw bestand
 tegen een gelijktijdige beoordeling of wijziging. Gemerged en live op `ac5c33a0`

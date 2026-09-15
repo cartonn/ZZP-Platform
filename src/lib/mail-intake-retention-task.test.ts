@@ -43,6 +43,7 @@ function matches(r: IntakeRow, where: WhereArg): boolean {
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    $transaction: vi.fn(async (work: (tx: typeof prisma) => Promise<unknown>) => work(prisma)),
     mailIntake: {
       findMany: vi.fn(
         async (args: { where: WhereArg | { id: { in: string[] } }; take?: number }) => {
