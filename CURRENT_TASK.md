@@ -1,5 +1,9 @@
 # CURRENT_TASK.md — Huidige taak
 
+Routine 15 september 00:22 UTC: claim mail-intake fase 3, een geïsoleerde browserproef
+van webhook naar reviewqueue en concept-opdracht, inclusief duplicaten en ownership.
+Alleen testcode/CI-testconfiguratie; echte mailkoppelingen blijven uit.
+
 Routine 14 september 00:22 UTC: #1488 bewaakt certificaatgegevens zonder nieuw bestand
 tegen een gelijktijdige beoordeling of wijziging. Vier regressies rood → groen; volledige
 controles en review volgen. Zie [uitvoering](docs/progress/2026-09-14-credential-metadata-race.md).
