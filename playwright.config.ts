@@ -1,8 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Poort uit de omgeving, zodat parallelle worktrees elkaars dev-server niet claimen
-// (`reuseExistingServer` zou anders de server van een ándere checkout aanspreken).
-const PORT = process.env.PORT ?? "3000";
+// Keep ordinary local e2e separate from `npm run dev` on port 3000.
+// An explicit PORT still isolates concurrent worktrees; CI retains its existing port.
+const PORT = process.env.PORT ?? (process.env.CI ? "3000" : "3100");
 const BASE_URL = `http://localhost:${PORT}`;
 
 // Supply the same synthetic credential to test workers and the local web server.
@@ -36,6 +36,7 @@ export default defineConfig({
   ],
   webServer: {
     command: process.env.CI ? "npm run start" : "npm run dev",
+    env: { PORT, AUTH_URL: BASE_URL },
     url: BASE_URL,
     // An already-running dev server may not have the synthetic webhook configuration.
     reuseExistingServer: false,

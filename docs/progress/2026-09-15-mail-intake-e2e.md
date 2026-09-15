@@ -11,7 +11,9 @@ Geen ontbrekende configuratie overslaan: de proef eist de bekende dummy-sleutel 
 De gedeelde Playwright-configuratie levert die waarde aan testprocessen en een eigen lokale
 server, zowel voor `npm run e2e` als CI. Een reeds draaiende ontwikkelserver wordt niet
 hergebruikt, omdat die de testinstelling kan missen. Een expliciete andere waarde wordt
-niet overschreven en faalt op de fixturecontrole. Geen repositorysecret, productieconfiguratie,
+niet overschreven en faalt op de fixturecontrole. Lokale tests gebruiken standaard poort 3100
+naast de gewone ontwikkelserver op 3000; CI behoudt 3000 en een expliciete PORT blijft leidend.
+De testserver ontvangt dezelfde poort en auth-basis als de browser. Geen repositorysecret, productieconfiguratie,
 inbound-provider, DNS of echte mail wordt gewijzigd.
 
 De proef bewijst geweigerde lege/foute autorisatie; twee afleveringen leveren één aanvraag;
@@ -41,8 +43,12 @@ voor bestaande lettertypen. Er is geen productie-database of echte mailbox benad
 De eerste GitHub-review wees terecht op de ontbrekende standaardinstelling bij lokale
 e2e-uitvoering. Die is naar de gedeelde configuratie verplaatst; de CI-specifieke waarde
 is verwijderd. Herbeoordeling op de nieuwe commit en actuele GitHub-poorten volgen.
+De tweede review signaleerde dat een al draaiende ontwikkelserver niet mag botsen met
+de gewone testopdracht; daarom kreeg de eigen testserver een afzonderlijke standaardpoort.
 De gewone lokale `npm run e2e -- --project=ci`-route slaagt ook met de webhookvariabele
 expliciet uit de omgeving verwijderd: 1 PASS, geen retries, eigen ontwikkelserver en testdatabase.
+Ook met een actieve eigen ontwikkelserver op 3000 slaagt de proef op standaardpoort 3100:
+1 PASS in 14,1 seconden zonder PORT/CI/webhookvariabele; de bestaande server blijft HTTP 200 geven.
 Dit document claimt nog geen merge
 of deployment. Geen uitgebreide providercontracttest, externe aflevergarantie of complete
 mail-intake-matrix: dit increment dekt de bestaande afzender-matchroute naar een concept.
