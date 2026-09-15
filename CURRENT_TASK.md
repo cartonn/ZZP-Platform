@@ -1,7 +1,7 @@
 # CURRENT_TASK.md — Huidige taak
 
-Persona 15 september 05:00 UTC: #1493 toont na eigen ondertekening dat de andere partij aan zet is.
-Zes regressies rood → groen; volledige hercontroles/review volgen. #1492 is live op `e9d6fe38`.
+Auto-build 15 september 08:22 UTC: #1494 versnelt de voorbereiding van 501 mailretentie-testgevallen.
+Echte CI-time-out bevestigd; controles/review volgen. #1493 is live op `301c07d0`.
 
 Security 15 september 02:00 UTC: #1491 maakt mail-intakeverwijdering en auditredactie atomair.
 Twee echte databaseproeven rood → groen; rollback/herstart en batchgrenzen getest. Review/CI volgen.
