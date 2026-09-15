@@ -38,10 +38,11 @@ export interface MailIntakeRetentionResult {
 // intake-rij daadwerkelijk gewist is, zodat beide kopieën samen verdwijnen. Alleen `fromAddress` wordt
 // geraakt (exact-match via scrubAuditMetadataPii); operationele velden als `messageId` blijven staan.
 async function scrubReceivedAuditPii(
+  tx: Prisma.TransactionClient,
   deleted: readonly { id: string; fromAddress: string | null }[],
 ): Promise<number> {
   if (deleted.length === 0) return 0;
-  const rows = await prisma.auditLog.findMany({
+  const rows = await tx.auditLog.findMany({
     where: {
       action: "MAIL_INTAKE_RECEIVED",
       entityType: "MailIntake",
@@ -55,7 +56,7 @@ async function scrubReceivedAuditPii(
     const from = fromById.get(row.entityId);
     const next = scrubAuditMetadataPii(row.metadata, from ? [from] : []);
     if (next !== row.metadata) {
-      await prisma.auditLog.update({ where: { id: row.id }, data: { metadata: next } });
+      await tx.auditLog.update({ where: { id: row.id }, data: { metadata: next } });
       scrubbed++;
     }
   }
@@ -97,59 +98,53 @@ export async function runMailIntakeRetentionTask(opts: {
   const where = prunableMailIntakeWhere(cutoff);
 
   let pruned = 0;
-  let auditScrubbed = 0;
   for (let batch = 0; batch < MAX_BATCHES; batch++) {
-    const stale = await prisma.mailIntake.findMany({
-      where,
-      // `fromAddress` meelezen zodat we ná de delete de PII-kopie uit het bijbehorende auditrecord
-      // kunnen redacten (exact-match, zie scrubReceivedAuditPii).
-      select: { id: true, fromAddress: true },
-      take: BATCH_SIZE,
-    });
-    if (stale.length === 0) break;
-
-    const staleIds = stale.map((r) => r.id);
-    // FAIL-CLOSED tegen een TOCTOU-race: herhaal het guard-predicaat (`...where`) op de delete, niet
-    // alleen de id-set. Tussen findMany en deleteMany kan een DISMISSED-intake live heropend worden naar
-    // NEW (toegestane transitie DISMISSED→NEW via de reopen-actie, die `status: "NEW"` + `decidedAt: null`
-    // zet). Zonder de guard zou de delete die rij alsnog op id wissen — een heropende, openstaande aanvraag
-    // (en dus omzet) zou verdwijnen, precies de invariant die deze sweep bewaakt. Met `...where` valt zo'n
-    // rij buiten de delete (status niet meer ACCEPTED/DISMISSED) en blijft 'ie staan.
-    const { count } = await prisma.mailIntake.deleteMany({
-      where: { ...where, id: { in: staleIds } },
-    });
-    pruned += count;
-
-    // Alleen de auditrecords van de daadwerkelijk gewiste intakes ontdoen we van hun `fromAddress`-kopie.
-    // Survivor-diff: een rij die de TOCTOU-guard net overleefde (heropend naar NEW) bestaat nog en houdt
-    // dus ook zijn auditspoor — de PII-kopie mag alleen weg als de bronrij weg is.
-    if (count > 0) {
-      const survivors = await prisma.mailIntake.findMany({
-        where: { id: { in: staleIds } },
-        select: { id: true },
-      });
-      const survivorIds = new Set(survivors.map((r) => r.id));
-      const deleted = stale.filter((r) => !survivorIds.has(r.id));
-      auditScrubbed += await scrubReceivedAuditPii(deleted);
-    }
-
-    if (stale.length < BATCH_SIZE) break;
-  }
-
-  // Registreer de snoei-actie voor operationele traceerbaarheid (art. 5(2) verantwoordingsplicht).
-  // Geen PII: alleen aantallen + cutoff + venster (`auditScrubbed` = hoeveel MAIL_INTAKE_RECEIVED-
-  // auditrecords hun `fromAddress`-kopie verloren). Alleen bij daadwerkelijk snoeien, zodat een lege
-  // run de auditlog niet vervuilt.
-  if (pruned > 0) {
-    await prisma.auditLog.create({
-      data: auditData({
-        actorId: opts.actorId ?? null,
-        action: "MAIL_INTAKE_PRUNED",
-        entityType: "MailIntake",
-        entityId: "retention",
-        metadata: { pruned, auditScrubbed, retentionDays, cutoff: cutoff.toISOString() },
-      }),
-    });
+    // Commit the source deletion, PII redaction and completion audit together. On any
+    // failure this batch remains available to the next run; earlier batches stay complete.
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const stale = await tx.mailIntake.findMany({
+          where,
+          select: { id: true, fromAddress: true },
+          take: BATCH_SIZE,
+        });
+        if (stale.length === 0) return { selected: 0, pruned: 0 };
+        const staleIds = stale.map((r) => r.id);
+        // Recheck the retention/status predicate at the write: a reopened NEW intake survives.
+        const { count } = await tx.mailIntake.deleteMany({
+          where: { ...where, id: { in: staleIds } },
+        });
+        if (count > 0) {
+          // Redact only the deleted sources; a survivor retains its corresponding audit copy.
+          const survivors = await tx.mailIntake.findMany({
+            where: { id: { in: staleIds } },
+            select: { id: true },
+          });
+          const survivorIds = new Set(survivors.map((r) => r.id));
+          const deleted = stale.filter((r) => !survivorIds.has(r.id));
+          const auditScrubbed = await scrubReceivedAuditPii(tx, deleted);
+          // One non-PII record per committed batch also survives a later batch failure.
+          await tx.auditLog.create({
+            data: auditData({
+              actorId: opts.actorId ?? null,
+              action: "MAIL_INTAKE_PRUNED",
+              entityType: "MailIntake",
+              entityId: "retention",
+              metadata: {
+                pruned: count,
+                auditScrubbed,
+                retentionDays,
+                cutoff: cutoff.toISOString(),
+              },
+            }),
+          });
+        }
+        return { selected: stale.length, pruned: count };
+      },
+      { timeout: 30_000 },
+    );
+    pruned += result.pruned;
+    if (result.selected < BATCH_SIZE) break;
   }
 
   return { enabled: true, pruned, retentionDays, cutoff: cutoff.toISOString() };

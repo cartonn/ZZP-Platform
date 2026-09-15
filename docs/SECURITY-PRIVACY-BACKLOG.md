@@ -4,6 +4,25 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-15 — mail-intakeretentie en auditredactie (#1491)
+
+Basis `f749333752cfedec64deba6f48973dcf95568690`. **MIDDEL — auditkopie blijft na
+gedeeltelijk mislukte opruiming staan.** De bestaande taak verwijderde besliste oude
+MailIntake-rijen vóór de auditredactie. Een fout bij die redactie of de snoeiaudit
+liet de delete bestaan; een volgende run vond geen bronrij meer en herstelde dit niet.
+Bereikbaar via de bestaande run-all-taak, zonder wijziging van het retentiebeleid.
+Geen productie-incident of publieke uitlezing aangetoond.
+
+Onafhankelijke bron-/foutinjectiecontrole en twee echte tijdelijke SQLite-proeven
+bevestigen de fout. Reparatie in #1491: per begrensde batch één transactie, inclusief
+auditredactie en snoeiaudit. Rollback/herstart, behoud van NEW/recent en gedeeltelijke
+voortgang over meerdere batches getest. Nog geen merge- of releaseclaim.
+[Uitvoering](progress/2026-09-15-mail-intake-retention-atomicity.md).
+
+De gerichte controles van documenttoegang en ondertekenen bevestigden geen nieuw gat;
+dit is geen volledige platformaudit. De bekende REJECTED-tenant-auditmetadata en
+publieke individuele-reviewprivacy blijven afzonderlijke open punten.
+
 ## Ronde 2026-09-13 — bestaande intrekkingsbevinding, herstel in #1484
 
 Basis `3b2fde8321625038d104fc697139b9a4faf96b2c`; begrensde vervolgcontrole van de

@@ -1,3 +1,11 @@
+## 15 september 2026 — mail-intake en auditkopie samen opruimen (#1491)
+
+Securityronde bevestigt dat een auditfout na verwijdering het afzenderadres blijvend
+kon achterlaten. Eén transactie per begrensde batch bewaart verwijderen, redactie en
+snoeiaudit samen. Echte SQLite-foutinjecties bewijzen rollback/herstart; een latere
+batchfout tast afgeronde batches niet aan. NEW/recent blijven behouden. Review/CI volgen.
+Zie [bevinding en bewijs](docs/progress/2026-09-15-mail-intake-retention-atomicity.md).
+
 ## 15 september 2026 — browserbewijs mail-intake (#1490)
 
 Bestaande kernbacklog fase 3: webhook → reviewqueue → concept-opdracht. Nieuwe geïsoleerde
