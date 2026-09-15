@@ -56,10 +56,10 @@ afterAll(async () => {
   rmSync(fixture.directory, { recursive: true, force: true });
 });
 
-async function intake(id: string, status = "DISMISSED", receivedAt = old) {
+function intakeFixture(id: string, status = "DISMISSED", receivedAt = old) {
   const fromAddress = `${id}@external.example`;
-  await db.mailIntake.create({
-    data: {
+  return {
+    intake: {
       id,
       companyId: "company",
       messageId: `message-${id}`,
@@ -69,16 +69,19 @@ async function intake(id: string, status = "DISMISSED", receivedAt = old) {
       status,
       receivedAt,
     },
-  });
-  await db.auditLog.create({
-    data: {
+    audit: {
       id: `audit-${id}`,
       action: "MAIL_INTAKE_RECEIVED",
       entityType: "MailIntake",
       entityId: id,
       metadata: JSON.stringify({ fromAddress, messageId: `message-${id}` }),
     },
-  });
+  };
+}
+async function intake(id: string, status = "DISMISSED", receivedAt = old) {
+  const rows = intakeFixture(id, status, receivedAt);
+  await db.mailIntake.create({ data: rows.intake });
+  await db.auditLog.create({ data: rows.audit });
 }
 async function address(id: string) {
   const row = await db.auditLog.findUniqueOrThrow({ where: { id: `audit-${id}` } });
@@ -126,7 +129,13 @@ describe("mail retention commits deletion and audit redaction together", () => {
   });
 
   it("keeps a completed batch and retries only the batch whose audit failed", async () => {
-    for (let i = 0; i < 501; i++) await intake(`batch-${i}`);
+    // Prepare the same 500 + 1 boundary without 1,002 separate fixture writes.
+    // The real retention task and its fault-injection trigger remain unchanged.
+    const rows = Array.from({ length: 501 }, (_, i) => intakeFixture(`batch-${i}`));
+    await db.mailIntake.createMany({ data: rows.map((row) => row.intake) });
+    await db.auditLog.createMany({ data: rows.map((row) => row.audit) });
+    expect(await db.mailIntake.count()).toBe(501);
+    expect(await db.auditLog.count({ where: { action: "MAIL_INTAKE_RECEIVED" } })).toBe(501);
     await db.$executeRawUnsafe(
       "CREATE TRIGGER fail_retention BEFORE INSERT ON AuditLog WHEN NEW.action = 'MAIL_INTAKE_PRUNED' AND (SELECT COUNT(*) FROM AuditLog WHERE action = 'MAIL_INTAKE_PRUNED') = 1 BEGIN SELECT RAISE(ABORT, 'synthetic second batch failure'); END",
     );
