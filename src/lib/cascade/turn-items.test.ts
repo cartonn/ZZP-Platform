@@ -16,6 +16,42 @@ const base: TurnItemsInput = {
 };
 
 describe("buildCollaborationTurnItems", () => {
+  it.each(["CLIENT", "FREELANCER"] as const)(
+    "%s has no signing task after its own signature, but the unsigned party still does",
+    (role) => {
+      const input = {
+        ...base,
+        status: "PROPOSED",
+        isClient: role === "CLIENT",
+        isFreelancer: role === "FREELANCER",
+        viewerHasSigned: true,
+      };
+      expect(buildCollaborationTurnItems(input)).toEqual([]);
+      expect(buildCollaborationTurnItems({ ...input, viewerHasSigned: false })).toEqual([
+        "Onderteken het contract om de opdracht te starten.",
+      ]);
+    },
+  );
+
+  it.each(["CLIENT", "FREELANCER"] as const)(
+    "%s still sees the certificate blocker after its own signature",
+    (role) => {
+      const input = {
+        ...base,
+        status: "PROPOSED",
+        isClient: role === "CLIENT",
+        isFreelancer: role === "FREELANCER",
+        placementBlocked: true,
+        placementMissing: "VOG",
+        viewerHasSigned: true,
+      };
+      const todo = buildCollaborationTurnItems(input);
+      expect(todo).toHaveLength(1);
+      expect(todo[0]).toContain(role === "CLIENT" ? "Wacht tot de ZZP'er" : "Vul het ontbrekende");
+      expect(todo[0]).toContain("VOG");
+    },
+  );
+
   it("PROPOSED: vraagt het contract te tekenen", () => {
     expect(buildCollaborationTurnItems({ ...base, status: "PROPOSED" })).toEqual([
       "Onderteken het contract om de opdracht te starten.",
