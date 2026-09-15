@@ -150,6 +150,8 @@ test.describe("mobile interactions", () => {
     const editables = page.locator(
       '.hs-app input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):visible, .hs-app textarea:visible, .hs-app select:visible',
     );
+    // The profile route streams its form after the navigation response has loaded.
+    await expect(editables.first()).toBeVisible();
     expect(await editables.count()).toBeGreaterThan(0);
     const sizes = await editables.evaluateAll((elements) =>
       elements.map((element) => parseFloat(getComputedStyle(element).fontSize)),

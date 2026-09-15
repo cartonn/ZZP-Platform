@@ -1,5 +1,8 @@
 # CURRENT_TASK.md — Huidige taak
 
+Auto-build 15 september 04:22 UTC: #1492 wacht op het zichtbare profielformulier vóór mobiele metingen.
+Echte CI-fout op directe veldtelling bevestigd; controles/review volgen. #1491 is live op `2668100a`.
+
 Security 15 september 02:00 UTC: #1491 maakt mail-intakeverwijdering en auditredactie atomair.
 Twee echte databaseproeven rood → groen; rollback/herstart en batchgrenzen getest. Review/CI volgen.
 #1490 is gemerged en live op `f7493337` (15 september 01:54 UTC); echte mail blijft uit.
