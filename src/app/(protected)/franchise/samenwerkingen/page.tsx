@@ -1,7 +1,7 @@
 import { type Metadata } from "next";
 import { Handshake, Download } from "lucide-react";
 import { requireRole } from "@/lib/authz";
-import { prisma } from "@/lib/db";
+import { getFranchiseCollaborations } from "@/lib/data/franchise-collaborations";
 import { hasTenant } from "@/lib/tenancy";
 import { type CollaborationStatus } from "@/lib/enums";
 import {
@@ -67,18 +67,7 @@ export default async function FranchiseSamenwerkingenPage({
   const actor = await requireRole("FRANCHISER");
   const sp = await searchParams;
 
-  const collabs = hasTenant(actor)
-    ? await prisma.collaboration.findMany({
-        where: { job: { tenantId: actor.tenantId } },
-        orderBy: { updatedAt: "desc" },
-        take: 100,
-        include: {
-          job: { select: { title: true, department: { select: { name: true } } } },
-          company: { select: { name: true, userId: true } },
-          freelancer: { select: { user: { select: { name: true } } } },
-        },
-      })
-    : [];
+  const collabs = hasTenant(actor) ? await getFranchiseCollaborations(actor.tenantId) : [];
 
   const rows: Row[] = collabs.map((c) => ({
     id: c.id,

@@ -1,3 +1,10 @@
+## 2026-09-15 — Oudere bemiddelingsinzetten blijven zichtbaar (#1498)
+
+Een actie kon verdwijnen achter honderd nieuwere afgeronde rijen in de bestemmingslijst.
+De tenantqueue selecteert nu alle benodigde rijvelden vóór zoeken, tellen en urgentiesortering.
+Twee echte databaseproeven rood → groen; andere/directe tenants blijven uitgesloten.
+8.963 tests en types/lint/build/opmaak groen; onafhankelijke review/CI volgen. [Uitvoering](docs/progress/2026-09-15-franchise-collaboration-window.md).
+
 ## 2026-09-15 — Bevestigde verzending in de samenwerkingsproef (#1497)
 
 De browserproef wacht na beide berichten op de bestaande serverbevestiging voordat
