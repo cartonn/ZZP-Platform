@@ -1,11 +1,11 @@
 # CURRENT_TASK.md — Huidige taak
 
 Eigenaaropdracht 15 september: #1495/#1496 gemerged en live op `ad63fb2a` (12:02 UTC).
-Persona 13:00 UTC: #1498 houdt oudere tenantinzetten zichtbaar; #1497 gemerged, release volgt. Zie [uitvoering](docs/progress/2026-09-15-franchise-collaboration-window.md).
+Persona #1498 gemerged en live op `d0756137` (14:46 UTC); vijf releaseworkflows en health/readiness groen.
+Security 14:00 UTC: #1499 redact aanmelding-/afwijsauditkopieën; [bewijs](docs/progress/2026-09-15-rejected-tenant-audit-erasure.md).
 
 Security 15 september 02:00 UTC: #1491 maakt mail-intakeverwijdering en auditredactie atomair.
 Twee echte databaseproeven rood → groen; rollback/herstart en batchgrenzen getest. Review/CI volgen.
-#1490 is gemerged en live op `f7493337` (15 september 01:54 UTC); echte mail blijft uit.
 
 Routine 14 september 00:22 UTC: #1488 bewaakt certificaatgegevens zonder nieuw bestand
 tegen een gelijktijdige beoordeling of wijziging. Gemerged en live op `ac5c33a0`

@@ -1,3 +1,10 @@
+## 2026-09-15 — auditkopieën afgewezen bureau opruimen (#1499)
+
+Bestaande privacybevinding met echte erasure-actie bevestigd: drie rood, zes groen.
+Aanmeldingsvelden en afwijsreden verdwijnen atomair met de eigen REJECTED-Tenant;
+status, adminherkomst en andere tenants blijven behouden. 227 gerichte tests groen.
+Review/CI/release volgen. [Uitvoering](docs/progress/2026-09-15-rejected-tenant-audit-erasure.md).
+
 ## 2026-09-15 — Oudere bemiddelingsinzetten blijven zichtbaar (#1498)
 
 Een actie kon verdwijnen achter honderd nieuwere afgeronde rijen in de bestemmingslijst.

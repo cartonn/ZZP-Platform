@@ -17,6 +17,10 @@ import {
   userAnonymizationData,
 } from "@/lib/account-anonymization";
 import { prisma } from "@/lib/db";
+import {
+  REJECTED_TENANT_APPLICATION_ACTIONS,
+  scrubRejectedTenantApplicationMetadata,
+} from "@/lib/rejected-tenant-audit-erasure";
 import { signingErasureDecision, signingEvidenceParticipantWhere } from "@/lib/signing-erasure";
 import { userStatusSchema } from "@/lib/enums";
 import { DISPUTE_ADMIN_NOTIFICATION_TITLE } from "@/lib/cascade/dispute-commands";
@@ -180,12 +184,22 @@ export async function anonymizeUser(userId: string, formData?: FormData): Promis
   // substring bevat) raken.
   const originalEmail = user.email;
   const originalName = user.name;
+  const rejectedTenantId = user.ownedTenant?.status === "REJECTED" ? user.ownedTenant.id : null;
   // unbounded-allow: AVG art. 17: alle auditregels met PII (e-mail/naam/IP, incl. e-mail-als-entityId) van één gebruiker; bewust geen take (een cap zou stilletjes PII laten staan bij de vergetelheid-actie)
   const piiAuditRows = await prisma.auditLog.findMany({
     where: {
       OR: [
         { actorId: userId },
         { entityType: "User", entityId: userId },
+        ...(rejectedTenantId
+          ? [
+              {
+                entityType: "Tenant",
+                entityId: rejectedTenantId,
+                action: { in: REJECTED_TENANT_APPLICATION_ACTIONS },
+              },
+            ]
+          : []),
         ...(originalEmail
           ? [{ metadata: { contains: originalEmail } }, { entityId: originalEmail }]
           : []),
@@ -194,6 +208,7 @@ export async function anonymizeUser(userId: string, formData?: FormData): Promis
     select: {
       id: true,
       actorId: true,
+      action: true,
       entityType: true,
       entityId: true,
       metadata: true,
@@ -213,7 +228,13 @@ export async function anonymizeUser(userId: string, formData?: FormData): Promis
     // e-mail-als-entityId) — nooit op een rij die zijn adres slechts terloops in de metadata noemt,
     // waar `name` een derde partij kan zijn.
     const piiValues = owned || entityIsEmail ? [originalEmail, originalName] : [originalEmail];
-    const scrubbedMeta = scrubAuditMetadataPii(row.metadata, piiValues);
+    const genericScrubbedMeta = scrubAuditMetadataPii(row.metadata, piiValues);
+    // The application and admin rejection contain copies of fields already erased on Tenant.
+    // Combine both scrubs in one write, so overlapping email selection cannot restore a copy.
+    const scrubbedMeta =
+      rejectedTenantId && row.entityType === "Tenant" && row.entityId === rejectedTenantId
+        ? scrubRejectedTenantApplicationMetadata(row.action, genericScrubbedMeta)
+        : genericScrubbedMeta;
     const metaMatched = scrubbedMeta !== row.metadata;
     // Alleen rijen die echt over deze betrokkene gaan (eigen actor/entity, e-mail-als-entityId) of
     // waar zijn PII in de metadata stond mogen we wissen — nooit de auditregel van een ander.
@@ -226,8 +247,12 @@ export async function anonymizeUser(userId: string, formData?: FormData): Promis
     } = {};
     if (metaMatched) data.metadata = scrubbedMeta;
     if (entityIsEmail) data.entityId = AUDIT_PII_REDACTED;
-    if (row.ipAddress !== null) data.ipAddress = null;
-    if (row.userAgent !== null) data.userAgent = null;
+    // A newly selected admin decision belongs to that admin's request. Retain its provenance;
+    // only the pre-existing user/PII matches apply the general request-metadata erasure.
+    if (owned || entityIsEmail || genericScrubbedMeta !== row.metadata) {
+      if (row.ipAddress !== null) data.ipAddress = null;
+      if (row.userAgent !== null) data.userAgent = null;
+    }
     if (Object.keys(data).length === 0) return [];
     return [prisma.auditLog.update({ where: { id: row.id }, data })];
   });
