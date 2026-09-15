@@ -1,3 +1,10 @@
+## 15 september 2026 — wachten op mobiel profielformulier (#1492)
+
+De mobiele interactieproef telde soms nul velden vóórdat het formulier was geladen.
+Een zichtbaarheidsexpectatie wacht nu vóór telling en meting; bestaande checks blijven behouden.
+Echte CI-fout/retry bevestigd; lokale controle en onafhankelijke review volgen.
+Zie [bron en scope](docs/progress/2026-09-15-mobile-form-test-readiness.md).
+
 ## 15 september 2026 — mail-intake en auditkopie samen opruimen (#1491)
 
 Securityronde bevestigt dat een auditfout na verwijdering het afzenderadres blijvend

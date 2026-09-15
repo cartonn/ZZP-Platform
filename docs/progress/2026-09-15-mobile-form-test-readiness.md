@@ -10,3 +10,10 @@ Scope: laat de bestaande mobiele proef wachten op een zichtbaar formulierveld v√
 de veldtelling en lettergroottemeting. Behoud de responsiviteits-, aanraak-, dock-
 en lettergroottecontroles. Geen productcode, time-outs, retries of loginwijziging.
 De afzonderlijke sidebar-rail-flake valt buiten deze claim. Validatie/review volgen.
+
+Implementatie in #1492: `await expect(editables.first()).toBeVisible()` wacht met
+Playwrights bestaande begrensde verwachting op het eerste zichtbare veld. De telling
+en alle mobiele metingen blijven vervolgens hetzelfde. Een blijvend ontbrekend
+formulier faalt nog steeds. Geen vaste slaap, extra retries of ruimere timeout.
+De bestaande echte browserproef is de regressiedekking; CI moet het resultaat nog
+bevestigen. Er is geen nieuwe lokale browser gestart na de eerdere browserannulering.
