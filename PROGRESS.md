@@ -1,3 +1,10 @@
+## 2026-09-15 — Eigen tijdslimiet voor databasevoorbereiding (#1501)
+
+Echte main-CI faalde vóór vier retentieproeven: standaardhook 10s, terwijl de
+schemavoorbereiding al begrensd was op 30s. Alleen de setuphook krijgt 40s;
+productcode, individuele testlimieten en foutinjecties blijven behouden.
+Zie [bron en bewijs](docs/progress/2026-09-15-retention-setup-budget.md); controles en review volgen.
+
 ## 2026-09-15 — Shortlist met één gewone handeling (#1500)
 
 Bestaande React-#329-backlog: kandidatenproef wacht na één klik op de eigen

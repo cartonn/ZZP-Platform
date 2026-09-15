@@ -17,3 +17,7 @@ en release nog te verifiëren. Zie PROGRESS.md.
 Security 14:00 UTC: #1499 redact aanmelding-/afwijsauditkopieën; [bewijs](docs/progress/2026-09-15-rejected-tenant-audit-erasure.md).
 
 #1499 is gemerged en live geverifieerd op `4dd0b672` om 15:38 UTC; vijf releaseworkflows groen.
+
+Routine 16:22 UTC: #1500 toetst shortlist zonder herklikken/herladen; [uitvoering](docs/progress/2026-09-15-shortlist-single-submit.md).
+
+#1500 is gemerged en live geverifieerd op `de68803a` om 18:45 UTC; alle releasecontroles groen.

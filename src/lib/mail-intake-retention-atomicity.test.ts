@@ -19,6 +19,8 @@ const db = fixture.db;
 const now = new Date("2026-09-15T00:00:00Z");
 const old = new Date("2025-01-01T00:00:00Z");
 
+// Schema preparation has its own 30s process limit. Allow that bounded setup
+// plus fixture inserts without changing the timeouts of the retention tests.
 beforeAll(async () => {
   const env: NodeJS.ProcessEnv = { ...process.env, DATABASE_URL: fixture.url };
   delete env.RUST_LOG;
@@ -44,7 +46,7 @@ beforeAll(async () => {
     },
   });
   await db.company.create({ data: { id: "company", userId: "owner", name: "Synthetic company" } });
-});
+}, 40_000);
 beforeEach(async () => {
   await db.$executeRawUnsafe("DROP TRIGGER IF EXISTS fail_retention");
   await db.auditLog.deleteMany();
