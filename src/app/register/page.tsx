@@ -29,6 +29,16 @@ export default async function RegisterPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             Maak een account om opdrachten te plaatsen of erop te reageren.
           </p>
+          {process.env.DEPLOYMENT_STAGE === "demo" && (
+            <div className="mt-4 rounded-md border border-border bg-muted/40 p-3 text-sm">
+              <p className="font-medium">Kennismaken in de demo</p>
+              <p className="mt-1 text-muted-foreground">
+                Deze omgeving bevat voorbeeldaccounts en opdrachten. Gebruik fictieve gegevens en
+                upload geen echte diploma’s, VOG’s of identiteitsdocumenten. Je sluit hier geen
+                betaald abonnement af.
+              </p>
+            </div>
+          )}
           <div className="mt-5">
             <RegisterForm />
           </div>
