@@ -4,6 +4,19 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-15 14:00 UTC — afgewezen bureau-auditkopieën (#1499)
+
+Bestaand MIDDEL-item van 11 september bevestigd met de echte erasure-actie op een
+geïsoleerde SQLite-database, basis `d075613739b0f74605054b8cfbbc6d99b52904a8`.
+Registratie-slug/KvK en admin-afwijsreden bleven staan. Drie proeven rood vóór
+herstel; zes groen erna. Scoping, statusbehoud, samengestelde e-mailredactie en
+rollback/herstart getest. Alleen eigen REJECTED-aanmelding-/afwijsaudits worden
+aangevuld in de bestaande transactie. [Bewijs](progress/2026-09-15-rejected-tenant-audit-erasure.md).
+Hersteld op werkbranch #1499; onafhankelijke review, CI, merge en release volgen.
+De begrensde delta-audit bevestigde geen nieuw gat in betaal-/teken-/tenantpaden.
+Publieke individuele-reviewprivacy blijft open voor eigenaar/FG; geen nieuwe
+bewaartermijn, integratie of juridische vrijgave.
+
 ## Ronde 2026-09-15 — mail-intakeretentie en auditredactie (#1491)
 
 Basis `f749333752cfedec64deba6f48973dcf95568690`. **MIDDEL — auditkopie blijft na

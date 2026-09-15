@@ -11,3 +11,5 @@ De lichte publieke V5 is al live; de onderstaande oudere releaseverificatie is h
 Herstel 11 september: eigenaar vraagt oorspronkelijke lichte V5-landing, onafhankelijk van
 systeem-/app-darkmode; lokale volledige check en zeven browserreizen groen. GitHub-review
 en release nog te verifiëren. Zie PROGRESS.md.
+
+#1490 is gemerged en live op `f7493337` (15 september 01:54 UTC); echte mail blijft uit.
