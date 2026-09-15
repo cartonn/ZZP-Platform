@@ -1,3 +1,9 @@
+## 15 september 2026 — demo-QA na abonnementsbeveiliging (#1496)
+
+#1495 is gemerged; aanvullende QA miste de expliciete demo-instelling en verwachtte oude tekst.
+Configuratie en verwachtingen hersteld, zonder versoepeling van productieregels of testskips.
+Volledige QA op herstelbranch en onafhankelijke review volgen. [Bewijs](docs/progress/2026-09-15-launch-qa-demo.md).
+
 ## 15 september 2026 — efficiënte voorbereiding mailretentieproef (#1494)
 
 Echte CI-time-out op 501 testgevallen bevestigd. Dezelfde bron-/auditparen worden

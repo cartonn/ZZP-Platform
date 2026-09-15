@@ -31,6 +31,7 @@ test.describe("QA: Wij doen je aangifte", () => {
     // Upgrade naar Volledig Ontzorgd via de abonnementspagina (echte gebruikersflow).
     // Robuust klikken: server-action-knoppen reageren pas na hydratie (zie _robust).
     await page.goto("/abonnement");
+    await expect(page.getByText("Je bekijkt de demo", { exact: true })).toBeVisible();
     await clickUntil(
       page.getByRole("button", { name: "Kies Volledig Ontzorgd" }),
       page
