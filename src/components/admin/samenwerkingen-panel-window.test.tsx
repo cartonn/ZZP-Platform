@@ -233,7 +233,7 @@ it("aggregates child status counts without returning child arrays", async () => 
     NOW,
   );
   expect(result.rows).toHaveLength(1);
-  expect(result.rows[0]._count).toEqual({ performances: 76, invoices: 60 });
+  expect(result.rows[0]!._count).toEqual({ performances: 76, invoices: 60 });
   expect(result.rows[0]).not.toHaveProperty("performances");
   expect(result.rows[0]).not.toHaveProperty("invoices");
   expect(result.paid.get("collaboration")).toBe(120);

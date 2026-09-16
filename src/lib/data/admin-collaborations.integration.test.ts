@@ -10,6 +10,7 @@ const disposable =
   ["localhost", "127.0.0.1", "[::1]"].includes(new URL(url).hostname);
 const prefix = `admin-page-${process.pid}-${Date.now()}`;
 const ids = Array.from({ length: 51 }, (_, i) => `${prefix}-${i}`);
+const oldId = `${prefix}-0`;
 const now = new Date(2026, 9, 27, 12);
 
 describe.skipIf(!disposable)("admin overview on disposable PostgreSQL", () => {
@@ -56,12 +57,12 @@ describe.skipIf(!disposable)("admin overview on disposable PostgreSQL", () => {
       })),
     });
     await prisma.performance.create({
-      data: { collaborationId: ids[0], description: "Synthetic", status: "SUBMITTED" },
+      data: { collaborationId: oldId, description: "Synthetic", status: "SUBMITTED" },
     });
     await prisma.invoice.createMany({
       data: ["SUBMITTED", "PAID", "PROCESSED", null].map((lifecycleStatus, i) => ({
         number: `${prefix}-invoice-${i}`,
-        collaborationId: ids[0],
+        collaborationId: oldId,
         lifecycleStatus,
       })),
     });
@@ -86,12 +87,12 @@ describe.skipIf(!disposable)("admin overview on disposable PostgreSQL", () => {
     const last = await getPage(filter, "2", now);
     expect(first.total).toBe(51);
     expect(first.rows).toHaveLength(50);
-    expect(last.rows.map((row) => row.id)).toEqual([ids[0]]);
-    expect(last.rows[0]._count).toEqual({ performances: 1, invoices: 1 });
-    expect(last.paid.get(ids[0])).toBe(2);
+    expect(last.rows.map((row) => row.id)).toEqual([oldId]);
+    expect(last.rows[0]!._count).toEqual({ performances: 1, invoices: 1 });
+    expect(last.paid.get(oldId)).toBe(2);
     const high = await getPage(parseCollaborationFilter({ q: prefix, dba: "HOOG" }), "1", now);
     const low = await getPage(parseCollaborationFilter({ q: prefix, dba: "LAAG" }), "1", now);
-    expect(high.rows.map((row) => row.id)).toEqual([ids[0]]);
+    expect(high.rows.map((row) => row.id)).toEqual([oldId]);
     expect(low.total).toBe(50);
     expect(
       (await getPage(parseCollaborationFilter({ q: `${prefix}' OR 1=1 --` }), "1", now)).total,
