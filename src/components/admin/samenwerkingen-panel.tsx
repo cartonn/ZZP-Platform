@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { Handshake } from "lucide-react";
-import { prisma } from "@/lib/db";
+import { getAdminCollaborations } from "@/lib/data/admin-collaborations";
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import {
-  countByStatus,
-  filterCollaborations,
   isCollaborationFilterActive,
   parseCollaborationFilter,
   type FilterableCollaboration,
@@ -51,41 +49,32 @@ type Row = FilterableCollaboration & {
 
 /**
  * Admin-overzicht van álle samenwerkingen (contract tot betaling) met een status-/DBA-filter en
- * zoeken op opdracht, opdrachtgever en ZZP'er. Telling en filters gebruiken de volledige
- * projectie: een recentheidsvenster zou oudere, nog uitvoerbare taken verbergen.
- * Alleen velden voor de overzichtsrijen worden geladen; geen documenten of contractinhoud.
+ * zoeken op opdracht, opdrachtgever en ZZP'er. De database telt en filtert de volledige set;
+ * alleen de huidige pagina en geaggregeerde prestatie-/factuurtellingen worden geladen.
  */
 export async function SamenwerkingenPanel({
   searchParams,
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
-  // unbounded-allow: complete overview projection is required for accurate status counts and search; no document or contract payloads.
-  const collaborations = await prisma.collaboration.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      status: true,
-      disputedAt: true,
-      createdAt: true,
-      startDate: true,
-      job: {
-        select: {
-          id: true,
-          title: true,
-          dbaDirectSupervision: true,
-          dbaEmbedded: true,
-          dbaFixedSchedule: true,
-        },
-      },
-      company: { select: { name: true } },
-      freelancer: { select: { user: { select: { name: true } } } },
-      performances: { select: { status: true } },
-      invoices: { where: { lifecycleStatus: { not: null } }, select: { lifecycleStatus: true } },
-    },
-  });
-
   const now = new Date();
+  const filter = parseCollaborationFilter(searchParams);
+  const {
+    rows: collaborations,
+    paid,
+    counts,
+    total,
+    page,
+    totalPages,
+  } = await getAdminCollaborations(filter, searchParams.page, now);
+  const pageHref = (nextPage: number) => {
+    const params = new URLSearchParams();
+    if (filter.q) params.set("q", filter.q);
+    if (filter.status) params.set("status", filter.status);
+    if (filter.dba) params.set("dba", filter.dba);
+    params.set("page", String(nextPage));
+    return `/admin/samenwerkingen?${params}`;
+  };
 
   const rows: Row[] = collaborations.map((c) => {
     const dba = assessCollaborationDba(
@@ -100,21 +89,18 @@ export async function SamenwerkingenPanel({
       companyName: c.company.name,
       freelancerName: c.freelancer.user.name ?? "",
       disputed: !!c.disputedAt,
-      pendingPerf: c.performances.filter((p) => p.status === "SUBMITTED").length,
-      pendingInv: c.invoices.filter((i) => i.lifecycleStatus === "SUBMITTED").length,
-      paidInv: c.invoices.filter((i) => ["PAID", "PROCESSED"].includes(i.lifecycleStatus ?? ""))
-        .length,
+      pendingPerf: c._count.performances,
+      pendingInv: c._count.invoices,
+      paidInv: paid.get(c.id) ?? 0,
       createdAt: c.createdAt,
       startDate: c.startDate,
     };
   });
 
-  const filter = parseCollaborationFilter(searchParams);
-  const counts = countByStatus(rows);
-  const visible = filterCollaborations(rows, filter);
+  const visible = rows;
   const filterActive = isCollaborationFilterActive(filter);
 
-  if (rows.length === 0) {
+  if (counts.all === 0) {
     return (
       <Card>
         <EmptyState
@@ -158,8 +144,8 @@ export async function SamenwerkingenPanel({
 
       <p className="text-sm text-muted-foreground">
         {filterActive
-          ? `${visible.length} van ${plural(rows.length, "samenwerking", "samenwerkingen")}`
-          : plural(rows.length, "samenwerking", "samenwerkingen")}
+          ? `${total} van ${plural(counts.all, "samenwerking", "samenwerkingen")}`
+          : plural(counts.all, "samenwerking", "samenwerkingen")}
       </p>
 
       {visible.length === 0 ? (
@@ -218,6 +204,27 @@ export async function SamenwerkingenPanel({
             );
           })}
         </div>
+      )}
+      {totalPages > 1 && (
+        <nav className="flex items-center justify-between gap-3 pt-2" aria-label="Paginering">
+          {page > 1 ? (
+            <Button asChild variant="secondary" size="sm">
+              <Link href={pageHref(page - 1)}>Vorige</Link>
+            </Button>
+          ) : (
+            <span />
+          )}
+          <span className="text-xs text-muted-foreground">
+            Pagina {page} van {totalPages}
+          </span>
+          {page < totalPages ? (
+            <Button asChild variant="secondary" size="sm">
+              <Link href={pageHref(page + 1)}>Volgende</Link>
+            </Button>
+          ) : (
+            <span />
+          )}
+        </nav>
       )}
     </div>
   );
