@@ -60,6 +60,7 @@ export async function SamenwerkingenPanel({
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
+  // unbounded-allow: complete overview projection is required for accurate status counts and search; no document or contract payloads.
   const collaborations = await prisma.collaboration.findMany({
     orderBy: { createdAt: "desc" },
     select: {
