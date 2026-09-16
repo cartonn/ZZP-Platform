@@ -1,6 +1,6 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
 import path from "node:path";
-import { clickUntil, clickUntilGone } from "./_robust";
+import { clickUntil } from "./_robust";
 import { PDFDocument } from "pdf-lib";
 
 const SHOTS = path.join("e2e", "screenshots");
@@ -143,10 +143,22 @@ test("admin controleert checklist en wijst af via drawer; ZZP'er ziet uitkomst e
     "https://www.validatie.nl/",
   );
   await shot(admin, "20-admin-queue");
-  await clickUntilGone(
-    approveCard.getByRole("button", { name: "Goedkeuren", exact: true }),
-    admin.getByText(approveTitle),
-  );
+  // One approval must update the current queue without a document reload or retry click.
+  let documentNavigations = 0;
+  const recordNavigation = (request: Request) => {
+    if (request.isNavigationRequest() && request.frame() === admin.mainFrame()) {
+      documentNavigations += 1;
+    }
+  };
+  admin.on("request", recordNavigation);
+  try {
+    await approveCard.getByRole("button", { name: "Goedkeuren", exact: true }).click();
+    await expect(approveCard).toHaveCount(0);
+    await expect(admin.getByText(rejectTitle)).toBeVisible();
+    expect(documentNavigations).toBe(0);
+  } finally {
+    admin.off("request", recordNavigation);
+  }
 
   // The action centre renders the same review form in its actual document drawer.
   await admin.goto("/acties");

@@ -1,3 +1,11 @@
+## 2026-09-16 — goedkeuringsproef zonder herklik/herladen (#1504)
+
+Bestaande React-#329-backlog: de documentbeoordelingsproef klikt eenmaal op
+Goedkeuren, wacht op het verdwijnen van de eigen kaart en bewaakt dat de andere
+kaart zichtbaar blijft zonder documentnavigatie. Bewijsstuk-, checklist-, afwijzings-,
+zegel- en retentiecontroles blijven staan. [Scope](docs/progress/2026-09-16-verification-single-submit.md).
+Lokale controles, browser-CI en onafhankelijke reviews volgen.
+
 ## 2026-09-16 — oudere samenwerkingen blijven vindbaar voor beheer (#1503)
 
 Persona-repro: één oude actieve inzet met wachtende prestatie verdween achter 500

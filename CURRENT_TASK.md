@@ -1,5 +1,8 @@
 # CURRENT_TASK.md — Huidige taak
 
+Routine 16 september 16:22 UTC: #1504 controleert goedkeuring na één gewone klik;
+[scope en bewijs](docs/progress/2026-09-16-verification-single-submit.md).
+
 Routine 16 september 12:22 UTC: #1503 herstelt oudere rijen in het beheeroverzicht;
 [bron, bewijs en status](docs/progress/2026-09-16-admin-collaboration-window.md).
 
