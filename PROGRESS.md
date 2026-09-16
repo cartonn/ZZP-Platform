@@ -1,3 +1,11 @@
+## 2026-09-16 — oudere samenwerkingen blijven vindbaar voor beheer (#1503)
+
+Persona-repro: één oude actieve inzet met wachtende prestatie verdween achter 500
+nieuwere afgeronde rijen, terwijl beheertaak en badge bleven staan. Het overzicht
+telt en filtert nu de volledige, beperkte veldselectie. Echte SQLite-/componentproef
+rood → groen; 26 gerichte tests geslaagd. Volledige checks en reviews volgen.
+Zie [bewijs en scope](docs/progress/2026-09-16-admin-collaboration-window.md).
+
 ## 2026-09-15 — Eigen tijdslimiet voor databasevoorbereiding (#1501)
 
 Echte main-CI faalde vóór vier retentieproeven: standaardhook 10s, terwijl de

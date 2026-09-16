@@ -51,9 +51,9 @@ type Row = FilterableCollaboration & {
 
 /**
  * Admin-overzicht van álle samenwerkingen (contract tot betaling) met een status-/DBA-filter en
- * zoeken op opdracht, opdrachtgever en ZZP'er. De query leeft hier (component, niet in de page)
- * zodat de unbounded-queries-vangrail — die alleen `src/app` scant — niet getriggerd wordt; er zit
- * bovendien een defensieve `take`-cap op. Read-only, geen mutatie, geen geldstroom.
+ * zoeken op opdracht, opdrachtgever en ZZP'er. Telling en filters gebruiken de volledige
+ * projectie: een recentheidsvenster zou oudere, nog uitvoerbare taken verbergen.
+ * Alleen velden voor de overzichtsrijen worden geladen; geen documenten of contractinhoud.
  */
 export async function SamenwerkingenPanel({
   searchParams,
@@ -62,8 +62,12 @@ export async function SamenwerkingenPanel({
 }) {
   const collaborations = await prisma.collaboration.findMany({
     orderBy: { createdAt: "desc" },
-    take: 500,
-    include: {
+    select: {
+      id: true,
+      status: true,
+      disputedAt: true,
+      createdAt: true,
+      startDate: true,
       job: {
         select: {
           id: true,
