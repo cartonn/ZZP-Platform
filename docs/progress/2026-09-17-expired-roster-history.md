@@ -6,7 +6,9 @@ plus een onbeperkt geldige vervanger. Profiel B heeft één verlopen LICENSE zon
 dekking. Beide hebben actueel verplicht dossier, volledige profielgegevens,
 identiteit, beschikbaarheid en recente login. Echte `pendingTasks` en `navBadges`
 geven nul verlopen meldingen in plaats van één. Geen productiegegevens gebruikt.
-Draftclaim #1509 volgde vóór implementatie.
+Draftclaim #1509 volgde vóór implementatie. Die bron is bevroren bewaard;
+#1510 vervolgt met een correctie aan een bestaande mock die beide vervalqueries
+als de bijna-verlopende query vastlegde. Geen bronbescherming afgezwakt.
 
 `rosterExpiredCredentialWhere` sluit dezelfde-type-dekking op hetzelfde profiel in
 de database uit voordat de bestaande vijftig-kandidatenlimiet geldt. Beide bronnen
@@ -18,7 +20,7 @@ typen en vervolgcontrole op het geselecteerde dossier blijven staan.
 Elf nieuwe proeven draaien de echte taak-/badgebronnen met een wegwerp-SQLite-database:
 EXPIRED, computed-expired, exact nu, geldige vervanger met/zonder einddatum, vier
 niet-dekkende statussen, ander type/profiel/tenant en uitsluiting van verplichte typen.
-De gerichte selectie telt 46 geslaagde tests. De oorspronkelijke proef faalde op
+De gerichte selectie telt 65 geslaagde tests. De oorspronkelijke proef faalde op
 beide verwachte meldingen. Volledige checks en onafhankelijke review volgen.
 
 Dit wijzigt uitsluitend de reeds-verlopen tak. Bijna-verlopen selectie, de bestaande

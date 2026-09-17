@@ -9,7 +9,7 @@ Vijf paginarenderregressies rood vóór herstel, daarna vijftien matrixproeven g
 De drie knoppredicaten controleren nu de reeds geladen dispuutstatus.
 [Bron, tests en grenzen](progress/2026-09-17-disputed-invoice-controls.md).
 
-**Vervolg bouwronde 17 september 08:22 — #1509:** de afzonderlijke kandidaat is
+**Vervolg bouwronde 17 september 08:22 — #1510:** de afzonderlijke kandidaat is
 met de echte taak-/badgebronnen op een geïsoleerde SQLite-database gereproduceerd:
 50 gedekte historische LICENSE-rijen verdringen een verlopen dossier zonder dekking.
 Beide bronnen gaven nul in plaats van één. De gedeelde tenantquery sluit gedekte

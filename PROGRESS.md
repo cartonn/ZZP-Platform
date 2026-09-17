@@ -1,6 +1,6 @@
 ## 2026-09-17 — factuurbediening volgt dispuut (#1508)
 
-## 17 september 2026 — verlopen dossiermeldingen (#1509)
+## 17 september 2026 — verlopen dossiermeldingen (#1510)
 
 - Repro: vijftig gedekte historische certificaten verdringen een werkelijk verlopen
   dossier; echte taak- en badgebronnen geven nul in plaats van één in geïsoleerd SQLite.
