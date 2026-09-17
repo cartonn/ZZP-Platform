@@ -16,7 +16,7 @@ import { navBadges } from "@/lib/signals";
 const db = fixture.db;
 const now = new Date("2026-09-17T08:00:00Z");
 beforeAll(async () => {
-  const env = { ...process.env, DATABASE_URL: fixture.url };
+  const env: NodeJS.ProcessEnv = { ...process.env, DATABASE_URL: fixture.url };
   delete env.RUST_LOG;
   execFileSync(
     process.execPath,
