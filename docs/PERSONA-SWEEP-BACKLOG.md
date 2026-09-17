@@ -1,5 +1,27 @@
 # Persona-sweep — gaten-backlog
 
+## 17 september 2026, 05:00 UTC — factuurbediening tijdens dispuut (#1508)
+
+Basis `b6fea77c7fbcc213c0337cd0b4781fbb538aa8c1`. FREELANCER/CLIENT zagen op
+losse facturen tijdens dispuut nog Versturen/Annuleren/Markeer als betaald.
+De echte serveracties weigeren al; dit is een P2-bedieningsfout, geen mutatiebypass.
+Vijf paginarenderregressies rood vóór herstel, daarna vijftien matrixproeven groen.
+De drie knoppredicaten controleren nu de reeds geladen dispuutstatus.
+[Bron, tests en grenzen](progress/2026-09-17-disputed-invoice-controls.md).
+
+**Apart te reproduceren — P2-kandidaat, FRANCHISER:** `pending-tasks.ts`
+`expiredRosterCreds` en de overeenkomstige `signals.ts`-query selecteren 50
+verlopen niet-verplichte credentialrijen vóór `rosterExpiredByProfile` afgedekte
+typen onderdrukt. Bronfixture: tenantprofiel A heeft 50 oude EXPIRED LICENSE-rijen
+plus één blijvend VERIFIED LICENSE; profiel B één later verlopen LICENSE zonder
+dekking. Beide hebben actuele VOG/verzekering, compleet profiel, identiteit,
+beschikbaarheid en recente login. A vult het venster maar levert nul taken; B
+verdwijnt uit taken/badge terwijl de volledige rosterlijst zijn verval toont.
+Bestaande mocks passen de querycap niet toe. Geen dynamische repro uitgevoerd:
+volgende stap is een geïsoleerde database-/queryproef die cap en onderdrukking
+werkelijk combineert, inclusief tenantgrens en dekkingsgevallen. Behoud begrensde
+queries; niet blind alle credentialrijen ophalen. Geen productie-incident geclaimd.
+
 ## 15 september 2026, 13:00 UTC — oudere inzet ontbreekt achter recent venster (#1498)
 
 Basis `3ecbdb4c73b476d69f81280a37e25f514184b678`. FRANCHISER heeft een vervolgstap

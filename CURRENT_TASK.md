@@ -1,5 +1,8 @@
 # CURRENT_TASK.md — Huidige taak
 
+Persona 17 september 05:00 UTC: #1508 laat losse factuurknoppen de dispuutstatus
+volgen; [renderbewijs en scope](docs/progress/2026-09-17-disputed-invoice-controls.md).
+
 Bouwronde 17 september 04:22 UTC: #1507 dekt downloadweigering na
 bewijsverwijdering; [routeproeven en grenzen](docs/progress/2026-09-17-erased-signing-downloads.md).
 

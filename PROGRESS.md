@@ -1,3 +1,11 @@
+## 2026-09-17 — factuurbediening volgt dispuut (#1508)
+
+Vijf detailpaginarenders bevestigen knoppen die de server tijdens dispuut weigert.
+De drie knoppredicaten volgen nu dezelfde dispuutstatus; normale bediening en
+PDF-toegang blijven behouden. Vijftien renderproeven groen, 202 gerichte tests
+groen met één lokale PostgreSQL-skip. [Bewijs en vierrollengrenzen](docs/progress/2026-09-17-disputed-invoice-controls.md).
+Volledige controle, onafhankelijke reviews en CI volgen.
+
 ## 2026-09-17 — downloadproeven na bewijsverwijdering (#1507)
 
 Acht nieuwe routeproeven bewaken 410 bij verwijderd ondertekenbewijs, geen
