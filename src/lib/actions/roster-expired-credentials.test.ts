@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 const fixture = await vi.hoisted(async () => {
@@ -13,6 +13,8 @@ const fixture = await vi.hoisted(async () => {
 vi.mock("@/lib/db", () => ({ prisma: fixture.db }));
 import { pendingTasks } from "./pending-tasks";
 import { navBadges } from "@/lib/signals";
+import { rosterExpiringCredentialCandidates } from "@/lib/data/roster-expiring-credentials";
+import { summarizeRosterExpiringSoon } from "@/lib/data/roster-expiry";
 const db = fixture.db;
 const now = new Date("2026-09-17T08:00:00Z");
 beforeAll(async () => {
@@ -64,6 +66,7 @@ beforeAll(async () => {
   await db.credential.createMany({
     data: ["a", "b"].flatMap((freelancerProfileId) =>
       ["VOG", "INSURANCE"].map((type) => ({
+        id: `mandatory-${freelancerProfileId}-${type}`,
         freelancerProfileId,
         type,
         title: type,
@@ -84,6 +87,7 @@ beforeAll(async () => {
   await db.credential.createMany({
     data: [
       {
+        id: "a-current",
         freelancerProfileId: "a",
         type: "LICENSE",
         title: "Replacement",
@@ -108,6 +112,18 @@ afterAll(async () => {
   rmSync(fixture.directory, { recursive: true, force: true });
 });
 beforeEach(async () => {
+  await db.credential.upsert({
+    where: { id: "mandatory-b-VOG" },
+    create: {
+      id: "mandatory-b-VOG",
+      freelancerProfileId: "b",
+      type: "VOG",
+      title: "VOG",
+      status: "VERIFIED",
+    },
+    update: {},
+  });
+  await db.credential.update({ where: { id: "a-current" }, data: { expiresAt: null } });
   await db.credential.deleteMany({ where: { id: { startsWith: "extra-" } } });
   await db.credential.update({
     where: { id: "target" },
@@ -199,4 +215,126 @@ it("does not accept another type or another profile as coverage", async () => {
 it("keeps mandatory types in their existing engageability flow", async () => {
   await db.credential.update({ where: { id: "target" }, data: { type: "VOG" } });
   await expectAlert(0);
+});
+
+describe("upcoming expiry candidate coverage", () => {
+  const day = 86400000;
+  beforeEach(async () => {
+    await db.credential.createMany({
+      data: Array.from({ length: 50 }, (_, i) => ({
+        id: `extra-upcoming-${i}`,
+        freelancerProfileId: "a",
+        type: "LICENSE",
+        title: "Old upcoming",
+        status: "VERIFIED",
+        expiresAt: new Date(now.getTime() + (i + 1) * 3600000),
+      })),
+    });
+    await db.credential.update({
+      where: { id: "target" },
+      data: { status: "VERIFIED", expiresAt: new Date(now.getTime() + 10 * day) },
+    });
+  });
+  async function expectUpcoming(ids: string[], badgeCount = ids.length) {
+    const tasks = await pendingTasks({ id: "owner", role: "FRANCHISER", status: "ACTIVE" });
+    const badges = await navBadges("FRANCHISER", "owner");
+    expect
+      .soft(
+        tasks
+          .filter((t) => t.kind === "franchise-credential-expiry")
+          .map((t) => t.id)
+          .sort(),
+      )
+      .toEqual(ids.map((id) => `franchise-credential-expiry:${id}`));
+    expect.soft(badges["/franchise/zzpers"]?.count ?? 0).toBe(badgeCount);
+    expect
+      .soft(await summarizeRosterExpiringSoon("own", now, new Date(now.getTime() + 30 * day)))
+      .toEqual({ profiles: ids.length, certs: ids.length });
+  }
+  it.each([null, new Date(now.getTime() + 31 * day)])(
+    "keeps the uncovered reminder behind 50 replaced rows (replacement expires %s)",
+    async (expiresAt) => {
+      await db.credential.update({ where: { id: "a-current" }, data: { expiresAt } });
+      await expectUpcoming(["b"]);
+    },
+  );
+  it.each([20, 30])(
+    "still warns when the replacement expires within the window at day %i",
+    async (days) => {
+      await db.credential.update({
+        where: { id: "a-current" },
+        data: { expiresAt: new Date(now.getTime() + days * day) },
+      });
+      await expectUpcoming(["a", "b"]);
+      // With one effective slot, B's day-10 expiry precedes A's replacement.
+      const first = await rosterExpiringCredentialCandidates(
+        "own",
+        now,
+        new Date(now.getTime() + 30 * day),
+        1,
+      );
+      expect(first.map((c) => c.freelancerProfileId)).toEqual(["b"]);
+    },
+  );
+  it.each(["DRAFT", "SUBMITTED", "REJECTED", "EXPIRED"])(
+    "does not let a %s replacement cover an upcoming expiry",
+    async (status) => {
+      await db.credential.create({
+        data: {
+          id: "extra-b-cover",
+          freelancerProfileId: "b",
+          type: "LICENSE",
+          title: "Unapproved",
+          status,
+          expiresAt: null,
+        },
+      });
+      await expectUpcoming(["b"]);
+    },
+  );
+  it("keeps foreign credentials and other types out of coverage", async () => {
+    await db.credential.createMany({
+      data: [
+        {
+          id: "extra-foreign",
+          freelancerProfileId: "foreign",
+          type: "CERTIFICATE",
+          title: "Foreign expiry",
+          status: "VERIFIED",
+          expiresAt: new Date(now.getTime() + day),
+        },
+        {
+          id: "extra-foreign-cover",
+          freelancerProfileId: "foreign",
+          type: "LICENSE",
+          title: "Foreign coverage",
+          status: "VERIFIED",
+          expiresAt: null,
+        },
+        {
+          id: "extra-other-type",
+          freelancerProfileId: "b",
+          type: "DIPLOMA",
+          title: "Other type",
+          status: "VERIFIED",
+          expiresAt: null,
+        },
+      ],
+    });
+    await expectUpcoming(["b"]);
+  });
+  it("keeps mandatory upcoming reminders when no replacement covers them", async () => {
+    await db.credential.deleteMany({ where: { freelancerProfileId: "b", type: "VOG" } });
+    await db.credential.update({ where: { id: "target" }, data: { type: "VOG" } });
+    await expectUpcoming(["b"]);
+  });
+  it("keeps exactly-now expiry out of upcoming candidate slots", async () => {
+    await db.credential.update({ where: { id: "a-current" }, data: { expiresAt: now } });
+    await db.credential.updateMany({
+      where: { id: { startsWith: "extra-upcoming-" } },
+      data: { expiresAt: now },
+    });
+    // A now has an expired alert; B still has its separate upcoming alert.
+    await expectUpcoming(["b"], 2);
+  });
 });

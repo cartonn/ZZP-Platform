@@ -13,6 +13,7 @@ import {
   ROSTER_ENGAGEABILITY_SELECT,
   evaluateRosterEngageability,
 } from "@/lib/data/roster-engageability";
+import { rosterExpiringCredentialCandidates } from "@/lib/data/roster-expiring-credentials";
 import { rosterExpiredCredentialWhere } from "@/lib/data/roster-expired-credentials";
 import { getAdminPerformanceEscalations } from "@/lib/data/admin-performance-escalations";
 import { formatMissing } from "@/lib/next-actions";
@@ -1410,25 +1411,9 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     reengagePublishedJobs,
     reengageCollabActivity,
   ] = await Promise.all([
-    // De in-venster (now, soon] verlopende VERIFIED-certs van tenant-ZZP'ers — de kandidaat-nudges.
-    // Alleen op dit venster filteren (niet álle certs) is bewust: onbeperkt-geldige certs
-    // (`expiresAt = null`, in de zorg gangbaar bij BIG-registraties) vallen buiten `gte/lte` en
-    // consumeren dus géén MAX-slot. Zo kan een grote roster met veel onbeperkt-geldige certs geen
-    // echte verloop-taak verdringen. De superseded-check (dekkend cert van hetzelfde type) gebeurt
-    // hierna op een aparte, op de kandidaat-profielen gescopete query.
-    prisma.credential.findMany({
-      where: {
-        freelancerProfile: { tenantId },
-        status: "VERIFIED",
-        expiresAt: { gte: now, lte: soon },
-      },
-      select: {
-        freelancerProfileId: true,
-        freelancerProfile: { select: { user: { select: { name: true } } } },
-      },
-      orderBy: { expiresAt: "asc" },
-      take: MAX,
-    }),
+    // Eén kandidaatgroep per profiel/type, geordend op het laatste relevante verval.
+    // Ook binnen het venster vervangen exemplaren mogen geen MAX-slot verdringen.
+    rosterExpiringCredentialCandidates(tenantId, now, soon, MAX),
     // De REEDS verlopen, NIET-verplichte VERIFIED/EXPIRED-certs van tenant-ZZP'ers — de tegenhanger
     // van `expiringRosterCreds`, zodat het compliance-signaal niet verdwijnt zodra een cert de
     // vervaldatum passeert (persona-sweep: de "verloopt binnenkort"-taak viel weg juist toen de gap
@@ -1620,17 +1605,21 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
   // superseded-check hebben we per kandidaat-ZZP'er álle VERIFIED-certs nodig (ook de langer-geldige
   // en onbeperkte dekkers), maar alléén voor de profielen die een in-venster verlopend cert hebben —
   // gescoped op die ids, zodat onbeperkt-geldige certs van ándere roster-leden de query niet vullen.
-  const candidateNames = new Map<string, string>();
-  for (const c of expiringRosterCreds)
-    candidateNames.set(c.freelancerProfileId, c.freelancerProfile.user.name ?? "ZZP'er");
+  const candidateProfileIds = [...new Set(expiringRosterCreds.map((c) => c.freelancerProfileId))];
 
-  if (candidateNames.size > 0) {
+  if (candidateProfileIds.length > 0) {
     const coverCreds = await prisma.credential.findMany({
       where: {
         status: "VERIFIED",
-        freelancerProfileId: { in: [...candidateNames.keys()] },
+        freelancerProfileId: { in: candidateProfileIds },
       },
-      select: { id: true, type: true, expiresAt: true, freelancerProfileId: true },
+      select: {
+        id: true,
+        type: true,
+        expiresAt: true,
+        freelancerProfileId: true,
+        freelancerProfile: { select: { user: { select: { name: true } } } },
+      },
     });
     const rosterExpiry = rosterExpiringByProfile(
       coverCreds.map((c) => ({
@@ -1639,7 +1628,7 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
         status: "VERIFIED" as const,
         expiresAt: c.expiresAt,
         freelancerProfileId: c.freelancerProfileId,
-        freelancerName: candidateNames.get(c.freelancerProfileId) ?? "ZZP'er",
+        freelancerName: c.freelancerProfile.user.name ?? "ZZP'er",
       })),
       now,
       soon,

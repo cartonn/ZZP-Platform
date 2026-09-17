@@ -1,3 +1,12 @@
+## 17 september 2026 — bijna-verloopmeldingen (#1512)
+
+- Echte taak-/badgebronnen verliezen één waarschuwing achter vijftig vervangen
+  certificaten; geïsoleerde SQLite-repro op `3d7bbe1c` rood vóór de fix.
+- Gedeeld tenantfilter sluit dekking voorbij het venster vóór de limiet uit;
+  vervangers binnen het venster blijven meetellen. Elf nieuwe databasegevallen.
+- [Scope, bewijs en grenzen](docs/progress/2026-09-17-upcoming-roster-history.md).
+  Volledige controle, onafhankelijke review en CI volgen.
+
 ## 17 september 2026 — verlopen dossiermeldingen (#1511)
 
 - Repro: vijftig gedekte historische certificaten verdringen een werkelijk verlopen

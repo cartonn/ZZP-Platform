@@ -26,7 +26,7 @@ vi.mock("@/lib/db", () => ({
     company: { findMany: vi.fn(() => Promise.resolve([])) },
     lead: { count: vi.fn(() => Promise.resolve(0)) },
     shiftHandoff: { count: vi.fn(() => Promise.resolve(0)) },
-    credential: { findMany: vi.fn(() => Promise.resolve([])) },
+    credential: { groupBy: vi.fn(async () => []), findMany: vi.fn(() => Promise.resolve([])) },
     freelancerProfile: { findMany: vi.fn(() => Promise.resolve([])) },
     job: { findMany: vi.fn(() => Promise.resolve([])), groupBy: vi.fn(() => Promise.resolve([])) },
     collaboration: {

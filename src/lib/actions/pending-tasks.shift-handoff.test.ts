@@ -45,7 +45,7 @@ vi.mock("@/lib/db", () => ({
       })),
       findMany: vi.fn(async () => []),
     },
-    credential: { findMany: vi.fn(async () => []) },
+    credential: { groupBy: vi.fn(async () => []), findMany: vi.fn(async () => []) },
     lead: { count: vi.fn(async () => 0) },
     // Volledig opgezette franchise (companies/roster/diensten ≥ 1, geen opdrachtgever-zonder-dienst)
     // → geen geleide-opzet-taken, zodat de test geïsoleerd blijft.

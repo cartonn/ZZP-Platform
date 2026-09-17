@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/db";
 import { rosterExpiringByProfile } from "@/lib/credentials";
+import { rosterExpiringCredentialCandidates } from "./roster-expiring-credentials";
 
 /**
- * Bovengrens op de kandidaat-certscan — identiek aan `CASCADE_SCAN_LIMIT` in `signals.ts`
+ * Bovengrens op de kandidaatgroepen per profiel/type — identiek aan `CASCADE_SCAN_LIMIT` in `signals.ts`
  * en de /acties-bron (`franchiseCredentialExpiryTask`, pending-tasks.ts), zodat het zegel-,
- * badge- en actiecentrum-oppervlak op grote tenants (>50 verlopende certificaten) exact
+ * badge- en actiecentrum-oppervlak op grote tenants (>50 verlopende profiel/type-combinaties) exact
  * hetzelfde subset lezen en niet driften.
  */
 export const ROSTER_EXPIRY_SCAN_LIMIT = 50;
@@ -24,7 +25,7 @@ export interface RosterExpirySummary {
  * (`franchiserTasks`, pending-tasks.ts) gebruiken, zodat het dashboard-zegel niet
  * over-rapporteert t.o.v. die oppervlakken. Server-side, read-only.
  *
- * Stap 1: kandidaat-certificaten in het venster (gecapt/geordend zoals /acties) → hun profielen.
+ * Stap 1: profiel/type-groepen op laatste verval, daarna pas de cap zoals /acties.
  * Stap 2: het VOLLEDIGE VERIFIED-dossier per kandidaat-profiel (ook langer-geldige/onbeperkte
  * dekkers) → `rosterExpiringByProfile` doet de supersede-uitsluiting binnen elk eigen dossier.
  */
@@ -33,16 +34,12 @@ export async function summarizeRosterExpiringSoon(
   now: Date,
   soon: Date,
 ): Promise<RosterExpirySummary> {
-  const expiringCreds = await prisma.credential.findMany({
-    where: {
-      freelancerProfile: { tenantId },
-      status: "VERIFIED",
-      expiresAt: { gte: now, lte: soon },
-    },
-    select: { freelancerProfileId: true },
-    orderBy: { expiresAt: "asc" },
-    take: ROSTER_EXPIRY_SCAN_LIMIT,
-  });
+  const expiringCreds = await rosterExpiringCredentialCandidates(
+    tenantId,
+    now,
+    soon,
+    ROSTER_EXPIRY_SCAN_LIMIT,
+  );
 
   const candidateProfileIds = [...new Set(expiringCreds.map((c) => c.freelancerProfileId))];
   if (candidateProfileIds.length === 0) return { profiles: 0, certs: 0 };

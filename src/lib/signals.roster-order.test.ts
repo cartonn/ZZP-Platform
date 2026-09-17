@@ -23,7 +23,7 @@ vi.mock("@/lib/db", () => ({
     company: { findMany: vi.fn(async () => []) },
     lead: { count: vi.fn(async () => 0) },
     shiftHandoff: { count: vi.fn(async () => 0) },
-    credential: { findMany: vi.fn(async () => []) },
+    credential: { groupBy: vi.fn(async () => []), findMany: vi.fn(async () => []) },
     freelancerProfile: {
       findMany: vi.fn(async (a: RosterQuery) => {
         rosterQueries.push(a);

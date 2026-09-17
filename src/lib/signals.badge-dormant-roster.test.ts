@@ -46,7 +46,7 @@ vi.mock("@/lib/db", () => ({
     lead: { count: vi.fn(async () => 0) },
     shiftHandoff: { count: vi.fn(async () => 0) },
     // Geen (bijna-)verlopende of reeds-verlopen roster-certificaten → alleen de dormancy-term drijft de badge.
-    credential: { findMany: vi.fn(async () => []) },
+    credential: { groupBy: vi.fn(async () => []), findMany: vi.fn(async () => []) },
     freelancerProfile: { findMany: vi.fn(async () => [DORMANT_ROSTER_ROW]) },
     job: { findMany: vi.fn(async () => []), groupBy: vi.fn(async () => []) },
     collaboration: { findMany: vi.fn(async () => []), groupBy: vi.fn(async () => []) },
