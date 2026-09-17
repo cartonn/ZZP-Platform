@@ -1,5 +1,8 @@
 # CURRENT_TASK.md — Huidige taak
 
+Routine 17 september 00:22 UTC: #1505 controleert verificatie aanvragen na één klik;
+[scope en bewijs](docs/progress/2026-09-17-credential-submit-once.md).
+
 Routine 16 september 16:22 UTC: #1504 controleert goedkeuring na één gewone klik;
 [scope en bewijs](docs/progress/2026-09-16-verification-single-submit.md).
 

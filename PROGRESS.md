@@ -1,3 +1,11 @@
+## 2026-09-17 — verificatieaanvraag zonder herklik/herladen (#1505)
+
+Bestaande React-#329-backlog: de certificaatproef vraagt na hydratatie eenmaal
+verificatie aan, wacht op In beoordeling en het verdwijnen van de aanvraagknop,
+zonder hoofddocumentnavigatie. Geldige VOG/diploma- en verlopen-bewijsstukjourneys
+blijven behouden. [Scope](docs/progress/2026-09-17-credential-submit-once.md).
+Volledige lokale controle, browser-CI en onafhankelijke reviews volgen.
+
 ## 2026-09-16 — goedkeuringsproef zonder herklik/herladen (#1504)
 
 Bestaande React-#329-backlog: de documentbeoordelingsproef klikt eenmaal op
