@@ -1,6 +1,5 @@
 import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
 import path from "node:path";
-import { clickUntil } from "./_robust";
 import { PDFDocument } from "pdf-lib";
 
 const SHOTS = path.join("e2e", "screenshots");
@@ -71,10 +70,22 @@ async function addAndSubmitCredential(
   await hydrated(page);
 
   const card = page.locator("div.bg-card", { hasText: opts.title });
-  await clickUntil(
-    card.getByRole("button", { name: "Verificatie aanvragen" }),
-    card.locator("span").filter({ hasText: /^In beoordeling$/ }),
-  );
+  // One request must update this card without a document reload or retry click.
+  let documentNavigations = 0;
+  const recordNavigation = (request: Request) => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+      documentNavigations += 1;
+    }
+  };
+  page.on("request", recordNavigation);
+  try {
+    await card.getByRole("button", { name: "Verificatie aanvragen", exact: true }).click();
+    await expect(card.locator("span").filter({ hasText: /^In beoordeling$/ })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Verificatie aanvragen" })).toHaveCount(0);
+    expect(documentNavigations).toBe(0);
+  } finally {
+    page.off("request", recordNavigation);
+  }
 }
 
 test("admin controleert checklist en wijst af via drawer; ZZP'er ziet uitkomst en VOG-retentie", async ({
