@@ -25,7 +25,7 @@ vi.mock("@/lib/security/access-audit", () => ({ auditDeniedAccess: state.auditDe
 vi.mock("@/lib/rate-limit", () => ({ documentPdfRateLimiter: { check: state.check } }));
 
 import { AuthorizationError } from "@/lib/authz";
-import { LegacySigningEvidenceError } from "@/lib/signing-contract";
+import { LegacySigningEvidenceError, SigningEvidenceErasedError } from "@/lib/signing-contract";
 import { GET } from "./route";
 
 const actor = { id: "owner", role: "CLIENT", status: "ACTIVE" };
@@ -175,6 +175,23 @@ it.each(["", "?original=1", "?format=json"])(
     expect(response.headers.get("content-type")).not.toContain("application/pdf");
     expect(response.headers.has("content-disposition")).toBe(false);
     expect(await response.json()).toEqual({ error: new LegacySigningEvidenceError().message });
+    expect(state.buildSigningOriginal).not.toHaveBeenCalled();
+    expect(state.buildSigningEvidencePdf).not.toHaveBeenCalled();
+    expect(state.audit).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["", "?original=1", "?format=json"])(
+  "erased signing evidence denies every export format without rebuilding: %s",
+  async (query) => {
+    state.loadSigningView.mockRejectedValueOnce(new SigningEvidenceErasedError());
+    const response = await get(query);
+    expect(response.status).toBe(410);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("content-type")).toContain("application/json");
+    expect(response.headers.has("content-disposition")).toBe(false);
+    expect(await response.json()).toEqual({ error: new SigningEvidenceErasedError().message });
+    expect(state.loadSigningView).toHaveBeenCalledWith(actor, "col");
     expect(state.buildSigningOriginal).not.toHaveBeenCalled();
     expect(state.buildSigningEvidencePdf).not.toHaveBeenCalled();
     expect(state.audit).not.toHaveBeenCalled();

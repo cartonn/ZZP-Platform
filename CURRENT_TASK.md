@@ -1,5 +1,8 @@
 # CURRENT_TASK.md — Huidige taak
 
+Bouwronde 17 september 04:22 UTC: #1507 dekt downloadweigering na
+bewijsverwijdering; [routeproeven en grenzen](docs/progress/2026-09-17-erased-signing-downloads.md).
+
 Security 17 september 02:00 UTC: #1506 bewaakt actuele dispuut-/partijvoorwaarden
 bij losse factuurstatuswrites; [repro en scope](docs/progress/2026-09-17-legacy-invoice-dispute-race.md).
 

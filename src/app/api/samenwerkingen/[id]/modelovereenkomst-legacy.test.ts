@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { LegacySigningEvidenceError } from "@/lib/signing-contract";
+import { LegacySigningEvidenceError, SigningEvidenceErasedError } from "@/lib/signing-contract";
 
 const state = vi.hoisted(() => ({
   actor: vi.fn(),
@@ -143,4 +143,74 @@ it("a foreign viewer cannot learn that a legacy original is absent", async () =>
   expect(response.status).toBe(404);
   expect(await response.json()).toEqual({ error: "Niet gevonden." });
   expect(state.previewPdf).not.toHaveBeenCalled();
+});
+
+async function expectErased(response: Response) {
+  expect(response.status).toBe(410);
+  expect(response.headers.get("cache-control")).toBe("private, no-store");
+  expect(response.headers.get("content-type")).toContain("application/json");
+  expect(response.headers.has("content-disposition")).toBe(false);
+  expect(await response.json()).toEqual({ error: new SigningEvidenceErasedError().message });
+  expect(state.previewPdf).not.toHaveBeenCalled();
+  expect(state.evidencePdf).not.toHaveBeenCalled();
+}
+
+it.each([
+  { id: "client", role: "CLIENT" },
+  { id: "freelancer", role: "FREELANCER" },
+  { id: "admin", role: "ADMIN" },
+])(
+  "erased originals return 410 for authorized $role without preview reconstruction",
+  async (actor) => {
+    state.actor.mockResolvedValue({ ...actor, status: "ACTIVE" });
+    state.findUnique.mockResolvedValue({
+      ...collaboration(),
+      signingEvidenceErasedAt: new Date("2026-09-17T02:00:00Z"),
+    });
+    await expectErased(await get());
+    expect(state.view).not.toHaveBeenCalled();
+    expect(state.audit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: actor.id,
+        action: "MODEL_AGREEMENT_ACCESSED",
+        entityId: "col",
+      }),
+    );
+  },
+);
+
+it("erasure discovered on the second read returns 410 instead of regenerating the PDF", async () => {
+  state.findUnique.mockResolvedValue({
+    ...collaboration(),
+    status: "ACTIVE",
+    contractStatus: "SIGNED",
+    signing: { collaborationId: "col" },
+  });
+  state.view.mockRejectedValueOnce(new SigningEvidenceErasedError());
+  await expectErased(await get());
+  expect(state.view).toHaveBeenCalledWith(
+    { id: "client", role: "CLIENT", status: "ACTIVE" },
+    "col",
+  );
+});
+
+it("a foreign viewer cannot distinguish an erased original from an unknown collaboration", async () => {
+  state.actor.mockResolvedValue({ id: "outsider", role: "CLIENT", status: "ACTIVE" });
+  state.findUnique
+    .mockResolvedValueOnce({
+      ...collaboration(),
+      signingEvidenceErasedAt: new Date("2026-09-17T02:00:00Z"),
+    })
+    .mockResolvedValueOnce(null);
+  const erased = await get();
+  const missing = await get();
+  expect(erased.status).toBe(404);
+  expect(missing.status).toBe(404);
+  expect(await erased.json()).toEqual({ error: "Niet gevonden." });
+  expect(await missing.json()).toEqual({ error: "Niet gevonden." });
+  expect(state.denied).toHaveBeenCalledTimes(2);
+  expect(state.audit).not.toHaveBeenCalled();
+  expect(state.view).not.toHaveBeenCalled();
+  expect(state.previewPdf).not.toHaveBeenCalled();
+  expect(state.evidencePdf).not.toHaveBeenCalled();
 });

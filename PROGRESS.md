@@ -1,3 +1,11 @@
+## 2026-09-17 — downloadproeven na bewijsverwijdering (#1507)
+
+Acht nieuwe routeproeven bewaken 410 bij verwijderd ondertekenbewijs, geen
+PDF-reconstructie en statusafscherming voor buitenstaanders. 117 gerichte
+proeven groen; drie opzettelijke foutinjecties worden gedetecteerd. Geen
+productlek of beleidswijziging. [Scope en grenzen](docs/progress/2026-09-17-erased-signing-downloads.md).
+Volledige controle, onafhankelijke reviews en CI volgen.
+
 ## 2026-09-17 — dispuut bewaken bij de factuurwrite (#1506)
 
 Drie echte databaseproeven bevestigen een losse factuurstatuswijziging nadat een
