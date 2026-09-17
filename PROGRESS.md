@@ -1,10 +1,11 @@
-## 17 september 2026 — claim gelijk certificaatvenster rond klokwissels
+## 17 september 2026 — gelijk certificaatvenster rond klokwissels (#1514)
 
-- Bouwronde 16:22 UTC: dashboard gebruikt kalenderdagen, acties/badge 720 uur.
-- Echte paginacall met gecontroleerde klok in Europe/Amsterdam: twee rode
-  grensproeven (voorjaar/najaar), één groene zomercontrole op `f63bf822`.
-- Scope: gedeelde vensterduur, dashboard/acties/badge en gerichte regressies;
-  geen status-, tenant-, retentie- of ontwerpwijziging. Implementatie volgt na claim.
+- Dashboardgrens week op `f63bf822` één uur af van acties/badge: twee rode
+  paginaproeven bij zomer-/wintertijd, één groene zomercontrole.
+- Gedeelde bestaande duur van 720 uur voor dashboard, acties en badges.
+  Paginaregressies bewaken beide klokwissels en zomer, in Amsterdam én UTC.
+- [Repro en scope](docs/progress/2026-09-17-expiry-window-parity.md).
+  Volledige controles, onafhankelijke review, CI en release afzonderlijk volgen.
 
 ## 17 september 2026 — actuele voorwaarden bij conceptprestaties (#1513)
 
