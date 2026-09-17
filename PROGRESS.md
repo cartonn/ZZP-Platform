@@ -1,3 +1,12 @@
+## 17 september 2026 — gelijk certificaatvenster rond klokwissels (#1514)
+
+- Dashboardgrens week op `f63bf822` één uur af van acties/badge: twee rode
+  paginaproeven bij zomer-/wintertijd, één groene zomercontrole.
+- Gedeelde bestaande duur van 720 uur voor dashboard, acties en badges.
+  Paginaregressies bewaken beide klokwissels en zomer, in Amsterdam én UTC.
+- [Repro en scope](docs/progress/2026-09-17-expiry-window-parity.md).
+  Volledige controles, onafhankelijke review, CI en release afzonderlijk volgen.
+
 ## 17 september 2026 — actuele voorwaarden bij conceptprestaties (#1513)
 
 - Vier echte tijdelijke SQLite-proeven bewaren ten onrechte een concept als een

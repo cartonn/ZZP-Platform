@@ -8,6 +8,9 @@ import {
   type VerificationDecision,
 } from "@/lib/enums";
 
+/** Exact 30-day alert window shared by dashboard, tasks and badges, including clock changes. */
+export const CREDENTIAL_EXPIRY_WINDOW_MS = 30 * 86_400_000;
+
 /** Nederlandse labels per certificaattype — één bron voor de hele UI. */
 export const CREDENTIAL_TYPE_LABEL: Record<CredentialType, string> = {
   VOG: "VOG",

@@ -1,5 +1,7 @@
 # CURRENT_TASK.md — Huidige taak
 
+Bouwronde 17 september 16:22 UTC: #1514 bewaakt het gelijke certificaatvenster; [scope](docs/progress/2026-09-17-expiry-window-parity.md).
+
 Security 17 september 14:00 UTC: #1513 bewaakt actuele conceptprestatievoorwaarden;
 [repro en scope](docs/progress/2026-09-17-draft-performance-current-state.md).
 
@@ -27,8 +29,7 @@ Routine 16 september 16:22 UTC: #1504 controleert goedkeuring na één gewone kl
 Routine 16 september 12:22 UTC: #1503 herstelt oudere rijen in het beheeroverzicht;
 [bron, bewijs en status](docs/progress/2026-09-16-admin-collaboration-window.md).
 
-Eerdere eigenaar- en releasecontext blijft bewaard in
-[het contextarchief](docs/progress/2026-09-17-context-archive.md).
+Eerdere eigenaar- en releasecontext blijft bewaard in [het contextarchief](docs/progress/2026-09-17-context-archive.md).
 
 > Eén taak tegelijk. Lees CLAUDE.md, de bovenste 100 regels van PROGRESS.md en
 > `ARCHITECTURE.md §Modulekaart` voordat je begint. Werk dit bestand bij wanneer je naar de
