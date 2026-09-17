@@ -72,15 +72,19 @@ vi.mock("@/lib/db", () => ({
       findMany: vi.fn(
         async (args: {
           where?: {
-            expiresAt?: { gte: Date; lte: Date };
+            expiresAt?: { gt?: Date; gte?: Date; lte: Date };
             freelancerProfileId?: { in: string[] };
           };
         }) => {
           const w = args?.where ?? {};
           if (w.expiresAt) {
-            const { gte, lte } = w.expiresAt;
+            const { gt, gte, lte } = w.expiresAt;
             return state.creds.filter(
-              (c) => c.expiresAt != null && c.expiresAt >= gte && c.expiresAt <= lte,
+              (c) =>
+                c.expiresAt != null &&
+                (!gt || c.expiresAt > gt) &&
+                (!gte || c.expiresAt >= gte) &&
+                c.expiresAt <= lte,
             );
           }
           if (w.freelancerProfileId?.in) {

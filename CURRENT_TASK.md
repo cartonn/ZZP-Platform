@@ -1,5 +1,8 @@
 # CURRENT_TASK.md — Huidige taak
 
+Bouwronde 17 september 12:22 UTC: #1512 bewaart bijna-verloopmeldingen na vervangen
+certificaten; [repro en scope](docs/progress/2026-09-17-upcoming-roster-history.md).
+
 Bouwronde 17 september 08:22 UTC: #1511 bewaart verlopen dossiermeldingen na gedekte
 historie; [repro en scope](docs/progress/2026-09-17-expired-roster-history.md).
 

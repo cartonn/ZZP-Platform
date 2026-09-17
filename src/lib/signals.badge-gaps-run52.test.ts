@@ -221,7 +221,7 @@ describe("navBadges FRANCHISER — /franchise/zzpers (DOEL 1b)", () => {
     // moeten identiek ordenen zodat ze dezelfde 50 rijen truncaten.
     rosterByTenant["tenant-a"] = [engageableRow("fp-1")];
     await navBadges("FRANCHISER", "u-1");
-    expect(lastExpiringQuery?.orderBy).toEqual({ expiresAt: "asc" });
+    expect(lastExpiringQuery?.orderBy).toEqual([{ expiresAt: "asc" }, { id: "asc" }]);
     expect(lastExpiringQuery?.take).toBe(50);
   });
 

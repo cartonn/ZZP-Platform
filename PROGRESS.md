@@ -1,10 +1,11 @@
-## 17 september 2026 — bijna-verloopmeldingen (claim)
+## 17 september 2026 — bijna-verloopmeldingen (#1512)
 
-Op `3d7bbe1c` met echte taak-/badgebronnen gereproduceerd: vijftig bijna-verlopende
-LICENSE-exemplaren met een onbeperkte vervanger verdringen een ander profiel
-zonder vervanger. Beide meldingen nul in plaats van één. Scope: gedeeld tenantfilter
-voor de bijna-verlopende selectie vóór de bestaande limiet, regressietests en bewijs.
-Nog niet geïmplementeerd; de reeds-verlopen fix #1511 blijft intact.
+- Echte taak-/badgebronnen verliezen één waarschuwing achter vijftig vervangen
+  certificaten; geïsoleerde SQLite-repro op `3d7bbe1c` rood vóór de fix.
+- Gedeeld tenantfilter sluit dekking voorbij het venster vóór de limiet uit;
+  vervangers binnen het venster blijven meetellen. Elf nieuwe databasegevallen.
+- [Scope, bewijs en grenzen](docs/progress/2026-09-17-upcoming-roster-history.md).
+  Volledige controle, onafhankelijke review en CI volgen.
 
 ## 17 september 2026 — verlopen dossiermeldingen (#1511)
 

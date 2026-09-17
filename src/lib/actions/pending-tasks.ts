@@ -13,6 +13,7 @@ import {
   ROSTER_ENGAGEABILITY_SELECT,
   evaluateRosterEngageability,
 } from "@/lib/data/roster-engageability";
+import { rosterExpiringCredentialWhere } from "@/lib/data/roster-expiring-credentials";
 import { rosterExpiredCredentialWhere } from "@/lib/data/roster-expired-credentials";
 import { getAdminPerformanceEscalations } from "@/lib/data/admin-performance-escalations";
 import { formatMissing } from "@/lib/next-actions";
@@ -1410,23 +1411,16 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     reengagePublishedJobs,
     reengageCollabActivity,
   ] = await Promise.all([
-    // De in-venster (now, soon] verlopende VERIFIED-certs van tenant-ZZP'ers — de kandidaat-nudges.
-    // Alleen op dit venster filteren (niet álle certs) is bewust: onbeperkt-geldige certs
-    // (`expiresAt = null`, in de zorg gangbaar bij BIG-registraties) vallen buiten `gte/lte` en
-    // consumeren dus géén MAX-slot. Zo kan een grote roster met veel onbeperkt-geldige certs geen
-    // echte verloop-taak verdringen. De superseded-check (dekkend cert van hetzelfde type) gebeurt
-    // hierna op een aparte, op de kandidaat-profielen gescopete query.
+    // VERIFIED-certs in (now, soon], zonder hetzelfde type dat al langer dan het venster
+    // is gedekt. Afgehandelde exemplaren mogen geen MAX-slot verdringen. De dossierquery
+    // hieronder kiest vervolgens ook bij vervangers binnen het venster de relevante exemplaren.
     prisma.credential.findMany({
-      where: {
-        freelancerProfile: { tenantId },
-        status: "VERIFIED",
-        expiresAt: { gte: now, lte: soon },
-      },
+      where: rosterExpiringCredentialWhere(tenantId, now, soon),
       select: {
         freelancerProfileId: true,
         freelancerProfile: { select: { user: { select: { name: true } } } },
       },
-      orderBy: { expiresAt: "asc" },
+      orderBy: [{ expiresAt: "asc" }, { id: "asc" }],
       take: MAX,
     }),
     // De REEDS verlopen, NIET-verplichte VERIFIED/EXPIRED-certs van tenant-ZZP'ers — de tegenhanger

@@ -5,6 +5,7 @@
 
 import { Prisma } from "@prisma/client";
 import { cache } from "react";
+import { rosterExpiringCredentialWhere } from "@/lib/data/roster-expiring-credentials";
 import { rosterExpiredCredentialWhere } from "@/lib/data/roster-expired-credentials";
 import { getAdminPerformanceEscalations } from "@/lib/data/admin-performance-escalations";
 
@@ -927,23 +928,19 @@ export const navBadges = cache(async function navBadges(
         },
       }),
       // /franchise/zzpers — kandidaat-profielen met een (bijna-)verlopend geverifieerd certificaat van
-      // tenant-ZZP'ers (venster gte now / lte soon), exact de eerste-stap-scope van de /acties-bron
+      // tenant-ZZP'ers (venster gt now / lte soon), exact de eerste-stap-scope van de /acties-bron
       // (`expiringRosterCreds` in pending-tasks.ts). Dit is nog NIET het eindaantal: superseded exemplaren
       // worden hieronder uitgesloten via `rosterExpiringByProfile` (zelfde helper als /acties), zodat de
       // badge niet over-rapporteert t.o.v. /acties. Alleen `freelancerProfileId` nodig om de kandidaten
-      // te bepalen.
+      // te bepalen. Dekking voorbij het venster valt al vóór de limiet weg.
       prisma.credential.findMany({
-        where: {
-          freelancerProfile: { tenantId },
-          status: "VERIFIED",
-          expiresAt: { gte: now, lte: soon },
-        },
+        where: rosterExpiringCredentialWhere(tenantId, now, soon),
         select: { freelancerProfileId: true },
         // Zelfde `orderBy` als de /acties-bron (`franchiseCredentialExpiryTask`, pending-tasks.ts):
         // beide cappen op 50 (CASCADE_SCAN_LIMIT === MAX), dus zonder identieke ordering pakken de
         // twee queries boven 50 verlopende certificaten binnen één tenant een ándere 50-rij-subset →
         // een ander distinct-profiel-aantal → de /franchise/zzpers-badge divergeert van /acties.
-        orderBy: { expiresAt: "asc" },
+        orderBy: [{ expiresAt: "asc" }, { id: "asc" }],
         take: CASCADE_SCAN_LIMIT,
       }),
       // /franchise/zzpers — kandidaat-profielen met een REEDS verlopen, NIET-verplicht certificaat van

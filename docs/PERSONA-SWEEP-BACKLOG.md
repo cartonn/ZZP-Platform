@@ -1,5 +1,15 @@
 # Persona-sweep — gaten-backlog
 
+## 17 september 2026, 12:22 UTC — bijna-verloopselectie (#1512)
+
+De apart genoemde bijna-verloopvariant is nu dynamisch gereproduceerd op `3d7bbe1c`:
+vijftig in-venster-certificaten van A met een onbeperkte vervanger verbergen B's
+verval over tien dagen. De echte taak- en badgebronnen geven nul in plaats van één.
+Het gedeelde tenantfilter verwijdert dekking voorbij het venster vóór de cap;
+vervangers binnen het venster blijven een waarschuwing geven. Geen claim van een
+productie-incident. [Uitvoering en grenzen](progress/2026-09-17-upcoming-roster-history.md).
+Review, CI en release nog afzonderlijk te verifiëren.
+
 ## 17 september 2026, 05:00 UTC — factuurbediening tijdens dispuut (#1508)
 
 Basis `b6fea77c7fbcc213c0337cd0b4781fbb538aa8c1`. FREELANCER/CLIENT zagen op
