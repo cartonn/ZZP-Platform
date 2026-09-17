@@ -5,6 +5,7 @@
 
 import { Prisma } from "@prisma/client";
 import { cache } from "react";
+import { rosterExpiredCredentialWhere } from "@/lib/data/roster-expired-credentials";
 import { getAdminPerformanceEscalations } from "@/lib/data/admin-performance-escalations";
 
 import { pendingCollaborationProposals } from "@/lib/accepted-proposal";
@@ -952,21 +953,17 @@ export const navBadges = cache(async function navBadges(
       // `(now, soon]`-verloop-venster), terwijl /acties de "verlopen"-taak wél toont — precies het
       // "signaal op één oppervlak"-anti-patroon dat deze codebase elders al dichtte (de VERIFIED-
       // expiring-tak hierboven). Verval is server-berekend: `status = EXPIRED` (batch-geflipt) óf een
-      // VERIFIED-cert waarvan `expiresAt < now` (computed, tussen de expiry-cron-runs door). Verplichte
+      // VERIFIED-cert waarvan `expiresAt <= now` (computed, tussen de expiry-cron-runs door). Verplichte
       // typen (VOG/verzekering) blijven buiten scope: die dekt de engageability-tak (`notEngageable`)
-      // al. Nog NIET het eindaantal: dekkende (nu-geldige) certs van hetzelfde type sluiten hieronder
-      // via `rosterExpiredByProfile` uit. Alleen `freelancerProfileId` nodig om de kandidaten te bepalen.
+      // al. Gedekte historie valt vóór de limiet weg; het volledige kandidaatdossier levert hieronder
+      // via `rosterExpiredByProfile` de telling. Alleen profiel-id nodig voor deze selectie.
       prisma.credential.findMany({
-        where: {
-          freelancerProfile: { tenantId },
-          type: { notIn: [...MANDATORY_CREDENTIAL_TYPES] },
-          OR: [{ status: "EXPIRED" }, { status: "VERIFIED", expiresAt: { lt: now } }],
-        },
+        where: rosterExpiredCredentialWhere(tenantId, now),
         select: { freelancerProfileId: true },
         // Zelfde `orderBy` + cap als de /acties-bron (`expiredRosterCreds`, pending-tasks.ts): beide
         // cappen op CASCADE_SCAN_LIMIT === MAX, dus zonder identieke ordering pakken de twee queries
         // boven de cap een ándere subset → een ander distinct-profiel-aantal → de badge divergeert.
-        orderBy: { expiresAt: "asc" },
+        orderBy: [{ expiresAt: "asc" }, { id: "asc" }],
         take: CASCADE_SCAN_LIMIT,
       }),
       // /franchise/zzpers — roster-inzetbaarheid: exact de bron/velden die `franchiseNotEngageableTask`
