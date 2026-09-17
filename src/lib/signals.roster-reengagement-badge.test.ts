@@ -47,7 +47,7 @@ vi.mock("@/lib/db", () => ({
     lead: { count: vi.fn(async () => 0) },
     shiftHandoff: { count: vi.fn(async () => 0) },
     // Geen cert-alerts: alle expiring/expired-kandidaat- en dekkings-queries leveren niets.
-    credential: { findMany: vi.fn(async () => []) },
+    credential: { groupBy: vi.fn(async () => []), findMany: vi.fn(async () => []) },
     freelancerProfile: {
       findMany: vi.fn(async (a: { select?: unknown }) => {
         profileSelects.push(a.select);

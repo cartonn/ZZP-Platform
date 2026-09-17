@@ -5,10 +5,10 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { findMany } = vi.hoisted(() => ({ findMany: vi.fn() }));
+const { findMany, groupBy } = vi.hoisted(() => ({ findMany: vi.fn(), groupBy: vi.fn() }));
 
 vi.mock("@/lib/db", () => ({
-  prisma: { credential: { findMany } },
+  prisma: { credential: { findMany, groupBy } },
 }));
 
 import { summarizeRosterExpiringSoon, ROSTER_EXPIRY_SCAN_LIMIT } from "./roster-expiry";
@@ -19,29 +19,32 @@ const inWindow = new Date("2026-08-09T00:00:00Z"); // binnen het venster
 const farFuture = new Date("2027-09-01T00:00:00Z"); // ruim buiten het venster (dekker)
 
 describe("summarizeRosterExpiringSoon", () => {
-  beforeEach(() => findMany.mockReset());
+  beforeEach(() => {
+    findMany.mockReset();
+    groupBy.mockReset();
+  });
 
   it("is 0/0 zonder kandidaat-certificaten (geen tweede query)", async () => {
-    findMany.mockResolvedValueOnce([]); // stap 1: geen verlopende certs
+    groupBy.mockResolvedValueOnce([]); // stap 1: geen verlopende certs
     const result = await summarizeRosterExpiringSoon("tenant-1", now, soon);
     expect(result).toEqual({ profiles: 0, certs: 0 });
-    expect(findMany).toHaveBeenCalledTimes(1); // stap 2 wordt overgeslagen
+    expect(findMany).not.toHaveBeenCalled(); // stap 2 wordt overgeslagen
   });
 
   it("telt echte verlopende certs, één per profiel", async () => {
-    findMany
-      .mockResolvedValueOnce([{ freelancerProfileId: "p1" }, { freelancerProfileId: "p2" }])
-      .mockResolvedValueOnce([
-        { id: "c1", type: "LICENSE", expiresAt: inWindow, freelancerProfileId: "p1" },
-        { id: "c2", type: "VOG", expiresAt: inWindow, freelancerProfileId: "p2" },
-      ]);
+    groupBy.mockResolvedValueOnce([{ freelancerProfileId: "p1" }, { freelancerProfileId: "p2" }]);
+    findMany.mockResolvedValueOnce([
+      { id: "c1", type: "LICENSE", expiresAt: inWindow, freelancerProfileId: "p1" },
+      { id: "c2", type: "VOG", expiresAt: inWindow, freelancerProfileId: "p2" },
+    ]);
     const result = await summarizeRosterExpiringSoon("tenant-1", now, soon);
     expect(result).toEqual({ profiles: 2, certs: 2 });
   });
 
   it("sluit een superseded exemplaar uit (nieuwer cert van hetzelfde type dekt de compliance al)", async () => {
     // Kandidaat p1 heeft een bijna-verlopend LICENSE, maar ook een ruim geldig LICENSE → superseded.
-    findMany.mockResolvedValueOnce([{ freelancerProfileId: "p1" }]).mockResolvedValueOnce([
+    groupBy.mockResolvedValueOnce([{ freelancerProfileId: "p1" }]);
+    findMany.mockResolvedValueOnce([
       { id: "oud", type: "LICENSE", expiresAt: inWindow, freelancerProfileId: "p1" },
       { id: "nieuw", type: "LICENSE", expiresAt: farFuture, freelancerProfileId: "p1" },
     ]);
@@ -50,7 +53,8 @@ describe("summarizeRosterExpiringSoon", () => {
   });
 
   it("somt meerdere niet-superseded certs van hetzelfde profiel op in `certs`", async () => {
-    findMany.mockResolvedValueOnce([{ freelancerProfileId: "p1" }]).mockResolvedValueOnce([
+    groupBy.mockResolvedValueOnce([{ freelancerProfileId: "p1" }]);
+    findMany.mockResolvedValueOnce([
       { id: "a", type: "LICENSE", expiresAt: inWindow, freelancerProfileId: "p1" },
       { id: "b", type: "VOG", expiresAt: inWindow, freelancerProfileId: "p1" },
     ]);
@@ -59,13 +63,18 @@ describe("summarizeRosterExpiringSoon", () => {
   });
 
   it("scoopt op de tenant, VERIFIED + venster, geordend en gecapt zoals /acties", async () => {
-    findMany.mockResolvedValueOnce([]);
+    groupBy.mockResolvedValueOnce([]);
     await summarizeRosterExpiringSoon("tenant-9", now, soon);
-    const arg = findMany.mock.calls[0]![0];
+    const arg = groupBy.mock.calls[0]![0];
     expect(arg.where.freelancerProfile.tenantId).toBe("tenant-9");
     expect(arg.where.status).toBe("VERIFIED");
     expect(arg.where.expiresAt).toEqual({ gt: now, lte: soon });
-    expect(arg.orderBy).toEqual([{ expiresAt: "asc" }, { id: "asc" }]);
+    expect(arg.by).toEqual(["freelancerProfileId", "type"]);
+    expect(arg.orderBy).toEqual([
+      { _max: { expiresAt: "asc" } },
+      { freelancerProfileId: "asc" },
+      { type: "asc" },
+    ]);
     expect(arg.take).toBe(ROSTER_EXPIRY_SCAN_LIMIT);
   });
 });

@@ -13,6 +13,7 @@ const fixture = await vi.hoisted(async () => {
 vi.mock("@/lib/db", () => ({ prisma: fixture.db }));
 import { pendingTasks } from "./pending-tasks";
 import { navBadges } from "@/lib/signals";
+import { rosterExpiringCredentialCandidates } from "@/lib/data/roster-expiring-credentials";
 import { summarizeRosterExpiringSoon } from "@/lib/data/roster-expiry";
 const db = fixture.db;
 const now = new Date("2026-09-17T08:00:00Z");
@@ -260,14 +261,19 @@ describe("upcoming expiry candidate coverage", () => {
   it.each([20, 30])(
     "still warns when the replacement expires within the window at day %i",
     async (days) => {
-      await db.credential.deleteMany({
-        where: { id: { startsWith: "extra-upcoming-" }, NOT: { id: "extra-upcoming-0" } },
-      });
       await db.credential.update({
         where: { id: "a-current" },
         data: { expiresAt: new Date(now.getTime() + days * day) },
       });
       await expectUpcoming(["a", "b"]);
+      // With one effective slot, B's day-10 expiry precedes A's replacement.
+      const first = await rosterExpiringCredentialCandidates(
+        "own",
+        now,
+        new Date(now.getTime() + 30 * day),
+        1,
+      );
+      expect(first.map((c) => c.freelancerProfileId)).toEqual(["b"]);
     },
   );
   it.each(["DRAFT", "SUBMITTED", "REJECTED", "EXPIRED"])(

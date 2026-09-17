@@ -61,6 +61,10 @@ vi.mock("@/lib/db", () => ({
     lead: { count: () => Promise.resolve(leadCount) },
     shiftHandoff: { count: () => Promise.resolve(handoffCount) },
     credential: {
+      groupBy: (a: Where & { orderBy?: unknown; take?: number }) => {
+        lastExpiringQuery = a;
+        return Promise.resolve(expiringByTenant[tenantOf(a.where)] ?? []);
+      },
       findMany: (a: Where & { orderBy?: unknown; take?: number }) => {
         const where = a.where ?? {};
         // Tweede query (supersede-cover): gescoped op `freelancerProfileId: { in: [...] }`.
@@ -94,8 +98,7 @@ vi.mock("@/lib/db", () => ({
         // Alleen de bijna-verlopende kandidaten horen bij deze fixture.
         // De aparte reeds-verlopen query mag de vastgelegde volgorde niet overschrijven.
         if (!where || !("expiresAt" in where)) return Promise.resolve([]);
-        lastExpiringQuery = a;
-        return Promise.resolve(expiringByTenant[tenantOf(where)] ?? []);
+        return Promise.resolve([]);
       },
     },
     freelancerProfile: {
@@ -221,7 +224,11 @@ describe("navBadges FRANCHISER — /franchise/zzpers (DOEL 1b)", () => {
     // moeten identiek ordenen zodat ze dezelfde 50 rijen truncaten.
     rosterByTenant["tenant-a"] = [engageableRow("fp-1")];
     await navBadges("FRANCHISER", "u-1");
-    expect(lastExpiringQuery?.orderBy).toEqual([{ expiresAt: "asc" }, { id: "asc" }]);
+    expect(lastExpiringQuery?.orderBy).toEqual([
+      { _max: { expiresAt: "asc" } },
+      { freelancerProfileId: "asc" },
+      { type: "asc" },
+    ]);
     expect(lastExpiringQuery?.take).toBe(50);
   });
 

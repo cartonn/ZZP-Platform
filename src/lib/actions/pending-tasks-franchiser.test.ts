@@ -69,6 +69,14 @@ vi.mock("@/lib/db", () => ({
     // erbuiten) en (2) de dekkings-query (alle VERIFIED-certs van de kandidaat-profielen, `in`-filter).
     // De mock past beide echte filters toe zodat een teruggedraaide fix meteen rood wordt.
     credential: {
+      groupBy: vi.fn(async (args: { where: { expiresAt: { gt: Date; lte: Date } } }) =>
+        state.creds.filter(
+          (c) =>
+            c.expiresAt != null &&
+            c.expiresAt > args.where.expiresAt.gt &&
+            c.expiresAt <= args.where.expiresAt.lte,
+        ),
+      ),
       findMany: vi.fn(
         async (args: {
           where?: {

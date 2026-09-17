@@ -35,6 +35,7 @@ vi.mock("@/lib/db", () => ({
     lead: { count: vi.fn(async () => 0) },
     shiftHandoff: { count: vi.fn(async () => 0) },
     credential: {
+      groupBy: vi.fn(async () => []),
       findMany: vi.fn(async (a: CredQuery) => {
         credQueries.push(a);
         const w = a.where ?? {};

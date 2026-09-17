@@ -46,6 +46,7 @@ vi.mock("@/lib/db", () => ({
     lead: { count: vi.fn(() => Promise.resolve(0)) },
     shiftHandoff: { count: vi.fn(() => Promise.resolve(0)) },
     credential: {
+      groupBy: vi.fn(async () => []),
       count: vi.fn(() => Promise.resolve(0)),
       findMany: vi.fn(() => Promise.resolve([])),
     },
