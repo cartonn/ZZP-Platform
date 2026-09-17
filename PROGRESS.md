@@ -1,8 +1,10 @@
-## 2026-09-17 — claim: downloads na bewijsverwijdering
+## 2026-09-17 — downloadproeven na bewijsverwijdering (#1507)
 
-De security-deelaudit wees ontbrekende HTTP-410-routeproeven aan. Kleine
-testclaim voor beide downloadroutes, inclusief statusafscherming; geen bewezen
-productlek of beleidswijziging. [Scope](docs/progress/2026-09-17-erased-signing-downloads.md).
+Acht nieuwe routeproeven bewaken 410 bij verwijderd ondertekenbewijs, geen
+PDF-reconstructie en statusafscherming voor buitenstaanders. 117 gerichte
+proeven groen; drie opzettelijke foutinjecties worden gedetecteerd. Geen
+productlek of beleidswijziging. [Scope en grenzen](docs/progress/2026-09-17-erased-signing-downloads.md).
+Volledige controle, onafhankelijke reviews en CI volgen.
 
 ## 2026-09-17 — dispuut bewaken bij de factuurwrite (#1506)
 
