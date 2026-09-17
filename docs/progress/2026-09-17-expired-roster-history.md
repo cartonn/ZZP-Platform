@@ -9,6 +9,9 @@ geven nul verlopen meldingen in plaats van één. Geen productiegegevens gebruik
 Draftclaim #1509 volgde vóór implementatie. Die bron is bevroren bewaard;
 #1510 vervolgt met een correctie aan een bestaande mock die beide vervalqueries
 als de bijna-verlopende query vastlegde. Geen bronbescherming afgezwakt.
+De native review van #1510 wees op onbedoeld verdwenen #1508-voortgangstekst;
+#1511 herstelt die volledige tekst en voegt de nieuwe sectie ervoor in.
+Productcode en regressietests zijn ongewijzigd ten opzichte van #1510.
 
 `rosterExpiredCredentialWhere` sluit dezelfde-type-dekking op hetzelfde profiel in
 de database uit voordat de bestaande vijftig-kandidatenlimiet geldt. Beide bronnen

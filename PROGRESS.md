@@ -1,12 +1,18 @@
-## 2026-09-17 — factuurbediening volgt dispuut (#1508)
-
-## 17 september 2026 — verlopen dossiermeldingen (#1510)
+## 17 september 2026 — verlopen dossiermeldingen (#1511)
 
 - Repro: vijftig gedekte historische certificaten verdringen een werkelijk verlopen
   dossier; echte taak- en badgebronnen geven nul in plaats van één in geïsoleerd SQLite.
 - Gedeeld tenantfilter verwijdert gedekte historie vóór de bestaande limiet; stabiele
   id-tiebreaker en dezelfde vervalgrens als het dossier. Elf nieuwe databaseproeven.
 - [Scope en controles](docs/progress/2026-09-17-expired-roster-history.md); review/CI volgen.
+
+## 2026-09-17 — factuurbediening volgt dispuut (#1508)
+
+Vijf detailpaginarenders bevestigen knoppen die de server tijdens dispuut weigert.
+De drie knoppredicaten volgen nu dezelfde dispuutstatus; normale bediening en
+PDF-toegang blijven behouden. Vijftien renderproeven groen, 202 gerichte tests
+groen met één lokale PostgreSQL-skip. [Bewijs en vierrollengrenzen](docs/progress/2026-09-17-disputed-invoice-controls.md).
+Volledige controle, onafhankelijke reviews en CI volgen.
 
 ## 2026-09-17 — downloadproeven na bewijsverwijdering (#1507)
 
