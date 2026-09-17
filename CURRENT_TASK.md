@@ -1,5 +1,8 @@
 # CURRENT_TASK.md — Huidige taak
 
+Security 17 september 14:00 UTC: #1513 bewaakt actuele conceptprestatievoorwaarden;
+[repro en scope](docs/progress/2026-09-17-draft-performance-current-state.md).
+
 Bouwronde 17 september 12:22 UTC: #1512 bewaart bijna-verloopmeldingen na vervangen
 certificaten; [repro en scope](docs/progress/2026-09-17-upcoming-roster-history.md).
 
