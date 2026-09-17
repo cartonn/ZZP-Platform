@@ -1,3 +1,11 @@
+## 17 september 2026 — bijna-verloopmeldingen (claim)
+
+Op `3d7bbe1c` met echte taak-/badgebronnen gereproduceerd: vijftig bijna-verlopende
+LICENSE-exemplaren met een onbeperkte vervanger verdringen een ander profiel
+zonder vervanger. Beide meldingen nul in plaats van één. Scope: gedeeld tenantfilter
+voor de bijna-verlopende selectie vóór de bestaande limiet, regressietests en bewijs.
+Nog niet geïmplementeerd; de reeds-verlopen fix #1511 blijft intact.
+
 ## 17 september 2026 — verlopen dossiermeldingen (#1511)
 
 - Repro: vijftig gedekte historische certificaten verdringen een werkelijk verlopen
