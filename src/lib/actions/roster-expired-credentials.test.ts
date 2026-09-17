@@ -13,6 +13,7 @@ const fixture = await vi.hoisted(async () => {
 vi.mock("@/lib/db", () => ({ prisma: fixture.db }));
 import { pendingTasks } from "./pending-tasks";
 import { navBadges } from "@/lib/signals";
+import { summarizeRosterExpiringSoon } from "@/lib/data/roster-expiry";
 const db = fixture.db;
 const now = new Date("2026-09-17T08:00:00Z");
 beforeAll(async () => {
@@ -245,6 +246,9 @@ describe("upcoming expiry candidate coverage", () => {
       )
       .toEqual(ids.map((id) => `franchise-credential-expiry:${id}`));
     expect.soft(badges["/franchise/zzpers"]?.count ?? 0).toBe(badgeCount);
+    expect
+      .soft(await summarizeRosterExpiringSoon("own", now, new Date(now.getTime() + 30 * day)))
+      .toEqual({ profiles: ids.length, certs: ids.length });
   }
   it.each([null, new Date(now.getTime() + 31 * day)])(
     "keeps the uncovered reminder behind 50 replaced rows (replacement expires %s)",

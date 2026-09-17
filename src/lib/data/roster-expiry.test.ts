@@ -64,8 +64,8 @@ describe("summarizeRosterExpiringSoon", () => {
     const arg = findMany.mock.calls[0]![0];
     expect(arg.where.freelancerProfile.tenantId).toBe("tenant-9");
     expect(arg.where.status).toBe("VERIFIED");
-    expect(arg.where.expiresAt).toEqual({ gte: now, lte: soon });
-    expect(arg.orderBy).toEqual({ expiresAt: "asc" });
+    expect(arg.where.expiresAt).toEqual({ gt: now, lte: soon });
+    expect(arg.orderBy).toEqual([{ expiresAt: "asc" }, { id: "asc" }]);
     expect(arg.take).toBe(ROSTER_EXPIRY_SCAN_LIMIT);
   });
 });

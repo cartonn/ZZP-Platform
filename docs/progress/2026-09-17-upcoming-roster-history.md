@@ -13,8 +13,8 @@ De gedeelde `rosterExpiringCredentialWhere` selecteert alleen VERIFIED in `(now,
 en sluit per type dekking voorbij het venster uit voordat de bestaande cap50 geldt.
 Dekking vereist VERIFIED op hetzelfde profiel/type met geen vervaldatum of een datum
 strikt na `soon`. Een vervanger binnen het venster wordt bewust niet uitgesloten:
-de bestaande volledige dossiercontrole kiest daar het relevante exemplaar. Beide
-consumenten gebruiken dezelfde expiresAt/id-volgorde. De reeds-verlopen tak blijft
+de bestaande volledige dossiercontrole kiest daar het relevante exemplaar. Actielijst, zijbalk en dashboard
+gebruiken dezelfde selectie en expiresAt/id-volgorde. De reeds-verlopen tak blijft
 intact; ook verplichte typen kunnen nog een bijna-verloopmelding geven.
 
 Elf extra databasegevallen dekken onbeperkte/langer geldige vervangers, verval op
@@ -25,3 +25,9 @@ Volledige lokale controles en onafhankelijke reviews volgen; actuele CI en relea
 zijn aparte bewijzen. Geen onbeperkte nieuwe credentialscan, schemawijziging of
 uitbreiding van de bestaande cap voor werkelijk open signalen. Lokale SQLiteproeven
 zijn geen afzonderlijke PostgreSQL-query- of browserreproductie.
+
+De eerste onafhankelijke review vond dat de dashboardhelper nog de oude selectie
+gebruikte. Negen van de elf bijna-verloopgevallen falen wanneer de echte
+`summarizeRosterExpiringSoon` aan dezelfde databaseproef wordt toegevoegd.
+Ook die helper gebruikt nu het gedeelde filter. Alle elf gevallen bewaken drie
+oppervlakken; dashboard en badge zijn geen gemockte vervangers. Nieuwe review volgt.

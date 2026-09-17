@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { rosterExpiringByProfile } from "@/lib/credentials";
+import { rosterExpiringCredentialWhere } from "./roster-expiring-credentials";
 
 /**
  * Bovengrens op de kandidaat-certscan — identiek aan `CASCADE_SCAN_LIMIT` in `signals.ts`
@@ -34,13 +35,9 @@ export async function summarizeRosterExpiringSoon(
   soon: Date,
 ): Promise<RosterExpirySummary> {
   const expiringCreds = await prisma.credential.findMany({
-    where: {
-      freelancerProfile: { tenantId },
-      status: "VERIFIED",
-      expiresAt: { gte: now, lte: soon },
-    },
+    where: rosterExpiringCredentialWhere(tenantId, now, soon),
     select: { freelancerProfileId: true },
-    orderBy: { expiresAt: "asc" },
+    orderBy: [{ expiresAt: "asc" }, { id: "asc" }],
     take: ROSTER_EXPIRY_SCAN_LIMIT,
   });
 

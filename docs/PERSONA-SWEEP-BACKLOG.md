@@ -8,6 +8,8 @@ verval over tien dagen. De echte taak- en badgebronnen geven nul in plaats van �
 Het gedeelde tenantfilter verwijdert dekking voorbij het venster vóór de cap;
 vervangers binnen het venster blijven een waarschuwing geven. Geen claim van een
 productie-incident. [Uitvoering en grenzen](progress/2026-09-17-upcoming-roster-history.md).
+De onafhankelijke review voegde het dashboard toe: negen echte dashboardproeven
+rood vóór herstel; alle drie bronnen gebruiken nu dezelfde selectie.
 Review, CI en release nog afzonderlijk te verifiëren.
 
 ## 17 september 2026, 05:00 UTC — factuurbediening tijdens dispuut (#1508)
