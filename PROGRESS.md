@@ -1,3 +1,11 @@
+## 17 september 2026 — claim gelijk certificaatvenster rond klokwissels
+
+- Bouwronde 16:22 UTC: dashboard gebruikt kalenderdagen, acties/badge 720 uur.
+- Echte paginacall met gecontroleerde klok in Europe/Amsterdam: twee rode
+  grensproeven (voorjaar/najaar), één groene zomercontrole op `f63bf822`.
+- Scope: gedeelde vensterduur, dashboard/acties/badge en gerichte regressies;
+  geen status-, tenant-, retentie- of ontwerpwijziging. Implementatie volgt na claim.
+
 ## 17 september 2026 — actuele voorwaarden bij conceptprestaties (#1513)
 
 - Vier echte tijdelijke SQLite-proeven bewaren ten onrechte een concept als een
