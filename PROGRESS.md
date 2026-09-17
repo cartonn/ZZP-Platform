@@ -1,5 +1,14 @@
 ## 2026-09-17 — factuurbediening volgt dispuut (#1508)
 
+## 17 september 2026 — verlopen dossiermeldingen (claim)
+
+- Bron: persona-audit van 17 september 05:17; opnieuw gereproduceerd op `ed942955`.
+  Vijftig gedekte historische certificaten verdringen een werkelijk verlopen dossier:
+  de echte taak- en badgebronnen leveren beide nul in een geïsoleerde SQLite-test.
+- Scope: gedeeld tenantfilter dat gedekte historie vóór de bestaande limiet uitsluit,
+  beide verlopen-kandidaatqueries en regressiedekking. Nog niet geïmplementeerd.
+
+
 Vijf detailpaginarenders bevestigen knoppen die de server tijdens dispuut weigert.
 De drie knoppredicaten volgen nu dezelfde dispuutstatus; normale bediening en
 PDF-toegang blijven behouden. Vijftien renderproeven groen, 202 gerichte tests
