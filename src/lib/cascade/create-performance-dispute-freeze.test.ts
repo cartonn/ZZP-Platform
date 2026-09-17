@@ -13,6 +13,16 @@ const createMock = vi.fn().mockResolvedValue({ id: "perf-new" });
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        collaboration: {
+          updateMany: vi.fn(async () => ({
+            count: collabStatus === "ACTIVE" && !collabDisputedAt ? 1 : 0,
+          })),
+        },
+        performance: { create: createMock },
+      }),
+    ),
     collaboration: {
       // createPerformance leest de samenwerking met freelancer/company (ownership) + status; de
       // dispuut-vries leest daarna disputedAt via `assertNotDisputed`. Eén mock voedt beide.

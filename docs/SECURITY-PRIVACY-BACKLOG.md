@@ -4,6 +4,23 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-17 14:00 UTC — actuele conceptprestatie-voorwaarden (#1513)
+
+**MIDDEL — integriteit:** `createPerformance` controleerde status/eigenaar/dispuut
+voor de write. Vier tijdelijke SQLite-proeven laten een DRAFT achter na een
+intussen vastgelegd dispuut, CANCELLED/COMPLETED of reassignment. De echte
+gebruikersactie bereikt dit commando; later indienen heeft afzonderlijke guards,
+waardoor dit geen aangetoonde ongeoorloofde factuur of geldbeweging is.
+
+Conditionele ACTIVE/niet-betwist/huidige-eigenaar-write en concept-create delen nu
+één transactie. Het bestaande adminrecht blijft, ook voor admin blokkeert dispuut.
+Acht databasegevallen inclusief rollback; 320 gerichte cascadetests slagen.
+[Uitvoering en grenzen](progress/2026-09-17-draft-performance-current-state.md).
+Onafhankelijke review/CI/release volgen. De afzonderlijke autorisatie/privacy-audit
+vond geen nieuw bereikbaar gat binnen haar scope: 307 bestaande tests geslaagd.
+Publieke individuele-reviewprivacy, bedrijfsgegevens en de oudere geparkeerde
+concept-auditomissie blijven afzonderlijke eigenaar-/beleidsbesluiten.
+
 ## Ronde 2026-09-17 02:00 UTC — dispuut tussen factuurlees en write (#1506)
 
 **MIDDEL — integriteit:** `sendInvoice`, `markInvoicePaid` en `cancelInvoice`

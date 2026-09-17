@@ -204,27 +204,45 @@ export async function createPerformance(
   // dispuut-vries (`disputedAt` gezet terwijl `status` ACTIVE blijft); vandaar de expliciete lees.
   await assertNotDisputed(input.collaborationId);
 
-  const perf = await prisma.performance.create({
-    data: {
-      collaborationId: input.collaborationId,
-      type: input.type,
-      status: "DRAFT",
-      hours: input.type === "HOURS" ? (input.hours ?? null) : null,
-      rateCents: input.type === "HOURS" ? (input.rateCents ?? null) : null,
-      ortSegments:
-        input.type === "HOURS" && input.ortSegments?.length
-          ? JSON.stringify(input.ortSegments)
-          : null,
-      shifts: input.type === "HOURS" ? serializeShifts(input.shifts) : null,
-      amountCents: input.type === "MILESTONE" ? (input.amountCents ?? null) : null,
-      milestoneTitle: input.type === "MILESTONE" ? (input.milestoneTitle ?? null) : null,
-      periodStart: input.periodStart ?? null,
-      periodEnd: input.periodEnd ?? null,
-      description: input.description ?? "",
-      correlationId: input.collaborationId,
-    },
+  return prisma.$transaction(async (tx) => {
+    // Lock the current parent while checking eligibility, then create the draft in the
+    // same transaction. A prior read cannot authorize a now-frozen or reassigned deal.
+    const current = await tx.collaboration.updateMany({
+      where: {
+        id: input.collaborationId,
+        status: "ACTIVE",
+        disputedAt: null,
+        ...(actor.role === "ADMIN" ? {} : { freelancer: { userId: actor.id } }),
+      },
+      data: { status: "ACTIVE" },
+    });
+    if (current.count !== 1) {
+      throw new CascadeError(
+        "De samenwerking is gewijzigd of bevroren. Vernieuw de pagina en probeer opnieuw.",
+      );
+    }
+    const perf = await tx.performance.create({
+      data: {
+        collaborationId: input.collaborationId,
+        type: input.type,
+        status: "DRAFT",
+        hours: input.type === "HOURS" ? (input.hours ?? null) : null,
+        rateCents: input.type === "HOURS" ? (input.rateCents ?? null) : null,
+        ortSegments:
+          input.type === "HOURS" && input.ortSegments?.length
+            ? JSON.stringify(input.ortSegments)
+            : null,
+        shifts: input.type === "HOURS" ? serializeShifts(input.shifts) : null,
+        amountCents: input.type === "MILESTONE" ? (input.amountCents ?? null) : null,
+        milestoneTitle: input.type === "MILESTONE" ? (input.milestoneTitle ?? null) : null,
+        periodStart: input.periodStart ?? null,
+        periodEnd: input.periodEnd ?? null,
+        description: input.description ?? "",
+        correlationId: input.collaborationId,
+      },
+    });
+    return perf.id;
   });
-  return perf.id;
 }
 
 /**

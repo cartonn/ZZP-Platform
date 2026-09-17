@@ -1,9 +1,11 @@
-## 17 september 2026 — claim actuele conceptprestatie-voorwaarden
+## 17 september 2026 — actuele voorwaarden bij conceptprestaties (#1513)
 
-Securityronde 14:00 UTC, basis `c67eefd8`: vier echte tijdelijke SQLite-proeven
-laten een conceptprestatie achter als dispuut/status/eigenaar na de guardlees
-verandert. Scope: huidige voorwaarden bij de create binnen één transactie;
-geen uitbreiding van facturatie, auditbeleid of rollen. Draftclaim vóór herstel.
+- Vier echte tijdelijke SQLite-proeven bewaren ten onrechte een concept als een
+  dispuut/status/eigenaar na de voorafcontrole verandert; bron `c67eefd8`.
+- Conditionele parentwrite en concept-create delen nu één transactie. Acht echte
+  databaseproeven bewaken huidige voorwaarden, bestaand adminrecht en rollback.
+- [Repro en grenzen](docs/progress/2026-09-17-draft-performance-current-state.md).
+  Volledige controles, onafhankelijke review, CI en release afzonderlijk verifiëren.
 
 ## 17 september 2026 — bijna-verloopmeldingen (#1512)
 
