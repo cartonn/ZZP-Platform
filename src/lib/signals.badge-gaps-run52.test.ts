@@ -91,7 +91,9 @@ vi.mock("@/lib/db", () => ({
           }
           return Promise.resolve(rows);
         }
-        // Eerste query (kandidaten): gescoped op `freelancerProfile.tenantId`.
+        // Alleen de bijna-verlopende kandidaten horen bij deze fixture.
+        // De aparte reeds-verlopen query mag de vastgelegde volgorde niet overschrijven.
+        if (!where || !("expiresAt" in where)) return Promise.resolve([]);
         lastExpiringQuery = a;
         return Promise.resolve(expiringByTenant[tenantOf(where)] ?? []);
       },
