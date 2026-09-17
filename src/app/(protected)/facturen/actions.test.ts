@@ -258,7 +258,12 @@ describe("markInvoicePaid — compound-guard tegen dubbele-submit-race", () => {
       where: { id: string; status: string };
       data: { status: string };
     };
-    expect(arg.where).toEqual({ id: "inv-1", status: "SENT" });
+    expect(arg.where).toEqual({
+      id: "inv-1",
+      status: "SENT",
+      lifecycleStatus: null,
+      collaboration: { disputedAt: null, company: { userId: "user-1" } },
+    });
     expect(arg.data.status).toBe("PAID");
   });
 

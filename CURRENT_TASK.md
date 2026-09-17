@@ -1,5 +1,8 @@
 # CURRENT_TASK.md — Huidige taak
 
+Security 17 september 02:00 UTC: #1506 bewaakt actuele dispuut-/partijvoorwaarden
+bij losse factuurstatuswrites; [repro en scope](docs/progress/2026-09-17-legacy-invoice-dispute-race.md).
+
 Routine 17 september 00:22 UTC: #1505 controleert verificatie aanvragen na één klik;
 [scope en bewijs](docs/progress/2026-09-17-credential-submit-once.md).
 
@@ -9,36 +12,8 @@ Routine 16 september 16:22 UTC: #1504 controleert goedkeuring na één gewone kl
 Routine 16 september 12:22 UTC: #1503 herstelt oudere rijen in het beheeroverzicht;
 [bron, bewijs en status](docs/progress/2026-09-16-admin-collaboration-window.md).
 
-Eigenaaropdracht 15 september: #1495/#1496 gemerged en live op `ad63fb2a` (12:02 UTC).
-Persona #1498 gemerged en live op `d0756137` (14:46 UTC); vijf releaseworkflows en health/readiness groen.
-Routine 20:22 UTC: #1501 begrenst databasevoorbereiding afzonderlijk; [bewijs](docs/progress/2026-09-15-retention-setup-budget.md).
-
-Security 15 september 02:00 UTC: #1491 maakt mail-intakeverwijdering en auditredactie atomair.
-Twee echte databaseproeven rood → groen; rollback/herstart en batchgrenzen getest. Review/CI volgen.
-
-Routine 14 september 00:22 UTC: #1488 bewaakt certificaatgegevens zonder nieuw bestand
-tegen een gelijktijdige beoordeling of wijziging. Gemerged en live op `ac5c33a0`
-(14 september 21:10 UTC), alle controles en onafhankelijke reviews groen. Zie [uitvoering](docs/progress/2026-09-14-credential-metadata-race.md).
-
-Routine 13 september 16:22 UTC: #1487 is gemerged en live geverifieerd op `14be83b6`
-om 20:14 UTC. Zie [uitvoering](docs/progress/2026-09-13-performance-escalation.md).
-Security-PR #1484 is gemerged en live geverifieerd op `888734fc` om 15:26 UTC.
-
-Het eigenaarverzoek voor elektronisch ondertekenen en bewijsstukbeoordeling is met
-#1486 gemerged en live geverifieerd op `3b2fde8` (13 september 13:42 UTC).
-Zie [ondertekenen](docs/progress/2026-09-12-signing-verification.md).
-De onderstaande interactieopdracht is met #1485 live op `7fd8b1f` (17:27 UTC).
-
-Huidige eigenaaropdracht 12 september: consequente hover- en aanraakfeedback voor
-klikbare kaarten, rijen, navigatie en tabs. Scrollen annuleert de drukstand;
-toetsenbordfocus, rustige beweging en mobiele klikvlakken blijven zichtbaar.
-Zie [interacties](docs/progress/2026-09-12-interactions.md).
-De V5-platformidentiteit is met #1483 gemerged als `535df3f` en live geverifieerd
-op 12 september 14:37 UTC, inclusief drie browserproeven op de echte site.
-De eerdere #1474 blijft gesloten als vervangen; verlopen reviewbewijs wordt niet hergebruikt.
-
-Eerdere V5-/monitor-/ondertekenreleasecontext staat ongewijzigd in
-[het archief](docs/progress/2026-09-15-release-context-archive.md).
+Eerdere eigenaar- en releasecontext blijft bewaard in
+[het contextarchief](docs/progress/2026-09-17-context-archive.md).
 
 > Eén taak tegelijk. Lees CLAUDE.md, de bovenste 100 regels van PROGRESS.md en
 > `ARCHITECTURE.md §Modulekaart` voordat je begint. Werk dit bestand bij wanneer je naar de

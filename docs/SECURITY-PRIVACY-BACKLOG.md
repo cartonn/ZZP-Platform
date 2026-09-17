@@ -4,6 +4,19 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-09-17 02:00 UTC — dispuut tussen factuurlees en write (#1506)
+
+**MIDDEL — integriteit:** `sendInvoice`, `markInvoicePaid` en `cancelInvoice`
+controleerden de dispuutstatus alleen vooraf. Een intussen opgeslagen dispuut
+blokkeerde hun updateMany niet (alleen id/status). Echte acties op synthetische
+SQLite-data: drie dispuutregressies rood, na actuele writevoorwaarden groen.
+Negen snapshotregressies en zes toegestane-/rollbackproeven slagen na herstel.
+Geen echte geldtransfer, productie-incident of algemene PostgreSQL-racegarantie.
+[Repro, claim en grenzen](progress/2026-09-17-legacy-invoice-dispute-race.md).
+Hersteld op werkbranch; volledige review/CI/release volgen. Onafhankelijke
+onderteken-/erasurebroncontrole vond geen nieuw bereikbaar lek; bekende publieke
+individuele-reviewprivacy en bedrijfsidentiteit blijven open eigenaarbesluiten.
+
 ## Ronde 2026-09-15 14:00 UTC — afgewezen bureau-auditkopieën (#1499)
 
 Bestaand MIDDEL-item van 11 september bevestigd met de echte erasure-actie op een

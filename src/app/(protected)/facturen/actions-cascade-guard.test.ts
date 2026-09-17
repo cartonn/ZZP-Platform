@@ -126,7 +126,12 @@ describe("controle: een echte legacy-factuur (lifecycleStatus == null) loopt gew
       where: { id: string; status: string };
       data: { status: string };
     };
-    expect(arg.where).toEqual({ id: "inv-1", status: "DRAFT" });
+    expect(arg.where).toEqual({
+      id: "inv-1",
+      status: "DRAFT",
+      lifecycleStatus: null,
+      collaboration: { disputedAt: null, freelancer: { userId: "user-1" } },
+    });
     expect(arg.data.status).toBe("CANCELLED");
     expect(tx.auditCreate).toHaveBeenCalledTimes(1);
   });
