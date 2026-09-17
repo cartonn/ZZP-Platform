@@ -1,3 +1,9 @@
+## 2026-09-17 — claim: downloads na bewijsverwijdering
+
+De security-deelaudit wees ontbrekende HTTP-410-routeproeven aan. Kleine
+testclaim voor beide downloadroutes, inclusief statusafscherming; geen bewezen
+productlek of beleidswijziging. [Scope](docs/progress/2026-09-17-erased-signing-downloads.md).
+
 ## 2026-09-17 — dispuut bewaken bij de factuurwrite (#1506)
 
 Drie echte databaseproeven bevestigen een losse factuurstatuswijziging nadat een
