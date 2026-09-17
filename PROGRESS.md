@@ -1,3 +1,10 @@
+## 17 september 2026 — claim actuele conceptprestatie-voorwaarden
+
+Securityronde 14:00 UTC, basis `c67eefd8`: vier echte tijdelijke SQLite-proeven
+laten een conceptprestatie achter als dispuut/status/eigenaar na de guardlees
+verandert. Scope: huidige voorwaarden bij de create binnen één transactie;
+geen uitbreiding van facturatie, auditbeleid of rollen. Draftclaim vóór herstel.
+
 ## 17 september 2026 — bijna-verloopmeldingen (#1512)
 
 - Echte taak-/badgebronnen verliezen één waarschuwing achter vijftig vervangen
