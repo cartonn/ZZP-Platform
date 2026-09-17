@@ -1,8 +1,10 @@
-## 2026-09-17 — claim: factuurbediening tijdens dispuut
+## 2026-09-17 — factuurbediening volgt dispuut (#1508)
 
-Persona-broncontrole: losse facturen tonen tijdens een dispuut drie handelingen
-die de server weigert. Afgebakende claim voor detailknoppen en echte paginarender-
-regressies. [Bron en scope](docs/progress/2026-09-17-disputed-invoice-controls.md).
+Vijf detailpaginarenders bevestigen knoppen die de server tijdens dispuut weigert.
+De drie knoppredicaten volgen nu dezelfde dispuutstatus; normale bediening en
+PDF-toegang blijven behouden. Vijftien renderproeven groen, 202 gerichte tests
+groen met één lokale PostgreSQL-skip. [Bewijs en vierrollengrenzen](docs/progress/2026-09-17-disputed-invoice-controls.md).
+Volledige controle, onafhankelijke reviews en CI volgen.
 
 ## 2026-09-17 — downloadproeven na bewijsverwijdering (#1507)
 

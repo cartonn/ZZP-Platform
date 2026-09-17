@@ -125,12 +125,13 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   const cascadeMeta = cascade
     ? CASCADE_LABEL[invoice.lifecycleStatus as InvoiceLifecycleState]
     : null;
-  const canSend = !cascade && isFreelancerOwner && status === "DRAFT";
+  const canSend = !cascade && !disputed && isFreelancerOwner && status === "DRAFT";
   const canCancel =
     !cascade &&
+    !disputed &&
     isFreelancerOwner &&
     (status === "DRAFT" || status === "SENT" || status === "OVERDUE");
-  const canPay = !cascade && isClient && (status === "SENT" || status === "OVERDUE");
+  const canPay = !cascade && !disputed && isClient && (status === "SENT" || status === "OVERDUE");
 
   // Aanmaningsniveau (rustig informatief) voor te late cascade-facturen.
   const dunning =
