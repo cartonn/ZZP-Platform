@@ -13,6 +13,7 @@ import {
   ROSTER_ENGAGEABILITY_SELECT,
   evaluateRosterEngageability,
 } from "@/lib/data/roster-engageability";
+import { rosterExpiredCredentialWhere } from "@/lib/data/roster-expired-credentials";
 import { getAdminPerformanceEscalations } from "@/lib/data/admin-performance-escalations";
 import { formatMissing } from "@/lib/next-actions";
 import { startOfUtcDay } from "@/lib/signals";
@@ -1432,20 +1433,16 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     // van `expiringRosterCreds`, zodat het compliance-signaal niet verdwijnt zodra een cert de
     // vervaldatum passeert (persona-sweep: de "verloopt binnenkort"-taak viel weg juist toen de gap
     // actief werd). Verval is server-berekend: `status = EXPIRED` (batch-geflipt) óf een VERIFIED-cert
-    // waarvan `expiresAt < now` (computed, tussen de expiry-cron-runs door). Verplichte typen
-    // (VOG/verzekering) blijven buiten scope: die dekt de engageability-tak al. Alleen kandidaat-
-    // profielen selecteren; de dekkende (nu-geldige) certs volgen hierna op een gescopete query.
+    // waarvan `expiresAt <= now` (computed, tussen de expiry-cron-runs door). Verplichte typen
+    // (VOG/verzekering) blijven buiten scope: die dekt de engageability-tak al. Gedekte historie
+    // valt vóór de limiet weg; het volledige kandidaatdossier volgt voor de telling hieronder.
     prisma.credential.findMany({
-      where: {
-        freelancerProfile: { tenantId },
-        type: { notIn: [...MANDATORY_CREDENTIAL_TYPES] },
-        OR: [{ status: "EXPIRED" }, { status: "VERIFIED", expiresAt: { lt: now } }],
-      },
+      where: rosterExpiredCredentialWhere(tenantId, now),
       select: {
         freelancerProfileId: true,
         freelancerProfile: { select: { user: { select: { name: true } } } },
       },
-      orderBy: { expiresAt: "asc" },
+      orderBy: [{ expiresAt: "asc" }, { id: "asc" }],
       take: MAX,
     }),
     // Leads met een verstreken geplande opvolgdatum (alleen lopende acquisitie: KOUD/WARM).

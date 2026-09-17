@@ -9,18 +9,12 @@ Vijf paginarenderregressies rood vóór herstel, daarna vijftien matrixproeven g
 De drie knoppredicaten controleren nu de reeds geladen dispuutstatus.
 [Bron, tests en grenzen](progress/2026-09-17-disputed-invoice-controls.md).
 
-**Apart te reproduceren — P2-kandidaat, FRANCHISER:** `pending-tasks.ts`
-`expiredRosterCreds` en de overeenkomstige `signals.ts`-query selecteren 50
-verlopen niet-verplichte credentialrijen vóór `rosterExpiredByProfile` afgedekte
-typen onderdrukt. Bronfixture: tenantprofiel A heeft 50 oude EXPIRED LICENSE-rijen
-plus één blijvend VERIFIED LICENSE; profiel B één later verlopen LICENSE zonder
-dekking. Beide hebben actuele VOG/verzekering, compleet profiel, identiteit,
-beschikbaarheid en recente login. A vult het venster maar levert nul taken; B
-verdwijnt uit taken/badge terwijl de volledige rosterlijst zijn verval toont.
-Bestaande mocks passen de querycap niet toe. Geen dynamische repro uitgevoerd:
-volgende stap is een geïsoleerde database-/queryproef die cap en onderdrukking
-werkelijk combineert, inclusief tenantgrens en dekkingsgevallen. Behoud begrensde
-queries; niet blind alle credentialrijen ophalen. Geen productie-incident geclaimd.
+**Vervolg bouwronde 17 september 08:22 — #1509:** de afzonderlijke kandidaat is
+met de echte taak-/badgebronnen op een geïsoleerde SQLite-database gereproduceerd:
+50 gedekte historische LICENSE-rijen verdringen een verlopen dossier zonder dekking.
+Beide bronnen gaven nul in plaats van één. De gedeelde tenantquery sluit gedekte
+historie nu vóór de bestaande limiet uit. [Bewijs en grenzen](progress/2026-09-17-expired-roster-history.md).
+Geen productie-incident geclaimd; review, CI en release afzonderlijk verifiëren.
 
 ## 15 september 2026, 13:00 UTC — oudere inzet ontbreekt achter recent venster (#1498)
 

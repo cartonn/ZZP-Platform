@@ -1,5 +1,8 @@
 # CURRENT_TASK.md — Huidige taak
 
+Bouwronde 17 september 08:22 UTC: #1509 bewaart verlopen dossiermeldingen na gedekte
+historie; [repro en scope](docs/progress/2026-09-17-expired-roster-history.md).
+
 Persona 17 september 05:00 UTC: #1508 laat losse factuurknoppen de dispuutstatus
 volgen; [renderbewijs en scope](docs/progress/2026-09-17-disputed-invoice-controls.md).
 
