@@ -315,9 +315,15 @@ export async function sendInvoice(invoiceId: string): Promise<void> {
     // cascade-laag, commands-shared.ts). De transitie werd gevalideerd tegen de vóór-lees; een
     // gelijktijdige tweede submit (dubbelklik) leest dezelfde `from`, passeert de check en zou
     // met een kaal `update({ where: { id } })` een tweede notificatie + auditregel schrijven.
-    // Matcht de status niet meer → count 0 → geen dubbel effect (idempotent, race-proof).
+    // Matcht de status niet meer → count 0 → geen dubbel effect.
+    // Recheck dispute, legacy flow and ownership in the write, not only in the stale snapshot.
     const res = await tx.invoice.updateMany({
-      where: { id: invoiceId, status: from },
+      where: {
+        id: invoiceId,
+        status: from,
+        lifecycleStatus: null,
+        collaboration: { disputedAt: null, freelancer: { userId: actor.id } },
+      },
       data: { status: "SENT", issuedAt: new Date(), dueAt },
     });
     if (res.count === 0) return;
@@ -377,8 +383,14 @@ export async function markInvoicePaid(invoiceId: string): Promise<void> {
     // Compound-guard `status: from` (zie sendInvoice): een gelijktijdige tweede "markeer betaald"
     // mag geen dubbele INVOICE_PAID-notificatie/auditregel opleveren. Matcht de status niet meer
     // (bv. al PAID door de eerste submit) → count 0 → idempotent, geen dubbel effect.
+    // The same write also requires the current undisputed legacy invoice and its client owner.
     const res = await tx.invoice.updateMany({
-      where: { id: invoiceId, status: from },
+      where: {
+        id: invoiceId,
+        status: from,
+        lifecycleStatus: null,
+        collaboration: { disputedAt: null, company: { userId: actor.id } },
+      },
       data: { status: "PAID" },
     });
     if (res.count === 0) return;
@@ -517,8 +529,14 @@ export async function cancelInvoice(invoiceId: string): Promise<void> {
     // Compound-guard `status: from` (zie sendInvoice): een gelijktijdige tweede annulering mag
     // geen dubbele INVOICE_CANCELLED-auditregel schrijven. Matcht de status niet meer → count 0
     // → idempotent, geen dubbel effect.
+    // The same write also requires the current undisputed legacy invoice and its freelancer owner.
     const res = await tx.invoice.updateMany({
-      where: { id: invoiceId, status: from },
+      where: {
+        id: invoiceId,
+        status: from,
+        lifecycleStatus: null,
+        collaboration: { disputedAt: null, freelancer: { userId: actor.id } },
+      },
       data: { status: "CANCELLED" },
     });
     if (res.count === 0) return;
