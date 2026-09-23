@@ -1214,8 +1214,8 @@ export async function anonymizeUser(userId: string, formData?: FormData): Promis
   ];
   await prisma.$transaction(erasureWrites, { isolationLevel: "Serializable" });
 
-  // Sweep documents after the user tombstone commits. uploadDocument serializes its live-owner
-  // write and document creation against that same user row: uploads committed first are included
+  // Sweep documents after the user tombstone commits. Standalone and certificate uploads serialize
+  // their live-owner write and document creation against that same user row: uploads committed first are included
   // here; uploads that lose to erasure reject and clean their own blob. currentActor() alone only
   // blocks new requests, so other document writers also need a guard for in-flight work.
   // unbounded-allow: AVG-verwijdering: alle document-storagesleutels van één betrokkene; geen take (een cap zou stilletjes een blob laten staan)

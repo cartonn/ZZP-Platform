@@ -2,8 +2,9 @@
 
 - Echte upload- en erasure-acties reproduceren een document na afgeronde verwijdering.
 - Conditionele eigenaarwrite, document en audit delen nu één transactie;
-  een geweigerde write ruimt de eerder opgeslagen blob op.
-- Twaalf SQLite-regressies en 95 bestaande gerichte tests slagen. Volledige
+  een geweigerde write ruimt de eerder opgeslagen blob op. Na review dekt
+  dezelfde bescherming ook nieuwe en vervangende certificaatuploads.
+- 25 SQLite-regressies en 167 overige gerichte tests slagen. Volledige
   controle, onafhankelijke review en release afzonderlijk verifiëren.
 - [Bron en grenzen](docs/progress/2026-09-23-late-upload-erasure.md).
 

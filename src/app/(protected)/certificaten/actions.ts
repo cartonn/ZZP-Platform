@@ -6,6 +6,7 @@ import { AuthorizationError, requireRole } from "@/lib/authz";
 import { audit, auditData } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { prisma } from "@/lib/db";
+import { assertLiveDocumentOwner } from "@/lib/document-upload-owner";
 import { assertTransition, TransitionError } from "@/lib/credentials";
 import { toSafeActionError } from "@/lib/safe-action-error";
 import { documentKindForCredential } from "@/lib/documents";
@@ -57,7 +58,15 @@ async function putBlob(ownerId: string, type: CredentialType, file: File) {
   assertContentMatchesMime(buffer, file.type);
   await assertUploadClean(buffer, { mimeType: file.type, size: file.size });
   const key = generateStorageKey(file.name);
-  await getStorage().put(key, buffer, file.type);
+  const storage = getStorage();
+  try {
+    await storage.put(key, buffer, file.type);
+  } catch (e) {
+    await storage
+      .delete(key)
+      .catch((err) => logStorageCleanupFailure("[certificaten] upload", key, err));
+    throw e;
+  }
   return {
     ownerId,
     kind: documentKindForCredential(type),
@@ -170,6 +179,7 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
   const credentialId = (formData.get("credentialId") as string) || null;
   const file = formData.get("document");
   const hasFile = file instanceof File && file.size > 0;
+  let pendingStorageKey: string | null = null;
 
   try {
     if (credentialId) {
@@ -183,8 +193,10 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
         if (resubmit) assertTransition(status, "SUBMITTED");
 
         const docData = await putBlob(actor.id, data.type, file);
+        pendingStorageKey = docData.storageKey;
         const previousDocumentId = credential.documentId;
         await prisma.$transaction(async (tx) => {
+          await assertLiveDocumentOwner(tx, actor.id);
           const doc = await tx.document.create({ data: docData });
           // Compound-guard BINNEN de transactie (spiegelt applyExternalVerification): de status-snapshot
           // (loadOwnedCredential) is gelezen vóór de trage putBlob (AV-scan + storage-put, netwerk-I/O).
@@ -212,7 +224,17 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
           });
           if (res.count === 0) throw new StaleCredentialError();
           if (resubmit) await tx.verificationRequest.create({ data: { credentialId } });
+          await tx.auditLog.create({
+            data: auditData({
+              actorId: actor.id,
+              action: "CREDENTIAL_UPDATED",
+              entityType: "Credential",
+              entityId: credentialId,
+            }),
+          });
         });
+        // The new evidence is committed; later old-document cleanup must never remove it.
+        pendingStorageKey = null;
         await deleteDocumentById(actor.id, previousDocumentId);
       } else {
         // Geen nieuw bewijsstuk. Wijzigt de ZZP'er verificatie-relevante feiten (type/titel/uitgever/
@@ -264,32 +286,46 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
           if (res.count === 0) throw new StaleCredentialError();
         }
       }
-      await audit({
-        actorId: actor.id,
-        action: "CREDENTIAL_UPDATED",
-        entityType: "Credential",
-        entityId: credentialId,
-      });
+      if (!hasFile)
+        await audit({
+          actorId: actor.id,
+          action: "CREDENTIAL_UPDATED",
+          entityType: "Credential",
+          entityId: credentialId,
+        });
     } else {
       if (!hasFile) return { fieldErrors: { document: "Een bewijsstuk is verplicht." } };
       const docData = await putBlob(actor.id, data.type, file);
-      // Document + credential atomair: nested create voorkomt een verweesd Document-record.
-      const created = await prisma.credential.create({
-        data: {
-          ...fields,
-          status: "DRAFT",
-          freelancerProfile: { connect: { id: profile.id } },
-          document: { create: docData },
-        },
+      pendingStorageKey = docData.storageKey;
+      await prisma.$transaction(async (tx) => {
+        await assertLiveDocumentOwner(tx, actor.id);
+        const created = await tx.credential.create({
+          data: {
+            ...fields,
+            status: "DRAFT",
+            freelancerProfile: { connect: { id: profile.id } },
+            document: { create: docData },
+          },
+        });
+        await tx.auditLog.create({
+          data: auditData({
+            actorId: actor.id,
+            action: "CREDENTIAL_CREATED",
+            entityType: "Credential",
+            entityId: created.id,
+          }),
+        });
       });
-      await audit({
-        actorId: actor.id,
-        action: "CREDENTIAL_CREATED",
-        entityType: "Credential",
-        entityId: created.id,
-      });
+      pendingStorageKey = null;
     }
   } catch (e) {
+    if (pendingStorageKey) {
+      const key = pendingStorageKey;
+      await getStorage()
+        .delete(key)
+        .catch((err) => logStorageCleanupFailure("[certificaten] upload", key, err));
+    }
+    if (e instanceof AuthorizationError) return { error: e.message };
     if (e instanceof UploadValidationError) return { fieldErrors: { document: e.message } };
     if (e instanceof TransitionError) return { error: e.message };
     if (e instanceof StaleCredentialError) return { error: STALE_CREDENTIAL_MESSAGE };

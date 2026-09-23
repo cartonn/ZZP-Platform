@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { AuthorizationError, requireRole } from "@/lib/authz";
 import { audit, auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { assertLiveDocumentOwner } from "@/lib/document-upload-owner";
 import {
   assertContentMatchesMime,
   generateStorageKey,
@@ -65,22 +66,7 @@ export async function uploadDocument(
   try {
     await storage.put(key, buffer, file.type);
     await prisma.$transaction(async (tx) => {
-      // A conditional parent write serializes with erasure's user update. A second read alone
-      // would still allow erasure to finish between authorization and document creation.
-      const liveOwner = await tx.user.updateMany({
-        where: {
-          id: actor.id,
-          status: "ACTIVE",
-          role: "FREELANCER",
-          anonymizedAt: null,
-          mustChangePassword: false,
-          OR: [{ tenantId: null }, { tenant: { status: "ACTIVE" } }],
-        },
-        data: { status: "ACTIVE" },
-      });
-      if (liveOwner.count !== 1) {
-        throw new AuthorizationError("Geen toegang tot documentupload.");
-      }
+      await assertLiveDocumentOwner(tx, actor.id);
       const doc = await tx.document.create({
         data: {
           ownerId: actor.id,
