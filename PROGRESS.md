@@ -1,3 +1,11 @@
+## 23 september 2026 — lokale monospacefont (claim)
+
+- CI-run 35875927792 faalde vóór browsertests op de Google Fonts-download
+  van JetBrains Mono. De rootlayout gebruikt dit lettertype voor cijfers.
+- Scope: hetzelfde normale variabele lettertype lokaal bundelen met bron/licentie;
+  overige historische labfonts blijven buiten deze beperkte betrouwbaarheidsfix.
+- Nog niet geïmplementeerd; onafhankelijke review en alle controles blijven vereist.
+
 ## 23 september 2026 — lopende upload na anonimisering (#1516)
 
 - Echte upload- en erasure-acties reproduceren een document na afgeronde verwijdering.
