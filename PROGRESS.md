@@ -1,10 +1,11 @@
-## 23 september 2026 — lokale monospacefont (claim)
+## 23 september 2026 — lokale platformmonospace (#1517)
 
-- CI-run 35875927792 faalde vóór browsertests op de Google Fonts-download
-  van JetBrains Mono. De rootlayout gebruikt dit lettertype voor cijfers.
-- Scope: hetzelfde normale variabele lettertype lokaal bundelen met bron/licentie;
-  overige historische labfonts blijven buiten deze beperkte betrouwbaarheidsfix.
-- Nog niet geïmplementeerd; onafhankelijke review en alle controles blijven vereist.
+- Bewezen Google Fonts-downloadfout vóór browser-CI: JetBrains Mono in rootlayout.
+- Hetzelfde normale variabele lettertype (100–800) lokaal gebundeld met originele
+  bron en licentie. Fontmetadata en Next-loaderuitvoer gecontroleerd.
+- Arial-fallbackmetingen verschillen licht; upstream-TTF is 300.144 bytes.
+  Historische labfonts blijven extern. Geen algemene offlinebuildclaim.
+- Volledige controles en onafhankelijke review volgen; [bron](src/app/fonts/README.md).
 
 ## 23 september 2026 — lopende upload na anonimisering (#1516)
 
