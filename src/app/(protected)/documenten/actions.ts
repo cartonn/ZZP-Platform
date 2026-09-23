@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { AuthorizationError, requireRole } from "@/lib/authz";
-import { audit } from "@/lib/audit";
+import { audit, auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import {
   assertContentMatchesMime,
@@ -61,24 +61,53 @@ export async function uploadDocument(
     throw e;
   }
   const key = generateStorageKey(file.name);
-  await getStorage().put(key, buffer, file.type);
-  const doc = await prisma.document.create({
-    data: {
-      ownerId: actor.id,
-      kind: parsed.data.kind,
-      filename: file.name,
-      mimeType: file.type,
-      size: file.size,
-      storageKey: key,
-    },
-  });
-  await audit({
-    actorId: actor.id,
-    action: "DOCUMENT_UPLOADED",
-    entityType: "Document",
-    entityId: doc.id,
-    metadata: { kind: parsed.data.kind },
-  });
+  const storage = getStorage();
+  try {
+    await storage.put(key, buffer, file.type);
+    await prisma.$transaction(async (tx) => {
+      // A conditional parent write serializes with erasure's user update. A second read alone
+      // would still allow erasure to finish between authorization and document creation.
+      const liveOwner = await tx.user.updateMany({
+        where: {
+          id: actor.id,
+          status: "ACTIVE",
+          role: "FREELANCER",
+          anonymizedAt: null,
+          mustChangePassword: false,
+          OR: [{ tenantId: null }, { tenant: { status: "ACTIVE" } }],
+        },
+        data: { status: "ACTIVE" },
+      });
+      if (liveOwner.count !== 1) {
+        throw new AuthorizationError("Geen toegang tot documentupload.");
+      }
+      const doc = await tx.document.create({
+        data: {
+          ownerId: actor.id,
+          kind: parsed.data.kind,
+          filename: file.name,
+          mimeType: file.type,
+          size: file.size,
+          storageKey: key,
+        },
+      });
+      await tx.auditLog.create({
+        data: auditData({
+          actorId: actor.id,
+          action: "DOCUMENT_UPLOADED",
+          entityType: "Document",
+          entityId: doc.id,
+          metadata: { kind: parsed.data.kind },
+        }),
+      });
+    });
+  } catch (e) {
+    await storage
+      .delete(key)
+      .catch((err) => logStorageCleanupFailure("[documenten] upload", key, err));
+    if (e instanceof AuthorizationError) return { error: e.message };
+    throw e;
+  }
 
   revalidatePath("/documenten");
   return { ok: true };

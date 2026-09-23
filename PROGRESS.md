@@ -1,9 +1,11 @@
-## 23 september 2026 — lopende upload na anonimisering (claim)
+## 23 september 2026 — lopende upload na anonimisering (#1516)
 
-- Securityrepro bevestigt dat een al geautoriseerde upload na voltooide erasure
-  nog een document en blob kan bewaren. Bron: geïsoleerde SQLite-audit op f63bf822.
-- Scope: actuele eigenaar bewaken bij document-create en blob opruimen bij verlies
-  van de writeguard; regressie met echte upload- en erasure-acties. Nog niet gerepareerd.
+- Echte upload- en erasure-acties reproduceren een document na afgeronde verwijdering.
+- Conditionele eigenaarwrite, document en audit delen nu één transactie;
+  een geweigerde write ruimt de eerder opgeslagen blob op.
+- Twaalf SQLite-regressies en 95 bestaande gerichte tests slagen. Volledige
+  controle, onafhankelijke review en release afzonderlijk verifiëren.
+- [Bron en grenzen](docs/progress/2026-09-23-late-upload-erasure.md).
 
 ## 17 september 2026 — gelijk certificaatvenster rond klokwissels (#1514)
 

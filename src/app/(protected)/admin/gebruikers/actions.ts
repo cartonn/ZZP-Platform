@@ -1214,14 +1214,10 @@ export async function anonymizeUser(userId: string, formData?: FormData): Promis
   ];
   await prisma.$transaction(erasureWrites, { isolationLevel: "Serializable" });
 
-  // Documenten (rij + blob) PAS ná de anonimiseringstransactie verwijderen. Op dit punt is het account
-  // SUSPENDED, de passwordHash gewist en anonymizedAt gezet (userAnonymizationData) → currentActor()
-  // geeft null en de betrokkene kan geen nieuw document meer uploaden. Daardoor is dit read-then-delete
-  // race-vrij: de storagesleutels die we hier lezen dekken exact de rijen die we verwijderen — geen
-  // weesblob. Vóór deze wijziging werd de sleutellijst vóór de transactie gesnapshot terwijl de
-  // rij-verwijdering pas meerdere DB-rondes later in de transactie liep; een upload in dat venster kreeg
-  // zijn rij door de deleteMany verwijderd terwijl zijn blob buiten de snapshot viel → een onvindbare
-  // weesblob met een (mogelijk art. 9-)VOG/diploma overleefde de "verwijdering" (TOCTOU, CWE-367, art. 17).
+  // Sweep documents after the user tombstone commits. uploadDocument serializes its live-owner
+  // write and document creation against that same user row: uploads committed first are included
+  // here; uploads that lose to erasure reject and clean their own blob. currentActor() alone only
+  // blocks new requests, so other document writers also need a guard for in-flight work.
   // unbounded-allow: AVG-verwijdering: alle document-storagesleutels van één betrokkene; geen take (een cap zou stilletjes een blob laten staan)
   const documents = await prisma.document.findMany({
     where: { ownerId: userId },

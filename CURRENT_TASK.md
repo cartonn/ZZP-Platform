@@ -1,7 +1,7 @@
 # CURRENT_TASK.md — Huidige taak
 
+Security 23 september 14:00 UTC: #1516 herstelt lopende uploads na anonimisering; [scope](docs/progress/2026-09-23-late-upload-erasure.md).
 Bouwronde 17 september 16:22 UTC: #1514 bewaakt het gelijke certificaatvenster; [scope](docs/progress/2026-09-17-expiry-window-parity.md).
-
 Security 17 september 14:00 UTC: #1513 bewaakt actuele conceptprestatievoorwaarden;
 [repro en scope](docs/progress/2026-09-17-draft-performance-current-state.md).
 
