@@ -1,3 +1,14 @@
+## 23 september 2026 — lokale platformmonospace (#1517)
+
+- Bewezen Google Fonts-downloadfout vóór browser-CI: JetBrains Mono in rootlayout.
+- Hetzelfde normale variabele lettertype (100–800) lokaal gebundeld met originele
+  bron en licentie. Fontmetadata en Next-loaderuitvoer gecontroleerd.
+- Na de eerste onafhankelijke review vervangen door de officiële Latin-WOFF2
+  van 40.404 bytes, om een onnodig zware rootpreload te voorkomen.
+- Arial-fallbackmetingen verschillen licht. Historische labfonts blijven extern.
+  Geen algemene offlinebuildclaim.
+- Volledige controles en onafhankelijke review volgen; [bron](src/app/fonts/README.md).
+
 ## 23 september 2026 — lopende upload na anonimisering (#1516)
 
 - Echte upload- en erasure-acties reproduceren een document na afgeronde verwijdering.

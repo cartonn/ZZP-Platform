@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { JetBrains_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import "./handslag-workspace.css";
@@ -17,10 +16,13 @@ const fontSans = localFont({
   variable: "--font-sans",
   display: "swap",
 });
-const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
+const fontMono = localFont({
+  src: "./fonts/jetbrains-mono-latin.woff2",
+  weight: "100 800",
+  style: "normal",
   variable: "--font-mono",
   display: "swap",
+  preload: true,
 });
 
 export const metadata: Metadata = {
