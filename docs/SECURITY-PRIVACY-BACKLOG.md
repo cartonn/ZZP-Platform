@@ -1,3 +1,14 @@
+## 23 september 2026 — lopende upload na erasure (MIDDEL, #1516)
+
+De eerdere document/erasure-raceclaim hieronder dekt geen reeds geautoriseerde
+upload die pas na de laatste sweep hervat. Echte acties en tijdelijke SQLite
+bevestigen een achterblijvende rij/blob. #1516 bewaakt de actuele eigenaar via
+een conditionele write in dezelfde transactie als document en audit; bij verlies
+wordt de blob opgeruimd. 25 regressies slagen; herreview/CI/release nog vereist.
+[Bron, tests en beperkingen](progress/2026-09-23-late-upload-erasure.md).
+Na onafhankelijke review omvat dezelfde bescherming ook nieuwe en vervangende
+certificaatuploads; vier aanvullende oorspronkelijke races zijn gereproduceerd.
+
 # SECURITY & PRIVACY BACKLOG — ZZP Platform
 
 > Bevindingen uit de security-/privacy-auditronde. Gefixt = **OPGELOST** (met PR-referentie);
