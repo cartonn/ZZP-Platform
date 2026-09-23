@@ -48,7 +48,7 @@ import {
   type Availability,
   type CredentialStatus,
 } from "@/lib/enums";
-import { activeVerifiedCount } from "@/lib/credentials";
+import { activeVerifiedCount, CREDENTIAL_EXPIRY_WINDOW_MS } from "@/lib/credentials";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { getSavedSearchAlertsForFreelancer } from "@/lib/jobs/saved-search-alerts";
@@ -579,8 +579,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     const me = await prisma.user.findUnique({ where: { id: userId }, select: { tenantId: true } });
     const tenantId = me?.tenantId ?? null;
     const now = new Date();
-    const soon = new Date(now);
-    soon.setDate(now.getDate() + 30);
+    const soon = new Date(now.getTime() + CREDENTIAL_EXPIRY_WINDOW_MS);
     const [
       companies,
       freelancers,

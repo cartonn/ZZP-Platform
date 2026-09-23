@@ -28,6 +28,7 @@ import {
   type CollabRequirementInput,
 } from "@/lib/collaboration-credential-expiry";
 import {
+  CREDENTIAL_EXPIRY_WINDOW_MS,
   rosterExpiringByProfile,
   rosterExpiredByProfile,
   supersededVerifiedCredentialIds,
@@ -152,8 +153,6 @@ const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
 export function startOfUtcDay(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
-
-const EXPIRY_WINDOW_MS = 30 * 86_400_000; // 30 dagen, gelijk aan het dashboard
 
 /** Drempel (dagen) waarna een ongedekte, gepubliceerde dienst als "te lang open" (stale) telt — gelijk aan `STALE_DIENST_DAYS` in pending-tasks.ts. */
 const STALE_DIENST_DAYS = 7;
@@ -463,7 +462,7 @@ export const navBadges = cache(async function navBadges(
     });
     if (!profile) return {};
     const now = new Date();
-    const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
+    const soon = new Date(now.getTime() + CREDENTIAL_EXPIRY_WINDOW_MS);
     const [
       dossier,
       unreadMessages,
@@ -894,7 +893,7 @@ export const navBadges = cache(async function navBadges(
     const tenantId = await getUserTenantId(userId);
     if (!tenantId) return {};
     const now = new Date();
-    const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
+    const soon = new Date(now.getTime() + CREDENTIAL_EXPIRY_WINDOW_MS);
     const staleThreshold = new Date(now.getTime() - STALE_DIENST_DAYS * 86_400_000);
     const [
       overdueLeads,

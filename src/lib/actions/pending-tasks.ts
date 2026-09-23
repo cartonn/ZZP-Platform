@@ -21,6 +21,7 @@ import { startOfUtcDay } from "@/lib/signals";
 import { type FreelancerCredential } from "@/lib/matching";
 import {
   CREDENTIAL_TYPE_LABEL,
+  CREDENTIAL_EXPIRY_WINDOW_MS,
   rosterExpiringByProfile,
   rosterExpiredByProfile,
   supersededVerifiedCredentialIds,
@@ -157,7 +158,6 @@ import { classifyRosterDormancy } from "@/lib/franchise/roster-dormancy";
 
 /** Harde bovengrens per kind (voorkomt N+1/zware lijsten op /acties); "+N meer" buiten beschouwing. */
 const MAX = 50;
-const EXPIRY_WINDOW_MS = 30 * 86_400_000;
 /** Drempel (dagen) waarna een ongedekte, gepubliceerde dienst als "te lang open" telt (zelfde als het dashboard). */
 const STALE_DIENST_DAYS = 7;
 
@@ -363,7 +363,7 @@ export async function pendingTaskCount(userId: string, role: string): Promise<nu
 async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   const tasks: PendingTask[] = [];
   const now = new Date();
-  const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
+  const soon = new Date(now.getTime() + CREDENTIAL_EXPIRY_WINDOW_MS);
   // Alle certificaten (voor de samenwerking-gebonden verval-check verderop) + de generieke
   // verlopende certificaten (uitgesteld: pas emitten zodra we weten welke door een samenwerking
   // worden gedekt, zodat hetzelfde certificaat niet dubbel verschijnt).
@@ -1390,7 +1390,7 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
 
   const tasks: PendingTask[] = [];
   const now = new Date();
-  const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
+  const soon = new Date(now.getTime() + CREDENTIAL_EXPIRY_WINDOW_MS);
 
   const staleThreshold = new Date(now.getTime() - STALE_DIENST_DAYS * 86_400_000);
 
