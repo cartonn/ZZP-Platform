@@ -17,14 +17,16 @@ independent approval of the application.
 
 ## JetBrains Mono source
 
-`jetbrains-mono-variable.ttf` is the normal variable JetBrains Mono font used for
+`jetbrains-mono-latin.woff2` is the Latin normal variable JetBrains Mono font used for
 platform figures through `--font-mono`. It was downloaded without modification
 on 23 September 2026 from the
-[official pinned upstream asset](https://github.com/JetBrains/JetBrainsMono/blob/19371302b95d218af43299bce79ddbddd0bc364d/fonts/variable/JetBrainsMono%5Bwght%5D.ttf).
+[official Google Fonts asset](https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbV2o-flEEny0FZhsfKu5WU4xD7OwE.woff2),
+identified by the Latin face in the
+[Google Fonts stylesheet](https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap).
 
-- Upstream revision: `19371302b95d218af43299bce79ddbddd0bc364d`.
-- Font size: 300,144 bytes.
-- Font SHA-256: `3cfafa86e28b87184d592fef82846e8c10cb48653c62efcda34f082da225ec34`.
+- License upstream revision: `19371302b95d218af43299bce79ddbddd0bc364d`.
+- Font size: 40,404 bytes.
+- Font SHA-256: `18be452724bfdc236c074ca94a249a7f41a86752c7d04ab258ce9ed5651f6a7e`.
 - Included license: [SIL Open Font License](jetbrains-mono-OFL.txt), 4,399 bytes.
 - License SHA-256: `a76abf002c49097d146e86740a3105a5d00450b1592e820a1109a8c5680cd697`.
 - License source: [the same upstream revision](https://github.com/JetBrains/JetBrainsMono/blob/19371302b95d218af43299bce79ddbddd0bc364d/OFL.txt).
@@ -32,7 +34,12 @@ on 23 September 2026 from the
 The bundled Next.js font parser identifies the asset as `JetBrains Mono`,
 `Regular`, with a `wght` axis of 100–800 and default 400. The root layout retains
 normal style, variable weights 100–800, swap display and preload. Open Sans is
-unchanged. The full upstream variable font retains its character coverage.
+unchanged. The font contains 394 glyphs covering 230 code points, including digits, the euro
+sign and common Dutch accented letters. Its character set and default glyph
+outlines/advance widths match the previously generated Latin asset inspected
+locally (40,480 bytes); the files are not byte-for-byte identical. The 40,404-byte
+WOFF2 replaces the initial 300,144-byte full TTF to avoid increasing the root
+preload size. Other script subsets are not bundled by this root declaration.
 
 Next.js 15.5.24 computes Arial fallback metrics from the local asset. These differ
 from its Google-font metrics: ascent 77.57% versus 75.79%, descent 22.82% versus

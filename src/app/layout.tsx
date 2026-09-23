@@ -17,7 +17,7 @@ const fontSans = localFont({
   display: "swap",
 });
 const fontMono = localFont({
-  src: "./fonts/jetbrains-mono-variable.ttf",
+  src: "./fonts/jetbrains-mono-latin.woff2",
   weight: "100 800",
   style: "normal",
   variable: "--font-mono",
