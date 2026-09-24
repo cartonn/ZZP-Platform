@@ -386,7 +386,12 @@ export async function requestVerification(credentialId: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
       const res = await tx.credential.updateMany({
         where: { id: credentialId, status },
-        data: { status: "SUBMITTED", rejectionReason: null, submittedAt: new Date() },
+        data: {
+          status: "SUBMITTED",
+          rejectionReason: null,
+          submittedAt: new Date(),
+          ...EVIDENCE_REVIEW_RESET,
+        },
       });
       if (res.count === 0) throw new StaleCredentialError();
       await tx.verificationRequest.create({ data: { credentialId } });
