@@ -56,7 +56,7 @@ import { SavedSearchSpotlight } from "@/components/dashboard/saved-search-spotli
 import { suggestedFreelancersForClient, type ClientFreelancerSuggestion } from "@/lib/suggestions";
 import {
   clientCredentialAlertsFromRows,
-  COLLABORATION_ALERT_INCLUDE,
+  clientCredentialAlertQuery,
   shortCredentialAlert,
   summarizeClientCompliance,
   type ClientComplianceSnapshot,
@@ -494,16 +494,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       // clientCredentialAlerts, maar in deze parallelle batch (het bedrijf is al bekend, dus
       // geen tweede company-lookup). De volledige lijst (take 200) voedt zowel de per-kaart
       // melding als de geaggregeerde momentopname, ook buiten de top-6 zone.
-      cid
-        ? prisma.collaboration.findMany({
-            // disputedAt: null → een in dispuut zijnde samenwerking is bevroren en levert geen
-            // compliance-waarschuwing/next-action op (consistent met /acties + signals.ts); anders
-            // toonde dezelfde kaart tegelijk "Dispuut — bevroren" én een compliance-actiebadge.
-            where: { companyId: cid, status: "ACTIVE", disputedAt: null },
-            take: 200,
-            include: COLLABORATION_ALERT_INCLUDE,
-          })
-        : Promise.resolve([]),
+      // unbounded-allow: clientCredentialAlertQuery supplies the shared take: 200 bound.
+      cid ? prisma.collaboration.findMany(clientCredentialAlertQuery(cid)) : Promise.resolve([]),
     ]);
     // Compliance-waarschuwingen per lopende samenwerking (ZZP'er mist/verlopen vereist certificaat),
     // zodat de opdrachtgever dit ook op het dashboard ziet — niet alleen op /samenwerkingen.

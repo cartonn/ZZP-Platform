@@ -1,3 +1,10 @@
+## 24 september — opdrachtgever-certificaatvenster (#1520)
+
+Dashboard en actieloader delen de bestaande begrensde selectie; echte SQLite-paginaproef
+bewijst de verdwenen melding achter 200 inzetten zonder certificaateis. 36 gerichte
+tests slagen; volledige suite 9.090 groen (3 skips), lint/types/format en netwerkbuild groen.
+Onafhankelijke review, CI en release volgen.
+
 # CURRENT_TASK.md — Huidige taak
 
 Security 23 september 14:00 UTC: #1516 herstelt lopende uploads na anonimisering; [scope](docs/progress/2026-09-23-late-upload-erasure.md).
