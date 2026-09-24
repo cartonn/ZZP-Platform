@@ -24,8 +24,16 @@ const {
 }));
 
 const txClient = {
-  credential: { updateMany },
-  document: { deleteMany: documentDeleteMany },
+  credential: {
+    updateMany,
+    count: credentialCount,
+    findFirst: vi.fn(async () => ({ type: "VOG" })),
+  },
+  document: {
+    deleteMany: documentDeleteMany,
+    findUnique: documentFindUnique,
+    updateMany: vi.fn(async () => ({ count: 1 })),
+  },
   auditLog: { create: auditCreate },
 };
 

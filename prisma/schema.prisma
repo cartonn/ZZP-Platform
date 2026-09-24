@@ -694,14 +694,15 @@ model Message {
 // ---------------------------------------------------------------------------
 
 model Document {
-  id         String   @id @default(cuid())
-  ownerId    String
-  kind       String   @default("OTHER") // DocumentKind: CREDENTIAL | VOG | INSURANCE | CONTRACT | OTHER
-  filename   String
-  mimeType   String
-  size       Int
-  storageKey String   @unique //            verwijst naar storage-abstractie, nooit publiek pad
-  createdAt  DateTime @default(now())
+  id                       String    @id @default(cuid())
+  ownerId                  String
+  kind                     String    @default("OTHER") // DocumentKind: CREDENTIAL | VOG | INSURANCE | CONTRACT | OTHER
+  filename                 String
+  mimeType                 String
+  size                     Int
+  evidenceRemovalStartedAt DateTime? // Durable claim: this evidence may no longer be reused.
+  storageKey               String    @unique //            verwijst naar storage-abstractie, nooit publiek pad
+  createdAt                DateTime  @default(now())
 
   owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   credentials Credential[]

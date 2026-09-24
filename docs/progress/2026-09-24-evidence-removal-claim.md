@@ -16,3 +16,14 @@ Scope: documentmodel/migratie, credential-evidence-helper, herindienacties en
 noodzakelijke regressies. Geen storage-I/O vasthouden in een DB-transactie.
 Bewijs vereist beide volgordes, fout/herstart, normale opruiming, nieuwe uploads,
 audits en schema-controles. Implementatie en onafhankelijke review volgen.
+
+Implementatie: nullable Document.evidenceRemovalStartedAt plus additieve migratie.
+Opruiming en hergebruik schrijven dezelfde documentrij in hun korte transactie;
+opruiming herleest de huidige credential en bewaarbeleidsvoorwaarden vóór de claim.
+Opslag-I/O volgt na commit. Een geclaimd bestand kan niet opnieuw worden gebruikt,
+ook niet na een opslagfout; de gebruiker kan een nieuw bewijs uploaden. De echte
+verwijderdatum wordt pas na opslagverwijdering gezet.
+
+Gericht: 78 tests in twaalf suites, typecheck en SQLite-schema slagen. De proeven
+bewaken beide volgordes, retry, vervangende upload, beleid/type/referenties en audit.
+Volledige checks, PostgreSQL-migratiepoort en onafhankelijke review volgen.

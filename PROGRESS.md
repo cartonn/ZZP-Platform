@@ -1,3 +1,12 @@
+## 24 september 2026 — lopende bewijsopruiming (#1519)
+
+- Twee echte SQLite-actieproeven tonen verlies van hetzelfde bewijs bij
+  herindienen terwijl de oude opslagverwijdering al wacht.
+- Afzonderlijke vervolgclaim op #1518: duurzame documentmarkering vóór externe
+  verwijdering en transactionele uitsluiting bij hergebruik geïmplementeerd.
+  78 gerichte tests en typecheck groen; volledige controles en review volgen.
+- [Repro, scope en vereiste controles](docs/progress/2026-09-24-evidence-removal-claim.md).
+
 ## 24 september 2026 — opnieuw aangevraagde VOG-controle (#1518)
 
 - Echte afwijs-/aanvraag-/opruimacties op tijdelijke SQLite reproduceren verlies

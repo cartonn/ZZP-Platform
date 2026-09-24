@@ -6,6 +6,10 @@ import { AuthorizationError, requireRole } from "@/lib/authz";
 import { audit, auditData } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { prisma } from "@/lib/db";
+import {
+  assertReusableCredentialEvidence,
+  EvidenceReuseUnavailableError,
+} from "@/lib/credential-evidence";
 import { assertLiveDocumentOwner } from "@/lib/document-upload-owner";
 import { assertTransition, TransitionError } from "@/lib/credentials";
 import { toSafeActionError } from "@/lib/safe-action-error";
@@ -254,12 +258,13 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
         if (reverify) {
           assertTransition(status, "SUBMITTED");
           await prisma.$transaction(async (tx) => {
+            await assertReusableCredentialEvidence(tx, credential.documentId);
             // Compound-guard op de gesnapshotte status: `reverify` is beslist op een pre-transactionele
             // lees (VERIFIED/EXPIRED + gewijzigde feiten). Flipt een gelijktijdige actie de rij in het
             // venster, dan matcht de guard 0 rijen → StaleCredentialError → rollback (geen SUBMITTED-write,
             // geen verificationRequest). Zelfde patroon als applyExternalVerification.
             const res = await tx.credential.updateMany({
-              where: { id: credentialId, status },
+              where: { id: credentialId, status, documentId: credential.documentId },
               data: {
                 ...fields,
                 status: "SUBMITTED",
@@ -274,16 +279,20 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
         } else {
           // The decision to keep the current review applies only to this exact snapshot.
           // A completed review or a newer edit must not inherit these unreviewed facts.
-          const res = await prisma.credential.updateMany({
-            where: {
-              id: credentialId,
-              freelancerProfileId: profile.id,
-              status,
-              updatedAt: credential.updatedAt,
-            },
-            data: fields,
+          await prisma.$transaction(async (tx) => {
+            if (factsChanged) await assertReusableCredentialEvidence(tx, credential.documentId);
+            const res = await tx.credential.updateMany({
+              where: {
+                id: credentialId,
+                freelancerProfileId: profile.id,
+                status,
+                updatedAt: credential.updatedAt,
+                documentId: credential.documentId,
+              },
+              data: fields,
+            });
+            if (res.count === 0) throw new StaleCredentialError();
           });
-          if (res.count === 0) throw new StaleCredentialError();
         }
       }
       if (!hasFile)
@@ -326,6 +335,7 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
         .catch((err) => logStorageCleanupFailure("[certificaten] upload", key, err));
     }
     if (e instanceof AuthorizationError) return { error: e.message };
+    if (e instanceof EvidenceReuseUnavailableError) return { fieldErrors: { document: e.message } };
     if (e instanceof UploadValidationError) return { fieldErrors: { document: e.message } };
     if (e instanceof TransitionError) return { error: e.message };
     if (e instanceof StaleCredentialError) return { error: STALE_CREDENTIAL_MESSAGE };
@@ -384,8 +394,9 @@ export async function requestVerification(credentialId: string): Promise<void> {
   // géén dubbele verificationRequest, géén audit op een niet-uitgevoerde overgang.
   try {
     await prisma.$transaction(async (tx) => {
+      await assertReusableCredentialEvidence(tx, credential.documentId);
       const res = await tx.credential.updateMany({
-        where: { id: credentialId, status },
+        where: { id: credentialId, status, documentId: credential.documentId },
         data: {
           status: "SUBMITTED",
           rejectionReason: null,

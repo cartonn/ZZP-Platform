@@ -3,6 +3,9 @@
 // waarom). Eén schrijfpunt, gedeeld door de verificatiequeue (direct na de beslissing) en de
 // opruimtaak (die een eerder mislukte verwijdering opnieuw probeert).
 //
+// Order: claim the document durably, delete storage outside the transaction, then unlink.
+// The claim is never released: even a timed-out storage request could still delete the bytes.
+// Same-file resubmission must acquire the same document row before its status transition.
 // Volgorde is bewust: eerst het bestand uit de opslag, pas daarna de DB-ontkoppeling. Mislukt de
 // opslag-verwijdering, dan blijven `documentId` én de opslagsleutel staan zodat de opruimtaak het
 // bestand terug kan vinden — precies wat je kwijt bent als je de rij eerst wist. De beslissing
@@ -12,8 +15,12 @@ import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { getStorage } from "@/lib/services/storage";
 import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
-import { logger } from "@/lib/observability/logger";
-import { EVIDENCE_REMOVAL_REASON } from "@/lib/credential-evidence-policy";
+import { type Prisma } from "@prisma/client";
+import { type CredentialType } from "@/lib/enums";
+import {
+  EVIDENCE_REMOVAL_REASON,
+  shouldRemoveEvidenceAfterReview,
+} from "@/lib/credential-evidence-policy";
 
 export interface EvidenceRemovalResult {
   /** Bestand verwijderd én de credential ontkoppeld (`evidenceRemovedAt` gezet). */
@@ -44,24 +51,46 @@ export async function removeCredentialEvidence(opts: {
   const documentId = opts.documentId;
   if (!documentId) return { removed: false, skipped: "no-document" };
 
-  const doc = await prisma.document.findUnique({
-    where: { id: documentId },
-    select: { storageKey: true },
-  });
-  if (!doc) return { removed: false, skipped: "no-document" }; // al opgeruimd
-
-  // Documenten worden per upload aangemaakt, dus een gedeeld bewijsstuk bestaat in de praktijk niet.
-  // Mocht een tweede certificaat er tóch naar verwijzen, dan wissen we niets: het bestand is dan nog
-  // in gebruik en de opruiming is geen dataminimalisatie maar dataverlies voor die andere rij.
-  const otherReferences = await prisma.credential.count({
-    where: { documentId, id: { not: opts.credentialId } },
-  });
-  if (otherReferences > 0) {
-    logger.warn(`${opts.source} bewijsstuk niet verwijderd — nog gekoppeld aan een ander dossier`, {
-      credentialId: opts.credentialId,
+  // Both cleanup and same-file resubmission write this row first. On PostgreSQL the
+  // UPDATE holds the row lock until commit; SQLite serializes the writers. Recheck
+  // the credential AFTER acquiring it, so a resubmission that won is never erased.
+  let doc: { storageKey: string } | null;
+  try {
+    doc = await prisma.$transaction(async (tx) => {
+      const claim = await tx.document.updateMany({
+        where: { id: documentId },
+        data: { id: documentId },
+      });
+      if (!claim.count) return null;
+      const credential = await tx.credential.findFirst({
+        where: {
+          id: opts.credentialId,
+          documentId,
+          evidenceSeenAt: { not: null },
+          evidenceRemovedAt: null,
+          status: { in: ["VERIFIED", "REJECTED", "EXPIRED"] },
+        },
+        select: { type: true },
+      });
+      if (!credential || !shouldRemoveEvidenceAfterReview(credential.type as CredentialType)) {
+        throw new EvidenceClaimUnavailable("no-document");
+      }
+      const references = await tx.credential.count({
+        where: { documentId, id: { not: opts.credentialId } },
+      });
+      if (references) throw new EvidenceClaimUnavailable("still-referenced");
+      // Preserve the original start time on retries; never clear a committed claim.
+      await tx.document.updateMany({
+        where: { id: documentId, evidenceRemovalStartedAt: null },
+        data: { evidenceRemovalStartedAt: new Date() },
+      });
+      return tx.document.findUnique({ where: { id: documentId }, select: { storageKey: true } });
     });
-    return { removed: false, skipped: "still-referenced" };
+  } catch (error) {
+    if (error instanceof EvidenceClaimUnavailable) return { removed: false, skipped: error.reason };
+    throw error;
   }
+  if (!doc) return { removed: false, skipped: "no-document" };
 
   try {
     await getStorage().delete(doc.storageKey);
@@ -106,4 +135,29 @@ export async function removeCredentialEvidence(opts: {
   if (!unlinked) return { removed: false, skipped: "no-document" };
 
   return { removed: true, skipped: null };
+}
+
+class EvidenceClaimUnavailable extends Error {
+  constructor(readonly reason: "no-document" | "still-referenced") {
+    super(reason);
+  }
+}
+
+/** Serialize evidence reuse with cleanup, inside the credential transition transaction. */
+export async function assertReusableCredentialEvidence(
+  tx: Prisma.TransactionClient,
+  documentId: string | null,
+) {
+  if (!documentId) return;
+  const result = await tx.document.updateMany({
+    where: { id: documentId, evidenceRemovalStartedAt: null },
+    data: { evidenceRemovalStartedAt: null },
+  });
+  if (!result.count) throw new EvidenceReuseUnavailableError();
+}
+
+export class EvidenceReuseUnavailableError extends Error {
+  constructor() {
+    super("Dit bewijsstuk wordt verwijderd. Upload een nieuw bewijsstuk.");
+  }
 }
