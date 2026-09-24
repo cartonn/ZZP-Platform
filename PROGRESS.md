@@ -1,3 +1,12 @@
+## 24 september 2026 — opnieuw aangevraagde VOG-controle (#1518)
+
+- Echte afwijs-/aanvraag-/opruimacties op tijdelijke SQLite reproduceren verlies
+  van het nog benodigde bewijs na een tijdelijk mislukte opslagverwijdering.
+- Bestaande bewijsreset ook bij opnieuw verificatie aanvragen toegepast. Vier
+  SQLite-regressies en tien bestaande gerichte tests slagen; typecheck groen.
+  Volledige controles, onafhankelijke review en releasepoorten volgen afzonderlijk.
+- [Repro en scope](docs/progress/2026-09-24-vog-rerequest.md).
+
 ## 23 september 2026 — lokale platformmonospace (#1517)
 
 - Bewezen Google Fonts-downloadfout vóór browser-CI: JetBrains Mono in rootlayout.
