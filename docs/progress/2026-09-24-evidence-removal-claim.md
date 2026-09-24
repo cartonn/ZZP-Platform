@@ -27,3 +27,8 @@ verwijderdatum wordt pas na opslagverwijdering gezet.
 Gericht: 78 tests in twaalf suites, typecheck en SQLite-schema slagen. De proeven
 bewaken beide volgordes, retry, vervangende upload, beleid/type/referenties en audit.
 Volledige checks, PostgreSQL-migratiepoort en onafhankelijke review volgen.
+
+De native review van d6dedcd8 vond een verdwenen gestructureerde waarschuwing bij
+gedeeld bewijs. Herstel behoudt het operationele signaal na transactionele weigering;
+een regressie controleert waarschuwing zonder opslagverwijdering of verwijderaudit.
+Deze nieuwe commit vereist opnieuw onafhankelijke en native review.

@@ -49,6 +49,7 @@ vi.mock("@/lib/services/storage", () => ({ getStorage: () => ({ delete: storageD
 vi.mock("@/lib/observability/storage-failure", () => ({ logStorageCleanupFailure: vi.fn() }));
 vi.mock("@/lib/observability/logger", () => ({ logger: { warn: vi.fn(), error: vi.fn() } }));
 
+import { logger } from "@/lib/observability/logger";
 import { removeCredentialEvidence } from "./credential-evidence";
 
 const opts = {
@@ -90,4 +91,19 @@ describe("removeCredentialEvidence", () => {
     expect(documentDeleteMany).not.toHaveBeenCalled();
     expect(auditCreate).not.toHaveBeenCalled();
   });
+});
+
+it("logs a shared-reference refusal without deleting evidence or recording removal", async () => {
+  credentialCount.mockResolvedValue(1);
+  expect(await removeCredentialEvidence(opts)).toEqual({
+    removed: false,
+    skipped: "still-referenced",
+  });
+  expect(logger.warn).toHaveBeenCalledWith(
+    "[test] bewijsstuk niet verwijderd — nog gekoppeld aan een ander dossier",
+    { credentialId: "cred-1" },
+  );
+  expect(storageDelete).not.toHaveBeenCalled();
+  expect(documentDeleteMany).not.toHaveBeenCalled();
+  expect(auditCreate).not.toHaveBeenCalled();
 });

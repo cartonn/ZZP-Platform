@@ -15,6 +15,7 @@ import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { getStorage } from "@/lib/services/storage";
 import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
+import { logger } from "@/lib/observability/logger";
 import { type Prisma } from "@prisma/client";
 import { type CredentialType } from "@/lib/enums";
 import {
@@ -87,7 +88,17 @@ export async function removeCredentialEvidence(opts: {
       return tx.document.findUnique({ where: { id: documentId }, select: { storageKey: true } });
     });
   } catch (error) {
-    if (error instanceof EvidenceClaimUnavailable) return { removed: false, skipped: error.reason };
+    if (error instanceof EvidenceClaimUnavailable) {
+      if (error.reason === "still-referenced") {
+        logger.warn(
+          `${opts.source} bewijsstuk niet verwijderd — nog gekoppeld aan een ander dossier`,
+          {
+            credentialId: opts.credentialId,
+          },
+        );
+      }
+      return { removed: false, skipped: error.reason };
+    }
     throw error;
   }
   if (!doc) return { removed: false, skipped: "no-document" };
