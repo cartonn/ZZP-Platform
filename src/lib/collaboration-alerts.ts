@@ -330,7 +330,15 @@ export const clientCredentialAlerts = cache(async function clientCredentialAlert
   const companyId = await getUserCompanyId(userId);
   if (!companyId) return [];
 
-  const collaborations = await prisma.collaboration.findMany({
+  // unbounded-allow: clientCredentialAlertQuery supplies the shared take: 200 bound.
+  const collaborations = await prisma.collaboration.findMany(clientCredentialAlertQuery(companyId));
+
+  return clientCredentialAlertsFromRows(collaborations, new Date());
+});
+
+/** Shared bounded selection for dashboard prefetch and the action/badge loader. */
+export function clientCredentialAlertQuery(companyId: string) {
+  return {
     // disputedAt: null → een bevroren (in dispuut zijnde) samenwerking levert geen next-action op,
     // consistent met pending-tasks.ts en signals.ts. De pure `clientCredentialAlertsFromRows` guardt
     // hier nogmaals op (defense-in-depth + testbaar zonder DB).
@@ -351,7 +359,5 @@ export const clientCredentialAlerts = cache(async function clientCredentialAlert
     orderBy: { createdAt: "asc" },
     take: 200,
     include: COLLABORATION_ALERT_INCLUDE,
-  });
-
-  return clientCredentialAlertsFromRows(collaborations, new Date());
-});
+  } as const;
+}

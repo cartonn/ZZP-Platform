@@ -1,3 +1,13 @@
+## 24 september 2026 — gelijk opdrachtgever-certificaatvenster (#1520)
+
+- Echte dashboard-/SQLite-proef verloor verplichte VOG-meldingen achter 200 inzetten
+  zonder certificaateis; acties en badge vonden de melding wel.
+- Dashboard en actieloader delen nu hun bestaande filter, volgorde en grens.
+  Paginaregressie rood vóór de fix, groen erna; 36 gerichte tests groen.
+- [Bewijs en scope](docs/progress/2026-09-24-client-compliance-window.md).
+  9.090 tests groen (3 skips), lint/types/format en netwerkbuild groen.
+  Onafhankelijke review, CI en release volgen afzonderlijk.
+
 ## 24 september 2026 — lopende bewijsopruiming (#1519)
 
 - Twee echte SQLite-actieproeven tonen verlies van hetzelfde bewijs bij
