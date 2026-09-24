@@ -32,11 +32,19 @@ const {
 }));
 
 const txClient = {
-  credential: { updateMany: credentialUpdateMany },
+  credential: {
+    updateMany: credentialUpdateMany,
+    count: credentialCount,
+    findFirst: credentialFindUnique,
+  },
   credentialVerification: { create: vi.fn(async () => ({})) },
   verificationRequest: { updateMany: vi.fn(async () => ({})) },
   notification: { create: vi.fn(async () => ({})) },
-  document: { deleteMany: documentDeleteMany },
+  document: {
+    deleteMany: documentDeleteMany,
+    findUnique: documentFindUnique,
+    updateMany: vi.fn(async () => ({ count: 1 })),
+  },
   auditLog: { create: auditCreate },
 };
 

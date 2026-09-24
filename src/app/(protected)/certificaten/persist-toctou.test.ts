@@ -21,7 +21,7 @@ const { updateManyMock, docCreateMock, reqCreateMock, docDeleteMock, docFindMock
 const txClient = {
   user: { updateMany: vi.fn(async () => ({ count: 1 })) },
   auditLog: { create: vi.fn(async () => ({})) },
-  document: { create: docCreateMock },
+  document: { create: docCreateMock, updateMany: vi.fn(async () => ({ count: 1 })) },
   credential: { updateMany: updateManyMock },
   verificationRequest: { create: reqCreateMock },
 };
