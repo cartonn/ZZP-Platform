@@ -1,3 +1,10 @@
+## 24 september 2026 — certificaat-impact voor zelfstandigen (#1521)
+
+De echte SQLite-loader verloor vereiste inzetten achter 200 rijen zonder certificaateis.
+Het filter staat nu vóór de bestaande limiet, met stabiele volgorde; twee regressies
+rood vóór en groen na de fix. 62 gerichte tests slagen. Volledige controles en reviews
+volgen afzonderlijk. [Bewijs en scope](docs/progress/2026-09-24-freelancer-compliance-window.md).
+
 ## 24 september — opdrachtgever-certificaatvenster (#1520)
 
 Dashboard en actieloader delen de bestaande begrensde selectie; echte SQLite-paginaproef

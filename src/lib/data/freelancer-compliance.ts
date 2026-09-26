@@ -22,7 +22,13 @@ export async function getActiveCollaborationRequirements(
   if (!profile) return [];
 
   const collaborations = await prisma.collaboration.findMany({
-    where: { freelancerId: profile.id, status: "ACTIVE" },
+    // Filter irrelevant placements before the bounded window, so they cannot hide impact.
+    where: {
+      freelancerId: profile.id,
+      status: "ACTIVE",
+      job: { credentialRequirements: { some: { required: true } } },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: 200,
     include: {
       job: {
