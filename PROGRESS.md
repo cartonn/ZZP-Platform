@@ -1,3 +1,10 @@
+## 27 september — exact bijna-verloopvenster (#1524)
+
+Een fractionele dag buiten het 30-daagse venster gaf alleen de opdrachtgever een
+te vroege certificaatwaarschuwing. Exacte tijdvergelijking gebouwd; 13 regressies,
+123 gerichte en 9.127 volledige tests groen (3 skips), lint/types/format geslaagd.
+Netwerkbuild geslaagd; onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-27-exact-expiry-window.md).
+
 ## 27 september — gelijke certificaat-eindgrens (#1523)
 
 Bij verval exact op opdracht-einde kreeg alleen de zelfstandige een vernieuwingstaak.

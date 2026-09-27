@@ -136,7 +136,7 @@ export function activeVerifiedCount(
   return credentials.filter((c) => c.status === "VERIFIED" && !isExpired(c, now)).length;
 }
 
-/** Bijna verlopen: VERIFIED, nog niet verlopen, en binnen `withinDays`. */
+/** Bijna verlopen: VERIFIED, nog niet verlopen, en binnen exact `withinDays` × 24 uur. */
 export function isExpiringSoon(
   credential: ExpiryInput,
   withinDays = 30,
@@ -144,8 +144,8 @@ export function isExpiringSoon(
 ): boolean {
   if (credential.status !== "VERIFIED" || !credential.expiresAt) return false;
   if (isExpired(credential, now)) return false;
-  const days = daysUntilExpiry(credential.expiresAt, now);
-  return days !== null && days <= withinDays;
+  const remainingMs = credential.expiresAt.getTime() - now.getTime();
+  return remainingMs <= withinDays * 86_400_000;
 }
 
 export interface SupersedeInput {
