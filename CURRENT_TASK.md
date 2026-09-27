@@ -1,3 +1,10 @@
+## 27 september — verloop tijdens opdracht (#1522)
+
+Echte paginarenders tonen voor zelfstandige en opdrachtgever een lege beoordelingsmelding
+wanneer een geverifieerde VOG pas tijdens de opdracht verloopt. Twee regressies rood,
+zes controles groen op main. Tekstcorrectie gebouwd; 12 rolrenders en 9.102 tests groen
+(3 skips), lint/types/format en netwerkbuild geslaagd. Reviews en CI volgen. [Scope](docs/progress/2026-09-27-placement-expiry-copy.md).
+
 ## 24 september — opdrachtgever-certificaatvenster (#1520)
 
 Dashboard en actieloader delen de bestaande begrensde selectie; echte SQLite-paginaproef
