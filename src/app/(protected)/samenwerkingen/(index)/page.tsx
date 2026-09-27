@@ -79,6 +79,10 @@ function alertPhrase(a: CredentialAlert, name: string, isClient: boolean): strin
     return isClient
       ? `Certificaat van ${name} verloopt binnenkort: ${t(a.expiringSoon)}.`
       : `Je ${t(a.expiringSoon)} verloopt binnenkort.`;
+  if (a.expiringDuringPlacement.length > 0)
+    return isClient
+      ? `Certificaat van ${name} verloopt tijdens de opdracht: ${t(a.expiringDuringPlacement)}.`
+      : `Je ${t(a.expiringDuringPlacement)} verloopt tijdens de opdracht.`;
   return isClient
     ? `Certificaat van ${name} is in beoordeling: ${t(a.inReview)}.`
     : `Je ${t(a.inReview)} is in beoordeling.`;
