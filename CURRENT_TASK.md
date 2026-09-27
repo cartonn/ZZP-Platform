@@ -1,3 +1,12 @@
+## 27 september — buildbetrouwbaarheid Cormorant (#1526)
+
+De bestaande Cormorant-loader veroorzaakt herhaalde buildfouten vóór browsertests.
+Exacte bestaande fontbestanden en CSS-gedrag zijn lokaal gebundeld; overige fonts
+en ontwerpen behouden. Gerichte tests en geïsoleerde compilatie zonder netwerk
+groen; lint/types/format, 9.145 tests (3 skips) en productiebuild geslaagd.
+Onafhankelijke reviews en GitHub-checks volgen.
+[Scope](docs/progress/2026-09-27-local-cormorant.md).
+
 ## 27 september — certificaatherinnering rond klokwissel (#1525)
 
 De runner selecteerde in de lente 719 uur terwijl de planner 720 uur beoordeelt.
