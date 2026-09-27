@@ -91,14 +91,6 @@ export function collaborationCredentialExpiryConcerns(input: {
   const windowMs = (input.windowDays ?? COLLAB_CREDENTIAL_EXPIRY_WINDOW_DAYS) * MS_PER_DAY;
   const windowCutoffMs = nowMs + windowMs;
 
-  // Per-samenwerking-anker: het certificaat is een zorg voor déze samenwerking zodra het verloopt op/
-  // vóór de effectieve grens. Die grens is het klassieke 30-daagse venster, verruimd tot de einddatum
-  // van de plaatsing wanneer die verder in de toekomst ligt — zo vangt de ZZP'er óók het certificaat dat
-  // pas ná het venster maar nog vóór het einde van zijn opdracht lapt (spiegel van de opdrachtgever-
-  // alert `expiringDuringPlacement`). Zonder einddatum (open-einde-inzet) valt 'ie terug op het venster.
-  const effectiveCutoffMs = (collab: CollabRequirementInput) =>
-    Math.max(windowCutoffMs, collab.endDate?.getTime() ?? -Infinity);
-
   // Per type: het laatst-vervallende, nu-geldige geverifieerde certificaat (waar de compliance op leunt).
   const latestByType = new Map<CredentialType, CollabCredentialInput>();
   // Types met een nu-geldig, DOORLOPEND (nooit vervallend) geverifieerd certificaat. Zo'n certificaat
@@ -136,9 +128,13 @@ export function collaborationCredentialExpiryConcerns(input: {
       if (permanentlyCoveredTypes.has(type)) continue; // doorlopend geldig cert dekt dit type → geen zorg
       const cred = latestByType.get(type);
       if (!cred || !cred.expiresAt) continue;
-      // Per-samenwerking beoordeeld: verloopt het certificaat ná de effectieve grens van déze
-      // samenwerking (venster, of einddatum als die verder ligt), dan is het geen zorg voor deze rij.
-      if (cred.expiresAt.getTime() > effectiveCutoffMs(collab)) continue;
+      // The calendar window is inclusive; placement coverage ends at the exact endpoint.
+      // Keep these boundaries separate so expiry at a later placement end is not a warning.
+      const expiresMs = cred.expiresAt.getTime();
+      const expiresWithinWindow = expiresMs <= windowCutoffMs;
+      const expiresBeforePlacementEnd =
+        collab.endDate != null && expiresMs < collab.endDate.getTime();
+      if (!expiresWithinWindow && !expiresBeforePlacementEnd) continue;
 
       let entry = byCredential.get(cred.id);
       if (!entry) {

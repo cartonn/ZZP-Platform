@@ -10,4 +10,18 @@ max-cutoff behavior.
 Scope: restore strict placement-end boundary beyond the existing inclusive30-day
 window, with boundary/multiple-placement regressions. No new policy or design.
 Separate from pending1521 database selection and merged1522 wording.
-Implementation, tests, independent/native review and release remain pending.
+Implementation restores the original strict placement-end comparison while keeping
+calendar-window expiry inclusive. Credential selection, permanent coverage and
+stable grouping/deduplication are unchanged.
+
+Validation: 12 boundary tests produced three failures before the fix (exact end,
+mixed placement grouping, later verified replacement) and all pass afterwards.
+The other controls cover one millisecond before/after, inclusive day 30 with a short,
+equal or null endpoint, missing endpoint, unverified replacement fallback and
+permanent coverage. Four focused suites: 88 tests passed. Full formatting passed.
+Full lint and typecheck passed; 9,114 tests passed (3 skipped), across 860 passing
+suites (2 skipped). The sandbox build could not fetch existing Google Fonts;
+production build with network access passed. Logs: routine-1523-red.log,
+routine-1523-focused.log, routine-1523-check.log, routine-1523-format.log and
+routine-1523-build-network.log in the coordinator workspace.
+Independent/native review, GitHub CI and release remain pending.
