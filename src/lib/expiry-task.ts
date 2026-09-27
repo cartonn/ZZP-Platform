@@ -38,9 +38,8 @@ export async function runExpiryTask(opts: {
 }): Promise<ExpiryRunResult> {
   const now = opts.now ?? new Date();
 
-  // Bovengrens: nu + herinnerings-window, zodat de scan altijd begrensd is.
-  const upperBound = new Date(now);
-  upperBound.setDate(upperBound.getDate() + EXPIRY_REMINDER_WINDOW_DAYS);
+  // Match the planner's exact duration, including across daylight-saving changes.
+  const upperBound = new Date(now.getTime() + EXPIRY_REMINDER_WINDOW_DAYS * 86_400_000);
 
   // Laad kandidaten: alleen VERIFIED-credentials die binnen het venster verlopen
   // (al verlopen vallen ook onder lte: upperBound).

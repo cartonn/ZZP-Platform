@@ -1,7 +1,7 @@
 // Unit-tests voor runExpiryTask — verloop + herinneringen van credentials.
 // Prisma-laag volledig gemockt; klok via vaste datum geïnjecteerd.
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // --- In-memory store --------------------------------------------------------
 const store = {
@@ -11,9 +11,8 @@ const store = {
   credentialUpdates: [] as Array<{ id: string; data: Record<string, unknown> }>,
 };
 
-// Faithful mock: filters honour het id-in-filter, een optionele `status`-guard én een
-// `freelancerProfileId`-filter (`{ in: [...] }` of een platte string), zodat de compound-
-// guarded writes (VERIFIED-only) én de per-profiel-gescopte dekkings-query getest worden.
+// Model the candidate expiry bound, guarded writes and per-profile coverage filters.
+// This mock does not simulate transaction concurrency or the candidate cap/order.
 function matchesWhere(cred: Record<string, unknown>, where: Record<string, unknown>): boolean {
   const idFilter = where.id as { in?: string[] } | string | undefined;
   if (typeof idFilter === "string") {
@@ -27,6 +26,13 @@ function matchesWhere(cred: Record<string, unknown>, where: Record<string, unkno
     if (cred.freelancerProfileId !== profileFilter) return false;
   } else if (profileFilter?.in && !profileFilter.in.includes(cred.freelancerProfileId as string)) {
     return false;
+  }
+  const expiry = where.expiresAt as { not?: null; lte?: Date } | undefined;
+  if (expiry) {
+    if (expiry.not === null && cred.expiresAt === null) return false;
+    if (expiry.lte && (!(cred.expiresAt instanceof Date) || cred.expiresAt > expiry.lte)) {
+      return false;
+    }
   }
   return true;
 }
@@ -112,6 +118,57 @@ describe("runExpiryTask", () => {
     store.notifications = [];
     store.credentialUpdates = [];
     vi.resetModules();
+  });
+
+  // Explicit zones keep DST regressions active even when CI itself runs in UTC.
+  afterEach(() => vi.unstubAllEnvs());
+  describe.each(["Europe/Amsterdam", "UTC"])("candidate window in %s", (zone) => {
+    beforeEach(() => vi.stubEnv("TZ", zone));
+    it.each([
+      ["spring", "2026-03-10T12:00:00Z"],
+      ["autumn", "2026-10-10T12:00:00Z"],
+      ["summer", "2026-06-10T12:00:00Z"],
+    ])("%s: reminds at exactly 720 hours and deduplicates the next run", async (_, instant) => {
+      const now = new Date(instant);
+      const expiresAt = new Date(now.getTime() + 720 * 3_600_000);
+      expect(now.getTimezoneOffset()).toBe(
+        zone === "UTC" ? 0 : instant.startsWith("2026-03") ? -60 : -120,
+      );
+      expect(expiresAt.getTimezoneOffset()).toBe(
+        zone === "UTC" ? 0 : instant.startsWith("2026-10") ? -60 : -120,
+      );
+      store.credentials = [makeCredential("boundary", expiresAt)];
+      const { runExpiryTask } = await import("@/lib/expiry-task");
+      expect(await runExpiryTask({ actorId: null, now })).toEqual({ expired: 0, reminded: 1 });
+      expect(store.credentials[0]?.expiryReminderFor).toEqual(expiresAt);
+      expect(
+        await runExpiryTask({ actorId: null, now: new Date(now.getTime() + 3_600_000) }),
+      ).toEqual({ expired: 0, reminded: 0 });
+      expect(store.notifications).toHaveLength(1);
+      expect(store.notifications[0]?.type).toBe("CREDENTIAL_EXPIRING");
+    });
+
+    it.each(["2026-03-10T12:00:00Z", "2026-10-10T12:00:00Z"])(
+      "%s: outside the exact boundary becomes eligible later without duplicates",
+      async (instant) => {
+        const now = new Date(instant);
+        store.credentials = [
+          makeCredential("outside", new Date(now.getTime() + 720 * 3_600_000 + 1)),
+        ];
+        const { runExpiryTask } = await import("@/lib/expiry-task");
+        expect(await runExpiryTask({ actorId: null, now })).toEqual({ expired: 0, reminded: 0 });
+        expect(store.notifications).toHaveLength(0);
+        expect(await runExpiryTask({ actorId: null, now: new Date(now.getTime() + 1) })).toEqual({
+          expired: 0,
+          reminded: 1,
+        });
+        expect(await runExpiryTask({ actorId: null, now: new Date(now.getTime() + 2) })).toEqual({
+          expired: 0,
+          reminded: 0,
+        });
+        expect(store.notifications).toHaveLength(1);
+      },
+    );
   });
 
   it("lege toestand — geen kandidaten → geen writes, nulresultaat", async () => {

@@ -20,4 +20,24 @@ Run actual task regressions in Europe/Amsterdam and UTC for both DST directions,
 exact boundaries, later eligibility and deduplication. Run full lint, types, unit
 suite, production build and formatting; independent review and actual CI follow.
 
-Status: scope claimed before implementation; no implementation or validation claim.
+## Implementation and focused evidence
+
+Draft #1525 claimed on scope-only commit `cedff326`, before implementation.
+The candidate query now uses 30 × 86,400,000 milliseconds, matching the planner.
+The existing mocked task suite now honors the expiresAt query filter and adds ten
+cases across explicitly set/restored Amsterdam and UTC zones. Offset assertions
+ensure the DST cases actually exercise a changed offset, also on UTC CI hosts.
+Spring/autumn/summer exact-boundary reminders and one-millisecond-later eligibility
+check actual notifications, reminder markers and repeated-run suppression.
+
+With old source restored temporarily, a UTC-launched regression run reports two
+spring failures and 20 passing cases. Fixed focused suites: 32 passing tests in
+both Amsterdam-launched and UTC-launched processes. Existing expired transitions
+and replacement coverage remain in the same harness. This is a mocked Prisma
+functional test, not a database concurrency or candidate-cap proof.
+
+Full lint and types pass. Full suite: 861 suites passed, two skipped;
+9,137 tests passed, three skipped. Full formatting passed. Sandbox build could not
+resolve existing Google Fonts imports; network-enabled build passed.
+Independent review and actual CI still follow.
+No merge or live claim.
