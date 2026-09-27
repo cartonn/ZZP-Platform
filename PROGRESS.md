@@ -1,3 +1,11 @@
+## 27 september — gelijke certificaat-eindgrens (#1523)
+
+Bij verval exact op opdracht-einde kreeg alleen de zelfstandige een vernieuwingstaak.
+Echte helper-/taak-/dossierproef bevestigt de tegenstelling. Herstel van de oorspronkelijke
+strikte eindgrens gebouwd; 88 gerichte tests en 9.114 tests groen (3 skips).
+Lint, types, format en netwerkbuild geslaagd; reviews en CI volgen.
+[Scope](docs/progress/2026-09-27-placement-end-boundary.md).
+
 ## 27 september — verloop tijdens opdracht (#1522)
 
 Echte paginarenders tonen voor zelfstandige en opdrachtgever een lege beoordelingsmelding
