@@ -1,3 +1,10 @@
+## 27 september — certificaatherinnering rond klokwissel (#1525)
+
+De runner selecteerde in de lente 719 uur terwijl de planner 720 uur beoordeelt.
+Exacte tijdsduur gebouwd; tien zonegevallen in bestaande taakharness, twee rood
+vóór herstel en 32 gerichte tests groen in Amsterdam en UTC. Lint/types/format en
+9.137 tests groen (3 skips); netwerkbuild geslaagd. Reviews en CI volgen. [Scope](docs/progress/2026-09-27-expiry-runner-window.md).
+
 ## 27 september — exact bijna-verloopvenster (#1524)
 
 Een fractionele dag buiten het 30-daagse venster gaf alleen de opdrachtgever een
