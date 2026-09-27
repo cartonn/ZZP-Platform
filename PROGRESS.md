@@ -1,3 +1,12 @@
+## 27 september — Cormorant zonder build-download (#1526)
+
+Terugkerende loaderfout vóór browsertests begrensd hersteld: vijf bestaande
+fontbestanden ongewijzigd gebundeld, inclusief twintig faces, fallbackmaten en
+uitsluitend Latin-preload. Acht gerichte tests en geïsoleerde compilatie zonder
+netwerk groen. Lint/types/format, 9.145 tests (3 skips) en productiebuild groen.
+Werkelijk gebouwde CSS vergeleken met vorige build; onafhankelijke reviews en CI volgen.
+[Scope en bronverantwoording](docs/progress/2026-09-27-local-cormorant.md).
+
 ## 27 september — certificaatherinnering rond klokwissel (#1525)
 
 De runner selecteerde in de lente 719 uur terwijl de planner 720 uur beoordeelt.

@@ -1,3 +1,4 @@
+import "./cormorant.css";
 import { type Metadata } from "next";
 import {
   Inter,
@@ -18,7 +19,6 @@ import {
   Anton,
   Architects_Daughter,
   Special_Elite,
-  Cormorant_Garamond,
   Shippori_Mincho,
   Silkscreen,
   Baloo_2,
@@ -102,12 +102,6 @@ const specialElite = Special_Elite({
   variable: "--font-lab-special-elite",
   display: "swap",
 });
-const cormorant = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-lab-cormorant",
-  display: "swap",
-});
 const shippori = Shippori_Mincho({
   subsets: ["latin"],
   weight: ["400", "600", "700", "800"],
@@ -147,7 +141,6 @@ const fontVars = [
   anton,
   architects,
   specialElite,
-  cormorant,
   shippori,
   silkscreen,
   baloo,
@@ -157,5 +150,16 @@ const fontVars = [
   .join(" ");
 
 export default function OntwerpLabLayout({ children }: { children: React.ReactNode }) {
-  return <div className={fontVars}>{children}</div>;
+  return (
+    <div className={`lab-cormorant ${fontVars}`}>
+      <link
+        rel="preload"
+        href="/fonts/cormorant-garamond/7b89a4fd5e90ede0-s.p.woff2"
+        as="font"
+        type="font/woff2"
+        crossOrigin="anonymous"
+      />
+      {children}
+    </div>
+  );
 }
