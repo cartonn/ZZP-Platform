@@ -1,3 +1,13 @@
+## 28 september — corrigeerbare dienstpreview (#1527)
+
+Een verkeerd eindmaandveld liet de urenformulier-preview crashen. De gedeelde
+duurgrens wordt nu vóór segmentatie gecontroleerd met een herstelbare melding;
+invoer blijft staan en ongeldige rijen leveren geen gedeeltelijk/vervangend totaal.
+Vier regressies rood vóór herstel; zeven rendergevallen groen in Amsterdam en
+UTC, 154 gerichte tests groen. Lint/types/format en 9.152 tests groen (3 skips).
+Productiebuild geslaagd; onafhankelijke reviews en GitHub-checks volgen.
+[Scope](docs/progress/2026-09-28-shift-preview-limit.md).
+
 ## 27 september — Cormorant zonder build-download (#1526)
 
 Terugkerende loaderfout vóór browsertests begrensd hersteld: vijf bestaande
