@@ -5,7 +5,7 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DateInput } from "@/components/ui/date-input";
-import { segmentShifts, dutchHolidays, type Shift } from "@/lib/shift";
+import { segmentShifts, dutchHolidays, MAX_SHIFT_HOURS, type Shift } from "@/lib/shift";
 import { computeOrt, resolveOrtRates, type OrtSegment, type OrtResult } from "@/lib/ort";
 import { MANUAL_ORT_FIELDS, manualOrtSegments } from "@/lib/manual-ort";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
@@ -148,6 +148,11 @@ export function PerformanceForm({
       const end = new Date(row.end);
       if (isNaN(start.getTime()) || isNaN(end.getTime()) || end.getTime() <= start.getTime())
         continue;
+      // Keep mistyped dates editable instead of letting the engine throw during render.
+      // An invalid row suppresses the whole preview, including the manual fallback.
+      if (end.getTime() - start.getTime() > MAX_SHIFT_HOURS * 3_600_000) {
+        return { error: `Een dienst mag niet langer dan ${MAX_SHIFT_HOURS} uur duren.` };
+      }
       shifts.push({ start, end });
       years.add(start.getFullYear());
       years.add(end.getFullYear());
@@ -307,11 +312,19 @@ export function PerformanceForm({
               </button>
             </div>
 
-            {preview && (
-              <div className="mt-3 rounded-md border border-border bg-muted/30 p-3">
-                <OrtPreviewTable segments={preview.segments} ort={preview.ort} />
-              </div>
-            )}
+            {preview &&
+              ("error" in preview ? (
+                <p
+                  role="alert"
+                  className="mt-3 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger"
+                >
+                  {preview.error} Controleer de begin- en eindtijd.
+                </p>
+              ) : (
+                <div className="mt-3 rounded-md border border-border bg-muted/30 p-3">
+                  <OrtPreviewTable segments={preview.segments} ort={preview.ort} />
+                </div>
+              ))}
           </details>
           <details className="text-sm">
             <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
