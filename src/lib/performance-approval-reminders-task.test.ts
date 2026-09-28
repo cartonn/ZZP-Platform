@@ -14,7 +14,27 @@ const store = {
 vi.mock("@/lib/db", () => ({
   prisma: {
     performance: {
-      findMany: vi.fn(async () => store.performances),
+      findMany: vi.fn(async (args) =>
+        store.performances
+          .filter((r) => {
+            const date = r.submittedAt as Date;
+            const cursor = args.where.OR?.[1];
+            return (
+              r.status === "SUBMITTED" &&
+              date &&
+              date <= args.where.submittedAt.lte &&
+              (!cursor ||
+                date > cursor.submittedAt ||
+                (+date === +cursor.submittedAt && (r.id as string) > cursor.id.gt))
+            );
+          })
+          .sort(
+            (a, b) =>
+              +(a.submittedAt as Date) - +(b.submittedAt as Date) ||
+              (a.id as string).localeCompare(b.id as string),
+          )
+          .slice(0, args.take),
+      ),
     },
     domainEvent: {
       findMany: vi.fn(async (args: { where: { dedupeKey: { in: string[] } } }) =>
