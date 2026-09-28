@@ -24,14 +24,23 @@ function performanceLabel(row: { type: string; milestoneTitle: string | null }):
   return "Een ingediende urenstaat";
 }
 
-export async function runPerformanceApprovalReminderTask(opts: {
-  actorId?: string | null;
-  now?: Date;
-}): Promise<PerformanceApprovalReminderResult> {
-  const now = opts.now ?? new Date();
+type ReminderCursor = { submittedAt: Date; id: string };
+const PAGE_SIZE = 500;
 
-  const rows = await prisma.performance.findMany({
-    where: { status: "SUBMITTED", submittedAt: { not: null } },
+async function loadReminderPage(now: Date, cursor?: ReminderCursor) {
+  return prisma.performance.findMany({
+    where: {
+      status: "SUBMITTED",
+      submittedAt: { not: null, lte: now },
+      ...(cursor
+        ? {
+            OR: [
+              { submittedAt: { gt: cursor.submittedAt } },
+              { submittedAt: cursor.submittedAt, id: { gt: cursor.id } },
+            ],
+          }
+        : {}),
+    },
     select: {
       id: true,
       type: true,
@@ -46,12 +55,37 @@ export async function runPerformanceApprovalReminderTask(opts: {
         },
       },
     },
-    // Oudste indiening eerst: zonder orderBy is de selectie boven de cap ongedefinieerd
-    // en kan een prestatie structureel buiten de 500 vallen (starvation).
-    orderBy: { submittedAt: "asc" },
-    take: 500,
+    orderBy: [{ submittedAt: "asc" }, { id: "asc" }],
+    take: PAGE_SIZE,
   });
+}
 
+export async function runPerformanceApprovalReminderTask(opts: {
+  actorId?: string | null;
+  now?: Date;
+}): Promise<PerformanceApprovalReminderResult> {
+  const now = opts.now ?? new Date();
+  const result = { reminded: 0, escalated: 0 };
+  let cursor: ReminderCursor | undefined;
+  while (true) {
+    const rows = await loadReminderPage(now, cursor);
+    if (rows.length === 0) break;
+    const page = await processReminderPage(rows, now, opts.actorId);
+    result.reminded += page.reminded;
+    result.escalated += page.escalated;
+    if (rows.length < PAGE_SIZE) break;
+    const last = rows[rows.length - 1]!;
+    // Keep traversing even when every item in this page was already handled or ineligible.
+    cursor = { submittedAt: last.submittedAt!, id: last.id };
+  }
+  return result;
+}
+
+async function processReminderPage(
+  rows: Awaited<ReturnType<typeof loadReminderPage>>,
+  now: Date,
+  actorId?: string | null,
+): Promise<PerformanceApprovalReminderResult> {
   const candidates: PerformanceApprovalCandidate[] = rows
     .filter((r) => r.collaboration?.company?.userId)
     .map((r) => ({
@@ -88,7 +122,7 @@ export async function runPerformanceApprovalReminderTask(opts: {
         data: {
           type: "PERFORMANCE_APPROVAL_REMINDER",
           actorRole: "SYSTEM",
-          actorId: opts.actorId ?? null,
+          actorId: actorId ?? null,
           subjectType: "Performance",
           subjectId: r.performanceId,
           payload: JSON.stringify({ stage: r.stage }),
@@ -107,7 +141,7 @@ export async function runPerformanceApprovalReminderTask(opts: {
       }),
       prisma.auditLog.create({
         data: auditData({
-          actorId: opts.actorId ?? null,
+          actorId: actorId ?? null,
           action: "PERFORMANCE_APPROVAL_REMINDER",
           entityType: "Performance",
           entityId: r.performanceId,
@@ -128,7 +162,7 @@ export async function runPerformanceApprovalReminderTask(opts: {
           data: {
             type: "PERFORMANCE_APPROVAL_ESCALATION",
             actorRole: "SYSTEM",
-            actorId: opts.actorId ?? null,
+            actorId: actorId ?? null,
             subjectType: "Performance",
             subjectId: e.performanceId,
             payload: JSON.stringify({ daysSince: e.daysSince }),
@@ -151,7 +185,7 @@ export async function runPerformanceApprovalReminderTask(opts: {
         ),
         prisma.auditLog.create({
           data: auditData({
-            actorId: opts.actorId ?? null,
+            actorId: actorId ?? null,
             action: "PERFORMANCE_APPROVAL_ESCALATED",
             entityType: "Performance",
             entityId: e.performanceId,

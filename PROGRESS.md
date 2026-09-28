@@ -1,3 +1,12 @@
+## 28 september — bereikbare prestatieherinneringen (#1529)
+
+Vijfhonderd oude, reeds geëscaleerde urenstaten hielden een nieuwe dag-3-herinnering
+buiten de query. Echte SQLite-proef rood bij 500, controle groen bij 499.
+De runner doorloopt nu begrensde batches met stabiele tijd/id-volgorde; planner,
+deduplicatie en transacties blijven behouden. Vijf SQLite-gevallen en 21 gerichte
+tests groen; volledige suite 9.157 groen (3 bestaande skips). Lint, types, volledige
+formatcontrole en productiebuild geslaagd. Onafhankelijke review en release volgen. [Scope](docs/progress/2026-09-28-performance-reminder-window.md).
+
 ## 28 september — corrigeerbare dienstpreview (#1527)
 
 Een verkeerd eindmaandveld liet de urenformulier-preview crashen. De gedeelde
