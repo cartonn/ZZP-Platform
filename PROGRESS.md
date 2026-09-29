@@ -1,3 +1,14 @@
+## 29 september — bereikbare certificaatherinneringen (#1531)
+
+Tweeduizend reeds herinnerde, nog geldige certificaten hielden een nieuwe melding
+buiten de runnerquery. Echte SQLite-proef rood bij 2.000, controle groen bij 1.999;
+onafhankelijk bevestigd. Stabiele vervaltijd/id-pagina’s met atomaire effecten per
+pagina behouden de bestaande dekking, deduplicatie en statusbewaking. Zes echte
+SQLite-gevallen en 51 gerichte tests groen; volledige suite 9.171 groen (3 bestaande
+skips). Lint, types, formatcontrole en netwerkbuild geslaagd; onafhankelijke review
+en release volgen.
+[Scope](docs/progress/2026-09-29-credential-reminder-window.md).
+
 ## 29 september — bereikbare factuurherinneringen (#1530)
 
 Vijfhonderd oude, reeds geëscaleerde facturen blokkeerden een nieuwe dag-3-herinnering.

@@ -27,7 +27,7 @@ export interface ExpiryRunResult {
 const EXPIRY_TX_OPTIONS = { timeout: 120_000, maxWait: 10_000 } as const;
 
 /**
- * Voert de verloop- en herinneringsrun uit als één atomaire transactie.
+ * Doorloopt kandidaten in begrensde pagina’s; elke pagina schrijft atomair.
  *
  * @param opts.actorId - Gebruikers-ID van de aanroeper (null = systeemactie).
  * @param opts.now     - Referentietijdstip (standaard: huidige datum/tijd).
@@ -41,23 +41,54 @@ export async function runExpiryTask(opts: {
   // Match the planner's exact duration, including across daylight-saving changes.
   const upperBound = new Date(now.getTime() + EXPIRY_REMINDER_WINDOW_DAYS * 86_400_000);
 
+  const result = { expired: 0, reminded: 0 };
+  let cursor: ExpiryCursor | undefined;
+  while (true) {
+    const rows = await loadExpiryPage(upperBound, cursor);
+    if (rows.length === 0) break;
+    const page = await processExpiryPage(rows, now, opts.actorId);
+    result.expired += page.expired;
+    result.reminded += page.reminded;
+    if (rows.length < EXPIRY_PAGE_SIZE) break;
+    const last = rows[rows.length - 1]!;
+    // Advance even when deduplication or replacement coverage suppresses the whole page.
+    cursor = { expiresAt: last.expiresAt!, id: last.id };
+  }
+  return result;
+}
+
+type ExpiryCursor = { expiresAt: Date; id: string };
+const EXPIRY_PAGE_SIZE = 2000;
+
+async function loadExpiryPage(upperBound: Date, cursor?: ExpiryCursor) {
   // Laad kandidaten: alleen VERIFIED-credentials die binnen het venster verlopen
   // (al verlopen vallen ook onder lte: upperBound).
-  const rows = await prisma.credential.findMany({
+  return prisma.credential.findMany({
     where: {
       status: "VERIFIED",
       expiresAt: { not: null, lte: upperBound },
+      ...(cursor
+        ? {
+            OR: [
+              { expiresAt: { gt: cursor.expiresAt } },
+              { expiresAt: cursor.expiresAt, id: { gt: cursor.id } },
+            ],
+          }
+        : {}),
     },
     include: {
       freelancerProfile: { select: { userId: true } },
     },
-    // Defensieve cap (patroon van de andere taakrunners): eerst wat het eerst verloopt.
-    // Een datapiek kan één cron-tick anders in een zeer grote transactie veranderen;
-    // de rest volgt vanzelf in de volgende run.
-    orderBy: { expiresAt: "asc" },
-    take: 2000,
+    orderBy: [{ expiresAt: "asc" }, { id: "asc" }],
+    take: EXPIRY_PAGE_SIZE,
   });
+}
 
+async function processExpiryPage(
+  rows: Awaited<ReturnType<typeof loadExpiryPage>>,
+  now: Date,
+  actorId: string | null,
+): Promise<ExpiryRunResult> {
   // Zet Prisma-rijen om naar het pure ExpiryCandidate-model.
   const candidates: ExpiryCandidate[] = rows.map((c) => ({
     id: c.id,
@@ -127,7 +158,7 @@ export async function runExpiryTask(opts: {
     return { expired: 0, reminded: 0 };
   }
 
-  // Alles in één interactieve $transaction voor atomiciteit (CLAUDE.md regel 5).
+  // Elke pagina in één interactieve $transaction voor atomiciteit (CLAUDE.md regel 5).
   // Interactief (niet de array-vorm) zodat de verloop-write compound-guarded kan zijn
   // — de kandidaten komen uit een findMany-snapshot van vóór de transactie; een
   // credential dat intussen opnieuw is ingediend (VERIFIED → SUBMITTED, certificaten/
@@ -190,7 +221,7 @@ export async function runExpiryTask(opts: {
         // Eén auditregel voor de volledige batch (alleen de echt verlopen ids).
         await tx.auditLog.create({
           data: auditData({
-            actorId: opts.actorId,
+            actorId,
             action: "CREDENTIALS_EXPIRED",
             entityType: "Credential",
             entityId: "batch",
@@ -243,7 +274,7 @@ export async function runExpiryTask(opts: {
         // Eén auditregel voor de volledige herinneringsbatch (alleen de echt-herinnerde).
         await tx.auditLog.create({
           data: auditData({
-            actorId: opts.actorId,
+            actorId,
             action: "CREDENTIALS_EXPIRING_REMINDED",
             entityType: "Credential",
             entityId: "batch",
