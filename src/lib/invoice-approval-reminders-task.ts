@@ -17,14 +17,24 @@ export interface InvoiceApprovalReminderResult {
   escalated: number;
 }
 
-export async function runInvoiceApprovalReminderTask(opts: {
-  actorId?: string | null;
-  now?: Date;
-}): Promise<InvoiceApprovalReminderResult> {
-  const now = opts.now ?? new Date();
+type ReminderCursor = { issuedAt: Date; id: string };
+const PAGE_SIZE = 500;
 
-  const rows = await prisma.invoice.findMany({
-    where: { lifecycleStatus: "SUBMITTED", counterpartyUserId: { not: null } },
+async function loadReminderPage(now: Date, cursor?: ReminderCursor) {
+  return prisma.invoice.findMany({
+    where: {
+      lifecycleStatus: "SUBMITTED",
+      counterpartyUserId: { not: null },
+      issuedAt: { not: null, lte: now },
+      ...(cursor
+        ? {
+            OR: [
+              { issuedAt: { gt: cursor.issuedAt } },
+              { issuedAt: cursor.issuedAt, id: { gt: cursor.id } },
+            ],
+          }
+        : {}),
+    },
     select: {
       id: true,
       lifecycleStatus: true,
@@ -38,12 +48,37 @@ export async function runInvoiceApprovalReminderTask(opts: {
         },
       },
     },
-    // Oudste indiening eerst: zonder orderBy is de selectie boven de cap ongedefinieerd en kan een
-    // factuur structureel buiten de 500 vallen (starvation).
-    orderBy: { issuedAt: "asc" },
-    take: 500,
+    orderBy: [{ issuedAt: "asc" }, { id: "asc" }],
+    take: PAGE_SIZE,
   });
+}
 
+export async function runInvoiceApprovalReminderTask(opts: {
+  actorId?: string | null;
+  now?: Date;
+}): Promise<InvoiceApprovalReminderResult> {
+  const now = opts.now ?? new Date();
+  const result = { reminded: 0, escalated: 0 };
+  let cursor: ReminderCursor | undefined;
+  while (true) {
+    const rows = await loadReminderPage(now, cursor);
+    if (rows.length === 0) break;
+    const page = await processReminderPage(rows, now, opts.actorId);
+    result.reminded += page.reminded;
+    result.escalated += page.escalated;
+    if (rows.length < PAGE_SIZE) break;
+    const last = rows[rows.length - 1]!;
+    // Continue even when every invoice on this page was already handled or ineligible.
+    cursor = { issuedAt: last.issuedAt!, id: last.id };
+  }
+  return result;
+}
+
+async function processReminderPage(
+  rows: Awaited<ReturnType<typeof loadReminderPage>>,
+  now: Date,
+  actorId?: string | null,
+): Promise<InvoiceApprovalReminderResult> {
   const candidates: InvoiceApprovalCandidate[] = rows
     .filter((r) => r.counterpartyUserId)
     .map((r) => ({
@@ -82,7 +117,7 @@ export async function runInvoiceApprovalReminderTask(opts: {
         data: {
           type: "INVOICE_APPROVAL_REMINDER",
           actorRole: "SYSTEM",
-          actorId: opts.actorId ?? null,
+          actorId: actorId ?? null,
           subjectType: "Invoice",
           subjectId: r.invoiceId,
           payload: JSON.stringify({ stage: r.stage }),
@@ -101,7 +136,7 @@ export async function runInvoiceApprovalReminderTask(opts: {
       }),
       prisma.auditLog.create({
         data: auditData({
-          actorId: opts.actorId ?? null,
+          actorId: actorId ?? null,
           action: "INVOICE_APPROVAL_REMINDER",
           entityType: "Invoice",
           entityId: r.invoiceId,
@@ -124,7 +159,7 @@ export async function runInvoiceApprovalReminderTask(opts: {
           data: {
             type: "INVOICE_APPROVAL_ESCALATION",
             actorRole: "SYSTEM",
-            actorId: opts.actorId ?? null,
+            actorId: actorId ?? null,
             subjectType: "Invoice",
             subjectId: e.invoiceId,
             payload: JSON.stringify({ daysSince: e.daysSince }),
@@ -147,7 +182,7 @@ export async function runInvoiceApprovalReminderTask(opts: {
         ),
         prisma.auditLog.create({
           data: auditData({
-            actorId: opts.actorId ?? null,
+            actorId: actorId ?? null,
             action: "INVOICE_APPROVAL_ESCALATED",
             entityType: "Invoice",
             entityId: e.invoiceId,
