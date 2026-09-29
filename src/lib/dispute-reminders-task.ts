@@ -32,14 +32,22 @@ export interface DisputeReminderResult {
   escalated: number;
 }
 
-export async function runDisputeReminderTask(opts: {
-  actorId?: string | null;
-  now?: Date;
-}): Promise<DisputeReminderResult> {
-  const now = opts.now ?? new Date();
+type ReminderCursor = { disputedAt: Date; id: string };
+const PAGE_SIZE = 500;
 
-  const rows = await prisma.collaboration.findMany({
-    where: { disputedAt: { not: null } },
+async function loadReminderPage(now: Date, cursor?: ReminderCursor) {
+  return prisma.collaboration.findMany({
+    where: {
+      disputedAt: { not: null, lte: now },
+      ...(cursor
+        ? {
+            OR: [
+              { disputedAt: { gt: cursor.disputedAt } },
+              { disputedAt: cursor.disputedAt, id: { gt: cursor.id } },
+            ],
+          }
+        : {}),
+    },
     select: {
       id: true,
       status: true,
@@ -48,12 +56,37 @@ export async function runDisputeReminderTask(opts: {
       freelancer: { select: { userId: true } },
       company: { select: { userId: true } },
     },
-    // Oudste dispuut eerst: zonder orderBy is de selectie boven de cap ongedefinieerd
-    // en kan een record structureel buiten de 500 vallen (starvation).
-    orderBy: { disputedAt: "asc" },
-    take: 500,
+    orderBy: [{ disputedAt: "asc" }, { id: "asc" }],
+    take: PAGE_SIZE,
   });
+}
 
+export async function runDisputeReminderTask(opts: {
+  actorId?: string | null;
+  now?: Date;
+}): Promise<DisputeReminderResult> {
+  const now = opts.now ?? new Date();
+  const result = { reminded: 0, escalated: 0 };
+  let cursor: ReminderCursor | undefined;
+  while (true) {
+    const rows = await loadReminderPage(now, cursor);
+    if (rows.length === 0) break;
+    const page = await processReminderPage(rows, now, opts.actorId);
+    result.reminded += page.reminded;
+    result.escalated += page.escalated;
+    if (rows.length < PAGE_SIZE) break;
+    const last = rows[rows.length - 1]!;
+    // Already escalated or cancelled disputes must not prevent later pages from running.
+    cursor = { disputedAt: last.disputedAt!, id: last.id };
+  }
+  return result;
+}
+
+async function processReminderPage(
+  rows: Awaited<ReturnType<typeof loadReminderPage>>,
+  now: Date,
+  actorId?: string | null,
+): Promise<DisputeReminderResult> {
   const candidates: DisputeReminderCandidate[] = rows
     .filter((r) => r.freelancer?.userId && r.company?.userId)
     .map((r) => ({
@@ -89,7 +122,7 @@ export async function runDisputeReminderTask(opts: {
         data: {
           type: "DISPUTE_REMINDER",
           actorRole: "SYSTEM",
-          actorId: opts.actorId ?? null,
+          actorId: actorId ?? null,
           subjectType: "Collaboration",
           subjectId: r.collaborationId,
           payload: JSON.stringify({ stage: r.stage, userId: r.userId }),
@@ -108,7 +141,7 @@ export async function runDisputeReminderTask(opts: {
       }),
       prisma.auditLog.create({
         data: auditData({
-          actorId: opts.actorId ?? null,
+          actorId: actorId ?? null,
           action: "DISPUTE_REMINDER",
           entityType: "Collaboration",
           entityId: r.collaborationId,
@@ -129,7 +162,7 @@ export async function runDisputeReminderTask(opts: {
           data: {
             type: "DISPUTE_ESCALATION",
             actorRole: "SYSTEM",
-            actorId: opts.actorId ?? null,
+            actorId: actorId ?? null,
             subjectType: "Collaboration",
             subjectId: e.collaborationId,
             payload: JSON.stringify({ ageDays: e.ageDays }),
@@ -150,7 +183,7 @@ export async function runDisputeReminderTask(opts: {
         ),
         prisma.auditLog.create({
           data: auditData({
-            actorId: opts.actorId ?? null,
+            actorId: actorId ?? null,
             action: "DISPUTE_ESCALATED",
             entityType: "Collaboration",
             entityId: e.collaborationId,
