@@ -1,3 +1,14 @@
+## 29 september — bereikbare dispuutherinneringen (#1533)
+
+Vijfhonderd oude, reeds geëscaleerde open disputen hielden nieuwe partijmeldingen
+buiten de runner. Echte SQLite-proef rood bij 500, controle groen bij 499;
+onafhankelijk herhaald. Stabiele disputedAt/id-pagina’s behouden planner,
+ontvangers, deduplicatie en transacties. Zeven SQLite-regressies en 33 gerichte
+tests groen; volledige suite 9.187 groen (3 bestaande skips), types en lint
+geslaagd. Productiebuild en formatcontrole groen. Onafhankelijke review,
+GitHub-poorten en release volgen.
+[Scope](docs/progress/2026-09-29-dispute-reminder-window.md).
+
 ## 29 september — IBM Plex zonder build-download (#1532)
 
 Productiebuild strandde in de IBM Plex Sans-loader van het bestaande ontwerplab.
