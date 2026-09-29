@@ -1,0 +1,9 @@
+# Open-hours submission reminder scan — scope claim
+
+Synthetic SQLite reproduces that 1,000 silent ACTIVE/SIGNED collaborations exclude a later eligible day-7 submission reminder. The 999-row control delivers exactly once. The coordinator independently reproduced the boundary on main `83f13af64c5f71dab8be774330dae46ebbe100ba`.
+
+Scope: stable bounded ID traversal in `src/lib/performance-submission-reminders-task.ts`, real SQLite regression coverage and existing mock compatibility. Preserve selector, latest approved HOURS anchor, open-submission suppression, configured stages, dedupe keys, actual freelancer recipient and atomic event/notification/audit effects. No new functionality, schema or UI change. Independent review and all protected checks remain required.
+
+Status: claimed before implementation in cc4ef5f2 / #1534. Stable ID pages now traverse all matching collaborations. Four real SQLite cases cover 999/1000/2001 silent rows and a full page suppressed by open milestones, latest approved HOURS anchors, day 7/14, selector exclusions, distinct recipients and repeat idempotence. All 15 focused tests and 9,191 full-suite tests pass (3 existing skips; 869 suites pass, 2 skipped). Types, lint, full formatting and production build passed. Initial strict typecheck rejected an unchecked last-row access; an explicit last-row guard fixes it. The build recovered from one automatic TLS retry; existing jose Edge warnings remain. Independent review, GitHub checks and release remain pending.
+
+Limitations: synthetic SQLite establishes the missing-window regression, not production prevalence or PostgreSQL concurrency. The query still loads each selected collaboration's performances; this change bounds collaboration pages, not per-collaboration history. Effects stay atomic per reminder and dedupe behavior is unchanged.
