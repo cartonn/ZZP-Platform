@@ -1,3 +1,12 @@
+## 29 september — bereikbare factuurherinneringen (#1530)
+
+Vijfhonderd oude, reeds geëscaleerde facturen blokkeerden een nieuwe dag-3-herinnering.
+Afzonderlijke echte SQLite-proef rood bij 500, controle groen bij 499; onafhankelijk
+bevestigd. De factuur-runner doorloopt nu begrensde batches met stabiele tijd/id-volgorde.
+Acht SQLite-gevallen en 26 gerichte tests groen; volledige suite 9.165 groen
+(3 bestaande skips). Lint, types, volledige formatcontrole en productiebuild geslaagd.
+Onafhankelijke review en release volgen. [Scope](docs/progress/2026-09-29-invoice-reminder-window.md).
+
 ## 28 september — bereikbare prestatieherinneringen (#1529)
 
 Vijfhonderd oude, reeds geëscaleerde urenstaten hielden een nieuwe dag-3-herinnering
