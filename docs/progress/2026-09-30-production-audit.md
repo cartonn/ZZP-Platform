@@ -20,4 +20,10 @@ https://github.com/advisories/GHSA-v53p-9fqp-m79j; exact npm audit evidence reta
 in the coordinator workspace. Files: package.json, package-lock.json, a focused
 offline dependency compatibility test if needed, and progress documentation.
 
-Status: claimed; implementation, validation and independent review pending.
+Implementation: Nodemailer 10.0.13, production brace-expansion 5.0.12, and the two
+existing development brace-expansion copies patched within their current majors.
+No unrelated package versions changed. Updated the existing npm optional-peer
+comment; legacy-peer-deps behavior is unchanged. Actual ESM/CommonJS imports and
+JSON transport message construction pass offline, along with existing mail driver
+and self-test suites: 65 tests. Production audit now reports zero vulnerabilities.
+Full repository validation, independent review and actual GitHub checks pending.
