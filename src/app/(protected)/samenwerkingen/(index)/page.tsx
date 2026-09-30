@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AlertTriangle, Handshake } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { getDbaThresholds } from "@/lib/platform-config";
 import { hasExportableSchedule } from "@/lib/calendar/exportable";
 import { AgendaSubscribe } from "@/components/agenda/agenda-subscribe";
 import { agendaFeedPath } from "@/lib/calendar/feed-token";
@@ -94,6 +95,7 @@ export default async function SamenwerkingenPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const actor = await requireActor();
+  const dbaThresholds = await getDbaThresholds();
   const sp = await searchParams;
   const cursor = typeof sp.cursor === "string" ? sp.cursor : null;
   const statusFilter = parseCollaborationStatusFilter(
@@ -307,11 +309,15 @@ export default async function SamenwerkingenPage({
                 const urgent = alert?.status === "NON_COMPLIANT";
                 const dba =
                   status === "ACTIVE"
-                    ? assessCollaborationDba({
-                        collaborationId: c.id,
-                        startDate: c.startDate,
-                        ...jobDbaIndicators(c.job),
-                      })
+                    ? assessCollaborationDba(
+                        {
+                          collaborationId: c.id,
+                          startDate: c.startDate,
+                          ...jobDbaIndicators(c.job),
+                        },
+                        undefined,
+                        dbaThresholds,
+                      )
                     : null;
                 // Vervolgsignaal: nadert (of passeerde) een lopende inzet zijn einddatum? Zelfde pure
                 // bron als de bemiddelaar-lijst, de next-action en de detail-nudge — beide partijen

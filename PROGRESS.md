@@ -1,3 +1,7 @@
+## 30 september — DBA-drempels in samenwerkingslijst (#1538)
+
+Eén configuratielezing na auth voedt alle actieve lijstbeoordelingen; 24 paginagevallen, 59 gerichte en 9.233 volledige tests groen (3 bestaande skips). Lint, types, format en productiebuild groen; review en CI volgen. [Scope](docs/progress/2026-09-30-dba-list-thresholds.md).
+
 ## 30 september — ingestelde DBA-drempels in dossierexport (#1537)
 
 De geautoriseerde export gebruikt nu opgeslagen drempels voor beoordeling en

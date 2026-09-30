@@ -1,10 +1,10 @@
+## 30 september — DBA-drempels in samenwerkingslijst (#1538)
+
+Eén configuratielezing na auth voedt alle actieve lijstbeoordelingen; 24 paginagevallen, 59 gerichte en 9.233 volledige tests groen (3 bestaande skips). Lint, types, format en productiebuild groen; review en CI volgen. [Scope](docs/progress/2026-09-30-dba-list-thresholds.md).
+
 ## 30 september — ingestelde DBA-drempels in dossierexport (#1537)
 
-De geautoriseerde export gebruikt nu opgeslagen drempels voor beoordeling en
-duurindicator. Zeven routeregressies: vier rood vóór herstel, alle groen erna;
-68 gerichte en 9.209 volledige tests groen (3 bestaande skips). Lint, types, format
-en productiebuild groen; onafhankelijke review en CI volgen.
-[Scope en bewijs](docs/progress/2026-09-30-dba-export-thresholds.md).
+De geautoriseerde export gebruikt nu opgeslagen drempels voor beoordeling en duurindicator. Zeven routeregressies: vier rood vóór herstel, alle groen erna; 68 gerichte en 9.209 volledige tests groen (3 bestaande skips). Lint, types, format en productiebuild groen; onafhankelijke review en CI volgen. [Scope en bewijs](docs/progress/2026-09-30-dba-export-thresholds.md).
 
 ## 30 september — ingestelde DBA-drempels op samenwerkingsdetail (#1535)
 
