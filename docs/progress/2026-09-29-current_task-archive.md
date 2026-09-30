@@ -135,3 +135,12 @@ npm run db:seed        # indien seed gewijzigd
 
 Faalt iets → oorzaak onderzoeken, fixen, checks opnieuw. Pas daarna afvinken. Controleer de
 testuitkomst op de `Test Files`/`Tests`-regel — een afgekapte tail verbergt een failure.
+
+## 29 september — IBM Plex zonder build-download (#1532)
+
+Productiebuild strandde in de IBM Plex Sans-loader van het bestaande ontwerplab.
+Zes bestaande fontbestanden lokaal gebundeld; 24 faces, fallbackmaten, CSS-variabele
+én uitsluitend Latin-preload behouden. Negen gerichte checks en daadwerkelijke
+Next-CSS-vergelijking bevestigen dezelfde faces en fontbytes. Lint, types, format,
+productiebuild en 9.180 tests groen (3 bestaande skips). Onafhankelijke review,
+GitHub-poorten en release volgen. [Scope](docs/progress/2026-09-29-local-ibm-plex.md).

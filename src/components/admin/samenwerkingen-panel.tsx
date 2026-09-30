@@ -1,3 +1,4 @@
+import { getDbaThresholds } from "@/lib/platform-config";
 import Link from "next/link";
 import { Handshake } from "lucide-react";
 import { getAdminCollaborations } from "@/lib/data/admin-collaborations";
@@ -57,6 +58,7 @@ export async function SamenwerkingenPanel({
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
+  const thresholds = await getDbaThresholds();
   const now = new Date();
   const filter = parseCollaborationFilter(searchParams);
   const {
@@ -66,7 +68,7 @@ export async function SamenwerkingenPanel({
     total,
     page,
     totalPages,
-  } = await getAdminCollaborations(filter, searchParams.page, now);
+  } = await getAdminCollaborations(filter, searchParams.page, now, thresholds);
   const pageHref = (nextPage: number) => {
     const params = new URLSearchParams();
     if (filter.q) params.set("q", filter.q);
@@ -80,6 +82,7 @@ export async function SamenwerkingenPanel({
     const dba = assessCollaborationDba(
       { collaborationId: c.id, startDate: c.startDate, ...jobDbaIndicators(c.job) },
       now,
+      thresholds,
     );
     return {
       id: c.id,
