@@ -6,6 +6,14 @@ en vooruitblik na de bestaande toegangscontrole. Vier paginaregressies en 9.195
 volledige tests groen (3 bestaande skips). Onafhankelijke review en CI volgen.
 [Scope](docs/progress/2026-09-30-dba-detail-thresholds.md).
 
+## 30 september — productie-audit dependencyherstel (#1536)
+
+De verplichte audit blokkeerde op Nodemailer en brace-expansion. Gericht gepatcht:
+Nodemailer 10.0.13 en bestaande brace-expansion-kopieën binnen hun majorversie.
+Echte ESM/CommonJS-import en offline berichtopbouw plus mailtests groen (65 tests);
+productie-audit nul kwetsbaarheden. Mailkanalen en auditbeleid ongewijzigd.
+Volledige validatie en onafhankelijke review volgen. [Scope](docs/progress/2026-09-30-production-audit.md).
+
 ## 29 september — bereikbare dispuutherinneringen (#1533)
 
 Vijfhonderd oude, reeds geëscaleerde open disputen hielden nieuwe partijmeldingen
