@@ -35,6 +35,7 @@ vi.mock("@/lib/authz", async () => {
 vi.mock("@/lib/db", () => ({
   prisma: {
     collaboration: { findUnique: vi.fn(async () => store.collaboration) },
+    platformConfig: { findUnique: vi.fn(async () => null) },
   },
 }));
 

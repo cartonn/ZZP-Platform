@@ -1,3 +1,11 @@
+## 30 september — ingestelde DBA-drempels in dossierexport (#1537)
+
+De geautoriseerde export gebruikt nu opgeslagen drempels voor beoordeling en
+duurindicator. Zeven routeregressies: vier rood vóór herstel, alle groen erna;
+68 gerichte en 9.209 volledige tests groen (3 bestaande skips). Lint, types, format
+en productiebuild groen; onafhankelijke review en CI volgen.
+[Scope en bewijs](docs/progress/2026-09-30-dba-export-thresholds.md).
+
 ## 30 september — ingestelde DBA-drempels op samenwerkingsdetail (#1535)
 
 De detailpagina gebruikte vaste 6/12-maandsgrenzen terwijl monitor en overzicht
