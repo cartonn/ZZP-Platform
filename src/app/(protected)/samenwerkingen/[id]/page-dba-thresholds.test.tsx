@@ -117,3 +117,26 @@ it("rejects a nonparticipant before reading platform configuration", async () =>
   await expect(render()).rejects.toThrow("NOT_FOUND");
   expect(state.configRead).not.toHaveBeenCalled();
 });
+
+it("never forecasts a downgrade after a legacy inverted strong threshold", async () => {
+  state.config = {
+    dbaMinDurationMonths: 12,
+    dbaStrongDurationMonths: 6,
+    dbaRevenueConcentrationPct: 80,
+  };
+  vi.setSystemTime(new Date(2026, 11, 15));
+  const page = await render();
+  expect(text(page)).toContain("Hoog risico");
+  const forecast = nodes(page).find((node) => node.type === DbaDurationForecastNote);
+  expect(forecast).toBeUndefined();
+});
+it("preserves the strong boundary before a legacy inverted crossing", async () => {
+  state.config = {
+    dbaMinDurationMonths: 12,
+    dbaStrongDurationMonths: 6,
+    dbaRevenueConcentrationPct: 80,
+  };
+  vi.setSystemTime(new Date(2026, 5, 15));
+  const forecast = nodes(await render()).find((node) => node.type === DbaDurationForecastNote);
+  expect(forecast?.props.forecast).toMatchObject({ thresholdMonths: 6, level: "HOOG" });
+});

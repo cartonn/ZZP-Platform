@@ -20,3 +20,15 @@ loader and DBA engines with a synthetic database fixture. They cover a saved
 nonparticipant denial before the configuration read. Full suite: 9,195 tests
 passed, three existing skips; 870 suites passed and two skipped. Lint passed.
 Independent review, GitHub CI and production verification remain separate gates.
+
+## Onafhankelijke review — herstel omgekeerde drempels
+
+De verse review na integratie van #1536 wees een geaccepteerde 12/6-instelling
+aan: een bestaand hoog duursignaal kreeg een latere verhoogde vooruitblik.
+De serveractie weigert nu een sterke drempel onder de eerste drempel; gelijke
+drempels blijven toegestaan. Bij oude omgekeerde rijen valt de eerste drempel
+samen met de bestaande sterke drempel, zodat een hoog signaal niet wordt uitgesteld
+of afgezwakt. Geen databasewijziging of wijziging van geldige instellingen.
+Echte actie- en paginaregressies dekken weigering zonder writes, gelijke waarden,
+het behouden sterke kruispunt en het ontbreken van een latere afwaardering.
+Nieuwe volledige validatie en onafhankelijke herbeoordeling volgen.
