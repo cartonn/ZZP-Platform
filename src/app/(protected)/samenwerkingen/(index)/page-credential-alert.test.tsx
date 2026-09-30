@@ -12,6 +12,7 @@ vi.mock("@/lib/authz", () => ({
 }));
 vi.mock("@/lib/db", () => ({
   prisma: {
+    platformConfig: { findUnique: async () => null },
     collaboration: {
       groupBy: async () => [{ status: "ACTIVE", _count: { _all: 1 } }],
       findMany: async (args: { include?: unknown }) => (args.include ? state.rows : []),

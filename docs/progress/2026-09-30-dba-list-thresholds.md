@@ -14,4 +14,22 @@ Bestanden: samenwerkingen/(index)/page.tsx en naastgelegen paginatests,
 CURRENT_TASK.md, PROGRESS.md en dit bewijsbestand.
 Beheerdersbadges en SQL-filters blijven een afzonderlijk backlogitem.
 
-Status: geclaimd; implementatie, tests, onafhankelijke review, CI en release volgen.
+Implementatie: `getDbaThresholds()` wordt één keer na `requireActor()` gelezen
+en als derde argument aan elke actieve lijstbeoordeling doorgegeven. De bestaande
+serverconfiguratielader en pure beoordelaar blijven ongewijzigd. Eigenaarfilter,
+statusfilter, cursor, ACTIVE-beperking, dispuutgedrag en badgepresentatie behouden.
+
+Bewijs: 24 gevallen renderen de echte pagina met de echte configuratielader en
+beoordelaar; database en authenticatie zijn gecontroleerde fixtures en niet-gerelateerde
+helpers/componenten zijn vervangen. Beide partijen, dag vóór/op ingestelde 3/9-grenzen, verhoogde 9/15-grenzen,
+ontbrekende configuratie (6/12), niet-actieve statussen, dispuut, ontbrekende start,
+opdrachtindicator, één lezing voor meerdere rijen, autorisatie en paginatie gedekt.
+Vóór herstel: 12 rood, 12 groen (ook de ontbrekende configuratielezing wordt bewaakt).
+Na herstel: 24 groen; samen met certificaatpagina, engine en configuratie 59 groen.
+Het bestaande certificaatfixture heeft alleen een lege configuratierij gekregen.
+
+Volledige suite: 874 bestanden groen, 2 overgeslagen; 9.233 tests groen, 3 bestaande
+skips. `env -u RUST_LOG npm run check` geslaagd: lint, typecheck, suite en
+productiebuild groen; volledige formatcontrole groen. Build herstelde zelf van
+TLS-downloadpogingen en toont bestaande Edge-runtimewaarschuwingen uit jose.
+Onafhankelijke review, CI en release volgen.
