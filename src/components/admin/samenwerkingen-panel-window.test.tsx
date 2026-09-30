@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { SamenwerkingenPanel } from "@/components/admin/samenwerkingen-panel";
 import { renderToStaticMarkup } from "react-dom/server";
+import { getDbaThresholds } from "@/lib/platform-config";
 import { pendingTasks } from "@/lib/actions/pending-tasks";
 import { navBadges } from "@/lib/signals";
 import {
@@ -125,9 +126,10 @@ beforeAll(async () => {
 }, 40_000);
 
 beforeEach(async () => {
+  await db.platformConfig.deleteMany();
   await db.performance.deleteMany();
   await db.invoice.deleteMany();
-  await db.collaboration.update({ where: { id: "collaboration" }, data: { startDate: null } });
+  await db.collaboration.updateMany({ data: { startDate: null } });
   await db.job.update({
     where: { id: "job" },
     data: {
@@ -239,42 +241,120 @@ it("aggregates child status counts without returning child arrays", async () => 
   expect(result.paid.get("collaboration")).toBe(120);
 });
 
-it("matches derived DBA levels around calendar boundaries, flags and null dates", async () => {
-  for (const now of [NOW, new Date(2026, 2, 31, 12), new Date(2028, 1, 29, 12)]) {
-    const boundary6 = collaborationDurationBoundary(now, 6);
-    const boundary12 = collaborationDurationBoundary(now, 12);
-    for (const startDate of [
-      null,
-      new Date(now.getTime() + 86400000),
-      new Date(boundary6.getTime() - 1),
-      boundary6,
-      new Date(boundary12.getTime() - 1),
-      boundary12,
-    ]) {
-      for (const flag of ["none", "dbaDirectSupervision", "dbaEmbedded", "dbaFixedSchedule"]) {
-        const job = {
-          dbaDirectSupervision: flag === "dbaDirectSupervision",
-          dbaEmbedded: flag === "dbaEmbedded",
-          dbaFixedSchedule: flag === "dbaFixedSchedule",
-        };
-        await db.collaboration.update({ where: { id: "collaboration" }, data: { startDate } });
-        await db.job.update({ where: { id: "job" }, data: job });
-        const expected = assessCollaborationDba(
-          { collaborationId: "collaboration", startDate, ...jobDbaIndicators(job) },
-          now,
-        ).level;
-        for (const dba of ["LAAG", "VERHOOGD", "HOOG"]) {
-          const result = await getAdminCollaborations(
-            parseCollaborationFilter({ status: "ACTIVE", dba }),
-            "1",
+it.each([null, [3, 9], [9, 18], [6, 6], [12, 3]])(
+  "matches configured DBA levels at boundaries, flags and null dates: %j",
+  async (stored) => {
+    if (stored)
+      await db.platformConfig.create({
+        data: {
+          id: "singleton",
+          dbaMinDurationMonths: stored[0],
+          dbaStrongDurationMonths: stored[1],
+        },
+      });
+    const thresholds = await getDbaThresholds();
+    for (const now of [NOW, new Date(2026, 2, 31, 12), new Date(2028, 1, 29, 12)]) {
+      const boundary6 = collaborationDurationBoundary(now, thresholds.durationSignalMonths);
+      const boundary12 = collaborationDurationBoundary(now, thresholds.durationStrongSignalMonths);
+      for (const startDate of [
+        null,
+        new Date(now.getTime() + 86400000),
+        new Date(boundary6.getTime() - 1),
+        boundary6,
+        new Date(boundary12.getTime() - 1),
+        boundary12,
+      ]) {
+        for (const flag of ["none", "dbaDirectSupervision", "dbaEmbedded", "dbaFixedSchedule"]) {
+          const job = {
+            dbaDirectSupervision: flag === "dbaDirectSupervision",
+            dbaEmbedded: flag === "dbaEmbedded",
+            dbaFixedSchedule: flag === "dbaFixedSchedule",
+          };
+          await db.collaboration.update({ where: { id: "collaboration" }, data: { startDate } });
+          await db.job.update({ where: { id: "job" }, data: job });
+          const expected = assessCollaborationDba(
+            { collaborationId: "collaboration", startDate, ...jobDbaIndicators(job) },
             now,
-          );
-          expect(
-            result.total,
-            `${now.toISOString()} / ${startDate?.toISOString()} / ${flag} / ${dba}`,
-          ).toBe(dba === expected ? 1 : 0);
+            thresholds,
+          ).level;
+          for (const dba of ["LAAG", "VERHOOGD", "HOOG"]) {
+            const result = await getAdminCollaborations(
+              parseCollaborationFilter({ status: "ACTIVE", dba }),
+              "1",
+              now,
+              thresholds,
+            );
+            expect(result.rows).toHaveLength(dba === expected ? 1 : 0);
+            expect(
+              result.total,
+              `${now.toISOString()} / ${startDate?.toISOString()} / ${flag} / ${dba}`,
+            ).toBe(dba === expected ? 1 : 0);
+          }
         }
       }
     }
-  }
+  },
+);
+
+it.each([
+  [3, 9, 3, "VERHOOGD"],
+  [3, 9, 9, "HOOG"],
+  [9, 18, 6, "LAAG"],
+  [9, 18, 12, "VERHOOGD"],
+  [6, 6, 6, "HOOG"],
+  [12, 3, 3, "HOOG"],
+])(
+  "uses persisted %i/%i thresholds at %i months in SQL and badges",
+  async (signal, strong, months, expected) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+    await db.platformConfig.create({
+      data: { id: "singleton", dbaMinDurationMonths: signal, dbaStrongDurationMonths: strong },
+    });
+    const startDate = new Date(collaborationDurationBoundary(NOW, months).getTime() - 1);
+    await db.collaboration.update({ where: { id: "collaboration" }, data: { startDate } });
+    const configRead = vi.spyOn(db.platformConfig, "findUnique");
+    try {
+      const html = renderToStaticMarkup(
+        await SamenwerkingenPanel({ searchParams: { status: "ACTIVE", dba: expected } }),
+      );
+      expect(html).toContain('href="/samenwerkingen/collaboration"');
+      expect(html).toContain("1 van 501 samenwerkingen");
+      const card = html.slice(html.indexOf('href="/samenwerkingen/collaboration"'));
+      if (expected === "LAAG") expect(card).not.toContain("DBA ");
+      else expect(card).toContain(expected === "HOOG" ? "DBA Hoog" : "DBA Verhoogd");
+      expect(configRead).toHaveBeenCalledTimes(1);
+    } finally {
+      configRead.mockRestore();
+    }
+  },
+);
+
+it("keeps configured SQL counts, pages and rendered badges in agreement", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NOW);
+  await db.platformConfig.create({
+    data: { id: "singleton", dbaMinDurationMonths: 3, dbaStrongDurationMonths: 9 },
+  });
+  await db.collaboration.updateMany({
+    data: { startDate: new Date(collaborationDurationBoundary(NOW, 3).getTime() - 1) },
+  });
+  const thresholds = await getDbaThresholds();
+  const filter = parseCollaborationFilter({ status: "COMPLETED", q: "completed", dba: "VERHOOGD" });
+  const first = await getAdminCollaborations(filter, "1", NOW, thresholds);
+  const last = await getAdminCollaborations(filter, "999", NOW, thresholds);
+  expect(first.total).toBe(500);
+  expect(first.rows).toHaveLength(50);
+  expect(last.page).toBe(10);
+  expect(last.rows).toHaveLength(50);
+  expect(new Set([...first.rows, ...last.rows].map((row) => row.id)).size).toBe(100);
+  const html = renderToStaticMarkup(
+    await SamenwerkingenPanel({
+      searchParams: { status: "COMPLETED", q: "completed", dba: "VERHOOGD", page: "2" },
+    }),
+  );
+  expect(html).toContain("500 van 501 samenwerkingen");
+  expect(html).toContain("Pagina 2 van 10");
+  expect(html.match(/DBA Verhoogd/g)).toHaveLength(50);
+  expect(html).toContain("q=completed&amp;status=COMPLETED&amp;dba=VERHOOGD&amp;page=3");
 });

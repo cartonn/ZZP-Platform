@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import type { DbaThresholds } from "@/lib/platform-config";
 import { DBA_THRESHOLDS } from "@/lib/config";
 import { isPostgresUrl } from "@/lib/db/text-search";
 import { COLLAB_STATUS_VALUES, type CollaborationFilter } from "@/lib/collaboration-filter";
@@ -14,15 +15,15 @@ export function collaborationDurationBoundary(now: Date, months: number): Date {
   return target;
 }
 
-function conditions(filter: CollaborationFilter, now: Date): Prisma.Sql {
+function conditions(filter: CollaborationFilter, now: Date, thresholds: DbaThresholds): Prisma.Sql {
   const dateValue = (months: number) => {
     const boundary = collaborationDurationBoundary(now, months);
     return isPostgresUrl(process.env.DATABASE_URL) ? boundary : boundary.getTime();
   };
   const strong = Prisma.sql`(j."dbaDirectSupervision" = ${true} OR
-    (c."startDate" IS NOT NULL AND c."startDate" < ${dateValue(DBA_THRESHOLDS.durationStrongSignalMonths)}))`;
+    (c."startDate" IS NOT NULL AND c."startDate" < ${dateValue(thresholds.durationStrongSignalMonths)}))`;
   const medium = Prisma.sql`(j."dbaEmbedded" = ${true} OR j."dbaFixedSchedule" = ${true} OR
-    (c."startDate" IS NOT NULL AND c."startDate" < ${dateValue(DBA_THRESHOLDS.durationSignalMonths)}))`;
+    (c."startDate" IS NOT NULL AND c."startDate" < ${dateValue(thresholds.durationSignalMonths)}))`;
   const clauses: Prisma.Sql[] = [];
   if (filter.status) clauses.push(Prisma.sql`c."status" = ${filter.status}`);
   if (filter.dba === "HOOG") clauses.push(strong);
@@ -50,8 +51,9 @@ export async function getAdminCollaborations(
   filter: CollaborationFilter,
   requestedPage: string | string[] | undefined,
   now: Date,
+  thresholds: DbaThresholds = DBA_THRESHOLDS,
 ) {
-  const where = conditions(filter, now);
+  const where = conditions(filter, now, thresholds);
   const [all, statusGroups, matches] = await Promise.all([
     prisma.collaboration.count(),
     prisma.collaboration.groupBy({

@@ -1,3 +1,7 @@
+## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
+
+Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
+
 ## 30 september — DBA-drempels in samenwerkingslijst (#1538)
 
 Eén configuratielezing na auth voedt alle actieve lijstbeoordelingen; 24 paginagevallen, 59 gerichte en 9.233 volledige tests groen (3 bestaande skips). Lint, types, format en productiebuild groen; review en CI volgen. [Scope](docs/progress/2026-09-30-dba-list-thresholds.md).
@@ -40,15 +44,6 @@ tests groen; volledige suite 9.187 groen (3 bestaande skips), types en lint
 geslaagd. Productiebuild en formatcontrole groen. Onafhankelijke review,
 GitHub-poorten en release volgen.
 [Scope](docs/progress/2026-09-29-dispute-reminder-window.md).
-
-## 29 september — IBM Plex zonder build-download (#1532)
-
-Productiebuild strandde in de IBM Plex Sans-loader van het bestaande ontwerplab.
-Zes bestaande fontbestanden lokaal gebundeld; 24 faces, fallbackmaten, CSS-variabele
-én uitsluitend Latin-preload behouden. Negen gerichte checks en daadwerkelijke
-Next-CSS-vergelijking bevestigen dezelfde faces en fontbytes. Lint, types, format,
-productiebuild en 9.180 tests groen (3 bestaande skips). Onafhankelijke review,
-GitHub-poorten en release volgen. [Scope](docs/progress/2026-09-29-local-ibm-plex.md).
 
 ## 29 september — bereikbare certificaatherinneringen (#1531)
 
