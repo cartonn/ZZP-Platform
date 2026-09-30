@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { auditDeniedAccess } from "@/lib/security/access-audit";
+import { getDbaThresholds } from "@/lib/platform-config";
 import { buildDbaAuditData } from "@/lib/dba-audit";
 import { buildDbaAuditPdf } from "@/lib/dba-audit-pdf";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
@@ -115,6 +116,7 @@ export async function GET(
     return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
   }
 
+  const thresholds = await getDbaThresholds();
   const now = new Date();
   const auditData = buildDbaAuditData(
     {
@@ -141,6 +143,7 @@ export async function GET(
       expiresAt: c.expiresAt,
     })),
     now,
+    thresholds,
   );
 
   const pdfBytes = await buildDbaAuditPdf(auditData);

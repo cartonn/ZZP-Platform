@@ -5,6 +5,8 @@
 
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { type DbaSignalLevel } from "@/lib/dba-monitor";
+import { DBA_THRESHOLDS } from "@/lib/config";
+import { type DbaThresholds } from "@/lib/platform-config";
 import { assessRateThreshold } from "@/lib/rechtsvermoeden";
 import { MODEL_AGREEMENT_LABELS } from "@/lib/model-agreement";
 import { type ModelAgreementType } from "@/lib/model-agreement";
@@ -143,12 +145,15 @@ export function buildDbaAuditData(
   parties: DbaAuditParties,
   credentials: DbaAuditCredential[],
   now: Date,
+  thresholds?: DbaThresholds,
 ): DbaAuditData {
   // --- DBA-assessment via de bestaande engine ---
+  const durationThresholds = thresholds ?? DBA_THRESHOLDS;
   const indicators = jobDbaIndicators(col.job);
   const assessment = assessCollaborationDba(
     { collaborationId: col.id, startDate: col.startDate, ...indicators },
     now,
+    thresholds,
   );
 
   // Vertaal de job-DBA-vlaggen naar indicator-objecten voor het dossier.
@@ -204,9 +209,9 @@ export function buildDbaAuditData(
       value: col.job.dbaDurationMonths ?? assessment.durationMonths ?? null,
       level:
         assessment.durationMonths != null
-          ? assessment.durationMonths >= 12
+          ? assessment.durationMonths >= durationThresholds.durationStrongSignalMonths
             ? "HOOG"
-            : assessment.durationMonths >= 6
+            : assessment.durationMonths >= durationThresholds.durationSignalMonths
               ? "VERHOOGD"
               : "LAAG"
           : null,
