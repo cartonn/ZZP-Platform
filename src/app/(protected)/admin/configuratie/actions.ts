@@ -6,23 +6,28 @@ import { requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { getDbaThresholds, saveDbaThresholds } from "@/lib/platform-config";
 
-const dbaThresholdsSchema = z.object({
-  durationSignalMonths: z
-    .number({ invalid_type_error: "Voer een geldig getal in." })
-    .int("Voer een heel getal in.")
-    .min(1, "Minimaal 1 maand.")
-    .max(60, "Maximaal 60 maanden."),
-  durationStrongSignalMonths: z
-    .number({ invalid_type_error: "Voer een geldig getal in." })
-    .int("Voer een heel getal in.")
-    .min(1, "Minimaal 1 maand.")
-    .max(60, "Maximaal 60 maanden."),
-  revenueConcentrationPct: z
-    .number({ invalid_type_error: "Voer een geldig getal in." })
-    .int("Voer een heel getal in.")
-    .min(1, "Minimaal 1%.")
-    .max(100, "Maximaal 100%."),
-});
+const dbaThresholdsSchema = z
+  .object({
+    durationSignalMonths: z
+      .number({ invalid_type_error: "Voer een geldig getal in." })
+      .int("Voer een heel getal in.")
+      .min(1, "Minimaal 1 maand.")
+      .max(60, "Maximaal 60 maanden."),
+    durationStrongSignalMonths: z
+      .number({ invalid_type_error: "Voer een geldig getal in." })
+      .int("Voer een heel getal in.")
+      .min(1, "Minimaal 1 maand.")
+      .max(60, "Maximaal 60 maanden."),
+    revenueConcentrationPct: z
+      .number({ invalid_type_error: "Voer een geldig getal in." })
+      .int("Voer een heel getal in.")
+      .min(1, "Minimaal 1%.")
+      .max(100, "Maximaal 100%."),
+  })
+  .refine((value) => value.durationSignalMonths <= value.durationStrongSignalMonths, {
+    path: ["durationStrongSignalMonths"],
+    message: "De sterke duurdrempel mag niet lager zijn dan de eerste duurdrempel.",
+  });
 
 export type ConfigFormState =
   | { success?: true; error?: string; fieldErrors?: Record<string, string> }

@@ -1,3 +1,11 @@
+## 30 september — ingestelde DBA-drempels op samenwerkingsdetail (#1535)
+
+De detailpagina gebruikte vaste 6/12-maandsgrenzen terwijl monitor en overzicht
+opgeslagen beheerdersinstellingen volgen. Eén serverlezing voedt nu beoordeling
+en vooruitblik na de bestaande toegangscontrole. Vier paginaregressies en 9.195
+volledige tests groen (3 bestaande skips). Onafhankelijke review en CI volgen.
+[Scope](docs/progress/2026-09-30-dba-detail-thresholds.md).
+
 ## 30 september — productie-audit dependencyherstel (#1536)
 
 De verplichte audit blokkeerde op Nodemailer en brace-expansion. Gericht gepatcht:

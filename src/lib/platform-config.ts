@@ -17,10 +17,15 @@ export interface DbaThresholds {
  */
 export async function getDbaThresholds(): Promise<DbaThresholds> {
   const cfg = await prisma.platformConfig.findUnique({ where: { id: "singleton" } });
+  const strong = cfg?.dbaStrongDurationMonths ?? DBA_THRESHOLDS.durationStrongSignalMonths;
+  // Legacy inverted rows must never forecast a lower level after the strong signal.
+  // Preserve the configured strong boundary; collapse the first boundary onto it.
   return {
-    durationSignalMonths: cfg?.dbaMinDurationMonths ?? DBA_THRESHOLDS.durationSignalMonths,
-    durationStrongSignalMonths:
-      cfg?.dbaStrongDurationMonths ?? DBA_THRESHOLDS.durationStrongSignalMonths,
+    durationSignalMonths: Math.min(
+      cfg?.dbaMinDurationMonths ?? DBA_THRESHOLDS.durationSignalMonths,
+      strong,
+    ),
+    durationStrongSignalMonths: strong,
     revenueConcentrationPct:
       cfg?.dbaRevenueConcentrationPct ?? DBA_THRESHOLDS.revenueConcentrationPct,
   };
