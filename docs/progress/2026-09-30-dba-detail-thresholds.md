@@ -13,4 +13,10 @@ disclaimers, status and ownership gates, revenue semantics and V5 design.
 Files: collaboration detail page and a focused regression test, plus progress.
 No threshold values, integrations or legal policy changes.
 
-Status: claimed before implementation; tests, independent review and CI pending.
+Implementation: one configuration read after authorization supplies both duration
+assessment and forecast. Actual async page tests retain the real configuration
+loader and DBA engines with a synthetic database fixture. They cover a saved
+3/9-month signal, the upcoming 3-month crossing, missing-row defaults, and
+nonparticipant denial before the configuration read. Full suite: 9,195 tests
+passed, three existing skips; 870 suites passed and two skipped. Lint passed.
+Independent review, GitHub CI and production verification remain separate gates.
