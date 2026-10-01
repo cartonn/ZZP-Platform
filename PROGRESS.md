@@ -1,3 +1,7 @@
+## 1 oktober — bereikbare kandidaat-beslis-reminders (#1542)
+
+Een scan-cap van 500 niet-nudgebare VIEWED-reacties duwde een latere, nudgebare dag-14-reactie buiten de enige scan: de opdrachtgever kreeg geen beslis-herinnering en talent koelde af. Echte SQLite-proef rood bij 500/501, controle groen bij 499; een extra geval met 501 reacties op dezelfde `createdAt` bewijst de `id`-tie-breaker op de paginagrens. Stabiele cursor-paginatie (`[createdAt asc, id asc]`, plan→dedup→apply per pagina) vervangt de cap; planner, vensters, dedupe en effecten ongewijzigd. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-10-01-application-decision-reminder-window.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
