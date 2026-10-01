@@ -1,5 +1,26 @@
 # Persona-sweep — gaten-backlog
 
+## 1 oktober 2026 — OPGELOST: dode "Onderteken contract" bij certificaat-gat (lijst + dashboard)
+
+Basis `origin/main` `0b73d06b`. **DOEL 1b / dode knop.** Een `PROPOSED`-samenwerking met een
+ontbrekend of verlopen **verplicht** opdracht-certificaat
+(`collaborationPlacementBlocked` = true) toonde op `/samenwerkingen` én in de dashboard-
+"Wat loopt er nu"-zone de fase **"Aan zet · Onderteken contract"** voor ZZP'er én opdrachtgever,
+terwijl (a) de server tekenen weigert (`signing-service` → `complianceBlocksPlacement`), en
+(b) het samenwerkingsdetail, het actiecentrum (`pending-tasks.ts`) en de nav-badge
+(`signals.ts`) die taak juist onderdrukken. Dode knop + zichzelf tegensprekend scherm; schendt
+CLAUDE.md regel 1 (server-side waarheid) en "geen dode knoppen".
+
+Repro (seed/`qa.db`): als opdrachtgever `/samenwerkingen?status=PROPOSED` → collab met
+Zorgcentrum Jansen × Sofie (vereist VOG ontbreekt) toonde "Aan zet · Onderteken contract";
+als ZZP'er (Sofie/Ahmed) hetzelfde. Verwacht: ZZP'er → certificaat aanvullen; opdrachtgever →
+niet aan zet.
+
+Fix: `cascadeStage` kreeg `placementBlocked` (fase `credential-blocked`), gevoed uit dezelfde
+`collaborationPlacementBlocked`-bron op alle vier kaart-call-sites; `collaboration-status-line`
+delegeert nu naar die ene bron. Vijf nieuwe stage-regressies; volledige gate groen
+(9.248 tests, lint/types/format, productiebuild). [Scope](progress/2026-10-01-placement-blocked-cascade-stage.md).
+
 ## 17 september 2026, 12:22 UTC — bijna-verloopselectie (#1512)
 
 De apart genoemde bijna-verloopvariant is nu dynamisch gereproduceerd op `3d7bbe1c`:

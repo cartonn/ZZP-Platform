@@ -17,6 +17,11 @@ export interface CollaborationStatusLine {
 function phraseForStage(id: string, viewer: "FREELANCER" | "CLIENT", youAreUp: boolean): string {
   const isFreelancer = viewer === "FREELANCER";
   switch (id) {
+    case "credential-blocked":
+      // Een vereist certificaat ontbreekt/verlopen: de ZZP'er vult aan, de opdrachtgever wacht.
+      return isFreelancer
+        ? "vul het ontbrekende of verlopen certificaat aan"
+        : "wacht tot de ZZP'er het ontbrekende of verlopen certificaat aanvult";
     case "contract-wait":
       return "wacht op de handtekening van de andere partij";
     case "contract-sign":
@@ -54,9 +59,7 @@ function phraseForStage(id: string, viewer: "FREELANCER" | "CLIENT", youAreUp: b
  * - Niet aan zet → "Je hoeft nu niets te doen — <fase>."
  * Terminale fasen (afgerond/geannuleerd/dispuut) geven een rustige, feitelijke zin.
  */
-export function collaborationStatusLine(
-  input: CascadeStageInput & { placementBlocked?: boolean },
-): CollaborationStatusLine {
+export function collaborationStatusLine(input: CascadeStageInput): CollaborationStatusLine {
   if (input.collaborationStatus === "COMPLETED")
     return { text: "Deze samenwerking is afgerond.", youAreUp: false };
   if (input.collaborationStatus === "CANCELLED")
@@ -67,18 +70,9 @@ export function collaborationStatusLine(
       youAreUp: false,
     };
 
-  // A required credential can expire between signatures; completing it takes priority.
-  if (input.collaborationStatus === "PROPOSED" && input.placementBlocked)
-    return input.viewer === "FREELANCER"
-      ? {
-          text: "Actie nodig: vul het ontbrekende of verlopen certificaat aan.",
-          youAreUp: true,
-        }
-      : {
-          text: "Je hoeft nu niets te doen — wacht tot de ZZP'er het ontbrekende of verlopen certificaat aanvult.",
-          youAreUp: false,
-        };
-
+  // A required credential can expire between signatures; completing it takes priority. De
+  // placementBlocked-afhandeling leeft nu in `cascadeStage` zelf (fase "credential-blocked") zodat de
+  // lijst/dashboard-kaarten en dit detail dezelfde, enige bron delen — geen duplicaat dat kan driften.
   const stage = cascadeStage(input);
   const phrase = phraseForStage(stage.id, input.viewer, stage.youAreUp);
   if (stage.youAreUp) return { text: `Actie nodig: ${phrase}.`, youAreUp: true };

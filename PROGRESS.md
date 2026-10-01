@@ -1,3 +1,7 @@
+## 1 oktober — geen dode "Onderteken contract" bij certificaat-gat (persona-sweep)
+
+De samenwerkingenlijst en de dashboard-"Wat loopt er nu"-kaarten toonden bij een `PROPOSED`-samenwerking met een ontbrekend/verlopen **verplicht** certificaat de fase "Aan zet · Onderteken contract" voor beide partijen — terwijl de server tekenen weigert, en het detail/actiecentrum/de badge die taak juist onderdrukken. Een dode knop + zichzelf tegensprekend scherm (CLAUDE.md regel 1, "geen dode knoppen"). `cascadeStage` kent nu `placementBlocked` (zelfde bron als de server-guard): ZZP'er krijgt de certificaat-aanvul-fase (aan zet), opdrachtgever "wacht op de ZZP'er" (niet aan zet); `collaboration-status-line` delegeert nu naar die ene bron. Live gereproduceerd + hersteld op `qa.db`. Vijf nieuwe stage-regressies; lint/types/format en productiebuild groen; 9.248 tests groen (3 bestaande skips). Review + CI volgen. [Scope](docs/progress/2026-10-01-placement-blocked-cascade-stage.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

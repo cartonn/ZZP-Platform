@@ -31,6 +31,18 @@ export interface CascadeStageInput {
    * uren van cyclus 2 maskeren met "Factuur betaald · niets te doen". Default false (single-cyclus).
    */
   performanceNewerThanInvoice?: boolean;
+  /**
+   * Is de plaatsing geblokkeerd door een certificaat-gat (een VERPLICHT opdracht-certificaat ontbreekt
+   * of is verlopen → NON_COMPLIANT)? Spiegelt `collaborationPlacementBlocked` (collaborations.ts), de
+   * server-guard in `signContract` (die tekenen dan weigert), de next-action-suppressie
+   * (`pending-tasks.ts`) en de nav-badge (`signals.ts`). Zolang de plaatsing geblokkeerd is, is de
+   * "Onderteken contract"-fase een DODE knop (de server gooit, de samenwerking blijft PROPOSED, de
+   * fase verdwijnt nooit) die bovendien het samenwerkingsdetail tegenspreekt. Met deze vlag krijgt de
+   * ZZP'er in de teken-fase een certificaat-aanvul-fase (aan zet) en de opdrachtgever een "wacht op de
+   * ZZP'er"-fase (niet aan zet) — exact zoals `collaborationStatusLine` op het detail al doet. Default
+   * false. Alleen betekenisvol vóór ondertekening; na SIGNED is de teken-fase sowieso voorbij.
+   */
+  placementBlocked?: boolean;
 }
 
 export interface CascadeStage {
@@ -100,6 +112,15 @@ export function cascadeStage(input: CascadeStageInput): CascadeStage {
   // teken-CTA verborg op precies de schermen die "wat wordt van wie verwacht?" beloven, en die de
   // actiecentrum-taak tegensprak.
   if (input.contractStatus !== "SIGNED") {
+    // Certificaat-gat blokkeert de plaatsing: tekenen wordt server-side geweigerd (signContract), dus
+    // de teken-fase zou een dode knop zijn én het detail/actiecentrum/badge tegenspreken. De ZZP'er —
+    // de enige die het gat kan dichten — krijgt de aanvul-fase (aan zet); de opdrachtgever wacht. Deze
+    // tak staat vóór de viewerHasSigned-/teken-takken zodat het gat altijd voorrang heeft.
+    if (input.placementBlocked) {
+      if (isFreelancer)
+        return { id: "credential-blocked", badgeLabel: "Certificaat", label: "Vul het ontbrekende of verlopen certificaat aan", step: 1, totalSteps: total, youAreUp: true, tone: "attention", cta: { label: "Certificaat aanvullen", href } }; // prettier-ignore
+      return { id: "credential-blocked", badgeLabel: "Certificaat", label: "Wacht tot de ZZP'er het ontbrekende of verlopen certificaat aanvult", step: 1, totalSteps: total, youAreUp: false, tone: "info", cta: bekijk }; // prettier-ignore
+    }
     if (input.viewerHasSigned)
       return {
         id: "contract-wait",
