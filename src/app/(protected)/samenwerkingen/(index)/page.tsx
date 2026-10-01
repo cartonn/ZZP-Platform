@@ -7,7 +7,7 @@ import { getDbaThresholds } from "@/lib/platform-config";
 import { hasExportableSchedule } from "@/lib/calendar/exportable";
 import { AgendaSubscribe } from "@/components/agenda/agenda-subscribe";
 import { agendaFeedPath } from "@/lib/calendar/feed-token";
-import { COLLABORATION_TRANSITIONS } from "@/lib/collaborations";
+import { COLLABORATION_TRANSITIONS, collaborationPlacementBlocked } from "@/lib/collaborations";
 import { invoiceableCollaborationsWhere } from "@/lib/invoices";
 import { completionBlockReason } from "@/lib/cascade/completion";
 import { assessCollaborationCredentials, type CredentialAlert } from "@/lib/collaboration-alerts";
@@ -389,6 +389,13 @@ export default async function SamenwerkingenPage({
                             collaborationStatus: status,
                             contractStatus: c.contractStatus as ContractStatus,
                             disputed: c.disputedAt !== null,
+                            // Dode "Onderteken contract"-fase onderdrukken zolang een vereist
+                            // certificaat ontbreekt/verlopen is (server-guard weigert tekenen) —
+                            // zelfde bron als het detail/actiecentrum/de badge.
+                            placementBlocked: collaborationPlacementBlocked(
+                              requiredTypes,
+                              credentials,
+                            ),
                             viewerHasSigned:
                               c.signing?.signatures.some(
                                 (signature) => signature.actorId === actor.id,

@@ -137,6 +137,60 @@ describe("cascadeStage — keten + viewer-perspectief", () => {
     expect(fr.cta.label).toBe("Onderteken contract");
   });
 
+  it("PROPOSED + placementBlocked: géén dode teken-fase — ZZP'er vult aan, opdrachtgever wacht", () => {
+    // Een vereist certificaat ontbreekt/verlopen → signContract weigert server-side. De teken-fase
+    // zou dan een dode knop zijn die het detail/actiecentrum/de badge tegenspreekt. De ZZP'er krijgt
+    // de aanvul-fase (aan zet), de opdrachtgever een "wacht op de ZZP'er"-fase (niet aan zet).
+    const fr = cascadeStage(
+      base({ contractStatus: "DRAFT", collaborationStatus: "PROPOSED", placementBlocked: true }),
+    );
+    const cl = cascadeStage(
+      base({
+        contractStatus: "DRAFT",
+        collaborationStatus: "PROPOSED",
+        placementBlocked: true,
+        viewer: "CLIENT",
+      }),
+    );
+    expect(fr.id).toBe("credential-blocked");
+    expect(fr.youAreUp).toBe(true);
+    expect(fr.tone).toBe("attention");
+    expect(fr.cta.label).toBe("Certificaat aanvullen");
+    expect(fr.cta.href).toBe("/samenwerkingen/c1");
+    expect(cl.id).toBe("credential-blocked");
+    expect(cl.youAreUp).toBe(false);
+    expect(cl.tone).toBe("info");
+  });
+
+  it("PROPOSED + placementBlocked heeft voorrang op een reeds gezette eigen handtekening", () => {
+    // Defensief: ook als de ZZP'er (ooit) tekende, mag het certificaat-gat niet in de wacht-fase
+    // verdwijnen — het gat blijft de aan-zet-actie.
+    const fr = cascadeStage(
+      base({
+        contractStatus: "DRAFT",
+        collaborationStatus: "PROPOSED",
+        placementBlocked: true,
+        viewerHasSigned: true,
+      }),
+    );
+    expect(fr.id).toBe("credential-blocked");
+    expect(fr.youAreUp).toBe(true);
+  });
+
+  it("PROPOSED zonder placementBlocked: gewone teken-fase blijft (geen regressie)", () => {
+    const fr = cascadeStage(
+      base({ contractStatus: "DRAFT", collaborationStatus: "PROPOSED", placementBlocked: false }),
+    );
+    expect(fr.id).toBe("contract-sign");
+    expect(fr.youAreUp).toBe(true);
+  });
+
+  it("getekend + placementBlocked: de teken-fase is voorbij, geen credential-blokkade meer", () => {
+    // Na SIGNED is de teken-fase gepasseerd; de vlag mag de normale cascade niet meer kapen.
+    const fr = cascadeStage(base({ contractStatus: "SIGNED", placementBlocked: true }));
+    expect(fr.id).toBe("performance-submit");
+  });
+
   it("getekend, geen prestatie: ZZP'er dient in, opdrachtgever wacht", () => {
     const fr = cascadeStage(base());
     const cl = cascadeStage(base({ viewer: "CLIENT" }));

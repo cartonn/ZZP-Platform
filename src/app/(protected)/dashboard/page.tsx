@@ -47,7 +47,9 @@ import {
   type ContractStatus,
   type Availability,
   type CredentialStatus,
+  type CredentialType,
 } from "@/lib/enums";
+import { collaborationPlacementBlocked } from "@/lib/collaborations";
 import { activeVerifiedCount, CREDENTIAL_EXPIRY_WINDOW_MS } from "@/lib/credentials";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
@@ -261,7 +263,17 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
             rate: true,
             weekdays: true,
             company: { select: { id: true, name: true } },
-            job: { select: { title: true } },
+            job: {
+              select: {
+                title: true,
+                // Verplichte opdracht-certificaten: voeden de placementBlocked-check zodat de dode
+                // "Onderteken contract"-fase onderdrukt wordt (zelfde bron als detail/actiecentrum).
+                credentialRequirements: {
+                  where: { required: true },
+                  select: { credentialType: true },
+                },
+              },
+            },
             performances: {
               orderBy: { createdAt: "desc" },
               take: 1,
@@ -310,6 +322,11 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       creds.map((c) => ({ status: c.status as CredentialStatus, expiresAt: c.expiresAt })),
     );
 
+    const freelancerCreds: FreelancerCredential[] = creds.map((cr) => ({
+      type: cr.type as CredentialType,
+      status: cr.status as FreelancerCredential["status"],
+      expiresAt: cr.expiresAt,
+    }));
     const running: RunningCollab[] = runningRows.map((c) => ({
       id: c.id,
       jobTitle: c.job.title,
@@ -322,6 +339,10 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         viewerHasSigned:
           c.signing?.signatures.some((signature) => signature.actorId === userId) ?? false,
         disputed: c.disputedAt !== null,
+        placementBlocked: collaborationPlacementBlocked(
+          c.job.credentialRequirements.map((r) => r.credentialType as CredentialType),
+          freelancerCreds,
+        ),
         latestPerformanceStatus: (c.performances[0]?.status ?? null) as PerformanceState | null,
         latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
           null) as InvoiceLifecycleState | null,
@@ -468,8 +489,22 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           endDate: true,
           rate: true,
           weekdays: true,
-          job: { select: { title: true } },
-          freelancer: { select: { id: true, user: { select: { name: true } } } },
+          job: {
+            select: {
+              title: true,
+              credentialRequirements: {
+                where: { required: true },
+                select: { credentialType: true },
+              },
+            },
+          },
+          freelancer: {
+            select: {
+              id: true,
+              user: { select: { name: true } },
+              credentials: { select: { type: true, status: true, expiresAt: true } },
+            },
+          },
           performances: {
             orderBy: { createdAt: "desc" },
             take: 1,
@@ -518,6 +553,14 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         viewerHasSigned:
           c.signing?.signatures.some((signature) => signature.actorId === userId) ?? false,
         disputed: c.disputedAt !== null,
+        placementBlocked: collaborationPlacementBlocked(
+          c.job.credentialRequirements.map((r) => r.credentialType as CredentialType),
+          c.freelancer.credentials.map((cr) => ({
+            type: cr.type as CredentialType,
+            status: cr.status as FreelancerCredential["status"],
+            expiresAt: cr.expiresAt,
+          })),
+        ),
         latestPerformanceStatus: (c.performances[0]?.status ?? null) as PerformanceState | null,
         latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
           null) as InvoiceLifecycleState | null,
@@ -724,9 +767,22 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         contractStatus: true,
         signing: { select: { signatures: { select: { actorId: true } } } },
         disputedAt: true,
-        job: { select: { title: true } },
+        job: {
+          select: {
+            title: true,
+            credentialRequirements: {
+              where: { required: true },
+              select: { credentialType: true },
+            },
+          },
+        },
         company: { select: { name: true } },
-        freelancer: { select: { user: { select: { name: true } } } },
+        freelancer: {
+          select: {
+            user: { select: { name: true } },
+            credentials: { select: { type: true, status: true, expiresAt: true } },
+          },
+        },
         performances: {
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -758,6 +814,14 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       viewerHasSigned:
         c.signing?.signatures.some((signature) => signature.actorId === userId) ?? false,
       disputed: c.disputedAt !== null,
+      placementBlocked: collaborationPlacementBlocked(
+        c.job.credentialRequirements.map((r) => r.credentialType as CredentialType),
+        c.freelancer.credentials.map((cr) => ({
+          type: cr.type as CredentialType,
+          status: cr.status as FreelancerCredential["status"],
+          expiresAt: cr.expiresAt,
+        })),
+      ),
       latestPerformanceStatus: (c.performances[0]?.status ?? null) as PerformanceState | null,
       latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ?? null) as InvoiceLifecycleState | null,
       performanceNewerThanInvoice: isPerformanceNewerThanInvoice(
