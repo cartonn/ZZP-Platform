@@ -54,7 +54,6 @@ const SANITATION_BACKLOG: readonly string[] = [
   "src/lib/actions/drawer-data.ts",
   "src/lib/actions/pending-tasks.ts",
   "src/lib/admin-user-detail.ts",
-  "src/lib/application-decision-reminders-task.ts",
   "src/lib/calendar/user-deadlines.ts",
   "src/lib/calendar/user-schedule.ts",
   "src/lib/cascade/dispute-commands.ts",

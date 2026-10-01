@@ -14,20 +14,24 @@ export interface ApplicationDecisionReminderResult {
   reminded: number;
 }
 
-/** Bovengrens op het aantal reacties dat één run beoordeelt (begrenst het werk). */
-const SCAN_LIMIT = 500;
+type ReminderCursor = { createdAt: Date; id: string };
+/** Paginagrootte per scan. Stabiele cursor-paginatie dekt elke openstaande reactie (geen starvation). */
+const PAGE_SIZE = 500;
 
-export async function runApplicationDecisionReminderTask(opts: {
-  actorId?: string | null;
-  now?: Date;
-}): Promise<ApplicationDecisionReminderResult> {
-  const now = opts.now ?? new Date();
-
-  const rows = await prisma.application.findMany({
+async function loadReminderPage(cursor?: ReminderCursor) {
+  return prisma.application.findMany({
     where: {
       status: { in: ["VIEWED", "SHORTLIST"] },
       collaboration: null, // nog geen samenwerking → beslissen is nog aan de orde
       job: { status: "PUBLISHED" },
+      ...(cursor
+        ? {
+            OR: [
+              { createdAt: { gt: cursor.createdAt } },
+              { createdAt: cursor.createdAt, id: { gt: cursor.id } },
+            ],
+          }
+        : {}),
     },
     select: {
       id: true,
@@ -41,12 +45,37 @@ export async function runApplicationDecisionReminderTask(opts: {
         },
       },
     },
-    // Oudste reactie eerst: zonder orderBy is de selectie boven de cap ongedefinieerd en kan een
-    // reactie structureel buiten de SCAN_LIMIT vallen (starvation).
-    orderBy: { createdAt: "asc" },
-    take: SCAN_LIMIT,
+    // Stabiele volgorde [createdAt asc, id asc]: zonder tie-breaker op id is de paginagrens boven
+    // gelijke createdAt-waarden ongedefinieerd en kan een reactie overgeslagen of herhaald worden.
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    take: PAGE_SIZE,
   });
+}
 
+export async function runApplicationDecisionReminderTask(opts: {
+  actorId?: string | null;
+  now?: Date;
+}): Promise<ApplicationDecisionReminderResult> {
+  const now = opts.now ?? new Date();
+  let reminded = 0;
+  let cursor: ReminderCursor | undefined;
+  while (true) {
+    const rows = await loadReminderPage(cursor);
+    if (rows.length === 0) break;
+    reminded += await processReminderPage(rows, now, opts.actorId);
+    if (rows.length < PAGE_SIZE) break;
+    const last = rows[rows.length - 1]!;
+    // Ga door ook als elke reactie op deze pagina al afgehandeld of niet-nudgebaar was.
+    cursor = { createdAt: last.createdAt, id: last.id };
+  }
+  return { reminded };
+}
+
+async function processReminderPage(
+  rows: Awaited<ReturnType<typeof loadReminderPage>>,
+  now: Date,
+  actorId?: string | null,
+): Promise<number> {
   const candidates: ApplicationDecisionCandidate[] = rows
     .filter((r) => r.job?.company?.userId)
     .map((r) => ({
@@ -60,9 +89,10 @@ export async function runApplicationDecisionReminderTask(opts: {
     }));
 
   const plan = planApplicationDecisionReminders(candidates, now);
-  if (plan.reminders.length === 0) return { reminded: 0 };
+  if (plan.reminders.length === 0) return 0;
 
   // Idempotentie: filter al-gevuurde signalen weg op DomainEvent dedupeKey.
+  // unbounded-allow: keys komt uit het al-begrensde plan (≤ PAGE_SIZE).
   const keys = plan.reminders.map((r) => r.dedupeKey);
   const existing = await prisma.domainEvent.findMany({
     where: { dedupeKey: { in: keys } },
@@ -77,7 +107,7 @@ export async function runApplicationDecisionReminderTask(opts: {
         data: {
           type: "APPLICATION_DECISION_REMINDER",
           actorRole: "SYSTEM",
-          actorId: opts.actorId ?? null,
+          actorId: actorId ?? null,
           subjectType: "Application",
           subjectId: r.applicationId,
           payload: JSON.stringify({ stage: r.stage }),
@@ -96,7 +126,7 @@ export async function runApplicationDecisionReminderTask(opts: {
       }),
       prisma.auditLog.create({
         data: auditData({
-          actorId: opts.actorId ?? null,
+          actorId: actorId ?? null,
           action: "APPLICATION_DECISION_REMINDER",
           entityType: "Application",
           entityId: r.applicationId,
@@ -106,5 +136,5 @@ export async function runApplicationDecisionReminderTask(opts: {
     ]);
   }
 
-  return { reminded: fresh.length };
+  return fresh.length;
 }
