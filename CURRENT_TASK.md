@@ -131,6 +131,7 @@ Onafhankelijke review, CI en release volgen.
 
 # CURRENT_TASK.md — Huidige taak
 
+Routine 1 oktober 20:23 UTC: #1543 houdt het koude-opdracht-signaal bereikbaar voorbij de scan-cap (cursor-paginatie i.p.v. vaste `take 200`); [scope](docs/progress/2026-10-01-job-engagement-window.md).
 Security 23 september 14:00 UTC: #1516 herstelt lopende uploads na anonimisering; [scope](docs/progress/2026-09-23-late-upload-erasure.md).
 Bouwronde 17 september 16:22 UTC: #1514 bewaakt het gelijke certificaatvenster; [scope](docs/progress/2026-09-17-expiry-window-parity.md).
 Security 17 september 14:00 UTC: #1513 bewaakt actuele conceptprestatievoorwaarden;

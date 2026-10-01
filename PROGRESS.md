@@ -1,3 +1,7 @@
+## 1 oktober — koude-opdracht-signaal bereikbaar voorbij de scan-cap (#1543)
+
+`runJobEngagementTask` selecteerde koude gepubliceerde opdrachten met één vaste cap (200, `publishedAt asc`). De `where` is open-eindig en de dedup gebeurt pas bij het signaal, dus reeds gewaarschuwde koude opdrachten bezetten de oudste plekken en nieuwere koude opdrachten voorbij 200 kregen nooit hun eerste waarschuwing. Vervangen door een stabiele id-cursor-paginatie door álle matchende rijen; resultaatvorm ongewijzigd. Nieuwe echte-SQLite-grensproef (199/200/401) rood onder de oude cap, groen erna; bestaande mock-/plannertests ongewijzigd groen. Lint, types, volledige unit-suite en productiebuild groen; onafhankelijke review en CI volgen. [Scope](docs/progress/2026-10-01-job-engagement-window.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
