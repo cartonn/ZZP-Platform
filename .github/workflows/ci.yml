@@ -26,8 +26,8 @@ jobs:
       AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
       STORAGE_DRIVER: "local"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -72,8 +72,8 @@ jobs:
       # die modus, dus expliciet aanzetten zodat e2e/ontwerp.spec.ts de ADMIN-toegang kan toetsen.
       DESIGN_LAB_ENABLED: "true"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -84,7 +84,7 @@ jobs:
       # Alle root- en QA-specs. Persona-sweeps blijven via playwright.config.ts bewust apart.
       - name: Volledige e2e-suite (shard ${{ matrix.shard }}/4)
         run: npx playwright test --project=ci --reporter=list --shard=${{ matrix.shard }}/4 --workers=1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: e2e-report-${{ matrix.shard }}
@@ -159,8 +159,8 @@ jobs:
       REGISTER_RATE_LIMIT: "100000"
       LIST_PAGE_SIZE: "5"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -199,7 +199,7 @@ jobs:
             e2e/admin.spec.ts \
             e2e/ideeen.spec.ts \
             e2e/paginatie.spec.ts
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: e2e-postgres-report
