@@ -1,3 +1,14 @@
+## 2 oktober — opdrachtgever /opdrachten-badge telt overdue-onbezette opdrachten
+
+Badge↔lijst-drift (DOEL 1b): `/acties` toonde een `jobStaffingOverdueTask` (verstreken
+startdatum, niemand vastgelegd) maar de `/opdrachten`-nav-badge telde alleen concepten +
+koude opdrachten; een overdue opdracht met ≥ 3 reacties kon nooit "koud" zijn en bleef
+badge-loos. `navBadges` raadpleegt nu dezelfde `getClientOverdueJobs` als de item-engine
+en ontdubbelt de koud-set tegen de overdue-set (één taak per opdracht, net als
+`pendingTaskCount`). Nieuwe regressietest (5 gevallen); lint/types/format groen, volledige
+suite en productiebuild via de gate; review en CI volgen.
+[Scope](docs/progress/2026-10-02-client-opdrachten-overdue-badge.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

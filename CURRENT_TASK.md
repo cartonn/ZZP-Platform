@@ -1,3 +1,10 @@
+## 2 oktober — opdrachtgever /opdrachten-badge telt overdue-onbezette opdrachten
+
+`/acties` toonde een verstreken-planning-taak zonder `/opdrachten`-badge zodra de opdracht
+niet óók koud was; `navBadges` telt nu dezelfde overdue-set als de item-engine, ontdubbeld
+tegen de koud-set. Nieuwe regressietest (5 gevallen); lint/types/format groen, suite + build
+via de gate. Review en CI volgen. [Scope](docs/progress/2026-10-02-client-opdrachten-overdue-badge.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
@@ -121,13 +128,6 @@ Echte paginarenders tonen voor zelfstandige en opdrachtgever een lege beoordelin
 wanneer een geverifieerde VOG pas tijdens de opdracht verloopt. Twee regressies rood,
 zes controles groen op main. Tekstcorrectie gebouwd; 12 rolrenders en 9.102 tests groen
 (3 skips), lint/types/format en netwerkbuild geslaagd. Reviews en CI volgen. [Scope](docs/progress/2026-09-27-placement-expiry-copy.md).
-
-## 24 september — opdrachtgever-certificaatvenster (#1520)
-
-Dashboard en actieloader delen de bestaande begrensde selectie; echte SQLite-paginaproef
-bewijst de verdwenen melding achter 200 inzetten zonder certificaateis. 36 gerichte
-tests slagen; volledige suite 9.090 groen (3 skips), lint/types/format en netwerkbuild groen.
-Onafhankelijke review, CI en release volgen.
 
 # CURRENT_TASK.md — Huidige taak
 
