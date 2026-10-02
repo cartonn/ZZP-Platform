@@ -13,6 +13,7 @@ import {
 } from "@/lib/ort";
 import { type OrtCategory } from "@/lib/config";
 import { hoursTimesRateCents } from "@/lib/administration/hourly-cents";
+import { formatEuro } from "@/lib/invoices";
 
 export interface OrtBreakdown {
   /** Uren tegen het basistarief (NORMAL-segmenten, of alle uren als er geen ORT-segmenten zijn). */
@@ -224,4 +225,23 @@ export function computePerformanceOrt(row: PerformanceOrtRow): PerformanceOrtCom
   });
 
   return { subtotalCents, hasOrt: hasOrtSegments, ortBreakdown };
+}
+
+/**
+ * Compacte ORT-badge voor de lijstoverzichten (/diensten, /prestaties): toont de
+ * onregelmatigheidstoeslag inline, zodat de ZZP'er in één oogopslag ziet hoeveel extra een dienst
+ * opleverde en de opdrachtgever de meerkosten ziet — zonder de prestatie te hoeven openen. De toeslag
+ * is server-side waarheid (gereconcilieerd tegen de bevroren factuur in `computePerformanceOrt` →
+ * `reconcileSubtotalWithInvoice`), dus de badge kan niet driften van het factuursubtotaal.
+ * Geeft `null` als er geen ORT is; "ORT" zonder bedrag als de toeslag (afgerond) nul, negatief of
+ * ongeldig is (defensief — dan tonen we het vlaggetje zonder misleidend bedrag).
+ */
+export function formatOrtSurchargeLabel(opts: {
+  hasOrt: boolean;
+  surchargeCents: number;
+}): string | null {
+  if (!opts.hasOrt) return null;
+  const { surchargeCents } = opts;
+  if (!Number.isFinite(surchargeCents) || surchargeCents <= 0) return "ORT";
+  return `ORT +${formatEuro(surchargeCents)}`;
 }

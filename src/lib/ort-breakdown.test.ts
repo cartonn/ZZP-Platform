@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { computeOrt, ortSubtotalCents, type OrtSegment } from "@/lib/ort";
+import { formatEuro } from "@/lib/invoices";
 import {
   type OrtBreakdown,
   computePerformanceOrt,
   safeComputeOrt,
   summarizeOrtBreakdown,
   reconcileSubtotalWithInvoice,
+  formatOrtSurchargeLabel,
   EMPTY_ORT_BREAKDOWN,
 } from "@/lib/ort-breakdown";
 
@@ -310,5 +312,42 @@ describe("safeComputeOrt — throw-veilige wrapper voor de read-/weergavepaden",
     ] as unknown as OrtSegment[];
     expect(() => computeOrt(corrupt, rateCents)).toThrow();
     expect(safeComputeOrt(corrupt, rateCents)).toBeNull();
+  });
+});
+
+describe("formatOrtSurchargeLabel — compacte ORT-badge voor de lijstoverzichten", () => {
+  it("geeft null als er geen ORT is (ongeacht het toeslagbedrag)", () => {
+    expect(formatOrtSurchargeLabel({ hasOrt: false, surchargeCents: 1250 })).toBeNull();
+    expect(formatOrtSurchargeLabel({ hasOrt: false, surchargeCents: 0 })).toBeNull();
+    expect(formatOrtSurchargeLabel({ hasOrt: false, surchargeCents: -100 })).toBeNull();
+  });
+
+  it("toont het geformatteerde toeslagbedrag bij een positieve toeslag", () => {
+    // formatEuro(1250) = "€ 12,50" → badge "ORT +€ 12,50" (gebruik formatEuro i.p.v. een
+    // hard-gecodeerde separator om locale-formaatfouten te vermijden).
+    expect(formatOrtSurchargeLabel({ hasOrt: true, surchargeCents: 1250 })).toBe(
+      `ORT +${formatEuro(1250)}`,
+    );
+  });
+
+  it("toont een groot toeslagbedrag met duizendtalscheiding", () => {
+    expect(formatOrtSurchargeLabel({ hasOrt: true, surchargeCents: 123456 })).toBe(
+      `ORT +${formatEuro(123456)}`,
+    );
+  });
+
+  it("geeft 'ORT' zonder bedrag bij een toeslag van nul (vlaggetje zonder misleidend bedrag)", () => {
+    expect(formatOrtSurchargeLabel({ hasOrt: true, surchargeCents: 0 })).toBe("ORT");
+  });
+
+  it("geeft 'ORT' zonder bedrag bij een negatieve toeslag", () => {
+    expect(formatOrtSurchargeLabel({ hasOrt: true, surchargeCents: -100 })).toBe("ORT");
+  });
+
+  it("geeft 'ORT' zonder bedrag bij een niet-eindige toeslag (defensief)", () => {
+    expect(formatOrtSurchargeLabel({ hasOrt: true, surchargeCents: Number.NaN })).toBe("ORT");
+    expect(
+      formatOrtSurchargeLabel({ hasOrt: true, surchargeCents: Number.POSITIVE_INFINITY }),
+    ).toBe("ORT");
   });
 });

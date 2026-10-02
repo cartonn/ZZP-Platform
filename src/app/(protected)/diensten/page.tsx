@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { getDienstenForFreelancer } from "@/lib/diensten";
 import { summarizeDiensten, hasDienstenSummary } from "@/lib/diensten-summary";
 import { formatEuro } from "@/lib/invoices";
+import { formatOrtSurchargeLabel } from "@/lib/ort-breakdown";
 import { formatDateRangeNl } from "@/lib/format-date";
 import {
   countPerformancesAwaitingAttention,
@@ -189,6 +190,13 @@ export default async function DienstenPage({
               variant: "muted" as const,
             };
             const wait = d.disputed ? null : summarizePerformanceWait(d);
+            const ortLabel =
+              d.type === "HOURS"
+                ? formatOrtSurchargeLabel({
+                    hasOrt: d.hasOrt,
+                    surchargeCents: d.ortBreakdown.surchargeCents,
+                  })
+                : null;
             return (
               <div key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
@@ -200,7 +208,7 @@ export default async function DienstenPage({
                     <span>{formatDateRangeNl(d.periodStart, d.periodEnd)}</span>
                     {d.type === "HOURS" && d.hours != null && (
                       <span>
-                        {d.hours.toLocaleString("nl-NL")} u{d.hasOrt && " · ORT"}
+                        {d.hours.toLocaleString("nl-NL")} u{ortLabel && ` · ${ortLabel}`}
                       </span>
                     )}
                     {d.subtotalCents != null && (
