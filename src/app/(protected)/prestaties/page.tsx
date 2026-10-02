@@ -9,6 +9,7 @@ import {
   summarizePendingApprovalValue,
 } from "@/lib/prestaties";
 import { formatEuro } from "@/lib/invoices";
+import { formatOrtSurchargeLabel } from "@/lib/ort-breakdown";
 import { formatDateShortNl, formatDateRangeNl } from "@/lib/format-date";
 import {
   PERFORMANCE_APPROVAL_STALE_DAYS,
@@ -262,6 +263,13 @@ export default async function PrestatiesPage({
               label: p.status,
               variant: "muted" as const,
             };
+            const ortLabel =
+              p.type === "HOURS"
+                ? formatOrtSurchargeLabel({
+                    hasOrt: p.hasOrt,
+                    surchargeCents: p.ortBreakdown.surchargeCents,
+                  })
+                : null;
             return (
               <div key={p.id} className="flex items-start justify-between gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
@@ -273,7 +281,7 @@ export default async function PrestatiesPage({
                     <span>{formatDateRangeNl(p.periodStart, p.periodEnd)}</span>
                     {p.type === "HOURS" && p.hours != null && (
                       <span>
-                        {p.hours.toLocaleString("nl-NL")} u{p.hasOrt && " · ORT"}
+                        {p.hours.toLocaleString("nl-NL")} u{ortLabel && ` · ${ortLabel}`}
                       </span>
                     )}
                     {p.type === "MILESTONE" && <span>Milestone</span>}

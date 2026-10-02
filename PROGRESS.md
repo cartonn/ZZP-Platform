@@ -1,3 +1,7 @@
+## 2 oktober — ORT-toeslagbedrag inline op de lijstoverzichten (#1550)
+
+`/diensten` (ZZP'er) en `/prestaties` (opdrachtgever) toonden een kaal `· ORT`-vlaggetje; het bedrag zat verstopt in de detailschermen. De nieuwe pure helper `formatOrtSurchargeLabel` toont de onregelmatigheidstoeslag nu inline (`· ORT +€ 12,50`), zodat de ZZP'er in één oogopslag de extra opbrengst en de opdrachtgever de meerkosten ziet. De toeslag komt uit het bestaande rij-model (gereconcilieerd tegen de bevroren factuur) — geen nieuwe query, geen drift. Acht nieuwe assertions, 28 ORT-breakdown-tests groen; typecheck groen. [Scope](docs/progress/2026-10-02-ort-surcharge-list-badge.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
