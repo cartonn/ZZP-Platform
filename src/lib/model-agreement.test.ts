@@ -137,4 +137,27 @@ describe("recommendModelAgreement", () => {
       MODEL_AGREEMENT_LABELS[result.type as keyof typeof MODEL_AGREEMENT_LABELS],
     );
   });
+
+  it("volgt de ingestelde duurdrempels (duur-gedreven aanbeveling)", () => {
+    const configured = {
+      durationSignalMonths: 3,
+      durationStrongSignalMonths: 9,
+      revenueConcentrationPct: 80,
+    };
+    const input: DbaInput = { ...baseInput, noSubstitution: true, durationMonths: 5 };
+    // Standaard 6/12: 5 maanden telt niet mee → score 2 (MIDDEN), al aanbevolen.
+    // Ingesteld 3/9: 5 maanden telt +1 → score 3 (nog steeds aanbevolen), maar de
+    // onderliggende duur-reden verschuift. We toetsen hier dat de drempels dóórwerken:
+    // zonder indicator is 5 maanden bij 3/9 wél MIDDEN en dus aanbevolen, bij 6/12 niet.
+    const durationOnly: DbaInput = { ...baseInput, durationMonths: 5 };
+    expect(recommendModelAgreement(durationOnly).recommended).toBe(false); // standaard: < 6
+    expect(recommendModelAgreement(durationOnly, configured).recommended).toBe(false); // +1 = score 1 → LAAG
+
+    // Een duur net boven de ingestelde sterke grens tilt de score naar MIDDEN.
+    const longDuration: DbaInput = { ...baseInput, durationMonths: 10 };
+    expect(recommendModelAgreement(longDuration).recommended).toBe(false); // standaard 6/12: +1 → score 1
+    expect(recommendModelAgreement(longDuration, configured).recommended).toBe(true); // 3/9: +2 → score 2 (MIDDEN)
+    // input blijft gebruikt voor de algemene doorwerking van de drempelparameter.
+    expect(recommendModelAgreement(input, configured).recommended).toBe(true);
+  });
 });

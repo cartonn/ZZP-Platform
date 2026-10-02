@@ -6,6 +6,15 @@
 //  - directe aansturing (gezagsverhouding) en structurele inbedding zijn kernindicatoren;
 //  - geen vrije vervanging en vaste uren wijzen op een dienstverband;
 //  - exclusiviteit en lange duur verminderen het ondernemerschap.
+//
+// De duurgrenzen zijn configureerbaar: de beheerder stelt ze in (platformConfig →
+// getDbaThresholds) en de live-samenwerkingspijplijn volgt ze al. Deze opdracht-scorer
+// accepteert dezelfde drempels zodat het opgeslagen `job.dbaRisk`-snapshot niet op vaste
+// 6/12-maandsgrenzen blijft hangen. Zonder meegegeven drempels valt hij terug op de
+// statische standaarden uit config.ts (volledig backward-compatible).
+
+import { DBA_THRESHOLDS } from "@/lib/config";
+import { type DbaThresholds } from "@/lib/platform-config";
 
 export const DBA_RISK_LEVELS = ["LAAG", "MIDDEN", "HOOG"] as const;
 export type DbaRisk = (typeof DBA_RISK_LEVELS)[number];
@@ -50,8 +59,13 @@ const MESSAGES: Record<keyof typeof WEIGHTS, string> = {
   exclusive: "Exclusief voor één opdrachtgever vermindert het ondernemersrisico.",
 };
 
-/** Deterministische DBA-risico-inschatting met uitleg per getriggerde indicator. */
-export function assessDbaRisk(input: DbaInput): DbaResult {
+/**
+ * Deterministische DBA-risico-inschatting met uitleg per getriggerde indicator.
+ * Optionele `thresholds` overschrijven de statische duurgrenzen uit config.ts, zodat het
+ * oordeel dezelfde ingestelde drempels volgt als de live-samenwerkingspijplijn.
+ */
+export function assessDbaRisk(input: DbaInput, thresholds?: DbaThresholds): DbaResult {
+  const t = thresholds ?? DBA_THRESHOLDS;
   const reasons: DbaReason[] = [];
   let score = 0;
 
@@ -63,18 +77,17 @@ export function assessDbaRisk(input: DbaInput): DbaResult {
   }
 
   const months = input.durationMonths ?? 0;
-  if (months > 12) {
+  if (months > t.durationStrongSignalMonths) {
     score += 2;
     reasons.push({
       factor: "duration",
-      message:
-        "Langer dan 12 maanden: langdurige inzet verhoogt het risico op schijnzelfstandigheid.",
+      message: `Langer dan ${t.durationStrongSignalMonths} maanden: langdurige inzet verhoogt het risico op schijnzelfstandigheid.`,
     });
-  } else if (months > 6) {
+  } else if (months > t.durationSignalMonths) {
     score += 1;
     reasons.push({
       factor: "duration",
-      message: "Duur van 6-12 maanden: houd de continuïteit in de gaten.",
+      message: `Duur van ${t.durationSignalMonths}-${t.durationStrongSignalMonths} maanden: houd de continuïteit in de gaten.`,
     });
   }
 
@@ -116,8 +129,11 @@ export interface DbaMitigationPlan {
  * `null` als er niets te verlagen valt (al LAAG) of als de indicatoren de vereiste verlaging niet
  * dekken (duur-gedreven risico).
  */
-export function dbaMitigations(input: DbaInput): DbaMitigationPlan | null {
-  const { level, score } = assessDbaRisk(input);
+export function dbaMitigations(
+  input: DbaInput,
+  thresholds?: DbaThresholds,
+): DbaMitigationPlan | null {
+  const { level, score } = assessDbaRisk(input, thresholds);
   let targetLevel: DbaRisk;
   let targetMaxScore: number;
   if (level === "HOOG") {

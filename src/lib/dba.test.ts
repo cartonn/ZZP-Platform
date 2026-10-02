@@ -158,6 +158,54 @@ describe("dbaMitigations", () => {
   });
 });
 
+// De duurgrenzen zijn configureerbaar (beheerder → getDbaThresholds). De opdracht-scorer moet
+// die ingestelde drempels volgen in plaats van de vaste 6/12-maandsgrenzen. De loader klemt
+// durationSignalMonths ≤ durationStrongSignalMonths, dus daar blijven we binnen.
+describe("assessDbaRisk met ingestelde drempels", () => {
+  const configured = {
+    durationSignalMonths: 3,
+    durationStrongSignalMonths: 9,
+    revenueConcentrationPct: 80,
+  };
+
+  it("gebruikt de ingestelde grenzen voor de duur-score", () => {
+    expect(assessDbaRisk({ ...base, durationMonths: 10 }, configured).score).toBe(2); // > 9
+    expect(assessDbaRisk({ ...base, durationMonths: 5 }, configured).score).toBe(1); // > 3, ≤ 9
+    expect(assessDbaRisk({ ...base, durationMonths: 2 }, configured).score).toBe(0); // ≤ 3
+  });
+
+  it("wijkt aantoonbaar af van de vaste standaardgrenzen", () => {
+    // 10 maanden: standaard 6/12 → +1 (VERHOOGD-duur), ingesteld 3/9 → +2 (sterk).
+    expect(assessDbaRisk({ ...base, durationMonths: 10 }).score).toBe(1);
+    expect(assessDbaRisk({ ...base, durationMonths: 10 }, configured).score).toBe(2);
+    // 5 maanden: standaard → 0, ingesteld → +1.
+    expect(assessDbaRisk({ ...base, durationMonths: 5 }).score).toBe(0);
+    expect(assessDbaRisk({ ...base, durationMonths: 5 }, configured).score).toBe(1);
+  });
+
+  it("noemt de ingestelde grens in de uitleg", () => {
+    const strong = assessDbaRisk({ ...base, durationMonths: 10 }, configured);
+    expect(strong.reasons.find((r) => r.factor === "duration")?.message).toContain("9 maanden");
+    const mild = assessDbaRisk({ ...base, durationMonths: 5 }, configured);
+    expect(mild.reasons.find((r) => r.factor === "duration")?.message).toContain("3-9 maanden");
+  });
+
+  it("standaard (geen drempels) blijft 6/12", () => {
+    expect(assessDbaRisk({ ...base, durationMonths: 13 }).score).toBe(2);
+    expect(assessDbaRisk({ ...base, durationMonths: 8 }).score).toBe(1);
+    expect(assessDbaRisk({ ...base, durationMonths: 6 }).score).toBe(0); // niet > 6
+  });
+
+  it("dbaMitigations reikt de drempels door (duur-gedreven blijft null)", () => {
+    // 10 maanden bij 3/9 → +2 (MIDDEN) zonder actieve hefboom → geen plan.
+    expect(dbaMitigations({ ...base, durationMonths: 10 }, configured)).toBeNull();
+    // Met één hefboom erbij is er wél een plan dat naar LAAG brengt.
+    const input = { ...base, noSubstitution: true, durationMonths: 2 };
+    const plan = dbaMitigations(input, configured);
+    expect(plan?.targetLevel).toBe("LAAG");
+  });
+});
+
 describe("dbaAdvice", () => {
   it("geeft per niveau een passende tekst", () => {
     expect(dbaAdvice("HOOG")).toMatch(/modelovereenkomst|Herzie/);
