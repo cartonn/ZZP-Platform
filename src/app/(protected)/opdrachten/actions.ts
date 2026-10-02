@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { canApply } from "@/lib/applications";
 import { createApplicationForJob } from "@/lib/applications-create";
 import { assessDbaRisk } from "@/lib/dba";
+import { getDbaThresholds } from "@/lib/platform-config";
 import { assertJobTransition, canPublish, JobTransitionError } from "@/lib/jobs";
 import { planPoolInvites, type PoolMember } from "@/lib/pool-routing";
 import { OPEN_APPLICATION_STATUSES, planClosureNotifications } from "@/lib/job-closure";
@@ -139,15 +140,20 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
 
   const jobId = (formData.get("jobId") as string) || null;
   // Wet DBA: server-berekende (gezaghebbende) risico-snapshot — niet de client vertrouwen.
-  const dba = assessDbaRisk({
-    directSupervision: data.dbaDirectSupervision,
-    embedded: data.dbaEmbedded,
-    fixedSchedule: data.dbaFixedSchedule,
-    noSubstitution: data.dbaNoSubstitution,
-    exclusive: data.dbaExclusive,
-    weakEntrepreneurship: data.dbaWeakEntrepreneurship,
-    durationMonths: data.dbaDurationMonths ?? null,
-  });
+  // De ingestelde beheerdersdrempels sturen het oordeel, gelijk aan de live-samenwerkingspijplijn.
+  const dbaThresholds = await getDbaThresholds();
+  const dba = assessDbaRisk(
+    {
+      directSupervision: data.dbaDirectSupervision,
+      embedded: data.dbaEmbedded,
+      fixedSchedule: data.dbaFixedSchedule,
+      noSubstitution: data.dbaNoSubstitution,
+      exclusive: data.dbaExclusive,
+      weakEntrepreneurship: data.dbaWeakEntrepreneurship,
+      durationMonths: data.dbaDurationMonths ?? null,
+    },
+    dbaThresholds,
+  );
 
   const fields = {
     title: data.title,

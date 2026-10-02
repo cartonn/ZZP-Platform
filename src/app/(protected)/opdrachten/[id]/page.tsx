@@ -93,6 +93,7 @@ import {
   MODEL_AGREEMENT_LABELS,
   type ModelAgreementType,
 } from "@/lib/model-agreement";
+import { getDbaThresholds } from "@/lib/platform-config";
 import {
   createApplication,
   inviteFreelancerToJob,
@@ -191,6 +192,10 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   const optionalSkills = job.skills.filter((s) => !s.required);
   const requiredCreds = job.credentialRequirements.filter((c) => c.required);
   const optionalCreds = job.credentialRequirements.filter((c) => !c.required);
+
+  // Ingestelde DBA-drempels sturen de mitigatie-/modelovereenkomst-herberekening zodat het
+  // detail consistent is met het opgeslagen `job.dbaRisk`. Alleen de eigenaar ziet dit blok.
+  const dbaThresholds = isOwner ? await getDbaThresholds() : undefined;
 
   // Bestaande reactie van de huidige ZZP'er (voor de reageer-sectie), plus — als hij nog
   // niet reageerde — een persoonlijke aansluiting (match + welke eisen hij al haalt).
@@ -814,26 +819,32 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             </ul>
           )}
           <DbaMitigationCard
-            plan={dbaMitigations({
-              directSupervision: job.dbaDirectSupervision,
-              embedded: job.dbaEmbedded,
-              fixedSchedule: job.dbaFixedSchedule,
-              noSubstitution: job.dbaNoSubstitution,
-              exclusive: job.dbaExclusive,
-              weakEntrepreneurship: job.dbaWeakEntrepreneurship,
-              durationMonths: job.dbaDurationMonths,
-            })}
+            plan={dbaMitigations(
+              {
+                directSupervision: job.dbaDirectSupervision,
+                embedded: job.dbaEmbedded,
+                fixedSchedule: job.dbaFixedSchedule,
+                noSubstitution: job.dbaNoSubstitution,
+                exclusive: job.dbaExclusive,
+                weakEntrepreneurship: job.dbaWeakEntrepreneurship,
+                durationMonths: job.dbaDurationMonths,
+              },
+              dbaThresholds,
+            )}
           />
           {(() => {
-            const modelRec = recommendModelAgreement({
-              directSupervision: job.dbaDirectSupervision,
-              embedded: job.dbaEmbedded,
-              fixedSchedule: job.dbaFixedSchedule,
-              noSubstitution: job.dbaNoSubstitution,
-              exclusive: job.dbaExclusive,
-              weakEntrepreneurship: job.dbaWeakEntrepreneurship,
-              durationMonths: job.dbaDurationMonths,
-            });
+            const modelRec = recommendModelAgreement(
+              {
+                directSupervision: job.dbaDirectSupervision,
+                embedded: job.dbaEmbedded,
+                fixedSchedule: job.dbaFixedSchedule,
+                noSubstitution: job.dbaNoSubstitution,
+                exclusive: job.dbaExclusive,
+                weakEntrepreneurship: job.dbaWeakEntrepreneurship,
+                durationMonths: job.dbaDurationMonths,
+              },
+              dbaThresholds,
+            );
             return (
               <>
                 {modelRec.recommended && (

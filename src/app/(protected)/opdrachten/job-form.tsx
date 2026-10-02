@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { DbaMitigationCard } from "@/components/dba/dba-mitigation-plan";
 import { assessDbaRisk, dbaAdvice, dbaMitigations } from "@/lib/dba";
+import { type DbaThresholds } from "@/lib/platform-config";
 import {
   recommendModelAgreement,
   MODEL_AGREEMENT_LABELS,
@@ -112,6 +113,7 @@ export function JobForm({
   industries,
   rateBands,
   platformRateBand,
+  dbaThresholds,
 }: {
   initial: JobFormInitial;
   skills: { id: string; name: string }[];
@@ -120,6 +122,11 @@ export function JobForm({
   rateBands: Record<string, MarketBand>;
   /** Platformbrede band als terugval wanneer geen branche is gekozen. */
   platformRateBand: MarketBand;
+  /**
+   * Ingestelde DBA-duurdrempels zodat de live preview dezelfde grenzen gebruikt als de server
+   * die `job.dbaRisk` vastlegt. Terugval op de statische standaarden als niet meegegeven.
+   */
+  dbaThresholds?: DbaThresholds;
 }) {
   const [state, formAction, isPending] = useActionState<JobFormState, FormData>(saveJob, undefined);
   const fe = state?.fieldErrors ?? {};
@@ -270,9 +277,9 @@ export function JobForm({
     weakEntrepreneurship: dba.dbaWeakEntrepreneurship,
     durationMonths: dba.dbaDurationMonths ? Number(dba.dbaDurationMonths) : null,
   };
-  const dbaResult = assessDbaRisk(dbaInput);
-  const dbaMitigation = dbaMitigations(dbaInput);
-  const modelRec = recommendModelAgreement(dbaInput);
+  const dbaResult = assessDbaRisk(dbaInput, dbaThresholds);
+  const dbaMitigation = dbaMitigations(dbaInput, dbaThresholds);
+  const modelRec = recommendModelAgreement(dbaInput, dbaThresholds);
 
   return (
     <form

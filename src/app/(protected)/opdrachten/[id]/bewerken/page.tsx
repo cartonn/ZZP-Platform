@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { owns, requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { getJobRateBands } from "@/lib/data/job-rate-bands";
+import { getDbaThresholds } from "@/lib/platform-config";
 import { JobForm } from "../../job-form";
 
 export const metadata: Metadata = { title: "Opdracht bewerken · Handslag" };
@@ -34,6 +35,7 @@ export default async function OpdrachtBewerkenPage({
     prisma.industry.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
   const rateBands = await getJobRateBands(industries.map((i) => i.id));
+  const dbaThresholds = await getDbaThresholds();
 
   return (
     <div className="space-y-6">
@@ -80,6 +82,7 @@ export default async function OpdrachtBewerkenPage({
         industries={industries}
         rateBands={rateBands.byIndustry}
         platformRateBand={rateBands.platform}
+        dbaThresholds={dbaThresholds}
       />
     </div>
   );

@@ -3,6 +3,7 @@
 // Geen juridisch advies — uitsluitend een hulpmiddel om de juiste overeenkomst te kiezen.
 
 import { assessDbaRisk, type DbaInput } from "./dba";
+import { type DbaThresholds } from "./platform-config";
 
 export const MODEL_AGREEMENT_TYPES = [
   "GEEN_WERKGEVERSGEZAG",
@@ -33,9 +34,15 @@ export interface ModelAgreementRecommendation {
 const NOTE =
   "Een modelovereenkomst beschermt alleen als er in de praktijk ook conform wordt gewerkt — stem de werkwijze af op de gekozen overeenkomst.";
 
-/** Deterministische aanbeveling van de best passende modelovereenkomst. */
-export function recommendModelAgreement(input: DbaInput): ModelAgreementRecommendation {
-  const risk = assessDbaRisk(input);
+/**
+ * Deterministische aanbeveling van de best passende modelovereenkomst.
+ * Optionele `thresholds` sturen de onderliggende DBA-inschatting (ingestelde duurgrenzen).
+ */
+export function recommendModelAgreement(
+  input: DbaInput,
+  thresholds?: DbaThresholds,
+): ModelAgreementRecommendation {
+  const risk = assessDbaRisk(input, thresholds);
   const recommended = risk.level !== "LAAG";
 
   if (!recommended) {

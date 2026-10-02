@@ -1,3 +1,7 @@
+## 2 oktober — opdracht-DBA-risico volgt ingestelde drempels (#1547)
+
+Laatste oppervlak dat nog vaste 6/12-maandsgrenzen gebruikte: de opdracht-vragenlijst-scorer (`assessDbaRisk`). Score gaat als `job.dbaRisk`-snapshot naar opdrachtdetail, compliance-blok en dossier, dus een beheerder die de drempels bijstelde zag daar de oude grenzen. `assessDbaRisk`/`dbaMitigations`/`recommendModelAgreement` accepteren nu optionele drempels (standaard = statische defaults, backward-compatible); de opslag-actie, het detail en de formulierpreview voeden `getDbaThresholds()`. Gerichte tests uitgebreid (33 groen incl. aantoonbaar verschil t.o.v. de standaard); typecheck/lint groen; volledige suite + build en format volgen vóór de poort. Collaboration-modelovereenkomst-aanbeveling houdt bewust de veilige standaard (follow-up). [Scope](docs/progress/2026-10-02-opdracht-dba-thresholds.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
