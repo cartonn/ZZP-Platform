@@ -1,3 +1,7 @@
+## 2 oktober — voordracht server-side weigeren bij reeds gereageerde ZZP'er (#1549)
+
+Server-poort in `proposeFreelancer`: een niet-ingetrokken `Application` voor `(jobId, freelancerId)` weigert de voordracht zonder misleidende "reageer nu"-notificatie (de UI verborg de knop al; server is nu de waarheid). [Scope](docs/progress/2026-10-02-propose-already-applied.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

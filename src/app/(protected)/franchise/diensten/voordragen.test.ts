@@ -15,6 +15,7 @@ const store = {
   job: null as Record<string, unknown> | null,
   freelancer: null as Record<string, unknown> | null,
   existingProposal: null as Record<string, unknown> | null,
+  existingApplication: null as Record<string, unknown> | null,
   notifications: [] as Array<Record<string, unknown>>,
 };
 
@@ -30,6 +31,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     job: { findUnique: vi.fn(async () => store.job) },
     freelancerProfile: { findFirst: vi.fn(async () => store.freelancer) },
+    application: { findFirst: vi.fn(async () => store.existingApplication) },
     auditLog: { findFirst: vi.fn(async () => store.existingProposal) },
     notification: {
       create: vi.fn(async (args: { data: Record<string, unknown> }) => {
@@ -79,6 +81,7 @@ beforeEach(() => {
   store.job = publishedJob();
   store.freelancer = engageableFreelancer();
   store.existingProposal = null;
+  store.existingApplication = null;
   store.notifications = [];
   auditMock.mockClear();
 });
@@ -115,6 +118,16 @@ describe("proposeFreelancer", () => {
     const res = await proposeFreelancer(undefined, form("job-1", "prof-1"));
     expect(res && "error" in res).toBe(true);
     expect((res as { error: string }).error).toMatch(/Nog niet inzetbaar/);
+    expect(auditMock).not.toHaveBeenCalled();
+    expect(store.notifications).toHaveLength(0);
+  });
+
+  it("weigert server-side wanneer de ZZP'er zelf al heeft gereageerd (geen misleidende notificatie)", async () => {
+    // De UI verbergt de knop al bij hasApplied; dit bewijst dat de server dezelfde beslissing
+    // afdwingt, zodat een geknutselde/verouderde POST geen "reageer nu"-notificatie kan plaatsen.
+    store.existingApplication = { id: "app-1" };
+    const res = await proposeFreelancer(undefined, form("job-1", "prof-1"));
+    expect(res).toEqual({ error: "Deze ZZP'er heeft zelf al gereageerd op deze dienst." });
     expect(auditMock).not.toHaveBeenCalled();
     expect(store.notifications).toHaveLength(0);
   });
