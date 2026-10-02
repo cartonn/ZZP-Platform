@@ -512,23 +512,28 @@ model FreelancerIndustry {
 // ---------------------------------------------------------------------------
 
 model Job {
-  id           String    @id @default(cuid())
-  companyId    String
-  title        String
-  description  String
-  status       String    @default("DRAFT") // JobStatus: DRAFT | PUBLISHED | CLOSED
-  industryId   String?
-  rateMin      Int?
-  rateMax      Int?
-  location     String?
-  workMode     String    @default("HYBRID") // WorkMode
-  startDate    DateTime?
-  tenantId     String? //                     gedenormaliseerd uit Company.tenantId; null = platform-opdracht
-  departmentId String? //                    afdeling van de opdrachtgever waarvoor de dienst wordt uitgezet
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  publishedAt  DateTime?
-  alertedAt    DateTime? // wanneer job-alerts voor dit job zijn verzonden (dedup-anker)
+  id                 String    @id @default(cuid())
+  companyId          String
+  title              String
+  description        String
+  status             String    @default("DRAFT") // JobStatus: DRAFT | PUBLISHED | CLOSED
+  industryId         String?
+  rateMin            Int?
+  rateMax            Int?
+  location           String?
+  workMode           String    @default("HYBRID") // WorkMode
+  startDate          DateTime?
+  tenantId           String? //                     gedenormaliseerd uit Company.tenantId; null = platform-opdracht
+  departmentId       String? //                    afdeling van de opdrachtgever waarvoor de dienst wordt uitgezet
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  publishedAt        DateTime?
+  alertedAt          DateTime? // wanneer job-alerts voor dit job zijn verzonden (dedup-anker)
+  // Moderatie-sluiting: gezet door adminCloseJob wanneer een beheerder een opdracht sluit (bv. wegens
+  // ongepaste inhoud). Een opdracht met deze markering kan de eigenaar NIET zelf heropenen of bewerken —
+  // alleen een beheerder. Onderscheidt een moderatie-sluiting van een gewone eigenaar-sluiting (die wél
+  // heropenbaar blijft). null = geen moderatie-sluiting.
+  moderationClosedAt DateTime?
 
   // Wet DBA-check (schijnzelfstandigheid) — invoer + server-berekende snapshot.
   dbaDirectSupervision    Boolean @default(false)

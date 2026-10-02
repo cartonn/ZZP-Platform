@@ -1,3 +1,59 @@
+## Ronde 2 oktober 2026 — moderatie-sluiting omzeilbaar door eigenaar (main `0b73d06b`)
+
+Volledige security-/privacy-auditronde (4 parallelle audits: server-actions/IDOR,
+cross-tenant/admin, API-routes/webhooks, AVG/privacy). De kern is gehard; geen nieuw
+bereikbaar KRITIEK/HOOG gevonden. **Eén MIDDEL opgelost; overige LAAG-items geparkeerd.**
+
+**MIDDEL — OPGELOST — moderatie-bypass (OWASP A01, CLAUDE.md regel 1/3).** `adminCloseJob`
+(`src/app/(protected)/admin/opdrachten/actions.ts`) sloot een opdracht wegens ongepaste inhoud,
+maar liet geen onderscheid achter met een gewone eigenaar-sluiting. Omdat `JOB_TRANSITIONS.CLOSED =
+["PUBLISHED"]` en `changeJobStatus` alleen eigenaarschap toetste, kon de opdrachtgever de door een
+beheerder gesloten opdracht simpelweg `CLOSED→PUBLISHED` terugzetten (of eerst via `saveJob`
+bewerken) en zo de moderatie ongedaan maken — de opdracht werd weer publiek zichtbaar en accepteerde
+reacties. Repro: admin `adminCloseJob(jobId)` → eigenaar `changeJobStatus(jobId, "PUBLISHED")` →
+opdracht weer live.
+Fix: nieuw veld `Job.moderationClosedAt` (migratie `202610020230_job_moderation_close`), gezet door
+`adminCloseJob`. `changeJobStatus` én `saveJob` weigeren elke eigenaar-mutatie zolang de markering
+staat; alleen een beheerder kan de sluiting opheffen. Een eigen eigenaar-sluiting (geen markering)
+blijft heropenbaar. Red→groen bewezen met een echte-SQLite-integratietest
+(`src/app/(protected)/opdrachten/moderation-close.test.ts`): 3 tests rood zonder de fix, 4 groen erna.
+
+**Geparkeerd (LAAG, met repro):**
+
+- **LAAG — ontbrekende `Cache-Control: private, no-store` op financiële exports** (CWE-524, OWASP
+  A05). `src/app/api/admin/export/invoices/route.ts`, `src/app/api/administratie/export/route.ts` en
+  `.../uitgaven/route.ts` streamen tegenpartij-namen + bedragen zonder cache-header, terwijl de
+  zuster `src/app/api/account/export/route.ts` wél `private, no-store` zet. Fix: dezelfde header
+  (of hergebruik `privateFileHeaders`). Exploit vereist een gedeelde/tussenliggende cache.
+- **LAAG — zelf-verificatie slaat de verval-poort over** (OWASP A04, CLAUDE.md regel 1).
+  `applyExternalVerification` (`src/app/(protected)/certificaten/actions.ts`, ~regel 534) zet een
+  credential op VERIFIED zonder `expiresAt`-conditie, terwijl het admin-pad
+  (`admin/verificaties/actions.ts`) `OR [{expiresAt:null},{expiresAt:{gt:now}}]` heeft. Een reeds
+  verlopen bewijsstuk telt zo even als VERIFIED tot de volgende verval-sweep. Fix: dezelfde
+  `expiresAt`-guard toevoegen.
+- **LAAG — CLIENT opent gesprek vanuit niet-actieve reactie** (OWASP A01).
+  `startConversationForApplication` (`src/app/(protected)/berichten/actions.ts`) toetst alleen
+  bedrijfseigenaarschap, niet de reactie-status of `user.status`; een ingetrokken/afgewezen reactie
+  kan zo alsnog een gesprek + notificatie opleveren. Fix: WITHDRAWN-reacties en niet-ACTIVE
+  gebruikers weigeren (spiegelt `startConversationWithFreelancer`).
+- **LAAG — `requestAccountDeletion` zonder "al aangevraagd"-check/limiter** (CWE-770). Elke call
+  schrijft een notificatie per admin. Fix: vroeg terugkeren als `deletionRequestedAt` al staat.
+- **LAAG — audit-schrijf buiten de mutatie-transactie** op diverse acties (o.a.
+  `documenten/actions.ts deleteDocument`, `certificaten/actions.ts` visibility/sharing/delete,
+  `facturen/actions.ts createInvoice`). Een transiënte DB-fout tussen mutatie en audit laat een
+  ongeaudite wijziging achter. Fix: audit mee in dezelfde `$transaction` (zoals `sendInvoice`).
+- **LAAG — `setUserStatus` controleert `anonymizedAt` niet**
+  (`src/app/(protected)/admin/gebruikers/actions.ts`): een geanonimiseerd account kan op ACTIVE
+  worden gezet (niet exploiteerbaar — `loadValidatedActor` weigert het en de hash is leeg), maar
+  hygiëne. Fix: `anonymizedAt`-guard. Ook `createFranchiseDienst` zou een `hasTenant(actor)`-guard
+  mogen hebben (ADMIN zou anders `tenantId=null` zetten; vandaag niet bereikbaar).
+- **LAAG — `/api/push/subscribe` zonder rate-limit** (CWE-770): onbegrensde `PushSubscription`-/
+  audit-groei per gebruiker. Fix: per-actor `enforceRateLimit`.
+
+Dev-only `npm audit`: 8 bevindingen, allemaal devDependencies (productie: 0 kwetsbaarheden). Next
+15.5.24 zit voorbij CVE-2025-29927 (middleware-bypass). Geen escalatie nodig buiten de bestaande
+MENSENWERK §5 pre-launch-review (productie-secrets in Railway).
+
 ## 23 september 2026 — lopende upload na erasure (MIDDEL, #1516)
 
 De eerdere document/erasure-raceclaim hieronder dekt geen reeds geautoriseerde

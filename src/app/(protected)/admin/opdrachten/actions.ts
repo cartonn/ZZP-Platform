@@ -27,7 +27,11 @@ export async function adminCloseJob(jobId: string): Promise<void> {
     // (count 0) → geen dubbele JOB_CLOSED_BY_ADMIN-auditregel (spiegelt admin/no-shows/actions.ts).
     const res = await tx.job.updateMany({
       where: { id: jobId, status: from },
-      data: { status: "CLOSED" },
+      // `moderationClosedAt` markeert dit als een MODERATIE-sluiting: de eigenaar kan de opdracht
+      // hierna niet zelf heropenen (changeJobStatus) of bewerken (saveJob) — alleen een beheerder.
+      // Zonder deze markering kon de opdrachtgever een wegens ongepaste inhoud gesloten opdracht
+      // simpelweg CLOSED→PUBLISHED terugzetten en zo de moderatie ongedaan maken (OWASP A01).
+      data: { status: "CLOSED", moderationClosedAt: new Date() },
     });
     if (res.count === 0) return;
     await tx.auditLog.create({
