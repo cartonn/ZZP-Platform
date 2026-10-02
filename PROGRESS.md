@@ -1,3 +1,7 @@
+## 2 oktober — voordracht server-side weigeren wanneer de ZZP'er al heeft gereageerd (#1549)
+
+`proposeFreelancer` (franchise) dwong rol, tenant-ownership en inzetbaarheid server-side af, maar liet de "al gereageerd"-beslissing alleen in de client (de voordraag-UI verbergt de knop bij `hasApplied`). Een geknutselde of verouderde POST kon zo alsnog een voordracht + een misleidende "reageer nu"-notificatie plaatsen naar een ZZP'er die zelf al had gereageerd of al geplaatst was. Nu een server-poort (CLAUDE §architectuur 1): een niet-ingetrokken `Application` voor `(jobId, freelancerId)` weigert de voordracht met een informatieve melding zonder audit/notificatie — exact dezelfde semantiek als `appliedIds` in `dienst-voordracht.ts`. Geen UI-wijziging nodig. 7 gerichte en 9.245 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-10-02-propose-already-applied.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

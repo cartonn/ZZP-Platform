@@ -113,6 +113,20 @@ export async function proposeFreelancer(
   });
   if (!freelancer) return { error: "ZZP'er niet in je roster." };
 
+  // Server-side waarheid (CLAUDE §architectuur 1): de UI verbergt de voordraag-actie al zodra de
+  // ZZP'er zelf heeft gereageerd ("Heeft al gereageerd"), maar die beslissing mag niet uitsluitend
+  // in de client leven. Zonder deze poort zou een geknutselde of verouderde POST alsnog een
+  // voordracht + een misleidende "reageer nu"-notificatie plaatsen naar iemand die al heeft
+  // gereageerd of al geplaatst is (een reactie leidt tot een Collaboration). Zelfde semantiek als
+  // `appliedIds` in `dienst-voordracht.ts`: een niet-ingetrokken reactie telt.
+  const existingApplication = await prisma.application.findFirst({
+    where: { jobId, freelancerId, status: { not: "WITHDRAWN" } },
+    select: { id: true },
+  });
+  if (existingApplication) {
+    return { error: "Deze ZZP'er heeft zelf al gereageerd op deze dienst." };
+  }
+
   // Inzetbaarheid server-side afdwingen: een niet-inzetbare ZZP'er kan niet worden voorgedragen.
   const eng = candidateEngageability(freelancer);
   if (eng.status === "INACTIEF") {
