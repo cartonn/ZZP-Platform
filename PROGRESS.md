@@ -1,3 +1,15 @@
+## 2 oktober — opdrachtgever ziet openstaande vorige-cyclus-factuurgoedkeuring (#1551)
+
+Op een multi-cyclus ACTIVE-samenwerking (vorige factuur SUBMITTED, verse cyclus-2-uren al
+ingediend) nulde `performanceNewerThanInvoice` de factuur uit de huidige fase. De ZZP'er had een
+rescue (`priorCycleFreelancerPhase`); de opdrachtgever niet, dus status-line (`cascadeStage`) én
+stepper (`buildChainSteps`) vielen terug op een passieve wacht-fase en verborgen de nog te keuren
+factuur — terwijl het actiecentrum en de nav-badge die goedkeuring wél tonen/tellen. Nieuw:
+`priorCycleClientPhase` (SUBMITTED → aan zet, anders `null`) + rolneutrale stepper die een
+openstaande SUBMITTED-vorige-factuur als "Ter goedkeuring" toont; alleen afgewikkelde facturen
+blijven genuld. Zeven nieuwe regressies rood vóór herstel; 83 cascade-tests en de volledige suite
+groen; typecheck/lint/format en productiebuild groen. Onafhankelijke review en CI volgen.
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

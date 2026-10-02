@@ -441,6 +441,95 @@ describe("cascadeStage — keten + viewer-perspectief", () => {
     });
   });
 
+  // Spiegel van de ZZP-rescue: op een multi-cyclus ACTIVE-samenwerking blijft de opdrachtgever aan
+  // zet voor een nog goed te keuren vorige-cyclus-factuur (SUBMITTED), ook al is er al een verse
+  // cyclus-2-prestatie. Zonder deze rescue verborg de passieve "wacht op de ZZP'er"-fase die
+  // goedkeuring terwijl het actiecentrum/badge haar wél toont — zichzelf tegensprekend scherm.
+  describe("cascadeStage — multi-cyclus openstaande vorige-cyclus-factuur (opdrachtgever)", () => {
+    it("SUBMITTED-factuur + nieuwere DRAFT-prestatie: opdrachtgever keurt de vorige factuur (aan zet)", () => {
+      const cl = cascadeStage(
+        base({
+          viewer: "CLIENT",
+          latestPerformanceStatus: "DRAFT",
+          latestInvoiceStatus: "SUBMITTED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(cl.id).toBe("invoice-approve");
+      expect(cl.youAreUp).toBe(true);
+      expect(cl.tone).toBe("attention");
+      expect(cl.label).toBe("Keur de ingediende factuur");
+    });
+
+    it("SUBMITTED-factuur + geen verse prestatie (null): opdrachtgever blijft aan zet", () => {
+      const cl = cascadeStage(
+        base({
+          viewer: "CLIENT",
+          latestPerformanceStatus: null,
+          latestInvoiceStatus: "SUBMITTED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(cl.id).toBe("invoice-approve");
+      expect(cl.youAreUp).toBe(true);
+    });
+
+    it("SUBMITTED-factuur + nieuwere APPROVED-prestatie: factuurgoedkeuring (verder in de keten) wint", () => {
+      const cl = cascadeStage(
+        base({
+          viewer: "CLIENT",
+          latestPerformanceStatus: "APPROVED",
+          latestInvoiceStatus: "SUBMITTED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(cl.id).toBe("invoice-approve");
+      expect(cl.youAreUp).toBe(true);
+    });
+
+    it("ZZP'er krijgt bij dezelfde SUBMITTED-staat geen valse actie (rescue is rolgescheiden)", () => {
+      // Spiegelcontrole: dezelfde invoer vanuit ZZP-perspectief → de ZZP-rescue geeft null voor
+      // SUBMITTED, dus de reguliere fase (verse uren) neemt over — geen opdrachtgever-goedkeuring.
+      const fr = cascadeStage(
+        base({
+          viewer: "FREELANCER",
+          latestPerformanceStatus: "DRAFT",
+          latestInvoiceStatus: "SUBMITTED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("performance-submit");
+    });
+
+    it("DRAFT-factuur (ZZP-actie) + verse prestatie: opdrachtgever krijgt geen goedkeuring, wacht terecht", () => {
+      // Een vorige factuur die om een ZZP-actie vraagt (DRAFT) → `priorCycleClientPhase` geeft null →
+      // de opdrachtgever valt terug op de reguliere wacht-fase; geen valse goedkeuringsactie.
+      const cl = cascadeStage(
+        base({
+          viewer: "CLIENT",
+          latestPerformanceStatus: "DRAFT",
+          latestInvoiceStatus: "DRAFT",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(cl.id).toBe("performance-submit");
+      expect(cl.youAreUp).toBe(false);
+    });
+
+    it("PAID-factuur + verse prestatie: opdrachtgever krijgt geen valse rescue (terminaal)", () => {
+      const cl = cascadeStage(
+        base({
+          viewer: "CLIENT",
+          latestPerformanceStatus: "DRAFT",
+          latestInvoiceStatus: "PAID",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(cl.id).toBe("performance-submit");
+      expect(cl.youAreUp).toBe(false);
+    });
+  });
+
   it("CTA verwijst altijd naar de samenwerking-detailpagina", () => {
     for (const o of [
       {},

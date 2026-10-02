@@ -331,14 +331,46 @@ describe("buildChainSteps — multi-cyclus openstaande vorige-cyclus-factuur (pa
     expect(steps[3]!.detail).toContain("te laat");
   });
 
-  // Afgewikkelde/wachtende vorige factuur blijft wél genuld (geen valse actie) — dit is de andere
-  // helft van de parity: `priorCycleFreelancerPhase` geeft null voor SUBMITTED/PAID/PROCESSED.
-  it("vorige factuur SUBMITTED (wacht op opdrachtgever) + cyclus-2 SUBMITTED → Factuur=waiting", () => {
+  // De stepper is rolneutraal: een SUBMITTED vorige-cyclus-factuur wacht op de opdrachtgever
+  // (`priorCycleClientPhase` in stage.ts → "Keur de ingediende factuur", aan zet). Nullen zou de
+  // Factuur-stap op "Volgt na goedkeuring prestatie" laten terugvallen terwijl de status-line voor de
+  // opdrachtgever juist een goedkeuring vraagt — exact de zichzelf-tegensprekende staat die deze
+  // parity voorkomt. De stap toont daarom "active · Ter goedkeuring"; Betaling volgt nog.
+  it("vorige factuur SUBMITTED (wacht op opdrachtgever) + cyclus-2 SUBMITTED → Factuur=active (ter goedkeuring)", () => {
     const steps = buildChainSteps(
       col(
         "ACTIVE",
         [{ status: "SUBMITTED" }, { status: "APPROVED" }],
         [{ lifecycleStatus: "SUBMITTED" }],
+        true,
+      ),
+    );
+    expect(steps[2]!.status).toBe("active");
+    expect(steps[2]!.detail).toBe("Ter goedkeuring");
+    expect(steps[3]!.status).toBe("waiting");
+  });
+
+  it("vorige factuur SUBMITTED + cyclus-2 DRAFT → Factuur=active (ter goedkeuring), niet 'Volgt na goedkeuring'", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "DRAFT" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "SUBMITTED" }],
+        true,
+      ),
+    );
+    expect(steps[2]!.status).toBe("active");
+    expect(steps[2]!.detail).toBe("Ter goedkeuring");
+    expect(steps[2]!.detail).not.toBe("Volgt na goedkeuring prestatie");
+  });
+
+  // Alleen een écht afgewikkelde vorige factuur blijft genuld: niemand hoeft nog iets.
+  it("vorige factuur PAID + cyclus-2 SUBMITTED → Factuur=waiting (afgewikkeld, genuld)", () => {
+    const steps = buildChainSteps(
+      col(
+        "ACTIVE",
+        [{ status: "SUBMITTED" }, { status: "APPROVED" }],
+        [{ lifecycleStatus: "PAID" }],
         true,
       ),
     );

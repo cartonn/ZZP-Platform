@@ -131,6 +131,10 @@ Onafhankelijke review, CI en release volgen.
 
 # CURRENT_TASK.md — Huidige taak
 
+Bouwronde 2 oktober 20:22 UTC: #1551 toont de opdrachtgever de openstaande vorige-cyclus-
+factuurgoedkeuring in de cascade-status-line en stepper (multi-cyclus); `priorCycleClientPhase` als
+spiegel van de ZZP-rescue.
+
 Security 23 september 14:00 UTC: #1516 herstelt lopende uploads na anonimisering; [scope](docs/progress/2026-09-23-late-upload-erasure.md).
 Bouwronde 17 september 16:22 UTC: #1514 bewaakt het gelijke certificaatvenster; [scope](docs/progress/2026-09-17-expiry-window-parity.md).
 Security 17 september 14:00 UTC: #1513 bewaakt actuele conceptprestatievoorwaarden;

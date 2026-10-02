@@ -68,19 +68,21 @@ export function buildChainSteps(col: {
   // genuld zodra de nieuwste prestatie nieuwer is (spiegelt `inv` in stage.ts); zo maskeert een
   // betaalde cyclus-1-factuur nooit de verse, nog te factureren cyclus-2-uren.
   //
-  // Uitzondering (spiegelt de multi-cyclus-rescue `priorCycleFreelancerPhase` in stage.ts): draagt
-  // die vorige-cyclus-factuur nog een openstaande ZZP-actie — indienen (DRAFT), corrigeren (REJECTED)
-  // of betaling markeren (APPROVED/OVERDUE) — dan is die factuur níet afgewikkeld en blijft ze de
-  // primaire, te-tonen fase; nullen zou de Factuur-/Betaling-stap laten terugvallen op de generieke
+  // Uitzondering (spiegelt de multi-cyclus-rescues in stage.ts): draagt die vorige-cyclus-factuur nog
+  // een openstaande actie — voor de ZZP'er indienen (DRAFT), corrigeren (REJECTED) of betaling markeren
+  // (APPROVED/OVERDUE); voor de opdrachtgever de ingediende factuur goedkeuren (SUBMITTED) — dan is die
+  // factuur níet afgewikkeld en blijft ze een te-tonen stap. De stepper is rolneutraal, dus hij toont
+  // élke openstaande vorige-factuurstatus; nullen zou de Factuur-stap laten terugvallen op de generieke
   // "Volgt na goedkeuring prestatie"-default terwijl de status-line op hetzelfde scherm juist "Dien je
-  // factuur in" / "Markeer de betaling" vraagt — een zichzelf tegensprekend scherm. Een afgewikkelde
-  // (PAID/PROCESSED/CREDITED/WITHDRAWN) of op-de-opdrachtgever-wachtende (SUBMITTED) vorige factuur
-  // blijft wél genuld — exact de set die `priorCycleFreelancerPhase` als `null` teruggeeft.
+  // factuur in" / "Markeer de betaling" (ZZP'er) of "Keur de ingediende factuur" (opdrachtgever) vraagt
+  // — een zichzelf tegensprekend scherm. Alleen een afgewikkelde (PAID/PROCESSED/CREDITED/WITHDRAWN)
+  // vorige factuur blijft genuld — die vraagt geen enkele partij meer iets.
   const latestInvoice = col.invoices[0]?.lifecycleStatus ?? null;
   const priorCycleInvoiceOpen =
     col.performanceNewerThanInvoice === true &&
     (latestInvoice === "DRAFT" ||
       latestInvoice === "REJECTED" ||
+      latestInvoice === "SUBMITTED" ||
       latestInvoice === "APPROVED" ||
       latestInvoice === "OVERDUE");
   const inv = col.performanceNewerThanInvoice && !priorCycleInvoiceOpen ? null : latestInvoice;
