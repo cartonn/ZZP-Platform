@@ -121,14 +121,28 @@ export function cascadeStage(input: CascadeStageInput): CascadeStage {
   // telt ze als de primaire fase. De factuur is door `performanceNewerThanInvoice` uit `inv` genuld,
   // maar hij is voor de ZZP'er níet klaar. Zonder deze rescue verborg het detail/dashboard "Wat loopt
   // er nu" die betaal-/factuuractie terwijl het actiecentrum (`pending-tasks.ts`) diezelfde taak wél
-  // toont — een zichzelf tegensprekend scherm waarop de ZZP'er stil zijn geld misloopt. Alleen de
-  // ZZP'er heeft een vorige-cyclus-actie (de opdrachtgever ziet gewoon zijn eigen fase hieronder);
+  // toont — een zichzelf tegensprekend scherm waarop de ZZP'er stil zijn geld misloopt.
   // `priorCycleFreelancerPhase` geeft `null` zodra de vorige factuur voor de ZZP'er niets meer vraagt
   // (SUBMITTED = wacht op de opdrachtgever; PAID/PROCESSED/CREDITED/geen), waarna de reguliere
   // fase-afleiding hieronder overneemt. Voorheen vuurde deze rescue alleen in de SUBMITTED-tak,
   // waardoor de betaal-actie bij een DRAFT/REJECTED/ontbrekende cyclus-2-prestatie stil wegviel.
   if (isFreelancer && input.performanceNewerThanInvoice) {
     const prior = priorCycleFreelancerPhase(input.latestInvoiceStatus, href, total);
+    if (prior) return prior;
+  }
+
+  // Multi-cyclus, opdrachtgever-kant: de spiegel van de ZZP-rescue hierboven. Draagt de
+  // vorige-cyclus-factuur nog een openstaande opdrachtgever-actie — de ingediende factuur goedkeuren
+  // (SUBMITTED) — dan is de opdrachtgever nog aan zet, ook al is er al een verse cyclus-2-prestatie.
+  // De factuur is door `performanceNewerThanInvoice` uit `inv` genuld, dus zonder deze rescue viel de
+  // fase terug op een passieve "wacht op uren/factuur van de ZZP'er"-tak (youAreUp:false) die de
+  // goedkeuringsactie verborg — terwijl `buildCollaborationTurnItems` en `countClientCascadeWork`
+  // diezelfde goedkeuring wél tonen/tellen: een zichzelf tegensprekend scherm waardoor de ZZP'er later
+  // betaald wordt. `priorCycleClientPhase` geeft `null` voor élke andere vorige-factuurstatus (die
+  // vragen om een ZZP-actie of zijn terminaal — de opdrachtgever wacht dan terecht), waarna de
+  // reguliere fase-afleiding hieronder overneemt.
+  if (!isFreelancer && input.performanceNewerThanInvoice) {
+    const prior = priorCycleClientPhase(input.latestInvoiceStatus, href, total);
     if (prior) return prior;
   }
 
@@ -195,6 +209,26 @@ function priorCycleFreelancerPhase(
   }
   if (invoiceStatus === "APPROVED" || invoiceStatus === "OVERDUE") {
     return { id: "payment", badgeLabel: "Betaling", label: "Markeer de betaling zodra je bent betaald", step: 6, totalSteps: total, youAreUp: true, tone: invoiceStatus === "OVERDUE" ? "attention" : "info", cta: { label: "Betaling markeren", href } }; // prettier-ignore
+  }
+  return null;
+}
+
+/**
+ * Openstaande factuur-fase van een vorige cyclus vanuit opdrachtgever-perspectief (aan zet), of
+ * `null` wanneer die factuur voor de opdrachtgever niets meer vraagt. De spiegel van
+ * `priorCycleFreelancerPhase`: de opdrachtgever is alleen aan zet bij een SUBMITTED-factuur (de
+ * ingediende factuur goedkeuren). Bij DRAFT/REJECTED/APPROVED/OVERDUE is de ZZP'er aan zet en wacht
+ * de opdrachtgever terecht; PAID/PROCESSED/CREDITED/WITHDRAWN/geen zijn terminaal. In al die gevallen
+ * `null`, waarna de reguliere fase-afleiding de juiste wacht-/goedkeurfase van de huidige cyclus toont.
+ * Spiegelt de bewoording van de reguliere `invoice-approve`-fase zodat het scherm consistent blijft.
+ */
+function priorCycleClientPhase(
+  invoiceStatus: InvoiceLifecycleState | null,
+  href: string,
+  total: number,
+): CascadeStage | null {
+  if (invoiceStatus === "SUBMITTED") {
+    return { id: "invoice-approve", badgeLabel: "Ter goedkeuring", label: "Keur de ingediende factuur", step: 5, totalSteps: total, youAreUp: true, tone: "attention", cta: { label: "Beoordeel factuur", href } }; // prettier-ignore
   }
   return null;
 }
