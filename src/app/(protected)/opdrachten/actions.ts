@@ -184,6 +184,16 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
       return { error: "Opdracht niet gevonden." };
     }
 
+    // Moderatie-sluiting: een door een beheerder gesloten opdracht mag de eigenaar niet bewerken (en
+    // vervolgens heropenen). Spiegelt de gelijke poort in changeJobStatus (OWASP A01). Alleen een
+    // beheerder heft de sluiting op.
+    if (existing.moderationClosedAt) {
+      return {
+        error:
+          "Deze opdracht is door een beheerder gesloten en kan niet door jou worden gewijzigd. Neem contact op met support.",
+      };
+    }
+
     await prisma.$transaction([
       prisma.job.update({ where: { id: jobId }, data: fields }),
       prisma.jobSkill.deleteMany({ where: { jobId } }),
@@ -302,6 +312,17 @@ export async function changeJobStatus(
   // onbekend id "Opdracht niet gevonden." gaf — een return-oracle (returnwaarden worden niet door
   // Next.js geredigeerd) waarmee een opdrachtgever Job-ids platform-breed kon aftasten. Nu identiek.
   if (!job || !owns(actor, job.company.userId)) return { error: "Opdracht niet gevonden." };
+
+  // Moderatie-sluiting (server-side waarheid, CLAUDE.md regel 1): een door een beheerder gesloten
+  // opdracht draagt `moderationClosedAt`. De eigenaar mag zo'n opdracht NIET zelf heropenen — anders
+  // zet een CLIENT een wegens ongepaste inhoud gesloten opdracht gewoon CLOSED→PUBLISHED terug en
+  // omzeilt de moderatie (OWASP A01 — broken access control). Alleen een beheerder heft de sluiting op.
+  if (job.moderationClosedAt) {
+    return {
+      error:
+        "Deze opdracht is door een beheerder gesloten en kan niet door jou worden heropend of gewijzigd. Neem contact op met support.",
+    };
+  }
 
   const from = job.status as JobStatus;
   try {

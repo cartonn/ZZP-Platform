@@ -1,3 +1,14 @@
+## 2 oktober — moderatie-sluiting niet meer door eigenaar om te zeilen (security, MIDDEL)
+
+Een door een beheerder gesloten opdracht (`adminCloseJob`, wegens ongepaste inhoud) kon de
+opdrachtgever simpelweg `CLOSED→PUBLISHED` terugzetten of via `saveJob` bewerken — moderatie-bypass
+(OWASP A01). Nieuw veld `Job.moderationClosedAt` (migratie `202610020230_job_moderation_close`) wordt
+door `adminCloseJob` gezet; `changeJobStatus` én `saveJob` weigeren elke eigenaar-mutatie zolang de
+markering staat, alleen een beheerder heft ze op. Een eigen eigenaar-sluiting blijft heropenbaar.
+Echte-SQLite-integratietest rood→groen (3 rood zonder fix, 4 groen erna). Volledige auditronde:
+kern gehard, geen nieuw KRITIEK/HOOG; overige LAAG-items geparkeerd in
+`docs/SECURITY-PRIVACY-BACKLOG.md`. PR + CI-poort volgen.
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
