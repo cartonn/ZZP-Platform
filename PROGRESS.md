@@ -1,3 +1,7 @@
+## 2 oktober — bereikbare berichten-reply-reminders voorbij de scan-cap
+
+De reply-reminder-runner deed één `findMany` met `take: 500` zonder paginatie; in een bewegend `updatedAt`-venster (dag 3–9) verloor een gesprek voorbij de cap zijn dag-3- én dag-7-nudge definitief (klasse #1529–#1534). Keyset-paginatie op `id` (batch 1000) doorloopt nu het hele venster; drie echte SQLite-gevallen (999/1000/2001 stille gesprekken met een doel voorbij de cap) leveren exact één nudge, idempotent op herhaling; vijf bestaande mocktests blijven groen. Planner/dedupe/effecten ongewijzigd. Lint/types/format en productiebuild groen; onafhankelijke review en CI volgen. [Scope](docs/progress/2026-10-02-conversation-reply-reminder-window.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
