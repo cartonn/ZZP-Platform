@@ -1,3 +1,7 @@
+## 2 oktober — eerlijke weigering bij verifiëren van een reeds verlopen inzending (#1548)
+
+Server-pre-check + uitgeschakelde "Goedkeuren"-knop bij een reeds verlopen SUBMITTED-inzending, met accurate VOG-bewuste wording; race-guard intact. [Scope](docs/progress/2026-10-02-expired-submission-verify.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

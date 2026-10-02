@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   SUBMITTED_EXPIRY_SOON_DAYS,
   classifySubmittedExpiry,
+  expiredSubmissionMessage,
   submittedExpiryLabel,
   summarizeSubmittedExpiry,
 } from "./verification-expiry";
@@ -59,6 +60,28 @@ describe("submittedExpiryLabel", () => {
     expect(submittedExpiryLabel(daysFromNow(0, 3_600_000), NOW)).toBe("Verloopt vandaag");
     expect(submittedExpiryLabel(daysFromNow(1), NOW)).toBe("Verloopt morgen");
     expect(submittedExpiryLabel(daysFromNow(14), NOW)).toBe("Verloopt over 14 dagen");
+  });
+});
+
+describe("expiredSubmissionMessage", () => {
+  it("niet-VOG → verlopen-wording die naar afwijzen stuurt", () => {
+    const msg = expiredSubmissionMessage("CERTIFICATE");
+    expect(msg).toMatch(/verlopen/i);
+    expect(msg).toMatch(/wijs het af/i);
+    expect(msg).toMatch(/vernieuwd document/i);
+  });
+
+  it("VOG → herbeoordelingsdatum-wording (geen echte vervaldatum)", () => {
+    const msg = expiredSubmissionMessage("VOG");
+    expect(msg).toMatch(/herbeoordelingsdatum/i);
+    expect(msg).toMatch(/verstreken/i);
+    expect(msg).toMatch(/wijs het af/i);
+  });
+
+  it("is niet de generieke race-melding", () => {
+    for (const type of ["CERTIFICATE", "VOG", "DIPLOMA", "INSURANCE", "LICENSE", "OTHER"]) {
+      expect(expiredSubmissionMessage(type)).not.toMatch(/al beoordeeld/i);
+    }
   });
 });
 

@@ -35,7 +35,11 @@ import { credentialTypeDemand, demandLevel } from "@/lib/verification-impact";
 import { getOpenJobCredentialRequirements } from "@/lib/data/verification-impact";
 import { activePlacementImpact } from "@/lib/verification-placement-impact";
 import { getActivePlacementImpactData } from "@/lib/data/verification-placement-impact";
-import { submittedExpiryLabel, summarizeSubmittedExpiry } from "@/lib/verification-expiry";
+import {
+  classifySubmittedExpiry,
+  submittedExpiryLabel,
+  summarizeSubmittedExpiry,
+} from "@/lib/verification-expiry";
 import {
   countResubmissions,
   resubmissionBadgeLabel,
@@ -310,6 +314,7 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
                         type={c.type}
                         updatedAt={c.updatedAt.toISOString()}
                         documentId={c.documentId}
+                        expired={classifySubmittedExpiry(c.expiresAt, new Date(now)) === "expired"}
                       />
                     </CardContent>
                   </Card>

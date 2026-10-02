@@ -13,6 +13,7 @@ import {
   verifyCredentialState,
   rejectCredentialState,
 } from "@/app/(protected)/admin/verificaties/actions";
+import { expiredSubmissionMessage } from "@/lib/verification-expiry";
 
 const methodHelp: Record<
   CredentialReviewMethod,
@@ -51,12 +52,19 @@ export function CredentialReviewForm({
   type,
   updatedAt,
   documentId,
+  expired = false,
   onResolved,
 }: {
   credentialId: string;
   type: string;
   updatedAt: string;
   documentId: string | null;
+  /**
+   * Het bewijsstuk is al verlopen op het moment van renderen. De server weigert goedkeuren dan
+   * sowieso (zie `verifyCredential`); de knop staat hier uit zodat de beoordelaar meteen ziet dat
+   * afwijzen de juiste route is in plaats van een onverwachte fout te krijgen.
+   */
+  expired?: boolean;
   onResolved?: () => void;
 }) {
   const id = useId();
@@ -190,6 +198,11 @@ export function CredentialReviewForm({
             Een bewijsstuk ontbreekt. Vraag eerst een nieuw document.
           </p>
         )}
+        {expired && (
+          <p role="alert" className="text-sm text-danger">
+            {expiredSubmissionMessage(type)}
+          </p>
+        )}
         {approved && "error" in approved && (
           <p role="alert" className="text-sm text-danger">
             {approved.error}
@@ -197,7 +210,7 @@ export function CredentialReviewForm({
         )}
         <Button
           type="submit"
-          disabled={approving || rejectPending || !documentId}
+          disabled={approving || rejectPending || !documentId || expired}
           className="w-full sm:w-auto"
         >
           {approving ? "Beoordeling opslaan…" : "Goedkeuren"}

@@ -40,7 +40,18 @@ vi.mock("@/lib/authz", async (orig) => {
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
+import { prisma } from "@/lib/db";
 import { rejectCredentialState, verifyCredentialState } from "./actions";
+
+/** Een volledig geldig goedkeur-formulier; de inhoud doet er pas toe ná de expiry-pre-check. */
+function verifyForm(): FormData {
+  const fd = new FormData();
+  fd.set("updatedAt", "2026-01-01T00:00:00.000Z");
+  fd.set("documentId", "doc-1");
+  fd.set("reviewMethod", "DIGITAL_VOG");
+  for (const name of ["original", "person", "authenticity", "scope"]) fd.set(name, "on");
+  return fd;
+}
 
 function form(reason?: string): FormData {
   const fd = new FormData();
@@ -81,13 +92,58 @@ describe("verifyCredentialState — al-beoordeeld-race i.p.v. 500", () => {
         auditLog: { create: vi.fn() },
       }),
     );
-    const fd = new FormData();
-    fd.set("updatedAt", "2026-01-01T00:00:00.000Z");
-    fd.set("documentId", "doc-1");
-    fd.set("reviewMethod", "DIGITAL_VOG");
-    for (const name of ["original", "person", "authenticity", "scope"]) fd.set(name, "on");
-    const result = await verifyCredentialState("cred-1", undefined, fd);
+    const result = await verifyCredentialState("cred-1", undefined, verifyForm());
     expect(result && "error" in result).toBe(true);
     if (result && "error" in result) expect(result.error).toMatch(/al beoordeeld/i);
+  });
+});
+
+// Regressie: een inzending met een vervaldatum in het verleden is een bereikbare staat (de
+// credentialSchema accepteert een `expiresAt` in het verleden). Goedkeuren daarvan werd geweigerd
+// door de updateMany-poort, maar met de generieke "al beoordeeld of gewijzigd"-melding — feitelijk
+// onjuist. De expiry-pre-check moet dit vóór de transactie afvangen met een accurate, afwijzing-
+// sturende boodschap, zonder de DB te muteren.
+describe("verifyCredentialState — reeds verlopen inzending i.p.v. misleidende race-melding", () => {
+  it("geeft een duidelijke 'verlopen'-melding en raakt de transactie niet aan (niet-VOG)", async () => {
+    tx.mockClear();
+    vi.mocked(prisma.credential.findUnique).mockResolvedValueOnce({
+      id: "cred-1",
+      title: "EHBO-certificaat",
+      type: "CERTIFICATE",
+      documentId: "doc-1",
+      document: { mimeType: "application/pdf", ownerId: "owner-1" },
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      issuedAt: null,
+      expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      status: "SUBMITTED",
+      freelancerProfile: { userId: "owner-1" },
+    } as never);
+    const result = await verifyCredentialState("cred-1", undefined, verifyForm());
+    expect(result && "error" in result).toBe(true);
+    if (result && "error" in result) {
+      expect(result.error).toMatch(/verlopen/i);
+      expect(result.error).not.toMatch(/al beoordeeld/i);
+    }
+    expect(tx).not.toHaveBeenCalled();
+  });
+
+  it("gebruikt de VOG-herbeoordelingswording bij een verlopen VOG", async () => {
+    tx.mockClear();
+    vi.mocked(prisma.credential.findUnique).mockResolvedValueOnce({
+      id: "cred-1",
+      title: "VOG",
+      type: "VOG",
+      documentId: "doc-1",
+      document: { mimeType: "application/pdf", ownerId: "owner-1" },
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      issuedAt: null,
+      expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      status: "SUBMITTED",
+      freelancerProfile: { userId: "owner-1" },
+    } as never);
+    const result = await verifyCredentialState("cred-1", undefined, verifyForm());
+    expect(result && "error" in result).toBe(true);
+    if (result && "error" in result) expect(result.error).toMatch(/herbeoordelingsdatum/i);
+    expect(tx).not.toHaveBeenCalled();
   });
 });

@@ -56,6 +56,18 @@ export function submittedExpiryLabel(
   return `Verloopt over ${days} dagen`;
 }
 
+/**
+ * Accurate, afwijzing-sturende melding wanneer een reeds verlopen inzending niet goedgekeurd kan
+ * worden. Eén bron voor zowel de server-weigering (`verifyCredential`) als de uitleg bij de
+ * uitgeschakelde "Goedkeuren"-knop. VOG-bewust: een VOG kent geen echte vervaldatum maar een
+ * afgesproken herbeoordelingsdatum, dus de tekst spiegelt de badge-tooltip in de wachtrij.
+ */
+export function expiredSubmissionMessage(type: string): string {
+  return type === "VOG"
+    ? "De herbeoordelingsdatum is al verstreken; dit bewijsstuk kan niet worden geverifieerd. Wijs het af en vraag een actueel bewijsstuk voor nieuwe beoordeling."
+    : "Dit bewijsstuk is al verlopen en kan niet worden geverifieerd. Wijs het af en vraag een vernieuwd document.";
+}
+
 export interface SubmittedExpirySummary {
   /** Aantal inzendingen waarvan de vervaldatum al verstreken is. */
   expiredCount: number;

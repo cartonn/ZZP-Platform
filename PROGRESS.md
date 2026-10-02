@@ -1,3 +1,7 @@
+## 2 oktober — eerlijke weigering bij verifiëren van een reeds verlopen inzending (#1548)
+
+Een inzending met een vervaldatum in het verleden is bereikbaar (het schema accepteert dat). De verificatie-wachtrij toonde al een "Reeds verlopen"-badge, maar `verifyCredential` weigerde goedkeuren met de misleidende generieke "al beoordeeld of gewijzigd"-melding en de "Goedkeuren"-knop bleef actief — een dead-end voor de beoordelaar. Nu: server-pre-check met een accurate, afwijzing-sturende (VOG-bewuste) melding vóór de transactie; de transactionele race-guard blijft intact. UI: `expired` naar de reviewform → knop uitgeschakeld (afwijzen blijft actief), gedeelde wording via `expiredSubmissionMessage`. Hergebruikt `classifySubmittedExpiry` — geen nieuwe rekenlogica. 5 gerichte en 9.249 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-10-02-expired-submission-verify.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

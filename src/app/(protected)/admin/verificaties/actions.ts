@@ -14,6 +14,7 @@ import { shouldRemoveEvidenceAfterReview } from "@/lib/credential-evidence-polic
 import { removeCredentialEvidence } from "@/lib/credential-evidence";
 import { parseCredentialReview, parseCredentialReviewSnapshot } from "@/lib/credential-review";
 import { invalidateSignals } from "@/lib/signals/invalidate";
+import { classifySubmittedExpiry, expiredSubmissionMessage } from "@/lib/verification-expiry";
 
 async function loadCredentialForDecision(credentialId: string) {
   const credential = await prisma.credential.findUnique({
@@ -53,6 +54,16 @@ export async function verifyCredential(credentialId: string, formData: FormData)
   }
 
   const now = new Date();
+  // Een reeds verlopen inzending kan nooit geldig worden geverifieerd: de credential zou direct
+  // ongeldig zijn en de eerstvolgende expiry-taak klapt hem naar EXPIRED. De updateMany-race-guard
+  // hieronder weigert zo'n rij óók (via de `gt: now`-poort), maar met de generieke
+  // "al beoordeeld of gewijzigd"-melding — feitelijk onjuist. Vang het hier expliciet af met een
+  // accurate, afwijzing-sturende boodschap. `from` is hier altijd SUBMITTED (statusForDecision gooit
+  // anders). De transactionele poort blijft staan voor de smalle race waarin het bewijsstuk pas ná
+  // deze lezing verloopt.
+  if (classifySubmittedExpiry(credential.expiresAt, now) === "expired") {
+    throw new Error(expiredSubmissionMessage(credential.type));
+  }
   const review = parseCredentialReview(formData, credential, now);
   await prisma.$transaction(async (tx) => {
     // Status-guard binnen de transactie: alleen verwerken als de credential nog in `from` staat.
