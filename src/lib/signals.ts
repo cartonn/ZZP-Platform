@@ -51,6 +51,7 @@ import { NO_SHOW_LIMIT } from "@/lib/no-show";
 import { paymentDueSoonWhere } from "@/lib/payment-due-soon";
 import { summarizeStaleClientApplications } from "@/lib/stale-applications";
 import { getClientColdJobs } from "@/lib/data/client-cold-jobs";
+import { getClientOverdueJobs } from "@/lib/data/client-overdue-jobs";
 import { SUPPORT_OPEN_STATUSES } from "@/lib/support/labels";
 import {
   getCredentialDossier,
@@ -700,6 +701,7 @@ export const navBadges = cache(async function navBadges(
       acceptedCandidates,
       renewalWork,
       coldJobs,
+      overdueJobs,
     ] = await Promise.all([
       // job.status: "PUBLISHED" — kandidaat-beoordeelsignalen horen alleen bij een LIVE opdracht.
       // Sluit de opdrachtgever de opdracht (PUBLISHED→CLOSED) of zet hem terug naar concept
@@ -817,6 +819,13 @@ export const navBadges = cache(async function navBadges(
       // emissie op /acties + de dashboard-rail. Gedeelde `getClientColdJobs` (zelfde koud-drempels,
       // scan-cap en ordering) → de /opdrachten-badge kan niet driften van /acties.
       getClientColdJobs(userId, now),
+      // overdue-onbezette gepubliceerde opdrachten (startdatum verstreken, niemand vastgelegd) — exact
+      // de jobStaffingOverdueTask-emissie op /acties + de dashboard-rail (P=51, href /opdrachten/{id}).
+      // Gedeelde `getClientOverdueJobs` (zelfde fase-poort, scan-cap en ordering als /acties) → de
+      // /opdrachten-badge kan niet driften van /acties. Zonder deze telling toonde /acties een
+      // verstreken-planning-taak zonder badge zodra de opdracht niet óók "koud" was (koud capt op ≤ 2
+      // reacties; overdue heeft geen reactieplafond) — het "signaal op één oppervlak"-anti-patroon.
+      getClientOverdueJobs(userId, now),
     ]);
     // Eén actie per samenwerking (niet per ontbrekend certificaat-type): exact gelijk aan de
     // één-taak-per-samenwerking-emissie in de item-engine. De `clientHasComplianceAction`-gate sluit
@@ -873,14 +882,20 @@ export const navBadges = cache(async function navBadges(
       cascadeWork,
       pendingPerformances: cascadePerf,
     });
-    // /opdrachten combineert concept-opdrachten (info) met koud-lopende gepubliceerde opdrachten die om
-    // bijsturen vragen (attention) — exact de `jobNeedsAttentionTask`-emissie op /acties + de rail via
-    // dezelfde gedeelde `getClientColdJobs` (geen drift). Zodra er een koude opdracht is wint de
-    // attention-toon (spiegelt de dynamisch-getoonde /admin/gebruikersbeheer-badge); verdwijnt vanzelf
-    // zodra beide 0 zijn. Zonder deze telling had /opdrachten een /acties-taak zonder badge — het
-    // "signaal op één oppervlak"-anti-patroon.
-    if (coldJobs.length > 0) {
-      badges["/opdrachten"] = { count: draftJobs + coldJobs.length, tone: "attention" };
+    // /opdrachten combineert concept-opdrachten (info) met gepubliceerde opdrachten die om bijsturen
+    // vragen (attention): koud-lopend (`jobNeedsAttentionTask`) én overdue-onbezet
+    // (`jobStaffingOverdueTask`) — exact de twee opdracht-emissies op /acties + de rail via dezelfde
+    // gedeelde loaders (geen drift). Ontdubbeling: de item-engine toont een opdracht die zowel overdue
+    // als koud is maar één keer (de dominante P=51-taak subsumeert de zachtere koud-nudge), dus telt de
+    // badge die opdracht ook één keer — anders blies de badge (`pendingTaskCount`-pariteit) op. Zodra er
+    // een attention-opdracht is wint de attention-toon (spiegelt de dynamisch-getoonde
+    // /admin/gebruikersbeheer-badge); verdwijnt vanzelf zodra alles 0 is. Zonder deze telling had
+    // /opdrachten een /acties-taak zonder badge — het "signaal op één oppervlak"-anti-patroon.
+    const overdueJobIds = new Set(overdueJobs.map((j) => j.jobId));
+    const coldNotOverdue = coldJobs.filter((c) => !overdueJobIds.has(c.jobId)).length;
+    const jobAttention = overdueJobs.length + coldNotOverdue;
+    if (jobAttention > 0) {
+      badges["/opdrachten"] = { count: draftJobs + jobAttention, tone: "attention" };
     }
     return badges;
   }
