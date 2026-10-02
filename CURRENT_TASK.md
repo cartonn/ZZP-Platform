@@ -1,3 +1,7 @@
+## 2 oktober — bereikbare berichten-reply-reminders voorbij de scan-cap
+
+Reply-reminder-runner paginatie (keyset op `id`, batch 1000) i.p.v. één `take: 500`-scan; gesprek voorbij de cap kreeg anders zijn dag-3/dag-7-nudge nooit (klasse #1529–#1534). Drie echte SQLite-gevallen + vijf bestaande mocktests groen. [Scope](docs/progress/2026-10-02-conversation-reply-reminder-window.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
