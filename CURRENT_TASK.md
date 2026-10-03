@@ -1,3 +1,10 @@
+## 3 oktober — urgentie-ordening admin-verificatiewachtrij
+
+`/admin/verificaties` was strikt FIFO; triage-signalen stonden alleen als badge.
+`verification-queue-order.ts` sorteert nu urgentst-eerst (blokkade lopende inzet, verlopen, wachttijd,
+bijna-verlopen, vraag, herindiening) met FIFO-tie-break — zonder signalen ongewijzigd. 13 + 9.257 tests
+groen (3 skips). [Scope](docs/progress/2026-10-03-verification-queue-urgency-order.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

@@ -35,12 +35,17 @@ import { credentialTypeDemand, demandLevel } from "@/lib/verification-impact";
 import { getOpenJobCredentialRequirements } from "@/lib/data/verification-impact";
 import { activePlacementImpact } from "@/lib/verification-placement-impact";
 import { getActivePlacementImpactData } from "@/lib/data/verification-placement-impact";
-import { submittedExpiryLabel, summarizeSubmittedExpiry } from "@/lib/verification-expiry";
+import {
+  classifySubmittedExpiry,
+  submittedExpiryLabel,
+  summarizeSubmittedExpiry,
+} from "@/lib/verification-expiry";
 import {
   countResubmissions,
   resubmissionBadgeLabel,
   resubmissionSignal,
 } from "@/lib/verification-resubmission";
+import { orderVerificationQueue, verificationQueuePriority } from "@/lib/verification-queue-order";
 
 export const metadata: Metadata = { title: "Verificaties · Handslag" };
 
@@ -124,6 +129,29 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
   );
   const filterActive = isVerificationFilterActive(filter);
 
+  // Urgentie-ordening: de wachtrij is standaard FIFO (oudste eerst, een eerlijkheidsgarantie), maar een
+  // inzending die een lopende inzet blokkeert of al verlopen is, hoort bovenaan — niet diep onder verse,
+  // triviale inzendingen. We fuseren de reeds berekende signalen tot één score en sorteren daarop; bij
+  // gelijke urgentie blijft oudste-eerst als tie-break staan, dus zonder signalen is de volgorde identiek
+  // aan de oude pure FIFO. Alle signalen komen uit reeds-geladen data — geen extra query.
+  const nowDate = new Date(now);
+  const ordered = orderVerificationQueue(visible, (c) => {
+    const expiryKind = classifySubmittedExpiry(c.expiresAt, nowDate);
+    return {
+      priority: verificationQueuePriority({
+        blocksActivePlacement: placementImpact.get(c.id) ?? 0,
+        alreadyExpired: expiryKind === "expired",
+        expiringSoon: expiryKind === "expiring-soon",
+        stale: daysWaiting(waitingSince(c), now) >= VERIFICATION_STALE_DAYS,
+        openJobDemand: demand[c.type as CredentialType] ?? 0,
+        resubmission: resubmissionSignal(c.verifications) !== null,
+      }),
+      submittedAt: c.submittedAt,
+      updatedAt: c.updatedAt,
+      id: c.id,
+    };
+  });
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -188,6 +216,7 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
             {filterActive
               ? `${visible.length} van ${plural(queue.length, "aanvraag", "aanvragen")}`
               : plural(queue.length, "aanvraag", "aanvragen")}
+            {ordered.length > 1 ? " · urgentst eerst" : ""}
           </p>
 
           {visible.length === 0 ? (
@@ -198,7 +227,7 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
             </Card>
           ) : (
             <div className="space-y-4">
-              {visible.map((c) => {
+              {ordered.map((c) => {
                 const resubmit = resubmissionSignal(c.verifications);
                 return (
                   <Card key={c.id}>
