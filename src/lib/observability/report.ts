@@ -6,6 +6,7 @@
 
 import { logger } from "@/lib/observability/logger";
 import { buildSentryInitOptions } from "@/lib/observability/sentry-options";
+import { sanitizePath } from "@/lib/observability/url-scrub";
 import {
   recordErrorMonitoringDeliverySuccess,
   recordErrorMonitoringDeliveryFailure,
@@ -237,10 +238,24 @@ export async function probeErrorMonitoring(token: string): Promise<ErrorMonitori
  */
 export async function reportError(error: unknown, context?: ReportContext): Promise<void> {
   try {
-    await getErrorReporter().capture(error, context);
+    await getErrorReporter().capture(error, sanitizeReportContext(context));
   } catch {
     // Reporting zelf mag nooit doorbreken naar de caller; bewust geslikt.
   }
+}
+
+/**
+ * Scrubt `requestPath` vóór dispatch. Het contract is "pad zonder querystring/PII", maar dat is niet
+ * afgedwongen: `onRequestError` geeft Next's rauwe `request.path` door, dat een geheim token in het
+ * PAD kan dragen (/wachtwoord-herstellen/<token>, /vertrouwen/<id>/<token>). Zowel de console-logger
+ * (logt `...context`) als Sentry (`extra: {...context}`) zouden dat token anders ongeredacteerd
+ * opslaan — `logger.redact`/`redact` scrubben op sleutelnaam, niet op een hex-token binnen een
+ * pad-waarde. Centraal hier zodat élke caller die een requestPath meegeeft beschermd is (AVG art. 32
+ * / "geen secrets in logs", OWASP A09). Muteert het meegegeven object niet.
+ */
+function sanitizeReportContext(context?: ReportContext): ReportContext | undefined {
+  if (!context || typeof context.requestPath !== "string") return context;
+  return { ...context, requestPath: sanitizePath(context.requestPath) };
 }
 
 /**

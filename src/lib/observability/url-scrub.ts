@@ -52,6 +52,25 @@ export function sanitizeUrl(url: string): string {
   }
 }
 
+/**
+ * Sanitize een los verzoekpad (geen volledige URL nodig): query/fragment weg én geheime
+ * pad-segmenten weg. Bedoeld voor `ReportContext.requestPath` en Sentry's `request.url`, die een
+ * pad dragen i.p.v. een http(s)-URL — `sanitizeUrl` vereist een parsebare origin en zou een kaal
+ * pad onaangeroerd laten. Geeft altijd alleen het pad terug (een absolute URL wordt tot zijn pad
+ * gereduceerd), zodat host/origin nooit meelekt.
+ */
+export function sanitizePath(pathOrUrl: string): string {
+  const cut = pathOrUrl.search(/[?#]/);
+  const base = cut === -1 ? pathOrUrl : pathOrUrl.slice(0, cut);
+  try {
+    // Absolute URL: reduceer tot pad (host/origin eruit) en redigeer geheime segmenten.
+    return scrubSecretPathSegments(new URL(base).pathname);
+  } catch {
+    // Kaal pad (gebruikelijk voor requestPath): redigeer de geheime segmenten direct.
+    return scrubSecretPathSegments(base);
+  }
+}
+
 /** Sanitize elke http(s)-URL in een vrije-tekst-string: query/fragment weg + geheime segmenten weg. */
 export function stripUrlQueries(text: string): string {
   // Match een http(s)-URL tot de eerste whitespace/haakje/aanhaling.

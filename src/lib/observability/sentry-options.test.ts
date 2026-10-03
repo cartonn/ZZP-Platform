@@ -86,6 +86,22 @@ describe("scrubSentryEvent", () => {
     expect(scrubSentryEvent(event).request?.url).toBe("/zoek");
   });
 
+  it("redigeert een geheim reset-token in het pad van een absolute request.url", () => {
+    const event: SentryEvent = {
+      request: { url: "https://app.example.nl/wachtwoord-herstellen/reset-token-geheim?x=1" },
+    };
+    const out = scrubSentryEvent(event);
+    expect(out.request?.url).toBe("/wachtwoord-herstellen/[redacted]");
+    expect(JSON.stringify(out)).not.toContain("reset-token-geheim");
+  });
+
+  it("redigeert een geheim deel-token in het pad van een relatieve request.url (behoudt profileId)", () => {
+    const event: SentryEvent = { request: { url: "/vertrouwen/prof-9/deel-token-geheim" } };
+    const out = scrubSentryEvent(event);
+    expect(out.request?.url).toBe("/vertrouwen/prof-9/[redacted]");
+    expect(JSON.stringify(out)).not.toContain("deel-token-geheim");
+  });
+
   it("muteert het originele event niet", () => {
     const event: SentryEvent = {
       user: { email: "x@y.nl" },
