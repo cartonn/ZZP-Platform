@@ -18,6 +18,7 @@ import {
   SEMANTIC_HIGHLIGHT_THRESHOLD,
   type ComplianceStatus,
 } from "@/lib/matching";
+import { jobComplianceChip, type JobComplianceChip } from "@/lib/jobs/compliance-chip";
 import { type Availability } from "@/lib/enums";
 
 export interface JobMatch {
@@ -33,6 +34,13 @@ export interface JobMatch {
   related?: boolean;
   /** Sterkste positieve match-reden (bv. "Alle vereiste skills aanwezig") — compacte uitleg in de UI. */
   reason?: string;
+  /**
+   * Harde inzetbaarheids-/compliance-chip voor deze opdracht (ontbrekend/verlopen/in-beoordeling
+   * vereist certificaat), of `null` als de ZZP'er voldoet of de opdracht geen harde certificaateis
+   * stelt. Spiegelt de chip op de detail-/browse-oppervlakken zodat een aanbeveling niet stilhoudt
+   * dat de ZZP'er er nú niet voor inzetbaar is. Server-berekend (zelfde `jobComplianceChip`).
+   */
+  complianceChip?: JobComplianceChip | null;
 }
 
 /** Drempel waaronder een opdracht niet relevant genoeg is om proactief te tonen. */
@@ -107,6 +115,8 @@ export async function recommendedJobs(userId: string, limit = 4): Promise<JobMat
       // Inhoudelijke aansluiting voedt de score als kleine, uitlegbare component (niet slechts een
       // tiebreaker). De tiebreaker in topMatches blijft als secundaire sort bij exact gelijke score.
       const match = scoreJobForFreelancer(j, { ...profile, relatednessScore: relatedness });
+      // Alleen verplichte certificaateisen tellen voor de chip — net als op de browse-lijst.
+      const requiredCredCount = j.credentialRequirements.filter((c) => c.required).length;
       return {
         jobId: j.id,
         title: j.title,
@@ -117,6 +127,7 @@ export async function recommendedJobs(userId: string, limit = 4): Promise<JobMat
         relatedness,
         related: relatedness >= SEMANTIC_HIGHLIGHT_THRESHOLD,
         reason: topPositiveReason(match.reasons) ?? undefined,
+        complianceChip: jobComplianceChip(match.compliance, requiredCredCount),
       };
     });
 
