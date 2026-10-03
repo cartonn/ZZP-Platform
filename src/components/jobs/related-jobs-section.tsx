@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ShieldAlert, ShieldQuestion } from "lucide-react";
 import { MatchMeter } from "@/components/ui/match-meter";
 import { type JobMatch } from "@/lib/recommendations";
 import { getTranslator } from "@/lib/i18n/server";
@@ -49,6 +50,23 @@ export async function RelatedJobsSection({
                 {j.companyName}
                 {j.reason ? ` · ${t(j.reason)}` : ""}
               </p>
+              {j.complianceChip ? (
+                <p
+                  className={[
+                    "mt-1 inline-flex items-center gap-1 text-xs",
+                    j.complianceChip.tone === "warning"
+                      ? "font-medium text-warning"
+                      : "text-muted-foreground",
+                  ].join(" ")}
+                >
+                  {j.complianceChip.tone === "warning" ? (
+                    <ShieldAlert className="size-3 shrink-0" aria-hidden />
+                  ) : (
+                    <ShieldQuestion className="size-3 shrink-0" aria-hidden />
+                  )}
+                  <span className="truncate">{t(j.complianceChip.label)}</span>
+                </p>
+              ) : null}
             </div>
             <span className="flex shrink-0 flex-col items-end gap-1">
               <span className="font-mono text-sm font-semibold tracking-tight text-primary">

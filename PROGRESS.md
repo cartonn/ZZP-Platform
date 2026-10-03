@@ -1,3 +1,16 @@
+## 3 oktober — compliance-signaal op de aanbevolen-opdrachten-kaart
+
+De aanbevelingskaart ("Ook passend bij jouw profiel" / gerelateerde opdrachten op het
+opdracht-detail en dashboard) toonde alleen een positieve match-reden, maar verzweeg of de ZZP'er
+een vereist certificaat mist/verlopen heeft — terwijl detail en browse die harde inzetbaarheids-chip
+wél tonen. `recommendedJobs` geeft nu dezelfde server-berekende `jobComplianceChip` mee (ontbrekend/
+verlopen → warning, in beoordeling → muted, voldaan/geen eis → geen chip) en de kaart rendert hem.
+Echte SQLite-proef (5 varianten) rood vóór herstel; lint/types/format en productiebuild groen.
+Base-brede `audit`-poort tegelijk gedeblokkeerd: `patch-package` → `devDependencies` (build-time tool;
+het Docker-image installeert dev+runtime in de builder en kopieert `node_modules` ongewijzigd), wat de
+4 high `braces`-DoS-signalen (GHSA-vfj7-8cjw-p6xm) uit de productie-deps haalt. Onafhankelijke review
+en CI volgen. [Scope](docs/progress/2026-10-03-recommendation-compliance-chip.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
