@@ -1,3 +1,14 @@
+## 3 oktober — "Start plaatsing"-agenda-event (#1559)
+
+De persoonlijke agenda-feed (`/api/agenda` + `feed.ics`) toonde al "Einde plaatsing" maar geen
+start-nudge. Toegevoegd: een symmetrisch gehele-dag-event "Start plaatsing: <tegenpartij>" met
+herinneringen 7 en 1 dag vooraf, voor ZZP'er en opdrachtgever, uitsluitend nog niet begonnen
+plaatsingen (`ACTIVE`, niet-betwist, `startDate >= now`). Privacy-pariteit met het end-event (alleen
+tegenpartijnaam). Hergebruikt de bestaande ICS-builder/loader-scoping. 133 gerichte calendar-/
+agenda-tests groen; volledige suite 9.251 groen (3 bestaande skips), types/lint/format en
+productiebuild groen. Meegenomen: `patch-package` → `devDependencies` (deblokkeert de base-brede
+productie-audit-poort, braces-DoS GHSA-vfj7-8cjw-p6xm; no-op zodra #1553 merget). CI/review volgen.
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

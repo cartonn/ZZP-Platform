@@ -64,6 +64,16 @@ export interface CollaborationDeadline {
   asClient: boolean;
 }
 
+/** De start van een nog niet begonnen plaatsing (ACTIVE-samenwerking met een toekomstige startdatum). */
+export interface UpcomingPlacement {
+  id: string;
+  startDate: Date;
+  /** De naam van de tegenpartij vanuit het perspectief van deze gebruiker. */
+  counterpartyName: string;
+  /** true = de gebruiker is de opdrachtgever (tegenpartij = ZZP'er); false = de gebruiker is de ZZP'er. */
+  asClient: boolean;
+}
+
 /** De volledige set administratieve deadlines van één gebruiker. */
 export interface AdministrativeDeadlines {
   credentials: CredentialDeadline[];
@@ -73,6 +83,8 @@ export interface AdministrativeDeadlines {
   incomeTax: IncomeTaxDeadline | null;
   /** Einddatums van lopende plaatsingen (samenwerkingen) waarbij de gebruiker partij is. */
   collaborations: CollaborationDeadline[];
+  /** Startdatums van nog niet begonnen plaatsingen waarbij de gebruiker partij is. */
+  upcomingPlacements: UpcomingPlacement[];
 }
 
 // ---------------------------------------------------------------------------
@@ -87,6 +99,12 @@ export interface AdministrativeDeadlines {
  * waarschuwen ruim vooraf met een tweede nudge kort ervóór. Aflopend gesorteerd (grootste eerst).
  */
 export const CREDENTIAL_EXPIRY_ALARM_DAYS = [30, 7] as const;
+
+/**
+ * Doorlooptijden (hele dagen vóór de startdatum) voor de "Start plaatsing"-herinneringen: ruim vooraf
+ * (een week) om je op de eerste werkdag voor te bereiden, plus een nudge de dag ervóór. Aflopend.
+ */
+export const PLACEMENT_START_ALARM_DAYS = [7, 1] as const;
 
 /**
  * Formatteert een reeks dagen-vooraf naar een leesbare Nederlandse opsomming, bijv. `[30, 7]`
@@ -108,7 +126,7 @@ export function formatDayLeadTimes(days: readonly number[]): string {
 /**
  * Zet administratieve deadlines om naar losse gehele-dag-IcsEvents (geen herhaling). Bewaart de
  * invoervolgorde binnen elke categorie; certificaten, dan facturen, dan BTW, dan de IB-aangifte, dan
- * de plaatsing-einddatums. De UID's zijn stabiel en uniek binnen de per-gebruiker-feed, zodat
+ * de plaatsing-einddatums, dan de plaatsing-startdatums. De UID's zijn stabiel en uniek binnen de per-gebruiker-feed, zodat
  * agenda-apps events bijwerken i.p.v. dupliceren.
  */
 export function administrativeDeadlineEvents(input: AdministrativeDeadlines): IcsEvent[] {
@@ -202,6 +220,27 @@ export function administrativeDeadlineEvents(input: AdministrativeDeadlines): Ic
             : `Je plaatsing bij ${col.counterpartyName} loopt over 14 dagen af — plan een vervolg.`,
         },
       ],
+    });
+  }
+
+  // Symmetrisch met "Einde plaatsing" hierboven: een aankomende plaatsing krijgt een eigen
+  // "Start plaatsing"-event (eigen UID-prefix collab-start-). Een nieuwe plaatsing vraagt
+  // voorbereiding, dus herinner ruim vooraf (een week) plus een nudge de dag ervóór.
+  for (const p of input.upcomingPlacements) {
+    events.push({
+      uid: `collab-start-${p.id}@zzp-platform`,
+      summary: `Start plaatsing: ${p.counterpartyName}`,
+      start: p.startDate,
+      allDay: true,
+      description: p.asClient
+        ? `De plaatsing van ${p.counterpartyName} begint binnenkort. Zorg dat alles klaarstaat voor de eerste werkdag.`
+        : `Je plaatsing bij ${p.counterpartyName} begint binnenkort. Zorg dat je klaarstaat voor de eerste werkdag.`,
+      alarms: PLACEMENT_START_ALARM_DAYS.map((daysBefore) => ({
+        daysBefore,
+        description: p.asClient
+          ? `Plaatsing van ${p.counterpartyName} begint over ${daysBefore} ${daysBefore === 1 ? "dag" : "dagen"}.`
+          : `Je plaatsing bij ${p.counterpartyName} begint over ${daysBefore} ${daysBefore === 1 ? "dag" : "dagen"}.`,
+      })),
     });
   }
 

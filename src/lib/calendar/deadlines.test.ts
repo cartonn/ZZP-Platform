@@ -12,6 +12,7 @@ const empty: AdministrativeDeadlines = {
   vat: [],
   incomeTax: null,
   collaborations: [],
+  upcomingPlacements: [],
 };
 
 describe("administrativeDeadlineEvents", () => {
@@ -141,6 +142,7 @@ describe("administrativeDeadlineEvents", () => {
       vat: [{ year: 2026, quarter: 2, deadline: d }],
       incomeTax: { taxYear: 2026, deadline: ibDeadline },
       collaborations: [{ id: "col-1", endDate: d, counterpartyName: "De Linde", asClient: false }],
+      upcomingPlacements: [],
     });
     expect(events.map((e) => e.uid)).toEqual([
       "cred-expiry-c1@zzp-platform",
@@ -233,6 +235,69 @@ describe("administrativeDeadlineEvents", () => {
       ],
     });
     expect(asClient!.alarms?.[0]!.description).toContain("vervanger");
+  });
+
+  it("mapt een aankomende plaatsing naar een 'Start plaatsing'-event met stabiele UID — perspectief ZZP'er", () => {
+    const startDate = new Date("2026-11-01T00:00:00Z");
+    const events = administrativeDeadlineEvents({
+      ...empty,
+      upcomingPlacements: [
+        { id: "col-1", startDate, counterpartyName: "Zorggroep De Linde", asClient: false },
+      ],
+    });
+    expect(events).toHaveLength(1);
+    const [event] = events;
+    expect(event!.uid).toBe("collab-start-col-1@zzp-platform");
+    expect(event!.summary).toBe("Start plaatsing: Zorggroep De Linde");
+    expect(event!.allDay).toBe(true);
+    expect(event!.start).toBe(startDate);
+    expect(event!.recurrenceDays).toBeUndefined();
+    // ZZP'er-perspectief: jij staat klaar voor de eerste werkdag.
+    expect(event!.description).toContain("Je plaatsing bij Zorggroep De Linde begint binnenkort");
+    // Alarmen op de gedeelde doorlooptijden: 7 dagen (meervoud) en 1 dag (enkelvoud).
+    expect(event!.alarms?.map((a) => a.daysBefore)).toEqual([7, 1]);
+    expect(event!.alarms?.[0]!.description).toBe(
+      "Je plaatsing bij Zorggroep De Linde begint over 7 dagen.",
+    );
+    expect(event!.alarms?.[1]!.description).toBe(
+      "Je plaatsing bij Zorggroep De Linde begint over 1 dag.",
+    );
+  });
+
+  it("onderscheidt het opdrachtgever-perspectief op een aankomende plaatsing", () => {
+    const startDate = new Date("2026-11-01T00:00:00Z");
+    const [event] = administrativeDeadlineEvents({
+      ...empty,
+      upcomingPlacements: [
+        { id: "col-2", startDate, counterpartyName: "Sanne de Vries", asClient: true },
+      ],
+    });
+    expect(event!.summary).toBe("Start plaatsing: Sanne de Vries");
+    expect(event!.description).toContain("De plaatsing van Sanne de Vries begint binnenkort");
+    expect(event!.alarms?.[0]!.description).toBe(
+      "Plaatsing van Sanne de Vries begint over 7 dagen.",
+    );
+    // Enkelvoud "dag" bij 1 dag vooraf.
+    expect(event!.alarms?.[1]!.description).toBe("Plaatsing van Sanne de Vries begint over 1 dag.");
+  });
+
+  it("geeft geen start-events bij een lege upcomingPlacements-lijst", () => {
+    expect(administrativeDeadlineEvents({ ...empty, upcomingPlacements: [] })).toEqual([]);
+  });
+
+  it("plaatst het 'Einde plaatsing'-event vóór het 'Start plaatsing'-event (toegevoegde volgorde)", () => {
+    const d = new Date("2026-06-01T00:00:00Z");
+    const events = administrativeDeadlineEvents({
+      ...empty,
+      collaborations: [{ id: "end-1", endDate: d, counterpartyName: "De Linde", asClient: false }],
+      upcomingPlacements: [
+        { id: "start-1", startDate: d, counterpartyName: "De Beuk", asClient: false },
+      ],
+    });
+    expect(events.map((e) => e.uid)).toEqual([
+      "collab-end-end-1@zzp-platform",
+      "collab-start-start-1@zzp-platform",
+    ]);
   });
 });
 
