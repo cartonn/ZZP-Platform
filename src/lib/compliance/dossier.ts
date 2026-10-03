@@ -11,6 +11,7 @@ import {
   assessCollaborationCredentials,
   clientHasComplianceAction,
 } from "@/lib/collaboration-alerts";
+import { isInvoicePaidRevenue } from "@/lib/administration/paid-revenue";
 
 const EXPIRY_WINDOW_DAYS = 30;
 
@@ -31,7 +32,10 @@ export interface DossierPerformance {
 
 export interface DossierInvoice {
   number: string;
+  /** Cascade-lifecycle (PAID → PROCESSED → …). `null` voor een legacy-factuur die alleen `status` beweegt. */
   lifecycleStatus: string | null;
+  /** Live legacy-status (`DRAFT|SENT|PAID|OVERDUE|CANCELLED`); de betaalwaarheid voor legacy-facturen. */
+  status: string;
   totalCents: number;
   submittedAt: Date | null;
 }
@@ -188,8 +192,16 @@ export function buildComplianceDossier(
   });
 
   // 6. Facturen + betaalstatus.
-  const paid = input.invoices.filter((i) => i.lifecycleStatus === "PAID");
-  const overdue = input.invoices.filter((i) => i.lifecycleStatus === "OVERDUE");
+  // "Betaald = geld binnen" volgt de canonieke dual-path-regel (`isInvoicePaidRevenue`): een
+  // cascade-factuur telt op PAID én PROCESSED (afgewikkeld = nog steeds betaald geld), een
+  // legacy-factuur (lifecycleStatus null) op de live `status`. Alléén op `lifecycleStatus === "PAID"`
+  // filteren liet afgewikkelde en legacy-betaalde facturen als "0 betaald" door het gat vallen — een
+  // zelf-tegensprekend auditdocument. "Te laat" volgt dezelfde dual-path: cascade via `lifecycleStatus`,
+  // legacy via de live `status`.
+  const paid = input.invoices.filter((i) => isInvoicePaidRevenue(i));
+  const overdue = input.invoices.filter((i) =>
+    i.lifecycleStatus != null ? i.lifecycleStatus === "OVERDUE" : i.status === "OVERDUE",
+  );
   sections.push({
     key: "facturen",
     title: "Facturen & betaalstatus",

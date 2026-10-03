@@ -76,6 +76,7 @@ export async function GET(
         select: {
           number: true,
           partyInvoiceNumber: true,
+          status: true,
           lifecycleStatus: true,
           totalCents: true,
           issuedAt: true,
@@ -133,6 +134,7 @@ export async function GET(
     performances: col.performances,
     invoices: col.invoices.map((i) => ({
       number: displayInvoiceNumber(i),
+      status: i.status,
       lifecycleStatus: i.lifecycleStatus,
       totalCents: i.totalCents,
       submittedAt: i.issuedAt,
