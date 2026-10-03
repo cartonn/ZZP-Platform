@@ -289,7 +289,7 @@ export default async function CertificatenPage() {
             // met bestand → "Verificatie aanvragen" (bestaand bewijs opnieuw inleveren). Zie credentialListCta.
             const cta = credentialListCta(
               { status, expiresAt: c.expiresAt, hasDocument: !!c.documentId },
-              now,
+              new Date(now),
             );
             const isPublic = (c.visibility as Visibility) === "PUBLIC";
             return (
