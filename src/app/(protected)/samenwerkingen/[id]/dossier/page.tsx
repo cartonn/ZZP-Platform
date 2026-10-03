@@ -63,6 +63,7 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
         select: {
           number: true,
           partyInvoiceNumber: true,
+          status: true,
           lifecycleStatus: true,
           totalCents: true,
           issuedAt: true,
@@ -91,6 +92,7 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
     performances: col.performances,
     invoices: col.invoices.map((i) => ({
       number: displayInvoiceNumber(i),
+      status: i.status,
       lifecycleStatus: i.lifecycleStatus,
       totalCents: i.totalCents,
       submittedAt: i.issuedAt,

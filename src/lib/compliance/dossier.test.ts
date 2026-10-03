@@ -23,6 +23,8 @@ const base: DossierInput = {
   invoices: [
     {
       number: "2026-0001",
+      // Cascade-factuur: de live `status` blijft DRAFT; betaling beweegt via `lifecycleStatus`.
+      status: "DRAFT",
       lifecycleStatus: "PAID",
       totalCents: 121000,
       submittedAt: new Date("2026-02-05"),
@@ -75,11 +77,132 @@ describe("buildComplianceDossier", () => {
         },
       ],
       invoices: [
-        { number: "2026-0002", lifecycleStatus: "OVERDUE", totalCents: 50000, submittedAt: null },
+        {
+          number: "2026-0002",
+          status: "DRAFT",
+          lifecycleStatus: "OVERDUE",
+          totalCents: 50000,
+          submittedAt: null,
+        },
       ],
     });
     expect(d.sections.find((s) => s.key === "verificatie")?.attention).toBe(true);
     expect(d.sections.find((s) => s.key === "facturen")?.attention).toBe(true);
+  });
+
+  it("telt een afgewikkelde (PROCESSED) cascade-factuur als betaald", () => {
+    // Een betaalde cascade-factuur schuift na administratieve verwerking door naar PROCESSED;
+    // dat geld is nog steeds binnen. Vroeger telde alleen lifecycleStatus === "PAID" → 0 betaald.
+    const d = buildComplianceDossier({
+      ...base,
+      invoices: [
+        {
+          number: "2026-0003",
+          status: "DRAFT",
+          lifecycleStatus: "PROCESSED",
+          totalCents: 121000,
+          submittedAt: new Date("2026-02-05"),
+        },
+      ],
+    });
+    const sec = d.sections.find((s) => s.key === "facturen");
+    expect(sec?.summary).toBe("1 factuur, 1 betaald.");
+    expect(sec?.attention).toBe(false);
+  });
+
+  it("telt een legacy betaalde factuur (lifecycleStatus null, status PAID) als betaald", () => {
+    // Legacy-factuur (handmatig via /facturen): beweegt alleen via de live `status`.
+    const d = buildComplianceDossier({
+      ...base,
+      invoices: [
+        {
+          number: "2026-0004",
+          status: "PAID",
+          lifecycleStatus: null,
+          totalCents: 60500,
+          submittedAt: new Date("2026-02-05"),
+        },
+      ],
+    });
+    const sec = d.sections.find((s) => s.key === "facturen");
+    expect(sec?.summary).toBe("1 factuur, 1 betaald.");
+    expect(sec?.attention).toBe(false);
+  });
+
+  it("telt een legacy te-late factuur (lifecycleStatus null, status OVERDUE) als te laat", () => {
+    const d = buildComplianceDossier({
+      ...base,
+      invoices: [
+        {
+          number: "2026-0005",
+          status: "OVERDUE",
+          lifecycleStatus: null,
+          totalCents: 60500,
+          submittedAt: new Date("2026-02-05"),
+        },
+      ],
+    });
+    const sec = d.sections.find((s) => s.key === "facturen");
+    expect(sec?.summary).toBe("1 factuur, 0 betaald, 1 te laat.");
+    expect(sec?.attention).toBe(true);
+  });
+
+  it("telt een gecrediteerde (teruggedraaide) factuur niet als betaald", () => {
+    // CREDITED = teruggedraaid; enger dan "afgewikkeld" → geen betaalde omzet.
+    const d = buildComplianceDossier({
+      ...base,
+      invoices: [
+        {
+          number: "2026-0006",
+          status: "DRAFT",
+          lifecycleStatus: "CREDITED",
+          totalCents: 121000,
+          submittedAt: new Date("2026-02-05"),
+        },
+      ],
+    });
+    const sec = d.sections.find((s) => s.key === "facturen");
+    expect(sec?.summary).toBe("1 factuur, 0 betaald.");
+    expect(sec?.attention).toBe(false);
+  });
+
+  it("telt gemengde betaalde facturen (cascade PAID/PROCESSED + legacy PAID) volledig", () => {
+    const d = buildComplianceDossier({
+      ...base,
+      invoices: [
+        {
+          number: "2026-0007",
+          status: "DRAFT",
+          lifecycleStatus: "PAID",
+          totalCents: 100000,
+          submittedAt: new Date("2026-02-05"),
+        },
+        {
+          number: "2026-0008",
+          status: "DRAFT",
+          lifecycleStatus: "PROCESSED",
+          totalCents: 100000,
+          submittedAt: new Date("2026-02-06"),
+        },
+        {
+          number: "2026-0009",
+          status: "PAID",
+          lifecycleStatus: null,
+          totalCents: 100000,
+          submittedAt: new Date("2026-02-07"),
+        },
+        {
+          number: "2026-0010",
+          status: "DRAFT",
+          lifecycleStatus: "SUBMITTED",
+          totalCents: 100000,
+          submittedAt: new Date("2026-02-08"),
+        },
+      ],
+    });
+    const sec = d.sections.find((s) => s.key === "facturen");
+    expect(sec?.summary).toBe("4 facturen, 3 betaald.");
+    expect(sec?.attention).toBe(false);
   });
 
   it("ongetekend contract is een aandachtspunt", () => {
