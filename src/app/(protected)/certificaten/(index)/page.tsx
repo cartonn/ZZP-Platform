@@ -18,6 +18,7 @@ import { prisma } from "@/lib/db";
 import {
   CREDENTIAL_TYPE_LABEL,
   activeVerifiedCount,
+  credentialListCta,
   daysUntilExpiry,
   isExpiringSoon,
 } from "@/lib/credentials";
@@ -283,11 +284,13 @@ export default async function CertificatenPage() {
               status,
               daysUntilExpiry: days,
             });
-            // Losse verificatie-aanvraag alleen vanuit concept/afgewezen/verlopen.
-            // (VERIFIED->SUBMITTED bestaat wél in de map, maar uitsluitend bij document-vervangen.)
-            const canSubmit =
-              !!c.documentId &&
-              (status === "DRAFT" || status === "REJECTED" || status === "EXPIRED");
+            // Eén bron voor de primaire herstel-/vernieuwactie, gelijk aan /acties en de nav-badge:
+            // verlopen/net-verlopen/bijna-verlopen → "Vernieuwen" (nieuw bewijsstuk), concept/afgewezen
+            // met bestand → "Verificatie aanvragen" (bestaand bewijs opnieuw inleveren). Zie credentialListCta.
+            const cta = credentialListCta(
+              { status, expiresAt: c.expiresAt, hasDocument: !!c.documentId },
+              new Date(now),
+            );
             const isPublic = (c.visibility as Visibility) === "PUBLIC";
             return (
               <Card key={c.id}>
@@ -395,16 +398,17 @@ export default async function CertificatenPage() {
                   <RenewalLeadtimeNote nudge={leadNudge} />
 
                   <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                    {canSubmit && (
+                    {cta === "submit" && (
                       <form action={requestVerification.bind(null, c.id)}>
                         <Button type="submit" size="sm">
                           Verificatie aanvragen
                         </Button>
                       </form>
                     )}
-                    {/* Bijna-verlopen, nog geldig (VERIFIED): vernieuwen = nieuw bewijsstuk uploaden
-                        op de bewerken-pagina, wat het certificaat opnieuw ter verificatie aanbiedt. */}
-                    {expiringSoon && (
+                    {/* Verlopen/net-verlopen/bijna-verlopen: vernieuwen = nieuw bewijsstuk uploaden op de
+                        bewerken-pagina, wat het certificaat opnieuw ter verificatie aanbiedt. Opnieuw
+                        inleveren van het verlopen bewijsstuk zou zinloos zijn. */}
+                    {cta === "renew" && (
                       <Button asChild size="sm">
                         <Link
                           href={`/certificaten/${c.id}/bewerken`}

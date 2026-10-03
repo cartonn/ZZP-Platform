@@ -4,6 +4,7 @@ import {
   assertTransition,
   canTransition,
   credentialEditPath,
+  credentialListCta,
   credentialRecoveryNotice,
   daysUntilExpiry,
   expiryTransition,
@@ -622,5 +623,70 @@ describe("credentialRecoveryNotice", () => {
     expect(credentialRecoveryNotice("DRAFT")).toBeNull();
     expect(credentialRecoveryNotice("SUBMITTED")).toBeNull();
     expect(credentialRecoveryNotice("VERIFIED")).toBeNull();
+  });
+});
+
+describe("credentialListCta", () => {
+  const now = new Date("2026-06-01T00:00:00.000Z");
+  const past = new Date("2026-05-20T00:00:00.000Z"); // verlopen
+  const soon = new Date("2026-06-20T00:00:00.000Z"); // binnen 30 dagen
+  const far = new Date("2026-12-01T00:00:00.000Z"); // ruim buiten het venster
+
+  it("laat een EXPIRED-certificaat vernieuwen in plaats van het verlopen bewijs opnieuw in te leveren", () => {
+    // Regressie: de lijst toonde hier "Verificatie aanvragen" (opnieuw inleveren van het reeds
+    // verlopen bewijsstuk) — misleidend en in strijd met /acties en de nav-badge.
+    expect(credentialListCta({ status: "EXPIRED", expiresAt: past, hasDocument: true }, now)).toBe(
+      "renew",
+    );
+    expect(credentialListCta({ status: "EXPIRED", expiresAt: past, hasDocument: false }, now)).toBe(
+      "renew",
+    );
+  });
+
+  it("behandelt een VERIFIED-certificaat met gepasseerde vervaldatum (vóór de expiry-cron) als vernieuwen", () => {
+    // Regressie: dit viel tussen canSubmit (VERIFIED) en expiringSoon (al verlopen) → géén actieknop,
+    // terwijl /acties en de badge het al als verlopen tonen.
+    expect(credentialListCta({ status: "VERIFIED", expiresAt: past, hasDocument: true }, now)).toBe(
+      "renew",
+    );
+  });
+
+  it("laat een bijna-verlopen, nog geldig VERIFIED-certificaat vernieuwen", () => {
+    expect(credentialListCta({ status: "VERIFIED", expiresAt: soon, hasDocument: true }, now)).toBe(
+      "renew",
+    );
+  });
+
+  it("toont geen actieknop voor een ruim geldig VERIFIED-certificaat", () => {
+    expect(credentialListCta({ status: "VERIFIED", expiresAt: far, hasDocument: true }, now)).toBe(
+      "none",
+    );
+    expect(credentialListCta({ status: "VERIFIED", expiresAt: null, hasDocument: true }, now)).toBe(
+      "none",
+    );
+  });
+
+  it("laat een concept of afgewezen certificaat mét bewijsstuk (opnieuw) ter verificatie aanbieden", () => {
+    expect(credentialListCta({ status: "DRAFT", expiresAt: null, hasDocument: true }, now)).toBe(
+      "submit",
+    );
+    expect(credentialListCta({ status: "REJECTED", expiresAt: null, hasDocument: true }, now)).toBe(
+      "submit",
+    );
+  });
+
+  it("toont geen inlever-actie zonder bewijsstuk", () => {
+    expect(credentialListCta({ status: "DRAFT", expiresAt: null, hasDocument: false }, now)).toBe(
+      "none",
+    );
+    expect(
+      credentialListCta({ status: "REJECTED", expiresAt: null, hasDocument: false }, now),
+    ).toBe("none");
+  });
+
+  it("toont geen actieknop terwijl een certificaat in beoordeling is", () => {
+    expect(
+      credentialListCta({ status: "SUBMITTED", expiresAt: null, hasDocument: true }, now),
+    ).toBe("none");
   });
 });

@@ -1,3 +1,17 @@
+## 3 oktober — consistente vernieuw-CTA op /certificaten voor verlopen certificaten (#1558)
+
+De certificatenlijst toonde voor een verlopen certificaat de knop "Verificatie aanvragen", die het
+reeds-verlopen bewijsstuk ongewijzigd opnieuw ter beoordeling aanbood (zinloos + misleidend), en voor
+een VERIFIED-certificaat met net-gepasseerde vervaldatum (vóór de expiry-cron) helemaal geen actie —
+terwijl /acties én de nav-badge het al als verlopen→vernieuwen tonen. Eén geteste bron
+(`credentialListCta`) voedt nu de primaire actie, gelijk aan de next-action-engine en de badge:
+verlopen/net-verlopen/bijna-verlopen → "Vernieuwen" (nieuw bewijsstuk uploaden), concept/afgewezen mét
+bewijsstuk → "Verificatie aanvragen". Negen gerichte CTA-tests (regressies rood vóór herstel); types,
+lint, volledige suite en productiebuild groen. Meegenomen: de base-brede `audit`-poort gedeblokkeerd
+door `patch-package` (build-time tool) naar `devDependencies` te verplaatsen — `npm audit --omit=dev`
+0 kwetsbaarheden (was 4 high uit de braces-tak, GHSA-vfj7-8cjw-p6xm); patch past schoon toe.
+[Scope](docs/progress/2026-10-03-credential-renew-cta.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
