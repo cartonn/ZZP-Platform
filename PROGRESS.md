@@ -1,3 +1,13 @@
+## 3 oktober — productie-audit-poort gedeblokkeerd (patch-package → devDependencies)
+
+De verplichte `audit`-poort blokkeerde élke PR base-breed op 4 high productie-deps, allemaal uit de
+`patch-package`-boom via de nieuwe `braces` DoS-advisory GHSA-vfj7-8cjw-p6xm (`<=3.0.3`, nog geen
+upstream fix). `patch-package` is een build-time tool (postinstall past de Next-patch toe; het
+Docker-image installeert dev + runtime in de builder en kopieert `node_modules` ongewijzigd) en hoort
+in `devDependencies`. Verplaatst + lockfile geregenereerd; niets aan de verscheepte modules of de
+patch-toepassing verandert. `audit-production` en `npm audit --omit=dev` groen (0), patch past schoon
+toe. [Scope](docs/progress/2026-10-03-audit-patch-package-devdep.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
