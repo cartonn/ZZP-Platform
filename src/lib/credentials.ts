@@ -148,6 +148,42 @@ export function isExpiringSoon(
   return remainingMs <= withinDays * 86_400_000;
 }
 
+/**
+ * De primaire herstel-/vernieuwactie die de certificatenlijst (`/certificaten`) per exemplaar toont.
+ * Eén bron van waarheid zodat de lijst niet stiller of ánders is dan de next-action-engine
+ * (`freelancerTasks`) en de `/certificaten`-badge (`signals.ts`), die een verlopen certificaat allebei
+ * als "vernieuwen" behandelen (óók een VERIFIED-exemplaar waarvan `expiresAt` net gepasseerd is vóór de
+ * expiry-cron de rij naar EXPIRED flipt).
+ *
+ * - `"renew"`: het bewijsstuk is niet meer geldig of verloopt binnenkort → een nieuw bewijsstuk
+ *   uploaden op de bewerken-pagina (de herstelactie die `credentialRecoveryNotice` beschrijft). Geldt
+ *   voor EXPIRED, een computed-expired VERIFIED (`isExpired`) én bijna-verlopen VERIFIED.
+ * - `"submit"`: een nog niet beoordeeld (DRAFT) of afgewezen (REJECTED) bewijsstuk kan ongewijzigd
+ *   (opnieuw) de verificatiewachtrij in. Een verlopen bewijsstuk hoort hier nooit — opnieuw inleveren
+ *   van verlopen bewijs is zinloos en misleidend; dat is de "renew"-tak hierboven.
+ * - `"none"`: geen actieknop (geldig VERIFIED buiten het venster, of niets in te leveren).
+ *
+ * Puur/deterministisch; `now` injecteerbaar voor tests en server-side waarheid.
+ */
+export type CredentialListCta = "submit" | "renew" | "none";
+
+export interface CredentialCtaInput extends ExpiryInput {
+  hasDocument: boolean;
+}
+
+export function credentialListCta(
+  input: CredentialCtaInput,
+  now: Date = new Date(),
+): CredentialListCta {
+  if (input.status === "EXPIRED" || isExpired(input, now) || isExpiringSoon(input, 30, now)) {
+    return "renew";
+  }
+  if (input.hasDocument && (input.status === "DRAFT" || input.status === "REJECTED")) {
+    return "submit";
+  }
+  return "none";
+}
+
 export interface SupersedeInput {
   id: string;
   type: string;
