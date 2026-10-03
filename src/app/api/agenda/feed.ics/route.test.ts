@@ -48,6 +48,7 @@ vi.mock("@/lib/calendar/user-deadlines", () => ({
     vat: [],
     incomeTax: null,
     collaborations: [],
+    upcomingPlacements: [],
   })),
 }));
 vi.mock("@/lib/calendar/schedule", () => ({ collaborationScheduleEvents: vi.fn(() => []) }));

@@ -29,6 +29,9 @@ import { displayInvoiceNumber } from "@/lib/invoice-number";
  * - Plaatsingen: lopende (ACTIVE, niet-betwiste) samenwerkingen met een vastgelegde einddatum die nog
  *   niet is verstreken, waarbij de gebruiker de ZZP'er óf de opdrachtgever is. Alleen ZZP'er/
  *   opdrachtgever hebben eigen plaatsingen; bemiddelaar/admin krijgen niets (agenda = eigen data).
+ * - Aankomende plaatsingen: ACTIVE, niet-betwiste samenwerkingen met een nog toekomstige `startDate`
+ *   (`>= now`), waarbij de gebruiker ZZP'er of opdrachtgever is. Alleen die twee rollen; bemiddelaar/
+ *   admin krijgen niets (agenda = eigen data).
  *
  * BTW-reikwijdte (bewust smaller dan certificaten/facturen): `getVatDeadlinesForActor` levert alleen
  * kwartalen die nú actie verdienen — deadline binnen ~14 dagen óf verstreken, én een niet-nul saldo.
@@ -43,64 +46,87 @@ export async function loadUserAdministrativeDeadlines(
   role: UserRole,
   now: Date = new Date(),
 ): Promise<AdministrativeDeadlines> {
-  const [credentialRows, invoiceRows, vatSummaries, incomeTax, collaborationRows] =
-    await Promise.all([
-      role === "FREELANCER"
-        ? prisma.credential.findMany({
-            where: {
-              status: "VERIFIED",
-              expiresAt: { not: null },
-              freelancerProfile: { userId },
-            },
-            orderBy: { expiresAt: "asc" },
-            // Datominimalisatie (AVG art. 5(1)(c)): de titel/het type wordt NIET geselecteerd — het
-            // hoort niet in de agenda-feed (zie deadlines.ts). Alleen id + verloopdatum zijn nodig.
-            select: { id: true, expiresAt: true },
-          })
-        : Promise.resolve([]),
-      prisma.invoice.findMany({
-        where: {
-          dueAt: { not: null },
-          AND: [
-            outstandingInvoiceWhere,
-            { OR: [{ issuerUserId: userId }, { counterpartyUserId: userId }] },
-          ],
-        },
-        orderBy: { dueAt: "asc" },
-        select: {
-          id: true,
-          number: true,
-          partyInvoiceNumber: true,
-          dueAt: true,
-          counterpartyUserId: true,
-        },
-      }),
-      // Alleen de ZZP'er krijgt BTW-aangifte-deadlines in de agenda. De BTW-aangiftetaak is voor de
-      // opdrachtgever bewust uit de actie-rail gehaald (#1333, pending-tasks.ts): een zorginstelling
-      // is meestal btw-vrijgesteld en laat haar aangifte door een accountant doen — een
-      // aangifte-deadline op onze deelverzameling van haar administratie is structureel onjuist.
-      // Diezelfde deadline hoort dan ook niet in haar agenda-/.ics-export terecht te komen, anders
-      // spreekt de agenda de actie-rail tegen (één waarheid). De BTW-overzichten op /financien blijven.
-      role === "FREELANCER" ? getVatDeadlinesForActor(userId, role, now) : Promise.resolve([]),
-      getIncomeTaxDeadlineForActor(userId, role, now),
-      role === "FREELANCER" || role === "CLIENT"
-        ? prisma.collaboration.findMany({
-            where: {
-              status: "ACTIVE",
-              disputedAt: null,
-              endDate: { not: null, gte: now },
-              OR: [{ freelancer: { userId } }, { company: { userId } }],
-            },
-            orderBy: { endDate: "asc" },
-            select: {
-              id: true,
-              endDate: true,
-              freelancer: { select: { userId: true, user: { select: { name: true } } } },
-              company: { select: { userId: true, name: true } },
-            },
-          })
-        : Promise.resolve([]),
-    ]);
+  const [
+    credentialRows,
+    invoiceRows,
+    vatSummaries,
+    incomeTax,
+    collaborationRows,
+    upcomingCollaborationRows,
+  ] = await Promise.all([
+    role === "FREELANCER"
+      ? prisma.credential.findMany({
+          where: {
+            status: "VERIFIED",
+            expiresAt: { not: null },
+            freelancerProfile: { userId },
+          },
+          orderBy: { expiresAt: "asc" },
+          // Datominimalisatie (AVG art. 5(1)(c)): de titel/het type wordt NIET geselecteerd — het
+          // hoort niet in de agenda-feed (zie deadlines.ts). Alleen id + verloopdatum zijn nodig.
+          select: { id: true, expiresAt: true },
+        })
+      : Promise.resolve([]),
+    prisma.invoice.findMany({
+      where: {
+        dueAt: { not: null },
+        AND: [
+          outstandingInvoiceWhere,
+          { OR: [{ issuerUserId: userId }, { counterpartyUserId: userId }] },
+        ],
+      },
+      orderBy: { dueAt: "asc" },
+      select: {
+        id: true,
+        number: true,
+        partyInvoiceNumber: true,
+        dueAt: true,
+        counterpartyUserId: true,
+      },
+    }),
+    // Alleen de ZZP'er krijgt BTW-aangifte-deadlines in de agenda. De BTW-aangiftetaak is voor de
+    // opdrachtgever bewust uit de actie-rail gehaald (#1333, pending-tasks.ts): een zorginstelling
+    // is meestal btw-vrijgesteld en laat haar aangifte door een accountant doen — een
+    // aangifte-deadline op onze deelverzameling van haar administratie is structureel onjuist.
+    // Diezelfde deadline hoort dan ook niet in haar agenda-/.ics-export terecht te komen, anders
+    // spreekt de agenda de actie-rail tegen (één waarheid). De BTW-overzichten op /financien blijven.
+    role === "FREELANCER" ? getVatDeadlinesForActor(userId, role, now) : Promise.resolve([]),
+    getIncomeTaxDeadlineForActor(userId, role, now),
+    role === "FREELANCER" || role === "CLIENT"
+      ? prisma.collaboration.findMany({
+          where: {
+            status: "ACTIVE",
+            disputedAt: null,
+            endDate: { not: null, gte: now },
+            OR: [{ freelancer: { userId } }, { company: { userId } }],
+          },
+          orderBy: { endDate: "asc" },
+          select: {
+            id: true,
+            endDate: true,
+            freelancer: { select: { userId: true, user: { select: { name: true } } } },
+            company: { select: { userId: true, name: true } },
+          },
+        })
+      : Promise.resolve([]),
+    role === "FREELANCER" || role === "CLIENT"
+      ? prisma.collaboration.findMany({
+          where: {
+            status: "ACTIVE",
+            disputedAt: null,
+            startDate: { not: null, gte: now },
+            OR: [{ freelancer: { userId } }, { company: { userId } }],
+          },
+          orderBy: { startDate: "asc" },
+          select: {
+            id: true,
+            startDate: true,
+            freelancer: { select: { userId: true, user: { select: { name: true } } } },
+            company: { select: { userId: true, name: true } },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
 
   return {
     // expiresAt/dueAt zijn door de where-clausules gegarandeerd non-null; de `== null`-guard in de
@@ -131,6 +157,19 @@ export async function loadUserAdministrativeDeadlines(
         {
           id: c.id,
           endDate: c.endDate,
+          counterpartyName: asClient ? c.freelancer.user.name : c.company.name,
+          asClient,
+        },
+      ];
+    }),
+    // startDate is door de where-clausule gegarandeerd non-null; de guard maakt dat typebreed expliciet.
+    upcomingPlacements: upcomingCollaborationRows.flatMap((c) => {
+      if (c.startDate == null) return [];
+      const asClient = c.company.userId === userId;
+      return [
+        {
+          id: c.id,
+          startDate: c.startDate,
           counterpartyName: asClient ? c.freelancer.user.name : c.company.name,
           asClient,
         },

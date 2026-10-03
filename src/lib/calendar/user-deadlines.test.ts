@@ -10,6 +10,7 @@ interface FindArgs {
     dueAt?: unknown;
     disputedAt?: unknown;
     endDate?: unknown;
+    startDate?: unknown;
     AND?: Array<{ OR?: Array<Record<string, unknown>> }>;
     OR?: Array<Record<string, unknown>>;
   };
@@ -227,5 +228,72 @@ describe("loadUserAdministrativeDeadlines", () => {
     await loadUserAdministrativeDeadlines(USER, "FRANCHISER", NOW);
     await loadUserAdministrativeDeadlines(USER, "ADMIN", NOW);
     expect(collaborationFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("ZZP'er: laadt aankomende plaatsingen met startdatum en toont de opdrachtgever als tegenpartij", async () => {
+    // Twee collaboration.findMany-calls delen de mock: de einddatum-query (array-positie eerst) en de
+    // startdatum-query. Route op de where zodat elke query zijn eigen rijen krijgt (robuust, niet op
+    // call-volgorde leunend).
+    collaborationFindManyMock.mockImplementation(async (args) =>
+      args.where.startDate !== undefined
+        ? [
+            {
+              id: "up-1",
+              startDate: new Date("2026-08-15T00:00:00Z"),
+              freelancer: { userId: USER, user: { name: "Sanne de Vries" } },
+              company: { userId: "other-client", name: "Zorggroep De Linde" },
+            },
+          ]
+        : [],
+    );
+    const result = await loadUserAdministrativeDeadlines(USER, "FREELANCER", NOW);
+    expect(result.upcomingPlacements).toEqual([
+      {
+        id: "up-1",
+        startDate: new Date("2026-08-15T00:00:00Z"),
+        counterpartyName: "Zorggroep De Linde",
+        asClient: false,
+      },
+    ]);
+    // Scoping: alleen ACTIVE, niet-betwiste plaatsingen met een nog toekomstige startdatum.
+    const startCall = collaborationFindManyMock.mock.calls.find(
+      (c) => c[0]?.where.startDate !== undefined,
+    );
+    const where = startCall?.[0]?.where;
+    expect(where!.status).toBe("ACTIVE");
+    expect(where!.disputedAt).toBeNull();
+    expect(where!.startDate).toEqual({ not: null, gte: NOW });
+    expect(where!.OR).toEqual([{ freelancer: { userId: USER } }, { company: { userId: USER } }]);
+  });
+
+  it("opdrachtgever: toont de ZZP'er als tegenpartij (asClient) op de aankomende startdatum", async () => {
+    collaborationFindManyMock.mockImplementation(async (args) =>
+      args.where.startDate !== undefined
+        ? [
+            {
+              id: "up-2",
+              startDate: new Date("2026-12-01T00:00:00Z"),
+              freelancer: { userId: "other-zzp", user: { name: "Sanne de Vries" } },
+              company: { userId: USER, name: "Mijn Bedrijf BV" },
+            },
+          ]
+        : [],
+    );
+    const result = await loadUserAdministrativeDeadlines(USER, "CLIENT", NOW);
+    expect(result.upcomingPlacements).toEqual([
+      {
+        id: "up-2",
+        startDate: new Date("2026-12-01T00:00:00Z"),
+        counterpartyName: "Sanne de Vries",
+        asClient: true,
+      },
+    ]);
+  });
+
+  it("bemiddelaar/admin: geen aankomende plaatsingen (agenda = eigen data)", async () => {
+    const franchiser = await loadUserAdministrativeDeadlines(USER, "FRANCHISER", NOW);
+    const admin = await loadUserAdministrativeDeadlines(USER, "ADMIN", NOW);
+    expect(franchiser.upcomingPlacements).toEqual([]);
+    expect(admin.upcomingPlacements).toEqual([]);
   });
 });
