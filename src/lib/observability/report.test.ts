@@ -102,6 +102,19 @@ describe("reportError (console-tak)", () => {
     expect(fields).toMatchObject({ requestId: "trace-42" });
   });
 
+  it("redigeert een geheim reset-/deel-token in requestPath vóór het loggen", async () => {
+    await reportError(new Error("boom"), {
+      source: "onRequestError",
+      requestPath: "/wachtwoord-herstellen/super-geheim-token?x=1",
+    });
+    const [, fields] = errorSpy.mock.calls[0]!;
+    // Het rauwe token mag nooit in de logregel staan (account-overname / document-lek).
+    expect((fields as { requestPath?: string }).requestPath).toBe(
+      "/wachtwoord-herstellen/[redacted]",
+    );
+    expect(JSON.stringify(fields)).not.toContain("super-geheim-token");
+  });
+
   it("werpt nooit, ook niet bij een niet-Error (string)", async () => {
     await expect(reportError("kapot")).resolves.toBeUndefined();
     expect(errorSpy).toHaveBeenCalledTimes(1);
@@ -139,6 +152,17 @@ describe("reportError (sentry-tak)", () => {
 
   it("werpt nooit in de sentry-tak", async () => {
     await expect(reportError("kapot")).resolves.toBeUndefined();
+  });
+
+  it("redigeert een geheim token in requestPath vóór verzending naar Sentry (extra)", async () => {
+    await reportError(new Error("boom"), {
+      source: "onRequestError",
+      requestPath: "/vertrouwen/prof-7/deel-token-geheim",
+    });
+    expect(sentryCaptureException).toHaveBeenCalledTimes(1);
+    const [, hint] = sentryCaptureException.mock.calls[0]!;
+    expect(hint.extra.requestPath).toBe("/vertrouwen/prof-7/[redacted]");
+    expect(JSON.stringify(hint.extra)).not.toContain("deel-token-geheim");
   });
 
   it("valt bij een onbeschikbare SDK terug op console en waarschuwt éénmalig", async () => {

@@ -2,7 +2,7 @@
 // geeft deze opties door aan `sentry.init(...)` zodra SENTRY_DSN gezet is en het pakket beschikbaar is.
 
 import { redact } from "@/lib/observability/logger";
-import { stripUrlQueries } from "@/lib/observability/url-scrub";
+import { scrubSecretPathSegments, stripUrlQueries } from "@/lib/observability/url-scrub";
 //
 // Waarom een eigen seam i.p.v. een kaal `{ dsn }`:
 //   1. AVG (dit platform verwerkt gevoelige documenten; Sentry is een externe — mogelijk
@@ -139,13 +139,20 @@ function scrubBreadcrumb(crumb: unknown): unknown {
   return c;
 }
 
-/** Behoudt alleen het pad van een (mogelijk absolute) URL; valt bij een parse-fout veilig terug. */
+/**
+ * Behoudt alleen het pad van een (mogelijk absolute) URL én redigeert geheime pad-segmenten
+ * (reset-/deel-token). Valt bij een parse-fout veilig terug op het pad vóór query/fragment, óók
+ * daar met de segment-scrub. Zonder die scrub lekt een geheim token in het PAD (bv.
+ * /wachtwoord-herstellen/<token> of /vertrouwen/<id>/<token>) via `request.url` naar de externe
+ * verwerker — `beforeSend` ziet dat veld pas hier, en de key-gebaseerde `redact` mist een hex-token
+ * binnen een pad-waarde (AVG art. 32 / "geen secrets in logs", OWASP A09).
+ */
 function safePath(url: string): string {
   try {
-    return new URL(url).pathname;
+    return scrubSecretPathSegments(new URL(url).pathname);
   } catch {
-    // Relatief pad of onparseerbaar: kap een eventuele querystring/fragment af.
-    return url.split(/[?#]/)[0] ?? url;
+    // Relatief pad of onparseerbaar: kap een eventuele querystring/fragment af, dan segment-scrub.
+    return scrubSecretPathSegments(url.split(/[?#]/)[0] ?? url);
   }
 }
 

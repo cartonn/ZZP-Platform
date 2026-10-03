@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  sanitizePath,
   sanitizeUrl,
   scrubSecretPathSegments,
   stripUrlQueries,
@@ -20,6 +21,28 @@ describe("scrubSecretPathSegments", () => {
 
   it("laat een pad zonder geheim segment ongewijzigd", () => {
     expect(scrubSecretPathSegments("/facturen/42")).toBe("/facturen/42");
+  });
+});
+
+describe("sanitizePath", () => {
+  it("redigeert een geheim token in een kaal pad én kapt de query af", () => {
+    expect(sanitizePath("/wachtwoord-herstellen/tok-geheim?x=1")).toBe(
+      "/wachtwoord-herstellen/[redacted]",
+    );
+  });
+
+  it("behoudt het profileId maar redigeert het deel-token in een kaal pad", () => {
+    expect(sanitizePath("/vertrouwen/prof-1/token-xyz#frag")).toBe("/vertrouwen/prof-1/[redacted]");
+  });
+
+  it("reduceert een absolute URL tot alleen het (geredigeerde) pad — host lekt niet mee", () => {
+    expect(sanitizePath("https://app.test/wachtwoord-herstellen/tok?x=1")).toBe(
+      "/wachtwoord-herstellen/[redacted]",
+    );
+  });
+
+  it("laat een pad zonder geheim segment ongewijzigd", () => {
+    expect(sanitizePath("/facturen/42")).toBe("/facturen/42");
   });
 });
 

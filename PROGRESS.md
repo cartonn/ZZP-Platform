@@ -1,3 +1,7 @@
+## 3 oktober — security: geheim-token-lek naar Sentry/logs + rode auditpoort hersteld
+
+Security-/privacy-auditronde (4 parallelle deelaudits). **HOOG:** reset-/deel-token lekte rauw naar Sentry én logs bij elke serverfout op `/wachtwoord-herstellen/<token>` en `/vertrouwen/<id>/<token>` — `safePath` en de `requestPath`-context pasten `scrubSecretPathSegments` niet toe. Gefixt via de nieuwe `sanitizePath` (centraal in `reportError`) + `safePath`-scrub; 8 regressies rood→groen. **HOOG (gate):** de verplichte `audit`-mergepoort stond ROOD op main (4 HIGH via `patch-package`→…→`braces`, GHSA-vfj7-8cjw-p6xm) en blokkeerde elke PR — `patch-package` naar devDependencies verplaatst (build-only), gate groen. Rest geparkeerd in `docs/SECURITY-PRIVACY-BACKLOG.md`. Onafhankelijke review en CI volgen.
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

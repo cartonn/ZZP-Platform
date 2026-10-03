@@ -1,3 +1,91 @@
+## Ronde 3 oktober 2026 — auditpoort + geheim-token-lek naar Sentry/logs
+
+> Basis `origin/main` `0b73d06be371a7a45a4b7fed712bc1fb0222ef01`. Vier parallelle deelaudits
+> (server-actions-autorisatieketen, API-routes/IDOR/SSRF, privacy/AVG-erasure, injectie/CSV/headers/
+> dependencies). De codebase is zwaar gehard; geen nieuwe KRITIEK gevonden. Twee items deze ronde
+> hersteld; de rest geparkeerd met repro + severity hieronder.
+
+### OPGELOST — HOOG: reset-/deel-token lekte rauw naar Sentry én logs bij elke serverfout (A09, AVG art. 32)
+
+**Geschonden regel:** "geen secrets in logs/naar externe verwerker" (AVG art. 5(1)(f)/32; OWASP
+A09 Security Logging & Monitoring Failures). **Repro:** elke ongevangen serverfout (RSC/action/DB)
+op `/wachtwoord-herstellen/<reset-token>` of `/vertrouwen/<profileId>/<deel-token>` stuurde het
+volledige pad — inclusief het geheime token — naar Sentry (externe, mogelijk buiten-EER verwerker)
+en naar de Railway-logs, via twee gaten: (1) `scrubSentryEvent`'s `safePath` reduceerde
+`request.url` tot alleen het pad maar paste `scrubSecretPathSegments` niet toe; (2)
+`onRequestError` gaf Next's rauwe `request.path` als `ReportContext.requestPath` door, dat zowel de
+console-logger (`...context`) als Sentry (`extra: {...context}`) ongeredacteerd opslaan — de
+sleutel-gebaseerde `redact` mist een hex-token binnen een pad-waarde. Een gelekt reset-token geeft
+account-overname; een gelekt deel-token opent het vertrouwensdossier (naam + geverifieerde
+certificaten). **Fix:** `safePath` past nu `scrubSecretPathSegments` toe (beide takken);
+`reportError` scrubt `requestPath` centraal via de nieuwe `sanitizePath` (pad-only, query/fragment
+weg, geheime segmenten weg), zodat élke caller beschermd is. 8 nieuwe regressies rood vóór de fix,
+groen erna (url-scrub/sentry-options/report). Bestanden: `src/lib/observability/url-scrub.ts`,
+`sentry-options.ts`, `report.ts` (+ tests).
+
+### OPGELOST — HOOG (gate): verplichte `audit`-mergepoort stond ROOD op main
+
+**Geschonden regel:** DoD "CI-poort groen"; OWASP A06 (Vulnerable & Outdated Components). **Repro:**
+`node scripts/audit-production.mjs` op main gaf `0 critical + 4 high — geblokkeerd` (exit 1) —
+dit blokkeerde ELKE PR naar main. De vier HIGH kwamen uit één keten: `patch-package` (stond in
+`dependencies`) → find-yarn-workspace-root → micromatch → **braces** (GHSA-vfj7-8cjw-p6xm,
+stack-exhaustion DoS, CWE-674). (#1536 patchte `brace-expansion`; dit is het andere pakket `braces`.)
+**Fix:** `patch-package` is een build-/postinstall-tool, niet nodig at runtime → verplaatst naar
+`devDependencies`. De keten valt daarmee uit `npm audit --omit=dev` (gate groen, geverifieerd); de
+postinstall-patch (`patches/next+15.5.24.patch`) past nog steeds toe (dev-deps aanwezig bij
+`npm ci`/`npm install`; geen enkele workflow of Dockerfile installeert met `--omit=dev`).
+
+### Geparkeerd (geverifieerd, repro aanwezig) — volgende rondes
+
+- **MIDDEL — privacy:** Sentry/log-payloads dragen ongeredacteerde fout-`message`/`stack`;
+  Prisma-validatiefouten bevatten invoerwaarden (IBAN, naam, bio). `scrubSentryEvent` raakt
+  `event.exception.values[].value`/`event.message`/`logentry` niet; `describeError`
+  (`report.ts`) logt volledige message/stack. _Fix:_ haal die velden in `beforeSend` door de
+  string-redactor; strip Prisma `invocation:`-blok in `describeError`. (AVG art. 5(1)(c)/(f))
+- **MIDDEL — privacy:** publiek, onauth `/zzp/[id]` toont samenwerkings­historie van elke status
+  (ook PROPOSED/CANCELLED) met `job.title` (vrije, vaak klant-identificerende tekst) aan anonieme
+  bezoekers. `profile-screen.tsx:201-205` (query, geen statusfilter), render `:770-790`/`:926-950`.
+  _Fix:_ alleen COMPLETED tonen, geen rauwe `job.title` publiek (branche/generiek label). (AVG
+  art. 5(1)(b)/(c))
+- **MIDDEL — integriteit:** `changeSubscription` (`abonnement/actions.ts`) schrijft
+  subscription-status direct (upsert `PENDING`) zonder `canSubscriptionTransition`; een afgebroken
+  checkout overschrijft een ACTIVE betaald abonnement → gebruiker valt terug op FREE tot een
+  webhook arriveert. Self-inflicted (geen cross-user). _Fix:_ laad huidige sub + transition-check,
+  behoud de rij tot de webhook bevestigt. (OWASP A04/A08; CLAUDE.md regel 3)
+- **LAAG-MIDDEL — AVG art. 17:** reviews GESCHREVEN OVER de gewiste gebruiker overleven erasure
+  (`admin/gebruikers/actions.ts:758` scrubt alleen `authorId`, niet `subjectId`). `Review.comment`
+  (vrije tekst van tegenpartij) blijft gekoppeld aan het geanonimiseerde id. _Fix:_ null `comment`
+  waar `subjectId = userId`, of leg grondslag vast in het verwerkingsregister.
+- **LAAG-MIDDEL — AVG minimalisatie/opslagbeperking:** `GeocodeCache.query`/`TravelRouteCache`
+  bewaren vrije-tekst locaties (mogelijk thuisadres) 180/30 dagen in plaintext, niet gepurgd bij
+  erasure; de allowlist-test noemt ze onterecht "[INFRA]/postcodes". _Fix:_ reduceer tot
+  plaats/postcode vóór provider-call + cache, of purge bij `anonymizeUser`.
+- **LAAG-MIDDEL — AVG art. 17 (mogelijk duplicaat #1516):** in `anonymizeUser` draaien
+  `document.deleteMany` + `storage.delete`-blobs NÁ de Serializable-transactie; een crash ertussen
+  laat VOG/ID-blobs achter terwijl de user al `anonymizedAt` is en `canAnonymizeUser` een retry
+  weigert. _Fix:_ idempotente sweep op `Document.owner.anonymizedAt != null` + weeskeys. Verifieer
+  overlap met #1516.
+- **LAAG — token-revocatie:** vertrouwensdossier-deeltoken (`/vertrouwen/[profileId]/[token]`) én
+  agenda-feed-token (`/api/agenda/feed.ics`) zijn deterministische HMAC's zonder per-link-revocatie;
+  een gelekte link blijft geldig tot schorsing/anonimisering of een secret-rotatie die álle links
+  breekt. _Fix:_ per-profiel/per-user `tokenEpoch`-kolom in de HMAC + "reset link"-actie. (A07/A09)
+- **LAAG — enumeratie:** zelf-registratie (`register/actions.ts`) en franchiser-accountcreatie
+  (`franchise/zzpers`/`opdrachtgevers`) geven "Er bestaat al een account…" terug → e-mail-oracle
+  (franchiser ziet ook cross-tenant e-mails). Rate-limited. _Fix:_ generieke respons + "je hebt al
+  een account"-mail. (A07)
+- **LAAG — integriteit:** `setOrtProfileAction`/`setWeekdaysAction`
+  (`samenwerkingen/[id]/actions.ts`) missen de `disputedAt`/terminal-status-guard die
+  zustercommando's wél hebben; een client kan custom ORT-tarieven wijzigen tijdens dispuut/na
+  afronding. _Fix:_ voeg dezelfde guards toe (verifieer of ORT op de prestatie wordt gesnapshot).
+- **LAAG — defense-in-depth:** `push/subscribe` upsert herbindt een PushSubscription per endpoint
+  aan de poster (`update: { userId: actor.id }`); vereist het (ongokbare) endpoint van het
+  slachtoffer. _Fix:_ weiger update als `existing.userId !== actor.id`. (A01)
+- **LAAG — hardening:** productie `script-src` bevat nog `'unsafe-inline' https:` als
+  legacy-fallback (CSP3-browsers negeren ze bij een nonce). _Fix:_ verwijderen zodra
+  `/api/csp-report` geen violations toont. (A05)
+- **Info — dependencies:** next-auth v5 is nog beta (onderhoudsrisico, geen advisory); pdf-lib
+  1.17.1 onderhouden-loos maar write-only (geen parser-oppervlak).
+
 ## 23 september 2026 — lopende upload na erasure (MIDDEL, #1516)
 
 De eerdere document/erasure-raceclaim hieronder dekt geen reeds geautoriseerde
