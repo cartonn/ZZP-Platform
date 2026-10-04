@@ -267,6 +267,23 @@ describe("parseOrtSegments — JSON-parse met lege-array-fallback", () => {
     expect(parseOrtSegments(undefined)).toEqual([]);
     expect(parseOrtSegments("")).toEqual([]);
   });
+
+  it("JSON-geldige maar niet-array waarde geeft lege array terug (array-guard)", () => {
+    // Zonder de Array.isArray-guard zou een object/getal/string/boolean/null als niet-array
+    // doorlekken onder de OrtSegment[]-contractbelofte en elke .map/for…of-lezer breken.
+    for (const notArray of ["{}", '{"category":"NORMAL","hours":6}', "5", '"EVENING"', "true"]) {
+      expect(parseOrtSegments(notArray)).toEqual([]);
+    }
+    // "null" parset naar JS-null (geen array) → lege array, niet de null doorgeven.
+    expect(parseOrtSegments("null")).toEqual([]);
+  });
+
+  it("de teruggegeven waarde is altijd een echte array (veilig voor .map/spread)", () => {
+    expect(Array.isArray(parseOrtSegments("{}"))).toBe(true);
+    expect(Array.isArray(parseOrtSegments("42"))).toBe(true);
+    // Een echte array blijft behouden, ook met (nog) ongevalideerde elementen.
+    expect(Array.isArray(parseOrtSegments("[1,2,3]"))).toBe(true);
+  });
 });
 
 describe("ORT-categorie validatie — alle categorieën", () => {

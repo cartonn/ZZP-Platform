@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
-import { resolveEffectiveOrtRates, type OrtSegment } from "@/lib/ort";
+import { parseOrtSegments, resolveEffectiveOrtRates } from "@/lib/ort";
 import { safeComputeOrt } from "@/lib/ort-breakdown";
 import { currentDunningStage } from "@/lib/payment-reminders";
 import { buildAanmaningData } from "@/lib/aanmaning";
@@ -54,15 +54,6 @@ const CASCADE_LABEL: Record<
 
 function fmt(d: Date | null) {
   return d ? formatDateShortNl(d) : "—";
-}
-
-function parseOrtSegments(json: string | null | undefined): OrtSegment[] {
-  if (!json) return [];
-  try {
-    return JSON.parse(json) as OrtSegment[];
-  } catch {
-    return [];
-  }
 }
 
 export default async function FactuurDetailPage({ params }: { params: Promise<{ id: string }> }) {
