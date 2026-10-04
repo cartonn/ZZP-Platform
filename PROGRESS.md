@@ -1,3 +1,12 @@
+## 4 oktober — lijst-fill-urgency volgt de locked-in-poort (#1564)
+
+De "Mijn opdrachten"-lijst bepaalde "vervuld" met een eigen samenwerking-only-query en gaf zo een
+valse "nog niet vervuld"-chip op een opdracht met een vastgelegde ACCEPTED-kandidaat, terwijl het
+detail en de next-actions zwegen. De fill-urgency-afleiding verhuist naar een getest data-helper
+(`getJobFillUrgency`) die exact `lockedInJobIds` gebruikt — één bron van waarheid, geen
+cross-surface drift. Vijf gerichte tests groen; gate volgt in CI.
+[Scope](docs/progress/2026-10-04-fill-urgency-locked-in.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
