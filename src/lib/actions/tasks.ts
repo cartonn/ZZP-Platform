@@ -27,6 +27,7 @@ import { type FirstLookOverdueSummary } from "@/lib/client-first-look";
 import { INVITATION_AGING_DAYS, invitationAgeLabel } from "@/lib/received-invitations";
 import { UNBILLED_AGING_DAYS } from "@/lib/unbilled-invoices";
 import { PERFORMANCE_WAIT_ATTENTION_DAYS } from "@/lib/performance-wait";
+import { INVOICE_APPROVAL_WAIT_ATTENTION_DAYS } from "@/lib/invoice-approval-wait";
 import { PROPOSAL_STALL_DAYS } from "@/lib/accepted-proposal";
 import {
   acuteFillabilityHeadline,
@@ -306,14 +307,33 @@ export function invoiceSubmitTask(
   };
 }
 
-export function invoiceApproveTask(invId: string, collabId: string, jobTitle: string): PendingTask {
+export function invoiceApproveTask(
+  invId: string,
+  collabId: string,
+  jobTitle: string,
+  /**
+   * Hele dagen dat de ingediende factuur al op goedkeuring wacht. Zodra dit ≥
+   * INVOICE_APPROVAL_WAIT_ATTENTION_DAYS (7) komt, escaleert de taak: de subtitel maakt de wachttijd
+   * expliciet en de prioriteit klimt naar de overdue-band — exact zoals de dag-3/7-herinnering de
+   * opdrachtgever port. Zo blijft /acties (+ rail) niet vlak op de approve-band hangen terwijl de
+   * e-mailnudge al alarmeert. Downstream-spiegel van `performanceApproveTask`. `undefined` = geen
+   * leeftijdsbesef (gedragsbehoudend, blijft de vlakke approve-band).
+   */
+  daysWaiting?: number,
+): PendingTask {
+  const overdue = daysWaiting !== undefined && daysWaiting >= INVOICE_APPROVAL_WAIT_ATTENTION_DAYS;
   return {
     kind: "invoice-approve",
     id: `invoice-approve:${invId}`,
     title: "Keur de ingediende factuur",
-    subtitle: jobTitle,
+    subtitle: overdue
+      ? `${jobTitle} · wacht al ${plural(daysWaiting ?? 0, "dag", "dagen")} op goedkeuring`
+      : jobTitle,
     tone: "attention",
-    priority: P.complianceRipple - 20, // approve-band (65)
+    // Vers (65 = approve-band): goedkeuring vragen is urgenter dan eigen indienen. Voorbij de
+    // herinner-/escalatiecadans (≥7 dagen) klimt hij naar de overdue-band (66) — net onder de
+    // upstream-urenstaat-escalatie (67) zodat de hele keten eerst bovenaan wordt gedeblokkeerd.
+    priority: overdue ? P.invoiceApprovalOverdue : P.complianceRipple - 20,
     resolver: "drawer", // inspecteer-dan-beslis: factuur inzien, dan goedkeuren/afwijzen
     href: collabHref(collabId),
     invId,
