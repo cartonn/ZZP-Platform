@@ -24,6 +24,7 @@ type Inv = {
   lifecycleStatus: string;
   createdAt: Date;
   counterpartyUserId?: string;
+  issuedAt?: Date | null;
 };
 type Collab = {
   id: string;
@@ -140,6 +141,7 @@ vi.mock("@/lib/db", () => {
                     id: i.id,
                     lifecycleStatus: i.lifecycleStatus,
                     createdAt: i.createdAt,
+                    issuedAt: i.issuedAt ?? null,
                     collaborationId: c.id,
                     collaboration: { job: { title: c.jobTitle } },
                   })),
@@ -359,5 +361,81 @@ describe("clientTasks — outer-window-blindheid (keur-taken op ouder-getekende 
     // Spiegelt /prestaties + de dag-3/7-e-mail: overdue-band (67) i.p.v. de vlakke approve-band (65).
     expect(approvePerf?.priority).toBe(67);
     expect(approvePerf?.subtitle).toContain("wacht al");
+  });
+
+  it("laat de te-keuren-factuur-taak escaleren zodra de ingediende factuur al lang op goedkeuring wacht", async () => {
+    const CLIENT_ID = "invoice-wait-client";
+    state.collabs = [
+      {
+        id: "c-old-inv",
+        party: "CLIENT",
+        status: "ACTIVE",
+        disputedAt: null,
+        updatedAt: recent(1),
+        jobTitle: "Avonddienst",
+        companyName: "Zorgcentrum West",
+        freelancerName: "Imre",
+        performances: [],
+        // Al lang geleden ingediend (issuedAt) → voorbij INVOICE_APPROVAL_WAIT_ATTENTION_DAYS.
+        invoices: [
+          {
+            id: "c-old-inv-f",
+            lifecycleStatus: "SUBMITTED",
+            createdAt: ANCIENT,
+            issuedAt: ANCIENT,
+            counterpartyUserId: CLIENT_ID,
+          },
+        ],
+      },
+    ];
+
+    const tasks = await pendingTasks({
+      id: CLIENT_ID,
+      role: "CLIENT",
+      status: "ACTIVE",
+    } as never);
+
+    const approveInv = tasks.find((t) => t.id === "invoice-approve:c-old-inv-f");
+    expect(approveInv).toBeDefined();
+    // Spiegelt de dag-3/7-e-mail: overdue-band (66) i.p.v. de vlakke approve-band (65).
+    expect(approveInv?.priority).toBe(66);
+    expect(approveInv?.subtitle).toContain("wacht al");
+  });
+
+  it("laat de te-keuren-factuur-taak vlak (approve-band) als de factuur nog vers is ingediend", async () => {
+    const CLIENT_ID = "invoice-fresh-client";
+    state.collabs = [
+      {
+        id: "c-fresh-inv",
+        party: "CLIENT",
+        status: "ACTIVE",
+        disputedAt: null,
+        updatedAt: recent(1),
+        jobTitle: "Ochtenddienst",
+        companyName: "Zorgcentrum Oost",
+        freelancerName: "Joris",
+        performances: [],
+        invoices: [
+          {
+            id: "c-fresh-inv-f",
+            lifecycleStatus: "SUBMITTED",
+            createdAt: recent(1),
+            issuedAt: recent(1),
+            counterpartyUserId: CLIENT_ID,
+          },
+        ],
+      },
+    ];
+
+    const tasks = await pendingTasks({
+      id: CLIENT_ID,
+      role: "CLIENT",
+      status: "ACTIVE",
+    } as never);
+
+    const approveInv = tasks.find((t) => t.id === "invoice-approve:c-fresh-inv-f");
+    expect(approveInv).toBeDefined();
+    expect(approveInv?.priority).toBe(65);
+    expect(approveInv?.subtitle).toBe("Ochtenddienst");
   });
 });

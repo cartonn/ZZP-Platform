@@ -9,6 +9,7 @@ import {
   credentialCollabExpiryTask,
   performanceSubmitTask,
   performanceApproveTask,
+  invoiceApproveTask,
   invoiceSubmitTask,
   paymentConfirmTask,
   profileCompletenessTask,
@@ -211,6 +212,44 @@ describe("task builders", () => {
     expect(t.priority).toBe(67);
     expect(t.priority).toBeGreaterThan(performanceApproveTask("p1", "c1", "Job", "Sanne").priority);
     expect(t.subtitle).toBe("Job · Sanne · wacht al 9 dagen op goedkeuring");
+  });
+
+  it("invoice-approve: drawer-resolver met verse approve-prioriteit (65), geen leeftijdsbesef", () => {
+    const t = invoiceApproveTask("f1", "c1", "Job");
+    expect(t.kind).toBe("invoice-approve");
+    expect(t.resolver).toBe("drawer");
+    expect(t.priority).toBe(65);
+    expect(t.subtitle).toBe("Job");
+    expect(t.href).toBe("/samenwerkingen/c1");
+  });
+
+  it("invoice-approve: blijft vlak (65, geen wachttekst) onder de aandachtsdrempel", () => {
+    const t = invoiceApproveTask("f1", "c1", "Job", 6); // < 7 (INVOICE_APPROVAL_WAIT_ATTENTION_DAYS)
+    expect(t.priority).toBe(65);
+    expect(t.subtitle).toBe("Job");
+  });
+
+  it("invoice-approve: escaleert naar de overdue-band (66) met wachttekst zodra ≥ de drempel", () => {
+    const t = invoiceApproveTask("f1", "c1", "Job", 9); // ≥ 7
+    expect(t.priority).toBe(66);
+    expect(t.priority).toBeGreaterThan(invoiceApproveTask("f1", "c1", "Job").priority);
+    expect(t.subtitle).toBe("Job · wacht al 9 dagen op goedkeuring");
+  });
+
+  it("invoice-approve: overdue blijft net ONDER de urenstaat-escalatie (66 < 67) — upstream eerst", () => {
+    const inv = invoiceApproveTask("f1", "c1", "Job", 9);
+    const perf = performanceApproveTask("p1", "c1", "Job", "Sanne", 9);
+    expect(inv.priority).toBeLessThan(perf.priority);
+    // …maar boven de verse approve-band (65), zodat het stille cashflow-blok niet onderaan verdwijnt.
+    expect(inv.priority).toBeGreaterThan(invoiceApproveTask("f1", "c1", "Job").priority);
+  });
+
+  it("invoice-approve: enkelvoud 'dag' op dag 1", () => {
+    const t = invoiceApproveTask("f1", "c1", "Job", 1);
+    // 1 < 7 → nog vlak; de telwoord-vorm wordt pas ≥ drempel getoond, dus check de escalatievorm apart.
+    expect(t.subtitle).toBe("Job");
+    const overdue = invoiceApproveTask("f1", "c1", "Job", 7);
+    expect(overdue.subtitle).toBe("Job · wacht al 7 dagen op goedkeuring");
   });
 
   it("job-staffing-overdue: link-resolver, boven een koud lopende opdracht en boven een verse reactie", () => {

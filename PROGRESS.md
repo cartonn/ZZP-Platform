@@ -1,3 +1,13 @@
+## 4 oktober — te-keuren-factuur-taak escaleert met wachttijd (#1561)
+
+De te-keuren-factuur-taak hing vlak op de approve-band (65) terwijl de upstream urenstaat-goedkeuring
+al naar de overdue-band (67) escaleert — achterstevoren, want een stilstaande SUBMITTED-factuur blokkeert
+de betaling én de cashflow van de ZZP'er, en de dag-3/7-herinnering alarmeert daar al over. Nieuwe pure
+helper `invoice-approval-wait.ts` (verankerd op `Invoice.issuedAt`, drempel uit `invoiceApprovalDays`),
+nieuwe band `invoiceApprovalOverdue: 66` (onder 67, boven 65) en wachttekst in de taak. Geen badge-drift.
+Gerichte + integratietests (100 gericht groen) plus unit-helpertests; lint/types/format en productiebuild
+groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-10-04-invoice-approval-wait.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

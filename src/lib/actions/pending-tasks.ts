@@ -117,6 +117,7 @@ import { invitationAgeDays } from "@/lib/received-invitations";
 import { daysSince } from "@/lib/concept-invoice-reminders";
 import { reviewPromptForCollaboration } from "@/lib/collaboration-review-prompt";
 import { summarizePerformanceWait } from "@/lib/performance-wait";
+import { summarizeInvoiceApprovalWait } from "@/lib/invoice-approval-wait";
 import {
   summarizeCollaborationRenewal,
   RENEWAL_WINDOW_DAYS,
@@ -1240,6 +1241,9 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     select: {
       id: true,
       collaborationId: true,
+      // Onveranderlijk gezet bij → SUBMITTED (Invoice.issuedAt); voedt het wachttijd-signaal zodat de
+      // te-keuren-factuur-taak net als de dag-3/7-e-mail escaleert i.p.v. vlak op de approve-band te blijven.
+      issuedAt: true,
       collaboration: { select: { job: { select: { title: true } } } },
     },
     orderBy: { createdAt: "asc" },
@@ -1249,7 +1253,21 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     // De collaboration-relatie is optioneel op Invoice; de where-scope garandeert 'm, de guard houdt de
     // types nauw en slaat een eventuele verweesde rij over.
     if (!inv.collaboration || !inv.collaborationId) continue;
-    tasks.push(invoiceApproveTask(inv.id, inv.collaborationId, inv.collaboration.job.title));
+    // Dezelfde bron van waarheid als de dag-3/7-herinnering (`summarizeInvoiceApprovalWait`):
+    // SUBMITTED-only, toekomstige issuedAt → 0 dagen. De where-scope garandeert SUBMITTED, dus `wait` is
+    // niet null; blijft het onverhoopt null, dan valt de taak terug op de vlakke approve-band.
+    const wait = summarizeInvoiceApprovalWait({
+      lifecycleStatus: "SUBMITTED",
+      issuedAt: inv.issuedAt,
+    });
+    tasks.push(
+      invoiceApproveTask(
+        inv.id,
+        inv.collaborationId,
+        inv.collaboration.job.title,
+        wait?.daysWaiting,
+      ),
+    );
   }
 
   for (const u of unread) tasks.push(messageReplyTask(u.id, u.withWhom, u.subject));
