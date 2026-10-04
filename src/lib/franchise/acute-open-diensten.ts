@@ -15,11 +15,15 @@ import {
   type AcuteFillabilitySummary,
 } from "@/lib/franchise/acute-fillability";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 /** Begin van de eerstvolgende ISO-week (maandag). Alles vóór dit moment telt als "deze week/verleden". */
 export function acuteWindowStart(now: Date): number {
-  return startOfIsoWeek(now).getTime() + 7 * DAY_MS;
+  // Via setDate (kalenderstap), niet +7×DAY_MS: een week met een zomer-/wintertijdovergang telt 167
+  // of 169 uur, dus een vaste 168-uurssprong vanaf het lokale-middernacht-anker zou ±1 uur mis landen.
+  // Zelfde DST-veilige grens als `bucketFor` in dekkingsprognose, zodat de twee niet driften.
+  const weekStart = startOfIsoWeek(now);
+  const nextWeekStart = new Date(weekStart);
+  nextWeekStart.setDate(weekStart.getDate() + 7);
+  return nextWeekStart.getTime();
 }
 
 /**

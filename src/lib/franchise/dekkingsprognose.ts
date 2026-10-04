@@ -66,13 +66,21 @@ export function startOfIsoWeek(d: Date): Date {
 }
 
 function bucketFor(startDate: Date, now: Date): Exclude<PrognoseBucketKey, "GEEN_DATUM"> {
-  const thisWeekStart = startOfIsoWeek(now).getTime();
-  const nextWeekStart = thisWeekStart + 7 * DAY_MS;
-  const weekAfterStart = nextWeekStart + 7 * DAY_MS;
-  const t = startDate.getTime();
+  // Weekgrenzen via setDate (kalenderstappen), niet via een vaste 7×DAY_MS-sprong: een week met
+  // een zomer-/wintertijdovergang telt 167 of 169 uur, dus een vaste 168-uurssprong vanaf het
+  // lokale-middernacht-anker zou ±1 uur mis landen en een dienst in de verkeerde week bucketen.
+  // startOfIsoWeek stapt om dezelfde reden al met setDate; hier spiegelen we dat.
+  const weekStart = startOfIsoWeek(now);
+  const nextWeekStart = new Date(weekStart);
+  nextWeekStart.setDate(weekStart.getDate() + 7);
+  const weekAfterStart = new Date(weekStart);
+  weekAfterStart.setDate(weekStart.getDate() + 14);
+  // Vergelijk op lokale middernacht, consistent met de middernacht-ankers: dag-granulair bucketen
+  // zodat het tijdstip-op-de-dag van de dienst de weekindeling niet rond de DST-grens verschuift.
+  const t = startOfLocalDay(startDate).getTime();
   // Een open dienst met een startdatum in het verleden is acuut → telt mee in DEZE_WEEK.
-  if (t < nextWeekStart) return "DEZE_WEEK";
-  if (t < weekAfterStart) return "VOLGENDE_WEEK";
+  if (t < nextWeekStart.getTime()) return "DEZE_WEEK";
+  if (t < weekAfterStart.getTime()) return "VOLGENDE_WEEK";
   return "LATER";
 }
 
