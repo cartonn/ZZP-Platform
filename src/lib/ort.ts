@@ -178,11 +178,20 @@ export function serializeOrtRates(rates: Record<OrtCategory, number>): string {
 /**
  * Parse een JSON-string naar een array van OrtSegment-objecten. Bij lege/ongeldige invoer wordt
  * een lege array teruggegeven (nooit null/undefined, zodat de aanroeper altijd een array krijgt).
+ *
+ * **Array-guard (robuustheid):** een JSON-geldige maar semantisch corrupte waarde (`"{}"`, `"5"`,
+ * `"\"x\""`, `"null"`) is géén array; zonder deze guard lekt zo'n niet-array door onder de
+ * `OrtSegment[]`-contractbelofte en breekt elke lezer die `.map`/`for…of`/spread doet (`.length` op
+ * een object is `undefined`, geen `0`). We geven dan `[]` terug — gelijk aan de guard die de cascade
+ * (`cascade/commands-shared.ts`) al hanteert. Element-validatie gebeurt bewust niet hier: één corrupt
+ * segment moet `computeOrt` laten weigeren (fail-closed → de lezer valt per rij terug op de basis),
+ * niet stilzwijgend worden weggefilterd tot een afwijkend subtotaal.
  */
 export function parseOrtSegments(json: string | null | undefined): OrtSegment[] {
   if (!json) return [];
   try {
-    return JSON.parse(json) as OrtSegment[];
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? (parsed as OrtSegment[]) : [];
   } catch {
     return [];
   }

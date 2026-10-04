@@ -1,3 +1,14 @@
+## 4 oktober — robuuste ORT-segmentparse + ontdubbeling (#1563)
+
+De geld-cascade kende drie `parseOrtSegments`-varianten met uiteenlopende robuustheid; de canonieke
+lezer (`ort.ts`) en een lokale duplicaat op de factuurpagina deden `JSON.parse(json) as OrtSegment[]`
+zonder `Array.isArray`-guard, terwijl de cascade die guard al had. Een JSON-geldige niet-array
+(`"{}"`, `"5"`, `"null"`) lekte zo door onder de array-contractbelofte en kon een lezer die
+`.map`/`for…of` doet laten crashen. Guard toegelijnd (→ `[]` bij niet-array), de factuurpagina-duplicaat
+vervangen door de canonieke import. Element-validatie bewust niet: fail-closed → per-rij-terugval blijft.
+Vijf nieuwe gerichte gevallen; 32 ORT-tests groen, lint/build/volledige suite groen, format gedraaid.
+Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-10-04-ort-segments-array-guard.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
