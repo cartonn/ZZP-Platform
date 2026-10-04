@@ -1,3 +1,14 @@
+## 4 oktober — verval-tijdens-opdracht in de kandidaten-vergelijking (#1562)
+
+De vergelijkpagina `/kandidaten/vergelijk` toonde een groene "Compliant"-badge ook wanneer een
+nu-geldig vereist certificaat vóór/kort na de startdatum verloopt — valse gerustheid op het
+beslismoment, terwijl de lijst `/kandidaten` daar al voor waarschuwt. `CompareCandidate` draagt nu
+`credentialExpiry` (gevuld in de data-loader zonder extra query, dezelfde `now`); de compliance-rij
+spiegelt de lijstwaarschuwing (danger vóór-start / warning kort-na-start, identieke NL-teksten, geen
+nieuwe woordenboek-sleutels) en de CSV-export krijgt een kolom "Verval tijdens opdracht". 36 gerichte
+tests groen; typecheck/lint/format en productiebuild groen. Onafhankelijke review en CI volgen.
+[Scope](docs/progress/2026-10-04-compare-credential-expiry.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

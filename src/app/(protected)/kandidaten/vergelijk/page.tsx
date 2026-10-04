@@ -8,6 +8,7 @@ import {
   Download,
   Gauge,
   ShieldCheck,
+  TriangleAlert,
   Trophy,
   Users,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import { TRUST_LEVEL_EXPLANATION } from "@/lib/trust";
 import { START_FIT_SHORT_LABEL, START_FIT_VARIANT } from "@/lib/candidate-availability";
 import { PROXIMITY_VARIANT, proximityLabel } from "@/lib/candidate-proximity";
 import { type CompareCandidate, isRateOverBudget } from "@/lib/candidate-compare";
+import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type ApplicantFieldSummary } from "@/lib/applicant-field";
 import { getCandidateComparisonForJob } from "@/lib/candidate-compare-data";
 import { firstName } from "@/lib/kandidaten-triage";
@@ -204,9 +206,44 @@ export default async function VergelijkKandidatenPage({
                     label={t("Compliance")}
                     candidates={candidates}
                     winnerId={comparison.bestComplianceId}
-                    render={(c) =>
-                      c.complianceStatus ? <ComplianceBadge status={c.complianceStatus} /> : noData
-                    }
+                    render={(c) => {
+                      if (!c.complianceStatus) return noData;
+                      // Verval-tijdens-opdracht náást de live compliance. Alleen tonen wanneer de
+                      // compliance niet al blokkeert (NON_COMPLIANT staat al een sterker signaal) —
+                      // zelfde regel als op /kandidaten, zodat "Compliant" geen valse gerustheid geeft.
+                      const expiry =
+                        c.complianceStatus !== "NON_COMPLIANT" ? c.credentialExpiry : null;
+                      const concern = expiry?.concerns[0] ?? null;
+                      return (
+                        <span className="inline-flex flex-col items-start gap-1">
+                          <ComplianceBadge status={c.complianceStatus} />
+                          {concern && expiry && (
+                            <span
+                              className={`flex items-start gap-1 text-[11px] ${
+                                expiry.worstPhase === "before-start"
+                                  ? "text-danger"
+                                  : "text-warning"
+                              }`}
+                            >
+                              <TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden />
+                              <span>
+                                {`${t(CREDENTIAL_TYPE_LABEL[concern.type])} ${t("verloopt")} ${formatDateShortNl(concern.expiresAt)} — ${
+                                  concern.phase === "before-start"
+                                    ? t(
+                                        "vóór de startdatum, kandidaat is bij aanvang niet compliant.",
+                                      )
+                                    : t(
+                                        "kort na de startdatum, compliance vervalt tijdens de inzet.",
+                                      )
+                                }`}
+                                {expiry.concerns.length > 1 &&
+                                  ` (${t("en nog")} ${expiry.concerns.length - 1})`}
+                              </span>
+                            </span>
+                          )}
+                        </span>
+                      );
+                    }}
                   />
                   <CompareRow
                     label={t("Leverbetrouwbaarheid")}

@@ -3,9 +3,11 @@ import {
   type CompareCandidate,
   buildCandidateComparison,
   exportCandidateComparisonCsv,
+  formatCredentialExpiryForCsv,
   isRateOverBudget,
   pickUniqueBest,
 } from "./candidate-compare";
+import { type CandidateExpirySummary } from "./candidate-credential-expiry";
 
 function candidate(over: Partial<CompareCandidate> & { id: string }): CompareCandidate {
   return {
@@ -217,7 +219,7 @@ describe("exportCandidateComparisonCsv", () => {
     return csv.split("\r\n");
   }
 
-  it("zet een kopregel met alle 13 kolommen", () => {
+  it("zet een kopregel met alle 14 kolommen", () => {
     const csv = serialize([candidate({ id: "a" }), candidate({ id: "b" })]);
     const header = lines(csv)[0]!.split(";");
     expect(header).toEqual([
@@ -234,6 +236,7 @@ describe("exportCandidateComparisonCsv", () => {
       "Beschikbaar op startdatum",
       "Reistijd",
       "Eerdere samenwerkingen",
+      "Verval tijdens opdracht",
     ]);
   });
 
@@ -288,6 +291,31 @@ describe("exportCandidateComparisonCsv", () => {
     expect(cells[10]).toBe(""); // Beschikbaar op startdatum
     expect(cells[11]).toBe(""); // Reistijd
     expect(cells[12]).toBe(""); // Eerdere samenwerkingen
+    expect(cells[13]).toBe(""); // Verval tijdens opdracht (geen signaal)
+  });
+
+  it("vult de verval-tijdens-opdracht-kolom met het zwaarste concern", () => {
+    const csv = serialize([
+      candidate({
+        id: "a",
+        name: "Anna",
+        credentialExpiry: {
+          worstPhase: "before-start",
+          concerns: [
+            {
+              type: "VOG",
+              expiresAt: new Date("2026-07-12T00:00:00.000Z"),
+              phase: "before-start",
+              daysFromStartToExpiry: -5,
+            },
+          ],
+        },
+      }),
+      candidate({ id: "b", name: "Bram" }),
+    ]);
+    const rows = lines(csv);
+    expect(rows[1]!.split(";")[13]).toBe("VOG verloopt 2026-07-12 (vóór start)");
+    expect(rows[2]!.split(";")[13]).toBe(""); // Bram: geen signaal
   });
 
   it("toont n.v.t. bij een opdracht zonder certificaat-eis (complianceStatus null)", () => {
@@ -340,5 +368,63 @@ describe("exportCandidateComparisonCsv", () => {
     // toCsv laat de cel niet met een kale '=' beginnen (voorloopse apostrof, evt. binnen quotes).
     expect(firstCell.startsWith("=")).toBe(false);
     expect(firstCell).toContain("'=cmd()");
+  });
+});
+
+describe("formatCredentialExpiryForCsv", () => {
+  function summary(over: Partial<CandidateExpirySummary>): CandidateExpirySummary {
+    return {
+      worstPhase: "before-start",
+      concerns: [],
+      ...over,
+    };
+  }
+
+  it("is leeg bij geen signaal (null/undefined/lege concerns)", () => {
+    expect(formatCredentialExpiryForCsv(null)).toBe("");
+    expect(formatCredentialExpiryForCsv(undefined)).toBe("");
+    expect(formatCredentialExpiryForCsv(summary({ concerns: [] }))).toBe("");
+  });
+
+  it("formatteert een vóór-start-concern met rauwe ISO-datum", () => {
+    expect(
+      formatCredentialExpiryForCsv(
+        summary({
+          worstPhase: "before-start",
+          concerns: [
+            {
+              type: "VOG",
+              expiresAt: new Date("2026-07-12T10:30:00.000Z"),
+              phase: "before-start",
+              daysFromStartToExpiry: -3,
+            },
+          ],
+        }),
+      ),
+    ).toBe("VOG verloopt 2026-07-12 (vóór start)");
+  });
+
+  it("formatteert een kort-na-start-concern en telt extra concerns als +N", () => {
+    expect(
+      formatCredentialExpiryForCsv(
+        summary({
+          worstPhase: "soon-after-start",
+          concerns: [
+            {
+              type: "CERTIFICATE",
+              expiresAt: new Date("2026-08-01T00:00:00.000Z"),
+              phase: "soon-after-start",
+              daysFromStartToExpiry: 10,
+            },
+            {
+              type: "LICENSE",
+              expiresAt: new Date("2026-08-15T00:00:00.000Z"),
+              phase: "soon-after-start",
+              daysFromStartToExpiry: 24,
+            },
+          ],
+        }),
+      ),
+    ).toBe("Certificaat verloopt 2026-08-01 (kort na start) +1");
   });
 });
