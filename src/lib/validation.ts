@@ -461,7 +461,17 @@ export function validatePerformanceForm(data: PerformanceFormData): string | nul
     if ((s && isNaN(s.getTime())) || (e && isNaN(e.getTime()))) {
       return "Vul een geldige periode in (begin- en einddatum).";
     }
-    if (s && e && s > e) {
+    // Periode verplicht voor een urenstaat (begin én eind). De dubbel-factuur-rem
+    // (`assertNoOverlappingHoursPerformance`) kan overlap alleen bepalen met een volledige periode en
+    // slaat een HOURS-prestatie zónder periode bewust over. Zonder deze poort kon een ZZP'er via het
+    // formulier (of een geknutselde POST) twee urenstaten zonder periode indienen — ook in dienstmodus,
+    // waar de werkelijke periode uit de diensten volgt — en zo de rem omzeilen en dezelfde uren tweemaal
+    // laten factureren/uitbetalen. CSV-import zet de periode al uit de exacte diensttijden. Server-side
+    // waarheid (regel 1); de cascade-guard-null-skip blijft als defense-in-depth voor niet-formulierpaden.
+    if (s == null || e == null) {
+      return "Vul de periode van de urenstaat in (begin- en einddatum).";
+    }
+    if (s > e) {
       return "De begindatum van de periode mag niet na de einddatum liggen.";
     }
   } else {

@@ -438,8 +438,9 @@ describe("validatePerformanceForm", () => {
     hasOrt: false,
     amount: 0,
     milestoneTitle: "",
-    periodStartRaw: "",
-    periodEndRaw: "",
+    // Een urenstaat draagt altijd een periode (begin/eind); zonder periode weigert de validatie.
+    periodStartRaw: "2026-05-01",
+    periodEndRaw: "2026-05-01",
     rateCents: 8500,
   };
 
@@ -569,6 +570,57 @@ describe("validatePerformanceForm", () => {
     expect(result).toContain("geldige periode");
   });
 
+  it("HOURS: ontbrekende periode (beide leeg) geeft een fout — sluit de dubbel-factuur-bypass", () => {
+    // Zonder periode sloeg de overlap-rem (`assertNoOverlappingHoursPerformance`) de prestatie over,
+    // waardoor twee periode-loze urenstaten op dezelfde samenwerking beide gefactureerd werden.
+    const result = validatePerformanceForm({
+      ...hoursBase,
+      periodStartRaw: "",
+      periodEndRaw: "",
+    });
+    expect(result).not.toBeNull();
+    expect(result).toContain("periode");
+  });
+
+  it("HOURS: alléén periodStart (einde leeg) geeft een fout", () => {
+    const result = validatePerformanceForm({
+      ...hoursBase,
+      periodStartRaw: "2026-05-01",
+      periodEndRaw: "",
+    });
+    expect(result).not.toBeNull();
+    expect(result).toContain("periode");
+  });
+
+  it("HOURS: alléén periodEnd (begin leeg) geeft een fout", () => {
+    const result = validatePerformanceForm({
+      ...hoursBase,
+      periodStartRaw: "",
+      periodEndRaw: "2026-05-01",
+    });
+    expect(result).not.toBeNull();
+    expect(result).toContain("periode");
+  });
+
+  it("HOURS ORT: ontbrekende periode geeft een fout (ook in dienst-/ORT-modus)", () => {
+    const result = validatePerformanceForm({
+      ...hoursBase,
+      hasOrt: true,
+      ortTotal: 8,
+      hours: 8,
+      periodStartRaw: "",
+      periodEndRaw: "",
+    });
+    expect(result).not.toBeNull();
+    expect(result).toContain("periode");
+  });
+
+  it("MILESTONE: geen periode vereist — leeg blijft geldig", () => {
+    expect(
+      validatePerformanceForm({ ...milestoneBase, periodStartRaw: "", periodEndRaw: "" }),
+    ).toBeNull();
+  });
+
   it("MILESTONE: amount=0 geeft een fout", () => {
     const result = validatePerformanceForm({ ...milestoneBase, amount: 0 });
     expect(result).not.toBeNull();
@@ -631,10 +683,17 @@ describe("validatePerformanceForm", () => {
     expect(result).toContain("begindatum");
   });
 
-  it("HOURS: alleen periodStart zonder periodEnd: geen fout (gedeeltelijke invoer toegestaan)", () => {
-    expect(
-      validatePerformanceForm({ ...hoursBase, periodStartRaw: "2026-05-01", periodEndRaw: "" }),
-    ).toBeNull();
+  it("HOURS: alleen periodStart zonder periodEnd wordt geweigerd (volledige periode verplicht)", () => {
+    // Was eerder toegestaan ("gedeeltelijke invoer"), maar een onvolledige periode liet de overlap-rem
+    // (`assertNoOverlappingHoursPerformance`) de prestatie overslaan — de dubbel-factuur-bypass. Een
+    // urenstaat vereist nu een volledige periode (begin én eind).
+    const result = validatePerformanceForm({
+      ...hoursBase,
+      periodStartRaw: "2026-05-01",
+      periodEndRaw: "",
+    });
+    expect(result).not.toBeNull();
+    expect(result).toContain("periode");
   });
 
   // NaN/Infinity glippen anders door `<= 0` én `> MAX` (beide vergelijkingen zijn false voor NaN):

@@ -227,11 +227,15 @@ export function PerformanceForm({
               />
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-muted-foreground">Periode van (bij uurtarief)</span>
+              <span className="mb-1 block text-muted-foreground">
+                Periode van (verplicht bij uurtarief)
+              </span>
               <DateInput name="periodStart" defaultValue={defaults?.periodStart} />
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-muted-foreground">Periode t/m (bij uurtarief)</span>
+              <span className="mb-1 block text-muted-foreground">
+                Periode t/m (verplicht bij uurtarief)
+              </span>
               <DateInput name="periodEnd" defaultValue={defaults?.periodEnd} />
             </label>
             <label className="text-sm">

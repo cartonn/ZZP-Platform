@@ -164,8 +164,8 @@ test("actiecentrum: ingediende prestatie beoordelen + goedkeuren via drawer", as
   await fp.fill('input[name="hours"]', "8");
   // DateInput is tekst-eerst (#660): de `name` zit op een hidden ISO-veld; vul het zichtbare
   // dd-mm-jjjj-tekstveld via het label — de component parst en synct het hidden veld.
-  await fp.getByLabel("Periode van (bij uurtarief)").fill("06-01-2026");
-  await fp.getByLabel("Periode t/m (bij uurtarief)").fill("06-01-2026");
+  await fp.getByLabel("Periode van (verplicht bij uurtarief)").fill("06-01-2026");
+  await fp.getByLabel("Periode t/m (verplicht bij uurtarief)").fill("06-01-2026");
   await fp.fill('input[name="description"]', "Week 1");
   await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
   await expect(fp.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
@@ -266,8 +266,8 @@ test("actiecentrum: factuur beoordelen — PDF openen + goedkeuren", async ({ pa
   await fp.fill('input[name="hours"]', "8");
   // DateInput is tekst-eerst (#660): de `name` zit op een hidden ISO-veld; vul het zichtbare
   // dd-mm-jjjj-tekstveld via het label — de component parst en synct het hidden veld.
-  await fp.getByLabel("Periode van (bij uurtarief)").fill("06-01-2026");
-  await fp.getByLabel("Periode t/m (bij uurtarief)").fill("06-01-2026");
+  await fp.getByLabel("Periode van (verplicht bij uurtarief)").fill("06-01-2026");
+  await fp.getByLabel("Periode t/m (verplicht bij uurtarief)").fill("06-01-2026");
   await fp.fill('input[name="description"]', "Week 1");
   await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
   await expect(fp.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
