@@ -88,7 +88,7 @@ import {
   isJobComplianceEligible,
   type JobComplianceChip,
 } from "@/lib/jobs/compliance-chip";
-import { jobFillUrgency, type JobFillUrgencyChip } from "@/lib/jobs/fill-urgency";
+import { getJobFillUrgency } from "@/lib/data/job-fill-urgency";
 import { clientJobAttentionRank, sortJobsByAttention } from "@/lib/jobs/attention-order";
 import { JobFillUrgencyBadge } from "@/components/jobs/job-fill-urgency-badge";
 import { appliedJobChipFor, type AppliedJobChip } from "@/lib/job-applied-chip";
@@ -217,28 +217,19 @@ async function ClientJobs({
   }
 
   // Acuut-onbezet-signaal per opdracht: een gepubliceerde opdracht waarvan de startdatum nadert of al
-  // verstreken is, terwijl er nog niemand geplaatst is (geen niet-geannuleerde samenwerking). Distinct
-  // en urgenter dan het vacaturetempo (respons-momentum): een opdracht kan reacties krijgen en tóch
-  // morgen ongevuld starten. Eén begrensde groupBy over de eigen niet-geannuleerde samenwerkingen (geen
-  // N+1) bepaalt "vervuld"; `jobFillUrgency` beslist server-side of er iets te melden valt.
-  const filledGroups = await prisma.collaboration.groupBy({
-    by: ["jobId"],
-    where: { job: { company: { userId } }, status: { not: "CANCELLED" } },
-    _count: { _all: true },
-  });
-  const filledJobIds = new Set(filledGroups.map((g) => g.jobId));
-  const fillUrgencyByJob = new Map<string, JobFillUrgencyChip>();
-  for (const job of jobs) {
-    const chip = jobFillUrgency(
-      {
-        status: job.status as JobStatus,
-        startDate: job.startDate,
-        filled: filledJobIds.has(job.id),
-      },
-      now,
-    );
-    if (chip) fillUrgencyByJob.set(job.id, chip);
-  }
+  // verstreken is, terwijl de rol nog niet is vastgelegd. Distinct en urgenter dan het vacaturetempo
+  // (respons-momentum): een opdracht kan reacties krijgen en tóch morgen ongevuld starten. "Vervuld"
+  // gaat via dezelfde canonieke locked-in-poort als het opdrachtdetail en de next-actions
+  // (`lockedInJobIds`: een vastgelegde ACCEPTED-kandidaat óf een niet-geannuleerde samenwerking), zodat
+  // de lijst-chip niet aanspoort op een al bezette rol terwijl het detail zwijgt.
+  const fillUrgencyByJob = await getJobFillUrgency(
+    jobs.map((job) => ({
+      id: job.id,
+      status: job.status as JobStatus,
+      startDate: job.startDate,
+    })),
+    now,
+  );
   const portfolioHeadline = vacancyPortfolioHeadline(summarizeVacancyPortfolio(publishedSummaries));
 
   // Tarief-diagnose: verbind een koud lopende opdracht met de marktband, zodat de opdrachtgever de
