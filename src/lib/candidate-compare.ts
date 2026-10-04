@@ -8,6 +8,8 @@ import { type TrustLevel } from "@/lib/trust";
 import { type StartFit, START_FIT_SHORT_LABEL } from "@/lib/candidate-availability";
 import { type CandidateProximity, proximityLabel } from "@/lib/candidate-proximity";
 import { type SharedHistory } from "@/lib/candidate-history";
+import { type CandidateExpirySummary } from "@/lib/candidate-credential-expiry";
+import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { toCsv } from "@/lib/csv";
 
 /** Eén kandidaat zoals de opdrachtgever die vergelijkt. Velden komen uit de bestaande motoren. */
@@ -46,6 +48,13 @@ export interface CompareCandidate {
    * met deze opdrachtgever is samengewerkt. Sterk, laag-risico rehire-signaal.
    */
   sharedHistory?: SharedHistory | null;
+  /**
+   * Beslismoment-signaal náást de live compliance: een nu-geldig vereist certificaat dat vóór of
+   * kort na de startdatum van de opdracht verloopt (`summarizeCandidateCredentialExpiry`). Null als
+   * er geen startdatum/eis is of niets een risico vormt. Zo geeft "Compliant" geen valse gerustheid
+   * op het moment dat de opdrachtgever kiest — parity met /kandidaten.
+   */
+  credentialExpiry?: CandidateExpirySummary | null;
 }
 
 export interface CandidateComparison {
@@ -181,6 +190,23 @@ const COMPLIANCE_LABEL: Record<ComplianceStatus, string> = {
 };
 
 /**
+ * Serialiseert het verval-tijdens-opdracht-signaal naar één CSV-cel: het zwaarste concern (eerst in
+ * de al-gesorteerde lijst) met het certificaattype, de vervaldatum (rauwe ISO — machine-output) en
+ * de fase. Extra concerns worden als "+N" samengevat. Leeg bij geen signaal. Puur.
+ */
+export function formatCredentialExpiryForCsv(
+  summary: CandidateExpirySummary | null | undefined,
+): string {
+  const concern = summary?.concerns[0];
+  if (!concern) return "";
+  const iso = concern.expiresAt.toISOString().slice(0, 10);
+  const phase = concern.phase === "before-start" ? "vóór start" : "kort na start";
+  const base = `${CREDENTIAL_TYPE_LABEL[concern.type]} verloopt ${iso} (${phase})`;
+  const extra = (summary?.concerns.length ?? 0) - 1;
+  return extra > 0 ? `${base} +${extra}` : base;
+}
+
+/**
  * Bouwt de CSV-tekst voor de kandidatenvergelijking: één rij per kandidaat, in de meegegeven
  * volgorde (al aflopend op matchscore). Decimalen krijgen een komma (NL-conventie). Ontbrekende
  * velden blijven leeg; een opdracht zonder certificaat-eis toont compliance als "n.v.t.".
@@ -205,6 +231,7 @@ export function exportCandidateComparisonCsv(input: {
     "Beschikbaar op startdatum",
     "Reistijd",
     "Eerdere samenwerkingen",
+    "Verval tijdens opdracht",
   ];
 
   const rows: (string | number)[][] = input.candidates.map((c) => [
@@ -223,6 +250,7 @@ export function exportCandidateComparisonCsv(input: {
     c.startFit && c.startFit !== "unknown" ? START_FIT_SHORT_LABEL[c.startFit] : "",
     c.proximity ? proximityLabel(c.proximity) : "",
     c.sharedHistory ? String(c.sharedHistory.count) : "",
+    formatCredentialExpiryForCsv(c.credentialExpiry),
   ]);
 
   return toCsv([header, ...rows]);

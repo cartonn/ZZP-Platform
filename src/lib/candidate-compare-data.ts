@@ -8,6 +8,7 @@
 
 import { prisma } from "@/lib/db";
 import { computeCompliance } from "@/lib/matching";
+import { summarizeCandidateCredentialExpiry } from "@/lib/candidate-credential-expiry";
 import { computeTrustLevel } from "@/lib/trust";
 import { summarizeAvailability } from "@/lib/availability";
 import { classifyStartFit, nextFitAfterStart, nextFitLabel } from "@/lib/candidate-availability";
@@ -153,6 +154,14 @@ export async function getCandidateComparisonForJob(
         return r && r.count > 0 ? { average: r.average, count: r.count } : null;
       })(),
       sharedHistory: historyByProfile.get(app.freelancer.id) ?? null,
+      // Verval-tijdens-opdracht: hetzelfde beslismoment-signaal als op /kandidaten, zonder extra
+      // query (startDate + credentials zijn al geladen). Zelfde `now` als de compliance/trust hierboven.
+      credentialExpiry: summarizeCandidateCredentialExpiry({
+        requiredTypes,
+        credentials: creds,
+        jobStartDate: job.startDate,
+        now: new Date(nowMs),
+      }),
     };
   });
 
