@@ -113,8 +113,8 @@ test("van dienst tot fee: de bemiddelaar ziet de opbrengst van een eigen plaatsi
   // 6. Uren indienen (ZZP'er).
   const urenSectie = fp.locator("section").filter({ hasText: "Uren & opleveringen" });
   await fp.fill('input[name="hours"]', "8");
-  await fp.getByLabel("Periode van (bij uurtarief)").fill("06-01-2026");
-  await fp.getByLabel("Periode t/m (bij uurtarief)").fill("06-01-2026");
+  await fp.getByLabel("Periode van (verplicht bij uurtarief)").fill("06-01-2026");
+  await fp.getByLabel("Periode t/m (verplicht bij uurtarief)").fill("06-01-2026");
   await fp.fill('input[name="description"]', "Dagdienst week 1");
   await clickUntil(
     fp.getByRole("button", { name: "Indienen ter goedkeuring" }),

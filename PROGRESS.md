@@ -1,3 +1,14 @@
+## 4 oktober — urenstaat vereist een volledige periode (#1565)
+
+De server-side dubbel-factuur-rem (`assertNoOverlappingHoursPerformance`) slaat een HOURS-prestatie
+zonder volledige periode bewust over; het urenstaat-formulier maakte begin/eind echter niet verplicht.
+Twee periode-loze urenstaten (ook in dienstmodus) omzeilden zo de rem en werden tweemaal gefactureerd.
+`validatePerformanceForm` eist nu begin én eind voor een urenstaat; de formuliervelden heten nu
+"(verplicht bij uurtarief)". Keert de eerdere "gedeeltelijke periode toegestaan"-regel bewust om.
+CSV-import zet de periode al uit de exacte diensttijden; de cascade-guard-null-skip blijft als
+defense-in-depth. Vijf nieuwe regressies rood vóór herstel; 72 gerichte validatie-tests groen.
+Onafhankelijke review en CI volgen.
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
