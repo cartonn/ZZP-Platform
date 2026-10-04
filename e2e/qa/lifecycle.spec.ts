@@ -141,8 +141,10 @@ test.describe("QA: Complete lifecycle cascade", () => {
     await fp.goto(collabUrl);
     await expect(fp.getByText("Actief")).toBeVisible({ timeout: 15000 });
 
-    // Vul urenstaat in
+    // Vul urenstaat in (periode is verplicht voor een urenstaat)
     await fp.fill('input[name="hours"]', "40");
+    await fp.getByLabel("Periode van (verplicht bij uurtarief)").fill("06-01-2026");
+    await fp.getByLabel("Periode t/m (verplicht bij uurtarief)").fill("10-01-2026");
     await fp.fill('input[name="description"]', "Week 1 — lifecycle QA");
     await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
     await expect(fp.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
