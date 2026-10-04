@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   buildDekkingsprognose,
   type DekkingsprognoseInput,
@@ -139,6 +139,49 @@ describe("buildDekkingsprognose", () => {
     it("een dienst zonder startdatum houdt needsAttentionNow > 0 (geen valse 'alles gedekt')", () => {
       const result = buildDekkingsprognose([dienst({ startDate: null })], NOW);
       expect(result.needsAttentionNow).toBe(1);
+    });
+  });
+
+  // De weekgrenzen moeten rond een zomer-/wintertijdovergang kloppen. Een expliciete zone houdt
+  // de regressie actief ook als CI zelf in UTC draait (zonder DST reproduceert de fout niet).
+  // Dates binnen de test construeren, ná het zetten van TZ (NOW bovenaan staat los daarvan).
+  describe("DST-weekgrenzen (Europe/Amsterdam)", () => {
+    beforeEach(() => vi.stubEnv("TZ", "Europe/Amsterdam"));
+    afterEach(() => vi.unstubAllEnvs());
+
+    it("zomertijd (voorjaar, 167u-week): dienst op maandag volgende week valt in VOLGENDE_WEEK, niet DEZE_WEEK", () => {
+      // Overgang zo 29-03-2026 02:00→03:00; ISO-week ma 23-03 .. zo 29-03 duurt 167 uur.
+      const now = new Date(2026, 2, 25, 12, 0, 0); // wo 25 maart, midden in deze week
+      const nextMonday = new Date(2026, 2, 30, 0, 0, 0); // ma 30 maart 00:00 = volgende week
+      const result = buildDekkingsprognose([dienst({ startDate: nextMonday })], now);
+      expect(result.buckets).toEqual([
+        { key: "VOLGENDE_WEEK", label: "Volgende week", openCount: 1 },
+      ]);
+      // Belangrijkste gevolg: geen valse "deze week onderbezet".
+      expect(result.needsAttentionNow).toBe(0);
+    });
+
+    it("wintertijd (najaar, 169u-week): dienst zondagnacht deze week blijft DEZE_WEEK", () => {
+      // Overgang zo 25-10-2026 03:00→02:00; ISO-week ma 19-10 .. zo 25-10 duurt 169 uur.
+      const now = new Date(2026, 9, 21, 12, 0, 0); // wo 21 oktober, midden in deze week
+      const sundayNight = new Date(2026, 9, 25, 23, 30, 0); // zo 25 oktober 23:30 = nog deze week
+      const result = buildDekkingsprognose([dienst({ startDate: sundayNight })], now);
+      expect(result.buckets).toEqual([{ key: "DEZE_WEEK", label: "Deze week", openCount: 1 }]);
+      expect(result.needsAttentionNow).toBe(1);
+    });
+
+    it("zomertijd: buckets deze/volgende/later blijven kloppen over de overgang heen", () => {
+      const now = new Date(2026, 2, 25, 12, 0, 0); // wo 25 maart
+      const result = buildDekkingsprognose(
+        [
+          dienst({ startDate: new Date(2026, 2, 27, 9, 0, 0) }), // vr 27 maart → deze week
+          dienst({ startDate: new Date(2026, 2, 30, 0, 0, 0) }), // ma 30 maart → volgende week
+          dienst({ startDate: new Date(2026, 3, 6, 9, 0, 0) }), // ma 6 april → later
+        ],
+        now,
+      );
+      const byKey = Object.fromEntries(result.buckets.map((b) => [b.key, b.openCount]));
+      expect(byKey).toEqual({ DEZE_WEEK: 1, VOLGENDE_WEEK: 1, LATER: 1 });
     });
   });
 });

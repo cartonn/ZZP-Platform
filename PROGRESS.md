@@ -1,3 +1,14 @@
+## 4 oktober — DST-veilige weekgrenzen in de franchiser-dekkingsprognose (#1560)
+
+`bucketFor` (dekkingsprognose) en `acuteWindowStart` (acute-open-diensten) leidden de week-
+grenzen af met een vaste `7 * DAY_MS`-sprong vanaf het lokale-middernacht-anker; in een DST-week
+(167/169 uur) landt dat ±1 uur mis, waardoor een dienst die volgende week start in DEZE_WEEK/acuut
+belandde en `needsAttentionNow` ten onrechte opblies. Nu via `setDate` (DST-veilig, zoals
+`startOfIsoWeek`) + startdatum op lokale middernacht. 6 nieuwe DST-regressies (voor-/najaar, TZ
+gepind), rood vóór herstel; 27 gerichte en 9.250 volledige tests groen (3 bestaande skips);
+lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen.
+[Scope](docs/progress/2026-10-04-dekkingsprognose-dst-week.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

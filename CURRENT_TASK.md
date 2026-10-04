@@ -1,3 +1,11 @@
+## 4 oktober — DST-veilige weekgrenzen franchiser-dekkingsprognose (#1560)
+
+`bucketFor` + `acuteWindowStart` leidden weekgrenzen af met een vaste 7×DAY_MS-sprong vanaf het
+middernacht-anker; in een DST-week (167/169 u) ±1 uur mis → dienst volgende week telde als
+DEZE_WEEK/acuut en blies `needsAttentionNow` op. Nu via `setDate` (DST-veilig). 6 DST-regressies
+rood→groen; 27 gericht + 9.250 volledig groen (3 skips); lint/types/format + build groen.
+[Scope](docs/progress/2026-10-04-dekkingsprognose-dst-week.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
@@ -121,13 +129,6 @@ Echte paginarenders tonen voor zelfstandige en opdrachtgever een lege beoordelin
 wanneer een geverifieerde VOG pas tijdens de opdracht verloopt. Twee regressies rood,
 zes controles groen op main. Tekstcorrectie gebouwd; 12 rolrenders en 9.102 tests groen
 (3 skips), lint/types/format en netwerkbuild geslaagd. Reviews en CI volgen. [Scope](docs/progress/2026-09-27-placement-expiry-copy.md).
-
-## 24 september — opdrachtgever-certificaatvenster (#1520)
-
-Dashboard en actieloader delen de bestaande begrensde selectie; echte SQLite-paginaproef
-bewijst de verdwenen melding achter 200 inzetten zonder certificaateis. 36 gerichte
-tests slagen; volledige suite 9.090 groen (3 skips), lint/types/format en netwerkbuild groen.
-Onafhankelijke review, CI en release volgen.
 
 # CURRENT_TASK.md — Huidige taak
 
