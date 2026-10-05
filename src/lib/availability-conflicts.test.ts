@@ -57,11 +57,12 @@ describe("detectAvailabilityConflicts", () => {
     expect(result).toHaveLength(0);
   });
 
-  // 3. Venster volledig in het verleden → geen conflict.
+  // 3. Venster volledig in het verleden → geen conflict. Kale (middernacht) einddatum vóór NOW:
+  // t/m 5 juni is vóór 7 juni, dus de hele dekking ligt achter ons.
   it("negeert vensters die volledig in het verleden liggen", () => {
     const windows = [
-      // eindigt vóór NOW
-      makeWindow("w1", d("2026-05-01T00:00:00Z"), d("2026-06-06T23:59:59Z"), "UNAVAILABLE"),
+      // eindigt (inclusief) op 5 juni, ruim vóór NOW (7 juni)
+      makeWindow("w1", d("2026-05-01T00:00:00Z"), d("2026-06-05T00:00:00Z"), "UNAVAILABLE"),
     ];
     const collabs = [makeCollab("c1", d("2026-05-01T00:00:00Z"), d("2026-08-01T00:00:00Z"))];
 
@@ -169,6 +170,54 @@ describe("detectAvailabilityConflicts", () => {
     const result = detectAvailabilityConflicts(windows, collabs, laterNow);
 
     // overlapEnd = min(2026-07-31, 2026-08-15) = 2026-07-31 < laterNow → geen conflict.
+    expect(result).toHaveLength(0);
+  });
+
+  // Inclusieve einddatum — laatste dag van het venster. De einddatum is een kale (middernacht)
+  // datum en inclusief: op de laatste dag na middernacht moet een lopend conflict blijven staan,
+  // niet stil verdwijnen. Regressie voor het `now`-middernacht-versus-middag-gat.
+  it("behoudt het conflict op de laatste dag van het UNAVAILABLE-venster (now in de middag)", () => {
+    const windows = [
+      makeWindow("w1", d("2026-06-10T00:00:00Z"), d("2026-06-12T00:00:00Z"), "UNAVAILABLE"),
+    ];
+    const collabs = [makeCollab("c1", d("2026-06-01T00:00:00Z"), d("2026-06-30T00:00:00Z"))];
+    // now valt op de laatste venster-dag, ná middernacht
+    const nowMidday = d("2026-06-12T10:00:00Z");
+
+    const result = detectAvailabilityConflicts(windows, collabs, nowMidday);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.windowId).toBe("w1");
+    expect(result[0]!.overlapStart).toEqual(d("2026-06-10T00:00:00Z"));
+    expect(result[0]!.overlapEnd).toEqual(d("2026-06-12T00:00:00Z"));
+  });
+
+  // Inclusieve overlap-einddatum — de overlap eindigt (via de samenwerking) op de dag van `now`.
+  // Regressie specifiek voor de "overlap volledig in het verleden"-afslag.
+  it("behoudt het conflict als de overlap op de dag van now eindigt (now in de middag)", () => {
+    const windows = [
+      makeWindow("w1", d("2026-06-01T00:00:00Z"), d("2026-06-30T00:00:00Z"), "UNAVAILABLE"),
+    ];
+    const collabs = [makeCollab("c1", d("2026-05-15T00:00:00Z"), d("2026-06-12T00:00:00Z"))];
+    const nowMidday = d("2026-06-12T08:00:00Z");
+
+    const result = detectAvailabilityConflicts(windows, collabs, nowMidday);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.overlapEnd).toEqual(d("2026-06-12T00:00:00Z"));
+  });
+
+  // Keerzijde: een venster dat gisteren (inclusief) eindigde valt vandaag wél weg — de dag-correctie
+  // overcorrigeert niet.
+  it("negeert een venster dat de dag vóór now (inclusief) eindigde", () => {
+    const windows = [
+      makeWindow("w1", d("2026-06-10T00:00:00Z"), d("2026-06-11T00:00:00Z"), "UNAVAILABLE"),
+    ];
+    const collabs = [makeCollab("c1", d("2026-06-01T00:00:00Z"), d("2026-06-11T00:00:00Z"))];
+    const nowMidday = d("2026-06-12T09:00:00Z");
+
+    const result = detectAvailabilityConflicts(windows, collabs, nowMidday);
+
     expect(result).toHaveLength(0);
   });
 

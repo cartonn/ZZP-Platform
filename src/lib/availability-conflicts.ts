@@ -7,6 +7,14 @@ import { type AvailabilityWindowType } from "@/lib/enums";
 // Verre toekomst als schildwacht voor open-einde samenwerkingen.
 const FAR_FUTURE = new Date(8640000000000000);
 
+// Vensters en samenwerkingen bewaren hun einddatum als kale (UTC-middernacht) datum, en de
+// einddatum is INCLUSIEF: een venster t/m 12 juni dekt de héle 12e. De rest van de module
+// (`availability.ts` → `inclusiveEndMs = endDate + DAY_MS`) hanteert exact deze conventie.
+// `now` is daarentegen een echt tijdstip (bv. 12 juni 10:00). Zonder de dag-correctie zou een
+// nog-lopend venster/overlap op zijn laatste dag na middernacht al als "verleden" wegvallen,
+// waardoor een actief conflict stil verdwijnt juist op de dag dat het nog geldt.
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export interface ConflictWindowInput {
   id: string;
   startDate: Date;
@@ -48,9 +56,10 @@ export function detectAvailabilityConflicts(
   collaborations: readonly ConflictCollaborationInput[],
   now: Date = new Date(),
 ): AvailabilityConflict[] {
-  // Stap 1: Alleen UNAVAILABLE-vensters die niet volledig in het verleden liggen.
+  // Stap 1: Alleen UNAVAILABLE-vensters die niet volledig in het verleden liggen. De einddatum is
+  // inclusief (zie DAY_MS): een venster t/m vandaag loopt tot en met het einde van vandaag.
   const relevantWindows = windows.filter(
-    (w) => w.type === "UNAVAILABLE" && w.endDate.getTime() >= now.getTime(),
+    (w) => w.type === "UNAVAILABLE" && w.endDate.getTime() + DAY_MS > now.getTime(),
   );
 
   const conflicts: AvailabilityConflict[] = [];
@@ -72,8 +81,9 @@ export function detectAvailabilityConflicts(
       const overlapStart = new Date(Math.max(collabStart.getTime(), window.startDate.getTime()));
       const overlapEnd = new Date(Math.min(collabEnd.getTime(), window.endDate.getTime()));
 
-      // Sla de overlap over als die volledig in het verleden ligt.
-      if (overlapEnd.getTime() < now.getTime()) continue;
+      // Sla de overlap over als die volledig in het verleden ligt. overlapEnd is inclusief
+      // (kale datum), dus de overlap loopt tot en met het einde van die dag (+ DAY_MS).
+      if (overlapEnd.getTime() + DAY_MS <= now.getTime()) continue;
 
       conflicts.push({
         collaborationId: collab.id,
