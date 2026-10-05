@@ -62,8 +62,13 @@ export function jobDbaIndicators(
 }
 
 /**
- * Aandeel (0–100, afgerond) van de omzet bij één opdrachtgever t.o.v. de totale omzet van de ZZP'er.
+ * Aandeel (0–100) van de omzet bij één opdrachtgever t.o.v. de totale omzet van de ZZP'er.
  * `null` als er (nog) geen omzet is — dan geen signaal.
+ *
+ * Naar beneden afgerond, niet rekenkundig: afronden-naar-dichtstbij zou een werkelijk aandeel
+ * net onder de drempel (bv. 79,6%) naar 80 tillen en zo een vals ">= drempel"-signaal vuren.
+ * Voor hele drempels geldt `floor(x) >= T  ⟺  x >= T`, dus deze afronding houdt de beslissing
+ * exact gelijk aan de echte verhouding.
  */
 export function revenueConcentrationPct(
   totalByClient: Record<string, number>,
@@ -72,7 +77,7 @@ export function revenueConcentrationPct(
   const total = Object.values(totalByClient).reduce((sum, v) => sum + v, 0);
   if (total <= 0) return null;
   const here = totalByClient[clientId] ?? 0;
-  return Math.round((here / total) * 100);
+  return Math.floor((here / total) * 100);
 }
 
 /** Aantal volledige maanden tussen `start` en `now` (kalendermaanden, dag-gecorrigeerd). */
@@ -127,7 +132,7 @@ export function assessCollaborationDba(
     signals.push({
       key: "revenue-concentration",
       level: "VERHOOGD",
-      message: `Meer dan ${t.revenueConcentrationPct}% van de omzet van de ZZP'er komt bij deze opdrachtgever vandaan. Beperkte spreiding kan op afhankelijkheid wijzen.`,
+      message: `${t.revenueConcentrationPct}% of meer van de omzet van de ZZP'er komt bij deze opdrachtgever vandaan. Beperkte spreiding kan op afhankelijkheid wijzen.`,
     });
   }
   if (input.sameFunctionAsEmployees) {

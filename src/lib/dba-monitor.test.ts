@@ -77,15 +77,44 @@ describe("assessCollaborationDba", () => {
     expect(a.signals).toHaveLength(0);
   });
 
+  it("omzetsignaal exact op de drempel zegt '80% of meer', niet 'Meer dan'", () => {
+    const a = assessCollaborationDba(
+      { collaborationId: "c1", startDate: new Date("2026-05-01"), revenueConcentrationPct: 80 },
+      now,
+    );
+    const signal = a.signals.find((s) => s.key === "revenue-concentration");
+    expect(signal).toBeDefined();
+    expect(signal?.message).toContain("80% of meer van de omzet");
+    expect(signal?.message).not.toContain("Meer dan");
+  });
+
   it("labels zijn niet-alarmerend Nederlands", () => {
     expect(DBA_LEVEL_LABEL.HOOG).toBe("Hoog risico");
   });
 });
 
 describe("revenueConcentrationPct", () => {
-  it("berekent het afgeronde aandeel per opdrachtgever", () => {
+  it("berekent het aandeel per opdrachtgever", () => {
     expect(revenueConcentrationPct({ a: 80000, b: 20000 }, "a")).toBe(80);
     expect(revenueConcentrationPct({ a: 1, b: 2 }, "a")).toBe(33);
+  });
+  it("rondt naar beneden af zodat een aandeel onder de drempel die niet haalt", () => {
+    // 79,5% mag niet naar 80 (en zo het >=80-signaal) worden getild.
+    expect(revenueConcentrationPct({ a: 795, b: 205 }, "a")).toBe(79);
+    // 79,9% blijft 79.
+    expect(revenueConcentrationPct({ a: 7999, b: 2001 }, "a")).toBe(79);
+    // Exact 80% haalt de drempel wél.
+    expect(revenueConcentrationPct({ a: 4, b: 1 }, "a")).toBe(80);
+    // 80,9% blijft 80 (haalt de drempel, overdrijft niet).
+    expect(revenueConcentrationPct({ a: 809, b: 191 }, "a")).toBe(80);
+  });
+  it("een aandeel van 79,5% vuurt geen omzetsignaal (geen vals positief)", () => {
+    const pct = revenueConcentrationPct({ a: 795, b: 205 }, "a");
+    const a = assessCollaborationDba(
+      { collaborationId: "c1", startDate: new Date("2026-05-01"), revenueConcentrationPct: pct },
+      now,
+    );
+    expect(a.signals.some((s) => s.key === "revenue-concentration")).toBe(false);
   });
   it("null zonder omzet", () => {
     expect(revenueConcentrationPct({}, "a")).toBeNull();
