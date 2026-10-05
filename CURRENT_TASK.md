@@ -131,6 +131,17 @@ Onafhankelijke review, CI en release volgen.
 
 # CURRENT_TASK.md — Huidige taak
 
+Bouwronde 5 oktober 08:23 UTC: #1568 zet de zwaarst wegende match-reden weer bovenaan
+(semantiek ná compliance/tarief in de uitlegbare matching); regressietest rood→groen.
+
+> **Gevonden, nog te bouwen (adversariële audit 5-10, niet-overlappend):** `cascadeStage`
+> (`src/lib/cascade/stage.ts`) is niet placement-blocked-bewust, waardoor een CLIENT op
+> /samenwerkingen + dashboard een dode "Aan zet · Onderteken contract"-actie ziet bij een
+> PROPOSED-samenwerking met NON_COMPLIANT ZZP'er — terwijl `collaborationStatusLine`,
+> `/acties` en de nav-badge die al onderdrukken. Fix: `placementBlocked?` aan
+> `CascadeStageInput` + de twee render-call sites voeden met `collaborationPlacementBlocked(...)`
+> (data is daar al geladen). Klein increment voor een volgende run.
+
 Security 23 september 14:00 UTC: #1516 herstelt lopende uploads na anonimisering; [scope](docs/progress/2026-09-23-late-upload-erasure.md).
 Bouwronde 17 september 16:22 UTC: #1514 bewaakt het gelijke certificaatvenster; [scope](docs/progress/2026-09-17-expiry-window-parity.md).
 Security 17 september 14:00 UTC: #1513 bewaakt actuele conceptprestatievoorwaarden;
