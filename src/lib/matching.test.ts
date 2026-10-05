@@ -253,6 +253,30 @@ describe("computeMatchScore", () => {
       const semIdx = labels.indexOf("Omschrijving sluit aan bij jouw profiel");
       expect(semIdx).toBeGreaterThan(skillIdx);
     });
+
+    it("headline-t de zwaarder wegende certificaat-/tarieftroef vóór de lichte semantiek", () => {
+      // Deeltreffer op skills (geen skills-positive), geen branche, geldig vereist certificaat en
+      // tekst-aansluiting boven de drempel. De compacte "waarom deze match" moet dan de compliance
+      // (gewicht 25) tonen, niet de semantiek (gewicht 5) — reasons staan in aflopend componentgewicht.
+      const r = computeMatchScore(
+        {
+          ...base,
+          freelancerSkillIds: ["react"], // 1 van 2 vereiste skills → skills wordt een gap
+          freelancer: { ...base.freelancer, relatednessScore: 0.9 },
+        },
+        now,
+      );
+      expect(r.compliance.status).toBe("COMPLIANT");
+      expect(topPositiveReason(r.reasons)).toBe("Voldoet aan de certificaateisen");
+
+      const labels = r.reasons.map((re) => re.label);
+      const complianceIdx = labels.indexOf("Voldoet aan de certificaateisen");
+      const rateIdx = labels.indexOf("Tarief past binnen het budget");
+      const semIdx = labels.indexOf("Omschrijving sluit aan bij jouw profiel");
+      expect(complianceIdx).toBeGreaterThanOrEqual(0);
+      expect(semIdx).toBeGreaterThan(complianceIdx);
+      expect(semIdx).toBeGreaterThan(rateIdx);
+    });
   });
 
   it("blijft binnen 0-100", () => {

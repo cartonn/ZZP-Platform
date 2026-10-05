@@ -396,12 +396,6 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     gaps.push({ kind: "gap", label: "Andere branche dan jouw profiel" });
   }
 
-  // Inhoudelijke aansluiting: positieve reason zodra de gelijkenis boven de drempel ligt. Ná
-  // skills/branche gepusht (kleiner gewicht) en alleen positief — ontbrekende tekst is nooit een minpunt.
-  if (relatednessScore >= SEMANTIC_HIGHLIGHT_THRESHOLD) {
-    positives.push({ kind: "positive", label: "Omschrijving sluit aan bij jouw profiel" });
-  }
-
   // Compliance reasons
   if (reqCredCount > 0) {
     if (compliance.status === "COMPLIANT") {
@@ -426,6 +420,14 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     } else {
       positives.push({ kind: "positive", label: "Tarief past binnen het budget" });
     }
+  }
+
+  // Inhoudelijke aansluiting: positieve reason zodra de gelijkenis boven de drempel ligt. Ná
+  // compliance/tarief gepusht in aflopend componentgewicht (semantic = 5), zodat de zwaarder wegende
+  // certificaat-/tarieftroef vóór de semantiek komt (topPositiveReason). Alleen positief — ontbrekende
+  // tekst is nooit een minpunt.
+  if (relatednessScore >= SEMANTIC_HIGHLIGHT_THRESHOLD) {
+    positives.push({ kind: "positive", label: "Omschrijving sluit aan bij jouw profiel" });
   }
 
   // WorkMode reasons
