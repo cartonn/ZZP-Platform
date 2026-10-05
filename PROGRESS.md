@@ -1,3 +1,7 @@
+## 5 oktober — DBA-omzetconcentratie zonder vals ">80%"-signaal (#1567)
+
+`revenueConcentrationPct` rondde met `Math.round` af, waardoor een werkelijk aandeel in [79,5%, 80%) naar 80 werd getild en het VERHOOGD-signaal "Meer dan 80%" ten onrechte vuurde — ook in het DBA-auditdossier. Nu naar beneden afgerond (voor hele drempels `floor(x) ≥ T ⟺ x ≥ T`, exact gelijk aan de echte verhouding) en boodschap "X% of meer" i.p.v. "Meer dan X%" (consistent met `>=`). Grensdekking toegevoegd (79,5%/79,9% → geen signaal, 80%/80,9% → wel); 16 gerichte tests groen. Lint/types/unit/build en prettier groen; onafhankelijke review en CI volgen. [Scope](docs/progress/2026-10-05-dba-revenue-rounding.md). Deblokkeert ook de base-brede `audit`-poort: `patch-package` (build-time tool) verplaatst naar `devDependencies` zodat de `braces`-DoS-tak (GHSA-vfj7-8cjw-p6xm) uit de productie-deps-audit valt — `audit-production` 0 high/critical, patch past schoon toe.
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
