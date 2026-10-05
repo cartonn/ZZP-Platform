@@ -1,3 +1,14 @@
+## 5 oktober — sterkste match-reden eerst (#1568)
+
+De uitlegbare matching pushte de semantische positive (gewicht 5) vóór compliance
+(25) en tarief (15), waardoor `topPositiveReason` de lichtste troef als kop toonde
+op de kandidaat-/opdracht-/dashboardkaarten — in strijd met het gedocumenteerde
+aflopend-gewicht-contract. Op een zorgmarktplaats is "Voldoet aan de
+certificaateisen" de sterkste kop, niet "Omschrijving sluit aan". Semantiek-blok
+verplaatst naar ná compliance/tarief; score en breakdown ongewijzigd (pure
+herordening). Regressietest rood vóór, groen na; matching-suite 61 groen,
+lint/types/format en volledige suite groen. Onafhankelijke review en CI volgen.
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
