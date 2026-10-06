@@ -83,9 +83,11 @@ describe("verifyCredentialViaBig — TOCTOU status-guard", () => {
     const res = await verifyCredentialViaBig("cred-1", undefined, form(VALID_BIG));
 
     expect(res).toEqual({ error: expect.stringMatching(/inmiddels beoordeeld/i) });
-    // De guard matchte de compound where op (id + fromStatus).
+    // De guard matchte de compound where op (id + fromStatus); de expiry-OR-clausule is additioneel.
     expect(updateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "cred-1", status: "SUBMITTED" } }),
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "cred-1", status: "SUBMITTED" }),
+      }),
     );
     // Cruciaal: géén verificatie-record en géén audit bij een verloren race.
     expect(verificationCreateMock).not.toHaveBeenCalled();
@@ -99,7 +101,7 @@ describe("verifyCredentialViaBig — TOCTOU status-guard", () => {
     expect(res).toEqual({ ok: true });
     expect(updateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "cred-1", status: "SUBMITTED" },
+        where: expect.objectContaining({ id: "cred-1", status: "SUBMITTED" }),
         data: expect.objectContaining({ status: "VERIFIED" }),
       }),
     );

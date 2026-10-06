@@ -1,3 +1,8 @@
+## 6 oktober — zelf-verificatie weigert een al verlopen certificaat (#1574)
+
+Zelf-verificatie (DUO/BIG) minte een VERIFIED-maar-verlopen certificaat; nu geweigerd gelijk aan het
+admin-pad (snapshot-guard + expiry-OR op de write, TOCTOU). [Scope](docs/progress/2026-10-06-self-verify-expired-guard.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
