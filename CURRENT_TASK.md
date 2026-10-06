@@ -1,3 +1,7 @@
+## 6 oktober — begrensde bewijsopruiming na reviewblocker (#1540)
+
+De tweede onafhankelijke review vond dat nieuwe hogere ids oude retries buiten de selectie hielden. De runner vult een korte staart nu aan met de resterende capaciteit vóór het oorspronkelijke vervolgpunt: maximaal 200 kandidaten, geen doublures per aanroep. Twee instroomregressies rood vóór herstel; 51 gerichte en 9.253 volledige tests groen (3 bestaande skips), lint/types/format en productiebuild groen. De eerste herstelvalidatie blijft in de historie; nieuwe onafhankelijke review en actuele CI volgen. [Herstelbewijs](docs/progress/2026-10-01-evidence-cleanup-window.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

@@ -74,6 +74,8 @@ const ALLOWLIST: Record<string, string> = {
   // [INFRA]
   BackupHeartbeat: "[INFRA] aflever-heartbeat: enkel tijdstippen/teller/driver, geen PII.",
   CronHeartbeat: "[INFRA] cron-heartbeat: geen PII.",
+  EvidenceCleanupCursor:
+    "[INFRA] singleton sweep boundary: only an opaque credential id, no owner, document or content; overwritten on each reservation and cleared on an empty sweep. Erasure deletes the credential; retaining the ordering boundary prevents retry starvation.",
   DeliveryHeartbeat: "[INFRA] aflever-heartbeat per kanaal: geen PII.",
   HealthIncident: "[INFRA] systeem-gezondheidsincident: geen persoonsgegevens.",
   EventHandlerRun: "[INFRA] event-handler-idempotentie: geen PII.",

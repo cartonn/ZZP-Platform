@@ -20,31 +20,57 @@ export interface EvidenceCleanupResult {
   failed: number;
 }
 
-/** Defensieve cap, zoals de andere taakrunners: één tick blijft begrensd, de rest volgt vanzelf. */
+/** Hard per-invocation bound on candidates, including policy skips and storage failures. */
 const BATCH_SIZE = 200;
+const CURSOR_ID = "singleton";
+
+async function reserveCleanupPage() {
+  return prisma.$transaction(async (tx) => {
+    // A real write serializes reservations on PostgreSQL and SQLite. Keep this
+    // transaction short: no storage I/O while holding the singleton row lock.
+    const cursor = await tx.evidenceCleanupCursor.upsert({
+      where: { id: CURSOR_ID },
+      create: { id: CURSOR_ID },
+      update: { id: CURSOR_ID },
+    });
+    const load = (id: { gt?: string; lte?: string }, limit: number) =>
+      tx.credential.findMany({
+        where: {
+          evidenceSeenAt: { not: null },
+          evidenceRemovedAt: null,
+          documentId: { not: null },
+          id,
+        },
+        select: { id: true, type: true, documentId: true },
+        orderBy: { id: "asc" },
+        take: limit,
+      });
+    const rows = await load({ gt: cursor.lastCredentialId }, BATCH_SIZE);
+    // Spend spare capacity on retries even when newer candidates arrive every
+    // tick. The original boundary makes the two ranges disjoint, so a candidate
+    // appears at most once per invocation. Both queries use the primary-key index.
+    if (rows.length < BATCH_SIZE && cursor.lastCredentialId) {
+      rows.push(...(await load({ lte: cursor.lastCredentialId }, BATCH_SIZE - rows.length)));
+    }
+    await tx.evidenceCleanupCursor.update({
+      where: { id: CURSOR_ID },
+      data: { lastCredentialId: rows.at(-1)?.id ?? "" },
+    });
+    // Reserve before attempting storage. A crashed run skips its page only until
+    // the next cycle, rather than pinning every subsequent run on that page.
+    return rows;
+  });
+}
 
 export async function runCredentialEvidenceCleanupTask(): Promise<EvidenceCleanupResult> {
-  const rows = await prisma.credential.findMany({
-    where: {
-      // Beoordeeld (`evidenceSeenAt` wordt alleen bij een beslissing gezet), bewijsstuk nog aanwezig,
-      // opruiming nog niet voltooid.
-      evidenceSeenAt: { not: null },
-      evidenceRemovedAt: null,
-      documentId: { not: null },
-    },
-    select: { id: true, type: true, documentId: true },
-    orderBy: { evidenceSeenAt: "asc" },
-    take: BATCH_SIZE,
-  });
-
   let removed = 0;
   let failed = 0;
+  const rows = await reserveCleanupPage();
   for (const row of rows) {
-    // Beleid opnieuw toetsen: zet een operator de env-override op "file", dan stopt ook deze taak
-    // met wissen (de override is de bewuste juridische uitzondering, niet iets wat we omzeilen).
+    // Recheck the live override; reserving work never authorizes deleting a file.
     if (!shouldRemoveEvidenceAfterReview(row.type as CredentialType)) continue;
     const result = await removeCredentialEvidence({
-      actorId: null, // systeemactie
+      actorId: null,
       credentialId: row.id,
       documentId: row.documentId,
       source: "[bewijsstuk-opruiming]",
@@ -52,6 +78,5 @@ export async function runCredentialEvidenceCleanupTask(): Promise<EvidenceCleanu
     if (result.removed) removed += 1;
     else failed += 1;
   }
-
   return { removed, failed };
 }

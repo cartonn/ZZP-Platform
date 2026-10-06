@@ -12,7 +12,18 @@ const { findMany, removeEvidence } = vi.hoisted(() => ({
   removeEvidence: vi.fn<(args: Record<string, unknown>) => Promise<RemovalResult>>(),
 }));
 
-vi.mock("@/lib/db", () => ({ prisma: { credential: { findMany } } }));
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    $transaction: async (fn: (tx: unknown) => unknown) =>
+      fn({
+        credential: { findMany },
+        evidenceCleanupCursor: {
+          upsert: vi.fn().mockResolvedValue({ lastCredentialId: "" }),
+          update: vi.fn().mockResolvedValue({}),
+        },
+      }),
+  },
+}));
 vi.mock("@/lib/credential-evidence", () => ({ removeCredentialEvidence: removeEvidence }));
 
 import { runCredentialEvidenceCleanupTask } from "./credential-evidence-cleanup-task";
@@ -38,6 +49,7 @@ describe("runCredentialEvidenceCleanupTask", () => {
       evidenceSeenAt: { not: null },
       evidenceRemovedAt: null,
       documentId: { not: null },
+      id: { gt: "" },
     });
   });
 
