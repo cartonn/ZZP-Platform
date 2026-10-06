@@ -142,6 +142,28 @@ const STALE_CREDENTIAL_MESSAGE =
   "Dit certificaat is inmiddels beoordeeld. Ververs de pagina en probeer het opnieuw.";
 
 /**
+ * Zelf-verificatie (DUO/BIG) mag — net als de admin-beslissing — géén al verlopen bewijsstuk op
+ * VERIFIED zetten. `expiresAt` is vrije invoer op het certificaatformulier en staat los van de
+ * externe DUO/BIG-respons (die valideert het register/de code, niet de zelf-ingevoerde vervaldatum).
+ * Een geldig BIG-nummer/DUO-code met een al verstreken `expiresAt` zou anders een VERIFIED-maar-verlopen
+ * certificaat minten — direct ongeldig (`isExpired`) en door de eerstvolgende `runExpiryTask` naar
+ * EXPIRED geklapt: verspilde beoordeling + een compliance-gat. Het admin-pad weigert dit exact
+ * (`admin/verificaties/actions.ts` WHERE-guard + `credential-review.ts`); dit is dezelfde regel voor
+ * het zelf-verificatiepad. Het juiste antwoord is: werk de vervaldatum bij of upload een vernieuwd
+ * document en dien opnieuw in.
+ */
+const EXPIRED_SELF_VERIFY_MESSAGE =
+  "Dit bewijsstuk is verlopen. Werk de vervaldatum bij of upload een vernieuwd document en dien het opnieuw in.";
+
+/** Of een al-geladen credential op `now` al verlopen is (zelfde grens als `isExpired`/het admin-pad). */
+function isCredentialAlreadyExpired(
+  credential: { expiresAt: Date | null | undefined },
+  now: Date = new Date(),
+): boolean {
+  return credential.expiresAt != null && credential.expiresAt.getTime() <= now.getTime();
+}
+
+/**
  * Kern van het opslaan/(her)indienen van een credential — gedeeld door de standalone
  * /certificaten-pagina (saveCredential, met redirect) en het Actiecentrum (saveCredentialInline,
  * zonder redirect). Geeft een fout-state terug bij een probleem, of `undefined` bij succes.
@@ -531,8 +553,16 @@ async function applyExternalVerification(opts: {
       // stil worden overschreven naar VERIFIED (ongeldige REJECTED→VERIFIED-overgang, tegen CLAUDE.md
       // regel 3). Matcht 0 rijen → break, géén VERIFIED/verificatie-record/audit; de admin-beslissing
       // wint. De losse `update({ where: { id } })` miste deze compound-guard als enige statuspad.
+      // Expiry-guard BINNEN de transactie (spiegelt `admin/verificaties/actions.ts`): weiger een rij
+      // waarvan `expiresAt` tussen de snapshot (loadOwnedCredential) en deze write alsnog verstreek.
+      // De snapshot-check in de callers geeft de nette gebruikersfout; deze compound-guard sluit de
+      // TOCTOU-race af — matcht 0 rijen → StaleCredentialError → rollback, nooit een VERIFIED-verlopen rij.
       const res = await tx.credential.updateMany({
-        where: { id: opts.credentialId, status: opts.fromStatus },
+        where: {
+          id: opts.credentialId,
+          status: opts.fromStatus,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
         data: { status: "VERIFIED", verifiedAt: new Date(), rejectionReason: null },
       });
       if (res.count === 0) throw new StaleCredentialError();
@@ -595,6 +625,9 @@ export async function verifyCredentialViaDuo(
   // verifiëren en zo de admin-beoordeling omzeilen.
   if (credential.type !== "DIPLOMA")
     return { error: "DUO-verificatie geldt alleen voor een diploma." };
+  // Geen al verlopen bewijsstuk op VERIFIED zetten — gelijk aan het admin-beslispad. Vóór de externe
+  // DUO-call: een verlopen inzending verdient geen (rate-limited) netwerkpoging.
+  if (isCredentialAlreadyExpired(credential)) return { error: EXPIRED_SELF_VERIFY_MESSAGE };
 
   const code = String(formData.get("verificationCode") ?? "").trim();
   if (!code) return { error: "Voer een DUO-verificatiecode in." };
@@ -648,6 +681,9 @@ export async function verifyCredentialViaBig(
   // direct aanroepbaar — zonder guard kon men elk type via BIG verifiëren en de admin-queue omzeilen.
   if (credential.type !== "LICENSE")
     return { error: "BIG-verificatie geldt alleen voor een beroepsregistratie (licentie)." };
+  // Geen al verlopen bewijsstuk op VERIFIED zetten — gelijk aan het admin-beslispad. Vóór de externe
+  // BIG-call: een verlopen inzending verdient geen (rate-limited) netwerkpoging.
+  if (isCredentialAlreadyExpired(credential)) return { error: EXPIRED_SELF_VERIFY_MESSAGE };
 
   const bigNumber = String(formData.get("bigNumber") ?? "").trim();
   if (!bigNumber) return { error: "Voer een BIG-nummer in." };

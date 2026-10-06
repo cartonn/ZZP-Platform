@@ -1,3 +1,15 @@
+## 6 oktober — zelf-verificatie weigert een al verlopen certificaat (#1574)
+
+Het zelf-verificatiepad (DUO/BIG) kon een bewijsstuk met een reeds verstreken `expiresAt` op VERIFIED
+zetten — asymmetrisch met het admin-beslispad (`admin/verificaties/actions.ts` WHERE-guard +
+`credential-review.ts`), dat dit exact weigert. Een geldig BIG-nummer/DUO-code met een verstreken
+zelf-ingevoerde vervaldatum mintte zo een VERIFIED-maar-verlopen certificaat (compliance-gat tot de
+volgende expiry-run). Fix: snapshot-guard in `verifyCredentialViaDuo`/`verifyCredentialViaBig` (nette fout,
+geen netwerkpoging) + de transactionele write draagt dezelfde `expiresAt`-OR-clausule tegen de TOCTOU-race.
+Nieuwe regressietest (BIG/DUO verlopen → geweigerd; positieve controles toekomstig/geen-vervaldatum);
+`verify-toctou` where-asserties verruimd. Typecheck/lint/format en 9.248 tests groen (3 bestaande skips),
+productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-10-06-self-verify-expired-guard.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
