@@ -1,9 +1,12 @@
 // Pure mapper van de operationele roster-deadlines van een bemiddelaar (FRANCHISER) naar IcsEvent-
-// objecten. Geen I/O, geen DB, geen netwerk. Vertaalt de twee tijd-kritische feiten waar een
-// bemiddelaar op plant — en die de franchise-oversight-UI al toont — naar losse gehele-dag-events:
+// objecten. Geen I/O, geen DB, geen netwerk. Vertaalt de tijd-kritische feiten waar een
+// bemiddelaar op plant — en die de franchise-oversight-UI al toont — naar losse gehele-dag-events.
+// De events worden geëmitteerd in de volgorde: eerst de plaatsing-startdatums, dan de plaatsing-
+// einddatums, dan de certificaat-vervaldatums:
 //
-//   1. Einde van een lopende plaatsing (samenwerking met einddatum) → verlengvenster.
-//   2. Verval van een geverifieerd rostercertificaat → tijdig verlengen zodat de vakman inzetbaar blijft.
+//   1. Start van een aankomende plaatsing (samenwerking met begindatum) → intake/onboarding op tijd.
+//   2. Einde van een lopende plaatsing (samenwerking met einddatum) → verlengvenster.
+//   3. Verval van een geverifieerd rostercertificaat → tijdig verlengen zodat de vakman inzetbaar blijft.
 //
 // De events worden door buildIcsCalendar (ics.ts) geserialiseerd en verschijnen in de sessie-gebonden
 // bemiddelaar-agenda-download (/franchise/agenda). Bewust ALLEEN als sessie-download (requireActor),
@@ -16,6 +19,16 @@ import { type IcsEvent } from "@/lib/calendar/ics";
 // ---------------------------------------------------------------------------
 // Types — minimale projecties, reeds server-side tenant-gescoopt en gefilterd
 // ---------------------------------------------------------------------------
+
+/** Het begin van een aankomende, reeds overeengekomen plaatsing binnen het roster (samenwerking met een vastgelegde, nog niet verstreken begindatum). */
+export interface BrokerCollaborationStart {
+  id: string;
+  startDate: Date;
+  /** Naam van de geplaatste ZZP'er. */
+  freelancerName: string;
+  /** Naam van de opdrachtgever bij wie de ZZP'er is geplaatst. */
+  companyName: string;
+}
 
 /** Het einde van een lopende plaatsing binnen het roster (samenwerking met vastgelegde einddatum). */
 export interface BrokerCollaborationEnd {
@@ -38,6 +51,7 @@ export interface BrokerCredentialExpiry {
 
 /** De volledige set operationele roster-deadlines van één bemiddelaar. */
 export interface BrokerAgenda {
+  starts: BrokerCollaborationStart[];
   collaborations: BrokerCollaborationEnd[];
   credentials: BrokerCredentialExpiry[];
 }
@@ -54,12 +68,35 @@ function displayName(name: string | null | undefined): string {
 
 /**
  * Zet de operationele roster-deadlines om naar losse gehele-dag-IcsEvents (geen herhaling). Bewaart de
- * invoervolgorde binnen elke categorie; eerst de plaatsing-einddatums, dan de certificaat-vervaldatums.
- * De UID's zijn stabiel en uniek binnen de per-bemiddelaar-agenda, zodat agenda-apps events bijwerken
- * i.p.v. dupliceren.
+ * invoervolgorde binnen elke categorie; eerst de plaatsing-startdatums, dan de plaatsing-einddatums,
+ * dan de certificaat-vervaldatums. De UID's zijn stabiel en uniek binnen de per-bemiddelaar-agenda,
+ * zodat agenda-apps events bijwerken i.p.v. dupliceren.
  */
 export function brokerAgendaEvents(input: BrokerAgenda): IcsEvent[] {
   const events: IcsEvent[] = [];
+
+  for (const col of input.starts) {
+    const zzper = displayName(col.freelancerName);
+    const company = displayName(col.companyName);
+    events.push({
+      uid: `broker-collab-start-${col.id}@zzp-platform`,
+      summary: `Start plaatsing: ${zzper} bij ${company}`,
+      start: col.startDate,
+      allDay: true,
+      description: `De plaatsing van ${zzper} bij ${company} begint. Zorg dat de intake rond is: documenten compleet, eerste dienst ingepland en de opdrachtgever gebrieft.`,
+      // Een startende plaatsing vraagt voorbereiding (intake/onboarding); waarschuw een week vooraf met een korte herinnering de dag ervóór.
+      alarms: [
+        {
+          daysBefore: 7,
+          description: `Plaatsing ${zzper} bij ${company} start over 7 dagen — rond de intake af.`,
+        },
+        {
+          daysBefore: 1,
+          description: `Plaatsing ${zzper} bij ${company} start morgen.`,
+        },
+      ],
+    });
+  }
 
   for (const col of input.collaborations) {
     const zzper = displayName(col.freelancerName);

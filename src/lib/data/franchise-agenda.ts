@@ -7,6 +7,9 @@ import { type BrokerAgenda } from "@/lib/franchise/agenda";
 // mapt ze naar de pure BrokerAgenda-projectie die de .ics-serialisatie voedt. Puur read-only; geen
 // mutatie. Alleen de eigen tenant (roster) — nooit data van een andere bemiddeling:
 //
+// - Aankomende plaatsingen: ACTIEVE, niet-betwiste samenwerkingen binnen de tenant (via `job.tenantId`)
+//   met een vastgelegde startdatum die nog niet is verstreken. Een samenwerking wordt ACTIEF zodra beide
+//   partijen tekenen, wat vóór de start kan liggen — dit maakt intake/onboarding-voorbereiding zichtbaar.
 // - Plaatsingen: ACTIEVE, niet-betwiste samenwerkingen binnen de tenant (via `job.tenantId`, zoals de
 //   franchise-samenwerkingen-cockpit) met een vastgelegde einddatum die nog niet is verstreken.
 // - Certificaten: VERIFIED credentials van roster-ZZP'ers (tenant-gescoopt via de freelancer) met een
@@ -23,9 +26,25 @@ export async function loadBrokerAgenda(
   now: Date = new Date(),
 ): Promise<BrokerAgenda> {
   const tenantId = actor.tenantId;
-  if (!tenantId) return { collaborations: [], credentials: [] };
+  if (!tenantId) return { starts: [], collaborations: [], credentials: [] };
 
-  const [collabRows, credentialRows] = await Promise.all([
+  const [startRows, collabRows, credentialRows] = await Promise.all([
+    prisma.collaboration.findMany({
+      where: {
+        status: "ACTIVE",
+        disputedAt: null,
+        startDate: { not: null, gte: now },
+        job: { tenantId },
+      },
+      orderBy: { startDate: "asc" },
+      take: AGENDA_LIMIT,
+      select: {
+        id: true,
+        startDate: true,
+        freelancer: { select: { user: { select: { name: true } } } },
+        company: { select: { name: true } },
+      },
+    }),
     prisma.collaboration.findMany({
       where: {
         status: "ACTIVE",
@@ -60,8 +79,20 @@ export async function loadBrokerAgenda(
   ]);
 
   return {
-    // endDate/expiresAt zijn door de where-clausules gegarandeerd non-null; de guard maakt dat
+    // startDate/endDate/expiresAt zijn door de where-clausules gegarandeerd non-null; de guard maakt dat
     // typebreed expliciet (narrowing) zonder een non-null-assertion.
+    starts: startRows.flatMap((c) =>
+      c.startDate == null
+        ? []
+        : [
+            {
+              id: c.id,
+              startDate: c.startDate,
+              freelancerName: c.freelancer.user.name ?? "",
+              companyName: c.company.name,
+            },
+          ],
+    ),
     collaborations: collabRows.flatMap((c) =>
       c.endDate == null
         ? []

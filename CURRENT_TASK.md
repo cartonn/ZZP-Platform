@@ -1,3 +1,7 @@
+## 6 oktober — aankomende plaatsing-starts in de bemiddelaar-agenda (#1571)
+
+Bemiddelaar-agenda (`/franchise/agenda`, `.ics`) kreeg start-events van aankomende, reeds overeengekomen plaatsings (ACTIVE, niet-betwist, tenant-gescoopt, `startDate >= now`) met 7/1-dag-alarm — parity met het persoonlijke start-event (#1559), gescheiden bestanden. 8 gerichte mappertests groen; typecheck/lint/format, volledige suite en build groen. Review en CI volgen. [Scope](docs/progress/2026-10-06-broker-agenda-placement-starts.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
