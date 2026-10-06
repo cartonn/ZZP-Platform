@@ -20,59 +20,60 @@ export interface EvidenceCleanupResult {
   failed: number;
 }
 
-/** Begrensde pagina; mislukte verwijderingen mogen latere kandidaten niet blokkeren. */
+/** Hard per-invocation bound on candidates, including policy skips and storage failures. */
 const BATCH_SIZE = 200;
+const CURSOR_ID = "singleton";
 
-type CleanupCursor = { evidenceSeenAt: Date; id: string };
-
-async function loadCleanupPage(cursor?: CleanupCursor) {
-  return prisma.credential.findMany({
-    where: {
-      // Beoordeeld (`evidenceSeenAt` wordt alleen bij een beslissing gezet), bewijsstuk nog aanwezig,
-      // opruiming nog niet voltooid.
-      evidenceSeenAt: { not: null },
-      evidenceRemovedAt: null,
-      documentId: { not: null },
-      ...(cursor
-        ? {
-            OR: [
-              { evidenceSeenAt: { gt: cursor.evidenceSeenAt } },
-              { evidenceSeenAt: cursor.evidenceSeenAt, id: { gt: cursor.id } },
-            ],
-          }
-        : {}),
-    },
-    select: { id: true, type: true, documentId: true, evidenceSeenAt: true },
-    orderBy: [{ evidenceSeenAt: "asc" }, { id: "asc" }],
-    take: BATCH_SIZE,
+async function reserveCleanupPage() {
+  return prisma.$transaction(async (tx) => {
+    // A real write serializes reservations on PostgreSQL and SQLite. Keep this
+    // transaction short: no storage I/O while holding the singleton row lock.
+    const cursor = await tx.evidenceCleanupCursor.upsert({
+      where: { id: CURSOR_ID },
+      create: { id: CURSOR_ID },
+      update: { id: CURSOR_ID },
+    });
+    const load = (after: string) =>
+      tx.credential.findMany({
+        where: {
+          evidenceSeenAt: { not: null },
+          evidenceRemovedAt: null,
+          documentId: { not: null },
+          id: { gt: after },
+        },
+        select: { id: true, type: true, documentId: true },
+        orderBy: { id: "asc" },
+        take: BATCH_SIZE,
+      });
+    let rows = await load(cursor.lastCredentialId);
+    // At most two bounded queries. Use the existing primary-key index; the
+    // continuation remains valid even if its credential has since been deleted.
+    if (!rows.length && cursor.lastCredentialId) rows = await load("");
+    await tx.evidenceCleanupCursor.update({
+      where: { id: CURSOR_ID },
+      data: { lastCredentialId: rows.at(-1)?.id ?? "" },
+    });
+    // Reserve before attempting storage. A crashed run skips its page only until
+    // the next cycle, rather than pinning every subsequent run on that page.
+    return rows;
   });
 }
 
 export async function runCredentialEvidenceCleanupTask(): Promise<EvidenceCleanupResult> {
   let removed = 0;
   let failed = 0;
-  let cursor: CleanupCursor | undefined;
-  while (true) {
-    const rows = await loadCleanupPage(cursor);
-    if (!rows.length) break;
-    for (const row of rows) {
-      // Beleid opnieuw toetsen: zet een operator de env-override op "file", dan stopt ook deze taak
-      // met wissen (de override is de bewuste juridische uitzondering, niet iets wat we omzeilen).
-      if (!shouldRemoveEvidenceAfterReview(row.type as CredentialType)) continue;
-      const result = await removeCredentialEvidence({
-        actorId: null, // systeemactie
-        credentialId: row.id,
-        documentId: row.documentId,
-        source: "[bewijsstuk-opruiming]",
-      });
-      if (result.removed) removed += 1;
-      else failed += 1;
-    }
-
-    if (rows.length < BATCH_SIZE) break;
-    const last = rows[rows.length - 1]!;
-    // Ook bij alleen fouten doorgaan; geen offset over inmiddels verwijderde rijen.
-    cursor = { evidenceSeenAt: last.evidenceSeenAt!, id: last.id };
+  const rows = await reserveCleanupPage();
+  for (const row of rows) {
+    // Recheck the live override; reserving work never authorizes deleting a file.
+    if (!shouldRemoveEvidenceAfterReview(row.type as CredentialType)) continue;
+    const result = await removeCredentialEvidence({
+      actorId: null,
+      credentialId: row.id,
+      documentId: row.documentId,
+      source: "[bewijsstuk-opruiming]",
+    });
+    if (result.removed) removed += 1;
+    else failed += 1;
   }
   return { removed, failed };
 }

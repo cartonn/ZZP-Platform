@@ -1566,6 +1566,13 @@ model LessonCompletion {
   @@index([userId])
 }
 
+// Durable bounded cleanup continuation; independent of scheduler health reporting.
+// Not a relation: deleting a credential must not reset the sweep's position.
+model EvidenceCleanupCursor {
+  id               String @id @default("singleton")
+  lastCredentialId String @default("")
+}
+
 // Cron-heartbeat / dead-man's-switch: één singleton-rij per cron (name = PK). Wordt bij elke
 // afronding van /api/tasks/run-all bijgewerkt zodat /admin/systeemstatus kan tonen of de geplande
 // taken nog draaien (zie src/lib/observability/cron-heartbeat.ts + cron-freshness.ts). Bevat geen

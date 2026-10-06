@@ -1,6 +1,6 @@
-## 1 oktober — bereikbare bewijsopruiming (#1540)
+## 6 oktober — begrensde bewijsopruiming na reviewblocker (#1540)
 
-Tweehonderd oude opslagfouten blokkeerden een later verwijderbaar VOG-bestand. Stabiele evidenceSeenAt/id-pagina’s bereiken iedere kandidaat en behouden beleid, claims en retries. Vijf echte SQLite-regressies (drie rood vóór herstel) en 41 gerichte en 9.249 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-10-01-evidence-cleanup-window.md).
+De onafhankelijke review blokkeerde de onbegrensde paginalus. De runner reserveert nu maximaal 200 kandidaten per aanroep met een duurzaam, transactioneel vergrendeld id-vervolgpunt; fouten, beleidsskips en afgebroken runs blokkeren de volgende pagina niet. Eén nieuwe cursortabel met PostgreSQL-migratie; bestaande verwijderbewaking blijft behouden. Drie begrenzingsregressies rood vóór herstel; 49 gerichte en 9.251 volledige tests groen (3 bestaande skips), lint/types/format en productiebuild groen. Nieuwe onafhankelijke review en CI volgen. [Herstelbewijs](docs/progress/2026-10-01-evidence-cleanup-window.md).
 
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
