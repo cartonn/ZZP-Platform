@@ -466,7 +466,7 @@ export async function sendPaymentReminder(
     return { error: "Je kunt nu geen herinnering sturen voor deze factuur." };
   }
 
-  const num = invoice.partyInvoiceNumber ?? invoice.number;
+  const num = displayInvoiceNumber(invoice);
   const body =
     eligibility.daysOverdue > 0
       ? `Factuur ${num} is ${plural(eligibility.daysOverdue, "dag", "dagen")} over de vervaldag. Betaal rechtstreeks aan de ZZP'er en markeer de betaling.`

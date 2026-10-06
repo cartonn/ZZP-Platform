@@ -8,6 +8,7 @@ import { buildAgingReport, agingCsv, type OpenInvoice } from "@/lib/administrati
 import { isInvoiceOutstanding } from "@/lib/administration/outstanding";
 import { buildPayoutForecastMap, effectivePayoutDate } from "@/lib/administration/payout-forecast";
 import { type PayoutForecast } from "@/lib/invoice-payment-forecast";
+import { displayInvoiceNumber } from "@/lib/invoice-number";
 import { exportRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
@@ -66,7 +67,7 @@ async function fetchOpenInvoices(
 
   const open = outstanding.map((inv) => {
     const isCascade = inv.lifecycleStatus != null;
-    const number = inv.partyInvoiceNumber ?? inv.number;
+    const number = displayInvoiceNumber(inv);
     const counterpartyName = isFreelancer
       ? (inv.collaboration?.company.name ?? "—")
       : (inv.collaboration?.freelancer.user.name ?? "—");

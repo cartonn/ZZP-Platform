@@ -1,3 +1,16 @@
+## 6 oktober — interne uitschrijver-sleutel lekt nooit in het factuurnummer
+
+`Invoice.number` draagt een `issuerKey:`-prefix met een userId die niet getoond mag
+worden; de weergavehelper én zijn inline-dubbelgangers vielen bij een ontbrekend
+partij-nummer terug op die rauwe waarde. `displayInvoiceNumber` stript de prefix nu
+alsnog — uitsluitend als het restant een geldig partij-nummer is (CONCEPT/legacy
+ongemoeid, geen vals-positieven) — en de rauwe fallbacks op PDF, openstaand/CSV,
+factuurdetail en betaalherinnering lopen nu allemaal door die single source. Geen
+gedragswijziging in de normale flow; alleen het privacy-lekscenario is dicht. Negen
+nieuwe helpertests; types/lint/format, 9.253 tests (3 bestaande skips) en
+productiebuild groen. Onafhankelijke review en CI volgen.
+[Scope](docs/progress/2026-10-06-invoice-number-issuer-leak.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).

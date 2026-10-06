@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { AuthorizationError, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { buildInvoicePdf } from "@/lib/invoice-pdf";
+import { displayInvoiceNumber } from "@/lib/invoice-number";
 import { isInvoicePaymentPending } from "@/lib/invoice-payment-status";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { privateFileHeaders } from "@/lib/security/resource-headers";
@@ -115,7 +116,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   });
 
   const bytes = await buildInvoicePdf({
-    number: inv.partyInvoiceNumber ?? inv.number,
+    number: displayInvoiceNumber(inv),
     issuedAt: ymd(inv.issuedAt),
     dueAt: ymd(inv.dueAt),
     fromName: inv.collaboration?.freelancer.user.name ?? "ZZP'er",
@@ -137,7 +138,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     ),
   });
 
-  const safeNumber = (inv.partyInvoiceNumber ?? inv.number).replace(/[^\w.\-]+/g, "_");
+  const safeNumber = displayInvoiceNumber(inv).replace(/[^\w.\-]+/g, "_");
   // Gedeelde bron van waarheid (src/lib/security/resource-headers.ts): privé-bestand-headers incl.
   // Cross-Origin-Resource-Policy same-origin (geen cross-origin embedding van deze factuur-PDF).
   return new NextResponse(new Uint8Array(bytes), {
