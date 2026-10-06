@@ -132,13 +132,14 @@ it.each([false, true])(
       if (!mixed || Number(key.slice(4)) % 2 === 0) throw new Error("synthetic object failure");
     });
     // The persisted queue must reach every tied candidate without an unbounded tick.
-    for (const expected of [200, 200, 1]) {
+    for (const expected of [200, 200, 200]) {
       const before = f.del.mock.calls.length;
       const result = await runCredentialEvidenceCleanupTask();
       expect(result.removed + result.failed).toBe(expected);
       expect(f.del.mock.calls.length - before).toBe(expected);
+      expect(new Set(f.del.mock.calls.slice(before).map((call) => call[0])).size).toBe(expected);
     }
-    expect(f.del).toHaveBeenCalledTimes(401);
+    expect(f.del).toHaveBeenCalledTimes(600);
     expect(new Set(f.del.mock.calls.map((c) => c[0])).size).toBe(401);
     const claimed = await f.db.document.findMany();
     expect(claimed.every((d) => d.evidenceRemovalStartedAt !== null)).toBe(true);
@@ -192,8 +193,9 @@ it("file override leaves every page and claim unchanged", async () => {
   }
 });
 
-async function seedBacklog() {
-  const ids = [...Array.from({ length: 200 }, (_, i) => `old-${i}`), "zz-fresh"];
+async function seedBacklog(
+  ids = [...Array.from({ length: 200 }, (_, i) => `old-${i}`), "zz-fresh"],
+) {
   await f.db.document.createMany({
     data: ids.map((id) => ({
       id,
@@ -230,10 +232,10 @@ it("persists a reservation across an aborted run and reconnect, then wraps for r
   expect(f.del).not.toHaveBeenCalled();
   await f.db.$disconnect();
   await f.db.$connect();
-  expect(await runCredentialEvidenceCleanupTask()).toEqual({ removed: 1, failed: 0 });
-  expect(f.del).toHaveBeenLastCalledWith("zz-fresh");
-  // The cursor's credential was deleted above; its stored id still allows wraparound.
   expect(await runCredentialEvidenceCleanupTask()).toEqual({ removed: 200, failed: 0 });
+  expect(f.del.mock.calls[0]?.[0]).toBe("zz-fresh");
+  // The cursor's credential was deleted above; its stored id still allows wraparound.
+  expect(await runCredentialEvidenceCleanupTask()).toEqual({ removed: 1, failed: 0 });
   expect(await f.db.auditLog.count()).toBe(201);
 }, 30000);
 
@@ -249,21 +251,55 @@ it("reserves the next bounded page while the previous run waits for storage", as
   });
   f.del.mockImplementation(async (key: string) => {
     if (key.startsWith("old-")) {
-      started();
-      await storageGate;
+      if (f.del.mock.calls.length === 1) {
+        started();
+        await storageGate;
+      }
       throw new Error("synthetic storage failure");
     }
   });
   const first = runCredentialEvidenceCleanupTask();
   try {
     await storageStarted;
-    expect(await runCredentialEvidenceCleanupTask()).toEqual({ removed: 1, failed: 0 });
+    expect(await runCredentialEvidenceCleanupTask()).toEqual({ removed: 1, failed: 199 });
     expect(f.del).toHaveBeenCalledWith("zz-fresh");
+    const secondRun = f.del.mock.calls.slice(1).map((call) => call[0]);
+    expect(secondRun).toHaveLength(200);
+    expect(new Set(secondRun).size).toBe(200);
   } finally {
     release();
     await first;
   }
   expect(await first).toEqual({ removed: 0, failed: 200 });
-  expect(f.del).toHaveBeenCalledTimes(201);
+  expect(f.del).toHaveBeenCalledTimes(400);
   expect(new Set(f.del.mock.calls.map((call) => call[0])).size).toBe(201);
 }, 30000);
+
+it.each([1, 199])(
+  "retries recovered old evidence despite %i newer arrivals on every tick",
+  async (arrivals) => {
+    await seedBacklog(["old-retry"]);
+    let recovered = false;
+    f.del.mockImplementation(async (key: string) => {
+      if (key === "old-retry" && !recovered) throw new Error("synthetic temporary failure");
+    });
+    expect(await runCredentialEvidenceCleanupTask()).toEqual({ removed: 0, failed: 1 });
+    for (let tick = 0; tick < 4; tick++) {
+      await seedBacklog(Array.from({ length: arrivals }, (_, i) => `zz-arrival-${tick}-${i}`));
+      recovered = tick === 3;
+      const before = f.del.mock.calls.length;
+      expect(await runCredentialEvidenceCleanupTask()).toEqual({
+        removed: arrivals + (recovered ? 1 : 0),
+        failed: recovered ? 0 : 1,
+      });
+      const attempted = f.del.mock.calls.slice(before).map((call) => call[0]);
+      expect(attempted).toContain("old-retry");
+      expect(attempted.length).toBeLessThanOrEqual(200);
+      expect(new Set(attempted).size).toBe(attempted.length);
+    }
+    expect(
+      (await f.db.credential.findUniqueOrThrow({ where: { id: "old-retry" } })).documentId,
+    ).toBeNull();
+  },
+  30000,
+);

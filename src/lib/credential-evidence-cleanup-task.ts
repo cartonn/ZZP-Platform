@@ -33,22 +33,25 @@ async function reserveCleanupPage() {
       create: { id: CURSOR_ID },
       update: { id: CURSOR_ID },
     });
-    const load = (after: string) =>
+    const load = (id: { gt?: string; lte?: string }, limit: number) =>
       tx.credential.findMany({
         where: {
           evidenceSeenAt: { not: null },
           evidenceRemovedAt: null,
           documentId: { not: null },
-          id: { gt: after },
+          id,
         },
         select: { id: true, type: true, documentId: true },
         orderBy: { id: "asc" },
-        take: BATCH_SIZE,
+        take: limit,
       });
-    let rows = await load(cursor.lastCredentialId);
-    // At most two bounded queries. Use the existing primary-key index; the
-    // continuation remains valid even if its credential has since been deleted.
-    if (!rows.length && cursor.lastCredentialId) rows = await load("");
+    const rows = await load({ gt: cursor.lastCredentialId }, BATCH_SIZE);
+    // Spend spare capacity on retries even when newer candidates arrive every
+    // tick. The original boundary makes the two ranges disjoint, so a candidate
+    // appears at most once per invocation. Both queries use the primary-key index.
+    if (rows.length < BATCH_SIZE && cursor.lastCredentialId) {
+      rows.push(...(await load({ lte: cursor.lastCredentialId }, BATCH_SIZE - rows.length)));
+    }
     await tx.evidenceCleanupCursor.update({
       where: { id: CURSOR_ID },
       data: { lastCredentialId: rows.at(-1)?.id ?? "" },
