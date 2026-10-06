@@ -11,6 +11,8 @@
 // waarheid — beschikbaarheid is een advies-signaal, geen harde poort: de ZZP'er beslist zelf bij het
 // accepteren. Deze helper toont alleen, beslist nooit over toegang (CLAUDE.md regel 1).
 
+import { amsterdamCivilDayMs } from "@/lib/administration/fiscal-calendar";
+
 /** Eén door de ZZP'er opgegeven beschikbaarheidsvenster (ruwe DB-vorm). */
 export interface AvailabilityWindowInput {
   /** Begin van het venster (inclusief). */
@@ -34,8 +36,9 @@ const NONE: UnavailabilitySignal = { conflict: false, windowStartISO: null, wind
 
 /**
  * Normaliseert een `Date` naar een dag-granulaire yyyy-mm-dd (UTC) sleutel. Zo vergelijken we op
- * kalenderdag i.p.v. op millisecondes — tijdzone-veilig en consistent met de opdrachtgever-zijde die
- * al op ISO-datum-granulariteit toetst (`proposal-availability.ts`). Ongeldige `Date` → null.
+ * kalenderdag i.p.v. op millisecondes. Gebruikt voor de venstergrenzen: `AvailabilityWindow.startDate`/
+ * `endDate` zijn kale UTC-middernacht-sentinels (datum-labels, geen echt tijdstip), dus de UTC-slice
+ * geeft direct de bedoelde kalenderdag. Ongeldige `Date` → null.
  */
 function toDayKey(d: Date): string | null {
   const ms = d.getTime();
@@ -44,13 +47,30 @@ function toDayKey(d: Date): string | null {
 }
 
 /**
+ * Normaliseert een écht tijdstip (de dienst-start, mét tijd-op-de-dag) naar de **Amsterdamse
+ * burgerlijke** kalenderdag. De productieserver (Railway) draait in UTC, terwijl `Job.startDate` een
+ * echt tijdstip draagt — bij een nachtdienst rond middernacht (bv. 22:30Z = 00:30 NL in de zomer) ligt
+ * de UTC-dag een dag vóór de NL-dag. Zonder deze correctie viel zo'n dienst op de verkeerde kalenderdag
+ * en werd een `UNAVAILABLE`-venster op de werkelijke dienstdag gemist (vals negatief: de bemiddelaar
+ * draagt tóch voor) of een venster op de vorige dag ten onrechte geraakt (vals positief). Dit spiegelt
+ * exact `roster-timeline.ts`, dat `now` op dezelfde `amsterdamCivilDayMs`-bron verankert; de
+ * venster-sentinels blijven UTC-middernacht en lijnen zo uit op deze sleutel. Ongeldige `Date` → null.
+ */
+function toCivilDayKey(d: Date): string | null {
+  const ms = d.getTime();
+  if (!Number.isFinite(ms)) return null;
+  return new Date(amsterdamCivilDayMs(d)).toISOString().slice(0, 10);
+}
+
+/**
  * Bepaalt of de ZZP'er zichzelf op de dienstdatum onbeschikbaar heeft gemaakt.
  *
  * Regels:
  * - `dienstStart == null` → geen conflict: zonder datum valt niets te bepalen (geen vals alarm).
  * - Alleen vensters met `type === "UNAVAILABLE"` tellen; AVAILABLE/LIMITED zijn geen harde blokkade.
- * - Een venster telt als conflict wanneer de dienstdag (yyyy-mm-dd) inclusief binnen
- *   `[startDate, endDate]` valt. Een venster met een einde vóór het begin (ongeldige range) wordt
+ * - Een venster telt als conflict wanneer de dienstdag — de **Amsterdamse** kalenderdag van de
+ *   dienst-start (yyyy-mm-dd) — inclusief binnen `[startDate, endDate]` valt. Een venster met een
+ *   einde vóór het begin (ongeldige range) wordt
  *   genegeerd — geen vals alarm op corrupte data.
  * - Bij meerdere conflictvensters kiezen we het vroegst-startende (deterministisch) voor het label.
  *
@@ -63,7 +83,7 @@ export function detectUnavailability(input: {
   const { dienstStart, windows } = input;
   if (!dienstStart) return NONE;
 
-  const dienstKey = toDayKey(dienstStart);
+  const dienstKey = toCivilDayKey(dienstStart);
   if (dienstKey === null) return NONE;
 
   const conflicts = windows

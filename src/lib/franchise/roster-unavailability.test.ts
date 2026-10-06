@@ -104,10 +104,46 @@ describe("detectUnavailability", () => {
     expect(r.conflict).toBe(false);
   });
 
-  it("vergelijkt op kalenderdag, niet op milliseconde (tijd binnen de dag telt niet mee)", () => {
+  it("vergelijkt op kalenderdag, niet op milliseconde (tijd binnen dezelfde NL-dag telt niet mee)", () => {
+    // 10:00Z = 12:00 NL (zomer) — nog steeds 15 augustus NL, dus binnen het venster t/m 15 augustus.
     const r = detectUnavailability({
-      dienstStart: new Date("2026-08-15T22:30:00.000Z"),
+      dienstStart: new Date("2026-08-15T10:00:00.000Z"),
       windows: [win("2026-08-10", "2026-08-15")],
+    });
+    expect(r.conflict).toBe(true);
+  });
+
+  it("toetst op de Amsterdamse kalenderdag: een zomernachtdienst valt op de NL-dag, niet de UTC-dag", () => {
+    // 2026-08-15T22:30Z = 2026-08-16 00:30 NL (CEST, UTC+2): de dienst start op NL-dag 16 augustus.
+    const dienstStart = new Date("2026-08-15T22:30:00.000Z");
+
+    // Het UNAVAILABLE-venster op de werkelijke NL-dienstdag (16 aug) moet het conflict geven —
+    // vóór de fix viel de dienst op UTC-dag 15 aug en bleef dit vals negatief (verspilde voordracht).
+    const onNlDay = detectUnavailability({
+      dienstStart,
+      windows: [win("2026-08-16", "2026-08-16")],
+    });
+    expect(onNlDay).toEqual({
+      conflict: true,
+      windowStartISO: "2026-08-16",
+      windowEndISO: "2026-08-16",
+    });
+
+    // En een venster op alleen de vorige UTC-dag (15 aug) mag géén vals positief geven: op die NL-dag
+    // is de ZZP'er niet onbeschikbaar.
+    const onUtcDay = detectUnavailability({
+      dienstStart,
+      windows: [win("2026-08-15", "2026-08-15")],
+    });
+    expect(onUtcDay.conflict).toBe(false);
+  });
+
+  it("toetst op de Amsterdamse kalenderdag ook in de winter (CET, UTC+1)", () => {
+    // 2026-01-15T23:30Z = 2026-01-16 00:30 NL (CET, UTC+1): de dienst start op NL-dag 16 januari.
+    const dienstStart = new Date("2026-01-15T23:30:00.000Z");
+    const r = detectUnavailability({
+      dienstStart,
+      windows: [win("2026-01-16", "2026-01-16")],
     });
     expect(r.conflict).toBe(true);
   });

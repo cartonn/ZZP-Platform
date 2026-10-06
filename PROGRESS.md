@@ -1,3 +1,21 @@
+## 6 oktober — onbeschikbaarheid-voordracht op NL-kalenderdag (#1572)
+
+`detectUnavailability` (bemiddelaar, `/franchise/diensten/[id]`) buckette de dienst-start op de
+UTC-kalenderdag i.p.v. de Amsterdamse burgerlijke dag. Een nachtdienst rond middernacht (bv.
+`22:30Z` = `00:30` NL) viel daardoor op de verkeerde dag: een `UNAVAILABLE`-venster op de werkelijke
+NL-dienstdag werd gemist (vals negatief — verspilde voordracht) of een venster op de vorige dag ten
+onrechte geraakt (vals positief). De dienst-start wordt nu via de canonieke `amsterdamCivilDayMs`
+verankerd op de NL-kalenderdag, exact zoals `roster-timeline.ts` dat voor `now` doet; de
+venster-sentinels blijven UTC-middernacht en lijnen zo uit. Twee regressies (zomer-CEST nachtdienst
+vals-negatief + vals-positief, winter-CET nachtdienst) rood vóór herstel; 12 gerichte tests groen.
+Lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen.
+
+Meegenomen: de base-brede `audit`-poort blokkeerde op 5 high productie-deps (de
+`patch-package`→`braces` DoS-boom + `source-map-js@1.2.1`). De bekende deblokkade uit #1570
+geport — `patch-package` naar `devDependencies` (build-time tool, draait in `postinstall`) en een
+`source-map-js ^1.2.2`-override; lockfile geregenereerd. `audit-production` en `npm audit --omit=dev`
+groen (0), patch past schoon toe. No-opt zodra de base deze fix draagt.
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
