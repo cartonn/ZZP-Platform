@@ -1,0 +1,64 @@
+name: Docker runtime smoke
+
+on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - ".npmrc"
+      - "package.json"
+      - "package-lock.json"
+      - "patches/**"
+      - "prisma/**"
+      - "prisma.config.ts"
+      - "next.config.mjs"
+      - "scripts/docker-runtime-smoke.sh"
+      - "scripts/runtime-image-check.mjs"
+      - "scripts/start.mjs"
+      - "scripts/use-db-provider.mjs"
+      - "scripts/db-bootstrap-plan.mjs"
+      - "scripts/db-sync.mjs"
+      - "scripts/shutdown-config.mjs"
+      - "scripts/preflight.ts"
+      - "scripts/server-actions-origins.mjs"
+      - "src/lib/env.ts"
+      - "src/lib/system-status.ts"
+      - "src/lib/ops/preflight.ts"
+      - "src/app/api/readiness/**"
+      - ".github/workflows/docker-runtime.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-runtime-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  docker-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SMOKE_SHA: ${{ github.event.pull_request.head.sha }}
+      SMOKE_PREFIX: handslag-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+      SMOKE_LOG_DIR: ${{ runner.temp }}/docker-runtime-smoke
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Build and exercise the exact PR image with disposable PostgreSQL
+        run: bash scripts/docker-runtime-smoke.sh
+      - name: Remove disposable containers and network even after cancellation
+        if: always()
+        run: |
+          timeout 30s docker rm -f "$SMOKE_PREFIX-app" "$SMOKE_PREFIX-strict" "$SMOKE_PREFIX-db" "$SMOKE_PREFIX-tree" || true
+          timeout 15s docker network rm "$SMOKE_PREFIX" || true
+      - name: Preserve SHA-bound build and runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-runtime-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/docker-runtime-smoke
+          retention-days: 7
+          if-no-files-found: error

@@ -1,3 +1,31 @@
+# Aanvullende Linux-imageproef voor #1570 (2026-10-07)
+
+De exacte review van 52b40ee5 bleef INCOMPLETE wegens ontbrekend Linux-imagebewijs.
+Een afzonderlijke pull_request-workflow bouwt nu het Dockerfile vanaf de exacte
+PR-head-SHA op Ubuntu 24.04. Alleen contents:read, geen credentials in checkout,
+geen repositorysecrets of deploy; de zes bestaande verplichte poorten veranderen niet.
+De workflow start alleen bij wijzigingen aan image/dependencies/runtime/bootstrap.
+
+De smoke controleert de uiteindelijke non-root image op geprunde modules, beide
+Next-patch-hunks, native Sharp en Prisma. Een disposable Postgres 16 draait op een
+intern Docker-netwerk zonder hostpoorten of uitgaand runtimeverkeer. Eerst moet de
+echte strict-productie-entrypoint inert ingestelde integraties weigeren met exit 1,
+vóór enige schemamutatie. Daarna bewijst de echte entrypoint in expliciete demo-fase
+met SEED_DEMO=false de migraties, referentieseed, readiness, health en checkout-SHA.
+Alle verpakte migraties moeten voltooid zijn; plan/skill/industry gevuld en users leeg.
+
+Strict-productie-SUCCES blijft bewust onbewezen: die preflight verlangt gekoppelde
+integraties, terwijl deze proef geen externe drivers activeert. De preflight wordt
+niet versoepeld. Containers/netwerk worden bij exit en in een always-stap opgeruimd;
+build/start hebben time-outs, de job maximaal 30 minuten. SHA-/image-/build-/boot-
+bewijs wordt zeven dagen bewaard zonder omgevingsdump.
+
+Lokaal: Bash-/Node-syntax, workflowvalidator en negatieve strict-preflightproef
+zonder server, gerichte repositorylint en formatting geslaagd. Docker/VM is niet gestart.
+De echte CI-uitvoering volgt pas na review en push; dit is nog geen Linux-PASS.
+
+---
+
 # Gerichte vervolgfix na onafhankelijke BLOCK (2026-10-07)
 
 De eerste reparatie hieronder maakte drie high-signalen via Prisma zichtbaar.
