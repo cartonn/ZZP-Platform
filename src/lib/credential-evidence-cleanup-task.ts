@@ -20,38 +20,59 @@ export interface EvidenceCleanupResult {
   failed: number;
 }
 
-/** Defensieve cap, zoals de andere taakrunners: één tick blijft begrensd, de rest volgt vanzelf. */
+/** Begrensde pagina; mislukte verwijderingen mogen latere kandidaten niet blokkeren. */
 const BATCH_SIZE = 200;
 
-export async function runCredentialEvidenceCleanupTask(): Promise<EvidenceCleanupResult> {
-  const rows = await prisma.credential.findMany({
+type CleanupCursor = { evidenceSeenAt: Date; id: string };
+
+async function loadCleanupPage(cursor?: CleanupCursor) {
+  return prisma.credential.findMany({
     where: {
       // Beoordeeld (`evidenceSeenAt` wordt alleen bij een beslissing gezet), bewijsstuk nog aanwezig,
       // opruiming nog niet voltooid.
       evidenceSeenAt: { not: null },
       evidenceRemovedAt: null,
       documentId: { not: null },
+      ...(cursor
+        ? {
+            OR: [
+              { evidenceSeenAt: { gt: cursor.evidenceSeenAt } },
+              { evidenceSeenAt: cursor.evidenceSeenAt, id: { gt: cursor.id } },
+            ],
+          }
+        : {}),
     },
-    select: { id: true, type: true, documentId: true },
-    orderBy: { evidenceSeenAt: "asc" },
+    select: { id: true, type: true, documentId: true, evidenceSeenAt: true },
+    orderBy: [{ evidenceSeenAt: "asc" }, { id: "asc" }],
     take: BATCH_SIZE,
   });
+}
 
+export async function runCredentialEvidenceCleanupTask(): Promise<EvidenceCleanupResult> {
   let removed = 0;
   let failed = 0;
-  for (const row of rows) {
-    // Beleid opnieuw toetsen: zet een operator de env-override op "file", dan stopt ook deze taak
-    // met wissen (de override is de bewuste juridische uitzondering, niet iets wat we omzeilen).
-    if (!shouldRemoveEvidenceAfterReview(row.type as CredentialType)) continue;
-    const result = await removeCredentialEvidence({
-      actorId: null, // systeemactie
-      credentialId: row.id,
-      documentId: row.documentId,
-      source: "[bewijsstuk-opruiming]",
-    });
-    if (result.removed) removed += 1;
-    else failed += 1;
-  }
+  let cursor: CleanupCursor | undefined;
+  while (true) {
+    const rows = await loadCleanupPage(cursor);
+    if (!rows.length) break;
+    for (const row of rows) {
+      // Beleid opnieuw toetsen: zet een operator de env-override op "file", dan stopt ook deze taak
+      // met wissen (de override is de bewuste juridische uitzondering, niet iets wat we omzeilen).
+      if (!shouldRemoveEvidenceAfterReview(row.type as CredentialType)) continue;
+      const result = await removeCredentialEvidence({
+        actorId: null, // systeemactie
+        credentialId: row.id,
+        documentId: row.documentId,
+        source: "[bewijsstuk-opruiming]",
+      });
+      if (result.removed) removed += 1;
+      else failed += 1;
+    }
 
+    if (rows.length < BATCH_SIZE) break;
+    const last = rows[rows.length - 1]!;
+    // Ook bij alleen fouten doorgaan; geen offset over inmiddels verwijderde rijen.
+    cursor = { evidenceSeenAt: last.evidenceSeenAt!, id: last.id };
+  }
   return { removed, failed };
 }

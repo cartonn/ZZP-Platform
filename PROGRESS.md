@@ -1,3 +1,7 @@
+## 1 oktober — bereikbare bewijsopruiming (#1540)
+
+Tweehonderd oude opslagfouten blokkeerden een later verwijderbaar VOG-bestand. Stabiele evidenceSeenAt/id-pagina’s bereiken iedere kandidaat en behouden beleid, claims en retries. Vijf echte SQLite-regressies (drie rood vóór herstel) en 41 gerichte en 9.249 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-10-01-evidence-cleanup-window.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
