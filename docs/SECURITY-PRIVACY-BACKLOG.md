@@ -1,3 +1,41 @@
+## 6 oktober 2026 — productie-audit-poort rood op verse main (OPGELOST)
+
+Basis: `origin/main` @ `0b73d06b`. **HOOG — OWASP A06 (Vulnerable & Outdated Components) +
+broken merge-gate.** De verplichte `audit`-poort (`scripts/audit-production.mjs` = `npm audit
+--omit=dev`, blokkeert op elke high/critical) was rood op een verse main: vijf high in de
+productie-dependency-tree, waardoor élke merge naar `main` geblokkeerd was. Repro:
+`node scripts/audit-production.mjs` → exit 1, "0 critical + 5 high". Oorzaken: (1) `patch-package`
+(build-tijd tool) stond in `dependencies` → sleepte `find-yarn-workspace-root → micromatch →
+braces` (ReDoS/stack-exhaustion DoS, 4× high) in de `--omit=dev`-tree; (2) `source-map-js@1.2.1`
+via next→postcss (GHSA-68fv-2mgg-jv7q, event-loop DoS, 1× high).
+
+**OPGELOST deze ronde:** `patch-package` → `devDependencies` (postinstall/next-patch blijft
+draaien; Docker kopieert volledige node_modules naar runtime-stage); override
+`"source-map-js": "^1.2.2"`. Na fix `npm audit --omit=dev` nul, poort exit 0. Regressietest
+`src/lib/security/production-dependency-hygiene.test.ts` (3 asserties, rood→groen) bewaakt beide.
+[Uitvoering](progress/2026-10-06-production-audit-gate.md).
+
+### Geparkeerde LAAG-ontwerpobservaties (deze ronde, 4 parallelle sweeps, géén exploit)
+
+Geen nieuw bereikbaar authz-/tenant-/injectie-/SSRF-/privacy-gat gevonden. Open
+eigenaar/FG-beleidsvragen (LAAG, geen bug, geen fix deze ronde):
+
+- **Deterministische deel-tokens zonder intrekking.** `verifyDossierToken`
+  (`src/lib/share-token.ts:41`) en de agenda-feed (`src/app/api/agenda/feed.ics/route.ts`, veld
+  `u`+HMAC) zijn per gebruiker deterministisch en niet per-link intrekbaar zonder het
+  share-secret te roteren. Mitigatie bestaat (liveness-check, rate-limit, audit, PUBLIC-vereiste).
+  AVG: consent-granulariteit/opslagbeperking. Aanbeveling: per-link `tokenVersion` of revocatielijst.
+- **Overflow-dienst reveal.** `getDienstDetail` (`src/lib/franchise/dienst-detail.ts:106-153`)
+  toont profielvelden (naam, headline, bio, tarief, certificaten) van reageerders op een
+  overflow-dienst van de eigen franchise, ook bij een andere tenant. Bedoeld gedrag (de ZZP'er
+  reageerde zelf), maar FG moet bevestigen dat die velden mogen tonen. AVG: dataminimalisatie.
+- **`setWeekdaysAction`/`setOrtProfileAction` zonder dispuut-bevriezing.**
+  `src/app/(protected)/samenwerkingen/[id]/actions.ts:277,363` missen de `disputedAt`-guard die
+  de rest van de cascade wél heeft. Aanroeper is de gemachtigde partij → consistentie-opmerking,
+  geen IDOR. Aanbeveling: parity met de overige cascade-commands.
+- **`Notification.link` redirect.** `notificaties/actions.ts:37` doet `redirect(n.link)`; `link`
+  wordt server-side gezet. Verifieer dat geen gebruikersinvoer ooit in `Notification.link` landt.
+
 ## 23 september 2026 — lopende upload na erasure (MIDDEL, #1516)
 
 De eerdere document/erasure-raceclaim hieronder dekt geen reeds geautoriseerde
