@@ -1,3 +1,15 @@
+## 6 oktober — productie-audit-poort hersteld (dependency-hygiëne)
+
+De harde merge-poort `audit` stond rood op een verse main: vijf high in de productie-tree.
+`patch-package` (build-tijd tool) zat in `dependencies` en sleepte de keten
+find-yarn-workspace-root → micromatch → braces mee (vier high) → verplaatst naar
+`devDependencies` (postinstall/next-patch blijft draaien; Docker kopieert de volledige
+node_modules). `source-map-js@1.2.1` via next→postcss (GHSA-68fv-2mgg-jv7q) → override `^1.2.2`.
+Na fix: `npm audit --omit=dev` nul, poortscript exit 0. Nieuwe regressietest
+`production-dependency-hygiene.test.ts` (3 asserties, rood→groen) bewaakt beide. De vier
+parallelle sweeps (authz/tenant/API-SSRF/privacy) vonden geen nieuw bereikbaar gat.
+OWASP A06. [Scope](docs/progress/2026-10-06-production-audit-gate.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
