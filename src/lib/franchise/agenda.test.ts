@@ -13,13 +13,46 @@ function single<T>(items: T[]): T {
 
 describe("brokerAgendaEvents", () => {
   it("levert geen events bij een lege agenda", () => {
-    const empty: BrokerAgenda = { collaborations: [], credentials: [] };
+    const empty: BrokerAgenda = { starts: [], collaborations: [], credentials: [] };
     expect(brokerAgendaEvents(empty)).toEqual([]);
+  });
+
+  it("mapt een plaatsing-startdatum naar een all-day event met een 7- en 1-dag-alarm", () => {
+    const e = single(
+      brokerAgendaEvents({
+        starts: [
+          {
+            id: "s1",
+            startDate: D("2026-11-01T00:00:00Z"),
+            freelancerName: "Sanne",
+            companyName: "Zorg BV",
+          },
+        ],
+        collaborations: [],
+        credentials: [],
+      }),
+    );
+    expect(e.uid).toBe("broker-collab-start-s1@zzp-platform");
+    expect(e.summary).toBe("Start plaatsing: Sanne bij Zorg BV");
+    expect(e.allDay).toBe(true);
+    expect(e.start).toEqual(D("2026-11-01T00:00:00Z"));
+    expect(e.recurrenceDays).toBeUndefined();
+    expect(e.alarms).toEqual([
+      {
+        daysBefore: 7,
+        description: "Plaatsing Sanne bij Zorg BV start over 7 dagen — rond de intake af.",
+      },
+      {
+        daysBefore: 1,
+        description: "Plaatsing Sanne bij Zorg BV start morgen.",
+      },
+    ]);
   });
 
   it("mapt een plaatsing-einddatum naar een all-day event met een 14-dagen-alarm", () => {
     const e = single(
       brokerAgendaEvents({
+        starts: [],
         collaborations: [
           {
             id: "c1",
@@ -48,6 +81,7 @@ describe("brokerAgendaEvents", () => {
   it("mapt een certificaat-verval naar een all-day event met 30- en 7-dagen-alarmen", () => {
     const e = single(
       brokerAgendaEvents({
+        starts: [],
         collaborations: [],
         credentials: [
           {
@@ -68,6 +102,7 @@ describe("brokerAgendaEvents", () => {
 
   it("bewaart de volgorde: eerst plaatsingen, dan certificaten", () => {
     const events = brokerAgendaEvents({
+      starts: [],
       collaborations: [
         { id: "c1", endDate: D("2026-09-01T00:00:00Z"), freelancerName: "A", companyName: "X" },
         { id: "c2", endDate: D("2026-09-02T00:00:00Z"), freelancerName: "B", companyName: "Y" },
@@ -83,9 +118,29 @@ describe("brokerAgendaEvents", () => {
     ]);
   });
 
+  it("emitteert de volgorde: eerst starts, dan plaatsing-eindes, dan certificaten", () => {
+    const events = brokerAgendaEvents({
+      starts: [
+        { id: "s1", startDate: D("2026-11-01T00:00:00Z"), freelancerName: "C", companyName: "Z" },
+      ],
+      collaborations: [
+        { id: "c1", endDate: D("2026-09-01T00:00:00Z"), freelancerName: "A", companyName: "X" },
+      ],
+      credentials: [
+        { id: "k1", title: "BIG", freelancerName: "A", expiresAt: D("2026-09-03T00:00:00Z") },
+      ],
+    });
+    expect(events.map((e) => e.uid)).toEqual([
+      "broker-collab-start-s1@zzp-platform",
+      "broker-collab-end-c1@zzp-platform",
+      "broker-cred-expiry-k1@zzp-platform",
+    ]);
+  });
+
   it("valt terug op een nette naam bij een leeg/onbekend naamveld (geen rare titel)", () => {
     const e = single(
       brokerAgendaEvents({
+        starts: [],
         collaborations: [
           { id: "c1", endDate: D("2026-09-01T00:00:00Z"), freelancerName: "  ", companyName: "" },
         ],
@@ -97,6 +152,7 @@ describe("brokerAgendaEvents", () => {
 
   it("draagt geen bedragen in summary of description (privacy-parity met deadlines.ts)", () => {
     const events = brokerAgendaEvents({
+      starts: [],
       collaborations: [
         {
           id: "c1",

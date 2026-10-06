@@ -50,6 +50,7 @@ export async function GET() {
       entityType: "Collaboration",
       entityId: "self",
       metadata: {
+        starts: agenda.starts.length,
         collaborations: agenda.collaborations.length,
         credentials: agenda.credentials.length,
       },
