@@ -26,6 +26,7 @@ import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { PaymentReminderButton } from "@/components/invoices/payment-reminder-button";
 import { canSendPaymentReminder, isAwaitingPayment } from "@/lib/manual-payment-reminder";
 import { isInvoicePaymentPending } from "@/lib/invoice-payment-status";
+import { displayInvoiceNumber } from "@/lib/invoice-number";
 import { assessInvoiceCompliance } from "@/lib/invoice-legal";
 import { InvoiceComplianceCard } from "@/components/invoices/invoice-compliance-card";
 import { invoiceReserveHint, shouldShowInvoiceReserve } from "@/lib/tax/invoice-reserve";
@@ -163,9 +164,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   // en wat er nog ontbreekt (typisch een btw-id/KvK op het profiel). Server-side afgeleid.
   const compliance = isFreelancerOwner
     ? assessInvoiceCompliance({
-        invoiceNumber: cascade
-          ? invoice.partyInvoiceNumber
-          : (invoice.partyInvoiceNumber ?? invoice.number),
+        invoiceNumber: cascade ? invoice.partyInvoiceNumber : displayInvoiceNumber(invoice),
         issuedAt: invoice.issuedAt,
         clientName: invoice.collaboration.company.name,
         hasDescription:
@@ -185,7 +184,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   // betaalgegevens van de crediteur zolang de factuur nog openstaat, zodat de opdrachtgever correct
   // + op tijd kan betalen. Beide partijen zien hetzelfde blok. Vereist een IBAN op het ZZP-profiel.
   const issuerIban = invoice.collaboration.freelancer.iban;
-  const invoiceNumber = invoice.partyInvoiceNumber ?? invoice.number;
+  const invoiceNumber = displayInvoiceNumber(invoice);
   const showPaymentDetails = !!issuerIban && isInvoicePaymentPending(status, lifecycle);
   const paymentReference = `Factuur ${invoiceNumber}`;
 
@@ -287,7 +286,10 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className="text-lg font-semibold tabular-nums tracking-tight">
-                Factuur {invoice.partyInvoiceNumber ?? (cascade ? "(concept)" : invoice.number)}
+                Factuur{" "}
+                {cascade
+                  ? (invoice.partyInvoiceNumber ?? "(concept)")
+                  : displayInvoiceNumber(invoice)}
               </h1>
               <p className="text-sm text-muted-foreground">{invoice.collaboration.job.title}</p>
             </div>
@@ -459,7 +461,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           data={buildAanmaningData({
             freelancerName: invoice.collaboration.freelancer.user.name ?? "",
             companyName: invoice.collaboration.company.name,
-            invoiceNumber: invoice.partyInvoiceNumber ?? invoice.number,
+            invoiceNumber: displayInvoiceNumber(invoice),
             jobTitle: invoice.collaboration.job.title,
             issuedAt: invoice.issuedAt ?? invoice.createdAt,
             dueAt: invoice.dueAt,
