@@ -1,3 +1,8 @@
+## 7 oktober — vervolg #1570: echte runtimeboom en Prisma-override
+
+Docker past patches vóór installatie toe en verwijdert dev-gereedschap na de build; sharp is 0.35.5. Prisma/dotenv/tsx blijven nodig bij boot/seed. De gerichte override @prisma/config → deepmerge-ts 8.0.2 verhelpt de bij de eerste reparatie gevonden drie high: productie-audit en ongewijzigde poort nu groen (1 low). Lint/types/format, 9.244 tests, build en geprunde Prisma/SQLite-seed groen; Docker/Linux nog niet geverifieerd.
+[Actuele onderbouwing](docs/progress/2026-10-06-audit-prod-deps.md).
+
 ## 6 oktober — productie-audit-poort gedeblokkeerd (patch-package → devDeps + source-map-js)
 
 De verplichte `audit`-poort blokkeerde élke PR base-breed op 5 high productie-deps
