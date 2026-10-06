@@ -1,3 +1,14 @@
+## 6 oktober — productie-audit-poort gedeblokkeerd (patch-package → devDeps + source-map-js)
+
+De verplichte `audit`-poort blokkeerde élke PR base-breed op 5 high productie-deps
+(nieuw bekendgemaakte advisories; op #1568 nog groen): de `patch-package`-boom via de
+`braces` DoS GHSA-vfj7-8cjw-p6xm (nog geen upstream fix) plus `source-map-js@1.2.1`
+GHSA-68fv-2mgg-jv7q via `next → postcss`. `patch-package` (build-time tool) verplaatst
+naar `devDependencies` en een `source-map-js ^1.2.2`-override toegevoegd; lockfile
+geregenereerd. `audit-production` en `npm audit --omit=dev` groen (0), patch past schoon
+toe, productiebuild groen. Geen functionele wijziging.
+[Scope](docs/progress/2026-10-06-audit-prod-deps.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
