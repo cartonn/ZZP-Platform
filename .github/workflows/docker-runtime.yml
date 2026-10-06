@@ -41,13 +41,14 @@ jobs:
     env:
       SMOKE_SHA: ${{ github.event.pull_request.head.sha }}
       SMOKE_PREFIX: handslag-runtime-${{ github.run_id }}-${{ github.run_attempt }}
-      SMOKE_LOG_DIR: ${{ runner.temp }}/docker-runtime-smoke
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: Build and exercise the exact PR image with disposable PostgreSQL
+        env:
+          SMOKE_LOG_DIR: ${{ runner.temp }}/docker-runtime-smoke
         run: bash scripts/docker-runtime-smoke.sh
       - name: Remove disposable containers and network even after cancellation
         if: always()
