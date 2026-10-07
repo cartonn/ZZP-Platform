@@ -20,7 +20,7 @@ if (mode === "tree") {
   ]) {
     assert.equal(existsSync(`node_modules/${name}`), false, `${name} must be pruned`);
   }
-  for (const name of ["prisma", "dotenv", "tsx", "@prisma/client", "deepmerge-ts"]) {
+  for (const name of ["prisma/build/index.js", "dotenv", "tsx", "@prisma/client", "deepmerge-ts"]) {
     assert.ok(require.resolve(name), `${name} must remain available`);
   }
   const lock = JSON.parse(readFileSync("package-lock.json", "utf8"));
