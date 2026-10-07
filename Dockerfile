@@ -15,10 +15,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
+# De Next-patch moet aanwezig zijn wanneer postinstall patch-package uitvoert.
+COPY patches ./patches/
 # --legacy-peer-deps: next-auth (beta) declareert nodemailer@^7 als peer, wij draaien de
 # gepatchte nodemailer@8 (CVE-fix). De lockfile is hiermee consistent; zonder de vlag
 # faalt npm install in de schone Docker-omgeving op ERESOLVE.
-RUN npm install --no-audit --no-fund --legacy-peer-deps
+RUN npm ci --include=dev --no-audit --no-fund --legacy-peer-deps
 
 COPY . .
 
@@ -28,6 +30,11 @@ RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholde
   && DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public" \
   AUTH_SECRET="build-time-placeholder-secret-32chars-min" \
   npm run build
+
+# Verwijder bouwgereedschap daadwerkelijk uit de gekopieerde runtime-boom. Prisma,
+# dotenv en tsx blijven behouden voor preflight, migraties en de achtergrond-seed.
+# Geen lifecycle-scripts: de Next-patch en gegenereerde Prisma-client blijven intact.
+RUN npm prune --omit=dev --ignore-scripts --legacy-peer-deps --no-audit --no-fund
 
 # Build-tijd voor /api/health (builtAt) — zichtbaar naast de commit-SHA zodat een verouderde deploy
 # opvalt (incident 2-9-2026: productie draaide drie weken op een oude build, "status: ok" alleen
