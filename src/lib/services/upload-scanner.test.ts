@@ -190,14 +190,14 @@ describe("assertUploadClean — aflever-heartbeat wiring", () => {
     expect(recordFailure).not.toHaveBeenCalled();
   });
 
-  it("verdict 'error' (onherkenbare respons) registreert een mislukking, zonder de flow te wijzigen", async () => {
+  it("verdict 'error' registreert een mislukking en weigert standaard", async () => {
     await expect(
       assertUploadClean(
         bytes,
         target,
         clamav({ verdict: "error", scanner: "clamav", message: "leeg" }),
       ),
-    ).resolves.toBeUndefined();
+    ).rejects.toBeInstanceOf(UploadValidationError);
     expect(recordFailure).toHaveBeenCalledTimes(1);
     expect(recordSuccess).not.toHaveBeenCalled();
   });
@@ -214,5 +214,39 @@ describe("assertUploadClean — aflever-heartbeat wiring", () => {
     await assertUploadClean(bytes, target, noop({ verdict: "skipped", scanner: "noop" }));
     expect(recordSuccess).not.toHaveBeenCalled();
     expect(recordFailure).not.toHaveBeenCalled();
+  });
+});
+
+describe("scanner-response error policy", () => {
+  it.each(["INSTREAM size limit exceeded ERROR\0", "\0\0", "unexpected response"])(
+    "rejects undecidable response %j before the caller can store bytes",
+    async (raw) => {
+      delete process.env.UPLOAD_SCAN_FAIL_OPEN;
+      const put = vi.fn();
+      const upload = async () => {
+        await assertUploadClean(bytes, target, new ClamAvUploadScanner(async () => raw));
+        put(bytes);
+      };
+      await expect(upload()).rejects.toBeInstanceOf(UploadValidationError);
+      expect(put).not.toHaveBeenCalled();
+    },
+  );
+
+  it("allows a response error only with explicit fail-open", async () => {
+    process.env.UPLOAD_SCAN_FAIL_OPEN = "true";
+    await expect(
+      assertUploadClean(bytes, target, new ClamAvUploadScanner(async () => "stream: ERROR\0")),
+    ).resolves.toBeUndefined();
+  });
+
+  it("still rejects an infected response with fail-open enabled", async () => {
+    process.env.UPLOAD_SCAN_FAIL_OPEN = "true";
+    await expect(
+      assertUploadClean(
+        bytes,
+        target,
+        new ClamAvUploadScanner(async () => "stream: Eicar FOUND\0"),
+      ),
+    ).rejects.toBeInstanceOf(UploadValidationError);
   });
 });

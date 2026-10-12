@@ -7800,3 +7800,14 @@ design, A07 auth failures, A09 logging) + AVG art. 5/15/17/30 als kader.
 - **Cron-auth, deeltoken, wachtwoordherstel, document-/media-serving, tenant-isolatie** (franchise/
   admin-actions) — geverifieerd correct (timing-safe vergelijkingen, ownership/`assertSameTenant`,
   geen informatielek). Schoon.
+
+## Ronde 2026-10-12 14:00 UTC — scannerfouten (#1576)
+
+Basis main `0b73d06be371a7a45a4b7fed712bc1fb0222ef01`. MIDDEL: een ClamAV-verdict
+`error` registreerde een afleverstoring maar liet de upload doorgaan. Bereikbaar via
+de geautoriseerde document-, certificaat- en logo-upload als de geconfigureerde scanner
+een ERROR, lege of onbekende respons teruggeeft. Geen productie-incident aangetoond.
+Herstel gebouwd: dezelfde expliciete fail-open-keuze als bij netwerkfouten; noop intact.
+Vier regressies rood vóór herstel, 56 gerichte tests groen erna. Nog niet gemerged of
+live geverifieerd; volledige checks en onafhankelijke review volgen.
+[Scope en bewijs](progress/2026-10-12-upload-scan-errors.md).
