@@ -198,11 +198,21 @@ export async function assertUploadClean(
 
   // Een verdict "error" betekent dat clamd wél antwoordde maar met een onherkenbare/lege respons (bv.
   // kapotte virusdefinities): het kanaal levert geen echt oordeel. Registreer als afleverstoring (de
-  // controle-flow blijft ongewijzigd — dit voegt alleen zichtbaarheid toe). Een beslissend verdict
+  // upload wordt hieronder standaard geweigerd). Een beslissend verdict
   // (clean/infected) bewijst dat de scanner bereikbaar én operationeel is → success.
   if (isRealScanner) {
     if (result.verdict === "error") await recordUploadScanDeliveryFailure();
     else await recordUploadScanDeliverySuccess();
+  }
+
+  if (result.verdict === "error") {
+    if (uploadScanFailOpen()) {
+      logger.warn("upload-scan-degraded", { scanner: scanner.name, failOpen: true });
+      return;
+    }
+    throw new UploadValidationError(
+      "Dit bestand kon niet op malware worden gecontroleerd. Probeer het later opnieuw.",
+    );
   }
 
   if (result.verdict === "infected") {

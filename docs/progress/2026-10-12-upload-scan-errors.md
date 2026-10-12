@@ -9,5 +9,9 @@ Scope: `src/lib/services/upload-scanner.ts`, bijbehorende tests en voortgang/bac
 Scannerfouten moeten dezelfde expliciete fail-open-keuze volgen als netwerkfouten.
 Noop en echte integratieconfiguratie blijven intact. Geen afhankelijkheden of UI.
 
-Status: geclaimd; implementatie, regressie, volledige validatie en onafhankelijke
-review volgen. Geen merge of live-verificatie.
+Status: geïmplementeerd in #1576. Vier regressies falen op de oorspronkelijke code;
+56 gerichte tests slagen na herstel. ERROR, lege en onbekende scannerrespons weigeren
+standaard; expliciet fail-open laat een scannerfout door, maar nooit een besmet bestand.
+Netwerkfouten, noop en schone bestanden behouden hun gedrag. Scannerrespons wordt niet
+in de foutmelding of nieuwe logging opgenomen. Volledige validatie en onafhankelijke
+review volgen; geen merge of live-verificatie.

@@ -1,3 +1,10 @@
+## 12 oktober — upload weigeren bij scannerfout (#1576)
+
+ClamAV-error volgde de standaard fail-closed-keuze niet. Herstel behoudt noop en
+expliciet fail-open; besmette bestanden blijven geweigerd. Vier regressies rood vóór
+herstel, 56 gerichte tests groen erna. Volledige validatie/review volgen; niet gemerged.
+[Bewijs](docs/progress/2026-10-12-upload-scan-errors.md).
+
 ## 30 september — ingestelde DBA-drempels in beheeroverzicht (#1539)
 
 Eén configuratielezing voedt SQL-filter/telling en rijbadges. Zes regressies rood vóór herstel; echte SQLite-dekking voor lagere/hogere, gelijke en oude omgekeerde grenzen, kalendergrenzen, vlaggen en paginering. 16 gerichte en 9.244 volledige tests groen (3 bestaande skips); lint/types/format en productiebuild groen. Onafhankelijke review en CI volgen. [Scope](docs/progress/2026-09-30-admin-dba-thresholds.md).
